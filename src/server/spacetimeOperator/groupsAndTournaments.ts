@@ -49,6 +49,12 @@ const sealedEvent = z.object({
     .nullable()
     .transform((value) => value ?? false),
   roundEndsAt: z.number().int().nullable(),
+  // Absent from a module released before organizers set a chess clock.
+  clockLimitMinutes: z
+    .number()
+    .int()
+    .nullish()
+    .transform((value) => value ?? null),
   playsAt: z.number().int().nullable(),
   sealBy: z.number().int().nullable(),
   remindedAt: z.number().int().nullable(),
@@ -162,6 +168,12 @@ const groupLeague = z.object({
   createdAt: z.number().int(),
   publishedAt: z.number().int().nullable(),
   deadlines: z.array(z.number().int().nullable()),
+  // Absent from a module released before organizers set a chess clock.
+  clockLimitMinutes: z
+    .number()
+    .int()
+    .nullish()
+    .transform((value) => value ?? null),
   players: z.array(z.object({ userId: z.string(), withdrawn: z.boolean() })),
   fixtures: z.array(
     z.object({

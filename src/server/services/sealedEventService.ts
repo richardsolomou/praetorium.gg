@@ -41,7 +41,7 @@ export class SealedEventService {
 
   async createTournament(
     ownerId: string,
-    input: TournamentDetails & EventRuleInput & { ownerPlays: boolean; schedule?: SealedEventSchedule },
+    input: TournamentDetails & EventRuleInput & { ownerPlays: boolean; schedule?: SealedEventSchedule; clockLimitMinutes?: number | null },
   ) {
     const { format, rosterLimit, allowances, rounds, pointsBudget, soloPoints, allyPoints, sharedPoints, ...details } = input
     const token = offlineIdentifier('tournamentToken', randomToken)
@@ -69,11 +69,13 @@ export class SealedEventService {
       groupToken,
       schedule,
       timeZone,
+      clockLimitMinutes,
       ...input
     }: Omit<EventRuleInput, 'rounds'> & {
       groupToken: string
       timeZone?: string
       schedule?: SealedEventSchedule
+      clockLimitMinutes?: number | null
     },
   ) {
     const token = randomToken()
@@ -84,6 +86,7 @@ export class SealedEventService {
       ownerId,
       schedule,
       timeZone,
+      clockLimitMinutes,
       ...eventRule(input),
       now: this.clock(),
     })
@@ -91,7 +94,7 @@ export class SealedEventService {
     return { token }
   }
 
-  /** Saves a tournament's details when given, and the event's rule and schedule, together or not at all. */
+  /** Saves a tournament's details when given, and the event's rule, schedule and chess clock, together or not at all. */
   async updateSealedEvent(
     token: string,
     ownerId: string,
@@ -99,6 +102,7 @@ export class SealedEventService {
       details?: TournamentDetails
       rule?: EventRuleInput & { format: TableShape; rosterLimit: number }
       schedule?: SealedEventSchedule
+      clockLimitMinutes?: number | null
     },
   ) {
     const result = await this.repository.updateSealedEvent(token, ownerId, { ...input, rule: input.rule && eventRule(input.rule) })

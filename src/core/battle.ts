@@ -549,6 +549,8 @@ export type Command =
   | { kind: 'set-battlefield'; patternId: string; terrainLayoutId: string }
   /** The organizer's battlefield for a tournament table, which its players can't change. */
   | { kind: 'fix-battlefield'; patternId: string; terrainLayoutId: string }
+  /** The organizer's chess clock limit for an event's battle, which its players can't change; null hands the choice back to them. */
+  | { kind: 'fix-clock'; minutes: number | null }
   | ({
       kind: 'set-prep'
       stratagems: Stratagem[]
@@ -686,6 +688,7 @@ export type RefusalCode =
   | 'invalid-transport'
   | 'sealed-event-sealed'
   | 'battlefield-fixed'
+  | 'clock-fixed'
   | 'organizer-only'
   | 'not-a-tournament-table'
   | 'manual-tracking'
@@ -879,6 +882,8 @@ export type BattleState = {
   sealedEventToken: string | null
   /** An organizer chose this battlefield, so the players can't change it. */
   battlefieldFixed: boolean
+  /** An organizer set the chess clock limit, so the players can't change it. */
+  clockFixed: boolean
   /** What a reported score replaced, so reopening it puts the table back where it was. */
   beforeReport: ReportedFrom | null
   eventToken: string | null
@@ -971,7 +976,8 @@ export function applyEntry(state: BattleState, entry: LoggedCommand) {
   if (
     entry.command.kind === 'begin-battle' ||
     entry.command.kind === 'lock-sealed-event-rosters' ||
-    entry.command.kind === 'fix-battlefield'
+    entry.command.kind === 'fix-battlefield' ||
+    entry.command.kind === 'fix-clock'
   )
     state.undoable = null
   else if (
@@ -1064,6 +1070,7 @@ export function emptyBattle(
     deploymentId: null,
     sealedEventToken: null,
     battlefieldFixed: false,
+    clockFixed: false,
     beforeReport: null,
     eventToken: null,
     groupId: null,
@@ -1131,6 +1138,10 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
     if (!organizer) return refuse('organizer-only', 'only the organizer can set this battlefield')
     return state.status === 'setup' ? null : refuse('battle-started', 'the battle has started')
   }
+  if (command.kind === 'fix-clock') {
+    if (!organizer) return refuse('organizer-only', 'only the organizer can set this chess clock')
+    return state.status === 'setup' ? null : refuse('battle-started', 'the battle has started')
+  }
   const actor = state.players.find((candidate) => candidate.id === by)
   if (!actor)
     return organizer && command.kind === 'reopen-battle' ? reopenRefusal(state) : refuse('not-seated', 'you are not in this battle')
@@ -1151,6 +1162,8 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
         (command.terrainLayoutId !== state.settings.terrainLayoutId || command.missionPackId !== state.settings.missionPackId)
       )
         return refuse('battlefield-fixed', 'the organizer set this battlefield')
+      if (state.clockFixed && command.clockLimitMinutes !== (state.settings.clockLimitMinutes ?? null))
+        return refuse('clock-fixed', 'the organizer set this chess clock')
       if (command.manual && state.sealedEventToken) return refuse('sealed-event-sealed', 'this battle plays its event’s mission pack')
       if (command.manual && state.groupId) return refuse('group-ineligible', 'a battle counting for a group keeps its missions and scoring')
       if (command.manual && (command.missionPackId || command.twistId || command.terrainLayoutId))
@@ -1694,6 +1707,12 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
     state.deploymentId = command.patternId
     state.settings.terrainLayoutId = command.terrainLayoutId
     state.battlefieldFixed = true
+    return
+  }
+  if (command.kind === 'fix-clock') {
+    if (command.minutes) state.settings.clockLimitMinutes = command.minutes
+    else delete state.settings.clockLimitMinutes
+    state.clockFixed = command.minutes !== null
     return
   }
   const actor = state.players.find((candidate) => candidate.id === by)

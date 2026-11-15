@@ -317,6 +317,8 @@ const sealedEvents = table(
     roundEndsAt: t.option(t.u64()).default(undefined),
     /** Swiss ties break on strength of schedule before victory points; absent breaks them the other way. */
     scheduleFirst: t.option(t.bool()).default(undefined),
+    /** Each side's chess clock time for the event's battles, which their players can't change; absent leaves it to each table. */
+    clockLimitMinutes: t.option(t.u32()).default(undefined),
   },
 )
 
@@ -511,6 +513,8 @@ const groupLeagues = table(
     deadlines: t.option(t.string()),
     /** A JSON array, in step with `deadlines`, of the deadline each round's players were last reminded of, so each reminder goes out once. */
     remindedDeadlines: t.option(t.string()).default(undefined),
+    /** Each side's chess clock time for the league's battles, which their players can't change; absent leaves it to each table. */
+    clockLimitMinutes: t.option(t.u32()).default(undefined),
   },
 )
 

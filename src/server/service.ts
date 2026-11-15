@@ -222,6 +222,7 @@ export class PraetoriumService {
           ...(settings.manual ? { manual: true } : {}),
         },
         ...(group ? [{ kind: 'set-battle-group' as const, groupId: group.id }] : []),
+        ...(fixture && league?.clockLimitMinutes ? [{ kind: 'fix-clock' as const, minutes: league.clockLimitMinutes }] : []),
       ],
       now: offlineContext.getStore()?.createdAt ?? this.clock(),
       fixtureKey,

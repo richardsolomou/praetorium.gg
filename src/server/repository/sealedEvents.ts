@@ -54,6 +54,7 @@ export function withSealedEvents<B extends RepositoryBase>(Base: B) {
       allyPoints?: number | null
       sharedPoints?: boolean
       schedule?: SealedEventSchedule
+      clockLimitMinutes?: number | null
       now: number
     }) {
       return this.product.sealedEventCommand(
@@ -76,6 +77,7 @@ export function withSealedEvents<B extends RepositoryBase>(Base: B) {
       allyPoints?: number | null
       sharedPoints?: boolean
       schedule?: SealedEventSchedule
+      clockLimitMinutes?: number | null
       now: number
     }) {
       return this.product.sealedEventCommand(
@@ -84,7 +86,7 @@ export function withSealedEvents<B extends RepositoryBase>(Base: B) {
       )
     }
 
-    /** Saves what is given: a tournament's details, the event's rule and its schedule, together or not at all. */
+    /** Saves what is given: a tournament's details, the event's rule, its schedule and its chess clock, together or not at all. */
     updateSealedEvent(
       token: string,
       ownerId: string,
@@ -107,6 +109,7 @@ export function withSealedEvents<B extends RepositoryBase>(Base: B) {
           sharedPoints?: boolean
         }
         schedule?: SealedEventSchedule
+        clockLimitMinutes?: number | null
       },
     ) {
       return this.product.sealedEventCommand(
@@ -356,6 +359,7 @@ export function withSealedEvents<B extends RepositoryBase>(Base: B) {
         remindedAt: event.remindedAt,
         roundEndsAt: event.roundEndsAt,
         scheduleFirst: event.scheduleFirst,
+        clockLimitMinutes: event.clockLimitMinutes,
         pairings,
         battlefields: record.battlefields,
         occupiedCount: entries.filter((entry) => entry.status !== 'rejected').length,
@@ -623,6 +627,7 @@ export function withSealedEvents<B extends RepositoryBase>(Base: B) {
         revealedAt: event.revealedAt,
         rounds: event.rounds,
         paired: Boolean(pairing),
+        clockLimitMinutes: event.clockLimitMinutes,
         battlefield:
           record.battlefields.find(({ round, table }) => round === (pairing?.round ?? 0) && table === (pairing?.table ?? 0)) ?? null,
         entries: entries.map((entry) => ({

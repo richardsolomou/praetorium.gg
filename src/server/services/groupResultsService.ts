@@ -185,6 +185,7 @@ export class GroupResultsService {
       organizer: group.organizer,
       players: league.players,
       deadlines: league.deadlines,
+      clockLimitMinutes: league.clockLimitMinutes,
       fixtures,
       table: published
         ? swissStandings(

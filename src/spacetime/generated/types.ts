@@ -317,6 +317,7 @@ export const GroupLeagues = __t.object('GroupLeagues', {
   publishedAt: __t.option(__t.u64()),
   deadlines: __t.option(__t.string()),
   remindedDeadlines: __t.option(__t.string()),
+  clockLimitMinutes: __t.option(__t.u32()),
 })
 export type GroupLeagues = __Infer<typeof GroupLeagues>
 
@@ -645,6 +646,7 @@ export const SealedEvents = __t.object('SealedEvents', {
   sharedPoints: __t.option(__t.bool()),
   roundEndsAt: __t.option(__t.u64()),
   scheduleFirst: __t.option(__t.bool()),
+  clockLimitMinutes: __t.option(__t.u32()),
 })
 export type SealedEvents = __Infer<typeof SealedEvents>
 

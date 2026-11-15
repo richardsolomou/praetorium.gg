@@ -8,6 +8,7 @@ import { SealedEventView, type TournamentBattlesSearch } from './SealedEventView
 import type { BattleListSearch } from '../battles/battleSearch'
 import type { BattleOrder } from '../../../core/battleFilter'
 import { EventSchedule } from './EventSchedule'
+import { clockLimitLabel } from '../../components/ClockLimitChoice'
 import { accessSummary, OrganizerLinks, VisibilityIcon } from './EventAccess'
 import { eventName, sealedEventAllowances, sealedEventNoun, sealedEventPhase, sealedEventPlayers, type SealedEvent } from './sealedEvent'
 import { countLabel } from '../../text'
@@ -89,6 +90,7 @@ function SealedEventScreen({
               sealedEvent.group ? null : sealedEventFormat(sealedEvent),
               sealedEvent.rounds ? `Swiss, ${countLabel(sealedEvent.rounds, 'round')}` : null,
               sealedEventAllowances(sealedEvent),
+              sealedEvent.clockLimitMinutes ? `Chess clock ${clockLimitLabel(sealedEvent.clockLimitMinutes)}` : null,
               sealedEventPlayers(sealedEvent, accepted),
             ]
               .filter(Boolean)

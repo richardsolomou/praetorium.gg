@@ -34,6 +34,8 @@ Everyone seals a list in secret, then you reveal them together. An organizer set
 2. Press **Set up game** and pick a format: a duel, solo vs pair, or doubles. Points and house rules work as they do in a tournament (see [Run a tournament](/docs/run-a-tournament)).
 3. Everyone seals their list from **Up next** on **Overview**.
 
+To have every battle play to the same chess clock, choose each side's time under **Chess clock** in the game's settings.
+
 In a duel, any member seals a list. After the reveal, use **Play** beside the person you're playing that evening. Nobody has to play every participant.
 
 In solo vs pair and doubles, pick your side with **Join**, then seal a list for it. A solo vs pair game plays 2,000 against 2,000, with the pair spending its 2,000 between them however they agree. Each pair chooses its Force Disposition and whose Warlord leads before the reveal. Afterwards, **Start battle** sets up the one battle between the sides. Results go on the group's leaderboard.
@@ -68,6 +70,8 @@ A league is a round robin: everyone who joins plays every other player once, one
 Only organizers see the draft fixtures. **Draw again** shuffles them, and the same draw stays until someone joins, leaves or it's drawn again. With an odd number of players, each player has one bye. Fixture games also count on the group's leaderboard.
 
 An organizer can set a deadline for each round. A game not finished by then shows as **Overdue**. Nothing is scored for it. About a day before a deadline, both players of each game in that round that isn't finished get a notification. A moved deadline sends a new one. To see the deadlines in your own calendar app, see [Add dates to your calendar](/docs/calendar).
+
+An organizer can also press **Set chess clock** to give each side the same time in every fixture. Fixtures that haven't started play to it, and their players can't change it.
 
 On the table, a win or a bye is worth 3 points and a draw 1. Ties are broken by victory points, then by the points of everyone you've played. Every bye counts from the start.
 

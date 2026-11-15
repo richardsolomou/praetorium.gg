@@ -21,6 +21,7 @@ import { pointsBudgetError } from '../../../core/battle'
 import type { TableShape } from '../../../core/tableShape'
 import { AdminsField, type AdminPerson } from '../../components/AdminsField'
 import { Choice } from '../../components/Choice'
+import { ClockLimitChoice } from '../../components/ClockLimitChoice'
 import { inputMoment, momentFromInput } from '../../dates'
 import { friendshipsQuery } from '../../queries'
 import { SealedEventRuleFields, GROUP_ROSTER_RULE, ROSTER_RULE } from './SealedEventRuleFields'
@@ -42,6 +43,7 @@ export type SealedEventFormValue = {
   sharedPoints: boolean
   playsAt: number | null
   sealBy: number | null
+  clockLimitMinutes: number | null
 }
 
 /**
@@ -143,6 +145,12 @@ export function SealedEventFormFields({
         )}
       </div>
       <ScheduleFields idPrefix={idPrefix} value={value} tournament={tournament} disabled={disabled} onChange={onChange} />
+      <ClockLimitChoice
+        value={value.clockLimitMinutes}
+        none={{ name: 'Players choose', detail: 'Each table sets its own' }}
+        disabled={disabled}
+        onChange={(clockLimitMinutes) => onChange({ ...value, clockLimitMinutes })}
+      />
       {ownerPlays === undefined ? null : (
         <div className="flex items-center gap-3">
           <Switch id={`${idPrefix}-owner-plays`} checked={ownerPlays} disabled={disabled} onCheckedChange={onOwnerPlaysChange} />

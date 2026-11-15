@@ -7,6 +7,7 @@ import { captureMutation } from '../mutationTelemetry'
 import {
   groupBattlesSchema,
   groupMemberSchema,
+  groupLeagueClockSchema,
   groupLeagueDeadlineSchema,
   createGroupSchema,
   moderateGroupMemberSchema,
@@ -89,6 +90,16 @@ export const setGroupLeagueDeadline = createServerFn({ method: 'POST' })
       const userId = await requireUserId()
       await app().service.groupService.setLeagueDeadline(data.token, userId, data.round, data.deadline)
       await captureMutation(userId, 'group_league_deadline_set', { round: data.round, cleared: data.deadline === null })
+    }),
+  )
+
+export const setGroupLeagueClock = createServerFn({ method: 'POST' })
+  .validator(groupLeagueClockSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const userId = await requireUserId()
+      await app().service.groupService.setLeagueClock(data.token, userId, data.minutes)
+      await captureMutation(userId, 'group_league_clock_set', { minutes: data.minutes })
     }),
   )
 

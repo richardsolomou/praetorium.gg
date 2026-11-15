@@ -34,6 +34,8 @@ export type SealedEventBattleSetup = {
   /** Swiss rounds, or null in open play; a Swiss battle needs the players' unplayed table in the current round. */
   rounds: number | null
   paired: boolean
+  /** Each side's chess clock time the organizer set for every battle, if any. */
+  clockLimitMinutes?: number | null
   /** What the organizer set for this table, if anything. */
   battlefield?: { patternId: string; terrainLayoutId: string } | null
   /**
@@ -220,6 +222,7 @@ export function buildSealedEventBattle(
       ...sealedWarlords(sealedEvent, [userId, ...allyIds], opponentIds),
     },
     ...(sealedEvent.battlefield ? [{ kind: 'fix-battlefield' as const, ...sealedEvent.battlefield }] : []),
+    ...(sealedEvent.clockLimitMinutes ? [{ kind: 'fix-clock' as const, minutes: sealedEvent.clockLimitMinutes }] : []),
   ]
   return {
     allyIds,

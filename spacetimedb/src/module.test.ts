@@ -76,6 +76,7 @@ function insertTournament(ctx: Ctx, event: Partial<SealedEvent> = {}) {
     remindedAt: undefined,
     roundEndsAt: undefined,
     scheduleFirst: undefined,
+    clockLimitMinutes: undefined,
     sharedPoints: undefined,
     ...event,
   })
@@ -911,6 +912,18 @@ describe('group leagues', () => {
     expect(pastLeagues).toEqual([])
   })
 
+  it('starts a fixture on the league’s chess clock even when the server built it without one', () => {
+    const league = setup()
+    league.command({ op: 'league-clock', actorId: 'owner', minutes: 90 })
+    league.publish()
+    const { key, aId, bId } = league.game()
+    league.start(key, aId, bId!)
+    const logged = league.host.call(league.host.operator, (ctx) =>
+      Array.from(ctx.db.commands.battleId.filter(`battle-${key}`)).map((row) => JSON.parse(row.body) as unknown),
+    )
+    expect(logged.at(-1)).toEqual({ kind: 'fix-clock', minutes: 90 })
+  })
+
   it('lets only an organizer draw a league', () => {
     expect(setup().command({ op: 'league-draw', actorId: 'a', leagueId: 'other', seed: 1, now: NOW })).toBe('forbidden')
   })
@@ -1644,6 +1657,63 @@ describe('friends’ sealed rosters', () => {
     expect([refused, applied, logged.at(-1)]).toEqual(['forbidden', 'set', 'fix-battlefield'])
     command({ token: 'game', op: 'unseal', ownerId: 'viewer', userId: 'friend' })
     expect(fixture.call(fixture.operator, (ctx) => Array.from(ctx.db.eventBattlefields.eventId.filter('game-id')).length)).toBe(0)
+  })
+
+  it('hands a hidden-list game’s chess clock to its battle still in setup', () => {
+    const fixture = setup()
+    const now = Date.parse('2026-10-25T19:00:00Z')
+    fixture.at(now / 1000)
+    const command = (input: Record<string, unknown>) =>
+      JSON.parse(module.sealedEventCommand(fixture.procedure(fixture.operator), { payload: JSON.stringify(input) })) as unknown
+    module.groupCommand(fixture.procedure(fixture.operator), {
+      payload: JSON.stringify({
+        token: 'group',
+        op: 'create',
+        id: 'group-id',
+        ownerId: 'viewer',
+        now,
+        name: 'Group',
+        description: '',
+        visibility: 'private',
+        admission: 'automatic',
+      }),
+    })
+    module.groupCommand(fixture.procedure(fixture.operator), {
+      payload: JSON.stringify({ token: 'group', op: 'join', userId: 'friend', now }),
+    })
+    command({
+      op: 'create-hidden-list-game',
+      eventId: 'game-id',
+      eventToken: 'game',
+      groupToken: 'group',
+      ownerId: 'viewer',
+      format: '1v1',
+      rosterLimit: 2000,
+      now,
+      timeZone: 'UTC',
+    })
+    fixture.call(fixture.operator, (ctx) => {
+      ctx.db.sealedEvents.id.update({ ...ctx.db.sealedEvents.id.find('game-id')!, revealedAt: BigInt(now) })
+      fixture.enter(ctx, 'game-id')
+    })
+    command({
+      token: 'game',
+      op: 'create-battle',
+      ownerId: 'viewer',
+      userId: 'viewer',
+      id: 'battle',
+      battleToken: 'battle',
+      allyIds: [],
+      opponentIds: ['friend'],
+      initialCommands: [],
+      now,
+      expectedEntries: ['friend', 'viewer'].map((userId) => ({ userId, snapshot })),
+    })
+    command({ token: 'game', op: 'update', ownerId: 'viewer', clockLimitMinutes: 90 })
+    const logged = fixture.call(fixture.operator, (ctx) =>
+      Array.from(ctx.db.commands.battleId.filter('battle')).map((row) => JSON.parse(row.body) as unknown),
+    )
+    expect(logged.at(-1)).toEqual({ kind: 'fix-clock', minutes: 90 })
   })
 
   it('counts a group game’s players as playing again when the end of their battle is undone', () => {

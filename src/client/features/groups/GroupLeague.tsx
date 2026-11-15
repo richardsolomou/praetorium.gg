@@ -1,12 +1,13 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { CalendarClock, EllipsisVertical, LogOut, Send, Shuffle, Swords, Trash2, Trophy, UserPlus } from 'lucide-react'
+import { CalendarClock, EllipsisVertical, Timer, LogOut, Send, Shuffle, Swords, Trash2, Trophy, UserPlus } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { GROUP_LEAGUE_PLAYERS_MIN, leagueFixtureOverdue } from '../../../core/groupLeague'
+import { ClockLimitChoice, clockLimitLabel } from '../../components/ClockLimitChoice'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { Problem } from '../../components/Problem'
 import { SectionHeading } from '../../components/SectionHeading'
@@ -18,6 +19,7 @@ import {
   joinGroupLeague,
   leaveGroupLeague,
   publishGroupLeague,
+  setGroupLeagueClock,
   setGroupLeagueDeadline,
   type groupLeague,
 } from '../../functions'
@@ -175,6 +177,7 @@ function DraftLeague({ group, league, viewerId, member }: { group: Group; league
         ) : null}
       </div>
       {error ? <Problem error={error} className="mt-2" /> : null}
+      <LeagueClock group={group} league={league} />
       {league.organizer && ready ? <Rounds group={group} league={league} viewerId={viewerId} now={0} /> : null}
       <ConfirmDialog
         open={confirming === 'publish'}
@@ -259,6 +262,7 @@ function PublishedLeague({ group, league, viewerId }: { group: Group; league: Le
           ) : null}
           . Play rounds in any order.
         </p>
+        <LeagueClock group={group} league={league} />
         <Rounds group={group} league={league} viewerId={viewerId} now={now} />
       </div>
       <ConfirmDialog
@@ -404,6 +408,54 @@ function FixtureRow({
         <span className="shrink-0 text-sm text-faint">Not started</span>
       ) : null}
     </li>
+  )
+}
+
+/** The chess clock every fixture plays to, which only organizers set; a league without one leaves it to each table. */
+function LeagueClock({ group, league }: { group: Group; league: League }) {
+  const [editing, setEditing] = useState(false)
+  const minutes = league.clockLimitMinutes
+  if (!minutes && !league.organizer) return null
+  return (
+    <div data-league-clock className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-dim">
+      <span>{minutes ? `Chess clock: ${clockLimitLabel(minutes)}.` : 'Each table sets its own chess clock.'}</span>
+      {league.organizer ? (
+        <Button variant="ghost" size="xs" onClick={() => setEditing(true)}>
+          <Timer /> {minutes ? 'Change' : 'Set chess clock'}
+        </Button>
+      ) : null}
+      {editing ? <ClockDialog group={group} minutes={minutes} onClose={() => setEditing(false)} /> : null}
+    </div>
+  )
+}
+
+function ClockDialog({ group, minutes, onClose }: { group: Group; minutes: number | null; onClose: () => void }) {
+  const refresh = useGroupRefresh(group.token)
+  const [value, setValue] = useState(minutes)
+  const save = useMutation({
+    mutationFn: () => setGroupLeagueClock({ data: { token: group.token, minutes: value } }),
+    onSettled: refresh,
+    onSuccess: onClose,
+  })
+  return (
+    <ConfirmDialog
+      title="League chess clock"
+      description="Every fixture that hasn’t started plays to it, and its players can’t change it."
+      cancel="Cancel"
+      confirm="Save chess clock"
+      pendingLabel="Saving…"
+      pending={save.isPending}
+      error={save.error}
+      onClose={onClose}
+      onConfirm={() => save.mutate()}
+    >
+      <ClockLimitChoice
+        value={value}
+        none={{ name: 'Players choose', detail: 'Each table sets its own' }}
+        disabled={save.isPending}
+        onChange={setValue}
+      />
+    </ConfirmDialog>
   )
 }
 

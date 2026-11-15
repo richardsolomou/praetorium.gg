@@ -10,8 +10,9 @@ To see one first, open the [sample tournament](/tournaments/sample). For a one-o
 4. Under **Pairing**, choose **Open play** to let players pick who to play, as often as they like, or **Swiss rounds** to pair each round yourself and set how many there are.
 5. Under **House rules**, allow anything beyond matched play. Everything off is matched play.
 6. Add **Played on** and **Seal rosters by** dates if you want them.
-7. Turn on **I'm playing too** if you're also playing.
-8. Press **Create tournament**.
+7. Under **Chess clock**, choose each side's time for every battle, or leave **Players choose** to let each table set its own.
+8. Turn on **I'm playing too** if you're also playing.
+9. Press **Create tournament**.
 
 In **House rules**, untick a restriction, such as **Points limit** or **Warlord**, to let lists switch it off. Tick **Legends** or **Crucible** to let lists include those datasheets. A list that needs anything you left off can't be sealed.
 
@@ -21,7 +22,7 @@ Players see dates in their own timezone. After the **Seal rosters by** deadline 
 
 ### Changing things later
 
-Once anyone seals a roster, the format, battle size, pairing and points total lock. The solo player's points, doubles points per army, **Allies split their points** and house rules can still change until the reveal, as long as every sealed roster still fits them. If one doesn't, ask its player to seal a roster that does. Everything else can change at any time from **Edit tournament**.
+Once anyone seals a roster, the format, battle size, pairing and points total lock. The solo player's points, doubles points per army, **Allies split their points** and house rules can still change until the reveal, as long as every sealed roster still fits them. If one doesn't, ask its player to seal a roster that does. Everything else can change at any time from **Edit tournament**. A new chess clock applies to every battle that hasn't started, and battles already underway keep theirs.
 
 ## Fill it
 
