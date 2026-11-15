@@ -1,5 +1,20 @@
 # praetorium
 
+## 0.254.0 (2026-11-15)
+
+### Minor Changes
+
+- 54287c8: Open the list a player fielded from **Roster** under their name in a battle, even when their saved roster is private.
+- 54287c8: Searching Public, Friends and Played rosters now finds lists by faction and detachment, and played armies by the factions they faced, such as `vs Orks`.
+- 54287c8: Search other players' public rosters and played armies, or paste a roster link, to simulate rosters that aren't yours.
+
+### Patch Changes
+
+- 54287c8: Simulate a list opened from a battle as it was played, and share that matchup by link, even when its saved roster is private.
+- 54287c8: Rename a battle's **Army** button to **Units**, and leave points off the units it shows.
+- 54287c8: Duplicate a list opened from a battle as it was fielded, and stop offering a link to its saved roster.
+- 54287c8: Save a loadout or report a problem from a unit on someone else's roster.
+
 ## 0.253.2 (2026-11-15)
 
 ### Patch Changes
