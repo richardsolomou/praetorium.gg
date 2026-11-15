@@ -10,6 +10,7 @@ import {
   shareBattleLink,
   signUp,
   uniqueName,
+  expandStep,
 } from './account'
 
 test('a draft battle fills through its link and leaves the drafts once every army is in', async ({ browser }) => {
@@ -26,6 +27,7 @@ test('a draft battle fills through its link and leaves the drafts once every arm
   const draft = host.getByRole('heading', { name: /^Set up the battle/ }).getByText('Draft', { exact: true })
   await expect(draft).toBeVisible()
   // Guided is chosen from the start, so the Opponent step is open without answering Tracking.
+  await expandStep(host, 'format')
   await expect(
     host.locator('#setup-format').getByRole('group', { name: 'How you track it' }).getByRole('button', { pressed: true }),
   ).toHaveText(/^Guided/)
