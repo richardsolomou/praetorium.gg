@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.247.9 (2026-11-15)
+
+### Patch Changes
+
+- e88e3cb: A Noxious Blightbringer can join Poxwalkers or Plague Marines that another Leader, such as Typhus, already leads.
+
 ## 0.247.8 (2026-11-15)
 
 ### Patch Changes
