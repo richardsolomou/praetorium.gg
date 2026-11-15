@@ -1,5 +1,18 @@
 # praetorium
 
+## 0.248.0 (2026-11-15)
+
+### Minor Changes
+
+- 5795991: The unit picker marks units that many of your faction's top-four tournament lists take, and a datasheet's page shows how those lists take it.
+- 5795991: Filter the Tournament lists tab by the units a list fields.
+
+### Patch Changes
+
+- 5795991: The Tournament lists tab keeps every tournament list that is still legal under today's points, not just the last 60 days.
+- 5795991: The Winning roster tab is now Tournament lists, and says its lists finished in the top four at tournaments outside Praetorium, as published by 40k Stats.
+- e973928: The Played tab under Rosters opens quickly the first time after an update, instead of taking a few seconds.
+
 ## 0.247.9 (2026-11-15)
 
 ### Patch Changes
