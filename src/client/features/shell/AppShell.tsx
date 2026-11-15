@@ -3,7 +3,7 @@ import { offlineAssets, offlineData } from '../../offline/runtime'
 import { OfflineReference } from '../../offline/OfflineReference'
 import { WebMcp } from '../agents/WebMcp'
 import { AppPersistence } from '../../offline/AppPersistence'
-import { SelectionHaptics } from './SelectionHaptics'
+import { PressHaptics } from './PressHaptics'
 import { useQuery } from '@tanstack/react-query'
 import { HeadContent, Link, Outlet, Scripts, useLocation, useRouterState } from '@tanstack/react-router'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
@@ -406,7 +406,7 @@ function AppFrame() {
                   >
                     <OfflineReference />
                     <AppPersistence />
-                    <SelectionHaptics />
+                    <PressHaptics />
                     <SyncStatus />
                     <WebMcp />
                     <Outlet />

@@ -23,7 +23,7 @@ export type NativePushAnswer =
   | { status: 'denied' | 'undetermined' | 'unavailable' }
 
 /**
- * The feels a shell plays, one job each: `selection` a choice changing, `light` a routine command taking, `success` a
+ * The feels a shell plays, one job each: `selection` a control taking a press, `light` a routine command taking, `success` a
  * moment that counts, `warning` something refused.
  */
 export const HAPTICS = ['selection', 'light', 'success', 'warning'] as const
