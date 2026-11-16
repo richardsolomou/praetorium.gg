@@ -717,11 +717,13 @@ function joinedSplit(unit: TextRosterUnit, entryId: string, index: LoadedCatalog
     const before = joined.at(-1)
     const qualified = before && selection.model === before.name && `${before.name} (${selection.name})`
     const listed = before && selection.model === before.model && `${before.name}, ${selection.name}`
+    // ListForge's short text cuts a model's bracketed wargear at its ampersands, which can be one option's name.
+    const paired = before?.model && selection.model === before.model && `${before.name} & ${selection.name}`
     // Only a line the datasheet does not know is a cut piece: a Terminator's "Power fist" stays apart from the "Combi-bolter" before it
     // although it offers a "Combi-bolter, Power fist", and a Sicarian Ruststalker's "Transonic razor and chordclaw" is what it carries.
     const name =
       before?.count === selection.count && !known(selection.name)
-        ? [qualified, listed].find((candidate) => candidate && known(candidate))
+        ? [qualified, listed, paired].find((candidate) => candidate && known(candidate))
         : undefined
     if (before && name) before.name = name
     else joined.push({ ...selection })

@@ -1031,6 +1031,15 @@ Clanblade: Moonblades, Drakesteed Fangs and Talons, Solar Carbine + Dragon Knigh
     ).toEqual([])
   })
 
+  it('reads the one option a counted model carries in brackets with an ampersand, as "4x Sicarian Ruststalker (Transonic razor & chordclaw)"', () => {
+    expect(
+      summary(`Stalkers - Adeptus Mechanicus - Take and Hold - Haloscreed Battle Clade (75 Points)
+
+Sicarian Ruststalkers: Sicarian Ruststalker Princeps (Transonic blades & chordclaw), 4x Sicarian Ruststalker (Transonic razor & chordclaw) (75 pts)`)
+        .mismatches,
+    ).toEqual([])
+  })
+
   it('keeps apart wargear the datasheet also offers joined as one option, as a Terminator\'s "Combi-bolter" and "Power fist"', () => {
     expect(
       summary(`Terminators (195 points)
