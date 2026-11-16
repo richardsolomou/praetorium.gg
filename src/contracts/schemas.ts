@@ -273,6 +273,13 @@ export const startSealedGroupLeagueSchema = z
   })
   .superRefine((value, context) => validateSealedEventRule({ ...value, format: '1v1' }, context))
 export const groupLeagueClockSchema = z.object({ token, minutes: clockLimitMinutes.nullable() })
+/** Each player's final score, in the fixture's order. */
+export const reportFixtureResultSchema = z.object({
+  token,
+  fixture: z.string().max(300),
+  vp: z.tuple([z.number().int().min(0).max(999), z.number().int().min(0).max(999)]),
+  missionPackId: id.nullable(),
+})
 export const groupLeagueDeadlineSchema = z.object({
   token,
   round: z.number().int().min(1).max(GROUP_LEAGUE_PLAYERS_MAX),

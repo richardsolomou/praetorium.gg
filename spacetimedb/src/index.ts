@@ -470,8 +470,12 @@ function tournamentAdminIds(ctx: Context, tournamentId: string) {
 /** Everyone who runs an event: a tournament's owner and admins, or the organizers of the group whose game it is. */
 function hostOrganizerIds(ctx: Context, host: EventHost) {
   if (host.kind === 'tournament') return [host.tournament.ownerId, ...tournamentAdminIds(ctx, host.tournament.id)]
-  const members = groupMemberRows(ctx, host.group)
-  return members.filter((member) => isGroupOrganizer(host.group, members, member.userId)).map((member) => member.userId)
+  return groupOrganizerIds(ctx, host.group)
+}
+
+function groupOrganizerIds(ctx: Context, group: GroupRow) {
+  const members = groupMemberRows(ctx, group)
+  return members.filter((member) => isGroupOrganizer(group, members, member.userId)).map((member) => member.userId)
 }
 
 /** A tournament's own entry rules; a hidden-list game lets its group's members in outright, with no limit beyond the group's. */
@@ -570,10 +574,13 @@ function swissTable(ctx: Context, battleId: string) {
   if (!paired) return null
   const event = ctx.db.sealedEvents.id.find(link.eventId)
   const host = event && hostOfEvent(ctx, event)
+  // A running league's fixtures key on the league as an event's tables do on the event; an ended league's are nobody's to change.
+  const league = !event ? ctx.db.groupLeagues.id.find(link.eventId) : undefined
+  const group = league && ctx.db.groups.id.find(league.groupId)
   return {
     battleRound: paired.round,
     latestPairedRound: Math.max(...pairings.map((pairing) => pairing.round)),
-    organizerIds: host ? hostOrganizerIds(ctx, host) : [],
+    organizerIds: host ? hostOrganizerIds(ctx, host) : group ? groupOrganizerIds(ctx, group) : [],
   }
 }
 

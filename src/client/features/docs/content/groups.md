@@ -69,7 +69,7 @@ A league is a round robin: everyone who joins plays every other player once, one
 
 Only organizers see the draft fixtures. **Draw again** shuffles them, and the same draw stays until someone joins, leaves or it's drawn again. With an odd number of players, each player has one bye. Fixture games also count on the group's leaderboard.
 
-An organizer can press **Set deadline** beside each round once the league is published. A game not finished by then shows as **Overdue**. Nothing is scored for it, and it stays open to play late. A league game counts only when its battle is tracked here and finished. About a day before a deadline, both players of each game in that round that isn't finished get a notification. A moved deadline sends a new one. To see the deadlines in your own calendar app, see [Add dates to your calendar](/docs/calendar).
+An organizer can press **Set deadline** beside each round once the league is published. A game not finished by then shows as **Overdue**. Nothing is scored for it, and it stays open to play late. A league game counts when its battle is tracked here and finished, or when an organizer presses **Enter score** on it and types both scores for a game that wasn't tracked here. An entered score counts for the league table but not the leaderboard. About a day before a deadline, both players of each game in that round that isn't finished get a notification. A moved deadline sends a new one. To see the deadlines in your own calendar app, see [Add dates to your calendar](/docs/calendar).
 
 An organizer can also press **Set chess clock** to give each side the same time in every fixture. Fixtures that haven't started play to it, and their players can't change it.
 

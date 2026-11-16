@@ -1016,6 +1016,31 @@ describe('group leagues', () => {
     ])
   })
 
+  it('lets the group’s organizer, and no other outsider, enter a fixture’s score', () => {
+    const league = setup(['a', 'b', 'c', 'd'])
+    league.publish()
+    const { key, aId, bId } = league.game()
+    league.start(key, aId, bId!)
+    const outsider = ['a', 'b', 'c', 'd'].find((id) => id !== aId && id !== bId)!
+    const report = (userId: string) =>
+      (
+        JSON.parse(
+          module.submitBattle(league.host.procedure(league.host.operator), {
+            battleId: `battle-${key}`,
+            userId,
+            expectedSeq: league.host.call(
+              league.host.operator,
+              (ctx) => Array.from(ctx.db.commands.battleId.filter(`battle-${key}`)).length,
+            ),
+            body: JSON.stringify({ kind: 'report-result', vp: { [aId]: 70, [bId!]: 55 } }),
+            now: BigInt(NOW),
+            externalRefusal: '',
+          }),
+        ) as { result: { outcome: string } }
+      ).result.outcome
+    expect([report(outsider), report('owner')]).toEqual(['refused', 'appended'])
+  })
+
   it('refuses a fixture battle against someone else', () => {
     const league = setup(['a', 'b', 'c', 'd'])
     league.publish()

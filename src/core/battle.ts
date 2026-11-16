@@ -1109,13 +1109,14 @@ export function importedCommandRefusal(state: BattleState, by: PlayerId, command
  * Every rule about turn order, ownership and legality lives here. The server
  * calls it before appending; the UI calls it to decide what to render enabled.
  *
- * `organizer` says that `by` runs the event this battle counts for, which only the
- * caller can know. Without a seat, an organizer may only reopen the finished
- * battle, so that its players can correct the result.
+ * `organizer` says that `by` runs the event or league fixture this battle plays, which
+ * only the caller can know. Without a seat, an organizer may only report its score
+ * or reopen the finished battle, so that its players can correct the result.
  */
 export function commandRefusal(state: BattleState, by: PlayerId, command: Command, organizer = false): Refusal | null {
   if (command.kind === 'report-result') {
-    if (!state.sealedEventToken) return refuse('not-a-tournament-table', 'only a tournament table can report a score')
+    // A league fixture carries no event in its log, so only its organizer, whom the caller names, reports one.
+    if (!state.sealedEventToken && !organizer) return refuse('not-a-tournament-table', 'only a tournament table can report a score')
     if (state.status === 'finished') return refuse('battle-over', 'the battle is over')
     if (!organizer && !state.players.some((candidate) => candidate.id === by)) return refuse('not-seated', 'you are not in this battle')
     const seats = state.players.map((candidate) => candidate.id)

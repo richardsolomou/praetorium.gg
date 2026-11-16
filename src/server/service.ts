@@ -232,6 +232,29 @@ export class PraetoriumService {
     return { battleId: id, token }
   }
 
+  /** Records a league fixture's final score for a game that wasn't tracked here; an unstarted fixture gets its battle now, seated as drawn. */
+  async reportFixtureResult(groupToken: string, fixtureKey: string, vp: [number, number], missionPackId: string | null, userId: string) {
+    const { group = null, league = null } = (await this.groupService.groupWithLeague(groupToken, userId)) ?? {}
+    if (!group?.organizer) throw new Response('only the group’s organizers can enter a league score', { status: 403 })
+    const fixture = league?.publishedAt === null ? undefined : league?.fixtures.find((candidate) => candidate.key === fixtureKey)
+    if (!fixture?.bId) throw new Response('no such fixture in this league', { status: 404 })
+    const token =
+      fixture.battleToken ??
+      (await this.createBattle(fixture.aId, { opponentIds: [fixture.bId], missionPackId, groupToken, fixture: fixtureKey })).token
+    const history = await mustFindBattle(this.repository, token)
+    const { result } = await this.repository.submit({
+      battleId: history.battle.id,
+      userId,
+      expectedSeq: foldHistory(history).seq,
+      command: { kind: 'report-result', vp: { [fixture.aId]: vp[0], [fixture.bId]: vp[1] } },
+      now: this.clock(),
+      snapshot: { seats: history.players, log: history.log },
+      organizer: true,
+    })
+    if (result.outcome === 'refused') throw new Response(result.reason, { status: 409 })
+    if (result.outcome === 'stale') throw new Response('the battle changed while the score was being saved, so try again', { status: 409 })
+  }
+
   /**
    * A new battle with only its creator at the table, which the other places join later. Starting another while the
    * creator still has one they have done nothing with hands that one back instead of piling up drafts.

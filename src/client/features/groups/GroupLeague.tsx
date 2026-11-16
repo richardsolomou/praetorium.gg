@@ -19,6 +19,7 @@ import {
   leaveGroupLeague,
   nextGroupLeague,
   publishGroupLeague,
+  reportFixtureResult,
   setGroupLeagueClock,
   setGroupLeagueDeadline,
   type groupLeague,
@@ -26,6 +27,7 @@ import {
 import { groupLeagueQuery, groupPastLeaguesQuery } from '../../queries'
 import { countLabel, formatList } from '../../text'
 import { useNow } from '../../useNow'
+import { EnterScore } from '../sealedEvents/ReportTableResult'
 import { SealedEventResults } from '../sealedEvents/SealedEventResults'
 import { leagueOutcome, useGroupRefresh, usePlayGroupGame, type Group } from './group'
 import { LeagueLists, leaguePoints, SealLeagueList, StartLeagueDialog } from './GroupLeagueLists'
@@ -362,6 +364,7 @@ function LeagueComplete({ group, league }: { group: Group; league: League }) {
 /** Every round's fixtures with its deadline; a draft's are the organizer's preview. */
 function Rounds({ group, league, viewerId, now }: { group: Group; league: League; viewerId: string | null; now: number }) {
   const play = usePlayGroupGame(group.token, league.game?.token)
+  const refresh = useGroupRefresh(group.token)
   const moment = useMoment()
   const [editing, setEditing] = useState<number | null>(null)
   const names = new Map(league.players.map((player) => [player.userId, player]))
@@ -409,6 +412,14 @@ function Rounds({ group, league, viewerId, now }: { group: Group; league: League
                       overdue={leagueFixtureOverdue(fixture.status, deadline, now)}
                       pending={play.isPending}
                       onPlay={(opponentId) => fixture.key && play.mutate({ opponentIds: [opponentId], fixture: fixture.key })}
+                      onScore={
+                        league.organizer && fixture.key
+                          ? async (vp, missionPackId) => {
+                              await reportFixtureResult({ data: { token: group.token, fixture: fixture.key, vp, missionPackId } })
+                              await refresh()
+                            }
+                          : null
+                      }
                     />
                   ))}
               </ol>
@@ -430,6 +441,7 @@ function FixtureRow({
   overdue,
   pending,
   onPlay,
+  onScore,
 }: {
   fixture: Fixture
   name: (userId: string) => ReactNode
@@ -437,6 +449,8 @@ function FixtureRow({
   overdue: boolean
   pending: boolean
   onPlay: (opponentId: string) => void
+  /** How an organizer records a game played without tracking it here, or null for anyone else. */
+  onScore: ((vp: [number, number], missionPackId: string | null) => Promise<unknown>) | null
 }) {
   const own = fixture.aId === viewerId || fixture.bId === viewerId
   const opponent = fixture.aId === viewerId ? fixture.bId : fixture.aId
@@ -470,6 +484,15 @@ function FixtureRow({
         </Button>
       ) : fixture.key ? (
         <span className="shrink-0 text-sm text-faint">Not started</span>
+      ) : null}
+      {onScore && fixture.bId && (status === 'open' || status === 'playing') ? (
+        <EnterScore
+          title={`Round ${fixture.round}, game ${fixture.table} score`}
+          label={`Enter score for round ${fixture.round}, game ${fixture.table}`}
+          description="For a game that wasn’t tracked here. It counts for the league table but not the leaderboard."
+          names={[name(fixture.aId), name(fixture.bId)]}
+          save={onScore}
+        />
       ) : null}
     </li>
   )

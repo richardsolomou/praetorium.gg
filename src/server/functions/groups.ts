@@ -14,6 +14,7 @@ import {
   moderateGroupMemberSchema,
   publishGroupLeagueSchema,
   startSealedGroupLeagueSchema,
+  reportFixtureResultSchema,
   setGroupAdminsSchema,
   tokenSchema,
   updateGroupSchema,
@@ -117,6 +118,16 @@ export const setGroupLeagueClock = createServerFn({ method: 'POST' })
       const userId = await requireUserId()
       await app().service.groupService.setLeagueClock(data.token, userId, data.minutes)
       await captureMutation(userId, 'group_league_clock_set', { minutes: data.minutes })
+    }),
+  )
+
+export const reportFixtureResult = createServerFn({ method: 'POST' })
+  .validator(reportFixtureResultSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const userId = await requireUserId()
+      await app().service.reportFixtureResult(data.token, data.fixture, data.vp, data.missionPackId, userId)
+      await captureMutation(userId, 'group_league_result_reported', {})
     }),
   )
 
