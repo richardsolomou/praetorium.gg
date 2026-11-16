@@ -18,4 +18,6 @@ You need the player's list, the opponent's faction or list, and both Force dispo
 5. Decide jobs: which units answer each threat, which play the primary mission, and which screen or take actions. Base it on the simulated numbers and what the mission scores.
 6. Report the plan with the numbers it rests on, each pairing or rule the simulator could not calculate, and the simulator links.
 
+Simulations show which units answer which, not who wins: in tournament games, the side that out-damaged the other in the simulator won no more often than not. Present the plan as jobs for units, never as odds.
+
 Don't estimate damage yourself or describe a mission card from memory. Simulations are at full strength, `compare_rosters` with passive rules only and `simulate_combat` with the rules you chose, so say what they leave out, such as range, terrain and the order units act in.

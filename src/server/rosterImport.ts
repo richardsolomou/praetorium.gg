@@ -1,3 +1,5 @@
+import { saveRosterSchema } from '../contracts/schemas'
+import { DEFAULT_GAME_LIMIT } from '../core/battle'
 import { decodeRosterExchange, isRosterExchangeCode, ROSTER_EXCHANGE_RULES_UNAVAILABLE, RosterExchangeError } from '../core/rosterExchange'
 import type { TextRoster } from '../core/textRoster'
 import {
@@ -20,6 +22,26 @@ export type Factions = NonNullable<Awaited<ReturnType<ReturnType<typeof app>['fa
 export async function importRosterInput(file: string) {
   if (isRosterExchangeCode(file)) return importExchangeCode(file)
   return importText(file, (await app().factionsFor())?.factions ?? [])
+}
+
+/** The import as save_roster takes it, as the import dialog saves it; null when no faction matched. */
+export function importedRosterDraft(imported: Awaited<ReturnType<typeof importRosterInput>>['result']) {
+  if (!imported.catalogueId || !imported.source) return null
+  const stated = 'limit' in imported && imported.limit ? imported.limit : null
+  return saveRosterSchema.parse({
+    name: imported.name,
+    catalogueId: imported.catalogueId,
+    detachmentIds: imported.detachmentIds,
+    disposition: 'disposition' in imported ? (imported.disposition ?? null) : null,
+    borrowedDetachmentId: 'borrowedDetachmentId' in imported ? imported.borrowedDetachmentId : null,
+    limit: stated ?? DEFAULT_GAME_LIMIT,
+    pointsBudget: stated !== null && 'pointsBudget' in imported ? imported.pointsBudget : null,
+    picks: imported.units,
+    waivedRules: 'waivedRules' in imported ? imported.waivedRules : [],
+    optionalRules: 'optionalRules' in imported ? imported.optionalRules : [],
+    prep: null,
+    source: imported.source,
+  })
 }
 
 /** A list another app already read into army text, matched against the current rules for its faction as pasted text is. */

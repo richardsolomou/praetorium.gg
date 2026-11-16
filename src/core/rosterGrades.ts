@@ -7,7 +7,7 @@
  * spots, such as stratagems and conditional rules, fall unevenly across factions.
  */
 import { isKotcLimit } from './battle'
-import { EXPECTED_TOOLS, PEERS, type CalibratedSize, type Peers } from './rosterGradeCalibration'
+import { CALIBRATED, EXPECTED_TOOLS, PEERS, type CalibratedSize, type Peers } from './rosterGradeCalibration'
 
 export type Grade = 'A' | 'B' | 'C' | 'D'
 export type ReferenceTargetKey = 'horde' | 'elite' | 'vehicle' | 'heavyVehicle' | 'monster'
@@ -92,6 +92,13 @@ export const SQUAD_OC = 10
 /** Cheap enough to spend on screening, an action or a home objective without leaving a hole. */
 export const CHEAP_UNIT_POINTS = 70
 
+const holds = (unit: GradedUnit) => unit.objectiveControl !== null && unit.objectiveControl >= SQUAD_OC
+const isCheap = (unit: GradedUnit) => unit.points > 0 && unit.points <= CHEAP_UNIT_POINTS
+/** Whether the unit alone takes half the target's wounds in a turn, which is what names it against the target. */
+export const takesHalf = (unit: Pick<GradedUnit, 'removes'>, key: ReferenceTargetKey) => (unit.removes[key] ?? 0) >= 0.5
+const HOLD_LABEL = 'Hold objectives'
+const SCREENS_LABEL = 'Screens and actions'
+
 export type MetricKey =
   | 'presence'
   | 'hold'
@@ -120,6 +127,10 @@ export const calibratedSize = (limit: number): CalibratedSize =>
 export type GradedUnit = {
   name: string
   points: number
+  /** Every model in the unit, attachments included. */
+  models: number
+  /** Whether the unit has the Transport keyword, so carrying other units is its job. */
+  transport?: boolean
   move: number
   objectiveControl: number | null
   /** Whether every model in the unit, attachments included, has Deep Strike or Infiltrators. */
@@ -152,17 +163,65 @@ export type GradeRow = {
 
 export type GradeCategory = { key: string; label: string; score: number | null; grade: Grade | null; rows: GradeRow[] }
 
+/** A unit with the jobs the grades credit it with, named as their rows are. */
+export type GradedUnitJobs = { name: string; points: number; models: number; jobs: string[] }
+
 /**
- * `missing` names each reference target nothing in the list can take half of on its own, as in "a Rhino";
- * `comparedWith` names the tournament lists its scores place it among, such as "Necrons" or, for a chapter with
- * too few of its own, "Adeptus Astartes", or is null when it is placed among every faction's.
+ * `missing` names each reference target nothing in the list can take half of on its own, as in "a Rhino", and
+ * `units` gives every unit the jobs it is credited with. `comparedWith` names the tournament lists its scores place
+ * it among, such as "Necrons" or, for a chapter with too few of its own, "Adeptus Astartes", or is null when it is
+ * placed among every faction's; `calibration` says whether those were real lists of this size. `tournament` sets the
+ * list beside its faction's winning lists, or is null without enough of them.
  */
 export type RosterGrades = {
   score: number | null
   grade: Grade | null
   categories: GradeCategory[]
   missing: string[]
+  units: GradedUnitJobs[]
   comparedWith: string | null
+  calibration: { lists: 'tournament' | 'drawn'; since: string; until: string }
+  tournament: TournamentComparison | null
+}
+
+/** A faction's winning lists need this many before the share of them fielding a unit means much. */
+export const MIN_WINNING_LISTS = 10
+/** A staple is a datasheet at least this share of the faction's winning lists field. */
+export const STAPLE_SHARE = 0.3
+
+/**
+ * How a list's datasheets compare with what its faction's winning lists field: `stapleShare` is the share of its
+ * points in staples, `leftOut` the staples it does without and `unproven` its datasheets no winning list fields.
+ */
+export type TournamentComparison = {
+  lists: number
+  stapleShare: number
+  staples: { name: string; lists: number }[]
+  leftOut: string[]
+  unproven: string[]
+}
+
+/** The comparison for picks priced by datasheet, from how many of `lists` winning lists field each datasheet id. */
+export function tournamentComparison(
+  picks: readonly { entryId: string; name: string; points: number }[],
+  winning: { lists: number; units: Readonly<Record<string, number>> },
+  nameOf: (entryId: string) => string,
+): TournamentComparison | null {
+  if (winning.lists < MIN_WINNING_LISTS) return null
+  const staples = Object.entries(winning.units)
+    .filter(([, count]) => count / winning.lists >= STAPLE_SHARE)
+    .map(([entryId, lists]) => ({ entryId, name: nameOf(entryId), lists }))
+    .toSorted((left, right) => right.lists - left.lists || left.name.localeCompare(right.name))
+  const fielded = new Set(picks.map((pick) => pick.entryId))
+  const isStaple = new Set(staples.map((staple) => staple.entryId))
+  const total = picks.reduce((sum, pick) => sum + pick.points, 0)
+  return {
+    lists: winning.lists,
+    stapleShare: total ? picks.filter((pick) => isStaple.has(pick.entryId)).reduce((sum, pick) => sum + pick.points, 0) / total : 0,
+    staples: staples.map(({ name, lists }) => ({ name, lists })),
+    leftOut: staples.filter((staple) => !fielded.has(staple.entryId)).map((staple) => staple.name),
+    unproven: [...new Set(picks.filter((pick) => !winning.units[pick.entryId]).map((pick) => pick.name))],
+  }
 }
 
 /**
@@ -211,7 +270,9 @@ export function percentileOf(value: number, quantiles: readonly number[]) {
 /**
  * Every measure counts the same within its category, and every category the same overall. Within one faction,
  * no measure separated lists that placed in the top four from the rest of their events by as much as a fifth
- * of a standard deviation, too little to weight one job above another.
+ * of a standard deviation. In about 940 games between two measured tournament lists, controlling for faction and
+ * player rating, only unit count and even spread went with winning, by about 5 points of win rate per standard
+ * deviation, and the player's rating mattered three times as much: too little to weight one job above another.
  */
 const mean = (scores: readonly (number | null)[]) => {
   const scored = scores.filter((score) => score !== null)
@@ -259,10 +320,8 @@ function gradeMeasures(units: readonly GradedUnit[], limit: number) {
   const [first = 0, second = 0] = units.map((unit) => unit.points).toSorted((left, right) => right - left)
   return {
     presence: units.length,
-    hold: units.some((unit) => unit.objectiveControl !== null)
-      ? units.filter((unit) => unit.objectiveControl !== null && unit.objectiveControl >= SQUAD_OC).length
-      : null,
-    screens: units.filter((unit) => unit.points > 0 && unit.points <= CHEAP_UNIT_POINTS).length,
+    hold: units.some((unit) => unit.objectiveControl !== null) ? units.filter(holds).length : null,
+    screens: units.filter(isCheap).length,
     reach: byPoints(units, (unit) => reachChance(unit, gap)),
     deployment: byPoints(units, (unit) => (deploysEarly(unit) ? 1 : 0)),
     ...(Object.fromEntries(
@@ -334,7 +393,12 @@ function peerGroup(size: CalibratedSize, catalogueName: string) {
 }
 
 /** The grades for a roster's units, each a unit and everything attached to it, from the name of its army's catalogue. */
-export function rosterGrades(units: readonly GradedUnit[], limit: number, catalogueName: string): RosterGrades {
+export function rosterGrades(
+  units: readonly GradedUnit[],
+  limit: number,
+  catalogueName: string,
+  tournament: TournamentComparison | null = null,
+): RosterGrades {
   const size = calibratedSize(limit)
   const { peers, label: peerLabel } = peerGroup(size, catalogueName)
   const measures = gradeMeasures(units, limit)
@@ -345,9 +409,9 @@ export function rosterGrades(units: readonly GradedUnit[], limit: number, catalo
     return { key, label, score: shown, grade: gradeOf(shown), detail, ...extra }
   }
   const named = (chosen: readonly GradedUnit[]) => chosen.map((unit) => unit.name)
-  const holders = units.filter((unit) => unit.objectiveControl !== null && unit.objectiveControl >= SQUAD_OC)
+  const holders = units.filter(holds)
   const unknownControl = named(units.filter((unit) => unit.objectiveControl === null))
-  const cheap = units.filter((unit) => unit.points > 0 && unit.points <= CHEAP_UNIT_POINTS)
+  const cheap = units.filter(isCheap)
   const early = units.filter(deploysEarly)
   const generation = units.flatMap((unit) =>
     (unit.unitGeneration ?? []).map((spawn) => {
@@ -361,7 +425,7 @@ export function rosterGrades(units: readonly GradedUnit[], limit: number, catalo
     row('presence', 'Board presence', score('presence'), `${unitCount(units.length)} for ${OBJECTIVES} objectives`),
     row(
       'hold',
-      'Hold objectives',
+      HOLD_LABEL,
       score('hold'),
       measures.hold === null
         ? "No unit's objective control could be counted"
@@ -370,7 +434,7 @@ export function rosterGrades(units: readonly GradedUnit[], limit: number, catalo
     ),
     row(
       'screens',
-      'Screens and actions',
+      SCREENS_LABEL,
       score('screens'),
       `${unitCount(cheap.length)} at ${CHEAP_UNIT_POINTS} points or less, cheap enough to screen or do actions`,
       { units: named(cheap) },
@@ -414,7 +478,7 @@ export function rosterGrades(units: readonly GradedUnit[], limit: number, catalo
   const missing: string[] = []
   for (const target of gradedTargets(limit)) {
     const removed = units.reduce((sum, unit) => sum + (unit.removes[target.key] ?? 0), 0)
-    const alone = units.filter((unit) => (unit.removes[target.key] ?? 0) >= 0.5)
+    const alone = units.filter((unit) => takesHalf(unit, target.key))
     const notCalculated = named(units.filter((unit) => unit.removes[target.key] === null))
     rows.push(
       row(
@@ -456,8 +520,23 @@ export function rosterGrades(units: readonly GradedUnit[], limit: number, catalo
     grade: gradeOf(total),
     categories,
     missing,
+    units: units.map((unit) => ({ name: unit.name, points: unit.points, models: unit.models, jobs: jobsOf(unit, limit) })),
     comparedWith: peerLabel,
+    calibration: { lists: size === 2000 ? 'tournament' : 'drawn', since: CALIBRATED.since, until: CALIBRATED.until },
+    tournament,
   }
+}
+
+/** The rows that credit a unit by name: holding, screening and each target it takes half of alone, and carrying units for a transport. */
+function jobsOf(unit: GradedUnit, limit: number) {
+  return [
+    ...(holds(unit) ? [HOLD_LABEL] : []),
+    ...(isCheap(unit) ? [SCREENS_LABEL] : []),
+    ...(unit.transport ? ['Carry units'] : []),
+    ...gradedTargets(limit)
+      .filter((target) => takesHalf(unit, target.key))
+      .map((target) => target.label),
+  ]
 }
 
 const formatAttackers = () => REFERENCE_ATTACKERS.map((attacker) => attacker.label).join(' or ')

@@ -46,7 +46,7 @@ async function call(userId: string, name: string, args: object) {
   const server = new McpServer({ name: 'account-test', version: '1.0.0' })
   const tools = new AgentTools()
   registerAccountMcpTools(tools, userId)
-  tools.registerMcp(server, 'https://praetorium.gg')
+  tools.registerMcp(server, 'https://praetorium.gg', { scopes: {}, challenge: 'Bearer' })
   const transport = new WebStandardStreamableHTTPServerTransport({ sessionIdGenerator: undefined, enableJsonResponse: true })
   await server.connect(transport)
   try {

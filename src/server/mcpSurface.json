@@ -30,6 +30,7 @@
   "get_reference_record": ["id"],
   "get_skill": ["name"],
   "get_unit_options": ["faction", "units", "battleSize", "detachment"],
+  "get_winning_list": ["id"],
   "grade_roster": ["roster"],
   "import_roster": ["file"],
   "join_event": ["token", "eventToken"],
@@ -43,6 +44,7 @@
   "list_my_rosters": [],
   "list_reference": [],
   "list_units": ["faction", "battleSize", "detachment", "nonMatchedPlay", "query"],
+  "list_winning_lists": ["faction", "detachment", "battleSize", "since", "count"],
   "optimize_loadout": ["attacker", "defender", "modifiers", "mode"],
   "report_table_result": ["token", "eventToken", "round", "yourScore", "opponentScore", "missionPackId"],
   "save_roster": [
@@ -67,5 +69,5 @@
   "simulate_combat": ["attacker", "defender", "modifiers", "weaponModes"],
   "start_event_battle": ["token", "eventToken", "opponentId", "allyId", "secondOpponentId", "missionPackId"],
   "submit_battle_action": ["token", "expectedSeq", "command"],
-  "submit_event_roster": ["token", "eventToken", "rosterId"]
+  "submit_event_roster": ["token", "eventToken", "rosterId", "disposition"]
 }

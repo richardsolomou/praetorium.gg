@@ -267,6 +267,8 @@ export async function measureRosterUnits({
     return {
       name: [host.projection.selected.name, ...host.projection.companions.map((member) => member.selected.name)].join(' + '),
       points: host.points,
+      models: host.snapshot.models + (host.snapshot.companions ?? []).reduce((total, member) => total + member.models, 0),
+      transport: host.projection.selected.keywords.some((keyword) => keyword.toLowerCase() === 'transport'),
       move: unitMove(host.snapshot),
       objectiveControl: unitTotal(host.snapshot, 'objective-control'),
       deepStrike: Boolean(formed?.formationOptions.includes('deep-strike')),

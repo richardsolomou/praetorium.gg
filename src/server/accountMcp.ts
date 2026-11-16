@@ -1,7 +1,7 @@
 import { battleFilterSchema } from '../core/battleFilter'
 import { facetSchema } from '../core/listFilter'
 import { battleOutcome } from '../core/standings'
-import { READ_ONLY_TOOL, responseToolError, structured, type AgentTools } from './agentTools'
+import { type AgentTools, READ_ONLY_TOOL, responseToolError, signedInPlayer, structured } from './agentTools'
 import { app } from './app'
 import { agentWrites } from './mutationTelemetry'
 import { rosterActions } from './rosterActions'
@@ -150,10 +150,7 @@ const ranking = ({ place, of, standing: { rating, battles, won, lost, drawn, poi
 })
 
 export function registerAccountMcpTools(server: AgentTools, userId: string | null) {
-  const owner = () => {
-    if (!userId) throw new Response('Sign in to use this tool.', { status: 401 })
-    return userId
-  }
+  const owner = () => signedInPlayer(userId)
 
   server.registerTool(
     'list_my_rosters',

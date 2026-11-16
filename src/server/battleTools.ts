@@ -24,7 +24,7 @@ import { setupReferenceError } from '../shared/battleRules'
 import { gameReferencesFor } from '../shared/gameReferences'
 import type { LoadedRules } from '../shared/rules'
 import { resultOf, WRITE } from './accountMcp'
-import { READ_ONLY_TOOL, type AgentTools } from './agentTools'
+import { type AgentTools, READ_ONLY_TOOL, signedInPlayer } from './agentTools'
 import { app } from './app'
 import { startDraftBattle } from './mutationTelemetry'
 import { battleInvitePath } from '../core/notifications'
@@ -541,10 +541,7 @@ const BATTLE_HELP =
 const REPORT_PAGE = 200
 
 export function registerBattleTools(server: AgentTools, userId: string | null) {
-  const owner = () => {
-    if (!userId) throw new Response('Sign in to use this tool.', { status: 401 })
-    return userId
-  }
+  const owner = () => signedInPlayer(userId)
 
   server.registerTool(
     'list_my_opponents',
