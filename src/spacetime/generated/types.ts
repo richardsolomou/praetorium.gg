@@ -359,6 +359,7 @@ export const HiddenListGames = __t.object('HiddenListGames', {
   createdAt: __t.u64(),
   timeZone: __t.option(__t.string()),
   supersededAt: __t.option(__t.u64()),
+  leagueId: __t.option(__t.string()),
 })
 export type HiddenListGames = __Infer<typeof HiddenListGames>
 

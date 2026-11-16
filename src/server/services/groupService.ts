@@ -86,6 +86,7 @@ export class GroupService {
     if (result === 'missing') throw new Response('this group has no league to join', { status: 404 })
     if (result === 'forbidden') throw new Response('only the group’s members can join its league', { status: 403 })
     if (result === 'full') throw new Response(`a league has at most ${GROUP_LEAGUE_PLAYERS_MAX} players`, { status: 409 })
+    if (result === 'seal') throw new Response('this league seals lists, so seal one to join it', { status: 409 })
     throw new Response('the league has started, so nobody else can join it', { status: 409 })
   }
 
@@ -113,6 +114,8 @@ export class GroupService {
     if (result === 'missing') throw new Response('this group has no league', { status: 404 })
     if (result === 'forbidden') throw new Response('only the group’s organizers can publish a league', { status: 403 })
     if (result === 'too-few') throw new Response(`a league needs at least ${GROUP_LEAGUE_PLAYERS_MIN} players`, { status: 409 })
+    if (result === 'unsealed')
+      throw new Response('every player needs a sealed list that still fits before the league is published', { status: 409 })
     throw new Response('the draw changed while you were reviewing it; check it again', { status: 409 })
   }
 

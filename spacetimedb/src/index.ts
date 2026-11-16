@@ -581,10 +581,11 @@ function isGroupMember(ctx: Context, groupId: string, userId: string) {
   return ctx.db.groupMembers.key.find(JSON.stringify([groupId, userId]))?.status === 'accepted'
 }
 
-/** A group's games, newest first. */
+/** A group's hidden-list games, newest first; a league's sealed lists are its own, never one of these. */
 function hiddenListGameHosts(ctx: Context, group: GroupRow) {
   return Array.from(ctx.db.hiddenListGames.groupId.filter(group.id))
     .flatMap((game) => {
+      if (game.leagueId !== undefined) return []
       const event = ctx.db.sealedEvents.id.find(game.eventId)
       return event ? [{ kind: 'group' as const, game, group, event }] : []
     })
@@ -595,7 +596,22 @@ function hiddenListGameHosts(ctx: Context, group: GroupRow) {
     )
 }
 
-function gamePastAt({ game, event }: Extract<EventHost, { kind: 'group' }>) {
+/** The game holding a league's sealed lists, if the league seals them. */
+function leagueGameHost(ctx: Context, group: GroupRow, leagueId: string) {
+  const game = Array.from(ctx.db.hiddenListGames.groupId.filter(group.id)).find((row) => row.leagueId === leagueId)
+  const event = game && ctx.db.sealedEvents.id.find(game.eventId)
+  return game && event ? { kind: 'group' as const, game, group, event } : undefined
+}
+
+/** Operations on a league's sealed lists; joining, revealing and playing go through the league itself. */
+const LEAGUE_GAME_OPERATIONS = new Set(['update', 'submit', 'share-roster', 'dismiss-roster-sharing', 'create-battle'])
+
+function gamePastAt(ctx: Context, { game, event }: Extract<EventHost, { kind: 'group' }>) {
+  // A league's lists stay open while it runs and close when it ends.
+  if (game.leagueId !== undefined) {
+    if (ctx.db.groupLeagues.id.find(game.leagueId)) return null
+    return safeNumber(ctx.db.pastGroupLeagues.id.find(game.leagueId)?.endedAt ?? game.createdAt)
+  }
   return hiddenListGamePastAt({
     playsAt: event.playsAt === undefined ? null : Number(event.playsAt),
     revealedAt: event.revealedAt === undefined ? null : Number(event.revealedAt),
@@ -605,7 +621,7 @@ function gamePastAt({ game, event }: Extract<EventHost, { kind: 'group' }>) {
 }
 
 function pastHiddenListGame(ctx: Context, host: EventHost) {
-  return host.kind === 'group' && !hiddenListGameOpen({ pastAt: gamePastAt(host) }, safeNumber(nowMs(ctx)))
+  return host.kind === 'group' && !hiddenListGameOpen({ pastAt: gamePastAt(ctx, host) }, safeNumber(nowMs(ctx)))
 }
 
 /** How many battles a group has and when the latest began, for its card. */
@@ -670,6 +686,8 @@ function deleteGroup(ctx: Context, group: GroupRow) {
   const league = ctx.db.groupLeagues.groupId.find(group.id)
   if (league) deleteLeague(ctx, league)
   for (const past of Array.from(ctx.db.pastGroupLeagues.groupId.filter(group.id))) {
+    const game = leagueGameHost(ctx, group, past.id)
+    if (game) deleteHost(ctx, game)
     deleteLeagueFixtures(ctx, past.id)
     ctx.db.pastGroupLeagues.id.delete(past.id)
   }
@@ -709,8 +727,11 @@ function endLeague(ctx: Context, league: LeagueRow) {
   ctx.db.groupLeagues.id.delete(league.id)
 }
 
-/** A league takes its players and fixtures with it; its battles stay. */
+/** A league takes its players, sealed lists and fixtures with it; its battles stay. */
 function deleteLeague(ctx: Context, league: LeagueRow) {
+  const group = ctx.db.groups.id.find(league.groupId)
+  const game = group && leagueGameHost(ctx, group, league.id)
+  if (game) deleteHost(ctx, game)
   for (const row of Array.from(ctx.db.groupLeaguePlayers.leagueId.filter(league.id))) ctx.db.groupLeaguePlayers.key.delete(row.key)
   deleteLeagueFixtures(ctx, league.id)
   ctx.db.groupLeagues.id.delete(league.id)
@@ -726,6 +747,13 @@ function leaveLeague(ctx: Context, groupId: string, userId: string) {
   if (!league || !row || row.withdrawn) return false
   if (league.publishedAt === undefined) {
     ctx.db.groupLeaguePlayers.key.delete(row.key)
+    // In a league that seals lists, a list is how a player is in its draft, so leaving takes it back.
+    const group = ctx.db.groups.id.find(groupId)
+    const game = group && leagueGameHost(ctx, group, league.id)
+    if (game) {
+      ctx.db.sealedEventEntries.key.delete(JSON.stringify([game.event.id, userId]))
+      touchEvent(ctx, game)
+    }
     return true
   }
   ctx.db.groupLeaguePlayers.key.update({ ...row, withdrawn: true })
@@ -765,14 +793,31 @@ function openFixture(
   return { fixture, league }
 }
 
+/** A league's sealed lists as its page reads them: their terms and who has sealed, never the lists themselves. */
+function leagueGameView(ctx: Context, group: GroupRow, leagueId: string) {
+  const host = leagueGameHost(ctx, group, leagueId)
+  if (!host) return null
+  const { event } = host
+  return {
+    token: event.token,
+    rosterLimit: event.rosterLimit ?? null,
+    pointsBudget: event.pointsBudget ?? null,
+    revealedAt: event.revealedAt ?? null,
+    sealedIds: sealedEventEntriesFor(ctx, event.id).flatMap((entry) =>
+      entry.status === 'accepted' && entry.rosterSnapshot !== undefined ? [entry.userId] : [],
+    ),
+  }
+}
+
 const leagueRounds = (json: string | undefined) => (json === undefined ? [] : (JSON.parse(json) as (number | null)[]))
 const leagueDeadlines = (league: LeagueRow) => leagueRounds(league.deadlines)
 
 /** A group's league as every reader sees it; a draft's fixtures are drawn from its seed by whoever reads it. */
-function leagueRecord(ctx: Context, groupId: string) {
-  const league = ctx.db.groupLeagues.groupId.find(groupId)
+function leagueRecord(ctx: Context, group: GroupRow) {
+  const league = ctx.db.groupLeagues.groupId.find(group.id)
   if (!league) return null
   return {
+    game: leagueGameView(ctx, group, league.id),
     seed: league.seed,
     createdAt: league.createdAt,
     publishedAt: league.publishedAt ?? null,
@@ -4321,9 +4366,11 @@ export const sealedEventAddress = spacetime.procedure(
       const address = (host: EventHost | undefined) =>
         host?.kind === 'tournament'
           ? { kind: 'tournament', token: host.tournament.token }
-          : host
-            ? { kind: 'hidden-list-game', groupToken: host.group.token, token: host.event.token }
-            : null
+          : host?.game.leagueId !== undefined
+            ? { kind: 'league', groupToken: host.group.token }
+            : host
+              ? { kind: 'hidden-list-game', groupToken: host.group.token, token: host.event.token }
+              : null
       const named = eventToken ? tx.db.sealedEvents.token.find(eventToken) : undefined
       if (named) return productJson(address(hostOfEvent(tx, named)))
       const tournament = tx.db.tournaments.token.find(token)
@@ -4349,6 +4396,8 @@ function personalEventIds(ctx: Context, userId: string) {
     if (group && isGroupOrganizer(group, groupMemberRows(ctx, group), userId))
       for (const game of ctx.db.hiddenListGames.groupId.filter(group.id)) ids.add(game.eventId)
   }
+  // A league's sealed lists show on its group's league, not among events.
+  for (const id of ids) if (ctx.db.hiddenListGames.eventId.find(id)?.leagueId !== undefined) ids.delete(id)
   return ids
 }
 
@@ -4529,7 +4578,7 @@ export const sealedEventsVisibleTo = spacetime.procedure({ userId: t.string(), l
           accepted: entries.filter((entry) => entry.status === 'accepted').length,
           occupied: entries.filter((entry) => entry.status !== 'rejected').length,
           ownEntry: entries.find((entry) => entry.userId === userId) ?? null,
-          pastAt: host.kind === 'group' ? gamePastAt(host) : null,
+          pastAt: host.kind === 'group' ? gamePastAt(tx, host) : null,
         }
       }),
     )
@@ -5044,6 +5093,8 @@ function groupCommandIn(tx: Context, args: unknown[]) {
     // Players joining after publication sit this league out.
     if (league.publishedAt !== undefined) return productJson('published')
     if (!isGroupMember(tx, group.id, input.userId)) return productJson('forbidden')
+    // A league that seals lists takes its players in as they seal.
+    if (leagueGameHost(tx, group, league.id)) return productJson('seal')
     const key = leaguePlayerKey(league.id, input.userId)
     if (tx.db.groupLeaguePlayers.key.find(key)) return productJson('joined')
     if (leaguePlayers(tx, league.id).length >= GROUP_LEAGUE_PLAYERS_MAX) return productJson('full')
@@ -5130,6 +5181,21 @@ function groupCommandIn(tx: Context, args: unknown[]) {
     if (input.seed !== league.seed || JSON.stringify(players.toSorted()) !== JSON.stringify(input.playerIds.toSorted()))
       return productJson('stale')
     if (players.length < GROUP_LEAGUE_PLAYERS_MIN) return productJson('too-few')
+    // Publishing reveals a league's sealed lists, so every player must have one sealed and the reveal must hold.
+    const game = leagueGameHost(tx, group, league.id)
+    if (game) {
+      const sealed = new Set(
+        sealedEventEntriesFor(tx, game.event.id).flatMap((entry) =>
+          entry.status === 'accepted' && entry.rosterSnapshot !== undefined ? [entry.userId] : [],
+        ),
+      )
+      if (players.some((userId) => !sealed.has(userId))) return productJson('unsealed')
+      // Only the league's players are revealed: an entry left by a member who never got in, such as a refused seal, is dropped.
+      for (const entry of sealedEventEntriesFor(tx, game.event.id))
+        if (!players.includes(entry.userId)) tx.db.sealedEventEntries.key.delete(entry.key)
+      if (revealSealedEvent(tx, game.event, input.now, input.actorId).outcome !== 'revealed') return productJson('unsealed')
+      touchEvent(tx, game)
+    }
     for (const [index, tables] of leagueDraw(players, league.seed).entries())
       for (const [at, [aId, bId]] of tables.entries())
         tx.db.roundPairings.insert({
@@ -5242,7 +5308,7 @@ export const groupByToken = spacetime.procedure({ token: t.string() }, t.string(
         return {
           token: event.token,
           createdAt: event.createdAt,
-          pastAt: gamePastAt(host),
+          pastAt: gamePastAt(tx, host),
           revealedAt: event.revealedAt ?? null,
           playsAt: event.playsAt ?? null,
           sealBy: event.sealBy ?? null,
@@ -5265,7 +5331,7 @@ export const groupByToken = spacetime.procedure({ token: t.string() }, t.string(
           playing: unfinishedPlayers(tx, event.id),
         }
       }),
-      league: leagueRecord(tx, group.id),
+      league: leagueRecord(tx, group),
       battlesRevision: groupBattlesRevision(tx, group.id),
       pastLeagues: Array.from(tx.db.pastGroupLeagues.groupId.filter(group.id))
         .sort((one, other) => Number(other.endedAt - one.endedAt))
@@ -5274,6 +5340,7 @@ export const groupByToken = spacetime.procedure({ token: t.string() }, t.string(
           publishedAt: past.publishedAt,
           endedAt: past.endedAt,
           players: JSON.parse(past.players) as { userId: string; withdrawn: boolean }[],
+          game: leagueGameView(tx, group, past.id),
           fixtures: roundPairings(tx, past.id).map((pairing) => pairingView(tx, pairing)),
         })),
     })
@@ -5467,6 +5534,9 @@ function createBattleIn(tx: Context, args: unknown[]) {
     return productJson(battleData(tx, id))
   }
   const opened = battle.fixtureKey === undefined ? undefined : openFixture(tx, battle.fixtureKey, battle)
+  const sealedLeague = opened && tx.db.groups.id.find(opened.league.groupId)
+  // A league that sealed lists plays its fixtures with them, through its game's battles alone.
+  if (sealedLeague && leagueGameHost(tx, sealedLeague, opened.league.id)) throw new SenderError(NOT_A_FIXTURE)
   // A hidden-list game started from its group is tagged at birth, for players who all belong to it.
   insertBattle(
     tx,
@@ -5971,9 +6041,39 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
       // A group's game is casual, so Swiss rounds are a tournament's alone.
       if (!group || input.rounds !== null || !isGroupOrganizer(group, groupMemberRows(tx, group), input.ownerId))
         return productJson('forbidden')
-      const { timeZone } = sealedEventCommandInput(z.object({ timeZone: hiddenListGameTimeZoneSchema.default('UTC') }), value)
-      for (const { game } of hiddenListGameHosts(tx, group))
-        if (game.supersededAt === undefined) tx.db.hiddenListGames.eventId.update({ ...game, supersededAt: createdAt })
+      const { timeZone, league } = sealedEventCommandInput(
+        z.object({
+          timeZone: hiddenListGameTimeZoneSchema.default('UTC'),
+          // Starts the group's league with these lists to seal, in place of a game of its own.
+          league: z.object({ id: idInput, seed: leagueSeed }).optional(),
+        }),
+        value,
+      )
+      if (league) {
+        // A league plays its fixtures one on one, and a group runs one league at a time.
+        // Its chess clock and dates are the league's own.
+        if (
+          (input.format ?? '1v1') !== '1v1' ||
+          input.ownerPlays ||
+          input.clockLimitMinutes !== null ||
+          input.schedule.playsAt !== null ||
+          input.schedule.sealBy !== null ||
+          tx.db.groupLeagues.groupId.find(group.id)
+        )
+          return productJson('forbidden')
+        tx.db.groupLeagues.insert({
+          id: league.id,
+          groupId: group.id,
+          seed: league.seed,
+          createdAt,
+          publishedAt: undefined,
+          deadlines: undefined,
+          remindedDeadlines: undefined,
+          clockLimitMinutes: undefined,
+        })
+      } else
+        for (const { game } of hiddenListGameHosts(tx, group))
+          if (game.supersededAt === undefined) tx.db.hiddenListGames.eventId.update({ ...game, supersededAt: createdAt })
       tx.db.hiddenListGames.insert({
         eventId: input.eventId,
         groupId: group.id,
@@ -5981,6 +6081,7 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
         createdAt,
         timeZone,
         supersededAt: undefined,
+        leagueId: league?.id,
       })
     }
     tx.db.sealedEvents.insert({
@@ -6022,6 +6123,8 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
     )
     if (!host) return productJson('missing')
     if (pastHiddenListGame(tx, host)) return productJson('past')
+    // A league's lists are joined by sealing one, which also enters the league.
+    if (host.kind === 'group' && host.game.leagueId !== undefined) return productJson('closed')
     const { event } = host
     // Past the roster deadline a newcomer could never seal, so entry closes with it.
     if (event.revealedAt !== undefined || (event.sealBy !== undefined && BigInt(input.now) > event.sealBy)) return productJson('closed')
@@ -6066,6 +6169,8 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
     return productJson('forbidden')
 
   if (pastHiddenListGame(tx, host) && !['delete', 'share-roster', 'dismiss-roster-sharing'].includes(operation)) return productJson('past')
+  const leagueId = host.kind === 'group' ? host.game.leagueId : undefined
+  if (leagueId !== undefined && !LEAGUE_GAME_OPERATIONS.has(operation)) return productJson('forbidden')
 
   if (operation === 'set-admins') {
     if (host.kind !== 'tournament') return productJson('forbidden')
@@ -6111,6 +6216,13 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
     )
     const { details } = input
     if (details && (host.kind === 'group' || !details.name.trim())) return productJson('forbidden')
+    if (
+      leagueId !== undefined &&
+      ((input.rule !== null && input.rule.format !== '1v1') ||
+        (input.schedule && (input.schedule.playsAt !== null || input.schedule.sealBy !== null)) ||
+        (input.clockLimitMinutes !== undefined && input.clockLimitMinutes !== null))
+    )
+      return productJson('forbidden')
     const entries = sealedEventEntriesFor(tx, event.id)
     const accepted = entries.filter((entry) => entry.status === 'accepted').length
     const shapeChanged = input.rule !== null && (input.rule.format !== event.format || input.rule.rosterLimit !== event.rosterLimit)
@@ -6675,6 +6787,14 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
       (requiredLimit !== null && saved.limit !== (team ? submitted.built?.limit : requiredLimit))
     )
       return productJson({ outcome: 'missing' })
+    // Sealing a list for a league's draft is how a member joins it.
+    if (leagueId !== undefined && event.revealedAt === undefined) {
+      const key = leaguePlayerKey(leagueId, input.userId)
+      if (!tx.db.groupLeaguePlayers.key.find(key)) {
+        if (leaguePlayers(tx, leagueId).length >= GROUP_LEAGUE_PLAYERS_MAX) return productJson({ outcome: 'full' })
+        tx.db.groupLeaguePlayers.insert({ key, leagueId, userId: input.userId, joinedAt: BigInt(input.now), withdrawn: false })
+      }
+    }
     tx.db.sealedEventEntries.key.update({
       ...entry,
       rosterId: input.rosterId,
@@ -6808,10 +6928,24 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
           .string()
           .max(MAX_ID_LENGTH * 2)
           .optional(),
+        fixtureKey: z
+          .string()
+          .max(MAX_ID_LENGTH * 2)
+          .optional(),
       }),
       value,
     )
     if (event.revealedAt === undefined) return productJson(false)
+    // A league's sealed lists play only its fixtures, and each counts for its group as any fixture does.
+    const counts = host.kind === 'group' && leagueId !== undefined ? { kind: 'set-battle-group' as const, groupId: host.group.id } : null
+    const initialCommands = counts ? [counts, ...input.initialCommands] : input.initialCommands
+    const opened =
+      leagueId === undefined
+        ? undefined
+        : input.fixtureKey === undefined
+          ? null
+          : openFixture(tx, input.fixtureKey, { ...input, guestNames: [], initialCommands })
+    if (opened === null || (opened && opened.league.id !== leagueId)) return productJson(false)
     // A Swiss tournament plays only the tables its organizer paired, each once.
     const pairing = input.pairingKey ? tx.db.roundPairings.key.find(input.pairingKey) : undefined
     if (event.rounds !== undefined) {
@@ -6855,15 +6989,20 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
     insertBattle(
       tx,
       { id: input.id, token: input.battleToken, now: input.now, by: input.userId, seats },
-      input.initialCommands,
+      initialCommands,
       (state, command) =>
-        command.kind === 'set-battle-group'
+        command.kind === 'set-battle-group' && command !== counts
           ? 'a group is chosen during setup'
           : validate(state, input.userId, command, command.kind === 'fix-battlefield' || command.kind === 'fix-clock'),
     )
-    tx.db.eventBattles.insert({ battleId: input.id, eventId: event.id })
+    // A fixture's battle belongs to its league, which frees the fixture again if the battle is deleted.
+    tx.db.eventBattles.insert({ battleId: input.id, eventId: opened?.league.id ?? event.id })
     // The server built the battle's clock from an earlier read, so the event's limit now is the one that holds.
-    fixClock(tx, input.id, event.clockLimitMinutes ?? null, input.userId)
+    fixClock(tx, input.id, (opened ? opened.league.clockLimitMinutes : event.clockLimitMinutes) ?? null, input.userId)
+    if (opened) {
+      tx.db.roundPairings.key.update({ ...opened.fixture, battleId: input.id })
+      indexGroupBattle(tx, input.id)
+    }
     if (pairing && event.rounds !== undefined) tx.db.roundPairings.key.update({ ...pairing, battleId: input.id })
     touchEvent(tx, host)
     return productJson(true)

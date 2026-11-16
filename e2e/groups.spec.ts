@@ -400,7 +400,7 @@ test('an ended league stays readable under past leagues and another can start', 
   await joinGroup(second, url, names[1])
   await joinGroup(third, url, names[2])
   await owner.goto(`${url}?tab=league`)
-  await owner.getByRole('button', { name: 'Start a league' }).click()
+  await startLeague(owner)
   for (const page of [owner, second, third]) {
     await page.goto(`${url}?tab=league`)
     await page.getByRole('button', { name: 'Join league' }).click()
@@ -419,6 +419,61 @@ test('an ended league stays readable under past leagues and another can start', 
   await owner.screenshot({ path: testInfo.outputPath('past-leagues.png'), fullPage: true })
   await Promise.all(contexts.map((context) => context.close()))
 })
+
+test('a league seals every list before it starts and plays its fixtures with them', async ({ browser }) => {
+  test.setTimeout(240_000)
+  const contexts = await Promise.all([
+    browser.newContext({ viewport: { width: 1440, height: 1000 } }),
+    browser.newContext(),
+    browser.newContext(),
+  ])
+  const [owner, second, third] = await Promise.all(contexts.map((context) => context.newPage()))
+  const names = ['Sealed league host', 'Sealed league second', 'Sealed league third'].map(uniqueName)
+  for (const [index, page] of [owner, second, third].entries()) {
+    await signUp(page, names[index])
+    await sealableRoster(page, `League army ${index}`)
+  }
+  await createGroup(owner, uniqueName('Sealed league group'))
+  const url = owner.url().split('?')[0]
+  await joinGroup(second, url, names[1])
+  await joinGroup(third, url, names[2])
+  await owner.goto(`${url}?tab=league`)
+  await startLeague(owner, { sealed: true })
+  const league = (page: Page) => page.locator('[data-group-league]')
+  for (const [index, page] of [owner, second, third].entries()) {
+    await page.goto(`${url}?tab=league`)
+    await expect(league(page).getByRole('button', { name: 'Join league' })).toHaveCount(0)
+    const chooser = page.getByRole('dialog', { name: 'Seal a roster' })
+    await retryUntilVisible(chooser, () => league(page).getByRole('button', { name: 'Seal a list to join' }).click({ timeout: 1_000 }))
+    await chooser.locator(`[data-roster="League army ${index}"]`).click()
+    await chooser.getByRole('button', { name: `Seal League army ${index}` }).click()
+    await expect(league(page).getByRole('button', { name: 'Swap your list' })).toBeVisible()
+  }
+  // Nobody sees another player's list before the league is published.
+  await expect(owner.getByText('League army 1')).toHaveCount(0)
+  await owner.reload()
+  await league(owner).getByRole('button', { name: 'Publish' }).click()
+  await owner.getByRole('alertdialog').getByRole('button', { name: 'Publish' }).click()
+  const lists = owner.locator('[data-league-lists]')
+  await expect(lists.getByText('League army 1', { exact: false })).toBeVisible()
+  await owner.locator('[data-fixture]').getByRole('button', { name: 'Start battle' }).first().click()
+  await owner.waitForURL(/\/battles\/[^/]+$/)
+  const battleId = await battleIdFor(lastPathSegment(owner.url()))
+  const commands = await productSql<{ seq: number; body: string }>`SELECT seq, body FROM commands WHERE battle_id = ${battleId}`
+  const kinds = commands.toSorted((a, b) => a.seq - b.seq).map((row) => (JSON.parse(row.body) as Command).kind)
+  expect(kinds.slice(0, 2)).toEqual(['set-battle-group', 'configure-battle'])
+  expect(kinds).toContain('lock-sealed-event-rosters')
+  await Promise.all(contexts.map((context) => context.close()))
+})
+
+/** Starts a league from the League tab, sealing lists before it starts when asked. */
+async function startLeague(page: Page, { sealed = false } = {}) {
+  const dialog = page.getByRole('dialog', { name: 'Start a league' })
+  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'Start a league' }).click({ timeout: 1_000 }))
+  if (sealed) await dialog.getByRole('switch', { name: 'Seal lists before it starts' }).click()
+  await dialog.getByRole('button', { name: 'Start league' }).click()
+  await expect(dialog).toBeHidden()
+}
 
 async function openNewGame(page: Page) {
   const dialog = page.getByRole('dialog', { name: 'New game', exact: true })

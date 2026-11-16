@@ -376,6 +376,8 @@ const hiddenListGames = table(
     createdAt: t.u64(),
     timeZone: t.option(t.string()).default(undefined),
     supersededAt: t.option(t.u64()).default(undefined),
+    /** The league whose lists this game seals: never listed on its own, revealed by publishing the league, played through its fixtures. */
+    leagueId: t.option(t.string()).default(undefined),
   },
 )
 

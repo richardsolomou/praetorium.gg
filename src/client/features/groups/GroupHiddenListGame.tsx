@@ -19,13 +19,7 @@ import {
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { Problem } from '../../components/Problem'
-import {
-  chooseSealedEventSide,
-  createSealedEventBattle,
-  deleteSealedEvent,
-  revealSealedEvent,
-  submitSealedEventRoster,
-} from '../../functions'
+import { chooseSealedEventSide, createSealedEventBattle, deleteSealedEvent, revealSealedEvent } from '../../functions'
 import { battlesFrom, sealedEventBattlesQuery, sealedEventQuery } from '../../queries'
 import { useDateFormatting, useMoment } from '../../dates'
 import { countLabel } from '../../text'
@@ -33,8 +27,7 @@ import { useNow } from '../../useNow'
 import { useEntrantGroups } from '../sealedEvents/SealedEventEntrants'
 import { RevealedLists } from '../sealedEvents/SealedEventArmies'
 import { SealedEventCombatDialog } from '../sealedEvents/SealedEventCombatDialog'
-import { RosterChooser } from '../sealedEvents/SealedEventRosterChooser'
-import { useSealDisposition } from '../sealedEvents/SealDisposition'
+import { useSealList } from '../sealedEvents/SealList'
 import { RemindEntrants } from '../sealedEvents/SealedEventReadiness'
 import { OpenTableBattlefield } from '../sealedEvents/OpenTableBattlefield'
 import { SealedEventSettingsDialog } from '../sealedEvents/SealedEventSettingsDialog'
@@ -47,7 +40,6 @@ import type { Battle } from '../battles/battle'
 import { memberNameOf, useGroupRefresh, type Group } from './group'
 import { useStartBattle } from '../battles/useStartBattle'
 import { warmLocalRules } from '../../offline/construction'
-import { afterPaint } from '../../afterPaint'
 import { DropdownMenuItem } from '../../components/Menu'
 import { nameColour } from '../../playerName'
 
@@ -107,7 +99,6 @@ export function GroupHiddenListGame({
   const { data: record } = useQuery(sealedEventQuery(game.token))
   const battleHistory = useInfiniteQuery({ ...sealedEventBattlesQuery(game.token, game.token), enabled: game.revealedAt !== null })
   const battles = battlesFrom(battleHistory.data)
-  const [choosing, setChoosing] = useState(false)
   const [revealing, setRevealing] = useState(false)
   const [editing, setEditing] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -147,19 +138,16 @@ export function GroupHiddenListGame({
 
   const mayTakeSeat = member && !revealed && !closed
 
-  const seal = useMutation({
-    mutationFn: async ({ rosterId, disposition }: { rosterId: string; disposition?: string }) => {
-      await afterPaint()
-      return submitSealedEventRoster({ data: { token: game.token, rosterId, disposition } })
-    },
-    onSuccess: async () => {
-      setChoosing(false)
-      await refresh()
-    },
+  const seal = useSealList({
+    token: game.token,
+    // A duel's first seal is what enters a member, so a list with no entry behind it yet plays alone too.
+    playsAlone: sealedEventPlaysAlone(game, ownEntry ?? { requiredLimit: null }),
+    requiredLimit: team && seatPoints === null ? null : ownLimit,
+    pointsBudget: game.pointsBudget,
+    seatPoints,
+    shared: ownEntry ? sealedEventSharesPoints(game, ownEntry) : false,
+    onSealed: refresh,
   })
-  const sealCard = useSealDisposition(ownEntry ? sealedEventPlaysAlone(game, ownEntry) : false, (rosterId, disposition) =>
-    seal.mutate({ rosterId, disposition }),
-  )
   const side = useMutation({
     mutationFn: (next: SealedEventSide | null) => chooseSealedEventSide({ data: { token: game.token, side: next } }),
     onSuccess: async () => {
@@ -432,7 +420,7 @@ export function GroupHiddenListGame({
               {canSeal || canReveal || canLeave ? (
                 <div className="flex flex-wrap items-center gap-2">
                   {canSeal ? (
-                    <Button variant={own?.sealed ? 'outline' : 'default'} onClick={() => (seal.reset(), setChoosing(true))}>
+                    <Button variant={own?.sealed ? 'outline' : 'default'} onClick={seal.open}>
                       <FileLock2 /> {own?.sealed ? 'Swap your list' : 'Seal your list'}
                     </Button>
                   ) : null}
@@ -484,19 +472,7 @@ export function GroupHiddenListGame({
         />
       ) : null}
 
-      <RosterChooser
-        open={choosing}
-        pending={seal.isPending}
-        error={seal.error}
-        failedRosterId={seal.variables?.rosterId ?? null}
-        requiredLimit={team && seatPoints === null ? null : ownLimit}
-        pointsBudget={game.pointsBudget}
-        seatPoints={seatPoints}
-        shared={ownEntry ? sealedEventSharesPoints(game, ownEntry) : false}
-        onClose={() => !seal.isPending && setChoosing(false)}
-        onChoose={(roster) => void sealCard.choose(roster)}
-      />
-      {sealCard.dialog}
+      {seal.element}
       <ConfirmDialog
         open={moving !== undefined}
         title={moving === null ? 'Leave this game?' : 'Change sides?'}

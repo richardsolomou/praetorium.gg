@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { createBattle, type openGroup } from '../../functions'
+import { createBattle, createSealedEventBattle, type openGroup } from '../../functions'
 import { groupKey, groupLeagueKey, groupsKey } from '../../queries'
 import { useStartBattle } from '../battles/useStartBattle'
 
@@ -22,12 +22,19 @@ export function useGroupRefresh(token: string) {
     ])
 }
 
-/** Starts a battle between members, counted for the group from the start and, for a league fixture, linked to it; then opens it. */
-export function usePlayGroupGame(token: string) {
+/**
+ * Starts a battle between members, counted for the group from the start and, for a league fixture, linked to it; then opens
+ * it. A league that sealed lists, named by `sealedLists`, plays its fixtures with them.
+ */
+export function usePlayGroupGame(token: string, sealedLists: string | null = null) {
   const { defaultMissionPackId, openBattle } = useStartBattle()
   return useMutation({
-    mutationFn: async (players: { opponentIds: string[]; allyId?: string; fixture?: string }) =>
-      createBattle({ data: { ...players, groupToken: token, missionPackId: await defaultMissionPackId() } }),
+    mutationFn: async ({ fixture, ...players }: { opponentIds: string[]; allyId?: string; fixture?: string }) => {
+      const missionPackId = await defaultMissionPackId()
+      return sealedLists && fixture
+        ? createSealedEventBattle({ data: { token: sealedLists, opponentId: players.opponentIds[0]!, missionPackId, fixtureKey: fixture } })
+        : createBattle({ data: { ...players, fixture, groupToken: token, missionPackId } })
+    },
     onSuccess: ({ token: battleToken }) => openBattle(battleToken),
   })
 }

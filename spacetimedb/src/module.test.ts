@@ -1030,6 +1030,115 @@ describe('hidden-list games', () => {
     expect(setup().create('member')).toBe('forbidden')
   })
 
+  describe('as a league’s sealed lists', () => {
+    const startLeague = (fixture: ReturnType<typeof setup>) => fixture.create('owner', { league: { id: 'league', seed: 7 } })
+    const record = (fixture: ReturnType<typeof setup>) =>
+      JSON.parse(module.groupByToken(fixture.procedure(fixture.operator), { token: 'group' })) as {
+        games: unknown[]
+        league: { game: { token: string } | null } | null
+      }
+
+    it('keeps them on the league rather than among the group’s games', () => {
+      const fixture = setup()
+      startLeague(fixture)
+      const { games, league } = record(fixture)
+      expect([games.length, league?.game?.token]).toEqual([0, 'game'])
+    })
+
+    it('takes players in by sealing, not by joining', () => {
+      const fixture = setup()
+      startLeague(fixture)
+      expect(fixture.group({ op: 'league-join', userId: 'member', now: NOW })).toBe('seal')
+    })
+
+    it('turns away a member joining the lists without sealing', () => {
+      const fixture = setup()
+      startLeague(fixture)
+      expect(fixture.game({ op: 'join', userId: 'member', now: NOW, memberLimit: 128 })).toBe('closed')
+    })
+
+    const publishWithStray = (fixture: ReturnType<typeof setup>) => {
+      startLeague(fixture)
+      const captain = { key: 'captain', entryId: 'captain', name: 'Captain', models: 1, points: 80, warlord: true, group: 'character' }
+      const built = { catalogueId: 'catalogue', revision: 'revision', limit: 2000, detachment: null, disposition: null, units: [captain] }
+      const players = ['owner', 'member', 'third']
+      fixture.call(fixture.operator, (ctx) => {
+        for (const [index, userId] of [...players, 'outsider'].entries()) {
+          const sealed = userId !== 'outsider'
+          if (sealed)
+            ctx.db.groupLeaguePlayers.insert({
+              key: JSON.stringify(['league', userId]),
+              leagueId: 'league',
+              userId,
+              joinedAt: BigInt(NOW + index),
+              withdrawn: false,
+            })
+          ctx.db.sealedEventEntries.insert({
+            key: JSON.stringify(['game-id', userId]),
+            eventId: 'game-id',
+            userId,
+            status: 'accepted',
+            joinedAt: BigInt(NOW + index),
+            rosterId: sealed ? `${userId}-roster` : undefined,
+            rosterName: sealed ? 'Army' : undefined,
+            rosterSnapshot: sealed ? JSON.stringify({ name: 'Army', text: 'Army', built }) : undefined,
+            submittedAt: sealed ? BigInt(NOW) : undefined,
+            requiredLimit: undefined,
+            teamId: undefined,
+            droppedAt: undefined,
+            checkedInAt: undefined,
+          })
+        }
+      })
+      return fixture.group({ op: 'league-publish', actorId: 'owner', seed: 7, playerIds: players, now: NOW })
+    }
+
+    it('publishes past an entry left by someone who never got into the league', () => {
+      expect(publishWithStray(setup())).toBe('published')
+    })
+
+    it('refuses a fixture battle that brings its own lists', () => {
+      const fixture = setup()
+      publishWithStray(fixture)
+      const { league } = JSON.parse(module.groupByToken(fixture.procedure(fixture.operator), { token: 'group' })) as {
+        league: { fixtures: { key: string; aId: string; bId: string | null }[] }
+      }
+      const game = league.fixtures.find((candidate) => candidate.bId !== null)!
+      expect(() =>
+        module.createBattle(fixture.procedure(fixture.operator), {
+          payload: JSON.stringify({
+            id: 'battle',
+            token: 'battle',
+            userId: game.aId,
+            allyIds: [],
+            opponentIds: [game.bId],
+            initialCommands: [{ kind: 'set-battle-group', groupId: 'group-id' }],
+            now: NOW,
+            fixtureKey: game.key,
+          }),
+        }),
+      ).toThrow('this battle is not an open fixture of the league')
+    })
+
+    it('publishes only once every player has sealed', () => {
+      const fixture = setup()
+      startLeague(fixture)
+      fixture.call(fixture.operator, (ctx) => {
+        for (const userId of ['owner', 'member', 'third'])
+          ctx.db.groupLeaguePlayers.insert({
+            key: JSON.stringify(['league', userId]),
+            leagueId: 'league',
+            userId,
+            joinedAt: BigInt(NOW),
+            withdrawn: false,
+          })
+      })
+      expect(fixture.group({ op: 'league-publish', actorId: 'owner', seed: 7, playerIds: ['owner', 'member', 'third'], now: NOW })).toBe(
+        'unsealed',
+      )
+    })
+  })
+
   it('keeps replaced games in the past even when the replacement is deleted', () => {
     const fixture = setup()
     fixture.create('owner')

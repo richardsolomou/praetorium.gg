@@ -10,9 +10,9 @@ const list: Roster = {
 }
 const saved = { id: 'roster', limit: 2000, updatedAt: 1 }
 
-function seal(format: '1v1' | '2v2', disposition?: string) {
+function seal(format: '1v1' | '2v2', disposition?: string, entries = [{ userId: 'player', requiredLimit: 2000 }]) {
   const submitSealedEventRoster = vi.fn().mockResolvedValue({ outcome: 'sealed', format, requiredLimit: 2000 })
-  const sealedEventByToken = vi.fn().mockResolvedValue({ format, rosterLimit: 2000, entries: [{ userId: 'player', requiredLimit: 2000 }] })
+  const sealedEventByToken = vi.fn().mockResolvedValue({ format, rosterLimit: 2000, entries })
   const service = new SealedEventService({ submitSealedEventRoster, sealedEventByToken } as unknown as RepositoryPort, () => 1, {
     notify: vi.fn(),
   })
@@ -23,6 +23,10 @@ function seal(format: '1v1' | '2v2', disposition?: string) {
 describe('sealing a list’s Force Disposition', () => {
   it('refuses a lone list that names none of the cards it offers', async () => {
     await expect(seal('1v1').sealing).rejects.toMatchObject({ status: 409 })
+  })
+
+  it('refuses a first seal into a duel that names no card, before its player has an entry', async () => {
+    await expect(seal('1v1', undefined, []).sealing).rejects.toMatchObject({ status: 409 })
   })
 
   it('seals the card a lone entrant chose', async () => {
