@@ -407,7 +407,7 @@ describe('what a sealed event allows', () => {
     const entry = () => host.call(host.operator, (ctx) => ctx.db.sealedEventEntries.key.find('["event","entrant"]'))
     const set = (fields: { sealBy?: bigint; pointsBudget?: number; allyPoints?: number; sharedPoints?: boolean }) =>
       host.call(host.operator, (ctx) => ctx.db.sealedEvents.id.update({ ...ctx.db.sealedEvents.id.find('event')!, ...fields }))
-    const reveal = (now: number) => command({ op: 'reveal', ownerId: 'organizer', now })
+    const reveal = (now: number, ownerId = 'organizer') => command({ op: 'reveal', ownerId, now })
     const remind = (now: number, ownerId = 'organizer') => command({ op: 'remind', ownerId, now })
     return { host, seal, update, event, entry, set, reveal, remind }
   }
@@ -460,6 +460,13 @@ describe('what a sealed event allows', () => {
     const sealedEvent = setup('[]')
     sealedEvent.set({ sealBy: BigInt(NOW - 1) })
     expect(sealedEvent.seal([])).toMatchObject({ outcome: 'past-deadline' })
+  })
+
+  it('leaves a tournament’s reveal to its organizer', () => {
+    const sealedEvent = setup('[]')
+    sealedEvent.seal([])
+    sealedEvent.seal([], { userId: 'ally' })
+    expect(sealedEvent.reveal(NOW, 'entrant')).toEqual({ outcome: 'forbidden' })
   })
 
   it('reveals without the entrants who missed the roster deadline', () => {

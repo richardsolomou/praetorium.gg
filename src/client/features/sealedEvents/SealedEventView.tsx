@@ -262,7 +262,7 @@ export function SealedEventView({
   // Once every check passes, opening the rosters is the event's next step for anyone who may, so it leads their card.
   const revealReady =
     !revealed &&
-    mayRevealSealedEvent(isOrganizer, ownEntry ?? null) &&
+    mayRevealSealedEvent(isOrganizer, ownEntry ?? null, !!sealedEvent.tournament) &&
     sealedEventRevealChecklist(sealedEvent, sealedEvent.entries, now).every((check) => check.done)
   const status: Status = revealReady
     ? {

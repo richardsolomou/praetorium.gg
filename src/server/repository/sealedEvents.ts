@@ -518,7 +518,7 @@ export function withSealedEvents<B extends RepositoryBase>(Base: B) {
         { op: 'reveal', token, ownerId, now, eventToken: eventToken ?? '' },
         z.union([
           z.object({ outcome: z.literal('revealed'), entrantIds: z.array(z.string()) }),
-          z.object({ outcome: z.literal('not-ready') }),
+          z.object({ outcome: z.enum(['not-ready', 'forbidden']) }),
           z.object({ outcome: z.literal('invalid-warlords'), format: z.enum(TABLE_SHAPES) }),
         ]),
       )

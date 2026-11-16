@@ -402,6 +402,7 @@ export class SealedEventService {
       this.notifySealedEvent('sealed-event-revealed', ownerId, result.entrantIds, token, eventToken)
       return
     }
+    if (result.outcome === 'forbidden') throw new Response('only the organizer can reveal a tournament’s rosters', { status: 403 })
     if (result.outcome === 'invalid-warlords')
       throw new Response('each sealed roster must select exactly one eligible Warlord before reveal', { status: 409 })
     throw new Response('wait for every accepted list and every pair’s Force Disposition and Warlord before reveal', { status: 409 })

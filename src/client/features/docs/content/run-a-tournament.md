@@ -7,7 +7,7 @@ To see one first, open the [sample tournament](/tournaments/sample). For a one-o
 - **Accounts.** Every player needs a Praetorium account. Guests can't enter. Send the invite link early so people sign up before the day.
 - **The app.** Players can use the website or the [app](/docs/mobile-app) on their phone. Ask them to allow notifications, so they hear when a round is paired, when their battlefield is set and when you remind them to seal.
 - **Lists.** Each player builds their list in Praetorium, or [imports](/docs/import-a-list) it, at your points size, then seals it from the tournament page. Set **Seal rosters by** and tell players the date. Anyone without a sealed list by then sits the tournament out.
-- **The reveal.** Any player can press **Reveal all rosters** once everyone in has sealed, and it closes entry. If you're still taking entries, ask players to leave the reveal to you.
+- **The reveal.** Only you can press **Reveal all rosters**, and it closes entry, so you can keep taking entries after the first players seal.
 - **Results.** Players track each game on Praetorium. With Swiss rounds they can instead press **Enter score** on their table afterwards. Decide which you expect, and tell players before round 1.
 - **Missed rounds.** Check players in before round 1 and drop anyone who doesn't arrive. If a player leaves partway, drop them, and their opponent takes the bye. See [Drop a player](/docs/run-a-tournament#drop-a-player).
 - **A trial run.** Open the [sample tournament](/tournaments/sample), or run a private one with a friend, before the day.
@@ -42,7 +42,7 @@ While rosters are still owed, press **Remind players** under the reveal countdow
 
 ## Reveal and play
 
-When everyone is in and sealed, press **Reveal all rosters**. Every list opens at once and entry closes. Anyone playing can do this as soon as every player in has sealed, and it can't be undone. Before the reveal, players can read their own list and their assigned ally's. Being the organizer gives no extra access. If the button is greyed out, **Before you can reveal** lists what's left.
+When everyone is in and sealed, press **Reveal all rosters**. Every list opens at once and entry closes. Only you and your admins can do this, as soon as every player in has sealed, even before the deadline. It can't be undone. Before the reveal, players can read their own list and their assigned ally's. Being the organizer gives no extra access. If the button is greyed out, **Before you can reveal** lists what's left.
 
 Players then start their tournament battles from the tournament page, and finished battles fill the results table.
 

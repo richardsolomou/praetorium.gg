@@ -17,6 +17,8 @@ In a 2v1 or doubles tournament the organizer gives you your size and teammate fi
 
 If a seal is refused, look up the message in [Tournament problems](/docs/tournament-problems).
 
+Once everyone in has sealed, the organizer reveals the rosters.
+
 ## After the reveal
 
 Every roster opens at once. Each player's row has **View roster** and **Simulate** for their list. In a doubles or 2v1 tournament, **Simulate** sits on the other side's heading.
