@@ -30,3 +30,10 @@
 
 - Copying the running product database freezes it: resume before upload, and never scale the database down or pull helper images while frozen.
 - The production web server checks the published backup hourly and logs an error, which fires the "Server error logs" alert, once it is more than 13 hours old.
+
+### Restore
+
+- The product database backs up every six hours through `scripts/spacetime-backup.timer`, which runs `scripts/backupSpacetime.py` from `/usr/local/libexec/praetorium/` with its R2 config in `/etc/praetorium-spacetime-backup/production.json`; install all three on a replacement host. The script keeps the last 56 pairs per kind.
+- `<prefix>/backups/latest.json` in the private bucket names the newest data and identity archive and their sha256; restore only a pair that matches it. Extract the data archive with `--strip-components=2` into the new data volume, the identity archive into the identity volume, and delete `spacetime.pid`. Start the SpacetimeDB image version production ran with `--jwt-priv-key-path` and `--jwt-pub-key-path` on the restored identity keys, as `scripts/verifySpacetimeBackup.sh` does. Those keys keep the owner and operator tokens valid, so no secret or stored environment value changes; never generate new ones.
+- The auth SQLite and `AUTH_SECRET` back up hourly through the Dokploy schedule `scripts/dokployAuthSchedule.ts` creates on each production deploy, as `backups/auth/production/<stamp>-<id>.zip` in the private bucket. There is no pointer: take the newest key at or after the product backup's `createdAt`, so every restored row's account exists. `node scripts/nodeAuthBackup.ts restore <key> <new directory>` verifies and unpacks it; put `auth.sqlite` on the web `/data` volume before the web service starts, and set `AUTH_SECRET` to the contents of `auth-secret`.
+- Rehearsed on 2026-11-16 with a 2.4 GB data archive: download and checksum 31 s on the host, extraction 13 s, start and replay under 5 s.
