@@ -37,7 +37,14 @@ export async function submitSealedEventRoster(owner: string, data: z.output<type
     throw new Response('This roster or its army data changed after you chose to seal it. Review the saved action before sealing again.', {
       status: 409,
     })
-  const result = await app().service.sealedEventService.submitSealedEventRoster(data.token, owner, saved, snapshot, data.eventToken)
+  const result = await app().service.sealedEventService.submitSealedEventRoster(
+    data.token,
+    owner,
+    saved,
+    snapshot,
+    data.eventToken,
+    data.disposition,
+  )
   await captureMutation(owner, 'sealed_event_roster_submitted', {
     format: result.format,
     required_limit: result.requiredLimit,

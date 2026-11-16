@@ -489,7 +489,7 @@ async function verifiedSnapshots(): Promise<PreviewSnapshots> {
         ? 'could not be priced'
         : priced.points > saved.limit
           ? `${priced.points} points exceed its ${saved.limit}-point limit`
-          : (priced.detachmentError ?? priced.dispositionError ?? priced.errors[0]?.message)
+          : (priced.detachmentError ?? priced.errors[0]?.message)
       if (!priced || error) throw new Error(`${saved.name} ${error}`)
       const snapshot = rosterSnapshot(
         { ...saved, detachmentIds: [...saved.detachmentIds], waivedRules: [], picks: saved.picks.map((pick) => ({ ...pick })) },

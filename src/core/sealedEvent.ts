@@ -383,12 +383,12 @@ export function visibleSealedEventEntries<T extends SealedEventEntryView>(
   return entries.filter((entry) => entry.status === 'accepted' || organizer || entry.userId === viewerId)
 }
 
+/** Whether a sealed list is still the saved one. Its Force Disposition is chosen at sealing, so a card is no difference. */
 export function matchesSealedRoster(
   saved: {
     name: string
     catalogueId: string
     detachmentIds: readonly string[]
-    disposition: string | null
     limit: number
     picks: readonly RosterPick[]
     waivedRules: readonly FormatRuleId[]
@@ -403,12 +403,24 @@ export function matchesSealedRoster(
     // A list sealed on a rules version that later folded into another is still the list saved now.
     saved.catalogueId === migratedEditionId(built.catalogueId) &&
     saved.limit === built.limit &&
-    saved.disposition === built.disposition &&
     JSON.stringify(saved.detachmentIds) === JSON.stringify(built.detachmentIds ?? []) &&
     JSON.stringify(saved.picks) === JSON.stringify(built.picks.map((pick) => migratedEditionPick(pick, built.catalogueId))) &&
     JSON.stringify(saved.waivedRules) === JSON.stringify(built.waivedRules ?? []) &&
     (saved.remindersEnabled ?? true) === (sealed.remindersEnabled ?? true)
   )
+}
+
+/**
+ * Whether an entrant's list takes the table alone, so it seals the one Force Disposition it plays; a team event's pair
+ * chooses theirs together from both lists instead.
+ */
+export function sealedEventPlaysAlone(
+  event: { format: TableShape | null; rosterLimit: number | null },
+  entry: { requiredLimit: number | null },
+) {
+  if (event.format === '2v2') return false
+  if (event.format === '2v1') return entry.requiredLimit !== null && entry.requiredLimit === event.rosterLimit
+  return true
 }
 
 /** The facts about an entry that decide whether its reader is on the same side of the table. */
@@ -477,8 +489,8 @@ export function sealedEventTeams(
   return [...members].map(([id, team]) => {
     const sealed = team.length === 2 && team.every((entry) => entry.roster)
     const rosters = team.map((entry) => entry.roster)
-    const choices = sealed ? teamDispositionChoices(rosters) : []
-    const disposition = sealed ? teamDisposition(rosters, picks.get(id) ?? null) : null
+    const choices = sealed ? teamDispositionChoices(rosters, true) : []
+    const disposition = sealed ? teamDisposition(rosters, picks.get(id) ?? null, true) : null
     const armies = team.map((entry) => ({ id: entry.userId, roster: entry.roster }))
     const warlordChoices = sealed ? teamWarlordChoices(armies) : []
     const warlord = sealed ? teamWarlord(armies, warlordPicks.get(id) ?? null) : null

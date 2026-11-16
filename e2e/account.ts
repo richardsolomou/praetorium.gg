@@ -526,7 +526,7 @@ async function chooseDefender(page: Page) {
   await pressUntilChosen(choice, choice.getByRole('button').first())
 }
 
-/** Allied sides whose armies brought different Force Dispositions play the first one offered. */
+/** Sides whose armies offer several Force Dispositions and name none play the first one offered. */
 async function settleDispositions(page: Page) {
   const asked = page.getByRole('group', { name: /^Force Disposition for / })
   for (let at = 0; at < (await asked.count()); at += 1) {

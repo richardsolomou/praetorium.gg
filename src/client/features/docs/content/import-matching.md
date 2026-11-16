@@ -20,4 +20,4 @@ Names are matched through the translations printed on datasheet and detachment c
 
 If a faction's name isn't translated yet, Praetorium takes the faction whose datasheets hold most of the list's units. If every unit is shared by several factions, the review says no faction matched.
 
-A detachment or force disposition with no translation appears in the review. If the matched detachments disagree on a disposition, the review asks you to choose one in setup.
+A detachment or force disposition with no translation appears in the review. A list keeps every disposition its detachments offer, and you choose one before each battle.

@@ -30,6 +30,7 @@ type PresentedDetachment = {
 
 const NO_DETACHMENTS: readonly PresentedDetachment[] = []
 const NO_WAIVERS: readonly FormatRule[] = []
+const NO_DISPOSITIONS: readonly string[] = []
 
 type RosterHeaderProps = {
   name: string
@@ -48,6 +49,8 @@ type RosterHeaderProps = {
   modelCount?: number
   detachments?: readonly PresentedDetachment[]
   disposition?: string | null
+  /** Every card the list's detachments offer, shown while it names none of them. */
+  dispositions?: readonly string[]
   /** The format restrictions this list is not playing, named beside it wherever it is read. */
   waivers?: readonly FormatRule[]
   actions?: ReactNode
@@ -119,6 +122,7 @@ export function RosterHeader({
   modelCount,
   detachments = NO_DETACHMENTS,
   disposition,
+  dispositions = NO_DISPOSITIONS,
   waivers = NO_WAIVERS,
   actions,
   children,
@@ -126,7 +130,7 @@ export function RosterHeader({
   const { ref: metaRef, style: metaStyle } = useScrollEdges<HTMLSpanElement>()
   const hasPoints = points !== null && points !== undefined
   const hasSummary = hasPoints || limit !== undefined
-  const knownDisposition = disposition ? factionDisposition(faction, disposition) : undefined
+  const shownDispositions = disposition ? [disposition] : dispositions
 
   return (
     <header className="masthead-bleed relative border-b border-edge bg-void px-3 py-2 [--band:var(--color-void)]">
@@ -208,22 +212,24 @@ export function RosterHeader({
                 </span>
               )
             })}
-            {disposition ? (
-              <span className="contents">
-                <span aria-hidden>·</span>
-                {knownDisposition ? (
-                  <Link
-                    to="/force-dispositions/$dispositionId"
-                    params={{ dispositionId: knownDisposition.id }}
-                    className={`chip shrink-0 hover:text-bone ${dispositionTone(knownDisposition.id)}`}
-                  >
-                    {knownDisposition.name}
-                  </Link>
-                ) : (
-                  <span className={`chip shrink-0 ${dispositionTone(disposition)}`}>{disposition}</span>
-                )}
-              </span>
-            ) : null}
+            {shownDispositions.length ? <span aria-hidden>·</span> : null}
+            {shownDispositions.map((id) => {
+              const known = factionDisposition(faction, id)
+              return known ? (
+                <Link
+                  key={id}
+                  to="/force-dispositions/$dispositionId"
+                  params={{ dispositionId: known.id }}
+                  className={`chip shrink-0 hover:text-bone ${dispositionTone(known.id)}`}
+                >
+                  {known.name}
+                </Link>
+              ) : (
+                <span key={id} className={`chip shrink-0 ${dispositionTone(id)}`}>
+                  {id}
+                </span>
+              )
+            })}
             <WaiverChip rules={waivers} />
           </span>
           {actions ? (

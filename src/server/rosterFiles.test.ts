@@ -1154,6 +1154,24 @@ Exported with BattleBase, Data Version: v20260812`,
     expect('disposition' in imported ? imported.disposition : undefined).toBeNull()
   })
 
+  it('does not report the dispositions a list offers as unmatched', () => {
+    const imported = importRosterFile(
+      {
+        file: `PoWSS 2K (2000 Points)
+
+Necrons
+Pantheon of Woe and Skyshroud Spearhead (3 Detachment Points)
+Force Dispositions: Disruption, Reconnaissance
+Strike Force (2,000 Points)
+
+Exported with BattleBase, Data Version: v20260812`,
+      },
+      loaded,
+    )
+
+    expect('unknown' in imported ? imported.unknown : []).toEqual([])
+  })
+
   it('replaces default repeated wargear with the exported choice', () => {
     const imported = importRosterFile(
       {
@@ -1883,7 +1901,7 @@ Exported with New Recruit v36.49, Data Version: v2`
 
     expect(imported).toMatchObject({
       disposition: null,
-      unknown: [{ name: 'Störangriff', reason: 'this force disposition is not recognised; choose one in setup' }],
+      unknown: [{ name: 'Störangriff', reason: 'this force disposition is not recognised' }],
     })
   })
 

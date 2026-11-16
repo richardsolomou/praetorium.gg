@@ -48,12 +48,26 @@ it('refuses a queued folded capture when the saved roster uses retained rules', 
 it('seals a queued folded capture against the current roster it captured', async () => {
   saved(book)
   await seal()
-  expect(submit).toHaveBeenCalledWith('event', 'player', expect.objectContaining({ catalogueId: book }), { name: 'Army' }, undefined)
+  expect(submit).toHaveBeenCalledWith(
+    'event',
+    'player',
+    expect.objectContaining({ catalogueId: book }),
+    { name: 'Army' },
+    undefined,
+    undefined,
+  )
 })
 it('seals a capture the device already resolved to the current roster', async () => {
   saved(book)
   await seal(book)
-  expect(submit).toHaveBeenCalledWith('event', 'player', expect.objectContaining({ catalogueId: book }), { name: 'Army' }, undefined)
+  expect(submit).toHaveBeenCalledWith(
+    'event',
+    'player',
+    expect.objectContaining({ catalogueId: book }),
+    { name: 'Army' },
+    undefined,
+    undefined,
+  )
 })
 it('still recognizes plain older input when checking a queued retained roster', async () => {
   saved(`legacy-rosters~${book}`)
@@ -63,6 +77,7 @@ it('still recognizes plain older input when checking a queued retained roster', 
     'player',
     expect.objectContaining({ catalogueId: `legacy-rosters~${book}` }),
     { name: 'Army' },
+    undefined,
     undefined,
   )
 })

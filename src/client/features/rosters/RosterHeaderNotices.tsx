@@ -29,7 +29,6 @@ export function RosterHeaderNotices({
   onSetup,
   onConvert,
   detachmentError,
-  dispositionError,
 }: {
   editable: boolean
   locked: boolean
@@ -45,7 +44,6 @@ export function RosterHeaderNotices({
   onSetup: () => void
   onConvert?: () => void
   detachmentError?: string | null
-  dispositionError?: string | null
 }) {
   const nativeShare = useNativeShare()
   return (
@@ -110,15 +108,6 @@ export function RosterHeaderNotices({
           {detachmentError}
           <Button variant="ghost" size="xs" className="h-auto p-0 text-destructive underline hover:text-destructive" onClick={onSetup}>
             Review setup
-          </Button>
-        </Problem>
-      ) : null}
-      {editable && dispositionError ? (
-        <Problem className="mt-1 flex items-center gap-1.5 text-xs">
-          <TriangleAlert className="size-3 shrink-0" aria-hidden />
-          {dispositionError} Its detachments disagree, so a battle cannot pick a mission for it.
-          <Button variant="ghost" size="xs" className="h-auto p-0 text-destructive underline hover:text-destructive" onClick={onSetup}>
-            Choose one
           </Button>
         </Problem>
       ) : null}

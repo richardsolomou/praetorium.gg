@@ -89,8 +89,6 @@ test('the first roster names each missing setup choice', async ({ page }, testIn
   await chooseFaction(setup, 'Necrons')
   await expect(start).toHaveAccessibleDescription('Choose a detachment.')
   await setup.getByRole('button', { name: 'Select Awakened Dynasty' }).click()
-  await expect(start).toHaveAccessibleDescription('Choose a Force disposition.')
-  await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
   await expect(start).toBeEnabled()
   await start.click()
   await expect(page.getByRole('heading', { name: 'Add your first unit', exact: true })).toBeVisible()

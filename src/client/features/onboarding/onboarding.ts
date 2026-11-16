@@ -360,7 +360,7 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     href: '/rosters',
     title: 'Create the roster',
     description:
-      'If setup offers more than one Force disposition, choose one first; it helps decide your primary mission. Creating opens the builder, where you add units and can rename the roster.',
+      'Creating opens the builder, where you add units and can rename the roster. You choose a Force disposition before each battle, or pick one here to have it chosen already.',
     placement: 'top',
     next: 'roster-picker',
   },

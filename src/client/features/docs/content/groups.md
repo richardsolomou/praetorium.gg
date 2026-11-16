@@ -38,7 +38,7 @@ To have every battle play to the same chess clock, choose each side's time under
 
 In a duel, any member seals a list. After the reveal, use **Play** beside the person you're playing that evening. Nobody has to play every participant.
 
-In solo vs pair and doubles, pick your side with **Join**, then seal a list for it. A solo vs pair game plays 2,000 against 2,000, with the pair spending its 2,000 between them however they agree. Each pair chooses its Force Disposition and whose Warlord leads before the reveal. Afterwards, **Start battle** sets up the one battle between the sides. Results go on the group's leaderboard.
+In solo vs pair and doubles, pick your side with **Join**, then seal a list for it. A solo vs pair game plays 2,000 against 2,000, with the pair spending its 2,000 between them however they agree. Each pair chooses its Force Disposition and whose Warlord leads before the reveal, and a solo player chooses theirs when sealing. Afterwards, **Start battle** sets up the one battle between the sides. Results go on the group's leaderboard.
 
 ### Before the reveal
 

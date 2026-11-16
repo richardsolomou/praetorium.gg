@@ -556,7 +556,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
                   : !ready
                     ? 'The missions show once every army is in.'
                     : undecided.length
-                      ? 'Choose the Force Disposition each allied side plays.'
+                      ? 'Each side chooses one Force Disposition its detachments offer.'
                       : twists.length
                         ? `Each side plays the primary listed against its opponent’s Force Disposition. ${twist ? `Twist: ${twist.name}.` : 'No twist.'}`
                         : 'Each side plays the primary listed against its opponent’s Force Disposition.'

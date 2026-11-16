@@ -520,13 +520,24 @@ export function registerOrganisedPlayTools(server: AgentTools, userId: string | 
     {
       title: 'Seal my roster for a tournament',
       description:
-        "Seals one of the signed-in player's saved rosters for a tournament or hidden-list game, or replaces the list sealed before, with the site's checks: battle size, points, the event's house rules, a Warlord, and the roster deadline. Sealing stores a copy; later edits to the saved roster don't change it. Before the reveal only you and an assigned ally can read it. Check the roster with get_my_roster first, and seal only after the player confirms. Requires mcp:write.",
-      inputSchema: { ...eventInput, rosterId: z.string().min(1).max(128).describe('A roster id from list_my_rosters.') },
+        "Seals one of the signed-in player's saved rosters for a tournament or hidden-list game, or replaces the list sealed before, with the site's checks: battle size, points, the event's house rules, a Warlord, and the roster deadline. Sealing stores a copy; later edits to the saved roster don't change it. Before the reveal only you and an assigned ally can read it. A player who plays alone fixes their Force Disposition by sealing it: when the list offers several, ask which and pass it. Check the roster with get_my_roster first, and seal only after the player confirms. Requires mcp:write.",
+      inputSchema: {
+        ...eventInput,
+        rosterId: z.string().min(1).max(128).describe('A roster id from list_my_rosters.'),
+        disposition: z
+          .string()
+          .min(1)
+          .max(64)
+          .optional()
+          .describe(
+            'The Force Disposition id the list plays for the event, one its detachments offer; a pair chooses theirs on the event page instead.',
+          ),
+      },
       annotations: WRITE,
     },
-    ({ token: hostToken, eventToken, rosterId }) =>
+    ({ token: hostToken, eventToken, rosterId, disposition }) =>
       write(async (owner) => {
-        await productActions.submitSealedEventRoster(owner, { token: hostToken, eventToken, rosterId })
+        await productActions.submitSealedEventRoster(owner, { token: hostToken, eventToken, rosterId, disposition })
         return { sealed: true, rosterId }
       }),
   )

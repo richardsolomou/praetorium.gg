@@ -341,7 +341,7 @@ export function calculateRosterTotals(
  * Every field here changes what the price is allowed to answer, so a caller that
  * assembles its own literal can silently drop one: a missing borrow leaves the
  * borrowed disposition out of the allowed set, and `resolveDisposition` then
- * substitutes the roster's own without reporting anything. Callers pass the saved
+ * drops the borrowed card without reporting anything. Callers pass the saved
  * list, not a shape they built themselves.
  */
 export function savedRosterPriceInput(saved: {
@@ -451,7 +451,7 @@ function calculateRoster(
     borrowedError || !borrowedDetachment
       ? []
       : (borrowedReference?.dispositions ?? (borrowedDetachment.disposition ? [borrowedDetachment.disposition] : []))
-  const { disposition, error: dispositionError } = resolveDisposition([...allowedDispositions, ...borrowedDispositions], data.disposition)
+  const disposition = resolveDisposition([...allowedDispositions, ...borrowedDispositions], data.disposition)
   const detachmentSpecials = chosen.map((option) => {
     const detail = detailFor(option)
     return { option, detail, ...describedEnhancements(loaded, data.catalogueId, option, detail) }
@@ -633,7 +633,6 @@ function calculateRoster(
       kind: 'assessment' as const,
       points,
       detachmentError,
-      dispositionError,
       errors,
       units: picked.map((unit) => {
         const { enhancements, upgrades } = specialsByKey.get(unit.key)!
@@ -667,7 +666,6 @@ function calculateRoster(
     detachmentError,
     disposition,
     dispositions: [...allowedDispositions, ...borrowedDispositions],
-    dispositionError,
     borrowedDetachment: borrowedDetachment?.name ?? null,
     borrowedError,
     strategicReserveFactsComplete,
@@ -825,7 +823,10 @@ export const findEnhancementDescription = (
   enhancement: string,
 ) => detachments.map((detachment) => descriptions.get(descriptionKey(detachment.name, enhancement))).find(Boolean) ?? null
 
+/**
+ * The Force Disposition a list names, if any. A list only offers cards: a player picks one at each battle's Mission step,
+ * or when sealing it for an event, so naming none of several is a list's normal state, not a problem.
+ */
 export function resolveDisposition(allowed: readonly string[], selected: string | null) {
-  const disposition = allowed.includes(selected ?? '') ? selected : allowed.length === 1 ? allowed[0] : null
-  return { disposition, error: allowed.length > 1 && !disposition ? 'Pick a disposition.' : null }
+  return allowed.includes(selected ?? '') ? selected : allowed.length === 1 ? allowed[0]! : null
 }

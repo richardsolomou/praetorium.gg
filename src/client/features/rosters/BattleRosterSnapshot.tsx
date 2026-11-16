@@ -77,6 +77,7 @@ export function BattleRosterSnapshot({
           pointsBudget={built?.pointsBudget}
           detachments={detachments(built)}
           disposition={built?.disposition}
+          dispositions={built?.dispositions}
           waivers={rosterWaivers(built)}
         />
         <RosterBody>

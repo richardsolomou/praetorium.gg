@@ -17,7 +17,7 @@ The import left these out, each with a reason:
 - A datasheet, detachment or enhancement a data update removed ("removed in the 30 Sept 2026 data update").
 - A line the importer didn't understand.
 - A battle size Praetorium doesn't support, or a custom points budget it can't accept.
-- A force disposition that wasn't recognised, or more than one stated at once. Choose one in setup afterwards.
+- A force disposition that wasn't recognised. A list that names several just offers them, so that isn't a problem: you choose one before each battle.
 
 ### Will arrive as their datasheets build them
 

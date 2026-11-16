@@ -22,7 +22,7 @@ To join, call `join_event` or `join_group` once the player confirms. `pending` m
 3. Tell the player which roster you will seal, and wait for them to confirm. Then call `submit_event_roster`.
 4. If it's refused, tell them the reason as given. In a 2v1 or doubles game the organizer gives each player a size or team first, and a group's hidden-list game asks you to choose your side on its page.
 
-Sealing stores a copy: editing the saved roster later doesn't change it, so seal again to swap it. Before the reveal only the player and their assigned ally can read it, and nobody's list is shown until then. A pair still choosing its Force Disposition or Warlord does that on its page.
+Sealing stores a copy: editing the saved roster later doesn't change it, so seal again to swap it. Before the reveal only the player and their assigned ally can read it, and nobody's list is shown until then. A player who plays alone seals their Force Disposition with the list: when it offers several, ask which and pass `disposition`. A pair still choosing its Force Disposition or Warlord does that on its page.
 
 ## Play your table
 

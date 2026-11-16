@@ -508,7 +508,7 @@ export function ListBuilder({
 
   const points = frozen ? frozen.points : (priced?.points ?? 0)
   const over = enforces(waivedRules, 'points-limit') && (frozen ? frozen.points > budget : Boolean(priced && priced.points > budget))
-  const illegal = Boolean(priced && (priced.errors.length || priced.detachmentError || priced.dispositionError))
+  const illegal = Boolean(priced && (priced.errors.length || priced.detachmentError))
   const cards = rosterCards(frozen, units, picks)
 
   // The shelves draw a card per datasheet; the header says how many units the list
@@ -720,6 +720,7 @@ export function ListBuilder({
               })
         }
         disposition={frozen ? disposition : priced?.disposition}
+        dispositions={frozen ? undefined : priced?.dispositions}
         waivers={waivers}
         actions={
           <RosterActionsMenu
@@ -769,7 +770,6 @@ export function ListBuilder({
           onSetup={openSetup}
           onConvert={editable ? convertSetup : undefined}
           detachmentError={priced?.detachmentError}
-          dispositionError={priced?.dispositionError}
         />
 
         {setupDialog}

@@ -10,17 +10,20 @@ function offeredDispositions(roster: Roster | null | undefined): string[] {
 /**
  * The cards a side may play, given the armies seated on it.
  *
- * A lone army plays the card its list chose. Allies field one army between them, so they choose
- * from every card either list's detachments offered, not only the ones each list happened to pick.
+ * A side picks at the Mission step from every card its armies' detachments offer, allies from either list's. A lone
+ * list sealed for an event plays the card it was sealed with, because the event fixed that choice before the reveal.
  */
-export function teamDispositionChoices(rosters: readonly (Roster | null | undefined)[]): string[] {
-  if (rosters.length < 2) return rosters[0]?.built?.disposition ? [rosters[0].built.disposition] : []
+export function teamDispositionChoices(rosters: readonly (Roster | null | undefined)[], sealed = false): string[] {
+  if (sealed && rosters.length < 2) return rosters[0]?.built?.disposition ? [rosters[0].built.disposition] : []
   return [...new Set(rosters.flatMap(offeredDispositions))]
 }
 
-/** The card a side plays: its valid pick, else the one card its lists agree on or could play; null while allies still owe a choice. */
-export function teamDisposition(rosters: readonly (Roster | null | undefined)[], picked: string | null): string | null {
-  const choices = teamDispositionChoices(rosters)
+/**
+ * The card a side plays: its valid pick, else the one card it could play or its lists already name; null while the
+ * side still owes a choice.
+ */
+export function teamDisposition(rosters: readonly (Roster | null | undefined)[], picked: string | null, sealed = false): string | null {
+  const choices = teamDispositionChoices(rosters, sealed)
   if (picked && choices.includes(picked)) return picked
   if (choices.length === 1) return choices[0]!
   const chosen = new Set(rosters.flatMap((roster) => (roster?.built?.disposition ? [roster.built.disposition] : [])))

@@ -67,7 +67,8 @@ export function playedArmies(
         edition: built.edition ?? null,
         detachmentIds: built.detachmentIds ?? [],
         detachments: builtDetachments(built).map((detachment) => detachment.name),
-        disposition: built.disposition,
+        // The card the side played, which a list that only offers several leaves to battle setup.
+        disposition: seat.matchup.own ?? built.disposition,
         limit: built.limit,
         pointsBudget: built.pointsBudget ?? null,
         waivedRules: built.waivedRules ?? [],

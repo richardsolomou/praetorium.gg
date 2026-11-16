@@ -245,7 +245,7 @@ test('a visitor imports the reported Salamanders detachments and keeps them afte
   await exported.screenshot({ path: testInfo.outputPath('salamanders-import-export-phone.png') })
 })
 
-test('an imported roster with disagreeing dispositions asks for one before battle setup', async ({ page }) => {
+test('an imported roster that offers several dispositions plays the one its battle picks', async ({ page }) => {
   await signUp(page, 'Bob')
 
   await page.goto('/rosters')
@@ -264,24 +264,19 @@ Overlord (85 Points)
 
 Exported with BattleBase, Data Version: v20260812`)
   await page.getByRole('button', { name: 'Import pasted roster' }).click()
-  await page.getByRole('button', { name: 'Import anyway', exact: true }).click()
+  await page.getByRole('dialog', { name: 'Import roster' }).getByRole('button', { name: 'Import roster', exact: true }).click()
   await page.waitForURL(/\/rosters\/[^/]+$/)
+  const roster = page.url()
 
-  const notice = page.getByRole('alert').filter({ hasText: 'Pick a disposition.' })
-  await expect(notice).toBeVisible()
-  await notice.getByRole('button', { name: 'Choose one' }).click()
+  await practiceBattle(page, "HLHOTD 2K - C'tan")
+  await chooseBattlefield(page)
+
+  await page.goto(roster)
   const setup = page.getByRole('dialog', { name: 'Edit roster setup' })
-  await setup.getByRole('button', { name: 'Take and Hold', exact: true }).click()
-  await waitForRosterSave(page, () => confirmRosterSetup(setup))
-  await expect(notice).toHaveCount(0)
-  await expect(page.getByText('Take and Hold', { exact: true })).toBeVisible()
-
   for (const disposition of ['Take and Hold', 'Reconnaissance']) {
-    if (disposition === 'Reconnaissance') {
-      await chooseRosterAction(page, 'Edit roster setup')
-      await setup.getByRole('button', { name: disposition, exact: true }).click()
-      await waitForRosterSave(page, () => confirmRosterSetup(setup))
-    }
+    await chooseRosterAction(page, 'Edit roster setup')
+    await setup.getByRole('button', { name: disposition, exact: true }).click()
+    await waitForRosterSave(page, () => confirmRosterSetup(setup))
     await page.reload()
     await expect(page.getByText(disposition, { exact: true })).toBeVisible()
     await chooseRosterAction(page, 'Export text')
@@ -291,9 +286,6 @@ Exported with BattleBase, Data Version: v20260812`)
     await exported.screenshot({ path: test.info().outputPath(`selected-disposition-export-${disposition.toLowerCase()}.png`) })
     await exported.getByRole('button', { name: 'Close' }).click()
   }
-
-  await practiceBattle(page, "HLHOTD 2K - C'tan")
-  await chooseBattlefield(page)
 })
 
 test('a ListForge export imports through review and exports as readable text', async ({ page }) => {
