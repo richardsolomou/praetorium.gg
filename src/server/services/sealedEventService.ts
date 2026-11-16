@@ -30,7 +30,7 @@ import type { TableShape } from '../../core/tableShape'
 import { teamDisposition } from '../../core/teamDisposition'
 import type { SealedEventSide } from '../../contracts/schemas'
 import type { SealedEventSchedule, RepositoryPort } from '../spacetimeRepository'
-import type { BattleFaction } from '../../shared/battleSummary'
+import { battleFactionOf, type BattleFaction } from '../../shared/battleSummary'
 import type { Notifier } from '../pushNotifier'
 import { rosterFromRow } from '../rosterPersistence'
 import { rosterWithoutUnitNotes } from '../../core/unitNotes'
@@ -180,7 +180,7 @@ export class SealedEventService {
       ...sealedEvent,
       organizer,
       entries: visibleSealedEventEntries(sealedEvent.entries, organizer, viewerId).map((entry) => {
-        const faction = entry.army?.catalogueId ? factionsById.get(entry.army.catalogueId) : undefined
+        const faction = entry.army?.catalogueId ? battleFactionOf(entry.army.catalogueId, factionsById) : undefined
         return { ...entry, armyFaction: faction ? { slug: faction.slug, displayName: faction.displayName, icon: faction.icon } : null }
       }),
     }
@@ -402,6 +402,7 @@ export class SealedEventService {
       this.notifySealedEvent('sealed-event-revealed', ownerId, result.entrantIds, token, eventToken)
       return
     }
+    if (result.outcome === 'forbidden') throw new Response('only the organizer can reveal a tournament’s rosters', { status: 403 })
     if (result.outcome === 'invalid-warlords')
       throw new Response('each sealed roster must select exactly one eligible Warlord before reveal', { status: 409 })
     throw new Response('wait for every accepted list and every pair’s Force Disposition and Warlord before reveal', { status: 409 })
@@ -620,6 +621,8 @@ export class SealedEventService {
     secondOpponentId?: string,
     fieldAlerts: (roster: Roster, playerId: string) => Promise<Roster> = async (roster) => roster,
     fixtureKey?: string,
+    /** Skips telling the players, for a battle started only to record its score. */
+    quiet = false,
   ) {
     const invited = [opponentId, allyId, secondOpponentId].filter((id): id is string => Boolean(id))
     if (new Set([userId, ...invited]).size !== invited.length + 1) throw new Response('choose different entrants', { status: 400 })
@@ -655,9 +658,10 @@ export class SealedEventService {
       },
     )
     if (!result) throw new Response('no such event', { status: 404 })
-    this.notifier.notify([
-      { kind: 'battle-created', actorId: userId, recipientIds: result.participantIds, battleToken: token, sealedEvent: true },
-    ])
+    if (!quiet)
+      this.notifier.notify([
+        { kind: 'battle-created', actorId: userId, recipientIds: result.participantIds, battleToken: token, sealedEvent: true },
+      ])
     return { ...result, battleId: id }
   }
 

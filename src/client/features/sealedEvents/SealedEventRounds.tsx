@@ -203,7 +203,7 @@ export function SealedEventRounds({
           ) : next > progress.rounds ? (
             <p className="text-sm text-dim">Every round is played. The results below are final.</p>
           ) : null}
-          {rounds.length > 1 ? (
+          {rounds.length > 1 && next <= progress.rounds ? (
             <p className="text-sm text-dim">Results from earlier rounds are locked once the next round is paired.</p>
           ) : null}
           <div className="runner gap-3 [--gate-y:1.375rem]">
@@ -282,13 +282,16 @@ function TableRow({
 }) {
   const own = pairing.aId === viewerId || pairing.bId === viewerId
   const opponent = pairing.aId === viewerId ? pairing.bId : pairing.aId
+  // An earlier round's table is unfinished only once reopened, and only the organizer may score it then.
+  const reportable =
+    battle?.status !== 'finished' && (current ? own || battlefield?.organizes : battlefield?.organizes && pairing.battleToken)
   return (
     <li
       data-table={pairing.table}
       className={`flex min-h-12 min-w-0 flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2 last:rounded-b-xl ${own ? 'bg-parchment/5' : ''}`}
     >
       <span className="part-tag part-tag-ghost">{pairing.table}</span>
-      <span className="min-w-0 flex-1 font-semibold break-words">
+      <span className="min-w-0 flex-[1_1_10rem] font-semibold break-words">
         {name(pairing.aId)}
         {pairing.bId ? <span className="font-normal text-dim"> vs </span> : null}
         {pairing.bId ? name(pairing.bId) : null}
@@ -313,7 +316,7 @@ function TableRow({
       ) : (
         <span className="shrink-0 text-sm text-faint">Not started</span>
       )}
-      {battlefield && pairing.bId && !forfeit && current && (own || battlefield.organizes) && battle?.status !== 'finished' ? (
+      {battlefield && pairing.bId && !forfeit && reportable ? (
         <ReportTableResult
           token={battlefield.token}
           eventToken={battlefield.sealedEvent.eventToken}

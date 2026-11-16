@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { type Dispatch, type SetStateAction, useLayoutEffect, useMemo, useRef } from 'react'
 import type { RosterPick } from '../../../core/roster'
-import { setupPriceQuery } from '../../queries'
+import { type Fielded, setupPriceQuery } from '../../queries'
 import { samePriceContext, survivingUnits } from './builder/pricePlaceholder'
 import { settledWarlord } from './builder/usePicks'
 import type { KeyedPick } from './rosterPicks'
@@ -27,11 +27,12 @@ export function useRosterPrice({
   picks: readonly KeyedPick[]
   positioned: readonly RosterPick[]
   editable: boolean
-  frozen: boolean
+  /** A frozen list's fielding, which reads it on the rules version it was played on. */
+  frozen: Fielded
   selected: number | null
   setPicks: Dispatch<SetStateAction<KeyedPick[]>>
 }) {
-  const priceRequest = setupPriceQuery(setup, positioned, editable)
+  const priceRequest = setupPriceQuery(frozen ? { ...setup, fielded: frozen } : setup, positioned, editable)
   const {
     data: priced,
     dataUpdatedAt: pricedAt,

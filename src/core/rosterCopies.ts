@@ -26,9 +26,10 @@ export function loadoutPicks(loadout: Pick<UnitLoadout, 'catalogueId' | 'pick' |
  * It keeps the rules version it was fielded under, read against current IDs as every saved roster
  * is, so the builder reports what that version no longer allows and offers conversion itself.
  */
-export function copiedArmy<T extends { catalogueId: string; detachmentIds: readonly string[]; picks: readonly RosterPick[] }>(
-  army: T,
-): T & { picks: RosterPick[] } {
-  const current = currentRosterIds({ ...army, picks: withoutUnitNotes(army.picks) })
-  return { ...current, picks: [...current.picks] }
+export function copiedArmy<
+  T extends { catalogueId: string; detachmentIds: readonly string[]; picks: readonly RosterPick[]; playedAt?: number },
+>(army: T): T & { picks: RosterPick[] } {
+  // A fielded army was last changed when it was played, so its plain book ID resolves as a roster saved then would.
+  const { updatedAt: _updatedAt, ...current } = currentRosterIds({ ...army, picks: withoutUnitNotes(army.picks), updatedAt: army.playedAt })
+  return { ...(current as unknown as T), picks: [...current.picks] }
 }

@@ -8,7 +8,7 @@ import type { Notifier } from '../pushNotifier'
 import type { BattleMissionRules } from '../rules'
 import type { RepositoryPort } from '../spacetimeRepository'
 import type { BattleFeedService } from './battleFeedService'
-import { foldHistory, mayWatch, mustFindBattle } from './battleHistory'
+import { foldHistory, mayWatch, mustFindBattle, reportScore } from './battleHistory'
 import type { SealedEventService } from './sealedEventService'
 
 export class SealedEventResultsService {
@@ -180,20 +180,21 @@ export class SealedEventResultsService {
           pairing.bId,
           missionPackId,
           sealedEvent.eventToken,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          true,
         )
       ).token
-    const history = await mustFindBattle(this.repository, token)
-    const { result } = await this.repository.submit({
-      battleId: history.battle.id,
+    await reportScore(this.repository, {
+      token,
+      players: [pairing.aId, pairing.bId],
+      vp,
       userId,
-      expectedSeq: foldHistory(history).seq,
-      command: { kind: 'report-result', vp: { [pairing.aId]: vp[0], [pairing.bId]: vp[1] } },
-      now: this.clock(),
-      snapshot: { seats: history.players, log: history.log },
       organizer: sealedEvent.organizer,
+      now: this.clock(),
     })
-    if (result.outcome === 'refused') throw new Response(result.reason, { status: 409 })
-    if (result.outcome === 'stale') throw new Response('the battle changed while the score was being saved, so try again', { status: 409 })
   }
 }
 

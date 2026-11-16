@@ -64,7 +64,7 @@ export function SealedEventReadiness({
     return entry ? label(entry) : 'someone'
   }
   const ownEntry = viewerId ? sealedEvent.entries.find((entry) => entry.userId === viewerId) : undefined
-  const mayReveal = mayRevealSealedEvent(isOrganizer, ownEntry ?? null)
+  const mayReveal = mayRevealSealedEvent(isOrganizer, ownEntry ?? null, !!sealedEvent.tournament)
 
   const { playerLimit } = entryRules(sealedEvent)
   const openPlaces = playerLimit === null ? 0 : playerLimit - accepted.length
@@ -75,7 +75,13 @@ export function SealedEventReadiness({
     : accepted.length
       ? `${sealed.length} of ${accepted.length} rosters sealed`
       : 'Nobody is in yet'
-  const revealNow = mayReveal ? 'You can open the rosters now' : 'Anyone playing can open the rosters now'
+  const soleOrganizer = sealedEvent.tournament && !sealedEvent.tournament.admins.length ? sealedEvent.tournament.ownerName : null
+  const organizers = soleOrganizer ?? 'The organizers'
+  const revealNow = mayReveal
+    ? 'You can open the rosters now'
+    : sealedEvent.tournament
+      ? `${organizers} will reveal the rosters`
+      : 'Anyone playing can open the rosters now'
   const readyLine = openPlaces > 0 ? `${openPlaces} of ${playerLimit} places are still open. ${revealNow}.` : `${revealNow}.`
   const detail = [
     waiting.length ? `Waiting on ${namesPhrase(waiting.map(label))}.` : null,
@@ -86,7 +92,7 @@ export function SealedEventReadiness({
       ? `${namesPhrase(leaderless.map(nameOf))} still ${leaderless.length === 1 ? 'needs' : 'need'} to choose whose Warlord leads their team.`
       : null,
     !isOrganizer && organizerSteps.length
-      ? `${sealedEvent.tournament && !sealedEvent.tournament.admins.length ? `${sealedEvent.tournament.ownerName} still needs` : 'The organizers still need'} to ${namesPhrase(organizerSteps)}.`
+      ? `${organizers} still ${soleOrganizer ? 'needs' : 'need'} to ${namesPhrase(organizerSteps)}.`
       : null,
     ready ? readyLine : null,
   ]

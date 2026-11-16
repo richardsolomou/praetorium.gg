@@ -98,7 +98,9 @@ export function guestRosterSummary(guest: GuestDraft) {
 
 function validDraft(stored: GuestDraft | null): GuestDraft | null {
   if (!stored || stored.version !== VERSION || typeof stored.id !== 'string' || !stored.draft?.catalogueId) return null
-  return { ...stored, draft: currentRosterIds(stored.draft) }
+  // An undated draft predates dating, so it reads as built before every retained rules version's cutoff.
+  const { updatedAt: _updatedAt, ...draft } = currentRosterIds({ ...stored.draft, updatedAt: stored.updatedAt ?? 0 })
+  return { ...stored, draft }
 }
 
 function parseDraft(raw: string | null): GuestDraft | null {

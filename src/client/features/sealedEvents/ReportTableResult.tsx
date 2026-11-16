@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query'
 import { PencilLine } from 'lucide-react'
-import { type ReactNode, useState } from 'react'
+import { type ReactNode, useId, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -12,60 +12,45 @@ import { useSealedEventRefresh } from './sealedEvent'
 
 const validScore = (text: string) => /^\d{1,3}$/.test(text)
 
-/** Records a table's final score for a game that wasn't tracked here, as at a venue without a phone at every table. */
-export function ReportTableResult({
-  token,
-  eventToken,
-  round,
-  table,
+/** Records a game's final score when it wasn't tracked here, as at a venue without a phone at every table. */
+export function EnterScore({
+  title,
+  label,
+  description,
   names,
+  save,
 }: {
-  token: string
-  eventToken: string
-  round: number
-  table: number
+  title: string
+  label: string
+  description: string
   names: [ReactNode, ReactNode]
+  save: (vp: [number, number], missionPackId: string | null) => Promise<unknown>
 }) {
+  const id = useId()
   const [open, setOpen] = useState(false)
   const [scores, setScores] = useState(['', ''])
-  const refresh = useSealedEventRefresh(token)
   const { defaultMissionPackId } = useStartBattle()
   const report = useMutation({
-    mutationFn: async () =>
-      reportTableResult({
-        data: {
-          token,
-          eventToken,
-          round,
-          table,
-          vp: [Number(scores[0]), Number(scores[1])],
-          missionPackId: await defaultMissionPackId(),
-        },
-      }),
-    onSuccess: async () => {
-      await refresh()
-      setOpen(false)
-    },
+    mutationFn: async () => save([Number(scores[0]), Number(scores[1])], await defaultMissionPackId()),
+    onSuccess: () => setOpen(false),
   })
   return (
     <>
-      <Button variant="ghost" size="sm" className="shrink-0" aria-label={`Enter score for table ${table}`} onClick={() => setOpen(true)}>
+      <Button variant="ghost" size="sm" className="shrink-0" aria-label={label} onClick={() => setOpen(true)}>
         <PencilLine /> Enter score
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Table {table} score</DialogTitle>
-            <DialogDescription>
-              For a game that wasn’t tracked here. It counts for this tournament’s standings but not the leaderboard.
-            </DialogDescription>
+            <DialogTitle>{title}</DialogTitle>
+            <DialogDescription>{description}</DialogDescription>
           </DialogHeader>
           <DialogBody>
             {([0, 1] as const).map((at) => (
               <div key={at} className="space-y-1.5">
-                <Label htmlFor={`table-${table}-score-${at}`}>{names[at]}</Label>
+                <Label htmlFor={`${id}-${at}`}>{names[at]}</Label>
                 <Input
-                  id={`table-${table}-score-${at}`}
+                  id={`${id}-${at}`}
                   inputMode="numeric"
                   value={scores[at]}
                   onChange={(event) => setScores(scores.map((score, index) => (index === at ? event.target.value : score)))}
@@ -82,5 +67,34 @@ export function ReportTableResult({
         </DialogContent>
       </Dialog>
     </>
+  )
+}
+
+/** A tournament table's score, for a game that wasn't tracked here. */
+export function ReportTableResult({
+  token,
+  eventToken,
+  round,
+  table,
+  names,
+}: {
+  token: string
+  eventToken: string
+  round: number
+  table: number
+  names: [ReactNode, ReactNode]
+}) {
+  const refresh = useSealedEventRefresh(token)
+  return (
+    <EnterScore
+      title={`Table ${table} score`}
+      label={`Enter score for table ${table}`}
+      description="For a game that wasn’t tracked here. It counts for this tournament’s standings but not the leaderboard."
+      names={names}
+      save={async (vp, missionPackId) => {
+        await reportTableResult({ data: { token, eventToken, round, table, vp, missionPackId } })
+        await refresh()
+      }}
+    />
   )
 }

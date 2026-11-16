@@ -139,6 +139,7 @@ export async function decodeRosterExchange(text: string): Promise<RosterExchange
     )
   const parsed = exchangeSchema.safeParse(raw)
   if (!parsed.success) throw malformed()
+  // A code carries no date: a roster on an older rules version is encoded with its qualified ID, so a plain book ID is the current rules.
   return currentRosterIds(parsed.data)
 }
 

@@ -20,7 +20,7 @@ export const Route = createFileRoute('/invite/$token')({
   notFoundComponent: () => (
     <FullPageState
       title="This invite link no longer works"
-      explanation="It has expired, been used or been cancelled. Ask your friend for a new link."
+      explanation="It has been used, or your friend made a new one or cancelled it. Ask them for a new link."
       icon={UserX}
     />
   ),

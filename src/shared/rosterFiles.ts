@@ -20,6 +20,7 @@ import { fromWtcText } from '../core/wtcText'
 import type { RosterSource } from '../core/savedRoster'
 import { defaultSelection } from '../core/expand'
 import { buildUnit } from '../core/roster'
+import { builtPickSelections } from '../core/rosterSelections'
 import { modelCountOf } from '../core/unitSize'
 import { at as selectionAt } from '../core/selection'
 import { unitChoices, unitToggles } from '../core/unitChoices'
@@ -54,7 +55,7 @@ import { keywordsIn } from './catalogue'
 import { isUpgrade, mfmDetachmentFor } from './mfm'
 import { rosterDetachments } from './rosterDetachments'
 import { importRosterSchema, type ExportRosterInput, type ImportRosterInput } from '../contracts/schemas'
-import { calculateRosterPrice } from './pricing'
+import { calculateRosterPrice, unavailablePriceSelections } from './pricing'
 import type { LoadedRules } from './rules'
 import type { RosterExchange } from '../core/rosterExchange'
 import type { RosterPick } from '../core/roster'
@@ -206,27 +207,76 @@ export function importParsedRoster(
   removed: RemovedNames = NO_REMOVALS,
 ) {
   const result = matchParsedRoster(parsed, loaded, factionNames, translations, removed)
-  const currentPoints = result.catalogueId
-    ? (calculateRosterPrice(
-        {
-          catalogueId: result.catalogueId,
-          detachmentIds: result.detachmentIds,
-          disposition: 'disposition' in result ? (result.disposition ?? null) : null,
-          limit: 'limit' in result ? (result.limit ?? 2000) : 2000,
-          units: result.units,
-        },
-        loaded,
-        rules,
-      )?.points ?? null)
-    : null
+  const price = (units: readonly RosterPick[]) =>
+    result.catalogueId
+      ? calculateRosterPrice(
+          {
+            catalogueId: result.catalogueId,
+            detachmentIds: result.detachmentIds,
+            disposition: 'disposition' in result ? (result.disposition ?? null) : null,
+            limit: 'limit' in result ? (result.limit ?? 2000) : 2000,
+            units: [...units],
+          },
+          loaded,
+          rules,
+        )
+      : null
+  const priced = price(result.units)
+  const units = priced ? asBuilt(result.units, priced, price) : result.units
+  const currentPoints = priced?.points ?? null
   return {
     ...result,
+    units,
     source: savedSource(format),
     format,
     reportedPoints: parsed.reportedPoints ?? null,
     currentPoints,
     sourceUnitCount: parsed.units.length,
   }
+}
+
+type PricedUnits = {
+  units: readonly {
+    key: number
+    size: { models: number }
+    points: number
+    wargear: unknown
+    choices: Parameters<typeof builtPickSelections>[1]['choices']
+  }[]
+}
+
+const buildShape = (priced: PricedUnits) =>
+  JSON.stringify(
+    priced.units.map((unit) => [
+      unit.key,
+      unit.size.models,
+      unit.points,
+      unit.wargear,
+      unit.choices.map((choice) => [choice.key, choice.options]),
+    ]),
+  )
+
+/**
+ * An import's picks saved as they build, so the list check never reads a size or count the matcher settled differently
+ * as a data change. Selections are rewritten only when the rewrite builds the same units.
+ */
+function asBuilt<T extends RosterPick>(
+  picks: readonly T[],
+  priced: PricedUnits,
+  price: (units: readonly RosterPick[]) => PricedUnits | null,
+): T[] {
+  const built = new Map(priced.units.map((unit) => [unit.key, unit]))
+  const sized = picks.map((pick, key) => {
+    const unit = built.get(key)
+    return unit && pick.models !== unit.size.models ? { ...pick, models: unit.size.models } : pick
+  })
+  const selected = sized.map((pick, key) => {
+    const unit = built.get(key)
+    return unit ? builtPickSelections(pick, unit) : pick
+  })
+  if (selected.every((pick, key) => pick === sized[key])) return sized
+  const rebuilt = price(selected)
+  return rebuilt && buildShape(rebuilt) === buildShape(priced) ? selected : sized
 }
 
 /**
@@ -650,7 +700,8 @@ function detachmentsNamed<T extends { id: string; name: string }>(
   return visit(normalized(combined), candidates) ?? []
 }
 
-const upgradeName = (name: string) => name.replace(/(?:\s+\((?:one per army|Upgrade)\))+$/i, '')
+// Official-app data before v995 prints Nightforged Battery's qualifier as "(Upgarde)".
+const upgradeName = (name: string) => name.replace(/(?:\s+\((?:one per army|Upgrade|Upgarde)\))+$/i, '')
 const nameVariants = (name: string) => normalizedNameVariants(normalized(name))
 const modelLoadout = /\s+w\/\s*(.+)$/i
 // BSData names these models after their units; neither the catalogue nor the cards hold the names the official app prints.
@@ -717,11 +768,13 @@ function joinedSplit(unit: TextRosterUnit, entryId: string, index: LoadedCatalog
     const before = joined.at(-1)
     const qualified = before && selection.model === before.name && `${before.name} (${selection.name})`
     const listed = before && selection.model === before.model && `${before.name}, ${selection.name}`
+    // ListForge's short text cuts a model's bracketed wargear at its ampersands, which can be one option's name.
+    const paired = before?.model && selection.model === before.model && `${before.name} & ${selection.name}`
     // Only a line the datasheet does not know is a cut piece: a Terminator's "Power fist" stays apart from the "Combi-bolter" before it
     // although it offers a "Combi-bolter, Power fist", and a Sicarian Ruststalker's "Transonic razor and chordclaw" is what it carries.
     const name =
       before?.count === selection.count && !known(selection.name)
-        ? [qualified, listed].find((candidate) => candidate && known(candidate))
+        ? [qualified, listed, paired].find((candidate) => candidate && known(candidate))
         : undefined
     if (before && name) before.name = name
     else joined.push({ ...selection })
@@ -1103,10 +1156,15 @@ function textRosterPick(
                 : null
         if (kindBodies) fieldedKinds.add(groupNamed!)
         // The official app names a model by its kind alone, as an "Eradicator" for the Eradicator with Multi-melta its wargear marks.
+        // A kind with no option here is the model the unit is sized by, as the Kroot Farstalker the Pech'ra carrier is one of.
         for (const variant of bodies >= choice.room ? choice.options : []) {
           const kind = normalized(variant.name.replace(/\s+(?:w\/|with)\s*.+$/i, ''))
           const base = choice.options.find((option) => option !== variant && normalized(option.name) === kind)
-          if (!base || asked!.get(variant.id) || !counts.get(variant.id)) continue
+          if (asked!.get(variant.id) || !counts.get(variant.id)) continue
+          if (!base) {
+            if (statedLines.has(kind)) asked!.set(variant.id, Math.min(counts.get(variant.id)!, statedLines.get(kind)!))
+            continue
+          }
           const moved = Math.min(counts.get(variant.id)!, asked!.get(base.id)!)
           asked!.set(base.id, asked!.get(base.id)! - moved)
           asked!.set(variant.id, moved)
@@ -1858,6 +1916,10 @@ export function exportRosterFile(data: ExportRosterInput, loaded: LoadedCatalogu
     text: toGwText(readableRoster(data, loaded, priced, dispositionNames), version) + gwTextVersionLines(loaded.edition, data.catalogueId),
     name: data.name,
     omittedUnitCount: data.units.length - priced.units.length,
+    /** Saved detachments and options of printed units the current data no longer offers, which the text leaves out. */
+    omittedSelectionCount:
+      data.detachmentIds.filter((id) => !loaded.detachments.get(data.catalogueId)?.options.some((option) => option.id === id)).length +
+      unavailablePriceSelections(data, loaded).filter((problem) => problem.kind !== 'datasheet').length,
   }
 }
 

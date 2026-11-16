@@ -1,34 +1,11 @@
 import { z } from 'zod'
 import rawRetired from '../../catalogue/retired-ids.json' with { type: 'json' }
-import rawRetainedRules from '../../catalogue/retained-roster-rules.json' with { type: 'json' }
 import rawMigrations from '../../catalogue/roster-migrations.json' with { type: 'json' }
 import type { RosterPick } from './roster'
 import { catalogueEditionId, editionCatalogueId, editionFamilyId, picksForCatalogueEdition } from './catalogueEdition'
-import { foldedEditionIds, migratedEditionId, migratedEditionPick, onFoldedEdition } from './editionMigrations'
+import { editionMigrationDatasheets, foldedEditionIds, migratedEditionId, migratedEditionPick, onFoldedEdition } from './editionMigrations'
+import { retainedRules, retainedRulesEdition, retainedRulesFor as retainedFor, retiredSourceSchema } from './retainedRosterRules'
 
-const replacementSchema = z.object({ id: z.string() })
-/**
- * `count` turns a saved single choice into that many of the option, for a group that now holds several;
- * `with` holds the choices a saved single choice's new key sits under, which the saved pick never made.
- */
-const optionSchema = z.object({
-  key: z.string(),
-  id: z.string(),
-  count: z.number().int().positive().optional(),
-  with: z.record(z.string(), z.string()).optional(),
-})
-const retiredSourceSchema = z.object({
-  catalogues: z.record(z.string(), replacementSchema),
-  detachments: z.record(z.string(), replacementSchema),
-  datasheets: z.record(
-    z.string(),
-    replacementSchema.extend({
-      choices: z.record(z.string(), z.record(z.string(), optionSchema)).optional(),
-      toggles: z.record(z.string(), z.string()).optional(),
-      fixedChoices: z.record(z.string(), z.array(z.string())).optional(),
-    }),
-  ),
-})
 const retired = Object.values(z.record(z.string(), retiredSourceSchema).parse(rawRetired))
 const migrations = Object.values(
   z
@@ -42,28 +19,39 @@ const migrations = Object.values(
     )
     .parse(rawMigrations),
 )
-const retainedRules = z
-  .array(
-    z.object({
-      editionId: z.string(),
-      /** When the app first served the rules that replaced these: a roster last saved from then on was built on the newer rules. */
-      savedBefore: z.number().int().optional(),
-      catalogueIds: z.array(z.string()),
-      originalCatalogueIds: z.array(z.string()),
-      detachments: z.array(z.string()),
-      selectionGroups: z.array(
-        z.array(
-          z.object({ entryId: z.string(), kind: z.enum(['choice', 'spread', 'toggle']), key: z.string(), optionId: z.string().optional() }),
-        ),
-      ),
-      aliases: retiredSourceSchema,
-    }),
-  )
-  .parse(rawRetainedRules)
-const retainedFor = (catalogueId: string) => retainedRules.find((rule) => rule.editionId === catalogueEditionId(catalogueId))
 const migrationDatasheets = migrations.map((migration) => new Map(Object.entries(migration.datasheets)))
 const migrationCatalogues = migrations.map((migration) => new Map(Object.entries(migration.catalogues)))
 const migrationDetachments = migrations.map((migration) => new Map(Object.entries(migration.detachments)))
+
+/**
+ * Every saved ID one of the maps reads as something else: a book, detachment or datasheet, a saved option, or
+ * a segment of a saved choice or toggle key. A snapshot that drops one of these has already been handled.
+ */
+export function migratedCatalogueIds() {
+  const ids = new Set<string>()
+  const addPath = (key: string) => key.split('/').forEach((segment) => ids.add(segment))
+  const sources = [...retired, ...migrations, ...retainedRules.map((rule) => rule.aliases)]
+  for (const source of sources) {
+    for (const id of [...Object.keys(source.catalogues), ...Object.keys(source.detachments)]) ids.add(id)
+  }
+  const sheets: [string, Partial<z.infer<typeof retiredSourceSchema>['datasheets'][string]>][] = [
+    ...sources.flatMap((source) => Object.entries(source.datasheets)),
+    ...editionMigrationDatasheets.flatMap((datasheets) => Object.entries(datasheets)),
+  ]
+  for (const [entryId, sheet] of sheets) {
+    ids.add(entryId)
+    for (const [key, options] of Object.entries(sheet.choices ?? {})) {
+      addPath(key)
+      for (const id of Object.keys(options)) ids.add(id)
+    }
+    for (const key of Object.keys(sheet.toggles ?? {})) addPath(key)
+    for (const [key, options] of Object.entries(sheet.fixedChoices ?? {})) {
+      addPath(key)
+      options.forEach((id) => ids.add(id))
+    }
+  }
+  return ids
+}
 
 const catalogues = new Map(retired.flatMap((source) => Object.entries(source.catalogues)))
 const detachments = new Map(retired.flatMap((source) => Object.entries(source.detachments)))
@@ -192,33 +180,9 @@ export function currentRosterIds<
       },
       true,
     )
-  const retained =
-    !folded &&
-    !catalogueEditionId(roster.catalogueId) &&
-    retainedRules.find(
-      (rule) =>
-        (rule.savedBefore === undefined || roster.updatedAt === undefined || roster.updatedAt < rule.savedBefore) &&
-        rule.catalogueIds.includes(roster.catalogueId) &&
-        (rule.originalCatalogueIds.includes(roster.catalogueId) ||
-          roster.detachmentIds.some((id) => rule.detachments.includes(id)) ||
-          (roster.borrowedDetachmentId && rule.detachments.includes(roster.borrowedDetachmentId)) ||
-          (rule.selectionGroups.length > 0 &&
-            rule.selectionGroups.every((group) =>
-              group.some((selection) =>
-                [...(roster.picks ?? []), ...(roster.units ?? [])].some(
-                  (pick) =>
-                    pick.entryId === selection.entryId &&
-                    (selection.kind === 'choice'
-                      ? pick.choices?.[selection.key] === selection.optionId
-                      : selection.kind === 'spread'
-                        ? (pick.spreads?.[selection.key]?.[selection.optionId!] ?? 0) > 0
-                        : (pick.toggles?.[selection.key] ?? 0) > 0),
-                ),
-              ),
-            ))),
-    )
+  const retained = folded ? null : retainedRulesEdition(roster)
   if (retained) {
-    const catalogueId = editionCatalogueId(retained.editionId, roster.catalogueId)
+    const catalogueId = editionCatalogueId(retained, roster.catalogueId)
     return currentRosterIds({
       ...roster,
       catalogueId,
@@ -226,6 +190,23 @@ export function currentRosterIds<
       ...(roster.units ? { units: picksForCatalogueEdition(roster.units, catalogueId) } : {}),
     })
   }
+  return idsWithinRulesVersion(roster)
+}
+
+type RosterIds = Parameters<typeof currentRosterIds>[0]
+
+/**
+ * A list a battle or sealed event froze, read on the rules version it was fielded under: retired ids still
+ * resolve, but a version that later folded into another is not moved onto it. A plain book ID is dated by
+ * `fieldedAt`, as a roster saved then would be; without it, it means the current rules.
+ */
+export function fieldedRosterIds<T extends RosterIds>(roster: T, fieldedAt?: number): T {
+  if (catalogueEditionId(roster.catalogueId)) return idsWithinRulesVersion(roster)
+  const { updatedAt: _fieldedAt, ...read } = currentRosterIds({ ...roster, updatedAt: fieldedAt })
+  return { ...read, ...(roster.updatedAt === undefined ? {} : { updatedAt: roster.updatedAt }) } as T
+}
+
+function idsWithinRulesVersion<T extends RosterIds>(roster: T): T {
   return {
     ...roster,
     catalogueId: currentCatalogueId(roster.catalogueId),

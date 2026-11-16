@@ -14,7 +14,7 @@ import { routeSlug } from '../../core/slug'
 import { archivedArmies } from '../../core/archivedArmies'
 import { currentCatalogueFamilyId } from '../../core/retiredCatalogueIds'
 import type { BattlesCursor } from '../../contracts/battles'
-import { battleSummary, type BattleFaction } from '../../shared/battleSummary'
+import { battleFactionOf, battleSummary, type BattleFaction } from '../../shared/battleSummary'
 import { matchupMission } from '../../shared/battleRules'
 import { gameReferencesFor } from '../../shared/gameReferences'
 import type { BattleMissionRules, BattleReadRules } from '../rules'
@@ -170,7 +170,7 @@ function referencedPlays(
     const printedBy = (detachment: string | undefined) => {
       if (!detachment) return undefined
       const faction = allies
-        .map((ally) => factionsById.get(ally.built?.catalogueId ?? ''))
+        .map((ally) => battleFactionOf(ally.built?.catalogueId ?? '', factionsById))
         .find((candidate) => candidate?.detachments?.some((listed) => listed.name === detachment))
       const route = faction?.detachments?.find((listed) => listed.name === detachment)?.referenceRoute
       return faction ? { catalogueId: route?.catalogueId ?? faction.slug, detachmentId: route?.slug ?? routeSlug(detachment) } : undefined

@@ -25,7 +25,7 @@ import {
 import { errorHasCode } from 'ras-stack/server'
 import type { EmailDelivery, EmailTemplate } from '../adapters/email'
 import { PASSWORD_MIN_LENGTH, SOCIAL_PROVIDERS, type SocialAuthProvider } from '../authConfig'
-import { account, schema, session as sessionTable, user } from '../db/authSchema'
+import { account, deletedUser, schema, session as sessionTable, user } from '../db/authSchema'
 import { oauthAccessToken, oauthClient, oauthConsent, oauthRefreshToken, oauthSchema } from '../db/oauthSchema'
 import type { AdminConnection, AdminSession } from '../admin'
 import { APPLE_AUTH_ORIGIN, appleCredentials, revokeAppleToken } from './appleAuth'
@@ -74,6 +74,11 @@ type AuthOptions = {
 type McpConnectionEvent = 'mcp_connected' | 'mcp_disconnected'
 
 export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret: string, options: AuthOptions) {
+  // Recorded only once the product data is gone, so a restore never replays a deletion that did not happen.
+  const deleteUserData = async (userId: string) => {
+    await options.deleteUserData(userId)
+    await database.insert(deletedUser).values({ id: userId, deletedAt: Date.now() }).onConflictDoNothing()
+  }
   const environment = options.environment
   const authUrl = new URL('/api/auth', environment.APP_URL)
   const mcpResource = new URL('/mcp', environment.APP_URL).toString()
@@ -239,7 +244,7 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
         enabled: true,
         beforeDelete: async (deleted) => {
           await revokeAppleUser(deleted.id)
-          await options.deleteUserData(deleted.id)
+          await deleteUserData(deleted.id)
         },
       },
     },
@@ -431,7 +436,7 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
     if (!target) return 'missing' as const
     if (target === 'admin') return 'admin' as const
     await revokeAppleUser(targetId)
-    await options.deleteUserData(targetId)
+    await deleteUserData(targetId)
     await (await auth.$context).internalAdapter.deleteUser(targetId)
     return 'deleted' as const
   }
@@ -531,7 +536,7 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
       .where(and(eq(account.providerId, 'apple'), eq(account.accountId, subject)))
       .limit(1)
     if (!linked) return
-    await options.deleteUserData(linked.userId)
+    await deleteUserData(linked.userId)
     const context = await auth.$context
     await context.internalAdapter.deleteUser(linked.userId)
     await context.internalAdapter.deleteUserSessions(linked.userId)

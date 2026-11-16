@@ -425,7 +425,7 @@ export const ACHIEVEMENTS = [
   },
   {
     id: 'organiser',
-    name: 'Organiser',
+    name: 'Organizer',
     tier: 'gold',
     metric: 'organised',
     count: 1,
@@ -467,7 +467,7 @@ export const ACHIEVEMENTS = [
 
 export type AchievementId = (typeof ACHIEVEMENTS)[number]['id']
 
-/** A finished Swiss tournament as one of its organisers or entrants sees it. */
+/** A finished Swiss tournament as one of its organizers or entrants sees it. */
 type TournamentFact = { entrants: number; finishedAt: number; organised: boolean; played: boolean; won: boolean }
 
 /** Every time is when the thing happened, which is when the achievement it completes was earned. */

@@ -36,7 +36,7 @@ import {
   rosterPickSchema,
   stratagemSchema,
 } from '../core/commands'
-import { currentCatalogueId, currentEntryId, currentRosterIds } from '../core/retiredCatalogueIds'
+import { currentCatalogueId, currentEntryId, currentRosterIds, fieldedRosterIds } from '../core/retiredCatalogueIds'
 import { ROSTER_SOURCES, ROSTER_VISIBILITIES } from '../core/savedRoster'
 import { ROSTER_BATCH_ACTIONS, ROSTER_BATCH_MAX, ROSTER_LIBRARY_BATCH_SIZE } from '../core/rosterLibrary'
 import { playedArmyFilterSchema, ROSTER_AUDIENCES, rosterDiscoveryCursorSchema, rosterDiscoveryFilterSchema } from '../core/rosterDiscovery'
@@ -273,6 +273,13 @@ export const startSealedGroupLeagueSchema = z
   })
   .superRefine((value, context) => validateSealedEventRule({ ...value, format: '1v1' }, context))
 export const groupLeagueClockSchema = z.object({ token, minutes: clockLimitMinutes.nullable() })
+/** Each player's final score, in the fixture's order. */
+export const reportFixtureResultSchema = z.object({
+  token,
+  fixture: z.string().max(300),
+  vp: z.tuple([z.number().int().min(0).max(999), z.number().int().min(0).max(999)]),
+  missionPackId: id.nullable(),
+})
 export const groupLeagueDeadlineSchema = z.object({
   token,
   round: z.number().int().min(1).max(GROUP_LEAGUE_PLAYERS_MAX),
@@ -404,6 +411,14 @@ const optionalRules = z.array(z.enum(OPTIONAL_RULE_IDS)).max(OPTIONAL_RULE_IDS.l
 
 export const picksSchema = z.array(rosterPickSchema).max(100)
 
+/** Set for a list a battle or sealed event froze, which is read on the rules version it was fielded under rather than today's. */
+export const fielded = z.boolean().optional()
+/** When a battle took a fielded list, which dates one on a plain book ID to the rules version it was played on. */
+export const fieldedAt = z.number().int().nonnegative().optional()
+export const fieldedOrCurrentIds = <T extends Parameters<typeof currentRosterIds>[0] & { fielded?: boolean; fieldedAt?: number }>(
+  roster: T,
+): T => (roster.fielded ? fieldedRosterIds(roster, roster.fieldedAt) : currentRosterIds(roster))
+
 export const unitsSchema = z.object({
   catalogueId,
   detachmentIds: z.array(detachmentIdSchema).max(DETACHMENTS_MAX).optional(),
@@ -434,9 +449,11 @@ export const datasheetSchema = z
     pickIndex: z.number().int().min(0).max(99).nullable().default(null),
     /** Keep weapons the unit is not carrying, so options read as this list would make them. */
     everyWeapon: z.boolean().default(false),
+    fielded,
+    fieldedAt,
   })
   .overwrite((data) => {
-    const roster = currentRosterIds(data)
+    const roster = fieldedOrCurrentIds(data)
     return { ...roster, entryId: currentEntryId(data.entryId, roster.catalogueId) }
   })
 /** A roster whose units' abilities its alerts are matched against. */
@@ -455,8 +472,10 @@ export const combatLoadoutSchema = z
     picks: z.array(rosterPickSchema).min(1).max(100),
     pickIndex: z.number().int().min(0).max(99),
     walk: z.object({ seed: z.number().int().min(0).max(2_147_483_647), steps: z.number().int().min(1).max(16) }).optional(),
+    fielded,
+    fieldedAt,
   })
-  .overwrite(currentRosterIds)
+  .overwrite(fieldedOrCurrentIds)
 export const savedRosterDatasheetSchema = z.object({ id, pickIndex: z.number().int().min(0).max(99) })
 export const datasheetSlugSchema = z.object({ catalogueId, slug })
 
@@ -624,8 +643,10 @@ export const priceSchema = z
     units: picksSchema,
     waivedRules,
     optionalRules,
+    fielded,
+    fieldedAt,
   })
-  .overwrite(currentRosterIds)
+  .overwrite(fieldedOrCurrentIds)
 
 export type PriceInput = z.infer<typeof priceSchema>
 

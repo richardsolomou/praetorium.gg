@@ -234,6 +234,12 @@ export const PRODUCT_DOCS = [
     description: 'Who sees your battles, rosters and collection, data requests and permanent deletion.',
   },
   {
+    slug: 'when-things-change',
+    section: 'Account and app',
+    title: 'What stays the same when things change',
+    description: 'What data updates and new versions keep: rosters, played battles, sealed lists, links and exchange codes.',
+  },
+  {
     slug: 'calendar',
     section: 'Account and app',
     title: 'Add dates to your calendar',

@@ -232,7 +232,7 @@ export class GroupResultsService {
       ? swissStandings(
           league.players.map((player) => player.userId),
           swissMatches(
-            fixtures.filter((fixture) => fixture.status !== 'void'),
+            fixtures.filter((fixture) => fixture.status !== 'void' && fixture.status !== 'bye'),
             battles,
           ),
         )
@@ -306,7 +306,7 @@ export class GroupResultsService {
     const playing = new Set(league.players.filter((player) => !player.withdrawn).map((player) => player.userId))
     const fixtures = league.fixtures.filter((fixture) => {
       const battle = fixture.battleToken ? (byToken.get(fixture.battleToken) ?? null) : null
-      return leagueFixtureStatus({ ...fixture, battle }, (userId) => playing.has(userId)) !== 'void'
+      return !['void', 'bye'].includes(leagueFixtureStatus({ ...fixture, battle }, (userId) => playing.has(userId)))
     })
     return swissStandings(
       league.players.map((player) => player.userId),

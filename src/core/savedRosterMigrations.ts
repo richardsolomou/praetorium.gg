@@ -1,5 +1,7 @@
 import { z } from 'zod'
+import { editionCatalogueId, picksForCatalogueEdition } from './catalogueEdition'
 import { migratedEditionId, migratedEditionPick, onFoldedEdition } from './editionMigrations'
+import { retainedRulesEdition } from './retainedRosterRules'
 import type { RosterPick } from './roster'
 
 function omitRetired(value: unknown, field: string): unknown {
@@ -24,27 +26,44 @@ export function migrateStoredRoster<
     automaticName?: boolean | null
     locked?: boolean | null
     detachmentId?: string | null
+    borrowedDetachmentId?: string | null
     picks: string
     prep?: string | null
+    updatedAt?: bigint | number
   },
 >(row: T) {
   if (row.picks.length > 1_000_000 || (row.prep?.length ?? 0) > 100_000 || (row.detachmentId?.length ?? 0) > 1_000)
     throw new Error('Saved roster exceeds migration limits')
-  const picks = z.array(z.record(z.string(), z.unknown())).parse(JSON.parse(row.picks))
+  const picks = z.array(z.record(z.string(), z.unknown())).parse(JSON.parse(row.picks)) as unknown as RosterPick[]
   const prep = row.prep ? z.record(z.string(), z.unknown()).parse(JSON.parse(row.prep)) : null
-  const folded = onFoldedEdition(row.catalogueId)
-  const migrated = migrateSavedRoster({
-    picks: folded ? picks.map((pick) => migratedEditionPick(pick as unknown as RosterPick, row.catalogueId)) : picks,
-    prep,
-  }) as { picks: unknown; prep: unknown }
   const detachments = row.detachmentId
     ? row.detachmentId.startsWith('[')
       ? z.array(z.string()).parse(JSON.parse(row.detachmentId))
       : [row.detachmentId]
     : []
+  const folded = onFoldedEdition(row.catalogueId)
+  // Any later write bumps `updatedAt`, so the rules version its current date selects is stored before one can move it.
+  const retained = folded
+    ? null
+    : retainedRulesEdition({
+        catalogueId: row.catalogueId,
+        detachmentIds: detachments,
+        borrowedDetachmentId: row.borrowedDetachmentId,
+        picks,
+        updatedAt: row.updatedAt === undefined ? undefined : Number(row.updatedAt),
+      })
+  const catalogueId = retained ? editionCatalogueId(retained, row.catalogueId) : migratedEditionId(row.catalogueId)
+  const migrated = migrateSavedRoster({
+    picks: folded
+      ? picks.map((pick) => migratedEditionPick(pick, row.catalogueId))
+      : retained
+        ? picksForCatalogueEdition(picks, catalogueId)
+        : picks,
+    prep,
+  }) as { picks: unknown; prep: unknown }
   return {
     ...row,
-    catalogueId: migratedEditionId(row.catalogueId),
+    catalogueId,
     automaticName: row.automaticName ?? !row.name,
     locked: row.locked ?? false,
     detachmentId: JSON.stringify(detachments),

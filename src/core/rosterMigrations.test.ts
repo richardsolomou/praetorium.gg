@@ -200,6 +200,7 @@ it('retains removed Dark Angels detachments and loadouts on their original rules
     picks: [
       { entryId: 'e1ac-1406-1081-8ea3', choices: { 'f227-6107-836d-3fee/131c-8a56-d003-b9a9/ec87-a124-bfd1-f293': '14d-7f50-6c23-9f23' } },
     ],
+    updatedAt: 0,
   }
   expect(currentRosterIds(currentRosterIds(roster))).toEqual({ ...roster, catalogueId: 'legacy-rosters~470a-6daa-9014-12df' })
 })
@@ -208,9 +209,9 @@ it('retains a removed loadout even when every selected detachment still exists',
   const picks = [
     { entryId: '85b1-eb9a-17a6-e5be', choices: { 'e371-90b3-5640-949/8ea3-b125-7273-5ffb/bcb6-f6d1-cfc6-f4f3': '3e88-327f-be98-d923' } },
   ]
-  expect(currentRosterIds({ catalogueId: '470a-6daa-9014-12df', detachmentIds: ['9d23-833a-17cb-2d7d'], picks }).catalogueId).toBe(
-    'legacy-rosters~470a-6daa-9014-12df',
-  )
+  expect(
+    currentRosterIds({ catalogueId: '470a-6daa-9014-12df', detachmentIds: ['9d23-833a-17cb-2d7d'], picks, updatedAt: 0 }).catalogueId,
+  ).toBe('legacy-rosters~470a-6daa-9014-12df')
 })
 
 it('does not retain a roster merely because it saved zero of a removed model option', () => {
@@ -225,7 +226,8 @@ it('does not retain a roster merely because it saved zero of a removed model opt
 
 it('keeps borrowed removed detachments on the retained rules', () => {
   expect(
-    currentRosterIds({ catalogueId: '470a-6daa-9014-12df', detachmentIds: [], borrowedDetachmentId: '41e6-d47c-5e68-e066' }).catalogueId,
+    currentRosterIds({ catalogueId: '470a-6daa-9014-12df', detachmentIds: [], borrowedDetachmentId: '41e6-d47c-5e68-e066', updatedAt: 0 })
+      .catalogueId,
   ).toBe('legacy-rosters~470a-6daa-9014-12df')
 })
 
@@ -237,6 +239,7 @@ it('keeps mixed original Marine gear and profile upgrades on the earlier complet
       { entryId: 'a74c-27a6-a054-e13c', choices: { 'profile-enhancements-8a9d-11f-fad-bd0f/313d-fbf4-76fa-1c0e': 'a353-795d-f8a1-e18d' } },
       { entryId: '3c0a-10a9-8f84-26a3', spreads: { 'd0cd-b8dc-82e-5eb8': { '5173-cc7b-b53a-514': 2 } } },
     ],
+    updatedAt: 0,
   }
   expect(currentRosterIds(currentRosterIds(roster))).toEqual({ ...roster, catalogueId: 'legacy-marine-old~470a-6daa-9014-12df' })
 })
@@ -252,6 +255,7 @@ it('uses later retained Marine rules when no earlier removed gear was saved', ()
           choices: { 'profile-enhancements-8a9d-11f-fad-bd0f/313d-fbf4-76fa-1c0e': 'a353-795d-f8a1-e18d' },
         },
       ],
+      updatedAt: 0,
     }).catalogueId,
   ).toBe('legacy-profiles~470a-6daa-9014-12df')
 })

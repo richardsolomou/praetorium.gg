@@ -24,6 +24,8 @@ export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_DEFAULT_REGION
 
 application="$(api application.one applicationId -Su13uDBf96psvGEiBula)"
 app_name="$(jq -er '. | select(.applicationId == "-Su13uDBf96psvGEiBula" and .name == "spacetimedb-production") | .appName | select(test("^[a-z0-9-]+$"))' <<< "$application")"
+# Restore with the server production runs, which Dokploy pins apart from the CLI and SDK versions.
+image="$(jq -er '.dockerImage | select(test("^clockworklabs/spacetime:v[0-9]+[.][0-9]+[.][0-9]+$"))' <<< "$application")"
 
 work="$(mktemp -d)"
 trap 'docker rm --force praetorium-backup-readback > /dev/null 2>&1 || true; rm -rf "${work:?}"' EXIT
@@ -68,7 +70,7 @@ docker run --detach --name praetorium-backup-readback \
   --env HOME=/tmp \
   --publish 127.0.0.1:3301:3000 \
   --volume "$work/data:/data" --volume "$work/identity:/identity" \
-  clockworklabs/spacetime:v2.14.1 \
+  "$image" \
   start --data-dir /data --listen-addr 0.0.0.0:3000 \
   --jwt-priv-key-path /identity/id_ecdsa --jwt-pub-key-path /identity/id_ecdsa.pub > /dev/null
 

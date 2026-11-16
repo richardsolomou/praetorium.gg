@@ -80,10 +80,10 @@ describe('battle roster snapshot', () => {
 })
 
 describe('which reading a fielded roster gets', () => {
-  it('prices a list that still points at a saved roster', () => {
+  it('reads a list fielded from a saved roster at the total it was fielded with', () => {
     const reading = rosterReading({ id: 'saved', name: 'Fielded', text: '', built: built({ detachmentIds: ['x'], picks: [] }) })
 
-    expect(reading).toEqual({ kind: 'roster' })
+    expect(reading).toMatchObject({ kind: 'roster', frozen: { points: 110 } })
   })
 
   it('reads a list with no saved roster behind it as the units it was fielded with', () => {
@@ -107,11 +107,5 @@ describe('which reading a fielded roster gets', () => {
     const reading = rosterReading({ name: 'Old log', text: 'Imported army list', built: built({ units: [unit({ group: undefined })] }) })
 
     expect(reading).toEqual({ kind: 'text' })
-  })
-
-  it('freezes a saved list that was attached without its selections', () => {
-    const reading = rosterReading({ id: 'saved', name: 'Old log', text: '', built: built() })
-
-    expect(reading).toMatchObject({ kind: 'roster', frozen: { points: 110 } })
   })
 })

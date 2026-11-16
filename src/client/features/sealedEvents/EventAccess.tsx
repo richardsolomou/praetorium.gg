@@ -17,8 +17,8 @@ export function VisibilityIcon({ visibility, labelled = false }: { visibility: S
 
 export const admissionLabel = (admission: SealedEventAdmission) => (admission === 'approval' ? 'Approval required' : 'Anyone can join')
 
-export const accessSummary = (visibility: SealedEventVisibility, admission: SealedEventAdmission) =>
-  `${visibility === 'private' ? 'Private link' : 'Public'} · ${admissionLabel(admission)}`
+export const accessSummary = (visibility: SealedEventVisibility, admission: SealedEventAdmission, closed = false) =>
+  `${visibility === 'private' ? 'Private link' : 'Public'} · ${closed ? 'Entry closed' : admissionLabel(admission)}`
 
 /** The people running a sealed event or group, each linking to their profile. */
 export function OrganizerLinks({

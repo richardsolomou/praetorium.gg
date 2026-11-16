@@ -20,6 +20,8 @@ const migrations = Object.values(
     )
     .parse(rawMigrations),
 )
+/** Each fold's verified option moves, by datasheet. */
+export const editionMigrationDatasheets = migrations.map((migration) => migration.datasheets)
 const folds = migrations.flatMap((migration) => migration.from.map((edition) => ({ edition, migration })))
 const migrationOf = (catalogueId: string) =>
   folds.find(

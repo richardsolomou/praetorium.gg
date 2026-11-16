@@ -262,7 +262,7 @@ export function SealedEventView({
   // Once every check passes, opening the rosters is the event's next step for anyone who may, so it leads their card.
   const revealReady =
     !revealed &&
-    mayRevealSealedEvent(isOrganizer, ownEntry ?? null) &&
+    mayRevealSealedEvent(isOrganizer, ownEntry ?? null, !!sealedEvent.tournament) &&
     sealedEventRevealChecklist(sealedEvent, sealedEvent.entries, now).every((check) => check.done)
   const status: Status = revealReady
     ? {
@@ -308,16 +308,18 @@ export function SealedEventView({
     </section>
   )
   // Whoever moves the event on, the organizer or a player in it, reads its next step.
-  // In Swiss rounds the status card and the rounds say what comes next, round by round.
+  // In Swiss rounds the status card and the rounds say what comes next, round by round, once the first is paired.
   const nextStep =
-    !(swiss && revealed) && (isOrganizer || ownEntry?.status === 'accepted')
-      ? sealedEventNextStep(
-          sealedEventStage(sealedEvent, sealedEvent.entries, Boolean(results?.rows.some((result) => result.played)), now),
-          // The same facts that give the status card its start-battle action.
-          { organizer: isOrganizer, canPlay: Boolean(ownEntry?.submitted) && ownSideSealed && !alone },
-          sealedEvent,
-        )
-      : null
+    swiss && revealed && isOrganizer && !sealedEvent.pairings.length
+      ? 'Check players in, then pair round 1 below.'
+      : !(swiss && revealed) && (isOrganizer || ownEntry?.status === 'accepted')
+        ? sealedEventNextStep(
+            sealedEventStage(sealedEvent, sealedEvent.entries, Boolean(results?.rows.some((result) => result.played)), now),
+            // The same facts that give the status card its start-battle action.
+            { organizer: isOrganizer, canPlay: Boolean(ownEntry?.submitted) && ownSideSealed && !alone },
+            sealedEvent,
+          )
+        : null
   const startSealedEventBattle = (players: Parameters<typeof battle.mutate>[0]) =>
     battle.mutate(players, { onSuccess: () => setChoosingBattle(false) })
   const chooser = {

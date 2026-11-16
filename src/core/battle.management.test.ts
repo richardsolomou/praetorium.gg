@@ -23,6 +23,10 @@ describe('a reported tournament score', () => {
     expect(validate(reduceBattle(PLAYERS, []), ALICE, report)).toBe('only a tournament table can report a score')
   })
 
+  it('lets the organizer running a league fixture report it', () => {
+    expect(validate(reduceBattle(PLAYERS, []), 'organizer', report, true)).toBeNull()
+  })
+
   it('finishes the battle on exactly the reported scores', () => {
     const state = reported()
     expect([

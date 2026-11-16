@@ -11,11 +11,11 @@ import { usePrintWhenReady } from './usePrintWhenReady'
 /**
  * A list as a battle or a sealed event reveal holds it.
  *
- * The roster screen is one screen: a list that still points at a saved row is read
- * through the builder in its read-only state, and one the log froze is read through
- * the same builder with the units and total it was fielded with. Only a list with
- * nothing but its text left — pasted, on a log written before selections were
- * recorded — is drawn here, because there is no roster to draw.
+ * The roster screen is one screen: the list is read through the builder in its
+ * read-only state with the units and total it was fielded with, whatever its saved
+ * roster or the catalogue say now. Only a list with nothing but its text left —
+ * pasted, on a log written before selections were recorded — is drawn here, because
+ * there is no roster to draw.
  */
 export function BattleRosterSnapshot({
   roster,
@@ -95,17 +95,23 @@ type Built = BuiltRoster
 /**
  * Which of the two readings a fielded list gets.
  *
- * A list still pointing at a saved row with its selections is priced as it stands.
- * One the log froze is read with the units and total it was fielded with, as long
- * as those units say what shelf they sit on — a log written before that, or a list
- * that was only ever pasted, has nothing to draw but its text.
+ * A list is read with the units and total it was fielded with, as long as those
+ * units say what shelf they sit on — a log written before that, or a list that was
+ * only ever pasted, has nothing to draw but its text.
  */
-export function rosterReading(roster: Roster): { kind: 'text' } | { kind: 'roster'; frozen?: FrozenRoster } {
+export function rosterReading(roster: Roster): { kind: 'text' } | { kind: 'roster'; frozen: FrozenRoster } {
   const built = roster.built
   if (!built) return { kind: 'text' }
-  if (roster.id && built.picks && built.detachmentIds) return { kind: 'roster' }
   if (!built.units.some((unit) => unit.group !== undefined)) return { kind: 'text' }
-  return { kind: 'roster', frozen: { units: built.units, points: pointsSpent(built), detachments: detachments(built) } }
+  return {
+    kind: 'roster',
+    frozen: {
+      units: built.units,
+      points: pointsSpent(built),
+      detachments: detachments(built),
+      ...(roster.fieldedAt === undefined ? {} : { fieldedAt: roster.fieldedAt }),
+    },
+  }
 }
 
 const detachments = (built: Built | undefined) =>

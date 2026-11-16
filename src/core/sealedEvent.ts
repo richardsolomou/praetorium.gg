@@ -370,9 +370,12 @@ export function mayRemindSealedEvent(remindedAt: number | null, now: number) {
   return remindedAt === null || now - remindedAt >= SEALED_EVENT_REMINDER_COOLDOWN_MS
 }
 
-/** Who may open a ready event's lists: the organizer, or anyone playing in it, so a group need not wait for one person. */
-export function mayRevealSealedEvent(isOwner: boolean, entry: { status: SealedEventEntryStatus } | null) {
-  return isOwner || entry?.status === 'accepted'
+/**
+ * Who may open a ready event's lists: a tournament's organizer alone, since the reveal also closes entry; in a hidden-list
+ * game anyone playing too, so a group need not wait for one person.
+ */
+export function mayRevealSealedEvent(isOwner: boolean, entry: { status: SealedEventEntryStatus } | null, tournament: boolean) {
+  return isOwner || (!tournament && entry?.status === 'accepted')
 }
 
 export function visibleSealedEventEntries<T extends SealedEventEntryView>(

@@ -287,6 +287,66 @@ function savedSelectionErrors(data: PriceInput, picked: ReturnType<typeof roster
   })
 }
 
+/**
+ * Saved counts the built unit holds fewer of: a unit size it can no longer field, or models and wargear beyond what it
+ * can hold even at its largest size on their own, so counts the builder remembers from a larger squad, or from models
+ * other choices now take the places of, stay quiet.
+ */
+function changedCountErrors(
+  data: PriceInput,
+  picked: ReturnType<typeof rosterForces>['picked'],
+  loaded: LoadedCatalogue,
+  roster: readonly Selection[],
+  unitCache: Map<string, BuiltUnit | null>,
+) {
+  const rosterKey = JSON.stringify([loaded.index.revision, data.catalogueId, roster])
+  return picked.flatMap((unit) => {
+    const saved = data.units[unit.key]!
+    const short = (built: BuiltUnit) =>
+      Object.entries(saved.spreads ?? {}).flatMap(([key, counts]) =>
+        Object.entries(counts).flatMap(([id, count]) => {
+          const option = built.choices.find((choice) => choice.key === key)?.options.find((candidate) => candidate.id === id)
+          return option && option.count < count ? [{ key, id, count, name: option.name, held: option.count }] : []
+        }),
+      )
+    const largest = unit.size.options?.at(-1) ?? unit.size.max
+    const holdsAlone = (count: ReturnType<typeof short>[number]) => {
+      const wanted = { ...saved, models: largest, spreads: { [count.key]: { [count.id]: count.count } } }
+      const cacheKey = `${rosterKey}${JSON.stringify(wanted)}`
+      let alone = unitCache.get(cacheKey)
+      if (alone === undefined) {
+        alone = buildUnit(saved.entryId, loaded.index, largest, saved.choices, {
+          primaryCatalogueId: data.catalogueId,
+          mustering: true,
+          roster,
+          spreads: wanted.spreads,
+          toggles: saved.toggles,
+        })
+        unitCache.set(cacheKey, alone)
+      }
+      return !alone || !short(alone).some((other) => other.key === count.key && other.id === count.id)
+    }
+    return [
+      ...(saved.models !== undefined && saved.models !== unit.size.models
+        ? [
+            {
+              entryId: saved.entryId,
+              entryName: unit.name,
+              message: `the saved unit size of ${saved.models} models is no longer available; it now has ${unit.size.models}`,
+            },
+          ]
+        : []),
+      ...short(unit)
+        .filter((count) => !holdsAlone(count))
+        .map((count) => ({
+          entryId: saved.entryId,
+          entryName: unit.name,
+          message: `the saved ${count.count}× ${count.name} is no longer available; it now has ${count.held}`,
+        })),
+    ]
+  })
+}
+
 function selectionProblems(data: PriceInput, picked: ReturnType<typeof rosterForces>['picked'], loaded: LoadedCatalogue) {
   const byKey = new Map(picked.map((unit) => [unit.key, unit]))
   return unavailableRosterSelections(data.units, picked, (key, choiceKey, optionId) => {
@@ -598,6 +658,7 @@ function calculateRoster(
   const enhancementsHeld = whole.costs[ENHANCEMENT_COST] ?? 0
   const reported = [
     ...savedSelectionErrors(data, picked, loaded),
+    ...changedCountErrors(data, picked, loaded, roster, unitCache ?? sharedBuiltUnitsFor(loaded)),
     ...whole.errors.filter((error) => !isDetachmentWrapperLimit(error, chosen.length) && !selfContradictory.has(error)),
     ...attachmentErrors(
       data.units,

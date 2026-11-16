@@ -211,7 +211,14 @@ export async function fetchProductionRosters(
 
 /** A saved roster as it reads once the deploy's product data migration has rewritten its stored row. */
 function deployedRosterIds(stored: ProductionRosterSnapshot['rosters'][number]) {
-  const row = migrateStoredRoster({ name: '', catalogueId: stored.catalogueId, picks: JSON.stringify(stored.picks) })
+  const row = migrateStoredRoster({
+    name: '',
+    catalogueId: stored.catalogueId,
+    detachmentId: JSON.stringify(stored.detachmentIds),
+    borrowedDetachmentId: stored.borrowedDetachmentId,
+    picks: JSON.stringify(stored.picks),
+    updatedAt: stored.updatedAt,
+  })
   return currentRosterIds({ ...stored, catalogueId: row.catalogueId, picks: JSON.parse(row.picks) as typeof stored.picks })
 }
 
@@ -338,15 +345,27 @@ function selectionChanges(before: Selections, after: Selections, unit: RosterPri
   return [...changed<string>('choices'), ...changed<Record<string, number>>('spreads')]
 }
 
+/** What a saved group holds, read the way the build does: its counts when it has them, else its choice. */
+function heldIn(pick: Selections, key: string) {
+  const counts = pick.spreads?.[key]
+  const held = counts
+    ? Object.entries(counts).filter(([, count]) => count > 0)
+    : pick.choices?.[key]
+      ? [[pick.choices[key], 1] as const]
+      : []
+  return JSON.stringify(held.toSorted(([one], [other]) => one.localeCompare(other)))
+}
+
 export type NormalisedRoster = ReturnType<typeof normaliseProductionRosters>[number]
 
 /**
  * Saved loadouts rewritten to what the app builds from them, roster by roster.
  *
- * A rewrite is kept only when the rebuilt roster is identical to the one players see
- * today and normalising it again changes nothing; anything else is reported and left
- * alone. It is computed on the IDs the app reads, so a roster whose saved IDs have a
- * reviewed migration is written translated, as any save from the builder would.
+ * A rewrite is kept only when every group still holds what the player saved, the rebuilt
+ * roster is identical to the one players see today, and normalising it again changes
+ * nothing; anything else is reported and left alone. It is computed on the IDs the app
+ * reads, so a roster whose saved IDs have a reviewed migration is written translated, as
+ * any save from the builder would.
  */
 export function normaliseProductionRosters(
   snapshot: ProductionRosterSnapshot,
@@ -387,6 +406,12 @@ export function normaliseProductionRosters(
     const picks = normalise(roster.picks, before)
     const units = unitChanges(picks, before)
     if (!units.length) return { ...base, status: 'unchanged' as const, reason: null, units, write: null }
+    if (
+      units.some(({ pickIndex, changes }) =>
+        changes.some(({ key }) => heldIn(roster.picks[pickIndex]!, key) !== heldIn(picks[pickIndex]!, key)),
+      )
+    )
+      return skipped('the rewrite would change what the player saved', units)
     const after = price(picks)
     if (!after || builtIdentity(after) !== builtIdentity(before)) return skipped('the rewrite would change the built roster', units)
     if (normalise(picks, after).some((pick, index) => pick !== picks[index])) return skipped('a second pass would change it again', units)

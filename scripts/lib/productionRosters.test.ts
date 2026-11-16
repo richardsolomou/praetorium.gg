@@ -343,8 +343,16 @@ describe('normalising saved loadouts', () => {
       () => rules,
     )[0]!
 
-  it('rewrites a squad saved one body over to the counts it is built with', () => {
-    expect(normalised({ troopers: { rifle: 4, gunner: 1 } }).write?.picks[0]?.spreads).toEqual({ troopers: { rifle: 3, gunner: 1 } })
+  it('refuses to rewrite saved counts to the fewer the unit is built with', () => {
+    expect(normalised({ troopers: { rifle: 4, gunner: 1 } }).status).toBe('skipped')
+  })
+
+  it('refuses to rewrite saved counts to the more the unit is built with', () => {
+    expect(normalised({ troopers: { rifle: 2, gunner: 1 } }).status).toBe('skipped')
+  })
+
+  it('drops a choice its group’s saved counts already hold', () => {
+    expect(normalised({ troopers: { rifle: 3, gunner: 1 } }, { troopers: 'rifle' }).write?.picks[0]?.choices).toEqual({})
   })
 
   it('leaves a squad whose saved counts are what it is built with', () => {
@@ -359,6 +367,8 @@ describe('normalising saved loadouts', () => {
 
   it('keeps counts remembered under a group the build does not offer', () => {
     const remembered = { 'composition/two/troopers': { rifle: 2 } }
-    expect(normalised({ ...remembered, troopers: { rifle: 4, gunner: 1 } }).write?.picks[0]?.spreads).toMatchObject(remembered)
+    expect(normalised({ ...remembered, troopers: { rifle: 3, gunner: 1 } }, { troopers: 'rifle' }).write?.picks[0]?.spreads).toMatchObject(
+      remembered,
+    )
   })
 })

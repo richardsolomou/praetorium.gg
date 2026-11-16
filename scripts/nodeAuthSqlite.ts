@@ -34,6 +34,10 @@ const migrations = [
     file: new URL('../drizzle-auth/0005_player_colour.sql', import.meta.url),
     applied: (database: DatabaseSync) => hasColumn(database, 'user', 'colour'),
   },
+  {
+    file: new URL('../drizzle-auth/0006_deleted_users.sql', import.meta.url),
+    applied: (database: DatabaseSync) => hasTable(database, 'deletedUser'),
+  },
 ]
 
 function applyMigrations(database: DatabaseSync) {

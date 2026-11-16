@@ -17,7 +17,13 @@ export function ArmyThreats({ army, side }: { army: Army; side: Side }) {
   const [open, setOpen] = useState(false)
   const built = army.roster?.built
   const { rows, request } = survivingUnits(army.units, built?.picks)
-  const query = combatantDatasheetsQuery({ catalogueId: built?.catalogueId ?? '', detachmentIds: built?.detachmentIds ?? [], ...request })
+  const query = combatantDatasheetsQuery({
+    catalogueId: built?.catalogueId ?? '',
+    detachmentIds: built?.detachmentIds ?? [],
+    ...request,
+    fielded: true,
+    fieldedAt: army.roster?.fieldedAt,
+  })
   const reads = request.pickIndices.length > 0
   const { data, isError, isPending } = useQuery({ ...query, enabled: open && reads })
   if (!rows.length) return null

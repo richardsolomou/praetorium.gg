@@ -158,6 +158,12 @@ describe.skipIf(!fs.existsSync(source))('genuine exports from other army builder
       'Terminator Assault Squad (380 points)\n  • 1x Terminator Sergeant\n    • 1x Storm Shield\n      1x Thunder Hammer\n  • 9x Terminator\n    • 5x Storm Shield\n      5x Thunder Hammer\n      4x Twin Lightning Claws',
     ],
     [
+      'its kind when its own model carries the wargear',
+      "T'au Empire",
+      'Kroot Hunting Pack',
+      'Kroot Farstalkers (75 points)\n  • 1x Kroot Kill-broker\n    • 1x Kroot pistol\n      1x Ritual blade\n      1x T’au-tech rifle\n  • 9x Kroot Farstalker\n    • 9x Close combat weapon\n      8x Farstalker firearm\n      9x Kroot pistol\n      1x Londaxi tribalest\n      1x Pech’ra\n  • 2x Kroot Hound\n    • 2x Ripping fangs',
+    ],
+    [
       'its loadout',
       'Deathwatch',
       'Black Spear Task Force',
@@ -165,6 +171,15 @@ describe.skipIf(!fs.existsSync(source))('genuine exports from other army builder
     ],
   ])('reads an official-app model named by %s', (_shape, faction, detachment, unit) => {
     expect(summary(official(faction, detachment, unit)).mismatches).toEqual([])
+  })
+
+  it('reads an upgrade older official-app data qualifies as "(Upgarde)"', () => {
+    const file = official(
+      'Dark Angels',
+      'Darkflight Pursuit',
+      'Land Speeder Vengeance (160 points)\n  • 1x Armoured Hull\n    1x Heavy Bolter\n    1x Plasma Storm Battery\n  • Enhancement: Nightforged Battery (Upgarde)',
+    )
+    expect(summary(file).mismatches).toEqual([])
   })
 
   it("reads the official app's close combat weapon as the one melee weapon a datasheet starts with", () => {
@@ -1021,6 +1036,15 @@ Jakhals: Jakhal Pack Leader, Dishonoured w/ skullsmasher and mangler, 1 mauler c
       summary(`Knights - Aeldari - Take and Hold - Warhost (250 Points)
 
 Clanblade: Moonblades, Drakesteed Fangs and Talons, Solar Carbine + Dragon Knights: Dragon Knight Leader, 4x Drakolithe (Once per battle, per token), 5x Dragon Knight (250 pts)`)
+        .mismatches,
+    ).toEqual([])
+  })
+
+  it('reads the one option a counted model carries in brackets with an ampersand, as "4x Sicarian Ruststalker (Transonic razor & chordclaw)"', () => {
+    expect(
+      summary(`Stalkers - Adeptus Mechanicus - Take and Hold - Haloscreed Battle Clade (75 Points)
+
+Sicarian Ruststalkers: Sicarian Ruststalker Princeps (Transonic blades & chordclaw), 4x Sicarian Ruststalker (Transonic razor & chordclaw) (75 pts)`)
         .mismatches,
     ).toEqual([])
   })

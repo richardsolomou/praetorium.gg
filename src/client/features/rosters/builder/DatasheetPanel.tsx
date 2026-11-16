@@ -5,7 +5,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { datasheetProfilesByKind } from '../../../../core/datasheetStructure'
 import type { RosterPick } from '../../../../core/roster'
 import type { Datasheet, DatasheetRelationship } from '../../../../contracts/catalogue'
-import { datasheetQuery } from '../../../queries'
+import { datasheetQuery, type Fielded } from '../../../queries'
 import { useSettled } from '../../../useSettled'
 import { UnitProfile, WeaponSummary } from '../../../components/DatasheetProfiles'
 import { Keyword, KEYWORD_TAG_CLASS, UnitKeywords } from '../../../components/Keyword'
@@ -29,6 +29,8 @@ type Props = {
   onReferenceRoute?: (reference: { entryId: string; route: Datasheet['referenceRoute'] | undefined } | null) => void
   abilityReminders?: ReminderControls
   detachmentRules?: readonly ReminderSubject[]
+  /** A list a battle or sealed event froze, read on the rules version it was fielded under. */
+  fielded?: Fielded
 }
 
 export function DatasheetPanel({
@@ -43,6 +45,7 @@ export function DatasheetPanel({
   onReferenceRoute,
   abilityReminders,
   detachmentRules,
+  fielded = false,
 }: Props) {
   // Only once the player stops changing the list, so a held stepper asks once.
   const detachments = useSettled(detachmentIds)
@@ -58,6 +61,8 @@ export function DatasheetPanel({
       contextual ? detachments : [],
       contextual ? settledPicks : [],
       contextual ? settledIndex : null,
+      false,
+      fielded,
     ),
     enabled: providedSheet === undefined && Boolean(catalogueId && entryId),
     placeholderData: (previous, previousQuery) => (previousQuery?.queryKey[2] === entryId ? previous : undefined),

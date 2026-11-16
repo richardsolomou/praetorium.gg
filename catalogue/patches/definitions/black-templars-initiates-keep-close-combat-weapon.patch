@@ -1,0 +1,41 @@
+diff --git a/definitions/Imperium - Black Templars.json b/definitions/Imperium - Black Templars.json
+--- a/definitions/Imperium - Black Templars.json
++++ b/definitions/Imperium - Black Templars.json
+@@ -1184,6 +1184,18 @@
+                     "type": "model",
+                     "constraints": [{"id": "61e0-a891-4e5c-35e6", "field": "selections", "scope": "parent", "shared": true, "type": "max", "value": 11}],
+                     "entryLinks": [
++                      {
++                        "name": "Close combat weapon",
++                        "id": "c7d1-1a2e-4b3f-9c01",
++                        "hidden": false,
++                        "import": true,
++                        "targetId": "6c7d-af5b-482-6fbe",
++                        "type": "selectionEntry",
++                        "constraints": [
++                          {"id": "c7d1-1a2e-4b3f-9c02", "field": "selections", "scope": "parent", "shared": true, "type": "min", "value": 1},
++                          {"id": "c7d1-1a2e-4b3f-9c03", "field": "selections", "scope": "parent", "shared": true, "type": "max", "value": 1}
++                        ]
++                      },
+                       {
+                         "name": "Heavy Bolt Pistol",
+                         "id": "cfaf-bb65-8be3-8cd4",
+@@ -1380,6 +1392,18 @@
+                           }
+                         ],
+                         "entryLinks": [
++                          {
++                            "name": "Close combat weapon",
++                            "id": "c7d1-1a2e-4b3f-9c04",
++                            "hidden": false,
++                            "import": true,
++                            "targetId": "6c7d-af5b-482-6fbe",
++                            "type": "selectionEntry",
++                            "constraints": [
++                              {"id": "c7d1-1a2e-4b3f-9c05", "field": "selections", "scope": "parent", "shared": true, "type": "min", "value": 1},
++                              {"id": "c7d1-1a2e-4b3f-9c06", "field": "selections", "scope": "parent", "shared": true, "type": "max", "value": 1}
++                            ]
++                          },
+                           {
+                             "name": "Heavy Bolt Pistol",
+                             "id": "977b-9eeb-2f38-4dcd",

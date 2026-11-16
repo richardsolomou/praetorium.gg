@@ -18,6 +18,7 @@ import { rosterUseProblem } from '../core/rosterLegality'
 import { loadoutPicks } from '../core/rosterCopies'
 import { bookOf, enhancement, points as pointsCost, shelfOf } from './catalogue.fixtures'
 import type { LoadedRules } from './rules'
+import type { RosterPick } from '../core/roster'
 
 const cappedLord = (id: string, name: string) => ({
   id,
@@ -142,6 +143,83 @@ it('marks a saved datasheet missing from the new source as illegal', () => {
     entryId: 'retired',
     entryName: 'retired',
     message: 'this saved datasheet is no longer available; choose a current unit',
+  })
+})
+
+describe('saved counts a unit no longer allows', () => {
+  const loaded = bookOf({
+    selectionEntries: [
+      {
+        id: 'squad',
+        name: 'Squad',
+        type: 'unit',
+        selectionEntryGroups: [
+          {
+            id: 'troopers',
+            name: 'Troopers',
+            defaultSelectionEntryId: 'trooper',
+            constraints: [
+              { id: 'troopers-min', type: 'min', value: 4, field: 'selections', scope: 'parent' },
+              { id: 'troopers-max', type: 'max', value: 9, field: 'selections', scope: 'parent' },
+            ],
+            selectionEntries: [
+              { id: 'trooper', name: 'Trooper', type: 'model', costs: pointsCost(10) },
+              {
+                id: 'gunner',
+                name: 'Gunner',
+                type: 'model',
+                costs: pointsCost(10),
+                constraints: [{ id: 'gunner-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        id: 'captain',
+        name: 'Captain',
+        type: 'model',
+        costs: pointsCost(80),
+        selectionEntryGroups: [
+          {
+            id: 'relic',
+            name: 'Relic',
+            constraints: [{ id: 'relic-max', type: 'max', value: 0, field: 'selections', scope: 'parent' }],
+            selectionEntries: [{ id: 'blade', name: 'Relic blade', type: 'upgrade' }],
+          },
+        ],
+      },
+    ],
+  })
+  const errorsOf = (pick: RosterPick) =>
+    calculateRosterPrice(
+      { catalogueId: 'cat', detachmentIds: [], disposition: null, waivedRules: ['warlord'], limit: 2_000, units: [pick] },
+      loaded,
+      rulesWithout,
+    )?.errors.map((error) => error.message)
+
+  it('reports a saved unit size the unit can no longer field', () => {
+    expect(errorsOf({ entryId: 'squad', models: 12 })).toEqual(['the saved unit size of 12 models is no longer available; it now has 9'])
+  })
+
+  it('reports saved models of one kind beyond what the unit can hold at any size', () => {
+    expect(errorsOf({ entryId: 'squad', models: 9, spreads: { troopers: { trooper: 12 } } })).toEqual([
+      'the saved 12× Trooper is no longer available; it now has 9',
+    ])
+  })
+
+  it('keeps quiet about counts remembered from a larger squad that the unit can still hold', () => {
+    expect(errorsOf({ entryId: 'squad', models: 5, spreads: { troopers: { trooper: 8 } } })).toEqual([])
+  })
+
+  it('keeps quiet about a count other saved models take the places of', () => {
+    expect(errorsOf({ entryId: 'squad', models: 9, spreads: { troopers: { trooper: 9, gunner: 1 } } })).toEqual([])
+  })
+
+  it('reports a saved choice from a group the data now closes', () => {
+    expect(errorsOf({ entryId: 'captain', choices: { relic: 'blade' } })).toEqual([
+      'a saved choice is no longer available; reselect this unit’s options',
+    ])
   })
 })
 

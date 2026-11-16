@@ -407,7 +407,7 @@ describe('what a sealed event allows', () => {
     const entry = () => host.call(host.operator, (ctx) => ctx.db.sealedEventEntries.key.find('["event","entrant"]'))
     const set = (fields: { sealBy?: bigint; pointsBudget?: number; allyPoints?: number; sharedPoints?: boolean }) =>
       host.call(host.operator, (ctx) => ctx.db.sealedEvents.id.update({ ...ctx.db.sealedEvents.id.find('event')!, ...fields }))
-    const reveal = (now: number) => command({ op: 'reveal', ownerId: 'organizer', now })
+    const reveal = (now: number, ownerId = 'organizer') => command({ op: 'reveal', ownerId, now })
     const remind = (now: number, ownerId = 'organizer') => command({ op: 'remind', ownerId, now })
     return { host, seal, update, event, entry, set, reveal, remind }
   }
@@ -460,6 +460,13 @@ describe('what a sealed event allows', () => {
     const sealedEvent = setup('[]')
     sealedEvent.set({ sealBy: BigInt(NOW - 1) })
     expect(sealedEvent.seal([])).toMatchObject({ outcome: 'past-deadline' })
+  })
+
+  it('leaves a tournament’s reveal to its organizer', () => {
+    const sealedEvent = setup('[]')
+    sealedEvent.seal([])
+    sealedEvent.seal([], { userId: 'ally' })
+    expect(sealedEvent.reveal(NOW, 'entrant')).toEqual({ outcome: 'forbidden' })
   })
 
   it('reveals without the entrants who missed the roster deadline', () => {
@@ -1007,6 +1014,31 @@ describe('group leagues', () => {
       [],
       [[1, stillPlaying]],
     ])
+  })
+
+  it('lets the group’s organizer, and no other outsider, enter a fixture’s score', () => {
+    const league = setup(['a', 'b', 'c', 'd'])
+    league.publish()
+    const { key, aId, bId } = league.game()
+    league.start(key, aId, bId!)
+    const outsider = ['a', 'b', 'c', 'd'].find((id) => id !== aId && id !== bId)!
+    const report = (userId: string) =>
+      (
+        JSON.parse(
+          module.submitBattle(league.host.procedure(league.host.operator), {
+            battleId: `battle-${key}`,
+            userId,
+            expectedSeq: league.host.call(
+              league.host.operator,
+              (ctx) => Array.from(ctx.db.commands.battleId.filter(`battle-${key}`)).length,
+            ),
+            body: JSON.stringify({ kind: 'report-result', vp: { [aId]: 70, [bId!]: 55 } }),
+            now: BigInt(NOW),
+            externalRefusal: '',
+          }),
+        ) as { result: { outcome: string } }
+      ).result.outcome
+    expect([report(outsider), report('owner')]).toEqual(['refused', 'appended'])
   })
 
   it('refuses a fixture battle against someone else', () => {

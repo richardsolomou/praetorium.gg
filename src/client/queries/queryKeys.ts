@@ -131,6 +131,7 @@ export function rosterPriceKey(data: PriceInput) {
     data.borrowedDetachmentId ?? null,
     data.optionalRules ?? [],
     ...(data.includeUnitLimits ? ['unit-limits'] : []),
+    ...(data.fielded ? ['fielded', data.fieldedAt ?? null] : []),
     data.units,
   ]
 }

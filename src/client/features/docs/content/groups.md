@@ -63,19 +63,19 @@ A game with a battle still being played stays under **Up next** until that battl
 A league is a round robin: everyone who joins plays every other player once, one-on-one. A group runs one league at a time.
 
 1. An organizer presses **Start a league** on the **League** tab.
-2. Members press **Join league** while it's a draft.
+2. Members press **Join league** on the **League** tab while it's a draft. **Up next for you** links there too.
 3. With at least 3 players in, an organizer presses **Publish**. After that nobody else can join, and the fixtures can't be drawn again.
 4. Press **Start battle** on one of your fixtures. Each of you picks a list at setup. You can play rounds in any order.
 
-Only organizers see the draft fixtures. **Draw again** shuffles them, and the same draw stays until someone joins, leaves or it's drawn again. With an odd number of players, each player has one bye. Fixture games also count on the group's leaderboard.
+Only organizers see the draft fixtures. **Draw again** shuffles them, and the same draw stays until someone joins, leaves or it's drawn again. With an odd number of players, each player has one bye, which scores nothing. Tracked fixture games also count on the group's leaderboard.
 
-An organizer can set a deadline for each round. A game not finished by then shows as **Overdue**. Nothing is scored for it. About a day before a deadline, both players of each game in that round that isn't finished get a notification. A moved deadline sends a new one. To see the deadlines in your own calendar app, see [Add dates to your calendar](/docs/calendar).
+An organizer can press **Set deadline** beside each round once the league is published. A game not finished by then shows as **Overdue**. Nothing is scored for it, and it stays open to play late. A league game counts when its battle is tracked here and finished, or when an organizer presses **Enter score** on it and types both scores for a game that wasn't tracked here. An entered score counts for the league table but not the leaderboard. About a day before a deadline, both players of each game in that round that isn't finished get a notification. A moved deadline sends a new one. To see the deadlines in your own calendar app, see [Add dates to your calendar](/docs/calendar).
 
 An organizer can also press **Set chess clock** to give each side the same time in every fixture. Fixtures that haven't started play to it, and their players can't change it.
 
 On the table, a win or a bye is worth 3 points and a draw 1. Ties are broken by victory points, then by the points of everyone you've played. Every bye counts from the start.
 
-To leave, choose **Withdraw from league** in the **Fixtures** ⋯ menu. Your unplayed fixtures become void, and your finished games stay on the table. Leaving the group withdraws you too.
+To leave, choose **Withdraw from league** in the **Fixtures** ⋯ menu. Your unplayed fixtures become void, and your finished games stay on the table. Leaving the group withdraws you too. If a player stops turning up, an organizer can remove them from the group under **Members**, which withdraws them the same way.
 
 Once every fixture is played, void or a bye, the league is complete: the **League** tab, the **Overview** and **Up next for you** name the winner, and the table is final. Players level on points and both tiebreaks share first place. A complete league stays until an organizer ends it.
 

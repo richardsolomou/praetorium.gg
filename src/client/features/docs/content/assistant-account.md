@@ -28,7 +28,7 @@ Change access also lets it:
 - create a battle with named player seats, set it up, record actions in it, or delete a battle you created
 - join a group, league, tournament or hidden-list game, seal a list for it, check in, start the battle for your table, and report your table's score
 
-It can't do anything only an organiser can, such as pairing rounds, letting players in or revealing lists, and it can't withdraw you from a tournament or league.
+It can't do anything only an organizer can, such as pairing rounds, letting players in or revealing lists, and it can't withdraw you from a tournament or league.
 
 Changes go through the same checks as the site. A battle with nobody named starts as a draft, with a link your opponent joins through. A named opponent must be a friend, and a battle has four players at most. The assistant can also start a duel you play alone, choosing both armies from your lists. A battle action is only recorded if nobody has added anything to the log since the assistant last read it, so it can't overwrite a move your opponent just made.
 

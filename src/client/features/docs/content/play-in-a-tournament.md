@@ -17,6 +17,8 @@ In a 2v1 or doubles tournament the organizer gives you your size and teammate fi
 
 If a seal is refused, look up the message in [Tournament problems](/docs/tournament-problems).
 
+Once everyone in has sealed, the organizer reveals the rosters.
+
 ## After the reveal
 
 Every roster opens at once. Each player's row has **View roster** and **Simulate** for their list. In a doubles or 2v1 tournament, **Simulate** sits on the other side's heading.
@@ -31,6 +33,10 @@ Once the rosters are out you can also make the original saved roster public with
 
 In a tournament with Swiss rounds you don't choose your opponent. When the organizer pairs a round, your table shows on the tournament page with **Start battle**. With notifications on in the app, you hear when each round is paired. Once your battle has started, **Resume battle** on the tournament page takes you back to it.
 
-A bye counts as a win. The next round is paired once every table has finished, and earlier results are then locked. If a result is wrong, ask the organizer to reopen it, then correct the score and finish the battle again.
+If the organizer asks players to check in, press **Check in** on the tournament page when you arrive, before round 1.
+
+If you didn't track the game here, press **Enter score** on your table after it and type both scores. Either player can do it.
+
+A bye counts as a win. The next round is paired once every table has finished, and earlier results are then locked. If a result is wrong, ask the organizer to reopen it. Then correct the score in the battle and finish it again. If the score was entered with **Enter score**, the organizer enters the corrected one.
 
 To leave, press the withdraw button on your roster row, then **Withdraw**. You aren't paired again and can't rejoin, and your results stay in the table. If your table in the current round hasn't finished, your opponent takes it as a bye. If your opponent withdraws or the organizer drops them before your table finishes, you get the bye.

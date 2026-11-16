@@ -20,6 +20,11 @@ it('finds a page by its entry id', () => {
   expect(datasheetPageBySlug([master], 'd7e1-13bb-2177-b6bc')).toBe(master)
 })
 
+it('finds a page by an entry id the catalogue has retired', () => {
+  const current = { id: '287a-5c60-5a7e-80a8', slug: 'adrax-agatone' }
+  expect(datasheetPageBySlug([current], 'profile-unit-4eef-e313-1eea-94a6-d358-df4a-1c2f-4bff')).toBe(current)
+})
+
 it('finds a page by its suffixed slug after its name stops being shared', () => {
   expect(datasheetPageBySlug([master], 'watch-master-d7e1-13b')).toBe(master)
 })

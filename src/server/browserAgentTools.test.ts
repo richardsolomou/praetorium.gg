@@ -230,7 +230,7 @@ it('keeps the complete battle schema refinements on the browser path', async () 
 
 it.each([
   ['current-rosters~2261-79a5-19d9-1668', '2261-79a5-19d9-1668'],
-  ['2261-79a5-19d9-1668', 'legacy-rosters~2261-79a5-19d9-1668'],
+  ['2261-79a5-19d9-1668', '2261-79a5-19d9-1668'],
 ])('executes approved browser input on %s as %s', async (catalogueId, expected) => {
   saveOwnedRoster.mockResolvedValueOnce({ id: 'roster-1', updatedAt: 1 })
   const input = { name: 'Army', catalogueId, detachmentIds: ['3caf-c168-c372-51b1'], disposition: null, limit: 1000, picks: [], prep: null }

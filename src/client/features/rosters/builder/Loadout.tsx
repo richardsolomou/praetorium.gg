@@ -6,7 +6,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import type { RosterPick } from '../../../../core/roster'
 import { isUnitCompositionChoice } from '../../../../core/unitChoices'
 import { primaryUnitProfile } from '../../../datasheet'
-import { datasheetLoad, loadoutDatasheetsQuery } from '../../../queries'
+import { datasheetLoad, type Fielded, loadoutDatasheetsQuery } from '../../../queries'
 import { useSettled } from '../../../useSettled'
 import { UnitProfile, WeaponSummary } from '../../../components/DatasheetProfiles'
 import {
@@ -38,6 +38,10 @@ type Props = {
   reference?: ReactElement<{ providedSheet?: Datasheet | null }>
   /** A persisted read-only roster can be resolved without sending its picks. */
   persistedRoster?: { id: string }
+  /** A list a battle or sealed event froze, read on the rules version it was fielded under. */
+  fielded?: Fielded
+  /** Shown in place of the loadout when its datasheet cannot be read. */
+  unavailable?: ReactNode
   reminders?: ReminderControls
   /** Something to say beside an option, such as what it would do in a combat simulation. */
   optionNote?: OptionNote
@@ -70,6 +74,8 @@ export function Loadout({
   showOptions = true,
   reference,
   persistedRoster,
+  fielded = false,
+  unavailable,
   reminders,
   optionNote,
   header,
@@ -84,7 +90,7 @@ export function Loadout({
   // A pane that swapped units keeps nothing from the last one; one that only had a
   // count changed keeps what it was showing, so the profiles do not blink.
   const forSameUnit = (previousQuery?: { queryKey: readonly unknown[] }) => previousQuery?.queryKey[2] === unit?.entryId
-  const request = loadoutDatasheetsQuery(catalogueId, unit?.entryId ?? '', detachments, settledPicks, pickIndex, persistedRoster)
+  const request = loadoutDatasheetsQuery(catalogueId, unit?.entryId ?? '', detachments, settledPicks, pickIndex, persistedRoster, fielded)
   const {
     data: sheets,
     dataUpdatedAt,
@@ -126,7 +132,7 @@ export function Loadout({
   }
   if (!sheet || !availableSheet) {
     return isError || !isPending ? (
-      <Problem className="p-3 text-xs">This loadout could not be loaded. Try again shortly.</Problem>
+      (unavailable ?? <Problem className="p-3 text-xs">This loadout could not be loaded. Try again shortly.</Problem>)
     ) : (
       <LoadoutLoading />
     )

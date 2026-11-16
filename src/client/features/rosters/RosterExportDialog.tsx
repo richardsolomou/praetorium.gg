@@ -13,6 +13,7 @@ export type RosterTextExport = Awaited<ReturnType<typeof exportRoster>>
 export function RosterExportDialog({ exported, onClose }: { exported: RosterTextExport | null; onClose: () => void }) {
   const { copy: copyText, copied, problem, reset } = useCopyText()
   const text = exported?.text
+  const omitted = (exported?.omittedUnitCount ?? 0) + (exported?.omittedSelectionCount ?? 0)
   const copy = async () => {
     if (!text) return
     if (await copyText(text, { failure: 'Copy failed. Select the text to copy it.', operation: 'roster_export_copy' }))
@@ -44,10 +45,10 @@ export function RosterExportDialog({ exported, onClose }: { exported: RosterText
             Includes custom unit names, model counts, equipment, enhancements, Warlord, attachments, setup and rules version. Unit notes,
             preparation, rule waivers and optional rules are omitted.
           </p>
-          {exported?.omittedUnitCount ? (
+          {omitted ? (
             <Problem className="mb-3">
-              {exported.omittedUnitCount} unresolved {exported.omittedUnitCount === 1 ? 'entry is' : 'entries are'} omitted. Resolve them in
-              the builder before submitting this roster.
+              {omitted} unresolved {omitted === 1 ? 'unit, detachment or option is' : 'units, detachments or options are'} left out. Resolve
+              them in the builder before submitting this roster.
             </Problem>
           ) : null}
           <pre className="whitespace-pre-wrap wrap-anywhere rounded-lg border border-edge bg-sunken p-3 text-xs select-text">{text}</pre>

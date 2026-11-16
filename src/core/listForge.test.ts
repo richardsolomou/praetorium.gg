@@ -150,6 +150,14 @@ Belisarius Cawl: Arc scourge, Warlord (220 pts)
     })
   })
 
+  it('reads a short-layout unit printed with no wargear', () => {
+    expect(
+      fromListForgeShortText(
+        'Rot - Death Guard - Priority Assets - Shamblerot Vectorium (285 Points)\n\n3x Myphitic Blight-hauler:  (285 pts)',
+      )?.units,
+    ).toHaveLength(3)
+  })
+
   it('does not claim other layouts', () => {
     expect(fromListForgeText(listForgeWtc)).toBeNull()
     expect(fromListForgeWtcText(listForgeDetailed)).toBeNull()

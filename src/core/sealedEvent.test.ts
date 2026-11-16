@@ -784,19 +784,23 @@ describe('what an event allows', () => {
 
 describe('mayRevealSealedEvent', () => {
   it('lets the organizer reveal without playing', () => {
-    expect(mayRevealSealedEvent(true, null)).toBe(true)
+    expect(mayRevealSealedEvent(true, null, true)).toBe(true)
   })
 
-  it('lets anyone playing reveal', () => {
-    expect(mayRevealSealedEvent(false, { status: 'accepted' })).toBe(true)
+  it('lets anyone playing a hidden-list game reveal', () => {
+    expect(mayRevealSealedEvent(false, { status: 'accepted' }, false)).toBe(true)
+  })
+
+  it('leaves a tournament’s reveal to its organizer', () => {
+    expect(mayRevealSealedEvent(false, { status: 'accepted' }, true)).toBe(false)
   })
 
   it('keeps a waiting request from revealing', () => {
-    expect(mayRevealSealedEvent(false, { status: 'pending' })).toBe(false)
+    expect(mayRevealSealedEvent(false, { status: 'pending' }, false)).toBe(false)
   })
 
   it('keeps a reader outside the sealed event from revealing', () => {
-    expect(mayRevealSealedEvent(false, null)).toBe(false)
+    expect(mayRevealSealedEvent(false, null, false)).toBe(false)
   })
 })
 

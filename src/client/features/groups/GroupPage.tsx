@@ -285,8 +285,8 @@ function GroupScreen({
               <TabsContent value="league" className="mt-6 space-y-4">
                 {league ? (
                   <Intro>
-                    A round robin: everyone who joins plays every other player once. It keeps its own table, and its games count on the
-                    leaderboard too.
+                    A round robin: everyone who joins plays every other player once. It keeps its own table, and its tracked games count on
+                    the leaderboard too.
                   </Intro>
                 ) : null}
                 <GroupLeague group={group} viewerId={viewerId} member={member} />

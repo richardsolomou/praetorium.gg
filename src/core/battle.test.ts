@@ -921,6 +921,11 @@ describe('setup', () => {
     expect(validate(state, ALICE, { kind: 'begin-battle', firstPlayerId: ALICE })).toBeNull()
   })
 
+  it('dates a list by when the battle took it, which the list itself never claims', () => {
+    const entries = log([ALICE, { kind: 'attach-roster', roster: { name: 'Hosts', text: '10 Intercessors', fieldedAt: 99 } }])
+    expect(reduceBattle(PLAYERS, [{ ...entries[0]!, at: 1_234 }]).players[0]!.roster?.fieldedAt).toBe(1_234)
+  })
+
   it('requires attached rosters to match an explicitly configured size', () => {
     const state = reduceBattle(
       PLAYERS,

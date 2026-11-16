@@ -71,7 +71,8 @@ test('players can decline and publish their original sealed event roster across 
   await join(opponent)
   await sealOwnRoster(opponent, 'Already public sealed event army')
   await expect(owner.locator('[data-sealed-event-sharing]')).toHaveCount(0)
-  await revealEvent(opponent)
+  await owner.reload()
+  await revealEvent(owner)
   await expect(opponent.getByRole('region', { name: 'Roster sharing', exact: true })).toHaveCount(0)
   await owner.reload()
   const sharing = owner.getByRole('region', { name: 'Roster sharing', exact: true })
@@ -155,7 +156,7 @@ test('players can decline and publish their original sealed event roster across 
   await Promise.all([ownerContext.close(), opponentContext.close(), secondDevice.close(), visitor.context().close()])
 })
 
-test('revealed rosters compare every unit using frozen loadouts and preserve sealed event state', async ({ browser }) => {
+test('revealed rosters compare every unit using frozen loadouts and preserve sealed event state', async ({ browser }, testInfo) => {
   const ownerContext = await browser.newContext({ viewport: { width: 1440, height: 900 } })
   const opponentContext = await browser.newContext({ viewport: { width: 1440, height: 900 } })
   const owner = await ownerContext.newPage()
@@ -180,13 +181,17 @@ test('revealed rosters compare every unit using frozen loadouts and preserve sea
   await sealOwnRoster(opponent, 'Comparison attackers')
   await owner.reload()
   await expect(owner.getByRole('button', { name: `Simulate against ${opponentName}`, exact: true })).toHaveCount(0)
-  // Everyone sees the same readiness, and anyone playing may open the lists, not only the organizer.
+  // Everyone sees the same readiness, but a tournament's lists are its organizer's to open.
   await opponent.reload()
-  await expect(opponent.locator('[data-sealed-event-readiness]').getByRole('heading', { name: 'Everyone has sealed' })).toBeVisible()
+  const readiness = opponent.locator('[data-sealed-event-readiness]')
+  await expect(readiness.getByRole('heading', { name: 'Everyone has sealed' })).toBeVisible()
+  await expect(readiness).toContainText(`${ownerName} will reveal the rosters.`)
+  await expect(opponent.getByRole('button', { name: 'Reveal all rosters' })).toHaveCount(0)
   await expect(opponent.locator(`[data-person="${ownerName}"]`).getByText('Roster sealed', { exact: true })).toBeVisible()
-  await revealEvent(opponent)
-  await owner.reload()
-  await expect(owner.locator('[data-sealed-event-armies]')).toContainText(`Revealed by ${opponentName}`)
+  await opponent.setViewportSize(PHONE)
+  await opponent.screenshot({ path: testInfo.outputPath('tournament-player-awaits-reveal-phone.png'), fullPage: true })
+  await revealEvent(owner)
+  await expect(owner.locator('[data-sealed-event-armies]')).toContainText(`Revealed by ${ownerName}`)
   await owner.goto(savedUrl)
   await addUnit(owner, 'Skorpekh Destroyers')
   await owner.goto(sealedEventUrl)
@@ -525,6 +530,8 @@ test('a Swiss tournament pairs its rounds and ranks the tables by match points',
   await join(opponent)
   await sealOwnRoster(opponent, 'Swiss opponent army')
   await revealEvent(owner)
+  await expect(sealedEventHeader(owner)).toContainText('Entry closed')
+  await expect(owner.locator('[data-sealed-event-next-step]')).toHaveText('Next: Check players in, then pair round 1 below.')
 
   const rounds = owner.locator('[data-sealed-event-rounds]')
   await rounds.getByRole('button', { name: 'Check in' }).click()
@@ -593,6 +600,7 @@ test('a Swiss tournament pairs its rounds and ranks the tables by match points',
   await reopen.getByRole('button', { name: 'Reopen result' }).click()
   await expect(reopen).toBeHidden()
   await expect(lockedTable).toContainText('Playing')
+  await expect(lockedTable.getByRole('button', { name: 'Enter score for table 1' })).toBeVisible()
   await ownerContext.close()
   await opponentContext.close()
 })
@@ -838,7 +846,7 @@ test('a sealed event names its next step, which moves on once a player joins', a
   await create.getByRole('button', { name: /^Anyone who joins/ }).click()
   await submitSealedEventCreation(owner, create)
   const nextStep = owner.locator('[data-sealed-event-next-step]')
-  await expect(nextStep).toHaveText('Next: Copy the invite link and send it to your group.')
+  await expect(nextStep).toHaveText('Next: Copy the invite link and send it to your players.')
 
   await player.goto(owner.url())
   await join(player)

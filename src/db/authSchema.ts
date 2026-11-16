@@ -125,4 +125,10 @@ export const githubSponsor = sqliteTable('githubSponsor', {
   public: flag('public').notNull(),
 })
 
+/** Every account deleted, so a restore from an older product backup can delete that player's data again. */
+export const deletedUser = sqliteTable('deletedUser', {
+  id: text('id').primaryKey().notNull(),
+  deletedAt: integer('deletedAt').notNull(),
+})
+
 export const schema = { user, session, account, verification, twoFactor, rateLimit, jwks }

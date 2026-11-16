@@ -1261,8 +1261,8 @@ test('removing one loadout does not choose another piece of the same model as it
     .click()
 
   const loadout = page.locator('aside[aria-label="Loadout"]')
-  await expect(loadout.getByLabel('Close combat weapon and Bolt Rifle count', { exact: true })).toHaveText('5')
-  await loadout.getByRole('button', { name: 'Fewer Close combat weapon and Bolt Rifle', exact: true }).click()
-  await expect(loadout.getByLabel('Close combat weapon and Bolt Rifle count', { exact: true })).toHaveText('4')
+  await expect(loadout.getByLabel('Bolt Rifle count', { exact: true })).toHaveText('5')
+  await loadout.getByRole('button', { name: 'Fewer Bolt Rifle', exact: true }).click()
+  await expect(loadout.getByLabel('Bolt Rifle count', { exact: true })).toHaveText('4')
   await expect(page.getByLabel('Crusader Squad models')).toHaveText('10')
 })

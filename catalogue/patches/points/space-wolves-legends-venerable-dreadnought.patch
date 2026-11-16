@@ -1,0 +1,12 @@
+diff --git a/points/data/space-wolves.yaml b/points/data/space-wolves.yaml
+index b9b41af..34ccc60 100644
+--- a/points/data/space-wolves.yaml
++++ b/points/data/space-wolves.yaml
+@@ -1392,6 +1392,7 @@ units:
+         label: Your Unit Costs
+         costs:
+           - { models: 1, points: 165 }
++    legends: true
+   - name: Vindicator
+     pricing:
+       - range: "[1,2]"

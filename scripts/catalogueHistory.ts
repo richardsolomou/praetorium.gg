@@ -5,7 +5,8 @@
  *
  * Run by the publisher after the sources are synced into `catalogue-data` and before
  * `pnpm catalogue:snapshot pack`. Normal updates carry forward unreadable history; an
- * explicit `--repair-last` fails if it cannot verify both snapshots it compares.
+ * explicit `--repair-last` fails if it cannot verify both snapshots it compares. Fails when the new catalogue drops
+ * a saved ID that no migration carries (`checkIdDrops`).
  */
 
 import { fork } from 'node:child_process'
@@ -29,6 +30,7 @@ import { type HistoryPoint, nextHistory } from './lib/catalogueHistoryPlan'
 import { editionMfmVersions, readCatalogueComposition, validateEditionContinuity } from '../src/server/catalogueComposition'
 import { catalogueDataDirectory } from './lib/catalogueFiles'
 import { errorText } from './lib/errorText'
+import { checkIdDrops } from './lib/catalogueIdDrops'
 
 const directory = catalogueDataDirectory()
 const base = catalogueBaseUrl()
@@ -138,6 +140,7 @@ try {
     fs.rmSync(file, { force: true })
     console.log('no data-update history to carry')
   }
+  if (pointer) checkIdDrops(previousDirectory, directory, history ?? [])
 } finally {
   fs.rmSync(work, { recursive: true, force: true })
 }

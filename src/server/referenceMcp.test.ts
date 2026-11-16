@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { readFileSync, writeFileSync } from 'node:fs'
 import { PostHog } from 'posthog-node'
 import type { CanonicalCatalogue } from '../contracts/catalogue'
 import type { ReferenceCorpus } from './referenceCorpus'
@@ -416,4 +417,22 @@ it('keeps browser resource adapters out of MCP discovery metadata', async () => 
     ['description', 'mimeType', 'name', 'title', 'uri'],
     ['description', 'mimeType', 'name', 'title', 'uri'],
   ])
+})
+
+it('keeps every published tool and argument', async () => {
+  const response = await handleReferenceMcp(rpcRequest('tools/list'))
+  const { tools } = ((await response.json()) as { result: { tools: { name: string; inputSchema: { properties?: object } }[] } }).result
+  const served = new Map(tools.map((tool) => [tool.name, Object.keys(tool.inputSchema.properties ?? {})]))
+  if (process.env.WRITE_MCP_SURFACE)
+    writeFileSync(
+      'src/server/mcpSurface.json',
+      `${JSON.stringify(Object.fromEntries([...served].toSorted(([left], [right]) => left.localeCompare(right))), null, 2)}\n`,
+    )
+  const published = JSON.parse(readFileSync('src/server/mcpSurface.json', 'utf8')) as Record<string, string[]>
+
+  expect(
+    Object.entries(published).flatMap(([name, args]) =>
+      served.has(name) ? args.filter((arg) => !served.get(name)!.includes(arg)).map((arg) => `${name}.${arg}`) : [name],
+    ),
+  ).toEqual([])
 })

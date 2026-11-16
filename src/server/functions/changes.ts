@@ -4,7 +4,7 @@ import type { IndexedUpdate } from '../../contracts/catalogueChanges'
 import type { CatalogueChange } from '../../core/catalogueChanges'
 import { app } from '../app'
 import { recentReferenceChanges } from '../catalogueChangeLog'
-import { changeLogPage, installedHistory } from '../catalogueChangePages'
+import { changeLogAddress, changeLogPage, installedHistory } from '../catalogueChangePages'
 import { rpc } from '../rpc'
 import { RELEASE_DAYS, recentReleaseNotes } from '../../core/releaseNotes'
 // The build bundles only the newest releases of this file: see scripts/lib/recentChangelogPlugin.ts.
@@ -14,6 +14,11 @@ import changelog from '../../../CHANGELOG.md?raw'
 export const catalogueChangeLog = createServerFn({ method: 'GET' })
   .validator(z.object({ before: z.string().max(4096).optional(), faction: z.string().max(200).optional() }))
   .handler(({ data }) => rpc(async (): Promise<{ updates: IndexedUpdate[]; older: string | null }> => changeLogPage(data)))
+
+/** Where an update's own page, retired for the index, lists it now. */
+export const catalogueUpdateAddress = createServerFn({ method: 'GET' })
+  .validator(z.object({ id: z.string().regex(/^[0-9a-f]{16}$/) }))
+  .handler(({ data }) => rpc(() => changeLogAddress(data.id)))
 
 /** The newest changes the installed history recorded to one datasheet or detachment page. */
 export const referenceChanges = createServerFn({ method: 'GET' })

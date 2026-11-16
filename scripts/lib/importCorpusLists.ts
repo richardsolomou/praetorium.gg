@@ -56,6 +56,8 @@ export function importCorpusLists(directories: readonly string[], window: { sinc
   const removed = removedNamesOf(loadCatalogueHistory(catalogueDirectory) ?? [])
   const lists = files.map(({ listing, file }) => ({
     listing,
+    /** The data version the official app prints in its export's footer, which tells a list built on older data from an importer bug; other builders print their own. */
+    dataVersion: Number(file.match(/^Exported with App Version: v[\d.]+ \(\d+\), Data Version: v(\d+)/m)?.[1]) || null,
     imported: importRosterFile({ file }, catalogue, undefined, rules, translations, removed),
   }))
   return { catalogue, rules, lists }

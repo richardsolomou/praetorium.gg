@@ -84,7 +84,8 @@ export function LoadoutPaneActions({
               <Crown className="size-3.5 fill-current" /> Warlord
             </span>
           ) : null}
-          <PointsChip points={unit.points} />
+          {/* A frozen list costs what it was fielded at, whatever its datasheet is priced at now. */}
+          <PointsChip points={frozenUnit?.points ?? unit.points} />
           {unit.size.resizable && building ? (
             <Stepper
               label={`models in ${unit.name}`}
@@ -108,7 +109,7 @@ export function LoadoutPaneActions({
               onChoose={(models) => selected !== null && edit.resize(selected, () => models)}
             />
           ) : (
-            <span className="chip normal-case">{countLabel(unit.size.models, 'model')}</span>
+            <span className="chip normal-case">{countLabel(frozenUnit?.models ?? unit.size.models, 'model')}</span>
           )}
         </span>
       ) : frozenUnit ? (

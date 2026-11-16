@@ -12,7 +12,6 @@ describe('SpacetimeDB version pins', () => {
     ['.github/actions/setup-spacetime/action.yml', /version: '([^']+)'/g],
     ['Dockerfile.node', /SpacetimeDB\/releases\/download\/v([^/]+)\//g],
     ['.devcontainer/Dockerfile', /SpacetimeDB\/releases\/download\/v([^/]+)\//g],
-    ['scripts/verifySpacetimeBackup.sh', /clockworklabs\/spacetime:v(\S+)/g],
     ['CONTRIBUTING.md', /SpacetimeDB CLI ([^,\s]+)/g],
     ['spacetimedb/package.json', /"spacetimedb": "([^"]+)"/g],
   ])('%s matches the SDK', (file, pattern) => {
