@@ -19,7 +19,7 @@ const list = (
   reportedPoints: 2000,
   placing: 1,
   record: 'W5 L0 D0',
-  event: { name: 'GT', url: null, date: '2026-11-07', rounds: 5, players: 40 },
+  event: { name: 'GT', url: null, date: '2026-11-07', rounds: 5, players: 40, source: '40kstats' },
 })
 
 it("counts a faction's lists across rules versions and leaves other factions out", () => {

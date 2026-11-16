@@ -15,7 +15,7 @@ import { FilterBar, type FilterDimension } from '../../components/FilterBar'
 import { NoFilterMatches } from '../../components/NoFilterMatches'
 import { useFavouriteFactions } from '../../favouriteFactions'
 import { winningList } from '../../functions'
-import { factionIndexQuery, gameReferencesQuery, meQuery, type QueryData, TOP_FOUR_SOURCE_URL, winningListsQuery } from '../../queries'
+import { factionIndexQuery, gameReferencesQuery, meQuery, type QueryData, winningListsQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
 import { facetsOf, periodSearch } from '../../searchParams'
 import { countLabel, placingLabel } from '../../text'
@@ -29,6 +29,7 @@ import { useNewRoster } from './newRoster'
 import { RosterImport } from './RosterImport'
 import { RosterSummary, rosterTitle, type RosterSummaryFaction } from './RosterSummary'
 import { RosterViews } from './RosterViews'
+import { TopFourSources } from './TopFourSources'
 import { openWinningImport } from './winningListImport'
 import { WINNING_FACETS, type WinningSearch } from './rosterSearch'
 
@@ -221,11 +222,8 @@ export function WinningListsPage({ search }: { search: WinningSearch }) {
         <section>
           <h2 className="rubric border-b border-edge pb-2">Top-four tournament lists</h2>
           <p className="mt-2 text-xs text-dim">
-            Lists that finished top four at Warhammer 40,000 tournaments outside Praetorium, as published by{' '}
-            <a href={TOP_FOUR_SOURCE_URL} target="_blank" rel="noreferrer" className="underline">
-              40k Stats
-            </a>
-            . Only lists legal under today’s data are shown, so a rules change can remove one.
+            Lists that finished top four at Warhammer 40,000 tournaments outside Praetorium, as published by <TopFourSources />. Only lists
+            legal under today’s data are shown, so a rules change can remove one.
           </p>
           <div className="mt-2 space-y-3">
             {result.isError ? (

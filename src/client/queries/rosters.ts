@@ -95,7 +95,10 @@ export const winningListsQuery = () =>
   })
 
 /** Where the top-four lists come from: placings at tournaments outside Praetorium. */
-export const TOP_FOUR_SOURCE_URL = 'https://40kstats.tabletopbattles.com/#t4'
+export const TOP_FOUR_SOURCES = [
+  { name: '40k Stats', url: 'https://40kstats.tabletopbattles.com/#t4' },
+  { name: 'Mini Headquarters', url: 'https://miniheadquarters.com/tournaments/individual/' },
+] as const
 
 /** How many of a faction's top-four lists field each datasheet; null while the server is still reading them. */
 export const topFourUnitCountsQuery = (catalogueId: string) =>
