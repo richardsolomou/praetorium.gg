@@ -360,6 +360,15 @@ export function combatRuleRoles(description: string): CombatRuleEffect['role'][]
     /(?:a model (?:in|with)|this model|the bearer|this unit|model from your army)[^.;]*?makes? (?:a ranged |a melee |a psychic |a |an )attack|model from your army targets|weapons? equipped|(?:this|that|your) unit(?:'s)?[^.;]*?(?:attacks?[^.;]*?have|weapons? have)|(?:this unit['’]s|friendly (?:(?!attacking|enemy)[^.;])*?(?:units?|models)['’]s?) (?:ranged |melee |\[psychic\] )?(?:attacks|weapons)|(?:friendly [^.;]*?units?|unit from your army) (?:is|are) selected to (?:fight|shoot)|re-roll (?:one |the )?(?:hit|wound|damage) rolls?|change the result of one (?:hit|wound) roll|critical hit|lethal hits|sustained hits|devastating wounds|ignores cover|twin-linked|\+[1-9]\s*A\b/i.test(
       attackingText,
     )
+  // Wording the compiler cannot read still names a roll or characteristic of the unit's own attacks, so it is reported rather than dropped.
+  const ownAttacks = attackingText.replace(
+    /[^.;]*?attacks? (?:that )?(?:targets?|is allocated to) (?:this|that|your) (?:unit|model)[^.;]*/gi,
+    '',
+  )
+  const attackTerms =
+    /\b(?:hit|wound) rolls?\b|\b(?:attacks|strength|damage|ballistic skill|weapon skill) characteristics?\b|\barmour penetration\b|\+[1-9]\s*(?:WS|BS|S|AP|D)\b/i.test(
+      ownAttacks,
+    )
   const incoming = text.replace(
     /(?:a model|this model|the bearer|this unit|model from your army)[^.;]*?makes? (?:a ranged |a melee |a psychic |a |an )attack[^,.;]*/gi,
     '',
@@ -372,9 +381,12 @@ export function combatRuleRoles(description: string): CombatRuleEffect['role'][]
     /(?:weapons? equipped by|attacks? made by) (?:models in )?(?:that enemy|enemy|the attacking) unit|enemy unit [^.;]*?each time a model in that unit makes/i.test(
       text,
     )
-  // Options another rule offers, as both Doctrina Imperatives, can change how a unit attacks and is attacked.
-  const activates = /\bare both active for\b/i.test(text)
-  const attacker = activates || (offensiveTarget && (attacking || defending || /mortal wounds/i.test(text))) || (attacking && !enemyWeapons)
+  // A state other rules ask for, as both Doctrina Imperatives or being within the Flow of Magic, can change how a unit attacks and is attacked.
+  const activates = /\bare both active for\b|\b(?:it|this unit|that unit) is (?:wholly )?within your army['’]s\b/i.test(text)
+  const attacker =
+    activates ||
+    (offensiveTarget && (attacking || defending || /mortal wounds/i.test(text))) ||
+    ((attacking || attackTerms) && !enemyWeapons)
   // Names the side's own units outright, so an offensive clause elsewhere in the rule cannot make it the enemy's.
   const ownDefending = /attacks? (?:that )?targets? (?:friendly|an? [^.;]*?unit from your army)/i.test(incoming)
   const defender = activates || enemyWeapons || ownDefending || (defending && !offensiveTarget)

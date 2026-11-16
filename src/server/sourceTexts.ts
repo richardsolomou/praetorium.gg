@@ -1,10 +1,12 @@
 import { hash } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
-import { remember } from '../core/collections'
+import { RecentlyUsed, remember } from '../core/collections'
+import { transformed } from '../shared/datacards'
 import { type CatalogueComposition, readCatalogueComposition } from './catalogueComposition'
 import { type CatalogueSourceConfig, catalogueSources, readRevisions } from './catalogueSources'
 import {
+  resolvedText,
   type SourceTexts,
   TEXT_HASH_LENGTH,
   type TextSource,
@@ -298,4 +300,30 @@ export function withDefinitionTokens<T>(value: T, token: (raw: string) => string
     return copy
   }
   return visit(value) as T
+}
+
+// A calculation reads a faction's file or two; holding every file read would keep the whole snapshot's words.
+const HELD_FILES = 8
+
+/** The words behind a text's tokens in a snapshot's directory, or null when a token names no string it holds. */
+export function snapshotWords(directory: string) {
+  const files = new Map(textSourcePaths(directory, readCatalogueComposition(directory)).map((file) => [textFileId(file.url), file.path]))
+  const held = new RecentlyUsed<string, ReadonlyMap<string, string>>(HELD_FILES)
+  const stringsIn = (file: string) => remember(held, file, () => stringsByHash(file))
+  return (text: string): string | null => {
+    let complete = true
+    const words = resolvedText(
+      text,
+      ({ file, transform, hash: key }) => {
+        const found = files.get(file)
+        const raw = found === undefined ? undefined : stringsIn(found).get(key)
+        return raw === undefined ? null : transformed(raw, transform)
+      },
+      () => {
+        complete = false
+        return ''
+      },
+    )
+    return complete ? words : null
+  }
 }
