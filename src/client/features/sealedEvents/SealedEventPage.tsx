@@ -100,7 +100,7 @@ function SealedEventScreen({
                 {' '}
                 ·
                 <VisibilityIcon visibility={tournament.visibility} />
-                {accessSummary(tournament.visibility, tournament.admission)}
+                {accessSummary(tournament.visibility, tournament.admission, sealedEvent.revealedAt !== null)}
               </>
             ) : null}
           </span>
