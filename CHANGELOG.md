@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.261.0 (2026-11-16)
+
+### Minor Changes
+
+- 6f8cae5: Tournament lists now include top-four lists from Mini Headquarters events, alongside those from 40k Stats.
+
 ## 0.260.1 (2026-11-16)
 
 ### Patch Changes
