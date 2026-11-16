@@ -9,7 +9,7 @@ import {
 import { leagueFixtureOverdue } from '../core/groupLeague'
 import { tokenSchema } from '../contracts/schemas'
 import { gameReferencesFor } from '../shared/gameReferences'
-import { READ_ONLY_TOOL, structured, type AgentTools } from './agentTools'
+import { type AgentTools, READ_ONLY_TOOL, signedInPlayer, structured } from './agentTools'
 import { app } from './app'
 import { agentWrites, captureMutation } from './mutationTelemetry'
 import { productActions } from './productActions'
@@ -122,10 +122,7 @@ function eventTodo(sealedEvent: SealedEvent, userId: string, battles: ReadonlyMa
 }
 
 export function registerOrganisedPlayTools(server: AgentTools, userId: string | null) {
-  const player = () => {
-    if (!userId) throw new Response('Sign in to use this tool.', { status: 401 })
-    return userId
-  }
+  const player = () => signedInPlayer(userId)
   const write = (work: (owner: string) => Promise<Record<string, unknown>>) =>
     agentWrites.run(true, async () => structured(await work(player())))
 

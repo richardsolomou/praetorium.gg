@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { boundedProgress, groupCollection } from '../core/collection'
 import { routeSlug } from '../core/slug'
 import { rosterArchiveSchema, rosterIdSchema } from '../contracts/schemas'
-import { READ_ONLY_TOOL, type AgentTools } from './agentTools'
+import { type AgentTools, READ_ONLY_TOOL, signedInPlayer } from './agentTools'
 import { resultOf } from './accountMcp'
 import { app } from './app'
 import { rosterActions } from './rosterActions'
@@ -13,10 +13,7 @@ const COLLECTION_ENTRIES_MAX = 200
 const notFound = () => new Response('You have no saved roster with this id. Use an id from list_my_rosters.', { status: 404 })
 
 export function registerRosterAccountTools(server: AgentTools, userId: string | null) {
-  const owner = () => {
-    if (!userId) throw new Response('Sign in to use this tool.', { status: 401 })
-    return userId
-  }
+  const owner = () => signedInPlayer(userId)
   const ownRoster = async (id: string) => {
     const roster = await app().service.sealedEventService.ownRoster(owner(), id)
     if (!roster) throw notFound()

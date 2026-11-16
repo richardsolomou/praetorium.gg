@@ -35,7 +35,9 @@ export async function handleReferenceMcp(request: Request) {
       : null
   const name = call && typeof call === 'object' && 'name' in call && typeof call.name === 'string' ? call.name : null
   const scope = name && Object.hasOwn(ACCOUNT_MCP_SCOPES, name) ? ACCOUNT_MCP_SCOPES[name] : undefined
-  if (scope || request.headers.has('authorization')) {
+  // Without a token an account tool answers with a tool error carrying the sign-in challenge, so the session keeps its
+  // public tools; only a token that fails verification gets the transport 401.
+  if (request.headers.has('authorization')) {
     const { auth } = app()
     const resource = auth.mcpResource
     const protectedHandler = requireMcpAuth(
@@ -70,10 +72,15 @@ export async function handleReferenceMcp(request: Request) {
   return referenceMcpResponse(await serveMcp(request, parsed, null))
 }
 
-function revokedMcpResponse(resource: string) {
+/** Where a client reads how to sign in to the MCP resource. */
+function resourceMetadata(resource: string) {
   const url = new URL(resource)
+  return `${url.origin}/.well-known/oauth-protected-resource${url.pathname}`
+}
+
+function revokedMcpResponse(resource: string) {
   return mcpError(401, -32000, 'MCP authorization is no longer active.', {
-    'WWW-Authenticate': `Bearer resource_metadata="${url.origin}/.well-known/oauth-protected-resource${url.pathname}", error="invalid_token"`,
+    'WWW-Authenticate': `Bearer resource_metadata="${resourceMetadata(resource)}", error="invalid_token"`,
   })
 }
 
@@ -127,7 +134,10 @@ export function referenceMcpOptions() {
 function referenceMcpServer(userId: string | null, origin: string) {
   const server = new McpServer({ name: 'praetorium-reference', version: '1.4.0' }, { instructions: PRAETORIUM_MCP_INSTRUCTIONS })
   const tools = createAgentTools(userId)
-  tools.registerMcp(server, origin)
+  tools.registerMcp(server, origin, {
+    scopes: ACCOUNT_MCP_SCOPES,
+    challenge: `Bearer resource_metadata="${resourceMetadata(app().auth.mcpResource)}", error="insufficient_scope", error_description="Sign in to Praetorium to use this tool"`,
+  })
 
   for (const resource of referenceResources) {
     const metadata = { title: resource.title, description: resource.description, mimeType: resource.mimeType }

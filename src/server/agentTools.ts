@@ -22,7 +22,7 @@ type ToolConfig<Shape extends z.ZodRawShape> = {
 
 type RegisteredTool = {
   descriptor: AgentToolDescriptor
-  registerMcp: (server: McpServer, origin: string) => void
+  registerMcp: (server: McpServer, origin: string, auth: McpAuth) => void
   parse: (input: unknown) => Promise<Record<string, unknown>>
   execute: (input: unknown) => Promise<CallToolResult>
 }
@@ -60,6 +60,23 @@ async function mcpResult(execute: () => Promise<CallToolResult>): Promise<CallTo
     if (error instanceof Response) return responseToolError(error)
     throw error
   }
+}
+
+/**
+ * Which tools need an account, and the challenge an unauthorized one carries. A client links the account from the
+ * declared scheme and the challenge on the tool result, so the session keeps its public tools; a transport 401 would
+ * make some clients drop the whole server.
+ */
+export type McpAuth = { scopes: Readonly<Record<string, string>>; challenge: string }
+
+/** The signed-in player an account tool acts for; without one it refuses with the sign-in the tool needs. */
+export function signedInPlayer(userId: string | null) {
+  if (!userId)
+    throw new Response(
+      "Sign in to Praetorium to use this tool: connect the player's account in their assistant, such as /mcp or claude mcp login in Claude Code. Praetorium's public tools keep working without it.",
+      { status: 401 },
+    )
+  return userId
 }
 
 export const READ_ONLY_TOOL: ToolAnnotations = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
@@ -133,7 +150,7 @@ export class AgentTools {
         readOnly: config.annotations.readOnlyHint === true,
         account: false,
       },
-      registerMcp: (server, origin) =>
+      registerMcp: (server, origin, auth) =>
         server.registerTool<z.ZodRawShape, z.ZodObject<Shape>>(
           name,
           // Directory scanners read the listing name from annotations.title, not the tool's own title.
@@ -141,12 +158,17 @@ export class AgentTools {
             ...config,
             annotations: { title: config.title, ...config.annotations },
             inputSchema: schema,
-            ...(category ? { _meta: { category } } : {}),
+            _meta: {
+              ...(category ? { category } : {}),
+              securitySchemes: auth.scopes[name] ? [{ type: 'oauth2', scopes: [auth.scopes[name]] }] : [{ type: 'noauth' }],
+            },
           },
           async (input) => {
             const result = await published(await mcpResult(async () => execute(input)))
+            const unauthorized = result.isError && result._meta?.[TOOL_ERROR_TYPE_META] === 'unauthorized'
             return {
               ...result,
+              ...(unauthorized ? { _meta: { ...result._meta, 'mcp/www_authenticate': [auth.challenge] } } : {}),
               content: result.content.map((item) =>
                 item.type === 'text' ? { ...item, text: absoluteAgentText(item.text, origin) } : item,
               ),
@@ -171,8 +193,8 @@ export class AgentTools {
     return new Set(this.tools.keys())
   }
 
-  registerMcp(server: McpServer, origin: string) {
-    for (const tool of this.tools.values()) tool.registerMcp(server, origin)
+  registerMcp(server: McpServer, origin: string, auth: McpAuth) {
+    for (const tool of this.tools.values()) tool.registerMcp(server, origin, auth)
   }
 
   async parseInput(name: string, input: unknown) {

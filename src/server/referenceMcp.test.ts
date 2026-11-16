@@ -127,17 +127,30 @@ it('uses the configured public origin for MCP citations', async () => {
   }
 })
 
-it('challenges account tools while keeping public reference tools available', async () => {
-  vi.stubEnv('APP_URL', 'https://praetorium.gg')
-  try {
-    const privateResponse = await handleReferenceMcp(toolRequest('get_my_roster', { id: 'roster-1' }))
-    const publicResponse = await handleReferenceMcp(toolRequest('get_reference', { id: document.id }))
-    expect(privateResponse.status).toBe(401)
-    expect(privateResponse.headers.get('www-authenticate')).toContain('/.well-known/oauth-protected-resource/mcp')
-    expect(publicResponse.status).toBe(200)
-  } finally {
-    vi.unstubAllEnvs()
-  }
+describe('an account tool called without signing in', () => {
+  beforeEach(() => vi.stubEnv('APP_URL', 'https://praetorium.gg'))
+  afterEach(() => vi.unstubAllEnvs())
+
+  // A transport 401 makes clients such as Claude Code drop the whole server, public tools included.
+  it('answers with a tool error rather than a transport challenge', async () => {
+    const response = await handleReferenceMcp(toolRequest('get_my_roster', { id: 'roster-1' }))
+    expect([response.status, (await response.json()).result.isError]).toEqual([200, true])
+  })
+
+  it('carries the sign-in challenge on the tool error', async () => {
+    const response = await handleReferenceMcp(toolRequest('list_my_battles'))
+    const payload = await response.json()
+    expect(payload.result._meta['mcp/www_authenticate'][0]).toContain(
+      'resource_metadata="https://praetorium.gg/.well-known/oauth-protected-resource/mcp"',
+    )
+  })
+})
+
+it('declares which tools need an account', async () => {
+  const response = await handleReferenceMcp(rpcRequest('tools/list', {}))
+  const tools: { name: string; _meta?: { securitySchemes?: unknown } }[] = (await response.json()).result.tools
+  const schemes = Object.fromEntries(tools.map((tool) => [tool.name, tool._meta?.securitySchemes]))
+  expect([schemes.get_my_roster, schemes.get_reference]).toEqual([[{ type: 'oauth2', scopes: ['mcp:read'] }], [{ type: 'noauth' }]])
 })
 
 describe('a signed-in call while the signing keys cannot be read', () => {
