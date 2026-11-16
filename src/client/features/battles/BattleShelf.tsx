@@ -13,7 +13,6 @@ import { useDateFormatting } from '../../dates'
 import { FactionMark } from '../../components/FactionMark'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { RatingChange } from '../../components/RatingChange'
-import type { OnboardingTarget } from '../../onboardingTargets'
 import type { Battle } from './battle'
 import { SectionHeading } from '../../components/SectionHeading'
 import { tint } from '../battle/battleTints'
@@ -39,7 +38,6 @@ export function BattleShelf({
   name = title,
   battles,
   viewerId,
-  onboarding,
   onDelete,
   label,
   branched = true,
@@ -48,7 +46,6 @@ export function BattleShelf({
   name?: string
   battles: readonly Battle[]
   viewerId?: string
-  onboarding?: OnboardingTarget
   onDelete?: (battle: Battle) => void
   /** What the battle was played for, leading its footer, where a page holds battles of more than one kind. */
   label?: (battle: Battle) => string
@@ -59,7 +56,7 @@ export function BattleShelf({
   const { data: deployments } = useQuery({ ...deploymentsQuery(), enabled: battles.some((battle) => battle.deploymentId !== null) })
   if (!battles.length) return null
   return (
-    <section data-onboarding={onboarding} data-battle-shelf={name ?? ''}>
+    <section data-battle-shelf={name ?? ''}>
       {title ? <SectionHeading title={title} count={battles.length} /> : null}
       {/* Each battle hangs off the runner: a live one by a doubled gate, one still being set up by a dashed one. */}
       <div className={`${branched ? 'runner [--gate-y:2.125rem]' : 'grid'} gap-3 ${title ? 'mt-3' : ''}`}>

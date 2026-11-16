@@ -1,12 +1,12 @@
 import type { QueryClient } from '@tanstack/react-query'
-import { armySlugs } from './HomeArmyUpdates'
-import { playerProfile, playerRankings } from '../../functions'
+import { playerProfile, playerRankings, savedRosterChangedIds } from '../../functions'
 import {
-  armyUpdatesQuery,
   battlesQuery,
   deploymentsQuery,
   friendBattlesQuery,
   friendshipsQuery,
+  groupsQuery,
+  homeGroupsQuery,
   homeRostersQuery,
   sealedEventsQuery,
   meQuery,
@@ -14,11 +14,35 @@ import {
   playerProfileQuery,
   playerRankingsQuery,
   publicBattlesQuery,
+  savedRosterChangedIdsQuery,
   standingsQuery,
 } from '../../queries'
 import { warnIfSlow } from '../shell/slowLoader'
+import { HOME_GROUPS_SHOWN } from '../../../core/group'
+import type { QueryData } from '../../queries'
 
-/** How long the loader waits, from its start, for the player's record before leaving it to the client. */
+type GroupRow = QueryData<typeof groupsQuery>[number]
+
+/** The groups the player belongs to or asked to join: the ones played in most recently first, a request still waiting last. */
+export function homeMemberships(groups: readonly GroupRow[]) {
+  return groups
+    .filter(({ ownMember }) => ownMember)
+    .toSorted(
+      (one, other) =>
+        Number(one.ownMember?.status === 'pending') - Number(other.ownMember?.status === 'pending') ||
+        (other.lastBattleAt ?? 0) - (one.lastBattleAt ?? 0),
+    )
+}
+
+/** The groups whose place and league game home sums up, which the loader and the page must name alike to share the read. */
+export function summarisedGroups(memberships: readonly GroupRow[]) {
+  return memberships
+    .filter(({ ownMember }) => ownMember?.status === 'accepted')
+    .slice(0, HOME_GROUPS_SHOWN)
+    .map(({ token }) => token)
+}
+
+/** How long the loader waits, from its start, for the record and the changed lists before leaving them to the client. */
 const RECORD_BUDGET_MS = 300
 
 /** Fetches the home feeds so the first frame has its final layout. */
@@ -33,10 +57,17 @@ export async function loadHome(queryClient: QueryClient) {
       durations[name] = Math.round(performance.now() - started)
     }
   }
-  // The record folds every battle the player has played, so it joins the first frame only within a budget and
-  // otherwise loads on the client. Left pending in the cache, it would hold the streamed page, and its hydration,
-  // open until it settled.
-  let record: Promise<(() => void) | undefined> | undefined
+  // The record folds every battle the player has played, and the changed lists compare every list with the data
+  // history, so each joins the first frame only within a budget and otherwise loads on the client. Left pending in the
+  // cache, either would hold the streamed page, and its hydration, open until it settled.
+  const budgeted: Promise<(() => void) | undefined>[] = []
+  const withinBudget = <T>(work: Promise<T>, fill: (value: T) => void) =>
+    budgeted.push(
+      work.then(
+        (value) => () => fill(value),
+        () => undefined,
+      ),
+    )
   await Promise.all([
     timed('publicBattles', queryClient.infiniteQuery({ ...publicBattlesQuery(), staleTime: 'static' })),
     // Battle rows name their battlefield from it; without it the rows can only add it after hydration.
@@ -46,29 +77,32 @@ export async function loadHome(queryClient: QueryClient) {
     ),
     timed('me', queryClient.query({ ...meQuery(), staleTime: 'static' })).then((me): Promise<unknown> => {
       if (!me) return timed('standings', queryClient.query({ ...standingsQuery(), staleTime: 'static' }))
-      record = Promise.all([playerProfile({ data: { userId: me.id } }), playerRankings({ data: { userId: me.id } })]).then(
-        ([profile, rankings]) =>
-          () => {
-            queryClient.setQueryData(playerProfileQuery(me.id).queryKey, profile)
-            queryClient.setQueryData(playerRankingsQuery(me.id).queryKey, rankings)
-          },
-        () => undefined,
+      withinBudget(
+        Promise.all([playerProfile({ data: { userId: me.id } }), playerRankings({ data: { userId: me.id } })]),
+        ([profile, rankings]) => {
+          queryClient.setQueryData(playerProfileQuery(me.id).queryKey, profile)
+          queryClient.setQueryData(playerRankingsQuery(me.id).queryKey, rankings)
+        },
       )
       return Promise.all([
         timed('myBattles', queryClient.infiniteQuery({ ...battlesQuery(), staleTime: 'static' })),
         timed('friendBattles', queryClient.infiniteQuery({ ...friendBattlesQuery(), staleTime: 'static' })),
         timed('homeRosters', queryClient.query({ ...homeRostersQuery(), staleTime: 'static' })).then((home) => {
-          const armies = armySlugs(home.rosters.map(({ faction }) => faction))
-          // A side panel the page reads fine without; the client asks again rather than the page failing.
-          return armies.length
-            ? timed(
-                'armyUpdates',
-                queryClient.query({ ...armyUpdatesQuery(armies), staleTime: 'static' }).catch(() => null),
-              )
-            : null
+          if (!home.count) return
+          withinBudget(savedRosterChangedIds(), (ids) => queryClient.setQueryData(savedRosterChangedIdsQuery().queryKey, ids))
         }),
         timed('sealedEvents', queryClient.query({ ...sealedEventsQuery(), staleTime: 'static' })),
         timed('friendships', queryClient.query({ ...friendshipsQuery(), staleTime: 'static' })),
+        timed('groups', queryClient.query({ ...groupsQuery(), staleTime: 'static' })).then((groups) => {
+          const tokens = summarisedGroups(homeMemberships(groups))
+          // The groups panel reads fine without places, so a failure leaves them to the client rather than failing the page.
+          return tokens.length
+            ? timed(
+                'homeGroups',
+                queryClient.query({ ...homeGroupsQuery(tokens), staleTime: 'static' }).catch(() => null),
+              )
+            : null
+        }),
         timed(
           'onboarding',
           queryClient.query({ ...onboardingQuery(), staleTime: 'static' }).catch(() => null),
@@ -76,10 +110,7 @@ export async function loadHome(queryClient: QueryClient) {
       ])
     }),
   ])
-  if (record) {
-    const late = new Promise<undefined>((resolve) => setTimeout(resolve, startedAt + RECORD_BUDGET_MS - performance.now()))
-    const fill = await Promise.race([record, late])
-    fill?.()
-  }
+  const late = new Promise<void>((resolve) => setTimeout(resolve, startedAt + RECORD_BUDGET_MS - performance.now()))
+  await Promise.all(budgeted.map((work) => Promise.race([work, late]).then((fill) => fill?.())))
   warnIfSlow('slow_home_loader', startedAt, { queries_ms: durations })
 }

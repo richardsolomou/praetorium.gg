@@ -13,7 +13,7 @@ import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { CreateSealedEvent } from './CreateSealedEvent'
 import { EventSchedule } from './EventSchedule'
 import { SEALED_EVENT_CARD, SealedEventCardActions } from './SealedEventActions'
-import { sealedEventPhase, sealedEventPlayers } from './sealedEvent'
+import { ownEntryStatus, sealedEventPhase, sealedEventPlayers } from './sealedEvent'
 import { sealedEventFormat } from '../../../core/sealedEvent'
 import { nameColour } from '../../playerName'
 
@@ -142,12 +142,3 @@ function SealedEventShelf({
 }
 
 type TournamentSummary = QueryData<typeof sealedEventsQuery>[number]
-
-/** Where the reader's own entry stands, tinted by whether it needs them: amber to act, green once done. */
-function ownEntryStatus(entry: { status: 'pending' | 'accepted' | 'rejected'; submitted: boolean }, revealed: boolean) {
-  if (entry.status === 'pending') return { label: 'Waiting for approval', tint: 'text-dim' }
-  if (entry.status === 'rejected') return { label: 'Not in this tournament', tint: 'text-faint' }
-  if (entry.submitted)
-    return revealed ? { label: 'Rosters revealed', tint: 'text-achieved' } : { label: 'Your roster is sealed', tint: 'text-achieved' }
-  return revealed ? { label: 'No roster', tint: 'text-faint' } : { label: 'Seal your roster', tint: 'text-discarded' }
-}

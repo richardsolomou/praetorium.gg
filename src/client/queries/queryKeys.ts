@@ -31,7 +31,6 @@ export const catalogueChangesKey = (faction?: string | null, before?: string | n
   faction ?? null,
   before ?? null,
 ]
-export const armyUpdatesKey = (factions: readonly string[]) => ['army-updates', factions]
 
 export const collectionKey = () => ['collection']
 export const collectionCountsKey = () => ['collection-counts']

@@ -149,3 +149,37 @@ it('leaves a battle of another group out of the group’s list', async () => {
 it('hides a private group’s battles from a non-member', async () => {
   expect(await listed(fixture(), 'stranger')).toEqual([])
 })
+
+const CAROL = 'carol'
+
+/** A published league of three where Alice's round 1 game against Bob has started and her round 2 game against Carol has not. */
+function leagueRepository(deadlines: (number | null)[] = [null, 5]) {
+  const repository = repositoryFor({ members: [ALICE, BOB, CAROL] })
+  const group = groupRecord([ALICE, BOB, CAROL], 'private', '1:1')
+  repository.groupByToken.mockResolvedValue({
+    ...group,
+    league: {
+      publishedAt: 1,
+      seed: 'seed',
+      players: [ALICE, BOB, CAROL].map((userId) => ({ userId, withdrawn: false })),
+      deadlines,
+      fixtures: [
+        { key: 'r1', round: 1, table: 1, aId: ALICE, bId: BOB, battleToken: 'token' },
+        { key: 'r2', round: 2, table: 1, aId: CAROL, bId: ALICE, battleToken: null },
+        { key: 'r3', round: 3, table: 1, aId: BOB, bId: CAROL, battleToken: null },
+      ],
+    },
+  })
+  return repository
+}
+
+const homeFixture = async (deadlines?: (number | null)[]) =>
+  (await serviceOf(leagueRepository(deadlines)).groupResultsService.homeGroups(['group'], ALICE))[0]?.fixture
+
+it('names the player’s next league game nobody has started, past its deadline', async () => {
+  expect(await homeFixture()).toEqual({ round: 2, opponent: CAROL, deadline: 5, overdue: true })
+})
+
+it('leaves a league game whose deadline is still ahead not overdue', async () => {
+  expect((await homeFixture([null, 50]))?.overdue).toBe(false)
+})

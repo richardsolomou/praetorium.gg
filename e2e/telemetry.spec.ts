@@ -493,16 +493,11 @@ test('example and recent matchup entry actions are attributed without their cont
   const link = recent.getByRole('link', { name: 'Intercessor Squad + Captain + Lieutenant vs Lychguard + Overlord', exact: true })
   await expect(link).toBeVisible()
   await link.click()
-  await page.getByRole('link', { name: 'Praetorium', exact: true }).click()
-  await expect(page).toHaveURL('/')
-  await expect(page.getByRole('heading', { name: 'Combat simulator', exact: true, level: 1 })).toHaveCount(0)
-  await link.click()
   await expect
     .poll(() => events.filter((event) => ['combat_simulator_example_started', 'combat_simulator_recent_opened'].includes(event.name)))
     .toEqual([
       { name: 'combat_simulator_example_started', properties: {} },
       { name: 'combat_simulator_recent_opened', properties: { surface: 'simulator' } },
-      { name: 'combat_simulator_recent_opened', properties: { surface: 'home' } },
     ])
   expect(JSON.stringify(events)).not.toMatch(/Intercessor|Warrior|catalogueId|entryId/)
 })

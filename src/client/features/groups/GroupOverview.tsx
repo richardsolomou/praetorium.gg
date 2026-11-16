@@ -7,8 +7,7 @@ import { cn } from '@/lib/utils'
 import { leagueFixtureOverdue, leagueFixtureUnfinished } from '../../../core/groupLeague'
 import type { GroupSummary } from '../../../core/groupSummary'
 import { isProvisional, type BattleOutcome, type Standing } from '../../../core/standings'
-import { battleOutcomeStage, sideWon } from '../../battleStage'
-import { summarySides } from '../../battleSummary'
+import { battleOutcomeStage } from '../../battleStage'
 import { FactionMark } from '../../components/FactionMark'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { ProgressBar } from '../../components/ProgressBar'
@@ -16,8 +15,9 @@ import { SectionHeading } from '../../components/SectionHeading'
 import { useDateFormatting, useMoment } from '../../dates'
 import { nameColour } from '../../playerName'
 import { groupPastLeaguesQuery, type groupLeagueQuery, type groupStandingsQuery, type QueryData } from '../../queries'
-import { countLabel, formatList } from '../../text'
+import { countLabel } from '../../text'
 import type { Battle } from '../battles/battle'
+import { BattleLines, ResultLetter } from '../battles/BattleLines'
 import type { Group, GroupTab } from './group'
 
 type GroupTable = NonNullable<QueryData<typeof groupStandingsQuery>>
@@ -137,8 +137,6 @@ function StandingRow({ row, place, form, you }: { row: Standing; place?: number;
   )
 }
 
-const FORM_LETTER: Record<BattleOutcome, string> = { won: 'W', lost: 'L', drawn: 'D' }
-
 /** Latest results newest first, read left to right like a form guide. */
 function Form({ outcomes }: { outcomes: readonly BattleOutcome[] }) {
   if (!outcomes.length) return null
@@ -148,17 +146,8 @@ function Form({ outcomes }: { outcomes: readonly BattleOutcome[] }) {
       aria-label={`Latest results: ${outcomes.map((outcome) => battleOutcomeStage(outcome).name).join(', ')}`}
     >
       {outcomes.map((outcome, index) => (
-        <span
-          // oxlint-disable-next-line react/no-array-index-key -- A form guide's slots are positions: the newest result is always first.
-          key={index}
-          aria-hidden
-          className={cn(
-            'grid size-5 place-items-center rounded-sm border border-current text-2xs font-bold',
-            battleOutcomeStage(outcome).tint,
-          )}
-        >
-          {FORM_LETTER[outcome]}
-        </span>
+        // oxlint-disable-next-line react/no-array-index-key -- A form guide's slots are positions: the newest result is always first.
+        <ResultLetter key={index} outcome={outcome} />
       ))}
     </span>
   )
@@ -344,35 +333,10 @@ export function RecentResults({
         title="Recent results"
         action={table.finished > table.recent.length ? <AllLink onClick={onAll}>All games</AllLink> : null}
       />
-      <ul className="divide-y divide-edge part">
-        {table.recent.map((battle) => {
-          const sides = summarySides(battle)
-          return (
-            <li key={battle.token}>
-              <Link
-                to="/battles/$token"
-                params={{ token: battle.token }}
-                className="flex min-h-14 min-w-0 flex-col justify-center gap-0.5 px-3 py-2 transition-colors hover:bg-raised"
-              >
-                <span className="flex min-w-0 flex-wrap items-baseline gap-x-2 text-sm">
-                  {sides.map((side, index) => (
-                    <span key={side.index} className="contents">
-                      {index ? <span className="text-faint">vs</span> : null}
-                      <span className={cn('min-w-0', sideWon(battle, side.index) ? 'font-bold text-bone' : 'text-dim')}>
-                        {formatList(side.players)} <span className="figure">{side.score}</span>
-                      </span>
-                    </span>
-                  ))}
-                </span>
-                <span className="truncate text-xs text-faint">
-                  {label(battle)}
-                  {table.games[battle.token] ? '' : ` · ${date(battle.lastActivity)}`}
-                </span>
-              </Link>
-            </li>
-          )
-        })}
-      </ul>
+      <BattleLines
+        battles={table.recent}
+        detail={(battle) => `${label(battle)}${table.games[battle.token] ? '' : ` · ${date(battle.lastActivity)}`}`}
+      />
     </section>
   )
 }

@@ -1,7 +1,7 @@
 import { SectionHeading } from '../../components/SectionHeading'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { ChevronRight, X } from 'lucide-react'
+import { X } from 'lucide-react'
 import { posthog } from 'posthog-js'
 import { decodeSimulatorState } from '../../../contracts/simulatorState'
 import { FactionMark } from '../../components/FactionMark'
@@ -9,16 +9,8 @@ import { factionIndexQuery } from '../../queries'
 import { useMatchupHistory } from './matchupHistory'
 import { OwnerAvatars, useRosterOwners } from './rosterOwners'
 
-/** `limit` stacks only the newest simulations and links to the rest on the simulator; without it they scroll in a row. */
-export function RecentSimulations({
-  surface,
-  onOpen,
-  limit,
-}: {
-  surface: 'home' | 'simulator'
-  onOpen?: (shared: string) => void
-  limit?: number
-}) {
+/** The player's latest pairings in a row that scrolls, each reopening in the simulator. */
+export function RecentSimulations({ onOpen }: { onOpen?: (shared: string) => void }) {
   const { recent, forget } = useMatchupHistory()
   const ownerOf = useRosterOwners()
   const { data: index } = useQuery({ ...factionIndexQuery(), enabled: recent.length > 0 })
@@ -37,13 +29,13 @@ export function RecentSimulations({
     <section aria-label="Recent simulations" className="min-w-0">
       <SectionHeading title="Recent simulations" count={recent.length} />
       {/* A row bleeds to the window on a phone, so the cut-off card reads as a scroller. */}
-      <ul className={limit ? 'mt-3 grid gap-2' : '-mx-3 mt-3 flex snap-x gap-2 overflow-x-auto px-3 pb-2 sm:mx-0 sm:px-0'}>
-        {recent.slice(0, limit).map((entry) => {
+      <ul className="-mx-3 mt-3 flex snap-x gap-2 overflow-x-auto px-3 pb-2 sm:mx-0 sm:px-0">
+        {recent.map((entry) => {
           const [attacker, defender] = decodeSimulatorState(entry.shared)?.sides ?? []
           return (
             <li
               key={entry.shared}
-              className={`group relative part transition-colors hover:border-info hover:bg-raised ${limit ? 'min-w-0' : 'w-64 shrink-0 snap-start'}`}
+              className="group relative w-64 shrink-0 snap-start part transition-colors hover:border-info hover:bg-raised"
             >
               <Link
                 to="/simulator"
@@ -52,7 +44,8 @@ export function RecentSimulations({
                 className="grid gap-1.5 py-2.5 pr-9 pl-3 text-sm"
                 onClick={(event) => {
                   if (event.button || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
-                  posthog.capture('combat_simulator_recent_opened', { surface })
+                  // `surface` stays on the event so earlier insights that split by it still read.
+                  posthog.capture('combat_simulator_recent_opened', { surface: 'simulator' })
                   if (onOpen) {
                     event.preventDefault()
                     onOpen(entry.shared)
@@ -91,11 +84,6 @@ export function RecentSimulations({
           )
         })}
       </ul>
-      {limit && recent.length > limit ? (
-        <Link to="/simulator" className="eyebrow mt-2 inline-flex items-center gap-1 text-info hover:text-parchment">
-          All simulations <ChevronRight className="size-3.5" />
-        </Link>
-      ) : null}
     </section>
   )
 }

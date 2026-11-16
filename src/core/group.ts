@@ -75,3 +75,6 @@ export function visibleGroupMembers<T extends { userId: string; status: GroupMem
 ) {
   return members.filter((member) => member.status === 'accepted' || organizer || member.userId === viewerId)
 }
+
+/** How many groups and tournaments a player's home page lists, which bounds the per-group summary it asks for. */
+export const HOME_GROUPS_SHOWN = 5

@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
 import { EMPTY_ONBOARDING_PROGRESS, type OnboardingTaskId } from '../../../core/onboarding'
 import type { Battle } from '../battles/battle'
-import type { ArmyUpdate } from './HomeArmyUpdates'
+import type { HomeGroup, HomeTournament } from './HomeGroups'
 import type { HomeRecordData } from './HomeRecord'
 import { type HomeData, HomeView } from './HomeView'
 
@@ -25,8 +25,11 @@ function render(props: Partial<HomeData> = {}) {
     rosterCount: 0,
     rostersDue: [],
     friendRequests: 0,
-    changedRosters: 0,
-    armyUpdates: [],
+    changedRosters: new Set<string>(),
+    rivals: [],
+    groups: [],
+    leagueGames: [],
+    tournaments: [],
     leaders: null,
     ...props,
   })
@@ -35,6 +38,8 @@ function render(props: Partial<HomeData> = {}) {
 
 const text = (markup: string) => markup.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ')
 
+const heading = (markup: string) => text(markup.match(/<h1\b[^>]*>(.*?)<\/h1>/)?.[1] ?? '').trim()
+
 describe('home greeting', () => {
   it.each([
     ['an empty name', '', 'Welcome back'],
@@ -42,11 +47,11 @@ describe('home greeting', () => {
     ['a first name', 'Alex', 'Welcome back, Alex'],
     ['a full name with extra whitespace', '  Alex \t Smith  ', 'Welcome back, Alex'],
   ])('greets a returning player with %s', (_, name, greeting) => {
-    expect(render({ me: { id: 'player', name }, rosterCount: 1 }).match(/<h1\b[^>]*>(.*?)<\/h1>/)?.[1]).toBe(greeting)
+    expect(heading(render({ me: { id: 'player', name }, rosterCount: 1 }))).toBe(greeting)
   })
 
   it('does not welcome a player back before they have a list or a game', () => {
-    expect(render().match(/<h1\b[^>]*>(.*?)<\/h1>/)?.[1]).toBe('Welcome, Alex')
+    expect(heading(render())).toBe('Welcome, Alex')
   })
 })
 
@@ -88,41 +93,21 @@ describe('home record', () => {
   })
 
   it('reads the record, win rate, streak and leaderboard place', () => {
-    expect(text(battled({ record: record({ place: 4, of: 31 }) }))).toContain(
-      'W · D · L 7 – 1 – 4 Win rate 63% Streak 3 wins Leaderboard #4 of 31',
-    )
+    expect(text(battled({ record: record({ place: 4, of: 31 }) }))).toContain('7 – 1 – 4 record 63% won 3 wins in a row #4 of 31')
   })
 
   it('calls a player off the leaderboard unranked', () => {
-    expect(text(battled({ record: record(null) }))).toContain('Leaderboard Unranked')
+    expect(text(battled({ record: record(null) }))).toContain('wins in a row Unranked')
   })
 })
 
 describe('changed lists', () => {
   it('names the lists a data update changed', () => {
-    expect(text(render({ changedRosters: 2 }))).toContain('2 lists changed by a data update')
+    expect(text(render({ changedRosters: new Set(['a', 'b']) }))).toContain('2 lists changed in a data update')
   })
 
   it('says nothing when no list changed', () => {
-    expect(render()).not.toContain('changed by a data update')
-  })
-})
-
-describe('army updates', () => {
-  const update = (slug: string, recordedAt: number): ArmyUpdate => ({
-    faction: { slug, displayName: slug, icon: null },
-    recordedAt,
-    anchor: `update-${slug}`,
-    changes: 4,
-  })
-
-  it('names the three most recently updated armies, newest first', () => {
-    const markup = text(render({ armyUpdates: [update('orks', 1), update('necrons', 4), update('tyranids', 3), update('aeldari', 2)] }))
-    expect(markup.match(/\b(orks|necrons|tyranids|aeldari)\b/g)).toEqual(['necrons', 'tyranids', 'aeldari'])
-  })
-
-  it('leaves the panel out when no army has an update', () => {
-    expect(render()).not.toContain('Updates for your armies')
+    expect(render()).not.toContain('changed in a data update')
   })
 })
 
@@ -156,17 +141,25 @@ describe('battle rows', () => {
     expect(text(render({ mine: [battle('a', { lastActivity: 0 })] }))).not.toContain('Opponent a')
   })
 
-  it('links to every battle when more games are in progress than shown', () => {
-    expect(text(render({ mine: ['a', 'b', 'c'].map((token) => battle(token)) }))).toContain('All my battles')
+  it('counts the games in progress past the ones it shows', () => {
+    expect(text(render({ mine: ['a', 'b', 'c'].map((token) => battle(token)) }))).toContain('1 more game in progress')
   })
 
   it('names how a finished game went for the player', () => {
-    expect(text(render({ mine: [battle('a', { status: 'finished', scores: [20, 50] })] }))).toMatch(/Games you have played 1 .*\bLost\b/)
+    expect(text(render({ mine: [battle('a', { status: 'finished', scores: [20, 50] })] }))).toMatch(/Recent results .*\bLost\b/)
   })
 
-  it.each(['mine', 'friends', 'open'] as const)('lists at most two games from %s in feed order', (feed) => {
-    const battles = Array.from({ length: 5 }, (_, index) => battle(String(index), { status: 'finished' }))
-    expect(text(render({ [feed]: battles })).match(/Opponent \d+/g)).toEqual(['Opponent 0', 'Opponent 1'])
+  it.each([
+    ['mine', 'finished'],
+    ['friends', 'finished'],
+    ['open', 'playing'],
+  ] as const)('lists at most four games from %s in feed order', (feed, status) => {
+    const battles = Array.from({ length: 6 }, (_, index) => battle(String(index), { status }))
+    expect(text(render({ [feed]: battles })).match(/Opponent \d+/g)).toEqual(['Opponent 0', 'Opponent 1', 'Opponent 2', 'Opponent 3'])
+  })
+
+  it('leaves finished public games to the battles page', () => {
+    expect(text(render({ open: [battle('a', { status: 'finished' })] }))).not.toContain('Opponent a')
   })
 
   it('shows no score before a game starts', () => {
@@ -179,5 +172,20 @@ describe('battle rows', () => {
       { id: 'opponent-a', name: 'Opponent a', image: null, colour: null, automated: false },
     ]
     expect(text(render({ mine: [battle('a', { playerDetails })] }))).toMatch(/Alex You .*Opponent a(?! You)/)
+  })
+})
+
+describe('groups and tournaments', () => {
+  const group = (name: string): HomeGroup => ({ token: name, name, battles: 3, lastBattleAt: null, pending: false })
+  const tournament = (name: string): HomeTournament => ({
+    token: name,
+    name,
+    playsAt: null,
+    status: { label: 'Seal your roster', tint: 'text-discarded' },
+  })
+
+  it('keeps room for groups when the player has entered many tournaments', () => {
+    const markup = text(render({ groups: [group('Garage')], tournaments: ['A', 'B', 'C', 'D', 'E'].map(tournament) }))
+    expect(markup).toContain('Garage')
   })
 })

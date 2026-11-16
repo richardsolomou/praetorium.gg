@@ -1,7 +1,7 @@
-import { leagueDraw, leagueFixtureStatus } from '../../core/groupLeague'
+import { leagueDraw, leagueFixtureOverdue, leagueFixtureStatus } from '../../core/groupLeague'
 import { groupSummary } from '../../core/groupSummary'
 import type { BattleFilter, BattleOrder } from '../../core/battleFilter'
-import { sideScore, standings } from '../../core/standings'
+import { isProvisional, sideScore, standings } from '../../core/standings'
 import { swissStandings } from '../../core/swiss'
 import { SEALED_EVENT_RESULTS_BATTLE_LIMIT } from '../../core/sealedEventResults'
 import type { BattlesCursor } from '../../contracts/battles'
@@ -36,10 +36,57 @@ export class GroupResultsService {
    * someone who leaves drops off and comes back with their record if they rejoin. A private group shows it to members alone.
    */
   async groupStandings(token: string, viewerId: string | null, factions: readonly BattleFaction[] = []) {
-    const { group, battlesRevision } = (await this.groupService.groupWithLeague(token, viewerId)) ?? {}
-    if (!group || battlesRevision === undefined) return null
+    const found = await this.groupService.groupWithLeague(token, viewerId)
+    if (!found || hiddenFromViewer(found.group, viewerId)) return null
+    return this.standingsOf(token, found.group, found.battlesRevision, viewerId, factions)
+  }
+
+  /**
+   * Each of the reader's groups as their home page sums it up: their place on its table, if they are placed, and their
+   * next league game nobody has started yet. A game already started is on their battle list, so it is not repeated here.
+   */
+  async homeGroups(tokens: readonly string[], viewerId: string) {
+    const now = this.clock()
+    const read = async (token: string) => {
+      const found = await this.groupService.groupWithLeague(token, viewerId)
+      if (!found || hiddenFromViewer(found.group, viewerId)) return null
+      const { group, league, battlesRevision } = found
+      const { table } = await this.standingsOf(token, group, battlesRevision, viewerId, [])
+      const ranked = table.rows.filter((row) => !isProvisional(row))
+      const place = ranked.findIndex((row) => row.id === viewerId)
+      const playing = new Set(league?.players.filter((player) => !player.withdrawn).map((player) => player.userId))
+      const next = league?.publishedAt
+        ? league.fixtures
+            .filter((fixture) => (fixture.aId === viewerId || fixture.bId === viewerId) && fixture.battleToken === null)
+            .filter((fixture) => leagueFixtureStatus({ ...fixture, battle: null }, (userId) => playing.has(userId)) === 'open')
+            .toSorted((one, other) => one.round - other.round)[0]
+        : undefined
+      const opponentId = next ? (next.aId === viewerId ? next.bId : next.aId) : null
+      const deadline = next ? (league?.deadlines[next.round - 1] ?? null) : null
+      return {
+        token,
+        place: place === -1 ? null : { place: place + 1, of: ranked.length },
+        fixture: next
+          ? {
+              round: next.round,
+              opponent: group.members.find((member) => member.userId === opponentId)?.name ?? 'A former member',
+              deadline,
+              overdue: leagueFixtureOverdue('open', deadline, now),
+            }
+          : null,
+      }
+    }
+    return (await Promise.all(tokens.map(read))).filter((entry) => entry !== null)
+  }
+
+  private async standingsOf(
+    token: string,
+    group: NonNullable<Awaited<ReturnType<GroupService['groupWithLeague']>>>['group'],
+    battlesRevision: string,
+    viewerId: string | null,
+    factions: readonly BattleFaction[],
+  ) {
     const memberIds = new Set(group.members.filter((member) => member.status === 'accepted').map((member) => member.userId))
-    if (hiddenFromViewer(group, viewerId)) return null
     const [{ battles: histories, partial }, practice] = await Promise.all([
       this.heldGroupBattles(token, battlesRevision),
       this.repository.practiceOpponents(),

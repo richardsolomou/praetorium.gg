@@ -4,7 +4,6 @@ import type { BattlesCursor } from '../contracts/battles'
 import * as server from '../server/functions'
 import { loadSavedQuery, referenceData } from './offline/runtime'
 import {
-  armyUpdatesKey,
   catalogueChangesKey,
   combatUnitsKey,
   friendBattlesKey,
@@ -209,5 +208,3 @@ export const searchPlayers = (args: Parameters<typeof server.searchPlayers>[0]) 
   cachedRead(playerSearchKey(args.data.query), () => server.searchPlayers(args))
 export const catalogueChangeLog = (args: Parameters<typeof server.catalogueChangeLog>[0]) =>
   cachedRead(catalogueChangesKey(args.data.faction, args.data.before), () => server.catalogueChangeLog(args))
-export const armyUpdates = (args: Parameters<typeof server.armyUpdates>[0]) =>
-  cachedRead(armyUpdatesKey(args.data.factions), () => server.armyUpdates(args))

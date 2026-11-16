@@ -1,6 +1,6 @@
 ## From a roster
 
-Choose **Simulate combat** on a selected unit in the roster builder. The unit keeps its detachment, enhancements and attachments. Nothing you change there is saved to the list, but the pairing joins your **Recent simulations**, so you can reopen it from the simulator or home page.
+Choose **Simulate combat** on a selected unit in the roster builder. The unit keeps its detachment, enhancements and attachments. Nothing you change there is saved to the list, but the pairing joins your **Recent simulations**, so you can reopen it from the simulator.
 
 On someone else's roster, it opens the main simulator with their unit defending, so you can attack it with one of your own.
 
