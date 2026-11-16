@@ -48,7 +48,7 @@ export type IdDrop = {
   accepted?: string
 }
 
-const acceptedSchema = z.array(
+export const acceptedSchema = z.array(
   z.object({
     kind: z.enum(['faction', 'datasheet', 'detachment', 'enhancement', 'option']),
     id: z.string(),
@@ -56,7 +56,7 @@ const acceptedSchema = z.array(
     reason: z.string().min(1),
   }),
 )
-const acceptedKey = (drop: Pick<IdDrop, 'kind' | 'id'>) => JSON.stringify([drop.kind, drop.id])
+export const acceptedKey = (drop: Pick<IdDrop, 'kind' | 'id'>) => JSON.stringify([drop.kind, drop.id])
 const ACCEPTED = new Map(acceptedSchema.parse(rawAccepted).map((entry) => [acceptedKey(entry), entry.reason]))
 
 export const failsCheck = (drop: IdDrop) => drop.verdict !== 'removed' && !drop.accepted

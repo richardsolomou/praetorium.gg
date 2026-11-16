@@ -204,12 +204,16 @@ describe('saved counts a unit no longer allows', () => {
 
   it('reports saved models of one kind beyond what the unit can hold at any size', () => {
     expect(errorsOf({ entryId: 'squad', models: 9, spreads: { troopers: { trooper: 12 } } })).toEqual([
-      'the saved 12 × Trooper is no longer available; it now has 9',
+      'the saved 12× Trooper is no longer available; it now has 9',
     ])
   })
 
   it('keeps quiet about counts remembered from a larger squad that the unit can still hold', () => {
     expect(errorsOf({ entryId: 'squad', models: 5, spreads: { troopers: { trooper: 8 } } })).toEqual([])
+  })
+
+  it('keeps quiet about a count other saved models take the places of', () => {
+    expect(errorsOf({ entryId: 'squad', models: 9, spreads: { troopers: { trooper: 9, gunner: 1 } } })).toEqual([])
   })
 
   it('reports a saved choice from a group the data now closes', () => {

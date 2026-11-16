@@ -19,6 +19,11 @@ it('keeps only the newest archive of each day from two to thirty days old', () =
   expect(prunableAuthArchives([key(60.5), key(70), key(84)], options)).toEqual([key(70), key(84)])
 })
 
+it('keeps the newest archive of each day, even two days of one week', () => {
+  // 2026-11-11 and 2026-11-12 fall in the week starting Monday 2026-11-09.
+  expect(prunableAuthArchives([key(80), key(110)], options)).toEqual([])
+})
+
 it('keeps only the newest archive of each week beyond thirty days', () => {
   // Monday 2026-10-05 starts 1020.28 hours before `now`; Monday 2026-10-12 starts 852.28 hours before it.
   expect(prunableAuthArchives([key(900), key(950), key(1000), key(1030)], options)).toEqual([key(950), key(1000)])

@@ -73,6 +73,14 @@ it('restores the archive the latest pointer names', async () => {
   expect(await restoreAuthFromR2('latest', path.join(directory, 'restored-latest'))).toEqual(counts)
 })
 
+it('refuses an archive that no longer matches the latest pointer', async () => {
+  const { key, objects } = await backUpToStubbedR2()
+  objects.set(key, new Uint8Array([...objects.get(key)!, 0]))
+  await expect(restoreAuthFromR2('latest', path.join(directory, 'restored-changed'))).rejects.toThrow(
+    'Auth archive does not match the pointer',
+  )
+})
+
 it('keeps the auth secret in the archive', async () => {
   await backUpToStubbedR2()
   await restoreAuthFromR2('latest', path.join(directory, 'restored-secret'))

@@ -297,7 +297,9 @@ function changedCountErrors(
   picked: ReturnType<typeof rosterForces>['picked'],
   loaded: LoadedCatalogue,
   roster: readonly Selection[],
+  unitCache: Map<string, BuiltUnit | null>,
 ) {
+  const rosterKey = JSON.stringify([loaded.index.revision, data.catalogueId, roster])
   return picked.flatMap((unit) => {
     const saved = data.units[unit.key]!
     const short = (built: BuiltUnit) =>
@@ -309,13 +311,19 @@ function changedCountErrors(
       )
     const largest = unit.size.options?.at(-1) ?? unit.size.max
     const holdsAlone = (count: ReturnType<typeof short>[number]) => {
-      const alone = buildUnit(saved.entryId, loaded.index, largest, saved.choices, {
-        primaryCatalogueId: data.catalogueId,
-        mustering: true,
-        roster,
-        spreads: { [count.key]: { [count.id]: count.count } },
-        toggles: saved.toggles,
-      })
+      const wanted = { ...saved, models: largest, spreads: { [count.key]: { [count.id]: count.count } } }
+      const cacheKey = `${rosterKey}${JSON.stringify(wanted)}`
+      let alone = unitCache.get(cacheKey)
+      if (alone === undefined) {
+        alone = buildUnit(saved.entryId, loaded.index, largest, saved.choices, {
+          primaryCatalogueId: data.catalogueId,
+          mustering: true,
+          roster,
+          spreads: wanted.spreads,
+          toggles: saved.toggles,
+        })
+        unitCache.set(cacheKey, alone)
+      }
       return !alone || !short(alone).some((other) => other.key === count.key && other.id === count.id)
     }
     return [
@@ -333,7 +341,7 @@ function changedCountErrors(
         .map((count) => ({
           entryId: saved.entryId,
           entryName: unit.name,
-          message: `the saved ${count.count} × ${count.name} is no longer available; it now has ${count.held}`,
+          message: `the saved ${count.count}× ${count.name} is no longer available; it now has ${count.held}`,
         })),
     ]
   })
@@ -650,7 +658,7 @@ function calculateRoster(
   const enhancementsHeld = whole.costs[ENHANCEMENT_COST] ?? 0
   const reported = [
     ...savedSelectionErrors(data, picked, loaded),
-    ...changedCountErrors(data, picked, loaded, roster),
+    ...changedCountErrors(data, picked, loaded, roster, unitCache ?? sharedBuiltUnitsFor(loaded)),
     ...whole.errors.filter((error) => !isDetachmentWrapperLimit(error, chosen.length) && !selfContradictory.has(error)),
     ...attachmentErrors(
       data.units,

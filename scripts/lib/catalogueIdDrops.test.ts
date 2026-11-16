@@ -72,6 +72,19 @@ it('fails an enhancement that left a datasheet when the history does not record 
   ).toEqual(['fails unrecorded enhancement Iron Resolve'])
 })
 
+it('reads a rename at exactly two thirds of its words', () => {
+  expect(verdicts(saved({ detachments: { a: 'Anvil Siege Force' } }), saved({ detachments: { b: 'Siege Force' } }))).toEqual([
+    'fails renamed detachment Anvil Siege Force -> Siege Force',
+  ])
+})
+
+it('fails a mapped id whose target the new catalogue lacks', () => {
+  const retired = 'profile-unit-4eef-e313-1eea-94a6-d358-df4a-1c2f-4bff'
+  expect(verdicts(saved({ datasheets: { [retired]: 'Adrax Agatone' } }), saved({}), { migrated: new Set([retired]) })).toEqual([
+    'fails unresolved datasheet Adrax Agatone -> ',
+  ])
+})
+
 it('passes a mapped id and an accepted one', () => {
   expect(
     verdicts(saved({ datasheets: { a: 'Squad', b: 'Squad' } }), saved({ datasheets: { c: 'Squad' } }), {

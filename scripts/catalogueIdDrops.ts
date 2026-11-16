@@ -7,7 +7,7 @@
 import fs from 'node:fs'
 import { parseArgs } from 'node:util'
 import { loadCatalogueHistory } from '../src/server/catalogueHistory'
-import { catalogueIdDrops, checkIdDrops, failsCheck } from './lib/catalogueIdDrops'
+import { acceptedKey, acceptedSchema, catalogueIdDrops, checkIdDrops, failsCheck } from './lib/catalogueIdDrops'
 
 const {
   values: { accept },
@@ -20,12 +20,12 @@ if (accept === undefined) checkIdDrops(previous, next, history)
 else {
   if (!accept.trim()) throw new Error('--accept needs the reason these IDs are safe to drop')
   const file = 'catalogue/accepted-id-drops.json'
-  const held = JSON.parse(fs.readFileSync(file, 'utf8')) as { kind: string; id: string }[]
-  const known = new Set(held.map((entry) => JSON.stringify([entry.kind, entry.id])))
+  const held = acceptedSchema.parse(JSON.parse(fs.readFileSync(file, 'utf8')))
+  const known = new Set(held.map(acceptedKey))
   const added = new Map(
     catalogueIdDrops(previous, next, history)
       .filter(failsCheck)
-      .map(({ kind, id, name }) => [JSON.stringify([kind, id]), { kind, id, name, reason: accept }] as const)
+      .map(({ kind, id, name }) => [acceptedKey({ kind, id }), { kind, id, name, reason: accept }] as const)
       .filter(([key]) => !known.has(key)),
   )
   fs.writeFileSync(file, `${JSON.stringify([...held, ...added.values()], null, 2)}\n`)
