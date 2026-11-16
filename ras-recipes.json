@@ -1,6 +1,23 @@
 {
   "source": "https://github.com/richardsolomou/ras-stack",
   "recipes": {
+    "database-libsql": {
+      "version": 1,
+      "commit": "8e4dfdee6afeeaa1f05804e38888a171f9ebe722",
+      "files": {
+        "drizzle.config.ts": "drizzle.auth.config.ts",
+        "src/db/database.test.ts": null,
+        "src/db/database.ts": "src/server/localAuthDatabase.ts",
+        "src/server/database.test.ts": null
+      },
+      "notes": [
+        "The database is the auth SQLite file at `AUTH_SQLITE_PATH` (`/data/auth.sqlite` in production), not `$DATA_DIR/app.sqlite`, and keeps that name and location.",
+        "Migrations stay in drizzle-auth/ (drizzle.auth.config.ts, scripts `auth:db:generate` and `auth:db:check`) with their full history, and scripts/nodeAuthSqlite.ts applies them through node:sqlite before the server starts, detecting each by the table or column it adds; production has no `__drizzle_migrations` table, so the recipe's migrator would replay 0000 against existing tables.",
+        "src/server/localAuthDatabase.ts opens the client with `concurrency: 1` and a 5 s busy timeout, and holds the auth and OAuth provider schemas; backups are the hourly Dokploy schedule from scripts/dokployAuthSchedule.ts, not a pre-migration `VACUUM INTO`.",
+        "The recipe's starter schema and migrations, and its tests of the migrator, are left out; sqliteAuth.integration.test.ts and the nodeAuthSqlite tests cover the real database.",
+        "`app().auth` is synchronous, because the file is migrated before the Nitro process starts and Better Auth is created with the client directly."
+      ]
+    },
     "posthog-server": {
       "version": 2,
       "commit": "ec2a7bdc97f8534e2fe0d9a0581b3b1898e05327",
