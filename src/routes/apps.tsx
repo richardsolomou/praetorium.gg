@@ -6,7 +6,7 @@ export const Route = createFileRoute('/apps')({
   head: ({ match }) =>
     pageHead(match.context.origin, {
       title: 'Apps',
-      description: 'Praetorium for iPhone, iPad, Apple Watch and Android, and in Claude, ChatGPT, Gemini and other AI assistants.',
+      description: 'Praetorium for iPhone, iPad, Apple Watch and Android, and in ChatGPT, Claude, Gemini and other AI assistants.',
       path: '/apps',
     }),
   component: AppsPage,

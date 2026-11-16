@@ -94,7 +94,7 @@ export function AppsPage() {
             rosters or battles.
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
-            {[ASSISTANTS.claude, ASSISTANTS.chatgpt].map((assistant) => (
+            {[ASSISTANTS.chatgpt, ASSISTANTS.claude].map((assistant) => (
               <AppTile
                 key={assistant.name}
                 title={assistant.name}

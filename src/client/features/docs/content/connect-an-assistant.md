@@ -1,14 +1,14 @@
-Connect Praetorium to Claude, ChatGPT, Gemini or another AI assistant and you can ask it about units, points, detachments and missions, plan a list, and run the combat simulator. It uses the same data as the site and links back to the page it read. You don't need an account for any of that. With your permission, it can also read and change your saved rosters and battles.
+Connect Praetorium to ChatGPT, Claude, Gemini or another AI assistant and you can ask it about units, points, detachments and missions, plan a list, and run the combat simulator. It uses the same data as the site and links back to the page it read. You don't need an account for any of that. With your permission, it can also read and change your saved rosters and battles.
 
 ## Turn it on in your assistant
-
-### Claude
-
-Open [Praetorium in Claude's connector directory](https://claude.ai/directory/praetorium) and connect it. Claude asks you to sign in only when it needs your rosters or battles.
 
 ### ChatGPT
 
 Open [Praetorium in ChatGPT's plugin directory](https://chatgpt.com/plugins/plugin_asdk_app_6adb29330cd08191b5833c45b0fffc79) and choose **Install plugin**.
+
+### Claude
+
+Open [Praetorium in Claude's connector directory](https://claude.ai/directory/praetorium) and connect it. Claude asks you to sign in only when it needs your rosters or battles.
 
 ### Gemini
 

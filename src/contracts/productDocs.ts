@@ -195,7 +195,7 @@ export const PRODUCT_DOCS = [
     slug: 'connect-an-assistant',
     section: 'AI assistants',
     title: 'Connect an AI assistant',
-    description: 'Turn Praetorium on in Claude, ChatGPT, Gemini or another AI assistant.',
+    description: 'Turn Praetorium on in ChatGPT, Claude, Gemini or another AI assistant.',
   },
   {
     slug: 'assistant-answers',
@@ -213,7 +213,7 @@ export const PRODUCT_DOCS = [
     slug: 'assistant-problems',
     section: 'AI assistants',
     title: 'AI assistant problems',
-    description: 'Missing tools, sign-in loops and other problems connecting Claude, ChatGPT or another AI assistant.',
+    description: 'Missing tools, sign-in loops and other problems connecting ChatGPT, Claude or another AI assistant.',
   },
   {
     slug: 'sign-in',
