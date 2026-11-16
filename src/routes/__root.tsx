@@ -1,4 +1,5 @@
 import { offlineData } from '../client/offline/runtime'
+import { chunkRecoveryScript } from '../client/chunkRecovery'
 import type { QueryClient } from '@tanstack/react-query'
 import { createRootRouteWithContext, useLocation, useRouter } from '@tanstack/react-router'
 import { useEffect } from 'react'
@@ -33,7 +34,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient; orig
       { name: 'apple-itunes-app', content: `app-id=${APP_STORE_ID}` },
       ...siteMeta(match.context.origin),
     ],
-    scripts: [{ children: TEXT_SOURCES_SCRIPT }, { children: RAIL_SCRIPT }, { children: APPS_SCRIPT }],
+    scripts: [{ children: chunkRecoveryScript }, { children: TEXT_SOURCES_SCRIPT }, { children: RAIL_SCRIPT }, { children: APPS_SCRIPT }],
     links: offlineData()
       ? []
       : [

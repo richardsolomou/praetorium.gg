@@ -3,7 +3,7 @@ import { PostHog } from 'posthog-node'
 import packageJson from '../../package.json' with { type: 'json' }
 import { postHogEnvironment } from 'ras-stack/posthog'
 import { installPostHogServerTelemetryShutdown } from 'ras-stack/posthog/server'
-import { globalSingleton } from 'ras-stack/server'
+import { globalSingleton } from '../lib/globalSingleton'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { TOOL_ERROR_TYPE_META, TOOL_ERROR_TYPES, TOOL_OUTCOME_META, type ToolErrorType } from '../contracts/agentTools'
 import { deploymentHost, serverEventContext } from './posthog'

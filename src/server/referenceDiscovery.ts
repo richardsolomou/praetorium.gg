@@ -1,5 +1,5 @@
 import { hash } from 'node:crypto'
-import { publicOrigin } from './requestOrigin'
+import { publicOrigin } from './origins'
 import { activeReferenceCorpus } from './referenceApi'
 import { app } from './app'
 import { updateId } from './catalogueHistory'

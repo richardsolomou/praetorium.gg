@@ -1,6 +1,6 @@
 import packageJson from '../../package.json' with { type: 'json' }
 import type { BeforeSendFn } from 'posthog-node'
-import { globalSingleton } from 'ras-stack/server'
+import { globalSingleton } from '../lib/globalSingleton'
 import { postHogEnvironment } from 'ras-stack/posthog'
 import { createManagedPostHogServerTelemetry, installPostHogServerTelemetryShutdown } from 'ras-stack/posthog/server'
 

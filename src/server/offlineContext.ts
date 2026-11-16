@@ -1,6 +1,6 @@
 import { SYNC_PRODUCT_ACTION_NAMES } from '../core/syncProductActions'
 import { AsyncLocalStorage } from 'node:async_hooks'
-import { globalSingleton } from 'ras-stack/server'
+import { globalSingleton } from '../lib/globalSingleton'
 
 type OfflineContext = {
   id: string

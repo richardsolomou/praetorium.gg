@@ -1,6 +1,6 @@
 import { createMiddleware, createStart } from '@tanstack/react-start'
-import { canonicalHostMiddleware, serverFunctionIdentityMiddleware } from 'ras-stack/tanstack/middleware'
 import { reportsToTelemetry, serverTelemetry } from './adapters/posthog'
+import { canonicalHost, csrf, securityHeadersMiddleware, serverFunctionIdentity, staleServerFunctions } from './server/middleware'
 import { recordRequest, routePatterns } from './requestTiming'
 import { crawlerRequestEvent } from './server/crawlerRequests'
 import { publicPageLoad, signedSessionCookie } from './server/publicPageLoad'
@@ -61,13 +61,13 @@ const publicPageLoadMiddleware = createMiddleware({ type: 'request' }).server(as
 export const startInstance = createStart(() => ({
   serverFns: { fetch: (input, init) => serverFunctionFetch(input, init) },
   // Names each server function on its trace span and request metrics.
-  functionMiddleware: [serverFunctionIdentityMiddleware(), pendingWriteMiddleware],
+  functionMiddleware: [serverFunctionIdentity, pendingWriteMiddleware],
   requestMiddleware: [
     requestTimingMiddleware,
-    canonicalHostMiddleware(() => ({
-      canonicalUrl: process.env.APP_URL,
-      pathsServedOnAnyHost: new Set(['/api/health']),
-    })),
+    canonicalHost,
+    securityHeadersMiddleware,
+    csrf,
+    staleServerFunctions,
     crawlerRequestMiddleware,
     sharedPageCacheMiddleware,
     publicPageLoadMiddleware,

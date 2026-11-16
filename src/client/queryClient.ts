@@ -1,11 +1,10 @@
 import { offlineData } from './offline/runtime'
-import { MutationCache, QueryCache, type Query } from '@tanstack/react-query'
+import { MutationCache, QueryCache, QueryClient, type Query } from '@tanstack/react-query'
 import { posthog } from 'posthog-js'
 import { isSignedOut } from '../core/session'
 import { CONNECTION_LOST_MESSAGE, HttpStatusError, isFetchNetworkFailure } from './networkErrors'
 import { OfflineRefusal } from './offline/offlineRefusal'
 import { queryEventName } from './offline/reads'
-import { createQueryClient as configuredQueryClient } from 'ras-stack/query'
 import { captureAppSnapshot, restoreAppSnapshot } from './offline/appSnapshot'
 import { writeAppSnapshot } from './offline/appStorage'
 import { configureLocalRuntime } from './offline/localRuntime'
@@ -19,8 +18,10 @@ import {
   recentMatchupsKey,
 } from './queries/queryKeys'
 
+/** One client per browser session and one per server request, so cached data never crosses between users. */
 export function createQueryClient() {
-  const client = configuredQueryClient({
+  const client = new QueryClient({
+    // A second is long enough that queries hydrated from the server render are not fetched again straight away.
     defaultOptions: { queries: { staleTime: 1000, networkMode: 'always' }, mutations: { networkMode: 'always' } },
     queryCache: new QueryCache({ onError: reportQueryFailure }),
     // Onboarding progress is folded from rows anything can write, so any successful write may have finished a task.

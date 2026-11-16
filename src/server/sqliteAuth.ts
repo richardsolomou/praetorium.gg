@@ -22,7 +22,7 @@ import {
   standardSessionOptions,
   trustedOrigins,
 } from 'ras-stack/auth'
-import { errorHasCode } from 'ras-stack/server'
+import { errorHasCode } from './errorHasCode'
 import type { EmailDelivery, EmailTemplate } from '../adapters/email'
 import { PASSWORD_MIN_LENGTH, SOCIAL_PROVIDERS, type SocialAuthProvider } from '../authConfig'
 import { account, deletedUser, schema, session as sessionTable, user } from '../db/authSchema'

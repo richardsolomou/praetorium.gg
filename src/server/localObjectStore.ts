@@ -1,7 +1,7 @@
 import { hash, randomUUID } from 'node:crypto'
 import { link, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { errorHasCode } from 'ras-stack/server'
+import { errorHasCode } from './errorHasCode'
 // scripts/nodeServer.ts runs this module under plain Node, which needs the extension.
 import { isSafeRelativePath } from './relativePath.ts'
 

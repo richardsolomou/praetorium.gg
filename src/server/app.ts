@@ -1,5 +1,5 @@
 import { randomInt } from 'node:crypto'
-import { globalSingleton } from 'ras-stack/server'
+import { globalSingleton } from '../lib/globalSingleton'
 import os from 'node:os'
 import path from 'node:path'
 import { setTimeout as yieldToEventLoop } from 'node:timers/promises'

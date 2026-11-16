@@ -1,6 +1,49 @@
 {
   "source": "https://github.com/richardsolomou/ras-stack",
   "recipes": {
+    "start-app": {
+      "version": 2,
+      "commit": "82fce4523ec914bd2e70aefd4bff84c10fb278c6",
+      "files": {
+        "src/client/chunkRecovery.test.ts": "src/client/chunkRecovery.test.ts",
+        "src/client/chunkRecovery.ts": "src/client/chunkRecovery.ts",
+        "src/client/queryClient.test.ts": "src/client/queryClient.test.ts",
+        "src/client/queryClient.ts": "src/client/queryClient.ts",
+        "src/router.tsx": "src/router.tsx",
+        "src/routes/__root.tsx": "src/routes/__root.tsx",
+        "src/routes/api/health.ts": "src/routes/api/health.ts",
+        "src/server/app.test.ts": "src/server/app.test.ts",
+        "src/server/app.ts": "src/server/app.ts",
+        "src/server/health.test.ts": "src/server/health.test.ts",
+        "src/server/health.ts": "src/server/health.ts",
+        "src/server/middleware.test.ts": "src/server/middleware.test.ts",
+        "src/server/middleware.ts": "src/server/middleware.ts",
+        "src/server/origins.test.ts": "src/server/origins.test.ts",
+        "src/server/origins.ts": "src/server/origins.ts",
+        "src/server/rpc.test.ts": "src/server/rpc.test.ts",
+        "src/server/rpc.ts": "src/server/rpc.ts",
+        "src/server/serverFunction.test.ts": "src/server/serverFunction.test.ts",
+        "src/server/serverFunction.ts": "src/server/serverFunction.ts",
+        "src/start.ts": "src/start.ts",
+        "src/styles.css": "src/styles.css",
+        "vite.config.ts": "vite.config.ts"
+      },
+      "notes": [
+        "src/server/app.ts is the application's own composition root, a `globalSingleton` (src/lib/globalSingleton.ts) holding the catalogue loaders, SpacetimeDB operator, auth, and background jobs; it has no AsyncDisposableStack or closeApp, because scripts/nodeServer.ts owns process shutdown and the combat worker pool closes from src/server/warmPlugin.ts.",
+        "src/lib/globalSingleton.ts keys values by name under one registered symbol, because Nitro plugins are bundled apart from the request bundle and must share the combat worker pool with it.",
+        "The root route keeps the document in AppShell as its `component`, since the shell renders two different documents (the stream overlay and the app frame) around its providers; the chunk recovery script is in head() and the update notice in the app frame's body.",
+        "The router keeps the application's own context (`origin` for absolute metadata), stale-build reload, route error recovery, view transitions, and error and not-found components.",
+        "src/client/queryClient.ts keeps the application's caches, offline snapshot restore, and failure reporting around `new QueryClient`, and its own tests in place of the recipe's.",
+        "src/start.ts runs request timing first, then the recipe's middleware, then the crawler log, shared page cache, and public page load limits; function middleware adds the pending-write marker, and `serverFns.fetch` keeps the network error handling.",
+        "`referrer-policy` stays `no-referrer`, the application's privacy choice, instead of `strict-origin-when-cross-origin`.",
+        "src/server/contentSecurityPolicy.ts adds the faction icon CDN and PostHog media hosts to img-src, the rules text host to connect-src, and `worker-src 'self' blob:` for combat workers; src/server/cspPlugin.ts (a Nitro response hook) still widens img-src with the deployment's public asset origin and adds `'unsafe-eval'` when SpacetimeDB is configured, since both are runtime settings.",
+        "Static files Nitro serves no longer carry the security headers the Nitro `/**` route rule added; they still get their Cache-Control rules there.",
+        "src/server/rpc.ts wraps the recipe's `run` in the application's PostHog observer and reports failures through it; `inTurn` streams per-item results with the same reporting.",
+        "/api/health waits for the catalogue warm-up and checks the auth database and SpacetimeDB through `app().health()`, maps failures to `database_unavailable`, and adds `x-praetorium-revision`, which preview and release checks read.",
+        "src/server/requestOrigin.ts keeps `siteOrigin`, the isomorphic origin for page metadata, on top of `publicOrigin`.",
+        "Forwarded headers count only with `TRUST_PROXY=true`, where the application trusted them always; every deployment, preview, and local stack sets `APP_URL`, which `acceptedOrigins` and `publicOrigin` use instead."
+      ]
+    },
     "tooling": {
       "version": 2,
       "commit": "82fce4523ec914bd2e70aefd4bff84c10fb278c6",

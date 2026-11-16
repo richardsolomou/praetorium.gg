@@ -219,7 +219,7 @@ export const test = base.extend<{ closeOpenedContexts: void; recordCoverage: voi
       const server = coverageDirectory && inspectPort ? await serverCoverage() : null
       const stopped = (await server?.('Runtime.evaluate', {
         expression: `(async () => {
-          const pool = globalThis[Symbol.for('ras-stack.server.singletons')]?.get('praetorium.combatCalculationPool')?.value
+          const pool = globalThis[Symbol.for('praetorium.singletons')]?.get('praetorium.combatCalculationPool')
           await pool?.close()
           if (pool) pool.closed = false
         })()`,

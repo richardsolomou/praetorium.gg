@@ -6,6 +6,7 @@ import { AppPersistence } from '../../offline/AppPersistence'
 import { PressHaptics } from './PressHaptics'
 import { useQuery } from '@tanstack/react-query'
 import { HeadContent, Link, Outlet, Scripts, useLocation, useRouterState } from '@tanstack/react-router'
+import { updateNoticeId } from '../../chunkRecovery'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   ArrowUpRight,
@@ -359,6 +360,9 @@ function AppFrame() {
         {offlineData() ? <style dangerouslySetInnerHTML={{ __html: offlineAssets()?.css ?? '' }} /> : null}
       </head>
       <body className={immersive ? 'h-dvh overflow-hidden' : 'min-h-dvh'}>
+        <p id={updateNoticeId} hidden className="border-b border-edge bg-void px-4 py-2 text-center text-sm">
+          A new version is available. Reload the page to continue.
+        </p>
         <PostHogIntegration environment={posthog} options={POSTHOG_BROWSER_OPTIONS} service={POSTHOG_SERVICE}>
           <TooltipProvider delay={250} closeDelay={100}>
             {posthog && me !== undefined && !impersonating && (

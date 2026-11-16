@@ -1,7 +1,7 @@
 import type { z } from 'zod'
 import type { createBattleSchema, createSealedEventSchema } from '../contracts/schemas'
 import { AsyncLocalStorage } from 'node:async_hooks'
-import { globalSingleton } from 'ras-stack/server'
+import { globalSingleton } from '../lib/globalSingleton'
 import { app } from './app'
 import { offlineContext } from './offlineContext'
 

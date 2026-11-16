@@ -18,7 +18,7 @@ import {
 } from './catalogueSources'
 import { CANONICAL_CATALOGUE_SOURCE_NAMES } from './canonicalCatalogueSources'
 import pRetry from 'p-retry'
-import { errorHasCode } from 'ras-stack/server'
+import { errorHasCode } from './errorHasCode'
 import { readCatalogueComposition } from './catalogueComposition'
 import {
   extractCatalogueArchive,

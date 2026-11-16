@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { app } from '../../../server/app'
 import { combatLoadoutCandidates } from '../../../shared/combatLoadouts'
-import { requireMutationOrigin } from '../../../server/mutationOrigin'
+import { requireSameOrigin } from '../../../server/origins'
 import { combatLoadoutSchema } from '../../../contracts/schemas'
 import { boundedText } from '../../../server/boundedBody'
 
@@ -18,7 +18,7 @@ export const Route = createFileRoute('/api/simulator/optimize')({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        requireMutationOrigin(request)
+        requireSameOrigin(request)
         const body = await boundedText(request, MAX_BODY_BYTES)
           .then((text) => (text === null ? null : (JSON.parse(text) as unknown)))
           .catch(() => null)
