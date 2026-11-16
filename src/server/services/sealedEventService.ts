@@ -368,8 +368,9 @@ export class SealedEventService {
     const chosen = disposition ?? built.disposition
     if (!chosen && (built.dispositions?.length ?? 0) > 1) {
       const event = await this.repository.sealedEventByToken(token, userId, eventToken)
-      const entry = event?.entries.find((candidate) => candidate.userId === userId)
-      if (event && entry && sealedEventPlaysAlone(event, entry))
+      // A group game's first seal is what enters its player, so a list with no entry yet plays alone in a duel too.
+      const entry = event?.entries.find((candidate) => candidate.userId === userId) ?? { requiredLimit: null }
+      if (event && sealedEventPlaysAlone(event, entry))
         throw new Response('choose the Force Disposition this list plays at the event', { status: 409 })
     }
     return { ...snapshot, built: { ...built, disposition: chosen } }

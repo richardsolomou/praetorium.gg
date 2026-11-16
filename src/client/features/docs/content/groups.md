@@ -81,7 +81,7 @@ To leave, choose **Withdraw from league** in the **Fixtures** ⋯ menu. Your unp
 
 ### Seal lists before a league starts
 
-To have everyone commit to one army for the whole league, turn on **Seal lists before it starts** when you press **Start a league**, then choose the points and house rules. Members join by pressing **Seal a list to join** and picking a saved list, and can swap it with **Swap your list** until the league is published. Nobody sees anyone else's list until then.
+To have everyone commit to one army for the whole league, turn on **Seal lists before it starts** when you press **Start a league**, then choose the points and house rules. Members join by pressing **Seal a list to join** and picking a saved list, and can swap it with **Swap your list** until the league is published. A list that offers more than one Force Disposition and names none asks which one it plays for the whole league as you seal it. Nobody sees anyone else's list until then.
 
 **Publish** reveals every list at once, and every fixture is played with them: **Start battle** sets up the game with both sealed lists already in place. The revealed lists stay under **Lists** on the **League** tab.
 

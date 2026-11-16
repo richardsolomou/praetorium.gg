@@ -42,7 +42,7 @@ export function useSealDisposition(playsAlone: boolean, seal: (rosterId: string,
         <AlertDialogHeader>
           <AlertDialogTitle>Choose your Force Disposition</AlertDialogTitle>
           <AlertDialogDescription>
-            {asking?.roster.name} offers more than one. You play the one you seal for every game of this event.
+            {asking?.roster.name} offers more than one. Whichever you seal, you play in every game with this list.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <fieldset className="grid gap-2 sm:grid-cols-2">

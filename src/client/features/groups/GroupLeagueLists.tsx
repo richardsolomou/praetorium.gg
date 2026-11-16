@@ -7,12 +7,11 @@ import { Switch } from '@/components/ui/switch'
 import { pointsBudgetError, pointsLabel } from '../../../core/battle'
 import { SEALED_EVENT_DEFAULT_ROSTER_LIMIT } from '../../../core/sealedEvent'
 import { Problem } from '../../components/Problem'
-import { drawGroupLeague, startSealedGroupLeague, submitSealedEventRoster, type groupLeague } from '../../functions'
+import { drawGroupLeague, startSealedGroupLeague, type groupLeague } from '../../functions'
 import { sealedEventQuery } from '../../queries'
-import { afterPaint } from '../../afterPaint'
 import { useEntrantGroups } from '../sealedEvents/SealedEventEntrants'
 import { RevealedLists } from '../sealedEvents/SealedEventArmies'
-import { RosterChooser } from '../sealedEvents/SealedEventRosterChooser'
+import { useSealList } from '../sealedEvents/SealList'
 import { SealedEventRuleFields } from '../sealedEvents/SealedEventRuleFields'
 import { useSealedEventRefresh } from '../sealedEvents/sealedEvent'
 import { memberNameOf, useGroupRefresh, type Group } from './group'
@@ -106,20 +105,17 @@ export function StartLeagueDialog({ group, open, onClose }: { group: Group; open
 export function SealLeagueList({ group, game, sealed, primary }: { group: Group; game: LeagueGame; sealed: boolean; primary: boolean }) {
   const refreshGame = useSealedEventRefresh(game.token)
   const refreshGroup = useGroupRefresh(group.token)
-  const [choosing, setChoosing] = useState(false)
-  const seal = useMutation({
-    mutationFn: async (rosterId: string) => {
-      await afterPaint()
-      return submitSealedEventRoster({ data: { token: game.token, rosterId } })
-    },
-    onSuccess: async () => {
-      setChoosing(false)
-      await Promise.all([refreshGame(), refreshGroup()])
-    },
+  // Every league game is one on one, so each list plays alone and seals its Force Disposition.
+  const seal = useSealList({
+    token: game.token,
+    playsAlone: true,
+    requiredLimit: game.rosterLimit,
+    pointsBudget: game.pointsBudget,
+    onSealed: () => Promise.all([refreshGame(), refreshGroup()]),
   })
   return (
     <>
-      <Button variant={sealed || !primary ? 'outline' : 'default'} onClick={() => (seal.reset(), setChoosing(true))}>
+      <Button variant={sealed || !primary ? 'outline' : 'default'} onClick={seal.open}>
         {sealed ? (
           <>
             <Lock /> Swap your list
@@ -130,18 +126,7 @@ export function SealLeagueList({ group, game, sealed, primary }: { group: Group;
           </>
         )}
       </Button>
-      <RosterChooser
-        open={choosing}
-        pending={seal.isPending}
-        error={seal.error}
-        failedRosterId={seal.variables ?? null}
-        requiredLimit={game.rosterLimit}
-        pointsBudget={game.pointsBudget}
-        seatPoints={null}
-        shared={false}
-        onClose={() => !seal.isPending && setChoosing(false)}
-        onChoose={(roster) => seal.mutate(roster.id)}
-      />
+      {seal.element}
     </>
   )
 }
