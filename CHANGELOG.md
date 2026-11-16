@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.260.0 (2026-11-16)
+
+### Minor Changes
+
+- 00f9c62: AI assistants can now browse the battles and rosters players have made public, without an account.
+
 ## 0.259.0 (2026-11-16)
 
 ### Minor Changes
