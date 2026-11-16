@@ -27,7 +27,7 @@ RUN --mount=type=cache,target=/root/.cache/praetorium/runtime \
         "${POSTHOG_CLI_PROJECT_ID:?PostHog project is required}" \
         "${GITHUB_SHA:?Release revision is required}"; \
     fi; \
-    export POSTHOG_CLI_DRY_RUN=false NITRO_PRESET=node-server; \
+    export POSTHOG_CLI_DRY_RUN=false; \
     uploading() { \
       if [ "$POSTHOG_UPLOAD_SOURCEMAPS" != true ]; then "$@"; return; fi; \
       attempt=1; \

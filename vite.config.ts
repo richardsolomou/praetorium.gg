@@ -42,6 +42,9 @@ export default defineConfig(({ mode }): UserConfig => {
     plugins: [
       tanstackStart(),
       nitro({
+        preset: 'node-server',
+        // The server bundle inlines React Query, whose `'use client'` directives mean nothing on the server.
+        rolldownConfig: { checks: { moduleLevelDirective: false } },
         ...(process.env.LOCAL_BUILD_DIR
           ? {
               // Coverage runs map executed server code back to source to choose which specs a change needs.

@@ -65,6 +65,16 @@ updates:
       - dependency-name: typescript # Managed by RAS.
       - dependency-name: vite # Managed by RAS.
       - dependency-name: vitest # Managed by RAS.
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    ignore:
+      - dependency-name: node
+        update-types:
+          - version-update:semver-major
   - package-ecosystem: github-actions
     directory: /
     schedule:
