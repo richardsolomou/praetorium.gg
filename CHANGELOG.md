@@ -1,5 +1,15 @@
 # praetorium
 
+## 0.255.1 (2026-11-16)
+
+### Patch Changes
+
+- 0249b4f: A group's overview gives records as won, drawn, lost, like its tables.
+- 0249b4f: The leaderboard drops its Wins column, which the battles and win rate already give.
+- 0249b4f: League tables show how many games each player has played instead of strength of schedule.
+- 0249b4f: A player's record against an army counts every rules version of it as one army, in the profile and the battle list's army filters.
+- 0249b4f: The service record no longer shows victory points per command point.
+
 ## 0.255.0 (2026-11-16)
 
 ### Minor Changes
