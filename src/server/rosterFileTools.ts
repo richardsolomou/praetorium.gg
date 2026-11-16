@@ -90,7 +90,7 @@ export function registerRosterFileTools(server: AgentTools) {
     {
       title: 'Export a roster as text',
       description:
-        "Writes a roster as the site's text export, the official app's layout that tournament organizers and other list builders read, without saving it or needing an account. Takes the shape save_roster takes, such as import_roster's draft or get_my_roster's roster. text is the export; code is a Praetorium exchange code that carries the exact list into Praetorium, or null when the list is too large for one. omittedUnitCount counts entries the current army data no longer prices, which the text leaves out. A name is required. Fails while the army data is unavailable.",
+        "Writes a roster as the site's text export, the official app's layout that tournament organizers and other list builders read, without saving it or needing an account. Takes the shape save_roster takes, such as import_roster's draft or get_my_roster's roster. text is the export; code is a Praetorium exchange code that carries the exact list into Praetorium, or null when the list is too large for one. omittedUnitCount counts entries the current army data no longer prices, which the text leaves out. omittedSelectionCount counts the saved detachments and options of printed units that the current army data no longer offers, which the text also leaves out. A name is required. Fails while the army data is unavailable.",
       inputSchema: {
         roster: saveRosterSchema.describe('A complete roster in the shape save_roster takes. Its name must not be empty.'),
       },

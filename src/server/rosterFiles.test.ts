@@ -1,3 +1,4 @@
+import type { RosterPick } from '../core/roster'
 import { removedNamesOf, unmatchedDetachmentReason } from '../shared/importMismatch'
 import { describe, expect, it } from 'vitest'
 import { buildIndex, type CatalogueFile } from '../core/catalogue'
@@ -2623,7 +2624,18 @@ describe('readable roster export', () => {
   const priced = calculateRosterPrice(data, loaded, null)!
   const exported = exportRosterFile(data, loaded, { ...priced, disposition: priced.disposition ?? null }, ['Disruption'])
   it('provides only the readable text layout', () => {
-    expect(Object.keys(exported).sort()).toEqual(['name', 'omittedUnitCount', 'text'])
+    expect(Object.keys(exported).sort()).toEqual(['name', 'omittedSelectionCount', 'omittedUnitCount', 'text'])
+  })
+  const exportOf = (changed: Partial<Omit<typeof data, 'units'>> & { units?: RosterPick[] }) => {
+    const input = { ...data, ...changed }
+    const price = calculateRosterPrice(input, loaded, null)!
+    return exportRosterFile(input, loaded, { ...price, disposition: price.disposition ?? null }, ['Disruption'])
+  }
+  it('counts a saved detachment the text leaves out', () => {
+    expect(exportOf({ detachmentIds: ['pantheon', 'retired-detachment'] }).omittedSelectionCount).toBe(1)
+  })
+  it('counts a saved option the text leaves out', () => {
+    expect(exportOf({ units: [{ entryId: 'immortals', models: 6, choices: { retired: 'option' } }] }).omittedSelectionCount).toBe(1)
   })
   const { source: _source, format: _format, ...readable } = importRosterFile({ file: exported.text }, loaded)
   it('round-trips every supported field', () => {

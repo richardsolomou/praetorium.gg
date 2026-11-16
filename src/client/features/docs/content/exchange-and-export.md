@@ -16,7 +16,7 @@ Open a roster's menu and choose **Export text**, then **Copy text** or, in the b
 
 The text includes custom unit names, model counts, equipment, enhancements, the Warlord, attachments, setup and rules version. Unit notes, preparation, rule waivers and optional rules are left out.
 
-If the roster has entries the builder can't resolve, the dialog warns that they're omitted. Fix them before you submit the list anywhere. **Export text** and **Exchange code** are greyed out on an empty roster.
+If the roster has units, detachments or options the current data no longer offers, the dialog warns that they're left out. Fix them before you submit the list anywhere. **Export text** and **Exchange code** are greyed out on an empty roster.
 
 ## Rules versions
 

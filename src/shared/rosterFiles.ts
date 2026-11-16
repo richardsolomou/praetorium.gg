@@ -54,7 +54,7 @@ import { keywordsIn } from './catalogue'
 import { isUpgrade, mfmDetachmentFor } from './mfm'
 import { rosterDetachments } from './rosterDetachments'
 import { importRosterSchema, type ExportRosterInput, type ImportRosterInput } from '../contracts/schemas'
-import { calculateRosterPrice } from './pricing'
+import { calculateRosterPrice, unavailablePriceSelections } from './pricing'
 import type { LoadedRules } from './rules'
 import type { RosterExchange } from '../core/rosterExchange'
 import type { RosterPick } from '../core/roster'
@@ -1858,6 +1858,10 @@ export function exportRosterFile(data: ExportRosterInput, loaded: LoadedCatalogu
     text: toGwText(readableRoster(data, loaded, priced, dispositionNames), version) + gwTextVersionLines(loaded.edition, data.catalogueId),
     name: data.name,
     omittedUnitCount: data.units.length - priced.units.length,
+    /** Saved detachments and options of printed units the current data no longer offers, which the text leaves out. */
+    omittedSelectionCount:
+      data.detachmentIds.filter((id) => !loaded.detachments.get(data.catalogueId)?.options.some((option) => option.id === id)).length +
+      unavailablePriceSelections(data, loaded).filter((problem) => problem.kind !== 'datasheet').length,
   }
 }
 
