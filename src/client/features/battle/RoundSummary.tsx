@@ -200,7 +200,7 @@ function SideTotals({ side, round, end, battleReady }: { side: Side; round: numb
           : 'order-1 group-data-starting-style/summary:-translate-x-8',
       )}
     >
-      <FactionWatermark army={side.armies[0]} end={end} />
+      <FactionWatermark army={side.armies[0]} side={side.index} end={end} />
       {/* Each army of an allied side on its own line, smaller; a long name wraps rather than losing its end. */}
       <ul className={cn('grid content-start', team && 'gap-1.5 sm:gap-2')}>
         {side.armies.map((army) => (
@@ -252,8 +252,8 @@ function FactionName({ army }: { army: Army }) {
   return <p className="text-xs text-dim [overflow-wrap:anywhere] sm:text-sm">{faction.displayName}</p>
 }
 
-/** The side's faction emblem behind its score, faint enough that the numbers stay the only thing read. */
-function FactionWatermark({ army, end }: { army: Army | undefined; end: boolean }) {
+/** The side's faction emblem behind its score, in the side's colour rather than the faction's, faint enough that the numbers stay the only thing read. */
+function FactionWatermark({ army, side, end }: { army: Army | undefined; side: number; end: boolean }) {
   const faction = useFaction(army)
   if (!faction?.icon) return null
   return (
@@ -264,7 +264,11 @@ function FactionWatermark({ army, end }: { army: Army | undefined; end: boolean 
         end ? '-right-10 sm:-right-24' : '-left-10 sm:-left-24',
       )}
     >
-      <FactionMark faction={{ ...faction, edition: null }} className="size-40 sm:size-80" />
+      <FactionMark
+        faction={{ ...faction, edition: null }}
+        colour={side === 1 ? 'var(--color-side-b)' : 'var(--color-side-a)'}
+        className="size-40 sm:size-80"
+      />
     </div>
   )
 }
