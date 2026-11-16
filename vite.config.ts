@@ -6,18 +6,11 @@ import viteReact from '@vitejs/plugin-react'
 import { nitro } from 'nitro/vite'
 import { defineConfig, loadEnv, type UserConfig } from 'vite'
 import path from 'node:path'
-import { postHogSourceMapPlugins } from 'ras-stack/vite'
-import { postHogEnvironment } from 'ras-stack/posthog'
-import { postHogIngestProxy } from 'ras-stack/posthog/proxy'
-export default defineConfig(async ({ mode }): Promise<UserConfig> => {
+import { postHogSourceMaps } from './scripts/posthogSourceMaps.ts'
+export default defineConfig(({ mode }): UserConfig => {
   const env = loadEnv(mode, process.cwd(), '')
   process.env = { ...env, ...process.env }
-  const posthog = postHogEnvironment({ projectToken: env.VITE_POSTHOG_PROJECT_TOKEN, host: env.VITE_POSTHOG_HOST })
-  const proxy = posthog ? postHogIngestProxy(posthog) : undefined
-  const sourceMapOptions = {
-    sourcemaps: { releaseName: 'praetorium-web', releaseVersion: env.GITHUB_SHA, releaseMode: 'symbol-set' as const },
-  }
-  const sourceMaps = await postHogSourceMapPlugins(process.env, sourceMapOptions)
+  const sourceMaps = postHogSourceMaps(process.env)
   return {
     ...(process.env.LOCAL_BUILD_DIR ? { cacheDir: path.join(process.env.LOCAL_BUILD_DIR, 'vite-cache') } : {}),
     // The Node preview renderer inlines its WebAssembly, which only an asset type accepts.
@@ -30,7 +23,7 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
             groups: [
               {
                 name: 'telemetry',
-                test: (id) => id.includes('posthog-js') || id.includes('@posthog') || /ras-stack.*posthog/.test(id),
+                test: (id) => id.includes('posthog-js') || id.includes('@posthog'),
               },
             ],
           },
@@ -43,7 +36,6 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
     server: {
       port: 3000,
       strictPort: true,
-      proxy: proxy?.vite,
       ...(process.env.LOCAL_VITE_ORIGIN ? { ws: { clientPort: Number(process.env.LOCAL_APP_PORT ?? 3000) } } : {}),
     },
     resolve: { alias: { '@': path.join(import.meta.dirname, 'src') } },
@@ -67,7 +59,6 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
           path.resolve(import.meta.dirname, 'src/server/cspPlugin.ts'),
         ],
         routeRules: {
-          ...proxy?.nitro,
           '/reference-worker.js': { headers: { 'Cache-Control': 'no-store' } },
           '/notice-worker.js': { headers: { 'Cache-Control': 'no-store' } },
           '/offline-app-version.json': { headers: { 'Cache-Control': 'no-store' } },
@@ -76,12 +67,10 @@ export default defineConfig(async ({ mode }): Promise<UserConfig> => {
       }),
       viteReact(),
       tailwindcss(),
-      ...sourceMaps.map((plugin) => ({ ...plugin, applyToEnvironment: (environment: { name: string }) => environment.name === 'client' })),
+      sourceMaps?.client,
       recentChangelogPlugin(),
       offlineAppPlugin(),
     ],
-    ...(sourceMaps.length
-      ? { worker: { plugins: () => [postHogSourceMapPlugins(process.env, sourceMapOptions).then(([plugin]) => plugin)] } }
-      : {}),
+    ...(sourceMaps ? { worker: { plugins: () => [sourceMaps.worker()] } } : {}),
   }
 })
