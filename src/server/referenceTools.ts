@@ -59,7 +59,7 @@ export function registerReferenceTools(server: AgentTools) {
       if (!corpus) return unavailable()
       const input = { query, kinds, faction, pack, document, limit, cursor }
       const result = searchReference(corpus, input)
-      return structured(result)
+      return structured(result, { results: result.results.length, filtered: Boolean(kinds?.length || faction || pack || document) })
     },
   )
   server.registerTool(
@@ -197,7 +197,7 @@ export function registerReferenceTools(server: AgentTools) {
               `${found.faction.name} has no detachment named ${detachment}. Its detachments are: ${found.detachments.join(', ') || 'none'}.`,
             )
           : toolError('not_found', `No faction is named ${faction}. Use a faction id, slug, or name from list_factions.`)
-      return structured(result)
+      return structured(result, { units: result.units.length, detachment: Boolean(detachment), query: Boolean(query) })
     },
   )
   server.registerTool(

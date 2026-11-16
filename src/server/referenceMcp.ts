@@ -139,6 +139,6 @@ function referenceMcpServer(userId: string | null, origin: string) {
   server.registerPrompt(missionMatchupPrompt.name, missionMatchupPrompt, async (input) => promptMessages(missionMatchupText(input)))
   for (const skill of agentSkills)
     server.registerPrompt(skill.name, { title: skill.title, description: skill.description }, async () => promptMessages(skill.body))
-  instrumentReferenceMcp(server, tools.names())
+  instrumentReferenceMcp(server, tools.names(), userId)
   return server
 }

@@ -4,7 +4,13 @@ import { publishedTextLocations } from './publishedTextFiles'
 import { absoluteAgentLinks, absoluteAgentText } from './agentLinks'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import type { CallToolResult, ToolAnnotations } from '@modelcontextprotocol/sdk/types.js'
-import { TOOL_ERROR_TYPE_META, type AgentToolDescriptor, type ToolErrorType } from '../contracts/agentTools'
+import {
+  TOOL_ERROR_TYPE_META,
+  TOOL_OUTCOME_META,
+  type AgentToolDescriptor,
+  type ToolErrorType,
+  type ToolOutcome,
+} from '../contracts/agentTools'
 
 type ToolConfig<Shape extends z.ZodRawShape> = {
   title: string
@@ -83,12 +89,27 @@ export async function responseToolError(response: Response) {
 }
 
 /** An answer whose JSON text mirrors its structured content, for clients that read only the text. */
-export function structured<T extends Record<string, unknown>>(result: T) {
-  return { content: [{ type: 'text' as const, text: JSON.stringify(result) }], structuredContent: result }
+export function structured<T extends Record<string, unknown>>(result: T, outcome?: ToolOutcome) {
+  return {
+    content: [{ type: 'text' as const, text: JSON.stringify(result) }],
+    structuredContent: result,
+    ...(outcome ? { _meta: { [TOOL_OUTCOME_META]: outcome } } : {}),
+  }
 }
 
 export class AgentTools {
   private readonly tools = new Map<string, RegisteredTool>()
+  private category: string | undefined
+
+  /** Registers a group of tools under one category, which analytics breaks usage down by. */
+  section(category: string, register: () => void) {
+    this.category = category
+    try {
+      register()
+    } finally {
+      this.category = undefined
+    }
+  }
 
   registerTool<Shape extends z.ZodRawShape>(
     name: string,
@@ -97,6 +118,7 @@ export class AgentTools {
   ) {
     if (this.tools.has(name)) throw new Error(`Tool already registered: ${name}`)
     const schema = config.inputSchema instanceof z.ZodObject ? config.inputSchema : z.object(config.inputSchema)
+    const category = this.category
     const parse = async (input: unknown) => {
       const parsed = await schema.safeParseAsync(input)
       if (!parsed.success) throw new Response('Tool input does not match the published schema.', { status: 400 })
@@ -115,7 +137,12 @@ export class AgentTools {
         server.registerTool<z.ZodRawShape, z.ZodObject<Shape>>(
           name,
           // Directory scanners read the listing name from annotations.title, not the tool's own title.
-          { ...config, annotations: { title: config.title, ...config.annotations }, inputSchema: schema },
+          {
+            ...config,
+            annotations: { title: config.title, ...config.annotations },
+            inputSchema: schema,
+            ...(category ? { _meta: { category } } : {}),
+          },
           async (input) => {
             const result = await published(await mcpResult(async () => execute(input)))
             return {

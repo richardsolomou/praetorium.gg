@@ -613,7 +613,10 @@ export async function simulateCombat(input: SimulateCombatInput) {
     revisions: corpus.catalogue.revisions,
     attribution: [...new Set(documents.flatMap((document) => document.attribution))],
   }
-  return structured(result)
+  return structured(result, {
+    refused_phases: [result.shooting, result.melee, result.shootingThenMelee].filter((part) => part.status === 'refused').length,
+    not_calculated: result.attacker.notCalculated.length + result.defender.notCalculated.length,
+  })
 }
 
 const optimizeLoadoutInputSchema = simulateCombatInputSchema.omit({ weaponModes: true }).extend({
@@ -810,14 +813,18 @@ export async function optimizeCombatLoadout(input: OptimizeLoadoutInput) {
       outcome: outcome(loadout.result),
     }
   }
-  return structured({
-    mode: input.mode,
-    exhaustive,
-    loadoutsChecked: checked,
-    best: { ...described(best), better: !current || compareOutcomes(best.result, current.result) > 0 },
-    ...(current ? { current: described(current) } : {}),
-    ...(notes.length ? { notes } : {}),
-  })
+  const better = !current || compareOutcomes(best.result, current.result) > 0
+  return structured(
+    {
+      mode: input.mode,
+      exhaustive,
+      loadoutsChecked: checked,
+      best: { ...described(best), better },
+      ...(current ? { current: described(current) } : {}),
+      ...(notes.length ? { notes } : {}),
+    },
+    { better, exhaustive, loadouts_checked: checked },
+  )
 }
 
 function sharedSide({ resolved }: Combatant, rules: SideInput['rules']) {

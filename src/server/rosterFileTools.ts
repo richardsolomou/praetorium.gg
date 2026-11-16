@@ -71,7 +71,18 @@ export function registerRosterFileTools(server: AgentTools) {
     ({ file }) =>
       refusalsAsErrors(async () => {
         const { result } = await importRosterInput(file)
-        return structured({ draft: importedDraft(result), review: await importReview(result) })
+        const draft = importedDraft(result)
+        const review = await importReview(result)
+        return structured(
+          { draft, review },
+          {
+            matched: draft !== null,
+            source_entries: review.sourceEntries,
+            matched_entries: review.matchedEntries,
+            not_imported: review.notImported.length,
+            built_by_datasheet: review.builtByDatasheet.length,
+          },
+        )
       }),
   )
   server.registerTool(
