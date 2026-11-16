@@ -289,7 +289,8 @@ function savedSelectionErrors(data: PriceInput, picked: ReturnType<typeof roster
 
 /**
  * Saved counts the built unit holds fewer of: a unit size it can no longer field, or models and wargear beyond what it
- * can hold even at its largest size, so counts remembered from a larger squad the player shrank stay quiet.
+ * can hold even at its largest size on their own, so counts the builder remembers from a larger squad, or from models
+ * other choices now take the places of, stay quiet.
  */
 function changedCountErrors(
   data: PriceInput,
@@ -307,18 +308,17 @@ function changedCountErrors(
         }),
       )
     const largest = unit.size.options?.at(-1) ?? unit.size.max
-    const trimmed = short(unit)
-    const full =
-      trimmed.length && largest !== unit.size.models
-        ? buildUnit(saved.entryId, loaded.index, largest, saved.choices, {
-            primaryCatalogueId: data.catalogueId,
-            mustering: true,
-            roster,
-            spreads: saved.spreads,
-            toggles: saved.toggles,
-          })
-        : unit
-    const trimmedAtFull = full ? short(full) : trimmed
+    // A count is reported only if the unit cannot hold it at its largest size with no other count taking its places.
+    const holdsAlone = (count: ReturnType<typeof short>[number]) => {
+      const alone = buildUnit(saved.entryId, loaded.index, largest, saved.choices, {
+        primaryCatalogueId: data.catalogueId,
+        mustering: true,
+        roster,
+        spreads: { [count.key]: { [count.id]: count.count } },
+        toggles: saved.toggles,
+      })
+      return !alone || !short(alone).some((other) => other.key === count.key && other.id === count.id)
+    }
     return [
       ...(saved.models !== undefined && saved.models !== unit.size.models
         ? [
@@ -329,8 +329,8 @@ function changedCountErrors(
             },
           ]
         : []),
-      ...trimmed
-        .filter((count) => trimmedAtFull.some((other) => other.key === count.key && other.id === count.id))
+      ...short(unit)
+        .filter((count) => !holdsAlone(count))
         .map((count) => ({
           entryId: saved.entryId,
           entryName: unit.name,
