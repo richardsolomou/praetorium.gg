@@ -139,6 +139,11 @@ export function withBattles<B extends SpacetimeBase>(Base: B) {
       return (await this.read('battle_by_invite', [link], battleSnapshot.nullable())) ?? undefined
     }
 
+    /** The battle a guest seat's link was made for, which the link now opens to watch since guests no longer join. */
+    async battleTokenByGuestInvite(link: string) {
+      return (await this.read('guest_seat_by_invite', [link], z.object({ token: z.string() }).nullable()))?.token ?? null
+    }
+
     async draftsByUser(userId: string) {
       return this.read('drafts_by_user', [userId, DIGEST_REVISION], battleFeedResult.shape.battles)
     }

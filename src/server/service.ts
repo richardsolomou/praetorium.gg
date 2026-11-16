@@ -345,6 +345,10 @@ export class PraetoriumService {
     }
   }
 
+  guestInviteBattle(invite: string) {
+    return this.repository.battleTokenByGuestInvite(invite)
+  }
+
   /** Who is at the table a link joins and which places are open, so whoever opens it sees who they would play before joining. */
   async battleInvitation(invite: string, userId: string | null) {
     const history = await this.repository.battleHistoryByInvite(invite)

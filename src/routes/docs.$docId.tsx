@@ -1,13 +1,14 @@
 import { createFileRoute, notFound, redirect } from '@tanstack/react-router'
-import { PRODUCT_DOCS } from '../contracts/productDocs'
+import { PRODUCT_DOCS, type ProductDoc } from '../contracts/productDocs'
 import { DocPage } from '../client/features/docs/DocsPage'
 import { pageHead } from '../client/linkPreview'
 
-/** Slugs that moved or were folded into another page, so links shared before still land. */
-const MOVED: Record<string, string> = {
-  'run-a-sealed-event': 'run-a-tournament',
-  'play-in-a-sealed-event': 'play-in-a-tournament',
-  'sealed-event-problems': 'tournament-problems',
+/** Every slug that left `PRODUCT_DOCS`, mapped to the page that covers it now, so links shared before still land. */
+export const MOVED: Record<string, ProductDoc['slug']> = {
+  clubs: 'groups',
+  'run-a-league': 'run-a-tournament',
+  'play-in-a-league': 'play-in-a-tournament',
+  'league-problems': 'tournament-problems',
   'play-with-a-guest': 'start-a-battle',
 }
 

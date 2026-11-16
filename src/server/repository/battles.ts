@@ -65,6 +65,10 @@ export function withBattles<B extends RepositoryBase>(Base: B) {
       return snapshot ? this.battleHistory(snapshot) : undefined
     }
 
+    battleTokenByGuestInvite(invite: string) {
+      return this.product.battleTokenByGuestInvite(invite)
+    }
+
     async draftsByUser(userId: string): Promise<BattleCard[]> {
       const rows = await this.product.draftsByUser(userId)
       const profiles = await this.seatProfiles(rows)

@@ -232,6 +232,11 @@ export const battleInvitation = createServerFn({ method: 'GET' })
   .validator(battleInviteSchema)
   .handler(({ data }) => rpc(async () => app().service.battleInvitation(data.invite, await currentUserId())))
 
+/** The battle a retired guest seat link leads to, for its holder to watch. */
+export const guestInviteBattle = createServerFn({ method: 'GET' })
+  .validator(battleInviteSchema)
+  .handler(({ data }) => rpc(() => app().service.guestInviteBattle(data.invite)))
+
 export const joinBattle = createServerFn({ method: 'POST' })
   .validator(joinBattleSchema)
   .handler(({ data }) =>

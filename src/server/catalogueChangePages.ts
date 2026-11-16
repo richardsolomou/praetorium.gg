@@ -1,6 +1,7 @@
 import { decodeHistoryCursor, encodeHistoryCursor, historyPage } from '../core/catalogueHistory'
 import { app } from './app'
 import { factionHistory, indexedUpdate, listedHistory } from './catalogueChangeLog'
+import { historyAnchor, updateId } from './catalogueHistory'
 
 // Kept apart from catalogueChangeLog, which the catalogue refresh script bundles: app() would pull the photo pipeline's native modules into it.
 export const installedHistory = async () => listedHistory((await app().catalogueHistoryFor()) ?? [])
@@ -22,5 +23,18 @@ export async function changeLogPage({ before, faction }: { before?: string; fact
   return {
     updates: page.entries.map((entry) => indexedUpdate(entry, canonical)),
     older: page.next ? encodeHistoryCursor(page.next) : null,
+  }
+}
+
+/** The index page and row an update's id, as its own page's address once carried it, now lives at. */
+export async function changeLogAddress(id: string) {
+  const history = await installedHistory()
+  let cursor: Parameters<typeof historyPage>[2]
+  for (;;) {
+    const page = historyPage(history, CHANGE_LOG_PAGE, cursor)
+    const entry = page.entries.find((candidate) => updateId(candidate) === id)
+    if (entry) return { before: cursor ? encodeHistoryCursor(cursor) : null, anchor: historyAnchor(entry) }
+    if (!page.next) return null
+    cursor = page.next
   }
 }

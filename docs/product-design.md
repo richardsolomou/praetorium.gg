@@ -25,7 +25,7 @@ Authorities: [`rosterAccess`](../src/server/services/rosterService.ts), [`roster
 [What stays the same when things change](../src/client/features/docs/content/when-things-change.md) is the player-facing promise. A change that would break one of these needs its migration in the same release:
 
 - Saved rosters: selections move only through `catalogue/roster-migrations.json` or `catalogue/retired-ids.json`, each with a reason, checked by the [roster audit](development/catalogue-data.md#roster-migration); one with no replacement stays and turns illegal.
-- Public paths: a moved route keeps its old path as a redirect route, like `src/routes/clubs.$.tsx`.
+- Public paths: a moved or removed route keeps its old path as a redirect route, like `src/routes/clubs.$.tsx`, to the closest page that exists; a docs slug leaving `PRODUCT_DOCS` goes in `MOVED` in `src/routes/docs.$docId.tsx`.
 - Exchange codes: a new format raises `ROSTER_EXCHANGE_VERSION` in `src/core/rosterExchange.ts` and keeps reading every older one.
 - MCP tools and arguments change additively; `src/server/mcpSurface.json` lists the published ones (refresh it with `WRITE_MCP_SURFACE=1` on the `referenceMcp` test after adding one), and removing one needs a changeset announcing it a month ahead.
 
