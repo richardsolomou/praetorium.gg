@@ -72,7 +72,7 @@ export function fromListForgeShortText(input: string): TextRoster | null {
         const [, copies, name, items] = member.match(/^(?:(\d+)x\s+)?([^:]+?)(?::\s*(.*))?$/)!
         const unit: TextRosterUnit = { name: name!.trim(), selections: [], leading: null, warlord: false }
         // A comma inside brackets is part of the item, as "Drakolithe (Once per battle, per token)".
-        for (const item of items?.split(/,\s+(?![^()]*\))/) ?? []) {
+        for (const item of items ? items.split(/,\s+(?![^()]*\))/) : []) {
           // A counted model's own wargear can follow it in brackets, as "6x Kataphron Destroyer (Kataphron plasma culverin &
           // Cognis flamer)"; other brackets qualify the item, as "Furious Assault (Upgrade)".
           const [, count, piece, carried] = item.match(/^(\d+)x\s+(.+?)\s+\(([^()]+)\)$/) ?? item.match(/^(?:(\d+)x\s+)?(.+)$/)!
