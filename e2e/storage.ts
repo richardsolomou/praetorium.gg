@@ -4,7 +4,7 @@ import type { Command } from '../src/core/battle'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
-import { spacetimeDatabaseUrl } from '../src/server/spacetime'
+import { spacetimeDatabaseUrl } from '../src/server/spacetime.ts'
 import { SpacetimeOperator } from '../src/server/spacetimeOperator'
 import { port, root, spacetimePort } from './stackEnv'
 

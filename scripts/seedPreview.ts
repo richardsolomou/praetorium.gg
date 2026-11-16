@@ -1,4 +1,4 @@
-import { randomToken } from '../src/server/random'
+import { randomToken } from '../src/server/random.ts'
 import { hash } from 'node:crypto'
 import path from 'node:path'
 import { eq } from 'drizzle-orm'

@@ -10,7 +10,7 @@ import { migrateProductData } from './lib/productDataMigrations'
 import { copyProductModule, reserveLocalPort, startLocalChild, stopLocalChildren } from './lib/localStack'
 import { moduleEnvironment } from './lib/spacetimeEnvironment'
 import { installedSpacetimeCli } from './lib/spacetimeCli'
-import { moduleEnvironmentHeaders } from '../src/server/spacetime'
+import { moduleEnvironmentHeaders } from '../src/server/spacetime.ts'
 
 const cli = process.env.SPACETIME_BIN ?? installedSpacetimeCli
 const execute = promisify(execFile)

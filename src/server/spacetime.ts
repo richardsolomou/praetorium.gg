@@ -11,12 +11,12 @@ export type SpacetimeConnection = {
   fetch?: typeof fetch
 }
 
+// No parameter properties: Node's type stripping, which runs scripts/localDev.ts, cannot load them.
 export class SpacetimeRequestError extends Error {
-  constructor(
-    readonly status: number,
-    message: string,
-  ) {
+  readonly status: number
+  constructor(status: number, message: string) {
     super(message)
+    this.status = status
     this.name = 'SpacetimeRequestError'
   }
 }

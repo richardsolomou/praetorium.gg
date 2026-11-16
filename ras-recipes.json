@@ -184,7 +184,8 @@
         "The browser does not use the recipe's `SpacetimeProvider`: src/client/spacetimeLive.ts keeps its own connection, served settings and a short-lived Better Auth token from /api/spacetime/token, and scripts/nodeServer.ts proxies `/spacetime/` on the application's origin, so the policy needs no SpacetimeDB origin; `'unsafe-eval'` is added at runtime by src/server/cspPlugin.ts.",
         "src/server/spacetime.ts accepts an optional `fetch` on the connection, which the operator's tests inject.",
         "Bindings are formatted with oxfmt after generation (`pnpm spacetime:generate`), and ci-static.yml checks them with the same format command; there is no spacetime.yml, because ci-static.yml checks bindings and dokploy-web.yml publishes.",
-        "The CLI pin also lives in Dockerfile.node, which builds the module with the pinned release for both architectures."
+        "The CLI pin also lives in Dockerfile.node, which builds the module with the pinned release for both architectures.",
+        "`SpacetimeRequestError` declares `status` as a field instead of a parameter property, because scripts/localDev.ts loads this file through Node's type stripping, which rejects parameter properties; scripts import it with its `.ts` extension for the same reason."
       ]
     },
     "start-app": {

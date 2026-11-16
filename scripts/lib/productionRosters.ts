@@ -13,7 +13,7 @@ import { calculateRosterPrice, savedRosterPriceInput, unavailablePriceSelections
 import type { LoadedCatalogue } from '../../src/shared/catalogueIndex'
 import type { LoadedRules } from '../../src/shared/rules'
 import type { SpacetimeOperator } from '../../src/server/spacetimeOperator'
-import { spacetimeDatabaseUrl } from '../../src/server/spacetime'
+import { spacetimeDatabaseUrl } from '../../src/server/spacetime.ts'
 
 const rosterSchema = z.strictObject({
   id: z.string().min(1).max(64),
