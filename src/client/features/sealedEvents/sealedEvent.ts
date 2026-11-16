@@ -256,3 +256,12 @@ export function eventLink(sealedEvent: { token: string; group?: { token: string 
     ? ({ to: '/groups/$token/games/$game', params: { token: sealedEvent.group.token, game: sealedEvent.token }, search } as const)
     : ({ to: '/tournaments/$token', params: { token: sealedEvent.token }, search } as const)
 }
+
+/** Where the reader's own entry stands, tinted by whether it needs them: amber to act, green once done. */
+export function ownEntryStatus(entry: { status: 'pending' | 'accepted' | 'rejected'; submitted: boolean }, revealed: boolean) {
+  if (entry.status === 'pending') return { label: 'Waiting for approval', tint: 'text-dim' }
+  if (entry.status === 'rejected') return { label: 'Not in this tournament', tint: 'text-faint' }
+  if (entry.submitted)
+    return revealed ? { label: 'Rosters revealed', tint: 'text-achieved' } : { label: 'Your roster is sealed', tint: 'text-achieved' }
+  return revealed ? { label: 'No roster', tint: 'text-faint' } : { label: 'Seal your roster', tint: 'text-discarded' }
+}

@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { createServerFn } from '@tanstack/react-start'
 import { app } from '../app'
+import { HOME_GROUPS_SHOWN } from '../../core/group'
 import { currentUserId, requireUserId } from '../playerSession'
 import { mutationRpc, rpc } from '../rpc'
 import { captureMutation } from '../mutationTelemetry'
@@ -30,6 +31,11 @@ export const groupStandings = createServerFn({ method: 'GET' })
   .handler(({ data }) =>
     rpc(async () => app().service.groupResultsService.groupStandings(data.token, await currentUserId(), await app().battleFactionsFor())),
   )
+
+/** The reader's place and next unstarted league game in each group their home page lists. */
+export const homeGroups = createServerFn({ method: 'GET' })
+  .validator(z.object({ tokens: z.array(tokenSchema.shape.token).max(HOME_GROUPS_SHOWN) }))
+  .handler(({ data }) => rpc(async () => app().service.groupResultsService.homeGroups(data.tokens, await requireUserId())))
 
 /** A page of every battle played for a group, narrowed as the battles page is. */
 export const groupBattles = createServerFn({ method: 'GET' })

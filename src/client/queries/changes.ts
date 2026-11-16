@@ -1,10 +1,10 @@
 import { queryOptions } from '@tanstack/react-query'
 import { currentReference, loadSavedQuery, referenceData, savedQuery } from '../offline/runtime'
-import { armyUpdates, catalogueChangeLog, referenceChanges, rosterChanges, savedRosterChangedIds } from '../functions'
+import { catalogueChangeLog, referenceChanges, rosterChanges, savedRosterChangedIds } from '../functions'
 import type { ReferenceLink } from '../../contracts/catalogueChanges'
 import { referenceStaleTime, SSR_STALE_TIME } from './shared'
 import { withTimeout } from '../abortSignals'
-import { armyUpdatesKey, catalogueChangesKey, rosterChangesKey, savedRosterChangedIdsKey } from './queryKeys'
+import { catalogueChangesKey, rosterChangesKey, savedRosterChangedIdsKey } from './queryKeys'
 
 /**
  * One page of data updates, every faction's or the one a slug names, from the newest or from
@@ -14,14 +14,6 @@ export const catalogueChangeLogQuery = (before?: string, faction?: string) =>
   queryOptions({
     queryKey: catalogueChangesKey(faction, before),
     queryFn: () => catalogueChangeLog({ data: { ...(before ? { before } : {}), ...(faction ? { faction } : {}) } }),
-    staleTime: SSR_STALE_TIME,
-  })
-
-/** The newest data update that reached each of these factions, by slug. */
-export const armyUpdatesQuery = (factions: readonly string[]) =>
-  queryOptions({
-    queryKey: armyUpdatesKey(factions),
-    queryFn: () => armyUpdates({ data: { factions: [...factions] } }),
     staleTime: SSR_STALE_TIME,
   })
 

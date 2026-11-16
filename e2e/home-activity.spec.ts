@@ -44,7 +44,7 @@ test('shows the faction icon for an unqualified frozen army', async ({ page }, t
   const battle = page.locator('[data-battle-shelf="Public games"] a[href="/battles/preview-tournament-battle-doubles"]')
   const mark = battle.locator('[data-faction-mark="space-marines"]').first()
   await expect(async () => {
-    await page.goto('/')
+    await page.goto('/battles?view=public')
     await expect(battle).toBeVisible({ timeout: 1_000 })
   }).toPass({ timeout: 15_000 })
   for (const width of [1440, 390]) {
@@ -118,7 +118,7 @@ test('shows active practice battles to their player but not visitors', async ({ 
   await page.goto('/')
   await expect(page.getByRole('heading', { name: `Welcome back, ${name}` })).toBeVisible()
   const battlePath = new URL(battleUrl).pathname
-  await expect(page.locator('[data-battle-shelf="Your game"] a').filter({ hasText: roster })).toHaveAttribute('href', battlePath)
+  await expect(page.locator('[data-battle-shelf="Your games"] a').filter({ hasText: roster })).toHaveAttribute('href', battlePath)
 
   const visitor = await browser.newContext()
   const guest = await visitor.newPage()
@@ -293,9 +293,10 @@ test('omits the games shelf when the player has no active game', async ({ page }
   await page.goto('/')
 
   await expect(page.locator('[data-battle-shelf="Your game"], [data-battle-shelf="Your games"]')).toHaveCount(0)
-  await expect(page.locator('[data-home-rosters]')).toBeVisible()
+  // A new player is shown the way to a first game, rather than an empty shelf of lists.
+  await expect(page.locator('[data-home-get-started]')).toBeVisible()
   await expect(page.locator('[data-home-record], [aria-label="Loading your record"]')).toHaveCount(0)
-  await expect(page.getByRole('main').getByText('Public games', { exact: true })).toBeVisible()
+  await expect(page.getByRole('main').getByText("Friends' games", { exact: true })).toBeVisible()
   await page.screenshot({ path: test.info().outputPath('home-no-active-game.png') })
 })
 
@@ -303,7 +304,7 @@ test('omits the games shelf when the player has no active game', async ({ page }
  * The signed-in home page runs outwards from the reader.
  *
  * The order is the whole point of the page: the games waiting on the player, then
- * the ones they have finished, then their friends' tables, then everybody else's.
+ * the ones they have finished, then their friends' tables.
  * A finished game in the first shelf would put a game nobody can act on above one
  * that is live.
  */
@@ -329,7 +330,7 @@ test('orders the signed-in home page from the player outwards', async ({ browser
     // The record arrives in the server's HTML, not after hydration.
     await expect.poll(async () => (await (await host.request.get('/')).text()).includes('data-home-record')).toBe(true)
     await host.goto('/')
-    const idleHistory = host.locator('[data-battle-shelf="Games you have played"]')
+    const idleHistory = host.locator('[data-battle-shelf="Recent results"]')
     await expect(idleHistory.locator(`a[href="${new URL(played).pathname}"]`)).toHaveCount(1)
     expect((await idleHistory.boundingBox())!.x).toBeLessThan((await host.locator('[data-home-rosters]').boundingBox())!.x)
     await host.setViewportSize(PHONE)
@@ -344,15 +345,16 @@ test('orders the signed-in home page from the player outwards', async ({ browser
 
     await host.goto('/')
     await expect(host.getByRole('heading', { name: `Welcome back, ${hostName}` })).toBeVisible()
-    const rubrics = host.locator('main').getByText(/^(Your game|Games you have played|Friends' games|Public games)$/)
-    await expect(rubrics).toHaveText(['Your game', 'Games you have played', "Friends' games", 'Public games'])
+    // Public games list only tables still being played, which the shared seed may not have.
+    const rubrics = host.locator('main').getByText(/^(In progress|Recent results|Friends' games)$/)
+    await expect(rubrics).toHaveText(['In progress', 'Recent results', "Friends' games"])
 
     await expect(host.locator('[data-home-rosters]').getByRole('link', { name: /Host list/ })).toHaveCount(1)
     await expect(host.locator('[data-home-rosters]').getByRole('link', { name: 'Data updates' })).toHaveCount(0)
     await expect(host.getByRole('contentinfo').getByRole('link', { name: 'Data updates' })).toHaveCount(1)
 
-    const yours = host.locator('[data-battle-shelf="Your game"]')
-    const history = host.locator('[data-battle-shelf="Games you have played"]')
+    const yours = host.locator('[data-battle-shelf="Your games"]')
+    const history = host.locator('[data-battle-shelf="Recent results"]')
     await expect(yours.locator(`a[href="${new URL(going).pathname}"]`)).toHaveCount(1)
     await expect(yours.locator(`a[href="${new URL(played).pathname}"]`)).toHaveCount(0)
     await expect(history.locator(`a[href="${new URL(played).pathname}"]`)).toHaveCount(1)

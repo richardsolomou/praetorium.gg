@@ -1,6 +1,9 @@
 import { Check, ExternalLink, X } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
+import { SectionHeading } from '../../components/SectionHeading'
+import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { buttonClass } from '../../components/buttonClass'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../../components/Dialog'
 import { ANDROID_BETA, APP_STORE, CHATGPT_DIRECTORY, CLAUDE_DIRECTORY, GOOGLE_PLAY } from '../../projectLinks'
@@ -23,14 +26,17 @@ const useDismissed = () => useStoredValue(DISMISSED_KEY) === 'true'
  * of their height clear around them. An Android phone sees only Google's; an iPhone never sees them at all, because
  * Safari's own App Store banner already offers the app there.
  */
-function StoreBadges() {
+function StoreBadges({ className, tiled = false }: { className?: string; tiled?: boolean }) {
+  // Tiled, the badges fall into the caller's grid, under its heading, rather than wrapping in a row of their own.
   return (
-    <div data-store-link data-app-band className="grid gap-1.5 md:border-r md:border-edge md:pr-5">
-      <p className="text-xs leading-none text-faint">
-        <span data-platform-text="other">Take it to the table</span>
-        <span data-platform-text="android">Try the Android beta</span>
-      </p>
-      <div className="flex flex-wrap items-center gap-3">
+    <div data-store-link data-app-band className={tiled ? 'contents' : cn('grid gap-1.5', className)}>
+      {tiled ? null : (
+        <p className="text-xs leading-none text-faint">
+          <span data-platform-text="other">Take it to the table</span>
+          <span data-platform-text="android">Try the Android beta</span>
+        </p>
+      )}
+      <div className={tiled ? 'contents' : 'flex flex-wrap items-center gap-3'}>
         <a data-store-apple href={APP_STORE} rel="noreferrer noopener" target="_blank" className="block">
           <img src={appStoreBadge} alt="Download on the App Store" width={120} height={40} className="h-10 w-auto" />
         </a>
@@ -41,22 +47,25 @@ function StoreBadges() {
 }
 
 /** Shaped like the store badges beside them: neither OpenAI nor Anthropic publishes a badge of its own. */
-function AssistantButtons() {
+function AssistantButtons({ tiled = false }: { tiled?: boolean }) {
   const assistants = [
     { href: CHATGPT_DIRECTORY, verb: 'Use in', name: 'ChatGPT', logo: chatgptLogo },
     { href: CLAUDE_DIRECTORY, verb: 'Add to', name: 'Claude', logo: claudeLogo },
   ]
   return (
-    <div className="grid gap-1.5">
-      <p className="text-xs leading-none text-faint">Ask your AI assistant</p>
-      <div className="flex flex-wrap items-center gap-3">
+    <div className={tiled ? 'contents' : 'grid gap-1.5'}>
+      {tiled ? null : <p className="text-xs leading-none text-faint">Ask your AI assistant</p>}
+      <div className={tiled ? 'contents' : 'flex flex-wrap items-center gap-3'}>
         {assistants.map(({ href, verb, name, logo }) => (
           <a
             key={name}
             href={href}
             rel="noreferrer noopener"
             target="_blank"
-            className="inline-flex h-10 items-center gap-2 rounded-[7px] border border-runner bg-panel pr-3 pl-2 transition-colors hover:border-runner-hi"
+            className={cn(
+              'inline-flex h-10 items-center gap-2 rounded-[7px] border border-runner bg-panel pr-3 pl-2 transition-colors hover:border-runner-hi',
+              tiled && 'w-full',
+            )}
           >
             <img src={logo} alt="" width={24} height={24} className="size-6" />
             <span className="grid leading-none">
@@ -71,32 +80,52 @@ function AssistantButtons() {
 }
 
 /**
- * A strip along the bottom edge of Home's opening band, the hero for a visitor and the welcome for a player. A player
- * comes back daily, so theirs can be dismissed; a visitor's cannot. The store half is left out for a player who already
- * uses the app and hidden inside it by `[data-store-link]`; the assistant half shows everywhere.
+ * The app and the assistants as a panel at the head of a player's side column, where it is in view beside their games
+ * on a wide screen and straight after them on a phone. It hides the way the band does, store half included.
  */
-export function AppBand({ dismissable, stores = true }: { dismissable: boolean; stores?: boolean }) {
+export function AppCard({ stores }: { stores: boolean }) {
   const dismissed = useDismissed()
-  if (dismissable && dismissed) return null
+  const [confirming, setConfirming] = useState(false)
+  if (dismissed) return null
   return (
-    <div data-home-apps={dismissable || undefined} className="relative border-t border-edge">
-      <div className="mx-auto flex max-w-6xl items-start gap-3 px-5 py-3 sm:items-center sm:px-6">
-        <div className="flex min-w-0 flex-1 flex-wrap gap-x-5 gap-y-3">
-          {stores ? <StoreBadges /> : null}
-          <AssistantButtons />
-        </div>
-        {dismissable ? (
-          <Button
-            size="sm"
-            variant="ghost"
-            aria-label="Not now"
-            className="max-sm:absolute max-sm:top-1.5 max-sm:right-2"
-            onClick={() => writeStoredValue(DISMISSED_KEY, 'true')}
-          >
-            <span className="max-sm:hidden">Not now</span>
-            <X className="sm:hidden" aria-hidden />
+    <section data-home-apps aria-label="Apps">
+      <SectionHeading
+        title="Apps"
+        action={
+          <Button size="icon-sm" variant="ghost" aria-label="Hide apps" onClick={() => setConfirming(true)}>
+            <X aria-hidden />
           </Button>
-        ) : null}
+        }
+      />
+      {/* Nothing on the page brings the panel back, so hiding it is asked once more. */}
+      <ConfirmDialog
+        open={confirming}
+        title="Hide apps?"
+        description="The app and assistant links won't show on Home on this device again."
+        cancel="Keep them"
+        confirm="Hide apps"
+        onClose={() => setConfirming(false)}
+        onConfirm={() => writeStoredValue(DISMISSED_KEY, 'true')}
+      />
+      {/* Two columns as wide as their widest item, centred so the margins match; each button lines up under the badge above it. */}
+      <div className="part grid grid-cols-[repeat(2,max-content)] items-center justify-center gap-2.5 p-4">
+        {stores ? <StoreBadges tiled /> : null}
+        <AssistantButtons tiled />
+      </div>
+    </section>
+  )
+}
+
+/**
+ * A strip along the bottom edge of a visitor's hero, which stays: a player has `AppCard` instead. The stores are hidden
+ * inside the app by `[data-store-link]`; the assistants show everywhere.
+ */
+export function AppBand() {
+  return (
+    <div className="relative border-t border-edge">
+      <div className="mx-auto flex max-w-6xl min-w-0 flex-wrap gap-x-5 gap-y-3 px-5 py-3 sm:px-6">
+        <StoreBadges className="md:border-r md:border-edge md:pr-5" />
+        <AssistantButtons />
       </div>
     </div>
   )

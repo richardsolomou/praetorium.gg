@@ -410,7 +410,7 @@ test('a player can reject an incoming friend request', async ({ browser }) => {
     }).toPass({ timeout: 15_000 })
     await recipient.goto('/')
     await expect(recipient.getByRole('heading', { name: /^Welcome/ })).toBeVisible()
-    await expect(recipient.getByText('Needs your attention')).toHaveCount(0)
+    await expect(recipient.locator('[data-home-in-progress]')).toHaveCount(0)
     await requester.reload()
     await expect(requester.locator('section').filter({ hasText: 'Sent requests' }).locator(`[data-person="${recipientName}"]`)).toHaveCount(
       0,

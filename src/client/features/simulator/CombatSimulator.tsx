@@ -300,7 +300,7 @@ export function CombatSimulator({
                     reference={reference}
                   />
                 )}
-                <RecentSimulations surface="simulator" onOpen={restore} />
+                <RecentSimulations onOpen={restore} />
               </div>
             ),
           }}

@@ -18,25 +18,13 @@ const recent = (count: number) =>
     defender: 'Intercessor Squad',
   }))
 
-function render(count: number, limit?: number) {
+function render(count: number) {
   const client = new QueryClient()
   client.setQueryData(meKey(), { id: 'player', name: 'Alex' })
   client.setQueryData(recentMatchupsKey(), recent(count))
-  return renderToStaticMarkup(createElement(QueryClientProvider, { client }, createElement(RecentSimulations, { surface: 'home', limit })))
+  return renderToStaticMarkup(createElement(QueryClientProvider, { client }, createElement(RecentSimulations)))
 }
 
-it('shows only the newest simulations up to its limit', () => {
-  expect(render(5, 3).match(/aria-label="Unit \d vs/g)).toEqual(['aria-label="Unit 0 vs', 'aria-label="Unit 1 vs', 'aria-label="Unit 2 vs'])
-})
-
-it('links to the rest of the simulations when it leaves some out', () => {
-  expect(render(4, 3)).toContain('All simulations')
-})
-
-it('offers no link when every simulation fits', () => {
-  expect(render(3, 3)).not.toContain('All simulations')
-})
-
-it('shows every simulation without a limit', () => {
+it('shows every simulation', () => {
   expect(render(5).match(/aria-label="Unit \d vs/g)).toHaveLength(5)
 })

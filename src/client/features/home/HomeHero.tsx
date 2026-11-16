@@ -63,7 +63,7 @@ export function HomeHero({ battle }: { battle?: Battle }) {
         </div>
         {battle ? <HeroBattle battle={battle} /> : <HeroMark />}
       </div>
-      <AppBand dismissable={false} />
+      <AppBand />
     </section>
   )
 }

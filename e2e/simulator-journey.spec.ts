@@ -48,7 +48,7 @@ test(
     )
     await expect(page.getByRole('combobox', { name: 'Defender unit', exact: true })).toContainText('Lychguard')
     const other = await context.newPage()
-    await other.goto('/')
+    await other.goto('/simulator')
     await expect(
       other.getByRole('region', { name: 'Recent simulations', exact: true }).getByRole('link', { name: pairing, exact: true }),
     ).toBeVisible()
@@ -60,7 +60,7 @@ test(
   },
 )
 
-test('recent simulations are accessible from signed-in home at desktop and phone widths', { tag: '@catalogue' }, async ({ page }) => {
+test('recent simulations reopen from the simulator at desktop and phone widths', { tag: '@catalogue' }, async ({ page }) => {
   await signInAsPreview(page)
   await page.goto('/simulator')
   await page.waitForLoadState('networkidle')
@@ -68,11 +68,11 @@ test('recent simulations are accessible from signed-in home at desktop and phone
   await expect(page.getByRole('region', { name: 'Recent simulations', exact: true })).toBeVisible()
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 })
-    await page.goto('/')
+    await page.goto('/simulator')
     const recent = page.getByRole('region', { name: 'Recent simulations', exact: true })
     await expect(recent.getByRole('link', { name: pairing, exact: true })).toBeVisible()
     await expectNoPageOverflow(page)
-    await recent.screenshot({ path: test.info().outputPath(`recent-simulations-home-${width}.png`) })
+    await recent.screenshot({ path: test.info().outputPath(`recent-simulations-${width}.png`) })
     await recent.getByRole('link', { name: pairing, exact: true }).click()
     await expect(page.getByRole('combobox', { name: 'Attacker unit', exact: true })).toContainText('Intercessor Squad')
     await expect(page.getByRole('region', { name: 'Combined estimate' })).toHaveAttribute('aria-busy', 'false')
@@ -103,8 +103,8 @@ test(
     ).toBeVisible()
     await elsewhere.getByRole('button', { name: `Remove ${pairing}`, exact: true }).click()
     await expect(elsewhere.locator(history)).toHaveCount(0)
-    await page.goto('/')
-    await expect(page.getByRole('heading', { name: 'Combat simulator', exact: true, level: 1 })).toHaveCount(0)
+    await page.goto('/simulator')
+    await expect(page.getByRole('button', { name: 'Try an example', exact: true })).toBeVisible()
     await expect(page.locator(history)).toHaveCount(0)
   },
 )
@@ -144,11 +144,10 @@ test(
     const rosterPairing = recent.getByRole('link', { name: 'Overlord · Ankh Court vs Intercessor Squad', exact: true })
     await expect(rosterPairing).toBeVisible()
     await page.screenshot({ path: test.info().outputPath('simulator-roster-unit-desktop.png'), fullPage: true })
-    await page.goto('/')
-    const home = page.getByRole('region', { name: 'Recent simulations', exact: true })
-    await expect(home.getByRole('link', { name: 'Overlord · Ankh Court vs Intercessor Squad' })).toBeVisible()
-    await page.screenshot({ path: test.info().outputPath('recent-simulations-home-roster.png') })
-    await home.getByRole('link', { name: 'Overlord · Ankh Court vs Intercessor Squad' }).click()
+    await page.goto('/simulator')
+    await expect(rosterPairing).toBeVisible()
+    await page.screenshot({ path: test.info().outputPath('recent-simulations-roster.png') })
+    await rosterPairing.click()
     await expect(page.getByLabel('Attacker roster', { exact: true })).toContainText('Ankh Court')
     await expect(enhanced).toBeVisible()
     await page.setViewportSize(PHONE)

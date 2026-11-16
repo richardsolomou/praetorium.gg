@@ -6,9 +6,13 @@ import { buttonClass } from '../../components/buttonClass'
 import type { Battle } from '../battles/battle'
 import { BattleShelf } from '../battles/BattleShelf'
 import { SectionHeading } from '../../components/SectionHeading'
+import { pointsLabel } from '../../../core/battle'
+import { battleStage } from '../../battleStage'
+import { useDateFormatting } from '../../dates'
+import { BattleLines } from '../battles/BattleLines'
 
-/** How many games each signed-in home shelf shows before its link to the full list. */
-export const SHOWN = 2
+/** How many one-line games a signed-in summary shows: lines are short enough to show more than cards. */
+export const LINES_SHOWN = 4
 
 /**
  * Friends' and public games with each battle named once.
@@ -19,7 +23,7 @@ export const SHOWN = 2
  * the page already shows elsewhere.
  */
 export function watchedTables(friends: readonly Battle[], open: readonly Battle[], shownElsewhere?: Battle) {
-  const shownFriends = friends.slice(0, SHOWN)
+  const shownFriends = friends.slice(0, LINES_SHOWN)
   const shown = new Set([...shownFriends, ...(shownElsewhere ? [shownElsewhere] : [])].map((battle) => battle.token))
   return { friends: shownFriends, open: open.filter((battle) => !shown.has(battle.token)) }
 }
@@ -33,12 +37,14 @@ export function watchedTables(friends: readonly Battle[], open: readonly Battle[
  * no friend games either, because every one of them already has this reader in it.
  */
 export function FriendTables({ battles }: { battles: readonly Battle[] }) {
+  const detail = useBattleDetail()
   if (battles.length) {
     return (
-      <div>
-        <BattleShelf title="Friends' games" battles={battles} />
+      <section data-battle-shelf="Friends' games">
+        <SectionHeading title="Friends' games" />
+        <BattleLines battles={battles} detail={detail} />
         <AllGames view="friends">All friends' games</AllGames>
-      </div>
+      </section>
     )
   }
   return (
@@ -56,6 +62,7 @@ export function FriendTables({ battles }: { battles: readonly Battle[] }) {
 
 /** Every battle anyone may watch, most recently active first. The server has already removed the reader's own. */
 export function PublicTables({ battles, signedIn }: { battles: readonly Battle[]; signedIn: boolean }) {
+  const detail = useBattleDetail()
   if (!battles.length) {
     return signedIn ? null : (
       <section data-public-empty>
@@ -65,8 +72,15 @@ export function PublicTables({ battles, signedIn }: { battles: readonly Battle[]
     )
   }
   return (
-    <div>
-      <BattleShelf onboarding="home-public" title="Public games" battles={battles} />
+    <div data-onboarding="home-public">
+      {signedIn ? (
+        <section data-battle-shelf="Public games">
+          <SectionHeading title="Public games" />
+          <BattleLines battles={battles} detail={detail} />
+        </section>
+      ) : (
+        <BattleShelf title="Public games" battles={battles} />
+      )}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <AllGames view="public">All public games</AllGames>
         <GuideHelp task="community">Watching games</GuideHelp>
@@ -75,9 +89,26 @@ export function PublicTables({ battles, signedIn }: { battles: readonly Battle[]
   )
 }
 
+/** A one-line battle's footer: how far a game still going has got, what it was played as, and when. */
+export function useBattleDetail() {
+  const { date } = useDateFormatting()
+  return (battle: Battle) =>
+    [
+      ...(battle.status === 'playing' ? [`Live · Round ${battle.round}`] : battle.status === 'setup' ? [battleStage('setup').name] : []),
+      ...(battle.settings.manual
+        ? []
+        : battle.mission
+          ? [battle.mission.name]
+          : battle.settings.limit
+            ? [pointsLabel(battle.settings.limit)]
+            : []),
+      date(battle.lastActivity),
+    ].join(' · ')
+}
+
 function AllGames({ view, children }: { view: 'friends' | 'public'; children: string }) {
   return (
-    <ShelfLink to="/battles" search={{ view }} className="mt-2">
+    <ShelfLink to="/battles" search={{ view }} className="mt-3">
       {children}
     </ShelfLink>
   )
