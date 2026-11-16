@@ -62,11 +62,17 @@ export function reportRouteError(error: unknown) {
 }
 
 const recentReloads: number[] = []
+const counted = new WeakSet<object>()
 
-/** Whether a cancelled load may reload again, so a load cancelled every time shows its error instead of looping. */
-export function mayReloadCancelledLoad(now = Date.now()) {
+/**
+ * Whether a cancelled load may reload again, so a load cancelled every time shows its error instead of looping. Every
+ * route waiting on the cancelled read gets the same error, so it counts once, however many error pages it reaches.
+ */
+export function mayReloadCancelledLoad(error: object, now = Date.now()) {
+  if (counted.has(error)) return true
   while (recentReloads.length && now - recentReloads[0]! > 10_000) recentReloads.shift()
   if (recentReloads.length >= 3) return false
+  counted.add(error)
   recentReloads.push(now)
   return true
 }
