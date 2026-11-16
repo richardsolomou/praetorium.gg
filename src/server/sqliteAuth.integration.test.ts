@@ -32,11 +32,14 @@ afterAll(async () => {
   if (directory) await rm(directory, { recursive: true, force: true })
 })
 
-type AuthEvent = { userId: string; event: string; properties: { method: string } }
+type AuthEvent = { userId: string; event: string; properties: Record<string, unknown> }
 function authFor(environment: NodeJS.ProcessEnv, revoked: string[] = [], deleted: string[] = [], events?: AuthEvent[]) {
   return createSqliteAuth(local.database, secret, {
     environment,
     captureAuthentication: async (userId, event, properties) => {
+      events?.push({ userId, event, properties })
+    },
+    captureMcpConnection: async (userId, event, properties) => {
       events?.push({ userId, event, properties })
     },
     deleteUserData: async (userId) => {
@@ -127,7 +130,8 @@ it('does not trust loopback sign-in origins for a hosted app', async () => {
 })
 
 it('authorizes an MCP client with consent and resource-bound scopes', async () => {
-  const auth = authFor({ APP_URL: 'https://praetorium.gg', AUTH_RATE_LIMIT: 'off', SPACETIME_AUDIENCE: 'praetorium-test' })
+  const events: AuthEvent[] = []
+  const auth = authFor({ APP_URL: 'https://praetorium.gg', AUTH_RATE_LIMIT: 'off', SPACETIME_AUDIENCE: 'praetorium-test' }, [], [], events)
   const metadata = await auth.handler(new Request('https://praetorium.gg/.well-known/oauth-protected-resource/mcp'))
   expect(await metadata.json()).toMatchObject({
     resource: 'https://praetorium.gg/mcp',
@@ -180,13 +184,16 @@ it('authorizes an MCP client with consent and resource-bound scopes', async () =
   expect(await validConsentQuery(signedConsent.search.slice(1), consentSecret)).toBe(true)
   signedConsent.searchParams.set('scope', 'mcp:write')
   expect(await validConsentQuery(signedConsent.search.slice(1), consentSecret)).toBe(false)
-  const consent = await auth.handler(
-    new Request('https://praetorium.gg/api/auth/oauth2/consent', {
-      method: 'POST',
-      headers: { cookie, 'Content-Type': 'application/json', Origin: 'https://praetorium.gg' },
-      body: JSON.stringify({ accept: true, oauth_query: new URL(consentUrl, 'https://praetorium.gg').search.slice(1) }),
-    }),
-  )
+  const answerConsent = (accept: boolean) =>
+    auth.handler(
+      new Request('https://praetorium.gg/api/auth/oauth2/consent', {
+        method: 'POST',
+        headers: { cookie, 'Content-Type': 'application/json', Origin: 'https://praetorium.gg' },
+        body: JSON.stringify({ accept, oauth_query: new URL(consentUrl, 'https://praetorium.gg').search.slice(1) }),
+      }),
+    )
+  await answerConsent(false)
+  const consent = await answerConsent(true)
   expect(consent.status).toBe(200)
   const consentResult = await consent.json()
   const code = new URL(consentResult.url).searchParams.get('code')
@@ -225,6 +232,13 @@ it('authorizes an MCP client with consent and resource-bound scopes', async () =
   })
   await auth.revokeMcpConsent(signup.response.user.id, consents[0]!.id)
   expect(await auth.hasMcpConsent(signup.response.user.id, clientId)).toBe(false)
+  expect(events.filter(({ event }) => event.startsWith('mcp_'))).toEqual(
+    ['mcp_connected', 'mcp_disconnected'].map((event) => ({
+      userId: signup.response.user.id,
+      event,
+      properties: { client: 'Test MCP', write: true },
+    })),
+  )
   expect(await local.database.select().from(oauthAccessToken).where(eq(oauthAccessToken.clientId, clientId))).toHaveLength(0)
   expect(await local.database.select().from(oauthRefreshToken).where(eq(oauthRefreshToken.clientId, clientId))).toHaveLength(0)
 

@@ -14,6 +14,7 @@ import { fetchClientMetadataResource } from '@better-auth/cimd/node'
 import { and, desc, eq, gt, notExists, sql } from 'drizzle-orm'
 import type { LibSQLDatabase } from 'drizzle-orm/libsql'
 import pRetry from 'p-retry'
+import { z } from 'zod'
 import {
   standardAccountOptions,
   standardEmailAndPasswordOptions,
@@ -66,7 +67,11 @@ type AuthOptions = {
   captureAuthentication?: (userId: string, event: 'account_created' | 'account_signed_in', properties: { method: string }) => Promise<void>
   /** Called when a player adds a social sign-in to an account they already had. */
   captureSignInMethodAdded?: (userId: string, provider: SocialAuthProvider) => Promise<void>
+  /** Called when a player connects an MCP client to their account or a connection is revoked. */
+  captureMcpConnection?: (userId: string, event: McpConnectionEvent, properties: { client: string; write: boolean }) => Promise<void>
 }
+
+type McpConnectionEvent = 'mcp_connected' | 'mcp_disconnected'
 
 export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret: string, options: AuthOptions) {
   const environment = options.environment
@@ -112,6 +117,23 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
       await options.captureAuthentication(userId, event, { method })
     } catch (error) {
       ;(await auth.$context).logger.error('Authentication analytics capture failed', error)
+    }
+  }
+
+  const captureMcpConnection = async (userId: string, event: McpConnectionEvent, clientId: string, scopes: string[]) => {
+    if (!options.captureMcpConnection) return
+    try {
+      const [client] = await database
+        .select({ name: oauthClient.name })
+        .from(oauthClient)
+        .where(eq(oauthClient.clientId, clientId))
+        .limit(1)
+      await options.captureMcpConnection(userId, event, {
+        client: (client?.name || clientId).slice(0, MCP_CLIENT_NAME_MAX),
+        write: scopes.includes('mcp:write'),
+      })
+    } catch (error) {
+      ;(await auth.$context).logger.error('MCP connection analytics capture failed', error)
     }
   }
 
@@ -357,6 +379,19 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
                 await captureAuthentication(confirmed.user.id, 'account_signed_in', context)
               }),
             },
+            {
+              matcher: (context) => context.path === '/oauth2/consent',
+              handler: createAuthMiddleware(async (context) => {
+                const body = consentBody.safeParse(context.body)
+                const userId = context.context.session?.user.id
+                if (!body.success || !body.data.accept || !userId || context.context.returned instanceof APIError) return
+                const query = new URLSearchParams(body.data.oauth_query)
+                const clientId = query.get('client_id')
+                // An accepted consent can still redirect to sign in again without storing a grant.
+                if (clientId && (await hasMcpConsent(userId, clientId)))
+                  await captureMcpConnection(userId, 'mcp_connected', clientId, scopeList(body.data.scope ?? query.get('scope')))
+              }),
+            },
           ],
         },
       },
@@ -516,9 +551,9 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
 
   // Better Auth's consent deletion does not remove previously issued tokens.
   const revokeMcpConsent = async (userId: string, id: string) => {
-    await database.transaction(async (transaction) => {
+    const revoked = await database.transaction(async (transaction) => {
       const [consent] = await transaction
-        .select({ clientId: oauthConsent.clientId })
+        .select({ clientId: oauthConsent.clientId, scopes: oauthConsent.scopes })
         .from(oauthConsent)
         .where(and(eq(oauthConsent.id, id), eq(oauthConsent.userId, userId)))
         .limit(1)
@@ -530,7 +565,9 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
         .delete(oauthAccessToken)
         .where(and(eq(oauthAccessToken.userId, userId), eq(oauthAccessToken.clientId, consent.clientId)))
       await transaction.delete(oauthConsent).where(and(eq(oauthConsent.userId, userId), eq(oauthConsent.clientId, consent.clientId)))
+      return consent
     })
+    await captureMcpConnection(userId, 'mcp_disconnected', revoked.clientId, stringList(revoked.scopes))
   }
 
   return Object.assign(auth, {
@@ -552,6 +589,12 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
     revokeMcpConsent,
   })
 }
+
+const MCP_CLIENT_NAME_MAX = 64
+
+const consentBody = z.object({ accept: z.boolean(), scope: z.string().optional(), oauth_query: z.string().default('') })
+
+const scopeList = (scope: string | null | undefined) => (scope ?? '').split(' ').filter(Boolean)
 
 /** The strings in a JSON array column; anything else stored there reads as no entries. */
 function stringList(json: string): string[] {

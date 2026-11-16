@@ -152,7 +152,7 @@ export function registerRosterTools(server: AgentTools) {
     },
     async ({ roster }) => {
       const summary = await rosterSummary(roster)
-      return summary ? structured({ summary }) : unavailable()
+      return summary ? structured({ summary }, { problems: summary.problems.length }) : unavailable()
     },
   )
   server.registerTool(
@@ -171,7 +171,7 @@ export function registerRosterTools(server: AgentTools) {
           calculateRosterGrades(savedRosterPriceInput(roster), AbortSignal.timeout(GRADE_TIMEOUT_MS)),
         )
         return grades
-          ? structured({ grades })
+          ? structured({ grades }, { missing: grades.missing.length, ...(grades.score === null ? {} : { score: grades.score }) })
           : toolError('unavailable', 'The simulator is busy grading other lists just now. Try again shortly.')
       } catch (error) {
         if (error instanceof DOMException && error.name === 'TimeoutError')

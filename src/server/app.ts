@@ -407,6 +407,8 @@ export function app(): App {
         telemetry.capture(userId, event, properties),
       captureSignInMethodAdded: (userId: string, provider: string) =>
         telemetry.capture(userId, 'sign_in_method_added', { provider, delivery: 'direct' }),
+      captureMcpConnection: (userId: string, event: string, properties: { client: string; write: boolean }) =>
+        telemetry.capture(userId, event, properties),
     }
     const auth = createSqliteAuth(authDatabase, process.env.AUTH_SECRET ?? '', authOptions)
     const instance: App = {

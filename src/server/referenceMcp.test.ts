@@ -174,7 +174,9 @@ it('captures only anonymous MCP usage in production without changing the result'
   vi.stubEnv('VITE_POSTHOG_HOST', 'https://us.i.posthog.com')
   const capture = vi.spyOn(PostHog.prototype, 'capture').mockImplementation(() => undefined)
   try {
-    const response = await handleReferenceMcp(toolRequest('search_reference', { query: 'battlefield' }))
+    const request = toolRequest('search_reference', { query: 'battlefield' })
+    request.headers.set('User-Agent', 'claude-user/1.0 (+https://www.anthropic.com)')
+    const response = await handleReferenceMcp(request)
 
     expect({
       result: await response.json(),
@@ -183,7 +185,12 @@ it('captures only anonymous MCP usage in production without changing the result'
       result: { result: { structuredContent: { results: [{ id: document.id }] } } },
       event: {
         event: '$mcp_tool_call',
-        properties: { $mcp_tool_name: 'search_reference', $process_person_profile: false },
+        properties: {
+          $mcp_tool_name: 'search_reference',
+          $mcp_tool_category: 'reference',
+          $mcp_client_name: 'claude-user',
+          $process_person_profile: false,
+        },
       },
     })
     expect(capture.mock.calls.find(([input]) => input.event === '$mcp_tool_call')?.[0].properties).not.toHaveProperty('$mcp_parameters')

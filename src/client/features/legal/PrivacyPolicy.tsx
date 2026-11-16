@@ -3,7 +3,7 @@ import { LegalLinks, LegalPage, LegalSection, PrivacyEmail } from './LegalPage'
 
 export function PrivacyPolicy() {
   return (
-    <LegalPage title="Privacy policy" updated="15 November 2026">
+    <LegalPage title="Privacy policy" updated="16 November 2026">
       <LegalSection title="Scope">
         <p>
           Praetorium builds Warhammer 40,000 army lists and tracks battles between the players seated at them. This policy covers the
@@ -70,6 +70,12 @@ export function PrivacyPolicy() {
           recorded during a battle. Replays show how pages are used, but form inputs are masked and account, security and administration
           screens are not recorded. Only signed-in visitors get an identified profile, which carries their account name and email address so
           we can see who ran into a problem and reach them about it.
+        </p>
+        <p>
+          When an AI assistant uses Praetorium over MCP, we record which tool it called, the app and model it says it is, whether the call
+          worked, how long it took and how many results it found, never what it asked for or what came back. A call that fails unexpectedly
+          also sends where in our code it failed. Calls within one conversation are linked to each other. Connecting or disconnecting an
+          assistant, and calls made with your sign-in, count towards your account’s profile, like your visits to the site.
         </p>
         <p>
           Feedback you send, and our replies to it, are stored in PostHog with any email address you add, and the page and replay of the
