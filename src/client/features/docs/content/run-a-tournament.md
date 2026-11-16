@@ -2,6 +2,16 @@ Set up the tournament, get players in, wait for everyone to seal a roster in sec
 
 To see one first, open the [sample tournament](/tournaments/sample). For a one-off inside a [group](/docs/groups), use a hidden-list game, which seals the same way and starts from the group page.
 
+## Before your first tournament
+
+- **Accounts.** Every player needs a Praetorium account. Guests can't enter. Send the invite link early so people sign up before the day.
+- **The app.** Players can use the website or the [app](/docs/mobile-app) on their phone. Ask them to allow notifications, so they hear when a round is paired, when their battlefield is set and when you remind them to seal.
+- **Lists.** Each player builds their list in Praetorium, or [imports](/docs/import-a-list) it, at your points size, then seals it from the tournament page. Set **Seal rosters by** and tell players the date. Anyone without a sealed list by then sits the tournament out.
+- **The reveal.** Any player can press **Reveal all rosters** once everyone in has sealed, and it closes entry. If you're still taking entries, ask players to leave the reveal to you.
+- **Results.** Players track each game on Praetorium. With Swiss rounds they can instead press **Enter score** on their table afterwards. Decide which you expect, and tell players before round 1.
+- **Missed rounds.** Check players in before round 1 and drop anyone who doesn't arrive. If a player leaves partway, drop them, and their opponent takes the bye. See [Drop a player](/docs/run-a-tournament#drop-a-player).
+- **A trial run.** Open the [sample tournament](/tournaments/sample), or run a private one with a friend, before the day.
+
 ## Set it up
 
 1. Press **New tournament** on [Tournaments](/tournaments) and give it a name.
@@ -11,7 +21,7 @@ To see one first, open the [sample tournament](/tournaments/sample). For a one-o
 5. Under **House rules**, allow anything beyond matched play. Everything off is matched play.
 6. Add **Played on** and **Seal rosters by** dates if you want them.
 7. Under **Chess clock**, choose each side's time for every battle, or leave **Players choose** to let each table set its own.
-8. Turn on **I'm playing too** if you're also playing.
+8. Leave **I'm playing too** on if you're also playing, or turn it off if you're only running the tournament.
 9. Press **Create tournament**.
 
 In **House rules**, untick a restriction, such as **Points limit** or **Warlord**, to let lists switch it off. Tick **Legends** or **Crucible** to let lists include those datasheets. A list that needs anything you left off can't be sealed.
@@ -32,7 +42,7 @@ While rosters are still owed, press **Remind players** under the reveal countdow
 
 ## Reveal and play
 
-When everyone is in and sealed, press **Reveal all rosters**. Every list opens at once and entry closes. Anyone playing can do this, and it can't be undone. Before the reveal, players can read their own list and their assigned ally's. Being the organizer gives no extra access. If the button is greyed out, **Before you can reveal** lists what's left.
+When everyone is in and sealed, press **Reveal all rosters**. Every list opens at once and entry closes. Anyone playing can do this as soon as every player in has sealed, and it can't be undone. Before the reveal, players can read their own list and their assigned ally's. Being the organizer gives no extra access. If the button is greyed out, **Before you can reveal** lists what's left.
 
 Players then start their tournament battles from the tournament page, and finished battles fill the results table.
 
@@ -56,9 +66,11 @@ Players are ranked by:
 
 Before round 1, you can put strength of schedule ahead of total victory points. It locks when round 1 is paired.
 
+Once every table of the last round has finished, the page says the results are final. There's nothing else to press. **Export CSV** saves the final table.
+
 ### Check players in
 
-Once the rosters are out, players can press **Check in** before round 1, and you can check anyone in from the list. It's optional. If some players don't arrive, press **Drop not checked in** so they aren't paired.
+Once the rosters are out, players can press **Check in** before round 1, and you can press a player's name to check them in. It's optional. If some players don't arrive, press **Drop not checked in** so they aren't paired.
 
 ### Change the pairings and run the clock
 
@@ -82,7 +94,7 @@ Press **Enter score** on a table to record its final score when the game wasn't 
 
 Once you pair the next round, earlier results are locked, and only you and your admins can correct them. To correct a result in any round, press the reopen button beside the table's score, then **Reopen result**. You don't need to have played at that table.
 
-The battle continues from its last turn, and its players correct the score and finish it again. Until they do, the table has no result in the standings. Rounds already paired stay the same.
+The battle continues from its last turn, and its players correct the score and finish it again. If the score was entered with **Enter score**, press **Enter score** on the reopened table and type the corrected score yourself. Players can't enter a score in an earlier round. Until the table finishes again, it has no result in the standings. Rounds already paired stay the same.
 
 ### Drop a player
 
