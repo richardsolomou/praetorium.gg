@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.260.1 (2026-11-16)
+
+### Patch Changes
+
+- 0b98f2a: The assistant's roster check now lists the restrictions Praetorium couldn't check, as the builder does.
+- 0b98f2a: King of the Colosseum no longer flags a Toughness 9 unit for its attached leader or enhancement: only the datasheet's own Toughness counts.
+- 0b98f2a: An enhancement that gives its bearer's unit a keyword, such as Martial Signatum Amplificator, now gives it instead of warning that a rule couldn't be checked.
+
 ## 0.260.0 (2026-11-16)
 
 ### Minor Changes
