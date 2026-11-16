@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs'
-import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises'
+import { mkdtemp, rm, symlink } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, expect, it, vi } from 'vitest'
@@ -98,12 +98,6 @@ async function seedThrough(checkoutPath: string) {
   // A bare release checkout has no packages of its own, so it borrows these.
   if (!existsSync(path.join(checkout, 'node_modules')))
     await symlink(path.resolve('node_modules'), path.join(checkout, 'node_modules'), 'dir')
-  // A release from before recipes extends the `.ras/tsconfig.json` its package hook generated, which a bare checkout lacks.
-  const generated = path.join(checkout, '.ras/tsconfig.json')
-  if (!existsSync(generated) && (await readFile(path.join(checkout, 'tsconfig.json'), 'utf8')).includes('./.ras/tsconfig.json')) {
-    await mkdir(path.dirname(generated), { recursive: true })
-    await writeFile(generated, JSON.stringify({ extends: '../node_modules/ras-stack/config/typescript/vite.json' }))
-  }
 
   const { called, request } = moduleFetch(env, 'http://127.0.0.1:8799/api/auth')
   // The released `SpacetimeOperator` calls the module over HTTP; this answers those calls from the module in memory.
