@@ -100,7 +100,7 @@ export type App = {
   telemetry: ReturnType<typeof serverTelemetry>
   /** Mirrors GitHub's sponsor list into auth storage; a no-op without `GITHUB_SPONSORS_TOKEN`. */
   githubSponsors: GithubSponsorRefresh
-  /** Recent tournament placings whose lists import cleanly, cached from 40k Stats. */
+  /** Recent tournament placings whose lists import cleanly, cached from 40k Stats and Mini Headquarters. */
   winningLists: WinningListsStore
   /** Resolves after installed catalogue data has paid its one-time preparation cost. */
   ready: () => Promise<void>

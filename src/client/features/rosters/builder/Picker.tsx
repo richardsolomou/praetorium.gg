@@ -513,7 +513,7 @@ const PickerRow = memo(function PickerRow({
         {topFour ? (
           <HoverTooltip
             title={`In ${topFour.lists} of ${topFour.of} top-four lists`}
-            body="Lists that finished top four at Warhammer 40,000 tournaments outside Praetorium, as published by 40k Stats."
+            body="Lists that finished top four at Warhammer 40,000 tournaments outside Praetorium, as published by 40k Stats and Mini Headquarters."
             label={`${unit.name} is in ${topFour.lists} of ${topFour.of} top-four tournament lists`}
             className="size-6 shrink-0 text-faint no-underline hover:text-dim"
           >

@@ -55,6 +55,7 @@ const LIST_HASH = 'd='
 const LINK_SITES = new Map([
   ['listhammer', 'Listhammer'],
   ['40kstats', '40k Stats'],
+  ['miniheadquarters', 'Mini Headquarters'],
 ])
 
 type Submission = { file: string; link?: { name: string | null; site: string | null } }

@@ -25,7 +25,7 @@ import {
   weaponProfileGroups,
   weaponProfileMode,
 } from '../../../datasheet'
-import { datasheetSlugQuery, referenceChangesQuery, TOP_FOUR_SOURCE_URL, topFourUnitListsQuery } from '../../../queries'
+import { datasheetSlugQuery, referenceChangesQuery, topFourUnitListsQuery } from '../../../queries'
 import { changeDetail } from '../../../catalogueChanges'
 import { useDateFormatting } from '../../../dates'
 import { FactionMark, factionColour } from '../../../components/FactionMark'
@@ -42,6 +42,7 @@ import { rulesVersionLabel } from '../../../../core/catalogueEdition'
 import { reportDataProblem } from '../../feedback/support'
 import { SectionHeading } from '../../../components/SectionHeading'
 import { countLabel, placingLabel } from '../../../text'
+import { TopFourSources } from '../../rosters/TopFourSources'
 import { FactionGames } from './FactionGames'
 
 export function FactionDatasheet() {
@@ -219,11 +220,7 @@ function TopFourLists({
       <SectionHeading title="Top-four tournament lists" count={lists.length} />
       <p className="text-sm text-dim">
         {lists.length} of the {of} {faction.displayName} lists that finished top four at tournaments outside Praetorium take {name}. The
-        lists come from{' '}
-        <a href={TOP_FOUR_SOURCE_URL} target="_blank" rel="noreferrer" className="underline">
-          40k Stats
-        </a>
-        .
+        lists come from <TopFourSources />.
       </p>
       <dl className="mt-3 grid gap-x-6 gap-y-1 text-sm sm:grid-cols-[auto_1fr]">
         <dt className="eyebrow self-center">Copies</dt>

@@ -9,6 +9,7 @@ import { calculateRosterPrice } from '../shared/pricing'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { fetchWithRetry } from './fetch'
 import { replaceFile } from './replaceFile'
+import { miniHeadquartersEvents } from './miniHeadquartersLists'
 import { importedRosterDraft, importRosterInput } from './rosterImport'
 
 const SOURCE = 'https://40kstats.tabletopbattles.com'
@@ -35,6 +36,8 @@ const events = z.array(
     rounds: z.number().int().nullish(),
     player_count: z.number().int().nullish(),
     players: z.array(z.object({ ranking: z.number().int(), record: z.string(), list: z.string().regex(LIST_ID) })),
+    /** The site that published the placing; 40k Stats' own index does not say, so it is the default. */
+    source: z.enum(['40kstats', 'miniheadquarters']).catch('40kstats'),
   }),
 )
 type Events = z.infer<typeof events>
@@ -61,8 +64,9 @@ export type WinningList = NonNullable<Verdict> & {
   id: string
   placing: number
   record: string
-  event: { name: string; url: string | null; date: string; rounds: number | null; players: number | null }
+  event: { name: string; url: string | null; date: string; rounds: number | null; players: number | null; source: WinningListSource }
 }
+export type WinningListSource = Events[number]['source']
 
 /** Deploys start the new server before stopping the old one on the same volume, so a file is never left half-written. */
 const writeWhole = (file: string, text: string) => replaceFile(file, (temporary) => fs.writeFile(temporary, text))
@@ -72,8 +76,9 @@ const eventsFile = (directory: string) => path.join(directory, 'events.json')
 const verdictsFile = (directory: string) => path.join(directory, 'verdicts.json')
 
 /**
- * Brings the cache up to date with 40k Stats' published top-four placings: the event index each time,
- * and only the lists the cache does not hold, one at a time.
+ * Brings the cache up to date with the top-four placings 40k Stats and Mini Headquarters publish: 40k Stats' event
+ * index each time, Mini Headquarters' events the cache does not hold, and only the lists the cache does not hold, one
+ * at a time. A Mini Headquarters failure still keeps 40k Stats' placings and the events it already cached.
  */
 export async function refreshWinningLists(directory: string) {
   const response = await fetchWithRetry(`${SOURCE}/data/reports/topfour.json`, { headers: HEADERS })
@@ -89,7 +94,10 @@ export async function refreshWinningLists(directory: string) {
     }
     await sleep(FETCH_PAUSE_MS)
   }
-  await writeWhole(eventsFile(directory), JSON.stringify(placings))
+  const french = await miniHeadquartersEvents(directory, (id, text) => writeWhole(listFile(directory, id), text))
+  const all = [...placings, ...events.parse(french.events)].toSorted((left, right) => right.date.localeCompare(left.date))
+  await writeWhole(eventsFile(directory), JSON.stringify(all))
+  if (french.failure) throw french.failure
 }
 
 /** A list's import, kept only when it has nothing to review and is legal: its verdict and the units it was read as. */
@@ -147,6 +155,7 @@ const placed = (
     date: event.date,
     rounds: event.rounds ?? null,
     players: event.player_count ?? null,
+    source: event.source,
   },
 })
 

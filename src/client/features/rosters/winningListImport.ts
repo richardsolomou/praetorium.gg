@@ -6,7 +6,7 @@ import type { WinningSearch } from './rosterSearch'
 /** Opens a winning list in the Winning tab's import review, through the same address another site's import link uses. */
 export async function openWinningImport(
   navigate: ReturnType<typeof useNavigate>,
-  list: { id: string; name: string; placing: number },
+  list: { id: string; name: string; placing: number; event: { source: string } },
   text: string,
   search: WinningSearch = {},
 ) {
@@ -15,7 +15,7 @@ export async function openWinningImport(
   await navigate({
     to: '/rosters',
     search: { view: 'tournament-lists', ...search },
-    hash: new URLSearchParams({ d: encoded, src: '40kstats', listname: list.name }).toString(),
+    hash: new URLSearchParams({ d: encoded, src: list.event.source, listname: list.name }).toString(),
     resetScroll: false,
   })
 }
