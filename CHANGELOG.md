@@ -1,5 +1,20 @@
 # praetorium
 
+## 0.254.1 (2026-11-16)
+
+### Patch Changes
+
+- 72200ec: Home's app and assistant links are a panel at the top of the side column, beside your games.
+- 72200ec: Home marks each roster a data update changed, in place of its Army updates panel.
+- 72200ec: New players see a Get started checklist on Home: build a roster, play a battle and join a group.
+- 72200ec: Home lists your groups with your place in each, and the tournaments you've entered until their day of play is over.
+- 72200ec: Home's Your opponents panel shows your record against the players you've faced most, and each opens your record against that player.
+- 72200ec: Home's In progress section puts your live games together with league games you still have to play, rosters your events need, lists a data update changed and friend requests.
+- 72200ec: Home shows public games only while they're being played.
+- 72200ec: Home lists your recent results and friends' games one line each, with each side's army and a win or loss mark on yours.
+- 72200ec: Home's greeting is shorter, with your record, win rate, rating trend, leaderboard place, form and recent armies on one line under it.
+- 72200ec: Recent simulations now live on the Simulator page only.
+
 ## 0.254.0 (2026-11-15)
 
 ### Minor Changes
