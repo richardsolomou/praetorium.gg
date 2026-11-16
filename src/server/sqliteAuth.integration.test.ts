@@ -6,7 +6,7 @@ import { createLocalJWKSet, exportJWK, generateKeyPair, jwtVerify, SignJWT } fro
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, expect, it, vi } from 'vitest'
 import { importAuthSqlite } from '../../scripts/nodeAuthSqlite'
-import { account, user } from '../db/authSchema'
+import { account, deletedUser, user } from '../db/authSchema'
 import { oauthAccessToken, oauthClient, oauthConsent, oauthRefreshToken } from '../db/oauthSchema'
 import { SqliteAccountRepository } from './accountRepository'
 import type { SpacetimeOperator } from './spacetimeOperator'
@@ -342,6 +342,16 @@ async function signUpAs(auth: ReturnType<typeof authFor>, name: string, role: 'a
   await local.database.update(user).set({ role }).where(eq(user.id, current.user.id))
   return current
 }
+
+it('records a deleted player, so a restore from an older backup can delete their data again', async () => {
+  const auth = authFor(testEnvironment)
+  const actor = await signUpAs(auth, 'Recording admin', 'admin')
+  const target = await signUpAs(auth, 'Recorded player', 'user')
+  await auth.deleteUserAsAdmin(actor.user.id, target.user.id)
+  expect(await local.database.select({ id: deletedUser.id }).from(deletedUser).where(eq(deletedUser.id, target.user.id))).toEqual([
+    { id: target.user.id },
+  ])
+})
 
 it('deletes a player for an administrator after clearing their product data and sessions', async () => {
   const revoked: string[] = []
