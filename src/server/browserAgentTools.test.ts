@@ -55,6 +55,8 @@ it('exposes every MCP tool and both resources and prompts for a signed-in player
       'get_my_collection',
       'import_roster',
       'export_roster',
+      'list_winning_lists',
+      'get_winning_list',
       'create_battle',
       'submit_battle_action',
       'list_my_opponents',

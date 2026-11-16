@@ -9,7 +9,7 @@ import { calculateRosterPrice } from '../shared/pricing'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { fetchWithRetry } from './fetch'
 import { replaceFile } from './replaceFile'
-import { importRosterInput } from './rosterImport'
+import { importedRosterDraft, importRosterInput } from './rosterImport'
 
 const SOURCE = 'https://40kstats.tabletopbattles.com'
 const HEADERS = { 'user-agent': 'praetorium.gg (+https://praetorium.gg)' }
@@ -22,6 +22,7 @@ const PAUSE_PER_IMPORT = 4
 const FETCH_PAUSE_MS = 250
 
 const LIST_ID = /^[0-9a-f]{32}$/
+export const WINNING_LIST_GONE = 'That list is no longer available.'
 const events = z.array(
   z.object({
     eventId: z.string(),
@@ -115,7 +116,7 @@ async function importWinningList(text: string) {
     datasheets: fielded(priced.units),
     reportedPoints: result.reportedPoints,
   }
-  return { verdict, units: result.units }
+  return { verdict, units: result.units, result }
 }
 
 function fielded(units: readonly { entryId: string; name: string; size: { models: number } }[]) {
@@ -217,6 +218,35 @@ export function unitCounts(lists: readonly WinningList[], catalogueId: string) {
   return { lists: faction.length, units }
 }
 
+/** A faction's lists, counted by family as unitCounts counts them, narrowed to one detachment and one battle size when given. */
+export function matchingLists(
+  lists: readonly WinningList[],
+  catalogueId: string,
+  { detachmentId, battleSize }: { detachmentId?: string; battleSize?: number } = {},
+) {
+  return factionLists(lists, catalogueId).filter(
+    (list) => (!detachmentId || list.detachmentIds.includes(detachmentId)) && (!battleSize || list.limit === battleSize),
+  )
+}
+
+/** Every datasheet the lists field with how many lists field it, most first, and the unit sizes taken, most common first. */
+export function fieldedDatasheets(lists: readonly WinningList[]) {
+  const tally = new Map<string, { entryId: string; name: string; lists: number; sizes: Map<number, number> }>()
+  for (const list of lists)
+    for (const { id, name, models } of list.datasheets) {
+      const datasheet = tally.get(id) ?? { entryId: id, name, lists: 0, sizes: new Map<number, number>() }
+      datasheet.lists++
+      for (const size of models) datasheet.sizes.set(size, (datasheet.sizes.get(size) ?? 0) + 1)
+      tally.set(id, datasheet)
+    }
+  return [...tally.values()]
+    .map(({ sizes, ...datasheet }) => ({
+      ...datasheet,
+      models: [...sizes].toSorted(([leftSize, left], [rightSize, right]) => right - left || leftSize - rightSize).map(([size]) => size),
+    }))
+    .toSorted((left, right) => right.lists - left.lists || left.name.localeCompare(right.name))
+}
+
 /** The faction's lists that field one datasheet, newest first, each with its copies' model counts, out of how many. */
 export function unitLists(lists: readonly WinningList[], catalogueId: string, entryId: string) {
   const faction = factionLists(lists, catalogueId)
@@ -276,7 +306,7 @@ export function winningListsStore(directory: string, catalogue: () => LoadedCata
       version++
       read()
     },
-    /** One placing with the units it imports as and its army text, read afresh; null for a list that is not shown. */
+    /** One placing with the units it imports as, the draft save_roster takes and its army text, read afresh; null for a list that is not shown. */
     list: async (id: string) => {
       if (!LIST_ID.test(id)) return null
       const event = (await readJson(eventsFile(directory), events))?.find((candidate) =>
@@ -285,7 +315,10 @@ export function winningListsStore(directory: string, catalogue: () => LoadedCata
       const player = event?.players.find((candidate) => candidate.list === id)
       const text = await fs.readFile(listFile(directory, id), 'utf8').catch(() => null)
       const imported = event && player && text ? await importWinningList(text) : null
-      return imported && event && player && text ? { list: placed(imported.verdict, id, event, player), units: imported.units, text } : null
+      const draft = imported && importedRosterDraft(imported.result)
+      return imported && draft && event && player && text
+        ? { list: placed(imported.verdict, id, event, player), units: imported.units, draft, text }
+        : null
     },
   }
 }

@@ -1,15 +1,20 @@
 import { expect, it } from 'vitest'
-import { unitCounts, type WinningList } from './winningLists'
+import { fieldedDatasheets, matchingLists, unitCounts, type WinningList } from './winningLists'
 
-const list = (id: string, catalogueId: string, datasheets: string[]): WinningList => ({
+const list = (
+  id: string,
+  catalogueId: string,
+  datasheets: string[],
+  { detachmentIds = [], limit = 2000, models = [5] }: { detachmentIds?: string[]; limit?: number; models?: number[] } = {},
+): WinningList => ({
   id,
   name: '',
   catalogueId,
-  detachmentIds: [],
+  detachmentIds,
   disposition: null,
-  limit: 2000,
+  limit,
   unitCount: datasheets.length,
-  datasheets: datasheets.map((datasheet) => ({ id: datasheet, name: datasheet, models: [5] })),
+  datasheets: datasheets.map((datasheet) => ({ id: datasheet, name: datasheet, models })),
   points: 2000,
   reportedPoints: 2000,
   placing: 1,
@@ -25,4 +30,24 @@ it("counts a faction's lists across rules versions and leaves other factions out
   ]
 
   expect(unitCounts(lists, '470a-6daa-9014-12df')).toEqual({ lists: 2, units: { sammael: 1, outriders: 2 } })
+})
+
+it("keeps a faction family's lists that took the detachment at the battle size", () => {
+  const lists = [
+    list('a', 'mfm-1-6~470a-6daa-9014-12df', [], { detachmentIds: ['gladius'] }),
+    list('b', '470a-6daa-9014-12df', [], { detachmentIds: ['ironstorm'] }),
+    list('c', '470a-6daa-9014-12df', [], { detachmentIds: ['gladius'], limit: 1000 }),
+    list('d', 'a55f-b7b3-6c65-a05f', [], { detachmentIds: ['gladius'] }),
+  ]
+
+  expect(matchingLists(lists, '470a-6daa-9014-12df', { detachmentId: 'gladius', battleSize: 2000 }).map(({ id }) => id)).toEqual(['a'])
+})
+
+it('ranks datasheets by how many lists field them and sizes by how often they are taken', () => {
+  const lists = [list('a', 'x', ['outriders', 'sammael'], { models: [3, 6, 6] }), list('b', 'x', ['outriders'], { models: [3] })]
+
+  expect(fieldedDatasheets(lists)).toEqual([
+    { entryId: 'outriders', name: 'outriders', lists: 2, models: [3, 6] },
+    { entryId: 'sammael', name: 'sammael', lists: 1, models: [6, 3] },
+  ])
 })

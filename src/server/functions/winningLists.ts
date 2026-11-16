@@ -2,6 +2,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import { app } from '../app'
 import { rpc } from '../rpc'
+import { WINNING_LIST_GONE } from '../winningLists'
 
 /** Tournament placings whose lists import cleanly, as many as the first import has checked, and whether it still is. */
 export const winningLists = createServerFn({ method: 'GET' }).handler(() => rpc(async () => app().winningLists.lists()))
@@ -22,7 +23,7 @@ export const winningList = createServerFn({ method: 'GET' })
   .handler(({ data }) =>
     rpc(async () => {
       const found = await app().winningLists.list(data.id)
-      if (!found) throw new Response('That list is no longer available.', { status: 404 })
-      return found
+      if (!found) throw new Response(WINNING_LIST_GONE, { status: 404 })
+      return { list: found.list, units: found.units, text: found.text }
     }),
   )

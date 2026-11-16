@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { gradeOf, percentileOf, reachChance, rosterGrades, scaled, type GradedUnit } from './rosterGrades'
+import { gradeOf, percentileOf, reachChance, rosterGrades, scaled, tournamentComparison, type GradedUnit } from './rosterGrades'
 
 const unit = (overrides: Partial<GradedUnit> = {}): GradedUnit => ({
   name: 'Unit',
   points: 100,
+  models: 5,
   move: 6,
   objectiveControl: 5,
   deepStrike: false,
@@ -113,6 +114,15 @@ describe('rosterGrades', () => {
     expect(grades.missing).toEqual(['a Rhino'])
   })
 
+  it('credits a transport with carrying units', () => {
+    const rhino = unit({ name: 'Rhino', points: 75, transport: true, removes: {} })
+    expect(grade([rhino], 2000).units[0]!.jobs).toContain('Carry units')
+  })
+
+  it('says a size other than 2,000 points is compared with drawn lists', () => {
+    expect(grade([unit()], 1000).calibration.lists).toBe('drawn')
+  })
+
   it('grades nothing for a row the simulator could not calculate', () => {
     const grades = grade([unit({ removes: { horde: 1, elite: 1, vehicle: null, heavyVehicle: 1, monster: 1 } })], 2000)
     expect(rowOf(grades, 'vehicle')?.grade).toBeNull()
@@ -168,5 +178,26 @@ describe('rosterGrades', () => {
   it('compares a small list with lists of its own size', () => {
     const units = Array.from({ length: 5 }, () => unit({ points: 120 }))
     expect(rowOf(grade(units, 600), 'presence')!.score!).toBeGreaterThan(rowOf(grade(units, 2000), 'presence')!.score!)
+  })
+})
+
+describe('tournamentComparison', () => {
+  const winning = { lists: 10, units: { staple: 8, rare: 1 } }
+  const nameOf = (entryId: string) => entryId
+  const picks = [
+    { entryId: 'staple', name: 'staple', points: 150 },
+    { entryId: 'own', name: 'own', points: 50 },
+  ]
+
+  it('shares the points in units most winning lists field', () => {
+    expect(tournamentComparison(picks, winning, nameOf)?.stapleShare).toBe(0.75)
+  })
+
+  it('names units no winning list fields', () => {
+    expect(tournamentComparison(picks, winning, nameOf)?.unproven).toEqual(['own'])
+  })
+
+  it('compares nothing with too few winning lists', () => {
+    expect(tournamentComparison(picks, { ...winning, lists: 9 }, nameOf)).toBeNull()
   })
 })

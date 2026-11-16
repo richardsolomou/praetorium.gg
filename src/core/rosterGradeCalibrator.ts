@@ -9,6 +9,7 @@ import {
   gradedTargets,
   placement,
   scoredMeasures,
+  takesHalf,
   type GradedUnit,
   type MetricKey,
   type ReferenceTargetKey,
@@ -121,8 +122,7 @@ function peersOf(lists: readonly CalibrationList[], size: CalibratedSize): Peers
 function expectedTools(lists: readonly CalibrationList[], size: CalibratedSize): ReferenceTargetKey[] {
   return gradedTargets(size)
     .filter(
-      (target) =>
-        lists.filter((list) => list.units.some((unit) => (unit.removes[target.key] ?? 0) >= 0.5)).length >= EXPECTED_SHARE * lists.length,
+      (target) => lists.filter((list) => list.units.some((unit) => takesHalf(unit, target.key))).length >= EXPECTED_SHARE * lists.length,
     )
     .map((target) => target.key)
 }

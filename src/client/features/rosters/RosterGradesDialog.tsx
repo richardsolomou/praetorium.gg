@@ -5,7 +5,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { Problem } from '../../components/Problem'
 import type { RosterPick } from '../../../core/roster'
-import type { Grade, GradeCategory, GradeRow, RosterGrades } from '../../../core/rosterGrades'
+import type { Grade, GradeCategory, GradeRow, RosterGrades, TournamentComparison } from '../../../core/rosterGrades'
 import { formatList } from '../../text'
 import { rosterGradesQuery, sharedRosterQuery } from '../../queries'
 import { claimInput, type GuestDraft } from './guestDraft'
@@ -66,6 +66,7 @@ export function RosterGradesDialog({
             <>
               <Scores grades={grades.data} />
               <Gaps grades={grades.data} />
+              {grades.data.tournament ? <Tournament comparison={grades.data.tournament} /> : null}
               {/* Damage has the most measures, so it takes the right column alone beside the other three; the last row
                   takes the slack so the left ones stay together. */}
               <div className="grid gap-5 md:grid-cols-2 md:grid-rows-[auto_auto_1fr] md:items-start md:[grid-template-areas:'control_damage'_'mobility_damage'_'durability_damage']">
@@ -230,6 +231,20 @@ function Gaps({ grades }: { grades: RosterGrades }) {
   if (damage.every((row) => row.grade && !row.notCalculated?.length))
     return <p className="text-sm text-achieved">No common damage gaps found. Check the individual measures for weaker matchups.</p>
   return null
+}
+
+/** The list beside its faction's winning lists: how much of it is in their staples, and the staples it leaves out. */
+function Tournament({ comparison }: { comparison: TournamentComparison }) {
+  return (
+    <section aria-label="Winning lists" className="part grid gap-1.5 px-3 py-2.5">
+      <h3 className="rubric">Beside winning lists</h3>
+      <p className="text-sm text-dim">
+        <span className="figure text-bone">{Math.round(comparison.stapleShare * 100)}%</span> of your points are in units that at least 3 in
+        10 of this army’s {comparison.lists} winning tournament lists field.
+        {comparison.leftOut.length ? ` They also often field ${formatList(comparison.leftOut.slice(0, 4))}.` : ''}
+      </p>
+    </section>
+  )
 }
 
 /** A category's name with its icon; `icon` hides the icon where a label can wrap, as under the narrow gauges. */

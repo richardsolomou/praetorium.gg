@@ -1,5 +1,4 @@
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
-import { DEFAULT_GAME_LIMIT } from '../core/battle'
 import { rulesVersionLabel } from '../core/catalogueEdition'
 import { encodeRosterExchange, ROSTER_EXCHANGE_MAX_CODE_LENGTH } from '../core/rosterExchange'
 import { importRosterSchema, saveRosterSchema } from '../contracts/schemas'
@@ -7,7 +6,7 @@ import { calculateRosterPrice, savedRosterPriceInput } from '../shared/pricing'
 import { exportRosterFile, pricedDispositionNames } from '../shared/rosterFiles'
 import { READ_ONLY_TOOL, responseToolError, structured, toolError, type AgentTools } from './agentTools'
 import { app } from './app'
-import { importRosterInput } from './rosterImport'
+import { importedRosterDraft, importRosterInput } from './rosterImport'
 
 type Imported = Awaited<ReturnType<typeof importRosterInput>>['result']
 
@@ -19,26 +18,6 @@ async function refusalsAsErrors(work: () => Promise<CallToolResult>): Promise<Ca
     if (error instanceof Response && error.status < 500) return responseToolError(error)
     throw error
   }
-}
-
-/** The import as save_roster takes it, as the import dialog saves it; null when no faction matched. */
-function importedDraft(imported: Imported) {
-  if (!imported.catalogueId || !imported.source) return null
-  const stated = 'limit' in imported && imported.limit ? imported.limit : null
-  return saveRosterSchema.parse({
-    name: imported.name,
-    catalogueId: imported.catalogueId,
-    detachmentIds: imported.detachmentIds,
-    disposition: 'disposition' in imported ? (imported.disposition ?? null) : null,
-    borrowedDetachmentId: 'borrowedDetachmentId' in imported ? imported.borrowedDetachmentId : null,
-    limit: stated ?? DEFAULT_GAME_LIMIT,
-    pointsBudget: stated !== null && 'pointsBudget' in imported ? imported.pointsBudget : null,
-    picks: imported.units,
-    waivedRules: 'waivedRules' in imported ? imported.waivedRules : [],
-    optionalRules: 'optionalRules' in imported ? imported.optionalRules : [],
-    prep: null,
-    source: imported.source,
-  })
 }
 
 async function importReview(imported: Imported) {
@@ -71,7 +50,7 @@ export function registerRosterFileTools(server: AgentTools) {
     ({ file }) =>
       refusalsAsErrors(async () => {
         const { result } = await importRosterInput(file)
-        const draft = importedDraft(result)
+        const draft = importedRosterDraft(result)
         const review = await importReview(result)
         return structured(
           { draft, review },

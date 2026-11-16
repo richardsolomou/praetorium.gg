@@ -1,5 +1,6 @@
 import type { PriceInput } from '../contracts/schemas'
-import { rosterGrades } from '../core/rosterGrades'
+import { rosterGrades, tournamentComparison } from '../core/rosterGrades'
+import { calculateRosterPrice } from '../shared/pricing'
 import { gradeReferences, measureRosterUnits, referenceUnit } from '../shared/rosterGradeMeasures'
 import { app } from './app'
 import { combatCalculationPool } from './combatCalculationPool'
@@ -38,5 +39,10 @@ export async function calculateRosterGrades(data: PriceInput, signal: AbortSigna
   // An older rules version's catalogue is the same book behind a prefix.
   const book =
     loaded.index.catalogues.get(data.catalogueId) ?? loaded.index.catalogues.get(data.catalogueId.slice(data.catalogueId.indexOf('~') + 1))
-  return rosterGrades(units, data.limit, book?.name ?? '')
+  const winning = instance.winningLists.unitCounts(data.catalogueId)
+  const picks = calculateRosterPrice(data, loaded, rules)?.units ?? []
+  const tournament = winning
+    ? tournamentComparison(picks, winning, (entryId) => loaded.index.definitions.get(entryId)?.name ?? entryId)
+    : null
+  return rosterGrades(units, data.limit, book?.name ?? '', tournament)
 }

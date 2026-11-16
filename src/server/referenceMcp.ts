@@ -125,7 +125,7 @@ export function referenceMcpOptions() {
 }
 
 function referenceMcpServer(userId: string | null, origin: string) {
-  const server = new McpServer({ name: 'praetorium-reference', version: '1.3.0' }, { instructions: PRAETORIUM_MCP_INSTRUCTIONS })
+  const server = new McpServer({ name: 'praetorium-reference', version: '1.4.0' }, { instructions: PRAETORIUM_MCP_INSTRUCTIONS })
   const tools = createAgentTools(userId)
   tools.registerMcp(server, origin)
 

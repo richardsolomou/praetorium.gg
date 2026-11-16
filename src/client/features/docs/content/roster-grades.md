@@ -50,6 +50,16 @@ A gap is named when nothing in your list can take half of a reference target on 
 
 **No common damage gaps found** means the list passes those checks. It does not mean every damage measure is strong or that the list covers every matchup.
 
+## Beside winning lists
+
+When at least 10 of your army's top-four tournament lists import under today's data, the grades show what share of your points is in units that at least 3 in 10 of those lists field. They also name the units those lists often take that yours doesn't. The **Tournament lists** tab on the Rosters page shows the lists themselves. Read it as a guide to what has been winning, not a list to copy.
+
+## What the grades predict
+
+We checked the grades against about 940 tournament games from October and November 2026 in which both players' lists imported. The players decided far more than the lists did: a rating gap between players mattered about three times as much as anything measured about a list.
+
+Among list measures, having more units and an even spread of points went with winning, by about 5 points of win rate for a typical difference. Fielding more of the units winning lists share went with winning by about 3 points, and so did the overall score. Missing a damage target did not, and neither did one side out-damaging the other in the simulator.
+
 ## Where it stops
 
 - Each unit fights at full strength with its saved wargear and its passive rules. Stratagems, conditional rules and abilities you switch on in the simulator stay off.

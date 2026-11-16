@@ -5,6 +5,7 @@ import type { GradedUnit } from './rosterGrades'
 const unit = (index: number): GradedUnit => ({
   name: `Unit ${index}`,
   points: 60 + ((index * 37) % 200),
+  models: 5,
   move: 6,
   objectiveControl: index % 12,
   deepStrike: index % 5 === 0,
