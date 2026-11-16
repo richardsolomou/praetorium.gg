@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.257.7 (2026-11-16)
+
+### Patch Changes
+
+- 3e3f7be: Loadout searches reuse attack counts and rule-name matching across loadouts, so they finish sooner.
+
 ## 0.257.6 (2026-11-16)
 
 ### Patch Changes
