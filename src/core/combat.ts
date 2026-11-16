@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { remember } from './collections'
+import { RecentlyUsed, remember } from './collections'
 
 export const MAX_COMBAT_MODELS = 100
 export const COMBAT_PHASES = ['ranged', 'melee'] as const
@@ -643,12 +643,18 @@ const extraAttacks = (weapon: Pick<CombatWeapon, 'blast' | 'cleave'>, models: nu
 const rerollsDie = (kind: CombatOptions['hitReroll'] | undefined, succeeds: (value: number) => boolean) => (value: number) =>
   (kind === 'ones' && value === 1) || (kind === 'failed' && !succeeds(value))
 
+const attackCountCache = new RecentlyUsed<string, Weights>(1_000)
+
+/** How many attacks every carrier together makes; shared between calls, so callers only read it. */
 function attackCounts(weapon: CombatWeapon, models: number, halfRange: boolean) {
   const extra = extraAttacks(weapon, models)
-  const each = convolve(convolve(diceWeights(weapon.attacks), diceWeights(extra)), halfRange ? diceWeights(weapon.rapidFire) : [1])
-  let total: Weights = [1]
-  for (let carrier = 0; carrier < weapon.count; carrier++) total = convolve(total, each)
-  return total
+  const rapidFire = halfRange ? weapon.rapidFire : 0
+  return remember(attackCountCache, JSON.stringify([weapon.attacks, extra, rapidFire, weapon.count]), () => {
+    const each = convolve(convolve(diceWeights(weapon.attacks), diceWeights(extra)), diceWeights(rapidFire))
+    let total: Weights = [1]
+    for (let carrier = 0; carrier < weapon.count; carrier++) total = convolve(total, each)
+    return total
+  })
 }
 
 /** How one weapon resolves against one Toughness, before its pool is built. */

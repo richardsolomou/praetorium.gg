@@ -1,6 +1,6 @@
 import { COMBAT_PHASES, type CombatPhase } from './combat'
 import { capitalised, escapeRegExp, plainQuotes } from './text'
-import { chunks } from './collections'
+import { RecentlyUsed, chunks, remember } from './collections'
 import { withoutFactionPrefix } from './name'
 import type { DatasheetCharacteristicKind } from './datasheet'
 import type { CombatRule, CombatRuleChoice, CombatRuleEffect } from './combatRules'
@@ -44,7 +44,9 @@ export const labelledChoice = (name: string, choice: CombatRuleChoice): CombatRu
   ...choice,
   label: name + (choice.label === 'Active' ? '' : ` · ${choice.label}`),
 })
-export const combatTextKey = (text: string) => withoutFactionPrefix(normalizeCombatText(text)).toLowerCase()
+const textKeys = new RecentlyUsed<string, string>(5_000)
+/** Rules are matched against their names on every attack a search builds, so each name is normalised once. */
+export const combatTextKey = (text: string) => remember(textKeys, text, () => withoutFactionPrefix(normalizeCombatText(text)).toLowerCase())
 const stripEnd = (text: string) => text.replace(/[.;, ]+$/, '').trim()
 const phasesOf = (word: string | undefined, fallback: CombatPhase[]): CombatPhase[] =>
   /ranged/i.test(word ?? '') ? ['ranged'] : /melee/i.test(word ?? '') ? ['melee'] : fallback
