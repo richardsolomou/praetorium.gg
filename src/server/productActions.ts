@@ -272,6 +272,7 @@ export const productActions = {
       data.allyId,
       data.secondOpponentId,
       withCurrentAlerts,
+      data.fixtureKey,
     )
     await captureSealedEventBattleCreated(owner, result)
     return { token: result.token }

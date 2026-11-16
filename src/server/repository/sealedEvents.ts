@@ -78,6 +78,8 @@ export function withSealedEvents<B extends RepositoryBase>(Base: B) {
       sharedPoints?: boolean
       schedule?: SealedEventSchedule
       clockLimitMinutes?: number | null
+      /** Starts the group's league with these lists to seal instead. */
+      league?: { id: string; seed: number }
       now: number
     }) {
       return this.product.sealedEventCommand(
@@ -486,7 +488,7 @@ export function withSealedEvents<B extends RepositoryBase>(Base: B) {
             format: z.enum(TABLE_SHAPES).nullable(),
             requiredLimit: z.number().nullable(),
           }),
-          z.object({ outcome: z.enum(['missing', 'unassigned', 'wrong-limit', 'past-deadline']) }),
+          z.object({ outcome: z.enum(['missing', 'unassigned', 'wrong-limit', 'past-deadline', 'full']) }),
           z.object({ outcome: z.literal('invalid-warlords'), format: z.enum(TABLE_SHAPES).nullable() }),
           z.object({ outcome: z.literal('disposition-dropped'), disposition: z.string() }),
           z.object({ outcome: z.literal('disallowed'), message: z.string() }),
@@ -597,7 +599,16 @@ export function withSealedEvents<B extends RepositoryBase>(Base: B) {
     }
 
     async createSealedEventBattle<T>(
-      input: { id: string; token: string; sealedEventToken: string; eventToken?: string; userId: string; userIds: string[]; now: number },
+      input: {
+        id: string
+        token: string
+        sealedEventToken: string
+        eventToken?: string
+        userId: string
+        userIds: string[]
+        now: number
+        fixtureKey?: string
+      },
       prepare: (
         sealedEvent: SealedEventBattleSetup,
       ) =>
@@ -654,6 +665,7 @@ export function withSealedEvents<B extends RepositoryBase>(Base: B) {
           now: input.now,
           expectedEntries: entries.map((entry) => ({ userId: entry.userId, snapshot: entry.rosterSnapshot! })),
           ...(pairing ? { pairingKey: pairing.key } : {}),
+          ...(input.fixtureKey ? { fixtureKey: input.fixtureKey } : {}),
         },
         z.boolean(),
       )

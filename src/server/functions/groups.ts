@@ -13,6 +13,7 @@ import {
   createGroupSchema,
   moderateGroupMemberSchema,
   publishGroupLeagueSchema,
+  startSealedGroupLeagueSchema,
   setGroupAdminsSchema,
   tokenSchema,
   updateGroupSchema,
@@ -76,6 +77,16 @@ export const drawGroupLeague = createServerFn({ method: 'POST' })
       const userId = await requireUserId()
       await app().service.groupService.drawLeague(data.token, userId)
       await captureMutation(userId, 'group_league_drawn')
+    }),
+  )
+
+export const startSealedGroupLeague = createServerFn({ method: 'POST' })
+  .validator(startSealedGroupLeagueSchema)
+  .handler(({ data: { token, ...rule } }) =>
+    mutationRpc(async () => {
+      const userId = await requireUserId()
+      await app().service.sealedEventService.startSealedLeague(userId, { groupToken: token, ...rule })
+      await captureMutation(userId, 'group_league_drawn', { sealed_lists: true, roster_limit: rule.rosterLimit })
     }),
   )
 

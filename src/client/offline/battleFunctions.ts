@@ -429,7 +429,8 @@ export async function createSealedEventBattle(
   args: Parameters<typeof server.createSealedEventBattle>[0],
 ): ReturnType<typeof server.createSealedEventBattle> {
   const owner = localOwner()
-  if (!owner || !localEngine() || !hasLocalConstruction()) return server.createSealedEventBattle(args)
+  // The module writes a league fixture's group into its log, so that battle is only built online.
+  if (!owner || !localEngine() || !hasLocalConstruction() || args.data.fixtureKey) return server.createSealedEventBattle(args)
   const sealedEvent = await openSealedEvent({ data: { token: args.data.token, eventToken: args.data.eventToken } })
   if (!sealedEvent) throw new OfflineRefusal('Open and save this event online before starting an offline battle.')
   const entries = sealedEvent.entries.filter((entry) => entry.status === 'accepted' && entry.submitted)

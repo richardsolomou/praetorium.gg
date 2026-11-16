@@ -37,6 +37,8 @@ export const Route = createFileRoute('/tournaments/$token')({
         search,
         replace: true,
       })
+    if (address?.kind === 'league')
+      throw redirect({ to: '/groups/$token', params: { token: address.groupToken }, search: { tab: 'league' }, replace: true })
     if (address?.kind === 'group') throw redirect({ to: '/groups/$token', params: { token: address.groupToken }, replace: true })
     throw notFound()
   },

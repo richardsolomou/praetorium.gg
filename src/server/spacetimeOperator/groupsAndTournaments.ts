@@ -102,6 +102,7 @@ const sealedEventRecord = z.object({
 const sealedEventAddress = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('tournament'), token: z.string() }),
   z.object({ kind: z.literal('group'), groupToken: z.string() }),
+  z.object({ kind: z.literal('league'), groupToken: z.string() }),
   z.object({ kind: z.literal('hidden-list-game'), groupToken: z.string(), token: z.string() }),
 ])
 const visibleSealedEvent = z.object({
@@ -163,7 +164,19 @@ const hiddenListGame = z.object({
   playing: z.array(z.string()),
   played: z.array(z.tuple([z.string(), z.string()])),
 })
+/** A league's sealed lists; absent from a module released before leagues sealed them. */
+const leagueGame = z
+  .object({
+    token: z.string(),
+    rosterLimit: z.number().int().nullable(),
+    pointsBudget: z.number().int().nullable(),
+    revealedAt: z.number().int().nullable(),
+    sealedIds: z.array(z.string()),
+  })
+  .nullish()
+  .transform((value) => value ?? null)
 const groupLeague = z.object({
+  game: leagueGame,
   seed: z.number().int(),
   createdAt: z.number().int(),
   publishedAt: z.number().int().nullable(),
@@ -193,7 +206,9 @@ const groupRecord = z.object({
   league: groupLeague.nullable(),
   battlesRevision: z.string(),
   pastLeagues: z.array(
-    groupLeague.pick({ publishedAt: true, players: true, fixtures: true }).extend({ id: z.string(), endedAt: z.number().int() }),
+    groupLeague
+      .pick({ publishedAt: true, players: true, fixtures: true, game: true })
+      .extend({ id: z.string(), endedAt: z.number().int() }),
   ),
 })
 const visibleGroup = z.object({

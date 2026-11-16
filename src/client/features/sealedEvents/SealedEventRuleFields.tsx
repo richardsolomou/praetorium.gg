@@ -70,6 +70,7 @@ export const GROUP_ROSTER_RULE: Partial<Record<TableShape, string>> = {
 export function SealedEventRuleFields({
   value,
   pairing,
+  duel = false,
   shapeLock,
   disabled,
   onChange,
@@ -77,6 +78,8 @@ export function SealedEventRuleFields({
   value: SealedEventRuleValue
   /** Whether the organizer may choose Swiss rounds, which a group's hidden-list game never plays. */
   pairing: boolean
+  /** Whether the format is fixed one on one, as a league's is, so only its points and house rules are chosen. */
+  duel?: boolean
   /** Why the format, size, pairing and a duel's own total can no longer change, while points per army and house rules still can. */
   shapeLock: string | null
   disabled: boolean
@@ -95,25 +98,27 @@ export function SealedEventRuleFields({
 
   return (
     <>
-      <Choice
-        label="Battle format"
-        value={value.format}
-        options={TABLE_SHAPES.map((shape) => ({ value: shape, ...TABLE_SHAPE_LABELS[shape] }))}
-        columns={3}
-        disabled={shapeDisabled}
-        onChange={(format) =>
-          onChange(
-            offeredAllowances({
-              ...value,
-              format,
-              rosterLimit:
-                format !== '1v1' && !SEALED_EVENT_TEAM_ROSTER_LIMITS.some((limit) => limit === value.rosterLimit)
-                  ? SEALED_EVENT_DEFAULT_ROSTER_LIMIT
-                  : value.rosterLimit,
-            }),
-          )
-        }
-      />
+      {duel ? null : (
+        <Choice
+          label="Battle format"
+          value={value.format}
+          options={TABLE_SHAPES.map((shape) => ({ value: shape, ...TABLE_SHAPE_LABELS[shape] }))}
+          columns={3}
+          disabled={shapeDisabled}
+          onChange={(format) =>
+            onChange(
+              offeredAllowances({
+                ...value,
+                format,
+                rosterLimit:
+                  format !== '1v1' && !SEALED_EVENT_TEAM_ROSTER_LIMITS.some((limit) => limit === value.rosterLimit)
+                    ? SEALED_EVENT_DEFAULT_ROSTER_LIMIT
+                    : value.rosterLimit,
+              }),
+            )
+          }
+        />
+      )}
       <div className="space-y-1.5">
         {limits.length > 1 ? (
           <>

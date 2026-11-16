@@ -64,7 +64,7 @@ export function withGroups<B extends RepositoryBase>(Base: B) {
     joinGroupLeague(token: string, userId: string, now: number) {
       return this.product.groupCommand(
         { op: 'league-join', token, userId, now },
-        z.enum(['joined', 'missing', 'published', 'forbidden', 'full']),
+        z.enum(['joined', 'missing', 'published', 'forbidden', 'full', 'seal']),
       )
     }
 
@@ -82,7 +82,7 @@ export function withGroups<B extends RepositoryBase>(Base: B) {
     publishGroupLeague(token: string, actorId: string, input: { seed: number; playerIds: readonly string[]; now: number }) {
       return this.product.groupCommand(
         { op: 'league-publish', token, actorId, ...input },
-        z.enum(['published', 'missing', 'forbidden', 'stale', 'too-few']),
+        z.enum(['published', 'missing', 'forbidden', 'stale', 'too-few', 'unsealed']),
       )
     }
 

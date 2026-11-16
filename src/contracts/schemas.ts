@@ -264,6 +264,14 @@ export const publishGroupLeagueSchema = z.object({
   seed: z.number().int().min(0).max(GROUP_LEAGUE_SEED_MAX),
   playerIds: z.array(id).max(GROUP_LEAGUE_PLAYERS_MAX),
 })
+export const startSealedGroupLeagueSchema = z
+  .object({
+    token,
+    rosterLimit: sealedEventRuleFields.rosterLimit,
+    pointsBudget: sealedEventRuleFields.pointsBudget,
+    allowances: sealedEventRuleFields.allowances,
+  })
+  .superRefine((value, context) => validateSealedEventRule({ ...value, format: '1v1' }, context))
 export const groupLeagueClockSchema = z.object({ token, minutes: clockLimitMinutes.nullable() })
 export const groupLeagueDeadlineSchema = z.object({
   token,
@@ -276,6 +284,8 @@ export const createSealedEventBattleSchema = z.object({
   allyId: id.optional(),
   secondOpponentId: id.optional(),
   missionPackId: id.nullable().default(null),
+  /** The league fixture a league's sealed lists play. */
+  fixtureKey: z.string().min(1).max(256).optional(),
 })
 const newBattlePlayers = {
   opponentId: id.optional(),

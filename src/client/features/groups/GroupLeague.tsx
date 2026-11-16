@@ -27,6 +27,7 @@ import { countLabel, formatList } from '../../text'
 import { useNow } from '../../useNow'
 import { SealedEventResults } from '../sealedEvents/SealedEventResults'
 import { useGroupRefresh, usePlayGroupGame, type Group } from './group'
+import { LeagueLists, leaguePoints, SealLeagueList, StartLeagueDialog } from './GroupLeagueLists'
 import { useMoment, inputMoment, momentFromInput } from '../../dates'
 import { DropdownMenuItem } from '../../components/Menu'
 import { nameColour } from '../../playerName'
@@ -90,6 +91,7 @@ function PastLeagues({ group }: { group: Group }) {
                 label={(player) => (player.withdrawn ? `${player.name} (withdrawn)` : player.name)}
               />
             ) : null}
+            {opened === past.id && table?.game ? <LeagueLists group={group} game={table.game} viewerId={null} /> : null}
           </li>
         ))}
       </ul>
@@ -98,18 +100,17 @@ function PastLeagues({ group }: { group: Group }) {
 }
 
 function NoLeague({ group }: { group: Group }) {
-  const refresh = useGroupRefresh(group.token)
-  const draw = useMutation({ mutationFn: () => drawGroupLeague({ data: { token: group.token } }), onSettled: refresh })
+  const [starting, setStarting] = useState(false)
   return (
     <section data-group-league>
       <SectionHeading title="League" />
       <p className="text-sm text-dim">
         Run a round robin: every member who joins plays every other member once. You review the draw before you publish it.
       </p>
-      <Button variant="outline" className="mt-3" disabled={draw.isPending} onClick={() => draw.mutate()}>
+      <Button variant="outline" className="mt-3" onClick={() => setStarting(true)}>
         <Trophy /> Start a league
       </Button>
-      {draw.error ? <Problem error={draw.error} className="mt-2" /> : null}
+      {starting ? <StartLeagueDialog group={group} open={starting} onClose={() => setStarting(false)} /> : null}
     </section>
   )
 }
@@ -137,8 +138,9 @@ function DraftLeague({ group, league, viewerId, member }: { group: Group; league
     <section data-group-league>
       <SectionHeading title="League" action={<span className="chip">Draft</span>} />
       <p className="text-sm text-dim">
+        {league.game ? `Lists are sealed to ${leaguePoints(league.game)} and revealed when the league is published. ` : null}
         {count
-          ? `${formatList(league.players.map((player) => player.name))} ${count === 1 ? 'has' : 'have'} joined. `
+          ? `${formatList(league.players.map((player) => player.name))} ${league.game ? (count === 1 ? 'has sealed a list' : 'have sealed lists') : count === 1 ? 'has joined' : 'have joined'}. `
           : 'Nobody has joined yet. '}
         {!league.organizer
           ? 'Everyone who joins before the organizers publish the league plays every other player once.'
@@ -147,11 +149,12 @@ function DraftLeague({ group, league, viewerId, member }: { group: Group; league
             : `${countLabel(rounds, 'round')}: each player meets every other once${count % 2 ? ' and sits out one round' : ''}. Only organizers see the draw until it’s published.`}
       </p>
       <div className="mt-3 flex flex-wrap gap-2">
+        {member && league.game ? <SealLeagueList group={group} game={league.game} sealed={joined} primary={!league.organizer} /> : null}
         {member && joined ? (
           <Button variant="outline" disabled={pending} onClick={() => leave.mutate()}>
             <LogOut /> Leave league
           </Button>
-        ) : member ? (
+        ) : member && !league.game ? (
           <Button variant={league.organizer ? 'outline' : 'default'} disabled={pending} onClick={() => join.mutate()}>
             <UserPlus /> Join league
           </Button>
@@ -178,7 +181,7 @@ function DraftLeague({ group, league, viewerId, member }: { group: Group; league
       <ConfirmDialog
         open={confirming === 'publish'}
         title="Publish the league?"
-        description={`${countLabel(count, 'player')}, ${countLabel(rounds, 'round')}. Nobody else can join, and the fixtures can’t be drawn again.`}
+        description={`${countLabel(count, 'player')}, ${countLabel(rounds, 'round')}. ${league.game ? 'Every sealed list is revealed. ' : ''}Nobody else can join, and the fixtures can’t be drawn again.`}
         cancel="Keep reviewing"
         confirm="Publish"
         pendingLabel="Publishing…"
@@ -190,7 +193,7 @@ function DraftLeague({ group, league, viewerId, member }: { group: Group; league
       <ConfirmDialog
         open={confirming === 'discard'}
         title="Discard this league?"
-        description="Everyone who joined comes off it. You can start another."
+        description={`Everyone who joined comes off it${league.game ? ', with their sealed lists' : ''}. You can start another.`}
         cancel="Keep"
         confirm="Discard"
         pendingLabel="Discarding…"
@@ -261,6 +264,13 @@ function PublishedLeague({ group, league, viewerId }: { group: Group; league: Le
         <LeagueClock group={group} league={league} />
         <Rounds group={group} league={league} viewerId={viewerId} now={now} />
       </div>
+      {league.game ? (
+        <div data-league-lists>
+          <SectionHeading title="Lists" />
+          <p className="text-sm text-dim">Sealed to {leaguePoints(league.game)}. Every game is played with these.</p>
+          <LeagueLists group={group} game={league.game} viewerId={viewerId} />
+        </div>
+      ) : null}
       <ConfirmDialog
         open={confirming === 'withdraw'}
         title="Withdraw from the league?"
@@ -293,7 +303,7 @@ function PublishedLeague({ group, league, viewerId }: { group: Group; league: Le
 
 /** Every round's fixtures with its deadline; a draft's are the organizer's preview. */
 function Rounds({ group, league, viewerId, now }: { group: Group; league: League; viewerId: string | null; now: number }) {
-  const play = usePlayGroupGame(group.token)
+  const play = usePlayGroupGame(group.token, league.game?.token)
   const moment = useMoment()
   const [editing, setEditing] = useState<number | null>(null)
   const names = new Map(league.players.map((player) => [player.userId, player]))

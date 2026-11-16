@@ -233,6 +233,8 @@ export class GroupResultsService {
       // The seed decides the draw, so only the organizers reviewing a draft are given it.
       seed: group.organizer && !published ? league.seed : null,
       organizer: group.organizer,
+      // A league that seals lists: its terms and who has sealed, with the lists themselves read from its game once revealed.
+      game: league.game,
       players: league.players,
       deadlines: league.deadlines,
       clockLimitMinutes: league.clockLimitMinutes,
@@ -276,6 +278,7 @@ export class GroupResultsService {
     })
     return {
       players: league.players,
+      game: league.game,
       table: swissStandings(
         league.players.map((player) => player.userId),
         swissMatches(fixtures, battles),

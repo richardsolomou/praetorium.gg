@@ -4,7 +4,9 @@ import type { LoadedRules } from '../../shared/rules'
 import { offlineContext, offlineIdentifier } from '../offlineContext'
 import { byId } from '../../core/collections'
 import type { Notice } from '../../core/notifications'
+import { randomInt } from 'node:crypto'
 import { randomId, randomToken } from 'ras-stack/auth'
+import { GROUP_LEAGUE_PLAYERS_MAX, GROUP_LEAGUE_SEED_MAX } from '../../core/groupLeague'
 import { pointsBudgetError, pointsLabel, type Roster } from '../../core/battle'
 import { commandSchema, parseRosterSnapshot, rosterSnapshotOrNull } from '../../core/commands'
 import {
@@ -93,6 +95,24 @@ export class SealedEventService {
     })
     if (result === 'forbidden') throw new Response('only the group’s organizers can start its hidden-list games', { status: 403 })
     return { token }
+  }
+
+  /** Starts a group's league whose players each seal one list to join, revealed when the league is published. */
+  async startSealedLeague(
+    ownerId: string,
+    { groupToken, ...input }: Pick<EventRuleInput, 'rosterLimit' | 'pointsBudget' | 'allowances'> & { groupToken: string },
+  ) {
+    const result = await this.repository.createHiddenListGame({
+      eventId: randomId(),
+      eventToken: randomToken(),
+      groupToken,
+      ownerId,
+      league: { id: randomId(), seed: randomInt(GROUP_LEAGUE_SEED_MAX + 1) },
+      ...eventRule({ ...input, format: '1v1' }),
+      now: this.clock(),
+    })
+    if (result === 'forbidden')
+      throw new Response('only the group’s organizers can start its league, and only one at a time', { status: 403 })
   }
 
   /** Saves a tournament's details when given, and the event's rule, schedule and chess clock, together or not at all. */
@@ -323,6 +343,7 @@ export class SealedEventService {
     if (result.outcome === 'invalid-warlords') throw new Response(sealedEventWarlordRefusal(snapshot), { status: 409 })
     if (result.outcome === 'disallowed') throw new Response(result.message, { status: 409 })
     if (result.outcome === 'past-deadline') throw new Response('the roster deadline has passed', { status: 409 })
+    if (result.outcome === 'full') throw new Response(`a league has at most ${GROUP_LEAGUE_PLAYERS_MAX} players`, { status: 409 })
     if (result.outcome === 'wrong-budget')
       throw new Response(`choose a roster built to this event’s ${result.pointsBudget.toLocaleString('en')} points`, { status: 409 })
     if (result.outcome === 'over-points')
@@ -597,6 +618,7 @@ export class SealedEventService {
     allyId?: string,
     secondOpponentId?: string,
     fieldAlerts: (roster: Roster, playerId: string) => Promise<Roster> = async (roster) => roster,
+    fixtureKey?: string,
   ) {
     const invited = [opponentId, allyId, secondOpponentId].filter((id): id is string => Boolean(id))
     if (new Set([userId, ...invited]).size !== invited.length + 1) throw new Response('choose different entrants', { status: 400 })
@@ -611,6 +633,7 @@ export class SealedEventService {
         userId,
         userIds: [userId, ...invited],
         now: offlineContext.getStore()?.createdAt ?? this.clock(),
+        fixtureKey,
       },
       async (sealedEvent) => {
         let prepared
