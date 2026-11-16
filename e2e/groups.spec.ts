@@ -414,7 +414,7 @@ test('an ended league stays readable under past leagues and another can start', 
   await owner.getByRole('alertdialog').getByRole('button', { name: 'End league' }).click()
   const past = owner.locator('[data-past-leagues]')
   await past.getByRole('button', { name: /\bended /i }).click()
-  await expect(past.getByText(names[2])).toBeVisible()
+  await expect(past.getByRole('table').getByText(names[2])).toBeVisible()
   await expect(owner.getByRole('button', { name: 'Start a league' })).toBeVisible()
   await owner.screenshot({ path: testInfo.outputPath('past-leagues.png'), fullPage: true })
   await Promise.all(contexts.map((context) => context.close()))
