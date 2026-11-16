@@ -1103,10 +1103,15 @@ function textRosterPick(
                 : null
         if (kindBodies) fieldedKinds.add(groupNamed!)
         // The official app names a model by its kind alone, as an "Eradicator" for the Eradicator with Multi-melta its wargear marks.
+        // A kind with no option here is the model the unit is sized by, as the Kroot Farstalker the Pech'ra carrier is one of.
         for (const variant of bodies >= choice.room ? choice.options : []) {
           const kind = normalized(variant.name.replace(/\s+(?:w\/|with)\s*.+$/i, ''))
           const base = choice.options.find((option) => option !== variant && normalized(option.name) === kind)
-          if (!base || asked!.get(variant.id) || !counts.get(variant.id)) continue
+          if (asked!.get(variant.id) || !counts.get(variant.id)) continue
+          if (!base) {
+            if (statedLines.has(kind)) asked!.set(variant.id, Math.min(counts.get(variant.id)!, statedLines.get(kind)!))
+            continue
+          }
           const moved = Math.min(counts.get(variant.id)!, asked!.get(base.id)!)
           asked!.set(base.id, asked!.get(base.id)! - moved)
           asked!.set(variant.id, moved)

@@ -158,6 +158,12 @@ describe.skipIf(!fs.existsSync(source))('genuine exports from other army builder
       'Terminator Assault Squad (380 points)\n  • 1x Terminator Sergeant\n    • 1x Storm Shield\n      1x Thunder Hammer\n  • 9x Terminator\n    • 5x Storm Shield\n      5x Thunder Hammer\n      4x Twin Lightning Claws',
     ],
     [
+      'its kind when its own model carries the wargear',
+      "T'au Empire",
+      'Kroot Hunting Pack',
+      'Kroot Farstalkers (75 points)\n  • 1x Kroot Kill-broker\n    • 1x Kroot pistol\n      1x Ritual blade\n      1x T’au-tech rifle\n  • 9x Kroot Farstalker\n    • 9x Close combat weapon\n      8x Farstalker firearm\n      9x Kroot pistol\n      1x Londaxi tribalest\n      1x Pech’ra\n  • 2x Kroot Hound\n    • 2x Ripping fangs',
+    ],
+    [
       'its loadout',
       'Deathwatch',
       'Black Spear Task Force',
