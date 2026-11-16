@@ -45,6 +45,7 @@ A list leaves the tab when a points or datasheet update means it no longer impor
 - **Warscribe** text, in its GW and Compact layouts and as a Discord code block. Its share links can't be read, so copy the text instead.
 - **40k.app** text and Markdown exports. Your notes on units become your private unit notes. Its list links can't be read, so copy the text instead.
 - Other WTC-style tournament text
+- **Mini Headquarters** lists, in its own layout and in the sectioned layout with a `### Détachements` heading that French events publish. Their French names match through the official app's translations, so a name Mini Headquarters translates its own way shows in the review to choose.
 - Links from other sites that send a list here, which open the same review
 
 If the lines above the units were cut from an official-app style export, the army is worked out from its units. Anything left above them shows in the review, and you choose the detachment in setup.

@@ -3,7 +3,7 @@ import { plainQuotes, printedNumber } from './text'
 import { defaultListName, type TextRoster, type TextRosterUnit, WTC_SECTION } from './textRoster'
 import { GAME_SIZES } from './battle'
 
-const unitHeader = /^(?:Char\d+:\s*)?(\d+)x\s+(.+?)\s+\(\d[\d,]*\s*pts?\)(?::\s*(.*))?$/i
+const unitHeader = /^(?:Char\d+:\s*)?(\d+)x\s+(.+?)\s+\(\d[\d,]*\s*(?:pts?|points?)\)(?::\s*(.*))?$/i
 const modelLine = /^[•*]\s*(\d+)x\s+([^:]+?)(?::\s*(.*))?$/
 
 /** A New Recruit link, which opens the list in New Recruit and carries none of it. */

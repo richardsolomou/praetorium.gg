@@ -17,6 +17,8 @@ import { fromIronbuiltText } from '../core/ironbuilt'
 import { fromWarscribeText } from '../core/warscribe'
 import { fromNewRecruitMarkdown } from '../core/newRecruitMarkdown'
 import { fromWtcText } from '../core/wtcText'
+import { fromMiniHeadquartersText } from '../core/miniHeadquarters'
+import { fromSectionedListText } from '../core/sectionedList'
 import type { RosterSource } from '../core/savedRoster'
 import { defaultSelection } from '../core/expand'
 import { buildUnit } from '../core/roster'
@@ -74,6 +76,8 @@ export type RosterTextFormat =
   | 'warscribe'
   | 'wtc'
   | '40k-app'
+  | 'miniheadquarters'
+  | 'sectioned-list'
 
 function parsedImport(file: string): { parsed: TextRoster; format: RosterTextFormat } | null {
   const praetorium = /Exported with Praetorium\.gg/i.test(file)
@@ -103,6 +107,10 @@ function parsedImport(file: string): { parsed: TextRoster; format: RosterTextFor
   if (warOrgan) return { parsed: warOrgan, format: 'warorgan' }
   const fortyKApp = fromFortyKAppText(file)
   if (fortyKApp) return { parsed: fortyKApp, format: '40k-app' }
+  const miniHeadquarters = fromMiniHeadquartersText(file)
+  if (miniHeadquarters) return { parsed: miniHeadquarters, format: 'miniheadquarters' }
+  const sectioned = fromSectionedListText(file)
+  if (sectioned) return { parsed: sectioned, format: 'sectioned-list' }
   const battleBase = fromBattleBaseText(file, { setupOptional: true })
   if (battleBase)
     return {
