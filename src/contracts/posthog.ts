@@ -34,8 +34,9 @@ export function postHogEnvironment(input: {
 /**
  * The project this build's browser bundle reports to, fixed when Vite builds it; the ingest proxy forwards to the same hosts.
  * A local dev server shares the production project token, so only a built bundle reports, keeping localhost sessions out.
+ * Scripts run under tsx, outside Vite, have no `import.meta.env` and report nothing.
  */
-export const bundledPostHog = import.meta.env.PROD
+export const bundledPostHog = import.meta.env?.PROD
   ? postHogEnvironment({
       projectToken: import.meta.env[projectTokenVariable],
       host: import.meta.env[hostVariable],

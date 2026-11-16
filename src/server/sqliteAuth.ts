@@ -53,7 +53,7 @@ type McpConnectionEvent = 'mcp_connected' | 'mcp_disconnected'
 
 export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret: string, options: AuthOptions) {
   // Better Auth falls back to a public default secret unless NODE_ENV is production, which a build does not guarantee.
-  if (import.meta.env.PROD && !secret.trim())
+  if (import.meta.env?.PROD && !secret.trim())
     throw new Error('AUTH_SECRET is required in production; generate one with `openssl rand -base64 32`')
   // Recorded only once the product data is gone, so a restore never replays a deletion that did not happen.
   const deleteUserData = async (userId: string) => {
