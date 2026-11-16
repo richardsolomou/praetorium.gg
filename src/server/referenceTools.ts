@@ -205,14 +205,15 @@ export function registerReferenceTools(server: AgentTools) {
     {
       title: 'Resolve a mission matchup',
       description:
-        'Resolves a pack and two force dispositions to the primary mission each side plays (its card: scoring awards, caps, actions, timing), the terrain layouts and deployments for the pairing, and canonical URLs and reference ids for each. Pass each value by id, slug, or name; an unknown or ambiguous value is refused with the valid options. Rules text is withheld; cards point to it through textSources.',
+        'Resolves two force dispositions, in the current mission pack or a named one, to the primary mission each side plays (its card: scoring awards, caps, actions, timing), the terrain layouts and deployments for the pairing, and canonical URLs and reference ids for each. Pass each value by id, slug, or name; an unknown or ambiguous value is refused with the valid options. Rules text is withheld; cards point to it through textSources.',
       inputSchema: {
         pack: z
           .string()
           .trim()
           .min(1)
           .max(REFERENCE_FILTER_MAX_LENGTH)
-          .describe('Mission pack id or name from list_reference missionPacks.'),
+          .optional()
+          .describe('Mission pack id or name from list_reference missionPacks. Omit it for the current pack.'),
         yourDisposition: z
           .string()
           .trim()

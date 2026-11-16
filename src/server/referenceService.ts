@@ -420,12 +420,16 @@ function namedIn<T extends Named>(candidates: readonly T[], value: string, label
   }
 }
 
-export type MissionMatchupQuery = { pack: string; yourDisposition: string; opponentDisposition: string }
+const currentPack = <T extends Named>(packs: readonly T[]): { found: T } | { error: string } =>
+  packs[0] ? { found: packs[0] } : { error: 'No mission pack is available.' }
+
+export type MissionMatchupQuery = { pack?: string; yourDisposition: string; opponentDisposition: string }
 
 /** Each side's primary mission for a pairing in a pack, and the terrain and deployments it is played on. */
 export function missionMatchup(corpus: ReferenceCorpus, rules: LoadedRules, query: MissionMatchupQuery) {
   const references = gameReferencesFor(rules)
-  const pack = namedIn(references.packs, query.pack, 'mission pack')
+  // The first pack is the current one, which a question that names none means.
+  const pack = query.pack ? namedIn(references.packs, query.pack, 'mission pack') : currentPack(references.packs)
   if ('error' in pack) return pack
   const you = namedIn(references.dispositions, query.yourDisposition, 'force disposition')
   if ('error' in you) return you

@@ -11,7 +11,7 @@ You need the player's list, the opponent's faction or list, and both Force dispo
 
 ## Plan it
 
-1. Call `get_mission_matchup` with the mission pack and both dispositions. Note what each side's primary mission scores and the deployment and terrain options.
+1. Call `get_mission_matchup` with both dispositions, adding the pack only when the player named one. Note what each side's primary mission scores and the deployment and terrain options.
 2. When you have both lists, call `compare_rosters` with the player's list attacking and again with the opponent's list attacking. Each call runs every unit against every unit, so don't call `simulate_combat` once per pairing. Use `bestAttackerOf` to see which of the player's units answers each enemy unit, and the reversed call's `bestTargetOf` to see what each enemy unit threatens. If a result is `partial`, use its finished pairings and say which are missing.
 3. Name the opponent's key threats: the two or three units most likely to hurt the player's list or hold objectives. When you only know their army, pick them from `list_units` for their faction and call `simulate_combat` for each threat against the player's units that could answer it, and for the threat attacking the units it is most likely to reach.
 4. To look closer at one pairing, such as with a stratagem, a charge, cover or losses, call `simulate_combat`. Field a saved unit with its pick's `entryId`, `models`, `choices` and `spreads`, its attached picks, and each side's detachment.

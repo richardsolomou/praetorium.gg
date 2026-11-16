@@ -5,8 +5,8 @@ description: Explain which primary missions, deployments and terrain two Warhamm
 
 # Explain a mission matchup
 
-1. You need a mission pack and both players' force dispositions. If the player names a detachment instead, find its disposition with `search_reference` (kind `disposition`). Ask for anything you can't find.
-2. Call `get_mission_matchup` with the pack and both dispositions. If it refuses a name, use one of the options it lists.
+1. You need both players' force dispositions; the mission pack defaults to the current one, so name it only when the player asks about another. If the player names a detachment instead, find its disposition with `search_reference` (kind `disposition`). Ask for anything you can't find.
+2. Call `get_mission_matchup` with both dispositions, and the pack only when one was named. If it refuses a name, use one of the options it lists.
 3. Report each side's primary mission with its scoring caps, the deployment and terrain options for the pairing, and the matchup link.
 4. For a mission's scoring or actions, read its record with `get_reference_record` and fetch its `textSources` if the wording matters.
 
