@@ -10,12 +10,6 @@
   },
   "overrides": [
     {
-      "files": ["src/client/useAuthAction.test.ts", "src/client/postHogIdentity.test.tsx"],
-      "rules": {
-        "typescript/no-deprecated": "off"
-      }
-    },
-    {
       "files": ["scripts/**"],
       "rules": {
         "typescript/no-unsafe-type-assertion": "off"
