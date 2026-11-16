@@ -24,6 +24,12 @@ export async function importClosures(directory: string, entries: readonly string
     oxc: false,
     plugins: [
       {
+        // Stylesheets' `@import 'tailwindcss'` needs Tailwind's own plugin, and no stylesheet imports repository files.
+        name: 'empty-stylesheets',
+        enforce: 'pre',
+        load: (id) => (/\.css(?:$|\?)/.test(id) ? '' : undefined),
+      },
+      {
         name: 'import-closures',
         moduleParsed(info) {
           if (!info.id.startsWith(root)) return
