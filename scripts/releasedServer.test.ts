@@ -95,9 +95,9 @@ it('the preview seed calls every procedure it can reach', { timeout: 120_000 }, 
 /** Runs a checkout's preview seed against this module and returns the procedures and reducers it called. */
 async function seedThrough(checkoutPath: string) {
   const checkout = path.resolve(checkoutPath)
-  // A bare release checkout has no packages or generated config of its own, so it borrows these.
-  for (const name of ['node_modules', '.ras'])
-    if (!existsSync(path.join(checkout, name))) await symlink(path.resolve(name), path.join(checkout, name), 'dir')
+  // A bare release checkout has no packages of its own, so it borrows these.
+  if (!existsSync(path.join(checkout, 'node_modules')))
+    await symlink(path.resolve('node_modules'), path.join(checkout, 'node_modules'), 'dir')
 
   const { called, request } = moduleFetch(env, 'http://127.0.0.1:8799/api/auth')
   // The released `SpacetimeOperator` calls the module over HTTP; this answers those calls from the module in memory.

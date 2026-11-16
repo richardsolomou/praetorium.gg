@@ -1,7 +1,7 @@
 import { offlineIdentifier } from '../offlineContext'
 import type { RepositoryPort } from '../spacetimeRepository'
 import { PLAYER_SEARCH_MIN_LENGTH } from '../../core/playerSearch'
-import { randomToken } from 'ras-stack/auth'
+import { randomToken } from '../random'
 import type { Notifier } from '../pushNotifier'
 
 export class SocialService {

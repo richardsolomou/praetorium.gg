@@ -1,6 +1,7 @@
 import { createMiddleware, createStart } from '@tanstack/react-start'
-import { canonicalHostMiddleware, serverFunctionIdentityMiddleware } from 'ras-stack/tanstack/middleware'
-import { reportsToTelemetry, serverTelemetry } from './adapters/posthog'
+import { reportsToTelemetry } from './adapters/posthog'
+import { serverTelemetry } from './server/serverTelemetry'
+import { canonicalHost, csrf, securityHeadersMiddleware, serverFunctionIdentity, staleServerFunctions } from './server/middleware'
 import { recordRequest, routePatterns } from './requestTiming'
 import { crawlerRequestEvent } from './server/crawlerRequests'
 import { publicPageLoad, signedSessionCookie } from './server/publicPageLoad'
@@ -34,10 +35,7 @@ const crawlerRequestMiddleware = createMiddleware({ type: 'request' }).server(as
   const startedAt = performance.now()
   const result = await next()
   const event = crawlerRequestEvent(request, result.response.status, performance.now() - startedAt)
-  if (event)
-    void serverTelemetry()
-      .capture(event.distinctId, '$http_log', event.properties)
-      .catch((error: unknown) => console.error({ event: 'telemetry_failed', error }))
+  if (event) serverTelemetry().posthog.capture({ distinctId: event.distinctId, event: '$http_log', properties: event.properties })
   return result
 })
 
@@ -61,13 +59,13 @@ const publicPageLoadMiddleware = createMiddleware({ type: 'request' }).server(as
 export const startInstance = createStart(() => ({
   serverFns: { fetch: (input, init) => serverFunctionFetch(input, init) },
   // Names each server function on its trace span and request metrics.
-  functionMiddleware: [serverFunctionIdentityMiddleware(), pendingWriteMiddleware],
+  functionMiddleware: [serverFunctionIdentity, pendingWriteMiddleware],
   requestMiddleware: [
     requestTimingMiddleware,
-    canonicalHostMiddleware(() => ({
-      canonicalUrl: process.env.APP_URL,
-      pathsServedOnAnyHost: new Set(['/api/health']),
-    })),
+    canonicalHost,
+    securityHeadersMiddleware,
+    csrf,
+    staleServerFunctions,
     crawlerRequestMiddleware,
     sharedPageCacheMiddleware,
     publicPageLoadMiddleware,

@@ -1,15 +1,16 @@
 import { offlineAppPlugin } from './scripts/lib/offlineAppPlugin.ts'
 import { recentChangelogPlugin } from './scripts/lib/recentChangelogPlugin.ts'
-import { loadEnv } from 'vite'
+import tailwindcss from '@tailwindcss/vite'
+import { tanstackStart } from '@tanstack/react-start/plugin/vite'
+import viteReact from '@vitejs/plugin-react'
+import { nitro } from 'nitro/vite'
+import { defineConfig, loadEnv, type UserConfig } from 'vite'
 import path from 'node:path'
-import { defineViteConfig } from 'ras-stack/vite'
-import { postHogEnvironment } from 'ras-stack/posthog'
-import { postHogIngestProxy } from 'ras-stack/posthog/proxy'
-export default defineViteConfig(({ mode }) => {
+import { postHogSourceMaps } from './scripts/posthogSourceMaps.ts'
+export default defineConfig(({ mode }): UserConfig => {
   const env = loadEnv(mode, process.cwd(), '')
   process.env = { ...env, ...process.env }
-  const posthog = postHogEnvironment({ projectToken: env.VITE_POSTHOG_PROJECT_TOKEN, host: env.VITE_POSTHOG_HOST })
-  const proxy = posthog ? postHogIngestProxy(posthog) : undefined
+  const sourceMaps = postHogSourceMaps(process.env)
   return {
     ...(process.env.LOCAL_BUILD_DIR ? { cacheDir: path.join(process.env.LOCAL_BUILD_DIR, 'vite-cache') } : {}),
     // The Node preview renderer inlines its WebAssembly, which only an asset type accepts.
@@ -22,7 +23,7 @@ export default defineViteConfig(({ mode }) => {
             groups: [
               {
                 name: 'telemetry',
-                test: (id) => id.includes('posthog-js') || id.includes('@posthog') || /ras-stack.*posthog/.test(id),
+                test: (id) => id.includes('posthog-js') || id.includes('@posthog'),
               },
             ],
           },
@@ -35,16 +36,15 @@ export default defineViteConfig(({ mode }) => {
     server: {
       port: 3000,
       strictPort: true,
-      proxy: proxy?.vite,
       ...(process.env.LOCAL_VITE_ORIGIN ? { ws: { clientPort: Number(process.env.LOCAL_APP_PORT ?? 3000) } } : {}),
     },
-    plugins: [recentChangelogPlugin(), offlineAppPlugin()],
-    ras: {
-      start: { serverFns: { disableCsrfMiddlewareWarning: true } },
-      posthog: {
-        sourcemaps: { releaseName: 'praetorium-web', releaseVersion: env.GITHUB_SHA, releaseMode: 'symbol-set' },
-      },
-      nitro: {
+    resolve: { alias: { '@': path.join(import.meta.dirname, 'src') } },
+    plugins: [
+      tanstackStart(),
+      nitro({
+        preset: 'node-server',
+        // The server bundle inlines React Query, whose `'use client'` directives mean nothing on the server.
+        rolldownConfig: { checks: { moduleLevelDirective: false } },
         ...(process.env.LOCAL_BUILD_DIR
           ? {
               // Coverage runs map executed server code back to source to choose which specs a change needs.
@@ -60,28 +60,21 @@ export default defineViteConfig(({ mode }) => {
         plugins: [
           path.resolve(import.meta.dirname, 'src/server/warmPlugin.ts'),
           path.resolve(import.meta.dirname, 'src/server/cspPlugin.ts'),
+          path.resolve(import.meta.dirname, 'src/server/shutdown.ts'),
         ],
         routeRules: {
-          ...proxy?.nitro,
           '/reference-worker.js': { headers: { 'Cache-Control': 'no-store' } },
           '/notice-worker.js': { headers: { 'Cache-Control': 'no-store' } },
           '/offline-app-version.json': { headers: { 'Cache-Control': 'no-store' } },
           '/offline-reference-version.json': { headers: { 'Cache-Control': 'no-store' } },
-          '/**': {
-            headers: {
-              // img-src widens further at runtime, in cspPlugin.ts: this base list is
-              // baked in at build time, but where pictures are served from is a
-              // per-deployment, runtime setting.
-              'Content-Security-Policy':
-                "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://cdn.jsdelivr.net https://us-media.posthog.com; font-src 'self' data:; connect-src 'self' https://raw.githubusercontent.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'",
-              'Referrer-Policy': 'no-referrer',
-              'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=()',
-              'X-Content-Type-Options': 'nosniff',
-              'X-Frame-Options': 'DENY',
-            },
-          },
         },
-      },
-    },
+      }),
+      viteReact(),
+      tailwindcss(),
+      sourceMaps?.client,
+      recentChangelogPlugin(),
+      offlineAppPlugin(),
+    ],
+    ...(sourceMaps ? { worker: { plugins: () => [sourceMaps.worker()] } } : {}),
   }
 })

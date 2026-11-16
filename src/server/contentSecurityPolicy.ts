@@ -1,14 +1,24 @@
-export function contentSecurityPolicy(policy: string, imageOrigin: string, hosted: boolean): string {
-  let updated = policy
-  if (/\bworker-src\b/.test(updated)) {
-    updated = updated.replace(/(worker-src[^;]*)/, (directive) => (directive.includes('blob:') ? directive : `${directive} blob:`))
-  } else updated += "; worker-src 'self' blob:"
-  if (!updated.includes(imageOrigin)) updated = updated.replace(/(img-src[^;]*)/, `$1 ${imageOrigin}`)
-  // SpacetimeDB 2.14 generates binary codecs with Function() in the browser.
-  if (hosted) {
-    updated = updated.replace(/(script-src[^;]*)/, (directive) =>
-      directive.includes("'unsafe-eval'") ? directive : `${directive} 'unsafe-eval'`,
-    )
-  }
-  return updated
+/**
+ * The Content Security Policy's sources by directive, which `middleware.ts` turns into the header. Add the sources the
+ * application's own features load from here, so recipe updates to the middleware never conflict with them.
+ *
+ * `cspPlugin.ts` widens the header at runtime with what each deployment configures: where pictures are served from,
+ * and `'unsafe-eval'` for SpacetimeDB's binary codecs when it is hosted.
+ */
+export const contentSecurityPolicy: Record<string, string[]> = {
+  'default-src': ["'self'"],
+  // Start streams its hydration data as inline scripts, and the root route adds chunk recovery.
+  'script-src': ["'self'", "'unsafe-inline'"],
+  'style-src': ["'self'", "'unsafe-inline'"],
+  // Faction icons, and images in support replies.
+  'img-src': ["'self'", 'data:', 'https://cdn.jsdelivr.net', 'https://us-media.posthog.com'],
+  'font-src': ["'self'", 'data:'],
+  // Rules text loads from its pinned upstream files.
+  'connect-src': ["'self'", 'https://raw.githubusercontent.com'],
+  // Combat calculations run in bundled workers.
+  'worker-src': ["'self'", 'blob:'],
+  'object-src': ["'none'"],
+  'base-uri': ["'self'"],
+  'form-action': ["'self'"],
+  'frame-ancestors': ["'none'"],
 }

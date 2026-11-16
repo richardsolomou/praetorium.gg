@@ -85,3 +85,9 @@ it('fails on an import it cannot resolve rather than cutting the graph short', a
   write('scripts/server.ts', "import './missing.ts'\n")
   await expect(harnessFiles(root)).rejects.toThrow()
 })
+
+it('lists a stylesheet whose imports only Tailwind resolves', async () => {
+  write('scripts/server.ts', "import '../src/styles.css?url'\n")
+  write('src/styles.css', "@import 'tailwindcss' source('./');\n")
+  expect(await harnessFiles(root, [])).toContain('src/styles.css')
+})

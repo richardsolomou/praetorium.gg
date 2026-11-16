@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.261.1 (2026-11-16)
+
+### Patch Changes
+
+- 73eb265: When Praetorium updates while you have it open, you now see a notice asking you to refresh instead of the page failing.
+
 ## 0.261.0 (2026-11-16)
 
 ### Minor Changes

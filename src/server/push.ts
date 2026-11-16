@@ -6,7 +6,8 @@
  */
 import pRetry from 'p-retry'
 import { chunks } from '../core/collections'
-import { countServerMetric, reportServerFailure, requestOutcome } from './posthog'
+import { requestOutcome } from '../adapters/posthog'
+import { countServerMetric, reportServerFailure } from './serverTelemetry'
 
 /** `noticeId` is the stored notice the message is about, so the app can clear it once it's read anywhere. */
 export type PushMessage = { to: string; title: string; body: string; path: string; noticeId?: string }

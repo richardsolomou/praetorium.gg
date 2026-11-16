@@ -9,7 +9,7 @@ import {
   updateAnchor,
 } from '../core/catalogueHistory'
 import { compareText } from '../core/text'
-import { reportServerFailure } from '../adapters/posthog'
+import { reportServerFailure } from './serverTelemetry'
 
 /** Where a catalogue directory carries its history, packed and hashed with everything else. */
 export const CATALOGUE_HISTORY_FILE = 'changes/history.json'

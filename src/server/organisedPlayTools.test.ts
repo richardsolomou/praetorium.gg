@@ -19,7 +19,7 @@ vi.mock('./app', () => ({
         sealedEventBattles: async () => ({ battles: [], nextCursor: null }),
       },
     },
-    telemetry: { capture: vi.fn() },
+    telemetry: { posthog: { capture: vi.fn() } },
     rulesFor: async () => null,
     battleFactionsFor: async () => [],
   }),

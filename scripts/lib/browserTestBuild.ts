@@ -16,7 +16,6 @@ const inputs = [
   'package.json',
   'pnpm-lock.yaml',
   'pnpm-workspace.yaml',
-  'ras.config.ts',
   'tsconfig.json',
   'vite.config.ts',
   'vite.seed.config.ts',

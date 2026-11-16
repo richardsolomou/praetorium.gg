@@ -243,7 +243,7 @@ export const joinBattle = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       const result = await app().service.joinBattle(data.invite, userId, data.side)
-      if (result.joined) await captureMutation(userId, 'battle_joined', { battle_id: result.battleId })
+      if (result.joined) captureMutation(userId, 'battle_joined', { battle_id: result.battleId })
       return { token: result.token }
     }),
   )

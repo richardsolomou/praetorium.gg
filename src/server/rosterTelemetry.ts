@@ -11,7 +11,7 @@ export async function captureRosterCreated(
   data: z.infer<typeof saveRosterSchema>,
   { delivery = 'direct', ...extra }: { delivery?: 'sync' | 'direct'; variant?: boolean; played?: boolean } = {},
 ) {
-  await captureWrite(userId, 'roster_created', delivery, {
+  captureWrite(userId, 'roster_created', delivery, {
     ...rosterTelemetryProperties(data, await instance.catalogueFor(data.catalogueId), await instance.rulesFor(data.catalogueId)),
     unit_count: listUnitCount(data.picks),
     source: data.source,

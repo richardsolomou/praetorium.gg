@@ -1,6 +1,6 @@
 import path from 'node:path'
 import { Worker } from 'node:worker_threads'
-import { globalSingleton } from 'ras-stack/server'
+import { globalSingleton } from '../lib/globalSingleton'
 import type { CombatAnswer, CombatRequest } from '../core/combatMatchup'
 import type { LoadoutCandidates, LoadoutOptimization, LoadoutOptimizationMode, LoadoutScoring } from '../core/combatLoadouts'
 import { CombatAnswerCache } from '../shared/combatAnswerCache'

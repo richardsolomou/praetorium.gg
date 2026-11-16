@@ -1,7 +1,7 @@
 import { productActions, signedInAction } from '../productActions'
 import { groupCollection } from '../../core/collection'
 import { createServerFn } from '@tanstack/react-start'
-import { randomToken } from 'ras-stack/auth'
+import { randomToken } from '../random'
 import { getRequest, getRequestHeaders } from '@tanstack/react-start/server'
 import {
   collectionPhotoIdSchema,
@@ -11,7 +11,7 @@ import {
 } from '../../contracts/collection'
 import { collectionPhotoReportEmail } from '../collectionPhotos'
 import { COLLECTION_PHOTO_QUESTIONS, recordScreening } from '../photoScreening'
-import { reportServerFailure } from '../../adapters/posthog'
+import { reportServerFailure } from '../serverTelemetry'
 import { app } from '../app'
 import { captureMutation } from '../mutationTelemetry'
 import { configuredAuthProviders, githubLinkConfigured } from '../authProviders'
@@ -103,7 +103,7 @@ export const replaceCalendarFeed = createServerFn({ method: 'POST' }).handler(()
     const replaced = (await app().repository.calendarFeedByUser(player.id)) !== null
     const token = randomToken()
     await app().repository.replaceCalendarFeed(player.id, token, Date.now())
-    await captureMutation(player.id, 'calendar_feed_created', { replaced })
+    captureMutation(player.id, 'calendar_feed_created', { replaced })
     return token
   }),
 )
@@ -111,7 +111,7 @@ export const replaceCalendarFeed = createServerFn({ method: 'POST' }).handler(()
 export const removeCalendarFeed = createServerFn({ method: 'POST' }).handler(() =>
   mutationRpc(async () => {
     const userId = await requireUserId()
-    if (await app().repository.removeCalendarFeed(userId)) await captureMutation(userId, 'calendar_feed_removed')
+    if (await app().repository.removeCalendarFeed(userId)) captureMutation(userId, 'calendar_feed_removed')
     return null
   }),
 )
@@ -160,7 +160,11 @@ export const checkGithubSponsorship = createServerFn({ method: 'POST' }).handler
       throw new Response('GitHub could not be reached', { status: 502 })
     }
     const sponsorship = await instance.repository.githubSponsorship(userId)
-    await instance.telemetry.capture(userId, 'github_sponsorship_checked', { sponsorship: sponsorship ?? 'none' })
+    instance.telemetry.posthog.capture({
+      distinctId: userId,
+      event: 'github_sponsorship_checked',
+      properties: { sponsorship: sponsorship ?? 'none' },
+    })
     return sponsorship
   }),
 )
@@ -174,7 +178,7 @@ export const setOwnPassword = createServerFn({ method: 'POST' })
       if (linked.some((entry) => entry.providerId === 'credential'))
         throw new Response('this account already has a password', { status: 409 })
       await app().auth.api.setPassword({ body: { newPassword: data.password }, headers: getRequestHeaders() })
-      await captureMutation(userId, 'sign_in_method_added', { provider: 'password' })
+      captureMutation(userId, 'sign_in_method_added', { provider: 'password' })
       return null
     }),
   )
@@ -192,7 +196,7 @@ export const unlinkOwnAccount = createServerFn({ method: 'POST' })
       } else if (status === 'last-method') {
         throw new Response('another available sign-in method must stay linked', { status: 409 })
       }
-      await captureMutation(userId, 'sign_in_method_removed', { provider: data.provider })
+      captureMutation(userId, 'sign_in_method_removed', { provider: data.provider })
       return null
     }),
   )
@@ -296,7 +300,7 @@ export const importCollection = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       const result = await app().service.rosterService.importCollection(userId, data.rows, data.replace)
-      await captureMutation(userId, 'player_collection_imported', { rows: data.rows.length, replace: data.replace, ...result })
+      captureMutation(userId, 'player_collection_imported', { rows: data.rows.length, replace: data.replace, ...result })
       return result
     }),
   )
@@ -320,9 +324,9 @@ export const uploadCollectionPhoto = createServerFn({ method: 'POST' })
       const limited = photoRateLimit(getRequest())
       if (limited) throw limited
       const photoId = await app().collectionPhotos.upload(userId, data.entryId, data.image, data.shows)
-      await captureMutation(userId, 'collection_photo_uploaded')
+      captureMutation(userId, 'collection_photo_uploaded')
       void recordScreening(app().photoScreening, data.image, COLLECTION_PHOTO_QUESTIONS, (properties) =>
-        app().telemetry.capture(userId, 'collection_photo_screened', properties),
+        app().telemetry.posthog.capture({ distinctId: userId, event: 'collection_photo_screened', properties: properties }),
       )
       return photoId
     }),
@@ -334,7 +338,7 @@ export const removeCollectionPhoto = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       await app().collectionPhotos.remove(userId, data.photoId)
-      await captureMutation(userId, 'collection_photo_removed')
+      captureMutation(userId, 'collection_photo_removed')
       return null
     }),
   )
@@ -349,7 +353,7 @@ export const likeCollectionPhoto = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       await app().collectionPhotos.like(userId, data.photoId, data.liked)
-      await captureMutation(userId, 'collection_photo_liked', { liked: data.liked })
+      captureMutation(userId, 'collection_photo_liked', { liked: data.liked })
       return null
     }),
   )
@@ -373,7 +377,7 @@ export const reportCollectionPhoto = createServerFn({ method: 'POST' })
         const admins = await app().repository.admins()
         await Promise.all(admins.map(({ id, email: to }) => delivery.send({ to, distinctId: id, ...email })))
       }
-      await captureMutation(reporter.id, 'collection_photo_reported')
+      captureMutation(reporter.id, 'collection_photo_reported')
       return null
     }),
   )

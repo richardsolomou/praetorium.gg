@@ -1,7 +1,7 @@
 import type { z } from 'zod'
 import type { createBattleSchema, createSealedEventSchema } from '../contracts/schemas'
 import { AsyncLocalStorage } from 'node:async_hooks'
-import { globalSingleton } from 'ras-stack/server'
+import { globalSingleton } from '../lib/globalSingleton'
 import { app } from './app'
 import { offlineContext } from './offlineContext'
 
@@ -9,7 +9,11 @@ import { offlineContext } from './offlineContext'
 export const agentWrites = globalSingleton('praetorium.agent-writes', () => new AsyncLocalStorage<true>())
 
 export function captureWrite(userId: string, event: string, delivery: 'sync' | 'direct', properties?: Record<string, unknown>) {
-  return app().telemetry.capture(userId, event, { ...properties, delivery, ...(agentWrites.getStore() ? { via: 'agent' } : {}) })
+  return app().telemetry.posthog.capture({
+    distinctId: userId,
+    event: event,
+    properties: { ...properties, delivery, ...(agentWrites.getStore() ? { via: 'agent' } : {}) },
+  })
 }
 
 export function captureMutation(userId: string, event: string, properties?: Record<string, unknown>) {
@@ -31,7 +35,7 @@ export function captureBattleCreated(userId: string, data: z.output<typeof creat
 /** Starts a draft, or hands back the creator's untouched one; only a new draft is counted. */
 export async function startDraftBattle(userId: string, missionPackId: string | null) {
   const result = await app().service.startDraft(userId, missionPackId)
-  if (!result.reused) await captureMutation(userId, 'battle_draft_started', { battle_id: result.battleId })
+  if (!result.reused) captureMutation(userId, 'battle_draft_started', { battle_id: result.battleId })
   return result
 }
 

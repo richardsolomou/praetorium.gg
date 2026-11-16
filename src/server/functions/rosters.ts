@@ -66,9 +66,13 @@ export const priceRoster = createServerFn({ method: 'POST' })
       const result = calculateRosterPrice(data, loaded, rules)
       const userId = await currentUserId()
       if (userId && Math.random() < ROSTER_PRICED_SAMPLE_RATE)
-        await instance.telemetry.capture(userId, 'roster_priced', {
-          ...rosterPricedProperties(data, loaded, rules, result),
-          duration_ms: Math.round(performance.now() - startedAt),
+        instance.telemetry.posthog.capture({
+          distinctId: userId,
+          event: 'roster_priced',
+          properties: {
+            ...rosterPricedProperties(data, loaded, rules, result),
+            duration_ms: Math.round(performance.now() - startedAt),
+          },
         })
       return result
     }),
@@ -451,7 +455,7 @@ export const lendRoster = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       await app().service.rosterService.lendRoster(userId, data.id, data.borrowerId)
-      await captureMutation(userId, 'roster_lent')
+      captureMutation(userId, 'roster_lent')
       return null
     }),
   )
@@ -463,7 +467,7 @@ export const endRosterLoan = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       await app().service.rosterService.endRosterLoan(userId, data.id, data.borrowerId)
-      await captureMutation(userId, 'roster_loan_ended', { by: userId === data.borrowerId ? 'borrower' : 'owner' })
+      captureMutation(userId, 'roster_loan_ended', { by: userId === data.borrowerId ? 'borrower' : 'owner' })
       return null
     }),
   )
@@ -498,7 +502,7 @@ export const setRosterLocked = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       const saved = await app().service.rosterService.setRosterLocked(userId, data.id, data.locked)
-      await captureMutation(userId, 'roster_lock_updated', { locked: data.locked })
+      captureMutation(userId, 'roster_lock_updated', { locked: data.locked })
       return saved
     }),
   )
@@ -517,7 +521,7 @@ export const splitRosterVariant = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       const saved = await app().service.rosterService.splitRosterVariant(userId, data.id)
-      await captureMutation(userId, 'roster_variant_split')
+      captureMutation(userId, 'roster_variant_split')
       return saved
     }),
   )
@@ -529,7 +533,7 @@ export const changeRosters = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       const saved = await app().service.rosterService.changeRosters(userId, data.ids, data.action)
-      await captureMutation(userId, 'rosters_changed', { action: data.action, count: data.ids.length })
+      captureMutation(userId, 'rosters_changed', { action: data.action, count: data.ids.length })
       return saved
     }),
   )
@@ -547,19 +551,23 @@ export const importRoster = createServerFn({ method: 'POST' })
       const { result, loaded, rules } = await importRosterInput(data.file)
       const userId = await currentUserId()
       if (userId) {
-        await instance.telemetry.capture(userId, 'roster_imported', {
-          ...(result.catalogueId && typeof result.limit === 'number' && loaded
-            ? rosterTelemetryProperties(
-                { catalogueId: result.catalogueId, detachmentIds: result.detachmentIds, limit: result.limit },
-                loaded,
-                rules,
-              )
-            : {}),
-          unit_count: result.units.length,
-          source: result.format,
-          input: isRosterExchangeCode(data.file) ? 'exchange-code' : 'text',
-          missing_count: result.unknown.length,
-          unplaced_count: result.unplaced.length,
+        instance.telemetry.posthog.capture({
+          distinctId: userId,
+          event: 'roster_imported',
+          properties: {
+            ...(result.catalogueId && typeof result.limit === 'number' && loaded
+              ? rosterTelemetryProperties(
+                  { catalogueId: result.catalogueId, detachmentIds: result.detachmentIds, limit: result.limit },
+                  loaded,
+                  rules,
+                )
+              : {}),
+            unit_count: result.units.length,
+            source: result.format,
+            input: isRosterExchangeCode(data.file) ? 'exchange-code' : 'text',
+            missing_count: result.unknown.length,
+            unplaced_count: result.unplaced.length,
+          },
         })
       }
       return result
@@ -583,9 +591,13 @@ export const exportRoster = createServerFn({ method: 'POST' })
       )
       const userId = await currentUserId()
       if (userId)
-        await instance.telemetry.capture(userId, 'roster_exported', {
-          ...rosterTelemetryProperties(data, loaded, rules),
-          unit_count: data.units.length,
+        instance.telemetry.posthog.capture({
+          distinctId: userId,
+          event: 'roster_exported',
+          properties: {
+            ...rosterTelemetryProperties(data, loaded, rules),
+            unit_count: data.units.length,
+          },
         })
       return result
     }),
@@ -602,7 +614,7 @@ export const saveUnitLoadout = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       await app().service.rosterService.saveUnitLoadout(userId, data)
-      await captureMutation(userId, 'unit_loadout_saved')
+      captureMutation(userId, 'unit_loadout_saved')
       return null
     }),
   )
@@ -613,7 +625,7 @@ export const deleteUnitLoadout = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       await app().service.rosterService.deleteUnitLoadout(userId, data.id)
-      await captureMutation(userId, 'unit_loadout_deleted')
+      captureMutation(userId, 'unit_loadout_deleted')
       return null
     }),
   )
@@ -624,7 +636,7 @@ export const renameUnitLoadout = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       await app().service.rosterService.renameUnitLoadout(userId, data.id, data.name)
-      await captureMutation(userId, 'unit_loadout_renamed')
+      captureMutation(userId, 'unit_loadout_renamed')
       return null
     }),
   )

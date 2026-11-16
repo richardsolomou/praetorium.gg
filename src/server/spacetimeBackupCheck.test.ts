@@ -1,9 +1,9 @@
 import { beforeEach, expect, test, vi } from 'vitest'
-import { reportServerFailure } from '../adapters/posthog'
+import { reportServerFailure } from './serverTelemetry'
 import { checkSpacetimeBackup } from './spacetimeBackupCheck'
 
-vi.mock('../adapters/posthog', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../adapters/posthog')>()),
+vi.mock('./serverTelemetry', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./serverTelemetry')>()),
   reportServerFailure: vi.fn(),
 }))
 

@@ -47,5 +47,5 @@ jobs:
           base="$RUNNER_TEMP/startup-base"
           # As in `ci-scope.yml`, the merge commit's first parent is the base it merged into.
           git worktree add --detach "$base" "$(git rev-parse HEAD^1)"
-          (cd "$base" && pnpm install --frozen-lockfile && pnpm exec ras build)
+          (cd "$base" && pnpm install --frozen-lockfile && pnpm exec vite build)
           node scripts/startupBundle.ts .output "$base/.output"

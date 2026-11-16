@@ -21,7 +21,7 @@ import {
 } from '../shared/battleRules'
 import { battleFoldArgs, visibleBattleLog } from '../core/offlineBattle'
 import type { BattleWorkspace } from '../contracts/battleWorkspace'
-import { randomId, randomToken } from 'ras-stack/auth'
+import { randomId, randomToken } from './random'
 import type { AdminBattle } from '../admin'
 import {
   battleCapacity,

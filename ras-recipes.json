@@ -1,0 +1,263 @@
+{
+  "source": "https://github.com/richardsolomou/ras-stack",
+  "recipes": {
+    "auth": {
+      "version": 2,
+      "commit": "0184a1e1bc4ababa9b89b4455014ba13be436df2",
+      "files": {
+        "src/client/auth.ts": "src/client/authClient.ts",
+        "src/client/authFailures.test.ts": "src/client/authFailures.test.ts",
+        "src/client/authFailures.ts": "src/client/authFailures.ts",
+        "src/client/localRedirect.test.ts": "src/client/localRedirect.test.ts",
+        "src/client/localRedirect.ts": "src/client/localRedirect.ts",
+        "src/client/useAuthAction.test.ts": "src/client/useAuthAction.test.ts",
+        "src/client/useAuthAction.ts": "src/client/useAuthAction.ts",
+        "src/db/authSchema.ts": "src/db/authSchema.ts",
+        "src/routes/api/auth.$.ts": "src/routes/api/auth.$.ts",
+        "src/server/auth.test.ts": null,
+        "src/server/auth.ts": "src/server/sqliteAuth.ts",
+        "src/server/random.test.ts": "src/server/random.test.ts",
+        "src/server/random.ts": "src/server/random.ts",
+        "src/server/session.ts": "src/server/playerSession.ts"
+      },
+      "notes": [
+        "The secret stays in `AUTH_SECRET`, passed to Better Auth explicitly, instead of `BETTER_AUTH_SECRET`: production, the hourly auth backups (`auth-secret` in each archive), the restore runbook, previews, and the local stack all use that name, and the public page load limit verifies session cookies with it, so renaming it would sign everyone out unless every one of those moved in the same deploy. A production build refuses to start without it, as the recipe's check does.",
+        "src/server/sqliteAuth.ts is the application's Better Auth configuration: email and password with a 10-character minimum and auto sign-in, Apple, Google, Discord and GitHub with trusted account linking across emails, the admin, one-time token, native auth token, two-factor, JWT (the SpacetimeDB identity issuer), MCP, OAuth provider and CIMD plugins, avatar re-hosting, deletion hooks, and analytics callbacks; the recipe's session, rate limit, account, and email-and-password values are written in.",
+        "`AUTH_RATE_LIMIT=off` turns rate limits off for browser-test stacks.",
+        "Better Auth reads the client IP from `cf-connecting-ip` and then `x-forwarded-for`, because production only accepts traffic from Cloudflare (docs/deployment.md).",
+        "No `tanstackStartCookies()`: the application's server functions forward Better Auth's cookies themselves.",
+        "`trustedOrigins` adds Apple's sign-in origin when Apple is configured, and the other loopback name in local development.",
+        "src/server/playerSession.ts is the application's `currentSession`: it caches a `Player` (role, colour, two-factor, impersonation) per request, and adds `currentUserId`, `requireUserId`, `forSignedIn`, and `requireAdmin`.",
+        "src/server/authProviders.ts reads Google, Discord and GitHub pairs from the environment and builds Apple's client secret from its key; `SOCIAL_PROVIDERS` lives in src/authConfig.ts.",
+        "src/db/authSchema.ts and src/db/oauthSchema.ts are the production schema, with the player fields and deleted-user table, migrated from drizzle-auth/.",
+        "src/routes/api/auth.$.ts rewrites preview OIDC requests before handing them to Better Auth.",
+        "src/client/authClient.ts adds the plugins' client counterparts.",
+        "The application's own auth tests (sqliteAuth.integration.test.ts and others) replace the recipe's auth.test.ts, which tests the recipe's createAuth.",
+        "`classifyAuthCallbackFailure` also reads `account not linked`, which Better Auth 1.7.14's link-account step still sends, and the earlier `email_doesn't_match` and `email_mismatch` codes that existing links carry, as the v5 helper did."
+      ]
+    },
+    "ci": {
+      "version": 1,
+      "commit": "8e4dfdee6afeeaa1f05804e38888a171f9ebe722",
+      "files": {
+        ".github/dependabot.yml": ".github/dependabot.yml",
+        ".github/workflows/ci.yml": ".github/workflows/ci.yml"
+      },
+      "notes": [
+        "ci.yml runs `pnpm check`'s lanes side by side (static, build, unit, integration, points, browser builds, and the browser specs a change exercises), each in its own ci-<lane>.yml and reported under the job names main requires, with a daily full browser run that records spec coverage; it does not call check-js.yml.",
+        "The application releases with Changesets (release.yml calls release-changesets.yml@v1) and deploys released revisions, so `changesets:check` is part of `pnpm check`.",
+        "Dependabot keeps the recipe's grouping and cooldown; better-auth and its @better-auth plugins are no longer ignored and move together in the same grouped pull request.",
+        "Dependabot groups `better-auth` with `@better-auth/*`, because Better Auth's plugins pin its core version and a lone bump splits the types."
+      ]
+    },
+    "database-libsql": {
+      "version": 2,
+      "commit": "0184a1e1bc4ababa9b89b4455014ba13be436df2",
+      "files": {
+        "drizzle.config.ts": "drizzle.auth.config.ts",
+        "src/db/database.test.ts": null,
+        "src/db/database.ts": "src/server/localAuthDatabase.ts",
+        "src/server/database.test.ts": null
+      },
+      "notes": [
+        "The database is the auth SQLite file at `AUTH_SQLITE_PATH` (`/data/auth.sqlite` in production), not `$DATA_DIR/app.sqlite`, and keeps that name and location.",
+        "Migrations stay in drizzle-auth/ (drizzle.auth.config.ts, scripts `auth:db:generate` and `auth:db:check`) with their full history, and scripts/nodeAuthSqlite.ts applies them through node:sqlite before the server starts, detecting each by the table or column it adds; production has no `__drizzle_migrations` table, so the recipe's migrator would replay 0000 against existing tables.",
+        "src/server/localAuthDatabase.ts opens the client with `concurrency: 1` and a 5 s busy timeout, and holds the auth and OAuth provider schemas; backups are the hourly Dokploy schedule from scripts/dokployAuthSchedule.ts, not a pre-migration `VACUUM INTO`.",
+        "The recipe's starter schema and migrations, and its tests of the migrator, are left out; sqliteAuth.integration.test.ts and the nodeAuthSqlite tests cover the real database.",
+        "`app().auth` is synchronous, because the file is migrated before the Nitro process starts and Better Auth is created with the client directly."
+      ]
+    },
+    "deploy-dokploy": {
+      "version": 2,
+      "commit": "9c8c374857be9d85d59097ae2d538026e45225ec",
+      "files": {
+        ".dockerignore": ".dockerignore",
+        ".github/workflows/deploy.yml": ".github/workflows/dokploy-web.yml",
+        ".github/workflows/preview-deploy.yml": ".github/workflows/dokploy-preview-deploy.yml",
+        ".github/workflows/preview-prune.yml": ".github/workflows/dokploy-preview-prune.yml",
+        ".github/workflows/preview.yml": ".github/workflows/dokploy-preview-image.yml",
+        "Dockerfile": "Dockerfile.node",
+        "src/server/shutdown.test.ts": "src/server/shutdown.test.ts",
+        "src/server/shutdown.ts": "src/server/shutdown.ts"
+      },
+      "notes": [
+        "Dockerfile.node builds on Debian bookworm-slim, not Alpine, once on the build platform for every architecture so hashed assets match; it installs the target's production dependencies with `--os`, `--libc` and `--cpu`, swaps in the target's libsql and sharp binaries, builds the SpacetimeDB module with the pinned CLI, and keeps git, the source, and production node_modules in the image for scripts/nodeServer.ts and the catalogue refresh.",
+        "The container runs `node scripts/nodeServer.ts`, which migrates the auth SQLite file, seeds previews, starts the catalogue refresh, spawns the Nitro server on an internal port, waits for /api/health, and proxies the public port, including SpacetimeDB's `/spacetime/` WebSocket; it owns signals and shutdown, so there is no tini and no `start` script.",
+        "src/server/shutdown.ts shuts down telemetry singletons from Nitro's close hook instead of closing an `app()` composition root, and src/server/warmPlugin.ts closes the combat worker pool there.",
+        "dokploy-web.yml replaces deploy.yml: it deploys a released revision through the release workflow, refreshes and publishes live catalogue assets, publishes the SpacetimeDB module, sets the health check, and deploys the image digest with `deploy-dokploy-image`; Dokploy's environment comes from scripts/configureDokployNode.ts.",
+        "The preview workflows are dokploy-preview-image.yml, dokploy-preview-deploy.yml and dokploy-preview-prune.yml, with scripts/dokployPreview.ts as the custom deploy script (per-preview SpacetimeDB database, seeded accounts, random AUTH_SECRET), at `pr-<number>.praetorium.gg`.",
+        "Docker images build for linux/arm64 under QEMU from Dockerfile.node, whose BuildKit secret is `posthog_api_key`.",
+        "No HEALTHCHECK in the image: dokploy-web.yml applies the Swarm health check before each deploy, tolerating about three minutes of missed probes for the single replica (docs/deployment.md)."
+      ]
+    },
+    "email-posthog": {
+      "version": 1,
+      "commit": "8e4dfdee6afeeaa1f05804e38888a171f9ebe722",
+      "files": {
+        "src/adapters/email.test.ts": "src/adapters/email.test.ts",
+        "src/adapters/email.ts": "src/adapters/email.ts"
+      },
+      "notes": [
+        "EMAIL_TEMPLATES holds the five production template ids (resetPassword, verifyEmail, supportReply, photoReport, importFailure) as constants; their ids are unchanged.",
+        "`authEmails` sends only `url`, which the production reset and verification templates read, and an idempotency key of the template and the token's SHA-256, so a retried request sends once without PostHog storing the token.",
+        "src/adapters/email.test.ts is the application's own test of the disabled states and the email-only client."
+      ]
+    },
+    "posthog-auth-identity": {
+      "version": 2,
+      "commit": "0184a1e1bc4ababa9b89b4455014ba13be436df2",
+      "files": {
+        "src/client/postHogIdentity.test.tsx": "src/client/postHogIdentity.test.tsx",
+        "src/client/postHogIdentity.tsx": "src/client/postHogIdentity.tsx"
+      },
+      "notes": [
+        "`identify` sends the player's name and email as person properties, as the application did before, so support conversations and person profiles show who a player is; the test expects them.",
+        "AppShell renders `PostHogIdentity` only once the `me` query has answered and never while an administrator impersonates a player, whose events are dropped anyway.",
+        "The server side of the recipe is wired in src/server/rpc.ts, which passes the signed-in user from `currentUserId` to `observeServerFunction` on a reporting instance.",
+        "vitest.config.ts now includes `src/**/*.test.tsx`, so this recipe's and posthog-web's component tests run."
+      ]
+    },
+    "posthog-server": {
+      "version": 3,
+      "commit": "0184a1e1bc4ababa9b89b4455014ba13be436df2",
+      "files": {
+        "src/server/rpcTelemetry.test.ts": "src/server/rpcTelemetry.test.ts",
+        "src/server/rpcTelemetry.ts": "src/server/rpcTelemetry.ts",
+        "src/server/telemetry.test.ts": "src/server/telemetry.test.ts",
+        "src/server/telemetry.ts": "src/server/telemetry.ts"
+      },
+      "notes": [
+        "The telemetry instance lives in src/server/serverTelemetry.ts as a `globalSingleton`, not in `app()`, because rpc, request middleware, background jobs, and the push senders report before or outside the composition root; it is created from an empty environment outside production, so local and test runs send nothing.",
+        "src/server/shutdown.ts (a Nitro close hook) shuts down every singleton with a `shutdown`, the server telemetry and the MCP analytics client, with a 2 s deadline that fits the 3 s scripts/nodeServer.ts gives the Nitro process after its own drain.",
+        "rpc.ts looks up the signed-in user only on a reporting instance and passes it to `observeServerFunction`; `inTurn` reports streamed per-item failures the same way.",
+        "`posthog.capture` is synchronous, so callers no longer await captures; telemetry callbacks in sqliteAuth.ts and photoScreening.ts are typed as returning nothing.",
+        "src/server/push.ts and src/server/webPush.ts moved from src/adapters/ because they report through server telemetry, which the layer rules keep adapters from importing.",
+        "A server exception without a known person gets posthog-node's random distinct id instead of the shared `server` person the v5 helper used."
+      ]
+    },
+    "posthog-web": {
+      "version": 4,
+      "commit": "0184a1e1bc4ababa9b89b4455014ba13be436df2",
+      "files": {
+        "scripts/posthogSourceMaps.test.ts": "scripts/posthogSourceMaps.test.ts",
+        "scripts/posthogSourceMaps.ts": "scripts/posthogSourceMaps.ts",
+        "src/client/posthog.test.tsx": "src/client/posthog.test.tsx",
+        "src/client/posthog.tsx": "src/client/posthog.tsx",
+        "src/client/posthogOptions.test.ts": "src/client/posthogOptions.test.ts",
+        "src/client/posthogOptions.ts": "src/client/posthogOptions.ts",
+        "src/contracts/posthog.test.ts": "src/contracts/posthog.test.ts",
+        "src/contracts/posthog.ts": "src/contracts/posthog.ts",
+        "src/routes/t/$.ts": "src/routes/t/$.ts",
+        "src/server/posthogProxy.test.ts": "src/server/posthogProxy.test.ts",
+        "src/server/posthogProxy.ts": "src/server/posthogProxy.ts"
+      },
+      "notes": [
+        "`bundledPostHog` is undefined outside a production build, because a local dev server shares the production project token; the ingest proxy then answers 404 in development.",
+        "`serviceName` is `praetorium`, and the browser's logs and metrics keep reporting as `praetorium` (with the package version) instead of `praetorium-web`, which existing log views and alerts filter on; the server reports as `praetorium-server` as before.",
+        "src/client/posthog.tsx merges `applicationPostHogOptions` from src/posthog.ts over `postHogOptions`: dead clicks, more masked URL parameters (`state`, `code_challenge`, `sig`), before_send filters for impersonation, unactionable exceptions, private URLs and feature context, masked log URLs, and no session recording on the stream overlay, which is decided at init from the page's path.",
+        "The router keeps its own `defaultOnCatch` (`reportRouteError`), which captures route exceptions after its module-recovery handling, and every route has the application's `defaultErrorComponent`.",
+        "scripts/posthogSourceMaps.ts uploads symbol sets named `praetorium-web` at the commit (`GITHUB_SHA`), which error tracking matches releases by.",
+        "Dockerfile.node keeps its own upload: the BuildKit secret is `posthog_api_key` (from the `POSTHOG_API_KEY` Actions secret), it retries the build and a `posthog-cli sourcemap upload` of `.output/public`, and deletes every remaining map.",
+        "Vite's `telemetry` chunk group keeps posthog-js and the PostHog packages in their own chunk."
+      ]
+    },
+    "spacetimedb": {
+      "version": 3,
+      "commit": "9c8c374857be9d85d59097ae2d538026e45225ec",
+      "files": {
+        ".github/actions/setup-spacetime/action.yml": ".github/actions/setup-spacetime/action.yml",
+        ".github/workflows/spacetime.yml": null,
+        "scripts/publishSpacetimeModule.test.ts": "scripts/publishProductModule.test.ts",
+        "scripts/publishSpacetimeModule.ts": "scripts/publishProductModule.ts",
+        "spacetimedb/package.json": "spacetimedb/package.json",
+        "spacetimedb/src/index.test.ts": "spacetimedb/src/module.test.ts",
+        "spacetimedb/tsconfig.json": "spacetimedb/tsconfig.json",
+        "src/client/spacetime.test.ts": null,
+        "src/client/spacetime.tsx": null,
+        "src/server/spacetime.test.ts": "src/server/spacetime.test.ts",
+        "src/server/spacetime.ts": "src/server/spacetime.ts",
+        "src/server/spacetimeOrigin.test.ts": null,
+        "src/server/spacetimeOrigin.ts": null
+      },
+      "notes": [
+        "spacetimedb/ stays a pnpm workspace package (`praetorium-spacetimedb`) with its own pinned `spacetimedb` and TypeScript, type-checked by `pnpm --dir spacetimedb typecheck`; its version moves with the root package's in the same commit.",
+        "The module is the product's: rosters, battles, groups and tournaments, notifications and standings, with JWT admission in spacetimedb/src/admission.ts (Better Auth as the identity issuer, `AUTH_ISSUER`, `AUTH_AUDIENCE` and `OPERATOR_IDENTITY` stored in the module environment), tested in module.test.ts.",
+        "Databases are `praetorium-production` and `praetorium-staging`, previews `praetorium-pr-<number>`; scripts/publishProductModule.ts publishes with the owner token and Cloudflare Access headers, always accepting client-breaking automatic migrations, from dokploy-web.yml before the image changes.",
+        "The browser does not use the recipe's `SpacetimeProvider`: src/client/spacetimeLive.ts keeps its own connection, served settings and a short-lived Better Auth token from /api/spacetime/token, and scripts/nodeServer.ts proxies `/spacetime/` on the application's origin, so the policy needs no SpacetimeDB origin; `'unsafe-eval'` is added at runtime by src/server/cspPlugin.ts.",
+        "Bindings are formatted with oxfmt after generation (`pnpm spacetime:generate`), and ci-static.yml checks them with the same format command; there is no spacetime.yml, because ci-static.yml checks bindings and dokploy-web.yml publishes.",
+        "The CLI pin also lives in Dockerfile.node, which builds the module with the pinned release for both architectures."
+      ]
+    },
+    "start-app": {
+      "version": 3,
+      "commit": "0184a1e1bc4ababa9b89b4455014ba13be436df2",
+      "files": {
+        "src/client/chunkRecovery.test.ts": "src/client/chunkRecovery.test.ts",
+        "src/client/chunkRecovery.ts": "src/client/chunkRecovery.ts",
+        "src/client/queryClient.test.ts": "src/client/queryClient.test.ts",
+        "src/client/queryClient.ts": "src/client/queryClient.ts",
+        "src/router.tsx": "src/router.tsx",
+        "src/routes/__root.tsx": "src/routes/__root.tsx",
+        "src/routes/api/health.ts": "src/routes/api/health.ts",
+        "src/server/app.test.ts": "src/server/app.test.ts",
+        "src/server/app.ts": "src/server/app.ts",
+        "src/server/health.test.ts": "src/server/health.test.ts",
+        "src/server/health.ts": "src/server/health.ts",
+        "src/server/middleware.test.ts": "src/server/middleware.test.ts",
+        "src/server/middleware.ts": "src/server/middleware.ts",
+        "src/server/origins.test.ts": "src/server/origins.test.ts",
+        "src/server/origins.ts": "src/server/origins.ts",
+        "src/server/rpc.test.ts": "src/server/rpc.test.ts",
+        "src/server/rpc.ts": "src/server/rpc.ts",
+        "src/server/serverFunction.test.ts": "src/server/serverFunction.test.ts",
+        "src/server/serverFunction.ts": "src/server/serverFunction.ts",
+        "src/start.ts": "src/start.ts",
+        "src/styles.css": "src/styles.css",
+        "vite.config.ts": "vite.config.ts"
+      },
+      "notes": [
+        "src/server/app.ts is the application's own composition root, a `globalSingleton` (src/lib/globalSingleton.ts) holding the catalogue loaders, SpacetimeDB operator, auth, and background jobs; it has no AsyncDisposableStack or closeApp, because scripts/nodeServer.ts owns process shutdown and the combat worker pool closes from src/server/warmPlugin.ts.",
+        "src/lib/globalSingleton.ts keys values by name under one registered symbol, because Nitro plugins are bundled apart from the request bundle and must share the combat worker pool with it.",
+        "The root route keeps the document in AppShell as its `component`, since the shell renders two different documents (the stream overlay and the app frame) around its providers; the chunk recovery script is in head() and the update notice in the app frame's body.",
+        "The router keeps the application's own context (`origin` for absolute metadata), stale-build reload, route error recovery, view transitions, and error and not-found components.",
+        "src/client/queryClient.ts keeps the application's caches, offline snapshot restore, and failure reporting around `new QueryClient`, and its own tests in place of the recipe's.",
+        "src/start.ts runs request timing first, then the recipe's middleware, then the crawler log, shared page cache, and public page load limits; function middleware adds the pending-write marker, and `serverFns.fetch` keeps the network error handling.",
+        "`referrer-policy` stays `no-referrer`, the application's privacy choice, instead of `strict-origin-when-cross-origin`.",
+        "src/server/contentSecurityPolicy.ts adds the faction icon CDN and PostHog media hosts to img-src, the rules text host to connect-src, and `worker-src 'self' blob:` for combat workers; src/server/cspPlugin.ts (a Nitro response hook) still widens img-src with the deployment's public asset origin and adds `'unsafe-eval'` when SpacetimeDB is configured, since both are runtime settings.",
+        "Static files Nitro serves no longer carry the security headers the Nitro `/**` route rule added; they still get their Cache-Control rules there.",
+        "src/server/rpc.ts wraps the recipe's `run` in the application's PostHog observer and reports failures through it; `inTurn` streams per-item results with the same reporting.",
+        "/api/health waits for the catalogue warm-up and checks the auth database and SpacetimeDB through `app().health()`, reporting only that check's failures as `database_unavailable`, and adds `x-praetorium-revision`, which preview and release checks read.",
+        "src/server/requestOrigin.ts keeps `siteOrigin`, the isomorphic origin for page metadata, on top of `publicOrigin`.",
+        "Forwarded headers count only with `TRUST_PROXY=true`, where the application trusted them always; every deployment, preview, and local stack sets `APP_URL`, which `acceptedOrigins` and `publicOrigin` use instead.",
+        "`react` and `react-dom` stay at the exact version `mobile/package.json` pins, so the workspace installs one React for the web and the native shell, even when the recipe is tested with a newer patch.",
+        "The server function CSRF check skips GET reads: with `referrer-policy: no-referrer`, a same-origin read from a client without `Sec-Fetch-Site` (the Android WebView on http, Safari before 16.4) carries no origin information, and a cross-site read cannot be read back."
+      ]
+    },
+    "tooling": {
+      "version": 2,
+      "commit": "82fce4523ec914bd2e70aefd4bff84c10fb278c6",
+      "files": {
+        ".gitignore": ".gitignore",
+        ".oxfmtrc.json": ".oxfmtrc.json",
+        ".oxlintrc.json": ".oxlintrc.json",
+        "AGENTS.md": "CLAUDE.md",
+        "package.json": "package.json",
+        "pnpm-workspace.yaml": "pnpm-workspace.yaml",
+        "tsconfig.json": "tsconfig.json",
+        "vitest.config.ts": "vitest.config.ts"
+      },
+      "notes": [
+        "AGENTS.md is a symlink to CLAUDE.md, so the recipe paragraph sits in CLAUDE.md beside the application's own agent guide.",
+        "Packages stay at the versions the v5 managed install had locked (vitest 5, oxlint 1.87, oxfmt 0.72, typescript 7.0.2, vite 8.3.4) and exact, so the migration changes no tool behaviour; Dependabot moves them.",
+        "packageManager stays pnpm 12.13.0, which the application, its dev container, and CI already use.",
+        "`check` keeps the application's extra gates (docs lint, vocabulary, changesets, auth migrations, catalogue pins, Python tests), and `typecheck` also checks the mobile and spacetimedb workspace packages.",
+        "`lint` adds `--report-unused-disable-directives-severity=error`, which the application already enforced.",
+        "`changesets:check` runs scripts/checkChangesets.ts, the frontmatter and package-name check `ras changesets check` did, because the application releases with Changesets.",
+        "tsconfig.json keeps the application's include list, `@/*` path, and `noUncheckedIndexedAccess`; e2e/ is type-checked by Playwright's own transform, as before.",
+        ".oxlintrc.json also extends the domain preset and keeps the application's core and component layer rules.",
+        "vitest.config.ts is the application's: the forks pool, the `@` alias, mobile and spacetimedb tests, and separate unit and integration configs.",
+        "pnpm-workspace.yaml is a workspace of the application, mobile/, and spacetimedb/, and keeps its own allowBuilds and packageExtensions."
+      ]
+    }
+  }
+}

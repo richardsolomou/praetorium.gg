@@ -16,7 +16,10 @@ it('names an address no route serves as unmatched', () => {
   expect(routePatterns(routeTree)('/wp-admin/setup.php')).toBe('unmatched')
 })
 
-const telemetry = () => ({ metrics: { count: vi.fn(), histogram: vi.fn() }, log: vi.fn() })
+const telemetry = () => {
+  const metrics = { count: vi.fn(), histogram: vi.fn() }
+  return { posthog: { metrics }, metrics, log: vi.fn() }
+}
 
 it('times every request by its route', () => {
   const sink = telemetry()
@@ -30,17 +33,13 @@ it('times every request by its route', () => {
 it('logs a slow request', () => {
   const sink = telemetry()
   recordRequest(sink, { method: 'GET', route: '/api/release', status: 200, durationMs: 9_000 })
-  expect(sink.log).toHaveBeenCalledWith(
-    expect.objectContaining({ body: 'slow request', attributes: expect.objectContaining({ duration_ms: 9_000 }) }),
-  )
+  expect(sink.log).toHaveBeenCalledWith('warn', 'slow request', expect.objectContaining({ duration_ms: 9_000 }))
 })
 
 it('logs a request the server failed', () => {
   const sink = telemetry()
   recordRequest(sink, { method: 'GET', route: '/battles/$token', status: 503, durationMs: 5 })
-  expect(sink.log).toHaveBeenCalledWith(
-    expect.objectContaining({ body: 'request failed', attributes: expect.objectContaining({ status: 503 }) }),
-  )
+  expect(sink.log).toHaveBeenCalledWith('warn', 'request failed', expect.objectContaining({ status: 503 }))
 })
 
 it('does not log a quick answer', () => {

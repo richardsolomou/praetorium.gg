@@ -1,9 +1,10 @@
 import { randomInt } from 'node:crypto'
-import { globalSingleton } from 'ras-stack/server'
+import { globalSingleton } from '../lib/globalSingleton'
 import os from 'node:os'
 import path from 'node:path'
 import { setTimeout as yieldToEventLoop } from 'node:timers/promises'
-import { deploymentHost, reportServerFailure, serverTelemetry } from '../adapters/posthog'
+import { deploymentHost } from '../adapters/posthog'
+import { reportServerFailure, serverTelemetry } from './serverTelemetry'
 import { catalogueDirectory, type LoadedCatalogue, loadCatalogue } from './catalogueIndex'
 import { type LoadedRules, loadRulesSteps } from './rules'
 import {
@@ -30,8 +31,8 @@ import { privateObjects } from './privateImages'
 import { profileUpdate } from './profile'
 import { PraetoriumService } from './service'
 import { emailDelivery } from '../adapters/email'
-import { pushSenderFromEnvironment } from '../adapters/push'
-import { webPushSenderFromEnvironment } from '../adapters/webPush'
+import { pushSenderFromEnvironment } from './push'
+import { webPushSenderFromEnvironment } from './webPush'
 import { pushNotifier, silentNotifier, storingNotifier } from './pushNotifier'
 import { noticeRosterPointsChanges } from './rosterPointsNotices'
 import { productionCatalogueRuntime } from './catalogueRuntime'
@@ -400,15 +401,15 @@ export function app(): App {
       updateProfile: profileUpdate,
       profilePictureUploaded: (userId: string, image: string) =>
         void recordScreening(screening, image, PROFILE_PICTURE_QUESTIONS, (properties) =>
-          telemetry.capture(userId, 'profile_picture_screened', properties),
+          telemetry.posthog.capture({ distinctId: userId, event: 'profile_picture_screened', properties: properties }),
         ),
       githubLinked: () => githubSponsors.refresh(),
       captureAuthentication: (userId: string, event: 'account_created' | 'account_signed_in', properties: { method: string }) =>
-        telemetry.capture(userId, event, properties),
+        telemetry.posthog.capture({ distinctId: userId, event: event, properties: properties }),
       captureSignInMethodAdded: (userId: string, provider: string) =>
-        telemetry.capture(userId, 'sign_in_method_added', { provider, delivery: 'direct' }),
+        telemetry.posthog.capture({ distinctId: userId, event: 'sign_in_method_added', properties: { provider, delivery: 'direct' } }),
       captureMcpConnection: (userId: string, event: string, properties: { client: string; write: boolean }) =>
-        telemetry.capture(userId, event, properties),
+        telemetry.posthog.capture({ distinctId: userId, event: event, properties: properties }),
     }
     const auth = createSqliteAuth(authDatabase, process.env.AUTH_SECRET ?? '', authOptions)
     const instance: App = {
@@ -516,7 +517,7 @@ export function app(): App {
     }
     setInterval(() => void maintainPhotos(), 10 * 60 * 1000).unref()
     if (process.env.NODE_ENV === 'production')
-      reportRuntimeMetrics((name, value, options) => void telemetry.metrics.gauge(name, value, options), {
+      reportRuntimeMetrics((name, value, options) => telemetry.posthog.metrics.gauge(name, value, options), {
         instance: os.hostname(),
         host: deploymentHost() ?? 'unknown',
       })

@@ -11,7 +11,16 @@ vi.mock('@tanstack/react-start', () => {
 vi.mock('../rpc', () => ({ rpc: (work: () => unknown) => work(), mutationRpc: (work: () => unknown) => work() }))
 vi.mock('../playerSession', () => ({ requireUserId: async () => 'actor' }))
 vi.mock('../app', () => ({
-  app: () => ({ service: mocks, telemetry: { capture: mocks.capture }, rulesFor: async () => null }),
+  app: () => ({
+    service: mocks,
+    telemetry: {
+      posthog: {
+        capture: (message: { distinctId: string; event: string; properties?: object }) =>
+          mocks.capture(message.distinctId, message.event, message.properties),
+      },
+    },
+    rulesFor: async () => null,
+  }),
 }))
 
 const invokeCreate = createBattle as unknown as (input: { data: ReturnType<typeof createBattleSchema.parse> }) => Promise<unknown>

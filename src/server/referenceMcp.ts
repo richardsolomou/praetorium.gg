@@ -8,7 +8,7 @@ import { PRAETORIUM_MCP_INSTRUCTIONS } from './referenceGuide'
 import { ACCOUNT_MCP_SCOPES } from './accountMcp'
 import { createAgentTools } from './createAgentTools'
 import { boundedText } from './boundedBody'
-import { publicOrigin } from './requestOrigin'
+import { publicOrigin } from './origins'
 import { absoluteAgentText } from './agentLinks'
 import {
   referenceResources,

@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { localRedirectPath } from 'ras-stack/auth/client'
+import { localRedirectPath } from '../client/localRedirect'
 import { ResetPasswordPage } from '../client/features/account/ResetPasswordPage'
 import { searchText } from '../client/searchParams'
 

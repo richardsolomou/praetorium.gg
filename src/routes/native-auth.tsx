@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { localRedirectPath } from 'ras-stack/auth/client'
+import { localRedirectPath } from '../client/localRedirect'
 import { SOCIAL_PROVIDERS } from '../authConfig'
 import { NativeAuthPage, type NativeAuthSearch } from '../client/features/account/NativeAuthPage'
 import { searchFlag, searchText } from '../client/searchParams'

@@ -5,7 +5,8 @@ node_modules/
 .tanstack/
 dist/
 .env
-.env.local
+.env.*
+!.env.example
 data-dev/
 praetorium-data/
 src/routeTree.gen.ts
