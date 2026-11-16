@@ -18,7 +18,7 @@ import { pageSection, SectionLink } from './pageSections'
 export function RouteError({ error }: ErrorComponentProps) {
   const router = useRouter()
   const section = pageSection(router?.state.location.pathname ?? '/')
-  const [reload] = useState(() => error instanceof CancelledError && mayReloadCancelledLoad())
+  const [reload] = useState(() => error instanceof CancelledError && mayReloadCancelledLoad(error))
   const [reloadingModules, setReloadingModules] = useState(false)
   const [unloading] = useState(() => routerReloading(error))
   useEffect(() => {

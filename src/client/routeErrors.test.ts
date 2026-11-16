@@ -120,13 +120,20 @@ it('leaves a screen this device has not saved out of error tracking, since the p
 
 it('stops reloading a load cancelled three times within ten seconds', () => {
   const start = 1_000_000
-  expect([0, 1, 2, 3].map((offset) => mayReloadCancelledLoad(start + offset * 1_000))).toEqual([true, true, true, false])
+  expect([0, 1, 2, 3].map((offset) => mayReloadCancelledLoad(new Error(), start + offset * 1_000))).toEqual([true, true, true, false])
+})
+
+it('counts one cancelled load once, however many of its routes show it', () => {
+  const start = 1_500_000
+  const cancelled = new Error()
+  for (let route = 0; route < 3; route++) mayReloadCancelledLoad(cancelled, start + route)
+  expect(mayReloadCancelledLoad(new Error(), start + 10)).toBe(true)
 })
 
 it('reloads a cancelled load again once ten seconds have passed', () => {
   const start = 2_000_000
-  for (let offset = 0; offset < 3; offset++) mayReloadCancelledLoad(start + offset)
-  expect(mayReloadCancelledLoad(start + 10_003)).toBe(true)
+  for (let offset = 0; offset < 3; offset++) mayReloadCancelledLoad(new Error(), start + offset)
+  expect(mayReloadCancelledLoad(new Error(), start + 10_003)).toBe(true)
 })
 
 it('explains a route error with its message when it is written for people', () => {

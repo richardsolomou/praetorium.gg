@@ -8,6 +8,7 @@ import {
   type AppSnapshot,
 } from '../../contracts/appSnapshot'
 import { meKey } from '../queries/queryKeys'
+import { stopLocalRuntime } from './localRuntime'
 import { jsonByteLength } from '../../core/json'
 
 /** A filtered battle list is a passing question; offline, filters answer from the saved whole feeds instead. */
@@ -82,5 +83,7 @@ export function reconcileAppAccount(client: QueryClient, me: { id: string; imper
     !PUBLIC_REFERENCE_QUERIES.has(String(query.queryKey[0]))
   void client.cancelQueries({ predicate: privateQuery })
   client.removeQueries({ predicate: privateQuery })
+  // Sign-out clears the account's saved store, so an engine that read it before would refuse every later write.
+  stopLocalRuntime()
   return true
 }

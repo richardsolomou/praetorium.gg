@@ -2,6 +2,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { QueryClient } from '@tanstack/react-query'
 import { emptyLocalState } from '../../contracts/localState'
 import { attemptLocalSync, configureLocalRuntime, localEngine, rememberDocument, stopLocalRuntime } from './localRuntime'
+import { reconcileAppAccount } from './appSnapshot'
 
 const mocks = vi.hoisted(() => ({ storage: vi.fn() }))
 vi.mock('./localStorage', () => ({ localStateStorage: mocks.storage }))
@@ -50,6 +51,14 @@ it('rejects an old downloader after the same account runtime has been replaced',
     },
   })
   await expect(rememberDocument('roster:alice', { name: 'Private army' }, 1, 'alice')).rejects.toThrow('account changed')
+})
+
+it('starts a new engine after signing out and back in, since sign-out cleared the store the old one had read', () => {
+  mocks.storage.mockReturnValue({ read: async () => emptyLocalState('alice') })
+  const before = localEngine()
+  reconcileAppAccount(client, null)
+  client.setQueryData(['me'], { id: 'alice' })
+  expect(localEngine()).not.toBe(before)
 })
 
 it('releases a stalled connected sync after fifteen seconds with pending work intact', async () => {
