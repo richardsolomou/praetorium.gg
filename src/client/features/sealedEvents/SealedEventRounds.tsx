@@ -282,6 +282,9 @@ function TableRow({
 }) {
   const own = pairing.aId === viewerId || pairing.bId === viewerId
   const opponent = pairing.aId === viewerId ? pairing.bId : pairing.aId
+  // An earlier round's table is unfinished only once reopened, and only the organizer may score it then.
+  const reportable =
+    battle?.status !== 'finished' && (current ? own || battlefield?.organizes : battlefield?.organizes && pairing.battleToken)
   return (
     <li
       data-table={pairing.table}
@@ -313,7 +316,7 @@ function TableRow({
       ) : (
         <span className="shrink-0 text-sm text-faint">Not started</span>
       )}
-      {battlefield && pairing.bId && !forfeit && current && (own || battlefield.organizes) && battle?.status !== 'finished' ? (
+      {battlefield && pairing.bId && !forfeit && reportable ? (
         <ReportTableResult
           token={battlefield.token}
           eventToken={battlefield.sealedEvent.eventToken}

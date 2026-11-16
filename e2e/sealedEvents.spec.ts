@@ -593,6 +593,7 @@ test('a Swiss tournament pairs its rounds and ranks the tables by match points',
   await reopen.getByRole('button', { name: 'Reopen result' }).click()
   await expect(reopen).toBeHidden()
   await expect(lockedTable).toContainText('Playing')
+  await expect(lockedTable.getByRole('button', { name: 'Enter score for table 1' })).toBeVisible()
   await ownerContext.close()
   await opponentContext.close()
 })
