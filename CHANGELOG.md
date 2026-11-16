@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.257.11 (2026-11-16)
+
+### Patch Changes
+
+- 72414a3: Signing out and back in no longer briefly shows "Something went wrong" with "The account on this device changed".
+- 72414a3: A page that has to reload while you sign in no longer shows "Something went wrong" after a few quick sign-ins.
+
 ## 0.257.10 (2026-11-16)
 
 ### Patch Changes
