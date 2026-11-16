@@ -67,8 +67,8 @@
       ]
     },
     "deploy-dokploy": {
-      "version": 1,
-      "commit": "8e4dfdee6afeeaa1f05804e38888a171f9ebe722",
+      "version": 2,
+      "commit": "9c8c374857be9d85d59097ae2d538026e45225ec",
       "files": {
         ".dockerignore": ".dockerignore",
         ".github/workflows/deploy.yml": ".github/workflows/dokploy-web.yml",

@@ -13,8 +13,9 @@ export function globalSingleton<T>(key: string, create: () => T): T {
 }
 
 /**
- * Shuts down every singleton that has a `shutdown`, such as the PostHog clients, giving each the same deadline. Callers
- * reach them through the shared store, so a Nitro plugin does not bundle the modules that create them.
+ * Shuts down every singleton that has a `shutdown`, such as the PostHog clients, giving each the same deadline, and rejects
+ * with every failure once all have settled. Callers reach them through the shared store, so a Nitro plugin does not bundle
+ * the modules that create them.
  */
 export async function shutDownGlobalSingletons(timeoutMs: number) {
   const values = [...((globalThis as SingletonGlobal)[storeKey]?.values() ?? [])]
@@ -23,5 +24,6 @@ export async function shutDownGlobalSingletons(timeoutMs: number) {
       typeof (value as { shutdown?: unknown } | null)?.shutdown === 'function',
   )
   const results = await Promise.allSettled(closing.map((value) => value.shutdown(timeoutMs)))
-  for (const result of results) if (result.status === 'rejected') console.error({ event: 'shutdown_failed', error: result.reason })
+  const failures = results.flatMap((result) => (result.status === 'rejected' ? [result.reason] : []))
+  if (failures.length > 0) throw new AggregateError(failures, 'singleton shutdown failed')
 }
