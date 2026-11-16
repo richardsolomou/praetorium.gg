@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.257.3 (2026-11-16)
+
+### Patch Changes
+
+- 9a5b41c: An assistant that asks for several loadout searches or roster grades at once now has them queued instead of refused as busy.
+- 9a5b41c: Loadout searches score loadouts in batches, so they finish sooner and check more loadouts for large units.
+- 1fc999b: Assistants can look up a mission matchup without naming the mission pack; it uses the current one.
+
 ## 0.257.2 (2026-11-16)
 
 ### Patch Changes
