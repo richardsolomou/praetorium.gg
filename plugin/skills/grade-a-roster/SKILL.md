@@ -7,7 +7,7 @@ description: Grade a Warhammer 40,000 army list with Praetorium, explain what it
 
 ## What the grade can and can't say
 
-The grades measure coverage: which jobs a list can do (board control, mobility, damage and durability), measured by the simulator at full strength with passive rules only. They don't measure how strong the list is.
+The grades measure coverage: which jobs a list can do (board control, mobility, damage and durability), measured by the simulator at full strength with passive rules only. Detachment rules are rarely passive, so grades rarely tell detachments apart. They don't measure how strong the list is.
 
 Praetorium checked them against tournament games where both lists were known:
 
