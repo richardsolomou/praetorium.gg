@@ -22,7 +22,6 @@ it.each(['preview', 'released', 'retired'] as const)('snapshots a %s sealed even
 const priced = {
   points: 2_000,
   detachmentError: null,
-  dispositionError: null,
   errors: [],
   unhandled: ['catalogue rule could not be validated'],
 }
@@ -58,10 +57,6 @@ it('names a list over its points limit as over the limit, before any other probl
   expect(rosterUseProblem({ ...priced, points: 2_005, detachmentError: 'Too many detachment points.' }, { limit: 2_000 })?.kind).toBe(
     'over-limit',
   )
-})
-
-it('rejects rosters without a valid force disposition', () => {
-  expect(rosterUseError({ ...priced, dispositionError: 'Pick a disposition.' }, { limit: 2_000 })).toBe('Pick a disposition.')
 })
 
 it('rejects a saved roster with an obsolete detachment when it is used', async () => {

@@ -20,6 +20,7 @@ import {
   mayRevealSealedEvent,
   readsAlliedSealedEventRoster,
   readsSealedRoster,
+  sealedEventPlaysAlone,
   type SealedEventEntryView,
 } from '../../../core/sealedEvent'
 import { createSealedEventBattle, joinSealedEvent, submitSealedEventRoster } from '../../functions'
@@ -36,6 +37,7 @@ import type { SavedRoster } from '../rosters/rosterLibrary'
 import { DoublesBattleChooser, SealedEventBattleChooser, OneOnOneBattleChooser, startBattleLabel } from './SealedEventBattleChoosers'
 import { EntrantGroup, EntrantList, EntrantRow, sealStatus, useEntrantGroups, ViewRosterButton } from './SealedEventEntrants'
 import { SectionHeading } from '../../components/SectionHeading'
+import { useSealDisposition } from './SealDisposition'
 import {
   doublesTeams,
   entryProgress,
@@ -132,9 +134,9 @@ export function SealedEventView({
     },
   })
   const submit = useMutation({
-    mutationFn: async (rosterId: string) => {
+    mutationFn: async ({ rosterId, disposition }: { rosterId: string; disposition?: string }) => {
       await afterPaint()
-      return submitSealedEventRoster({ data: { token, eventToken: sealedEvent.eventToken, rosterId } })
+      return submitSealedEventRoster({ data: { token, eventToken: sealedEvent.eventToken, rosterId, disposition } })
     },
     onSuccess: async () => {
       setChoosing(false)
@@ -171,6 +173,9 @@ export function SealedEventView({
   const eventBattles = battlesFrom(battleHistory.data)
   const ownEntry = viewerId ? sealedEvent.entries.find((entry) => entry.userId === viewerId) : undefined
   const seatPoints = ownEntry ? sealedEventEntryPoints(sealedEvent, ownEntry) : null
+  const sealCard = useSealDisposition(ownEntry ? sealedEventPlaysAlone(sealedEvent, ownEntry) : false, (rosterId, disposition) =>
+    submit.mutate({ rosterId, disposition }),
+  )
   const entryStatusNow = ownEntry?.status
   // A duel needs nothing from the organizer before a roster, so a new entrant's next step opens straight away.
   const duel = !isTeamFormat(sealedEvent.format)
@@ -469,7 +474,7 @@ export function SealedEventView({
         open={choosing}
         pending={submit.isPending}
         error={submit.error}
-        failedRosterId={submit.variables ?? null}
+        failedRosterId={submit.variables?.rosterId ?? null}
         requiredLimit={seatPoints === null ? (ownEntry?.requiredLimit ?? null) : sealedEvent.rosterLimit}
         pointsBudget={sealedEvent.pointsBudget}
         seatPoints={seatPoints}
@@ -483,7 +488,7 @@ export function SealedEventView({
           submit.reset()
           // An event that records its allowances answers for every waiver itself: it seals the allowed ones and refuses the rest.
           if (sealedEvent.allowances === null && rosterWaivers(roster).length) setSealing(roster)
-          else submit.mutate(roster.id)
+          else void sealCard.choose(roster)
         }}
       />
       <WaiverConfirmDialog
@@ -494,10 +499,11 @@ export function SealedEventView({
         pending={submit.isPending}
         onCancel={() => setSealing(null)}
         onConfirm={(roster) => {
-          submit.mutate(roster.id)
+          void sealCard.choose(roster)
           setSealing(null)
         }}
       />
+      {sealCard.dialog}
       {battleFormat === '1v1' && ownEntry?.status === 'accepted' ? (
         <OneOnOneBattleChooser
           key={sealedEvent.eventToken}

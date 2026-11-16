@@ -11,6 +11,8 @@ If the tournament has a roster deadline, seal before it. After it you can't seal
 
 The tournament page shows what it allows beside its format, such as **Matched play** or **Legends allowed · Restrictions off: Warlord**. A roster that breaks those rules can't be sealed.
 
+When you play alone and your list offers more than one Force Disposition without naming one, sealing asks which one you play. It's fixed for every game of the tournament.
+
 In a 2v1 or doubles tournament the organizer gives you your size and teammate first. Your team then chooses the Force Disposition it plays and whose Warlord leads, before the reveal.
 
 If a seal is refused, look up the message in [Tournament problems](/docs/tournament-problems).

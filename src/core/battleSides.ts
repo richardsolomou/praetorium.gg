@@ -6,7 +6,7 @@ import type { PlayerId, Command, PlayerState, BattleState } from './battle'
 /**
  * The Force Disposition a side plays, which decides the primary it is set.
  *
- * Where two allies' lists chose different cards and the side has not said which it
+ * Where the side's lists name no single card and the side has not said which it
  * plays, the answer is nothing at all — taking the first seat's card would have
  * played one ally's choice for both of them without ever saying so.
  */
@@ -14,6 +14,7 @@ export function sideDisposition(state: BattleState, side: number): string | null
   const disposition = teamDisposition(
     sidePlayers(state, side).map((player) => player.roster),
     state.sideDispositions[side] ?? null,
+    state.sealedEventToken !== null,
   )
   // A battle already being played is never left without a mission. Setup refuses to
   // start one until each side has said, so this only answers for battles begun before
@@ -24,7 +25,10 @@ export function sideDisposition(state: BattleState, side: number): string | null
 
 /** The cards a side could play, which is what it is asked to choose between. */
 export function sideDispositionChoices(state: BattleState, side: number): string[] {
-  return teamDispositionChoices(sidePlayers(state, side).map((player) => player.roster))
+  return teamDispositionChoices(
+    sidePlayers(state, side).map((player) => player.roster),
+    state.sealedEventToken !== null,
+  )
 }
 
 /** The player whose Warlord leads a side; null while allies have not said which of their Warlords it is. */

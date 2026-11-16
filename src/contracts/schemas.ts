@@ -217,7 +217,12 @@ export const admitSealedEventEntriesSchema = z.object({
   ...sealedEvent,
   userIds: z.array(id).min(1).max(SEALED_EVENT_MEMBER_MAX),
 })
-export const submitSealedEventRosterSchema = z.object({ ...sealedEvent, rosterId: id })
+export const submitSealedEventRosterSchema = z.object({
+  ...sealedEvent,
+  rosterId: id,
+  /** The card a list that plays alone seals; a pair chooses theirs together once both lists are in. */
+  disposition: z.string().min(1).max(64).optional(),
+})
 export const setSealedEventTeamDispositionSchema = z.object({ ...sealedEvent, disposition: z.string().min(1).max(64) })
 export const setSealedEventTeamWarlordSchema = z.object({ ...sealedEvent, userId: id })
 export const assignSealedEventRosterRequirementSchema = z.object({
@@ -475,7 +480,7 @@ export const rosterContentSchema = z
       .describe('Detachment ids, as get_unit_options gives them under roster.'),
     disposition: id
       .nullable()
-      .describe("Force disposition id from get_unit_options' roster.dispositions; null when the detachment allows only one."),
+      .describe("Force disposition id from get_unit_options' roster.dispositions, or null to leave the choice to each battle."),
     borrowedDetachmentId: detachmentIdSchema.nullable().default(null),
     limit: rosterLimit.describe('Battle size in points: 1000, 2000 or 3000, or 600 for King of the Colosseum.'),
     pointsBudget,

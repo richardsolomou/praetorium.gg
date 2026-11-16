@@ -10,6 +10,7 @@ import { commandSchema, parseRosterSnapshot, rosterSnapshotOrNull } from '../../
 import {
   eventTableSides,
   sealedEventArmyPointsError,
+  sealedEventPlaysAlone,
   offeredSealedEventAllowances,
   sealedEventTableShape,
   SEALED_EVENT_DEFAULT_ROSTER_LIMIT,
@@ -289,9 +290,11 @@ export class SealedEventService {
     token: string,
     userId: string,
     roster: { id: string; limit: number; updatedAt: number },
-    snapshot: Roster,
+    listed: Roster,
     eventToken?: string,
+    disposition?: string,
   ) {
+    const snapshot = await this.sealedDisposition(token, userId, listed, eventToken, disposition)
     const command = commandSchema.parse({ kind: 'attach-roster', roster: snapshot })
     if (command.kind !== 'attach-roster') throw new Error('expected a roster snapshot')
     const { id: _savedRosterId, ...sealed } = command.roster
@@ -332,6 +335,25 @@ export class SealedEventService {
   }
 
   /** Records the one Force Disposition a fixed pair plays, before reveal shows them the other side. */
+  /**
+   * The list as it is sealed, with the card the entrant chose. An event fixes a lone list's card at sealing, so one that
+   * offers several must name it; a pair's lists may leave theirs to the pair.
+   */
+  private async sealedDisposition(token: string, userId: string, snapshot: Roster, eventToken?: string, disposition?: string) {
+    const built = snapshot.built
+    if (!built) return snapshot
+    if (disposition !== undefined && !(built.dispositions ?? []).includes(disposition))
+      throw new Response('choose a Force Disposition this list’s detachments offer', { status: 409 })
+    const chosen = disposition ?? built.disposition
+    if (!chosen && (built.dispositions?.length ?? 0) > 1) {
+      const event = await this.repository.sealedEventByToken(token, userId, eventToken)
+      const entry = event?.entries.find((candidate) => candidate.userId === userId)
+      if (event && entry && sealedEventPlaysAlone(event, entry))
+        throw new Response('choose the Force Disposition this list plays at the event', { status: 409 })
+    }
+    return { ...snapshot, built: { ...built, disposition: chosen } }
+  }
+
   async setSealedEventTeamDisposition(token: string, userId: string, disposition: string, eventToken?: string) {
     const result = await this.repository.setSealedEventTeamDisposition(token, userId, disposition, this.clock(), eventToken)
     if (result.outcome === 'chosen') return
@@ -517,7 +539,7 @@ export class SealedEventService {
       playerIds: seat.players.map((player) => player.userId),
       battlefields: tableBattlefields(
         rules,
-        armies.map((rosters, index) => teamDisposition(rosters, sides[index]![0]!.teamDisposition)),
+        armies.map((rosters, index) => teamDisposition(rosters, sides[index]![0]!.teamDisposition, true)),
         seat.rosterLimit ?? armies[0]?.[0]?.built?.limit ?? null,
         missionPackId,
       ),

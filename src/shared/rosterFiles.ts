@@ -499,24 +499,23 @@ function importTextRoster(
   }
 }
 
-/** The stated force disposition, or its detachments' own when the text names it in another language. */
+/**
+ * The stated force disposition, or its detachments' own when the text names it in another language. A text that lists
+ * several is stating what its detachments offer, which the list keeps open for each battle to choose from.
+ */
 function importedDisposition(
   stated: string | null,
   detachments: readonly { disposition: string | null }[],
   unknown: UnmatchedName[],
   translations: CatalogueTranslations,
 ) {
-  if (!stated) return null
-  if (stated.includes(',')) {
-    unknown.push({ name: stated, reason: 'more than one force disposition was stated; choose one in setup' })
-    return null
-  }
+  if (!stated || stated.includes(',')) return null
   const named = [stated, ...englishNames(stated, translations)].map(slug).find((name) => DISPOSITIONS.has(name))
   if (named) return named
   const own = new Set(detachments.map((detachment) => detachment.disposition))
   const [only] = own
   if (own.size === 1 && only) return only
-  unknown.push({ name: stated, reason: 'this force disposition is not recognised; choose one in setup' })
+  unknown.push({ name: stated, reason: 'this force disposition is not recognised' })
   return null
 }
 

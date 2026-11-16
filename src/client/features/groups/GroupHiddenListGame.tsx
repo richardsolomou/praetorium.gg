@@ -14,6 +14,7 @@ import {
   sealedEventSealingClosed,
   sealedEventTableShape,
   requiredSealedEventRosterLimit,
+  sealedEventPlaysAlone,
 } from '../../../core/sealedEvent'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
@@ -33,6 +34,7 @@ import { useEntrantGroups } from '../sealedEvents/SealedEventEntrants'
 import { RevealedLists } from '../sealedEvents/SealedEventArmies'
 import { SealedEventCombatDialog } from '../sealedEvents/SealedEventCombatDialog'
 import { RosterChooser } from '../sealedEvents/SealedEventRosterChooser'
+import { useSealDisposition } from '../sealedEvents/SealDisposition'
 import { RemindEntrants } from '../sealedEvents/SealedEventReadiness'
 import { OpenTableBattlefield } from '../sealedEvents/OpenTableBattlefield'
 import { SealedEventSettingsDialog } from '../sealedEvents/SealedEventSettingsDialog'
@@ -146,15 +148,18 @@ export function GroupHiddenListGame({
   const mayTakeSeat = member && !revealed && !closed
 
   const seal = useMutation({
-    mutationFn: async (rosterId: string) => {
+    mutationFn: async ({ rosterId, disposition }: { rosterId: string; disposition?: string }) => {
       await afterPaint()
-      return submitSealedEventRoster({ data: { token: game.token, rosterId } })
+      return submitSealedEventRoster({ data: { token: game.token, rosterId, disposition } })
     },
     onSuccess: async () => {
       setChoosing(false)
       await refresh()
     },
   })
+  const sealCard = useSealDisposition(ownEntry ? sealedEventPlaysAlone(game, ownEntry) : false, (rosterId, disposition) =>
+    seal.mutate({ rosterId, disposition }),
+  )
   const side = useMutation({
     mutationFn: (next: SealedEventSide | null) => chooseSealedEventSide({ data: { token: game.token, side: next } }),
     onSuccess: async () => {
@@ -483,14 +488,15 @@ export function GroupHiddenListGame({
         open={choosing}
         pending={seal.isPending}
         error={seal.error}
-        failedRosterId={seal.variables ?? null}
+        failedRosterId={seal.variables?.rosterId ?? null}
         requiredLimit={team && seatPoints === null ? null : ownLimit}
         pointsBudget={game.pointsBudget}
         seatPoints={seatPoints}
         shared={ownEntry ? sealedEventSharesPoints(game, ownEntry) : false}
         onClose={() => !seal.isPending && setChoosing(false)}
-        onChoose={(roster) => seal.mutate(roster.id)}
+        onChoose={(roster) => void sealCard.choose(roster)}
       />
+      {sealCard.dialog}
       <ConfirmDialog
         open={moving !== undefined}
         title={moving === null ? 'Leave this game?' : 'Change sides?'}

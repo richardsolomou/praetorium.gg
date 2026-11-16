@@ -20,7 +20,7 @@ Call `get_my_battle` and follow `next.steps` from the top. Each step says whethe
 
 1. **Format.** `configure-battle` with only the fields to change, such as `missionPackId`.
 2. **Armies.** `list_my_rosters`, then `attach-saved-roster` for each seat. A practice opponent fields one of the player's own rosters; pass its seat as `playerId`. `set-painted` for each battle-ready army.
-3. **Warlord** and **Mission**, allied sides only: `set-side-warlord` and `set-side-disposition` from the choices on that side's players.
+3. **Warlord** and **Mission.** `set-side-warlord` for an allied side, and `set-side-disposition` for any side whose `dispositionChoices` offer several; ask the player which card they play.
 4. **Battlefield.** The player picks one of `next.battlefields`; send `set-battlefield` with its `patternId` and `terrainLayoutId`.
 5. **Defender.** The players roll off at the table. Record the attacker with `set-attacker`; the other side defends and deploys first.
 6. **Secondaries.** For each side, `set-secondaries` with `mode` `tactical` or `fixed`; fixed also takes two keys from `next.secondaryOptions` where `fixed` is true. Use the `choose-secondaries` skill if they want help choosing.

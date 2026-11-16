@@ -120,7 +120,7 @@ export const agentCommandSchema = z.discriminatedUnion('kind', [
     side: 'The side index, 0 or 1, from players[].side.',
     playerId: 'The ally whose Warlord leads, from players[].warlordChoices.',
   }),
-  command('set-side-disposition', 'Mission step, allied sides only: the Force Disposition the side plays.', {
+  command('set-side-disposition', 'Mission step: the Force Disposition a side plays, when its lists offer several.', {
     side: 'The side index, 0 or 1.',
     disposition: 'A Force Disposition id from players[].dispositionChoices.',
   }),
@@ -397,7 +397,7 @@ function setupSteps(
           step(
             'Mission',
             view.players.every((player) => player.dispositionChoices.length <= 1 || player.disposition),
-            'set-side-disposition for an allied side with several dispositions',
+            'set-side-disposition for each side with several dispositions',
             {
               missions: screen.missions.map(({ side, mission }) => ({ side, mission: mission && { id: mission.id, name: mission.name } })),
             },

@@ -1,4 +1,4 @@
-Praetorium checks your list as you edit. The footer shows your points against the limit and how many are left or over. It checks unit and detachment limits, units only a particular detachment allows, points caps such as the 500 points of Deathwatch a chapter may take, wargear, enhancements, attachments and Force dispositions.
+Praetorium checks your list as you edit. The footer shows your points against the limit and how many are left or over. It checks unit and detachment limits, units only a particular detachment allows, points caps such as the 500 points of Deathwatch a chapter may take, wargear, enhancements, attachments and Force dispositions that no detachment offers.
 
 ## When something's wrong
 
@@ -6,7 +6,7 @@ Problems appear in a red list in the footer, such as "must be attached to a Body
 
 ![The roster footer showing 215/2000 points and the error "Ancient: must be attached to a Bodyguard unit".](screenshot:build-an-army-validation 'The red list of problems in the footer')
 
-Detachment or disposition problems appear under the roster header with **Review setup** or **Choose one**.
+Detachment problems appear under the roster header with **Review setup**.
 
 **Could not check every rule** lists restrictions Praetorium can't evaluate. They aren't marked legal, so check them yourself before playing.
 

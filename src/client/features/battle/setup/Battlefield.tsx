@@ -1,5 +1,4 @@
 import { useQuery } from '@tanstack/react-query'
-import { Link } from '@tanstack/react-router'
 import { Check, Maximize2, Shuffle } from 'lucide-react'
 import { useEffect, useState, type ComponentProps } from 'react'
 import { Button } from '@/components/ui/button'
@@ -58,21 +57,8 @@ export function Battlefield({ view, send, pending, allowedIds, matchup }: Props)
   }, [attemptedSeq, fixedTerrainId, fixedPatternId, fixedSelected, pending, send, view.seq])
 
   if (!matchupIds.length) {
-    const viewerRoster = view.players.find((player) => player.isViewer)?.roster
-    if (viewerRoster && !viewerRoster.built?.disposition) {
-      return (
-        <p className="text-sm text-dim">
-          Your army combines detachments with different Force Dispositions, so it needs one chosen before a battlefield can be picked.{' '}
-          {viewerRoster.id ? (
-            <Link to="/rosters/$id" params={{ id: viewerRoster.id }} className="text-info hover:text-bone">
-              Choose one on the roster
-            </Link>
-          ) : (
-            'Edit the roster to choose one.'
-          )}
-        </p>
-      )
-    }
+    if (view.players.some((player) => player.dispositionChoices.length > 1 && !player.disposition))
+      return <p className="text-sm text-dim">Choose each side’s Force Disposition in the Mission step to see its layouts.</p>
     return <p className="text-sm text-dim">Both armies determine the three deployment and terrain layouts.</p>
   }
   const loading = patternsQuery.isPending || referencesQuery.isPending

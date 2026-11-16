@@ -62,7 +62,6 @@ export function SetupConsequences({ review, guest }: { review: Review; guest: bo
   const problems = [
     ...(overBudget ? [`Over budget by ${after.points - budget} points.`] : []),
     after.detachmentError,
-    after.dispositionError,
     after.borrowedError,
     ...after.errors.map((entry) => `${entry.entryName}: ${entry.message}`),
   ].filter(Boolean)

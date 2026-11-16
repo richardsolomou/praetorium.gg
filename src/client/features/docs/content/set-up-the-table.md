@@ -4,7 +4,7 @@ Work down the steps until the bar at the bottom reads **Ready**, then choose **S
 
 1. **Format.** Set the battle size, the mission pack, guided or manual tracking and the [chess clock](/docs/play-the-game#chess-clock), plus the group when you share one. [Points rules](/docs/set-up-the-table#battle-size-and-points) are below.
 2. **Armies.** Choose **Choose army** under your name at the top, or **Choose roster** on each seat. You see your saved rosters built for the battle size, plus any **Lent by friends**, and can search, filter and sort them as in your roster library. Press **Battle ready** under an army to get +10 VP at the start of the battle. Allies only get it once every army on their side is battle ready. A side of allies presses the crowned Warlord under the army whose Warlord leads it.
-3. **Mission.** Each side's primary comes from its Force Disposition against its opponent's. An allied side with more than one disposition on offer picks one.
+3. **Mission.** Each side's primary comes from its Force Disposition against its opponent's. A side whose lists offer more than one picks one here, starting from the card its list names if it names one. In a tournament the card you sealed is fixed.
 4. **Battlefield.** Pick a layout. It sets the deployment zones and terrain for both sides. At King of the Colosseum you choose the Colosseum 2.0, the original Colosseum 1.0, or one of the three Combat Patrol battlefields. Open it to [place the terrain](/docs/set-up-the-table#place-the-terrain).
 5. **Defender.** Roll off at the table, then record who defends. The defender deploys first.
 6. **Secondaries.** Each side picks **Tactical** (cards drawn during the battle) or **Fixed** (missions selected now and kept all game). Allies share one hand.

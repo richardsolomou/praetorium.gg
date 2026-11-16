@@ -5,12 +5,12 @@ Choose **Build an army** on the home page, or **New roster** on [Rosters](/roste
 1. Pick your **Faction**, and its **Rules version** if it has more than one.
 2. Pick a **Battle size**: **King of the Colosseum · 600 points**, **Incursion · 1,000 points**, **Strike Force · 2,000 points** or **Onslaught · 3,000 points**.
 3. Pick up to three **Detachments**, or one at King of the Colosseum. **Find a detachment** filters by name or Force disposition.
-4. Pick a **Force disposition** if your detachments offer several. It decides your primary mission in battle.
+4. Your detachments offer one or more **Force dispositions**, and the card you play decides your primary mission. You choose one before each battle, or when you seal the list for a tournament. Pick one here if you want it chosen already.
 5. With an account, set **Access**: **Private**, **Unlisted** (anyone with the link) or **Public** (listed on your profile and for anyone to find).
 
 The new roster is named from its army. Change it in **List name** at the top of the builder.
 
-If something's missing, the dialog says so, such as **Choose a detachment.** or **Choose a Force disposition.**
+If something's missing, the dialog says so, such as **Choose a detachment.**
 
 ![The Create roster dialog for Space Marines with Strike Force, Gladius Task Force and the Take and Hold Force disposition chosen.](screenshot:build-an-army-setup 'The Force disposition choice in the Create roster dialog')
 

@@ -58,6 +58,11 @@ const battle = (status: 'setup' | 'playing' | 'finished', players = [seat('kiera
   )
 
 describe('playedArmies', () => {
+  it('records the card a side picked at setup for a list that names none', () => {
+    const open = { ...seat('kieran', { ...built, disposition: null }), matchup: { own: 'Reconnaissance', opposing: null } }
+    expect(battle('finished', [open, seat('sam')])[0]?.disposition).toBe('Reconnaissance')
+  })
+
   it('lists every catalogue army a finished battle fielded', () => {
     expect(battle('finished').map((army) => army.player.name)).toEqual(['Kieran', 'Sam'])
   })

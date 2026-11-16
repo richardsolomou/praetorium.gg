@@ -107,7 +107,6 @@ describe('the verdict on a saved list', () => {
     const verdict = rosterVerdict(saved(['lord']), {
       points: 100,
       detachmentError: null,
-      dispositionError: null,
       errors: [],
       units: [{ key: 0, size: { models: 1 }, enhancements: ['Artificer Armour'], upgrades: ['Drill Squad'] }],
     })
@@ -291,7 +290,6 @@ describe('changes that do not need roster pricing', () => {
     const priced = rosterVerdict(roster, {
       points: 100,
       detachmentError: null,
-      dispositionError: null,
       errors: [],
       units: [{ key: 0, size: { models: 1 }, enhancements: ['Artificer Armour'], upgrades: [] }],
     })

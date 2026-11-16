@@ -31,6 +31,7 @@ it.each(['preview', 'released', 'retired'] as const)('submits a queued %s sealed
     saved,
     expect.objectContaining({ built: expect.objectContaining({ edition }) }),
     undefined,
+    undefined,
   )
 })
 

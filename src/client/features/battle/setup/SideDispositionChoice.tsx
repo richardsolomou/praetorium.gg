@@ -8,8 +8,8 @@ import { DispositionChip } from './chrome'
 /**
  * The Force Disposition a side plays, as one row under its mission.
  *
- * An allied side whose armies brought different ones picks between them here; who
- * brought each is in its tooltip, because the row is for the choice, not the roster.
+ * A side whose lists offer several picks one here. On an allied side, who brought each
+ * is in its tooltip, because the row is for the choice, not the roster.
  */
 export function SideDispositionChoice({
   side,
@@ -38,7 +38,8 @@ export function SideDispositionChoice({
       {side.dispositionChoices.map((id) => {
         const chosen = side.disposition === id
         const named = nameDisposition(id)?.name ?? id
-        const broughtBy = side.armies.filter((army) => army.roster?.built?.disposition === id).map((army) => army.playerName)
+        const broughtBy =
+          side.armies.length > 1 ? side.armies.filter((army) => army.roster?.built?.disposition === id).map((army) => army.playerName) : []
         return (
           <button
             key={id}

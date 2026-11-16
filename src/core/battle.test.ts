@@ -500,7 +500,7 @@ describe('setup', () => {
     expect(sideDisposition(begun, 1)).toBe('recon')
   })
 
-  describe('cards an allied side may play', () => {
+  describe('cards a side may play', () => {
     const teamBattle: Command = {
       kind: 'configure-battle',
       limit: 2000,
@@ -510,7 +510,7 @@ describe('setup', () => {
       teamBattle: true,
       clockLimitMinutes: null,
     }
-    const army = (name: string, disposition: string, dispositions: string[], limit: number): Command => ({
+    const army = (name: string, disposition: string | null, dispositions: string[], limit: number): Command => ({
       kind: 'attach-roster',
       roster: {
         name,
@@ -551,7 +551,7 @@ describe('setup', () => {
       ).toBeNull()
     })
 
-    it('keeps a lone army on the card its list chose', () => {
+    it('lets a lone army play any card its list offers', () => {
       const entries = table(army('Marines', 'recon', ['recon'], 1000), army('Guard', 'recon', ['recon'], 1000))
       expect(
         validate(reduceBattle(seats, entries, sideOfEach), ALICE, {
@@ -559,7 +559,34 @@ describe('setup', () => {
           side: 0,
           disposition: 'priority-assets',
         }),
+      ).toBeNull()
+    })
+
+    it('keeps a lone army sealed for an event on the card it sealed', () => {
+      const entries = then(table(army('Marines', 'recon', ['recon'], 1000), army('Guard', 'recon', ['recon'], 1000)), ALICE, {
+        kind: 'lock-sealed-event-rosters',
+        sealedEventToken: 'tournament',
+        eventToken: 'event',
+      })
+      expect(
+        validate(reduceBattle(seats, entries, sideOfEach), ALICE, {
+          kind: 'set-side-disposition',
+          side: 0,
+          disposition: 'priority-assets',
+        }),
       ).toBe('that force disposition is not one this side brought')
+    })
+
+    it('asks a lone army whose list names no card which one it plays before the battle starts', () => {
+      const entries = log(
+        [ALICE, teamBattle],
+        [ALICE, army('Necrons', null, ['take-and-hold', 'priority-assets'], 2000)],
+        [BOB, army('Marines', 'recon', ['recon'], 1000)],
+        [CAROL, army('Guard', 'recon', ['recon'], 1000)],
+      )
+      expect(validate(reduceBattle(seats, entries, sideOfEach), ALICE, { kind: 'begin-battle', firstPlayerId: ALICE })).toBe(
+        'each side must choose the force disposition it plays',
+      )
     })
 
     it('plays the card allies agree on until they pick another they were offered', () => {

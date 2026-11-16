@@ -515,15 +515,15 @@ describe('force disposition', () => {
   })
 
   it('uses the only available disposition', () => {
-    expect(resolveDisposition(['reconnaissance'], null)).toEqual({ disposition: 'reconnaissance', error: null })
+    expect(resolveDisposition(['reconnaissance'], null)).toBe('reconnaissance')
   })
 
-  it('requires a choice when several are available', () => {
-    expect(resolveDisposition(['reconnaissance', 'disruption'], null)).toEqual({ disposition: null, error: 'Pick a disposition.' })
+  it('leaves the choice open when several are available', () => {
+    expect(resolveDisposition(['reconnaissance', 'disruption'], null)).toBeNull()
   })
 
   it('keeps a valid choice', () => {
-    expect(resolveDisposition(['reconnaissance', 'disruption'], 'disruption')).toEqual({ disposition: 'disruption', error: null })
+    expect(resolveDisposition(['reconnaissance', 'disruption'], 'disruption')).toBe('disruption')
   })
 
   it('does not restore a catalogue disposition when the rules reference is unknown', () => {

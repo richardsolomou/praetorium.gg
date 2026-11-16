@@ -343,9 +343,7 @@ export function RosterSetupDialog({
             ? 'Choose a detachment.'
             : unavailableDetachmentIds.length
               ? 'Replace the unavailable detachment.'
-              : dispositions.length > 1 && !selectedDisposition
-                ? 'Choose a Force disposition.'
-                : pointsError
+              : pointsError
   const description = (
     <>
       {mode === 'create'
@@ -587,7 +585,9 @@ export function RosterSetupDialog({
         <fieldset>
           <legend className="rubric">Force disposition</legend>
           <p className="mt-1 text-xs text-dim">
-            Your Force disposition helps decide your primary mission in battle. Open the selected detachment’s reference to read its rules.
+            {dispositions.length > 1
+              ? 'Your detachments offer these. You choose one before each battle, or when you seal the list for an event. Pick one now to have it chosen already.'
+              : 'Your Force disposition helps decide your primary mission in battle.'}
           </p>
           <div className="mt-2 grid gap-2 sm:grid-cols-2">
             {dispositions.map((entry) => {
@@ -597,7 +597,7 @@ export function RosterSetupDialog({
                   key={entry.id}
                   type="button"
                   onClick={() => {
-                    if (dispositions.length > 1) changeDraft({ ...draft, disposition: entry.id })
+                    if (dispositions.length > 1) changeDraft({ ...draft, disposition: chosen ? null : entry.id })
                   }}
                   aria-pressed={chosen}
                   className={`flex min-h-12 items-center gap-3 rounded-lg border px-3 text-left transition-colors ${chosen ? 'border-parchment bg-parchment/6 inset-ring-1 inset-ring-parchment' : 'border-edge bg-sunken hover:border-runner-hi'}`}
@@ -800,7 +800,7 @@ export function RosterSetupDialog({
 }
 
 /** The round mark a chosen option fills, the same on detachments and dispositions. */
-function ChoiceMark({ chosen }: { chosen: boolean }) {
+export function ChoiceMark({ chosen }: { chosen: boolean }) {
   return (
     <span
       aria-hidden

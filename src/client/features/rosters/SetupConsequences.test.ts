@@ -97,7 +97,7 @@ it.each([
   )
 })
 
-it.each(['detachmentError', 'dispositionError', 'borrowedError'])('surfaces %s even when units are unchanged', (field) => {
+it.each(['detachmentError', 'borrowedError'])('surfaces %s even when units are unchanged', (field) => {
   expect(render(65, 65, { after: { ...price(65), [field]: 'Invalid setup' } })).toMatch(
     /Needs attention[\s\S]*text-destructive[\s\S]*Invalid setup/,
   )
