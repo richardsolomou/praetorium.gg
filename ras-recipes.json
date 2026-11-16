@@ -136,13 +136,15 @@
       ]
     },
     "posthog-web": {
-      "version": 2,
-      "commit": "82fce4523ec914bd2e70aefd4bff84c10fb278c6",
+      "version": 3,
+      "commit": "8e4dfdee6afeeaa1f05804e38888a171f9ebe722",
       "files": {
         "scripts/posthogSourceMaps.test.ts": "scripts/posthogSourceMaps.test.ts",
         "scripts/posthogSourceMaps.ts": "scripts/posthogSourceMaps.ts",
         "src/client/posthog.test.tsx": "src/client/posthog.test.tsx",
         "src/client/posthog.tsx": "src/client/posthog.tsx",
+        "src/client/posthogOptions.test.ts": "src/client/posthogOptions.test.ts",
+        "src/client/posthogOptions.ts": "src/client/posthogOptions.ts",
         "src/contracts/posthog.test.ts": "src/contracts/posthog.test.ts",
         "src/contracts/posthog.ts": "src/contracts/posthog.ts",
         "src/routes/t/$.ts": "src/routes/t/$.ts",
