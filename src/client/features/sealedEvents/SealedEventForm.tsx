@@ -294,7 +294,7 @@ function ScheduleFields({
       <p className={`text-xs ${problem ? 'text-destructive' : 'text-dim'}`}>
         {problem ??
           (tournament
-            ? 'Both optional. After the deadline nobody can seal, and anyone without a sealed roster sits the event out.'
+            ? 'Both optional. After the deadline nobody can seal, and anyone without a sealed roster sits the tournament out.'
             : 'Both optional. After the deadline nobody can seal, and anyone who hasn’t sealed doesn’t play.')}
       </p>
     </div>

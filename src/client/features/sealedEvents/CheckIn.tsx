@@ -45,7 +45,7 @@ export function CheckIn({
     <div className="mb-4 space-y-2" data-check-in>
       <div className="flex flex-wrap items-center gap-2">
         <p className="text-sm text-dim">
-          {players.length - missing.length} of {players.length} checked in
+          {players.length - missing.length} of {players.length} checked in{organizes ? '. Press a name to check them in or out.' : null}
         </p>
         {own ? (
           <Button

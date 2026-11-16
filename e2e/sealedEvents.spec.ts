@@ -839,7 +839,7 @@ test('a sealed event names its next step, which moves on once a player joins', a
   await create.getByRole('button', { name: /^Anyone who joins/ }).click()
   await submitSealedEventCreation(owner, create)
   const nextStep = owner.locator('[data-sealed-event-next-step]')
-  await expect(nextStep).toHaveText('Next: Copy the invite link and send it to your group.')
+  await expect(nextStep).toHaveText('Next: Copy the invite link and send it to your players.')
 
   await player.goto(owner.url())
   await join(player)

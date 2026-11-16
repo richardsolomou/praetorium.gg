@@ -229,7 +229,7 @@ export function sealedEventNextStep(
   const shape = sealedEventTableShape(sealedEvent.format)
   if (viewer.organizer)
     return {
-      empty: 'Copy the invite link and send it to your group.',
+      empty: 'Copy the invite link and send it to your players.',
       approving: 'Answer the requests waiting below.',
       recruiting: 'Share the invite link. This format needs more players before you can reveal.',
       sizing: 'Size players below: at least one solo and two allied.',
