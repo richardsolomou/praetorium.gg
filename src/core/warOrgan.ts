@@ -1,5 +1,5 @@
 import { printedNumber } from './text'
-import { textNickname, type TextRoster, type TextRosterUnit } from './textRoster'
+import { listedPieces, textNickname, type TextRoster, type TextRosterUnit } from './textRoster'
 
 const battleSize = /^Battle Size:\s*(.+?)\s*\((\d[\d,]*) points? limit\)$/i
 const detachments = /^Detachments?:\s*(.+?)(?:\s*\([^()]*\))?$/i
@@ -15,7 +15,7 @@ const enhancement = /^(.+?)\s*\[\+\d[\d,]*\s*points?\]$/i
  * A heading names a role, as "Battleline", or an attached group, as "Attached Unit" or a name the player gave it, and
  * the text does not say which; a group lists its units alphabetically, so it does not say which is the bodyguard either.
  * Each heading's units are marked as one group for the importer to settle. A line joins a model's wargear with commas
- * and a last "and", and a piece's own name can hold a lower-case "and", as "Hybrid firearm and cult icon".
+ * and a last "and".
  */
 export function fromWarOrganText(input: string): TextRoster | null {
   const lines = input.replaceAll('\r', '').split('\n')
@@ -71,7 +71,7 @@ export function fromWarOrganText(input: string): TextRoster | null {
     const model = item.match(modelLine)
     const count = model ? Number(model[1]) : 1
     if (model) current.selections.push({ name: model[2]!, count })
-    for (const piece of pieces(model ? model[3]! : item)) {
+    for (const piece of listedPieces(model ? model[3]! : item)) {
       const counted = piece.match(/^(\d+)\s+(.+)$/)
       current.selections.push({
         name: counted?.[2] ?? piece,
@@ -93,6 +93,3 @@ export function fromWarOrganText(input: string): TextRoster | null {
     ...(unread.length ? { unread } : {}),
   }
 }
-
-/** The pieces a line lists, split at each comma and at each "and" that starts a new, capitalised piece. */
-const pieces = (line: string) => line.split(/,\s+|\s+and\s+(?=[\p{Lu}\d])/u).filter(Boolean)

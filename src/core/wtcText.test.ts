@@ -118,6 +118,43 @@ describe('WTC text import', () => {
     expect([parsed?.unread, parsed?.units.length]).toEqual([undefined, fromBattleBaseText(necronsOfficial)?.units.length])
   })
 
+  it('reads counted units priced in points with each model group and its wargear', () => {
+    const counted = fromWtcText(`+++++++++++++++++++++++++++++++++++++++++++++++
++ FACTION KEYWORD: Imperium - Adeptus Mechanicus
++ DETACHMENT: Skitarii Hunter Cohort
++++++++++++++++++++++++++++++++++++++++++++++++
+
+BATTLELINE
+
+10x Skitarii Rangers (85 points)
+• 9x Skitarii Rangers: Close combat weapon and Galvanic rifle
+• 1x Skitarii Ranger Alpha: Arc pistol and Arc maul`)
+    expect(counted?.units.map(({ name, models, selections }) => ({ name, models, selections }))).toEqual([
+      {
+        name: 'Skitarii Rangers',
+        models: 10,
+        selections: [
+          { name: 'Skitarii Rangers', count: 9 },
+          { name: 'Close combat weapon', count: 9, model: 'Skitarii Rangers' },
+          { name: 'Galvanic rifle', count: 9, model: 'Skitarii Rangers' },
+          { name: 'Skitarii Ranger Alpha', count: 1 },
+          { name: 'Arc pistol', count: 1, model: 'Skitarii Ranger Alpha' },
+          { name: 'Arc maul', count: 1, model: 'Skitarii Ranger Alpha' },
+        ],
+      },
+    ])
+  })
+
+  it('reads compact units priced in points rather than pts', () => {
+    const compact = fromWtcText(`+++++++++++++++++++++++++++++++++++++++++++++++
++ FACTION KEYWORD: Xenos - T'au Empire
++++++++++++++++++++++++++++++++++++++++++++++++
+
+Char1: 1x Cadre Fireblade (50 points): Close combat weapon, Fireblade pulse rifle
+Enhancement: Strategic Conqueror (+15 pts)`)
+    expect(compact?.units.map((unit) => unit.name)).toEqual(['Cadre Fireblade'])
+  })
+
   it('needs a faction keyword', () => {
     expect(fromWtcText('CHARACTER\n\nLokhust Lord (70 pts)')).toBeNull()
   })

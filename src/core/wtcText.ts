@@ -4,6 +4,7 @@ import { plainQuotes, printedNumber } from './text'
 import {
   attachGroups,
   defaultListName,
+  listedPieces,
   starredLabel,
   type AttachedGroup,
   type TextRoster,
@@ -11,7 +12,8 @@ import {
   WTC_SECTION,
 } from './textRoster'
 
-const compactHeader = /^(?:Char\d+:\s*)?\d+x\s+.+\(\d[\d,]*\s*pts?\)/i
+// A unit priced in points is compact only with its wargear after a colon; without one it heads bulleted model lines.
+const compactHeader = /^(?:Char\d+:\s*)?\d+x\s+.+\(\d[\d,]*\s*(?:pts?\)|points?\):)/i
 const unitHeader = /^(.+?)\s+\((\d[\d,]*)\s*(?:pts?|points?)\)$/i
 const attachedHeading = /^Attached unit \d+:?$/i
 
@@ -100,18 +102,34 @@ function officialUnits(lines: readonly string[]) {
       current = null
       continue
     }
-    // Further pieces of a model's wargear follow its bullet on unbulleted counted lines.
-    const item = (trimmed.match(/^[•◦]\s*(.+)$/) ?? trimmed.match(/^(\d+x\s.+)$/))?.[1]
+    // Further pieces of a model's wargear follow its bullet on unbulleted counted lines; a counted line priced in
+    // points is a unit, as "10x Skitarii Rangers (85 points)".
+    const header = trimmed.match(unitHeader)
+    const item = (trimmed.match(/^[•◦]\s*(.+)$/) ?? (header ? null : trimmed.match(/^(\d+x\s.+)$/)))?.[1]
     if (item && current) {
       if (/^Attached as:\s*Bodyguard\b/i.test(item)) {
         if (group) group.bodyguard = current
       } else if (/^Warlord$/i.test(item)) current.warlord = true
-      else if (!/^Attached as:/i.test(item)) addItems(current, item)
+      else if (!/^Attached as:/i.test(item)) {
+        // A model group with its wargear, as "9x Skitarii Rangers: Close combat weapon and Galvanic rifle".
+        const model = item.match(/^(\d+)x\s+([^:,]+):\s*(.+)$/i)
+        if (model) {
+          const [count, name] = [Number(model[1]), model[2]!.trim()]
+          current.selections.push({ name, count })
+          for (const piece of listedPieces(model[3]!)) current.selections.push({ name: piece.trim(), count, model: name })
+        } else addItems(current, item)
+      }
       continue
     }
-    const header = item ? null : trimmed.match(unitHeader)
     if (header) {
-      current = { name: header[1]!.trim(), selections: [], leading: null, warlord: false }
+      const sized = header[1]!.trim().match(/^(\d+)\s*x\s+(.+)$/i)
+      current = {
+        name: sized?.[2] ?? header[1]!.trim(),
+        selections: [],
+        leading: null,
+        warlord: false,
+        ...(sized ? { models: Number(sized[1]) } : {}),
+      }
       units.push(current)
       group?.members.push(current)
       continue

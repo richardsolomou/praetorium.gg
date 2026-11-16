@@ -65,6 +65,21 @@ export function attachGroups(units: readonly TextRosterUnit[], groups: readonly 
   }
 }
 
+/** Records a unit listed as attached under `host`, keeping one group for each bodyguard. */
+export function joinGroup(groups: AttachedGroup[], host: TextRosterUnit, unit: TextRosterUnit) {
+  const group = groups.find((candidate) => candidate.bodyguard === host)
+  if (group) group.leaders.push(unit)
+  else groups.push({ leaders: [unit], bodyguard: host })
+}
+
+/** Wargear pieces, each taking the count it starts with, as "9 Pistolet bolter". */
+export function addCountedPieces(unit: TextRosterUnit, pieces: readonly string[]) {
+  for (const piece of pieces.filter(Boolean)) {
+    const counted = piece.match(/^(\d+)\s+(.+)$/)
+    unit.selections.push({ name: counted?.[2] ?? piece, count: Number(counted?.[1] ?? 1) })
+  }
+}
+
 /** A section heading in the unit lists of WTC-style text. */
 export const WTC_SECTION =
   /^(?:ATTACHED UNITS?|CHARACTERS?|EPIC HER(?:O|OES)|BATTLELINE|DEDICATED TRANSPORTS?|OTHER DATASHEETS|ALLIED UNITS)$/i
@@ -74,6 +89,12 @@ export const WTC_SECTION =
  * The app's footnotes, as "* This Datasheet also has the Battleline keyword", carry no label.
  */
 export const starredLabel = (line: string) => line.replace(/^(\s*)\*\s*(?=[^:*]+:\s*\S)/, '$1• ')
+
+/**
+ * The pieces a model's wargear line lists, split at each comma and at each "and" that starts a new, capitalised piece,
+ * since a piece's own name can hold a lower-case "and", as "Hybrid firearm and cult icon".
+ */
+export const listedPieces = (line: string) => line.split(/,\s+|\s+and\s+(?=[\p{Lu}\d])/u).filter(Boolean)
 
 /** A nickname as one bounded line, whether it is being written into text or read back out. */
 export const textNickname = (value: string) => value.replace(/\s+/g, ' ').trim().slice(0, UNIT_NICKNAME_MAX_LENGTH) || undefined
