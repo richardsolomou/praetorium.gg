@@ -29,3 +29,14 @@ export const PREVIEW_CROWD = Array.from({ length: 12 }, (_, index) => ({
   password: `player-${index + 1}-player-${index + 1}`,
   name: person(),
 }))
+
+/** The crowd's own public group and Swiss tournament, named like ones players run. */
+const groupCity = previewFaker.location.city()
+export const PREVIEW_CROWD_GROUP = {
+  name: `${groupCity} Wargamers`,
+  description: `Weeknight games in ${groupCity}. Bring a 2,000-point list.`,
+}
+export const PREVIEW_CROWD_TOURNAMENT = {
+  name: `${previewFaker.location.city()} Open`,
+  description: 'Three Swiss rounds at 2,000 points, paired once every table has finished.',
+}

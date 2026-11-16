@@ -27,6 +27,8 @@ import { loadSnapshotWithRules } from './lib/catalogueSnapshotLoad'
 import {
   PREVIEW_ALLY_NAME,
   PREVIEW_CROWD,
+  PREVIEW_CROWD_GROUP,
+  PREVIEW_CROWD_TOURNAMENT,
   PREVIEW_OPPONENT_NAME,
   PREVIEW_PLAYER_NAME,
   PREVIEW_RIVAL_NAME,
@@ -287,6 +289,9 @@ const PREVIEW_CROWD_ACCOUNTS = PREVIEW_CROWD.map((player, index) => ({
   rosters: [0, 1].map((at) => rosterCopy(previewFaker.helpers.arrayElement(STRIKE_FORCE_ROSTERS), `preview-crowd-${index + 1}-${at + 1}`)),
 }))
 
+/** Browser-test stacks skip the crowd: no test reads it, and its games double every shard's seed time. */
+const SEEDED_CROWD = process.env.LOCAL_TEST_MODE === 'true' ? [] : PREVIEW_CROWD_ACCOUNTS
+
 export const PREVIEW_ACCOUNTS = [
   { email: PREVIEW_EMAIL, password: PREVIEW_PASSWORD, name: PREVIEW_PLAYER_NAME, rosters: PREVIEW_ROSTERS },
   { email: PREVIEW_OPPONENT_EMAIL, password: PREVIEW_OPPONENT_PASSWORD, name: PREVIEW_OPPONENT_NAME, rosters: PREVIEW_OPPONENT_ROSTERS },
@@ -294,7 +299,7 @@ export const PREVIEW_ACCOUNTS = [
   { email: PREVIEW_RIVAL_EMAIL, password: PREVIEW_RIVAL_PASSWORD, name: PREVIEW_RIVAL_NAME, rosters: PREVIEW_RIVAL_ROSTERS },
   { email: PREVIEW_STRANGER_EMAIL, password: PREVIEW_STRANGER_PASSWORD, name: 'Kieran Vale', rosters: PREVIEW_STRANGER_ROSTERS },
   { email: PREVIEW_WANDERER_EMAIL, password: PREVIEW_WANDERER_PASSWORD, name: 'Sam Okafor', rosters: PREVIEW_WANDERER_ROSTERS },
-  ...PREVIEW_CROWD_ACCOUNTS,
+  ...SEEDED_CROWD,
 ]
 
 const PREVIEW_ALL_ROSTERS = PREVIEW_ACCOUNTS.flatMap((account) => account.rosters)
@@ -563,13 +568,11 @@ async function seedInto(
 
   // Created first, so they are the oldest public games and leave the newest to the preview login's own.
   // Each crowd player meets the next three round the circle, six games apiece, enough to be ranked.
-  for (const [index, player] of PREVIEW_CROWD_ACCOUNTS.entries()) {
+  for (const [index, player] of SEEDED_CROWD.entries()) {
     for (const step of [1, 2, 3]) {
-      const opponent = PREVIEW_CROWD_ACCOUNTS[(index + step) % PREVIEW_CROWD_ACCOUNTS.length]!
+      const opponent = SEEDED_CROWD[(index + step) % SEEDED_CROWD.length]!
       const [playerId, opponentId] = [accountId(player.email), accountId(opponent.email)]
-      const winner = previewFaker.number.int({ min: 55, max: 95 })
-      const loser = previewFaker.number.int({ min: 20, max: winner - 5 })
-      const playerWon = previewFaker.datatype.boolean()
+      const { winnerId, loserId, scores } = generatedResult(playerId, opponentId)
       const token = `preview-crowd-${index + 1}-${step}`
       await createCasualBattle({
         id: token,
@@ -581,7 +584,7 @@ async function seedInto(
           [playerId, previewFaker.helpers.arrayElement(player.rosters).id],
           [opponentId, previewFaker.helpers.arrayElement(opponent.rosters).id],
         ],
-        tail: playerWon ? finished(playerId, opponentId, [winner, loser]) : finished(opponentId, playerId, [winner, loser]),
+        tail: finished(winnerId, loserId, scores),
       })
     }
   }
@@ -911,6 +914,7 @@ async function seedInto(
   await createSwissTournament()
   await createGroups()
   await createGroupLeagues()
+  await createCrowdEvents()
   return [...ids.values()]
 
   /**
@@ -976,6 +980,107 @@ async function seedInto(
         )
       }
     }
+  }
+
+  /** A busy public group and Swiss tournament among the crowd, beside the hand-built events the tests rely on. */
+  async function createCrowdEvents() {
+    if (!SEEDED_CROWD.length) return
+    const crowd = SEEDED_CROWD.map((player) => ({ id: accountId(player.email), rosterId: player.rosters[0]!.id }))
+    const rosterOf = new Map(crowd.map((player) => [player.id, player.rosterId]))
+
+    const group = 'preview-crowd-group'
+    const owner = crowd[0]!.id
+    if (!(await repository.groupByToken(group))) {
+      await repository.createGroup({
+        id: group,
+        token: group,
+        ownerId: owner,
+        ...PREVIEW_CROWD_GROUP,
+        visibility: 'public',
+        admission: 'automatic',
+        now: now(),
+      })
+      for (const { id } of crowd.slice(1)) await repository.joinGroup(group, id, now())
+      const leaguePlayers = crowd.slice(0, 8).map((player) => player.id)
+      await repository.drawGroupLeague(group, owner, { id: `${group}-league`, seed: 4, now: now() })
+      for (const id of leaguePlayers) await repository.joinGroupLeague(group, id, now())
+      await repository.publishGroupLeague(group, owner, { seed: 4, playerIds: leaguePlayers, now: now() })
+      const fixtures = (await repository.groupByToken(group))!.league!.fixtures.filter((fixture) => fixture.bId !== null)
+      // The first half played, so the table has standings and fixtures still to play.
+      for (const [index, fixture] of fixtures.slice(0, Math.floor(fixtures.length / 2)).entries()) {
+        const { winnerId, loserId, scores } = generatedResult(fixture.aId, fixture.bId!)
+        const token = `${group}-league-battle-${index + 1}`
+        await repository.createBattle({
+          id: token,
+          token,
+          userId: fixture.aId,
+          allyIds: [],
+          opponentIds: [fixture.bId!],
+          initialCommands: battleCommands(
+            2_000,
+            [
+              [fixture.aId, rosterOf.get(fixture.aId)!],
+              [fixture.bId!, rosterOf.get(fixture.bId!)!],
+            ],
+            [{ kind: 'set-battle-group', groupId: group }, ...finished(winnerId, loserId, scores)],
+          ),
+          now: now(),
+          fixtureKey: fixture.key,
+        })
+      }
+    }
+
+    const token = 'preview-crowd-swiss'
+    const eventToken = 'preview-crowd-swiss-event'
+    const entrants = crowd.slice(4)
+    const organizer = entrants[0]!.id
+    await createRevealedSealedEvent({
+      id: token,
+      token,
+      eventId: eventToken,
+      eventToken,
+      ownerId: organizer,
+      ...PREVIEW_CROWD_TOURNAMENT,
+      visibility: 'public',
+      format: '1v1',
+      rounds: 3,
+      entries: entrants.map((player) => ({ userId: player.id, rosterId: player.rosterId })),
+    })
+    const matchPoints = new Map(entrants.map((player) => [player.id, 0]))
+    let order = previewFaker.helpers.shuffle(entrants.map((player) => player.id))
+    for (const round of [1, 2, 3]) {
+      const pairs = Array.from({ length: order.length / 2 }, (_, table): [string, string] => [order[table * 2]!, order[table * 2 + 1]!])
+      const sealedEvent = await repository.sealedEventByToken(token, organizer, eventToken)
+      if (!sealedEvent?.pairings.some((pairing) => pairing.round === round)) {
+        const paired = await repository.pairSealedEventRound({ token, eventToken, ownerId: organizer, round, pairs })
+        if (paired !== 'paired') throw new Error(`${PREVIEW_CROWD_TOURNAMENT.name} round ${round} could not be paired: ${paired}`)
+      }
+      for (const [table, [aId, bId]] of pairs.entries()) {
+        // The last round is under way: its first half of tables finished, the rest still playing.
+        const playing = round === 3 && table >= pairs.length / 2
+        const { winnerId, loserId, scores } = generatedResult(aId, bId)
+        if (!playing) matchPoints.set(winnerId, matchPoints.get(winnerId)! + 3)
+        const battleToken = `${token}-battle-${round}-${table + 1}`
+        if (await repository.battleByToken(battleToken)) continue
+        await repository.createSealedEventBattle(
+          { id: battleToken, token: battleToken, sealedEventToken: token, eventToken, userId: aId, userIds: [aId, bId], now: now() },
+          (setup) => {
+            const built = buildSealedEventBattle(setup, aId, bId, null, battleToken)
+            const tail: Command[] = playing ? [{ kind: 'begin-battle', firstPlayerId: aId }] : finished(winnerId, loserId, scores)
+            return { ...built, initialCommands: [...built.initialCommands, ...tail] }
+          },
+        )
+      }
+      // Swiss pairs players on the same score, top of the table first.
+      order = order.toSorted((left, right) => matchPoints.get(right)! - matchPoints.get(left)!)
+    }
+  }
+
+  /** Primary points only, kept low enough that a battle ready bonus on top still ends at most 100. */
+  function generatedResult(aId: string, bId: string) {
+    const winner = previewFaker.number.int({ min: 45, max: 85 })
+    const scores: [number, number] = [winner, previewFaker.number.int({ min: 15, max: winner - 5 })]
+    return previewFaker.datatype.boolean() ? { winnerId: aId, loserId: bId, scores } : { winnerId: bId, loserId: aId, scores }
   }
 
   function finished(winnerId: string, loserId: string, scores: [number, number]): Command[] {
