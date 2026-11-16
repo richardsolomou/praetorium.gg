@@ -1,15 +1,23 @@
 import { offlineAppPlugin } from './scripts/lib/offlineAppPlugin.ts'
 import { recentChangelogPlugin } from './scripts/lib/recentChangelogPlugin.ts'
-import { loadEnv } from 'vite'
+import tailwindcss from '@tailwindcss/vite'
+import { tanstackStart } from '@tanstack/react-start/plugin/vite'
+import viteReact from '@vitejs/plugin-react'
+import { nitro } from 'nitro/vite'
+import { defineConfig, loadEnv, type UserConfig } from 'vite'
 import path from 'node:path'
-import { defineViteConfig } from 'ras-stack/vite'
+import { postHogSourceMapPlugins } from 'ras-stack/vite'
 import { postHogEnvironment } from 'ras-stack/posthog'
 import { postHogIngestProxy } from 'ras-stack/posthog/proxy'
-export default defineViteConfig(({ mode }) => {
+export default defineConfig(async ({ mode }): Promise<UserConfig> => {
   const env = loadEnv(mode, process.cwd(), '')
   process.env = { ...env, ...process.env }
   const posthog = postHogEnvironment({ projectToken: env.VITE_POSTHOG_PROJECT_TOKEN, host: env.VITE_POSTHOG_HOST })
   const proxy = posthog ? postHogIngestProxy(posthog) : undefined
+  const sourceMapOptions = {
+    sourcemaps: { releaseName: 'praetorium-web', releaseVersion: env.GITHUB_SHA, releaseMode: 'symbol-set' as const },
+  }
+  const sourceMaps = await postHogSourceMapPlugins(process.env, sourceMapOptions)
   return {
     ...(process.env.LOCAL_BUILD_DIR ? { cacheDir: path.join(process.env.LOCAL_BUILD_DIR, 'vite-cache') } : {}),
     // The Node preview renderer inlines its WebAssembly, which only an asset type accepts.
@@ -38,13 +46,10 @@ export default defineViteConfig(({ mode }) => {
       proxy: proxy?.vite,
       ...(process.env.LOCAL_VITE_ORIGIN ? { ws: { clientPort: Number(process.env.LOCAL_APP_PORT ?? 3000) } } : {}),
     },
-    plugins: [recentChangelogPlugin(), offlineAppPlugin()],
-    ras: {
-      start: { serverFns: { disableCsrfMiddlewareWarning: true } },
-      posthog: {
-        sourcemaps: { releaseName: 'praetorium-web', releaseVersion: env.GITHUB_SHA, releaseMode: 'symbol-set' },
-      },
-      nitro: {
+    resolve: { alias: { '@': path.join(import.meta.dirname, 'src') } },
+    plugins: [
+      tanstackStart({ serverFns: { disableCsrfMiddlewareWarning: true } }),
+      nitro({
         ...(process.env.LOCAL_BUILD_DIR
           ? {
               // Coverage runs map executed server code back to source to choose which specs a change needs.
@@ -81,7 +86,15 @@ export default defineViteConfig(({ mode }) => {
             },
           },
         },
-      },
-    },
+      }),
+      viteReact(),
+      tailwindcss(),
+      ...sourceMaps.map((plugin) => ({ ...plugin, applyToEnvironment: (environment: { name: string }) => environment.name === 'client' })),
+      recentChangelogPlugin(),
+      offlineAppPlugin(),
+    ],
+    ...(sourceMaps.length
+      ? { worker: { plugins: () => [postHogSourceMapPlugins(process.env, sourceMapOptions).then(([plugin]) => plugin)] } }
+      : {}),
   }
 })

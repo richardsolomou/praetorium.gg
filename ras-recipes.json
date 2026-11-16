@@ -1,0 +1,31 @@
+{
+  "source": "https://github.com/richardsolomou/ras-stack",
+  "recipes": {
+    "tooling": {
+      "version": 2,
+      "commit": "82fce4523ec914bd2e70aefd4bff84c10fb278c6",
+      "files": {
+        ".gitignore": ".gitignore",
+        ".oxfmtrc.json": ".oxfmtrc.json",
+        ".oxlintrc.json": ".oxlintrc.json",
+        "AGENTS.md": "CLAUDE.md",
+        "package.json": "package.json",
+        "pnpm-workspace.yaml": "pnpm-workspace.yaml",
+        "tsconfig.json": "tsconfig.json",
+        "vitest.config.ts": "vitest.config.ts"
+      },
+      "notes": [
+        "AGENTS.md is a symlink to CLAUDE.md, so the recipe paragraph sits in CLAUDE.md beside the application's own agent guide.",
+        "Packages stay at the versions the v5 managed install had locked (vitest 5, oxlint 1.87, oxfmt 0.72, typescript 7.0.2, vite 8.3.4) and exact, so the migration changes no tool behaviour; Dependabot moves them.",
+        "packageManager stays pnpm 12.13.0, which the application, its dev container, and CI already use.",
+        "`check` keeps the application's extra gates (docs lint, vocabulary, changesets, auth migrations, catalogue pins, Python tests), and `typecheck` also checks the mobile and spacetimedb workspace packages.",
+        "`lint` adds `--report-unused-disable-directives-severity=error`, which the application already enforced.",
+        "`changesets:check` runs scripts/checkChangesets.ts, the frontmatter and package-name check `ras changesets check` did, because the application releases with Changesets.",
+        "tsconfig.json keeps the application's include list, `@/*` path, and `noUncheckedIndexedAccess`; e2e/ is type-checked by Playwright's own transform, as before.",
+        ".oxlintrc.json also extends the domain preset and keeps the application's core and component layer rules.",
+        "vitest.config.ts is the application's: the forks pool, the `@` alias, mobile and spacetimedb tests, and separate unit and integration configs.",
+        "pnpm-workspace.yaml is a workspace of the application, mobile/, and spacetimedb/, and keeps its own allowBuilds and packageExtensions."
+      ]
+    }
+  }
+}

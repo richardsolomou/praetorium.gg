@@ -9,12 +9,7 @@ allowBuilds:
   esbuild: true
   protobufjs: false
 minimumReleaseAgeExclude:
-  - ras-stack@5.0.0
-  - ras-stack@5.1.0
-  - ras-stack@5.2.1
-  - ras-stack@5.3.0
-  - ras-stack@5.5.3
-  - ras-stack@5.5.4
+  - ras-stack
   # PostHog is a trusted publisher whose SDK fixes should land the day they ship.
   - 'posthog-*'
   - '@posthog/*'
@@ -24,6 +19,3 @@ packageExtensions:
   posthog-react-native:
     dependencies:
       '@babel/runtime': ^7.20.0
-configDependencies:
-  ras-stack: 5.5.4
-pnpmfile: node_modules/.pnpm-config/ras-stack/pnpmfile.mjs

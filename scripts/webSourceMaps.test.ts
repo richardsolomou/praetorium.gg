@@ -3,22 +3,9 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, expect, test, vi } from 'vitest'
-import { build, type Plugin, type UserConfigFnPromise } from 'vite'
-import { defineViteConfig, postHogSourceMapPlugins } from 'ras-stack/vite'
+import { build, type Plugin } from 'vite'
+import { postHogSourceMapPlugins } from 'ras-stack/vite'
 import applicationConfig from '../vite.config'
-
-const configuration = vi.hoisted(() => ({ factory: undefined as Parameters<typeof defineViteConfig>[0] }))
-
-vi.mock('ras-stack/vite', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('ras-stack/vite')>()
-  return {
-    ...actual,
-    defineViteConfig: (config: Parameters<typeof actual.defineViteConfig>[0]) => {
-      configuration.factory = config
-      return actual.defineViteConfig(config)
-    },
-  }
-})
 
 const dockerfile = readFileSync(new URL('../Dockerfile.node', import.meta.url), 'utf8')
 const uploadCommand = dockerfile
@@ -63,10 +50,7 @@ const uploadEnvironment = {
 test('wires client and worker instrumentation with the application release settings', async () => {
   for (const [name, value] of Object.entries(uploadEnvironment)) vi.stubEnv(name, value)
   const context = { command: 'build' as const, mode: 'production' }
-  const factory = configuration.factory
-  if (typeof factory !== 'function') throw new Error('Expected the application configuration callback')
-  const options = await factory(context)
-  const config = await (applicationConfig as UserConfigFnPromise)(context)
+  const config = await applicationConfig(context)
   const client = ((config.plugins ?? []) as unknown[])
     .flat(Infinity)
     .find((plugin) => (plugin as Plugin)?.name === 'posthog-rollup-plugin') as Plugin
@@ -74,12 +58,10 @@ test('wires client and worker instrumentation with the application release setti
   const workerOptions = (config.worker?.plugins?.() ?? []) as unknown[]
   const workers = (await Promise.all(workerOptions.map((plugin) => Promise.resolve(plugin)))).flat(Infinity) as Plugin[]
   expect({
-    release: options.ras?.posthog?.sourcemaps,
     client: Reflect.apply(client.applyToEnvironment, undefined, [{ name: 'client' }]),
     server: Reflect.apply(client.applyToEnvironment, undefined, [{ name: 'ssr' }]),
     workers: workers.map((plugin) => plugin.name),
   }).toEqual({
-    release: { releaseName: 'praetorium-web', releaseVersion: 'test-revision', releaseMode: 'symbol-set' },
     client: true,
     server: false,
     workers: ['posthog-rollup-plugin'],

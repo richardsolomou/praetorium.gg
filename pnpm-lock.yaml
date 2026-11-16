@@ -172,8 +172,6 @@ settings:
 
 packageExtensionsChecksum: sha256-6c58zEPnz0/E5hbPuzPLG/3mMxI2Rn//Sgi7e+54Z6s=
 
-pnpmfileChecksum: sha256-HnaFlEKILTIwPvpK0ZfesHBJAW6ScAi/wOJFl9xjoPg=
-
 importers:
 
   .:
@@ -289,9 +287,6 @@ importers:
       next-themes:
         specifier: ^0.4.6
         version: 0.4.6(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
-      nodemailer:
-        specifier: 10.1.0
-        version: 10.1.0
       openskill:
         specifier: 5.0.1
         version: 5.0.1(supports-color@8.1.1)
@@ -344,6 +339,9 @@ importers:
       '@changesets/cli':
         specifier: 3.0.3
         version: 3.0.3
+      '@changesets/parse':
+        specifier: 1.0.0
+        version: 1.0.0
       '@faker-js/faker':
         specifier: ^10.6.0
         version: 10.6.0
@@ -371,9 +369,6 @@ importers:
       '@types/node':
         specifier: 26.2.0
         version: 26.2.0
-      '@types/nodemailer':
-        specifier: 8.0.2
-        version: 8.0.2
       '@types/qrcode':
         specifier: ^1.5.6
         version: 1.5.6
@@ -3927,9 +3922,6 @@ packages:
 
   '@types/node@26.2.0':
     resolution: {integrity: sha512-5IviulTZeRNp2vAJ514cc/HUlY5nZ9fCbq9DMyC52BrhFZACo3nI0R7qBxhQmo/d27NFe96ur/b7Wwxklda+kg==}
-
-  '@types/nodemailer@8.0.2':
-    resolution: {integrity: sha512-c7M5ox8p0nEOfbJ2E9Qcmt8/QCu/VzsiAhzBiZbvky2PhKZDHpKB3sQHBM5MEZNkCfBOaS6S9//AGPRTNB7IaA==}
 
   '@types/qrcode@1.5.6':
     resolution: {integrity: sha512-te7NQcV2BOvdj2b1hCAHzAoMNuj65kNBMz0KBaxM6c3VGBOhU0dURQKOtH8CFNI/dsKkwlv32p26qYQTWoB5bw==}
@@ -10744,10 +10736,6 @@ snapshots:
     dependencies:
       undici-types: 8.3.0
 
-  '@types/nodemailer@8.0.2':
-    dependencies:
-      '@types/node': 26.2.0
-
   '@types/qrcode@1.5.6':
     dependencies:
       '@types/node': 26.2.0
@@ -13009,7 +12997,8 @@ snapshots:
 
   node-releases@2.0.58: {}
 
-  nodemailer@10.1.0: {}
+  nodemailer@10.1.0:
+    optional: true
 
   noxcturnal@0.1.11:
     dependencies:
