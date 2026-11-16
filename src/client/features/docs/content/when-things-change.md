@@ -13,7 +13,7 @@ Played battles, and lists sealed for a tournament or hidden-list game, stay exac
 
 ## Links and codes
 
-- Links to rosters, battles, groups, leagues, tournaments, invites and stream overlays keep working unless their owner makes them private or deletes them. If a page moves, its old link takes you to the new one.
+- Links to rosters, battles, groups, leagues, tournaments, invites and stream overlays keep working unless their owner makes them private or deletes them. If a page moves, its old link takes you to the new one. A battle nobody else has joined is removed after 14 days without changes, together with its invite link.
 - Your calendar link keeps working until you replace or turn it off.
 - Every exchange code Praetorium has made can still be imported.
 
