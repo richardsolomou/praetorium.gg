@@ -79,6 +79,11 @@ describe('optimization phase', () => {
   it('returns only the selected phase’s damage', () => {
     expect(optimizeLoadout(space, scoring, 'ranged').best?.result.meanDamage).toBeCloseTo(4 * (5 / 6) ** 3, 10)
   })
+  it('reports the uncapped kills of the best loadout, which the search ranks without', () => {
+    const one = { ...setup, target: { ...setup.target, groups: [{ ...setup.target.groups[0]!, models: 1 }] } }
+    const best = optimizeLoadout(space, { ...scoring, phases: { ranged: one, melee: one } }, 'ranged').best
+    expect(best?.result.uncappedKills).toBeCloseTo(4 * (5 / 6) ** 3, 10)
+  })
   it('keeps the shooting type the player chose', () => {
     const gun = weapon('Gun', 'ranged', '8')
     const pistol = {
