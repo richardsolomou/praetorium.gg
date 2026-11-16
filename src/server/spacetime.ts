@@ -7,13 +7,14 @@ export type SpacetimeConnection = {
   headers?: Record<string, string>
   /** A container name on a private network, such as `spacetime`, that may be reached over plain HTTP. */
   internalHost?: string
-  /** Replaces the global `fetch`, as tests of the operator do. */
+  /** Replaces the global `fetch`, such as in a test of code that calls the database. */
   fetch?: typeof fetch
 }
 
-// No parameter properties: Node's type stripping, which runs scripts/localDev.ts, cannot load them.
+// Scripts load this file with Node's type stripping, which rejects parameter properties.
 export class SpacetimeRequestError extends Error {
   readonly status: number
+
   constructor(status: number, message: string) {
     super(message)
     this.status = status
