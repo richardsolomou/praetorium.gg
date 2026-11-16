@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.257.8 (2026-11-16)
+
+### Patch Changes
+
+- 4f41bfc: Loadout searches score loadouts on three worker threads at once, so a search on a large unit takes about 40% less time.
+
 ## 0.257.7 (2026-11-16)
 
 ### Patch Changes
