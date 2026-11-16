@@ -227,26 +227,37 @@ it('does not trust caller-controlled Cloudflare client headers', () => {
   expect(request('198.51.100.2')?.status).toBe(429)
 })
 
-it('rate limits individual reference reads', async () => {
-  const read = () =>
-    referenceDocumentResponse(
-      new Request(`https://praetorium.gg/api/reference/v1/documents/${encodeURIComponent(document.id)}`, {
-        headers: { 'X-Forwarded-For': '203.0.113.42' },
-      }),
-      document.id,
+/** Reaching the limit takes 120 reads, which outlast the default timeout on a loaded machine. */
+const RATE_LIMIT_TIMEOUT = 30_000
+
+it(
+  'rate limits individual reference reads',
+  async () => {
+    const read = () =>
+      referenceDocumentResponse(
+        new Request(`https://praetorium.gg/api/reference/v1/documents/${encodeURIComponent(document.id)}`, {
+          headers: { 'X-Forwarded-For': '203.0.113.42' },
+        }),
+        document.id,
+      )
+
+    for (let request = 0; request < 120; request += 1) expect((await read()).status).toBe(200)
+    expect((await read()).status).toBe(429)
+  },
+  RATE_LIMIT_TIMEOUT,
+)
+
+it(
+  'limits unit lists apart from other reference reads',
+  async () => {
+    const headers = { 'X-Forwarded-For': '203.0.113.43' }
+    for (let request = 0; request < 121; request += 1)
+      await referenceDocumentResponse(new Request('https://praetorium.gg/api/reference/v1/documents/any', { headers }), document.id)
+    const units = await referenceUnitsResponse(
+      new Request('https://praetorium.gg/api/reference/v1/units?battleSize=0', { headers }),
+      'faction',
     )
-
-  for (let request = 0; request < 120; request += 1) expect((await read()).status).toBe(200)
-  expect((await read()).status).toBe(429)
-})
-
-it('limits unit lists apart from other reference reads', async () => {
-  const headers = { 'X-Forwarded-For': '203.0.113.43' }
-  for (let request = 0; request < 121; request += 1)
-    await referenceDocumentResponse(new Request('https://praetorium.gg/api/reference/v1/documents/any', { headers }), document.id)
-  const units = await referenceUnitsResponse(
-    new Request('https://praetorium.gg/api/reference/v1/units?battleSize=0', { headers }),
-    'faction',
-  )
-  expect(units.status).toBe(400)
-})
+    expect(units.status).toBe(400)
+  },
+  RATE_LIMIT_TIMEOUT,
+)
