@@ -143,9 +143,10 @@ it.skipIf(!url || !database || !token)('joins SQLite profiles with SpacetimeDB b
       seals.push({ userId, rosterId, snapshot })
       expect(await repository.outdatedSealedEventEntriesForRoster(userId === creatorId ? opponentId : creatorId, rosterId)).toEqual([])
     }
-    // Anyone playing may open a ready sealed event; somebody outside it may not.
-    expect(await repository.revealSealedEvent(sealedEventToken, randomUUID(), now.getTime())).toEqual({ outcome: 'not-ready' })
-    expect(await repository.revealSealedEvent(sealedEventToken, opponentId, now.getTime())).toEqual({
+    // Only a tournament's organizers open it, so an entrant sealing early never closes entry.
+    expect(await repository.revealSealedEvent(sealedEventToken, randomUUID(), now.getTime())).toEqual({ outcome: 'forbidden' })
+    expect(await repository.revealSealedEvent(sealedEventToken, opponentId, now.getTime())).toEqual({ outcome: 'forbidden' })
+    expect(await repository.revealSealedEvent(sealedEventToken, creatorId, now.getTime())).toEqual({
       outcome: 'revealed',
       entrantIds: [creatorId, opponentId],
     })
@@ -174,7 +175,7 @@ it.skipIf(!url || !database || !token)('joins SQLite profiles with SpacetimeDB b
     expect([revealed?.tournament?.name, revealed?.tournament?.admins.map((admin) => admin.name), revealed?.revealedByName]).toEqual([
       'Renamed by an admin',
       ['Opponent'],
-      'Opponent',
+      'Creator',
     ])
     expect(revealed?.entries.map((entry) => [entry.army?.name, entry.army?.points])).toEqual([
       ['Creator', 80],

@@ -12,7 +12,7 @@ import { opposingSide } from './battlePrimitives'
 import { copiedArmy } from './rosterCopies'
 
 /** Raise when what a digest holds changes, so every stored digest is folded again on its next read. */
-export const BATTLE_DIGEST_VERSION = 2
+export const BATTLE_DIGEST_VERSION = 1
 
 /** What a list reads of one seat: its army's identity, never its units or the log that built it. */
 export type DigestSeat = {
