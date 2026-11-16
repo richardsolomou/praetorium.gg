@@ -1,10 +1,5 @@
-import { expect, it, vi } from 'vitest'
-import { deploymentHost, serverEventContext, serverTelemetry } from './posthog'
-import { createManagedPostHogServerTelemetry } from 'ras-stack/posthog/server'
-
-vi.mock('ras-stack/posthog/server', () => ({
-  createManagedPostHogServerTelemetry: vi.fn(() => ({ start: vi.fn().mockResolvedValue(undefined) })),
-}))
+import { expect, it } from 'vitest'
+import { deploymentHost, serverEventContext } from './posthog'
 
 const event = (properties?: Record<string, unknown>) => ({ distinctId: 'player', event: 'roster_created', properties })
 
@@ -33,16 +28,4 @@ it('labels a server event that has no properties', () => {
 
 it('leaves an event unlabelled when the deployment is unknown', () => {
   expect(serverEventContext(undefined)(event({ outcome: 'appended' }))?.properties).toEqual({ outcome: 'appended' })
-})
-
-it('attributes logs, metrics and spans to the public deployment host', () => {
-  vi.stubEnv('APP_URL', 'https://praetorium.gg')
-  try {
-    serverTelemetry()
-    expect(createManagedPostHogServerTelemetry).toHaveBeenCalledWith(
-      expect.objectContaining({ resourceAttributes: { 'deployment.host': 'praetorium.gg' } }),
-    )
-  } finally {
-    vi.unstubAllEnvs()
-  }
 })

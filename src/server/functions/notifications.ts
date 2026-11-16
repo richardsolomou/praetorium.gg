@@ -38,7 +38,7 @@ export const markNoticesRead = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       const moved = await app().service.preferencesService.markNoticesRead(userId, data.ids)
-      if (moved) await captureMutation(userId, 'notices_read', { count: data.ids.length })
+      if (moved) captureMutation(userId, 'notices_read', { count: data.ids.length })
       return moved
     }),
   )

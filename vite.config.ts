@@ -57,6 +57,7 @@ export default defineConfig(({ mode }): UserConfig => {
         plugins: [
           path.resolve(import.meta.dirname, 'src/server/warmPlugin.ts'),
           path.resolve(import.meta.dirname, 'src/server/cspPlugin.ts'),
+          path.resolve(import.meta.dirname, 'src/server/shutdown.ts'),
         ],
         routeRules: {
           '/reference-worker.js': { headers: { 'Cache-Control': 'no-store' } },

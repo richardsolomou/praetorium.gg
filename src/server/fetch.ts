@@ -1,5 +1,6 @@
 import pRetry from 'p-retry'
-import { countServerMetric, requestOutcome, withServerSpan } from '../adapters/posthog'
+import { requestOutcome } from '../adapters/posthog'
+import { countServerMetric, withServerSpan } from './serverTelemetry'
 
 const RETRYABLE_STATUS = new Set([408, 429])
 

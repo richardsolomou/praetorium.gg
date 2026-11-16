@@ -45,7 +45,7 @@ export async function submitSealedEventRoster(owner: string, data: z.output<type
     data.eventToken,
     data.disposition,
   )
-  await captureMutation(owner, 'sealed_event_roster_submitted', {
+  captureMutation(owner, 'sealed_event_roster_submitted', {
     format: result.format,
     required_limit: result.requiredLimit,
   })
@@ -55,38 +55,38 @@ export async function submitSealedEventRoster(owner: string, data: z.output<type
 export const productActions = {
   setOwned: action(schemas.setOwned, async (owner, data) => {
     const result = await app().service.rosterService.setOwned(owner, data.entryId, data.owned)
-    await captureMutation(owner, 'player_collection_updated', { owned: data.owned })
+    captureMutation(owner, 'player_collection_updated', { owned: data.owned })
     return result
   }),
   setCollectionModels: action(schemas.setCollectionModels, async (owner, data) => {
     await app().service.rosterService.setCollectionModels(owner, data.entryId, data.models)
-    await captureMutation(owner, 'player_collection_counted', { models: data.models })
+    captureMutation(owner, 'player_collection_counted', { models: data.models })
   }),
   setCollectionProgress: action(schemas.setCollectionProgress, async (owner, data) => {
     await app().service.rosterService.setCollectionProgress(owner, data.entryId, { built: data.built, painted: data.painted })
-    await captureMutation(owner, 'player_collection_progressed', { built: data.built, painted: data.painted })
+    captureMutation(owner, 'player_collection_progressed', { built: data.built, painted: data.painted })
   }),
   setCollectionCountsAs: action(schemas.setCollectionCountsAs, async (owner, data) => {
     await app().service.rosterService.setCollectionCountsAs(owner, data.entryId, data.countsAs)
-    await captureMutation(owner, 'player_collection_linked', { datasheets: data.countsAs.length })
+    captureMutation(owner, 'player_collection_linked', { datasheets: data.countsAs.length })
   }),
   setCollectionWanted: action(schemas.setCollectionWanted, async (owner, data) => {
     await app().service.rosterService.setCollectionWanted(owner, data.entryId, data.wanted)
-    await captureMutation(owner, 'player_collection_wished', { wanted: data.wanted })
+    captureMutation(owner, 'player_collection_wished', { wanted: data.wanted })
   }),
   setFavouriteFaction: action(schemas.setFavouriteFaction, async (owner, data) => {
     await app().service.rosterService.setFavouriteFaction(owner, data.catalogueId, data.favourite)
-    await captureMutation(owner, 'favourite_faction_updated', { favourite: data.favourite })
+    captureMutation(owner, 'favourite_faction_updated', { favourite: data.favourite })
     return null
   }),
   setFavouriteDetachment: action(schemas.setFavouriteDetachment, async (owner, data) => {
     await app().service.rosterService.setFavouriteDetachment(owner, data.catalogueId, data.detachmentId, data.favourite)
-    await captureMutation(owner, 'favourite_detachment_updated', { favourite: data.favourite })
+    captureMutation(owner, 'favourite_detachment_updated', { favourite: data.favourite })
     return null
   }),
   setFavouriteDatasheet: action(schemas.setFavouriteDatasheet, async (owner, data) => {
     await app().service.rosterService.setFavouriteDatasheet(owner, data.entryId, data.favourite)
-    await captureMutation(owner, 'favourite_datasheet_updated', { favourite: data.favourite })
+    captureMutation(owner, 'favourite_datasheet_updated', { favourite: data.favourite })
     return null
   }),
   rememberMatchup: action(schemas.rememberMatchup, async (owner, data) => {
@@ -99,17 +99,17 @@ export const productActions = {
   }),
   setAbilityReminder: action(schemas.setAbilityReminder, async (owner, data) => {
     await app().service.preferencesService.setAbilityReminder(owner, data)
-    await captureMutation(owner, 'ability_reminder_set', { timings: data.timings.length })
+    captureMutation(owner, 'ability_reminder_set', { timings: data.timings.length })
     return null
   }),
   removeAbilityReminder: action(schemas.removeAbilityReminder, async (owner, data) => {
     await app().repository.deleteAbilityReminder(owner, data.key)
-    await captureMutation(owner, 'ability_reminder_removed')
+    captureMutation(owner, 'ability_reminder_removed')
     return null
   }),
   setPlayerDefaults: action(schemas.setPlayerDefaults, async (owner, data) => {
     const defaults = await app().service.preferencesService.setPlayerDefaults(owner, data)
-    await captureMutation(owner, 'player_defaults_set', {
+    captureMutation(owner, 'player_defaults_set', {
       roster_visibility: defaults.rosterVisibility,
       battle_size: defaults.battleSize,
     })
@@ -118,72 +118,72 @@ export const productActions = {
   setPushNotifications: action(schemas.setPushNotifications, async (owner, data) => {
     const instance = app()
     const enabled = await instance.service.preferencesService.setPushEnabled(owner, data.enabled)
-    await captureMutation(owner, 'push_notifications_updated', { enabled })
+    captureMutation(owner, 'push_notifications_updated', { enabled })
     return enabled
   }),
   updateOnboardingProgress: action(schemas.updateOnboardingProgress, async (owner, data) => {
     const progress = await app().repository.updateOnboardingProgress(owner, data)
-    await captureMutation(owner, 'onboarding_task_completed', { task: data.task })
+    captureMutation(owner, 'onboarding_task_completed', { task: data.task })
     return onboardingAnswer(progress)
   }),
   requestFriend: action(schemas.requestFriend, async (owner, data) => {
     const result = await app().service.socialService.requestFriend(owner, data.userId)
-    await captureMutation(owner, 'friend_request_sent')
+    captureMutation(owner, 'friend_request_sent')
     return result
   }),
   acceptFriend: action(schemas.acceptFriend, async (owner, data) => {
     const result = await app().service.socialService.acceptFriend(owner, data.userId)
-    await captureMutation(owner, 'friend_request_accepted')
+    captureMutation(owner, 'friend_request_accepted')
     return result
   }),
   rejectFriend: action(schemas.rejectFriend, async (owner, data) => {
     const result = await app().service.socialService.rejectFriend(owner, data.userId)
-    await captureMutation(owner, 'friend_request_rejected')
+    captureMutation(owner, 'friend_request_rejected')
     return result
   }),
   removeFriend: action(schemas.removeFriend, async (owner, data) => {
     const result = await app().service.socialService.removeFriend(owner, data.userId)
-    await captureMutation(owner, 'friendship_removed')
+    captureMutation(owner, 'friendship_removed')
     return result
   }),
   acceptFriendInvite: action(schemas.acceptFriendInvite, async (owner, data) => {
     await app().service.socialService.acceptFriendInvite(owner, data.token)
-    await captureMutation(owner, 'friend_invite_accepted')
+    captureMutation(owner, 'friend_invite_accepted')
     return null
   }),
   createFriendInvite: action(schemas.createFriendInvite, async (owner) => {
     const invite = await app().service.socialService.createFriendInvite(owner)
-    await captureMutation(owner, 'friend_invite_created')
+    captureMutation(owner, 'friend_invite_created')
     return invite
   }),
   cancelFriendInvite: action(schemas.cancelFriendInvite, async (owner) => {
     await app().service.socialService.cancelFriendInvite(owner)
-    await captureMutation(owner, 'friend_invite_cancelled')
+    captureMutation(owner, 'friend_invite_cancelled')
     return null
   }),
   createSealedEvent: action(schemas.createSealedEvent, async (owner, data) => {
     const result = await app().service.sealedEventService.createTournament(owner, data)
-    await captureSealedEventCreated(owner, data)
+    captureSealedEventCreated(owner, data)
     return result
   }),
   joinSealedEvent: action(schemas.joinSealedEvent, async (owner, data) => {
     const status = await app().service.sealedEventService.joinSealedEvent(data.token, owner, data.eventToken)
-    await captureMutation(owner, 'sealed_event_joined', { status })
+    captureMutation(owner, 'sealed_event_joined', { status })
     return status
   }),
   addSealedEventEntrants: action(schemas.addSealedEventEntrants, async (owner, data) => {
     const result = await app().service.sealedEventService.addSealedEventEntrants(data.token, owner, data.userIds, data.eventToken)
-    await captureMutation(owner, 'sealed_event_entrants_added', { count: result.added })
+    captureMutation(owner, 'sealed_event_entrants_added', { count: result.added })
     return result
   }),
   admitSealedEventEntries: action(schemas.admitSealedEventEntries, async (owner, data) => {
     const { admitted } = await app().service.sealedEventService.admitSealedEventEntries(data.token, owner, data.userIds, data.eventToken)
-    await captureMutation(owner, 'sealed_event_entries_admitted', { count: admitted.length })
+    captureMutation(owner, 'sealed_event_entries_admitted', { count: admitted.length })
     return { admitted: admitted.length }
   }),
   moderateSealedEventEntry: action(schemas.moderateSealedEventEntry, async (owner, data) => {
     await app().service.sealedEventService.moderateSealedEventEntry(data.token, owner, data.userId, data.status, data.eventToken)
-    await captureMutation(owner, 'sealed_event_entry_moderated', { status: data.status })
+    captureMutation(owner, 'sealed_event_entry_moderated', { status: data.status })
     return null
   }),
   submitSealedEventRoster: action(submitRosterSchema, submitSealedEventRoster),
@@ -197,12 +197,12 @@ export const productActions = {
   }),
   revealSealedEvent: action(schemas.revealSealedEvent, async (owner, data) => {
     await app().service.sealedEventService.revealSealedEvent(data.token, owner, data.eventToken)
-    await captureMutation(owner, 'sealed_event_rosters_revealed')
+    captureMutation(owner, 'sealed_event_rosters_revealed')
     return null
   }),
   unsealSealedEventRoster: action(schemas.unsealSealedEventRoster, async (owner, data) => {
     await app().service.sealedEventService.unsealSealedEventRoster(data.token, owner, data.userId, data.eventToken)
-    await captureMutation(owner, 'sealed_event_roster_unsealed')
+    captureMutation(owner, 'sealed_event_roster_unsealed')
     return null
   }),
   assignSealedEventRosterRequirement: action(schemas.assignSealedEventRosterRequirement, async (owner, data) => {
@@ -213,17 +213,17 @@ export const productActions = {
       data.requiredLimit,
       data.eventToken,
     )
-    await captureMutation(owner, 'sealed_event_roster_requirement_assigned', { required_limit: result.requiredLimit })
+    captureMutation(owner, 'sealed_event_roster_requirement_assigned', { required_limit: result.requiredLimit })
     return null
   }),
   assignSealedEventTeam: action(schemas.assignSealedEventTeam, async (owner, data) => {
     const result = await app().service.sealedEventService.assignSealedEventTeam(data.token, owner, data.userIds, data.eventToken)
-    await captureMutation(owner, 'sealed_event_team_assigned', { team_size: result.teamSize })
+    captureMutation(owner, 'sealed_event_team_assigned', { team_size: result.teamSize })
     return null
   }),
   chooseSealedEventSide: action(schemas.chooseSealedEventSide, async (owner, data) => {
     const result = await app().service.sealedEventService.chooseSealedEventSide(data.token, owner, data.side, data.eventToken)
-    await captureMutation(owner, 'sealed_event_side_chosen', { side: result.side })
+    captureMutation(owner, 'sealed_event_side_chosen', { side: result.side })
     return null
   }),
   updateSealedEvent: action(schemas.updateSealedEvent, async (owner, { token, rule, schedule, clockLimitMinutes, ...details }) => {
@@ -235,13 +235,13 @@ export const productActions = {
       clockLimitMinutes,
     })
     if (tournament)
-      await captureMutation(owner, 'tournament_updated', {
+      captureMutation(owner, 'tournament_updated', {
         visibility: tournament.visibility,
         admission: tournament.admission,
         player_limit_set: tournament.playerLimit !== null,
       })
     if (ruleChanged && rule)
-      await captureMutation(owner, 'sealed_event_updated', {
+      captureMutation(owner, 'sealed_event_updated', {
         format: rule.format,
         roster_limit: rule.rosterLimit,
       })
@@ -249,17 +249,17 @@ export const productActions = {
   }),
   deleteSealedEvent: action(schemas.deleteSealedEvent, async (owner, data) => {
     await app().service.sealedEventService.deleteSealedEvent(data.token, owner)
-    await captureMutation(owner, 'sealed_event_deleted')
+    captureMutation(owner, 'sealed_event_deleted')
     return null
   }),
   deleteBattle: action(schemas.deleteBattle, async (owner, data) => {
     const battleId = await app().service.deleteBattle(data.token, owner)
-    await captureMutation(owner, 'battle_deleted', { battle_id: battleId })
+    captureMutation(owner, 'battle_deleted', { battle_id: battleId })
     return null
   }),
   createBattle: action(schemas.createBattle, async (owner, data) => {
     const result = await app().service.createBattle(owner, data)
-    await captureBattleCreated(owner, data, result)
+    captureBattleCreated(owner, data, result)
     return result
   }),
   createSealedEventBattle: action(schemas.createSealedEventBattle, async (owner, data) => {
@@ -274,7 +274,7 @@ export const productActions = {
       withCurrentAlerts,
       data.fixtureKey,
     )
-    await captureSealedEventBattleCreated(owner, result)
+    captureSealedEventBattleCreated(owner, result)
     return { token: result.token }
   }),
 } satisfies Record<OfflineActionKind, (owner: string, input: unknown) => Promise<unknown>>

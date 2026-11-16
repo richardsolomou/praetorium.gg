@@ -64,11 +64,11 @@ type AuthOptions = {
   profilePictureUploaded?: (userId: string, image: string) => void
   /** Called after a player links GitHub, so their sponsorship shows before they leave the callback. */
   githubLinked?: () => Promise<void>
-  captureAuthentication?: (userId: string, event: 'account_created' | 'account_signed_in', properties: { method: string }) => Promise<void>
+  captureAuthentication?: (userId: string, event: 'account_created' | 'account_signed_in', properties: { method: string }) => void
   /** Called when a player adds a social sign-in to an account they already had. */
-  captureSignInMethodAdded?: (userId: string, provider: SocialAuthProvider) => Promise<void>
+  captureSignInMethodAdded?: (userId: string, provider: SocialAuthProvider) => void
   /** Called when a player connects an MCP client to their account or a connection is revoked. */
-  captureMcpConnection?: (userId: string, event: McpConnectionEvent, properties: { client: string; write: boolean }) => Promise<void>
+  captureMcpConnection?: (userId: string, event: McpConnectionEvent, properties: { client: string; write: boolean }) => void
 }
 
 type McpConnectionEvent = 'mcp_connected' | 'mcp_disconnected'
@@ -119,7 +119,7 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
     const method = authenticationMethod(context)
     if (!method || !options.captureAuthentication) return
     try {
-      await options.captureAuthentication(userId, event, { method })
+      options.captureAuthentication(userId, event, { method })
     } catch (error) {
       ;(await auth.$context).logger.error('Authentication analytics capture failed', error)
     }
@@ -133,7 +133,7 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
         .from(oauthClient)
         .where(eq(oauthClient.clientId, clientId))
         .limit(1)
-      await options.captureMcpConnection(userId, event, {
+      options.captureMcpConnection(userId, event, {
         client: (client?.name || clientId).slice(0, MCP_CLIENT_NAME_MAX),
         write: scopes.includes('mcp:write'),
       })
@@ -294,10 +294,7 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
             await applySocialAvatarIfMissing(created, context)
             const provider = SOCIAL_PROVIDERS.find((method) => method === created.providerId)
             // An account made in the same request as its player is how they signed up, not a method added later.
-            if (provider && !(context && createdAccounts.has(context.context)))
-              await options
-                .captureSignInMethodAdded?.(created.userId, provider)
-                .catch(async (error: unknown) => (await auth.$context).logger.error('Authentication analytics capture failed', error))
+            if (provider && !(context && createdAccounts.has(context.context))) options.captureSignInMethodAdded?.(created.userId, provider)
             if (created.providerId === 'github')
               await options
                 .githubLinked?.()

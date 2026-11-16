@@ -24,7 +24,7 @@ beforeEach(() => {
   vi.mocked(app).mockReturnValue({
     catalogueFor: async () => ({ index: { revision: 'revision' } }),
     service: { sealedEventService: { submitSealedEventRoster: submit } },
-    telemetry: { capture: vi.fn() },
+    telemetry: { posthog: { capture: vi.fn() } },
   } as never)
 })
 function saved(catalogueId: string) {

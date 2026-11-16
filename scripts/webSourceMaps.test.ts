@@ -50,7 +50,7 @@ const uploadEnvironment = {
 test('wires client and worker instrumentation with the application release settings', async () => {
   for (const [name, value] of Object.entries(uploadEnvironment)) vi.stubEnv(name, value)
   const context = { command: 'build' as const, mode: 'production' }
-  const config = await applicationConfig(context)
+  const config = applicationConfig(context)
   const client = ((config.plugins ?? []) as unknown[])
     .flat(Infinity)
     .find((plugin) => (plugin as Plugin)?.name === 'posthog-rollup-plugin') as Plugin

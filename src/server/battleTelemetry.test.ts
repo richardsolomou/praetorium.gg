@@ -4,7 +4,16 @@ import type { BattleView } from '../core/battleView'
 import { captureBattleCommand } from './battleTelemetry'
 
 const mocks = vi.hoisted(() => ({ capture: vi.fn() }))
-vi.mock('./app', () => ({ app: () => ({ telemetry: { capture: mocks.capture } }) }))
+vi.mock('./app', () => ({
+  app: () => ({
+    telemetry: {
+      posthog: {
+        capture: (message: { distinctId: string; event: string; properties?: object }) =>
+          mocks.capture(message.distinctId, message.event, message.properties),
+      },
+    },
+  }),
+}))
 
 const appended = { result: { outcome: 'appended', seq: 1 } } as const
 const submitted = () => mocks.capture.mock.calls.find(([, event]) => event === 'battle_command_submitted')?.[2]

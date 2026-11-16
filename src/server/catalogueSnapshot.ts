@@ -36,7 +36,7 @@ import { byteLimit } from './boundedBody'
 import { replaceDirectory } from './replaceDirectory'
 import { replaceFile, replaceFileSync } from './replaceFile'
 import { isSafeRelativePath } from './relativePath'
-import { reportServerFailure } from '../adapters/posthog'
+import { reportServerFailure } from './serverTelemetry'
 import { forEachConcurrently } from '../shared/forEachConcurrently'
 
 const isSha256 = (value: unknown): value is string => typeof value === 'string' && /^[0-9a-f]{64}$/.test(value)

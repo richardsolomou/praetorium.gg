@@ -37,7 +37,12 @@ vi.mock('../app', () => ({
       updateOnboardingProgress: async () => ({ completedTasks: ['roster'] }),
       usesApp: mocks.usesApp,
     },
-    telemetry: { capture: mocks.capture },
+    telemetry: {
+      posthog: {
+        capture: (message: { distinctId: string; event: string; properties?: object }) =>
+          mocks.capture(message.distinctId, message.event, message.properties),
+      },
+    },
   }),
 }))
 

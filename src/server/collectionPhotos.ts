@@ -6,7 +6,7 @@ import { notFound } from './notFound'
 import { parseImageDataUrl, privateImageResponse, type PrivateObjects } from './privateImages'
 import { collectionPhotoThumbnail, collectionPhotoThumbnailKey } from './collectionPhotoThumbnail'
 import type { SpacetimeRepository } from './spacetimeRepository'
-import { reportServerFailure } from '../adapters/posthog'
+import { reportServerFailure } from './serverTelemetry'
 
 const PREFIX = 'collection-photos/'
 const DELETION_BATCH = 100

@@ -476,7 +476,7 @@ export function registerOrganisedPlayTools(server: AgentTools, userId: string | 
     ({ token: groupToken }) =>
       write(async (owner) => {
         const status = await app().service.groupService.joinGroup(groupToken, owner)
-        await captureMutation(owner, 'group_joined', { status })
+        captureMutation(owner, 'group_joined', { status })
         return { status, url: `/groups/${encodeURIComponent(groupToken)}` }
       }),
   )
@@ -493,7 +493,7 @@ export function registerOrganisedPlayTools(server: AgentTools, userId: string | 
     ({ token: groupToken }) =>
       write(async (owner) => {
         await app().service.groupService.joinLeague(groupToken, owner)
-        await captureMutation(owner, 'group_league_joined')
+        captureMutation(owner, 'group_league_joined')
         return { joined: true, url: `/groups/${encodeURIComponent(groupToken)}` }
       }),
   )
@@ -627,7 +627,7 @@ export function registerOrganisedPlayTools(server: AgentTools, userId: string | 
           packId ?? (await currentPackId()),
           owner,
         )
-        await captureMutation(owner, 'sealed_event_result_reported', { round: table.round })
+        captureMutation(owner, 'sealed_event_result_reported', { round: table.round })
         return { round: table.round, table: table.table, yourScore, opponentScore }
       }),
   )

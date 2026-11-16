@@ -1,6 +1,6 @@
 import { callSpacetime, spacetimeDatabaseUrl, type SpacetimeConnection } from 'ras-stack/spacetime'
 import { z } from 'zod'
-import { withServerSpan } from '../../adapters/posthog'
+import { withServerSpan } from '../serverTelemetry'
 import { offlineContext, SYNC_PRODUCT_ACTIONS } from '../offlineContext'
 
 export const feedCursor = z.object({ at: z.number().int(), id: z.string() })

@@ -25,7 +25,11 @@ type SyncKind = OfflineActionKind | 'roster' | 'battle-command'
 /** Answers a sync the player has to review on their device, which the request metrics would otherwise count as a success. */
 async function unsynced<T extends { outcome: string }>(userId: string, kind: SyncKind, answer: T, cause?: string) {
   if (answer.outcome === 'refused' || answer.outcome === 'conflict')
-    await app().telemetry.capture(userId, 'sync_refused', { kind, outcome: answer.outcome, ...(cause ? { cause } : {}) })
+    app().telemetry.posthog.capture({
+      distinctId: userId,
+      event: 'sync_refused',
+      properties: { kind, outcome: answer.outcome, ...(cause ? { cause } : {}) },
+    })
   return answer
 }
 
@@ -107,7 +111,7 @@ export const syncRoster = createServerFn({ method: 'POST' })
               ? { delivery: 'sync', variant: Boolean(data.roster.baseRosterId) }
               : { delivery: 'sync' },
           )
-        else if (result.lifecycle === 'deleted') await captureWrite(player.id, 'roster_deleted', 'sync')
+        else if (result.lifecycle === 'deleted') captureWrite(player.id, 'roster_deleted', 'sync')
         return result
       }
       const { cause, ...answer } = result

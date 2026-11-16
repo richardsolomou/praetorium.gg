@@ -1,7 +1,7 @@
 import { afterEach, expect, it, vi } from 'vitest'
 
-const { capture } = vi.hoisted(() => ({ capture: vi.fn(async () => {}) }))
-vi.mock('./adapters/posthog', () => ({ serverTelemetry: () => ({ capture }) }))
+const { capture } = vi.hoisted(() => ({ capture: vi.fn() }))
+vi.mock('./server/serverTelemetry', () => ({ serverTelemetry: () => ({ posthog: { capture } }) }))
 
 import { startInstance } from './start'
 
@@ -41,11 +41,11 @@ async function served(url: string) {
 
 it('records a public page read as an HTTP log', async () => {
   await served('https://praetorium.gg/factions/necrons')
-  expect(capture).toHaveBeenCalledWith(
-    expect.stringMatching(/^http_log_/),
-    '$http_log',
-    expect.objectContaining({ $pathname: '/factions/necrons' }),
-  )
+  expect(capture).toHaveBeenCalledWith({
+    distinctId: expect.stringMatching(/^http_log_/),
+    event: '$http_log',
+    properties: expect.objectContaining({ $pathname: '/factions/necrons' }),
+  })
 })
 
 it('records nothing for a page that can name a player', async () => {

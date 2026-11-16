@@ -1,5 +1,6 @@
 import { createMiddleware, createStart } from '@tanstack/react-start'
-import { reportsToTelemetry, serverTelemetry } from './adapters/posthog'
+import { reportsToTelemetry } from './adapters/posthog'
+import { serverTelemetry } from './server/serverTelemetry'
 import { canonicalHost, csrf, securityHeadersMiddleware, serverFunctionIdentity, staleServerFunctions } from './server/middleware'
 import { recordRequest, routePatterns } from './requestTiming'
 import { crawlerRequestEvent } from './server/crawlerRequests'
@@ -34,10 +35,7 @@ const crawlerRequestMiddleware = createMiddleware({ type: 'request' }).server(as
   const startedAt = performance.now()
   const result = await next()
   const event = crawlerRequestEvent(request, result.response.status, performance.now() - startedAt)
-  if (event)
-    void serverTelemetry()
-      .capture(event.distinctId, '$http_log', event.properties)
-      .catch((error: unknown) => console.error({ event: 'telemetry_failed', error }))
+  if (event) serverTelemetry().posthog.capture({ distinctId: event.distinctId, event: '$http_log', properties: event.properties })
   return result
 })
 

@@ -1,6 +1,25 @@
 {
   "source": "https://github.com/richardsolomou/ras-stack",
   "recipes": {
+    "posthog-server": {
+      "version": 2,
+      "commit": "ec2a7bdc97f8534e2fe0d9a0581b3b1898e05327",
+      "files": {
+        "src/server/rpcTelemetry.test.ts": "src/server/rpcTelemetry.test.ts",
+        "src/server/rpcTelemetry.ts": "src/server/rpcTelemetry.ts",
+        "src/server/telemetry.test.ts": "src/server/telemetry.test.ts",
+        "src/server/telemetry.ts": "src/server/telemetry.ts"
+      },
+      "notes": [
+        "The telemetry instance lives in src/server/serverTelemetry.ts as a `globalSingleton`, not in `app()`, because rpc, request middleware, background jobs, and the push senders report before or outside the composition root; it is created from an empty environment outside production, so local and test runs send nothing.",
+        "src/server/telemetry.ts takes a second `options` argument for the application's service version, the `deployment.host` resource attribute, and the `$host`/`app_version` before_send filter, which earlier events and dashboards carry.",
+        "src/server/shutdown.ts (a Nitro close hook) shuts down every singleton with a `shutdown`, the server telemetry and the MCP analytics client, with a 2 s deadline that fits the 3 s scripts/nodeServer.ts gives the Nitro process after its own drain.",
+        "rpc.ts looks up the signed-in user only on a reporting instance and passes it to `observeServerFunction`; `inTurn` reports streamed per-item failures the same way.",
+        "`posthog.capture` is synchronous, so callers no longer await captures; telemetry callbacks in sqliteAuth.ts and photoScreening.ts are typed as returning nothing.",
+        "src/server/push.ts and src/server/webPush.ts moved from src/adapters/ because they report through server telemetry, which the layer rules keep adapters from importing.",
+        "A server exception without a known person gets posthog-node's random distinct id instead of the shared `server` person the v5 helper used."
+      ]
+    },
     "posthog-web": {
       "version": 2,
       "commit": "82fce4523ec914bd2e70aefd4bff84c10fb278c6",

@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import { parseImageDataUrl } from './privateImages'
-import { reportServerFailure } from '../adapters/posthog'
+import { reportServerFailure } from './serverTelemetry'
 
 const ENDPOINT = 'https://api.typesafe.ai/v1/systemone'
 /** Pinned, so probabilities stay comparable across uploads while thresholds are chosen from them. */
@@ -79,7 +79,7 @@ export async function recordScreening(
   screening: PhotoScreening | null,
   image: string,
   questions: Record<string, string>,
-  record: (properties: Record<string, string | number>) => Promise<unknown>,
+  record: (properties: Record<string, string | number>) => void,
 ) {
   if (!screening) return
   const properties = await screening.screen(image, questions).then(
@@ -90,5 +90,9 @@ export async function recordScreening(
       return { outcome: 'failed' }
     },
   )
-  await record(properties).catch(() => undefined)
+  try {
+    record(properties)
+  } catch {
+    // Telemetry never fails the upload it describes.
+  }
 }

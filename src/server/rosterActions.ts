@@ -16,7 +16,7 @@ export const rosterActions = {
   async setVisibility(owner: string, data: z.infer<typeof rosterVisibilitySchema>) {
     const instance = app()
     await instance.service.rosterService.setRosterVisibility(owner, data.id, data.visibility)
-    await captureMutation(owner, 'roster_visibility_updated', { visibility: data.visibility })
+    captureMutation(owner, 'roster_visibility_updated', { visibility: data.visibility })
   },
   async copy(owner: string, data: z.infer<typeof copyRosterSchema>) {
     const copied = await copySavedRoster(owner, data.id, data.variant, data.setup)
@@ -26,11 +26,11 @@ export const rosterActions = {
   },
   async delete(owner: string, id: string) {
     await app().service.rosterService.deleteRoster(owner, id)
-    await captureMutation(owner, 'roster_deleted')
+    captureMutation(owner, 'roster_deleted')
   },
   async setArchived(owner: string, data: z.infer<typeof rosterArchiveSchema>) {
     const saved = await app().service.rosterService.setRosterArchived(owner, data.id, data.archived)
-    await captureMutation(owner, 'roster_archive_updated', { archived: data.archived })
+    captureMutation(owner, 'roster_archive_updated', { archived: data.archived })
     return saved
   },
 }

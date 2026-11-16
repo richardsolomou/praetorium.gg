@@ -1,6 +1,6 @@
 import { expect, it, vi } from 'vitest'
-import type { PushMessage } from '../adapters/push'
-import type { WebPushMessage } from '../adapters/webPush'
+import type { PushMessage } from './push'
+import type { WebPushMessage } from './webPush'
 import { campaignPath, pushNotifier, storingNotifier } from './pushNotifier'
 
 it('tags a notification page that already has a query with its notice kind', () => {

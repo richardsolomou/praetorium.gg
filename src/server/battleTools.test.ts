@@ -18,7 +18,12 @@ vi.mock('./publishedTextFiles', () => ({
 vi.mock('./app', () => ({
   app: () => ({
     service: { submit, seatedBattle, createBattle },
-    telemetry: { capture },
+    telemetry: {
+      posthog: {
+        capture: (message: { distinctId: string; event: string; properties?: object }) =>
+          capture(message.distinctId, message.event, message.properties),
+      },
+    },
     rulesFor: async () => rules.value,
     battleDetachmentDataFor: async () => null,
   }),

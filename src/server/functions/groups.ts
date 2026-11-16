@@ -77,7 +77,7 @@ export const drawGroupLeague = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       await app().service.groupService.drawLeague(data.token, userId)
-      await captureMutation(userId, 'group_league_drawn')
+      captureMutation(userId, 'group_league_drawn')
     }),
   )
 
@@ -87,7 +87,7 @@ export const startSealedGroupLeague = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       await app().service.sealedEventService.startSealedLeague(userId, { groupToken: token, ...rule })
-      await captureMutation(userId, 'group_league_drawn', { sealed_lists: true, roster_limit: rule.rosterLimit })
+      captureMutation(userId, 'group_league_drawn', { sealed_lists: true, roster_limit: rule.rosterLimit })
     }),
   )
 
@@ -97,7 +97,7 @@ export const publishGroupLeague = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       await app().service.groupService.publishLeague(token, userId, draw)
-      await captureMutation(userId, 'group_league_published', { players: draw.playerIds.length })
+      captureMutation(userId, 'group_league_published', { players: draw.playerIds.length })
     }),
   )
 
@@ -107,7 +107,7 @@ export const setGroupLeagueDeadline = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       await app().service.groupService.setLeagueDeadline(data.token, userId, data.round, data.deadline)
-      await captureMutation(userId, 'group_league_deadline_set', { round: data.round, cleared: data.deadline === null })
+      captureMutation(userId, 'group_league_deadline_set', { round: data.round, cleared: data.deadline === null })
     }),
   )
 
@@ -117,7 +117,7 @@ export const setGroupLeagueClock = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       await app().service.groupService.setLeagueClock(data.token, userId, data.minutes)
-      await captureMutation(userId, 'group_league_clock_set', { minutes: data.minutes })
+      captureMutation(userId, 'group_league_clock_set', { minutes: data.minutes })
     }),
   )
 
@@ -127,7 +127,7 @@ export const reportFixtureResult = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       await app().service.reportFixtureResult(data.token, data.fixture, data.vp, data.missionPackId, userId)
-      await captureMutation(userId, 'group_league_result_reported', {})
+      captureMutation(userId, 'group_league_result_reported', {})
     }),
   )
 
@@ -137,7 +137,7 @@ export const nextGroupLeague = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       await app().service.groupService.nextLeague(data.token, userId)
-      await captureMutation(userId, 'group_league_next_started')
+      captureMutation(userId, 'group_league_next_started')
     }),
   )
 
@@ -147,7 +147,7 @@ export const deleteGroupLeague = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       await app().service.groupService.deleteLeague(data.token, userId)
-      await captureMutation(userId, 'group_league_deleted')
+      captureMutation(userId, 'group_league_deleted')
     }),
   )
 
@@ -157,7 +157,7 @@ export const joinGroupLeague = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       await app().service.groupService.joinLeague(data.token, userId)
-      await captureMutation(userId, 'group_league_joined')
+      captureMutation(userId, 'group_league_joined')
     }),
   )
 
@@ -167,7 +167,7 @@ export const leaveGroupLeague = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       await app().service.groupService.leaveLeague(data.token, userId)
-      await captureMutation(userId, 'group_league_left')
+      captureMutation(userId, 'group_league_left')
     }),
   )
 
@@ -181,7 +181,7 @@ export const createGroup = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       const result = await app().service.groupService.createGroup(userId, data)
-      await captureMutation(userId, 'group_created', { visibility: data.visibility, admission: data.admission })
+      captureMutation(userId, 'group_created', { visibility: data.visibility, admission: data.admission })
       return result
     }),
   )
@@ -192,7 +192,7 @@ export const updateGroup = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       await app().service.groupService.updateGroup(token, userId, details)
-      await captureMutation(userId, 'group_updated', { visibility: details.visibility, admission: details.admission })
+      captureMutation(userId, 'group_updated', { visibility: details.visibility, admission: details.admission })
     }),
   )
 
@@ -202,7 +202,7 @@ export const deleteGroup = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       await app().service.groupService.deleteGroup(data.token, userId)
-      await captureMutation(userId, 'group_deleted')
+      captureMutation(userId, 'group_deleted')
     }),
   )
 
@@ -212,7 +212,7 @@ export const joinGroup = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       const status = await app().service.groupService.joinGroup(data.token, userId)
-      await captureMutation(userId, 'group_joined', { status })
+      captureMutation(userId, 'group_joined', { status })
       return status
     }),
   )
@@ -223,7 +223,7 @@ export const leaveGroup = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       await app().service.groupService.leaveGroup(data.token, userId)
-      await captureMutation(userId, 'group_left')
+      captureMutation(userId, 'group_left')
     }),
   )
 
@@ -233,7 +233,7 @@ export const moderateGroupMember = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       const result = await app().service.groupService.moderateGroupMember(data.token, userId, data.userId, data.accept)
-      await captureMutation(userId, 'group_member_moderated', { result })
+      captureMutation(userId, 'group_member_moderated', { result })
       return result
     }),
   )
@@ -244,7 +244,7 @@ export const removeGroupMember = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       await app().service.groupService.removeGroupMember(data.token, userId, data.userId)
-      await captureMutation(userId, 'group_member_removed')
+      captureMutation(userId, 'group_member_removed')
     }),
   )
 
@@ -254,7 +254,7 @@ export const setGroupAdmins = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       const result = await app().service.groupService.setGroupAdmins(data.token, userId, data.userIds)
-      await captureMutation(userId, 'group_admins_set', { admins: data.userIds.length })
+      captureMutation(userId, 'group_admins_set', { admins: data.userIds.length })
       return result
     }),
   )

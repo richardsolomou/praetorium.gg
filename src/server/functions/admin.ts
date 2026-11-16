@@ -18,14 +18,15 @@ import { adminCollectionPhotosSchema, collectionPhotoIdSchema } from '../../cont
 import { collectionDatasheets } from '../../core/collection'
 
 /** Every administrator action is counted under one event, named by what was done. */
-const track = (actorId: string, action: AdminAction) => app().telemetry.capture(actorId, 'admin_action', { action })
+const track = (actorId: string, action: AdminAction) =>
+  app().telemetry.posthog.capture({ distinctId: actorId, event: 'admin_action', properties: { action } })
 
 /** Refuses anyone but an administrator, then counts the action once it has succeeded. */
 const adminAction = (action: AdminAction, work: (adminId: string) => Promise<unknown>) =>
   mutationRpc(async () => {
     const adminId = await requireAdmin()
     await work(adminId)
-    await track(adminId, action)
+    track(adminId, action)
     return null
   })
 

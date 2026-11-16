@@ -1,30 +1,14 @@
 import { setImmediate as yieldToEventLoop } from 'node:timers/promises'
 import { getRequest } from '@tanstack/react-start/server'
-import { createPostHogRpcLogger, createPostHogRpcObserver } from 'ras-stack/posthog/server'
-import type { RpcLogger, RpcObserver } from 'ras-stack/server'
-import { reportsToTelemetry, serverTelemetry } from '../adapters/posthog'
+import { reportsToTelemetry } from '../adapters/posthog'
 import { requireSameOrigin } from './origins'
 import { currentUserId } from './playerSession'
+import { observeServerFunction, reportServerFunctionFailure } from './rpcTelemetry'
 import { currentServerFunction } from './serverFunction'
+import { serverTelemetry } from './serverTelemetry'
 
 /** Where a failure happened: the request, the server function it ran, and the status of a thrown `Response`. */
 export type RpcErrorContext = { method?: string; path?: string; function?: string; status?: number }
-
-const logError: RpcLogger = (error, context) => console.error({ event: 'server_function_failed', ...context, error })
-
-const postHogRpcLogger = createPostHogRpcLogger(serverTelemetry(), {
-  logError,
-  resolveAuthenticatedDistinctId: async (request) => (await currentUserId(request)) ?? undefined,
-  allowAnonymousDistinctId: true,
-})
-
-const reportRpcError: RpcLogger = (error, context, request) => {
-  if (!reportsToTelemetry) return logError(error, context, request)
-  return postHogRpcLogger(error, context, request)
-}
-
-const postHogRpcObserver = createPostHogRpcObserver(serverTelemetry())
-const observeRpc: RpcObserver = (request, work) => (reportsToTelemetry ? postHogRpcObserver(request, work) : work())
 
 /** Runs a server function's work, turning a thrown `Response` into an error whose message reaches the client. */
 export function rpc<T>(work: () => Promise<T> | T): Promise<T> {
@@ -40,27 +24,27 @@ export function mutationRpc<T>(work: () => Promise<T> | T, request = currentRequ
   }, request)
 }
 
-function run<T>(work: () => Promise<T> | T, request: Request | undefined): Promise<T> {
-  return observeRpc(request, async () => {
-    try {
-      return await work()
-    } catch (thrown) {
-      const status = thrown instanceof Response ? thrown.status : undefined
-      const error =
-        thrown instanceof Response ? new Error((await thrown.text()) || `request failed (${thrown.status})`, { cause: thrown }) : thrown
-      // A 4xx answer is the caller's to fix; a 5xx one, such as an unreachable upstream, is the server's.
-      if (status === undefined || status >= 500) await reportFailure(error, failureContext(request, status), request)
-      throw error
-    }
-  })
-}
-
-async function reportFailure(error: unknown, context: RpcErrorContext, request: Request | undefined) {
-  try {
-    await reportRpcError(error, context, request)
-  } catch {
-    // The application's failure is the one the client sees.
-  }
+async function run<T>(work: () => Promise<T> | T, request: Request | undefined): Promise<T> {
+  const telemetry = serverTelemetry()
+  // Only a reporting instance pays for the lookup, which attaches server work to the signed-in person.
+  const user = reportsToTelemetry && request ? await currentUserId(request).catch(() => null) : null
+  return observeServerFunction(
+    telemetry,
+    request,
+    async () => {
+      try {
+        return await work()
+      } catch (thrown) {
+        const status = thrown instanceof Response ? thrown.status : undefined
+        const error =
+          thrown instanceof Response ? new Error((await thrown.text()) || `request failed (${thrown.status})`, { cause: thrown }) : thrown
+        // A 4xx answer is the caller's to fix; a 5xx one, such as an unreachable upstream, is the server's.
+        if (status === undefined || status >= 500) reportServerFunctionFailure(telemetry, error, failureContext(request, status))
+        throw error
+      }
+    },
+    user ?? undefined,
+  )
 }
 
 function failureContext(request: Request | undefined, status: number | undefined): RpcErrorContext {
@@ -101,7 +85,7 @@ export function inTurn<T, R>(items: readonly T[], work: (item: T) => Promise<R>)
         const error =
           thrown instanceof Response ? new Error((await thrown.text()) || `request failed (${thrown.status})`, { cause: thrown }) : thrown
         if (status === undefined || status >= 500)
-          await reportFailure(error, { ...context, ...(status === undefined ? {} : { status }) }, request)
+          reportServerFunctionFailure(serverTelemetry(), error, { ...context, ...(status === undefined ? {} : { status }) })
         throw error
       }
     })

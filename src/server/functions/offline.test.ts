@@ -105,7 +105,12 @@ vi.mock('../rpc', () => ({ rpc: (work: () => unknown) => work(), mutationRpc: (w
 vi.mock('../playerSession', () => ({ requireUser: async () => mocks.user }))
 vi.mock('../app', () => ({
   app: () => ({
-    telemetry: { capture: mocks.capture },
+    telemetry: {
+      posthog: {
+        capture: (message: { distinctId: string; event: string; properties?: object }) =>
+          mocks.capture(message.distinctId, message.event, message.properties),
+      },
+    },
     service: { ...mocks, sealedEventService: { ownRoster: mocks.ownRoster } },
     repository: mocks,
     catalogueFor: mocks.catalogueFor,

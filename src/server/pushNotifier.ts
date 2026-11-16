@@ -1,8 +1,8 @@
-import type { PushMessage, PushSender } from '../adapters/push'
-import type { WebPushMessage, WebPushSender } from '../adapters/webPush'
+import type { PushMessage, PushSender } from './push'
+import type { WebPushMessage, WebPushSender } from './webPush'
 import { type Notice, type NoticeSubject, type StoredNotice, noticeMessage, noticeRecipients } from '../core/notifications'
 import type { SpacetimeRepository } from './spacetimeRepository'
-import { reportServerFailure } from '../adapters/posthog'
+import { reportServerFailure } from './serverTelemetry'
 
 /** Told about a notice after its write has committed. Never awaited by the request that caused it. */
 export type Notifier = { notify: (notices: readonly Notice[]) => void }

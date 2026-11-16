@@ -23,7 +23,12 @@ vi.mock('./app', () => ({
         collectionCountsAs: async () => countsAs.value,
       },
     },
-    telemetry: { capture },
+    telemetry: {
+      posthog: {
+        capture: (message: { distinctId: string; event: string; properties?: object }) =>
+          capture(message.distinctId, message.event, message.properties),
+      },
+    },
     combatUnitsFor: async () => [
       {
         catalogueId: 'necrons',
