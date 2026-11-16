@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.257.5 (2026-11-16)
+
+### Patch Changes
+
+- b64a702: Loadout searches skip work the ranking never uses, so large units finish sooner or check more loadouts in the time allowed.
+
 ## 0.257.4 (2026-11-16)
 
 ### Patch Changes
