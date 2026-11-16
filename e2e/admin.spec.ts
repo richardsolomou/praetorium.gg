@@ -1,6 +1,7 @@
 import { expect, test } from './test'
 import { PREVIEW_EMAIL } from '../scripts/seedPreview'
 import { befriend, currentTotp, signIn, signInAsPreview, signUp, uniqueName, signOut, PHONE } from './account'
+import { PREVIEW_PLAYER_NAME } from '../scripts/lib/previewPeople'
 
 // The seeded administrator is shared by every attempt, so these tests never change its
 // security settings and give each player they create a name of its own.
@@ -66,7 +67,7 @@ test('an administrator finds and manages a player', async ({ baseURL, browser, p
   expect(signedIn.ok()).toBe(true)
 
   await signInAsPreview(page)
-  await expect(page.getByRole('button', { name: 'Account menu for Preview Player' })).toBeVisible()
+  await expect(page.getByRole('button', { name: `Account menu for ${PREVIEW_PLAYER_NAME}` })).toBeVisible()
   const serverContext = await browser.newContext({ javaScriptEnabled: false, storageState: await page.context().storageState() })
   const serverPage = await serverContext.newPage()
   await serverPage.goto('/admin')

@@ -24,6 +24,14 @@ import { catalogueDirectory } from '../src/server/catalogueIndex'
 import { calculateRosterPrice } from '../src/shared/pricing'
 import { isEntryPoint } from './lib/entryPoint.ts'
 import { loadSnapshotWithRules } from './lib/catalogueSnapshotLoad'
+import {
+  PREVIEW_ALLY_NAME,
+  PREVIEW_CROWD,
+  PREVIEW_OPPONENT_NAME,
+  PREVIEW_PLAYER_NAME,
+  PREVIEW_RIVAL_NAME,
+  previewFaker,
+} from './lib/previewPeople'
 
 export const PREVIEW_EMAIL = 'preview@praetorium.gg'
 export const PREVIEW_PASSWORD = 'preview-preview-preview'
@@ -272,14 +280,22 @@ const PREVIEW_WANDERER_ROSTERS: readonly PreviewRoster[] = [
   rosterCopy(PREVIEW_PLAYER_ROSTERS[2]!, 'preview-wanderer-astra-militarum'),
 ]
 
+/** Each crowd player brings two Strike Force lists, so their games spread across the factions. */
+const STRIKE_FORCE_ROSTERS = [...PREVIEW_PLAYER_ROSTERS, ...PREVIEW_OPPONENT_ROSTERS].filter((roster) => roster.limit === 2_000)
+const PREVIEW_CROWD_ACCOUNTS = PREVIEW_CROWD.map((player, index) => ({
+  ...player,
+  rosters: [0, 1].map((at) => rosterCopy(previewFaker.helpers.arrayElement(STRIKE_FORCE_ROSTERS), `preview-crowd-${index + 1}-${at + 1}`)),
+}))
+
 export const PREVIEW_ACCOUNTS = [
-  { email: PREVIEW_EMAIL, password: PREVIEW_PASSWORD, name: 'Preview Player', rosters: PREVIEW_ROSTERS },
-  { email: PREVIEW_OPPONENT_EMAIL, password: PREVIEW_OPPONENT_PASSWORD, name: 'Preview Opponent', rosters: PREVIEW_OPPONENT_ROSTERS },
-  { email: PREVIEW_ALLY_EMAIL, password: PREVIEW_ALLY_PASSWORD, name: 'Preview Ally', rosters: PREVIEW_ALLY_ROSTERS },
-  { email: PREVIEW_RIVAL_EMAIL, password: PREVIEW_RIVAL_PASSWORD, name: 'Preview Rival', rosters: PREVIEW_RIVAL_ROSTERS },
+  { email: PREVIEW_EMAIL, password: PREVIEW_PASSWORD, name: PREVIEW_PLAYER_NAME, rosters: PREVIEW_ROSTERS },
+  { email: PREVIEW_OPPONENT_EMAIL, password: PREVIEW_OPPONENT_PASSWORD, name: PREVIEW_OPPONENT_NAME, rosters: PREVIEW_OPPONENT_ROSTERS },
+  { email: PREVIEW_ALLY_EMAIL, password: PREVIEW_ALLY_PASSWORD, name: PREVIEW_ALLY_NAME, rosters: PREVIEW_ALLY_ROSTERS },
+  { email: PREVIEW_RIVAL_EMAIL, password: PREVIEW_RIVAL_PASSWORD, name: PREVIEW_RIVAL_NAME, rosters: PREVIEW_RIVAL_ROSTERS },
   { email: PREVIEW_STRANGER_EMAIL, password: PREVIEW_STRANGER_PASSWORD, name: 'Kieran Vale', rosters: PREVIEW_STRANGER_ROSTERS },
   { email: PREVIEW_WANDERER_EMAIL, password: PREVIEW_WANDERER_PASSWORD, name: 'Sam Okafor', rosters: PREVIEW_WANDERER_ROSTERS },
-] as const
+  ...PREVIEW_CROWD_ACCOUNTS,
+]
 
 const PREVIEW_ALL_ROSTERS = PREVIEW_ACCOUNTS.flatMap((account) => account.rosters)
 
@@ -546,6 +562,29 @@ async function seedInto(
   }
 
   // Created first, so they are the oldest public games and leave the newest to the preview login's own.
+  // Each crowd player meets the next three round the circle, six games apiece, enough to be ranked.
+  for (const [index, player] of PREVIEW_CROWD_ACCOUNTS.entries()) {
+    for (const step of [1, 2, 3]) {
+      const opponent = PREVIEW_CROWD_ACCOUNTS[(index + step) % PREVIEW_CROWD_ACCOUNTS.length]!
+      const [playerId, opponentId] = [accountId(player.email), accountId(opponent.email)]
+      const winner = previewFaker.number.int({ min: 55, max: 95 })
+      const loser = previewFaker.number.int({ min: 20, max: winner - 5 })
+      const playerWon = previewFaker.datatype.boolean()
+      const token = `preview-crowd-${index + 1}-${step}`
+      await createCasualBattle({
+        id: token,
+        token,
+        creatorId: playerId,
+        opponentIds: [opponentId],
+        limit: 2_000,
+        rosters: [
+          [playerId, previewFaker.helpers.arrayElement(player.rosters).id],
+          [opponentId, previewFaker.helpers.arrayElement(opponent.rosters).id],
+        ],
+        tail: playerWon ? finished(playerId, opponentId, [winner, loser]) : finished(opponentId, playerId, [winner, loser]),
+      })
+    }
+  }
   // A run of finished games so the strangers' profiles and records have a history to read.
   const history: [number, number, number, number][] = [
     [62, 48, 41, 55],
