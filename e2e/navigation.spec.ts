@@ -81,6 +81,7 @@ test('the mobile website uses application navigation below 860 pixels', async ({
       'https://github.com/richardsolomou/praetorium.gg',
       '/whats-new',
       '/data-updates',
+      '/apps',
       '/support',
     ])
   await page.screenshot({ path: test.info().outputPath('more-phone.png'), fullPage: true })

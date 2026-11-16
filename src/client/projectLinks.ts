@@ -29,3 +29,5 @@ export const ANDROID_BETA: { group: string; optIn: string } | undefined = {
 export const CLAUDE_DIRECTORY = 'https://claude.ai/directory/praetorium'
 
 export const CHATGPT_DIRECTORY = 'https://chatgpt.com/plugins/plugin_asdk_app_6adb29330cd08191b5833c45b0fffc79'
+
+export const MCP_SERVER = 'https://praetorium.gg/mcp'

@@ -21,6 +21,7 @@ const PUBLIC_PAGES = [
   '/rosters?view=public',
   '/rules',
   '/simulator',
+  '/apps',
   '/sources',
   '/support',
   '/privacy',

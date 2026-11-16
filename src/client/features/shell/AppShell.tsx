@@ -282,17 +282,20 @@ function SiteFooter() {
     >
       <p>Praetorium is an unofficial product, and is not in any way affiliated with or endorsed by Games Workshop.</p>
       <p className="flex flex-wrap justify-center gap-x-3 *:inline-flex *:min-h-6 *:items-center">
+        <Link to="/apps" data-listed-in-more className="transition-colors hover:text-bone">
+          Apps
+        </Link>
         <Link to="/support" data-listed-in-more className="transition-colors hover:text-bone">
           Support
         </Link>
         <Link to="/privacy" className="transition-colors hover:text-bone">
-          Privacy policy
+          Privacy
         </Link>
         <Link to="/terms" className="transition-colors hover:text-bone">
-          Terms of service
+          Terms
         </Link>
         <Link to="/sources" className="transition-colors hover:text-bone">
-          Data sources
+          Sources
         </Link>
         <Link to="/data-updates" data-listed-in-more className="transition-colors hover:text-bone">
           Data updates
