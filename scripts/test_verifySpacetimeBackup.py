@@ -27,7 +27,7 @@ class VerifySpacetimeBackupTest(unittest.TestCase):
                 "if url.endswith('/api/destination.all'):\n"
                 " print(os.environ['DESTINATIONS'])\n"
                 "elif url.endswith('/api/application.one'):\n"
-                " print(json.dumps({'applicationId': '-Su13uDBf96psvGEiBula', 'name': 'spacetimedb-production', 'appName': 'spacetimedb-production'}))\n"
+                " print(json.dumps({'applicationId': '-Su13uDBf96psvGEiBula', 'name': 'spacetimedb-production', 'appName': 'spacetimedb-production', 'dockerImage': 'clockworklabs/spacetime:v2.14.0'}))\n"
                 "else: sys.exit(18)\n"
             )
             aws = bin_dir / "aws"
@@ -43,7 +43,7 @@ class VerifySpacetimeBackupTest(unittest.TestCase):
             )
             docker = bin_dir / "docker"
             docker.write_text(
-                '#!/bin/sh\nif [ "$1" = run ]; then echo restore-started >&2; exit 19; fi\nexit 0\n'
+                '#!/bin/sh\nif [ "$1" = run ]; then echo "restore-started $*" >&2; exit 19; fi\nexit 0\n'
             )
             tar = bin_dir / "tar"
             tar.write_text(
@@ -140,6 +140,12 @@ class VerifySpacetimeBackupTest(unittest.TestCase):
 
     def test_fresh_verified_pair_reaches_restore(self):
         self.assertIn("restore-started", self.verify_manifest(self.manifest()).stderr)
+
+    def test_restore_runs_the_production_server_image(self):
+        self.assertIn(
+            " clockworklabs/spacetime:v2.14.0 start ",
+            self.verify_manifest(self.manifest()).stderr,
+        )
 
     def test_stale_manifest_does_not_download_archives(self):
         manifest = self.manifest()
