@@ -1,5 +1,16 @@
 # praetorium
 
+## 0.255.0 (2026-11-16)
+
+### Minor Changes
+
+- 87d033e: Every side whose list offers more than one Force Disposition now picks the one it plays at the Mission step of battle setup, not only allied sides.
+- 87d033e: Sealing a list for a tournament or hidden-list game asks a solo player which Force Disposition they play when the list offers several, and that card stays fixed for the event.
+
+### Patch Changes
+
+- 87d033e: Lists no longer need a Force Disposition: a list whose detachments offer several keeps them all, so imported lists that name more than one are usable straight away.
+
 ## 0.254.1 (2026-11-16)
 
 ### Patch Changes
