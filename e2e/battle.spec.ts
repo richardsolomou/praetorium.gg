@@ -61,16 +61,21 @@ test('Cleanse and Centre Ground prompt for scoring on the first turn', async ({ 
   const ongoing = playerPanel(page, 0)
   await expect(ongoing.locator('[data-secondary]')).toHaveCount(2)
   await expect(ongoing.locator('[data-secondary] [aria-label="Victory points by battle round"]')).toHaveCount(0)
-  for (const width of [900, 1100, 1440]) {
+  // The split is at 36rem, which follows the reader's text size.
+  const splitWidth = 36 * (await page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).fontSize)))
+  for (const width of [820, 900, 1100, 1440]) {
     await page.setViewportSize({ width, height: 900 })
     await expect
       .poll(async () => {
+        // The container query reads the box around the missions' grid.
+        const panel = await ongoing.locator('[data-missions]').locator('xpath=../..').boundingBox()
         const missions = await ongoing.locator('[data-missions]').boundingBox()
         const stratagems = await ongoing.locator('[data-stratagems]').boundingBox()
-        if (!missions || !stratagems) return false
-        return width === 1100
-          ? stratagems.y > missions.y + missions.height
-          : stratagems.x > missions.x + missions.width && Math.abs(stratagems.y - missions.y) < 1
+        if (!panel || !missions || !stratagems) return false
+        // Side by side only once that box is wide enough; narrower, the stratagem names would overlap their buttons.
+        return panel.width >= splitWidth
+          ? stratagems.x > missions.x + missions.width && Math.abs(stratagems.y - missions.y) < 1
+          : stratagems.y > missions.y + missions.height
       })
       .toBe(true)
     await expectNoPageOverflow(page)
