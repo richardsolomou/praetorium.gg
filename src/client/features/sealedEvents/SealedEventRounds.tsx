@@ -288,7 +288,7 @@ function TableRow({
       className={`flex min-h-12 min-w-0 flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2 last:rounded-b-xl ${own ? 'bg-parchment/5' : ''}`}
     >
       <span className="part-tag part-tag-ghost">{pairing.table}</span>
-      <span className="min-w-0 flex-1 font-semibold break-words">
+      <span className="min-w-0 flex-[1_1_10rem] font-semibold break-words">
         {name(pairing.aId)}
         {pairing.bId ? <span className="font-normal text-dim"> vs </span> : null}
         {pairing.bId ? name(pairing.bId) : null}

@@ -118,9 +118,13 @@ export function SealedEventResults<
                   </td>
                   <td className="overflow-hidden px-2 py-2.5 sm:px-3">
                     {sample ? (
-                      <div className="flex min-w-0 items-center gap-2">{player}</div>
+                      <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 sm:flex-nowrap">{player}</div>
                     ) : (
-                      <Link to="/users/$userId" params={{ userId: row.userId }} className="flex min-w-0 items-center gap-2 hover:text-info">
+                      <Link
+                        to="/users/$userId"
+                        params={{ userId: row.userId }}
+                        className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 hover:text-info sm:flex-nowrap"
+                      >
                         {player}
                       </Link>
                     )}
