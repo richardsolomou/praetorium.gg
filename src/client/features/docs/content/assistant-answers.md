@@ -24,6 +24,12 @@ Paste a list from the official app, New Recruit or another builder, or an exchan
 
 The assistant can check a list with Praetorium before it shows it to you: the same points total and problems the builder shows, without saving anything. It can also grade the list the way the builder does, with a score and grade for board control, mobility, damage and durability, then try swaps for the weakest parts and grade the list again so you can see what changed. Give it your opponent's army and both Force dispositions and it can plan the game: it runs every unit in your list against every unit in theirs, the same as the simulator's [roster comparison](/docs/compare-rosters), then works out which of your units answer their threats and which play the mission. See [Roster grades](/docs/roster-grades) for what the grades measure. To change a list yourself, open it in [Rosters](/rosters). See [Start a list](/docs/start-a-list) and [Import a list](/docs/import-a-list).
 
+## Browse public battles and rosters
+
+> Using Praetorium, show me recent public Necrons lists at 2,000 points that are legal, and grade the one you think is most interesting.
+
+The assistant can read what players have made public on Praetorium, the same lists and games the **Public** tabs of [Rosters](/rosters) and [Battles](/battles) show. It can narrow rosters by faction, detachment, battle size or a search, and keep only lists the current data can field. It can open one with its units, points and any problems, then check or grade it, or set it against your own list. It can narrow battles the way the battles page does, by faction, matchup, mission, size or status, and read one's scores, armies and report as a spectator sees it. Private rosters stay out of reach, and unlisted rosters open only from a link someone shared. Every battle can be watched, so it can also read any battle you give it a link to. These are players' own lists, not tournament results.
+
 ## Simulate combat
 
 > Using Praetorium, how many Intercessors do ten Necron Warriors kill in shooting, and what if the Intercessors are in cover?

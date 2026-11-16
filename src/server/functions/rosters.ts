@@ -15,16 +15,12 @@ import { captureMutation } from '../mutationTelemetry'
 import { captureRosterCreated } from '../rosterTelemetry'
 import { ROSTER_PRICED_SAMPLE_RATE, rosterPricedProperties, rosterTelemetryProperties } from '../../shared/rosterTelemetry'
 import { isRosterExchangeCode } from '../../core/rosterExchange'
-import {
-  matchesRosterAssessment,
-  rosterAssessmentFilterActive,
-  ROSTER_DISCOVERY_MAX_PAGE_SIZE,
-  ROSTER_DISCOVERY_PAGE_SIZE,
-} from '../../core/rosterDiscovery'
-import { discoveryCounts, discoveryScope, inDiscoveryScope, namedArmyIds, type DiscoveryCounts } from '../../core/rosterDiscoveryScope'
+import { ROSTER_DISCOVERY_MAX_PAGE_SIZE } from '../../core/rosterDiscovery'
+import { discoveryCounts, discoveryScope, inDiscoveryScope, type DiscoveryCounts } from '../../core/rosterDiscoveryScope'
 import { detachmentIds } from '../../core/savedRoster'
 import { rosterFaction } from '../../shared/rosterFaction'
 import { variantDifferences } from '../rosterDifferences'
+import { discoverRosterPage } from '../rosterDiscoveryPage'
 import { saveOwnedRoster } from '../saveOwnedRoster'
 import { rosterActions } from '../rosterActions'
 import { copiedArmy } from '../../core/rosterCopies'
@@ -224,9 +220,6 @@ export const rosterDiscoveryCounts = createServerFn({ method: 'GET' })
     }),
   )
 
-/** How many full pages a legality or points filter prices at most in one read; every roster costs a pricing the first time. */
-const ASSESSED_DISCOVERY_READS = 4
-
 /**
  * Public rosters, most recently saved first, with their owner's name and whether the current
  * data can field them: other players' for anyone, or a signed-in player's friends'. A rare page
@@ -235,54 +228,7 @@ const ASSESSED_DISCOVERY_READS = 4
  */
 export const discoverRosters = createServerFn({ method: 'GET' })
   .validator(rosterDiscoverySchema)
-  .handler(({ data: { audience, sort, before, ...filter } }) =>
-    rpc(async () => {
-      const instance = app()
-      const [viewerId, factionIndex] = await Promise.all([currentUserId(), instance.factionIndexFor()])
-      const factions = factionIndex?.factions ?? []
-      const scope = discoveryScope(filter, factions)
-      if (!scope || (audience === 'friends' && !viewerId)) return { rosters: [], total: 0, nextCursor: null }
-      const namedOwnerIds = filter.q ? await instance.service.rosterService.ownerIdsNamed(filter.q, viewerId) : []
-      const indexed = byId(factions)
-      const assessed = rosterAssessmentFilterActive(filter)
-      const found = []
-      let total: number | null = null
-      let cursor = before
-      for (let walked = 0; walked < (assessed ? ASSESSED_DISCOVERY_READS : 1); walked++) {
-        const page = await instance.service.rosterService.discoverRosters({
-          ...scope,
-          sizes: filter.size,
-          dispositions: filter.disposition,
-          owners: filter.owner,
-          q: filter.q,
-          namedOwnerIds,
-          ...(filter.q ? namedArmyIds(filter.q, factions) : {}),
-          audience,
-          viewerId,
-          sort,
-          before: cursor,
-          limit: assessed ? ROSTER_DISCOVERY_MAX_PAGE_SIZE : ROSTER_DISCOVERY_PAGE_SIZE,
-        })
-        const shown = page.rosters.filter(({ summary }) => inDiscoveryScope(summary, filter, indexed))
-        const assessments = await cachedRosterAssessmentsFor(shown.map(({ priceable }) => priceable))
-        for (const [index, { summary, owner, priceable }] of shown.entries()) {
-          const { points, verdict } = assessments[index]!
-          if (matchesRosterAssessment(filter, { points, problem: verdict.problem }))
-            found.push({ priceable, entry: { roster: summary, owner, points, problem: verdict.problem } })
-        }
-        // A count of what the database found would include rosters this filter then drops.
-        total = assessed ? null : page.total
-        cursor = page.nextCursor
-        if (!cursor || found.length >= ROSTER_DISCOVERY_PAGE_SIZE) break
-      }
-      const last = found.length > ROSTER_DISCOVERY_PAGE_SIZE ? found[ROSTER_DISCOVERY_PAGE_SIZE - 1]!.priceable : null
-      return {
-        rosters: found.slice(0, ROSTER_DISCOVERY_PAGE_SIZE).map(({ entry }) => entry),
-        total,
-        nextCursor: last ? { at: last.updatedAt, id: last.id, name: last.name, limit: last.limit, createdAt: last.createdAt } : cursor,
-      }
-    }),
-  )
+  .handler(({ data }) => rpc(async () => discoverRosterPage(data, await currentUserId())))
 
 export const sharedRoster = createServerFn({ method: 'GET' })
   .validator(rosterIdSchema)
