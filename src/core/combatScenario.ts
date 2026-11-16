@@ -59,16 +59,21 @@ function ruledAttack(
 }
 
 /** Which weapons attack in each phase once the attacker's and the defender's rules apply. */
+/** Each member's datasheet with its rules applied against the defender, which no weapon preference changes. */
+export function attackerRuleProfiles(attacker: CombatAttacker, defender: CombatOpponent) {
+  return [attacker, ...(attacker.companions ?? [])].map((member) =>
+    combatRuleProfiles(member.sheet, member.rules ?? [], 'attacker', defender.keywords, defender.rules),
+  )
+}
+
 export function combatAttacks(
   attacker: CombatAttacker,
   defender: CombatOpponent,
   preferences: Readonly<Record<string, string>>,
   excluded: Readonly<Record<CombatPhase, readonly string[]>>,
+  sheets = attackerRuleProfiles(attacker, defender),
 ) {
   const members = [attacker, ...(attacker.companions ?? [])]
-  const sheets = members.map((member) =>
-    combatRuleProfiles(member.sheet, member.rules ?? [], 'attacker', defender.keywords, defender.rules),
-  )
   const { types: shootingTypes, chosen: shootingType } = resolveShootingType(
     members.map((member, index) => ({ sheet: sheets[index]!, carriers: member.carriers })),
     defender.keywords,

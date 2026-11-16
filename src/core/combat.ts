@@ -1219,6 +1219,7 @@ export function calculateCombatSequence(
   scenarios: readonly CombatInput[],
   maxWork = MAX_COMBAT_WORK,
   afterLosses: readonly (readonly CombatAfterLosses[] | undefined)[] = [],
+  { uncapped = true }: { uncapped?: boolean } = {},
 ): CombatResult {
   if (!scenarios.length) throw new Error('Select an attack to simulate.')
   const inputs = scenarios.map(checkedCombat)
@@ -1235,7 +1236,8 @@ export function calculateCombatSequence(
   if ([...inputs, ...variants.flatMap((phase) => phase?.map(({ input }) => input) ?? [])].some((input) => !sameStart(input.target, target)))
     throw new Error('Every phase must attack the same target with the same starting wounds.')
   const result = combatResult(...resolveSequence(inputs, maxWork, targetModels(target), variants), target)
-  return { ...result, ...uncappedMeans(inputs, result, maxWork) }
+  // The uncapped means resolve the sequence again against a larger target, which a caller ranking outcomes can skip.
+  return uncapped ? { ...result, ...uncappedMeans(inputs, result, maxWork) } : result
 }
 
 /** `attackModels` is the target size Blast and Cleave count, before this sequence's losses. */

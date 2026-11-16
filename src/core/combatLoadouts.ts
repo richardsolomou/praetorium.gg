@@ -4,6 +4,7 @@ import {
   COMBAT_PHASES,
   calculateCombat,
   calculateCombatSequence,
+  type CombatAfterLosses,
   type CombatInput,
   type CombatOptions,
   type CombatResult,
@@ -13,7 +14,14 @@ import type { RosterPick } from './roster'
 import type { WeaponAdjustment } from './combatAdjustments'
 import { carriedCount, type CombatCarrier } from './combatLoadout'
 import { SHOOTING_TYPE_KEY } from './combatProfiles'
-import { combatAttackInput, combatAttacks, combatWeaponInputs, type CombatAttacker, type CombatOpponent } from './combatScenario'
+import {
+  attackerRuleProfiles,
+  combatAttackInput,
+  combatAttacks,
+  combatWeaponInputs,
+  type CombatAttacker,
+  type CombatOpponent,
+} from './combatScenario'
 import { weaponPhase } from './datasheetStructure'
 import { wargearKey } from './wargear'
 import { activeCombatRules, combatRuleDefences, combatRuleOptions, type CombatRule } from './combatRules'
@@ -312,6 +320,8 @@ class SearchLimit extends Error {
  * The best of the candidates against the target. A candidate whose rules cannot be estimated is left out and counted,
  * so one unsupported loadout does not hide the others; work limits still end the search.
  */
+type Scored = { loadout: OptimizedLoadout; inputs: [CombatInput[], CombatAfterLosses[]] }
+
 export function optimizeLoadout(
   space: LoadoutCandidates,
   scoring: LoadoutScoring,
@@ -320,7 +330,7 @@ export function optimizeLoadout(
 ): LoadoutOptimization {
   if (mode === 'combined' && scoring.sequenceError) throw new Error(scoring.sequenceError)
   const phases = mode === 'combined' ? COMBAT_PHASES : [mode]
-  let best: OptimizedLoadout | undefined
+  let best: Scored | undefined
   let skipped = 0
   let reason: string | undefined
   const results = new Map<string, CombatResult>()
@@ -329,17 +339,24 @@ export function optimizeLoadout(
   for (const candidate of space.candidates) {
     try {
       const found = optimizeCandidate(candidate)
-      if (found && (!best || compareOutcomes(found.result, best.result) > 0)) best = found
+      if (found && (!best || compareOutcomes(found.loadout.result, best.loadout.result) > 0)) best = found
     } catch (error) {
       if (error instanceof SearchLimit) throw error
       skipped++
       reason ??= error instanceof Error ? error.message : String(error)
     }
   }
-  return { best, skipped, reason }
+  // Ranking reads only capped outcomes, so only the loadout reported pays for its uncapped means.
+  return { best: best && { ...best.loadout, result: calculate(...best.inputs, true) }, skipped, reason }
 
-  function optimizeCandidate(candidate: LoadoutCandidate) {
-    let top: OptimizedLoadout | undefined
+  function calculate(inputs: CombatInput[], meleeAfterLosses: CombatAfterLosses[], uncapped: boolean) {
+    return mode === 'combined'
+      ? calculateCombatSequence(inputs, maxWork, [[], meleeAfterLosses], { uncapped })
+      : calculateCombatSequence([inputs[0]!], maxWork, [], { uncapped })
+  }
+
+  function optimizeCandidate(candidate: LoadoutCandidate): Scored | undefined {
+    let top: Scored | undefined
     const members = candidate.members.map((member) => ({
       sheet: member.sheet,
       carriers: member.carriers,
@@ -348,6 +365,12 @@ export function optimizeLoadout(
     }))
     const attacker = { ...members[0]!, companions: members.slice(1) }
     if (!members.length) throw new Error('The attached unit could not be loaded.')
+    const profiles = new Map<CombatOpponent, ReturnType<typeof attackerRuleProfiles>>()
+    const attacksOn = (opponent: CombatOpponent, preferences: Record<string, string>) => {
+      let sheets = profiles.get(opponent)
+      if (!sheets) profiles.set(opponent, (sheets = attackerRuleProfiles(attacker, opponent)))
+      return combatAttacks(attacker, opponent, preferences, { ranged: [], melee: [] }, sheets)
+    }
     for (const phase of phases) {
       const setup = scoring.phases[phase]
       if (!setup) continue
@@ -362,7 +385,7 @@ export function optimizeLoadout(
     }
     const search = (preferences: Record<string, string>, chosen: ReadonlySet<string>) => {
       if (++work > 100_000) throw new SearchLimit()
-      const attacks = combatAttacks(attacker, scoring.opponent, preferences, { ranged: [], melee: [] })
+      const attacks = attacksOn(scoring.opponent, preferences)
       const choice = phases
         .flatMap((phase) => attacks[phase].plan.choices)
         .find((entry) => !chosen.has(entry.key) && !entry.key.endsWith(':one-shot') && entry.key !== SHOOTING_TYPE_KEY)
@@ -389,7 +412,7 @@ export function optimizeLoadout(
         mode === 'combined'
           ? (scoring.afterLosses ?? []).map(({ units, opponent, phases: setups }) => ({
               units,
-              input: phaseInputs(combatAttacks(attacker, opponent, preferences, { ranged: [], melee: [] }), setups)[1]!,
+              input: phaseInputs(attacksOn(opponent, preferences), setups)[1]!,
             }))
           : []
       const key = JSON.stringify([inputs, meleeAfterLosses])
@@ -397,12 +420,14 @@ export function optimizeLoadout(
       if (!result) {
         retainedBytes += key.length * 2
         if (results.size >= 20_000 || retainedBytes > 32 * 1024 * 1024) throw new SearchLimit()
-        result =
-          mode === 'combined' ? calculateCombatSequence(inputs, maxWork, [[], meleeAfterLosses]) : calculateCombat(inputs[0]!, maxWork)
+        result = calculate(inputs, meleeAfterLosses, false)
         results.set(key, result)
       }
-      if (!top || compareOutcomes(result, top.result) > 0)
-        top = { picks: candidate.members.map(({ pickIndex, pick }) => ({ pickIndex, pick })), preferences, result }
+      if (!top || compareOutcomes(result, top.loadout.result) > 0)
+        top = {
+          loadout: { picks: candidate.members.map(({ pickIndex, pick }) => ({ pickIndex, pick })), preferences, result },
+          inputs: [inputs, meleeAfterLosses],
+        }
     }
     search({ ...scoring.preferences }, new Set())
     return top
