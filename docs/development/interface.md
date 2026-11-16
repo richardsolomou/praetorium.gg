@@ -6,6 +6,7 @@
 
 - Copy names the player's task and outcome, never implementation terms. Player docs describe how Praetorium works and where its checks stop, not play advice.
 - Marketing keeps licensing and attribution and makes no unsupported competitor comparisons.
+- Wherever both AI assistants appear, ChatGPT comes before Claude, in copy, buttons and lists, since more players recognise it.
 
 ## Layout
 

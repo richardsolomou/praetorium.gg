@@ -6,6 +6,7 @@ import { localAuthDatabase } from '../src/server/localAuthDatabase'
 import { createSqliteAuth } from '../src/server/sqliteAuth'
 import { importAuthSqlite } from './nodeAuthSqlite'
 import { previewAccountId, seedPreview } from './seedPreview'
+import { PREVIEW_PLAYER_NAME } from './lib/previewPeople'
 
 afterEach(() => vi.unstubAllEnvs())
 
@@ -37,7 +38,7 @@ it('recreates preview accounts with the same IDs in a fresh auth database', asyn
           updateProfile: async (data) => ({ ok: true, data }),
         })
         const created = await auth.api.signUpEmail({
-          body: { email: 'preview@praetorium.gg', password: 'preview-preview-preview', name: 'Preview Player' },
+          body: { email: 'preview@praetorium.gg', password: 'preview-preview-preview', name: PREVIEW_PLAYER_NAME },
         })
         ids.push(created.user.id)
       } finally {

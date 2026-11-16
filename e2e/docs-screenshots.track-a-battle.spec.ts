@@ -7,6 +7,7 @@ import {
   chooseBattlefield,
   chooseTracking,
   createRoster,
+  expandStep,
   newBattle,
   playBothSides,
   signUp,
@@ -23,12 +24,16 @@ test('track a battle', async ({ page }) => {
 
   await newBattle(page)
   await expect(page.locator('[data-face-off-side="1"]').getByRole('button', { name: 'Share a link' })).toBeVisible()
+  // A settled step starts folded to its answer; the docs show its choices.
+  await expandStep(page, 'format')
   // The header and the first step, without the steps below it or the bar pinned over them.
   const later = await page.addStyleTag({ content: 'main ol > li:not(:first-child), [data-setup-bar] { display: none !important; }' })
   await capture('track-a-battle-new-battle', page.locator('main .max-w-5xl').first())
   await later.evaluate((element) => element.remove())
   const tracking = page.getByRole('region', { name: 'Tracking', exact: true })
+  const hideBar = await page.addStyleTag({ content: '[data-setup-bar] { display: none !important; }' })
   await capture('track-a-battle-tracking', tracking, tracking.getByRole('group', { name: 'How you track it' }))
+  await hideBar.evaluate((element) => element.remove())
   await chooseTracking(page)
   await playBothSides(page)
 

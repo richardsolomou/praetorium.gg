@@ -1,5 +1,5 @@
 import { expect, test } from './test'
-import { currentTotp, signUp } from './account'
+import { currentTotp, retryUntilVisible, signUp } from './account'
 import { capture, docsScreenshots } from './docsScreenshots'
 
 docsScreenshots()
@@ -32,4 +32,55 @@ test('account and app screenshots', async ({ page, request }) => {
   const copy = setup.getByRole('button', { name: 'Copy recovery codes' })
   await expect(copy).toBeVisible()
   await capture('account-recovery-codes', setup, copy)
+})
+
+test('sign-in screenshot', async ({ page }) => {
+  await page.goto('/sign-in')
+  await page.waitForLoadState('networkidle')
+  await page.setViewportSize({ width: 1280, height: 760 })
+  const form = page
+    .locator('div')
+    .filter({ has: page.getByRole('heading', { name: 'Welcome back' }) })
+    .filter({ has: page.getByRole('button', { name: 'I need an account' }) })
+    .last()
+  await capture('sign-in-page', form, page.getByRole('button', { name: 'I need an account' }), { padded: true })
+})
+
+test('calendar screenshot', async ({ page }) => {
+  await signUp(page, 'Docs player')
+  await page.goto('/profile')
+  const calendar = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Calendar', exact: true }) })
+  await calendar.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+  await calendar.getByRole('button', { name: 'Get calendar link' }).click()
+  const copy = calendar.getByRole('button', { name: 'Copy link' })
+  await expect(copy).toBeVisible()
+  // The test server's own address would read as the link to copy.
+  await calendar.getByLabel('Calendar link').evaluate((input) => {
+    ;(input as HTMLInputElement).value = (input as HTMLInputElement).value.replace(/^https?:\/\/[^/]+/, 'https://praetorium.gg')
+  })
+  await capture('calendar-link', calendar, copy, { padded: true })
+})
+
+test('notifications screenshots', async ({ browser }) => {
+  const alice = await (await browser.newContext()).newPage()
+  const bob = await (await browser.newContext({ viewport: { width: 1280, height: 900 } })).newPage()
+  await signUp(bob, 'Brother Bob')
+  await signUp(alice, 'Aurelia')
+  await alice.goto('/friends')
+  const sent = alice.locator('section').filter({ hasText: 'Sent requests' }).filter({ hasText: 'Brother Bob' })
+  await retryUntilVisible(sent, async () => {
+    await alice.getByPlaceholder('Search by account name').fill('Brother Bob')
+    await alice.locator('[data-person="Brother Bob"]').getByRole('button', { name: 'Add friend' }).click({ timeout: 1_000 })
+  })
+
+  const bell = bob.locator('[data-web-app-chrome] [data-notifications-button]')
+  await expect(bell).toHaveAccessibleName('Notifications, 1 unread notification')
+  // A short window keeps the whole side menu in one image, so the bell is shown where it sits.
+  await bob.setViewportSize({ width: 1280, height: 640 })
+  await capture('notifications-bell', bob.locator('aside[data-web-app-chrome]'), bell)
+  await bob.setViewportSize({ width: 1280, height: 900 })
+  await bell.click()
+  const panel = bob.locator('[data-slot="popover-content"]')
+  await expect(panel.getByRole('link', { name: 'Aurelia wants to be friends.' })).toBeVisible()
+  await capture('notifications-panel', panel, panel.getByRole('button', { name: 'Mark all read' }))
 })

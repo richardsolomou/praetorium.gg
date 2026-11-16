@@ -1,5 +1,7 @@
 To find a faction, datasheet, detachment, mission or rule from anywhere on the site, choose **Search** at the top of the side menu (the magnifier at the top on a phone), or press ⌘K on a Mac or Ctrl+K elsewhere. Once you're signed in, it finds your own rosters and recent battles too.
 
+![Search for bolt rifle listing datasheets, each with a line saying what matched, such as Matches Bolt Rifle weapon.](screenshot:search-results 'Each result says what matched')
+
 ## What it matches
 
 Datasheets match by name, keyword, ability, weapon, weapon keyword or wargear. When none of those match, search reads what units' abilities do, so `gain 1cp` finds units whose abilities give you a Command point. Each result names what matched. Reading what abilities do needs a connection: offline, search matches everything else.

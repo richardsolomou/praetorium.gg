@@ -6,7 +6,7 @@ The line under the list's name shows how many entries matched, such as "9 of 10 
 
 **Reported army** is the total your export stated, or "points not stated". **Matched entries at selected rules** is what the list costs in Praetorium today, and that's the price saved and checked. **Battle size** appears when the text named one.
 
-![The import review for a fully matched list, showing Reported army: 1000 points and Matched entries at selected rules: 1000 points.](screenshot:import-a-roster-review 'Reported army and Matched entries at selected rules')
+![The import review for a fully matched list, showing Reported army: 1000 points and Matched entries at selected rules: 1000 points.](screenshot:import-a-roster-review 'Reported army, the total the list itself states')
 
 ### Will not be imported
 
@@ -40,7 +40,7 @@ The official app prints its data version at the bottom of an export. If that's o
 
 If anything's listed, the button reads **Import anyway**. Missing units are left out and unmatched wargear uses the datasheet defaults, so check those units in the builder.
 
-![The import review listing Necron Warrior under Will not be imported and Chronomancer's Veil of Darkness enhancement under Could not apply.](screenshot:import-a-roster-shortfall 'Import anyway, below the two lists')
+![The import review listing Canoptek Gardener under Will not be imported, and the Chronomancer under Will arrive as their datasheets build them because its Veil of Darkness enhancement could not apply.](screenshot:import-a-roster-shortfall 'Import anyway, below the two lists')
 
 **Edit pasted text** (or **Edit code**) lets you fix the text and try again. **Cancel** closes without importing.
 

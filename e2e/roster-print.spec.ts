@@ -15,10 +15,11 @@ import {
 import { attach } from './builder.harness'
 import { NATIVE_BRIDGE_SCRIPT, parseNativeActionRequest } from '../mobile/src/nativeActions'
 import { lastPathSegment } from './storage'
+import { PREVIEW_PLAYER_NAME } from '../scripts/lib/previewPeople'
 
 test('a full saved army prints selected equipment, both detachments and every page', async ({ page }, testInfo) => {
   await signInAsPreview(page)
-  await expect(page.getByRole('button', { name: 'Account menu for Preview Player', includeHidden: true }).first()).toBeAttached()
+  await expect(page.getByRole('button', { name: `Account menu for ${PREVIEW_PLAYER_NAME}`, includeHidden: true }).first()).toBeAttached()
   await page.goto('/rosters/preview-necrons-cursed-skyshroud')
   await expect(page.locator('[data-unit]')).toHaveCount(13)
   const name = await page.getByLabel('List name').inputValue()

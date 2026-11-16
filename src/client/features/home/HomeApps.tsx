@@ -1,4 +1,5 @@
 import { Check, ExternalLink, X } from 'lucide-react'
+import { Link } from '@tanstack/react-router'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -37,42 +38,62 @@ function StoreBadges({ className, tiled = false }: { className?: string; tiled?:
         </p>
       )}
       <div className={tiled ? 'contents' : 'flex flex-wrap items-center gap-3'}>
-        <a data-store-apple href={APP_STORE} rel="noreferrer noopener" target="_blank" className="block">
-          <img src={appStoreBadge} alt="Download on the App Store" width={120} height={40} className="h-10 w-auto" />
-        </a>
+        <span data-store-apple className="contents">
+          <AppStoreBadge />
+        </span>
         {ANDROID_BETA ? <AndroidBeta beta={ANDROID_BETA} /> : null}
       </div>
     </div>
   )
 }
 
-/** Shaped like the store badges beside them: neither OpenAI nor Anthropic publishes a badge of its own. */
+export function AppStoreBadge() {
+  return (
+    <a href={APP_STORE} rel="noreferrer noopener" target="_blank" className="block w-fit">
+      <img src={appStoreBadge} alt="Download on the App Store" width={120} height={40} className="h-10 w-auto" />
+    </a>
+  )
+}
+
+export const ASSISTANTS = {
+  chatgpt: { href: CHATGPT_DIRECTORY, verb: 'Use in', name: 'ChatGPT', logo: chatgptLogo },
+  claude: { href: CLAUDE_DIRECTORY, verb: 'Add to', name: 'Claude', logo: claudeLogo },
+}
+
+/** Shaped like the store badges: neither OpenAI nor Anthropic publishes a badge of its own. */
+export function AssistantButton({
+  assistant: { href, verb, name, logo },
+  className,
+}: {
+  assistant: (typeof ASSISTANTS)[keyof typeof ASSISTANTS]
+  className?: string
+}) {
+  return (
+    <a
+      href={href}
+      aria-label={`${verb} ${name}`}
+      rel="noreferrer noopener"
+      target="_blank"
+      className={cn(
+        'inline-flex h-10 items-center gap-2 rounded-[7px] border border-runner bg-panel pr-3 pl-2 transition-colors hover:border-runner-hi',
+        className,
+      )}
+    >
+      <img src={logo} alt="" width={24} height={24} className="size-6" />
+      <span className="grid leading-none">
+        <span className="text-2xs text-dim">{verb}</span> <span className="font-display text-base leading-tight font-semibold">{name}</span>
+      </span>
+    </a>
+  )
+}
+
 function AssistantButtons({ tiled = false }: { tiled?: boolean }) {
-  const assistants = [
-    { href: CHATGPT_DIRECTORY, verb: 'Use in', name: 'ChatGPT', logo: chatgptLogo },
-    { href: CLAUDE_DIRECTORY, verb: 'Add to', name: 'Claude', logo: claudeLogo },
-  ]
   return (
     <div className={tiled ? 'contents' : 'grid gap-1.5'}>
       {tiled ? null : <p className="text-xs leading-none text-faint">Ask your AI assistant</p>}
       <div className={tiled ? 'contents' : 'flex flex-wrap items-center gap-3'}>
-        {assistants.map(({ href, verb, name, logo }) => (
-          <a
-            key={name}
-            href={href}
-            rel="noreferrer noopener"
-            target="_blank"
-            className={cn(
-              'inline-flex h-10 items-center gap-2 rounded-[7px] border border-runner bg-panel pr-3 pl-2 transition-colors hover:border-runner-hi',
-              tiled && 'w-full',
-            )}
-          >
-            <img src={logo} alt="" width={24} height={24} className="size-6" />
-            <span className="grid leading-none">
-              <span className="text-2xs text-dim">{verb}</span>{' '}
-              <span className="font-display text-base leading-tight font-semibold">{name}</span>
-            </span>
-          </a>
+        {Object.values(ASSISTANTS).map((assistant) => (
+          <AssistantButton key={assistant.name} assistant={assistant} className={tiled ? 'w-full' : undefined} />
         ))}
       </div>
     </div>
@@ -92,9 +113,14 @@ export function AppCard({ stores }: { stores: boolean }) {
       <SectionHeading
         title="Apps"
         action={
-          <Button size="icon-sm" variant="ghost" aria-label="Hide apps" onClick={() => setConfirming(true)}>
-            <X aria-hidden />
-          </Button>
+          <span className="flex items-center gap-1">
+            <Link to="/apps" className="text-sm text-info hover:text-parchment">
+              All apps
+            </Link>
+            <Button size="icon-sm" variant="ghost" aria-label="Hide apps" onClick={() => setConfirming(true)}>
+              <X aria-hidden />
+            </Button>
+          </span>
         }
       />
       {/* Nothing on the page brings the panel back, so hiding it is asked once more. */}
@@ -126,6 +152,9 @@ export function AppBand() {
       <div className="mx-auto flex max-w-6xl min-w-0 flex-wrap gap-x-5 gap-y-3 px-5 py-3 sm:px-6">
         <StoreBadges className="md:border-r md:border-edge md:pr-5" />
         <AssistantButtons />
+        <Link to="/apps" className="self-end text-sm leading-10 text-info hover:text-parchment">
+          Gemini and more
+        </Link>
       </div>
     </div>
   )
@@ -136,7 +165,7 @@ export function AppBand() {
  * closed test. Each step's link opens in a new tab, so the dialog stays put and moves on to the next step. The current
  * step shows Google's own page with the button to tap ringed, captured signed in as a Gmail account that had not joined.
  */
-function AndroidBeta({ beta }: { beta: { group: string; optIn: string } }) {
+export function AndroidBeta({ beta }: { beta: { group: string; optIn: string } }) {
   const [done, setDone] = useState(0)
   const steps = [
     {
@@ -235,11 +264,14 @@ function AndroidBeta({ beta }: { beta: { group: string; optIn: string } }) {
 }
 
 /** The credit lines for the marks in the band, kept at the page's foot; each store's goes wherever its badge does. */
-export function HomeAppCredits({ dismissable, stores = true }: { dismissable: boolean; stores?: boolean }) {
+export function HomeAppCredits({ dismissable, stores = true, className }: { dismissable: boolean; stores?: boolean; className?: string }) {
   const dismissed = useDismissed()
   if (dismissable && dismissed) return null
   return (
-    <p data-home-apps={dismissable || undefined} className="mx-auto max-w-6xl px-5 pt-4 pb-6 text-2xs leading-snug text-faint sm:px-6">
+    <p
+      data-home-apps={dismissable || undefined}
+      className={cn('mx-auto max-w-6xl px-5 pt-4 pb-6 text-2xs leading-snug text-faint sm:px-6', className)}
+    >
       {stores ? (
         <span data-store-link data-app-band>
           Apple and the Apple logo are trademarks of Apple Inc., registered in the U.S. and other countries. App Store is a service mark of

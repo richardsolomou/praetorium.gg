@@ -16,6 +16,7 @@ import {
 } from './account'
 import { productSql, withAuthSql, battleIdFor } from './storage'
 import { NATIVE_BROWSER_BRIDGE_SCRIPT } from './native.harness'
+import { PREVIEW_ALLY_NAME, PREVIEW_OPPONENT_NAME, PREVIEW_PLAYER_NAME, PREVIEW_RIVAL_NAME } from '../scripts/lib/previewPeople'
 
 /** Dates a battle ahead of the public battles other tests play meanwhile; the feed orders by its cached last activity, so that goes too. */
 async function dateAhead(token: string, minutes: number) {
@@ -205,8 +206,8 @@ test.describe('the featured battle', () => {
 
     const featuredBattle = page.locator('[data-home-featured]')
     for (const [first, second] of [
-      ['Preview Player', 'Preview Ally'],
-      ['Preview Opponent', 'Preview Rival'],
+      [PREVIEW_PLAYER_NAME, PREVIEW_ALLY_NAME],
+      [PREVIEW_OPPONENT_NAME, PREVIEW_RIVAL_NAME],
     ]) {
       const firstName = featuredBattle.getByText(first, { exact: true })
       const secondName = featuredBattle.getByText(second, { exact: true })

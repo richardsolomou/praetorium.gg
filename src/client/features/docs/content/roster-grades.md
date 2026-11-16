@@ -1,5 +1,7 @@
 Roster grades score what a roster can do on the table. Choose **Grade this roster** from the roster's **⋮** menu, or from its card's **⋮** menu on the Rosters page. You get an overall score out of 100, a score for each of four categories, and a grade for every measure in them. **Worth knowing** names the gaps. Scores describe the list, not your odds of winning: the player, the mission and the dice decide far more than the list does.
 
+![Roster grades for a Blood Angels list: 59 overall, grade C, with scores for board control, charge and deployment, damage and durability, and graded measures below.](screenshot:roster-grades 'The overall score, the four categories and each measure')
+
 ## How scores work
 
 Each measure places your list among 11th-edition tournament lists of the same faction and battle size, the way Lighthouse in Chrome scores a page against real websites. Comparing with your own faction keeps the grade about your list rather than your army: the simulator leaves out stratagems and conditional rules, and that falls harder on some armies than others. A Space Marine chapter with too few tournament lists of its own is placed among every chapter's, and an army with none among every faction's; the dialog says which under **Overall**.

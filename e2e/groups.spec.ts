@@ -4,6 +4,7 @@ import { befriend, createBattle, retryUntilVisible, setupStep, signInAsPreview, 
 import { productSql, lastPathSegment, battleIdFor, seatsBySide, appendCommand } from './storage'
 import type { Command } from '../src/core/battle'
 import { expectNoHorizontalOverflow } from './builder.harness'
+import { PREVIEW_ALLY_NAME, PREVIEW_OPPONENT_NAME, PREVIEW_PLAYER_NAME, PREVIEW_RIVAL_NAME } from '../scripts/lib/previewPeople'
 
 test.setTimeout(120_000)
 
@@ -312,17 +313,17 @@ test('group team rows keep their actions inside the card at narrow widths', asyn
   await simulation.click()
   const simulator = page.getByRole('dialog', { name: 'Combat simulator', exact: true })
   for (const [side, players] of [
-    ['Attacking with', ['Preview Player', 'Preview Ally']],
-    ['Defending with', ['Preview Opponent', 'Preview Rival']],
+    ['Attacking with', [PREVIEW_PLAYER_NAME, PREVIEW_ALLY_NAME]],
+    ['Defending with', [PREVIEW_OPPONENT_NAME, PREVIEW_RIVAL_NAME]],
   ] as const)
     for (const player of players) await expect(simulator.getByRole('group', { name: side, exact: true })).toContainText(player)
   await simulator.getByRole('button', { name: 'Close', exact: true }).click()
   const past = page.locator('[data-hidden-list-game="preview-group-game-duel-past"]')
-  await expect(past.getByRole('button', { name: 'Simulate against Preview Opponent', exact: true })).toBeVisible()
+  await expect(past.getByRole('button', { name: `Simulate against ${PREVIEW_OPPONENT_NAME}`, exact: true })).toBeVisible()
   await expect(past.getByRole('button', { name: /^Play / })).toHaveCount(0)
-  await past.getByRole('button', { name: 'Simulate against Preview Opponent', exact: true }).click()
-  await expect(simulator.getByRole('group', { name: 'Attacking with', exact: true })).toContainText('Preview Player')
-  await expect(simulator.getByRole('group', { name: 'Defending with', exact: true })).toContainText('Preview Opponent')
+  await past.getByRole('button', { name: `Simulate against ${PREVIEW_OPPONENT_NAME}`, exact: true }).click()
+  await expect(simulator.getByRole('group', { name: 'Attacking with', exact: true })).toContainText(PREVIEW_PLAYER_NAME)
+  await expect(simulator.getByRole('group', { name: 'Defending with', exact: true })).toContainText(PREVIEW_OPPONENT_NAME)
   await simulator.getByRole('button', { name: 'Close', exact: true }).click()
   await page.setViewportSize(PHONE)
   await game.scrollIntoViewIfNeeded()
@@ -370,9 +371,9 @@ test('a group plays doubles with open lists from New game', async ({ page }) => 
   const dialog = await openNewGame(page)
   await dialog.getByRole('button', { name: /^Doubles/ }).click()
   for (const [seat, name] of [
-    ['Your ally', 'Preview Ally'],
-    ['First opponent', 'Preview Opponent'],
-    ['Second opponent', 'Preview Rival'],
+    ['Your ally', PREVIEW_ALLY_NAME],
+    ['First opponent', PREVIEW_OPPONENT_NAME],
+    ['Second opponent', PREVIEW_RIVAL_NAME],
   ]) {
     await dialog.getByRole('combobox', { name: seat }).click()
     await page.getByRole('option', { name, exact: true }).click()

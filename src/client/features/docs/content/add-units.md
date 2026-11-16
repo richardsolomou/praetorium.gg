@@ -11,7 +11,7 @@ The picker shows every datasheet your faction and detachments allow, with allied
 - The heart shows only your favourites, which also sort to the top of each group. It needs an account.
 - The box shows only datasheets in your [collection](/collection), including those your models can also be. It needs an account.
 
-![The unit picker with its search box, filter chips and Space Marines characters.](screenshot:build-an-army-picker 'The filter row: Points fit, Unit limit, favourites, collection, Legends, Crucible and Format restrictions')
+![The unit picker with its search box, filter chips and Space Marines characters.](screenshot:build-an-army-picker 'The filter row: Points fit, Unit limit, favourites, collection, Legends and Crucible')
 
 ## Legends and Crucible
 

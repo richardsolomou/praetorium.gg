@@ -1,4 +1,4 @@
-All of this works without an account. Ask your AI assistant, such as Claude or ChatGPT, in plain language and it works out what to look up.
+All of this works without an account. Ask your AI assistant, such as ChatGPT or Claude, in plain language and it works out what to look up.
 
 ## Look things up
 

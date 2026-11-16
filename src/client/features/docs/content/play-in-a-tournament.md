@@ -23,6 +23,8 @@ Once everyone in has sealed, the organizer reveals the rosters.
 
 Every roster opens at once. Each player's row has **View roster** and **Simulate** for their list. In a doubles or 2v1 tournament, **Simulate** sits on the other side's heading.
 
+![The revealed rosters of a five-player tournament, each row with its army and points and buttons including Simulate and View roster.](screenshot:tournament-rosters 'Simulate, the calculator on another player’s row')
+
 Start a tournament battle from the tournament page against another entrant, and both sealed rosters are added for you. If you and an opponent are both in a tournament, starting a battle anywhere offers to play it in the tournament.
 
 Finished battles fill the results table, which counts the tournament's latest 500 battles.

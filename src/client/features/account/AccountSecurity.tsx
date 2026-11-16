@@ -232,7 +232,7 @@ export function AccountSecurity({ me, preferences }: { me: AccountIdentity; pref
         <p className="text-sm text-dim">
           AI assistants and other apps you have allowed to read or change your rosters, battles and events.{' '}
           <Link to="/docs/$docId" params={{ docId: 'connect-an-assistant' }} className="text-info underline-offset-4 hover:underline">
-            Connect Claude, ChatGPT or Gemini
+            Connect ChatGPT, Claude or Gemini
           </Link>
         </p>
         {connectionsResult.isPending ? <Skeleton className="mt-4 h-10 w-full" /> : null}

@@ -12,6 +12,6 @@ Detachment problems appear under the roster header with **Review setup**.
 
 ## Switching restrictions off
 
-For a house-rules game, open **Format restrictions** beside the picker's search box and untick what you don't want checked. It lists **Points limit**, **Detachment points** and **Warlord** (exactly one Character unit is your Warlord), plus the King of the Colosseum rules at that size. Everyone you play can see what your list waives.
+For a house-rules game, open **Format restrictions**, the **⋮** beside the picker's search box, and untick what you don't want checked. It lists **Points limit**, **Detachment points** and **Warlord** (exactly one Character unit is your Warlord), plus the King of the Colosseum rules at that size. Everyone you play can see what your list waives.
 
-![The Format restrictions menu open over the unit picker, with Points limit and Detachment points ticked.](screenshot:build-an-army-format-restrictions 'Detachment points in the Format restrictions menu')
+![The Format restrictions menu open over the unit picker, with Points limit, Detachment points and Warlord ticked.](screenshot:build-an-army-format-restrictions 'Detachment points in the Format restrictions menu')

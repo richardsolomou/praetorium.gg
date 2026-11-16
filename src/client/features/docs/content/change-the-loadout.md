@@ -2,7 +2,7 @@ To compare wargear, press the gear button (**Loadout**) beside a member. Each op
 
 The best option is tagged **Best kill %**. If kill chances tie, it's **Best models** or **Best wounds**. Model-count options show the odds with one more or one fewer model.
 
-![A Sergeant wargear option in the Loadout panel with its shooting and melee odds.](screenshot:compare-loadouts-best-kill 'Best kill % marks the option most likely to destroy the defender')
+![A Plasma pistol option in the Loadout panel with its shooting and melee odds.](screenshot:compare-loadouts-best-kill 'Best kill % marks the option most likely to destroy the defender')
 
 Use a weapon's switch under **Shooting** or **Melee** to leave it out of that phase without changing the loadout. If a weapon has more than one mode, or a choice like **One Shot available** or **Already fired**, pick it from the dropdown above the weapons. Until you pick, a model with a choice of weapons or modes uses the one that does most against the defender.
 

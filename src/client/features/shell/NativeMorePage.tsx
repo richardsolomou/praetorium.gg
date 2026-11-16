@@ -13,6 +13,7 @@ import {
   History,
   MessageSquareWarning,
   ShieldCheck,
+  Smartphone,
   Sparkles,
   type LucideIcon,
 } from 'lucide-react'
@@ -42,7 +43,10 @@ const ACCOUNT: readonly MoreLink[] = [{ Icon: Boxes, label: 'Collection', to: '/
 
 const WHATS_NEW: MoreLink = { Icon: Sparkles, label: "What's new", to: '/whats-new' }
 
-const HELP: readonly MoreLink[] = [{ Icon: History, label: 'Data updates', to: '/data-updates' }]
+const HELP: readonly MoreLink[] = [
+  { Icon: History, label: 'Data updates', to: '/data-updates' },
+  { Icon: Smartphone, label: 'Apps', to: '/apps' },
+]
 
 const rowClass = 'flex min-h-12 w-full items-center gap-3 px-3.5 py-2 text-left text-bone transition-colors hover:bg-raised'
 

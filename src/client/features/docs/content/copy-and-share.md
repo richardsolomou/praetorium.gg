@@ -2,6 +2,8 @@
 
 In the library, choose **Share…** in a roster's menu. Under **Who can open it**, pick **Private**, **Unlisted** or **Public**. It changes straight away. You can also change **Access** in **Edit roster setup**.
 
+![The Share dialog with Private, Unlisted and Public under Who can open it, the link with Copy link, and Export text, Exchange code and Print.](screenshot:copy-and-share-dialog 'Who can open it, at the top of the Share dialog')
+
 - **Copy link** (**Share link** on a phone) copies the list's address. On a private list the button reads **Make unlisted and copy**, and makes it Unlisted first.
 - **Export text** gives you text to **Copy text** or **Download text**. See [Exchange codes and export](/docs/exchange-and-export) for what it holds.
 - **Print** prepares a compact two-column reference pack with a datasheet for each unit, then army and detachment rules, stratagems, and the abilities and weapon rules your units use.

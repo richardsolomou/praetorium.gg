@@ -6,7 +6,7 @@ Undo doesn't reverse casualties. Use the opposite control: return a model, heal 
 
 Forgot something? In a guided battle, **Battle options** › **Record a missed action** books a stratagem, victory points or the extra CP against an earlier phase of this round or the last. End-of-battle points can't be recorded late. A stratagem's **⋮** menu has **Record as missed…**, which opens the same dialog.
 
-![The Battle options menu: Action reminders, Record a missed action, Pause timer, Concede battle and Delete battle.](screenshot:track-a-battle-battle-options 'Record a missed action, in Battle options')
+![The Battle options menu: Action reminders, Record a missed action, Pause timer, Copy stream overlay link, Concede battle and Delete battle.](screenshot:track-a-battle-battle-options 'Record a missed action, in Battle options')
 
 ## Play on several devices
 
