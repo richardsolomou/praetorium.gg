@@ -1,3 +1,4 @@
+import type { Worker } from 'node:worker_threads'
 import { workSlots } from './agentPoolWork'
 import { z } from 'zod'
 import type { CombatResult, CombatPhase } from '../core/combat'
@@ -640,15 +641,35 @@ const WALK_STEPS = 8
 /** Searches the shared server runs at once; each holds a worker's worth of calculation on its event loop. */
 const optimizationSlots = workSlots(2)
 
+/** Workers one search scores on at once, started as it needs them; two searches at most run together. */
+const SCORING_WORKERS = 3
+
 /**
- * Scores loadouts in a worker of their own: one candidate can run thousands of exact calculations, which on the main
- * thread would hold every other request, and only terminating the worker stops one mid-way.
+ * Scores loadouts in workers of their own: one candidate can run thousands of exact calculations, which on the main
+ * thread would hold every other request, and only terminating a worker stops one mid-way.
  */
 function loadoutScorer(signal: AbortSignal) {
-  const worker = createCombatWorker()
-  const stop = () => void worker.terminate()
+  const workers: Worker[] = []
+  const idle: Worker[] = []
+  const waiting: ((worker: Worker) => void)[] = []
+  const stop = () => workers.forEach((worker) => void worker.terminate())
   signal.addEventListener('abort', stop, { once: true })
-  const score = (space: LoadoutCandidates, scoring: LoadoutScoring, mode: OptimizeLoadoutMessage['mode']) =>
+  const take = () => {
+    const free = idle.pop()
+    if (free) return Promise.resolve(free)
+    if (workers.length < SCORING_WORKERS) {
+      const worker = createCombatWorker()
+      workers.push(worker)
+      return Promise.resolve(worker)
+    }
+    return new Promise<Worker>((resolve) => waiting.push(resolve))
+  }
+  const give = (worker: Worker) => {
+    const next = waiting.shift()
+    if (next) next(worker)
+    else idle.push(worker)
+  }
+  const run = (worker: Worker, message: OptimizeLoadoutMessage) =>
     new Promise<LoadoutOptimization>((resolve, reject) => {
       // Ending early reads as the core search's own limit, so the caller keeps the best found so far.
       const cut = () => {
@@ -663,8 +684,17 @@ function loadoutScorer(signal: AbortSignal) {
       if (signal.aborted) return cut()
       worker.once('message', settle)
       worker.once('exit', cut)
-      worker.postMessage({ kind: 'optimize-loadout', space, scoring, mode, maxWork: COMBAT_TOOL_MAX_WORK } satisfies OptimizeLoadoutMessage)
+      worker.postMessage(message)
     })
+  // A worker answers one message at a time, so each scores one chunk before it takes the next.
+  const score = async (space: LoadoutCandidates, scoring: LoadoutScoring, mode: OptimizeLoadoutMessage['mode']) => {
+    const worker = await take()
+    try {
+      return await run(worker, { kind: 'optimize-loadout', space, scoring, mode, maxWork: COMBAT_TOOL_MAX_WORK })
+    } finally {
+      give(worker)
+    }
+  }
   return Object.assign(score, {
     close: () => {
       signal.removeEventListener('abort', stop)
@@ -724,6 +754,7 @@ export async function optimizeCombatLoadout(input: OptimizeLoadoutInput) {
   let current: OptimizedLoadout | undefined
   let best: OptimizedLoadout | undefined
   let checked = 0
+  let sentFirst = false
   let skipped = 0
   let reason: string | undefined
   let cutShort = false
@@ -732,6 +763,18 @@ export async function optimizeCombatLoadout(input: OptimizeLoadoutInput) {
     let top: OptimizedLoadout | undefined
     let local = false
     let done = false
+    // Chunks score on several workers at once and are taken in the order sent, so the result matches one worker's.
+    const inFlight: Promise<{ found: LoadoutOptimization; size: number; first: boolean }>[] = []
+    const take = ({ found, size, first }: { found: LoadoutOptimization; size: number; first: boolean }) => {
+      if (first) current = found.best
+      checked += size
+      if (found.skipped) {
+        skipped += found.skipped
+        reason ??= found.reason
+      }
+      if (found.best && (!top || compareOutcomes(found.best.result, top.result) > 0)) top = found.best
+      if (found.best && (!best || compareOutcomes(found.best.result, best.result) > 0)) best = found.best
+    }
     try {
       const request = { catalogueId: resolved.catalogueId, detachmentIds: resolved.detachmentIds, picks, pickIndex: 0, walk }
       for await (const batch of combatLoadoutCandidates(loaded, request, signal, rules)) {
@@ -741,21 +784,20 @@ export async function optimizeCombatLoadout(input: OptimizeLoadoutInput) {
           members: candidate.members.map((member) => ({ ...member, rules: readRules(member.rules, words) })),
         }))
         // The unit's own loadout is scored alone so it can be reported as current.
-        const chunks = checked ? [] : read.splice(0, 1).map((candidate) => [candidate])
+        const chunks = sentFirst ? [] : read.splice(0, 1).map((candidate) => [candidate])
         for (let start = 0; start < read.length; start += SCORED_TOGETHER) chunks.push(read.slice(start, start + SCORED_TOGETHER))
         for (const candidates of chunks) {
           if (signal.aborted) break
-          const found = await score({ candidates }, scoring, input.mode)
-          if (!checked) current = found.best
-          checked += candidates.length
-          if (found.skipped) {
-            skipped += found.skipped
-            reason ??= found.reason
-          }
-          if (found.best && (!top || compareOutcomes(found.best.result, top.result) > 0)) top = found.best
-          if (found.best && (!best || compareOutcomes(found.best.result, best.result) > 0)) best = found.best
+          if (inFlight.length >= SCORING_WORKERS) take(await inFlight.shift()!)
+          const first = !sentFirst
+          sentFirst = true
+          const job = score({ candidates }, scoring, input.mode).then((found) => ({ found, size: candidates.length, first }))
+          // Awaited in order below; a rejection meanwhile must not count as unhandled.
+          job.catch(() => undefined)
+          inFlight.push(job)
         }
       }
+      while (inFlight.length) take(await inFlight.shift()!)
     } catch (error) {
       if (!(error instanceof Error)) throw error
       if (!error.message.startsWith('The full search could not finish')) throw new CombatRefusal([error.message])
