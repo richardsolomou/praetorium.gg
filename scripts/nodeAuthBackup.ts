@@ -6,14 +6,53 @@ import { unzipSync, zipSync } from 'fflate'
 import { privateR2Client } from '../src/server/r2Client.ts'
 import { backupAuthSqlite, verifyAuthSqlite } from './nodeAuthSqlite.ts'
 import { isEntryPoint } from './lib/entryPoint.ts'
+import { authArchiveKey, prunableAuthArchives } from './lib/authBackupRetention.ts'
+import { requiredEnv } from './lib/requiredEnv.ts'
+import { isSpacetimeInternalHost } from './lib/spacetimeInternalHost.ts'
 
-const archiveKey = /^backups\/auth\/production\/[0-9]{8}T[0-9]{6}Z-[0-9a-f]{16}\.zip$/
+const archivePrefix = 'backups/auth/production/'
+const pointerKey = `${archivePrefix}latest.json`
+const pointerFormat = 'praetorium.auth-backup-pointer.v1'
 const maxArchiveBytes = 128 * 1024 * 1024
+
+type R2 = ReturnType<typeof configuredR2>
 
 function configuredR2() {
   const r2 = privateR2Client()
   if (!r2) throw new Error('R2 backup credentials are required')
   return r2
+}
+
+async function r2Request(r2: R2, url: string, init: RequestInit = {}) {
+  const response = await r2.client.fetch(url, { ...init, signal: AbortSignal.timeout(60_000) })
+  if (!response.ok) throw new Error(`R2 auth backup ${init.method ?? 'GET'} failed with HTTP ${response.status}`)
+  return response
+}
+
+async function archiveKeys(r2: R2) {
+  const keys: string[] = []
+  const query = new URLSearchParams({ 'list-type': '2', prefix: archivePrefix })
+  for (;;) {
+    const listing = await (await r2Request(r2, `${r2.base}?${query}`)).text()
+    keys.push(...[...listing.matchAll(/<Key>([^<]+)<\/Key>/g)].map((match) => match[1]!))
+    if (!listing.includes('<IsTruncated>true</IsTruncated>')) return keys
+    const token = /<NextContinuationToken>([^<]+)<\/NextContinuationToken>/.exec(listing)?.[1]
+    if (!token) throw new Error('R2 auth backup listing is incomplete')
+    query.set('continuation-token', token)
+  }
+}
+
+async function pruneAuthArchives(r2: R2, written: string) {
+  const internalHost = requiredEnv('SPACETIME_INTERNAL_HOST')
+  if (!isSpacetimeInternalHost(internalHost)) throw new Error('Invalid SpacetimeDB internal host')
+  const product = (await (await r2Request(r2, `${r2.base}${internalHost}/backups/latest.json`)).json()) as { createdAt?: string }
+  const spacetimeCreatedAt = new Date(product.createdAt ?? Number.NaN)
+  if (Number.isNaN(spacetimeCreatedAt.getTime())) throw new Error('Product backup pointer has no creation time')
+  const prunable = prunableAuthArchives(await archiveKeys(r2), { now: new Date(), written, spacetimeCreatedAt })
+  for (let start = 0; start < prunable.length; start += 16) {
+    await Promise.all(prunable.slice(start, start + 16).map((key) => r2Request(r2, `${r2.base}${key}`, { method: 'DELETE' })))
+  }
+  return prunable.length
 }
 
 async function restoreAuthArchive(bytes: Uint8Array, target: string) {
@@ -70,37 +109,44 @@ export async function backupAuthToR2(source: string) {
     )
     if (archive.byteLength > maxArchiveBytes) throw new Error('Auth archive is too large')
     const stamp = new Date().toISOString().replaceAll('-', '').replaceAll(':', '').slice(0, 15) + 'Z'
-    const key = `backups/auth/production/${stamp}-${crypto.randomUUID().replaceAll('-', '').slice(0, 16)}.zip`
+    const key = `${archivePrefix}${stamp}-${crypto.randomUUID().replaceAll('-', '').slice(0, 16)}.zip`
     const url = `${r2.base}${key}`
-    const uploaded = await r2.client.fetch(url, {
-      method: 'PUT',
-      body: new Uint8Array(archive),
-      headers: { 'content-type': 'application/zip' },
-      signal: AbortSignal.timeout(60_000),
-    })
-    if (!uploaded.ok) throw new Error(`R2 auth backup upload failed with HTTP ${uploaded.status}`)
-    const downloaded = await r2.client.fetch(url, { signal: AbortSignal.timeout(60_000) })
-    if (!downloaded.ok) throw new Error(`R2 auth backup readback failed with HTTP ${downloaded.status}`)
+    await r2Request(r2, url, { method: 'PUT', body: new Uint8Array(archive), headers: { 'content-type': 'application/zip' } })
+    const downloaded = await r2Request(r2, url)
     const readback = new Uint8Array(await downloaded.arrayBuffer())
     if (hash('sha256', readback) !== hash('sha256', archive)) throw new Error('R2 auth backup readback did not match')
     await restoreAuthArchive(readback, path.join(work, 'restored'))
-    return { key, counts }
+    // Only a verified archive becomes the pointer, which restores read instead of choosing a key by name.
+    const pointer = { format: pointerFormat, createdAt: new Date().toISOString(), key, sha256: hash('sha256', archive) }
+    await r2Request(r2, `${r2.base}${pointerKey}`, {
+      method: 'PUT',
+      body: JSON.stringify(pointer),
+      headers: { 'content-type': 'application/json' },
+    })
+    return { key, counts, pruned: await pruneAuthArchives(r2, key) }
   } finally {
     await rm(work, { recursive: true, force: true })
   }
 }
 
+/** Restores `key`, or with `latest` the archive the pointer names after checking its digest. */
 export async function restoreAuthFromR2(key: string, target: string) {
-  if (!archiveKey.test(key)) throw new Error('Invalid auth backup key')
+  if (key !== 'latest' && !authArchiveKey.test(key)) throw new Error('Invalid auth backup key')
   const r2 = configuredR2()
-  const response = await r2.client.fetch(`${r2.base}${key}`, { signal: AbortSignal.timeout(60_000) })
-  if (!response.ok) throw new Error(`R2 auth backup download failed with HTTP ${response.status}`)
-  return restoreAuthArchive(new Uint8Array(await response.arrayBuffer()), target)
+  const pointer =
+    key === 'latest'
+      ? ((await (await r2Request(r2, `${r2.base}${pointerKey}`)).json()) as { format?: string; key?: string; sha256?: string })
+      : undefined
+  if (pointer && (pointer.format !== pointerFormat || !authArchiveKey.test(pointer.key ?? '')))
+    throw new Error('Invalid auth backup pointer')
+  const bytes = new Uint8Array(await (await r2Request(r2, `${r2.base}${pointer?.key ?? key}`)).arrayBuffer())
+  if (pointer && hash('sha256', bytes) !== pointer.sha256) throw new Error('Auth archive does not match the pointer')
+  return restoreAuthArchive(bytes, target)
 }
 
 const [, , command, first, second] = process.argv
 if (isEntryPoint(import.meta.url)) {
-  if (!first || !second) throw new Error('Usage: nodeAuthBackup.ts backup SQLITE_PATH production | restore R2_KEY TARGET_DIRECTORY')
+  if (!first || !second) throw new Error('Usage: nodeAuthBackup.ts backup SQLITE_PATH production | restore R2_KEY|latest TARGET_DIRECTORY')
   const result =
     command === 'backup' && second === 'production'
       ? await backupAuthToR2(first)

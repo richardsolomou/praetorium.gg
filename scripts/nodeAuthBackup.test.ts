@@ -17,6 +17,7 @@ afterEach(() => {
   delete process.env.R2_ACCOUNT_ID
   delete process.env.R2_ACCESS_KEY_ID
   delete process.env.R2_SECRET_ACCESS_KEY
+  delete process.env.SPACETIME_INTERNAL_HOST
   if (previousSecret === undefined) delete process.env.AUTH_SECRET
   else process.env.AUTH_SECRET = previousSecret
 })
@@ -25,31 +26,62 @@ afterAll(async () => {
   if (directory) await rm(directory, { recursive: true, force: true })
 })
 
-it('uploads a consistent auth snapshot and secret to R2 and restores the downloaded archive', async () => {
+const oldDay = ['20261001T010000Z-aaaaaaaaaaaaaaaa.zip', '20261001T020000Z-bbbbbbbbbbbbbbbb.zip'].map(
+  (name) => `backups/auth/production/${name}`,
+)
+
+async function backUpToStubbedR2() {
   const dump = path.join(directory, 'auth-schema.sql')
   const source = path.join(directory, 'auth.sqlite')
-  const restored = path.join(directory, 'restored')
   await writeFile(dump, await readFile(path.resolve('drizzle-auth/0000_curly_gambit.sql'), 'utf8'))
+  await rm(source, { force: true })
   await importAuthSqlite(dump, source)
   process.env.AUTH_SECRET = 'production-auth-secret-preserved-in-backup'
   process.env.R2_ACCOUNT_ID = 'a'.repeat(32)
   process.env.R2_ACCESS_KEY_ID = 'key'
   process.env.R2_SECRET_ACCESS_KEY = 'secret'
-  let stored: Uint8Array | undefined
-  const urls: string[] = []
+  process.env.SPACETIME_INTERNAL_HOST = 'spacetime-production'
+  const objects = new Map<string, Uint8Array>([
+    ...oldDay.map((key) => [key, new Uint8Array([1])] as const),
+    ['spacetime-production/backups/latest.json', new TextEncoder().encode(JSON.stringify({ createdAt: new Date().toISOString() }))],
+  ])
   vi.stubGlobal('fetch', async (request: Request) => {
-    urls.push(request.url)
-    if (request.method === 'PUT') {
-      stored = new Uint8Array(await request.arrayBuffer())
-      return new Response(null, { status: 200 })
+    const url = new URL(request.url)
+    const key = url.pathname.replace('/praetorium-private/', '')
+    if (url.searchParams.get('list-type') === '2') {
+      const keys = [...objects.keys()].filter((stored) => stored.startsWith(url.searchParams.get('prefix')!))
+      return new Response(
+        `<ListBucketResult>${keys.map((stored) => `<Contents><Key>${stored}</Key></Contents>`).join('')}<IsTruncated>false</IsTruncated></ListBucketResult>`,
+      )
     }
+    if (request.method === 'PUT') objects.set(key, new Uint8Array(await request.arrayBuffer()))
+    if (request.method === 'DELETE') objects.delete(key)
+    if (request.method !== 'GET') return new Response(null, { status: 200 })
+    const stored = objects.get(key)
     return new Response(stored ? new Uint8Array(stored) : null, { status: stored ? 200 : 404 })
   })
-  const { key, counts } = await backupAuthToR2(source)
-  expect(key).toMatch(/^backups\/auth\/production\/[0-9]{8}T[0-9]{6}Z-[0-9a-f]{16}\.zip$/)
-  expect(urls.every((url) => new URL(url).pathname.startsWith('/praetorium-private/backups/auth/production/'))).toBe(true)
-  expect(await restoreAuthFromR2(key, restored)).toEqual(counts)
-  expect(await readFile(path.join(restored, 'auth-secret'), 'utf8')).toBe(process.env.AUTH_SECRET)
+  return { ...(await backupAuthToR2(source)), objects }
+}
+
+it('uploads a consistent auth snapshot and secret to R2 and restores the downloaded archive', async () => {
+  const { key, counts } = await backUpToStubbedR2()
+  expect(await restoreAuthFromR2(key, path.join(directory, 'restored'))).toEqual(counts)
+})
+
+it('restores the archive the latest pointer names', async () => {
+  const { counts } = await backUpToStubbedR2()
+  expect(await restoreAuthFromR2('latest', path.join(directory, 'restored-latest'))).toEqual(counts)
+})
+
+it('keeps the auth secret in the archive', async () => {
+  await backUpToStubbedR2()
+  await restoreAuthFromR2('latest', path.join(directory, 'restored-secret'))
+  expect(await readFile(path.join(directory, 'restored-secret', 'auth-secret'), 'utf8')).toBe(process.env.AUTH_SECRET)
+})
+
+it('prunes older archives of a day after publishing the new one', async () => {
+  const { objects } = await backUpToStubbedR2()
+  expect(oldDay.filter((key) => objects.has(key))).toEqual([oldDay[1]])
 })
 
 it('rejects another backup key before making a request', async () => {
