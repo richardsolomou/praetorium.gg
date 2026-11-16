@@ -140,31 +140,26 @@ export const SidePanel = memo(function SidePanel({
 
           {/* Across the whole panel, or its five round columns get squeezed into half of it. */}
           <PrimaryMission {...cards} />
-          <div
-            className={cn(
-              'grid gap-x-4 gap-y-3',
-              side.stratagems.length > 0 && 'md:grid-cols-2 md:items-start lg:grid-cols-1 xl:grid-cols-2',
-            )}
-          >
-            <div data-missions className="min-w-0 space-y-3">
-              <SecondaryMissions {...cards} />
-            </div>
-            {side.stratagems.length ? (
-              <div
-                data-stratagems
-                className="min-w-0 border-t border-edge pt-2.5 md:border-0 md:pt-0 lg:border-t lg:pt-2.5 xl:border-0 xl:pt-0"
-              >
-                <Stratagems
-                  side={side}
-                  phase={view.phase}
-                  coreKeys={coreKeys}
-                  pending={pending}
-                  send={send}
-                  writtenFor={(key) => writtenFor(side, key)}
-                  onRecordMissed={onRecordMissed && ((key) => onRecordMissed(side, key))}
-                />
+          {/* Split by the panel's own width: beside two other columns a wide window still leaves it too narrow for two. */}
+          <div className="@container">
+            <div className={cn('grid gap-x-4 gap-y-3', side.stratagems.length > 0 && '@xl:grid-cols-2 @xl:items-start')}>
+              <div data-missions className="min-w-0 space-y-3">
+                <SecondaryMissions {...cards} />
               </div>
-            ) : null}
+              {side.stratagems.length ? (
+                <div data-stratagems className="min-w-0 border-t border-edge pt-2.5 @xl:border-0 @xl:pt-0">
+                  <Stratagems
+                    side={side}
+                    phase={view.phase}
+                    coreKeys={coreKeys}
+                    pending={pending}
+                    send={send}
+                    writtenFor={(key) => writtenFor(side, key)}
+                    onRecordMissed={onRecordMissed && ((key) => onRecordMissed(side, key))}
+                  />
+                </div>
+              ) : null}
+            </div>
           </div>
         </>
       )}
