@@ -3,7 +3,7 @@ import { shuffle } from './swiss'
 
 /**
  * A group league: one round robin of one-on-one games among the members who joined it before it was published. Results
- * score as Swiss does, so `swissStandings` ranks the table.
+ * score as Swiss does, so `swissStandings` ranks the table; a bye scores nothing, since every player has one.
  */
 
 export const GROUP_LEAGUE_PLAYERS_MIN = 3

@@ -183,3 +183,13 @@ it('names the player’s next league game nobody has started, past its deadline'
 it('leaves a league game whose deadline is still ahead not overdue', async () => {
   expect((await homeFixture([null, 50]))?.overdue).toBe(false)
 })
+
+it('scores nothing for a league bye', async () => {
+  const repository = leagueRepository()
+  const { league } = await repository.groupByToken('group')
+  Object.assign(repository, { battlesByLeague: vi.fn().mockResolvedValue([]) })
+  league.fixtures.push({ key: 'r1-bye', round: 1, table: 2, aId: CAROL, bId: null, battleToken: null })
+  const table = (await serviceOf(repository).groupResultsService.groupLeague('group', ALICE))?.table
+
+  expect(table?.find((row) => row.userId === CAROL)).toMatchObject({ won: 0, points: 0 })
+})
