@@ -1337,49 +1337,21 @@ function grantsOf(root: Node, index: CatalogueIndex, census: Census): Map<Node, 
   return grants
 }
 
-const askedAboutCache = new WeakMap<CatalogueIndex, ReadonlySet<string>>()
-// Each nested entry is indexed in its own right, so walking into one would read it twice.
-const NESTED_DEFINITIONS = new Set(['selectionEntries', 'selectionEntryGroups', 'entryLinks'])
-
-/**
- * Every keyword or entry id the catalogue's own legality asks about: in a condition, in a
- * modifier's reach, or as a category carrying its own limits. Checks outside the
- * catalogue that read keywords by name are not covered.
- */
-function askedAbout(index: CatalogueIndex): ReadonlySet<string> {
-  return remember(askedAboutCache, index, () => {
-    const asked = new Set<string>()
-    const walk = (value: unknown) => {
-      if (Array.isArray(value)) return value.forEach(walk)
-      if (!value || typeof value !== 'object') return
-      for (const [key, inner] of Object.entries(value)) {
-        if (key === 'childId' && typeof inner === 'string') asked.add(inner)
-        else if (key === 'affects' && typeof inner === 'string') for (const part of inner.split('.')) asked.add(part)
-        else if (!NESTED_DEFINITIONS.has(key)) walk(inner)
-      }
-    }
-    walk([...index.definitions.values(), ...index.categories.values(), index.forces])
-    for (const category of index.categories.values()) if (category.constraints?.length) asked.add(category.id)
-    return asked
-  })
-}
-
 /** The selections a keyword modifier is aimed at: where its scope lands, narrowed by what it affects. */
 function aimedAt(modifier: Modifier, node: Node, root: Node, index: CatalogueIndex, census: Census): Node[] {
   const origins = resolveScope(modifier.scope ?? 'self', node, root, index, census)
   if (!modifier.affects) return origins
   const reach = parseAffects(modifier.affects.split('.'))
   if (reach.group) {
-    // A datasheet granting its own group a keyword is the unit itself: "This unit has
-    // Mobile". Below the unit, which group is meant is not something the data says, and
-    // guessing hands the keyword to the wrong selections.
-    if ((modifier.scope ?? 'self') === 'self' && node.parent?.force) return origins
-    // A keyword nothing asks about changes no answer, so dropping it needs no warning.
+    // A grant landing on a whole unit gives that unit the keyword, whether the datasheet
+    // writes it ("This unit has Mobile") or an enhancement aims at its bearer's datasheet
+    // ("Models in the bearer's unit have Skitarii"). Below the unit, which group is meant
+    // is not something the data says, and guessing hands the keyword to the wrong selections.
+    if (origins.every((origin) => origin.parent?.force)) return origins
     const keyword = String(modifier.value)
-    if (askedAbout(index).has(keyword))
-      census.note(
-        `${node.link?.name ?? node.target.name ?? node.target.id}: cannot tell which units ${modifier.type === 'remove' ? 'lose' : 'gain'} ${index.categories.get(keyword)?.name ?? keyword}`,
-      )
+    census.note(
+      `${node.link?.name ?? node.target.name ?? node.target.id}: cannot tell which units ${modifier.type === 'remove' ? 'lose' : 'gain'} ${index.categories.get(keyword)?.name ?? keyword}`,
+    )
     return []
   }
   const found = new Set<Node>()

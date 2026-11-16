@@ -8,7 +8,7 @@ Problems appear in a red list in the footer, such as "must be attached to a Body
 
 Detachment problems appear under the roster header with **Review setup**.
 
-**Could not check every rule** lists restrictions Praetorium can't evaluate, such as an enhancement that gives a keyword to units the data doesn't identify, named with the enhancement and keyword. They aren't marked legal, so check them yourself before playing.
+**Could not check every rule** lists restrictions Praetorium can't evaluate. They aren't marked legal, so check them yourself before playing.
 
 ## Switching restrictions off
 

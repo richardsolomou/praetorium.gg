@@ -951,63 +951,34 @@ describe('a keyword the data grants', () => {
     })
   })
 
-  describe('a keyword wargear grants to its group, which the data does not place', () => {
-    const fontIndex = (asked?: 'condition' | 'limit') =>
-      indexOf({
-        categoryEntries: [
-          {
-            id: 'font',
-            name: 'Font',
-            ...(asked === 'limit' && { constraints: [{ id: 'one-font', type: 'max', value: 1, field: 'selections', scope: 'roster' }] }),
-          },
-        ],
-        sharedSelectionEntries: [
-          {
-            id: 'lord',
-            name: 'Lord',
-            type: 'model',
-            selectionEntries: [
-              {
-                id: 'relic',
-                name: 'Relic',
-                type: 'upgrade',
-                modifiers: [{ type: 'add', field: 'category', value: 'font', affects: 'group', scope: 'parent' }],
-              },
-            ],
-          },
-          {
-            id: 'rite',
-            name: 'Rite',
-            type: 'upgrade',
-            ...(asked === 'condition' && {
-              modifiers: [
-                {
-                  type: 'set',
-                  field: 'hidden',
-                  value: true,
-                  conditions: [{ type: 'lessThan', value: 1, field: 'selections', scope: 'roster', childId: 'font' }],
-                },
-              ],
-            }),
-          },
-        ],
-      })
-    const roster = [{ id: 'lord', selections: [{ id: 'relic' }] }]
-
-    it('is granted to nothing', () => {
-      expect(keywordIds(roster, 0, fontIndex('condition'))).toEqual([])
+  describe('a keyword wargear grants to its group', () => {
+    const relic = {
+      id: 'relic',
+      name: 'Relic',
+      type: 'upgrade' as const,
+      modifiers: [{ type: 'add' as const, field: 'category', value: 'font', affects: 'group', scope: 'parent' }],
+    }
+    const index = indexOf({
+      categoryEntries: [{ id: 'font', name: 'Font' }],
+      sharedSelectionEntries: [
+        { id: 'lord', name: 'Lord', type: 'model', selectionEntries: [relic] },
+        {
+          id: 'retinue',
+          name: 'Retinue',
+          type: 'unit',
+          selectionEntries: [{ id: 'champion', name: 'Champion', type: 'model', selectionEntries: [relic] }],
+        },
+      ],
     })
 
-    it('names its source and keyword when a condition asks about it', () => {
-      expect(evaluate(roster, fontIndex('condition')).unhandled).toEqual(['Relic: cannot tell which units gain Font'])
+    it('goes to the bearer when the bearer is the unit', () => {
+      expect(keywordIds([{ id: 'lord', selections: [{ id: 'relic' }] }], 0, index)).toEqual(['font'])
     })
 
-    it('is reported when the keyword carries its own limit', () => {
-      expect(evaluate(roster, fontIndex('limit')).unhandled).toEqual(['Relic: cannot tell which units gain Font'])
-    })
-
-    it('goes unreported when nothing asks about it', () => {
-      expect(evaluate(roster, fontIndex()).unhandled).toEqual([])
+    it('names its source and keyword when it lands below the unit', () => {
+      expect(evaluate([{ id: 'retinue', selections: [{ id: 'champion', selections: [{ id: 'relic' }] }] }], index).unhandled).toEqual([
+        'Relic: cannot tell which units gain Font',
+      ])
     })
   })
 
