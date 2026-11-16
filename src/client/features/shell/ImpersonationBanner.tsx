@@ -1,5 +1,5 @@
 import { LogOut } from 'lucide-react'
-import { useAuthAction } from 'ras-stack/auth/react'
+import { useAuthAction } from '../../useAuthAction'
 import { posthog } from 'posthog-js'
 import { Button } from '@/components/ui/button'
 import { authClient } from '../../authClient'

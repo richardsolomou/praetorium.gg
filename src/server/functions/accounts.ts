@@ -1,7 +1,7 @@
 import { productActions, signedInAction } from '../productActions'
 import { groupCollection } from '../../core/collection'
 import { createServerFn } from '@tanstack/react-start'
-import { randomToken } from 'ras-stack/auth'
+import { randomToken } from '../random'
 import { getRequest, getRequestHeaders } from '@tanstack/react-start/server'
 import {
   collectionPhotoIdSchema,

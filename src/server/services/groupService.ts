@@ -1,5 +1,5 @@
 import { randomInt } from 'node:crypto'
-import { randomId, randomToken } from 'ras-stack/auth'
+import { randomId, randomToken } from '../random'
 import { isGroupOrganizer, visibleGroupMembers } from '../../core/group'
 import { GROUP_LEAGUE_PLAYERS_MAX, GROUP_LEAGUE_PLAYERS_MIN, GROUP_LEAGUE_SEED_MAX } from '../../core/groupLeague'
 import type { SealedEventAdmission, SealedEventVisibility } from '../../core/sealedEvent'

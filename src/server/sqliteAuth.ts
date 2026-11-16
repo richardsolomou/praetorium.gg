@@ -14,13 +14,6 @@ import { and, desc, eq, gt, notExists, sql } from 'drizzle-orm'
 import type { LibSQLDatabase } from 'drizzle-orm/libsql'
 import pRetry from 'p-retry'
 import { z } from 'zod'
-import {
-  standardAccountOptions,
-  standardEmailAndPasswordOptions,
-  standardRateLimitOptions,
-  standardSessionOptions,
-  trustedOrigins,
-} from 'ras-stack/auth'
 import { errorHasCode } from './errorHasCode'
 import { authEmails, type EmailDelivery } from '../adapters/email'
 import { PASSWORD_MIN_LENGTH, SOCIAL_PROVIDERS, type SocialAuthProvider } from '../authConfig'
@@ -30,6 +23,7 @@ import type { AdminConnection, AdminSession } from '../admin'
 import { APPLE_AUTH_ORIGIN, appleCredentials, revokeAppleToken } from './appleAuth'
 import { configuredAuthProviderOptions } from './authProviders'
 import { nativeAuthToken } from './nativeAuthToken'
+import { trustedOrigins } from './origins'
 import { isNativeOAuthState } from './nativeOAuthState'
 
 type Environment = NodeJS.ProcessEnv
@@ -58,6 +52,9 @@ type AuthOptions = {
 type McpConnectionEvent = 'mcp_connected' | 'mcp_disconnected'
 
 export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret: string, options: AuthOptions) {
+  // Better Auth falls back to a public default secret unless NODE_ENV is production, which a build does not guarantee.
+  if (import.meta.env.PROD && !secret.trim())
+    throw new Error('AUTH_SECRET is required in production; generate one with `openssl rand -base64 32`')
   // Recorded only once the product data is gone, so a restore never replays a deletion that did not happen.
   const deleteUserData = async (userId: string) => {
     await options.deleteUserData(userId)
@@ -78,10 +75,6 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
   if (!/^[a-z0-9][a-z0-9-]{0,127}$/.test(audience ?? '')) throw new Error('SPACETIME_AUDIENCE is required')
   const configuredApple = appleCredentials(environment)
   const emails = options.email ? authEmails(options.email) : undefined
-  const deploymentOrigins = trustedOrigins({
-    trustForwardedHeaders: true,
-    configured: [environment.APP_URL, ...(configuredApple ? [APPLE_AUTH_ORIGIN] : [])],
-  })
 
   const createdAccounts = new WeakSet<GenericEndpointContext['context']>()
   const authenticationMethod = (context: Partial<Pick<GenericEndpointContext, 'path' | 'params' | 'body'>> | null) => {
@@ -211,17 +204,20 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
     database: drizzleAdapter(database, { provider: 'sqlite', schema: { ...schema, ...oauthSchema } }),
     secret,
     baseURL: environment.APP_URL?.trim() || undefined,
-    emailAndPassword: standardEmailAndPasswordOptions({
+    emailAndPassword: {
+      enabled: true,
+      revokeSessionsOnPasswordReset: true,
       minPasswordLength: PASSWORD_MIN_LENGTH,
       autoSignIn: true,
       requireEmailVerification: false,
       ...(emails ? { sendResetPassword: emails.sendResetPassword } : {}),
-    }),
+    },
     emailVerification: emails ? { sendOnSignUp: true, sendVerificationEmail: emails.sendVerificationEmail } : undefined,
     socialProviders: configuredAuthProviderOptions(environment),
-    account: standardAccountOptions({
+    account: {
+      encryptOAuthTokens: true,
       accountLinking: { enabled: true, trustedProviders: [...SOCIAL_PROVIDERS], allowDifferentEmails: true },
-    }),
+    },
     user: {
       additionalFields: PLAYER_FIELDS,
       deleteUser: {
@@ -308,16 +304,31 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
         return { context: { headers } }
       }),
     },
-    rateLimit: { ...standardRateLimitOptions(), enabled: environment.AUTH_RATE_LIMIT !== 'off' },
-    session: standardSessionOptions(),
+    rateLimit: {
+      enabled: environment.AUTH_RATE_LIMIT !== 'off',
+      storage: 'database',
+      window: 60,
+      max: 120,
+      customRules: {
+        '/sign-in/email': { window: 60, max: 20 },
+        '/sign-up/email': { window: 60, max: 15 },
+        '/request-password-reset': { window: 60, max: 5 },
+        '/send-verification-email': { window: 60, max: 5 },
+        '/admin/set-user-password': { window: 60, max: 10 },
+      },
+    },
+    session: { expiresIn: 60 * 60 * 24 * 90, updateAge: 60 * 60 * 24 },
     advanced: {
       disableOriginCheck: false,
       useSecureCookies: (environment.APP_URL ?? '').startsWith('https://'),
       cookies: { state: { attributes: { sameSite: 'none' } } },
       ipAddress: { ipAddressHeaders: ['cf-connecting-ip', 'x-forwarded-for'] },
     },
-    // The shared helper omits the request origin, which a fixed Better Auth base URL does not add back.
-    trustedOrigins: (request) => [...deploymentOrigins(request), ...(alternateLoopbackOrigin ? [alternateLoopbackOrigin] : [])],
+    trustedOrigins: (request) => [
+      ...trustedOrigins(request),
+      ...(request && configuredApple ? [APPLE_AUTH_ORIGIN] : []),
+      ...(alternateLoopbackOrigin ? [alternateLoopbackOrigin] : []),
+    ],
     plugins: [
       admin({ adminRoles: ['admin'], defaultRole: 'user', allowImpersonatingAdmins: false, impersonationSessionDuration: 60 * 60 }),
       oneTimeToken({ expiresIn: 3, storeToken: 'hashed' }),

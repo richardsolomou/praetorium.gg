@@ -1,6 +1,6 @@
 import { PLAYER_SEARCH_MIN_LENGTH } from '../../core/playerSearch'
 import type { RosterBatchAction } from '../../core/rosterLibrary'
-import { randomId } from 'ras-stack/auth'
+import { randomId } from '../random'
 import { listUnitCount } from '../../core/attachedUnits'
 import type { FormatRuleId, OptionalRuleId, Secondary, Stratagem } from '../../core/battle'
 import type { CollectionImportRow, CollectionProgress } from '../../core/collection'

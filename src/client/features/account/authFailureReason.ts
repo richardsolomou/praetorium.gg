@@ -1,5 +1,5 @@
 import { posthog } from 'posthog-js'
-import { classifyAuthCallbackFailure, classifySignInFailure } from 'ras-stack/auth/client'
+import { classifyAuthCallbackFailure, classifySignInFailure } from '../../authFailures'
 import { isFetchNetworkFailure } from '../../networkErrors'
 
 type AuthFailureReason =

@@ -1,6 +1,41 @@
 {
   "source": "https://github.com/richardsolomou/ras-stack",
   "recipes": {
+    "auth": {
+      "version": 1,
+      "commit": "8e4dfdee6afeeaa1f05804e38888a171f9ebe722",
+      "files": {
+        "src/client/auth.ts": "src/client/authClient.ts",
+        "src/client/authFailures.test.ts": "src/client/authFailures.test.ts",
+        "src/client/authFailures.ts": "src/client/authFailures.ts",
+        "src/client/localRedirect.test.ts": "src/client/localRedirect.test.ts",
+        "src/client/localRedirect.ts": "src/client/localRedirect.ts",
+        "src/client/useAuthAction.test.ts": "src/client/useAuthAction.test.ts",
+        "src/client/useAuthAction.ts": "src/client/useAuthAction.ts",
+        "src/db/authSchema.ts": "src/db/authSchema.ts",
+        "src/routes/api/auth.$.ts": "src/routes/api/auth.$.ts",
+        "src/server/auth.test.ts": null,
+        "src/server/auth.ts": "src/server/sqliteAuth.ts",
+        "src/server/random.test.ts": "src/server/random.test.ts",
+        "src/server/random.ts": "src/server/random.ts",
+        "src/server/session.ts": "src/server/playerSession.ts"
+      },
+      "notes": [
+        "The secret stays in `AUTH_SECRET`, passed to Better Auth explicitly, instead of `BETTER_AUTH_SECRET`: production, the hourly auth backups (`auth-secret` in each archive), the restore runbook, previews, and the local stack all use that name, and the public page load limit verifies session cookies with it, so renaming it would sign everyone out unless every one of those moved in the same deploy. A production build refuses to start without it, as the recipe's check does.",
+        "src/server/sqliteAuth.ts is the application's Better Auth configuration: email and password with a 10-character minimum and auto sign-in, Apple, Google, Discord and GitHub with trusted account linking across emails, the admin, one-time token, native auth token, two-factor, JWT (the SpacetimeDB identity issuer), MCP, OAuth provider and CIMD plugins, avatar re-hosting, deletion hooks, and analytics callbacks; the recipe's session, rate limit, account, and email-and-password values are written in.",
+        "`AUTH_RATE_LIMIT=off` turns rate limits off for browser-test stacks.",
+        "Better Auth reads the client IP from `cf-connecting-ip` and then `x-forwarded-for`, because production only accepts traffic from Cloudflare (docs/deployment.md).",
+        "No `tanstackStartCookies()`: the application's server functions forward Better Auth's cookies themselves.",
+        "`trustedOrigins` adds Apple's sign-in origin when Apple is configured, and the other loopback name in local development.",
+        "src/server/playerSession.ts is the application's `currentSession`: it caches a `Player` (role, colour, two-factor, impersonation) per request, and adds `currentUserId`, `requireUserId`, `forSignedIn`, and `requireAdmin`.",
+        "src/server/authProviders.ts reads Google, Discord and GitHub pairs from the environment and builds Apple's client secret from its key; `SOCIAL_PROVIDERS` lives in src/authConfig.ts.",
+        "src/db/authSchema.ts and src/db/oauthSchema.ts are the production schema, with the player fields and deleted-user table, migrated from drizzle-auth/.",
+        "src/routes/api/auth.$.ts rewrites preview OIDC requests before handing them to Better Auth.",
+        "src/client/authClient.ts adds the plugins' client counterparts.",
+        "The application's own auth tests (sqliteAuth.integration.test.ts and others) replace the recipe's auth.test.ts, which tests the recipe's createAuth.",
+        ".oxlintrc.json turns `typescript/no-deprecated` off for the recipe's react-test-renderer tests, since the application enforces that rule and react-test-renderer is deprecated."
+      ]
+    },
     "database-libsql": {
       "version": 1,
       "commit": "8e4dfdee6afeeaa1f05804e38888a171f9ebe722",

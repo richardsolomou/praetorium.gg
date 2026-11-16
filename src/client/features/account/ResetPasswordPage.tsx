@@ -1,7 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import { posthog } from 'posthog-js'
 import { useState } from 'react'
-import { useAuthAction } from 'ras-stack/auth/react'
+import { useAuthAction } from '../../useAuthAction'
 import { Button } from '@/components/ui/button'
 import { buttonClass } from '../../components/buttonClass'
 import { Input } from '@/components/ui/input'
