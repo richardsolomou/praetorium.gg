@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.257.4 (2026-11-16)
+
+### Patch Changes
+
+- 32a724b: Dark faction emblems such as Raven Guard and Black Templars now have a thin edge so they stand out on the page.
+- 32a724b: The faction emblems behind the scores between rounds now match each side's colour.
+
 ## 0.257.3 (2026-11-16)
 
 ### Patch Changes
