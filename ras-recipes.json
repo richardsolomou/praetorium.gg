@@ -18,6 +18,19 @@
         "`app().auth` is synchronous, because the file is migrated before the Nitro process starts and Better Auth is created with the client directly."
       ]
     },
+    "email-posthog": {
+      "version": 1,
+      "commit": "8e4dfdee6afeeaa1f05804e38888a171f9ebe722",
+      "files": {
+        "src/adapters/email.test.ts": "src/adapters/email.test.ts",
+        "src/adapters/email.ts": "src/adapters/email.ts"
+      },
+      "notes": [
+        "EMAIL_TEMPLATES holds the five production template ids (resetPassword, verifyEmail, supportReply, photoReport, importFailure) as constants; their ids are unchanged.",
+        "`authEmails` sends only `url`, which the production reset and verification templates read, and an idempotency key of the template and the token's SHA-256, so a retried request sends once without PostHog storing the token.",
+        "src/adapters/email.test.ts is the application's own test of the disabled states and the email-only client."
+      ]
+    },
     "posthog-server": {
       "version": 2,
       "commit": "ec2a7bdc97f8534e2fe0d9a0581b3b1898e05327",

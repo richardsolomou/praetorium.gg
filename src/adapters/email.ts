@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { PostHog } from 'posthog-node'
 
 /** The PostHog transactional email templates this build sends; each one's description lists the variables it reads. */
@@ -33,14 +34,30 @@ export function emailDelivery(environment: NodeJS.ProcessEnv = process.env): Ema
 
   return {
     async send({ template, to, distinctId, data, idempotencyKey }) {
-      const { error } = await posthog.emails.send({
-        templateId: EMAIL_TEMPLATES[template],
-        to,
-        distinctId,
-        templateData: data,
-        idempotencyKey,
-      })
+      const templateId = EMAIL_TEMPLATES[template]
+      if (!templateId) throw new Error(`EMAIL_TEMPLATES.${template} has no PostHog template id`)
+      const { error } = await posthog.emails.send({ templateId, to, distinctId, templateData: data, idempotencyKey })
       if (error) throw error
     },
   }
+}
+
+type AuthEmail = { user: { id: string; email: string }; url: string; token: string }
+
+/**
+ * Better Auth's password-reset and verification callbacks, which wait for PostHog to queue each email. A retried request
+ * for the same token sends once; the token is a secret, so the idempotency key PostHog keeps carries only its digest.
+ */
+export function authEmails(delivery: EmailDelivery) {
+  const send =
+    (template: EmailTemplate) =>
+    ({ user, url, token }: AuthEmail) =>
+      delivery.send({
+        template,
+        to: user.email,
+        distinctId: user.id,
+        data: { url },
+        idempotencyKey: `${template}:${createHash('sha256').update(token).digest('hex')}`,
+      })
+  return { sendResetPassword: send('resetPassword'), sendVerificationEmail: send('verifyEmail') }
 }

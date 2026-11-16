@@ -1,6 +1,5 @@
 import { PLAYER_FIELDS } from '../core/playerFields'
 import { isPreviewIssuer } from './previewOidc'
-import { createHash } from 'node:crypto'
 import type { Account, GenericEndpointContext } from 'better-auth'
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
@@ -23,7 +22,7 @@ import {
   trustedOrigins,
 } from 'ras-stack/auth'
 import { errorHasCode } from './errorHasCode'
-import type { EmailDelivery, EmailTemplate } from '../adapters/email'
+import { authEmails, type EmailDelivery } from '../adapters/email'
 import { PASSWORD_MIN_LENGTH, SOCIAL_PROVIDERS, type SocialAuthProvider } from '../authConfig'
 import { account, deletedUser, schema, session as sessionTable, user } from '../db/authSchema'
 import { oauthAccessToken, oauthClient, oauthConsent, oauthRefreshToken, oauthSchema } from '../db/oauthSchema'
@@ -34,21 +33,6 @@ import { nativeAuthToken } from './nativeAuthToken'
 import { isNativeOAuthState } from './nativeOAuthState'
 
 type Environment = NodeJS.ProcessEnv
-
-/** The token is a secret, so the idempotency key PostHog keeps carries only its digest. */
-function accountEmails(email: EmailDelivery) {
-  const send =
-    (template: EmailTemplate) =>
-    ({ user: recipient, url, token }: { user: { id: string; email: string }; url: string; token: string }) =>
-      email.send({
-        template,
-        to: recipient.email,
-        distinctId: recipient.id,
-        data: { url },
-        idempotencyKey: `${template}:${createHash('sha256').update(token).digest('hex')}`,
-      })
-  return { sendResetPassword: send('resetPassword'), sendVerificationEmail: send('verifyEmail') }
-}
 
 type AuthOptions = {
   environment: Environment
@@ -93,7 +77,7 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
   const audience = environment.SPACETIME_AUDIENCE
   if (!/^[a-z0-9][a-z0-9-]{0,127}$/.test(audience ?? '')) throw new Error('SPACETIME_AUDIENCE is required')
   const configuredApple = appleCredentials(environment)
-  const authEmails = options.email ? accountEmails(options.email) : undefined
+  const emails = options.email ? authEmails(options.email) : undefined
   const deploymentOrigins = trustedOrigins({
     trustForwardedHeaders: true,
     configured: [environment.APP_URL, ...(configuredApple ? [APPLE_AUTH_ORIGIN] : [])],
@@ -231,9 +215,9 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
       minPasswordLength: PASSWORD_MIN_LENGTH,
       autoSignIn: true,
       requireEmailVerification: false,
-      ...(authEmails ? { sendResetPassword: authEmails.sendResetPassword } : {}),
+      ...(emails ? { sendResetPassword: emails.sendResetPassword } : {}),
     }),
-    emailVerification: authEmails ? { sendOnSignUp: true, sendVerificationEmail: authEmails.sendVerificationEmail } : undefined,
+    emailVerification: emails ? { sendOnSignUp: true, sendVerificationEmail: emails.sendVerificationEmail } : undefined,
     socialProviders: configuredAuthProviderOptions(environment),
     account: standardAccountOptions({
       accountLinking: { enabled: true, trustedProviders: [...SOCIAL_PROVIDERS], allowDifferentEmails: true },
