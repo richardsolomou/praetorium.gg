@@ -40,6 +40,13 @@ Pins live in `catalogue/composition.json`, `catalogue/sources.json`, and `catalo
 - A first import under a revision takes minutes, so the tab shows the lists checked so far until it finishes, while the unit counts wait for the full set rather than marking units from part of it.
 - Each list's import result is kept per catalogue revision, so changing what a result records must also change its stored shape, or old results are served.
 
+## Coverage bar
+
+A release holds this bar, which only goes up:
+
+- `just points` matches at least 99.9% of Munitorum prices and every faction file.
+- Of the tournament lists in each of the `40kstats` and `lexmechanic` corpora exported from the official app's newest data, at least 95% import clean (`pnpm exec tsx scripts/importCorpus.ts run --source <source> --since 2026-06-20 --live`), and no change makes a clean list unclean.
+
 ## Roster migration
 
 Before changing sources or saved-selection construction, baseline production rosters:

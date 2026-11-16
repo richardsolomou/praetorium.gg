@@ -42,8 +42,9 @@ if (command === 'fetch') {
 } else throw new Error(`Unknown command ${command}: use fetch or run`)
 
 function run(directory: string, since: string | undefined, out: string | undefined, catalogueDirectory: string) {
-  const results = importCorpusLists([directory], { since }, catalogueDirectory).lists.map(({ listing, imported }) => ({
+  const results = importCorpusLists([directory], { since }, catalogueDirectory).lists.map(({ listing, dataVersion, imported }) => ({
     ...listing,
+    dataVersion,
     format: imported.format,
     catalogue: imported.catalogueName,
     units: imported.units.length,
@@ -69,7 +70,11 @@ function run(directory: string, since: string | undefined, out: string | undefin
           result.list,
         )
   }
-  const clean = results.filter((result) => result.units && !result.unknown.length && !result.unplaced.length).length
+  const isClean = (result: (typeof results)[number]) => result.units > 0 && !result.unknown.length && !result.unplaced.length
+  const clean = results.filter(isClean).length
   console.log(`${results.length} lists, ${clean} clean, ${results.filter((result) => !result.units).length} unread`)
+  const newest = Math.max(0, ...results.map((result) => result.dataVersion ?? 0))
+  const current = results.filter((result) => result.dataVersion === newest)
+  if (newest) console.log(`${current.length} on the official app's newest data (v${newest}), ${current.filter(isClean).length} clean`)
   for (const [key, lists] of [...issues].toSorted((left, right) => right[1].size - left[1].size)) console.log(`${lists.size}\t${key}`)
 }

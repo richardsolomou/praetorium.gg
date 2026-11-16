@@ -19,3 +19,23 @@ Publication is named sharing; there is no anonymous archive of private game stat
 - Revocable player-content images are `no-store`. Screenshots with roster or battle data stay out of Git.
 
 Authorities: [`rosterAccess`](../src/server/services/rosterService.ts), [`rosterDiscovery.ts`](../src/core/rosterDiscovery.ts), [`PraetoriumService`](../src/server/service.ts) with its watch rule [`mayWatch`](../src/server/services/battleHistory.ts), [`sealedEvent.ts`](../src/core/sealedEvent.ts), and deletion in [`spacetimedb/src/index.ts`](../spacetimedb/src/index.ts).
+
+## Compatibility contract
+
+[What stays the same when things change](../src/client/features/docs/content/when-things-change.md) is the player-facing promise. A change that would break one of these needs its migration in the same release:
+
+- Saved rosters: selections move only through `catalogue/roster-migrations.json` or `catalogue/retired-ids.json`, each with a reason, checked by the [roster audit](development/catalogue-data.md#roster-migration); one with no replacement stays and turns illegal.
+- Public paths: a moved route keeps its old path as a redirect route, like `src/routes/clubs.$.tsx`.
+- Exchange codes: a new format raises `ROSTER_EXCHANGE_VERSION` in `src/core/rosterExchange.ts` and keeps reading every older one.
+- MCP tools and arguments change additively; `src/server/mcpSurface.json` lists the published ones (refresh it with `WRITE_MCP_SURFACE=1` on the `referenceMcp` test after adding one), and removing one needs a changeset announcing it a month ahead.
+
+Free to change without a migration: which upstream sources feed the catalogue and their IDs, catalogue and snapshot formats, text export layout, and anything not listed above.
+
+### Replacing a source
+
+When a source disappears or must stop, as BSData did in November 2026:
+
+1. Pin a fork we control, like the `richardsolomou/*` forks in `catalogue/sources.json`, so pinned revisions stay fetchable.
+2. If its data must stop being served, list it in `catalogue/revocations.json`; publishing and loading refuse any snapshot built from it, so publish the replacement snapshot first.
+3. Map the old IDs onto the new source's in `catalogue/retired-ids.json` and `catalogue/roster-migrations.json`, and run the roster audit against a production baseline. Retired IDs stay resolvable, so old exchange codes, frozen battles and sealed rosters still verify.
+4. Report what the new source lacks as unsupported; never fill it from the old source or from memory.
