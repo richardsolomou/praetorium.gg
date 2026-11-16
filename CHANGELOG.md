@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.257.9 (2026-11-16)
+
+### Patch Changes
+
+- 087cfa2: A player's panel in a battle no longer squeezes its stratagems beside its missions on laptop-sized screens, where their names overlapped the CP buttons.
+
 ## 0.257.8 (2026-11-16)
 
 ### Patch Changes
