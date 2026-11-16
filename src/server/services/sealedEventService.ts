@@ -30,7 +30,7 @@ import type { TableShape } from '../../core/tableShape'
 import { teamDisposition } from '../../core/teamDisposition'
 import type { SealedEventSide } from '../../contracts/schemas'
 import type { SealedEventSchedule, RepositoryPort } from '../spacetimeRepository'
-import type { BattleFaction } from '../../shared/battleSummary'
+import { battleFactionOf, type BattleFaction } from '../../shared/battleSummary'
 import type { Notifier } from '../pushNotifier'
 import { rosterFromRow } from '../rosterPersistence'
 import { rosterWithoutUnitNotes } from '../../core/unitNotes'
@@ -180,7 +180,7 @@ export class SealedEventService {
       ...sealedEvent,
       organizer,
       entries: visibleSealedEventEntries(sealedEvent.entries, organizer, viewerId).map((entry) => {
-        const faction = entry.army?.catalogueId ? factionsById.get(entry.army.catalogueId) : undefined
+        const faction = entry.army?.catalogueId ? battleFactionOf(entry.army.catalogueId, factionsById) : undefined
         return { ...entry, armyFaction: faction ? { slug: faction.slug, displayName: faction.displayName, icon: faction.icon } : null }
       }),
     }

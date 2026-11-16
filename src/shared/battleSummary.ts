@@ -4,6 +4,7 @@ import { isPracticeSeat, playedSeatName } from '../core/newBattle'
 import { matchupMission } from './battleRules'
 import type { BattleMissionRules } from './rules'
 import type { StandingFaction } from '../core/standings'
+import { currentCatalogueId } from '../core/retiredCatalogueIds'
 
 export type BattleFaction = {
   id: string
@@ -14,12 +15,16 @@ export type BattleFaction = {
   detachments?: readonly { name: string; referenceRoute?: { catalogueId: string; slug: string } | null }[]
 }
 
+/** The faction a fielded catalogue id names, through the retired-id map for a list fielded before its source was replaced. */
+export const battleFactionOf = <T>(catalogueId: string, factionsById: ReadonlyMap<string, T>) =>
+  factionsById.get(catalogueId) ?? factionsById.get(currentCatalogueId(catalogueId))
+
 /** The catalogue army a built list came from, as `factionsById` names it. */
 export function builtFaction(
   built: Pick<NonNullable<NonNullable<BattleState['players'][number]['roster']>['built']>, 'catalogueId' | 'edition'> | undefined,
   factionsById: ReadonlyMap<string, BattleFaction>,
 ): StandingFaction | null {
-  const faction = built?.catalogueId ? factionsById.get(built.catalogueId) : undefined
+  const faction = built?.catalogueId ? battleFactionOf(built.catalogueId, factionsById) : undefined
   return faction ? { slug: faction.slug, displayName: faction.displayName, icon: faction.icon, edition: built?.edition ?? null } : null
 }
 
