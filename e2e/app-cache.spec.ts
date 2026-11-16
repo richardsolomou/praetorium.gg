@@ -13,6 +13,7 @@ import {
 } from './account'
 import { lastPathSegment } from './storage'
 import { waitForOfflineApp } from './offline'
+import { PREVIEW_PLAYER_NAME } from '../scripts/lib/previewPeople'
 
 async function savedState(page: Page) {
   return page.evaluate(
@@ -200,7 +201,7 @@ test('email sign-in settles across two open Home tabs without alternating accoun
   await expect(other.getByRole('heading', { level: 1 })).toContainText('Build your army')
   await signInAsPreview(page)
   for (const tab of [page, other]) {
-    await expect(tab.getByRole('heading', { level: 1 })).toHaveText('Welcome back, Preview')
+    await expect(tab.getByRole('heading', { level: 1 })).toHaveText(`Welcome back, ${PREVIEW_PLAYER_NAME}`)
   }
   const transitions = await other.evaluate(async () => {
     let signedOut = false
