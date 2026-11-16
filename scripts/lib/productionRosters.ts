@@ -363,8 +363,9 @@ export type NormalisedRoster = ReturnType<typeof normaliseProductionRosters>[num
  *
  * A rewrite is kept only when every group still holds what the player saved, the rebuilt
  * roster is identical to the one players see today, and normalising it again changes
- * nothing; anything else is reported and left alone. It is computed on the IDs the app reads, so a roster whose saved IDs have a
- * reviewed migration is written translated, as any save from the builder would.
+ * nothing; anything else is reported and left alone. It is computed on the IDs the app
+ * reads, so a roster whose saved IDs have a reviewed migration is written translated, as
+ * any save from the builder would.
  */
 export function normaliseProductionRosters(
   snapshot: ProductionRosterSnapshot,

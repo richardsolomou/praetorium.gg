@@ -4,13 +4,12 @@ To see one first, open the [sample tournament](/tournaments/sample). For a one-o
 
 ## Before your first tournament
 
-- **Accounts.** Every player needs a Praetorium account. Guests can't enter. Send the invite link early so people sign up before the day.
-- **The app.** Players can use the website or the [app](/docs/mobile-app) on their phone. Ask them to allow notifications, so they hear when a round is paired, when their battlefield is set and when you remind them to seal.
-- **Lists.** Each player builds their list in Praetorium, or [imports](/docs/import-a-list) it, at your points size, then seals it from the tournament page. Set **Seal rosters by** and tell players the date. Anyone without a sealed list by then sits the tournament out.
-- **The reveal.** Only you can press **Reveal all rosters**, and it closes entry, so you can keep taking entries after the first players seal.
-- **Results.** Players track each game on Praetorium. With Swiss rounds they can instead press **Enter score** on their table afterwards. Decide which you expect, and tell players before round 1.
-- **Missed rounds.** Check players in before round 1 and drop anyone who doesn't arrive. If a player leaves partway, drop them, and their opponent takes the bye. See [Drop a player](/docs/run-a-tournament#drop-a-player).
-- **A trial run.** Open the [sample tournament](/tournaments/sample), or run a private one with a friend, before the day.
+- Every player needs a Praetorium account, since guests can't enter. Send the invite link early so people sign up before the day.
+- Players can use the website or the [app](/docs/mobile-app). Ask them to allow notifications, so they hear when a round is paired, when their battlefield is set and when you remind them to seal.
+- Each player builds or [imports](/docs/import-a-list) a list at your points size, then seals it from the tournament page. Set **Seal rosters by** and tell players the date. Anyone without a sealed list by then sits the tournament out.
+- Only you and your admins can reveal, so players sealing early doesn't close entry.
+- Decide whether players track each game here or, with Swiss rounds, press **Enter score** on their table afterwards, and tell them before round 1.
+- Check players in before round 1 and drop anyone who doesn't arrive. If a player leaves partway, [drop them](/docs/run-a-tournament#drop-a-player) and their opponent takes the bye.
 
 ## Set it up
 

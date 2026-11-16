@@ -6,7 +6,7 @@ import type { CatalogueHistoryEntry } from '../../src/core/catalogueHistory'
 import { childrenOf, MAX_DEPTH } from '../../src/core/definitions'
 import { currentCatalogueId, currentDetachmentId, currentEntryId, migratedCatalogueIds } from '../../src/core/retiredCatalogueIds'
 import { type LoadedCatalogue, datasheetsOf } from '../../src/shared/catalogueIndex'
-import { nameOverlap, normalized, removedNamesOf, type RemovedNames } from '../../src/shared/importMismatch'
+import { nameOverlap, normalized, removedNamesOf } from '../../src/shared/importMismatch'
 
 /**
  * The IDs a saved roster can hold that one snapshot has and the next drops, and whether each is handled.
@@ -124,7 +124,7 @@ type Options = {
 }
 
 export function idDrops(before: SavedIds, after: SavedIds, { history, migrated = migratedCatalogueIds(), accepted = ACCEPTED }: Options) {
-  const removed: RemovedNames = removedNamesOf(history)
+  const removed = removedNamesOf(history)
   const drops: IdDrop[] = []
   /** The history names a book by its ID at the time, which a map may since have moved, and records an imported datasheet or detachment under any book offering it. */
   const recorded = (kind: Kind, catalogueIds: readonly string[], name: string) =>

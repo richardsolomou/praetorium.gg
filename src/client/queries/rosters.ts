@@ -224,7 +224,7 @@ export const datasheetQuery = (
   fielded = false,
 ) =>
   queryOptions({
-    queryKey: ['datasheet', catalogueId, entryId, detachmentIds, picks, pickIndex, everyWeapon, ...(fielded ? ['fielded'] : [])],
+    queryKey: ['datasheet', catalogueId, entryId, detachmentIds, picks, pickIndex, everyWeapon, fielded],
     queryFn: ({ signal }) =>
       datasheet({
         data: {
@@ -234,7 +234,7 @@ export const datasheetQuery = (
           picks: [...picks],
           pickIndex,
           everyWeapon,
-          ...(fielded ? { fielded } : {}),
+          fielded,
         },
         signal,
       }),
@@ -268,7 +268,7 @@ export const loadoutDatasheetsQuery = (
   queryOptions({
     queryKey: persistedRoster
       ? ['saved-roster-loadout-datasheets', persistedRoster.id, pickIndex]
-      : ['loadout-datasheets', catalogueId, entryId, detachmentIds, picks, pickIndex, ...(fielded ? ['fielded'] : [])],
+      : ['loadout-datasheets', catalogueId, entryId, detachmentIds, picks, pickIndex, fielded],
     queryFn: async ({ signal }) => {
       const startedAt = performance.now()
       const result =
@@ -284,7 +284,7 @@ export const loadoutDatasheetsQuery = (
                 detachmentIds: [...detachmentIds],
                 picks: [...picks],
                 pickIndex,
-                ...(fielded ? { fielded } : {}),
+                fielded,
               },
               signal,
             })
@@ -310,7 +310,7 @@ export const priceQuery = (
 ) => {
   const data = {
     includeUnitLimits,
-    ...(fielded ? { fielded } : {}),
+    fielded,
     catalogueId,
     detachmentIds: [...detachmentIds],
     disposition,

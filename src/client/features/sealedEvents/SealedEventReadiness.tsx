@@ -75,7 +75,8 @@ export function SealedEventReadiness({
     : accepted.length
       ? `${sealed.length} of ${accepted.length} rosters sealed`
       : 'Nobody is in yet'
-  const organizers = sealedEvent.tournament && !sealedEvent.tournament.admins.length ? sealedEvent.tournament.ownerName : 'The organizers'
+  const soleOrganizer = sealedEvent.tournament && !sealedEvent.tournament.admins.length ? sealedEvent.tournament.ownerName : null
+  const organizers = soleOrganizer ?? 'The organizers'
   const revealNow = mayReveal
     ? 'You can open the rosters now'
     : sealedEvent.tournament
@@ -91,7 +92,7 @@ export function SealedEventReadiness({
       ? `${namesPhrase(leaderless.map(nameOf))} still ${leaderless.length === 1 ? 'needs' : 'need'} to choose whose Warlord leads their team.`
       : null,
     !isOrganizer && organizerSteps.length
-      ? `${organizers} still ${sealedEvent.tournament && !sealedEvent.tournament.admins.length ? 'needs' : 'need'} to ${namesPhrase(organizerSteps)}.`
+      ? `${organizers} still ${soleOrganizer ? 'needs' : 'need'} to ${namesPhrase(organizerSteps)}.`
       : null,
     ready ? readyLine : null,
   ]

@@ -308,7 +308,6 @@ function changedCountErrors(
         }),
       )
     const largest = unit.size.options?.at(-1) ?? unit.size.max
-    // A count is reported only if the unit cannot hold it at its largest size with no other count taking its places.
     const holdsAlone = (count: ReturnType<typeof short>[number]) => {
       const alone = buildUnit(saved.entryId, loaded.index, largest, saved.choices, {
         primaryCatalogueId: data.catalogueId,
