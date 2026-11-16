@@ -1,3 +1,4 @@
+import { workSlots } from './agentPoolWork'
 import { z } from 'zod'
 import type { CombatResult, CombatPhase } from '../core/combat'
 import { combatAdjustmentsSchema } from '../core/combatAdjustments'
@@ -631,12 +632,13 @@ type OptimizeLoadoutInput = z.infer<typeof optimizeLoadoutInputSchema>
 const OPTIMIZE_MS = 20_000
 /** Of that, how long climbs from random starts may keep looking once the unit has too many loadouts to visit them all. */
 const LOCAL_SEARCH_MS = 10_000
+/** Loadouts sent to the worker in one message, which share its cache of results for weapons they field alike. */
+const SCORED_TOGETHER = 32
 const RESTARTS = 20
 const STALE_RESTARTS = 4
 const WALK_STEPS = 8
 /** Searches the shared server runs at once; each holds a worker's worth of calculation on its event loop. */
-const MAX_OPTIMIZATIONS = 2
-let optimizations = 0
+const optimizationSlots = workSlots(2)
 
 /**
  * Scores loadouts in a worker of their own: one candidate can run thousands of exact calculations, which on the main
@@ -715,8 +717,7 @@ export async function optimizeCombatLoadout(input: OptimizeLoadoutInput) {
       phases: { ranged: after.phaseSetup('ranged', adjustments), melee: after.phaseSetup('melee', adjustments) },
     })),
   }
-  if (optimizations >= MAX_OPTIMIZATIONS) return toolError('unavailable', 'Loadout searches are busy just now. Try again shortly.')
-  optimizations++
+  if (!(await optimizationSlots.acquire())) return toolError('unavailable', 'Loadout searches are busy just now. Try again shortly.')
   const started = performance.now()
   const signal = AbortSignal.timeout(OPTIMIZE_MS)
   const score = loadoutScorer(signal)
@@ -736,16 +737,21 @@ export async function optimizeCombatLoadout(input: OptimizeLoadoutInput) {
       for await (const batch of combatLoadoutCandidates(loaded, request, signal, rules)) {
         local = batch.local
         done = batch.done
-        for (const candidate of batch.candidates) {
+        const read = batch.candidates.map((candidate) => ({
+          members: candidate.members.map((member) => ({ ...member, rules: readRules(member.rules, words) })),
+        }))
+        // The unit's own loadout is scored alone so it can be reported as current.
+        const chunks = checked ? [] : read.splice(0, 1).map((candidate) => [candidate])
+        for (let start = 0; start < read.length; start += SCORED_TOGETHER) chunks.push(read.slice(start, start + SCORED_TOGETHER))
+        for (const candidates of chunks) {
           if (signal.aborted) break
-          const read = { members: candidate.members.map((member) => ({ ...member, rules: readRules(member.rules, words) })) }
-          const found = await score({ candidates: [read] }, scoring, input.mode)
-          checked++
+          const found = await score({ candidates }, scoring, input.mode)
+          if (!checked) current = found.best
+          checked += candidates.length
           if (found.skipped) {
             skipped += found.skipped
             reason ??= found.reason
           }
-          if (checked === 1) current = found.best
           if (found.best && (!top || compareOutcomes(found.best.result, top.result) > 0)) top = found.best
           if (found.best && (!best || compareOutcomes(found.best.result, best.result) > 0)) best = found.best
         }
@@ -791,9 +797,14 @@ export async function optimizeCombatLoadout(input: OptimizeLoadoutInput) {
     if (error instanceof CombatRefusal) return refused(error.reasons, error.type)
     throw error
   } finally {
-    optimizations--
+    optimizationSlots.release()
     score.close()
   }
+  if (!best && cutShort && !reason)
+    return toolError(
+      'unavailable',
+      'The search ran out of time before it could score a loadout. Try again, or pass mode ranged or melee to search one phase.',
+    )
   if (!best) return refused([reason ?? 'No supported legal loadout is available.'], 'refused')
   if (skipped) notes.push(`${skipped} loadouts were left out because the simulator cannot estimate them${reason ? `: ${reason}` : '.'}`)
   const price = (loadout: OptimizedLoadout) =>

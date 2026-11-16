@@ -447,6 +447,12 @@ it('resolves a matchup by name to both sides’ missions and the terrain they pl
   })
 })
 
+it('uses the current pack when none is named', () => {
+  expect(missionMatchup(missionCorpus, missionRules, { yourDisposition: 'one', opponentDisposition: 'two' })).toMatchObject({
+    matchup: { url: '/missions/pack/matchups/one/two' },
+  })
+})
+
 it.each([
   ['o', 'o could be more than one force disposition: One (one), Two (two).'],
   ['three', 'No force disposition is named three. Use one of: One (one), Two (two).'],

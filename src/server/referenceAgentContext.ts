@@ -46,7 +46,7 @@ export const missionMatchupPrompt = {
   title: 'Explain a mission matchup',
   description: 'Resolve a force-disposition pairing and explain its mission, scoring, deployment, and terrain.',
   argsSchema: {
-    pack: z.string().trim().min(1).max(160),
+    pack: z.string().trim().min(1).max(160).optional(),
     yourDisposition: z.string().trim().min(1).max(160),
     opponentDisposition: z.string().trim().min(1).max(160),
   },
@@ -56,7 +56,7 @@ export function missionMatchupText({
   yourDisposition,
   opponentDisposition,
 }: z.infer<z.ZodObject<typeof missionMatchupPrompt.argsSchema>>) {
-  return `Call get_mission_matchup with pack ${pack}, yourDisposition ${yourDisposition}, and opponentDisposition ${opponentDisposition}; if it refuses a value, retry with one of the options it lists. Explain each side's primary scoring from its card, then the deployments and terrain layouts, reading their records with get_reference_record where needed. Cite canonical URLs and do not infer missing card text.`
+  return `Call get_mission_matchup with ${pack ? `pack ${pack}, ` : ''}yourDisposition ${yourDisposition}, and opponentDisposition ${opponentDisposition}; if it refuses a value, retry with one of the options it lists. Explain each side's primary scoring from its card, then the deployments and terrain layouts, reading their records with get_reference_record where needed. Cite canonical URLs and do not infer missing card text.`
 }
 
 export function promptMessages(text: string) {
