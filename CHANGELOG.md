@@ -1,5 +1,18 @@
 # praetorium
 
+## 0.258.0 (2026-11-16)
+
+### Minor Changes
+
+- d19e038: Assistants connected to Praetorium can now read a faction's winning tournament lists, see how often each unit appears in them, and open one as a draft to grade.
+- d19e038: Roster grades now show how much of a list is in the units its army's winning tournament lists field, and which of those it leaves out.
+
+### Patch Changes
+
+- d19e038: Assistants now build and grade lists from winning tournament lists, give every unit a job, and no longer present a high grade as a sign that a list is competitive.
+- a7027d9: Assistants connected to Praetorium without signing in keep working after they try a tool that needs an account.
+- d19e038: The roster grades guide now says what the grades predict in tournament games and what they don't.
+
 ## 0.257.12 (2026-11-16)
 
 ### Patch Changes
