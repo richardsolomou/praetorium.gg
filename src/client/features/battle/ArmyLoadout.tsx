@@ -29,7 +29,7 @@ export function ArmyLoadout({ army, unit }: { army: Army; unit: UnitState }) {
   return (
     <div data-army-loadout className="min-w-0 bg-sunken">
       {isError || (!isPending && (!priced || !matches)) ? (
-        <FieldedUnit unit={unit} />
+        <FieldedUnit unit={unit} failed={isError} />
       ) : (
         <div className="min-w-0">
           <Loadout
