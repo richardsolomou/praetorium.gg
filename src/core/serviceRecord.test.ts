@@ -426,20 +426,6 @@ describe('command points in a record', () => {
   it('credits an ally with the side’s spend', () => {
     expect(serviceRecord([allied()], 'ally').averageCpSpent).toBe(4)
   })
-
-  it('divides the side’s points by the command points it spent', () => {
-    // 55 and 41 points over 4 and 6 CP: 96 over 10.
-    const battles = [
-      duel({ plays: [play({ cpSpent: 4 }), idle()] }),
-      duel({ lastActivity: 20, scores: [41, 55], plays: [play({ cpSpent: 6 }), idle()] }),
-    ]
-
-    expect(serviceRecord(battles, 'alice').pointsPerCp).toBe(9.6)
-  })
-
-  it('has no points per command point when the side spent none', () => {
-    expect(serviceRecord([duel()], 'alice').pointsPerCp).toBeNull()
-  })
 })
 
 describe('best and worst stratagems in a record', () => {
@@ -694,6 +680,30 @@ describe('results against each faction', () => {
     expect(serviceRecord([duel({ result: { concededBy: 'alice' } })], 'alice').opposingFactions[0]).toMatchObject({ won: 0, lost: 1 })
   })
 
+  describe('an army faced under two rules versions', () => {
+    const custodes = (slug: string) => ({ slug, displayName: 'Adeptus Custodes', icon: null })
+    const battles = [
+      duel({ factions: [army('necrons'), custodes('custodes-mfm-1-6')] }),
+      duel({ lastActivity: 20, factions: [army('necrons'), custodes('custodes-codex')] }),
+    ]
+
+    it('counts as one army, named by its latest battle', () => {
+      expect(serviceRecord(battles, 'alice').opposingFactions.map((row) => [row.faction.slug, row.battles])).toEqual([
+        ['custodes-codex', 2],
+      ])
+    })
+
+    it('is offered as one army to narrow by', () => {
+      expect(recordFacets(battles, 'alice').opponentFactions.map((facet) => [facet.value, facet.battles])).toEqual([
+        ['adeptus-custodes', 2],
+      ])
+    })
+
+    it('narrows to both versions when chosen', () => {
+      expect(serviceRecord(battles, 'alice', { opponentFaction: 'adeptus-custodes' }).battles).toBe(2)
+    })
+  })
+
   it('leaves out an opponent whose army was pasted in as text', () => {
     expect(serviceRecord([duel({ factions: [army('necrons'), null] })], 'alice').opposingFactions).toEqual([])
   })
@@ -719,7 +729,6 @@ describe('a record with no battles in it', () => {
     expect({
       stratagems: record.stratagems,
       spent: record.averageCpSpent,
-      perCp: record.pointsPerCp,
       cards: record.cards,
       best: record.bestCard,
       worst: record.worstCard,
@@ -731,7 +740,6 @@ describe('a record with no battles in it', () => {
     }).toEqual({
       stratagems: [],
       spent: 0,
-      perCp: null,
       cards: [],
       best: null,
       worst: null,

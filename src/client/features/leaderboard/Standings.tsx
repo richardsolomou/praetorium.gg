@@ -53,7 +53,6 @@ export function Standings({
   )
   const record = (row: Standing) => (
     <>
-      <td className={RECORD_CELL}>{row.won}</td>
       <td className={RECORD_CELL}>{row.battles}</td>
       <td className={RECORD_CELL}>{percentLabel(winRate(row))}</td>
       <td className={RECORD_CELL}>{Math.round(averagePoints(row))}</td>
@@ -64,7 +63,7 @@ export function Standings({
       <SectionHeading title={title} count={table.players} />
       {table.rows.length ? (
         <div className="part overflow-x-auto">
-          <table className="w-full table-fixed border-collapse text-sm min-w-xl">
+          <table className="w-full table-fixed border-collapse text-sm min-w-lg">
             <thead>
               <tr className="border-b-2 border-runner text-left text-2xs tracking-eyebrow text-dim uppercase">
                 <th scope="col" className="w-11 py-3 pr-1 pl-3 font-semibold sm:w-14 sm:px-3">
@@ -75,9 +74,6 @@ export function Standings({
                 </th>
                 <th scope="col" className="w-20 px-3 py-3 text-right font-semibold">
                   Rating
-                </th>
-                <th scope="col" className="w-16 px-3 py-3 text-right font-semibold">
-                  Wins
                 </th>
                 <th scope="col" className="w-20 px-3 py-3 text-right font-semibold">
                   Battles
@@ -111,7 +107,7 @@ export function Standings({
                 <tr className="border-y-2 border-runner bg-sunken">
                   <th
                     scope="rowgroup"
-                    colSpan={7}
+                    colSpan={6}
                     className="px-3 py-2.5 text-left text-2xs font-semibold tracking-eyebrow text-dim uppercase"
                   >
                     Not yet ranked · fewer than {PROVISIONAL_BATTLES} battles

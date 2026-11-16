@@ -12,8 +12,8 @@ import { useExportText } from '../../useCopyText'
 import { nameColour } from '../../playerName'
 
 /**
- * An event's table from its finished battles: in open play wins, then draws, then victory points; in Swiss rounds
- * match points, then victory points, then strength of schedule.
+ * An event's table from its finished battles: in open play wins, then draws, then victory points; in Swiss rounds and
+ * leagues match points, then victory points, then strength of schedule.
  *
  * Narrow columns let a phone show every one; anything narrower still scrolls inside the frame, as the leaderboard does.
  */
@@ -22,7 +22,7 @@ export function SealedEventResults<
 >({
   event,
   rows,
-  swiss = false,
+  format = 'open',
   partial,
   entries,
   label,
@@ -31,7 +31,7 @@ export function SealedEventResults<
 }: {
   event: string
   rows: readonly ResultRow[]
-  swiss?: boolean
+  format?: keyof typeof FORMAT_COLUMNS
   partial: boolean
   entries: readonly Entry[]
   label: (entry: Entry) => string
@@ -39,7 +39,7 @@ export function SealedEventResults<
   sample?: boolean
   title?: string
 }) {
-  const columns = swiss ? SWISS_COLUMNS : COLUMNS
+  const columns = FORMAT_COLUMNS[format]
   const people = new Map(entries.map((entry) => [entry.userId, entry]))
   const { exportText, native, copied, problem } = useExportText()
   const exportFile = async () => {
@@ -50,10 +50,10 @@ export function SealedEventResults<
       columns: columns.map((column) => column.title),
       rows: rows.flatMap((row, place) => {
         const entry = people.get(row.userId)
-        return entry ? [{ place: place + 1, player: label(entry), figures: columns.map((column) => row[column.key] ?? 0) }] : []
+        return entry ? [{ place: place + 1, player: label(entry), figures: columns.map((column) => figureOf(column, row)) }] : []
       }),
     })
-    posthog.capture('sealed_event_results_exported', { swiss, partial, players: rows.length })
+    posthog.capture('sealed_event_results_exported', { swiss: format !== 'open', partial, players: rows.length })
     await exportText(csv, {
       name: `${safeFileName(event, 'event')}-results.csv`,
       type: 'text/csv;charset=utf-8',
@@ -126,7 +126,7 @@ export function SealedEventResults<
                     )}
                   </td>
                   {columns.map((column) => {
-                    const figure = row[column.key] ?? 0
+                    const figure = figureOf(column, row)
                     return (
                       <td key={column.key} className={`readout px-1 py-2.5 text-right sm:px-3 ${figure ? column.tint : 'text-faint'}`}>
                         {figure}
@@ -153,7 +153,7 @@ const COLUMNS = [
   { key: 'points', short: 'VP', title: 'Victory points', tint: 'text-info' },
 ] as const
 
-/** An open-play or Swiss result, which share every column but the ones only Swiss keeps. */
+/** An open-play, Swiss or league result, which share every column but the ones only Swiss keeps. */
 type ResultRow = { userId: string; played: number } & Partial<Record<(typeof SWISS_COLUMNS)[number]['key'], number>>
 
 const SWISS_COLUMNS = [
@@ -164,3 +164,26 @@ const SWISS_COLUMNS = [
   { key: 'vp', short: 'VP', title: 'Victory points', tint: 'text-info' },
   { key: 'schedule', short: 'SoS', title: 'Strength of schedule: the match points of everyone faced', tint: 'text-dim' },
 ] as const
+
+/**
+ * A league's games are played in any order, so how many results each player has is what makes their points comparable;
+ * a bye counts from the start, so it counts here too. Strength of schedule stays out: once everyone has played
+ * everyone, tied players have faced the same field.
+ */
+const LEAGUE_COLUMNS = [
+  {
+    key: 'results',
+    short: 'P',
+    title: 'Played, a bye included',
+    tint: 'text-dim',
+    figure: (row: ResultRow) => (row.won ?? 0) + (row.drawn ?? 0) + (row.lost ?? 0),
+  },
+  ...SWISS_COLUMNS.filter((column) => column.key !== 'schedule'),
+] as const
+
+const FORMAT_COLUMNS = { open: COLUMNS, swiss: SWISS_COLUMNS, league: LEAGUE_COLUMNS }
+
+type ResultColumn = { key: string; figure?: (row: ResultRow) => number }
+
+const figureOf = (column: ResultColumn, row: ResultRow) =>
+  column.figure ? column.figure(row) : ((row[column.key as keyof ResultRow] as number | undefined) ?? 0)

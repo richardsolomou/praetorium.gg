@@ -10,7 +10,7 @@ import {
   type PeriodFilter,
 } from './listFilter'
 import { isGuestSeat } from './newBattle'
-import { battleOutcome, type StandingBattle } from './standings'
+import { armyOf, battleOutcome, type StandingBattle } from './standings'
 import { matchesSearch } from './text'
 
 const battleFacets = {
@@ -68,11 +68,14 @@ function battleTypes(battle: FilterableBattle) {
   ]
 }
 
-/** Armies are matched per side, the viewer's own when they sit in the battle, so Orks against Necrons never matches two Orks allies facing Tau. */
+/**
+ * Armies are matched per side, the viewer's own when they sit in the battle, so Orks against Necrons never matches two Orks
+ * allies facing Tau. An army matches every rules version of it.
+ */
 function matchupFits(battle: FilterableBattle, filter: BattleFilter, seat: number) {
   const sides = seat === -1 ? [...new Set(battle.sides)] : [battle.sides[seat]!]
   const seats = (fits: (side: number) => boolean) => battle.sides.flatMap((side, at) => (fits(side) ? [at] : []))
-  const factions = (at: readonly number[]) => at.flatMap((index) => battle.factions?.[index]?.slug ?? [])
+  const factions = (at: readonly number[]) => at.flatMap((index) => (battle.factions?.[index] ? armyOf(battle.factions[index]) : []))
   const detachments = (at: readonly number[]) => at.flatMap((index) => battle.detachments[index] ?? [])
   return sides.some((side) => {
     const ours = seats((other) => other === side)

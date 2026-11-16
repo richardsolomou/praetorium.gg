@@ -84,7 +84,7 @@ function PastLeagues({ group }: { group: Group }) {
                 event={`${group.name} league`}
                 title="Final table"
                 rows={table.table}
-                swiss
+                format="league"
                 partial={false}
                 entries={table.players}
                 label={(player) => (player.withdrawn ? `${player.name} (withdrawn)` : player.name)}
@@ -241,7 +241,7 @@ function PublishedLeague({ group, league, viewerId }: { group: Group; league: Le
         event={`${group.name} league`}
         title="League table"
         rows={league.table}
-        swiss
+        format="league"
         partial={false}
         entries={league.players}
         label={(player) => (player.withdrawn ? `${player.name} (withdrawn)` : player.name)}

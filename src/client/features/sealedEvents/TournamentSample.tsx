@@ -175,7 +175,7 @@ export function TournamentSample({ stage }: { stage: SampleStage }) {
               <SealedEventResults
                 event={eventName(sealedEvent)}
                 rows={sampleStandings(stage)}
-                swiss
+                format="swiss"
                 partial={false}
                 entries={accepted}
                 label={label}

@@ -6,6 +6,7 @@ import { routeSlug } from './slug'
 import { pointsLabel } from './battle'
 import type { BattleDigest } from './battleDigest'
 import {
+  armyOf,
   battleOutcome,
   opponentScore,
   sideScore,
@@ -95,8 +96,6 @@ export type ServiceRecord = {
   longestStreak: number
   /** Command points their side spent per battle: on stratagems, and anything else the log records as spent. */
   averageCpSpent: number
-  /** Their side's points over the command points it spent, or null when it spent none. */
-  pointsPerCp: number | null
   /** Every stratagem their side used, most used first. */
   stratagems: StratagemRecord[]
   /** The stratagems with the best and worst win rate, among those used in at least `RECORD_SAMPLE` battles. */
@@ -182,14 +181,13 @@ function matches(appearance: Appearance, filter: RecordFilter) {
   const { battle, seat } = appearance
   const opponents = opposingSeats(appearance)
   const mine = (values: readonly (readonly string[])[]) => values[seat] ?? []
-  if (filter.faction !== undefined && battle.factions[seat]?.slug !== filter.faction) return false
+  const army = (at: number) => (battle.factions[at] ? armyOf(battle.factions[at]) : undefined)
+  if (filter.faction !== undefined && army(seat) !== filter.faction) return false
   if (filter.detachment !== undefined && !mine(battle.detachments).includes(filter.detachment)) return false
   if (filter.missionPackId !== undefined && battle.settings.missionPackId !== filter.missionPackId) return false
   if (filter.limit !== undefined && battle.settings.limit !== filter.limit) return false
   if (filter.opponentId !== undefined && !opponents.some((other) => battle.playerIds[other] === filter.opponentId)) return false
-  if (filter.opponentFaction !== undefined && !opponents.some((other) => battle.factions[other]?.slug === filter.opponentFaction)) {
-    return false
-  }
+  if (filter.opponentFaction !== undefined && !opponents.some((other) => army(other) === filter.opponentFaction)) return false
   const wanted = filter.opponentDetachment
   if (wanted !== undefined && !opponents.some((other) => (battle.detachments[other] ?? []).includes(wanted))) return false
   return true
@@ -339,8 +337,6 @@ const newestFirst = (taken: readonly Appearance[]) => taken.toReversed().map((on
 
 function resources(taken: readonly Appearance[]) {
   const played = newestFirst(taken)
-  const spent = played.reduce((total, { play }) => total + play.cpSpent, 0)
-  const points = taken.reduce((total, one) => total + one.points, 0)
   const rows = new Map<string, StratagemRecord>()
   const usedIn = new Map<string, Set<Appearance>>()
   for (const { one, play } of played) {
@@ -367,7 +363,6 @@ function resources(taken: readonly Appearance[]) {
   )
   return {
     averageCpSpent: mean(played.map(({ play }) => play.cpSpent)),
-    pointsPerCp: spent ? points / spent : null,
     stratagems: sorted,
     bestStratagem: best,
     worstStratagem: worst,
@@ -433,17 +428,17 @@ function missionRecords(taken: readonly Appearance[]): MissionRecord[] {
 /** Each army faced, a 2v2 against two of the same counting once, as its facet does. */
 function factionRecords(taken: readonly Appearance[]): FactionRecord[] {
   const rows = new Map<string, { faction: StandingFaction; against: Appearance[] }>()
-  for (const one of taken) {
+  for (const { one } of newestFirst(taken)) {
     const facing = new Map(
       opposingSeats(one).flatMap((seat) => {
         const faction = one.battle.factions[seat]
-        return faction ? [[faction.slug, faction] as const] : []
+        return faction ? [[armyOf(faction), faction] as const] : []
       }),
     )
-    for (const [slug, faction] of facing) {
-      const row = rows.get(slug) ?? { faction, against: [] }
+    for (const [army, faction] of facing) {
+      const row = rows.get(army) ?? { faction, against: [] }
       row.against.push(one)
-      rows.set(slug, row)
+      rows.set(army, row)
     }
   }
   return [...rows.values()]
@@ -522,7 +517,8 @@ export function recordFacets(battles: readonly RecordBattle[], playerId: string)
   for (const one of taken) {
     const { battle, seat } = one
     playedAt = battle.lastActivity
-    add('factions', battle.factions[seat]?.slug, battle.factions[seat]?.displayName ?? '')
+    const own = battle.factions[seat]
+    add('factions', own && armyOf(own), own?.displayName ?? '')
     for (const detachment of battle.detachments[seat] ?? []) add('detachments', detachment, detachment)
     add('missionPacks', battle.settings.missionPackId, battle.settings.missionPackId ?? '')
     if (battle.settings.limit !== null) add('limits', String(battle.settings.limit), pointsLabel(battle.settings.limit))
@@ -530,9 +526,9 @@ export function recordFacets(battles: readonly RecordBattle[], playerId: string)
     // army does not tally as two battles against it.
     const seats = opposingSeats(one)
     const facing = new Map(
-      seats.flatMap((other) => (battle.factions[other] ? [[battle.factions[other].slug, battle.factions[other]]] : [])),
+      seats.flatMap((other) => (battle.factions[other] ? [[armyOf(battle.factions[other]), battle.factions[other]]] : [])),
     )
-    for (const [slug, faction] of facing) add('opponentFactions', slug, faction.displayName)
+    for (const [army, faction] of facing) add('opponentFactions', army, faction.displayName)
     for (const detachment of new Set(seats.flatMap((other) => battle.detachments[other] ?? []))) {
       add('opponentDetachments', detachment, detachment)
     }
