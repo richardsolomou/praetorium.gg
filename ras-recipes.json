@@ -66,6 +66,20 @@
         "src/adapters/email.test.ts is the application's own test of the disabled states and the email-only client."
       ]
     },
+    "posthog-auth-identity": {
+      "version": 1,
+      "commit": "8e4dfdee6afeeaa1f05804e38888a171f9ebe722",
+      "files": {
+        "src/client/postHogIdentity.test.tsx": "src/client/postHogIdentity.test.tsx",
+        "src/client/postHogIdentity.tsx": "src/client/postHogIdentity.tsx"
+      },
+      "notes": [
+        "`identify` sends the player's name and email as person properties, as the application did before, so support conversations and person profiles show who a player is; the test expects them.",
+        "AppShell renders `PostHogIdentity` only once the `me` query has answered and never while an administrator impersonates a player, whose events are dropped anyway.",
+        "The server side of the recipe is wired in src/server/rpc.ts, which passes the signed-in user from `currentUserId` to `observeServerFunction` on a reporting instance.",
+        "vitest.config.ts now includes `src/**/*.test.tsx`, so this recipe's and posthog-web's component tests run."
+      ]
+    },
     "posthog-server": {
       "version": 2,
       "commit": "ec2a7bdc97f8534e2fe0d9a0581b3b1898e05327",

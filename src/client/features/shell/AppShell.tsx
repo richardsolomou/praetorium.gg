@@ -21,15 +21,14 @@ import {
   PanelLeftOpen,
   type LucideIcon,
 } from 'lucide-react'
-import { PostHogBetterAuthIdentity } from 'ras-stack/posthog/react'
 import { bundledPostHog } from '../../../contracts/posthog'
 import { PostHogIntegration } from '../../posthog'
+import { PostHogIdentity } from '../../postHogIdentity'
 import { type ReactElement, useEffect, useLayoutEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { buttonClass } from '../../components/buttonClass'
 import { ROSTER_WORKSPACE, followRailState, setRailCollapsed, useRailCollapsed } from './railState'
 import { setImpersonating } from '../../../posthog'
-import { authClient } from '../../authClient'
 import { Account } from './Account'
 import { NoticeSync, NotificationsButton } from '../notifications/Notifications'
 import { GlobalSearch, GlobalSearchProvider } from './GlobalSearch'
@@ -355,9 +354,7 @@ function AppFrame() {
         </p>
         <PostHogIntegration>
           <TooltipProvider delay={250} closeDelay={100}>
-            {bundledPostHog && me !== undefined && !impersonating && (
-              <PostHogBetterAuthIdentity authClient={authClient} properties={({ name, email }) => ({ name, email })} />
-            )}
+            {bundledPostHog && me !== undefined && !impersonating && <PostHogIdentity />}
             {bundledPostHog && !impersonating && <SupportIdentity />}
             {me && !impersonating ? <NoticeSync /> : null}
             <GlobalSearchProvider>
