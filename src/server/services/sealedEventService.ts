@@ -621,6 +621,8 @@ export class SealedEventService {
     secondOpponentId?: string,
     fieldAlerts: (roster: Roster, playerId: string) => Promise<Roster> = async (roster) => roster,
     fixtureKey?: string,
+    /** Skips telling the players, for a battle started only to record its score. */
+    quiet = false,
   ) {
     const invited = [opponentId, allyId, secondOpponentId].filter((id): id is string => Boolean(id))
     if (new Set([userId, ...invited]).size !== invited.length + 1) throw new Response('choose different entrants', { status: 400 })
@@ -656,9 +658,10 @@ export class SealedEventService {
       },
     )
     if (!result) throw new Response('no such event', { status: 404 })
-    this.notifier.notify([
-      { kind: 'battle-created', actorId: userId, recipientIds: result.participantIds, battleToken: token, sealedEvent: true },
-    ])
+    if (!quiet)
+      this.notifier.notify([
+        { kind: 'battle-created', actorId: userId, recipientIds: result.participantIds, battleToken: token, sealedEvent: true },
+      ])
     return { ...result, battleId: id }
   }
 

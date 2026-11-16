@@ -56,7 +56,7 @@ import { BattleFeedService } from './services/battleFeedService'
 import { StandingsService } from './services/standingsService'
 import { ProfileService } from './services/profileService'
 import { PreferencesService } from './services/preferencesService'
-import { foldHistory, mayWatch, mustFindBattle, isSeated } from './services/battleHistory'
+import { foldHistory, mayWatch, mustFindBattle, isSeated, reportScore } from './services/battleHistory'
 import { StandingsRefresh } from './standingsRefresh'
 import type { ScoringDraft } from '../core/scoringDraft'
 import type { BattleCard, BattleHistory, RepositoryPort } from './spacetimeRepository'
@@ -166,7 +166,8 @@ export class PraetoriumService {
     return this.repository.registerWebPushSubscription({ userId, subscription, now: this.clock() })
   }
 
-  async createBattle(userId: string, input?: string | CreateBattleInput) {
+  /** `quiet` skips telling the invited players, for a battle an organizer starts only to record its score. */
+  async createBattle(userId: string, input?: string | CreateBattleInput, quiet = false) {
     const settings =
       typeof input === 'object' ? { ...input, limit: input.limit ?? null } : { limit: null, missionPackId: null, manual: false }
     const { allyIds, opponentIds, invited } = newBattleSeats(input)
@@ -228,7 +229,8 @@ export class PraetoriumService {
       now: offlineContext.getStore()?.createdAt ?? this.clock(),
       fixtureKey,
     })
-    this.notifier.notify([{ kind: 'battle-created', actorId: userId, recipientIds: invited, battleToken: token, sealedEvent: false }])
+    if (!quiet)
+      this.notifier.notify([{ kind: 'battle-created', actorId: userId, recipientIds: invited, battleToken: token, sealedEvent: false }])
     return { battleId: id, token }
   }
 
@@ -238,21 +240,32 @@ export class PraetoriumService {
     if (!group?.organizer) throw new Response('only the group’s organizers can enter a league score', { status: 403 })
     const fixture = league?.publishedAt === null ? undefined : league?.fixtures.find((candidate) => candidate.key === fixtureKey)
     if (!fixture?.bId) throw new Response('no such fixture in this league', { status: 404 })
+    // A league that sealed lists plays every fixture with them, so its battle starts from its game as a player's would.
     const token =
       fixture.battleToken ??
-      (await this.createBattle(fixture.aId, { opponentIds: [fixture.bId], missionPackId, groupToken, fixture: fixtureKey })).token
-    const history = await mustFindBattle(this.repository, token)
-    const { result } = await this.repository.submit({
-      battleId: history.battle.id,
+      (league!.game
+        ? await this.sealedEventService.createSealedEventBattle(
+            fixture.aId,
+            league!.game.token,
+            fixture.bId,
+            missionPackId,
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            fixtureKey,
+            true,
+          )
+        : await this.createBattle(fixture.aId, { opponentIds: [fixture.bId], missionPackId, groupToken, fixture: fixtureKey }, true)
+      ).token
+    await reportScore(this.repository, {
+      token,
+      players: [fixture.aId, fixture.bId],
+      vp,
       userId,
-      expectedSeq: foldHistory(history).seq,
-      command: { kind: 'report-result', vp: { [fixture.aId]: vp[0], [fixture.bId]: vp[1] } },
-      now: this.clock(),
-      snapshot: { seats: history.players, log: history.log },
       organizer: true,
+      now: this.clock(),
     })
-    if (result.outcome === 'refused') throw new Response(result.reason, { status: 409 })
-    if (result.outcome === 'stale') throw new Response('the battle changed while the score was being saved, so try again', { status: 409 })
   }
 
   /**

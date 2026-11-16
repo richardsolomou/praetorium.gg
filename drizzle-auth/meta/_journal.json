@@ -43,6 +43,13 @@
       "when": 1794596812217,
       "tag": "0005_player_colour",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1794821621606,
+      "tag": "0006_deleted_users",
+      "breakpoints": true
     }
   ]
 }
