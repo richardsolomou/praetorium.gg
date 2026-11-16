@@ -120,6 +120,16 @@ export const setGroupLeagueClock = createServerFn({ method: 'POST' })
     }),
   )
 
+export const nextGroupLeague = createServerFn({ method: 'POST' })
+  .validator(tokenSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const userId = await requireUserId()
+      await app().service.groupService.nextLeague(data.token, userId)
+      await captureMutation(userId, 'group_league_next_started')
+    }),
+  )
+
 export const deleteGroupLeague = createServerFn({ method: 'POST' })
   .validator(tokenSchema)
   .handler(({ data }) =>

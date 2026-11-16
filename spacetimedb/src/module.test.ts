@@ -903,6 +903,51 @@ describe('group leagues', () => {
     ]).toEqual(['deleted', null, [['league', 3, fixtureCount]], 'drawn'])
   })
 
+  it('starts the next league as a draft with the players still in the group', () => {
+    const league = setup(['a', 'b', 'c', 'd'])
+    league.command({ op: 'league-clock', actorId: 'owner', minutes: 90 })
+    league.publish()
+    league.command({ op: 'league-leave', userId: 'b' })
+    league.command({ op: 'leave', userId: 'c' })
+    const last = league.fixtures().find((fixture) => [fixture.aId, fixture.bId].every((id) => id === 'a' || id === 'd'))!
+    league.start(last.key, last.aId, last.bId!)
+    // Ends the battle through its log, as a finished game would, without building both lists to begin it.
+    league.host.call(TestAuth.internal(), (ctx) => {
+      const battleId = `battle-${last.key}`
+      const seq = Array.from(ctx.db.commands.battleId.filter(battleId)).length
+      for (const [index, body] of [
+        { kind: 'begin-battle', firstPlayerId: last.aId },
+        { kind: 'end-battle', reason: 'conceded', concededBy: last.aId },
+      ].entries())
+        ctx.db.commands.insert({
+          key: JSON.stringify([battleId, seq + index + 1]),
+          battleId,
+          seq: seq + index + 1,
+          userId: last.aId,
+          at: BigInt(NOW * 1_000),
+          body: JSON.stringify(body),
+        })
+    })
+    const next = league.command({ op: 'league-next', actorId: 'owner', leagueId: 'second', seed: 1, now: NOW })
+    const record = JSON.parse(module.groupByToken(league.host.procedure(league.host.operator), { token: 'group' })) as {
+      league: { publishedAt: number | null; clockLimitMinutes: number | null; players: { userId: string }[] }
+      pastLeagues: { id: string }[]
+    }
+    expect([
+      next,
+      record.league.publishedAt,
+      record.league.clockLimitMinutes,
+      record.league.players.map((entry) => entry.userId),
+      record.pastLeagues.map((past) => past.id),
+    ]).toEqual(['drawn', null, 90, ['a', 'd'], ['league']])
+  })
+
+  it('refuses to start the next league while a game is still to finish', () => {
+    const league = setup()
+    league.publish()
+    expect(league.command({ op: 'league-next', actorId: 'owner', leagueId: 'second', seed: 1, now: NOW })).toBe('unfinished')
+  })
+
   it('throws away a league that was never published', () => {
     const league = setup()
     league.command({ op: 'league-delete', actorId: 'owner' })

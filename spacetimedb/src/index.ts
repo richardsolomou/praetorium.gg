@@ -5024,6 +5024,14 @@ const groupCommandInput = z.discriminatedUnion('op', [
     deadline: sealedEventTimeInput.nullable(),
   }),
   z.object({ op: z.literal('league-delete'), token: idInput, actorId: idInput }),
+  z.object({
+    op: z.literal('league-next'),
+    token: idInput,
+    actorId: idInput,
+    leagueId: idInput,
+    seed: leagueSeed,
+    now: sealedEventTimeInput,
+  }),
   z.object({ op: z.literal('league-clock'), token: idInput, actorId: idInput, minutes: clockLimitMinutes.nullable() }),
 ])
 
@@ -5234,6 +5242,36 @@ function groupCommandIn(tx: Context, args: unknown[]) {
     endLeague(tx, league)
     touchGroup(tx, group.id)
     return productJson('deleted')
+  }
+  if (input.op === 'league-next') {
+    if (league?.publishedAt === undefined) return productJson('missing')
+    const rows = leaguePlayers(tx, league.id)
+    const withdrawn = new Set(rows.filter((row) => row.withdrawn).map((row) => row.userId))
+    // Only a complete league moves on, so a stale page cannot end one whose last game has been reopened.
+    if (
+      roundPairings(tx, league.id).some(
+        (pairing) =>
+          pairing.bId !== undefined && !withdrawn.has(pairing.aId) && !withdrawn.has(pairing.bId) && !pairingFinished(tx, pairing),
+      )
+    )
+      return productJson('unfinished')
+    // The next league opens as a draft, so nothing is played until an organizer reviews and publishes its draw.
+    const players = rows.filter((row) => !row.withdrawn && isGroupMember(tx, group.id, row.userId))
+    endLeague(tx, league)
+    tx.db.groupLeagues.insert({
+      id: input.leagueId,
+      groupId: group.id,
+      seed: input.seed,
+      createdAt: BigInt(input.now),
+      publishedAt: undefined,
+      deadlines: undefined,
+      remindedDeadlines: undefined,
+      clockLimitMinutes: league.clockLimitMinutes,
+    })
+    for (const row of players)
+      tx.db.groupLeaguePlayers.insert({ ...row, key: leaguePlayerKey(input.leagueId, row.userId), leagueId: input.leagueId })
+    touchGroup(tx, group.id)
+    return productJson('drawn')
   }
   const userIds = new Set(input.userIds)
   if (

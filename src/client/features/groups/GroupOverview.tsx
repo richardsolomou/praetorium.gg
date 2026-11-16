@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { ArrowRight } from 'lucide-react'
+import { ArrowRight, Trophy } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -15,10 +15,10 @@ import { SectionHeading } from '../../components/SectionHeading'
 import { useDateFormatting, useMoment } from '../../dates'
 import { nameColour } from '../../playerName'
 import { groupPastLeaguesQuery, type groupLeagueQuery, type groupStandingsQuery, type QueryData } from '../../queries'
-import { countLabel } from '../../text'
+import { countLabel, formatList } from '../../text'
 import type { Battle } from '../battles/battle'
 import { BattleLines, ResultLetter } from '../battles/BattleLines'
-import type { Group, GroupTab } from './group'
+import { leagueOutcome, type Group, type GroupTab } from './group'
 
 type GroupTable = NonNullable<QueryData<typeof groupStandingsQuery>>
 type League = NonNullable<QueryData<typeof groupLeagueQuery>>
@@ -188,7 +188,12 @@ export function LeagueOverview({
   const leaders = played ? (league?.table.slice(0, LEAGUE_ROWS_SHOWN) ?? []) : []
   return (
     <section data-group-league-overview>
-      <SectionHeading title="League" action={<AllLink onClick={() => onShow('league')}>{games.length ? 'Fixtures' : 'League'}</AllLink>} />
+      <SectionHeading
+        title="League"
+        action={
+          <AllLink onClick={() => onShow('league')}>{league?.complete ? 'Final table' : games.length ? 'Fixtures' : 'League'}</AllLink>
+        }
+      />
       <div className="divide-y divide-edge part">
         {games.length ? (
           <div className="p-4">
@@ -198,9 +203,7 @@ export function LeagueOverview({
               max={games.length}
               status={
                 <>
-                  <span className="font-bold text-bone">
-                    {Number.isFinite(round) ? `Round ${round} of ${rounds}` : 'Every game played'}
-                  </span>
+                  <span className="font-bold text-bone">{Number.isFinite(round) ? `Round ${round} of ${rounds}` : 'League complete'}</span>
                   {' · '}
                   {played} of {countLabel(games.length, 'game')} played
                   {overdue ? (
@@ -242,9 +245,18 @@ export function LeagueOverview({
             published, everyone plays everyone once.
           </p>
         ) : null}
+        {league?.complete ? (
+          <p className="flex items-center gap-2 px-4 py-3 text-sm text-dim">
+            <Trophy aria-hidden className="size-4 shrink-0 text-parchment" />
+            <span>
+              <span className="font-bold text-bone">{leagueOutcome(league)}.</span> The table is final.
+            </span>
+          </p>
+        ) : null}
         {past?.length ? (
           <p className="px-4 py-3 text-sm text-dim">
-            {countLabel(past.length, 'past league')}, the latest ended {moment(past[0]!.endedAt)}.
+            {countLabel(past.length, 'past league')}, the latest ended {moment(past[0]!.endedAt)}
+            {past[0]!.winners.length ? ` and ${formatList(past[0]!.winners)} ${past[0]!.winners.length > 1 ? 'shared it' : 'won it'}` : ''}.
           </p>
         ) : null}
       </div>

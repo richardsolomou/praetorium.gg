@@ -77,7 +77,11 @@ On the table, a win or a bye is worth 3 points and a draw 1. Ties are broken by 
 
 To leave, choose **Withdraw from league** in the **Fixtures** ⋯ menu. Your unplayed fixtures become void, and your finished games stay on the table. Leaving the group withdraws you too.
 
-**End league**, in the same menu, closes it so you can start another. Its final table stays under **Past leagues** on the **League** tab, and its battles stay.
+Once every fixture is played, void or a bye, the league is complete: the **League** tab, the **Overview** and **Up next for you** name the winner, and the table is final. Players level on points and both tiebreaks share first place. A complete league stays until an organizer ends it.
+
+To run it again, an organizer presses **Start the next league** on the complete league. It ends the league and opens a draft for the next one, with every player who didn't withdraw and is still in the group already in, and the same chess clock. Anyone else in the group can join, or a player can leave, before an organizer publishes it.
+
+**End league**, in the same menu, closes it at any time without starting another. An ended league's final table stays under **Past leagues** on the **League** tab, with its winner, and its battles stay.
 
 ### Seal lists before a league starts
 

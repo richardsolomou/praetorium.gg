@@ -34,7 +34,7 @@ import { PageTabsList } from '../../components/PageTabs'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { Problem } from '../../components/Problem'
 import { deleteGroup, joinGroup, leaveGroup, moderateGroupMember, removeGroupMember } from '../../functions'
-import { groupQuery, groupLeagueQuery, groupStandingsQuery, meQuery, type QueryData } from '../../queries'
+import { groupQuery, groupLeagueQuery, groupPastLeaguesQuery, groupStandingsQuery, meQuery, type QueryData } from '../../queries'
 import { useDateFormatting, useMoment } from '../../dates'
 import { BattleShelf } from '../battles/BattleShelf'
 import type { BattleListSearch, BattlesSearch } from '../battles/battleSearch'
@@ -48,7 +48,7 @@ import { SectionHeading } from '../../components/SectionHeading'
 import { accessSummary, OrganizerLinks, VisibilityIcon } from '../sealedEvents/EventAccess'
 import { SealedEventSettingsDialog } from '../sealedEvents/SealedEventSettingsDialog'
 import { eventName, namesPhrase } from '../sealedEvents/sealedEvent'
-import { memberNameOf, useGroupRefresh, usePlayGroupGame, type Group, type GroupTab } from './group'
+import { leagueOutcome, memberNameOf, useGroupRefresh, usePlayGroupGame, type Group, type GroupTab } from './group'
 import { GroupSettingsDialog } from './GroupSettingsDialog'
 import { GroupHiddenListGame, unplayedOpponents } from './GroupHiddenListGame'
 import { GroupLeague } from './GroupLeague'
@@ -131,7 +131,11 @@ function GroupScreen({
     })
   // Battles outside hidden-list games are a league's fixtures or friendly games, and say which.
   const { date } = useDateFormatting()
-  const rounds = new Map(league?.fixtures.flatMap((fixture) => (fixture.battle ? [[fixture.battle.token, fixture.round] as const] : [])))
+  const { data: pastLeagues } = useQuery(groupPastLeaguesQuery(group.token))
+  const rounds = new Map([
+    ...(pastLeagues?.flatMap((ended) => ended.rounds) ?? []),
+    ...(league?.fixtures.flatMap((fixture) => (fixture.battle ? [[fixture.battle.token, fixture.round] as const] : [])) ?? []),
+  ])
   const labelWith = (games: Readonly<Record<string, string>> | undefined) => (battle: Battle) => {
     const game = group.games.find((candidate) => candidate.token === games?.[battle.token])
     if (game) return `Hidden-list game · ${date(game.playsAt ?? game.revealedAt ?? game.createdAt)}`
@@ -653,6 +657,15 @@ function GroupNext({
       title: 'Join the league',
       detail: 'Everyone who joins before it’s published plays every other player once.',
       action: goTo('league', undefined, 'See the league'),
+    }
+  } else if (league?.complete && (league.organizer || league.players.some((player) => player.userId === viewerId && !player.withdrawn))) {
+    next = {
+      context: 'League complete',
+      title: leagueOutcome(league),
+      detail: league.organizer
+        ? 'Every game is played. Start the next league from its final table to play again with the same players.'
+        : 'Every game is played, so the table is final.',
+      action: goTo('league', undefined, 'See the final table'),
     }
   } else return null
   return (
