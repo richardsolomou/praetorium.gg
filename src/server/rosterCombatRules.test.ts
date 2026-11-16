@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { combatRuleAppliesTo, combatRuleChoices } from '../core/combatRules'
 import { bookOf, categories } from './catalogue.fixtures'
+import type { LoadedRules } from './rules'
 import { datasheetAbilitiesIn, datasheetIn } from '../shared/catalogue'
 import { rosterCombatant } from '../shared/rosterCombatRules'
 import { rosterDatasheetContext } from '../shared/rosterDatasheetContext'
@@ -134,4 +135,26 @@ describe('roster support rules', () => {
     const context = rosterDatasheetContext(book, { ...input, pickIndex: 1 })!
     expect(datasheetAbilitiesIn(book, 'cat', 'source', context)?.keywords).toContain('Cult')
   })
+})
+
+const commandRules = {
+  abilityDescriptions: new Map(),
+  factionKeys: new Map(),
+  byDetachment: new Map(),
+  factionRules: new Map(),
+  detachmentDetails: new Map(),
+  core: [{ key: 'resurgent', name: 'Resurgent', cp: 1, limit: 'phase', phases: ['command'] }],
+  coreDetails: [
+    {
+      id: 'resurgent',
+      type: null,
+      description:
+        '**Target:** One **INFANTRY** unit from your army.\n\n**Effect:** Until the start of your next Command phase, each time a model in your unit makes an attack, you can re-roll the Hit roll.',
+    },
+  ],
+} as Partial<LoadedRules> as LoadedRules
+
+it('offers a Command-phase stratagem in both combat phases', () => {
+  const rule = rosterCombatant(book, commandRules, input)?.rules.find((candidate) => candidate.id === 'stratagem:resurgent')
+  expect(rule?.phases).toEqual(['ranged', 'melee'])
 })
