@@ -592,18 +592,12 @@ function calculateRoster(
             unitSelectionIndex: selectionIndex.get(unit.selection),
             keywordIds: keywordsFor(catalogueId, selectionIndex.get(unit.selection) ?? -1),
           })
-          const pick = data.units[unit.key]
           return {
             entryId: unit.entryId,
             name: unit.name,
             keywords: sheet?.keywords ?? [],
             toughness: toughnessOf(sheet?.profiles ?? []),
             warlord: hasWarlordToggle(unit.toggles),
-            // What list building could still raise a Toughness by, which the snapshot
-            // never says: enhancements arrive as an ability reference with no text, and
-            // leader attachments record eligibility only.
-            enhanced: Object.values(pick?.choices ?? {}).some((choice) => enhancementNames.has(routeSlug(choice))),
-            led: data.units.some((other) => other.attachedTo === unit.key),
           }
         })
       : []

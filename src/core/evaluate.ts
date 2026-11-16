@@ -1343,11 +1343,15 @@ function aimedAt(modifier: Modifier, node: Node, root: Node, index: CatalogueInd
   if (!modifier.affects) return origins
   const reach = parseAffects(modifier.affects.split('.'))
   if (reach.group) {
-    // A datasheet granting its own group a keyword is the unit itself: "This unit has
-    // Mobile". Below the unit, which group is meant is not something the data says, and
-    // guessing hands the keyword to the wrong selections.
-    if ((modifier.scope ?? 'self') === 'self' && node.parent?.force) return origins
-    census.note('keyword granted to a group')
+    // A grant landing on a whole unit gives that unit the keyword, whether the datasheet
+    // writes it ("This unit has Mobile") or an enhancement aims at its bearer's datasheet
+    // ("Models in the bearer's unit have Skitarii"). Below the unit, which group is meant
+    // is not something the data says, and guessing hands the keyword to the wrong selections.
+    if (origins.every((origin) => origin.parent?.force)) return origins
+    const keyword = String(modifier.value)
+    census.note(
+      `${node.link?.name ?? node.target.name ?? node.target.id}: cannot tell which units ${modifier.type === 'remove' ? 'lose' : 'gain'} ${index.categories.get(keyword)?.name ?? keyword}`,
+    )
     return []
   }
   const found = new Set<Node>()

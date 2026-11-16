@@ -951,29 +951,34 @@ describe('a keyword the data grants', () => {
     })
   })
 
-  it('reports a keyword that wargear grants to its group, since the data does not say which group', () => {
+  describe('a keyword wargear grants to its group', () => {
+    const relic = {
+      id: 'relic',
+      name: 'Relic',
+      type: 'upgrade' as const,
+      modifiers: [{ type: 'add' as const, field: 'category', value: 'font', affects: 'group', scope: 'parent' }],
+    }
     const index = indexOf({
       categoryEntries: [{ id: 'font', name: 'Font' }],
       sharedSelectionEntries: [
+        { id: 'lord', name: 'Lord', type: 'model', selectionEntries: [relic] },
         {
-          id: 'lord',
-          name: 'Lord',
-          type: 'model',
-          selectionEntries: [
-            {
-              id: 'relic',
-              name: 'Relic',
-              type: 'upgrade',
-              modifiers: [{ type: 'add', field: 'category', value: 'font', affects: 'group', scope: 'parent' }],
-            },
-          ],
+          id: 'retinue',
+          name: 'Retinue',
+          type: 'unit',
+          selectionEntries: [{ id: 'champion', name: 'Champion', type: 'model', selectionEntries: [relic] }],
         },
       ],
     })
-    const roster = [{ id: 'lord', selections: [{ id: 'relic' }] }]
-    expect({ keywords: keywordIds(roster, 0, index), unhandled: evaluate(roster, index).unhandled }).toEqual({
-      keywords: [],
-      unhandled: ['keyword granted to a group'],
+
+    it('goes to the bearer when the bearer is the unit', () => {
+      expect(keywordIds([{ id: 'lord', selections: [{ id: 'relic' }] }], 0, index)).toEqual(['font'])
+    })
+
+    it('names its source and keyword when it lands below the unit', () => {
+      expect(evaluate([{ id: 'retinue', selections: [{ id: 'champion', selections: [{ id: 'relic' }] }] }], index).unhandled).toEqual([
+        'Relic: cannot tell which units gain Font',
+      ])
     })
   })
 
