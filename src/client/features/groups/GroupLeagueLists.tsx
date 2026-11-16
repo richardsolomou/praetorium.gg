@@ -122,7 +122,7 @@ export function SealLeagueList({ group, game, sealed, primary }: { group: Group;
       <Button variant={sealed || !primary ? 'outline' : 'default'} onClick={() => (seal.reset(), setChoosing(true))}>
         {sealed ? (
           <>
-            <Lock /> Change list
+            <Lock /> Swap your list
           </>
         ) : (
           <>
