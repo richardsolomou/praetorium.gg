@@ -46,6 +46,23 @@ export function factionColour(id: string, name?: string) {
   return FACTION_COLOURS[editionFamilyId(id)] ?? (name ? FACTION_COLOURS[routeSlug(name)] : undefined) ?? '#8b918a'
 }
 
+const channel = (hex: string) => {
+  const value = Number.parseInt(hex, 16) / 255
+  return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4
+}
+
+/** Below about 2:1 against the void background a mark disappears, so it keeps its own colour and gains a light edge in its own hue instead. */
+const isFaint = (colour: string) => {
+  if (!/^#[0-9a-f]{6}$/i.test(colour)) return false
+  return 0.2126 * channel(colour.slice(1, 3)) + 0.7152 * channel(colour.slice(3, 5)) + 0.0722 * channel(colour.slice(5, 7)) < 0.07
+}
+
+// A mask clips a filter on the same element, so a wrapper draws the edge: four unblurred shadows, one per side, for a crisp ring.
+const edge = (colour: string) => {
+  const light = `oklch(from ${colour} 0.6 c h)`
+  return ['0.5px 0', '-0.5px 0', '0 0.5px', '0 -0.5px'].map((offset) => `drop-shadow(${offset} 0 ${light})`).join(' ')
+}
+
 export type FactionPresentation = {
   slug: string
   displayName: string
@@ -58,15 +75,16 @@ export function FactionMark({
   edition = faction.edition,
   size = 'md',
   className,
+  colour = factionColour(faction.slug, faction.displayName),
 }: {
   faction: FactionPresentation
   edition?: FactionPresentation['edition']
   size?: 'sm' | 'md' | 'lg'
   /** Sizes the mark in place of `size`. */
   className?: string
+  colour?: string
 }) {
-  const { slug: id, displayName: name, icon } = faction
-  const colour = factionColour(id, name)
+  const { slug: id, icon } = faction
   const mask = icon ? `url(${JSON.stringify(icon)})` : undefined
   const style = {
     backgroundColor: colour,
@@ -81,13 +99,20 @@ export function FactionMark({
     clipPath: icon ? undefined : 'polygon(50% 0, 100% 50%, 50% 100%, 0 50%)',
   } as CSSProperties
 
-  const mark = (
+  const masked = (
     <span
       aria-hidden
       data-faction-mark={id}
       style={style}
       className={`${className ?? (size === 'lg' ? 'size-14' : size === 'sm' ? 'size-5' : 'size-9')} inline-block shrink-0`}
     />
+  )
+  const mark = isFaint(colour) ? (
+    <span aria-hidden className="inline-flex shrink-0" style={{ filter: edge(colour) }}>
+      {masked}
+    </span>
+  ) : (
+    masked
   )
   return edition ? (
     <span className="relative inline-flex shrink-0">
