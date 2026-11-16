@@ -87,7 +87,7 @@ export function registerWinningListTools(server: AgentTools) {
       )
       const dates = matched.map((list) => list.event.date).toSorted()
       const sizes = tallied(matchingLists(lists ?? [], found.id, { detachmentId: wanted }).map((list) => String(list.limit))).map(
-        ({ name, lists: count }) => ({ battleSize: Number(name), lists: count }),
+        ({ name, lists: fielded }) => ({ battleSize: Number(name), lists: fielded }),
       )
       const recorded = (await changeLogPage({ faction: found.slug })).updates[0]?.recordedAt
       const latestUpdate = recorded ? new Date(recorded).toISOString().slice(0, 10) : null
