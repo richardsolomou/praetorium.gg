@@ -123,8 +123,7 @@ function StandingRow({ row, place, form, you }: { row: Standing; place?: number;
             {you ? <span className="eyebrow shrink-0 text-parchment">You</span> : null}
           </span>
           <span className="block text-xs text-dim">
-            {row.won}–{row.lost}
-            {row.drawn ? `–${row.drawn}` : ''} · {countLabel(row.battles, 'game')}
+            {recordLabel(row)} · {countLabel(row.battles, 'game')}
           </span>
         </span>
       </Link>
@@ -154,6 +153,9 @@ function Form({ outcomes }: { outcomes: readonly BattleOutcome[] }) {
 }
 
 const LEAGUE_ROWS_SHOWN = 3
+
+/** Won, drawn and lost, in the order every results table reads them. */
+const recordLabel = ({ won, drawn, lost }: { won: number; drawn: number; lost: number }) => `${won}–${drawn}–${lost}`
 
 /** The league tab in brief: a running league's progress and top of its table, a draft still taking players, and past leagues. */
 export function LeagueOverview({
@@ -227,10 +229,7 @@ export function LeagueOverview({
                     {member?.name ?? 'A former member'}
                     {withdrawn.has(row.userId) ? <span className="font-normal text-dim"> (withdrawn)</span> : null}
                   </span>
-                  <span className="shrink-0 text-xs text-dim">
-                    {row.won}–{row.lost}
-                    {row.drawn ? `–${row.drawn}` : ''}
-                  </span>
+                  <span className="shrink-0 text-xs text-dim">{recordLabel(row)}</span>
                   <span className="figure w-14 shrink-0 text-right font-bold">{countLabel(row.points, 'pt')}</span>
                 </li>
               )

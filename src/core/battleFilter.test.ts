@@ -39,6 +39,11 @@ test('a matchup reads either side for a spectator', () => {
   expect(matches({ faction: { in: ['necrons'], out: [] }, against: { in: ['orks'], out: [] } })).toBe(true)
 })
 
+test('an army matches a battle that fielded an older rules version of it', () => {
+  const older = { ...battle, factions: [{ ...faction('necrons'), slug: 'codex-2025~necrons-id' }, ...battle.factions.slice(1)] }
+  expect(matchesBattle(older, { faction: { in: ['necrons'], out: [] } }, 'ana', 1_000, 1_000)).toBe(true)
+})
+
 test('a seated viewer filters by their own side', () => {
   expect(matches({ faction: { in: ['necrons'], out: [] } }, 'ana')).toBe(false)
 })

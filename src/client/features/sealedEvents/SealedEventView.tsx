@@ -445,7 +445,7 @@ export function SealedEventView({
             <SealedEventResults
               event={eventName(sealedEvent)}
               rows={results.swiss}
-              swiss
+              format="swiss"
               partial={results.partial}
               entries={accepted}
               label={label}

@@ -138,7 +138,8 @@ const mean = (values: readonly number[]) => values.reduce((total, value) => tota
 /** The overall table's key. A faction table's key is its army's slug, which every rules version of the army shares. */
 export const OVERALL = ''
 
-const armyOf = (faction: StandingFaction) => routeSlug(faction.displayName)
+/** The army a faction belongs to, which every rules version of it shares. */
+export const armyOf = (faction: StandingFaction) => routeSlug(faction.displayName)
 
 /** One player's place in one table as it stands: their skill and their record so far. */
 export type Rated = { skill: Rating; row: Standing }

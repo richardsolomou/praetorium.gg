@@ -87,8 +87,6 @@ export function ServiceRecordPanel({
               { label: 'Primary', value: oneDecimal(record.averagePrimary) },
               { label: 'Secondary', value: oneDecimal(record.averageSecondary) },
               { label: 'CP spent', value: oneDecimal(record.averageCpSpent) },
-              // A side that spent nothing has no rate to divide into, so the cell is absent rather than zero.
-              ...(record.pointsPerCp === null ? [] : [{ label: 'VP per CP', value: oneDecimal(record.pointsPerCp) }]),
             ]}
           />
           <CareerTables record={record} />
