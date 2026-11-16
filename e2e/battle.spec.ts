@@ -179,10 +179,19 @@ test('a double tap on the turn control ends one phase', async ({ page }) => {
   await expect(advanceButton(page)).toBeEnabled()
   const box = (await advanceButton(page).boundingBox())!
   const tap = () => page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
-  // Before the first tap's result shows.
-  await tap()
-  await page.waitForTimeout(30)
-  await tap()
+  // Before the first tap's result shows; timed in the page, since two driver round trips on a loaded CI runner can outlast the double-tap window.
+  await page.evaluate(
+    ({ x, y }) =>
+      new Promise<void>((resolve) => {
+        const tapAt = () => (document.elementFromPoint(x, y) as HTMLElement).click()
+        tapAt()
+        window.setTimeout(() => {
+          tapAt()
+          resolve()
+        }, 30)
+      }),
+    { x: box.x + box.width / 2, y: box.y + box.height / 2 },
+  )
   await expect(advanceButton(page)).toBeEnabled()
   await expect(heading).toContainText('movement phase')
   // Just after it shows; a fixed sleep stretches past the double-tap window on a loaded CI runner.
