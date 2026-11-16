@@ -15,7 +15,7 @@ const SOURCE = 'https://40kstats.tabletopbattles.com'
 const HEADERS = { 'user-agent': 'praetorium.gg (+https://praetorium.gg)' }
 /**
  * An import holds the event loop (half a second on the production server), so the pause after each is this many times
- * as long, leaving requests the rest of the time while a new catalogue revision checks every list again.
+ * as long as it took, waits included, leaving requests the rest of the time while a new catalogue revision checks every list again.
  */
 const PAUSE_PER_IMPORT = 4
 /** A first fill downloads a few hundred lists, so they are spaced out rather than requested back to back. */

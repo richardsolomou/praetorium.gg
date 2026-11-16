@@ -122,6 +122,15 @@ it.each([
   await localEngine()!.sync()
   expect(mocks.syncRoster.mock.lastCall?.[0].data.expectedVersion).toBe(2)
 })
+it.each([
+  ['access', rosterAccess, mocks.access, 'roster-access'],
+  ['bootstrap', rosterBootstrap, mocks.bootstrap, 'roster-bootstrap'],
+] as const)('shows the copy a library change saved when a %s read fails', async (_name, read, remote, key) => {
+  client.setQueryData([key, 'army'], { roster: original, editable: true, faction: null, variants: [], price: null, changes: [] })
+  await rememberDocument('roster:army', { ...original, name: 'Archived', updatedAt: 5 }, 5, 'alice')
+  remote.mockRejectedValue(new DOMException('The operation was aborted.', 'AbortError'))
+  expect((await read({ data: { id: 'army' } }))?.roster.name).toBe('Archived')
+})
 it('keeps a newly acknowledged roster when an older summary list arrives', async () => {
   let finish!: (value: unknown[]) => void
   mocks.summaries.mockReturnValue(

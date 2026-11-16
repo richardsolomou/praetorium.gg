@@ -240,9 +240,11 @@ function TopFourLists({
       <ul className="mt-3 runner gap-1.5 [--gate-y:1.25rem]">
         {lists.slice(0, SHOWN_LISTS).map((list) => (
           <li key={list.id}>
+            {/* Opening a list imports it on the server, so passing a pointer or a finger over links must not ask for each. */}
             <Link
               to="/rosters/winning/$listId"
               params={{ listId: list.id }}
+              preload={false}
               className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 part px-4 py-2 text-sm hover:border-runner-hi hover:bg-raised"
             >
               <span className="chip shrink-0">{placingLabel(list.placing)}</span>
