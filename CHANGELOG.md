@@ -1,5 +1,16 @@
 # praetorium
 
+## 0.259.0 (2026-11-16)
+
+### Minor Changes
+
+- baaf4e7: Lists from Mini Headquarters now import, in its own layout and in the sectioned layout French events publish.
+
+### Patch Changes
+
+- baaf4e7: Translated lists now match names that differ from the official app's only in accents, plurals or word order.
+- baaf4e7: WTC-style lists that price units in points, as "10x Skitarii Rangers (85 points)", now import those units and their models.
+
 ## 0.258.0 (2026-11-16)
 
 ### Minor Changes
