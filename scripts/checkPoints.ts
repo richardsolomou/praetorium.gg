@@ -230,10 +230,15 @@ for (const faction of factions) {
 
     const [entry] = candidates
     if (!entry) continue
+    // A player picks the book's link, not its target, and a modifier can be scoped to the link's id.
+    const picked =
+      [...(index.datasheets.get(primaryCatalogueId ?? '') ?? [])].find(
+        (id) => targetOf(index.definitions.get(id) ?? { id }, index.definitions).id === entry.id,
+      ) ?? entry.id
     for (const tier of tiers) {
       // The app builds a unit the same way, through the same function, so this
       // number is about the evaluator rather than about this script's guesswork.
-      const built = buildUnit(entry.id, index, tier.models, undefined, { primaryCatalogueId: unitCatalogueId })
+      const built = buildUnit(picked, index, tier.models, undefined, { primaryCatalogueId: unitCatalogueId })
       // The manual calls a fixed datasheet one priced model even when its
       // catalogue selection contains a required companion, such as Sir Hekhtur.
       const fixedDatasheet = built && tier.models === 1 && !isResizable(built.size)
