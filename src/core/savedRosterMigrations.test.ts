@@ -41,6 +41,11 @@ it('moves a stored roster on a folded rules version, and its allied picks, to th
   })
 })
 
+it('stores the rules version a roster was last saved on, so a later timestamp bump cannot move it', () => {
+  const stored = { ...row, catalogueId: '470a-6daa-9014-12df', detachmentId: '["3caf-c168-c372-51b1"]', updatedAt: 1n }
+  expect(migrateStoredRoster(stored).catalogueId).toBe('legacy-rosters~470a-6daa-9014-12df')
+})
+
 it('refuses malformed picks instead of replacing a saved army', () => {
   expect(() => migrateStoredRoster({ ...row, picks: '{' })).toThrow()
 })

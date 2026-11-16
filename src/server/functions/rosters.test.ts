@@ -170,6 +170,7 @@ it.each([
 ])('copies a played army from %s on its resolved rules', async (catalogueId, expected) => {
   mocks.playedArmy.mockResolvedValue({
     name: 'Army',
+    playedAt: 0,
     catalogueId,
     detachmentIds: ['3caf-c168-c372-51b1'],
     disposition: null,

@@ -76,7 +76,13 @@ export function battleDigest(state: BattleState, log: readonly Pick<LoggedComman
       const built = player.roster?.built
       const opposing = opposingSide(state, player.side)
       const copy =
-        built && copiedArmy({ catalogueId: built.catalogueId, detachmentIds: built.detachmentIds ?? [], picks: built.picks ?? [] })
+        built &&
+        copiedArmy({
+          catalogueId: built.catalogueId,
+          detachmentIds: built.detachmentIds ?? [],
+          picks: built.picks ?? [],
+          playedAt: log.at(-1)?.at,
+        })
       return {
         id: player.id,
         side: player.side,

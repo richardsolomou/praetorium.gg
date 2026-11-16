@@ -112,6 +112,7 @@ it.skipIf(!fs.existsSync(directory))(
         { entryId: '7dff-dd08-e80c-9117', attachedTo: 9 },
         { entryId: 'da66-4d12-2b43-4360' },
       ] as RosterPick[],
+      updatedAt: 0,
     }
     const migrated = currentRosterIds(roster)
     const loaded = catalogue()

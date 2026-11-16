@@ -79,6 +79,7 @@ describe('retired catalogue ids', () => {
           { entryId: calgar.retired },
           { entryId: intercessors.retired, catalogueId: spaceMarines.retired, models: 10, attachedTo: 0 },
         ],
+        updatedAt: 0,
       }),
     ).toEqual({
       catalogueId: `legacy-profiles~${ultramarines.retired}`,
@@ -88,6 +89,7 @@ describe('retired catalogue ids', () => {
         { entryId: calgar.retired },
         { entryId: intercessors.retired, catalogueId: `legacy-profiles~${spaceMarines.retired}`, models: 10, attachedTo: 0 },
       ],
+      updatedAt: 0,
     })
   })
 
@@ -178,6 +180,10 @@ describe('retired catalogue ids', () => {
     [1792067002000, '1f19-6509-d906-ca10'],
   ])('reads a Custodes roster last saved at %i on %s', (updatedAt, catalogueId) => {
     expect(currentRosterIds({ catalogueId: '1f19-6509-d906-ca10', detachmentIds: [], updatedAt }).catalogueId).toBe(catalogueId)
+  })
+
+  it('reads a plain book id with no save date, as a save sends it, as the current rules', () => {
+    expect(currentRosterIds({ catalogueId: '1f19-6509-d906-ca10', detachmentIds: [] }).catalogueId).toBe('1f19-6509-d906-ca10')
   })
 
   it('finds a Custodes preview roster that reads as the current codex', () => {

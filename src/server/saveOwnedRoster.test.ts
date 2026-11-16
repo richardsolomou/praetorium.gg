@@ -149,7 +149,7 @@ it('saves a reviewed conversion as a variant and leaves its name and access to t
 
 it.each([
   ['current-rosters~2261-79a5-19d9-1668', '2261-79a5-19d9-1668'],
-  ['2261-79a5-19d9-1668', 'legacy-rosters~2261-79a5-19d9-1668'],
+  ['2261-79a5-19d9-1668', '2261-79a5-19d9-1668'],
 ])('keeps a reviewed variant on the rules resolved from %s', async (catalogueId, expected) => {
   library([base])
   const data = copyRosterSchema.parse({

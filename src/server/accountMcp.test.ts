@@ -117,7 +117,7 @@ it('reports a visibility change an agent makes', async () => {
 
 it.each([
   ['current-rosters~2261-79a5-19d9-1668', '2261-79a5-19d9-1668'],
-  ['2261-79a5-19d9-1668', 'legacy-rosters~2261-79a5-19d9-1668'],
+  ['2261-79a5-19d9-1668', '2261-79a5-19d9-1668'],
 ])('saves MCP input on %s as %s without remigrating it', async (catalogueId, expected) => {
   saveOwnedRoster.mockResolvedValueOnce({ id: 'roster-1', updatedAt: 1 })
   await call('player-1', 'save_roster', { ...roster, catalogueId, detachmentIds: ['3caf-c168-c372-51b1'] })

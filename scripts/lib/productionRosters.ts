@@ -211,7 +211,14 @@ export async function fetchProductionRosters(
 
 /** A saved roster as it reads once the deploy's product data migration has rewritten its stored row. */
 function deployedRosterIds(stored: ProductionRosterSnapshot['rosters'][number]) {
-  const row = migrateStoredRoster({ name: '', catalogueId: stored.catalogueId, picks: JSON.stringify(stored.picks) })
+  const row = migrateStoredRoster({
+    name: '',
+    catalogueId: stored.catalogueId,
+    detachmentId: JSON.stringify(stored.detachmentIds),
+    borrowedDetachmentId: stored.borrowedDetachmentId,
+    picks: JSON.stringify(stored.picks),
+    updatedAt: stored.updatedAt,
+  })
   return currentRosterIds({ ...stored, catalogueId: row.catalogueId, picks: JSON.parse(row.picks) as typeof stored.picks })
 }
 

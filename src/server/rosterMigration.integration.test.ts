@@ -69,15 +69,7 @@ it('seals a capture the device already resolved to the current roster', async ()
     undefined,
   )
 })
-it('still recognizes plain older input when checking a queued retained roster', async () => {
+it('asks for a review of plain older input queued against a retained roster', async () => {
   saved(`legacy-rosters~${book}`)
-  await seal(book)
-  expect(submit).toHaveBeenCalledWith(
-    'event',
-    'player',
-    expect.objectContaining({ catalogueId: `legacy-rosters~${book}` }),
-    { name: 'Army' },
-    undefined,
-    undefined,
-  )
+  await expect(seal(book)).rejects.toMatchObject({ status: 409 })
 })

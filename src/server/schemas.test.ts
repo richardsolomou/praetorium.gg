@@ -332,7 +332,7 @@ describe('catalogue loadout migrations at request boundaries', () => {
   })
 })
 
-it('retains original rules consistently when a roster is priced, saved, or opened', () => {
+it('reads an undated plain book ID as the current rules when a roster is priced, saved, or opened', () => {
   const roster = {
     catalogueId: 'a603-5039-f08d-e841',
     detachmentIds: ['profile-detachment-option-a603-5039-f08d-e841-f367-3240-47c1-7e1a'],
@@ -344,5 +344,5 @@ it('retains original rules consistently when a roster is priced, saved, or opene
     priceSchema.parse({ ...roster, units: [pick] }).catalogueId,
     saveRosterSchema.parse({ ...roster, name: '', picks: [pick], prep: null }).catalogueId,
     datasheetSchema.parse({ ...roster, entryId: pick.entryId, picks: [pick] }).catalogueId,
-  ]).toEqual(Array(3).fill('legacy-profiles~a603-5039-f08d-e841'))
+  ]).toEqual(Array(3).fill('4029-9237-e8db-af55'))
 })
