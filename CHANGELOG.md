@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.257.1 (2026-11-16)
+
+### Patch Changes
+
+- 05e33b0: Giving a Tankbusta the pulsa rokkit, or another specialist in a squad of fixed size, now swaps out one of its squadmates instead of adding a model.
+
 ## 0.257.0 (2026-11-16)
 
 ### Minor Changes
