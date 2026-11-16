@@ -1,5 +1,14 @@
 # praetorium
 
+## 0.257.10 (2026-11-16)
+
+### Patch Changes
+
+- a829e8f: A new Apps page lists the iPhone and Android apps and every AI assistant Praetorium works in, linked from Home, More and the site footer.
+- f2ba353: More help pages now show where to go and what to press, with up-to-date pictures of each screen.
+- a829e8f: The site footer's links are shorter: Privacy, Terms and Sources.
+- f2ba353: The battle setup help now lists the steps the setup page actually shows.
+
 ## 0.257.9 (2026-11-16)
 
 ### Patch Changes
