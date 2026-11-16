@@ -261,6 +261,18 @@ function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoi
     phases: rule.phases?.length ? rule.phases : [...COMBAT_PHASES],
     conditions: [],
   }
+  const together =
+    /^(?:(?:At the start of the battle round, )?you can select one friendly .+? within (\d+)" of (?:the bearer|this model)[.;] )?(?:until [^,]+, )?the ([^,.]+?) and (?:the )?([^,.]+?) are both active for (?:the bearer's unit|this unit|your unit|that unit)\.?$/i.exec(
+      text,
+    )
+  if (together) {
+    const activates = [together[2]!, together[3]!]
+    const effects = (['attacker', 'defender'] as const).map((role) => ({ role, phases: initial.phases, activates }))
+    return {
+      choices: [{ label: together[1] ? `Selected unit within ${together[1]}"` : 'Active', effects }],
+      defaultChoice: !together[1] && (rule.scope === 'unit' || rule.scope === 'attached') ? 1 : 0,
+    }
+  }
   const effect = (context: Context, fields: Partial<CombatRuleEffect>): Clause[] | null => {
     if (
       (context.weapon || context.targetKeywords || context.excludedTargetKeywords) &&

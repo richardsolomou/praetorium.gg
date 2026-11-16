@@ -105,6 +105,8 @@ export type CombatRuleEffect = {
   mortalWounds?: NonNullable<CombatInput['mortalWounds']>[number] & { perModel?: boolean; sacrifice?: number }
   damageReroll?: 'ones' | 'any'
   damageReduction?: number
+  /** Options of the unit's other rules this makes active together, as an enhancement that makes two Doctrina Imperatives active. */
+  activates?: string[]
 }
 export type CombatRuleChoice = { label: string; effects: CombatRuleEffect[] }
 /** `source` names the unit whose ability it is, so a combined estimate can end it when that unit is destroyed (19.04). */
@@ -117,16 +119,42 @@ export const combatRuleProjected = (rule: Pick<ActiveCombatRule, 'name' | 'appli
 export const combatRuleKey = (rule: CombatRule) => `${rule.source}:${rule.name}`
 
 export function activeCombatRules(rules: readonly CombatRule[], choices: Readonly<Record<string, number>>) {
+  const chosen = rules.map((rule) => ({
+    rule,
+    options: combatRuleChoices(rule),
+    at: (choices[combatRuleKey(rule)] ?? combatRuleDefault(rule)) - 1,
+  }))
+  const together = [
+    ...new Set(
+      chosen.flatMap(({ options, at }) => options[at]?.effects.flatMap((effect) => effect.activates ?? []) ?? []).map(combatTextKey),
+    ),
+  ]
   return [
     ...new Map(
-      rules.flatMap((rule) => {
-        const choice = combatRuleChoices(rule)[(choices[combatRuleKey(rule)] ?? combatRuleDefault(rule)) - 1]
-        return choice
-          ? [[rule.name, { name: rule.name, source: rule.source, appliedAs: rule.appliedAs, effects: choice.effects }] as const]
-          : []
+      chosen.flatMap(({ rule, options, at }) => {
+        const effects = (together.length ? effectsTogether(options, at, together) : undefined) ?? options[at]?.effects
+        return effects ? [[rule.name, { name: rule.name, source: rule.source, appliedAs: rule.appliedAs, effects }] as const] : []
       }),
     ).values(),
   ]
+}
+
+/**
+ * Every named option of a rule at once, each under the condition its chosen option states, or undefined where the rule
+ * lacks one of them. The round's choice no longer matters once both Doctrina Imperatives are active for a unit.
+ */
+function effectsTogether(options: readonly CombatRuleChoice[], at: number, names: readonly string[]) {
+  const parts = options.map((choice) => {
+    const [head, ...condition] = choice.label.split(' · ')
+    return { choice, head: combatTextKey(head!), condition: condition.join(' · ') }
+  })
+  const condition = parts[at] && names.includes(parts[at].head) ? parts[at].condition : ''
+  const picked = names.map(
+    (name) =>
+      parts.find((part) => part.head === name && part.condition === condition) ??
+      parts.find((part) => part.head === name && !part.condition),
+  )
+  return picked.every(Boolean) ? picked.flatMap((part) => part!.choice.effects) : undefined
 }
 
 /** A defence another attached member shares that the roster already counts in this unit's characteristics, so no estimate can remove it. */
@@ -344,10 +372,12 @@ export function combatRuleRoles(description: string): CombatRuleEffect['role'][]
     /(?:weapons? equipped by|attacks? made by) (?:models in )?(?:that enemy|enemy|the attacking) unit|enemy unit [^.;]*?each time a model in that unit makes/i.test(
       text,
     )
-  const attacker = (offensiveTarget && (attacking || defending || /mortal wounds/i.test(text))) || (attacking && !enemyWeapons)
+  // Options another rule offers, as both Doctrina Imperatives, can change how a unit attacks and is attacked.
+  const activates = /\bare both active for\b/i.test(text)
+  const attacker = activates || (offensiveTarget && (attacking || defending || /mortal wounds/i.test(text))) || (attacking && !enemyWeapons)
   // Names the side's own units outright, so an offensive clause elsewhere in the rule cannot make it the enemy's.
   const ownDefending = /attacks? (?:that )?targets? (?:friendly|an? [^.;]*?unit from your army)/i.test(incoming)
-  const defender = enemyWeapons || ownDefending || (defending && !offensiveTarget)
+  const defender = activates || enemyWeapons || ownDefending || (defending && !offensiveTarget)
   return [...(attacker ? ['attacker' as const] : []), ...(defender ? ['defender' as const] : [])]
 }
 
@@ -527,6 +557,8 @@ export function combatRuleProfiles(
           if (effect.keyword) {
             const keyword = effect.keyword
             const existing = values.find((value) => datasheetCharacteristicKind(value.name) === 'keywords')
+            const printed = profile.values.find((value) => datasheetCharacteristicKind(value.name) === 'keywords')
+            if (effectRole === role && combatRuleProjected(rule, printed?.modifiers)) continue
             const held = splitWeaponKeywords(existing?.value)
             const numbered = combatKeyword(keyword)
             if (held.some((value) => combatTextKey(value) === combatTextKey(keyword))) continue

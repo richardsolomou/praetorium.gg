@@ -37,6 +37,8 @@ export type Datasheet = {
     /** What its text suggests for a reminder, recorded where the text is a token. */
     reminder?: ReminderSuggestion
   }[]
+  /** The abilities of the enhancements the unit takes, which pages print with the choice instead of as abilities. */
+  enhancements?: Datasheet['abilities']
   composition: string[]
   loadout: string | null
   wargearOptions: string[]

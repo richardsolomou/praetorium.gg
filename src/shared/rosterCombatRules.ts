@@ -263,7 +263,7 @@ function rosterCombatRules(
       if (judged) candidates.push(judged)
     }
   }
-  for (const ability of sheet.abilities) {
+  for (const ability of [...sheet.abilities, ...(sheet.enhancements ?? [])]) {
     if (!ability.description) continue
     add(
       {
@@ -272,6 +272,7 @@ function rosterCombatRules(
         source: sheet.name,
         description: ability.description,
         scope: 'unit',
+        ...(ability.kind === 'upgrade' && ability.source ? { appliedAs: [ability.source] } : {}),
         // Projection applies a Feel No Pain as a core ability, and one limited to models with a keyword to those models alone.
         included:
           (ability.kind === 'core' && /^Feel No Pain [2-6]\+$/.test(ability.name)) ||
@@ -284,10 +285,17 @@ function rosterCombatRules(
   }
   for (const { unit, source } of others) {
     if (source) supportKeywords.push(source.keywords)
-    for (const ability of source?.abilities ?? []) {
+    for (const ability of [...(source?.abilities ?? []), ...(source?.enhancements ?? [])]) {
       if (!ability.description || ability.kind === 'core' || ability.kind === 'faction') continue
       add(
-        { id: `roster:${ability.id}`, name: ability.name, source: source!.name, description: ability.description, scope: 'nearby' },
+        {
+          id: `roster:${ability.id}`,
+          name: ability.name,
+          source: source!.name,
+          description: ability.description,
+          scope: 'nearby',
+          ...(ability.kind === 'upgrade' && ability.source ? { appliedAs: [ability.source] } : {}),
+        },
         { origin: 'support', attached: attached.includes(unit.pickIndex) },
       )
     }

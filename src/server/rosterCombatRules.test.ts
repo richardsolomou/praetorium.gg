@@ -158,3 +158,38 @@ it('offers a Command-phase stratagem in both combat phases', () => {
   const rule = rosterCombatant(book, commandRules, input)?.rules.find((candidate) => candidate.id === 'stratagem:resurgent')
   expect(rule?.phases).toEqual(['ranged', 'melee'])
 })
+
+describe('an enhancement from a shared list', () => {
+  const linked = bookOf({
+    sharedSelectionEntryGroups: [
+      {
+        id: 'enhancements',
+        name: 'Enhancements',
+        constraints: [{ id: 'enhancement-max', type: 'max' as const, value: 1, field: 'selections', scope: 'parent' }],
+        selectionEntries: [
+          {
+            id: 'keen-eye',
+            name: 'Keen Eye',
+            type: 'upgrade',
+            profiles: [profile('Keen Eye', 'Each time a model in this unit makes an attack, add 1 to the Hit roll.')],
+          },
+        ],
+      },
+    ],
+    selectionEntries: [
+      {
+        id: 'bearer',
+        name: 'Bearer',
+        type: 'model',
+        entryLinks: [{ id: 'bearer-enhancements', name: 'Enhancements', targetId: 'enhancements', type: 'selectionEntryGroup' }],
+      },
+    ],
+  })
+  it("fields the enhancement's ability on the model that takes it", () =>
+    expect(
+      rosterCombatant(linked, null, {
+        ...input,
+        picks: [{ entryId: 'bearer', choices: { 'bearer-enhancements': 'keen-eye' } }],
+      })?.rules.map((rule) => rule.name),
+    ).toEqual(['Keen Eye']))
+})
