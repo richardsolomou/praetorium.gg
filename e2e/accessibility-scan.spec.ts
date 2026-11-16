@@ -7,6 +7,12 @@ import { addUnit, createRoster, practiceBattle, signUp, startBattle, uniqueName 
  * Lesser findings and rules outside those levels are judged by eye.
  */
 async function expectNoSeriousViolations(page: Page) {
+  // Contrast read while something fades in blends it with the page behind, so wait for finite animations to end.
+  await page.waitForFunction(() =>
+    document
+      .getAnimations()
+      .every((animation) => animation.playState !== 'running' || animation.effect?.getTiming().iterations === Infinity),
+  )
   const { violations } = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']).analyze()
   const serious = violations
     .filter(({ impact }) => impact === 'serious' || impact === 'critical')
