@@ -69,8 +69,8 @@ async function guestTicket(config: RealtimeConfig) {
 const hidden = () => globalThis.document?.visibilityState === 'hidden'
 /** Telemetry for one of the page's connections: the battle being viewed, or the product signals every page holds. */
 const outages = (kind: 'battle' | 'product') => ({
-  lost: (how: 'interrupted' | 'failed', wasUp: boolean) =>
-    posthog.capture('realtime_connection_lost', { how, hidden: hidden(), connection: kind, was_up: wasUp }),
+  lost: (how: 'interrupted' | 'failed', wasUp: boolean, unseen: boolean) =>
+    posthog.capture('realtime_connection_lost', { how, hidden: unseen, connection: kind, was_up: wasUp }),
   restored: (downMs: number) =>
     posthog.capture('realtime_connection_restored', { down_ms: Math.round(downMs), hidden: hidden(), connection: kind }),
 })

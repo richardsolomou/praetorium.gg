@@ -25,14 +25,19 @@ const RECOVERY_MS = 30_000
 /** Inside the five-minute token, because only a new connection extends its `session_access`; the SDK's own reconnect does not. */
 const TOKEN_REFRESH_MS = 4 * 60 * 1_000
 const OUTAGE_ATTEMPTS = 5
+/** The SDK notices a socket that died while the page was suspended only once the page is shown again, within moments. */
+const RESUME_MS = 5_000
 
 export function maintainSpacetimeConnection<T>(options: {
   issue: () => Promise<T | null>
   open: (issued: T, link: SpacetimeLink<T>) => Connection
   inactive: () => void
   report: (error: unknown) => void
-  /** Called once per outage, when a connection drops or fails; another follows only after it recovers. `wasUp` is whether a subscription ever applied. */
-  lost?: (how: 'interrupted' | 'failed', wasUp: boolean) => void
+  /**
+   * Called once per outage, when a connection drops or fails; another follows only after it recovers. `wasUp` is whether a
+   * subscription ever applied, and `hidden` whether the page is hidden or has only just been shown, so the loss happened unseen.
+   */
+  lost?: (how: 'interrupted' | 'failed', wasUp: boolean, hidden: boolean) => void
   /** Called when the subscription applies again after a loss, with how long it was down: a deploy's swap takes seconds. */
   restored?: (downMs: number) => void
   /** Whether tickets expire and need refreshing; otherwise every reconnect reuses the ticket the connection opened with. */
@@ -52,6 +57,8 @@ export function maintainSpacetimeConnection<T>(options: {
   let recovery: ReturnType<typeof setTimeout> | undefined
   let refresh: ReturnType<typeof setTimeout> | undefined
   let refreshAt: number | undefined
+  let shownAt: number | undefined
+  const page = globalThis.document
 
   const reportOnce = (error: unknown) => {
     if (reported) return
@@ -63,7 +70,8 @@ export function maintainSpacetimeConnection<T>(options: {
     if (lost) return
     lost = true
     lostAt = Date.now()
-    options.lost?.(how, wasUp)
+    const hidden = page?.visibilityState === 'hidden' || (shownAt !== undefined && lostAt - shownAt < RESUME_MS)
+    options.lost?.(how, wasUp, hidden)
   }
 
   const note = (error?: unknown) => {
@@ -90,9 +98,11 @@ export function maintainSpacetimeConnection<T>(options: {
   }
 
   // A suspended page's timers stop while the token's expiry does not, so a page shown again reschedules the renewal by the clock.
-  const page = globalThis.document
+  // Registered before any connection opens, so it runs ahead of the SDK's own check for a socket that died while suspended.
   const resumed = () => {
-    if (page.visibilityState !== 'visible' || refreshAt === undefined) return
+    if (page.visibilityState !== 'visible') return
+    shownAt = Date.now()
+    if (refreshAt === undefined) return
     clearTimeout(refresh)
     refresh = setTimeout(renewConnection, refreshAt - Date.now())
   }

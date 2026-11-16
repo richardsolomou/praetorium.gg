@@ -106,8 +106,19 @@ export async function rosterAccess(args: Parameters<typeof server.rosterAccess>[
   if (local !== undefined && (!navigator.onLine || (await hasLocalChanges(resource))))
     return local ? accessOf(local, await localEngine()?.storage.read()) : null
   try {
-    const result = await cachedRead(rosterAccessKey(args.data.id), () => server.rosterAccess(args))
-    if (result?.editable || (!result && (local !== undefined || (await localDocument(resource)) !== undefined))) {
+    let answered = false
+    const result = await cachedRead(rosterAccessKey(args.data.id), async () => {
+      const answer = await server.rosterAccess(args)
+      answered = true
+      return answer
+    })
+    // A copy shown after a failed read can be this device's unsynced edit, whose updatedAt is a device time, not a server
+    // version, so it is never saved; this device's own copy is newer than it whenever a library change replaced it.
+    if (!answered && local !== undefined) {
+      const current = await localDocument<LocalRoster | null>(resource)
+      return current ? accessOf(current, await localEngine()?.storage.read()) : null
+    }
+    if (answered && (result?.editable || (!result && (local !== undefined || (await localDocument(resource)) !== undefined)))) {
       const saved = await rememberDocument(
         resource,
         result?.roster ?? null,
@@ -154,8 +165,14 @@ export async function rosterBootstrap(args: Parameters<typeof server.rosterBoots
   }
   if (local !== undefined && (!navigator.onLine || (await hasLocalChanges(resource)))) return fromLocal()
   try {
-    const result = await cachedRead(rosterBootstrapKey(args.data.id), () => server.rosterBootstrap(args))
-    if (result?.editable || (!result && (local !== undefined || (await localDocument(resource)) !== undefined))) {
+    let answered = false
+    const result = await cachedRead(rosterBootstrapKey(args.data.id), async () => {
+      const answer = await server.rosterBootstrap(args)
+      answered = true
+      return answer
+    })
+    if (!answered && local !== undefined) return fromLocal(await localDocument<LocalRoster | null>(resource), result?.changes ?? [])
+    if (answered && (result?.editable || (!result && (local !== undefined || (await localDocument(resource)) !== undefined)))) {
       const current = await localDocument<LocalRoster | null>(resource)
       // Saved without waiting: a save queues behind every other one this device makes, and its own guards keep a newer copy.
       void rememberDocument(resource, result?.roster ?? null, result?.roster.updatedAt ?? null, owner, local?.updatedAt ?? null).catch(

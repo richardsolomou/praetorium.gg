@@ -108,6 +108,29 @@ it.each([
     cached: client.getQueryData<{ roster: typeof original }>([key, 'army'])?.roster.name,
   }).toEqual({ saved: 'New', version: 2, returned: 'New', cached: 'New' })
 })
+it.each([
+  ['access', rosterAccess, mocks.access],
+  ['bootstrap', rosterBootstrap, mocks.bootstrap],
+] as const)('sends the acknowledged version after a failed %s read shows the saved copy', async (_name, read, remote) => {
+  // The device clock runs ahead of the server, so the edit's own time is later than the version the server gives it.
+  vi.spyOn(Date, 'now').mockReturnValue(10)
+  await saveRoster({ data: { ...original, name: 'New' } })
+  await localEngine()!.sync()
+  remote.mockRejectedValue(new DOMException('The operation was aborted.', 'AbortError'))
+  await read({ data: { id: 'army' } })
+  await saveRoster({ data: { ...original, name: 'Newer' } })
+  await localEngine()!.sync()
+  expect(mocks.syncRoster.mock.lastCall?.[0].data.expectedVersion).toBe(2)
+})
+it.each([
+  ['access', rosterAccess, mocks.access, 'roster-access'],
+  ['bootstrap', rosterBootstrap, mocks.bootstrap, 'roster-bootstrap'],
+] as const)('shows the copy a library change saved when a %s read fails', async (_name, read, remote, key) => {
+  client.setQueryData([key, 'army'], { roster: original, editable: true, faction: null, variants: [], price: null, changes: [] })
+  await rememberDocument('roster:army', { ...original, name: 'Archived', updatedAt: 5 }, 5, 'alice')
+  remote.mockRejectedValue(new DOMException('The operation was aborted.', 'AbortError'))
+  expect((await read({ data: { id: 'army' } }))?.roster.name).toBe('Archived')
+})
 it('keeps a newly acknowledged roster when an older summary list arrives', async () => {
   let finish!: (value: unknown[]) => void
   mocks.summaries.mockReturnValue(

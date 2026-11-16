@@ -13,8 +13,11 @@ import { importRosterInput } from './rosterImport'
 
 const SOURCE = 'https://40kstats.tabletopbattles.com'
 const HEADERS = { 'user-agent': 'praetorium.gg (+https://praetorium.gg)' }
-/** An import holds the event loop for about a seventh of a second, so a pause after each keeps requests answering. */
-const PAUSE_MS = 100
+/**
+ * An import holds the event loop (half a second on the production server), so the pause after each is this many times
+ * as long as it took, waits included, leaving requests the rest of the time while a new catalogue revision checks every list again.
+ */
+const PAUSE_PER_IMPORT = 4
 /** A first fill downloads a few hundred lists, so they are spaced out rather than requested back to back. */
 const FETCH_PAUSE_MS = 250
 
@@ -180,13 +183,15 @@ async function importableLists(
       if (!(player.list in known)) {
         const text = await fs.readFile(listFile(directory, player.list), 'utf8').catch(() => null)
         if (text === null) continue
+        const started = performance.now()
         known[player.list] = await importVerdict(text)
+        const took = performance.now() - started
         // Saved as it goes, so a restart part way through carries on rather than starting again.
         if (++imported % 25 === 0) {
           await save()
           progress(sorted())
         }
-        await sleep(PAUSE_MS)
+        await sleep(PAUSE_PER_IMPORT * took)
       }
       const list = known[player.list]
       if (!list) continue
