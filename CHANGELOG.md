@@ -1,5 +1,15 @@
 # praetorium
 
+## 0.256.0 (2026-11-16)
+
+### Minor Changes
+
+- 1e6e0a3: A group league can have every player seal one list before it starts, revealed when the league is published and used for every fixture.
+
+### Patch Changes
+
+- f9e1df6: Sealing your first list into a hidden-list game now asks which Force Disposition it plays when the list offers several and names none.
+
 ## 0.255.1 (2026-11-16)
 
 ### Patch Changes
