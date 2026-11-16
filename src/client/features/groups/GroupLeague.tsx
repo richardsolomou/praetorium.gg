@@ -1,6 +1,6 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { CalendarClock, EllipsisVertical, Timer, LogOut, Send, Shuffle, Swords, Trash2, Trophy, UserPlus } from 'lucide-react'
+import { CalendarClock, EllipsisVertical, Timer, LogOut, Repeat, Send, Shuffle, Swords, Trash2, Trophy, UserPlus } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -17,6 +17,7 @@ import {
   groupPastLeague,
   joinGroupLeague,
   leaveGroupLeague,
+  nextGroupLeague,
   publishGroupLeague,
   setGroupLeagueClock,
   setGroupLeagueDeadline,
@@ -26,7 +27,7 @@ import { groupLeagueQuery, groupPastLeaguesQuery } from '../../queries'
 import { countLabel, formatList } from '../../text'
 import { useNow } from '../../useNow'
 import { SealedEventResults } from '../sealedEvents/SealedEventResults'
-import { useGroupRefresh, usePlayGroupGame, type Group } from './group'
+import { leagueOutcome, useGroupRefresh, usePlayGroupGame, type Group } from './group'
 import { LeagueLists, leaguePoints, SealLeagueList, StartLeagueDialog } from './GroupLeagueLists'
 import { useMoment, inputMoment, momentFromInput } from '../../dates'
 import { DropdownMenuItem } from '../../components/Menu'
@@ -75,10 +76,17 @@ function PastLeagues({ group }: { group: Group }) {
             <Button
               variant="ghost"
               size="sm"
+              className="h-auto min-h-8 max-w-full justify-start py-1.5 text-left whitespace-normal"
               aria-expanded={opened === past.id}
               onClick={() => setOpened(opened === past.id ? null : past.id)}
             >
-              Ended {moment(past.endedAt)} · {countLabel(past.players, 'player')}
+              {past.winners.length ? <Trophy aria-hidden className="text-parchment" /> : null}
+              <span>
+                {past.winners.length
+                  ? `${formatList(past.winners)} ${past.winners.length > 1 ? 'shared it' : 'won'} · ended ${moment(past.endedAt)}`
+                  : `Ended ${moment(past.endedAt)}`}
+                {` · ${countLabel(past.players, 'player')}`}
+              </span>
             </Button>
             {opened === past.id && table ? (
               <SealedEventResults
@@ -240,9 +248,10 @@ function PublishedLeague({ group, league, viewerId }: { group: Group; league: Le
     ) : null
   return (
     <section data-group-league className="space-y-6">
+      {league.complete ? <LeagueComplete group={group} league={league} /> : null}
       <SealedEventResults
         event={`${group.name} league`}
-        title="League table"
+        title={league.complete ? 'Final table' : 'League table'}
         rows={league.table}
         format="league"
         partial={false}
@@ -259,7 +268,7 @@ function PublishedLeague({ group, league, viewerId }: { group: Group; league: Le
               <span className="text-discarded">{overdue} overdue</span>
             </>
           ) : null}
-          . Play rounds in any order.
+          {league.complete ? '.' : '. Play rounds in any order.'}
         </p>
         <LeagueClock group={group} league={league} />
         <Rounds group={group} league={league} viewerId={viewerId} now={now} />
@@ -298,6 +307,55 @@ function PublishedLeague({ group, league, viewerId }: { group: Group; league: Le
         onConfirm={() => end.mutate()}
       />
     </section>
+  )
+}
+
+/**
+ * A league with nothing left to play: who won, and for organizers the next league, which opens as a draft with the same
+ * players so nobody has to join again.
+ */
+function LeagueComplete({ group, league }: { group: Group; league: League }) {
+  const refresh = useGroupRefresh(group.token)
+  const [confirming, setConfirming] = useState(false)
+  const next = useMutation({
+    mutationFn: () => nextGroupLeague({ data: { token: group.token } }),
+    onSettled: refresh,
+    onSuccess: () => setConfirming(false),
+  })
+  const members = new Set(group.members.filter((member) => member.status === 'accepted').map((member) => member.userId))
+  const staying = league.players.filter((player) => !player.withdrawn && members.has(player.userId))
+  return (
+    <div data-league-complete className="part flex flex-wrap items-center gap-x-4 gap-y-3 p-4 sm:p-5">
+      <Trophy aria-hidden className="size-6 shrink-0 text-parchment" />
+      <div className="min-w-0 flex-1 basis-56">
+        <h2 className="text-lg leading-tight font-bold break-words uppercase">{leagueOutcome(league)}</h2>
+        <p className="mt-1 text-sm text-dim">
+          Every game is played, so the table below is final.
+          {league.organizer ? ' Start the next league to run it again with the same players.' : null}
+        </p>
+      </div>
+      {league.organizer ? (
+        <Button className="pointer-coarse:h-11" onClick={() => (next.reset(), setConfirming(true))}>
+          <Repeat /> Start the next league
+        </Button>
+      ) : null}
+      <ConfirmDialog
+        open={confirming}
+        title="Start the next league?"
+        description={
+          league.game
+            ? `This league ends and its final table moves to Past leagues. The next opens as a draft that seals lists to the same points and house rules${league.clockLimitMinutes ? ', with the same chess clock' : ''}. Everyone seals a new list to join, and you publish it once they have.`
+            : `This league ends and its final table moves to Past leagues. The next opens as a draft with ${staying.length ? formatList(staying.map((player) => player.name)) : 'nobody'} already in${league.clockLimitMinutes ? ' and the same chess clock' : ''}. Anyone else in the group can join before you publish it.`
+        }
+        cancel="Not yet"
+        confirm="Start the next league"
+        pendingLabel="Starting…"
+        pending={next.isPending}
+        error={next.error}
+        onClose={() => setConfirming(false)}
+        onConfirm={() => next.mutate()}
+      />
+    </div>
   )
 }
 

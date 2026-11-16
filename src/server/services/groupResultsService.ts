@@ -1,4 +1,4 @@
-import { leagueDraw, leagueFixtureOverdue, leagueFixtureStatus } from '../../core/groupLeague'
+import { leagueComplete, leagueDraw, leagueFixtureOverdue, leagueFixtureStatus, leagueWinners } from '../../core/groupLeague'
 import { groupSummary } from '../../core/groupSummary'
 import type { BattleFilter, BattleOrder } from '../../core/battleFilter'
 import { isProvisional, sideScore, standings } from '../../core/standings'
@@ -228,8 +228,20 @@ export class GroupResultsService {
         battle: battle && { token: battle.token, status: battle.status, scores: [score(fixture.aId), score(fixture.bId)] as const },
       }
     })
+    const table = published
+      ? swissStandings(
+          league.players.map((player) => player.userId),
+          swissMatches(
+            fixtures.filter((fixture) => fixture.status !== 'void'),
+            battles,
+          ),
+        )
+      : []
+    const complete = published && leagueComplete(fixtures)
     return {
       published,
+      complete,
+      winnerIds: complete ? leagueWinners(table) : [],
       // The seed decides the draw, so only the organizers reviewing a draft are given it.
       seed: group.organizer && !published ? league.seed : null,
       organizer: group.organizer,
@@ -239,51 +251,67 @@ export class GroupResultsService {
       deadlines: league.deadlines,
       clockLimitMinutes: league.clockLimitMinutes,
       fixtures,
-      table: published
-        ? swissStandings(
-            league.players.map((player) => player.userId),
-            swissMatches(
-              fixtures.filter((fixture) => fixture.status !== 'void'),
-              battles,
-            ),
-          )
-        : [],
+      table,
     }
   }
 
   /** A group's ended leagues as stored, which a private group shows to members alone. */
   private async visiblePastLeagues(token: string, viewerId: string | null) {
     const found = await this.groupService.groupWithLeague(token, viewerId)
-    if (!found) return null
-    const { group } = found
-    return hiddenFromViewer(group, viewerId) ? null : group.pastLeagues
+    if (!found || hiddenFromViewer(found.group, viewerId)) return null
+    return { leagues: found.group.pastLeagues, battlesRevision: found.battlesRevision }
   }
 
-  /** A group's ended leagues, newest first, each named by the player who topped it. */
+  /**
+   * A group's ended leagues, newest first, each with who topped its final table. Their battles count for the group too,
+   * so the winners come from the group's held battles rather than a read per league.
+   */
   async groupPastLeagues(token: string, viewerId: string | null) {
-    const leagues = await this.visiblePastLeagues(token, viewerId)
-    return leagues && leagues.map(({ id, publishedAt, endedAt, players }) => ({ id, publishedAt, endedAt, players: players.length }))
+    const found = await this.visiblePastLeagues(token, viewerId)
+    if (!found) return null
+    const held = found.leagues.length ? (await this.heldGroupBattles(token, found.battlesRevision)).battles : []
+    return found.leagues.map((league) => {
+      const tokens = new Set(league.fixtures.map((fixture) => fixture.battleToken))
+      const battles = held.filter((card) => tokens.has(card.battle.token))
+      return {
+        id: league.id,
+        publishedAt: league.publishedAt,
+        endedAt: league.endedAt,
+        players: league.players.length,
+        // Its battles' rounds, so the group's battle lists still call them league games once it has ended.
+        rounds: league.fixtures.flatMap((fixture) => (fixture.battleToken ? [[fixture.battleToken, fixture.round] as const] : [])),
+        winners: leagueWinners(this.pastLeagueTable(league, battles, viewerId)).map(
+          (userId) => league.players.find((player) => player.userId === userId)?.name ?? 'A former member',
+        ),
+      }
+    })
   }
 
   /** One ended league's table, read from the battles its fixtures started, as a running league's is. */
   async groupPastLeague(token: string, leagueId: string, viewerId: string | null, factions: readonly BattleFaction[] = []) {
-    const league = (await this.visiblePastLeagues(token, viewerId))?.find((candidate) => candidate.id === leagueId)
+    const league = (await this.visiblePastLeagues(token, viewerId))?.leagues.find((candidate) => candidate.id === leagueId)
     if (!league) return null
-    const battles = this.battleFeedService.battleSummaries(await this.repository.battlesByLeague(token, leagueId), viewerId, null, factions)
+    const battles = await this.repository.battlesByLeague(token, leagueId)
+    return { players: league.players, game: league.game, table: this.pastLeagueTable(league, battles, viewerId, factions) }
+  }
+
+  private pastLeagueTable(
+    league: NonNullable<Awaited<ReturnType<GroupResultsService['visiblePastLeagues']>>>['leagues'][number],
+    histories: BattleCard[],
+    viewerId: string | null,
+    factions: readonly BattleFaction[] = [],
+  ) {
+    const battles = this.battleFeedService.battleSummaries(histories, viewerId, null, factions)
     const byToken = new Map(battles.map((battle) => [battle.token, battle]))
     const playing = new Set(league.players.filter((player) => !player.withdrawn).map((player) => player.userId))
     const fixtures = league.fixtures.filter((fixture) => {
       const battle = fixture.battleToken ? (byToken.get(fixture.battleToken) ?? null) : null
       return leagueFixtureStatus({ ...fixture, battle }, (userId) => playing.has(userId)) !== 'void'
     })
-    return {
-      players: league.players,
-      game: league.game,
-      table: swissStandings(
-        league.players.map((player) => player.userId),
-        swissMatches(fixtures, battles),
-      ),
-    }
+    return swissStandings(
+      league.players.map((player) => player.userId),
+      swissMatches(fixtures, battles),
+    )
   }
 
   /** The group a battle counts for, and for a seated player during setup the groups it could; a private group's name stays with its players. */

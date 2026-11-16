@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { LEAGUE_DEADLINE_REMINDER_MS, leagueDeadlineReminderDue, leagueDraw, leagueFixtureStatus } from './groupLeague'
+import { LEAGUE_DEADLINE_REMINDER_MS, leagueDeadlineReminderDue, leagueDraw, leagueFixtureStatus, leagueWinners } from './groupLeague'
 
 const players = (count: number) => Array.from({ length: count }, (_, index) => `p${index}`)
 const pairKey = ([a, b]: [string, string | null]) => [a, b ?? 'bye'].toSorted().join('|')
@@ -68,5 +68,17 @@ describe('a round’s deadline reminder', () => {
     const now = deadline - 1
     expect(leagueDeadlineReminderDue(deadline, deadline, now)).toBe(false)
     expect(leagueDeadlineReminderDue(deadline, deadline - 1000, now)).toBe(true)
+  })
+})
+
+describe('league winners', () => {
+  const row = (userId: string, points: number, vp: number) => ({ userId, played: 2, points, vp, schedule: 3 })
+
+  it('shares a win level on every tiebreak', () => {
+    expect(leagueWinners([row('a', 3, 80), row('b', 3, 80), row('c', 0, 40)])).toEqual(['a', 'b'])
+  })
+
+  it('gives a win level on points to the better tiebreak', () => {
+    expect(leagueWinners([row('a', 3, 80), row('b', 3, 70)])).toEqual(['a'])
   })
 })

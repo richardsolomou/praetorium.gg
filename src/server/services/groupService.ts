@@ -140,6 +140,21 @@ export class GroupService {
       this.notifier.notify([{ kind: 'group-league-deadline-reminder', actorId: '', recipientIds, groupToken, round }])
   }
 
+  /** Ends a complete league and opens a draft for the next, which keeps its players who are still in the group. */
+  async nextLeague(token: string, actorId: string) {
+    const result = await this.repository.nextGroupLeague(token, actorId, {
+      id: randomId(),
+      seed: randomInt(GROUP_LEAGUE_SEED_MAX + 1),
+      eventId: randomId(),
+      eventToken: randomToken(),
+      now: this.clock(),
+    })
+    if (result === 'drawn') return
+    if (result === 'missing') throw new Response('this group has no published league', { status: 404 })
+    if (result === 'unfinished') throw new Response('the league still has games to finish', { status: 409 })
+    throw new Response('only the group’s organizers can run a league', { status: 403 })
+  }
+
   async deleteLeague(token: string, actorId: string) {
     const result = await this.repository.deleteGroupLeague(token, actorId)
     if (result === 'deleted') return

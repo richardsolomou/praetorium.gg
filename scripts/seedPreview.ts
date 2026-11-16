@@ -950,7 +950,8 @@ async function seedInto(
 
   /**
    * A published league in the login's group, part played: finished games, one under way, an overdue round, a round still
-   * due and rounds with no deadline; and a draft in Sam's open group, for its owner to review and the login to join.
+   * due and rounds with no deadline; a draft in Sam's open group, for its owner to review and the login to join; and a
+   * complete one in a small group the login runs, every game played, for it to start the next.
    */
   async function createGroupLeagues() {
     const day = 86_400_000
@@ -1012,6 +1013,48 @@ async function seedInto(
       await repository.drawGroupLeague(open, wandererUserId, { id: 'preview-group-open-league', seed: 2, now: now() })
       for (const userId of [wandererUserId, strangerUserId, opponentUserId, rivalUserId])
         await repository.joinGroupLeague(open, userId, now())
+    }
+    const sunday = 'preview-group-sunday'
+    if (!(await repository.groupByToken(sunday))) {
+      await repository.createGroup({
+        id: sunday,
+        token: sunday,
+        ownerId: previewUserId,
+        name: 'Sunday Round Robin',
+        description: 'Three of us, everyone plays everyone once.',
+        visibility: 'private',
+        admission: 'automatic',
+        now: now(),
+      })
+      const sundayPlayers = [previewUserId, opponentUserId, rivalUserId]
+      for (const userId of sundayPlayers.slice(1)) await repository.joinGroup(sunday, userId, now())
+      await repository.drawGroupLeague(sunday, previewUserId, { id: 'preview-group-sunday-league', seed: 3, now: now() })
+      for (const userId of sundayPlayers) await repository.joinGroupLeague(sunday, userId, now())
+      await repository.publishGroupLeague(sunday, previewUserId, { seed: 3, playerIds: sundayPlayers, now: now() })
+      const fixtures = (await repository.groupByToken(sunday))!.league!.fixtures.filter((fixture) => fixture.bId !== null)
+      const results: [number, number][] = [
+        [68, 44],
+        [61, 57],
+        [49, 40],
+      ]
+      for (const [index, fixture] of fixtures.entries())
+        await repository.createBattle({
+          id: `preview-group-sunday-battle-${index}`,
+          token: `preview-group-sunday-battle-${index}`,
+          userId: fixture.aId,
+          allyIds: [],
+          opponentIds: [fixture.bId!],
+          initialCommands: battleCommands(
+            2_000,
+            [
+              [fixture.aId, rosters.get(fixture.aId)!],
+              [fixture.bId!, rosters.get(fixture.bId!)!],
+            ],
+            [{ kind: 'set-battle-group', groupId: sunday }, ...finished(fixture.aId, fixture.bId!, results[index]!)],
+          ),
+          now: now(),
+          fixtureKey: fixture.key,
+        })
     }
   }
 

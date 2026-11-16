@@ -69,6 +69,21 @@ export function leagueFixtureUnfinished(status: LeagueFixtureStatus) {
   return status === 'open' || status === 'playing'
 }
 
+/** Every fixture is finished, void or a bye, so the table is final: a league reads as complete without storing it. */
+export function leagueComplete(fixtures: readonly { status: LeagueFixtureStatus }[]) {
+  return fixtures.length > 0 && !fixtures.some((fixture) => leagueFixtureUnfinished(fixture.status))
+}
+
+/**
+ * Who tops a league table: the first row and anyone level with it on every tiebreak, so a dead heat is shared. Nobody
+ * wins a table without a result.
+ */
+export function leagueWinners(table: readonly { userId: string; played: number; points: number; vp: number; schedule: number }[]) {
+  const [top] = table
+  if (!top || (!top.played && !top.points)) return []
+  return table.filter((row) => row.points === top.points && row.vp === top.vp && row.schedule === top.schedule).map((row) => row.userId)
+}
+
 /** A game still to finish once its round's deadline has passed. */
 export function leagueFixtureOverdue(status: LeagueFixtureStatus, deadline: number | null, now: number) {
   return deadline !== null && now >= deadline && leagueFixtureUnfinished(status)

@@ -202,7 +202,7 @@ export function registerOrganisedPlayTools(server: AgentTools, userId: string | 
     {
       title: 'Read one of my groups',
       description:
-        "Returns a group as its page shows it to the signed-in player: members (ids for create_battle's opponentIds), the leaderboard, recent finished games and your unfinished ones, its current hidden-list games, and its league with the table and your fixtures. An open fixture's start is the create_battle input that plays it for the league. A private group shows only its name until you are a member. Requires mcp:read.",
+        "Returns a group as its page shows it to the signed-in player: members (ids for create_battle's opponentIds), the leaderboard, recent finished games and your unfinished ones, its current hidden-list games, and its league with the table, your fixtures, and once every game is played its winners. An open fixture's start is the create_battle input that plays it for the league. A private group shows only its name until you are a member. Requires mcp:read.",
       inputSchema: { token: tokenField.describe('The group token, from list_my_events or its invite link.') },
       annotations: READ_ONLY_TOOL,
     },
@@ -289,6 +289,8 @@ export function registerOrganisedPlayTools(server: AgentTools, userId: string | 
         })),
         league: league && {
           published: league.published,
+          complete: league.complete,
+          winners: league.winnerIds.map((winnerId) => named(winnerId)!),
           clockLimitMinutes: league.clockLimitMinutes,
           players: league.players.map((entry) => ({ id: entry.userId, name: entry.name, withdrawn: entry.withdrawn })),
           table: league.table.map((row, at) => ({
