@@ -4,10 +4,6 @@ lockfileVersion: '9.0'
 importers:
 
   .:
-    configDependencies:
-      ras-stack:
-        specifier: 5.5.4
-        version: 5.5.4
     packageManagerDependencies:
       pnpm:
         specifier: 12.13.0
@@ -97,9 +93,6 @@ packages:
     engines: {node: '>=18.*'}
     hasBin: true
 
-  ras-stack@5.5.4:
-    resolution: {integrity: sha512-CSzLXPcALBhdXzE6ioaBj/OkRSE+5D3a1t1LGYViGiPBCc/EFT85SuizRPmrLQ+eIGvYlab1ietI1ctoZ7vEPw==}
-
 snapshots:
 
   '@pnpm/exe.android-arm64@12.13.0':
@@ -160,8 +153,6 @@ snapshots:
       '@pnpm/exe.linux-x64-musl': 12.13.0
       '@pnpm/exe.win32-arm64': 12.13.0
       '@pnpm/exe.win32-x64': 12.13.0
-
-  ras-stack@5.5.4: {}
 
 ---
 lockfileVersion: '9.0'
@@ -302,9 +293,6 @@ importers:
       qrcode:
         specifier: ^1.5.4
         version: 1.5.4
-      ras-stack:
-        specifier: 5.5.4
-        version: 5.5.4(1d8ef2aea3d84ea8464fdbacec202846)
       react:
         specifier: 19.3.0
         version: 19.3.0
@@ -408,6 +396,9 @@ importers:
       oxlint-tsgolint:
         specifier: 7.0.2004
         version: 7.0.2004
+      ras-stack:
+        specifier: ^6.0.0
+        version: 6.0.1
       react-test-renderer:
         specifier: 19.3.0
         version: 19.3.0(react@19.3.0)
@@ -6089,10 +6080,6 @@ packages:
     resolution: {integrity: sha512-BdiKAgbfRlvfMq/XzO/AF9NPmaA8a+YpLAyAFTVFBj3gARrAIfWvNq7Q7NE4se3KgFu0KkrvQMxTS0XVnsGzHg==}
     engines: {node: '>=18'}
 
-  nodemailer@10.1.0:
-    resolution: {integrity: sha512-fXW8AulB25aOTuwfRYV6lqHyfz2VM4rr4SGXH03mE7x5znEUpzL5mu6anARUpZN7744Ziwkmr4AxSLPJsBQspg==}
-    engines: {node: '>=20.0.0'}
-
   noxcturnal@0.1.11:
     resolution: {integrity: sha512-nKgZ4mQpWz5Nry5KRqRcyCv37Uc24VH9UkNsIJJ58sC7ubyXtaiP4zfjOAsGiTVZIJ6rcfkmbYS0P4plVhdHEQ==}
     engines: {node: '>=18'}
@@ -6435,63 +6422,10 @@ packages:
     resolution: {integrity: sha512-hek2mFQpPuI4E1BBKrSto+BU3e3x4xuarsbiwr3+lf7p44juvFMV0XFWQAP3xUyqXA4RrXLIoaSUGbSt056ZMw==}
     engines: {node: '>= 0.6'}
 
-  ras-stack@5.5.4:
-    resolution: {integrity: sha512-CSzLXPcALBhdXzE6ioaBj/OkRSE+5D3a1t1LGYViGiPBCc/EFT85SuizRPmrLQ+eIGvYlab1ietI1ctoZ7vEPw==}
+  ras-stack@6.0.1:
+    resolution: {integrity: sha512-a25i2s5HbjDW3QwyAgv6fz0LfxgxoR6KzY6S/t8McliDpHXhKjkAjaTWwhW7FhKn36N0r0vC3zugV6cZs0HR7g==}
     engines: {node: '>=24 <25'}
     hasBin: true
-    peerDependencies:
-      '@libsql/client': '>=0.18 <1'
-      '@opentelemetry/api-logs': '>=0.221.0 <0.224.0'
-      '@opentelemetry/exporter-logs-otlp-http': '>=0.221.0 <0.224.0'
-      '@opentelemetry/resources': ^2.10.0
-      '@opentelemetry/sdk-logs': '>=0.221.0 <0.224.0'
-      '@posthog/react': '>=1.1 <2'
-      '@tanstack/react-query': ^5.104.1
-      '@tanstack/react-start': '>=1.168.10 <2'
-      better-sqlite3: '>=12 <14'
-      centrifuge: '>=5 <6'
-      drizzle-orm: '>=0.45 <1'
-      nodemailer: '>=9.0.3 <11'
-      postgres: '>=3.4 <4'
-      posthog-js: '>=1.430.3 <2'
-      posthog-node: '>=5.52 <6'
-      react: '>=19 <20'
-      tus-js-client: '>=4 <5'
-    peerDependenciesMeta:
-      '@libsql/client':
-        optional: true
-      '@opentelemetry/api-logs':
-        optional: true
-      '@opentelemetry/exporter-logs-otlp-http':
-        optional: true
-      '@opentelemetry/resources':
-        optional: true
-      '@opentelemetry/sdk-logs':
-        optional: true
-      '@posthog/react':
-        optional: true
-      '@tanstack/react-query':
-        optional: true
-      '@tanstack/react-start':
-        optional: true
-      better-sqlite3:
-        optional: true
-      centrifuge:
-        optional: true
-      drizzle-orm:
-        optional: true
-      nodemailer:
-        optional: true
-      postgres:
-        optional: true
-      posthog-js:
-        optional: true
-      posthog-node:
-        optional: true
-      react:
-        optional: true
-      tus-js-client:
-        optional: true
 
   raw-body@3.0.2:
     resolution: {integrity: sha512-K5zQjDllxWkf7Z5xJdV0/B0WTNqx6vxG70zJE4N0kBs4LovmEYWJzQGxC9bS9RAKu3bgM40lrd5zoLJ12MQ5BA==}
@@ -13018,9 +12952,6 @@ snapshots:
 
   node-releases@2.0.58: {}
 
-  nodemailer@10.1.0:
-    optional: true
-
   noxcturnal@0.1.11:
     dependencies:
       '@babel/code-frame': 7.29.7
@@ -13339,27 +13270,7 @@ snapshots:
 
   range-parser@1.3.0: {}
 
-  ras-stack@5.5.4(1d8ef2aea3d84ea8464fdbacec202846):
-    dependencies:
-      '@changesets/parse': 1.0.0
-      '@manypkg/get-packages': 3.1.0
-      import-meta-resolve: 4.2.0
-      yaml: 2.9.1
-    optionalDependencies:
-      '@libsql/client': 0.18.0
-      '@opentelemetry/api-logs': 0.223.0
-      '@opentelemetry/exporter-logs-otlp-http': 0.223.0(@opentelemetry/api@1.9.1)
-      '@opentelemetry/resources': 2.12.0(@opentelemetry/api@1.9.1)
-      '@opentelemetry/sdk-logs': 0.223.0(@opentelemetry/api@1.9.1)
-      '@posthog/react': 1.11.3(@types/react@19.3.0)(posthog-js@1.445.3(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)
-      '@tanstack/react-query': 5.104.1(react@19.3.0)
-      '@tanstack/react-start': 1.168.61(crossws@0.4.15(srvx@1.0.5))(esbuild@0.28.2)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(rolldown@1.2.13)(rollup@4.63.2)(supports-color@8.1.1)(vite@8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))
-      drizzle-orm: 0.45.4(@cloudflare/workers-types@5.20260918.1)(@electric-sql/pglite@0.5.8)(@libsql/client@0.18.0)(@opentelemetry/api@1.9.1)(@types/better-sqlite3@9.6.0)(kysely@0.29.6)(postgres@3.4.9)
-      nodemailer: 10.1.0
-      postgres: 3.4.9
-      posthog-js: 1.445.3(@types/react@19.3.0)(react@19.3.0)
-      posthog-node: 5.61.2(@opentelemetry/api@1.9.1)
-      react: 19.3.0
+  ras-stack@6.0.1: {}
 
   raw-body@3.0.2:
     dependencies:
