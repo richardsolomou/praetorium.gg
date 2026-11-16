@@ -19,7 +19,7 @@ test('compare loadouts in the unit simulator', async ({ page }) => {
 
   await attacker.getByRole('button', { name: 'Loadout', exact: true }).click()
   const loadout = page.getByRole('dialog')
-  const choice = loadout.getByRole('listitem').filter({ hasText: 'Bolt Rifle replaced with' }).last()
+  const choice = loadout.getByRole('listitem', { name: 'Plasma pistol', exact: true })
   const best = choice.getByRole('button', { name: 'Why this is best for shooting', exact: true }).filter({ hasText: 'Best kill %' })
   await expect(best).toBeVisible()
   await capture('compare-loadouts-best-kill', choice, best)
@@ -35,9 +35,8 @@ test('compare loadouts in the unit simulator', async ({ page }) => {
   await openCombatControls(page)
 
   await page.getByRole('tab', { name: /^Shooting/ }).click()
-  const cover = page.getByRole('button', { name: 'Cover (−1 BS)', exact: true })
-  await cover.click()
-  await expect(cover).toHaveAttribute('aria-pressed', 'true')
+  // The example brings Half range; Cover and Lethal Hits would change nothing, its weapons ignoring cover and already lethal.
+  await expect(page.getByRole('button', { name: 'Half range', exact: true })).toHaveAttribute('aria-pressed', 'true')
   await combatSettled(page)
   await capture(
     'compare-loadouts-modifiers',
@@ -49,7 +48,15 @@ test('compare loadouts in the unit simulator', async ({ page }) => {
   )
   const applied = page.getByRole('region', { name: 'Applied modifiers', exact: true })
   await applied.evaluate((element) => element.scrollIntoView({ block: 'center' }))
-  await capture('compare-loadouts-calculation-uses', applied, applied.getByRole('listitem').filter({ hasText: 'Cover' }), { padded: true })
+  await capture(
+    'compare-loadouts-calculation-uses',
+    applied,
+    applied
+      .getByRole('listitem')
+      .filter({ hasText: /^Manual:/ })
+      .first(),
+    { padded: true },
+  )
 
   await openCombatBreakdown(page)
   await combatSettled(page)

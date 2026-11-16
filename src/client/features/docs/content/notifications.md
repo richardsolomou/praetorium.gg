@@ -4,6 +4,8 @@ Praetorium tells you when something needs you while you're elsewhere: a friend r
 
 On a computer, the bell sits just right of your account picture at the bottom of the side menu, with the button that folds the menu at the far right. With the menu folded, the bell sits between your picture and that button. On a phone's browser it's at the top, next to search. A number on the bell counts the notifications you haven't read; choose it to see them, newest first.
 
+![The side menu with the bell beside the account picture at the bottom, showing 1 unread notification.](screenshot:notifications-bell 'The bell, at the bottom of the side menu')
+
 In the mobile app, open **More** and choose **Notifications**. A dot on **More** means some are unread. The app can also send them to your phone as push notifications; see [Use the mobile app](/docs/mobile-app#notifications).
 
 ## In your browser
@@ -29,6 +31,8 @@ What happens at the table during a game, such as turns and scoring, never sends 
 ## Read and unread
 
 Choosing a notification opens its page and marks it read. **Mark all read** clears the count at once. Reading one on the web marks it read in the app too, and the other way round.
+
+![The Notifications panel with an unread friend request from Aurelia and Mark all read at the top.](screenshot:notifications-panel 'Mark all read, at the top of the panel')
 
 Doing what a notification asks also marks it read, wherever you do it:
 

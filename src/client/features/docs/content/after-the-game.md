@@ -1,5 +1,9 @@
 A finished battle shows the result, the battle events and a timeline you can scrub through turn by turn. Filter to **CP only** to check command point spending, and select a stratagem's name to read what it does. Watchers can scrub a live battle, and seated players get the replay once it's finished.
 
+![Battle events for a finished battle, with All and CP only above a list of what each player recorded.](screenshot:after-the-game-events 'CP only shows command point spending')
+
+![The battle timeline along the bottom of the page, at the last of its eight moments in round 1.](screenshot:after-the-game-timeline 'Drag along the timeline to replay the battle')
+
 Battles between accounts count in each player's record. Practice battles count nowhere.
 
 ## Your opponent

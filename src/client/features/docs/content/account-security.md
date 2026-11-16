@@ -27,7 +27,7 @@ Two-factor authentication adds a code from an authenticator app to password sign
 
 ![Sign-in and security in Account settings, with two-factor authentication not set up.](screenshot:account-two-factor 'Set up authenticator, under Two-factor authentication')
 
-![The recovery codes shown after setting up an authenticator, with buttons to copy them and to finish.](screenshot:account-recovery-codes 'Copy recovery codes, above I saved my recovery codes')
+![The recovery codes shown after setting up an authenticator, with buttons to copy them and to finish.](screenshot:account-recovery-codes 'Copy recovery codes, beside I saved my recovery codes')
 
 Next time you sign in with your password, enter the six-digit code and choose **Verify and sign in**. **Use a recovery code** swaps in one of your saved codes. Tick **Trust this device for 30 days** to skip the code on that device. Signing in with a linked provider doesn't ask for a code.
 

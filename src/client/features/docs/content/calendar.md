@@ -7,6 +7,8 @@ Add your league round deadlines and tournament dates to the calendar app you alr
 3. Press **Copy link**.
 4. In your calendar app, add a calendar from a link and paste the link. Google Calendar calls this **From URL**, Apple Calendar **New Calendar Subscription** and Outlook **Subscribe from web**.
 
+![The Calendar section of Account settings showing the calendar link, with Copy link, Replace link and Turn off.](screenshot:calendar-link 'Copy link, under Calendar in Account settings')
+
 ## What the calendar shows
 
 - Each round deadline an organizer set in a league you play in.

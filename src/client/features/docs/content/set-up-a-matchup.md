@@ -13,7 +13,7 @@ You can also start from any unit's reference page: **Simulate** offers **As atta
 
 Use the **+** beside the side's name. It only lists units that can legally join. The **×** on a row removes that member.
 
-![The attacker card with a Lieutenant attached to an Intercessor Squad.](screenshot:compare-loadouts-add-member 'The + adds a Leader or other member to the attacker')
+![The attacker card with a Captain and a Lieutenant attached to an Intercessor Squad.](screenshot:compare-loadouts-add-member 'The + adds a Leader or other member to the attacker')
 
 ## Field a unit in its detachments
 

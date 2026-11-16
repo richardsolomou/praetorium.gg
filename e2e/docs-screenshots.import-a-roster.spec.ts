@@ -5,10 +5,10 @@ import { necronsOfficial } from '../src/core/rosterText.necrons.fixture'
 
 docsScreenshots()
 
-/** The official-app export with an unknown unit and an enhancement from a detachment the list didn't take. */
+/** The official-app export with a made-up unit and an enhancement from a detachment the list didn't take. */
 const necronsWithMistakes = necronsOfficial
   .replace('Enhancements: Murdermind', 'Enhancements: Veil of Darkness')
-  .replace('CHARACTERS', 'BATTLELINE\n\nNecron Warrior (90 Points)\n  • 10x Necron Warrior\n\nCHARACTERS')
+  .replace('CHARACTERS', 'BATTLELINE\n\nCanoptek Gardener (90 Points)\n  • 10x Canoptek Gardener\n\nCHARACTERS')
 
 test('import a roster', async ({ page }) => {
   await signUp(page, 'Docs importer')

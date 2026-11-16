@@ -26,7 +26,7 @@ A dimmed chip, or a stepper with a dashed border, wouldn't change anything. Hove
 
 Modifiers stay on when you change either unit, so you can check one situation against several targets. Weapons you switched off stay off while the attacker is the same. Swapping attacker and defender starts the other direction with its own modifiers, since the roles change, and swapping back brings yours back.
 
-![Manual modifiers on the Shooting tab with Cover selected.](screenshot:compare-loadouts-modifiers 'The All, Shooting and Melee tabs choose which attacks a modifier affects')
+![Manual modifiers on the Shooting tab with Half range selected.](screenshot:compare-loadouts-modifiers 'The All, Shooting and Melee tabs choose which attacks a modifier affects')
 
 ## Shooting type
 
@@ -42,7 +42,7 @@ When a shooting type costs a weapon -1 to hit, its card shows the roll it needs 
 
 **Calculation uses**, under the modifiers, lists everything behind the current numbers for each phase. Look here when a result surprises you.
 
-![Calculation uses listing the profile changes, rules, weapon choices and a manual Cover modifier.](screenshot:compare-loadouts-calculation-uses 'Your manual modifiers appear on their own line for each phase')
+![Calculation uses listing the profile changes, rules, weapon choices and a manual Half range modifier.](screenshot:compare-loadouts-calculation-uses 'Your manual modifiers appear on their own line for each phase')
 
 ## How some rules are applied
 

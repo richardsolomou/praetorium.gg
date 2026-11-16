@@ -7,6 +7,8 @@ You can bring finished games from another battle tracker into your record. Praet
 3. Add the code to your profile in that app. On BattleBase, open your profile, choose **Add tagline** or **Edit**, paste the code and save.
 4. Back in Praetorium, choose **Import battles**.
 
+![The Import battles dialog with BattleBase chosen and the BattleBase username box with Next.](screenshot:import-battles-dialog 'BattleBase username, then Next')
+
 Your account is now linked, so you can remove the code. After more games, do step 4 again. Nothing comes in twice. To link a different account, choose **Use a different BattleBase account**.
 
 Code not found, or games missing? See [Battle problems](/docs/battle-problems#your-battlebase-tagline-doesn-t-show-the-code-yet).

@@ -23,6 +23,8 @@ To see one first, open the [sample tournament](/tournaments/sample). For a one-o
 8. Leave **I'm playing too** on if you're also playing, or turn it off if you're only running the tournament.
 9. Press **Create tournament**.
 
+![The New tournament dialog with Name, Battle format, Points, Pairing, House rules and the dates.](screenshot:tournament-new 'Battle format, the first choice after the name')
+
 In **House rules**, untick a restriction, such as **Points limit** or **Warlord**, to let lists switch it off. Tick **Legends** or **Crucible** to let lists include those datasheets. A list that needs anything you left off can't be sealed.
 
 Players see dates in their own timezone. After the **Seal rosters by** deadline nobody can seal or join, and anyone without a sealed roster sits the tournament out and no longer holds up the reveal. You can move either date until the reveal.
@@ -77,6 +79,8 @@ To keep friends apart or sort out a mix-up, press **Swap players** and choose tw
 
 Set a round length and press **Start the clock** to show everyone the same countdown. You can add time or stop it, and pairing the next round clears it. The clock doesn't end the round. You still pair the next one when you're ready.
 
+![Round length, minutes set to 180 beside Start the clock.](screenshot:tournament-round-tools 'Start the clock')
+
 ### Set the battlefields ahead of the game
 
 Once a round is paired you can set each table's battlefield, so players know who they face and where before the day. Press **Set battlefield** on a table to pick one of its layouts or **Roll** one, or press **Roll battlefields** to roll every table at once. A table's layouts come from its two armies, so a table whose army hasn't settled on a Force Disposition stays for its players to choose. At King of the Colosseum every table offers both Colosseums and the three Combat Patrol battlefields.
@@ -88,6 +92,8 @@ A tournament without Swiss rounds has one table to set when exactly two sides se
 ### Enter a score without tracking the game
 
 Press **Enter score** on a table to record its final score when the game wasn't tracked here, for example at a venue where not everyone has a phone. You or either player at the table can do it. It counts for the tournament's standings but not the leaderboard, and you can reopen it like any other result.
+
+![A Swiss round with one table playing and its Enter score button, one finished table with its reopen button, and a bye.](screenshot:tournament-round 'Enter score, on a table still playing')
 
 ### Correct a result
 

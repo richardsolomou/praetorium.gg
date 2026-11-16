@@ -7,6 +7,8 @@ You can build one list, browse the reference and run the simulator without an ac
 3. Enter **Your name**, **Email** and a **Password** of at least 10 characters.
 4. Choose **Create account**. You're signed in straight away.
 
+![The sign-in page with Email, Password and Sign in, and I need an account below them.](screenshot:sign-in-page 'I need an account switches the page to creating one')
+
 To skip the password, choose **Continue with Apple**, **Continue with Google**, **Continue with Discord** or **Continue with GitHub** instead.
 
 Your name is what other players see in battles, rosters and friend lists. You can change it later under **Display name** in [Account settings](/profile). If you hide your name when signing up with Apple, Praetorium asks you to choose one. Your email stays private.

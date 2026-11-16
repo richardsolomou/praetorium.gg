@@ -2,6 +2,8 @@ A group keeps a running leaderboard of the games you play together. There's no e
 
 To start one, press **New group** on [Groups](/groups), then use **Copy invite link** on the group page to bring people in. **Group guide**, the question mark in the page's top corner, walks you through it.
 
+![A group page header with the group's name, members and organizers, and New game and Copy invite link beside it.](screenshot:groups-page 'Copy invite link, beside New game')
+
 ## Set up a group
 
 Under **Who can find it**, **Public** lists the group on the groups page. **Private link** keeps it to people you send the link to, and only members can see its leaderboard.
@@ -15,6 +17,8 @@ The owner can pick admins from the members in **Edit group**, in the group page'
 1. On the group page, press **New game**.
 2. Pick a duel, solo vs pair or doubles, and who plays.
 3. Press **Start battle**.
+
+![The New game dialog with Hide lists until everyone has sealed, Duel, Solo vs pair and Doubles, an opponent, and Start battle.](screenshot:groups-new-game 'Hide lists until everyone has sealed turns a game into a hidden-list game')
 
 You can also pick the group under **Record for a group** in a battle's **Tracking** step. It only shows when everyone in the battle is a member, and you can change it until the battle starts. Games with a guest or where you play both sides can't count, and neither can manually tracked games.
 
@@ -66,6 +70,8 @@ A league is a round robin: everyone who joins plays every other player once, one
 2. Members press **Join league** on the **League** tab while it's a draft. **Up next for you** links there too.
 3. With at least 3 players in, an organizer presses **Publish**. After that nobody else can join, and the fixtures can't be drawn again.
 4. Press **Start battle** on one of your fixtures. Each of you picks a list at setup. You can play rounds in any order.
+
+![A league round with a finished game and its score, your fixture with Start battle, and a bye.](screenshot:groups-league 'Start battle, on your fixture')
 
 Only organizers see the draft fixtures. **Draw again** shuffles them, and the same draw stays until someone joins, leaves or it's drawn again. With an odd number of players, each player has one bye, which scores nothing. Tracked fixture games also count on the group's leaderboard.
 

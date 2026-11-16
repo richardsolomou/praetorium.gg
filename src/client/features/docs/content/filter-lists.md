@@ -1,5 +1,7 @@
 Every tab of [Battles](/battles) and [Rosters](/rosters) has a search box and a row of filters above the list. So do the battles and rosters on a player's profile, a group's **Battles** tab, and a tournament's battles.
 
+![The Rosters page with the Faction filter open, listing Necrons, Blood Angels and Space Marines, each with a ban button beside it.](screenshot:filter-lists-bar 'The ban button rules a value out')
+
 - On Friends and Public, the search finds a roster by its name, its owner, its faction or a detachment. On Played, it also finds an army by the factions it played against: type `vs Orks` for armies that faced Orks.
 - **Choose several values** in one filter to see anything matching any of them.
 - Press the **ban** icon beside a value to rule it out. A value you ruled out is struck through.
