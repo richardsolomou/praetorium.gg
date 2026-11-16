@@ -192,8 +192,8 @@
       ]
     },
     "start-app": {
-      "version": 2,
-      "commit": "82fce4523ec914bd2e70aefd4bff84c10fb278c6",
+      "version": 3,
+      "commit": "0184a1e1bc4ababa9b89b4455014ba13be436df2",
       "files": {
         "src/client/chunkRecovery.test.ts": "src/client/chunkRecovery.test.ts",
         "src/client/chunkRecovery.ts": "src/client/chunkRecovery.ts",
@@ -229,7 +229,7 @@
         "src/server/contentSecurityPolicy.ts adds the faction icon CDN and PostHog media hosts to img-src, the rules text host to connect-src, and `worker-src 'self' blob:` for combat workers; src/server/cspPlugin.ts (a Nitro response hook) still widens img-src with the deployment's public asset origin and adds `'unsafe-eval'` when SpacetimeDB is configured, since both are runtime settings.",
         "Static files Nitro serves no longer carry the security headers the Nitro `/**` route rule added; they still get their Cache-Control rules there.",
         "src/server/rpc.ts wraps the recipe's `run` in the application's PostHog observer and reports failures through it; `inTurn` streams per-item results with the same reporting.",
-        "/api/health waits for the catalogue warm-up and checks the auth database and SpacetimeDB through `app().health()`, maps failures to `database_unavailable`, and adds `x-praetorium-revision`, which preview and release checks read.",
+        "/api/health waits for the catalogue warm-up and checks the auth database and SpacetimeDB through `app().health()`, reporting only that check's failures as `database_unavailable`, and adds `x-praetorium-revision`, which preview and release checks read.",
         "src/server/requestOrigin.ts keeps `siteOrigin`, the isomorphic origin for page metadata, on top of `publicOrigin`.",
         "Forwarded headers count only with `TRUST_PROXY=true`, where the application trusted them always; every deployment, preview, and local stack sets `APP_URL`, which `acceptedOrigins` and `publicOrigin` use instead."
       ]
