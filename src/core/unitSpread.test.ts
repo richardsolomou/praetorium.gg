@@ -497,6 +497,52 @@ describe('specialists in a squad of fixed size', () => {
   })
 })
 
+describe('a specialist chosen into a squad of fixed size', () => {
+  // Tankbustas field five Tankbustas, at least four with the default launcher; one may carry a pulsa rokkit instead.
+  const index = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'tankbustas',
+        name: 'Tankbustas',
+        type: 'unit',
+        selectionEntryGroups: [
+          {
+            id: 'bustas',
+            name: 'Tankbustas',
+            defaultSelectionEntryId: 'launcha',
+            constraints: [
+              { id: 'bustas-min', type: 'min', value: 5, field: 'selections', scope: 'parent' },
+              { id: 'bustas-max', type: 'max', value: 5, field: 'selections', scope: 'parent' },
+            ],
+            selectionEntries: [
+              {
+                id: 'launcha',
+                name: 'Tankbusta w/ Busta Rokkit Launcha',
+                type: 'model',
+                constraints: [
+                  { id: 'launcha-min', type: 'min', value: 4, field: 'selections', scope: 'parent' },
+                  { id: 'launcha-max', type: 'max', value: 5, field: 'selections', scope: 'parent' },
+                ],
+              },
+              {
+                id: 'pulsa',
+                name: 'Tankbusta w/ Pulsa rokkit',
+                type: 'model',
+                constraints: [{ id: 'pulsa-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+
+  it('takes the specialist’s place from a default model', () => {
+    const built = buildUnit('tankbustas', index, undefined, { bustas: 'pulsa' })!
+    expect(modelCountOf(built.selection, index)).toBe(5)
+  })
+})
+
 describe('a specialist joining a squad whose default models are split', () => {
   const index = indexOf({
     sharedSelectionEntries: [
