@@ -20,6 +20,7 @@
     "test:unit": "vitest run --config vitest.unit.config.ts",
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "test:spacetime": "tsx scripts/spacetimeIntegration.ts",
+    "spacetime:generate": "spacetime generate --lang typescript --module-path spacetimedb --out-dir src/spacetime/generated --yes && oxfmt src/spacetime/generated",
     "changeset": "changeset",
     "version-packages": "changeset version && tsx scripts/dateChangelog.ts && tsx scripts/syncMobileVersion.ts && oxfmt --write mobile/app.json",
     "release": "changeset git-tag",

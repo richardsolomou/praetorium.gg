@@ -1,4 +1,4 @@
-import { callSpacetime, spacetimeDatabaseUrl, type SpacetimeConnection } from 'ras-stack/spacetime'
+import { callSpacetime, spacetimeDatabaseUrl, type SpacetimeConnection } from '../spacetime'
 import { z } from 'zod'
 import { withServerSpan } from '../serverTelemetry'
 import { offlineContext, SYNC_PRODUCT_ACTIONS } from '../offlineContext'

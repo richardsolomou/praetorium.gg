@@ -1,7 +1,7 @@
 import { boundedBytes } from '../../src/server/boundedBody.ts'
 import pRetry from 'p-retry'
 import { z } from 'zod'
-import { spacetimeDatabaseUrl } from 'ras-stack/spacetime'
+import { spacetimeDatabaseUrl } from '../../src/server/spacetime'
 
 const tables = ['rosters', 'collection', 'ability_reminders'] as const
 type Source = {

@@ -1,5 +1,5 @@
 import { captureBattleCommand } from '../battleTelemetry'
-import { SpacetimeRequestError } from 'ras-stack/spacetime'
+import { SpacetimeRequestError } from '../spacetime'
 import { offlineActionSchema, type OfflineActionKind } from '../../contracts/offlineActions'
 import { offlineActions } from '../offlineActions'
 import { offlineContext } from '../offlineContext'

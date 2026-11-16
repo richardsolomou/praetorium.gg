@@ -123,6 +123,34 @@
         "Vite's `telemetry` chunk group keeps posthog-js and the PostHog packages in their own chunk."
       ]
     },
+    "spacetimedb": {
+      "version": 2,
+      "commit": "8e4dfdee6afeeaa1f05804e38888a171f9ebe722",
+      "files": {
+        ".github/actions/setup-spacetime/action.yml": ".github/actions/setup-spacetime/action.yml",
+        ".github/workflows/spacetime.yml": null,
+        "scripts/publishSpacetimeModule.test.ts": "scripts/publishProductModule.test.ts",
+        "scripts/publishSpacetimeModule.ts": "scripts/publishProductModule.ts",
+        "spacetimedb/package.json": "spacetimedb/package.json",
+        "spacetimedb/tsconfig.json": "spacetimedb/tsconfig.json",
+        "src/client/spacetime.test.ts": null,
+        "src/client/spacetime.tsx": null,
+        "src/server/spacetime.test.ts": "src/server/spacetime.test.ts",
+        "src/server/spacetime.ts": "src/server/spacetime.ts",
+        "src/server/spacetimeOrigin.test.ts": null,
+        "src/server/spacetimeOrigin.ts": null,
+        "spacetimedb/src/index.test.ts": "spacetimedb/src/module.test.ts"
+      },
+      "notes": [
+        "spacetimedb/ stays a pnpm workspace package (`praetorium-spacetimedb`) with its own pinned `spacetimedb` and TypeScript, type-checked by `pnpm --dir spacetimedb typecheck`; its version moves with the root package's in the same commit.",
+        "The module is the product's: rosters, battles, groups and tournaments, notifications and standings, with JWT admission in spacetimedb/src/admission.ts (Better Auth as the identity issuer, `AUTH_ISSUER`, `AUTH_AUDIENCE` and `OPERATOR_IDENTITY` stored in the module environment), tested in module.test.ts.",
+        "Databases are `praetorium-production` and `praetorium-staging`, previews `praetorium-pr-<number>`; scripts/publishProductModule.ts publishes with the owner token and Cloudflare Access headers, always accepting client-breaking automatic migrations, from dokploy-web.yml before the image changes.",
+        "The browser does not use the recipe's `SpacetimeProvider`: src/client/spacetimeLive.ts keeps its own connection, served settings and a short-lived Better Auth token from /api/spacetime/token, and scripts/nodeServer.ts proxies `/spacetime/` on the application's origin, so the policy needs no SpacetimeDB origin; `'unsafe-eval'` is added at runtime by src/server/cspPlugin.ts.",
+        "src/server/spacetime.ts accepts an optional `fetch` on the connection, which the operator's tests inject.",
+        "Bindings are formatted with oxfmt after generation (`pnpm spacetime:generate`), and ci-static.yml checks them with the same format command; there is no spacetime.yml, because ci-static.yml checks bindings and dokploy-web.yml publishes.",
+        "The CLI pin also lives in Dockerfile.node, which builds the module with the pinned release for both architectures."
+      ]
+    },
     "start-app": {
       "version": 2,
       "commit": "82fce4523ec914bd2e70aefd4bff84c10fb278c6",

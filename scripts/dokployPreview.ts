@@ -11,7 +11,7 @@ import {
   loadPreviewAppSecrets,
   pullRequestNumber,
 } from 'ras-stack/preview/dokploy'
-import { callSpacetime, deleteSpacetimeDatabase, publishSpacetimeModule, type SpacetimeConnection } from 'ras-stack/spacetime'
+import { callSpacetime, deleteSpacetimeDatabase, publishSpacetimeModule, type SpacetimeConnection } from '../src/server/spacetime'
 import { moduleEnvironment } from './lib/spacetimeEnvironment.ts'
 import { isEntryPoint } from './lib/entryPoint.ts'
 import { isSpacetimeInternalHost } from './lib/spacetimeInternalHost.ts'
