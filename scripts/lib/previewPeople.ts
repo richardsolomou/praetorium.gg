@@ -6,11 +6,17 @@ import { Faker, en } from '@faker-js/faker'
  */
 export const previewFaker = new Faker({ locale: [en], seed: 40_000 })
 
+// Curated rather than faker's general word lists, which can pair into handles nobody would pick.
+const HANDLE_WORDS = ['Grim', 'Iron', 'Void', 'Crimson', 'Silent', 'Ashen', 'Gilded', 'Rusty', 'Salty', 'Lucky', 'Dice', 'Paint']
+const HANDLE_NOUNS = ['Warden', 'Hammer', 'Talon', 'Ork', 'Marine', 'Brush', 'Sprue', 'Tank', 'Herald', 'Gaunt', 'Shrine', 'Pilot']
 const taken = new Set(['Kieran Vale', 'Sam Okafor'])
 
+/** Most players go by a handle: a two-word tag, or a first name with a number. */
 function person() {
   for (;;) {
-    const name = `${previewFaker.person.firstName()} ${previewFaker.person.lastName()}`
+    const name = previewFaker.datatype.boolean({ probability: 0.6 })
+      ? `${previewFaker.helpers.arrayElement(HANDLE_WORDS)}${previewFaker.helpers.arrayElement(HANDLE_NOUNS)}`
+      : `${previewFaker.person.firstName().toLowerCase()}${previewFaker.number.int({ min: 2, max: 99 })}`
     if (!taken.has(name)) {
       taken.add(name)
       return name
