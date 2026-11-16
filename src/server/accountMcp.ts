@@ -167,7 +167,7 @@ export function registerAccountMcpTools(server: AgentTools, userId: string | nul
     {
       title: 'Read my saved roster',
       description:
-        'Returns one roster owned by the signed-in player, by an id from list_my_rosters. summary names each unit with its points, models, wargear, enhancements, Warlord and attachments, and gives the total and any problems that stop the list being fielded; it is null while army data is unavailable. roster holds the saved choices by catalogue id, the shape save_roster takes. Requires mcp:read.',
+        'Returns one roster owned by the signed-in player, by an id from list_my_rosters. summary names each unit with its points, models, wargear, enhancements, Warlord and attachments, and gives the total, any problems that stop the list being fielded, and unchecked restrictions Praetorium could not evaluate; it is null while army data is unavailable. roster holds the saved choices by catalogue id, the shape save_roster takes. Requires mcp:read.',
       inputSchema: rosterIdSchema.shape,
       annotations: READ_ONLY_TOOL,
     },

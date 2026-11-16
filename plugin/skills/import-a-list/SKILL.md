@@ -13,7 +13,7 @@ description: Bring an army list from the official Warhammer 40,000 app, New Recr
    - `reportedPoints` against `currentPoints`: they differ when a points update came after the export or something was left out.
    - `olderData`: the official app's data was older than Praetorium's; exporting the list again from the app may fix what didn't match.
    - `battleSizeStated` false: the draft uses Strike Force (2,000 points). Ask the player for the battle size and change `limit` if it's different.
-4. **Check it.** Call `check_roster` with `draft`. Show its `summary` units and total, and every one of its `problems`. Never repair a mismatch by guessing a unit or option the export didn't name; ask the player, and use `list_units` for what the faction offers.
+4. **Check it.** Call `check_roster` with `draft`. Show its `summary` units and total, every one of its `problems`, and each `unchecked` restriction for the player to check in the source rules. Never repair a mismatch by guessing a unit or option the export didn't name; ask the player, and use `list_units` for what the faction offers.
 5. **Offer what's next:**
    - Grade it with the grade-a-roster skill.
    - Save it with `save_roster`, which needs their Praetorium account. Leave visibility private unless they ask.

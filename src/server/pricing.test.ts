@@ -16,7 +16,7 @@ import { factionRestrictionViolations, isCatalogueSelfContradiction, kotcViolati
 import { descriptionKey } from './datacards'
 import { rosterUseProblem } from '../core/rosterLegality'
 import { loadoutPicks } from '../core/rosterCopies'
-import { bookOf, enhancement, points as pointsCost, shelfOf } from './catalogue.fixtures'
+import { bookOf, categories, enhancement, points as pointsCost, shelfOf } from './catalogue.fixtures'
 import type { LoadedRules } from './rules'
 import type { RosterPick } from '../core/roster'
 
@@ -1210,34 +1210,35 @@ describe('King of the Colosseum army construction', () => {
     expect(price?.errors.map((error) => error.message)).toContain('needs a Warlord')
   })
 
-  it('refuses to pass a Toughness 9 unit whose enhancement could raise it', () => {
-    const errors = kotcViolations(
-      1,
-      [
-        { ...unit('leader', ['Infantry', 'Character'], 4, true), enhanced: true },
-        unit('troops', ['Infantry', 'Battleline'], 4),
-        { ...unit('tank', ['Vehicle'], 9), enhanced: true },
+  it('judges a Toughness 9 unit by its datasheet, whatever leads it', () => {
+    const datasheet = (id: string, toughness: number, keywords: string[]) => ({
+      id,
+      name: id,
+      type: 'unit' as const,
+      costs: pointsCost(50),
+      categoryLinks: categories(...keywords),
+      profiles: [{ id: `${id}-profile`, name: id, typeName: 'Unit', characteristics: [{ name: 'T', $text: String(toughness) }] }],
+    })
+    const loaded = bookOf({
+      selectionEntries: [
+        datasheet('robots', 9, ['Vehicle']),
+        datasheet('datasmith', 4, ['Infantry', 'Character']),
+        datasheet('troops', 4, ['Infantry']),
       ],
-      600,
-      [],
+    })
+    const price = calculateRosterPrice(
+      {
+        catalogueId: 'cat',
+        detachmentIds: [],
+        disposition: null,
+        limit: 600,
+        waivedRules: ['detachments', 'kotc-warlord'],
+        units: [{ entryId: 'robots' }, { entryId: 'datasmith', attachedTo: 0 }, { entryId: 'troops' }],
+      },
+      loaded,
+      rulesWithout,
     )
-    expect(errors.map((error) => error.message)).toEqual(['is at the Toughness cap and cannot be verified once its enhancement is applied'])
-  })
-
-  it('names an attached leader as the reason a Toughness 9 unit cannot be verified', () => {
-    const errors = kotcViolations(
-      1,
-      [
-        unit('leader', ['Infantry', 'Character'], 4, true),
-        unit('troops', ['Infantry', 'Battleline'], 4),
-        { ...unit('tank', ['Vehicle'], 9), led: true },
-      ],
-      600,
-      [],
-    )
-    expect(errors.map((error) => error.message)).toEqual([
-      'is at the Toughness cap and cannot be verified once its attached leader is applied',
-    ])
+    expect(price?.errors.filter((error) => /Toughness/.test(error.message))).toEqual([])
   })
 
   it('reports every KOTC-specific restriction without guessing unknown toughness', () => {

@@ -9,8 +9,6 @@ type KotcUnit = {
   keywords: readonly string[]
   toughness: number | null
   warlord: boolean
-  enhanced?: boolean
-  led?: boolean
 }
 
 export function factionRestrictionViolations(restrictions: FactionRestrictions | undefined, units: readonly KotcUnit[]) {
@@ -63,15 +61,9 @@ export function kotcViolations(detachments: number, units: readonly KotcUnit[], 
     // waived, a Toughness this catalogue cannot state changes no answer.
     if (enforces(waived, 'kotc-toughness') && unit.toughness === null) add('cannot verify its Toughness from the synced catalogue', unit)
   }
-  // King of the Colosseum bars a unit that reaches Toughness 10 during list building,
-  // whether from an enhancement or an attached leader. No synced source says what either
-  // does to a Toughness, so a unit already at the cap is reported as unverifiable rather
-  // than passed: the format's own FAQ makes this illegal, and guessing it legal is the
-  // one answer that cannot be corrected at the table.
-  for (const unit of units) {
-    if (enforces(waived, 'kotc-toughness') && unit.toughness === 9 && (unit.enhanced || unit.led))
-      add(`is at the Toughness cap and cannot be verified once its ${unit.enhanced ? 'enhancement' : 'attached leader'} is applied`, unit)
-  }
+  // The format restricts "Datasheets with a T (toughness) characteristic of higher than 9", so
+  // only the datasheet's printed Toughness counts: an attached leader or an enhancement that
+  // raises it in the battle does not.
   const toughnessNine = units.filter((unit) => unit.toughness === 9)
   if (enforces(waived, 'kotc-toughness') && toughnessNine.length > 1)
     add(`allows at most 1 Toughness 9 unit, has ${toughnessNine.length}`, undefined, { max: 1, measured: toughnessNine.length })

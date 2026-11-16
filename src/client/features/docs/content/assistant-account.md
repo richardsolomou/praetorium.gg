@@ -14,7 +14,7 @@ The assistant decides which access it asks for. If it asks for more than you wan
 
 Read access lets the assistant:
 
-- list your saved rosters and read one of them as you'd see it in the builder: each unit's name, points, wargear, enhancements, Warlord and attachments, the total, and any problems that stop it being fielded
+- list your saved rosters and read one of them as you'd see it in the builder: each unit's name, points, wargear, enhancements, Warlord and attachments, the total, any problems that stop it being fielded, and any restrictions Praetorium couldn't check
 - list your battles, 25 at a time, narrowed the way the battles page narrows them, such as by result, army, opponent, mission pack or date, and read the current state of one you're seated in
 - read your record as your profile shows it, such as win rates by detachment and mission pack, and your leaderboard places
 - read a finished battle's report, and see who you can start a battle with

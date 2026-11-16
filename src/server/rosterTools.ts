@@ -36,6 +36,8 @@ export async function rosterSummary(roster: SummarisedRoster) {
       ...rosterProblems(priced, roster).map((problem) => problem.message),
       ...(missing > 0 ? [`${missing} ${missing === 1 ? 'unit is' : 'units are'} missing from the current army data`] : []),
     ],
+    // What the builder warns under "Could not check every rule": not proven illegal, so not a problem.
+    unchecked: priced.unhandled,
   }
 }
 
@@ -146,7 +148,7 @@ export function registerRosterTools(server: AgentTools) {
     {
       title: 'Check a roster',
       description:
-        'Prices a roster and lists every problem that stops it being fielded, without saving it or needing an account: the same summary get_my_roster gives a saved list. summary names each unit with its points, models, wargear, enhancements, Warlord and attachments, and gives the total; problems is empty when the list is legal.',
+        'Prices a roster and lists every problem that stops it being fielded, without saving it or needing an account: the same summary get_my_roster gives a saved list. summary names each unit with its points, models, wargear, enhancements, Warlord and attachments, and gives the total; problems is empty when the list is legal. unchecked names restrictions Praetorium could not evaluate, which the player must check in the source rules before playing.',
       inputSchema: rosterInput,
       annotations: READ_ONLY_TOOL,
     },
