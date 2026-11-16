@@ -203,7 +203,7 @@ export function SealedEventRounds({
           ) : next > progress.rounds ? (
             <p className="text-sm text-dim">Every round is played. The results below are final.</p>
           ) : null}
-          {rounds.length > 1 ? (
+          {rounds.length > 1 && next <= progress.rounds ? (
             <p className="text-sm text-dim">Results from earlier rounds are locked once the next round is paired.</p>
           ) : null}
           <div className="runner gap-3 [--gate-y:1.375rem]">
