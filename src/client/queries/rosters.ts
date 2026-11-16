@@ -221,11 +221,23 @@ export const datasheetQuery = (
   picks: readonly RosterPick[] = [],
   pickIndex: number | null = null,
   everyWeapon = false,
+  fielded = false,
 ) =>
   queryOptions({
-    queryKey: ['datasheet', catalogueId, entryId, detachmentIds, picks, pickIndex, everyWeapon],
+    queryKey: ['datasheet', catalogueId, entryId, detachmentIds, picks, pickIndex, everyWeapon, ...(fielded ? ['fielded'] : [])],
     queryFn: ({ signal }) =>
-      datasheet({ data: { catalogueId, entryId, detachmentIds: [...detachmentIds], picks: [...picks], pickIndex, everyWeapon }, signal }),
+      datasheet({
+        data: {
+          catalogueId,
+          entryId,
+          detachmentIds: [...detachmentIds],
+          picks: [...picks],
+          pickIndex,
+          everyWeapon,
+          ...(fielded ? { fielded } : {}),
+        },
+        signal,
+      }),
     enabled: Boolean(catalogueId && entryId),
     staleTime: Infinity,
   })
@@ -251,11 +263,12 @@ export const loadoutDatasheetsQuery = (
   picks: readonly RosterPick[],
   pickIndex: number | null,
   persistedRoster?: { id: string },
+  fielded = false,
 ) =>
   queryOptions({
     queryKey: persistedRoster
       ? ['saved-roster-loadout-datasheets', persistedRoster.id, pickIndex]
-      : ['loadout-datasheets', catalogueId, entryId, detachmentIds, picks, pickIndex],
+      : ['loadout-datasheets', catalogueId, entryId, detachmentIds, picks, pickIndex, ...(fielded ? ['fielded'] : [])],
     queryFn: async ({ signal }) => {
       const startedAt = performance.now()
       const result =
@@ -265,7 +278,14 @@ export const loadoutDatasheetsQuery = (
               signal,
             })
           : await loadoutDatasheets({
-              data: { catalogueId, entryId, detachmentIds: [...detachmentIds], picks: [...picks], pickIndex },
+              data: {
+                catalogueId,
+                entryId,
+                detachmentIds: [...detachmentIds],
+                picks: [...picks],
+                pickIndex,
+                ...(fielded ? { fielded } : {}),
+              },
               signal,
             })
       const resolvedAt = performance.now()
@@ -286,9 +306,11 @@ export const priceQuery = (
   borrowedDetachmentId: string | null = null,
   optionalRules: readonly OptionalRuleId[] = [],
   includeUnitLimits = false,
+  fielded = false,
 ) => {
   const data = {
     includeUnitLimits,
+    ...(fielded ? { fielded } : {}),
     catalogueId,
     detachmentIds: [...detachmentIds],
     disposition,
@@ -316,6 +338,7 @@ export const setupPriceQuery = (
     waivedRules?: readonly FormatRuleId[]
     borrowedDetachmentId?: string | null
     optionalRules?: readonly OptionalRuleId[]
+    fielded?: boolean
   },
   picked: readonly RosterPick[],
   includeUnitLimits = false,
@@ -330,6 +353,7 @@ export const setupPriceQuery = (
     setup.borrowedDetachmentId ?? null,
     setup.optionalRules,
     includeUnitLimits,
+    setup.fielded,
   )
 
 /** The roster grades for the picks on screen, which only the server can calculate, so it asks only while they are open. */

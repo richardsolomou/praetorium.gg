@@ -6,6 +6,7 @@ import {
   currentDetachmentId,
   currentEntryId,
   currentRosterIds,
+  fieldedRosterIds,
   picksForRulesVersion,
   savedCatalogueIds,
   savedDetachmentIds,
@@ -166,6 +167,12 @@ describe('retired catalogue ids', () => {
     const row = migrateStoredRoster({ name: '', catalogueId: 'custodes-11e~1f19-6509-d906-ca10', picks: '[]' })
     expect(currentRosterIds({ catalogueId: row.catalogueId, detachmentIds: [], updatedAt: 0 }).catalogueId).toBe(
       'mfm-1-6~1f19-6509-d906-ca10',
+    )
+  })
+
+  it('reads a list a battle froze on the Custodes preview on that preview', () => {
+    expect(fieldedRosterIds({ catalogueId: 'custodes-11e~1f19-6509-d906-ca10', detachmentIds: [] }).catalogueId).toBe(
+      'custodes-11e~1f19-6509-d906-ca10',
     )
   })
 

@@ -65,6 +65,7 @@ import { RosterActionsMenu } from './RosterActionsMenu'
 import { RosterHeaderNotices } from './RosterHeaderNotices'
 import { rosterCards, RosterUnitShelves } from './RosterUnitShelves'
 import { LoadoutPaneActions } from './LoadoutPaneActions'
+import { FieldedUnit } from './FieldedUnit'
 import { useRosterSetupEditor } from './useRosterSetupEditor'
 import { useReminderEditor } from './useReminderEditor'
 import { ArmyUnavailable } from './ArmyUnavailable'
@@ -522,7 +523,9 @@ export function ListBuilder({
   // Frozen battle armies show what was recorded, never a fresh judgement of the list.
   const gradesAvailable = !frozen && !print
   const selectedPick = selected === null ? null : (picks[selected] ?? null)
-  const selectedUnitLoading = selected !== null && !selectedUnit
+  // A frozen unit its rules version can no longer build reads as the battle recorded it.
+  const fieldedFallback = frozenSelected && (priceFailed || (!priceLoading && !pricePending && !selectedUnit)) ? frozenSelected : null
+  const selectedUnitLoading = selected !== null && !selectedUnit && !fieldedFallback
   const evaluatedPick = selectedPick ? (evaluatedPicks.current.get(selectedPick.key) ?? null) : null
   const loadoutConstraintsPending = Boolean(
     selectedUnit && selectedPick?.models !== undefined && selectedPick.models !== selectedUnit.size.models,
@@ -616,6 +619,8 @@ export function ListBuilder({
       controlsDisabled={loadoutConstraintsPending}
       showOptions={building}
       persistedRoster={editable || !resolvePersistedRoster ? undefined : { id: savedId }}
+      fielded={Boolean(frozen)}
+      unavailable={frozenSelected ? <FieldedUnit unit={frozenSelected} /> : undefined}
       reminders={building && selected !== null ? reminders.controls : undefined}
       header={
         building && selected !== null && selectedPick ? (
@@ -639,6 +644,7 @@ export function ListBuilder({
           onReferenceRoute={setReference}
           abilityReminders={building && selected !== null ? reminders.controls : undefined}
           detachmentRules={detachmentRules}
+          fielded={Boolean(frozen)}
         />
       }
     />
@@ -654,6 +660,7 @@ export function ListBuilder({
       onReferenceRoute={setReference}
       abilityReminders={building && !preview && selected !== null ? reminders.controls : undefined}
       detachmentRules={detachmentRules}
+      fielded={Boolean(frozen)}
     />
   )
 
@@ -894,6 +901,8 @@ export function ListBuilder({
                 ) : null}
                 {datasheet}
               </>
+            ) : fieldedFallback ? (
+              <FieldedUnit unit={fieldedFallback} />
             ) : (
               loadout
             )}

@@ -160,6 +160,19 @@ export function currentRosterIds<
       ...(roster.units ? { units: picksForCatalogueEdition(roster.units, catalogueId) } : {}),
     })
   }
+  return idsWithinRulesVersion(roster)
+}
+
+type RosterIds = Parameters<typeof currentRosterIds>[0]
+
+/**
+ * A list a battle or sealed event froze, read on the rules version it was fielded under: retired ids still
+ * resolve, but a version that later folded into another is not moved onto it.
+ */
+export const fieldedRosterIds = <T extends RosterIds>(roster: T): T =>
+  catalogueEditionId(roster.catalogueId) ? idsWithinRulesVersion(roster) : currentRosterIds(roster)
+
+function idsWithinRulesVersion<T extends RosterIds>(roster: T): T {
   return {
     ...roster,
     catalogueId: currentCatalogueId(roster.catalogueId),

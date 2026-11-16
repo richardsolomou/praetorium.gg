@@ -31,7 +31,7 @@ export function useRosterPrice({
   selected: number | null
   setPicks: Dispatch<SetStateAction<KeyedPick[]>>
 }) {
-  const priceRequest = setupPriceQuery(setup, positioned, editable)
+  const priceRequest = setupPriceQuery(frozen ? { ...setup, fielded: true } : setup, positioned, editable)
   const {
     data: priced,
     dataUpdatedAt: pricedAt,
