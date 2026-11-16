@@ -60,6 +60,13 @@ just rosters-audit data-dev/production-rosters.json catalogue-data data-dev/prod
 
 Author replacements in `catalogue/roster-migrations.json` with a reason. Never fuzzy-match, substitute, or drop a selection, or suppress a legality error, to make the audit pass.
 
+Every catalogue publish (`pnpm catalogue:history`, against the published snapshot) and every live refresh (`prepareLiveRevision`, against the revision it follows) runs `checkIdDrops` (`scripts/lib/catalogueIdDrops.ts`) on the base rules. It fails when the new catalogue drops a book, datasheet, detachment, enhancement or option ID a saved roster can hold, and no map moves it, while:
+
+- a new ID in the same scope carries the same or a near-identical name: a rename the maps must carry, even when the history reads it as a removal;
+- or the data-update history does not record the removal of a book, datasheet, detachment or enhancement by that name.
+
+An option that left its datasheet only reports. A failed refresh keeps serving the previous revision, so a release never publishes the drop. Map what saved rosters hold (run the audit above); `pnpm exec tsx scripts/catalogueIdDrops.ts <previous> <next>` runs the check on two catalogue directories, and with `--accept <reason>` records the rest in `catalogue/accepted-id-drops.json`.
+
 ## Privacy
 
 - Other readers never get a roster's picks, notes, or preparation; exports never carry notes.

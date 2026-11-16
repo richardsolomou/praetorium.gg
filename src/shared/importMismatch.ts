@@ -257,16 +257,20 @@ function datasheetNames(loaded: LoadedCatalogue, catalogueId: string): string[] 
  * whole words: a plural, a "Squad" one exporter prints and another does not.
  */
 function closestName(stated: string, candidates: Iterable<string>): string | null {
-  const wanted = words(stated)
-  if (!wanted.size) return null
   let best: { name: string; score: number } | null = null
   for (const candidate of candidates) {
-    const other = words(candidate)
-    const shared = [...wanted].filter((word) => other.has(word)).length
-    const score = shared / (wanted.size + other.size - shared)
+    const score = nameOverlap(stated, candidate)
     if (score > (best?.score ?? 0)) best = { name: candidate, score }
   }
   return best && best.score >= 0.5 ? best.name : null
+}
+
+/** The share of two names' words they hold in common, singular and plural read alike. */
+export function nameOverlap(left: string, right: string) {
+  const wanted = words(left)
+  const other = words(right)
+  const shared = [...wanted].filter((word) => other.has(word)).length
+  return shared ? shared / (wanted.size + other.size - shared) : 0
 }
 
 const words = (value: string) =>

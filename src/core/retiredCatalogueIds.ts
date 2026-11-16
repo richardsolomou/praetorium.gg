@@ -3,7 +3,7 @@ import rawRetired from '../../catalogue/retired-ids.json' with { type: 'json' }
 import rawMigrations from '../../catalogue/roster-migrations.json' with { type: 'json' }
 import type { RosterPick } from './roster'
 import { catalogueEditionId, editionCatalogueId, editionFamilyId, picksForCatalogueEdition } from './catalogueEdition'
-import { foldedEditionIds, migratedEditionId, migratedEditionPick, onFoldedEdition } from './editionMigrations'
+import { editionMigrationDatasheets, foldedEditionIds, migratedEditionId, migratedEditionPick, onFoldedEdition } from './editionMigrations'
 import { retainedRules, retainedRulesEdition, retainedRulesFor as retainedFor, retiredSourceSchema } from './retainedRosterRules'
 
 const retired = Object.values(z.record(z.string(), retiredSourceSchema).parse(rawRetired))
@@ -22,6 +22,36 @@ const migrations = Object.values(
 const migrationDatasheets = migrations.map((migration) => new Map(Object.entries(migration.datasheets)))
 const migrationCatalogues = migrations.map((migration) => new Map(Object.entries(migration.catalogues)))
 const migrationDetachments = migrations.map((migration) => new Map(Object.entries(migration.detachments)))
+
+/**
+ * Every saved ID one of the maps reads as something else: a book, detachment or datasheet, a saved option, or
+ * a segment of a saved choice or toggle key. A snapshot that drops one of these has already been handled.
+ */
+export function migratedCatalogueIds() {
+  const ids = new Set<string>()
+  const addPath = (key: string) => key.split('/').forEach((segment) => ids.add(segment))
+  const sources = [...retired, ...migrations, ...retainedRules.map((rule) => rule.aliases)]
+  for (const source of sources) {
+    for (const id of [...Object.keys(source.catalogues), ...Object.keys(source.detachments)]) ids.add(id)
+  }
+  const sheets: [string, Partial<z.infer<typeof retiredSourceSchema>['datasheets'][string]>][] = [
+    ...sources.flatMap((source) => Object.entries(source.datasheets)),
+    ...editionMigrationDatasheets.flatMap((datasheets) => Object.entries(datasheets)),
+  ]
+  for (const [entryId, sheet] of sheets) {
+    ids.add(entryId)
+    for (const [key, options] of Object.entries(sheet.choices ?? {})) {
+      addPath(key)
+      for (const id of Object.keys(options)) ids.add(id)
+    }
+    for (const key of Object.keys(sheet.toggles ?? {})) addPath(key)
+    for (const [key, options] of Object.entries(sheet.fixedChoices ?? {})) {
+      addPath(key)
+      options.forEach((id) => ids.add(id))
+    }
+  }
+  return ids
+}
 
 const catalogues = new Map(retired.flatMap((source) => Object.entries(source.catalogues)))
 const detachments = new Map(retired.flatMap((source) => Object.entries(source.detachments)))

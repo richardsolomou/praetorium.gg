@@ -21,6 +21,7 @@ import { materializeCatalogue } from './catalogueMaterialize'
 import { resolveCatalogueUpstream } from './catalogueUpstream'
 import { prepareCatalogueOutputs } from './catalogueOutputs'
 import { compiledChangeSource } from './catalogueHistoryCompile'
+import { checkIdDrops } from './catalogueIdDrops'
 import { fetchLiveCatalogue } from './liveCatalogueArchive'
 import type { OfflineReferenceVersion } from '../../src/contracts/offlineReference'
 
@@ -158,6 +159,8 @@ export function prepareLiveRevision(root: string, compiler: string, { bootstrap 
         changes: catalogueChanges(older, newer),
       })
       writeCatalogueHistory(path.join(directory, CATALOGUE_HISTORY_FILE), history)
+      // A refresh that would strand saved selections is refused, so the previous revision keeps serving.
+      checkIdDrops(prior, directory, history)
     }
     const publicDirectory = await prepareCatalogueOutputs(directory, staging, compiler)
     const manifestFile = path.join(publicDirectory, 'offline-reference-version.json')
