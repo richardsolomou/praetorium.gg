@@ -650,7 +650,8 @@ function detachmentsNamed<T extends { id: string; name: string }>(
   return visit(normalized(combined), candidates) ?? []
 }
 
-const upgradeName = (name: string) => name.replace(/(?:\s+\((?:one per army|Upgrade)\))+$/i, '')
+// Official-app data before v995 prints Nightforged Battery's qualifier as "(Upgarde)".
+const upgradeName = (name: string) => name.replace(/(?:\s+\((?:one per army|Upgrade|Upgarde)\))+$/i, '')
 const nameVariants = (name: string) => normalizedNameVariants(normalized(name))
 const modelLoadout = /\s+w\/\s*(.+)$/i
 // BSData names these models after their units; neither the catalogue nor the cards hold the names the official app prints.

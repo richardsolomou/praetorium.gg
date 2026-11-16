@@ -173,6 +173,15 @@ describe.skipIf(!fs.existsSync(source))('genuine exports from other army builder
     expect(summary(official(faction, detachment, unit)).mismatches).toEqual([])
   })
 
+  it('reads an upgrade older official-app data qualifies as "(Upgarde)"', () => {
+    const file = official(
+      'Dark Angels',
+      'Darkflight Pursuit',
+      'Land Speeder Vengeance (160 points)\n  • 1x Armoured Hull\n    1x Heavy Bolter\n    1x Plasma Storm Battery\n  • Enhancement: Nightforged Battery (Upgarde)',
+    )
+    expect(summary(file).mismatches).toEqual([])
+  })
+
   it("reads the official app's close combat weapon as the one melee weapon a datasheet starts with", () => {
     const file = official(
       'Adeptus Custodes',
