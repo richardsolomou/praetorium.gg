@@ -1,4 +1,4 @@
-import { randomToken } from 'ras-stack/auth'
+import { randomToken } from '../src/server/random.ts'
 import { hash } from 'node:crypto'
 import path from 'node:path'
 import { eq } from 'drizzle-orm'

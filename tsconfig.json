@@ -1,5 +1,5 @@
 {
-  "extends": "./.ras/tsconfig.json",
+  "extends": "./node_modules/ras-stack/config/typescript/vite.json",
   "include": ["src", "scripts", "vite.config.ts", "vitest*.config.ts", "drizzle.auth.config.ts"],
   "compilerOptions": {
     "noUncheckedIndexedAccess": true,

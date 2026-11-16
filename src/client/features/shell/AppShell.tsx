@@ -6,6 +6,7 @@ import { AppPersistence } from '../../offline/AppPersistence'
 import { PressHaptics } from './PressHaptics'
 import { useQuery } from '@tanstack/react-query'
 import { HeadContent, Link, Outlet, Scripts, useLocation, useRouterState } from '@tanstack/react-router'
+import { updateNoticeId } from '../../chunkRecovery'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   ArrowUpRight,
@@ -20,14 +21,14 @@ import {
   PanelLeftOpen,
   type LucideIcon,
 } from 'lucide-react'
-import { postHogEnvironment } from 'ras-stack/posthog'
-import { PostHogBetterAuthIdentity, PostHogIntegration } from 'ras-stack/posthog/react'
+import { bundledPostHog } from '../../../contracts/posthog'
+import { PostHogIntegration } from '../../posthog'
+import { PostHogIdentity } from '../../postHogIdentity'
 import { type ReactElement, useEffect, useLayoutEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { buttonClass } from '../../components/buttonClass'
 import { ROSTER_WORKSPACE, followRailState, setRailCollapsed, useRailCollapsed } from './railState'
-import { POSTHOG_BROWSER_OPTIONS, POSTHOG_SERVICE, setImpersonating } from '../../../posthog'
-import { authClient } from '../../authClient'
+import { setImpersonating } from '../../../posthog'
 import { Account } from './Account'
 import { NoticeSync, NotificationsButton } from '../notifications/Notifications'
 import { GlobalSearch, GlobalSearchProvider } from './GlobalSearch'
@@ -49,14 +50,6 @@ import { meQuery } from '../../queries'
 import { COMMUNITY_LINKS, COMMUNITY_PAGES, FRIENDS_PAGE } from './CommunityLinks'
 import { followTextSourceChoice } from '../../rulesText'
 import { useRealtimeConfig, useSpacetimeLiveProduct } from '../../spacetimeLive'
-// A local dev server shares the production project token, so gate the browser
-// SDK on a built bundle to keep localhost sessions out of the production project.
-const posthog = import.meta.env.PROD
-  ? postHogEnvironment({
-      projectToken: import.meta.env.VITE_POSTHOG_PROJECT_TOKEN,
-      host: import.meta.env.VITE_POSTHOG_HOST,
-    })
-  : undefined
 
 const PRIMARY_LINKS = [
   { to: '/rosters', label: 'Rosters', Icon: ScrollText },
@@ -309,9 +302,6 @@ function SiteFooter() {
 /** A stream overlay is laid over someone's video, so it brings neither the app around it nor a background of its own. */
 const STREAM_OVERLAY = /^\/battles\/[^/]+\/overlay\/?$/
 
-// A browser source stays open for a whole game with nobody using it, so there is no session worth replaying.
-const OVERLAY_POSTHOG_OPTIONS = { ...POSTHOG_BROWSER_OPTIONS, disable_session_recording: true }
-
 export function AppShell() {
   const overlay = useLocation({ select: (location) => STREAM_OVERLAY.test(location.pathname) })
   // Browser tests wait for this before interacting: a click before hydration does nothing.
@@ -326,7 +316,7 @@ function OverlayShell() {
         <HeadContent />
       </head>
       <body>
-        <PostHogIntegration environment={posthog} options={OVERLAY_POSTHOG_OPTIONS} service={POSTHOG_SERVICE}>
+        <PostHogIntegration>
           <Outlet />
         </PostHogIntegration>
         <Scripts />
@@ -359,12 +349,13 @@ function AppFrame() {
         {offlineData() ? <style dangerouslySetInnerHTML={{ __html: offlineAssets()?.css ?? '' }} /> : null}
       </head>
       <body className={immersive ? 'h-dvh overflow-hidden' : 'min-h-dvh'}>
-        <PostHogIntegration environment={posthog} options={POSTHOG_BROWSER_OPTIONS} service={POSTHOG_SERVICE}>
+        <p id={updateNoticeId} hidden className="border-b border-edge bg-void px-4 py-2 text-center text-sm">
+          A new version is available. Reload the page to continue.
+        </p>
+        <PostHogIntegration>
           <TooltipProvider delay={250} closeDelay={100}>
-            {posthog && me !== undefined && !impersonating && (
-              <PostHogBetterAuthIdentity authClient={authClient} properties={({ name, email }) => ({ name, email })} />
-            )}
-            {posthog && !impersonating && <SupportIdentity />}
+            {bundledPostHog && me !== undefined && !impersonating && <PostHogIdentity />}
+            {bundledPostHog && !impersonating && <SupportIdentity />}
             {me && !impersonating ? <NoticeSync /> : null}
             <GlobalSearchProvider>
               {/*

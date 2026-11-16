@@ -1,9 +1,8 @@
 import { getRequestHeaders, instrument, type BeforeSendFn } from '@posthog/mcp'
 import { PostHog } from 'posthog-node'
 import packageJson from '../../package.json' with { type: 'json' }
-import { postHogEnvironment } from 'ras-stack/posthog'
-import { installPostHogServerTelemetryShutdown } from 'ras-stack/posthog/server'
-import { globalSingleton } from 'ras-stack/server'
+import { hostVariable, postHogEnvironment, projectTokenVariable } from '../contracts/posthog'
+import { globalSingleton } from '../lib/globalSingleton'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { TOOL_ERROR_TYPE_META, TOOL_ERROR_TYPES, TOOL_OUTCOME_META, type ToolErrorType } from '../contracts/agentTools'
 import { deploymentHost, serverEventContext } from './posthog'
@@ -126,17 +125,15 @@ const unexpectedFailure = (event: McpEvent) =>
   errorType(event.properties) === 'internal' &&
   !declaredErrorType(event.properties)
 
+export const MCP_ANALYTICS = 'praetorium.mcp-analytics'
+
 function mcpClient() {
   if (process.env.NODE_ENV !== 'production') return undefined
-  return globalSingleton('praetorium.mcp-analytics', () => {
-    const environment = postHogEnvironment({
-      projectToken: process.env.VITE_POSTHOG_PROJECT_TOKEN,
-      host: process.env.VITE_POSTHOG_HOST,
-    })
+  // The Nitro plugin in `src/server/shutdown.ts` shuts this client down once the server has drained.
+  return globalSingleton(MCP_ANALYTICS, () => {
+    const environment = postHogEnvironment({ projectToken: process.env[projectTokenVariable], host: process.env[hostVariable] })
     if (!environment) return undefined
-    const client = new PostHog(environment.projectToken, { host: environment.host, before_send: serverEventContext(deploymentHost()) })
-    installPostHogServerTelemetryShutdown({ shutdown: () => client.shutdown() })
-    return client
+    return new PostHog(environment.projectToken, { host: environment.host, before_send: serverEventContext(deploymentHost()) })
   })
 }
 

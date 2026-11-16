@@ -26,7 +26,12 @@ vi.mock('./app', () => ({
       sealedEventService: { ownRoster },
       rosterService: { setRosterVisibility },
     },
-    telemetry: { capture },
+    telemetry: {
+      posthog: {
+        capture: (message: { distinctId: string; event: string; properties?: object }) =>
+          capture(message.distinctId, message.event, message.properties),
+      },
+    },
     catalogueFor: async () => shelf.value,
     rulesFor: async () => null,
     battleFactionsFor: async () => [],

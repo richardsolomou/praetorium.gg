@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { moduleEnvironmentHeaders } from 'ras-stack/spacetime'
+import { moduleEnvironmentHeaders } from '../../src/server/spacetime.ts'
 import { moduleEnvironment } from './spacetimeEnvironment'
 
 const auth = { issuer: 'https://praetorium.gg/api/auth', audience: 'praetorium-production', operator: 'ab'.repeat(32) }

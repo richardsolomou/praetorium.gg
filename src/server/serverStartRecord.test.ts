@@ -2,11 +2,11 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
-import { reportServerFailure } from '../adapters/posthog'
+import { reportServerFailure } from './serverTelemetry'
 import { recordServerStart } from './serverStartRecord'
 
-vi.mock('../adapters/posthog', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../adapters/posthog')>()),
+vi.mock('./serverTelemetry', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./serverTelemetry')>()),
   reportServerFailure: vi.fn(),
 }))
 

@@ -2,7 +2,7 @@ import { rosterLoadoutDatasheets, rosterDatasheet } from '../../shared/rosterRea
 import { z } from 'zod'
 import { rosterDatasheetLoadedProperties } from '../../shared/rosterTelemetry'
 import { createServerFn } from '@tanstack/react-start'
-import { withServerSpan } from '../../adapters/posthog'
+import { withServerSpan } from '../serverTelemetry'
 import { app } from '../app'
 import { unitBattleDetailsIn } from '../../shared/catalogue'
 import { publishedTextFiles } from '../publishedTextFiles'
@@ -163,9 +163,13 @@ export const loadoutDatasheets = createServerFn({ method: 'POST' })
       const result = rosterLoadoutDatasheets(loaded, data, await app().rulesFor(data.catalogueId))
       const userId = await currentUserId()
       if (userId)
-        await app().telemetry.capture(userId, 'roster_datasheet_loaded', {
-          ...rosterDatasheetLoadedProperties(data, result, false),
-          duration_ms: Math.round(performance.now() - startedAt),
+        app().telemetry.posthog.capture({
+          distinctId: userId,
+          event: 'roster_datasheet_loaded',
+          properties: {
+            ...rosterDatasheetLoadedProperties(data, result, false),
+            duration_ms: Math.round(performance.now() - startedAt),
+          },
         })
       return result
     }),
@@ -213,9 +217,13 @@ export const savedRosterLoadoutDatasheets = createServerFn({ method: 'GET' })
         await app().rulesFor(roster.catalogueId),
       )
       if (userId)
-        await app().telemetry.capture(userId, 'roster_datasheet_loaded', {
-          ...rosterDatasheetLoadedProperties(roster, result, true),
-          duration_ms: Math.round(performance.now() - startedAt),
+        app().telemetry.posthog.capture({
+          distinctId: userId,
+          event: 'roster_datasheet_loaded',
+          properties: {
+            ...rosterDatasheetLoadedProperties(roster, result, true),
+            duration_ms: Math.round(performance.now() - startedAt),
+          },
         })
       return result
     }),

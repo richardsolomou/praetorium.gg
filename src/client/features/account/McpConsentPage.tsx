@@ -1,5 +1,5 @@
 import { posthog } from 'posthog-js'
-import { useAuthAction } from 'ras-stack/auth/react'
+import { useAuthAction } from '../../useAuthAction'
 import { Button } from '@/components/ui/button'
 import { buttonClass } from '../../components/buttonClass'
 import { Problem } from '../../components/Problem'

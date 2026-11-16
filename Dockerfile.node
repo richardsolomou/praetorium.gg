@@ -5,7 +5,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
 RUN npm install --global pnpm@12.13.0
 WORKDIR /app
 
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ras.config.ts ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY mobile/package.json mobile/package.json
 COPY spacetimedb/package.json spacetimedb/package.json
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store pnpm install --filter praetorium.gg --frozen-lockfile
@@ -27,7 +27,7 @@ RUN --mount=type=cache,target=/root/.cache/praetorium/runtime \
         "${POSTHOG_CLI_PROJECT_ID:?PostHog project is required}" \
         "${GITHUB_SHA:?Release revision is required}"; \
     fi; \
-    export POSTHOG_CLI_DRY_RUN=false NITRO_PRESET=node-server; \
+    export POSTHOG_CLI_DRY_RUN=false; \
     uploading() { \
       if [ "$POSTHOG_UPLOAD_SOURCEMAPS" != true ]; then "$@"; return; fi; \
       attempt=1; \
@@ -69,7 +69,7 @@ RUN rm -rf .output/server/node_modules/sharp .output/server/node_modules/@img
 FROM --platform=$BUILDPLATFORM node:24.22.2-bookworm-slim AS dependencies
 RUN npm install --global pnpm@12.13.0
 WORKDIR /app
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ras.config.ts ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY mobile/package.json mobile/package.json
 COPY spacetimedb/package.json spacetimedb/package.json
 ARG TARGETARCH

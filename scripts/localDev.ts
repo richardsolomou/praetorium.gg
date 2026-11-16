@@ -19,7 +19,7 @@ import { migrateProductData } from './lib/productDataMigrations.ts'
 import { moduleEnvironment } from './lib/spacetimeEnvironment.ts'
 import { TEST_STACK_NAME } from './lib/testStacks.ts'
 import { assertSpacetimeCliVersion, spacetimeCli as cli } from './lib/spacetimeCli.ts'
-import { callSpacetime, publishSpacetimeModule } from 'ras-stack/spacetime'
+import { callSpacetime, publishSpacetimeModule } from '../src/server/spacetime.ts'
 import { browserTestBuildEnvironment, ensureBrowserTestBuild } from './lib/browserTestBuild.ts'
 import { prepareModuleCoverage } from './lib/moduleCoverage.ts'
 

@@ -1,4 +1,5 @@
-import { deploymentHost, reportServerFailure } from '../adapters/posthog'
+import { deploymentHost } from '../adapters/posthog'
+import { reportServerFailure } from './serverTelemetry'
 import { privateR2Client, r2Objects } from './r2Client.ts'
 
 // Backups run every six hours, so one failed run stays quiet and the second alerts.

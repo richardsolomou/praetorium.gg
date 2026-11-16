@@ -106,7 +106,7 @@ export const createHiddenListGame = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       const result = await app().service.sealedEventService.createHiddenListGame(userId, data)
-      await captureMutation(userId, 'hidden_list_game_created', {
+      captureMutation(userId, 'hidden_list_game_created', {
         format: data.format,
         roster_limit: data.rosterLimit,
       })
@@ -152,7 +152,7 @@ export const remindSealedEventEntrants = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       const result = await app().service.sealedEventService.remindSealedEventEntrants(data.token, userId, data.eventToken)
-      await captureMutation(userId, 'sealed_event_entrants_reminded', { recipients: result.reminded })
+      captureMutation(userId, 'sealed_event_entrants_reminded', { recipients: result.reminded })
       return result
     }),
   )
@@ -195,7 +195,7 @@ export const shareSealedEventRoster = createServerFn({ method: 'POST' })
         data.submittedAt,
         data.rosterId,
       )
-      await captureMutation(userId, 'sealed_event_roster_published')
+      captureMutation(userId, 'sealed_event_roster_published')
       return result
     }),
   )
@@ -206,7 +206,7 @@ export const dismissSealedEventRosterSharing = createServerFn({ method: 'POST' }
     mutationRpc(async () => {
       const userId = await requireUserId()
       const result = await app().service.sealedEventService.dismissRosterSharing(data.token, data.eventToken, userId)
-      await captureMutation(userId, 'sealed_event_roster_sharing_dismissed')
+      captureMutation(userId, 'sealed_event_roster_sharing_dismissed')
       return result
     }),
   )
@@ -237,7 +237,7 @@ export const setSealedEventAdmins = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       const result = await app().service.sealedEventService.setSealedEventAdmins(data.token, userId, data.userIds)
-      await captureMutation(userId, 'tournament_admins_updated', { count: data.userIds.length, added: result.added.length })
+      captureMutation(userId, 'tournament_admins_updated', { count: data.userIds.length, added: result.added.length })
       return null
     }),
   )
@@ -256,7 +256,7 @@ export const dropSealedEventEntrant = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       await app().service.sealedEventService.dropSealedEventEntrant(data.token, data.eventToken ?? '', userId, data.userId)
-      await captureMutation(userId, 'sealed_event_entrant_dropped', { withdrew: data.userId === userId })
+      captureMutation(userId, 'sealed_event_entrant_dropped', { withdrew: data.userId === userId })
     }),
   )
 
@@ -266,7 +266,7 @@ export const pairSealedEventRound = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       const result = await app().service.sealedEventResultsService.pairSealedEventRound(data.token, data.eventToken, userId)
-      await captureMutation(userId, 'sealed_event_round_paired', { round: result.round })
+      captureMutation(userId, 'sealed_event_round_paired', { round: result.round })
       return result
     }),
   )
@@ -292,7 +292,7 @@ export const dropNoShows = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       await app().service.sealedEventService.dropNoShows(data.token, data.eventToken ?? data.token, userId)
-      await captureMutation(userId, 'sealed_event_no_shows_dropped', {})
+      captureMutation(userId, 'sealed_event_no_shows_dropped', {})
     }),
   )
 
@@ -302,7 +302,7 @@ export const setTiebreak = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       await app().service.sealedEventService.setTiebreak(data.token, data.eventToken ?? data.token, userId, data.scheduleFirst)
-      await captureMutation(userId, 'sealed_event_tiebreak_set', { scheduleFirst: data.scheduleFirst })
+      captureMutation(userId, 'sealed_event_tiebreak_set', { scheduleFirst: data.scheduleFirst })
     }),
   )
 
@@ -312,7 +312,7 @@ export const setRoundTimer = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       await app().service.sealedEventService.setRoundTimer(data.token, data.eventToken ?? data.token, userId, data.minutes, data.fromEnd)
-      await captureMutation(userId, 'sealed_event_round_timer_set', { minutes: data.minutes })
+      captureMutation(userId, 'sealed_event_round_timer_set', { minutes: data.minutes })
     }),
   )
 
@@ -322,7 +322,7 @@ export const swapTableSeats = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       await app().service.sealedEventService.swapSeats(data.token, data.eventToken ?? data.token, userId, data.players)
-      await captureMutation(userId, 'sealed_event_seats_swapped', {})
+      captureMutation(userId, 'sealed_event_seats_swapped', {})
     }),
   )
 
@@ -356,7 +356,7 @@ export const setTableBattlefield = createServerFn({ method: 'POST' })
         data.battlefield,
         await loadedRules(),
       )
-      await captureMutation(userId, 'sealed_event_battlefield_set', {
+      captureMutation(userId, 'sealed_event_battlefield_set', {
         rolled: data.battlefield === 'roll',
         cleared: data.battlefield === null,
       })
@@ -377,7 +377,7 @@ export const reportTableResult = createServerFn({ method: 'POST' })
         data.missionPackId,
         userId,
       )
-      await captureMutation(userId, 'sealed_event_result_reported', { round: data.round })
+      captureMutation(userId, 'sealed_event_result_reported', { round: data.round })
     }),
   )
 

@@ -25,6 +25,10 @@ jobs:
         run: |
           live="$(curl --silent --show-error --fail --retry 20 --retry-delay 15 --max-time 30 --head https://praetorium.gg/api/health | tr -d '\r' | sed -n 's/^x-praetorium-revision: //Ip')"
           git worktree add --detach "$RUNNER_TEMP/released" "${live:?production sent no revision}"
+      # The test borrows these packages unless the released server pinned different ones, which it installs itself.
+      - name: Install the released server's packages when they differ
+        working-directory: ${{ runner.temp }}/released
+        run: cmp --silent pnpm-lock.yaml "$GITHUB_WORKSPACE/pnpm-lock.yaml" || pnpm install --frozen-lockfile
       - run: pnpm test:unit
         env:
           RELEASED_CHECKOUT: ${{ runner.temp }}/released

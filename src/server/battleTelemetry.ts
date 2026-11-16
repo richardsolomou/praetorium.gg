@@ -30,7 +30,7 @@ export async function captureBattleCommand(
   duration: number,
   delivery: 'direct' | 'sync',
 ) {
-  await captureWrite(userId, 'battle_command_submitted', delivery, {
+  captureWrite(userId, 'battle_command_submitted', delivery, {
     battle_id: battleId,
     command: command.kind,
     outcome: result.outcome,
@@ -49,7 +49,7 @@ export async function captureBattleCommand(
   if (!event && !finished && !filled) return
   const kind = screen ? gameKind(screen.view) : {}
   // A draft becomes a battle once its last army is chosen, which is when it counts as created.
-  if (filled) await captureWrite(userId, 'battle_created', delivery, { battle_id: battleId, draft: true, ...kind })
-  if (event) await captureWrite(userId, event, delivery, { battle_id: battleId, ...kind })
-  if (finished) await captureWrite(userId, 'battle_finished', delivery, { battle_id: battleId, reason: finished, ...kind })
+  if (filled) captureWrite(userId, 'battle_created', delivery, { battle_id: battleId, draft: true, ...kind })
+  if (event) captureWrite(userId, event, delivery, { battle_id: battleId, ...kind })
+  if (finished) captureWrite(userId, 'battle_finished', delivery, { battle_id: battleId, reason: finished, ...kind })
 }

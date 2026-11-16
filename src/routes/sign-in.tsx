@@ -1,5 +1,5 @@
 import { createFileRoute, redirect } from '@tanstack/react-router'
-import { localRedirectPath } from 'ras-stack/auth/client'
+import { localRedirectPath } from '../client/localRedirect'
 import { SignInPage } from '../client/features/account/SignInPage'
 import { signInOptionsQuery } from '../client/queries'
 import { signedInDestination } from '../client/features/account/signInGuard'

@@ -8,7 +8,8 @@ import { createCipheriv, createECDH, createPrivateKey, hkdfSync, randomBytes, si
 import pRetry from 'p-retry'
 import { chunks } from '../core/collections'
 import type { WebPushSubscription } from '../core/notifications'
-import { countServerMetric, reportServerFailure, requestOutcome } from './posthog'
+import { requestOutcome } from '../adapters/posthog'
+import { countServerMetric, reportServerFailure } from './serverTelemetry'
 
 export type WebPushMessage = { to: WebPushSubscription; title: string; body: string; path: string }
 

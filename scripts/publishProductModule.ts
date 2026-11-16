@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import pRetry from 'p-retry'
-import { publishSpacetimeModule } from 'ras-stack/spacetime'
+import { publishSpacetimeModule } from '../src/server/spacetime.ts'
 import { isEntryPoint } from './lib/entryPoint.ts'
 import { requiredEnv } from './lib/requiredEnv'
 

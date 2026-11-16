@@ -3,7 +3,7 @@ import { calendarFeedText } from '../../core/calendarFeed'
 import { tokenSchema } from '../../contracts/schemas'
 import { app } from '../../server/app'
 import { notFound } from '../../server/notFound'
-import { publicOrigin } from '../../server/requestOrigin'
+import { publicOrigin } from '../../server/origins'
 
 /** A player's calendar feed. The token is the only credential, since calendar apps fetch it without a session. */
 export const Route = createFileRoute('/api/calendar/$token')({

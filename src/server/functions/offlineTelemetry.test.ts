@@ -14,7 +14,12 @@ vi.mock('../app', () => ({
   app: () => ({
     service: mocks,
     repository: mocks,
-    telemetry: { capture: mocks.capture },
+    telemetry: {
+      posthog: {
+        capture: (message: { distinctId: string; event: string; properties?: object }) =>
+          mocks.capture(message.distinctId, message.event, message.properties),
+      },
+    },
     catalogueFor: async () => null,
     rulesFor: async () => null,
   }),

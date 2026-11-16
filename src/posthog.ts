@@ -161,7 +161,7 @@ export function captureWhenLoaded(event: string, properties: Properties) {
   else held.push([event, properties])
 }
 
-export const POSTHOG_SERVICE = { name: 'praetorium', version, environment: import.meta.env.MODE }
+const POSTHOG_SERVICE = { serviceName: 'praetorium', serviceVersion: version, environment: import.meta.env.MODE }
 
 export const POSTHOG_BROWSER_OPTIONS = {
   capture_exceptions: true,
@@ -171,14 +171,20 @@ export const POSTHOG_BROWSER_OPTIONS = {
   custom_personal_data_properties: PRIVATE_URL_PARAMS,
   session_recording: { maskAllInputs: true },
   before_send: [dropWhileImpersonating, dropUnactionableExceptions, maskPrivateUrls, browserEventContext],
-  // Replaces the logs options the integration builds from `service`, so it names the service again.
-  logs: {
-    serviceName: POSTHOG_SERVICE.name,
-    serviceVersion: POSTHOG_SERVICE.version,
-    environment: POSTHOG_SERVICE.environment,
-    beforeSend: maskLogUrls,
-  },
+  // Browser logs and metrics have always reported as `praetorium`, which saved log views and alerts filter on.
+  logs: { ...POSTHOG_SERVICE, beforeSend: maskLogUrls },
+  metrics: POSTHOG_SERVICE,
   loaded: (client) => {
     for (const [event, properties] of held.splice(0)) client.capture(event, properties)
   },
 } satisfies Partial<PostHogConfig>
+
+const STREAM_OVERLAY = /^\/battles\/[^/]+\/overlay\/?$/
+
+/**
+ * The application's options over the recipe's. A stream overlay stays open for a whole game with nobody using it, so
+ * there is no session worth replaying.
+ */
+export function applicationPostHogOptions(pathname: string): Partial<PostHogConfig> {
+  return STREAM_OVERLAY.test(pathname) ? { ...POSTHOG_BROWSER_OPTIONS, disable_session_recording: true } : POSTHOG_BROWSER_OPTIONS
+}

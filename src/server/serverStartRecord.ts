@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { deploymentHost, reportServerFailure } from '../adapters/posthog'
+import { deploymentHost } from '../adapters/posthog'
+import { reportServerFailure } from './serverTelemetry'
 import { replaceFileSync } from './replaceFile'
 
 /** Reports a production start on the same revision as the previous one, which is a restart no deploy explains. */
