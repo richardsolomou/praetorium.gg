@@ -214,7 +214,7 @@ importers:
         version: 1.2.2(@modelcontextprotocol/sdk@1.32.2(supports-color@8.1.1)(zod@4.6.7))(posthog-node@5.61.2(@opentelemetry/api@1.9.1))
       '@posthog/react':
         specifier: 1.11.3
-        version: 1.11.3(@types/react@19.3.0)(posthog-js@1.445.3(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)
+        version: 1.11.3(@types/react@19.3.0)(posthog-js@1.445.4(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)
       '@resvg/resvg-wasm':
         specifier: 2.6.2
         version: 2.6.2
@@ -285,8 +285,8 @@ importers:
         specifier: ^9.0.0
         version: 9.0.0
       posthog-js:
-        specifier: 1.445.3
-        version: 1.445.3(@types/react@19.3.0)(react@19.3.0)
+        specifier: 1.445.4
+        version: 1.445.4(@types/react@19.3.0)(react@19.3.0)
       posthog-node:
         specifier: 5.61.2
         version: 5.61.2(@opentelemetry/api@1.9.1)
@@ -343,8 +343,8 @@ importers:
         specifier: 0.20.0
         version: 0.20.0
       '@posthog/rollup-plugin':
-        specifier: 1.6.2
-        version: 1.6.2(rollup@4.63.2)
+        specifier: 1.6.4
+        version: 1.6.4(rollup@4.63.2)
       '@tailwindcss/vite':
         specifier: 4.3.5
         version: 4.3.5(vite@8.3.4(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))
@@ -2499,8 +2499,8 @@ packages:
   '@posthog/browser-common@0.10.5':
     resolution: {integrity: sha512-lEU1GpTln5Fmt7MgroCm5Fr7VsdG4RPl/rmVFv6+WjI6+/JvtEx9XMUDovwNhdnrv0Nn3wEnVO+tD+4/I8ZaJg==}
 
-  '@posthog/cli@0.18.12':
-    resolution: {integrity: sha512-/eT9riWOkBb9uwsdOxQgW3fan/T3hwT8rvwZCzPl3DAgSBEhzpP59usD0fyFS++X2967E5AQe74nrBw1rywf6A==}
+  '@posthog/cli@0.19.4':
+    resolution: {integrity: sha512-wDS1yNMfKYEVpWJNX0DVdmQA9//zQV6+I7Eq2NcgRL30g2TKzN/wAzob0iAI/ysibcON7D6o/LtBxfh+8JTGDw==}
     engines: {node: '>=14.14', npm: '>=6'}
     hasBin: true
 
@@ -2547,8 +2547,8 @@ packages:
       '@types/react':
         optional: true
 
-  '@posthog/rollup-plugin@1.6.2':
-    resolution: {integrity: sha512-6aOAx34tP6M8H4+3y9ydVeM/bK06ak+UUJgEA7pQCygkdHOsPcVFI6Tnd+rV4ZWQEMQDj6ZHZy9K5X7IIWj6Tg==}
+  '@posthog/rollup-plugin@1.6.4':
+    resolution: {integrity: sha512-T2BnNw9wqodg+Xx75Aq7Nm0wtHanvD4amlc1KJnJ/oTE76bN3okl+Cwm30WvoGSVFnrzumDYF2lrsJejplCmgw==}
     peerDependencies:
       rollup: '>= 4.0.0'
 
@@ -6213,8 +6213,8 @@ packages:
     resolution: {integrity: sha512-GD3qdB0x1z9xgFI6cdRD6xu2Sp2WCOEoe3mtnyB5Ee0XrrL5Pe+e4CCnJrRMnL1zYtRDZmQQVbvOttLnKDLnaw==}
     engines: {node: '>=12'}
 
-  posthog-js@1.445.3:
-    resolution: {integrity: sha512-AuN+xbOq9hrARYfFHYa1ErhnLl7GuJfOwmW/O4sRHeKj2QLTT/J2/QQ4vQEjroWiF3arLSTMUns/2YxXafWO2A==}
+  posthog-js@1.445.4:
+    resolution: {integrity: sha512-+RhIUigXMW1V1aqEcZ1nkFsXHk/IgN5N280cp6nrYjPE0pInhqLT3Ve14WmEUPahdwElujpJyVYrALgvPKyMGw==}
     peerDependencies:
       '@types/react': '>=16.8.0'
       react: '>=16.8.0'
@@ -9118,14 +9118,14 @@ snapshots:
 
   '@posthog/browser-common@0.10.5':
     dependencies:
-      '@posthog/core': 1.63.1
-      '@posthog/types': 1.419.0
+      '@posthog/core': 1.68.0
+      '@posthog/types': 1.425.1
       dompurify: 3.4.17
       preact: 10.29.8
     transitivePeerDependencies:
       - preact-render-to-string
 
-  '@posthog/cli@0.18.12':
+  '@posthog/cli@0.19.4':
     dependencies:
       detect-libc: 2.1.2
 
@@ -9157,16 +9157,16 @@ snapshots:
       react: 19.3.0
       react-native: 0.88.1(@babel/core@7.29.7(supports-color@8.1.1))(@types/react@19.3.0)(react@19.3.0)(supports-color@8.1.1)
 
-  '@posthog/react@1.11.3(@types/react@19.3.0)(posthog-js@1.445.3(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)':
+  '@posthog/react@1.11.3(@types/react@19.3.0)(posthog-js@1.445.4(@types/react@19.3.0)(react@19.3.0))(react@19.3.0)':
     dependencies:
-      posthog-js: 1.445.3(@types/react@19.3.0)(react@19.3.0)
+      posthog-js: 1.445.4(@types/react@19.3.0)(react@19.3.0)
       react: 19.3.0
     optionalDependencies:
       '@types/react': 19.3.0
 
-  '@posthog/rollup-plugin@1.6.2(rollup@4.63.2)':
+  '@posthog/rollup-plugin@1.6.4(rollup@4.63.2)':
     dependencies:
-      '@posthog/cli': 0.18.12
+      '@posthog/cli': 0.19.4
       '@posthog/plugin-utils': 2.0.1
       magic-string: 0.30.21
       rollup: 4.63.2
@@ -13068,11 +13068,11 @@ snapshots:
   postgres@3.4.9:
     optional: true
 
-  posthog-js@1.445.3(@types/react@19.3.0)(react@19.3.0):
+  posthog-js@1.445.4(@types/react@19.3.0)(react@19.3.0):
     dependencies:
       '@posthog/browser-common': 0.10.5
-      '@posthog/core': 1.63.1
-      '@posthog/types': 1.419.0
+      '@posthog/core': 1.68.0
+      '@posthog/types': 1.425.1
       core-js: 3.51.0
       dompurify: 3.4.17
       fflate: 0.4.9

@@ -137,8 +137,8 @@
       ]
     },
     "posthog-web": {
-      "version": 3,
-      "commit": "8e4dfdee6afeeaa1f05804e38888a171f9ebe722",
+      "version": 4,
+      "commit": "0184a1e1bc4ababa9b89b4455014ba13be436df2",
       "files": {
         "scripts/posthogSourceMaps.test.ts": "scripts/posthogSourceMaps.test.ts",
         "scripts/posthogSourceMaps.ts": "scripts/posthogSourceMaps.ts",
@@ -231,7 +231,8 @@
         "src/server/rpc.ts wraps the recipe's `run` in the application's PostHog observer and reports failures through it; `inTurn` streams per-item results with the same reporting.",
         "/api/health waits for the catalogue warm-up and checks the auth database and SpacetimeDB through `app().health()`, reporting only that check's failures as `database_unavailable`, and adds `x-praetorium-revision`, which preview and release checks read.",
         "src/server/requestOrigin.ts keeps `siteOrigin`, the isomorphic origin for page metadata, on top of `publicOrigin`.",
-        "Forwarded headers count only with `TRUST_PROXY=true`, where the application trusted them always; every deployment, preview, and local stack sets `APP_URL`, which `acceptedOrigins` and `publicOrigin` use instead."
+        "Forwarded headers count only with `TRUST_PROXY=true`, where the application trusted them always; every deployment, preview, and local stack sets `APP_URL`, which `acceptedOrigins` and `publicOrigin` use instead.",
+        "`react` and `react-dom` stay at the exact version `mobile/package.json` pins, so the workspace installs one React for the web and the native shell, even when the recipe is tested with a newer patch."
       ]
     },
     "tooling": {
