@@ -175,7 +175,7 @@ test('a three-point detachment lets the player choose either disposition', async
 
   const dispositions = dialog.getByRole('group', { name: 'Force disposition' })
   await expect(dispositions.getByRole('button')).toHaveText(['Take and Hold', 'Priority Assets'])
-  await expect(dialog.getByRole('button', { name: 'Create roster' })).toBeDisabled()
+  await expect(dialog.getByRole('button', { name: 'Create roster' })).toBeEnabled()
   await dispositions.getByRole('button', { name: 'Priority Assets' }).click()
   await dialog.getByRole('button', { name: 'Create roster' }).click()
   await page.waitForURL(/\/rosters\/[^/]+$/)
