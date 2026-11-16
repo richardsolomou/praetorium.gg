@@ -46,7 +46,8 @@
       "notes": [
         "ci.yml runs `pnpm check`'s lanes side by side (static, build, unit, integration, points, browser builds, and the browser specs a change exercises), each in its own ci-<lane>.yml and reported under the job names main requires, with a daily full browser run that records spec coverage; it does not call check-js.yml.",
         "The application releases with Changesets (release.yml calls release-changesets.yml@v1) and deploys released revisions, so `changesets:check` is part of `pnpm check`.",
-        "Dependabot keeps the recipe's grouping and cooldown; better-auth and its @better-auth plugins are no longer ignored and move together in the same grouped pull request."
+        "Dependabot keeps the recipe's grouping and cooldown; better-auth and its @better-auth plugins are no longer ignored and move together in the same grouped pull request.",
+        "Dependabot groups `better-auth` with `@better-auth/*`, because Better Auth's plugins pin its core version and a lone bump splits the types."
       ]
     },
     "database-libsql": {
