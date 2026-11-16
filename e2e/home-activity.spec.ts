@@ -334,7 +334,10 @@ test('orders the signed-in home page from the player outwards', async ({ browser
     await expect(idleHistory.locator(`a[href="${new URL(played).pathname}"]`)).toHaveCount(1)
     expect((await idleHistory.boundingBox())!.x).toBeLessThan((await host.locator('[data-home-rosters]').boundingBox())!.x)
     await host.setViewportSize(PHONE)
-    expect((await host.locator('[data-home-rosters]').boundingBox())!.y).toBeLessThan((await idleHistory.boundingBox())!.y)
+    // The phone layout stacks the shelves only once it has reflowed after the resize.
+    await expect
+      .poll(async () => (await host.locator('[data-home-rosters]').boundingBox())!.y < (await idleHistory.boundingBox())!.y)
+      .toBe(true)
     await expectNoPageOverflow(host)
     await host.setViewportSize({ width: 1440, height: 900 })
 
