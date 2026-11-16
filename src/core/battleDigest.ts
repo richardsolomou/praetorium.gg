@@ -12,7 +12,7 @@ import { opposingSide } from './battlePrimitives'
 import { copiedArmy } from './rosterCopies'
 
 /** Raise when what a digest holds changes, so every stored digest is folded again on its next read. */
-export const BATTLE_DIGEST_VERSION = 1
+export const BATTLE_DIGEST_VERSION = 2
 
 /** What a list reads of one seat: its army's identity, never its units or the log that built it. */
 export type DigestSeat = {
@@ -81,7 +81,7 @@ export function battleDigest(state: BattleState, log: readonly Pick<LoggedComman
           catalogueId: built.catalogueId,
           detachmentIds: built.detachmentIds ?? [],
           picks: built.picks ?? [],
-          playedAt: log.at(-1)?.at,
+          playedAt: player.roster?.fieldedAt ?? log.at(-1)?.at,
         })
       return {
         id: player.id,

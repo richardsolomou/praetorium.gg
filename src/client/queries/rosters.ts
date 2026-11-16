@@ -214,6 +214,11 @@ export const factionDatasheetsQuery = (catalogueId: string, query: string) =>
     staleTime: referenceStaleTime,
   })
 
+/** A list a battle or sealed event froze, with when the battle took it where that is known. */
+export type Fielded = { at?: number } | false
+
+const fieldedRequest = (fielded: Fielded) => (fielded ? { fielded: true, fieldedAt: fielded.at } : {})
+
 export const datasheetQuery = (
   catalogueId: string,
   entryId: string,
@@ -221,7 +226,7 @@ export const datasheetQuery = (
   picks: readonly RosterPick[] = [],
   pickIndex: number | null = null,
   everyWeapon = false,
-  fielded = false,
+  fielded: Fielded = false,
 ) =>
   queryOptions({
     queryKey: ['datasheet', catalogueId, entryId, detachmentIds, picks, pickIndex, everyWeapon, fielded],
@@ -234,7 +239,7 @@ export const datasheetQuery = (
           picks: [...picks],
           pickIndex,
           everyWeapon,
-          fielded,
+          ...fieldedRequest(fielded),
         },
         signal,
       }),
@@ -263,7 +268,7 @@ export const loadoutDatasheetsQuery = (
   picks: readonly RosterPick[],
   pickIndex: number | null,
   persistedRoster?: { id: string },
-  fielded = false,
+  fielded: Fielded = false,
 ) =>
   queryOptions({
     queryKey: persistedRoster
@@ -284,7 +289,7 @@ export const loadoutDatasheetsQuery = (
                 detachmentIds: [...detachmentIds],
                 picks: [...picks],
                 pickIndex,
-                fielded,
+                ...fieldedRequest(fielded),
               },
               signal,
             })
@@ -306,11 +311,11 @@ export const priceQuery = (
   borrowedDetachmentId: string | null = null,
   optionalRules: readonly OptionalRuleId[] = [],
   includeUnitLimits = false,
-  fielded = false,
+  fielded: Fielded = false,
 ) => {
   const data = {
     includeUnitLimits,
-    fielded,
+    ...fieldedRequest(fielded),
     catalogueId,
     detachmentIds: [...detachmentIds],
     disposition,
@@ -338,7 +343,7 @@ export const setupPriceQuery = (
     waivedRules?: readonly FormatRuleId[]
     borrowedDetachmentId?: string | null
     optionalRules?: readonly OptionalRuleId[]
-    fielded?: boolean
+    fielded?: Fielded
   },
   picked: readonly RosterPick[],
   includeUnitLimits = false,

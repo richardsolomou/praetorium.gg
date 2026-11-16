@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import type { UnitState } from '../../../core/battle'
 import type { Army } from '../../sides'
-import { factionQuery, priceQuery } from '../../queries'
+import { factionQuery, setupPriceQuery } from '../../queries'
 import { Loadout } from '../rosters/builder/Loadout'
 import { normalisePicks } from '../rosters/rosterPicks'
 import { DatasheetPanel } from '../rosters/builder/DatasheetPanel'
@@ -13,13 +13,8 @@ export function ArmyLoadout({ army, unit }: { army: Army; unit: UnitState }) {
   const built = army.roster!.built!
   const picks = normalisePicks(built.picks ?? [])
   const detachmentIds = built.detachmentIds ?? []
-  const {
-    data: priced,
-    isError,
-    isPending,
-  } = useQuery(
-    priceQuery(built.catalogueId, detachmentIds, built.disposition, built.limit, picks, built.waivedRules, null, [], false, true),
-  )
+  const fielded = { at: army.roster!.fieldedAt }
+  const { data: priced, isError, isPending } = useQuery(setupPriceQuery({ ...built, detachmentIds, fielded }, picks))
   const selected = priced?.units[army.units.findIndex((candidate) => candidate.key === unit.key)]
   const matches = selected?.entryId === unit.entryId
   const catalogueId = selected ? (picks[selected.key]?.catalogueId ?? built.catalogueId) : built.catalogueId
@@ -44,7 +39,7 @@ export function ArmyLoadout({ army, unit }: { army: Army; unit: UnitState }) {
             editable={false}
             embedded
             showOptions={false}
-            fielded
+            fielded={fielded}
             unavailable={<FieldedUnit unit={unit} />}
             footer={matches ? <UnitPhoto entryId={selected!.entryId} name={selected!.name} /> : undefined}
             // The roster editor's datasheet, so a unit reads the same in battle as where it was built.
@@ -57,7 +52,7 @@ export function ArmyLoadout({ army, unit }: { army: Army; unit: UnitState }) {
                 pickIndex={selected?.key ?? null}
                 embedded
                 detachmentRules={detachmentRules}
-                fielded
+                fielded={fielded}
               />
             }
           />

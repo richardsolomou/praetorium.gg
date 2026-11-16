@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import type { UnitState } from '../../../core/battle'
 import type { Army } from '../../sides'
-import { priceQuery } from '../../queries'
+import { setupPriceQuery } from '../../queries'
 import { ArmyLoadout } from './ArmyLoadout'
 
 const unit = {
@@ -33,7 +33,7 @@ const army = { roster: { name: 'Fielded', text: '', built }, units: [unit] } as 
 describe('a fielded unit in battle', () => {
   it('shows what the list recorded when its rules version can no longer build it', () => {
     const queryClient = new QueryClient()
-    const request = priceQuery(built.catalogueId, [], null, built.limit, built.picks, [], null, [], false, true)
+    const request = setupPriceQuery({ ...built, detachmentIds: [], fielded: { at: undefined } }, built.picks)
     queryClient.setQueryData(request.queryKey, { units: [] } as never)
 
     const markup = renderToStaticMarkup(

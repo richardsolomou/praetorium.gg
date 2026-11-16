@@ -413,8 +413,11 @@ export const picksSchema = z.array(rosterPickSchema).max(100)
 
 /** Set for a list a battle or sealed event froze, which is read on the rules version it was fielded under rather than today's. */
 export const fielded = z.boolean().optional()
-export const fieldedOrCurrentIds = <T extends Parameters<typeof currentRosterIds>[0] & { fielded?: boolean }>(roster: T): T =>
-  roster.fielded ? fieldedRosterIds(roster) : currentRosterIds(roster)
+/** When a battle took a fielded list, which dates one on a plain book ID to the rules version it was played on. */
+export const fieldedAt = z.number().int().nonnegative().optional()
+export const fieldedOrCurrentIds = <T extends Parameters<typeof currentRosterIds>[0] & { fielded?: boolean; fieldedAt?: number }>(
+  roster: T,
+): T => (roster.fielded ? fieldedRosterIds(roster, roster.fieldedAt) : currentRosterIds(roster))
 
 export const unitsSchema = z.object({
   catalogueId,
@@ -447,6 +450,7 @@ export const datasheetSchema = z
     /** Keep weapons the unit is not carrying, so options read as this list would make them. */
     everyWeapon: z.boolean().default(false),
     fielded,
+    fieldedAt,
   })
   .overwrite((data) => {
     const roster = fieldedOrCurrentIds(data)
@@ -469,6 +473,7 @@ export const combatLoadoutSchema = z
     pickIndex: z.number().int().min(0).max(99),
     walk: z.object({ seed: z.number().int().min(0).max(2_147_483_647), steps: z.number().int().min(1).max(16) }).optional(),
     fielded,
+    fieldedAt,
   })
   .overwrite(fieldedOrCurrentIds)
 export const savedRosterDatasheetSchema = z.object({ id, pickIndex: z.number().int().min(0).max(99) })
@@ -639,6 +644,7 @@ export const priceSchema = z
     waivedRules,
     optionalRules,
     fielded,
+    fieldedAt,
   })
   .overwrite(fieldedOrCurrentIds)
 

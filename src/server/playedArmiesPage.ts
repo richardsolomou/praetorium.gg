@@ -25,10 +25,10 @@ export async function playedArmiesPage(viewerId: string | null, { before, ...fil
     const priceable = armies.map((army) => ({ id: `${army.battle}:${army.player.id}`, updatedAt: army.playedAt }))
     const held = await heldRosterAssessments(priceable)
     const unpriced = armies.filter((_, index) => !held[index])
-    const picks = await instance.service.battleFeedService.playedArmyPicks(unpriced)
+    const fielded = await instance.service.battleFeedService.playedArmyPicks(unpriced)
     const priced = await cachedRosterAssessmentsFor(
       unpriced.map((army, index) => ({
-        ...copiedArmy({ ...army, picks: picks[index]! }),
+        ...copiedArmy({ ...army, picks: fielded[index]!.picks, playedAt: fielded[index]!.fieldedAt ?? army.playedAt }),
         id: `${army.battle}:${army.player.id}`,
         updatedAt: army.playedAt,
         optionalRules: [],

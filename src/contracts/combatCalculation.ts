@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { combatSchema } from '../core/combat'
-import { combatLoadoutSchema, fielded, fieldedOrCurrentIds } from './schemas'
+import { combatLoadoutSchema, fielded, fieldedAt, fieldedOrCurrentIds } from './schemas'
 
 export const COMBAT_BATCH_SIZE = 4
 export const combatRequestsSchema = z
@@ -26,6 +26,7 @@ export const rosterCombatantsSchema = z
     pickIndices: z.array(z.int().min(0).max(99)).min(1).max(100),
     inactivePicks: z.array(z.int().min(0).max(99)).max(100).default([]),
     fielded,
+    fieldedAt,
   })
   .overwrite(fieldedOrCurrentIds)
   .refine(({ picks, pickIndices }) => pickIndices.every((index) => index < picks.length), 'A selected unit is missing.')

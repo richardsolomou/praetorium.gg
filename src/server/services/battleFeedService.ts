@@ -209,21 +209,24 @@ export class BattleFeedService {
     const army = playedArmies(history, digest, battleSummary(history, digest, null, null, new Map())).find(
       (played) => played.player.id === playerId,
     )
-    const picks = state.players.find((player) => player.id === playerId)?.roster?.built?.picks
-    return army && picks ? { ...army, picks } : null
+    const roster = state.players.find((player) => player.id === playerId)?.roster
+    const picks = roster?.built?.picks
+    // Copied as the rules version it was fielded under, not the one when the battle ended.
+    return army && picks ? { ...army, picks, playedAt: roster.fieldedAt ?? army.playedAt } : null
   }
 
   /** The picks each army fielded, read from its battle's log; only the armies a page prices need them. */
   async playedArmyPicks(armies: readonly PlayedArmy[]) {
     const tokens = [...new Set(armies.map((army) => army.battle))]
     const histories = await Promise.all(tokens.map((token) => this.repository.battleHistoryByToken(token)))
-    const picks = new Map<string, RosterPick[]>()
+    const fielded = new Map<string, { picks: RosterPick[]; fieldedAt?: number }>()
     for (const history of histories) {
       if (!history) continue
       for (const player of foldHistory(history).players)
-        if (player.roster?.built?.picks) picks.set(`${history.battle.token}:${player.id}`, player.roster.built.picks)
+        if (player.roster?.built?.picks)
+          fielded.set(`${history.battle.token}:${player.id}`, { picks: player.roster.built.picks, fieldedAt: player.roster.fieldedAt })
     }
-    return armies.map((army) => picks.get(`${army.battle}:${army.player.id}`) ?? [])
+    return armies.map((army) => fielded.get(`${army.battle}:${army.player.id}`) ?? { picks: [] })
   }
 
   /** The battles this player's friends are in and they are not. */

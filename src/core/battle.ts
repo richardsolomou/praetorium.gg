@@ -194,6 +194,8 @@ export type Roster = {
   reminders?: RosterReminder[]
   remindersEnabled?: boolean
   built?: BuiltRoster
+  /** When the battle took the list, set by the fold rather than sent: it dates a list on a plain book ID to its rules version. */
+  fieldedAt?: number
 }
 
 /**
@@ -952,7 +954,7 @@ const CASUALTY_COMMANDS: readonly Command['kind'][] = ['set-unit', 'wound-unit',
 /** Applies one command that is standing when it is folded, and records whether undo may name it. */
 export function applyEntry(state: BattleState, entry: LoggedCommand) {
   const moment = turnMoment(state)
-  apply(state, entry.by, entry.command, entry.seq)
+  apply(state, entry.by, entry.command, entry.seq, entry.at)
   if (turnMoment(state) !== moment) state.momentSeq = entry.seq
   recordBeaconDestruction(state)
   const now = playedMoment(state)
@@ -1680,7 +1682,7 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
 
 const reopenRefusal = (state: BattleState) => (state.status === 'finished' ? null : refuse('battle-not-over', 'the battle is not over'))
 
-function apply(state: BattleState, by: PlayerId, command: Command, seq: number) {
+function apply(state: BattleState, by: PlayerId, command: Command, seq: number, at: number) {
   // An event's organizer may reopen a battle without a seat in it, so this one needs no actor.
   if (command.kind === 'reopen-battle') return reopenBattle(state)
   if (command.kind === 'report-result') return reportResult(state, command.vp)
@@ -1802,7 +1804,7 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
     }
     case 'attach-roster': {
       if (state.status === 'setup') state.firstPlayerId = null
-      player.roster = { ...command.roster, name: command.roster.name.trim() }
+      player.roster = { ...command.roster, name: command.roster.name.trim(), fieldedAt: at }
       player.rosterSeq = seq
       // A replaced list is a different army, so nothing about the old one survives.
       const fielded = fieldedUnits(command.roster.built?.units ?? [])

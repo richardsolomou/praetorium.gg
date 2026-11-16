@@ -39,7 +39,7 @@ describe('roster datasheet queries', () => {
     const picks = [{ entryId: 'unit' }]
     const query = loadoutDatasheetsQuery('catalogue', 'unit', ['detachment'], picks, 0)
 
-    expect(query.queryKey).toEqual(['loadout-datasheets', 'catalogue', 'unit', ['detachment'], picks, 0])
+    expect(query.queryKey).toEqual(['loadout-datasheets', 'catalogue', 'unit', ['detachment'], picks, 0, false])
   })
 })
 

@@ -5,7 +5,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { datasheetProfilesByKind } from '../../../../core/datasheetStructure'
 import type { RosterPick } from '../../../../core/roster'
 import type { Datasheet, DatasheetRelationship } from '../../../../contracts/catalogue'
-import { datasheetQuery } from '../../../queries'
+import { datasheetQuery, type Fielded } from '../../../queries'
 import { useSettled } from '../../../useSettled'
 import { UnitProfile, WeaponSummary } from '../../../components/DatasheetProfiles'
 import { Keyword, KEYWORD_TAG_CLASS, UnitKeywords } from '../../../components/Keyword'
@@ -30,7 +30,7 @@ type Props = {
   abilityReminders?: ReminderControls
   detachmentRules?: readonly ReminderSubject[]
   /** A list a battle or sealed event froze, read on the rules version it was fielded under. */
-  fielded?: boolean
+  fielded?: Fielded
 }
 
 export function DatasheetPanel({

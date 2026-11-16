@@ -197,10 +197,14 @@ type RosterIds = Parameters<typeof currentRosterIds>[0]
 
 /**
  * A list a battle or sealed event froze, read on the rules version it was fielded under: retired ids still
- * resolve, but a version that later folded into another is not moved onto it.
+ * resolve, but a version that later folded into another is not moved onto it. A plain book ID is dated by
+ * `fieldedAt`, as a roster saved then would be; without it, it means the current rules.
  */
-export const fieldedRosterIds = <T extends RosterIds>(roster: T): T =>
-  catalogueEditionId(roster.catalogueId) ? idsWithinRulesVersion(roster) : currentRosterIds(roster)
+export function fieldedRosterIds<T extends RosterIds>(roster: T, fieldedAt?: number): T {
+  if (catalogueEditionId(roster.catalogueId)) return idsWithinRulesVersion(roster)
+  const { updatedAt: _fieldedAt, ...read } = currentRosterIds({ ...roster, updatedAt: fieldedAt })
+  return { ...read, ...(roster.updatedAt === undefined ? {} : { updatedAt: roster.updatedAt }) } as T
+}
 
 function idsWithinRulesVersion<T extends RosterIds>(roster: T): T {
   return {

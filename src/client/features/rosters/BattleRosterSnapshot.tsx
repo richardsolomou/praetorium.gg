@@ -103,7 +103,15 @@ export function rosterReading(roster: Roster): { kind: 'text' } | { kind: 'roste
   const built = roster.built
   if (!built) return { kind: 'text' }
   if (!built.units.some((unit) => unit.group !== undefined)) return { kind: 'text' }
-  return { kind: 'roster', frozen: { units: built.units, points: pointsSpent(built), detachments: detachments(built) } }
+  return {
+    kind: 'roster',
+    frozen: {
+      units: built.units,
+      points: pointsSpent(built),
+      detachments: detachments(built),
+      ...(roster.fieldedAt === undefined ? {} : { fieldedAt: roster.fieldedAt }),
+    },
+  }
 }
 
 const detachments = (built: Built | undefined) =>

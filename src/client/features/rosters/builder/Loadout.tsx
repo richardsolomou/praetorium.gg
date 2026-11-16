@@ -6,7 +6,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import type { RosterPick } from '../../../../core/roster'
 import { isUnitCompositionChoice } from '../../../../core/unitChoices'
 import { primaryUnitProfile } from '../../../datasheet'
-import { datasheetLoad, loadoutDatasheetsQuery } from '../../../queries'
+import { datasheetLoad, type Fielded, loadoutDatasheetsQuery } from '../../../queries'
 import { useSettled } from '../../../useSettled'
 import { UnitProfile, WeaponSummary } from '../../../components/DatasheetProfiles'
 import {
@@ -39,7 +39,7 @@ type Props = {
   /** A persisted read-only roster can be resolved without sending its picks. */
   persistedRoster?: { id: string }
   /** A list a battle or sealed event froze, read on the rules version it was fielded under. */
-  fielded?: boolean
+  fielded?: Fielded
   /** Shown in place of the loadout when its datasheet cannot be read. */
   unavailable?: ReactNode
   reminders?: ReminderControls

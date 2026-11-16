@@ -12,7 +12,7 @@ import { useAbilityReminders } from './useAbilityReminders'
 import type { RosterSource, RosterVisibility } from '../../../core/savedRoster'
 import type { Datasheet } from '../../../contracts/catalogue'
 import { rosterMatchup, type SimulatorRosterSource } from '../../../contracts/simulatorState'
-import { factionIndexQuery, factionQuery, meQuery, setupPriceQuery, unitsQuery } from '../../queries'
+import { factionIndexQuery, factionQuery, type Fielded, meQuery, setupPriceQuery, unitsQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
 import { useStoredValue, writeStoredValue } from '../../storedValue'
 import { DatasheetPanel } from './builder/DatasheetPanel'
@@ -140,6 +140,8 @@ export type FrozenRoster = {
   units: BuiltRoster['units']
   points: number
   detachments: readonly { id?: string; name: string; points?: number | null }[]
+  /** When the battle took the list; a sealed list read outside a battle has none. */
+  fieldedAt?: number
 }
 
 const READ_ONLY_PREFERENCE = 'praetorium.roster-read-only'
@@ -272,7 +274,8 @@ export function ListBuilder({
   const account = useAccountPrompt()
   const variantDisposition = factionDisposition(faction, disposition)
 
-  const price = useRosterPrice({ setup, picks, positioned, editable, frozen: Boolean(frozen), selected, setPicks })
+  const fielding: Fielded = frozen ? { at: frozen.fieldedAt } : false
+  const price = useRosterPrice({ setup, picks, positioned, editable, frozen: fielding, selected, setPicks })
   const { priced, units, pricePending, priceLoading, priceFailed, retryPrice, unitLimits, limitUnlocks, evaluatedPicks } = price
   // Keep the saved automatic name visible while an edit is being priced.
   const storedAutomaticName = initial.automaticName ? initial.name : ''
@@ -619,7 +622,7 @@ export function ListBuilder({
       controlsDisabled={loadoutConstraintsPending}
       showOptions={building}
       persistedRoster={editable || !resolvePersistedRoster ? undefined : { id: savedId }}
-      fielded={Boolean(frozen)}
+      fielded={fielding}
       unavailable={frozenSelected ? <FieldedUnit unit={frozenSelected} /> : undefined}
       reminders={building && selected !== null ? reminders.controls : undefined}
       header={
@@ -644,7 +647,7 @@ export function ListBuilder({
           onReferenceRoute={setReference}
           abilityReminders={building && selected !== null ? reminders.controls : undefined}
           detachmentRules={detachmentRules}
-          fielded={Boolean(frozen)}
+          fielded={fielding}
         />
       }
     />
@@ -660,7 +663,7 @@ export function ListBuilder({
       onReferenceRoute={setReference}
       abilityReminders={building && !preview && selected !== null ? reminders.controls : undefined}
       detachmentRules={detachmentRules}
-      fielded={Boolean(frozen)}
+      fielded={fielding}
     />
   )
 

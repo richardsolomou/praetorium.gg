@@ -176,6 +176,13 @@ describe('retired catalogue ids', () => {
     )
   })
 
+  it.each([
+    [1_792_067_001_999, 'marine-points-1013~1f19-6509-d906-ca10'],
+    [1_792_067_002_000, '1f19-6509-d906-ca10'],
+  ])('reads a list a battle took at %s on the rules version of that moment', (fieldedAt, catalogueId) => {
+    expect(fieldedRosterIds({ catalogueId: '1f19-6509-d906-ca10', detachmentIds: [] }, fieldedAt).catalogueId).toBe(catalogueId)
+  })
+
   it('keeps an index Custodes roster on MFM 1.5 where it was saved', () => {
     expect(currentRosterIds({ catalogueId: 'marine-points-1013~1f19-6509-d906-ca10', detachmentIds: [] }).catalogueId).toBe(
       'marine-points-1013~1f19-6509-d906-ca10',
