@@ -228,7 +228,8 @@
         "/api/health waits for the catalogue warm-up and checks the auth database and SpacetimeDB through `app().health()`, reporting only that check's failures as `database_unavailable`, and adds `x-praetorium-revision`, which preview and release checks read.",
         "src/server/requestOrigin.ts keeps `siteOrigin`, the isomorphic origin for page metadata, on top of `publicOrigin`.",
         "Forwarded headers count only with `TRUST_PROXY=true`, where the application trusted them always; every deployment, preview, and local stack sets `APP_URL`, which `acceptedOrigins` and `publicOrigin` use instead.",
-        "`react` and `react-dom` stay at the exact version `mobile/package.json` pins, so the workspace installs one React for the web and the native shell, even when the recipe is tested with a newer patch."
+        "`react` and `react-dom` stay at the exact version `mobile/package.json` pins, so the workspace installs one React for the web and the native shell, even when the recipe is tested with a newer patch.",
+        "The server function CSRF check skips GET reads: with `referrer-policy: no-referrer`, a same-origin read from a client without `Sec-Fetch-Site` (the Android WebView on http, Safari before 16.4) carries no origin information, and a cross-site read cannot be read back."
       ]
     },
     "tooling": {

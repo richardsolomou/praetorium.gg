@@ -93,10 +93,10 @@ describe('security headers', () => {
 })
 
 describe('server function CSRF check', () => {
-  const check = (headers: Record<string, string>, url = 'https://app.example/_serverFn/abc') =>
+  const check = (headers: Record<string, string>, url = 'https://app.example/_serverFn/abc', method = 'POST') =>
     server(csrf)({
       handlerType: 'serverFn',
-      request: new Request(url, { method: 'POST', headers }),
+      request: new Request(url, { method, headers }),
       next: () => 'allowed',
     })
 
@@ -111,6 +111,10 @@ describe('server function CSRF check', () => {
   it('accepts APP_URL when a browser sends no Sec-Fetch-Site behind a proxy', async () => {
     vi.stubEnv('APP_URL', 'https://app.example')
     expect(await check({ origin: 'https://app.example' }, 'http://container:3000/_serverFn/abc')).toBe('allowed')
+  })
+
+  it('allows a read with no origin information, which a WebView on http or Safari before 16.4 sends', async () => {
+    expect(await check({}, undefined, 'GET')).toBe('allowed')
   })
 
   it('rejects a call with no origin information', async () => {

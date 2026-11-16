@@ -58,9 +58,13 @@ export const securityHeadersMiddleware = createMiddleware({ type: 'request' }).s
   }
 })
 
-/** TanStack's server function CSRF check, accepting the same origins as `requireSameOrigin` when a browser omits `Sec-Fetch-Site`. */
+/**
+ * TanStack's server function CSRF check, accepting the same origins as `requireSameOrigin` when a browser omits
+ * `Sec-Fetch-Site`. Reads are left out: with `no-referrer`, a same-origin GET from a client without Sec-Fetch-Site (an http
+ * WebView, Safari before 16.4) carries no origin information at all, and a cross-site read cannot be read back anyway.
+ */
 export const csrf = createCsrfMiddleware({
-  filter: ({ handlerType }) => handlerType === 'serverFn',
+  filter: ({ handlerType, request }) => handlerType === 'serverFn' && request.method !== 'GET',
   origin: (origin, { request }) => acceptedOrigins(request).includes(origin),
 })
 
