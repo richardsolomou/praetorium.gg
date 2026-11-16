@@ -1,5 +1,17 @@
 # praetorium
 
+## 0.257.0 (2026-11-16)
+
+### Minor Changes
+
+- 16336a7: A league with every game played now says it's complete and names the winner on its tab, the group overview and Up next for you.
+- 16336a7: Organizers can start the next league from a complete one, with everyone who played still in the group already in.
+- 16336a7: Past leagues now show who won each one.
+
+### Patch Changes
+
+- 4ec2a46: Starting the next league after one that sealed lists keeps sealing them, to the same points and house rules.
+
 ## 0.256.0 (2026-11-16)
 
 ### Minor Changes
