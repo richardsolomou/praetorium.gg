@@ -810,7 +810,13 @@ function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoi
         previous && /such weapons|those weapons|those attacks/i.test(conjunction[2]!)
           ? { ...context, phases: previous.phases, weapon: previous.weapon }
           : context
-      const second = again(conjunction[2]!, { ...inherited, instead: /\binstead\b/i.test(conjunction[2]!) })
+      // "As well" adds to the first effect, so it holds only where the first one's conditions do too.
+      const alsoWhen = /\bas well\b/i.test(conjunction[2]!) ? first?.at(-1)?.conditions : undefined
+      const second = again(conjunction[2]!, {
+        ...inherited,
+        instead: /\binstead\b/i.test(conjunction[2]!),
+        ...(alsoWhen ? { conditions: alsoWhen } : {}),
+      })
       return first && second ? [...first, ...second] : null
     }
     const conditionalTail = /^(.+?)(?:,? and,? )(if .+)$/i.exec(written)
@@ -829,7 +835,7 @@ function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoi
         written,
       )
     if (sharedSubject) return again(`${sharedSubject[1]} ${sharedSubject[2]}. ${sharedSubject[1]} ${sharedSubject[3]}`)
-    written = written.replace(/ (?:as well|instead)$/i, '').replace(/ roll for that attack$/i, ' roll')
+    written = written.replace(/,? (?:as well|instead),?$/i, '').replace(/ roll for that attack$/i, ' roll')
     const ignore = /^(?:you can )?(?:also )?ignore any or all modifiers to (?:the following: )?(.+)$/i.exec(written)
     if (ignore) {
       const fields: Partial<CombatRuleEffect> = {}

@@ -339,14 +339,12 @@ Worsen the Move, Leadership and Objective Control characteristics of models in t
       [{ role: 'attacker', phases: ['melee'], options: { woundReroll: 'failed' } }],
     ])
   })
-  it('keeps two trailing conditions on their respective bonuses', () => {
-    expect(
-      effects(
-        'Each time a model in this unit makes an attack, add 1 to the Hit roll if this unit is below its Starting Strength, and add 1 to the Wound roll as well if this unit is Below Half-strength.',
-      ),
-    ).toEqual([
+  it.each([
+    'Each time a model in this unit makes an attack, add 1 to the Hit roll if this unit is below its Starting Strength, and add 1 to the Wound roll as well if this unit is Below Half-strength.',
+    'Each time a model in this unit makes an attack, add 1 to the Hit roll if this unit is below its Starting Strength, and add 1 to the Wound roll, as well, if this unit is Below Half-strength.',
+  ])('adds a bonus given "as well" only alongside the first: %s', (description) => {
+    expect(effects(description)).toEqual([
       [{ role: 'attacker', phases: ['ranged', 'melee'], options: { hitModifier: 1 } }],
-      [{ role: 'attacker', phases: ['ranged', 'melee'], options: { woundModifier: 1 } }],
       [
         { role: 'attacker', phases: ['ranged', 'melee'], options: { hitModifier: 1 } },
         { role: 'attacker', phases: ['ranged', 'melee'], options: { woundModifier: 1 } },

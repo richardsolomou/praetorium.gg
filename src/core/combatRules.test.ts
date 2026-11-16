@@ -711,9 +711,23 @@ describe('combat roles', () => {
   it.each([
     "This unit's ranged attacks that target a MONSTER/VEHICLE unit can: Re-roll one hit roll. Re-roll one wound roll. Re-roll one damage roll.",
     'Friendly ADEPTUS CUSTODES units (excluding MONSTER/VEHICLE units) within 6" of this model can\n- Re-roll hit rolls of 1\n- Re-roll wound rolls of 1',
+    'Each time a WRAITH CONSTRUCT model from your army makes an attack that targets a unit with one or more Vengeful Dead tokens, add 1 to the Hit roll.',
+    'Friendly HERNKYN units’ ranged attacks that target a unit within 12" have +1 to hit rolls.',
+    'When a friendly PALADIN SQUAD unit is selected to fight, if the S of those attacks is lower than the T of the target, those attacks have +1 to wound rolls.',
   ])('recognises %s as an attacking rule, so the simulator names it when it cannot apply it', (description) =>
     expect(combatRuleRoles(description)).toContain('attacker'),
   )
+  it.each([
+    'Each time an attack targets a HAEMONCULUS COVENS unit from your army, if the Strength characteristic of that attack is greater than the Toughness characteristic of your unit, subtract 1 from the Wound roll.',
+    'Attacks that target friendly CRONOS/TALOS units with a S greater than that unit’s T have -1 to wound rolls.',
+    'While an enemy unit is within 12" of this model, each time a model in that unit makes a Psychic Attack, subtract 1 from the Wound roll.',
+  ])('recognises %s as a defending rule only', (description) => expect(combatRuleRoles(description)).toEqual(['defender']))
+  it('recognises both halves of a rule that buffs its own attacks and protects its own units', () =>
+    expect(
+      combatRuleRoles(
+        'Each time an attack targets a HERETIC ASTARTES unit from your army, if the attacking model is Battle-shocked, subtract 1 from the Hit roll. Each time a HERETIC ASTARTES model from your army makes an attack that targets a Battle-shocked unit, add 1 to the Wound roll.',
+      ),
+    ).toEqual(['attacker', 'defender']))
   it('filters already projected offensive stats by role too', () =>
     expect(
       combatRuleAppliesTo(rule('Melee weapons equipped by this model have the [LETHAL HITS] ability.', { included: true }), 'defender'),

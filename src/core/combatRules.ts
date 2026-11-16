@@ -329,17 +329,25 @@ export function combatRuleRoles(description: string): CombatRuleEffect['role'][]
   const offensiveTarget = /select [^.]*enemy|enemy unit hit by|that targets (?:a|an|the closest|your .+? target)/i.test(text)
   const attackingText = text.replace(/(?:until|after|just after) (?:an enemy|the attacking) unit [^.]*?(?:attacks|fought|shot), /gi, '')
   const attacking =
-    /(?:a model (?:in|with)|this model|the bearer|this unit)[^.;]*?makes? (?:a ranged |a melee |a |an )attack|weapons? equipped|(?:this|that|your) unit(?:'s)?[^.;]*?(?:attacks?[^.;]*?have|weapons? have)|this unit['’]s (?:ranged |melee )?attacks|re-roll (?:one |the )?(?:hit|wound|damage) rolls?|change the result of one (?:hit|wound) roll|critical hit|lethal hits|sustained hits|devastating wounds|ignores cover|twin-linked|\+[1-9]\s*A\b/i.test(
+    /(?:a model (?:in|with)|this model|the bearer|this unit|model from your army)[^.;]*?makes? (?:a ranged |a melee |a psychic |a |an )attack|model from your army targets|weapons? equipped|(?:this|that|your) unit(?:'s)?[^.;]*?(?:attacks?[^.;]*?have|weapons? have)|(?:this unit['’]s|friendly (?:(?!attacking|enemy)[^.;])*?(?:units?|models)['’]s?) (?:ranged |melee |\[psychic\] )?(?:attacks|weapons)|(?:friendly [^.;]*?units?|unit from your army) (?:is|are) selected to (?:fight|shoot)|re-roll (?:one |the )?(?:hit|wound|damage) rolls?|change the result of one (?:hit|wound) roll|critical hit|lethal hits|sustained hits|devastating wounds|ignores cover|twin-linked|\+[1-9]\s*A\b/i.test(
       attackingText,
     )
-  const incoming = text.replace(/(?:a model|this model|the bearer|this unit)[^.;]*?makes? (?:a ranged |a melee |a |an )attack[^,.;]*/gi, '')
+  const incoming = text.replace(
+    /(?:a model|this model|the bearer|this unit|model from your army)[^.;]*?makes? (?:a ranged |a melee |a psychic |a |an )attack[^,.;]*/gi,
+    '',
+  )
   const defending =
     /(?:attack|attacks) (?:that )?(?:targets?|is allocated to) (?:(?:this|that|your) (?:unit|model)|the bearer|a model)|saving throw|invulnerable|feel no pain|(?:has|have|add|improve)[^.;]*?(?:toughness|save characteristic|wounds characteristic)|damage characteristic of (?:that|the) attack|stealth|benefit of cover/i.test(
       incoming,
     )
-  const enemyWeapons = /(?:weapons? equipped by|attacks? made by) (?:models in )?(?:that enemy|enemy|the attacking) unit/i.test(text)
+  const enemyWeapons =
+    /(?:weapons? equipped by|attacks? made by) (?:models in )?(?:that enemy|enemy|the attacking) unit|enemy unit [^.;]*?each time a model in that unit makes/i.test(
+      text,
+    )
   const attacker = (offensiveTarget && (attacking || defending || /mortal wounds/i.test(text))) || (attacking && !enemyWeapons)
-  const defender = enemyWeapons || (defending && !offensiveTarget)
+  // Names the side's own units outright, so an offensive clause elsewhere in the rule cannot make it the enemy's.
+  const ownDefending = /attacks? (?:that )?targets? (?:friendly|an? [^.;]*?unit from your army)/i.test(incoming)
+  const defender = enemyWeapons || ownDefending || (defending && !offensiveTarget)
   return [...(attacker ? ['attacker' as const] : []), ...(defender ? ['defender' as const] : [])]
 }
 
