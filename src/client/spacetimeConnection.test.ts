@@ -349,8 +349,28 @@ it('counts one lost connection per outage, until it has recovered', async () => 
   await vi.advanceTimersByTimeAsync(30_000)
   links[1]!.failed()
   expect(lost.mock.calls).toEqual([
-    ['interrupted', false],
-    ['failed', true],
+    ['interrupted', false, false],
+    ['failed', true, false],
   ])
   stop()
+})
+
+it('counts a loss noticed as a suspended page is shown again as hidden', async () => {
+  vi.useFakeTimers()
+  const page = Object.assign(new EventTarget(), { visibilityState: 'hidden' })
+  vi.stubGlobal('document', page)
+  let link: SpacetimeLink<string> | undefined
+  const open = vi.fn((_ticket: string, current: SpacetimeLink<string>) => {
+    link = current
+    return { disconnect: vi.fn() }
+  })
+  const lost = vi.fn()
+  const stop = maintainSpacetimeConnection({ issue: async () => 'ticket', open, inactive: vi.fn(), report: vi.fn(), lost })
+  await vi.waitFor(() => expect(open).toHaveBeenCalledOnce())
+  // The SDK checks its socket from a listener added once the socket opened, after the loop's own.
+  page.addEventListener('visibilitychange', () => link!.interrupted())
+  page.visibilityState = 'visible'
+  page.dispatchEvent(new Event('visibilitychange'))
+  stop()
+  expect(lost.mock.calls).toEqual([['interrupted', false, true]])
 })

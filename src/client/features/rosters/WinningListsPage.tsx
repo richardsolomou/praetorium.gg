@@ -304,9 +304,11 @@ function WinningListCard({
   const title = rosterTitle(roster, faction)
   return (
     <article data-winning-list={title} className="part hover:border-runner-hi hover:bg-raised">
+      {/* Opening a list imports it on the server, so passing a pointer or a finger over cards must not ask for each. */}
       <Link
         to="/rosters/winning/$listId"
         params={{ listId: list.id }}
+        preload={false}
         state={(state) => ({ ...state, fromWinningLists: true })}
         className="flex min-w-0 p-3"
       >
