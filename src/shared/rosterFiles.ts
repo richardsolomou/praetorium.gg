@@ -20,6 +20,7 @@ import { fromWtcText } from '../core/wtcText'
 import type { RosterSource } from '../core/savedRoster'
 import { defaultSelection } from '../core/expand'
 import { buildUnit } from '../core/roster'
+import { builtPickSelections } from '../core/rosterSelections'
 import { modelCountOf } from '../core/unitSize'
 import { at as selectionAt } from '../core/selection'
 import { unitChoices, unitToggles } from '../core/unitChoices'
@@ -206,27 +207,76 @@ export function importParsedRoster(
   removed: RemovedNames = NO_REMOVALS,
 ) {
   const result = matchParsedRoster(parsed, loaded, factionNames, translations, removed)
-  const currentPoints = result.catalogueId
-    ? (calculateRosterPrice(
-        {
-          catalogueId: result.catalogueId,
-          detachmentIds: result.detachmentIds,
-          disposition: 'disposition' in result ? (result.disposition ?? null) : null,
-          limit: 'limit' in result ? (result.limit ?? 2000) : 2000,
-          units: result.units,
-        },
-        loaded,
-        rules,
-      )?.points ?? null)
-    : null
+  const price = (units: readonly RosterPick[]) =>
+    result.catalogueId
+      ? calculateRosterPrice(
+          {
+            catalogueId: result.catalogueId,
+            detachmentIds: result.detachmentIds,
+            disposition: 'disposition' in result ? (result.disposition ?? null) : null,
+            limit: 'limit' in result ? (result.limit ?? 2000) : 2000,
+            units: [...units],
+          },
+          loaded,
+          rules,
+        )
+      : null
+  const priced = price(result.units)
+  const units = priced ? asBuilt(result.units, priced, price) : result.units
+  const currentPoints = priced?.points ?? null
   return {
     ...result,
+    units,
     source: savedSource(format),
     format,
     reportedPoints: parsed.reportedPoints ?? null,
     currentPoints,
     sourceUnitCount: parsed.units.length,
   }
+}
+
+type PricedUnits = {
+  units: readonly {
+    key: number
+    size: { models: number }
+    points: number
+    wargear: unknown
+    choices: Parameters<typeof builtPickSelections>[1]['choices']
+  }[]
+}
+
+const buildShape = (priced: PricedUnits) =>
+  JSON.stringify(
+    priced.units.map((unit) => [
+      unit.key,
+      unit.size.models,
+      unit.points,
+      unit.wargear,
+      unit.choices.map((choice) => [choice.key, choice.options]),
+    ]),
+  )
+
+/**
+ * An import's picks saved as they build, so the list check never reads a size or count the matcher settled differently
+ * as a data change. Selections are rewritten only when the rewrite builds the same units.
+ */
+function asBuilt<T extends RosterPick>(
+  picks: readonly T[],
+  priced: PricedUnits,
+  price: (units: readonly RosterPick[]) => PricedUnits | null,
+): T[] {
+  const built = new Map(priced.units.map((unit) => [unit.key, unit]))
+  const sized = picks.map((pick, key) => {
+    const unit = built.get(key)
+    return unit && pick.models !== unit.size.models ? { ...pick, models: unit.size.models } : pick
+  })
+  const selected = sized.map((pick, key) => {
+    const unit = built.get(key)
+    return unit ? builtPickSelections(pick, unit) : pick
+  })
+  if (selected.every((pick, key) => pick === sized[key])) return sized
+  const rebuilt = price(selected)
+  return rebuilt && buildShape(rebuilt) === buildShape(priced) ? selected : sized
 }
 
 /**
