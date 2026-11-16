@@ -92,6 +92,18 @@ export function withUnitChoice(
   if (id && definition && resolve(definition, index).type === 'model') {
     return withUnitSpread(selection, key, { [id]: optionId === id ? 1 : 0 }, index, options)
   }
+  // A specialist chosen into a group its required squadmates fill takes one of their places, as a Tankbusta's pulsa rokkit does.
+  const occupants = definition && resolve(definition, index).type === undefined ? childrenOf(definition, index) : []
+  const optional = occupants.filter((option) => requiredCount(option.definition, index, options) === 0)
+  if (optional.length < occupants.length && optional.some((option) => resolve(option.definition, index).type === 'model')) {
+    return withUnitSpread(
+      selection,
+      key,
+      Object.fromEntries(optional.map((option) => [option.id, option.id === optionId ? 1 : 0])),
+      index,
+      options,
+    )
+  }
   const carrier = withExpandedCarrier(selection, path, index)
   if (!selectedCarriers(carrier, path, index)) return selection
   const chosen = withChoice(carrier, key, optionId, index, options)
