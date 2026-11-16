@@ -52,7 +52,7 @@ A gap is named when nothing in your list can take half of a reference target on 
 
 ## Beside winning lists
 
-When at least 10 of your army's top-four tournament lists import under today's data, the grades show what share of your points is in units that at least 3 in 10 of those lists field. They also name the units those lists often take that yours doesn't. The **Tournament lists** tab on the Rosters page shows the lists themselves. Read it as a guide to what has been winning, not a list to copy.
+When at least 10 of your army's top-four tournament lists at your battle size import under today's data, the grades show what share of your points is in units that at least 3 in 10 of those lists field. They also name the units those lists often take that yours doesn't. The **Tournament lists** tab on the Rosters page shows the lists themselves. Read it as a guide to what has been winning, not a list to copy.
 
 ## What the grades predict
 

@@ -31,6 +31,7 @@ Praetorium's builder checks all of this, and so does `get_my_roster`:
 1. **Survey.** Call `list_units` with the faction and battle size and no detachment. Besides the units, it lists every detachment the faction can take, with its DP, Force dispositions, rule names and enhancement costs. For a large faction such as a Space Marine chapter, pass `query` to narrow the units. A chapter can also take its codex's detachments.
 2. **See what wins.** Call `list_winning_lists` with the faction. `detachments` and `datasheets` show which detachments and units top-four lists take and how often, and each list shows its shape. Call it again with a detachment once you have one in mind. Treat it as evidence, not a template:
    - Say how many lists it rests on (`of`). A handful of lists is a small sample, and a placing reflects the player and the field as much as the list.
+   - `battleSizes` says which sizes the lists come from. When none are at the player's size, say so, and take only which units the faction favours from them, not their shape.
    - Lists from before `latestUpdate` were built for other points. When `sinceLatestUpdate` is large enough, call it again with `since` set to that date.
    - Learn the staples and the shape, such as how many units and cheap units the lists take, rather than copying one list.
    - When you leave out a staple or take a unit no top list fields, give the reason, such as the player's models or a job nothing else does.

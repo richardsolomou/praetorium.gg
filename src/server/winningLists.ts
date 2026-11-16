@@ -211,8 +211,8 @@ const factionLists = (lists: readonly WinningList[], catalogueId: string) => {
   return lists.filter((list) => currentCatalogueFamilyId(list.catalogueId) === family)
 }
 
-export function unitCounts(lists: readonly WinningList[], catalogueId: string) {
-  const faction = factionLists(lists, catalogueId)
+export function unitCounts(lists: readonly WinningList[], catalogueId: string, battleSize?: number) {
+  const faction = factionLists(lists, catalogueId).filter((list) => !battleSize || list.limit === battleSize)
   const units: Record<string, number> = {}
   for (const list of faction) for (const { id } of list.datasheets) units[id] = (units[id] ?? 0) + 1
   return { lists: faction.length, units }
@@ -293,9 +293,9 @@ export function winningListsStore(directory: string, catalogue: () => LoadedCata
       return { lists: shown?.lists ?? null, checking: !shown?.complete }
     },
     /** Null until the first import finishes, since a count out of part of the lists would mark the wrong units. */
-    unitCounts: (catalogueId: string) => {
+    unitCounts: (catalogueId: string, battleSize?: number) => {
       read()
-      return shown?.complete ? unitCounts(shown.lists, catalogueId) : null
+      return shown?.complete ? unitCounts(shown.lists, catalogueId, battleSize) : null
     },
     unitLists: (catalogueId: string, entryId: string) => {
       read()

@@ -39,7 +39,8 @@ export async function calculateRosterGrades(data: PriceInput, signal: AbortSigna
   // An older rules version's catalogue is the same book behind a prefix.
   const book =
     loaded.index.catalogues.get(data.catalogueId) ?? loaded.index.catalogues.get(data.catalogueId.slice(data.catalogueId.indexOf('~') + 1))
-  const winning = instance.winningLists.unitCounts(data.catalogueId)
+  // Staples of another battle size would name units a list of this size has no room for.
+  const winning = instance.winningLists.unitCounts(data.catalogueId, data.limit)
   const picks = calculateRosterPrice(data, loaded, rules)?.units ?? []
   const tournament = winning
     ? tournamentComparison(picks, winning, (entryId) => loaded.index.definitions.get(entryId)?.name ?? entryId)

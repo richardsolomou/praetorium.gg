@@ -32,6 +32,12 @@ it("counts a faction's lists across rules versions and leaves other factions out
   expect(unitCounts(lists, '470a-6daa-9014-12df')).toEqual({ lists: 2, units: { sammael: 1, outriders: 2 } })
 })
 
+it("counts only a battle size's lists when given one, so a small list is never set beside bigger lists' staples", () => {
+  const lists = [list('a', '470a-6daa-9014-12df', ['sammael']), list('b', '470a-6daa-9014-12df', ['outriders'], { limit: 1000 })]
+
+  expect(unitCounts(lists, '470a-6daa-9014-12df', 1000)).toEqual({ lists: 1, units: { outriders: 1 } })
+})
+
 it("keeps a faction family's lists that took the detachment at the battle size", () => {
   const lists = [
     list('a', 'mfm-1-6~470a-6daa-9014-12df', [], { detachmentIds: ['gladius'] }),
