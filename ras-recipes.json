@@ -33,7 +33,8 @@
         "src/routes/api/auth.$.ts rewrites preview OIDC requests before handing them to Better Auth.",
         "src/client/authClient.ts adds the plugins' client counterparts.",
         "The application's own auth tests (sqliteAuth.integration.test.ts and others) replace the recipe's auth.test.ts, which tests the recipe's createAuth.",
-        ".oxlintrc.json turns `typescript/no-deprecated` off for the recipe's react-test-renderer tests, since the application enforces that rule and react-test-renderer is deprecated."
+        ".oxlintrc.json turns `typescript/no-deprecated` off for the recipe's react-test-renderer tests, since the application enforces that rule and react-test-renderer is deprecated.",
+        "`classifyAuthCallbackFailure` also reads `account not linked`, which Better Auth 1.7.14's link-account step still sends, and the earlier `email_doesn't_match` and `email_mismatch` codes that existing links carry, as the v5 helper did."
       ]
     },
     "ci": {

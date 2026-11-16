@@ -42,3 +42,10 @@ describe('authFailureMessage', () => {
     expect(authFailureMessage({ message: ' ' }, 'fallback')).toBe('fallback')
   })
 })
+
+it.each([
+  ["email_doesn't_match", 'email_mismatch'],
+  ['account not linked', 'account_not_linked'],
+] as const)('reads the %s callback code', (code, reason) => {
+  expect(classifyAuthCallbackFailure(code)).toBe(reason)
+})

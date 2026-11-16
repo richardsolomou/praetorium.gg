@@ -28,9 +28,14 @@ export function classifyAuthCallbackFailure(error: unknown): AuthCallbackFailure
     case 'user_cancelled_authorize':
       return 'cancelled'
     case 'account_not_linked':
+    // Better Auth 1.7's link-account step still sends this one with spaces.
+    case 'account not linked':
     case 'unable_to_link_account':
       return 'account_not_linked'
     case 'email_does_not_match':
+    // Earlier Better Auth releases' codes, which links and the native app already hold.
+    case "email_doesn't_match":
+    case 'email_mismatch':
       return 'email_mismatch'
     case 'account_already_linked_to_different_user':
     case 'social_account_already_linked':
