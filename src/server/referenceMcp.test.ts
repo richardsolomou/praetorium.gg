@@ -424,7 +424,10 @@ it('keeps every published tool and argument', async () => {
   const { tools } = ((await response.json()) as { result: { tools: { name: string; inputSchema: { properties?: object } }[] } }).result
   const served = new Map(tools.map((tool) => [tool.name, Object.keys(tool.inputSchema.properties ?? {})]))
   if (process.env.WRITE_MCP_SURFACE)
-    writeFileSync('src/server/mcpSurface.json', `${JSON.stringify(Object.fromEntries([...served].toSorted(([left], [right]) => left.localeCompare(right))), null, 2)}\n`)
+    writeFileSync(
+      'src/server/mcpSurface.json',
+      `${JSON.stringify(Object.fromEntries([...served].toSorted(([left], [right]) => left.localeCompare(right))), null, 2)}\n`,
+    )
   const published = JSON.parse(readFileSync('src/server/mcpSurface.json', 'utf8')) as Record<string, string[]>
 
   expect(
