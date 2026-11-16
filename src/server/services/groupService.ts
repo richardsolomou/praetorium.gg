@@ -145,6 +145,8 @@ export class GroupService {
     const result = await this.repository.nextGroupLeague(token, actorId, {
       id: randomId(),
       seed: randomInt(GROUP_LEAGUE_SEED_MAX + 1),
+      eventId: randomId(),
+      eventToken: randomToken(),
       now: this.clock(),
     })
     if (result === 'drawn') return

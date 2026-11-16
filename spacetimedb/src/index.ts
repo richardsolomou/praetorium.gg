@@ -5030,6 +5030,9 @@ const groupCommandInput = z.discriminatedUnion('op', [
     actorId: idInput,
     leagueId: idInput,
     seed: leagueSeed,
+    /** Where the next league seals its lists, used only when this one sealed them; absent from a server released before. */
+    eventId: idInput.optional(),
+    eventToken: idInput.optional(),
     now: sealedEventTimeInput,
   }),
   z.object({ op: z.literal('league-clock'), token: idInput, actorId: idInput, minutes: clockLimitMinutes.nullable() }),
@@ -5257,6 +5260,8 @@ function groupCommandIn(tx: Context, args: unknown[]) {
       return productJson('unfinished')
     // The next league opens as a draft, so nothing is played until an organizer reviews and publishes its draw.
     const players = rows.filter((row) => !row.withdrawn && isGroupMember(tx, group.id, row.userId))
+    const sealed = leagueGameHost(tx, group, league.id)
+    if (sealed && (input.eventId === undefined || input.eventToken === undefined)) return productJson('missing')
     endLeague(tx, league)
     tx.db.groupLeagues.insert({
       id: input.leagueId,
@@ -5268,8 +5273,30 @@ function groupCommandIn(tx: Context, args: unknown[]) {
       remindedDeadlines: undefined,
       clockLimitMinutes: league.clockLimitMinutes,
     })
-    for (const row of players)
-      tx.db.groupLeaguePlayers.insert({ ...row, key: leaguePlayerKey(input.leagueId, row.userId), leagueId: input.leagueId })
+    // A league that sealed lists seals again on the same terms, and its players join by sealing new ones.
+    if (sealed && input.eventId !== undefined && input.eventToken !== undefined) {
+      const createdAt = BigInt(input.now)
+      tx.db.sealedEvents.insert({
+        ...sealed.event,
+        id: input.eventId,
+        token: input.eventToken,
+        createdAt,
+        revealedAt: undefined,
+        revealedBy: undefined,
+        remindedAt: undefined,
+        roundEndsAt: undefined,
+      })
+      tx.db.hiddenListGames.insert({
+        ...sealed.game,
+        eventId: input.eventId,
+        creatorId: input.actorId,
+        createdAt,
+        supersededAt: undefined,
+        leagueId: input.leagueId,
+      })
+    } else
+      for (const row of players)
+        tx.db.groupLeaguePlayers.insert({ ...row, key: leaguePlayerKey(input.leagueId, row.userId), leagueId: input.leagueId })
     touchGroup(tx, group.id)
     return productJson('drawn')
   }

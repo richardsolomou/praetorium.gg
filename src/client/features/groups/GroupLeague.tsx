@@ -342,7 +342,11 @@ function LeagueComplete({ group, league }: { group: Group; league: League }) {
       <ConfirmDialog
         open={confirming}
         title="Start the next league?"
-        description={`This league ends and its final table moves to Past leagues. The next opens as a draft with ${staying.length ? formatList(staying.map((player) => player.name)) : 'nobody'} already in${league.clockLimitMinutes ? ' and the same chess clock' : ''}. Anyone else in the group can join before you publish it.`}
+        description={
+          league.game
+            ? `This league ends and its final table moves to Past leagues. The next opens as a draft that seals lists to the same points and house rules${league.clockLimitMinutes ? ', with the same chess clock' : ''}. Everyone seals a new list to join, and you publish it once they have.`
+            : `This league ends and its final table moves to Past leagues. The next opens as a draft with ${staying.length ? formatList(staying.map((player) => player.name)) : 'nobody'} already in${league.clockLimitMinutes ? ' and the same chess clock' : ''}. Anyone else in the group can join before you publish it.`
+        }
         cancel="Not yet"
         confirm="Start the next league"
         pendingLabel="Starting…"

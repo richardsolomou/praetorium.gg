@@ -1142,6 +1142,35 @@ describe('hidden-list games', () => {
       expect(publishWithStray(setup())).toBe('published')
     })
 
+    it('starts the next league sealing on the same terms, with everyone sealing again', () => {
+      const fixture = setup()
+      publishWithStray(fixture)
+      // Two players withdrawing leaves nothing to play, so the league is complete.
+      fixture.call(fixture.operator, (ctx) => {
+        for (const userId of ['member', 'third']) {
+          const row = ctx.db.groupLeaguePlayers.key.find(JSON.stringify(['league', userId]))!
+          ctx.db.groupLeaguePlayers.key.update({ ...row, withdrawn: true })
+        }
+      })
+      const next = fixture.group({
+        op: 'league-next',
+        actorId: 'owner',
+        leagueId: 'next',
+        seed: 1,
+        eventId: 'next-game-id',
+        eventToken: 'next-game',
+        now: NOW,
+      })
+      const { league } = JSON.parse(module.groupByToken(fixture.procedure(fixture.operator), { token: 'group' })) as {
+        league: { players: unknown[]; game: { token: string; rosterLimit: number; revealedAt: number | null } | null }
+      }
+      expect([next, league.players, league.game]).toEqual([
+        'drawn',
+        [],
+        expect.objectContaining({ token: 'next-game', rosterLimit: 2000, revealedAt: null }),
+      ])
+    })
+
     it('refuses a fixture battle that brings its own lists', () => {
       const fixture = setup()
       publishWithStray(fixture)

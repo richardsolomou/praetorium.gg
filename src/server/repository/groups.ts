@@ -98,7 +98,11 @@ export function withGroups<B extends RepositoryBase>(Base: B) {
       return this.product.claimLeagueDeadlineReminders()
     }
 
-    nextGroupLeague(token: string, actorId: string, { id, ...input }: { id: string; seed: number; now: number }) {
+    nextGroupLeague(
+      token: string,
+      actorId: string,
+      { id, ...input }: { id: string; seed: number; eventId: string; eventToken: string; now: number },
+    ) {
       return this.product.groupCommand(
         { op: 'league-next', token, actorId, leagueId: id, ...input },
         z.enum(['drawn', 'missing', 'forbidden', 'unfinished']),
