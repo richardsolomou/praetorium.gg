@@ -1,3 +1,5 @@
+import { currentEntryId } from './retiredCatalogueIds'
+
 export type DatasheetPage = { id: string; slug: string }
 
 const idSuffix = (id: string) => `-${id.slice(0, 8)}`
@@ -14,11 +16,12 @@ const baseOf = (page: DatasheetPage) => (page.slug.endsWith(idSuffix(page.id)) ?
 /**
  * The page a published datasheet address names. A slug gains or loses its id suffix as same-named
  * datasheets come and go between catalogue updates, and an upstream entry can change id, so either
- * form keeps resolving, a suffix naming no current page falls back to its name, and a name several
+ * form keeps resolving, a retired entry id names its replacement, a suffix naming no current page falls back to its name, and a name several
  * pages share names none of them.
  */
 export function datasheetPageBySlug<T extends DatasheetPage>(pages: readonly T[], slug: string): T | null {
-  const exact = pages.find((page) => page.slug === slug || page.id === slug)
+  const current = currentEntryId(slug)
+  const exact = pages.find((page) => page.slug === slug || page.id === slug || page.id === current)
   if (exact) return exact
   const suffixed = pages.find((page) => `${baseOf(page)}${idSuffix(page.id)}` === slug)
   if (suffixed) return suffixed
