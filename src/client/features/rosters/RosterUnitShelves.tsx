@@ -150,6 +150,9 @@ export function RosterUnitShelves({
           ]}
           selected={selected === index}
           onSelect={loadoutAvailable ? () => onSelect(index) : undefined}
+          // A reader of a fielded list may still save its loadout or report the unit; both read the recorded picks.
+          onSaveLoadout={picks[index] && onSaveLoadout ? () => onSaveLoadout(index) : undefined}
+          onReport={picks[index] ? () => onReport(index) : undefined}
           editable={false}
         />
       )
