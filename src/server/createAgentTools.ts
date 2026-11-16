@@ -5,6 +5,7 @@ import { registerSkillTools } from './agentSkills'
 import { registerChangeTools } from './changeTools'
 import { registerCombatTools } from './combatTools'
 import { registerOrganisedPlayTools } from './organisedPlayTools'
+import { registerPublicPlayTools } from './publicPlayTools'
 import { registerReferenceTools } from './referenceTools'
 import { registerRosterComparisonTools } from './rosterComparison'
 import { registerRosterTools } from './rosterTools'
@@ -16,6 +17,7 @@ export function createAgentTools(userId: string | null) {
   const tools = new AgentTools()
   tools.section('account', () => registerAccountMcpTools(tools, userId))
   tools.section('battles', () => registerBattleTools(tools, userId))
+  tools.section('community', () => registerPublicPlayTools(tools))
   tools.section('reference', () => registerReferenceTools(tools))
   tools.section('combat', () => registerCombatTools(tools))
   tools.section('reference', () => registerChangeTools(tools))

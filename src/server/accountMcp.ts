@@ -51,10 +51,10 @@ export async function resultOf(work: () => Promise<Record<string, unknown>>) {
   }
 }
 
-const facet = (values: string) =>
+export const facet = (values: string) =>
   facetSchema.describe(`{in, out} lists of ${values}. A battle must carry one of in (when given) and none of out.`)
 
-const myBattlesSchema = battlesFeedSchema.extend({
+export const myBattlesSchema = battlesFeedSchema.extend({
   before: battlesFeedSchema.shape.before.describe('nextCursor from the previous page; omit for the first page.'),
   filter: battleFilterSchema
     .extend({
@@ -84,8 +84,8 @@ const myBattlesSchema = battlesFeedSchema.extend({
 type BattleSummary = Awaited<ReturnType<PraetoriumService['battleFeedService']['battles']>>['battles'][number]
 
 /** A battle as an agent reads it: one entry per seat instead of parallel arrays, without images or sync versions. */
-function agentBattle(battle: BattleSummary, userId: string) {
-  const seat = battle.playerIds.indexOf(userId)
+export function agentBattle(battle: BattleSummary, userId: string | null) {
+  const seat = userId ? battle.playerIds.indexOf(userId) : -1
   return {
     url: `/battles/${encodeURIComponent(battle.token)}`,
     token: battle.token,
@@ -94,7 +94,7 @@ function agentBattle(battle: BattleSummary, userId: string) {
     status: battle.status,
     round: battle.round,
     phase: battle.phase,
-    result: seat !== -1 && battle.status === 'finished' ? battleOutcome(battle, battle.sides[seat]!) : null,
+    ...(userId ? { result: seat !== -1 && battle.status === 'finished' ? battleOutcome(battle, battle.sides[seat]!) : null } : {}),
     ending: battle.result?.reason ?? null,
     size: battle.settings.limit,
     missionPackId: battle.settings.missionPackId,
@@ -106,9 +106,10 @@ function agentBattle(battle: BattleSummary, userId: string) {
       return {
         id,
         name,
-        you: id === userId,
+        ...(userId ? { you: id === userId } : {}),
         automated,
         side: battle.sides[at],
+        result: battle.status === 'finished' ? battleOutcome(battle, battle.sides[at]!) : null,
         army: battle.armies[at],
         faction: faction ? { slug: faction.slug, name: faction.displayName } : null,
         detachments: battle.detachments[at],

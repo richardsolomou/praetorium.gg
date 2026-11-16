@@ -540,6 +540,20 @@ const BATTLE_HELP =
 
 const REPORT_PAGE = 200
 
+export const REPORT_PAGING = `oldest first and ${REPORT_PAGE} entries a page: each entry's seq, round, phase, the player id that recorded it (by) and a sentence saying what happened. Pass nextAfter as after for the next page.`
+
+export const reportAfter = z.number().int().min(0).optional().describe('nextAfter from the previous page.')
+
+/** One page of a battle report after the seq a previous page ended on. */
+export function reportPage(report: readonly { seq: number; round: number; phase: string; by: string; text: string }[], after = 0) {
+  const entries = report.filter((entry) => entry.seq > after)
+  const page = entries.slice(0, REPORT_PAGE)
+  return {
+    entries: page.map(({ seq, round, phase, by, text }) => ({ seq, round, phase, by, text })),
+    nextAfter: entries.length > REPORT_PAGE ? page.at(-1)!.seq : null,
+  }
+}
+
 export function registerBattleTools(server: AgentTools, userId: string | null) {
   const owner = () => signedInPlayer(userId)
 
@@ -625,22 +639,14 @@ export function registerBattleTools(server: AgentTools, userId: string | null) {
     'get_my_battle_report',
     {
       title: 'Read my battle report',
-      description: `Returns a battle's log as its report reads it, oldest first and ${REPORT_PAGE} entries a page: each entry's seq, round, phase, the player id that recorded it (by) and a sentence saying what happened. Pass nextAfter as after for the next page. Totals and the result are in get_my_battle. Requires mcp:read.`,
-      inputSchema: {
-        token: tokenSchema.shape.token,
-        after: z.number().int().min(0).optional().describe('nextAfter from the previous page.'),
-      },
+      description: `Returns a battle's log as its report reads it, ${REPORT_PAGING} Totals and the result are in get_my_battle. Requires mcp:read.`,
+      inputSchema: { token: tokenSchema.shape.token, after: reportAfter },
       annotations: READ_ONLY_TOOL,
     },
-    ({ token, after = 0 }) =>
+    ({ token, after }) =>
       resultOf(async () => {
         const instance = app()
-        const entries = (await instance.service.report(token, owner(), await instance.rulesFor())).filter((entry) => entry.seq > after)
-        const page = entries.slice(0, REPORT_PAGE)
-        return {
-          entries: page.map(({ seq, round, phase, by, text }) => ({ seq, round, phase, by, text })),
-          nextAfter: entries.length > REPORT_PAGE ? page.at(-1)!.seq : null,
-        }
+        return reportPage(await instance.service.report(token, owner(), await instance.rulesFor()), after)
       }),
   )
   server.registerTool(
