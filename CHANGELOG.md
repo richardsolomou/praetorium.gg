@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.257.2 (2026-11-16)
+
+### Patch Changes
+
+- c6eea94: MCP tools now accept optional `llm_model` and `conversation_id` arguments, and calls made with your sign-in count towards your account's usage profile, as the privacy policy describes.
+
 ## 0.257.1 (2026-11-16)
 
 ### Patch Changes
