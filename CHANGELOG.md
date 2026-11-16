@@ -1,5 +1,45 @@
 # praetorium
 
+## 0.257.6 (2026-11-16)
+
+### Patch Changes
+
+- 3eee9c5: Black Templars Initiates who swap their bolt rifle for a chainsword or power fist keep their close combat weapon.
+- b7e8632: Organizers are told they can press a player's name to check them in before round 1.
+- 9a54bfb: Entering a score for a game nobody started no longer tells its players that a battle was created.
+- 21349b7: The text export warns when it leaves out a detachment or option that the current data no longer offers.
+- f22837e: A played battle's and a revealed tournament or hidden-list game's roster pages show the points and units each list was fielded with, instead of repricing it with today's data.
+- f22837e: A unit opened from a played battle's list shows its datasheet for the rules version it was played under, or the loadout the list recorded when that version is gone, instead of an error.
+- c607bd1: A finished Swiss tournament no longer says earlier results lock when the next round is paired.
+- 678e323: A friend invite link that stops working no longer says it expired, since friend invites don't expire.
+- fcfeca4: Importing an official-app list now gives a Kroot Farstalker the Pech’ra it lists.
+- ea999b8: A league bye no longer counts as a win in the league table.
+- 26e2e8f: Group organizers can press Enter score on a league fixture to record a game that wasn't tracked in Praetorium.
+- a10dbc1: The league tab says only tracked games count on the leaderboard, since an entered score doesn't.
+- 0dba824: Importing ListForge short text now reads Sicarian Ruststalkers carrying a transonic razor and chordclaw.
+- 8441f2f: Importing ListForge short text no longer fails when a unit is listed without wargear.
+- 4034769: Importing an official-app list from before the 11 November data update now reads the Nightforged Battery it spells "(Upgarde)".
+- ac7aaa1: Old links to the clubs and league docs open the groups and tournament docs.
+- ac7aaa1: An old guest invite link opens its battle to watch.
+- ac7aaa1: Battle, roster, player, data update, import and journal links from earlier versions of Praetorium open the page that replaced them instead of a missing page.
+- 4f9da52: The tournament guide has a checklist for your first tournament, and the tournament and group guides explain correcting entered scores, check-in and overdue league games.
+- b7e8632: The Organizer achievement and assistant help now spell organizer the same way as the rest of Praetorium.
+- aa7a04c: Organizers can enter a corrected score on a reopened table from an earlier Swiss round.
+- 267876d: On a phone, a dropped player's name in tournament results no longer squeezes into a narrow column.
+- 678e323: A datasheet link naming an entry the army data has since replaced opens the current datasheet.
+- 7269bcc: Battles and tournament entries played with an army whose data source was later replaced show their faction again in feeds, leaderboards and events.
+- 7cc7bf4: The list check now flags a saved unit size or model count that a unit can no longer field, instead of quietly changing it.
+- 19cf770: Archiving, locking, sharing or tidying a roster no longer moves it off the rules version it was built for.
+- 19cf770: Saving a roster on the current rules no longer moves it onto an older rules version.
+- cda58b0: After the reveal, a Swiss tournament's organizer is told to check players in and pair round 1.
+- 267876d: On a phone, Swiss tables and league fixtures keep player names on whole lines instead of breaking them a letter at a time.
+- b7e8632: A new tournament's roster deadline note says a player without a sealed roster sits the tournament out.
+- a0372ce: A tournament's header says entry is closed once the rosters are revealed.
+- b7e8632: A new tournament's first step asks you to send the invite link to your players.
+- 1e778d5: Only a tournament's organizers can reveal its rosters, so a player sealing early no longer closes entry.
+- 0f20d80: A new docs page says what data updates keep: your rosters, played battles, sealed lists, shared links and exchange codes.
+- 9a590df: Importing a list now reads Wolf Guard Headtakers’ Hunting Wolf models.
+
 ## 0.257.5 (2026-11-16)
 
 ### Patch Changes
