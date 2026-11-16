@@ -531,6 +531,7 @@ test('a Swiss tournament pairs its rounds and ranks the tables by match points',
   await sealOwnRoster(opponent, 'Swiss opponent army')
   await revealEvent(owner)
   await expect(sealedEventHeader(owner)).toContainText('Entry closed')
+  await expect(owner.locator('[data-sealed-event-next-step]')).toHaveText('Next: Check players in, then pair round 1 below.')
 
   const rounds = owner.locator('[data-sealed-event-rounds]')
   await rounds.getByRole('button', { name: 'Check in' }).click()
