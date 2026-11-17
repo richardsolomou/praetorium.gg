@@ -388,7 +388,6 @@ export function FolderTiles({
   filedIn,
   factionOf,
   onDrop,
-  onNew,
   matchesOnly = false,
   actions,
 }: {
@@ -398,8 +397,6 @@ export function FolderTiles({
   filedIn: (roster: TileRoster) => string | null
   factionOf: (catalogueId: string) => FactionPresentation | undefined
   onDrop: (item: DroppedItem, folderId: string) => void
-  /** Absent where another level of folders would be too deep. */
-  onNew?: () => void
   /** While a search or filter is on, `rosters` are its matches and a folder holding none of them hides. */
   matchesOnly?: boolean
   actions: FolderActions
@@ -410,7 +407,7 @@ export function FolderTiles({
       return { folder, held: rosters.filter((roster) => inside.has(filedIn(roster) ?? '')) }
     })
     .filter(({ held }) => !matchesOnly || held.length)
-  if (!tiles.length && !onNew) return null
+  if (!tiles.length) return null
   return (
     <div className="grid grid-cols-2 gap-x-3 gap-y-4 pt-1.5 sm:grid-cols-3">
       {tiles.map(({ folder, held }) => (
@@ -424,17 +421,6 @@ export function FolderTiles({
           actions={actions}
         />
       ))}
-      {onNew ? (
-        <button
-          type="button"
-          onClick={onNew}
-          className="grid h-24 place-items-center rounded-xl border border-dashed border-runner text-sm font-semibold text-parchment hover:border-parchment hover:bg-raised"
-        >
-          <span className="flex items-center gap-2">
-            <FolderPlus className="size-4" aria-hidden /> New folder
-          </span>
-        </button>
-      ) : null}
     </div>
   )
 }
@@ -484,7 +470,7 @@ function FolderTile({
           className={cn(
             // The tab on its top edge is what makes the card read as a folder.
             // Every tile is one height, so a row of folders reads as a grid whatever each holds.
-            'part relative flex h-24 flex-col gap-1 p-3 pt-3.5 pr-10 hover:border-runner-hi hover:bg-raised',
+            'part relative flex h-28 flex-col gap-1 p-3 pt-3.5 pr-10 hover:border-runner-hi hover:bg-raised',
             'before:absolute before:-top-1.5 before:left-3 before:h-1.5 before:w-10 before:rounded-t-md before:border before:border-b-0 before:border-edge before:bg-panel',
             // The tab is part of the folder's shape, so it takes every state the body does.
             'hover:before:border-runner-hi hover:before:bg-raised',
@@ -492,10 +478,7 @@ function FolderTile({
               'border-parchment bg-raised before:border-parchment before:bg-raised hover:border-parchment hover:before:border-parchment',
           )}
         >
-          <span className="flex min-w-0 items-center gap-2 font-bold uppercase">
-            <Folder className="size-4 shrink-0 text-dim" aria-hidden />
-            <span className="truncate">{folder.name}</span>
-          </span>
+          <span className="line-clamp-2 leading-tight font-bold break-words uppercase">{folder.name}</span>
           <span className="truncate text-xs text-dim">
             {[
               folders ? countLabel(folders, 'folder') : null,

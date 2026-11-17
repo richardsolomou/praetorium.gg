@@ -185,6 +185,7 @@ test('a search from the top level finds a roster in its folder and keeps it ther
   const folder = page.getByRole('link', { name: /^GT/ })
   await expect(folder).toContainText('1 roster')
   await expect(page.locator('[data-roster="Dynasty 2k"]')).toHaveCount(0)
+  await expect(page.locator('main section').last().locator('.rubric .readout')).toHaveText('2')
 
   await page.getByPlaceholder('Search your rosters…').fill('Dynasty')
   await expect(page.locator('[data-roster="Another list"]')).toHaveCount(0)
