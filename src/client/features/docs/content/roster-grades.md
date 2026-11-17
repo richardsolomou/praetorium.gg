@@ -10,7 +10,7 @@ Tournament lists are 2,000 points. Smaller sizes are compared with lists drawn f
 
 Scores follow a curve: a typical tournament list of your faction scores 70. How far a list strays from that depends on how far it sits from your faction's typical list compared with how much lists differ across every faction, so a faction whose lists are much alike rarely reaches the 90s or drops under 40. A category places the average of its measures among the same lists, and the overall places the average of the four categories, so every category counts the same. A list that does every job solidly can place higher in a category than in any one of its measures. The overall never reads lower than your weakest category or higher than your strongest.
 
-Grades split the scores: 85 and above is an A; 65 a B; 40 a C; and below 40 a D. Among 2,000-point tournament lists, about one in seven earns an A and one in twenty a D; at King of the Colosseum it is about one in five and one in sixteen.
+Grades split the scores: 85 and above is an A; 65 a B; 40 a C; and below 40 a D. How many lists earn each grade depends on how much your faction's tournament lists differ from one another.
 
 ## What each category measures
 
@@ -35,7 +35,7 @@ The score covers charge reach and deployment, rather than all mobility. Reaching
 
 **Clear hordes**, **Kill elite infantry**, **Kill vehicles**, **Kill heavy armour** and **Kill monsters** add up how much of 20 Termagants, a Chaos Terminator Squad, a Rhino, a Leman Russ Battle Tank or a Carnifex each of your units takes in one turn of shooting, fighting, or shooting then fighting. A unit can count for up to three of each target, since its damage does not carry over from one model to the next; hordes count one squad at a time, since Blast gains attacks against bigger units. The units that take at least half of one alone are named. A model with a choice of weapons or weapon profiles uses the one that does most against each target.
 
-Heavy armour is left out at King of the Colosseum, which allows nothing above Toughness 9. Each side there may field only one Toughness 9 unit, so vehicle and monster damage is capped at two reference targets in total, with each attacking unit contributing at most one.
+Heavy armour is left out at King of the Colosseum, which allows nothing above Toughness 9. Each side there may field only one Toughness 9 unit, so vehicle and monster damage is capped at two reference targets in total, with each attacking unit contributing at most one. Most lists reach that cap, so these two measures place your list among your own faction's lists alone.
 
 ### Durability
 

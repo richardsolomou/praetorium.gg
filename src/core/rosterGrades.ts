@@ -154,7 +154,7 @@ export type UnitGeneration = { unit: string; trigger: 'shooting' | 'kill'; share
 export type GradeRow = {
   key: MetricKey
   label: string
-  /** 0 to 100: where the list places among its peers' tournament lists on the measure, on the curve `scaled` draws. */
+  /** 0 to 100: how far the measure sits from its peers' median on every army's spread, on the curve `scaled` draws. */
   score: number | null
   grade: Grade | null
   detail: string
@@ -171,9 +171,9 @@ export type GradedUnitJobs = { name: string; points: number; models: number; job
 
 /**
  * `missing` names each reference target nothing in the list can take half of on its own, as in "a Rhino", and
- * `units` gives every unit the jobs it is credited with. `comparedWith` names the tournament lists its scores place
- * it among, such as "Necrons" or, for a chapter with too few of its own, "Adeptus Astartes", or is null when it is
- * placed among every faction's; `calibration` says whether those were real lists of this size. `tournament` sets the
+ * `units` gives every unit the jobs it is credited with. `comparedWith` names the tournament lists its scores are centred
+ * on, such as "Necrons" or, for a chapter with too few of its own, "Adeptus Astartes", or is null when it is placed
+ * among every faction's; `calibration` says whether those were real lists of this size. `tournament` sets the
  * list beside its faction's winning lists, or is null without enough of them.
  */
 export type RosterGrades = {
@@ -359,33 +359,32 @@ export function scoredMeasures(units: readonly GradedUnit[], limit: number): Par
   return measures
 }
 
-const MEDIAN = 10
+const median = (quantiles: readonly number[]) => quantiles[(quantiles.length - 1) / 2]!
 
 /**
- * The percentile a value reaches by how far it sits from its own peers' median, read on `wide`, every army's
- * quantiles. One army's lists often share most of their units, so its own spread can be narrow enough that a few
- * percent of damage or durability would swing a score from typical to the bottom tenth; without `wide` the value is
- * placed among its own peers alone.
+ * One army's lists often share most of their units, so its own spread can be narrow enough that a few percent of
+ * damage or durability would swing a score from typical to the bottom tenth; reading the distance from its median on
+ * `wide`, every army's quantiles, keeps a small gap small.
  */
-export const placeAmong = (value: number, own: readonly number[], wide?: readonly number[]) =>
-  wide ? percentileOf(value - own[MEDIAN]! + wide[MEDIAN]!, wide) : percentileOf(value, own)
+const placeAmong = (value: number, own: readonly number[], wide?: readonly number[]) =>
+  wide ? percentileOf(value - median(own) + median(wide), wide) : percentileOf(value, own)
+
+type PlacementPeers = Pick<Peers, 'measures'> & Partial<Pick<Peers, 'categories' | 'overall'>>
 
 /**
  * Where a list places among its peers: each measure's percentile, each category's average of those and its
- * percentile, and the average category percentile. The calibration places tournament lists the same way, so a
- * peer group without category or overall percentiles yet leaves those null. `everyone` holds every army's
- * quantiles, which each step reads its distance from the peers' median on.
+ * percentile, the average category percentile and, with overall quantiles, that average's percentile. The
+ * calibration places tournament lists the same way, so a peer group without category or overall quantiles yet
+ * leaves those null. With `everyone`, every army's quantiles, each step is centred on the peers' median instead.
  */
-export function placement(
-  units: readonly GradedUnit[],
-  limit: number,
-  peers: Pick<Peers, 'measures'> & Partial<Pick<Peers, 'categories'>>,
-  everyone?: Pick<Peers, 'measures'> & Partial<Pick<Peers, 'categories'>>,
-) {
+export function placement(units: readonly GradedUnit[], limit: number, peers: PlacementPeers, everyone?: PlacementPeers) {
   const measures: Partial<Record<MetricKey, number | null>> = {}
   for (const [key, value] of Object.entries(scoredMeasures(units, limit)) as [MetricKey, number | null][]) {
     const own = peers.measures[key]
-    measures[key] = own && value !== null ? placeAmong(value, own, everyone?.measures[key]) : null
+    // Most armies' Colosseum lists reach the two-target cap, so every army's median sits on it and any list above
+    // its own army's median would read as the very top.
+    const wide = colosseumCapped(limit, key as ReferenceTargetKey) ? undefined : everyone?.measures[key]
+    measures[key] = own && value !== null ? placeAmong(value, own, wide) : null
   }
   const categories = CATEGORIES.map((category) => {
     const average = mean(category.metrics.map((key) => measures[key] ?? null))
@@ -396,7 +395,13 @@ export function placement(
       percentile: average === null || !own ? null : placeAmong(average, own, everyone?.categories?.[category.key]),
     }
   })
-  return { measures, categories, overall: mean(categories.map(({ percentile }) => percentile)) }
+  const overall = mean(categories.map(({ percentile }) => percentile))
+  return {
+    measures,
+    categories,
+    overall,
+    overallPercentile: overall === null || !peers.overall ? null : placeAmong(overall, peers.overall, everyone?.overall),
+  }
 }
 
 /**
@@ -530,14 +535,11 @@ export function rosterGrades(
     const shown = display(placed.categories[index]!.percentile)
     return { key: category.key, label: category.label, score: shown, grade: gradeOf(shown), rows: members }
   })
-  const overall = placed.overall
+  const overall = placed.overallPercentile
   const shown = categories.flatMap((category) => (category.score === null ? [] : [category.score]))
   // Lists that place usually stand out somewhere, so one middling at everything ranks low among them; it still
   // never reads as worse than its weakest category or better than its strongest.
-  const total =
-    overall === null
-      ? null
-      : Math.min(Math.max(display(placeAmong(overall, peers.overall, everyone.overall))!, Math.min(...shown)), Math.max(...shown))
+  const total = overall === null ? null : Math.min(Math.max(display(overall)!, Math.min(...shown)), Math.max(...shown))
   return {
     score: total,
     grade: gradeOf(total),

@@ -35,7 +35,7 @@ Be straight with the player. Base every judgement of a unit or the list on a num
    - Board presence and Even spread when they grade low and the plan needs them. At 2,000 points they went with winning most.
    - `missing`: the reference targets nothing in the list can take half of alone. It's worth knowing, but it didn't decide games on its own.
    - Each category's weakest rows and their `detail`, and anything a row marks `notCalculated`.
-6. Then report the overall score and grade, each category's grade, and which tournament lists `comparedWith` places it among. A typical tournament list scores about 70.
+6. Then report the overall score and grade, each category's grade, and which tournament lists `comparedWith` centres it on. A typical tournament list scores about 70.
 7. For each unit with wargear choices, call `optimize_loadout` against the target its job names. A saved list often keeps a unit's default wargear, which can be its weakest option, so report any `best` that is `better`.
 8. Use `units` to say what each unit is for, and `attached` to say what each leader or support character adds to its unit. A unit with no `jobs` may still earn its points through an aura or a stratagem the grades can't see, so ask what it's for.
 
