@@ -1358,7 +1358,7 @@ test.describe('data update anchors', () => {
   test("an army's page lists only that army's changes", async ({ page }) => {
     const { row } = await closedRow(page)
     await row.locator('summary').click()
-    const slug = (await row.locator('[data-factions]').first().getAttribute('data-factions'))!.split(' ')[0]!
+    const slug = (await row.locator('[data-factions]').first().getAttribute('data-factions'))!.split(' ')[0]
     const href = `/data-updates/${slug}`
     await page.goto(href)
 
