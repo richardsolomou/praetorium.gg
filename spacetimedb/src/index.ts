@@ -101,7 +101,7 @@ import {
   leagueFixtureStatus,
   leagueFixtureUnfinished,
 } from '../../src/core/groupLeague'
-import { admitConnection, authConfiguration } from './admission'
+import { admitConnection, authConfiguration, isLocalIssuer } from './admission'
 import {
   ABILITY_REMINDERS_MAX,
   abilityReminderSchema,
@@ -2651,6 +2651,77 @@ function productJson(value: unknown) {
     return safeNumber(field)
   })
 }
+
+type ProductTable = keyof typeof productTables
+const PRODUCT_TABLES = Object.keys(productTables) as ProductTable[]
+/** Kept well under what one HTTP call carries; no single row comes near it. */
+const COPY_PAGE_CHARACTERS = 4_000_000
+
+function productTable(name: string) {
+  if (!(PRODUCT_TABLES as string[]).includes(name)) throw new SenderError('Unknown product table')
+  return name as ProductTable
+}
+
+// JSON has no 64-bit integers or absent values, so u64 columns travel tagged and options travel as missing keys.
+const copiedRowText = (row: object) =>
+  JSON.stringify(row, (_key, field: unknown) => (typeof field === 'bigint' ? { $u64: field.toString() } : field))
+const copiedRows = (text: string) =>
+  JSON.parse(text, (_key, field: unknown) =>
+    field !== null && typeof field === 'object' && '$u64' in field ? BigInt((field as { $u64: string }).$u64) : field,
+  ) as unknown
+const copyPage = z.array(z.record(z.string(), z.unknown())).max(1_000_000)
+
+/**
+ * One page of a product table's rows, in storage order, for a copy of the whole database; an empty `table` names the tables.
+ *
+ * Pages are positional, so only a database nothing writes to, such as a backup restored offline, reads back exactly.
+ */
+export const exportProductRows = spacetime.procedure({ table: t.string(), offset: t.u32() }, t.string(), (ctx, input) =>
+  operatorTx(ctx, (tx) => {
+    if (!input.table) return JSON.stringify({ tables: PRODUCT_TABLES })
+    const rows: string[] = []
+    let characters = 0
+    let position = 0
+    for (const row of tx.db[productTable(input.table)].iter()) {
+      if (position++ < input.offset) continue
+      const text = copiedRowText(row)
+      if (rows.length && characters + text.length > COPY_PAGE_CHARACTERS)
+        return `{"rows":[${rows.join(',')}],"next":${input.offset + rows.length}}`
+      rows.push(text)
+      characters += text.length
+    }
+    return `{"rows":[${rows.join(',')}],"next":null}`
+  }),
+)
+
+/**
+ * Stores copied rows in a product table, emptying it first when `replace` is set. Only a database whose auth issuer is
+ * on this machine takes them, so no deployed database can be overwritten through its operator. A column the copy's
+ * older schema lacked takes its declared default, as the migration that added it would have given it, and
+ * auto-incremented columns are numbered afresh, since a copied value would collide with the next one the sequence hands out.
+ */
+export const importProductRows = spacetime.procedure({ table: t.string(), rows: t.string(), replace: t.bool() }, t.u32(), (ctx, input) =>
+  operatorTx(ctx, (tx) => {
+    if (!isLocalIssuer(auth(tx).issuer)) throw new SenderError('Only a local development database takes copied rows')
+    const name = productTable(input.table)
+    const parsed = copyPage.safeParse(copiedRows(input.rows))
+    if (!parsed.success) throw new SenderError('Invalid copied rows')
+    const columns = Object.entries(
+      productTables[name].rowType.row as Record<string, { columnMetadata: { isAutoIncrement?: boolean; defaultValue?: unknown } }>,
+    )
+    const defaults = Object.fromEntries(
+      columns.flatMap(([column, { columnMetadata }]) => ('defaultValue' in columnMetadata ? [[column, columnMetadata.defaultValue]] : [])),
+    )
+    const renumbered = Object.fromEntries(
+      columns.flatMap(([column, { columnMetadata }]) => (columnMetadata.isAutoIncrement ? [[column, 0n]] : [])),
+    )
+    // Each table is typed by its own row; the copy carries rows this module's schema wrote, so they insert as read.
+    const target = tx.db[name] as unknown as { clear(): void; insert(row: object): unknown }
+    if (input.replace) target.clear()
+    for (const row of parsed.data) target.insert({ ...defaults, ...row, ...renumbered })
+    return parsed.data.length
+  }),
+)
 
 export const migrateProductData = spacetime.procedure({ table: t.string(), keys: t.array(t.string()) }, t.string(), (ctx, input) =>
   operatorTx(ctx, (tx) => {

@@ -75,6 +75,9 @@ export function admitConnection(input: {
 
 export type AuthConfiguration = { issuer: string; audience: string; operator: string }
 
+/** An auth issuer on this machine, which only a local development stack publishes with. */
+export const isLocalIssuer = (issuer: string) => /^http:\/\/(?:localhost|127\.0\.0\.1)(?::[0-9]{1,5})?\/api\/auth$/.test(issuer)
+
 /**
  * The deployment's auth settings from the module environment: an HTTPS Praetorium auth issuer (or a
  * loopback one locally), the database name as audience, and the operator's identity. Anything else
@@ -83,10 +86,9 @@ export type AuthConfiguration = { issuer: string; audience: string; operator: st
 export function authConfiguration(env: { AUTH_ISSUER: string; AUTH_AUDIENCE: string; OPERATOR_IDENTITY: string }): AuthConfiguration {
   const { AUTH_ISSUER: issuer, AUTH_AUDIENCE: audience, OPERATOR_IDENTITY: operator } = env
   const secureIssuer = /^https:\/\/[^/?#@]+\/api\/auth(?:\/preview\/[0-9a-f]{40})?$/.test(issuer)
-  const localIssuer = /^http:\/\/(?:localhost|127\.0\.0\.1)(?::[0-9]{1,5})?\/api\/auth$/.test(issuer)
   if (
     issuer.length > 256 ||
-    (!secureIssuer && !localIssuer) ||
+    (!secureIssuer && !isLocalIssuer(issuer)) ||
     !/^[a-z0-9][a-z0-9-]{0,127}$/.test(audience) ||
     !/^[0-9a-f]{64}$/.test(operator)
   ) {

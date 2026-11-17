@@ -113,6 +113,7 @@ import * as DeleteUnitLoadoutProcedure from './delete_unit_loadout_procedure'
 import * as DiscoverRostersProcedure from './discover_rosters_procedure'
 import * as DraftsByUserProcedure from './drafts_by_user_procedure'
 import * as EndRosterLoanProcedure from './end_roster_loan_procedure'
+import * as ExportProductRowsProcedure from './export_product_rows_procedure'
 import * as ExternalAccountsByUserProcedure from './external_accounts_by_user_procedure'
 import * as FavouriteDatasheetsByUserProcedure from './favourite_datasheets_by_user_procedure'
 import * as FavouriteDetachmentsByUserProcedure from './favourite_detachments_by_user_procedure'
@@ -132,6 +133,7 @@ import * as GuestSeatByInviteProcedure from './guest_seat_by_invite_procedure'
 import * as HeldCollectionPhotosProcedure from './held_collection_photos_procedure'
 import * as HomeRostersByUserProcedure from './home_rosters_by_user_procedure'
 import * as ImportCollectionProcedure from './import_collection_procedure'
+import * as ImportProductRowsProcedure from './import_product_rows_procedure'
 import * as JoinGuestSeatProcedure from './join_guest_seat_procedure'
 import * as LeaderboardProcedure from './leaderboard_procedure'
 import * as LendRosterProcedure from './lend_roster_procedure'
@@ -357,6 +359,7 @@ const proceduresSchema = __procedures(
   __procedureSchema('discover_rosters', DiscoverRostersProcedure.params, DiscoverRostersProcedure.returnType),
   __procedureSchema('drafts_by_user', DraftsByUserProcedure.params, DraftsByUserProcedure.returnType),
   __procedureSchema('end_roster_loan', EndRosterLoanProcedure.params, EndRosterLoanProcedure.returnType),
+  __procedureSchema('export_product_rows', ExportProductRowsProcedure.params, ExportProductRowsProcedure.returnType),
   __procedureSchema('external_accounts_by_user', ExternalAccountsByUserProcedure.params, ExternalAccountsByUserProcedure.returnType),
   __procedureSchema(
     'favourite_datasheets_by_user',
@@ -384,6 +387,7 @@ const proceduresSchema = __procedures(
   __procedureSchema('held_collection_photos', HeldCollectionPhotosProcedure.params, HeldCollectionPhotosProcedure.returnType),
   __procedureSchema('home_rosters_by_user', HomeRostersByUserProcedure.params, HomeRostersByUserProcedure.returnType),
   __procedureSchema('import_collection', ImportCollectionProcedure.params, ImportCollectionProcedure.returnType),
+  __procedureSchema('import_product_rows', ImportProductRowsProcedure.params, ImportProductRowsProcedure.returnType),
   __procedureSchema('join_guest_seat', JoinGuestSeatProcedure.params, JoinGuestSeatProcedure.returnType),
   __procedureSchema('leaderboard', LeaderboardProcedure.params, LeaderboardProcedure.returnType),
   __procedureSchema('lend_roster', LendRosterProcedure.params, LendRosterProcedure.returnType),

@@ -28,9 +28,9 @@ teardown:
 rosters-fetch snapshot="data-dev/production-rosters.json":
     node --env-file-if-exists=.env.local --import tsx scripts/productionRosters.ts fetch "{{ snapshot }}"
 
-# Copy the snapshot into this worktree's preview account without overwriting local edits
-rosters-import snapshot="data-dev/production-rosters.json":
-    pnpm exec tsx scripts/productionRosters.ts import "{{ snapshot }}"
+# Replace this worktree's running development data with the latest production backup; every account signs in with the preview password
+production-copy:
+    pnpm exec tsx scripts/productionCopy.ts
 
 # Check saved selections against a catalogue, optionally comparing a baseline
 rosters-audit *args:

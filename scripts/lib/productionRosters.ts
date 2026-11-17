@@ -1,5 +1,4 @@
 import { z } from 'zod'
-import { hash, randomUUID } from 'node:crypto'
 import { boundedBytes } from '../../src/server/boundedBody'
 import { rosterPickSchema } from '../../src/core/commands'
 import { FORMAT_RULE_IDS, OPTIONAL_RULE_IDS, pointsBudgetOf } from '../../src/core/battle'
@@ -8,11 +7,10 @@ import { currentRosterIds } from '../../src/core/retiredCatalogueIds'
 import { migrateStoredRoster } from '../../src/core/savedRosterMigrations'
 import type { RosterPick } from '../../src/core/roster'
 import { builtPickSelections } from '../../src/core/rosterSelections'
-import { detachmentIds, rosterRow } from '../../src/server/rosterPersistence'
+import { detachmentIds } from '../../src/server/rosterPersistence'
 import { calculateRosterPrice, savedRosterPriceInput, unavailablePriceSelections } from '../../src/shared/pricing'
 import type { LoadedCatalogue } from '../../src/shared/catalogueIndex'
 import type { LoadedRules } from '../../src/shared/rules'
-import type { SpacetimeOperator } from '../../src/server/spacetimeOperator'
 import { spacetimeDatabaseUrl } from '../../src/server/spacetime.ts'
 
 const rosterSchema = z.strictObject({
@@ -45,7 +43,6 @@ export const productionRosterSnapshotSchema = z
     }
   })
 export type ProductionRosterSnapshot = z.infer<typeof productionRosterSnapshotSchema>
-export const importedRosterId = (id: string) => `production-${hash('sha256', id).slice(0, 32)}`
 const unavailableSchema = z.object({
   pickIndex: z.number().int().nonnegative(),
   entryId: z.string(),
@@ -234,7 +231,6 @@ export function auditProductionRosters(
     const price = calculateRosterPrice(savedRosterPriceInput(roster), catalogue, rules)
     return {
       id: stored.id,
-      importedId: importedRosterId(stored.id),
       catalogueId: roster.catalogueId,
       migrated: JSON.stringify(stored) !== JSON.stringify(roster),
       revision: catalogue?.index.revision ?? null,
@@ -254,56 +250,6 @@ export function auditProductionRosters(
       detachmentError: price?.detachmentError ?? null,
     }
   })
-}
-
-export async function importProductionRosters(
-  snapshot: ProductionRosterSnapshot,
-  userId: string,
-  operator: Pick<SpacetimeOperator, 'roster' | 'syncRoster'>,
-) {
-  let imported = 0
-  const byId = new Map(snapshot.rosters.map((roster) => [roster.id, roster]))
-  for (const roster of snapshot.rosters) {
-    if (roster.baseRosterId) {
-      const base = byId.get(roster.baseRosterId)
-      if (base?.baseRosterId) throw new Error(`Roster ${roster.id} has a nested base roster`)
-    }
-  }
-  for (const roster of snapshot.rosters.toSorted(
-    (left, right) => Number(Boolean(left.baseRosterId)) - Number(Boolean(right.baseRosterId)),
-  )) {
-    const id = importedRosterId(roster.id)
-    const existing = await operator.roster(id)
-    if (existing) {
-      if (existing.userId !== userId) throw new Error(`Imported roster ${id} belongs to another local account`)
-      continue
-    }
-    const row = JSON.stringify({
-      ...rosterRow({
-        ...roster,
-        prep: null,
-        baseRosterId: roster.baseRosterId && byId.has(roster.baseRosterId) ? importedRosterId(roster.baseRosterId) : null,
-      }),
-      id,
-      userId,
-      name: `Production roster ${roster.id.slice(0, 48)}`,
-      automaticName: false,
-      pointsBudget: roster.pointsBudget ?? null,
-      visibility: 'private',
-      now: roster.updatedAt,
-    })
-    const outcome = await operator.syncRoster({
-      row,
-      expectedVersion: null,
-      deleted: false,
-      operationId: randomUUID(),
-      fingerprint: hash('sha256', row),
-    })
-    if (outcome.outcome === 'conflict') continue
-    if (outcome.outcome !== 'applied') throw new Error(`Could not insert local roster ${id}: ${outcome.message}`)
-    imported++
-  }
-  return imported
 }
 
 type RosterPrice = NonNullable<ReturnType<typeof calculateRosterPrice>>

@@ -45,6 +45,7 @@ import * as DeleteUnitLoadoutProcedure from '../delete_unit_loadout_procedure'
 import * as DiscoverRostersProcedure from '../discover_rosters_procedure'
 import * as DraftsByUserProcedure from '../drafts_by_user_procedure'
 import * as EndRosterLoanProcedure from '../end_roster_loan_procedure'
+import * as ExportProductRowsProcedure from '../export_product_rows_procedure'
 import * as ExternalAccountsByUserProcedure from '../external_accounts_by_user_procedure'
 import * as FavouriteDatasheetsByUserProcedure from '../favourite_datasheets_by_user_procedure'
 import * as FavouriteDetachmentsByUserProcedure from '../favourite_detachments_by_user_procedure'
@@ -64,6 +65,7 @@ import * as GuestSeatByInviteProcedure from '../guest_seat_by_invite_procedure'
 import * as HeldCollectionPhotosProcedure from '../held_collection_photos_procedure'
 import * as HomeRostersByUserProcedure from '../home_rosters_by_user_procedure'
 import * as ImportCollectionProcedure from '../import_collection_procedure'
+import * as ImportProductRowsProcedure from '../import_product_rows_procedure'
 import * as JoinGuestSeatProcedure from '../join_guest_seat_procedure'
 import * as LeaderboardProcedure from '../leaderboard_procedure'
 import * as LendRosterProcedure from '../lend_roster_procedure'
@@ -218,6 +220,8 @@ export type DraftsByUserArgs = __Infer<typeof DraftsByUserProcedure.params>
 export type DraftsByUserResult = __Infer<typeof DraftsByUserProcedure.returnType>
 export type EndRosterLoanArgs = __Infer<typeof EndRosterLoanProcedure.params>
 export type EndRosterLoanResult = __Infer<typeof EndRosterLoanProcedure.returnType>
+export type ExportProductRowsArgs = __Infer<typeof ExportProductRowsProcedure.params>
+export type ExportProductRowsResult = __Infer<typeof ExportProductRowsProcedure.returnType>
 export type ExternalAccountsByUserArgs = __Infer<typeof ExternalAccountsByUserProcedure.params>
 export type ExternalAccountsByUserResult = __Infer<typeof ExternalAccountsByUserProcedure.returnType>
 export type FavouriteDatasheetsByUserArgs = __Infer<typeof FavouriteDatasheetsByUserProcedure.params>
@@ -256,6 +260,8 @@ export type HomeRostersByUserArgs = __Infer<typeof HomeRostersByUserProcedure.pa
 export type HomeRostersByUserResult = __Infer<typeof HomeRostersByUserProcedure.returnType>
 export type ImportCollectionArgs = __Infer<typeof ImportCollectionProcedure.params>
 export type ImportCollectionResult = __Infer<typeof ImportCollectionProcedure.returnType>
+export type ImportProductRowsArgs = __Infer<typeof ImportProductRowsProcedure.params>
+export type ImportProductRowsResult = __Infer<typeof ImportProductRowsProcedure.returnType>
 export type JoinGuestSeatArgs = __Infer<typeof JoinGuestSeatProcedure.params>
 export type JoinGuestSeatResult = __Infer<typeof JoinGuestSeatProcedure.returnType>
 export type LeaderboardArgs = __Infer<typeof LeaderboardProcedure.params>
