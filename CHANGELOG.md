@@ -1,5 +1,16 @@
 # praetorium
 
+## 0.264.0 (2026-11-17)
+
+### Minor Changes
+
+- 310e370: [rosters] A unit's datasheet in the roster and in a battle's units now lists the rules it chooses between during the battle, such as Doctrina Imperatives, Battle Protocols and Orders, and shows its profiles with the option you pick.
+
+### Patch Changes
+
+- 485ed81: [rosters] An enhancement some units can't take, such as Cognitive Reinforcement for a Cybernetica Datasmith, is no longer hidden from every other character in a list that includes one, and the simulator applies it.
+- 467eed6: [simulator] The simulator now applies the weapon ability you pick for a rule such as Technosorcerous Augmentations, which it ignored when the army data already gave part of that rule.
+
 ## 0.263.0 (2026-11-17)
 
 ### Minor Changes
