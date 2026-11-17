@@ -129,7 +129,6 @@ export function RosterHeader({
 }: RosterHeaderProps) {
   const { ref: metaRef, style: metaStyle } = useScrollEdges<HTMLSpanElement>()
   const hasPoints = points !== null && points !== undefined
-  const hasSummary = hasPoints || limit !== undefined
   const shownDispositions = disposition ? [disposition] : dispositions
 
   return (
@@ -162,74 +161,91 @@ export function RosterHeader({
             data-slot="roster-meta"
             className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto whitespace-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
-            {faction ? (
-              <FactionReferenceLink
-                to="/factions/$catalogueId"
-                params={{ catalogueId: faction.slug }}
-                className="flex shrink-0 items-center self-stretch text-info hover:text-bone"
-              >
-                <FactionLabel faction={faction} edition={edition} />
-              </FactionReferenceLink>
-            ) : factionLoading ? (
-              <Skeleton className="h-5 w-28 shrink-0" aria-label="Loading faction" />
-            ) : null}
-            {faction && hasSummary ? <span aria-hidden>·</span> : null}
-            {hasPoints ? <span className="chip text-info">{points} pts</span> : null}
-            {hasPoints && limit !== undefined ? <span aria-hidden>·</span> : null}
-            {limit !== undefined ? <span className="shrink-0">{battleSizeLabel(limit, pointsBudget)}</span> : null}
-            {unitCount === undefined ? null : (
-              <span className="contents">
-                <span aria-hidden>·</span>
-                <span className="shrink-0">{countLabel(unitCount, 'unit')}</span>
-              </span>
-            )}
-            {modelCount === undefined ? null : (
-              <span className="contents">
-                <span aria-hidden>·</span>
-                <span className="shrink-0">{countLabel(modelCount, 'model')}</span>
-              </span>
-            )}
-            {detachments.map((detachment) => {
-              const reference = faction?.detachments.find((candidate) => candidate.id === detachment.id)
-              const label = `${detachment.name}${detachment.points === null || detachment.points === undefined ? '' : ` · ${detachment.points} DP`}`
-              return (
-                <span key={detachment.id ?? detachment.name} className="contents">
-                  <span aria-hidden>·</span>
-                  {faction && reference && reference.referenceRoute !== null ? (
-                    <FactionReferenceLink
-                      to="/factions/$catalogueId/detachments/$detachmentId"
-                      params={{
-                        catalogueId: reference.referenceRoute?.catalogueId ?? faction.slug,
-                        detachmentId: reference.referenceRoute?.slug ?? reference.slug,
-                      }}
-                      className="shrink-0 text-info hover:text-bone"
-                    >
-                      {label}
-                    </FactionReferenceLink>
-                  ) : (
-                    <span className="shrink-0">{label}</span>
-                  )}
-                </span>
-              )
-            })}
-            {shownDispositions.length ? <span aria-hidden>·</span> : null}
-            {shownDispositions.map((id) => {
-              const known = factionDisposition(faction, id)
-              return known ? (
-                <Link
-                  key={id}
-                  to="/force-dispositions/$dispositionId"
-                  params={{ dispositionId: known.id }}
-                  className={`chip shrink-0 hover:text-bone ${dispositionTone(known.id)}`}
+            {/* Links first, then plain facts, so the line reads as where to look and then what it holds. */}
+            {[
+              faction ? (
+                <FactionReferenceLink
+                  key="faction"
+                  to="/factions/$catalogueId"
+                  params={{ catalogueId: faction.slug }}
+                  className="flex shrink-0 items-center self-stretch text-info hover:text-bone"
                 >
-                  {known.name}
-                </Link>
-              ) : (
-                <span key={id} className={`chip shrink-0 ${dispositionTone(id)}`}>
-                  {id}
+                  <FactionLabel faction={faction} edition={edition} />
+                </FactionReferenceLink>
+              ) : factionLoading ? (
+                <Skeleton key="faction" className="h-5 w-28 shrink-0" aria-label="Loading faction" />
+              ) : null,
+              ...detachments.map((detachment) => {
+                const reference = faction?.detachments.find((candidate) => candidate.id === detachment.id)
+                const label = `${detachment.name}${detachment.points === null || detachment.points === undefined ? '' : ` · ${detachment.points} DP`}`
+                const key = `detachment-${detachment.id ?? detachment.name}`
+                return faction && reference && reference.referenceRoute !== null ? (
+                  <FactionReferenceLink
+                    key={key}
+                    to="/factions/$catalogueId/detachments/$detachmentId"
+                    params={{
+                      catalogueId: reference.referenceRoute?.catalogueId ?? faction.slug,
+                      detachmentId: reference.referenceRoute?.slug ?? reference.slug,
+                    }}
+                    className="shrink-0 text-info hover:text-bone"
+                  >
+                    {label}
+                  </FactionReferenceLink>
+                ) : (
+                  <span key={key} className="shrink-0">
+                    {label}
+                  </span>
+                )
+              }),
+              shownDispositions.length ? (
+                <span key="dispositions" className="contents">
+                  {shownDispositions.map((id) => {
+                    const known = factionDisposition(faction, id)
+                    return known ? (
+                      <Link
+                        key={id}
+                        to="/force-dispositions/$dispositionId"
+                        params={{ dispositionId: known.id }}
+                        className={`chip shrink-0 hover:text-bone ${dispositionTone(known.id)}`}
+                      >
+                        {known.name}
+                      </Link>
+                    ) : (
+                      <span key={id} className={`chip shrink-0 ${dispositionTone(id)}`}>
+                        {id}
+                      </span>
+                    )
+                  })}
                 </span>
-              )
-            })}
+              ) : null,
+              hasPoints ? (
+                <span key="points" className="chip text-info">
+                  {points} pts
+                </span>
+              ) : null,
+              limit === undefined ? null : (
+                <span key="size" className="shrink-0">
+                  {battleSizeLabel(limit, pointsBudget)}
+                </span>
+              ),
+              unitCount === undefined ? null : (
+                <span key="units" className="shrink-0">
+                  {countLabel(unitCount, 'unit')}
+                </span>
+              ),
+              modelCount === undefined ? null : (
+                <span key="models" className="shrink-0">
+                  {countLabel(modelCount, 'model')}
+                </span>
+              ),
+            ]
+              .filter((part) => part !== null)
+              .map((part, index) => (
+                <span key={part.key} className="contents">
+                  {index ? <span aria-hidden>·</span> : null}
+                  {part}
+                </span>
+              ))}
             <WaiverChip rules={waivers} />
           </span>
           {actions ? (

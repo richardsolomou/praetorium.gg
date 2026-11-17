@@ -583,6 +583,7 @@ export const Rosters = __t.object('Rosters', {
   pointsBudget: __t.option(__t.u32()),
   copiedFromRosterId: __t.option(__t.string()),
   archived: __t.option(__t.bool()),
+  sharingDeclined: __t.option(__t.bool()),
 })
 export type Rosters = __Infer<typeof Rosters>
 

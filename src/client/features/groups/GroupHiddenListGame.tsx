@@ -25,6 +25,7 @@ import { countLabel } from '../../text'
 import { useNow } from '../../useNow'
 import { useEntrantGroups } from '../sealedEvents/SealedEventEntrants'
 import { RevealedLists } from '../sealedEvents/SealedEventArmies'
+import { SealedEventRosterSharing } from '../sealedEvents/SealedEventRosterSharing'
 import { SealedEventCombatDialog } from '../sealedEvents/SealedEventCombatDialog'
 import { useSealList } from '../sealedEvents/SealList'
 import { RemindEntrants } from '../sealedEvents/SealedEventReadiness'
@@ -33,6 +34,7 @@ import { SealedEventSettingsDialog } from '../sealedEvents/SealedEventSettingsDi
 import { TeamDispositionPanel } from '../sealedEvents/SealedEventTeamDisposition'
 import { TeamWarlordPanel } from '../sealedEvents/SealedEventTeamWarlord'
 import { eventName, namesPhrase, useSealedEventRefresh } from '../sealedEvents/sealedEvent'
+import { latestHiddenListGameSealedBy } from '../../../core/group'
 import { sideLost, viewerStage } from '../../battleStage'
 import { summarySides } from '../../battleSummary'
 import type { Battle } from '../battles/battle'
@@ -230,6 +232,10 @@ export function GroupHiddenListGame({
   // Revealed lists split by side or pair as a tournament's are, so the same game reads the same in either place.
   const revealedEntries = record?.entries.filter((entry) => sealed.some((player) => player.userId === entry.userId)) ?? []
   const revealedGroups = useEntrantGroups(record ?? undefined, revealedEntries, (entry) => nameOf(entry.userId))
+  const sharing =
+    viewerId && latestHiddenListGameSealedBy(group.games, viewerId)?.token === game.token ? (
+      <SealedEventRosterSharing className="px-4 pb-3" token={game.token} eventToken={game.token} userId={viewerId} />
+    ) : null
   const revealedLists = (
     <RevealedLists
       token={game.token}
@@ -358,6 +364,7 @@ export function GroupHiddenListGame({
           {sealed.length ? (
             <div className="border-t border-edge">
               <p className="px-4 py-2 text-sm text-dim">Lists · {countLabel(sealed.length, 'player')}</p>
+              {sharing}
               {revealedLists}
             </div>
           ) : null}
@@ -374,7 +381,14 @@ export function GroupHiddenListGame({
             </div>
             {menu}
           </div>
-          {revealed ? revealedLists : lists}
+          {revealed ? (
+            <>
+              {sharing}
+              {revealedLists}
+            </>
+          ) : (
+            lists
+          )}
           {revealed && record ? (
             <OpenTableBattlefield
               sealedEvent={record}

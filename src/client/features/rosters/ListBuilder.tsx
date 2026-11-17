@@ -34,7 +34,6 @@ import { type RosterShareChoices, RosterShareDialog } from './RosterShareDialog'
 import { useOrigin } from '../../useOrigin'
 import { RosterLoanDialog } from './RosterLoanDialog'
 import { RosterBody, RosterHeader, RosterOutline, RosterShell } from './RosterPresentation'
-import { useWorkspaceState, WAIVERS_STATE } from './workspaceState'
 import { type AttachDirection, useCardRelationships } from './RosterUnitCard'
 import type { AttachChoice } from './builder/UnitCard'
 import { RosterGradesDialog } from './RosterGradesDialog'
@@ -218,7 +217,6 @@ export function ListBuilder({
     openPicker,
     updateLoadoutHistory,
   } = useRosterPanes({ path, workspacePath, picks })
-  const [dismissedWaivers, dismissWaivers] = useWorkspaceState<string>(workspacePath, WAIVERS_STATE)
   const [pickerQuery, setPickerQuery] = useState('')
   const [pickerFilters, setPickerFilters] = useState<Set<PickerFilter>>(new Set())
   const factionRead = useQuery({
@@ -556,12 +554,6 @@ export function ListBuilder({
         }
       : selectedUnit
   const waivers = waivedFormatRules(limit, waivedRules, pointsBudget)
-  /*
-   * Dismissing says "I know", not "never tell me": the key is the set of waived
-   * restrictions, so switching another one off says something the player has not
-   * acknowledged yet and the warning comes back.
-   */
-  const waiverKey = waivers.map((rule) => rule.id).join(',')
   // A unit the data requires as Warlord holds the crown, so no other unit can claim it and it cannot be given up.
   const requiredWarlord = units.find((unit) =>
     unit.toggles.some((toggle) => toggle.name === 'Warlord' && toggle.required && toggle.selected),
@@ -734,7 +726,6 @@ export function ListBuilder({
         }
         disposition={frozen ? disposition : priced?.disposition}
         dispositions={frozen ? undefined : priced?.dispositions}
-        waivers={waivers}
         actions={
           <RosterActionsMenu
             editable={editable}
@@ -942,10 +933,8 @@ export function ListBuilder({
         errors={priced?.errors ?? []}
         onResetOptions={pricePending ? undefined : edit.resetUnavailable}
         unhandled={priced?.unhandled ?? []}
-        frozen={Boolean(frozen)}
         waivers={waivers}
-        waiversDismissed={dismissedWaivers === waiverKey}
-        onDismissWaivers={() => dismissWaivers(waiverKey)}
+        frozen={Boolean(frozen)}
         sealedEventWarning={
           (editable || locked) && savedId && me ? (
             <>

@@ -58,12 +58,19 @@ type Props = {
   onFilterToggle: (filter: PickerFilter) => void
 }
 
-export type PickerFilter = 'fit' | 'limit' | AccountFilter | NonMatchedPlayKind
+export type PickerFilter = 'fit' | 'limit' | AccountFilter | 'top-four' | NonMatchedPlayKind
 
 const FILTERS: { id: PickerFilter; label: string; hint: string; icon?: LucideIcon; empty?: string }[] = [
   { id: 'fit', label: 'Points fit', hint: 'Hide anything that would not fit in the points left' },
   { id: 'limit', label: 'Unit limit', hint: 'Hide anything the roster already holds as many of as it may' },
   ...ACCOUNT_FILTERS,
+  {
+    id: 'top-four',
+    label: 'Top four',
+    hint: 'Show only units many of this faction’s top-four tournament lists take',
+    icon: Trophy,
+    empty: 'No unit is in enough of this faction’s top-four tournament lists to mark yet.',
+  },
   { id: 'legends', label: 'Legends', hint: 'Show Legends datasheets' },
   { id: 'crucible', label: 'Crucible', hint: 'Show Crucible datasheets' },
 ]
@@ -158,6 +165,10 @@ export const Picker = memo(function Picker({
   }, [applicable, priceable, loadoutPrices.data, loadoutPrices.isError])
 
   const collection = useMemo(() => usableDatasheets(owned ?? [], countsAs ?? {}), [owned, countsAs])
+  const marksTopFour = useMemo(
+    () => (unitsResult.data ?? []).some((unit) => commonInTopFour(topFour, unit.id)),
+    [unitsResult.data, topFour],
+  )
   const rows = useMemo(
     () =>
       pickerRows({
@@ -171,10 +182,25 @@ export const Picker = memo(function Picker({
           if (active.has('limit') && limits.has(entryId) && !canAddCopy(entryId, inRoster[entryId] ?? 0, limits)) return false
           if (active.has('owned') && collection.size && !collection.has(entryId)) return false
           if (active.has('favourite') && favourites.size && !favourites.has(entryId)) return false
+          if (active.has('top-four') && marksTopFour && !commonInTopFour(topFour, entryId)) return false
           return true
         },
       }),
-    [unitsResult.data, found, loadouts, query, active, room, inRoster, collection, favourites, limits, nonMatchedPlay],
+    [
+      unitsResult.data,
+      found,
+      loadouts,
+      query,
+      active,
+      room,
+      inRoster,
+      collection,
+      favourites,
+      limits,
+      nonMatchedPlay,
+      topFour,
+      marksTopFour,
+    ],
   )
   const shown = rows.units
   const rules = formatRules(battleSize, pointsBudget)
@@ -212,12 +238,13 @@ export const Picker = memo(function Picker({
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  aria-label="Format restrictions"
-                  className={`shrink-0 ${waived.length ? 'text-discarded' : 'text-faint hover:text-bone'}`}
+                  aria-label={waived.length ? `Format restrictions, ${waived.length} switched off` : 'Format restrictions'}
+                  className="relative shrink-0 text-faint hover:text-bone"
                 />
               }
             >
               <EllipsisVertical />
+              {waived.length ? <span aria-hidden className="absolute top-0.5 right-0.5 size-1.5 rounded-full bg-discarded" /> : null}
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="max-w-[min(20rem,calc(100vw-2rem))] min-w-64">
               <DropdownMenuGroup>
@@ -245,7 +272,7 @@ export const Picker = memo(function Picker({
         </div>
         {/* One row that scrolls sideways when the pane is too narrow, so the filters never push the list down. */}
         <div className="no-scrollbar flex items-center gap-1 overflow-x-auto">
-          {FILTERS.filter((filter) => signedIn || !filter.icon).map((filter) => (
+          {FILTERS.filter((filter) => signedIn || !ACCOUNT_FILTERS.some(({ id }) => id === filter.id)).map((filter) => (
             <FilterChip
               key={filter.id}
               label={filter.label}
@@ -254,7 +281,9 @@ export const Picker = memo(function Picker({
               pressed={active.has(filter.id)}
               onToggle={() => onFilterToggle(filter.id)}
               unavailable={
-                (filter.id === 'owned' && (!enabled || !collection.size)) || (filter.id === 'favourite' && (!enabled || !favourites.size))
+                (filter.id === 'owned' && (!enabled || !collection.size)) ||
+                (filter.id === 'favourite' && (!enabled || !favourites.size)) ||
+                (filter.id === 'top-four' && !marksTopFour)
                   ? filter.empty
                   : undefined
               }
@@ -497,6 +526,16 @@ const PickerRow = memo(function PickerRow({
         ) : null}
       </div>
       <span className="ml-auto flex max-w-full shrink-0 flex-wrap items-center justify-end gap-1.5">
+        {topFour ? (
+          <HoverTooltip
+            title={`In ${topFour.lists} of ${topFour.of} top-four lists`}
+            body="Lists that finished top four at Warhammer 40,000 tournaments outside Praetorium, as published by 40k Stats and Mini Headquarters."
+            label={`${unit.name} is in ${topFour.lists} of ${topFour.of} top-four tournament lists`}
+            className="size-6 shrink-0 text-faint no-underline hover:text-dim"
+          >
+            <Trophy className="size-3.5" />
+          </HoverTooltip>
+        ) : null}
         {onFavourite ? (
           <Toggle
             variant="default"
@@ -509,16 +548,6 @@ const PickerRow = memo(function PickerRow({
           >
             <Heart className={`size-3.5 ${favourite ? 'fill-rust text-rust' : 'text-faint hover:text-dim'}`} />
           </Toggle>
-        ) : null}
-        {topFour ? (
-          <HoverTooltip
-            title={`In ${topFour.lists} of ${topFour.of} top-four lists`}
-            body="Lists that finished top four at Warhammer 40,000 tournaments outside Praetorium, as published by 40k Stats and Mini Headquarters."
-            label={`${unit.name} is in ${topFour.lists} of ${topFour.of} top-four tournament lists`}
-            className="size-6 shrink-0 text-faint no-underline hover:text-dim"
-          >
-            <Trophy className="size-3.5" />
-          </HoverTooltip>
         ) : null}
         <PointsChip points={nextCopyPoints(unit, held)} over={over} />
         <Button

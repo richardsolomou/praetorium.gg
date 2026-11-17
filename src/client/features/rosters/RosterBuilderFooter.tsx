@@ -1,8 +1,9 @@
-import { type ComponentProps, type ReactNode, useEffect, useRef } from 'react'
+import { WaiverChip } from '../../components/FormatWaivers'
+import type { FormatRule } from '../../../core/battle'
+import { type ReactNode, useEffect, useRef } from 'react'
 import { Check, TriangleAlert } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { WaiverWarning } from '../../components/FormatWaivers'
 import type { UnavailableSelection } from '../../../core/rosterSelections'
 import { requestNativeHaptic } from '../../nativeBridge'
 import { advanceOnboarding } from '../onboarding/onboarding'
@@ -26,10 +27,8 @@ type Props = {
   onResetOptions?: (unavailable: readonly UnavailableSelection[]) => void
   unhandled: readonly string[]
   frozen: boolean
-  waivers: ComponentProps<typeof WaiverWarning>['rules']
-  waiversDismissed: boolean
-  onDismissWaivers: () => void
   sealedEventWarning?: ReactNode
+  waivers: readonly FormatRule[]
 }
 
 export function RosterBuilderFooter({
@@ -49,10 +48,8 @@ export function RosterBuilderFooter({
   onResetOptions,
   unhandled,
   frozen,
-  waivers,
-  waiversDismissed,
-  onDismissWaivers,
   sealedEventWarning,
+  waivers,
 }: Props) {
   // Felt as the roster crosses the limit, not on opening one already over it.
   const wasOver = useRef<boolean | null>(null)
@@ -107,6 +104,7 @@ export function RosterBuilderFooter({
           </span>
         </span>
 
+        <WaiverChip rules={waivers} />
         {sealedEventWarning}
 
         <span className="ml-auto flex items-center gap-2">
@@ -177,7 +175,6 @@ export function RosterBuilderFooter({
           </ul>
         </div>
       ) : null}
-      {waiversDismissed ? null : <WaiverWarning rules={waivers} onDismiss={onDismissWaivers} editable={editable} />}
     </footer>
   )
 }

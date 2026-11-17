@@ -30,6 +30,10 @@ const rosterRow = z.object({
     .boolean()
     .nullish()
     .transform((archived) => archived === true),
+  sharingDeclined: z
+    .boolean()
+    .nullish()
+    .transform((declined) => declined === true),
   copiedFromRosterId: z.string().nullable(),
   visibility: z.enum(ROSTER_VISIBILITIES),
   source: z.enum(ROSTER_SOURCES),
@@ -187,6 +191,10 @@ export function withRosters<B extends SpacetimeBase>(Base: B) {
 
     async setRosterArchived(id: string, userId: string, archived: boolean, now: number) {
       return this.reply('set_roster_archived', [id, userId, archived, now], z.boolean())
+    }
+
+    async declineRosterSharing(id: string, userId: string) {
+      return this.reply('decline_roster_sharing', [id, userId], z.boolean())
     }
 
     async splitRosterVariant(id: string, userId: string, now: number) {

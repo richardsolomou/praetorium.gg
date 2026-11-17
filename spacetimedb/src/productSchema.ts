@@ -269,6 +269,8 @@ const rosters = table(
     pointsBudget: t.option(t.u32()).default(undefined),
     copiedFromRosterId: t.option(t.string()).default(undefined),
     archived: t.option(t.bool()).default(undefined),
+    /** The owner answered No thanks to sharing it, so no screen asks them to make it public again. */
+    sharingDeclined: t.option(t.bool()).default(undefined),
   },
 )
 
@@ -480,6 +482,7 @@ const sealedEventTeamWarlords = table(
   },
 )
 
+/** Answers to the sharing prompt from before they moved onto the roster; read only to carry them across, and emptied as events and accounts go. */
 const sealedEventRosterSharing = table(
   { name: 'sealed_event_roster_sharing' },
   {

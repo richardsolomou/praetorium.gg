@@ -51,6 +51,7 @@ function rosterSummaries(rows: readonly (SummaryRow | FullRow)[]) {
       baseRosterId: row.baseRosterId,
       locked: row.locked,
       archived: row.archived,
+      sharingDeclined: row.sharingDeclined,
       visibility: row.visibility,
       source: row.source,
       createdAt: row.createdAt,
@@ -61,7 +62,8 @@ function rosterSummaries(rows: readonly (SummaryRow | FullRow)[]) {
 }
 
 /** A variant's base can be private or unlisted, so another reader is never told which list it is. */
-const readerSummaries = (rows: readonly FullRow[]) => rosterSummaries(rows).map((summary) => ({ ...summary, baseRosterId: null }))
+const readerSummaries = (rows: readonly FullRow[]) =>
+  rosterSummaries(rows).map((summary) => ({ ...summary, baseRosterId: null, sharingDeclined: false }))
 
 export class RosterService {
   constructor(
@@ -213,6 +215,11 @@ export class RosterService {
     return { updatedAt: await this.storedUpdatedAt(id, userId) }
   }
 
+  /** Remembers the owner's No thanks to making this list public, so no screen asks again. */
+  async declineRosterSharing(userId: string, id: string) {
+    if (!(await this.repository.declineRosterSharing(id, userId))) throw new Response('you do not own this roster', { status: 403 })
+  }
+
   /** Takes a list out of its variant group, so it stands on its own in the library. */
   async splitRosterVariant(userId: string, id: string) {
     if (!(await this.repository.splitRosterVariant(id, userId, this.clock())))
@@ -282,7 +289,8 @@ export class RosterService {
     const lent = rows.filter((row) => owners.has(row.ownerId))
     const summaries = rosterSummaries(lent)
     return lent.map((row, index) => ({
-      summary: summaries[index]!,
+      // The owner's answer to sharing it is theirs alone.
+      summary: { ...summaries[index]!, sharingDeclined: false },
       owner: owners.get(row.ownerId)!,
       lentAt: row.lentAt,
       priceable: rosterFromRow({ ...row, userId: row.ownerId, prep: null, tags: '[]', copiedFromRosterId: null }),

@@ -54,6 +54,8 @@ An organizer can change the game from **Edit** in its ⋯ menu. Once anyone seal
 
 Each list shows its faction and points. Use **Simulate** beside another player's list to compare your sealed armies. In a team game, **Simulate** sits on the other side's heading and sets your side's lists against theirs.
 
+Your latest revealed game, or a league's lists, also asks whether to make the list you sealed public. See [After you've played a list](/docs/copy-and-share#after-you-ve-played-a-list).
+
 When a game has exactly two sides, an organizer can press **Set battlefield** after the reveal to pick or **Roll** its battlefield, so everyone can prepare before anyone starts the battle. That covers a duel between two players, solo vs pair and doubles, and each side's Force Disposition decides the layouts on offer. The players are notified and can't change it, and the organizer can until the battle starts. A duel with more than two players has no single table to set, so those players choose at the table.
 
 ### When a game ends

@@ -354,7 +354,13 @@ export function SealedEventView({
       ) : null}
       <div>
         {revealed && viewerId && ownEntry?.status === 'accepted' && ownEntry.submitted ? (
-          <SealedEventRosterSharing key={sealedEvent.eventToken} token={token} eventToken={sealedEvent.eventToken} userId={viewerId} />
+          <SealedEventRosterSharing
+            key={sealedEvent.eventToken}
+            className="mb-6"
+            token={token}
+            eventToken={sealedEvent.eventToken}
+            userId={viewerId}
+          />
         ) : null}
       </div>
       {/* The reader's own next step leads the side column, and a phone, where it comes first. */}

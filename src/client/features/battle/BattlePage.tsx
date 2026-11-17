@@ -5,7 +5,7 @@ import { FullPageState, PageLoading } from '../../components/PageState'
 import { Setup } from './setup/Setup'
 import { Spectator } from './Spectator'
 import { Tracker } from './Tracker'
-import { AfterBattle } from './AfterBattle'
+import { AfterBattle, AfterBattleSharing } from './AfterBattle'
 import { PracticeNextGame } from './PracticeNextGame'
 import { isPracticeSeat } from '../../../core/newBattle'
 import { celebrateVictory } from './victory'
@@ -107,7 +107,16 @@ function FinishedBattle({ screen }: { screen: Extract<Awaited<ReturnType<typeof 
       clock={clock}
       missions={missions}
       timeline={screen.timeline}
-      lead={practicedAlone(view) ? <PracticeNextGame /> : <AfterBattle view={view} />}
+      lead={
+        practicedAlone(view) ? (
+          <PracticeNextGame />
+        ) : (
+          <div className="space-y-3">
+            <AfterBattle view={view} />
+            <AfterBattleSharing view={view} />
+          </div>
+        )
+      }
     />
   )
 }
