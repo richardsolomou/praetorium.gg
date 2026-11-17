@@ -19,12 +19,9 @@ it('refuses a saved document whose folders loop', () => {
   expect(rosterFoldersSchema.safeParse(looped).success).toBe(false)
 })
 
-it('moves a deleted folder’s folders and lists up to the folder it was in', () => {
-  expect(removeRosterFolder(nested, 'gt')).toEqual({
-    folders: [
-      { id: 'events', name: 'Events', parentId: null },
-      { id: 'rtt', name: 'RTT', parentId: 'events' },
-    ],
+it('deletes the folders inside a deleted folder and moves their lists up to the folder it was in', () => {
+  expect(removeRosterFolder({ ...nested, filed: { necrons: 'rtt' } }, 'gt')).toEqual({
+    folders: [{ id: 'events', name: 'Events', parentId: null }],
     filed: { necrons: 'events' },
   })
 })

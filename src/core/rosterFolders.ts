@@ -90,16 +90,15 @@ export function moveRosterFolder(current: RosterFolders, folderId: string, paren
   return rosterFoldersSchema.safeParse(next).success ? next : current
 }
 
-/** Deleting a folder moves its folders and lists up to the folder it was in, rather than deleting them. */
+/** Deletes a folder and every folder inside it; the lists filed anywhere inside move up to the folder it was in. */
 export function removeRosterFolder(current: RosterFolders, folderId: string): RosterFolders {
   const parentId = current.folders.find((folder) => folder.id === folderId)?.parentId ?? null
+  const removed = folderAndInside(current.folders, folderId)
   return {
-    folders: current.folders
-      .filter((folder) => folder.id !== folderId)
-      .map((folder) => (folder.parentId === folderId ? { ...folder, parentId } : folder)),
+    folders: current.folders.filter((folder) => !removed.has(folder.id)),
     filed: Object.fromEntries(
       Object.entries(current.filed).flatMap(([rosterId, filedIn]) =>
-        filedIn !== folderId ? [[rosterId, filedIn]] : parentId ? [[rosterId, parentId]] : [],
+        !removed.has(filedIn) ? [[rosterId, filedIn]] : parentId ? [[rosterId, parentId]] : [],
       ),
     ),
   }

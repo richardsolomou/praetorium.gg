@@ -713,7 +713,7 @@ export function RosterLibraryPage({
                     </Button>
                   ) : null}
                 </>
-              ) : saved.length && !filtering && (folder || folders.folders.length) && !(folder && subfolders.length) ? (
+              ) : !filtering && folder && subfolders.length ? null : saved.length && !filtering && (folder || folders.folders.length) ? (
                 <p className="rounded-xl border border-dashed border-edge px-4 py-6 text-center text-sm text-dim">
                   {folder
                     ? archived.length
@@ -800,8 +800,10 @@ export function RosterLibraryPage({
           <AlertDialogHeader>
             <AlertDialogTitle>Delete {deletingFolder?.name}?</AlertDialogTitle>
             <AlertDialogDescription>
-              Its folders and rosters move up to {deletingFolder?.parentId ? 'the folder it is in' : 'All rosters'}. Nothing is deleted but
-              the folder.
+              {deletingFolder && childFolders(folders.folders, deletingFolder.id).length
+                ? 'The folders inside it are deleted too, and all their rosters and its own'
+                : 'Its rosters'}{' '}
+              {deletingFolder?.parentId ? 'move up to the folder it is in' : 'move to All rosters'}. No roster is deleted.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -812,7 +814,7 @@ export function RosterLibraryPage({
                 if (!deletingFolder) return
                 folderActions.remove(deletingFolder.id)
                 setDeletingFolder(null)
-                if (folder?.id === deletingFolder.id)
+                if (folder && folderAndInside(folders.folders, deletingFolder.id).has(folder.id))
                   void navigate({ to: '/rosters', search: { ...search, folder: deletingFolder.parentId ?? undefined } })
               }}
             >
