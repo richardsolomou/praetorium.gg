@@ -57,8 +57,8 @@ export function RosterGradesDialog({
         <DialogHeader>
           <DialogTitle>Roster grades</DialogTitle>
           <DialogDescription>
-            What {name || 'this roster'} can do on the table, scored against tournament lists of the same faction and size. Scores describe
-            the list, not your odds of winning.
+            What {name || 'this roster'} can do on the table, scored against tournament lists of the same size and centred on your
+            faction's. Scores describe the list, not your odds of winning.
           </DialogDescription>
         </DialogHeader>
         <DialogBody className="gap-5">
@@ -148,7 +148,9 @@ function Scores({ grades }: { grades: RosterGrades }) {
           <Gauge score={grades.score} grade={grades.grade} large />
           <span className="grid justify-items-center text-center">
             <span className="text-sm font-semibold text-bone">Overall</span>
-            <span className="text-xs text-dim">{grades.comparedWith ? `Among ${grades.comparedWith} lists` : 'Among all factions'}</span>
+            <span className="text-xs text-dim">
+              {grades.comparedWith ? `Centred on ${grades.comparedWith} lists` : 'Among all factions'}
+            </span>
           </span>
         </div>
         <ol aria-label="Categories" className="grid grid-cols-4 items-start gap-2">
