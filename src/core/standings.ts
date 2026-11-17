@@ -125,9 +125,9 @@ const DAY_MS = 24 * 60 * 60 * 1000
 
 /** A player's skill after `idleMs` without a battle, never growing less certain than a newcomer's. */
 function idle(skill: Rating, idleMs: number): Rating {
-  const newcomer = newcomerSigma()
-  if (idleMs <= 0 || skill.sigma >= newcomer) return skill
-  return { mu: skill.mu, sigma: Math.min(Math.sqrt(skill.sigma ** 2 + (idleVariancePerDay() * idleMs) / DAY_MS), newcomer) }
+  const fresh = newcomerSigma()
+  if (idleMs <= 0 || skill.sigma >= fresh) return skill
+  return { mu: skill.mu, sigma: Math.min(Math.sqrt(skill.sigma ** 2 + (idleVariancePerDay() * idleMs) / DAY_MS), fresh) }
 }
 
 /** Fewer battles than this in a table, and a player is listed apart from the ranked players, without a place. */
