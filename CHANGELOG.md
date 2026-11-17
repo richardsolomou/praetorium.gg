@@ -1,5 +1,26 @@
 # praetorium
 
+## 0.261.3 (2026-11-17)
+
+### Patch Changes
+
+- 6c49d4a: The assistant now simulates conditional detachment rules in the state that triggers them instead of dismissing them.
+- a546f52: The assistant now takes free optional wargear, such as an icon or an extra weapon, that adds to a unit without replacing anything.
+- b2636a1: The assistant now optimizes every unit's wargear, ignores detachment points when a list takes one detachment, and compares detachments by simulation rather than by grade.
+- b93a33c: The assistant now explains each tournament staple it leaves out of a list, even at battle sizes with no tournament lists, and tests one change at a time.
+- 55739c4: The simulator now offers stratagems used in the Command phase whose effect lasts into the Shooting or Fight phase, such as Machine Spirit Resurgent, and lists the ones it can't calculate yet.
+- 7357f26: The combat simulator now offers the Hallowed Martyrs detachment rule, and a below-strength bonus that applies "as well" now adds to the first bonus instead of replacing it.
+- 685704c: Roster grades and combat simulation now measure squads that mix wargear models sharing one profile, such as Wolf Guard Terminators with an assault cannon or Vanguard Veterans with a plasma pistol, instead of leaving their durability uncalculated.
+- c514e79: Optimize no longer drops wargear you've paid for when another loadout only matches it.
+- 01b2fca: Optimize now takes free optional wargear, such as the Rubric Marines' Icon of Flame, when leaving it off does no better.
+- 0792d52: The simulator applies Sensational Performance from Court of the Phoenician when a unit has charged, and other detachment rules that give every unit of a keyword an ability to use when it fights.
+- b4e3cb1: Cognitive Reinforcement, Omnicogitator, Cantic Thrallnet and other rules that make both Doctrina Imperatives active now apply the Protector and Conqueror Imperatives together, whichever one the round selects.
+- b4e3cb1: The simulator, loadout optimizer, roster comparison and roster grades apply an enhancement's own rules again, such as Logis's +1 to hit, instead of ignoring every enhancement that doesn't just change a characteristic.
+- 0792d52: The simulator applies enhancements and abilities that help only models with a keyword, such as Lord of the Rubricae, or only weapons with one, such as Empyric Onslaught, along with the Adeptus Custodes Salvus ka'tah.
+- 0792d52: Rules the simulator can't calculate yet, such as Flow of Magic and Noctilith Mantle, are listed as not calculated instead of left out without a word.
+- 685704c: Roster grades and combat simulation now measure squads whose models take their profile from the unit, such as Rubric Marines and Servitor Battleclades, instead of leaving their durability uncalculated.
+- 7357f26: The combat simulator now lists 31 more detachment rules it cannot calculate, such as Iron Fortitude and Eye of the Hunt, instead of leaving them out silently.
+
 ## 0.261.2 (2026-11-17)
 
 ### Patch Changes
