@@ -2,9 +2,8 @@
  * Roster grades: what a roster can do on the table, scored 0–100 and graded A–D, never a prediction of who wins.
  *
  * Like Lighthouse, each measure scores the percentile it reaches among real examples, tournament lists of the
- * same battle size (see `rosterGradeCalibration`), so it reads the same for every army. Categories and the
- * overall score place the list among its own faction's tournament lists instead, since the simulator's blind
- * spots, such as stratagems and conditional rules, fall unevenly across factions.
+ * same battle size (see `rosterGradeCalibration`). Every score is centred on the list's own faction, since the
+ * simulator's blind spots, such as stratagems and conditional rules, fall unevenly across factions.
  */
 import { isKotcLimit } from './battle'
 import { CALIBRATED, EXPECTED_TOOLS, PEERS, type CalibratedSize, type Peers } from './rosterGradeCalibration'
@@ -241,7 +240,7 @@ export const scaled = (percentile: number) =>
     [100, 100],
   ])
 
-/** A is the top fifth of tournament lists, B down to about their 43rd percentile, C down to the 10th, and D below. */
+/** A starts at the 80th percentile `scaled` reads, B at about the 43rd and C at the 10th, with D below. */
 export const gradeOf = (score: number | null): Grade | null =>
   score === null ? null : score >= 85 ? 'A' : score >= 65 ? 'B' : score >= 40 ? 'C' : 'D'
 
@@ -360,25 +359,42 @@ export function scoredMeasures(units: readonly GradedUnit[], limit: number): Par
   return measures
 }
 
+const MEDIAN = 10
+
+/**
+ * The percentile a value reaches by how far it sits from its own peers' median, read on `wide`, every army's
+ * quantiles. One army's lists often share most of their units, so its own spread can be narrow enough that a few
+ * percent of damage or durability would swing a score from typical to the bottom tenth; without `wide` the value is
+ * placed among its own peers alone.
+ */
+export const placeAmong = (value: number, own: readonly number[], wide?: readonly number[]) =>
+  wide ? percentileOf(value - own[MEDIAN]! + wide[MEDIAN]!, wide) : percentileOf(value, own)
+
 /**
  * Where a list places among its peers: each measure's percentile, each category's average of those and its
  * percentile, and the average category percentile. The calibration places tournament lists the same way, so a
- * peer group without category or overall percentiles yet leaves those null.
+ * peer group without category or overall percentiles yet leaves those null. `everyone` holds every army's
+ * quantiles, which each step reads its distance from the peers' median on.
  */
 export function placement(
   units: readonly GradedUnit[],
   limit: number,
   peers: Pick<Peers, 'measures'> & Partial<Pick<Peers, 'categories'>>,
+  everyone?: Pick<Peers, 'measures'> & Partial<Pick<Peers, 'categories'>>,
 ) {
   const measures: Partial<Record<MetricKey, number | null>> = {}
   for (const [key, value] of Object.entries(scoredMeasures(units, limit)) as [MetricKey, number | null][]) {
-    const quantiles = peers.measures[key]
-    measures[key] = quantiles && value !== null ? percentileOf(value, quantiles) : null
+    const own = peers.measures[key]
+    measures[key] = own && value !== null ? placeAmong(value, own, everyone?.measures[key]) : null
   }
   const categories = CATEGORIES.map((category) => {
     const average = mean(category.metrics.map((key) => measures[key] ?? null))
-    const quantiles = peers.categories?.[category.key]
-    return { key: category.key, average, percentile: average === null || !quantiles ? null : percentileOf(average, quantiles) }
+    const own = peers.categories?.[category.key]
+    return {
+      key: category.key,
+      average,
+      percentile: average === null || !own ? null : placeAmong(average, own, everyone?.categories?.[category.key]),
+    }
   })
   return { measures, categories, overall: mean(categories.map(({ percentile }) => percentile)) }
 }
@@ -406,7 +422,8 @@ export function rosterGrades(
   const size = calibratedSize(limit)
   const { peers, label: peerLabel } = peerGroup(size, catalogueName)
   const measures = gradeMeasures(units, limit)
-  const placed = placement(units, limit, peers)
+  const everyone = PEERS[size]['']!
+  const placed = placement(units, limit, peers, everyone)
   const score = (key: MetricKey) => placed.measures[key] ?? null
   const row = (key: MetricKey, label: string, percentile: number | null, detail: string, extra: Partial<GradeRow> = {}): GradeRow => {
     const shown = display(percentile)
@@ -518,7 +535,9 @@ export function rosterGrades(
   // Lists that place usually stand out somewhere, so one middling at everything ranks low among them; it still
   // never reads as worse than its weakest category or better than its strongest.
   const total =
-    overall === null ? null : Math.min(Math.max(display(percentileOf(overall, peers.overall))!, Math.min(...shown)), Math.max(...shown))
+    overall === null
+      ? null
+      : Math.min(Math.max(display(placeAmong(overall, peers.overall, everyone.overall))!, Math.min(...shown)), Math.max(...shown))
   return {
     score: total,
     grade: gradeOf(total),

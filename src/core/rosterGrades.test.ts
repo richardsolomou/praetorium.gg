@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { gradeOf, percentileOf, reachChance, rosterGrades, scaled, tournamentComparison, type GradedUnit } from './rosterGrades'
+import { gradeOf, percentileOf, placement, reachChance, rosterGrades, scaled, tournamentComparison, type GradedUnit } from './rosterGrades'
 
 const unit = (overrides: Partial<GradedUnit> = {}): GradedUnit => ({
   name: 'Unit',
@@ -222,3 +222,12 @@ it("names each target an attached unit's absence changes, with the unit's share 
       ],
     },
   ]))
+
+describe('placement', () => {
+  const spread = (low: number, high: number) => Array.from({ length: 21 }, (_, step) => low + ((high - low) * step) / 20)
+  const army = { measures: { survive: spread(0.63, 0.73) } }
+  const everyone = { survive: spread(0.48, 0.88) }
+
+  it("reads a gap from the army's median on every army's spread, so a narrow army's small gap stays small", () =>
+    expect(placement([unit({ volleyLoss: 0.36 })], 2000, army, { measures: everyone }).measures.survive).toBeCloseTo(40))
+})
