@@ -30,6 +30,8 @@ import type { RosterPick } from '../../core/roster'
 import { wishlistSuggestions as suggestFromRosters } from '../../core/wishlistSuggestions'
 import { ROSTER_NAME_MAX_LENGTH } from '../../core/battle'
 import { rosterPlayHistory, type RosterPlayHistory } from '../../core/rosterPlays'
+import { playedBattle } from '../standingsRefresh'
+import { reportServerFailure } from '../serverTelemetry'
 import { rosterChangeWithoutPricing, rosterStatus, rosterVerdict } from '../rosterStatus'
 import {
   copyRosterSchema,
@@ -298,18 +300,6 @@ export const savedRosterPage = createServerFn({ method: 'GET' })
     ),
   )
 
-/** The lists a data update changed since they were saved; the full-library banner settles after the visible rows without monopolising the server. */
-async function ownBattles(userId: string) {
-  const battles = []
-  let before: { at: number; id: string } | undefined
-  do {
-    const page = await app().repository.battlesByUser(userId, { limit: 500, before })
-    battles.push(...page.battles.map((card) => card.digest))
-    before = page.nextCursor ?? undefined
-  } while (before)
-  return battles
-}
-
 /** How often each of the player's lists has been played to the end, and how those battles went. */
 export const savedRosterPlays = createServerFn({ method: 'GET' }).handler(() =>
   rpc(() =>
@@ -317,20 +307,18 @@ export const savedRosterPlays = createServerFn({ method: 'GET' }).handler(() =>
       const instance = app()
       const rosters = await instance.service.rosterService.savedRosters(id)
       if (!rosters.length) return []
-      const [entries, battles] = await Promise.all([instance.repository.sealedEntrySources(id), ownBattles(id)])
-      // A sealed list leaves its saved list's id out of the battle, so the player's own entry names it. An older battle names
-      // only its host, which identifies the entry only when the player sealed one list there.
+      // Another server's refresh, or a failed one, leaves the stored results to read; its standings signal refetches these.
+      await instance.service.standingsService
+        .refreshStandings()
+        .catch((error: unknown) => reportServerFailure({ event: 'roster_plays_refresh_failed', error }, 'warn'))
+      const [entries, stored] = await Promise.all([instance.repository.sealedEntrySources(id), instance.repository.battleResultsByUser(id)])
+      // An older battle names only its host, which identifies the entry only when the player sealed one list there.
       const perHost = groupBy(entries, (entry) => entry.hostToken)
       const sealedFrom = new Map([
         ...entries.map((entry) => [entry.eventToken, entry.rosterId] as const),
         ...[...perHost].flatMap(([hostToken, sealed]) => (sealed.length === 1 ? [[hostToken, sealed[0]!.rosterId] as const] : [])),
       ])
-      const linked = battles.map((battle) => {
-        const sealed = sealedFrom.get(battle.eventToken ?? battle.sealedEventToken ?? '')
-        if (!sealed) return battle
-        return { ...battle, seats: battle.seats.map((seat) => (seat.id === id && !seat.rosterId ? { ...seat, rosterId: sealed } : seat)) }
-      })
-      return rosterPlayHistory(id, linked, rosters)
+      return rosterPlayHistory(id, stored.map(playedBattle), rosters, sealedFrom)
     }),
   ),
 )
