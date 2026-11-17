@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.262.1 (2026-11-17)
+
+### Patch Changes
+
+- a1f7199: [rosters] After you duplicate a roster or create a variant, a message confirms you're now editing the new list.
+- 4c0110e: [events] A league that seals lists now shows who has sealed one on the League tab, with your own list's name under yours.
+
 ## 0.262.0 (2026-11-17)
 
 ### Minor Changes
