@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.261.6 (2026-11-17)
+
+### Patch Changes
+
+- bad2aa3: The Groups page now lists the groups with the most recent game first.
+- bad2aa3: Tournaments now list the soonest one first, with undated tournaments after them and finished ones last, on the home page and the Tournaments page.
+
 ## 0.261.5 (2026-11-17)
 
 ### Patch Changes
