@@ -1,0 +1,11 @@
+diff --git a/definitions/Aeldari - Aeldari Library.json b/definitions/Aeldari - Aeldari Library.json
+--- a/definitions/Aeldari - Aeldari Library.json
++++ b/definitions/Aeldari - Aeldari Library.json
+@@ -57720,6 +57720,7 @@
+           {"name": "Crusade: Weapon Modifications", "typeId": "716d-91b7-d55a-1022", "value": 0}
+         ],
+         "entryLinks": [
++          {"name": "Warlord", "id": "c3f7-2e91-4b6d-a058", "collective": false, "hidden": false, "import": true, "sortIndex": 2, "targetId": "3f04-19ab-bfb0-6c67", "type": "selectionEntry"},
+           {
+             "name": "Crusade",
+             "id": "9ba3-5a43-1eaa-1e02",

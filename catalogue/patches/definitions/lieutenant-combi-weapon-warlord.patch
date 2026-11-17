@@ -1,0 +1,11 @@
+diff --git a/definitions/Imperium - Space Marines.json b/definitions/Imperium - Space Marines.json
+--- a/definitions/Imperium - Space Marines.json
++++ b/definitions/Imperium - Space Marines.json
+@@ -53277,6 +53277,7 @@
+           {"name": "Relic Fragments", "typeId": "0ece-6541-4662-ece2", "value": 0}
+         ],
+         "entryLinks": [
++          {"name": "Warlord", "id": "5d1e-8b34-a7c2-90f6", "collective": false, "hidden": false, "import": true, "sortIndex": 2, "targetId": "caa-f869-3cbd-b48e", "type": "selectionEntry", "constraints": [{"id": "ad60-fb6-5cf4-f118", "field": "selections", "includeChildForces": false, "includeChildSelections": false, "percentValue": false, "scope": "parent", "shared": true, "type": "max", "value": 1}]},
+           {
+             "name": "Enhancements",
+             "id": "7cc2-133e-bc3a-6d25",
