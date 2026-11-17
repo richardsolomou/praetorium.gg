@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.263.0 (2026-11-17)
+
+### Minor Changes
+
+- 48ca31a: [rosters] Your rosters can now go in folders, and folders inside folders: open one like a folder on your computer, drag a roster or folder onto another to move it, and search or filter across every folder at once.
+- 48ca31a: [rosters] Each of your rosters now says how often you have played it, how those games went and when you last did, and you can filter or group your rosters by whether you have played them.
+
 ## 0.262.2 (2026-11-17)
 
 ### Patch Changes
