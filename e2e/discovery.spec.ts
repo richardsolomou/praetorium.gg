@@ -95,42 +95,43 @@ test('faction datasheet indexes deliver their own canonical metadata without Jav
   await context.close()
 })
 
-for (const doc of PRODUCT_DOCS) {
-  test(`the ${doc.slug} doc is readable without JavaScript on desktop and phone`, async ({ browser, baseURL }) => {
-    const context = await browser.newContext({ javaScriptEnabled: false })
-    const page = await context.newPage()
-    for (const width of [1440, 390]) {
-      await page.setViewportSize({ width, height: 900 })
-      const response = await page.goto(new URL(`/docs/${doc.slug}`, baseURL).href)
-      expect(response?.status()).toBe(200)
-      await expect(page).toHaveTitle(`${doc.title} — Praetorium`)
-      await expect(page.getByRole('heading', { level: 1, name: doc.title })).toBeVisible()
-      await expect(page.locator('main article')).not.toBeEmpty()
-      for (const image of await page.locator('main article img').all()) {
-        await image.scrollIntoViewIfNeeded()
-        await expect.poll(() => image.evaluate((element) => (element as HTMLImageElement).naturalWidth)).toBeGreaterThan(0)
-        await expect(image).toHaveAttribute('alt', /\S/)
+test('every doc is readable without JavaScript on desktop and phone', async ({ browser, baseURL }) => {
+  const context = await browser.newContext({ javaScriptEnabled: false })
+  const page = await context.newPage()
+  for (const doc of PRODUCT_DOCS)
+    await test.step(doc.slug, async () => {
+      for (const width of [1440, 390]) {
+        await page.setViewportSize({ width, height: 900 })
+        const response = await page.goto(new URL(`/docs/${doc.slug}`, baseURL).href)
+        expect(response?.status()).toBe(200)
+        await expect(page).toHaveTitle(`${doc.title} — Praetorium`)
+        await expect(page.getByRole('heading', { level: 1, name: doc.title })).toBeVisible()
+        await expect(page.locator('main article')).not.toBeEmpty()
+        for (const image of await page.locator('main article img').all()) {
+          await image.scrollIntoViewIfNeeded()
+          await expect.poll(() => image.evaluate((element) => (element as HTMLImageElement).naturalWidth)).toBeGreaterThan(0)
+          await expect(image).toHaveAttribute('alt', /\S/)
+        }
+        await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', new URL(`/docs/${doc.slug}`, baseURL).href)
+        expect(
+          await page
+            .locator('script[type="application/ld+json"]')
+            .evaluateAll((elements) => elements.map((element) => JSON.parse(element.textContent))),
+        ).toEqual([
+          {
+            '@context': 'https://schema.org',
+            '@type': 'BreadcrumbList',
+            itemListElement: [
+              { '@type': 'ListItem', position: 1, name: 'Docs', item: new URL('/docs', baseURL).href },
+              { '@type': 'ListItem', position: 2, name: doc.title, item: new URL(`/docs/${doc.slug}`, baseURL).href },
+            ],
+          },
+        ])
+        await expectNoPageOverflow(page)
       }
-      await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', new URL(`/docs/${doc.slug}`, baseURL).href)
-      expect(
-        await page
-          .locator('script[type="application/ld+json"]')
-          .evaluateAll((elements) => elements.map((element) => JSON.parse(element.textContent))),
-      ).toEqual([
-        {
-          '@context': 'https://schema.org',
-          '@type': 'BreadcrumbList',
-          itemListElement: [
-            { '@type': 'ListItem', position: 1, name: 'Docs', item: new URL('/docs', baseURL).href },
-            { '@type': 'ListItem', position: 2, name: doc.title, item: new URL(`/docs/${doc.slug}`, baseURL).href },
-          ],
-        },
-      ])
-      await expectNoPageOverflow(page)
-    }
-    await context.close()
-  })
-}
+    })
+  await context.close()
+})
 
 test('docs can be discovered from the home page, sitemap and agent text', async ({ page, request }, testInfo) => {
   await page.goto('/')

@@ -86,39 +86,26 @@ test('an army is read and its losses recorded without leaving the battle', async
     .click()
   await expect(units).toHaveText('2/2')
 
-  // Casualties are running counts rather than events, so the log and Undo leave them out.
-  await army.getByRole('button', { name: 'Close' }).click()
-  const report = page.locator('[data-battle-report-scroll]')
-  await expect(report).toContainText(`${player} brought ${roster}`)
-  await expect(report).not.toContainText(/Plague Marines|Foetid Bloat-drone/)
-})
-
-test('a multi-wound model is tracked in wounds, and losing them all takes the model', async ({ page }) => {
-  const { roster } = await guardBattle(page, 'Wounds', 'Wounded Guard')
-
-  const panel = playerPanel(page, 0)
-  await panel.getByRole('button', { name: `Units: ${roster}` }).click()
-  const army = page.locator('[data-army-roster]')
-  const squad = army.locator('[data-army-list] [data-unit="Plague Marines"]')
+  // A squad counts both whole models and the one taking damage, as a table does: the first wound leaves every
+  // model standing, and the second takes the model and starts again on the one behind it.
   const drone = army.locator('[data-army-list] [data-unit="Foetid Bloat-drone"]')
-
-  // A squad counts both, because a table does: whole models, and the one taking damage.
-  await expect(squad.locator('[data-count="models"]')).toHaveText('5/5')
+  await expect(squad.locator('[data-count="models"]')).toHaveText('3/5')
   await expect(squad.locator('[data-count="wounds"]')).toHaveText('2/2')
-
-  // The first wound leaves every model standing.
   await squad.getByRole('button', { name: 'Take a wound off Plague Marines' }).click()
   await expect(squad.locator('[data-count="wounds"]')).toHaveText('1/2')
-  await expect(squad.locator('[data-count="models"]')).toHaveText('5/5')
-
-  // The second takes the model, and the count starts again on the one behind it.
+  await expect(squad.locator('[data-count="models"]')).toHaveText('3/5')
   await squad.getByRole('button', { name: 'Take a wound off Plague Marines' }).click()
-  await expect(squad.locator('[data-count="models"]')).toHaveText('4/5')
+  await expect(squad.locator('[data-count="models"]')).toHaveText('2/5')
   await expect(squad.locator('[data-count="wounds"]')).toHaveText('2/2')
-
   // One model of ten wounds counts only the wounds: there are no models to count.
   await expect(drone.locator('[data-count="models"]')).toHaveCount(0)
   await expect(drone.locator('[data-count="wounds"]')).toHaveText('10/10')
   await drone.getByRole('button', { name: 'Take a wound off Foetid Bloat-drone' }).click()
   await expect(drone.locator('[data-count="wounds"]')).toHaveText('9/10')
+
+  // Casualties are running counts rather than events, so the log and Undo leave them out.
+  await army.getByRole('button', { name: 'Close' }).click()
+  const report = page.locator('[data-battle-report-scroll]')
+  await expect(report).toContainText(`${player} brought ${roster}`)
+  await expect(report).not.toContainText(/Plague Marines|Foetid Bloat-drone/)
 })

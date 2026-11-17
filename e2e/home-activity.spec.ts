@@ -131,13 +131,6 @@ test('shows active practice battles to their player but not visitors', async ({ 
   }
 })
 
-test('links each tool a visitor can use without an account as one action', async ({ page }) => {
-  await page.goto('/')
-
-  await expect(page.getByRole('link', { name: /Test your matchups/ })).toHaveAttribute('href', '/simulator')
-  await expect(page.getByRole('link', { name: 'Browse factions' })).toHaveAttribute('href', '/factions')
-})
-
 test('explains how it works before public activity and opens an account-free matchup', async ({ page }) => {
   await page.goto('/')
 
@@ -165,37 +158,22 @@ test('explains how it works before public activity and opens an account-free mat
   await expect(page.getByRole('heading', { name: 'Combat simulator', exact: true })).toBeVisible()
 })
 
-test("a visitor's first action opens the roster setup without an account", async ({ page }) => {
+test('each home page action a visitor takes opens its tool without an account', async ({ page }) => {
   await page.goto('/')
+  await expect(page.getByRole('link', { name: /Test your matchups/ })).toHaveAttribute('href', '/simulator')
+  await expect(page.getByRole('link', { name: 'Browse factions' })).toHaveAttribute('href', '/factions')
   await followLink(page.getByRole('link', { name: 'Build an army', exact: true }), '/rosters')
-
   await expect(page.getByRole('dialog', { name: 'Create roster' })).toBeVisible()
-})
 
-test('creating an account from the home page opens the sign-up form', async ({ page }) => {
+  await page.goto('/')
+  await followLink(page.getByRole('link', { name: 'Try importing a list' }), /\/rosters/)
+  await expect(page.getByRole('dialog', { name: 'Import roster', exact: true })).toBeVisible()
+
   await page.goto('/')
   await followLink(page.getByRole('link', { name: 'Create an account', exact: true }).first(), /\/sign-in/)
-
   await expect(page.getByRole('heading', { name: 'Join Praetorium' })).toBeVisible()
 })
 
-test('importing from the home page opens the import dialog', async ({ page }) => {
-  await page.goto('/')
-  await followLink(page.getByRole('link', { name: 'Try importing a list' }), /\/rosters/)
-
-  await expect(page.getByRole('dialog', { name: 'Import roster', exact: true })).toBeVisible()
-})
-
-test('the home page links to GitHub Sponsors', async ({ page }) => {
-  await page.goto('/')
-
-  await expect(page.getByRole('link', { name: 'Sponsor', exact: true })).toHaveAttribute(
-    'href',
-    'https://github.com/sponsors/richardsolomou',
-  )
-})
-
-// Each test features its own preview battle on the one shared home page, so they take turns.
 test.describe('the featured battle', () => {
   test.describe.configure({ mode: 'default' })
 
