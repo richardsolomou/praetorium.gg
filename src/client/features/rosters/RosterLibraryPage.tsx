@@ -11,9 +11,11 @@ import {
   MoveFolderDialog,
   MoveToFolderDialog,
   useRosterFolders,
+  useVariantDetach,
 } from './RosterFolders'
 import { childFolders, folderAndInside, folderPath, ROSTER_FOLDER_DEPTH_MAX, type RosterFolder } from '../../../core/rosterFolders'
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Skeleton } from '@/components/ui/skeleton'
 import { currentRulesFor } from '../../../core/currentRules'
@@ -178,9 +180,6 @@ export function RosterLibraryPage({
     const roster = saved.find((entry) => entry.id === rosterId)
     if (roster) folderActions.file([roster.baseRosterId ?? roster.id], folderId, savedIds)
   }
-  /** A roster or folder dropped on a folder, or on the top level when `folderId` is null, moves into it. */
-  const dropInto = (item: DroppedItem, folderId: string | null) =>
-    item.kind === 'roster' ? fileRoster(item.id, folderId) : folderActions.move(item.id, folderId)
   const subfolders = childFolders(folders.folders, folder?.id ?? null)
   // A folder at the deepest level folders may go takes no more folders.
   const canNest = !folder || folderPath(folders.folders, folder.id).length + 1 < ROSTER_FOLDER_DEPTH_MAX
@@ -350,6 +349,19 @@ export function RosterLibraryPage({
       if (filed) folderActions.file([copyId], filed, new Set())
     },
   )
+  /** A variant taken out of its card becomes a roster of its own, filed in `folderId` rather than where its base was. */
+  const detach = (variantId: string, folderId: string | null) => {
+    if (folderId) folderActions.file([variantId], folderId, savedIds)
+    actions.split.mutate(variantId)
+  }
+  const detachingFrom = useVariantDetach((variantId) => detach(variantId, folder?.id ?? null))
+  /** A roster or folder dropped on a folder, or on the top level when `folderId` is null, moves into it. */
+  const dropInto = (item: DroppedItem, folderId: string | null) =>
+    item.kind === 'roster'
+      ? fileRoster(item.id, folderId)
+      : item.kind === 'variant'
+        ? detach(item.id, folderId)
+        : folderActions.move(item.id, folderId)
   // A visitor keeps one list; making another asks them to sign up first.
   const another = guest ? () => account.ask('another-roster') : undefined
   const { keepImported, saveError: importError } = useNewRoster()
@@ -442,13 +454,21 @@ export function RosterLibraryPage({
         selection={selectionOf(roster)}
         onMove={guest ? undefined : () => setMoving([roster.baseRosterId ?? roster.id])}
         dragId={guest ? undefined : (roster.baseRosterId ?? roster.id)}
+        variantOf={layout === 'variant' ? head.roster.id : undefined}
         plays={playsById.get(roster.id)}
       />
     )
     return variants.length ? (
-      <div key={head.roster.id} data-roster-group className="part">
+      <div
+        key={head.roster.id}
+        data-roster-group={head.roster.id}
+        className={cn('part', detachingFrom === head.roster.id && 'outline-2 outline-offset-2 outline-runner-hi outline-dashed')}
+      >
         {row(head, 'base')}
         {variants.map((variant) => row(variant, 'variant'))}
+        {detachingFrom === head.roster.id ? (
+          <p className="border-t border-edge px-3 py-2 text-xs text-dim">Drop it anywhere outside this card to make it its own roster.</p>
+        ) : null}
       </div>
     ) : (
       row(head, 'card')
@@ -600,7 +620,7 @@ export function RosterLibraryPage({
             />
           ) : null}
           {me && !libraryPending && !libraryError && (folder || folders.folders.length) ? (
-            <div className="mt-3 space-y-4">
+            <div className="mt-3 mb-6 space-y-4">
               {folder ? <FolderBreadcrumb folder={folder} folders={folders.folders} onDrop={dropInto} actions={folderMenu} /> : null}
               {subfolders.length ? (
                 <FolderTiles
@@ -785,6 +805,7 @@ export function RosterLibraryPage({
               onClick={() => {
                 if (!deletingFolder) return
                 folderActions.remove(deletingFolder.id)
+                setDeletingFolder(null)
                 if (folder?.id === deletingFolder.id)
                   void navigate({ to: '/rosters', search: { ...search, folder: deletingFolder.parentId ?? undefined } })
               }}

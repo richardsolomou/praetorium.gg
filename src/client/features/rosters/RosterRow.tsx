@@ -36,7 +36,7 @@ import {
 } from './RosterSummary'
 import { ContextMenuItem, DropdownMenuItem, MenuSection } from '../../components/Menu'
 import type { RosterPlayHistory } from '../../../core/rosterPlays'
-import { ROSTER_DRAG_TYPE } from './RosterFolders'
+import { ROSTER_DRAG_TYPE, VARIANT_DRAG_TYPE } from './RosterFolders'
 
 export type RosterRowLayout = 'card' | 'base' | 'variant'
 
@@ -81,6 +81,7 @@ export function RosterRow({
   plays,
   onMove,
   dragId,
+  variantOf,
 }: {
   roster: SavedRoster
   layout?: RosterRowLayout
@@ -114,6 +115,8 @@ export function RosterRow({
   onMove?: () => void
   /** The roster a drag files: the list itself, or the base its variants follow. */
   dragId?: string
+  /** The base a variant row belongs to, so dragging it out takes the variant alone. */
+  variantOf?: string
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const title = rosterTitle(roster, faction, label)
@@ -152,7 +155,9 @@ export function RosterRow({
           // The card's link is what a pointer grabs, so it carries the roster to a folder.
           onDragStart={(event) => {
             if (!dragId || selection) return
-            event.dataTransfer.setData(ROSTER_DRAG_TYPE, dragId)
+            // A variant on its own leaves its base behind; anything else carries its whole set.
+            if (variantOf) event.dataTransfer.setData(VARIANT_DRAG_TYPE, JSON.stringify({ id: roster.id, baseId: variantOf }))
+            else event.dataTransfer.setData(ROSTER_DRAG_TYPE, dragId)
             event.dataTransfer.effectAllowed = 'copyMove'
           }}
         >

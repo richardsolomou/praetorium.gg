@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { ChevronRight, EllipsisVertical, Folder, FolderInput, FolderOpen, FolderPlus, Inbox, Pencil, Trash2 } from 'lucide-react'
-import { useId, useState, type DragEvent } from 'react'
+import { useEffect, useEffectEvent, useId, useState, type DragEvent } from 'react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
 import { FactionMark, type FactionPresentation } from '../../components/FactionMark'
@@ -265,17 +265,19 @@ export function MoveFolderDialog({
   )
 }
 
-/** What a dragged roster card carries, so only a roster or folder can be dropped on a folder. */
+/** What a dragged card carries: a list with its variants, one variant on its own, or a folder. */
 export const ROSTER_DRAG_TYPE = 'application/x-praetorium-roster'
+export const VARIANT_DRAG_TYPE = 'application/x-praetorium-variant'
 const FOLDER_DRAG_TYPE = 'application/x-praetorium-folder'
+const DRAG_TYPES = { roster: ROSTER_DRAG_TYPE, variant: VARIANT_DRAG_TYPE, folder: FOLDER_DRAG_TYPE } as const
 
-export type DroppedItem = { kind: 'roster' | 'folder'; id: string }
+/** A dropped variant names the base it came from, so dropping it back on its own card does nothing. */
+export type DroppedItem = { kind: 'roster' | 'folder'; id: string } | { kind: 'variant'; id: string; baseId: string }
 
-/** Makes an element take a dragged roster or folder: highlighted while one is over it, and handing it over when dropped. */
-function useFolderDrop(onDrop: (item: DroppedItem) => void) {
+/** Makes an element take a dragged item of `kinds`: highlighted while one is over it, and handing it over when dropped. */
+function useDrop(onDrop: (item: DroppedItem) => void, kinds: readonly DroppedItem['kind'][]) {
   const [over, setOver] = useState(false)
-  const kind = (event: DragEvent) =>
-    event.dataTransfer.types.includes(ROSTER_DRAG_TYPE) ? 'roster' : event.dataTransfer.types.includes(FOLDER_DRAG_TYPE) ? 'folder' : null
+  const kind = (event: DragEvent) => kinds.find((candidate) => event.dataTransfer.types.includes(DRAG_TYPES[candidate])) ?? null
   return {
     over,
     props: {
@@ -291,10 +293,64 @@ function useFolderDrop(onDrop: (item: DroppedItem) => void) {
         const dropped = kind(event)
         if (!dropped) return
         event.preventDefault()
-        onDrop({ kind: dropped, id: event.dataTransfer.getData(dropped === 'roster' ? ROSTER_DRAG_TYPE : FOLDER_DRAG_TYPE) })
+        // A folder inside a tile or a card inside the list would otherwise hand the same drop on to the target around it.
+        event.stopPropagation()
+        const data = event.dataTransfer.getData(DRAG_TYPES[dropped])
+        onDrop(
+          dropped === 'variant' ? { kind: dropped, ...(JSON.parse(data) as { id: string; baseId: string }) } : { kind: dropped, id: data },
+        )
       },
     },
   }
+}
+
+const useFolderDrop = (onDrop: (item: DroppedItem) => void) => useDrop(onDrop, ['roster', 'variant', 'folder'])
+
+/**
+ * While a variant is dragged, the whole page takes it except the card it came from: dropped anywhere outside that card,
+ * it becomes a roster of its own. Folder targets stop the drop first and file it as well. Returns the base of the variant
+ * in the air, so its card can say where outside begins.
+ */
+export function useVariantDetach(onDetach: (variantId: string) => void) {
+  const [dragged, setDragged] = useState<{ id: string; baseId: string } | null>(null)
+  const detach = useEffectEvent(onDetach)
+  useEffect(() => {
+    let current: { id: string; baseId: string } | null = null
+    const outside = (event: globalThis.DragEvent) =>
+      current !== null &&
+      (event.target as Element | null)?.closest?.('[data-roster-group]')?.getAttribute('data-roster-group') !== current.baseId
+    const start = (event: globalThis.DragEvent) => {
+      const data = event.dataTransfer?.getData(VARIANT_DRAG_TYPE)
+      current = data ? (JSON.parse(data) as { id: string; baseId: string }) : null
+      setDragged(current)
+    }
+    const over = (event: globalThis.DragEvent) => {
+      if (outside(event)) event.preventDefault()
+    }
+    const drop = (event: globalThis.DragEvent) => {
+      if (outside(event)) {
+        event.preventDefault()
+        detach(current!.id)
+      }
+      current = null
+      setDragged(null)
+    }
+    const end = () => {
+      current = null
+      setDragged(null)
+    }
+    window.addEventListener('dragstart', start)
+    window.addEventListener('dragover', over)
+    window.addEventListener('drop', drop)
+    window.addEventListener('dragend', end)
+    return () => {
+      window.removeEventListener('dragstart', start)
+      window.removeEventListener('dragover', over)
+      window.removeEventListener('drop', drop)
+      window.removeEventListener('dragend', end)
+    }
+  }, [])
+  return dragged?.baseId ?? null
 }
 
 type TileRoster = { id: string; limit: number; catalogueId: string }
@@ -377,7 +433,7 @@ export function FolderTiles({
         <button
           type="button"
           onClick={onNew}
-          className="grid min-h-24 place-items-center rounded-xl border border-dashed border-runner text-sm font-semibold text-parchment hover:border-parchment hover:bg-raised"
+          className="grid h-24 place-items-center rounded-xl border border-dashed border-runner text-sm font-semibold text-parchment hover:border-parchment hover:bg-raised"
         >
           <span className="flex items-center gap-2">
             <FolderPlus className="size-4" aria-hidden /> New folder
@@ -432,7 +488,8 @@ function FolderTile({
           data-folder={folder.name}
           className={cn(
             // The tab on its top edge is what makes the card read as a folder.
-            'part relative flex min-h-24 flex-col gap-1 p-3 pt-3.5 pr-10 hover:border-runner-hi hover:bg-raised',
+            // Every tile is one height, so a row of folders reads as a grid whatever each holds.
+            'part relative flex h-24 flex-col gap-1 p-3 pt-3.5 pr-10 hover:border-runner-hi hover:bg-raised',
             'before:absolute before:-top-1.5 before:left-3 before:h-1.5 before:w-10 before:rounded-t-md before:border before:border-b-0 before:border-edge before:bg-panel',
             // The tab is part of the folder's shape, so it takes every state the body does.
             'hover:before:border-runner-hi hover:before:bg-raised',
@@ -444,7 +501,7 @@ function FolderTile({
             <Folder className="size-4 shrink-0 text-dim" aria-hidden />
             <span className="truncate">{folder.name}</span>
           </span>
-          <span className="text-xs text-dim">
+          <span className="truncate text-xs text-dim">
             {[folders ? countLabel(folders, 'folder') : null, countLabel(rosters.length, 'roster'), span ? `${span} pts` : null]
               .filter(Boolean)
               .join(' · ')}

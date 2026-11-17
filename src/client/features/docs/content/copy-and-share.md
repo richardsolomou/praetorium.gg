@@ -12,7 +12,7 @@ The **Build**/**View** switch in the header hides editing controls for reading a
 
 ## Variants, copies and locking
 
-**Create variant** makes a copy grouped with this list. The variants icon in the header shows **Changes from** the base list and switches between variants. **Make its own roster** takes a variant out of the group. If the base leaves, the oldest remaining variant becomes the base.
+**Create variant** makes a copy grouped with this list. The variants icon in the header shows **Changes from** the base list and switches between variants. **Make its own roster**, or dragging the variant out of its card in the library, takes it out of the group. If the base leaves, the oldest remaining variant becomes the base.
 
 **Duplicate** makes an independent copy. Both open the new list straight away, and a message confirms which one you're editing. On someone else's list it's **Duplicate to my rosters**, and the copy notes where it came from.
 
@@ -26,7 +26,7 @@ Locking, **Make its own roster** and changing several lists at once all need a c
 
 ## Folders
 
-**New folder** in the library makes a folder where you are, and a folder can hold folders of its own, up to five deep. Click a folder to open it, and use the path above its lists to go back up. Drag a roster onto a folder to move it there, or choose **Move to folder…** in its menu. Drag a folder onto another to put it inside, or choose **Move folder…** in its menu. A variant always goes with its base list, and a duplicate stays in the same folder as the list it came from.
+**New folder** in the library makes a folder where you are, and a folder can hold folders of its own, up to five deep. Click a folder to open it, or right-click it to rename, move or delete it, and use the path above its lists to go back up. Drag a roster onto a folder to move it there, or choose **Move to folder…** in its menu. Drag a folder onto another to put it inside, or choose **Move folder…** in its menu. A variant always goes with its base list, and a duplicate stays in the same folder as the list it came from.
 
 Deleting a folder moves its folders and rosters up a level; nothing else is deleted. A search or filter narrows every folder: each level shows its own matching rosters, and only the folders that hold a match, with how many.
 
