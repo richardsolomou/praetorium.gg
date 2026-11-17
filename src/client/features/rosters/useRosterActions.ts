@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { posthog } from 'posthog-js'
 import { type Dispatch, type SetStateAction, useEffect, useState } from 'react'
+import { toast } from 'sonner'
 import { attachedUnitCount } from '../../../core/attachedUnits'
 import { ROSTER_NAME_MAX_LENGTH } from '../../../core/battle'
 import type { RosterSource, RosterVisibility } from '../../../core/savedRoster'
@@ -110,6 +111,7 @@ export function useRosterActions({
       posthog.capture('roster_duplicated', { unit_count: attachedUnitCount(picks), shared: true })
       await invalidateSavedRosters(queryClient)
       await navigate({ to: '/rosters/$id', params: { id } })
+      toast.success("You're editing the copy. The original is unchanged.")
     },
   })
 
@@ -127,6 +129,7 @@ export function useRosterActions({
       posthog.capture('roster_duplicated', { unit_count: attachedUnitCount(picks), variant: true })
       await invalidateSavedRosters(queryClient)
       await navigate({ to: '/rosters/$id', params: { id } })
+      toast.success("You're editing the new variant. The original is unchanged.")
     },
   })
   // Queued behind the autosave, so a lock never lands between an edit and its save.
