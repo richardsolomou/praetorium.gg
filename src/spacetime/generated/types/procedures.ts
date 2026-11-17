@@ -26,6 +26,7 @@ import * as BattlesForOperatorProcedure from '../battles_for_operator_procedure'
 import * as CalendarFeedProcedure from '../calendar_feed_procedure'
 import * as CalendarFeedByUserProcedure from '../calendar_feed_by_user_procedure'
 import * as CancelFriendInviteProcedure from '../cancel_friend_invite_procedure'
+import * as ChangeRosterFoldersProcedure from '../change_roster_folders_procedure'
 import * as ChangeRostersProcedure from '../change_rosters_procedure'
 import * as ClaimGuestSeatProcedure from '../claim_guest_seat_procedure'
 import * as ClaimImportedBattleProcedure from '../claim_imported_battle_procedure'
@@ -113,6 +114,7 @@ import * as SaveRosterProcedure from '../save_roster_procedure'
 import * as SaveScoringDraftProcedure from '../save_scoring_draft_procedure'
 import * as SaveUnitLoadoutProcedure from '../save_unit_loadout_procedure'
 import * as ScoringDraftsProcedure from '../scoring_drafts_procedure'
+import * as SealedEntrySourcesProcedure from '../sealed_entry_sources_procedure'
 import * as SealedEventAddressProcedure from '../sealed_event_address_procedure'
 import * as SealedEventBattleCandidatesProcedure from '../sealed_event_battle_candidates_procedure'
 import * as SealedEventByTokenProcedure from '../sealed_event_by_token_procedure'
@@ -126,7 +128,6 @@ import * as SetListFilterPreferencesProcedure from '../set_list_filter_preferenc
 import * as SetPlayerDefaultsProcedure from '../set_player_defaults_procedure'
 import * as SetPushEnabledProcedure from '../set_push_enabled_procedure'
 import * as SetRosterArchivedProcedure from '../set_roster_archived_procedure'
-import * as SetRosterFoldersProcedure from '../set_roster_folders_procedure'
 import * as SetRosterLockedProcedure from '../set_roster_locked_procedure'
 import * as SetRosterVisibilityProcedure from '../set_roster_visibility_procedure'
 import * as ShareBattleProcedure from '../share_battle_procedure'
@@ -184,6 +185,8 @@ export type CalendarFeedByUserArgs = __Infer<typeof CalendarFeedByUserProcedure.
 export type CalendarFeedByUserResult = __Infer<typeof CalendarFeedByUserProcedure.returnType>
 export type CancelFriendInviteArgs = __Infer<typeof CancelFriendInviteProcedure.params>
 export type CancelFriendInviteResult = __Infer<typeof CancelFriendInviteProcedure.returnType>
+export type ChangeRosterFoldersArgs = __Infer<typeof ChangeRosterFoldersProcedure.params>
+export type ChangeRosterFoldersResult = __Infer<typeof ChangeRosterFoldersProcedure.returnType>
 export type ChangeRostersArgs = __Infer<typeof ChangeRostersProcedure.params>
 export type ChangeRostersResult = __Infer<typeof ChangeRostersProcedure.returnType>
 export type ClaimGuestSeatArgs = __Infer<typeof ClaimGuestSeatProcedure.params>
@@ -358,6 +361,8 @@ export type SaveUnitLoadoutArgs = __Infer<typeof SaveUnitLoadoutProcedure.params
 export type SaveUnitLoadoutResult = __Infer<typeof SaveUnitLoadoutProcedure.returnType>
 export type ScoringDraftsArgs = __Infer<typeof ScoringDraftsProcedure.params>
 export type ScoringDraftsResult = __Infer<typeof ScoringDraftsProcedure.returnType>
+export type SealedEntrySourcesArgs = __Infer<typeof SealedEntrySourcesProcedure.params>
+export type SealedEntrySourcesResult = __Infer<typeof SealedEntrySourcesProcedure.returnType>
 export type SealedEventAddressArgs = __Infer<typeof SealedEventAddressProcedure.params>
 export type SealedEventAddressResult = __Infer<typeof SealedEventAddressProcedure.returnType>
 export type SealedEventBattleCandidatesArgs = __Infer<typeof SealedEventBattleCandidatesProcedure.params>
@@ -384,8 +389,6 @@ export type SetPushEnabledArgs = __Infer<typeof SetPushEnabledProcedure.params>
 export type SetPushEnabledResult = __Infer<typeof SetPushEnabledProcedure.returnType>
 export type SetRosterArchivedArgs = __Infer<typeof SetRosterArchivedProcedure.params>
 export type SetRosterArchivedResult = __Infer<typeof SetRosterArchivedProcedure.returnType>
-export type SetRosterFoldersArgs = __Infer<typeof SetRosterFoldersProcedure.params>
-export type SetRosterFoldersResult = __Infer<typeof SetRosterFoldersProcedure.returnType>
 export type SetRosterLockedArgs = __Infer<typeof SetRosterLockedProcedure.params>
 export type SetRosterLockedResult = __Infer<typeof SetRosterLockedProcedure.returnType>
 export type SetRosterVisibilityArgs = __Infer<typeof SetRosterVisibilityProcedure.params>

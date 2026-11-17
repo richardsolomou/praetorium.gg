@@ -11,65 +11,61 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
-  addRosterFolder,
+  applyRosterFolderChange,
   childFolders,
-  fileRosters,
   folderAndInside,
   folderPath,
   folderTree,
-  moveRosterFolder,
   NO_ROSTER_FOLDERS,
-  removeRosterFolder,
-  renameRosterFolder,
   ROSTER_FOLDER_DEPTH_MAX,
   ROSTER_FOLDER_NAME_MAX_LENGTH,
+  ROSTER_FOLDERS_MAX,
   type RosterFolder,
+  type RosterFolderChange,
   type RosterFolders,
 } from '../../../core/rosterFolders'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
-import { Problem } from '../../components/Problem'
-import { setRosterFolders } from '../../functions'
+import { changeRosterFolders } from '../../functions'
 import { rosterFoldersQuery } from '../../queries'
 import { countLabel } from '../../text'
 
 /**
- * The player's folders. Each change applies to the cached document at once, so changes made in quick succession build on
- * each other, then saves the whole document; a failed save reloads what the server holds.
+ * The player's folders. Each change shows at once and is saved on its own, so the server applies it to whatever it holds
+ * by then rather than to what this device last read; once the last save settles, the folders are read back.
  */
 export function useRosterFolders(signedIn: boolean) {
   const queryClient = useQueryClient()
   const { queryKey } = rosterFoldersQuery()
-  const folders = useQuery({ ...rosterFoldersQuery(), enabled: signedIn }).data ?? NO_ROSTER_FOLDERS
+  const query = useQuery({ ...rosterFoldersQuery(), enabled: signedIn })
+  const folders = query.data ?? NO_ROSTER_FOLDERS
   const save = useMutation({
-    // Each save carries the whole document, so they run in order: a later change must never land before an earlier one.
+    mutationKey: queryKey,
     scope: { id: 'roster-folders' },
-    mutationFn: (next: RosterFolders) => setRosterFolders({ data: next }),
-    onError: () => queryClient.invalidateQueries({ queryKey }),
+    mutationFn: (change: RosterFolderChange) => changeRosterFolders({ data: change }),
+    onSettled: () => {
+      if (queryClient.isMutating({ mutationKey: queryKey }) <= 1) void queryClient.invalidateQueries({ queryKey })
+    },
   })
-  const apply = (change: (current: RosterFolders) => RosterFolders) => {
-    const current = queryClient.getQueryData<RosterFolders>(queryKey) ?? folders
-    const next = change(current)
-    if (next === current) return
-    queryClient.setQueryData(queryKey, next)
-    save.mutate(next)
+  const apply = (change: RosterFolderChange) => {
+    const current = queryClient.getQueryData<RosterFolders>(queryKey)
+    if (current) queryClient.setQueryData(queryKey, applyRosterFolderChange(current, change))
+    save.mutate(change)
   }
   return {
     folders,
+    pending: signedIn && query.isPending,
+    full: folders.folders.length >= ROSTER_FOLDERS_MAX,
     error: save.error,
     folderOf: (rosterId: string) => folders.filed[rosterId] ?? null,
-    /** Creates a folder inside `parentId`, or at the top level, and files `rosterIds` in it in one save. */
-    create: (name: string, parentId: string | null, filing?: { rosterIds: readonly string[]; saved: ReadonlySet<string> }) => {
-      const id = crypto.randomUUID()
-      apply((current) => {
-        const created = addRosterFolder(current, { id, name, parentId })
-        return filing ? fileRosters(created, filing.rosterIds, id, filing.saved) : created
-      })
+    /** Creates a folder inside `parentId`, or at the top level, and files `rosterIds` in it in the same save. */
+    create: (name: string, parentId: string | null, rosterIds?: readonly string[]) =>
+      apply({ kind: 'add', id: crypto.randomUUID(), name, parentId, rosterIds: rosterIds?.length ? [...rosterIds] : undefined }),
+    rename: (folderId: string, name: string) => apply({ kind: 'rename', id: folderId, name }),
+    move: (folderId: string, parentId: string | null) => apply({ kind: 'move', id: folderId, parentId }),
+    remove: (folderId: string) => apply({ kind: 'remove', id: folderId }),
+    file: (rosterIds: readonly string[], folderId: string | null) => {
+      if (rosterIds.length) apply({ kind: 'file', rosterIds: [...rosterIds], folderId })
     },
-    rename: (folderId: string, name: string) => apply((current) => renameRosterFolder(current, folderId, name)),
-    move: (folderId: string, parentId: string | null) => apply((current) => moveRosterFolder(current, folderId, parentId)),
-    remove: (folderId: string) => apply((current) => removeRosterFolder(current, folderId)),
-    file: (rosterIds: readonly string[], folderId: string | null, saved: ReadonlySet<string>) =>
-      apply((current) => fileRosters(current, rosterIds, folderId, saved)),
   }
 }
 
@@ -170,14 +166,12 @@ function FolderPicker({
 export function MoveToFolderDialog({
   rosterIds,
   folders,
-  saved,
   onMoved,
   onClose,
 }: {
   /** The bases being moved; their variants go with them. */
   rosterIds: readonly string[] | null
   folders: RosterFolderActions
-  saved: ReadonlySet<string>
   onMoved?: () => void
   onClose: () => void
 }) {
@@ -186,7 +180,7 @@ export function MoveToFolderDialog({
   const current = new Set(ids.map((id) => folders.folderOf(id)))
   const only = current.size === 1 ? [...current][0] : undefined
   const move = (folderId: string | null) => {
-    folders.file(ids, folderId, saved)
+    folders.file(ids, folderId)
     onMoved?.()
     onClose()
   }
@@ -202,10 +196,9 @@ export function MoveToFolderDialog({
           </DialogHeader>
           <DialogBody className="grid gap-1">
             <FolderPicker folders={folders.folders.folders} topLabel="Not in a folder" disabled={(id) => only === id} onPick={move} />
-            <Button variant="ghost" className="justify-start text-parchment" onClick={() => setNaming(true)}>
+            <Button variant="ghost" className="justify-start text-parchment" disabled={folders.full} onClick={() => setNaming(true)}>
               <FolderPlus /> New folder…
             </Button>
-            {folders.error ? <Problem error={folders.error} /> : null}
           </DialogBody>
         </DialogContent>
       </Dialog>
@@ -215,7 +208,7 @@ export function MoveToFolderDialog({
         title="New folder"
         action="Create and move"
         onSave={(name) => {
-          folders.create(name, null, { rosterIds: ids, saved })
+          folders.create(name, null, ids)
           onMoved?.()
         }}
         onClose={() => {
@@ -353,7 +346,7 @@ export function useVariantDetach(onDetach: (variantId: string) => void) {
   return dragged?.baseId ?? null
 }
 
-type TileRoster = { id: string; limit: number; catalogueId: string }
+type TileRoster = { id: string; baseRosterId?: string | null; limit: number; catalogueId: string }
 
 /** What can be done to a folder, from its tile or from inside it. */
 export type FolderActions = {
@@ -504,7 +497,11 @@ function FolderTile({
             <span className="truncate">{folder.name}</span>
           </span>
           <span className="truncate text-xs text-dim">
-            {[folders ? countLabel(folders, 'folder') : null, countLabel(rosters.length, 'roster'), span ? `${span} pts` : null]
+            {[
+              folders ? countLabel(folders, 'folder') : null,
+              countLabel(new Set(rosters.map((roster) => roster.baseRosterId ?? roster.id)).size, 'roster'),
+              span ? `${span} pts` : null,
+            ]
               .filter(Boolean)
               .join(' · ')}
           </span>

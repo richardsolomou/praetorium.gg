@@ -94,6 +94,7 @@ import * as BattlesForOperatorProcedure from './battles_for_operator_procedure'
 import * as CalendarFeedProcedure from './calendar_feed_procedure'
 import * as CalendarFeedByUserProcedure from './calendar_feed_by_user_procedure'
 import * as CancelFriendInviteProcedure from './cancel_friend_invite_procedure'
+import * as ChangeRosterFoldersProcedure from './change_roster_folders_procedure'
 import * as ChangeRostersProcedure from './change_rosters_procedure'
 import * as ClaimGuestSeatProcedure from './claim_guest_seat_procedure'
 import * as ClaimImportedBattleProcedure from './claim_imported_battle_procedure'
@@ -181,6 +182,7 @@ import * as SaveRosterProcedure from './save_roster_procedure'
 import * as SaveScoringDraftProcedure from './save_scoring_draft_procedure'
 import * as SaveUnitLoadoutProcedure from './save_unit_loadout_procedure'
 import * as ScoringDraftsProcedure from './scoring_drafts_procedure'
+import * as SealedEntrySourcesProcedure from './sealed_entry_sources_procedure'
 import * as SealedEventAddressProcedure from './sealed_event_address_procedure'
 import * as SealedEventBattleCandidatesProcedure from './sealed_event_battle_candidates_procedure'
 import * as SealedEventByTokenProcedure from './sealed_event_by_token_procedure'
@@ -194,7 +196,6 @@ import * as SetListFilterPreferencesProcedure from './set_list_filter_preference
 import * as SetPlayerDefaultsProcedure from './set_player_defaults_procedure'
 import * as SetPushEnabledProcedure from './set_push_enabled_procedure'
 import * as SetRosterArchivedProcedure from './set_roster_archived_procedure'
-import * as SetRosterFoldersProcedure from './set_roster_folders_procedure'
 import * as SetRosterLockedProcedure from './set_roster_locked_procedure'
 import * as SetRosterVisibilityProcedure from './set_roster_visibility_procedure'
 import * as ShareBattleProcedure from './share_battle_procedure'
@@ -338,6 +339,7 @@ const proceduresSchema = __procedures(
   __procedureSchema('calendar_feed', CalendarFeedProcedure.params, CalendarFeedProcedure.returnType),
   __procedureSchema('calendar_feed_by_user', CalendarFeedByUserProcedure.params, CalendarFeedByUserProcedure.returnType),
   __procedureSchema('cancel_friend_invite', CancelFriendInviteProcedure.params, CancelFriendInviteProcedure.returnType),
+  __procedureSchema('change_roster_folders', ChangeRosterFoldersProcedure.params, ChangeRosterFoldersProcedure.returnType),
   __procedureSchema('change_rosters', ChangeRostersProcedure.params, ChangeRostersProcedure.returnType),
   __procedureSchema('claim_guest_seat', ClaimGuestSeatProcedure.params, ClaimGuestSeatProcedure.returnType),
   __procedureSchema('claim_imported_battle', ClaimImportedBattleProcedure.params, ClaimImportedBattleProcedure.returnType),
@@ -441,6 +443,7 @@ const proceduresSchema = __procedures(
   __procedureSchema('save_scoring_draft', SaveScoringDraftProcedure.params, SaveScoringDraftProcedure.returnType),
   __procedureSchema('save_unit_loadout', SaveUnitLoadoutProcedure.params, SaveUnitLoadoutProcedure.returnType),
   __procedureSchema('scoring_drafts', ScoringDraftsProcedure.params, ScoringDraftsProcedure.returnType),
+  __procedureSchema('sealed_entry_sources', SealedEntrySourcesProcedure.params, SealedEntrySourcesProcedure.returnType),
   __procedureSchema('sealed_event_address', SealedEventAddressProcedure.params, SealedEventAddressProcedure.returnType),
   __procedureSchema(
     'sealed_event_battle_candidates',
@@ -458,7 +461,6 @@ const proceduresSchema = __procedures(
   __procedureSchema('set_player_defaults', SetPlayerDefaultsProcedure.params, SetPlayerDefaultsProcedure.returnType),
   __procedureSchema('set_push_enabled', SetPushEnabledProcedure.params, SetPushEnabledProcedure.returnType),
   __procedureSchema('set_roster_archived', SetRosterArchivedProcedure.params, SetRosterArchivedProcedure.returnType),
-  __procedureSchema('set_roster_folders', SetRosterFoldersProcedure.params, SetRosterFoldersProcedure.returnType),
   __procedureSchema('set_roster_locked', SetRosterLockedProcedure.params, SetRosterLockedProcedure.returnType),
   __procedureSchema('set_roster_visibility', SetRosterVisibilityProcedure.params, SetRosterVisibilityProcedure.returnType),
   __procedureSchema('share_battle', ShareBattleProcedure.params, ShareBattleProcedure.returnType),

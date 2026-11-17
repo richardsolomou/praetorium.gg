@@ -3,7 +3,7 @@ import type { PlayerDefaults } from '../../core/playerDefaults'
 import type { CalendarFeedDates } from '../../core/calendarFeed'
 import { listPreferencesSchema, type ListFilterScope, type ListPreferences } from '../../core/listFilter'
 import { playerDefaultsSchema } from '../../contracts/schemas'
-import { rosterFoldersSchema, type RosterFolders } from '../../core/rosterFolders'
+import { rosterFoldersSchema, type RosterFolderChange } from '../../core/rosterFolders'
 import { recentMatchupSchema, type RecentMatchup } from '../../core/recentMatchups'
 import { abilityReminderSchema, type AbilityReminder } from '../../core/reminders'
 import { unitLoadoutSchema, type UnitLoadout } from '../../core/unitLoadouts'
@@ -116,8 +116,8 @@ export function withPreferences<B extends SpacetimeBase>(Base: B) {
       return this.read('roster_folders_by_user', [userId], rosterFoldersSchema)
     }
 
-    async setRosterFolders(userId: string, folders: RosterFolders, now: number) {
-      return this.read('set_roster_folders', [userId, JSON.stringify(folders), now], rosterFoldersSchema)
+    async changeRosterFolders(userId: string, change: RosterFolderChange, now: number) {
+      return this.read('change_roster_folders', [userId, JSON.stringify(change), now], rosterFoldersSchema)
     }
 
     async playerDefaults(userId: string) {

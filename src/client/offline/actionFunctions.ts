@@ -45,6 +45,7 @@ import {
 } from '../queries/queryKeys'
 import type { RecentMatchup } from '../../core/recentMatchups'
 import { withAbilityReminder, type AbilityReminder } from '../../core/reminders'
+import { applyRosterFolderChange, NO_ROSTER_FOLDERS, type RosterFolders } from '../../core/rosterFolders'
 import { withoutRecentMatchup, withRecentMatchup } from '../../contracts/recentMatchups'
 import { onboardingAnswer } from '../../contracts/onboarding'
 import { OfflineRefusal } from './offlineRefusal'
@@ -320,12 +321,19 @@ export async function removeAbilityReminder(
   })
   return null
 }
-export async function setRosterFolders(args: Parameters<typeof server.setRosterFolders>[0]): ReturnType<typeof server.setRosterFolders> {
+export async function changeRosterFolders(
+  args: Parameters<typeof server.changeRosterFolders>[0],
+): ReturnType<typeof server.changeRosterFolders> {
   const defer = deferredForAccount(false)
-  if (!localEngine()) return server.setRosterFolders(args)
-  const next = offlineActionSchemas.setRosterFolders.parse(args.data)
-  await defer('setRosterFolders', next, queryResource(rosterFoldersKey()), next)
-  return next
+  if (!localEngine()) return server.changeRosterFolders(args)
+  const change = offlineActionSchemas.changeRosterFolders.parse(args.data)
+  const resource = queryResource(rosterFoldersKey())
+  const saved = (await localDocument<RosterFolders>(resource)) ?? NO_ROSTER_FOLDERS
+  // The server applies the change to what it holds then, so the folders kept here only show it until the next read.
+  await defer('changeRosterFolders', change, resource, undefined, {
+    update: (current) => applyRosterFolderChange((current as RosterFolders | undefined) ?? saved, change),
+  })
+  return applyRosterFolderChange(saved, change)
 }
 export async function setPlayerDefaults(args: Parameters<typeof server.setPlayerDefaults>[0]): ReturnType<typeof server.setPlayerDefaults> {
   const defer = deferredForAccount()

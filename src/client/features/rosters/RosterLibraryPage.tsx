@@ -175,14 +175,13 @@ export function RosterLibraryPage({
   const filedIn = (roster: { id: string; baseRosterId?: string | null }) => folders.filed[roster.baseRosterId ?? roster.id] ?? null
   // Each level lists only what is filed there; a search or filter narrows every level, and a folder shows while anything in it matches.
   const atLevel = (roster: SavedRoster) => filedIn(roster) === (folder?.id ?? null)
-  const savedIds = new Set(saved.map((roster) => roster.id))
   const fileRoster = (rosterId: string, folderId: string | null) => {
     const roster = saved.find((entry) => entry.id === rosterId)
-    if (roster) folderActions.file([roster.baseRosterId ?? roster.id], folderId, savedIds)
+    if (roster) folderActions.file([roster.baseRosterId ?? roster.id], folderId)
   }
   const subfolders = childFolders(folders.folders, folder?.id ?? null)
   // A folder at the deepest level folders may go takes no more folders.
-  const canNest = !folder || folderPath(folders.folders, folder.id).length + 1 < ROSTER_FOLDER_DEPTH_MAX
+  const canNest = !folderActions.full && (!folder || folderPath(folders.folders, folder.id).length + 1 < ROSTER_FOLDER_DEPTH_MAX)
   const [moving, setMoving] = useState<string[] | null>(null)
   const [movingFolder, setMovingFolder] = useState<RosterFolder | null>(null)
   const [naming, setNaming] = useState<{ id: string; name: string } | 'new' | null>(null)
@@ -240,7 +239,7 @@ export function RosterLibraryPage({
     search.faction || search.q || search.updates || selectedGrouping === 'faction' || selectedGrouping === 'detachment',
   )
   const libraryPending =
-    (me ? savedResult.isPending : Boolean(device?.pending)) ||
+    (me ? savedResult.isPending || folderActions.pending : Boolean(device?.pending)) ||
     (needsFactions && availableResult.isPending) ||
     (needsChanged && changedResult.isPending) ||
     (needsPlays && playsResult.isPending) ||
@@ -260,12 +259,10 @@ export function RosterLibraryPage({
     filtering &&
     shown.some((roster) => {
       const filed = filedIn(roster)
-      return !roster.archived && filed !== null && filed !== folder?.id && (!inside || inside.has(filed))
+      return filed !== null && filed !== folder?.id && (!inside || inside.has(filed))
     })
-  /** What the folder tiles count: every list while nothing narrows them, or only the lists a search or filter matched. */
-  const tileRosters = filtering
-    ? shown.filter((roster) => !roster.archived)
-    : saved.filter((roster) => !roster.archived && !roster.baseRosterId)
+  /** What the folder tiles count: every list while nothing narrows them, or every list a search or filter matched, archived or not. */
+  const tileRosters = filtering ? shown : saved.filter((roster) => !roster.archived)
   const [archivedOpen, setArchivedOpen] = useState(false)
   const groupOf = (roster: SavedRoster): RosterGroup => {
     if (selectedGrouping === 'play') {
@@ -346,21 +343,19 @@ export function RosterLibraryPage({
     // A copy is filed beside the list it came from, so it does not vanish from the folder it was made in.
     (source, copyId) => {
       const filed = filedIn(source)
-      if (filed) folderActions.file([copyId], filed, new Set())
+      if (filed) folderActions.file([copyId], filed)
     },
   )
-  /** A variant taken out of its card becomes a roster of its own, filed in `folderId` rather than where its base was. */
-  const detach = (variantId: string, folderId: string | null) => {
-    if (folderId) folderActions.file([variantId], folderId, savedIds)
-    actions.split.mutate(variantId)
-  }
-  const detachingFrom = useVariantDetach((variantId) => detach(variantId, folder?.id ?? null))
+  // A variant taken out of its card stays in its base's folder, or moves to the folder it was dropped on.
+  const detachingFrom = useVariantDetach((variantId) => actions.split.mutate(variantId))
+  const detachInto = (variantId: string, folderId: string | null) =>
+    actions.split.mutate(variantId, { onSuccess: () => folderActions.file([variantId], folderId) })
   /** A roster or folder dropped on a folder, or on the top level when `folderId` is null, moves into it. */
   const dropInto = (item: DroppedItem, folderId: string | null) =>
     item.kind === 'roster'
       ? fileRoster(item.id, folderId)
       : item.kind === 'variant'
-        ? detach(item.id, folderId)
+        ? detachInto(item.id, folderId)
         : folderActions.move(item.id, folderId)
   // A visitor keeps one list; making another asks them to sign up first.
   const another = guest ? () => account.ask('another-roster') : undefined
@@ -560,6 +555,7 @@ export function RosterLibraryPage({
         />
         {actions.lock.isError ? <Problem error={actions.lock.error} /> : null}
         {actions.split.isError ? <Problem error={actions.split.error} /> : null}
+        {folderActions.error ? <Problem error={folderActions.error} /> : null}
         {actions.exchange.isError ? <Problem>Could not make an exchange code: {errorMessage(actions.exchange.error)}</Problem> : null}
 
         <section>
@@ -779,7 +775,6 @@ export function RosterLibraryPage({
       <MoveToFolderDialog
         rosterIds={moving}
         folders={folderActions}
-        saved={savedIds}
         onMoved={selecting ? stopSelecting : undefined}
         onClose={() => setMoving(null)}
       />

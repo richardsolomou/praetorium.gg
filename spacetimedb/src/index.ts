@@ -41,7 +41,13 @@ import { BATTLE_DIGEST_VERSION, battleDigest, type BattleDigest } from '../../sr
 import { scoringDraftSchema, scoringMoment } from '../../src/core/scoringDraft'
 import { teamDispositionChoices } from '../../src/core/teamDisposition'
 import { DEFAULT_PLAYER_DEFAULTS, isPlayerDefaults } from '../../src/core/playerDefaults'
-import { NO_ROSTER_FOLDERS, rosterFoldersSchema } from '../../src/core/rosterFolders'
+import {
+  applyRosterFolderChange,
+  NO_ROSTER_FOLDERS,
+  rosterFolderChangeSchema,
+  rosterFoldersSchema,
+  type RosterFolders,
+} from '../../src/core/rosterFolders'
 import { BATTLE_ORDERS } from '../../src/core/battleFilter'
 import { LIST_FILTER_SCOPES, LIST_PREFERENCES_MAX_LENGTH, listPreferencesSchema } from '../../src/core/listFilter'
 import { matchupPairingSchema, RECENT_MATCHUP_LIMIT, recentMatchupSchema } from '../../src/core/recentMatchups'
@@ -3150,6 +3156,7 @@ export const splitRosterVariant = spacetime.procedure(
       const moved = roster.baseRosterId ? [] : others.map((row, at) => ({ ...row, baseRosterId: at ? others[0]!.id : undefined }))
       for (const row of [...moved, { ...roster, baseRosterId: undefined }])
         tx.db.rosters.id.update({ ...row, updatedAt: nextVersion(tx.db.rosters.id.find(row.id) ?? null, now) })
+      keepVariantsFiled(tx, userId, group, roster.baseRosterId ? [id] : [others[0]!.id], now)
       touchProduct(tx, userId, 'rosters')
       if ([roster, ...others].some((row) => row.visibility !== 'private')) touchPublic(tx, 'rosters')
       return true
@@ -3941,8 +3948,8 @@ export const rosterFoldersByUser = spacetime.procedure({ userId: t.string() }, t
   operatorTx(ctx, (tx) => tx.db.rosterFolders.userId.find(userId)?.folders ?? productJson(NO_ROSTER_FOLDERS)),
 )
 
-export const setRosterFolders = spacetime.procedure({ userId: t.string(), folders: t.string(), now: t.u64() }, t.string(), (ctx, input) =>
-  operatorTx(ctx, (tx) => setRosterFoldersIn(tx, [input.userId, input.folders, input.now])),
+export const changeRosterFolders = spacetime.procedure({ userId: t.string(), change: t.string(), now: t.u64() }, t.string(), (ctx, input) =>
+  operatorTx(ctx, (tx) => changeRosterFoldersIn(tx, [input.userId, input.change, input.now])),
 )
 
 export const setPlayerDefaults = spacetime.procedure(
@@ -4668,6 +4675,20 @@ export const sealedEventsVisibleTo = spacetime.procedure({ userId: t.string(), l
           ownEntry: entries.find((entry) => entry.userId === userId) ?? null,
           pastAt: host.kind === 'group' ? gamePastAt(tx, host) : null,
         }
+      }),
+    )
+  }),
+)
+
+/** The saved list behind each of a player's own sealed entries, by its event and by the host its battles name. */
+export const sealedEntrySources = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
+  operatorTx(ctx, (tx) => {
+    if (!validId(userId)) throw new SenderError('Invalid sealed entries')
+    return productJson(
+      Array.from(tx.db.sealedEventEntries.userId.filter(userId)).flatMap((entry) => {
+        const event = tx.db.sealedEvents.id.find(entry.eventId)
+        const host = event && hostOfEvent(tx, event)
+        return host && entry.rosterId ? [{ hostToken: hostToken(host), eventToken: host.event.token, rosterId: entry.rosterId }] : []
       }),
     )
   }),
@@ -6132,15 +6153,39 @@ function setPushEnabledIn(tx: Context, args: unknown[]) {
   return enabled
 }
 
-function setRosterFoldersIn(tx: Context, args: unknown[]) {
-  const [userId, text, now] = z.tuple([textArg, z.string().max(200_000), timestampArg]).parse(args)
-  if (!validId(userId)) throw new SenderError('Invalid roster folders')
-  const folders = productJson(decodePayload(rosterFoldersSchema, text, 'Invalid roster folders'))
-  const row = { userId, folders, at: now }
+const storedRosterFolders = (tx: Context, userId: string) => {
+  const row = tx.db.rosterFolders.userId.find(userId)
+  return row ? rosterFoldersSchema.parse(JSON.parse(row.folders)) : NO_ROSTER_FOLDERS
+}
+
+function saveRosterFolders(tx: Context, userId: string, folders: RosterFolders, now: bigint) {
+  const row = { userId, folders: productJson(folders), at: now }
   if (tx.db.rosterFolders.userId.find(userId)) tx.db.rosterFolders.userId.update(row)
   else tx.db.rosterFolders.insert(row)
-  touchProduct(tx, userId, 'rosters')
-  return folders
+  touchProduct(tx, userId, 'settings')
+  return row.folders
+}
+
+/** Applies one folder change to what is saved now, so a change queued offline never replaces another device's folders. */
+function changeRosterFoldersIn(tx: Context, args: unknown[]) {
+  const [userId, text, now] = z.tuple([textArg, z.string().max(20_000), timestampArg]).parse(args)
+  if (!validId(userId)) throw new SenderError('Invalid roster folders')
+  const change = decodePayload(rosterFolderChangeSchema, text, 'Invalid roster folders')
+  const groups = new Set(Array.from(tx.db.rosters.userId.filter(userId), (row) => row.baseRosterId ?? row.id))
+  return saveRosterFolders(tx, userId, applyRosterFolderChange(storedRosterFolders(tx, userId), change, groups), now)
+}
+
+/** A list taken out of its variant group stays in the group's folder, and so do the variants left behind when the base leaves. */
+function keepVariantsFiled(tx: Context, userId: string, group: string, rosterIds: readonly string[], now: bigint) {
+  const folders = storedRosterFolders(tx, userId)
+  const folderId = folders.filed[group]
+  if (!folderId) return
+  saveRosterFolders(
+    tx,
+    userId,
+    { ...folders, filed: { ...folders.filed, ...Object.fromEntries(rosterIds.map((id) => [id, folderId])) } },
+    now,
+  )
 }
 
 function setPlayerDefaultsIn(tx: Context, args: unknown[]) {
@@ -7203,7 +7248,7 @@ const syncProductActions = {
   delete_ability_reminder: deleteAbilityReminderIn,
   set_push_enabled: setPushEnabledIn,
   set_player_defaults: setPlayerDefaultsIn,
-  set_roster_folders: setRosterFoldersIn,
+  change_roster_folders: changeRosterFoldersIn,
   sealed_event_command: sealedEventCommandIn,
 } satisfies Record<SyncProductActionName, unknown>
 

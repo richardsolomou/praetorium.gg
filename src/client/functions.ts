@@ -141,7 +141,7 @@ export {
   setAbilityReminder,
   removeAbilityReminder,
   setPlayerDefaults,
-  setRosterFolders,
+  changeRosterFolders,
   createFriendInvite,
   cancelFriendInvite,
   createSealedEvent,

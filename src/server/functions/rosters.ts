@@ -310,7 +310,7 @@ async function ownBattles(userId: string) {
   return battles
 }
 
-/** How often each of the player's lists has been played, and which would be their first of an army, detachment or disposition. */
+/** How often each of the player's lists has been played to the end, and how those battles went. */
 export const savedRosterPlays = createServerFn({ method: 'GET' }).handler(() =>
   rpc(() =>
     forSignedIn([], async (id): Promise<RosterPlayHistory[]> => {

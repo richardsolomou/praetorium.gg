@@ -7,7 +7,7 @@ import { TypeBuilder as __TypeBuilder, t as __t, type AlgebraicTypeType as __Alg
 
 export const params = {
   userId: __t.string(),
-  folders: __t.string(),
+  change: __t.string(),
   now: __t.u64(),
 }
 export const returnType = __t.string()

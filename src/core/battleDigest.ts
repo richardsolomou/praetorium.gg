@@ -11,8 +11,12 @@ import {
 import { opposingSide } from './battlePrimitives'
 import { copiedArmy } from './rosterCopies'
 
-/** Raise when what a digest holds changes, so every stored digest is folded again on its next read. */
-export const BATTLE_DIGEST_VERSION = 2
+/**
+ * Each release already refolds every stored digest once, because its key holds the release revision, so a new field needs
+ * no bump: make it optional instead. Raising this breaks every battle read during a rolling deploy, since the released
+ * server refuses a digest from another version.
+ */
+export const BATTLE_DIGEST_VERSION = 1
 
 /** What a list reads of one seat: its army's identity, never its units or the log that built it. */
 export type DigestSeat = {
@@ -22,7 +26,7 @@ export type DigestSeat = {
   /** The fielded list's name; null before one is attached. */
   army: string | null
   /** The saved list it was fielded from; null for a pasted or sealed list, or before one is attached. */
-  rosterId: string | null
+  rosterId?: string | null
   built: Omit<BuiltRoster, 'revision' | 'picks' | 'units' | 'strategicReserveLimit' | 'detachmentPointBudget' | 'dispositions'> | null
   /** The army and detachments a copy of the list would be saved under today, which discovery filters by. */
   copied: { catalogueId: string; detachmentIds: string[] } | null

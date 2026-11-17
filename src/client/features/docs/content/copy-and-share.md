@@ -26,7 +26,7 @@ Locking, **Make its own roster** and changing several lists at once all need a c
 
 ## Folders
 
-**New folder** in the library makes a folder where you are, and a folder can hold folders of its own, up to five deep. Click a folder to open it, or right-click it to rename, move or delete it, and use the path above its lists to go back up. Drag a roster onto a folder to move it there, or choose **Move to folder…** in its menu. Drag a folder onto another to put it inside, or choose **Move folder…** in its menu. A variant always goes with its base list, and a duplicate stays in the same folder as the list it came from.
+**New folder** in the library makes a folder where you are, and a folder can hold folders of its own, up to five deep. Click a folder to open it, or right-click it to rename, move or delete it, and use the path above its lists to go back up. Drag a roster onto a folder to move it there, or choose **Move to folder…** in its menu. Drag a folder onto another to put it inside, or choose **Move folder…** in its menu. A variant always goes with its base list and stays in its folder when it becomes its own roster, and a duplicate stays in the same folder as the list it came from.
 
 Deleting a folder deletes the folders inside it too, and every roster in them moves up to where the folder was; no roster is deleted. A search or filter narrows every folder: each level shows its own matching rosters, and only the folders that hold a match, with how many.
 

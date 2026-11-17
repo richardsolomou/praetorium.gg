@@ -418,6 +418,7 @@ async function readBack(repository: SpacetimeRepository, product: SpacetimeOpera
     await repository.onboardingProgress(userId)
     await repository.playerDefaults(userId)
     await repository.rosterFolders(userId)
+    await repository.sealedEntrySources(userId)
     await repository.setListFilterPreferences(
       userId,
       'battles:mine',
@@ -555,9 +556,9 @@ async function seedInto(
   const wandererUserId = accountId(PREVIEW_WANDERER_EMAIL)
   await befriend(strangerUserId, wandererUserId)
   // On a side account, so the libraries the browser tests read keep their shape.
-  await repository.setRosterFolders(
+  await repository.changeRosterFolders(
     wandererUserId,
-    { folders: [{ id: 'preview-folder-orks', name: 'Orks', parentId: null }], filed: { 'preview-wanderer-orks': 'preview-folder-orks' } },
+    { kind: 'add', id: 'preview-folder-orks', name: 'Orks', parentId: null, rosterIds: ['preview-wanderer-orks'] },
     now(),
   )
 

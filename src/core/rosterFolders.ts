@@ -1,13 +1,14 @@
 import { z } from 'zod'
 
 export const ROSTER_FOLDER_NAME_MAX_LENGTH = 40
-const ROSTER_FOLDERS_MAX = 50
+export const ROSTER_FOLDERS_MAX = 50
 /** How many folders deep a folder may sit, counting the top level as one. */
 export const ROSTER_FOLDER_DEPTH_MAX = 5
 const FILED_ROSTERS_MAX = 2_000
 const id = z.string().min(1).max(64)
+const folderName = z.string().trim().min(1).max(ROSTER_FOLDER_NAME_MAX_LENGTH)
 
-type Folder = { id: string; name: string; parentId?: string | null }
+type Folder = { id: string; name: string; parentId: string | null }
 
 /** A folder's ancestors from the top level down, or null when its parents loop or run deeper than folders may go. */
 function ancestry(folders: readonly Folder[], folderId: string): Folder[] | null {
@@ -27,9 +28,7 @@ function ancestry(folders: readonly Folder[], folderId: string): Folder[] | null
  */
 export const rosterFoldersSchema = z
   .strictObject({
-    folders: z
-      .array(z.strictObject({ id, name: z.string().trim().min(1).max(ROSTER_FOLDER_NAME_MAX_LENGTH), parentId: id.nullable().optional() }))
-      .max(ROSTER_FOLDERS_MAX),
+    folders: z.array(z.strictObject({ id, name: folderName, parentId: id.nullable() })).max(ROSTER_FOLDERS_MAX),
     filed: z.record(id, id).refine((filed) => Object.keys(filed).length <= FILED_ROSTERS_MAX, 'too many filed rosters'),
   })
   .refine(
@@ -53,7 +52,7 @@ export const folderPath = (folders: readonly RosterFolder[], folderId: string) =
 
 /** The folders directly inside `parentId`, or at the top level when it is null. */
 export const childFolders = (folders: readonly RosterFolder[], parentId: string | null) =>
-  folders.filter((folder) => (folder.parentId ?? null) === parentId)
+  folders.filter((folder) => folder.parentId === parentId)
 
 /** `folderId` and every folder inside it, however deep. */
 export function folderAndInside(folders: readonly RosterFolder[], folderId: string): Set<string> {
@@ -76,22 +75,20 @@ export function folderTree(folders: readonly RosterFolder[]) {
   return walk(null, 0)
 }
 
-export function addRosterFolder(current: RosterFolders, folder: { id: string; name: string; parentId: string | null }): RosterFolders {
-  return { ...current, folders: [...current.folders, folder] }
+function addRosterFolder(current: RosterFolders, folder: RosterFolder): RosterFolders {
+  return current.folders.some((existing) => existing.id === folder.id) ? current : { ...current, folders: [...current.folders, folder] }
 }
 
-export function renameRosterFolder(current: RosterFolders, folderId: string, name: string): RosterFolders {
+function renameRosterFolder(current: RosterFolders, folderId: string, name: string): RosterFolders {
   return { ...current, folders: current.folders.map((folder) => (folder.id === folderId ? { ...folder, name } : folder)) }
 }
 
-/** Moves a folder, with everything in it, into `parentId`; a move into itself or too deep changes nothing. */
-export function moveRosterFolder(current: RosterFolders, folderId: string, parentId: string | null): RosterFolders {
-  const next = { ...current, folders: current.folders.map((folder) => (folder.id === folderId ? { ...folder, parentId } : folder)) }
-  return rosterFoldersSchema.safeParse(next).success ? next : current
+function moveRosterFolder(current: RosterFolders, folderId: string, parentId: string | null): RosterFolders {
+  return { ...current, folders: current.folders.map((folder) => (folder.id === folderId ? { ...folder, parentId } : folder)) }
 }
 
 /** Deletes a folder and every folder inside it; the lists filed anywhere inside move up to the folder it was in. */
-export function removeRosterFolder(current: RosterFolders, folderId: string): RosterFolders {
+function removeRosterFolder(current: RosterFolders, folderId: string): RosterFolders {
   const parentId = current.folders.find((folder) => folder.id === folderId)?.parentId ?? null
   const removed = folderAndInside(current.folders, folderId)
   return {
@@ -104,15 +101,50 @@ export function removeRosterFolder(current: RosterFolders, folderId: string): Ro
   }
 }
 
-/**
- * Files each list in `folderId`, or unfiles it when that is null. Lists missing from `saved` were deleted and are dropped
- * as it goes, unless `saved` is empty, which means the library has not loaded rather than that every list is gone.
- */
-export function fileRosters(current: RosterFolders, rosterIds: readonly string[], folderId: string | null, saved: ReadonlySet<string>) {
-  const filed = Object.fromEntries(Object.entries(current.filed).filter(([rosterId]) => !saved.size || saved.has(rosterId)))
+function fileRosters(current: RosterFolders, rosterIds: readonly string[], folderId: string | null): RosterFolders {
+  const filed = { ...current.filed }
   for (const rosterId of rosterIds) {
     if (folderId) filed[rosterId] = folderId
     else delete filed[rosterId]
   }
   return { ...current, filed }
+}
+
+const rosterIds = z.array(id).min(1).max(100)
+
+/** One change a player makes to their folders, saved on its own so it applies to whatever the server holds by then. */
+export const rosterFolderChangeSchema = z.discriminatedUnion('kind', [
+  z.strictObject({ kind: z.literal('add'), id, name: folderName, parentId: id.nullable(), rosterIds: rosterIds.optional() }),
+  z.strictObject({ kind: z.literal('rename'), id, name: folderName }),
+  z.strictObject({ kind: z.literal('move'), id, parentId: id.nullable() }),
+  z.strictObject({ kind: z.literal('remove'), id }),
+  z.strictObject({ kind: z.literal('file'), rosterIds, folderId: id.nullable() }),
+])
+
+export type RosterFolderChange = z.infer<typeof rosterFolderChangeSchema>
+
+/**
+ * Applies one change. A change that would break the document, such as moving a folder into itself, going too deep or
+ * filing in a folder another device deleted, changes nothing. With `groups`, the variant groups the player still has,
+ * filings for deleted lists are dropped as it goes.
+ */
+export function applyRosterFolderChange(current: RosterFolders, change: RosterFolderChange, groups?: ReadonlySet<string>): RosterFolders {
+  const changed =
+    change.kind === 'add'
+      ? fileRosters(
+          addRosterFolder(current, { id: change.id, name: change.name, parentId: change.parentId }),
+          change.rosterIds ?? [],
+          change.id,
+        )
+      : change.kind === 'rename'
+        ? renameRosterFolder(current, change.id, change.name)
+        : change.kind === 'move'
+          ? moveRosterFolder(current, change.id, change.parentId)
+          : change.kind === 'remove'
+            ? removeRosterFolder(current, change.id)
+            : fileRosters(current, change.rosterIds, change.folderId)
+  const next = groups
+    ? { ...changed, filed: Object.fromEntries(Object.entries(changed.filed).filter(([group]) => groups.has(group))) }
+    : changed
+  return rosterFoldersSchema.safeParse(next).success ? next : current
 }

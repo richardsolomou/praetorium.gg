@@ -19,7 +19,6 @@ const seat = (id: string, fielded: SeatBuilt = built, automated = false): Digest
   side: id === 'kieran' ? 0 : 1,
   automated,
   army: `${id} army`,
-  rosterId: null,
   built: fielded,
   copied: fielded && { catalogueId: fielded.catalogueId, detachmentIds: fielded.detachmentIds ?? [] },
   fielded: fielded ? ['immortals'] : [],

@@ -51,6 +51,6 @@ export const rosterChangesQuery = (id: string) =>
 export const savedRosterChangedIdsQuery = () =>
   queryOptions({ queryKey: savedRosterChangedIdsKey(), queryFn: () => savedRosterChangedIds(), staleTime: SSR_STALE_TIME })
 
-/** How often each saved list has been played, and which would be the player's first of an army, detachment or disposition. */
+/** How often each saved list has been played to the end, and how those battles went. */
 export const savedRosterPlaysQuery = () =>
   queryOptions({ queryKey: savedRosterPlaysKey(), queryFn: () => savedRosterPlays(), staleTime: SSR_STALE_TIME })

@@ -272,6 +272,14 @@ export function withGroupsAndTournaments<B extends SpacetimeBase>(Base: B) {
       return this.read('group_command', [JSON.stringify(command)], result)
     }
 
+    async sealedEntrySources(userId: string) {
+      return this.read(
+        'sealed_entry_sources',
+        [userId],
+        z.array(z.object({ hostToken: z.string(), eventToken: z.string(), rosterId: z.string() })),
+      )
+    }
+
     async outdatedSealedEventEntriesForRoster(userId: string, rosterId: string) {
       return this.read('outdated_sealed_event_entries_for_roster', [userId, rosterId], z.array(outdatedSealedEventEntry))
     }

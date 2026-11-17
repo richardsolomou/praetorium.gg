@@ -23,8 +23,6 @@ const queryFamilies = {
     'outdated-sealed-event-entries',
     'unit-loadouts',
     'sealed-event-roster-sharing',
-    'saved-roster-plays',
-    'roster-folders',
     'achievement-news',
   ],
   collection: [
@@ -50,6 +48,7 @@ const queryFamilies = {
     'public-battles',
     'friend-battles',
     'played-armies',
+    'roster-folders',
     'achievement-news',
   ],
   'sealed-events': [
@@ -109,7 +108,7 @@ export const savedRosterFamilies = new Set<string>(queryFamilies.rosters.filter(
 const operationScopes = {
   saveRoster: ['rosters'],
   deleteRoster: ['rosters'],
-  setRosterFolders: ['rosters'],
+  changeRosterFolders: ['settings'],
   battleCommand: ['battles'],
   setOwned: ['collection'],
   setCollectionModels: ['collection'],
