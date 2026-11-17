@@ -45,13 +45,13 @@ import { OfflineReference } from '../../offline/OfflineReference'
 import { AppPersistence } from '../../offline/AppPersistence'
 import { WebMcp } from '../agents/WebMcp'
 import { NativePushRegistration } from './NativePushRegistration'
+import { OnboardingGuide } from '../onboarding/OnboardingGuide'
 import { deferred } from '../../deferred'
 import { loadOfflineFallbacks } from '../../functions'
 import { afterInitialScreen } from '../../offline/background'
 
 // Nothing here shows on the first screen, so each loads after hydration instead of with every page.
 const LiveProduct = deferred(() => import('../../spacetimeLive').then((module) => module.LiveProduct))
-const OnboardingGuide = deferred(() => import('../onboarding/OnboardingGuide').then((module) => module.OnboardingGuide))
 const DisplayNamePrompt = deferred(() => import('../account/DisplayNamePrompt').then((module) => module.DisplayNamePrompt))
 const SupportPanel = deferred(() => import('../feedback/SupportPanel').then((module) => module.SupportPanel))
 const TextSourcesDialog = deferred(() => import('../../components/TextSourcesDialog').then((module) => module.TextSourcesDialog))
