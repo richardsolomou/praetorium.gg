@@ -1225,8 +1225,11 @@ function measure(spec: Measurable, node: Node, root: Node, index: CatalogueIndex
   if (!origins.length) return 0
 
   const seen = new Set<Node>()
+  // Asked of the ancestors, `instanceOf` is about the bearer's own lineage: the roster above it holds every other unit.
+  const lineageOnly = spec.includeSelf && spec.scope === 'ancestor'
   for (const origin of origins) {
     if (spec.includeSelf && matches(origin, spec.childId, root, index, census)) seen.add(origin)
+    if (lineageOnly) continue
     for (const candidate of selectionsUnder(origin, spec.includeChildSelections === true)) {
       if (matches(candidate, spec.childId, root, index, census)) seen.add(candidate)
     }
