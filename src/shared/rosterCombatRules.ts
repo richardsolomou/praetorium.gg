@@ -313,9 +313,11 @@ function rosterCombatRules(
       )
     for (const stratagem of [...selected.written, ...core]) {
       if (!stratagem.description) continue
+      // A Command-phase stratagem's effect can last through the Shooting and Fight phases that follow it.
+      const either = !stratagem.phases.length || stratagem.phases.includes('command')
       const phases: CombatRule['phases'] = []
-      if (!stratagem.phases.length || stratagem.phases.includes('shooting')) phases.push('ranged')
-      if (!stratagem.phases.length || stratagem.phases.includes('fight')) phases.push('melee')
+      if (either || stratagem.phases.includes('shooting')) phases.push('ranged')
+      if (either || stratagem.phases.includes('fight')) phases.push('melee')
       if (!phases.length) continue
       add(
         {
