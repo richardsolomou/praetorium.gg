@@ -24,8 +24,12 @@ export function offlineAppPlugin(): Plugin {
             name: 'offline-preload-hints',
             transform(code, id) {
               if (!id.includes('/assets/')) return
-              // The rebundled app has no separate chunks to preload.
-              return code.replace(/__vite__mapDeps\(\[[\d,]+\]\)/g, '[]')
+              // The rebundled app has no separate chunks to preload, and PostHog's random chunk ids name symbol sets for
+              // the original chunks, so they would mismap its stack traces and change its revision on every build.
+              return code
+                .replace(/__vite__mapDeps\(\[[\d,]+\]\)/g, '[]')
+                .replace(/!function\(\)\{try\{[^\n]*?_posthogChunkIds\[n\]="[0-9a-f-]{36}"\)\}catch\(e\)\{\}\}\(\);/g, '')
+                .replace(/\n\/\/# chunkId=[0-9a-f-]{36}/g, '')
             },
           },
         ],
