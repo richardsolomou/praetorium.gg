@@ -1,6 +1,8 @@
 import { pickerSteps } from '../shared/pickerUnits'
 import { app } from './app'
 import { completeStepsCooperatively } from './canonicalCatalogue'
+import { pickersOpened } from './recentPickers'
+import { reportServerFailure } from './serverTelemetry'
 
 type PickerRequest = {
   catalogueId: string
@@ -20,4 +22,19 @@ export async function preparePicker({ catalogueId, battleSize, waivedRules, deta
   const rules = await instance.rulesFor(catalogueId)
   await completeStepsCooperatively(pickerSteps(loaded, rules, catalogueId, battleSize, waivedRules, detachmentIds))
   return { loaded, rules }
+}
+
+/**
+ * Builds the pickers rosters opened most recently, one after another between other requests, since every start and
+ * catalogue swap begins with none built. Stops once `current` says a newer catalogue replaced the one it builds for.
+ */
+export async function prepareRecentPickers(current: () => boolean) {
+  for (const picker of [...pickersOpened().list()]) {
+    if (!current()) return
+    try {
+      await preparePicker(picker)
+    } catch (error) {
+      reportServerFailure({ event: 'recent_picker_build_failed', error }, 'warn')
+    }
+  }
 }
