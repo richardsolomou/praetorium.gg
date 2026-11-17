@@ -7,11 +7,12 @@ import { FactionLabel, type FactionPresentation } from '../../components/Faction
 import { rosterWaivers, WaiverChip } from '../../components/FormatWaivers'
 import { dispositionTone } from '../../components/rosterSetup'
 import type { NamedRosterDifferences } from '../../../core/rosterDifferences'
-import { CornerDownRight, Lock } from 'lucide-react'
+import { CornerDownRight, Folder, Lock } from 'lucide-react'
 import { RosterDifferenceChips, type VariantSetup } from './RosterDifferences'
 import type { SavedRoster } from './rosterLibrary'
 import { VISIBILITY_NAME } from './visibility'
 import type { CatalogueEdition } from '../../../core/catalogueEdition'
+import type { RosterPlayHistory } from '../../../core/rosterPlays'
 import { countLabel } from '../../text'
 
 /**
@@ -71,6 +72,8 @@ export function RosterSummary({
   showLegality = false,
   updates,
   dateLabel = 'updated',
+  plays,
+  location,
 }: {
   roster: RosterCardFacts
   faction?: RosterSummaryFaction
@@ -90,6 +93,10 @@ export function RosterSummary({
   updates?: RosterUpdates
   /** What the date in the details line marks; a sealed copy names when it was sealed. */
   dateLabel?: string
+  /** The owner's own battles with this list; absent where only the owner could know them. */
+  plays?: RosterPlayHistory
+  /** The folder a search found the list in, below the one open. */
+  location?: string
 }) {
   const { date } = useDateFormatting()
   const detachments = detachmentNames(roster, faction)
@@ -124,7 +131,20 @@ export function RosterSummary({
         {showLock && roster.locked ? <LockedChip /> : null}
         <RosterUpdateChips updates={updates} />
       </span>
-      <span className="col-span-2 block text-xs text-dim sm:col-span-1">
+      {/* How the list has gone at the table leads the details, so it is read before the facts that never change. */}
+      <span data-slot="roster-details" className="col-span-2 block text-xs text-dim sm:col-span-1">
+        {location ? (
+          <span className="mr-1 inline-flex items-center gap-1 align-[-0.15em] text-bone">
+            <Folder className="size-3" aria-hidden />
+            {location} ·
+          </span>
+        ) : null}
+        {plays ? (
+          <>
+            <PlayedLead plays={plays} />
+            {' · '}
+          </>
+        ) : null}
         11th edition · {battleSizeLabel(roster.limit, roster.pointsBudget)} · {countLabel(roster.unitCount, 'unit')} ·{' '}
         {showLegality || !roster.visibility ? null : <span className="sm:hidden">{VISIBILITY_NAME[roster.visibility]} · </span>}
         {dateLabel} {date(roster.updatedAt)}
@@ -138,6 +158,19 @@ export function RosterSummary({
           <RosterDifferenceChips differences={differences} setup={variantSetup(roster, faction, dispositionName)} />
         </span>
       ) : null}
+    </span>
+  )
+}
+
+/** How the list has gone at the table: its record and when it was last played. */
+function PlayedLead({ plays }: { plays: RosterPlayHistory }) {
+  const { date } = useDateFormatting()
+  if (!plays.plays) return <span>Not played yet</span>
+  const { played, won, lost, drawn, lastPlayedAt } = plays.plays
+  return (
+    <span className="text-bone">
+      Played {played}× · {won}–{lost}
+      {drawn ? `–${drawn}` : ''} · last {date(lastPlayedAt)}
     </span>
   )
 }
@@ -228,6 +261,7 @@ export function RosterVariantSummary({
   differences,
   showVisibility,
   updates,
+  plays,
 }: {
   roster: RosterCardFacts
   faction?: RosterSummaryFaction
@@ -240,6 +274,7 @@ export function RosterVariantSummary({
   /** Only when it differs from the base's, which the card already shows. */
   showVisibility: boolean
   updates?: RosterUpdates
+  plays?: RosterPlayHistory
 }) {
   return (
     // A phone gives the chips their own line beneath the name and points; a wider screen keeps the row to one.
@@ -247,6 +282,11 @@ export function RosterVariantSummary({
       <CornerDownRight className="size-4 text-faint" aria-hidden />
       <span className="min-w-0 truncate text-sm font-bold uppercase sm:max-w-64">{rosterTitle(roster, faction, label)}</span>
       <span className="col-span-2 col-start-2 row-start-2 flex min-h-[1.125rem] min-w-0 items-center gap-1.5 sm:col-span-1 sm:col-start-3 sm:row-start-1">
+        {plays ? (
+          <span className="text-xs whitespace-nowrap text-dim">
+            <PlayedLead plays={plays} />
+          </span>
+        ) : null}
         {roster.locked ? <LockedChip /> : null}
         <RosterUpdateChips updates={updates} />
         {differences ? (

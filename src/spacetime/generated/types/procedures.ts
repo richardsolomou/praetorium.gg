@@ -98,6 +98,7 @@ import * as ReplaceGuestInviteProcedure from '../replace_guest_invite_procedure'
 import * as ReplaceRosterPointsMarksProcedure from '../replace_roster_points_marks_procedure'
 import * as RequestFriendProcedure from '../request_friend_procedure'
 import * as RosterByIdProcedure from '../roster_by_id_procedure'
+import * as RosterFoldersByUserProcedure from '../roster_folders_by_user_procedure'
 import * as RosterGroupByUserProcedure from '../roster_group_by_user_procedure'
 import * as RosterLoansByRosterProcedure from '../roster_loans_by_roster_procedure'
 import * as RosterSummariesByUserProcedure from '../roster_summaries_by_user_procedure'
@@ -125,6 +126,7 @@ import * as SetListFilterPreferencesProcedure from '../set_list_filter_preferenc
 import * as SetPlayerDefaultsProcedure from '../set_player_defaults_procedure'
 import * as SetPushEnabledProcedure from '../set_push_enabled_procedure'
 import * as SetRosterArchivedProcedure from '../set_roster_archived_procedure'
+import * as SetRosterFoldersProcedure from '../set_roster_folders_procedure'
 import * as SetRosterLockedProcedure from '../set_roster_locked_procedure'
 import * as SetRosterVisibilityProcedure from '../set_roster_visibility_procedure'
 import * as ShareBattleProcedure from '../share_battle_procedure'
@@ -326,6 +328,8 @@ export type RequestFriendArgs = __Infer<typeof RequestFriendProcedure.params>
 export type RequestFriendResult = __Infer<typeof RequestFriendProcedure.returnType>
 export type RosterByIdArgs = __Infer<typeof RosterByIdProcedure.params>
 export type RosterByIdResult = __Infer<typeof RosterByIdProcedure.returnType>
+export type RosterFoldersByUserArgs = __Infer<typeof RosterFoldersByUserProcedure.params>
+export type RosterFoldersByUserResult = __Infer<typeof RosterFoldersByUserProcedure.returnType>
 export type RosterGroupByUserArgs = __Infer<typeof RosterGroupByUserProcedure.params>
 export type RosterGroupByUserResult = __Infer<typeof RosterGroupByUserProcedure.returnType>
 export type RosterLoansByRosterArgs = __Infer<typeof RosterLoansByRosterProcedure.params>
@@ -380,6 +384,8 @@ export type SetPushEnabledArgs = __Infer<typeof SetPushEnabledProcedure.params>
 export type SetPushEnabledResult = __Infer<typeof SetPushEnabledProcedure.returnType>
 export type SetRosterArchivedArgs = __Infer<typeof SetRosterArchivedProcedure.params>
 export type SetRosterArchivedResult = __Infer<typeof SetRosterArchivedProcedure.returnType>
+export type SetRosterFoldersArgs = __Infer<typeof SetRosterFoldersProcedure.params>
+export type SetRosterFoldersResult = __Infer<typeof SetRosterFoldersProcedure.returnType>
 export type SetRosterLockedArgs = __Infer<typeof SetRosterLockedProcedure.params>
 export type SetRosterLockedResult = __Infer<typeof SetRosterLockedProcedure.returnType>
 export type SetRosterVisibilityArgs = __Infer<typeof SetRosterVisibilityProcedure.params>

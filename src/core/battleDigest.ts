@@ -12,7 +12,7 @@ import { opposingSide } from './battlePrimitives'
 import { copiedArmy } from './rosterCopies'
 
 /** Raise when what a digest holds changes, so every stored digest is folded again on its next read. */
-export const BATTLE_DIGEST_VERSION = 1
+export const BATTLE_DIGEST_VERSION = 2
 
 /** What a list reads of one seat: its army's identity, never its units or the log that built it. */
 export type DigestSeat = {
@@ -21,6 +21,8 @@ export type DigestSeat = {
   automated: boolean
   /** The fielded list's name; null before one is attached. */
   army: string | null
+  /** The saved list it was fielded from; null for a pasted or sealed list, or before one is attached. */
+  rosterId: string | null
   built: Omit<BuiltRoster, 'revision' | 'picks' | 'units' | 'strategicReserveLimit' | 'detachmentPointBudget' | 'dispositions'> | null
   /** The army and detachments a copy of the list would be saved under today, which discovery filters by. */
   copied: { catalogueId: string; detachmentIds: string[] } | null
@@ -88,6 +90,7 @@ export function battleDigest(state: BattleState, log: readonly Pick<LoggedComman
         side: player.side,
         automated: player.automated,
         army: player.roster?.name ?? null,
+        rosterId: player.roster?.id ?? null,
         built: built
           ? {
               catalogueId: built.catalogueId,

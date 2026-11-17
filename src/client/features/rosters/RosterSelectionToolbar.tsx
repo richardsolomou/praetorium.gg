@@ -1,4 +1,15 @@
-import { Archive, ArchiveRestore, ChevronDown, EllipsisVertical, Eye, Lock, LockOpen, type LucideIcon, Trash2 } from 'lucide-react'
+import {
+  Archive,
+  ArchiveRestore,
+  ChevronDown,
+  EllipsisVertical,
+  Eye,
+  FolderInput,
+  Lock,
+  LockOpen,
+  type LucideIcon,
+  Trash2,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -28,6 +39,7 @@ export function RosterSelectionToolbar({
   error,
   onChange,
   onDelete,
+  onMove,
   allSelected,
   onSelectAll,
 }: {
@@ -36,6 +48,7 @@ export function RosterSelectionToolbar({
   error: unknown
   onChange: (action: RosterBatchAction, ids: string[]) => void
   onDelete: () => void
+  onMove: () => void
   allSelected: boolean
   onSelectAll: (all: boolean) => void
 }) {
@@ -95,6 +108,9 @@ export function RosterSelectionToolbar({
                 <choice.icon /> {label(choice)}
               </Button>
             ))}
+            <Button size="sm" variant="outline" disabled={pending} onClick={onMove}>
+              <FolderInput /> Move to folder
+            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger render={<Button size="sm" variant="outline" disabled={pending} />}>
                 <Eye /> Visibility <ChevronDown />
@@ -117,6 +133,9 @@ export function RosterSelectionToolbar({
                   <choice.icon /> {label(choice)}
                 </DropdownMenuItem>
               ))}
+              <DropdownMenuItem onClick={onMove}>
+                <FolderInput /> Move to folder
+              </DropdownMenuItem>
               <DropdownMenuSub>
                 <DropdownMenuSubTrigger>
                   <Eye /> Visibility

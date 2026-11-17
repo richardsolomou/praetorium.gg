@@ -28,6 +28,7 @@ import {
   collectionWishesQuery,
   collectionCountsAsQuery,
   playerDefaultsQuery,
+  rosterFoldersQuery,
   opponentsQuery,
 } from '../queries'
 import { refreshBattleFeed } from './refreshBattleFeed'
@@ -119,6 +120,7 @@ export function AppPersistence() {
                 client.query({ ...collectionWishesQuery(), staleTime: Infinity }),
                 client.query({ ...collectionCountsAsQuery(), staleTime: Infinity }),
                 client.query({ ...playerDefaultsQuery(), staleTime: Infinity }),
+                client.query({ ...rosterFoldersQuery(), staleTime: Infinity }),
                 client.query({ ...opponentsQuery(), staleTime: Infinity }),
                 client.query({ ...friendshipsQuery(), staleTime: Infinity }),
                 client.query({ ...onboardingQuery(), staleTime: Infinity }),

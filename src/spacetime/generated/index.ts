@@ -166,6 +166,7 @@ import * as ReplaceGuestInviteProcedure from './replace_guest_invite_procedure'
 import * as ReplaceRosterPointsMarksProcedure from './replace_roster_points_marks_procedure'
 import * as RequestFriendProcedure from './request_friend_procedure'
 import * as RosterByIdProcedure from './roster_by_id_procedure'
+import * as RosterFoldersByUserProcedure from './roster_folders_by_user_procedure'
 import * as RosterGroupByUserProcedure from './roster_group_by_user_procedure'
 import * as RosterLoansByRosterProcedure from './roster_loans_by_roster_procedure'
 import * as RosterSummariesByUserProcedure from './roster_summaries_by_user_procedure'
@@ -193,6 +194,7 @@ import * as SetListFilterPreferencesProcedure from './set_list_filter_preference
 import * as SetPlayerDefaultsProcedure from './set_player_defaults_procedure'
 import * as SetPushEnabledProcedure from './set_push_enabled_procedure'
 import * as SetRosterArchivedProcedure from './set_roster_archived_procedure'
+import * as SetRosterFoldersProcedure from './set_roster_folders_procedure'
 import * as SetRosterLockedProcedure from './set_roster_locked_procedure'
 import * as SetRosterVisibilityProcedure from './set_roster_visibility_procedure'
 import * as ShareBattleProcedure from './share_battle_procedure'
@@ -424,6 +426,7 @@ const proceduresSchema = __procedures(
   __procedureSchema('replace_roster_points_marks', ReplaceRosterPointsMarksProcedure.params, ReplaceRosterPointsMarksProcedure.returnType),
   __procedureSchema('request_friend', RequestFriendProcedure.params, RequestFriendProcedure.returnType),
   __procedureSchema('roster_by_id', RosterByIdProcedure.params, RosterByIdProcedure.returnType),
+  __procedureSchema('roster_folders_by_user', RosterFoldersByUserProcedure.params, RosterFoldersByUserProcedure.returnType),
   __procedureSchema('roster_group_by_user', RosterGroupByUserProcedure.params, RosterGroupByUserProcedure.returnType),
   __procedureSchema('roster_loans_by_roster', RosterLoansByRosterProcedure.params, RosterLoansByRosterProcedure.returnType),
   __procedureSchema('roster_summaries_by_user', RosterSummariesByUserProcedure.params, RosterSummariesByUserProcedure.returnType),
@@ -455,6 +458,7 @@ const proceduresSchema = __procedures(
   __procedureSchema('set_player_defaults', SetPlayerDefaultsProcedure.params, SetPlayerDefaultsProcedure.returnType),
   __procedureSchema('set_push_enabled', SetPushEnabledProcedure.params, SetPushEnabledProcedure.returnType),
   __procedureSchema('set_roster_archived', SetRosterArchivedProcedure.params, SetRosterArchivedProcedure.returnType),
+  __procedureSchema('set_roster_folders', SetRosterFoldersProcedure.params, SetRosterFoldersProcedure.returnType),
   __procedureSchema('set_roster_locked', SetRosterLockedProcedure.params, SetRosterLockedProcedure.returnType),
   __procedureSchema('set_roster_visibility', SetRosterVisibilityProcedure.params, SetRosterVisibilityProcedure.returnType),
   __procedureSchema('share_battle', ShareBattleProcedure.params, ShareBattleProcedure.returnType),

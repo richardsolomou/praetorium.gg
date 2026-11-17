@@ -261,6 +261,14 @@ export function withSealedEvents<B extends RepositoryBase>(Base: B) {
       })
     }
 
+    /** The saved list each of the player's sealed entries came from, by event and by host; never shown to anyone else. */
+    async sealedEntrySources(userId: string) {
+      const rows = await this.product.sealedEventsVisibleTo(userId, 100)
+      return rows.flatMap(({ token, event, ownEntry }) =>
+        ownEntry?.rosterId ? [{ hostToken: token, eventToken: event.token, rosterId: ownEntry.rosterId }] : [],
+      )
+    }
+
     outdatedSealedEventEntriesForRoster(userId: string, rosterId: string) {
       return this.product.outdatedSealedEventEntriesForRoster(userId, rosterId)
     }

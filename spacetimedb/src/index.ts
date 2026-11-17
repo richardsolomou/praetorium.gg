@@ -41,6 +41,7 @@ import { BATTLE_DIGEST_VERSION, battleDigest, type BattleDigest } from '../../sr
 import { scoringDraftSchema, scoringMoment } from '../../src/core/scoringDraft'
 import { teamDispositionChoices } from '../../src/core/teamDisposition'
 import { DEFAULT_PLAYER_DEFAULTS, isPlayerDefaults } from '../../src/core/playerDefaults'
+import { NO_ROSTER_FOLDERS, rosterFoldersSchema } from '../../src/core/rosterFolders'
 import { BATTLE_ORDERS } from '../../src/core/battleFilter'
 import { LIST_FILTER_SCOPES, LIST_PREFERENCES_MAX_LENGTH, listPreferencesSchema } from '../../src/core/listFilter'
 import { matchupPairingSchema, RECENT_MATCHUP_LIMIT, recentMatchupSchema } from '../../src/core/recentMatchups'
@@ -910,6 +911,7 @@ export const deleteUserData = spacetime.reducer({ userId: t.string() }, (ctx, { 
   ctx.db.pushPreferences.userId.delete(userId)
   for (const row of Array.from(ctx.db.notices.userId.filter(userId))) ctx.db.notices.id.delete(row.id)
   ctx.db.playerDefaults.userId.delete(userId)
+  ctx.db.rosterFolders.userId.delete(userId)
   for (const row of Array.from(ctx.db.listFilterPreferences.userId.filter(userId))) ctx.db.listFilterPreferences.id.delete(row.id)
   for (const row of Array.from(ctx.db.sealedEventRosterSharing.userId.filter(userId))) ctx.db.sealedEventRosterSharing.key.delete(row.key)
   touchPublic(ctx, 'collection')
@@ -3935,6 +3937,14 @@ export const playerDefaults = spacetime.procedure({ userId: t.string() }, t.stri
   }),
 )
 
+export const rosterFoldersByUser = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
+  operatorTx(ctx, (tx) => tx.db.rosterFolders.userId.find(userId)?.folders ?? productJson(NO_ROSTER_FOLDERS)),
+)
+
+export const setRosterFolders = spacetime.procedure({ userId: t.string(), folders: t.string(), now: t.u64() }, t.string(), (ctx, input) =>
+  operatorTx(ctx, (tx) => setRosterFoldersIn(tx, [input.userId, input.folders, input.now])),
+)
+
 export const setPlayerDefaults = spacetime.procedure(
   { userId: t.string(), rosterVisibility: t.string(), battleSize: t.u32(), now: t.u64() },
   t.string(),
@@ -6122,6 +6132,17 @@ function setPushEnabledIn(tx: Context, args: unknown[]) {
   return enabled
 }
 
+function setRosterFoldersIn(tx: Context, args: unknown[]) {
+  const [userId, text, now] = z.tuple([textArg, z.string().max(200_000), timestampArg]).parse(args)
+  if (!validId(userId)) throw new SenderError('Invalid roster folders')
+  const folders = productJson(decodePayload(rosterFoldersSchema, text, 'Invalid roster folders'))
+  const row = { userId, folders, at: now }
+  if (tx.db.rosterFolders.userId.find(userId)) tx.db.rosterFolders.userId.update(row)
+  else tx.db.rosterFolders.insert(row)
+  touchProduct(tx, userId, 'rosters')
+  return folders
+}
+
 function setPlayerDefaultsIn(tx: Context, args: unknown[]) {
   const [userId, rosterVisibility, battleSize, now] = z
     .tuple([textArg, textArg, z.number().int().nonnegative().max(4_294_967_295), timestampArg])
@@ -7182,6 +7203,7 @@ const syncProductActions = {
   delete_ability_reminder: deleteAbilityReminderIn,
   set_push_enabled: setPushEnabledIn,
   set_player_defaults: setPlayerDefaultsIn,
+  set_roster_folders: setRosterFoldersIn,
   sealed_event_command: sealedEventCommandIn,
 } satisfies Record<SyncProductActionName, unknown>
 

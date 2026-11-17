@@ -28,6 +28,7 @@ export const SYNC_PRODUCT_ACTION_NAMES = [
   'delete_ability_reminder',
   'set_push_enabled',
   'set_player_defaults',
+  'set_roster_folders',
   'sealed_event_command',
 ] as const
 

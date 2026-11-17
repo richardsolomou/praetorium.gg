@@ -23,6 +23,8 @@ const queryFamilies = {
     'outdated-sealed-event-entries',
     'unit-loadouts',
     'sealed-event-roster-sharing',
+    'saved-roster-plays',
+    'roster-folders',
     'achievement-news',
   ],
   collection: [
@@ -63,7 +65,16 @@ const queryFamilies = {
   ],
   groups: ['groups', 'group', 'group-standings', 'group-league', 'battle-groups', 'achievement-news', 'notifications'],
   // Standings and rankings change only when a battle finishes, which the public standings signal reports.
-  battles: ['battles', 'public-battles', 'friend-battles', 'player-profile', 'sealed-event-battles', 'played-armies', 'battle-groups'],
+  battles: [
+    'battles',
+    'public-battles',
+    'friend-battles',
+    'player-profile',
+    'sealed-event-battles',
+    'played-armies',
+    'battle-groups',
+    'saved-roster-plays',
+  ],
   simulator: ['recent-matchups', 'achievement-news'],
   // Medals a player earns in battle, or by someone else's hand, such as a like.
   achievements: ['achievement-news', 'player-achievements'],
@@ -98,6 +109,7 @@ export const savedRosterFamilies = new Set<string>(queryFamilies.rosters.filter(
 const operationScopes = {
   saveRoster: ['rosters'],
   deleteRoster: ['rosters'],
+  setRosterFolders: ['rosters'],
   battleCommand: ['battles'],
   setOwned: ['collection'],
   setCollectionModels: ['collection'],

@@ -2,7 +2,17 @@ import { GuideHelp } from '../onboarding/GuideHelp'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from 'react'
-import { ChevronDown, FileUp, Plus, ScrollText } from 'lucide-react'
+import { ChevronDown, FileUp, FolderPlus, Plus, ScrollText } from 'lucide-react'
+import {
+  type DroppedItem,
+  FolderBreadcrumb,
+  FolderNameDialog,
+  FolderTiles,
+  MoveFolderDialog,
+  MoveToFolderDialog,
+  useRosterFolders,
+} from './RosterFolders'
+import { childFolders, folderAndInside, folderPath, ROSTER_FOLDER_DEPTH_MAX, type RosterFolder } from '../../../core/rosterFolders'
 import { Button } from '@/components/ui/button'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -39,7 +49,7 @@ import { FilterBar, type FilterDimension } from '../../components/FilterBar'
 import { NoFilterMatches } from '../../components/NoFilterMatches'
 import { ungrouped } from '../../components/SearchableSelect'
 import { facetsOf, periodSearch } from '../../searchParams'
-import { facetMatches, facetText, periodBounds, withinPeriod, type Facet } from '../../../core/listFilter'
+import { facetActive, facetMatches, facetText, periodBounds, withinPeriod, type Facet } from '../../../core/listFilter'
 import { matchesRosterAssessment, rosterAssessmentFilterActive, ROSTER_SEARCH_MAX_LENGTH } from '../../../core/rosterDiscovery'
 import { ROSTER_VISIBILITIES } from '../../../core/savedRoster'
 import { VISIBILITY_NAME } from './visibility'
@@ -65,6 +75,7 @@ import {
   meQuery,
   rostersLentToMeQuery,
   savedRosterChangedIdsQuery,
+  savedRosterPlaysQuery,
   savedRosterSummariesQuery,
   type QueryData,
 } from '../../queries'
@@ -84,6 +95,12 @@ const UPDATE_GROUPS = ungrouped([
   { label: 'Older rules', value: 'older' },
   { label: 'Changed by update', value: 'changed' },
 ])
+const PLAYED_GROUPS = ungrouped([
+  { label: 'Played', value: 'played' },
+  { label: 'Not played yet', value: 'unplayed' },
+])
+/** A list played within this long counts as one the player is still playing. */
+const RECENT_PLAY_MS = 8 * 7 * 24 * 60 * 60 * 1_000
 const STATE_GROUPS = ungrouped([
   { label: 'Locked', value: 'locked' },
   { label: 'Variant of another list', value: 'variant' },
@@ -147,6 +164,46 @@ export function RosterLibraryPage({
   const navigate = useNavigate()
   const { favourites } = useFavouriteFactions(Boolean(me))
   const facets = facetsOf(search, LIBRARY_FACETS)
+  const folderActions = useRosterFolders(Boolean(me))
+  const folders = folderActions.folders
+  const folder = folders.folders.find((entry) => entry.id === search.folder) ?? null
+  // Only a search, a period or a facet narrows the lists; the folder and the new-roster flags say where the player is.
+  const filtering = Boolean(search.q || search.period || search.from || search.to || LIBRARY_FACETS.some((key) => search[key]))
+  // A variant is filed where its base is, including when a filter leaves the base out.
+  const filedIn = (roster: { id: string; baseRosterId?: string | null }) => folders.filed[roster.baseRosterId ?? roster.id] ?? null
+  // Inside a folder, only its lists; at the top, the lists in no folder, or every list while a search or filter is on.
+  // A search or filter reaches into every folder below the one open, so it finds a list wherever it is filed.
+  const searched = folder ? folderAndInside(folders.folders, folder.id) : null
+  const inView = (roster: SavedRoster) => {
+    const filed = filedIn(roster)
+    if (filtering) return !searched || (filed !== null && searched.has(filed))
+    return filed === (folder?.id ?? null)
+  }
+  /** Where a list found by a search is filed, below the folder open, so a result says which folder it came from. */
+  const locationOf = (roster: SavedRoster) => {
+    const filed = filedIn(roster)
+    if (!filtering || !filed || filed === folder?.id) return undefined
+    const path = [...folderPath(folders.folders, filed), folders.folders.find((entry) => entry.id === filed)!]
+    return path
+      .slice(folder ? path.findIndex((entry) => entry.id === folder.id) + 1 : 0)
+      .map((entry) => entry.name)
+      .join(' › ')
+  }
+  const savedIds = new Set(saved.map((roster) => roster.id))
+  const fileRoster = (rosterId: string, folderId: string | null) => {
+    const roster = saved.find((entry) => entry.id === rosterId)
+    if (roster) folderActions.file([roster.baseRosterId ?? roster.id], folderId, savedIds)
+  }
+  /** A roster or folder dropped on a folder, or on the top level when `folderId` is null, moves into it. */
+  const dropInto = (item: DroppedItem, folderId: string | null) =>
+    item.kind === 'roster' ? fileRoster(item.id, folderId) : folderActions.move(item.id, folderId)
+  const subfolders = childFolders(folders.folders, folder?.id ?? null)
+  // A folder at the deepest level folders may go takes no more folders.
+  const canNest = !folder || folderPath(folders.folders, folder.id).length + 1 < ROSTER_FOLDER_DEPTH_MAX
+  const [moving, setMoving] = useState<string[] | null>(null)
+  const [movingFolder, setMovingFolder] = useState<RosterFolder | null>(null)
+  const [naming, setNaming] = useState<{ id: string; name: string } | 'new' | null>(null)
+  const [deletingFolder, setDeletingFolder] = useState<RosterFolder | null>(null)
   const facetUses = (facet: Facet | undefined, value: string) => Boolean(facet?.in.includes(value) || facet?.out.includes(value))
   // Walking every list is slow, so it waits for the visible rows unless the filter asks for it.
   const [rowsSettled, setRowsSettled] = useState(false)
@@ -155,6 +212,13 @@ export function RosterLibraryPage({
     enabled: Boolean(me && savedResult.isSuccess && (rowsSettled || facetUses(facets.updates, 'changed'))),
   })
   const changedIds = new Set(changedResult.data ?? [])
+  const playsResult = useQuery({ ...savedRosterPlaysQuery(), enabled: Boolean(me && savedResult.isSuccess) })
+  const playsById = new Map((playsResult.data ?? []).map((entry) => [entry.id, entry]))
+  const playedFacts = (roster: SavedRoster) => {
+    const entry = playsById.get(roster.id)
+    if (!entry) return []
+    return [entry.plays ? 'played' : 'unplayed']
+  }
   const olderRules = (roster: SavedRoster) => Boolean(currentRulesFor(roster.catalogueId, available?.factions ?? []))
   const factionOf = (roster: SavedRoster) => available?.factions.find((faction) => faction.id === roster.catalogueId)
   const bounds = periodBounds(periodSearch(search), now)
@@ -162,6 +226,7 @@ export function RosterLibraryPage({
     saved.filter((roster) => {
       const faction = factionOf(roster)
       return (
+        inView(roster) &&
         facetMatches(facets.limit, [String(roster.limit)]) &&
         facetMatches(facets.faction, faction ? [faction.slug] : []) &&
         facetMatches(facets.detachment, roster.detachmentIds) &&
@@ -169,6 +234,7 @@ export function RosterLibraryPage({
         facetMatches(facets.disposition, roster.disposition ? [roster.disposition] : []) &&
         facetMatches(facets.updates, [...(olderRules(roster) ? ['older'] : []), ...(changedIds.has(roster.id) ? ['changed'] : [])]) &&
         facetMatches(facets.state, [...(roster.locked ? ['locked'] : []), ...(roster.baseRosterId ? ['variant'] : [])]) &&
+        facetMatches(facets.played, playedFacts(roster)) &&
         withinPeriod(roster.updatedAt, bounds) &&
         (!search.q || matchesSearch(`${rosterTitle(roster, faction)} ${faction?.displayName ?? ''}`, search.q))
       )
@@ -186,6 +252,7 @@ export function RosterLibraryPage({
       })
     : candidates
   const needsChanged = facetUses(facets.updates, 'changed')
+  const needsPlays = Boolean(me && (facetActive(facets.played) || selectedGrouping === 'play'))
   const needsFactions = Boolean(
     search.faction || search.q || search.updates || selectedGrouping === 'faction' || selectedGrouping === 'detachment',
   )
@@ -193,16 +260,24 @@ export function RosterLibraryPage({
     (me ? savedResult.isPending : Boolean(device?.pending)) ||
     (needsFactions && availableResult.isPending) ||
     (needsChanged && changedResult.isPending) ||
+    (needsPlays && playsResult.isPending) ||
     (needsAssessment && (guest ? guestRow.pending : assessed.results.some((result) => result.isPending)))
   const libraryError =
     (me && savedResult.isError) ||
     (needsFactions && availableResult.isError) ||
     (needsChanged && changedResult.isError) ||
+    (needsPlays && playsResult.isError) ||
     (needsAssessment && assessed.results.some((result) => result.isError))
   const active = shown.filter((roster) => !roster.archived)
   const archived = shown.filter((roster) => roster.archived)
   const [archivedOpen, setArchivedOpen] = useState(false)
   const groupOf = (roster: SavedRoster): RosterGroup => {
+    if (selectedGrouping === 'play') {
+      const entry = playsById.get(roster.id)
+      if (!entry?.plays) return { key: 'unplayed', label: 'Not played yet', rank: 1 }
+      if (now - entry.plays.lastPlayedAt <= RECENT_PLAY_MS) return { key: 'recent', label: 'Played in the last 8 weeks', rank: 2 }
+      return { key: 'earlier', label: 'Played before', rank: 3 }
+    }
     if (selectedGrouping === 'size') {
       const size = GAME_SIZES.find((entry) => entry.limit === roster.limit)
       return { key: String(roster.limit), label: size ? battleSizeOptionLabel(size) : pointsLabel(roster.limit), rank: roster.limit }
@@ -272,6 +347,11 @@ export function RosterLibraryPage({
           onRemoved: () => device?.onChange(null),
         }
       : null,
+    // A copy is filed beside the list it came from, so it does not vanish from the folder it was made in.
+    (source, copyId) => {
+      const filed = filedIn(source)
+      if (filed) folderActions.file([copyId], filed, new Set())
+    },
   )
   // A visitor keeps one list; making another asks them to sign up first.
   const another = guest ? () => account.ask('another-roster') : undefined
@@ -363,6 +443,10 @@ export function RosterLibraryPage({
         onDelete={() => setDeleting({ rosters: [roster], together: false })}
         onNeedsAccount={guest ? account.ask : undefined}
         selection={selectionOf(roster)}
+        onMove={guest ? undefined : () => setMoving([roster.baseRosterId ?? roster.id])}
+        dragId={guest ? undefined : (roster.baseRosterId ?? roster.id)}
+        location={locationOf(roster)}
+        plays={playsById.get(roster.id)}
       />
     )
     return variants.length ? (
@@ -483,6 +567,11 @@ export function RosterLibraryPage({
                 {selecting ? 'Done' : 'Select'}
               </Button>
             ) : null}
+            {me && !libraryPending && !libraryError && saved.length && !selecting && canNest ? (
+              <Button variant="ghost" size="sm" className="-my-2 self-center tracking-normal normal-case" onClick={() => setNaming('new')}>
+                <FolderPlus /> New folder
+              </Button>
+            ) : null}
           </div>
           {olderNotice || changedNotice ? (
             <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs font-semibold text-discarded">
@@ -509,9 +598,38 @@ export function RosterLibraryPage({
               error={actions.batch.error}
               onChange={changeSelected}
               onDelete={() => setDeleting({ rosters: selected, together: true })}
+              onMove={() => setMoving([...new Set(selected.map((roster) => roster.baseRosterId ?? roster.id))])}
               onSelectAll={(all) => setSelectedIds(new Set(all ? selectable : []))}
               allSelected={selectable.length > 0 && selectable.every((id) => selectedIds.has(id))}
             />
+          ) : null}
+          {me && !libraryPending && !libraryError && (folder || folders.folders.length) ? (
+            <div className="mt-3 space-y-4">
+              {folder ? (
+                <FolderBreadcrumb
+                  folder={folder}
+                  folders={folders.folders}
+                  onDrop={dropInto}
+                  onRename={() => setNaming(folder)}
+                  onMove={() => setMovingFolder(folder)}
+                  onDelete={() => setDeletingFolder(folder)}
+                />
+              ) : null}
+              {subfolders.length ? (
+                <>
+                  <FolderTiles
+                    folders={folders.folders}
+                    parentId={folder?.id ?? null}
+                    rosters={saved.filter((roster) => !roster.archived && !roster.baseRosterId)}
+                    filedIn={filedIn}
+                    factionOf={(catalogueId) => available?.factions.find((faction) => faction.id === catalogueId)}
+                    onDrop={dropInto}
+                    onNew={canNest ? () => setNaming('new') : undefined}
+                  />
+                  <h3 className="eyebrow">{filtering ? 'Matching rosters' : folder ? 'In this folder' : 'Not in a folder'}</h3>
+                </>
+              ) : null}
+            </div>
           ) : null}
           <div className="mt-2 space-y-3">
             {libraryError ? (
@@ -586,6 +704,14 @@ export function RosterLibraryPage({
                   </Button>
                 ) : null}
               </>
+            ) : saved.length && !filtering && (folder || folders.folders.length) && !(folder && subfolders.length) ? (
+              <p className="rounded-xl border border-dashed border-edge px-4 py-6 text-center text-sm text-dim">
+                {folder
+                  ? archived.length
+                    ? 'Every roster in this folder is archived. Archived rosters are listed below.'
+                    : 'This folder is empty. Drag a roster onto it, or choose Move to folder in a roster’s menu.'
+                  : 'Every roster is in a folder.'}
+              </p>
             ) : saved.length ? (
               <NoFilterMatches>
                 {archived.length ? 'Every roster here is archived. Archived rosters are listed below.' : 'No rosters match these filters'}
@@ -642,6 +768,50 @@ export function RosterLibraryPage({
         ) : null}
       </PageContent>
 
+      <MoveToFolderDialog
+        rosterIds={moving}
+        folders={folderActions}
+        saved={savedIds}
+        onMoved={selecting ? stopSelecting : undefined}
+        onClose={() => setMoving(null)}
+      />
+      <MoveFolderDialog folder={movingFolder} folders={folderActions} onClose={() => setMovingFolder(null)} />
+      <FolderNameDialog
+        key={naming === 'new' ? 'new' : (naming?.id ?? 'closed')}
+        open={Boolean(naming)}
+        initial={naming && naming !== 'new' ? naming.name : ''}
+        title={naming === 'new' ? 'New folder' : 'Rename folder'}
+        action={naming === 'new' ? 'Create folder' : 'Rename'}
+        onSave={(name) =>
+          naming === 'new' ? folderActions.create(name, folder?.id ?? null) : naming && folderActions.rename(naming.id, name)
+        }
+        onClose={() => setNaming(null)}
+      />
+      <AlertDialog open={Boolean(deletingFolder)} onOpenChange={(open) => !open && setDeletingFolder(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {deletingFolder?.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Its folders and rosters move up to {deletingFolder?.parentId ? 'the folder it is in' : 'All rosters'}. Nothing is deleted but
+              the folder.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep folder</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => {
+                if (!deletingFolder) return
+                folderActions.remove(deletingFolder.id)
+                if (folder?.id === deletingFolder.id)
+                  void navigate({ to: '/rosters', search: { ...search, folder: deletingFolder.parentId ?? undefined } })
+              }}
+            >
+              Delete folder
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <AlertDialog open={Boolean(deleting)} onOpenChange={(open) => !open && setDeleting(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -777,6 +947,7 @@ function RosterLibraryFilters({
   sort: ReactNode
 }) {
   const { data: references } = useQuery(gameReferencesQuery())
+  const { folder: _folder, ...filters } = search
   const tally = <T,>(values: T[]) => countBy(values, (value) => value)
   const countOf = (counts: ReadonlyMap<unknown, number>, value: unknown) => String(counts.get(value) ?? 0)
   // Everything here is in the browser already, so the choices are what the library holds and each can say how many.
@@ -833,6 +1004,7 @@ function RosterLibraryFilters({
           .map((disposition) => ({ label: disposition.name, value: disposition.id, detail: countOf(perDisposition, disposition.id) })),
       ),
     },
+    { key: 'played', label: 'Played', groups: PLAYED_GROUPS, pinned: true },
     { key: 'state', label: 'Status', groups: STATE_GROUPS },
     ...ROSTER_ASSESSMENT_DIMENSIONS,
   ]
@@ -852,8 +1024,9 @@ function RosterLibraryFilters({
         value: periodSearch(search),
         onChange: (next) => onChange({ ...search, period: undefined, from: undefined, to: undefined, ...next }),
       }}
-      address={search}
-      onApply={onChange}
+      // The open folder is where the player is, not a filter: clearing or applying a saved view keeps them in it.
+      address={filters}
+      onApply={(next) => onChange({ ...next, ...(search.folder ? { folder: search.folder } : {}) })}
       sort={sort}
       summary={count === null ? null : countLabel(count, 'roster')}
     />

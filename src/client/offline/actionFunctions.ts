@@ -39,6 +39,7 @@ import {
   friendSealedEventRostersKey,
   outdatedSealedEventEntriesKey,
   playerDefaultsKey,
+  rosterFoldersKey,
   recentMatchupsKey,
   abilityRemindersKey,
 } from '../queries/queryKeys'
@@ -77,6 +78,7 @@ export const abilityReminders = () => accountRead(abilityRemindersKey(), () => s
 /** The alerts a list fielded on this device carries: the ones it last read or set, and none if it never read them. */
 export const savedAbilityReminders = async () => (await localDocument<AbilityReminder[]>(queryResource(abilityRemindersKey()))) ?? []
 export const playerDefaults = () => accountRead(playerDefaultsKey(), () => server.playerDefaults())
+export const rosterFolders = () => accountRead(rosterFoldersKey(), () => server.rosterFolders())
 export const onboardingProgress = () => accountRead(onboardingKey(), () => server.onboardingProgress())
 export const notificationSettings = () => cachedRead(notificationSettingsKey(), () => server.notificationSettings())
 export const friendships = () => cachedRead(friendshipsKey(), () => server.friendships())
@@ -317,6 +319,13 @@ export async function removeAbilityReminder(
     update: (current) => ((current as AbilityReminder[] | undefined) ?? saved).filter((reminder) => reminder.key !== args.data.key),
   })
   return null
+}
+export async function setRosterFolders(args: Parameters<typeof server.setRosterFolders>[0]): ReturnType<typeof server.setRosterFolders> {
+  const defer = deferredForAccount(false)
+  if (!localEngine()) return server.setRosterFolders(args)
+  const next = offlineActionSchemas.setRosterFolders.parse(args.data)
+  await defer('setRosterFolders', next, queryResource(rosterFoldersKey()), next)
+  return next
 }
 export async function setPlayerDefaults(args: Parameters<typeof server.setPlayerDefaults>[0]): ReturnType<typeof server.setPlayerDefaults> {
   const defer = deferredForAccount()

@@ -213,7 +213,7 @@ test('a roster variant is numbered and grouped under its base without renaming',
   await page.screenshot({ path: test.info().outputPath('roster-variants-library.png'), fullPage: true })
   const baseVisibility = page.locator('[data-roster="Dynasty 2k"]').getByText('Public', { exact: true })
   await expect(baseVisibility).toBeVisible()
-  const baseDetails = page.locator('[data-roster="Dynasty 2k"]').getByText(/^11th edition/)
+  const baseDetails = page.locator('[data-roster="Dynasty 2k"] [data-slot="roster-details"]')
   await expect(baseDetails).toHaveText(/1 unit · updated/, { useInnerText: true })
   await page.setViewportSize(PHONE)
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)

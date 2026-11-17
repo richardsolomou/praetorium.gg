@@ -1,4 +1,5 @@
 import { productActions, signedInAction } from '../productActions'
+import { NO_ROSTER_FOLDERS, rosterFoldersSchema } from '../../core/rosterFolders'
 import { groupCollection } from '../../core/collection'
 import { createServerFn } from '@tanstack/react-start'
 import { randomToken } from '../random'
@@ -81,6 +82,14 @@ export const setListFilterPreferences = createServerFn({ method: 'POST' })
 export const playerDefaults = createServerFn({ method: 'GET' }).handler(() =>
   rpc(async () => app().repository.playerDefaults(await requireUserId())),
 )
+
+export const rosterFolders = createServerFn({ method: 'GET' }).handler(() =>
+  rpc(() => forSignedIn(NO_ROSTER_FOLDERS, (id) => app().repository.rosterFolders(id))),
+)
+
+export const setRosterFolders = createServerFn({ method: 'POST' })
+  .validator(rosterFoldersSchema)
+  .handler(({ data }) => signedInAction(productActions.setRosterFolders, data))
 
 export const setPlayerDefaults = createServerFn({ method: 'POST' })
   .validator(playerDefaultsSchema)

@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import * as schemas from './schemas'
+import { rosterFoldersSchema } from '../core/rosterFolders'
 
 export const offlineActionSchemas = {
   setOwned: schemas.ownedSchema,
@@ -15,6 +16,7 @@ export const offlineActionSchemas = {
   setAbilityReminder: schemas.setAbilityReminderSchema,
   removeAbilityReminder: schemas.removeAbilityReminderSchema,
   setPlayerDefaults: schemas.playerDefaultsSchema,
+  setRosterFolders: rosterFoldersSchema,
   setPushNotifications: schemas.pushPreferenceSchema,
   updateOnboardingProgress: schemas.onboardingUpdateSchema,
   requestFriend: schemas.friendSchema,

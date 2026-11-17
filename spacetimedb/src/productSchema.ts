@@ -158,6 +158,16 @@ const listFilterPreferences = table(
   },
 )
 
+/** A player's roster folders and which list is filed in each, as one `rosterFoldersSchema` document. */
+const rosterFolders = table(
+  { name: 'roster_folders' },
+  {
+    userId: t.string().primaryKey(),
+    folders: t.string(),
+    at: t.u64(),
+  },
+)
+
 const playerDefaults = table(
   { name: 'player_defaults' },
   {
@@ -946,6 +956,7 @@ export const productTables = {
   notices,
   listFilterPreferences,
   playerDefaults,
+  rosterFolders,
   pushTokens,
   webPushSubscriptions,
   friendships,

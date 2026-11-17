@@ -40,6 +40,14 @@ export function withPreferences<B extends RepositoryBase>(Base: B) {
       return this.product.setListFilterPreferences(...args)
     }
 
+    rosterFolders(...args: Parameters<SpacetimeOperator['rosterFolders']>) {
+      return this.product.rosterFolders(...args)
+    }
+
+    setRosterFolders(...args: Parameters<SpacetimeOperator['setRosterFolders']>) {
+      return this.product.setRosterFolders(...args)
+    }
+
     playerDefaults(...args: Parameters<SpacetimeOperator['playerDefaults']>) {
       return this.product.playerDefaults(...args)
     }

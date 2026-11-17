@@ -21,8 +21,12 @@ export const LIBRARY_FACETS = [
   'points',
   'updates',
   'state',
+  'played',
 ] as const
-export type RosterLibrarySearch = PeriodFilter & { q?: string } & Partial<Record<(typeof LIBRARY_FACETS)[number], FacetAddress>>
+/** `folder` is the folder being browsed; without it the library shows its folders and the lists in none. */
+export type RosterLibrarySearch = PeriodFilter & { q?: string; folder?: string } & Partial<
+    Record<(typeof LIBRARY_FACETS)[number], FacetAddress>
+  >
 
 export const DISCOVERY_FACETS = [
   'faction',

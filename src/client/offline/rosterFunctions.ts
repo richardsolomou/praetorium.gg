@@ -42,6 +42,7 @@ import {
   rosterBootstrapKey,
   rosterChangesKey,
   savedRosterChangedIdsKey,
+  savedRosterPlaysKey,
   savedRosterPageKey,
   savedRosterSummariesKey,
   sharedRosterKey,
@@ -763,3 +764,4 @@ export async function rosterChanges(args: Parameters<typeof server.rosterChanges
   return cachedRead(rosterChangesKey(args.data.id), () => server.rosterChanges(args))
 }
 export const savedRosterChangedIds = () => cachedRead(savedRosterChangedIdsKey(), () => server.savedRosterChangedIds())
+export const savedRosterPlays = () => cachedRead(savedRosterPlaysKey(), () => server.savedRosterPlays())
