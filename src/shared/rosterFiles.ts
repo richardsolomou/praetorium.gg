@@ -31,7 +31,15 @@ import { textNickname, textNote, type TextRoster, type TextRosterUnit } from '..
 import { nicknamedUnit } from '../core/unitNotes'
 import { gwTextGroup, gwTextVersionLines, toGwText, type GwTextRoster } from '../core/gwText'
 import type { UnitGroup } from '../core/unitGroups'
-import { allowsPointsBudget, battleSizeTitle, customPointsBudget, GAME_SIZES, isGameSize, pointsBudgetError } from '../core/battle'
+import {
+  allowsPointsBudget,
+  battleSizeTitle,
+  customPointsBudget,
+  GAME_SIZES,
+  isGameSize,
+  pointsBudgetError,
+  ROSTER_NAME_MAX_LENGTH,
+} from '../core/battle'
 import { catalogueFactionName, factionDisplayName } from './factionNames'
 import { englishNames, NO_TRANSLATIONS, translationsOf, type CatalogueTranslations } from './catalogueTranslations'
 import {
@@ -363,6 +371,8 @@ function importTextRoster(
   translations: CatalogueTranslations,
   removed: RemovedNames,
 ) {
+  // Builders allow longer titles than a saved roster keeps.
+  const title = parsed.name.slice(0, ROSTER_NAME_MAX_LENGTH)
   const stated = loaded?.factions.find((candidate) => matchesImportFaction(parsed.faction, candidate.name, translations))
   // A list can state a chapter's parent faction, whose units then name the chapter.
   const names = parsed.units.map((unit) => unit.name)
@@ -370,7 +380,7 @@ function importTextRoster(
   const faction = loaded && (loaded.factions.find((candidate) => candidate.id === chapterId) ?? stated ?? unitFaction(parsed, loaded))
   if (!loaded || !faction) {
     return {
-      name: parsed.name,
+      name: title,
       catalogueId: null,
       catalogueName: parsed.faction,
       detachmentIds: [],
@@ -540,7 +550,7 @@ function importTextRoster(
   const olderData = parsed.dataVersion && parsed.dataVersion < current ? { exported: parsed.dataVersion, current } : null
 
   return {
-    name: parsed.name,
+    name: title,
     catalogueId: faction.id,
     catalogueName: faction.name,
     detachmentIds,

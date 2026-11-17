@@ -1101,6 +1101,18 @@ describe('roster export', () => {
   })
 })
 
+it('cuts a list title longer than a roster name allows', () => {
+  const title = 'There are 14 Wolves inside you. 7 fight on death. The other 7 also fight on death.'
+  const imported = importRosterFile(
+    {
+      file: `${title} (2000 Points)\n\nNecrons\nPantheon of Woe (2 Detachment Points)\nStrike Force (2,000 Points)\n\nExported with BattleBase, Data Version: v20260812`,
+    },
+    loaded,
+  )
+
+  expect(imported.name).toBe(title.slice(0, 80))
+})
+
 describe('BattleBase roster import', () => {
   it('identifies the imported text source', () => {
     const imported = importRosterFile(
