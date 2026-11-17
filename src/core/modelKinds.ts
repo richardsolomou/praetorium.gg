@@ -15,7 +15,8 @@ import { hiddenByRules, type Selection } from './evaluate'
 import { defaultSelection } from './expand'
 import { allAt, updateSelection } from './selection'
 import { type ChoiceOptions, type UnitChoice, unitChoices } from './unitChoices'
-import { sameWargear, wargearOf } from './wargear'
+import { wargearOf } from './wargear'
+import { sameWargear } from './wargearNames'
 
 /**
  * A kind of model in a unit, as the datasheet names it, and the wargear it carries.

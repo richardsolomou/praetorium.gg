@@ -3,7 +3,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { textToken } from '../core/sourceText'
 import type { TextSource } from '../core/sourceText'
 import { textSourceChoiceFrom } from './rulesText'
-import { loadTextFile, loadedText, loadedWords, openedTextPage, registerTextSources, retryFailedTextFiles } from './sourceText'
+import { loadTextFile, loadedText, loadedWords, registerTextSources, retryFailedTextFiles } from './sourceText'
+import { openedTextPage } from './textPages'
 
 const capture = vi.hoisted(() => vi.fn())
 vi.mock('posthog-js', () => ({ posthog: { capture } }))

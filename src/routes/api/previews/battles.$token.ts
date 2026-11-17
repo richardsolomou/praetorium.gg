@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { battlePreview } from '../../../client/linkPreview'
+import { battlePreview } from '../../../client/battlePreview'
 import { app } from '../../../server/app'
 import { previewResponse } from '../../../server/previewImage'
 import { tokenSchema } from '../../../contracts/schemas'

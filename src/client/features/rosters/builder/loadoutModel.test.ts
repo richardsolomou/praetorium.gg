@@ -27,7 +27,7 @@ import {
   wholeSquadTakes,
   withDraftSpreadCounts,
 } from './loadoutModel'
-import { sameWargear } from '../../../../core/wargear'
+import { sameWargear } from '../../../../core/wargearNames'
 
 const option = (id: string, count: number, max: number) => ({ id, name: id, points: 0, count, min: 0, max })
 

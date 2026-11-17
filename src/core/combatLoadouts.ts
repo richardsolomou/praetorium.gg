@@ -23,7 +23,7 @@ import {
   type CombatOpponent,
 } from './combatScenario'
 import { weaponPhase } from './datasheetStructure'
-import { wargearKey } from './wargear'
+import { wargearKey } from './wargearNames'
 import { activeCombatRules, combatRuleDefences, combatRuleOptions, type CombatRule } from './combatRules'
 
 export type LoadoutOptimizationMode = 'combined' | CombatPhase

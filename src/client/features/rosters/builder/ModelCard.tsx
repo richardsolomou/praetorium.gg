@@ -28,7 +28,7 @@ import {
 import type { WeaponProfileData } from './loadoutModel'
 import { type OptionNote, PickControl, PoolStepper, WargearRow } from './LoadoutControls'
 import { loadedWords, useSourceTexts } from '../../../sourceText'
-import { sameWargear } from '../../../../core/wargear'
+import { sameWargear } from '../../../../core/wargearNames'
 
 /**
  * One kind of model in the unit, and everything it can carry.

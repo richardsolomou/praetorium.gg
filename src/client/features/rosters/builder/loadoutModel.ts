@@ -13,7 +13,7 @@ import {
   type ModelRow,
   type ModelRowSource,
 } from '../../../../core/modelKinds'
-import { sameWargear, wargearBaseName, wargearKey } from '../../../../core/wargear'
+import { sameWargear, wargearBaseName, wargearKey } from '../../../../core/wargearNames'
 
 /**
  * What the loadout pane is drawing, and the reasoning that does not need a screen.
