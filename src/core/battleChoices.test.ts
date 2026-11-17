@@ -114,8 +114,21 @@ describe('rules a player chooses between during the battle', () => {
     expect(battleChoiceSheet(sheet, active('Advance Stance')).profiles[1]!.values.at(-1)).toEqual({
       name: 'Keywords',
       value: 'Ignores Cover, Assault',
+      baseValue: 'Ignores Cover',
       modifiers: ['Battle Stances'],
     }))
+
+  it('keeps an ability something else added marked as added', () => {
+    const granted = datasheetFixture({
+      profiles: [
+        {
+          ...sheet.profiles[1]!,
+          values: [{ name: 'Keywords', value: 'Pistol, Ignores Cover', baseValue: 'Pistol', modifiers: ['Omnispex'] }],
+        },
+      ],
+    })
+    expect(battleChoiceSheet(granted, active('Advance Stance')).profiles[0]!.values[0]!.baseValue).toBe('Pistol')
+  })
 
   it('raises the unit’s Toughness', () =>
     expect(battleChoiceSheet(sheet, active('Advance Stance')).profiles[0]!.values[1]).toEqual({

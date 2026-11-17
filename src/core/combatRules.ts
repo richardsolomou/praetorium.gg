@@ -621,6 +621,7 @@ export function combatRuleProfiles(
             const next = {
               name: existing?.name ?? 'Keywords',
               value: [...held, keyword].join(', '),
+              baseValue: existing?.baseValue ?? existing?.value ?? '',
               modifiers: [...new Set([...(existing?.modifiers ?? []), rule.name])],
             }
             values = existing ? values.map((value) => (value === existing ? next : value)) : [...values, next]
