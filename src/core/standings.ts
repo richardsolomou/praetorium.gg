@@ -63,7 +63,7 @@ type StandingsTables<B extends StandingBattle = StandingBattle> = {
 export type BattleOutcome = 'won' | 'lost' | 'drawn'
 
 /** Concession takes precedence over score, and allies share their side’s result. */
-export function battleOutcome(battle: StandingBattle, side: number): BattleOutcome {
+export function battleOutcome(battle: Pick<StandingBattle, 'playerIds' | 'sides' | 'scores' | 'result'>, side: number): BattleOutcome {
   const conceded = battle.result?.concededBy
   const concededSide = conceded ? battle.sides[battle.playerIds.indexOf(conceded)] : undefined
   const totals = [...new Set(battle.sides)].map((index) => ({ index, total: sideScore(battle, index) }))
@@ -79,7 +79,7 @@ export function sideOutcome(sides: readonly { index: number; total: number }[], 
   return ours < theirs ? 'lost' : 'drawn'
 }
 
-export function sideScore(battle: StandingBattle, side: number) {
+export function sideScore(battle: Pick<StandingBattle, 'sides' | 'scores'>, side: number) {
   return battle.sides.reduce((total, seat, index) => (seat === side ? total + (battle.scores[index] ?? 0) : total), 0)
 }
 

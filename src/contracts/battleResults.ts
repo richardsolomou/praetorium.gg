@@ -25,6 +25,11 @@ export const battleResultSchema = z.object({
       .object({ catalogueId: z.string(), edition: catalogueEditionSummarySchema.pick({ id: true, name: true, status: true }).optional() })
       .nullable(),
   ),
+  /** The saved list each seat fielded and its name then, which tell a player's lists' play history. */
+  rosterIds: z.array(z.string().nullable()).optional(),
+  rosterNames: z.array(z.string().nullable()).optional(),
+  eventToken: z.string().nullable().optional(),
+  sealedEventToken: z.string().nullable().optional(),
 })
 export type BattleResult = z.infer<typeof battleResultSchema>
 
