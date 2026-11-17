@@ -12,7 +12,7 @@ The wand button next to the attacker's points (**Optimize**) searches the whole 
 
 It ranks shooting followed by melee. The arrow beside it offers **Optimize for ranged** and **Optimize for melee**.
 
-When two loadouts do equally well, it takes free optional wargear that replaces nothing, such as an icon or an extra weapon, rather than leave it off. It never spends points on a tie.
+When two loadouts do equally well, it takes free optional wargear that replaces nothing, such as an icon or an extra weapon, rather than leave it off. Otherwise it keeps your wargear as it was: a tie never drops wargear you chose or spends points.
 
 ![The attacker card with the Optimize menu open.](screenshot:compare-loadouts-optimize 'Optimize, with Optimize for ranged and Optimize for melee in the menu beside it')
 

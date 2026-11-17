@@ -35,6 +35,15 @@ const freeAdditions = (choices: UnitChoice[]) =>
   weaponChoices(choices)
     .flatMap((choice) => (choice.optional && choice.options.length === 1 ? choice.options : []))
     .reduce((total, option) => total + (option.points === 0 && option.profile === undefined ? option.count : 0), 0)
+/** Each weapon choice's taken options and counts, so loadouts compare by what is taken rather than how picks spell it. */
+const takenWargear = (choices: UnitChoice[]) =>
+  weaponChoices(choices).map((choice): [string, string] => [
+    choice.key,
+    choice.options
+      .filter((option) => option.count)
+      .map((option) => `${option.id}x${option.count}`)
+      .join(','),
+  ])
 const wargearPoints = (choices: UnitChoice[]) =>
   weaponChoices(choices)
     .flatMap((choice) => choice.options)
@@ -282,6 +291,9 @@ export async function* combatLoadoutCandidates(
       ],
       freeAdditions: built.reduce((total, unit) => total + freeAdditions(unit.choices), 0),
       wargearPoints: built.reduce((total, unit) => total + wargearPoints(unit.choices), 0),
+      wargear: Object.fromEntries(
+        built.flatMap((unit, at) => takenWargear(unit.choices).map(([choice, taken]) => [`${indexes[at]}:${choice}`, taken])),
+      ),
     }
     // Wargear the simulator cannot see leaves the equipment alike, so what it adds and costs keeps both loadouts.
     const equipmentKey = await digest(

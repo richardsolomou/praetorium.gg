@@ -39,6 +39,8 @@ import { combatantSnapshot, readRules, withReadRules } from '../shared/rosterGra
 import {
   applyOptimizedLoadout,
   compareLoadouts,
+  loadoutChanges,
+  type LoadoutCandidate,
   type LoadoutCandidates,
   type LoadoutOptimization,
   type LoadoutScoring,
@@ -752,6 +754,8 @@ export async function optimizeCombatLoadout(input: OptimizeLoadoutInput) {
   const signal = AbortSignal.timeout(OPTIMIZE_MS)
   const score = loadoutScorer(signal)
   let current: OptimizedLoadout | undefined
+  // The first search's first candidate is the unit's own loadout, which every tie is kept closest to.
+  let origin: LoadoutCandidate | undefined
   let best: OptimizedLoadout | undefined
   let checked = 0
   let sentFirst = false
@@ -782,6 +786,7 @@ export async function optimizeCombatLoadout(input: OptimizeLoadoutInput) {
         done = batch.done
         const read = batch.candidates.map((candidate) => ({
           ...candidate,
+          changes: loadoutChanges(candidate, (origin ??= candidate)),
           members: candidate.members.map((member) => ({ ...member, rules: readRules(member.rules, words) })),
         }))
         // The unit's own loadout is scored alone so it can be reported as current.
@@ -912,7 +917,7 @@ export function registerCombatTools(tools: AgentTools) {
     {
       title: 'Find the best loadout against a unit',
       description:
-        "Searches the attacking unit's legal wargear, with any attached leaders, for the loadout most likely to destroy the defender, then the most models destroyed, then the most wounds, then the most optional wargear that costs no points and replaces nothing, as the simulator's Optimize does. Takes the same sides as simulate_combat; the attacker's choices and spreads are where the search starts, and model counts, enhancements and detachment upgrades stay fixed. mode ranks shooting followed by melee (combined), or one phase. Returns best and current, each with every attacking unit's choices and spreads ready for a roster pick or simulate_combat (a group left out keeps its default), its wargear by name, the weapon modes it used, and its odds; better says whether best beats current, or ties it while adding free wargear. exhaustive is true only when every legal loadout was checked; otherwise notes say why a better one may exist. Loadouts with rules the simulator cannot estimate are left out and named in notes. Takes up to about 20 seconds.",
+        "Searches the attacking unit's legal wargear, with any attached leaders, for the loadout most likely to destroy the defender, then the most models destroyed, then the most wounds, then the most optional wargear that costs no points and replaces nothing, then the fewest choices changed from the start, as the simulator's Optimize does. Takes the same sides as simulate_combat; the attacker's choices and spreads are where the search starts, and model counts, enhancements and detachment upgrades stay fixed. mode ranks shooting followed by melee (combined), or one phase. Returns best and current, each with every attacking unit's choices and spreads ready for a roster pick or simulate_combat (a group left out keeps its default), its wargear by name, the weapon modes it used, and its odds; better says whether best beats current, or ties it while adding free wargear. exhaustive is true only when every legal loadout was checked; otherwise notes say why a better one may exist. Loadouts with rules the simulator cannot estimate are left out and named in notes. Takes up to about 20 seconds.",
       inputSchema: optimizeLoadoutInputSchema,
       annotations: READ_ONLY_TOOL,
     },

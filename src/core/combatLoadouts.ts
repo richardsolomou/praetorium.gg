@@ -59,6 +59,10 @@ export type LoadoutCandidate = {
   freeAdditions?: number
   /** What the members' wargear choices cost. */
   wargearPoints?: number
+  /** Each member's weapon choices as taken, keyed by pick index and choice, for `loadoutChanges`. */
+  wargear?: Record<string, string>
+  /** How many weapon choices differ from the loadout the player started from, which `compareLoadouts` keeps closest to. */
+  changes?: number
 }
 export type LoadoutCandidates = { candidates: LoadoutCandidate[] }
 /**
@@ -72,6 +76,7 @@ export type OptimizedLoadout = {
   result: CombatResult
   freeAdditions?: number
   wargearPoints?: number
+  changes?: number
 }
 /** The best of some candidates, and how many could not be estimated, with the first reason why. */
 export type LoadoutOptimization = { best?: OptimizedLoadout; skipped: number; reason?: string }
@@ -136,17 +141,26 @@ export function compareOutcomes(left: CombatResult, right: CombatResult) {
 /**
  * Positive when `left` is the better loadout: the better attack, then on a tie the one taking more free optional
  * wargear, since a free addition never costs the unit anything the ranking can see. Among loadouts taking the same free
- * wargear the cheaper wins, so a tie that moves off the starting loadout never spends points; other ties keep the first.
+ * wargear the one changing fewer choices from the start wins, so a tie never strips wargear the player chose, then the
+ * cheaper, so a tie that moves off the start never spends points; other ties keep the first.
  */
 export function compareLoadouts(left: RankedLoadout, right: RankedLoadout) {
   const free = left.freeAdditions ?? 0
   return (
     compareOutcomes(left.result, right.result) ||
     free - (right.freeAdditions ?? 0) ||
+    (right.changes ?? 0) - (left.changes ?? 0) ||
     (free ? (right.wargearPoints ?? 0) - (left.wargearPoints ?? 0) : 0)
   )
 }
-type RankedLoadout = Pick<OptimizedLoadout, 'result' | 'freeAdditions' | 'wargearPoints'>
+type RankedLoadout = Pick<OptimizedLoadout, 'result' | 'freeAdditions' | 'wargearPoints' | 'changes'>
+
+/** How many of the candidate's weapon choices differ from `start`'s, the loadout the search began from. */
+export function loadoutChanges(candidate: LoadoutCandidate, start: LoadoutCandidate) {
+  const before = start.wargear ?? {}
+  const after = candidate.wargear ?? {}
+  return [...new Set([...Object.keys(before), ...Object.keys(after)])].filter((key) => before[key] !== after[key]).length
+}
 
 /**
  * A weapon profile alone, on the `models` that carry it or on one model when none does. `best` marks the
@@ -451,6 +465,7 @@ export function optimizeLoadout(
             preferences,
             result,
             ...(candidate.freeAdditions ? { freeAdditions: candidate.freeAdditions, wargearPoints: candidate.wargearPoints ?? 0 } : {}),
+            ...(candidate.changes ? { changes: candidate.changes } : {}),
           },
           inputs: [inputs, meleeAfterLosses],
         }
