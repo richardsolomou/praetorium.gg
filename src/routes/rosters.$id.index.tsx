@@ -2,7 +2,6 @@ import { createFileRoute } from '@tanstack/react-router'
 import { DeviceRoster, GuestDraftRoster } from '../client/features/rosters/RosterRouteViews'
 import { RosterPage } from '../client/features/rosters/RosterPage'
 import { pageHead, previewImage } from '../client/linkPreview'
-import { loadRoster } from '../client/features/rosters/rosterRouteData'
 import { PageLoading } from '../client/components/PageState'
 import { requestedDatasheetSearch, useRequestedDatasheet } from '../client/features/rosters/requestedDatasheet'
 import { searchFlag, searchText } from '../client/searchParams'
@@ -24,8 +23,9 @@ export const Route = createFileRoute('/rosters/$id/')({
     ...(searchFlag(search.print) ? { print: true } : {}),
   }),
   loaderDeps: ({ search }) => ({ battle: search.battle, sealedEvent: search.sealedEvent, event: search.event }),
+  // Imported here rather than above, so its roster helpers load with this page instead of with every page.
   loader: async ({ context, params, deps, preload }) => ({
-    ...(await loadRoster(context.queryClient, params.id, deps, preload)),
+    ...(await (await import('../client/features/rosters/rosterRouteData')).loadRoster(context.queryClient, params.id, deps, preload)),
     // Read by the server too, so the first frame is already arranged the way the player left it.
     arrangement: keptRosterArrangement(requestCookie(ROSTER_ARRANGEMENT_COOKIE)),
   }),

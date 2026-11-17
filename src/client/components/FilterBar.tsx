@@ -16,7 +16,6 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { cn } from '@/lib/utils'
 import {
   facetActive,
-  LIST_FILTER_SCOPES,
   listPreferencesSchema,
   MAX_SAVED_VIEWS,
   PERIODS,
@@ -36,6 +35,7 @@ import { matchesSearch } from '../text'
 import { FactionMark } from './FactionMark'
 import { SearchField } from './SearchField'
 import type { SearchableGroup, SearchableOption } from './SearchableSelect'
+import { filterPreferencesKey } from './filterPreferences'
 import { DropdownMenuCheckboxItem, DropdownMenuItem, DropdownMenuLabel } from './Menu'
 
 export type FilterDimension = {
@@ -50,13 +50,6 @@ const SEARCHABLE_FROM = 8
 const SEARCH_SETTLE_MS = 250
 const PERIOD_LABEL: Record<Period, string> = { '7d': 'Last 7 days', '30d': 'Last 30 days', '90d': 'Last 90 days', '1y': 'Last year' }
 
-const preferencesKey = (scope: ListFilterScope) => `praetorium:filters:${scope}`
-
-/** Sign-out leaves them on the account; left here, they would upload into whoever signs in next. */
-export function forgetDeviceFilterPreferences() {
-  for (const scope of LIST_FILTER_SCOPES) writeStoredValue(preferencesKey(scope), null)
-}
-
 /**
  * What this player keeps in the bar and the views they saved, per list.
  *
@@ -64,7 +57,7 @@ export function forgetDeviceFilterPreferences() {
  * authority over it: its copy replaces this device's, and a list the account has never heard of takes this device's.
  */
 function usePreferences(scope: ListFilterScope) {
-  const key = preferencesKey(scope)
+  const key = filterPreferencesKey(scope)
   const stored = useStoredValue(key)
   const preferences: ListPreferences = parseStored(listPreferencesSchema, stored) ?? { pinned: null, views: [] }
   const queryClient = useQueryClient()

@@ -1,4 +1,4 @@
-import { forgetDeviceFilterPreferences } from '../../components/FilterBar'
+import { forgetDeviceFilterPreferences } from '../../components/filterPreferences'
 import { hasLocalChanges, stopLocalRuntime } from '../../offline/localRuntime'
 import { clearLocalState } from '../../offline/localStorage'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
