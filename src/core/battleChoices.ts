@@ -48,7 +48,9 @@ const unconditional = (effect: Effect) => !effect.condition && !effect.targetKey
 /** What `battleChoiceSheet` draws: a weapon's ability or characteristic, or one of the unit's. */
 const drawn = (effect: Effect) =>
   unconditional(effect) &&
-  (unitChanges(effect, '').length > 0 || (effect.role === 'attacker' && Boolean(effect.keyword || effect.characteristic)))
+  (unitChanges(effect, '').length > 0 ||
+    Boolean(effect.ability) ||
+    (effect.role === 'attacker' && Boolean(effect.keyword || effect.characteristic)))
 
 /**
  * Each rule with two or more named options a unit can be in, every option once under its own name. An option's condition,
@@ -117,10 +119,10 @@ export function battleChoiceActive({ options, together, limit, also }: BattleCho
   return labels.length ? battleChoiceEffects(options, labels) : undefined
 }
 
-/** The datasheet as the chosen options leave it: weapon abilities and characteristics, and the unit's Toughness. */
+/** The datasheet as the chosen options leave it: weapon abilities and characteristics, the unit's own, and abilities it gains. */
 export function battleChoiceSheet(sheet: Datasheet, active: readonly ActiveCombatRule[]): Datasheet {
   const changes = active.flatMap((rule) => rule.effects.flatMap((effect) => (unconditional(effect) ? unitChanges(effect, rule.name) : [])))
-  const armed = combatRuleProfiles(sheet, active, 'attacker')
+  const armed = withGainedAbilities(combatRuleProfiles(sheet, active, 'attacker'), active)
   if (!changes.length) return armed
   return {
     ...armed,
@@ -150,6 +152,29 @@ export function battleChoiceSheet(sheet: Datasheet, active: readonly ActiveComba
         : profile,
     ),
   }
+}
+
+function withGainedAbilities(sheet: Datasheet, active: readonly ActiveCombatRule[]): Datasheet {
+  const has = new Set(sheet.abilities.map(({ name }) => name.toLowerCase()))
+  const gained = uniqueBy(
+    active.flatMap((rule) =>
+      rule.effects.flatMap((effect) =>
+        effect.ability && unconditional(effect) && !has.has(effect.ability.toLowerCase())
+          ? [
+              {
+                id: `granted:${rule.name}:${effect.ability}`,
+                name: effect.ability,
+                source: rule.name,
+                description: null,
+                kind: 'core' as const,
+              },
+            ]
+          : [],
+      ),
+    ),
+    ({ name }) => name.toLowerCase(),
+  )
+  return gained.length ? { ...sheet, abilities: [...sheet.abilities, ...gained] } : sheet
 }
 
 type UnitChange = { kind: DatasheetCharacteristicKind; source: string } & ({ add: number } | { by: number; best: number })

@@ -954,7 +954,7 @@ describe('Haloscreed Battleclade rules', () => {
   it('offers the selected abilities that change an attack', () =>
     expect(combatRuleChoices(rule(noosphericTransference, { scope: 'detachment', keywords: kastelanRobots }))).toEqual([
       { label: 'Microactuator Bracing', effects: [{ role: 'defender', phases: ['ranged', 'melee'], toughness: 1 }] },
-      { label: 'Muted Servomotors', effects: [{ role: 'defender', phases: ['ranged'], options: { cover: true } }] },
+      { label: 'Muted Servomotors', effects: [{ role: 'defender', phases: ['ranged'], options: { cover: true }, ability: 'Stealth' }] },
     ]))
   it('reads protocols listed as dashes, as the catalogue prints them', () =>
     expect(
