@@ -7,7 +7,7 @@ description: Grade a Warhammer 40,000 army list with Praetorium, explain what it
 
 ## What the grade can and can't say
 
-The grades measure coverage: which jobs a list can do (board control, mobility, damage and durability), measured by the simulator at full strength with passive rules only. They don't measure how strong the list is.
+The grades measure coverage: which jobs a list can do (board control, mobility, damage and durability), measured by the simulator at full strength with passive rules only. Detachment rules are rarely passive, so grades rarely tell detachments apart. They don't measure how strong the list is.
 
 Praetorium checked them against tournament games where both lists were known:
 
@@ -50,7 +50,7 @@ When the player wants a better list, or you built it and it shows gaps:
 1. Pick the one or two gaps that matter most for what the list is for. A gap can be a deliberate trade-off, such as a melee list scoring low on deployment options; say so rather than fixing it.
 2. Find what frees points: a unit with no job and no other reason to be there, a costly unit that overlaps another's job, or an upgrade that doesn't help its unit's job.
 3. Propose one or two swaps, using only units and sizes `list_units` offers in the list's detachment, within the points the swap frees. Prefer a staple from `tournament.leftOut`, or more units for the same points, when one does the missing job.
-4. Test each swap on the job the gap names. For a damage gap, call `simulate_combat` with the new unit against that reference target, such as a Rhino or 20 Termagants. For the other categories, compare the rows' `detail`.
+4. Change one thing per comparison, so each result says what that one change did. Test each swap on the job the gap names. For a damage gap, call `simulate_combat` with the new unit against that reference target, such as a Rhino or 20 Termagants. For the other categories, compare the rows' `detail`.
 5. Call `check_roster` and `grade_roster` on the changed list. Show the score, gaps and changed rows before and after. Keep a swap only if it closes its gap without opening a worse one.
 
 Never predict a score; grade the changed list instead.
