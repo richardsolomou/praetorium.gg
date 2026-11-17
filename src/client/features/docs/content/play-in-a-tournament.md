@@ -29,7 +29,7 @@ Start a tournament battle from the tournament page against another entrant, and 
 
 Finished battles fill the results table, which counts the tournament's latest 500 battles.
 
-Once the rosters are out you can also make the original saved roster public with **Share your sealed roster?**, or decline.
+Once the rosters are out, you're asked whether to make the saved roster you sealed public. See [After you've played a list](/docs/copy-and-share#after-you-ve-played-a-list).
 
 ## Swiss rounds
 

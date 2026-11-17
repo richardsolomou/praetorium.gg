@@ -10,6 +10,10 @@ In the library, choose **Share…** in a roster's menu. Under **Who can open it*
 
 The **Build**/**View** switch in the header hides editing controls for reading at the table.
 
+### After you've played a list
+
+Once other players have seen a private or unlisted list, Praetorium offers to share it with **Share** and the list's name: after a finished battle, once a tournament's rosters are revealed, and after the reveal in your latest hidden-list game or a league's lists. **Make public** shares the saved list as it is now, including any changes since you played or sealed it, and your notes stay private. **No thanks** is remembered for that list, so nothing asks about it again. You can still make it public from **Share…** any time.
+
 ## Variants, copies and locking
 
 **Create variant** makes a copy grouped with this list. The variants icon in the header shows **Changes from** the base list and switches between variants. **Make its own roster**, or dragging the variant out of its card in the library, takes it out of the group. If the base leaves, the oldest remaining variant becomes the base.

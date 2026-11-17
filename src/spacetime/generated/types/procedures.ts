@@ -41,6 +41,7 @@ import * as CollectionProfileProcedure from '../collection_profile_procedure'
 import * as CollectionWishesByUserProcedure from '../collection_wishes_by_user_procedure'
 import * as CreateBattleProcedure from '../create_battle_procedure'
 import * as DatasheetPhotosProcedure from '../datasheet_photos_procedure'
+import * as DeclineRosterSharingProcedure from '../decline_roster_sharing_procedure'
 import * as DeleteBattleForOperatorProcedure from '../delete_battle_for_operator_procedure'
 import * as DeleteUnitLoadoutProcedure from '../delete_unit_loadout_procedure'
 import * as DiscoverRostersProcedure from '../discover_rosters_procedure'
@@ -215,6 +216,8 @@ export type CreateBattleArgs = __Infer<typeof CreateBattleProcedure.params>
 export type CreateBattleResult = __Infer<typeof CreateBattleProcedure.returnType>
 export type DatasheetPhotosArgs = __Infer<typeof DatasheetPhotosProcedure.params>
 export type DatasheetPhotosResult = __Infer<typeof DatasheetPhotosProcedure.returnType>
+export type DeclineRosterSharingArgs = __Infer<typeof DeclineRosterSharingProcedure.params>
+export type DeclineRosterSharingResult = __Infer<typeof DeclineRosterSharingProcedure.returnType>
 export type DeleteBattleForOperatorArgs = __Infer<typeof DeleteBattleForOperatorProcedure.params>
 export type DeleteBattleForOperatorResult = __Infer<typeof DeleteBattleForOperatorProcedure.returnType>
 export type DeleteUnitLoadoutArgs = __Infer<typeof DeleteUnitLoadoutProcedure.params>

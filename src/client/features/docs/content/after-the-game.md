@@ -12,6 +12,8 @@ Under the result of a battle between accounts, you see your record against your 
 
 If an account you played isn't your friend yet, you can add them, or accept their request, from there, so you can start battles with each other later.
 
+If the list you played is private or unlisted, you're asked whether to make it public. See [After you've played a list](/docs/copy-and-share#after-you-ve-played-a-list).
+
 ## The leaderboard
 
 The [leaderboard](/leaderboard) rates everyone on every guided battle they've finished. Until you've finished 5 battles counted in a table, you're listed as not yet ranked. A rating drifts down while you don't play.

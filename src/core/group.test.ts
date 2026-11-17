@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { hiddenListGamePastAt, hiddenListGameOpen } from './group'
+import { hiddenListGamePastAt, hiddenListGameOpen, latestHiddenListGameSealedBy } from './group'
 
 const at = Date.parse
 const game = { playsAt: null, revealedAt: null, supersededAt: null, timeZone: 'Asia/Nicosia' }
@@ -45,5 +45,21 @@ describe('a group game’s lifetime', () => {
   it('changes classification at the boundary', () => {
     const pastAt = at('2026-10-25T22:00:00Z')
     expect([hiddenListGameOpen({ pastAt }, pastAt - 1), hiddenListGameOpen({ pastAt }, pastAt)]).toEqual([true, false])
+  })
+})
+
+describe('the game that asks a player to share their list', () => {
+  const sealed = (token: string, revealedAt: number | null, userId = 'me') => ({ token, revealedAt, players: [{ userId, sealed: true }] })
+
+  it('is the most recently revealed game they sealed for', () => {
+    expect(latestHiddenListGameSealedBy([sealed('old', 1), sealed('new', 3), sealed('middle', 2)], 'me')?.token).toBe('new')
+  })
+
+  it('skips a newer game they sat out', () => {
+    expect(latestHiddenListGameSealedBy([sealed('mine', 1), sealed('theirs', 2, 'them')], 'me')?.token).toBe('mine')
+  })
+
+  it('skips a game not yet revealed', () => {
+    expect(latestHiddenListGameSealedBy([sealed('revealed', 1), sealed('sealing', null)], 'me')?.token).toBe('revealed')
   })
 })

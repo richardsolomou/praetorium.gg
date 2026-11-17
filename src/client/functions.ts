@@ -61,6 +61,7 @@ export {
   deleteUnitLoadout,
   setRosterLocked,
   setRosterArchived,
+  declineRosterSharing,
   splitRosterVariant,
   changeRosters,
   savedRosterLoadoutDatasheets,

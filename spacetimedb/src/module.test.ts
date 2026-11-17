@@ -280,10 +280,22 @@ describe('sharing a revealed sealed event roster', () => {
     expect(fixture.command('share-roster', { rosterId: 'other-copy' })).toBe('stale')
   })
 
-  it('persists dismissal on the account without changing roster visibility', () => {
+  /** An answer stored per event before answers moved onto the roster: a roster id for a publication, none for No thanks. */
+  const answeredBefore = (fixture: ReturnType<typeof setup>, rosterId?: string) =>
+    fixture.call(fixture.operator, (ctx) =>
+      ctx.db.sealedEventRosterSharing.insert({ key: '["event","entrant"]', eventId: 'event', userId: 'entrant', rosterId }),
+    )
+
+  it('keeps a No thanks on the roster without changing its visibility', () => {
     const fixture = setup()
     fixture.command('dismiss-roster-sharing')
-    expect(fixture.read()).toMatchObject({ prompt: false, roster: { visibility: 'private' } })
+    expect(fixture.test.db.rosters.id.find('saved')).toMatchObject({ sharingDeclined: true, visibility: 'private' })
+  })
+
+  it('stops asking in an event once the roster was declined elsewhere', () => {
+    const fixture = setup()
+    module.declineRosterSharing(fixture.procedure(fixture.operator), { id: 'saved', userId: 'entrant' })
+    expect(fixture.read()?.prompt).toBe(false)
   })
 
   it('still permits explicit publication after declining', () => {
@@ -292,16 +304,56 @@ describe('sharing a revealed sealed event roster', () => {
     expect(fixture.command('share-roster')).toMatchObject({ roster: { visibility: 'public' } })
   })
 
-  it('deletes sharing preferences with the account', () => {
+  it('records a No thanks without making it a new version of the roster', () => {
     const fixture = setup()
-    fixture.command('dismiss-roster-sharing')
+    const before = fixture.test.db.rosters.id.find('saved')!.updatedAt
+    module.declineRosterSharing(fixture.procedure(fixture.operator), { id: 'saved', userId: 'entrant' })
+    expect(fixture.test.db.rosters.id.find('saved')!.updatedAt).toBe(before)
+  })
+
+  it('refuses to decline sharing for another account’s roster', () => {
+    const fixture = setup()
+    expect(module.declineRosterSharing(fixture.procedure(fixture.operator), { id: 'saved', userId: 'other' })).toBe(false)
+  })
+
+  it('carries an earlier No thanks in an event onto the roster', () => {
+    const fixture = setup()
+    answeredBefore(fixture)
+    module.migrateProductData(fixture.procedure(fixture.operator), { table: 'rosters', keys: ['saved'] })
+    expect(fixture.test.db.rosters.id.find('saved')?.sharingDeclined).toBe(true)
+  })
+
+  it('carries an earlier publication since taken back over as an answer', () => {
+    const fixture = setup()
+    answeredBefore(fixture, 'saved')
+    module.migrateProductData(fixture.procedure(fixture.operator), { table: 'rosters', keys: ['saved'] })
+    expect(fixture.test.db.rosters.id.find('saved')?.sharingDeclined).toBe(true)
+  })
+
+  it('honours an earlier No thanks before the migration moves it', () => {
+    const fixture = setup()
+    answeredBefore(fixture)
+    expect(fixture.read()?.prompt).toBe(false)
+  })
+
+  it('does not carry another roster’s earlier answer over', () => {
+    const fixture = setup()
+    answeredBefore(fixture)
+    fixture.save('other-copy')
+    module.migrateProductData(fixture.procedure(fixture.operator), { table: 'rosters', keys: ['other-copy'] })
+    expect(fixture.test.db.rosters.id.find('other-copy')?.sharingDeclined).toBeUndefined()
+  })
+
+  it('deletes earlier event answers with the account', () => {
+    const fixture = setup()
+    answeredBefore(fixture)
     fixture.call(fixture.operator, (ctx) => module.deleteUserData(ctx, { userId: 'entrant' }))
     expect(fixture.test.db.sealedEventRosterSharing.count()).toBe(0n)
   })
 
-  it('deletes event sharing choices with the sealed event', () => {
+  it('deletes earlier event answers with the sealed event', () => {
     const fixture = setup()
-    fixture.command('dismiss-roster-sharing')
+    answeredBefore(fixture)
     fixture.command('delete', { ownerId: 'organizer' })
     expect(fixture.test.db.sealedEventRosterSharing.count()).toBe(0n)
   })

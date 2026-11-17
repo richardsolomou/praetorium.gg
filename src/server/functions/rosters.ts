@@ -532,6 +532,17 @@ export const setRosterLocked = createServerFn({ method: 'POST' })
     }),
   )
 
+export const declineRosterSharing = createServerFn({ method: 'POST' })
+  .validator(rosterIdSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const userId = await requireUserId()
+      await app().service.rosterService.declineRosterSharing(userId, data.id)
+      captureMutation(userId, 'roster_sharing_declined')
+      return null
+    }),
+  )
+
 export const setRosterArchived = createServerFn({ method: 'POST' })
   .validator(rosterArchiveSchema)
   .handler(({ data }) =>

@@ -88,6 +88,7 @@ export function guestRosterSummary(guest: GuestDraft) {
     baseRosterId: null,
     locked: false,
     archived: false,
+    sharingDeclined: false,
     visibility: 'private' as const,
     source: draft.source ?? 'editable',
     createdAt: updatedAt,

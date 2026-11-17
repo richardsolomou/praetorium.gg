@@ -2731,6 +2731,16 @@ export const importProductRows = spacetime.procedure({ table: t.string(), rows: 
   }),
 )
 
+/**
+ * Whether the owner answered an event's sharing prompt for this roster before answers moved onto the roster. Either
+ * answer counts: a list published there and since made private again was taken back on purpose.
+ */
+function answeredInSealedEvent(tx: Context, roster: StoredRoster) {
+  for (const answer of tx.db.sealedEventRosterSharing.userId.filter(roster.userId))
+    if (tx.db.sealedEventEntries.key.find(answer.key)?.rosterId === roster.id) return true
+  return false
+}
+
 export const migrateProductData = spacetime.procedure({ table: t.string(), keys: t.array(t.string()) }, t.string(), (ctx, input) =>
   operatorTx(ctx, (tx) => {
     const { table: entity, keys } = z
@@ -2742,7 +2752,11 @@ export const migrateProductData = spacetime.procedure({ table: t.string(), keys:
         const row = tx.db.rosters.id.find(key)
         if (!row) continue
         const stored = migrateStoredRoster(row)
-        const migrated = { ...stored, prep: adoptRosterReminders(tx, row.userId, stored.prep, row.updatedAt, 'migrate') }
+        const migrated = {
+          ...stored,
+          prep: adoptRosterReminders(tx, row.userId, stored.prep, row.updatedAt, 'migrate'),
+          sharingDeclined: row.sharingDeclined || answeredInSealedEvent(tx, row) || undefined,
+        }
         if (productJson(migrated) === productJson(row)) continue
         tx.db.rosters.id.update(migrated)
         touchProduct(tx, row.userId, 'rosters')
@@ -2857,6 +2871,7 @@ function rosterSummary(row: StoredRoster) {
     baseRosterId: row.baseRosterId,
     locked: row.locked,
     archived: row.archived,
+    sharingDeclined: row.sharingDeclined,
     visibility: row.visibility,
     source: row.source,
     createdAt: row.createdAt,
@@ -3037,6 +3052,7 @@ function saveRosterIn(tx: Context, input: ReturnType<typeof parseRoster>) {
     copiedFromRosterId: input.copiedFromRosterId ?? undefined,
     locked: false,
     archived: false,
+    sharingDeclined: undefined,
     ...fields,
   })
   touchProduct(tx, input.userId, 'rosters', 'onboarding')
@@ -3134,6 +3150,19 @@ export const setRosterArchived = spacetime.procedure(
   { id: t.string(), userId: t.string(), archived: t.bool(), now: t.u64() },
   t.bool(),
   (ctx, { id, userId, archived, now }) => operatorTx(ctx, (tx) => updateOwnedRoster(tx, id, userId, now, { archived })),
+)
+
+/** Records the owner's No thanks to making a roster public; it is not an edit, so the roster keeps its version. */
+export const declineRosterSharing = spacetime.procedure({ id: t.string(), userId: t.string() }, t.bool(), (ctx, { id, userId }) =>
+  operatorTx(ctx, (tx) => {
+    const current = ownedRoster(tx, id, userId)
+    if (!current) return false
+    if (!current.sharingDeclined) {
+      tx.db.rosters.id.update({ ...current, sharingDeclined: true })
+      touchProduct(tx, userId, 'rosters')
+    }
+    return true
+  }),
 )
 
 /**
@@ -4835,7 +4864,8 @@ function sealedEventRosterSharingState(tx: Context, event: SealedEventRow, userI
     roster,
     state: {
       submittedAt: safeNumber(entry.submittedAt),
-      prompt: !tx.db.sealedEventRosterSharing.key.find(key) && roster.visibility !== 'public',
+      // An earlier answer still in the event table counts until the deploy's migration has moved it onto the roster.
+      prompt: !roster.sharingDeclined && !answeredInSealedEvent(tx, roster) && roster.visibility !== 'public',
       roster: {
         id: roster.id,
         name: roster.name || entry.rosterName || 'Your saved roster',
@@ -6651,8 +6681,6 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
   if (operation === 'share-roster' || operation === 'dismiss-roster-sharing') {
     const current = sealedEventRosterSharingState(tx, event, ownerId)
     if (!current) return productJson('unavailable')
-    const key = current.entry.key
-    const previous = tx.db.sealedEventRosterSharing.key.find(key)
     if (operation === 'share-roster') {
       const input = sealedEventCommandInput(
         z.object({
@@ -6665,16 +6693,8 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
       if (current.state.submittedAt !== input.submittedAt || current.roster.id !== input.rosterId) return productJson('stale')
       if (current.roster.visibility !== 'public')
         updateOwnedRoster(tx, current.roster.id, ownerId, BigInt(input.now), { visibility: 'public' })
-    }
-    const row = {
-      key,
-      eventId: event.id,
-      userId: ownerId,
-      rosterId: operation === 'share-roster' ? current.roster.id : previous?.rosterId,
-    }
-    if (previous) tx.db.sealedEventRosterSharing.key.update(row)
-    else tx.db.sealedEventRosterSharing.insert(row)
-    touchProduct(tx, ownerId, 'sealed-events')
+    } else if (!current.roster.sharingDeclined) tx.db.rosters.id.update({ ...current.roster, sharingDeclined: true })
+    touchProduct(tx, ownerId, 'sealed-events', 'rosters')
     return productJson(sealedEventRosterSharingState(tx, event, ownerId)!.state)
   }
   if (operation === 'admit') {

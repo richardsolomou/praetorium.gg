@@ -351,7 +351,8 @@ function overlaySummaries(
       continue
     const roster = document.data as LocalRoster | null
     if (!roster) listed.delete(resource.slice(7))
-    else listed.set(roster.id, summaryFor(roster))
+    // The device keeps no answer to the sharing prompt, so the server's stays.
+    else listed.set(roster.id, { ...summaryFor(roster), sharingDeclined: listed.get(roster.id)?.sharingDeclined ?? false })
   }
   return [...listed.values()].sort((left, right) => right.updatedAt - left.updatedAt)
 }
@@ -500,6 +501,13 @@ export function setRosterArchived(args: Parameters<typeof server.setRosterArchiv
   return serverAcceptedRoster(args.data.id, 'archive or unarchive this roster', () => server.setRosterArchived(args), {
     archived: args.data.archived,
   })
+}
+
+/** Needs a connection: the device keeps no copy of the answer. */
+export function declineRosterSharing(
+  args: Parameters<typeof server.declineRosterSharing>[0],
+): ReturnType<typeof server.declineRosterSharing> {
+  return server.declineRosterSharing(args)
 }
 
 export function splitRosterVariant(args: Parameters<typeof server.splitRosterVariant>[0]): ReturnType<typeof server.splitRosterVariant> {

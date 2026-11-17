@@ -14,6 +14,7 @@ import { RevealedLists } from '../sealedEvents/SealedEventArmies'
 import { useSealList } from '../sealedEvents/SealList'
 import { SealedEventRuleFields } from '../sealedEvents/SealedEventRuleFields'
 import { useSealedEventRefresh } from '../sealedEvents/sealedEvent'
+import { SealedEventRosterSharing } from '../sealedEvents/SealedEventRosterSharing'
 import { memberNameOf, useGroupRefresh, type Group } from './group'
 import { SealingPlayer } from './SealingPlayer'
 
@@ -171,13 +172,18 @@ export function LeagueLists({ group, game, viewerId }: { group: Group; game: Lea
   const groups = useEntrantGroups(record ?? undefined, entries, (entry) => nameOf(entry.userId))
   if (!record) return null
   return (
-    <RevealedLists
-      token={game.token}
-      eventToken={game.token}
-      groups={groups}
-      viewerId={viewerId}
-      label={(entry) => nameOf(entry.userId)}
-      onSimulate={null}
-    />
+    <>
+      {viewerId && game.sealedIds.includes(viewerId) ? (
+        <SealedEventRosterSharing className="mb-3" token={game.token} eventToken={game.token} userId={viewerId} />
+      ) : null}
+      <RevealedLists
+        token={game.token}
+        eventToken={game.token}
+        groups={groups}
+        viewerId={viewerId}
+        label={(entry) => nameOf(entry.userId)}
+        onSimulate={null}
+      />
+    </>
   )
 }
