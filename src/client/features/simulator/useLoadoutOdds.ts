@@ -56,7 +56,7 @@ export function useLoadoutOdds({
     }
     const asking = worker
     workerAnswer<LoadoutOdds>(asking, { kind: 'loadouts', ...JSON.parse(request) } as LoadoutOddsRequest, {
-      timeoutMs: window.PraetoriumLoadoutDeadlineMs ?? 15_000,
+      timeoutMs: globalThis.window?.PraetoriumLoadoutDeadlineMs ?? 15_000,
       signal: controller.signal,
     })
       .then(
