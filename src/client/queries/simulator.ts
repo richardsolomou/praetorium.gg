@@ -2,6 +2,7 @@ import { queryOptions } from '@tanstack/react-query'
 import type { RosterPick } from '../../core/roster'
 import { combatantDatasheet, combatantDatasheets, combatLoadouts, combatUnits, recentMatchups } from '../functions'
 import { SSR_STALE_TIME } from './shared'
+import { type Fielded, fieldedRequest } from './rosters'
 import { combatUnitsKey, recentMatchupsKey } from './queryKeys'
 
 export const combatUnitsQuery = () => queryOptions({ queryKey: combatUnitsKey(), queryFn: () => combatUnits(), staleTime: Infinity })
@@ -16,13 +17,22 @@ export const combatantDatasheetQuery = (
   picks: readonly RosterPick[],
   pickIndex: number,
   inactivePicks: readonly number[] = [],
+  fielded: Fielded = false,
 ) =>
   queryOptions({
-    queryKey: ['combatant-datasheet', catalogueId, entryId, detachmentIds, picks, pickIndex, inactivePicks],
+    queryKey: ['combatant-datasheet', catalogueId, entryId, detachmentIds, picks, pickIndex, inactivePicks, fielded],
     queryFn: ({ signal }) =>
       combatantDatasheet({
         signal,
-        data: { catalogueId, entryId, detachmentIds: [...detachmentIds], picks: [...picks], pickIndex, inactivePicks: [...inactivePicks] },
+        data: {
+          catalogueId,
+          entryId,
+          detachmentIds: [...detachmentIds],
+          picks: [...picks],
+          pickIndex,
+          inactivePicks: [...inactivePicks],
+          ...fieldedRequest(fielded),
+        },
       }),
     enabled: Boolean(catalogueId && entryId),
     staleTime: Infinity,

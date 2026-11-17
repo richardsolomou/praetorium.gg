@@ -220,7 +220,7 @@ export const factionDatasheetsQuery = (catalogueId: string, query: string) =>
 /** A list a battle or sealed event froze, with when the battle took it where that is known. */
 export type Fielded = { at?: number } | false
 
-const fieldedRequest = (fielded: Fielded) => (fielded ? { fielded: true, fieldedAt: fielded.at } : {})
+export const fieldedRequest = (fielded: Fielded) => (fielded ? { fielded: true, fieldedAt: fielded.at } : {})
 
 export const datasheetQuery = (
   catalogueId: string,

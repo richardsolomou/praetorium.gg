@@ -5,7 +5,7 @@ import { calculateRosterPrice } from '../../shared/pricing'
 import { pickerUnitsFor, booksOffering } from '../../shared/pickerUnits'
 import { rosterDatasheetContext } from '../../shared/rosterDatasheetContext'
 import { rosterDatasheet, rosterLoadoutDatasheets } from '../../shared/rosterReads'
-import { rosterCombatant } from '../../shared/rosterCombatRules'
+import { datasheetCombatant } from '../../shared/rosterCombatRules'
 import { combatLoadoutSpace } from '../../shared/combatLoadouts'
 import { exportRosterFile, importRosterFile, importRosterExchange, pricedDispositionNames } from '../../shared/rosterFiles'
 import { ROSTER_EXCHANGE_RULES_UNAVAILABLE, type decodeRosterExchange } from '../../core/rosterExchange'
@@ -36,7 +36,7 @@ export const constructionReads = {
   loadoutDatasheets: ({ catalogue, rules }: Construction, data: Data<typeof server.loadoutDatasheets>) =>
     rosterLoadoutDatasheets(catalogue, datasheetSchema.parse(data), rules),
   combatantDatasheet: ({ catalogue, rules }: Construction, data: Data<typeof server.combatantDatasheet>) =>
-    rosterCombatant(catalogue, rules, { ...datasheetSchema.parse(data), inactivePicks: data.inactivePicks }),
+    datasheetCombatant(catalogue, rules, { ...datasheetSchema.parse(data), inactivePicks: data.inactivePicks }),
   combatantDatasheets: ({ catalogue, rules }: Construction, data: Data<typeof server.combatantDatasheets>) =>
     rosterCombatants(catalogue, rules, rosterCombatantsSchema.parse(data)),
   combatLoadouts: ({ catalogue }: Construction, data: Data<typeof server.combatLoadouts>) =>

@@ -241,6 +241,8 @@ export function ListBuilder({
   const pickerEnabled = workspaceMeasured && pickerOpen
 
   const savedId = initial.id
+  // An unsaved list has no id, so its in-battle picks belong to this open builder alone.
+  const draftId = useId()
 
   const setReadOnlyMode = (next: boolean) => {
     writeStoredValue(READ_ONLY_PREFERENCE, String(next))
@@ -610,6 +612,7 @@ export function ListBuilder({
   const datasheetCatalogueId = preview?.catalogueId ?? loadoutCatalogueId
   const loadout = (
     <Loadout
+      battleChoices={`roster:${savedId ?? draftId}`}
       catalogueId={loadoutCatalogueId}
       unit={optimisticUnit}
       loading={selectedUnitLoading}

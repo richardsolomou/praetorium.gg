@@ -21,6 +21,8 @@ import { keywordIdsBySelection, keywordNames } from '../core/evaluate'
 import { namespaceCarriers } from '../core/combatLoadouts'
 import { attachedProfilePrefix } from '../core/combatScenario'
 import { remember } from '../core/collections'
+import { WEAPON_ABILITY_KINDS } from '../core/combatKeywords'
+import { rulesNamed } from './catalogueRules'
 
 /**
  * What projections of one built roster can share: each unit's support abilities by its place in that roster, so share
@@ -31,6 +33,24 @@ type RosterProjectionCache = { supportSources: Map<number, ReturnType<typeof dat
 export const rosterProjectionCache = (): RosterProjectionCache => ({ supportSources: new Map() })
 
 type Projection = NonNullable<ReturnType<typeof rosterDatasheetContext>> & RosterProjectionCache
+
+const weaponAbilityRulesByCatalogue = new WeakMap<LoadedCatalogue, ReturnType<typeof rulesNamed>>()
+
+/**
+ * One unit's combatant for its datasheet: a rule's option can give a weapon ability its weapons lack, so every weapon
+ * ability's rule comes with it.
+ */
+export function datasheetCombatant(
+  ...[loaded, ...rest]: Parameters<typeof rosterCombatant>
+): (NonNullable<ReturnType<typeof rosterCombatant>> & { weaponAbilityRules?: ReturnType<typeof rulesNamed> }) | null {
+  const combatant = rosterCombatant(loaded, ...rest)
+  return (
+    combatant && {
+      ...combatant,
+      weaponAbilityRules: remember(weaponAbilityRulesByCatalogue, loaded, () => rulesNamed(loaded, WEAPON_ABILITY_KINDS)),
+    }
+  )
+}
 
 export function rosterCombatant(
   loaded: LoadedCatalogue,

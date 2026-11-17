@@ -14,7 +14,7 @@ import { type GlobalSearchResult, searchEverything } from '../globalSearch'
 import { mutationRpc, rpc } from '../rpc'
 import { OWN_SEARCH_BATTLES, ownSearchLists, type OwnSearchData } from '../../core/referenceSearch'
 import { rosterDatasheetContext } from '../../shared/rosterDatasheetContext'
-import { rosterCombatant } from '../../shared/rosterCombatRules'
+import { datasheetCombatant } from '../../shared/rosterCombatRules'
 import { combatLoadoutSpace } from '../../shared/combatLoadouts'
 import { currentUserId, forSignedIn } from '../playerSession'
 import { preparePicker } from '../rosterPicker'
@@ -180,7 +180,7 @@ export const combatantDatasheet = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const loaded = await app().catalogueFor(data.catalogueId)
-      return loaded ? rosterCombatant(loaded, await app().rulesFor(data.catalogueId), data) : null
+      return loaded ? datasheetCombatant(loaded, await app().rulesFor(data.catalogueId), data) : null
     }),
   )
 
