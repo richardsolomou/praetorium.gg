@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.261.4 (2026-11-17)
+
+### Patch Changes
+
+- 37e6f1f: A roster unit's datasheet now shows each model profile its leader or specialist changes, such as both the Kabalite Warriors and the Sybarite, instead of only one of them.
+- 37e6f1f: Combat simulation and roster grades now keep a Subductor Squad's 4+ invulnerable save on its Arbites when only the Cyber-mastiff lacks it, and give an Imperial Navy Breachers squad's heavy-shotgun model the invulnerable save of its endurant shield.
+
 ## 0.261.3 (2026-11-17)
 
 ### Patch Changes
