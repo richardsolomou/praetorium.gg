@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { Datasheet } from '../contracts/catalogue'
 import { combatWeapons } from './combatProfiles'
 import {
+  activeCombatRules,
   combatRuleChoices,
   combatRuleAppliesTo,
   combatRuleRecipient,
@@ -804,4 +805,44 @@ describe('Aspect Shrine tokens', () => {
   it('leaves CHARACTER models out', () => {
     expect(spent({ ...weapons(), keywords: ['Infantry', 'Character'] }, 0)).toBeUndefined()
   })
+})
+
+describe('a rule that makes two options of another active together', () => {
+  const stances = rule(
+    'At the start of the battle round, you can select one of the Stances below. Until the end of the battle round, that Stance is active for your army, and all units from your army that have the Stances ability gain the relevant abilities shown below.\nGUARD STANCE\n■ Improve the Ballistic Skill characteristic of ranged weapons equipped by models in this unit by 1.\nSTRIKE STANCE\n■ Improve the Weapon Skill characteristic of melee weapons equipped by models in this unit by 1.\n■ Each time a model in this unit makes an attack, if this unit is within range of an objective marker, add 1 to the Wound roll.',
+    { name: 'Stances' },
+  )
+  const grant = rule("The Guard Stance and Strike Stance are both active for the bearer's unit.", { name: 'Grant', scope: 'attached' })
+  const stanceEffects = (choices: Record<string, number>) =>
+    activeCombatRules([stances, grant], choices).find((active) => active.name === 'Stances')?.effects
+  const guard = { role: 'attacker', phases: ['ranged'], characteristic: { kind: 'ballistic-skill', add: -1 } }
+  const strike = { role: 'attacker', phases: ['melee'], characteristic: { kind: 'weapon-skill', add: -1 } }
+
+  it('applies both while the round selects neither', () => expect(stanceEffects({})).toEqual([guard, strike]))
+
+  it('applies both under the condition the selected option states', () =>
+    expect(stanceEffects({ 'Source:Stances': 3 })).toEqual([
+      guard,
+      strike,
+      { role: 'attacker', phases: ['ranged', 'melee'], options: { woundModifier: 1 } },
+    ]))
+})
+
+it('leaves a weapon keyword the catalogue already gives under the name the rule is credited to', () => {
+  const sheet = weapons()
+  const projected = {
+    ...sheet,
+    profiles: sheet.profiles.map((profile) => ({
+      ...profile,
+      values: profile.values.map((value) =>
+        value.name === 'Keywords' ? { ...value, value: 'Sustained Hits 1: non-Vehicle', modifiers: ['Upgrade'] } : value,
+      ),
+    })),
+  }
+  const grant = {
+    name: 'Grant',
+    appliedAs: ['Upgrade'],
+    effects: [{ role: 'attacker' as const, phases: ['ranged' as const], keyword: 'Sustained Hits 1', excludedTargetKeywords: ['Vehicle'] }],
+  }
+  expect(combatRuleProfiles(projected, [grant], 'attacker').profiles[0]!.values.at(-1)!.value).toBe('Sustained Hits 1: non-Vehicle')
 })

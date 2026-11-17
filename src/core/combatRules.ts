@@ -37,6 +37,8 @@ export type CombatRule = {
   appliedAs?: string[]
   models?: number
   keywords?: readonly string[]
+  /** The keywords only some of the unit's models have, which `keywords` also lists. */
+  partialKeywords?: readonly string[]
   /** What a rule published as a token is judged against once a device loads its words. */
   judge?: CombatRuleJudge
   /** What the rule's words decide for this placement, recorded where a token stands for them. */
@@ -105,6 +107,8 @@ export type CombatRuleEffect = {
   mortalWounds?: NonNullable<CombatInput['mortalWounds']>[number] & { perModel?: boolean; sacrifice?: number }
   damageReroll?: 'ones' | 'any'
   damageReduction?: number
+  /** Options of the unit's other rules this makes active together, as an enhancement that makes two Doctrina Imperatives active. */
+  activates?: string[]
 }
 export type CombatRuleChoice = { label: string; effects: CombatRuleEffect[] }
 /** `source` names the unit whose ability it is, so a combined estimate can end it when that unit is destroyed (19.04). */
@@ -117,16 +121,42 @@ export const combatRuleProjected = (rule: Pick<ActiveCombatRule, 'name' | 'appli
 export const combatRuleKey = (rule: CombatRule) => `${rule.source}:${rule.name}`
 
 export function activeCombatRules(rules: readonly CombatRule[], choices: Readonly<Record<string, number>>) {
+  const chosen = rules.map((rule) => ({
+    rule,
+    options: combatRuleChoices(rule),
+    at: (choices[combatRuleKey(rule)] ?? combatRuleDefault(rule)) - 1,
+  }))
+  const together = [
+    ...new Set(
+      chosen.flatMap(({ options, at }) => options[at]?.effects.flatMap((effect) => effect.activates ?? []) ?? []).map(combatTextKey),
+    ),
+  ]
   return [
     ...new Map(
-      rules.flatMap((rule) => {
-        const choice = combatRuleChoices(rule)[(choices[combatRuleKey(rule)] ?? combatRuleDefault(rule)) - 1]
-        return choice
-          ? [[rule.name, { name: rule.name, source: rule.source, appliedAs: rule.appliedAs, effects: choice.effects }] as const]
-          : []
+      chosen.flatMap(({ rule, options, at }) => {
+        const effects = (together.length ? effectsTogether(options, at, together) : undefined) ?? options[at]?.effects
+        return effects ? [[rule.name, { name: rule.name, source: rule.source, appliedAs: rule.appliedAs, effects }] as const] : []
       }),
     ).values(),
   ]
+}
+
+/**
+ * Every named option of a rule at once, each under the condition its chosen option states, or undefined where the rule
+ * lacks one of them. The round's choice no longer matters once both Doctrina Imperatives are active for a unit.
+ */
+function effectsTogether(options: readonly CombatRuleChoice[], at: number, names: readonly string[]) {
+  const parts = options.map((choice) => {
+    const [head, ...condition] = choice.label.split(' · ')
+    return { choice, head: combatTextKey(head!), condition: condition.join(' · ') }
+  })
+  const condition = parts[at] && names.includes(parts[at].head) ? parts[at].condition : ''
+  const picked = names.map(
+    (name) =>
+      parts.find((part) => part.head === name && part.condition === condition) ??
+      parts.find((part) => part.head === name && !part.condition),
+  )
+  return picked.every(Boolean) ? picked.flatMap((part) => part!.choice.effects) : undefined
 }
 
 /** A defence another attached member shares that the roster already counts in this unit's characteristics, so no estimate can remove it. */
@@ -332,22 +362,37 @@ export function combatRuleRoles(description: string): CombatRuleEffect['role'][]
     /(?:a model (?:in|with)|this model|the bearer|this unit|model from your army)[^.;]*?makes? (?:a ranged |a melee |a psychic |a |an )attack|model from your army targets|weapons? equipped|(?:this|that|your) unit(?:'s)?[^.;]*?(?:attacks?[^.;]*?have|weapons? have)|(?:this unit['’]s|friendly (?:(?!attacking|enemy)[^.;])*?(?:units?|models)['’]s?) (?:ranged |melee |\[psychic\] )?(?:attacks|weapons)|(?:friendly [^.;]*?units?|unit from your army) (?:is|are) selected to (?:fight|shoot)|re-roll (?:one |the )?(?:hit|wound|damage) rolls?|change the result of one (?:hit|wound) roll|critical hit|lethal hits|sustained hits|devastating wounds|ignores cover|twin-linked|\+[1-9]\s*A\b/i.test(
       attackingText,
     )
+  // Wording the compiler cannot read still names a roll or characteristic of the unit's own attacks, so it is reported rather than dropped.
+  const ownAttacks = attackingText.replace(
+    /[^.;]*?\b(?:is allocated to|saving throw|made against|the attacking (?:model|unit)|an enemy unit is within|targets? (?:(?:this|that|your|the bearer's) (?:unit|model)|the bearer|this model|a model in (?:this|that|your) unit|friendly|an? [^.;]*?unit from your army))[^.;]*/gi,
+    '',
+  )
+  const attackTerms =
+    /\b(?:hit|wound) rolls?\b|makes? an? psychic attack|\b(?:attacks|strength|armour penetration|damage|ballistic skill|weapon skill)(?: characteristics?)? of (?:[^.;]*?\bweapons\b|(?:the bearer's|this model's|this unit's|its) )|\+[1-9]\s*(?:WS|BS|S|AP|D)\b/i.test(
+      ownAttacks,
+    )
+  // An attack the unit makes is not one made against it, unless it is aimed at this unit.
   const incoming = text.replace(
-    /(?:a model|this model|the bearer|this unit|model from your army)[^.;]*?makes? (?:a ranged |a melee |a psychic |a |an )attack[^,.;]*/gi,
+    /(?:a model|this model|the bearer|this unit|model from your army)[^.;]*?makes? (?:a ranged |a melee |a psychic |a |an )attack(?! (?:that )?targets? (?:(?:this|your|the bearer's) (?:unit|model)\b(?!['’]s)|the bearer\b))[^,.;]*/gi,
     '',
   )
   const defending =
-    /(?:attack|attacks) (?:that )?(?:targets?|is allocated to) (?:(?:this|that|your) (?:unit|model)|the bearer|a model)|saving throw|invulnerable|feel no pain|(?:has|have|add|improve)[^.;]*?(?:toughness|save characteristic|wounds characteristic)|damage characteristic of (?:that|the) attack|stealth|benefit of cover/i.test(
+    /(?:attack|attacks) (?:that )?(?:targets?|is allocated to|(?:is |are )?made against) (?:(?:this|that|your) (?:unit|model)|the bearer|a model)|saving throw|invulnerable|feel no pain|(?:has|have|add|improve)[^.;]*?(?:toughness|save characteristic|wounds characteristic)|damage characteristic of (?:that|the) attack|stealth|benefit of cover/i.test(
       incoming,
     )
   const enemyWeapons =
     /(?:weapons? equipped by|attacks? made by) (?:models in )?(?:that enemy|enemy|the attacking) unit|enemy unit [^.;]*?each time a model in that unit makes/i.test(
       text,
     )
-  const attacker = (offensiveTarget && (attacking || defending || /mortal wounds/i.test(text))) || (attacking && !enemyWeapons)
+  // A state other rules ask for, as both Doctrina Imperatives or being wholly within the Flow of Magic, can change how a unit attacks and is attacked.
+  const activates = /\bare both active for\b|\b(?:it|this unit|that unit) is wholly within your army['’]s\b/i.test(text)
+  const attacker =
+    activates ||
+    (offensiveTarget && (attacking || defending || /mortal wounds/i.test(text))) ||
+    ((attacking || attackTerms) && !enemyWeapons)
   // Names the side's own units outright, so an offensive clause elsewhere in the rule cannot make it the enemy's.
   const ownDefending = /attacks? (?:that )?targets? (?:friendly|an? [^.;]*?unit from your army)/i.test(incoming)
-  const defender = enemyWeapons || ownDefending || (defending && !offensiveTarget)
+  const defender = activates || enemyWeapons || ownDefending || (defending && !offensiveTarget)
   return [...(attacker ? ['attacker' as const] : []), ...(defender ? ['defender' as const] : [])]
 }
 
@@ -527,6 +572,8 @@ export function combatRuleProfiles(
           if (effect.keyword) {
             const keyword = effect.keyword
             const existing = values.find((value) => datasheetCharacteristicKind(value.name) === 'keywords')
+            const printed = profile.values.find((value) => datasheetCharacteristicKind(value.name) === 'keywords')
+            if (effectRole === role && combatRuleProjected(rule, printed?.modifiers)) continue
             const held = splitWeaponKeywords(existing?.value)
             const numbered = combatKeyword(keyword)
             if (held.some((value) => combatTextKey(value) === combatTextKey(keyword))) continue

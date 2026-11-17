@@ -52,6 +52,8 @@ Rules that re-roll one hit or wound roll, such as the Adeptus Custodes **Magna I
 
 Rules that re-roll any Damage roll, such as Fire Dragons' **Assured Destruction**, re-roll only when a fresh roll is expected to take more wounds off the model the attack is allocated to. A roll that already destroys that model is kept.
 
+An enhancement or ability that makes both **Doctrina Imperatives** active, such as **Cognitive Reinforcement**, applies the Protector and Conqueror Imperatives together. The option you pick under **Doctrina Imperatives** then only says whether the conditions they state are met.
+
 **Voice of Command** on an Astra Militarum unit picks the Order it's under. Check that an officer who can issue that Order to the unit is in range.
 
 **Aspect Shrine Token** appears once an Aeldari Aspect Warrior unit's loadout takes a token. Pick the phase and whether it changes a hit or a wound roll. It changes the first failed roll of that kind made by a model that isn't a **CHARACTER** to an unmodified 6, spending one token in that phase. It can't be combined with a **Command Re-roll** or another single re-roll in the same phase.

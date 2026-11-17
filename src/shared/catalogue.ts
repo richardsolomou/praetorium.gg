@@ -252,7 +252,7 @@ export function datasheetIn(loaded: LoadedCatalogue, catalogueId: string, entryI
 /** Support effects need selected abilities, without weapon stats or reference relationships. */
 export function datasheetAbilitiesIn(loaded: LoadedCatalogue, catalogueId: string, entryId: string, context: DatasheetContext) {
   const walked = walk(loaded, catalogueId, entryId, context, true)
-  return walked ? { name: walked.name, abilities: walked.abilities, keywords: walked.keywords } : null
+  return walked ? { name: walked.name, abilities: walked.abilities, enhancements: walked.enhancements, keywords: walked.keywords } : null
 }
 
 function assemble(loaded: LoadedCatalogue, catalogueId: string, entryId: string, walked: Walked | null): Datasheet | null {
@@ -271,6 +271,7 @@ function assemble(loaded: LoadedCatalogue, catalogueId: string, entryId: string,
     ...(walked.modelKeywords.length ? { modelKeywords: walked.modelKeywords } : {}),
     profiles: walked.profiles,
     abilities: walked.abilities,
+    ...(walked.enhancements.length ? { enhancements: walked.enhancements } : {}),
     composition: details?.composition ?? [],
     ...(details?.modelCount ? { modelCount: details.modelCount } : {}),
     loadout: details?.loadout ?? null,
@@ -369,9 +370,10 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
   }
   const profiles = new Map<string, { profile: Profile; lineage: string[]; owner: string[] }>()
   const abilities = new Map<string, Datasheet['abilities'][number]>()
+  const enhancements = new Map<string, Datasheet['abilities'][number]>()
   const keywordRules = new Map<string, Datasheet['keywordRules'][number]>()
   const visited = new Set<string>()
-  const addProfile = (profile: Profile, kind: AbilityKind, lineage: string[], owner: string[], source?: string) => {
+  const addProfile = (profile: Profile, kind: AbilityKind, lineage: string[], owner: string[], source?: string, into = abilities) => {
     if (profile.typeName === 'Abilities' && profile.name) {
       const profileLineage = [...lineage, profile.id]
       const hidden = modifiedProfileField(
@@ -383,7 +385,7 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
         modifiers,
       ).value
       if (hidden === 'true') return
-      abilities.set(`${kind}:${profile.id}`, { id: profile.id, name: profile.name, source, description: profileDescription(profile), kind })
+      into.set(`${kind}:${profile.id}`, { id: profile.id, name: profile.name, source, description: profileDescription(profile), kind })
     } else if (!abilitiesOnly) {
       profiles.set(profile.id, { profile, lineage, owner })
     }
@@ -496,7 +498,7 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
   // reach through a shared group of shared weapons the walk above does not enter.
   // `unitChoices` alone decides what is offered, so its options are the ones drawn:
   // every option's weapons, and the abilities only of the wargear the unit holds. An
-  // enhancement's prose is shown with the choice itself, so it is not an ability too.
+  // enhancement's prose is shown with the choice itself, so its abilities are kept apart for the simulator.
   const visitOption = (node: Selection, ancestors: string[], withAbilities: boolean) => {
     const definition = loaded.index.definitions.get(node.id)
     if (!definition) return
@@ -508,6 +510,17 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
       if (visited.has(source.id)) continue
       visited.add(source.id)
       addProfiles(source, lineage, 'wargear', false, !chosen || !withAbilities)
+      if (chosen && !withAbilities)
+        source.profiles?.forEach((profile) =>
+          addProfile(
+            profile,
+            'upgrade',
+            lineage,
+            definitionTokens(source),
+            source.name !== profile.name ? source.name : undefined,
+            enhancements,
+          ),
+        )
     }
     node.selections?.forEach((child) => visitOption(child, lineage, withAbilities))
   }
@@ -614,6 +627,7 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
     catalogueOptions,
     profiles: uniqueProfiles(displayProfiles),
     abilities: uniqueAbilities([...abilities.values(), ...grantedAbilities]),
+    enhancements: [...enhancements.values()],
     keywordRules: [...keywordRules.values()],
   }
 }

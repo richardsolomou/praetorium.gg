@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { compileCombatRule } from './combatRuleCompiler'
-import { combatDamageStateSelections, combatRuleAppliesTo, combatRuleChoices, combatRuleDefault, type CombatRule } from './combatRules'
+import {
+  combatDamageStateSelections,
+  combatRuleAppliesTo,
+  combatRuleChoices,
+  combatRuleDefault,
+  combatRuleRoles,
+  type CombatRule,
+} from './combatRules'
 
 const rule = (description: string, extra: Partial<CombatRule> = {}): CombatRule => ({
   id: 'buff',
@@ -771,4 +778,80 @@ describe('shorthand transcriptions', () => {
         keywords: ['Lychguard'],
       }),
     ).toEqual(['Active']))
+})
+
+describe('wordings a rule gives a whole army or a keyword', () => {
+  const melee = (kind: 'strength' | 'armour-penetration', add: number) => ({
+    role: 'attacker',
+    phases: ['melee'],
+    characteristic: { kind, add },
+  })
+
+  it('reads an ability granted to the army, used after a charge, past the limits on what it may target', () =>
+    expect(
+      combatRuleChoices(
+        rule(
+          '**HOST** units from your army have the following ability:\n\n**Grand Entrance:** Each time this unit is selected to fight, if this unit made a Charge move this turn, it can use this ability. If it does, until the end of the phase:\n\n■ This unit cannot target a unit it was within Engagement Range of at the start of the turn.\n■ Improve the Strength and Armour Penetration characteristics of this unit’s melee weapons by 1.',
+          { scope: 'detachment', keywords: ['Host'] },
+        ),
+      ),
+    ).toEqual([{ label: 'Charged this turn · Ability activated', effects: [melee('strength', 1), melee('armour-penetration', -1)] }]))
+
+  const wardens = (extra: Partial<CombatRule>) =>
+    compileCombatRule(
+      rule('While the bearer is leading a unit, each time a **WARDEN** model in that unit makes an attack, add 1 to the Hit roll.', {
+        scope: 'attached',
+        models: 10,
+        ...extra,
+      }),
+    )
+
+  it('gives a bonus for models with a keyword to a unit whose every model has it', () =>
+    expect(wardens({ keywords: ['Warden'] })).toEqual({
+      choices: [{ label: 'Active', effects: [{ role: 'attacker', phases: ['ranged', 'melee'], options: { hitModifier: 1 } }] }],
+      defaultChoice: 1,
+    }))
+
+  it.each([
+    ['only some of whose models have the keyword', { keywords: ['Warden'], partialKeywords: ['Warden'] }],
+    ['that names its models without the keyword', { keywords: ['Herald'] }],
+  ])('refuses a bonus for models with a keyword in a unit %s', (_, extra) => expect(wardens(extra)).toBeNull())
+
+  it("adds Attacks only to the bearer's ranged weapons with a keyword", () =>
+    expect(effects('Add 3 to the Attacks characteristic of ranged Psychic weapons equipped by the bearer.')).toEqual([
+      [{ role: 'attacker', phases: ['ranged'], requiresWeaponKeyword: 'Psychic', characteristic: { kind: 'attacks', add: 3 } }],
+    ]))
+
+  it('ignores the modifiers a list names', () =>
+    expect(effects('Your unit can ignore modifiers to your unit’s:\n\n- BS.\n- <b>Hit rolls</b> and <b>wound rolls</b>.')).toEqual([
+      [
+        {
+          role: 'attacker',
+          phases: ['ranged', 'melee'],
+          ignoreSkillModifiers: true,
+          ignoreHitModifiers: true,
+          ignoreWoundModifiers: true,
+        },
+      ],
+    ]))
+
+  it.each([
+    ['puts a unit in a state other rules ask for', 'While the bearer’s unit is on the battlefield, it is wholly within your army’s Veil.'],
+    [
+      'changes the rolls of attacks it cannot calculate',
+      'Each time a **HOST** model from your army makes a Psychic Attack, re-roll a Wound roll of 1.',
+    ],
+  ])('reports a rule that %s', (_, description) => expect(combatRuleRoles(description)).toContain('attacker'))
+
+  it.each([
+    ['an attack aimed at it', 'Each time a model makes an attack that targets this model, subtract 1 from the Hit roll.'],
+    [
+      'an attack allocated to it',
+      'Each time an attack with a Damage characteristic of 1 is allocated to a **WARDEN** model from your army, add 1 to any armour saving throw made against that attack.',
+    ],
+    [
+      'a failed saving throw',
+      'Once per turn, the first time a saving throw is failed for the bearer, change the Damage characteristic of that attack to 0.',
+    ],
+  ])('reads %s as a defence alone', (_, description) => expect(combatRuleRoles(description)).toEqual(['defender']))
 })

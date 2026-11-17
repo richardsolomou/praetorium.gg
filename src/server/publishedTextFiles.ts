@@ -1,12 +1,10 @@
-import { transformed } from '../shared/datacards'
-import { resolvedText } from '../core/sourceText'
 import type { ScannableTextLocations } from './referenceCorpus'
 import { readCatalogueComposition } from './catalogueComposition'
 import { catalogueDirectory } from './catalogueIndex'
 import { memoUntilSnapshotChanges } from './snapshotMemo'
-import { recordIdsIn, stringsByHash, textFileId, textFileIdsIn, textFilesFrom, textRecordsSteps, textSourcePaths } from './sourceTexts'
+import { recordIdsIn, snapshotWords, textFileIdsIn, textFilesFrom, textRecordsSteps, textSourcePaths } from './sourceTexts'
 import { completeStepsCooperatively } from './canonicalCatalogue'
-import { RecentlyUsed, remember } from '../core/collections'
+import { remember } from '../core/collections'
 import { completeSteps } from '../shared/steps'
 
 const located = () =>
@@ -43,33 +41,8 @@ export const publishedTextFiles = async () => (await located()).files
 /** Those files, and which records each holds, for answers that point agents at withheld text. */
 export const publishedTextLocations = located
 
-// A calculation reads a faction's file or two; holding every file read would keep the whole snapshot's words.
-const HELD_FILES = 8
-
 /**
  * The words behind a text's tokens, read from the active snapshot so the server can calculate from them,
  * or null when a token names no string it holds. What is calculated may leave the server; the words never do.
  */
-export const serverWords = () =>
-  memoUntilSnapshotChanges('text-words', null, async () => {
-    const directory = catalogueDirectory()
-    const files = new Map(textSourcePaths(directory, readCatalogueComposition(directory)).map((file) => [textFileId(file.url), file.path]))
-    const held = new RecentlyUsed<string, ReadonlyMap<string, string>>(HELD_FILES)
-    const stringsIn = (file: string) => remember(held, file, () => stringsByHash(file))
-    return (text: string): string | null => {
-      let complete = true
-      const words = resolvedText(
-        text,
-        ({ file, transform, hash }) => {
-          const found = files.get(file)
-          const raw = found === undefined ? undefined : stringsIn(found).get(hash)
-          return raw === undefined ? null : transformed(raw, transform)
-        },
-        () => {
-          complete = false
-          return ''
-        },
-      )
-      return complete ? words : null
-    }
-  })
+export const serverWords = () => memoUntilSnapshotChanges('text-words', null, async () => snapshotWords(catalogueDirectory()))
