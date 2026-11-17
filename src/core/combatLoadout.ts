@@ -1,5 +1,5 @@
 import { groupBy } from './collections'
-import { definitionAndTarget, type CatalogueIndex, type Definition, type Profile, resolve } from './catalogue'
+import { definitionAndTarget, linkedProfile, type CatalogueIndex, type Definition, type Profile, resolve } from './catalogue'
 import type { StructuredDatasheetProfile } from './datasheet'
 import { fieldedCount, isCollectiveGroup } from './collective'
 import { datasheetProfileKind, weaponPhase } from './datasheetStructure'
@@ -63,7 +63,7 @@ function definitionProfiles(definition: Definition, index: CatalogueIndex): Prof
     source.profiles?.forEach(add)
     for (const link of source.infoLinks ?? []) {
       const shared = index.shared.get(link.targetId)
-      if (shared && 'typeName' in shared) add({ ...shared, name: link.name ?? shared.name })
+      if (shared && 'typeName' in shared) add(linkedProfile(link, shared))
     }
   }
   return [...found.values()]
