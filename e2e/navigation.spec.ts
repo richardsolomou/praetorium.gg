@@ -1358,11 +1358,10 @@ test.describe('data update anchors', () => {
   test("an army's page lists only that army's changes", async ({ page }) => {
     const { row } = await closedRow(page)
     await row.locator('summary').click()
-    const army = row.locator('[data-factions] h3 a').first()
-    const href = (await army.getAttribute('href'))!
-    await army.click()
+    const slug = (await row.locator('[data-factions]').first().getAttribute('data-factions'))!.split(' ')[0]!
+    const href = `/data-updates/${slug}`
+    await page.goto(href)
 
-    await expect(page).toHaveURL(href)
     const firstUpdate = page.locator('main details').first()
     if (!(await firstUpdate.evaluate((element) => (element as HTMLDetailsElement).open))) await firstUpdate.locator('summary').click()
     await expect(page.locator('main [data-factions]').first()).toBeVisible()

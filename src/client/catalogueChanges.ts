@@ -58,7 +58,9 @@ export function changeSection(change: CatalogueChange): ChangeSection {
 
 export const CHANGE_OUTCOMES = ['repriced', 'removed', 'added'] as const
 
-export const changeOutcome = (change: CatalogueChange): (typeof CHANGE_OUTCOMES)[number] =>
+export type ChangeOutcome = (typeof CHANGE_OUTCOMES)[number]
+
+export const changeOutcome = (change: CatalogueChange): ChangeOutcome =>
   change.kind.endsWith('-added') ? 'added' : change.kind.endsWith('-removed') ? 'removed' : 'repriced'
 
 /** Past this many parts a tally counts by section alone, so it stays one line. */
