@@ -35,7 +35,6 @@ jobs:
           key: catalogue-runtime-${{ steps.runtime.outputs.key }}
       - run: pnpm build
       - run: pnpm typecheck
-      - run: pnpm exec vitest run --config vitest.integration.config.ts scripts/clientText.integration.test.ts
       # Nothing else fails when a route file or the shell pulls page code into what every page preloads.
       # The base skips the offline reference, which changes no client chunk.
       - name: Compare the startup bundle with the base

@@ -12,13 +12,6 @@ on:
       runners:
         type: string
         required: true
-      specs:
-        type: string
-        required: true
-      coverage:
-        description: Record the coverage map that pull requests choose specs from
-        type: boolean
-        required: true
 
 permissions:
   contents: read
@@ -45,8 +38,6 @@ jobs:
         env:
           E2E_SHARD: ${{ matrix.runner }}
           E2E_RUNNERS: ${{ inputs.runner-count }}
-          E2E_SPECS: ${{ inputs.specs != 'all' && inputs.specs || '' }}
-          E2E_COVERAGE_DIR: ${{ inputs.coverage && format('{0}/e2e-coverage', runner.temp) || '' }}
           SPACETIME_BIN: ${{ steps.stack.outputs.spacetime-bin }}
           PLAYWRIGHT_STARTUP_REPORT: e2e-startup-${{ matrix.runner }}.json
         run: |
@@ -64,13 +55,6 @@ jobs:
             echo 'Browser-test startup (seconds):' >> "$GITHUB_STEP_SUMMARY"
             cat "e2e-startup-${{ matrix.runner }}.json" >> "$GITHUB_STEP_SUMMARY"
           fi
-      - if: inputs.coverage
-        uses: actions/upload-artifact@v7
-        with:
-          name: e2e-coverage-${{ matrix.runner }}
-          path: ${{ runner.temp }}/e2e-coverage
-          retention-days: 2
-          if-no-files-found: error
       # `just e2e-durations <run id>` rebalances the runners from these reports.
       - if: success() || failure()
         uses: actions/upload-artifact@v7
@@ -89,24 +73,3 @@ jobs:
             test-results
             test-results-*
           retention-days: 7
-
-  e2e-map:
-    if: inputs.coverage
-    needs: [e2e-shard]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: richardsolomou/ras-stack/actions/setup-js@v1
-      - uses: actions/download-artifact@v8
-        with:
-          name: browser-test-build
-          path: data-dev/e2e-build
-      - uses: actions/download-artifact@v8
-        with:
-          pattern: e2e-coverage-*
-          path: e2e-coverage
-      - run: pnpm exec tsx scripts/e2eMap.ts data-dev/e2e-build "$GITHUB_SHA" e2e-map.json e2e-coverage/*
-      - uses: actions/cache/save@v6
-        with:
-          path: e2e-map.json
-          key: e2e-map-${{ github.sha }}
