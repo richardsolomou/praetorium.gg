@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.261.5 (2026-11-17)
+
+### Patch Changes
+
+- f0988d3: Imported lists that leave out an optional default, such as a Battle Sisters Squad's special or heavy weapon Sister with nothing chosen, now open and save instead of failing.
+- f0988d3: Imported lists with a title longer than 80 characters now open and save, with the title cut to fit, instead of failing.
+
 ## 0.261.4 (2026-11-17)
 
 ### Patch Changes
