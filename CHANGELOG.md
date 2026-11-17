@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.264.2 (2026-11-17)
+
+### Patch Changes
+
+- 282e0f4: [rosters] Picking an in-battle option that gives a unit Stealth, such as Muted Servomotors, now lists Stealth among the unit's core abilities.
+- cec481a: [rosters] Picking an in-battle option, such as a Doctrina Imperative, no longer hides which weapon abilities wargear like an Omnispex added.
+- cec481a: [rosters] Weapon abilities gained from an in-battle pick, such as a Doctrina Imperative, are now highlighted like other added abilities.
+
 ## 0.264.1 (2026-11-17)
 
 ### Patch Changes
