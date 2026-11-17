@@ -141,6 +141,12 @@ class VerifySpacetimeBackupTest(unittest.TestCase):
     def test_fresh_verified_pair_reaches_restore(self):
         self.assertIn("restore-started", self.verify_manifest(self.manifest()).stderr)
 
+    def test_gzip_pair_reaches_restore(self):
+        manifest = self.manifest()
+        for kind in ("data", "identity"):
+            manifest[kind]["key"] += ".gz"
+        self.assertIn("restore-started", self.verify_manifest(manifest).stderr)
+
     def test_restore_runs_the_production_server_image(self):
         self.assertIn(
             " clockworklabs/spacetime:v2.14.0 start ",

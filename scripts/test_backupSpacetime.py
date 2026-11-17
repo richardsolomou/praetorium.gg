@@ -1,4 +1,5 @@
 import dataclasses
+import datetime
 import os
 import subprocess
 import tarfile
@@ -7,7 +8,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from backupSpacetime import BackupConfig, archive, publish, resume, run_command
+from backupSpacetime import BackupConfig, archive, publish, prunable_archives, resume, run_command
 
 CONFIG = BackupConfig(
     "spacetime-production",
@@ -150,10 +151,10 @@ class PublishTest(unittest.TestCase):
             if upload:
                 events.append("upload " + upload.name)
                 if upload.name != "latest.json":
-                    kind = upload.stem
+                    kind = upload.name.split(".", 1)[0]
                     self.assertRegex(
                         key,
-                        rf"^spacetime-production/backups/{kind}/spacetime-{kind}-[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}T[0-9]{{2}}-[0-9]{{2}}-[0-9]{{2}}-[0-9]{{3}}Z[.]tar$",
+                        rf"^spacetime-production/backups/{kind}/spacetime-{kind}-[0-9]{{4}}-[0-9]{{2}}-[0-9]{{2}}T[0-9]{{2}}-[0-9]{{2}}-[0-9]{{2}}-[0-9]{{3}}Z[.]tar[.]gz$",
                     )
                 if upload.name == upload_failure:
                     raise subprocess.CalledProcessError(22, ["curl"])
@@ -178,8 +179,8 @@ class PublishTest(unittest.TestCase):
             "backupSpacetime.request", side_effect=request
         ):
             work = Path(directory)
-            (work / "data.tar").write_bytes(b"data archive")
-            (work / "identity.tar").write_bytes(b"identity archive")
+            (work / "data.tar.gz").write_bytes(b"data archive")
+            (work / "identity.tar.gz").write_bytes(b"identity archive")
             try:
                 publish(CONFIG, work)
             except Exception as caught:
@@ -192,9 +193,9 @@ class PublishTest(unittest.TestCase):
             (
                 None,
                 [
-                    "upload identity.tar",
+                    "upload identity.tar.gz",
                     "readback identity",
-                    "upload data.tar",
+                    "upload data.tar.gz",
                     "readback data",
                     "upload latest.json",
                 ],
@@ -207,9 +208,9 @@ class PublishTest(unittest.TestCase):
             (
                 RuntimeError,
                 [
-                    "upload identity.tar",
+                    "upload identity.tar.gz",
                     "readback identity",
-                    "upload data.tar",
+                    "upload data.tar.gz",
                     "readback data",
                 ],
             ),
@@ -217,25 +218,29 @@ class PublishTest(unittest.TestCase):
 
     def test_failed_second_upload_does_not_publish_pair(self):
         self.assertEqual(
-            self.exercise(upload_failure="data.tar"),
+            self.exercise(upload_failure="data.tar.gz"),
             (
                 subprocess.CalledProcessError,
-                ["upload identity.tar", "readback identity", "upload data.tar"],
+                ["upload identity.tar.gz", "readback identity", "upload data.tar.gz"],
             ),
         )
 
-    def test_retention_deletes_only_the_oldest_matching_archive(self):
+    def test_retention_does_not_delete_other_volumes(self):
         prefix = "spacetime-production/backups/data/"
-        oldest = prefix + "spacetime-data-2026-09-01T00-00-00-000Z.tar"
-        keys = [oldest] + [
-            prefix + f"spacetime-data-2026-09-02T00-00-{second:02d}-000Z.tar"
-            for second in range(56)
-        ]
-        keys += [prefix + "other-volume-2020-01-01T00-00-00-000Z.tar"]
-        error, events = self.exercise(listing_keys=keys)
+        oldest = prefix + "spacetime-data-2020-09-01T00-00-00.000Z.tar"
+        error, events = self.exercise(
+            listing_keys=[
+                oldest,
+                oldest.replace("/data/spacetime-data-", "/identity/spacetime-identity-"),
+                prefix + "other-volume-2020-01-01T00-00-00-000Z.tar",
+            ]
+        )
         self.assertEqual(
             (error, [event for event in events if event.startswith("delete ")]),
-            (None, ["delete " + oldest]),
+            (None, [
+                "delete " + oldest,
+                "delete " + oldest.replace("/data/spacetime-data-", "/identity/spacetime-identity-"),
+            ]),
         )
 
     def test_truncated_retention_listing_fails_without_deleting_archives(self):
@@ -244,13 +249,84 @@ class PublishTest(unittest.TestCase):
             (
                 RuntimeError,
                 [
-                    "upload identity.tar",
+                    "upload identity.tar.gz",
                     "readback identity",
-                    "upload data.tar",
+                    "upload data.tar.gz",
                     "readback data",
                     "upload latest.json",
                 ],
             ),
+        )
+
+
+class RetentionTest(unittest.TestCase):
+    now = datetime.datetime(2026, 11, 17, 12, tzinfo=datetime.timezone.utc)
+    prefix = "spacetime-production/backups/data/"
+
+    def key(self, hours_ago, suffix=".tar.gz", separator="-"):
+        stamp = (self.now - datetime.timedelta(hours=hours_ago)).strftime(
+            "%Y-%m-%dT%H-%M-%S"
+        )
+        return f"{self.prefix}spacetime-data-{stamp}{separator}000Z{suffix}"
+
+    def prunable(self, *keys):
+        paired = [
+            key.replace("/data/spacetime-data-", "/identity/spacetime-identity-")
+            for key in keys
+        ]
+        return [
+            key for key in prunable_archives([*keys, *paired], CONFIG, self.now)
+            if "/data/" in key
+        ]
+
+    def test_partial_upload_does_not_displace_a_complete_pair(self):
+        data = self.key(72)
+        identity = data.replace("/data/spacetime-data-", "/identity/spacetime-identity-")
+        orphan = self.key(66).replace("/data/spacetime-data-", "/identity/spacetime-identity-")
+        self.assertEqual(prunable_archives([data, identity, orphan], CONFIG, self.now), [])
+
+    def test_keeps_every_six_hour_snapshot_for_two_days(self):
+        self.assertEqual(self.prunable(*(self.key(hour) for hour in range(0, 48, 6))), [])
+
+    def test_keeps_only_the_newest_snapshot_per_day_through_day_fourteen(self):
+        self.assertEqual(self.prunable(self.key(73), self.key(72)), [self.key(73)])
+
+    def test_keeps_daily_snapshots_even_when_they_share_a_week(self):
+        self.assertEqual(self.prunable(self.key(72), self.key(96)), [])
+
+    def test_keeps_only_the_newest_snapshot_per_utc_week_after_two_weeks(self):
+        self.assertEqual(
+            self.prunable(self.key(16 * 24), self.key(17 * 24), self.key(23 * 24)),
+            [self.key(17 * 24)],
+        )
+
+    def test_expires_archives_at_six_weeks(self):
+        self.assertEqual(self.prunable(self.key(42 * 24)), [self.key(42 * 24)])
+
+    def test_keeps_future_archives(self):
+        self.assertEqual(self.prunable(self.key(-6)), [])
+
+    def test_two_day_cutoff_starts_daily_retention(self):
+        self.assertEqual(self.prunable(self.key(48), self.key(49)), [self.key(49)])
+
+    def test_fourteen_day_cutoff_starts_weekly_retention(self):
+        self.assertEqual(self.prunable(self.key(14 * 24), self.key(15 * 24)), [self.key(15 * 24)])
+
+    def test_counts_gzip_and_uncompressed_archives_in_one_policy(self):
+        raw = self.key(73, suffix=".tar")
+        self.assertEqual(self.prunable(raw, self.key(72)), [raw])
+
+    def test_prunes_legacy_dotted_millisecond_archives(self):
+        legacy = self.key(45 * 24, suffix=".tar", separator=".")
+        self.assertEqual(self.prunable(legacy), [legacy])
+
+    def test_ignores_foreign_or_incomplete_keys(self):
+        self.assertEqual(
+            self.prunable(
+                self.key(45 * 24) + ".partial",
+                self.key(45 * 24).replace("spacetime-data-", "other-volume-"),
+            ),
+            [],
         )
 
 
@@ -329,7 +405,7 @@ class CopyIntegrationTest(unittest.TestCase):
                 "backupSpacetime.subprocess.run", side_effect=execute
             ):
                 archive(CONFIG, work)
-            with tarfile.open(work / "data.tar") as copied:
+            with tarfile.open(work / "data.tar.gz", "r:gz") as copied:
                 return copied.getnames(), compared
 
     @staticmethod
@@ -399,7 +475,7 @@ class CopyIntegrationTest(unittest.TestCase):
                 "backupSpacetime.subprocess.run", side_effect=execute
             ):
                 archive(CONFIG, work)
-            with tarfile.open(work / "data.tar") as copied:
+            with tarfile.open(work / "data.tar.gz", "r:gz") as copied:
                 self.assertEqual(copied.extractfile("./value").read(), b"after!")
 
 
