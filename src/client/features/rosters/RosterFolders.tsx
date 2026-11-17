@@ -411,24 +411,26 @@ export function FolderTiles({
   matchesOnly?: boolean
   actions: FolderActions
 }) {
+  const tiles = childFolders(folders, parentId)
+    .map((folder) => {
+      const inside = folderAndInside(folders, folder.id)
+      return { folder, held: rosters.filter((roster) => inside.has(filedIn(roster) ?? '')) }
+    })
+    .filter(({ held }) => !matchesOnly || held.length)
+  if (!tiles.length && !onNew) return null
   return (
     <div className="grid grid-cols-2 gap-x-3 gap-y-4 pt-1.5 sm:grid-cols-3">
-      {childFolders(folders, parentId).map((folder) => {
-        const inside = folderAndInside(folders, folder.id)
-        const held = rosters.filter((roster) => inside.has(filedIn(roster) ?? ''))
-        if (matchesOnly && !held.length) return null
-        return (
-          <FolderTile
-            key={folder.id}
-            folder={folder}
-            folders={childFolders(folders, folder.id).length}
-            rosters={held}
-            factionOf={factionOf}
-            onDrop={(item) => onDrop(item, folder.id)}
-            actions={actions}
-          />
-        )
-      })}
+      {tiles.map(({ folder, held }) => (
+        <FolderTile
+          key={folder.id}
+          folder={folder}
+          folders={childFolders(folders, folder.id).length}
+          rosters={held}
+          factionOf={factionOf}
+          onDrop={(item) => onDrop(item, folder.id)}
+          actions={actions}
+        />
+      ))}
       {onNew ? (
         <button
           type="button"

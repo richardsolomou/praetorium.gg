@@ -619,131 +619,137 @@ export function RosterLibraryPage({
               allSelected={selectable.length > 0 && selectable.every((id) => selectedIds.has(id))}
             />
           ) : null}
-          {me && !libraryPending && !libraryError && (folder || folders.folders.length) ? (
-            <div className="mt-3 mb-6 space-y-4">
-              {folder ? <FolderBreadcrumb folder={folder} folders={folders.folders} onDrop={dropInto} actions={folderMenu} /> : null}
-              {subfolders.length ? (
-                <FolderTiles
-                  folders={folders.folders}
-                  parentId={folder?.id ?? null}
-                  rosters={tileRosters}
-                  filedIn={filedIn}
-                  factionOf={(catalogueId) => available?.factions.find((faction) => faction.id === catalogueId)}
-                  onDrop={dropInto}
-                  onNew={canNest && !filtering ? () => setNaming('new') : undefined}
-                  matchesOnly={filtering}
-                  actions={folderMenu}
-                />
-              ) : null}
-            </div>
-          ) : null}
-          <div className="mt-2 space-y-3">
-            {libraryError ? (
-              <PageState
-                headingLevel={2}
-                title="Could not load rosters"
-                explanation="The roster library could not be loaded. Try again."
-                action={
-                  <Button
-                    variant="outline"
-                    onClick={() => void Promise.all([savedResult.refetch(), availableResult.refetch()])}
-                    disabled={savedResult.isFetching || availableResult.isFetching}
-                  >
-                    Try again
-                  </Button>
-                }
-              />
-            ) : libraryPending ? (
-              <div className="grid grid-cols-[minmax(0,1fr)] gap-3">
-                <output className="sr-only">Loading your rosters…</output>
-                <RosterLibrarySkeleton rows={unfiltered ? rows : DEFAULT_ROSTER_ROWS} />
+          {/* Only areas that render take part in the gap, so an empty folder or roster area leaves no space behind. */}
+          <div className="mt-2 flex flex-col gap-6">
+            {me && !libraryPending && !libraryError && (folder || folders.folders.length) ? (
+              <div className="space-y-4 empty:hidden">
+                {folder ? <FolderBreadcrumb folder={folder} folders={folders.folders} onDrop={dropInto} actions={folderMenu} /> : null}
+                {subfolders.length ? (
+                  <FolderTiles
+                    folders={folders.folders}
+                    parentId={folder?.id ?? null}
+                    rosters={tileRosters}
+                    filedIn={filedIn}
+                    factionOf={(catalogueId) => available?.factions.find((faction) => faction.id === catalogueId)}
+                    onDrop={dropInto}
+                    onNew={canNest && !filtering ? () => setNaming('new') : undefined}
+                    matchesOnly={filtering}
+                    actions={folderMenu}
+                  />
+                ) : null}
               </div>
-            ) : active.length ? (
-              <>
-                {groupPage ? (
-                  <div className="space-y-6">
-                    {groupPage.shown.map(({ group, total }) => (
-                      <Collapsible
-                        key={group.key}
-                        render={<section />}
-                        open={!isCollapsed(group.key)}
-                        onOpenChange={(open) => setCollapsed((current) => toggled(current, `${selectedGrouping} ${group.key}`, !open))}
-                      >
-                        <h3>
-                          <CollapsibleTrigger className="group eyebrow flex w-full items-baseline gap-3 pb-2 text-left hover:text-bone">
-                            <span className="mr-auto">{group.label}</span>
-                            <span className="readout">{total}</span>
-                            <ChevronDown className="size-4 self-center transition-transform group-data-panel-open:rotate-180" aria-hidden />
-                          </CollapsibleTrigger>
-                        </h3>
-                        <CollapsibleContent>
-                          <div className="grid grid-cols-[minmax(0,1fr)] gap-3">
-                            {groups.filter((card) => runOf.get(card.head.roster) === group.key).map(renderCard)}
-                          </div>
-                        </CollapsibleContent>
-                      </Collapsible>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-[minmax(0,1fr)] gap-3">{groups.map(renderCard)}</div>
-                )}
-                {pageResults.some((result) => result.isError) || guestRow.failed ? (
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      if (guestRow.failed) guestRow.retry()
-                      void Promise.all(pageResults.filter((result) => result.isError).map((result) => result.refetch()))
-                    }}
-                  >
-                    Retry roster points and legality
-                  </Button>
-                ) : null}
-                {more ? (
-                  <Button
-                    variant="outline"
-                    disabled={pageResults.some((result) => !result.isSuccess)}
-                    onClick={() => setPage({ key: pageKey, visibleCount: visibleCount + ROSTER_LIBRARY_BATCH_SIZE })}
-                  >
-                    Show more rosters
-                  </Button>
-                ) : null}
-              </>
-            ) : saved.length && !filtering && (folder || folders.folders.length) && !(folder && subfolders.length) ? (
-              <p className="rounded-xl border border-dashed border-edge px-4 py-6 text-center text-sm text-dim">
-                {folder
-                  ? archived.length
-                    ? 'Every roster in this folder is archived. Archived rosters are listed below.'
-                    : 'This folder is empty. Drag a roster onto it, or choose Move to folder in a roster’s menu.'
-                  : 'Every roster is in a folder.'}
-              </p>
-            ) : matchedBelow ? null : saved.length ? (
-              <NoFilterMatches>
-                {archived.length ? 'Every roster here is archived. Archived rosters are listed below.' : 'No rosters match these filters'}
-              </NoFilterMatches>
-            ) : (
-              <PageState
-                headingLevel={2}
-                title="No rosters yet"
-                explanation="Build one from your faction's datasheets, or bring in a list you already made in another app."
-                icon={ScrollText}
-                action={
-                  <div className="grid w-full gap-4 sm:grid-cols-2">
-                    <div className="grid justify-items-center gap-2">
-                      <Link to="/rosters/new" className={buttonClass({ className: 'w-full' })}>
-                        <Plus /> Build a roster
-                      </Link>
-                      <p className="text-xs text-faint">Pick a faction, then add units</p>
+            ) : null}
+            <div className="space-y-3 empty:hidden">
+              {libraryError ? (
+                <PageState
+                  headingLevel={2}
+                  title="Could not load rosters"
+                  explanation="The roster library could not be loaded. Try again."
+                  action={
+                    <Button
+                      variant="outline"
+                      onClick={() => void Promise.all([savedResult.refetch(), availableResult.refetch()])}
+                      disabled={savedResult.isFetching || availableResult.isFetching}
+                    >
+                      Try again
+                    </Button>
+                  }
+                />
+              ) : libraryPending ? (
+                <div className="grid grid-cols-[minmax(0,1fr)] gap-3">
+                  <output className="sr-only">Loading your rosters…</output>
+                  <RosterLibrarySkeleton rows={unfiltered ? rows : DEFAULT_ROSTER_ROWS} />
+                </div>
+              ) : active.length ? (
+                <>
+                  {groupPage ? (
+                    <div className="space-y-6">
+                      {groupPage.shown.map(({ group, total }) => (
+                        <Collapsible
+                          key={group.key}
+                          render={<section />}
+                          open={!isCollapsed(group.key)}
+                          onOpenChange={(open) => setCollapsed((current) => toggled(current, `${selectedGrouping} ${group.key}`, !open))}
+                        >
+                          <h3>
+                            <CollapsibleTrigger className="group eyebrow flex w-full items-baseline gap-3 pb-2 text-left hover:text-bone">
+                              <span className="mr-auto">{group.label}</span>
+                              <span className="readout">{total}</span>
+                              <ChevronDown
+                                className="size-4 self-center transition-transform group-data-panel-open:rotate-180"
+                                aria-hidden
+                              />
+                            </CollapsibleTrigger>
+                          </h3>
+                          <CollapsibleContent>
+                            <div className="grid grid-cols-[minmax(0,1fr)] gap-3">
+                              {groups.filter((card) => runOf.get(card.head.roster) === group.key).map(renderCard)}
+                            </div>
+                          </CollapsibleContent>
+                        </Collapsible>
+                      ))}
                     </div>
-                    <div className="grid justify-items-center gap-2">
-                      <Button variant="outline" className="w-full" onClick={() => importer.current?.show()}>
-                        <FileUp /> Import a list
-                      </Button>
-                      <p className="text-xs text-faint">From the official app or New Recruit</p>
+                  ) : (
+                    <div className="grid grid-cols-[minmax(0,1fr)] gap-3">{groups.map(renderCard)}</div>
+                  )}
+                  {pageResults.some((result) => result.isError) || guestRow.failed ? (
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        if (guestRow.failed) guestRow.retry()
+                        void Promise.all(pageResults.filter((result) => result.isError).map((result) => result.refetch()))
+                      }}
+                    >
+                      Retry roster points and legality
+                    </Button>
+                  ) : null}
+                  {more ? (
+                    <Button
+                      variant="outline"
+                      disabled={pageResults.some((result) => !result.isSuccess)}
+                      onClick={() => setPage({ key: pageKey, visibleCount: visibleCount + ROSTER_LIBRARY_BATCH_SIZE })}
+                    >
+                      Show more rosters
+                    </Button>
+                  ) : null}
+                </>
+              ) : saved.length && !filtering && (folder || folders.folders.length) && !(folder && subfolders.length) ? (
+                <p className="rounded-xl border border-dashed border-edge px-4 py-6 text-center text-sm text-dim">
+                  {folder
+                    ? archived.length
+                      ? 'Every roster in this folder is archived. Archived rosters are listed below.'
+                      : 'This folder is empty. Drag a roster onto it, or choose Move to folder in a roster’s menu.'
+                    : 'Every roster is in a folder.'}
+                </p>
+              ) : matchedBelow ? null : saved.length ? (
+                <NoFilterMatches>
+                  {archived.length ? 'Every roster here is archived. Archived rosters are listed below.' : 'No rosters match these filters'}
+                </NoFilterMatches>
+              ) : (
+                <PageState
+                  headingLevel={2}
+                  title="No rosters yet"
+                  explanation="Build one from your faction's datasheets, or bring in a list you already made in another app."
+                  icon={ScrollText}
+                  action={
+                    <div className="grid w-full gap-4 sm:grid-cols-2">
+                      <div className="grid justify-items-center gap-2">
+                        <Link to="/rosters/new" className={buttonClass({ className: 'w-full' })}>
+                          <Plus /> Build a roster
+                        </Link>
+                        <p className="text-xs text-faint">Pick a faction, then add units</p>
+                      </div>
+                      <div className="grid justify-items-center gap-2">
+                        <Button variant="outline" className="w-full" onClick={() => importer.current?.show()}>
+                          <FileUp /> Import a list
+                        </Button>
+                        <p className="text-xs text-faint">From the official app or New Recruit</p>
+                      </div>
                     </div>
-                  </div>
-                }
-              />
-            )}
+                  }
+                />
+              )}
+            </div>
           </div>
         </section>
         {lent.length ? (
