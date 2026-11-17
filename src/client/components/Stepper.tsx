@@ -5,6 +5,7 @@ import { Select as SelectPrimitive } from '@base-ui/react/select'
 import { Select, SelectContent, SelectItem, SelectValue } from '@/components/ui/select'
 import { requestNativeHaptic } from '../nativeBridge'
 import { holdPress } from './holdRepeat'
+import { useMediaQuery } from '../useMediaQuery'
 
 /**
  * Minus, the number, plus, each held to repeat; given choices, the number also picks a count directly.
@@ -46,19 +47,32 @@ export function Stepper({
   touch?: boolean
 }) {
   const reasonId = useId()
+  // iOS Safari closes the custom list on a tap without choosing the option, so a touch screen gets the native picker.
+  const coarse = useMediaQuery('(pointer: coarse)')
   const reason = onAdd ? null : blocked
+  const countClass = `readout ${touch ? 'h-11 w-10' : 'h-6 w-8'} rounded-md border border-runner text-sm transition-colors outline-none hover:bg-input/50 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50`
   const stepper = (
     <span
       className={`relative grid shrink-0 items-center gap-1 ${touch ? 'grid-cols-[2.75rem_2.5rem_2.75rem]' : 'grid-cols-[1.5rem_2rem_1.5rem]'}`}
     >
       <CountButton label={`Fewer ${label}`} decrease repeat touch={touch} onClick={onRemove} />
-      {count !== null && !loading && choices?.length && onChoose ? (
+      {count !== null && !loading && choices?.length && onChoose && coarse ? (
+        <select
+          aria-label={countLabel}
+          value={count}
+          onChange={(event) => Number(event.target.value) !== count && onChoose(Number(event.target.value))}
+          className={`${countClass} appearance-none bg-transparent text-center [text-align-last:center]`}
+        >
+          {choices.map((choice) => (
+            <option key={choice} value={choice}>
+              {format(choice)}
+            </option>
+          ))}
+        </select>
+      ) : count !== null && !loading && choices?.length && onChoose ? (
         <Select value={count} onValueChange={(chosen) => chosen !== null && chosen !== count && onChoose(chosen)}>
           {/* The generated trigger always appends a chevron, which leaves no room in the stepper's narrow middle cell. */}
-          <SelectPrimitive.Trigger
-            aria-label={countLabel}
-            className={`readout flex ${touch ? 'h-11 w-10' : 'h-6 w-8'} items-center justify-center rounded-md border border-runner text-sm transition-colors outline-none hover:bg-input/50 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50`}
-          >
+          <SelectPrimitive.Trigger aria-label={countLabel} className={`${countClass} flex items-center justify-center`}>
             <SelectValue className="flex-none">{format(count)}</SelectValue>
           </SelectPrimitive.Trigger>
           <SelectContent className="min-w-16">
