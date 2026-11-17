@@ -32,6 +32,7 @@ import { orderVariantGroup, variantName } from '../../core/rosterVariants'
 import type { LocalState } from '../../contracts/localState'
 import { playerDefaults } from './actionFunctions'
 import { localRosterAssessment } from './rosterAssessment'
+import { DELETED_ROSTER_MESSAGE } from './rosterMessages'
 import { calculationRead, SERVER_ONLY_TIMEOUT_MS } from './calculationRead'
 import { withTimeout } from '../abortSignals'
 import {
@@ -201,8 +202,6 @@ export async function sharedRoster(args: Parameters<typeof server.sharedRoster>[
   const access = await rosterAccess(args)
   return access?.roster ?? null
 }
-
-export const DELETED_ROSTER_MESSAGE = 'This roster was deleted. Save it as a new roster.'
 
 export async function saveRoster(
   args: Parameters<typeof server.saveRoster>[0],
