@@ -26,3 +26,7 @@ Praetorium builds its data from community sources, listed on [Sources](/sources)
 ## AI assistants
 
 Connected assistants keep the tools they use. Tools gain new options over time, but an existing tool or option isn't removed without notice in [What's new](/whats-new).
+
+## Keeping up
+
+[What's new](/whats-new) lists the last two weeks of changes day by day, grouped by the part of the app they touch. Pick the areas you use, or show new features only, to cut it down. Days you've read can be collapsed.

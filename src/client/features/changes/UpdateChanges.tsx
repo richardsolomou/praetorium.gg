@@ -1,10 +1,12 @@
-import { Link } from '@tanstack/react-router'
-import { Fragment } from 'react'
+import { Fragment, useState } from 'react'
 import { FactionReferenceLink } from '../../components/FactionReferenceLink'
-import type { IndexedUpdate, LinkedChange, LinkedChangeGroup } from '../../../contracts/catalogueChanges'
+import { FactionMark, type FactionPresentation } from '../../components/FactionMark'
+import type { LinkedChange, LinkedChangeGroup } from '../../../contracts/catalogueChanges'
+import { editionFamilyId } from '../../../core/catalogueEdition'
+import { countLabel } from '../../../core/text'
 import {
-  CHANGE_OUTCOMES,
   CHANGE_SECTIONS,
+  type ChangeOutcome,
   type ChangeSection,
   changeDetail,
   changeOutcome,
@@ -12,28 +14,43 @@ import {
   pointsRows,
 } from '../../catalogueChanges'
 
+/** How many of a section's changes show before the rest wait behind a reveal; one left over shows too, rather than a reveal of one. */
+const CHANGE_PEEK = 8
+
 /**
- * Every change one update records, as the body of its row: one block per set of armies that
- * share the same changes, each split by section. The armies are named on the index, where
- * they link to their own updates, and on an army's page only when its changes differ by version.
+ * Every change one update records, as the body of its row: one block per set of armies that share the same
+ * changes, each split by section and set in under its armies. The armies are named on the index, and on an
+ * army's page only when its changes differ by version.
  */
-export function UpdateChanges({ update, named }: { update: IndexedUpdate; named: boolean }) {
+export function UpdateChanges({
+  groups,
+  named,
+  omitted,
+  marks,
+}: {
+  groups: LinkedChangeGroup[]
+  named: boolean
+  omitted: number
+  /** Each army's mark by its family id, for those the faction index knows. */
+  marks: ReadonlyMap<string, FactionPresentation>
+}) {
+  const headed = named || groups.length > 1
   return (
-    <div className="space-y-5">
-      {update.groups.map((group) => (
+    <div className="space-y-7">
+      {groups.map((group) => (
         <section key={group.factions.map((faction) => faction.catalogueId).join()} data-factions={slugsOf(group)}>
-          {named || update.groups.length > 1 ? <GroupHeading group={group} linked={named} /> : null}
-          <dl className="grid gap-x-4 sm:grid-cols-[7.5rem_minmax(0,1fr)]">
+          {headed ? <GroupHeading group={group} marks={marks} /> : null}
+          <div className={headed ? 'mt-3 space-y-4 pl-9' : 'space-y-4'}>
             {CHANGE_SECTIONS.map((section) => {
               const changes = group.changes.filter((change) => changeSection(change) === section)
               return changes.length ? <ChangeList key={section} section={section} changes={changes} /> : null
             })}
-          </dl>
+          </div>
         </section>
       ))}
-      {update.omitted ? (
+      {omitted ? (
         <p className="text-xs text-dim">
-          {update.omitted} more {update.omitted === 1 ? 'change is' : 'changes are'} not listed.
+          {omitted} more {omitted === 1 ? 'change is' : 'changes are'} not listed.
         </p>
       ) : null}
     </div>
@@ -42,68 +59,88 @@ export function UpdateChanges({ update, named }: { update: IndexedUpdate; named:
 
 const slugsOf = (group: LinkedChangeGroup) => [...new Set(group.factions.flatMap((faction) => faction.slug ?? []))].join(' ')
 
-function GroupHeading({ group, linked }: { group: LinkedChangeGroup; linked: boolean }) {
+/** The armies a block covers, each by its own mark, which falls back to a lozenge in the army's colour. */
+function GroupHeading({ group, marks }: { group: LinkedChangeGroup; marks: ReadonlyMap<string, FactionPresentation> }) {
   return (
-    <h3 className="mb-1 border-b border-edge pb-1.5 font-sans text-sm leading-relaxed font-semibold normal-case">
-      {group.factions.length > 1 ? <span className="eyebrow mr-2">{group.factions.length} armies</span> : null}
-      {group.factions.map((faction, at) => (
-        <Fragment key={faction.catalogueId}>
-          {at ? <span className="text-faint">, </span> : null}
-          {linked && faction.slug ? (
-            <Link to="/data-updates/$catalogueId" params={{ catalogueId: faction.slug }} className="text-bone hover:text-info">
-              {faction.faction}
-            </Link>
-          ) : (
-            <span className="text-bone">{faction.faction}</span>
-          )}
-        </Fragment>
+    <h3 className="flex flex-wrap items-center gap-x-5 gap-y-2 font-sans text-base leading-snug font-semibold tracking-normal text-bone normal-case">
+      {group.factions.map((faction) => (
+        <span key={faction.catalogueId} className="inline-flex items-center gap-2.5">
+          <FactionMark
+            faction={
+              marks.get(editionFamilyId(faction.catalogueId)) ?? {
+                slug: faction.slug ?? faction.catalogueId,
+                displayName: faction.faction,
+                icon: null,
+              }
+            }
+            edition={null}
+            className="size-6.5"
+          />
+          {faction.faction}
+        </span>
       ))}
     </h3>
   )
 }
 
-const OUTCOME_TONE = { repriced: 'text-discarded', removed: 'text-destructive', added: 'text-achieved' } as const
+/** Each outcome's chip, in the colour the system already gives it: Signal Amber for a price, Map Green added, red removed. */
+const OUTCOME_CHIP: Record<ChangeOutcome, { label: string; className: string }> = {
+  repriced: { label: 'Points', className: 'border-discarded/50 bg-discarded/10 text-discarded' },
+  added: { label: 'Added', className: 'border-achieved/50 bg-achieved/10 text-achieved' },
+  removed: { label: 'Removed', className: 'border-destructive/50 bg-destructive/10 text-destructive' },
+}
 
-/** A section's changes under what happened to them, so a row needs only its name, and its price when that moved. */
+/** One section of a block: its changes, each behind its outcome's chip, the first few showing and the rest on request. */
 function ChangeList({ section, changes }: { section: ChangeSection; changes: LinkedChange[] }) {
+  const [all, setAll] = useState(false)
+  const peek = all || changes.length <= CHANGE_PEEK + 1 ? changes.length : CHANGE_PEEK
   return (
-    <>
-      <dt className="eyebrow pt-2">{section}</dt>
-      <dd className="mb-3 space-y-2 pt-1.5 sm:mb-1">
-        {CHANGE_OUTCOMES.map((result) => {
-          const listed = changes.filter((change) => changeOutcome(change) === result)
-          if (!listed.length) return null
-          return (
-            <div key={result}>
-              <p className={`text-xs font-semibold capitalize ${OUTCOME_TONE[result]}`}>
-                {result} <span className="readout font-normal text-dim">{listed.length}</span>
-              </p>
-              <ul className={result === 'repriced' ? 'grid' : 'grid gap-x-6 sm:grid-cols-2'}>
-                {listed.map((change) => (
-                  <li
-                    key={JSON.stringify(change)}
-                    className="flex flex-wrap items-baseline justify-between gap-x-4 border-b border-edge/60 py-1 text-sm leading-snug"
-                  >
-                    <span className="min-w-0 break-words">
-                      <ChangeName change={change} />
-                      {'detachment' in change ? <span className="text-xs text-dim"> · {change.detachment}</span> : null}
-                    </span>
-                    {result === 'repriced' ? <PriceChange change={change} /> : null}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )
-        })}
-      </dd>
-    </>
+    <div>
+      <h4 className="flex items-baseline gap-2 text-xs font-semibold text-dim">
+        {section} <span className="figure font-normal text-faint">{changes.length}</span>
+      </h4>
+      <ul className="mt-1.5 ml-1 border-l border-edge pl-3.5">
+        {changes.slice(0, peek).map((change) => (
+          <Change key={JSON.stringify(change)} change={change} />
+        ))}
+      </ul>
+      {changes.length > peek ? (
+        <button
+          type="button"
+          onClick={() => setAll(true)}
+          className="mt-0.5 ml-5 rounded-md py-0.5 text-xs font-semibold text-dim underline decoration-runner-hi underline-offset-4 hover:text-bone hover:decoration-bone"
+        >
+          {countLabel(changes.length - peek, `more ${section.slice(0, -1).toLowerCase()}`, `more ${section.toLowerCase()}`)}
+        </button>
+      ) : null}
+    </div>
+  )
+}
+
+function Change({ change }: { change: LinkedChange }) {
+  const outcome = changeOutcome(change)
+  return (
+    <li className="flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5 py-1 text-sm leading-snug">
+      <span className={`chip w-[4.75rem] shrink-0 justify-center ${OUTCOME_CHIP[outcome].className}`}>{OUTCOME_CHIP[outcome].label}</span>
+      <span className="min-w-0 break-words">
+        <ChangeName change={change} />
+        {'detachment' in change ? <span className="text-xs text-dim"> in {change.detachment}</span> : null}
+      </span>
+      {outcome === 'repriced' ? <PriceChange change={change} /> : null}
+    </li>
   )
 }
 
 function PriceChange({ change }: { change: LinkedChange }) {
+  const lines = change.kind === 'datasheet-points' ? pointsRows(change.rows) : [changeDetail(change)]
   return (
-    <span className="readout ml-auto flex flex-col items-end text-xs text-discarded">
-      {change.kind === 'datasheet-points' ? pointsRows(change.rows).map((row) => <span key={row}>{row}</span>) : changeDetail(change)}
+    <span className="readout text-xs text-discarded">
+      {lines.map((line, at) => (
+        <Fragment key={line}>
+          {at ? <span className="text-faint">, </span> : null}
+          <span className="whitespace-nowrap">{line}</span>
+        </Fragment>
+      ))}
     </span>
   )
 }

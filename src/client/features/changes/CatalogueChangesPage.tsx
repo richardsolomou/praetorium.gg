@@ -1,27 +1,61 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { Fragment, type ReactNode } from 'react'
-import { ChevronLeft, ChevronRight, History } from 'lucide-react'
+import { ChevronDown, ChevronLeft, History } from 'lucide-react'
+import { useState, type ReactNode } from 'react'
 import type { IndexedUpdate } from '../../../contracts/catalogueChanges'
-import { factionColour } from '../../components/FactionMark'
+import { editionFamilyId } from '../../../core/catalogueEdition'
+import { CHANGE_SECTIONS, type ChangeOutcome, type ChangeSection, changeOutcome, changeSection, changeTally } from '../../catalogueChanges'
+import { factionColour, type FactionPresentation } from '../../components/FactionMark'
 import { PageContent, PageHeader } from '../../components/Page'
 import { PageState } from '../../components/PageState'
 import { useDateFormatting } from '../../dates'
-import { catalogueChangeLogQuery } from '../../queries'
 import { useOpenHashTarget } from '../../hashTarget'
+import { catalogueChangeLogQuery, factionIndexQuery } from '../../queries'
 import { UpdateChanges } from './UpdateChanges'
 import { UpdatesNavigation } from './UpdatesNavigation'
-import { changeTally } from '../../catalogueChanges'
+
+const OUTCOME_VIEWS = [
+  [null, 'Everything'],
+  ['repriced', 'Points'],
+  ['added', 'Added'],
+  ['removed', 'Removed'],
+] as const satisfies readonly (readonly [ChangeOutcome | null, string])[]
+
+/** The update with only the changes the reader asked to see: one outcome or all, in the picked sections (every section when none is picked). */
+function narrow(update: IndexedUpdate, outcome: ChangeOutcome | null, sections: readonly ChangeSection[]): IndexedUpdate {
+  if (!outcome && !sections.length) return update
+  const groups = update.groups
+    .map((group) => ({
+      ...group,
+      changes: group.changes.filter(
+        (change) => (!outcome || changeOutcome(change) === outcome) && (!sections.length || sections.includes(changeSection(change))),
+      ),
+    }))
+    .filter((group) => group.changes.length)
+  return { ...update, groups, omitted: 0 }
+}
 
 /**
- * Every army data update, or every one that reached a faction, newest first, a page at a time.
- * Each is a row saying what it changed, which opens onto every change it recorded; a small
- * update starts open.
+ * Every army data update, or every one that reached a faction, newest first, a page at a time. Each is a
+ * dated disclosure saying what it changed, which opens onto every change it recorded; a small update starts
+ * open. The reader can narrow the page to one outcome or to some sections, and fold or open every update.
  */
 export function CatalogueChangesPage({ before, faction }: { before?: string; faction?: { name: string; slug: string } }) {
   const { data } = useQuery(catalogueChangeLogQuery(before, faction?.slug))
-  const updates = data?.updates
+  const { data: index } = useQuery(factionIndexQuery())
+  // Every rules version of an army shares its mark, so any of them answers for the family.
+  const marks = new Map<string, FactionPresentation>(index?.factions.map((entry) => [editionFamilyId(entry.id), entry]))
   useOpenHashTarget()
+  const [outcome, setOutcome] = useState<ChangeOutcome | null>(null)
+  const [sections, setSections] = useState<ChangeSection[]>([])
+  // Only what the reader changed: an update without an entry follows its own `open`.
+  const [opened, setOpened] = useState<ReadonlyMap<string, boolean>>(new Map())
+  const updates = data?.updates.map((update) => narrow(update, outcome, sections)).filter((update) => update.groups.length)
+  const isOpen = (update: IndexedUpdate) => opened.get(update.anchor) ?? update.open
+  const setOpen = (anchor: string, open: boolean) =>
+    setOpened((current) => (current.get(anchor) === open ? current : new Map(current).set(anchor, open)))
+  const allClosed = !!updates?.length && updates.every((update) => !isOpen(update))
+  const filtered = outcome !== null || sections.length > 0
 
   return (
     <main className="w-full">
@@ -36,26 +70,80 @@ export function CatalogueChangesPage({ before, faction }: { before?: string; fac
       >
         <UpdatesNavigation current="data" />
       </PageHeader>
-      <PageContent className="space-y-6">
+      <PageContent className="sm:pt-6">
         {faction ? (
-          <Link to="/data-updates" className="eyebrow flex items-center gap-1 text-info hover:text-bone">
+          <Link to="/data-updates" className="mb-4 flex items-center gap-1 text-xs font-semibold text-info hover:text-bone">
             <ChevronLeft className="size-3.5" /> All data updates
           </Link>
         ) : null}
-        {updates?.length ? (
-          <div className="divide-y divide-edge part">
-            {updates.map((update) => (
-              <Update key={update.anchor} update={update} named={!faction} />
-            ))}
-          </div>
+        {data?.updates.length ? (
+          <>
+            <div className="flex items-center justify-between gap-3">
+              <nav aria-label="Show" className="no-scrollbar flex min-w-0 overflow-x-auto rounded-lg border border-edge bg-sunken p-0.5">
+                {OUTCOME_VIEWS.map(([option, label]) => (
+                  <button
+                    key={label}
+                    type="button"
+                    aria-pressed={outcome === option}
+                    onClick={() => setOutcome(option)}
+                    className={`shrink-0 rounded-md px-3 py-1 text-xs font-semibold transition-colors ${outcome === option ? 'bg-raised text-bone' : 'text-dim hover:text-bone'}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </nav>
+              <button
+                type="button"
+                onClick={() => setOpened(new Map(updates?.map((update) => [update.anchor, allClosed])))}
+                className="shrink-0 rounded-md py-1 text-xs font-semibold text-dim underline decoration-runner-hi underline-offset-4 hover:text-bone hover:decoration-bone"
+              >
+                {allClosed ? 'Expand all' : 'Collapse all'}
+              </button>
+            </div>
+            <fieldset className="no-scrollbar -mx-3 mt-3 flex min-w-0 gap-1.5 overflow-x-auto px-3 sm:mx-0 sm:flex-wrap sm:px-0">
+              <legend className="sr-only">Sections</legend>
+              {CHANGE_SECTIONS.map((section) => {
+                const on = sections.includes(section)
+                return (
+                  <button
+                    key={section}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => setSections((current) => (on ? current.filter((each) => each !== section) : [...current, section]))}
+                    className={`inline-flex h-7 shrink-0 items-center rounded-md border px-2.5 text-xs font-semibold whitespace-nowrap transition-colors ${
+                      on ? 'border-bone/50 bg-bone/10 text-bone' : 'border-runner text-dim hover:border-runner-hi hover:text-bone'
+                    }`}
+                  >
+                    {section}
+                  </button>
+                )
+              })}
+            </fieldset>
+            {updates?.length ? (
+              <ol className="mt-6">
+                {updates.map((update) => (
+                  <Update
+                    key={update.anchor}
+                    update={update}
+                    named={!faction}
+                    marks={marks}
+                    open={isOpen(update)}
+                    onOpenChange={(open) => setOpen(update.anchor, open)}
+                  />
+                ))}
+              </ol>
+            ) : (
+              <p className="mt-6 text-base text-dim">No changes like that on this page. Pick another filter or show everything.</p>
+            )}
+          </>
         ) : (
           <PageState
             headingLevel={2}
-            title={updates ? 'No updates yet' : 'Loading updates'}
-            loading={!updates}
+            title={data ? 'No updates yet' : 'Loading updates'}
+            loading={!data}
             icon={History}
             explanation={
-              updates ? 'Points and datasheet changes appear here after the next data update.' : 'The list of army data updates is loading.'
+              data ? 'Points and datasheet changes appear here after the next data update.' : 'The list of army data updates is loading.'
             }
           />
         )}
@@ -69,6 +157,7 @@ export function CatalogueChangesPage({ before, faction }: { before?: string; fac
             ) : null}
           </nav>
         ) : null}
+        {filtered && data?.older ? <p className="mt-2 text-xs text-faint">Filters apply to this page of updates.</p> : null}
       </PageContent>
     </main>
   )
@@ -99,41 +188,56 @@ function armiesLine(update: IndexedUpdate) {
   return names.length > NAMED_ARMIES ? `${named} and ${names.length - NAMED_ARMIES} more` : named
 }
 
-/**
- * One update as a native disclosure, left to the browser to open and close so hydration never
- * disagrees with what the reader did. Its summary names when it landed, the armies it reached
- * and what it did, so most readers never need to open it.
- */
-function Update({ update, named }: { update: IndexedUpdate; named: boolean }) {
+/** One update as a disclosure: its summary names when it landed, the armies it reached and what it did, so most readers never need to open it. */
+function Update({
+  update,
+  named,
+  marks,
+  open,
+  onOpenChange,
+}: {
+  update: IndexedUpdate
+  named: boolean
+  marks: ReadonlyMap<string, FactionPresentation>
+  open: boolean
+  onOpenChange: (open: boolean) => void
+}) {
   const { date, time } = useDateFormatting()
   const tally = changeTally(update.groups.flatMap((group) => group.changes))
   if (update.omitted) tally.push(`${update.omitted} more`)
   return (
-    <details id={update.anchor} open={update.open} className="group scroll-mt-header">
-      <summary className="flex cursor-pointer list-none items-start gap-3 px-3 py-3 hover:bg-raised/40 sm:px-4 [&::-webkit-details-marker]:hidden">
-        <ChevronRight
-          className="mt-1 size-4 shrink-0 text-dim transition-transform group-open:rotate-90 group-open:text-parchment"
-          aria-hidden
-        />
-        <div className="min-w-0 flex-1">
-          <h2 className="flex flex-wrap items-baseline gap-x-3 text-base text-bone">
-            <time dateTime={new Date(update.recordedAt).toISOString()}>{date(update.recordedAt)}</time>
-            <span className="readout text-xs font-sans font-normal text-dim normal-case">{time(update.recordedAt)}</span>
-          </h2>
-          {named ? <p className="mt-0.5 text-sm text-bone">{armiesLine(update)}</p> : null}
-          <p className="mt-0.5 text-xs text-dim">
-            {tally.map((part, at) => (
-              <Fragment key={part}>
-                {at ? ' · ' : null}
-                <span className="whitespace-nowrap">{part}</span>
-              </Fragment>
-            ))}
-          </p>
+    <li className="border-t border-edge">
+      <details
+        id={update.anchor}
+        open={open}
+        onToggle={(event) => onOpenChange(event.currentTarget.open)}
+        className="group/update scroll-mt-header"
+      >
+        <summary className="flex cursor-pointer list-none items-start justify-between gap-4 py-6 [&::-webkit-details-marker]:hidden">
+          <div className="min-w-0">
+            <h2 className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-2xl leading-none text-bone">
+              <time dateTime={new Date(update.recordedAt).toISOString()}>{date(update.recordedAt)}</time>
+              <span className="readout font-sans text-xs font-normal text-dim normal-case">{time(update.recordedAt)}</span>
+            </h2>
+            {named ? <p className="mt-2 text-base text-bone">{armiesLine(update)}</p> : null}
+            <p className="mt-1 flex flex-wrap gap-x-1.5 text-xs text-dim">
+              {tally.map((part, at) => (
+                <span key={part} className="whitespace-nowrap">
+                  {at ? '· ' : null}
+                  {part}
+                </span>
+              ))}
+            </p>
+          </div>
+          <ChevronDown
+            className="mt-1 size-4 shrink-0 text-faint transition-transform duration-200 ease-settle group-open/update:rotate-180"
+            aria-hidden
+          />
+        </summary>
+        <div className="pb-10">
+          <UpdateChanges groups={update.groups} named={named} omitted={update.omitted} marks={marks} />
         </div>
-      </summary>
-      <div className="px-3 pb-4 sm:pr-4 sm:pl-11">
-        <UpdateChanges update={update} named={named} />
-      </div>
-    </details>
+      </details>
+    </li>
   )
 }

@@ -72,6 +72,15 @@
   --color-measure-published: #8b97ff;
   --color-measure-mat: #b4e85a;
 
+  /* What's new's app areas: muted hues away from Field Green and the two side colours, one per area. */
+  --color-area-rosters: #e6cf7e;
+  --color-area-simulator: #b9a6f2;
+  --color-area-battles: #f0a070;
+  --color-area-events: #74d0c1;
+  --color-area-reference: #8fb6e6;
+  --color-area-assistant: #e59fd2;
+  --color-area-app: #a6b0ae;
+
   /*
    * Two label sizes below `text-xs`, for chips, eyebrows and the counts on a
    * roster card, and the two tracks that go with them. Every small label on
