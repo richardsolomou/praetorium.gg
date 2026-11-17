@@ -6,6 +6,7 @@ import { loadCatalogue } from '../src/server/catalogueIndex'
 import { readCatalogueComposition } from '../src/server/catalogueComposition'
 import { loadRules } from '../src/server/rules'
 import { recordIdsIn, textSourceFiles, textSourcePaths } from '../src/server/sourceTexts'
+import { compiledGlobalSearchIndex } from '../src/server/globalSearch'
 import { combatUnitsFor } from '../src/shared/combatUnits'
 import { factionsFor } from '../src/shared/factionReferences'
 import { hasTextTokens, type TextPointer } from '../src/core/sourceText'
@@ -53,6 +54,7 @@ describe.skipIf(!exists)('what agents get from Praetorium', () => {
       rulesFor: async () => rules,
       canonicalCatalogueFor: async () => canonical,
       combatUnitsFor: async () => combatUnitsFor(catalogue, rules),
+      searchIndexFor: async () => compiledGlobalSearchIndex(catalogue, rules),
     }
     prose = sourceProse(root, ['definitions', 'datacards'])
     localFile = new Map(textSourcePaths(root, readCatalogueComposition(root)).map((file) => [file.url, file.path]))
@@ -62,7 +64,8 @@ describe.skipIf(!exists)('what agents get from Praetorium', () => {
       answers.push({ name: `${name} ${JSON.stringify(input)}`, value: await tools.execute(name, input) })
     answers.push({ name: 'list_reference', value: await tools.execute('list_reference', {}) })
     await call('list_factions', {})
-    for (const query of ['movement', 'stratagem', 'leader', 'deep strike', 'objective', 'reanimation'])
+    // The last finds units by what their abilities say, which the search reads but never publishes.
+    for (const query of ['movement', 'stratagem', 'leader', 'deep strike', 'objective', 'reanimation', 'remains under your control'])
       await call('search_reference', { query, limit: 25 })
     const { activeReferenceCorpus } = await import('../src/server/referenceApi')
     const corpus = (await activeReferenceCorpus())!
