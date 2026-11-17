@@ -6,7 +6,9 @@ import { useContext, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
   compareLoadouts,
   applyOptimizedLoadout,
+  loadoutChanges,
   type LoadoutBatch,
+  type LoadoutCandidate,
   type LoadoutCandidates,
   type LoadoutOptimization,
   type LoadoutScoring,
@@ -122,8 +124,9 @@ export function useLoadoutOptimizer(combatant: Combatant) {
               result: baseline,
             }
           : undefined
-      // The first search's first candidate is the current loadout, which says what free and paid wargear it already takes.
-      let baselineCounted = !best
+      // The first search's first candidate is the current loadout, which says what wargear it already takes and which
+      // every tie is kept closest to.
+      let start: LoadoutCandidate | undefined
       let scored = false
       let skipped = false
       let reason: string | undefined
@@ -186,12 +189,11 @@ export function useLoadoutOptimizer(combatant: Combatant) {
           const states = Math.max(batch.estimated ?? 0, batch.scheduled)
           if (!local) setProgress((previous) => Math.max(previous, Math.min(99, Math.floor((batch.scheduled / states) * 100))))
           if (discovered > MAX_CANDIDATES) throw new Error(SEARCH_CUT_SHORT)
-          if (!baselineCounted && best && batch.candidates[0]) {
-            const { freeAdditions, wargearPoints } = batch.candidates[0]
-            best = { ...best, freeAdditions, wargearPoints }
-            baselineCounted = true
+          if (!start && batch.candidates[0]) {
+            start = batch.candidates[0]
+            if (best) best = { ...best, freeAdditions: start.freeAdditions, wargearPoints: start.wargearPoints }
           }
-          space.candidates.push(...batch.candidates)
+          for (const candidate of batch.candidates) space.candidates.push({ ...candidate, changes: loadoutChanges(candidate, start!) })
           complete = batch.done
           wake?.()
         }
