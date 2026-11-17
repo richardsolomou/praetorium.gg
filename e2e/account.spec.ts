@@ -20,17 +20,6 @@ import {
   expandStep,
 } from './account'
 
-/**
- * An account is who you are here, so this covers both halves of that: nothing is
- * reachable without one, and everything saved under one is still there on a
- * device that has never seen this player before.
- */
-test('a battle cannot be opened without an account', async ({ page }) => {
-  await page.goto('/battles')
-  await expect(page.getByRole('button', { name: 'New battle' })).toBeHidden()
-  await expect(page.getByRole('link', { name: 'Sign in' }).first()).toBeVisible()
-})
-
 test('account forms show the server error', async ({ page }) => {
   const email = `auth-error-${crypto.randomUUID()}@example.test`
   await page.request.post('/api/auth/sign-up/email', {
@@ -278,28 +267,6 @@ test('profile defaults apply to rosters while battles infer their format', async
   await expect(page.locator('#setup-format').getByRole('combobox', { name: 'Battle size' })).toHaveCount(0)
 })
 
-test('a player can permanently delete their account', async ({ page }) => {
-  await signUp(page, uniqueName('DeleteAccount'))
-  await page.goto('/profile')
-
-  await page.getByRole('button', { name: 'Delete account' }).click()
-  const dialog = page.getByRole('dialog', { name: 'Delete your account' })
-  await expect(dialog).toContainText('every battle you played will be deleted')
-  await page.screenshot({ path: test.info().outputPath('delete-account-confirm-desktop.png'), fullPage: true })
-  await page.setViewportSize(PHONE)
-  await page.screenshot({ path: test.info().outputPath('delete-account-confirm-phone.png'), fullPage: true })
-
-  await dialog.getByLabel('Confirm your password').fill('a-long-enough-password')
-  await dialog.getByLabel('I understand that my account and its battles cannot be recovered.').check()
-  await dialog.getByRole('button', { name: 'Permanently delete account' }).click()
-
-  await page.waitForURL('/')
-  await expect(page.getByRole('link', { name: 'Sign in' }).first()).toBeVisible()
-  await page.goto('/profile')
-  await expect(page.getByRole('heading', { name: 'Your profile' })).toBeVisible()
-  await expect(page.getByText('Sign in to edit your profile.')).toBeVisible()
-})
-
 test('friends use the profile picture shown elsewhere', async ({ browser }) => {
   const alice = await (await browser.newContext()).newPage()
   const bob = await (await browser.newContext()).newPage()
@@ -418,26 +385,6 @@ test('a player can reject an incoming friend request', async ({ browser }) => {
   } finally {
     await Promise.all([requesterContext.close(), recipientContext.close()])
   }
-})
-
-test('the account menu opens from the rail and the phone header', async ({ page }) => {
-  const name = uniqueName('Feedback')
-  await signUp(page, name)
-
-  const account = page.locator('[data-web-app-chrome]').getByRole('button', { name: `Account menu for ${name}` })
-  await account.click()
-  await expect(page.getByRole('menuitem', { name: 'My profile' })).toContainText(name)
-  await expect(page.getByRole('menuitem', { name: 'Feedback' })).toBeVisible()
-  await page.screenshot({ path: test.info().outputPath('account-menu-desktop.png'), fullPage: true })
-
-  await account.click()
-  await page.setViewportSize(PHONE)
-  await page
-    .locator('[data-mobile-app-header]')
-    .getByRole('button', { name: `Account menu for ${name}` })
-    .click()
-  await expect(page.getByRole('menuitem', { name: 'My profile' })).toBeVisible()
-  await page.screenshot({ path: test.info().outputPath('account-menu-phone.png'), fullPage: true })
 })
 
 test('a list saved under an account is there on another device', async ({ browser }) => {

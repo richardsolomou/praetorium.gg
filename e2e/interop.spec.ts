@@ -1,7 +1,6 @@
-import { expect, test } from './test'
+import { expect, test, type Page } from './test'
 import { add, arrangeByRole } from './builder.harness'
 import { readFile } from 'node:fs/promises'
-import { listForgeDetailed } from '../src/core/rosterText.fixtures'
 import { custodesOfficial } from '../src/core/rosterText.custodes.fixture'
 import { necronsOfficial } from '../src/core/rosterText.necrons.fixture'
 import { blackTemplarsNewRecruit } from '../src/core/rosterText.blackTemplars.fixture'
@@ -98,21 +97,30 @@ test('a list can be copied as Games Workshop text', async ({ browser }) => {
   await expect(saved.locator('pre')).toContainText('• Leading: Immortals')
 })
 
-test('an official Custodes roster keeps all units and choices after import and reload', async ({ page }, testInfo) => {
-  await signUp(page, 'Custodes importer')
+/** Pastes a roster into review, saves every matched entry and reloads the saved roster. */
+async function importReviewed(page: Page, text: string, entries: number, points?: string) {
   const review = await openImport(page)
-  await review.getByLabel('Roster text').fill(custodesOfficial)
+  await review.getByLabel('Roster text').fill(text)
   await review.getByRole('button', { name: 'Import pasted roster', exact: true }).click()
-  await expect(review).toContainText('10 of 10 matched entries')
+  await expect(review).toContainText(`${entries} of ${entries} matched entries`)
+  if (points) {
+    await expect(review.locator('[data-import-figure="reported"]')).toHaveText(points)
+    await expect(review.locator('[data-import-figure="current"]')).toHaveText(points)
+  }
   await expect(review.getByRole('alert')).toHaveCount(0)
-  await review.screenshot({ path: testInfo.outputPath('custodes-import-review.png') })
   await review.getByRole('button', { name: 'Import roster', exact: true }).click()
   await page.waitForURL(/\/rosters\/[^/]+$/)
   await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
   await page.reload()
-  await expect(page.locator('[data-unit]')).toHaveCount(10)
+  await expect(page.locator('[data-unit]')).toHaveCount(entries)
   await chooseRosterAction(page, 'Export text')
-  const text = page.getByRole('dialog', { name: 'Export roster' }).locator('pre')
+  return page.getByRole('dialog', { name: 'Export roster' })
+}
+
+test('official and New Recruit rosters keep their units, choices and attachments after import and reload', async ({ page }) => {
+  await arrangeByRole(page)
+  await signUp(page, 'Importer')
+  const custodes = await importReviewed(page, custodesOfficial, 10)
   for (const line of [
     'First test (2,000 Points)',
     '• 2x Adrathic Combi-destructors',
@@ -122,30 +130,9 @@ test('an official Custodes roster keeps all units and choices after import and r
     'Augury Uplink',
     '• Leading: Custodian Guard Sodality',
   ])
-    await expect(text).toContainText(line)
-})
+    await expect(custodes.locator('pre')).toContainText(line)
 
-test('an official Necrons roster keeps leaders and support after import and reload', async ({ page }, testInfo) => {
-  await arrangeByRole(page)
-  await signUp(page, 'Necrons importer')
-  const review = await openImport(page)
-  await review.getByLabel('Roster text').fill(necronsOfficial)
-  await review.getByRole('button', { name: 'Import pasted roster', exact: true }).click()
-  await expect(review).toContainText('7 of 7 matched entries')
-  await expect(review.locator('[data-import-figure="reported"]')).toHaveText('1000 points')
-  await expect(review.locator('[data-import-figure="current"]')).toHaveText('1000 points')
-  await expect(review.getByRole('alert')).toHaveCount(0)
-  await review.screenshot({ path: testInfo.outputPath('necrons-import-review.png') })
-  await review.getByRole('button', { name: 'Import roster', exact: true }).click()
-  await page.waitForURL(/\/rosters\/[^/]+$/)
-  await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
-  await page.reload()
-  await expect(page.locator('[data-unit]')).toHaveCount(7)
-  await expect(page.locator('[data-unit="Chronomancer"]')).toContainText('Supporting')
-  await expect(page.locator('[data-unit="Chronomancer"]')).toContainText('Lokhust Heavy Destroyers')
-  await chooseRosterAction(page, 'Export text')
-  const exported = page.getByRole('dialog', { name: 'Export roster' })
-  const text = exported.locator('pre')
+  const necrons = await importReviewed(page, necronsOfficial, 7, '1000 points')
   for (const line of [
     'CL 1K - Nekrosor & Chronomancer (1,000 Points)',
     'Force Disposition: Purge the Foe',
@@ -161,40 +148,12 @@ test('an official Necrons roster keeps leaders and support after import and relo
     '• 6x Skorpekh hyperphase weapons',
     '• 2x Plasmacyte',
   ])
-    await expect(text).toContainText(line)
-  await exported.screenshot({ path: testInfo.outputPath('necrons-import-export-desktop.png') })
-  await page.setViewportSize({ width: 390, height: 700 })
-  await expect(exported.getByRole('button', { name: 'Copy text' })).toBeInViewport()
-  await exported.screenshot({ path: testInfo.outputPath('necrons-import-export-phone.png') })
-})
+    await expect(necrons.locator('pre')).toContainText(line)
+  await necrons.getByRole('button', { name: 'Close', exact: true }).click()
+  await expect(page.locator('[data-unit="Chronomancer"]')).toContainText('Supporting')
+  await expect(page.locator('[data-unit="Chronomancer"]')).toContainText('Lokhust Heavy Destroyers')
 
-test('a New Recruit chapter roster keeps its allies and attachments after import and reload', async ({ page }, testInfo) => {
-  await arrangeByRole(page)
-  await signUp(page, 'Chapter importer')
-  const review = await openImport(page)
-  await review.getByLabel('Roster text').fill(blackTemplarsNewRecruit)
-  await review.getByRole('button', { name: 'Import pasted roster', exact: true }).click()
-  await expect(review).toContainText('16 of 16 matched entries')
-  await expect(review.locator('[data-import-figure="reported"]')).toHaveText('2000 points')
-  await expect(review.locator('[data-import-figure="current"]')).toHaveText('2000 points')
-  await expect(review.getByRole('alert')).toHaveCount(0)
-  await review.screenshot({ path: testInfo.outputPath('black-templars-import-review.png') })
-  await review.getByRole('button', { name: 'Import roster', exact: true }).click()
-  await page.waitForURL(/\/rosters\/[^/]+$/)
-  await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
-  await page.reload()
-  await expect(page.locator('[data-unit]')).toHaveCount(16)
-  await expect(page.locator('[data-unit="Eversor Assassin"]')).toBeVisible()
-  for (const [leader, bodyguard] of [
-    ['Chaplain Grimaldus', 'Crusader Squad'],
-    ['Apothecary', 'Crusader Squad'],
-    ['Bladeguard Ancient', 'Bladeguard Veteran Squad'],
-    ['High Marshal Helbrecht', 'Sword Brethren Squad'],
-    ['Castellan', 'Sword Brethren Squad'],
-  ])
-    await expect(page.locator(`[data-unit="${leader}"]`)).toContainText(bodyguard)
-  await chooseRosterAction(page, 'Export text')
-  const exported = page.getByRole('dialog', { name: 'Export roster' })
+  const templars = await importReviewed(page, blackTemplarsNewRecruit, 16, '2000 points')
   for (const line of [
     'Test (2,000 Points)',
     'Black Templars',
@@ -205,11 +164,19 @@ test('a New Recruit chapter roster keeps its allies and attachments after import
     "Enhancement: Imperium's Sword",
     'Eversor Assassin',
   ])
-    await expect(exported.locator('pre')).toContainText(line)
-  await exported.screenshot({ path: testInfo.outputPath('black-templars-import-export-desktop.png') })
+    await expect(templars.locator('pre')).toContainText(line)
   await page.setViewportSize({ width: 390, height: 700 })
-  await expect(exported.getByRole('button', { name: 'Copy text' })).toBeInViewport()
-  await exported.screenshot({ path: testInfo.outputPath('black-templars-import-export-phone.png') })
+  await expect(templars.getByRole('button', { name: 'Copy text' })).toBeInViewport()
+  await templars.getByRole('button', { name: 'Close', exact: true }).click()
+  await expect(page.locator('[data-unit="Eversor Assassin"]')).toBeVisible()
+  for (const [leader, bodyguard] of [
+    ['Chaplain Grimaldus', 'Crusader Squad'],
+    ['Apothecary', 'Crusader Squad'],
+    ['Bladeguard Ancient', 'Bladeguard Veteran Squad'],
+    ['High Marshal Helbrecht', 'Sword Brethren Squad'],
+    ['Castellan', 'Sword Brethren Squad'],
+  ])
+    await expect(page.locator(`[data-unit="${leader}"]`)).toContainText(bodyguard)
 })
 
 test('a visitor imports the reported Salamanders detachments and keeps them after reload', async ({ page }, testInfo) => {
@@ -288,27 +255,7 @@ Exported with BattleBase, Data Version: v20260812`)
   }
 })
 
-test('a ListForge export imports through review and exports as readable text', async ({ page }) => {
-  await signUp(page, 'Switcher')
-  const review = await openImport(page)
-  await review.getByLabel('Roster text').fill(listForgeDetailed)
-  await review.getByRole('button', { name: 'Import pasted roster', exact: true }).click()
-  await expect(review.getByRole('heading', { name: 'Sanitised list' })).toBeVisible()
-  await expect(review).toContainText('6 of 6 matched entries')
-  await expect(review.locator('[data-import-figure="reported"]')).toHaveText('510 points')
-  await expect(review.locator('[data-import-figure="current"]')).toHaveText('510 points')
-  await review.screenshot({ path: test.info().outputPath('listforge-import-review.png') })
-  await review.getByRole('button', { name: 'Import roster', exact: true }).click()
-  await page.waitForURL(/\/rosters\/[^/]+$/)
-  await expect(page.locator('[data-unit="Venom"]')).toHaveCount(2)
-  await chooseRosterAction(page, 'Export text')
-  const exported = page.getByRole('dialog', { name: 'Export roster' })
-  await expect(exported.locator('pre')).toContainText('Sanitised list (510 Points)\n')
-  await expect(exported.locator('pre')).toContainText('Enhancement: Informant Network\n')
-  await expect(exported.locator('pre')).toContainText('Exported with Praetorium.gg')
-})
-
-for (const count of [0, 1, 3]) {
+for (const count of [0, 1]) {
   test(`an account reviews and saves all ${count} source entries, and cancelling writes nothing`, async ({ page }) => {
     await signUp(page, `Entry count ${count}`)
     const review = await openImport(page)

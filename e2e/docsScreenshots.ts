@@ -6,11 +6,10 @@ import { test } from './test'
 const DIRECTORY = 'src/client/features/docs/screenshots'
 
 /**
- * Docs screenshot specs overwrite committed images, so they run only when asked:
- * `DOCS_SCREENSHOTS=1 pnpm exec playwright test e2e/docs-screenshots`.
+ * Sizes a docs screenshot spec. The specs overwrite committed images, so `playwright.config.ts` ignores
+ * them unless asked: `DOCS_SCREENSHOTS=1 pnpm exec playwright test e2e/docs-screenshots`.
  */
 export function docsScreenshots() {
-  test.skip(!process.env.DOCS_SCREENSHOTS, 'Set DOCS_SCREENSHOTS=1 to regenerate docs screenshots')
   test.use({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: SCREENSHOT_SCALE })
 }
 

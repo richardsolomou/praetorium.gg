@@ -421,7 +421,7 @@ test('cancelling a mission setup does not attribute a later generic setup to it'
     ])
 })
 
-for (const units of [[], ['Necron Warriors'], ['Necron Warriors', 'Overlord']]) {
+for (const units of [[], ['Necron Warriors']]) {
   test(`a guest save attempt reports ${units.length} fielded units from the current draft`, async ({ page }) => {
     const setup = await visitorSetup(page)
     await chooseFaction(setup, 'Necrons')

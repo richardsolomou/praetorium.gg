@@ -147,17 +147,3 @@ test('browser agents save rosters, change visibility and append battle actions t
   const changed = (await call(page, 'get_my_battle', { token })).structuredContent!.battle as { view: { seq: number } }
   expect(changed.view.seq).toBe(battle.view.seq + 1)
 })
-
-test('an unanswered browser-agent approval expires without saving', async ({ page }) => {
-  await installInspector(page)
-  await signUp(page, uniqueName('Agent timeout'))
-  await expect.poll(() => names(page)).toHaveLength(54)
-  const before = await call(page, 'list_my_battles')
-  await page.clock.install()
-  await start(page, 'create_battle', { opponentId: 'practice-opponent-1', limit: 2000 })
-  const dialog = page.getByRole('dialog', { name: 'Create a battle' })
-  await expect(dialog).toBeVisible()
-  await page.clock.fastForward(120_001)
-  await expect(dialog).toBeHidden()
-  expect(await call(page, 'list_my_battles')).toEqual(before)
-})

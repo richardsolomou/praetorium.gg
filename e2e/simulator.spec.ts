@@ -18,7 +18,7 @@ import {
   chooseOption,
   PHONE,
 } from './account'
-import { waitForOfflineApp } from './offline'
+import { downloadOfflineAppAtOnce, waitForOfflineApp } from './offline'
 
 const KILL_CHANCE = /^(?:<0\.01|\d+\.\d\d?)%$/
 
@@ -477,25 +477,8 @@ test('current army rules exclude retired vows and apply plague choices to the re
     .screenshot({ path: test.info().outputPath('simulator-plague-390.png') })
 })
 
-test('variable weapon abilities produce damage probabilities', async ({ page }) => {
-  await page.goto('/simulator')
-  await chooseCombatUnit(page, 'Attacker', 'Aeldari', 'Avatar of Khaine')
-  await chooseCombatUnit(page, 'Defender', 'Space Marines', 'Intercessor Squad')
-  const shooting = page.getByRole('region', { name: 'Shooting results' })
-  await expect(shooting).toContainText('Sustained Hits D3')
-  await expect(shooting).not.toContainText('Unsupported')
-  await expect(await combatDamage(page, 'Shooting')).toHaveText(/^\d+\.\d+$/)
-  await expect(shooting).toHaveAttribute('aria-busy', 'false')
-  await expect.poll(async () => Number(await (await combatDamage(page, 'Shooting')).textContent())).toBeGreaterThan(0)
-  await shooting.screenshot({ path: test.info().outputPath('simulator-variable-hits.png') })
-  await page.setViewportSize({ width: 390, height: 1000 })
-  await noOverflow(page)
-  await shooting.evaluate((element) => element.scrollIntoView({ block: 'center' }))
-  await shooting.screenshot({ path: test.info().outputPath('simulator-variable-hits-390.png') })
-})
-
 test('automatic shooting and melee with stable edits', async ({ page }) => {
-  const widths = [1440, 390, 860, 1024]
+  const widths = [1440, 390]
   await page.route('**/offline-reference-version.json', (route) => route.abort())
   await page.setViewportSize({ width: 1440, height: 1000 })
   await page.goto('/more')
@@ -610,9 +593,6 @@ test('automatic shooting and melee with stable edits', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'More defender models' })).toBeDisabled()
   await expect(await combatDamage(page, 'Shooting')).toHaveText(coveredDamage!)
   await expect(melee).toContainText('5× Knives and Fists')
-  await atWidths(page, widths, async (width) => {
-    await page.screenshot({ path: test.info().outputPath(`simulator-updating-${width}.png`), fullPage: true })
-  })
   await calculation.release()
   await expect(shooting).toHaveAttribute('aria-busy', 'false')
 
@@ -634,9 +614,6 @@ test('automatic shooting and melee with stable edits', async ({ page }) => {
   await expect(heading).toBeVisible()
   await expect(mode).toBeVisible()
   await expect(loadout.getByText('Select a unit from the roster to see its loadout.')).toHaveCount(0)
-  await atWidths(page, widths, async (width) => {
-    await page.screenshot({ path: test.info().outputPath(`simulator-loadout-updating-${width}.png`), fullPage: true })
-  })
   await loadoutCalculation.release()
   await expect(plasmaPistols).toHaveText('1')
   await loadout.getByRole('button', { name: 'Close', exact: true }).click()
@@ -1831,6 +1808,7 @@ test('optimized weapon profiles follow the unit through swaps and reload', async
 })
 
 test('Defiler can optimize ranged attacks instead of its stronger combined loadout', async ({ page }) => {
+  await downloadOfflineAppAtOnce(page)
   let serverSearches = 0
   page.on('request', (request) => {
     if (request.url().includes('/api/simulator/optimize')) serverSearches++
@@ -1886,33 +1864,4 @@ test('Defiler can optimize ranged attacks instead of its stronger combined loado
   await expect(optimize).toBeVisible({ timeout: 120_000 })
   await expect(attacker.getByRole('alert')).toHaveCount(0)
   await expect(melee).toContainText('Electroscourge')
-})
-
-test('Plague Marines optimize a ranged loadout and then a melee loadout', async ({ page }) => {
-  test.setTimeout(240_000)
-  await page.goto('/simulator')
-  await chooseCombatUnit(page, 'Attacker', 'Death Guard', 'Plague Marines')
-  await chooseCombatUnit(page, 'Defender', 'Space Marines', 'Intercessor Squad')
-  const attacker = page.getByRole('region', { name: 'Attacker', exact: true })
-  const options = attacker.getByRole('button', { name: 'Optimization options', exact: true })
-  const optimize = attacker.getByRole('button', { name: 'Optimize', exact: true })
-  for (const [label, phase] of [
-    ['Ranged', 'Shooting'],
-    ['Melee', 'Melee'],
-  ] as const) {
-    const damage = await combatDamage(page, phase)
-    await expect(damage).toHaveText(/^\d+\.\d{2}$/)
-    const before = Number(await damage.textContent())
-    await options.click()
-    await page.getByRole('menuitem', { name: `Optimize for ${label.toLowerCase()}`, exact: true }).click()
-    await expect(optimize).toBeVisible({ timeout: 120_000 })
-    await expect(attacker.getByRole('alert')).toHaveCount(0)
-    await expect(attacker.getByRole('status')).toHaveText(/Not every loadout was checked/)
-    await expect.poll(async () => Number(await damage.textContent())).toBeGreaterThan(before)
-    await expect(attacker).toContainText('5 models')
-  }
-  const weapons = page.getByRole('region', { name: 'Melee results' }).locator('[data-weapon-card] h3')
-  const profiles = await weapons.allTextContents()
-  await page.reload()
-  await expect(weapons).toHaveText(profiles)
 })

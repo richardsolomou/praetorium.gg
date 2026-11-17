@@ -53,6 +53,11 @@ describe.skipIf(!fs.existsSync(directory))('simulator catalogue projections', ()
     expect(damage(attack, phase)).toBeGreaterThan(0)
   })
 
+  it('calculates the Avatar of Khaine’s Sustained Hits D3 shooting', () => {
+    const attack = attacks(unit('Aeldari', 'Avatar of Khaine')).ranged
+    expect({ errors: attack.plan.errors, damage: damage(attack, 'ranged') > 0 }).toEqual({ errors: [], damage: true })
+  })
+
   it.each(['strike', 'sweep'])('Defiler calculates its Shearing claws %s profile', (mode) => {
     const defiler = unit('Death Guard', 'Defiler')
     const choice = attacks(defiler).melee.plan.choices.find((candidate) => candidate.label === 'Defiler · Shearing claws')!

@@ -6,6 +6,8 @@ delete process.env.NO_COLOR
 
 export default defineConfig({
   testDir: './e2e',
+  // Docs screenshot specs overwrite committed images, so they are listed and run only when asked for.
+  testIgnore: process.env.DOCS_SCREENSHOTS ? [] : ['docs-screenshots.*.spec.ts'],
   outputDir: process.env.PLAYWRIGHT_OUTPUT_DIR ?? path.join('test-results', path.basename(root)),
   // Each CI shard owns its local SQLite and SpacetimeDB data; scripts/e2eShard.ts assigns its tests.
   // Every test signs up its own players, so tests in one file can share a stack. Two workers is
