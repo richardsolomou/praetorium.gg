@@ -2,7 +2,7 @@ import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import { rulesVersionLabel } from '../core/catalogueEdition'
 import { encodeRosterExchange, ROSTER_EXCHANGE_MAX_CODE_LENGTH } from '../core/rosterExchange'
 import { importRosterSchema, saveRosterSchema } from '../contracts/schemas'
-import { calculateRosterPrice, savedRosterPriceInput } from '../shared/pricing'
+import { calculateRosterPrice, calculateRosterTotals, savedRosterPriceInput } from '../shared/pricing'
 import { exportRosterFile, pricedDispositionNames } from '../shared/rosterFiles'
 import { READ_ONLY_TOOL, responseToolError, structured, toolError, type AgentTools } from './agentTools'
 import { app } from './app'
@@ -69,15 +69,14 @@ export function registerRosterFileTools(server: AgentTools) {
     {
       title: 'Export a roster as text',
       description:
-        "Writes a roster as the site's text export, the official app's layout that tournament organizers and other list builders read, without saving it or needing an account. Takes the shape save_roster takes, such as import_roster's draft or get_my_roster's roster. text is the export; code is a Praetorium exchange code that carries the exact list into Praetorium, or null when the list is too large for one. omittedUnitCount counts entries the current army data no longer prices, which the text leaves out. omittedSelectionCount counts the saved detachments and options of printed units that the current army data no longer offers, which the text also leaves out. A name is required. Fails while the army data is unavailable.",
+        "Writes a roster as the site's text export, the official app's layout that tournament organizers and other list builders read, without saving it or needing an account. Takes the shape save_roster takes, such as import_roster's draft or get_my_roster's roster. text is the export; code is a Praetorium exchange code that carries the exact list into Praetorium, or null when the list is too large for one. omittedUnitCount counts entries the current army data no longer prices, which the text leaves out. omittedSelectionCount counts the saved detachments and options of printed units that the current army data no longer offers, which the text also leaves out. An empty name exports the title Praetorium generates from the army. Fails while the army data is unavailable.",
       inputSchema: {
-        roster: saveRosterSchema.describe('A complete roster in the shape save_roster takes. Its name must not be empty.'),
+        roster: saveRosterSchema.describe('A complete roster in the shape save_roster takes.'),
       },
       annotations: READ_ONLY_TOOL,
     },
     ({ roster }) =>
       refusalsAsErrors(async () => {
-        if (!roster.name) return toolError('validation', 'Name the roster before exporting it.')
         const instance = app()
         const [faction, loaded, rules] = await Promise.all([
           instance.factionFor(roster.catalogueId),
@@ -86,9 +85,12 @@ export function registerRosterFileTools(server: AgentTools) {
         ])
         if (!faction)
           return toolError('validation', 'No army uses this catalogueId. Take it from import_roster, get_my_roster or list_units.')
-        const data = { ...savedRosterPriceInput(roster), name: roster.name, pointsBudget: roster.pointsBudget }
+        const input = savedRosterPriceInput(roster)
+        // An empty name is the title Praetorium generates from the army, as saving it gives.
+        const name = roster.name || calculateRosterTotals(input, loaded ?? null, rules)?.label
+        const data = { ...input, name: name ?? '', pointsBudget: roster.pointsBudget }
         const priced = loaded && calculateRosterPrice(data, loaded, rules)
-        if (!loaded || !priced) return toolError('unavailable', 'Praetorium army data for this roster is not available just now.')
+        if (!loaded || !priced || !name) return toolError('unavailable', 'Praetorium army data for this roster is not available just now.')
         const exported = exportRosterFile(
           data,
           loaded,

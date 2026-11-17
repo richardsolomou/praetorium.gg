@@ -1,6 +1,7 @@
 {
   "check_in_event": ["token", "eventToken", "checkedIn"],
   "check_roster": ["roster"],
+  "compare_enhancements": ["attacker", "defender", "modifiers", "mode", "points"],
   "compare_rosters": ["attacker", "defender", "phases", "measures", "rankBy"],
   "copy_roster": ["id", "variant"],
   "create_battle": [

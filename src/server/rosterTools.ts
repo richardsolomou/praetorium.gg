@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { saveRosterSchema } from '../contracts/schemas'
 import { isUnitCompositionChoice } from '../core/unitChoices'
 import { rosterProblems } from '../core/rosterLegality'
+import { freeWargear } from '../shared/combatLoadouts'
 import { calculateRosterPrice, savedRosterPriceInput } from '../shared/pricing'
 import { pricedDispositionNames, readableRoster } from '../shared/rosterFiles'
 import { READ_ONLY_TOOL, structured, toolError, type AgentTools } from './agentTools'
@@ -38,8 +39,17 @@ export async function rosterSummary(roster: SummarisedRoster) {
     ],
     // What the builder warns under "Could not check every rule": not proven illegal, so not a problem.
     unchecked: priced.unhandled,
+    freeWargearLeftOut: priced.units.flatMap((unit) =>
+      freeWargear(unit.choices)
+        .filter((option) => !option.count)
+        .map((option) => ({ unit: unit.name, entry: unit.key + 1, wargear: option.name })),
+    ),
   }
 }
+
+/** A saved roster as save_roster takes it back: an automatically named one sends no name, so saving it keeps the generated title. */
+export const reusableRoster = <T extends { name: string; automaticName: boolean }>(roster: T) =>
+  roster.automaticName ? { ...roster, name: '' } : roster
 
 const rosterInput = {
   roster: saveRosterSchema.describe(
@@ -148,7 +158,7 @@ export function registerRosterTools(server: AgentTools) {
     {
       title: 'Check a roster',
       description:
-        'Prices a roster and lists every problem that stops it being fielded, without saving it or needing an account: the same summary get_my_roster gives a saved list. summary names each unit with its points, models, wargear, enhancements, Warlord and attachments, and gives the total; problems is empty when the list is legal. unchecked names restrictions Praetorium could not evaluate, which the player must check in the source rules before playing.',
+        'Prices a roster and lists every problem that stops it being fielded, without saving it or needing an account: the same summary get_my_roster gives a saved list. summary names each unit with its points, models, wargear, enhancements, Warlord and attachments, and gives the total; problems is empty when the list is legal. unchecked names restrictions Praetorium could not evaluate, which the player must check in the source rules before playing. freeWargearLeftOut names optional wargear that costs no points and replaces nothing but is not taken; take it with get_unit_options unless the player left it out on purpose.',
       inputSchema: rosterInput,
       annotations: READ_ONLY_TOOL,
     },
@@ -162,7 +172,7 @@ export function registerRosterTools(server: AgentTools) {
     {
       title: 'Grade a roster',
       description:
-        "Grades which jobs a roster can do on the table, as the roster builder's grades do: score 0 to 100 and grade A to D overall and per category (board control, mobility, damage against reference targets, durability), placed among tournament lists of the same battle size and of comparedWith's armies. A typical tournament list scores about 70. It measures coverage, not strength: in tournament games the players' skill decided far more than any list measure, the overall grade went with winning only slightly, and more units with an even spread of points went with winning most. So never call a list competitive from its grade, and never present it as a win rate. missing names the reference targets nothing in the list can take half of alone. units gives each unit the jobs it is credited with. tournament, when the army has enough top-four lists, gives stapleShare (the share of its points in datasheets at least 3 in 10 of those lists field, which went with winning slightly), the staples it leaves out and its unproven datasheets that no winning list fields. calibration.lists is 'drawn' when the battle size was compared with lists drawn from 2,000-point tournament lists rather than real lists of its size, a rougher comparison. It measures units at full strength with passive rules only, from the exact simulator, so it rarely tells detachments apart; compare detachments with simulate_combat. Each row's notCalculated names units or rules it could not measure. Takes a few seconds; check the list with check_roster first, since a list that cannot be fielded still grades.",
+        "Grades which jobs a roster can do on the table, as the roster builder's grades do: score 0 to 100 and grade A to D overall and per category (board control, mobility, damage against reference targets, durability), placed among tournament lists of the same battle size and of comparedWith's armies. A typical tournament list scores about 70. It measures coverage, not strength: in tournament games the players' skill decided far more than any list measure, the overall grade went with winning only slightly, and more units with an even spread of points went with winning most. So never call a list competitive from its grade, and never present it as a win rate. missing names the reference targets nothing in the list can take half of alone. units gives each unit the jobs it is credited with; a leader or support character counts inside the unit it joins, so its buffs never show as its own job, and cutting it for another unit always raises board presence. A unit with one joined to it lists it under attached, with each target whose share of wounds the unit takes changes without it: with and without, where 1 is one whole target. Weigh that before cutting it. tournament, when the army has enough top-four lists, gives stapleShare (the share of its points in datasheets at least 3 in 10 of those lists field, which went with winning slightly), the staples it leaves out and its unproven datasheets that no winning list fields. calibration.lists is 'drawn' when the battle size was compared with lists drawn from 2,000-point tournament lists rather than real lists of its size, a rougher comparison, and there nothing shows that more units or an even spread go with winning. It measures units at full strength with passive rules only, from the exact simulator, so it rarely tells detachments apart; compare detachments with simulate_combat. Each row's notCalculated names units or rules it could not measure. Takes a few seconds; check the list with check_roster first, since a list that cannot be fielded still grades.",
       inputSchema: rosterInput,
       annotations: READ_ONLY_TOOL,
     },
@@ -170,7 +180,7 @@ export function registerRosterTools(server: AgentTools) {
       if (!(await app().catalogueFor(roster.catalogueId))) return unavailable()
       try {
         const grades = await agentPoolWork(() =>
-          calculateRosterGrades(savedRosterPriceInput(roster), AbortSignal.timeout(GRADE_TIMEOUT_MS)),
+          calculateRosterGrades(savedRosterPriceInput(roster), AbortSignal.timeout(GRADE_TIMEOUT_MS), { attachedShares: true }),
         )
         return grades
           ? structured({ grades }, { missing: grades.missing.length, ...(grades.score === null ? {} : { score: grades.score }) })

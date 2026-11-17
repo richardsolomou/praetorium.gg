@@ -16,7 +16,7 @@ const references = (limit: number) =>
   gradeReferences(limit, (key, unit) => memoUntilSnapshotChanges('roster-grade-reference', key, () => referenceUnit(unit, namedCombatant)))
 
 /** The grades for a roster's current picks, from the exact simulator at full strength with passive rules only. */
-export async function calculateRosterGrades(data: PriceInput, signal: AbortSignal) {
+export async function calculateRosterGrades(data: PriceInput, signal: AbortSignal, { attachedShares = false } = {}) {
   const instance = app()
   const [loaded, rules] = await Promise.all([instance.catalogueFor(data.catalogueId), instance.rulesFor(data.catalogueId)])
   if (!loaded) throw new Error('This roster’s army data is unavailable.')
@@ -26,6 +26,7 @@ export async function calculateRosterGrades(data: PriceInput, signal: AbortSigna
     data,
     words: await serverWords(),
     references: await references(data.limit),
+    attachedShares,
     // A busy or failed calculation service fails the whole request, so the reader can retry rather than read a gap.
     calculate: async (requests) => {
       const answers = []

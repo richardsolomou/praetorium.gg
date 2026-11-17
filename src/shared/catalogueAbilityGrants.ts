@@ -125,6 +125,11 @@ export function abilityGrantStatement(description: string): AbilityGrantStatemen
     /^While a Character model is leading this unit, that Character model has the \[?([\p{L}\p{N} +'’\p{Pd}]+)\]? ability\.$/iu,
   )
   if (bodyguardGrant) return stated([as(bodyguardGrant[1]!, 'leader', { attached: true })])
+  const namedBodyguardGrant = prose.match(
+    /^While an? ([^,.\n]{1,160}?) model is leading this unit, that model has the \[?([\p{L}\p{N} +'’\p{Pd}]+)\]? ability\.$/iu,
+  )
+  if (namedBodyguardGrant)
+    return stated([as(namedBodyguardGrant[2]!, 'leader', { explicit: true, attached: true, target: namedBodyguardGrant[1]! })])
   const thisUnitGrant = prose.match(
     /^(?:[^.\n]{1,160} (?:model|unit) only\.\s*)?(?:[-▪]\s*)?This unit has (?:the )?\[?([\p{L}\p{N} +"'’\p{Pd}]+?)\]?(?: abilit(?:y|ies))?\.(?:\s|$)/iu,
   )

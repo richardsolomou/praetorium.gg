@@ -85,6 +85,7 @@ it('exposes every MCP tool and both resources and prompts for a signed-in player
       'list_units',
       'simulate_combat',
       'optimize_loadout',
+      'compare_enhancements',
       'get_unit_options',
       'list_data_updates',
       'check_roster',

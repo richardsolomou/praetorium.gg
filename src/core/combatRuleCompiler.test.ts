@@ -855,3 +855,59 @@ describe('wordings a rule gives a whole army or a keyword', () => {
     ],
   ])('reads %s as a defence alone', (_, description) => expect(combatRuleRoles(description)).toEqual(['defender']))
 })
+
+describe('Haloscreed Battleclade rules', () => {
+  const kastelanRobots = ['Faction: Adeptus Mechanicus', 'Imperium', 'Kastelan Robots', 'Legio Cybernetica', 'Vehicle', 'Walker']
+  const battleProtocols =
+    'At the start of the battle, if this model is leading a **KASTELAN ROBOTS** unit, that unit enters Aegis Protocols (see below). In your Command phase, if this model is leading a **KASTELAN ROBOTS** unit, you can select one protocol from those listed below for that unit to enter. Once a unit enters a protocol, it remains in that protocol until it enters a different one.\n\n■ **Protector Protocol:** Add 2 to the Attacks characteristic of ranged weapons equipped by **KASTELAN ROBOT** models in that unit.\n■ **Conqueror Protocol:** Add 2 to the Attacks characteristic of melee weapons equipped by **KASTELAN ROBOT** models in that unit.\n■ **Aegis Protocol:** Add 1 to the Toughness characteristic of **KASTELAN ROBOT** models in that unit.'
+  const noosphericTransference =
+    'In your Command phase, select one or more **ADEPTUS MECHANICUS** units from your army (including units that are embarked within **TRANSPORTS**). The maximum number of units you can select depends on the battle size, as follows:\n\nINCURSION: 1 UNIT\nSTRIKE FORCE: 2 UNITS\nONSLAUGHT: 3 UNITS\n\nUntil the start of your next Command phase, those units gain the **HALO OVERRIDE** keyword. Then, select one of the Override abilities below. Until the start of your next Command phase, units from your army with the **HALO OVERRIDE** keyword have the selected Override ability:\n\n### Electromotive Energisation\n\nAdd 2" to the Move characteristic of models in this unit.\n\n### Microactuator Bracing\n\nAdd 1 to the Toughness characteristic of models in this unit.\n\n### Predation Protocols\n\nThis unit is eligible to declare a charge in a turn in which it Advanced.\n\n### Muted Servomotors\n\nModels in this unit have the Stealth ability.'
+
+  it("reads a unit's ranged attacks re-rolling Damage rolls", () =>
+    expect(effects('This unit’s ranged attacks can re-roll <b>damage rolls</b>.')).toEqual([
+      [{ role: 'attacker', phases: ['ranged'], damageReroll: 'any' }],
+    ]))
+  it('reads more range and a Hazardous re-roll as changing no attack', () =>
+    expect(
+      compileCombatRule(
+        rule(
+          '**ADEPTUS MECHANICUS** model only. Add 6" to the range characteristic of ranged weapons equipped by models in the bearer’s unit and, each time a Hazardous test is taken for that unit, you can re‑roll the result.',
+        ),
+      ),
+    ).toEqual({ choices: [], defaultChoice: 0 }))
+  it('offers each protocol the unit can enter', () =>
+    expect(combatRuleChoices(rule(battleProtocols, { scope: 'attached', keywords: kastelanRobots, models: 2 }))).toEqual([
+      { label: 'Protector Protocol', effects: [{ role: 'attacker', phases: ['ranged'], characteristic: { kind: 'attacks', add: 2 } }] },
+      { label: 'Conqueror Protocol', effects: [{ role: 'attacker', phases: ['melee'], characteristic: { kind: 'attacks', add: 2 } }] },
+      { label: 'Aegis Protocol', effects: [{ role: 'defender', phases: ['ranged', 'melee'], toughness: 1 }] },
+    ]))
+  it('starts in the protocol the unit enters at the start of the battle', () =>
+    expect(combatRuleDefault(rule(battleProtocols, { scope: 'attached', keywords: kastelanRobots, models: 2 }))).toBe(3))
+  it('gives no protocol to a leader without the keyword it names', () =>
+    expect(combatRuleChoices(rule(battleProtocols, { scope: 'attached', keywords: ['Character', 'Cybernetica Datasmith'] }))).toEqual([]))
+  it('offers the selected abilities that change an attack', () =>
+    expect(combatRuleChoices(rule(noosphericTransference, { scope: 'detachment', keywords: kastelanRobots }))).toEqual([
+      { label: 'Microactuator Bracing', effects: [{ role: 'defender', phases: ['ranged', 'melee'], toughness: 1 }] },
+      { label: 'Muted Servomotors', effects: [{ role: 'defender', phases: ['ranged'], options: { cover: true } }] },
+    ]))
+  it('reads protocols listed as dashes, as the catalogue prints them', () =>
+    expect(
+      combatRuleChoices(
+        rule(
+          'At the start of the battle, if this model is leading a ^^**Kastelan Robots^^** unit, that unit enters Aegis Protocols (see below). In your Command phase, if this model is leading a ^^**Kastelan Robots^^** unit, you can select one protocol from those listed below for that unit to enter. Once a unit enters a protocol, it remains in that protocol until it enters a different one.\n- Protector Protocol: Add 2 to the Attacks characteristic of ranged weapons equipped by ^^**Kastelan Robot^^** models in that unit.\n- Conqueror Protocol: Add 2 to the Attacks characteristic of melee weapons equipped by ^^**Kastelan Robot^^** models in that unit.\n- Aegis Protocol: Add 1 to the Toughness characteristic of ^^**Kastelan Robot^^** models in that unit.',
+          { scope: 'attached', keywords: kastelanRobots, models: 2 },
+        ),
+      ).map((choice) => choice.label),
+    ).toEqual(['Protector Protocol', 'Conqueror Protocol', 'Aegis Protocol']))
+  it('reads selected abilities titled by their first line, as the catalogue prints them', () =>
+    expect(
+      combatRuleChoices(
+        rule(noosphericTransference.replaceAll('**', '').replaceAll(/### (.+)\n\n/g, '$1\n'), {
+          scope: 'detachment',
+          keywords: kastelanRobots,
+        }),
+      ).map((choice) => choice.label),
+    ).toEqual(['Microactuator Bracing', 'Muted Servomotors']))
+  it('leaves the selected abilities off until the player selects the unit', () =>
+    expect(combatRuleDefault(rule(noosphericTransference, { scope: 'detachment', keywords: kastelanRobots }))).toBe(0))
+})

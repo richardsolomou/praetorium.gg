@@ -284,7 +284,7 @@ vi.mock('./publishedTextFiles', () => ({
     text === CARD_TOKEN ? 'Each time a model in this unit makes an attack, add 1 to the Hit roll.' : null,
 }))
 
-import { optimizeCombatLoadout, simulateCombat } from './combatTools'
+import { compareEnhancements, optimizeCombatLoadout, simulateCombat } from './combatTools'
 import { unitOptionsFor } from './rosterTools'
 
 beforeEach(() => {
@@ -449,6 +449,23 @@ describe('an enhancement', () => {
     expect(result.structuredContent).toEqual({
       refused: ['Leader cannot take an enhancement named Iron Will. Its enhancements are: Keen Eye.'],
     })
+  })
+})
+
+describe('comparing enhancements', () => {
+  type Compared = {
+    without: { expectedWoundsLost: number }
+    enhancements: { enhancement: string; outcome: { expectedWoundsLost: number } }[]
+  }
+  const compared = async () =>
+    (await compareEnhancements({ attacker: { ...squad, attached: [{ unit: 'Leader' }] }, defender: beast, mode: 'combined' }))
+      .structuredContent as Compared
+
+  it('simulates each enhancement a character on the attacking side can take', async () =>
+    expect((await compared()).enhancements.map((row) => row.enhancement)).toEqual(['Keen Eye']))
+  it('sets each against the unit taking none', async () => {
+    const { without, enhancements } = await compared()
+    expect(enhancements[0]!.outcome.expectedWoundsLost).toBeGreaterThan(without.expectedWoundsLost)
   })
 })
 
