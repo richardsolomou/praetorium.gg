@@ -58,6 +58,7 @@ vi.mock('./publishedTextFiles', () => ({
 }))
 vi.mock('./app', () => ({
   app: () => ({
+    searchIndexFor: async () => null,
     catalogueFor: async () => null,
     rulesFor: async () => null,
     auth: {

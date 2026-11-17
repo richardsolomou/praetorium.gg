@@ -403,6 +403,16 @@ function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoi
       const matches = hasKeywords(keywords[1]!)
       if (matches !== null) return matches ? context : false
     }
+    const keywordOrNear =
+      /^(?:your|this|that) unit has the (.+?) keyword and\/or it is within (\d+)" of one or more friendly (.+?) units$/i.exec(predicate)
+    if (keywordOrNear) {
+      // A unit with the keyword always meets this, so only a unit without it is left with the distance to choose.
+      const [, keyword, range, near] = keywordOrNear
+      const held = hasKeywords(keyword!)
+      if (held) return context
+      const nearby = `within ${range}" of a friendly ${near} unit`
+      return { ...context, conditions: [...context.conditions, held === false ? capitalised(nearby) : `Has ${keyword} or is ${nearby}`] }
+    }
     if (
       /^(?:the )?Strength characteristic of (?:that|the) attack is greater than (?:this model's|the|that unit's|this unit's) Toughness(?: characteristic)?(?: of (?:this|that) unit)?$/i.test(
         predicate,

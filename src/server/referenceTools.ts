@@ -26,6 +26,7 @@ import {
 } from './referenceSchemas'
 import { referenceFactions, referenceIndex } from './referenceService'
 import { READ_ONLY_TOOL, structured, toolError, type AgentTools } from './agentTools'
+import { app } from './app'
 
 export function registerReferenceTools(server: AgentTools) {
   server.registerTool(
@@ -33,7 +34,7 @@ export function registerReferenceTools(server: AgentTools) {
     {
       title: 'Search the Praetorium game reference',
       description:
-        'Searches Praetorium’s missions, force dispositions, deployments, terrain, rules, detachments, and datasheets by name, number, keyword, and value. Returns bounded excerpts with canonical URLs, source revisions, and attribution. Rules text is not included; records point to it upstream.',
+        'Searches Praetorium’s missions, force dispositions, deployments, terrain, rules, detachments, and datasheets by name, number, keyword, and value, then datasheets and detachments whose abilities, stratagems or enhancements say the words searched for, such as objective control remains for an ability that keeps an objective. Returns bounded excerpts with canonical URLs, source revisions, and attribution; a match found by what an ability says names that ability and points at its section. Rules text is not included; records point to it upstream.',
       inputSchema: {
         query: z
           .string()
@@ -58,7 +59,7 @@ export function registerReferenceTools(server: AgentTools) {
       const corpus = await activeReferenceCorpus()
       if (!corpus) return unavailable()
       const input = { query, kinds, faction, pack, document, limit, cursor }
-      const result = searchReference(corpus, input)
+      const result = searchReference(corpus, input, await app().searchIndexFor())
       return structured(result, { results: result.results.length, filtered: Boolean(kinds?.length || faction || pack || document) })
     },
   )

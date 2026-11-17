@@ -911,3 +911,18 @@ describe('Haloscreed Battleclade rules', () => {
   it('leaves the selected abilities off until the player selects the unit', () =>
     expect(combatRuleDefault(rule(noosphericTransference, { scope: 'detachment', keywords: kastelanRobots }))).toBe(0))
 })
+
+describe('a condition a unit meets by its keyword or by standing near one that has it', () => {
+  const conqueror =
+    'Each time a model in this unit makes an attack, if this unit has the **BATTLELINE** keyword and/or it is within 6" of one or more friendly **ADEPTUS MECHANICUS BATTLELINE** units, improve the Armour Penetration characteristic of that attack by 1.'
+  const ap = { role: 'attacker', phases: ['ranged', 'melee'], characteristic: { kind: 'armour-penetration', add: -1 } }
+
+  it('always holds for a unit with the keyword', () =>
+    expect(combatRuleChoices(rule(conqueror, { keywords: ['Battleline', 'Skitarii'], models: 10 }))).toEqual([
+      { label: 'Active', effects: [ap] },
+    ]))
+  it('leaves a unit without the keyword the distance to choose, in its own words', () =>
+    expect(combatRuleChoices(rule(conqueror, { keywords: ['Character', 'Tech-Priest'] }))).toEqual([
+      { label: 'Within 6" of a friendly ADEPTUS MECHANICUS BATTLELINE unit', effects: [ap] },
+    ]))
+})
