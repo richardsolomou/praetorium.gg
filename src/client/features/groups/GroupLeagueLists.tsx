@@ -15,6 +15,7 @@ import { useSealList } from '../sealedEvents/SealList'
 import { SealedEventRuleFields } from '../sealedEvents/SealedEventRuleFields'
 import { useSealedEventRefresh } from '../sealedEvents/sealedEvent'
 import { memberNameOf, useGroupRefresh, type Group } from './group'
+import { SealingPlayer } from './SealingPlayer'
 
 type League = NonNullable<Awaited<ReturnType<typeof groupLeague>>>
 type LeagueGame = NonNullable<League['game']>
@@ -128,6 +129,37 @@ export function SealLeagueList({ group, game, sealed, primary }: { group: Group;
       </Button>
       {seal.element}
     </>
+  )
+}
+
+/** Who has sealed a list for a draft league, with the viewer's own by name. */
+export function LeagueSealing({
+  group,
+  league,
+  game,
+  viewerId,
+}: {
+  group: Group
+  league: League
+  game: LeagueGame
+  viewerId: string | null
+}) {
+  // Only the viewer's own list is named before the reveal, so nobody else needs the record.
+  const { data: record } = useQuery({ ...sealedEventQuery(game.token), enabled: viewerId !== null && game.sealedIds.includes(viewerId) })
+  const ownList = record?.entries.find((entry) => entry.userId === viewerId)?.rosterName ?? null
+  return (
+    <ul aria-label="Sealed lists" className="mt-3 divide-y divide-edge overflow-hidden part">
+      {league.players.map((player) => (
+        <SealingPlayer
+          key={player.userId}
+          group={group}
+          userId={player.userId}
+          viewerId={viewerId}
+          sealed={game.sealedIds.includes(player.userId)}
+          list={player.userId === viewerId ? ownList : null}
+        />
+      ))}
+    </ul>
   )
 }
 

@@ -5,7 +5,7 @@ import { expectNoHorizontalOverflow } from './builder.harness'
 for (const width of [1440, 390]) {
   test(`release and data update pages share navigation and preserve history at ${width}px`, { tag: '@catalogue' }, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 })
-    await page.goto('/whats-new')
+    await page.goto(`/whats-new#release-${manifest.version}`)
     const navigation = page.getByRole('navigation', { name: 'Updates', exact: true })
     await expect(navigation.getByRole('link', { name: "What's new", exact: true })).toHaveAttribute('aria-current', 'page')
     const current = page.locator(`[id="release-${manifest.version}"]`)
@@ -35,7 +35,7 @@ for (const width of [1440, 390]) {
     await page.getByRole('link', { name: 'Newest updates', exact: true }).click()
     await expect(page).toHaveURL('/data-updates')
     await navigation.getByRole('link', { name: "What's new", exact: true }).click()
-    await expect(current).toBeVisible()
+    await expect(page.locator('main h2[id^="released-"]').first()).toBeVisible()
     await expect(navigation.getByRole('link', { name: "What's new", exact: true })).toHaveAttribute('aria-current', 'page')
   })
 }

@@ -21,7 +21,8 @@ import {
 } from '../shared/battleRules'
 import { battleFoldArgs, visibleBattleLog } from '../core/offlineBattle'
 import type { BattleWorkspace } from '../contracts/battleWorkspace'
-import { randomId, randomToken } from './random'
+import { randomUUID } from 'node:crypto'
+import { randomToken } from './random'
 import type { AdminBattle } from '../admin'
 import {
   battleCapacity,
@@ -203,7 +204,7 @@ export class PraetoriumService {
       }
     }
     const token = offlineIdentifier('battleToken', randomToken)
-    const id = offlineIdentifier('battleId', randomId)
+    const id = offlineIdentifier('battleId', randomUUID)
     await this.repository.createBattle({
       id,
       token,
@@ -274,7 +275,7 @@ export class PraetoriumService {
    */
   async startDraft(userId: string, missionPackId: string | null) {
     const token = randomToken()
-    const id = randomId()
+    const id = randomUUID()
     const battle = await this.repository.createBattle({
       id,
       token,
@@ -472,7 +473,7 @@ export class PraetoriumService {
     if (!battle.isFinished) return 'unfinished'
     const claim = await this.repository.claimImportedBattle({ source: 'battlebase', sourceId: battle.id, userId, playerId: battlebaseId })
     if (claim !== 'absent') return claim === 'claimed' ? 'joined' : claim === 'seated' ? 'alreadyImported' : 'skipped'
-    const id = randomId()
+    const id = randomUUID()
     const copy = battlebaseBattleImport(battle, { battlebaseId, userId, guestId: guestSeatId(id, 0) }, context(battle))
     if (typeof copy === 'string') return copy === 'unfinished' ? 'unfinished' : 'skipped'
     await this.repository.createBattle({

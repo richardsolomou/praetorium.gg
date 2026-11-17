@@ -1,6 +1,6 @@
-import { randomInt } from 'node:crypto'
-import { randomId, randomToken } from '../random'
-import { isGroupOrganizer, visibleGroupMembers } from '../../core/group'
+import { randomInt, randomUUID } from 'node:crypto'
+import { randomToken } from '../random'
+import { byLatestGame, isGroupOrganizer, visibleGroupMembers } from '../../core/group'
 import { GROUP_LEAGUE_PLAYERS_MAX, GROUP_LEAGUE_PLAYERS_MIN, GROUP_LEAGUE_SEED_MAX } from '../../core/groupLeague'
 import type { SealedEventAdmission, SealedEventVisibility } from '../../core/sealedEvent'
 import type { Notifier } from '../pushNotifier'
@@ -17,7 +17,7 @@ export class GroupService {
 
   async createGroup(ownerId: string, details: GroupDetails) {
     const token = randomToken()
-    await this.repository.createGroup({ id: randomId(), token, ownerId, ...details, now: this.clock() })
+    await this.repository.createGroup({ id: randomUUID(), token, ownerId, ...details, now: this.clock() })
     return { token }
   }
 
@@ -98,7 +98,7 @@ export class GroupService {
   /** Starts a draft league, or draws a draft's fixtures again. */
   async drawLeague(token: string, actorId: string) {
     const result = await this.repository.drawGroupLeague(token, actorId, {
-      id: randomId(),
+      id: randomUUID(),
       seed: randomInt(GROUP_LEAGUE_SEED_MAX + 1),
       now: this.clock(),
     })
@@ -143,9 +143,9 @@ export class GroupService {
   /** Ends a complete league and opens a draft for the next, which keeps its players who are still in the group. */
   async nextLeague(token: string, actorId: string) {
     const result = await this.repository.nextGroupLeague(token, actorId, {
-      id: randomId(),
+      id: randomUUID(),
       seed: randomInt(GROUP_LEAGUE_SEED_MAX + 1),
-      eventId: randomId(),
+      eventId: randomUUID(),
       eventToken: randomToken(),
       now: this.clock(),
     })
@@ -162,8 +162,8 @@ export class GroupService {
     throw new Response('only the group’s organizers can end a league', { status: 403 })
   }
 
-  groups(userId: string | null) {
-    return this.repository.groupsVisibleTo(userId)
+  async groups(userId: string | null) {
+    return (await this.repository.groupsVisibleTo(userId)).toSorted(byLatestGame)
   }
 
   async group(token: string, viewerId: string | null) {

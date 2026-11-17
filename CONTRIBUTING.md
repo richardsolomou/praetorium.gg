@@ -16,6 +16,6 @@ Run the checks covering your change: `just test-unit <file>`, `just test-integra
 
 ## Pull requests and releases
 
-Use a conventional commit title and the [PR template](.github/pull_request_template.md). A change players can notice needs a `pnpm changeset` (`minor` feature, `patch` fix), one entry per fix: one sentence on what a player can now see or do, with no technical terms, services, or file names. Markdown emphasis and code show as formatting on What's new. Invisible changes need none.
+Use a conventional commit title and the [PR template](.github/pull_request_template.md). A change players can notice needs a `pnpm changeset` (`minor` feature, `patch` fix), one entry per fix: one sentence on what a player can now see or do, with no technical terms, services, or file names. Start it with the area What's new groups it under: `[rosters]`, `[simulator]`, `[battles]`, `[events]`, `[reference]`, `[assistant]` or `[app]`; `pnpm changesets:check` fails without one. Markdown emphasis and code show as formatting on What's new. Invisible changes need none.
 
 Report vulnerabilities through [SECURITY.md](SECURITY.md).

@@ -14,7 +14,7 @@ The **Build**/**View** switch in the header hides editing controls for reading a
 
 **Create variant** makes a copy grouped with this list. The variants icon in the header shows **Changes from** the base list and switches between variants. **Make its own roster** takes a variant out of the group. If the base leaves, the oldest remaining variant becomes the base.
 
-**Duplicate** makes an independent copy. On someone else's list it's **Duplicate to my rosters**, and the copy notes where it came from.
+**Duplicate** makes an independent copy. Both open the new list straight away, and a message confirms which one you're editing. On someone else's list it's **Duplicate to my rosters**, and the copy notes where it came from.
 
 **Lock roster** stops edits until you **Unlock** it. You can still share, export, print and take it to battle.
 

@@ -19,6 +19,7 @@ import { PageContent, PageHeader } from '../../components/Page'
 import { PageState } from '../../components/PageState'
 import { ungrouped } from '../../components/SearchableSelect'
 import { copyPlayedArmy, copyRoster } from '../../functions'
+import { toast } from 'sonner'
 import { useFavouriteFactions } from '../../favouriteFactions'
 import {
   discoveredRostersQuery,
@@ -181,6 +182,7 @@ export function RosterDiscoveryPage({ view, search }: { view: RosterAudience | '
       posthog.capture('roster_duplicated', { unit_count: entry.roster.unitCount, discovered: true, guest: !me })
       await invalidateSavedRosters(queryClient)
       await navigate({ to: '/rosters/$id', params: { id } })
+      toast.success("You're editing the copy. The original is unchanged.")
     },
   })
   const copyPlayed = useMutation({

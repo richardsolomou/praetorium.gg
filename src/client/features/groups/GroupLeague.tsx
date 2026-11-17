@@ -30,7 +30,7 @@ import { useNow } from '../../useNow'
 import { EnterScore } from '../sealedEvents/ReportTableResult'
 import { SealedEventResults } from '../sealedEvents/SealedEventResults'
 import { leagueOutcome, useGroupRefresh, usePlayGroupGame, type Group } from './group'
-import { LeagueLists, leaguePoints, SealLeagueList, StartLeagueDialog } from './GroupLeagueLists'
+import { LeagueLists, LeagueSealing, leaguePoints, SealLeagueList, StartLeagueDialog } from './GroupLeagueLists'
 import { useMoment, inputMoment, momentFromInput } from '../../dates'
 import { DropdownMenuItem } from '../../components/Menu'
 import { nameColour } from '../../playerName'
@@ -148,16 +148,18 @@ function DraftLeague({ group, league, viewerId, member }: { group: Group; league
     <section data-group-league>
       <SectionHeading title="League" action={<span className="chip">Draft</span>} />
       <p className="text-sm text-dim">
-        {league.game ? `Lists are sealed to ${leaguePoints(league.game)} and revealed when the league is published. ` : null}
-        {count
-          ? `${formatList(league.players.map((player) => player.name))} ${league.game ? (count === 1 ? 'has sealed a list' : 'have sealed lists') : count === 1 ? 'has joined' : 'have joined'}. `
-          : 'Nobody has joined yet. '}
+        {league.game
+          ? `Lists are sealed to ${leaguePoints(league.game)} and revealed when the league is published. ${count ? '' : 'Nobody has sealed a list yet. '}`
+          : count
+            ? `${formatList(league.players.map((player) => player.name))} ${count === 1 ? 'has joined' : 'have joined'}. `
+            : 'Nobody has joined yet. '}
         {!league.organizer
           ? 'Everyone who joins before the organizers publish the league plays every other player once.'
           : !ready
             ? `At least ${GROUP_LEAGUE_PLAYERS_MIN} players need to join before you can publish.`
             : `${countLabel(rounds, 'round')}: each player meets every other once${count % 2 ? ' and sits out one round' : ''}. Only organizers see the draw until it’s published.`}
       </p>
+      {league.game && count ? <LeagueSealing group={group} league={league} game={league.game} viewerId={viewerId} /> : null}
       <div className="mt-3 flex flex-wrap gap-2">
         {member && league.game ? <SealLeagueList group={group} game={league.game} sealed={joined} primary={!league.organizer} /> : null}
         {member && joined ? (
