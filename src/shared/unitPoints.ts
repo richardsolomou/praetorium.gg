@@ -18,7 +18,13 @@ const cache = new WeakMap<LoadedCatalogue, Map<string, number>>()
 
 const comparable = (name: string) => normalizedName(plainQuotes(name.replaceAll('armour', 'armor')))
 
-export function mfmUnitFor(loaded: LoadedCatalogue, primaryCatalogueId: string, entryId: string): MfmUnit | null {
+const mfmUnits = new WeakMap<LoadedCatalogue, Map<string, MfmUnit | null>>()
+
+/** The field manual row a datasheet is priced from, or null when none or several disagreeing rows match its name. */
+export const mfmUnitFor = (loaded: LoadedCatalogue, primaryCatalogueId: string, entryId: string): MfmUnit | null =>
+  cachedIn(mfmUnits, loaded, `${primaryCatalogueId}:${entryId}`, () => findMfmUnit(loaded, primaryCatalogueId, entryId))
+
+function findMfmUnit(loaded: LoadedCatalogue, primaryCatalogueId: string, entryId: string): MfmUnit | null {
   const book = loaded.index.catalogues.get(primaryCatalogueId)
   const entry = loaded.index.definitions.get(entryId)
   if (!book || !entry) return null
