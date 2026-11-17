@@ -278,7 +278,10 @@ function compileRule(
       .filter(Boolean)
       .map((option) => /^([^:]+): (.+)$/.exec(option.trim()))
     if (options.some((option) => !option)) return null
-    const compiled = optionChoices(options.map((option) => [option![1]!, { ...rule, description: option![2]! }]))
+    const compiled = optionChoices(
+      options.map((option) => [option![1]!, { ...rule, description: option![2]! }]),
+      compileOption,
+    )
     if (!compiled) return null
     const singular = (name: string) => combatTextKey(name).replace(/s$/, '')
     const starting = states[1] ? compiled.choices.findIndex((choice) => singular(choice.label) === singular(states[1]!)) : -1
@@ -292,7 +295,12 @@ function compileRule(
     const options = titledParagraphs(rule.description.slice(rule.description.lastIndexOf('ability:') + 'ability:'.length))
     if (!options.length || options.length > 12) return null
     if (rule.keywords && !ruleAnswers(rule)(`covers:${combatTextKey(selectedAbility[1]!)}`)) return { choices: [], defaultChoice: 0 }
-    return optionChoices(options.map((option) => [option.name, { ...rule, description: option.description }]))
+    // The ability is selected for the army, though only the units selected that round have it.
+    return optionChoices(
+      options.map((option) => [option.name, { ...rule, description: option.description }]),
+      compileOption,
+      true,
+    )
   }
   const stances =
     /^(?:Each time a unit with this ability is selected to (shoot|fight), select one of the .+? below\. Until that unit has finished making its attacks, the selected .+? is active for it and it gains the relevant ability\.|At the start of the battle round, you can select one of the .+? below\. Until the end of the battle round, that .+? is active for your army, and all units from your army that have the .+? ability gain the relevant abilities shown below\.)\s*\n([\s\S]+)$/i.exec(
@@ -310,19 +318,6 @@ function compileRule(
       compileOption,
       !stances[1],
     )
-  }
-  // A unit stays in the option last selected for it, as a Kastelan unit does in a Battle Protocol.
-  const listed =
-    /^(?:At the start of the battle, [^\n]+? enters [^\n]+? \(see below\)\. )?(?:In your Command phase, )?(?:if [^,\n]+, )?you can select one (\w+) from those listed below[^.\n]*\.(?: Once a unit enters an? \1, it remains in that \1 until it enters a different one\.)?\s*\n([\s\S]+)$/i.exec(
-      normalizeCombatText(rule.description.replaceAll('\n', '\u0000')).replaceAll('\u0000', '\n'),
-    )
-  if (listed) {
-    const bullets = listed[2]!.split('\n').filter((line) => line.trim())
-    const options = bullets.flatMap((line) => {
-      const option = /^\s*[■-] ([^:]+): (.+)$/.exec(line)
-      return option ? [[option[1]!.trim(), { ...rule, description: option[2]! }] as const] : []
-    })
-    return options.length === bullets.length && options.length <= 12 ? optionChoices(options, compileOption) : null
   }
   if (/^At the start of your Command phase, friendly .+? units with this ability become readied\./i.test(intro)) {
     // Each readied ability a unit may use is a choice; one that changes no attack, such as a move, is none.
@@ -1180,12 +1175,6 @@ function compileRule(
       )
     if (ownSave && !context.enemy)
       return effect({ ...context, role: 'defender' }, { improveSave: { by: Number(ownSave[1]), best: Number(ownSave[2] ?? 2) } })
-    const ownToughness = /^Add ([1-9]) to the Toughness characteristic of (.+)$/i.exec(written)
-    if (ownToughness && !context.enemy) {
-      const next = recipient(ownToughness[2]!, context)
-      if (!next) return next === false ? [] : null
-      return effect({ ...next, role: 'defender' }, { toughness: Number(ownToughness[1]) })
-    }
     written = written.replace(/ \(this rule can only worsen a model's Objective Control characteristic to a minimum of 1\)$/i, '')
     written = written.replace(
       /^(worsen the Armour Penetration) of that attack by ([1-9])(?: \(to a minimum of 0\))?$/i,
@@ -1194,7 +1183,8 @@ function compileRule(
     const modelsToughness = /^Add ([1-9]) to the Toughness characteristic of ((?:.+? )?models(?: in (?:this|that|your) unit)?)$/i.exec(
       written,
     )
-    if (modelsToughness) {
+    // Models of an afflicted enemy unit are the target's, never a bonus to the attacker's own.
+    if (modelsToughness && !context.enemy) {
       const reached = recipient(modelsToughness[2]!, { ...context, role: 'defender' })
       return reached ? effect(reached, { toughness: Number(modelsToughness[1]) }) : reached === false ? [] : null
     }

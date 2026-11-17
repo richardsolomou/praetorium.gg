@@ -48,7 +48,7 @@ describe('rules a player chooses between during the battle', () => {
     expect(
       battleChoices([
         rule(
-          'In your Command phase, you can select one routine from those listed below for this unit to enter.\n- Strike Routine: Add 2 to the Attacks characteristic of ranged weapons equipped by models in this unit.\n- Guard Routine: Add 1 to the Toughness characteristic of models in this unit.',
+          'In your Command phase, if this unit is on the battlefield, you can select one routine from those listed below for that unit to enter. Once a unit enters a routine, it remains in that routine until it enters a different one.\n- Strike Routine: Add 2 to the Attacks characteristic of ranged weapons equipped by models in this unit.\n- Guard Routine: Add 1 to the Toughness characteristic of models in this unit.',
         ),
       ])[0]!.armyWide,
     ).toBe(false))
@@ -78,7 +78,7 @@ describe('rules a player chooses between during the battle', () => {
     expect(
       battleChoices([
         rule(
-          'In your Command phase, you can select one routine from those listed below for this unit to enter.\n- Strike Routine: Add 2 to the Attacks characteristic of ranged weapons equipped by models in this unit.',
+          'In your Command phase, if this unit is on the battlefield, you can select one routine from those listed below for that unit to enter. Once a unit enters a routine, it remains in that routine until it enters a different one.\n- Strike Routine: Add 2 to the Attacks characteristic of ranged weapons equipped by models in this unit.',
         ),
       ]),
     ).toEqual([]))
@@ -128,7 +128,7 @@ describe('rules a player chooses between during the battle', () => {
 
 describe('options that change the unit’s own characteristics', () => {
   const drills = rule(
-    'In your Command phase, you can select one drill from those listed below for this unit to enter.\n- Double Time: Add 3" to the Move characteristic of models in this unit.\n- Dig In: Improve the Save characteristic of models in this unit by 1 (this cannot improve a model’s Save to better than 3+).\n- Hold the Line: Improve the Leadership and Objective Control characteristics of models in this unit by 1.',
+    'In your Command phase, if this unit is on the battlefield, you can select one drill from those listed below for that unit to enter. Once a unit enters a drill, it remains in that drill until it enters a different one.\n- Double Time: Add 3" to the Move characteristic of models in this unit.\n- Dig In: Improve the Save characteristic of models in this unit by 1 (this cannot improve a model’s Save to better than 3+).\n- Hold the Line: Improve the Leadership and Objective Control characteristics of models in this unit by 1.',
     { name: 'Drills' },
   )
   const trooper = (save: string) =>

@@ -892,7 +892,7 @@ describe('wordings a rule gives a whole army or a keyword', () => {
 
 describe('rules a unit switches between during the battle', () => {
   const routines = (bullet: string, name: (written: string) => string) =>
-    `At the start of the battle, this unit enters Guard Routine (see below). In your Command phase, you can select one routine from those listed below for this unit to enter. Once a unit enters a routine, it remains in that routine until it enters a different one.\n${bullet} ${name('Strike Routine')} Add 2 to the Attacks characteristic of ranged weapons equipped by **WAR ENGINE** models in this unit.\n${bullet} ${name('Guard Routine')} Add 1 to the Toughness characteristic of **WAR ENGINE** models in this unit.`
+    `At the start of the battle, if this model is leading a unit, that unit enters Guard Routine (see below). In your Command phase, if this model is leading a unit, you can select one routine from those listed below for that unit to enter. Once a unit enters a routine, it remains in that routine until it enters a different one.\n${bullet} ${name('Strike Routine')} Add 2 to the Attacks characteristic of ranged weapons equipped by **WAR ENGINE** models in this unit.\n${bullet} ${name('Guard Routine')} Add 1 to the Toughness characteristic of **WAR ENGINE** models in this unit.`
 
   it.each([
     ['a datacard', routines('■', (name) => `**${name}:**`)],
