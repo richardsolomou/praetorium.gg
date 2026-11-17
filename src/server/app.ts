@@ -240,7 +240,9 @@ export function readiness(start: (untilBuilt: boolean) => Promise<void>) {
   let answered = false
   return {
     warm: () => {
-      const next = (current = start(process.env.NODE_ENV === 'production' && !answered))
+      const next = start(process.env.NODE_ENV === 'production' && !answered)
+      if (answered) return
+      current = next
       void next.then(() => {
         if (current === next) answered = true
       })
