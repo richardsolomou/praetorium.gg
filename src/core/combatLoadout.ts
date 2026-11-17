@@ -14,6 +14,8 @@ export type CombatCarrier = {
   models: number
   weapons: CombatEquipment[]
   modelProfileIds?: string[]
+  /** Those profiles' names and characteristics, which find the profile a datasheet merged an equal one into. */
+  modelProfileStats?: string[]
   /** The model's own keywords, which an ability limited to some models in the unit is checked against. */
   keywords?: string[]
   unitWide?: boolean
@@ -24,10 +26,29 @@ export const referenceOnlyWeapon = (name: string) => /\(ref\.?\s*only\)/i.test(n
 export const combatEquipmentMatches = (piece: CombatEquipment, profile: Pick<StructuredDatasheetProfile, 'id' | 'name'>) =>
   piece.profileIds ? piece.profileIds.includes(profile.id) : wargearKey(piece.name, true) === wargearKey(profile.name, true)
 
-export const combatModelMatches = (carrier: CombatCarrier, profile: Pick<StructuredDatasheetProfile, 'id' | 'name'>) =>
-  carrier.modelProfileIds
-    ? carrier.modelProfileIds.includes(profile.id)
-    : normalizeCombatKeyword(profile.name) === normalizeCombatKeyword(carrier.name)
+const profileStats = (name: string, values: readonly string[]) => JSON.stringify([normalizeCombatKeyword(name), ...values])
+
+type ModelProfile = Pick<StructuredDatasheetProfile, 'id' | 'name'> & { values: readonly { value: string; baseValue?: string }[] }
+
+/** The indexes of the datasheet's model profiles a carrier's models use. */
+export function carrierModelProfiles(carrier: CombatCarrier, profiles: readonly ModelProfile[]) {
+  const where = (matches: (profile: ModelProfile) => boolean) => profiles.flatMap((profile, index) => (matches(profile) ? [index] : []))
+  if (!carrier.modelProfileIds) return where((profile) => normalizeCombatKeyword(profile.name) === normalizeCombatKeyword(carrier.name))
+  const byId = where((profile) => carrier.modelProfileIds!.includes(profile.id))
+  if (byId.length) return byId
+  // A datasheet shows equal profiles once, keeping only one of their ids.
+  return where((profile) =>
+    Boolean(
+      carrier.modelProfileStats?.includes(
+        profileStats(
+          profile.name,
+          // A characteristic the datasheet adds, such as a granted invulnerable save, has an empty base the raw profile omits.
+          profile.values.map((value) => value.baseValue ?? value.value).filter(Boolean),
+        ),
+      ),
+    ),
+  )
+}
 
 /** How many of a weapon profile one carrier holds. */
 export const carriedCount = (carrier: CombatCarrier, profile: Pick<StructuredDatasheetProfile, 'id' | 'name'>) =>
@@ -81,15 +102,31 @@ function equippedWeapons(selection: Selection, index: CatalogueIndex, models: nu
 /** Preserve model ownership before the datasheet merges equal weapon profiles. */
 export function combatCarriers(selection: Selection, index: CatalogueIndex, options: EvaluateOptions = {}): CombatCarrier[] {
   const found: CombatCarrier[] = []
+  const unitProfiles = (id: string) => {
+    const definition = index.definitions.get(id)
+    return definition
+      ? definitionProfiles(definition, index).filter((profile) => datasheetProfileKind(profile.typeName ?? '') === 'unit')
+      : []
+  }
   const visit = (node: Selection, path: string[]) => {
     if ((node.count ?? 1) <= 0) return
     const definition = index.definitions.get(node.id)
     const target = definition && resolve(definition, index)
     if (target?.type === 'model') {
       const models = node.count ?? 1
-      const modelProfileIds = definitionProfiles(definition!, index)
-        .filter((profile) => datasheetProfileKind(profile.typeName ?? '') === 'unit')
-        .map((profile) => profile.id)
+      let own = unitProfiles(node.id)
+      // A model without a profile of its own uses the one profile written on the unit or group holding it.
+      if (!own.length) {
+        const held = [selection.id, ...path.slice(0, -1)].map(unitProfiles).findLast((profiles) => profiles.length)
+        if (held?.length === 1) own = held
+      }
+      const modelProfileIds = own.map((profile) => profile.id)
+      const modelProfileStats = own.map((profile) =>
+        profileStats(
+          profile.name ?? '',
+          (profile.characteristics ?? []).flatMap((value) => (value.name && value.$text ? [value.$text] : [])),
+        ),
+      )
       const keywords = [
         ...new Set(
           [definition!, target].flatMap((source) =>
@@ -100,7 +137,10 @@ export function combatCarriers(selection: Selection, index: CatalogueIndex, opti
           ),
         ),
       ]
-      const identity = { ...(modelProfileIds.length ? { modelProfileIds } : {}), ...(keywords.length ? { keywords } : {}) }
+      const identity = {
+        ...(modelProfileIds.length ? { modelProfileIds, modelProfileStats } : {}),
+        ...(keywords.length ? { keywords } : {}),
+      }
       const mixed = (node.selections ?? []).filter((child) => {
         const group = index.definitions.get(child.id)
         return group && isCollectiveGroup(group, index) && (child.selections ?? []).filter((entry) => (entry.count ?? 1) > 0).length > 1

@@ -3,7 +3,7 @@ import { attachedUnitList, attachmentHost } from '../core/attachedUnits'
 import { combatMatchup, strongestWeaponPreferences, type CombatAnswer, type CombatantSnapshot } from '../core/combatMatchup'
 import { combatRuleSelections, readCombatRule, type CombatRule } from '../core/combatRules'
 import { datasheetProfilesByKind } from '../core/datasheetStructure'
-import { combatModelMatches } from '../core/combatLoadout'
+import { carrierModelProfiles } from '../core/combatLoadout'
 import { REFERENCE_ATTACKERS, gradedTargets, type GradedUnit, type ReferenceTargetKey } from '../core/rosterGrades'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { calculateRosterPrice } from './pricing'
@@ -135,7 +135,7 @@ export function unitTotal(snapshot: CombatantSnapshot, kind: 'wounds' | 'objecti
     let counted = 0
     for (const carrier of member.carriers ?? []) {
       if (carrier.unitWide) continue
-      const matches = profiles.flatMap((profile, index) => (combatModelMatches(carrier, profile) ? [index] : []))
+      const matches = carrierModelProfiles(carrier, profiles)
       if (matches.length !== 1) return null
       total += values[matches[0]!]! * carrier.models
       counted += carrier.models
