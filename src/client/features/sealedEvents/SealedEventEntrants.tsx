@@ -47,9 +47,7 @@ export function EntrantRow({
     </>
   )
   const status = !sealing ? null : sealed ? (
-    <span className="inline-flex shrink-0 items-center gap-1 rounded-md border border-dashed border-parchment/60 px-1.5 py-px text-xs font-semibold text-parchment">
-      <Lock className="size-3" aria-hidden /> {detail}
-    </span>
+    <SealedChip>{detail}</SealedChip>
   ) : (
     <span className="inline-flex shrink-0 items-center gap-1 text-xs text-faint">
       <LockOpen className="size-3" aria-hidden /> {detail}
@@ -79,6 +77,15 @@ export function EntrantRow({
         </div>
       ) : null}
     </div>
+  )
+}
+
+/** A sealed list's mark, the same wherever players seal. */
+export function SealedChip({ children = 'Sealed' }: { children?: ReactNode }) {
+  return (
+    <span className="inline-flex shrink-0 items-center gap-1 rounded-md border border-dashed border-parchment/60 px-1.5 py-px text-xs font-semibold text-parchment">
+      <Lock className="size-3" aria-hidden /> {children}
+    </span>
   )
 }
 
