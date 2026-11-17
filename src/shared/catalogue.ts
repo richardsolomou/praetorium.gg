@@ -7,6 +7,7 @@ import {
   profileDescription,
   type InfoGroup,
   type InfoLink,
+  linkedProfile,
   nameOf,
   type Profile,
   targetOf,
@@ -434,7 +435,15 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
       const shared = loaded.index.shared.get(link.targetId)
       if (!shared) continue
       if ('characteristics' in shared && (!weaponsOnly || shared.typeName !== 'Abilities')) {
-        addProfile({ ...shared, name: link.name ?? shared.name }, kind, [...lineage, link.id, shared.id], [...owner, link.id, shared.id])
+        const profile = linkedProfile(link, shared)
+        // Link modifiers apply only to fielded models, so an unfielded model's variant is the shared profile itself.
+        const fielded = !selectedUnit || selected.has(definition.id)
+        addProfile(
+          fielded ? profile : { ...profile, id: shared.id },
+          kind,
+          [...lineage, link.id, shared.id],
+          [...owner, link.id, shared.id],
+        )
       }
     }
   }

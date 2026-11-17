@@ -4,6 +4,7 @@ import { bookOf, profileOperationCases } from './catalogue.fixtures'
 import { describeDatasheetAbilities } from '../shared/datasheetDescriptions'
 import { deploymentRules } from '../shared/rosterDeployment'
 import { defaultSelection } from '../core/expand'
+import { combatTarget } from '../core/combatProfiles'
 
 describe('the profile modifiers on a datasheet', () => {
   it.each([4, 10])('counts fixed weapons for a %i-model composition choice', (count) => {
@@ -401,6 +402,66 @@ describe('the profile modifiers on a datasheet', () => {
       ],
     })
     expect(datasheetIn(book, 'cat', 'unit', { selections: [{ id: 'unit' }] })?.profiles[0]?.values[0]?.value).toBe('7')
+  })
+
+  it('keeps the invulnerable save of models whose shared profile another model’s link removes it from', () => {
+    const fielded = (id: string, value: number) => [{ id: `${id}-size`, type: 'min' as const, value, field: 'selections', scope: 'parent' }]
+    const book = bookOf({
+      sharedProfiles: [
+        {
+          id: 'shared-profile',
+          name: 'Trooper',
+          typeName: 'Unit',
+          characteristics: [
+            { name: 'T', typeId: 'toughness', $text: '3' },
+            { name: 'Sv', typeId: 'save', $text: '3+' },
+            { name: 'W', typeId: 'wounds', $text: '1' },
+            { name: 'InSv', typeId: 'invulnerable', $text: '4+' },
+          ],
+        },
+      ],
+      selectionEntries: [
+        {
+          id: 'unit',
+          name: 'Squad',
+          type: 'unit',
+          selectionEntries: [
+            {
+              id: 'trooper',
+              name: 'Trooper',
+              type: 'model',
+              constraints: fielded('trooper', 2),
+              infoLinks: [{ id: 'trooper-link', targetId: 'shared-profile', type: 'profile' }],
+            },
+            {
+              id: 'hound',
+              name: 'Hound',
+              type: 'model',
+              constraints: fielded('hound', 1),
+              infoLinks: [
+                {
+                  id: 'hound-link',
+                  targetId: 'shared-profile',
+                  type: 'profile',
+                  modifiers: [
+                    { type: 'set', field: 'invulnerable', value: '' },
+                    { type: 'set', field: 'name', value: 'Hound' },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    })
+    const selection = defaultSelection('unit', book.index, { primaryCatalogueId: 'cat' })!
+    const views = datasheetViewsIn(book, 'cat', 'unit', { selections: [selection], unitSelectionIndex: 0 })
+    expect(
+      combatTarget(views.selected!, 3, 3, views.carriers).target?.groups.map(({ models, invulnerable }) => ({ models, invulnerable })),
+    ).toEqual([
+      { models: 2, invulnerable: 4 },
+      { models: 1, invulnerable: null },
+    ])
   })
 
   it('applies modifiers declared on a linked profile', () => {
