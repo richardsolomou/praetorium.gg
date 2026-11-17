@@ -428,7 +428,7 @@ export function FolderTiles({
         <button
           type="button"
           onClick={onNew}
-          className="grid h-24 place-items-center rounded-xl border border-dashed border-runner text-sm font-semibold text-parchment hover:border-parchment hover:bg-raised"
+          className="grid h-28 place-items-center rounded-xl border border-dashed border-runner text-sm font-semibold text-parchment hover:border-parchment hover:bg-raised"
         >
           <span className="flex items-center gap-2">
             <FolderPlus className="size-4" aria-hidden /> New folder
@@ -484,7 +484,7 @@ function FolderTile({
           className={cn(
             // The tab on its top edge is what makes the card read as a folder.
             // Every tile is one height, so a row of folders reads as a grid whatever each holds.
-            'part relative flex h-24 flex-col gap-1 p-3 pt-3.5 pr-10 hover:border-runner-hi hover:bg-raised',
+            'part relative flex h-28 flex-col gap-1 p-3 pt-3.5 pr-10 hover:border-runner-hi hover:bg-raised',
             'before:absolute before:-top-1.5 before:left-3 before:h-1.5 before:w-10 before:rounded-t-md before:border before:border-b-0 before:border-edge before:bg-panel',
             // The tab is part of the folder's shape, so it takes every state the body does.
             'hover:before:border-runner-hi hover:before:bg-raised',
@@ -492,10 +492,7 @@ function FolderTile({
               'border-parchment bg-raised before:border-parchment before:bg-raised hover:border-parchment hover:before:border-parchment',
           )}
         >
-          <span className="flex min-w-0 items-center gap-2 font-bold uppercase">
-            <Folder className="size-4 shrink-0 text-dim" aria-hidden />
-            <span className="truncate">{folder.name}</span>
-          </span>
+          <span className="line-clamp-2 leading-tight font-bold break-words uppercase">{folder.name}</span>
           <span className="truncate text-xs text-dim">
             {[
               folders ? countLabel(folders, 'folder') : null,
