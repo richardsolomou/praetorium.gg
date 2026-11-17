@@ -38,7 +38,7 @@ import { app, type App } from './app'
 import { combatantSnapshot, readRules, withReadRules } from '../shared/rosterGradeMeasures'
 import {
   applyOptimizedLoadout,
-  compareOutcomes,
+  compareLoadouts,
   type LoadoutCandidates,
   type LoadoutOptimization,
   type LoadoutScoring,
@@ -772,8 +772,8 @@ export async function optimizeCombatLoadout(input: OptimizeLoadoutInput) {
         skipped += found.skipped
         reason ??= found.reason
       }
-      if (found.best && (!top || compareOutcomes(found.best.result, top.result) > 0)) top = found.best
-      if (found.best && (!best || compareOutcomes(found.best.result, best.result) > 0)) best = found.best
+      if (found.best && (!top || compareLoadouts(found.best, top) > 0)) top = found.best
+      if (found.best && (!best || compareLoadouts(found.best, best) > 0)) best = found.best
     }
     try {
       const request = { catalogueId: resolved.catalogueId, detachmentIds: resolved.detachmentIds, picks, pickIndex: 0, walk }
@@ -781,6 +781,7 @@ export async function optimizeCombatLoadout(input: OptimizeLoadoutInput) {
         local = batch.local
         done = batch.done
         const read = batch.candidates.map((candidate) => ({
+          ...candidate,
           members: candidate.members.map((member) => ({ ...member, rules: readRules(member.rules, words) })),
         }))
         // The unit's own loadout is scored alone so it can be reported as current.
@@ -810,7 +811,7 @@ export async function optimizeCombatLoadout(input: OptimizeLoadoutInput) {
   const climb = async (walk?: { seed: number; steps: number }) => {
     let found = await search(resolved.picks, walk)
     let here: OptimizedLoadout | undefined
-    while (found.local && !signal.aborted && found.top && (!here || compareOutcomes(found.top.result, here.result) > 0)) {
+    while (found.local && !signal.aborted && found.top && (!here || compareLoadouts(found.top, here) > 0)) {
       here = found.top
       found = await search(applyOptimizedLoadout(resolved.picks, here.picks))
     }
@@ -866,7 +867,7 @@ export async function optimizeCombatLoadout(input: OptimizeLoadoutInput) {
       outcome: outcome(loadout.result),
     }
   }
-  const better = !current || compareOutcomes(best.result, current.result) > 0
+  const better = !current || compareLoadouts(best, current) > 0
   return structured(
     {
       mode: input.mode,
@@ -911,7 +912,7 @@ export function registerCombatTools(tools: AgentTools) {
     {
       title: 'Find the best loadout against a unit',
       description:
-        "Searches the attacking unit's legal wargear, with any attached leaders, for the loadout most likely to destroy the defender, then the most models destroyed, then the most wounds, as the simulator's Optimize does. Takes the same sides as simulate_combat; the attacker's choices and spreads are where the search starts, and model counts, enhancements and detachment upgrades stay fixed. mode ranks shooting followed by melee (combined), or one phase. Returns best and current, each with every attacking unit's choices and spreads ready for a roster pick or simulate_combat (a group left out keeps its default), its wargear by name, the weapon modes it used, and its odds; better says whether best beats current. exhaustive is true only when every legal loadout was checked; otherwise notes say why a better one may exist. Loadouts with rules the simulator cannot estimate are left out and named in notes. Takes up to about 20 seconds.",
+        "Searches the attacking unit's legal wargear, with any attached leaders, for the loadout most likely to destroy the defender, then the most models destroyed, then the most wounds, then the most optional wargear that costs no points and replaces nothing, as the simulator's Optimize does. Takes the same sides as simulate_combat; the attacker's choices and spreads are where the search starts, and model counts, enhancements and detachment upgrades stay fixed. mode ranks shooting followed by melee (combined), or one phase. Returns best and current, each with every attacking unit's choices and spreads ready for a roster pick or simulate_combat (a group left out keeps its default), its wargear by name, the weapon modes it used, and its odds; better says whether best beats current, or ties it while adding free wargear. exhaustive is true only when every legal loadout was checked; otherwise notes say why a better one may exist. Loadouts with rules the simulator cannot estimate are left out and named in notes. Takes up to about 20 seconds.",
       inputSchema: optimizeLoadoutInputSchema,
       annotations: READ_ONLY_TOOL,
     },

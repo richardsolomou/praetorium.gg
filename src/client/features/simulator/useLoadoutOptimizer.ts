@@ -4,7 +4,7 @@ import { loadoutSearch } from '../../functions'
 import CombatWorker from './combatWorker'
 import { useContext, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import {
-  compareOutcomes,
+  compareLoadouts,
   applyOptimizedLoadout,
   type LoadoutBatch,
   type LoadoutCandidates,
@@ -122,6 +122,8 @@ export function useLoadoutOptimizer(combatant: Combatant) {
               result: baseline,
             }
           : undefined
+      // The first search's first candidate is the current loadout, which says what free and paid wargear it already takes.
+      let baselineCounted = !best
       let scored = false
       let skipped = false
       let reason: string | undefined
@@ -184,6 +186,11 @@ export function useLoadoutOptimizer(combatant: Combatant) {
           const states = Math.max(batch.estimated ?? 0, batch.scheduled)
           if (!local) setProgress((previous) => Math.max(previous, Math.min(99, Math.floor((batch.scheduled / states) * 100))))
           if (discovered > MAX_CANDIDATES) throw new Error(SEARCH_CUT_SHORT)
+          if (!baselineCounted && best && batch.candidates[0]) {
+            const { freeAdditions, wargearPoints } = batch.candidates[0]
+            best = { ...best, freeAdditions, wargearPoints }
+            baselineCounted = true
+          }
           space.candidates.push(...batch.candidates)
           complete = batch.done
           wake?.()
@@ -247,8 +254,8 @@ export function useLoadoutOptimizer(combatant: Combatant) {
             }
             if (!result.best) continue
             scored = true
-            if (!top || compareOutcomes(result.best.result, top.result) > 0) top = result.best
-            if (!best || compareOutcomes(result.best.result, best.result) > 0) {
+            if (!top || compareLoadouts(result.best, top) > 0) top = result.best
+            if (!best || compareLoadouts(result.best, best) > 0) {
               best = result.best
               improved = true
             }
@@ -261,7 +268,7 @@ export function useLoadoutOptimizer(combatant: Combatant) {
       const climb = async (walk?: { seed: number; steps: number }) => {
         let found = await run(combatant.picks.positioned, walk)
         let here: OptimizedLoadout | undefined
-        while (found.local && current() && found.top && (!here || compareOutcomes(found.top.result, here.result) > 0)) {
+        while (found.local && current() && found.top && (!here || compareLoadouts(found.top, here) > 0)) {
           here = found.top
           setProgress((previous) => Math.max(previous, Math.min(99, Math.floor(((performance.now() - started) / LOCAL_SEARCH_MS) * 100))))
           found = await run(applyOptimizedLoadout(combatant.picks.positioned, here.picks))
