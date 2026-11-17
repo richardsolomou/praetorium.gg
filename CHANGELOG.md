@@ -1,5 +1,22 @@
 # praetorium
 
+## 0.265.0 (2026-11-17)
+
+### Minor Changes
+
+- d2ba52e: [rosters] A Top four filter in the unit picker shows only the units many of your faction's top-four tournament lists take.
+- 6748c5f: [rosters] A finished battle, a hidden-list game and a league with sealed lists now ask whether to make the list you played public.
+
+### Patch Changes
+
+- d2ba52e: [rosters] The favourites, collection and top-four filter icons show their tooltip on hover again.
+- d2ba52e: [rosters] The unit picker's Format restrictions menu keeps its usual colour and shows a dot when something is switched off.
+- d2ba52e: [rosters] The unit picker's trophy now sits left of the heart, so the hearts line up from row to row.
+- 6748c5f: [rosters] No thanks to sharing a list is remembered for that list everywhere, instead of only in the tournament where you said it.
+- d2ba52e: [rosters] A roster's header lists its faction, detachments and Force Disposition first, then its battle size, units and models.
+- 6748c5f: [rosters] The sharing prompt explains what sharing a list gets you rather than who can already see it.
+- d2ba52e: [rosters] Switched-off format restrictions are listed on hover of a warning triangle beside the roster's points, instead of in a box under the list.
+
 ## 0.264.3 (2026-11-17)
 
 ### Patch Changes
