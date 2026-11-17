@@ -1118,7 +1118,10 @@ function compileRule(
         )
       if (defence[4]) return effect(next, { invulnerable: Number(defence[4]) })
       if (defence[6]) return effect(next, { save: Number(defence[6]) })
-      return effect({ ...next, phases: ['ranged'] }, { options: { cover: true } })
+      return effect(
+        { ...next, phases: ['ranged'] },
+        { options: { cover: true }, ...(/^Stealth$/i.test(defence[7]!) ? { ability: 'Stealth' } : {}) },
+      )
     }
     const fixedStat = /^that attack has a (Attacks|Strength|Damage) characteristic of ([1-9]\d?)(?: and (.+))?$/i.exec(written)
     if (fixedStat) {

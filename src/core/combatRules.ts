@@ -111,6 +111,8 @@ export type CombatRuleEffect = {
   damageReduction?: number
   /** A unit characteristic no roll reads, as a Move bonus, which only a datasheet shows. */
   unitStat?: { kind: 'movement' | 'leadership' | 'objective-control'; add: number }
+  /** The named ability the effect gives the unit, as Stealth, which a datasheet lists beside what it changes. */
+  ability?: string
   /** Options of the unit's other rules this makes active together, as an enhancement that makes two Doctrina Imperatives active. */
   activates?: string[]
 }

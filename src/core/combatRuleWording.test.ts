@@ -360,7 +360,7 @@ describe('catalogue combat wording families', () => {
   })
   it('retains stealth alongside deployment and targeting abilities', () => {
     expect(effects("Models in this model's unit have the Infiltrators, Lone Operative and Stealth abilities.")).toEqual([
-      [{ role: 'defender', phases: ['ranged'], options: { cover: true } }],
+      [{ role: 'defender', phases: ['ranged'], options: { cover: true }, ability: 'Stealth' }],
     ])
   })
   it('requires activation for an ability available at the start of any phase', () => {

@@ -154,6 +154,33 @@ describe('options that change the unit’s own characteristics', () => {
   it('improves Leadership and Objective Control', () => expect(statLine('Hold the Line')).toEqual(['6"', '3', '5+', '1', '6+', '3']))
 })
 
+describe('options that give the unit a named ability', () => {
+  const overrides = rule(
+    'In your Command phase, if this unit is on the battlefield, you can select one override from those listed below for that unit to enter. Once a unit enters an override, it remains in that override until it enters a different one.\n- Muted Servomotors: Models in this unit have the Stealth ability.\n- Hold Fast: Add 1 to the Toughness characteristic of models in this unit.',
+    { name: 'Overrides' },
+  )
+  const picked = (label: string) => {
+    const option = battleChoices([overrides])[0]!.options.find((candidate) => candidate.label === label)!
+    return battleChoiceSheet(sheet, [{ name: 'Overrides', effects: option.effects }])
+  }
+
+  it('lists the ability among the unit’s core abilities', () =>
+    expect(picked('Muted Servomotors').abilities).toContainEqual(
+      expect.objectContaining({ name: 'Stealth', source: 'Overrides', kind: 'core' }),
+    ))
+  it('lists it only while that option is picked', () =>
+    expect(picked('Hold Fast').abilities.map(({ name }) => name)).not.toContain('Stealth'))
+  it('offers a rule whose only drawn change is a named ability', () =>
+    expect(
+      battleChoices([
+        {
+          ...overrides,
+          description: overrides.description.replace(/\n- Hold Fast.+$/, '\n- Lurk: Models in this unit have the Stealth ability.'),
+        },
+      ]),
+    ).toHaveLength(1))
+})
+
 describe('a unit that can be in more than one option', () => {
   const orders = rule(
     'If your Army Faction is ARMY, OFFICER with this ability can issue Orders. Each time one does, select one of the Orders below.\n\n### HOLD FAST!\nAdd 1 to the Toughness characteristic of models in this unit.\n\n### OPEN FIRE!\nImprove the Ballistic Skill characteristic of ranged weapons equipped by models in this unit by 1.\n\n### CHARGE!\nAdd 3" to the Move characteristic of models in this unit.',
