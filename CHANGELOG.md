@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.264.1 (2026-11-17)
+
+### Patch Changes
+
+- b471702: [rosters] Picking a squad size from the number between − and + now works on iPhone.
+
 ## 0.264.0 (2026-11-17)
 
 ### Minor Changes
