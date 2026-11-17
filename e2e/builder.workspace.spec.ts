@@ -601,6 +601,9 @@ test('favourite datasheets rise to the top without joining the collection', asyn
   await expect(favouritesFilter).toHaveAttribute('aria-disabled', 'true')
   await page.getByRole('button', { name: 'Add Necron Warriors to favourite datasheets', exact: true }).click()
   await expect(pickerRows.first()).toHaveAccessibleName('Add Necron Warriors')
+  // The chip becomes a different element once it is available, and its tooltip has to follow it.
+  await favouritesFilter.hover()
+  await expect(page.getByRole('tooltip')).toHaveText('Show only your favourite datasheets')
   await favouritesFilter.click()
   await expect(pickerRows).toHaveCount(1)
   await favouritesFilter.click()
@@ -708,19 +711,11 @@ test('King of the Colosseum creation keeps exactly one detachment selected', asy
   await page.reload()
   await expect(page.locator('[data-unit="Imotekh the Stormlord"]')).toBeVisible()
   await expect(page.getByText('does not allow Epic Heroes')).toHaveCount(0)
-  const waived = page.getByRole('region', { name: 'Format restrictions switched off' })
-  await expect(waived).toContainText('No Epic Heroes')
-
-  // Dismissing says "I know", and it stays said for this list until the set changes.
-  await waived.getByRole('button', { name: 'Dismiss the format restriction warning' }).click()
-  await expect(waived).toHaveCount(0)
-  await page.reload()
-  await expect(page.locator('[data-unit="Imotekh the Stormlord"]')).toBeVisible()
-  await expect(page.getByRole('region', { name: 'Format restrictions switched off' })).toHaveCount(0)
+  await expect(page.getByText(/switched off: No Epic Heroes$/)).toBeVisible()
   await page.getByRole('button', { name: 'Format restrictions' }).click()
   await waitForRosterSave(page, () => page.getByRole('menuitemcheckbox', { name: /Toughness cap/ }).click())
   await page.keyboard.press('Escape')
-  await expect(page.getByRole('region', { name: 'Format restrictions switched off' })).toContainText('Toughness cap')
+  await expect(page.getByText(/2 format restrictions switched off: .*Toughness cap/)).toBeVisible()
 
   await page.setViewportSize(PHONE)
   await page.getByRole('button', { name: 'Add units', exact: true }).click()
@@ -739,7 +734,7 @@ test('a waived format restriction cannot widen the mobile roster', async ({ page
   await page.getByRole('button', { name: 'Format restrictions' }).click()
   await page.getByRole('menuitemcheckbox', { name: /No Epic Heroes/ }).click()
   await page.keyboard.press('Escape')
-  await expect(page.getByText('1 format restriction is switched off', { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Format restrictions, 1 switched off', exact: true })).toBeVisible()
   await add(page, 'Imotekh the Stormlord')
 
   await page.setViewportSize(PHONE)

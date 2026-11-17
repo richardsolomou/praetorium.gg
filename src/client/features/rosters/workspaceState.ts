@@ -6,8 +6,6 @@ const STATE_PREFIX = 'praetorium.workspace-state:'
 
 /** The setup a player has open and not yet saved. */
 export const SETUP_STATE = 'roster-setup'
-/** Which set of waived restrictions this workspace has already been told about. */
-export const WAIVERS_STATE = 'waivers-dismissed'
 
 /** The stored text, unparsed, for rendering through `useSyncExternalStore`, which needs a value that compares equal. */
 export const readStoredWorkspaceState = (path: string, name: string) => readSessionValue(`${STATE_PREFIX}${path}:${name}`)
