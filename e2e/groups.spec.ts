@@ -465,6 +465,7 @@ test('a league seals every list before it starts and plays its fixtures with the
   await expect(owner.getByText('League army 1')).toHaveCount(0)
   await owner.reload()
   await expect(league(owner).locator(`[data-person="${names[2]}"]`).getByText('Sealed', { exact: true })).toBeVisible()
+  await expect(league(owner).locator(`[data-person="${names[0]}"]`).getByText('League army 0')).toBeVisible()
   await league(owner).getByRole('button', { name: 'Publish' }).click()
   await owner.getByRole('alertdialog').getByRole('button', { name: 'Publish' }).click()
   const lists = owner.locator('[data-league-lists]')

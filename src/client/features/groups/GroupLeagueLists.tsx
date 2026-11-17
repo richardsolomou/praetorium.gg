@@ -144,7 +144,8 @@ export function LeagueSealing({
   game: LeagueGame
   viewerId: string | null
 }) {
-  const { data: record } = useQuery(sealedEventQuery(game.token))
+  // Only the viewer's own list is named before the reveal, so nobody else needs the record.
+  const { data: record } = useQuery({ ...sealedEventQuery(game.token), enabled: viewerId !== null && game.sealedIds.includes(viewerId) })
   const ownList = record?.entries.find((entry) => entry.userId === viewerId)?.rosterName ?? null
   return (
     <ul aria-label="Sealed lists" className="mt-3 divide-y divide-edge overflow-hidden part">
