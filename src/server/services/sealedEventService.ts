@@ -10,6 +10,7 @@ import { GROUP_LEAGUE_PLAYERS_MAX, GROUP_LEAGUE_SEED_MAX } from '../../core/grou
 import { pointsBudgetError, pointsLabel, type Roster } from '../../core/battle'
 import { commandSchema, parseRosterSnapshot, rosterSnapshotOrNull } from '../../core/commands'
 import {
+  byTournamentDate,
   eventTableSides,
   sealedEventArmyPointsError,
   sealedEventPlaysAlone,
@@ -157,8 +158,8 @@ export class SealedEventService {
     throw new Response('admins must be your friends', { status: 403 })
   }
 
-  sealedEvents(userId: string | null) {
-    return this.repository.sealedEventsVisibleTo(userId)
+  async sealedEvents(userId: string | null) {
+    return (await this.repository.sealedEventsVisibleTo(userId)).toSorted(byTournamentDate(this.clock()))
   }
 
   eventAddress(token: string, eventToken?: string) {
