@@ -1,7 +1,7 @@
 import { groupBy, RecentlyUsed, remember, uniqueBy } from './collections'
 import type { Datasheet, DatasheetCharacteristicKind } from './datasheet'
 import { datasheetCharacteristicKind, datasheetProfileKind, datasheetProfilesByKind } from './datasheetStructure'
-import { combatEquipmentMatches, combatModelMatches, type CombatCarrier } from './combatLoadout'
+import { carrierModelProfiles, combatEquipmentMatches, type CombatCarrier } from './combatLoadout'
 import { wargearBaseName, wargearKey } from './wargear'
 import { combatSchema, diceExpression, type CombatInput, type CombatWeapon, type CombatPhase } from './combat'
 import { combatKeyword, combatKeywordApplies, normalizeCombatKeyword as normalized } from './combatKeywords'
@@ -38,7 +38,7 @@ export function combatTarget(
   )
     return refuse('This unit has an unsupported invulnerable save.')
   if (!profiles.length) return refuse('This unit has no model profiles.')
-  const carriedBy = (carrier: CombatCarrier, index: number) => combatModelMatches(carrier, profiles[index]!)
+  const carried = carriers.map((carrier) => carrierModelProfiles(carrier, profiles))
   const defences = profiles.map((profile, index) => ({
     name: profile.name,
     toughness: integer(value(profile, 'toughness')),
@@ -46,7 +46,9 @@ export function combatTarget(
     wounds: integer(value(profile, 'wounds')),
     invulnerable: integer(value(profile, 'invulnerable-save')),
     keywords: splitKeywords.filter((keyword) =>
-      carriers.some((carrier) => carriedBy(carrier, index) && carrier.keywords?.some((held) => normalized(held) === normalized(keyword))),
+      carriers.some(
+        (carrier, at) => carried[at]!.includes(index) && carrier.keywords?.some((held) => normalized(held) === normalized(keyword)),
+      ),
     ),
   }))
   const key = ({ name: _name, ...stats }: (typeof defences)[number]) => JSON.stringify(stats)
@@ -54,9 +56,9 @@ export function combatTarget(
   if (defences.every((defence) => key(defence) === key(defences[0]!))) counted = [{ defence: defences[0]!, models }]
   else {
     const counts = defences.map(() => 0)
-    for (const carrier of carriers) {
+    for (const [at, carrier] of carriers.entries()) {
       if (carrier.unitWide) continue
-      const matching = defences.flatMap((_, index) => (carriedBy(carrier, index) ? [index] : []))
+      const matching = carried[at]!
       if (matching.length !== 1) return refuse(`${carrier.name} could not be matched to a model profile.`)
       counts[matching[0]!]! += carrier.models
     }
