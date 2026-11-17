@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.262.0 (2026-11-17)
+
+### Minor Changes
+
+- 42f2f90: [reference] Data updates now marks each change as a points change, an addition or a removal, and you can filter them by kind and section and collapse updates you've read.
+- 18f4e4f: [app] What's new groups each day's changes by part of the app, and you can filter it to the areas you use or to new features only, and collapse days you've read.
+
 ## 0.261.6 (2026-11-17)
 
 ### Patch Changes
