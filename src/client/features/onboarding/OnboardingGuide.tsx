@@ -14,7 +14,7 @@ import { useCompactChrome } from '../shell/useCompactChrome'
 import {
   FIRST_ONBOARDING_STEP,
   ONBOARDING_ADVANCE_EVENT,
-  ONBOARDING_EVENT,
+  onOpenOnboarding,
   ONBOARDING_FOCUS_EVENT,
   ONBOARDING_UI,
   focusAfterOnboardingNavigation,
@@ -198,15 +198,8 @@ function AccountOnboardingGuide({ userId }: { userId?: string }) {
     await showStep(step ? { task, step } : focus?.task === task ? focus : { task, step: FIRST_ONBOARDING_STEP[task] })
   }
 
-  const openGuide = useEffectEvent((event: Event) => {
-    const requested = (event as CustomEvent<OnboardingFocus>).detail
-    void launch(requested.task, requested.step)
-  })
-  useEffect(() => {
-    const show = (event: Event) => openGuide(event)
-    window.addEventListener(ONBOARDING_EVENT, show)
-    return () => window.removeEventListener(ONBOARDING_EVENT, show)
-  }, [])
+  const openGuide = useEffectEvent((requested: OnboardingFocus) => void launch(requested.task, requested.step))
+  useEffect(() => onOpenOnboarding((requested) => openGuide(requested)), [])
 
   const finish = () => {
     if (!focus) return

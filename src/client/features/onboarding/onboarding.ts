@@ -4,7 +4,6 @@ import { onboardingTaskIds, type OnboardingTaskId } from '../../../core/onboardi
 import type { OnboardingTarget } from '../../onboardingTargets'
 
 export const ONBOARDING_FOCUS_EVENT = 'praetorium:onboarding-focus'
-export const ONBOARDING_EVENT = 'praetorium:onboarding'
 export const ONBOARDING_ADVANCE_EVENT = 'praetorium:onboarding-advance'
 
 export function onboardingFocusStorageKey(userId: string) {
@@ -740,8 +739,23 @@ const onboardingFocusSchema = z
   .object({ task: z.enum(onboardingTaskIds), step: z.enum(onboardingStepIds) })
   .refine(({ task, step }) => ONBOARDING_UI[step].task === task)
 
+const listeners = new Set<(focus: OnboardingFocus) => void>()
+/** A tour asked for before the guide mounted, which mounts after hydration; it starts as soon as the guide listens. */
+let waiting: OnboardingFocus | undefined
+
 export function openOnboarding(task: OnboardingTaskId, step?: OnboardingStepId) {
-  window.dispatchEvent(new CustomEvent<OnboardingFocus>(ONBOARDING_EVENT, { detail: { task, step: step ?? FIRST_ONBOARDING_STEP[task] } }))
+  const focus = { task, step: step ?? FIRST_ONBOARDING_STEP[task] }
+  if (!listeners.size) waiting = focus
+  for (const listener of listeners) listener(focus)
+}
+
+export function onOpenOnboarding(listener: (focus: OnboardingFocus) => void) {
+  listeners.add(listener)
+  if (waiting) listener(waiting)
+  waiting = undefined
+  return () => {
+    listeners.delete(listener)
+  }
 }
 
 /** Moves the guide on within one page, where a dialog or a selection is the whole transition. */

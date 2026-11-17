@@ -11,9 +11,9 @@ it('finds the catalogues saved rosters name', () => {
   ]).toEqual(['legacy~necrons', 'necrons', 'preview~orks'])
 })
 
-it('ignores catalogues only named by reference data', () => {
+it('ignores catalogues only named by reference data', async () => {
   const client = new QueryClient()
   client.setQueryData(['faction-index'], { factions: [{ catalogueId: 'legacy~necrons' }] })
   client.setQueryData(['saved-roster-summaries'], [{ catalogueId: 'preview~orks' }])
-  expect([...cataloguesInUse(client)]).toEqual(['preview~orks'])
+  expect([...(await cataloguesInUse(client))]).toEqual(['preview~orks'])
 })
