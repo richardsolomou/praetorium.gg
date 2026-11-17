@@ -1,7 +1,7 @@
 import { SyncStatus } from '../../offline/SyncStatus'
-import { offlineAssets, offlineData } from '../../offline/runtime'
+import { offlineAssets, offlineData, referenceData } from '../../offline/runtime'
 import { PressHaptics } from './PressHaptics'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { HeadContent, Link, Outlet, Scripts, useLocation, useRouter, useRouterState } from '@tanstack/react-router'
 import { updateNoticeId } from '../../chunkRecovery'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
@@ -38,6 +38,7 @@ import { ImpersonationBanner } from './ImpersonationBanner'
 import { NativeAppNavigation } from './NativeAppNavigation'
 import { SupportIdentity } from '../feedback/support'
 import { meQuery } from '../../queries'
+import { meKey } from '../../queries/queryKeys'
 import { COMMUNITY_LINKS, COMMUNITY_PAGES, FRIENDS_PAGE } from './CommunityLinks'
 import { followTextSourceChoice } from '../../rulesText'
 import { deferred } from '../../deferred'
@@ -344,8 +345,20 @@ function AppFrame() {
   // Set while rendering so it holds before any child's effect captures.
   if (typeof window !== 'undefined') setImpersonating(impersonating)
   const router = useRouter()
-  // Loaded after the first screen rather than with it, so a connection lost later still has the device's fallbacks.
-  useEffect(() => afterInitialScreen(router, () => void loadOfflineFallbacks().catch(() => {}), 2_000), [router])
+  const queryClient = useQueryClient()
+  // Loaded after the first screen rather than with it, so a connection lost later still has the device's fallbacks;
+  // a visitor without a downloaded reference has no device copy for them to read.
+  useEffect(
+    () =>
+      afterInitialScreen(
+        router,
+        () => {
+          if (queryClient.getQueryData(meKey()) || referenceData()) void loadOfflineFallbacks().catch(() => {})
+        },
+        2_000,
+      ),
+    [router, queryClient],
+  )
   useLayoutEffect(followTextSourceChoice, [])
   useLayoutEffect(() => followRailState(immersive), [immersive])
   return (
