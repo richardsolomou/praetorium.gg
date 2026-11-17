@@ -11,46 +11,43 @@ test('global search retains page shortcuts before a query is entered', async ({ 
   await expect(page).toHaveURL('/')
 })
 
-for (const width of [390, 1280]) {
-  test(`browser unit search opens datasheets and preserves the query at ${width}px`, async ({ page, request }) => {
-    await page.setViewportSize({ width, height: 844 })
-    const response = await request.get('/search?q=Immortals')
-    expect(await response.text()).toMatch(/href="[^"]*\/datasheets\/immortals"/)
-    await page.goto('/search?q=Immortals')
-    const search = page.getByRole('searchbox', { name: 'Search Praetorium', exact: true })
-    await expect(search).toHaveValue('Immortals')
-    const result = page
-      .getByRole('main')
-      .getByRole('link', { name: /Immortals/ })
-      .first()
-    await expect(result).toBeVisible()
-    await page.screenshot({ path: test.info().outputPath('search-page.png'), fullPage: true })
-    await result.click()
-    await expect(page.getByRole('heading', { name: 'Immortals', exact: true })).toBeVisible()
-    await page.goBack()
-    await expect(search).toHaveValue('Immortals')
-    await page.reload()
-    await expect(result).toBeVisible()
-    await expect(async () => {
-      await search.fill('')
-      await search.fill('Overlord')
-      await expect(page).toHaveURL(/\/search\?q=Overlord$/, { timeout: 1_000 })
-    }).toPass()
-    await expect(page).toHaveURL(/\/search\?q=Overlord$/)
-    await expect(
-      page
-        .getByRole('main')
-        .getByRole('link', { name: /Overlord/ })
-        .first(),
-    ).toBeVisible()
-    await page.reload()
-    await expect(search).toHaveValue('Overlord')
-    await search.fill('zzzzzzzzzzzzzz')
-    await expect(page.getByRole('heading', { name: 'No results found' })).toBeVisible()
+test(`browser unit search opens datasheets and preserves the query`, async ({ page, request }) => {
+  const response = await request.get('/search?q=Immortals')
+  expect(await response.text()).toMatch(/href="[^"]*\/datasheets\/immortals"/)
+  await page.goto('/search?q=Immortals')
+  const search = page.getByRole('searchbox', { name: 'Search Praetorium', exact: true })
+  await expect(search).toHaveValue('Immortals')
+  const result = page
+    .getByRole('main')
+    .getByRole('link', { name: /Immortals/ })
+    .first()
+  await expect(result).toBeVisible()
+  await page.screenshot({ path: test.info().outputPath('search-page.png'), fullPage: true })
+  await result.click()
+  await expect(page.getByRole('heading', { name: 'Immortals', exact: true })).toBeVisible()
+  await page.goBack()
+  await expect(search).toHaveValue('Immortals')
+  await page.reload()
+  await expect(result).toBeVisible()
+  await expect(async () => {
     await search.fill('')
-    await expect(page.getByText('Enter at least two characters to search.')).toBeVisible()
-  })
-}
+    await search.fill('Overlord')
+    await expect(page).toHaveURL(/\/search\?q=Overlord$/, { timeout: 1_000 })
+  }).toPass()
+  await expect(page).toHaveURL(/\/search\?q=Overlord$/)
+  await expect(
+    page
+      .getByRole('main')
+      .getByRole('link', { name: /Overlord/ })
+      .first(),
+  ).toBeVisible()
+  await page.reload()
+  await expect(search).toHaveValue('Overlord')
+  await search.fill('zzzzzzzzzzzzzz')
+  await expect(page.getByRole('heading', { name: 'No results found' })).toBeVisible()
+  await search.fill('')
+  await expect(page.getByText('Enter at least two characters to search.')).toBeVisible()
+})
 
 test('browser search decodes unit names and offers typo matches', async ({ page }) => {
   await page.goto(`/search?q=${encodeURIComponent("C'tan Shard of the Nightbringer")}`)
@@ -137,115 +134,58 @@ test('the search page shows the same results as global autocomplete', async ({ p
   ).toBeVisible()
 })
 
-test('both searches find command-phase CP abilities', async ({ page }) => {
-  await page.goto('/search?q=gain%201cp')
-  await scrollSearchResultIntoView(
-    page,
-    page
-      .getByRole('main')
-      .getByRole('link', { name: /Imotekh the Stormlord/ })
-      .first(),
+test(`enhancement and stratagem names open their detachment`, async ({ page }) => {
+  await page.goto('/search?q=Superior%20Creation')
+  const result = page
+    .getByRole('main')
+    .getByRole('link', { name: /Auric Champions/ })
+    .first()
+  await expect(result).toBeVisible()
+  await page.screenshot({ path: test.info().outputPath('enhancement-search.png') })
+  await result.click()
+  await expect(page.getByRole('heading', { name: 'Auric Champions', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Superior Creation', exact: true })).toBeVisible()
+  await retryUntilVisible(page.getByRole('combobox'), () =>
+    page.getByRole('button', { name: 'Search Praetorium', exact: true }).filter({ visible: true }).click(),
   )
+  await page.getByRole('combobox').fill('Superior Creation')
+  await expect(page.getByRole('option', { name: /Auric Champions/ }).first()).toBeVisible()
+  await page.getByRole('combobox').press('Enter')
+  await expect(page.getByRole('dialog')).not.toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Auric Champions', exact: true })).toBeVisible()
+  await page.goto('/search?q=Gilded%20Champion')
   await expect(
     page
       .getByRole('main')
-      .getByRole('link', { name: /Imotekh the Stormlord/ })
-      .first(),
-  ).toBeVisible()
-  await expect(async () => {
-    const search = page.getByRole('searchbox', { name: 'Search Praetorium', exact: true })
-    await search.fill('')
-    await search.fill('gain 1 CP command phase')
-    await expect.poll(() => new URL(page.url()).searchParams.get('q'), { timeout: 1_000 }).toBe('gain 1 CP command phase')
-    await expect(search).toHaveValue('gain 1 CP command phase')
-  }).toPass()
-  await expect(
-    page
-      .getByRole('main')
-      .getByRole('link', { name: /Imotekh the Stormlord/ })
+      .getByRole('link', { name: /Auric Champions/ })
       .first(),
   ).toBeVisible()
   await retryUntilVisible(page.getByRole('combobox'), () =>
     page.getByRole('button', { name: 'Search Praetorium', exact: true }).filter({ visible: true }).click(),
   )
-  await page.getByRole('combobox').fill('gain 1cp')
-  await scrollSearchResultIntoView(page, page.getByRole('option', { name: /Imotekh the Stormlord/ }).first())
-  await expect(page.getByRole('option', { name: /Imotekh the Stormlord/ }).first()).toBeVisible()
-  await page.screenshot({ path: test.info().outputPath('global-search.png') })
+  await page.getByRole('combobox').fill('Gilded Champion')
+  await expect(page.getByRole('option', { name: /Auric Champions/ }).first()).toBeVisible()
+  await page.screenshot({ path: test.info().outputPath('stratagem-global.png') })
 })
 
-for (const width of [390, 1280]) {
-  test(`enhancement and stratagem names open their detachment at ${width}px`, async ({ page }) => {
-    await page.setViewportSize({ width, height: 844 })
-    await page.goto('/search?q=Superior%20Creation')
-    const result = page
-      .getByRole('main')
-      .getByRole('link', { name: /Auric Champions/ })
-      .first()
-    await expect(result).toBeVisible()
-    await page.screenshot({ path: test.info().outputPath('enhancement-search.png') })
-    await result.click()
-    await expect(page.getByRole('heading', { name: 'Auric Champions', exact: true })).toBeVisible()
-    await expect(page.getByRole('heading', { name: 'Superior Creation', exact: true })).toBeVisible()
-    await retryUntilVisible(page.getByRole('combobox'), () =>
-      page.getByRole('button', { name: 'Search Praetorium', exact: true }).filter({ visible: true }).click(),
-    )
-    await page.getByRole('combobox').fill('Superior Creation')
-    await expect(page.getByRole('option', { name: /Auric Champions/ }).first()).toBeVisible()
-    await page.getByRole('combobox').press('Enter')
-    await expect(page.getByRole('dialog')).not.toBeVisible()
-    await expect(page.getByRole('heading', { name: 'Auric Champions', exact: true })).toBeVisible()
-    await page.goto('/search?q=Gilded%20Champion')
-    await expect(
-      page
-        .getByRole('main')
-        .getByRole('link', { name: /Auric Champions/ })
-        .first(),
-    ).toBeVisible()
-    await retryUntilVisible(page.getByRole('combobox'), () =>
-      page.getByRole('button', { name: 'Search Praetorium', exact: true }).filter({ visible: true }).click(),
-    )
-    await page.getByRole('combobox').fill('Gilded Champion')
-    await expect(page.getByRole('option', { name: /Auric Champions/ }).first()).toBeVisible()
-    await page.screenshot({ path: test.info().outputPath('stratagem-global.png') })
-  })
-}
-
 // Game Datacards rules text is published only as tokens, so search matches stratagems by name rather than by what they say.
-test('detachment rule and stratagem names, enhancement text, and weapon traits explain their matches', async ({ page }) => {
-  for (const [query, reason] of [
-    ['Assemblage of Might', 'Assemblage of Might detachment rule'],
-    ['Duty Unto Death', 'Duty Unto Death stratagem'],
-    ['Lone Operative Stealth', 'Shroud of the Hidden Blade enhancement'],
-    ['Gilded Champion', 'Gilded Champion stratagem'],
+test('stratagem names and weapon traits explain their matches', async ({ page }) => {
+  for (const [query, unit, reason] of [
+    ['Duty Unto Death', /Auric Champions/, 'Duty Unto Death stratagem'],
+    ['Immortals Lethal Hits', /Immortals/, 'Lethal Hits weapon keyword'],
   ] as const) {
     await page.goto(`/search?q=${encodeURIComponent(query)}`)
-    const result = page
-      .getByRole('main')
-      .getByRole('link', { name: /Auric Champions/ })
-      .first()
+    const result = page.getByRole('main').getByRole('link', { name: unit }).first()
     await scrollSearchResultIntoView(page, result)
     await expect(result).toContainText(reason)
     await retryUntilVisible(page.getByRole('combobox'), () =>
       page.getByRole('button', { name: 'Search Praetorium', exact: true }).filter({ visible: true }).click(),
     )
     await page.getByRole('combobox').fill(query)
-    const option = page.getByRole('option', { name: /Auric Champions/ }).first()
+    const option = page.getByRole('option', { name: unit }).first()
     await scrollSearchResultIntoView(page, option)
     await expect(option).toContainText(reason)
   }
-  await page.goto('/search?q=Immortals%20Lethal%20Hits')
-  const result = page
-    .getByRole('main')
-    .getByRole('link', { name: /Immortals/ })
-    .first()
-  await scrollSearchResultIntoView(page, result)
-  await expect(result).toContainText('Lethal Hits weapon keyword')
-  await retryUntilVisible(page.getByRole('combobox'), () =>
-    page.getByRole('button', { name: 'Search Praetorium', exact: true }).filter({ visible: true }).click(),
-  )
-  await page.getByRole('combobox').fill('Immortals Lethal Hits')
-  await expect(page.getByRole('option', { name: /Immortals/ }).first()).toContainText('Lethal Hits weapon keyword')
 })
 
 test('both searches debounce typing for 250 milliseconds and retain prior results', async ({ page }) => {

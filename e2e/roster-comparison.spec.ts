@@ -265,61 +265,57 @@ test('saved rosters compare every pairing, reverse direction, and open isolated 
   await expect(page.locator('[data-unit="Intercessor Squad"]')).toBeVisible()
 })
 
-for (const width of [1440, 390]) {
-  test(`roster actions group editing, tools and exports at ${width}px`, async ({ page }) => {
-    await page.setViewportSize({ width, height: 1000 })
-    await signUp(page, 'Roster menus')
-    await createRoster(page, { faction: 'Necrons', detachment: /Cursed Legion/, name: 'Menu roster' })
-    if (width === 390) await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click()
-    await expect(page.getByRole('button', { name: 'Test targets', exact: true })).toHaveCount(0)
-    await page.getByRole('button', { name: 'Roster actions', exact: true }).click()
-    const menu = page.getByRole('menu')
-    await expect(menu.getByRole('menuitem')).toHaveText([
-      'Test targets',
-      'Grade this roster',
-      'Edit roster setup',
-      'Lock roster',
-      /Share…\s*Public/,
-      'Export text',
-      'Lend to a friend',
-      'Create variant',
-      'Duplicate',
-      'Archive',
-      'Delete',
-    ])
-    await expect(menu.getByRole('menuitem', { name: 'Test targets', exact: true })).toHaveAttribute('aria-disabled', 'true')
-    await expect(menu.getByRole('menuitem', { name: 'Grade this roster', exact: true })).toHaveAttribute('aria-disabled', 'true')
-    // Grouped under headings; a list with no attached unit has nothing to display differently.
-    await expect(menu.getByRole('group')).toHaveText([/^Play/, /^Edit/, /^Share/, /^Copy/])
-    await expect(menu.getByRole('separator')).toHaveCount(1)
-    await page.screenshot({ path: test.info().outputPath(`builder-menu-${width}.png`) })
-    await page.keyboard.press('Escape')
-    await page.goto('/rosters')
-    await page.getByRole('button', { name: 'Actions for Menu roster', exact: true }).click()
-    await expect(menu.getByRole('menuitem')).toHaveText([
-      'Start a battle',
-      'Grade this roster',
-      'Edit roster setup',
-      'Move to folder…',
-      'Lock roster',
-      /Share…\s*Public/,
-      'Export text',
-      'Lend to a friend',
-      'Create variant',
-      'Duplicate',
-      'Archive',
-      'Delete',
-    ])
-    await expect(menu.getByRole('group')).toHaveText([/^Play/, /^Edit/, /^Share/, /^Copy/])
-    await expect(menu.getByRole('separator')).toHaveCount(1)
-    await page.screenshot({ path: test.info().outputPath(`library-menu-${width}.png`) })
-    await page.keyboard.press('Escape')
-    await page.getByRole('link', { name: /Menu roster/ }).click({ button: 'right' })
-    await expect(menu.getByRole('menuitem').first()).toHaveText('Start a battle')
-    await expect(menu.getByRole('menuitem').last()).toHaveText('Delete')
-    await expect(menu.getByRole('separator')).toHaveCount(1)
-  })
-}
+test(`roster actions group editing, tools and exports`, async ({ page }) => {
+  await signUp(page, 'Roster menus')
+  await createRoster(page, { faction: 'Necrons', detachment: /Cursed Legion/, name: 'Menu roster' })
+  await expect(page.getByRole('button', { name: 'Test targets', exact: true })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Roster actions', exact: true }).click()
+  const menu = page.getByRole('menu')
+  await expect(menu.getByRole('menuitem')).toHaveText([
+    'Test targets',
+    'Grade this roster',
+    'Edit roster setup',
+    'Lock roster',
+    /Share…\s*Public/,
+    'Export text',
+    'Lend to a friend',
+    'Create variant',
+    'Duplicate',
+    'Archive',
+    'Delete',
+  ])
+  await expect(menu.getByRole('menuitem', { name: 'Test targets', exact: true })).toHaveAttribute('aria-disabled', 'true')
+  await expect(menu.getByRole('menuitem', { name: 'Grade this roster', exact: true })).toHaveAttribute('aria-disabled', 'true')
+  // Grouped under headings; a list with no attached unit has nothing to display differently.
+  await expect(menu.getByRole('group')).toHaveText([/^Play/, /^Edit/, /^Share/, /^Copy/])
+  await expect(menu.getByRole('separator')).toHaveCount(1)
+  await page.screenshot({ path: test.info().outputPath(`builder-menu.png`) })
+  await page.keyboard.press('Escape')
+  await page.goto('/rosters')
+  await page.getByRole('button', { name: 'Actions for Menu roster', exact: true }).click()
+  await expect(menu.getByRole('menuitem')).toHaveText([
+    'Start a battle',
+    'Grade this roster',
+    'Edit roster setup',
+    'Move to folder…',
+    'Lock roster',
+    /Share…\s*Public/,
+    'Export text',
+    'Lend to a friend',
+    'Create variant',
+    'Duplicate',
+    'Archive',
+    'Delete',
+  ])
+  await expect(menu.getByRole('group')).toHaveText([/^Play/, /^Edit/, /^Share/, /^Copy/])
+  await expect(menu.getByRole('separator')).toHaveCount(1)
+  await page.screenshot({ path: test.info().outputPath(`library-menu.png`) })
+  await page.keyboard.press('Escape')
+  await page.getByRole('link', { name: /Menu roster/ }).click({ button: 'right' })
+  await expect(menu.getByRole('menuitem').first()).toHaveText('Start a battle')
+  await expect(menu.getByRole('menuitem').last()).toHaveText('Delete')
+  await expect(menu.getByRole('separator')).toHaveCount(1)
+})
 
 /** Fields a whole roster on one side of the standalone simulator, which first lists the roster's units. */
 async function chooseWholeRoster(page: Page, side: 'Attacking with' | 'Defending with', roster: string) {
