@@ -83,6 +83,23 @@ describe('catalogue compiler fingerprint', () => {
     expect(await compilerFingerprint(root)).toBe(before)
   })
 
+  it('names the same compiler after a release bumps the package version', async () => {
+    write('package.json', '{"name":"app","version":"1.0.0"}')
+    write('src/core/limits.ts', "import app from '../../package.json'\nexport const limit = app.version\nexport const unused = 2")
+    expect(await unchangedAfter(() => write('package.json', '{"name":"app","version":"1.0.1"}'))).toBe(true)
+  })
+
+  it('names the same compiler whatever Vite variables the build environment sets', async () => {
+    write('src/core/limits.ts', 'export const limit = import.meta.env\nexport const unused = 2')
+    const before = await compilerFingerprint(root)
+    process.env.VITE_COMPILER_FINGERPRINT_PROBE = 'set'
+    try {
+      expect(await compilerFingerprint(root)).toBe(before)
+    } finally {
+      delete process.env.VITE_COMPILER_FINGERPRINT_PROBE
+    }
+  })
+
   it('rejects missing local dependencies', async () => {
     write('src/core/limits.ts', "export { limit } from './missing'")
     await expect(compilerFingerprint(root)).rejects.toThrow('missing')

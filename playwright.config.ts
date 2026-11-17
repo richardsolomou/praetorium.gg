@@ -1,6 +1,6 @@
 import { defineConfig, devices } from '@playwright/test'
 import path from 'node:path'
-import { baseURL, catalogue, inspectPort, internalPort, port, processCoverage, readyPort, root, spacetimePort } from './e2e/stackEnv'
+import { baseURL, catalogue, internalPort, port, readyPort, root, spacetimePort } from './e2e/stackEnv'
 
 delete process.env.NO_COLOR
 
@@ -11,8 +11,7 @@ export default defineConfig({
   // Every test signs up its own players, so tests in one file can share a stack. Two workers is
   // what one stack sustains: at three, live-update tests start timing out locally.
   fullyParallel: true,
-  // A coverage run attributes the shared server's executed code to one test at a time.
-  workers: process.env.E2E_COVERAGE_DIR ? 1 : 2,
+  workers: 2,
   // One CI retry turns a flake into a minute on one runner instead of a full rerun; the
   // github reporter still reports the test as flaky, and a local run never retries.
   retries: process.env.CI ? 1 : 0,
@@ -54,8 +53,6 @@ export default defineConfig({
       BATTLEBASE_APP_URL: 'http://127.0.0.1:9',
       NEWRECRUIT_URL: 'http://127.0.0.1:9',
       CATALOGUE_DIR: catalogue,
-      ...(inspectPort ? { LOCAL_SERVER_INSPECT_PORT: String(inspectPort) } : {}),
-      ...(processCoverage ? { LOCAL_COVERAGE_DIR: processCoverage } : {}),
     },
     url: `http://127.0.0.1:${readyPort}/ready`,
     reuseExistingServer: false,
