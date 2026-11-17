@@ -46,7 +46,7 @@ PY
 manifest_key() {
   local kind="$1" prefix="$app_name/backups/$1/"
   jq -er --arg prefix "$prefix" --arg kind "$kind" \
-    '.[$kind] | select(.sha256 | test("^[0-9a-f]{64}$")) | .key | select(startswith($prefix)) | select((ltrimstr($prefix)) | test("^praetorium-spacetime-production-" + $kind + "-[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}-[0-9]{2}-[0-9]{2}-[0-9]{3}Z[.]tar$"))' \
+    '.[$kind] | select(.sha256 | test("^[0-9a-f]{64}$")) | .key | select(startswith($prefix)) | select((ltrimstr($prefix)) | test("^praetorium-spacetime-production-" + $kind + "-[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}-[0-9]{2}-[0-9]{2}-[0-9]{3}Z[.]tar([.]gz)?$"))' \
     "$work/latest.json"
 }
 data_key="$(manifest_key data)"
