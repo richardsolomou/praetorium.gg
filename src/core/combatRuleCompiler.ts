@@ -96,19 +96,26 @@ function namedSections(description: string) {
 }
 
 /** What a rule's words ask of its place in a roster: whether its unit's keywords cover a phrase or hold a keyword, and whether it is a psychic ability. */
-export type RuleQuestion = `covers:${string}` | `is:${string}` | 'psychic'
+export type RuleQuestion = `covers:${string}` | `every:${string}` | `is:${string}` | 'psychic'
 
 /** A rule whose words' questions are answered for it, as they are while a text's facts are recorded. */
 export type AnsweredRule = CombatRule & { answers?: (question: RuleQuestion) => boolean }
 
 /** The answers a rule gives its words: those given it, else from its own keywords and name. */
-export function ruleAnswers(rule: Pick<AnsweredRule, 'keywords' | 'name' | 'answers'>): (question: RuleQuestion) => boolean {
+export function ruleAnswers(
+  rule: Pick<AnsweredRule, 'keywords' | 'partialKeywords' | 'name' | 'answers'>,
+): (question: RuleQuestion) => boolean {
   if (rule.answers) return rule.answers
   let known: string[] | undefined
+  let everyModel: string[] | undefined
   return (question) => {
     if (question === 'psychic') return /\(Psychic\)/i.test(rule.name)
     known ??= (rule.keywords ?? []).map(combatTextKey)
-    return question.startsWith('is:') ? known.includes(question.slice(3)) : combatKeywordPhraseMatches(question.slice(7), known)
+    if (question.startsWith('is:')) return known.includes(question.slice(3))
+    if (question.startsWith('covers:')) return combatKeywordPhraseMatches(question.slice(7), known)
+    const partial = new Set((rule.partialKeywords ?? []).map(combatTextKey))
+    everyModel ??= known.filter((keyword) => !partial.has(keyword))
+    return combatKeywordPhraseMatches(question.slice(6), everyModel)
   }
 }
 
@@ -739,10 +746,10 @@ function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoi
     if (spent) return again(spent[2]!, { ...context, conditions: [...context.conditions, `Spend ${spent[1]}`] })
     const keywordModels = /^each time an? (?!(?:friendly )?model\b)(.+?) model in (this|that|your) unit makes (.+)$/i.exec(written)
     if (keywordModels) {
-      const match = hasKeywords(keywordModels[1]!)
       const next = `each time a model in ${keywordModels[2]} unit makes ${keywordModels[3]}`
-      if (match === false) return []
-      return again(next, match ? context : { ...context, conditions: [...context.conditions, `For ${keywordModels[1]} models`] })
+      if (!rule.keywords) return again(next, { ...context, conditions: [...context.conditions, `For ${keywordModels[1]} models`] })
+      // The engine gives an effect to every model, so one for only some models, or for models named rather than keyworded, is refused.
+      return ruleAnswers(rule)(`every:${combatTextKey(keywordModels[1]!)}`) ? again(next) : null
     }
     const chargedActivation =
       /^Each time (?:this unit|this model|the bearer) is selected to (fight|shoot), if (.+?), (?:it|this unit|this model) can use this ability\. If it does, (.+)$/i.exec(

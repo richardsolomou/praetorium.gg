@@ -251,6 +251,7 @@ function rosterCombatRules(
           ),
       ),
       models,
+      ...(sheet.modelKeywords?.length ? { partialKeywords: sheet.modelKeywords.flatMap((group) => group.keywords) } : {}),
     }
     // Every unit's keywords are known only once the roster is read; `supportKeywords` fills as it is.
     const placement: CombatRuleJudge = { ...judge, keywords: sheet.keywords, unitKeywords, supportKeywords }

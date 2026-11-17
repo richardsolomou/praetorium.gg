@@ -37,6 +37,8 @@ export type CombatRule = {
   appliedAs?: string[]
   models?: number
   keywords?: readonly string[]
+  /** The keywords only some of the unit's models have, which `keywords` also lists. */
+  partialKeywords?: readonly string[]
   /** What a rule published as a token is judged against once a device loads its words. */
   judge?: CombatRuleJudge
   /** What the rule's words decide for this placement, recorded where a token stands for them. */
@@ -362,27 +364,28 @@ export function combatRuleRoles(description: string): CombatRuleEffect['role'][]
     )
   // Wording the compiler cannot read still names a roll or characteristic of the unit's own attacks, so it is reported rather than dropped.
   const ownAttacks = attackingText.replace(
-    /[^.;]*?attacks? (?:that )?(?:targets?|is allocated to) (?:this|that|your) (?:unit|model)[^.;]*/gi,
+    /[^.;]*?\b(?:is allocated to|saving throw|made against|the attacking (?:model|unit)|an enemy unit is within|targets? (?:(?:this|that|your|the bearer's) (?:unit|model)|the bearer|this model|a model in (?:this|that|your) unit|friendly|an? [^.;]*?unit from your army))[^.;]*/gi,
     '',
   )
   const attackTerms =
-    /\b(?:hit|wound) rolls?\b|\b(?:attacks|strength|damage|ballistic skill|weapon skill) characteristics?\b|\barmour penetration\b|\+[1-9]\s*(?:WS|BS|S|AP|D)\b/i.test(
+    /\b(?:hit|wound) rolls?\b|makes? an? psychic attack|\b(?:attacks|strength|armour penetration|damage|ballistic skill|weapon skill)(?: characteristics?)? of (?:[^.;]*?\bweapons\b|(?:the bearer's|this model's|this unit's|its) )|\+[1-9]\s*(?:WS|BS|S|AP|D)\b/i.test(
       ownAttacks,
     )
+  // An attack the unit makes is not one made against it, unless it is aimed at this unit.
   const incoming = text.replace(
-    /(?:a model|this model|the bearer|this unit|model from your army)[^.;]*?makes? (?:a ranged |a melee |a psychic |a |an )attack[^,.;]*/gi,
+    /(?:a model|this model|the bearer|this unit|model from your army)[^.;]*?makes? (?:a ranged |a melee |a psychic |a |an )attack(?! (?:that )?targets? (?:(?:this|your|the bearer's) (?:unit|model)\b(?!['’]s)|the bearer\b))[^,.;]*/gi,
     '',
   )
   const defending =
-    /(?:attack|attacks) (?:that )?(?:targets?|is allocated to) (?:(?:this|that|your) (?:unit|model)|the bearer|a model)|saving throw|invulnerable|feel no pain|(?:has|have|add|improve)[^.;]*?(?:toughness|save characteristic|wounds characteristic)|damage characteristic of (?:that|the) attack|stealth|benefit of cover/i.test(
+    /(?:attack|attacks) (?:that )?(?:targets?|is allocated to|(?:is |are )?made against) (?:(?:this|that|your) (?:unit|model)|the bearer|a model)|saving throw|invulnerable|feel no pain|(?:has|have|add|improve)[^.;]*?(?:toughness|save characteristic|wounds characteristic)|damage characteristic of (?:that|the) attack|stealth|benefit of cover/i.test(
       incoming,
     )
   const enemyWeapons =
     /(?:weapons? equipped by|attacks? made by) (?:models in )?(?:that enemy|enemy|the attacking) unit|enemy unit [^.;]*?each time a model in that unit makes/i.test(
       text,
     )
-  // A state other rules ask for, as both Doctrina Imperatives or being within the Flow of Magic, can change how a unit attacks and is attacked.
-  const activates = /\bare both active for\b|\b(?:it|this unit|that unit) is (?:wholly )?within your army['’]s\b/i.test(text)
+  // A state other rules ask for, as both Doctrina Imperatives or being wholly within the Flow of Magic, can change how a unit attacks and is attacked.
+  const activates = /\bare both active for\b|\b(?:it|this unit|that unit) is wholly within your army['’]s\b/i.test(text)
   const attacker =
     activates ||
     (offensiveTarget && (attacking || defending || /mortal wounds/i.test(text))) ||
