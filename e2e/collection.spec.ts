@@ -1,4 +1,4 @@
-import { waitForOfflineApp } from './offline'
+import { downloadOfflineAppAtOnce, waitForOfflineApp } from './offline'
 import { expect, test, type Locator, type Page } from './test'
 import {
   createRoster,
@@ -193,6 +193,7 @@ test('suggests datasheets fielded in a battle until they are added', async ({ pa
 })
 
 test('collection counts survive a cold offline reopen and reconnect', async ({ page, context }) => {
+  await downloadOfflineAppAtOnce(page)
   test.setTimeout(240_000)
   await signUp(page, uniqueName('Offline collection'))
   await page.goto('/collection')

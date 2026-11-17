@@ -11,6 +11,12 @@ export async function savedApplicationDigest(page: Page) {
   }, REFERENCE_CACHE)
 }
 
+/** Starts each later page's offline download as soon as it settles, instead of ten seconds after, as a player's page does. */
+export const downloadOfflineAppAtOnce = (page: Page) =>
+  page.addInitScript(() => {
+    window.PraetoriumOfflineDownloadDelayMs = 0
+  })
+
 /** Waits until the page has saved a complete download, which it starts using only once every part is stored. */
 export async function waitForOfflineApp(page: Page) {
   await expect

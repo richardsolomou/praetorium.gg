@@ -1,5 +1,5 @@
 import { add } from './builder.harness'
-import { waitForOfflineApp } from './offline'
+import { downloadOfflineAppAtOnce, waitForOfflineApp } from './offline'
 import { expect, test } from './test'
 import {
   createRoster,
@@ -24,6 +24,7 @@ import type { LocalState } from '../src/contracts/localState'
 test.use({ actionTimeout: 15_000 })
 
 test('simulation and loadout optimization work in a cold offline application', async ({ page, context }) => {
+  await downloadOfflineAppAtOnce(page)
   test.setTimeout(240_000)
   await page.goto('/simulator')
   await waitForOfflineApp(page)
@@ -89,6 +90,7 @@ test('online saves only show sync status when the queue remains pending', async 
 })
 
 test('offline roster edits survive a cold reopen and sync after reconnecting', async ({ page, context }) => {
+  await downloadOfflineAppAtOnce(page)
   test.setTimeout(240_000)
   await signUp(page, uniqueName('Plane army'))
   await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Before flight' })
@@ -144,6 +146,7 @@ test('a roster still waiting to sync opens in a new tab and a missing one shows 
 })
 
 test('a lost save response retains its identity and later edits sync in order', async ({ page, context }) => {
+  await downloadOfflineAppAtOnce(page)
   test.setTimeout(240_000)
   await signUp(page, uniqueName('Intermittent connection'))
   await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Original army' })
@@ -178,6 +181,7 @@ test('a lost save response retains its identity and later edits sync in order', 
 })
 
 test('an offline practice battle and its commands survive reopening and sync together', async ({ page, context }) => {
+  await downloadOfflineAppAtOnce(page)
   test.setTimeout(240_000)
   const { id: rosterId, operator } = await savedArmy(page, 'Offline battle', { name: 'Flight army' })
   // A battle starts on the server as a draft, so only its setup and play happen offline.
@@ -220,6 +224,7 @@ test('an offline practice battle and its commands survive reopening and sync tog
 })
 
 test('a battle conflict awaiting review does not stop connected play', async ({ page, context }) => {
+  await downloadOfflineAppAtOnce(page)
   test.setTimeout(240_000)
   const { operator } = await savedArmy(page, 'Battle conflict', { name: 'Flight army' })
   const token = lastPathSegment(await practiceBattle(page, 'Flight army'))
@@ -247,6 +252,7 @@ test('a battle conflict awaiting review does not stop connected play', async ({ 
 })
 
 test('conflicting roster edits stay saved and export before choosing the server version', async ({ page, context }) => {
+  await downloadOfflineAppAtOnce(page)
   test.setTimeout(240_000)
   await signUp(page, uniqueName('Offline conflict'))
   await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Original list' })
@@ -296,6 +302,7 @@ test('conflicting roster edits stay saved and export before choosing the server 
 })
 
 test('a roster on another rules version saves that version for offline edits', async ({ page, context, request }) => {
+  await downloadOfflineAppAtOnce(page)
   test.setTimeout(300_000)
   const { construction } = await (await request.get('/offline-reference-version.json')).json()
   await signUp(page, uniqueName('Older rules'))

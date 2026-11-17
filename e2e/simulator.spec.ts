@@ -18,7 +18,7 @@ import {
   chooseOption,
   PHONE,
 } from './account'
-import { waitForOfflineApp } from './offline'
+import { downloadOfflineAppAtOnce, waitForOfflineApp } from './offline'
 
 const KILL_CHANCE = /^(?:<0\.01|\d+\.\d\d?)%$/
 
@@ -1831,6 +1831,7 @@ test('optimized weapon profiles follow the unit through swaps and reload', async
 })
 
 test('Defiler can optimize ranged attacks instead of its stronger combined loadout', async ({ page }) => {
+  await downloadOfflineAppAtOnce(page)
   let serverSearches = 0
   page.on('request', (request) => {
     if (request.url().includes('/api/simulator/optimize')) serverSearches++

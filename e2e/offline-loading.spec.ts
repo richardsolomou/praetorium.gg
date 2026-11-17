@@ -1,6 +1,6 @@
 import { expect, test } from './test'
 import { createRoster, signUp, uniqueName, PHONE } from './account'
-import { saveOlderMovingRule, waitForOfflineApp } from './offline'
+import { saveOlderMovingRule, downloadOfflineAppAtOnce, waitForOfflineApp } from './offline'
 
 for (const width of [1440, 390]) {
   test(`factions stay visible with an older native download at ${width}px`, async ({ page }) => {
@@ -65,6 +65,7 @@ test('a first roster open shows progress until the army is ready', async ({ page
 })
 
 test('an unopened rule from an older download stays readable throughout hosted revalidation', async ({ page }) => {
+  await downloadOfflineAppAtOnce(page)
   test.setTimeout(240_000)
   await page.goto('/rules/core-rules/moving')
   await waitForOfflineApp(page)

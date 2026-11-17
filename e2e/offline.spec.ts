@@ -1,4 +1,12 @@
-import { OLDER_REVISION, REFERENCE_CACHE, saveOlderMovingRule, savedApplicationDigest, savedCore, waitForOfflineApp } from './offline'
+import {
+  OLDER_REVISION,
+  REFERENCE_CACHE,
+  saveOlderMovingRule,
+  savedApplicationDigest,
+  savedCore,
+  downloadOfflineAppAtOnce,
+  waitForOfflineApp,
+} from './offline'
 import { expect, test } from './test'
 import { createRoster, scrollSearchResultIntoView, signUp, uniqueName, PHONE } from './account'
 import { add } from './builder.harness'
@@ -54,6 +62,7 @@ test('the home page paints before downloading the offline application and keeps 
 })
 
 test('a saved copy that finds the connection back offers the live app', async ({ page, context }) => {
+  await downloadOfflineAppAtOnce(page)
   test.setTimeout(240_000)
   await page.goto('/')
   await expect(page.locator('main h1')).toBeVisible()
@@ -73,6 +82,7 @@ test('a saved copy that finds the connection back offers the live app', async ({
 })
 
 test('the complete reference keeps its existing UI after a cold offline launch', { tag: '@catalogue' }, async ({ page, context }) => {
+  await downloadOfflineAppAtOnce(page)
   test.setTimeout(240_000)
   const player = uniqueName('Offline reference')
   await signUp(page, player)
@@ -207,6 +217,7 @@ test('the complete reference keeps its existing UI after a cold offline launch',
 })
 
 test('a returning visit searches and opens datasheets from its download without waiting for the service', async ({ page }) => {
+  await downloadOfflineAppAtOnce(page)
   test.setTimeout(240_000)
   await page.goto('/')
   await waitForOfflineApp(page)
@@ -221,6 +232,7 @@ test('a returning visit searches and opens datasheets from its download without 
 })
 
 test('the roster builder prices units and opens datasheets on the device once it has prepared them', async ({ page }) => {
+  await downloadOfflineAppAtOnce(page)
   test.setTimeout(240_000)
   await signUp(page, 'Richard')
   await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/ })

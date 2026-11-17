@@ -1,4 +1,4 @@
-import { waitForOfflineApp } from './offline'
+import { downloadOfflineAppAtOnce, waitForOfflineApp } from './offline'
 import { expect, test, type Page } from './test'
 import {
   confirmRosterSetup,
@@ -152,6 +152,7 @@ test('library setup uses the same reviewed enhancement removal and refuses a cha
 })
 
 test('reviewed setup survives an offline reload and reconnects with the same selected units', async ({ page, context }) => {
+  await downloadOfflineAppAtOnce(page)
   test.setTimeout(240_000)
   const { id, operator, source } = await reviewedArmy(page)
   await waitForOfflineApp(page)
