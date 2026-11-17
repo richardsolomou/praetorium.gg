@@ -1,5 +1,14 @@
 # praetorium
 
+## 0.265.1 (2026-11-17)
+
+### Patch Changes
+
+- 87b4048: [rosters] Long folder names wrap onto a second line instead of cutting off, which on phones happened after a few letters.
+- a20bfee: [rosters] The roster library has one New folder button instead of a second tile among the folders.
+- a20bfee: [rosters] The roster count above your library includes rosters filed in folders, and inside a folder it counts everything in it.
+- a20bfee: [rosters] Selecting rosters ends from a close button on the selection bar, which stays in view as you scroll.
+
 ## 0.265.0 (2026-11-17)
 
 ### Minor Changes
