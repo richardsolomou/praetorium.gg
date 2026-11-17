@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.261.2 (2026-11-17)
+
+### Patch Changes
+
+- 56e219f: The Space Marines Lieutenant with Combi-weapon can now be your Warlord.
+- 56e219f: The Ynnari Archon can now be your Warlord.
+
 ## 0.261.1 (2026-11-16)
 
 ### Patch Changes
