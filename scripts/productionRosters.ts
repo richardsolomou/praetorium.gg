@@ -2,15 +2,12 @@ import { mkdir, readFile, realpath, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { z } from 'zod'
 import { catalogueEditionLoaders } from '../src/server/catalogueEditions'
-import { SpacetimeOperator } from '../src/server/spacetimeOperator'
-import { PREVIEW_EMAIL, previewAccountId } from './seedPreview'
 import { runningLocalDevPreview } from './localDevPreview'
 import { fetchProductionRostersOverSsh, type RosterWriteOutcome, writeNormalisedRostersOverSsh } from './lib/productionRosterSsh'
 import {
   auditProductionRosters,
   compareRosterAudits,
   fetchProductionRosters,
-  importProductionRosters,
   MAX_ROSTER_SNAPSHOT_BYTES,
   normaliseProductionRosters,
   productionRosterSnapshotSchema,
@@ -46,9 +43,9 @@ async function productionRostersMain(args: string[]) {
   const apply = args[0] === 'normalise' && args.at(-1) === '--apply'
   const [command, snapshotFile = defaultSnapshot, catalogueDir, baselineFile] = apply ? args.slice(0, -1) : args
   const maximum = command === 'audit' ? 4 : command === 'normalise' ? 2 + Number(apply) : 2
-  if (!['fetch', 'import', 'audit', 'normalise'].includes(command ?? '') || args.length > maximum) {
+  if (!['fetch', 'audit', 'normalise'].includes(command ?? '') || args.length > maximum) {
     throw new Error(
-      'Usage: productionRosters.ts fetch|import [snapshot.json] | audit [snapshot.json] [catalogue-directory] [baseline-report.json] | normalise [snapshot.json] [--apply]',
+      'Usage: productionRosters.ts fetch [snapshot.json] | audit [snapshot.json] [catalogue-directory] [baseline-report.json] | normalise [snapshot.json] [--apply]',
     )
   }
   if (command === 'fetch') {
@@ -68,21 +65,6 @@ async function productionRostersMain(args: string[]) {
   const snapshot = await readSnapshot(snapshotFile)
   const worktree = await realpath(process.cwd())
   const preview = await runningLocalDevPreview(worktree)
-  if (command === 'import') {
-    if (!preview?.ready) throw new Error('Start this worktree with just dev before importing rosters')
-    const credentials = z
-      .object({ operator: z.object({ token: z.string() }) })
-      .parse(JSON.parse(await readFile(path.join(preview.dataDir, 'credentials.json'), 'utf8')))
-    const operator = new SpacetimeOperator(`http://127.0.0.1:${preview.spacetimePort}`, preview.database, credentials.operator.token)
-    const imported = await importProductionRosters(snapshot, previewAccountId(preview.database, PREVIEW_EMAIL), operator)
-    const ids = new Set(snapshot.rosters.map((roster) => roster.id))
-    const orphaned = snapshot.rosters.filter((roster) => roster.baseRosterId && !ids.has(roster.baseRosterId)).length
-    if (orphaned) console.log(`${orphaned} variants whose production base was deleted are imported as standalone rosters`)
-    console.log(
-      `Imported ${imported} rosters (${snapshot.rosters.length - imported} local copies preserved). Sign in as ${PREVIEW_EMAIL} at ${preview.publicUrl}`,
-    )
-    return
-  }
   const directory = path.resolve(catalogueDir ?? preview?.catalogueDir ?? process.env.CATALOGUE_DIR ?? 'catalogue-data')
   const editions = loadEditions(directory)
   if (command === 'normalise') return normalise(snapshot, snapshotFile, directory, editions, apply)

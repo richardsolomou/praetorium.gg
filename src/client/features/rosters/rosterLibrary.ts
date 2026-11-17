@@ -37,7 +37,11 @@ export type SavedRoster = QueryData<typeof savedRosterSummariesQuery>[number]
  * overflow button and from the right-click menu — and because sharing has a
  * rollback that has no business in a component.
  */
-export function useRosterActions(origin: string, device?: DeviceRoster | null) {
+export function useRosterActions(
+  origin: string,
+  device?: DeviceRoster | null,
+  onDuplicated?: (source: SavedRoster, copyId: string) => void,
+) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const refresh = () => invalidateSavedRosters(queryClient)
@@ -60,6 +64,7 @@ export function useRosterActions(origin: string, device?: DeviceRoster | null) {
     mutationFn: (roster: SavedRoster) => copyRoster({ data: { id: roster.id, variant } }),
     onSuccess: async ({ id }: { id: string }, roster: SavedRoster) => {
       posthog.capture('roster_duplicated', { unit_count: roster.unitCount, variant })
+      if (!variant) onDuplicated?.(roster, id)
       await refresh()
       if (variant) await navigate({ to: '/rosters/$id', params: { id } })
     },

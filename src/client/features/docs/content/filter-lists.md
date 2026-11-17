@@ -12,7 +12,7 @@ Every tab of [Battles](/battles) and [Rosters](/rosters) has a search box and a 
 - **Your army** and **Opposing army** read as a matchup: on Friends and Public, **Army** and **Against army** must be on opposite sides of the table.
 - On a player's profile, **Result**, **Army** and **Opposing army** are read from that player's side. Filtering a tournament's battles doesn't change its rounds or results.
 
-On the Mine tab of Rosters, **Group** gathers your rosters under headings by faction, detachment, or battle size, each in the order you sort by. A variant stays with the roster it was made from. Press a heading to fold its group away, and again to open it. Your choice of grouping is kept on this device.
+On the Mine tab of Rosters, each roster says how often you have finished a battle with it, the result of those battles and when you last played it. **Played** filters for rosters you have or haven't played. **Group** gathers your rosters under headings by faction, detachment, battle size, or play: not played yet, played in the last 8 weeks, and played before, each in the order you sort by. A variant stays with the roster it was made from. Press a heading to fold its group away, and again to open it. Your choice of grouping is kept on this device.
 
 Press the cross on a filter to remove it, or **Clear filters** to remove them all. The address holds your filters, so you can share a filtered list as a link.
 

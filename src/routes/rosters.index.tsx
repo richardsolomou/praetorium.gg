@@ -38,7 +38,14 @@ function rostersSearch(search: Record<string, unknown>): RostersSearch {
     const sort = ROSTER_SORTS.find((known) => known !== 'updated-desc' && known === search.sort)
     return { view, ...text, ...facetSearch(search, DISCOVERY_FACETS), ...periodSearch(search), ...(sort ? { sort } : {}) }
   }
-  return { ...text, ...facetSearch(search, LIBRARY_FACETS), ...periodSearch(search), ...rosterStartSearch(search) }
+  const folder = searchText(search.folder, 64)
+  return {
+    ...text,
+    ...(folder ? { folder } : {}),
+    ...facetSearch(search, LIBRARY_FACETS),
+    ...periodSearch(search),
+    ...rosterStartSearch(search),
+  }
 }
 
 export const Route = createFileRoute('/rosters/')({

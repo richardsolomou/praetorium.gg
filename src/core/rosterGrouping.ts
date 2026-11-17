@@ -1,4 +1,4 @@
-export const ROSTER_GROUPINGS = ['none', 'faction', 'detachment', 'size'] as const
+export const ROSTER_GROUPINGS = ['none', 'faction', 'detachment', 'size', 'play'] as const
 export type RosterGrouping = (typeof ROSTER_GROUPINGS)[number]
 
 /** Where a roster is shown under a grouping: groups run in `rank` order, then by `label`. */

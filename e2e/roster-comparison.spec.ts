@@ -300,6 +300,7 @@ for (const width of [1440, 390]) {
       'Start a battle',
       'Grade this roster',
       'Edit roster setup',
+      'Move to folder…',
       'Lock roster',
       /Share…\s*Public/,
       'Export text',

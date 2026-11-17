@@ -107,6 +107,15 @@ export const productActions = {
     captureMutation(owner, 'ability_reminder_removed')
     return null
   }),
+  changeRosterFolders: action(schemas.changeRosterFolders, async (owner, data) => {
+    const folders = await app().service.preferencesService.changeRosterFolders(owner, data)
+    captureMutation(owner, 'roster_folders_changed', {
+      change: data.kind,
+      folders: folders.folders.length,
+      filed: Object.keys(folders.filed).length,
+    })
+    return folders
+  }),
   setPlayerDefaults: action(schemas.setPlayerDefaults, async (owner, data) => {
     const defaults = await app().service.preferencesService.setPlayerDefaults(owner, data)
     captureMutation(owner, 'player_defaults_set', {

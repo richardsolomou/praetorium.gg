@@ -41,6 +41,13 @@ import { BATTLE_DIGEST_VERSION, battleDigest, type BattleDigest } from '../../sr
 import { scoringDraftSchema, scoringMoment } from '../../src/core/scoringDraft'
 import { teamDispositionChoices } from '../../src/core/teamDisposition'
 import { DEFAULT_PLAYER_DEFAULTS, isPlayerDefaults } from '../../src/core/playerDefaults'
+import {
+  applyRosterFolderChange,
+  NO_ROSTER_FOLDERS,
+  rosterFolderChangeSchema,
+  rosterFoldersSchema,
+  type RosterFolders,
+} from '../../src/core/rosterFolders'
 import { BATTLE_ORDERS } from '../../src/core/battleFilter'
 import { LIST_FILTER_SCOPES, LIST_PREFERENCES_MAX_LENGTH, listPreferencesSchema } from '../../src/core/listFilter'
 import { matchupPairingSchema, RECENT_MATCHUP_LIMIT, recentMatchupSchema } from '../../src/core/recentMatchups'
@@ -101,7 +108,7 @@ import {
   leagueFixtureStatus,
   leagueFixtureUnfinished,
 } from '../../src/core/groupLeague'
-import { admitConnection, authConfiguration } from './admission'
+import { admitConnection, authConfiguration, isLocalIssuer } from './admission'
 import {
   ABILITY_REMINDERS_MAX,
   abilityReminderSchema,
@@ -910,6 +917,7 @@ export const deleteUserData = spacetime.reducer({ userId: t.string() }, (ctx, { 
   ctx.db.pushPreferences.userId.delete(userId)
   for (const row of Array.from(ctx.db.notices.userId.filter(userId))) ctx.db.notices.id.delete(row.id)
   ctx.db.playerDefaults.userId.delete(userId)
+  ctx.db.rosterFolders.userId.delete(userId)
   for (const row of Array.from(ctx.db.listFilterPreferences.userId.filter(userId))) ctx.db.listFilterPreferences.id.delete(row.id)
   for (const row of Array.from(ctx.db.sealedEventRosterSharing.userId.filter(userId))) ctx.db.sealedEventRosterSharing.key.delete(row.key)
   touchPublic(ctx, 'collection')
@@ -2652,6 +2660,77 @@ function productJson(value: unknown) {
   })
 }
 
+type ProductTable = keyof typeof productTables
+const PRODUCT_TABLES = Object.keys(productTables) as ProductTable[]
+/** Kept well under what one HTTP call carries; no single row comes near it. */
+const COPY_PAGE_CHARACTERS = 4_000_000
+
+function productTable(name: string) {
+  if (!(PRODUCT_TABLES as string[]).includes(name)) throw new SenderError('Unknown product table')
+  return name as ProductTable
+}
+
+// JSON has no 64-bit integers or absent values, so u64 columns travel tagged and options travel as missing keys.
+const copiedRowText = (row: object) =>
+  JSON.stringify(row, (_key, field: unknown) => (typeof field === 'bigint' ? { $u64: field.toString() } : field))
+const copiedRows = (text: string) =>
+  JSON.parse(text, (_key, field: unknown) =>
+    field !== null && typeof field === 'object' && '$u64' in field ? BigInt((field as { $u64: string }).$u64) : field,
+  ) as unknown
+const copyPage = z.array(z.record(z.string(), z.unknown())).max(1_000_000)
+
+/**
+ * One page of a product table's rows, in storage order, for a copy of the whole database; an empty `table` names the tables.
+ *
+ * Pages are positional, so only a database nothing writes to, such as a backup restored offline, reads back exactly.
+ */
+export const exportProductRows = spacetime.procedure({ table: t.string(), offset: t.u32() }, t.string(), (ctx, input) =>
+  operatorTx(ctx, (tx) => {
+    if (!input.table) return JSON.stringify({ tables: PRODUCT_TABLES })
+    const rows: string[] = []
+    let characters = 0
+    let position = 0
+    for (const row of tx.db[productTable(input.table)].iter()) {
+      if (position++ < input.offset) continue
+      const text = copiedRowText(row)
+      if (rows.length && characters + text.length > COPY_PAGE_CHARACTERS)
+        return `{"rows":[${rows.join(',')}],"next":${input.offset + rows.length}}`
+      rows.push(text)
+      characters += text.length
+    }
+    return `{"rows":[${rows.join(',')}],"next":null}`
+  }),
+)
+
+/**
+ * Stores copied rows in a product table, emptying it first when `replace` is set. Only a database whose auth issuer is
+ * on this machine takes them, so no deployed database can be overwritten through its operator. A column the copy's
+ * older schema lacked takes its declared default, as the migration that added it would have given it, and
+ * auto-incremented columns are numbered afresh, since a copied value would collide with the next one the sequence hands out.
+ */
+export const importProductRows = spacetime.procedure({ table: t.string(), rows: t.string(), replace: t.bool() }, t.u32(), (ctx, input) =>
+  operatorTx(ctx, (tx) => {
+    if (!isLocalIssuer(auth(tx).issuer)) throw new SenderError('Only a local development database takes copied rows')
+    const name = productTable(input.table)
+    const parsed = copyPage.safeParse(copiedRows(input.rows))
+    if (!parsed.success) throw new SenderError('Invalid copied rows')
+    const columns = Object.entries(
+      productTables[name].rowType.row as Record<string, { columnMetadata: { isAutoIncrement?: boolean; defaultValue?: unknown } }>,
+    )
+    const defaults = Object.fromEntries(
+      columns.flatMap(([column, { columnMetadata }]) => ('defaultValue' in columnMetadata ? [[column, columnMetadata.defaultValue]] : [])),
+    )
+    const renumbered = Object.fromEntries(
+      columns.flatMap(([column, { columnMetadata }]) => (columnMetadata.isAutoIncrement ? [[column, 0n]] : [])),
+    )
+    // Each table is typed by its own row; the copy carries rows this module's schema wrote, so they insert as read.
+    const target = tx.db[name] as unknown as { clear(): void; insert(row: object): unknown }
+    if (input.replace) target.clear()
+    for (const row of parsed.data) target.insert({ ...defaults, ...row, ...renumbered })
+    return parsed.data.length
+  }),
+)
+
 export const migrateProductData = spacetime.procedure({ table: t.string(), keys: t.array(t.string()) }, t.string(), (ctx, input) =>
   operatorTx(ctx, (tx) => {
     const { table: entity, keys } = z
@@ -3077,6 +3156,7 @@ export const splitRosterVariant = spacetime.procedure(
       const moved = roster.baseRosterId ? [] : others.map((row, at) => ({ ...row, baseRosterId: at ? others[0]!.id : undefined }))
       for (const row of [...moved, { ...roster, baseRosterId: undefined }])
         tx.db.rosters.id.update({ ...row, updatedAt: nextVersion(tx.db.rosters.id.find(row.id) ?? null, now) })
+      keepVariantsFiled(tx, userId, group, roster.baseRosterId ? [id] : [others[0]!.id], now)
       touchProduct(tx, userId, 'rosters')
       if ([roster, ...others].some((row) => row.visibility !== 'private')) touchPublic(tx, 'rosters')
       return true
@@ -3864,6 +3944,14 @@ export const playerDefaults = spacetime.procedure({ userId: t.string() }, t.stri
   }),
 )
 
+export const rosterFoldersByUser = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
+  operatorTx(ctx, (tx) => tx.db.rosterFolders.userId.find(userId)?.folders ?? productJson(NO_ROSTER_FOLDERS)),
+)
+
+export const changeRosterFolders = spacetime.procedure({ userId: t.string(), change: t.string(), now: t.u64() }, t.string(), (ctx, input) =>
+  operatorTx(ctx, (tx) => changeRosterFoldersIn(tx, [input.userId, input.change, input.now])),
+)
+
 export const setPlayerDefaults = spacetime.procedure(
   { userId: t.string(), rosterVisibility: t.string(), battleSize: t.u32(), now: t.u64() },
   t.string(),
@@ -4587,6 +4675,20 @@ export const sealedEventsVisibleTo = spacetime.procedure({ userId: t.string(), l
           ownEntry: entries.find((entry) => entry.userId === userId) ?? null,
           pastAt: host.kind === 'group' ? gamePastAt(tx, host) : null,
         }
+      }),
+    )
+  }),
+)
+
+/** The saved list behind each of a player's own sealed entries, by its event and by the host its battles name. */
+export const sealedEntrySources = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
+  operatorTx(ctx, (tx) => {
+    if (!validId(userId)) throw new SenderError('Invalid sealed entries')
+    return productJson(
+      Array.from(tx.db.sealedEventEntries.userId.filter(userId)).flatMap((entry) => {
+        const event = tx.db.sealedEvents.id.find(entry.eventId)
+        const host = event && hostOfEvent(tx, event)
+        return host && entry.rosterId ? [{ hostToken: hostToken(host), eventToken: host.event.token, rosterId: entry.rosterId }] : []
       }),
     )
   }),
@@ -6051,6 +6153,41 @@ function setPushEnabledIn(tx: Context, args: unknown[]) {
   return enabled
 }
 
+const storedRosterFolders = (tx: Context, userId: string) => {
+  const row = tx.db.rosterFolders.userId.find(userId)
+  return row ? rosterFoldersSchema.parse(JSON.parse(row.folders)) : NO_ROSTER_FOLDERS
+}
+
+function saveRosterFolders(tx: Context, userId: string, folders: RosterFolders, now: bigint) {
+  const row = { userId, folders: productJson(folders), at: now }
+  if (tx.db.rosterFolders.userId.find(userId)) tx.db.rosterFolders.userId.update(row)
+  else tx.db.rosterFolders.insert(row)
+  touchProduct(tx, userId, 'settings')
+  return row.folders
+}
+
+/** Applies one folder change to what is saved now, so a change queued offline never replaces another device's folders. */
+function changeRosterFoldersIn(tx: Context, args: unknown[]) {
+  const [userId, text, now] = z.tuple([textArg, z.string().max(20_000), timestampArg]).parse(args)
+  if (!validId(userId)) throw new SenderError('Invalid roster folders')
+  const change = decodePayload(rosterFolderChangeSchema, text, 'Invalid roster folders')
+  const groups = new Set(Array.from(tx.db.rosters.userId.filter(userId), (row) => row.baseRosterId ?? row.id))
+  return saveRosterFolders(tx, userId, applyRosterFolderChange(storedRosterFolders(tx, userId), change, groups), now)
+}
+
+/** A list taken out of its variant group stays in the group's folder, and so do the variants left behind when the base leaves. */
+function keepVariantsFiled(tx: Context, userId: string, group: string, rosterIds: readonly string[], now: bigint) {
+  const folders = storedRosterFolders(tx, userId)
+  const folderId = folders.filed[group]
+  if (!folderId) return
+  saveRosterFolders(
+    tx,
+    userId,
+    { ...folders, filed: { ...folders.filed, ...Object.fromEntries(rosterIds.map((id) => [id, folderId])) } },
+    now,
+  )
+}
+
 function setPlayerDefaultsIn(tx: Context, args: unknown[]) {
   const [userId, rosterVisibility, battleSize, now] = z
     .tuple([textArg, textArg, z.number().int().nonnegative().max(4_294_967_295), timestampArg])
@@ -7111,6 +7248,7 @@ const syncProductActions = {
   delete_ability_reminder: deleteAbilityReminderIn,
   set_push_enabled: setPushEnabledIn,
   set_player_defaults: setPlayerDefaultsIn,
+  change_roster_folders: changeRosterFoldersIn,
   sealed_event_command: sealedEventCommandIn,
 } satisfies Record<SyncProductActionName, unknown>
 

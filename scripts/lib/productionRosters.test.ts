@@ -1,13 +1,10 @@
 import { describe, expect, it, vi } from 'vitest'
 import { bookOf } from '../../src/server/catalogue.fixtures'
-import type { SpacetimeOperator } from '../../src/server/spacetimeOperator'
 import type { LoadedRules } from '../../src/shared/rules'
 import {
   fetchProductionRosters,
   boundedResponseText,
   compareRosterAudits,
-  importedRosterId,
-  importProductionRosters,
   normaliseProductionRosters,
   productionRosterSnapshotSchema,
   rosterAuditBaselineSchema,
@@ -192,102 +189,6 @@ it('rejects malformed saved selections instead of silently dropping them', async
 
 it('rejects duplicate snapshot identities', () => {
   expect(productionRosterSnapshotSchema.safeParse({ ...snapshot, rosters: [roster, roster] }).success).toBe(false)
-})
-
-it('imports every loadout and attachment unchanged into private local copies', async () => {
-  const syncRoster = vi.fn<SpacetimeOperator['syncRoster']>(async () => ({
-    outcome: 'applied',
-    version: 2,
-    deleted: false,
-    lifecycle: 'created',
-  }))
-  await importProductionRosters(snapshot, 'local-account', { roster: async () => undefined, syncRoster })
-  expect(JSON.parse(syncRoster.mock.calls[0]![0].row)).toMatchObject({
-    id: importedRosterId(roster.id),
-    userId: 'local-account',
-    visibility: 'private',
-    picks: JSON.stringify(roster.picks),
-    catalogueId: roster.catalogueId,
-    detachmentId: JSON.stringify(roster.detachmentIds),
-    prep: null,
-    tags: '[]',
-    now: 2,
-  })
-})
-
-it('preserves local experiments when an import is repeated', async () => {
-  const syncRoster = vi.fn()
-  await importProductionRosters(snapshot, 'local-account', { roster: async () => ({ userId: 'local-account' }) as never, syncRoster })
-  expect(syncRoster).not.toHaveBeenCalled()
-})
-
-it('stops on an ownership collision without overwriting another local account', async () => {
-  const syncRoster = vi.fn()
-  await expect(
-    importProductionRosters(snapshot, 'local-account', { roster: async () => ({ userId: 'another-account' }) as never, syncRoster }),
-  ).rejects.toThrow('belongs to another local account')
-  expect(syncRoster).not.toHaveBeenCalled()
-})
-
-it('preserves roster variant links under the imported IDs', async () => {
-  const syncRoster = vi.fn<SpacetimeOperator['syncRoster']>(async () => ({
-    outcome: 'applied',
-    version: 2,
-    deleted: false,
-    lifecycle: 'created',
-  }))
-  await importProductionRosters(
-    {
-      ...snapshot,
-      rosters: [
-        { ...roster, baseRosterId: 'base' },
-        { ...roster, id: 'base' },
-      ],
-    },
-    'local-account',
-    {
-      roster: async () => undefined,
-      syncRoster,
-    },
-  )
-  expect(
-    syncRoster.mock.calls.map(([input]) => {
-      const row = JSON.parse(input.row)
-      return [row.id, row.baseRosterId]
-    }),
-  ).toEqual([
-    [importedRosterId('base'), null],
-    [importedRosterId(roster.id), importedRosterId('base')],
-  ])
-})
-
-it('imports a variant of a deleted production base as a standalone copy', async () => {
-  const syncRoster = vi.fn<SpacetimeOperator['syncRoster']>(async () => ({
-    outcome: 'applied',
-    version: 2,
-    deleted: false,
-    lifecycle: 'created',
-  }))
-  await importProductionRosters({ ...snapshot, rosters: [{ ...roster, baseRosterId: 'deleted' }] }, 'local-account', {
-    roster: async () => undefined,
-    syncRoster,
-  })
-  expect(JSON.parse(syncRoster.mock.calls[0]![0].row).baseRosterId).toBeNull()
-})
-
-it('stops after a failed write so the next import can resume', async () => {
-  await expect(
-    importProductionRosters(snapshot, 'local-account', {
-      roster: async () => undefined,
-      syncRoster: async () => ({ outcome: 'refused', message: 'forbidden' }),
-    }),
-  ).rejects.toThrow('forbidden')
-})
-
-it('uses an atomic insert so an edit racing the import cannot be overwritten', async () => {
-  const syncRoster = vi.fn<SpacetimeOperator['syncRoster']>(async () => ({ outcome: 'conflict', message: 'concurrent edit' }))
-  const imported = await importProductionRosters(snapshot, 'local-account', { roster: async () => undefined, syncRoster })
-  expect([imported, syncRoster.mock.calls[0]![0].expectedVersion]).toEqual([0, null])
 })
 
 describe('normalising saved loadouts', () => {

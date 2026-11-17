@@ -172,6 +172,29 @@ test('automatic roster names are saved with edits and a player can override or r
   await page.screenshot({ path: test.info().outputPath('automatic-roster-reloaded.png') })
 })
 
+test('a search from the top level finds a roster in its folder and keeps it there', async ({ page }) => {
+  await signUp(page, 'Folders')
+  await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Dynasty 2k' })
+  await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Another list' })
+
+  await page.goto('/rosters')
+  await chooseLibraryAction(page, 'Dynasty 2k', 'Move to folder…')
+  await page.getByRole('dialog').getByRole('button', { name: 'New folder…' }).click()
+  await page.getByLabel('Folder name').fill('GT')
+  await page.getByRole('button', { name: 'Create and move' }).click()
+  const folder = page.getByRole('link', { name: /^GT/ })
+  await expect(folder).toContainText('1 roster')
+  await expect(page.locator('[data-roster="Dynasty 2k"]')).toHaveCount(0)
+
+  await page.getByPlaceholder('Search your rosters…').fill('Dynasty')
+  await expect(page.locator('[data-roster="Another list"]')).toHaveCount(0)
+  await expect(page.locator('[data-roster="Dynasty 2k"]')).toHaveCount(0)
+  await expect(folder).toContainText('1 roster')
+  await folder.click()
+  await expect(page.locator('[data-roster="Dynasty 2k"]')).toBeVisible()
+  await expect(page.getByPlaceholder('Search your rosters…')).toHaveValue('Dynasty')
+})
+
 test('a roster variant is numbered and grouped under its base without renaming', async ({ browser, page }) => {
   await signUp(page, 'Variant roster')
   await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Dynasty 2k' })
@@ -213,7 +236,7 @@ test('a roster variant is numbered and grouped under its base without renaming',
   await page.screenshot({ path: test.info().outputPath('roster-variants-library.png'), fullPage: true })
   const baseVisibility = page.locator('[data-roster="Dynasty 2k"]').getByText('Public', { exact: true })
   await expect(baseVisibility).toBeVisible()
-  const baseDetails = page.locator('[data-roster="Dynasty 2k"]').getByText(/^11th edition/)
+  const baseDetails = page.locator('[data-roster="Dynasty 2k"] [data-slot="roster-details"]')
   await expect(baseDetails).toHaveText(/1 unit · updated/, { useInnerText: true })
   await page.setViewportSize(PHONE)
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)

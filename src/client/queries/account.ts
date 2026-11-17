@@ -26,6 +26,7 @@ import {
   signInOptions,
   userProfile,
   collectionProfile,
+  rosterFolders,
 } from '../functions'
 import { requirePage, SSR_STALE_TIME } from './shared'
 import { withTimeout } from '../abortSignals'
@@ -40,6 +41,7 @@ import {
   onboardingKey,
   listFilterPreferencesKey,
   playerDefaultsKey,
+  rosterFoldersKey,
   userProfileKey,
 } from './queryKeys'
 
@@ -68,6 +70,9 @@ export const noticesQuery = () => queryOptions({ queryKey: noticesKey(), queryFn
 export const listFilterPreferencesQuery = () =>
   queryOptions({ queryKey: listFilterPreferencesKey(), queryFn: () => listFilterPreferences(), staleTime: SSR_STALE_TIME })
 
+/** The player's roster folders and which list is filed in each. */
+export const rosterFoldersQuery = () =>
+  queryOptions({ queryKey: rosterFoldersKey(), queryFn: () => rosterFolders(), staleTime: SSR_STALE_TIME })
 export const playerDefaultsQuery = () =>
   queryOptions({ queryKey: playerDefaultsKey(), queryFn: () => playerDefaults(), staleTime: SSR_STALE_TIME })
 /** The player's ability alerts, which every roster they build and field applies. */

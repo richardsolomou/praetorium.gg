@@ -4344,3 +4344,42 @@ describe('roster points notices', () => {
     expect(h.test.db.rosterPointsMarks.rosterId.find('owner-list')).toBeNull()
   })
 })
+
+describe('whole-database copies', () => {
+  const LOCAL_ISSUER = 'http://127.0.0.1:3000/api/auth'
+  const exported = (h: ReturnType<typeof harness>, table: string) =>
+    JSON.parse(module.exportProductRows(h.procedure(h.operator), { table, offset: 0 })) as { rows: object[]; next: number | null }
+  const imported = (h: ReturnType<typeof harness>, table: string, rows: object[]) =>
+    module.importProductRows(h.procedure(h.operator), { table, rows: JSON.stringify(rows), replace: true })
+
+  it('carries 64-bit numbers and absent values into a local database exactly', () => {
+    const source = harness()
+    source.call(TestAuth.internal(), (ctx) => ctx.db.battles.insert({ id: 'b', token: 't', createdAt: 9_007_199_254_740_993n }))
+    const { rows } = exported(source, 'battles')
+    const target = harness()
+    env.AUTH_ISSUER = LOCAL_ISSUER
+    imported(target, 'battles', rows)
+    expect([...target.test.db.battles.iter()]).toEqual([{ id: 'b', token: 't', createdAt: 9_007_199_254_740_993n }])
+  })
+
+  it('numbers auto-incremented rows afresh so new ones do not collide', () => {
+    const source = harness()
+    source.call(TestAuth.internal(), (ctx) => ctx.db.notices.insert({ id: 0n, userId: 'u', notice: '{}', at: 1n, readAt: undefined }))
+    const { rows } = exported(source, 'notices')
+    const target = harness()
+    env.AUTH_ISSUER = LOCAL_ISSUER
+    imported(target, 'notices', rows)
+    target.call(TestAuth.internal(), (ctx) => ctx.db.notices.insert({ id: 0n, userId: 'u', notice: '{}', at: 2n, readAt: undefined }))
+    expect(target.test.db.notices.count()).toBe(2n)
+  })
+
+  it('refuses copied rows on a deployed database', () => {
+    const h = harness()
+    expect(() => imported(h, 'battles', [])).toThrow('Only a local development database takes copied rows')
+  })
+
+  it('exports only to the operator', () => {
+    const h = harness()
+    expect(() => module.exportProductRows(h.procedure(stranger()), { table: 'battles', offset: 0 })).toThrow('Operator required')
+  })
+})

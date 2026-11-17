@@ -417,6 +417,8 @@ async function readBack(repository: SpacetimeRepository, product: SpacetimeOpera
     else await repository.replaceCalendarFeed(userId, randomToken(), Date.now())
     await repository.onboardingProgress(userId)
     await repository.playerDefaults(userId)
+    await repository.rosterFolders(userId)
+    await repository.sealedEntrySources(userId)
     await repository.setListFilterPreferences(
       userId,
       'battles:mine',
@@ -553,6 +555,12 @@ async function seedInto(
   const strangerUserId = accountId(PREVIEW_STRANGER_EMAIL)
   const wandererUserId = accountId(PREVIEW_WANDERER_EMAIL)
   await befriend(strangerUserId, wandererUserId)
+  // On a side account, so the libraries the browser tests read keep their shape.
+  await repository.changeRosterFolders(
+    wandererUserId,
+    { kind: 'add', id: 'preview-folder-orks', name: 'Orks', parentId: null, rosterIds: ['preview-wanderer-orks'] },
+    now(),
+  )
 
   for (const catalogueId of [PREVIEW_ROSTERS[0]!.catalogueId, PREVIEW_ROSTERS[4]!.catalogueId, PREVIEW_ROSTERS[6]!.catalogueId]) {
     await repository.addFavouriteFaction({ userId: previewUserId, catalogueId, now: now() })

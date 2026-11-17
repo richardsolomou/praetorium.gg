@@ -69,6 +69,7 @@ export {
   homeRosters,
   rosterChanges,
   savedRosterChangedIds,
+  savedRosterPlays,
 } from './offline/rosterFunctions'
 
 export {
@@ -96,6 +97,7 @@ export {
   favouriteDatasheets,
   recentMatchups,
   playerDefaults,
+  rosterFolders,
   onboardingProgress,
   notificationSettings,
   friendships,
@@ -139,6 +141,7 @@ export {
   setAbilityReminder,
   removeAbilityReminder,
   setPlayerDefaults,
+  changeRosterFolders,
   createFriendInvite,
   cancelFriendInvite,
   createSealedEvent,

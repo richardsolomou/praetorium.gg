@@ -31,7 +31,10 @@
 
 - `just load-test-round` times the end of a busy tournament round and group league round against a throwaway SpacetimeDB, with options in `scripts/loadTestRound.ts`. Timings depend on the machine, so compare a change with a run of `main` on the same machine.
 
-## Production roster copies
+## Production data
 
-- `just rosters-fetch` exports production selections; `just rosters-import` copies that snapshot into the local preview account. Keep snapshots in ignored `data-dev/` and credentials out of commands and tracked files.
+- `just production-copy` replaces this worktree's running development data with the latest production backup, at most 13 hours old: every product table, and every account with the preview password, so you can sign in as any player by their email. It needs `ssh hera` and a running `just dev`. To get the seeded preview data back, run `just dev-stop`, delete `data-dev/hosted`, and run `just dev`.
+- The backup is restored on hera in a container with no network, so a copy never reaches players. Sessions, tokens, password hashes, two-factor secrets and signing keys stay on hera, and the transfer file in `data-dev/` is deleted after the import.
+- Only a database whose auth issuer is on this machine accepts copied rows, so no deployed database can be overwritten this way. Exports read the restored backup page by page, which is exact only because nothing writes to it.
+- `just rosters-fetch` exports production selections for `just rosters-audit` and `just rosters-normalise`. Keep snapshots in ignored `data-dev/` and credentials out of commands and tracked files.
 - `just rosters-normalise --apply` writes to production; run it only from a checkout of the deployed release.

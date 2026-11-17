@@ -518,6 +518,13 @@ export const RevokedSession = __t.object('RevokedSession', {
 })
 export type RevokedSession = __Infer<typeof RevokedSession>
 
+export const RosterFolders = __t.object('RosterFolders', {
+  userId: __t.string(),
+  folders: __t.string(),
+  at: __t.u64(),
+})
+export type RosterFolders = __Infer<typeof RosterFolders>
+
 export const RosterLoans = __t.object('RosterLoans', {
   key: __t.string(),
   rosterId: __t.string(),

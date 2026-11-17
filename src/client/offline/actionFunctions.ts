@@ -39,11 +39,13 @@ import {
   friendSealedEventRostersKey,
   outdatedSealedEventEntriesKey,
   playerDefaultsKey,
+  rosterFoldersKey,
   recentMatchupsKey,
   abilityRemindersKey,
 } from '../queries/queryKeys'
 import type { RecentMatchup } from '../../core/recentMatchups'
 import { withAbilityReminder, type AbilityReminder } from '../../core/reminders'
+import { applyRosterFolderChange, NO_ROSTER_FOLDERS, type RosterFolders } from '../../core/rosterFolders'
 import { withoutRecentMatchup, withRecentMatchup } from '../../contracts/recentMatchups'
 import { onboardingAnswer } from '../../contracts/onboarding'
 import { OfflineRefusal } from './offlineRefusal'
@@ -77,6 +79,7 @@ export const abilityReminders = () => accountRead(abilityRemindersKey(), () => s
 /** The alerts a list fielded on this device carries: the ones it last read or set, and none if it never read them. */
 export const savedAbilityReminders = async () => (await localDocument<AbilityReminder[]>(queryResource(abilityRemindersKey()))) ?? []
 export const playerDefaults = () => accountRead(playerDefaultsKey(), () => server.playerDefaults())
+export const rosterFolders = () => accountRead(rosterFoldersKey(), () => server.rosterFolders())
 export const onboardingProgress = () => accountRead(onboardingKey(), () => server.onboardingProgress())
 export const notificationSettings = () => cachedRead(notificationSettingsKey(), () => server.notificationSettings())
 export const friendships = () => cachedRead(friendshipsKey(), () => server.friendships())
@@ -317,6 +320,20 @@ export async function removeAbilityReminder(
     update: (current) => ((current as AbilityReminder[] | undefined) ?? saved).filter((reminder) => reminder.key !== args.data.key),
   })
   return null
+}
+export async function changeRosterFolders(
+  args: Parameters<typeof server.changeRosterFolders>[0],
+): ReturnType<typeof server.changeRosterFolders> {
+  const defer = deferredForAccount(false)
+  if (!localEngine()) return server.changeRosterFolders(args)
+  const change = offlineActionSchemas.changeRosterFolders.parse(args.data)
+  const resource = queryResource(rosterFoldersKey())
+  const saved = (await localDocument<RosterFolders>(resource)) ?? NO_ROSTER_FOLDERS
+  // The server applies the change to what it holds then, so the folders kept here only show it until the next read.
+  await defer('changeRosterFolders', change, resource, undefined, {
+    update: (current) => applyRosterFolderChange((current as RosterFolders | undefined) ?? saved, change),
+  })
+  return applyRosterFolderChange(saved, change)
 }
 export async function setPlayerDefaults(args: Parameters<typeof server.setPlayerDefaults>[0]): ReturnType<typeof server.setPlayerDefaults> {
   const defer = deferredForAccount()

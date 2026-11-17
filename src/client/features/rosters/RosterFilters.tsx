@@ -71,6 +71,7 @@ const GROUPINGS: { label: string; value: RosterGrouping }[] = [
   { label: 'By faction', value: 'faction' },
   { label: 'By detachment', value: 'detachment' },
   { label: 'By battle size', value: 'size' },
+  { label: 'By play', value: 'play' },
 ]
 
 /** What a roster list is gathered under, each group keeping the chosen sort. */

@@ -1,4 +1,5 @@
 import type { PlayerDefaults } from '../../core/playerDefaults'
+import type { RosterFolderChange } from '../../core/rosterFolders'
 import type { RecentMatchup } from '../../core/recentMatchups'
 import { ABILITY_REMINDERS_FULL, type AbilityReminder } from '../../core/reminders'
 import type { PushPlatform } from '../../core/notificationConfig'
@@ -28,6 +29,10 @@ export class PreferencesService {
 
   setPushEnabled(userId: string, enabled: boolean) {
     return this.repository.setPushEnabled(userId, enabled, this.clock())
+  }
+
+  changeRosterFolders(userId: string, change: RosterFolderChange) {
+    return this.repository.changeRosterFolders(userId, change, this.clock())
   }
 
   setPlayerDefaults(userId: string, defaults: PlayerDefaults) {
