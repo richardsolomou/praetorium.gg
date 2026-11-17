@@ -2,7 +2,7 @@ import { GuideHelp } from '../onboarding/GuideHelp'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from 'react'
-import { ChevronDown, FileUp, FolderPlus, Plus, ScrollText } from 'lucide-react'
+import { ChevronDown, FileUp, FolderPlus, ListChecks, Plus, ScrollText } from 'lucide-react'
 import {
   type DroppedItem,
   FolderBreadcrumb,
@@ -263,6 +263,10 @@ export function RosterLibraryPage({
     })
   /** What the folder tiles count: every list while nothing narrows them, or every list a search or filter matched, archived or not. */
   const tileRosters = filtering ? shown : saved.filter((roster) => !roster.archived)
+  /** Every list here or in a folder below, counted once with its variants as the folder tiles count them. */
+  const listCount = new Set(
+    tileRosters.filter((roster) => !inside || inside.has(filedIn(roster) ?? '')).map((roster) => roster.baseRosterId ?? roster.id),
+  ).size
   const [archivedOpen, setArchivedOpen] = useState(false)
   const groupOf = (roster: SavedRoster): RosterGroup => {
     if (selectedGrouping === 'play') {
@@ -470,7 +474,6 @@ export function RosterLibraryPage({
     )
   }
 
-  const filtered = Object.values(search).some(Boolean)
   const deletingCount = deleting?.rosters.length ?? 0
   const unarchived = guest ? [] : (deleting?.rosters.filter((roster) => !roster.archived) ?? [])
   const archivable = unarchived.length > 0
@@ -532,7 +535,6 @@ export function RosterLibraryPage({
           rosters={saved}
           factions={available?.factions ?? []}
           favourites={favourites}
-          count={filtered && !libraryPending ? shown.length : null}
           onChange={(next) => void navigate({ to: '/rosters', search: next, replace: true, resetScroll: false })}
           sort={
             <>
@@ -560,23 +562,21 @@ export function RosterLibraryPage({
 
         <section>
           <div className="rubric flex items-baseline gap-3 border-b border-edge pb-2">
-            <h2 className="mr-auto">Rosters</h2>
+            <h2>Rosters</h2>
             {libraryPending ? (
-              <Skeleton className="h-4 w-5" aria-label="Loading roster count" />
-            ) : libraryError ? (
-              <span className="readout">—</span>
+              <Skeleton className="mr-auto h-4 w-5" aria-label="Loading roster count" />
             ) : (
-              <span className="readout">{active.length}</span>
+              <span className="readout mr-auto">{libraryError ? '—' : listCount}</span>
             )}
-            {me && !libraryPending && !libraryError && shown.length ? (
+            {me && !libraryPending && !libraryError && shown.length && !selecting ? (
               // The negative margin keeps the header its text's height, so the button arriving with the rosters moves nothing below it.
               <Button
                 variant="ghost"
                 size="sm"
                 className="-my-2 self-center tracking-normal normal-case"
-                onClick={() => (selecting ? stopSelecting() : setSelecting(true))}
+                onClick={() => setSelecting(true)}
               >
-                {selecting ? 'Done' : 'Select'}
+                <ListChecks /> Select
               </Button>
             ) : null}
             {me && !libraryPending && !libraryError && saved.length && !selecting && canNest ? (
@@ -612,6 +612,7 @@ export function RosterLibraryPage({
               onDelete={() => setDeleting({ rosters: selected, together: true })}
               onMove={() => setMoving([...new Set(selected.map((roster) => roster.baseRosterId ?? roster.id))])}
               onSelectAll={(all) => setSelectedIds(new Set(all ? selectable : []))}
+              onDone={stopSelecting}
               allSelected={selectable.length > 0 && selectable.every((id) => selectedIds.has(id))}
             />
           ) : null}
@@ -628,7 +629,6 @@ export function RosterLibraryPage({
                     filedIn={filedIn}
                     factionOf={(catalogueId) => available?.factions.find((faction) => faction.id === catalogueId)}
                     onDrop={dropInto}
-                    onNew={canNest && !filtering ? () => setNaming('new') : undefined}
                     matchesOnly={filtering}
                     actions={folderMenu}
                   />
@@ -939,7 +939,6 @@ function RosterLibraryFilters({
   rosters,
   factions,
   favourites,
-  count,
   onChange,
   sort,
 }: {
@@ -948,7 +947,6 @@ function RosterLibraryFilters({
   rosters: readonly SavedRoster[]
   factions: readonly FilterableFaction[]
   favourites: ReadonlySet<string>
-  count: number | null
   onChange: (next: RosterLibrarySearch) => void
   sort: ReactNode
 }) {
@@ -1034,7 +1032,6 @@ function RosterLibraryFilters({
       address={filters}
       onApply={(next) => onChange({ ...next, ...(search.folder ? { folder: search.folder } : {}) })}
       sort={sort}
-      summary={count === null ? null : countLabel(count, 'roster')}
     />
   )
 }

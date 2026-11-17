@@ -388,7 +388,6 @@ export function FolderTiles({
   filedIn,
   factionOf,
   onDrop,
-  onNew,
   matchesOnly = false,
   actions,
 }: {
@@ -398,8 +397,6 @@ export function FolderTiles({
   filedIn: (roster: TileRoster) => string | null
   factionOf: (catalogueId: string) => FactionPresentation | undefined
   onDrop: (item: DroppedItem, folderId: string) => void
-  /** Absent where another level of folders would be too deep. */
-  onNew?: () => void
   /** While a search or filter is on, `rosters` are its matches and a folder holding none of them hides. */
   matchesOnly?: boolean
   actions: FolderActions
@@ -410,7 +407,7 @@ export function FolderTiles({
       return { folder, held: rosters.filter((roster) => inside.has(filedIn(roster) ?? '')) }
     })
     .filter(({ held }) => !matchesOnly || held.length)
-  if (!tiles.length && !onNew) return null
+  if (!tiles.length) return null
   return (
     <div className="grid grid-cols-2 gap-x-3 gap-y-4 pt-1.5 sm:grid-cols-3">
       {tiles.map(({ folder, held }) => (
@@ -424,17 +421,6 @@ export function FolderTiles({
           actions={actions}
         />
       ))}
-      {onNew ? (
-        <button
-          type="button"
-          onClick={onNew}
-          className="grid h-28 place-items-center rounded-xl border border-dashed border-runner text-sm font-semibold text-parchment hover:border-parchment hover:bg-raised"
-        >
-          <span className="flex items-center gap-2">
-            <FolderPlus className="size-4" aria-hidden /> New folder
-          </span>
-        </button>
-      ) : null}
     </div>
   )
 }
