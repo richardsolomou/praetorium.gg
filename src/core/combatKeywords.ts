@@ -103,7 +103,6 @@ export function combatKeywordPhraseMatches(phrase: string, keywords: readonly st
   let remaining = phrase
   // A unit keyword names its models in the singular too, as KASTELAN ROBOT models for Kastelan Robots.
   for (const keyword of keywords.toSorted((a, b) => b.length - a.length))
-    // Rules name a plural keyword in the singular too, as KASTELAN ROBOT models of a KASTELAN ROBOTS unit.
     remaining = remaining.replaceAll(new RegExp(`\\b${escapeRegExp(keyword.replace(/s$/, ''))}s?\\b`, 'g'), '').trim()
   return !remaining
 }
