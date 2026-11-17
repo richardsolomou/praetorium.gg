@@ -1,5 +1,19 @@
 # praetorium
 
+## 0.262.2 (2026-11-17)
+
+### Patch Changes
+
+- 3838bd7: [assistant] Assistants can compare every enhancement a unit's characters can take against a target, within the points a list has spare.
+- 3838bd7: [assistant] Assistants are told about free wargear a list leaves out.
+- 3838bd7: [assistant] Assistants check what a leader or support character adds before suggesting you cut it, and ask how your list plans to win before chasing board presence.
+- 3838bd7: [assistant] An assistant grading a list sees what each leader or support character adds to the damage of the unit it joins.
+- 3838bd7: [assistant] Saving a list back through an assistant keeps its automatic title.
+- 3838bd7: [assistant] An assistant opening your own private list by its link is pointed to the right tool.
+- c1c5ef2: [assistant] Assistants can find units by what their abilities do, such as which keep an objective under your control.
+- 3838bd7: [simulator] The simulator now calculates Total Obliteration, Battle Protocols, Robotic Bodyguard and Noospheric Transference, and knows Sanctified Ordnance changes no attack.
+- c1c5ef2: [simulator] Doctrina Imperatives apply in full to Battleline units in the simulator, so Conqueror and Cognitive Reinforcement now count their armour penetration.
+
 ## 0.262.1 (2026-11-17)
 
 ### Patch Changes
