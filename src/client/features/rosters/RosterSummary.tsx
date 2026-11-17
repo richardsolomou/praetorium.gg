@@ -7,7 +7,7 @@ import { FactionLabel, type FactionPresentation } from '../../components/Faction
 import { rosterWaivers, WaiverChip } from '../../components/FormatWaivers'
 import { dispositionTone } from '../../components/rosterSetup'
 import type { NamedRosterDifferences } from '../../../core/rosterDifferences'
-import { CornerDownRight, Folder, Lock } from 'lucide-react'
+import { CornerDownRight, Lock } from 'lucide-react'
 import { RosterDifferenceChips, type VariantSetup } from './RosterDifferences'
 import type { SavedRoster } from './rosterLibrary'
 import { VISIBILITY_NAME } from './visibility'
@@ -73,7 +73,6 @@ export function RosterSummary({
   updates,
   dateLabel = 'updated',
   plays,
-  location,
 }: {
   roster: RosterCardFacts
   faction?: RosterSummaryFaction
@@ -95,8 +94,6 @@ export function RosterSummary({
   dateLabel?: string
   /** The owner's own battles with this list; absent where only the owner could know them. */
   plays?: RosterPlayHistory
-  /** The folder a search found the list in, below the one open. */
-  location?: string
 }) {
   const { date } = useDateFormatting()
   const detachments = detachmentNames(roster, faction)
@@ -133,12 +130,6 @@ export function RosterSummary({
       </span>
       {/* How the list has gone at the table leads the details, so it is read before the facts that never change. */}
       <span data-slot="roster-details" className="col-span-2 block text-xs text-dim sm:col-span-1">
-        {location ? (
-          <span className="mr-1 inline-flex items-center gap-1 align-[-0.15em] text-bone">
-            <Folder className="size-3" aria-hidden />
-            {location} ·
-          </span>
-        ) : null}
         {plays ? (
           <>
             <PlayedLead plays={plays} />

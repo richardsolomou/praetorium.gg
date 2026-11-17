@@ -5,7 +5,8 @@ import { useId, useState, type DragEvent } from 'react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
 import { FactionMark, type FactionPresentation } from '../../components/FactionMark'
-import { DropdownMenuItem } from '../../components/Menu'
+import { ContextMenu, ContextMenuContent, ContextMenuTrigger } from '@/components/ui/context-menu'
+import { ContextMenuItem, DropdownMenuItem } from '../../components/Menu'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -298,6 +299,38 @@ function useFolderDrop(onDrop: (item: DroppedItem) => void) {
 
 type TileRoster = { id: string; limit: number; catalogueId: string }
 
+/** What can be done to a folder, from its tile or from inside it. */
+export type FolderActions = {
+  onRename: (folder: RosterFolder) => void
+  onMove: (folder: RosterFolder) => void
+  onDelete: (folder: RosterFolder) => void
+}
+
+/** A folder's actions, in whichever menu asked for them. */
+function FolderActionItems({
+  Item,
+  folder,
+  actions,
+}: {
+  Item: typeof DropdownMenuItem | typeof ContextMenuItem
+  folder: RosterFolder
+  actions: FolderActions
+}) {
+  return (
+    <>
+      <Item onClick={() => actions.onRename(folder)}>
+        <Pencil /> Rename folder
+      </Item>
+      <Item onClick={() => actions.onMove(folder)}>
+        <FolderInput /> Move folder…
+      </Item>
+      <Item variant="destructive" onClick={() => actions.onDelete(folder)}>
+        <Trash2 /> Delete folder
+      </Item>
+    </>
+  )
+}
+
 /** The folders inside `parentId` as tiles to open, each saying what is in it; a roster or folder dragged onto one goes in. */
 export function FolderTiles({
   folders,
@@ -307,6 +340,8 @@ export function FolderTiles({
   factionOf,
   onDrop,
   onNew,
+  matchesOnly = false,
+  actions,
 }: {
   folders: readonly RosterFolder[]
   parentId: string | null
@@ -316,19 +351,25 @@ export function FolderTiles({
   onDrop: (item: DroppedItem, folderId: string) => void
   /** Absent where another level of folders would be too deep. */
   onNew?: () => void
+  /** While a search or filter is on, `rosters` are its matches and a folder holding none of them hides. */
+  matchesOnly?: boolean
+  actions: FolderActions
 }) {
   return (
     <div className="grid grid-cols-2 gap-x-3 gap-y-4 pt-1.5 sm:grid-cols-3">
       {childFolders(folders, parentId).map((folder) => {
         const inside = folderAndInside(folders, folder.id)
+        const held = rosters.filter((roster) => inside.has(filedIn(roster) ?? ''))
+        if (matchesOnly && !held.length) return null
         return (
           <FolderTile
             key={folder.id}
             folder={folder}
             folders={childFolders(folders, folder.id).length}
-            rosters={rosters.filter((roster) => inside.has(filedIn(roster) ?? ''))}
+            rosters={held}
             factionOf={factionOf}
             onDrop={(item) => onDrop(item, folder.id)}
+            actions={actions}
           />
         )
       })}
@@ -353,6 +394,7 @@ function FolderTile({
   rosters,
   factionOf,
   onDrop,
+  actions,
 }: {
   folder: RosterFolder
   /** How many folders are directly inside it. */
@@ -361,6 +403,7 @@ function FolderTile({
   rosters: readonly TileRoster[]
   factionOf: (catalogueId: string) => FactionPresentation | undefined
   onDrop: (item: DroppedItem) => void
+  actions: FolderActions
 }) {
   const drop = useFolderDrop((item) => item.id !== folder.id && onDrop(item))
   const factions = [
@@ -373,45 +416,63 @@ function FolderTile({
       : `${Math.min(...limits)}–${Math.max(...limits)}`
     : null
   return (
-    <Link
-      from="/rosters/"
-      to="/rosters"
-      // Opening a folder keeps the search and filters, which then reach into it.
-      search={(previous) => ({ ...previous, folder: folder.id })}
-      {...drop.props}
-      onDragStart={(event) => {
-        event.dataTransfer.setData(FOLDER_DRAG_TYPE, folder.id)
-        event.dataTransfer.effectAllowed = 'copyMove'
-      }}
-      data-folder={folder.name}
-      className={cn(
-        // The tab on its top edge is what makes the card read as a folder.
-        'part relative flex min-h-24 flex-col gap-1 p-3 pt-3.5 hover:border-runner-hi hover:bg-raised',
-        'before:absolute before:-top-1.5 before:left-3 before:h-1.5 before:w-10 before:rounded-t-md before:border before:border-b-0 before:border-edge before:bg-panel',
-        // The tab is part of the folder's shape, so it takes every state the body does.
-        'hover:before:border-runner-hi hover:before:bg-raised',
-        drop.over &&
-          'border-parchment bg-raised before:border-parchment before:bg-raised hover:border-parchment hover:before:border-parchment',
-      )}
-    >
-      <span className="flex min-w-0 items-center gap-2 font-bold uppercase">
-        <Folder className="size-4 shrink-0 text-dim" aria-hidden />
-        <span className="truncate">{folder.name}</span>
-      </span>
-      <span className="text-xs text-dim">
-        {[folders ? countLabel(folders, 'folder') : null, countLabel(rosters.length, 'roster'), span ? `${span} pts` : null]
-          .filter(Boolean)
-          .join(' · ')}
-      </span>
-      {factions.length ? (
-        <span className="mt-auto flex items-center gap-1">
-          {factions.slice(0, 5).map((faction) => (
-            <FactionMark key={faction.slug} faction={faction} size="sm" />
-          ))}
-          {factions.length > 5 ? <span className="text-xs text-faint">+{factions.length - 5}</span> : null}
-        </span>
-      ) : null}
-    </Link>
+    // The menu sits beside the link rather than inside it, since a link cannot hold a button.
+    <ContextMenu>
+      <ContextMenuTrigger render={<div className="relative" />}>
+        <Link
+          from="/rosters/"
+          to="/rosters"
+          // Opening a folder keeps the search and filters, which then reach into it.
+          search={(previous) => ({ ...previous, folder: folder.id })}
+          {...drop.props}
+          onDragStart={(event) => {
+            event.dataTransfer.setData(FOLDER_DRAG_TYPE, folder.id)
+            event.dataTransfer.effectAllowed = 'copyMove'
+          }}
+          data-folder={folder.name}
+          className={cn(
+            // The tab on its top edge is what makes the card read as a folder.
+            'part relative flex min-h-24 flex-col gap-1 p-3 pt-3.5 pr-10 hover:border-runner-hi hover:bg-raised',
+            'before:absolute before:-top-1.5 before:left-3 before:h-1.5 before:w-10 before:rounded-t-md before:border before:border-b-0 before:border-edge before:bg-panel',
+            // The tab is part of the folder's shape, so it takes every state the body does.
+            'hover:before:border-runner-hi hover:before:bg-raised',
+            drop.over &&
+              'border-parchment bg-raised before:border-parchment before:bg-raised hover:border-parchment hover:before:border-parchment',
+          )}
+        >
+          <span className="flex min-w-0 items-center gap-2 font-bold uppercase">
+            <Folder className="size-4 shrink-0 text-dim" aria-hidden />
+            <span className="truncate">{folder.name}</span>
+          </span>
+          <span className="text-xs text-dim">
+            {[folders ? countLabel(folders, 'folder') : null, countLabel(rosters.length, 'roster'), span ? `${span} pts` : null]
+              .filter(Boolean)
+              .join(' · ')}
+          </span>
+          {factions.length ? (
+            <span className="mt-auto flex items-center gap-1">
+              {factions.slice(0, 5).map((faction) => (
+                <FactionMark key={faction.slug} faction={faction} size="sm" />
+              ))}
+              {factions.length > 5 ? <span className="text-xs text-faint">+{factions.length - 5}</span> : null}
+            </span>
+          ) : null}
+        </Link>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={<Button variant="ghost" size="icon-sm" className="absolute top-2 right-2" aria-label={`Actions for ${folder.name}`} />}
+          >
+            <EllipsisVertical />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-max">
+            <FolderActionItems Item={DropdownMenuItem} folder={folder} actions={actions} />
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </ContextMenuTrigger>
+      <ContextMenuContent className="w-max">
+        <FolderActionItems Item={ContextMenuItem} folder={folder} actions={actions} />
+      </ContextMenuContent>
+    </ContextMenu>
   )
 }
 
@@ -442,16 +503,12 @@ export function FolderBreadcrumb({
   folder,
   folders,
   onDrop,
-  onRename,
-  onMove,
-  onDelete,
+  actions,
 }: {
   folder: RosterFolder
   folders: readonly RosterFolder[]
   onDrop: (item: DroppedItem, folderId: string | null) => void
-  onRename: () => void
-  onMove: () => void
-  onDelete: () => void
+  actions: FolderActions
 }) {
   return (
     <nav aria-label="Folder" className="flex min-w-0 items-center gap-1 pb-1 text-sm">
@@ -468,15 +525,7 @@ export function FolderBreadcrumb({
           <EllipsisVertical />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-max">
-          <DropdownMenuItem onClick={onRename}>
-            <Pencil /> Rename folder
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={onMove}>
-            <FolderInput /> Move folder…
-          </DropdownMenuItem>
-          <DropdownMenuItem variant="destructive" onClick={onDelete}>
-            <Trash2 /> Delete folder
-          </DropdownMenuItem>
+          <FolderActionItems Item={DropdownMenuItem} folder={folder} actions={actions} />
         </DropdownMenuContent>
       </DropdownMenu>
     </nav>

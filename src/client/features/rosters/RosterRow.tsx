@@ -81,7 +81,6 @@ export function RosterRow({
   plays,
   onMove,
   dragId,
-  location,
 }: {
   roster: SavedRoster
   layout?: RosterRowLayout
@@ -115,8 +114,6 @@ export function RosterRow({
   onMove?: () => void
   /** The roster a drag files: the list itself, or the base its variants follow. */
   dragId?: string
-  /** The folder a search found the list in, below the one open. */
-  location?: string
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const title = rosterTitle(roster, faction, label)
@@ -186,7 +183,6 @@ export function RosterRow({
               differences={differences}
               updates={updates}
               plays={plays}
-              location={location}
             />
           )}
         </Link>
