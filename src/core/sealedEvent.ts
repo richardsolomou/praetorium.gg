@@ -698,3 +698,20 @@ export function sealedEventTitle(
   const game = sealedEventFormat(event) ?? 'Hidden-list game'
   return withGroup && event.group ? `${event.group.name}: ${game}` : game
 }
+
+const DAY_MS = 24 * 60 * 60 * 1000
+
+type DatedEvent = { playsAt: number | null; createdAt: number }
+
+/**
+ * Orders tournaments the way a player looks for them: those still ahead soonest first, then undated ones newest first,
+ * then those played most recently first. A tournament stays ahead for a day after it starts, since it has no timezone.
+ */
+export function byTournamentDate(now: number) {
+  const stage = ({ playsAt }: DatedEvent) => (playsAt === null ? 1 : now < playsAt + DAY_MS ? 0 : 2)
+  return (one: DatedEvent, other: DatedEvent) => {
+    const order = stage(one) - stage(other)
+    if (order || one.playsAt === null || other.playsAt === null) return order || other.createdAt - one.createdAt
+    return stage(one) === 0 ? one.playsAt - other.playsAt : other.playsAt - one.playsAt
+  }
+}

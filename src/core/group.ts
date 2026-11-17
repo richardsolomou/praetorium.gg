@@ -78,3 +78,7 @@ export function visibleGroupMembers<T extends { userId: string; status: GroupMem
 
 /** How many groups and tournaments a player's home page lists, which bounds the per-group summary it asks for. */
 export const HOME_GROUPS_SHOWN = 5
+
+/** Orders groups by their latest game, most recent first, with groups that have none last. */
+export const byLatestGame = (one: { lastBattleAt: number | null }, other: { lastBattleAt: number | null }) =>
+  (other.lastBattleAt ?? 0) - (one.lastBattleAt ?? 0)

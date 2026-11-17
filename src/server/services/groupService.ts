@@ -1,6 +1,6 @@
 import { randomInt } from 'node:crypto'
 import { randomId, randomToken } from '../random'
-import { isGroupOrganizer, visibleGroupMembers } from '../../core/group'
+import { byLatestGame, isGroupOrganizer, visibleGroupMembers } from '../../core/group'
 import { GROUP_LEAGUE_PLAYERS_MAX, GROUP_LEAGUE_PLAYERS_MIN, GROUP_LEAGUE_SEED_MAX } from '../../core/groupLeague'
 import type { SealedEventAdmission, SealedEventVisibility } from '../../core/sealedEvent'
 import type { Notifier } from '../pushNotifier'
@@ -162,8 +162,8 @@ export class GroupService {
     throw new Response('only the group’s organizers can end a league', { status: 403 })
   }
 
-  groups(userId: string | null) {
-    return this.repository.groupsVisibleTo(userId)
+  async groups(userId: string | null) {
+    return (await this.repository.groupsVisibleTo(userId)).toSorted(byLatestGame)
   }
 
   async group(token: string, viewerId: string | null) {
