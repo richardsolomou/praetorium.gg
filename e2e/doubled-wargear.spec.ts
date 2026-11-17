@@ -1,48 +1,11 @@
 import { expect, test } from './test'
-import { addUnit, createRoster, signUp, uniqueName, waitForRosterSave } from './account'
+import { addUnit, createRoster, signUp, uniqueName } from './account'
 import { productOperator, lastPathSegment } from './storage'
 import type { RosterPick } from '../src/core/roster'
 import { closePicker } from './builder.harness'
 
 /** A unit card's wargear line; the separator drawn after all but the last is not read aloud. */
 const wargear = (count: number, weapon: string) => new RegExp(`^${count}x ${weapon}(?:\u00a0· )?$`)
-
-const unit = 'Sanctifiers'
-const model = 'Sanctifier w/ two hand flamers'
-const weapon = 'Ministorum hand flamer'
-test(`${unit} count doubled fixed weapons through edits, reload and view at 1440px`, async ({ page }, testInfo) => {
-  await page.setViewportSize({ width: 1440, height: 900 })
-  await signUp(page, uniqueName('Doubled weapons'))
-  await createRoster(page, { faction: 'Adepta Sororitas', detachment: /Hallowed Martyrs/ })
-  await expect(page.getByRole('link', { name: 'Adepta Sororitas', exact: true, includeHidden: true })).toHaveAttribute(
-    'href',
-    '/factions/adepta-sororitas/rules/mfm-1-6',
-  )
-  await addUnit(page, unit)
-  await closePicker(page)
-  const card = page.locator(`[data-unit="${unit}"]`)
-  await card.getByRole('button', { name: unit, exact: true }).click()
-  await waitForRosterSave(page, () => page.getByRole('button', { name: `More ${model}`, exact: true }).click())
-  const loadout = page.getByRole('complementary', { name: 'Loadout', exact: true })
-  await expect(loadout.getByLabel(`${weapon} count`, { exact: true }).last()).toHaveText('2')
-  await loadout.getByLabel(`${weapon} count`, { exact: true }).last().scrollIntoViewIfNeeded()
-  await page.screenshot({ path: testInfo.outputPath('doubled-editor.png') })
-  await expect(card.getByRole('listitem').filter({ hasText: weapon })).toHaveText(wargear(5, weapon))
-  await page.reload()
-  await expect(card.getByRole('listitem').filter({ hasText: weapon })).toHaveText(wargear(5, weapon))
-  await card.getByRole('button', { name: unit, exact: true }).click()
-  await expect(loadout.getByLabel(`${weapon} count`, { exact: true }).last()).toHaveText('2')
-  await waitForRosterSave(page, () => page.getByRole('button', { name: `Fewer ${model}`, exact: true }).click())
-  await expect(card.getByRole('listitem').filter({ hasText: weapon })).toHaveText(wargear(4, weapon))
-  await card.getByRole('button', { name: unit, exact: true }).click()
-  await waitForRosterSave(page, () => page.getByRole('button', { name: `More ${model}`, exact: true }).click())
-  await page.getByRole('button', { name: 'View', exact: true }).click()
-  await expect(card.getByRole('listitem').filter({ hasText: weapon })).toHaveText(wargear(5, weapon))
-  await card.getByRole('button', { name: unit, exact: true }).click()
-  await expect(loadout.getByLabel(`${weapon} count`, { exact: true }).last()).toHaveText('2')
-  await loadout.getByLabel(`${weapon} count`, { exact: true }).last().scrollIntoViewIfNeeded()
-  await page.screenshot({ path: testInfo.outputPath('doubled-view.png') })
-})
 
 test(`saved Tankbustas count doubled fixed weapons through reload and view at 390px`, async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 900 })

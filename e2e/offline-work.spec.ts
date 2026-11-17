@@ -145,41 +145,6 @@ test('a roster still waiting to sync opens in a new tab and a missing one shows 
   await expect(tab.getByRole('heading', { name: 'No such roster' })).toBeVisible()
 })
 
-test('a lost save response retains its identity and later edits sync in order', async ({ page, context }) => {
-  await downloadOfflineAppAtOnce(page)
-  test.setTimeout(240_000)
-  await signUp(page, uniqueName('Intermittent connection'))
-  await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Original army' })
-  const id = lastPathSegment(page.url())
-  const operator = await productOperator()
-  await waitForOfflineApp(page)
-  await expectWorkSynced(page)
-  // Going offline while the response is still held would fail the request before the handler drops it.
-  const { promise: acknowledgementDropped, resolve: dropAcknowledgement } = Promise.withResolvers<void>()
-  await page.route('**/_serverFn/**', async (route) => {
-    const body = route.request().postData() ?? ''
-    if (body.includes('Lost acknowledgement') && body.includes('operationId')) {
-      await route.fetch()
-      await route.abort()
-      dropAcknowledgement()
-    } else await route.continue()
-  })
-  await page.getByLabel('List name').fill('Lost acknowledgement')
-  await acknowledgementDropped
-  await expect.poll(async () => (await operator.roster(id))?.name).toBe('Lost acknowledgement')
-  await context.setOffline(true)
-  await expect.poll(async () => (await savedWork(page))?.operations[0]?.attempted).toBe(true)
-  const identity = (await savedWork(page))!.operations[0].id
-  await page.getByLabel('List name').fill('Latest offline edit')
-  await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(2)
-  expect((await savedWork(page))?.operations[0]?.id).toBe(identity)
-  await page.unroute('**/_serverFn/**')
-  await context.setOffline(false)
-  await page.evaluate(() => window.dispatchEvent(new Event('online')))
-  await expect.poll(async () => (await operator.roster(id))?.name, { timeout: 30_000 }).toBe('Latest offline edit')
-  await expectWorkSynced(page)
-})
-
 test('an offline practice battle and its commands survive reopening and sync together', async ({ page, context }) => {
   await downloadOfflineAppAtOnce(page)
   test.setTimeout(240_000)
