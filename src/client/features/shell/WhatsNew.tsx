@@ -26,7 +26,9 @@ export function WhatsNewNotice() {
   const { data: latest } = useQuery(releaseQuery())
   if (!due || !notes || (latest && newerRelease(version, latest.version))) return null
   const releases = unseenReleases(notes, seen.version)
-  const changes = [...releases.flatMap((release) => release.features), ...releases.flatMap((release) => release.fixes)]
+  const changes = [...releases.flatMap((release) => release.features), ...releases.flatMap((release) => release.fixes)].map(
+    (change) => change.text,
+  )
   if (!changes.length) return null
   return <Notice since={seen.at} changes={changes} releases={releases.length} />
 }

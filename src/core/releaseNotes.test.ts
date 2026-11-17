@@ -7,14 +7,14 @@ const changelog = `# praetorium
 
 ### Patch Changes
 
-- 58f5242: Show each unit's points before and after.
+- 58f5242: [rosters] Show each unit's points before and after.
 - 4b50468: Mark saved rosters that use older rules.
 
 ## 0.133.0
 
 ### Minor Changes
 
-- 0919d17: Simulate roster loadouts against benchmarks.
+- 0919d17: [simulator] Simulate roster loadouts against benchmarks.
 
 ## 0.132.9
 
@@ -23,16 +23,24 @@ const changelog = `# praetorium
   Keep it running while the screen sleeps.
 `
 
-it('reads each release with its date, features and fixes, without commit prefixes', () => {
+it('reads each release with its date, features and fixes, without commit prefixes or area tags', () => {
   expect(parseReleaseNotes(changelog, 5)).toEqual([
     {
       version: '0.133.1',
       date: '2026-10-28',
       features: [],
-      fixes: ["Show each unit's points before and after.", 'Mark saved rosters that use older rules.'],
+      fixes: [
+        { area: 'rosters', text: "Show each unit's points before and after." },
+        { area: null, text: 'Mark saved rosters that use older rules.' },
+      ],
     },
-    { version: '0.133.0', date: null, features: ['Simulate roster loadouts against benchmarks.'], fixes: [] },
-    { version: '0.132.9', date: null, features: [], fixes: ['Fix the reminder timer. Keep it running while the screen sleeps.'] },
+    { version: '0.133.0', date: null, features: [{ area: 'simulator', text: 'Simulate roster loadouts against benchmarks.' }], fixes: [] },
+    {
+      version: '0.132.9',
+      date: null,
+      features: [],
+      fixes: [{ area: null, text: 'Fix the reminder timer. Keep it running while the screen sleeps.' }],
+    },
   ])
 })
 
@@ -62,4 +70,11 @@ it('dates only the headings that have no date yet', () => {
     '## 0.133.0 (2026-10-29)',
     '## 0.132.9 (2026-10-29)',
   ])
+})
+
+it('leaves an unknown tag in the text', () => {
+  expect(parseReleaseNotes(changelog.replace('[rosters]', '[armies]'), 1)[0]!.fixes[0]).toEqual({
+    area: null,
+    text: "[armies] Show each unit's points before and after.",
+  })
 })
