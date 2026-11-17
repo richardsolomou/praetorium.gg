@@ -1,7 +1,7 @@
 import { attachmentErrors } from '../core/attach'
 import { attachedUnit, attachmentHost } from '../core/attachedUnits'
 import { hasTextTokens } from '../core/sourceText'
-import { parsedAbilityGrants } from './catalogueAbilityGrants'
+import { titleCaseAbility } from './catalogueAbilityGrants'
 import { abilityGrantsIn, combatFactsIn } from './textFacts'
 import { recordedCombatText } from '../core/combatReading'
 import { type CombatRule, type CombatRuleJudge, combatRuleProjected, judgedCombatRule } from '../core/combatRules'
@@ -274,11 +274,13 @@ function rosterCombatRules(
         description: ability.description,
         scope: 'unit',
         ...(ability.kind === 'upgrade' && ability.source ? { appliedAs: [ability.source] } : {}),
-        // Projection applies a Feel No Pain as a core ability, and one limited to models with a keyword to those models alone.
+        // Projection applies a Feel No Pain as a core ability, and one limited to models with a keyword, or to the leader, to those models alone.
         included:
           (ability.kind === 'core' && /^Feel No Pain [2-6]\+$/.test(ability.name)) ||
-          parsedAbilityGrants(abilityGrantsIn(ability.description, loaded.index.textFacts), true, [], true).some(
-            (grant) => grant.recipient === 'models' && /^Feel No Pain [2-6]\+$/.test(grant.name),
+          abilityGrantsIn(ability.description, loaded.index.textFacts).grants.some((grant) =>
+            /^Feel No Pain [2-6]\+$/i.test(
+              grant.recipient === 'models' ? grant.name : grant.recipient === 'leader' ? titleCaseAbility(grant.written) : '',
+            ),
           ),
       },
       { origin: 'own', attached: selectedPick.attachedTo !== undefined },

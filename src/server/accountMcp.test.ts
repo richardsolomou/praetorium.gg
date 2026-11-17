@@ -79,6 +79,12 @@ it('reads only the signed-in player’s roster', async () => {
   expect(ownRoster).toHaveBeenLastCalledWith('player-1', 'roster-1')
 })
 
+it('returns an automatically titled roster without a name, so saving it back keeps the automatic title', async () => {
+  ownRoster.mockResolvedValueOnce({ id: 'roster-1', name: 'N 2K - Overlord', automaticName: true })
+  const response = await call('player-1', 'get_my_roster', { id: 'roster-1' })
+  expect(response.result.structuredContent.roster.name).toBe('')
+})
+
 it('names each unit of a saved roster with its points, so an assistant need not resolve catalogue ids', async () => {
   shelf.value = bookOf({ selectionEntries: [{ id: 'overlord', name: 'Overlord', type: 'model', costs: points(85) }] })
   ownRoster.mockResolvedValueOnce({ ...roster, id: 'roster-1', name: 'My army', catalogueId: 'cat', picks: [{ entryId: 'overlord' }] })

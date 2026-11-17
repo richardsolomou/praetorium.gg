@@ -5,7 +5,7 @@ import { type AgentTools, READ_ONLY_TOOL, responseToolError, signedInPlayer, str
 import { app } from './app'
 import { agentWrites } from './mutationTelemetry'
 import { rosterActions } from './rosterActions'
-import { rosterSummary } from './rosterTools'
+import { reusableRoster, rosterSummary } from './rosterTools'
 import type { PraetoriumService } from './service'
 import { BATTLES_PAGE } from './services/battleFeedService'
 import { battlesFeedSchema, playerProfileSchema, rosterIdSchema, rosterVisibilitySchema, saveRosterSchema } from '../contracts/schemas'
@@ -168,7 +168,7 @@ export function registerAccountMcpTools(server: AgentTools, userId: string | nul
     {
       title: 'Read my saved roster',
       description:
-        'Returns one roster owned by the signed-in player, by an id from list_my_rosters. summary names each unit with its points, models, wargear, enhancements, Warlord and attachments, and gives the total, any problems that stop the list being fielded, and unchecked restrictions Praetorium could not evaluate; it is null while army data is unavailable. roster holds the saved choices by catalogue id, the shape save_roster takes. Requires mcp:read.',
+        'Returns one roster owned by the signed-in player, by an id from list_my_rosters. summary names each unit with its points, models, wargear, enhancements, Warlord and attachments, and gives the total, any problems that stop the list being fielded, and unchecked restrictions Praetorium could not evaluate; it is null while army data is unavailable. roster holds the saved choices by catalogue id, the shape save_roster takes; its name is empty while the title is generated from the list, so saving it back keeps that. Requires mcp:read.',
       inputSchema: rosterIdSchema.shape,
       annotations: READ_ONLY_TOOL,
     },
@@ -176,7 +176,7 @@ export function registerAccountMcpTools(server: AgentTools, userId: string | nul
       resultOf(async () => {
         const roster = await app().service.sealedEventService.ownRoster(owner(), id)
         if (!roster) throw new Response('You have no saved roster with this id. Use an id from list_my_rosters.', { status: 404 })
-        return { summary: await rosterSummary(roster), roster }
+        return { summary: await rosterSummary(roster), roster: reusableRoster(roster) }
       }),
   )
   server.registerTool(
@@ -248,7 +248,7 @@ export function registerAccountMcpTools(server: AgentTools, userId: string | nul
     {
       title: 'Create or edit my roster',
       description:
-        'Saves a complete roster. Pass its id to edit an owned roster; omit id to create one. limit is the battle size (1000, 2000 or 3000 points, or 600 for King of the Colosseum), which sets detachment points, enhancement and unit limits. pointsBudget optionally replaces only its points total (500 to 10000, not King of the Colosseum); omit it to keep a saved budget, or send null for the standard total. Requires mcp:write.',
+        'Saves a complete roster. Pass its id to edit an owned roster; omit id to create one. Send an empty name to have Praetorium title the list from its army and keep that title current as the list changes; send a name only when the player chooses one, since any name stops the automatic title. limit is the battle size (1000, 2000 or 3000 points, or 600 for King of the Colosseum), which sets detachment points, enhancement and unit limits. pointsBudget optionally replaces only its points total (500 to 10000, not King of the Colosseum); omit it to keep a saved budget, or send null for the standard total. Requires mcp:write.',
       inputSchema: saveRosterSchema,
       annotations: WRITE,
     },

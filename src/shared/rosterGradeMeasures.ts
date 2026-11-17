@@ -179,6 +179,7 @@ export async function measureRosterUnits({
   words,
   references,
   calculate,
+  attachedShares = false,
 }: {
   loaded: LoadedCatalogue
   rules: LoadedRules | null
@@ -186,6 +187,8 @@ export async function measureRosterUnits({
   words: RuleWords
   references: GradeReferences
   calculate: (requests: ReturnType<ReturnType<typeof combatMatchup>['request']>[]) => Promise<CombatAnswer[]>
+  /** Also measure each unit without each unit attached to it, which costs a set of target matchups per attachment. */
+  attachedShares?: boolean
 }): Promise<GradedUnit[]> {
   const price = calculateRosterPrice(data, loaded, rules)
   const priced = new Map((price?.units ?? []).map((unit) => [unit.key, unit]))
@@ -201,25 +204,42 @@ export async function measureRosterUnits({
       })),
     ).map((unit) => [unit.host.key, unit]),
   )
+  const project = (
+    fielded: typeof picks,
+    pickIndex: number,
+    prepared = rosterDatasheetSelections(loaded, { catalogueId: data.catalogueId, detachmentIds: data.detachmentIds, picks: fielded }),
+    cache = rosterProjectionCache(),
+  ) => {
+    const unread = rosterCombatant(
+      loaded,
+      rules,
+      { catalogueId: data.catalogueId, detachmentIds: data.detachmentIds, picks: fielded, pickIndex },
+      prepared,
+      { attachmentChoices: false, cache },
+    )
+    return unread && withReadRules(unread, words)
+  }
   const prepared = rosterDatasheetSelections(loaded, { catalogueId: data.catalogueId, detachmentIds: data.detachmentIds, picks })
   const cache = rosterProjectionCache()
   const hosts = picks.flatMap((_, pickIndex) => {
     if (attachmentHost(picks, pickIndex) !== pickIndex) return []
-    const unread = rosterCombatant(
-      loaded,
-      rules,
-      { catalogueId: data.catalogueId, detachmentIds: data.detachmentIds, picks, pickIndex },
-      prepared,
-      { attachmentChoices: false, cache },
-    )
-    if (!unread) return []
-    const projection = withReadRules(unread, words)
+    const projection = project(picks, pickIndex, prepared, cache)
+    if (!projection) return []
     const members = [pickIndex, ...projection.companions.map((member) => member.pickIndex)]
+    // What the unit does with each attached unit left to stand alone, so a leader's or support unit's part in its damage shows.
+    const without = (attachedShares ? projection.companions : []).flatMap((member) => {
+      const alone = project(
+        picks.map((pick, at) => (at === member.pickIndex ? { ...pick, attachedTo: undefined } : pick)),
+        pickIndex,
+      )
+      return alone ? [{ name: member.selected.name, snapshot: defaultSnapshot(alone) }] : []
+    })
     return [
       {
         projection,
         pickIndex,
         snapshot: defaultSnapshot(projection),
+        without,
         points: members.reduce((total, index) => total + (priced.get(index)?.points ?? 0), 0),
       },
     ]
@@ -231,6 +251,7 @@ export async function measureRosterUnits({
   const pairs = hosts.flatMap((host) => [
     ...targets.map((target) => [host.snapshot, target.snapshot] as const),
     ...references.attackers.map((attacker) => [attacker.snapshot, host.snapshot] as const),
+    ...host.without.flatMap((alone) => targets.map((target) => [alone.snapshot, target.snapshot] as const)),
   ])
   const matchups: ReturnType<typeof combatMatchup>[] = []
   for (const [attacker, defender] of pairs) {
@@ -243,15 +264,23 @@ export async function measureRosterUnits({
     const refusedPhase = (phase: 'ranged' | 'melee') => Boolean(matchup.target?.error || matchup.plans[phase]?.errors.length)
     return { answer, refused: { ranged: refusedPhase('ranged'), melee: refusedPhase('melee') } }
   })
-  const perHost = targets.length + references.attackers.length
-  return hosts.map((host, index) => {
-    const answered = answers.slice(index * perHost, (index + 1) * perHost)
+  const removedFrom = (answered: readonly Attack[]) => {
     const removes: Partial<Record<ReferenceTargetKey, number | null>> = {}
     for (const target of gradedTargets(data.limit)) {
       const at = targets.findIndex((built) => built.key === target.key)
       // A reference unit the data cannot field leaves its row uncalculated for every unit.
       removes[target.key] = at === -1 ? null : removed(answered[at]!, targets[at]!.wounds)
     }
+    return removes
+  }
+  let offset = 0
+  return hosts.map((host) => {
+    const answered = answers.slice(offset, (offset += targets.length + references.attackers.length))
+    const removes = removedFrom(answered)
+    const without = host.without.map((alone) => ({
+      name: alone.name,
+      removes: removedFrom(answers.slice(offset, (offset += targets.length))),
+    }))
     const wounds = unitTotal(host.snapshot, 'wounds')
     const losses = wounds === null ? [] : answered.slice(targets.length).map((answer) => lost(answer, wounds))
     const formed = deployment.get(host.pickIndex)
@@ -276,6 +305,7 @@ export async function measureRosterUnits({
       scouts: Number.isFinite(scouts) ? scouts : 0,
       chargeBonus: numberIn(abilities.flat(), /\+(\d+) to charge/i),
       removes,
+      ...(without.length ? { without } : {}),
       unitGeneration: readings.flatMap((reading) => reading.unitGeneration),
       movementTools: [...new Set(readings.flatMap((reading) => reading.movementTools))],
       volleyLoss:

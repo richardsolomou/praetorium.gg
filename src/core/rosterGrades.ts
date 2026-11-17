@@ -141,6 +141,8 @@ export type GradedUnit = {
   chargeBonus: number
   /** Per target: the share of its wounds the unit alone takes in a turn, up to 1, or null when the simulator cannot say. */
   removes: Partial<Record<ReferenceTargetKey, number | null>>
+  /** Per attached unit: what the rest of the unit removes with it left out. */
+  without?: { name: string; removes: Partial<Record<ReferenceTargetKey, number | null>> }[]
   /** The share of the unit's wounds a turn of the reference attackers' shooting takes on average, or null when it cannot be calculated. */
   volleyLoss: number | null
   unitGeneration?: UnitGeneration[]
@@ -164,7 +166,9 @@ export type GradeRow = {
 export type GradeCategory = { key: string; label: string; score: number | null; grade: Grade | null; rows: GradeRow[] }
 
 /** A unit with the jobs the grades credit it with, named as their rows are. */
-export type GradedUnitJobs = { name: string; points: number; models: number; jobs: string[] }
+/** What an attached unit adds to its unit's damage: per target, the share of one target's wounds taken with it and without it. */
+export type AttachedShare = { name: string; targets: { target: string; with: number; without: number }[] }
+export type GradedUnitJobs = { name: string; points: number; models: number; jobs: string[]; attached?: AttachedShare[] }
 
 /**
  * `missing` names each reference target nothing in the list can take half of on its own, as in "a Rhino", and
@@ -520,7 +524,13 @@ export function rosterGrades(
     grade: gradeOf(total),
     categories,
     missing,
-    units: units.map((unit) => ({ name: unit.name, points: unit.points, models: unit.models, jobs: jobsOf(unit, limit) })),
+    units: units.map((unit) => ({
+      name: unit.name,
+      points: unit.points,
+      models: unit.models,
+      jobs: jobsOf(unit, limit),
+      ...(unit.without?.length ? { attached: attachedShares(unit, limit) } : {}),
+    })),
     comparedWith: peerLabel,
     calibration: { lists: size === 2000 ? 'tournament' : 'drawn', since: CALIBRATED.since, until: CALIBRATED.until },
     tournament,
@@ -537,6 +547,21 @@ function jobsOf(unit: GradedUnit, limit: number) {
       .filter((target) => takesHalf(unit, target.key))
       .map((target) => target.label),
   ]
+}
+
+const share = (value: number) => Math.round(value * 100) / 100
+
+/** Each attached unit's part in its unit's damage, for the targets where leaving it out changes what the unit takes. */
+function attachedShares(unit: GradedUnit, limit: number): AttachedShare[] {
+  return (unit.without ?? []).map(({ name, removes }) => ({
+    name,
+    targets: gradedTargets(limit).flatMap((target) => {
+      const together = unit.removes[target.key]
+      const alone = removes[target.key]
+      if (together === null || together === undefined || alone === null || alone === undefined) return []
+      return share(together) === share(alone) ? [] : [{ target: target.target, with: share(together), without: share(alone) }]
+    }),
+  }))
 }
 
 const formatAttackers = () => REFERENCE_ATTACKERS.map((attacker) => attacker.label).join(' or ')

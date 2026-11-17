@@ -11,7 +11,7 @@ import { CombatRefusal, detachmentId } from './combatTools'
 import { activeReferenceCorpus } from './referenceApi'
 import { referenceFaction } from './referenceService'
 import { discoverRosterPage } from './rosterDiscoveryPage'
-import { rosterSummary } from './rosterTools'
+import { reusableRoster, rosterSummary } from './rosterTools'
 import { BATTLES_PAGE } from './services/battleFeedService'
 
 const unavailable = () => toolError('unavailable', 'Praetorium army data is temporarily unavailable.')
@@ -174,8 +174,16 @@ export function registerPublicPlayTools(server: AgentTools) {
     },
     async ({ id }) => {
       const access = await app().service.rosterService.rosterAccess(id, null)
-      if (!access) return toolError('not_found', 'No public or unlisted roster has this id. Use one from list_public_rosters.')
-      return structured({ url: `/rosters/${encodeURIComponent(id)}`, summary: await rosterSummary(access.roster), roster: access.roster })
+      if (!access)
+        return toolError(
+          'not_found',
+          "No public or unlisted roster has this id. If it is the signed-in player's own private roster, read it with get_my_roster; otherwise use an id from list_public_rosters.",
+        )
+      return structured({
+        url: `/rosters/${encodeURIComponent(id)}`,
+        summary: await rosterSummary(access.roster),
+        roster: reusableRoster(access.roster),
+      })
     },
   )
 }

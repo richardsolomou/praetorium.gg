@@ -31,10 +31,13 @@ const weaponChoices = (choices: UnitChoice[]) =>
  * Wargear taken from an optional group that offers only it at no cost, such as a free icon: the group starts empty, so
  * it displaces nothing. A group of alternatives, such as a Mark of Chaos, is a decision the ranking alone settles.
  */
-const freeAdditions = (choices: UnitChoice[]) =>
-  weaponChoices(choices)
-    .flatMap((choice) => (choice.optional && choice.options.length === 1 ? choice.options : []))
-    .reduce((total, option) => total + (option.points === 0 && option.profile === undefined ? option.count : 0), 0)
+export const freeWargear = (choices: UnitChoice[]) =>
+  weaponChoices(choices).flatMap((choice) =>
+    choice.optional && choice.options.length === 1 && choice.options[0]!.points === 0 && choice.options[0]!.profile === undefined
+      ? choice.options
+      : [],
+  )
+const freeAdditions = (choices: UnitChoice[]) => freeWargear(choices).reduce((total, option) => total + option.count, 0)
 /** Each weapon choice's taken options and counts, so loadouts compare by what is taken rather than how picks spell it. */
 const takenWargear = (choices: UnitChoice[]) =>
   weaponChoices(choices).map((choice): [string, string] => [

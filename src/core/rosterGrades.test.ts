@@ -201,3 +201,24 @@ describe('tournamentComparison', () => {
     expect(tournamentComparison(picks, { ...winning, lists: 9 }, nameOf)).toBeNull()
   })
 })
+
+it("names each target an attached unit's absence changes, with the unit's share of it either way", () =>
+  expect(
+    grade(
+      [
+        unit({
+          removes: { horde: 1, elite: 0.75, vehicle: 0.56, heavyVehicle: 0.2, monster: 0.3 },
+          without: [{ name: 'Marshal', removes: { horde: 1, elite: 0.48, vehicle: 0.17, heavyVehicle: 0.2, monster: 0.3 } }],
+        }),
+      ],
+      2000,
+    ).units[0]!.attached,
+  ).toEqual([
+    {
+      name: 'Marshal',
+      targets: [
+        { target: 'a Chaos Terminator Squad', with: 0.75, without: 0.48 },
+        { target: 'a Rhino', with: 0.56, without: 0.17 },
+      ],
+    },
+  ]))

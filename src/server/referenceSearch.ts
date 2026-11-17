@@ -7,10 +7,11 @@ import {
   type ReferenceSection,
 } from '../contracts/reference'
 import { distance } from 'fastest-levenshtein'
-import { foldedText } from '../core/text'
+import { capitalised, foldedText } from '../core/text'
 import type { ReferenceCorpus } from './referenceCorpus'
 import { remember } from '../core/collections'
 import { referenceFaction } from './referenceService'
+import { searchReference as searchCatalogue, type GlobalSearchIndex } from '../core/referenceSearch'
 
 export const REFERENCE_QUERY_MAX_LENGTH = 120
 export const REFERENCE_RESULT_MAX = 25
@@ -53,8 +54,67 @@ const indices = new WeakMap<ReferenceDocument[], IndexedDocument[]>()
 
 type RankedReferenceResult = ReferenceSearchResult & { score: number }
 
-export function searchReference(corpus: ReferenceCorpus, input: ReferenceSearchInput): ReferenceSearchResponse {
-  return finishReferenceSearch(input, corpus.catalogue.revisions, rankReferencePart(corpus, input))
+/** `catalogue` adds the datasheets and detachments whose abilities and cards say what was asked, which only the server reads. */
+export function searchReference(
+  corpus: ReferenceCorpus,
+  input: ReferenceSearchInput,
+  catalogue?: GlobalSearchIndex | null,
+): ReferenceSearchResponse {
+  const named = rankReferencePart(corpus, input)
+  return finishReferenceSearch(
+    input,
+    corpus.catalogue.revisions,
+    catalogue ? [...named, ...rankEffectPart(corpus, input, catalogue, named)] : named,
+  )
+}
+
+const EFFECT_REASONS = new Set(['ability', 'detachment rule', 'enhancement', 'upgrade', 'stratagem'])
+const documentsByUrl = new WeakMap<ReferenceDocument[], Map<string, ReferenceDocument>>()
+
+/**
+ * Records found by what one of their abilities or cards says rather than by their own words, each pointing at that
+ * ability's section; the section withholds the words, so a match never publishes them. Ranked below every other match.
+ */
+function rankEffectPart(
+  corpus: ReferenceCorpus,
+  input: ReferenceSearchInput,
+  catalogue: GlobalSearchIndex,
+  named: readonly RankedReferenceResult[],
+): RankedReferenceResult[] {
+  if (input.pack || input.document) return []
+  const kinds = input.kinds?.length ? new Set(input.kinds) : null
+  const faction = input.faction ? normalize(referenceFaction(corpus, input.faction)?.name ?? input.faction) : null
+  const found = new Set(named.map((result) => result.id))
+  const byUrl = remember(documentsByUrl, corpus.documents, () => new Map(corpus.documents.map((document) => [document.url, document])))
+  return searchCatalogue(input.query.trim(), catalogue).flatMap((result) => {
+    const reasons = (result.matchReasons ?? []).filter((reason) => EFFECT_REASONS.has(reason.kind))
+    const document = reasons.length ? byUrl.get(result.href) : undefined
+    if (!document || found.has(document.id) || (kinds && !kinds.has(document.kind))) return []
+    if (faction && normalize(document.faction ?? '') !== faction) return []
+    found.add(document.id)
+    const matched = new Set(reasons.map((reason) => normalize(reason.value)))
+    const section = document.sections.find((candidate) => matched.has(normalize(candidate.title))) ?? document.sections[0]
+    if (!section) return []
+    return [
+      {
+        id: document.id,
+        kind: document.kind,
+        title: document.title,
+        faction: document.faction,
+        url: document.url,
+        section: {
+          id: section.id,
+          title: section.title,
+          url: section.url,
+          ...(section.textSources ? { textSources: section.textSources } : {}),
+        },
+        excerpt: `${reasons.map((reason) => `${capitalised(reason.kind)}: ${reason.value}`).join('; ')} says what was searched for.`,
+        revisions: document.revisions,
+        attribution: document.attribution,
+        score: 0,
+      },
+    ]
+  })
 }
 
 export function finishReferenceSearch(

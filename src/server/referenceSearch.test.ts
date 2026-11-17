@@ -224,3 +224,39 @@ it('scores a repeated normalized term once', () => {
     'rule:core:heading',
   )
 })
+
+describe('a record found by what its ability says', () => {
+  const index = {
+    factions: [],
+    detachments: [],
+    missions: [],
+    rules: [],
+    datasheets: [
+      {
+        targetId: 'scouts',
+        allied: false,
+        name: 'Scout Squad',
+        fields: {
+          name: 'Scout Squad',
+          keywords: [],
+          abilities: ['Infiltrators'],
+          abilityDescriptions: [{ name: 'Infiltrators', description: 'An objective marker remains under your control.' }],
+          weapons: [],
+          weaponKeywords: [],
+          wargear: [],
+        },
+        result: {
+          id: 'datasheet:marines:scouts',
+          group: 'Datasheets' as const,
+          label: 'Scout Squad',
+          detail: 'Space Marines',
+          href: '/factions/space-marines/datasheets/scouts',
+        },
+      },
+    ],
+  }
+  const found = () => searchReference(corpus, { query: 'remains under your control' }, index).results[0]
+
+  it("points at the ability's section", () => expect(found()?.section.id).toBe('ability-infiltrators'))
+  it('names the ability without its words', () => expect(found()?.excerpt).not.toContain('remains'))
+})

@@ -126,7 +126,7 @@ export const referenceSearchResponse = rateLimited(async (request: Request) => {
   if ('error' in parsed) return problem(parsed.error, 400)
   const corpus = await activeReferenceCorpus()
   if (!corpus) return referenceUnavailable()
-  const result = searchReference(corpus, parsed)
+  const result = searchReference(corpus, parsed, await app().searchIndexFor())
   const markdown = [
     `# Search results for ${result.query}`,
     ...result.results.map(
