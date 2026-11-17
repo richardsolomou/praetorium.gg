@@ -79,7 +79,7 @@ export function Toggle({
   )
 }
 
-const pressedClass =
+export const pressedClass =
   'h-auto min-h-8 border-edge bg-sunken px-2 py-1 text-xs whitespace-normal text-dim hover:text-bone aria-pressed:border-primary aria-pressed:bg-primary/15 aria-pressed:text-primary'
 
 export function Chip({

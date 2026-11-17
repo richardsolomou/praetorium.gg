@@ -60,8 +60,10 @@ export function unquotedLabel(label: string, words: string) {
 export function combatReadingOf(rule: AnsweredRule): CombatReading {
   const plain: CombatRule = { ...rule, included: false, appliedDefences: undefined, reading: undefined }
   const compiled = compileCombatRule(plain)
+  const shown = compileCombatRule(plain, { shown: true })
   return {
     compiled,
+    ...(JSON.stringify(shown) === JSON.stringify(compiled) ? {} : { shown }),
     legacy: compiled ? [] : combatRuleChoices(plain),
     legacyDefault: compiled ? 0 : combatRuleDefault(plain),
     roles: combatRuleRoles(rule.description),
@@ -148,6 +150,7 @@ function unquotedReading(reading: CombatReading, words: string): CombatReading {
   return {
     ...reading,
     compiled: reading.compiled && { ...reading.compiled, choices: unquoted(reading.compiled.choices) },
+    ...(reading.shown !== undefined ? { shown: reading.shown && { ...reading.shown, choices: unquoted(reading.shown.choices) } } : {}),
     legacy: unquoted(reading.legacy),
   }
 }
@@ -205,6 +208,7 @@ function withSource(reading: CombatReading, source: string): CombatReading {
   return {
     ...reading,
     compiled: reading.compiled && { ...reading.compiled, choices: named(reading.compiled.choices) },
+    ...(reading.shown !== undefined ? { shown: reading.shown && { ...reading.shown, choices: named(reading.shown.choices) } } : {}),
     legacy: named(reading.legacy),
   }
 }

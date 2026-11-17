@@ -50,6 +50,8 @@ export type CombatRule = {
  */
 export type CombatReading = {
   compiled: { choices: CombatRuleChoice[]; defaultChoice: number } | null
+  /** The compiled reading with the weapon abilities that change no roll, recorded where it differs, for a datasheet. */
+  shown?: { choices: CombatRuleChoice[]; defaultChoice: number } | null
   legacy: CombatRuleChoice[]
   legacyDefault: number
   roles: CombatRuleEffect['role'][]
@@ -107,10 +109,19 @@ export type CombatRuleEffect = {
   mortalWounds?: NonNullable<CombatInput['mortalWounds']>[number] & { perModel?: boolean; sacrifice?: number }
   damageReroll?: 'ones' | 'any'
   damageReduction?: number
+  /** A unit characteristic no roll reads, as a Move bonus, which only a datasheet shows. */
+  unitStat?: { kind: 'movement' | 'leadership' | 'objective-control'; add: number }
   /** Options of the unit's other rules this makes active together, as an enhancement that makes two Doctrina Imperatives active. */
   activates?: string[]
 }
-export type CombatRuleChoice = { label: string; effects: CombatRuleEffect[] }
+export type CombatRuleChoice = {
+  label: string
+  effects: CombatRuleEffect[]
+  /** The named option this choice is one of, as a Doctrina Imperative or a Battle Protocol, where it is not only a condition. */
+  option?: string
+  /** Whether the option picked is one for the whole army, as a Doctrina Imperative is, rather than one for each unit, as an Order is. */
+  armyWide?: true
+}
 /** `source` names the unit whose ability it is, so a combined estimate can end it when that unit is destroyed (19.04). */
 export type ActiveCombatRule = { name: string; source?: string; appliedAs?: readonly string[]; effects: CombatRuleEffect[] }
 
@@ -238,9 +249,16 @@ const compiledRule = (rule: CombatRule) => (rule.reading ? rule.reading.compiled
 /** The roles a rule's words take, as recorded for its placement where a token stands for them. */
 export const ruleRoles = (rule: CombatRule) => rule.reading?.roles ?? combatRuleRoles(rule.description)
 
-export function combatRuleChoices(rule: CombatRule): CombatRuleChoice[] {
+// Which choices are named options matters only to a datasheet, so the simulator's choices leave it out.
+export const combatRuleChoices = (rule: CombatRule) =>
+  ruleChoices(rule, compiledRule(rule)).map(({ label, effects }) => ({ label, effects }))
+
+/** The choices with the weapon abilities that change no roll, as [ASSAULT], for a datasheet that shows all a rule gives. */
+export const shownRuleChoices = (rule: CombatRule) =>
+  ruleChoices(rule, rule.reading ? (rule.reading.shown ?? rule.reading.compiled) : compileCombatRule(rule, { shown: true }))
+
+function ruleChoices(rule: CombatRule, compiled: ReturnType<typeof compiledRule>): CombatRuleChoice[] {
   if (rule.included) return []
-  const compiled = compiledRule(rule)
   if (compiled)
     return compiled.choices.map((choice) => ({
       ...choice,
@@ -573,8 +591,14 @@ export function combatRuleProfiles(
             const keyword = effect.keyword
             const existing = values.find((value) => datasheetCharacteristicKind(value.name) === 'keywords')
             const printed = profile.values.find((value) => datasheetCharacteristicKind(value.name) === 'keywords')
-            if (effectRole === role && combatRuleProjected(rule, printed?.modifiers)) continue
             const held = splitWeaponKeywords(existing?.value)
+            // The catalogue may print a granted keyword in its own words, so one it credits to this rule counts by kind.
+            if (
+              effectRole === role &&
+              combatRuleProjected(rule, printed?.modifiers) &&
+              splitWeaponKeywords(printed?.value).some((value) => combatKeywordKind(value) === combatKeywordKind(keyword))
+            )
+              continue
             const numbered = combatKeyword(keyword)
             if (held.some((value) => combatTextKey(value) === combatTextKey(keyword))) continue
             if (numbered?.amount !== undefined && !numbered.target) {
@@ -629,15 +653,15 @@ export function adjustedCharacteristic(value: Characteristic, add: number, sourc
     const bonus = dice.bonus + add
     adjusted = `${dice.dice === 1 ? '' : dice.dice}D${dice.sides}${bonus ? `+${bonus}` : ''}`
   } else {
-    if (!/^-?\d+\+?$/.test(starting)) return value
-    const next = Number(starting.replace('+', '')) + add
+    if (!/^-?\d+[+"]?$/.test(starting)) return value
+    const next = Number.parseInt(starting) + add
     const bounded =
       kind === 'armour-penetration'
         ? Math.min(0, next)
         : kind === 'ballistic-skill' || kind === 'weapon-skill'
           ? Math.max(2, Math.min(6, next))
           : Math.max(1, next)
-    adjusted = `${bounded}${value.value.endsWith('+') ? '+' : ''}`
+    adjusted = `${bounded}${/[+"]$/.exec(value.value)?.[0] ?? ''}`
   }
   return {
     ...value,

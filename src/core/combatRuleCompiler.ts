@@ -22,6 +22,8 @@ type Context = {
   condition?: CombatRuleEffect['condition']
   instead?: boolean
   attackSubject?: string
+  /** Keeps what changes no roll, as [ASSAULT] or a Move bonus, for a datasheet that shows everything a rule gives. */
+  shown?: boolean
 }
 /** Rule wording without markup, typographic variants or the source's known misspellings. */
 export const normalizeCombatText = (text: string) =>
@@ -65,6 +67,13 @@ const characteristic: Record<string, DatasheetCharacteristicKind> = {
   'weapon skill': 'weapon-skill',
   bs: 'ballistic-skill',
   ws: 'weapon-skill',
+}
+/** The unit characteristics a datasheet shows a rule changing that no roll reads. */
+const unitStat: Record<string, 'movement' | 'leadership' | 'objective-control'> = {
+  move: 'movement',
+  movement: 'movement',
+  leadership: 'leadership',
+  'objective control': 'objective-control',
 }
 const nonCombatStat = /^(?:Move|Movement|Leadership|Objective Control|Range|Advance|Charge)(?: rolls?)?$/i
 const noDamageKeywords = /^(?:Assault|Hazardous|Precision|Pistol|Close-Quarters)$/i
@@ -146,24 +155,48 @@ export const isOrdersRule = (description: string) =>
 export const ordersRecipient = (description: string) =>
   /Only ([^.]+?) models gain the benefit of an Order/i.exec(normalizeCombatText(description))?.[1]
 
+/** A name the source prints in capitals, which reads as shouting in a list of choices, in title case. */
+export const unshouted = (printed: string) =>
+  printed === printed.toUpperCase()
+    ? printed
+        .toLowerCase()
+        .replaceAll(/(^|[\s,-])(\p{L})/gu, (_, gap: string, letter: string) => gap + letter.toUpperCase())
+        .replaceAll(/(?<=\s)(And|Of|The|To|In|On|For)(?=\s)/g, (word) => word.toLowerCase())
+    : printed
+
+type CompileOptions = { enemy?: boolean; shown?: boolean }
+
 /** Complete clauses compile together; board conditions become choices, dice conditions stay in the engine. */
-export function compileCombatRule(rule: CombatRule): { choices: CombatRuleChoice[]; defaultChoice: number } | null {
-  return compileRule(rule)
+export function compileCombatRule(
+  rule: CombatRule,
+  { shown = false }: Pick<CompileOptions, 'shown'> = {},
+): { choices: CombatRuleChoice[]; defaultChoice: number } | null {
+  return compileRule(rule, { shown })
 }
 
 /** Compiles each named option as its own rule; one the compiler cannot read refuses the whole rule. */
-function optionChoices(options: readonly (readonly [string, CombatRule])[], compile = compileCombatRule) {
+function optionChoices(
+  options: readonly (readonly [string, CombatRule])[],
+  compile: (option: CombatRule) => ReturnType<typeof compileCombatRule>,
+  armyWide = false,
+) {
   const choices: CombatRuleChoice[] = []
   for (const [name, option] of options) {
     const compiled = compile(option)
     if (!compiled) return null
-    choices.push(...compiled.choices.map((choice) => labelledChoice(name, choice)))
+    choices.push(
+      ...compiled.choices.map((choice) => ({ ...labelledChoice(name, choice), option: name, ...(armyWide ? { armyWide } : {}) })),
+    )
   }
   return { choices, defaultChoice: 0 }
 }
 
-function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoice[]; defaultChoice: number } | null {
+function compileRule(
+  rule: CombatRule,
+  { enemy = false, shown = false }: CompileOptions,
+): { choices: CombatRuleChoice[]; defaultChoice: number } | null {
   if (rule.description.length > 12_000) return null
+  const compileOption = (option: CombatRule) => compileRule(option, { shown })
   const named = namedSections(rule.description)
   const intro = normalizeCombatText(named.intro)
   const vows =
@@ -223,17 +256,16 @@ function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoi
             ),
         },
       ]),
-      (option) => compileRule(option, Boolean(status)),
+      (option) => compileRule(option, { enemy: Boolean(status), shown }),
+      vows,
     )
   }
   if (isOrdersRule(rule.description)) {
     if (!named.sections.length || named.sections.length > 12) return null
-    // The source prints Order names in capitals, which read as shouting in a list of choices.
-    const name = (printed: string) =>
-      printed === printed.toUpperCase()
-        ? printed.toLowerCase().replaceAll(/(^|[\s,])(\p{L})/gu, (_, gap, letter) => gap + letter.toUpperCase())
-        : printed
-    return optionChoices(named.sections.map((section) => [name(section.name), { ...rule, description: section.description }]))
+    return optionChoices(
+      named.sections.map((section) => [unshouted(section.name), { ...rule, description: section.description }]),
+      compileOption,
+    )
   }
   // A unit is always in one of these states, from the one it starts the battle in until the player switches it.
   const states =
@@ -246,7 +278,10 @@ function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoi
       .filter(Boolean)
       .map((option) => /^([^:]+): (.+)$/.exec(option.trim()))
     if (options.some((option) => !option)) return null
-    const compiled = optionChoices(options.map((option) => [option![1]!, { ...rule, description: option![2]! }]))
+    const compiled = optionChoices(
+      options.map((option) => [option![1]!, { ...rule, description: option![2]! }]),
+      compileOption,
+    )
     if (!compiled) return null
     const singular = (name: string) => combatTextKey(name).replace(/s$/, '')
     const starting = states[1] ? compiled.choices.findIndex((choice) => singular(choice.label) === singular(states[1]!)) : -1
@@ -260,7 +295,12 @@ function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoi
     const options = titledParagraphs(rule.description.slice(rule.description.lastIndexOf('ability:') + 'ability:'.length))
     if (!options.length || options.length > 12) return null
     if (rule.keywords && !ruleAnswers(rule)(`covers:${combatTextKey(selectedAbility[1]!)}`)) return { choices: [], defaultChoice: 0 }
-    return optionChoices(options.map((option) => [option.name, { ...rule, description: option.description }]))
+    // The ability is selected for the army, though only the units selected that round have it.
+    return optionChoices(
+      options.map((option) => [option.name, { ...rule, description: option.description }]),
+      compileOption,
+      true,
+    )
   }
   const stances =
     /^(?:Each time a unit with this ability is selected to (shoot|fight), select one of the .+? below\. Until that unit has finished making its attacks, the selected .+? is active for it and it gains the relevant ability\.|At the start of the battle round, you can select one of the .+? below\. Until the end of the battle round, that .+? is active for your army, and all units from your army that have the .+? ability gain the relevant abilities shown below\.)\s*\n([\s\S]+)$/i.exec(
@@ -269,11 +309,15 @@ function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoi
   if (stances) {
     const sections = stances[2]!
       .trim()
-      .split(/(?:^|\n)(?:■ )?([A-Z][A-Z ’'-]+)\n/)
+      .split(/(?:^|\n)(?:■ |#{2,4} +)?([A-Z][A-Z ’'-]+)\n/)
       .filter(Boolean)
     if (!sections.length || sections.length % 2) return null
     const phases = stances[1] ? actionPhases(stances[1]) : rule.phases
-    return optionChoices(chunks(sections, 2).map(([name, description]) => [name!.trim(), { ...rule, description: description!, phases }]))
+    return optionChoices(
+      chunks(sections, 2).map(([name, description]) => [name!.trim(), { ...rule, description: description!, phases }]),
+      compileOption,
+      !stances[1],
+    )
   }
   if (/^At the start of your Command phase, friendly .+? units with this ability become readied\./i.test(intro)) {
     // Each readied ability a unit may use is a choice; one that changes no attack, such as a move, is none.
@@ -281,7 +325,7 @@ function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoi
       const effect = /EFFECT:\s*([\s\S]+)$/i.exec(section.description)?.[1]
       return effect && combatRuleRoles(effect).length ? [[section.name, { ...rule, description: effect }] as const] : []
     })
-    return options.length ? optionChoices(options) : null
+    return options.length ? optionChoices(options, compileOption) : null
   }
   const effectSection = ruleSection(rule.description, 'Effect') ?? rule.description
   let text = printedPhrasing(normalizeCombatText(markedBullets(effectSection)))
@@ -315,6 +359,7 @@ function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoi
     enemy,
     phases: rule.phases?.length ? rule.phases : [...COMBAT_PHASES],
     conditions: [],
+    shown,
   }
   const together =
     /^(?:(?:At the start of the battle round, )?you can select one friendly .+? within (\d+)" of (?:the bearer|this model)[.;] )?(?:until [^,]+, )?the ([^,.]+?) and (?:the )?([^,.]+?) are both active for (?:the bearer's unit|this unit|your unit|that unit)\.?$/i.exec(
@@ -1107,7 +1152,7 @@ function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoi
       if (!checked) return checked === false ? [] : null
       if (context.condition) return null
       return keywords
-        .filter((word) => !noDamageKeywords.test(word))
+        .filter((word) => context.shown || !noDamageKeywords.test(word))
         .flatMap((keyword) => effect({ ...checked, phases: phasesOf(grant[1] ?? grant[3], context.phases) }, { keyword }) ?? [])
     }
     const nonCumulative = / \(this is not cumulative with any other modifiers that improve Armour Penetration\)$/i.test(written)
@@ -1138,7 +1183,8 @@ function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoi
     const modelsToughness = /^Add ([1-9]) to the Toughness characteristic of ((?:.+? )?models(?: in (?:this|that|your) unit)?)$/i.exec(
       written,
     )
-    if (modelsToughness) {
+    // Models of an afflicted enemy unit are the target's, never a bonus to the attacker's own.
+    if (modelsToughness && !context.enemy) {
       const reached = recipient(modelsToughness[2]!, { ...context, role: 'defender' })
       return reached ? effect(reached, { toughness: Number(modelsToughness[1]) }) : reached === false ? [] : null
     }
@@ -1150,7 +1196,24 @@ function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoi
       const names = stat[3]!.split(/,\s*(?:and )?|\s+and\s+/i)
       const amount = Number(stat[2] ?? stat[5])
       if (!amount || names.some((name) => !characteristic[combatTextKey(name)] && !nonCombatStat.test(name))) return null
-      if (names.every((name) => nonCombatStat.test(name))) return []
+      if (names.every((name) => nonCombatStat.test(name))) {
+        const shownStats = names.flatMap((name) => {
+          const kind = unitStat[combatTextKey(name)]
+          return kind
+            ? [
+                {
+                  kind,
+                  add:
+                    amount *
+                    (stat[1] ? (/subtract/i.test(stat[1]) ? -1 : 1) : /^worsen/i.test(written) ? -1 : 1) *
+                    (kind === 'leadership' && !stat[1] ? -1 : 1),
+                },
+              ]
+            : []
+        })
+        if (!context.shown || !shownStats.length || !/^models in (?:this|that|your) unit$/i.test(stat[4]!)) return []
+        return shownStats.flatMap((change) => effect({ ...context, role: 'defender' }, { unitStat: change }) ?? [])
+      }
       if (nonCumulative && (context.condition || names.some((name) => characteristic[combatTextKey(name)] !== 'armour-penetration')))
         return null
       const weapon = /^(ranged |melee )?(.+? )?weapons equipped by (.+)$/i.exec(stat[4]!)
@@ -1355,6 +1418,7 @@ function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoi
           { ...rule, description: `${alternativeGrants[1]}${alternativeGrants[2]} ${alternativeGrants[3] ?? ''}attacks have ${grant}.` },
         ]
       }),
+      compileOption,
     )
   }
   const eitherGrant =
@@ -1364,6 +1428,7 @@ function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoi
   if (eitherGrant)
     return optionChoices(
       [eitherGrant[2]!, eitherGrant[3]!].map((grant) => [grant.slice(1, -1), { ...rule, description: `${eitherGrant[1]} ${grant}.` }]),
+      compileOption,
     )
   const abilitySelection =
     /^(.*?)select (?:one of the following abilities:|either the) (.+?)(?: ability)?\. (Until .+?, (?:ranged |melee )?weapons equipped by .+?) have (?:that|the selected) ability\.?$/i.exec(
@@ -1377,6 +1442,7 @@ function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoi
         keyword,
         { ...rule, description: `${abilitySelection[1]}${abilitySelection[3]} have the [${keyword}] ability.` },
       ]),
+      compileOption,
     )
   }
   const abilityBullets = /^(.*?)select one of the abilities below\. (.+?) (have|has) that ability: [■▪] (.+)$/i.exec(text)
@@ -1388,6 +1454,7 @@ function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoi
         option.slice(1, -1),
         { ...rule, description: `${abilityBullets[1]}${abilityBullets[2]} ${abilityBullets[3]} the ${option} ability.` },
       ]),
+      compileOption,
     )
   }
   // Printed alternatives are mutually exclusive; ordinary bullets are cumulative clauses.

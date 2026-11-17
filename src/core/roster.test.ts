@@ -3184,3 +3184,47 @@ describe('entries a link declares', () => {
     expect(options).toEqual(['Shared Relic', 'Own Relic'])
   })
 })
+
+describe('an option kept from bearers of a keyword', () => {
+  const index = indexOf({
+    categoryEntries: [{ id: 'smith', name: 'Smith' }],
+    sharedSelectionEntries: [
+      {
+        id: 'priest',
+        name: 'Priest',
+        type: 'model',
+        selectionEntryGroups: [
+          {
+            id: 'enhancements',
+            name: 'Enhancements',
+            constraints: [{ id: 'enhancements-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+            selectionEntries: [
+              {
+                id: 'reinforcement',
+                name: 'Reinforcement',
+                type: 'upgrade',
+                modifiers: [
+                  {
+                    type: 'set',
+                    field: 'hidden',
+                    value: true,
+                    conditions: [{ type: 'instanceOf', value: 1, field: 'selections', scope: 'ancestor', childId: 'smith' }],
+                  },
+                ],
+              },
+              { id: 'relic', name: 'Relic', type: 'upgrade' },
+            ],
+          },
+        ],
+      },
+      { id: 'smith', name: 'Smith', type: 'model', categoryLinks: [{ id: 'smith-link', targetId: 'smith' }] },
+    ],
+  })
+  const offered = (roster: string[]) =>
+    unitChoices('priest', defaultSelection('priest', index)!, index, {
+      roster: roster.map((id) => defaultSelection(id, index)!),
+    }).flatMap((choice) => choice.options.map((option) => option.name))
+
+  it('stays offered to a bearer without the keyword while another unit in the list has it', () =>
+    expect(offered(['smith'])).toEqual(['Reinforcement', 'Relic']))
+})

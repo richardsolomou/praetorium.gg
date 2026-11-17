@@ -7,6 +7,7 @@ const texts = [
   "Friendly SCOUT units have Deep Strike. When a friendly SCOUT unit is selected to shoot, if that unit made an ingress move this turn, that unit's ranged attacks have +1 to hit rolls.",
   'In your Shooting phase, select one friendly ARMY unit within 6" of this model. Until the end of the phase, each time a model in that unit makes an attack, add 1 to the Hit roll.',
   'While this model is leading a unit, each time a model in that unit makes an attack, re-roll a Hit roll of 1.',
+  'Ranged weapons equipped by models in this unit have the [ASSAULT] ability. While this unit is within range of an objective marker you control, ranged weapons equipped by models in this unit have the [HEAVY] ability.',
 ]
 const placements = (['unit', 'attached', 'nearby', 'detachment'] as const).flatMap((scope) =>
   [1, 5].flatMap((models) =>
@@ -20,6 +21,7 @@ const unquoted = (reading: CombatReading, words: string) => {
   return {
     ...reading,
     compiled: reading.compiled && { ...reading.compiled, choices: labelled(reading.compiled.choices) },
+    ...(reading.shown !== undefined ? { shown: reading.shown && { ...reading.shown, choices: labelled(reading.shown.choices) } } : {}),
     legacy: labelled(reading.legacy),
   }
 }

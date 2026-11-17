@@ -27,7 +27,10 @@ const simple = [
   'one shot',
   'conversion',
 ] as const
-type KeywordKind = (typeof simple)[number] | 'sustained hits' | 'rapid fire' | 'melta' | 'blast' | 'cleave' | 'anti'
+const numberedKinds = ['sustained hits', 'rapid fire', 'melta', 'blast', 'cleave', 'anti'] as const
+type KeywordKind = (typeof simple)[number] | (typeof numberedKinds)[number]
+/** Every weapon ability a rule can give, by the name its rule goes by. */
+export const WEAPON_ABILITY_KINDS: readonly KeywordKind[] = [...simple, ...numberedKinds]
 type CombatKeyword = {
   kind: KeywordKind
   amount?: number | DiceExpression

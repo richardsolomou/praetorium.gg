@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { compileCombatRule } from './combatRuleCompiler'
+import { combatReadingOf } from './combatReading'
 import {
   combatDamageStateSelections,
   combatRuleAppliesTo,
@@ -7,6 +8,7 @@ import {
   combatRuleDefault,
   combatRuleRoles,
   type CombatRule,
+  shownRuleChoices,
 } from './combatRules'
 
 const rule = (description: string, extra: Partial<CombatRule> = {}): CombatRule => ({
@@ -89,6 +91,8 @@ You can re-roll the Charge roll.`
       choices: [
         {
           label: 'Challenge',
+          option: 'Challenge',
+          armyWide: true,
           effects: [{ role: 'attacker', phases: ['melee'], condition: 'not-stronger', options: { woundModifier: 1 } }],
         },
       ],
@@ -111,14 +115,23 @@ Improve the Save characteristic of models in this unit by 1 (this cannot improve
     expect(compileCombatRule(rule(description))).toEqual({
       defaultChoice: 0,
       choices: [
-        { label: 'Take Aim!', effects: [{ role: 'attacker', phases: ['ranged'], characteristic: { kind: 'ballistic-skill', add: -1 } }] },
+        {
+          label: 'Take Aim!',
+          option: 'Take Aim!',
+          effects: [{ role: 'attacker', phases: ['ranged'], characteristic: { kind: 'ballistic-skill', add: -1 } }],
+        },
         {
           label: 'First Rank, Fire! Second Rank, Fire!',
+          option: 'First Rank, Fire! Second Rank, Fire!',
           effects: [
             { role: 'attacker', phases: ['ranged'], requiresWeaponKeyword: 'Rapid Fire', characteristic: { kind: 'attacks', add: 1 } },
           ],
         },
-        { label: 'Take Cover!', effects: [{ role: 'defender', phases: ['ranged', 'melee'], improveSave: { by: 1, best: 3 } }] },
+        {
+          label: 'Take Cover!',
+          option: 'Take Cover!',
+          effects: [{ role: 'defender', phases: ['ranged', 'melee'], improveSave: { by: 1, best: 3 } }],
+        },
       ],
     })
   })
@@ -132,6 +145,21 @@ Each time a model in this unit makes a melee attack, add 1 to the Wound roll. In
       ),
     ).toBeNull()
   })
+  it('refuses a Toughness bonus for models in an afflicted enemy unit rather than giving it to the attacker', () =>
+    expect(
+      compileCombatRule(
+        rule(`If your Army Faction is ARMY, while an enemy unit is within Infection Range of one or more ARMY units from your army, it is Infected.
+
+### INFECTION RANGE
+Infection Range changes over the course of the battle: Infection Range cannot be greater than 12" after modifiers.
+
+### INFECTED
+During the Declare Battle Formations step, select one of the Plagues below. Until the end of the battle, while an enemy unit is Infected, subtract 1 from the Toughness characteristic of models in that unit, and that unit has the effect of your chosen Plague.
+
+### Bloat
+Add 1 to the Toughness characteristic of INFANTRY models in that unit.`),
+      ),
+    ).toBeNull())
   it.each(['bold', 'markdown'])('keeps enemy status and plague choices together with %s headings', (format) => {
     const heading = (name: string) => (format === 'bold' ? `**${name}**` : `### ${name}`)
     const description = `If your Army Faction is ARMY, while an enemy unit is within Infection Range of one or more ARMY units from your army, it is Infected.
@@ -160,6 +188,7 @@ Worsen the Move, Leadership and Objective Control characteristics of models in t
       choices: [
         {
           label: 'Opponent infected · Confusion',
+          option: 'Opponent infected · Confusion',
           effects: [
             { role: 'attacker', phases: ['ranged', 'melee'], targetToughness: -1 },
             { role: 'defender', phases: ['ranged'], options: { cover: true } },
@@ -168,12 +197,17 @@ Worsen the Move, Leadership and Objective Control characteristics of models in t
         },
         {
           label: 'Opponent infected · Brittleness',
+          option: 'Opponent infected · Brittleness',
           effects: [
             { role: 'attacker', phases: ['ranged', 'melee'], targetToughness: -1 },
             { role: 'attacker', phases: ['ranged', 'melee'], targetSaveModifier: 1 },
           ],
         },
-        { label: 'Opponent infected · Sluggishness', effects: [{ role: 'attacker', phases: ['ranged', 'melee'], targetToughness: -1 }] },
+        {
+          label: 'Opponent infected · Sluggishness',
+          option: 'Opponent infected · Sluggishness',
+          effects: [{ role: 'attacker', phases: ['ranged', 'melee'], targetToughness: -1 }],
+        },
       ],
     })
   })
@@ -854,6 +888,38 @@ describe('wordings a rule gives a whole army or a keyword', () => {
       'Once per turn, the first time a saving throw is failed for the bearer, change the Damage characteristic of that attack to 0.',
     ],
   ])('reads %s as a defence alone', (_, description) => expect(combatRuleRoles(description)).toEqual(['defender']))
+})
+
+describe('rules a unit switches between during the battle', () => {
+  const routines = (bullet: string, name: (written: string) => string) =>
+    `At the start of the battle, if this model is leading a unit, that unit enters Guard Routine (see below). In your Command phase, if this model is leading a unit, you can select one routine from those listed below for that unit to enter. Once a unit enters a routine, it remains in that routine until it enters a different one.\n${bullet} ${name('Strike Routine')} Add 2 to the Attacks characteristic of ranged weapons equipped by **WAR ENGINE** models in this unit.\n${bullet} ${name('Guard Routine')} Add 1 to the Toughness characteristic of **WAR ENGINE** models in this unit.`
+
+  it.each([
+    ['a datacard', routines('■', (name) => `**${name}:**`)],
+    ['a catalogue', routines('-', (name) => `${name}:`)],
+  ])('offers each routine %s lists as a choice', (_, description) =>
+    expect(combatRuleChoices(rule(description, { keywords: ['War Engines'] }))).toEqual([
+      { label: 'Strike Routine', effects: [{ role: 'attacker', phases: ['ranged'], characteristic: { kind: 'attacks', add: 2 } }] },
+      { label: 'Guard Routine', effects: [{ role: 'defender', phases: ['ranged', 'melee'], toughness: 1 }] },
+    ]),
+  )
+
+  it('refuses a list with a line that is not one of its options', () =>
+    expect(
+      compileCombatRule(rule(`${routines('-', (name) => `${name}:`)}\nThis unit cannot change routine twice in one battle round.`)),
+    ).toBeNull())
+
+  it('shows a granted ability that changes no roll on a datasheet', () =>
+    expect(shownRuleChoices(rule('Ranged weapons equipped by models in this unit have the **[ASSAULT]** ability.'))).toEqual([
+      { label: 'Active', effects: [{ role: 'attacker', phases: ['ranged'], keyword: 'ASSAULT' }] },
+    ]))
+
+  it('shows a granted ability that changes no roll on a datasheet that holds only the recorded reading', () => {
+    const written = rule('Ranged weapons equipped by models in this unit have the **[ASSAULT]** ability.')
+    expect(shownRuleChoices({ ...written, description: '', reading: combatReadingOf(written) })).toEqual([
+      { label: 'Active', effects: [{ role: 'attacker', phases: ['ranged'], keyword: 'ASSAULT' }] },
+    ])
+  })
 })
 
 describe('Haloscreed Battleclade rules', () => {

@@ -32,7 +32,7 @@ On a phone, the CP figure beside the phase button opens the stratagems you can p
 
 ## Casualties
 
-Open **Units** under a player's name to see their units. Remove models and wounds as they go, or mark a unit **Destroyed**. Units in reserves or transports show **Arrive** or **Disembark**.
+Open **Units** under a player's name to see their units. Remove models and wounds as they go, or mark a unit **Destroyed**. Units in reserves or transports show **Arrive** or **Disembark**. A unit's datasheet offers the options it chooses between during the battle, such as an Order or a Doctrina Imperative, to show its profiles as they leave them ([rules you choose during the battle](/docs/set-up-a-unit#rules-you-choose-during-the-battle)). Your opponent doesn't see your picks.
 
 **Roster** opens the list exactly as they fielded it, with its points and wargear, even when they keep the saved roster private. Players and spectators can both open it.
 

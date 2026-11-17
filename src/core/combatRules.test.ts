@@ -846,3 +846,16 @@ it('leaves a weapon keyword the catalogue already gives under the name the rule 
   }
   expect(combatRuleProfiles(projected, [grant], 'attacker').profiles[0]!.values.at(-1)!.value).toBe('Sustained Hits 1: non-Vehicle')
 })
+
+it('adds a weapon keyword the catalogue does not give, though it gives another under the same rule', () => {
+  const sheet = weapons()
+  const projected = {
+    ...sheet,
+    profiles: sheet.profiles.map((profile) => ({
+      ...profile,
+      values: profile.values.map((value) => (value.name === 'Keywords' ? { ...value, value: 'Assault', modifiers: ['Grant'] } : value)),
+    })),
+  }
+  const grant = { name: 'Grant', effects: [{ role: 'attacker' as const, phases: ['ranged' as const], keyword: 'Heavy' }] }
+  expect(combatRuleProfiles(projected, [grant], 'attacker').profiles[0]!.values.at(-1)!.value).toBe('Assault, Heavy')
+})
