@@ -22,3 +22,8 @@ it.each([499, 10_001, 1500.5])('refuses a %s-point budget', (pointsBudget) => {
 it('refuses a custom budget for a battle size with a fixed points total', () => {
   expect(saveRosterSchema.safeParse({ ...roster, limit: 600, pointsBudget: 750 }).success).toBe(false)
 })
+
+it('saves an optional group left empty, as an import that drops its default does', () => {
+  const picks = [{ entryId: 'squad', choices: { 'squad/weapon': '' } }]
+  expect(saveRosterSchema.safeParse({ ...roster, picks }).success).toBe(true)
+})
