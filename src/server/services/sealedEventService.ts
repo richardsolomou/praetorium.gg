@@ -4,8 +4,8 @@ import type { LoadedRules } from '../../shared/rules'
 import { offlineContext, offlineIdentifier } from '../offlineContext'
 import { byId } from '../../core/collections'
 import type { Notice } from '../../core/notifications'
-import { randomInt } from 'node:crypto'
-import { randomId, randomToken } from '../random'
+import { randomInt, randomUUID } from 'node:crypto'
+import { randomToken } from '../random'
 import { GROUP_LEAGUE_PLAYERS_MAX, GROUP_LEAGUE_SEED_MAX } from '../../core/groupLeague'
 import { pointsBudgetError, pointsLabel, type Roster } from '../../core/battle'
 import { commandSchema, parseRosterSnapshot, rosterSnapshotOrNull } from '../../core/commands'
@@ -52,9 +52,9 @@ export class SealedEventService {
     const eventToken = offlineIdentifier('eventToken', randomToken)
     const rule = eventRule({ format, rosterLimit, allowances, rounds, pointsBudget, soloPoints, allyPoints, sharedPoints })
     const result = await this.repository.createTournament({
-      id: offlineIdentifier('tournamentId', randomId),
+      id: offlineIdentifier('tournamentId', randomUUID),
       token,
-      eventId: offlineIdentifier('eventId', randomId),
+      eventId: offlineIdentifier('eventId', randomUUID),
       eventToken,
       ownerId,
       ...details,
@@ -84,7 +84,7 @@ export class SealedEventService {
   ) {
     const token = randomToken()
     const result = await this.repository.createHiddenListGame({
-      eventId: randomId(),
+      eventId: randomUUID(),
       eventToken: token,
       groupToken,
       ownerId,
@@ -104,11 +104,11 @@ export class SealedEventService {
     { groupToken, ...input }: Pick<EventRuleInput, 'rosterLimit' | 'pointsBudget' | 'allowances'> & { groupToken: string },
   ) {
     const result = await this.repository.createHiddenListGame({
-      eventId: randomId(),
+      eventId: randomUUID(),
       eventToken: randomToken(),
       groupToken,
       ownerId,
-      league: { id: randomId(), seed: randomInt(GROUP_LEAGUE_SEED_MAX + 1) },
+      league: { id: randomUUID(), seed: randomInt(GROUP_LEAGUE_SEED_MAX + 1) },
       ...eventRule({ ...input, format: '1v1' }),
       now: this.clock(),
     })
@@ -279,7 +279,7 @@ export class SealedEventService {
   }
 
   async assignSealedEventTeam(token: string, ownerId: string, userIds: readonly string[], eventToken?: string) {
-    const result = await this.repository.assignSealedEventTeam(token, ownerId, userIds, offlineIdentifier('teamId', randomId), eventToken)
+    const result = await this.repository.assignSealedEventTeam(token, ownerId, userIds, offlineIdentifier('teamId', randomUUID), eventToken)
     if (typeof result === 'object') {
       this.notifySealedEvent('sealed-event-roster-reseal', ownerId, result.resealIds, token, eventToken)
       return { teamSize: userIds.length }
@@ -628,7 +628,7 @@ export class SealedEventService {
     const invited = [opponentId, allyId, secondOpponentId].filter((id): id is string => Boolean(id))
     if (new Set([userId, ...invited]).size !== invited.length + 1) throw new Response('choose different entrants', { status: 400 })
     const token = offlineIdentifier('battleToken', randomToken)
-    const id = offlineIdentifier('battleId', randomId)
+    const id = offlineIdentifier('battleId', randomUUID)
     const result = await this.repository.createSealedEventBattle(
       {
         id,

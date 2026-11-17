@@ -5,8 +5,3 @@ export function randomToken(bytes = 16) {
   if (!Number.isSafeInteger(bytes) || bytes < 1) throw new RangeError('token bytes must be a positive integer')
   return randomBytes(bytes).toString('base64url')
 }
-
-/** A short URL-safe id for records whose ids are not secret. */
-export function randomId() {
-  return randomToken(8)
-}
