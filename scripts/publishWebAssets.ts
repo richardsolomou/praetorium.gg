@@ -30,6 +30,9 @@ const bytes = (response: Response) => boundedBytes(response, MAX_BYTES, 'Web ass
  */
 const CHUNK_ID = /(_posthogChunkIds\[n\]="|\/\/# chunkId=)[0-9a-f-]{36}/g
 const withoutChunkId = (code: Buffer) => code.toString('utf8').replace(CHUNK_ID, '$1')
+/** The served copy may be an earlier release's, which differs from this build's only in its chunk ids. */
+const sameAsset = (name: string, served: Buffer, built: Buffer) =>
+  served.equals(built) || (name.endsWith('.js') && withoutChunkId(served) === withoutChunkId(built))
 
 class TransientResponse extends Error {}
 
@@ -66,8 +69,13 @@ export async function publishWebAssets(
       const stat = await lstat(file)
       total += stat.size
       if (stat.size > MAX_BYTES || total > 100_000_000 || assets.size >= 5_000) throw new Error('Web asset publication exceeds its limit')
-      if (assets.has(entry.name) && !(await readFile(assets.get(entry.name)!)).equals(await readFile(file)))
-        throw new Error(`Web asset name collision: ${entry.name}`)
+      const earlier = assets.get(entry.name)
+      if (earlier) {
+        // Each release stamps its own chunk ids into unchanged code; the earlier release's copy is the one clients hold.
+        if (withoutChunkId(await readFile(earlier)) !== withoutChunkId(await readFile(file)))
+          throw new Error(`Web asset name collision: ${entry.name}`)
+        continue
+      }
       assets.set(entry.name, file)
     }
   }
@@ -178,7 +186,7 @@ export async function verifyWebAssetRoute(directories: string[], origin: string,
             await response.body?.cancel()
             throw new TransientResponse(`Asset route answered ${response.status}: ${name}`)
           }
-          if (!response.ok || response.headers.get('cache-control') !== CACHE || !(await bytes(response)).equals(expected))
+          if (!response.ok || response.headers.get('cache-control') !== CACHE || !sameAsset(name, await bytes(response), expected))
             throw new Error(`Asset route verification failed: ${name}`)
         },
         stopped,
