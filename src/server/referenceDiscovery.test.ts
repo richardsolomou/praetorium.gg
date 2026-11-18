@@ -98,6 +98,10 @@ const { history } = vi.hoisted(() => ({
     entries: [] as CatalogueHistoryEntry[],
   },
 }))
+const factions = [
+  { id: 'test', displayName: 'Test', isDefault: true },
+  { id: 'old~test', displayName: 'Test', isDefault: false, edition: { id: 'old', slug: 'old-rules', name: 'Old', status: 'retired' } },
+]
 const canonical = {
   datasheets: [{ catalogueId: 'test-catalogue', id: 'unit', referenceRoute: { catalogueId: 'test', slug: 'unit' } }],
   detachments: [],
@@ -106,6 +110,7 @@ vi.mock('./app', () => ({
   app: () => ({
     catalogueHistoryFor: async () => history.entries,
     canonicalCatalogueFor: async () => canonical,
+    factionsFor: async () => ({ factions }),
   }),
 }))
 
@@ -156,6 +161,12 @@ it('lists versioned faction and datasheet index destinations without their alias
     'https://praetorium.gg/factions/test/rules/mfm-1-6/datasheets/unit',
     'https://praetorium.gg/factions/test/rules/mfm-1-6/detachments/detachment',
   ])
+})
+
+it('leaves other rules versions out, since their pages name the current copy as canonical', async () => {
+  corpus.documents[0]!.url = '/factions/test/rules/old-rules/datasheets/unit'
+
+  expect(await sitemap()).not.toContain('old-rules')
 })
 
 it('keeps historical lastmod dates on versioned reference destinations', async () => {
