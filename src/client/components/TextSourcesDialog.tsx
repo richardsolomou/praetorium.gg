@@ -1,12 +1,12 @@
 import { Link } from '@tanstack/react-router'
-import { useId, useState, useSyncExternalStore } from 'react'
+import { useId, useState } from 'react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { toggled } from '../../core/collections'
 import { TEXT_SOURCES, type TextSource } from '../../core/sourceText'
 import { TEXT_SOURCE_INFO, chooseTextSources, useTextSourceChoice } from '../rulesText'
-import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './Dialog'
+import { DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './Dialog'
 
 const linkClass = 'text-info hover:text-parchment'
 
@@ -55,48 +55,7 @@ export function TextSourceRow({
   )
 }
 
-/** Whether the one dialog every prompt opens is showing, and the source the prompt that opened it needs. */
-let shown = false
-let asked: TextSource | undefined
-const listeners = new Set<() => void>()
-const set = (next: boolean) => {
-  shown = next
-  for (const listener of listeners) listener()
-}
-const subscribe = (listener: () => void) => {
-  listeners.add(listener)
-  return () => {
-    listeners.delete(listener)
-  }
-}
-
-/**
- * Asks the reader which external sources to load; the same question wherever it is asked.
- * A prompt that knows its source marks it, but the reader still turns it on themselves.
- */
-export const openTextSourcesDialog = (source?: TextSource) => {
-  asked = source
-  set(true)
-}
-
-/**
- * The only place a prompt sends a reader to load rules text: it says where the text comes
- * from and records only the sources they turn on, so nothing loads by a single click.
- */
-export function TextSourcesDialog() {
-  const open = useSyncExternalStore(
-    subscribe,
-    () => shown,
-    () => false,
-  )
-  return (
-    <Dialog open={open} onOpenChange={set}>
-      {open ? <TextSourcesForm needed={asked} close={() => set(false)} /> : null}
-    </Dialog>
-  )
-}
-
-function TextSourcesForm({ needed, close }: { needed?: TextSource; close: () => void }) {
+export function TextSourcesForm({ needed, close }: { needed?: TextSource; close: () => void }) {
   const choice = useTextSourceChoice()
   const [selected, setSelected] = useState<ReadonlySet<TextSource>>(choice.sources)
   const changed = TEXT_SOURCES.some((source) => selected.has(source) !== choice.sources.has(source))

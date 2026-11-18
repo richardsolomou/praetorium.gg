@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { Skeleton } from '@/components/ui/skeleton'
-import { ScrollArea } from '@/components/ui/scroll-area'
+import { UnitPaneScroll } from './UnitPaneScroll'
 import { datasheetProfilesByKind } from '../../../../core/datasheetStructure'
 import type { RosterPick } from '../../../../core/roster'
 import type { Datasheet, DatasheetRelationship } from '../../../../contracts/catalogue'
@@ -128,9 +128,7 @@ export function DatasheetPanel({
   return embedded ? (
     <div className="border-t border-edge pt-4">{content}</div>
   ) : (
-    <ScrollArea className="h-full min-w-0 max-w-full overflow-hidden [&_[data-slot=scroll-area-viewport]]:touch-pan-y [&_[data-slot=scroll-area-viewport]]:!overflow-x-hidden [&_[data-slot=scroll-area-viewport]]:overscroll-x-none [&_[data-slot=scroll-area-viewport]]:p-3">
-      {content}
-    </ScrollArea>
+    <UnitPaneScroll className="h-full p-3">{content}</UnitPaneScroll>
   )
 }
 

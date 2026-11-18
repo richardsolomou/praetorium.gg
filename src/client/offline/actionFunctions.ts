@@ -1,3 +1,4 @@
+import { accountRead, favouriteFactions, favouriteDetachments, favouriteDatasheets, onboardingProgress } from './accountReads'
 import { boundedProgress, withCountsAs, withProgress, withWanted, type CollectionProgress } from '../../core/collection'
 import { withEntry, withMember } from '../../core/collections'
 import { withFavouriteDetachment, type FavouriteDetachment } from '../../core/favouriteDetachments'
@@ -11,11 +12,11 @@ import { matchingSealedEventBattles } from '../../shared/sealedEventBattleOption
 import { onboardingProgress as foldOnboarding, type OnboardingTaskId, type StoredOnboarding } from '../../core/onboarding'
 import * as server from '../../server/functions'
 import { offlineActionSchemas, type OfflineActionKind } from '../../contracts/offlineActions'
-import { localClient, localOwner, localDocument, localEngine, hasLocalChanges, queueLocal, rememberDocument } from './localRuntime'
+import { localClient, localOwner, localDocument, localEngine, hasLocalChanges, queueLocal } from './localRuntime'
 import { localConstruction } from './construction'
 import type { LocalRoster } from './localRuntime'
 import { queryResource } from '../../contracts/localState'
-import { accountChanged, cachedRead, isOffline } from './reads'
+import { cachedRead, isOffline } from './reads'
 import type { LocalDocumentUpdate } from './syncEngine'
 import {
   collectionCountsKey,
@@ -34,7 +35,6 @@ import {
   sealedEventRosterKey,
   sealedEventsKey,
   meKey,
-  notificationSettingsKey,
   onboardingKey,
   opponentsKey,
   friendSealedEventRostersKey,
@@ -51,19 +51,6 @@ import { withoutRecentMatchup, withRecentMatchup } from '../../contracts/recentM
 import { onboardingAnswer } from '../../contracts/onboarding'
 import { OfflineRefusal } from './offlineRefusal'
 
-async function accountRead<T>(key: readonly unknown[], online: () => Promise<T>) {
-  const owner = localOwner()?.id
-  const resource = queryResource(key)
-  const local = await localDocument<T>(resource)
-  if (local !== undefined && (!navigator.onLine || (await hasLocalChanges(resource)))) return local
-  const result = await cachedRead(key, online, { updateCache: false })
-  const saved = await rememberDocument(resource, result, null, owner, undefined, JSON.stringify({ data: local }))
-  if (localOwner()?.id !== owner) throw accountChanged()
-  const retained = saved ? (saved.data as T) : result
-  localClient()?.setQueryData(key, retained)
-  return retained
-}
-
 export const collection = () => accountRead(collectionKey(), () => server.collection())
 export const collectionCounts = () => accountRead(collectionCountsKey(), () => server.collectionCounts())
 export const collectionProgress = () => accountRead(collectionProgressKey(), () => server.collectionProgress())
@@ -71,17 +58,12 @@ export const collectionWishes = () => accountRead(collectionWishesKey(), () => s
 export const collectionCountsAs = () => accountRead(collectionCountsAsKey(), () => server.collectionCountsAs())
 export const fieldedDatasheets = () => cachedRead(fieldedDatasheetsKey(), () => server.fieldedDatasheets())
 export const wishlistSuggestions = () => cachedRead(wishlistSuggestionsKey(), () => server.wishlistSuggestions())
-export const favouriteFactions = () => accountRead(favouriteFactionsKey(), () => server.favouriteFactions())
-export const favouriteDetachments = () => accountRead(favouriteDetachmentsKey(), () => server.favouriteDetachments())
-export const favouriteDatasheets = () => accountRead(favouriteDatasheetsKey(), () => server.favouriteDatasheets())
 export const recentMatchups = () => accountRead(recentMatchupsKey(), () => server.recentMatchups())
 export const abilityReminders = () => accountRead(abilityRemindersKey(), () => server.abilityReminders())
 /** The alerts a list fielded on this device carries: the ones it last read or set, and none if it never read them. */
 export const savedAbilityReminders = async () => (await localDocument<AbilityReminder[]>(queryResource(abilityRemindersKey()))) ?? []
 export const playerDefaults = () => accountRead(playerDefaultsKey(), () => server.playerDefaults())
 export const rosterFolders = () => accountRead(rosterFoldersKey(), () => server.rosterFolders())
-export const onboardingProgress = () => accountRead(onboardingKey(), () => server.onboardingProgress())
-export const notificationSettings = () => cachedRead(notificationSettingsKey(), () => server.notificationSettings())
 export const friendships = () => cachedRead(friendshipsKey(), () => server.friendships())
 export const opponents = () => cachedRead(opponentsKey(), () => server.opponents())
 export const listSealedEvents = async (): ReturnType<typeof server.listSealedEvents> => {

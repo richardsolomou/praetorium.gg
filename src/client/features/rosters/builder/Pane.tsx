@@ -122,11 +122,12 @@ export function Pane({
       }
     }
     if (!screen) document.addEventListener('keydown', containFocus)
-    if (!(active instanceof HTMLElement) || !active.closest('[role="dialog"], [role="alertdialog"]')) closeElement?.focus()
+    if (!(active instanceof HTMLElement) || !active.closest('[role="dialog"], [role="alertdialog"]'))
+      closeElement?.focus({ preventScroll: true })
     return () => {
       document.removeEventListener('keydown', containFocus)
       restoreBackground()
-      if (focusTarget?.isConnected) focusTarget.focus()
+      if (focusTarget?.isConnected) focusTarget.focus({ preventScroll: true })
     }
   }, [compactLoadout, open, screen])
 

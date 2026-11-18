@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { usePostHog } from '@posthog/react'
 import { cloneElement, type ReactElement, type ReactNode, useEffect, useMemo, useRef } from 'react'
 import type { Datasheet } from '../../../../contracts/catalogue'
-import { ScrollArea } from '@/components/ui/scroll-area'
+import { UnitPaneScroll } from './UnitPaneScroll'
 import type { RosterPick } from '../../../../core/roster'
 import { isUnitCompositionChoice } from '../../../../core/unitChoices'
 import { primaryUnitProfile } from '../../../datasheet'
@@ -167,17 +167,11 @@ export function Loadout({
     ? loose
     : loose.filter((choice) => choice.options.some((option) => option.count || choice.chosen === option.id))
   const described = { weapons, abilities, rules }
-  const Container = embedded ? 'div' : ScrollArea
+  const Container = embedded ? 'div' : UnitPaneScroll
 
   return (
     <div className={`flex min-w-0 flex-col ${embedded ? '' : 'h-full'}`}>
-      <Container
-        className={
-          embedded
-            ? 'min-w-0 p-2.5'
-            : 'min-h-0 min-w-0 max-w-full flex-1 overflow-hidden [&_[data-slot=scroll-area-viewport]]:touch-pan-y [&_[data-slot=scroll-area-viewport]]:!overflow-x-hidden [&_[data-slot=scroll-area-viewport]]:overscroll-x-none [&_[data-slot=scroll-area-viewport]]:p-2.5'
-        }
-      >
+      <Container className={embedded ? 'min-w-0 p-2.5' : 'min-h-0 flex-1 p-2.5'}>
         <div className="w-full min-w-0 space-y-4">
           {header}
           <div className="space-y-1.5">

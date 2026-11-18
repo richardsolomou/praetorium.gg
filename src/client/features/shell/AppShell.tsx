@@ -46,13 +46,9 @@ import { WebMcp } from '../agents/WebMcp'
 import { NativePushRegistration } from './NativePushRegistration'
 import { OnboardingGuide } from '../onboarding/OnboardingGuide'
 import { AppPersistence } from '../../offline/AppPersistence'
-import { LiveProduct } from '../../spacetimeLive'
-import { DisplayNamePrompt } from '../account/DisplayNamePrompt'
-import { SupportPanel } from '../feedback/SupportPanel'
-import { TextSourcesDialog } from '../../components/TextSourcesDialog'
-import { AchievementToasts } from '../profile/AchievementToasts'
+import { ShellLiveProduct, ShellDisplayNamePrompt, ShellSupportPanel, ShellTextSourcesDialog, ShellAchievementToasts } from './ShellExtras'
 import { loadOfflineFallbacks } from '../../functions'
-import { afterInitialScreen } from '../../offline/background'
+import { warmOfflineFallbacks } from '../../offline/background'
 
 const PRIMARY_LINKS = [
   { to: '/rosters', label: 'Rosters', Icon: ScrollText },
@@ -350,13 +346,9 @@ function AppFrame() {
   // a visitor without a downloaded reference has no device copy for them to read.
   useEffect(
     () =>
-      afterInitialScreen(
-        router,
-        () => {
-          if (queryClient.getQueryData(meKey()) || referenceData()) void loadOfflineFallbacks().catch(() => {})
-        },
-        2_000,
-      ),
+      warmOfflineFallbacks(router, () => {
+        if (queryClient.getQueryData(meKey()) || referenceData()) void loadOfflineFallbacks().catch(() => {})
+      }),
     [router, queryClient],
   )
   useLayoutEffect(followTextSourceChoice, [])
@@ -376,7 +368,7 @@ function AppFrame() {
             {bundledPostHog && me !== undefined && !impersonating && <PostHogIdentity />}
             {bundledPostHog && !impersonating && <SupportIdentity />}
             {me && !impersonating ? <NoticeSync /> : null}
-            <LiveProduct signedIn={Boolean(me)} />
+            <ShellLiveProduct signedIn={Boolean(me)} />
             <GlobalSearchProvider>
               {/*
                * The rail sits beside the page and the page decides its own width,
@@ -429,14 +421,14 @@ function AppFrame() {
                 </div>
                 <NativeAppNavigation accountBridge={<Account native />} />
                 <OnboardingGuide />
-                <DisplayNamePrompt />
-                <SupportPanel />
-                <TextSourcesDialog />
+                {me && !me.name.trim() && !impersonating ? <ShellDisplayNamePrompt /> : null}
+                <ShellSupportPanel />
+                <ShellTextSourcesDialog />
                 {me?.impersonatedBy ? <ImpersonationBanner name={me.name} email={me.email} /> : null}
                 <NativePushRegistration />
                 <ReleaseUpdateNotice />
                 {/* An administrator viewing as a player must not use up the player's announcements. */}
-                {me && !impersonating && <AchievementToasts userId={me.id} />}
+                {me && !impersonating && <ShellAchievementToasts userId={me.id} />}
                 {immersive || inBattle ? null : <WhatsNewNotice />}
                 <NavigationProgress />
                 <Toaster

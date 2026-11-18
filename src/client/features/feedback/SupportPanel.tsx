@@ -1,39 +1,37 @@
 import { ArrowLeft, PenSquare } from 'lucide-react'
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { PageState } from '../../components/PageState'
 import { Problem } from '../../components/Problem'
 import { FeedbackForm } from './FeedbackForm'
-import { onOpenSupport, type SupportView, unreadReplies, useSupportTickets } from './support'
+import { type SupportView, unreadReplies, useSupportTickets } from './support'
 import { TicketList } from './YourFeedback'
 import { countLabel } from '../../text'
 
-// The panel stays mounted to answer every request to open support; a conversation's Markdown loads only when one opens.
+// A conversation's Markdown loads only when one opens.
 const Conversation = lazy(() => import('./Conversation').then((module) => ({ default: module.Conversation })))
 
 /**
  * Support over whichever page the player is on: their conversations, a new message, and each conversation. Wide
  * screens dock it to the right edge; compact screens give it the whole screen, as every dialog there.
  */
-export function SupportPanel() {
-  const [open, setOpen] = useState(false)
-  const [view, setView] = useState<SupportView>({ kind: 'inbox' })
+export function SupportPanel({ request }: { request: { view: SupportView } }) {
+  const [previousRequest, setPreviousRequest] = useState(request)
+  const [open, setOpen] = useState(true)
+  const [view, setView] = useState(request.view)
   const [notice, setNotice] = useState<string>()
   const { tickets, enabled, isPending } = useSupportTickets()
   const hasTickets = Boolean(tickets?.length)
   // A player with nothing to read gets straight to writing; their list appears once they have sent something.
   const shown: SupportView = view.kind === 'inbox' && (!enabled || (!isPending && !hasTickets)) ? { kind: 'compose' } : view
 
-  useEffect(
-    () =>
-      onOpenSupport((next) => {
-        setNotice(undefined)
-        setView(next)
-        setOpen(true)
-      }),
-    [],
-  )
+  if (request !== previousRequest) {
+    setPreviousRequest(request)
+    setNotice(undefined)
+    setView(request.view)
+    setOpen(true)
+  }
   const go = (next: SupportView) => {
     setNotice(undefined)
     setView(next)

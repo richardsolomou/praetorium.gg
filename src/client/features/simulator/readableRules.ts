@@ -30,7 +30,12 @@ export function readableRules(rules: readonly CombatRule[]): CombatRule[] {
   })
 }
 
-export function readableCombatant<T extends { rules: CombatRule[]; companions: { rules: CombatRule[] }[] }>(data: T): T {
+type CombatantRules = { rules: CombatRule[]; companions: { rules: CombatRule[] }[] }
+
+export function readableCombatant<T extends CombatantRules>(data: T): T
+export function readableCombatant<T extends CombatantRules>(data: T | null | undefined, textVersion: number): T | undefined
+export function readableCombatant<T extends CombatantRules>(data: T | null | undefined, _textVersion?: number): T | undefined {
+  if (!data) return undefined
   return {
     ...data,
     rules: readableRules(data.rules),

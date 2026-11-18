@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { useState, type ReactNode } from 'react'
+import { memo, useState, type ReactNode } from 'react'
 import { ChevronLeft, ScrollText } from 'lucide-react'
 import { SearchableSelect } from '../../components/SearchableSelect'
 import { UnitPicker } from '../../components/UnitPicker'
@@ -29,27 +29,32 @@ export type RosterNavigation = {
 const WHOLE = 'whole'
 
 type Level = { kind: 'units' } | { kind: 'rosters' } | { kind: 'roster'; key: string }
+const UNITS: Level = { kind: 'units' }
 
 /**
  * A side's unit, chosen from every datasheet or, a level down, from one of the player's rosters.
  * Each level is its own list, opened in place of the last, so search starts afresh on every level.
  */
-export function SideUnitPicker({
+export const SideUnitPicker = memo(function SideUnitPicker({
   side,
   combatant,
+  unitName,
+  selectUnit,
   rosters,
   catalogue,
   factionIcon,
   loading,
 }: {
   side: string
-  combatant: Combatant
+  combatant: Combatant | null
+  unitName?: string
+  selectUnit: Combatant['selectUnit']
   rosters?: RosterNavigation
   catalogue: Pick<Parameters<typeof UnitPicker>[0], 'index' | 'emptyText' | 'extraBooks' | 'selected'>
   factionIcon: (catalogueId: string | undefined) => ReactNode
   loading: boolean
 }) {
-  const home: Level = combatant.roster ? { kind: 'roster', key: rosters?.current ?? '' } : { kind: 'units' }
+  const home: Level = combatant ? { kind: 'roster', key: rosters?.current ?? '' } : UNITS
   const [level, setLevel] = useState<Level | null>(null)
   const [opened, setOpened] = useState(false)
   const shown = level ?? home
@@ -68,7 +73,7 @@ export function SideUnitPicker({
     popupClassName: PICKER_POPUP,
     loading,
     defaultOpen: opened,
-    placeholder: combatant.unit?.name ?? 'Choose a unit',
+    placeholder: unitName ?? 'Choose a unit',
     onOpenChange: (open: boolean, reason: string) => {
       if (!open && reason !== 'item-press') settle()
     },
@@ -92,8 +97,8 @@ export function SideUnitPicker({
         }
         onUnitChange={(catalogueId, entryId) => {
           settle()
-          if (combatant.roster) rosters?.replace({ catalogueId, pick: { entryId, catalogueId }, rules: {} })
-          else combatant.selectUnit(catalogueId, entryId)
+          if (combatant) rosters?.replace({ catalogueId, pick: { entryId, catalogueId }, rules: {} })
+          else selectUnit(catalogueId, entryId)
         }}
       />
     )
@@ -136,12 +141,12 @@ export function SideUnitPicker({
       }
       onChoose={(index) => {
         settle()
-        if (current || !rosters) combatant.selectRosterUnit(index)
+        if (current || !rosters) combatant?.selectRosterUnit(index)
         else if (shown.kind === 'roster') rosters.chooseRosterUnit(shown.key, index)
       }}
     />
   )
-}
+})
 
 /**
  * One roster's units: this side's own from its loaded state, another's once it is opened and priced.
