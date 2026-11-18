@@ -15,7 +15,8 @@
       "infoPlist": {
         "NSAppTransportSecurity": {
           "NSAllowsLocalNetworking": true
-        }
+        },
+        "NSSupportsLiveActivities": true
       },
       "config": {
         "usesNonExemptEncryption": false
@@ -154,7 +155,8 @@
           "skipOnConflict": true
         }
       ],
-      "./plugins/withWatchCompanion"
+      "./plugins/withWatchCompanion",
+      "./plugins/withWidgets"
     ],
     "extra": {
       "eas": {
@@ -166,6 +168,10 @@
                 {
                   "targetName": "PraetoriumWatch",
                   "bundleIdentifier": "gg.praetorium.watch"
+                },
+                {
+                  "targetName": "PraetoriumWidgets",
+                  "bundleIdentifier": "gg.praetorium.widgets"
                 }
               ]
             }

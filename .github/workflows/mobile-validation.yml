@@ -13,7 +13,7 @@ on:
       - package.json
       - pnpm-lock.yaml
       - pnpm-workspace.yaml
-      - scripts/provisionWatchIos.js
+      - scripts/provisionExtensionsIos.js
       - scripts/iosDelivery.ts
       - scripts/iosDeliveryPlan.ts
       - src/**

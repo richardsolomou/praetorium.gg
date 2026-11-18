@@ -17,7 +17,7 @@ Android delivery stays disabled until the [physical-device gate](#physical-devic
 11. Enable Push Notifications for the App ID, add an APNs key as the Expo project's iOS push key, and from `mobile/` run `pnpm dlx eas-cli@23.2.0 credentials:configure-build -p ios -e production` with `EXPO_ASC_API_KEY_PATH`, `EXPO_ASC_KEY_ID`, `EXPO_ASC_ISSUER_ID`, `EXPO_APPLE_TEAM_ID`, `EXPO_APPLE_TEAM_TYPE`, and `EXPO_NO_CAPABILITY_SYNC=1` (capability sync tries to disable Sign in with Apple).
 12. Turn on Expo enhanced push security and set a Viewer-role Expo robot token as `EXPO_PUSH_ACCESS_TOKEN` in production.
 13. Before enabling Android delivery, upload the FCM V1 service-account key for the Firebase project in `mobile/google-services.json` to Expo.
-14. Provision the Watch target `gg.praetorium.watch` by dispatching `mobile.yml` with `-f provision_watch=true`.
+14. Provision the Watch and widget targets (`gg.praetorium.watch`, `gg.praetorium.widgets`) by dispatching `mobile.yml` with `-f provision_extensions=true`.
 
 ## Delivery
 

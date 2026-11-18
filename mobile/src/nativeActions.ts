@@ -187,7 +187,7 @@ export const NATIVE_BRIDGE_SCRIPT = `(() => {
 })(); true;`
 
 /** Adds or removes a capability that depends on what this device or build has, such as a paired watch. */
-export function nativeCapabilityScript(capability: 'screen-cover' | 'watch-battle', enabled: boolean) {
+export function nativeCapabilityScript(capability: 'battle-activity' | 'screen-cover' | 'watch-battle', enabled: boolean) {
   return `(() => {
     if (!window.PraetoriumNative) return;
     const capabilities = window.PraetoriumNative.capabilities.filter(value => value !== '${capability}');
