@@ -179,7 +179,8 @@ export const POSTHOG_BROWSER_OPTIONS = {
   },
 } satisfies Partial<PostHogConfig>
 
-const STREAM_OVERLAY = /^\/battles\/[^/]+\/overlay\/?$/
+/** A battle's stream overlay, laid over someone's video for a whole game with nobody using it. */
+export const STREAM_OVERLAY = /^\/battles\/[^/]+\/overlay\/?$/
 
 /**
  * The application's options over the recipe's. A stream overlay stays open for a whole game with nobody using it, so

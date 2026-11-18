@@ -2,7 +2,8 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { expect, it } from 'vitest'
-import { loadMfm, mfmAttribution, mfmCostRows, mfmEnhancementPoints, mfmPrice, type MfmIndex, type MfmUnit } from './mfm'
+import { loadMfm } from './mfm'
+import { mfmAttribution, mfmCostRows, mfmEnhancementPoints, mfmPrice, type MfmIndex, type MfmUnit } from '../shared/mfm'
 
 const sizedUnit: MfmUnit = {
   name: 'Squad',

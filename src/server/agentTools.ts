@@ -1,7 +1,7 @@
 import { z } from 'zod'
-import { withTextPointers, withoutTexts, type TextLocations } from '../core/sourceText'
+import { withTextPointers, withoutTexts } from '../core/sourceText'
 import { publishedTextLocations } from './publishedTextFiles'
-import { absoluteAgentLinks, absoluteAgentText } from './agentLinks'
+import { absoluteAgentLinks, absoluteAgentText, rewriteJsonText } from './agentLinks'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import type { CallToolResult, ToolAnnotations } from '@modelcontextprotocol/sdk/types.js'
 import {
@@ -37,18 +37,11 @@ async function published(result: CallToolResult): Promise<CallToolResult> {
   return {
     ...result,
     content: result.content.map((item) =>
-      item.type === 'text' ? { ...item, text: publishedText(item.text, locations) } : withoutTexts(item),
+      item.type === 'text'
+        ? { ...item, text: rewriteJsonText(item.text, (value) => withTextPointers(value, locations), withoutTexts) }
+        : withoutTexts(item),
     ),
     ...(result.structuredContent ? { structuredContent: withTextPointers(result.structuredContent, locations) } : {}),
-  }
-}
-
-function publishedText(text: string, locations: TextLocations) {
-  try {
-    const parsed: unknown = JSON.parse(text)
-    return JSON.stringify(withTextPointers(parsed, locations), null, text.startsWith('{\n  ') || text.startsWith('[\n  ') ? 2 : undefined)
-  } catch {
-    return withoutTexts(text)
   }
 }
 
@@ -58,6 +51,16 @@ async function mcpResult(execute: () => Promise<CallToolResult>): Promise<CallTo
     return await execute()
   } catch (error) {
     if (error instanceof Response) return responseToolError(error)
+    throw error
+  }
+}
+
+/** A refusal the site shows the player becomes the tool's answer; server faults still throw. */
+export async function refusalsAsErrors(work: () => Promise<CallToolResult>): Promise<CallToolResult> {
+  try {
+    return await work()
+  } catch (error) {
+    if (error instanceof Response && error.status < 500) return responseToolError(error)
     throw error
   }
 }

@@ -3,7 +3,7 @@ import type { FormatRuleId } from '../core/battle'
 import { catalogueChanges, changesTouching } from '../core/catalogueChanges'
 import { bookOf, points } from './catalogue.fixtures'
 import { calculateRosterAssessment, calculateRosterPrice, savedRosterPriceInput } from '../shared/pricing'
-import type { LoadedRules } from './rules'
+import type { LoadedRules } from '../shared/rules'
 import { rosterChangeWithoutPricing, rosterStatus, rosterVerdict } from './rosterStatus'
 
 const rulesWithout = {

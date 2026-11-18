@@ -175,7 +175,7 @@ export class GroupResultsService {
   async groupBattles(
     token: string,
     viewerId: string | null,
-    page: { before?: BattlesCursor; filter?: BattleFilter; order?: BattleOrder },
+    page: { before?: BattlesCursor | null; filter?: BattleFilter; order?: BattleOrder },
     factions: readonly BattleFaction[] = [],
   ) {
     const group = await this.groupService.group(token, viewerId)

@@ -365,7 +365,7 @@ class ResumeTest(unittest.TestCase):
 
 class CopyIntegrationTest(unittest.TestCase):
     def frozen(self, build, during_pause=lambda _source: None):
-        """Runs a real copy of the volume `build` fills; returns the archive's names and what was compared by content."""
+        """Runs a real copy of the volume `build` fills; returns the archive's files by name and what was compared by content."""
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             source, identity, work = root / "source", root / "keys", root / "work"
@@ -406,7 +406,13 @@ class CopyIntegrationTest(unittest.TestCase):
             ):
                 archive(CONFIG, work)
             with tarfile.open(work / "data.tar.gz", "r:gz") as copied:
-                return copied.getnames(), compared
+                files = {
+                    member.name: copied.extractfile(member).read()
+                    if member.isfile()
+                    else None
+                    for member in copied.getmembers()
+                }
+                return files, compared
 
     @staticmethod
     def settled_and_recent(source):
@@ -421,10 +427,10 @@ class CopyIntegrationTest(unittest.TestCase):
         self.assertIn("./settled", self.frozen(self.settled_and_recent)[0])
 
     def test_frozen_copy_drops_a_file_deleted_after_the_first_copy(self):
-        names, _ = self.frozen(
+        files, _ = self.frozen(
             self.settled_and_recent, lambda source: (source / "settled").unlink()
         )
-        self.assertNotIn("./settled", names)
+        self.assertNotIn("./settled", files)
 
     def test_server_logs_stay_out_of_the_archive(self):
         def with_logs(source):
@@ -434,49 +440,21 @@ class CopyIntegrationTest(unittest.TestCase):
         self.assertNotIn("./data/logs/server.log", self.frozen(with_logs)[0])
 
     def test_frozen_copy_detects_changed_bytes_with_unchanged_size_and_time(self):
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            source = root / "source"
-            identity = root / "keys"
-            work = root / "work"
-            for path in (source, identity, work):
-                path.mkdir()
-            value = source / "value"
-            value.write_bytes(b"before")
-            original = value.stat()
-            paused = False
-            subprocess_run = subprocess.run
+        before = {}
 
-            def execute(args, **kwargs):
-                if args[:2] == ["systemctl", "stop"]:
-                    return subprocess.CompletedProcess(args, 0)
-                return subprocess_run(args, **kwargs)
+        def build(source):
+            (source / "value").write_bytes(b"before")
+            before["stat"] = (source / "value").stat()
 
-            def command(args, **kwargs):
-                nonlocal paused
-                if args[0] == "du":
-                    return "0"
-                if args[:2] == ["docker", "pause"]:
-                    value.write_bytes(b"after!")
-                    os.utime(value, ns=(original.st_atime_ns, original.st_mtime_ns))
-                    paused = True
-                elif args[:2] == ["docker", "unpause"]:
-                    paused = False
-                elif args[:2] == ["docker", "inspect"]:
-                    return str(paused).lower()
-                elif args[0] == "tar":
-                    return run_command(args, **kwargs)
-                return ""
+        def rewrite_in_place(source):
+            (source / "value").write_bytes(b"after!")
+            os.utime(
+                source / "value",
+                ns=(before["stat"].st_atime_ns, before["stat"].st_mtime_ns),
+            )
 
-            with patch(
-                "backupSpacetime.container_volumes",
-                return_value=("container", {"data": source, "identity": identity}),
-            ), patch("backupSpacetime.run_command", side_effect=command), patch(
-                "backupSpacetime.subprocess.run", side_effect=execute
-            ):
-                archive(CONFIG, work)
-            with tarfile.open(work / "data.tar.gz", "r:gz") as copied:
-                self.assertEqual(copied.extractfile("./value").read(), b"after!")
+        files, _ = self.frozen(build, rewrite_in_place)
+        self.assertEqual(files["./value"], b"after!")
 
 
 if __name__ == "__main__":

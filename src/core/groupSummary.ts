@@ -1,3 +1,4 @@
+import { DAY_MS } from './listFilter'
 import { battleOutcome, counted, type BattleOutcome, type StandingBattle, type StandingFaction } from './standings'
 
 const FORM_LENGTH = 5
@@ -6,7 +7,6 @@ const RIVALRIES_SHOWN = 6
 const RECENT_DAYS = 30
 /** A battle still marked as in play but untouched for longer than this has most likely been left unfinished. */
 const LIVE_DAYS = 7
-const DAY_MS = 24 * 60 * 60 * 1000
 
 export type Rivalry = { a: string; b: string; battles: number; aWon: number; bWon: number; drawn: number; lastPlayed: number }
 

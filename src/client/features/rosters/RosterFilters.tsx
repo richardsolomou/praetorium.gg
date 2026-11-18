@@ -1,4 +1,6 @@
 import type { FilterDimension } from '../../components/FilterBar'
+import { ungrouped } from '../../components/SearchableSelect'
+import { countBy } from '../../../core/collections'
 import { ROSTER_POINTS_BANDS } from '../../../core/rosterDiscovery'
 import { ArrowDownUp, Rows3 } from 'lucide-react'
 import { Fragment } from 'react'
@@ -7,6 +9,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenu
 import type { RosterGrouping } from '../../../core/rosterGrouping'
 import type { RosterSort } from '../../../core/rosterSort'
 import { DropdownMenuLabel, DropdownMenuRadioItem } from '../../components/Menu'
+import { factionSelectGroups } from './builder/factions'
 
 const SORT_GROUPS: { label: string; items: { label: string; value: RosterSort }[] }[] = [
   {
@@ -121,3 +124,57 @@ export const ROSTER_ASSESSMENT_DIMENSIONS: FilterDimension[] = [
   },
   ROSTER_POINTS_DIMENSION,
 ]
+
+type FilterableFaction = Parameters<typeof factionSelectGroups>[0][number] & {
+  slug: string
+  detachments: readonly { id: string; name: string }[]
+}
+
+/** The factions `rosters` are built for, each saying how many, chosen by slug. */
+export function rosterFactionDimension<T extends FilterableFaction>(
+  rosters: readonly { catalogueId: string }[],
+  factions: readonly T[],
+  favourites: ReadonlySet<string>,
+): FilterDimension {
+  const perFaction = countBy(rosters, (roster) => roster.catalogueId)
+  return {
+    key: 'faction',
+    label: 'Faction',
+    pinned: true,
+    groups: factionSelectGroups(
+      factions.filter((faction) => perFaction.has(faction.id)),
+      favourites,
+    ).map((group) => ({
+      ...group,
+      items: group.items.map((item) => ({
+        ...item,
+        value: factions.find((faction) => faction.id === item.value)?.slug ?? item.value,
+        detail: String(perFaction.get(item.value) ?? 0),
+      })),
+    })),
+  }
+}
+
+/** The detachments `rosters` use, by name, each saying how many. */
+export function rosterDetachmentDimension(
+  rosters: readonly { detachmentIds: readonly string[] }[],
+  factions: readonly FilterableFaction[],
+): FilterDimension {
+  const perDetachment = countBy(
+    rosters.flatMap((roster) => roster.detachmentIds),
+    (id) => id,
+  )
+  const detachmentNames = new Map(
+    factions.flatMap((faction) => faction.detachments.map((detachment) => [detachment.id, detachment.name] as const)),
+  )
+  return {
+    key: 'detachment',
+    label: 'Detachment',
+    pinned: true,
+    groups: ungrouped(
+      [...perDetachment]
+        .map(([id, count]) => ({ label: detachmentNames.get(id) ?? id, value: id, detail: String(count) }))
+        .toSorted((left, right) => left.label.localeCompare(right.label)),
+    ),
+  }
+}

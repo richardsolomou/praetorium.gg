@@ -5,7 +5,7 @@ import { bookOf, card, points, withCards } from './catalogue.fixtures'
 import { priceOf, rosterPrices } from '../shared/catalogueUnit'
 import { calculateRosterAssessment, calculateRosterPrice, calculateRosterTotals, savedRosterPriceInput } from '../shared/pricing'
 import { unitPointAdjustment } from '../shared/unitPoints'
-import { mfmWargearOptionPoints } from './mfm'
+import { mfmWargearOptionPoints } from '../shared/mfm'
 
 const loaded = bookOf({
   selectionEntries: [

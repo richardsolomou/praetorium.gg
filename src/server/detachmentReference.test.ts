@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import type { LoadedRules } from './rules'
+import type { LoadedRules } from '../shared/rules'
 import { bookOf, withCards } from './catalogue.fixtures'
 import { detachmentReference } from '../shared/detachmentReference'
 

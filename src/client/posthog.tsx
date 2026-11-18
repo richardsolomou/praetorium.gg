@@ -32,8 +32,3 @@ export function PostHogIntegration({ children }: { children: ReactNode }) {
     </PostHogProvider>
   )
 }
-
-/** The router's `defaultOnCatch`, for routes with an `errorComponent`, whose boundary catches the error before `PostHogIntegration`'s. */
-export function captureRenderError(error: unknown) {
-  if (posthog.__loaded) posthog.captureException(error)
-}

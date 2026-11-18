@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { buildIndex, type CatalogueFile } from '../core/catalogue'
 import { buildUnit } from '../core/roster'
 import { wargearOf } from '../core/wargear'
-import { descriptionKey } from './datacards'
+import { descriptionKey } from '../shared/datacards'
 import {
   exportRosterFile,
   importRosterExchange,
@@ -13,7 +13,7 @@ import {
   importRosterCatalogueId,
   matchesImportFaction,
 } from '../shared/rosterFiles'
-import type { LoadedCatalogue } from './catalogueIndex'
+import type { LoadedCatalogue } from '../shared/catalogueIndex'
 import { calculateRosterPrice } from '../shared/pricing'
 
 const system: CatalogueFile = { gameSystem: { id: 'gs', name: 'Test', costTypes: [{ id: 'pts', name: 'pts' }] } }

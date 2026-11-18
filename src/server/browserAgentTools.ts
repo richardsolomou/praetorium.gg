@@ -12,7 +12,8 @@ import {
   type submitSchema,
 } from '../contracts/schemas'
 import { currentUser } from './playerSession'
-import { ownTable, readEvent } from './organisedPlayTools'
+import { ownTable } from '../core/sealedEvent'
+import { readEvent } from './organisedPlayTools'
 
 function browserTools(userId: string | null) {
   const tools = createAgentTools(userId)

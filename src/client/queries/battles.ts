@@ -68,7 +68,7 @@ export function battleFeedQuery<Page extends { nextCursor: BattlesCursor | null 
     queryFn: ({ pageParam }) => read(pageParam).then(requirePage<Page>('battle feed')),
     initialPageParam: null as BattlesCursor | null,
     // A cached feed can hold a missing page.
-    getNextPageParam: (page) => (page as Page | undefined)?.nextCursor ?? undefined,
+    getNextPageParam: (page) => (page as Page | undefined)?.nextCursor,
     staleTime: SSR_STALE_TIME,
     ...(refetchInterval === undefined ? {} : { refetchInterval }),
   })

@@ -27,6 +27,7 @@ import type { RosterPick } from './roster'
 import { teamDisposition, teamDispositionChoices } from './teamDisposition'
 import { teamWarlord, teamWarlordChoices } from './teamWarlord'
 import { formatList } from './text'
+import { DAY_MS } from './listFilter'
 
 export const SEALED_EVENT_VISIBILITIES = ['public', 'private'] as const
 export type SealedEventVisibility = (typeof SEALED_EVENT_VISIBILITIES)[number]
@@ -699,8 +700,6 @@ export function sealedEventTitle(
   return withGroup && event.group ? `${event.group.name}: ${game}` : game
 }
 
-const DAY_MS = 24 * 60 * 60 * 1000
-
 type DatedEvent = { playsAt: number | null; createdAt: number }
 
 /**
@@ -714,4 +713,16 @@ export function byTournamentDate(now: number) {
     if (order || one.playsAt === null || other.playsAt === null) return order || other.createdAt - one.createdAt
     return stage(one) === 0 ? one.playsAt - other.playsAt : other.playsAt - one.playsAt
   }
+}
+
+/** The latest Swiss round paired, 0 before the first. */
+export const latestRound = (pairings: readonly { round: number }[]) => Math.max(0, ...pairings.map((pairing) => pairing.round))
+
+/** A player's table in a Swiss round, the latest unless `round` names another. */
+export function ownTable<T extends { round: number; aId: string; bId: string | null; battleToken: string | null }>(
+  sealedEvent: { pairings: readonly T[] },
+  userId: string | null,
+  round = latestRound(sealedEvent.pairings),
+) {
+  return sealedEvent.pairings.find((pairing) => pairing.round === round && (pairing.aId === userId || pairing.bId === userId))
 }

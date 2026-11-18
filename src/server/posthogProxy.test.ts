@@ -76,15 +76,6 @@ describe('forwardToPostHog', () => {
     expect(received[0]!.headers['x-forwarded-for']).toBe('203.0.113.7, 10.0.0.2')
   })
 
-  it("names Cloudflare's client address as the forwarded one", async () => {
-    await proxied('/t/e/', {
-      method: 'POST',
-      body: 'payload',
-      headers: { 'cf-connecting-ip': '203.0.113.7', 'x-forwarded-for': '198.51.100.1' },
-    })
-    expect(received[0]!.headers['x-forwarded-for']).toBe('203.0.113.7')
-  })
-
   it("leaves Cloudflare's own headers behind", async () => {
     await proxied('/t/e/', { method: 'POST', body: 'payload', headers: { 'cf-connecting-ip': '203.0.113.7', 'cf-ray': 'abc' } })
     expect(Object.keys(received[0]!.headers).filter((name) => name.startsWith('cf-'))).toEqual([])

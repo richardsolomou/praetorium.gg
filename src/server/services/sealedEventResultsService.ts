@@ -1,11 +1,12 @@
 import { battleFilterActive, type BattleFilter, type BattleOrder } from '../../core/battleFilter'
 import { battleOutcome, sideScore, type StandingBattle } from '../../core/standings'
 import { swissPairings, swissStandings, type SwissMatch } from '../../core/swiss'
+import { latestRound } from '../../core/sealedEvent'
 import { SEALED_EVENT_RESULTS_BATTLE_LIMIT, sealedEventResults } from '../../core/sealedEventResults'
 import type { BattlesCursor } from '../../contracts/battles'
 import type { BattleFaction } from '../../shared/battleSummary'
 import type { Notifier } from '../pushNotifier'
-import type { BattleMissionRules } from '../rules'
+import type { BattleMissionRules } from '../../shared/rules'
 import type { RepositoryPort } from '../spacetimeRepository'
 import type { BattleFeedService } from './battleFeedService'
 import { foldHistory, mayWatch, mustFindBattle, reportScore } from './battleHistory'
@@ -23,7 +24,7 @@ export class SealedEventResultsService {
   async sealedEventBattles(
     sealedEventToken: string,
     eventToken: string,
-    page: { limit: number; before?: BattlesCursor; filter?: BattleFilter; order?: BattleOrder },
+    page: { limit: number; before?: BattlesCursor | null; filter?: BattleFilter; order?: BattleOrder },
     rules?: BattleMissionRules | null,
     factions?: readonly BattleFaction[],
     viewerId: string | null = null,
@@ -105,7 +106,7 @@ export class SealedEventResultsService {
     if (nextCursor !== null) throw new Response('this tournament has too many battles to pair its next round', { status: 409 })
     const players = sealedEvent.entries.filter((entry) => entry.status === 'accepted' && entry.submitted).map((entry) => entry.userId)
     const matches = swissMatches(sealedEvent.pairings, battles)
-    const round = Math.max(0, ...sealedEvent.pairings.map((pairing) => pairing.round)) + 1
+    const round = latestRound(sealedEvent.pairings) + 1
     const result = await this.repository.pairSealedEventRound({
       token: sealedEventToken,
       eventToken: sealedEvent.eventToken,

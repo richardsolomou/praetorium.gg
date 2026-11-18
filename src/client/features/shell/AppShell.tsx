@@ -25,7 +25,7 @@ import { type ReactElement, useEffect, useLayoutEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { buttonClass } from '../../components/buttonClass'
 import { ROSTER_WORKSPACE, followRailState, setRailCollapsed, useRailCollapsed } from './railState'
-import { setImpersonating } from '../../../posthog'
+import { STREAM_OVERLAY, setImpersonating } from '../../../posthog'
 import { Account } from './Account'
 import { NoticeSync, NotificationsButton } from '../notifications/Notifications'
 import { GlobalSearch, GlobalSearchProvider } from './GlobalSearch'
@@ -34,6 +34,7 @@ import { WhatsNewLink, WhatsNewNotice } from './WhatsNew'
 import { Toaster } from '@/components/ui/sonner'
 import { NavigationProgress } from './NavigationProgress'
 import { useMediaQuery } from '../../useMediaQuery'
+import { PHONE } from './useCompactChrome'
 import { ImpersonationBanner } from './ImpersonationBanner'
 import { NativeAppNavigation } from './NativeAppNavigation'
 import { SupportIdentity } from '../feedback/support'
@@ -299,10 +300,8 @@ function SiteFooter() {
   )
 }
 
-/** A stream overlay is laid over someone's video, so it brings neither the app around it nor a background of its own. */
-const STREAM_OVERLAY = /^\/battles\/[^/]+\/overlay\/?$/
-
 export function AppShell() {
+  // A stream overlay brings neither the app around it nor a background of its own.
   const overlay = useLocation({ select: (location) => STREAM_OVERLAY.test(location.pathname) })
   // Browser tests wait for this before interacting: a click before hydration does nothing.
   useEffect(() => document.documentElement.setAttribute('data-hydrated', ''), [])
@@ -334,7 +333,7 @@ function AppFrame() {
   const immersive = useRouterState({
     select: (state) => ROSTER_WORKSPACE.test(state.resolvedLocation?.pathname ?? state.location.pathname),
   })
-  const phone = useMediaQuery('(max-width: 859px)')
+  const phone = useMediaQuery(PHONE)
   const { data: me } = useQuery(meQuery())
   const frontDoor = signingIn || (home && me === null)
   const impersonating = Boolean(me?.impersonatedBy)

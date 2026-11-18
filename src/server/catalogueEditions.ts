@@ -2,9 +2,11 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { hash } from 'node:crypto'
 import { catalogueEditionId, editionCatalogueId, editionLabel, rulesVersionLabel } from '../core/catalogueEdition'
-import { loadCatalogue, loadCatalogueSteps, type LoadedCatalogue } from './catalogueIndex'
+import { loadCatalogue, loadCatalogueSteps } from './catalogueIndex'
+import { type LoadedCatalogue } from '../shared/catalogueIndex'
 import { editionDirectory, readCatalogueComposition } from './catalogueComposition'
-import { loadRules, loadRulesSteps, type LoadedRules } from './rules'
+import { loadRules, loadRulesSteps } from './rules'
+import { type LoadedRules } from '../shared/rules'
 import { factionsFor } from '../shared/factionReferences'
 import {
   CANONICAL_CATALOGUE_COMPILER_VERSION,

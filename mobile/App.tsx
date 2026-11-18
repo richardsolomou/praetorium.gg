@@ -31,7 +31,7 @@ import {
   View,
 } from 'react-native'
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
-import { WebView } from 'react-native-webview'
+import { WebView, type WebViewProps } from 'react-native-webview'
 import {
   appShellActivityChanged,
   appShellRenderChanged,
@@ -629,6 +629,12 @@ function AppShell() {
   const [mountedSnapshot, setMountedSnapshot] = useState({ key: webViewKey, script: snapshotScript })
   if (mountedSnapshot.key !== webViewKey) setMountedSnapshot({ key: webViewKey, script: snapshotScript })
 
+  const bridgeScript = `${NATIVE_BRIDGE_SCRIPT}\n${nativeCapabilityScript('watch-battle', watchAvailable)}\n${nativeCapabilityScript('battle-activity', activityEnabled)}\n${nativeCapabilityScript('home-widget', homeWidgetAvailable)}\n${nativeCapabilityScript('screen-cover', canGateBackSwipe)}`
+  const refreshCapabilities = () =>
+    webView.current?.injectJavaScript(
+      `${nativeCapabilityScript('watch-battle', isWatchCompanionAvailable())}\n${nativeCapabilityScript('battle-activity', activityEnabled)}`,
+    )
+
   return (
     <SafeAreaView edges={['top', 'right', 'bottom', 'left']} style={styles.safeArea}>
       {/* oxlint-disable-next-line react/style-prop-object -- Expo's style prop selects a color scheme. */}
@@ -637,23 +643,11 @@ function AppShell() {
         <WebView<object>
           key={`saved-${offlineRenderKey}`}
           ref={webView}
+          {...WEB_VIEW_PROPS}
           source={{ html: offlineView.html, baseUrl: APP_URL + offlineView.path }}
-          style={styles.webView}
-          originWhitelist={['*']}
-          applicationNameForUserAgent={NATIVE_USER_AGENT}
-          sharedCookiesEnabled
-          thirdPartyCookiesEnabled={false}
           allowsBackForwardNavigationGestures={false}
-          allowsLinkPreview={false}
-          decelerationRate={WEB_DECELERATION}
-          setBuiltInZoomControls={false}
-          setSupportMultipleWindows
-          injectedJavaScriptBeforeContentLoaded={`${mountedSnapshot.script}\nwindow.PraetoriumOfflineStart=${JSON.stringify(offlineView.path)};\n${NATIVE_BRIDGE_SCRIPT}\n${nativeCapabilityScript('watch-battle', watchAvailable)}\n${nativeCapabilityScript('battle-activity', activityEnabled)}\n${nativeCapabilityScript('home-widget', homeWidgetAvailable)}\n${nativeCapabilityScript('screen-cover', canGateBackSwipe)}`}
-          onLoad={() =>
-            webView.current?.injectJavaScript(
-              `${nativeCapabilityScript('watch-battle', isWatchCompanionAvailable())}\n${nativeCapabilityScript('battle-activity', activityEnabled)}`,
-            )
-          }
+          injectedJavaScriptBeforeContentLoaded={`${mountedSnapshot.script}\nwindow.PraetoriumOfflineStart=${JSON.stringify(offlineView.path)};\n${bridgeScript}`}
+          onLoad={refreshCapabilities}
           onMessage={({ nativeEvent }) => {
             try {
               const message = JSON.parse(nativeEvent.data) as { type?: unknown; path?: unknown }
@@ -681,19 +675,11 @@ function AppShell() {
         <WebView<object>
           key={renderedShell.renderKey}
           ref={webView}
+          {...WEB_VIEW_PROPS}
           source={{ uri: renderedShell.sourceUrl }}
-          style={styles.webView}
           containerStyle={styles.webView}
-          originWhitelist={['*']}
-          applicationNameForUserAgent={NATIVE_USER_AGENT}
-          injectedJavaScriptBeforeContentLoaded={`${referenceCacheScript}\n${mountedSnapshot.script}\n${NATIVE_BRIDGE_SCRIPT}\n${nativeCapabilityScript('watch-battle', watchAvailable)}\n${nativeCapabilityScript('battle-activity', activityEnabled)}\n${nativeCapabilityScript('home-widget', homeWidgetAvailable)}\n${nativeCapabilityScript('screen-cover', canGateBackSwipe)}\n${nativeAuthCompletionScript()}`}
-          sharedCookiesEnabled
-          thirdPartyCookiesEnabled={false}
+          injectedJavaScriptBeforeContentLoaded={`${referenceCacheScript}\n${mountedSnapshot.script}\n${bridgeScript}\n${nativeAuthCompletionScript()}`}
           allowsBackForwardNavigationGestures={backSwipeGated || historyBack}
-          allowsLinkPreview={false}
-          decelerationRate={WEB_DECELERATION}
-          setBuiltInZoomControls={false}
-          setSupportMultipleWindows
           startInLoadingState
           renderLoading={() => <LoadingView />}
           renderError={() => <ErrorView retry={() => retryOnline()} />}
@@ -704,9 +690,7 @@ function AppShell() {
           }}
           onLoad={({ nativeEvent }) => {
             gateBackSwipe()
-            webView.current?.injectJavaScript(
-              `${nativeCapabilityScript('watch-battle', isWatchCompanionAvailable())}\n${nativeCapabilityScript('battle-activity', activityEnabled)}`,
-            )
+            refreshCapabilities()
             mainFrameUrl.current = nativeEvent.url
             finishWebLoad(nativeEvent.url)
           }}
@@ -894,3 +878,15 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 })
+
+const WEB_VIEW_PROPS = {
+  style: styles.webView,
+  originWhitelist: ['*'],
+  applicationNameForUserAgent: NATIVE_USER_AGENT,
+  sharedCookiesEnabled: true,
+  thirdPartyCookiesEnabled: false,
+  allowsLinkPreview: false,
+  decelerationRate: WEB_DECELERATION,
+  setBuiltInZoomControls: false,
+  setSupportMultipleWindows: true,
+} satisfies WebViewProps

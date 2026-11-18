@@ -1,7 +1,7 @@
 import { useClientValue } from '../../useClientValue'
 import { useMediaQuery } from '../../useMediaQuery'
 
-const PHONE = '(max-width: 859px)'
+export const PHONE = '(max-width: 859px)'
 const nativeApp = () => document.documentElement.dataset.nativeApp === 'true'
 
 /** Whether the compact application chrome is on screen: a phone-width website, or a native application at any width. */

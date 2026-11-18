@@ -4,7 +4,7 @@ import { Dices, Lock, RotateCcw, Shuffle, Swords } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { IconAction } from './SealedEventEntrants'
-import type { SealedEventEntryView } from '../../../core/sealedEvent'
+import { latestRound, type SealedEventEntryView } from '../../../core/sealedEvent'
 import { rematches } from '../../../core/swiss'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { Problem } from '../../components/Problem'
@@ -31,7 +31,7 @@ export function forfeited(pairing: Pick<Pairing, 'aId' | 'bId'>, entries: readon
 
 /** The rounds still to pair and whether the latest has every table finished, from the battles the page has loaded. */
 export function swissProgress(sealedEvent: Pick<SealedEvent, 'pairings' | 'rounds' | 'entries'>, battles: readonly TableBattle[]) {
-  const round = Math.max(0, ...sealedEvent.pairings.map((pairing) => pairing.round))
+  const round = latestRound(sealedEvent.pairings)
   const current = sealedEvent.pairings.filter((pairing) => pairing.round === round)
   const finished = new Set(battles.filter((battle) => battle.status === 'finished').map((battle) => battle.token))
   const open = current.filter(
@@ -39,12 +39,6 @@ export function swissProgress(sealedEvent: Pick<SealedEvent, 'pairings' | 'round
       pairing.bId !== null && !(pairing.battleToken && finished.has(pairing.battleToken)) && !forfeited(pairing, sealedEvent.entries),
   )
   return { round, rounds: sealedEvent.rounds ?? 0, current, open, complete: open.length === 0 }
-}
-
-/** The viewer's table in the latest round, if they have one. */
-export function ownTable(sealedEvent: Pick<SealedEvent, 'pairings'>, viewerId: string | null) {
-  const round = Math.max(0, ...sealedEvent.pairings.map((pairing) => pairing.round))
-  return sealedEvent.pairings.find((pairing) => pairing.round === round && (pairing.aId === viewerId || pairing.bId === viewerId))
 }
 
 /**

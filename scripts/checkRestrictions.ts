@@ -1,7 +1,8 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { baselineShortfall } from './lib/baselines'
-import { factionRestrictionCoverageIssues, loadDatacards } from '../src/server/datacards'
+import { loadDatacards } from '../src/server/datacards'
+import { factionRestrictionCoverageIssues } from '../src/shared/datacards'
 import { catalogueDataDirectory } from './lib/catalogueFiles'
 
 const directory = catalogueDataDirectory()

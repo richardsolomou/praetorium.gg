@@ -135,7 +135,7 @@ export function parseNativeActionRequest(message: string): NativeActionRequest |
 }
 
 export const NATIVE_BRIDGE_SCRIPT = `(() => {
-  const capabilities = ['app-navigation', 'app-snapshot', 'local-state', 'back-gesture', 'battle-active', 'github-auth', 'haptic', 'haptic-styles', 'notice-sync', 'notifications', 'offline-reference', 'share'];
+  const capabilities = ['app-snapshot', 'local-state', 'back-gesture', 'battle-active', 'github-auth', 'haptic', 'haptic-styles', 'notice-sync', 'notifications', 'offline-reference', 'share'];
   window.PraetoriumNative = Object.freeze({ bridgeVersion: 3, capabilities });
   const disableZoom = () => {
     const viewport = document.querySelector('meta[name="viewport"]');

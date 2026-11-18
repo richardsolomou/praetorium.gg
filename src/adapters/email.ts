@@ -34,9 +34,13 @@ export function emailDelivery(environment: NodeJS.ProcessEnv = process.env): Ema
 
   return {
     async send({ template, to, distinctId, data, idempotencyKey }) {
-      const templateId = EMAIL_TEMPLATES[template]
-      if (!templateId) throw new Error(`EMAIL_TEMPLATES.${template} has no PostHog template id`)
-      const { error } = await posthog.emails.send({ templateId, to, distinctId, templateData: data, idempotencyKey })
+      const { error } = await posthog.emails.send({
+        templateId: EMAIL_TEMPLATES[template],
+        to,
+        distinctId,
+        templateData: data,
+        idempotencyKey,
+      })
       if (error) throw error
     },
   }

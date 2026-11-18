@@ -2,7 +2,8 @@ import fs from 'node:fs'
 import { beforeAll, describe, expect, it } from 'vitest'
 import { attachmentOf } from '../src/core/attach'
 import { nameOf } from '../src/core/catalogue'
-import { loadCatalogue, type LoadedCatalogue } from '../src/server/catalogueIndex'
+import { loadCatalogue } from '../src/server/catalogueIndex'
+import { type LoadedCatalogue } from '../src/shared/catalogueIndex'
 
 const source = process.env.CATALOGUE_DIR ?? 'catalogue-data'
 

@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { authFailureMessage } from './authFailures'
+import { useHydrated } from './useClientValue'
 
 export type AuthActionResult<T, Failure = unknown> = { data?: T | null; error?: Failure | null }
 
 const defaultFailureMessage = (failure: unknown) => authFailureMessage(failure, 'That did not work. Try again.')
-const subscribeNever = () => () => undefined
 
 /**
  * Pending and error state for one Better Auth client call, such as a sign-in form. `busy` is also true before hydration,
@@ -12,28 +12,17 @@ const subscribeNever = () => () => undefined
  */
 export function useAuthAction(options: { failureMessage?: (failure: unknown) => string } = {}) {
   const failureMessage = options.failureMessage ?? defaultFailureMessage
-  const hydrated = useSyncExternalStore(
-    subscribeNever,
-    () => true,
-    () => false,
-  )
+  const hydrated = useHydrated()
   const [state, setState] = useState<{ running: boolean; error?: string }>({ running: false })
-  const mounted = useRef(true)
   const latest = useRef(0)
-  useEffect(() => {
-    mounted.current = true
-    return () => {
-      mounted.current = false
-    }
-  }, [])
 
   const clearError = useCallback(() => setState((current) => ({ running: current.running })), [])
   const run = useCallback(
     async <T, Failure>(work: () => Promise<AuthActionResult<T, Failure>>): Promise<AuthActionResult<T>> => {
       const call = ++latest.current
-      // Only the latest call of a mounted component may change the state, so a slow earlier answer cannot overwrite it.
+      // Only the latest call may change the state, so a slow earlier answer cannot overwrite it.
       const settle = (error?: string) => {
-        if (mounted.current && call === latest.current) setState(error ? { running: false, error } : { running: false })
+        if (call === latest.current) setState(error ? { running: false, error } : { running: false })
       }
       setState({ running: true })
       try {

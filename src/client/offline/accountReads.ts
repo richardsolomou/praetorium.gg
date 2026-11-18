@@ -2,13 +2,13 @@ import * as server from '../../server/functions'
 import { queryResource } from '../../contracts/localState'
 import { favouriteFactionsKey, favouriteDetachmentsKey, favouriteDatasheetsKey, onboardingKey } from '../queries/queryKeys'
 import { localOwner, localClient, localDocument, hasLocalChanges, rememberDocument } from './localRuntime'
-import { accountChanged, cachedRead } from './reads'
+import { accountChanged, cachedRead, isOffline } from './reads'
 
 export async function accountRead<T>(key: readonly unknown[], online: () => Promise<T>) {
   const owner = localOwner()?.id
   const resource = queryResource(key)
   const local = await localDocument<T>(resource)
-  if (local !== undefined && (!navigator.onLine || (await hasLocalChanges(resource)))) return local
+  if (local !== undefined && (isOffline() || (await hasLocalChanges(resource)))) return local
   const result = await cachedRead(key, online, { updateCache: false })
   const saved = await rememberDocument(resource, result, null, owner, undefined, JSON.stringify({ data: local }))
   if (localOwner()?.id !== owner) throw accountChanged()

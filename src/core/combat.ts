@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { RecentlyUsed, remember } from './collections'
+import { RecentlyUsed, remember, sameSet } from './collections'
 
 export const MAX_COMBAT_MODELS = 100
 export const COMBAT_PHASES = ['ranged', 'melee'] as const
@@ -1266,7 +1266,7 @@ function resolveSequence(
       const standing = (unit: string) => base.target.groups.some((group, index) => group.unit === unit && index >= layout.group[at]!)
       // An ability a destroyed unit shared lasts until the attacks that destroyed it resolve, so it ends between phases.
       const lost = named.filter((unit) => !standing(unit))
-      const variant = variants.findIndex(({ units }) => units.length === lost.length && lost.every((unit) => units.includes(unit)))
+      const variant = variants.findIndex(({ units }) => sameSet(lost, units))
       const input = variant < 0 ? base : variants[variant]!.input
       const varies = input.weapons.some((weapon) => weapon.blast || weapon.cleave)
       const models = Math.max(0, attackModels - (varies ? layout.killed[at]! : 0))

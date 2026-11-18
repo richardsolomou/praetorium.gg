@@ -9,14 +9,13 @@ import { joinKey } from '../core/text'
 import { fuzzyNameScore } from '../core/datasheetSearch'
 import { datasheetPageBySlug } from '../core/datasheetSlug'
 import { unitsIn } from '../shared/cataloguePicker'
-import { entryFactions } from '../shared/catalogueIndex'
-import type { LoadedCatalogue } from './catalogueIndex'
+import { entryFactions, type LoadedCatalogue } from '../shared/catalogueIndex'
 import { factionDisplayName } from '../shared/factionNames'
 import { dispositionMatchups, gameReferencesFor, matchupMission } from '../shared/gameReferences'
 import { detachmentsOffering, type DispositionFaction } from '../shared/factionReferences'
 import { terrainMatchupIds } from '../contracts/terrainReference'
 import { datasheetRoute, type ReferenceCorpus } from './referenceCorpus'
-import type { LoadedRules } from './rules'
+import type { LoadedRules } from '../shared/rules'
 
 export type ReferenceFaction = { id: string; slug: string; name: string; datasheets: number; detachments: number }
 

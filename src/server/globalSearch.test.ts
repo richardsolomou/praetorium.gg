@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { categories, points, shelfOf } from './catalogue.fixtures'
 import { compiledGlobalSearchIndex, searchEverything } from './globalSearch'
-import type { LoadedRules } from './rules'
+import type { LoadedRules } from '../shared/rules'
 import type { RuleDocument } from '../contracts/rules'
 
 it('links preview search results through the stable faction path', () => {

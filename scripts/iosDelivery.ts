@@ -1,10 +1,9 @@
-import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { createRequire, isBuiltin } from 'node:module'
 import path from 'node:path'
 import { parse, parseAllDocuments } from 'yaml'
 import { isEntryPoint } from './lib/entryPoint.ts'
-import { isAncestor } from './lib/git.ts'
+import { git, isAncestor } from './lib/git.ts'
 import { stepOutput } from './lib/stepOutput.ts'
 
 // The shell pins TypeScript 6; the web compiler no longer exposes this parser API.
@@ -35,11 +34,9 @@ export function mobileInput(file: string) {
 }
 
 export function iosDeliveryFingerprint(root: string, revision: string, env: NodeJS.ProcessEnv = process.env) {
-  const git = (...args: string[]) =>
-    execFileSync('git', args, { cwd: root, encoding: 'utf8', maxBuffer: 8_000_000, stdio: ['ignore', 'pipe', 'pipe'] })
-  const commit = git('rev-parse', '--verify', '--end-of-options', `${revision}^{commit}`).trim()
+  const commit = git(root, 'rev-parse', '--verify', '--end-of-options', `${revision}^{commit}`).trim()
   const files = new Map(
-    git('ls-tree', '-r', '-z', commit)
+    git(root, 'ls-tree', '-r', '-z', commit)
       .split('\0')
       .filter(Boolean)
       .map((entry) => {
@@ -47,7 +44,7 @@ export function iosDeliveryFingerprint(root: string, revision: string, env: Node
         return [file!, metadata!.split(' ')[2]!]
       }),
   )
-  const read = (file: string) => git('show', `${commit}:${file}`)
+  const read = (file: string) => git(root, 'show', `${commit}:${file}`)
   const inputs = new Set([...files.keys()].filter(mobileInput))
   const importedPackages = new Map<string, Set<string>>()
   for (const file of inputs) {

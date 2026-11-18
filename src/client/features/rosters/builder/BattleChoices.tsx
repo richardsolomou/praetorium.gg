@@ -20,6 +20,7 @@ import { combatantTexts, readableRules } from '../../simulator/readableRules'
 import { HoverTooltip } from '../../../components/HoverTooltip'
 import { RuleText } from '../../../components/RuleText'
 import { pressedClass } from '../../simulator/CombatControls'
+import { useStableValue } from '../../../useStableValue'
 
 // Picks outlive a pane that closes, as the battle's unit dialog does between units, until the page reloads.
 const picksByScope = new Map<string, Readonly<Record<string, readonly string[]>>>()
@@ -104,19 +105,16 @@ export function useBattleChoices({
   // A unit's own pick belongs to its place in this line-up, so adding, removing or moving a unit drops it rather than moving it.
   const lineUp = picks.map((pick) => pick.entryId).join(',')
   const keyOf = (choice: BattleChoice) => (choice.armyWide ? choice.rule.name : `${lineUp}#${pickIndex}:${choice.rule.name}`)
-  const picked: Record<string, readonly string[]> = Object.fromEntries(
-    choices.flatMap((choice) => (chosen[keyOf(choice)]?.length ? [[choice.rule.name, chosen[keyOf(choice)]!]] : [])),
+  const picked = useStableValue<Record<string, readonly string[]>>(
+    Object.fromEntries(choices.flatMap((choice) => (chosen[keyOf(choice)]?.length ? [[choice.rule.name, chosen[keyOf(choice)]!]] : []))),
   )
-  const pickedKey = JSON.stringify(picked)
   const active = useMemo(
     (): ActiveCombatRule[] =>
       choices.flatMap((choice) => {
         const effects = battleChoiceActive(choice, picked[choice.rule.name] ?? [])
         return effects ? [{ name: choice.rule.name, appliedAs: choice.rule.appliedAs, effects }] : []
       }),
-    // `picked` is rebuilt each render; its contents are what matter.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [choices, pickedKey],
+    [choices, picked],
   )
   const weaponAbilityRules = data?.weaponAbilityRules
   const keywordRules = useCallback(

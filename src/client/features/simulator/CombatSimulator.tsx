@@ -27,11 +27,10 @@ import {
   type SimulatorState,
 } from '../../../contracts/simulatorState'
 import { battleQuery, combatUnitsQuery, factionIndexQuery, sealedEventRosterQuery, sharedRosterQuery } from '../../queries'
-import type { LocalRoster } from '../../offline/localRuntime'
 import { rosterTitle } from '../rosters/RosterSummary'
 import { exampleMatchup, useMatchupHistory } from './matchupHistory'
 import { RecentSimulations } from './RecentSimulations'
-import { battleCombatRoster, sealedCombatRoster } from './rosterCombat'
+import { fieldedCombatRoster, sealedCombatRoster } from './rosterCombat'
 import { loadRosterSource } from './rosterSearch'
 import { friendSealedEventLabel, friendSealedEventSource, useRosterOwners, useSimulatorRosters } from './rosterOwners'
 
@@ -45,8 +44,6 @@ function savedRosterSide(side: SimulatorSide, roster: CombatRoster | null, name:
       : roster.picks.findIndex((pick) => pick.entryId === side.pick.entryId && pick.attachedTo === undefined)
   return index < 0 ? null : { ...roster, pickIndex: index, saved: { source, name } }
 }
-
-const savedCombatRoster = (roster: LocalRoster | null | undefined): CombatRoster | null => (roster ? { ...roster, pickIndex: 0 } : null)
 
 /** The standalone page keeps its matchup in the URL, so a link reopens the same calculation. */
 /** `shared` is the setup it opens with; each change after is reported through `onShare`. */
@@ -98,10 +95,13 @@ export const CombatSimulator = memo(function CombatSimulator({
   const linkedRoster = (source: SimulatorRosterSource) => {
     if ('id' in source) {
       const roster = linkedRosters[linkedIds.indexOf(source.id)]?.data
-      return { roster: savedCombatRoster(roster), name: roster ? titled({ ...roster, unitCount: roster.picks.length }) : '' }
+      return {
+        roster: roster ? { ...roster, pickIndex: 0 } : null,
+        name: roster ? titled({ ...roster, unitCount: roster.picks.length }) : '',
+      }
     }
     if ('battle' in source)
-      return battleCombatRoster(linkedBattleScreens[linkedBattles.indexOf(source.battle.token)]?.data, source.battle.playerId)
+      return fieldedCombatRoster(linkedBattleScreens[linkedBattles.indexOf(source.battle.token)]?.data, source.battle.playerId)
     const roster = linkedSealedEventRosters[[...linkedSealedEvents.keys()].indexOf(rosterSourceKey(source))]?.data
     return { roster: sealedCombatRoster(roster), name: roster?.name ?? '' }
   }

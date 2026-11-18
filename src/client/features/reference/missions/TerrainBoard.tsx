@@ -1,6 +1,7 @@
 import { useId, useMemo } from 'react'
 import { cn } from '@/lib/utils'
 import { groupBy } from '../../../../core/collections'
+import { placingLabel } from '../../../text'
 
 import {
   battlefieldObjectives,
@@ -520,11 +521,6 @@ function MatCoordinates({
   )
 }
 
-function ordinal(step: number) {
-  const suffix = step % 100 >= 11 && step % 100 <= 13 ? 'th' : (['th', 'st', 'nd', 'rd'][step % 10] ?? 'th')
-  return `${step}${suffix}`
-}
-
 /** A mat ruler prints bare numbers, so the label drops the inch mark to read the same. */
 function matInches(value: number) {
   return formatInches(value, 2).replace('″', '')
@@ -655,7 +651,7 @@ function TerrainMeasurements({
           <text x={at.x} y={at.y} textAnchor="middle" dominantBaseline="central" className="fill-bone" fontSize=".65" fontWeight="800">
             {step}
           </text>
-          <title>{`Place this piece ${ordinal(step)}`}</title>
+          <title>{`Place this piece ${placingLabel(step)}`}</title>
         </g>
       ))}
     </g>

@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest'
 import { bookOf, categories } from './catalogue.fixtures'
-import type { LoadedRules } from './rules'
+import type { LoadedRules } from '../shared/rules'
 import { rosterCombatant } from '../shared/rosterCombatRules'
 import { combatRuleChoices } from '../core/combatRules'
 

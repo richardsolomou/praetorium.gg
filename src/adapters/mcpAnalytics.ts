@@ -3,6 +3,7 @@ import { PostHog } from 'posthog-node'
 import packageJson from '../../package.json' with { type: 'json' }
 import { hostVariable, postHogEnvironment, projectTokenVariable } from '../contracts/posthog'
 import { globalSingleton } from '../lib/globalSingleton'
+import { clipped } from '../core/text'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { TOOL_ERROR_TYPE_META, TOOL_ERROR_TYPES, TOOL_OUTCOME_META, type ToolErrorType } from '../contracts/agentTools'
 import { deploymentHost, serverEventContext } from './posthog'
@@ -136,7 +137,7 @@ function failure(properties: McpProperties) {
 
 export function privateErrorMessage(message: string) {
   const scrubbed = message.replace(EMAIL, '[email]').replace(SECRET, '[secret]')
-  return scrubbed.length > ERROR_MESSAGE_LENGTH ? `${scrubbed.slice(0, ERROR_MESSAGE_LENGTH - 1)}…` : scrubbed
+  return clipped(scrubbed, ERROR_MESSAGE_LENGTH)
 }
 
 /** A failure only a code fix resolves, which is worth an exception; declared refusals and bad arguments are not. */

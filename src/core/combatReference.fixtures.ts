@@ -13,6 +13,7 @@ import {
   type CombatOptions,
   type DiceExpression,
 } from './combat'
+import { seededRandom } from './swiss'
 
 /**
  * One attack sequence rolled die by die, the way players resolve it at the table.
@@ -238,13 +239,7 @@ export function sampleCombat(scenario: CombatInput, trials: number) {
   const input = combatSchema.parse(scenario)
   const kills = Array.from({ length: targetModels(input.target) + 1 }, () => 0)
   const damage = Array.from({ length: targetWounds(input.target) + 1 }, () => 0)
-  let seed = 0x12345678
-  const random = () => {
-    seed = (seed + 0x6d2b79f5) | 0
-    let value = Math.imul(seed ^ (seed >>> 15), seed | 1)
-    value ^= value + Math.imul(value ^ (value >>> 7), value | 61)
-    return ((value ^ (value >>> 14)) >>> 0) / 4294967296
-  }
+  const random = seededRandom(0x12345678)
   for (let i = 0; i < trials; i++) {
     const result = attackSequence(input, random)
     kills[result.killed]!++

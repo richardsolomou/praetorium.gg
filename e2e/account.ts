@@ -35,7 +35,6 @@ export async function signUp(page: Page, name: string) {
 export async function signUpThroughForm(page: Page, name: string) {
   const account = newAccount(name)
   await page.goto('/sign-in')
-  await page.waitForLoadState('networkidle')
   await page.getByRole('button', { name: 'I need an account' }).click()
   await page.getByLabel('Your name').fill(name)
   await page.getByLabel('Email').fill(account.email)
@@ -51,8 +50,6 @@ export async function signUpThroughForm(page: Page, name: string) {
 /** Submits the sign-in form for an existing account. */
 export async function signIn(page: Page, email: string, password: string) {
   await page.goto('/sign-in')
-  // Filling before hydration submits the form natively and never signs in.
-  await page.waitForLoadState('networkidle')
   await page.getByLabel('Email').fill(email)
   await page.getByLabel('Password').fill(password)
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()

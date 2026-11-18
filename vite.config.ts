@@ -55,8 +55,6 @@ export default defineConfig(({ mode }): UserConfig => {
         rolldownConfig: { checks: { moduleLevelDirective: false } },
         ...(process.env.LOCAL_BUILD_DIR
           ? {
-              // Coverage runs map executed server code back to source to choose which specs a change needs.
-              sourcemap: true,
               buildDir: path.join(process.env.LOCAL_BUILD_DIR, 'nitro'),
               output: {
                 dir: process.env.LOCAL_BUILD_DIR,

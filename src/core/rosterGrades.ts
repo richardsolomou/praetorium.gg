@@ -6,6 +6,7 @@
  * simulator's blind spots, such as stratagems and conditional rules, fall unevenly across factions.
  */
 import { isKotcLimit } from './battle'
+import { countLabel } from './text'
 import { CALIBRATED, EXPECTED_TOOLS, PEERS, type CalibratedSize, type Peers } from './rosterGradeCalibration'
 
 export type Grade = 'A' | 'B' | 'C' | 'D'
@@ -306,7 +307,6 @@ export function reachChance(unit: Pick<GradedUnit, 'move' | 'deepStrike' | 'infi
 
 const deploysEarly = (unit: GradedUnit) => unit.deepStrike || unit.infiltrators || unit.scouts > 0
 const percent = (value: number) => `${Math.round(value * 100)}%`
-const unitCount = (count: number) => `${count} ${count === 1 ? 'unit' : 'units'}`
 /** The units' points-weighted average of a value, so a cheap unit sways it no more than its cost. */
 const byPoints = (units: readonly GradedUnit[], value: (unit: GradedUnit) => number) => {
   const total = units.reduce((sum, unit) => sum + unit.points, 0)
@@ -448,21 +448,21 @@ export function rosterGrades(
   )
   const gap = deploymentGap(limit)
   const rows: GradeRow[] = [
-    row('presence', 'Board presence', score('presence'), `${unitCount(units.length)} for ${OBJECTIVES} objectives`),
+    row('presence', 'Board presence', score('presence'), `${countLabel(units.length, 'unit')} for ${OBJECTIVES} objectives`),
     row(
       'hold',
       HOLD_LABEL,
       score('hold'),
       measures.hold === null
         ? "No unit's objective control could be counted"
-        : `${unitCount(holders.length)} with OC ${SQUAD_OC} or more, enough to contest a five-model squad`,
+        : `${countLabel(holders.length, 'unit')} with OC ${SQUAD_OC} or more, enough to contest a five-model squad`,
       { units: named(holders), ...(unknownControl.length ? { notCalculated: unknownControl } : {}) },
     ),
     row(
       'screens',
       SCREENS_LABEL,
       score('screens'),
-      `${unitCount(cheap.length)} at ${CHEAP_UNIT_POINTS} points or less, cheap enough to screen or do actions`,
+      `${countLabel(cheap.length, 'unit')} at ${CHEAP_UNIT_POINTS} points or less, cheap enough to screen or do actions`,
       { units: named(cheap) },
     ),
     ...(generation.length

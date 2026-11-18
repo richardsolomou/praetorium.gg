@@ -165,8 +165,7 @@ export async function battleCommands(battleId: string) {
     .map((row) => ({ seq: row.seq, by: row.user_id, body: JSON.parse(row.body) as Command }))
 }
 
-/** Appends a command after whatever the log ends on now: an open battle page can still be writing its own. */
-// The open battle pages can append a command between reading the last seq and inserting the next, so a taken seq is read again.
+/** Appends a command after whatever the log ends on now, reading the last seq again when an open battle page takes it first. */
 export async function appendCommand(battleId: string, by: string, body: object) {
   for (let attempt = 1; ; attempt += 1) {
     const seq =

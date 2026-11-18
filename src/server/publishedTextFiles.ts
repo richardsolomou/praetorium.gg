@@ -7,7 +7,8 @@ import { completeStepsCooperatively } from './canonicalCatalogue'
 import { remember } from '../core/collections'
 import { completeSteps } from '../shared/steps'
 
-const located = () =>
+/** Where each file a rules-text token names lives upstream and which records each holds, for answers that point agents at withheld text. */
+export const publishedTextLocations = () =>
   memoUntilSnapshotChanges('text-locations', null, async () => {
     const directory = catalogueDirectory()
     const paths = textSourcePaths(directory, readCatalogueComposition(directory))
@@ -35,11 +36,8 @@ const located = () =>
     return { files, holds, recordsHolding, scanFilesNamedIn } satisfies ScannableTextLocations
   })
 
-/** Where each file a rules-text token names lives upstream, for the active snapshot; Praetorium serves where the words are, never the words. */
-export const publishedTextFiles = async () => (await located()).files
-
-/** Those files, and which records each holds, for answers that point agents at withheld text. */
-export const publishedTextLocations = located
+/** Just those upstream files for the active snapshot; Praetorium serves where the words are, never the words. */
+export const publishedTextFiles = async () => (await publishedTextLocations()).files
 
 /**
  * The words behind a text's tokens, read from the active snapshot so the server can calculate from them,

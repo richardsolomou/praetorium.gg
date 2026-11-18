@@ -1,7 +1,8 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { beforeAll, describe, expect, it } from 'vitest'
-import { loadCatalogue, type LoadedCatalogue } from '../src/server/catalogueIndex'
+import { loadCatalogue } from '../src/server/catalogueIndex'
+import { type LoadedCatalogue } from '../src/shared/catalogueIndex'
 import { exclusiveDetachments } from '../src/shared/rosterDetachments'
 
 const directory = process.env.CATALOGUE_DIR ?? 'catalogue-data'

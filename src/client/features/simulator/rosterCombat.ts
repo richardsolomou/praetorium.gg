@@ -23,7 +23,7 @@ export type RosterCombatUnit = {
 }
 
 /** A player's list as their battle froze it, at full strength, named with the player who fielded it. */
-export function battleCombatRoster(screen: { kind: string; view?: BattleView } | null | undefined, rosterOrPlayerId: string) {
+export function fieldedCombatRoster(screen: { kind: string; view?: BattleView } | null | undefined, rosterOrPlayerId: string) {
   const view = screen?.kind === 'unavailable' ? undefined : screen?.view
   const player = view ? fieldingPlayer(view, rosterOrPlayerId) : undefined
   const fielded = view ? fieldedRoster(view, rosterOrPlayerId) : null

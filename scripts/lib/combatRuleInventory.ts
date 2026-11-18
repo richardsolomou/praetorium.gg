@@ -1,6 +1,6 @@
 import { profileDescription } from '../../src/core/catalogue'
 import type { InfoGroup, InfoLink, Profile } from '../../src/core/catalogue'
-import type { LoadedCatalogue } from '../../src/server/catalogueIndex'
+import type { LoadedCatalogue } from '../../src/shared/catalogueIndex'
 import { combatKeyword, normalizeCombatKeyword } from '../../src/core/combatKeywords'
 
 export function combatWeaponKeywordInventory(loaded: LoadedCatalogue, factionFilter?: string) {

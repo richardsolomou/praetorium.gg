@@ -81,8 +81,7 @@ export function useCombatOutcome({
           posthog.capture('combat_simulation_failed', { source: entryPoint, reason: 'calculation' })
         }
       })
-    const stop = () => controller.abort()
-    return stop
+    return () => controller.abort()
   }, [requestKey, comparisonKey, pending, failed, choosing, retry, entryPoint])
   /** The outcome only when it answers the current settings; the results keep showing the last one while a new one calculates. */
   const currentOutcome = outcome?.key === outcomeKey ? outcome : null

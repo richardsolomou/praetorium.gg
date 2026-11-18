@@ -40,7 +40,7 @@ export async function playedArmiesPage(viewerId: string | null, { before, ...fil
   }
   const page = await instance.service.battleFeedService.playedArmies(
     viewerId,
-    before ?? undefined,
+    before,
     battleFactions,
     playedArmyFilterActive(filter)
       ? async (armies) => {

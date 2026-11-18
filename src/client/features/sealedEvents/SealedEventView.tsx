@@ -22,6 +22,7 @@ import {
   readsSealedRoster,
   sealedEventPlaysAlone,
   type SealedEventEntryView,
+  ownTable,
 } from '../../../core/sealedEvent'
 import { createSealedEventBattle, joinSealedEvent, submitSealedEventRoster } from '../../functions'
 import { rosterWaivers, WaiverConfirmDialog } from '../../components/FormatWaivers'
@@ -60,7 +61,7 @@ import { RosterChooser } from './SealedEventRosterChooser'
 import { SealedEventCombatDialog } from './SealedEventCombatDialog'
 import { SealedEventResults } from './SealedEventResults'
 import { useNow } from '../../useNow'
-import { forfeited, SealedEventRounds, ownTable, swissProgress } from './SealedEventRounds'
+import { forfeited, SealedEventRounds, swissProgress } from './SealedEventRounds'
 import { TeamDispositionPanel } from './SealedEventTeamDisposition'
 import { TeamWarlordPanel } from './SealedEventTeamWarlord'
 import { SealedEventRosterSharing } from './SealedEventRosterSharing'

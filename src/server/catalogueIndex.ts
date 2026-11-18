@@ -8,7 +8,8 @@ import path from 'node:path'
 import { buildIndex, type CatalogueFile } from '../core/catalogue'
 import { editionCatalogueFiles, type CatalogueEdition } from '../core/catalogueEdition'
 import { catalogueReferencePolicySchema, datacardExclusions } from '../core/catalogueReferencePolicy'
-import { type FactionContent, type LoadedDatacards, loadDatacardsSteps } from './datacards'
+import { loadDatacardsSteps } from './datacards'
+import { type FactionContent, type LoadedDatacards } from '../shared/datacards'
 import { remember } from '../core/collections'
 import { catalogueSections } from './catalogueSections'
 import { loadMfmSteps } from './mfm'
@@ -17,7 +18,6 @@ import { type DefinitionTexts, type LoadedCatalogue, catalogueFromIndex } from '
 import { completeSteps, type Steps } from '../shared/steps'
 import { liveCatalogueRevision } from './liveCatalogue'
 import { readRevisions } from './catalogueSources'
-export * from '../shared/catalogueIndex'
 export function catalogueDirectory(dataDirectory = process.env.DATA_DIR ?? '/data') {
   const live = liveCatalogueRevision()
   return live ? path.join(live.directory, 'catalogue') : (process.env.CATALOGUE_DIR ?? path.join(path.resolve(dataDirectory), 'catalogue'))

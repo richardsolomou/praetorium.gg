@@ -39,4 +39,4 @@ The application is built from RAS recipes. `ras-recipes.json` records each recip
 
 ## Local preview
 
-Check `just dev-status` first. Run `just dev` after any checkout, pull, or merge and use the URL it prints; run `just teardown` after the PR merges. Never kill processes by port or broad name.
+Check `just dev-status` first, then follow [running locally](docs/development/running-locally.md#development-lifecycle).

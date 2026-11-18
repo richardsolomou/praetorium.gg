@@ -6,6 +6,7 @@ import { currentUserId } from './playerSession'
 import { observeServerFunction, reportServerFunctionFailure } from './rpcTelemetry'
 import { currentServerFunction } from './serverFunction'
 import { serverTelemetry } from './serverTelemetry'
+import type { Telemetry } from './telemetry'
 
 /** Where a failure happened: the request, the server function it ran, and the status of a thrown `Response`. */
 export type RpcErrorContext = { method?: string; path?: string; function?: string; status?: number }
@@ -35,25 +36,31 @@ async function run<T>(work: () => Promise<T> | T, request: Request | undefined):
       try {
         return await work()
       } catch (thrown) {
-        const status = thrown instanceof Response ? thrown.status : undefined
-        const error =
-          thrown instanceof Response ? new Error((await thrown.text()) || `request failed (${thrown.status})`, { cause: thrown }) : thrown
-        // A 4xx answer is the caller's to fix; a 5xx one, such as an unreachable upstream, is the server's.
-        if (status === undefined || status >= 500) reportServerFunctionFailure(telemetry, error, failureContext(request, status))
-        throw error
+        throw await reportedFailure(thrown, telemetry, failureContext(request))
       }
     },
     user ?? undefined,
   )
 }
 
-function failureContext(request: Request | undefined, status: number | undefined): RpcErrorContext {
+function failureContext(request: Request | undefined): RpcErrorContext {
   const name = currentServerFunction()?.name
   return {
     ...(request ? { method: request.method, path: new URL(request.url).pathname } : {}),
     ...(name ? { function: name } : {}),
-    ...(status === undefined ? {} : { status }),
   }
+}
+
+/** The error a failure reaches the client as, reported unless it is a thrown `Response` below 500. */
+async function reportedFailure(thrown: unknown, telemetry: Telemetry, context: RpcErrorContext) {
+  if (!(thrown instanceof Response)) {
+    reportServerFunctionFailure(telemetry, thrown, context)
+    return thrown
+  }
+  const error = new Error((await thrown.text()) || `request failed (${thrown.status})`, { cause: thrown })
+  // A 4xx answer is the caller's to fix; a 5xx one, such as an unreachable upstream, is the server's.
+  if (thrown.status >= 500) reportServerFunctionFailure(telemetry, error, { ...context, status: thrown.status })
+  return error
 }
 
 function currentRequest() {
@@ -70,9 +77,7 @@ function currentRequest() {
  * it, so work stops where it went wrong as it would in one loop.
  */
 export function inTurn<T, R>(items: readonly T[], work: (item: T) => Promise<R>): Promise<R>[] {
-  const request = getRequest()
-  const name = currentServerFunction()?.name
-  const context = { method: request.method, path: new URL(request.url).pathname, ...(name ? { function: name } : {}) }
+  const context = failureContext(getRequest())
   let previous: Promise<unknown> = Promise.resolve()
   return items.map((item) => {
     const result = previous.then(async () => {
@@ -81,12 +86,7 @@ export function inTurn<T, R>(items: readonly T[], work: (item: T) => Promise<R>)
         return await work(item)
       } catch (thrown) {
         // The answer has already left the wrapper that reports failures and reads refusals, so this does both.
-        const status = thrown instanceof Response ? thrown.status : undefined
-        const error =
-          thrown instanceof Response ? new Error((await thrown.text()) || `request failed (${thrown.status})`, { cause: thrown }) : thrown
-        if (status === undefined || status >= 500)
-          reportServerFunctionFailure(serverTelemetry(), error, { ...context, ...(status === undefined ? {} : { status }) })
-        throw error
+        throw await reportedFailure(thrown, serverTelemetry(), context)
       }
     })
     previous = result

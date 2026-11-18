@@ -2,6 +2,8 @@ import { z } from 'zod'
 import {
   isTeamFormat,
   effectiveSealedEventAllowances,
+  latestRound,
+  ownTable,
   sealedEventAllowanceOptions,
   sealedEventPairShares,
   sealedEventTableShape,
@@ -62,14 +64,6 @@ export async function readEvent(token: string, eventToken: string | undefined, u
   return sealedEvent
 }
 
-function currentRound(sealedEvent: SealedEvent) {
-  return Math.max(0, ...sealedEvent.pairings.map((pairing) => pairing.round))
-}
-
-export function ownTable(sealedEvent: SealedEvent, userId: string, round = currentRound(sealedEvent)) {
-  return sealedEvent.pairings.find((pairing) => pairing.round === round && (pairing.aId === userId || pairing.bId === userId))
-}
-
 /** What the player still has to do, in the order the event asks it. */
 function eventTodo(sealedEvent: SealedEvent, userId: string, battles: ReadonlyMap<string, Battle>) {
   const entry = sealedEvent.entries.find((candidate) => candidate.userId === userId)
@@ -98,7 +92,7 @@ function eventTodo(sealedEvent: SealedEvent, userId: string, battles: ReadonlyMa
   if (!entry.submitted) return []
   if (entry.dropped) return []
   if (sealedEvent.rounds === null) return ['Start a battle against another entrant with start_event_battle.']
-  const round = currentRound(sealedEvent)
+  const round = latestRound(sealedEvent.pairings)
   if (!round)
     return [
       ...(entry.checkedIn ? [] : ['Check in with check_in_event before round 1 is paired.']),
@@ -358,7 +352,7 @@ export function registerOrganisedPlayTools(server: AgentTools, userId: string | 
             effectiveSealedEventAllowances(format, sealedEvent.rosterLimit!, sealedEvent.allowances).includes(option.id),
           )
         : []
-      const round = currentRound(sealedEvent)
+      const round = latestRound(sealedEvent.pairings)
       const table = (pairing: SealedEvent['pairings'][number]) => {
         const battle = pairing.battleToken ? battles.get(pairing.battleToken) : undefined
         return {

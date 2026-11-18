@@ -45,8 +45,13 @@ import { RosterExchangeDialog } from './RosterExchangeDialog'
 import { RosterImport } from './RosterImport'
 import { RosterSetupDialog, type RosterSetup } from './RosterSetupDialog'
 import { rosterSetupOf } from './rosterDraft'
-import { factionSelectGroups } from './builder/factions'
-import { RosterGroupMenu, RosterSortMenu, ROSTER_ASSESSMENT_DIMENSIONS } from './RosterFilters'
+import {
+  RosterGroupMenu,
+  RosterSortMenu,
+  ROSTER_ASSESSMENT_DIMENSIONS,
+  rosterDetachmentDimension,
+  rosterFactionDimension,
+} from './RosterFilters'
 import { FilterBar, type FilterDimension } from '../../components/FilterBar'
 import { NoFilterMatches } from '../../components/NoFilterMatches'
 import { ungrouped } from '../../components/SearchableSelect'
@@ -955,35 +960,12 @@ function RosterLibraryFilters({
   const tally = <T,>(values: T[]) => countBy(values, (value) => value)
   const countOf = (counts: ReadonlyMap<unknown, number>, value: unknown) => String(counts.get(value) ?? 0)
   // Everything here is in the browser already, so the choices are what the library holds and each can say how many.
-  const held = factions.filter((faction) => rosters.some((roster) => roster.catalogueId === faction.id))
-  const perFaction = tally(rosters.map((roster) => roster.catalogueId))
-  const factionGroups = factionSelectGroups(held, favourites).map((group) => ({
-    ...group,
-    items: group.items.map((item) => ({
-      ...item,
-      value: factions.find((faction) => faction.id === item.value)?.slug ?? item.value,
-      detail: countOf(perFaction, item.value),
-    })),
-  }))
-  const perDetachment = tally(rosters.flatMap((roster) => roster.detachmentIds))
-  const detachmentNames = new Map(
-    factions.flatMap((faction) => faction.detachments.map((detachment) => [detachment.id, detachment.name] as const)),
-  )
   const perSize = tally(rosters.map((roster) => roster.limit))
   const perSharing = tally(rosters.map((roster) => roster.visibility))
   const perDisposition = tally(rosters.flatMap((roster) => roster.disposition ?? []))
   const dimensions: FilterDimension[] = [
-    { key: 'faction', label: 'Faction', groups: factionGroups, pinned: true },
-    {
-      key: 'detachment',
-      label: 'Detachment',
-      pinned: true,
-      groups: ungrouped(
-        [...perDetachment.keys()]
-          .map((id) => ({ label: detachmentNames.get(id) ?? id, value: id, detail: countOf(perDetachment, id) }))
-          .toSorted((left, right) => left.label.localeCompare(right.label)),
-      ),
-    },
+    rosterFactionDimension(rosters, factions, favourites),
+    rosterDetachmentDimension(rosters, factions),
     {
       key: 'limit',
       label: 'Battle size',

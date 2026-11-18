@@ -71,6 +71,16 @@ def run_command(args, *, timeout=30):
     ).stdout.strip()
 
 
+def paused(container, *, timeout=30):
+    return (
+        run_command(
+            ["docker", "inspect", container, "--format", "{{.State.Paused}}"],
+            timeout=timeout,
+        )
+        == "true"
+    )
+
+
 def container_volumes(config):
     containers = run_command(
         [
@@ -199,25 +209,13 @@ def archive(config, work):
                 capture_output=True,
                 timeout=freeze_left(),
             )
-        if (
-            run_command(
-                ["docker", "inspect", container, "--format", "{{.State.Paused}}"],
-                timeout=2,
-            )
-            != "true"
-        ):
+        if not paused(container, timeout=2):
             raise RuntimeError(
                 "Backup watchdog resumed the container before the copy completed"
             )
     finally:
         # Do not cancel recovery if the Docker daemon cannot resume the container.
-        if (
-            run_command(
-                ["docker", "inspect", container, "--format", "{{.State.Paused}}"],
-                timeout=2,
-            )
-            == "true"
-        ):
+        if paused(container, timeout=2):
             run_command(["docker", "unpause", container], timeout=2)
         run_command(["systemctl", "stop", f"{watchdog}.timer"])
         subprocess.run(
@@ -394,11 +392,7 @@ def resume(container):
     existing = run_command(
         ["docker", "ps", "--all", "--filter", f"id={container}", "--format", "{{.ID}}"]
     )
-    if (
-        existing
-        and run_command(["docker", "inspect", container, "--format", "{{.State.Paused}}"])
-        == "true"
-    ):
+    if existing and paused(container):
         run_command(["docker", "unpause", container])
 
 

@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { routeSlug } from '../../src/core/slug'
-import { constructionCardKey, datacardsFactionKeys } from '../../src/server/datacards'
+import { constructionCardKey, datacardsFactionKeys } from '../../src/shared/datacards'
 import { joinKey } from '../../src/core/text'
 import { catalogueDataDirectory } from './catalogueFiles'
 

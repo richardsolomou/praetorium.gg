@@ -7,6 +7,16 @@ import { createHash, randomBytes } from 'node:crypto'
 export const PUBLIC_PATH =
   /^\/(?:|factions(?:\/.*)?|missions(?:\/.*)?|mission-packs(?:\/.*)?|mission-matchups\/.*|force-dispositions(?:\/.*)?|rules(?:\/.*)?|data-updates(?:\/.*)?|leaderboard|simulator|sources|rosters|sitemap\.xml|robots\.txt|llms\.txt|api\/reference\/v1(?:\/.*)?)$/
 
+/** A GET or HEAD for a public page. */
+export function publicRead(request: Request) {
+  return (request.method === 'GET' || request.method === 'HEAD') && PUBLIC_PATH.test(new URL(request.url).pathname)
+}
+
+/** The first address in `x-forwarded-for`, which the server in front sets to the visitor's. */
+export function clientAddress(request: Request) {
+  return request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+}
+
 /** Never written down, so a visitor's id cannot be recomputed from their address and browser. */
 const SALT = randomBytes(32)
 
@@ -21,11 +31,10 @@ const SALT = randomBytes(32)
  * the process: it counts distinct clients within a day without following anyone across days.
  */
 export function crawlerRequestEvent(request: Request, status: number, durationMs: number, now = new Date()) {
-  if (request.method !== 'GET' && request.method !== 'HEAD') return null
+  if (!publicRead(request)) return null
   const url = new URL(request.url)
-  if (!PUBLIC_PATH.test(url.pathname)) return null
   const userAgent = request.headers.get('user-agent') ?? ''
-  const address = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? ''
+  const address = clientAddress(request) ?? ''
   const referrer = referrerOrigin(request.headers.get('referer'))
   const day = now.toISOString().slice(0, 10)
   const distinctId = `http_log_${createHash('sha256').update(SALT).update(`${day}\0${address}\0${userAgent}`).digest('hex').slice(0, 32)}`

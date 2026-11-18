@@ -45,7 +45,7 @@ export const myBattles = createServerFn({ method: 'GET' })
         return app().service.battleFeedService.battles(
           id,
           rules,
-          { limit: BATTLES_PAGE, before: data.before ?? undefined, filter: data.filter, order: data.order },
+          { limit: BATTLES_PAGE, before: data.before, filter: data.filter, order: data.order },
           factions,
         )
       }),
@@ -67,7 +67,7 @@ export const publicBattles = createServerFn({ method: 'GET' })
       return app().service.battleFeedService.publicBattles(
         viewerId,
         rules,
-        { before: data.before ?? undefined, filter: data.filter, order: data.order },
+        { before: data.before, filter: data.filter, order: data.order },
         factions,
       )
     }),
@@ -83,7 +83,7 @@ export const friendBattles = createServerFn({ method: 'GET' })
         return app().service.battleFeedService.friendBattles(
           id,
           rules,
-          { before: data.before ?? undefined, filter: data.filter, order: data.order },
+          { before: data.before, filter: data.filter, order: data.order },
           factions,
         )
       }),
@@ -123,7 +123,7 @@ export const playerBattles = createServerFn({ method: 'GET' })
       return app().service.profileService.playerBattles(
         data.userId,
         viewerId,
-        { before: data.before ?? undefined, filter: data.filter, order: data.order },
+        { before: data.before, filter: data.filter, order: data.order },
         rules,
         factions,
       )

@@ -5,6 +5,7 @@ import type { CatalogueEdition } from './catalogueEdition'
 import { isGuestSeat } from './newBattle'
 import { routeSlug } from './slug'
 import { compareText } from './text'
+import { DAY_MS } from './listFilter'
 import { z } from 'zod'
 import { ordinal, rate, rating, type Rating } from 'openskill'
 
@@ -71,6 +72,15 @@ export function battleOutcome(battle: Pick<StandingBattle, 'playerIds' | 'sides'
   return sideOutcome(totals, side, concededSide)
 }
 
+/** How a battle went for one player's side, or null when they have no seat in it. */
+export function playerOutcome(
+  battle: Pick<StandingBattle, 'playerIds' | 'sides' | 'scores' | 'result'>,
+  userId: string | null | undefined,
+) {
+  const seat = userId ? battle.playerIds.indexOf(userId) : -1
+  return seat === -1 ? null : battleOutcome(battle, battle.sides[seat]!)
+}
+
 export function sideOutcome(sides: readonly { index: number; total: number }[], side: number, concededSide?: number): BattleOutcome {
   if (concededSide !== undefined) return concededSide === side ? 'lost' : 'won'
   const ours = sides.find((candidate) => candidate.index === side)?.total ?? 0
@@ -122,7 +132,6 @@ const newcomerSigma = () => rating().sigma
  * without it, since much of the history is imported and its gaps are not time away.
  */
 const idleVariancePerDay = () => newcomerSigma() ** 2 / 730
-const DAY_MS = 24 * 60 * 60 * 1000
 
 /** A player's skill after `idleMs` without a battle, never growing less certain than a newcomer's. */
 function idle(skill: Rating, idleMs: number): Rating {

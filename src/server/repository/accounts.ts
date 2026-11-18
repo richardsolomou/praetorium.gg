@@ -2,7 +2,7 @@ import { isAdminUserCountSort, type AdminUser, type AdminUserCountSort, type Adm
 import { chunks } from '../../core/collections'
 import type { SqliteAccountRepository } from '../accountRepository'
 import type { SpacetimeOperator } from '../spacetimeOperator'
-import { profileOf, type RepositoryBase } from './area'
+import { forwarding, profileOf, type RepositoryBase } from './area'
 
 const ADMIN_USER_COUNT_FIELDS = {
   rosters: 'rosterCount',
@@ -31,11 +31,12 @@ function withProductStats<Row extends Omit<AdminUser, (typeof ADMIN_USER_COUNT_F
 
 /** Accounts from the auth database, with the product counts and practice opponents SpacetimeDB adds. */
 export function withAccounts<B extends RepositoryBase>(Base: B) {
-  return class AccountRepository extends Base {
-    syncReceipt(...args: Parameters<SpacetimeOperator['syncReceipt']>) {
-      return this.product.syncReceipt(...args)
-    }
-
+  return class AccountRepository extends forwarding([
+    'syncReceipt',
+    'linkExternalAccount',
+    'externalAccountsByUser',
+    'practiceOpponentIds',
+  ])(Base) {
     userById(id: string) {
       return this.accounts.userById(id)
     }
@@ -121,18 +122,6 @@ export function withAccounts<B extends RepositoryBase>(Base: B) {
       const ids = await this.product.practiceOpponentIds()
       const profiles = await this.accounts.profilesByIds(ids)
       return ids.map((id) => profileOf(profiles, id, 'Practice opponent'))
-    }
-
-    linkExternalAccount(...args: Parameters<SpacetimeOperator['linkExternalAccount']>) {
-      return this.product.linkExternalAccount(...args)
-    }
-
-    externalAccountsByUser(userId: string) {
-      return this.product.externalAccountsByUser(userId)
-    }
-
-    practiceOpponentIds(...args: Parameters<SpacetimeOperator['practiceOpponentIds']>) {
-      return this.product.practiceOpponentIds(...args)
     }
   }
 }

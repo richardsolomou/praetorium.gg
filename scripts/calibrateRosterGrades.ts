@@ -27,6 +27,7 @@ import { referenceCorpusFor } from '../src/server/referenceCorpus'
 import { CombatAnswerCache } from '../src/shared/combatAnswerCache'
 import { currentFactionIdsOf } from '../src/shared/factionReferences'
 import { gradeReferences, measureRosterUnits, referenceUnit } from '../src/shared/rosterGradeMeasures'
+import { errorText } from './lib/errorText'
 import { importCorpusLists, liveCorpusCatalogue } from './lib/importCorpusLists'
 import { CORPUS_ROOT, SOURCES } from './lib/importCorpusSources'
 import { CALIBRATION_FILE, calibrationSource } from './lib/rosterGradeCalibrationSource'
@@ -137,7 +138,7 @@ async function build(corpusDirectories: readonly string[], since: string, until:
       measured.push({ id: listing.list, catalogueName: book.name, units })
     } catch (error) {
       failed++
-      console.error(`${listing.list}: not measured, ${error instanceof Error ? error.message : String(error)}`)
+      console.error(`${listing.list}: not measured, ${errorText(error)}`)
     }
     if ((index + 1) % 100 === 0) console.log(`${index + 1} of ${clean.length} lists measured`)
   }

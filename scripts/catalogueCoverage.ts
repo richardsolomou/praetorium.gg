@@ -9,7 +9,7 @@
 import fs from 'node:fs'
 import { parseArgs } from 'node:util'
 import { abilityNamesIn, datasheetIn, datasheetSearchFieldsIn } from '../src/shared/catalogue'
-import { datasheetsOf, isReferenceDatasheet } from '../src/server/catalogueIndex'
+import { datasheetsOf, isReferenceDatasheet } from '../src/shared/catalogueIndex'
 import { describeDatasheetAbilities } from '../src/shared/datasheetDescriptions'
 import { detachmentReference } from '../src/shared/detachmentReference'
 import { factionsFor } from '../src/shared/factionReferences'

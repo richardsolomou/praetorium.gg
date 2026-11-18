@@ -12,15 +12,14 @@ import { withoutText } from '../core/sourceText'
 export type { GlobalSearchIndex, GlobalSearchResult }
 import { nameOf, targetOf } from '../core/catalogue'
 import { datasheetSearchFieldsIn } from '../shared/catalogue'
-import type { LoadedCatalogue } from './catalogueIndex'
-import { datasheetSlug, datasheetsOf, isReferenceDatasheet } from './catalogueIndex'
+import { datasheetSlug, datasheetsOf, isReferenceDatasheet, type LoadedCatalogue } from '../shared/catalogueIndex'
 import { isOfferedDatasheet } from '../shared/catalogueUnit'
 import { factionsFor } from '../shared/factionReferences'
 import { detachmentReference } from '../shared/detachmentReference'
 import { gameReferencesFor } from '../shared/gameReferences'
 import { ruleIndexOf } from './rulesCore'
 import { factionReferenceHref } from '../core/factionReferenceRoute'
-import type { LoadedRules } from './rules'
+import type { LoadedRules } from '../shared/rules'
 
 type Sources = {
   catalogue: LoadedCatalogue | null

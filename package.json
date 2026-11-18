@@ -105,7 +105,6 @@
     "@changesets/cli": "3.0.3",
     "@changesets/parse": "1.0.0",
     "@faker-js/faker": "^10.6.0",
-    "@jridgewell/trace-mapping": "0.3.31",
     "@playwright/test": "1.65.0",
     "@posthog/cli": "0.20.0",
     "@posthog/rollup-plugin": "1.6.4",

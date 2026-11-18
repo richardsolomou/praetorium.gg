@@ -1,6 +1,7 @@
 import { posthog } from 'posthog-js'
 import { registerWebPush, unregisterWebPush } from './functions'
 import { supportsNativePush } from './nativeBridge'
+import { toBase64Url } from '../core/base64'
 
 const WORKER = '/notice-worker.js'
 // A scope with no pages, so the notice worker never handles a navigation.
@@ -29,13 +30,7 @@ function activated(registration: ServiceWorkerRegistration) {
   })
 }
 
-const base64url = (key: ArrayBuffer | null) =>
-  key
-    ? btoa(String.fromCharCode(...new Uint8Array(key)))
-        .replaceAll('+', '-')
-        .replaceAll('/', '_')
-        .replace(/=+$/, '')
-    : ''
+const base64url = (key: ArrayBuffer | null) => (key ? toBase64Url(new Uint8Array(key)) : '')
 
 /** This browser's subscription, if it has one; never asks for permission. */
 export async function browserSubscription() {

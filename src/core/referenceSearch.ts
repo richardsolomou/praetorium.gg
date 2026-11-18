@@ -11,6 +11,7 @@ import {
 } from './datasheetSearch'
 import type { CatalogueEdition } from './catalogueEdition'
 import { rosterLabel } from './rosterLabel'
+import { escapeRegExp } from './text'
 import { pointsLabel } from './battleFormat'
 
 export type GlobalSearchResult = {
@@ -73,7 +74,7 @@ function nameRank(query: string, result: GlobalSearchResult) {
   const wanted = query.trim().toLowerCase()
   if (!wanted || !name.includes(wanted)) return 5
   if (name === wanted) return 0
-  const escaped = wanted.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`)
+  const escaped = escapeRegExp(wanted)
   if (new RegExp(String.raw`(^|\W)${escaped}(\W|$)`).test(name)) return name.startsWith(wanted) ? 1 : 2
   return new RegExp(String.raw`(^|\W)${escaped}`).test(name) ? 3 : 4
 }

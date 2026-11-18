@@ -6,7 +6,7 @@ import { battleDigest } from '../../core/battleDigest'
 import type { RosterPick } from '../../core/roster'
 import type { BattlesCursor } from '../../contracts/battles'
 import { battleSummary, type BattleFaction } from '../../shared/battleSummary'
-import type { BattleMissionRules } from '../rules'
+import type { BattleMissionRules } from '../../shared/rules'
 import type { StandingsRefresh } from '../standingsRefresh'
 import type { BattleCard, RepositoryPort } from '../spacetimeRepository'
 import { foldHistory, mayWatch } from './battleHistory'
@@ -48,7 +48,7 @@ export class BattleFeedService {
   async battles(
     userId: string,
     rules?: BattleMissionRules | null,
-    page?: { limit: number; before?: BattlesCursor; withUserId?: string; filter?: BattleFilter; order?: BattleOrder },
+    page?: { limit: number; before?: BattlesCursor | null; withUserId?: string; filter?: BattleFilter; order?: BattleOrder },
     factions?: readonly BattleFaction[],
   ) {
     if (battleFilterActive(page?.filter)) {
@@ -69,7 +69,7 @@ export class BattleFeedService {
   async publicBattles(
     viewerId: string | null,
     rules?: BattleMissionRules | null,
-    page?: { limit?: number; before?: BattlesCursor; filter?: BattleFilter; order?: BattleOrder },
+    page?: { limit?: number; before?: BattlesCursor | null; filter?: BattleFilter; order?: BattleOrder },
     factions?: readonly BattleFaction[],
   ) {
     const limit = page?.limit ?? PUBLIC_BATTLES_PAGE
@@ -80,7 +80,7 @@ export class BattleFeedService {
   }
 
   /** Anyone can ask for this signed out and with any search text, so every reader's scan shares the one held read of each page. */
-  private heldPublicFeed(viewerId: string | null, page: { limit: number; before?: BattlesCursor; order?: BattleOrder }) {
+  private heldPublicFeed(viewerId: string | null, page: { limit: number; before?: BattlesCursor | null; order?: BattleOrder }) {
     const now = this.clock()
     const key = JSON.stringify([viewerId, page.limit, page.before ?? null, page.order ?? null])
     const read = () => this.repository.publicBattles({ ...page, viewerId })
@@ -101,11 +101,11 @@ export class BattleFeedService {
    * `perspective` is whose seat a result or "their army" is read from, which on a profile is its player's rather than the reader's.
    */
   async filteredFeed(
-    read: (page: { limit: number; before?: BattlesCursor; order?: BattleOrder }) => Promise<{
+    read: (page: { limit: number; before?: BattlesCursor | null; order?: BattleOrder }) => Promise<{
       battles: BattleCard[]
       nextCursor: BattlesCursor | null
     }>,
-    page: { limit?: number; before?: BattlesCursor; filter?: BattleFilter; order?: BattleOrder } | undefined,
+    page: { limit?: number; before?: BattlesCursor | null; filter?: BattleFilter; order?: BattleOrder } | undefined,
     viewerId: string | null,
     rules?: BattleMissionRules | null,
     factions: readonly BattleFaction[] = [],
@@ -143,7 +143,7 @@ export class BattleFeedService {
    */
   async playedArmies(
     viewerId: string | null,
-    before?: BattlesCursor,
+    before?: BattlesCursor | null,
     factions: readonly BattleFaction[] = [],
     accepts?: (armies: ListedArmy[]) => ListedArmy[] | Promise<ListedArmy[]>,
   ) {
@@ -237,7 +237,7 @@ export class BattleFeedService {
   async friendBattles(
     userId: string,
     rules?: BattleMissionRules | null,
-    page?: { limit?: number; before?: BattlesCursor; filter?: BattleFilter; order?: BattleOrder },
+    page?: { limit?: number; before?: BattlesCursor | null; filter?: BattleFilter; order?: BattleOrder },
     factions?: readonly BattleFaction[],
   ) {
     const limit = page?.limit ?? PUBLIC_BATTLES_PAGE

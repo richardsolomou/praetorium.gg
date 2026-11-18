@@ -17,7 +17,7 @@ Pins live in `catalogue/composition.json`, `catalogue/sources.json`, and `catalo
 - Points come from the [MFM fork](https://github.com/richardsolomou/wh40k-11e-mfm); never duplicate prices in definitions.
 - Translated names come from [wh40k-11e-translations](https://github.com/richardsolomou/wh40k-11e-translations), a pinnable copy of nrdata.org, which serves only its live state; refresh it there with `bin/update` and a commit, never by fetching nrdata.org at build time.
 - Definitions no longer update upstream. After a points update, dataslate or codex, run `just drift` and work its report (`data-dev/drift/drift.md`, JSON beside it): "likely edit" rows first, where Game Datacards and 40kdc-data agree against us, then "GDC differs" rows. Game Datacards is the authority; a 40kdc-only row is a lead to check against the cards, never an edit on its own. "New in GDC HEAD" shows what a Game Datacards bump would change.
-- `changes/history.json` is immutable; never compare frozen battle or sealed event snapshots with current data.
+- `changes/history.json` is immutable.
 
 ## Rules versions
 
@@ -69,7 +69,7 @@ An option that left its datasheet only reports. A failed refresh keeps serving t
 
 ## Privacy
 
-- Other readers never get a roster's picks, notes, or preparation; exports never carry notes.
+- Who reads a roster, its notes, and its preparation follows the [privacy contract](../product-design.md#privacy-contract); exports never carry notes.
 - Imports never silently drop or substitute units, and never overwrite an existing draft.
 - Collection photos stay in the private bucket with location metadata stripped; every path that drops a photo row records it in `collection_photo_deletion` in the same transaction.
 
