@@ -360,10 +360,6 @@ export function projectLocalState(state: LocalState) {
   if (!client || localOwner()?.id !== state.owner) return
   const unbuilt = new Set<string>()
   for (const [resource, document] of Object.entries(state.documents)) {
-    if (resource.startsWith('query:')) {
-      client.setQueryData(JSON.parse(resource.slice(6)), document.data)
-      continue
-    }
     if (resource.startsWith('sealed-event:')) {
       if (navigator.onLine && !state.operations.some((operation) => operation.resource === resource)) continue
       const sealedEvent = document.data as Awaited<ReturnType<typeof server.openSealedEvent>>

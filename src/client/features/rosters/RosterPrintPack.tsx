@@ -11,7 +11,7 @@ import { pickedOptionalRules, pointsBudgetOf, waivedFormatRules } from '../../..
 import { factionQuery, detachmentDetailQuery, detachmentRulesQuery, loadoutDatasheetsQuery, priceQuery } from '../../queries'
 import type { priceRoster } from '../../functions'
 import { RuleText } from '../../components/RuleText'
-import { openTextSourcesDialog } from '../../components/TextSourcesDialog'
+import { openTextSourcesDialog } from '../../components/textSourcesDialogState'
 import { loadedText, retryFailedTextFiles, useSourceTexts } from '../../sourceText'
 import { hasTextTokens } from '../../../core/sourceText'
 import type { TextSourceChoice } from '../../rulesText'
