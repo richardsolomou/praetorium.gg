@@ -1,5 +1,5 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   battlesFrom,
   battlesQuery,
@@ -21,7 +21,9 @@ import type { Battle } from '../battles/battle'
 import { NewBattle } from '../battles/NewBattle'
 import { DeleteBattleDialog } from '../battles/DeleteBattle'
 import type { HomeRoster } from './HomeRosters'
-import { HomeView } from './HomeView'
+import { ABANDONED_AFTER, HomeView, underWay } from './HomeView'
+import { homeWidget } from './homeWidget'
+import { setNativeHomeWidget } from '../../nativeBridge'
 import { HomeNotifications } from './HomeNotifications'
 import { ContinueGuestDraft } from '../rosters/ContinueGuestDraft'
 import { ownEntryStatus } from '../sealedEvents/sealedEvent'
@@ -81,6 +83,27 @@ export function Home() {
       : [],
   )
   const [deleting, setDeleting] = useState<Battle | null>(null)
+  // The widget waits for every list it draws from, so it never shows a partial picture as everything there is.
+  const widget =
+    me === null
+      ? null
+      : me && mine && (!summarised.length || summaries)
+        ? JSON.stringify(
+            homeWidget(
+              me.id,
+              {
+                games: battlesFrom(mine).filter((battle) => underWay(battle, now - ABANDONED_AFTER)),
+                leagueGames,
+                rostersDue,
+                tournaments,
+              },
+              now,
+            ),
+          )
+        : undefined
+  useEffect(() => {
+    if (widget !== undefined) setNativeHomeWidget(widget === null ? null : JSON.parse(widget))
+  }, [widget])
   return (
     <>
       <HomeView

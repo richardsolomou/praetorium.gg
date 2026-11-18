@@ -1,0 +1,5 @@
+{
+  "platforms": ["apple", "android"],
+  "apple": { "modules": ["PraetoriumHomeWidgetModule"] },
+  "android": { "modules": ["gg.praetorium.homewidget.PraetoriumHomeWidgetModule"] }
+}

@@ -5,5 +5,6 @@ import WidgetKit
 struct PraetoriumWidgets: WidgetBundle {
   var body: some Widget {
     BattleActivityWidget()
+    HomeWidget()
   }
 }

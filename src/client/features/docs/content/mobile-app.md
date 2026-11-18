@@ -48,6 +48,12 @@ While a battle you're playing is open, the app puts it on your Lock Screen: the 
 
 It shows what your phone last saw, with the time of that update, so open the app to catch up on anything your opponent recorded on their phone. It clears when the battle finishes, when you open another battle, or when you sign out. To turn it off, turn off Live Activities for Praetorium in the iPhone's Settings, or the **Current battle** notifications on Android.
 
+## Home screen widget
+
+Add the **Up next** widget to your home screen to see what's waiting on you without opening the app: games you're in the middle of, league games and their deadlines, events that need your roster and tournaments you've entered. Tap a line to open it.
+
+The widget shows what the app's home page last saw, so it updates each time you open Praetorium. Signing out empties it.
+
 ## Apple Watch
 
 With an Apple Watch paired to your iPhone, the Praetorium watch app follows the last live battle you opened on the phone, playing or watching. It shows the round, phase, whose turn it is, the turn timer and each side's VP and CP. It keeps updating while the watch app is open, even with your iPhone locked. When it can't get an update, the status turns orange and reads **Saved** with the time of the last one.

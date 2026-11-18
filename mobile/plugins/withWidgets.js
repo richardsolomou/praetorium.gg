@@ -6,11 +6,14 @@ const TARGET = 'PraetoriumWidgets'
 const SOURCES = [
   'widgets/PraetoriumWidgets.swift',
   'widgets/BattleActivityWidget.swift',
+  'widgets/HomeWidget.swift',
   // The Live Activity's attributes are the app module's own file, so the two can never describe the activity differently.
   'modules/praetorium-battle-activity/ios/BattleActivityAttributes.swift',
+  // The home widget reads what the app module writes to the App Group, through the module's own file.
+  'modules/praetorium-home-widget/ios/HomeWidgetData.swift',
 ]
 
-/** Adds the WidgetKit extension that draws the battle Live Activity, embedded in the iPhone application. */
+/** Adds the WidgetKit extension that draws the battle Live Activity and the home screen widget, embedded in the iPhone application. */
 module.exports = (config) =>
   withXcodeProject(config, (mod) => {
     const project = mod.modResults
@@ -38,6 +41,15 @@ module.exports = (config) =>
 <key>NSExtension</key><dict><key>NSExtensionPointIdentifier</key><string>com.apple.widgetkit-extension</string></dict>
 </dict></plist>`,
     )
+    const entitlements = mod.ios.entitlements?.['com.apple.security.application-groups'] ?? []
+    fs.writeFileSync(
+      path.join(directory, `${TARGET}.entitlements`),
+      `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>com.apple.security.application-groups</key><array>${entitlements.map((group) => `<string>${group}</string>`).join('')}</array>
+</dict></plist>`,
+    )
     if (Object.values(objects.PBXNativeTarget).some((target) => target.name?.replaceAll('"', '') === TARGET)) return mod
     const target = project.addTarget(TARGET, 'app_extension', TARGET, `${mod.ios.bundleIdentifier}.widgets`)
     objects.PBXFileReference[target.pbxNativeTarget.productReference].path = `"${TARGET}.appex"`
@@ -57,6 +69,7 @@ module.exports = (config) =>
         GENERATE_INFOPLIST_FILE: 'NO',
         APPLICATION_EXTENSION_API_ONLY: 'YES',
         CODE_SIGN_STYLE: 'Automatic',
+        CODE_SIGN_ENTITLEMENTS: `${TARGET}/${TARGET}.entitlements`,
         CURRENT_PROJECT_VERSION: buildNumber,
         MARKETING_VERSION: mod.version,
       })

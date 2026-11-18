@@ -102,6 +102,9 @@
             ]
           }
         ]
+      },
+      "entitlements": {
+        "com.apple.security.application-groups": ["group.gg.praetorium"]
       }
     },
     "android": {
@@ -171,7 +174,10 @@
                 },
                 {
                   "targetName": "PraetoriumWidgets",
-                  "bundleIdentifier": "gg.praetorium.widgets"
+                  "bundleIdentifier": "gg.praetorium.widgets",
+                  "entitlements": {
+                    "com.apple.security.application-groups": ["group.gg.praetorium"]
+                  }
                 }
               ]
             }
