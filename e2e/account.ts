@@ -713,7 +713,10 @@ export async function takeTheTurn(page: Page) {
       drawPrompt(page)
         .waitFor({ state: 'visible', timeout: 8_000 })
         .then(() => 'drawn'),
+      // A reminder or mission choice is modal, hiding the board's buttons until the caller answers it.
       advanceButton(page)
+        .or(page.getByRole('dialog', { name: /^Battle reminders?$| · choices$/ }))
+        .first()
         .waitFor({ state: 'visible', timeout: 8_000 })
         .then(() => 'board'),
     ]).catch(() => 'board')
@@ -759,10 +762,11 @@ export async function advance(
     // The button stays disabled until the last command lands, and a prompt opening instead hides it.
     const ready = advanceButton(page).and(page.locator(':enabled'))
     await expect(ready.or(reminder).or(owedPrompt(page)).or(drawPrompt(page)).first()).toBeVisible()
+    // A prompt opening as the turn starts can cover the button; giving up quickly lets the next pass answer it.
     const clicked =
       (await ready.isVisible()) &&
       (await ready
-        .click({ timeout: 5_000 })
+        .click({ timeout: 2_000 })
         .then(() => true)
         .catch(() => false))
     if (clicked) {

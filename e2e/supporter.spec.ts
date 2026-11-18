@@ -3,12 +3,12 @@ import { signUp, uniqueName } from './account'
 import { userIdNamed, withAuthSql } from './storage'
 
 /**
- * A player with a linked GitHub account that sponsors the project.
+ * A player with a linked GitHub account that sponsors the project publicly.
  *
  * The sponsor row is what the refresh would store from GitHub; the test stack
  * has no sponsors token, so nothing replaces it while the test runs.
  */
-async function linkedSponsor(page: Page, sponsorship: 'public' | 'private') {
+async function linkedSponsor(page: Page) {
   const name = uniqueName('Sponsor')
   await signUp(page, name)
   const id = await userIdNamed(name)
@@ -18,7 +18,7 @@ async function linkedSponsor(page: Page, sponsorship: 'public' | 'private') {
     database
       .prepare('INSERT INTO account (id, accountId, providerId, userId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?)')
       .run(crypto.randomUUID(), githubId, 'github', id, now, now)
-    database.prepare('INSERT INTO githubSponsor (githubId, public) VALUES (?, ?)').run(githubId, sponsorship === 'public' ? 1 : 0)
+    database.prepare('INSERT INTO githubSponsor (githubId, public) VALUES (?, ?)').run(githubId, 1)
     return id
   })
 }
@@ -31,21 +31,21 @@ async function visitorProfile(browser: Browser, userId: string) {
   return { page, close: () => visitor.close() }
 }
 
-test("a public sponsor's profile shows the supporter badge to anyone", async ({ page, browser }) => {
-  const profile = await visitorProfile(browser, await linkedSponsor(page, 'public'))
+test("a sponsor's profile shows the supporter badge to anyone only while the sponsorship is public", async ({ page, browser }) => {
+  const userId = await linkedSponsor(page)
+  const profile = await visitorProfile(browser, userId)
   try {
     await expect(profile.page.getByRole('link', { name: 'Supporter' })).toHaveAttribute(
       'href',
       'https://github.com/sponsors/richardsolomou',
     )
-  } finally {
-    await profile.close()
-  }
-})
-
-test("a private sponsor's profile shows no supporter badge", async ({ page, browser }) => {
-  const profile = await visitorProfile(browser, await linkedSponsor(page, 'private'))
-  try {
+    await withAuthSql((database) =>
+      database
+        .prepare('UPDATE githubSponsor SET public = 0 WHERE githubId = (SELECT accountId FROM account WHERE userId = ? AND providerId = ?)')
+        .run(userId, 'github'),
+    )
+    await profile.page.reload()
+    await expect(profile.page.getByRole('heading', { level: 1 })).toBeVisible()
     await expect(profile.page.locator('[data-supporter-badge]')).toHaveCount(0)
   } finally {
     await profile.close()

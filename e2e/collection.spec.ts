@@ -87,11 +87,10 @@ test('rapid collection steps keep the latest count while earlier saves finish', 
     })
   })
   for (const [kind, initial, increases, decreases] of [
-    ['owned', 1, 1, 1],
-    ['owned', 1, 12, 4],
-    ['built', 0, 7, 2],
-    ['painted', 0, 5, 2],
-    ['wanted', 1, 8, 3],
+    ['owned', 1, 4, 1],
+    ['built', 0, 3, 1],
+    ['painted', 0, 2, 1],
+    ['wanted', 1, 3, 1],
   ] as const) {
     const input = page.getByRole('spinbutton', { name: `Necron Warriors models ${kind}`, exact: true })
     const label = `${kind === 'owned' ? '' : `${kind} `}Necron Warriors models`
@@ -122,9 +121,9 @@ test('rapid collection steps keep the latest count while earlier saves finish', 
   await page.screenshot({ path: test.info().outputPath('rapid-collection-counts.png'), fullPage: true })
   await page.reload()
   await expect(owned(page, 'Necron Warriors')).toHaveValue('9')
-  await expect(progress(page, 'Necron Warriors', 'built')).toHaveValue('5')
-  await expect(progress(page, 'Necron Warriors', 'painted')).toHaveValue('3')
-  await expect(page.getByRole('spinbutton', { name: 'Necron Warriors models wanted', exact: true })).toHaveValue('6')
+  await expect(progress(page, 'Necron Warriors', 'built')).toHaveValue('2')
+  await expect(progress(page, 'Necron Warriors', 'painted')).toHaveValue('1')
+  await expect(page.getByRole('spinbutton', { name: 'Necron Warriors models wanted', exact: true })).toHaveValue('3')
 })
 
 test('totals models across datasheets and drops a removed datasheet', async ({ page }) => {

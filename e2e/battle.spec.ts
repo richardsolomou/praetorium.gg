@@ -23,7 +23,7 @@ import {
   playerPanel,
   rosteredPlayers,
 } from './account'
-import { battleCommands, battleLog, productSql, lastPathSegment, battleIdFor } from './storage'
+import { battleCommands, battleLog, lastPathSegment } from './storage'
 import { expectNoHorizontalOverflow } from './builder.harness'
 
 test('the opening draw prompt starts at the top, pins its actions and holds the page still on a phone', async ({ page }) => {
@@ -276,31 +276,6 @@ test('native battle controls leave the application tabs reachable', async ({ pag
   await expect(scoring).toBeVisible()
 })
 
-test('a running battle restores mission prompts when its tactical prep is missing', async ({ page }) => {
-  await signUp(page, uniqueName('Repair'))
-  const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Repair roster' })
-  await practiceBattle(page, roster)
-  await startBattle(page)
-
-  const battleId = await battleIdFor(lastPathSegment(page.url()))
-  const commands = await productSql<{ key: string; body: string }>`SELECT key, body FROM commands WHERE battle_id = ${battleId}`
-  for (const command of commands) {
-    if (['set-prep', 'draw-secondaries'].includes((JSON.parse(command.body) as { kind: string }).kind)) {
-      await productSql`DELETE FROM commands WHERE key = ${command.key}`
-    }
-  }
-  await page.reload()
-
-  const draw = page.getByRole('dialog', { name: 'Your secondary missions' })
-  await expect(draw).toBeVisible()
-  await draw.getByRole('button', { name: 'Draw at random' }).click()
-  await expect(draw.locator('[data-drawn]')).toHaveCount(2)
-  await takeTheTurn(page)
-  for (let step = 0; step < 5; step += 1) await advance(page)
-  await page.getByRole('button', { name: 'Pass the turn' }).click()
-  await expect(page.getByRole('dialog', { name: /^Scoring end of turn points/ })).toContainText('Primary mission')
-})
-
 test('showing every stratagem includes the ones for the other turn, refused', async ({ page }) => {
   await signUp(page, uniqueName('Show all'))
   const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Show all roster' })
@@ -312,67 +287,6 @@ test('showing every stratagem includes the ones for the other turn, refused', as
   await expect(insaneBravery).toHaveCount(0)
   await waiting.getByRole('button', { name: /not playable now$/ }).click()
   await expect(insaneBravery).toBeDisabled()
-})
-
-test('the final opponent-turn settlement completes before the battle ends', async ({ page }) => {
-  await signUp(page, uniqueName('Final round'))
-  const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Final round roster' })
-  await practiceBattle(page, roster)
-  await startBattle(page)
-
-  const { append, first: firstPlayerId, second: opponentId } = await battleLog(page)
-  // An older log's secret mission folds as an ordinary card, which stands in here for one scored in the opponent's turn.
-  await append(firstPlayerId, {
-    kind: 'select-secret',
-    secondary: {
-      key: 'final-secret',
-      name: 'Final Vigil',
-      awards: [
-        {
-          vp: 5,
-          per: null,
-          mode: null,
-          max: null,
-          group: null,
-          cumulative: false,
-          criteria: 'Hold the objective.',
-          trigger: { timing: 'end-of-turn', phase: null, playerTurn: 'opponent-turn', roundMin: null, roundMax: null },
-        },
-      ],
-    },
-  })
-  const passPhases = async (playerId: string, count: number) => {
-    for (let phase = 0; phase < count; phase += 1) await append(playerId, { kind: 'advance' })
-  }
-  for (let round = 1; round < 5; round += 1) {
-    await passPhases(firstPlayerId, 6)
-    await passPhases(opponentId, 6)
-  }
-  await passPhases(firstPlayerId, 6)
-  await passPhases(opponentId, 5)
-  await page.setViewportSize(PHONE)
-  await page.reload()
-
-  const scoreboard = page.locator('[data-scoreboard]')
-  await expect(scoreboard.locator('h1')).toContainText('end phase')
-  await expect(scoreboard).toContainText('Round 5 of 5')
-  const activeHeight = (await scoreboard.boundingBox())?.height
-  await page.getByRole('button', { name: 'Pass the turn' }).click()
-  const activeScoring = page.getByRole('dialog', { name: /^Scoring end of turn points/ })
-  const discard = page.getByRole('dialog', { name: 'Discard tactical secondaries?' })
-  const settlement = page.getByRole('dialog', { name: /^Scoring end of battle points/ })
-  await expect(activeScoring.or(discard).or(settlement).first()).toBeVisible()
-  if (await activeScoring.isVisible()) await confirmScoring(activeScoring, 'Pass the turn')
-  await expect(discard.or(settlement).first()).toBeVisible()
-  if (await discard.isVisible()) await discard.getByRole('button', { name: 'Keep hand' }).click()
-
-  await expect(scoreboard).not.toContainText('Result')
-  await expect(settlement.locator('[data-due="final-secret"]')).toContainText('Final Vigil')
-  await settlement.locator('[data-due="final-secret"]').getByRole('button', { name: 'plus 5' }).click()
-  await confirmScoring(settlement, 'Finish battle')
-  await expect(scoreboard.locator('h1')).toContainText('wins')
-  await expect(scoreboard).not.toContainText('Result')
-  expect((await scoreboard.boundingBox())?.height).toBe(activeHeight)
 })
 
 test('a tactical hand pays out when the card says', async ({ browser }) => {

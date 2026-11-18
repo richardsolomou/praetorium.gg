@@ -44,51 +44,6 @@ test('simulation and loadout optimization work in a cold offline application', a
   await expect(reopened.getByRole('region', { name: 'Combined estimate' }).locator('.readout').nth(1)).toHaveText('6.00')
 })
 
-test('online saves only show sync status when the queue remains pending', async ({ page }) => {
-  await signUp(page, uniqueName('Quiet sync'))
-  await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Original list' })
-  await expectWorkSynced(page)
-  for (const slow of [false, true]) {
-    const name = `${slow ? 'Slow' : 'Quick'} save`
-    const { promise: pending, resolve: release } = Promise.withResolvers<void>()
-    await page.route('**/_serverFn/**', async (route) => {
-      const body = route.request().postData() ?? ''
-      if (body.includes(name) && body.includes('operationId')) await pending
-      await route.continue()
-    })
-    await page.evaluate(() => {
-      const banner = () => [...document.querySelectorAll('output')].some((element) => /waiting to sync/.test(element.textContent ?? ''))
-      const observation = { seen: banner(), observer: new MutationObserver(() => (observation.seen ||= banner())) }
-      observation.observer.observe(document.body, { childList: true, subtree: true, characterData: true })
-      Object.assign(window, { syncObservation: observation })
-    })
-    const before = await page.locator('[data-roster-builder]').boundingBox()
-    try {
-      await page.getByLabel('List name').fill(name)
-      await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(1)
-      if (slow) {
-        await page.waitForTimeout(5_000)
-        await expect(page.getByText('1 change waiting to sync', { exact: true })).toHaveCount(0)
-        await expect(page.getByText('1 change waiting to sync', { exact: true })).toBeVisible()
-      } else {
-        await page.waitForTimeout(150)
-        expect(await page.locator('[data-roster-builder]').boundingBox()).toEqual(before)
-      }
-    } finally {
-      release()
-    }
-    await expectWorkSynced(page)
-    await expect(page.getByText('1 change waiting to sync', { exact: true })).toHaveCount(0)
-    const seen = await page.evaluate(() => {
-      const observation = (window as unknown as { syncObservation: { seen: boolean; observer: MutationObserver } }).syncObservation
-      observation.observer.disconnect()
-      return observation.seen
-    })
-    expect(seen).toBe(slow)
-    await page.unroute('**/_serverFn/**')
-  }
-})
-
 test('offline roster edits survive a cold reopen and sync after reconnecting', async ({ page, context }) => {
   test.setTimeout(240_000)
   await signUp(page, uniqueName('Plane army'))

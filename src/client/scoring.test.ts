@@ -112,6 +112,11 @@ describe('when a mission is asked about', () => {
     expect(cardsDueFromTheirTurn(5, 5, cards, ['beacon'])).toHaveLength(1)
   })
 
+  it('settles an opponent-turn card from the final turn before the battle ends', () => {
+    const cards = [card('vigil', 'secondary', payout(5, { timing: 'end-of-turn', playerTurn: 'opponent-turn' }))]
+    expect(cardsDueFromTheirTurn(5, 5, cards, ['vigil'], true)).toHaveLength(1)
+  })
+
   it('settles an either-turn card from their turn as well as your own', () => {
     const cards = [card('kills', 'secondary', payout(2, { timing: 'end-of-turn', playerTurn: 'either' }))]
     expect(cardsDueFromTheirTurn(1, 5, cards, ['kills'])).toHaveLength(1)
