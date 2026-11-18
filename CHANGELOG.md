@@ -1,5 +1,14 @@
 # praetorium
 
+## 0.266.4 (2026-11-18)
+
+### Patch Changes
+
+- dc0eae4: [reference] An ability granted by another rule shows under its own name instead of the name of an unrelated rule on the datasheet, such as Feel No Pain on Broadsides showing as For The Greater Good.
+- dc0eae4: [rosters] A unit with a Marker Drone no longer shows its whole rule as a core ability.
+- dc0eae4: [reference] A Feel No Pain that only works against some attacks shows as a short chip with an asterisk, and its tooltip says which attacks.
+- dc0eae4: [reference] Transports no longer show their transport capacity as a core ability.
+
 ## 0.266.3 (2026-11-18)
 
 ### Patch Changes
