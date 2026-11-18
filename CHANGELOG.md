@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.266.2 (2026-11-18)
+
+### Patch Changes
+
+- 737e601: [rosters] A tournament list taken to more than one event shows once, at its newest placing, so filtering no longer leaves another faction's list behind.
+
 ## 0.266.1 (2026-11-18)
 
 ### Patch Changes
