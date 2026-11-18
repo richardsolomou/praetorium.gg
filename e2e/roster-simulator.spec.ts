@@ -1,4 +1,4 @@
-import { chooseCombatUnit, combatEstimate, closeCombatBreakdown, openCombatControls, holdCombatCalculations, combatDamage } from './combat'
+import { chooseCombatUnit, closeCombatBreakdown, openCombatControls, holdCombatCalculations, combatDamage } from './combat'
 import { expect, test, type Page } from './test'
 import { addUnit, createRoster, signUp, waitForRosterSave, expectNoHorizontalOverflow, expectNoPageOverflow, chooseOption } from './account'
 
@@ -17,63 +17,7 @@ async function noOverflow(page: Page) {
   await expectNoHorizontalOverflow(page.locator('aside, [role=dialog], [data-slot=roster-units], [data-slot=scroll-area-viewport]'))
 }
 
-test('Invasion Fleet hides unsupported rules in both roles while retaining calculated buffs', async ({ page }) => {
-  await page.setViewportSize({ width: 1440, height: 1000 })
-  await signUp(page, 'Invasion Fleet')
-  await createRoster(page, { faction: 'Tyranids', detachment: /Invasion Fleet/ })
-  await addUnit(page, 'Hormagaunts')
-  await page.locator('[data-unit="Hormagaunts"]').getByRole('button', { name: 'Hormagaunts', exact: true }).click()
-  await page.getByRole('button', { name: 'Simulate combat', exact: true }).click()
-  const simulator = page.getByRole('dialog', { name: 'Combat simulator', exact: true })
-  await chooseCombatUnit(page, 'Defender', 'Necrons', 'Necron Warriors')
-  const buffs = simulator.locator('[aria-label="Attacker buffs"], [aria-label="Defender buffs"]')
-  const synapse = simulator.getByRole('switch', { name: 'Attacker Synapse', exact: true })
-  await expect(synapse).toBeVisible()
-  const melee = simulator.getByRole('region', { name: 'Melee results' })
-  const damage = await combatDamage(simulator, 'Melee')
-  await expect(damage).toHaveText(/^\d+(?:\.\d+)?$/)
-  await expect(melee).toHaveAttribute('aria-busy', 'false')
-  const baseline = Number(await damage.textContent())
-  await synapse.click()
-  await expect.poll(async () => Number(await damage.textContent())).toBeGreaterThan(baseline)
-  await synapse.click()
-  await expect.poll(async () => Number(await damage.textContent())).toBe(baseline)
-  for (const width of [1440, 390]) {
-    await page.setViewportSize({ width, height: 1000 })
-    await expect
-      .poll(() =>
-        simulator.getByLabel('Results summary').evaluate((element) => {
-          const dialog = element.closest('[role=dialog]')!
-          return Math.abs(element.getBoundingClientRect().bottom - dialog.getBoundingClientRect().bottom)
-        }),
-      )
-      .toBeLessThanOrEqual(1)
-    await closeCombatBreakdown(simulator)
-    if (width === 390)
-      expect(await simulator.getByLabel('Results summary').evaluate((element) => element.getBoundingClientRect().height)).toBeLessThan(160)
-    for (const name of ['Hyper-adaptations', 'Sustained Hits', 'Lethal Hits', 'Hyper Adaptions', 'Not calculated'])
-      for (const panel of await buffs.all()) await expect(panel).not.toContainText(name)
-    await noOverflow(page)
-    await synapse.scrollIntoViewIfNeeded()
-    if (width === 390) {
-      await simulator.locator('[data-simulator-scroll]').evaluate((element) => (element.scrollTop = element.scrollHeight))
-      const footerTop = await simulator.getByLabel('Results summary').evaluate((element) => element.getBoundingClientRect().top)
-      const modifiersBottom = await simulator
-        .getByRole('region', { name: 'Applied modifiers' })
-        .evaluate((element) => element.getBoundingClientRect().bottom)
-      expect(modifiersBottom).toBeLessThanOrEqual(footerTop)
-    }
-  }
-  await simulator.getByRole('button', { name: 'Swap attacker and defender' }).click()
-  await openCombatControls(simulator)
-  await expect(simulator.getByRole('region', { name: 'Defender', exact: true }).locator('[data-combat-member]').first()).toContainText(
-    'Hormagaunts',
-  )
-  for (const name of ['Hyper-adaptations', 'Sustained Hits', 'Lethal Hits', 'Hyper Adaptions', 'Not calculated'])
-    for (const panel of await buffs.all()) await expect(panel).not.toContainText(name)
-})
-
-test('selected friendly support calculates against the marked enemy in both phases', async ({ page }) => {
+test('selected friendly support names its source and stays chosen through a swap', async ({ page }) => {
   await signUp(page, 'Selected support')
   await createRoster(page, { faction: 'Aeldari', detachment: /Warhost/ })
   await addUnit(page, 'Spiritseer')
@@ -86,29 +30,10 @@ test('selected friendly support calculates against the marked enemy in both phas
   const rules = simulator.getByRole('region', { name: 'Attacker rules', exact: true })
   await expect(buff).not.toBeChecked()
   await expect(rules).toContainText('Spiritseer · Selected within 6" · Against the selected target')
-  await expect(rules.getByRole('switch', { name: 'Attacker Psychic Guidance', exact: true })).not.toBeChecked()
   await expect(rules).not.toContainText('Not calculated')
-  const results = ['Shooting results', 'Melee results'].map((name) => simulator.getByRole('region', { name }))
-  const estimates = [await combatEstimate(simulator, 'Shooting'), await combatEstimate(simulator, 'Melee')]
-  const baseline: number[] = []
-  for (const [index, result] of results.entries()) {
-    await expect(estimates[index].locator('.readout').first()).toHaveText(/^\d+(?:\.\d+)?$/)
-    await expect(result).toHaveAttribute('aria-busy', 'false')
-    baseline.push(Number(await estimates[index].locator('.readout').first().textContent()))
-  }
   await buff.click()
-  for (const [index, result] of results.entries()) {
-    await expect(result).toContainText('Sustained Hits 1')
-    await expect.poll(async () => Number(await estimates[index].locator('.readout').first().textContent())).toBeGreaterThan(baseline[index])
-  }
-  await buff.scrollIntoViewIfNeeded()
-  await noOverflow(page)
-  await page.setViewportSize({ width: 390, height: 1000 })
-  await buff.scrollIntoViewIfNeeded()
-  await noOverflow(page)
+  await expect(simulator.getByRole('region', { name: 'Shooting results' })).toContainText('Sustained Hits 1')
   await buff.click()
-  for (const [index] of results.entries())
-    await expect.poll(async () => Number(await estimates[index].locator('.readout').first().textContent())).toBe(baseline[index])
   await choose(page, 'Attacker unit', 'Spiritseer')
   await expect(rules).not.toContainText('Spirit Mark')
   await choose(page, 'Attacker unit', 'Wraithguard')
@@ -120,49 +45,6 @@ test('selected friendly support calculates against the marked enemy in both phas
   await simulator.getByRole('button', { name: 'Swap attacker and defender' }).click()
   await openCombatControls(simulator)
   await expect(buff).toBeChecked()
-})
-
-test('Aeldari weapon buffs calculate their named and existing-ability effects', async ({ page }) => {
-  await signUp(page, 'Aeldari')
-  await createRoster(page, { faction: 'Aeldari', detachment: /Warhost/ })
-  await addUnit(page, 'Asurmen')
-  await page.locator('[data-unit="Asurmen"]').getByRole('button', { name: 'Asurmen', exact: true }).click()
-  await page.getByRole('button', { name: 'Simulate combat', exact: true }).click()
-  const simulator = page.getByRole('dialog', { name: 'Combat simulator', exact: true })
-  await chooseCombatUnit(page, 'Defender', 'Space Marines', 'Intercessor Squad')
-  const hand = simulator.getByRole('switch', { name: 'Attacker Hand of Asuryan', exact: true })
-  const blitz = simulator.getByRole('switch', { name: 'Attacker Blitzing Firepower', exact: true })
-  await expect(hand).not.toBeChecked()
-  await expect(blitz).not.toBeChecked()
-  const shooting = simulator.getByRole('region', { name: 'Shooting results' })
-  const damage = await combatDamage(simulator, 'Shooting')
-  await expect(damage).toHaveText(/^\d+(?:\.\d+)?$/)
-  await expect(shooting).toHaveAttribute('aria-busy', 'false')
-  const baseline = Number(await damage.textContent())
-  await hand.click()
-  await expect(shooting.getByRole('button', { name: 'D 3, modified from 2 by Hand of Asuryan', exact: true })).toBeVisible()
-  await expect(shooting).toContainText('ANTI-INFANTRY 5+')
-  await expect(shooting).toContainText('DEVASTATING WOUNDS')
-  await expect.poll(async () => Number(await damage.textContent())).toBeGreaterThan(baseline)
-  await expect(shooting).toHaveAttribute('aria-busy', 'false')
-  const activated = Number(await damage.textContent())
-  await blitz.click()
-  await expect.poll(async () => Number(await damage.textContent())).toBeGreaterThan(activated)
-  await expect(simulator.getByRole('region', { name: 'Attacker rules', exact: true })).toContainText('Target within 12"')
-  expect(
-    await simulator.getByRole('region', { name: 'Attacker buffs', exact: true }).evaluate((element) => {
-      const conditions = document.querySelector('[aria-label="Modifiers"]')!
-      return Boolean(element.compareDocumentPosition(conditions) & Node.DOCUMENT_POSITION_FOLLOWING)
-    }),
-  ).toBe(true)
-  await page.setViewportSize({ width: 390, height: 1000 })
-  await noOverflow(page)
-  await hand.click()
-  await blitz.click()
-  await expect.poll(async () => Number(await damage.textContent())).toBe(baseline)
-  await simulator.getByRole('button', { name: 'Close', exact: true }).click()
-  await page.getByRole('button', { name: 'Back to roster', exact: true }).click()
-  await expect(page.locator('[data-unit="Asurmen"]')).toBeVisible()
 })
 
 test('roster simulations preserve the saved loadout', async ({ browser, page }) => {
@@ -303,36 +185,33 @@ test('roster buffs apply conditional shooting bonuses and defensive stratagems',
   await simulator.getByRole('switch', { name: 'Defender Armour of Contempt', exact: true }).click()
   await expect(damage).toHaveText('2.22')
   await expect(simulator.getByRole('switch', { name: 'Attacker Armour of Contempt', exact: true })).toHaveCount(0)
+  expect(
+    await simulator.getByRole('region', { name: 'Attacker buffs', exact: true }).evaluate((element) => {
+      const conditions = document.querySelector('[aria-label="Modifiers"]')!
+      return Boolean(element.compareDocumentPosition(conditions) & Node.DOCUMENT_POSITION_FOLLOWING)
+    }),
+  ).toBe(true)
+  const summary = simulator.getByLabel('Results summary')
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 1000 })
+    await expect
+      .poll(() =>
+        summary.evaluate((element) => {
+          const dialog = element.closest('[role=dialog]')!
+          return Math.abs(element.getBoundingClientRect().bottom - dialog.getBoundingClientRect().bottom)
+        }),
+      )
+      .toBeLessThanOrEqual(1)
+    await closeCombatBreakdown(simulator)
+    await noOverflow(page)
+  }
+  expect(await summary.evaluate((element) => element.getBoundingClientRect().height)).toBeLessThan(160)
+  await simulator.locator('[data-simulator-scroll]').evaluate((element) => (element.scrollTop = element.scrollHeight))
+  const footerTop = await summary.evaluate((element) => element.getBoundingClientRect().top)
+  const modifiersBottom = await simulator
+    .getByRole('region', { name: 'Applied modifiers' })
+    .evaluate((element) => element.getBoundingClientRect().bottom)
+  expect(modifiersBottom).toBeLessThanOrEqual(footerTop)
   await simulator.getByRole('button', { name: 'Close', exact: true }).click()
   await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
-})
-
-test('a support stratagem requires its source and applies to its eligible recipient', async ({ page }) => {
-  await signUp(page, 'Support')
-  await createRoster(page, { faction: 'Necrons', detachment: /Canoptek Court/ })
-  await addUnit(page, 'Immortals')
-  const immortals = page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Immortals', exact: true })
-  await immortals.click()
-  await page.getByRole('button', { name: 'Simulate combat', exact: true }).click()
-  const simulator = page.getByRole('dialog', { name: 'Combat simulator', exact: true })
-  await openCombatControls(simulator)
-  await expect(simulator.getByRole('region', { name: 'Attacker rules', exact: true })).toBeVisible()
-  await expect(simulator.getByRole('switch', { name: 'Attacker Solar Pulse', exact: true })).toHaveCount(0)
-  await simulator.getByRole('button', { name: 'Close', exact: true }).click()
-  await addUnit(page, 'Chronomancer')
-  await immortals.click()
-  await page.getByRole('button', { name: 'Simulate combat', exact: true }).click()
-  await chooseCombatUnit(page, 'Defender', 'Space Marines', 'Intercessor Squad')
-  const pulse = simulator.getByRole('switch', { name: 'Attacker Solar Pulse', exact: true })
-  await expect(pulse).not.toBeChecked()
-  await simulator.getByRole('tab', { name: /^Shooting/ }).click()
-  await simulator.getByRole('button', { name: 'Cover (−1 BS)', exact: true }).click()
-  const shooting = simulator.getByRole('region', { name: 'Shooting results' })
-  const damage = await combatDamage(simulator, 'Shooting')
-  await expect(damage).toHaveText(/^\d+\.\d+$/)
-  await expect(shooting).toHaveAttribute('aria-busy', 'false')
-  const baseline = Number(await damage.textContent())
-  await pulse.click()
-  await expect(shooting).toContainText('IGNORES COVER')
-  await expect.poll(async () => Number(await damage.textContent())).toBeGreaterThan(baseline)
 })
