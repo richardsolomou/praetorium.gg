@@ -3,6 +3,7 @@ import { posthog } from 'posthog-js'
 import { useCallback, useState } from 'react'
 import { buttonClass } from '../../components/buttonClass'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../components/Dialog'
+import { AccountBenefits } from '../account/AccountBenefits'
 import { GUEST_PATH } from './guestDraft'
 
 /** What a visitor tried that needs an account, as the prompt's title and its telemetry name it. */
@@ -36,14 +37,7 @@ function AccountPrompt({ reason, onClose }: { reason: AccountReason | null; onCl
           </DialogDescription>
         </DialogHeader>
         <DialogBody>
-          <ul className="list-disc space-y-1 pl-5 text-sm text-dim">
-            <li>As many rosters as you like, with variants to compare builds</li>
-            <li>Saved unit loadouts to add again in any roster</li>
-            <li>Links to share them, and lending to friends</li>
-            <li>Locking and archiving to keep your library tidy</li>
-            <li>Your rosters and battles on any device</li>
-            <li>Your own record, a place on the leaderboard and tournament results</li>
-          </ul>
+          <AccountBenefits />
           <div className="flex flex-wrap gap-2">
             <Link
               to="/sign-in"
