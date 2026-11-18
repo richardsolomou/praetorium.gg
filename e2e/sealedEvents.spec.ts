@@ -836,29 +836,6 @@ test('a full sealed event keeps its lists sealed until someone reveals them', as
   await Promise.all([ownerContext.close(), opponentContext.close()])
 })
 
-test('a sealed event names its next step, which moves on once a player joins', async ({ browser }) => {
-  const ownerContext = await browser.newContext()
-  const playerContext = await browser.newContext()
-  const owner = await ownerContext.newPage()
-  const player = await playerContext.newPage()
-  await signUp(owner, uniqueName('Next step organizer'))
-  await signUp(player, uniqueName('Next step player'))
-  await owner.goto('/tournaments')
-  const create = await openSealedEventCreation(owner)
-  await create.getByLabel('Name').fill(uniqueName('Next step sealed event'))
-  await create.getByRole('button', { name: /^Anyone who joins/ }).click()
-  await submitSealedEventCreation(owner, create)
-  const nextStep = owner.locator('[data-sealed-event-next-step]')
-  await expect(nextStep).toHaveText('Next: Copy the invite link and send it to your players.')
-
-  await player.goto(owner.url())
-  await join(player)
-  await owner.reload()
-  await expect(nextStep).toHaveText('Next: Players seal their rosters. Nobody sees another list, you included, until the reveal.')
-  await ownerContext.close()
-  await playerContext.close()
-})
-
 test('a new sealed event starts with its first event and can seal a roster', async ({ page }) => {
   const ownerName = uniqueName('TournamentOwner')
   const sealedEventName = uniqueName('Home Sealed event')

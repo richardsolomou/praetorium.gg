@@ -1,40 +1,37 @@
 import { expect, test } from './test'
 import { createRoster, signUp, uniqueName, PHONE } from './account'
-import { saveOlderMovingRule, waitForOfflineApp } from './offline'
+import { saveOlderMovingRule, downloadOfflineAppAtOnce, waitForOfflineApp } from './offline'
 
-for (const width of [1440, 390]) {
-  test(`factions stay visible with an older native download at ${width}px`, async ({ page }) => {
-    test.setTimeout(240_000)
-    await page.setViewportSize({ width, height: 844 })
-    await page.addInitScript(() => {
-      window.PraetoriumReferenceCache = {
-        version: 1,
-        savedAt: 1,
-        revision: 'old-reference',
-        css: '',
-        logo: '',
-        queries: [{ key: ['faction-index'], data: { revision: 'old', factions: [] } }],
-        search: { factions: [], detachments: [], datasheets: [], missions: [], rules: [] },
-      }
-      const states: boolean[] = []
-      Object.assign(window, { factionVisibility: states })
-      // A slow server streams the search field ahead of the list, so the parser can stop between them.
-      new MutationObserver(() => {
-        if (document.readyState !== 'loading' && document.querySelector('input[placeholder="Find a faction"]'))
-          states.push(Boolean(document.querySelector('main a[href^="/factions/"]')))
-      }).observe(document, { childList: true, subtree: true })
-    })
-    await page.goto('/factions')
-    await expect(page.locator('[data-faction="Chaos Daemons"]')).toBeVisible()
-    // The page reads only what it saved itself, so the injected download is replaced by a complete one.
-    await expect.poll(() => page.evaluate(() => window.PraetoriumReferenceCache?.version), { timeout: 180_000 }).toBe(2)
-    await expect(page.getByRole('textbox', { name: 'Find a faction' })).toBeVisible()
-    const visibility = await page.evaluate(() => (window as typeof window & { factionVisibility: boolean[] }).factionVisibility)
-    expect(visibility).toContain(true)
-    expect(visibility).not.toContain(false)
-    await page.screenshot({ path: test.info().outputPath(`refreshed-factions-${width}.png`) })
+test(`factions stay visible with an older native download`, async ({ page }) => {
+  test.setTimeout(240_000)
+  await page.addInitScript(() => {
+    window.PraetoriumReferenceCache = {
+      version: 1,
+      savedAt: 1,
+      revision: 'old-reference',
+      css: '',
+      logo: '',
+      queries: [{ key: ['faction-index'], data: { revision: 'old', factions: [] } }],
+      search: { factions: [], detachments: [], datasheets: [], missions: [], rules: [] },
+    }
+    const states: boolean[] = []
+    Object.assign(window, { factionVisibility: states })
+    // A slow server streams the search field ahead of the list, so the parser can stop between them.
+    new MutationObserver(() => {
+      if (document.readyState !== 'loading' && document.querySelector('input[placeholder="Find a faction"]'))
+        states.push(Boolean(document.querySelector('main a[href^="/factions/"]')))
+    }).observe(document, { childList: true, subtree: true })
   })
-}
+  await page.goto('/factions')
+  await expect(page.locator('[data-faction="Chaos Daemons"]')).toBeVisible()
+  // The page reads only what it saved itself, so the injected download is replaced by a complete one.
+  await expect.poll(() => page.evaluate(() => window.PraetoriumReferenceCache?.version), { timeout: 180_000 }).toBe(2)
+  await expect(page.getByRole('textbox', { name: 'Find a faction' })).toBeVisible()
+  const visibility = await page.evaluate(() => (window as typeof window & { factionVisibility: boolean[] }).factionVisibility)
+  expect(visibility).toContain(true)
+  expect(visibility).not.toContain(false)
+  await page.screenshot({ path: test.info().outputPath(`refreshed-factions.png`) })
+})
 
 test('a first roster open shows progress until the army is ready', async ({ page, context, browser }) => {
   await signUp(page, uniqueName('Roster loading'))
@@ -65,11 +62,16 @@ test('a first roster open shows progress until the army is ready', async ({ page
 })
 
 test('an unopened rule from an older download stays readable throughout hosted revalidation', async ({ page }) => {
+  await downloadOfflineAppAtOnce(page)
   test.setTimeout(240_000)
   await page.goto('/rules/core-rules/moving')
   await waitForOfflineApp(page)
   // A download the service still publishes answers without revalidating, so this one predates it.
   await saveOlderMovingRule(page, 'Saved Moving')
+  // Later pages wait as a player's do, so the older download is still the one saved when the rule opens.
+  await page.addInitScript(() => {
+    delete window.PraetoriumOfflineDownloadDelayMs
+  })
   await page.goto('/')
   const { promise: held, resolve: release } = Promise.withResolvers<void>()
   await page.route('**/_serverFn/**', async (route) => {

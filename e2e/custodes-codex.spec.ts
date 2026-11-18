@@ -1,4 +1,4 @@
-import { waitForOfflineApp } from './offline'
+import { downloadOfflineAppAtOnce, waitForOfflineApp } from './offline'
 import {
   confirmRosterSetup,
   retryUntilVisible,
@@ -22,6 +22,7 @@ import { lastPathSegment, productOperator } from './storage'
 const phone = { width: 390, height: 900 }
 
 test('Custodes codex presentation', async ({ page, context }) => {
+  await downloadOfflineAppAtOnce(page)
   test.setTimeout(240_000)
   await page.setViewportSize(desktopContext.viewport)
   const setup = await visitorSetup(page)

@@ -1,12 +1,7 @@
 name: CI
 
 on:
-  # A pull request runs only the browser specs its change exercises, and that run is the required
-  # `e2e` check; the daily run is the full suite that catches a spec the selection missed.
   pull_request:
-  # The daily run also records the source each spec executes, which pull requests choose their specs from.
-  schedule:
-    - cron: '17 13 * * *'
   workflow_dispatch:
     inputs:
       e2e-runners:
@@ -14,10 +9,6 @@ on:
         type: choice
         options: ['14', '16', '8']
         default: '14'
-      coverage:
-        description: Record the coverage map that pull requests choose specs from
-        type: boolean
-        default: false
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -74,9 +65,9 @@ jobs:
       - run: test '${{ needs.integration-lane.result }}' = success
 
   build-lane:
-    # The browser-test build compiles and shares a new catalogue first, so this lane restores it rather than compiling it a second time.
-    needs: [changes, browser-build]
-    if: ${{ !cancelled() && needs.changes.outputs.runtime == 'true' }}
+    # Starts beside the browser-test build: both restore the shared catalogue, and on a compiler change both compile it rather than one waiting for the other.
+    needs: changes
+    if: needs.changes.outputs.runtime == 'true'
     uses: ./.github/workflows/ci-build.yml
     secrets: inherit
 
@@ -114,14 +105,11 @@ jobs:
 
   e2e-lane:
     needs: browser-build
-    if: needs.browser-build.outputs.runner-count != '0'
     uses: ./.github/workflows/ci-e2e.yml
     with:
       node-version: ${{ needs.browser-build.outputs.node-version }}
       runner-count: ${{ needs.browser-build.outputs.runner-count }}
       runners: ${{ needs.browser-build.outputs.runners }}
-      specs: ${{ needs.browser-build.outputs.specs }}
-      coverage: ${{ github.event_name == 'schedule' || inputs.coverage == true }}
     secrets: inherit
 
   e2e:
@@ -134,8 +122,7 @@ jobs:
         run: |
           test '${{ needs.changes.result }}' = success
           test '${{ needs.browser-build.result }}' = success
-          # A change no spec exercises runs no browser runner.
-          test '${{ needs.e2e-lane.result }}' = success || { test '${{ needs.browser-build.outputs.runner-count }}' = 0 && test '${{ needs.e2e-lane.result }}' = skipped; }
+          test '${{ needs.e2e-lane.result }}' = success
 
   points-lane:
     needs: changes

@@ -18,7 +18,6 @@
 ## Browser tests
 
 - `just e2e` runs isolated production-mode stacks; never test against the interactive Vite preview, which skips production hydration.
-- Pull requests run only specs selected by `scripts/lib/e2eSelection.ts`; run every spec with `gh workflow run ci.yml --ref <branch>`.
 - Before hydration, presses, link navigations, and typed values are lost; retry until the outcome appears (`retryUntilVisible`, `followLink` in `e2e/account.ts`), never wait for time.
 - A changed URL can precede the routed content; wait for the destination heading.
 - Concurrent-tab save assertions check the persisted result, since either tab can flush the shared queue.

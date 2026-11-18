@@ -15,6 +15,7 @@ import { chooseCombatUnit, openCombatControls, combatSettled, simulatorState } f
 
 declare global {
   interface Window {
+    PraetoriumLoadoutDeadlineMs?: number
     PraetoriumLoadoutGate?: { pending: (() => void)[]; started: number; replies: number; resume: () => void; release: () => void }
   }
 }
@@ -156,7 +157,12 @@ test('surviving profile choices agree with results and v1 links through member e
   await expect(page.getByText(discarded, { exact: true })).toHaveCount(0)
 })
 
-async function holdLoadoutReplies(page: Page, memberIndex: number) {
+/** Holds one member's loadout replies; a `deadlineMs` stands in for the fifteen seconds a player's comparison may run. */
+async function holdLoadoutReplies(page: Page, memberIndex: number, deadlineMs?: number) {
+  if (deadlineMs)
+    await page.evaluate((deadline) => {
+      window.PraetoriumLoadoutDeadlineMs = deadline
+    }, deadlineMs)
   await page.evaluate((index) => {
     // eslint-disable-next-line @typescript-eslint/unbound-method -- Reflect.apply binds the saved method to its worker.
     const original = Worker.prototype.postMessage
@@ -168,11 +174,13 @@ async function holdLoadoutReplies(page: Page, memberIndex: number) {
       replies: 0,
       resume: () => {
         holding = false
+        delete window.PraetoriumLoadoutDeadlineMs
       },
       release: () => {
         Worker.prototype.postMessage = original
         for (const callback of pending.splice(0)) callback()
         delete window.PraetoriumLoadoutGate
+        delete window.PraetoriumLoadoutDeadlineMs
       },
     }
     Worker.prototype.postMessage = function (message: unknown, ...args: unknown[]) {
@@ -225,16 +233,18 @@ async function editor(page: Page, context: 'standalone' | 'roster', companion: b
   return page.getByRole('dialog', { name: `Attacker · ${companion ? 'Overlord' : 'Immortals'}`, exact: true })
 }
 
+// One editor waits out the real deadline; the others shorten it, since what they cover is their own context's recovery.
 const editors = [
-  { context: 'standalone', companion: false, width: 390 },
-  { context: 'standalone', companion: true, width: 1440 },
-  { context: 'roster', companion: false, width: 1440 },
-  { context: 'roster', companion: true, width: 390 },
+  { context: 'standalone', companion: false, width: 390, deadline: 2_000 },
+  { context: 'standalone', companion: true, width: 1440, deadline: 2_000 },
+  { context: 'roster', companion: false, width: 1440, deadline: 2_000 },
+  { context: 'roster', companion: true, width: 390, deadline: undefined },
 ] as const
 
-for (const { context, companion, width } of editors) {
+for (const { context, companion, width, deadline } of editors) {
   const member = companion ? 'companion' : 'primary'
-  test(`${context} ${member} loadout retains odds through a real deadline and native retry at ${width}px`, async ({ page }) => {
+  const waited = deadline ? 'a shortened' : 'a real'
+  test(`${context} ${member} loadout retains odds through ${waited} deadline and native retry at ${width}px`, async ({ page }) => {
     // A background refetch restarts scoring with a fresh fifteen-second worker, so allow for one restart.
     test.setTimeout(180_000)
     const loadout = await editor(page, context, companion, width)
@@ -242,7 +252,7 @@ for (const { context, companion, width } of editors) {
     await expect(odds.first()).toBeVisible()
     await expect(loadout.locator('[aria-label*="destroyed,"].text-faint')).toHaveCount(0)
     const priorLabels = await odds.evaluateAll((elements) => elements.map((element) => element.getAttribute('aria-label')))
-    const gate = await holdLoadoutReplies(page, companion ? 1 : 0)
+    const gate = await holdLoadoutReplies(page, companion ? 1 : 0, deadline)
     try {
       const next = companion ? 'Voidscythe' : 'Tesla carbine'
       await loadout.getByRole('button', { name: `Select ${next}`, exact: true }).click()
@@ -250,7 +260,7 @@ for (const { context, companion, width } of editors) {
       await gate.waitForReply()
       const alert = loadout.getByRole('alert').filter({ hasText: 'The loadout comparison took too long. Try again.' })
       await expect(alert).toBeVisible({ timeout: 45_000 })
-      expect(await gate.elapsed()).toBeGreaterThanOrEqual(14_900)
+      expect(await gate.elapsed()).toBeGreaterThanOrEqual((deadline ?? 15_000) - 100)
       await expect(alert).toContainText('Previous odds are shown.')
       expect(await odds.evaluateAll((elements) => elements.map((element) => element.getAttribute('aria-label')))).toEqual(priorLabels)
       await expect(loadout.locator('[aria-label*="destroyed,"].text-faint').first()).toBeVisible()

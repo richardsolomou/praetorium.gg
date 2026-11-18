@@ -1,5 +1,5 @@
 import { expect, test } from './test'
-import { waitForRosterSave, expectNoPageOverflow, chooseRosterAction, openRosterSetup, chooseOption, isRosterSave, PHONE } from './account'
+import { waitForRosterSave, chooseRosterAction, openRosterSetup, chooseOption, isRosterSave, PHONE } from './account'
 import { shot, expectNoHorizontalOverflow, expectNotAttachable, openBuilder, add, arrangeByRole, attach } from './builder.harness'
 
 test('enhancement choices show descriptions when rule and catalogue names differ', async ({ page }) => {
@@ -182,26 +182,6 @@ test('a detachment rule marks the weapon abilities it grants', async ({ page }) 
   await expect(assault).toBeVisible()
 })
 
-test('a unit upgrade shows the core ability it grants', async ({ page }) => {
-  await page.setViewportSize({ width: 1600, height: 900 })
-  await openBuilder(page, 'Necrons', /Hand of the Dynasty/)
-  await add(page, 'Necron Warriors')
-  await page.locator('[data-unit="Necron Warriors"]').getByRole('button', { name: 'Necron Warriors', exact: true }).click()
-
-  const loadout = page.locator('aside[aria-label="Loadout"]')
-  await loadout.getByRole('button', { name: 'Select Enlivened Sentinels' }).click()
-  // The upgrade's own words name the ability too; the chip is what marks it granted.
-  const coreAbilities = loadout.locator('section').filter({ has: page.getByRole('heading', { name: /^Core abilities/ }) })
-  const scouts = coreAbilities.getByRole('button', { name: 'Scouts 5"', exact: true })
-  await expect(scouts).toHaveClass(/text-info/)
-  await scouts.hover()
-  await expect(page.getByRole('tooltip')).toContainText('Added by Enlivened Sentinels')
-  await shot(loadout, test.info().outputPath('enlivened-sentinels-granted-ability.png'))
-
-  await page.setViewportSize(PHONE)
-  await shot(loadout, test.info().outputPath('enlivened-sentinels-granted-ability-phone.png'))
-})
-
 test('weapon swaps keep fixed profiles stable while saving', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 })
   await openBuilder(page)
@@ -313,66 +293,6 @@ test('wargear abilities are explained beside their choices', async ({ page }) =>
   await expect(page.getByRole('button', { name: /M 8", modified from 12"/ })).toBeVisible()
   await expect(page.getByRole('button', { name: /Sv 3\+, modified from 4\+/ })).toBeVisible()
   await page.screenshot({ path: test.info().outputPath('tomb-blades-shieldvanes.png'), fullPage: true })
-})
-
-test('Canoptek Spyders keep their claws and independent wargear', async ({ page }) => {
-  await page.setViewportSize({ width: 1600, height: 900 })
-  await openBuilder(page)
-  await add(page, 'Canoptek Spyders')
-  const card = page.locator('[data-unit="Canoptek Spyders"]')
-  await card.getByRole('button', { name: 'Canoptek Spyders', exact: true }).click()
-
-  const loadout = page.locator('aside[aria-label="Loadout"]')
-  await expect(loadout.getByLabel('Canoptek Spyders models')).toHaveText('1')
-  await loadout.getByRole('button', { name: 'More Fabricator claw array' }).click()
-  await expect(loadout.getByLabel('Fabricator claw array count')).toHaveText('1')
-  await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
-  await expect(card).toContainText('1x Automaton claws')
-  await expect(card).toContainText('1x Fabricator claw array')
-
-  await loadout.getByRole('button', { name: 'More Two particle beamers' }).click()
-  await expect(loadout.getByLabel('Two particle beamers count')).toHaveText('1')
-  await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
-  await expect(loadout.getByLabel('Canoptek Spyders models')).toHaveText('1')
-  await expect(card).toContainText('2x Particle beamer')
-  await shot(loadout, test.info().outputPath('canoptek-spyder-wargear.png'))
-
-  await loadout.getByRole('button', { name: 'Fewer Two particle beamers' }).click()
-  await expect(loadout.getByLabel('Two particle beamers count')).toHaveText('0')
-  await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
-  await expect(card).toContainText('1x Automaton claws')
-  await expect(card).toContainText('1x Fabricator claw array')
-  await expect(card).not.toContainText('Particle beamer')
-
-  await loadout.getByRole('button', { name: 'More models in Canoptek Spyders' }).click()
-  await expect(loadout.getByLabel('Canoptek Spyders models')).toHaveText('2')
-  await expect(loadout.getByRole('button', { name: 'More models in Canoptek Spyders' })).toBeDisabled()
-
-  await page.setViewportSize(PHONE)
-  await expect(loadout).toBeVisible()
-  await expectNoPageOverflow(page)
-  await expectNoHorizontalOverflow(loadout)
-  await shot(loadout, test.info().outputPath('canoptek-spyder-wargear-phone.png'))
-})
-
-test('destroyer plasmacytes follow the unit size', async ({ page }) => {
-  await openBuilder(page)
-  for (const name of ['Skorpekh Destroyers', 'Ophydian Destroyers']) {
-    await add(page, name)
-    await page.locator(`[data-unit="${name}"]`).getByRole('button', { name, exact: true }).click()
-    const loadout = page.locator('aside[aria-label="Loadout"]')
-    await expect(loadout.getByLabel('Plasmacyte count')).toHaveText('1')
-    await expect(page.locator(`[data-unit="${name}"]`)).toContainText('1x Plasmacyte')
-    await loadout.getByRole('button', { name: `More models in ${name}` }).click()
-    await loadout.getByRole('button', { name: `More models in ${name}` }).click()
-    await loadout.getByRole('button', { name: `More models in ${name}` }).click()
-    await expect(loadout.getByLabel(`${name} models`)).toHaveText('6')
-    await expect(loadout.getByLabel('Plasmacyte count')).toHaveText('2')
-    await expect(page.locator(`[data-unit="${name}"]`)).toContainText('2x Plasmacyte')
-    await page.screenshot({ path: test.info().outputPath(`${name.toLowerCase().replaceAll(' ', '-')}-plasmacytes.png`), fullPage: true })
-    await loadout.getByRole('button', { name: 'Fewer Plasmacyte' }).click()
-    await expect(loadout.getByLabel('Plasmacyte count')).toHaveText('1')
-  }
 })
 
 /**

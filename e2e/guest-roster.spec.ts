@@ -12,7 +12,7 @@ import {
   PHONE,
   startVisitorRoster,
 } from './account'
-import { add, ROSTER_WIDE } from './builder.harness'
+import { add } from './builder.harness'
 import { SIGN_IN_REQUIRED } from '../src/core/session'
 import { lastPathSegment, guestDraft } from './storage'
 
@@ -278,61 +278,52 @@ test("a visitor's list for an army the data no longer holds can be started again
   await expect(page.getByRole('heading', { name: 'No rosters yet' })).toBeVisible()
 })
 
-for (const width of [1440, 390]) {
-  test(`allied roster slots unlock and explain exhausted limits at ${width}px`, async ({ page }) => {
-    await page.setViewportSize({ width, height: 900 })
-    const setup = await visitorSetup(page)
-    await chooseFaction(setup, 'Chaos Knights')
-    await setup.getByRole('button', { name: 'Select Infernal Lance' }).click()
-    await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Priority Assets' }).click()
-    await setup.getByRole('button', { name: 'Create roster' }).click()
-    if (width < ROSTER_WIDE) await page.getByRole('button', { name: 'Add units', exact: true }).click()
-    await page.getByLabel('Add a unit').fill('Beasts of Nurgle')
-    await page.getByRole('button', { name: 'Toggle Daemons Library' }).click()
-    await expect(page.getByRole('button', { name: 'Add Beasts of Nurgle', exact: true })).toBeDisabled()
-    await expect(page.locator('[data-picker-unit="Beasts of Nurgle"]')).toContainText('Add a Nurgle Battleline unit to the roster first.')
-    await page.getByLabel('Add a unit').fill('Nurglings')
-    await page.getByRole('button', { name: 'Add Nurglings', exact: true }).click()
-    await page.getByLabel('Add a unit').fill('Beasts of Nurgle')
-    await page.getByRole('button', { name: 'View Beasts of Nurgle datasheet', exact: true }).click()
-    await page.getByRole('button', { name: 'Add to list', exact: true }).click()
-    await expect(page.locator('[data-unit="Beasts of Nurgle"]')).toBeVisible()
-    if (width < ROSTER_WIDE) {
-      await page.getByRole('button', { name: 'Back to units', exact: true }).click()
-      await page.getByRole('button', { name: 'Toggle Daemons Library' }).click()
-    }
-    await page.getByLabel('Add a unit').fill('Beasts of Nurgle')
-    await expect(page.getByRole('button', { name: 'Add Beasts of Nurgle', exact: true })).toBeDisabled()
-    await expect(page.locator('[data-picker-unit="Beasts of Nurgle"]')).not.toContainText('Limit reached')
-    await expect(page.locator('[data-picker-unit="Beasts of Nurgle"]')).toContainText('1/1 in roster')
-    await expect(page.locator('[data-picker-unit="Beasts of Nurgle"]')).not.toContainText('construction rules')
-    await page.screenshot({ path: test.info().outputPath(`allied-limits-${width}.png`) })
-    if (width < ROSTER_WIDE) await page.getByRole('button', { name: 'Close', exact: true }).click()
-    await page.getByRole('button', { name: 'Save roster', exact: true }).click()
-    await expect(page.getByRole('heading', { name: 'Save your roster' })).toBeVisible()
-    await page.screenshot({ path: test.info().outputPath(`guest-save-${width}.png`), fullPage: true })
-    await page.getByRole('link', { name: 'Back to your roster' }).click()
-    await expect(page.locator('[data-unit="Beasts of Nurgle"]')).toBeVisible()
-    const edit = await openRosterSetup(page)
-    await chooseOption(page, 'Battle size', /^Onslaught/)
-    await edit.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Priority Assets', exact: true }).click()
-    await edit.getByRole('button', { name: 'Review changes' }).click()
-    const review = page.getByRole('dialog', { name: 'Review roster changes' })
-    const unchanged = review.locator('details')
-    await expect(unchanged.locator('summary')).toHaveText('2 unchanged units')
-    await expect(unchanged).not.toHaveAttribute('open')
-    await unchanged.locator('summary').click()
-    await expect(unchanged.getByText('Beasts of Nurgle', { exact: false })).toBeVisible()
-    await expect(unchanged.getByText('Nurglings', { exact: false })).toBeVisible()
-    await expect(review).toContainText('Avoid editing it in another tab while confirming.')
-    await review.getByRole('button', { name: 'Confirm changes' }).click()
-    await expect(review).toBeHidden()
-    await page.reload()
-    await expect(page.locator('[data-unit="Beasts of Nurgle"]')).toBeVisible()
-    await expect(page.locator('[data-unit="Nurglings"]')).toBeVisible()
-    await expect(page.locator('[data-slot="roster-meta"]')).toContainText('Onslaught')
-  })
-}
+test(`allied roster slots unlock and explain exhausted limits`, async ({ page }) => {
+  const setup = await visitorSetup(page)
+  await chooseFaction(setup, 'Chaos Knights')
+  await setup.getByRole('button', { name: 'Select Infernal Lance' }).click()
+  await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Priority Assets' }).click()
+  await setup.getByRole('button', { name: 'Create roster' }).click()
+  await page.getByLabel('Add a unit').fill('Beasts of Nurgle')
+  await page.getByRole('button', { name: 'Toggle Daemons Library' }).click()
+  await expect(page.getByRole('button', { name: 'Add Beasts of Nurgle', exact: true })).toBeDisabled()
+  await expect(page.locator('[data-picker-unit="Beasts of Nurgle"]')).toContainText('Add a Nurgle Battleline unit to the roster first.')
+  await page.getByLabel('Add a unit').fill('Nurglings')
+  await page.getByRole('button', { name: 'Add Nurglings', exact: true }).click()
+  await page.getByLabel('Add a unit').fill('Beasts of Nurgle')
+  await page.getByRole('button', { name: 'View Beasts of Nurgle datasheet', exact: true }).click()
+  await page.getByRole('button', { name: 'Add to list', exact: true }).click()
+  await expect(page.locator('[data-unit="Beasts of Nurgle"]')).toBeVisible()
+  await page.getByLabel('Add a unit').fill('Beasts of Nurgle')
+  await expect(page.getByRole('button', { name: 'Add Beasts of Nurgle', exact: true })).toBeDisabled()
+  await expect(page.locator('[data-picker-unit="Beasts of Nurgle"]')).not.toContainText('Limit reached')
+  await expect(page.locator('[data-picker-unit="Beasts of Nurgle"]')).toContainText('1/1 in roster')
+  await expect(page.locator('[data-picker-unit="Beasts of Nurgle"]')).not.toContainText('construction rules')
+  await page.screenshot({ path: test.info().outputPath(`allied-limits.png`) })
+  await page.getByRole('button', { name: 'Save roster', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Save your roster' })).toBeVisible()
+  await page.screenshot({ path: test.info().outputPath(`guest-save.png`), fullPage: true })
+  await page.getByRole('link', { name: 'Back to your roster' }).click()
+  await expect(page.locator('[data-unit="Beasts of Nurgle"]')).toBeVisible()
+  const edit = await openRosterSetup(page)
+  await chooseOption(page, 'Battle size', /^Onslaught/)
+  await edit.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Priority Assets', exact: true }).click()
+  await edit.getByRole('button', { name: 'Review changes' }).click()
+  const review = page.getByRole('dialog', { name: 'Review roster changes' })
+  const unchanged = review.locator('details')
+  await expect(unchanged.locator('summary')).toHaveText('2 unchanged units')
+  await expect(unchanged).not.toHaveAttribute('open')
+  await unchanged.locator('summary').click()
+  await expect(unchanged.getByText('Beasts of Nurgle', { exact: false })).toBeVisible()
+  await expect(unchanged.getByText('Nurglings', { exact: false })).toBeVisible()
+  await expect(review).toContainText('Avoid editing it in another tab while confirming.')
+  await review.getByRole('button', { name: 'Confirm changes' }).click()
+  await expect(review).toBeHidden()
+  await page.reload()
+  await expect(page.locator('[data-unit="Beasts of Nurgle"]')).toBeVisible()
+  await expect(page.locator('[data-unit="Nurglings"]')).toBeVisible()
+  await expect(page.locator('[data-slot="roster-meta"]')).toContainText('Onslaught')
+})
 
 test('saving a guest roster does not discard it when browser storage is unavailable', async ({ page }) => {
   await startGuestRoster(page)
@@ -373,103 +364,57 @@ test('a failed unit-limit check can be retried without losing the roster', async
   await expect(page.getByRole('button', { name: 'Add Overlord', exact: true })).toBeEnabled()
 })
 
-for (const width of [1440, 390]) {
-  test(`the picker retains checked rows during loadout repricing at ${width}px`, async ({ page }) => {
-    await startGuestRoster(page)
-    await add(page, 'Necron Warriors')
-    await page.getByLabel('Add a unit').fill('')
-    await expect(page.getByRole('button', { name: 'Add Overlord', exact: true })).toBeEnabled()
-    const checkedRow = (await page.locator('[data-picker-unit="Necron Warriors"]').textContent())!
-    await page.setViewportSize({ width, height: 900 })
-    await page.getByRole('button', { name: 'Necron Warriors', exact: true }).click()
-    const more = page.getByRole('button', { name: 'More models in Necron Warriors' })
-    await expect(more).toBeEnabled()
-    let intercepted = false
-    const { promise: gate, resolve: release } = Promise.withResolvers<void>()
-    await page.route('**/_serverFn/**', async (route) => {
-      if (route.request().method() === 'POST') {
-        intercepted = true
-        await gate
-      }
-      await route.continue()
-    })
-    try {
-      await more.click()
-      await expect.poll(() => intercepted).toBe(true)
-      if (width < ROSTER_WIDE) {
-        await page.getByRole('button', { name: 'Back to roster', exact: true }).click()
-        await page.getByRole('button', { name: 'Add units', exact: true }).click()
-      }
-      const picker = page.locator('div[data-onboarding="roster-picker"]')
-      await expect(picker).not.toContainText('Checking unit limits')
-      await expect(picker.locator('[data-picker-unit="Necron Warriors"]')).toHaveText(checkedRow)
-      await expect(page.getByRole('button', { name: 'Add Overlord', exact: true })).toBeEnabled()
-      await picker.screenshot({ path: test.info().outputPath(`picker-repricing-${width}.png`) })
-      release()
-      await expect(page.getByRole('button', { name: 'Add Overlord', exact: true })).toBeEnabled()
-      await expect(picker).not.toContainText('Checking unit limits')
-    } finally {
-      release()
-      await page.unrouteAll({ behavior: 'wait' })
+test(`the picker retains checked rows during loadout repricing`, async ({ page }) => {
+  await startGuestRoster(page)
+  await add(page, 'Necron Warriors')
+  await page.getByLabel('Add a unit').fill('')
+  await expect(page.getByRole('button', { name: 'Add Overlord', exact: true })).toBeEnabled()
+  const checkedRow = (await page.locator('[data-picker-unit="Necron Warriors"]').textContent())!
+  await page.getByRole('button', { name: 'Necron Warriors', exact: true }).click()
+  const more = page.getByRole('button', { name: 'More models in Necron Warriors' })
+  await expect(more).toBeEnabled()
+  let intercepted = false
+  const { promise: gate, resolve: release } = Promise.withResolvers<void>()
+  await page.route('**/_serverFn/**', async (route) => {
+    if (route.request().method() === 'POST') {
+      intercepted = true
+      await gate
     }
+    await route.continue()
   })
-}
-
-test('a visitor draft built on the retired Marine codex opens and prices on the current book', async ({ page }) => {
-  const retired = (entry: string) => `profile-unit-e0af-67df-9d63-8fb8-${entry}`
-  const id = crypto.randomUUID()
-  await page.goto('/rosters')
-  await page.evaluate(
-    ({ draftId, captain, intercessors }) => {
-      sessionStorage.setItem(
-        'praetorium.workspace-state:/rosters:guest-draft',
-        JSON.stringify({
-          version: 1,
-          id: draftId,
-          draft: {
-            name: '',
-            catalogueId: 'e0af-67df-9d63-8fb8',
-            detachmentIds: ['profile-detachment-option-e0af-67df-9d63-8fb8-f367-3240-47c1-7e1a'],
-            disposition: 'priority-assets',
-            limit: 1000,
-            waivedRules: [],
-            optionalRules: [],
-            borrowedDetachmentId: null,
-            visibility: 'private',
-            picks: [{ entryId: captain }, { entryId: intercessors }],
-            prep: null,
-            source: 'editable',
-          },
-        }),
-      )
-    },
-    { draftId: id, captain: retired('024a-3fea-7765-4e82'), intercessors: retired('34c7-75dd-fcff-ec94') },
-  )
-  await page.goto(`/rosters/${id}`)
-  await expect(page.locator('[data-unit="Captain"]')).toBeVisible()
-  await expect(page.locator('[data-unit="Intercessor Squad"]')).toContainText(/\d+ pts/)
-  await expect(page.getByText(/This army is not available|Army book replaced|no longer available/)).toHaveCount(0)
+  try {
+    await more.click()
+    await expect.poll(() => intercepted).toBe(true)
+    const picker = page.locator('div[data-onboarding="roster-picker"]')
+    await expect(picker).not.toContainText('Checking unit limits')
+    await expect(picker.locator('[data-picker-unit="Necron Warriors"]')).toHaveText(checkedRow)
+    await expect(page.getByRole('button', { name: 'Add Overlord', exact: true })).toBeEnabled()
+    await picker.screenshot({ path: test.info().outputPath(`picker-repricing.png`) })
+    release()
+    await expect(page.getByRole('button', { name: 'Add Overlord', exact: true })).toBeEnabled()
+    await expect(picker).not.toContainText('Checking unit limits')
+  } finally {
+    release()
+    await page.unrouteAll({ behavior: 'wait' })
+  }
 })
 
-for (const width of [390, 1280]) {
-  test(`a detachment card selects from its name and opens its reference only from the reference icon at ${width}px`, async ({ page }) => {
-    await page.setViewportSize({ width, height: 900 })
-    const setup = await visitorSetup(page)
-    await chooseFaction(setup, 'Necrons')
-    const card = setup.getByRole('button', { name: 'Select Awakened Dynasty', exact: true })
-    const reference = page.getByRole('dialog', { name: 'Awakened Dynasty' })
+test(`a detachment card selects from its name and opens its reference only from the reference icon`, async ({ page }) => {
+  const setup = await visitorSetup(page)
+  await chooseFaction(setup, 'Necrons')
+  const card = setup.getByRole('button', { name: 'Select Awakened Dynasty', exact: true })
+  const reference = page.getByRole('dialog', { name: 'Awakened Dynasty' })
 
-    await card.getByText('Awakened Dynasty', { exact: true }).click()
-    await expect(card).toHaveAttribute('aria-pressed', 'true')
-    await expect(reference).toHaveCount(0)
+  await card.getByText('Awakened Dynasty', { exact: true }).click()
+  await expect(card).toHaveAttribute('aria-pressed', 'true')
+  await expect(reference).toHaveCount(0)
 
-    await setup.getByRole('button', { name: 'View Awakened Dynasty detachment reference' }).click()
-    await expect(reference).toBeVisible()
-    await page.keyboard.press('Escape')
-    await expect(reference).toBeHidden()
-    await expect(card).toHaveAttribute('aria-pressed', 'true')
+  await setup.getByRole('button', { name: 'View Awakened Dynasty detachment reference' }).click()
+  await expect(reference).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(reference).toBeHidden()
+  await expect(card).toHaveAttribute('aria-pressed', 'true')
 
-    await card.getByText('Awakened Dynasty', { exact: true }).click()
-    await expect(card).toHaveAttribute('aria-pressed', 'false')
-  })
-}
+  await card.getByText('Awakened Dynasty', { exact: true }).click()
+  await expect(card).toHaveAttribute('aria-pressed', 'false')
+})

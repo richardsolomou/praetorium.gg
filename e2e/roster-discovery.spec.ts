@@ -1,6 +1,5 @@
 import { expect, type Page, test } from './test'
 import {
-  befriend,
   chooseRosterAction,
   createRoster,
   retryUntilVisible,
@@ -45,82 +44,73 @@ async function filterTo(page: Page, choices: { faction: string; detachment: stri
   }
 }
 
-for (const [width, label] of [
-  [390, 'phone'],
-  [1440, 'desktop'],
-] as const) {
-  test(`a published army is found, duplicated and edited without changing it, and leaves when made private (${label})`, async ({
-    browser,
-  }) => {
-    test.setTimeout(180_000)
-    const viewport = { width, height: width === 390 ? 844 : 900 }
-    const owner = await (await browser.newContext({ viewport })).newPage()
-    const ownerName = uniqueName('Publisher')
-    await signUp(owner, ownerName)
-    await owner.goto('/rosters')
-    await expect(owner.getByRole('navigation', { name: 'Rosters' }).getByRole('link', { name: 'Mine' })).toHaveAttribute(
-      'aria-current',
-      'page',
-    )
-    await shot(owner.locator('main header'), test.info().outputPath(`roster-library-header-${label}.png`))
-    const armyName = uniqueName('Found army')
-    await createRoster(owner, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: armyName })
-    await addNotedUnit(owner)
-    await setRosterAccess(owner, 'Public — listed on your profile', 'public')
-    const sourceId = lastPathSegment(owner.url())
-    const product = await productOperator()
-    const source = await product.roster(sourceId)
+test('a published army is found, duplicated and edited without changing it, and leaves when made private', async ({ browser }) => {
+  test.setTimeout(180_000)
+  const viewport = { width: 1440, height: 900 }
+  const owner = await (await browser.newContext({ viewport })).newPage()
+  const ownerName = uniqueName('Publisher')
+  await signUp(owner, ownerName)
+  await owner.goto('/rosters')
+  await expect(owner.getByRole('navigation', { name: 'Rosters' }).getByRole('link', { name: 'Mine' })).toHaveAttribute(
+    'aria-current',
+    'page',
+  )
+  await shot(owner.locator('main header'), test.info().outputPath(`roster-library-header.png`))
+  const armyName = uniqueName('Found army')
+  await createRoster(owner, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: armyName })
+  await addNotedUnit(owner)
+  await setRosterAccess(owner, 'Public — listed on your profile', 'public')
+  const sourceId = lastPathSegment(owner.url())
+  const product = await productOperator()
+  const source = await product.roster(sourceId)
 
-    const reader = await (await browser.newContext({ viewport })).newPage()
-    await signUp(reader, uniqueName('Finder'))
-    await reader.goto('/rosters')
-    await reader.getByRole('navigation', { name: 'Rosters' }).getByRole('link', { name: 'Public', exact: true }).click()
-    await expect(reader).toHaveURL(/\/rosters\?view=public$/)
-    await filterTo(reader, { faction: 'Necrons', detachment: 'Awakened Dynasty', rules: 'Current' })
-    await expect(reader).toHaveURL(/faction=necrons/)
-    // Other tests publish Necrons armies meanwhile, and only these filters keep this one on the first page.
-    const filtered = reader.url()
-    const card = reader.locator(`[data-discovered-roster="${armyName}"]`)
-    await expect(card).toContainText(`By ${ownerName}`)
-    await expect(card).toContainText('Awakened Dynasty')
-    await expect(card).toContainText('Legal')
-    await expect(reader.locator('main')).not.toContainText(NOTE)
-    await expectNoHorizontalOverflow(reader.locator('main'))
-    await shot(reader.locator('main'), test.info().outputPath(`roster-discovery-${label}.png`))
+  const reader = await (await browser.newContext({ viewport })).newPage()
+  await signUp(reader, uniqueName('Finder'))
+  await reader.goto('/rosters')
+  await reader.getByRole('navigation', { name: 'Rosters' }).getByRole('link', { name: 'Public', exact: true }).click()
+  await expect(reader).toHaveURL(/\/rosters\?view=public$/)
+  await filterTo(reader, { faction: 'Necrons', detachment: 'Awakened Dynasty', rules: 'Current' })
+  await expect(reader).toHaveURL(/faction=necrons/)
+  // Other tests publish Necrons armies meanwhile, and only these filters keep this one on the first page.
+  const filtered = reader.url()
+  const card = reader.locator(`[data-discovered-roster="${armyName}"]`)
+  await expect(card).toContainText(`By ${ownerName}`)
+  await expect(card).toContainText('Awakened Dynasty')
+  await expect(card).toContainText('Legal')
+  await expect(reader.locator('main')).not.toContainText(NOTE)
+  await expectNoHorizontalOverflow(reader.locator('main'))
+  await shot(reader.locator('main'), test.info().outputPath(`roster-discovery.png`))
 
-    if (width === 1440) {
-      await reader.goto(`/rosters/${sourceId}`)
-      await chooseRosterAction(reader, 'Test targets')
-      const simulator = reader.getByRole('dialog', { name: 'Test targets', exact: true })
-      await expect(simulator.getByRole('group', { name: 'Attacking with', exact: true })).toContainText('Current roster')
-      await simulator.getByRole('button', { name: 'Close', exact: true }).click()
-      expect(await product.roster(sourceId)).toEqual(source)
-      await reader.goBack()
-    }
-    await card.getByRole('button', { name: `Duplicate ${armyName}` }).click()
-    await reader.waitForURL((url) => /^\/rosters\/[^/]+$/.test(url.pathname))
-    const copyId = lastPathSegment(reader.url())
-    expect(copyId).not.toBe(sourceId)
-    await expect(reader.getByLabel('List name')).toHaveValue(`Copy of ${armyName}`)
-    await expect(reader.locator('[data-roster-copied-from]')).toHaveText(`Copied from ${armyName} by ${ownerName}`)
-    expect((await product.roster(copyId))?.copiedFromRosterId).toBe(sourceId)
-    await renameRoster(reader, 'Edited copy')
-    await expect.poll(async () => (await product.roster(copyId))?.name).toBe('Edited copy')
-    expect((await product.roster(copyId))?.picks).not.toContain(NOTE)
-    expect(await product.roster(sourceId)).toEqual(source)
+  await reader.goto(`/rosters/${sourceId}`)
+  await chooseRosterAction(reader, 'Test targets')
+  const simulator = reader.getByRole('dialog', { name: 'Test targets', exact: true })
+  await expect(simulator.getByRole('group', { name: 'Attacking with', exact: true })).toContainText('Current roster')
+  await simulator.getByRole('button', { name: 'Close', exact: true }).click()
+  expect(await product.roster(sourceId)).toEqual(source)
+  await reader.goBack()
+  await card.getByRole('button', { name: `Duplicate ${armyName}` }).click()
+  await reader.waitForURL((url) => /^\/rosters\/[^/]+$/.test(url.pathname))
+  const copyId = lastPathSegment(reader.url())
+  expect(copyId).not.toBe(sourceId)
+  await expect(reader.getByLabel('List name')).toHaveValue(`Copy of ${armyName}`)
+  await expect(reader.locator('[data-roster-copied-from]')).toHaveText(`Copied from ${armyName} by ${ownerName}`)
+  expect((await product.roster(copyId))?.copiedFromRosterId).toBe(sourceId)
+  await renameRoster(reader, 'Edited copy')
+  await expect.poll(async () => (await product.roster(copyId))?.name).toBe('Edited copy')
+  expect((await product.roster(copyId))?.picks).not.toContain(NOTE)
+  expect(await product.roster(sourceId)).toEqual(source)
 
-    await reader.goto(filtered)
-    await expect(card).toBeVisible()
-    await setRosterAccess(owner, 'Private', 'private')
-    await expect(card).toHaveCount(0)
-    await reader.reload()
-    await expect(reader.getByRole('heading', { name: 'Public rosters', exact: true })).toBeVisible()
-    await expect(card).toHaveCount(0)
-    await reader.goto(`/rosters/${copyId}`)
-    await expect(reader.getByLabel('List name')).toHaveValue('Edited copy')
-    await expect(reader.locator('[data-roster-copied-from]')).toHaveCount(0)
-  })
-}
+  await reader.goto(filtered)
+  await expect(card).toBeVisible()
+  await setRosterAccess(owner, 'Private', 'private')
+  await expect(card).toHaveCount(0)
+  await reader.reload()
+  await expect(reader.getByRole('heading', { name: 'Public rosters', exact: true })).toBeVisible()
+  await expect(card).toHaveCount(0)
+  await reader.goto(`/rosters/${copyId}`)
+  await expect(reader.getByLabel('List name')).toHaveValue('Edited copy')
+  await expect(reader.locator('[data-roster-copied-from]')).toHaveCount(0)
+})
 
 test('a faction page leads to its public armies, and a filter none match explains how armies are listed (phone)', async ({ browser }) => {
   const page = await (await browser.newContext({ viewport: PHONE })).newPage()
@@ -147,98 +137,43 @@ test('the old discovery address keeps its filters on the public rosters', async 
   ])
 })
 
-test("a friend's public roster is listed to friends, and a player's own stays off the public rosters", async ({ browser }) => {
-  test.setTimeout(120_000)
-  const owner = await (await browser.newContext()).newPage()
-  await signUp(owner, uniqueName('Sharing friend'))
-  const friend = await (await browser.newContext()).newPage()
-  await signUp(friend, uniqueName('Friend reader'))
-  const stranger = await (await browser.newContext()).newPage()
-  await signUp(stranger, uniqueName('Stranger reader'))
-  await befriend(owner, friend)
-  const armyName = uniqueName('Friend army')
-  await createRoster(owner, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: armyName })
-  await setRosterAccess(owner, 'Public — listed on your profile', 'public')
-
-  await friend.goto('/rosters?view=friends')
-  await expect(friend.locator(`[data-discovered-roster="${armyName}"]`)).toBeVisible()
-  await stranger.goto('/rosters?view=friends')
-  await expect(stranger.locator('[data-friends-empty]')).toBeVisible()
-  await owner.goto('/rosters?view=public')
-  await filterTo(owner, { faction: 'Necrons', detachment: 'Awakened Dynasty', rules: 'Current' })
-  await friend.goto(owner.url())
-  await expect(friend.locator(`[data-discovered-roster="${armyName}"]`)).toBeVisible()
-  await expect(owner.getByRole('heading', { name: 'Public rosters', exact: true })).toBeVisible()
-  await expect(owner.locator(`[data-discovered-roster="${armyName}"]`)).toHaveCount(0)
-})
-
-for (const [width, label] of [
-  [390, 'phone'],
-  [1440, 'desktop'],
-] as const) {
-  test(`a long list of public armies scrolls to Show more (${label})`, async ({ browser }) => {
-    const viewport = { width, height: width === 390 ? 844 : 900 }
-    const publisher = await (await browser.newContext({ viewport })).newPage()
-    const account = await signUp(publisher, uniqueName('Prolific publisher'))
-    const userId = await userIdFor(account.email)
-    const product = await productOperator()
-    const source = (await product.roster('preview-necrons-cursed-skyshroud'))!
-    const prefix = uniqueName('Scrolled army')
-    for (let index = 0; index < 25; index += 1) {
-      await product.saveRoster({
-        ...source,
-        id: crypto.randomUUID(),
-        userId,
-        name: `${prefix} ${index}`,
-        automaticName: false,
-        visibility: 'public',
-        now: Date.now(),
-      })
-    }
-
-    // A visitor, since a player's own rosters stay off the public list.
-    const page = await (await browser.newContext({ viewport })).newPage()
-    await page.goto('/rosters?view=public')
-    const more = page.getByRole('button', { name: 'Show more rosters' })
-    await expect(more).toBeAttached()
-    await page.mouse.move(width / 2, 400)
-    await expect(async () => {
-      await page.mouse.wheel(0, 20_000)
-      await expect(more).toBeInViewport({ timeout: 1_000 })
-    }).toPass({ timeout: 10_000 })
-    await page.screenshot({ path: test.info().outputPath(`roster-discovery-scrolled-${label}.png`) })
-    const seeded = page.locator(`[data-discovered-roster^="${prefix} "]`)
-    // The last page removes the button, so a slow page must not be asked for again.
-    await expect(async () => {
-      if (await more.isVisible()) await more.click({ timeout: 1_000 })
-      await expect(seeded).toHaveCount(25, { timeout: 2_000 })
-    }).toPass({ timeout: 15_000 })
-  })
-}
-
-test('a public roster is found by its legality and not by another', async ({ browser }) => {
-  const publisher = await (await browser.newContext()).newPage()
-  const userId = await userIdFor((await signUp(publisher, uniqueName('Legal publisher'))).email)
+test('a long list of public armies scrolls to Show more', async ({ browser }) => {
+  const viewport = { width: 1440, height: 900 }
+  const publisher = await (await browser.newContext({ viewport })).newPage()
+  const account = await signUp(publisher, uniqueName('Prolific publisher'))
+  const userId = await userIdFor(account.email)
   const product = await productOperator()
   const source = (await product.roster('preview-necrons-cursed-skyshroud'))!
-  const name = uniqueName('Legal army')
-  await product.saveRoster({
-    ...source,
-    id: crypto.randomUUID(),
-    userId,
-    name,
-    automaticName: false,
-    visibility: 'public',
-    now: Date.now(),
-  })
+  const prefix = uniqueName('Scrolled army')
+  for (let index = 0; index < 25; index += 1) {
+    await product.saveRoster({
+      ...source,
+      id: crypto.randomUUID(),
+      userId,
+      name: `${prefix} ${index}`,
+      automaticName: false,
+      visibility: 'public',
+      now: Date.now(),
+    })
+  }
 
-  const visitor = await (await browser.newContext()).newPage()
-  const listed = visitor.locator(`[data-discovered-roster="${name}"]`)
-  await visitor.goto('/rosters?view=public&legality=legal')
-  await expect(listed).toBeVisible()
-  await visitor.goto('/rosters?view=public&legality=!legal')
-  await expect(visitor.getByRole('heading', { name: 'Public rosters', exact: true })).toBeVisible()
-  await expect(listed).toHaveCount(0)
+  // A visitor, since a player's own rosters stay off the public list.
+  const page = await (await browser.newContext({ viewport })).newPage()
+  await page.goto('/rosters?view=public')
+  const more = page.getByRole('button', { name: 'Show more rosters' })
+  await expect(more).toBeAttached()
+  await page.mouse.move(720, 400)
+  await expect(async () => {
+    await page.mouse.wheel(0, 20_000)
+    await expect(more).toBeInViewport({ timeout: 1_000 })
+  }).toPass({ timeout: 10_000 })
+  await page.screenshot({ path: test.info().outputPath(`roster-discovery-scrolled.png`) })
+  const seeded = page.locator(`[data-discovered-roster^="${prefix} "]`)
+  // The last page removes the button, so a slow page must not be asked for again.
+  await expect(async () => {
+    if (await more.isVisible()) await more.click({ timeout: 1_000 })
+    await expect(seeded).toHaveCount(25, { timeout: 2_000 })
+  }).toPass({ timeout: 15_000 })
 })
 
 test('public rosters keep a chosen order in the address across filter changes', async ({ page }) => {

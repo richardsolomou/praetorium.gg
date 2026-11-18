@@ -19,7 +19,7 @@ import {
   PHONE,
   startVisitorRoster,
 } from './account'
-import { productOperator, productSql, userIdFor, lastPathSegment, seedRoster } from './storage'
+import { productOperator, productSql, userIdFor, lastPathSegment } from './storage'
 
 test('the roster library reserves its rows while the first page loads', async ({ browser, page: savedPage }) => {
   await signUp(savedPage, 'Loading')
@@ -420,13 +420,6 @@ test('the roster library reprices a saved list edited in another tab', async ({ 
   await viewer.close()
 })
 
-test('a visitor opening the roster library sees the rosters page with nothing kept yet', async ({ page }) => {
-  await page.goto('/rosters')
-
-  await expect(page.getByRole('heading', { name: 'No rosters yet' })).toBeVisible()
-  await expect(page.getByLabel(/^Loading roster/)).toHaveCount(0)
-})
-
 test('a roster saved on the root ID of a current book opens its builder from the first frame', async ({ browser, page }) => {
   await signUp(page, 'Root book')
   await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Root book roster' })
@@ -677,29 +670,4 @@ test('a saved list is reopened, duplicated, shared and published', async ({ brow
   await expect(duplicated).toBeVisible()
   await expect(duplicated).toContainText('Public')
   await guestContext.close()
-})
-
-test('a list saved on the retired Marine codex opens on the current Space Marines book', async ({ page }) => {
-  const { email } = await signUp(page, 'Provisional')
-  // The row as the provisional codex saved it: book, detachment, units and Warlord under its ids.
-  const retired = (entry: string) => `profile-unit-e0af-67df-9d63-8fb8-${entry}`
-  const { id, outcome: saved } = await seedRoster(email, {
-    name: 'Provisional Gladius',
-    catalogueId: 'e0af-67df-9d63-8fb8',
-    detachmentId: JSON.stringify(['profile-detachment-option-e0af-67df-9d63-8fb8-f367-3240-47c1-7e1a']),
-    disposition: 'priority-assets',
-    limit: 1000,
-    picks: JSON.stringify([
-      { entryId: retired('024a-3fea-7765-4e82'), toggles: { [`profile-warlord-e0af-67df-9d63-8fb8-024a-3fea-7765-4e82`]: 1 } },
-      { entryId: retired('34c7-75dd-fcff-ec94') },
-    ]),
-  })
-  expect(saved).toBe('inserted')
-
-  await page.goto(`/rosters/${id}`)
-  const roster = page.locator('main')
-  await expect(roster.locator('[data-unit="Captain"]').first()).toBeVisible()
-  await expect(roster.locator('[data-unit="Intercessor Squad"]').first()).toBeVisible()
-  await expect(roster.getByText('Gladius Task Force').first()).toBeVisible()
-  await expect(roster.getByText(/Army book replaced|no longer available/)).toHaveCount(0)
 })

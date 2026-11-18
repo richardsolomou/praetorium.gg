@@ -4,6 +4,13 @@ import type { LoadoutScoring, LoadoutSpace, OptionEstimate, ProfileOdds } from '
 import type { CombatRequest } from '../../../core/combatMatchup'
 import { WorkerFailure, workerAnswer } from '../../workerAnswer'
 
+declare global {
+  interface Window {
+    /** Shortens how long a loadout comparison may run, so browser tests can reach its deadline quickly. */
+    PraetoriumLoadoutDeadlineMs?: number
+  }
+}
+
 export type LoadoutOddsRequest = { kind: 'loadouts'; space: LoadoutSpace; scoring: LoadoutScoring; expected: CombatRequest }
 export type LoadoutOdds = {
   estimates: ReadonlyMap<string, OptionEstimate>
@@ -49,7 +56,7 @@ export function useLoadoutOdds({
     }
     const asking = worker
     workerAnswer<LoadoutOdds>(asking, { kind: 'loadouts', ...JSON.parse(request) } as LoadoutOddsRequest, {
-      timeoutMs: 15_000,
+      timeoutMs: globalThis.window?.PraetoriumLoadoutDeadlineMs ?? 15_000,
       signal: controller.signal,
     })
       .then(

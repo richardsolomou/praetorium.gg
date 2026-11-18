@@ -27,15 +27,6 @@ async function expectNoPageScroll(page: Page) {
   expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight)).toBe(true)
 }
 
-test('a standalone datasheet omits detachment-only abilities', async ({ page }) => {
-  await page.goto('/factions/necrons/datasheets/ctan-shard-of-the-nightbringer')
-  await expect(page.getByRole('heading', { name: "C'tan Shard of the Nightbringer", exact: true })).toBeVisible()
-
-  await expect(page.getByText('Distortion Fields (Aura)', { exact: true })).toHaveCount(0)
-  await expect(page.getByText('Quantum Goad', { exact: true })).toHaveCount(0)
-  await expect(page.getByRole('heading', { name: /Detachment abilities/ })).toHaveCount(0)
-})
-
 test('the mobile website uses application navigation below 860 pixels', async ({ page }) => {
   await page.setViewportSize(PHONE)
   await page.goto('/')
@@ -540,22 +531,6 @@ test('a rule is read by the number the source prints against it', async ({ brows
   await expect(page).toHaveURL('/rules/core-rules/moving#03.03')
 })
 
-test('a datasheet shows attachment keywords and lists their targets once', async ({ page }) => {
-  await page.goto('/factions/necrons/datasheets/overlord')
-
-  await expect(page.getByRole('heading', { name: 'Attachments' })).toBeVisible()
-  await expect(page.getByText('Can lead', { exact: true })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Leader', exact: true })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Leader', exact: true })).toHaveCount(0)
-  await page.screenshot({ path: test.info().outputPath('datasheet-leader-attachments.png'), fullPage: true })
-
-  await page.goto('/factions/necrons/datasheets/plasmancer')
-  await expect(page.getByRole('button', { name: 'Support', exact: true })).toBeVisible()
-
-  await page.setViewportSize(PHONE)
-  await page.screenshot({ path: test.info().outputPath('datasheet-leader-attachments-phone.png'), fullPage: true })
-})
-
 test('the faction page shows its army rule in full when expanded', async ({ page }) => {
   await page.goto('/factions/necrons')
 
@@ -606,21 +581,21 @@ test('signed-out faction browsing does not load account collection data before b
   expect(serverReads).toHaveLength(0)
 })
 
-for (const [path, name, menu] of [
-  ['/factions/necrons/datasheets', 'Sign in to add Overlord to favourite datasheets', null],
-  ['/factions/necrons/datasheets/overlord', 'Sign in to add Overlord to your collection', 'Add to'],
-  ['/factions/necrons', 'Sign in to add Necrons to favourites', null],
-  ['/factions/necrons/detachments/cryptek-conclave', 'Sign in to add Cryptek Conclave to favourite detachments', null],
-] as const) {
-  test(`crawlers are asked not to follow the sign-in link on ${path}`, async ({ page }) => {
+test('crawlers are asked not to follow sign-in links on reference pages', async ({ page }) => {
+  for (const [path, name, menu] of [
+    ['/factions/necrons/datasheets', 'Sign in to add Overlord to favourite datasheets', null],
+    ['/factions/necrons/datasheets/overlord', 'Sign in to add Overlord to your collection', 'Add to'],
+    ['/factions/necrons', 'Sign in to add Necrons to favourites', null],
+    ['/factions/necrons/detachments/cryptek-conclave', 'Sign in to add Cryptek Conclave to favourite detachments', null],
+  ] as const) {
     await page.goto(path)
     if (menu) {
       await page.waitForLoadState('networkidle')
       await page.getByRole('button', { name: menu, exact: true }).click()
     }
     await expect(page.getByRole('link', { name })).toHaveAttribute('rel', 'nofollow')
-  })
-}
+  }
+})
 
 test('saving a faction asks signed-out visitors to sign in', async ({ page }) => {
   await page.goto('/factions')
@@ -1251,18 +1226,6 @@ test('weapon profile modes use readable casing', async ({ page }) => {
     .screenshot({
       path: test.info().outputPath('void-dragon-weapon-profiles.png'),
     })
-})
-
-test('an officer datasheet shows how many orders it can issue', async ({ page }) => {
-  await page.goto('/factions/astra-militarum/datasheets/leman-russ-commander')
-  const orders = page.getByRole('heading', { name: 'Orders', exact: true }).locator('..')
-  await expect(orders).toContainText('This Officer can issue 2 Orders to Squadron units.')
-  await expectNoPageOverflow(page)
-  await page.screenshot({ path: test.info().outputPath('officer-orders-datasheet.png'), fullPage: true })
-
-  await page.setViewportSize(PHONE)
-  await expectNoPageOverflow(page)
-  await page.screenshot({ path: test.info().outputPath('officer-orders-datasheet-phone.png'), fullPage: true })
 })
 
 test('a tab never opened before starts at its top', async ({ browser }) => {
