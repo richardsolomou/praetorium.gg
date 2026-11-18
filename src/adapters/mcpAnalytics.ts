@@ -133,7 +133,7 @@ function mcpClient() {
   return globalSingleton(MCP_ANALYTICS, () => {
     const environment = postHogEnvironment({ projectToken: process.env[projectTokenVariable], host: process.env[hostVariable] })
     if (!environment) return undefined
-    return new PostHog(environment.projectToken, { host: environment.host, before_send: serverEventContext(deploymentHost()) })
+    return new PostHog(environment.projectToken, { host: environment.host, beforeSend: serverEventContext(deploymentHost()) })
   })
 }
 
