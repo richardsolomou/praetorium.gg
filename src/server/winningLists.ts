@@ -6,6 +6,7 @@ import { listUnitCount } from '../core/attachedUnits'
 import { currentCatalogueFamilyId } from '../core/retiredCatalogueIds'
 import { rosterUseProblem } from '../core/rosterLegality'
 import { saveRosterSchema } from '../contracts/schemas'
+import { version as release } from '../../package.json'
 import { calculateRosterPrice } from '../shared/pricing'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { fetchWithRetry } from './fetch'
@@ -60,8 +61,11 @@ const verdictSchema = z
   .nullable()
 type Verdict = z.infer<typeof verdictSchema>
 const verdicts = z.object({ revision: z.string(), lists: z.record(z.string(), verdictSchema) })
-/** One list's import under one revision, with the draft its page and get_winning_list read, so no reader under that revision imports it again. */
-const importedSchema = z.object({ revision: z.string(), verdict: verdictSchema, draft: saveRosterSchema.nullable() })
+/**
+ * One list's import under one revision and app release, with the draft its page and get_winning_list read, so no reader
+ * imports it again until either changes: a release can change how lists import while the catalogue stays the same.
+ */
+const importedSchema = z.object({ revision: z.string(), release: z.string(), verdict: verdictSchema, draft: saveRosterSchema.nullable() })
 type Imported = z.infer<typeof importedSchema>
 
 export type WinningList = NonNullable<Verdict> & {
@@ -135,7 +139,7 @@ async function importWinningList(text: string) {
 /** Imports a list and keeps the result under the revision. */
 async function importAndKeep(directory: string, id: string, text: string, revision: string): Promise<Imported> {
   const imported = await importWinningList(text)
-  const kept = { revision, verdict: imported?.verdict ?? null, draft: imported?.draft ?? null }
+  const kept = { revision, release, verdict: imported?.verdict ?? null, draft: imported?.draft ?? null }
   await fs.mkdir(path.dirname(importedFile(directory, id)), { recursive: true })
   await writeWhole(importedFile(directory, id), JSON.stringify(kept))
   return kept
@@ -336,7 +340,7 @@ export function winningListsStore(directory: string, catalogue: () => LoadedCata
     },
     /**
      * One placing with the units it imports as, the draft save_roster takes and its army text, as imported under the
-     * current revision; null for a list that is not shown. Only a list no import has reached under it is imported now.
+     * current revision and release; null for a list that is not shown. Only a list not yet imported under both is imported now.
      */
     list: async (id: string) => {
       const revision = catalogue()?.index.revision
@@ -346,7 +350,7 @@ export function winningListsStore(directory: string, catalogue: () => LoadedCata
       const text = await fs.readFile(listFile(directory, id), 'utf8').catch(() => null)
       if (!event || !player || !text) return null
       const kept = await readJson(importedFile(directory, id), importedSchema)
-      const { verdict, draft } = kept?.revision === revision ? kept : await importAndKeep(directory, id, text, revision)
+      const { verdict, draft } = kept?.revision === revision && kept.release === release ? kept : await importAndKeep(directory, id, text, revision)
       return verdict && draft ? { list: placed(verdict, id, event, player), units: draft.picks, draft, text } : null
     },
   }
