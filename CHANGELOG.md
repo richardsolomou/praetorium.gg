@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.266.5 (2026-11-18)
+
+### Patch Changes
+
+- e18b76e: [rosters] Combat Shields on Vanguard Veterans with Jump Packs are one choice for the whole squad, and every model can take one.
+
 ## 0.266.4 (2026-11-18)
 
 ### Patch Changes
