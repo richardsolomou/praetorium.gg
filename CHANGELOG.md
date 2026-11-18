@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.265.2 (2026-11-18)
+
+### Patch Changes
+
+- 92dd8ca: [rosters] New Recruit share links import a Knight Despoiler, or any single-model datasheet, that swaps wargear for a bundle such as a gatling cannon and flamer.
+
 ## 0.265.1 (2026-11-17)
 
 ### Patch Changes
