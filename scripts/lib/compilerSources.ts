@@ -66,6 +66,8 @@ async function compilerBundle(root: string, entries: readonly string[]) {
       reportCompressedSize: false,
       rolldownOptions: {
         input: entries.map((entry) => path.join(root, entry)),
+        // Module markers name each module's path, which depends on where dependencies are installed.
+        experimental: { attachDebugInfo: 'none' },
         output: { entryFileNames: '[name].mjs', chunkFileNames: '[name].mjs', comments: false },
       },
     },
@@ -85,8 +87,7 @@ export async function compilerFingerprint(root = process.cwd(), entries = compil
     hash
       .update(output.fileName)
       .update('\0')
-      // Region markers name each module's path, which depends on where dependencies are installed.
-      .update(output.type === 'chunk' ? output.code.replace(/^\/\/#(?:end)?region\b.*$/gm, '') : output.source)
+      .update(output.type === 'chunk' ? output.code : output.source)
       .update('\0')
   return hash.update(treeFingerprint(root, compilerFiles)).digest('hex')
 }
