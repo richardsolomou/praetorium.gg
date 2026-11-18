@@ -118,8 +118,8 @@
       ]
     },
     "posthog-server": {
-      "version": 3,
-      "commit": "0184a1e1bc4ababa9b89b4455014ba13be436df2",
+      "version": 4,
+      "commit": "251a36b063ee74278ea600493558fd52268d9afd",
       "files": {
         "src/server/rpcTelemetry.test.ts": "src/server/rpcTelemetry.test.ts",
         "src/server/rpcTelemetry.ts": "src/server/rpcTelemetry.ts",

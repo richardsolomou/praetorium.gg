@@ -204,8 +204,8 @@ it('captures only anonymous MCP usage in production without changing the result'
           $mcp_tool_name: 'search_reference',
           $mcp_tool_category: 'reference',
           $mcp_client_name: 'claude-user',
-          $process_person_profile: false,
         },
+        options: { process_person_profile: false },
       },
     })
     expect(capture.mock.calls.find(([input]) => input.event === '$mcp_tool_call')?.[0].properties).not.toHaveProperty('$mcp_parameters')
