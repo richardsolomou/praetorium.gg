@@ -12,7 +12,7 @@ If no datasheet matches, search offers **Close matches** for a misspelt name. Ea
 
 ## Filter a faction's datasheets
 
-**Matched play**, **Legends** and **Crucible** hide or show datasheets by where they come from. **Keywords** keeps only datasheets that have every keyword you choose, and you can type in it to find a keyword quickly. Once you're signed in, you can also show only your favourites or the datasheets you own.
+**Matched play**, **Legends** and **Crucible** hide or show datasheets by where they come from. Legends and Crucible datasheets stay hidden until you turn them on, and what you choose here applies to every faction on this device. **Keywords** keeps only datasheets that have every keyword you choose, and you can type in it to find a keyword quickly. Once you're signed in, you can also show only your favourites or the datasheets you own.
 
 ## Search from your browser's address bar
 

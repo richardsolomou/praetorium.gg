@@ -16,11 +16,21 @@ import {
 } from '@/components/ui/combobox'
 import type { FactionDatasheet } from '../../../../contracts/catalogue'
 import { usableDatasheets } from '../../../../core/collection'
-import { toggled } from '../../../../core/collections'
+import { sameSet, toggled } from '../../../../core/collections'
 import { collectionCountsAsQuery, collectionQuery, factionDatasheetsQuery, meQuery } from '../../../queries'
 import { ACCOUNT_FILTERS, type AccountFilter, FilterChip } from '../../../components/FilterChip'
-import { DATASHEET_SOURCES, type DatasheetSource, filterDatasheets, keywordOptions, sourceOf } from './datasheetFilters'
+import {
+  DATASHEET_SOURCES,
+  DEFAULT_HIDDEN_SOURCES,
+  HIDDEN_SOURCES_KEY,
+  type DatasheetSource,
+  filterDatasheets,
+  hiddenSourcesSchema,
+  keywordOptions,
+  sourceOf,
+} from './datasheetFilters'
 import { useSettled } from '../../../useSettled'
+import { parseStored, useStoredValue, writeStoredValue } from '../../../storedValue'
 import { FactionMark, factionColour } from '../../../components/FactionMark'
 import { FavouriteDatasheetToggle } from './FavouriteDatasheetToggle'
 import { useFavouriteDatasheets } from '../../../favouriteDatasheets'
@@ -49,7 +59,13 @@ export function FactionDatasheets() {
   const { data: owned } = useQuery({ ...collectionQuery(), enabled: signedIn })
   const { data: countsAs } = useQuery({ ...collectionCountsAsQuery(), enabled: signedIn })
   const collection = useMemo(() => usableDatasheets(owned ?? [], countsAs ?? {}), [owned, countsAs])
-  const [hidden, setHidden] = useState<ReadonlySet<DatasheetSource>>(new Set())
+  const storedHidden = useStoredValue(HIDDEN_SOURCES_KEY)
+  const hidden = useMemo(() => {
+    const stored = parseStored(hiddenSourcesSchema, storedHidden)
+    return stored ? new Set(stored) : DEFAULT_HIDDEN_SOURCES
+  }, [storedHidden])
+  const setHidden = (next: ReadonlySet<DatasheetSource>) =>
+    writeStoredValue(HIDDEN_SOURCES_KEY, sameSet([...next], [...DEFAULT_HIDDEN_SOURCES]) ? null : JSON.stringify([...next]))
   const [keywords, setKeywords] = useState<ReadonlySet<string>>(new Set())
   const [account, setAccount] = useState<ReadonlySet<AccountFilter>>(new Set())
   const sources = DATASHEET_SOURCES.filter((source) => source.id === 'matched' || all.some((unit) => sourceOf(unit) === source.id))
@@ -63,9 +79,9 @@ export function FactionDatasheets() {
     ),
   )
   const listQuery = useDeferredValue(settledQuery)
-  const filtered = hidden.size > 0 || keywords.size > 0 || account.size > 0
+  const filtered = !sameSet([...hidden], [...DEFAULT_HIDDEN_SOURCES]) || keywords.size > 0 || account.size > 0
   const clearFilters = () => {
-    setHidden(new Set())
+    setHidden(DEFAULT_HIDDEN_SOURCES)
     setKeywords(new Set())
     setAccount(new Set())
   }
@@ -140,12 +156,12 @@ export function FactionDatasheets() {
                 headingLevel={2}
                 loading={isPending}
                 icon={FileSearch}
-                title={isPending ? 'Loading datasheets' : query.trim() || filtered ? 'No datasheets match' : 'No datasheets available'}
+                title={isPending ? 'Loading datasheets' : query.trim() || found.length ? 'No datasheets match' : 'No datasheets available'}
                 explanation={
                   isPending
                     ? 'Loading datasheets and points.'
-                    : filtered
-                      ? 'Turn off a filter or clear the search.'
+                    : found.length
+                      ? 'Change a filter or clear the search.'
                       : query.trim()
                         ? 'Try another datasheet name or clear the search.'
                         : 'This faction has no datasheets in the current data.'
