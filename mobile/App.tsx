@@ -1,4 +1,6 @@
 import { isWatchCompanionAvailable, publishWatchBattle, subscribeWatchAvailability } from './src/watchCompanion'
+import { battleActivityEnabled, showBattleActivity, subscribeBattleActivityEnabled } from './src/battleActivityNative'
+import { homeWidgetAvailable, saveHomeWidget } from './src/homeWidget'
 import { canGateBackSwipe, setBackSwipe, setScreenCover } from './src/webSwipe'
 import { offlineReferenceDataScript, readOfflineReference, storeOfflineReference } from './src/offlineReferenceStorage'
 import { readLocalState, storeLocalState } from './src/localStateStorage'
@@ -189,6 +191,22 @@ function AppShell() {
   useEffect(() => {
     webView.current?.injectJavaScript(nativeCapabilityScript('watch-battle', watchAvailable))
   }, [watchAvailable])
+  const [activityEnabled, setActivityEnabled] = useState(false)
+  useEffect(() => {
+    const refresh = () => void battleActivityEnabled().then(setActivityEnabled, () => setActivityEnabled(false))
+    refresh()
+    const appState = AppState.addEventListener('change', (status) => {
+      if (status === 'active') refresh()
+    })
+    const unsubscribe = subscribeBattleActivityEnabled(setActivityEnabled)
+    return () => {
+      appState.remove()
+      unsubscribe()
+    }
+  }, [])
+  useEffect(() => {
+    webView.current?.injectJavaScript(nativeCapabilityScript('battle-activity', activityEnabled))
+  }, [activityEnabled])
   const [referenceCacheScript, setReferenceCacheScript] = useState(() => {
     try {
       return offlineReferenceDataScript()
@@ -367,8 +385,11 @@ function AppShell() {
         webView.current?.injectJavaScript(nativeAnswerScript(NATIVE_EVENTS.localState, { id: action.id, ...answer }))
         break
       }
+      case 'home-widget':
+        saveHomeWidget(action.widget)
+        break
       case 'watch-battle':
-        await publishWatchBattle(action.snapshot)
+        await Promise.all([publishWatchBattle(action.snapshot), showBattleActivity(action.snapshot)])
         break
       case 'app-snapshot': {
         let saved = false
@@ -627,8 +648,12 @@ function AppShell() {
           decelerationRate={WEB_DECELERATION}
           setBuiltInZoomControls={false}
           setSupportMultipleWindows
-          injectedJavaScriptBeforeContentLoaded={`${mountedSnapshot.script}\nwindow.PraetoriumOfflineStart=${JSON.stringify(offlineView.path)};\n${NATIVE_BRIDGE_SCRIPT}\n${nativeCapabilityScript('watch-battle', watchAvailable)}\n${nativeCapabilityScript('screen-cover', canGateBackSwipe)}`}
-          onLoad={() => webView.current?.injectJavaScript(nativeCapabilityScript('watch-battle', isWatchCompanionAvailable()))}
+          injectedJavaScriptBeforeContentLoaded={`${mountedSnapshot.script}\nwindow.PraetoriumOfflineStart=${JSON.stringify(offlineView.path)};\n${NATIVE_BRIDGE_SCRIPT}\n${nativeCapabilityScript('watch-battle', watchAvailable)}\n${nativeCapabilityScript('battle-activity', activityEnabled)}\n${nativeCapabilityScript('home-widget', homeWidgetAvailable)}\n${nativeCapabilityScript('screen-cover', canGateBackSwipe)}`}
+          onLoad={() =>
+            webView.current?.injectJavaScript(
+              `${nativeCapabilityScript('watch-battle', isWatchCompanionAvailable())}\n${nativeCapabilityScript('battle-activity', activityEnabled)}`,
+            )
+          }
           onMessage={({ nativeEvent }) => {
             try {
               const message = JSON.parse(nativeEvent.data) as { type?: unknown; path?: unknown }
@@ -661,7 +686,7 @@ function AppShell() {
           containerStyle={styles.webView}
           originWhitelist={['*']}
           applicationNameForUserAgent={NATIVE_USER_AGENT}
-          injectedJavaScriptBeforeContentLoaded={`${referenceCacheScript}\n${mountedSnapshot.script}\n${NATIVE_BRIDGE_SCRIPT}\n${nativeCapabilityScript('watch-battle', watchAvailable)}\n${nativeCapabilityScript('screen-cover', canGateBackSwipe)}\n${nativeAuthCompletionScript()}`}
+          injectedJavaScriptBeforeContentLoaded={`${referenceCacheScript}\n${mountedSnapshot.script}\n${NATIVE_BRIDGE_SCRIPT}\n${nativeCapabilityScript('watch-battle', watchAvailable)}\n${nativeCapabilityScript('battle-activity', activityEnabled)}\n${nativeCapabilityScript('home-widget', homeWidgetAvailable)}\n${nativeCapabilityScript('screen-cover', canGateBackSwipe)}\n${nativeAuthCompletionScript()}`}
           sharedCookiesEnabled
           thirdPartyCookiesEnabled={false}
           allowsBackForwardNavigationGestures={backSwipeGated || historyBack}
@@ -679,7 +704,9 @@ function AppShell() {
           }}
           onLoad={({ nativeEvent }) => {
             gateBackSwipe()
-            webView.current?.injectJavaScript(nativeCapabilityScript('watch-battle', isWatchCompanionAvailable()))
+            webView.current?.injectJavaScript(
+              `${nativeCapabilityScript('watch-battle', isWatchCompanionAvailable())}\n${nativeCapabilityScript('battle-activity', activityEnabled)}`,
+            )
             mainFrameUrl.current = nativeEvent.url
             finishWebLoad(nativeEvent.url)
           }}

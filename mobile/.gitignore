@@ -13,6 +13,7 @@ credentials.json
 .metro-health-check*
 *.tsbuildinfo
 /android
+/modules/*/android/build/
 /ios
 
 .screenshots/

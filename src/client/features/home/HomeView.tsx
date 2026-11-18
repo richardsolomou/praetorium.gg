@@ -61,7 +61,10 @@ export type HomeData = {
 const VISITOR_GAMES = 3
 
 /** An unfinished game untouched this long is left to the battles page rather than headlining the home page. */
-const ABANDONED_AFTER = 14 * 24 * 60 * 60 * 1_000
+export const ABANDONED_AFTER = 14 * 24 * 60 * 60 * 1_000
+
+/** A game the player is in the middle of, rather than one they left long enough ago to count as abandoned. */
+export const underWay = (battle: Battle, since: number) => battle.status !== 'finished' && battle.lastActivity > since
 
 /** Keep one page width and show the player’s own pending games before friends’ and public games; visitors share the layout but see the public entry points. */
 export function HomeView({
@@ -88,7 +91,7 @@ export function HomeView({
 }: HomeData) {
   const [since] = useState(() => Date.now() - ABANDONED_AFTER)
   const live = (battle: Battle) => battle.status === 'finished' || battle.lastActivity > since
-  const going = mine.filter((battle) => battle.status !== 'finished' && battle.lastActivity > since)
+  const going = mine.filter((battle) => underWay(battle, since))
   const stale = mine.filter((battle) => battle.status !== 'finished' && battle.lastActivity <= since).length
   const finished = mine.filter((battle) => battle.status === 'finished' && !battle.playerDetails?.some(isPracticeSeat))
   const played = finished.slice(0, LINES_SHOWN)

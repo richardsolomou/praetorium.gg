@@ -259,4 +259,9 @@ describe('watch bridge', () => {
   it('rejects malformed watch snapshots', () => {
     expect(parseNativeActionRequest(JSON.stringify({ version: 3, type: 'native-watch-battle', snapshot: { version: 1 } }))).toBeNull()
   })
+  it('rejects a home widget line that leads off the application', () => {
+    const item = { kind: 'battle', title: 'Game', detail: 'Round 1', path: 'https://example.com', due: null, urgent: false }
+    const widget = { version: 1, updatedAt: 0, items: [item] }
+    expect(parseNativeActionRequest(JSON.stringify({ version: 3, type: 'native-home-widget', widget }))).toBeNull()
+  })
 })
