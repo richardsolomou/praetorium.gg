@@ -4,7 +4,6 @@ import {
   createRoster,
   retryUntilVisible,
   signIn,
-  signInAsPreview,
   signUp,
   uniqueName,
   waitForRosterSave,
@@ -18,10 +17,16 @@ const pairing = 'Intercessor Squad + Captain + Lieutenant vs Lychguard + Overlor
 const history = '[aria-label="Recent simulations"]'
 
 test(
-  'an editable example is remembered only after a result and reopens with its latest settings',
+  'an example is remembered only for a player after a result, reopens with its latest settings, and follows the account',
   { tag: '@catalogue' },
-  async ({ page, context }) => {
-    await signUp(page, uniqueName('Recent simulations'))
+  async ({ page, context, browser }) => {
+    await page.goto('/simulator')
+    await page.waitForLoadState('networkidle')
+    await page.getByRole('button', { name: 'Try an example', exact: true }).click()
+    await expect(page.getByRole('region', { name: 'Combined estimate' })).toHaveAttribute('aria-busy', 'false')
+    await expect(page.locator(history)).toHaveCount(0)
+
+    const account = await signUp(page, uniqueName('Recent simulations'))
     await page.goto('/simulator')
     await page.waitForLoadState('networkidle')
     const gate = await holdCombatCalculations(page)
@@ -43,10 +48,31 @@ test(
     await page.reload()
     await expect(page.getByLabel('Attacker models', { exact: true })).toHaveText('9')
     await page.goto('/simulator')
+    await recent.screenshot({ path: test.info().outputPath('recent-simulations-1440.png') })
     await retryUntilVisible(page.getByLabel('Attacker models', { exact: true }).filter({ hasText: '9' }), () =>
       recent.getByRole('link', { name: pairing, exact: true }).click(),
     )
     await expect(page.getByRole('combobox', { name: 'Defender unit', exact: true })).toContainText('Lychguard')
+
+    await page.setViewportSize(PHONE)
+    await page.goto('/simulator')
+    await expect(recent.getByRole('link', { name: pairing, exact: true })).toBeVisible()
+    await expectNoPageOverflow(page)
+    await recent.screenshot({ path: test.info().outputPath('recent-simulations-390.png') })
+    await recent.getByRole('link', { name: pairing, exact: true }).click()
+    await expect(page.getByRole('combobox', { name: 'Attacker unit', exact: true })).toContainText('Intercessor Squad')
+    await expect(page.getByRole('region', { name: 'Combined estimate' })).toHaveAttribute('aria-busy', 'false')
+    await page.screenshot({ path: test.info().outputPath('recent-simulations-simulator-390.png'), fullPage: true })
+    await page.setViewportSize({ width: 1440, height: 900 })
+
+    const elsewhere = await (await browser.newContext()).newPage()
+    await signIn(elsewhere, account.email, account.password)
+    await elsewhere.waitForURL('/')
+    await elsewhere.goto('/simulator')
+    await expect(
+      elsewhere.getByRole('region', { name: 'Recent simulations', exact: true }).getByRole('link', { name: pairing }),
+    ).toBeVisible()
+
     const other = await context.newPage()
     await other.goto('/simulator')
     await expect(
@@ -57,55 +83,9 @@ test(
     await page.goto('/simulator')
     await page.reload()
     await expect(recent).toHaveCount(0)
-  },
-)
-
-test('recent simulations reopen from the simulator at desktop and phone widths', { tag: '@catalogue' }, async ({ page }) => {
-  await signInAsPreview(page)
-  await page.goto('/simulator')
-  await page.waitForLoadState('networkidle')
-  await page.getByRole('button', { name: 'Try an example', exact: true }).click()
-  await expect(page.getByRole('region', { name: 'Recent simulations', exact: true })).toBeVisible()
-  for (const width of [1440, 390]) {
-    await page.setViewportSize({ width, height: 900 })
-    await page.goto('/simulator')
-    const recent = page.getByRole('region', { name: 'Recent simulations', exact: true })
-    await expect(recent.getByRole('link', { name: pairing, exact: true })).toBeVisible()
-    await expectNoPageOverflow(page)
-    await recent.screenshot({ path: test.info().outputPath(`recent-simulations-${width}.png`) })
-    await recent.getByRole('link', { name: pairing, exact: true }).click()
-    await expect(page.getByRole('combobox', { name: 'Attacker unit', exact: true })).toContainText('Intercessor Squad')
-    await expect(page.getByRole('region', { name: 'Combined estimate' })).toHaveAttribute('aria-busy', 'false')
-    await page.screenshot({ path: test.info().outputPath(`recent-simulations-simulator-${width}.png`), fullPage: true })
-  }
-})
-
-test(
-  'a guest keeps no matchups, and a player’s follow their account to another device',
-  { tag: '@catalogue' },
-  async ({ page, browser }) => {
-    await page.goto('/simulator')
-    await page.waitForLoadState('networkidle')
-    await page.getByRole('button', { name: 'Try an example', exact: true }).click()
-    await expect(page.getByRole('region', { name: 'Combined estimate' })).toHaveAttribute('aria-busy', 'false')
-    await expect(page.locator(history)).toHaveCount(0)
-    const account = await signUp(page, uniqueName('Matchups'))
-    await page.goto('/simulator')
-    await page.waitForLoadState('networkidle')
-    await page.getByRole('button', { name: 'Try an example', exact: true }).click()
-    await expect(page.getByRole('region', { name: 'Recent simulations', exact: true }).getByRole('link', { name: pairing })).toBeVisible()
-    const elsewhere = await (await browser.newContext()).newPage()
-    await signIn(elsewhere, account.email, account.password)
-    await elsewhere.waitForURL('/')
-    await elsewhere.goto('/simulator')
-    await expect(
-      elsewhere.getByRole('region', { name: 'Recent simulations', exact: true }).getByRole('link', { name: pairing }),
-    ).toBeVisible()
-    await elsewhere.getByRole('button', { name: `Remove ${pairing}`, exact: true }).click()
+    await elsewhere.reload()
+    await expect(elsewhere.getByRole('button', { name: 'Try an example', exact: true })).toBeVisible()
     await expect(elsewhere.locator(history)).toHaveCount(0)
-    await page.goto('/simulator')
-    await expect(page.getByRole('button', { name: 'Try an example', exact: true })).toBeVisible()
-    await expect(page.locator(history)).toHaveCount(0)
   },
 )
 

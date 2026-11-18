@@ -127,11 +127,24 @@ test('a failed search reports an error rather than a successful empty search', a
   await expect.poll(() => events.at(-1)?.properties.failed).toBe(true)
 })
 
-test('an unmatched import reports one failed attempt and no completed save', async ({ page }) => {
+test('each failed import reports only its reason and format, and a matched import reports review only for unmatched entries', async ({
+  page,
+}) => {
   const events = await openRostersToImport(page, 'Import analytics')
-  await page.getByRole('button', { name: 'Import roster', exact: true }).click()
-  await page.getByLabel('Roster text').fill('private unmatched roster')
-  await page.getByRole('button', { name: 'Import pasted roster' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Import roster', exact: true })
+  /** Submits `text` from a fresh import dialog, recording only the events it reports. */
+  const importText = async (text: string) => {
+    if (await dialog.isVisible()) {
+      await page.keyboard.press('Escape')
+      await expect(dialog).toBeHidden()
+    }
+    events.length = 0
+    await page.getByRole('button', { name: 'Import roster', exact: true }).click()
+    await page.getByLabel('Roster text').fill(text)
+    await page.getByRole('button', { name: 'Import pasted roster' }).click()
+  }
+
+  await importText('private unmatched roster')
   await expect
     .poll(() => events)
     .toEqual([
@@ -154,13 +167,9 @@ test('an unmatched import reports one failed attempt and no completed save', asy
   expect(events.at(-1)!.properties['$survey_response_1e9261de-1a9e-4465-b2a6-cc43acd873f4']).toMatch(
     /^Automatic report: roster import failed \(no faction matched\) from pasted text\.\n[\s\S]*\nInput:\nprivate unmatched roster$/,
   )
-})
 
-test('a New Recruit link that cannot be opened asks for the exported text and reports no list contents', async ({ page }) => {
-  const events = await openRostersToImport(page, 'Import link analytics')
-  await page.getByRole('button', { name: 'Import roster', exact: true }).click()
-  await page.getByLabel('Roster text').fill('https://www.newrecruit.eu/app/list/AbC123xyz')
-  await page.getByRole('button', { name: 'Import pasted roster' }).click()
+  // A New Recruit link that cannot be opened asks for the exported text and reports no list contents.
+  await importText('https://www.newrecruit.eu/app/list/AbC123xyz')
   await expect(page.getByText('export the list as text and paste the text here.')).toBeVisible()
   await expect
     .poll(() => events)
@@ -169,13 +178,9 @@ test('a New Recruit link that cannot be opened asks for the exported text and re
       { name: 'roster_import_submitted', properties: { input: 'text' } },
       { name: 'roster_import_failed', properties: { reason: 'share_link', input: 'text', format: 'newrecruit' } },
     ])
-})
 
-test('a pasted roster file asks for the exported text and reports only its format', async ({ page }) => {
-  const events = await openRostersToImport(page, 'Import file analytics')
-  await page.getByRole('button', { name: 'Import roster', exact: true }).click()
-  await page.getByLabel('Roster text').fill('<?xml version="1.0"?>\n<roster name="Private roster file">')
-  await page.getByRole('button', { name: 'Import pasted roster' }).click()
+  // A pasted roster file asks for the exported text and reports only its format.
+  await importText('<?xml version="1.0"?>\n<roster name="Private roster file">')
   await expect(page.getByText('That looks like a .ros roster file')).toBeVisible()
   await expect
     .poll(() => events)
@@ -184,6 +189,27 @@ test('a pasted roster file asks for the exported text and reports only its forma
       { name: 'roster_import_submitted', properties: { input: 'text' } },
       { name: 'roster_import_failed', properties: { reason: 'structured_file', input: 'text', format: 'ros' } },
     ])
+
+  await importText(`Private imported army (2000 Points)
+
+Necrons
+Awakened Dynasty
+Strike Force (2,000 Points)
+
+CHARACTER
+
+Technomancer (70 Points)
+  • Warlord
+
+OTHER DATASHEETS
+
+Private unknown unit (100 Points)
+  • 1x Private weapon
+
+Exported with BattleBase, Data Version: v20260812`)
+  await expect
+    .poll(() => events.filter((event) => event.name === 'roster_import_review_required'))
+    .toEqual([{ name: 'roster_import_review_required', properties: { missing_count: 1, unplaced_count: 0 } }])
 })
 
 test('a connected legacy shell import reports saving only after the write succeeds, including a retry', async ({ page }) => {
@@ -218,32 +244,6 @@ Exported with BattleBase, Data Version: v20260812`)
     .toEqual([{ name: 'roster_import_saved', properties: { source: 'battlebase', pick_count: 1 } }])
   expect(JSON.stringify(events)).not.toContain('Private imported army')
   expect(events.filter((event) => event.name === 'roster_import_review_required')).toEqual([])
-})
-
-test('a matched import reports review only for unmatched entries', async ({ page }) => {
-  const events = await openRostersToImport(page, 'Import review analytics')
-  await page.getByRole('button', { name: 'Import roster', exact: true }).click()
-  await page.getByLabel('Roster text').fill(`Private imported army (2000 Points)
-
-Necrons
-Awakened Dynasty
-Strike Force (2,000 Points)
-
-CHARACTER
-
-Technomancer (70 Points)
-  • Warlord
-
-OTHER DATASHEETS
-
-Private unknown unit (100 Points)
-  • 1x Private weapon
-
-Exported with BattleBase, Data Version: v20260812`)
-  await page.getByRole('button', { name: 'Import pasted roster' }).click()
-  await expect
-    .poll(() => events.filter((event) => event.name === 'roster_import_review_required'))
-    .toEqual([{ name: 'roster_import_review_required', properties: { missing_count: 1, unplaced_count: 0 } }])
 })
 
 test('building reports embarks and the roster arrangement without naming units', async ({ page }) => {

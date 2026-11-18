@@ -120,29 +120,9 @@ test('an edit made just before leaving the roster still saves', async ({ page })
   await expect(page.getByText('After leaving').first()).toBeVisible()
 })
 
-test('the roster header fades whichever end of its facts it is hiding', async ({ browser }) => {
-  const context = await browser.newContext({ viewport: PHONE })
-  const page = await context.newPage()
-  await openBuilder(page)
-  const meta = page.locator('[data-slot="roster-meta"]')
-  await expect(meta).toBeVisible()
-  // The row grows as its pricing lands, so the cue is asserted once the facts have all arrived.
-  await expect.poll(() => meta.evaluate((node) => node.scrollWidth > node.clientWidth)).toBe(true)
-  await expect.poll(() => fadedEdges(meta)).toEqual({ start: false, end: true })
-
-  await meta.evaluate((node) => node.scrollTo({ left: node.scrollWidth }))
-  await expect.poll(() => fadedEdges(meta)).toEqual({ start: true, end: false })
-
-  // Longer counts widen the row without resizing it, and the end they push out of view fades again.
-  await add(page, 'Necron Warriors')
-  await add(page, 'Immortals')
-  await closePicker(page)
-  await expect.poll(() => meta.evaluate((node) => Math.ceil(node.scrollLeft + node.clientWidth) < node.scrollWidth)).toBe(true)
-  await expect.poll(() => fadedEdges(meta)).toEqual({ start: true, end: true })
-  await context.close()
-})
-
-test('the roster header fits its facts and opens its force disposition', async ({ page }) => {
+test('the roster header fits its facts on a desktop, fades whichever end it hides on a phone, and opens its force disposition', async ({
+  page,
+}) => {
   await openBuilder(page)
   const meta = page.locator('[data-slot="roster-meta"]')
   await expectNoHorizontalOverflow(meta)
@@ -154,7 +134,23 @@ test('the roster header fits its facts and opens its force disposition', async (
   await expect(filter).toHaveValue('')
   await expect(page.getByRole('button', { name: 'Empty the picker filter' })).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Add Immortals', exact: true })).toBeVisible()
-  await page.locator('[data-slot="roster-meta"]').getByRole('link', { name: 'Take and Hold', exact: true }).click()
+
+  await page.setViewportSize(PHONE)
+  await expect(meta).toBeVisible()
+  await expect.poll(() => meta.evaluate((node) => node.scrollWidth > node.clientWidth)).toBe(true)
+  await expect.poll(() => fadedEdges(meta)).toEqual({ start: false, end: true })
+  await meta.evaluate((node) => node.scrollTo({ left: node.scrollWidth }))
+  await expect.poll(() => fadedEdges(meta)).toEqual({ start: true, end: false })
+  // Longer counts widen the row without resizing it, and the end they push out of view fades again.
+  if (!(await filter.isVisible())) await page.getByRole('button', { name: 'Add units', exact: true }).click()
+  await add(page, 'Necron Warriors')
+  await add(page, 'Immortals')
+  await closePicker(page)
+  await expect.poll(() => meta.evaluate((node) => Math.ceil(node.scrollLeft + node.clientWidth) < node.scrollWidth)).toBe(true)
+  await expect.poll(() => fadedEdges(meta)).toEqual({ start: true, end: true })
+
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await meta.getByRole('link', { name: 'Take and Hold', exact: true }).click()
   await expect(page).toHaveURL(/\/force-dispositions\/take-and-hold$/)
   await expect(page.getByRole('heading', { name: 'Take and Hold', exact: true })).toBeVisible()
   await expect(page.getByRole('link', { name: /^vs Disruption/ })).toHaveAttribute(
@@ -167,53 +163,42 @@ test('the roster header fits its facts and opens its force disposition', async (
   )
 })
 
-test('a three-point detachment lets the player choose either disposition', async ({ page }) => {
-  await signUp(page, 'Disposition chooser')
-  const dialog = await visitorSetup(page)
-  await chooseFaction(dialog, 'Necrons')
-  await dialog.getByRole('button', { name: 'Select Awakened Dynasty' }).click()
-
-  const dispositions = dialog.getByRole('group', { name: 'Force disposition' })
-  await expect(dispositions.getByRole('button')).toHaveText(['Take and Hold', 'Priority Assets'])
-  await expect(dialog.getByRole('button', { name: 'Create roster' })).toBeEnabled()
-  await dispositions.getByRole('button', { name: 'Priority Assets' }).click()
-  await dialog.getByRole('button', { name: 'Create roster' }).click()
-  await page.waitForURL(/\/rosters\/[^/]+$/)
-  await expect(page.locator('[data-slot="roster-meta"]').getByRole('link', { name: 'Priority Assets' })).toBeVisible()
-  await page.reload()
-  await expect(page.locator('[data-slot="roster-meta"]').getByRole('link', { name: 'Priority Assets' })).toBeVisible()
-
-  const setup = await openRosterSetup(page)
-  await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
-  await waitForRosterSave(page, () => confirmRosterSetup(setup))
-  await page.reload()
-  await expect(page.locator('[data-slot="roster-meta"]').getByRole('link', { name: 'Take and Hold' })).toBeVisible()
-})
-
-test('a native unit screen keeps the tab bar beside it', async ({ browser }) => {
+test('a unit screen keeps the tab bar beside it on the mobile web and in the native app', async ({ browser }) => {
   const context = await browser.newContext({ viewport: { width: 364, height: 759 } })
-  await context.addInitScript({
-    content: NATIVE_SHELL_SCRIPT,
-  })
   const page = await context.newPage()
   await openBuilder(page, 'Space Marines', /Gladius Task Force/)
-  await add(page, 'Intercessor Squad')
+  await addUnit(page, 'Intercessor Squad')
   await page.getByRole('dialog', { name: 'Add units' }).getByRole('button', { name: 'Close' }).click()
+  const unit = page.locator('[data-unit="Intercessor Squad"]').getByRole('button', { name: 'Intercessor Squad', exact: true })
+  await unit.click()
+
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  const sections = page.getByRole('navigation', { name: 'Application sections' })
+  const expectBesideTabs = async () => {
+    await expect(loadout).toBeVisible()
+    // A screen inside the roster tab, not a sheet over the application.
+    await expect(loadout).not.toHaveAttribute('aria-modal', 'true')
+    expect(await loadout.evaluate((pane) => Math.round(pane.getBoundingClientRect().bottom))).toBe(
+      await sections.evaluate((tabs) => Math.round(tabs.getBoundingClientRect().top)),
+    )
+    expect(await sections.evaluate((tabs) => (tabs as HTMLElement).inert)).toBe(false)
+  }
+  await expectBesideTabs()
+  await expect(loadout.getByRole('heading', { name: 'Attachments' })).toBeVisible()
+  const rosterUrl = page.url().replace(/#.*$/, '')
+  await sections.getByRole('link', { name: 'Factions' }).click()
+  await expect(page).toHaveURL('/factions')
+
+  await page.addInitScript({ content: NATIVE_SHELL_SCRIPT })
+  await page.goto(rosterUrl)
+  const picker = page.getByRole('dialog', { name: 'Add units' })
+  if (await picker.isVisible()) await picker.getByRole('button', { name: 'Close' }).click()
   await expectNoPageOverflow(page)
   const roster = page.locator('[data-slot="roster-units"]')
   await expectNoHorizontalOverflow(roster)
   await expectVerticalPanOnly(roster)
-  await page.locator('[data-unit="Intercessor Squad"]').getByRole('button', { name: 'Intercessor Squad', exact: true }).click()
-
-  const loadout = page.locator('aside[aria-label="Loadout"]')
-  const sections = page.getByRole('navigation', { name: 'Application sections' })
-  await expect(loadout).toBeVisible()
-  // A screen inside the roster tab, not a sheet over the application.
-  await expect(loadout).not.toHaveAttribute('aria-modal', 'true')
-  expect(await loadout.evaluate((pane) => Math.round(pane.getBoundingClientRect().bottom))).toBe(
-    await sections.evaluate((tabs) => Math.round(tabs.getBoundingClientRect().top)),
-  )
-  expect(await sections.evaluate((tabs) => (tabs as HTMLElement).inert)).toBe(false)
+  await unit.click()
+  await expectBesideTabs()
   await expectNoPageOverflow(page)
   await expectNoHorizontalOverflow(loadout)
   const viewport = loadout.locator('[data-slot="scroll-area-viewport"]')
@@ -227,31 +212,7 @@ test('a native unit screen keeps the tab bar beside it', async ({ browser }) => 
   await context.close()
 })
 
-test('a mobile web unit screen keeps the tab bar beside it', async ({ browser }) => {
-  const context = await browser.newContext({ viewport: { width: 364, height: 759 } })
-  const page = await context.newPage()
-  await openBuilder(page, 'Space Marines', /Gladius Task Force/)
-  await addUnit(page, 'Intercessor Squad')
-  await page.getByRole('dialog', { name: 'Add units' }).getByRole('button', { name: 'Close' }).click()
-  await page.locator('[data-unit="Intercessor Squad"]').getByRole('button', { name: 'Intercessor Squad', exact: true }).click()
-
-  const loadout = page.locator('aside[aria-label="Loadout"]')
-  const sections = page.getByRole('navigation', { name: 'Application sections' })
-  await expect(loadout).toBeVisible()
-  await expect(loadout.getByRole('heading', { name: 'Attachments' })).toBeVisible()
-  await expect(loadout).not.toHaveAttribute('aria-modal', 'true')
-  expect(await loadout.evaluate((pane) => Math.round(pane.getBoundingClientRect().bottom))).toBe(
-    await sections.evaluate((tabs) => Math.round(tabs.getBoundingClientRect().top)),
-  )
-  expect(await sections.evaluate((tabs) => (tabs as HTMLElement).inert)).toBe(false)
-
-  await sections.getByRole('link', { name: 'Factions' }).click()
-  await expect(page).toHaveURL('/factions')
-
-  await context.close()
-})
-
-test('the roster tab comes back to the unit it was left on', { tag: '@catalogue' }, async ({ browser }) => {
+test('the roster tab comes back to the unit it was left on, even after another unit moved', { tag: '@catalogue' }, async ({ browser }) => {
   const context = await browser.newContext({ viewport: PHONE })
   await context.addInitScript({
     content: NATIVE_SHELL_SCRIPT,
@@ -259,14 +220,27 @@ test('the roster tab comes back to the unit it was left on', { tag: '@catalogue'
   const page = await context.newPage()
   await openBuilder(page)
   await addUnit(page, 'Immortals')
+  await addUnit(page, 'Lychguard')
   await page.getByRole('dialog', { name: 'Add units' }).getByRole('button', { name: 'Close' }).click()
   const rosterUrl = page.url()
-  await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Immortals', exact: true }).click()
+  const sections = page.getByRole('navigation', { name: 'Application sections' })
   const loadout = page.locator('aside[aria-label="Loadout"]')
+
+  // A unit that moved while the roster was open does not eject the roster tab.
+  await page.locator('[data-unit="Immortals"]').getByLabel('Unit actions for Immortals').click()
+  await waitForRosterSave(page, () => page.getByRole('menuitem', { name: 'Delete unit' }).click())
+  await page.locator('[data-unit="Lychguard"]').getByRole('button', { name: 'Lychguard', exact: true }).click()
+  await expect(loadout).toBeVisible()
+  await sections.getByRole('link', { name: 'Battles' }).click()
+  await expect(page).toHaveURL('/battles')
+  await sections.getByRole('link', { name: 'Rosters' }).click()
+  await expect(page).toHaveURL((url) => url.pathname === new URL(rosterUrl).pathname)
+  await expect(page.locator('[data-unit="Lychguard"]')).toBeVisible()
+
+  await page.goto(rosterUrl)
+  await page.locator('[data-unit="Lychguard"]').getByRole('button', { name: 'Lychguard', exact: true }).click()
   await expect(loadout).toBeVisible()
   await expect(page).toHaveURL(`${rosterUrl}#roster-pane`)
-
-  const sections = page.getByRole('navigation', { name: 'Application sections' })
   await sections.getByRole('link', { name: 'Battles' }).click()
   await expect(page).toHaveURL('/battles')
 
@@ -284,34 +258,6 @@ test('the roster tab comes back to the unit it was left on', { tag: '@catalogue'
   await expect(page).toHaveURL(rosterUrl)
   await expect(loadout).toBeVisible()
   await expect(loadout).not.toHaveCSS('position', 'fixed')
-
-  await context.close()
-})
-
-test('a unit that moved while the roster was open does not eject the roster tab', async ({ browser }) => {
-  const context = await browser.newContext({ viewport: PHONE })
-  await context.addInitScript({
-    content: NATIVE_SHELL_SCRIPT,
-  })
-  const page = await context.newPage()
-  await openBuilder(page)
-  await addUnit(page, 'Immortals')
-  await addUnit(page, 'Lychguard')
-  await page.getByRole('dialog', { name: 'Add units' }).getByRole('button', { name: 'Close' }).click()
-  const rosterUrl = page.url()
-
-  await page.locator('[data-unit="Immortals"]').getByLabel('Unit actions for Immortals').click()
-  await waitForRosterSave(page, () => page.getByRole('menuitem', { name: 'Delete unit' }).click())
-  await page.locator('[data-unit="Lychguard"]').getByRole('button', { name: 'Lychguard', exact: true }).click()
-  await expect(page.locator('aside[aria-label="Loadout"]')).toBeVisible()
-
-  const sections = page.getByRole('navigation', { name: 'Application sections' })
-  await sections.getByRole('link', { name: 'Battles' }).click()
-  await expect(page).toHaveURL('/battles')
-
-  await sections.getByRole('link', { name: 'Rosters' }).click()
-  await expect(page).toHaveURL((url) => url.pathname === new URL(rosterUrl).pathname)
-  await expect(page.locator('[data-unit="Lychguard"]')).toBeVisible()
 
   await context.close()
 })
@@ -376,11 +322,25 @@ test('native roster details use pane history without adding a route back action'
   await expect(page).not.toHaveURL(rosterUrl)
 })
 
-test('portrait tablets keep roster details as a full-screen view', async ({ page }) => {
+test('a mid-width picker hands off to the inline loadout, and portrait tablets keep roster details as a full-screen view', async ({
+  page,
+}) => {
   await openBuilder(page)
   await add(page, 'Immortals')
   await add(page, 'Lychguard')
   await page.setViewportSize({ width: 1100, height: 800 })
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  const pickerUrl = page.url()
+  await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Immortals', exact: true }).click()
+  await expect(loadout).toHaveCSS('position', 'static')
+  await page.getByRole('button', { name: 'Add units', exact: true }).click()
+  const picker = page.getByRole('dialog', { name: 'Add units' })
+  await expect(picker).toBeVisible()
+  await picker.getByRole('button', { name: 'Loadout' }).click()
+  await expect(picker).toBeHidden()
+  await expect(loadout).toHaveCSS('position', 'static')
+  await expect(page).toHaveURL(pickerUrl)
+
   const immortalsButton = page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Immortals', exact: true })
   const lychguardButton = page.locator('[data-unit="Lychguard"]').getByRole('button', { name: 'Lychguard', exact: true })
   await immortalsButton.click()
@@ -389,7 +349,6 @@ test('portrait tablets keep roster details as a full-screen view', async ({ page
   const rosterUrl = page.url()
   await page.setViewportSize({ width: 820, height: 1180 })
 
-  const loadout = page.locator('aside[aria-label="Loadout"]')
   const sections = page.getByRole('navigation', { name: 'Application sections' })
   await expect(loadout).toHaveCSS('position', 'fixed')
   await expect(loadout).not.toHaveAttribute('aria-modal', 'true')
@@ -403,24 +362,6 @@ test('portrait tablets keep roster details as a full-screen view', async ({ page
   await expectNoPageOverflow(page)
   await expectNoHorizontalOverflow(loadout)
   await expect(lychguardButton).toBeFocused()
-  await expect(page).toHaveURL(rosterUrl)
-})
-
-test('mid-width picker hands off to the inline loadout', async ({ page }) => {
-  await openBuilder(page)
-  await add(page, 'Immortals')
-  await page.setViewportSize({ width: 1100, height: 800 })
-  const rosterUrl = page.url()
-
-  await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Immortals', exact: true }).click()
-  await expect(page.locator('aside[aria-label="Loadout"]')).toHaveCSS('position', 'static')
-  await page.getByRole('button', { name: 'Add units', exact: true }).click()
-  const picker = page.getByRole('dialog', { name: 'Add units' })
-  await expect(picker).toBeVisible()
-  await picker.getByRole('button', { name: 'Loadout' }).click()
-
-  await expect(picker).toBeHidden()
-  await expect(page.locator('aside[aria-label="Loadout"]')).toHaveCSS('position', 'static')
   await expect(page).toHaveURL(rosterUrl)
 })
 
@@ -592,8 +533,23 @@ test('collection changes do not reorder roster and reference rows', async ({ pag
   await expect(datasheets.first()).toHaveAccessibleName(/^Immortals/)
 })
 
-test('favourite datasheets rise to the top without joining the collection', async ({ page }) => {
-  await openBuilder(page)
+test('favourite detachments and datasheets rise to the top without joining the collection', async ({ page }) => {
+  await signUp(page, 'Richard')
+  const dialog = await visitorSetup(page)
+  await chooseFaction(dialog, 'Necrons')
+  const favourite = dialog.getByRole('button', { name: 'Add Cursed Legion to favourite detachments' })
+  const favourited = page.waitForResponse((response) => response.ok() && response.request().method() === 'POST')
+  await favourite.click()
+  await favourited
+  const kept = dialog.getByRole('button', { name: 'Remove Cursed Legion from favourite detachments' })
+  await expect(kept).toBeVisible()
+  await expect(dialog.getByRole('button', { name: /^Select (Cursed Legion|Awakened Dynasty)$/ }).first()).toHaveAccessibleName(
+    'Select Cursed Legion',
+  )
+  await page.goto('/factions/necrons')
+  await expect(page.getByRole('link', { name: /^(Cursed Legion|Awakened Dynasty)/ }).first()).toHaveAccessibleName(/^Cursed Legion/)
+
+  await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/ })
   await page.getByLabel('Add a unit').fill('')
   const pickerRows = page.getByRole('button', { name: /^Add (Immortals|Necron Warriors)$/ })
   const favouritesFilter = page.getByRole('button', { name: 'Favourites', exact: true })
@@ -637,26 +593,9 @@ test('contained faction datasheet rows stay accessible and resize without horizo
   await expect(rows.last()).toBeVisible()
 })
 
-test('favourite detachments rise to the top of roster setup', async ({ page }) => {
-  await signUp(page, 'Richard')
-  const dialog = await visitorSetup(page)
-  await chooseFaction(dialog, 'Necrons')
-
-  const favourite = dialog.getByRole('button', { name: 'Add Cursed Legion to favourite detachments' })
-  const favourited = page.waitForResponse((response) => response.ok() && response.request().method() === 'POST')
-  await favourite.click()
-  await favourited
-  const kept = dialog.getByRole('button', { name: 'Remove Cursed Legion from favourite detachments' })
-  await expect(kept).toBeVisible()
-  await expect(dialog.getByRole('button', { name: /^Select (Cursed Legion|Awakened Dynasty)$/ }).first()).toHaveAccessibleName(
-    'Select Cursed Legion',
-  )
-
-  await page.goto('/factions/necrons')
-  await expect(page.getByRole('link', { name: /^(Cursed Legion|Awakened Dynasty)/ }).first()).toHaveAccessibleName(/^Cursed Legion/)
-})
-
-test('King of the Colosseum creation keeps exactly one detachment selected', async ({ page }) => {
+test('King of the Colosseum keeps one detachment and its caps, a waived restriction cannot widen the phone roster, and a three-point detachment offers either disposition', async ({
+  page,
+}) => {
   await signUp(page, 'Richard')
   const dialog = await visitorSetup(page)
   await chooseFaction(dialog, 'Necrons')
@@ -721,38 +660,42 @@ test('King of the Colosseum creation keeps exactly one detachment selected', asy
   await page.getByRole('button', { name: 'Add units', exact: true }).click()
   const mobilePicker = page.getByRole('dialog', { name: 'Add units' })
   await expect(mobilePicker.getByText('2/2 in roster')).toBeVisible()
-})
+  await mobilePicker.getByRole('button', { name: 'Close' }).click()
 
-test('a waived format restriction cannot widen the mobile roster', async ({ page }) => {
-  await signUp(page, 'Richard')
-  await createRoster(page, {
-    faction: 'Necrons',
-    detachment: /Awakened Dynasty/,
-    size: /King of the Colosseum/,
-  })
-
-  await page.getByRole('button', { name: 'Format restrictions' }).click()
-  await page.getByRole('menuitemcheckbox', { name: /No Epic Heroes/ }).click()
-  await page.keyboard.press('Escape')
-  await expect(page.getByRole('button', { name: 'Format restrictions, 1 switched off', exact: true })).toBeVisible()
-  await add(page, 'Imotekh the Stormlord')
-
-  await page.setViewportSize(PHONE)
+  // A waived format restriction cannot widen the mobile roster.
   const imotekh = page.locator('[data-unit="Imotekh the Stormlord"]')
   await expect(imotekh).toBeVisible()
   await expectNoPageOverflow(page)
   await page.evaluate(() => window.scrollTo({ left: 100, behavior: 'instant' }))
   expect(await page.evaluate(() => window.scrollX)).toBe(0)
-
   await imotekh.getByRole('button', { name: 'Imotekh the Stormlord', exact: true }).click()
   const loadout = page.locator('aside[aria-label="Loadout"]')
   await expect(loadout.getByText('Equipped ranged weapons', { exact: true })).toBeVisible()
   await expectNoPageOverflow(page)
   await expectInsideHorizontalBounds(loadout, loadout.locator('[data-slot="unit-profile"] > div:first-child > div'))
   await expectInsideHorizontalBounds(loadout, loadout.locator('[data-slot="datasheet-content"] [class*="grid-cols-6"] > div'))
-
   await loadout.getByRole('button', { name: 'Back to roster' }).click()
   await expectNoPageOverflow(page)
+  await page.setViewportSize({ width: 1440, height: 900 })
+
+  // A three-point detachment at Strike Force lets the player choose either disposition.
+  const strikeForce = await visitorSetup(page)
+  await chooseFaction(strikeForce, 'Necrons')
+  await strikeForce.getByRole('button', { name: 'Select Awakened Dynasty' }).click()
+  const dispositions = strikeForce.getByRole('group', { name: 'Force disposition' })
+  await expect(dispositions.getByRole('button')).toHaveText(['Take and Hold', 'Priority Assets'])
+  await expect(strikeForce.getByRole('button', { name: 'Create roster' })).toBeEnabled()
+  await dispositions.getByRole('button', { name: 'Priority Assets' }).click()
+  await strikeForce.getByRole('button', { name: 'Create roster' }).click()
+  await page.waitForURL(/\/rosters\/[^/]+$/)
+  await expect(page.locator('[data-slot="roster-meta"]').getByRole('link', { name: 'Priority Assets' })).toBeVisible()
+  await page.reload()
+  await expect(page.locator('[data-slot="roster-meta"]').getByRole('link', { name: 'Priority Assets' })).toBeVisible()
+  const setup = await openRosterSetup(page)
+  await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
+  await waitForRosterSave(page, () => confirmRosterSetup(setup))
+  await page.reload()
+  await expect(page.locator('[data-slot="roster-meta"]').getByRole('link', { name: 'Take and Hold' })).toBeVisible()
 })
 
 test('the rail folds automatically in the roster workspace until a choice that differs is made', async ({ page }) => {

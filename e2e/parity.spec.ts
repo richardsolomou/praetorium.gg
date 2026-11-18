@@ -26,22 +26,7 @@ const offerNativeShare = (page: Page) =>
     window.dispatchEvent(new CustomEvent('praetorium-native-capabilities'))
   })
 
-test('roster visibility controls search indexing and public URL variants', async ({ page }) => {
-  await signUp(page, uniqueName('Search roster'))
-  await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Search roster' })
-  const path = new URL(page.url()).pathname
-
-  await setRosterAccess(page, 'Unlisted — anyone with the link', 'unlisted')
-  await page.reload()
-  await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex')
-
-  await setRosterAccess(page, 'Public — listed on your profile', 'public')
-  await page.goto(`${path}?print=true`)
-  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', new URL(path, page.url()).href)
-  await expect(page.locator('meta[name="robots"]')).toHaveCount(0)
-})
-
-test('a private roster can be shared and made private again', async ({ browser }) => {
+test('a private roster can be shared, indexed only while public, and made private again', async ({ browser }) => {
   const context = await browser.newContext()
   await context.grantPermissions(['clipboard-read', 'clipboard-write'])
   const page = await context.newPage()
@@ -121,6 +106,7 @@ test('a private roster can be shared and made private again', async ({ browser }
 
   await page.setViewportSize(PHONE)
   await page.goto(sharedUrl)
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex')
   await expect((await openRosterShare(page)).getByRole('button', { name: 'Copy link', exact: true })).toBeVisible()
   await page.keyboard.press('Escape')
   await offerNativeShare(page)
@@ -139,6 +125,14 @@ test('a private roster can be shared and made private again', async ({ browser }
   expect(preview.status()).toBe(200)
   expect(preview.headers()['cache-control']).toBe('no-store')
 
+  await page.keyboard.press('Escape')
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await setRosterAccess(page, 'Public — listed on your profile', 'public')
+  const { pathname } = new URL(sharedUrl)
+  await page.goto(`${pathname}?print=true`)
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', new URL(pathname, page.url()).href)
+  await expect(page.locator('meta[name="robots"]')).toHaveCount(0)
+
   await page.goto('/rosters')
   const unshare = await openLibraryShare(page, 'Shareable roster')
   await unshare.getByText('Private', { exact: true }).click()
@@ -152,7 +146,7 @@ test('a private roster can be shared and made private again', async ({ browser }
   await expectNoPageOverflow(page)
 })
 
-test('editable detail waits for public access to save before sharing', async ({ browser }) => {
+test('editable detail waits for public access to save before sharing, then copies its link once per click', async ({ browser }) => {
   const context = await browser.newContext()
   const page = await context.newPage()
   await signUp(page, uniqueName('Detail sharer'))
@@ -194,12 +188,10 @@ test('editable detail waits for public access to save before sharing', async ({ 
 
   await anonymous.goto(sharedUrl)
   await expect(anonymous.getByLabel('List name')).toHaveValue('Detail share')
-})
 
-test('copying a saved roster link reports progress beside the header and copies once per click', async ({ page }) => {
-  await signUp(page, uniqueName('Status sharer'))
-  await chooseRosterDefault(page, 'Unlisted')
-  await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Status share' })
+  // Without the native shell, copying the saved link reports progress beside the header and copies once per click.
+  await page.unroute('**/_serverFn/**')
+  await page.reload()
   await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
   await expect.poll(async () => (await savedWork(page))?.operations.length ?? 0).toBe(0)
   const saves = recordSaves(page)
