@@ -77,6 +77,9 @@ export function decodeReferencePart(json: string): unknown {
   return restoreReferenceText(value, texts, json.length)
 }
 
+/** A decoded part's queries by their JSON key. */
+export const queryIndex = (part: unknown) => new Map((part as ReferenceQuery[]).map((entry) => [JSON.stringify(entry.key), entry.data]))
+
 const ASSET = /^\/(?:assets|catalogue-assets\/[a-f0-9]{64})\/(?:reference|construction)-[a-f0-9]{64}\.bin$/
 const directoryOf = (asset: string) => asset.slice(0, asset.lastIndexOf('/'))
 

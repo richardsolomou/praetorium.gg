@@ -1,7 +1,7 @@
 import { QueryClient, QueryObserver } from '@tanstack/react-query'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { referenceQuery } from './shared'
-import { loadPart } from '../offline/runtime'
+import { loadSavedQuery } from '../offline/runtime'
 import { savedDownload } from '../offline/savedReference.fixtures'
 
 vi.mock('../offline/referenceStore', async () => (await import('../offline/savedReference.fixtures')).storedPartReader)
@@ -11,8 +11,8 @@ beforeEach(async () => {
   const saved = savedDownload([{ key: ['rule-index'], data: 'Saved rules' }])
   vi.stubGlobal('window', { PraetoriumReferenceCache: saved })
   vi.stubGlobal('navigator', { onLine: true })
-  // A page has decoded the core it reads once the download is restored.
-  await loadPart(saved.download.reference.core)
+  // A page has read the query once the download is restored.
+  await loadSavedQuery(saved, ['rule-index'])
 })
 afterEach(() => {
   client.clear()

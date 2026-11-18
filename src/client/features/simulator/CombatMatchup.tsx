@@ -1,5 +1,5 @@
 import { invalidWeaponChoices } from './combatPreferences'
-import { useEffect, useMemo, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react'
+import { useCallback, useDeferredValue, useEffect, useMemo, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react'
 import { Button } from '@/components/ui/button'
 import type { CombatPhase } from '../../../core/combat'
 import { combatUnitKeywords } from '../../../core/combatUnit'
@@ -28,21 +28,21 @@ const roomy = () => (roomyAtLoad ??= window.matchMedia('(min-width: 768px)').mat
 /** The same matchup surface accepts catalogue picks or already evaluated roster/battle units. */
 export function CombatMatchup({
   entryPoint = 'standalone',
-  attacker,
-  defender,
-  pending = false,
-  failed = false,
+  attacker: liveAttacker,
+  defender: liveDefender,
+  pending: livePending = false,
+  failed: liveFailed = false,
   attackerControl,
   defenderControl,
   attackerBuffs,
   defenderBuffs,
   inDialog = false,
-  loadoutSpace,
+  loadoutSpace: liveLoadoutSpace,
   initialSettings,
   onSettingsChange,
   onCompleted,
   preferences,
-  invalidatedPreferences = false,
+  invalidatedPreferences: liveInvalidatedPreferences = false,
   onPreferencesChange: setPreferences,
   invalidAttachments,
 }: {
@@ -68,6 +68,14 @@ export function CombatMatchup({
   /** Which sides have illegal attachments, such as a Support unit without a Bodyguard unit, so they cannot be calculated. */
   invalidAttachments: { attacker?: boolean; defender?: boolean }
 }) {
+  // The unit controls answer a tap at once; the matchup worked out from them follows in a render that yields to the next frame.
+  const attacker = useDeferredValue(liveAttacker)
+  const defender = useDeferredValue(liveDefender)
+  const pending = useDeferredValue(livePending)
+  const failed = useDeferredValue(liveFailed)
+  const loadoutSpace = useDeferredValue(liveLoadoutSpace)
+  const invalidatedPreferences = useDeferredValue(liveInvalidatedPreferences)
+  const deferring = attacker !== liveAttacker || defender !== liveDefender || pending !== livePending || failed !== liveFailed
   const [adjustments, setAdjustments] = useState<CombatAdjustments>(initialSettings?.adjustments ?? {})
   // Both control sections start open where there is room; a phone starts on the results.
   const startOpen = useClientValue(roomy, false)
@@ -106,10 +114,22 @@ export function CombatMatchup({
     if (invalidChoices.length)
       setPreferences((current) => Object.fromEntries(Object.entries(current).filter(([key]) => !invalidChoices.includes(key))))
   }, [invalidChoices, setPreferences])
-  const allocateEarlier = (index: number) =>
-    setAllocation(labels.map((label, at) => (at === index - 1 ? labels[index]! : at === index ? labels[index - 1]! : label)))
-  const rangedDefences = matchup.defencesIn('ranged', adjustments)
-  const meleeDefences = matchup.defencesIn('melee', adjustments)
+  const allocateEarlier = useCallback(
+    (index: number) =>
+      setAllocation(labels.map((label, at) => (at === index - 1 ? labels[index]! : at === index ? labels[index - 1]! : label))),
+    [labels],
+  )
+  const [rangedDefences, meleeDefences] = useMemo(
+    () => [matchup.defencesIn('ranged', adjustments), matchup.defencesIn('melee', adjustments)],
+    [matchup, adjustments],
+  )
+  const configuredDefences = useMemo(
+    () =>
+      rangedDefences && meleeDefences && JSON.stringify(rangedDefences.groups) === JSON.stringify(meleeDefences.groups)
+        ? { target: rangedDefences, labels }
+        : undefined,
+    [rangedDefences, meleeDefences, labels],
+  )
   const extraFeelNoPain = adjustments.feelNoPain ?? null
   const betterFeelNoPain = (printed: number | null | undefined) =>
     extraFeelNoPain && (!printed || extraFeelNoPain < printed) ? extraFeelNoPain : (printed ?? null)
@@ -122,7 +142,7 @@ export function CombatMatchup({
     if (!commandRerolled) return null
     return matchup.request(withoutCommandReroll(adjustments))
   }, [commandRerolled, matchup, adjustments])
-  const modifiers = matchupModifiers(matchup, adjustments, scenarios)
+  const modifiers = useMemo(() => matchupModifiers(matchup, adjustments, scenarios), [matchup, adjustments, scenarios])
   const { outcome, currentOutcome, updating } = useCombatOutcome({
     scenarios,
     scenariosWithout,
@@ -133,7 +153,7 @@ export function CombatMatchup({
     entryPoint,
     onCompleted,
   })
-  const retryCalculation = () => setRetry((value) => value + 1)
+  const retryCalculation = useCallback(() => setRetry((value) => value + 1), [])
   // After the estimate's effect, so the matchup's own calculation starts first.
   const loadoutScoring = useMemo(
     () =>
@@ -164,20 +184,74 @@ export function CombatMatchup({
     scoring: loadoutScoring,
     expected: scenarios,
   })
-  const optimizationKey = JSON.stringify({
-    key: JSON.stringify([defender, adjustments, defenceRules, attacker?.models]),
-    preferences: chosen,
-    excluded: excludedWeapons,
-    results: currentOutcome
-      ? {
-          combined: currentOutcome.answer.combined?.result,
-          ranged: currentOutcome.answer.ranged?.result,
-          melee: currentOutcome.answer.melee?.result,
-        }
-      : undefined,
-    scoring: loadoutScoring,
-    expected: scenarios,
-  } satisfies Omit<LoadoutOptimization, 'apply'>)
+  const optimizationKey = useMemo(
+    () =>
+      JSON.stringify({
+        key: JSON.stringify([defender, adjustments, defenceRules, attacker?.models]),
+        preferences: chosen,
+        excluded: excludedWeapons,
+        results: currentOutcome
+          ? {
+              combined: currentOutcome.answer.combined?.result,
+              ranged: currentOutcome.answer.ranged?.result,
+              melee: currentOutcome.answer.melee?.result,
+            }
+          : undefined,
+        scoring: loadoutScoring,
+        expected: scenarios,
+      } satisfies Omit<LoadoutOptimization, 'apply'>),
+    [defender, adjustments, defenceRules, attacker?.models, chosen, excludedWeapons, currentOutcome, loadoutScoring, scenarios],
+  )
+  const hitRolls = useMemo(
+    () =>
+      Object.fromEntries(phases.map(([phase]) => [phase, matchup.hitRolls(phase, adjustments)])) as Record<
+        CombatPhase,
+        ReturnType<typeof matchup.hitRolls>
+      >,
+    [matchup, adjustments],
+  )
+  const statAdjustments = useMemo(
+    () =>
+      Object.fromEntries(
+        phases.map(([phase]) => [phase, combineWeaponAdjustments(adjustments.weapons?.all ?? {}, adjustments.weapons?.[phase] ?? {})]),
+      ) as Record<CombatPhase, ReturnType<typeof combineWeaponAdjustments>>,
+    [adjustments],
+  )
+  const chooseWeapon = useCallback(
+    (key: string, value: string) => {
+      setInvalidatedChoice(false)
+      setPreferences((current) => ({ ...current, [key]: value }))
+    },
+    [setPreferences],
+  )
+  const includeWeapon = useMemo(
+    () =>
+      Object.fromEntries(
+        phases.map(([phase]) => [
+          phase,
+          (key: string, included: boolean) =>
+            setExcludedWeapons((current) => ({
+              ...current,
+              [phase]: included ? current[phase].filter((candidate) => candidate !== key) : [...current[phase], key],
+            })),
+        ]),
+      ) as Record<CombatPhase, (key: string, included: boolean) => void>,
+    [],
+  )
+  const resetModifiers = useCallback(() => {
+    setAdjustments({})
+    setPreferences({})
+    setInvalidatedChoice(false)
+    setExcludedWeapons(noExclusions())
+  }, [setPreferences])
+  const resultsUpdating = updating || deferring
+  const without = useMemo(
+    () =>
+      outcome?.without && commandRerolled
+        ? { ranged: outcome.without.ranged?.result, melee: outcome.without.melee?.result, combined: outcome.without.combined?.result }
+        : undefined,
+    [outcome, commandRerolled],
+  )
   const optimizationContext = useMemo(
     () => ({
       ...(JSON.parse(optimizationKey) as Omit<LoadoutOptimization, 'apply'>),
@@ -201,16 +275,7 @@ export function CombatMatchup({
           </section>
           <section data-onboarding="simulator-defender" aria-label="Defender" className="min-w-0 part">
             {defenderControl}
-            <CombatDefences
-              unit={defender}
-              feelNoPain={feelNoPain}
-              configured={
-                rangedDefences && meleeDefences && JSON.stringify(rangedDefences.groups) === JSON.stringify(meleeDefences.groups)
-                  ? { target: rangedDefences, labels }
-                  : undefined
-              }
-              onAllocateEarlier={allocateEarlier}
-            />
+            <CombatDefences unit={defender} feelNoPain={feelNoPain} configured={configuredDefences} onAllocateEarlier={allocateEarlier} />
           </section>
         </div>
 
@@ -238,23 +303,15 @@ export function CombatMatchup({
                 key={phase}
                 phase={phase}
                 plan={plans[phase]}
-                hitRolls={matchup.hitRolls(phase, adjustments)}
-                statAdjustment={combineWeaponAdjustments(adjustments.weapons?.all ?? {}, adjustments.weapons?.[phase] ?? {})}
+                hitRolls={hitRolls[phase]}
+                statAdjustment={statAdjustments[phase]}
                 attacker={attacker}
-                busy={Boolean(scenarios[phase]) && updating && !failed}
+                busy={Boolean(scenarios[phase]) && resultsUpdating && !failed}
                 error={currentOutcome?.answer[phase]?.error}
                 excluded={excludedWeapons[phase]}
                 onRetry={retryCalculation}
-                onChoose={(key, value) => {
-                  setInvalidatedChoice(false)
-                  setPreferences((current) => ({ ...current, [key]: value }))
-                }}
-                onIncludedChange={(key, included) =>
-                  setExcludedWeapons((current) => ({
-                    ...current,
-                    [phase]: included ? current[phase].filter((candidate) => candidate !== key) : [...current[phase], key],
-                  }))
-                }
+                onChoose={chooseWeapon}
+                onIncludedChange={includeWeapon[phase]}
               />
             ))}
           </div>
@@ -280,12 +337,7 @@ export function CombatMatchup({
               modifiers={modifiers}
               initiallyOpen={Boolean(Object.keys(initialSettings?.adjustments ?? {}).length)}
               startOpen={startOpen}
-              onReset={() => {
-                setAdjustments({})
-                setPreferences({})
-                setInvalidatedChoice(false)
-                setExcludedWeapons(noExclusions())
-              }}
+              onReset={resetModifiers}
             />
             <AppliedModifiers
               attacker={attacker}
@@ -310,16 +362,8 @@ export function CombatMatchup({
         ranged={scenarios.ranged ? outcome?.answer.ranged?.result : undefined}
         melee={scenarios.melee ? outcome?.answer.melee?.result : undefined}
         combined={scenarios.ranged && scenarios.melee ? outcome?.answer.combined?.result : undefined}
-        without={
-          outcome?.without && commandRerolled
-            ? {
-                ranged: outcome.without.ranged?.result,
-                melee: outcome.without.melee?.result,
-                combined: outcome.without.combined?.result,
-              }
-            : undefined
-        }
-        updating={updating}
+        without={without}
+        updating={resultsUpdating}
         failed={failed}
         inDialog={inDialog}
         selected={Boolean(attacker && defender)}

@@ -5,7 +5,6 @@ import {
   type OfflineAssets,
   type OfflineReferenceData,
   type OfflineReferenceVersion,
-  type ReferenceQuery,
 } from '../../contracts/offlineReference'
 import { ownSearchLists, prepareReferenceSearch, searchAll, type GlobalSearchIndex } from '../../core/referenceSearch'
 import type { QueryClient } from '@tanstack/react-query'
@@ -13,6 +12,7 @@ import type { savedRosterSummaries, myBattles, factionIndex } from '../functions
 type FactionIndex = NonNullable<Awaited<ReturnType<typeof factionIndex>>>
 import type { FactionDatasheet } from '../../contracts/catalogue'
 import { readPart } from './referenceStore'
+import { readSavedQuery } from './referenceReader'
 import { battlesKey, factionDatasheetsKey, factionIndexKey, meKey, savedRosterSummariesKey } from '../queries/queryKeys'
 
 declare global {
@@ -72,74 +72,89 @@ export function currentReference() {
 /** Whether a part the device has not stored may be read from the service instead. */
 export const partsReachable = () => navigator.onLine && !offlineData()
 
-/** Decoded parts by address, least recently read first. Pages read a handful at a time, so only these stay decoded. */
-const decoded = new Map<string, { value?: unknown; read: Promise<unknown> }>()
-export const MAX_DECODED_PARTS = 6
+type Loaded = { done?: true; value?: unknown; read: Promise<unknown> }
 
-/** Decodes a part of the download, keeping the few read last so pages reading the same parts do not decode them again. */
-export function loadPart(asset: string): Promise<unknown> {
-  let entry = decoded.get(asset)
-  if (entry) decoded.delete(asset)
+/** Keeps the entries read last, least recently read first, so pages reading them again do not decode them again. */
+function remember(entries: Map<string, Loaded>, id: string, read: () => Promise<unknown>, limit: number) {
+  let entry = entries.get(id)
+  if (entry) entries.delete(id)
   else {
-    const loading: { value?: unknown; read: Promise<unknown> } = { read: readPart(asset, MAX_REFERENCE_PART_BYTES, partsReachable()) }
+    const loading: Loaded = { read: read() }
     loading.read.then(
-      (value) => void (loading.value = value),
-      () => void (decoded.get(asset) === loading && decoded.delete(asset)),
+      (value) => Object.assign(loading, { done: true, value }),
+      () => void (entries.get(id) === loading && entries.delete(id)),
     )
     entry = loading
   }
-  decoded.set(asset, entry)
-  for (const oldest of decoded.keys()) {
-    if (decoded.size <= MAX_DECODED_PARTS) break
-    decoded.delete(oldest)
+  entries.set(id, entry)
+  for (const oldest of entries.keys()) {
+    if (entries.size <= limit) break
+    entries.delete(oldest)
   }
-  return entry.read
+  return entry
 }
+
+/** Decoded parts by address. Pages read a handful at a time, so only these stay decoded. */
+const decoded = new Map<string, Loaded>()
+export const MAX_DECODED_PARTS = 6
+
+/** Decodes a whole part of the download in the page, which only the search index needs. */
+export const loadPart = (asset: string) =>
+  remember(decoded, asset, () => readPart(asset, MAX_REFERENCE_PART_BYTES, partsReachable()), MAX_DECODED_PARTS).read
 
 /** A part already decoded, without reading storage. */
 export const decodedPart = (asset: string) => decoded.get(asset)?.value
+
+/** Saved queries read last, by part and key. */
+const queries = new Map<string, Loaded>()
+export const MAX_SAVED_QUERIES = 64
 
 const partAsset = (saved: OfflineReferenceData, key: readonly unknown[]) => {
   const part = referencePart(key)
   return part === null ? saved.download.reference.core : (saved.download.reference.parts[part] ?? null)
 }
 
-const queryIndexes = new WeakMap<object, Map<string, unknown>>()
-function queryIn<T>(part: unknown, key: readonly unknown[]) {
-  let index = queryIndexes.get(part as object)
-  if (!index)
-    queryIndexes.set(part as object, (index = new Map((part as ReferenceQuery[]).map((entry) => [JSON.stringify(entry.key), entry.data]))))
-  return index.get(JSON.stringify(key)) as T | undefined
-}
+const loadQuery = (asset: string, key: readonly unknown[]) =>
+  remember(queries, `${asset} ${JSON.stringify(key)}`, () => readSavedQuery(asset, key, partsReachable()), MAX_SAVED_QUERIES)
 
-/** One saved query's data when its part is decoded; otherwise undefined, and its part starts decoding for the next read. */
+/** One saved query's data once read; otherwise undefined, and it starts reading for the next render. */
 export function savedQuery<T>(saved: OfflineReferenceData | undefined, key: readonly unknown[]): T | undefined {
   const asset = saved && partAsset(saved, key)
   if (!asset) return undefined
-  const part = decodedPart(asset)
-  if (part !== undefined) return queryIn<T>(part, key)
-  void loadPart(asset).catch(() => {})
-  return undefined
+  const query = loadQuery(asset, key)
+  if (!query.done) query.read.catch(() => {})
+  return query.value as T | undefined
 }
 
-/** One saved query's data, decoding its part; undefined when the download lacks it or the part is unreadable. */
+/** One saved query's data; undefined when the download lacks it or its part is unreadable. */
 export async function loadSavedQuery<T>(saved: OfflineReferenceData | undefined, key: readonly unknown[]): Promise<T | undefined> {
   const asset = saved && partAsset(saved, key)
-  return asset ? queryIn<T>(await loadPart(asset).catch(() => undefined), key) : undefined
+  return asset ? ((await loadQuery(asset, key).read.catch(() => undefined)) as T | undefined) : undefined
 }
 
-export async function referenceRead<T>(key: readonly unknown[], online: () => Promise<T>, current?: T): Promise<T> {
+/** `revalidate`, when given, takes the service's answer while an older download's answers the read at once. */
+export async function referenceRead<T>(
+  key: readonly unknown[],
+  online: () => Promise<T>,
+  current?: T,
+  revalidate?: (fresh: Promise<T>) => void,
+): Promise<T> {
   if (typeof window !== 'undefined' && !navigator.onLine && current !== undefined) return current
   const saved = referenceData()
   if (!saved) return online()
   const found = await loadSavedQuery<T>(saved, key)
   if (found !== undefined && currentReference()) return found
-  if (navigator.onLine && !offlineData())
+  if (navigator.onLine && !offlineData()) {
+    if (found !== undefined && current === undefined && revalidate) {
+      revalidate(online())
+      return found
+    }
     return online().catch((error) => {
       if (current !== undefined) return current
       if (found !== undefined) return found
       throw error
     })
+  }
   if (found === undefined && navigator.onLine) return online()
   if (found === undefined) throw new Error('This reference is unavailable in the saved download. Connect and refresh the reference.')
   return found

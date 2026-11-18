@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { WeaponProfiles } from '../../components/DatasheetProfiles'
@@ -72,7 +73,7 @@ export function withManualModifiers(profile: Datasheet['profiles'][number], adju
 }
 
 /** One phase's weapon choices and include switches, with what stops it calculating. */
-export function PhaseWeapons({
+export const PhaseWeapons = memo(function PhaseWeapons({
   phase,
   plan,
   hitRolls,
@@ -168,4 +169,4 @@ export function PhaseWeapons({
       </div>
     </section>
   )
-}
+})

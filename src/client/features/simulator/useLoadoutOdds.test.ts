@@ -21,6 +21,7 @@ vi.mock('react', () => ({
     }
   },
   useCallback: (callback: unknown) => callback,
+  useMemo: (create: () => unknown) => create(),
   useState: (initial: unknown) => {
     const index = hooks.cursor++
     if (!(index in hooks.states)) hooks.states[index] = initial
