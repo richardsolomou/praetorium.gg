@@ -517,6 +517,13 @@ describe('dividing a group between its options', () => {
     expect(update({ blaster: 2, carbine: 1 })).toEqual({ blaster: 1, carbine: 2 })
   })
 
+  it('lets an option already over a cap its sibling lowered give up a model', () => {
+    const group = choice([option('pistol', 8, 0), option('shield', 1, 9)], 9)
+    const update = relativeSpread(group, { pistol: 7, shield: 2 })
+
+    expect(update({ pistol: 8, shield: 1 })).toEqual({ pistol: 7, shield: 2 })
+  })
+
   describe('applying a press across a squad and a group nested under it', () => {
     const squad = { ...choice([{ ...option('boltgun', 3, 3), default: true }], 3), key: 'squad' }
     const special = { ...choice([option('melta', 1, 2)], 2, true), key: 'squad/special' }

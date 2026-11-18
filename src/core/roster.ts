@@ -422,13 +422,20 @@ function finishUnit(entryId: string, selection: Selection, size: UnitSize, index
     return withUnitSpread(tree, choice.key, { [option.id]: defaultedComposition ? option.max : 1 }, index, context)
   }, selection)
   const completedChoices = completed === selection ? choices : unitChoices(entryId, completed, index, context)
-  // When growing an identical squad, copy its existing loadout to new models; preserve an imported split and report its illegality separately.
+  // When growing an identical squad, or one holding an option the whole squad takes, copy that loadout to new models; preserve an imported split and report its illegality separately.
   const settled = completedChoices.reduce((tree, choice) => {
     const held = choice.options.filter((option) => option.count > 0)
     const asked = context?.spreads?.[choice.key] ?? {}
     const stated = choice.options.filter((option) => (asked[option.id] ?? 0) > 0)
-    if (!choice.uniform || held.length < 2 || stated.length > 1) return tree
-    const chosen = stated[0] ?? held.toSorted((one, other) => other.count - one.count)[0]!
+    const sweeping = held.find((option) => option.wholeSquad)
+    const chosen = choice.uniform
+      ? stated.length > 1
+        ? undefined
+        : (stated[0] ?? held.toSorted((one, other) => other.count - one.count)[0])
+      : sweeping && stated.every((option) => option === sweeping)
+        ? sweeping
+        : undefined
+    if (held.length < 2 || !chosen) return tree
     return withUnitSpread(
       tree,
       choice.key,
