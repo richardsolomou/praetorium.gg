@@ -42,12 +42,14 @@ it('keeps an edit completed while an older bootstrap response was in flight', as
   const client = newClient()
   const options = rosterBootstrapQuery('army')
   client.setQueryData(options.queryKey, bootstrap('Original army', 1))
-  let resolve!: (value: ReturnType<typeof bootstrap>) => void
+  let resolve: ((value: ReturnType<typeof bootstrap>) => void) | undefined
   vi.spyOn(functions, 'rosterBootstrap').mockImplementation(() => new Promise((done) => (resolve = done)))
   await load(client)
+  // The refresh asks once the device fallbacks have loaded, which is after the loader returns.
+  await vi.waitFor(() => expect(resolve).toBeDefined())
   const newer = bootstrap('Renamed army', 2)
   client.setQueryData(rosterAccessQuery('army').queryKey, newer)
-  resolve(bootstrap('Original army', 1))
+  resolve!(bootstrap('Original army', 1))
   await vi.waitFor(() => expect(client.getQueryState(options.queryKey)?.fetchStatus).toBe('idle'))
   expect(client.getQueryData(rosterAccessQuery('army').queryKey)?.roster.name).toBe('Renamed army')
 })

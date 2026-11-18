@@ -1,6 +1,6 @@
 import { distance } from 'fastest-levenshtein'
 import { foldedText } from './text'
-import { wargearKey } from './wargear'
+import { wargearKey } from './wargearNames'
 import { uniqueBy, remember } from './collections'
 
 /**

@@ -1,11 +1,8 @@
 import { SyncStatus } from '../../offline/SyncStatus'
-import { offlineAssets, offlineData } from '../../offline/runtime'
-import { OfflineReference } from '../../offline/OfflineReference'
-import { WebMcp } from '../agents/WebMcp'
-import { AppPersistence } from '../../offline/AppPersistence'
+import { offlineAssets, offlineData, referenceData } from '../../offline/runtime'
 import { PressHaptics } from './PressHaptics'
-import { useQuery } from '@tanstack/react-query'
-import { HeadContent, Link, Outlet, Scripts, useLocation, useRouterState } from '@tanstack/react-router'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { HeadContent, Link, Outlet, Scripts, useLocation, useRouter, useRouterState } from '@tanstack/react-router'
 import { updateNoticeId } from '../../chunkRecovery'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import {
@@ -32,24 +29,33 @@ import { setImpersonating } from '../../../posthog'
 import { Account } from './Account'
 import { NoticeSync, NotificationsButton } from '../notifications/Notifications'
 import { GlobalSearch, GlobalSearchProvider } from './GlobalSearch'
-import { TextSourcesDialog } from '../../components/TextSourcesDialog'
 import { ReleaseUpdateNotice } from './ReleaseUpdateNotice'
-import { AchievementToasts } from '../profile/AchievementToasts'
 import { WhatsNewLink, WhatsNewNotice } from './WhatsNew'
 import { Toaster } from '@/components/ui/sonner'
 import { NavigationProgress } from './NavigationProgress'
 import { useMediaQuery } from '../../useMediaQuery'
 import { ImpersonationBanner } from './ImpersonationBanner'
 import { NativeAppNavigation } from './NativeAppNavigation'
-import { NativePushRegistration } from './NativePushRegistration'
-import { OnboardingGuide } from '../onboarding/OnboardingGuide'
-import { DisplayNamePrompt } from '../account/DisplayNamePrompt'
-import { SupportPanel } from '../feedback/SupportPanel'
 import { SupportIdentity } from '../feedback/support'
 import { meQuery } from '../../queries'
+import { meKey } from '../../queries/queryKeys'
 import { COMMUNITY_LINKS, COMMUNITY_PAGES, FRIENDS_PAGE } from './CommunityLinks'
 import { followTextSourceChoice } from '../../rulesText'
-import { useRealtimeConfig, useSpacetimeLiveProduct } from '../../spacetimeLive'
+import { OfflineReference } from '../../offline/OfflineReference'
+import { WebMcp } from '../agents/WebMcp'
+import { NativePushRegistration } from './NativePushRegistration'
+import { OnboardingGuide } from '../onboarding/OnboardingGuide'
+import { deferred } from '../../deferred'
+import { loadOfflineFallbacks } from '../../functions'
+import { afterInitialScreen } from '../../offline/background'
+
+// Nothing here shows on the first screen, so each loads after hydration instead of with every page.
+const AppPersistence = deferred(() => import('../../offline/AppPersistence').then((module) => module.AppPersistence))
+const LiveProduct = deferred(() => import('../../spacetimeLive').then((module) => module.LiveProduct))
+const DisplayNamePrompt = deferred(() => import('../account/DisplayNamePrompt').then((module) => module.DisplayNamePrompt))
+const SupportPanel = deferred(() => import('../feedback/SupportPanel').then((module) => module.SupportPanel))
+const TextSourcesDialog = deferred(() => import('../../components/TextSourcesDialog').then((module) => module.TextSourcesDialog))
+const AchievementToasts = deferred(() => import('../profile/AchievementToasts').then((module) => module.AchievementToasts))
 
 const PRIMARY_LINKS = [
   { to: '/rosters', label: 'Rosters', Icon: ScrollText },
@@ -338,8 +344,21 @@ function AppFrame() {
   const impersonating = Boolean(me?.impersonatedBy)
   // Set while rendering so it holds before any child's effect captures.
   if (typeof window !== 'undefined') setImpersonating(impersonating)
-  const realtime = useRealtimeConfig()
-  useSpacetimeLiveProduct(realtime, Boolean(me))
+  const router = useRouter()
+  const queryClient = useQueryClient()
+  // Loaded after the first screen rather than with it, so a connection lost later still has the device's fallbacks;
+  // a visitor without a downloaded reference has no device copy for them to read.
+  useEffect(
+    () =>
+      afterInitialScreen(
+        router,
+        () => {
+          if (queryClient.getQueryData(meKey()) || referenceData()) void loadOfflineFallbacks().catch(() => {})
+        },
+        2_000,
+      ),
+    [router, queryClient],
+  )
   useLayoutEffect(followTextSourceChoice, [])
   useLayoutEffect(() => followRailState(immersive), [immersive])
   return (
@@ -357,6 +376,7 @@ function AppFrame() {
             {bundledPostHog && me !== undefined && !impersonating && <PostHogIdentity />}
             {bundledPostHog && !impersonating && <SupportIdentity />}
             {me && !impersonating ? <NoticeSync /> : null}
+            <LiveProduct signedIn={Boolean(me)} />
             <GlobalSearchProvider>
               {/*
                * The rail sits beside the page and the page decides its own width,

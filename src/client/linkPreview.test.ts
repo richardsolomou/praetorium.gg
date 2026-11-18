@@ -4,7 +4,6 @@ import { ALICE, BOB, CAROL, builtRoster, log, roster } from '../core/battle.fixt
 import { battleView } from '../core/battleView'
 import type { ServiceRecord } from '../core/serviceRecord'
 import {
-  battlePreview,
   datasheetPreview,
   pageHead,
   pageMeta,
@@ -14,6 +13,7 @@ import {
   siteMeta,
   siteStructuredData,
 } from './linkPreview'
+import { battlePreview } from './battlePreview'
 
 const DAVE = 'dave'
 const NAMES = [

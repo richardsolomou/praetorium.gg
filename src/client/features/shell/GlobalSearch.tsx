@@ -4,7 +4,9 @@ import { posthog } from 'posthog-js'
 import {
   type ComponentProps,
   createContext,
+  lazy,
   type ReactNode,
+  Suspense,
   useCallback,
   useContext,
   useEffect,
@@ -19,12 +21,14 @@ import type { GlobalSearchResult } from '../../functions'
 import { useClientValue } from '../../useClientValue'
 import { matchingPages } from './globalSearchPages'
 import { isSearchShortcut, searchShortcutModifier } from './globalSearchShortcut'
-import { RecentSearches } from './RecentSearches'
 import { rememberSearch } from './searchHistory'
-import { SearchResults } from './SearchResults'
 import { useGlobalSearch } from './useGlobalSearch'
 import { inSearchOrder, SEARCH_MIN_LENGTH } from '../../../core/referenceSearch'
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from '../../components/Dialog'
+
+// Shown only once search opens, so their datasheet and rules previews load then rather than with every page.
+const RecentSearches = lazy(() => import('./RecentSearches').then((module) => ({ default: module.RecentSearches })))
+const SearchResults = lazy(() => import('./SearchResults').then((module) => ({ default: module.SearchResults })))
 
 type GlobalSearchContextValue = {
   open: () => void
@@ -187,16 +191,20 @@ export function GlobalSearchProvider({ children }: { children: ReactNode }) {
                   <p className="py-10 text-center text-sm text-dim">No results for “{trimmed}”.</p>
                 )
               ) : null}
-              <SearchResults
-                before={
-                  trimmed ? null : <RecentSearches onOpen={(result) => void go(result, true)} onEmptied={() => inputRef.current?.focus()} />
-                }
-                results={results}
-                query={settled}
-                listId={listId}
-                selectedIndex={Math.min(selectedIndex, results.length - 1)}
-                onSelect={(result) => void go(result)}
-              />
+              <Suspense fallback={null}>
+                <SearchResults
+                  before={
+                    trimmed ? null : (
+                      <RecentSearches onOpen={(result) => void go(result, true)} onEmptied={() => inputRef.current?.focus()} />
+                    )
+                  }
+                  results={results}
+                  query={settled}
+                  listId={listId}
+                  selectedIndex={Math.min(selectedIndex, results.length - 1)}
+                  onSelect={(result) => void go(result)}
+                />
+              </Suspense>
             </div>
             <div
               className="flex items-center justify-end gap-4 border-t border-edge bg-sunken px-3 py-2 text-3xs text-dim pointer-coarse:hidden"

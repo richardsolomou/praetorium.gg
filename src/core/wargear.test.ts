@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { buildIndex, type Catalogue, type CatalogueFile } from './catalogue'
-import { sameWargear, wargearKey, wargearOf } from './wargear'
+import { wargearOf } from './wargear'
+import { sameWargear, wargearKey } from './wargearNames'
 
 const PTS = 'cost-pts'
 const system: CatalogueFile = { gameSystem: { id: 'gs', name: 'Test', costTypes: [{ id: PTS, name: 'pts' }] } }

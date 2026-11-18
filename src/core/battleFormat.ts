@@ -4,6 +4,7 @@ import { battleCapacity } from './battleSeats'
 
 /** How many detachments one roster may hold whatever its size says, and so how many names a pooled card may name. */
 export const DETACHMENTS_MAX = 3
+export const ROSTER_NAME_MAX_LENGTH = 80
 
 const KOTC_LIMITS = [600] as const
 /**

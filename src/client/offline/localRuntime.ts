@@ -1,7 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query'
-import { saveRosterSchema } from '../../contracts/schemas'
 import type { LocalOperation, LocalState } from '../../contracts/localState'
-import { offlineActionKind, offlineActionSchemas, type OfflineActionKind } from '../../contracts/offlineActions'
+import type { OfflineActionKind } from '../../contracts/offlineActions'
 import type { BattleWorkspace } from '../../contracts/battleWorkspace'
 import type * as server from '../../server/functions'
 import { syncRoster, syncAction, syncBattleCommand } from '../../server/functions/offline'
@@ -70,6 +69,11 @@ export function stopLocalRuntime() {
 
 async function execute(operation: LocalOperation, state: LocalState): Promise<SyncAnswer> {
   if (!navigator.onLine) throw new Error('Disconnected')
+  // Only syncing reads these schemas, so the bundle every page loads first leaves them out.
+  const [{ saveRosterSchema }, { offlineActionKind, offlineActionSchemas }] = await Promise.all([
+    import('../../contracts/schemas'),
+    import('../../contracts/offlineActions'),
+  ])
   if (operation.kind === 'saveRoster' || operation.kind === 'deleteRoster') {
     const saved = operation.input as LocalRoster
     const resolved = operation.kind === 'saveRoster' ? saveRosterSchema.parse(saved) : null

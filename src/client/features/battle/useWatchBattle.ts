@@ -8,18 +8,7 @@ import { battleQuery } from '../../queries'
 import type { SideMission } from '../../sides'
 import type { ReferenceCard } from './MissionCards'
 import { watchBattle, type WatchReminderPrompt } from './watchBattle'
-
-/**
- * The battle on the watch. It stays there after its page closes, since the watch polls it, until
- * another battle replaces it or the account signs out; a finished battle only replaces itself.
- */
-let following: string | null = null
-
-/** Takes the watch off whatever battle it follows, along with the seated player's objectives and reminders. */
-export function clearWatchBattle() {
-  following = null
-  setNativeWatchBattle(null)
-}
+import { followedBattle, followBattle } from './watchFollowing'
 
 export function useWatchBattle(
   view: BattleView,
@@ -39,15 +28,15 @@ export function useWatchBattle(
     refetchOnMount: false,
   })
   useEffect(() => {
-    if (!available || !(view.status === 'playing' || (view.status === 'finished' && following === view.token))) return
+    if (!available || !(view.status === 'playing' || (view.status === 'finished' && followedBattle() === view.token))) return
     if (document.visibilityState !== 'visible') return
     const held = queryClient.getQueryData(battleQuery(view.token).queryKey)
     if (!held || held.kind === 'unavailable' || held.view.seq !== view.seq) return
     const liveUrl = `${location.origin}/api/watch/battles/${encodeURIComponent(view.token)}`
     const snapshot = watchBattle(view, clock, missions, referenceFor, prompts, dataUpdatedAt, liveUrl)
     if (!snapshot) return
-    if (following !== view.token) posthog.capture('watch_battle_followed', { status: view.status })
-    following = view.token
+    if (followedBattle() !== view.token) posthog.capture('watch_battle_followed', { status: view.status })
+    followBattle(view.token)
     setNativeWatchBattle(snapshot)
   }, [view, clock, missions, referenceFor, prompts, queryClient, available, dataUpdatedAt])
 }

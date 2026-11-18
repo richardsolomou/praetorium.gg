@@ -32,7 +32,6 @@ import {
   type OnboardingStepId,
 } from './onboarding'
 import { Problem } from '../../components/Problem'
-import { peekGuestDraft } from '../rosters/guestDraft'
 
 /** How long a step waits for its control to appear before the guide offers the page instead. */
 const TARGET_WAIT = 1_500
@@ -188,7 +187,9 @@ function AccountOnboardingGuide({ userId }: { userId?: string }) {
 
   const launch = async (task: OnboardingTaskId, step?: OnboardingStepId) => {
     posthog.capture('onboarding_task_started', { task })
-    const guest = !userId && task === 'roster' && (!step || step === 'roster-start') ? peekGuestDraft() : null
+    // Imported here: reading a guest draft loads the retired rules table, which the shell leaves out of every page's first bundle.
+    const guest =
+      !userId && task === 'roster' && (!step || step === 'roster-start') ? (await import('../rosters/guestDraft')).peekGuestDraft() : null
     if (guest) {
       rememberFocus({ task, step: guest.draft.picks.length ? 'roster-list' : 'roster-picker' })
       await navigate({ to: '/rosters/$id', params: { id: guest.id } })

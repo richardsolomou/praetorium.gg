@@ -1,6 +1,6 @@
 import { type ModelKind, modelFixedCount, modelRowPieces, modelRowCount, modelRowSources } from '../core/modelKinds'
 import { isUnitCompositionChoice } from '../core/unitChoices'
-import { wargearKey } from '../core/wargear'
+import { wargearKey } from '../core/wargearNames'
 
 export type ReplacementSource = { choiceKey: string; optionId: string }
 export const replacementKey = ({ choiceKey, optionId }: ReplacementSource) => `${choiceKey}\0${optionId}`

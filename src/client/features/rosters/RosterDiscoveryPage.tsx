@@ -52,7 +52,8 @@ import { Problem } from '../../components/Problem'
 import { FactionMark } from '../../components/FactionMark'
 import { BATTLE_ENDINGS, battleOutcomeStage } from '../../battleStage'
 import { OwnerLink } from './OwnerLink'
-import { DISCOVERY_FACETS, discoveryFilter, playedFilter, type RosterDiscoverySearch } from './rosterSearch'
+import { DISCOVERY_FACETS, type RosterDiscoverySearch } from './rosterSearch'
+import { discoveryFilter, playedFilter } from './discoveryFilters'
 
 type IndexedFactions = NonNullable<QueryData<typeof factionIndexQuery>>['factions']
 type DiscoveredPage = QueryData<typeof discoveredRostersQuery>

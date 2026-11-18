@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { LOCKED_ROSTER_MESSAGE, lockedRosterRefusal, storedRosterContent, type RosterContent } from './rosterLock'
-import { migrateSavedRoster, migrateStoredRoster } from './savedRosterMigrations'
+import { migrateSavedRoster } from './retiredRosterFields'
+import { migrateStoredRoster } from './savedRosterMigrations'
 
 const saved: RosterContent = {
   name: 'Tournament list',
