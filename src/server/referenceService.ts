@@ -405,10 +405,13 @@ function dispositionRecord(
 
 type Named = { id: string; name: string }
 
+// Agents write Take and Hold as Take & Hold or Take-Hold, so the joining words never decide a match.
+const nameKey = (value: string) => joinKey(value.replaceAll(/&|\b(?:and|the)\b/gi, ' '))
+
 /** The one candidate a value names by id, slug, or name, exactly or else as part of one; otherwise why none is chosen. */
 function namedIn<T extends Named>(candidates: readonly T[], value: string, label: string): { found: T } | { error: string } {
-  const key = joinKey(value)
-  const keys = (candidate: T) => [joinKey(candidate.id), joinKey(candidate.name)]
+  const key = nameKey(value)
+  const keys = (candidate: T) => [nameKey(candidate.id), nameKey(candidate.name)]
   const exact = candidates.filter((candidate) => keys(candidate).includes(key))
   const matches = exact.length ? exact : candidates.filter((candidate) => key && keys(candidate).some((entry) => entry.includes(key)))
   if (matches.length === 1) return { found: matches[0]! }

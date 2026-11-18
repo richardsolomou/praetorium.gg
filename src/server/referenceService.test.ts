@@ -462,6 +462,16 @@ it.each([
   })
 })
 
+it('resolves a disposition written with an ampersand', () => {
+  const rules = {
+    ...missionRules,
+    dispositionDetails: [{ id: 'one', name: 'Take and Hold', text: null }, missionRules.dispositionDetails[1]!],
+  }
+  expect(missionMatchup(missionCorpus, rules, { yourDisposition: 'Take & Hold', opponentDisposition: 'two' })).toMatchObject({
+    matchup: { url: '/missions/pack/matchups/one/two' },
+  })
+})
+
 it('resolves an ordinary faction name to current rules even when an archive is listed first', () => {
   const catalogue = {
     datasheets: [
