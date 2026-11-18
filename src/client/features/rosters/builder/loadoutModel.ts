@@ -442,9 +442,11 @@ export function relativeSpread(choice: LoadoutChoice, wanted: SpreadCounts, free
   )
   return (counts) => {
     const next = Object.fromEntries(Object.entries(deltas).map(([id, delta]) => [id, (counts[id] ?? 0) + delta]))
+    // A sibling's pick can lower a cap below what an option already holds, as a shield
+    // does to the pistols it replaces; those models may still be given up one at a time.
     const valid = Object.entries(next).every(([id, count]) => {
       const option = choice.options.find((candidate) => candidate.id === id)
-      return count >= 0 && count <= (option?.max ?? 0) + freed
+      return count >= 0 && (count <= (option?.max ?? 0) + freed || (deltas[id] ?? 0) <= 0)
     })
     return valid ? next : null
   }
