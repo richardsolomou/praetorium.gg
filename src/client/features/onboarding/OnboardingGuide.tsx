@@ -50,7 +50,7 @@ export function OnboardingGuide() {
 }
 
 function AccountOnboardingGuide({ userId }: { userId?: string }) {
-  const location = useLocation()
+  const pathname = useLocation({ select: (location) => location.pathname })
   const navigate = useNavigate()
   const posthog = usePostHog()
   const queryClient = useQueryClient()
@@ -70,7 +70,7 @@ function AccountOnboardingGuide({ userId }: { userId?: string }) {
   // The focus whose control never arrived, rather than a flag, so a step that has moved on, or come back, starts unlost.
   const [lost, setLost] = useState<OnboardingFocus>()
   const compact = useCompactChrome()
-  const page = onboardingPage(location.pathname)
+  const page = onboardingPage(pathname)
   const focusedStep = focus ? ONBOARDING_UI[focus.step] : undefined
 
   // The ref answers event handlers that run before the next render; storage follows each committed step.
@@ -88,7 +88,7 @@ function AccountOnboardingGuide({ userId }: { userId?: string }) {
 
   const showStep = async (next: OnboardingFocus) => {
     rememberFocus(next)
-    const href = onboardingHrefFor(next.step, onboardingPage(location.pathname))
+    const href = onboardingHrefFor(next.step, onboardingPage(pathname))
     const targetExists = document.querySelector(`[data-onboarding="${ONBOARDING_UI[next.step].target}"]`)
     if (href && !targetExists) await navigate({ href })
   }
