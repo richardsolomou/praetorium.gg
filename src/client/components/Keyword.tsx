@@ -14,6 +14,7 @@ export function Keyword({
   rules,
   className = '',
   note,
+  condition,
   highlightNote = true,
 }: {
   name: string
@@ -21,19 +22,28 @@ export function Keyword({
   className?: string
   /** What put this keyword here, when something in the list did rather than the datasheet. */
   note?: string
+  /** The attacks a granted ability is limited to, which the asterisk on its name stands for. */
+  condition?: string
   /** Whether an added rule uses the stronger derived-value colour. */
   highlightNote?: boolean
 }) {
+  const reference = condition ? name.replace(/\*$/, '') : name
   const rule = rules
-    .filter((candidate) => ruleReferenceMatches(name, candidate.name))
+    .filter((candidate) => ruleReferenceMatches(reference, candidate.name))
     .toSorted((left, right) => right.name.length - left.name.length)[0]
-  if (!rule && !note) return <span className={className}>{name}</span>
+  if (!rule && !note && !condition) return <span className={className}>{name}</span>
+  const body = (
+    <>
+      {condition ? <p className="text-xs">* Only {condition}.</p> : null}
+      {rule?.description ? <RuleText text={rule.description} className={condition ? 'mt-1.5 text-xs' : 'mt-0 text-xs'} cite /> : null}
+    </>
+  )
 
   return (
     <HoverTooltip
       className={`${className} ${note && highlightNote ? 'font-semibold text-info' : 'text-parchment'} hover:text-bone`}
       title={rule?.name ?? name}
-      body={rule?.description ? <RuleText text={rule.description} className="mt-0 text-xs" cite /> : undefined}
+      body={condition || rule?.description ? body : undefined}
       note={note}
     >
       {name}
