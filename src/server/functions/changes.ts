@@ -7,7 +7,6 @@ import { recentReferenceChanges } from '../catalogueChangeLog'
 import { changeLogAddress, changeLogPage, installedHistory } from '../catalogueChangePages'
 import { rpc } from '../rpc'
 import { RELEASE_DAYS, recentReleaseNotes } from '../../core/releaseNotes'
-// The build bundles only the newest releases of this file: see scripts/lib/recentChangelogPlugin.ts.
 import changelog from '../../../CHANGELOG.md?raw'
 
 /** The index of data updates the installed snapshot carries, a page at a time. Nobody needs an account to read them. */

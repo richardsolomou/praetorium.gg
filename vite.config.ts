@@ -1,6 +1,5 @@
 import { chunkImportMapPlugin } from './scripts/lib/chunkImportMapPlugin.ts'
 import { offlineAppPlugin } from './scripts/lib/offlineAppPlugin.ts'
-import { recentChangelogPlugin } from './scripts/lib/recentChangelogPlugin.ts'
 import tailwindcss from '@tailwindcss/vite'
 import { tanstackStart } from '@tanstack/react-start/plugin/vite'
 import viteReact from '@vitejs/plugin-react'
@@ -81,7 +80,6 @@ export default defineConfig(({ mode }): UserConfig => {
       viteReact(),
       tailwindcss(),
       postHogSourceMaps(process.env),
-      recentChangelogPlugin(),
       offlineAppPlugin(),
       chunkImportMapPlugin(),
     ],
