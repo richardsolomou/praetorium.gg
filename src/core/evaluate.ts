@@ -65,6 +65,8 @@ type Node = {
   force?: boolean
   /** Only the root carries this: the keywords the data grants and withdraws across the whole tree. */
   grants?: Map<Node, Map<string, boolean>>
+  /** Grants carried by ad hoc visibility candidates outside the catalogue index. */
+  candidateGrants?: Set<string>
   /** The keywords `set-primary` shelves each selection under, in written order. */
   primaries?: Map<Node, string[]>
   /*
@@ -91,10 +93,13 @@ type Node = {
 class Census {
   private readonly seen = new Set<string>()
 
-  constructor(readonly associations = 0) {}
+  constructor(
+    readonly associations = 0,
+    readonly reportsUnhandled = true,
+  ) {}
 
   note(what: string) {
-    this.seen.add(what)
+    if (this.reportsUnhandled) this.seen.add(what)
   }
 
   get list() {
@@ -633,10 +638,10 @@ export function hiddenByRules(
 ): boolean {
   const sources = candidateSources(definition, index)
   if (!rosterDependent(sources).hidden) return Boolean(definition.hidden || sources[0]!.hidden)
-  const census = new Census(0)
-  const { root, node } = candidateContext(definition, index, options, census, lineage)
-
-  return hiddenIn(Boolean(definition.hidden || node.target.hidden), node, root, index, census)
+  return withVisibilityRoot(index, options, (root, census, counter) => {
+    const node = appendCandidate(definition, index, census, lineage, root, counter)
+    return hiddenIn(Boolean(definition.hidden || node.target.hidden), node, root, index, census)
+  })
 }
 
 /**
@@ -654,16 +659,15 @@ export function hiddenByRulesAt(
   const sources = pathSources(selection, path, index)
   if (!sources) return true
   if (!rosterDependent(sources).hidden) return Boolean(definition.hidden || sources[0]!.hidden)
-  const census = new Census(0)
-  const counter = { next: 0 }
-  const root = candidateRoot(index, options, census, counter)
-  // A candidate the unit does not hold yet is judged as one being added, as `hiddenByRules` judges it.
-  const unit = build(withPath(selection, path, 1), root, index, census, counter)
-  let node = unit
-  for (const id of path) node = node?.children.find((child) => child.id === id) ?? null
-  if (!unit || !node) return true
-  root.children.push(unit)
-  return hiddenIn(Boolean(definition.hidden || node.target.hidden), node, root, index, census)
+  return withVisibilityRoot(index, options, (root, census, counter) => {
+    // A candidate the unit does not hold yet is judged as one being added, as `hiddenByRules` judges it.
+    const unit = build(withPath(selection, path, 1), root, index, census, counter)
+    let node = unit
+    for (const id of path) node = node?.children.find((child) => child.id === id) ?? null
+    if (!unit || !node) return true
+    root.children = [...root.children, unit]
+    return hiddenIn(Boolean(definition.hidden || node.target.hidden), node, root, index, census)
+  })
 }
 
 function hiddenIn(initial: boolean, node: Node, root: Node, index: CatalogueIndex, census: Census) {
@@ -921,6 +925,17 @@ function candidateContext(
 ) {
   const counter = { next: 0 }
   const root = candidateRoot(index, options, census, counter)
+  return { root, node: appendCandidate(definition, index, census, lineage, root, counter) }
+}
+
+function appendCandidate(
+  definition: Definition,
+  index: CatalogueIndex,
+  census: Census,
+  lineage: readonly Definition[],
+  root: Node,
+  counter: { next: number },
+) {
   // The candidate sits inside every entry and group that offers it, so an `ancestor`
   // condition sees the model carrying it as well as the unit.
   let node = root
@@ -928,10 +943,40 @@ function candidateContext(
     const link = isLink(each) ? each : null
     const target = link ? (index.definitions.get(link.targetId) ?? each) : each
     const child: Node = { target, order: counter.next++, link, id: each.id, count: 1, fielded: 1, parent: node, children: [] }
+    if (!census.reportsUnhandled && index.definitions.get(each.id) !== each) {
+      root.candidateGrants ??= new Set()
+      collectGrantTargets([each], root.candidateGrants)
+    }
     node.children = node === root ? [...root.children, child] : [child]
     node = child
   }
-  return { root, node }
+  return node
+}
+
+type PreparedVisibility = { root: Node; next: number }
+const visibilityRoots = new WeakMap<CatalogueIndex, WeakMap<readonly Selection[], Map<string, PreparedVisibility>>>()
+const emptyRoster: readonly Selection[] = []
+
+/** Reuses a visibility probe's roster nodes, with any state derived from the candidate scoped to this synchronous read. */
+function withVisibilityRoot(
+  index: CatalogueIndex,
+  options: EvaluateOptions,
+  read: (root: Node, census: Census, counter: { next: number }) => boolean,
+) {
+  const census = new Census(0, false)
+  const rosters = remember(visibilityRoots, index, () => new WeakMap())
+  const contexts = remember(rosters, options.roster ?? emptyRoster, () => new Map())
+  const { root, next } = remember(contexts, JSON.stringify([options.primaryCatalogueId, options.mustering ?? false]), () => {
+    const counter = { next: 0 }
+    return { root: candidateRoot(index, options, census, counter), next: counter.next }
+  })
+  const children = root.children
+  try {
+    return read(root, census, { next })
+  } finally {
+    root.children = children
+    root.under = root.grants = root.primaries = root.candidateGrants = undefined
+  }
 }
 
 function candidateRoot(index: CatalogueIndex, options: EvaluateOptions, census: Census, counter: { next: number }): Node {
@@ -1114,6 +1159,18 @@ function passes(
 }
 
 function groupHolds(group: ConditionGroup, node: Node, root: Node, index: CatalogueIndex, census: Census, subject: Node = node): boolean {
+  // Visibility returns only the answer; full evaluation also visits branches that can report unsupported rules.
+  if (!census.reportsUnhandled && (group.type === 'and' || group.type === 'or')) {
+    const decisive = group.type === 'or'
+    const conditions = group.conditions ?? []
+    const nested = group.conditionGroups ?? []
+    const local = group.localConditionGroups ?? []
+    if (!conditions.length && !nested.length && !local.length) return false
+    if (conditions.some((condition) => holds(condition, node, root, index, census, subject) === decisive)) return decisive
+    if (nested.some((each) => groupHolds(each, node, root, index, census, subject) === decisive)) return decisive
+    if (local.some((each) => localHolds(each, node, root, index, census) === decisive)) return decisive
+    return !decisive
+  }
   const results = [
     ...(group.conditions ?? []).map((condition) => holds(condition, node, root, index, census, subject)),
     ...(group.conditionGroups ?? []).map((nested) => groupHolds(nested, node, root, index, census, subject)),
@@ -1266,6 +1323,23 @@ function matches(node: Node, childId: string | undefined, root: Node, index: Cat
   return node.target.id === childId || node.id === childId || inGroup(node, childId) || inCategory(node, childId, root, index, census)
 }
 
+const grantTargets = new WeakMap<CatalogueIndex, Set<string>>()
+
+function collectGrantTargets(sources: Iterable<Definition>, targets: Set<string>) {
+  for (const source of sources)
+    for (const modifier of flattenedModifiers([source]))
+      if (modifier.field === 'category' && typeof modifier.value === 'string') targets.add(modifier.value)
+}
+
+function mayGrant(categoryId: string, root: Node, index: CatalogueIndex) {
+  const targets = remember(grantTargets, index, () => {
+    const found = new Set<string>()
+    collectGrantTargets(index.definitions.values(), found)
+    return found
+  })
+  return targets.has(categoryId) || root.candidateGrants?.has(categoryId)
+}
+
 /**
  * Whether this selection carries a keyword. Conditions test membership far more
  * often than identity — "is this inside a model of my own faction" is a category
@@ -1275,6 +1349,8 @@ function matches(node: Node, childId: string | undefined, root: Node, index: Cat
  * is what the entry's own links write down.
  */
 function inCategory(node: Node, categoryId: string, root: Node, index: CatalogueIndex, census: Census): boolean {
+  // A named selection queried as a keyword rarely has any grants in the catalogue.
+  if (!census.reportsUnhandled && !mayGrant(categoryId, root, index)) return isLinkedCategory(node, categoryId)
   const granted = grantsOf(root, index, census).get(node)?.get(categoryId)
   return granted ?? isLinkedCategory(node, categoryId)
 }

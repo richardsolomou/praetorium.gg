@@ -68,3 +68,7 @@ export const playerStandingsSchema = z.object({
   ),
   history: z.array(z.object({ at: time, rating: z.number().int() })),
 })
+
+export const ratingChangesSchema = z.array(z.object({ token: z.string(), changes: z.record(z.string(), z.number().int()) }))
+
+export type StandingsVersions = { results: string; ratings: string }

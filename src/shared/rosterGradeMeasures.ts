@@ -1,5 +1,6 @@
 import type { PriceInput } from '../contracts/schemas'
 import { attachedUnitList, attachmentHost } from '../core/attachedUnits'
+import { remember } from '../core/collections'
 import { combatMatchup, strongestWeaponPreferences, type CombatAnswer, type CombatantSnapshot } from '../core/combatMatchup'
 import { combatRuleSelections, readCombatRule, type CombatRule } from '../core/combatRules'
 import { datasheetProfilesByKind } from '../core/datasheetStructure'
@@ -180,6 +181,7 @@ export async function measureRosterUnits({
   references,
   calculate,
   attachedShares = false,
+  price = calculateRosterPrice(data, loaded, rules),
 }: {
   loaded: LoadedCatalogue
   rules: LoadedRules | null
@@ -189,8 +191,8 @@ export async function measureRosterUnits({
   calculate: (requests: ReturnType<ReturnType<typeof combatMatchup>['request']>[]) => Promise<CombatAnswer[]>
   /** Also measure each unit without each unit attached to it, which costs a set of target matchups per attachment. */
   attachedShares?: boolean
+  price?: ReturnType<typeof calculateRosterPrice>
 }): Promise<GradedUnit[]> {
-  const price = calculateRosterPrice(data, loaded, rules)
   const priced = new Map((price?.units ?? []).map((unit) => [unit.key, unit]))
   const picks = data.units.map((pick) => ({ catalogueId: data.catalogueId, ...pick }))
   // Deep Strike, Infiltrators and Scouts need every model in the unit, so they come from the units the list forms.
@@ -253,16 +255,30 @@ export async function measureRosterUnits({
     ...references.attackers.map((attacker) => [attacker.snapshot, host.snapshot] as const),
     ...host.without.flatMap((alone) => targets.map((target) => [alone.snapshot, target.snapshot] as const)),
   ])
+  // Identical units share the same plan and exact answer, including the trials used to pick weapons.
+  const snapshotIds = new WeakMap<CombatantSnapshot, number>()
+  const snapshots = new Map<string, number>()
+  const snapshotId = (snapshot: CombatantSnapshot) =>
+    remember(snapshotIds, snapshot, () => remember(snapshots, JSON.stringify(snapshot), () => snapshots.size))
+  const planned = new Map<string, number>()
   const matchups: ReturnType<typeof combatMatchup>[] = []
+  const pairIndices: number[] = []
   for (const [attacker, defender] of pairs) {
-    const preferences = await strongestWeaponPreferences(attacker, defender, NO_CHOICES, {}, calculate)
-    matchups.push(combatMatchup(attacker, defender, { ...NO_CHOICES, preferences }))
+    const key = `${snapshotId(attacker)}:${snapshotId(defender)}`
+    let index = planned.get(key)
+    if (index === undefined) {
+      const preferences = await strongestWeaponPreferences(attacker, defender, NO_CHOICES, {}, calculate)
+      index = matchups.length
+      matchups.push(combatMatchup(attacker, defender, { ...NO_CHOICES, preferences }))
+      planned.set(key, index)
+    }
+    pairIndices.push(index)
   }
   const resolved = await calculate(matchups.map((matchup) => matchup.request({})))
-  const answers: Attack[] = resolved.map((answer, index) => {
+  const answers: Attack[] = pairIndices.map((index) => {
     const matchup = matchups[index]!
     const refusedPhase = (phase: 'ranged' | 'melee') => Boolean(matchup.target?.error || matchup.plans[phase]?.errors.length)
-    return { answer, refused: { ranged: refusedPhase('ranged'), melee: refusedPhase('melee') } }
+    return { answer: resolved[index]!, refused: { ranged: refusedPhase('ranged'), melee: refusedPhase('melee') } }
   })
   const removedFrom = (answered: readonly Attack[]) => {
     const removes: Partial<Record<ReferenceTargetKey, number | null>> = {}
