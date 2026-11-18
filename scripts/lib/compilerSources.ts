@@ -35,15 +35,14 @@ export const catalogueAuthoring = (root = process.cwd()) => treeFingerprint(root
 
 /**
  * The release bumps the version on every merge and only telemetry reads it, so a release would otherwise
- * miss every prepared catalogue.
+ * miss every prepared catalogue. It stays a field so a named import of it keeps the rest of package.json out.
  */
 const unversionedPackage = (root: string): Plugin => ({
   name: 'unversioned-package',
   enforce: 'pre',
   load(id) {
     if (path.basename(id) !== 'package.json' || path.dirname(fs.realpathSync(id)) !== fs.realpathSync(root)) return null
-    const { version: _version, ...rest } = JSON.parse(fs.readFileSync(id, 'utf8'))
-    return JSON.stringify(rest)
+    return JSON.stringify({ ...JSON.parse(fs.readFileSync(id, 'utf8')), version: '0.0.0' })
   },
 })
 

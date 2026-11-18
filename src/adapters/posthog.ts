@@ -1,4 +1,4 @@
-import packageJson from '../../package.json' with { type: 'json' }
+import { version } from '../../package.json'
 import type { BeforeSendFn } from 'posthog-node'
 
 /** The host readers use for this deployment, which separates production from previews and local stacks. */
@@ -16,7 +16,7 @@ export function serverEventContext(host: string | undefined): BeforeSendFn {
     const properties = {
       ...event.properties,
       ...(host ? { $host: host } : {}),
-      ...(event.event === '$exception' ? { app_version: packageJson.version } : {}),
+      ...(event.event === '$exception' ? { app_version: version } : {}),
     }
     return { ...event, properties }
   }

@@ -83,10 +83,12 @@ describe('catalogue compiler fingerprint', () => {
     expect(await compilerFingerprint(root)).toBe(before)
   })
 
-  it('names the same compiler after a release bumps the package version', async () => {
-    write('package.json', '{"name":"app","version":"1.0.0"}')
-    write('src/core/limits.ts', "import app from '../../package.json'\nexport const limit = app.version\nexport const unused = 2")
-    expect(await unchangedAfter(() => write('package.json', '{"name":"app","version":"1.0.1"}'))).toBe(true)
+  it('names the same compiler after a release bumps the package version and its scripts change', async () => {
+    write('package.json', '{"name":"app","version":"1.0.0","scripts":{"build":"vite build"}}')
+    write('src/core/limits.ts', "import { version } from '../../package.json'\nexport const limit = version\nexport const unused = 2")
+    expect(
+      await unchangedAfter(() => write('package.json', '{"name":"app","version":"1.0.1","scripts":{"build":"vite build --strict"}}')),
+    ).toBe(true)
   })
 
   it('names the same compiler whatever Vite variables the build environment sets', async () => {
