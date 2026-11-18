@@ -26,6 +26,8 @@ import {
   weaponProfileMode,
 } from '../../../datasheet'
 import { datasheetSlugQuery, referenceChangesQuery, topFourUnitListsQuery } from '../../../queries'
+import { baseFootprints } from './hobbyKitBases'
+import { HobbyKitCard } from '../../../components/HobbyKitCard'
 import { changeDetail } from '../../../catalogueChanges'
 import { useDateFormatting } from '../../../dates'
 import { FactionMark, factionColour } from '../../../components/FactionMark'
@@ -356,7 +358,24 @@ function UnitConfiguration({ sheet, rules }: { sheet: Datasheet; rules: KeywordR
           </div>
         ) : null}
       </div>
+      <PrintTheBases sheet={sheet} />
     </section>
+  )
+}
+
+function PrintTheBases({ sheet }: { sheet: Datasheet }) {
+  const footprints = baseFootprints(sheet.baseSize)
+  const [first] = footprints
+  if (!first) return null
+  const size = (footprint: string) => `${footprint.replace('x', '×')}mm`
+  const several = footprints.length > 1
+  return (
+    <HobbyKitCard
+      className="mt-3"
+      title={several ? 'Need bases for this unit?' : `Need a ${size(first)} base?`}
+      description="A free, open-source companion to Praetorium for your 3D printer."
+      links={footprints.map((footprint) => ({ label: several ? size(footprint) : 'Open in HobbyKit', to: `/#base=${footprint}` }))}
+    />
   )
 }
 

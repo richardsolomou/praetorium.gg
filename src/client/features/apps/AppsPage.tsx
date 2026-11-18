@@ -2,6 +2,7 @@ import { Link } from '@tanstack/react-router'
 import { Check, Copy } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
+import { HobbyKitCard } from '../../components/HobbyKitCard'
 import { PageContent, PageHeader } from '../../components/Page'
 import { SectionHeading } from '../../components/SectionHeading'
 import { ANDROID_BETA, MCP_SERVER } from '../../projectLinks'
@@ -139,6 +140,15 @@ export function AppsPage() {
               <McpAddress />
             </AppTile>
           </div>
+        </section>
+        <section aria-labelledby="apps-maker">
+          <SectionHeading id="apps-maker" title="From the same maker" />
+          <HobbyKitCard
+            primary
+            title="HobbyKit"
+            description="A free, open-source side project for 3D-printing bases, army holders, spray trays and paint racks."
+            links={[{ label: 'Open HobbyKit', to: '/' }]}
+          />
         </section>
       </PageContent>
       <HomeAppCredits dismissable={false} className="max-w-5xl px-3 sm:px-4" />

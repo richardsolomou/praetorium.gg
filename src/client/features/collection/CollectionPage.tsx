@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Skeleton } from '@/components/ui/skeleton'
+import { HobbyKitCard } from '../../components/HobbyKitCard'
 import { PageContent, PageHeader } from '../../components/Page'
 import { PageState } from '../../components/PageState'
 import { SectionHeading } from '../../components/SectionHeading'
@@ -250,6 +251,15 @@ export function CollectionPage() {
                 </ul>
               </section>
             ) : null}
+            <HobbyKitCard
+              title="Print your hobby gear"
+              description="A free, open-source companion to Praetorium for your 3D printer."
+              links={[
+                { label: 'Army holders', to: '/holders' },
+                { label: 'Spray trays', to: '/spray-tray' },
+                { label: 'Paint racks', to: '/paint-racks' },
+              ]}
+            />
           </div>
         )}
         {owned.size ? fieldedShelf : null}
