@@ -93,7 +93,7 @@ function RailLinks({
   name: string
   collapsed: boolean
 }) {
-  const path = useLocation().pathname
+  const inDisposition = useLocation({ select: (location) => location.pathname.startsWith('/force-dispositions/') })
   return (
     <nav
       aria-label={name}
@@ -104,7 +104,7 @@ function RailLinks({
           <Link
             to={to}
             search={to === '/leaderboard' ? { faction: undefined } : undefined}
-            aria-current={to === '/missions' && path.startsWith('/force-dispositions/') ? 'page' : undefined}
+            aria-current={to === '/missions' && inDisposition ? 'page' : undefined}
             className={RAIL_LINK_CLASS}
           >
             <Icon aria-hidden className="size-4.5 shrink-0 text-faint group-aria-[current=page]:text-parchment" />
@@ -212,6 +212,7 @@ function SiteRail({ workspace }: { workspace: boolean }) {
 
 /** Pages someone reaches before they are in the app, so they keep the front door's bar rather than the rail. */
 const AUTH_PAGES = new Set(['/sign-in', '/reset-password', '/native-auth'])
+const BATTLE_PAGE = /^\/battles\/[^/]+/
 
 /**
  * The signed-out home and the sign-in pages are a front door rather than the app, so a visitor meets a slim bar that
@@ -326,15 +327,17 @@ function OverlayShell() {
 }
 
 function AppFrame() {
-  const location = useLocation()
-  const path = location.pathname
+  // Only what the frame draws differently is selected, so moving between ordinary pages does not redraw the whole shell.
+  const signingIn = useLocation({ select: (location) => AUTH_PAGES.has(location.pathname) })
+  const home = useLocation({ select: (location) => location.pathname === '/' })
+  const inBattle = useLocation({ select: (location) => BATTLE_PAGE.test(location.pathname) })
   // Decided by the page on screen, so a roster still loading keeps the header it was opened from.
-  const shownPath = useRouterState({ select: (state) => state.resolvedLocation?.pathname ?? state.location.pathname })
-  const immersive = ROSTER_WORKSPACE.test(shownPath)
+  const immersive = useRouterState({
+    select: (state) => ROSTER_WORKSPACE.test(state.resolvedLocation?.pathname ?? state.location.pathname),
+  })
   const phone = useMediaQuery('(max-width: 859px)')
   const { data: me } = useQuery(meQuery())
-  const signingIn = AUTH_PAGES.has(path)
-  const frontDoor = signingIn || (path === '/' && me === null)
+  const frontDoor = signingIn || (home && me === null)
   const impersonating = Boolean(me?.impersonatedBy)
   // Set while rendering so it holds before any child's effect captures.
   if (typeof window !== 'undefined') setImpersonating(impersonating)
@@ -407,13 +410,7 @@ function AppFrame() {
                   </div>
                   {immersive ? null : <SiteFooter />}
                 </div>
-                <NativeAppNavigation
-                  accountBridge={<Account native />}
-                  href={location.href}
-                  path={path}
-                  search={location.search}
-                  state={location.state}
-                />
+                <NativeAppNavigation accountBridge={<Account native />} />
                 <OnboardingGuide />
                 <DisplayNamePrompt />
                 <SupportPanel />
@@ -423,7 +420,7 @@ function AppFrame() {
                 <ReleaseUpdateNotice />
                 {/* An administrator viewing as a player must not use up the player's announcements. */}
                 {me && !impersonating && <AchievementToasts userId={me.id} />}
-                {immersive || /^\/battles\/[^/]+/.test(path) ? null : <WhatsNewNotice />}
+                {immersive || inBattle ? null : <WhatsNewNotice />}
                 <NavigationProgress />
                 <Toaster
                   theme="dark"

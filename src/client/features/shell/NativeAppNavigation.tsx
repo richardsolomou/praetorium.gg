@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Link, useNavigate, useRouter, useRouterState } from '@tanstack/react-router'
+import { Link, useLocation, useNavigate, useRouter, useRouterState } from '@tanstack/react-router'
 import { Ellipsis, House, ScrollText, Swords, UsersRound } from 'lucide-react'
 import { useEffect, useLayoutEffect, type ComponentType, type MouseEvent, type ReactNode } from 'react'
 import { setNativeAccount, setNativeHistoryBack, setNativeNavigation, setNativeScreenCover } from '../../nativeBridge'
@@ -48,19 +48,8 @@ function regionScroll() {
   )
 }
 
-export function NativeAppNavigation({
-  accountBridge,
-  href: address,
-  path,
-  search,
-  state,
-}: {
-  accountBridge: ReactNode
-  href: string
-  path: string
-  search: Record<string, unknown>
-  state: unknown
-}) {
+export function NativeAppNavigation({ accountBridge }: { accountBridge: ReactNode }) {
+  const { href: address, pathname: path, search, state } = useLocation()
   const { data: me } = useQuery(meQuery())
   const unreadNotices = useUnreadNotices(Boolean(me))
   const navigate = useNavigate()
