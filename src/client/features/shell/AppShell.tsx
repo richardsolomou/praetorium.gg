@@ -45,17 +45,14 @@ import { OfflineReference } from '../../offline/OfflineReference'
 import { WebMcp } from '../agents/WebMcp'
 import { NativePushRegistration } from './NativePushRegistration'
 import { OnboardingGuide } from '../onboarding/OnboardingGuide'
-import { deferred } from '../../deferred'
+import { AppPersistence } from '../../offline/AppPersistence'
+import { LiveProduct } from '../../spacetimeLive'
+import { DisplayNamePrompt } from '../account/DisplayNamePrompt'
+import { SupportPanel } from '../feedback/SupportPanel'
+import { TextSourcesDialog } from '../../components/TextSourcesDialog'
+import { AchievementToasts } from '../profile/AchievementToasts'
 import { loadOfflineFallbacks } from '../../functions'
 import { afterInitialScreen } from '../../offline/background'
-
-// Nothing here shows on the first screen, so each loads after hydration instead of with every page.
-const AppPersistence = deferred(() => import('../../offline/AppPersistence').then((module) => module.AppPersistence))
-const LiveProduct = deferred(() => import('../../spacetimeLive').then((module) => module.LiveProduct))
-const DisplayNamePrompt = deferred(() => import('../account/DisplayNamePrompt').then((module) => module.DisplayNamePrompt))
-const SupportPanel = deferred(() => import('../feedback/SupportPanel').then((module) => module.SupportPanel))
-const TextSourcesDialog = deferred(() => import('../../components/TextSourcesDialog').then((module) => module.TextSourcesDialog))
-const AchievementToasts = deferred(() => import('../profile/AchievementToasts').then((module) => module.AchievementToasts))
 
 const PRIMARY_LINKS = [
   { to: '/rosters', label: 'Rosters', Icon: ScrollText },
