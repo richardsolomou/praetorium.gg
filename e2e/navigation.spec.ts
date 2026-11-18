@@ -818,12 +818,7 @@ test('terrain layout preserves structural corners and source distances', async (
   await expect(board.locator('polyline[stroke-linejoin="miter"]').first()).toBeAttached()
   await expect(board.locator('text').filter({ hasText: /^AB$/ }).first()).toBeVisible()
   await expect(board.locator('line[marker-end]')).toHaveCount(44)
-  await expect(
-    board
-      .locator('text')
-      .filter({ hasText: /^3″$/ })
-      .first(),
-  ).toBeVisible()
+  await expect(board.locator('text').filter({ hasText: /^3″$/ }).first()).toBeVisible()
 })
 
 test('a matchup keeps each action in the column of the side whose mission asks for it', async ({ page }) => {

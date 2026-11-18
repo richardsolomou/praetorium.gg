@@ -21,6 +21,16 @@ updates:
         patterns:
           - better-auth
           - '@better-auth/*'
+      # The experimental 0.x OpenTelemetry packages pin exact versions of the stable ones and peer on one @opentelemetry/api minor.
+      opentelemetry:
+        applies-to: version-updates
+        patterns:
+          - '@opentelemetry/*'
+      # The CLI pins, their checksums and the generated bindings must move with the SDK by hand, so it never blocks other updates.
+      spacetimedb:
+        applies-to: version-updates
+        patterns:
+          - spacetimedb
       patch-updates:
         applies-to: version-updates
         patterns:
