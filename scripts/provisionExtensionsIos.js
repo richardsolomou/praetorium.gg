@@ -3,7 +3,7 @@ import { createRequire } from 'node:module'
 import { delimiter, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-export async function provisionWatchIos(ctx, app, target, api) {
+export async function provisionTargetIos(ctx, app, target, api) {
   const distribution = api.IosDistributionType.AppStore
   const phone = await api.getBuildCredentialsAsync(ctx, { ...app, bundleIdentifier: target.parentBundleIdentifier }, distribution)
   if (!phone?.distributionCertificate) throw new Error('The iPhone App Store distribution certificate must already be configured in EAS.')
@@ -14,14 +14,14 @@ export async function provisionWatchIos(ctx, app, target, api) {
   )
   const existing = await api.getBuildCredentialsAsync(ctx, app, distribution)
   if (await api.validateProvisioningProfileAsync(ctx, target, app, existing)) {
-    console.log('The Watch App Store provisioning profile is already valid.')
+    console.log(`The ${target.targetName} App Store provisioning profile is already valid.`)
     return
   }
   const profile = await new api.CreateProvisioningProfile(app, target, phone.distributionCertificate).runAsync(ctx)
   const credentials = await api.assignBuildCredentialsAsync(ctx, app, distribution, phone.distributionCertificate, profile)
   if (!(await api.validateProvisioningProfileAsync(ctx, target, app, credentials)))
-    throw new Error('The Watch provisioning profile failed validation.')
-  console.log('The Watch App Store provisioning profile is configured and validated in EAS.')
+    throw new Error(`The ${target.targetName} provisioning profile failed validation.`)
+  console.log(`The ${target.targetName} App Store provisioning profile is configured and validated in EAS.`)
 }
 
 async function main() {
@@ -40,11 +40,9 @@ async function main() {
     .find(existsSync)
   if (!binary) throw new Error('Run with pnpm --package=eas-cli@23.2.0 dlx -c to expose the pinned EAS CLI.')
   const requireEas = createRequire(createRequire(realpathSync(binary)).resolve('eas-cli/package.json'))
-  if (requireEas('./package.json').version !== '23.2.0') throw new Error('Watch provisioning requires EAS CLI 23.2.0.')
+  if (requireEas('./package.json').version !== '23.2.0') throw new Error('iOS provisioning requires EAS CLI 23.2.0.')
   const load = (file) => requireEas(`./build/${file}`)
   const { expo } = createRequire(import.meta.url)('../mobile/app.json')
-  const target = expo.extra.eas.build.experimental.ios.appExtensions.find((entry) => entry.targetName === 'PraetoriumWatch')
-  if (!target) throw new Error('The PraetoriumWatch signing target is missing from app.json.')
   const { createGraphqlClient } = load('commandUtils/context/contextUtils/createGraphqlClient')
   const { getOwnerAccountForProjectIdAsync } = load('project/projectUtils')
   const { CredentialsContext } = load('credentials/context')
@@ -55,22 +53,29 @@ async function main() {
     nonInteractive: true,
     projectDir: fileURLToPath(new URL('../mobile', import.meta.url)),
   })
-  await provisionWatchIos(
-    ctx,
-    { account, projectName: expo.slug, bundleIdentifier: target.bundleIdentifier, parentBundleIdentifier: expo.ios.bundleIdentifier },
-    {
-      ...target,
-      parentBundleIdentifier: expo.ios.bundleIdentifier,
-      entitlements: target.entitlements ?? {},
-      buildConfiguration: 'Release',
-    },
-    {
-      ...load('credentials/ios/actions/BuildCredentialsUtils'),
-      ...load('credentials/ios/actions/CreateProvisioningProfile'),
-      ...load('credentials/ios/validators/validateProvisioningProfile'),
-      ...load('graphql/generated'),
-    },
-  )
+  // Changing a capability invalidates the iPhone profile as well as the extensions', so every target is checked.
+  const targets = [
+    { targetName: expo.name, bundleIdentifier: expo.ios.bundleIdentifier, entitlements: expo.ios.entitlements },
+    ...expo.extra.eas.build.experimental.ios.appExtensions,
+  ]
+  for (const target of targets) {
+    await provisionTargetIos(
+      ctx,
+      { account, projectName: expo.slug, bundleIdentifier: target.bundleIdentifier, parentBundleIdentifier: expo.ios.bundleIdentifier },
+      {
+        ...target,
+        parentBundleIdentifier: expo.ios.bundleIdentifier,
+        entitlements: target.entitlements ?? {},
+        buildConfiguration: 'Release',
+      },
+      {
+        ...load('credentials/ios/actions/BuildCredentialsUtils'),
+        ...load('credentials/ios/actions/CreateProvisioningProfile'),
+        ...load('credentials/ios/validators/validateProvisioningProfile'),
+        ...load('graphql/generated'),
+      },
+    )
+  }
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

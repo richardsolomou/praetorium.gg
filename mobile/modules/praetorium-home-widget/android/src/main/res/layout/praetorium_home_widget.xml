@@ -1,0 +1,22 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+  android:id="@+id/praetorium_widget_root"
+  android:layout_width="match_parent"
+  android:layout_height="match_parent"
+  android:background="@drawable/praetorium_home_widget_background"
+  android:orientation="vertical"
+  android:padding="14dp">
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="UP NEXT" android:letterSpacing="0.1" android:textColor="#9CD1A8" android:textSize="11sp" android:textStyle="bold" />
+    <TextView android:id="@+id/praetorium_empty" android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingTop="8dp" android:textColor="#8C969C" android:textSize="13sp" android:visibility="gone" />
+    <LinearLayout android:id="@+id/praetorium_row_0" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:paddingTop="6dp" android:paddingBottom="6dp" android:visibility="gone">
+      <TextView android:id="@+id/praetorium_row_0_title" android:layout_width="match_parent" android:layout_height="wrap_content" android:maxLines="1" android:ellipsize="end" android:textColor="#E8E6DF" android:textSize="14sp" />
+      <TextView android:id="@+id/praetorium_row_0_detail" android:layout_width="match_parent" android:layout_height="wrap_content" android:maxLines="1" android:ellipsize="end" android:textColor="#8C969C" android:textSize="12sp" />
+    </LinearLayout>
+    <LinearLayout android:id="@+id/praetorium_row_1" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:paddingTop="6dp" android:paddingBottom="6dp" android:visibility="gone">
+      <TextView android:id="@+id/praetorium_row_1_title" android:layout_width="match_parent" android:layout_height="wrap_content" android:maxLines="1" android:ellipsize="end" android:textColor="#E8E6DF" android:textSize="14sp" />
+      <TextView android:id="@+id/praetorium_row_1_detail" android:layout_width="match_parent" android:layout_height="wrap_content" android:maxLines="1" android:ellipsize="end" android:textColor="#8C969C" android:textSize="12sp" />
+    </LinearLayout>
+    <LinearLayout android:id="@+id/praetorium_row_2" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:paddingTop="6dp" android:paddingBottom="6dp" android:visibility="gone">
+      <TextView android:id="@+id/praetorium_row_2_title" android:layout_width="match_parent" android:layout_height="wrap_content" android:maxLines="1" android:ellipsize="end" android:textColor="#E8E6DF" android:textSize="14sp" />
+      <TextView android:id="@+id/praetorium_row_2_detail" android:layout_width="match_parent" android:layout_height="wrap_content" android:maxLines="1" android:ellipsize="end" android:textColor="#8C969C" android:textSize="12sp" />
+    </LinearLayout>
+</LinearLayout>

@@ -190,7 +190,7 @@ const readJson = async <T>(file: string, schema: z.ZodType<T>) => {
  * so a restart repeats no import and a day adds only new lists. `progress` gets those found so far as it goes, newest
  * events first, since the cache lists events that way.
  */
-async function importableLists(
+export async function importableLists(
   directory: string,
   revision: string,
   progress: (found: WinningList[]) => void = () => undefined,
@@ -202,6 +202,7 @@ async function importableLists(
   const known: Record<string, Verdict> = kept?.revision === revision ? kept.lists : {}
   const save = () => writeWhole(verdictsFile(directory), JSON.stringify({ revision, lists: known }))
   const found: WinningList[] = []
+  const shown = new Set<string>()
   const sorted = () => found.toSorted((left, right) => right.event.date.localeCompare(left.event.date) || left.placing - right.placing)
   let imported = 0
   for (const event of cached)
@@ -220,7 +221,9 @@ async function importableLists(
         await sleep(PAUSE_PER_IMPORT * took)
       }
       const list = known[player.list]
-      if (!list) continue
+      // A player can take one list to several events; it is shown once, at its newest placing, as its own page does.
+      if (!list || shown.has(player.list)) continue
+      shown.add(player.list)
       found.push(placed(list, player.list, event, player))
     }
   await save()

@@ -4,7 +4,7 @@ import { cachedRosterAssessmentsFor, heldRosterAssessments } from './rosterPrice
 import type { playedArmiesSchema } from '../contracts/schemas'
 import { matchesRosterAssessment, rosterAssessmentFilterActive } from '../core/rosterDiscovery'
 import { againstFamilies, discoveryScope, inDiscoveryScope } from '../core/rosterDiscoveryScope'
-import { matchesPlayedArmy, playedArmyFilterActive, type PlayedArmy } from '../core/playedArmies'
+import { matchesPlayedArmy, playedArmyFilterActive } from '../core/playedArmies'
 import { copiedArmy } from '../core/rosterCopies'
 import { byId } from '../core/collections'
 
@@ -21,7 +21,7 @@ export async function playedArmiesPage(viewerId: string | null, { before, ...fil
   const played = filter.against ? { ...filter, against: againstFamilies(filter.against, factions) } : filter
   const now = Date.now()
   // Most armies were priced by an earlier read under this catalogue, so only the rest have their battles' logs read for picks.
-  const assess = async (armies: PlayedArmy[]) => {
+  const assess = async (armies: Parameters<typeof instance.service.battleFeedService.playedArmyPicks>[0]) => {
     const priceable = armies.map((army) => ({ id: `${army.battle}:${army.player.id}`, updatedAt: army.playedAt }))
     const held = await heldRosterAssessments(priceable)
     const unpriced = armies.filter((_, index) => !held[index])
@@ -59,7 +59,7 @@ export async function playedArmiesPage(viewerId: string | null, { before, ...fil
   )
   const assessments = await assess(page.armies)
   return {
-    armies: page.armies.map(({ copied: _copied, ...army }, index) => ({
+    armies: page.armies.map(({ copied: _copied, battleId: _battleId, ...army }, index) => ({
       ...army,
       points: assessments[index]!.points,
       problem: assessments[index]!.verdict.problem,

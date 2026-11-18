@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { dateReleaseHeadings, parseReleaseNotes, recentChangelog, recentReleaseNotes } from './releaseNotes'
+import { dateReleaseHeadings, archiveChangelog, parseReleaseNotes, recentReleaseNotes } from './releaseNotes'
 
 const changelog = `# praetorium
 
@@ -58,10 +58,15 @@ it('keeps every release from the newest release days', () => {
   expect(recentReleaseNotes(changelog, 2).map((release) => release.version)).toEqual(['0.133.1', '0.133.0', '0.132.9'])
 })
 
-it.each([1, 2])('cuts the changelog to the releases from the newest %i release days', (days) => {
-  const recent = recentChangelog(changelog, days)
-  expect(recentReleaseNotes(recent, days)).toEqual(recentReleaseNotes(changelog, days))
-  expect(parseReleaseNotes(recent, Infinity)).toEqual(recentReleaseNotes(changelog, days))
+it.each([1, 2])('keeps the releases from the newest %i release days in the changelog', (days) => {
+  expect(parseReleaseNotes(archiveChangelog(changelog, days).current, Infinity)).toEqual(recentReleaseNotes(changelog, days))
+})
+
+it('files each older release under the month it shipped', () => {
+  const { archived } = archiveChangelog(changelog.replace('## 0.133.0', '## 0.133.0 (2026-09-30)'), 1)
+  expect([...archived].map(([month, text]) => [month, parseReleaseNotes(text, Infinity).map((note) => note.version)])).toEqual([
+    ['2026-09', ['0.133.0', '0.132.9']],
+  ])
 })
 
 it('dates only the headings that have no date yet', () => {

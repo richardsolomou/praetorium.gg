@@ -67,16 +67,22 @@ export function recentReleaseNotes(changelog: string, days: number) {
 }
 
 /**
- * The start of `changelog` up to the end of the oldest release `recentReleaseNotes` keeps, so
- * `recentReleaseNotes` reads the same releases from it without the history below.
+ * `changelog` cut to the releases `recentReleaseNotes` keeps, and the releases below them as
+ * changelog text by the month each shipped.
  */
-export function recentChangelog(changelog: string, days: number) {
-  const oldest = recentReleaseNotes(changelog, days).at(-1)
-  if (!oldest) return changelog
+export function archiveChangelog(changelog: string, days: number) {
   const lines = changelog.split('\n')
-  const start = lines.findIndex((line) => releaseHeading.exec(line)?.[1] === oldest.version)
-  const end = lines.findIndex((line, index) => index > start && releaseHeading.test(line))
-  return end === -1 ? changelog : lines.slice(0, end).join('\n')
+  const oldest = recentReleaseNotes(changelog, days).at(-1)
+  const start = lines.findIndex((line) => releaseHeading.exec(line)?.[1] === oldest?.version)
+  const end = oldest ? lines.findIndex((line, index) => index > start && releaseHeading.test(line)) : -1
+  const archived = new Map<string, string>()
+  if (end === -1) return { current: changelog, archived }
+  let month = 'undated'
+  for (const line of lines.slice(end)) {
+    month = releaseHeading.exec(line)?.[2]?.slice(0, 7) ?? month
+    archived.set(month, `${archived.get(month) ?? ''}${line}\n`)
+  }
+  return { current: lines.slice(0, end).join('\n'), archived }
 }
 
 /** Dates every undated release heading with `date`, as each release is versioned on the day it ships. */

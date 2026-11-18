@@ -85,26 +85,28 @@ export async function strongestWeaponPreferences(
 ): Promise<Record<string, string>> {
   const preferences = { ...choices.preferences }
   const settled = new Set(Object.keys(preferences))
+  let matchup = phaseMatchup(attacker, defender, { ...choices, preferences })
   for (const phase of COMBAT_PHASES) {
     for (;;) {
-      const plan = phaseMatchup(attacker, defender, { ...choices, preferences }).plans[phase]
+      const plan = matchup.plans[phase]
       const open = plan?.choices.find((choice) => !settled.has(choice.key) && choice.options.length > 1 && weaponChoice(choice.key))
       if (!open) break
       settled.add(open.key)
       const options = open.options.flatMap((option) => {
-        const input = phaseMatchup(attacker, defender, { ...choices, preferences: { ...preferences, [open.key]: option.value } }).scenario(
-          phase,
-          adjustments,
-        )
-        return input ? [{ value: option.value, request: { ranged: null, melee: null, [phase]: input } }] : []
+        const next = phaseMatchup(attacker, defender, { ...choices, preferences: { ...preferences, [open.key]: option.value } })
+        const input = next.scenario(phase, adjustments)
+        return input ? [{ value: option.value, matchup: next, request: { ranged: null, melee: null, [phase]: input } }] : []
       })
       const answers = await calculate(options.map((option) => option.request))
-      let best: { value: string; result: CombatResult } | undefined
+      let best: { option: (typeof options)[number]; result: CombatResult } | undefined
       options.forEach((option, at) => {
         const result = answers[at]?.[phase]?.result
-        if (result && (!best || compareOutcomes(result, best.result) > 0)) best = { value: option.value, result }
+        if (result && (!best || compareOutcomes(result, best.result) > 0)) best = { option, result }
       })
-      if (best) preferences[open.key] = best.value
+      if (best) {
+        preferences[open.key] = best.option.value
+        matchup = best.option.matchup
+      }
     }
   }
   return preferences

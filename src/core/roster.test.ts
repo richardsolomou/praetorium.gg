@@ -2788,6 +2788,78 @@ describe('a squad the data will not let hold two things at once', () => {
   })
 })
 
+describe('an option that closes every other loadout once one model takes it', () => {
+  // "All models in this unit can each have their pistol replaced with 1 Combat Shield",
+  // written as every other loadout's cap falling to nothing once the unit holds a shield.
+  const closedByShield = (id: string) => [
+    {
+      type: 'set' as const,
+      field: `${id}-max`,
+      value: 0,
+      conditions: [
+        { type: 'atLeast' as const, value: 1, field: 'selections', scope: 'squad', childId: 'shield', includeChildSelections: true },
+      ],
+    },
+  ]
+  const capped = (id: string, value: number) => [{ id: `${id}-max`, type: 'max' as const, value, field: 'selections', scope: 'parent' }]
+  const index = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'squad',
+        name: 'Vanguard Veterans',
+        type: 'unit',
+        selectionEntryGroups: [
+          {
+            id: 'vets',
+            name: 'Veterans',
+            defaultSelectionEntryId: 'pistol',
+            constraints: [
+              { id: 'vets-min', type: 'min', value: 5, field: 'selections', scope: 'parent' },
+              { id: 'vets-max', type: 'max', value: 10, field: 'selections', scope: 'parent' },
+            ],
+            selectionEntries: [
+              {
+                id: 'pistol',
+                name: 'Veteran',
+                type: 'model',
+                costs: points(20),
+                constraints: capped('pistol', 10),
+                modifiers: closedByShield('pistol'),
+              },
+              {
+                id: 'plasma',
+                name: 'Veteran w/ Plasma',
+                type: 'model',
+                costs: points(20),
+                constraints: capped('plasma', 2),
+                modifiers: closedByShield('plasma'),
+              },
+              {
+                id: 'shielded',
+                name: 'Veteran w/ Shield',
+                type: 'model',
+                costs: points(20),
+                constraints: capped('shielded', 10),
+                selectionEntries: [{ id: 'shield', name: 'Combat Shield', type: 'upgrade', constraints: mandatory('shield-min') }],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+
+  it('marks the option as one the whole squad takes', () => {
+    const vets = buildUnit('squad', index)!.choices.find((choice) => choice.name === 'Veterans')
+    expect(vets?.options.filter((option) => option.wholeSquad).map((option) => option.id)).toEqual(['shielded'])
+  })
+
+  it('gives the shield to models the squad grows by', () => {
+    const built = buildUnit('squad', index, 6, undefined, { spreads: { vets: { shielded: 5 } } })!
+    expect(wargearOf(built.selection, index)).toEqual([{ name: 'Combat Shield', count: 6 }])
+  })
+})
+
 describe('an upgrade the data hangs on the unit rather than in a group', () => {
   // A lone yes-or-no needs no group to hold it, so it is written without one: a Chaos
   // unit's icon, an Infiltrator Squad's comms array, a demolition charge. Everything

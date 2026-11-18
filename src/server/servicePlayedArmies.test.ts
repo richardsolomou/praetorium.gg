@@ -26,6 +26,7 @@ function fixture({ finished = true }: { finished?: boolean } = {}) {
   }
   const repository = {
     battleHistoryByToken: vi.fn().mockResolvedValue(history),
+    battlesByIds: vi.fn().mockResolvedValue([history]),
     publicBattles: vi.fn().mockResolvedValue({ battles: [battleCard(history)], nextCursor: null }),
   } as unknown as RepositoryPort
   return {
@@ -47,6 +48,16 @@ it('reads armies only from the public feed, which leaves out the reader’s own 
   const { service, repository } = fixture()
   await service.battleFeedService.playedArmies('reader')
   expect(repository.publicBattles).toHaveBeenCalledWith(expect.objectContaining({ viewerId: 'reader' }))
+})
+
+it('reads one log when pricing both sides’ played armies', async () => {
+  const { service, repository } = fixture()
+  const { armies } = await service.battleFeedService.playedArmies(null)
+  const picks = await service.battleFeedService.playedArmyPicks(armies)
+  expect({ reads: vi.mocked(repository.battlesByIds).mock.calls, entries: picks.map((army) => army.picks[0]?.entryId) }).toEqual({
+    reads: [[['battle']]],
+    entries: ['immortals', 'immortals'],
+  })
 })
 
 it('gives a reader who may watch the battle the army to copy', async () => {

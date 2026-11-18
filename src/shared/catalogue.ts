@@ -636,7 +636,7 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
     modelKeywords,
     catalogueOptions,
     profiles: uniqueProfiles(displayProfiles),
-    abilities: uniqueAbilities([...abilities.values(), ...grantedAbilities]),
+    abilities: uniqueAbilities(withGrantsOverLinks([...abilities.values()], grantedAbilities)),
     enhancements: [...enhancements.values()],
     keywordRules: [...keywordRules.values()],
   }
@@ -859,7 +859,7 @@ function grantedAbilitiesInAttachedUnit(
   rosterKeywordIds?: readonly (readonly string[])[],
 ): Datasheet['abilities'] {
   if (unitSelectionIndex === undefined) return []
-  const found = new Map<string, { name: string; models?: string; sources: Set<string>; ids: Set<string> }>()
+  const found = new Map<string, { name: string; models?: string; condition?: string; sources: Set<string>; ids: Set<string> }>()
   const keywordsBySelection = companionIndexes.length
     ? (rosterKeywordIds ?? keywordIdsBySelection(selections, index, { primaryCatalogueId: catalogueId }))
     : []
@@ -912,8 +912,14 @@ function grantedAbilitiesInAttachedUnit(
             if (grant.recipient === 'bearer' && origin !== 'self') continue
             if (grant.recipient === 'leader' && (origin !== 'companion' || !character)) continue
             if (grant.recipient === 'models' && (origin !== 'companion' || !selectedKeywords.has(grant.models!.toLowerCase()))) continue
-            const key = `${grant.name.toLowerCase()}:${grant.models?.toLowerCase() ?? ''}`
-            const granted = found.get(key) ?? { name: grant.name, models: grant.models, sources: new Set(), ids: new Set() }
+            const key = `${grant.name.toLowerCase()}:${grant.models?.toLowerCase() ?? ''}:${grant.condition?.toLowerCase() ?? ''}`
+            const granted = found.get(key) ?? {
+              name: grant.condition && !grant.name.endsWith('*') ? `${grant.name}*` : grant.name,
+              models: grant.models,
+              condition: grant.condition,
+              sources: new Set(),
+              ids: new Set(),
+            }
             granted.sources.add(profile.name)
             granted.ids.add(profile.id)
             found.set(key, granted)
@@ -924,13 +930,14 @@ function grantedAbilitiesInAttachedUnit(
   }
   collect(definitionsInSelections(selections, [unitSelectionIndex], index), 'self')
   collect(definitionsInSelections(selections, companionIndexes, index), 'companion')
-  return [...found.values()].map(({ name, models, sources, ids }) => ({
+  return [...found.values()].map(({ name, models, condition, sources, ids }) => ({
     id: `granted:${[...ids].toSorted().join(':')}`,
     name,
     source: [...sources].toSorted().join(', '),
     description: null,
     kind: 'core',
     ...(models ? { models } : {}),
+    ...(condition ? { condition } : {}),
   }))
 }
 
@@ -1102,6 +1109,22 @@ function uniqueProfiles(profiles: Datasheet['profiles']) {
       values: profile.values.map((value) => ({ ...value, value: comparableText(value.value) })),
     }),
   )
+}
+
+/**
+ * A limited grant replaces the asterisked core rule the datasheet links for it, as "Feel No Pain 4+*", so one chip
+ * says both what the asterisk means and where it came from.
+ */
+function withGrantsOverLinks(own: Datasheet['abilities'], granted: Datasheet['abilities']): Datasheet['abilities'] {
+  const name = (ability: Datasheet['abilities'][number]) => ability.name.trim().toLowerCase()
+  const linked = new Map(own.filter((ability) => ability.kind === 'core' && !ability.source).map((ability) => [name(ability), ability]))
+  const replaced = new Set(granted.flatMap((ability) => (ability.condition && linked.has(name(ability)) ? [name(ability)] : [])))
+  return [
+    ...own.filter((ability) => ability.kind !== 'core' || ability.source || !replaced.has(name(ability))),
+    ...granted.map((ability) =>
+      replaced.has(name(ability)) ? { ...ability, description: ability.description ?? linked.get(name(ability))!.description } : ability,
+    ),
+  ]
 }
 
 function uniqueAbilities(abilities: Datasheet['abilities']) {

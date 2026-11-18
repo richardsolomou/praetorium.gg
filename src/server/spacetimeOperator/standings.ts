@@ -1,14 +1,19 @@
+import type { StandingsViewQuery } from '../../core/standings'
 import { z } from 'zod'
 import {
   leaderboardSchema,
   playerStandingsSchema,
+  ratingChangesSchema,
   standingStepSchema,
   storedBattleResultSchema,
   type StandingStep,
+  type StandingsVersions,
 } from '../../contracts/battleResults'
+import { achievementStatusSchema } from '../../contracts/achievements'
 import type { SpacetimeBase } from './client'
 
 const revision = z.number().int().nonnegative()
+const standingsViews = { player: playerStandingsSchema, changes: ratingChangesSchema, achievements: achievementStatusSchema }
 
 export function withStandings<B extends SpacetimeBase>(Base: B) {
   return class StandingsOperations extends Base {
@@ -73,10 +78,18 @@ export function withStandings<B extends SpacetimeBase>(Base: B) {
     }
 
     async ratingChanges(tokens: readonly string[]) {
+      return this.read('rating_changes', [[...tokens]], ratingChangesSchema)
+    }
+
+    async currentStandingsView<K extends StandingsViewQuery['kind']>(
+      kind: K,
+      query: Omit<Extract<StandingsViewQuery, { kind: NoInfer<K> }>, 'kind'>,
+      versions: StandingsVersions,
+    ): Promise<z.output<(typeof standingsViews)[K]> | null> {
       return this.read(
-        'rating_changes',
-        [[...tokens]],
-        z.array(z.object({ token: z.string(), changes: z.record(z.string(), z.number().int()) })),
+        'current_standings_view',
+        [versions.results, versions.ratings, JSON.stringify({ kind, ...query })],
+        z.nullable(standingsViews[kind]),
       )
     }
 

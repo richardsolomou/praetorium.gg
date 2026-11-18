@@ -183,6 +183,7 @@ export function Abilities({ abilities, rules }: { abilities: DisplayAbility[]; r
                       : KEYWORD_TAG_CLASS
                   }
                   note={ability.source ? `Added by ${ability.source}` : undefined}
+                  condition={ability.condition}
                   highlightNote={false}
                 />
               </span>

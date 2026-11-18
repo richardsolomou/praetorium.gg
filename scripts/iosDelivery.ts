@@ -30,7 +30,7 @@ export function mobileInput(file: string) {
   return (
     file.startsWith('mobile/') ||
     file.startsWith('fastlane/') ||
-    ['Gemfile', 'Gemfile.lock', '.github/workflows/mobile.yml', 'scripts/provisionWatchIos.js', 'pnpm-workspace.yaml'].includes(file)
+    ['Gemfile', 'Gemfile.lock', '.github/workflows/mobile.yml', 'scripts/provisionExtensionsIos.js', 'pnpm-workspace.yaml'].includes(file)
   )
 }
 
