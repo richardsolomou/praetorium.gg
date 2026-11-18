@@ -159,40 +159,29 @@ export function listedDatasheets(
   })
 }
 
-const gatedCache = new WeakMap<LoadedCatalogue, Map<string, Map<string, string[]>>>()
-
-/**
- * The datasheets a book's detachments show or hide, each with the names of the detachments it
- * is offered under, such as the Deathwatch a chapter fields only with Deathwatch Support.
- * Legends and allies are hidden alike under every detachment, so none of them are here.
- */
-function detachmentGatedDatasheets(loaded: LoadedCatalogue, catalogueId: string) {
-  return cachedIn(gatedCache, loaded, catalogueId, () => {
-    const options = { primaryCatalogueId: catalogueId, mustering: true }
-    const detachments = (loaded.detachments.get(catalogueId)?.options ?? []).map((option) => ({
-      name: option.name,
-      roster: rosterDetachments(loaded, catalogueId, [option.id]).selections,
-    }))
-    const gated = new Map<string, string[]>()
-    for (const { id, entry } of listedDatasheets(loaded, catalogueId, { nonMatchedPlay: true })) {
-      const shown = detachments.filter(({ roster }) => !hiddenByRules(entry, loaded.index, { ...options, roster }))
-      const hidden = hiddenByRules(entry, loaded.index, options)
-      if (shown.length !== (hidden ? 0 : detachments.length))
-        gated.set(
-          id,
-          shown.map(({ name }) => name),
-        )
-    }
-    return gated
-  })
-}
+const listedUnitIds = new WeakMap<LoadedCatalogue, Map<string, Set<string>>>()
+const detachmentOffers = new WeakMap<LoadedCatalogue, Map<string, string[] | null>>()
 
 /** The detachments that would offer a datasheet the roster's own detachments hide, or null when they offer it. */
 export function detachmentsUnlocking(loaded: LoadedCatalogue, catalogueId: string, entryId: string, roster: readonly Selection[]) {
-  const offeredBy = detachmentGatedDatasheets(loaded, catalogueId).get(entryId)
   const entry = loaded.index.definitions.get(entryId)
-  if (!offeredBy || !entry) return null
-  return hiddenByRules(entry, loaded.index, { primaryCatalogueId: catalogueId, mustering: true, roster }) ? offeredBy : null
+  const options = { primaryCatalogueId: catalogueId, mustering: true }
+  if (!entry || !hiddenByRules(entry, loaded.index, { ...options, roster })) return null
+  const listed = cachedIn(
+    listedUnitIds,
+    loaded,
+    catalogueId,
+    () => new Set(listedDatasheets(loaded, catalogueId, { nonMatchedPlay: true }).map(({ id }) => id)),
+  )
+  if (!listed.has(entryId)) return null
+  return cachedIn(detachmentOffers, loaded, JSON.stringify([catalogueId, entryId]), () => {
+    const detachments = loaded.detachments.get(catalogueId)?.options ?? []
+    const shown = detachments.flatMap((option) => {
+      const selections = rosterDetachments(loaded, catalogueId, [option.id]).selections
+      return hiddenByRules(entry, loaded.index, { ...options, roster: selections }) ? [] : [option.name]
+    })
+    return shown.length === (hiddenByRules(entry, loaded.index, options) ? 0 : detachments.length) ? null : shown
+  })
 }
 
 type ListOptions = {

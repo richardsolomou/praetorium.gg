@@ -394,6 +394,7 @@ async function readBack(repository: SpacetimeRepository, product: SpacetimeOpera
   await product.health()
   await service.standingsService.syncAchievementDefinitions()
   await service.standingsService.standings()
+  if (userIds[0]) await service.standingsService.playerRankings(userIds[0])
   await repository.battlesByIds((await repository.battleChanges(0)).battleIds.slice(0, 500))
   await product.productStats(userIds)
   await product.pushTargets(userIds)

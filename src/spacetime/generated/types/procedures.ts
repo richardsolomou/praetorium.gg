@@ -40,6 +40,7 @@ import * as CollectionPhotoIdsProcedure from '../collection_photo_ids_procedure'
 import * as CollectionProfileProcedure from '../collection_profile_procedure'
 import * as CollectionWishesByUserProcedure from '../collection_wishes_by_user_procedure'
 import * as CreateBattleProcedure from '../create_battle_procedure'
+import * as CurrentStandingsViewProcedure from '../current_standings_view_procedure'
 import * as DatasheetPhotosProcedure from '../datasheet_photos_procedure'
 import * as DeclineRosterSharingProcedure from '../decline_roster_sharing_procedure'
 import * as DeleteBattleForOperatorProcedure from '../delete_battle_for_operator_procedure'
@@ -214,6 +215,8 @@ export type CollectionWishesByUserArgs = __Infer<typeof CollectionWishesByUserPr
 export type CollectionWishesByUserResult = __Infer<typeof CollectionWishesByUserProcedure.returnType>
 export type CreateBattleArgs = __Infer<typeof CreateBattleProcedure.params>
 export type CreateBattleResult = __Infer<typeof CreateBattleProcedure.returnType>
+export type CurrentStandingsViewArgs = __Infer<typeof CurrentStandingsViewProcedure.params>
+export type CurrentStandingsViewResult = __Infer<typeof CurrentStandingsViewProcedure.returnType>
 export type DatasheetPhotosArgs = __Infer<typeof DatasheetPhotosProcedure.params>
 export type DatasheetPhotosResult = __Infer<typeof DatasheetPhotosProcedure.returnType>
 export type DeclineRosterSharingArgs = __Infer<typeof DeclineRosterSharingProcedure.params>

@@ -20,6 +20,7 @@ import { discoveryCounts, discoveryScope, inDiscoveryScope, type DiscoveryCounts
 import { detachmentIds } from '../../core/savedRoster'
 import { rosterFaction } from '../../shared/rosterFaction'
 import { variantDifferences } from '../rosterDifferences'
+import type { RosterService } from '../services/rosterService'
 import { discoverRosterPage } from '../rosterDiscoveryPage'
 import { saveOwnedRoster } from '../saveOwnedRoster'
 import { rosterActions } from '../rosterActions'
@@ -242,23 +243,23 @@ export const sharedRoster = createServerFn({ method: 'GET' })
   .handler(({ data }) => rpc(async () => app().service.rosterService.sharedRoster(data.id, await currentUserId())))
 
 /** A reader's access to a roster, with the variant group its owner can switch between. */
-async function accessToRoster(data: { id: string }) {
-  const userId = await currentUserId()
-  const access = await app().service.rosterService.rosterAccess(data.id, userId)
-  if (!access) return null
-  const copiedFrom = await app().service.rosterService.copySource(access.roster.copiedFromRosterId, userId)
-  if (!access.editable || !userId) return { lentBy: null, ...access, variants: [], differences: null, copiedFrom }
-  const [variants, differences] = await Promise.all([
-    app().service.rosterService.rosterGroup(userId, access.roster),
-    variantDifferences(userId, [access.roster]),
+async function rosterAccessDetails(access: NonNullable<Awaited<ReturnType<RosterService['rosterAccess']>>>, userId: string | null) {
+  const service = app().service.rosterService
+  const owned = access.editable && userId
+  const [variants, differences, copiedFrom] = await Promise.all([
+    owned ? service.rosterGroup(owned, access.roster) : [],
+    owned ? variantDifferences(owned, [access.roster]) : null,
+    service.copySource(access.roster.copiedFromRosterId, userId),
   ])
-  return { lentBy: null, ...access, variants, differences: differences.get(access.roster.id) ?? null, copiedFrom }
+  return { lentBy: null, ...access, variants, differences: differences?.get(access.roster.id) ?? null, copiedFrom }
 }
 
 async function accessibleRoster(data: { id: string }) {
-  const access = await accessToRoster(data)
+  const userId = await currentUserId()
+  const access = await app().service.rosterService.rosterAccess(data.id, userId)
   if (!access) return null
-  return { ...access, faction: await app().factionFor(access.roster.catalogueId) }
+  const [details, faction] = await Promise.all([rosterAccessDetails(access, userId), app().factionFor(access.roster.catalogueId)])
+  return { ...details, faction }
 }
 
 export const rosterAccess = createServerFn({ method: 'GET' })
@@ -369,14 +370,16 @@ export const rosterBootstrap = createServerFn({ method: 'GET' })
   .validator(rosterIdSchema)
   .handler(({ data }) =>
     rpc(async () => {
-      const access = await accessToRoster(data)
+      const userId = await currentUserId()
+      const access = await app().service.rosterService.rosterAccess(data.id, userId)
       if (!access) return null
       // The faction index omits exact root IDs a saved roster may still carry, so resolve the book as the builder would.
-      const [faction, price] = await Promise.all([
+      const [details, faction, price] = await Promise.all([
+        rosterAccessDetails(access, userId),
         app().factionFor(access.roster.catalogueId),
         cachedRosterPrice(access.roster, access.editable),
       ])
-      return { ...access, faction, price, changes: await changesSinceSaved(access.roster, price) }
+      return { ...details, faction, price, changes: await changesSinceSaved(access.roster, price) }
     }),
   )
 

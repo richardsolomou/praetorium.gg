@@ -149,6 +149,14 @@ it('places a player on their profile where the leaderboard lists them', async ()
   expect((await service.standingsService.playerRankings(ALICE)).overall?.place).toBe(overall.rows.findIndex((row) => row.id === ALICE) + 1)
 })
 
+it('refreshes a previously read profile ranking after a battle is reopened', async () => {
+  const { service, conceded, reopen } = product()
+  await conceded('one', ALICE, BOB, NOW - 1_000)
+  await service.standingsService.playerRankings(ALICE)
+  await reopen('one', ALICE, NOW)
+  expect((await service.standingsService.playerRankings(ALICE)).history).toEqual([])
+})
+
 it('gives a player no place on their profile until they are ranked', async () => {
   const { service, conceded } = product()
   await conceded('one', ALICE, BOB, NOW)

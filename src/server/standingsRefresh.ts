@@ -5,7 +5,7 @@ import { byId } from '../core/collections'
 import { battleFoldArgs } from '../core/offlineBattle'
 import type { PlayedBattle } from '../core/rosterPlays'
 import { counted, newcomer, OVERALL, rateBattle, shownRating, type Rated, type StandingBattle } from '../core/standings'
-import { battleResultSchema, type BattleResult, type StandingStep } from '../contracts/battleResults'
+import { battleResultSchema, type BattleResult, type StandingStep, type StandingsVersions } from '../contracts/battleResults'
 import { battleSummary, builtFaction, type BattleFaction } from '../shared/battleSummary'
 import type { BattleHistory, RepositoryPort } from './spacetimeRepository'
 import { rating } from 'openskill'
@@ -89,6 +89,14 @@ export class StandingsRefresh {
      */
     private readonly factions: () => Promise<readonly BattleFaction[]>,
   ) {}
+
+  /** A current view needs one read. On a revision or version change the normal refresh catches it up. */
+  async read<T>(current: (versions: StandingsVersions) => Promise<T | null>, stored: () => Promise<T>): Promise<T> {
+    const answer = await current({ results: RESULTS_VERSION, ratings: ratingsVersion(await this.factions()) })
+    if (answer !== null) return answer
+    await this.refresh()
+    return stored()
+  }
 
   /** Shares a refresh this process already has running. Answers the standings revision, which rises whenever the leaderboard may have changed. */
   refresh(): Promise<string> {
