@@ -1,5 +1,19 @@
 # praetorium
 
+## 0.266.0 (2026-11-18)
+
+### Minor Changes
+
+- 83421d1: [rosters] If you build a list without an account, the home page and faction pages now link back to it.
+- 83421d1: [reference] The end of each faction and datasheet page now offers to start a list with that faction or unit already filled in.
+
+### Patch Changes
+
+- 83421d1: [battles] You can end a practice battle early at its current score from Battle options.
+- 83421d1: [battles] Games you haven't played for a few days ask you to resume them, and the home page counts the ones left for two weeks.
+- 5707899: [battles] Faction emblems on the round and final score screens are no longer cut off on wider screens.
+- 902591c: [app] Creating an account now lists what a free account gives you.
+
 ## 0.265.6 (2026-11-18)
 
 ### Patch Changes
