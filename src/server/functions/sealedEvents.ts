@@ -5,7 +5,7 @@ import { app } from '../app'
 import { currentUserId, requireUserId } from '../playerSession'
 import { BATTLES_PAGE } from '../services/battleFeedService'
 import { mutationRpc, rpc } from '../rpc'
-import { captureMutation } from '../mutationTelemetry'
+import { captureMutation, checkInSealedEventEntrant } from '../mutationTelemetry'
 import { captureBattleCommand } from '../battleTelemetry'
 import { shareSealedEventRosterSchema } from '../../contracts/sealedEventRosterSharing'
 import {
@@ -282,7 +282,7 @@ export const checkInEntrant = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const userId = await requireUserId()
-      await app().service.sealedEventService.checkIn(data.token, data.eventToken ?? data.token, userId, data.userId, data.checkedIn)
+      await checkInSealedEventEntrant(userId, data.token, data.eventToken ?? data.token, data.userId, data.checkedIn)
     }),
   )
 

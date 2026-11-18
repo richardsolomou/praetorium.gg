@@ -39,6 +39,38 @@ export async function startDraftBattle(userId: string, missionPackId: string | n
   return result
 }
 
+/** Makes the link that fills a battle's open places, which a QR code can pass on without a share being recorded. */
+export async function shareBattleLink(userId: string, token: string) {
+  const { battleId, invite } = await app().service.shareBattle(token, userId)
+  captureMutation(userId, 'battle_link_created', { battle_id: battleId })
+  return { invite }
+}
+
+export async function inviteFriendToBattle(userId: string, token: string, friendId: string) {
+  const { battleId, invite } = await app().service.inviteToBattle(token, userId, friendId)
+  captureMutation(userId, 'battle_friend_invited', { battle_id: battleId })
+  return { invite }
+}
+
+export async function stopSharingBattleLink(userId: string, token: string) {
+  const { battleId } = await app().service.stopSharingBattle(token, userId)
+  captureMutation(userId, 'battle_link_stopped', { battle_id: battleId })
+  return null
+}
+
+/** Removes a player before the battle starts; `practice` is a place the creator played themselves and gave back. */
+export async function removePlayerFromBattle(userId: string, token: string, playerId: string) {
+  const { battleId, practice } = await app().service.removeBattlePlayer(token, userId, playerId)
+  captureMutation(userId, 'battle_player_removed', { battle_id: battleId, practice })
+  return null
+}
+
+/** Marks an entrant arrived, or not; `self` tells a player's own check-in from the organizer's. */
+export async function checkInSealedEventEntrant(userId: string, token: string, eventToken: string, entrantId: string, checkedIn: boolean) {
+  await app().service.sealedEventService.checkIn(token, eventToken, userId, entrantId, checkedIn)
+  captureMutation(userId, 'sealed_event_entrant_checked_in', { checked_in: checkedIn, self: entrantId === userId })
+}
+
 export function captureSealedEventCreated(userId: string, data: z.output<typeof createSealedEventSchema>) {
   return captureMutation(userId, 'tournament_created', {
     visibility: data.visibility,

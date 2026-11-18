@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useRouterState } from '@tanstack/react-router'
 import { Bell } from 'lucide-react'
+import { posthog } from 'posthog-js'
 import { type ReactNode, type RefObject, useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from '@/components/ui/popover'
@@ -76,6 +77,7 @@ export function NoticeList({ onOpen, empty, className = '' }: { onOpen?: () => v
             data-notice={notice.read ? 'read' : 'unread'}
             // Capture, because a link into another phone tab is taken over before the router's own click handler runs.
             onClickCapture={() => {
+              posthog.capture('notice_opened', { kind: notice.kind, unread: !notice.read })
               if (!notice.read) markRead.mutate([notice.id])
               onOpen?.()
             }}

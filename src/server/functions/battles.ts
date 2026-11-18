@@ -6,7 +6,14 @@ import { currentUserId, forSignedIn, requireUserId } from '../playerSession'
 import { BATTLES_PAGE } from '../services/battleFeedService'
 import { submitBattleCommand } from '../battleSubmission'
 import { mutationRpc, rpc } from '../rpc'
-import { captureMutation, startDraftBattle } from '../mutationTelemetry'
+import {
+  captureMutation,
+  inviteFriendToBattle,
+  removePlayerFromBattle,
+  shareBattleLink,
+  startDraftBattle,
+  stopSharingBattleLink,
+} from '../mutationTelemetry'
 import {
   battlesFeedSchema,
   battleReplaySchema,
@@ -217,15 +224,15 @@ export const battleDraft = createServerFn({ method: 'GET' })
 
 export const shareBattle = createServerFn({ method: 'POST' })
   .validator(tokenSchema)
-  .handler(({ data }) => mutationRpc(async () => app().service.shareBattle(data.token, await requireUserId())))
+  .handler(({ data }) => mutationRpc(async () => shareBattleLink(await requireUserId(), data.token)))
 
 export const stopSharingBattle = createServerFn({ method: 'POST' })
   .validator(tokenSchema)
-  .handler(({ data }) => mutationRpc(async () => app().service.stopSharingBattle(data.token, await requireUserId())))
+  .handler(({ data }) => mutationRpc(async () => stopSharingBattleLink(await requireUserId(), data.token)))
 
 export const inviteToBattle = createServerFn({ method: 'POST' })
   .validator(inviteToBattleSchema)
-  .handler(({ data }) => mutationRpc(async () => app().service.inviteToBattle(data.token, await requireUserId(), data.friendId)))
+  .handler(({ data }) => mutationRpc(async () => inviteFriendToBattle(await requireUserId(), data.token, data.friendId)))
 
 /** The battle a link joins, readable signed out so the page can say who invited them before they sign in. */
 export const battleInvitation = createServerFn({ method: 'GET' })
@@ -254,7 +261,7 @@ export const playBothSides = createServerFn({ method: 'POST' })
 
 export const removeBattlePlayer = createServerFn({ method: 'POST' })
   .validator(removeBattlePlayerSchema)
-  .handler(({ data }) => mutationRpc(async () => app().service.removeBattlePlayer(data.token, await requireUserId(), data.playerId)))
+  .handler(({ data }) => mutationRpc(async () => removePlayerFromBattle(await requireUserId(), data.token, data.playerId)))
 
 /** The drafts the signed-in player is in, which Battles offers to continue rather than listing. */
 export const myDrafts = createServerFn({ method: 'GET' }).handler(() =>
