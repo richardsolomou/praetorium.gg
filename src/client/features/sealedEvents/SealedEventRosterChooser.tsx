@@ -25,6 +25,7 @@ export function RosterChooser({
   pointsBudget,
   seatPoints,
   shared,
+  revealed,
   onClose,
   onChoose,
 }: {
@@ -39,6 +40,8 @@ export function RosterChooser({
   seatPoints: number | null
   /** Whether the seat splits twice `seatPoints` with an ally rather than spending its own. */
   shared: boolean
+  /** Whether the lists are out, so a replacement for an unsealed list shows as soon as it's sealed. */
+  revealed: boolean
   onClose: () => void
   onChoose: (roster: SavedRoster) => void
 }) {
@@ -67,6 +70,7 @@ export function RosterChooser({
   // Only a list on screen may be sealed, so one a filter hides is no longer the choice.
   const selected = [...filter.rosters, ...filter.lent.map(({ summary }) => summary)].find((roster) => roster.id === selectedId)
   const failed = error ? rosters.find((roster) => roster.id === failedRosterId) : undefined
+  const hidden = revealed ? 'Everyone sees it as soon as you seal it.' : 'Hidden until the reveal; you can swap it until then.'
 
   return (
     <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
@@ -75,10 +79,10 @@ export function RosterChooser({
           <DialogTitle className="text-2xl">Seal a roster</DialogTitle>
           <DialogDescription>
             {size === null
-              ? 'Hidden until the reveal. You can swap it until then.'
+              ? hidden
               : seatPoints !== null
-                ? `Your rosters built for ${battleSizeName(requiredLimit!)} or smaller, ${shared ? `sharing ${pointsLabel(seatPoints * 2)} with your ally` : `spending up to ${pointsLabel(seatPoints)}`}. Hidden until the reveal; you can swap it until then.`
-                : `Your ${size} rosters. Hidden until the reveal; you can swap it until then.`}
+                ? `Your rosters built for ${battleSizeName(requiredLimit!)} or smaller, ${shared ? `sharing ${pointsLabel(seatPoints * 2)} with your ally` : `spending up to ${pointsLabel(seatPoints)}`}. ${hidden}`
+                : `Your ${size} rosters. ${hidden}`}
           </DialogDescription>
         </DialogHeader>
         <DialogBody>

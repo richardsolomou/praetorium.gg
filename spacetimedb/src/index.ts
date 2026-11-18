@@ -618,7 +618,7 @@ function leagueGameHost(ctx: Context, group: GroupRow, leagueId: string) {
 }
 
 /** Operations on a league's sealed lists; joining, revealing and playing go through the league itself. */
-const LEAGUE_GAME_OPERATIONS = new Set(['update', 'submit', 'share-roster', 'dismiss-roster-sharing', 'create-battle'])
+const LEAGUE_GAME_OPERATIONS = new Set(['update', 'submit', 'unseal', 'share-roster', 'dismiss-roster-sharing', 'create-battle'])
 
 function gamePastAt(ctx: Context, { game, event }: Extract<EventHost, { kind: 'group' }>) {
   // A league's lists stay open while it runs and close when it ends.

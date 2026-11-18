@@ -629,6 +629,13 @@ function GroupNext({
       detail: `Play ${namesPhrase(unplayedOpponents(toPlay, viewerId).map((player) => nameOf(player.userId)))} from ${eventName({ ...toPlay, tournament: null, group })}.`,
       action: goTo('overview', toPlay.token),
     }
+  } else if (fixture && league?.game && !league.game.sealedIds.includes(viewerId)) {
+    next = {
+      context: `League · Round ${fixture.round}`,
+      title: 'Seal a replacement list',
+      detail: 'An organizer unsealed your list. Your league games start once you seal a corrected one.',
+      action: goTo('league', undefined, 'See the league'),
+    }
   } else if (fixture && league) {
     const deadline = league.deadlines[fixture.round - 1] ?? null
     const opponent = fixture.aId === viewerId ? fixture.bId! : fixture.aId

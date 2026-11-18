@@ -487,6 +487,7 @@ export function SealedEventView({
         pointsBudget={sealedEvent.pointsBudget}
         seatPoints={seatPoints}
         shared={ownEntry ? sealedEventSharesPoints(sealedEvent, ownEntry) : false}
+        revealed={revealed}
         onClose={() => {
           if (submit.isPending) return
           submit.reset()

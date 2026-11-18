@@ -16,6 +16,7 @@ export function useSealList({
   pointsBudget,
   seatPoints = null,
   shared = false,
+  revealed,
   onSealed,
 }: {
   token: string
@@ -24,6 +25,7 @@ export function useSealList({
   pointsBudget: number | null
   seatPoints?: number | null
   shared?: boolean
+  revealed: boolean
   onSealed: () => Promise<unknown>
 }) {
   const [choosing, setChoosing] = useState(false)
@@ -49,6 +51,7 @@ export function useSealList({
         pointsBudget={pointsBudget}
         seatPoints={seatPoints}
         shared={shared}
+        revealed={revealed}
         onClose={() => !seal.isPending && setChoosing(false)}
         onChoose={(roster) => void card.choose(roster)}
       />

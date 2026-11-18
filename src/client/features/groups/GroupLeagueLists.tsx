@@ -103,7 +103,7 @@ export function StartLeagueDialog({ group, open, onClose }: { group: Group; open
   )
 }
 
-/** A member's way into a draft league that seals lists: sealing one is joining, and sealing again replaces it. */
+/** A member's way into a draft league that seals lists, where sealing one is joining, or back into a running one whose list was unsealed. */
 export function SealLeagueList({ group, game, sealed, primary }: { group: Group; game: LeagueGame; sealed: boolean; primary: boolean }) {
   const refreshGame = useSealedEventRefresh(game.token)
   const refreshGroup = useGroupRefresh(group.token)
@@ -113,6 +113,7 @@ export function SealLeagueList({ group, game, sealed, primary }: { group: Group;
     playsAlone: true,
     requiredLimit: game.rosterLimit,
     pointsBudget: game.pointsBudget,
+    revealed: game.revealedAt !== null,
     onSealed: () => Promise.all([refreshGame(), refreshGroup()]),
   })
   return (
@@ -121,6 +122,10 @@ export function SealLeagueList({ group, game, sealed, primary }: { group: Group;
         {sealed ? (
           <>
             <Lock /> Swap your list
+          </>
+        ) : game.revealedAt !== null ? (
+          <>
+            <FileLock2 /> Seal a replacement
           </>
         ) : (
           <>
@@ -164,17 +169,33 @@ export function LeagueSealing({
   )
 }
 
-/** Every player's list, revealed when the league was published. */
-export function LeagueLists({ group, game, viewerId }: { group: Group; game: LeagueGame; viewerId: string | null }) {
+/** Every player's list, revealed when the league was published; while it runs, organizers can send one back to be resealed. */
+export function LeagueLists({
+  group,
+  game,
+  viewerId,
+  playerIds,
+}: {
+  group: Group
+  game: LeagueGame
+  viewerId: string | null
+  /** A running league's players, whose lists stay listed while unsealed. */
+  playerIds?: readonly string[]
+}) {
   const { data: record } = useQuery(sealedEventQuery(game.token))
   const nameOf = memberNameOf(group)
-  const entries = record?.entries.filter((entry) => game.sealedIds.includes(entry.userId)) ?? []
+  const running = playerIds !== undefined
+  const entries = record?.entries.filter((entry) => (playerIds ?? game.sealedIds).includes(entry.userId)) ?? []
   const groups = useEntrantGroups(record ?? undefined, entries, (entry) => nameOf(entry.userId))
   if (!record) return null
+  const own = entries.find((entry) => entry.userId === viewerId)
   return (
     <>
-      {viewerId && game.sealedIds.includes(viewerId) ? (
-        <SealedEventRosterSharing className="mb-3" token={game.token} eventToken={game.token} userId={viewerId} />
+      {own?.submitted ? <SealedEventRosterSharing className="mb-3" token={game.token} eventToken={game.token} userId={own.userId} /> : null}
+      {running && own && !own.submitted ? (
+        <div className="mb-3">
+          <SealLeagueList group={group} game={game} sealed={false} primary />
+        </div>
       ) : null}
       <RevealedLists
         token={game.token}
@@ -183,6 +204,7 @@ export function LeagueLists({ group, game, viewerId }: { group: Group; game: Lea
         viewerId={viewerId}
         label={(entry) => nameOf(entry.userId)}
         onSimulate={null}
+        canUnseal={running && group.organizer}
       />
     </>
   )

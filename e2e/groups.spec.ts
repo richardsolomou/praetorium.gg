@@ -470,6 +470,17 @@ test('a league seals every list before it starts and plays its fixtures with the
   await owner.getByRole('alertdialog').getByRole('button', { name: 'Publish' }).click()
   const lists = owner.locator('[data-league-lists]')
   await expect(lists.getByText('League army 1', { exact: false })).toBeVisible()
+  // An organizer sends a list back while the league runs, and its player seals a replacement.
+  await lists.getByRole('button', { name: `Unseal ${names[2]}’s roster` }).click()
+  await owner.getByRole('alertdialog').getByRole('button', { name: 'Unseal roster' }).click()
+  await expect(lists.getByText('No roster yet. The organizer unsealed it for a replacement.')).toBeVisible()
+  await expect(owner.locator('[data-fixture]').filter({ hasText: names[2] }).getByText('Waiting for a list').first()).toBeVisible()
+  await third.goto(`${url}?tab=league`)
+  const replacement = third.getByRole('dialog', { name: 'Seal a roster' })
+  await retryUntilVisible(replacement, () => third.getByRole('button', { name: 'Seal a replacement' }).click({ timeout: 1_000 }))
+  await replacement.locator('[data-roster="League army 2"]').click()
+  await replacement.getByRole('button', { name: 'Seal League army 2' }).click()
+  await expect(third.locator('[data-league-lists]').getByText('League army 2', { exact: false })).toBeVisible()
   // A score entered for a game nobody started starts its battle with the sealed lists, as a player's start would.
   const untracked = owner.locator('[data-fixture]').filter({ hasText: names[1] }).filter({ hasText: names[2] })
   await untracked.getByRole('button', { name: /^Enter score for round/ }).click()
