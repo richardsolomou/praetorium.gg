@@ -54,6 +54,8 @@ export type WrittenAbilityGrant =
       target?: string
       /** Applies only when the unit links the named ability, or may use unlinked deployment abilities. */
       linked?: true
+      /** The attacks the ability is limited to, as "against Psychic Attacks". */
+      condition?: string
     }
   | { name: string; recipient: 'models'; models: string }
 export type AbilityGrantStatement = { matched: boolean; grants: WrittenAbilityGrant[] }
