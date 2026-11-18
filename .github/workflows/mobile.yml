@@ -28,7 +28,7 @@ permissions:
 jobs:
   deliver:
     name: Deliver iOS
-    runs-on: macos-26
+    runs-on: xcode-27
     timeout-minutes: 360
     env:
       MOBILE_REVISION: ${{ inputs.revision || github.sha }}
