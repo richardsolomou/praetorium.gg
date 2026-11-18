@@ -1,5 +1,5 @@
 import CombatWorker from './combatWorker'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { LoadoutScoring, LoadoutSpace, OptionEstimate, ProfileOdds } from '../../../core/combatLoadouts'
 import type { CombatRequest } from '../../../core/combatMatchup'
 import { WorkerFailure, workerAnswer } from '../../workerAnswer'
@@ -34,7 +34,7 @@ export function useLoadoutOdds({
   scoring: LoadoutScoring | null
   expected: CombatRequest
 }): LoadoutOdds | null {
-  const request = space && scoring ? JSON.stringify({ space, scoring, expected }) : null
+  const request = useMemo(() => (space && scoring ? JSON.stringify({ space, scoring, expected }) : null), [space, scoring, expected])
   const [attempt, setAttempt] = useState(0)
   const [found, setFound] = useState<{ request: string; attempt: number; odds: LoadoutOdds; error?: string } | null>(null)
   useEffect(() => {

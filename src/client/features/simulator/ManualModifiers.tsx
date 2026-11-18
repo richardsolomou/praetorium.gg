@@ -1,4 +1,4 @@
-import { useState, type Dispatch, type ReactNode, type SetStateAction } from 'react'
+import { memo, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { RotateCcw } from 'lucide-react'
@@ -51,7 +51,7 @@ const situations = {
   melee: [['charged', 'Charged']],
 } as const
 
-export function ManualModifiers({
+export const ManualModifiers = memo(function ManualModifiers({
   matchup,
   adjustments,
   onAdjustmentsChange: setAdjustments,
@@ -345,7 +345,7 @@ export function ManualModifiers({
       </div>
     </details>
   )
-}
+})
 
 function ChipRow({ label, children }: { label: string; children: ReactNode }) {
   return (

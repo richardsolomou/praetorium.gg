@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import type { CombatPhase } from '../../../core/combat'
 import type { CombatantSnapshot, CombatRequest } from '../../../core/combatMatchup'
 import { calculationInputs } from './calculationInputs'
@@ -5,7 +6,7 @@ import { phases, type CombatMatchupView, type MatchupModifiers } from './matchup
 import { weaponToggleGroups } from './PhaseWeapons'
 
 /** What each phase's calculation uses: profile changes, unit inputs, sourced re-rolls and manual modifiers. */
-export function AppliedModifiers({
+export const AppliedModifiers = memo(function AppliedModifiers({
   attacker,
   defender,
   plans,
@@ -55,4 +56,4 @@ export function AppliedModifiers({
       })}
     </section>
   )
-}
+})

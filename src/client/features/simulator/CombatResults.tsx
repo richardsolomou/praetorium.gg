@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState } from 'react'
+import { memo, useEffect, useRef, useState } from 'react'
 import { PHASE_TITLES, PhaseIcon } from './CombatControls'
 import type { CombatResult } from '../../../core/combat'
 import { HoverTooltip } from '../../components/HoverTooltip'
 import { CombatEstimate } from './CombatEstimate'
 import { CombatValue, formatCombatValue, UNCAPPED_DAMAGE_EXPLANATION, UNCAPPED_KILLS_EXPLANATION } from './CombatValue'
 
-export function CombatResults({
+export const CombatResults = memo(function CombatResults({
   ranged,
   melee,
   combined,
@@ -179,7 +179,7 @@ export function CombatResults({
       </div>
     </>
   )
-}
+})
 
 /** A difference with its sign, rounded first so a negligible change reads as ±0. */
 const changeLabel = (value: number, digits: number, unit = '') => {

@@ -1,6 +1,6 @@
 import { noExclusions } from '../../../core/combatMatchup'
 import { GuideHelp } from '../onboarding/GuideHelp'
-import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { memo, startTransition, useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { posthog } from 'posthog-js'
 import { ArrowLeftRight } from 'lucide-react'
 import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -132,9 +132,12 @@ export const CombatSimulator = memo(function CombatSimulator({
     if (!initial) return
     rosterRequests.current[0]++
     rosterRequests.current[1]++
-    setSession((current) => ({ key: current.key + 1, shared: value }))
-    setComparingRosters(false)
-    setProblem(null)
+    // A whole new matchup mounts, so it renders after the tap's frame is painted.
+    startTransition(() => {
+      setSession((current) => ({ key: current.key + 1, shared: value }))
+      setComparingRosters(false)
+      setProblem(null)
+    })
   }
   const setSide = (index: 0 | 1, side: SimulatorSide | null) => {
     rosterRequests.current[index]++
@@ -435,8 +438,9 @@ export function CombatSimulatorMatchup({
   }
   const calculated = useRef<string | null>(null)
   const state = JSON.stringify({ v: 1, sides: [first.shared, second.shared], swapped: reversed, matchup })
+  // The address and recent simulations follow the matchup in a render of their own, after the tap's frame is painted.
   useEffect(() => {
-    onChange?.(JSON.parse(state) as SimulatorState)
+    startTransition(() => onChange?.(JSON.parse(state) as SimulatorState))
   }, [state, onChange])
   useEffect(() => {
     const advance = () => {
