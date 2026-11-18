@@ -1,5 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query'
 import { notFound, redirect } from '@tanstack/react-router'
+import { currentRulesFor } from '../../../../core/currentRules'
 import { factionReferenceHref } from '../../../../core/factionReferenceRoute'
 import { datasheetPreview, detachmentPreview, pageHead, previewImage } from '../../../linkPreview'
 import {
@@ -7,10 +8,24 @@ import {
   detachmentDetailQuery,
   favouriteDetachmentsQuery,
   favouriteFactionsQuery,
+  factionIndexQuery,
+  factionQuery,
   loadReferenceFaction,
   referenceChangesQuery,
   factionDatasheetsQuery,
 } from '../../../queries'
+
+type Faction = NonNullable<Awaited<ReturnType<typeof loadReferenceFaction>>>
+
+/**
+ * The current rules' copy of a superseded rules version's faction, so its pages name the current page as canonical
+ * instead of splitting search ranking across versions; a preview is upcoming rules rather than an older copy, so it keeps its own.
+ */
+async function currentFactionFor(queryClient: QueryClient, faction: Faction) {
+  const index = await queryClient.query({ ...factionIndexQuery(), staleTime: 'static' })
+  const current = currentRulesFor(faction.id, index?.factions ?? [])
+  return current ? queryClient.query({ ...factionQuery(current.id), staleTime: 'static' }) : null
+}
 
 export async function loadFactionPage(queryClient: QueryClient, catalogueId: string, rules?: string) {
   const [faction] = await Promise.all([
@@ -19,39 +34,42 @@ export async function loadFactionPage(queryClient: QueryClient, catalogueId: str
     queryClient.query({ ...favouriteDetachmentsQuery(), staleTime: 'static' }),
   ])
   if (!faction) throw notFound()
-  return faction
+  return { faction, canonical: (await currentFactionFor(queryClient, faction)) ?? faction }
 }
 
-export function factionPageHead(faction: Awaited<ReturnType<typeof loadFactionPage>> | undefined, origin: string) {
-  return faction
-    ? pageHead(origin, {
-        title: faction.displayName,
-        description: `${faction.displayName} army rules, detachments, datasheets, loadouts and points.`,
-        path: factionReferenceHref(faction),
-      })
-    : {}
+export function factionPageHead(loaderData: Awaited<ReturnType<typeof loadFactionPage>> | undefined, origin: string) {
+  if (!loaderData) return {}
+  const { faction, canonical } = loaderData
+  return pageHead(origin, {
+    title: faction.displayName,
+    description: `${faction.displayName} army rules, detachments, datasheets, loadouts and points.`,
+    path: factionReferenceHref(canonical),
+  })
 }
 
 export async function loadFactionDatasheets(queryClient: QueryClient, catalogueId: string, rules?: string) {
   const faction = await loadReferenceFaction(queryClient, catalogueId, rules)
   if (!faction) throw notFound()
-  await queryClient.query({ ...factionDatasheetsQuery(faction.id, ''), staleTime: 'static' })
-  return faction
+  const [canonical] = await Promise.all([
+    currentFactionFor(queryClient, faction),
+    queryClient.query({ ...factionDatasheetsQuery(faction.id, ''), staleTime: 'static' }),
+  ])
+  return { faction, canonical: canonical ?? faction }
 }
 
-export function factionDatasheetsHead(faction: Awaited<ReturnType<typeof loadFactionDatasheets>> | undefined, origin: string) {
-  return faction
-    ? pageHead(origin, {
-        title: `${faction.displayName} datasheets`,
-        description: `${faction.displayName} datasheets, unit profiles, weapons, wargear and points.`,
-        path: factionReferenceHref(faction, '/datasheets'),
-        breadcrumbs: [
-          { name: 'Factions', path: '/factions' },
-          { name: faction.displayName, path: factionReferenceHref(faction) },
-          { name: 'Datasheets', path: factionReferenceHref(faction, '/datasheets') },
-        ],
-      })
-    : {}
+export function factionDatasheetsHead(loaderData: Awaited<ReturnType<typeof loadFactionDatasheets>> | undefined, origin: string) {
+  if (!loaderData) return {}
+  const { faction, canonical } = loaderData
+  return pageHead(origin, {
+    title: `${faction.displayName} datasheets`,
+    description: `${faction.displayName} datasheets, unit profiles, weapons, wargear and points.`,
+    path: factionReferenceHref(canonical, '/datasheets'),
+    breadcrumbs: [
+      { name: 'Factions', path: '/factions' },
+      { name: canonical.displayName, path: factionReferenceHref(canonical) },
+      { name: 'Datasheets', path: factionReferenceHref(canonical, '/datasheets') },
+    ],
+  })
 }
 
 export async function loadFactionDatasheet(queryClient: QueryClient, catalogueId: string, entryId: string, rules?: string) {
@@ -67,17 +85,25 @@ export async function loadFactionDatasheet(queryClient: QueryClient, catalogueId
         ? { statusCode: 301, headers: { 'Cache-Control': 'public, max-age=3600' } }
         : { statusCode: 307, headers: { 'Cache-Control': 'no-store' } }),
     })
-  await queryClient.query({
-    ...referenceChangesQuery({ kind: 'datasheet', faction: faction.slug, slug: sheet.slug }),
-    staleTime: 'static',
-  })
-  return { faction, sheet }
+  const [current] = await Promise.all([
+    currentFactionFor(queryClient, faction),
+    queryClient.query({
+      ...referenceChangesQuery({ kind: 'datasheet', faction: faction.slug, slug: sheet.slug }),
+      staleTime: 'static',
+    }),
+  ])
+  const currentSheet = current && (await queryClient.query({ ...datasheetSlugQuery(current.id, sheet.slug), staleTime: 'static' }))
+  return {
+    faction,
+    sheet,
+    canonical: current && currentSheet ? { faction: current, slug: currentSheet.slug } : { faction, slug: sheet.slug },
+  }
 }
 
 export function factionDatasheetHead(loaderData: Awaited<ReturnType<typeof loadFactionDatasheet>> | undefined, origin: string) {
   if (!loaderData) return {}
-  const { faction, sheet } = loaderData
-  const path = factionReferenceHref(faction, `/datasheets/${sheet.slug}`)
+  const { faction, sheet, canonical } = loaderData
+  const path = factionReferenceHref(canonical.faction, `/datasheets/${canonical.slug}`)
   const { title, description } = datasheetPreview(sheet, faction.displayName)
   return pageHead(origin, {
     title,
@@ -85,10 +111,10 @@ export function factionDatasheetHead(loaderData: Awaited<ReturnType<typeof loadF
     path,
     article: true,
     image: previewImage(`/datasheets/${faction.slug}/${sheet.slug}`, title),
-    markdown: `/api/reference/v1/datasheets/${faction.id}/${sheet.slug}`,
+    markdown: `/api/reference/v1/datasheets/${canonical.faction.id}/${canonical.slug}`,
     breadcrumbs: [
       { name: 'Factions', path: '/factions' },
-      { name: faction.displayName, path: factionReferenceHref(faction) },
+      { name: canonical.faction.displayName, path: factionReferenceHref(canonical.faction) },
       { name: sheet.name, path },
     ],
   })
@@ -107,9 +133,15 @@ export async function loadFactionDetachment(queryClient: QueryClient, catalogueI
       params: { catalogueId: route.catalogueId, detachmentId: route.slug },
       replace: true,
     })
-  const detachment = await queryClient.query({ ...detachmentDetailQuery(faction.id, detachmentId), staleTime: 'static' })
+  const [detachment, current] = await Promise.all([
+    queryClient.query({ ...detachmentDetailQuery(faction.id, detachmentId), staleTime: 'static' }),
+    currentFactionFor(queryClient, faction),
+  ])
   if (!detachment) throw notFound()
-  return { detachment, faction }
+  const published = current?.detachments.some(
+    ({ referenceRoute }) => referenceRoute?.catalogueId === current.slug && referenceRoute.slug === detachmentId,
+  )
+  return { detachment, faction, canonical: current && published ? current : faction }
 }
 
 export function factionDetachmentHead(
@@ -118,8 +150,8 @@ export function factionDetachmentHead(
   detachmentId: string,
 ) {
   if (!loaderData) return {}
-  const { detachment, faction } = loaderData
-  const path = factionReferenceHref(faction, `/detachments/${detachmentId}`)
+  const { detachment, faction, canonical } = loaderData
+  const path = factionReferenceHref(canonical, `/detachments/${detachmentId}`)
   const { title, description } = detachmentPreview(detachment.name, faction.displayName)
   return pageHead(origin, {
     title,
@@ -127,10 +159,10 @@ export function factionDetachmentHead(
     path,
     article: true,
     image: previewImage(`/detachments/${faction.slug}/${detachmentId}`, title),
-    markdown: `/api/reference/v1/detachments/${faction.id}/${detachmentId}`,
+    markdown: `/api/reference/v1/detachments/${canonical.id}/${detachmentId}`,
     breadcrumbs: [
       { name: 'Factions', path: '/factions' },
-      { name: faction.displayName, path: factionReferenceHref(faction) },
+      { name: canonical.displayName, path: factionReferenceHref(canonical) },
       { name: detachment.name, path },
     ],
   })

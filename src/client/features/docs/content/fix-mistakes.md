@@ -18,6 +18,10 @@ Seated players can keep going offline if they've opened the battle online once. 
 
 A battle finishes when the fifth round's scoring is done.
 
-To stop early, open **Battle options** and choose **Concede battle**, or **Concede for [name]** for someone else. A concession is a loss for that side whatever the score. In a battle you play alone, only your own side can concede.
+To stop early, open **Battle options** and choose **Concede battle**, or **Concede for [name]** for someone else. A concession is a loss for that side whatever the score.
+
+A battle you play alone has no opponent whose result matters, so **Battle options** also offers **End practice battle**. It ends the game at the current score, and practice games never count for your record or the leaderboard.
+
+A game you're in that nobody has played for three days shows its date and **Resume** in amber on its card. On the home page, games untouched for two weeks or more move into one **unfinished games waiting** row that opens your battles page.
 
 Only the person who created the battle can **Delete battle**. That removes it for everyone, for good.

@@ -134,6 +134,24 @@ describe('battle management', () => {
     )
   })
 
+  it('lets a practice battle finish early', () => {
+    const state = reduceBattle(PLAYERS, log(...started()), undefined, [BOB])
+    expect(validate(state, ALICE, { kind: 'end-battle', reason: 'finished-early' })).toBeNull()
+  })
+
+  it('refuses to call a guest battle early', () => {
+    const guest = guestSeatId('battle', 0)
+    const history = log(
+      [ALICE, roster('Ultramarines')],
+      [guest, roster('Death Guard')],
+      [ALICE, { kind: 'begin-battle', firstPlayerId: ALICE }],
+    )
+    const state = reduceBattle([ALICE, guest], history, undefined, [guest])
+    expect(validate(state, ALICE, { kind: 'end-battle', reason: 'finished-early' })).toBe(
+      'a battle ends after its last turn or by concession',
+    )
+  })
+
   it('records natural completion only from the final turn', () => {
     const state = reduceBattle(PLAYERS, log(...started()))
     expect(validate(state, ALICE, { kind: 'end-battle', reason: 'completed' })).toBe('a battle ends after its last turn or by concession')

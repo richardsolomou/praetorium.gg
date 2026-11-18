@@ -51,6 +51,8 @@ export type HomeData = {
   /** The control that opens a battle, supplied rather than imported: see `Home`. */
   newBattle?: ReactNode
   notifications?: ReactNode
+  /** The way back to the list a visitor left on this device, supplied for the same reason as `newBattle`. */
+  guestDraft?: ReactNode
   /** Asking to delete one of the reader's own games, answered by `Home` and not here. */
   onDelete?: (battle: Battle) => void
 }
@@ -81,11 +83,13 @@ export function HomeView({
   leaders,
   newBattle,
   notifications,
+  guestDraft,
   onDelete,
 }: HomeData) {
   const [since] = useState(() => Date.now() - ABANDONED_AFTER)
   const live = (battle: Battle) => battle.status === 'finished' || battle.lastActivity > since
   const going = mine.filter((battle) => battle.status !== 'finished' && battle.lastActivity > since)
+  const stale = mine.filter((battle) => battle.status !== 'finished' && battle.lastActivity <= since).length
   const finished = mine.filter((battle) => battle.status === 'finished' && !battle.playerDetails?.some(isPracticeSeat))
   const played = finished.slice(0, LINES_SHOWN)
   const detail = useBattleDetail()
@@ -109,13 +113,21 @@ export function HomeView({
         <div className="mx-auto w-full max-w-6xl space-y-10 px-5 py-8 sm:px-6">
           <Columns
             lead={
-              !battled || listsFirst || going.length || rostersDue.length || leagueGames.length || changedRosters.size || friendRequests ? (
+              !battled ||
+              listsFirst ||
+              going.length ||
+              stale ||
+              rostersDue.length ||
+              leagueGames.length ||
+              changedRosters.size ||
+              friendRequests ? (
                 <>
                   {battled ? null : (
                     <HomeGetStarted hasRoster={rosterCount > 0} inGroup={groups.some((group) => !group.pending)} newBattle={newBattle} />
                   )}
                   <HomeInProgress
                     games={going}
+                    staleGames={stale}
                     viewerId={me.id}
                     onDelete={onDelete}
                     rostersDue={rostersDue}
@@ -160,7 +172,7 @@ export function HomeView({
   }
   return (
     <main className="w-full">
-      <HomeHero battle={hero} />
+      <HomeHero battle={hero} guestDraft={guestDraft} />
       <div className="mx-auto w-full max-w-6xl space-y-12 px-5 py-10 sm:px-6 md:space-y-16 md:py-16">
         <HomeSteps />
         <Columns

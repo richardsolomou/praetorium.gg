@@ -14,7 +14,7 @@ If something's missing, the dialog says so, such as **Choose a detachment.**
 
 ![The Create roster dialog for Space Marines with Strike Force, Gladius Task Force and the Take and Hold Force disposition chosen.](screenshot:build-an-army-setup 'The Force disposition choice in the Create roster dialog')
 
-You can also start with **Start a roster** on a faction or detachment page, or **Add to roster** on a datasheet.
+You can also start with **Start a roster** on a faction or detachment page, or **Add to roster** on a datasheet. The end of each of those pages offers the same: **Build a list** on a faction or detachment page, **Add to a list** on a datasheet.
 
 ## Detachment points
 
@@ -26,6 +26,6 @@ The box beside the battle size takes a points limit from 500 to 10,000. Leave it
 
 ## Without an account
 
-This browser keeps one private roster for you. **Save roster** in the footer takes you through creating an account or signing in, then returns you to your army. The draft stays on this device until saving succeeds.
+This browser keeps one private roster for you. **Save roster** in the footer takes you through creating an account or signing in, then returns you to your army. The draft stays on this device until saving succeeds. Until then, the home page and faction pages show a link back to it, which you can hide.
 
 Variants, saved loadouts, sharing, locking, lending and battles need an account.

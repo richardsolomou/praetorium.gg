@@ -1,4 +1,5 @@
 import { Link } from '@tanstack/react-router'
+import type { ReactNode } from 'react'
 import { ChevronRight, Eye } from 'lucide-react'
 import { buttonClass } from '../../components/buttonClass'
 import { battleStage } from '../../battleStage'
@@ -19,7 +20,7 @@ import { nameColour } from '../../playerName'
  * shows the logo, so the hero beside it does not change size. Stacked, the logo
  * would only be a box under the pitch, so a narrow screen leaves it out.
  */
-export function HomeHero({ battle }: { battle?: Battle }) {
+export function HomeHero({ battle, guestDraft }: { battle?: Battle; guestDraft?: ReactNode }) {
   return (
     <section className="masthead-bleed relative overflow-hidden border-b border-edge bg-masthead">
       <div className="construction-grid" />
@@ -60,6 +61,7 @@ export function HomeHero({ battle }: { battle?: Battle }) {
             </a>
             .
           </p>
+          {guestDraft}
         </div>
         {battle ? <HeroBattle battle={battle} /> : <HeroMark />}
       </div>

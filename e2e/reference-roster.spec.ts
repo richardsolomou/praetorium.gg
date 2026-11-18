@@ -40,6 +40,20 @@ test('a visitor starts a roster from a datasheet and is told when it cannot take
   await expect(page.locator('[data-unit]').filter({ hasText: 'Imotekh the Stormlord' })).toHaveCount(1)
 })
 
+test('a visitor who started a list at the end of a datasheet is offered it again on the home page', async ({ page }) => {
+  await page.goto(DATASHEET)
+  await page.waitForLoadState('networkidle')
+  await page.getByRole('button', { name: 'Add to a list', exact: true }).click()
+  await createFromSetup(page, 'Awakened Dynasty')
+  await expect(page.locator('[data-unit]').filter({ hasText: 'Imotekh the Stormlord' })).toHaveCount(1)
+  await expect.poll(() => guestDraft(page)).toContain('"picks":[{')
+  const draftUrl = page.url()
+
+  await page.goto('/')
+  await page.getByRole('link', { name: /Continue your Necrons list/ }).click()
+  await expect(page).toHaveURL(draftUrl)
+})
+
 test('a visitor starts a roster from a faction page with that faction chosen', async ({ page }) => {
   await page.goto('/factions/necrons')
   const setup = page.getByRole('dialog', { name: 'Create roster' })
