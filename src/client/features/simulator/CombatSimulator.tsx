@@ -1,6 +1,6 @@
 import { noExclusions } from '../../../core/combatMatchup'
 import { GuideHelp } from '../onboarding/GuideHelp'
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { posthog } from 'posthog-js'
 import { ArrowLeftRight } from 'lucide-react'
 import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -49,7 +49,8 @@ function savedRosterSide(side: SimulatorSide, roster: CombatRoster | null, name:
 const savedCombatRoster = (roster: LocalRoster | null | undefined): CombatRoster | null => (roster ? { ...roster, pickIndex: 0 } : null)
 
 /** The standalone page keeps its matchup in the URL, so a link reopens the same calculation. */
-export function CombatSimulator({
+/** `shared` is the setup it opens with; each change after is reported through `onShare`. */
+export const CombatSimulator = memo(function CombatSimulator({
   shared,
   onShare,
   reference,
@@ -73,9 +74,7 @@ export function CombatSimulator({
       factions.data?.factions.find((faction) => faction.id === roster.catalogueId),
     )
   const savedRosters = (saved.data ?? []).filter((roster) => !roster.archived)
-  useEffect(() => {
-    if (session.shared !== shared) onShare(session.shared)
-  }, [session.shared, shared, onShare])
+  useEffect(() => onShare(session.shared), [session.shared, onShare])
   const ownerOf = useRosterOwners()
   const sealedEventSources = new Map<string, SimulatorRosterSource>(
     sealedEventRosters.map((entry) => {
@@ -308,7 +307,7 @@ export function CombatSimulator({
       </PageContent>
     </main>
   )
-}
+})
 
 /** The selected unit, everything attached to it, and its roster, so a recent simulation names them too. */
 function joinedUnitName(combatant: Combatant) {
