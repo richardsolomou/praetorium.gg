@@ -10,7 +10,6 @@ import { postHogSourceMaps } from './scripts/posthogSourceMaps.ts'
 export default defineConfig(({ mode }): UserConfig => {
   const env = loadEnv(mode, process.cwd(), '')
   process.env = { ...env, ...process.env }
-  const sourceMaps = postHogSourceMaps(process.env)
   return {
     ...(process.env.LOCAL_BUILD_DIR ? { cacheDir: path.join(process.env.LOCAL_BUILD_DIR, 'vite-cache') } : {}),
     // The Node preview renderer inlines its WebAssembly, which only an asset type accepts.
@@ -71,10 +70,9 @@ export default defineConfig(({ mode }): UserConfig => {
       }),
       viteReact(),
       tailwindcss(),
-      sourceMaps?.client,
+      postHogSourceMaps(process.env),
       recentChangelogPlugin(),
       offlineAppPlugin(),
     ],
-    ...(sourceMaps ? { worker: { plugins: () => [sourceMaps.worker()] } } : {}),
   }
 })

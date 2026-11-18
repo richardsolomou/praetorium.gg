@@ -5,7 +5,7 @@ import { createQueryClient } from './client/queryClient'
 import { writesPending } from './client/pendingWrites'
 import { staleBuildRelease } from './client/releaseUpdate'
 import { completedRouteRecovery, reloadStaleBuild, reportRouteError, routeRecoveryPending } from './client/routeErrors'
-import { openedTextPage } from './client/sourceText'
+import { openedTextPage } from './client/textPages'
 import { siteOrigin } from './server/requestOrigin'
 import { routeTree } from './routeTree.gen'
 

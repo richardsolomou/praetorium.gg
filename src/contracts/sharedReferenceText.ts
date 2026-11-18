@@ -1,9 +1,8 @@
-import { jsonByteLength } from '../core/json'
 import { hasTextTokens } from '../core/sourceText'
 
 const REFERENCE = '$praetoriumText'
 const MAX_TEXTS = 100_000
-const MAX_BYTES = 100_000_000
+const MAX_LENGTH = 100_000_000
 
 function isReferenceTexts(texts: unknown): texts is string[] {
   return Array.isArray(texts) && texts.length <= MAX_TEXTS && texts.every((text) => typeof text === 'string')
@@ -33,10 +32,16 @@ export function shareReferenceText(value: unknown) {
   return { value: replace(value), texts }
 }
 
-export function restoreReferenceText(value: unknown, texts: unknown) {
+/**
+ * Puts each shared text back where it was taken from, rewriting `value` in place: it is the freshly parsed part, and
+ * copying every object of a whole faction costs a phone more than the parse itself. `size` is the length of the JSON
+ * `value` and `texts` were parsed from, which a caller holding that JSON passes rather than having it encoded again.
+ */
+export function restoreReferenceText(value: unknown, texts: unknown, size = JSON.stringify({ value, texts }).length) {
   if (!isReferenceTexts(texts)) throw new Error('Invalid reference texts')
-  let remaining = MAX_BYTES - jsonByteLength({ value, texts })
-  const restore = (item: unknown, depth = 0): unknown => {
+  // Bounds what the shared texts expand to, in string length, which is what they occupy once restored.
+  let remaining = MAX_LENGTH - size
+  const restore = (item: unknown, depth: number): unknown => {
     if (depth > 64) throw new Error('Reference data is too deeply nested')
     if (!item || typeof item !== 'object') return item
     if (REFERENCE in item) {
@@ -44,13 +49,14 @@ export function restoreReferenceText(value: unknown, texts: unknown) {
       if (Object.keys(item).length !== 1 || typeof index !== 'number' || !Number.isSafeInteger(index) || index < 0 || index >= texts.length)
         throw new Error('Invalid reference text')
       const text: string = texts[index]!
-      remaining -= jsonByteLength(text)
+      remaining -= text.length
       if (remaining < 0) throw new Error('Reference texts exceed the size limit')
       return text
     }
-    if (Array.isArray(item)) return item.map((child) => restore(child, depth + 1))
-    return Object.fromEntries(Object.entries(item).map(([key, child]) => [key, restore(child, depth + 1)]))
+    if (Array.isArray(item)) for (let at = 0; at < item.length; at++) item[at] = restore(item[at], depth + 1)
+    else for (const key in item) (item as Record<string, unknown>)[key] = restore((item as Record<string, unknown>)[key], depth + 1)
+    return item
   }
   if (remaining < 0) throw new Error('Reference texts exceed the size limit')
-  return restore(value)
+  return restore(value, 0)
 }

@@ -225,6 +225,12 @@ const warmPlayedArmies = () =>
     .then(({ playedArmiesPage }) => playedArmiesPage(null, { before: null }))
     .catch((error: unknown) => reportServerFailure({ event: 'played_armies_warm_failed', error }, 'warn'))
 
+// Every start and catalogue swap begins with no roster's picker built, and a first build takes seconds.
+const prepareRecentPickers = (current: () => boolean) =>
+  import('./rosterPicker')
+    .then((picker) => picker.prepareRecentPickers(current))
+    .catch((error: unknown) => reportServerFailure({ event: 'recent_pickers_warm_failed', error }, 'warn'))
+
 const prepareReference = () =>
   import('./referenceApi')
     .then((reference) => reference.prepareReference())
@@ -392,7 +398,12 @@ export function app(): App {
     const notifier = storingNotifier(repository, push || webPush ? pushNotifier(repository, { app: push, web: webPush }) : silentNotifier)
     const collectionPhotos = collectionPhotoStore(repository, () => privateObjects())
     const screening = process.env.TYPESAFE_API_KEY?.trim() ? photoScreening(process.env.TYPESAFE_API_KEY.trim()) : null
-    const startup = readiness((untilBuilt) => warm(instance, untilBuilt, warmPlayedArmies))
+    const startup = readiness((untilBuilt) =>
+      warm(instance, untilBuilt, () => {
+        const { construction } = instance
+        return Promise.all([warmPlayedArmies(), prepareRecentPickers(() => instance.construction === construction)])
+      }),
+    )
     const loaded = catalogueLoaders(catalogueDataDirectory)
     const authOptions = {
       environment: process.env,

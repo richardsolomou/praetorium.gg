@@ -74,7 +74,7 @@ export const encodeReferencePart = (value: unknown) => JSON.stringify(shareRefer
 
 export function decodeReferencePart(json: string): unknown {
   const { value, texts } = JSON.parse(json) as { value: unknown; texts: unknown }
-  return restoreReferenceText(value, texts)
+  return restoreReferenceText(value, texts, json.length)
 }
 
 const ASSET = /^\/(?:assets|catalogue-assets\/[a-f0-9]{64})\/(?:reference|construction)-[a-f0-9]{64}\.bin$/

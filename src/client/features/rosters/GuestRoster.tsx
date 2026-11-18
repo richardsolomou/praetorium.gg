@@ -16,12 +16,12 @@ import {
   GUEST_PATH,
   type GuestDraft,
   guestSaveRequested,
-  keepReviewedDraft,
   markGuestDraft,
   peekGuestDraft,
   readGuestDraft,
   watchGuestDraft,
 } from './guestDraft'
+import { keepReviewedDraft } from './reviewedGuestDraft'
 import { ListBuilder } from './ListBuilder'
 import { RosterOutline } from './RosterPresentation'
 import { saveFailureReason } from './saveFailure'

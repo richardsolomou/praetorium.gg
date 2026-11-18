@@ -3,21 +3,7 @@ import { editionCatalogueId, picksForCatalogueEdition } from './catalogueEdition
 import { migratedEditionId, migratedEditionPick, onFoldedEdition } from './editionMigrations'
 import { retainedRulesEdition } from './retainedRosterRules'
 import type { RosterPick } from './roster'
-
-function omitRetired(value: unknown, field: string): unknown {
-  if (!value || typeof value !== 'object' || Array.isArray(value) || !(field in value)) return value
-  const { [field]: _retired, ...rest } = value as Record<string, unknown>
-  return rest
-}
-
-export function migrateSavedRoster(value: unknown): unknown {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return value
-  const roster = value as Record<string, unknown>
-  return {
-    ...roster,
-    ...('prep' in roster ? { prep: omitRetired(roster.prep, 'shareNotes') } : {}),
-  }
-}
+import { migrateSavedRoster } from './retiredRosterFields'
 
 export function migrateStoredRoster<
   T extends {

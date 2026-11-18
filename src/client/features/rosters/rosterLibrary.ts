@@ -25,7 +25,8 @@ import { errorMessage } from '../../queryClient'
 import { shareLink } from '../../nativeBridge'
 import type { RosterSetupReview } from './rosterSetupReview'
 import { exportInput } from './rosterDraft'
-import { claimInput, clearGuestDraft, type GuestDraft, keepReviewedDraft } from './guestDraft'
+import { claimInput, clearGuestDraft, type GuestDraft } from './guestDraft'
+import { keepReviewedDraft } from './reviewedGuestDraft'
 
 /** One saved list, as the library reads it back. */
 export type SavedRoster = QueryData<typeof savedRosterSummariesQuery>[number]

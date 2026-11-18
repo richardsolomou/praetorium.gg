@@ -25,6 +25,7 @@ import { PHASES, type Phase, type TurnScope, BATTLE_ROUNDS } from './battlePhase
 import { PLAYERS_PER_BATTLE, battleCapacity } from './battleSeats'
 import {
   DETACHMENTS_MAX,
+  ROSTER_NAME_MAX_LENGTH,
   isGameSize,
   isKotcLimit,
   validArmyPoints,
@@ -89,6 +90,7 @@ export {
   customPointsBudget,
   pointsBudgetOf,
   pointsLabel,
+  ROSTER_NAME_MAX_LENGTH,
   pointsSize,
   battleSizeName,
   battleSizeTitle,
@@ -159,8 +161,6 @@ export { sideOwes, secondaryDrawTarget, undrawnSecondaries, sameRandomDraw, scor
 export { missedMoments } from './battleMoments'
 
 const COMMAND_PHASE_CP = 1
-
-export const ROSTER_NAME_MAX_LENGTH = 80
 
 /**
  * The longest label naming where a stratagem came from.

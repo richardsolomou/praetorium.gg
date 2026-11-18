@@ -2,7 +2,7 @@ import { expect, it } from 'vitest'
 import { evaluate } from '../core/evaluate'
 import { buildUnit } from '../core/roster'
 import { bookOf, card, points, withCards } from './catalogue.fixtures'
-import { laterCopyPrices, priceOf } from '../shared/catalogueUnit'
+import { priceOf, rosterPrices } from '../shared/catalogueUnit'
 import { calculateRosterAssessment, calculateRosterPrice, calculateRosterTotals, savedRosterPriceInput } from '../shared/pricing'
 import { unitPointAdjustment } from '../shared/unitPoints'
 import { mfmWargearOptionPoints } from './mfm'
@@ -182,7 +182,7 @@ it('prices first, second, and third copies from MFM without retaining BSData cop
   const pricedInput = savedRosterPriceInput(saved)
   expect({
     picker: priceOf(catalogue, 'cat', 'squad'),
-    pickerLaterCopies: laterCopyPrices(catalogue, 'cat', 'squad', []),
+    pickerLaterCopies: rosterPrices(catalogue, 'cat', 'squad', []).laterCopyPoints,
     units: calculateRosterPrice(pricedInput, catalogue, null)?.units.map((unit) => unit.points),
     assessment: calculateRosterAssessment(pricedInput, catalogue, null)?.points,
     total: calculateRosterTotals(pricedInput, catalogue, null)?.points,

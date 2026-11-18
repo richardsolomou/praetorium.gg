@@ -6,7 +6,8 @@ import { datasheetProfileKind, weaponPhase } from './datasheetStructure'
 import { normalizeCombatKeyword } from './combatKeywords'
 import { withoutFactionPrefix } from './name'
 import { selectionCountBoundsAt, type EvaluateOptions, type Selection } from './evaluate'
-import { wargearKey, wargearOf, type Wargear } from './wargear'
+import { wargearOf, type Wargear } from './wargear'
+import { wargearKey } from './wargearNames'
 
 type CombatEquipment = Wargear & { profileIds?: string[] }
 export type CombatCarrier = {

@@ -2,7 +2,6 @@ import { useQuery } from '@tanstack/react-query'
 import { posthog } from 'posthog-js'
 import { useEffect } from 'react'
 import type { RuleDocument, RuleSection, RuleTextSource } from '../contracts/rules'
-import { ruleDocumentFrom } from '../shared/ruleDocuments'
 import { byId, toggled } from '../core/collections'
 import { TEXT_SOURCES, type TextSource } from '../core/sourceText'
 import { isFetchNetworkFailure } from './networkErrors'
@@ -133,6 +132,8 @@ const sourceBytes = (text: RuleTextSource) => upstreamBytes(text.url, (response)
 
 /** The full document read from its pinned upstream file, refused unless it is the exact file the outline was built from. */
 export async function loadRuleText(text: RuleTextSource): Promise<RuleDocument> {
+  // Imported here: the shell reads this module for the text source choice, and the parser needs the battle rules.
+  const { ruleDocumentFrom } = await import('../shared/ruleDocuments')
   const document = ruleDocumentFrom(JSON.parse(new TextDecoder().decode(await sourceBytes(text))), text)
   if (!document) throw new Error('The Game Datacards file is not a rules document')
   return document

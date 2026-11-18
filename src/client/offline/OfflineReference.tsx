@@ -103,7 +103,7 @@ export function OfflineReference() {
         setPublishedReference(manifest)
         stage = 'check'
         const held = referenceData()
-        const catalogues = cataloguesInUse(client)
+        const catalogues = await cataloguesInUse(client)
         // Another tab may have saved rules versions this one never loaded, which must stay saved.
         const stored = await savedReference()
         const editions = editionsFor(manifest, [...(held?.editions ?? []), ...(stored?.editions ?? [])], catalogues)

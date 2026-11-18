@@ -32,7 +32,6 @@ import {
   type OnboardingStepId,
 } from './onboarding'
 import { Problem } from '../../components/Problem'
-import { peekGuestDraft } from '../rosters/guestDraft'
 
 /** How long a step waits for its control to appear before the guide offers the page instead. */
 const TARGET_WAIT = 1_500
@@ -51,7 +50,7 @@ export function OnboardingGuide() {
 }
 
 function AccountOnboardingGuide({ userId }: { userId?: string }) {
-  const location = useLocation()
+  const pathname = useLocation({ select: (location) => location.pathname })
   const navigate = useNavigate()
   const posthog = usePostHog()
   const queryClient = useQueryClient()
@@ -71,7 +70,7 @@ function AccountOnboardingGuide({ userId }: { userId?: string }) {
   // The focus whose control never arrived, rather than a flag, so a step that has moved on, or come back, starts unlost.
   const [lost, setLost] = useState<OnboardingFocus>()
   const compact = useCompactChrome()
-  const page = onboardingPage(location.pathname)
+  const page = onboardingPage(pathname)
   const focusedStep = focus ? ONBOARDING_UI[focus.step] : undefined
 
   // The ref answers event handlers that run before the next render; storage follows each committed step.
@@ -89,7 +88,7 @@ function AccountOnboardingGuide({ userId }: { userId?: string }) {
 
   const showStep = async (next: OnboardingFocus) => {
     rememberFocus(next)
-    const href = onboardingHrefFor(next.step, onboardingPage(location.pathname))
+    const href = onboardingHrefFor(next.step, onboardingPage(pathname))
     const targetExists = document.querySelector(`[data-onboarding="${ONBOARDING_UI[next.step].target}"]`)
     if (href && !targetExists) await navigate({ href })
   }
@@ -188,7 +187,9 @@ function AccountOnboardingGuide({ userId }: { userId?: string }) {
 
   const launch = async (task: OnboardingTaskId, step?: OnboardingStepId) => {
     posthog.capture('onboarding_task_started', { task })
-    const guest = !userId && task === 'roster' && (!step || step === 'roster-start') ? peekGuestDraft() : null
+    // Imported here: reading a guest draft loads the retired rules table, which the shell leaves out of every page's first bundle.
+    const guest =
+      !userId && task === 'roster' && (!step || step === 'roster-start') ? (await import('../rosters/guestDraft')).peekGuestDraft() : null
     if (guest) {
       rememberFocus({ task, step: guest.draft.picks.length ? 'roster-list' : 'roster-picker' })
       await navigate({ to: '/rosters/$id', params: { id: guest.id } })

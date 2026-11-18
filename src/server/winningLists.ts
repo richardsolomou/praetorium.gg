@@ -5,6 +5,8 @@ import { z } from 'zod'
 import { listUnitCount } from '../core/attachedUnits'
 import { currentCatalogueFamilyId } from '../core/retiredCatalogueIds'
 import { rosterUseProblem } from '../core/rosterLegality'
+import { saveRosterSchema } from '../contracts/schemas'
+import { version as release } from '../../package.json'
 import { calculateRosterPrice } from '../shared/pricing'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { fetchWithRetry } from './fetch'
@@ -59,6 +61,12 @@ const verdictSchema = z
   .nullable()
 type Verdict = z.infer<typeof verdictSchema>
 const verdicts = z.object({ revision: z.string(), lists: z.record(z.string(), verdictSchema) })
+/**
+ * One list's import under one revision and app release, with the draft its page and get_winning_list read, so no reader
+ * imports it again until either changes: a release can change how lists import while the catalogue stays the same.
+ */
+const importedSchema = z.object({ revision: z.string(), release: z.string(), verdict: verdictSchema, draft: saveRosterSchema.nullable() })
+type Imported = z.infer<typeof importedSchema>
 
 export type WinningList = NonNullable<Verdict> & {
   id: string
@@ -74,6 +82,7 @@ const writeWhole = (file: string, text: string) => replaceFile(file, (temporary)
 const listFile = (directory: string, id: string) => path.join(directory, 'lists', `${id}.txt`)
 const eventsFile = (directory: string) => path.join(directory, 'events.json')
 const verdictsFile = (directory: string) => path.join(directory, 'verdicts.json')
+const importedFile = (directory: string, id: string) => path.join(directory, 'imported', `${id}.json`)
 
 /**
  * Brings the cache up to date with the top-four placings 40k Stats and Mini Headquarters publish: 40k Stats' event
@@ -100,7 +109,7 @@ export async function refreshWinningLists(directory: string) {
   if (french.failure) throw french.failure
 }
 
-/** A list's import, kept only when it has nothing to review and is legal: its verdict and the units it was read as. */
+/** A list's import, kept only when it has nothing to review and is legal: its verdict and the draft it was read as. */
 async function importWinningList(text: string) {
   const imported = await importRosterInput(text).catch(() => null)
   if (!imported) return null
@@ -120,11 +129,20 @@ async function importWinningList(text: string) {
     disposition,
     limit,
     unitCount: listUnitCount(result.units.map((unit) => ({ attachedTo: 'attachedTo' in unit ? unit.attachedTo : undefined }))),
-    points: priced.points,
     datasheets: fielded(priced.units),
+    points: priced.points,
     reportedPoints: result.reportedPoints,
   }
-  return { verdict, units: result.units, result }
+  return { verdict, draft: importedRosterDraft(result) }
+}
+
+/** Imports a list and keeps the result under the revision. */
+async function importAndKeep(directory: string, id: string, text: string, revision: string): Promise<Imported> {
+  const imported = await importWinningList(text)
+  const kept = { revision, release, verdict: imported?.verdict ?? null, draft: imported?.draft ?? null }
+  await fs.mkdir(path.dirname(importedFile(directory, id)), { recursive: true })
+  await writeWhole(importedFile(directory, id), JSON.stringify(kept))
+  return kept
 }
 
 function fielded(units: readonly { entryId: string; name: string; size: { models: number } }[]) {
@@ -136,8 +154,6 @@ function fielded(units: readonly { entryId: string; name: string; size: { models
   }
   return [...datasheets.values()]
 }
-
-const importVerdict = async (text: string): Promise<Verdict> => (await importWinningList(text))?.verdict ?? null
 
 const placed = (
   verdict: NonNullable<Verdict>,
@@ -194,7 +210,7 @@ async function importableLists(
         const text = await fs.readFile(listFile(directory, player.list), 'utf8').catch(() => null)
         if (text === null) continue
         const started = performance.now()
-        known[player.list] = await importVerdict(text)
+        known[player.list] = (await importAndKeep(directory, player.list, text, revision)).verdict
         const took = performance.now() - started
         // Saved as it goes, so a restart part way through carries on rather than starting again.
         if (++imported % 25 === 0) {
@@ -278,6 +294,13 @@ export function winningListsStore(directory: string, catalogue: () => LoadedCata
   let shown: { lists: WinningList[]; revision: string; version: number; complete: boolean } | null = null
   let version = 0
   let running: Promise<void> | null = null
+  const readEvents = () => readJson(eventsFile(directory), events)
+  // Only a refresh rewrites the events, so they are read once per refresh rather than per list read.
+  let placings: { version: number; events: ReturnType<typeof readEvents> } | null = null
+  const cachedEvents = () => {
+    placings = placings?.version === version ? placings : { version, events: readEvents() }
+    return placings.events
+  }
   const read = () => {
     const revision = catalogue()?.index.revision
     if (!revision || running || (shown?.complete && shown.revision === revision && shown.version === version)) return
@@ -315,19 +338,21 @@ export function winningListsStore(directory: string, catalogue: () => LoadedCata
       version++
       read()
     },
-    /** One placing with the units it imports as, the draft save_roster takes and its army text, read afresh; null for a list that is not shown. */
+    /**
+     * One placing with the units it imports as, the draft save_roster takes and its army text, as imported under the
+     * current revision and release; null for a list that is not shown. Only a list not yet imported under both is imported now.
+     */
     list: async (id: string) => {
-      if (!LIST_ID.test(id)) return null
-      const event = (await readJson(eventsFile(directory), events))?.find((candidate) =>
-        candidate.players.some((player) => player.list === id),
-      )
+      const revision = catalogue()?.index.revision
+      if (!LIST_ID.test(id) || !revision) return null
+      const event = (await cachedEvents())?.find((candidate) => candidate.players.some((player) => player.list === id))
       const player = event?.players.find((candidate) => candidate.list === id)
       const text = await fs.readFile(listFile(directory, id), 'utf8').catch(() => null)
-      const imported = event && player && text ? await importWinningList(text) : null
-      const draft = imported && importedRosterDraft(imported.result)
-      return imported && draft && event && player && text
-        ? { list: placed(imported.verdict, id, event, player), units: imported.units, draft, text }
-        : null
+      if (!event || !player || !text) return null
+      const kept = await readJson(importedFile(directory, id), importedSchema)
+      const { verdict, draft } =
+        kept?.revision === revision && kept.release === release ? kept : await importAndKeep(directory, id, text, revision)
+      return verdict && draft ? { list: placed(verdict, id, event, player), units: draft.picks, draft, text } : null
     },
   }
 }

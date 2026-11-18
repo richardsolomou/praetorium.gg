@@ -1,17 +1,11 @@
 import type { JSX } from 'react'
 import { PREVIEW_SIZE, type PreviewCard, SITE } from '../contracts/linkPreview'
-import { battleSizeText } from '../core/battle'
-import type { BattleView } from '../core/battleView'
 import type { Datasheet } from '../contracts/catalogue'
 import type { RosterVisibility } from '../core/savedRoster'
 import type { ServiceRecord } from '../core/serviceRecord'
-import { battleOutcome } from './battleOutcome'
-import { battleStage } from './battleStage'
-import { datasheetDescription, datasheetPoints } from './datasheet'
+import { datasheetDescription, datasheetPoints } from './datasheetSummary'
 import { recordSummary } from './features/profile/recordSummary'
 import type { Rankings } from './features/profile/PlayerRankings'
-import { sides } from './sides'
-import { capitalised } from '../core/text'
 
 /**
  * What a page says about itself to something unfurling its link.
@@ -20,7 +14,7 @@ import { capitalised } from '../core/text'
  * reader may see and these are built from that. The same builders feed the preview
  * images, which read with no session at all, so a picture and its caption agree.
  */
-type LinkPreview = { title: string; description: string; card: PreviewCard }
+export type LinkPreview = { title: string; description: string; card: PreviewCard }
 
 type Page = {
   title: string
@@ -42,7 +36,7 @@ type Page = {
 /** Long enough for any real name, short enough that whatever was typed, a preview stays bounded. */
 const TEXT_LIMIT = 80
 
-const clip = (text: string) => (text.length > TEXT_LIMIT ? `${text.slice(0, TEXT_LIMIT - 1)}…` : text)
+export const clip = (text: string) => (text.length > TEXT_LIMIT ? `${text.slice(0, TEXT_LIMIT - 1)}…` : text)
 
 const sitePreviewPath = '/api/previews/site'
 
@@ -144,41 +138,6 @@ export const siteCard: PreviewCard = { kind: 'site', title: SITE.title, descript
 
 /** What a battle link says when its reader may not watch it: that it is a battle, and nothing about whose. */
 export const hiddenBattle = { title: 'Battle', description: 'A Warhammer 40,000 battle on Praetorium.' }
-
-/**
- * A battle as its players, armies, stage and score.
- *
- * Read from the view the reader was given, so nothing `battleView` withholds from a
- * spectator can reach it, and only through the fields a spectator is shown: the
- * names, the score and where the battle has got to. `factionName` resolves a
- * catalogue army; a pasted list has none.
- */
-export function battlePreview(view: BattleView, factionName: (catalogueId: string) => string | null): LinkPreview {
-  const table = sides(view)
-  const stage = battleStage(view.status).name
-  const status =
-    view.status === 'playing'
-      ? `Round ${view.round} · ${capitalised(view.phase)} phase`
-      : view.status === 'finished'
-        ? battleOutcome(table, view)
-        : null
-  const size = battleSizeText(view)
-  const cardSides = table.map((side) => ({
-    score: view.status === 'setup' ? null : side.total,
-    armies: side.armies.map((army) => ({
-      player: clip(army.playerName),
-      faction: army.roster?.built ? factionName(army.roster.built.catalogueId) : null,
-    })),
-  }))
-  const score = view.status === 'playing' ? cardSides.map((side) => side.score).join('–') : null
-  return {
-    title: cardSides
-      .map((side) => side.armies.map((army) => (army.faction ? `${army.player} (${army.faction})` : army.player)).join(' & '))
-      .join(' vs '),
-    description: [stage, status, score, size].filter(Boolean).join(' · '),
-    card: { kind: 'battle', stage, status, sides: cardSides, footer: size },
-  }
-}
 
 /**
  * A saved list as its name, army and points, from the same price its page draws.

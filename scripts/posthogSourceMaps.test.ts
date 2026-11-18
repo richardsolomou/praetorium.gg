@@ -50,20 +50,15 @@ describe('postHogSourceMaps', () => {
   })
 
   it('instruments only the client environment', () => {
-    const { client } = postHogSourceMaps({ ...credentials, CI: 'true' })!
+    const client = postHogSourceMaps({ ...credentials, CI: 'true' })!
     expect(['client', 'ssr'].map((name) => client.applyToEnvironment({ name }))).toEqual([true, false])
-  })
-
-  it('gives each worker build its own plugin instance', () => {
-    const { worker } = postHogSourceMaps({ ...credentials, CI: 'true' })!
-    expect(worker()).not.toBe(worker())
   })
 })
 
 describe('an uploading build', () => {
   async function uploadingBuild() {
     await writeFile(path.join(directory, 'entry.js'), 'export const answer = () => 42\n')
-    const { client } = postHogSourceMaps({ ...credentials, CI: 'true' })!
+    const client = postHogSourceMaps({ ...credentials, CI: 'true' })!
     await build({
       root: directory,
       configFile: false,

@@ -50,7 +50,7 @@ export function CombatResults({
         data-results-summary
         className={`right-0 left-0 z-40 mx-auto rounded-xl border border-runner bg-sunken shadow-lifted ${inDialog ? 'absolute bottom-0' : 'sticky bottom-16 w-full min-[860px]:bottom-0'}`}
       >
-        <section aria-label="Combined estimate" aria-busy={supported && updating && !failed} className="px-3 pt-2.5 sm:px-4">
+        <section aria-label="Combined estimate" aria-busy={updating && !failed} className="px-3 pt-2.5 sm:px-4">
           <div className="flex items-baseline justify-between gap-2">
             <h2 className="rubric text-xs text-dim">Shooting + melee</h2>
             {selected && updating && !failed ? <output className="text-xs text-dim">Updating…</output> : null}

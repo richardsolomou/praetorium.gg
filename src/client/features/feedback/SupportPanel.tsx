@@ -1,14 +1,16 @@
 import { ArrowLeft, PenSquare } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { PageState } from '../../components/PageState'
 import { Problem } from '../../components/Problem'
-import { Conversation } from './Conversation'
 import { FeedbackForm } from './FeedbackForm'
 import { onOpenSupport, type SupportView, unreadReplies, useSupportTickets } from './support'
 import { TicketList } from './YourFeedback'
 import { countLabel } from '../../text'
+
+// The panel stays mounted to answer every request to open support; a conversation's Markdown loads only when one opens.
+const Conversation = lazy(() => import('./Conversation').then((module) => ({ default: module.Conversation })))
 
 /**
  * Support over whichever page the player is on: their conversations, a new message, and each conversation. Wide
@@ -50,7 +52,9 @@ export function SupportPanel() {
         className="min-[860px]:top-0 min-[860px]:right-0 min-[860px]:left-auto min-[860px]:h-dvh sm:max-h-none min-[860px]:w-[28rem] min-[860px]:translate-none min-[860px]:rounded-none min-[860px]:border-l min-[860px]:border-edge sm:max-w-none min-[860px]:data-open:zoom-in-100 min-[860px]:data-open:slide-in-from-right-8"
       >
         {shown.kind === 'thread' ? (
-          <Conversation key={shown.ticketId} ticketId={shown.ticketId} notice={notice} onBack={() => go({ kind: 'inbox' })} />
+          <Suspense fallback={<PageState headingLevel={2} loading title="Loading the conversation" explanation="Finding its messages." />}>
+            <Conversation key={shown.ticketId} ticketId={shown.ticketId} notice={notice} onBack={() => go({ kind: 'inbox' })} />
+          </Suspense>
         ) : shown.kind === 'compose' ? (
           <>
             <DialogHeader className={hasTickets ? 'flex flex-row items-start gap-2 pl-2' : undefined}>

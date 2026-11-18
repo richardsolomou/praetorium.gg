@@ -53,8 +53,13 @@ async function syncElsewhere(page: Page, other: Page) {
           transaction.objectStore('state').openCursor().onsuccess = (event) => {
             const entry = (event.target as IDBRequest<IDBCursorWithValue | null>).result
             if (!entry) return
-            const value = entry.value as { state: object | null }
-            if (value.state) entry.update({ ...value, state: { ...value.state, syncLease: { holder, expiresAt: Date.now() + 60_000 } } })
+            const value = entry.value as { state: { revision: number } | null }
+            // Raises the revision as every real claim does; a screen rereads saved work only when the revision moves.
+            if (value.state)
+              entry.update({
+                ...value,
+                state: { ...value.state, revision: value.state.revision + 1, syncLease: { holder, expiresAt: Date.now() + 60_000 } },
+              })
             entry.continue()
           }
           transaction.oncomplete = () => {

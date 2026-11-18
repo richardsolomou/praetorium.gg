@@ -24,6 +24,7 @@
 - Size dialogs with `Dialog.tsx` sizes, never width or height classes; use `ConfirmDialog` for consequential actions.
 - Keep labels inside elements, never bare text nodes, which browser translation replaces.
 - Never leave a query pending in the SSR cache; it holds the streamed document and hydration open.
+- Read router state through a `select` that returns only what the component draws. A whole location or match redraws it on every pane, hash, and filter change, and the shell or a workspace redrawn that way is what makes a tap slow on a phone.
 - Scroll-restoration tests use real input such as a wheel gesture; `window.scrollTo` races the restoration retries.
 
 ## Data shown to readers

@@ -11,7 +11,7 @@ import {
 } from './datasheetSearch'
 import type { CatalogueEdition } from './catalogueEdition'
 import { rosterLabel } from './rosterLabel'
-import { pointsLabel } from './battle'
+import { pointsLabel } from './battleFormat'
 
 export type GlobalSearchResult = {
   id: string

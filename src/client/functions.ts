@@ -25,129 +25,149 @@ export * from '../server/functions'
 export { browserAgentToolCatalog, callBrowserAgentTool, prepareBrowserAgentTool } from '../server/functions/agentTools'
 export { mcpConnections, revokeMcpConnection } from '../server/functions/mcpConnections'
 
-export { retireDeviceConstruction } from './offline/constructionWorker'
+/**
+ * The device fallbacks load on first use, or once the page is idle, so a page's first load carries none of the offline engine.
+ * Once loaded, each call goes straight through, with the same timing as a static import.
+ */
+function lazily<M>(load: () => Promise<M>) {
+  let loaded: M | undefined
+  const module = () => load().then((found) => (loaded = found))
+  idleLoads.push(module)
+  return <K extends DeferrableKeys<M>>(name: K) =>
+    ((...args: unknown[]) => (loaded ? call(loaded, name, args) : module().then((found) => call(found, name, args)))) as M[K]
+}
+type Deferrable = (...args: any[]) => Promise<unknown> | void
+type DeferrableKeys<M> = { [K in keyof M]: M[K] extends Deferrable ? K : never }[keyof M]
+const call = <M>(found: M, name: keyof M, args: unknown[]) => (found[name] as Deferrable)(...args)
+const idleLoads: (() => Promise<unknown>)[] = []
 
-export {
-  loadoutSearch,
-  prepareFactionUnits,
-  priceRoster,
-  units,
-  datasheetOfferedBy,
-  datasheet,
-  loadoutDatasheets,
-  combatantDatasheet,
-  combatantDatasheets,
-  combatLoadouts,
-  unitBattleDetails,
-  reminderAbilities,
-  detachmentRules,
-  exportRoster,
-  importRoster,
-} from './offline/constructionFunctions'
+/** Loads the device fallbacks after the first screen, so a connection lost later still finds them in memory. */
+export function loadOfflineFallbacks() {
+  return Promise.all(idleLoads.map((load) => load()))
+}
 
-export {
-  rosterAccess,
-  rosterBootstrap,
-  sharedRoster,
-  DELETED_ROSTER_MESSAGE,
-  saveRoster,
-  copyRoster,
-  projectLocalState,
-  deleteRoster,
-  setRosterVisibility,
-  shareSealedEventRoster,
-  saveUnitLoadout,
-  renameUnitLoadout,
-  deleteUnitLoadout,
-  setRosterLocked,
-  setRosterArchived,
-  declineRosterSharing,
-  splitRosterVariant,
-  changeRosters,
-  savedRosterLoadoutDatasheets,
-  savedRosterSummaries,
-  savedRosterPage,
-  homeRosters,
-  rosterChanges,
-  savedRosterChangedIds,
-  savedRosterPlays,
-} from './offline/rosterFunctions'
+export { DELETED_ROSTER_MESSAGE } from './offline/rosterMessages'
 
-export {
-  openBattle,
-  submit,
-  battleReport,
-  replayBattleAt,
-  replayBattleBatch,
-  createBattle,
-  createSealedEventBattle,
-  myBattles,
-} from './offline/battleFunctions'
+const worker = lazily(() => import('./offline/constructionWorker'))
+const construction = lazily(() => import('./offline/constructionFunctions'))
+const rosters = lazily(() => import('./offline/rosterFunctions'))
+const battles = lazily(() => import('./offline/battleFunctions'))
+const actions = lazily(() => import('./offline/actionFunctions'))
 
-export {
-  collection,
-  collectionCounts,
-  collectionProgress,
-  collectionWishes,
-  collectionCountsAs,
-  fieldedDatasheets,
-  wishlistSuggestions,
-  updateOnboardingProgress,
-  favouriteFactions,
-  favouriteDetachments,
-  favouriteDatasheets,
-  recentMatchups,
-  playerDefaults,
-  rosterFolders,
-  onboardingProgress,
-  notificationSettings,
-  friendships,
-  opponents,
-  listSealedEvents,
-  activeFriendInvite,
-  friendInvite,
-  openSealedEventRoster,
-  listFriendSealedEventRosters,
-  outdatedSealedEventEntriesForRoster,
-  openSealedEvent,
-  requestFriend,
-  acceptFriend,
-  rejectFriend,
-  removeFriend,
-  acceptFriendInvite,
-  joinSealedEvent,
-  addSealedEventEntrants,
-  admitSealedEventEntries,
-  moderateSealedEventEntry,
-  submitSealedEventRoster,
-  revealSealedEvent,
-  unsealSealedEventRoster,
-  assignSealedEventRosterRequirement,
-  assignSealedEventTeam,
-  chooseSealedEventSide,
-  updateSealedEvent,
-  deleteSealedEvent,
-  deleteBattle,
-  setOwned,
-  setCollectionModels,
-  setCollectionProgress,
-  setCollectionWanted,
-  setCollectionCountsAs,
-  setFavouriteFaction,
-  setFavouriteDetachment,
-  setFavouriteDatasheet,
-  rememberMatchup,
-  forgetMatchup,
-  abilityReminders,
-  setAbilityReminder,
-  removeAbilityReminder,
-  setPlayerDefaults,
-  changeRosterFolders,
-  createFriendInvite,
-  cancelFriendInvite,
-  createSealedEvent,
-  sealedEventBattleOptions,
-} from './offline/actionFunctions'
+export const retireDeviceConstruction = worker('retireDeviceConstruction')
+
+export const loadoutSearch = construction('loadoutSearch')
+export const prepareFactionUnits = construction('prepareFactionUnits')
+export const priceRoster = construction('priceRoster')
+export const units = construction('units')
+export const datasheetOfferedBy = construction('datasheetOfferedBy')
+export const datasheet = construction('datasheet')
+export const loadoutDatasheets = construction('loadoutDatasheets')
+export const combatantDatasheet = construction('combatantDatasheet')
+export const combatantDatasheets = construction('combatantDatasheets')
+export const combatLoadouts = construction('combatLoadouts')
+export const unitBattleDetails = construction('unitBattleDetails')
+export const reminderAbilities = construction('reminderAbilities')
+export const detachmentRules = construction('detachmentRules')
+export const exportRoster = construction('exportRoster')
+export const importRoster = construction('importRoster')
+
+export const rosterAccess = rosters('rosterAccess')
+export const rosterBootstrap = rosters('rosterBootstrap')
+export const sharedRoster = rosters('sharedRoster')
+export const saveRoster = rosters('saveRoster')
+export const copyRoster = rosters('copyRoster')
+export const projectLocalState = rosters('projectLocalState')
+export const deleteRoster = rosters('deleteRoster')
+export const setRosterVisibility = rosters('setRosterVisibility')
+export const shareSealedEventRoster = rosters('shareSealedEventRoster')
+export const saveUnitLoadout = rosters('saveUnitLoadout')
+export const renameUnitLoadout = rosters('renameUnitLoadout')
+export const deleteUnitLoadout = rosters('deleteUnitLoadout')
+export const setRosterLocked = rosters('setRosterLocked')
+export const setRosterArchived = rosters('setRosterArchived')
+export const declineRosterSharing = rosters('declineRosterSharing')
+export const splitRosterVariant = rosters('splitRosterVariant')
+export const changeRosters = rosters('changeRosters')
+export const savedRosterLoadoutDatasheets = rosters('savedRosterLoadoutDatasheets')
+export const savedRosterSummaries = rosters('savedRosterSummaries')
+export const savedRosterPage = rosters('savedRosterPage')
+export const homeRosters = rosters('homeRosters')
+export const rosterChanges = rosters('rosterChanges')
+export const savedRosterChangedIds = rosters('savedRosterChangedIds')
+export const savedRosterPlays = rosters('savedRosterPlays')
+
+export const openBattle = battles('openBattle')
+export const submit = battles('submit')
+export const battleReport = battles('battleReport')
+export const replayBattleAt = battles('replayBattleAt')
+export const replayBattleBatch = battles('replayBattleBatch')
+export const createBattle = battles('createBattle')
+export const createSealedEventBattle = battles('createSealedEventBattle')
+export const myBattles = battles('myBattles')
+
+export const collection = actions('collection')
+export const collectionCounts = actions('collectionCounts')
+export const collectionProgress = actions('collectionProgress')
+export const collectionWishes = actions('collectionWishes')
+export const collectionCountsAs = actions('collectionCountsAs')
+export const fieldedDatasheets = actions('fieldedDatasheets')
+export const wishlistSuggestions = actions('wishlistSuggestions')
+export const updateOnboardingProgress = actions('updateOnboardingProgress')
+export const favouriteFactions = actions('favouriteFactions')
+export const favouriteDetachments = actions('favouriteDetachments')
+export const favouriteDatasheets = actions('favouriteDatasheets')
+export const recentMatchups = actions('recentMatchups')
+export const playerDefaults = actions('playerDefaults')
+export const rosterFolders = actions('rosterFolders')
+export const onboardingProgress = actions('onboardingProgress')
+export const notificationSettings = actions('notificationSettings')
+export const friendships = actions('friendships')
+export const opponents = actions('opponents')
+export const listSealedEvents = actions('listSealedEvents')
+export const activeFriendInvite = actions('activeFriendInvite')
+export const friendInvite = actions('friendInvite')
+export const openSealedEventRoster = actions('openSealedEventRoster')
+export const listFriendSealedEventRosters = actions('listFriendSealedEventRosters')
+export const outdatedSealedEventEntriesForRoster = actions('outdatedSealedEventEntriesForRoster')
+export const openSealedEvent = actions('openSealedEvent')
+export const requestFriend = actions('requestFriend')
+export const acceptFriend = actions('acceptFriend')
+export const rejectFriend = actions('rejectFriend')
+export const removeFriend = actions('removeFriend')
+export const acceptFriendInvite = actions('acceptFriendInvite')
+export const joinSealedEvent = actions('joinSealedEvent')
+export const addSealedEventEntrants = actions('addSealedEventEntrants')
+export const admitSealedEventEntries = actions('admitSealedEventEntries')
+export const moderateSealedEventEntry = actions('moderateSealedEventEntry')
+export const submitSealedEventRoster = actions('submitSealedEventRoster')
+export const revealSealedEvent = actions('revealSealedEvent')
+export const unsealSealedEventRoster = actions('unsealSealedEventRoster')
+export const assignSealedEventRosterRequirement = actions('assignSealedEventRosterRequirement')
+export const assignSealedEventTeam = actions('assignSealedEventTeam')
+export const chooseSealedEventSide = actions('chooseSealedEventSide')
+export const updateSealedEvent = actions('updateSealedEvent')
+export const deleteSealedEvent = actions('deleteSealedEvent')
+export const deleteBattle = actions('deleteBattle')
+export const setOwned = actions('setOwned')
+export const setCollectionModels = actions('setCollectionModels')
+export const setCollectionProgress = actions('setCollectionProgress')
+export const setCollectionWanted = actions('setCollectionWanted')
+export const setCollectionCountsAs = actions('setCollectionCountsAs')
+export const setFavouriteFaction = actions('setFavouriteFaction')
+export const setFavouriteDetachment = actions('setFavouriteDetachment')
+export const setFavouriteDatasheet = actions('setFavouriteDatasheet')
+export const rememberMatchup = actions('rememberMatchup')
+export const forgetMatchup = actions('forgetMatchup')
+export const abilityReminders = actions('abilityReminders')
+export const setAbilityReminder = actions('setAbilityReminder')
+export const removeAbilityReminder = actions('removeAbilityReminder')
+export const setPlayerDefaults = actions('setPlayerDefaults')
+export const changeRosterFolders = actions('changeRosterFolders')
+export const createFriendInvite = actions('createFriendInvite')
+export const cancelFriendInvite = actions('cancelFriendInvite')
+export const createSealedEvent = actions('createSealedEvent')
+export const sealedEventBattleOptions = actions('sealedEventBattleOptions')
 
 export const me = (args?: Parameters<typeof server.me>[0]) => cachedRead(meKey(), () => server.me(args))
 

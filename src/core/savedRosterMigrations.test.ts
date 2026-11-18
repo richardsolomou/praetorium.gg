@@ -1,5 +1,6 @@
 import { expect, it } from 'vitest'
-import { migrateSavedRoster, migrateStoredRoster } from './savedRosterMigrations'
+import { migrateSavedRoster } from './retiredRosterFields'
+import { migrateStoredRoster } from './savedRosterMigrations'
 
 const row = {
   name: '',

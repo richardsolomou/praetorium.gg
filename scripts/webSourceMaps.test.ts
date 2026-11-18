@@ -47,25 +47,18 @@ const uploadEnvironment = {
   GITHUB_SHA: 'test-revision',
 }
 
-test('wires client and worker instrumentation with the application release settings', async () => {
+test('instruments the client environment alone, leaving inlined workers untouched', () => {
   for (const [name, value] of Object.entries(uploadEnvironment)) vi.stubEnv(name, value)
-  const context = { command: 'build' as const, mode: 'production' }
-  const config = applicationConfig(context)
+  const config = applicationConfig({ command: 'build', mode: 'production' })
   const client = ((config.plugins ?? []) as unknown[])
     .flat(Infinity)
     .find((plugin) => (plugin as Plugin)?.name === 'posthog-rollup-plugin') as Plugin
   if (typeof client?.applyToEnvironment !== 'function') throw new Error('Missing managed client instrumentation')
-  const workerOptions = (config.worker?.plugins?.() ?? []) as unknown[]
-  const workers = (await Promise.all(workerOptions.map((plugin) => Promise.resolve(plugin)))).flat(Infinity) as Plugin[]
   expect({
     client: Reflect.apply(client.applyToEnvironment, undefined, [{ name: 'client' }]),
     server: Reflect.apply(client.applyToEnvironment, undefined, [{ name: 'ssr' }]),
-    workers: workers.map((plugin) => plugin.name),
-  }).toEqual({
-    client: true,
-    server: false,
-    workers: ['posthog-rollup-plugin'],
-  })
+    workers: config.worker?.plugins,
+  }).toEqual({ client: true, server: false, workers: undefined })
 })
 
 test.each(['POSTHOG_CLI_API_KEY', 'POSTHOG_CLI_HOST', 'POSTHOG_CLI_PROJECT_ID', 'GITHUB_SHA'])(
@@ -104,7 +97,7 @@ test('removes served source maps from preview images without upload credentials'
   expect({ status: result.status, mapRetained: existsSync(map) }).toEqual({ status: 0, mapRetained: false })
 })
 
-test('changes content-hashed chunk URLs when their injected PostHog IDs change', async () => {
+test('keeps content-hashed chunk URLs when only their injected PostHog IDs change', async () => {
   const directory = mkdtempSync(path.join(tmpdir(), 'praetorium-source-maps-hash-'))
   directories.push(directory)
   const entry = path.join(directory, 'entry.js')
@@ -113,7 +106,7 @@ test('changes content-hashed chunk URLs when their injected PostHog IDs change',
     const output = await build({
       configFile: false,
       logLevel: 'silent',
-      plugins: [postHogSourceMaps(uploadEnvironment)?.client],
+      plugins: [postHogSourceMaps(uploadEnvironment)],
       build: {
         write: false,
         minify: true,
@@ -130,8 +123,10 @@ test('changes content-hashed chunk URLs when their injected PostHog IDs change',
   const first = await bundle()
   const second = await bundle()
 
+  const chunkId = (code: string) => /\/\/# chunkId=(\S+)/.exec(code)?.[1]
   expect({
-    changedUrl: first.fileName !== second.fileName,
-    registeredIds: [first, second].map((chunk) => chunk.code.includes('_posthogChunkIds')),
-  }).toEqual({ changedUrl: true, registeredIds: [true, true] })
+    sameUrl: first.fileName === second.fileName,
+    differentIds: chunkId(first.code) !== chunkId(second.code),
+    registeredIds: [first, second].map((chunk) => chunk.code.includes(`_posthogChunkIds[n]="${chunkId(chunk.code)}"`)),
+  }).toEqual({ sameUrl: true, differentIds: true, registeredIds: [true, true] })
 })
