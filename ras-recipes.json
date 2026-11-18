@@ -136,8 +136,8 @@
       ]
     },
     "posthog-web": {
-      "version": 4,
-      "commit": "0184a1e1bc4ababa9b89b4455014ba13be436df2",
+      "version": 5,
+      "commit": "b9c98f6989bdf87707a9041eaf330c6c4fbf9ded",
       "files": {
         "scripts/posthogSourceMaps.test.ts": "scripts/posthogSourceMaps.test.ts",
         "scripts/posthogSourceMaps.ts": "scripts/posthogSourceMaps.ts",
@@ -160,7 +160,8 @@
         "scripts/posthogSourceMaps.ts deletes the plugin's `augmentChunkHash`, so the random symbol-set chunk ids stay out of asset file names and unchanged code keeps its URL across releases; publishWebAssets keeps the first stored copy, whose chunk id was uploaded with its own release.",
         "scripts/posthogSourceMaps.ts returns the client plugin alone, with no worker instance: every web worker is imported `?worker&inline`, so no worker file exists to map, and the ids a worker build injects would rename its parent chunk on every build. scripts/lib/offlineAppPlugin.ts strips the injected ids from the rebundled offline app for the same reason.",
         "Dockerfile.node keeps its own upload: the BuildKit secret is `posthog_api_key` (from the `POSTHOG_API_KEY` Actions secret), it retries the build and a `posthog-cli sourcemap upload` of `.output/public`, and deletes every remaining map.",
-        "Vite's `telemetry` chunk group keeps posthog-js and the PostHog packages in their own chunk."
+        "Vite's `telemetry` chunk group keeps posthog-js and the PostHog packages in their own chunk.",
+        "`postHogOptions` adds `ConversationsExtensions` for the support panel. The app's feedback form sends survey events directly."
       ]
     },
     "spacetimedb": {

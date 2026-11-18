@@ -53,8 +53,8 @@ type SupportTicket = { id: string; status: string; messages: SupportMessage[]; u
 
 /**
  * Stands in for PostHog Support on this page, which browser test stacks cannot reach: tickets live in the page,
- * and the returned helpers read what the player sent and answer as the team. `earlier` conversations exist before
- * the page can first read them, as `seed` cannot promise once Support answers.
+ * and the returned helpers read what the player sent and answer as the team. Seed existing conversations before
+ * exposing the client so its first read sees them.
  */
 export async function stubSupport(page: Page, earlier = 0) {
   await page.evaluate(async (initial) => {
@@ -68,6 +68,18 @@ export async function stubSupport(page: Page, earlier = 0) {
     const tickets: SupportTicket[] = []
     let current: string | null = null
     const now = () => new Date().toISOString()
+    for (let index = initial; index > 0; index--) {
+      const id = crypto.randomUUID()
+      tickets.push({
+        id,
+        status: 'new',
+        unread: 0,
+        messages: [
+          { id: crypto.randomUUID(), content: `Feedback ${index}`, author_type: 'customer', created_at: now(), is_private: false },
+        ],
+      })
+      current = id
+    }
     const summary = (ticket: SupportTicket) => ({
       id: ticket.id,
       status: ticket.status,
@@ -103,20 +115,6 @@ export async function stubSupport(page: Page, earlier = 0) {
         })
         ticket.status = 'pending'
         ticket.unread++
-      },
-      seed: (count: number) => {
-        for (let index = count; index > 0; index--) {
-          const id = crypto.randomUUID()
-          tickets.push({
-            id,
-            status: 'new',
-            unread: 0,
-            messages: [
-              { id: crypto.randomUUID(), content: `Feedback ${index}`, author_type: 'customer', created_at: now(), is_private: false },
-            ],
-          })
-          current = id
-        }
       },
     }
     client.setIdentity = () => {}
@@ -154,13 +152,9 @@ export async function stubSupport(page: Page, earlier = 0) {
         return { success: true, unread_count: 0 }
       },
     }
-    ;(window as unknown as { support: { seed: (count: number) => void } }).support.seed(initial)
   }, earlier)
   return {
     tickets: () => page.evaluate(() => (window as unknown as { support: { tickets: SupportTicket[] } }).support.tickets),
-    /** Adds conversations the player started earlier, newest first as "Feedback <count>" down to "Feedback 1". */
-    seed: (count: number) =>
-      page.evaluate((total) => (window as unknown as { support: { seed: (count: number) => void } }).support.seed(total), count),
     reply: (id: string, content: string) =>
       page.evaluate(
         ([ticketId, text]) =>

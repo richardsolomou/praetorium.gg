@@ -41,7 +41,13 @@ export default defineConfig(({ mode }): UserConfig => {
       strictPort: true,
       ...(process.env.LOCAL_VITE_ORIGIN ? { ws: { clientPort: Number(process.env.LOCAL_APP_PORT ?? 3000) } } : {}),
     },
-    resolve: { alias: { '@': path.join(import.meta.dirname, 'src') } },
+    resolve: {
+      alias: [
+        { find: '@', replacement: path.join(import.meta.dirname, 'src') },
+        { find: /^posthog-js$/, replacement: 'posthog-js/dist/module.slim.js' },
+        { find: /^@posthog\/react$/, replacement: '@posthog/react/slim' },
+      ],
+    },
     plugins: [
       tanstackStart(),
       nitro({
