@@ -42,7 +42,6 @@ import { meKey } from '../../queries/queryKeys'
 import { COMMUNITY_LINKS, COMMUNITY_PAGES, FRIENDS_PAGE } from './CommunityLinks'
 import { followTextSourceChoice } from '../../rulesText'
 import { OfflineReference } from '../../offline/OfflineReference'
-import { AppPersistence } from '../../offline/AppPersistence'
 import { WebMcp } from '../agents/WebMcp'
 import { NativePushRegistration } from './NativePushRegistration'
 import { OnboardingGuide } from '../onboarding/OnboardingGuide'
@@ -51,6 +50,7 @@ import { loadOfflineFallbacks } from '../../functions'
 import { afterInitialScreen } from '../../offline/background'
 
 // Nothing here shows on the first screen, so each loads after hydration instead of with every page.
+const AppPersistence = deferred(() => import('../../offline/AppPersistence').then((module) => module.AppPersistence))
 const LiveProduct = deferred(() => import('../../spacetimeLive').then((module) => module.LiveProduct))
 const DisplayNamePrompt = deferred(() => import('../account/DisplayNamePrompt').then((module) => module.DisplayNamePrompt))
 const SupportPanel = deferred(() => import('../feedback/SupportPanel').then((module) => module.SupportPanel))
