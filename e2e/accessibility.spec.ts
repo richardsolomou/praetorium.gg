@@ -232,6 +232,7 @@ test.describe('a touch device', () => {
 
   test('keeps page tabs inside the screen at double text size, scrolled to the current one', async ({ page }) => {
     await signUp(page, 'Tabs')
+    await page.goto('/')
     await page.locator('[data-mobile-app-header]').getByRole('button', { name: 'Account menu for Tabs' }).click()
     await page.getByRole('menuitem', { name: 'My profile' }).click()
     await expect(page.getByRole('tab', { name: 'Collection' })).toBeVisible()

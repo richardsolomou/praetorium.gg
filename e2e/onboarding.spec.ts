@@ -7,7 +7,7 @@ import {
   chooseUnit,
   createBattle,
   createRoster,
-  signUp,
+  signUpThroughForm,
   takeTheTurn,
   uniqueName,
   waitForRosterSave,
@@ -84,7 +84,7 @@ async function practiceBattleGuide(page: Page, name: string, width: number) {
 }
 
 test(`the simulator guide finishes and stays closed after a reload`, async ({ page }) => {
-  await signUp(page, uniqueName('Simulator Guide'))
+  await signUpThroughForm(page, uniqueName('Simulator Guide'))
   await launch(page, '/simulator', 'First matchup guide')
   await expect(prompt(page)).toContainText('Choose an attacker')
   await chooseUnit(page, 'Attacker', 'Space Marines', 'Intercessor Squad')
@@ -102,7 +102,7 @@ test(`the simulator guide finishes and stays closed after a reload`, async ({ pa
 for (const signedIn of [false, true]) {
   test(`import guidance starts without an army and follows review for ${signedIn ? 'an account' : 'a visitor'}`, async ({ page }) => {
     await page.setViewportSize({ width: signedIn ? 1440 : 390, height: 900 })
-    if (signedIn) await signUp(page, uniqueName('Import Guide'))
+    if (signedIn) await signUpThroughForm(page, uniqueName('Import Guide'))
     else await page.goto('/')
     await page.goto('/rosters')
     await page.getByRole('button', { name: 'Import roster', exact: true }).click()
@@ -142,14 +142,14 @@ for (const signedIn of [false, true]) {
 test('the practice battle guide follows setup into live play', async ({ page }) => {
   test.setTimeout(240_000)
   await page.setViewportSize({ width: 1440, height: 900 })
-  await signUp(page, uniqueName('Battle Guide'))
+  await signUpThroughForm(page, uniqueName('Battle Guide'))
   const name = await army(page)
   for (const width of [1440, 390]) await practiceBattleGuide(page, name, width)
 })
 
 test('the first-army guide stops after adding a unit', async ({ page }) => {
   await page.setViewportSize(desktopContext.viewport)
-  await signUp(page, uniqueName('First Army Guide'))
+  await signUpThroughForm(page, uniqueName('First Army Guide'))
   await launch(page, '/rosters', 'Build guide')
   await page.getByRole('button', { name: 'New roster', exact: true }).click()
   const dialog = page.getByRole('dialog', { name: 'Create roster' })
@@ -211,7 +211,7 @@ test('the first-army guide stops after adding a unit', async ({ page }) => {
 
 // One guide runs on a phone, where its anchors move into the application's own navigation.
 test('the tournament and group guides follow creation onto the new event', async ({ page }) => {
-  await signUp(page, uniqueName('Event Guide'))
+  await signUpThroughForm(page, uniqueName('Event Guide'))
   await page.goto('/tournaments')
   await page.getByRole('button', { name: 'Tournament guide', exact: true }).click()
   await expect(prompt(page)).toContainText('Run a tournament')

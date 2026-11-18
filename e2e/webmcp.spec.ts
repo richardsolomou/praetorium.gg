@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './test'
-import { signUp, uniqueName, signOut, PHONE } from './account'
+import { signUp, signUpThroughForm, uniqueName, signOut, PHONE } from './account'
 
 async function installInspector(page: Page) {
   await page.addInitScript(() => {
@@ -71,7 +71,7 @@ test('browser agents discover the full MCP surface and account tools disappear o
   await installInspector(page)
   await page.goto('/')
   await expect.poll(() => names(page)).toHaveLength(28)
-  await signUp(page, uniqueName('Agent'))
+  await signUpThroughForm(page, uniqueName('Agent'))
   await expect.poll(() => names(page)).toHaveLength(54)
   const factions = await call(page, 'list_factions')
   expect(factions.structuredContent?.factions).toBeInstanceOf(Array)
@@ -108,6 +108,7 @@ test('declining a browser-agent write leaves saved data unchanged; approving wri
 test('browser agents save rosters, change visibility and append battle actions through the shared handlers', async ({ page }) => {
   await installInspector(page)
   await signUp(page, uniqueName('Agent writes'))
+  await page.goto('/')
   await expect.poll(() => names(page)).toHaveLength(54)
   const factions = (await call(page, 'list_factions')).structuredContent!.factions as { id: string }[]
   await start(page, 'save_roster', {
