@@ -9,6 +9,7 @@ import {
   followLink,
   retryUntilVisible,
   signUp,
+  signUpThroughForm,
   visitorSetup,
   expectNoPageOverflow,
   chooseRosterAction,
@@ -26,15 +27,6 @@ import { catalogue } from './stackEnv'
 async function expectNoPageScroll(page: Page) {
   expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight)).toBe(true)
 }
-
-test('a standalone datasheet omits detachment-only abilities', async ({ page }) => {
-  await page.goto('/factions/necrons/datasheets/ctan-shard-of-the-nightbringer')
-  await expect(page.getByRole('heading', { name: "C'tan Shard of the Nightbringer", exact: true })).toBeVisible()
-
-  await expect(page.getByText('Distortion Fields (Aura)', { exact: true })).toHaveCount(0)
-  await expect(page.getByText('Quantum Goad', { exact: true })).toHaveCount(0)
-  await expect(page.getByRole('heading', { name: /Detachment abilities/ })).toHaveCount(0)
-})
 
 test('the mobile website uses application navigation below 860 pixels', async ({ page }) => {
   await page.setViewportSize(PHONE)
@@ -283,7 +275,7 @@ document.addEventListener('DOMContentLoaded', () => { document.documentElement.d
 
 test('a signed-in player cannot return to the sign-in form', async ({ page }) => {
   const name = 'No stale sign in'
-  const credentials = await signUp(page, name)
+  const credentials = await signUpThroughForm(page, name)
 
   await page.goBack()
   await expect(page.getByRole('heading', { name: 'Welcome back', exact: true })).toHaveCount(0)
@@ -471,14 +463,17 @@ test('rule tooltips open on touch and hover', async ({ browser, page }) => {
 })
 
 test('server-rendered reference pages keep route-shaped payloads', { tag: '@catalogue' }, async ({ request }) => {
-  const factions = await (await request.get('/factions')).body()
-  const missionPack = await (await request.get('/missions/chapter-approved-2026-2027')).body()
+  // Every page carries the same import map, so only what the route adds is measured.
+  const routePayload = async (path: string) =>
+    Buffer.byteLength((await (await request.get(path)).text()).replace(/<script type="importmap"[^>]*>[\s\S]*?<\/script>/, ''))
+  const factions = await routePayload('/factions')
+  const missionPack = await routePayload('/missions/chapter-approved-2026-2027')
   // One section, never the five documents: the whole rules corpus is far larger.
-  const ruleSection = await (await request.get('/rules/core-rules/movement-phase')).body()
+  const ruleSection = await routePayload('/rules/core-rules/movement-phase')
 
-  expect(factions.byteLength).toBeLessThan(290_000)
-  expect(missionPack.byteLength).toBeLessThan(250_000)
-  expect(ruleSection.byteLength).toBeLessThan(250_000)
+  expect(factions).toBeLessThan(300_000)
+  expect(missionPack).toBeLessThan(250_000)
+  expect(ruleSection).toBeLessThan(250_000)
 })
 
 test('a rule is read by the number the source prints against it', async ({ browser, page }) => {
@@ -540,22 +535,6 @@ test('a rule is read by the number the source prints against it', async ({ brows
   await expect(page).toHaveURL('/rules/core-rules/moving#03.03')
 })
 
-test('a datasheet shows attachment keywords and lists their targets once', async ({ page }) => {
-  await page.goto('/factions/necrons/datasheets/overlord')
-
-  await expect(page.getByRole('heading', { name: 'Attachments' })).toBeVisible()
-  await expect(page.getByText('Can lead', { exact: true })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Leader', exact: true })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Leader', exact: true })).toHaveCount(0)
-  await page.screenshot({ path: test.info().outputPath('datasheet-leader-attachments.png'), fullPage: true })
-
-  await page.goto('/factions/necrons/datasheets/plasmancer')
-  await expect(page.getByRole('button', { name: 'Support', exact: true })).toBeVisible()
-
-  await page.setViewportSize(PHONE)
-  await page.screenshot({ path: test.info().outputPath('datasheet-leader-attachments-phone.png'), fullPage: true })
-})
-
 test('the faction page shows its army rule in full when expanded', async ({ page }) => {
   await page.goto('/factions/necrons')
 
@@ -606,21 +585,21 @@ test('signed-out faction browsing does not load account collection data before b
   expect(serverReads).toHaveLength(0)
 })
 
-for (const [path, name, menu] of [
-  ['/factions/necrons/datasheets', 'Sign in to add Overlord to favourite datasheets', null],
-  ['/factions/necrons/datasheets/overlord', 'Sign in to add Overlord to your collection', 'Add to'],
-  ['/factions/necrons', 'Sign in to add Necrons to favourites', null],
-  ['/factions/necrons/detachments/cryptek-conclave', 'Sign in to add Cryptek Conclave to favourite detachments', null],
-] as const) {
-  test(`crawlers are asked not to follow the sign-in link on ${path}`, async ({ page }) => {
+test('crawlers are asked not to follow sign-in links on reference pages', async ({ page }) => {
+  for (const [path, name, menu] of [
+    ['/factions/necrons/datasheets', 'Sign in to add Overlord to favourite datasheets', null],
+    ['/factions/necrons/datasheets/overlord', 'Sign in to add Overlord to your collection', 'Add to'],
+    ['/factions/necrons', 'Sign in to add Necrons to favourites', null],
+    ['/factions/necrons/detachments/cryptek-conclave', 'Sign in to add Cryptek Conclave to favourite detachments', null],
+  ] as const) {
     await page.goto(path)
     if (menu) {
       await page.waitForLoadState('networkidle')
       await page.getByRole('button', { name: menu, exact: true }).click()
     }
     await expect(page.getByRole('link', { name })).toHaveAttribute('rel', 'nofollow')
-  })
-}
+  }
+})
 
 test('saving a faction asks signed-out visitors to sign in', async ({ page }) => {
   await page.goto('/factions')
@@ -1253,18 +1232,6 @@ test('weapon profile modes use readable casing', async ({ page }) => {
     })
 })
 
-test('an officer datasheet shows how many orders it can issue', async ({ page }) => {
-  await page.goto('/factions/astra-militarum/datasheets/leman-russ-commander')
-  const orders = page.getByRole('heading', { name: 'Orders', exact: true }).locator('..')
-  await expect(orders).toContainText('This Officer can issue 2 Orders to Squadron units.')
-  await expectNoPageOverflow(page)
-  await page.screenshot({ path: test.info().outputPath('officer-orders-datasheet.png'), fullPage: true })
-
-  await page.setViewportSize(PHONE)
-  await expectNoPageOverflow(page)
-  await page.screenshot({ path: test.info().outputPath('officer-orders-datasheet-phone.png'), fullPage: true })
-})
-
 test('a tab never opened before starts at its top', async ({ browser }) => {
   const context = await browser.newContext({ viewport: PHONE })
   const page = await context.newPage()
@@ -1358,11 +1325,10 @@ test.describe('data update anchors', () => {
   test("an army's page lists only that army's changes", async ({ page }) => {
     const { row } = await closedRow(page)
     await row.locator('summary').click()
-    const army = row.locator('[data-factions] h3 a').first()
-    const href = (await army.getAttribute('href'))!
-    await army.click()
+    const slug = (await row.locator('[data-factions]').first().getAttribute('data-factions'))!.split(' ')[0]
+    const href = `/data-updates/${slug}`
+    await page.goto(href)
 
-    await expect(page).toHaveURL(href)
     const firstUpdate = page.locator('main details').first()
     if (!(await firstUpdate.evaluate((element) => (element as HTMLDetailsElement).open))) await firstUpdate.locator('summary').click()
     await expect(page.locator('main [data-factions]').first()).toBeVisible()

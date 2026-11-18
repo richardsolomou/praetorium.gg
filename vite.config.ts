@@ -1,5 +1,5 @@
+import { chunkImportMapPlugin } from './scripts/lib/chunkImportMapPlugin.ts'
 import { offlineAppPlugin } from './scripts/lib/offlineAppPlugin.ts'
-import { recentChangelogPlugin } from './scripts/lib/recentChangelogPlugin.ts'
 import tailwindcss from '@tailwindcss/vite'
 import { tanstackStart } from '@tanstack/react-start/plugin/vite'
 import viteReact from '@vitejs/plugin-react'
@@ -10,7 +10,6 @@ import { postHogSourceMaps } from './scripts/posthogSourceMaps.ts'
 export default defineConfig(({ mode }): UserConfig => {
   const env = loadEnv(mode, process.cwd(), '')
   process.env = { ...env, ...process.env }
-  const sourceMaps = postHogSourceMaps(process.env)
   return {
     ...(process.env.LOCAL_BUILD_DIR ? { cacheDir: path.join(process.env.LOCAL_BUILD_DIR, 'vite-cache') } : {}),
     // The Node preview renderer inlines its WebAssembly, which only an asset type accepts.
@@ -30,6 +29,9 @@ export default defineConfig(({ mode }): UserConfig => {
         },
       },
     },
+    // Chunks import each other by stable names that the page's import map resolves, so a release renames only the
+    // chunks whose own code changed instead of every chunk that imports one.
+    environments: { client: { build: { chunkImportMap: true } } },
     // TanStack Start keeps better-auth out of pre-bundling, so without this
     // the browser meets its imports only on first load and Vite reloads the page for them.
     optimizeDeps: { include: ['better-auth > jose/errors'] },
@@ -38,7 +40,13 @@ export default defineConfig(({ mode }): UserConfig => {
       strictPort: true,
       ...(process.env.LOCAL_VITE_ORIGIN ? { ws: { clientPort: Number(process.env.LOCAL_APP_PORT ?? 3000) } } : {}),
     },
-    resolve: { alias: { '@': path.join(import.meta.dirname, 'src') } },
+    resolve: {
+      alias: [
+        { find: '@', replacement: path.join(import.meta.dirname, 'src') },
+        { find: /^posthog-js$/, replacement: 'posthog-js/dist/module.slim.js' },
+        { find: /^@posthog\/react$/, replacement: '@posthog/react/slim' },
+      ],
+    },
     plugins: [
       tanstackStart(),
       nitro({
@@ -71,10 +79,9 @@ export default defineConfig(({ mode }): UserConfig => {
       }),
       viteReact(),
       tailwindcss(),
-      sourceMaps?.client,
-      recentChangelogPlugin(),
+      postHogSourceMaps(process.env),
       offlineAppPlugin(),
+      chunkImportMapPlugin(),
     ],
-    ...(sourceMaps ? { worker: { plugins: () => [sourceMaps.worker()] } } : {}),
   }
 })

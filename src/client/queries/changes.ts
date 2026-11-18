@@ -1,10 +1,10 @@
 import { queryOptions } from '@tanstack/react-query'
 import { currentReference, loadSavedQuery, referenceData, savedQuery } from '../offline/runtime'
-import { catalogueChangeLog, referenceChanges, rosterChanges, savedRosterChangedIds } from '../functions'
+import { catalogueChangeLog, referenceChanges, rosterChanges, savedRosterChangedIds, savedRosterPlays } from '../functions'
 import type { ReferenceLink } from '../../contracts/catalogueChanges'
 import { referenceStaleTime, SSR_STALE_TIME } from './shared'
 import { withTimeout } from '../abortSignals'
-import { catalogueChangesKey, rosterChangesKey, savedRosterChangedIdsKey } from './queryKeys'
+import { catalogueChangesKey, rosterChangesKey, savedRosterChangedIdsKey, savedRosterPlaysKey } from './queryKeys'
 
 /**
  * One page of data updates, every faction's or the one a slug names, from the newest or from
@@ -50,3 +50,7 @@ export const rosterChangesQuery = (id: string) =>
 
 export const savedRosterChangedIdsQuery = () =>
   queryOptions({ queryKey: savedRosterChangedIdsKey(), queryFn: () => savedRosterChangedIds(), staleTime: SSR_STALE_TIME })
+
+/** How often each saved list has been played to the end, and how those battles went. */
+export const savedRosterPlaysQuery = () =>
+  queryOptions({ queryKey: savedRosterPlaysKey(), queryFn: () => savedRosterPlays(), staleTime: SSR_STALE_TIME })

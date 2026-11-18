@@ -3,7 +3,7 @@ import posthog from '@posthog/rollup-plugin'
 type Environment = Record<string, string | undefined>
 
 /**
- * PostHog's source-map upload for the browser bundle and its web workers, or undefined when this build does not upload.
+ * PostHog's source-map upload for the browser bundle, or undefined when this build does not upload.
  * Uploads run in CI with credentials; `POSTHOG_UPLOAD_SOURCEMAPS` forces them on (`true`) or off (`false`).
  */
 export function postHogSourceMaps(env: Environment) {
@@ -22,11 +22,12 @@ export function postHogSourceMaps(env: Environment) {
     releaseVersion: env.GITHUB_SHA,
     releaseMode: 'symbol-set' as const,
   }
-  const plugin = () => posthog({ personalApiKey, projectId, host: env.POSTHOG_CLI_HOST, sourcemaps })
-  return {
-    // The server bundle is not what browsers run, and Nitro bundles it again, so its maps would describe nothing deployed.
-    client: { ...plugin(), applyToEnvironment: (environment: { name: string }) => environment.name === 'client' },
-    // Workers build separately, and each build needs its own instance.
-    worker: plugin,
-  }
+  const plugin = posthog({ personalApiKey, projectId, host: env.POSTHOG_CLI_HOST, sourcemaps })
+  // Symbol-set chunk ids are random, so hashing them into file names would rename unchanged code on every release;
+  // without that the plugin stamps each id after the name is fixed, and publishWebAssets keeps the first stored copy.
+  delete plugin.augmentChunkHash
+  // The server bundle is not what browsers run, and Nitro bundles it again, so its maps would describe nothing deployed.
+  // Web workers are inlined into their parent chunk as strings, so they get no plugin: no file of theirs exists to map,
+  // and their random ids would rename the parent.
+  return { ...plugin, applyToEnvironment: (environment: { name: string }) => environment.name === 'client' }
 }

@@ -44,6 +44,9 @@ import { SectionHeading } from '../../../components/SectionHeading'
 import { countLabel, placingLabel } from '../../../text'
 import { TopFourSources } from '../../rosters/TopFourSources'
 import { FactionGames } from './FactionGames'
+import { NextStep } from '../NextStep'
+import { ContinueGuestDraft } from '../../rosters/ContinueGuestDraft'
+import { datasheetMatchup } from '../../../../contracts/simulatorState'
 
 export function FactionDatasheet() {
   const params = useParams({ strict: false })
@@ -104,6 +107,7 @@ export function FactionDatasheet() {
       </PageHeader>
       <PageContent className="space-y-6">
         <FactionBreadcrumb faction={faction} datasheets />
+        <ContinueGuestDraft surface="datasheet" />
 
         {unit.length === 1 && unit[0] ? <UnitCharacteristics profile={unit[0]} anchorIds={unitAnchorIds.get(unit[0].id)} /> : null}
         {unit.length > 1 ? (
@@ -139,6 +143,7 @@ export function FactionDatasheet() {
         <Relationships sheet={sheet} abilityIds={relationshipAbilityIds} />
         <DatasheetPhotos entryId={sheet.id} name={sheet.name} />
         <FactionGames faction={faction} />
+        <DatasheetNextStep faction={faction} sheet={sheet} />
       </PageContent>
     </main>
   )
@@ -178,6 +183,7 @@ export function Abilities({ abilities, rules }: { abilities: DisplayAbility[]; r
                       : KEYWORD_TAG_CLASS
                   }
                   note={ability.source ? `Added by ${ability.source}` : undefined}
+                  condition={ability.condition}
                   highlightNote={false}
                 />
               </span>
@@ -193,6 +199,38 @@ export function Abilities({ abilities, rules }: { abilities: DisplayAbility[]; r
       </section>
     )
   })
+}
+
+/** The end of a datasheet: this unit in a new or existing list, or the simulator and the tournament lists that take it. */
+function DatasheetNextStep({ faction, sheet }: { faction: NonNullable<ReturnType<typeof useReferenceFaction>>; sheet: Datasheet }) {
+  const { data: winning } = useQuery(topFourUnitListsQuery(faction.id, sheet.id))
+  if (!faction.detachments.length) return null
+  const linkClass = 'text-sm text-dim underline decoration-runner-hi underline-offset-4 hover:text-bone'
+  return (
+    <NextStep
+      title={`Build a list with ${sheet.name}`}
+      description={`Your faction is already filled in, with ${sheet.name} added.`}
+      action={<AddToRoster faction={faction} entryId={sheet.id} name={sheet.name} closing />}
+      links={
+        <>
+          <Link to="/simulator" search={{ s: datasheetMatchup(faction.id, sheet.id, 'attacker'), from: 'datasheet' }} className={linkClass}>
+            Simulate {sheet.name}
+          </Link>
+          {winning?.of ? (
+            <Link
+              to="/rosters"
+              search={{ view: 'tournament-lists', faction: faction.slug, ...(winning.lists.length ? { unit: sheet.id } : {}) }}
+              className={linkClass}
+            >
+              {winning.lists.length
+                ? `${countLabel(winning.lists.length, 'winning list')} ${winning.lists.length === 1 ? 'takes' : 'take'} it`
+                : `${countLabel(winning.of, 'winning list')} for ${faction.displayName}`}
+            </Link>
+          ) : null}
+        </>
+      }
+    />
+  )
 }
 
 const SHOWN_LISTS = 5

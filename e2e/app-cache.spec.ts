@@ -12,7 +12,7 @@ import {
   practiceBattle,
 } from './account'
 import { lastPathSegment } from './storage'
-import { waitForOfflineApp } from './offline'
+import { downloadOfflineAppAtOnce, waitForOfflineApp } from './offline'
 import { PREVIEW_PLAYER_NAME } from '../scripts/lib/previewPeople'
 
 async function savedState(page: Page) {
@@ -38,6 +38,7 @@ test(
   'Home, rosters and battles launch from saved state and update without replacing the app',
   { tag: '@catalogue' },
   async ({ page, context }) => {
+    await downloadOfflineAppAtOnce(page)
     test.setTimeout(240_000)
     const player = uniqueName('Seamless')
     await signUp(page, player)
@@ -176,6 +177,7 @@ test('sign-out finishes when saved-device storage is unavailable', async ({ page
   page.on('pageerror', (error) => errors.push(error.message))
   const player = uniqueName('Storage failure')
   await signUp(page, player)
+  await page.goto('/')
   await page.evaluate(() => {
     const state = window as Window & { failedStorageAttempts?: number }
     state.failedStorageAttempts = 0

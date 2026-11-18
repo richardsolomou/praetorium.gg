@@ -215,6 +215,12 @@ export function useSpacetimeLiveBattle(token: string) {
 /** The shortest gap between two refetches of one signal scope. */
 const SIGNAL_WINDOW_MS = 10_000
 
+/** Keeps every page's product queries current while the realtime service is reachable. */
+export function LiveProduct({ signedIn }: { signedIn: boolean }) {
+  useSpacetimeLiveProduct(useRealtimeConfig(), signedIn)
+  return null
+}
+
 export function useSpacetimeLiveProduct(config: RealtimeConfig | null, signedIn: boolean) {
   const queryClient = useQueryClient()
   const [subscribed, setSubscribed] = useState(false)

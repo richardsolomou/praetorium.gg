@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { usePostHog } from '@posthog/react'
-import { cloneElement, type ReactElement, type ReactNode, useEffect, useRef } from 'react'
+import { cloneElement, type ReactElement, type ReactNode, useEffect, useMemo, useRef } from 'react'
 import type { Datasheet } from '../../../../contracts/catalogue'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import type { RosterPick } from '../../../../core/roster'
@@ -19,6 +19,7 @@ import {
 } from './loadoutModel'
 import { EitherChoice, LoadoutLoading, type OptionNote, SpecialChoice, SpreadChoice } from './LoadoutControls'
 import { ModelCard } from './ModelCard'
+import { BattleChoices, useBattleChoices } from './BattleChoices'
 import type { ReminderControls } from '../ReminderButton'
 import { Problem } from '../../../components/Problem'
 
@@ -49,6 +50,8 @@ type Props = {
   header?: ReactNode
   /** Shown below everything else the pane holds. */
   footer?: ReactNode
+  /** Whose in-battle picks the pane offers, as a list or an army in a battle, showing the profiles as each leaves them. */
+  battleChoices?: string
 }
 
 /**
@@ -80,6 +83,7 @@ export function Loadout({
   optionNote,
   header,
   footer,
+  battleChoices,
 }: Props) {
   const posthog = usePostHog()
   const capturedAt = useRef(0)
@@ -116,11 +120,20 @@ export function Loadout({
     })
     return () => cancelAnimationFrame(frame)
   }, [dataUpdatedAt, editable, picks.length, posthog, sheets])
-  const sheet = sheets?.selected
+  const { sheet: battleSheet, ...battle } = useBattleChoices({
+    scope: battleChoices,
+    catalogueId,
+    entryId: unit?.entryId,
+    detachmentIds: detachments,
+    picks: settledPicks,
+    pickIndex,
+    fielded,
+  })
+  const sheet = useMemo(() => battleSheet(sheets?.selected), [battleSheet, sheets?.selected])
   // Every weapon the unit could take, priced and modified as this list would have
   // it: an enhancement that adds to a weapon's Attacks is part of the choice, so it
   // has to be visible before the choice is made rather than after.
-  const availableSheet = sheets?.available
+  const availableSheet = useMemo(() => battleSheet(sheets?.available), [battleSheet, sheets?.available])
 
   if (loading) return <LoadoutLoading />
   if (!unit) {
@@ -139,7 +152,7 @@ export function Loadout({
   }
 
   const weapons = availableSheet.profiles.filter((profile) => profile.type === 'Ranged Weapons' || profile.type === 'Melee Weapons')
-  const rules = availableSheet.keywordRules
+  const rules = battle.keywordRules(availableSheet.keywordRules)
   const abilities = availableSheet.abilities
 
   const equippedRanged = sheet.profiles.filter((profile) => profile.type === 'Ranged Weapons')
@@ -167,7 +180,10 @@ export function Loadout({
       >
         <div className="w-full min-w-0 space-y-4">
           {header}
-          {profile ? <UnitProfile profile={profile} /> : null}
+          <div className="space-y-1.5">
+            {profile ? <UnitProfile profile={profile} /> : null}
+            <BattleChoices choices={battle.choices} chosen={battle.chosen} onChoose={battle.choose} rules={rules} />
+          </div>
           {unit.models.length ? (
             <div className="space-y-6">
               {unit.models.map((model) => (

@@ -1,4 +1,5 @@
 import { countBy } from './collections'
+import { datasheetProfileKind } from './datasheetStructure'
 import { printedNumber } from './text'
 import type { TextFactsByKey } from './textFacts'
 
@@ -451,6 +452,13 @@ export const profileDescription = (profile: Profile) =>
 export function definitionAndTarget(definition: Definition, index: CatalogueIndex): Definition[] {
   const target = targetOf(definition, index.definitions)
   return target === definition ? [definition] : [definition, target]
+}
+
+/** A link that modifies a shared model profile, such as a squad's hound losing the squad's invulnerable save, makes a profile of its own. */
+export function linkedProfile(link: InfoLink, shared: Profile): Profile {
+  const modified = Boolean(link.modifiers?.length || link.modifierGroups?.length)
+  const id = modified && datasheetProfileKind(shared.typeName ?? '') === 'unit' ? link.id : shared.id
+  return { ...shared, id, name: link.name ?? shared.name }
 }
 
 /** What to call an entry. A link usually repeats its target's name, and may replace it. */

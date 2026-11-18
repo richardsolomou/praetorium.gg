@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { dateReleaseHeadings, parseReleaseNotes, recentChangelog, recentReleaseNotes } from './releaseNotes'
+import { dateReleaseHeadings, archiveChangelog, parseReleaseNotes, recentReleaseNotes } from './releaseNotes'
 
 const changelog = `# praetorium
 
@@ -7,14 +7,14 @@ const changelog = `# praetorium
 
 ### Patch Changes
 
-- 58f5242: Show each unit's points before and after.
+- 58f5242: [rosters] Show each unit's points before and after.
 - 4b50468: Mark saved rosters that use older rules.
 
 ## 0.133.0
 
 ### Minor Changes
 
-- 0919d17: Simulate roster loadouts against benchmarks.
+- 0919d17: [simulator] Simulate roster loadouts against benchmarks.
 
 ## 0.132.9
 
@@ -23,16 +23,24 @@ const changelog = `# praetorium
   Keep it running while the screen sleeps.
 `
 
-it('reads each release with its date, features and fixes, without commit prefixes', () => {
+it('reads each release with its date, features and fixes, without commit prefixes or area tags', () => {
   expect(parseReleaseNotes(changelog, 5)).toEqual([
     {
       version: '0.133.1',
       date: '2026-10-28',
       features: [],
-      fixes: ["Show each unit's points before and after.", 'Mark saved rosters that use older rules.'],
+      fixes: [
+        { area: 'rosters', text: "Show each unit's points before and after." },
+        { area: null, text: 'Mark saved rosters that use older rules.' },
+      ],
     },
-    { version: '0.133.0', date: null, features: ['Simulate roster loadouts against benchmarks.'], fixes: [] },
-    { version: '0.132.9', date: null, features: [], fixes: ['Fix the reminder timer. Keep it running while the screen sleeps.'] },
+    { version: '0.133.0', date: null, features: [{ area: 'simulator', text: 'Simulate roster loadouts against benchmarks.' }], fixes: [] },
+    {
+      version: '0.132.9',
+      date: null,
+      features: [],
+      fixes: [{ area: null, text: 'Fix the reminder timer. Keep it running while the screen sleeps.' }],
+    },
   ])
 })
 
@@ -50,10 +58,15 @@ it('keeps every release from the newest release days', () => {
   expect(recentReleaseNotes(changelog, 2).map((release) => release.version)).toEqual(['0.133.1', '0.133.0', '0.132.9'])
 })
 
-it.each([1, 2])('cuts the changelog to the releases from the newest %i release days', (days) => {
-  const recent = recentChangelog(changelog, days)
-  expect(recentReleaseNotes(recent, days)).toEqual(recentReleaseNotes(changelog, days))
-  expect(parseReleaseNotes(recent, Infinity)).toEqual(recentReleaseNotes(changelog, days))
+it.each([1, 2])('keeps the releases from the newest %i release days in the changelog', (days) => {
+  expect(parseReleaseNotes(archiveChangelog(changelog, days).current, Infinity)).toEqual(recentReleaseNotes(changelog, days))
+})
+
+it('files each older release under the month it shipped', () => {
+  const { archived } = archiveChangelog(changelog.replace('## 0.133.0', '## 0.133.0 (2026-09-30)'), 1)
+  expect([...archived].map(([month, text]) => [month, parseReleaseNotes(text, Infinity).map((note) => note.version)])).toEqual([
+    ['2026-09', ['0.133.0', '0.132.9']],
+  ])
 })
 
 it('dates only the headings that have no date yet', () => {
@@ -62,4 +75,11 @@ it('dates only the headings that have no date yet', () => {
     '## 0.133.0 (2026-10-29)',
     '## 0.132.9 (2026-10-29)',
   ])
+})
+
+it('leaves an unknown tag in the text', () => {
+  expect(parseReleaseNotes(changelog.replace('[rosters]', '[armies]'), 1)[0]!.fixes[0]).toEqual({
+    area: null,
+    text: "[armies] Show each unit's points before and after.",
+  })
 })

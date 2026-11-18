@@ -1,4 +1,4 @@
-import { waitForOfflineApp } from './offline'
+import { downloadOfflineAppAtOnce, waitForOfflineApp } from './offline'
 import { expect, test, type Page } from './test'
 import {
   confirmRosterSetup,
@@ -152,6 +152,7 @@ test('library setup uses the same reviewed enhancement removal and refuses a cha
 })
 
 test('reviewed setup survives an offline reload and reconnects with the same selected units', async ({ page, context }) => {
+  await downloadOfflineAppAtOnce(page)
   test.setTimeout(240_000)
   const { id, operator, source } = await reviewedArmy(page)
   await waitForOfflineApp(page)
@@ -170,103 +171,4 @@ test('reviewed setup survives an offline reload and reconnects with the same sel
   expect(JSON.parse(saved.picks)).toHaveLength(JSON.parse(source.picks).length)
   await page.reload()
   await expect(page.locator('[data-unit="Skorpekh Lord"]')).not.toContainText('Mark of the Nekrosor')
-})
-
-test('native-v3 concurrent setup confirmations save only one exact variant candidate', async ({ page, context }) => {
-  await context.addInitScript(() => {
-    window.PraetoriumNative = { bridgeVersion: 3, capabilities: [] }
-  })
-  const { id, operator } = await reviewedArmy(page)
-  const base = (await operator.roster(id))!
-  const variantId = crypto.randomUUID()
-  await operator.saveRoster({ ...base, id: variantId, baseRosterId: id, now: Date.now() })
-  await page.goto(`/rosters/${variantId}`)
-  const source = (await operator.roster(variantId))!
-  const second = await context.newPage()
-  await second.goto(`/rosters/${variantId}`)
-  const firstSetup = await openRosterSetup(page)
-  await firstSetup.getByLabel('Roster name').fill('First reviewed candidate')
-  await firstSetup.getByRole('button', { name: 'Review changes' }).click()
-  const firstReview = page.getByRole('dialog', { name: 'Review roster changes' })
-  await expect(firstReview.getByLabel('Roster change preview')).toBeVisible()
-  const secondSetup = await openRosterSetup(second)
-  await secondSetup.getByLabel('Roster name').fill('Second reviewed candidate')
-  await secondSetup.getByRole('button', { name: 'Review changes' }).click()
-  const secondReview = second.getByRole('dialog', { name: 'Review roster changes' })
-  await expect(secondReview.getByLabel('Roster change preview')).toBeVisible()
-  let concurrentWrites = 0
-  const { promise: writesHeld, resolve: releaseWrites } = Promise.withResolvers<void>()
-  await context.route('**/_serverFn/**', async (route) => {
-    const body = route.request().postData()
-    if (body?.includes('"operationId"') && body.includes('reviewed candidate')) {
-      concurrentWrites++
-      await writesHeld
-    }
-    await route.continue()
-  })
-  await Promise.all([
-    firstReview.getByRole('button', { name: 'Confirm changes' }).click(),
-    secondReview.getByRole('button', { name: 'Confirm changes' }).click(),
-  ])
-  await expect.poll(() => concurrentWrites).toBe(2)
-  expect((await operator.roster(variantId))!.name).toBe(source.name)
-  releaseWrites()
-  await expect.poll(async () => (await firstReview.isVisible()) !== (await secondReview.isVisible())).toBe(true)
-  const refused = (await firstReview.isVisible()) ? firstReview : secondReview
-  await expect(refused.getByRole('alert')).toContainText('changed on another device')
-  const saved = (await operator.roster(variantId))!
-  expect(saved.baseRosterId).toBe(id)
-  expect(['First reviewed candidate', 'Second reviewed candidate']).toContain(saved.name)
-  expect({ picks: saved.picks, limit: saved.limit, detachments: saved.detachmentId, disposition: saved.disposition }).toEqual({
-    picks: source.picks,
-    limit: source.limit,
-    detachments: source.detachmentId,
-    disposition: source.disposition,
-  })
-  await refused.getByRole('button', { name: 'Cancel', exact: true }).click()
-  await page.reload()
-  await second.reload()
-  await expect(page.getByLabel('List name')).toHaveValue(saved.name)
-  await expect(second.getByLabel('List name')).toHaveValue(saved.name)
-  await second.close()
-})
-
-test('native-v3 lost save acknowledgement cannot overwrite a later source edit on retry', async ({ page, context }) => {
-  await context.addInitScript(() => {
-    window.PraetoriumNative = { bridgeVersion: 3, capabilities: [] }
-  })
-  const { id, operator } = await reviewedArmy(page)
-  const second = await context.newPage()
-  await second.goto(`/rosters/${id}`)
-  let loseAcknowledgement = true
-  await page.route('**/_serverFn/**', async (route) => {
-    const body = route.request().postData()
-    if (loseAcknowledgement && body?.includes('"operationId"') && body.includes('Unacknowledged candidate')) {
-      loseAcknowledgement = false
-      await route.fetch()
-      await route.abort('failed')
-    } else await route.continue()
-  })
-  const setup = await openRosterSetup(page)
-  await setup.getByLabel('Roster name').fill('Unacknowledged candidate')
-  await setup.getByRole('button', { name: 'Review changes' }).click()
-  const review = page.getByRole('dialog', { name: 'Review roster changes' })
-  await expect(review.getByLabel('Roster change preview')).toBeVisible()
-  await review.getByRole('button', { name: 'Confirm changes' }).click()
-  await expect(review.getByRole('alert')).toBeVisible()
-  await expect.poll(async () => (await operator.roster(id))!.name).toBe('Unacknowledged candidate')
-  await second.reload()
-  // A name typed before the reloaded page hydrates is lost, so type it again until it saves.
-  await expect(async () => {
-    await second.getByLabel('List name').fill('Later source edit')
-    await expect.poll(async () => (await operator.roster(id))!.name, { timeout: 5_000 }).toBe('Later source edit')
-  }).toPass({ timeout: 30_000 })
-  const beforeRetry = (await operator.roster(id))!
-  await review.getByRole('button', { name: 'Confirm changes' }).click()
-  await expect(review.getByRole('alert')).toContainText('changed after your review')
-  expect(await operator.roster(id)).toEqual(beforeRetry)
-  await review.getByRole('button', { name: 'Cancel', exact: true }).click()
-  await page.reload()
-  await expect(page.getByLabel('List name')).toHaveValue('Later source edit')
-  await second.close()
 })

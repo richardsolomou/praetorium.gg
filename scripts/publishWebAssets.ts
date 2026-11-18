@@ -25,11 +25,33 @@ const MAX_BYTES = 10_000_000
 const bytes = (response: Response) => boundedBytes(response, MAX_BYTES, 'Web asset is too large')
 
 /**
- * PostHog's build plugin stamps each chunk with a random id after its name is hashed,
- * so two builds of unchanged code share a name and differ only in that id.
+ * Two things are written into a chunk after its name is hashed, so two builds of unchanged code share a name and may
+ * differ in them: PostHog's build plugin stamps each chunk with a random id, and Vite lists the files the chunk's lazy
+ * imports preload. A stale script in that list only costs a preload, as the import still loads what it needs, so only
+ * the listed stylesheets, which the list alone loads, must match.
  */
 const CHUNK_ID = /(_posthogChunkIds\[n\]="|\/\/# chunkId=)[0-9a-f-]{36}/g
-const withoutChunkId = (code: Buffer) => code.toString('utf8').replace(CHUNK_ID, '$1')
+const PRELOAD_LIST = /m\.f=(\[[^\]]*\])/
+const PRELOADS = /__vite__mapDeps\(\[([\d,]*)\]\)/g
+function withoutBuildStamps(code: Buffer) {
+  const text = code.toString('utf8').replace(CHUNK_ID, '$1')
+  const list = PRELOAD_LIST.exec(text)?.[1]
+  if (!list) return text
+  const files = JSON.parse(list) as string[]
+  const stylesheets = (indices: string) =>
+    JSON.stringify(
+      indices
+        ? indices
+            .split(',')
+            .map((index) => files[Number(index)]!)
+            .filter((file) => file.endsWith('.css'))
+        : [],
+    )
+  return text.replace(PRELOAD_LIST, () => 'm.f=').replace(PRELOADS, (_, indices: string) => `__vite__mapDeps(${stylesheets(indices)})`)
+}
+/** The served copy may be an earlier release's, which differs from this build's only in what is written after naming. */
+const sameAsset = (name: string, served: Buffer, built: Buffer) =>
+  served.equals(built) || (name.endsWith('.js') && withoutBuildStamps(served) === withoutBuildStamps(built))
 
 class TransientResponse extends Error {}
 
@@ -66,8 +88,13 @@ export async function publishWebAssets(
       const stat = await lstat(file)
       total += stat.size
       if (stat.size > MAX_BYTES || total > 100_000_000 || assets.size >= 5_000) throw new Error('Web asset publication exceeds its limit')
-      if (assets.has(entry.name) && !(await readFile(assets.get(entry.name)!)).equals(await readFile(file)))
-        throw new Error(`Web asset name collision: ${entry.name}`)
+      const earlier = assets.get(entry.name)
+      if (earlier) {
+        // Each release stamps unchanged code after naming it; the earlier release's copy is the one clients hold.
+        if (withoutBuildStamps(await readFile(earlier)) !== withoutBuildStamps(await readFile(file)))
+          throw new Error(`Web asset name collision: ${entry.name}`)
+        continue
+      }
       assets.set(entry.name, file)
     }
   }
@@ -104,8 +131,8 @@ export async function publishWebAssets(
           stopped,
           retryMs,
         )
-        // Clients may already hold the stored copy, so it stays; the same code under another chunk id is that copy.
-        if (withoutChunkId(stored) !== withoutChunkId(body)) throw new Error(`Stored web asset differs: ${name}`)
+        // Clients may already hold the stored copy, so it stays; the same code stamped by another release is that copy.
+        if (withoutBuildStamps(stored) !== withoutBuildStamps(body)) throw new Error(`Stored web asset differs: ${name}`)
         return
       }
       await retryTransient(
@@ -178,7 +205,7 @@ export async function verifyWebAssetRoute(directories: string[], origin: string,
             await response.body?.cancel()
             throw new TransientResponse(`Asset route answered ${response.status}: ${name}`)
           }
-          if (!response.ok || response.headers.get('cache-control') !== CACHE || !(await bytes(response)).equals(expected))
+          if (!response.ok || response.headers.get('cache-control') !== CACHE || !sameAsset(name, await bytes(response), expected))
             throw new Error(`Asset route verification failed: ${name}`)
         },
         stopped,

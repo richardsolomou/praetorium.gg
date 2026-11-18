@@ -1,16 +1,16 @@
 Roster grades score what a roster can do on the table. Choose **Grade this roster** from the roster's **⋮** menu, or from its card's **⋮** menu on the Rosters page. You get an overall score out of 100, a score for each of four categories, and a grade for every measure in them. **Worth knowing** names the gaps. Scores describe the list, not your odds of winning: the player, the mission and the dice decide far more than the list does.
 
-![Roster grades for a Blood Angels list: 59 overall, grade C, with scores for board control, charge and deployment, damage and durability, and graded measures below.](screenshot:roster-grades 'The overall score, the four categories and each measure')
+![Roster grades for a Blood Angels list: 58 overall, grade C, with scores for board control, charge and deployment, damage and durability, and graded measures below.](screenshot:roster-grades 'The overall score, the four categories and each measure')
 
 ## How scores work
 
-Each measure places your list among 11th-edition tournament lists of the same faction and battle size, the way Lighthouse in Chrome scores a page against real websites. Comparing with your own faction keeps the grade about your list rather than your army: the simulator leaves out stratagems and conditional rules, and that falls harder on some armies than others. A Space Marine chapter with too few tournament lists of its own is placed among every chapter's, and an army with none among every faction's; the dialog says which under **Overall**.
+Each measure places your list among 11th-edition tournament lists of the same battle size, the way Lighthouse in Chrome scores a page against real websites. Your list starts from the middle of your own faction's tournament lists, which keeps the grade about your list rather than your army: the simulator leaves out stratagems and conditional rules, and that falls harder on some armies than others. How far it sits above or below that middle is then read against every faction's lists. An army whose tournament lists share most of their units would otherwise see a few percent of damage or durability swing a measure from typical to the bottom tenth. A Space Marine chapter with too few tournament lists of its own is placed among every chapter's, and an army with none among every faction's; the dialog says which under **Overall**.
 
 Tournament lists are 2,000 points. Smaller sizes are compared with lists drawn from those lists' own units, keeping the draw with the most units, the way a player fits as much as they can into a small game. Onslaught is compared with a tournament list joined to a 1,000-point draw from another list of its faction.
 
-Scores follow a curve: a typical tournament list scores 70, the top tenth 90 or more, and the bottom tenth under 40. A category places the average of its measures among the same lists, and the overall places the average of the four categories, so every category counts the same. A list that does every job solidly can place higher in a category than in any one of its measures. The overall never reads lower than your weakest category or higher than your strongest.
+Scores follow a curve: a typical tournament list of your faction scores 70. How far a list strays from that depends on how far it sits from your faction's typical list compared with how much lists differ across every faction, so a faction whose lists are much alike rarely reaches the 90s or drops under 40. A category places the average of its measures among the same lists, and the overall places the average of the four categories, so every category counts the same. A list that does every job solidly can place higher in a category than in any one of its measures. The overall never reads lower than your weakest category or higher than your strongest.
 
-Grades split the scores: 85 and above is an A, the top fifth of tournament lists; 65 a B; 40 a C; and below 40 a D, the bottom tenth.
+Grades split the scores: 85 and above is an A; 65 a B; 40 a C; and below 40 a D. How many lists earn each grade depends on how much your faction's tournament lists differ from one another.
 
 ## What each category measures
 
@@ -35,7 +35,7 @@ The score covers charge reach and deployment, rather than all mobility. Reaching
 
 **Clear hordes**, **Kill elite infantry**, **Kill vehicles**, **Kill heavy armour** and **Kill monsters** add up how much of 20 Termagants, a Chaos Terminator Squad, a Rhino, a Leman Russ Battle Tank or a Carnifex each of your units takes in one turn of shooting, fighting, or shooting then fighting. A unit can count for up to three of each target, since its damage does not carry over from one model to the next; hordes count one squad at a time, since Blast gains attacks against bigger units. The units that take at least half of one alone are named. A model with a choice of weapons or weapon profiles uses the one that does most against each target.
 
-Heavy armour is left out at King of the Colosseum, which allows nothing above Toughness 9. Each side there may field only one Toughness 9 unit, so vehicle and monster damage is capped at two reference targets in total, with each attacking unit contributing at most one.
+Heavy armour is left out at King of the Colosseum, which allows nothing above Toughness 9. Each side there may field only one Toughness 9 unit, so vehicle and monster damage is capped at two reference targets in total, with each attacking unit contributing at most one. Most lists reach that cap, so these two measures place your list among your own faction's lists alone.
 
 ### Durability
 

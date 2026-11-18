@@ -41,6 +41,13 @@ import { BATTLE_DIGEST_VERSION, battleDigest, type BattleDigest } from '../../sr
 import { scoringDraftSchema, scoringMoment } from '../../src/core/scoringDraft'
 import { teamDispositionChoices } from '../../src/core/teamDisposition'
 import { DEFAULT_PLAYER_DEFAULTS, isPlayerDefaults } from '../../src/core/playerDefaults'
+import {
+  applyRosterFolderChange,
+  NO_ROSTER_FOLDERS,
+  rosterFolderChangeSchema,
+  rosterFoldersSchema,
+  type RosterFolders,
+} from '../../src/core/rosterFolders'
 import { BATTLE_ORDERS } from '../../src/core/battleFilter'
 import { LIST_FILTER_SCOPES, LIST_PREFERENCES_MAX_LENGTH, listPreferencesSchema } from '../../src/core/listFilter'
 import { matchupPairingSchema, RECENT_MATCHUP_LIMIT, recentMatchupSchema } from '../../src/core/recentMatchups'
@@ -77,7 +84,7 @@ import {
 } from '../../src/core/sealedEvent'
 import { clockLimitMinutes, commandSchema, parseRosterSnapshot, rosterPickSchema, rosterSnapshotOrNull } from '../../src/core/commands'
 import { SWISS_ROUNDS_MAX, swissResultLocked } from '../../src/core/swiss'
-import { compareStandings, currentRating, isProvisional } from '../../src/core/standings'
+import { standingsViewQuery, compareStandings, currentRating, isProvisional } from '../../src/core/standings'
 import type { SyncProductActionName } from '../../src/core/syncProductActions'
 import {
   hiddenListGameOpen,
@@ -101,7 +108,7 @@ import {
   leagueFixtureStatus,
   leagueFixtureUnfinished,
 } from '../../src/core/groupLeague'
-import { admitConnection, authConfiguration } from './admission'
+import { admitConnection, authConfiguration, isLocalIssuer } from './admission'
 import {
   ABILITY_REMINDERS_MAX,
   abilityReminderSchema,
@@ -910,6 +917,7 @@ export const deleteUserData = spacetime.reducer({ userId: t.string() }, (ctx, { 
   ctx.db.pushPreferences.userId.delete(userId)
   for (const row of Array.from(ctx.db.notices.userId.filter(userId))) ctx.db.notices.id.delete(row.id)
   ctx.db.playerDefaults.userId.delete(userId)
+  ctx.db.rosterFolders.userId.delete(userId)
   for (const row of Array.from(ctx.db.listFilterPreferences.userId.filter(userId))) ctx.db.listFilterPreferences.id.delete(row.id)
   for (const row of Array.from(ctx.db.sealedEventRosterSharing.userId.filter(userId))) ctx.db.sealedEventRosterSharing.key.delete(row.key)
   touchPublic(ctx, 'collection')
@@ -1104,8 +1112,7 @@ function battleSeats(ctx: Context, battleId: string) {
   }
 }
 
-function battleData(ctx: Context, battleId: string) {
-  const { battle, rows, seats } = battleSeats(ctx, battleId)
+function battleData(ctx: Context, battleId: string, { battle, rows, seats } = battleSeats(ctx, battleId)) {
   const written = Array.from(ctx.db.commands.battleId.filter(battleId))
     .sort((left, right) => left.seq - right.seq)
     .flatMap((row): LoggedCommand[] => {
@@ -1133,8 +1140,8 @@ function battleData(ctx: Context, battleId: string) {
 }
 
 /** A battle's seats and log with the state they fold to. */
-function battleState(ctx: Context, battleId: string) {
-  const { seats, log } = battleData(ctx, battleId)
+function battleState(ctx: Context, battleId: string, seated?: ReturnType<typeof battleSeats>) {
+  const { seats, log } = battleData(ctx, battleId, seated)
   const state = reduceBattle(
     seats.map((seat) => seat.id),
     log,
@@ -1187,8 +1194,8 @@ function fixClocks(ctx: Context, eventId: string, minutes: number | null, by: st
  * `revision` is the release the reading server and this module were published from, so a release that changes the
  * fold refolds each battle once instead of serving what the previous one folded.
  */
-function battleDigestOf(ctx: Context, battleId: string, revision: string) {
-  const { rows, seats } = battleSeats(ctx, battleId)
+function battleDigestOf(ctx: Context, battleId: string, revision: string, seated = battleSeats(ctx, battleId)) {
+  const { rows, seats } = seated
   let commands = 0
   let lastSeq = 0
   for (const command of ctx.db.commands.battleId.filter(battleId)) {
@@ -1198,7 +1205,7 @@ function battleDigestOf(ctx: Context, battleId: string, revision: string) {
   const key = JSON.stringify([BATTLE_DIGEST_VERSION, revision, seats, rows.map((seat) => seat.claimedSeat ?? null), commands, lastSeq])
   const stored = ctx.db.battleDigests.battleId.find(battleId)
   if (stored?.key === key) return JSON.parse(stored.digest) as BattleDigest
-  const { log, state } = battleState(ctx, battleId)
+  const { log, state } = battleState(ctx, battleId, seated)
   const digest = battleDigest(state, log)
   const row = { battleId, key, digest: JSON.stringify(digest) }
   if (stored) ctx.db.battleDigests.battleId.update(row)
@@ -1208,8 +1215,8 @@ function battleDigestOf(ctx: Context, battleId: string, revision: string) {
 
 /** A battle as a list reads it: its seats and digest, without its log. */
 function battleCard(ctx: Context, battleId: string, revision: string) {
-  const { battle, seats } = battleSeats(ctx, battleId)
-  return { battle, seats, digest: battleDigestOf(ctx, battleId, revision) }
+  const seated = battleSeats(ctx, battleId)
+  return { battle: seated.battle, seats: seated.seats, digest: battleDigestOf(ctx, battleId, revision, seated) }
 }
 
 export const battleForOperator = spacetime.procedure({ battleId: t.string() }, t.string(), (ctx, { battleId }) =>
@@ -1465,12 +1472,12 @@ export const battleFeed = spacetime.procedure({ payload: t.string() }, t.string(
       // The public feed's candidates arrive in feed order, so the page is whole once it holds one more than it shows.
       if (input.scope === 'public' && rows.length > input.limit) break
       if (tx.db.battleDrafts.battleId.find(battle.id)) continue
-      const seats = Array.from(tx.db.battleUsers.battleId.filter(battle.id))
-      const seatIds = new Set(seats.map((seat) => seat.userId))
-      const hasPractice = seats.some((seat) => Boolean(tx.db.practiceOpponents.userId.find(seat.userId)))
-      if (input.scope === 'user' && input.withUserId && !seatIds.has(input.withUserId)) continue
-      if (input.scope === 'public' && (hasPractice || (input.viewerId && seatIds.has(input.viewerId)))) continue
-      if (input.scope === 'friends' && (hasPractice || seatIds.has(input.userId!))) continue
+      if (input.scope === 'user' && input.withUserId && !tx.db.battleUsers.key.find(JSON.stringify([battle.id, input.withUserId]))) continue
+      if (input.scope === 'public' || input.scope === 'friends') {
+        const excluded = input.scope === 'public' ? input.viewerId : input.userId
+        const seats = Array.from(tx.db.battleUsers.battleId.filter(battle.id))
+        if (seats.some(({ userId }) => userId === excluded || Boolean(tx.db.practiceOpponents.userId.find(userId)))) continue
+      }
       const at = safeNumber(lastActivity(tx, battle))
       if (
         (input.scope === 'public' || input.scope === 'friends') &&
@@ -1481,12 +1488,9 @@ export const battleFeed = spacetime.procedure({ payload: t.string() }, t.string(
         continue
       const row = { id: battle.id, token: battle.token, createdAt: safeNumber(battle.createdAt), at }
       if (input.before && inOrder(row, input.before) <= 0) continue
-      const last = rows.at(-1)
-      if (rows.length === input.limit + 1 && last && inOrder(row, last) >= 0) continue
       rows.push(row)
-      rows.sort(inOrder)
-      if (rows.length > input.limit + 1) rows.pop()
     }
+    if (input.scope !== 'public') rows.sort(inOrder)
     const shown = rows.slice(0, input.limit)
     const last = shown.at(-1)
     return productJson({
@@ -1701,6 +1705,12 @@ function standingOf({ key: _key, change: _change, finishedDay: _day, ...step }: 
   return step
 }
 
+function standingsAreFresh(state: ReturnType<typeof derivedState>, revision: bigint, versions: { results: string; ratings: string }) {
+  return (
+    state.version === versions.results && state.ratings === versions.ratings && state.ratingsFrom === undefined && state.seen === revision
+  )
+}
+
 /**
  * Takes the standings refresh for `holder` unless nothing that could change a result or rating has happened since the last
  * one with these versions, or another server holds it. A new results version rereads every battle; a new ratings version
@@ -1715,8 +1725,7 @@ export const claimStandingsRefresh = spacetime.procedure(
     operatorTx(ctx, (tx) => {
       const state = derivedState(tx, STANDINGS)
       const standings = standingsRevision(tx)
-      const same = state.version === input.results && state.ratings === input.ratings
-      if (same && state.ratingsFrom === undefined && state.seen === standings) return productJson({ state: 'fresh', standings })
+      if (standingsAreFresh(state, standings, input)) return productJson({ state: 'fresh', standings })
       const now = nowMs(tx)
       const generation = (version: string) => Number(version.split(':')[0]) || 0
       const armies = (version: string) => version.split(':')[1] ?? ''
@@ -1944,42 +1953,44 @@ export const leaderboard = spacetime.procedure({ activeSince: t.u64(), limit: t.
 
 /** Where one player sits in each table they are ranked in and played in since `activeSince`, and their overall rating after each counted battle. */
 export const playerStandings = spacetime.procedure({ userId: t.string(), activeSince: t.u64() }, t.string(), (ctx, input) =>
-  operatorTx(ctx, (tx) => {
-    const now = safeNumber(nowMs(tx))
-    const places = Array.from(tx.db.standings.playerId.filter(input.userId)).flatMap((own) => {
-      // A provisional player has no place of their own, and is no place's competition.
-      if (own.finishedAt < input.activeSince || isProvisional(own)) return []
-      const standing = standingRow(own, now)
-      let place = 1
-      let of = 0
-      for (const row of tx.db.standings.table.filter(own.table)) {
-        if (row.finishedAt < input.activeSince || isProvisional(row)) continue
-        of += 1
-        if (row.playerId !== own.playerId && compareStandings(standingRow(row, now), standing) < 0) place += 1
-      }
-      return [{ table: own.table, place, of, standing }]
-    })
-    const history = Array.from(tx.db.ratingSteps.playerId.filter(input.userId))
-      .filter((step) => step.table === '')
-      .sort((one, other) => (laterStep(one, other) ? 1 : -1))
-      .map((step) => ({ at: safeNumber(step.finishedAt), rating: step.rating }))
-    return productJson({ places, history })
-  }),
+  operatorTx(ctx, (tx) => productJson(playerStandingsFor(tx, input))),
 )
+
+function playerStandingsFor(tx: Context, input: { userId: string; activeSince: bigint }) {
+  const now = safeNumber(nowMs(tx))
+  const places = Array.from(tx.db.standings.playerId.filter(input.userId)).flatMap((own) => {
+    // A provisional player has no place of their own, and is no place's competition.
+    if (own.finishedAt < input.activeSince || isProvisional(own)) return []
+    const standing = standingRow(own, now)
+    let place = 1
+    let of = 0
+    for (const row of tx.db.standings.table.filter(own.table)) {
+      if (row.finishedAt < input.activeSince || isProvisional(row)) continue
+      of += 1
+      if (row.playerId !== own.playerId && compareStandings(standingRow(row, now), standing) < 0) place += 1
+    }
+    return [{ table: own.table, place, of, standing }]
+  })
+  const history = Array.from(tx.db.ratingSteps.playerId.filter(input.userId))
+    .filter((step) => step.table === '')
+    .sort((one, other) => (laterStep(one, other) ? 1 : -1))
+    .map((step) => ({ at: safeNumber(step.finishedAt), rating: step.rating }))
+  return { places, history }
+}
 
 /** How far each of these battles moved each seat's overall rating, for the battles the leaderboard counts. */
 export const ratingChanges = spacetime.procedure({ tokens: t.array(t.string()) }, t.string(), (ctx, { tokens }) =>
-  operatorTx(ctx, (tx) => {
-    if (tokens.length > 500) throw new SenderError('Too many battles')
-    return productJson(
-      tokens.flatMap((token) => {
-        const battle = tx.db.battles.token.find(token)
-        const steps = battle ? Array.from(tx.db.ratingSteps.battleId.filter(battle.id)).filter((step) => step.table === '') : []
-        return steps.length ? [{ token, changes: Object.fromEntries(steps.map((step) => [step.playerId, step.change])) }] : []
-      }),
-    )
-  }),
+  operatorTx(ctx, (tx) => productJson(ratingChangesFor(tx, tokens))),
 )
+
+function ratingChangesFor(tx: Context, tokens: readonly string[]) {
+  if (tokens.length > 500) throw new SenderError('Too many battles')
+  return tokens.flatMap((token) => {
+    const battle = tx.db.battles.token.find(token)
+    const steps = battle ? Array.from(tx.db.ratingSteps.battleId.filter(battle.id)).filter((step) => step.table === '') : []
+    return steps.length ? [{ token, changes: Object.fromEntries(steps.map((step) => [step.playerId, step.change])) }] : []
+  })
+}
 
 /** The stored results of every finished battle this player sits in. */
 export const battleResultsByUser = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
@@ -1995,16 +2006,33 @@ export const battleResultsByUser = spacetime.procedure({ userId: t.string() }, t
 
 /** A player's stored medals, and whether a write since their last check could have changed them. */
 export const achievementStatus = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
-  operatorTx(ctx, (tx) => {
-    const check = tx.db.achievementChecks.userId.find(userId)
-    return productJson({
-      revision: check?.revision ?? 0n,
-      checked: check?.checked ?? 0n,
-      earned: Array.from(tx.db.earnedAchievements.userId.filter(userId)).flatMap(({ achievementId, earnedAt, held, seen }) =>
-        held ? [{ achievementId, earnedAt: earnedAt ?? null, seen }] : [],
-      ),
-    })
-  }),
+  operatorTx(ctx, (tx) => productJson(achievementStatusFor(tx, userId))),
+)
+
+function achievementStatusFor(tx: Context, userId: string) {
+  const check = tx.db.achievementChecks.userId.find(userId)
+  return {
+    revision: check?.revision ?? 0n,
+    checked: check?.checked ?? 0n,
+    earned: Array.from(tx.db.earnedAchievements.userId.filter(userId)).flatMap(({ achievementId, earnedAt, held, seen }) =>
+      held ? [{ achievementId, earnedAt: earnedAt ?? null, seen }] : [],
+    ),
+  }
+}
+
+/** Reads a view with the freshness check in the same transaction; a miss leaves the refresh to the caller. */
+export const currentStandingsView = spacetime.procedure(
+  { results: t.string(), ratings: t.string(), payload: t.string() },
+  t.string(),
+  (ctx, { payload, ...versions }) =>
+    operatorTx(ctx, (tx) => {
+      const view = decodePayload(standingsViewQuery, payload, 'Invalid standings view')
+      const state = tx.db.derivedState.name.find(STANDINGS)
+      if (!state || !standingsAreFresh(state, standingsRevision(tx), versions)) return productJson(null)
+      if (view.kind === 'achievements') return productJson(achievementStatusFor(tx, view.userId))
+      if (view.kind === 'changes') return productJson(ratingChangesFor(tx, view.tokens))
+      return productJson(playerStandingsFor(tx, { userId: view.userId, activeSince: BigInt(view.activeSince) }))
+    }),
 )
 
 const achievementWrite = z.object({
@@ -2652,6 +2680,87 @@ function productJson(value: unknown) {
   })
 }
 
+type ProductTable = keyof typeof productTables
+const PRODUCT_TABLES = Object.keys(productTables) as ProductTable[]
+/** Kept well under what one HTTP call carries; no single row comes near it. */
+const COPY_PAGE_CHARACTERS = 4_000_000
+
+function productTable(name: string) {
+  if (!(PRODUCT_TABLES as string[]).includes(name)) throw new SenderError('Unknown product table')
+  return name as ProductTable
+}
+
+// JSON has no 64-bit integers or absent values, so u64 columns travel tagged and options travel as missing keys.
+const copiedRowText = (row: object) =>
+  JSON.stringify(row, (_key, field: unknown) => (typeof field === 'bigint' ? { $u64: field.toString() } : field))
+const copiedRows = (text: string) =>
+  JSON.parse(text, (_key, field: unknown) =>
+    field !== null && typeof field === 'object' && '$u64' in field ? BigInt((field as { $u64: string }).$u64) : field,
+  ) as unknown
+const copyPage = z.array(z.record(z.string(), z.unknown())).max(1_000_000)
+
+/**
+ * One page of a product table's rows, in storage order, for a copy of the whole database; an empty `table` names the tables.
+ *
+ * Pages are positional, so only a database nothing writes to, such as a backup restored offline, reads back exactly.
+ */
+export const exportProductRows = spacetime.procedure({ table: t.string(), offset: t.u32() }, t.string(), (ctx, input) =>
+  operatorTx(ctx, (tx) => {
+    if (!input.table) return JSON.stringify({ tables: PRODUCT_TABLES })
+    const rows: string[] = []
+    let characters = 0
+    let position = 0
+    for (const row of tx.db[productTable(input.table)].iter()) {
+      if (position++ < input.offset) continue
+      const text = copiedRowText(row)
+      if (rows.length && characters + text.length > COPY_PAGE_CHARACTERS)
+        return `{"rows":[${rows.join(',')}],"next":${input.offset + rows.length}}`
+      rows.push(text)
+      characters += text.length
+    }
+    return `{"rows":[${rows.join(',')}],"next":null}`
+  }),
+)
+
+/**
+ * Stores copied rows in a product table, emptying it first when `replace` is set. Only a database whose auth issuer is
+ * on this machine takes them, so no deployed database can be overwritten through its operator. A column the copy's
+ * older schema lacked takes its declared default, as the migration that added it would have given it, and
+ * auto-incremented columns are numbered afresh, since a copied value would collide with the next one the sequence hands out.
+ */
+export const importProductRows = spacetime.procedure({ table: t.string(), rows: t.string(), replace: t.bool() }, t.u32(), (ctx, input) =>
+  operatorTx(ctx, (tx) => {
+    if (!isLocalIssuer(auth(tx).issuer)) throw new SenderError('Only a local development database takes copied rows')
+    const name = productTable(input.table)
+    const parsed = copyPage.safeParse(copiedRows(input.rows))
+    if (!parsed.success) throw new SenderError('Invalid copied rows')
+    const columns = Object.entries(
+      productTables[name].rowType.row as Record<string, { columnMetadata: { isAutoIncrement?: boolean; defaultValue?: unknown } }>,
+    )
+    const defaults = Object.fromEntries(
+      columns.flatMap(([column, { columnMetadata }]) => ('defaultValue' in columnMetadata ? [[column, columnMetadata.defaultValue]] : [])),
+    )
+    const renumbered = Object.fromEntries(
+      columns.flatMap(([column, { columnMetadata }]) => (columnMetadata.isAutoIncrement ? [[column, 0n]] : [])),
+    )
+    // Each table is typed by its own row; the copy carries rows this module's schema wrote, so they insert as read.
+    const target = tx.db[name] as unknown as { clear(): void; insert(row: object): unknown }
+    if (input.replace) target.clear()
+    for (const row of parsed.data) target.insert({ ...defaults, ...row, ...renumbered })
+    return parsed.data.length
+  }),
+)
+
+/**
+ * Whether the owner answered an event's sharing prompt for this roster before answers moved onto the roster. Either
+ * answer counts: a list published there and since made private again was taken back on purpose.
+ */
+function answeredInSealedEvent(tx: Context, roster: StoredRoster) {
+  for (const answer of tx.db.sealedEventRosterSharing.userId.filter(roster.userId))
+    if (tx.db.sealedEventEntries.key.find(answer.key)?.rosterId === roster.id) return true
+  return false
+}
+
 export const migrateProductData = spacetime.procedure({ table: t.string(), keys: t.array(t.string()) }, t.string(), (ctx, input) =>
   operatorTx(ctx, (tx) => {
     const { table: entity, keys } = z
@@ -2663,7 +2772,11 @@ export const migrateProductData = spacetime.procedure({ table: t.string(), keys:
         const row = tx.db.rosters.id.find(key)
         if (!row) continue
         const stored = migrateStoredRoster(row)
-        const migrated = { ...stored, prep: adoptRosterReminders(tx, row.userId, stored.prep, row.updatedAt, 'migrate') }
+        const migrated = {
+          ...stored,
+          prep: adoptRosterReminders(tx, row.userId, stored.prep, row.updatedAt, 'migrate'),
+          sharingDeclined: row.sharingDeclined || answeredInSealedEvent(tx, row) || undefined,
+        }
         if (productJson(migrated) === productJson(row)) continue
         tx.db.rosters.id.update(migrated)
         touchProduct(tx, row.userId, 'rosters')
@@ -2778,6 +2891,7 @@ function rosterSummary(row: StoredRoster) {
     baseRosterId: row.baseRosterId,
     locked: row.locked,
     archived: row.archived,
+    sharingDeclined: row.sharingDeclined,
     visibility: row.visibility,
     source: row.source,
     createdAt: row.createdAt,
@@ -2958,6 +3072,7 @@ function saveRosterIn(tx: Context, input: ReturnType<typeof parseRoster>) {
     copiedFromRosterId: input.copiedFromRosterId ?? undefined,
     locked: false,
     archived: false,
+    sharingDeclined: undefined,
     ...fields,
   })
   touchProduct(tx, input.userId, 'rosters', 'onboarding')
@@ -3057,6 +3172,19 @@ export const setRosterArchived = spacetime.procedure(
   (ctx, { id, userId, archived, now }) => operatorTx(ctx, (tx) => updateOwnedRoster(tx, id, userId, now, { archived })),
 )
 
+/** Records the owner's No thanks to making a roster public; it is not an edit, so the roster keeps its version. */
+export const declineRosterSharing = spacetime.procedure({ id: t.string(), userId: t.string() }, t.bool(), (ctx, { id, userId }) =>
+  operatorTx(ctx, (tx) => {
+    const current = ownedRoster(tx, id, userId)
+    if (!current) return false
+    if (!current.sharingDeclined) {
+      tx.db.rosters.id.update({ ...current, sharingDeclined: true })
+      touchProduct(tx, userId, 'rosters')
+    }
+    return true
+  }),
+)
+
 /**
  * Takes a roster out of its variant group so it stands on its own. A base that leaves hands the group to its oldest
  * remaining member, which every other variant then points at, since the group is keyed by the base's id.
@@ -3077,6 +3205,7 @@ export const splitRosterVariant = spacetime.procedure(
       const moved = roster.baseRosterId ? [] : others.map((row, at) => ({ ...row, baseRosterId: at ? others[0]!.id : undefined }))
       for (const row of [...moved, { ...roster, baseRosterId: undefined }])
         tx.db.rosters.id.update({ ...row, updatedAt: nextVersion(tx.db.rosters.id.find(row.id) ?? null, now) })
+      keepVariantsFiled(tx, userId, group, roster.baseRosterId ? [id] : [others[0]!.id], now)
       touchProduct(tx, userId, 'rosters')
       if ([roster, ...others].some((row) => row.visibility !== 'private')) touchPublic(tx, 'rosters')
       return true
@@ -3864,6 +3993,14 @@ export const playerDefaults = spacetime.procedure({ userId: t.string() }, t.stri
   }),
 )
 
+export const rosterFoldersByUser = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
+  operatorTx(ctx, (tx) => tx.db.rosterFolders.userId.find(userId)?.folders ?? productJson(NO_ROSTER_FOLDERS)),
+)
+
+export const changeRosterFolders = spacetime.procedure({ userId: t.string(), change: t.string(), now: t.u64() }, t.string(), (ctx, input) =>
+  operatorTx(ctx, (tx) => changeRosterFoldersIn(tx, [input.userId, input.change, input.now])),
+)
+
 export const setPlayerDefaults = spacetime.procedure(
   { userId: t.string(), rosterVisibility: t.string(), battleSize: t.u32(), now: t.u64() },
   t.string(),
@@ -4592,6 +4729,20 @@ export const sealedEventsVisibleTo = spacetime.procedure({ userId: t.string(), l
   }),
 )
 
+/** The saved list behind each of a player's own sealed entries, by its event and by the host its battles name. */
+export const sealedEntrySources = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
+  operatorTx(ctx, (tx) => {
+    if (!validId(userId)) throw new SenderError('Invalid sealed entries')
+    return productJson(
+      Array.from(tx.db.sealedEventEntries.userId.filter(userId)).flatMap((entry) => {
+        const event = tx.db.sealedEvents.id.find(entry.eventId)
+        const host = event && hostOfEvent(tx, event)
+        return host && entry.rosterId ? [{ hostToken: hostToken(host), eventToken: host.event.token, rosterId: entry.rosterId }] : []
+      }),
+    )
+  }),
+)
+
 export const outdatedSealedEventEntriesForRoster = spacetime.procedure(
   { userId: t.string(), rosterId: t.string() },
   t.string(),
@@ -4733,7 +4884,8 @@ function sealedEventRosterSharingState(tx: Context, event: SealedEventRow, userI
     roster,
     state: {
       submittedAt: safeNumber(entry.submittedAt),
-      prompt: !tx.db.sealedEventRosterSharing.key.find(key) && roster.visibility !== 'public',
+      // An earlier answer still in the event table counts until the deploy's migration has moved it onto the roster.
+      prompt: !roster.sharingDeclined && !answeredInSealedEvent(tx, roster) && roster.visibility !== 'public',
       roster: {
         id: roster.id,
         name: roster.name || entry.rosterName || 'Your saved roster',
@@ -6051,6 +6203,41 @@ function setPushEnabledIn(tx: Context, args: unknown[]) {
   return enabled
 }
 
+const storedRosterFolders = (tx: Context, userId: string) => {
+  const row = tx.db.rosterFolders.userId.find(userId)
+  return row ? rosterFoldersSchema.parse(JSON.parse(row.folders)) : NO_ROSTER_FOLDERS
+}
+
+function saveRosterFolders(tx: Context, userId: string, folders: RosterFolders, now: bigint) {
+  const row = { userId, folders: productJson(folders), at: now }
+  if (tx.db.rosterFolders.userId.find(userId)) tx.db.rosterFolders.userId.update(row)
+  else tx.db.rosterFolders.insert(row)
+  touchProduct(tx, userId, 'settings')
+  return row.folders
+}
+
+/** Applies one folder change to what is saved now, so a change queued offline never replaces another device's folders. */
+function changeRosterFoldersIn(tx: Context, args: unknown[]) {
+  const [userId, text, now] = z.tuple([textArg, z.string().max(20_000), timestampArg]).parse(args)
+  if (!validId(userId)) throw new SenderError('Invalid roster folders')
+  const change = decodePayload(rosterFolderChangeSchema, text, 'Invalid roster folders')
+  const groups = new Set(Array.from(tx.db.rosters.userId.filter(userId), (row) => row.baseRosterId ?? row.id))
+  return saveRosterFolders(tx, userId, applyRosterFolderChange(storedRosterFolders(tx, userId), change, groups), now)
+}
+
+/** A list taken out of its variant group stays in the group's folder, and so do the variants left behind when the base leaves. */
+function keepVariantsFiled(tx: Context, userId: string, group: string, rosterIds: readonly string[], now: bigint) {
+  const folders = storedRosterFolders(tx, userId)
+  const folderId = folders.filed[group]
+  if (!folderId) return
+  saveRosterFolders(
+    tx,
+    userId,
+    { ...folders, filed: { ...folders.filed, ...Object.fromEntries(rosterIds.map((id) => [id, folderId])) } },
+    now,
+  )
+}
+
 function setPlayerDefaultsIn(tx: Context, args: unknown[]) {
   const [userId, rosterVisibility, battleSize, now] = z
     .tuple([textArg, textArg, z.number().int().nonnegative().max(4_294_967_295), timestampArg])
@@ -6514,8 +6701,6 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
   if (operation === 'share-roster' || operation === 'dismiss-roster-sharing') {
     const current = sealedEventRosterSharingState(tx, event, ownerId)
     if (!current) return productJson('unavailable')
-    const key = current.entry.key
-    const previous = tx.db.sealedEventRosterSharing.key.find(key)
     if (operation === 'share-roster') {
       const input = sealedEventCommandInput(
         z.object({
@@ -6528,16 +6713,8 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
       if (current.state.submittedAt !== input.submittedAt || current.roster.id !== input.rosterId) return productJson('stale')
       if (current.roster.visibility !== 'public')
         updateOwnedRoster(tx, current.roster.id, ownerId, BigInt(input.now), { visibility: 'public' })
-    }
-    const row = {
-      key,
-      eventId: event.id,
-      userId: ownerId,
-      rosterId: operation === 'share-roster' ? current.roster.id : previous?.rosterId,
-    }
-    if (previous) tx.db.sealedEventRosterSharing.key.update(row)
-    else tx.db.sealedEventRosterSharing.insert(row)
-    touchProduct(tx, ownerId, 'sealed-events')
+    } else if (!current.roster.sharingDeclined) tx.db.rosters.id.update({ ...current.roster, sharingDeclined: true })
+    touchProduct(tx, ownerId, 'sealed-events', 'rosters')
     return productJson(sealedEventRosterSharingState(tx, event, ownerId)!.state)
   }
   if (operation === 'admit') {
@@ -7111,6 +7288,7 @@ const syncProductActions = {
   delete_ability_reminder: deleteAbilityReminderIn,
   set_push_enabled: setPushEnabledIn,
   set_player_defaults: setPlayerDefaultsIn,
+  change_roster_folders: changeRosterFoldersIn,
   sealed_event_command: sealedEventCommandIn,
 } satisfies Record<SyncProductActionName, unknown>
 

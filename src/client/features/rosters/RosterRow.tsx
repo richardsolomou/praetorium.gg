@@ -6,6 +6,7 @@ import {
   ClipboardCheck,
   Copy,
   EllipsisVertical,
+  FolderInput,
   GitBranchPlus,
   HandHelping,
   Lock,
@@ -34,6 +35,8 @@ import {
   rosterTitle,
 } from './RosterSummary'
 import { ContextMenuItem, DropdownMenuItem, MenuSection } from '../../components/Menu'
+import type { RosterPlayHistory } from '../../../core/rosterPlays'
+import { ROSTER_DRAG_TYPE, VARIANT_DRAG_TYPE } from './RosterFolders'
 
 export type RosterRowLayout = 'card' | 'base' | 'variant'
 
@@ -75,6 +78,10 @@ export function RosterRow({
   showVisibility = true,
   onNeedsAccount,
   selection,
+  plays,
+  onMove,
+  dragId,
+  variantOf,
 }: {
   roster: SavedRoster
   layout?: RosterRowLayout
@@ -103,6 +110,13 @@ export function RosterRow({
   /** A visitor's list on this device, whose account-only actions ask them to sign up instead. */
   onNeedsAccount?: (reason: AccountReason) => void
   selection?: RosterRowSelection
+  plays?: RosterPlayHistory
+  /** Files the list, with its variants, in a folder; absent for a visitor's list on this device. */
+  onMove?: () => void
+  /** The roster a drag files: the list itself, or the base its variants follow. */
+  dragId?: string
+  /** The base a variant row belongs to, so dragging it out takes the variant alone. */
+  variantOf?: string
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const title = rosterTitle(roster, faction, label)
@@ -118,6 +132,7 @@ export function RosterRow({
     onGrade,
     onDelete,
     onNeedsAccount,
+    onMove,
     legal: points != null && !pointsLoading && !problem,
   }
 
@@ -133,7 +148,19 @@ export function RosterRow({
           />
         }
       >
-        <Link to="/rosters/$id" params={{ id: roster.id }} className="flex min-w-0 flex-1 flex-wrap items-center gap-2 p-1">
+        <Link
+          to="/rosters/$id"
+          params={{ id: roster.id }}
+          className="flex min-w-0 flex-1 flex-wrap items-center gap-2 p-1"
+          // The card's link is what a pointer grabs, so it carries the roster to a folder.
+          onDragStart={(event) => {
+            if (!dragId || selection) return
+            // A variant on its own leaves its base behind; anything else carries its whole set.
+            if (variantOf) event.dataTransfer.setData(VARIANT_DRAG_TYPE, JSON.stringify({ id: roster.id, baseId: variantOf }))
+            else event.dataTransfer.setData(ROSTER_DRAG_TYPE, dragId)
+            event.dataTransfer.effectAllowed = 'copyMove'
+          }}
+        >
           {layout === 'variant' ? (
             <RosterVariantSummary
               roster={roster}
@@ -146,6 +173,7 @@ export function RosterRow({
               differences={differences}
               showVisibility={showVisibility}
               updates={updates}
+              plays={plays}
             />
           ) : (
             <RosterSummary
@@ -159,6 +187,7 @@ export function RosterRow({
               problem={problem}
               differences={differences}
               updates={updates}
+              plays={plays}
             />
           )}
         </Link>
@@ -210,6 +239,7 @@ function RosterActionItems({
   onGrade,
   onDelete,
   onNeedsAccount,
+  onMove,
   legal,
 }: {
   Item: typeof DropdownMenuItem | typeof ContextMenuItem
@@ -226,6 +256,7 @@ function RosterActionItems({
   onGrade: () => void
   onDelete: () => void
   onNeedsAccount?: (reason: AccountReason) => void
+  onMove?: () => void
   /** Priced and fieldable under the current army data, so ready to take to the table. */
   legal: boolean
 }) {
@@ -246,6 +277,11 @@ function RosterActionItems({
         <Item disabled={roster.locked} onClick={onEdit}>
           <Pencil /> Edit roster setup
         </Item>
+        {onMove ? (
+          <Item onClick={onMove}>
+            <FolderInput /> Move to folder…
+          </Item>
+        ) : null}
         <Item
           disabled={actions.lock.isPending}
           onClick={orAccount('lock', () => actions.lock.mutate({ id: roster.id, locked: !roster.locked }))}

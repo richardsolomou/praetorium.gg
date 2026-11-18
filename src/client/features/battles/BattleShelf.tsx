@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { EllipsisVertical, Eye, Trash2, Trophy } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -53,6 +54,7 @@ export function BattleShelf({
   branched?: boolean
 }) {
   const { date } = useDateFormatting()
+  const [idleBefore] = useState(() => Date.now() - IDLE_AFTER)
   const { data: deployments } = useQuery({ ...deploymentsQuery(), enabled: battles.some((battle) => battle.deploymentId !== null) })
   if (!battles.length) return null
   return (
@@ -77,6 +79,8 @@ export function BattleShelf({
             [ours, theirs].flatMap((side) => side?.seats.map(({ player }) => ({ ...player, side: side.index })) ?? []),
           )
           const scored = battle.status !== 'setup'
+          const idle =
+            battle.status !== 'finished' && Boolean(viewerId && battle.playerIds.includes(viewerId)) && battle.lastActivity < idleBefore
           const a = ours?.score ?? 0
           const b = theirs?.score ?? 0
           const lost = (side?: SummarySide) => side !== undefined && sideLost(battle, side.index)
@@ -137,7 +141,13 @@ export function BattleShelf({
                       className={`flex min-w-0 items-center justify-between gap-3 pb-2.5 pl-4 text-2xs text-faint ${canDelete ? 'pr-10' : 'pr-4'}`}
                     >
                       <span className="truncate">{setting}</span>
-                      <span className="shrink-0">{date(battle.lastActivity)}</span>
+                      {idle ? (
+                        <span data-battle-idle className="shrink-0 text-discarded">
+                          {date(battle.lastActivity)} · <span className="font-semibold">Resume</span>
+                        </span>
+                      ) : (
+                        <span className="shrink-0">{date(battle.lastActivity)}</span>
+                      )}
                     </span>
                   </Link>
                   {canDelete ? (
@@ -180,6 +190,9 @@ export function BattleShelf({
     </section>
   )
 }
+
+/** How long a game the viewer sits in goes untouched before its card asks them back to it. */
+const IDLE_AFTER = 3 * 24 * 60 * 60 * 1_000
 
 const NO_COLOURS = new Map()
 const FADED = 'opacity-50'

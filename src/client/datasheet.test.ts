@@ -3,9 +3,6 @@ import { compositionCount } from '../shared/datacards'
 import {
   addedKeywords,
   attachmentGroups,
-  datasheetPoints,
-  unitCostsSummary,
-  datasheetDescription,
   primaryUnitProfile,
   profileTableColumns,
   profileTableValue,
@@ -15,6 +12,7 @@ import {
   weaponProfileGroups,
   weaponProfileMode,
 } from './datasheet'
+import { datasheetDescription, datasheetPoints, unitCostsSummary } from './datasheetSummary'
 
 describe('datasheet search description', () => {
   it('answers points and base-size searches from printed facts', () => {

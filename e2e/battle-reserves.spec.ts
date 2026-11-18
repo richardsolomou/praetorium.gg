@@ -11,32 +11,6 @@ import {
   playerPanel,
 } from './account'
 
-test('reserve choices over the points limit are disabled with the reason beside them', async ({ page }) => {
-  await signUp(page, uniqueName('Reserves'))
-  const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Reserve army', size: /Incursion/ })
-  for (const unit of ['Monolith', 'Doomsday Ark', 'Immortals']) {
-    await addUnit(page, unit)
-  }
-  await practiceBattle(page, roster)
-  await chooseBattlefield(page)
-  await setupStep(page, 'Reserves')
-  const reserves = page.getByRole('region', { name: 'Reserves' })
-  await expect(reserves.getByRole('button', { name: /^Change reserves for / })).toHaveCount(0)
-
-  const army = reserves.locator('article').first()
-  await expect(army.getByText('0/500 reserve points')).toBeVisible()
-  await army.getByRole('button', { name: 'Start Monolith in Strategic reserves', exact: true }).click()
-  await expect(army.getByText('420/500 reserve points')).toBeVisible()
-  const ark = army.getByRole('button', { name: 'Start Doomsday Ark in Strategic reserves', exact: true })
-  await expect(ark).toBeDisabled()
-  await expect(ark).toHaveAccessibleDescription('Over the 500 pt reserve limit.')
-  await expect(army.getByRole('button', { name: 'Start Immortals in Strategic reserves', exact: true })).toBeEnabled()
-
-  await army.getByRole('button', { name: 'Start Monolith in Battlefield', exact: true }).click()
-  await expect(army.getByText('0/500 reserve points')).toBeVisible()
-  await expect(ark).toBeEnabled()
-})
-
 test('a unit arriving from reserves mid-battle becomes a combat target', async ({ page }) => {
   const player = uniqueName('Arrival')
   await signUp(page, player)

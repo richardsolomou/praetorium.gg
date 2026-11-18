@@ -105,16 +105,16 @@ const quantilesOf = <Key extends string>(keys: readonly Key[], values: (key: Key
  * Peers for one group of lists at one size, placed as `rosterGrades` places a list: measure percentiles first,
  * then each list's category averages among them, then its average category percentile among those.
  */
-function peersOf(lists: readonly CalibrationList[], size: CalibratedSize): Peers {
+function peersOf(lists: readonly CalibrationList[], size: CalibratedSize, everyone?: Peers): Peers {
   const scored = lists.map((list) => scoredMeasures(list.units, size))
   const metrics = [...new Set(scored.flatMap((measures) => Object.keys(measures) as MetricKey[]))]
   const measures = quantilesOf(metrics, (key) => scored.map((list) => list[key] ?? null))
-  const averages = lists.map((list) => placement(list.units, size, { measures }).categories)
+  const averages = lists.map((list) => placement(list.units, size, { measures }, everyone).categories)
   const categories = quantilesOf(
     CATEGORIES.map((category) => category.key),
     (key) => averages.map((list) => list.find((category) => category.key === key)!.average),
   ) as Record<string, number[]>
-  const overall = lists.flatMap((list) => placement(list.units, size, { measures, categories }).overall ?? [])
+  const overall = lists.flatMap((list) => placement(list.units, size, { measures, categories }, everyone).overall ?? [])
   return { measures, categories, overall: quantiles(overall) }
 }
 
@@ -138,17 +138,13 @@ export function calibrate(lists: readonly CalibrationList[]) {
       ([key]) => key,
     )
     expected[size] = expectedTools(sized(size), size)
+    const listsOf = (key: string) => groups.get(key)!.map(([, list]) => list)
+    const everyone = peersOf(listsOf(''), size)
     peers[size] = Object.fromEntries(
       [...groups]
         .filter(([key, members]) => key === '' || members.length >= MIN_PEERS)
         .toSorted(([left], [right]) => left.localeCompare(right))
-        .map(([key, members]) => [
-          key,
-          peersOf(
-            members.map(([, list]) => list),
-            size,
-          ),
-        ]),
+        .map(([key]) => [key, key === '' ? everyone : peersOf(listsOf(key), size, everyone)]),
     )
   }
   return { expected, peers }

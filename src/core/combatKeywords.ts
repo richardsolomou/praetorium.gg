@@ -27,7 +27,10 @@ const simple = [
   'one shot',
   'conversion',
 ] as const
-type KeywordKind = (typeof simple)[number] | 'sustained hits' | 'rapid fire' | 'melta' | 'blast' | 'cleave' | 'anti'
+const numberedKinds = ['sustained hits', 'rapid fire', 'melta', 'blast', 'cleave', 'anti'] as const
+type KeywordKind = (typeof simple)[number] | (typeof numberedKinds)[number]
+/** Every weapon ability a rule can give, by the name its rule goes by. */
+export const WEAPON_ABILITY_KINDS: readonly KeywordKind[] = [...simple, ...numberedKinds]
 type CombatKeyword = {
   kind: KeywordKind
   amount?: number | DiceExpression
@@ -98,7 +101,8 @@ export function combatKeywordApplies(keyword: CombatKeyword, targetKeywords: rea
 
 export function combatKeywordPhraseMatches(phrase: string, keywords: readonly string[]) {
   let remaining = phrase
+  // A unit keyword names its models in the singular too, as KASTELAN ROBOT models for Kastelan Robots.
   for (const keyword of keywords.toSorted((a, b) => b.length - a.length))
-    remaining = remaining.replaceAll(new RegExp(`\\b${escapeRegExp(keyword)}s?\\b`, 'g'), '').trim()
+    remaining = remaining.replaceAll(new RegExp(`\\b${escapeRegExp(keyword.replace(/s$/, ''))}s?\\b`, 'g'), '').trim()
   return !remaining
 }

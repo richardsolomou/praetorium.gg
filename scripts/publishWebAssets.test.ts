@@ -69,6 +69,51 @@ it('keeps a stored asset whose code differs only in its PostHog chunk id', async
   await publishWebAssets([directory], { base: 'https://storage.test/', request }, publicRequest)
   expect(stored.get('https://storage.test/web-assets/index-abcdefgh.js')).toBe(storedChunk)
 })
+it('publishes the previous release copy when both releases built a chunk differing only in its PostHog chunk id', async () => {
+  const chunk = (id: string) => `!function(){e._posthogChunkIds[n]="${id}"}();\nexport const ready = true\n//# chunkId=${id}`
+  const [previous, current] = [await mkdtemp(path.join(tmpdir(), 'web-assets-')), await mkdtemp(path.join(tmpdir(), 'web-assets-'))]
+  directories.push(previous, current)
+  const previousChunk = chunk('11111111-1111-4111-8111-111111111111')
+  await writeFile(path.join(previous, 'index-abcdefgh.js'), previousChunk)
+  await writeFile(path.join(current, 'index-abcdefgh.js'), chunk('22222222-2222-4222-8222-222222222222'))
+  const { stored, request, publicRequest } = storage()
+  await publishWebAssets([previous, current], { base: 'https://storage.test/', request }, publicRequest)
+  expect(stored.get('https://storage.test/web-assets/index-abcdefgh.js')).toBe(previousChunk)
+})
+/** A chunk as Vite writes it after naming it: its lazy import preloads `deps`, listed once and picked by index. */
+const lazyChunk = (deps: string[]) =>
+  `const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=${JSON.stringify(deps)})))=>i.map(i=>d[i]);\n` +
+  `export const load = () => i(() => import("./lazy-abcdefgh.js"), __vite__mapDeps([${deps.map((_, index) => index).join(',')}]))`
+async function releases(previousDeps: string[], currentDeps: string[]) {
+  const [previous, current] = [await mkdtemp(path.join(tmpdir(), 'web-assets-')), await mkdtemp(path.join(tmpdir(), 'web-assets-'))]
+  directories.push(previous, current)
+  await writeFile(path.join(previous, 'index-abcdefgh.js'), lazyChunk(previousDeps))
+  await writeFile(path.join(current, 'index-abcdefgh.js'), lazyChunk(currentDeps))
+  return [previous, current]
+}
+it('publishes the previous release copy when only the scripts its lazy imports preload changed', async () => {
+  const builds = await releases(['assets/lazy-abcdefgh.js'], ['assets/lazy-abcdefgh.js', 'assets/added-abcdefgh.js'])
+  const { stored, request, publicRequest } = storage()
+  await publishWebAssets(builds, { base: 'https://storage.test/', request }, publicRequest)
+  expect(stored.get('https://storage.test/web-assets/index-abcdefgh.js')).toBe(lazyChunk(['assets/lazy-abcdefgh.js']))
+})
+it('stops when the stylesheets a chunk preloads changed under one name', async () => {
+  const builds = await releases(['assets/lazy-abcdefgh.js'], ['assets/lazy-abcdefgh.js', 'assets/lazy-abcdefgh.css'])
+  const { request, publicRequest } = storage()
+  await expect(publishWebAssets(builds, { base: 'https://storage.test/', request }, publicRequest)).rejects.toThrow(
+    'Web asset name collision',
+  )
+})
+it('stops when two releases built different code under one name', async () => {
+  const [previous, current] = [await mkdtemp(path.join(tmpdir(), 'web-assets-')), await mkdtemp(path.join(tmpdir(), 'web-assets-'))]
+  directories.push(previous, current)
+  await writeFile(path.join(previous, 'index-abcdefgh.js'), 'export const ready = true')
+  await writeFile(path.join(current, 'index-abcdefgh.js'), 'export const ready = false')
+  const { request, publicRequest } = storage()
+  await expect(publishWebAssets([previous, current], { base: 'https://storage.test/', request }, publicRequest)).rejects.toThrow(
+    'Web asset name collision',
+  )
+})
 it('fails publication if the public CDN serves stale bytes', async () => {
   const { request } = storage()
   await expect(
@@ -127,6 +172,18 @@ it('checks each hosted asset once with eight concurrent workers', async () => {
   }
   await verifyWebAssetRoute([directory, directory], 'https://app.test', request)
   expect({ peak, requests: checked.length, unique: new Set(checked).size }).toEqual({ peak: 8, requests: 8, unique: 8 })
+})
+
+it('accepts a hosted asset that is an earlier release copy of the same code', async () => {
+  const chunk = (id: string) => `!function(){e._posthogChunkIds[n]="${id}"}();\nexport const ready = true\n//# chunkId=${id}`
+  const directory = await mkdtemp(path.join(tmpdir(), 'web-assets-'))
+  directories.push(directory)
+  await writeFile(path.join(directory, 'index-abcdefgh.js'), chunk('11111111-1111-4111-8111-111111111111'))
+  const request: typeof fetch = async (url) =>
+    urlOf(url).includes('deployment-probe-missing')
+      ? new Response(null, { status: 404, headers: { 'cache-control': 'no-store' } })
+      : new Response(chunk('22222222-2222-4222-8222-222222222222'), { headers })
+  await expect(verifyWebAssetRoute([directory], 'https://app.test', request)).resolves.toBeUndefined()
 })
 
 it('publishes compressed reference bytes unchanged as an immutable binary asset', async () => {

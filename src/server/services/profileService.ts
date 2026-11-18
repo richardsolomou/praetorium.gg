@@ -1,6 +1,7 @@
 import { byId, countBy } from '../../core/collections'
 import type { BattleFilter, BattleOrder } from '../../core/battleFilter'
 import type { BattleDigest } from '../../core/battleDigest'
+import { isPracticeSeat } from '../../core/newBattle'
 import {
   filterBattles,
   personalPerformance,
@@ -39,13 +40,9 @@ export class ProfileService {
     rules?: BattleReadRules | null,
     factions: readonly BattleFaction[] = [],
   ) {
-    const [seated, practice] = await Promise.all([
-      this.repository.battlesSeatedBy(userId, PROFILE_BATTLE_LIMIT, viewerId),
-      this.repository.practiceOpponents(),
-    ])
-    const practised = new Set(practice.map((opponent) => opponent.id))
+    const seated = await this.repository.battlesSeatedBy(userId, PROFILE_BATTLE_LIMIT, viewerId)
     const summaries = this.recordBattles(
-      seated.filter((history) => !history.players.some((player) => practised.has(player.id))),
+      seated.filter((history) => !history.players.some(isPracticeSeat)),
       viewerId,
       rules,
       factions,
@@ -74,11 +71,10 @@ export class ProfileService {
     rules?: BattleMissionRules | null,
     factions: readonly BattleFaction[] = [],
   ) {
-    const practised = new Set((await this.repository.practiceOpponents()).map((opponent) => opponent.id))
     const found = await this.battleFeedService.filteredFeed(
       async (read) => {
         const { battles, nextCursor } = await this.repository.battlesInProfile(userId, viewerId, read)
-        return { battles: battles.filter((history) => !history.players.some((player) => practised.has(player.id))), nextCursor }
+        return { battles: battles.filter((history) => !history.players.some(isPracticeSeat)), nextCursor }
       },
       page,
       viewerId,

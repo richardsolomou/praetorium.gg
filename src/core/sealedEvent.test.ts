@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { Roster } from './battle'
 import {
   alliedSealedEventRosterLimit,
+  byTournamentDate,
   effectiveSealedEventAllowances,
   sealedEventAllowanceOptions,
   sealedEventAllowanceRefusal,
@@ -893,5 +894,38 @@ describe('2v1 pair points', () => {
 
   it('keeps doubles allies on their own points unless the organizer shares them', () => {
     expect(sealedEventSharesPoints({ format: '2v2', rosterLimit: 2_000 }, { requiredLimit: 1_000 })).toBe(false)
+  })
+})
+
+describe('tournament order', () => {
+  const now = Date.parse('2026-11-17T12:00:00Z')
+  const tournament = (name: string, playsAt: string | null, createdAt = 0) => ({
+    name,
+    playsAt: playsAt === null ? null : Date.parse(playsAt),
+    createdAt,
+  })
+  const order = (...tournaments: ReturnType<typeof tournament>[]) => tournaments.toSorted(byTournamentDate(now)).map(({ name }) => name)
+
+  it('puts the soonest coming tournament first', () => {
+    expect(order(tournament('later', '2026-12-01T10:00:00Z'), tournament('sooner', '2026-11-20T10:00:00Z'))).toEqual(['sooner', 'later'])
+  })
+
+  it('keeps a tournament being played today ahead of upcoming ones', () => {
+    expect(order(tournament('upcoming', '2026-11-20T10:00:00Z'), tournament('today', '2026-11-17T09:00:00Z'))).toEqual([
+      'today',
+      'upcoming',
+    ])
+  })
+
+  it('puts undated tournaments after dated ones, newest first', () => {
+    expect(
+      order(tournament('old undated', null, 1), tournament('new undated', null, 2), tournament('dated', '2026-12-01T10:00:00Z')),
+    ).toEqual(['dated', 'new undated', 'old undated'])
+  })
+
+  it('puts played tournaments last, most recent first', () => {
+    expect(
+      order(tournament('long ago', '2026-09-01T10:00:00Z'), tournament('last week', '2026-11-10T10:00:00Z'), tournament('undated', null)),
+    ).toEqual(['undated', 'last week', 'long ago'])
   })
 })

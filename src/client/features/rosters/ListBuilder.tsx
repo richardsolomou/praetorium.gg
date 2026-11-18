@@ -34,7 +34,6 @@ import { type RosterShareChoices, RosterShareDialog } from './RosterShareDialog'
 import { useOrigin } from '../../useOrigin'
 import { RosterLoanDialog } from './RosterLoanDialog'
 import { RosterBody, RosterHeader, RosterOutline, RosterShell } from './RosterPresentation'
-import { useWorkspaceState, WAIVERS_STATE } from './workspaceState'
 import { type AttachDirection, useCardRelationships } from './RosterUnitCard'
 import type { AttachChoice } from './builder/UnitCard'
 import { RosterGradesDialog } from './RosterGradesDialog'
@@ -218,7 +217,6 @@ export function ListBuilder({
     openPicker,
     updateLoadoutHistory,
   } = useRosterPanes({ path, workspacePath, picks })
-  const [dismissedWaivers, dismissWaivers] = useWorkspaceState<string>(workspacePath, WAIVERS_STATE)
   const [pickerQuery, setPickerQuery] = useState('')
   const [pickerFilters, setPickerFilters] = useState<Set<PickerFilter>>(new Set())
   const factionRead = useQuery({
@@ -234,13 +232,15 @@ export function ListBuilder({
   // Storage holds the only copy of the choice, so a roster opens in the mode last chosen.
   const viewPreferred = useStoredValue(READ_ONLY_PREFERENCE) === 'true'
   const building = editable && !viewPreferred
-  const keptArrangement = useMatch({ from: '/rosters/$id/', shouldThrow: false })?.loaderData?.arrangement
+  const keptArrangement = useMatch({ from: '/rosters/$id/', shouldThrow: false, select: (match) => match.loaderData?.arrangement })
   const [arrangement, setArrangement] = useState(keptArrangement ?? 'attached')
   const frozenReference = Boolean(frozen) || (!editable && !resolvePersistedRoster)
   const pickerOpen = editable && (wideWorkspace || showing === 'picker')
   const pickerEnabled = workspaceMeasured && pickerOpen
 
   const savedId = initial.id
+  // An unsaved list has no id, so its in-battle picks belong to this open builder alone.
+  const draftId = useId()
 
   const setReadOnlyMode = (next: boolean) => {
     writeStoredValue(READ_ONLY_PREFERENCE, String(next))
@@ -497,6 +497,7 @@ export function ListBuilder({
         { status: factionRead.status, faction },
         factionIndex?.factions.map((candidate) => candidate.id),
       )
+  const cards = useMemo(() => rosterCards(frozen, units, picks), [frozen, units, picks])
   if (army === 'loading') return <RosterOutline />
   if (army !== 'ready')
     return (
@@ -513,7 +514,6 @@ export function ListBuilder({
   const points = frozen ? frozen.points : (priced?.points ?? 0)
   const over = enforces(waivedRules, 'points-limit') && (frozen ? frozen.points > budget : Boolean(priced && priced.points > budget))
   const illegal = Boolean(priced && (priced.errors.length || priced.detachmentError))
-  const cards = rosterCards(frozen, units, picks)
 
   // The shelves draw a card per datasheet; the header says how many units the list
   // brings, which is the same fold the library and the battle count it by.
@@ -554,12 +554,6 @@ export function ListBuilder({
         }
       : selectedUnit
   const waivers = waivedFormatRules(limit, waivedRules, pointsBudget)
-  /*
-   * Dismissing says "I know", not "never tell me": the key is the set of waived
-   * restrictions, so switching another one off says something the player has not
-   * acknowledged yet and the warning comes back.
-   */
-  const waiverKey = waivers.map((rule) => rule.id).join(',')
   // A unit the data requires as Warlord holds the crown, so no other unit can claim it and it cannot be given up.
   const requiredWarlord = units.find((unit) =>
     unit.toggles.some((toggle) => toggle.name === 'Warlord' && toggle.required && toggle.selected),
@@ -610,6 +604,7 @@ export function ListBuilder({
   const datasheetCatalogueId = preview?.catalogueId ?? loadoutCatalogueId
   const loadout = (
     <Loadout
+      battleChoices={`roster:${savedId ?? draftId}`}
       catalogueId={loadoutCatalogueId}
       unit={optimisticUnit}
       loading={selectedUnitLoading}
@@ -731,7 +726,6 @@ export function ListBuilder({
         }
         disposition={frozen ? disposition : priced?.disposition}
         dispositions={frozen ? undefined : priced?.dispositions}
-        waivers={waivers}
         actions={
           <RosterActionsMenu
             editable={editable}
@@ -939,10 +933,8 @@ export function ListBuilder({
         errors={priced?.errors ?? []}
         onResetOptions={pricePending ? undefined : edit.resetUnavailable}
         unhandled={priced?.unhandled ?? []}
-        frozen={Boolean(frozen)}
         waivers={waivers}
-        waiversDismissed={dismissedWaivers === waiverKey}
-        onDismissWaivers={() => dismissWaivers(waiverKey)}
+        frozen={Boolean(frozen)}
         sealedEventWarning={
           (editable || locked) && savedId && me ? (
             <>

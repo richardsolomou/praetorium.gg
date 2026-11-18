@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { combatRuleAppliesTo, combatRuleChoices } from '../core/combatRules'
 import { bookOf, categories } from './catalogue.fixtures'
+import type { LoadedRules } from './rules'
 import { datasheetAbilitiesIn, datasheetIn } from '../shared/catalogue'
 import { rosterCombatant } from '../shared/rosterCombatRules'
 import { rosterDatasheetContext } from '../shared/rosterDatasheetContext'
@@ -134,4 +135,61 @@ describe('roster support rules', () => {
     const context = rosterDatasheetContext(book, { ...input, pickIndex: 1 })!
     expect(datasheetAbilitiesIn(book, 'cat', 'source', context)?.keywords).toContain('Cult')
   })
+})
+
+const commandRules = {
+  abilityDescriptions: new Map(),
+  factionKeys: new Map(),
+  byDetachment: new Map(),
+  factionRules: new Map(),
+  detachmentDetails: new Map(),
+  core: [{ key: 'resurgent', name: 'Resurgent', cp: 1, limit: 'phase', phases: ['command'] }],
+  coreDetails: [
+    {
+      id: 'resurgent',
+      type: null,
+      description:
+        '**Target:** One **INFANTRY** unit from your army.\n\n**Effect:** Until the start of your next Command phase, each time a model in your unit makes an attack, you can re-roll the Hit roll.',
+    },
+  ],
+} as Partial<LoadedRules> as LoadedRules
+
+it('offers a Command-phase stratagem in both combat phases', () => {
+  const rule = rosterCombatant(book, commandRules, input)?.rules.find((candidate) => candidate.id === 'stratagem:resurgent')
+  expect(rule?.phases).toEqual(['ranged', 'melee'])
+})
+
+describe('an enhancement from a shared list', () => {
+  const linked = bookOf({
+    sharedSelectionEntryGroups: [
+      {
+        id: 'enhancements',
+        name: 'Enhancements',
+        constraints: [{ id: 'enhancement-max', type: 'max' as const, value: 1, field: 'selections', scope: 'parent' }],
+        selectionEntries: [
+          {
+            id: 'keen-eye',
+            name: 'Keen Eye',
+            type: 'upgrade',
+            profiles: [profile('Keen Eye', 'Each time a model in this unit makes an attack, add 1 to the Hit roll.')],
+          },
+        ],
+      },
+    ],
+    selectionEntries: [
+      {
+        id: 'bearer',
+        name: 'Bearer',
+        type: 'model',
+        entryLinks: [{ id: 'bearer-enhancements', name: 'Enhancements', targetId: 'enhancements', type: 'selectionEntryGroup' }],
+      },
+    ],
+  })
+  it("fields the enhancement's ability on the model that takes it", () =>
+    expect(
+      rosterCombatant(linked, null, {
+        ...input,
+        picks: [{ entryId: 'bearer', choices: { 'bearer-enhancements': 'keen-eye' } }],
+      })?.rules.map((rule) => rule.name),
+    ).toEqual(['Keen Eye']))
 })

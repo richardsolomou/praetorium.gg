@@ -41,7 +41,8 @@ export function FilterChip({
   const [open, setOpen] = useState(false)
   const chip = 'h-6 min-w-6 shrink-0 rounded-md border px-1.25 py-px text-2xs font-semibold transition-colors'
   return (
-    <Tooltip open={open} onOpenChange={setOpen}>
+    // The trigger changes element when a chip becomes available, and a tooltip keeps hovering the first one it was given.
+    <Tooltip key={unavailable ? 'unavailable' : 'available'} open={open} onOpenChange={setOpen}>
       <TooltipTrigger
         closeOnClick={!unavailable}
         render={

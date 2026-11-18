@@ -71,6 +71,12 @@ const cases: Case[] = [
     events: [['favourite_datasheet_updated', { favourite: false }]],
   },
   {
+    kind: 'changeRosterFolders',
+    input: { kind: 'file', rosterIds: ['list'], folderId: 'events' },
+    result: { folders: [{ id: 'events', name: 'Events', parentId: null }], filed: { list: 'events' } },
+    events: [['roster_folders_changed', { change: 'file', folders: 1, filed: 1 }]],
+  },
+  {
     kind: 'setPlayerDefaults',
     input: { rosterVisibility: 'private', battleSize: 2000 },
     result: { rosterVisibility: 'public', battleSize: 1000 },

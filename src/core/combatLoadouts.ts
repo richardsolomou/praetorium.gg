@@ -23,7 +23,7 @@ import {
   type CombatOpponent,
 } from './combatScenario'
 import { weaponPhase } from './datasheetStructure'
-import { wargearKey } from './wargear'
+import { wargearKey } from './wargearNames'
 import { activeCombatRules, combatRuleDefences, combatRuleOptions, type CombatRule } from './combatRules'
 
 export type LoadoutOptimizationMode = 'combined' | CombatPhase
@@ -55,6 +55,14 @@ export function namespaceLoadoutSpace(space: LoadoutSpace, prefix: string): Load
 }
 export type LoadoutCandidate = {
   members: { pickIndex: number; pick: RosterPick; sheet: Datasheet; models: number; carriers: CombatCarrier[]; rules: CombatRule[] }[]
+  /** Optional wargear taken that costs no points and replaces nothing, which `compareLoadouts` prefers on a tie. */
+  freeAdditions?: number
+  /** What the members' wargear choices cost. */
+  wargearPoints?: number
+  /** Each member's weapon choices as taken, keyed by pick index and choice, for `loadoutChanges`. */
+  wargear?: Record<string, string>
+  /** How many weapon choices differ from the loadout the player started from, which `compareLoadouts` keeps closest to. */
+  changes?: number
 }
 export type LoadoutCandidates = { candidates: LoadoutCandidate[] }
 /**
@@ -66,6 +74,9 @@ export type OptimizedLoadout = {
   picks: { pickIndex: number; pick: RosterPick }[]
   preferences: Record<string, string>
   result: CombatResult
+  freeAdditions?: number
+  wargearPoints?: number
+  changes?: number
 }
 /** The best of some candidates, and how many could not be estimated, with the first reason why. */
 export type LoadoutOptimization = { best?: OptimizedLoadout; skipped: number; reason?: string }
@@ -125,6 +136,30 @@ function outcomePriority(left: CombatResult, right: CombatResult): OutcomePriori
 export function compareOutcomes(left: CombatResult, right: CombatResult) {
   const field = outcomePriority(left, right)
   return field ? left[field] - right[field] : 0
+}
+
+/**
+ * Positive when `left` is the better loadout: the better attack, then on a tie the one taking more free optional
+ * wargear, since a free addition never costs the unit anything the ranking can see. Among loadouts taking the same free
+ * wargear the one changing fewer choices from the start wins, so a tie never strips wargear the player chose, then the
+ * cheaper, so a tie that moves off the start never spends points; other ties keep the first.
+ */
+export function compareLoadouts(left: RankedLoadout, right: RankedLoadout) {
+  const free = left.freeAdditions ?? 0
+  return (
+    compareOutcomes(left.result, right.result) ||
+    free - (right.freeAdditions ?? 0) ||
+    (right.changes ?? 0) - (left.changes ?? 0) ||
+    (free ? (right.wargearPoints ?? 0) - (left.wargearPoints ?? 0) : 0)
+  )
+}
+type RankedLoadout = Pick<OptimizedLoadout, 'result' | 'freeAdditions' | 'wargearPoints' | 'changes'>
+
+/** How many of the candidate's weapon choices differ from `start`'s, the loadout the search began from. */
+export function loadoutChanges(candidate: LoadoutCandidate, start: LoadoutCandidate) {
+  const before = start.wargear ?? {}
+  const after = candidate.wargear ?? {}
+  return [...new Set([...Object.keys(before), ...Object.keys(after)])].filter((key) => before[key] !== after[key]).length
 }
 
 /**
@@ -339,7 +374,7 @@ export function optimizeLoadout(
   for (const candidate of space.candidates) {
     try {
       const found = optimizeCandidate(candidate)
-      if (found && (!best || compareOutcomes(found.loadout.result, best.loadout.result) > 0)) best = found
+      if (found && (!best || compareLoadouts(found.loadout, best.loadout) > 0)) best = found
     } catch (error) {
       if (error instanceof SearchLimit) throw error
       skipped++
@@ -425,7 +460,13 @@ export function optimizeLoadout(
       }
       if (!top || compareOutcomes(result, top.loadout.result) > 0)
         top = {
-          loadout: { picks: candidate.members.map(({ pickIndex, pick }) => ({ pickIndex, pick })), preferences, result },
+          loadout: {
+            picks: candidate.members.map(({ pickIndex, pick }) => ({ pickIndex, pick })),
+            preferences,
+            result,
+            ...(candidate.freeAdditions ? { freeAdditions: candidate.freeAdditions, wargearPoints: candidate.wargearPoints ?? 0 } : {}),
+            ...(candidate.changes ? { changes: candidate.changes } : {}),
+          },
           inputs: [inputs, meleeAfterLosses],
         }
     }

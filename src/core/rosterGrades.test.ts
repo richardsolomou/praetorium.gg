@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { gradeOf, percentileOf, reachChance, rosterGrades, scaled, tournamentComparison, type GradedUnit } from './rosterGrades'
+import { gradeOf, percentileOf, placement, reachChance, rosterGrades, scaled, tournamentComparison, type GradedUnit } from './rosterGrades'
 
 const unit = (overrides: Partial<GradedUnit> = {}): GradedUnit => ({
   name: 'Unit',
@@ -200,4 +200,49 @@ describe('tournamentComparison', () => {
   it('compares nothing with too few winning lists', () => {
     expect(tournamentComparison(picks, { ...winning, lists: 9 }, nameOf)).toBeNull()
   })
+})
+
+it("names each target an attached unit's absence changes, with the unit's share of it either way", () =>
+  expect(
+    grade(
+      [
+        unit({
+          removes: { horde: 1, elite: 0.75, vehicle: 0.56, heavyVehicle: 0.2, monster: 0.3 },
+          without: [{ name: 'Marshal', removes: { horde: 1, elite: 0.48, vehicle: 0.17, heavyVehicle: 0.2, monster: 0.3 } }],
+        }),
+      ],
+      2000,
+    ).units[0]!.attached,
+  ).toEqual([
+    {
+      name: 'Marshal',
+      targets: [
+        { target: 'a Chaos Terminator Squad', with: 0.75, without: 0.48 },
+        { target: 'a Rhino', with: 0.56, without: 0.17 },
+      ],
+    },
+  ]))
+
+describe('placement', () => {
+  const spread = (low: number, high: number) => Array.from({ length: 21 }, (_, step) => low + ((high - low) * step) / 20)
+  const army = { measures: { survive: spread(0.58, 0.68) }, categories: { durability: spread(45, 65) }, overall: spread(50, 70) }
+  const everyone = { measures: { survive: spread(0.48, 0.88) }, categories: { durability: spread(20, 80) }, overall: spread(0, 100) }
+  const placed = placement([unit({ volleyLoss: 0.36 })], 2000, army, everyone)
+
+  it("reads a measure's gap from its army's median on every army's spread", () => expect(placed.measures.survive).toBeCloseTo(52.5))
+
+  it("reads a category's gap from its army's median on every army's spread", () =>
+    expect(placed.categories.find((category) => category.key === 'durability')!.percentile).toBeCloseTo(45.83))
+
+  it("reads the overall's gap from its army's median on every army's spread", () => expect(placed.overallPercentile).toBeCloseTo(35.83))
+
+  it('places a Colosseum vehicle total among its own army alone, since most lists reach the cap', () =>
+    expect(
+      placement(
+        [unit({ removes: { vehicle: 1 } })],
+        600,
+        { measures: { vehicle: spread(0.6, 1.6) } },
+        { measures: { vehicle: spread(1, 3) } },
+      ).measures.vehicle,
+    ).toBeCloseTo(40))
 })

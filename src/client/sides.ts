@@ -212,6 +212,19 @@ export function fixedHandShort(side: Pick<Side, 'secondaryMode' | 'secondaries'>
   return side.secondaryMode === 'fixed' && side.secondaries.length < FIXED_SECONDARIES
 }
 
+/** A side the viewer plays whose running battle has lost its mission cards, which the table restores without asking. */
+export function lostMissionCards(
+  side: Pick<Side, 'played' | 'mission' | 'secondaryMode' | 'secondaryDeckReady' | 'remainingSecondaries' | 'secondaries'>,
+): boolean {
+  return (
+    side.played &&
+    Boolean(side.mission) &&
+    !side.secondaryDeckReady &&
+    side.remainingSecondaries.length === 0 &&
+    (side.secondaryMode === 'fixed' || side.secondaries.length === 0)
+  )
+}
+
 export function missionCardsReady(
   side: Pick<Side, 'mission' | 'primaryCard' | 'secondaryMode' | 'secondaryDeckReady' | 'secondaries'>,
 ): boolean {

@@ -11,6 +11,7 @@ import { scaleOf } from './collective'
 import { RecentlyUsed, remember } from './collections'
 import {
   childrenOf,
+  closedBy,
   exclusiveSets,
   hasDynamicSelectionLimit,
   hasMutableMinimum,
@@ -96,6 +97,8 @@ export type UnitChoice = {
     default?: boolean
     /** A sibling selection can lower this minimum as part of the same edit. */
     mutableMin?: boolean
+    /** Taking any of this option closes every other one, so the squad takes it all together or not at all. */
+    wholeSquad?: true
     profile?: string | null
   }[]
   /**
@@ -188,6 +191,7 @@ function offered(
   lineage: readonly Definition[],
   index: CatalogueIndex,
   options: ChoiceOptions,
+  roster = [...(options.roster ?? []), selection],
 ) {
   const answers = remember(
     remember(
@@ -199,7 +203,6 @@ function offered(
     () => new Map(),
   )
   return remember(answers, `${entryId}\0${options.primaryCatalogueId}\0${options.mustering}\0${path.join('/')}`, () => {
-    const roster = [...(options.roster ?? []), selection]
     return (
       !hiddenByRules(definition, index, { ...options, roster }, lineage) || !hiddenByRulesAt(definition, selection, path, index, options)
     )
@@ -222,7 +225,7 @@ function collectUnitChoices(entryId: string, selection: Selection, index: Catalo
   if (!entry) return []
   const minima = new Map<Definition, number>()
   const visible = (definition: Definition, lineage: readonly Definition[], path: readonly string[]) =>
-    offered(entryId, definition, selection, path, lineage, index, options)
+    offered(entryId, definition, selection, path, lineage, index, options, roster)
   const minimum = (definition: Definition) =>
     remember(minima, definition, () =>
       requiredCount(definition, index, {
@@ -461,6 +464,12 @@ function collectUnitChoices(entryId: string, selection: Selection, index: Catalo
         const uniform =
           adjustable.length > 1 &&
           forbidden.some((set) => ids.every((option) => set.some((named) => option.has(named))) && set.length >= adjustable.length)
+        const heldBy = (option: Option) =>
+          [option, ...childrenOf(option.definition, index)].flatMap((part) => [part.id, resolve(part.definition, index).id])
+        const closes = (option: Option) =>
+          !uniform &&
+          adjustable.length > 1 &&
+          adjustable.every((other) => other === option || closedBy(other.definition, index).some((id) => heldBy(option).includes(id)))
         const optionalSingle = !fixed && adjustable.length === 1 && minimum(child.definition) === 0
         const defaultId = 'defaultSelectionEntryId' in inner ? inner.defaultSelectionEntryId : undefined
         if (
@@ -500,6 +509,7 @@ function collectUnitChoices(entryId: string, selection: Selection, index: Catalo
               max: maximumFor(option),
               ...(option.id === defaultId ? { default: true } : {}),
               ...(mutableMinimum(option) ? { mutableMin: true } : {}),
+              ...(closes(option) ? { wholeSquad: true as const } : {}),
               ...(resolve(option.definition, index).type === 'model' ? { profile: modelProfileOf(option.definition, index) } : {}),
             })),
             uniform,

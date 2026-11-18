@@ -32,6 +32,7 @@ vi.mock('./referenceCorpus', async (importOriginal) => ({
 }))
 vi.mock('./app', () => ({
   app: () => ({
+    searchIndexFor: async () => null,
     sync: () => ({ status: state.ready ? 'ready' : 'failed' }),
     catalogue: () => null,
     rules: () => null,

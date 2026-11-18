@@ -15,6 +15,7 @@ import { referenceQuery } from './queries/shared'
 import { type TextSourceChoice, reportTextLoadFailure, textSourceChoice, upstreamBytes, useTextSourceChoice } from './rulesText'
 import { HASHING_FAILED, hashedSourceStrings } from './sourceStrings'
 import { workerAnswer } from './workerAnswer'
+import { textPage } from './textPages'
 
 /** Far longer than the slowest phone takes, so only a worker that has stopped answering reaches it. */
 const HASHING_TIMEOUT_MS = 60_000
@@ -57,8 +58,6 @@ const textSourcesQuery = () => referenceQuery(['text-sources'], () => textSource
 const urls = new Map<string, string>()
 const sourceOf = new Map<string, TextSource>()
 const files = new Map<string, { strings?: ReadonlyMap<string, string>; failed?: true; page?: number }>()
-/** Counts the pages the reader has opened, so a file that failed on an earlier page is asked for again. */
-let page = 0
 const listeners = new Set<() => void>()
 let version = 0
 const changed = () => {
@@ -75,7 +74,7 @@ export function loadTextFile(id: string): Promise<void> {
   if (!url) return Promise.resolve()
   const pending = loading.get(url)
   const file = files.get(url)
-  if (pending && !(file?.failed && file.page !== page)) return pending
+  if (pending && !(file?.failed && file.page !== textPage())) return pending
   files.set(url, {})
   const loaded = loadSourceStrings(url).then(
     (strings) => {
@@ -83,7 +82,7 @@ export function loadTextFile(id: string): Promise<void> {
       changed()
     },
     (error: unknown) => {
-      files.set(url, { failed: true, page })
+      files.set(url, { failed: true, page: textPage() })
       reportTextLoadFailure({ source: sourceOf.get(id), url }, error)
       changed()
     },
@@ -92,11 +91,6 @@ export function loadTextFile(id: string): Promise<void> {
   return loaded
 }
 const loading = new Map<string, Promise<void>>()
-
-/** Called as the reader opens another page: files that failed before load again when that page needs them. */
-export function openedTextPage() {
-  page += 1
-}
 
 /** Asks again for every file whose load failed. */
 export async function retryFailedTextFiles() {

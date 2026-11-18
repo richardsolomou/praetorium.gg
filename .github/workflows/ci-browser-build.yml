@@ -12,18 +12,13 @@ on:
         value: ${{ jobs.browser-build.outputs.node-version }}
       runner-count:
         value: ${{ jobs.browser-build.outputs.runner-count }}
-      runtime-cached:
-        value: ${{ jobs.browser-build.outputs.runtime-cached }}
+      runtime-shared:
+        value: ${{ jobs.browser-build.outputs.runtime-shared }}
       runners:
         value: ${{ jobs.browser-build.outputs.runners }}
-      specs:
-        value: ${{ jobs.browser-build.outputs.specs }}
 
 permissions:
   contents: read
-
-env:
-  FULL_E2E: ${{ github.event_name != 'pull_request' }}
 
 jobs:
   browser-build:
@@ -36,14 +31,10 @@ jobs:
     outputs:
       node-version: ${{ steps.node.outputs.version }}
       runner-count: ${{ steps.runners.outputs.count }}
-      runtime-cached: ${{ steps.runtime-cache.outputs.cache-hit }}
+      runtime-shared: ${{ steps.runtime.outputs.shared }}
       runners: ${{ steps.runners.outputs.runners }}
-      specs: ${{ steps.runners.outputs.specs }}
     steps:
       - uses: actions/checkout@v7
-        with:
-          # Selection compares the change with the coverage map's revision.
-          fetch-depth: ${{ env.FULL_E2E == 'true' && 1 || 0 }}
       - uses: richardsolomou/ras-stack/actions/setup-js@v1
         with:
           install: 'false'
@@ -51,14 +42,6 @@ jobs:
         id: node
         run: node -p "'version=' + process.version" >> "$GITHUB_OUTPUT"
       - uses: ./.github/actions/e2e-dependencies
-      # The daily coverage run saves the map under its revision; the newest one is restored.
-      - name: Restore the latest coverage map
-        if: env.FULL_E2E != 'true'
-        uses: actions/cache/restore@v6
-        with:
-          path: e2e-map.json
-          key: e2e-map-${{ github.sha }}
-          restore-keys: e2e-map-
       - uses: ./.github/actions/catalogue-sync
         with:
           r2-account-id: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
@@ -74,53 +57,26 @@ jobs:
         with:
           path: data-dev/e2e-build
           key: ${{ runner.os }}-${{ runner.arch }}-browser-build-${{ steps.browser-build.outputs.key }}
-      - name: Fingerprint the catalogue runtime
+      # A runtime the shared store already holds was compiled by an earlier build, so its compiler's live catalogue is prepared too.
+      - name: Check the shared store for this catalogue runtime
         id: runtime
-        run: echo "key=$(pnpm exec tsx scripts/catalogueRuntimeKey.ts)" >> "$GITHUB_OUTPUT"
-      - name: Restore the compiled catalogue runtime
-        id: runtime-cache
-        uses: actions/cache@v6
-        with:
-          path: ~/.cache/praetorium/runtime
-          key: catalogue-runtime-${{ steps.runtime.outputs.key }}
+        run: |
+          key="$(pnpm exec tsx scripts/catalogueRuntimeKey.ts)"
+          status="$(curl --silent --output /dev/null --write-out '%{http_code}' --head --retry 3 "https://s3.praetorium.gg/catalogue/runtime/by-key/$key.zip?uncached=$(date +%s)")"
+          echo "shared=$([ "$status" = 200 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
       - name: Build or restore the browser-test build
         run: pnpm exec tsx scripts/browserTestBuild.ts
       - uses: ./.github/actions/verify-browser-build
-      # Selection compares the build's compiled catalogue with the coverage run's.
-      - name: Choose the end-to-end specs
-        id: select
-        env:
-          HEAD_SHA: ${{ github.sha }}
-          E2E_MAP: e2e-map.json
-        run: |
-          if [ "$FULL_E2E" = true ]; then
-            printf 'specs=all\nreason=every spec runs outside pull requests\n' >> "$GITHUB_OUTPUT"
-          else
-            # As in `ci-scope.yml`, the merge commit's first parent is the base it merged into.
-            BASE_SHA="$(git rev-parse "$HEAD_SHA^1")" node scripts/e2eSelect.ts
-          fi
       - name: Choose the browser runners
         id: runners
         env:
-          SELECTED: ${{ steps.select.outputs.specs }}
-          REASON: ${{ steps.select.outputs.reason }}
-          FULL: ${{ env.FULL_E2E }}
-          # The account runs 20 jobs at once and the other lanes hold about six while the runners
-          # start, so a 16th runner waits for a slot instead of finishing sooner.
-          MAX: ${{ inputs.e2e-runners || '14' }}
+          # The account runs 20 jobs at once and the other lanes hold about six while the runners start.
+          RUNNERS: ${{ inputs.e2e-runners || '14' }}
         run: |
-          set -euo pipefail
-          runners="$(node scripts/e2eShard.ts --runners "$SELECTED" "$MAX")"
           {
-            echo "specs=$SELECTED"
-            echo "runners=$runners"
-            echo "count=$(node -p 'JSON.parse(process.argv[1]).length' "$runners")"
+            echo "runners=$(node -p 'JSON.stringify(Array.from({ length: Number(process.argv[1]) }, (_, index) => index + 1))' "$RUNNERS")"
+            echo "count=$RUNNERS"
           } >> "$GITHUB_OUTPUT"
-          {
-            if [ "$FULL" = true ]; then echo '### Every end-to-end spec runs'; else echo '### Only the affected end-to-end specs run'; fi
-            echo "$REASON; this run uses $(node -p 'JSON.parse(process.argv[1]).length' "$runners") of $MAX runners."
-            if [ "$SELECTED" != all ]; then node -p 'JSON.parse(process.argv[1]).map((spec) => "- " + spec).join("\n")' "$SELECTED"; fi
-          } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v7
         with:
           name: browser-test-build

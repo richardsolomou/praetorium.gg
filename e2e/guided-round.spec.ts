@@ -1,4 +1,4 @@
-import { waitForOfflineApp } from './offline'
+import { downloadOfflineAppAtOnce, waitForOfflineApp } from './offline'
 import { expect, test, type Locator } from './test'
 import {
   advance,
@@ -117,6 +117,7 @@ test('both sides settle source final awards beyond round caps through cold offli
   context,
   browser,
 }) => {
+  await downloadOfflineAppAtOnce(initialPage)
   test.setTimeout(180_000)
   let page = initialPage
   const opponent = await (await browser.newContext(desktopContext)).newPage()

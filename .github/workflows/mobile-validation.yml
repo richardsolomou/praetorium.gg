@@ -13,7 +13,7 @@ on:
       - package.json
       - pnpm-lock.yaml
       - pnpm-workspace.yaml
-      - scripts/provisionWatchIos.js
+      - scripts/provisionExtensionsIos.js
       - scripts/iosDelivery.ts
       - scripts/iosDeliveryPlan.ts
       - src/**
@@ -29,7 +29,8 @@ jobs:
   changes:
     runs-on: ubuntu-latest
     outputs:
-      native: ${{ steps.ios.outputs.changed }}
+      # A runner or toolchain change builds the app differently without changing its native fingerprint.
+      native: ${{ steps.ios.outputs.changed == 'true' || steps.workflows.outputs.changed == 'true' }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -48,12 +49,22 @@ jobs:
           MOBILE_UPDATE_CHANNEL: canary
           POSTHOG_CLI_DRY_RUN: 'true'
         run: pnpm exec tsx scripts/iosDeliveryPlan.ts native-changed "$RUNNER_TEMP/ios-base"
+      - name: Check the iOS workflows
+        id: workflows
+        env:
+          BASE_REVISION: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if git diff --quiet "$BASE_REVISION" HEAD -- .github/workflows/mobile.yml .github/workflows/mobile-validation.yml; then
+            echo changed=false >> "$GITHUB_OUTPUT"
+          else
+            echo changed=true >> "$GITHUB_OUTPUT"
+          fi
   build:
     # The required `build` check is CI's build lane; sharing its name let a skipped iOS build satisfy it.
     name: iOS build
     needs: [changes]
     if: needs.changes.outputs.native == 'true'
-    runs-on: macos-26
+    runs-on: xcode-27
     timeout-minutes: 90
     env:
       MOBILE_UPDATE_CHANNEL: canary

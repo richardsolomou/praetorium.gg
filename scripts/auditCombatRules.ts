@@ -9,12 +9,16 @@ import { combatWeaponKeywordInventory, unselectedCombatRules } from './lib/comba
 import type { InventoryRule } from './lib/combatRuleShortlist'
 import { loadSnapshotWithRules } from './lib/catalogueSnapshotLoad'
 import { catalogueDataDirectory } from './lib/catalogueFiles'
+import { snapshotWords } from '../src/server/sourceTexts'
 
 const { values } = parseArgs({ options: { json: { type: 'boolean' }, faction: { type: 'string' } } })
 const directory = path.resolve(catalogueDataDirectory())
 const { catalogue: loaded, rules } = loadSnapshotWithRules(directory)
+// The snapshot publishes rules text as tokens, which compile to nothing until read back into words.
+const words = snapshotWords(directory)
 const entries = new Map<string, InventoryRule>()
-function add(name: string, description: string | null, source: string, scope: CombatRule['scope']) {
+function add(name: string, published: string | null, source: string, scope: CombatRule['scope']) {
+  const description = published && (words(published) ?? published)
   if (!description || (values.faction && !source.toLowerCase().includes(values.faction.toLowerCase()))) return
   const key = JSON.stringify([name, description])
   const existing = entries.get(key)

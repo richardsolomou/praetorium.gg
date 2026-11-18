@@ -20,6 +20,7 @@ export const savedRosterPageKey = (id: string) => ['saved-roster-page', id]
 export const homeRostersKey = () => ['home-rosters']
 export const rosterChangesKey = (id: string) => ['roster-changes', id]
 export const savedRosterChangedIdsKey = () => ['saved-roster-changed-ids']
+export const savedRosterPlaysKey = () => ['saved-roster-plays']
 export const factionIndexKey = () => ['faction-index']
 export const importTranslationsKey = () => ['import-translations']
 export const factionKeys = () => ['faction']
@@ -54,6 +55,7 @@ export const datasheetPhotosKey = (entryId?: string) => (entryId === undefined ?
 /** Without a player, every player's collection. */
 export const collectionProfileKey = (userId?: string) => (userId === undefined ? ['collection-profile'] : ['collection-profile', userId])
 export const playerDefaultsKey = () => ['player-defaults']
+export const rosterFoldersKey = () => ['roster-folders']
 export const listFilterPreferencesKey = () => ['list-filter-preferences']
 export const notificationSettingsKey = () => ['notification-settings']
 export const friendshipsKey = () => ['friendships']

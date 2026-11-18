@@ -14,6 +14,7 @@ import { authClient, authRedirectUrl } from '../../authClient'
 import { AuthMethodIcon } from './AuthMethodIcon'
 import { captureAuthFailure } from './authFailureReason'
 import { AuthAside } from './AuthAside'
+import { AccountBenefits } from './AccountBenefits'
 import { TwoFactorSignIn } from './TwoFactorSignIn'
 import { requestNativeAuth, useGithubAuthAvailability } from '../../nativeAuth'
 import { signInOptionsQuery } from '../../queries'
@@ -115,6 +116,7 @@ export function SignInPage({ error, next, reset, join }: { error?: string; next?
     }
   }
 
+  const showBenefits = joining && !savingRoster
   return (
     <main className="grid w-full flex-1 md:grid-cols-2">
       <AuthAside heading="Your armies and battles, ready when you are." caption="Build. Plan. Play." />
@@ -125,9 +127,10 @@ export function SignInPage({ error, next, reset, join }: { error?: string; next?
             <p className="mt-3 text-sm text-dim">
               {savingRoster
                 ? 'Create a free account or sign in. Your roster will be saved to that account, then you will return to your army. Until saving succeeds, the draft stays on this device.'
-                : 'Save your army lists and play battles with friends. Free.'}
+                : 'Free, and you get:'}
             </p>
           ) : null}
+          {showBenefits ? <AccountBenefits className="mt-2" /> : null}
           {savingRoster && guest ? (
             <Link
               to="/rosters/$id"

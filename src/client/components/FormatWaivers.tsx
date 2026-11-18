@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { Pencil, TriangleAlert, X } from 'lucide-react'
+import { Pencil, TriangleAlert } from 'lucide-react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -10,7 +10,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { type FormatRule, waivedFormatRules } from '../../core/battle'
 import { countLabel } from '../text'
@@ -44,8 +43,8 @@ const switchedOff = (rules: readonly FormatRule[]) =>
  * The identity line is what a list is, and every other thing on it is a fact about
  * the army rather than a caveat; spelling the waivers out there would make the caveat
  * the loudest thing on the line. The mark holds the place, and the reader asks for the
- * rest. Wherever a list is being decided about — chosen for a seat, sealed into a
- * sealed event, read under its own roster — the full sentence is still written out.
+ * rest. Wherever a list is being decided about, chosen for a seat or sealed into a
+ * sealed event, the full sentence is still written out.
  */
 export function WaiverChip({ rules }: { rules: readonly FormatRule[] }) {
   if (!rules.length) return null
@@ -57,9 +56,16 @@ export function WaiverChip({ rules }: { rules: readonly FormatRule[] }) {
         {/* The mark shows on hover and the tooltip is not read aloud, so the sentence travels with it. */}
         <span className="sr-only">{summary}</span>
       </TooltipTrigger>
-      <TooltipContent className="block">
+      <TooltipContent className="block max-w-80">
         <span className="block font-semibold">{switchedOff(rules)}</span>
-        <span className="mt-0.5 block">{waiverLabels(rules)}</span>
+        <ul className="mt-1 space-y-0.5">
+          {rules.map((rule) => (
+            <li key={rule.id}>
+              <span className="font-semibold">{rule.label}</span>: {rule.hint}
+            </li>
+          ))}
+        </ul>
+        <span className="mt-1.5 block text-dim">Nothing is checked against them, and everyone this list plays sees what it waives.</span>
       </TooltipContent>
     </Tooltip>
   )
@@ -147,59 +153,5 @@ export function WaiverConfirmDialog<Roster extends WaivingRoster>({
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
-  )
-}
-
-/**
- * What a list is not playing, said under it beside the errors.
- *
- * A waived restriction is why an error a player expected is not reported, so it is
- * read where those errors are. It is a standing statement rather than a problem to
- * solve — the player switched it off on purpose — so it can be dismissed, and it
- * comes back when the set of waived restrictions changes.
- */
-export function WaiverWarning({
-  rules,
-  onDismiss,
-  editable,
-}: {
-  rules: readonly FormatRule[]
-  onDismiss: () => void
-  /** Whether this reader is the one who can switch them back on. */
-  editable: boolean
-}) {
-  if (!rules.length) return null
-
-  return (
-    <section
-      className="mt-2 flex items-start gap-2 border border-discarded/40 bg-discarded/5 p-2.5 text-xs text-discarded"
-      aria-label="Format restrictions switched off"
-    >
-      <TriangleAlert className="mt-px size-4 shrink-0" aria-hidden />
-      <div className="min-w-0 flex-1">
-        <p className="font-semibold uppercase">{switchedOff(rules)}</p>
-        <ul className="mt-1 list-inside list-disc">
-          {rules.map((rule) => (
-            <li key={rule.id}>
-              {rule.label} — {rule.hint}
-            </li>
-          ))}
-        </ul>
-        <p className="mt-1 text-faint">
-          {editable
-            ? 'Nothing is checked against them, and everyone you play sees what this list waives. The picker menu switches them back on.'
-            : 'Nothing is checked against them, and this list is not legal where the format is enforced.'}
-        </p>
-      </div>
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        aria-label="Dismiss the format restriction warning"
-        className="-mt-1 -mr-1 shrink-0 text-discarded hover:text-bone"
-        onClick={onDismiss}
-      >
-        <X className="size-4" />
-      </Button>
-    </section>
   )
 }

@@ -1,8 +1,15 @@
 import CombatWorker from './combatWorker'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { LoadoutScoring, LoadoutSpace, OptionEstimate, ProfileOdds } from '../../../core/combatLoadouts'
 import type { CombatRequest } from '../../../core/combatMatchup'
 import { WorkerFailure, workerAnswer } from '../../workerAnswer'
+
+declare global {
+  interface Window {
+    /** Shortens how long a loadout comparison may run, so browser tests can reach its deadline quickly. */
+    PraetoriumLoadoutDeadlineMs?: number
+  }
+}
 
 export type LoadoutOddsRequest = { kind: 'loadouts'; space: LoadoutSpace; scoring: LoadoutScoring; expected: CombatRequest }
 export type LoadoutOdds = {
@@ -27,7 +34,7 @@ export function useLoadoutOdds({
   scoring: LoadoutScoring | null
   expected: CombatRequest
 }): LoadoutOdds | null {
-  const request = space && scoring ? JSON.stringify({ space, scoring, expected }) : null
+  const request = useMemo(() => (space && scoring ? JSON.stringify({ space, scoring, expected }) : null), [space, scoring, expected])
   const [attempt, setAttempt] = useState(0)
   const [found, setFound] = useState<{ request: string; attempt: number; odds: LoadoutOdds; error?: string } | null>(null)
   useEffect(() => {
@@ -49,7 +56,7 @@ export function useLoadoutOdds({
     }
     const asking = worker
     workerAnswer<LoadoutOdds>(asking, { kind: 'loadouts', ...JSON.parse(request) } as LoadoutOddsRequest, {
-      timeoutMs: 15_000,
+      timeoutMs: globalThis.window?.PraetoriumLoadoutDeadlineMs ?? 15_000,
       signal: controller.signal,
     })
       .then(

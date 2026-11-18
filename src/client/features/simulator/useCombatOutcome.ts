@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useRef, useState } from 'react'
+import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
 import { posthog } from 'posthog-js'
 import type { CombatAnswer, CombatRequest } from '../../../core/combatMatchup'
 import { calculateCombatPair } from './combatCalculation'
@@ -40,8 +40,8 @@ export function useCombatOutcome({
   const reported = useRef(false)
   const completed = useEffectEvent(() => onCompleted?.())
   const failureReported = useRef(false)
-  const requestKey = JSON.stringify(scenarios)
-  const comparisonKey = JSON.stringify(scenariosWithout)
+  const requestKey = useMemo(() => JSON.stringify(scenarios), [scenarios])
+  const comparisonKey = useMemo(() => JSON.stringify(scenariosWithout), [scenariosWithout])
   const canSimulate = Boolean(scenarios.ranged || scenarios.melee)
   const outcomeKey = `${requestKey}\n${comparisonKey}`
   const updating = pending || choosing || (canSimulate && (outcome?.key !== outcomeKey || outcome?.attempt !== retry))

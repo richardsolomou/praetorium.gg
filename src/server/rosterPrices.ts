@@ -1,6 +1,6 @@
+import { setImmediate as yieldToEventLoop } from 'node:timers/promises'
 import { RecentlyUsed, remember } from '../core/collections'
 import { app } from './app'
-import type { BuiltUnit } from '../core/roster'
 import { calculateRosterAssessment, calculateRosterPrice, calculateRosterTotals, savedRosterPriceInput } from '../shared/pricing'
 import { type RosterVerdict, rosterVerdict } from './rosterStatus'
 
@@ -93,8 +93,10 @@ export async function cachedRosterPrice(
 ) {
   const key = `${revisionKey(roster, await catalogueRevision())}${includeUnitLimits ? ':unit-limits' : ''}`
   const cached = rosterPriceCache.get(key)
-  if (cached !== undefined || rosterPriceCache.has(key)) return cached ?? null
+  if (cached !== undefined) return cached
   const [catalogue, rules] = await Promise.all([app().catalogueFor(roster.catalogueId), app().rulesFor(roster.catalogueId)])
+  const held = rosterPriceCache.get(key)
+  if (held !== undefined) return held
   const price = calculateRosterPrice({ ...savedRosterPriceInput(roster), includeUnitLimits }, catalogue, rules)
   rosterPriceCache.set(key, price)
   return price
@@ -109,22 +111,31 @@ export async function cachedRosterAssessmentsFor(rosters: readonly Parameters<ty
   const revision = await catalogueRevision()
   const { values, missing } = cachedByPosition(rosters, revision, rosterVerdictCache)
   // Without the rules source a list cannot be judged the way a battle judges it.
-  for (const [catalogueId, positions] of missing) {
-    const rules = await app().rulesFor(catalogueId)
-    const unitCache = new Map<string, BuiltUnit | null>()
-    const unpriced = positions.some((index) => !rosterPriceCache.get(revisionKey(rosters[index]!, revision)))
-    const loaded = rules && unpriced ? await app().catalogueFor(catalogueId) : null
-    for (const index of positions) {
-      const roster = rosters[index]!
-      const key = revisionKey(roster, revision)
-      const priced = rules
-        ? (rosterPriceCache.get(key) ?? calculateRosterAssessment(savedRosterPriceInput(roster), loaded, rules, unitCache))
-        : null
-      const assessment = { verdict: rosterVerdict(roster, priced), points: priced?.points ?? null }
-      values[index] = assessment
-      rosterVerdictCache.set(key, assessment)
-    }
-  }
+  await Promise.all(
+    [...missing].map(async ([catalogueId, positions]) => {
+      const prices = positions.map((index) => rosterPriceCache.get(revisionKey(rosters[index]!, revision)))
+      const rules = await app().rulesFor(catalogueId)
+      const loaded = rules && prices.some((price) => !price) ? await app().catalogueFor(catalogueId) : null
+      let deadline = performance.now() + 8
+      for (const [position, index] of positions.entries()) {
+        const roster = rosters[index]!
+        const key = revisionKey(roster, revision)
+        const held = rosterVerdictCache.get(key)
+        if (held) {
+          values[index] = held
+          continue
+        }
+        const priced = rules ? (prices[position] ?? calculateRosterAssessment(savedRosterPriceInput(roster), loaded, rules)) : null
+        const assessment = { verdict: rosterVerdict(roster, priced), points: priced?.points ?? null }
+        values[index] = assessment
+        rosterVerdictCache.set(key, assessment)
+        if (performance.now() >= deadline) {
+          await yieldToEventLoop()
+          deadline = performance.now() + 8
+        }
+      }
+    }),
+  )
   return values
 }
 

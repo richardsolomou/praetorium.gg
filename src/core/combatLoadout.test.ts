@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildIndex } from './catalogue'
-import { combatCarriers } from './combatLoadout'
+import { carrierModelProfiles, combatCarriers } from './combatLoadout'
 import { combatPlan } from './combatProfiles'
 import { loadoutSheet, optimizeLoadout, type LoadoutScoring } from './combatLoadouts'
 import { DEFAULT_COMBAT_OPTIONS } from './combat'
@@ -64,6 +64,66 @@ describe('combat weapon ownership', () => {
       'test',
     )
     expect(combatCarriers({ id: 'trooper' }, data)[0]?.modelProfileIds).toEqual(['shield'])
+  })
+  const stats = (name: string, wounds: string) => ({
+    id: `${name}-${wounds}`,
+    name,
+    typeName: 'Unit',
+    characteristics: [
+      { name: 'T', $text: '4' },
+      { name: 'W', $text: wounds },
+    ],
+  })
+  const sheetProfile = (id: string, name: string, wounds: string) => ({
+    id,
+    name,
+    values: [
+      { name: 'T', value: '4' },
+      { name: 'W', value: wounds },
+    ],
+  })
+  it('gives a model without a profile of its own the one profile on its unit', () => {
+    const data = buildIndex(
+      [
+        {
+          catalogue: {
+            id: 'profiles',
+            name: 'Profiles',
+            costTypes: [{ id: 'pts', name: 'pts' }],
+            selectionEntries: [
+              {
+                id: 'squad',
+                name: 'Squad',
+                type: 'unit',
+                profiles: [stats('Trooper', '2')],
+                selectionEntries: [{ id: 'gunner', name: 'Trooper w/ gun', type: 'model' }],
+              },
+            ],
+          },
+        },
+      ],
+      'test',
+    )
+    expect(combatCarriers({ id: 'squad', selections: [{ id: 'gunner' }] }, data)[0]?.modelProfileIds).toEqual(['Trooper-2'])
+  })
+  it('finds the datasheet profile a model’s equal profile was merged into, not one that only shares its name', () => {
+    const data = buildIndex(
+      [
+        {
+          catalogue: {
+            id: 'profiles',
+            name: 'Profiles',
+            costTypes: [{ id: 'pts', name: 'pts' }],
+            selectionEntries: [{ id: 'gunner', name: 'Trooper w/ gun', type: 'model', profiles: [stats('Trooper', '2')] }],
+          },
+        },
+      ],
+      'test',
+    )
+    const [carrier] = combatCarriers({ id: 'gunner' }, data)
+    const kept = sheetProfile('kept', 'Trooper', '2')
+    const granted = { ...kept, values: [...kept.values, { name: 'InSv', value: '4+', baseValue: '' }] }
+    expect(carrierModelProfiles(carrier!, [sheetProfile('shielded', 'Trooper', '3'), granted])).toEqual([1])
   })
   it('keeps specialists separate and respects pooled and per-model counts', () => {
     expect(

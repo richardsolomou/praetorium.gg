@@ -19,6 +19,7 @@ import { PageContent, PageHeader } from '../../components/Page'
 import { PageState } from '../../components/PageState'
 import { ungrouped } from '../../components/SearchableSelect'
 import { copyPlayedArmy, copyRoster } from '../../functions'
+import { toast } from 'sonner'
 import { useFavouriteFactions } from '../../favouriteFactions'
 import {
   discoveredRostersQuery,
@@ -51,7 +52,8 @@ import { Problem } from '../../components/Problem'
 import { FactionMark } from '../../components/FactionMark'
 import { BATTLE_ENDINGS, battleOutcomeStage } from '../../battleStage'
 import { OwnerLink } from './OwnerLink'
-import { DISCOVERY_FACETS, discoveryFilter, playedFilter, type RosterDiscoverySearch } from './rosterSearch'
+import { DISCOVERY_FACETS, type RosterDiscoverySearch } from './rosterSearch'
+import { discoveryFilter, playedFilter } from './discoveryFilters'
 
 type IndexedFactions = NonNullable<QueryData<typeof factionIndexQuery>>['factions']
 type DiscoveredPage = QueryData<typeof discoveredRostersQuery>
@@ -181,6 +183,7 @@ export function RosterDiscoveryPage({ view, search }: { view: RosterAudience | '
       posthog.capture('roster_duplicated', { unit_count: entry.roster.unitCount, discovered: true, guest: !me })
       await invalidateSavedRosters(queryClient)
       await navigate({ to: '/rosters/$id', params: { id } })
+      toast.success("You're editing the copy. The original is unchanged.")
     },
   })
   const copyPlayed = useMutation({

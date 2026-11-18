@@ -2788,6 +2788,78 @@ describe('a squad the data will not let hold two things at once', () => {
   })
 })
 
+describe('an option that closes every other loadout once one model takes it', () => {
+  // "All models in this unit can each have their pistol replaced with 1 Combat Shield",
+  // written as every other loadout's cap falling to nothing once the unit holds a shield.
+  const closedByShield = (id: string) => [
+    {
+      type: 'set' as const,
+      field: `${id}-max`,
+      value: 0,
+      conditions: [
+        { type: 'atLeast' as const, value: 1, field: 'selections', scope: 'squad', childId: 'shield', includeChildSelections: true },
+      ],
+    },
+  ]
+  const capped = (id: string, value: number) => [{ id: `${id}-max`, type: 'max' as const, value, field: 'selections', scope: 'parent' }]
+  const index = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'squad',
+        name: 'Vanguard Veterans',
+        type: 'unit',
+        selectionEntryGroups: [
+          {
+            id: 'vets',
+            name: 'Veterans',
+            defaultSelectionEntryId: 'pistol',
+            constraints: [
+              { id: 'vets-min', type: 'min', value: 5, field: 'selections', scope: 'parent' },
+              { id: 'vets-max', type: 'max', value: 10, field: 'selections', scope: 'parent' },
+            ],
+            selectionEntries: [
+              {
+                id: 'pistol',
+                name: 'Veteran',
+                type: 'model',
+                costs: points(20),
+                constraints: capped('pistol', 10),
+                modifiers: closedByShield('pistol'),
+              },
+              {
+                id: 'plasma',
+                name: 'Veteran w/ Plasma',
+                type: 'model',
+                costs: points(20),
+                constraints: capped('plasma', 2),
+                modifiers: closedByShield('plasma'),
+              },
+              {
+                id: 'shielded',
+                name: 'Veteran w/ Shield',
+                type: 'model',
+                costs: points(20),
+                constraints: capped('shielded', 10),
+                selectionEntries: [{ id: 'shield', name: 'Combat Shield', type: 'upgrade', constraints: mandatory('shield-min') }],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+
+  it('marks the option as one the whole squad takes', () => {
+    const vets = buildUnit('squad', index)!.choices.find((choice) => choice.name === 'Veterans')
+    expect(vets?.options.filter((option) => option.wholeSquad).map((option) => option.id)).toEqual(['shielded'])
+  })
+
+  it('gives the shield to models the squad grows by', () => {
+    const built = buildUnit('squad', index, 6, undefined, { spreads: { vets: { shielded: 5 } } })!
+    expect(wargearOf(built.selection, index)).toEqual([{ name: 'Combat Shield', count: 6 }])
+  })
+})
+
 describe('an upgrade the data hangs on the unit rather than in a group', () => {
   // A lone yes-or-no needs no group to hold it, so it is written without one: a Chaos
   // unit's icon, an Infiltrator Squad's comms array, a demolition charge. Everything
@@ -3183,4 +3255,48 @@ describe('entries a link declares', () => {
     const options = buildUnit('knight', index)!.choices.flatMap((choice) => choice.options.map((option) => option.name))
     expect(options).toEqual(['Shared Relic', 'Own Relic'])
   })
+})
+
+describe('an option kept from bearers of a keyword', () => {
+  const index = indexOf({
+    categoryEntries: [{ id: 'smith', name: 'Smith' }],
+    sharedSelectionEntries: [
+      {
+        id: 'priest',
+        name: 'Priest',
+        type: 'model',
+        selectionEntryGroups: [
+          {
+            id: 'enhancements',
+            name: 'Enhancements',
+            constraints: [{ id: 'enhancements-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+            selectionEntries: [
+              {
+                id: 'reinforcement',
+                name: 'Reinforcement',
+                type: 'upgrade',
+                modifiers: [
+                  {
+                    type: 'set',
+                    field: 'hidden',
+                    value: true,
+                    conditions: [{ type: 'instanceOf', value: 1, field: 'selections', scope: 'ancestor', childId: 'smith' }],
+                  },
+                ],
+              },
+              { id: 'relic', name: 'Relic', type: 'upgrade' },
+            ],
+          },
+        ],
+      },
+      { id: 'smith', name: 'Smith', type: 'model', categoryLinks: [{ id: 'smith-link', targetId: 'smith' }] },
+    ],
+  })
+  const offered = (roster: string[]) =>
+    unitChoices('priest', defaultSelection('priest', index)!, index, {
+      roster: roster.map((id) => defaultSelection(id, index)!),
+    }).flatMap((choice) => choice.options.map((option) => option.name))
+
+  it('stays offered to a bearer without the keyword while another unit in the list has it', () =>
+    expect(offered(['smith'])).toEqual(['Reinforcement', 'Relic']))
 })

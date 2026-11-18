@@ -1,6 +1,6 @@
 import { useInfiniteQuery, useMutation, useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { ChevronRight, EllipsisVertical, Eye, FileLock2, Lock, LogOut, Pencil, Swords, Trash2, UserPlus } from 'lucide-react'
+import { ChevronRight, EllipsisVertical, Eye, FileLock2, LogOut, Pencil, Swords, Trash2, UserPlus } from 'lucide-react'
 import { posthog } from 'posthog-js'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -17,7 +17,6 @@ import {
   sealedEventPlaysAlone,
 } from '../../../core/sealedEvent'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
-import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { Problem } from '../../components/Problem'
 import { chooseSealedEventSide, createSealedEventBattle, deleteSealedEvent, revealSealedEvent } from '../../functions'
 import { battlesFrom, sealedEventBattlesQuery, sealedEventQuery } from '../../queries'
@@ -26,6 +25,7 @@ import { countLabel } from '../../text'
 import { useNow } from '../../useNow'
 import { useEntrantGroups } from '../sealedEvents/SealedEventEntrants'
 import { RevealedLists } from '../sealedEvents/SealedEventArmies'
+import { SealedEventRosterSharing } from '../sealedEvents/SealedEventRosterSharing'
 import { SealedEventCombatDialog } from '../sealedEvents/SealedEventCombatDialog'
 import { useSealList } from '../sealedEvents/SealList'
 import { RemindEntrants } from '../sealedEvents/SealedEventReadiness'
@@ -34,6 +34,7 @@ import { SealedEventSettingsDialog } from '../sealedEvents/SealedEventSettingsDi
 import { TeamDispositionPanel } from '../sealedEvents/SealedEventTeamDisposition'
 import { TeamWarlordPanel } from '../sealedEvents/SealedEventTeamWarlord'
 import { eventName, namesPhrase, useSealedEventRefresh } from '../sealedEvents/sealedEvent'
+import { latestHiddenListGameSealedBy } from '../../../core/group'
 import { sideLost, viewerStage } from '../../battleStage'
 import { summarySides } from '../../battleSummary'
 import type { Battle } from '../battles/battle'
@@ -42,6 +43,7 @@ import { useStartBattle } from '../battles/useStartBattle'
 import { warmLocalRules } from '../../offline/construction'
 import { DropdownMenuItem } from '../../components/Menu'
 import { nameColour } from '../../playerName'
+import { SealingPlayer } from './SealingPlayer'
 
 type Game = Group['games'][number]
 type Player = Game['players'][number]
@@ -230,6 +232,10 @@ export function GroupHiddenListGame({
   // Revealed lists split by side or pair as a tournament's are, so the same game reads the same in either place.
   const revealedEntries = record?.entries.filter((entry) => sealed.some((player) => player.userId === entry.userId)) ?? []
   const revealedGroups = useEntrantGroups(record ?? undefined, revealedEntries, (entry) => nameOf(entry.userId))
+  const sharing =
+    viewerId && latestHiddenListGameSealedBy(group.games, viewerId)?.token === game.token ? (
+      <SealedEventRosterSharing className="px-4 pb-3" token={game.token} eventToken={game.token} userId={viewerId} />
+    ) : null
   const revealedLists = (
     <RevealedLists
       token={game.token}
@@ -242,37 +248,16 @@ export function GroupHiddenListGame({
       actions={(entry) => (!embedded && !team && own?.sealed && entry.userId !== viewerId ? playAction(entry.userId) : null)}
     />
   )
-  const row = (player: Player) => {
-    const person = people.get(player.userId)
-    const name = nameOf(player.userId)
-    const list = player.userId === viewerId ? listName(player.userId) : null
-    return (
-      <li key={player.userId} data-person={name} className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 px-4 py-2">
-        <PlayerAvatar name={name} image={person?.image ?? null} className="size-8 text-2xs" />
-        <span className="min-w-0 flex-1 basis-24">
-          <span className="flex min-w-0 items-baseline gap-1.5">
-            <span
-              className="truncate text-sm leading-tight font-bold uppercase"
-              style={nameColour({ id: player.userId, colour: person?.colour })}
-            >
-              {name}
-            </span>
-            {player.userId === viewerId ? <span className="eyebrow shrink-0 text-parchment">You</span> : null}
-          </span>
-          {list ? <span className="mt-0.5 block truncate text-xs text-dim uppercase">{list}</span> : null}
-        </span>
-        <span className="ml-auto flex shrink-0 flex-wrap items-center justify-end gap-1">
-          {player.sealed ? (
-            <span className="inline-flex shrink-0 items-center gap-1 rounded-md border border-dashed border-parchment/60 px-1.5 py-px text-xs font-semibold text-parchment">
-              <Lock className="size-3" aria-hidden /> Sealed
-            </span>
-          ) : (
-            <span className="shrink-0 text-sm text-faint">Choosing</span>
-          )}
-        </span>
-      </li>
-    )
-  }
+  const row = (player: Player) => (
+    <SealingPlayer
+      key={player.userId}
+      group={group}
+      userId={player.userId}
+      viewerId={viewerId}
+      sealed={player.sealed}
+      list={player.userId === viewerId ? listName(player.userId) : null}
+    />
+  )
 
   const canSeal = member && !closed && ownLimit !== null && (!team || own !== undefined)
   const canReveal = ready && (own?.sealed === true || group.organizer)
@@ -379,6 +364,7 @@ export function GroupHiddenListGame({
           {sealed.length ? (
             <div className="border-t border-edge">
               <p className="px-4 py-2 text-sm text-dim">Lists · {countLabel(sealed.length, 'player')}</p>
+              {sharing}
               {revealedLists}
             </div>
           ) : null}
@@ -395,7 +381,14 @@ export function GroupHiddenListGame({
             </div>
             {menu}
           </div>
-          {revealed ? revealedLists : lists}
+          {revealed ? (
+            <>
+              {sharing}
+              {revealedLists}
+            </>
+          ) : (
+            lists
+          )}
           {revealed && record ? (
             <OpenTableBattlefield
               sealedEvent={record}

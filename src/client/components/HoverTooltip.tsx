@@ -1,7 +1,9 @@
-import { type ReactNode, useRef, useState } from 'react'
+import { lazy, type ReactNode, Suspense, useRef, useState } from 'react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
-import { RuleText } from './RuleText'
+
+// Rendered only once a tooltip opens, so pages with tooltips but no rules text skip the Markdown renderer.
+const RuleText = lazy(() => import('./RuleText').then((module) => ({ default: module.RuleText })))
 
 /** Hover opens and closes the tooltip; a pinning press keeps it open until the reader presses outside or escapes. */
 export function usePressTooltip() {
@@ -72,7 +74,13 @@ export function HoverTooltip({
         <strong className="block border-b border-edge px-2.5 py-1.5 text-xs font-bold tracking-label text-bone uppercase">{title}</strong>
         {body ? (
           <div className="max-h-56 overflow-y-auto px-2.5 py-1.5 font-rules text-xs text-dim">
-            {typeof body === 'string' ? <RuleText text={body} className="mt-0 text-xs" authored /> : body}
+            {typeof body === 'string' ? (
+              <Suspense fallback={null}>
+                <RuleText text={body} className="mt-0 text-xs" authored />
+              </Suspense>
+            ) : (
+              body
+            )}
           </div>
         ) : null}
         {note ? <span className="eyebrow block border-t border-edge px-2.5 py-1 text-faint">{note}</span> : null}

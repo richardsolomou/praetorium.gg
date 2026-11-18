@@ -10,8 +10,9 @@ The picker shows every datasheet your faction and detachments allow, with allied
 - **Unit limit** hides anything you already hold as many of as you may.
 - The heart shows only your favourites, which also sort to the top of each group. It needs an account.
 - The box shows only datasheets in your [collection](/collection), including those your models can also be. It needs an account.
+- The trophy shows only the units it marks.
 
-![The unit picker with its search box, filter chips and Space Marines characters.](screenshot:build-an-army-picker 'The filter row: Points fit, Unit limit, favourites, collection, Legends and Crucible')
+![The unit picker with its search box, filter chips and Space Marines characters.](screenshot:build-an-army-picker 'The filter row: Points fit, Unit limit, favourites, collection, top four, Legends and Crucible')
 
 ## Legends and Crucible
 

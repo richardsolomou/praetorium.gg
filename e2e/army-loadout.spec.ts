@@ -13,9 +13,10 @@ for (const token of ['preview-casual-strike-force', 'preview-tournament-battle-d
       await retryUntilVisible(army, () => open.click())
       await expect(army.getByRole('button', { name: /^Simulate/ }).first()).toBeVisible()
       if (width < 860) {
+        // A full-screen phone dialog rises from below, so its place is read once it has settled.
+        await expect.poll(async () => (await army.boundingBox())?.y).toBe(0)
         await expect.poll(async () => (await army.boundingBox())?.x).toBe(0)
         const bounds = (await army.boundingBox())!
-        expect(bounds.y).toBe(0)
         expect(bounds.width).toBe(width)
         expect(bounds.y + bounds.height).toBe((await page.locator('[data-native-app-tabs]').boundingBox())!.y)
       }

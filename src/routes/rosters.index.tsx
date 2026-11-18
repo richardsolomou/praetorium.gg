@@ -9,15 +9,7 @@ import {
 } from '../contracts/rosterCookies'
 import { keptRosterRows } from '../client/features/rosters/rosterCookie'
 import { requestCookie } from '../server/requestCookie'
-import {
-  discoveryFilter,
-  DISCOVERY_FACETS,
-  LIBRARY_FACETS,
-  playedFilter,
-  ROSTER_VIEWS,
-  WINNING_FACETS,
-  type RostersSearch,
-} from '../client/features/rosters/rosterSearch'
+import { DISCOVERY_FACETS, LIBRARY_FACETS, ROSTER_VIEWS, WINNING_FACETS, type RostersSearch } from '../client/features/rosters/rosterSearch'
 import { RostersRoute } from '../client/features/rosters/RostersRoute'
 import { ROSTER_SEARCH_MAX_LENGTH } from '../core/rosterDiscovery'
 import { ROSTER_SORTS } from '../core/rosterSort'
@@ -38,7 +30,14 @@ function rostersSearch(search: Record<string, unknown>): RostersSearch {
     const sort = ROSTER_SORTS.find((known) => known !== 'updated-desc' && known === search.sort)
     return { view, ...text, ...facetSearch(search, DISCOVERY_FACETS), ...periodSearch(search), ...(sort ? { sort } : {}) }
   }
-  return { ...text, ...facetSearch(search, LIBRARY_FACETS), ...periodSearch(search), ...rosterStartSearch(search) }
+  const folder = searchText(search.folder, 64)
+  return {
+    ...text,
+    ...(folder ? { folder } : {}),
+    ...facetSearch(search, LIBRARY_FACETS),
+    ...periodSearch(search),
+    ...rosterStartSearch(search),
+  }
 }
 
 export const Route = createFileRoute('/rosters/')({
@@ -52,6 +51,7 @@ export const Route = createFileRoute('/rosters/')({
     if (view) {
       const index = await context.queryClient.query({ ...factionIndexQuery(), staleTime: 'static' })
       const factions = index?.factions ?? []
+      const { discoveryFilter, playedFilter } = await import('../client/features/rosters/discoveryFilters')
       if (view === 'tournament-lists') await context.queryClient.query({ ...winningListsQuery(), staleTime: 'static' })
       else if (view === 'played')
         await context.queryClient.infiniteQuery({ ...playedArmiesQuery(playedFilter(search, factions)), staleTime: 'static' })

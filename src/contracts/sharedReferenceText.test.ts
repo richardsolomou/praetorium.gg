@@ -21,10 +21,8 @@ it('shares repeated rules prose while retaining edition-specific points and name
     { name: 'Current rules', points: 90, description },
   ]
   const shared = shareReferenceText(rules)
-  expect({
-    restored: restoreReferenceText(shared.value, shared.texts),
-    smaller: JSON.stringify(shared).length < JSON.stringify(rules).length,
-  }).toEqual({ restored: rules, smaller: true })
+  const smaller = JSON.stringify(shared).length < JSON.stringify(rules).length
+  expect({ restored: restoreReferenceText(shared.value, shared.texts), smaller }).toEqual({ restored: rules, smaller: true })
 })
 
 it.each([-1, 1, 0.5, '0'])('refuses an unavailable text reference %j', (index) => {

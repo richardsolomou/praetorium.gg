@@ -7,6 +7,7 @@ import { MAX_LOCAL_STATE_BYTES, parseLocalState, type LocalState } from '../../s
 import { HAPTICS, NATIVE_EVENTS, type Haptic, type NativeEvent } from '../../src/contracts/nativeBridge'
 import { NOTICE_ID, NOTICES_PER_USER } from '../../src/core/notificationConfig'
 import { MAX_WATCH_MESSAGE_BYTES, parseWatchBattle, type WatchBattle } from '../../src/contracts/watchBattle'
+import { MAX_HOME_WIDGET_BYTES, parseHomeWidget, type HomeWidget } from '../../src/contracts/homeWidget'
 
 /** The id a request carries so its answer can find it, and the local state epoch, which is shaped the same. */
 const isRequestId = (value: unknown): value is string => typeof value === 'string' && /^[\w-]{1,64}$/.test(value)
@@ -19,6 +20,7 @@ export type NativeActionRequest =
   | { kind: 'export-work'; id: string; state: LocalState }
   | { kind: 'local-state'; owner: string; id: string; state?: LocalState | null; epoch?: string; expectedRevision?: number }
   | { kind: 'watch-battle'; snapshot: WatchBattle | null }
+  | { kind: 'home-widget'; widget: HomeWidget | null }
   | { kind: 'app-snapshot'; id: string; snapshot: AppSnapshot | null }
   | { kind: 'offline-save'; id: string; reference: SavedReference }
   | { kind: 'back-gesture'; enabled: boolean }
@@ -72,6 +74,10 @@ export function parseNativeActionRequest(message: string): NativeActionRequest |
     if (value.type === 'native-watch-battle' && new TextEncoder().encode(message).length <= MAX_WATCH_MESSAGE_BYTES) {
       const snapshot = value.snapshot === null ? null : parseWatchBattle(value.snapshot)
       return value.snapshot === null || snapshot ? { kind: 'watch-battle', snapshot } : null
+    }
+    if (value.type === 'native-home-widget' && message.length <= MAX_HOME_WIDGET_BYTES) {
+      const widget = value.widget === null ? null : parseHomeWidget(value.widget)
+      return value.widget === null || widget ? { kind: 'home-widget', widget } : null
     }
     if (value.type === 'native-app-snapshot' && isRequestId(value.id) && message.length <= MAX_APP_SNAPSHOT_BYTES + 1024) {
       const snapshot = value.snapshot === null ? null : parseAppSnapshot(value.snapshot)
@@ -187,7 +193,7 @@ export const NATIVE_BRIDGE_SCRIPT = `(() => {
 })(); true;`
 
 /** Adds or removes a capability that depends on what this device or build has, such as a paired watch. */
-export function nativeCapabilityScript(capability: 'screen-cover' | 'watch-battle', enabled: boolean) {
+export function nativeCapabilityScript(capability: 'battle-activity' | 'home-widget' | 'screen-cover' | 'watch-battle', enabled: boolean) {
   return `(() => {
     if (!window.PraetoriumNative) return;
     const capabilities = window.PraetoriumNative.capabilities.filter(value => value !== '${capability}');

@@ -1,5 +1,8 @@
+import fs from 'node:fs/promises'
+import os from 'node:os'
+import path from 'node:path'
 import { expect, it } from 'vitest'
-import { fieldedDatasheets, matchingLists, unitCounts, type WinningList } from './winningLists'
+import { fieldedDatasheets, importableLists, matchingLists, unitCounts, type WinningList } from './winningLists'
 
 const list = (
   id: string,
@@ -56,4 +59,24 @@ it('ranks datasheets by how many lists field them and sizes by how often they ar
     { entryId: 'outriders', name: 'outriders', lists: 2, models: [3, 6] },
     { entryId: 'sammael', name: 'sammael', lists: 1, models: [6, 3] },
   ])
+})
+
+it('shows a list placed at two events once, at the newer one', async () => {
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'winning-lists-'))
+  const id = '79bd96d67c746de718c92002c798f0ce'
+  const placing = (eventId: string, date: string, ranking: number) => ({
+    eventId,
+    name: eventId,
+    date,
+    players: [{ ranking, record: 'W4 L1 D0', list: id }],
+    source: '40kstats',
+  })
+  const { id: _, placing: __, record: ___, event: ____, ...verdict } = list(id, 'x', [])
+  await fs.writeFile(
+    path.join(directory, 'events.json'),
+    JSON.stringify([placing('newer', '2026-11-14', 4), placing('older', '2026-11-07', 2)]),
+  )
+  await fs.writeFile(path.join(directory, 'verdicts.json'), JSON.stringify({ revision: 'r', lists: { [id]: verdict } }))
+
+  expect((await importableLists(directory, 'r'))?.map(({ event }) => event.name)).toEqual(['newer'])
 })

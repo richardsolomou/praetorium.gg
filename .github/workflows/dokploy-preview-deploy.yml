@@ -33,17 +33,18 @@ jobs:
             else any(.[]; .conclusion != "skipped") end')
           echo "built=$built" >> "$GITHUB_OUTPUT"
 
-  approve-fork:
+  # Previews share hera with production, so each one waits for a maintainer rather than deploying on every push.
+  approve:
     needs: image
-    if: needs.image.outputs.built == 'true' && github.event.workflow_run.head_repository.full_name != github.repository
+    if: needs.image.outputs.built == 'true'
     runs-on: ubuntu-latest
     environment: pr-preview
     steps:
       - run: true
 
   deploy:
-    needs: [image, approve-fork]
-    if: always() && (needs.approve-fork.result == 'success' || needs.approve-fork.result == 'skipped') && (github.event_name == 'pull_request_target' || (github.event.workflow_run.pull_requests[0] && (github.event.workflow_run.status != 'completed' || needs.image.outputs.built == 'true')))
+    needs: [image, approve]
+    if: always() && (needs.approve.result == 'success' || needs.approve.result == 'skipped') && (github.event_name == 'pull_request_target' || (github.event.workflow_run.pull_requests[0] && (github.event.workflow_run.status != 'completed' || needs.image.outputs.built == 'true')))
     permissions:
       actions: read
       contents: read

@@ -56,11 +56,14 @@ type Roster = Input['attacker']
 
 type TableUnit = { name: string; entries: number[]; models: number; snapshot: CombatantSnapshot | null; error?: string }
 
-/** Each unit the roster fields with its attached units, as the simulator's whole-roster table fields it at full strength. */
-async function tableUnits(roster: Roster): Promise<TableUnit[] | null> {
+/**
+ * Each unit the roster fields with its attached units, as the simulator's whole-roster table fields it at full strength;
+ * `unknown` when the loaded army data has no such catalogue and null when there is no army data to read.
+ */
+async function tableUnits(roster: Roster): Promise<TableUnit[] | 'unknown' | null> {
   const instance = app()
   const [loaded, rules] = await Promise.all([instance.catalogueFor(roster.catalogueId), instance.rulesFor(roster.catalogueId)])
-  if (!loaded) return null
+  if (!loaded) return (await instance.factionsFor()) && !(await instance.factionFor(roster.catalogueId)) ? 'unknown' : null
   const words = await serverWords()
   const pickIndices = rosterCombatIndices(roster.picks)
   const projections = rosterCombatants(loaded, rules, {
@@ -193,7 +196,18 @@ export async function compareRosters(input: Input, signal: AbortSignal) {
     }
   }
   const [attackers, defenders] = await Promise.all([tableUnits(input.attacker), tableUnits(input.defender)])
-  if (!attackers || !defenders) return toolError('unavailable', 'Praetorium army data is temporarily unavailable.')
+  for (const [side, units, roster] of [
+    ['attacking', attackers, input.attacker],
+    ['defending', defenders, input.defender],
+  ] as const) {
+    if (units === 'unknown')
+      return toolError(
+        'validation',
+        `No army uses the ${side} roster's catalogueId ${roster.catalogueId}. Take it from import_roster, get_my_roster or list_units.`,
+      )
+  }
+  if (!attackers || !defenders || attackers === 'unknown' || defenders === 'unknown')
+    return toolError('unavailable', 'Praetorium army data is temporarily unavailable.')
   if (!attackers.length || !defenders.length) return toolError('refused', 'Both rosters need at least one unit.')
   const total = attackers.length * defenders.length
   if (total > MAX_PAIRINGS)

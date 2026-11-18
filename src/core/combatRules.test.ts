@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { Datasheet } from '../contracts/catalogue'
 import { combatWeapons } from './combatProfiles'
 import {
+  activeCombatRules,
   combatRuleChoices,
   combatRuleAppliesTo,
   combatRuleRecipient,
@@ -711,9 +712,23 @@ describe('combat roles', () => {
   it.each([
     "This unit's ranged attacks that target a MONSTER/VEHICLE unit can: Re-roll one hit roll. Re-roll one wound roll. Re-roll one damage roll.",
     'Friendly ADEPTUS CUSTODES units (excluding MONSTER/VEHICLE units) within 6" of this model can\n- Re-roll hit rolls of 1\n- Re-roll wound rolls of 1',
+    'Each time a WRAITH CONSTRUCT model from your army makes an attack that targets a unit with one or more Vengeful Dead tokens, add 1 to the Hit roll.',
+    'Friendly HERNKYN units’ ranged attacks that target a unit within 12" have +1 to hit rolls.',
+    'When a friendly PALADIN SQUAD unit is selected to fight, if the S of those attacks is lower than the T of the target, those attacks have +1 to wound rolls.',
   ])('recognises %s as an attacking rule, so the simulator names it when it cannot apply it', (description) =>
     expect(combatRuleRoles(description)).toContain('attacker'),
   )
+  it.each([
+    'Each time an attack targets a HAEMONCULUS COVENS unit from your army, if the Strength characteristic of that attack is greater than the Toughness characteristic of your unit, subtract 1 from the Wound roll.',
+    'Attacks that target friendly CRONOS/TALOS units with a S greater than that unit’s T have -1 to wound rolls.',
+    'While an enemy unit is within 12" of this model, each time a model in that unit makes a Psychic Attack, subtract 1 from the Wound roll.',
+  ])('recognises %s as a defending rule only', (description) => expect(combatRuleRoles(description)).toEqual(['defender']))
+  it('recognises both halves of a rule that buffs its own attacks and protects its own units', () =>
+    expect(
+      combatRuleRoles(
+        'Each time an attack targets a HERETIC ASTARTES unit from your army, if the attacking model is Battle-shocked, subtract 1 from the Hit roll. Each time a HERETIC ASTARTES model from your army makes an attack that targets a Battle-shocked unit, add 1 to the Wound roll.',
+      ),
+    ).toEqual(['attacker', 'defender']))
   it('filters already projected offensive stats by role too', () =>
     expect(
       combatRuleAppliesTo(rule('Melee weapons equipped by this model have the [LETHAL HITS] ability.', { included: true }), 'defender'),
@@ -790,4 +805,57 @@ describe('Aspect Shrine tokens', () => {
   it('leaves CHARACTER models out', () => {
     expect(spent({ ...weapons(), keywords: ['Infantry', 'Character'] }, 0)).toBeUndefined()
   })
+})
+
+describe('a rule that makes two options of another active together', () => {
+  const stances = rule(
+    'At the start of the battle round, you can select one of the Stances below. Until the end of the battle round, that Stance is active for your army, and all units from your army that have the Stances ability gain the relevant abilities shown below.\nGUARD STANCE\n■ Improve the Ballistic Skill characteristic of ranged weapons equipped by models in this unit by 1.\nSTRIKE STANCE\n■ Improve the Weapon Skill characteristic of melee weapons equipped by models in this unit by 1.\n■ Each time a model in this unit makes an attack, if this unit is within range of an objective marker, add 1 to the Wound roll.',
+    { name: 'Stances' },
+  )
+  const grant = rule("The Guard Stance and Strike Stance are both active for the bearer's unit.", { name: 'Grant', scope: 'attached' })
+  const stanceEffects = (choices: Record<string, number>) =>
+    activeCombatRules([stances, grant], choices).find((active) => active.name === 'Stances')?.effects
+  const guard = { role: 'attacker', phases: ['ranged'], characteristic: { kind: 'ballistic-skill', add: -1 } }
+  const strike = { role: 'attacker', phases: ['melee'], characteristic: { kind: 'weapon-skill', add: -1 } }
+
+  it('applies both while the round selects neither', () => expect(stanceEffects({})).toEqual([guard, strike]))
+
+  it('applies both under the condition the selected option states', () =>
+    expect(stanceEffects({ 'Source:Stances': 3 })).toEqual([
+      guard,
+      strike,
+      { role: 'attacker', phases: ['ranged', 'melee'], options: { woundModifier: 1 } },
+    ]))
+})
+
+it('leaves a weapon keyword the catalogue already gives under the name the rule is credited to', () => {
+  const sheet = weapons()
+  const projected = {
+    ...sheet,
+    profiles: sheet.profiles.map((profile) => ({
+      ...profile,
+      values: profile.values.map((value) =>
+        value.name === 'Keywords' ? { ...value, value: 'Sustained Hits 1: non-Vehicle', modifiers: ['Upgrade'] } : value,
+      ),
+    })),
+  }
+  const grant = {
+    name: 'Grant',
+    appliedAs: ['Upgrade'],
+    effects: [{ role: 'attacker' as const, phases: ['ranged' as const], keyword: 'Sustained Hits 1', excludedTargetKeywords: ['Vehicle'] }],
+  }
+  expect(combatRuleProfiles(projected, [grant], 'attacker').profiles[0]!.values.at(-1)!.value).toBe('Sustained Hits 1: non-Vehicle')
+})
+
+it('adds a weapon keyword the catalogue does not give, though it gives another under the same rule', () => {
+  const sheet = weapons()
+  const projected = {
+    ...sheet,
+    profiles: sheet.profiles.map((profile) => ({
+      ...profile,
+      values: profile.values.map((value) => (value.name === 'Keywords' ? { ...value, value: 'Assault', modifiers: ['Grant'] } : value)),
+    })),
+  }
+  const grant = { name: 'Grant', effects: [{ role: 'attacker' as const, phases: ['ranged' as const], keyword: 'Heavy' }] }
+  expect(combatRuleProfiles(projected, [grant], 'attacker').profiles[0]!.values.at(-1)!.value).toBe('Assault, Heavy')
 })

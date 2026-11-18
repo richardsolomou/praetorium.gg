@@ -2,8 +2,20 @@ import { GuideHelp } from '../onboarding/GuideHelp'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from 'react'
-import { ChevronDown, FileUp, Plus, ScrollText } from 'lucide-react'
+import { ChevronDown, FileUp, FolderPlus, ListChecks, Plus, ScrollText } from 'lucide-react'
+import {
+  type DroppedItem,
+  FolderBreadcrumb,
+  FolderNameDialog,
+  FolderTiles,
+  MoveFolderDialog,
+  MoveToFolderDialog,
+  useRosterFolders,
+  useVariantDetach,
+} from './RosterFolders'
+import { childFolders, folderAndInside, folderPath, ROSTER_FOLDER_DEPTH_MAX, type RosterFolder } from '../../../core/rosterFolders'
 import { Button } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { Skeleton } from '@/components/ui/skeleton'
 import { currentRulesFor } from '../../../core/currentRules'
@@ -39,7 +51,7 @@ import { FilterBar, type FilterDimension } from '../../components/FilterBar'
 import { NoFilterMatches } from '../../components/NoFilterMatches'
 import { ungrouped } from '../../components/SearchableSelect'
 import { facetsOf, periodSearch } from '../../searchParams'
-import { facetMatches, facetText, periodBounds, withinPeriod, type Facet } from '../../../core/listFilter'
+import { facetActive, facetMatches, facetText, periodBounds, withinPeriod, type Facet } from '../../../core/listFilter'
 import { matchesRosterAssessment, rosterAssessmentFilterActive, ROSTER_SEARCH_MAX_LENGTH } from '../../../core/rosterDiscovery'
 import { ROSTER_VISIBILITIES } from '../../../core/savedRoster'
 import { VISIBILITY_NAME } from './visibility'
@@ -65,6 +77,7 @@ import {
   meQuery,
   rostersLentToMeQuery,
   savedRosterChangedIdsQuery,
+  savedRosterPlaysQuery,
   savedRosterSummariesQuery,
   type QueryData,
 } from '../../queries'
@@ -84,6 +97,12 @@ const UPDATE_GROUPS = ungrouped([
   { label: 'Older rules', value: 'older' },
   { label: 'Changed by update', value: 'changed' },
 ])
+const PLAYED_GROUPS = ungrouped([
+  { label: 'Played', value: 'played' },
+  { label: 'Not played yet', value: 'unplayed' },
+])
+/** A list played within this long counts as one the player is still playing. */
+const RECENT_PLAY_MS = 8 * 7 * 24 * 60 * 60 * 1_000
 const STATE_GROUPS = ungrouped([
   { label: 'Locked', value: 'locked' },
   { label: 'Variant of another list', value: 'variant' },
@@ -147,6 +166,27 @@ export function RosterLibraryPage({
   const navigate = useNavigate()
   const { favourites } = useFavouriteFactions(Boolean(me))
   const facets = facetsOf(search, LIBRARY_FACETS)
+  const folderActions = useRosterFolders(Boolean(me))
+  const folders = folderActions.folders
+  const folder = folders.folders.find((entry) => entry.id === search.folder) ?? null
+  // Only a search, a period or a facet narrows the lists; the folder and the new-roster flags say where the player is.
+  const filtering = Boolean(search.q || search.period || search.from || search.to || LIBRARY_FACETS.some((key) => search[key]))
+  // A variant is filed where its base is, including when a filter leaves the base out.
+  const filedIn = (roster: { id: string; baseRosterId?: string | null }) => folders.filed[roster.baseRosterId ?? roster.id] ?? null
+  // Each level lists only what is filed there; a search or filter narrows every level, and a folder shows while anything in it matches.
+  const atLevel = (roster: SavedRoster) => filedIn(roster) === (folder?.id ?? null)
+  const fileRoster = (rosterId: string, folderId: string | null) => {
+    const roster = saved.find((entry) => entry.id === rosterId)
+    if (roster) folderActions.file([roster.baseRosterId ?? roster.id], folderId)
+  }
+  const subfolders = childFolders(folders.folders, folder?.id ?? null)
+  // A folder at the deepest level folders may go takes no more folders.
+  const canNest = !folderActions.full && (!folder || folderPath(folders.folders, folder.id).length + 1 < ROSTER_FOLDER_DEPTH_MAX)
+  const [moving, setMoving] = useState<string[] | null>(null)
+  const [movingFolder, setMovingFolder] = useState<RosterFolder | null>(null)
+  const [naming, setNaming] = useState<{ id: string; name: string } | 'new' | null>(null)
+  const [deletingFolder, setDeletingFolder] = useState<RosterFolder | null>(null)
+  const folderMenu = { onRename: setNaming, onMove: setMovingFolder, onDelete: setDeletingFolder }
   const facetUses = (facet: Facet | undefined, value: string) => Boolean(facet?.in.includes(value) || facet?.out.includes(value))
   // Walking every list is slow, so it waits for the visible rows unless the filter asks for it.
   const [rowsSettled, setRowsSettled] = useState(false)
@@ -155,6 +195,13 @@ export function RosterLibraryPage({
     enabled: Boolean(me && savedResult.isSuccess && (rowsSettled || facetUses(facets.updates, 'changed'))),
   })
   const changedIds = new Set(changedResult.data ?? [])
+  const playsResult = useQuery({ ...savedRosterPlaysQuery(), enabled: Boolean(me && savedResult.isSuccess) })
+  const playsById = new Map((playsResult.data ?? []).map((entry) => [entry.id, entry]))
+  const playedFacts = (roster: SavedRoster) => {
+    const entry = playsById.get(roster.id)
+    if (!entry) return []
+    return [entry.plays ? 'played' : 'unplayed']
+  }
   const olderRules = (roster: SavedRoster) => Boolean(currentRulesFor(roster.catalogueId, available?.factions ?? []))
   const factionOf = (roster: SavedRoster) => available?.factions.find((faction) => faction.id === roster.catalogueId)
   const bounds = periodBounds(periodSearch(search), now)
@@ -169,6 +216,7 @@ export function RosterLibraryPage({
         facetMatches(facets.disposition, roster.disposition ? [roster.disposition] : []) &&
         facetMatches(facets.updates, [...(olderRules(roster) ? ['older'] : []), ...(changedIds.has(roster.id) ? ['changed'] : [])]) &&
         facetMatches(facets.state, [...(roster.locked ? ['locked'] : []), ...(roster.baseRosterId ? ['variant'] : [])]) &&
+        facetMatches(facets.played, playedFacts(roster)) &&
         withinPeriod(roster.updatedAt, bounds) &&
         (!search.q || matchesSearch(`${rosterTitle(roster, faction)} ${faction?.displayName ?? ''}`, search.q))
       )
@@ -186,23 +234,47 @@ export function RosterLibraryPage({
       })
     : candidates
   const needsChanged = facetUses(facets.updates, 'changed')
+  const needsPlays = Boolean(me && (facetActive(facets.played) || selectedGrouping === 'play'))
   const needsFactions = Boolean(
     search.faction || search.q || search.updates || selectedGrouping === 'faction' || selectedGrouping === 'detachment',
   )
   const libraryPending =
-    (me ? savedResult.isPending : Boolean(device?.pending)) ||
+    (me ? savedResult.isPending || folderActions.pending : Boolean(device?.pending)) ||
     (needsFactions && availableResult.isPending) ||
     (needsChanged && changedResult.isPending) ||
+    (needsPlays && playsResult.isPending) ||
     (needsAssessment && (guest ? guestRow.pending : assessed.results.some((result) => result.isPending)))
   const libraryError =
     (me && savedResult.isError) ||
     (needsFactions && availableResult.isError) ||
     (needsChanged && changedResult.isError) ||
+    (needsPlays && playsResult.isError) ||
     (needsAssessment && assessed.results.some((result) => result.isError))
-  const active = shown.filter((roster) => !roster.archived)
-  const archived = shown.filter((roster) => roster.archived)
+  const here = shown.filter(atLevel)
+  const active = here.filter((roster) => !roster.archived)
+  const archived = here.filter((roster) => roster.archived)
+  const inside = folder ? folderAndInside(folders.folders, folder.id) : null
+  // Matches only in folders below still count as results, so the level does not claim nothing matched.
+  const matchedBelow =
+    filtering &&
+    shown.some((roster) => {
+      const filed = filedIn(roster)
+      return filed !== null && filed !== folder?.id && (!inside || inside.has(filed))
+    })
+  /** What the folder tiles count: every list while nothing narrows them, or every list a search or filter matched, archived or not. */
+  const tileRosters = filtering ? shown : saved.filter((roster) => !roster.archived)
+  /** Every list here or in a folder below, counted once with its variants as the folder tiles count them. */
+  const listCount = new Set(
+    tileRosters.filter((roster) => !inside || inside.has(filedIn(roster) ?? '')).map((roster) => roster.baseRosterId ?? roster.id),
+  ).size
   const [archivedOpen, setArchivedOpen] = useState(false)
   const groupOf = (roster: SavedRoster): RosterGroup => {
+    if (selectedGrouping === 'play') {
+      const entry = playsById.get(roster.id)
+      if (!entry?.plays) return { key: 'unplayed', label: 'Not played yet', rank: 1 }
+      if (now - entry.plays.lastPlayedAt <= RECENT_PLAY_MS) return { key: 'recent', label: 'Played in the last 8 weeks', rank: 2 }
+      return { key: 'earlier', label: 'Played before', rank: 3 }
+    }
     if (selectedGrouping === 'size') {
       const size = GAME_SIZES.find((entry) => entry.limit === roster.limit)
       return { key: String(roster.limit), label: size ? battleSizeOptionLabel(size) : pointsLabel(roster.limit), rank: roster.limit }
@@ -272,7 +344,23 @@ export function RosterLibraryPage({
           onRemoved: () => device?.onChange(null),
         }
       : null,
+    // A copy is filed beside the list it came from, so it does not vanish from the folder it was made in.
+    (source, copyId) => {
+      const filed = filedIn(source)
+      if (filed) folderActions.file([copyId], filed)
+    },
   )
+  // A variant taken out of its card stays in its base's folder, or moves to the folder it was dropped on.
+  const detachingFrom = useVariantDetach((variantId) => actions.split.mutate(variantId))
+  const detachInto = (variantId: string, folderId: string | null) =>
+    actions.split.mutate(variantId, { onSuccess: () => folderActions.file([variantId], folderId) })
+  /** A roster or folder dropped on a folder, or on the top level when `folderId` is null, moves into it. */
+  const dropInto = (item: DroppedItem, folderId: string | null) =>
+    item.kind === 'roster'
+      ? fileRoster(item.id, folderId)
+      : item.kind === 'variant'
+        ? detachInto(item.id, folderId)
+        : folderActions.move(item.id, folderId)
   // A visitor keeps one list; making another asks them to sign up first.
   const another = guest ? () => account.ask('another-roster') : undefined
   const { keepImported, saveError: importError } = useNewRoster()
@@ -363,19 +451,29 @@ export function RosterLibraryPage({
         onDelete={() => setDeleting({ rosters: [roster], together: false })}
         onNeedsAccount={guest ? account.ask : undefined}
         selection={selectionOf(roster)}
+        onMove={guest ? undefined : () => setMoving([roster.baseRosterId ?? roster.id])}
+        dragId={guest ? undefined : (roster.baseRosterId ?? roster.id)}
+        variantOf={layout === 'variant' ? head.roster.id : undefined}
+        plays={playsById.get(roster.id)}
       />
     )
     return variants.length ? (
-      <div key={head.roster.id} data-roster-group className="part">
+      <div
+        key={head.roster.id}
+        data-roster-group={head.roster.id}
+        className={cn('part', detachingFrom === head.roster.id && 'outline-2 outline-offset-2 outline-runner-hi outline-dashed')}
+      >
         {row(head, 'base')}
         {variants.map((variant) => row(variant, 'variant'))}
+        {detachingFrom === head.roster.id ? (
+          <p className="border-t border-edge px-3 py-2 text-xs text-dim">Drop it anywhere outside this card to make it its own roster.</p>
+        ) : null}
       </div>
     ) : (
       row(head, 'card')
     )
   }
 
-  const filtered = Object.values(search).some(Boolean)
   const deletingCount = deleting?.rosters.length ?? 0
   const unarchived = guest ? [] : (deleting?.rosters.filter((roster) => !roster.archived) ?? [])
   const archivable = unarchived.length > 0
@@ -437,7 +535,6 @@ export function RosterLibraryPage({
           rosters={saved}
           factions={available?.factions ?? []}
           favourites={favourites}
-          count={filtered && !libraryPending ? shown.length : null}
           onChange={(next) => void navigate({ to: '/rosters', search: next, replace: true, resetScroll: false })}
           sort={
             <>
@@ -460,27 +557,31 @@ export function RosterLibraryPage({
         />
         {actions.lock.isError ? <Problem error={actions.lock.error} /> : null}
         {actions.split.isError ? <Problem error={actions.split.error} /> : null}
+        {folderActions.error ? <Problem error={folderActions.error} /> : null}
         {actions.exchange.isError ? <Problem>Could not make an exchange code: {errorMessage(actions.exchange.error)}</Problem> : null}
 
         <section>
           <div className="rubric flex items-baseline gap-3 border-b border-edge pb-2">
-            <h2 className="mr-auto">Rosters</h2>
+            <h2>Rosters</h2>
             {libraryPending ? (
-              <Skeleton className="h-4 w-5" aria-label="Loading roster count" />
-            ) : libraryError ? (
-              <span className="readout">—</span>
+              <Skeleton className="mr-auto h-4 w-5" aria-label="Loading roster count" />
             ) : (
-              <span className="readout">{active.length}</span>
+              <span className="readout mr-auto">{libraryError ? '—' : listCount}</span>
             )}
-            {me && !libraryPending && !libraryError && shown.length ? (
+            {me && !libraryPending && !libraryError && shown.length && !selecting ? (
               // The negative margin keeps the header its text's height, so the button arriving with the rosters moves nothing below it.
               <Button
                 variant="ghost"
                 size="sm"
                 className="-my-2 self-center tracking-normal normal-case"
-                onClick={() => (selecting ? stopSelecting() : setSelecting(true))}
+                onClick={() => setSelecting(true)}
               >
-                {selecting ? 'Done' : 'Select'}
+                <ListChecks /> Select
+              </Button>
+            ) : null}
+            {me && !libraryPending && !libraryError && saved.length && !selecting && canNest ? (
+              <Button variant="ghost" size="sm" className="-my-2 self-center tracking-normal normal-case" onClick={() => setNaming('new')}>
+                <FolderPlus /> New folder
               </Button>
             ) : null}
           </div>
@@ -509,111 +610,142 @@ export function RosterLibraryPage({
               error={actions.batch.error}
               onChange={changeSelected}
               onDelete={() => setDeleting({ rosters: selected, together: true })}
+              onMove={() => setMoving([...new Set(selected.map((roster) => roster.baseRosterId ?? roster.id))])}
               onSelectAll={(all) => setSelectedIds(new Set(all ? selectable : []))}
+              onDone={stopSelecting}
               allSelected={selectable.length > 0 && selectable.every((id) => selectedIds.has(id))}
             />
           ) : null}
-          <div className="mt-2 space-y-3">
-            {libraryError ? (
-              <PageState
-                headingLevel={2}
-                title="Could not load rosters"
-                explanation="The roster library could not be loaded. Try again."
-                action={
-                  <Button
-                    variant="outline"
-                    onClick={() => void Promise.all([savedResult.refetch(), availableResult.refetch()])}
-                    disabled={savedResult.isFetching || availableResult.isFetching}
-                  >
-                    Try again
-                  </Button>
-                }
-              />
-            ) : libraryPending ? (
-              <div className="runner gap-3 [--gate-x:1rem] [--gate-y:1.5rem] sm:[--gate-x:1.5rem]">
-                <output className="sr-only" data-gate="none">
-                  Loading your rosters…
-                </output>
-                <RosterLibrarySkeleton rows={unfiltered ? rows : DEFAULT_ROSTER_ROWS} />
+          {/* Only areas that render take part in the gap, so an empty folder or roster area leaves no space behind. */}
+          <div className="mt-2 flex flex-col gap-6">
+            {me && !libraryPending && !libraryError && (folder || folders.folders.length) ? (
+              <div className="space-y-4 empty:hidden">
+                {folder ? <FolderBreadcrumb folder={folder} folders={folders.folders} onDrop={dropInto} actions={folderMenu} /> : null}
+                {subfolders.length ? (
+                  <FolderTiles
+                    folders={folders.folders}
+                    parentId={folder?.id ?? null}
+                    rosters={tileRosters}
+                    filedIn={filedIn}
+                    factionOf={(catalogueId) => available?.factions.find((faction) => faction.id === catalogueId)}
+                    onDrop={dropInto}
+                    matchesOnly={filtering}
+                    actions={folderMenu}
+                  />
+                ) : null}
               </div>
-            ) : active.length ? (
-              <>
-                {groupPage ? (
-                  <div className="space-y-6">
-                    {groupPage.shown.map(({ group, total }) => (
-                      <Collapsible
-                        key={group.key}
-                        render={<section />}
-                        open={!isCollapsed(group.key)}
-                        onOpenChange={(open) => setCollapsed((current) => toggled(current, `${selectedGrouping} ${group.key}`, !open))}
-                      >
-                        <h3>
-                          <CollapsibleTrigger className="group eyebrow flex w-full items-baseline gap-3 pb-2 text-left hover:text-bone">
-                            <span className="mr-auto">{group.label}</span>
-                            <span className="readout">{total}</span>
-                            <ChevronDown className="size-4 self-center transition-transform group-data-panel-open:rotate-180" aria-hidden />
-                          </CollapsibleTrigger>
-                        </h3>
-                        <CollapsibleContent>
-                          <div className="runner gap-3 [--gate-x:1rem] [--gate-y:1.5rem] sm:[--gate-x:1.5rem]">
-                            {groups.filter((card) => runOf.get(card.head.roster) === group.key).map(renderCard)}
-                          </div>
-                        </CollapsibleContent>
-                      </Collapsible>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="runner gap-3 [--gate-x:1rem] [--gate-y:1.5rem] sm:[--gate-x:1.5rem]">{groups.map(renderCard)}</div>
-                )}
-                {pageResults.some((result) => result.isError) || guestRow.failed ? (
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      if (guestRow.failed) guestRow.retry()
-                      void Promise.all(pageResults.filter((result) => result.isError).map((result) => result.refetch()))
-                    }}
-                  >
-                    Retry roster points and legality
-                  </Button>
-                ) : null}
-                {more ? (
-                  <Button
-                    variant="outline"
-                    disabled={pageResults.some((result) => !result.isSuccess)}
-                    onClick={() => setPage({ key: pageKey, visibleCount: visibleCount + ROSTER_LIBRARY_BATCH_SIZE })}
-                  >
-                    Show more rosters
-                  </Button>
-                ) : null}
-              </>
-            ) : saved.length ? (
-              <NoFilterMatches>
-                {archived.length ? 'Every roster here is archived. Archived rosters are listed below.' : 'No rosters match these filters'}
-              </NoFilterMatches>
-            ) : (
-              <PageState
-                headingLevel={2}
-                title="No rosters yet"
-                explanation="Build one from your faction's datasheets, or bring in a list you already made in another app."
-                icon={ScrollText}
-                action={
-                  <div className="grid w-full gap-4 sm:grid-cols-2">
-                    <div className="grid justify-items-center gap-2">
-                      <Link to="/rosters/new" className={buttonClass({ className: 'w-full' })}>
-                        <Plus /> Build a roster
-                      </Link>
-                      <p className="text-xs text-faint">Pick a faction, then add units</p>
+            ) : null}
+            <div className="space-y-3 empty:hidden">
+              {libraryError ? (
+                <PageState
+                  headingLevel={2}
+                  title="Could not load rosters"
+                  explanation="The roster library could not be loaded. Try again."
+                  action={
+                    <Button
+                      variant="outline"
+                      onClick={() => void Promise.all([savedResult.refetch(), availableResult.refetch()])}
+                      disabled={savedResult.isFetching || availableResult.isFetching}
+                    >
+                      Try again
+                    </Button>
+                  }
+                />
+              ) : libraryPending ? (
+                <div className="grid grid-cols-[minmax(0,1fr)] gap-3">
+                  <output className="sr-only">Loading your rosters…</output>
+                  <RosterLibrarySkeleton rows={unfiltered ? rows : DEFAULT_ROSTER_ROWS} />
+                </div>
+              ) : active.length ? (
+                <>
+                  {groupPage ? (
+                    <div className="space-y-6">
+                      {groupPage.shown.map(({ group, total }) => (
+                        <Collapsible
+                          key={group.key}
+                          render={<section />}
+                          open={!isCollapsed(group.key)}
+                          onOpenChange={(open) => setCollapsed((current) => toggled(current, `${selectedGrouping} ${group.key}`, !open))}
+                        >
+                          <h3>
+                            <CollapsibleTrigger className="group eyebrow flex w-full items-baseline gap-3 pb-2 text-left hover:text-bone">
+                              <span className="mr-auto">{group.label}</span>
+                              <span className="readout">{total}</span>
+                              <ChevronDown
+                                className="size-4 self-center transition-transform group-data-panel-open:rotate-180"
+                                aria-hidden
+                              />
+                            </CollapsibleTrigger>
+                          </h3>
+                          <CollapsibleContent>
+                            <div className="grid grid-cols-[minmax(0,1fr)] gap-3">
+                              {groups.filter((card) => runOf.get(card.head.roster) === group.key).map(renderCard)}
+                            </div>
+                          </CollapsibleContent>
+                        </Collapsible>
+                      ))}
                     </div>
-                    <div className="grid justify-items-center gap-2">
-                      <Button variant="outline" className="w-full" onClick={() => importer.current?.show()}>
-                        <FileUp /> Import a list
-                      </Button>
-                      <p className="text-xs text-faint">From the official app or New Recruit</p>
+                  ) : (
+                    <div className="grid grid-cols-[minmax(0,1fr)] gap-3">{groups.map(renderCard)}</div>
+                  )}
+                  {pageResults.some((result) => result.isError) || guestRow.failed ? (
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        if (guestRow.failed) guestRow.retry()
+                        void Promise.all(pageResults.filter((result) => result.isError).map((result) => result.refetch()))
+                      }}
+                    >
+                      Retry roster points and legality
+                    </Button>
+                  ) : null}
+                  {more ? (
+                    <Button
+                      variant="outline"
+                      disabled={pageResults.some((result) => !result.isSuccess)}
+                      onClick={() => setPage({ key: pageKey, visibleCount: visibleCount + ROSTER_LIBRARY_BATCH_SIZE })}
+                    >
+                      Show more rosters
+                    </Button>
+                  ) : null}
+                </>
+              ) : !filtering && folder && subfolders.length ? null : saved.length && !filtering && (folder || folders.folders.length) ? (
+                <p className="rounded-xl border border-dashed border-edge px-4 py-6 text-center text-sm text-dim">
+                  {folder
+                    ? archived.length
+                      ? 'Every roster in this folder is archived. Archived rosters are listed below.'
+                      : 'This folder is empty. Drag a roster onto it, or choose Move to folder in a roster’s menu.'
+                    : 'Every roster is in a folder.'}
+                </p>
+              ) : matchedBelow ? null : saved.length ? (
+                <NoFilterMatches>
+                  {archived.length ? 'Every roster here is archived. Archived rosters are listed below.' : 'No rosters match these filters'}
+                </NoFilterMatches>
+              ) : (
+                <PageState
+                  headingLevel={2}
+                  title="No rosters yet"
+                  explanation="Build one from your faction's datasheets, or bring in a list you already made in another app."
+                  icon={ScrollText}
+                  action={
+                    <div className="grid w-full gap-4 sm:grid-cols-2">
+                      <div className="grid justify-items-center gap-2">
+                        <Link to="/rosters/new" className={buttonClass({ className: 'w-full' })}>
+                          <Plus /> Build a roster
+                        </Link>
+                        <p className="text-xs text-faint">Pick a faction, then add units</p>
+                      </div>
+                      <div className="grid justify-items-center gap-2">
+                        <Button variant="outline" className="w-full" onClick={() => importer.current?.show()}>
+                          <FileUp /> Import a list
+                        </Button>
+                        <p className="text-xs text-faint">From the official app or New Recruit</p>
+                      </div>
                     </div>
-                  </div>
-                }
-              />
-            )}
+                  }
+                />
+              )}
+            </div>
           </div>
         </section>
         {lent.length ? (
@@ -634,14 +766,58 @@ export function RosterLibraryPage({
               <ChevronDown className="size-4 self-center transition-transform group-data-panel-open:rotate-180" aria-hidden />
             </CollapsibleTrigger>
             <CollapsibleContent>
-              <div className="mt-2 runner gap-3 [--gate-x:1rem] [--gate-y:1.5rem] sm:[--gate-x:1.5rem]">
-                {archivedGroups.map(renderCard)}
-              </div>
+              <div className="mt-2 grid grid-cols-[minmax(0,1fr)] gap-3">{archivedGroups.map(renderCard)}</div>
             </CollapsibleContent>
           </Collapsible>
         ) : null}
       </PageContent>
 
+      <MoveToFolderDialog
+        rosterIds={moving}
+        folders={folderActions}
+        onMoved={selecting ? stopSelecting : undefined}
+        onClose={() => setMoving(null)}
+      />
+      <MoveFolderDialog folder={movingFolder} folders={folderActions} onClose={() => setMovingFolder(null)} />
+      <FolderNameDialog
+        key={naming === 'new' ? 'new' : (naming?.id ?? 'closed')}
+        open={Boolean(naming)}
+        initial={naming && naming !== 'new' ? naming.name : ''}
+        title={naming === 'new' ? 'New folder' : 'Rename folder'}
+        action={naming === 'new' ? 'Create folder' : 'Rename'}
+        onSave={(name) =>
+          naming === 'new' ? folderActions.create(name, folder?.id ?? null) : naming && folderActions.rename(naming.id, name)
+        }
+        onClose={() => setNaming(null)}
+      />
+      <AlertDialog open={Boolean(deletingFolder)} onOpenChange={(open) => !open && setDeletingFolder(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {deletingFolder?.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deletingFolder && childFolders(folders.folders, deletingFolder.id).length
+                ? 'The folders inside it are deleted too, and all their rosters and its own'
+                : 'Its rosters'}{' '}
+              {deletingFolder?.parentId ? 'move up to the folder it is in' : 'move to All rosters'}. No roster is deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep folder</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => {
+                if (!deletingFolder) return
+                folderActions.remove(deletingFolder.id)
+                setDeletingFolder(null)
+                if (folder && folderAndInside(folders.folders, deletingFolder.id).has(folder.id))
+                  void navigate({ to: '/rosters', search: { ...search, folder: deletingFolder.parentId ?? undefined } })
+              }}
+            >
+              Delete folder
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <AlertDialog open={Boolean(deleting)} onOpenChange={(open) => !open && setDeleting(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -763,7 +939,6 @@ function RosterLibraryFilters({
   rosters,
   factions,
   favourites,
-  count,
   onChange,
   sort,
 }: {
@@ -772,11 +947,11 @@ function RosterLibraryFilters({
   rosters: readonly SavedRoster[]
   factions: readonly FilterableFaction[]
   favourites: ReadonlySet<string>
-  count: number | null
   onChange: (next: RosterLibrarySearch) => void
   sort: ReactNode
 }) {
   const { data: references } = useQuery(gameReferencesQuery())
+  const { folder: _folder, ...filters } = search
   const tally = <T,>(values: T[]) => countBy(values, (value) => value)
   const countOf = (counts: ReadonlyMap<unknown, number>, value: unknown) => String(counts.get(value) ?? 0)
   // Everything here is in the browser already, so the choices are what the library holds and each can say how many.
@@ -833,6 +1008,7 @@ function RosterLibraryFilters({
           .map((disposition) => ({ label: disposition.name, value: disposition.id, detail: countOf(perDisposition, disposition.id) })),
       ),
     },
+    { key: 'played', label: 'Played', groups: PLAYED_GROUPS, pinned: true },
     { key: 'state', label: 'Status', groups: STATE_GROUPS },
     ...ROSTER_ASSESSMENT_DIMENSIONS,
   ]
@@ -852,10 +1028,10 @@ function RosterLibraryFilters({
         value: periodSearch(search),
         onChange: (next) => onChange({ ...search, period: undefined, from: undefined, to: undefined, ...next }),
       }}
-      address={search}
-      onApply={onChange}
+      // The open folder is where the player is, not a filter: clearing or applying a saved view keeps them in it.
+      address={filters}
+      onApply={(next) => onChange({ ...next, ...(search.folder ? { folder: search.folder } : {}) })}
       sort={sort}
-      summary={count === null ? null : countLabel(count, 'roster')}
     />
   )
 }

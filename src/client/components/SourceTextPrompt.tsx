@@ -2,7 +2,7 @@ import { cn } from '@/lib/utils'
 import type { TextSource } from '../../core/sourceText'
 import { type MissingText, retryFailedTextFiles } from '../sourceText'
 import { useHydrated } from '../useClientValue'
-import { openTextSourcesDialog } from './TextSourcesDialog'
+import { openTextSourcesDialog } from './textSourcesDialogState'
 
 /**
  * What stands where rules text would be before this device has loaded it.

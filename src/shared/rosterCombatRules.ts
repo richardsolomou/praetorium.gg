@@ -1,7 +1,7 @@
 import { attachmentErrors } from '../core/attach'
 import { attachedUnit, attachmentHost } from '../core/attachedUnits'
 import { hasTextTokens } from '../core/sourceText'
-import { parsedAbilityGrants } from './catalogueAbilityGrants'
+import { titleCaseAbility } from './catalogueAbilityGrants'
 import { abilityGrantsIn, combatFactsIn } from './textFacts'
 import { recordedCombatText } from '../core/combatReading'
 import { type CombatRule, type CombatRuleJudge, combatRuleProjected, judgedCombatRule } from '../core/combatRules'
@@ -21,6 +21,8 @@ import { keywordIdsBySelection, keywordNames } from '../core/evaluate'
 import { namespaceCarriers } from '../core/combatLoadouts'
 import { attachedProfilePrefix } from '../core/combatScenario'
 import { remember } from '../core/collections'
+import { WEAPON_ABILITY_KINDS } from '../core/combatKeywords'
+import { rulesNamed } from './catalogueRules'
 
 /**
  * What projections of one built roster can share: each unit's support abilities by its place in that roster, so share
@@ -31,6 +33,24 @@ type RosterProjectionCache = { supportSources: Map<number, ReturnType<typeof dat
 export const rosterProjectionCache = (): RosterProjectionCache => ({ supportSources: new Map() })
 
 type Projection = NonNullable<ReturnType<typeof rosterDatasheetContext>> & RosterProjectionCache
+
+const weaponAbilityRulesByCatalogue = new WeakMap<LoadedCatalogue, ReturnType<typeof rulesNamed>>()
+
+/**
+ * One unit's combatant for its datasheet: a rule's option can give a weapon ability its weapons lack, so every weapon
+ * ability's rule comes with it.
+ */
+export function datasheetCombatant(
+  ...[loaded, ...rest]: Parameters<typeof rosterCombatant>
+): (NonNullable<ReturnType<typeof rosterCombatant>> & { weaponAbilityRules?: ReturnType<typeof rulesNamed> }) | null {
+  const combatant = rosterCombatant(loaded, ...rest)
+  return (
+    combatant && {
+      ...combatant,
+      weaponAbilityRules: remember(weaponAbilityRulesByCatalogue, loaded, () => rulesNamed(loaded, WEAPON_ABILITY_KINDS)),
+    }
+  )
+}
 
 export function rosterCombatant(
   loaded: LoadedCatalogue,
@@ -251,6 +271,7 @@ function rosterCombatRules(
           ),
       ),
       models,
+      ...(sheet.modelKeywords?.length ? { partialKeywords: sheet.modelKeywords.flatMap((group) => group.keywords) } : {}),
     }
     // Every unit's keywords are known only once the roster is read; `supportKeywords` fills as it is.
     const placement: CombatRuleJudge = { ...judge, keywords: sheet.keywords, unitKeywords, supportKeywords }
@@ -263,7 +284,7 @@ function rosterCombatRules(
       if (judged) candidates.push(judged)
     }
   }
-  for (const ability of sheet.abilities) {
+  for (const ability of [...sheet.abilities, ...(sheet.enhancements ?? [])]) {
     if (!ability.description) continue
     add(
       {
@@ -272,11 +293,16 @@ function rosterCombatRules(
         source: sheet.name,
         description: ability.description,
         scope: 'unit',
-        // Projection applies a Feel No Pain as a core ability, and one limited to models with a keyword to those models alone.
+        ...(ability.kind === 'upgrade' && ability.source ? { appliedAs: [ability.source] } : {}),
+        // Projection applies a Feel No Pain as a core ability, and one limited to models with a keyword, or to the leader, to those models alone.
         included:
           (ability.kind === 'core' && /^Feel No Pain [2-6]\+$/.test(ability.name)) ||
-          parsedAbilityGrants(abilityGrantsIn(ability.description, loaded.index.textFacts), true, [], true).some(
-            (grant) => grant.recipient === 'models' && /^Feel No Pain [2-6]\+$/.test(grant.name),
+          abilityGrantsIn(ability.description, loaded.index.textFacts).grants.some(
+            (grant) =>
+              !('condition' in grant && grant.condition) &&
+              /^Feel No Pain [2-6]\+$/i.test(
+                grant.recipient === 'models' ? grant.name : grant.recipient === 'leader' ? titleCaseAbility(grant.written) : '',
+              ),
           ),
       },
       { origin: 'own', attached: selectedPick.attachedTo !== undefined },
@@ -284,10 +310,17 @@ function rosterCombatRules(
   }
   for (const { unit, source } of others) {
     if (source) supportKeywords.push(source.keywords)
-    for (const ability of source?.abilities ?? []) {
+    for (const ability of [...(source?.abilities ?? []), ...(source?.enhancements ?? [])]) {
       if (!ability.description || ability.kind === 'core' || ability.kind === 'faction') continue
       add(
-        { id: `roster:${ability.id}`, name: ability.name, source: source!.name, description: ability.description, scope: 'nearby' },
+        {
+          id: `roster:${ability.id}`,
+          name: ability.name,
+          source: source!.name,
+          description: ability.description,
+          scope: 'nearby',
+          ...(ability.kind === 'upgrade' && ability.source ? { appliedAs: [ability.source] } : {}),
+        },
         { origin: 'support', attached: attached.includes(unit.pickIndex) },
       )
     }
@@ -313,9 +346,11 @@ function rosterCombatRules(
       )
     for (const stratagem of [...selected.written, ...core]) {
       if (!stratagem.description) continue
+      // A Command-phase stratagem's effect can last through the Shooting and Fight phases that follow it.
+      const either = !stratagem.phases.length || stratagem.phases.includes('command')
       const phases: CombatRule['phases'] = []
-      if (!stratagem.phases.length || stratagem.phases.includes('shooting')) phases.push('ranged')
-      if (!stratagem.phases.length || stratagem.phases.includes('fight')) phases.push('melee')
+      if (either || stratagem.phases.includes('shooting')) phases.push('ranged')
+      if (either || stratagem.phases.includes('fight')) phases.push('melee')
       if (!phases.length) continue
       add(
         {

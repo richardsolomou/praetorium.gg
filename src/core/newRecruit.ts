@@ -85,6 +85,8 @@ export function fromNewRecruitShare(
   const bundleSinceSplit = (node: ShareNode) => node.option_id !== undefined && !known(node.option_id)
   // A loadout choice can hold the models taking it, as "8 chainblades" holds eight Jakhals; only the catalogue tells it from a bundle on a model.
   const holdsModels = (node: ShareNode) => node.options.some((child) => child.option_id !== undefined && known(child.option_id)?.model)
+  // A single-model datasheet's wargear can come as a bundle with its pieces beneath, as a Knight Despoiler's "Gatling cannon and flamer".
+  const isBundle = (node: ShareNode) => node.option_id !== undefined && known(node.option_id)?.model === false
   const units = nodes.map((node, at): TextRosterUnit => {
     const selections: TextRosterUnit['selections'] = []
     let models = 0
@@ -97,12 +99,12 @@ export function fromNewRecruitShare(
           if (/^warlord$/i.test(label(child))) warlord = true
           else selections.push({ name: label(child), count: amount! * multiplier, ...(model ? { model } : {}) })
         } else if (amount === undefined || bundleSinceSplit(child) || holdsModels(child)) visit(child, model, (amount ?? 1) * multiplier)
-        else if (!model) {
+        else if (!model && !isBundle(child)) {
           models += amount * multiplier
           selections.push({ name: label(child), count: amount * multiplier })
           visit(child, label(child), amount * multiplier)
         } else {
-          selections.push({ name: label(child), count: amount * multiplier, model })
+          selections.push({ name: label(child), count: amount * multiplier, ...(model ? { model } : {}) })
           visit(child, model, amount * multiplier)
         }
       }

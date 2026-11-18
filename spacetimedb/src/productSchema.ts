@@ -158,6 +158,16 @@ const listFilterPreferences = table(
   },
 )
 
+/** A player's roster folders and which list is filed in each, as one `rosterFoldersSchema` document. */
+const rosterFolders = table(
+  { name: 'roster_folders' },
+  {
+    userId: t.string().primaryKey(),
+    folders: t.string(),
+    at: t.u64(),
+  },
+)
+
 const playerDefaults = table(
   { name: 'player_defaults' },
   {
@@ -259,6 +269,8 @@ const rosters = table(
     pointsBudget: t.option(t.u32()).default(undefined),
     copiedFromRosterId: t.option(t.string()).default(undefined),
     archived: t.option(t.bool()).default(undefined),
+    /** The owner answered No thanks to sharing it, so no screen asks them to make it public again. */
+    sharingDeclined: t.option(t.bool()).default(undefined),
   },
 )
 
@@ -470,6 +482,7 @@ const sealedEventTeamWarlords = table(
   },
 )
 
+/** Answers to the sharing prompt from before they moved onto the roster; read only to carry them across, and emptied as events and accounts go. */
 const sealedEventRosterSharing = table(
   { name: 'sealed_event_roster_sharing' },
   {
@@ -946,6 +959,7 @@ export const productTables = {
   notices,
   listFilterPreferences,
   playerDefaults,
+  rosterFolders,
   pushTokens,
   webPushSubscriptions,
   friendships,

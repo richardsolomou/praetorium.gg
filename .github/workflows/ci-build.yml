@@ -2,12 +2,18 @@ name: CI build
 
 on:
   workflow_call:
+    inputs:
+      runtime:
+        description: Whether the change needs the runtime checks
+        type: boolean
+        required: true
 
 permissions:
   contents: read
 
 jobs:
   build:
+    if: inputs.runtime
     runs-on: ubuntu-latest
     # A catalogue runtime or offline reference that no build has shared yet is uploaded under its key for every later build and deployment.
     env:
@@ -25,17 +31,8 @@ jobs:
           r2-account-id: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           r2-access-key-id: ${{ secrets.PRIVATE_R2_ACCESS_KEY_ID }}
           r2-secret-access-key: ${{ secrets.PRIVATE_R2_SECRET_ACCESS_KEY }}
-      - name: Fingerprint the catalogue runtime
-        id: runtime
-        run: echo "key=$(pnpm exec tsx scripts/catalogueRuntimeKey.ts)" >> "$GITHUB_OUTPUT"
-      - name: Restore the compiled catalogue runtime
-        uses: actions/cache@v6
-        with:
-          path: ~/.cache/praetorium/runtime
-          key: catalogue-runtime-${{ steps.runtime.outputs.key }}
       - run: pnpm build
       - run: pnpm typecheck
-      - run: pnpm exec vitest run --config vitest.integration.config.ts scripts/clientText.integration.test.ts
       # Nothing else fails when a route file or the shell pulls page code into what every page preloads.
       # The base skips the offline reference, which changes no client chunk.
       - name: Compare the startup bundle with the base

@@ -5,6 +5,7 @@ import type { CatalogueEdition } from './catalogueEdition'
 import { isGuestSeat } from './newBattle'
 import { routeSlug } from './slug'
 import { compareText } from './text'
+import { z } from 'zod'
 import { ordinal, rate, rating, type Rating } from 'openskill'
 
 /** The catalogue army a seat brought, as the battle list already names it. */
@@ -63,7 +64,7 @@ type StandingsTables<B extends StandingBattle = StandingBattle> = {
 export type BattleOutcome = 'won' | 'lost' | 'drawn'
 
 /** Concession takes precedence over score, and allies share their side’s result. */
-export function battleOutcome(battle: StandingBattle, side: number): BattleOutcome {
+export function battleOutcome(battle: Pick<StandingBattle, 'playerIds' | 'sides' | 'scores' | 'result'>, side: number): BattleOutcome {
   const conceded = battle.result?.concededBy
   const concededSide = conceded ? battle.sides[battle.playerIds.indexOf(conceded)] : undefined
   const totals = [...new Set(battle.sides)].map((index) => ({ index, total: sideScore(battle, index) }))
@@ -79,7 +80,7 @@ export function sideOutcome(sides: readonly { index: number; total: number }[], 
   return ours < theirs ? 'lost' : 'drawn'
 }
 
-export function sideScore(battle: StandingBattle, side: number) {
+export function sideScore(battle: Pick<StandingBattle, 'sides' | 'scores'>, side: number) {
   return battle.sides.reduce((total, seat, index) => (seat === side ? total + (battle.scores[index] ?? 0) : total), 0)
 }
 
@@ -112,20 +113,22 @@ const DISPLAY = { alpha: 20, target: 1000 }
  */
 const BETA = 25 / 3
 
-const NEWCOMER_SIGMA = rating().sigma
+// Functions rather than constants, so a bundle that only reads outcomes from this module can leave OpenSkill out.
+const newcomerSigma = () => rating().sigma
 
 /**
  * How much a player's uncertainty grows per day since their last battle in a table, from none back to a newcomer's in
  * two years, so a player who has stopped playing drifts down it. Only the listed rating drifts: battles are rated
  * without it, since much of the history is imported and its gaps are not time away.
  */
-const IDLE_VARIANCE_PER_DAY = NEWCOMER_SIGMA ** 2 / 730
+const idleVariancePerDay = () => newcomerSigma() ** 2 / 730
 const DAY_MS = 24 * 60 * 60 * 1000
 
 /** A player's skill after `idleMs` without a battle, never growing less certain than a newcomer's. */
 function idle(skill: Rating, idleMs: number): Rating {
-  if (idleMs <= 0 || skill.sigma >= NEWCOMER_SIGMA) return skill
-  return { mu: skill.mu, sigma: Math.min(Math.sqrt(skill.sigma ** 2 + (IDLE_VARIANCE_PER_DAY * idleMs) / DAY_MS), NEWCOMER_SIGMA) }
+  const fresh = newcomerSigma()
+  if (idleMs <= 0 || skill.sigma >= fresh) return skill
+  return { mu: skill.mu, sigma: Math.min(Math.sqrt(skill.sigma ** 2 + (idleVariancePerDay() * idleMs) / DAY_MS), fresh) }
 }
 
 /** Fewer battles than this in a table, and a player is listed apart from the ranked players, without a place. */
@@ -297,3 +300,11 @@ export function winRate(counts: { won: number; drawn: number; battles: number })
 export function averagePoints(counts: { points: number; battles: number }): number {
   return counts.battles ? counts.points / counts.battles : 0
 }
+
+export const standingsViewQuery = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('player'), userId: z.string(), activeSince: z.number().int().nonnegative() }),
+  z.object({ kind: z.literal('changes'), tokens: z.array(z.string()).max(500) }),
+  z.object({ kind: z.literal('achievements'), userId: z.string() }),
+])
+
+export type StandingsViewQuery = z.infer<typeof standingsViewQuery>

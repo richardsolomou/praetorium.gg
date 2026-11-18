@@ -2,9 +2,8 @@
  * Roster grades: what a roster can do on the table, scored 0–100 and graded A–D, never a prediction of who wins.
  *
  * Like Lighthouse, each measure scores the percentile it reaches among real examples, tournament lists of the
- * same battle size (see `rosterGradeCalibration`), so it reads the same for every army. Categories and the
- * overall score place the list among its own faction's tournament lists instead, since the simulator's blind
- * spots, such as stratagems and conditional rules, fall unevenly across factions.
+ * same battle size (see `rosterGradeCalibration`). Every score is centred on the list's own faction, since the
+ * simulator's blind spots, such as stratagems and conditional rules, fall unevenly across factions.
  */
 import { isKotcLimit } from './battle'
 import { CALIBRATED, EXPECTED_TOOLS, PEERS, type CalibratedSize, type Peers } from './rosterGradeCalibration'
@@ -141,6 +140,8 @@ export type GradedUnit = {
   chargeBonus: number
   /** Per target: the share of its wounds the unit alone takes in a turn, up to 1, or null when the simulator cannot say. */
   removes: Partial<Record<ReferenceTargetKey, number | null>>
+  /** Per attached unit: what the rest of the unit removes with it left out. */
+  without?: { name: string; removes: Partial<Record<ReferenceTargetKey, number | null>> }[]
   /** The share of the unit's wounds a turn of the reference attackers' shooting takes on average, or null when it cannot be calculated. */
   volleyLoss: number | null
   unitGeneration?: UnitGeneration[]
@@ -153,7 +154,7 @@ export type UnitGeneration = { unit: string; trigger: 'shooting' | 'kill'; share
 export type GradeRow = {
   key: MetricKey
   label: string
-  /** 0 to 100: where the list places among its peers' tournament lists on the measure, on the curve `scaled` draws. */
+  /** 0 to 100: how far the measure sits from its peers' median on every army's spread, on the curve `scaled` draws. */
   score: number | null
   grade: Grade | null
   detail: string
@@ -164,13 +165,15 @@ export type GradeRow = {
 export type GradeCategory = { key: string; label: string; score: number | null; grade: Grade | null; rows: GradeRow[] }
 
 /** A unit with the jobs the grades credit it with, named as their rows are. */
-export type GradedUnitJobs = { name: string; points: number; models: number; jobs: string[] }
+/** What an attached unit adds to its unit's damage: per target, the share of one target's wounds taken with it and without it. */
+export type AttachedShare = { name: string; targets: { target: string; with: number; without: number }[] }
+export type GradedUnitJobs = { name: string; points: number; models: number; jobs: string[]; attached?: AttachedShare[] }
 
 /**
  * `missing` names each reference target nothing in the list can take half of on its own, as in "a Rhino", and
- * `units` gives every unit the jobs it is credited with. `comparedWith` names the tournament lists its scores place
- * it among, such as "Necrons" or, for a chapter with too few of its own, "Adeptus Astartes", or is null when it is
- * placed among every faction's; `calibration` says whether those were real lists of this size. `tournament` sets the
+ * `units` gives every unit the jobs it is credited with. `comparedWith` names the tournament lists its scores are centred
+ * on, such as "Necrons" or, for a chapter with too few of its own, "Adeptus Astartes", or is null when it is placed
+ * among every faction's; `calibration` says whether those were real lists of this size. `tournament` sets the
  * list beside its faction's winning lists, or is null without enough of them.
  */
 export type RosterGrades = {
@@ -237,7 +240,7 @@ export const scaled = (percentile: number) =>
     [100, 100],
   ])
 
-/** A is the top fifth of tournament lists, B down to about their 43rd percentile, C down to the 10th, and D below. */
+/** A starts at the 80th percentile `scaled` reads, B at about the 43rd and C at the 10th, with D below. */
 export const gradeOf = (score: number | null): Grade | null =>
   score === null ? null : score >= 85 ? 'A' : score >= 65 ? 'B' : score >= 40 ? 'C' : 'D'
 
@@ -356,27 +359,49 @@ export function scoredMeasures(units: readonly GradedUnit[], limit: number): Par
   return measures
 }
 
+const median = (quantiles: readonly number[]) => quantiles[(quantiles.length - 1) / 2]!
+
+/**
+ * One army's lists often share most of their units, so its own spread can be narrow enough that a few percent of
+ * damage or durability would swing a score from typical to the bottom tenth; reading the distance from its median on
+ * `wide`, every army's quantiles, keeps a small gap small.
+ */
+const placeAmong = (value: number, own: readonly number[], wide?: readonly number[]) =>
+  wide ? percentileOf(value - median(own) + median(wide), wide) : percentileOf(value, own)
+
+type PlacementPeers = Pick<Peers, 'measures'> & Partial<Pick<Peers, 'categories' | 'overall'>>
+
 /**
  * Where a list places among its peers: each measure's percentile, each category's average of those and its
- * percentile, and the average category percentile. The calibration places tournament lists the same way, so a
- * peer group without category or overall percentiles yet leaves those null.
+ * percentile, the average category percentile and, with overall quantiles, that average's percentile. The
+ * calibration places tournament lists the same way, so a peer group without category or overall quantiles yet
+ * leaves those null. With `everyone`, every army's quantiles, each step is centred on the peers' median instead.
  */
-export function placement(
-  units: readonly GradedUnit[],
-  limit: number,
-  peers: Pick<Peers, 'measures'> & Partial<Pick<Peers, 'categories'>>,
-) {
+export function placement(units: readonly GradedUnit[], limit: number, peers: PlacementPeers, everyone?: PlacementPeers) {
   const measures: Partial<Record<MetricKey, number | null>> = {}
   for (const [key, value] of Object.entries(scoredMeasures(units, limit)) as [MetricKey, number | null][]) {
-    const quantiles = peers.measures[key]
-    measures[key] = quantiles && value !== null ? percentileOf(value, quantiles) : null
+    const own = peers.measures[key]
+    // Most armies' Colosseum lists reach the two-target cap, so every army's median sits on it and any list above
+    // its own army's median would read as the very top.
+    const wide = colosseumCapped(limit, key as ReferenceTargetKey) ? undefined : everyone?.measures[key]
+    measures[key] = own && value !== null ? placeAmong(value, own, wide) : null
   }
   const categories = CATEGORIES.map((category) => {
     const average = mean(category.metrics.map((key) => measures[key] ?? null))
-    const quantiles = peers.categories?.[category.key]
-    return { key: category.key, average, percentile: average === null || !quantiles ? null : percentileOf(average, quantiles) }
+    const own = peers.categories?.[category.key]
+    return {
+      key: category.key,
+      average,
+      percentile: average === null || !own ? null : placeAmong(average, own, everyone?.categories?.[category.key]),
+    }
   })
-  return { measures, categories, overall: mean(categories.map(({ percentile }) => percentile)) }
+  const overall = mean(categories.map(({ percentile }) => percentile))
+  return {
+    measures,
+    categories,
+    overall,
+    overallPercentile: overall === null || !peers.overall ? null : placeAmong(overall, peers.overall, everyone?.overall),
+  }
 }
 
 /**
@@ -402,7 +427,8 @@ export function rosterGrades(
   const size = calibratedSize(limit)
   const { peers, label: peerLabel } = peerGroup(size, catalogueName)
   const measures = gradeMeasures(units, limit)
-  const placed = placement(units, limit, peers)
+  const everyone = PEERS[size]['']!
+  const placed = placement(units, limit, peers, everyone)
   const score = (key: MetricKey) => placed.measures[key] ?? null
   const row = (key: MetricKey, label: string, percentile: number | null, detail: string, extra: Partial<GradeRow> = {}): GradeRow => {
     const shown = display(percentile)
@@ -509,18 +535,23 @@ export function rosterGrades(
     const shown = display(placed.categories[index]!.percentile)
     return { key: category.key, label: category.label, score: shown, grade: gradeOf(shown), rows: members }
   })
-  const overall = placed.overall
+  const overall = placed.overallPercentile
   const shown = categories.flatMap((category) => (category.score === null ? [] : [category.score]))
   // Lists that place usually stand out somewhere, so one middling at everything ranks low among them; it still
   // never reads as worse than its weakest category or better than its strongest.
-  const total =
-    overall === null ? null : Math.min(Math.max(display(percentileOf(overall, peers.overall))!, Math.min(...shown)), Math.max(...shown))
+  const total = overall === null ? null : Math.min(Math.max(display(overall)!, Math.min(...shown)), Math.max(...shown))
   return {
     score: total,
     grade: gradeOf(total),
     categories,
     missing,
-    units: units.map((unit) => ({ name: unit.name, points: unit.points, models: unit.models, jobs: jobsOf(unit, limit) })),
+    units: units.map((unit) => ({
+      name: unit.name,
+      points: unit.points,
+      models: unit.models,
+      jobs: jobsOf(unit, limit),
+      ...(unit.without?.length ? { attached: attachedShares(unit, limit) } : {}),
+    })),
     comparedWith: peerLabel,
     calibration: { lists: size === 2000 ? 'tournament' : 'drawn', since: CALIBRATED.since, until: CALIBRATED.until },
     tournament,
@@ -537,6 +568,21 @@ function jobsOf(unit: GradedUnit, limit: number) {
       .filter((target) => takesHalf(unit, target.key))
       .map((target) => target.label),
   ]
+}
+
+const share = (value: number) => Math.round(value * 100) / 100
+
+/** Each attached unit's part in its unit's damage, for the targets where leaving it out changes what the unit takes. */
+function attachedShares(unit: GradedUnit, limit: number): AttachedShare[] {
+  return (unit.without ?? []).map(({ name, removes }) => ({
+    name,
+    targets: gradedTargets(limit).flatMap((target) => {
+      const together = unit.removes[target.key]
+      const alone = removes[target.key]
+      if (together === null || together === undefined || alone === null || alone === undefined) return []
+      return share(together) === share(alone) ? [] : [{ target: target.target, with: share(together), without: share(alone) }]
+    }),
+  }))
 }
 
 const formatAttackers = () => REFERENCE_ATTACKERS.map((attacker) => attacker.label).join(' or ')

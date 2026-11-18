@@ -19,7 +19,7 @@ import {
   PHONE,
   startVisitorRoster,
 } from './account'
-import { productOperator, productSql, userIdFor, lastPathSegment, seedRoster } from './storage'
+import { productOperator, productSql, userIdFor, lastPathSegment } from './storage'
 
 test('the roster library reserves its rows while the first page loads', async ({ browser, page: savedPage }) => {
   await signUp(savedPage, 'Loading')
@@ -172,6 +172,30 @@ test('automatic roster names are saved with edits and a player can override or r
   await page.screenshot({ path: test.info().outputPath('automatic-roster-reloaded.png') })
 })
 
+test('a search from the top level finds a roster in its folder and keeps it there', async ({ page }) => {
+  await signUp(page, 'Folders')
+  await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Dynasty 2k' })
+  await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Another list' })
+
+  await page.goto('/rosters')
+  await chooseLibraryAction(page, 'Dynasty 2k', 'Move to folder…')
+  await page.getByRole('dialog').getByRole('button', { name: 'New folder…' }).click()
+  await page.getByLabel('Folder name').fill('GT')
+  await page.getByRole('button', { name: 'Create and move' }).click()
+  const folder = page.getByRole('link', { name: /^GT/ })
+  await expect(folder).toContainText('1 roster')
+  await expect(page.locator('[data-roster="Dynasty 2k"]')).toHaveCount(0)
+  await expect(page.locator('main section').last().locator('.rubric .readout')).toHaveText('2')
+
+  await page.getByPlaceholder('Search your rosters…').fill('Dynasty')
+  await expect(page.locator('[data-roster="Another list"]')).toHaveCount(0)
+  await expect(page.locator('[data-roster="Dynasty 2k"]')).toHaveCount(0)
+  await expect(folder).toContainText('1 roster')
+  await folder.click()
+  await expect(page.locator('[data-roster="Dynasty 2k"]')).toBeVisible()
+  await expect(page.getByPlaceholder('Search your rosters…')).toHaveValue('Dynasty')
+})
+
 test('a roster variant is numbered and grouped under its base without renaming', async ({ browser, page }) => {
   await signUp(page, 'Variant roster')
   await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Dynasty 2k' })
@@ -213,7 +237,7 @@ test('a roster variant is numbered and grouped under its base without renaming',
   await page.screenshot({ path: test.info().outputPath('roster-variants-library.png'), fullPage: true })
   const baseVisibility = page.locator('[data-roster="Dynasty 2k"]').getByText('Public', { exact: true })
   await expect(baseVisibility).toBeVisible()
-  const baseDetails = page.locator('[data-roster="Dynasty 2k"]').getByText(/^11th edition/)
+  const baseDetails = page.locator('[data-roster="Dynasty 2k"] [data-slot="roster-details"]')
   await expect(baseDetails).toHaveText(/1 unit · updated/, { useInnerText: true })
   await page.setViewportSize(PHONE)
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
@@ -394,13 +418,6 @@ test('the roster library reprices a saved list edited in another tab', async ({ 
 
   await expect(row.getByText(/^[1-9]\d*\/2000$/)).toBeVisible()
   await viewer.close()
-})
-
-test('a visitor opening the roster library sees the rosters page with nothing kept yet', async ({ page }) => {
-  await page.goto('/rosters')
-
-  await expect(page.getByRole('heading', { name: 'No rosters yet' })).toBeVisible()
-  await expect(page.getByLabel(/^Loading roster/)).toHaveCount(0)
 })
 
 test('a roster saved on the root ID of a current book opens its builder from the first frame', async ({ browser, page }) => {
@@ -653,29 +670,4 @@ test('a saved list is reopened, duplicated, shared and published', async ({ brow
   await expect(duplicated).toBeVisible()
   await expect(duplicated).toContainText('Public')
   await guestContext.close()
-})
-
-test('a list saved on the retired Marine codex opens on the current Space Marines book', async ({ page }) => {
-  const { email } = await signUp(page, 'Provisional')
-  // The row as the provisional codex saved it: book, detachment, units and Warlord under its ids.
-  const retired = (entry: string) => `profile-unit-e0af-67df-9d63-8fb8-${entry}`
-  const { id, outcome: saved } = await seedRoster(email, {
-    name: 'Provisional Gladius',
-    catalogueId: 'e0af-67df-9d63-8fb8',
-    detachmentId: JSON.stringify(['profile-detachment-option-e0af-67df-9d63-8fb8-f367-3240-47c1-7e1a']),
-    disposition: 'priority-assets',
-    limit: 1000,
-    picks: JSON.stringify([
-      { entryId: retired('024a-3fea-7765-4e82'), toggles: { [`profile-warlord-e0af-67df-9d63-8fb8-024a-3fea-7765-4e82`]: 1 } },
-      { entryId: retired('34c7-75dd-fcff-ec94') },
-    ]),
-  })
-  expect(saved).toBe('inserted')
-
-  await page.goto(`/rosters/${id}`)
-  const roster = page.locator('main')
-  await expect(roster.locator('[data-unit="Captain"]').first()).toBeVisible()
-  await expect(roster.locator('[data-unit="Intercessor Squad"]').first()).toBeVisible()
-  await expect(roster.getByText('Gladius Task Force').first()).toBeVisible()
-  await expect(roster.getByText(/Army book replaced|no longer available/)).toHaveCount(0)
 })

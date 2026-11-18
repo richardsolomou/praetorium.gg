@@ -7,6 +7,7 @@ import { factionsLastUpdated, listedHistory, referencesLastUpdated } from './cat
 import { ifNoneMatch } from './ifNoneMatch'
 import { PRODUCT_DOCS, type ProductDoc } from '../contracts/productDocs'
 import { escapeHtml } from './escapeHtml'
+import { factionReferenceHref } from '../core/factionReferenceRoute'
 
 /** Pages anyone may read that no reference document names. */
 const PUBLIC_PAGES = [
@@ -40,7 +41,12 @@ export async function referenceSitemap(request: Request) {
     if (path !== '/missions') paths.set(path, paths.get(path) ?? null)
   }
   for (const doc of PRODUCT_DOCS) add(`/docs/${doc.slug}`)
+  // Pages of other rules versions name the current rules' copy as canonical, so only the current ones are listed.
+  const otherVersions = ((await app().factionsFor())?.factions ?? [])
+    .filter((faction) => !faction.isDefault)
+    .map((faction) => `${factionReferenceHref(faction)}/`)
   for (const document of corpus.documents) {
+    if (otherVersions.some((prefix) => document.url.startsWith(prefix))) continue
     add(document.url.split('#')[0]!)
     for (const section of document.sections) add(section.url.split('#')[0]!)
     if (document.kind === 'datasheet' || document.kind === 'detachment') {

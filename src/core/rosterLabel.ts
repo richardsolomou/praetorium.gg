@@ -1,6 +1,6 @@
 /** Derive automatic list names from their current detachment, size, and notable units. */
 
-import { ROSTER_NAME_MAX_LENGTH } from './battle'
+import { ROSTER_NAME_MAX_LENGTH } from './battleFormat'
 
 export type LabelUnit = {
   name: string

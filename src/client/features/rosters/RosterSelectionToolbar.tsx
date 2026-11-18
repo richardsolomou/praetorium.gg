@@ -1,4 +1,16 @@
-import { Archive, ArchiveRestore, ChevronDown, EllipsisVertical, Eye, Lock, LockOpen, type LucideIcon, Trash2 } from 'lucide-react'
+import {
+  Archive,
+  ArchiveRestore,
+  ChevronDown,
+  EllipsisVertical,
+  Eye,
+  FolderInput,
+  Lock,
+  LockOpen,
+  type LucideIcon,
+  Trash2,
+  X,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -11,7 +23,6 @@ import {
 import type { RosterBatchAction } from '../../../core/rosterLibrary'
 import { ROSTER_VISIBILITIES } from '../../../core/savedRoster'
 import { Problem } from '../../components/Problem'
-import { countLabel } from '../../text'
 import type { SavedRoster } from './rosterLibrary'
 import { VISIBILITY_ICON, VISIBILITY_NAME, VISIBILITY_REACH } from './visibility'
 import { DropdownMenuItem, DropdownMenuSubTrigger } from '../../components/Menu'
@@ -28,16 +39,20 @@ export function RosterSelectionToolbar({
   error,
   onChange,
   onDelete,
+  onMove,
   allSelected,
   onSelectAll,
+  onDone,
 }: {
   selected: SavedRoster[]
   pending: boolean
   error: unknown
   onChange: (action: RosterBatchAction, ids: string[]) => void
   onDelete: () => void
+  onMove: () => void
   allSelected: boolean
   onSelectAll: (all: boolean) => void
+  onDone: () => void
 }) {
   const ids = (applies: (roster: SavedRoster) => boolean) => selected.filter(applies).map((roster) => roster.id)
   const choices = (
@@ -78,8 +93,11 @@ export function RosterSelectionToolbar({
       aria-label="Selected rosters"
       className="sticky top-(--app-header) z-10 mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-edge bg-sunken px-3 py-2"
     >
+      <Button size="icon-sm" variant="ghost" aria-label="Stop selecting" onClick={onDone}>
+        <X />
+      </Button>
       <output className="mr-auto text-sm text-dim">
-        {selected.length ? `${countLabel(selected.length, 'roster')} selected` : 'Choose rosters to change together.'}
+        {selected.length ? `${selected.length} selected` : 'Choose rosters to change together.'}
       </output>
       {selected.length ? (
         <>
@@ -95,6 +113,9 @@ export function RosterSelectionToolbar({
                 <choice.icon /> {label(choice)}
               </Button>
             ))}
+            <Button size="sm" variant="outline" disabled={pending} onClick={onMove}>
+              <FolderInput /> Move to folder
+            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger render={<Button size="sm" variant="outline" disabled={pending} />}>
                 <Eye /> Visibility <ChevronDown />
@@ -117,6 +138,9 @@ export function RosterSelectionToolbar({
                   <choice.icon /> {label(choice)}
                 </DropdownMenuItem>
               ))}
+              <DropdownMenuItem onClick={onMove}>
+                <FolderInput /> Move to folder
+              </DropdownMenuItem>
               <DropdownMenuSub>
                 <DropdownMenuSubTrigger>
                   <Eye /> Visibility

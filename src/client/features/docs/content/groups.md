@@ -54,6 +54,8 @@ An organizer can change the game from **Edit** in its ⋯ menu. Once anyone seal
 
 Each list shows its faction and points. Use **Simulate** beside another player's list to compare your sealed armies. In a team game, **Simulate** sits on the other side's heading and sets your side's lists against theirs.
 
+Your latest revealed game, or a league's lists, also asks whether to make the list you sealed public. See [After you've played a list](/docs/copy-and-share#after-you-ve-played-a-list).
+
 When a game has exactly two sides, an organizer can press **Set battlefield** after the reveal to pick or **Roll** its battlefield, so everyone can prepare before anyone starts the battle. That covers a duel between two players, solo vs pair and doubles, and each side's Force Disposition decides the layouts on offer. The players are notified and can't change it, and the organizer can until the battle starts. A duel with more than two players has no single table to set, so those players choose at the table.
 
 ### When a game ends
@@ -91,7 +93,7 @@ To run it again, an organizer presses **Start the next league** on the complete 
 
 ### Seal lists before a league starts
 
-To have everyone commit to one army for the whole league, turn on **Seal lists before it starts** when you press **Start a league**, then choose the points and house rules. Members join by pressing **Seal a list to join** and picking a saved list, and can swap it with **Swap your list** until the league is published. A list that offers more than one Force Disposition and names none asks which one it plays for the whole league as you seal it. Nobody sees anyone else's list until then.
+To have everyone commit to one army for the whole league, turn on **Seal lists before it starts** when you press **Start a league**, then choose the points and house rules. Members join by pressing **Seal a list to join** and picking a saved list, and can swap it with **Swap your list** until the league is published. A list that offers more than one Force Disposition and names none asks which one it plays for the whole league as you seal it. The **League** tab lists everyone who has sealed, with your own list's name under yours. Nobody sees anyone else's list until then.
 
 **Publish** reveals every list at once, and every fixture is played with them: **Start battle** sets up the game with both sealed lists already in place. The revealed lists stay under **Lists** on the **League** tab.
 

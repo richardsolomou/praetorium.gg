@@ -244,6 +244,24 @@ export function useCombatant(roster?: CombatRoster, initial?: SimulatorSide | nu
   useEffect(() => {
     if (ready) setWeaponPreferences((current) => current)
   }, [ready, setWeaponPreferences])
+  // Kept while it reads the same, so the matchup worked out from it is not worked out again on every redraw of the page.
+  const snapshot = useStableValue(
+    unit && sheets.data?.selected
+      ? {
+          sheet: liveUnit?.sheet ?? sheets.data.selected,
+          bodyguard: pick?.attachedTo === undefined,
+          startingModels: unit.size.models,
+          models: battleUnit ? models : unit.size.models,
+          damage,
+          carriers: survivors ?? [],
+          allocationRequired: !survivors || Boolean(sheets.data.attachmentErrors.length),
+          rules: activeRules,
+          ruleChoices,
+          appliedDefenceSources: appliedDefenceSources(readable?.rules ?? []),
+          companions,
+        }
+      : null,
+  )
   return {
     catalogueId,
     faction,
@@ -290,22 +308,7 @@ export function useCombatant(roster?: CombatRoster, initial?: SimulatorSide | nu
     selectRule: (id: string, choice: number) =>
       setSelectedRules((current) => ({ ...current, [identity]: { ...current[identity], [id]: choice } })),
     ready,
-    snapshot:
-      unit && sheets.data?.selected
-        ? {
-            sheet: liveUnit?.sheet ?? sheets.data.selected,
-            bodyguard: pick?.attachedTo === undefined,
-            startingModels: unit.size.models,
-            models: battleUnit ? models : unit.size.models,
-            damage,
-            carriers: survivors ?? [],
-            allocationRequired: !survivors || Boolean(sheets.data.attachmentErrors.length),
-            rules: activeRules,
-            ruleChoices,
-            appliedDefenceSources: appliedDefenceSources(readable?.rules ?? []),
-            companions,
-          }
-        : null,
+    snapshot,
     /** Undefined while another loadout's options are still being built. */
     loadoutSpace: loadoutContext && !loadouts.isPlaceholderData ? loadouts.data : undefined,
     edit: pickEditor(picks.setPicks, { catalogueId, units: price.data?.units ?? [] }, picks.allocateKey),

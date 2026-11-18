@@ -27,7 +27,7 @@ import {
   wholeSquadTakes,
   withDraftSpreadCounts,
 } from './loadoutModel'
-import { sameWargear } from '../../../../core/wargear'
+import { sameWargear } from '../../../../core/wargearNames'
 
 const option = (id: string, count: number, max: number) => ({ id, name: id, points: 0, count, min: 0, max })
 
@@ -515,6 +515,13 @@ describe('dividing a group between its options', () => {
     const update = relativeSpread(group, { blaster: 2, carbine: 1 })
 
     expect(update({ blaster: 2, carbine: 1 })).toEqual({ blaster: 1, carbine: 2 })
+  })
+
+  it('lets an option already over a cap its sibling lowered give up a model', () => {
+    const group = choice([option('pistol', 8, 0), option('shield', 1, 9)], 9)
+    const update = relativeSpread(group, { pistol: 7, shield: 2 })
+
+    expect(update({ pistol: 8, shield: 1 })).toEqual({ pistol: 7, shield: 2 })
   })
 
   describe('applying a press across a squad and a group nested under it', () => {

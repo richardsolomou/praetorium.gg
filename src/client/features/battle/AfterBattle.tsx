@@ -5,6 +5,7 @@ import type { BattleView } from '../../../core/battleView'
 import { isGuestSeat, isPracticeSeat } from '../../../core/newBattle'
 import { friendshipsQuery, playerProfileQuery } from '../../queries'
 import { FriendAction } from '../friends/FriendAction'
+import { RosterSharingPrompt } from '../rosters/RosterSharingPrompt'
 import { recordSummary } from '../profile/recordSummary'
 import { tint } from './battleTints'
 
@@ -63,4 +64,11 @@ export function AfterBattle({ view }: { view: BattleView }) {
       </div>
     </aside>
   )
+}
+
+/** Offers to publish the saved list the viewer fielded, once the battle is over. */
+export function AfterBattleSharing({ view }: { view: BattleView }) {
+  const roster = view.players.find((player) => player.isViewer)?.roster
+  if (!roster?.id || roster.lentBy) return null
+  return <RosterSharingPrompt rosterId={roster.id} />
 }

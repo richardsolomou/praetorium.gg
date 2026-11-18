@@ -2,6 +2,7 @@ import { createRoot } from 'react-dom/client'
 import { RouterProvider, createMemoryHistory } from '@tanstack/react-router'
 import { getRouter } from '../../router'
 import { NATIVE_EVENTS } from '../../contracts/nativeBridge'
+import { deviceDocuments, restoreAppSnapshot } from './appSnapshot'
 
 const router = getRouter()
 window.addEventListener(NATIVE_EVENTS.navigate, (event) => {
@@ -19,9 +20,16 @@ if (window.ReactNativeWebView) {
     window.ReactNativeWebView?.postMessage(JSON.stringify({ type: 'offline-location', path: router.state.location.href }))
   })
 }
-void router.load().then(() => {
-  createRoot(document).render(<RouterProvider router={router} />)
-})
+// The query client restored saved screens before storage could be read; the device's own copies replace them before anything shows.
+void deviceDocuments()
+  .then((documents) => {
+    if (window.PraetoriumAppSnapshot && documents)
+      restoreAppSnapshot(router.options.context.queryClient, window.PraetoriumAppSnapshot, documents)
+    return router.load()
+  })
+  .then(() => {
+    createRoot(document).render(<RouterProvider router={router} />)
+  })
 
 document.addEventListener(
   'click',

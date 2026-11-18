@@ -405,6 +405,23 @@ describe('fromNewRecruitShare', () => {
       })
     })
 
+    it('counts no model for those the catalogue still offers on a single-model datasheet', () => {
+      const share = shared()
+      const warboss = share.army.options[0]!.options[0]!.options[1]!.options[0]!
+      const bundle = () => ({ name: 'Slugga w/ Choppa', option_id: 'bundle', amount: 1, options: pieces() })
+      warboss.options = [
+        {
+          name: 'Wargear',
+          options: [
+            { name: 'Left arm', options: [bundle()] },
+            { name: 'Right arm', options: [bundle()] },
+          ],
+        },
+      ]
+      const named = (id: string) => ({ bundle: { name: 'Slugga & Choppa', model: false } })[id]
+      expect(fromNewRecruitShare(share, named)!.units[0]!.models).toBe(1)
+    })
+
     it('keeps a bundle the catalogue still offers', () => {
       const named = (id: string) => ({ bundle: { name: 'Slugga & Choppa', model: false } })[id]
       expect(fromNewRecruitShare(withBundle(), named)!.units[1]!.selections[1]).toEqual({ name: 'Slugga & Choppa', count: 1, model: 'Nob' })

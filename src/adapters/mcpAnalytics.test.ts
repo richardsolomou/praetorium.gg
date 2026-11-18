@@ -4,7 +4,7 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { PostHog } from 'posthog-node'
 import { TOOL_ERROR_TYPE_META, TOOL_OUTCOME_META } from '../contracts/agentTools'
-import { instrumentReferenceMcp, privateMcpEvent, userAgentClient } from './mcpAnalytics'
+import { instrumentReferenceMcp, privateErrorMessage, privateMcpEvent, userAgentClient } from './mcpAnalytics'
 
 const tools = new Set(['search_reference'])
 
@@ -64,6 +64,17 @@ it('reports a failure no tool declared as internal rather than the error class',
   expect(privateMcpEvent(failure, tools)?.properties.$mcp_error_type).toBe('internal')
 })
 
+it('drops the message of a failure no tool declared', () => {
+  const failure = event('$mcp_tool_call')
+  Object.assign(failure.properties, { $mcp_is_error: true, $mcp_error_message: 'x is undefined' })
+  expect(privateMcpEvent(failure, tools)?.properties).not.toHaveProperty('$mcp_error_message')
+})
+
+it('keeps the declared failure text without addresses or secrets, bounded', () => {
+  const message = privateErrorMessage(`Sent by player@example.com with ${'a'.repeat(40)} for ultramarines-2nd-company. ${'x '.repeat(200)}`)
+  expect([message.slice(0, 64), message.length]).toEqual(['Sent by [email] with [secret] for ultramarines-2nd-company. x x ', 300])
+})
+
 it('names the client by the first product token of its User-Agent', () => {
   expect(userAgentClient('claude-user/1.0 (+https://www.anthropic.com)')).toEqual({ name: 'claude-user', version: '1.0' })
 })
@@ -119,6 +130,33 @@ it('sends an exception without its message only for a failure no tool declared',
     expect(exceptions.map((properties) => [properties.$mcp_tool_name, JSON.stringify(properties.$exception_list)])).toEqual([
       ['broken', expect.not.stringContaining('boom')],
     ])
+  } finally {
+    capture.mockRestore()
+    vi.unstubAllEnvs()
+  }
+})
+
+it('records the text a declared failure gave the agent', async () => {
+  vi.stubEnv('NODE_ENV', 'production')
+  vi.stubEnv('VITE_POSTHOG_PROJECT_TOKEN', 'phc_test')
+  vi.stubEnv('VITE_POSTHOG_HOST', 'https://us.i.posthog.com')
+  const capture = vi.spyOn(PostHog.prototype, 'capture').mockImplementation(() => undefined)
+  try {
+    const server = new McpServer({ name: 'test', version: '1.0.0' })
+    server.registerTool('search_reference', { description: 'Finds nothing.' }, async () => ({
+      content: [{ type: 'text', text: 'No faction is named Orks. Use one from list_factions.' }],
+      isError: true,
+      _meta: { [TOOL_ERROR_TYPE_META]: 'not_found' },
+    }))
+    instrumentReferenceMcp(server, tools, null)
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair()
+    await server.connect(serverTransport)
+    const client = new Client({ name: 'test-client', version: '1.0.0' })
+    await client.connect(clientTransport)
+    await client.callTool({ name: 'search_reference', arguments: {} })
+
+    const call = capture.mock.calls.find(([input]) => input.event === '$mcp_tool_call')?.[0]
+    expect(call?.properties?.$mcp_error_message).toBe('No faction is named Orks. Use one from list_factions.')
   } finally {
     capture.mockRestore()
     vi.unstubAllEnvs()

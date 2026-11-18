@@ -231,8 +231,9 @@ def archive(config, work):
             [
                 "tar",
                 "--create",
+                "--use-compress-program=gzip -1",
                 "--file",
-                str(work / f"{kind}.tar"),
+                str(work / f"{kind}.tar.gz"),
                 "--directory",
                 str(work / kind),
                 ".",
@@ -286,6 +287,41 @@ def request(config, url, *, upload=None, download=None, method=None):
     ).stdout
 
 
+def prunable_archives(keys, config, now):
+    archives = {}
+    for kind, volume in (("data", config.data_volume), ("identity", config.identity_volume)):
+        pattern = re.compile(
+            re.escape(f"{config.prefix}/backups/{kind}/{volume}")
+            + r"-(\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}[-.]\d{3})Z\.tar(?:\.gz)?"
+        )
+        archives[kind] = {}
+        for key in sorted(set(keys)):
+            if match := pattern.fullmatch(key):
+                created = datetime.datetime.strptime(
+                    match[1].replace(".", "-"), "%Y-%m-%dT%H-%M-%S-%f"
+                ).replace(tzinfo=datetime.timezone.utc)
+                archives[kind].setdefault(created, []).append(key)
+    periods = set()
+    prunable = []
+    # A partial upload must never displace a complete data-and-identity recovery point.
+    for created in sorted(archives["data"].keys() & archives["identity"].keys(), reverse=True):
+        pair = archives["data"][created] + archives["identity"][created]
+        age = now - created
+        if age < datetime.timedelta(days=2):
+            continue
+        if age >= datetime.timedelta(weeks=6):
+            prunable.extend(pair)
+            continue
+        if age < datetime.timedelta(days=14):
+            period = ("day", created.date())
+        else:
+            period = ("week", created.date() - datetime.timedelta(days=created.weekday()))
+        if period in periods:
+            prunable.extend(pair)
+        periods.add(period)
+    return prunable
+
+
 def publish(config, work):
     stamp = (
         datetime.datetime.now(datetime.timezone.utc)
@@ -298,10 +334,10 @@ def publish(config, work):
         ("identity", config.identity_volume),
         ("data", config.data_volume),
     ):
-        path = work / f"{kind}.tar"
-        key = f"{config.prefix}/backups/{kind}/{volume}-{stamp.replace(':', '-').replace('.', '-')}.tar"
+        path = work / f"{kind}.tar.gz"
+        key = f"{config.prefix}/backups/{kind}/{volume}-{stamp.replace(':', '-').replace('.', '-')}.tar.gz"
         request(config, f"{base}/{key}", upload=path)
-        readback = work / "readback.tar"
+        readback = work / "readback.tar.gz"
         request(config, f"{base}/{key}", download=readback)
         sha256 = digest(path)
         if digest(readback) != sha256:
@@ -312,27 +348,21 @@ def publish(config, work):
     pointer.write_text(json.dumps(manifest))
     # Publish the pair only after both archives have been read back successfully.
     request(config, f"{base}/{config.prefix}/backups/latest.json", upload=pointer)
-    for kind, volume in (
-        ("data", config.data_volume),
-        ("identity", config.identity_volume),
-    ):
+    keys = []
+    for kind in ("data", "identity"):
         prefix = f"{config.prefix}/backups/{kind}/"
         listing = ET.fromstring(
             request(config, f"{base}?{urlencode({'list-type': '2', 'prefix': prefix})}")
         )
         if listing.findtext("{*}IsTruncated") != "false":
             raise RuntimeError("Backup retention requires a complete R2 listing")
-        pattern = re.compile(
-            re.escape(prefix + volume)
-            + r"-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z\.tar"
-        )
-        keys = sorted(
+        keys.extend(
             key.text
             for key in listing.findall("{*}Contents/{*}Key")
-            if key.text and pattern.fullmatch(key.text)
+            if key.text
         )
-        for key in keys[:-56]:
-            request(config, f"{base}/{key}", method="DELETE")
+    for key in prunable_archives(keys, config, datetime.datetime.fromisoformat(stamp)):
+        request(config, f"{base}/{key}", method="DELETE")
     print(f"Verified SpacetimeDB backup pair: {stamp}", flush=True)
 
 

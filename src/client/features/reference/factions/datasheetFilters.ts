@@ -1,6 +1,7 @@
 import type { FactionDatasheet } from '../../../../contracts/catalogue'
 import { countBy } from '../../../../core/collections'
-import type { NonMatchedPlayKind } from '../../../../core/name'
+import { z } from 'zod'
+import { NON_MATCHED_PLAY_KINDS, type NonMatchedPlayKind } from '../../../../core/name'
 
 export type DatasheetSource = 'matched' | NonMatchedPlayKind
 
@@ -9,6 +10,13 @@ export const DATASHEET_SOURCES: { id: DatasheetSource; label: string; hint: stri
   { id: 'legends', label: 'Legends', hint: 'Show Legends datasheets' },
   { id: 'crucible', label: 'Crucible', hint: 'Show Crucible datasheets' },
 ]
+
+/** Most lists never want Legends or Crucible datasheets, so they stay hidden until asked for, as in the builder's picker. */
+export const DEFAULT_HIDDEN_SOURCES: ReadonlySet<DatasheetSource> = new Set(['legends', 'crucible'])
+
+/** One choice for every faction, since a player who wants Legends in one wants them in all. */
+export const HIDDEN_SOURCES_KEY = 'praetorium:hidden-datasheet-sources'
+export const hiddenSourcesSchema = z.array(z.enum(['matched', ...NON_MATCHED_PLAY_KINDS]))
 
 export const sourceOf = (unit: Pick<FactionDatasheet, 'nonMatchedPlay'>): DatasheetSource => unit.nonMatchedPlay ?? 'matched'
 

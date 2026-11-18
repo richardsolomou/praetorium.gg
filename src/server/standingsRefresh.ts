@@ -3,14 +3,15 @@ import { reduceBattle } from '../core/battle'
 import { battleDigest } from '../core/battleDigest'
 import { byId } from '../core/collections'
 import { battleFoldArgs } from '../core/offlineBattle'
+import type { PlayedBattle } from '../core/rosterPlays'
 import { counted, newcomer, OVERALL, rateBattle, shownRating, type Rated, type StandingBattle } from '../core/standings'
-import { battleResultSchema, type BattleResult, type StandingStep } from '../contracts/battleResults'
+import { battleResultSchema, type BattleResult, type StandingStep, type StandingsVersions } from '../contracts/battleResults'
 import { battleSummary, builtFaction, type BattleFaction } from '../shared/battleSummary'
 import type { BattleHistory, RepositoryPort } from './spacetimeRepository'
 import { rating } from 'openskill'
 
 /** Raise when what a stored result holds changes: the next refresh rereads every battle's log. */
-const RESULTS_VERSION = '1'
+const RESULTS_VERSION = '2'
 /** Raise when how a battle moves a rating changes: the next refresh replays every rating. */
 const RATINGS_VERSION = '1'
 /** As many battles as one read or write carries. */
@@ -36,6 +37,25 @@ export function storedBattle({ battleId, finishedAt, result }: StoredResult, fac
     lastActivity: finishedAt,
     settings: { manual: stored.manual },
   } satisfies StandingBattle & { battleId: string; token: string }
+}
+
+/** A stored result as a player's play history reads it. */
+export function playedBattle({ finishedAt, result }: StoredResult): PlayedBattle {
+  const { playerIds, sides, scores, concededBy, built, rosterIds, rosterNames, eventToken, sealedEventToken } = battleResultSchema.parse(
+    JSON.parse(result),
+  )
+  return {
+    playerIds,
+    sides,
+    scores,
+    result: { concededBy },
+    lastActivity: finishedAt,
+    built,
+    rosterIds,
+    rosterNames,
+    eventToken,
+    sealedEventToken,
+  }
 }
 
 /**
@@ -69,6 +89,14 @@ export class StandingsRefresh {
      */
     private readonly factions: () => Promise<readonly BattleFaction[]>,
   ) {}
+
+  /** A current view needs one read. On a revision or version change the normal refresh catches it up. */
+  async read<T>(current: (versions: StandingsVersions) => Promise<T | null>, stored: () => Promise<T>): Promise<T> {
+    const answer = await current({ results: RESULTS_VERSION, ratings: ratingsVersion(await this.factions()) })
+    if (answer !== null) return answer
+    await this.refresh()
+    return stored()
+  }
 
   /** Shares a refresh this process already has running. Answers the standings revision, which rises whenever the leaderboard may have changed. */
   refresh(): Promise<string> {
@@ -183,7 +211,8 @@ function ratingsVersion(factions: readonly BattleFaction[]) {
 function storedResult(history: BattleHistory): StoredResult | null {
   const state = reduceBattle(...battleFoldArgs(history.players, history.log))
   if (state.status !== 'finished') return null
-  const summary = battleSummary(history, battleDigest(state, history.log), null, null, new Map())
+  const digest = battleDigest(state, history.log)
+  const summary = battleSummary(history, digest, null, null, new Map())
   const result: BattleResult = {
     token: summary.token,
     playerIds: summary.playerIds,
@@ -194,6 +223,10 @@ function storedResult(history: BattleHistory): StoredResult | null {
     built: state.players.map((player) =>
       player.roster?.built ? { catalogueId: player.roster.built.catalogueId, edition: player.roster.built.edition } : null,
     ),
+    rosterIds: state.players.map((player) => player.roster?.id ?? null),
+    rosterNames: state.players.map((player) => player.roster?.name ?? null),
+    eventToken: digest.eventToken ?? null,
+    sealedEventToken: digest.sealedEventToken ?? null,
   }
   return { battleId: history.battle.id, finishedAt: summary.lastActivity, result: JSON.stringify(result) }
 }

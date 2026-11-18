@@ -40,6 +40,7 @@ export function ArmyLoadout({ army, unit }: { army: Army; unit: UnitState }) {
             embedded
             showOptions={false}
             fielded={fielded}
+            battleChoices={`battle:${army.playerId}:${army.roster!.fieldedAt}`}
             unavailable={<FieldedUnit unit={unit} />}
             footer={matches ? <UnitPhoto entryId={selected!.entryId} name={selected!.name} /> : undefined}
             // The roster editor's datasheet, so a unit reads the same in battle as where it was built.

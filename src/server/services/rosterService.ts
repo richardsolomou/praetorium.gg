@@ -1,6 +1,6 @@
 import { PLAYER_SEARCH_MIN_LENGTH } from '../../core/playerSearch'
 import type { RosterBatchAction } from '../../core/rosterLibrary'
-import { randomId } from '../random'
+import { randomUUID } from 'node:crypto'
 import { listUnitCount } from '../../core/attachedUnits'
 import type { FormatRuleId, OptionalRuleId, Secondary, Stratagem } from '../../core/battle'
 import type { CollectionImportRow, CollectionProgress } from '../../core/collection'
@@ -51,6 +51,7 @@ function rosterSummaries(rows: readonly (SummaryRow | FullRow)[]) {
       baseRosterId: row.baseRosterId,
       locked: row.locked,
       archived: row.archived,
+      sharingDeclined: row.sharingDeclined,
       visibility: row.visibility,
       source: row.source,
       createdAt: row.createdAt,
@@ -61,7 +62,8 @@ function rosterSummaries(rows: readonly (SummaryRow | FullRow)[]) {
 }
 
 /** A variant's base can be private or unlisted, so another reader is never told which list it is. */
-const readerSummaries = (rows: readonly FullRow[]) => rosterSummaries(rows).map((summary) => ({ ...summary, baseRosterId: null }))
+const readerSummaries = (rows: readonly FullRow[]) =>
+  rosterSummaries(rows).map((summary) => ({ ...summary, baseRosterId: null, sharingDeclined: false }))
 
 export class RosterService {
   constructor(
@@ -93,7 +95,7 @@ export class RosterService {
       source: RosterSource
     },
   ) {
-    const id = roster.id ?? randomId()
+    const id = roster.id ?? randomUUID()
     const now = this.clock()
     const saved = await this.repository.saveRoster({
       ...rosterRow(roster),
@@ -175,20 +177,25 @@ export class RosterService {
   async rosterAccess(id: string, userId: string | null = null) {
     const row = await this.repository.roster(id)
     if (!row) return null
+    return this.accessToRow(row, userId)
+  }
+
+  private async accessToRow(row: NonNullable<Awaited<ReturnType<RepositoryPort['roster']>>>, userId: string | null) {
     if (row.userId === userId) return { roster: rosterFromRow(row, true), editable: true }
     // Named rather than "anything but private", so a value added later is refused
     // until somebody decides it should not be.
     if (row.visibility === 'unlisted' || row.visibility === 'public') return { roster: readerRosterFromRow(row), editable: false }
-    const lender = userId ? await this.lender(id, userId) : null
+    const lender = userId ? await this.lender(row.id, userId) : null
     return lender ? { roster: readerRosterFromRow(row), editable: false, lentBy: lender } : null
   }
 
   /** The roster a copy was made from, named only while this reader may still open it. */
   async copySource(id: string | null, userId: string | null) {
-    if (!id || !(await this.rosterAccess(id, userId))) return null
+    if (!id) return null
     const row = await this.repository.roster(id)
-    const owner = row ? (await this.repository.namesByIds([row.userId])).get(row.userId) : undefined
-    return row && owner ? { id, name: row.name, ownerId: row.userId, ownerName: owner.name } : null
+    if (!row || !(await this.accessToRow(row, userId))) return null
+    const owner = (await this.repository.namesByIds([row.userId])).get(row.userId)
+    return owner ? { id, name: row.name, ownerId: row.userId, ownerName: owner.name } : null
   }
 
   async sharedRoster(id: string, userId: string | null = null) {
@@ -211,6 +218,11 @@ export class RosterService {
     if (!(await this.repository.setRosterArchived(id, userId, archived, this.clock())))
       throw new Response('you do not own this roster', { status: 403 })
     return { updatedAt: await this.storedUpdatedAt(id, userId) }
+  }
+
+  /** Remembers the owner's No thanks to making this list public, so no screen asks again. */
+  async declineRosterSharing(userId: string, id: string) {
+    if (!(await this.repository.declineRosterSharing(id, userId))) throw new Response('you do not own this roster', { status: 403 })
   }
 
   /** Takes a list out of its variant group, so it stands on its own in the library. */
@@ -282,7 +294,8 @@ export class RosterService {
     const lent = rows.filter((row) => owners.has(row.ownerId))
     const summaries = rosterSummaries(lent)
     return lent.map((row, index) => ({
-      summary: summaries[index]!,
+      // The owner's answer to sharing it is theirs alone.
+      summary: { ...summaries[index]!, sharingDeclined: false },
       owner: owners.get(row.ownerId)!,
       lentAt: row.lentAt,
       priceable: rosterFromRow({ ...row, userId: row.ownerId, prep: null, tags: '[]', copiedFromRosterId: null }),

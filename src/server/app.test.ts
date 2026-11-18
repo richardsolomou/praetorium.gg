@@ -220,3 +220,16 @@ it('answers readiness during a swap on a replica already serving', async () => {
   startup.warm()
   expect(held).toEqual([true, false])
 })
+
+it('answers readiness without waiting for the build of a swap on a replica already serving', async () => {
+  vi.stubEnv('NODE_ENV', 'production')
+  const { finish, startup } = startups()
+  startup.warm()
+  finish[0]!()
+  await startup.ready()
+  startup.warm()
+  let answered = false
+  void startup.ready().then(() => (answered = true))
+  await turns(2)
+  expect(answered).toBe(true)
+})

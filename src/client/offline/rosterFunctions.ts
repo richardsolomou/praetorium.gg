@@ -32,6 +32,7 @@ import { orderVariantGroup, variantName } from '../../core/rosterVariants'
 import type { LocalState } from '../../contracts/localState'
 import { playerDefaults } from './actionFunctions'
 import { localRosterAssessment } from './rosterAssessment'
+import { DELETED_ROSTER_MESSAGE } from './rosterMessages'
 import { calculationRead, SERVER_ONLY_TIMEOUT_MS } from './calculationRead'
 import { withTimeout } from '../abortSignals'
 import {
@@ -42,6 +43,7 @@ import {
   rosterBootstrapKey,
   rosterChangesKey,
   savedRosterChangedIdsKey,
+  savedRosterPlaysKey,
   savedRosterPageKey,
   savedRosterSummariesKey,
   sharedRosterKey,
@@ -201,8 +203,6 @@ export async function sharedRoster(args: Parameters<typeof server.sharedRoster>[
   return access?.roster ?? null
 }
 
-export const DELETED_ROSTER_MESSAGE = 'This roster was deleted. Save it as a new roster.'
-
 export async function saveRoster(
   args: Parameters<typeof server.saveRoster>[0],
   reviewed?: RosterInput,
@@ -350,7 +350,8 @@ function overlaySummaries(
       continue
     const roster = document.data as LocalRoster | null
     if (!roster) listed.delete(resource.slice(7))
-    else listed.set(roster.id, summaryFor(roster))
+    // The device keeps no answer to the sharing prompt, so the server's stays.
+    else listed.set(roster.id, { ...summaryFor(roster), sharingDeclined: listed.get(roster.id)?.sharingDeclined ?? false })
   }
   return [...listed.values()].sort((left, right) => right.updatedAt - left.updatedAt)
 }
@@ -359,10 +360,6 @@ export function projectLocalState(state: LocalState) {
   if (!client || localOwner()?.id !== state.owner) return
   const unbuilt = new Set<string>()
   for (const [resource, document] of Object.entries(state.documents)) {
-    if (resource.startsWith('query:')) {
-      client.setQueryData(JSON.parse(resource.slice(6)), document.data)
-      continue
-    }
     if (resource.startsWith('sealed-event:')) {
       if (navigator.onLine && !state.operations.some((operation) => operation.resource === resource)) continue
       const sealedEvent = document.data as Awaited<ReturnType<typeof server.openSealedEvent>>
@@ -499,6 +496,13 @@ export function setRosterArchived(args: Parameters<typeof server.setRosterArchiv
   return serverAcceptedRoster(args.data.id, 'archive or unarchive this roster', () => server.setRosterArchived(args), {
     archived: args.data.archived,
   })
+}
+
+/** Needs a connection: the device keeps no copy of the answer. */
+export function declineRosterSharing(
+  args: Parameters<typeof server.declineRosterSharing>[0],
+): ReturnType<typeof server.declineRosterSharing> {
+  return server.declineRosterSharing(args)
 }
 
 export function splitRosterVariant(args: Parameters<typeof server.splitRosterVariant>[0]): ReturnType<typeof server.splitRosterVariant> {
@@ -763,3 +767,4 @@ export async function rosterChanges(args: Parameters<typeof server.rosterChanges
   return cachedRead(rosterChangesKey(args.data.id), () => server.rosterChanges(args))
 }
 export const savedRosterChangedIds = () => cachedRead(savedRosterChangedIdsKey(), () => server.savedRosterChangedIds())
+export const savedRosterPlays = () => cachedRead(savedRosterPlaysKey(), () => server.savedRosterPlays())

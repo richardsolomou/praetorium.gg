@@ -79,6 +79,12 @@ export function localStateStorage(owner: string): LocalStateStorage {
   const verify = (saved: StoredState) => {
     if (verified?.saved === saved) return verified.state
     if (epoch && epoch !== saved.epoch) throw new Error('The account on this device changed.')
+    // Every write raises the revision, so a copy read again at the verified revision holds the same work; checking it
+    // again would parse and measure all of it on every write.
+    if (verified && saved.state && verified.saved.epoch === saved.epoch && verified.saved.state?.revision === saved.state.revision) {
+      verified = { saved, state: verified.state }
+      return verified.state
+    }
     const parsed = saved.state ? parseLocalState(saved.state) : null
     if (saved.state && (!parsed || parsed.owner !== owner)) throw new Error('Saved changes belong to another account.')
     epoch = saved.epoch
@@ -116,6 +122,7 @@ export function localStateStorage(owner: string): LocalStateStorage {
         throw new Error(SAVING_ELSEWHERE_MESSAGE)
       })
     let result!: StoredState
+    let checked: LocalState | null = null
     let kept: LocalState | undefined
     await update<StoredState>(
       `work:${owner}`,
@@ -128,13 +135,15 @@ export function localStateStorage(owner: string): LocalStateStorage {
           return previous
         }
         const next = { ...changed, revision: current.revision + 1 }
-        if (!parseLocalState(next)) throw new Error(STORAGE_LIMIT_MESSAGE)
+        checked = parseLocalState(next)
+        if (!checked) throw new Error(STORAGE_LIMIT_MESSAGE)
         result = { epoch: previous.epoch, state: next }
         return result
       },
       store,
     )
     if (kept) return kept
+    verified = { saved: result, state: checked! }
     notify(owner, result)
     return result.state!
   }

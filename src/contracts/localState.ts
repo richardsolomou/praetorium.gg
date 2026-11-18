@@ -1,8 +1,7 @@
 import { z } from 'zod'
-import { idSchema } from '../core/commands'
 import { jsonByteLength } from '../core/json'
 import { predatesEventHosts } from './savedSealedEvents'
-import { migrateSavedRoster } from '../core/savedRosterMigrations'
+import { migrateSavedRoster } from '../core/retiredRosterFields'
 
 export const MAX_LOCAL_STATE_BYTES = 50_000_000
 export const MAX_LOCAL_OPERATIONS = 2_000
@@ -22,13 +21,16 @@ export type LocalOperation = z.infer<typeof localOperationSchema>
 const localStateSchema = z.object({
   version: z.literal(1),
   owner: z.string().min(1).max(128),
-  epoch: idSchema,
+  epoch: z.string().min(1).max(64),
   revision: z.number().int().nonnegative(),
   syncLease: z.object({ holder: z.uuid(), expiresAt: z.number().int().nonnegative() }).optional(),
   operations: z.array(localOperationSchema).max(MAX_LOCAL_OPERATIONS),
   documents: z.record(z.string().max(256), z.object({ data: z.unknown(), serverVersion: z.number().int().nonnegative().nullable() })),
 })
 export type LocalState = z.infer<typeof localStateSchema>
+
+/** The device document that holds a query's answer. */
+export const queryResource = (key: readonly unknown[]) => `query:${JSON.stringify(key)}`
 
 export function emptyLocalState(owner: string): LocalState {
   return { version: 1, owner, epoch: crypto.randomUUID(), revision: 0, operations: [], documents: {} }

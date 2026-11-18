@@ -1,5 +1,30 @@
+/** The parts of the app a change can belong to, by the tag that opens its changeset, such as `[simulator]`. */
+export const RELEASE_AREAS = {
+  rosters: 'Army building',
+  simulator: 'Simulator',
+  battles: 'Battles',
+  events: 'Groups and events',
+  reference: 'Rules and datasheets',
+  assistant: 'AI assistants',
+  app: 'Everywhere else',
+} as const
+
+export type ReleaseArea = keyof typeof RELEASE_AREAS
+
+/** One changelog entry; `area` is null for one written before entries were tagged. */
+export type ReleaseChange = { area: ReleaseArea | null; text: string }
+
 /** One app release; `date` is the UTC day it shipped, `features` its minor or major changesets and `fixes` its patches. */
-export type ReleaseNote = { version: string; date: string | null; features: string[]; fixes: string[] }
+export type ReleaseNote = { version: string; date: string | null; features: ReleaseChange[]; fixes: ReleaseChange[] }
+
+const areaTag = /^\[(\w+)\]\s+/
+
+/** An entry's area from its leading tag, and its text without it. */
+export function releaseChange(entry: string): ReleaseChange {
+  const tag = areaTag.exec(entry)?.[1]
+  if (!tag || !Object.hasOwn(RELEASE_AREAS, tag)) return { area: null, text: entry }
+  return { area: tag as ReleaseArea, text: entry.replace(areaTag, '') }
+}
 
 /** How many release days What's new lists, enough to cover the weekly notice when it is a few days late. */
 export const RELEASE_DAYS = 14
@@ -12,7 +37,7 @@ const releaseHeading = /^## (\d+\.\d+\.\d+)(?: \((\d{4}-\d{2}-\d{2})\))?\s*$/
  */
 export function parseReleaseNotes(changelog: string, limit: number): ReleaseNote[] {
   const releases: ReleaseNote[] = []
-  let changes: string[] = []
+  let changes: ReleaseChange[] = []
   for (const line of changelog.split('\n')) {
     const heading = releaseHeading.exec(line)
     if (heading) {
@@ -28,8 +53,8 @@ export function parseReleaseNotes(changelog: string, limit: number): ReleaseNote
       continue
     }
     const change = /^- (?:[0-9a-f]{7,40}: )?(.+)$/.exec(line)
-    if (change) changes.push(change[1]!.trim())
-    else if (/^ {2}\S/.test(line) && changes.length) changes[changes.length - 1] = `${changes.at(-1)} ${line.trim()}`
+    if (change) changes.push(releaseChange(change[1]!.trim()))
+    else if (/^ {2}\S/.test(line) && changes.length) changes.at(-1)!.text += ` ${line.trim()}`
   }
   return releases.filter((release) => release.features.length + release.fixes.length).slice(0, limit)
 }
@@ -42,16 +67,22 @@ export function recentReleaseNotes(changelog: string, days: number) {
 }
 
 /**
- * The start of `changelog` up to the end of the oldest release `recentReleaseNotes` keeps, so
- * `recentReleaseNotes` reads the same releases from it without the history below.
+ * `changelog` cut to the releases `recentReleaseNotes` keeps, and the releases below them as
+ * changelog text by the month each shipped.
  */
-export function recentChangelog(changelog: string, days: number) {
-  const oldest = recentReleaseNotes(changelog, days).at(-1)
-  if (!oldest) return changelog
+export function archiveChangelog(changelog: string, days: number) {
   const lines = changelog.split('\n')
-  const start = lines.findIndex((line) => releaseHeading.exec(line)?.[1] === oldest.version)
-  const end = lines.findIndex((line, index) => index > start && releaseHeading.test(line))
-  return end === -1 ? changelog : lines.slice(0, end).join('\n')
+  const oldest = recentReleaseNotes(changelog, days).at(-1)
+  const start = lines.findIndex((line) => releaseHeading.exec(line)?.[1] === oldest?.version)
+  const end = oldest ? lines.findIndex((line, index) => index > start && releaseHeading.test(line)) : -1
+  const archived = new Map<string, string>()
+  if (end === -1) return { current: changelog, archived }
+  let month = 'undated'
+  for (const line of lines.slice(end)) {
+    month = releaseHeading.exec(line)?.[2]?.slice(0, 7) ?? month
+    archived.set(month, `${archived.get(month) ?? ''}${line}\n`)
+  }
+  return { current: lines.slice(0, end).join('\n'), archived }
 }
 
 /** Dates every undated release heading with `date`, as each release is versioned on the day it ships. */

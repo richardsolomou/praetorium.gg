@@ -26,6 +26,7 @@ import * as BattlesForOperatorProcedure from '../battles_for_operator_procedure'
 import * as CalendarFeedProcedure from '../calendar_feed_procedure'
 import * as CalendarFeedByUserProcedure from '../calendar_feed_by_user_procedure'
 import * as CancelFriendInviteProcedure from '../cancel_friend_invite_procedure'
+import * as ChangeRosterFoldersProcedure from '../change_roster_folders_procedure'
 import * as ChangeRostersProcedure from '../change_rosters_procedure'
 import * as ClaimGuestSeatProcedure from '../claim_guest_seat_procedure'
 import * as ClaimImportedBattleProcedure from '../claim_imported_battle_procedure'
@@ -39,12 +40,15 @@ import * as CollectionPhotoIdsProcedure from '../collection_photo_ids_procedure'
 import * as CollectionProfileProcedure from '../collection_profile_procedure'
 import * as CollectionWishesByUserProcedure from '../collection_wishes_by_user_procedure'
 import * as CreateBattleProcedure from '../create_battle_procedure'
+import * as CurrentStandingsViewProcedure from '../current_standings_view_procedure'
 import * as DatasheetPhotosProcedure from '../datasheet_photos_procedure'
+import * as DeclineRosterSharingProcedure from '../decline_roster_sharing_procedure'
 import * as DeleteBattleForOperatorProcedure from '../delete_battle_for_operator_procedure'
 import * as DeleteUnitLoadoutProcedure from '../delete_unit_loadout_procedure'
 import * as DiscoverRostersProcedure from '../discover_rosters_procedure'
 import * as DraftsByUserProcedure from '../drafts_by_user_procedure'
 import * as EndRosterLoanProcedure from '../end_roster_loan_procedure'
+import * as ExportProductRowsProcedure from '../export_product_rows_procedure'
 import * as ExternalAccountsByUserProcedure from '../external_accounts_by_user_procedure'
 import * as FavouriteDatasheetsByUserProcedure from '../favourite_datasheets_by_user_procedure'
 import * as FavouriteDetachmentsByUserProcedure from '../favourite_detachments_by_user_procedure'
@@ -64,6 +68,7 @@ import * as GuestSeatByInviteProcedure from '../guest_seat_by_invite_procedure'
 import * as HeldCollectionPhotosProcedure from '../held_collection_photos_procedure'
 import * as HomeRostersByUserProcedure from '../home_rosters_by_user_procedure'
 import * as ImportCollectionProcedure from '../import_collection_procedure'
+import * as ImportProductRowsProcedure from '../import_product_rows_procedure'
 import * as JoinGuestSeatProcedure from '../join_guest_seat_procedure'
 import * as LeaderboardProcedure from '../leaderboard_procedure'
 import * as LendRosterProcedure from '../lend_roster_procedure'
@@ -96,6 +101,7 @@ import * as ReplaceGuestInviteProcedure from '../replace_guest_invite_procedure'
 import * as ReplaceRosterPointsMarksProcedure from '../replace_roster_points_marks_procedure'
 import * as RequestFriendProcedure from '../request_friend_procedure'
 import * as RosterByIdProcedure from '../roster_by_id_procedure'
+import * as RosterFoldersByUserProcedure from '../roster_folders_by_user_procedure'
 import * as RosterGroupByUserProcedure from '../roster_group_by_user_procedure'
 import * as RosterLoansByRosterProcedure from '../roster_loans_by_roster_procedure'
 import * as RosterSummariesByUserProcedure from '../roster_summaries_by_user_procedure'
@@ -110,6 +116,7 @@ import * as SaveRosterProcedure from '../save_roster_procedure'
 import * as SaveScoringDraftProcedure from '../save_scoring_draft_procedure'
 import * as SaveUnitLoadoutProcedure from '../save_unit_loadout_procedure'
 import * as ScoringDraftsProcedure from '../scoring_drafts_procedure'
+import * as SealedEntrySourcesProcedure from '../sealed_entry_sources_procedure'
 import * as SealedEventAddressProcedure from '../sealed_event_address_procedure'
 import * as SealedEventBattleCandidatesProcedure from '../sealed_event_battle_candidates_procedure'
 import * as SealedEventByTokenProcedure from '../sealed_event_by_token_procedure'
@@ -180,6 +187,8 @@ export type CalendarFeedByUserArgs = __Infer<typeof CalendarFeedByUserProcedure.
 export type CalendarFeedByUserResult = __Infer<typeof CalendarFeedByUserProcedure.returnType>
 export type CancelFriendInviteArgs = __Infer<typeof CancelFriendInviteProcedure.params>
 export type CancelFriendInviteResult = __Infer<typeof CancelFriendInviteProcedure.returnType>
+export type ChangeRosterFoldersArgs = __Infer<typeof ChangeRosterFoldersProcedure.params>
+export type ChangeRosterFoldersResult = __Infer<typeof ChangeRosterFoldersProcedure.returnType>
 export type ChangeRostersArgs = __Infer<typeof ChangeRostersProcedure.params>
 export type ChangeRostersResult = __Infer<typeof ChangeRostersProcedure.returnType>
 export type ClaimGuestSeatArgs = __Infer<typeof ClaimGuestSeatProcedure.params>
@@ -206,8 +215,12 @@ export type CollectionWishesByUserArgs = __Infer<typeof CollectionWishesByUserPr
 export type CollectionWishesByUserResult = __Infer<typeof CollectionWishesByUserProcedure.returnType>
 export type CreateBattleArgs = __Infer<typeof CreateBattleProcedure.params>
 export type CreateBattleResult = __Infer<typeof CreateBattleProcedure.returnType>
+export type CurrentStandingsViewArgs = __Infer<typeof CurrentStandingsViewProcedure.params>
+export type CurrentStandingsViewResult = __Infer<typeof CurrentStandingsViewProcedure.returnType>
 export type DatasheetPhotosArgs = __Infer<typeof DatasheetPhotosProcedure.params>
 export type DatasheetPhotosResult = __Infer<typeof DatasheetPhotosProcedure.returnType>
+export type DeclineRosterSharingArgs = __Infer<typeof DeclineRosterSharingProcedure.params>
+export type DeclineRosterSharingResult = __Infer<typeof DeclineRosterSharingProcedure.returnType>
 export type DeleteBattleForOperatorArgs = __Infer<typeof DeleteBattleForOperatorProcedure.params>
 export type DeleteBattleForOperatorResult = __Infer<typeof DeleteBattleForOperatorProcedure.returnType>
 export type DeleteUnitLoadoutArgs = __Infer<typeof DeleteUnitLoadoutProcedure.params>
@@ -218,6 +231,8 @@ export type DraftsByUserArgs = __Infer<typeof DraftsByUserProcedure.params>
 export type DraftsByUserResult = __Infer<typeof DraftsByUserProcedure.returnType>
 export type EndRosterLoanArgs = __Infer<typeof EndRosterLoanProcedure.params>
 export type EndRosterLoanResult = __Infer<typeof EndRosterLoanProcedure.returnType>
+export type ExportProductRowsArgs = __Infer<typeof ExportProductRowsProcedure.params>
+export type ExportProductRowsResult = __Infer<typeof ExportProductRowsProcedure.returnType>
 export type ExternalAccountsByUserArgs = __Infer<typeof ExternalAccountsByUserProcedure.params>
 export type ExternalAccountsByUserResult = __Infer<typeof ExternalAccountsByUserProcedure.returnType>
 export type FavouriteDatasheetsByUserArgs = __Infer<typeof FavouriteDatasheetsByUserProcedure.params>
@@ -256,6 +271,8 @@ export type HomeRostersByUserArgs = __Infer<typeof HomeRostersByUserProcedure.pa
 export type HomeRostersByUserResult = __Infer<typeof HomeRostersByUserProcedure.returnType>
 export type ImportCollectionArgs = __Infer<typeof ImportCollectionProcedure.params>
 export type ImportCollectionResult = __Infer<typeof ImportCollectionProcedure.returnType>
+export type ImportProductRowsArgs = __Infer<typeof ImportProductRowsProcedure.params>
+export type ImportProductRowsResult = __Infer<typeof ImportProductRowsProcedure.returnType>
 export type JoinGuestSeatArgs = __Infer<typeof JoinGuestSeatProcedure.params>
 export type JoinGuestSeatResult = __Infer<typeof JoinGuestSeatProcedure.returnType>
 export type LeaderboardArgs = __Infer<typeof LeaderboardProcedure.params>
@@ -320,6 +337,8 @@ export type RequestFriendArgs = __Infer<typeof RequestFriendProcedure.params>
 export type RequestFriendResult = __Infer<typeof RequestFriendProcedure.returnType>
 export type RosterByIdArgs = __Infer<typeof RosterByIdProcedure.params>
 export type RosterByIdResult = __Infer<typeof RosterByIdProcedure.returnType>
+export type RosterFoldersByUserArgs = __Infer<typeof RosterFoldersByUserProcedure.params>
+export type RosterFoldersByUserResult = __Infer<typeof RosterFoldersByUserProcedure.returnType>
 export type RosterGroupByUserArgs = __Infer<typeof RosterGroupByUserProcedure.params>
 export type RosterGroupByUserResult = __Infer<typeof RosterGroupByUserProcedure.returnType>
 export type RosterLoansByRosterArgs = __Infer<typeof RosterLoansByRosterProcedure.params>
@@ -348,6 +367,8 @@ export type SaveUnitLoadoutArgs = __Infer<typeof SaveUnitLoadoutProcedure.params
 export type SaveUnitLoadoutResult = __Infer<typeof SaveUnitLoadoutProcedure.returnType>
 export type ScoringDraftsArgs = __Infer<typeof ScoringDraftsProcedure.params>
 export type ScoringDraftsResult = __Infer<typeof ScoringDraftsProcedure.returnType>
+export type SealedEntrySourcesArgs = __Infer<typeof SealedEntrySourcesProcedure.params>
+export type SealedEntrySourcesResult = __Infer<typeof SealedEntrySourcesProcedure.returnType>
 export type SealedEventAddressArgs = __Infer<typeof SealedEventAddressProcedure.params>
 export type SealedEventAddressResult = __Infer<typeof SealedEventAddressProcedure.returnType>
 export type SealedEventBattleCandidatesArgs = __Infer<typeof SealedEventBattleCandidatesProcedure.params>

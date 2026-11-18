@@ -1,19 +1,11 @@
-import { DEFAULT_GAME_LIMIT } from '../../../core/battle'
+import { DEFAULT_GAME_LIMIT } from '../../../core/battleFormat'
 import { GUEST_DRAFT_COOKIE } from '../../../contracts/rosterCookies'
 import { setRosterCookie } from './rosterCookie'
 import type { RosterDraft } from './rosterDraft'
 import type { RosterSetup } from './RosterSetupDialog'
-import {
-  parseWorkspaceState,
-  readStoredWorkspaceState,
-  readWorkspaceState,
-  SETUP_STATE,
-  WAIVERS_STATE,
-  writeWorkspaceState,
-} from './workspaceState'
+import { parseWorkspaceState, readStoredWorkspaceState, readWorkspaceState, SETUP_STATE, writeWorkspaceState } from './workspaceState'
 import { currentRosterIds } from '../../../core/retiredCatalogueIds'
 import { listUnitCount } from '../../../core/attachedUnits'
-import { requireReviewedRoster } from '../../offline/reviewedRoster'
 
 /** The rosters page, where a visitor's list is listed and where signing in saves it to the account. */
 export const GUEST_PATH = '/rosters'
@@ -88,6 +80,7 @@ export function guestRosterSummary(guest: GuestDraft) {
     baseRosterId: null,
     locked: false,
     archived: false,
+    sharingDeclined: false,
     visibility: 'private' as const,
     source: draft.source ?? 'editable',
     createdAt: updatedAt,
@@ -204,21 +197,14 @@ function forget(remove: () => void) {
   }
 }
 
-/** Forgets the draft and the setup and warning state the builder kept beside it. */
+/** Forgets the draft and the setup the builder kept beside it. */
 export function clearGuestDraft() {
   const kept = readGuestDraft()
   forget(() => localStorage.removeItem(KEY))
   lastWritten = null
   writeWorkspaceState(GUEST_PATH, NAME, null)
-  if (kept) for (const name of [SETUP_STATE, WAIVERS_STATE]) writeWorkspaceState(guestDraftPath(kept), name, null)
+  if (kept) writeWorkspaceState(guestDraftPath(kept), SETUP_STATE, null)
   markGuestDraft(false)
-}
-
-/** Keeps a reviewed setup change, refused when another tab changed the list after the review began. */
-export function keepReviewedDraft(guest: GuestDraft, { id: _id, ...draft }: RosterDraft, source: RosterDraft) {
-  const latest = readGuestDraft()
-  requireReviewedRoster(latest?.id === guest.id ? latest.draft : null, { ...source, id: undefined })
-  return writeGuestDraft({ ...guest, draft, updatedAt: Date.now() })
 }
 
 /** What `saveRoster` is sent to keep a visitor's list under their new account. */

@@ -17,6 +17,13 @@ import { withTimeout } from '../abortSignals'
 import { useClientValue } from '../useClientValue'
 
 const RECHECK_MS = 5 * 60_000
+
+declare global {
+  interface Window {
+    /** Shortens the pause before a page starts downloading the offline application, so browser tests need not wait it out. */
+    PraetoriumOfflineDownloadDelayMs?: number
+  }
+}
 /** Parts are small, so a few download at once to hide a phone's round trips. */
 const PARALLEL_PARTS = 4
 
@@ -96,7 +103,7 @@ export function OfflineReference() {
         setPublishedReference(manifest)
         stage = 'check'
         const held = referenceData()
-        const catalogues = cataloguesInUse(client)
+        const catalogues = await cataloguesInUse(client)
         // Another tab may have saved rules versions this one never loaded, which must stay saved.
         const stored = await savedReference()
         const editions = editionsFor(manifest, [...(held?.editions ?? []), ...(stored?.editions ?? [])], catalogues)
@@ -174,7 +181,7 @@ export function OfflineReference() {
         downloads = true
         void refresh()
       },
-      10_000,
+      window.PraetoriumOfflineDownloadDelayMs ?? 10_000,
     )
     // Account data loaded later can name another rules version, whose construction data must be saved before going offline.
     const unsubscribe = client.getQueryCache().subscribe((event) => {

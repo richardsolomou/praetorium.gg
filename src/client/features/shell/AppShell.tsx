@@ -1,11 +1,8 @@
 import { SyncStatus } from '../../offline/SyncStatus'
-import { offlineAssets, offlineData } from '../../offline/runtime'
-import { OfflineReference } from '../../offline/OfflineReference'
-import { WebMcp } from '../agents/WebMcp'
-import { AppPersistence } from '../../offline/AppPersistence'
+import { offlineAssets, offlineData, referenceData } from '../../offline/runtime'
 import { PressHaptics } from './PressHaptics'
-import { useQuery } from '@tanstack/react-query'
-import { HeadContent, Link, Outlet, Scripts, useLocation, useRouterState } from '@tanstack/react-router'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { HeadContent, Link, Outlet, Scripts, useLocation, useRouter, useRouterState } from '@tanstack/react-router'
 import { updateNoticeId } from '../../chunkRecovery'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import {
@@ -32,24 +29,26 @@ import { setImpersonating } from '../../../posthog'
 import { Account } from './Account'
 import { NoticeSync, NotificationsButton } from '../notifications/Notifications'
 import { GlobalSearch, GlobalSearchProvider } from './GlobalSearch'
-import { TextSourcesDialog } from '../../components/TextSourcesDialog'
 import { ReleaseUpdateNotice } from './ReleaseUpdateNotice'
-import { AchievementToasts } from '../profile/AchievementToasts'
 import { WhatsNewLink, WhatsNewNotice } from './WhatsNew'
 import { Toaster } from '@/components/ui/sonner'
 import { NavigationProgress } from './NavigationProgress'
 import { useMediaQuery } from '../../useMediaQuery'
 import { ImpersonationBanner } from './ImpersonationBanner'
 import { NativeAppNavigation } from './NativeAppNavigation'
-import { NativePushRegistration } from './NativePushRegistration'
-import { OnboardingGuide } from '../onboarding/OnboardingGuide'
-import { DisplayNamePrompt } from '../account/DisplayNamePrompt'
-import { SupportPanel } from '../feedback/SupportPanel'
 import { SupportIdentity } from '../feedback/support'
 import { meQuery } from '../../queries'
+import { meKey } from '../../queries/queryKeys'
 import { COMMUNITY_LINKS, COMMUNITY_PAGES, FRIENDS_PAGE } from './CommunityLinks'
 import { followTextSourceChoice } from '../../rulesText'
-import { useRealtimeConfig, useSpacetimeLiveProduct } from '../../spacetimeLive'
+import { OfflineReference } from '../../offline/OfflineReference'
+import { WebMcp } from '../agents/WebMcp'
+import { NativePushRegistration } from './NativePushRegistration'
+import { OnboardingGuide } from '../onboarding/OnboardingGuide'
+import { AppPersistence } from '../../offline/AppPersistence'
+import { ShellLiveProduct, ShellDisplayNamePrompt, ShellSupportPanel, ShellTextSourcesDialog, ShellAchievementToasts } from './ShellExtras'
+import { loadOfflineFallbacks } from '../../functions'
+import { warmOfflineFallbacks } from '../../offline/background'
 
 const PRIMARY_LINKS = [
   { to: '/rosters', label: 'Rosters', Icon: ScrollText },
@@ -93,7 +92,7 @@ function RailLinks({
   name: string
   collapsed: boolean
 }) {
-  const path = useLocation().pathname
+  const inDisposition = useLocation({ select: (location) => location.pathname.startsWith('/force-dispositions/') })
   return (
     <nav
       aria-label={name}
@@ -104,7 +103,7 @@ function RailLinks({
           <Link
             to={to}
             search={to === '/leaderboard' ? { faction: undefined } : undefined}
-            aria-current={to === '/missions' && path.startsWith('/force-dispositions/') ? 'page' : undefined}
+            aria-current={to === '/missions' && inDisposition ? 'page' : undefined}
             className={RAIL_LINK_CLASS}
           >
             <Icon aria-hidden className="size-4.5 shrink-0 text-faint group-aria-[current=page]:text-parchment" />
@@ -212,6 +211,7 @@ function SiteRail({ workspace }: { workspace: boolean }) {
 
 /** Pages someone reaches before they are in the app, so they keep the front door's bar rather than the rail. */
 const AUTH_PAGES = new Set(['/sign-in', '/reset-password', '/native-auth'])
+const BATTLE_PAGE = /^\/battles\/[^/]+/
 
 /**
  * The signed-out home and the sign-in pages are a front door rather than the app, so a visitor meets a slim bar that
@@ -326,20 +326,31 @@ function OverlayShell() {
 }
 
 function AppFrame() {
-  const location = useLocation()
-  const path = location.pathname
+  // Only what the frame draws differently is selected, so moving between ordinary pages does not redraw the whole shell.
+  const signingIn = useLocation({ select: (location) => AUTH_PAGES.has(location.pathname) })
+  const home = useLocation({ select: (location) => location.pathname === '/' })
+  const inBattle = useLocation({ select: (location) => BATTLE_PAGE.test(location.pathname) })
   // Decided by the page on screen, so a roster still loading keeps the header it was opened from.
-  const shownPath = useRouterState({ select: (state) => state.resolvedLocation?.pathname ?? state.location.pathname })
-  const immersive = ROSTER_WORKSPACE.test(shownPath)
+  const immersive = useRouterState({
+    select: (state) => ROSTER_WORKSPACE.test(state.resolvedLocation?.pathname ?? state.location.pathname),
+  })
   const phone = useMediaQuery('(max-width: 859px)')
   const { data: me } = useQuery(meQuery())
-  const signingIn = AUTH_PAGES.has(path)
-  const frontDoor = signingIn || (path === '/' && me === null)
+  const frontDoor = signingIn || (home && me === null)
   const impersonating = Boolean(me?.impersonatedBy)
   // Set while rendering so it holds before any child's effect captures.
   if (typeof window !== 'undefined') setImpersonating(impersonating)
-  const realtime = useRealtimeConfig()
-  useSpacetimeLiveProduct(realtime, Boolean(me))
+  const router = useRouter()
+  const queryClient = useQueryClient()
+  // Loaded after the first screen rather than with it, so a connection lost later still has the device's fallbacks;
+  // a visitor without a downloaded reference has no device copy for them to read.
+  useEffect(
+    () =>
+      warmOfflineFallbacks(router, () => {
+        if (queryClient.getQueryData(meKey()) || referenceData()) void loadOfflineFallbacks().catch(() => {})
+      }),
+    [router, queryClient],
+  )
   useLayoutEffect(followTextSourceChoice, [])
   useLayoutEffect(() => followRailState(immersive), [immersive])
   return (
@@ -357,6 +368,7 @@ function AppFrame() {
             {bundledPostHog && me !== undefined && !impersonating && <PostHogIdentity />}
             {bundledPostHog && !impersonating && <SupportIdentity />}
             {me && !impersonating ? <NoticeSync /> : null}
+            <ShellLiveProduct signedIn={Boolean(me)} />
             <GlobalSearchProvider>
               {/*
                * The rail sits beside the page and the page decides its own width,
@@ -407,23 +419,17 @@ function AppFrame() {
                   </div>
                   {immersive ? null : <SiteFooter />}
                 </div>
-                <NativeAppNavigation
-                  accountBridge={<Account native />}
-                  href={location.href}
-                  path={path}
-                  search={location.search}
-                  state={location.state}
-                />
+                <NativeAppNavigation accountBridge={<Account native />} />
                 <OnboardingGuide />
-                <DisplayNamePrompt />
-                <SupportPanel />
-                <TextSourcesDialog />
+                {me && !me.name.trim() && !impersonating ? <ShellDisplayNamePrompt /> : null}
+                <ShellSupportPanel />
+                <ShellTextSourcesDialog />
                 {me?.impersonatedBy ? <ImpersonationBanner name={me.name} email={me.email} /> : null}
                 <NativePushRegistration />
                 <ReleaseUpdateNotice />
                 {/* An administrator viewing as a player must not use up the player's announcements. */}
-                {me && !impersonating && <AchievementToasts userId={me.id} />}
-                {immersive || /^\/battles\/[^/]+/.test(path) ? null : <WhatsNewNotice />}
+                {me && !impersonating && <ShellAchievementToasts userId={me.id} />}
+                {immersive || inBattle ? null : <WhatsNewNotice />}
                 <NavigationProgress />
                 <Toaster
                   theme="dark"

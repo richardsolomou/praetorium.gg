@@ -4,7 +4,7 @@ import { combatSurvivorSheet } from './combatSurvivors'
 import { DEFAULT_COMBAT_OPTIONS } from './combat'
 import { combatPlan, combatTarget, combatWeapons, weaponInShootingType } from './combatProfiles'
 import { combatAttackInput } from './combatScenario'
-import { wargearKey } from './wargear'
+import { wargearKey } from './wargearNames'
 import { datasheetFixture } from './datasheet.fixtures'
 
 const sheet = (keywords = ''): Datasheet =>

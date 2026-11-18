@@ -9,9 +9,7 @@ import {
   gameReferencesQuery,
   terrainReferencesQuery,
 } from '../client/queries'
-import { battlePreview, hiddenBattle, pageMeta, previewImage } from '../client/linkPreview'
-import { armyRulesRequest } from '../client/features/battle/sideRules'
-import { battleMatchupIds } from '../client/features/battle/battlefieldLayout'
+import { hiddenBattle, pageMeta, previewImage } from '../client/linkPreview'
 
 export const Route = createFileRoute('/battles/$token')({
   loader: async ({ context, params }) => {
@@ -27,10 +25,14 @@ export const Route = createFileRoute('/battles/$token')({
       context.queryClient.query({ ...gameReferencesQuery(), staleTime: 'static' }),
       context.queryClient.query({ ...deploymentsQuery(), staleTime: 'static' }),
     ].map((pending) => pending.catch(() => undefined))
+    // Imported here rather than above, alongside the battle, so the battle rules they read load with this page instead of with every page.
+    const helpers = import('../client/battleRouteHelpers')
+    helpers.catch(() => {})
     // Only a loader may throw this: from a render it lands in the error boundary.
     const screen = await context.queryClient.query({ ...battleQuery(params.token), staleTime: 'static' })
     if (!screen) throw notFound()
     if (screen.kind === 'unavailable') return { preview: null }
+    const { armyRulesRequest, battleMatchupIds, battlePreview } = await helpers
     // Only a seated player's setup and tracker draw terrain on arrival; a watched or finished battle reads it when its map opens.
     const matchupIds = screen.kind === 'battle' && screen.view.status !== 'finished' ? battleMatchupIds(screen.view) : []
     // The battle decides which independent reads are needed; start them together once it is known.

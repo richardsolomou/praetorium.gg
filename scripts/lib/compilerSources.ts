@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
-import { build, type Rolldown } from 'vite'
+import { build, type Plugin, type Rolldown } from 'vite'
 
 export const compilerEntries = ['scripts/catalogueRefresh.ts', 'scripts/compileCatalogueRuntime.ts']
 // The compiler reads catalogue configuration from disk; the seed build config bundles the production worker.
@@ -33,11 +33,28 @@ export function treeFingerprint(root: string, inputs: readonly string[]) {
 /** Identifies the catalogue configuration a compiler materializes with: sources, composition and patches. */
 export const catalogueAuthoring = (root = process.cwd()) => treeFingerprint(root, ['catalogue'])
 
+/**
+ * package.json holds release metadata and tooling, none of which changes what the compiler produces, and the bundle
+ * is only hashed. The release bumps its version on every merge and scripts change often, so it would otherwise
+ * invalidate every prepared catalogue.
+ */
+const withoutPackageJson = (root: string): Plugin => ({
+  name: 'without-package-json',
+  enforce: 'pre',
+  load(id) {
+    if (path.basename(id) !== 'package.json' || path.dirname(fs.realpathSync(id)) !== fs.realpathSync(root)) return null
+    return '{}'
+  },
+})
+
 /** The compiler's entry points bundled with every dependency they reach. */
 async function compilerBundle(root: string, entries: readonly string[]) {
   const result = (await build({
     configFile: false,
     envDir: false,
+    // No variable carries this prefix, so the image build's PostHog settings never reach the hash.
+    envPrefix: 'PRAETORIUM_COMPILER_FINGERPRINT_',
+    plugins: [withoutPackageJson(root)],
     logLevel: 'silent',
     mode: 'production',
     root,

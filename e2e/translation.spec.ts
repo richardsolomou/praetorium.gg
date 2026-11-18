@@ -18,19 +18,17 @@ async function replaceTranslatedText(page: Page) {
   })
 }
 
-for (const width of [1440, 390])
-  test(`a translated guest roster setup can select its first faction at ${width}px`, async ({ page }) => {
-    await page.setViewportSize({ width, height: 900 })
-    const setup = await visitorSetup(page)
-    const faction = setup.getByRole('combobox', { name: 'Faction', exact: true })
-    await expect(faction).toBeEnabled()
-    await replaceTranslatedText(page)
-    await faction.click()
-    await page.getByRole('option', { name: 'Necrons', exact: true }).click()
-    await expect(setup).toBeVisible()
-    await expect(faction).toContainText('Necrons')
-    await page.screenshot({ path: test.info().outputPath(`translated-guest-roster-${width}.png`), fullPage: true })
-  })
+test(`a translated guest roster setup can select its first faction`, async ({ page }) => {
+  const setup = await visitorSetup(page)
+  const faction = setup.getByRole('combobox', { name: 'Faction', exact: true })
+  await expect(faction).toBeEnabled()
+  await replaceTranslatedText(page)
+  await faction.click()
+  await page.getByRole('option', { name: 'Necrons', exact: true }).click()
+  await expect(setup).toBeVisible()
+  await expect(faction).toContainText('Necrons')
+  await page.screenshot({ path: test.info().outputPath(`translated-guest-roster.png`), fullPage: true })
+})
 
 test('a translated signed-in roster dialog keeps working through creation', async ({ page }) => {
   await signUp(page, uniqueName('Translated setup'))

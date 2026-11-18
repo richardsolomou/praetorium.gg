@@ -5,31 +5,47 @@ import { PHASES } from '../src/core/battle'
 import type { SpacetimeOperator } from '../src/server/spacetimeOperator'
 import { PREVIEW_EMAIL, PREVIEW_PASSWORD } from '../scripts/seedPreview'
 import { lastPathSegment, productOperator, savedWork, userIdFor } from './storage'
+import { baseURL } from './stackEnv'
 
 export const desktopContext = { viewport: { width: 1440, height: 900 } } satisfies BrowserContextOptions
 
+function newAccount(name: string) {
+  return {
+    email: `${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${crypto.randomUUID()}@example.test`,
+    password: 'a-long-enough-password',
+  }
+}
+
 /**
- * Makes an account and leaves the page signed into it.
+ * Makes an account through the endpoint the sign-up form posts to, so the page's next load is signed into it.
  *
  * A battle, a roster and a seat all belong to an account, so there is no way to
  * reach any of them otherwise. The email is unique per call because the suite
  * shares one database across specs.
  */
 export async function signUp(page: Page, name: string) {
-  const email = `${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${crypto.randomUUID()}@example.test`
-  const password = 'a-long-enough-password'
+  const account = newAccount(name)
+  // Better Auth refuses a cookie-carrying request without an Origin, as it would a cross-site form.
+  const response = await page.request.post('/api/auth/sign-up/email', { data: { name, ...account }, headers: { origin: baseURL } })
+  expect(response.ok(), await response.text()).toBe(true)
+  return account
+}
+
+/** Makes an account through the sign-up form and waits on the signed-in home page, for tests about signing up. */
+export async function signUpThroughForm(page: Page, name: string) {
+  const account = newAccount(name)
   await page.goto('/sign-in')
   await page.waitForLoadState('networkidle')
   await page.getByRole('button', { name: 'I need an account' }).click()
   await page.getByLabel('Your name').fill(name)
-  await page.getByLabel('Email').fill(email)
-  await page.getByLabel('Password').fill(password)
+  await page.getByLabel('Email').fill(account.email)
+  await page.getByLabel('Password').fill(account.password)
   await page.getByRole('button', { name: 'Create account', exact: true }).click()
   await page
     .getByRole('button', { name: `Account menu for ${name}`, includeHidden: true })
     .first()
     .waitFor({ state: 'attached' })
-  return { email, password }
+  return account
 }
 
 /** Submits the sign-in form for an existing account. */
@@ -201,10 +217,11 @@ export async function chooseUnit(page: Page, side: string, faction: string, name
 
 export async function befriend(requester: Page, recipient: Page) {
   const accountMenu = (page: Page) => page.locator('[data-web-app-chrome] button[aria-label^="Account menu for "]')
-  const requesterName = (await accountMenu(requester).getAttribute('aria-label'))?.replace('Account menu for ', '')
+  await recipient.goto('/friends')
   const recipientName = (await accountMenu(recipient).getAttribute('aria-label'))?.replace('Account menu for ', '')
-  if (!requesterName || !recipientName) throw new Error('Both players must be signed in before becoming friends.')
   await requester.goto('/friends')
+  const requesterName = (await accountMenu(requester).getAttribute('aria-label'))?.replace('Account menu for ', '')
+  if (!requesterName || !recipientName) throw new Error('Both players must be signed in before becoming friends.')
   const sent = requester.locator('section').filter({ hasText: 'Sent requests' }).filter({ hasText: recipientName })
   await retryUntilVisible(sent, async () => {
     await requester.getByPlaceholder('Search by account name').fill('')
@@ -713,7 +730,10 @@ export async function takeTheTurn(page: Page) {
       drawPrompt(page)
         .waitFor({ state: 'visible', timeout: 8_000 })
         .then(() => 'drawn'),
+      // A reminder or mission choice is modal, hiding the board's buttons until the caller answers it.
       advanceButton(page)
+        .or(page.getByRole('dialog', { name: /^Battle reminders?$| · choices$/ }))
+        .first()
         .waitFor({ state: 'visible', timeout: 8_000 })
         .then(() => 'board'),
     ]).catch(() => 'board')
@@ -759,10 +779,11 @@ export async function advance(
     // The button stays disabled until the last command lands, and a prompt opening instead hides it.
     const ready = advanceButton(page).and(page.locator(':enabled'))
     await expect(ready.or(reminder).or(owedPrompt(page)).or(drawPrompt(page)).first()).toBeVisible()
+    // A prompt opening as the turn starts can cover the button; giving up quickly lets the next pass answer it.
     const clicked =
       (await ready.isVisible()) &&
       (await ready
-        .click({ timeout: 5_000 })
+        .click({ timeout: 2_000 })
         .then(() => true)
         .catch(() => false))
     if (clicked) {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { calibrate, calibrationLists, MIN_PEERS } from './rosterGradeCalibrator'
-import type { GradedUnit } from './rosterGrades'
+import { calibrate, calibrationLists, MIN_PEERS, quantiles } from './rosterGradeCalibrator'
+import { placement, type GradedUnit } from './rosterGrades'
 
 const unit = (index: number): GradedUnit => ({
   name: `Unit ${index}`,
@@ -39,5 +39,17 @@ describe('calibrate', () => {
       ]),
     )
     expect(Object.keys(peers[2000])).toEqual(['', 'Imperium - Adeptus Astartes', 'Imperium - Adeptus Astartes - Blood Angels'])
+  })
+
+  it("centres a faction's category quantiles on every faction's, as grading places its lists", () => {
+    const necrons = lists('Xenos - Necrons', MIN_PEERS)
+    const { peers } = calibrate(calibrationLists([...necrons, ...lists('Xenos - Orks', MIN_PEERS, 900)]))
+    const averages = necrons.map(
+      (list) =>
+        placement(list.units, 2000, peers[2000]['Xenos - Necrons']!, peers[2000]['']).categories.find(
+          (category) => category.key === 'damage',
+        )!.average!,
+    )
+    expect(peers[2000]['Xenos - Necrons']!.categories.damage).toEqual(quantiles(averages))
   })
 })

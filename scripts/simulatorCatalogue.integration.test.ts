@@ -1,8 +1,15 @@
 import fs from 'node:fs'
 import { beforeAll, describe, expect, it } from 'vitest'
-import { calculateCombat, DEFAULT_COMBAT_OPTIONS, type CombatOptions } from '../src/core/combat'
+import { calculateCombat, DEFAULT_COMBAT_OPTIONS, type CombatOptions, type CombatPhase } from '../src/core/combat'
+import type { CombatAdjustments } from '../src/core/combatAdjustments'
+import { combatMatchup, noExclusions, resolveCombatRequest, type CombatantSnapshot } from '../src/core/combatMatchup'
+import { unquotedLabel } from '../src/core/combatReading'
+import { combatRuleAppliesTo, combatRuleChoices, combatRuleSelections, type CombatRule } from '../src/core/combatRules'
 import { combatAttacks } from '../src/core/combatScenario'
-import { combatUnitTarget } from '../src/core/combatUnit'
+import { combatUnitKeywords, combatUnitTarget } from '../src/core/combatUnit'
+import { buildUnit, type RosterPick } from '../src/core/roster'
+import { snapshotWords } from '../src/server/sourceTexts'
+import { combatantSnapshot, withReadRules } from '../src/shared/rosterGradeMeasures'
 import { combatUnitsFor } from '../src/shared/combatUnits'
 import { combatLoadoutCandidates, EXHAUSTIVE_STATES } from '../src/shared/combatLoadouts'
 import { rosterCombatant } from '../src/shared/rosterCombatRules'
@@ -13,11 +20,13 @@ const directory = process.env.CATALOGUE_DIR ?? 'catalogue-data'
 describe.skipIf(!fs.existsSync(directory))('simulator catalogue projections', () => {
   let snapshot: ReturnType<typeof loadSnapshotWithRules>
   let index: ReturnType<typeof combatUnitsFor>
+  let words: ReturnType<typeof snapshotWords>
 
   // About 15 seconds alone, but CI runs it beside every other integration suite on a shared runner.
   beforeAll(() => {
     snapshot = loadSnapshotWithRules(directory)
     index = combatUnitsFor(snapshot.catalogue, snapshot.rules)
+    words = snapshotWords(directory)
   }, 180_000)
 
   const unit = (faction: string, name: string) => {
@@ -40,6 +49,272 @@ describe.skipIf(!fs.existsSync(directory))('simulator catalogue projections', ()
       options: { ...DEFAULT_COMBAT_OPTIONS, phase },
     }).meanDamage
 
+  type Member = { name: string; models?: number; attachedTo?: number; spreads?: Record<string, Record<string, number>> }
+  type Side = { snapshot: CombatantSnapshot; rules: CombatRule[] }
+  /**
+   * A roster's unit as the simulator fields it, with rules read from the snapshot's words. `rules` picks a rule's
+   * option by its label, or `false` to turn it off; `spreads` name a choice and its options.
+   */
+  const side = (
+    faction: string,
+    members: readonly (string | Member)[],
+    { detachment, pickIndex = 0, rules = {} }: { detachment?: string; pickIndex?: number; rules?: Record<string, string | false> } = {},
+  ): Side => {
+    const book = index.find((candidate) => candidate.name === faction)!
+    const picks = members.map((member): RosterPick => {
+      const { name, spreads, ...pick } = typeof member === 'string' ? { name: member } : member
+      const entryId = book.units.find((candidate) => candidate.name === name)!.id
+      if (!spreads) return { entryId, ...pick }
+      const choices = buildUnit(entryId, snapshot.catalogue.index, pick.models, {}, { primaryCatalogueId: book.catalogueId })!.choices
+      return {
+        entryId,
+        ...pick,
+        spreads: Object.fromEntries(
+          Object.entries(spreads).map(([choiceName, counts]) => {
+            const choice = choices.find((candidate) => candidate.name === choiceName)!
+            const option = (optionName: string) => choice.options.find((candidate) => candidate.name === optionName)!.id
+            return [choice.key, Object.fromEntries(Object.entries(counts).map(([optionName, count]) => [option(optionName), count]))]
+          }),
+        ),
+      }
+    })
+    const detachmentIds = detachment
+      ? [snapshot.catalogue.detachments.get(book.catalogueId)!.options.find((option) => option.name === detachment)!.id]
+      : []
+    const projection = withReadRules(
+      rosterCombatant(snapshot.catalogue, snapshot.rules, { catalogueId: book.catalogueId, detachmentIds, picks, pickIndex })!,
+      words,
+    )
+    const all = [...projection.rules, ...projection.companions.flatMap((member) => member.rules)]
+    const selections = Object.fromEntries(
+      Object.entries(rules).map(([name, label]) => {
+        const rule = all.find((candidate) => candidate.name === name)!
+        const at =
+          label === false ? -1 : combatRuleChoices(rule).findIndex((choice) => unquotedLabel(choice.label, rule.description) === label)
+        if (label !== false && at < 0) throw new Error(`${name} has no option ${label}`)
+        return [rule.id, at + 1]
+      }),
+    )
+    return { snapshot: combatantSnapshot(projection, combatRuleSelections(all, selections)), rules: all }
+  }
+  /** The rules a side's buff panel offers against the other side, by name. */
+  const offered = (own: Side, opponent: Side, role: 'attacker' | 'defender') =>
+    own.rules
+      .filter((rule) => !rule.included && combatRuleAppliesTo(rule, role, combatUnitKeywords(opponent.snapshot)))
+      .map((rule) => rule.name)
+  const fight = (attacker: Side, defender: Side, adjustments: CombatAdjustments = {}, preferences: Record<string, string> = {}) => {
+    const matchup = combatMatchup(attacker.snapshot, defender.snapshot, { preferences, excluded: noExclusions(), allocation: [] })
+    const request = matchup.request(adjustments)
+    const answer = resolveCombatRequest(request)
+    const mean = (phase: CombatPhase) => answer[phase]!.result!.meanDamage
+    return { matchup, request, answer, ranged: () => mean('ranged'), melee: () => mean('melee') }
+  }
+
+  const marines = () => side('Space Marines', ['Intercessor Squad'])
+  const profiles = (plan: { active: readonly { profile: { name: string }; count: number }[] } | null) =>
+    plan!.active.map(({ profile, count }) => [profile.name, count])
+
+  it('Triarch Praetorians calculate particle caster and voidblade bundles in both phases', () => {
+    const praetorians = side('Necrons', [{ name: 'Triarch Praetorians', spreads: { Weapons: { 'Particle caster and voidblade': 5 } } }])
+    const { matchup, ranged, melee } = fight(praetorians, marines())
+    expect({
+      errors: [...matchup.plans.ranged!.errors, ...matchup.plans.melee!.errors],
+      ranged: profiles(matchup.plans.ranged).map(([name]) => name),
+      melee: profiles(matchup.plans.melee).map(([name]) => name),
+      damage: ranged() > 0 && melee() > 0,
+    }).toEqual({ errors: [], ranged: ['Particle caster'], melee: ['Voidblade'], damage: true })
+  })
+
+  it('Canoptek Wraiths shoot a particle caster with the Pistol keyword', () => {
+    const wraiths = side('Necrons', [
+      { name: 'Canoptek Wraiths', spreads: { '3-6 Wraiths': { 'Wraith w/ claws and particle caster': 1, 'Wraith w/ claws': 2 } } },
+    ])
+    const { matchup, ranged } = fight(wraiths, marines())
+    expect({ errors: matchup.plans.ranged!.errors, damage: Number(ranged().toFixed(2)) }).toEqual({ errors: [], damage: 0.42 })
+  })
+
+  it('applies a named weapon ability alternative to the phase it names', () => {
+    const jester = (choice: string | false) => fight(side('Aeldari', ['Death Jester'], { rules: { 'Cruel Amusement': choice } }), marines())
+    const [off, on] = [jester(false), jester('SUSTAINED HITS 3')]
+    expect({ ranged: on.ranged() > off.ranged(), melee: on.melee() === off.melee() }).toEqual({ ranged: true, melee: true })
+  })
+
+  it('Ammo Runts add to the Boyz’ shooting once activated', () => {
+    const boyz = (choice: string | false) => side('Orks', ['Boyz'], { rules: { 'Ammo Runts (Once per battle, per unit)': choice } })
+    expect(fight(boyz('Ability activated'), marines()).ranged()).toBeGreaterThan(fight(boyz(false), marines()).ranged())
+  })
+
+  it('a Waaagh! protects defending Boyz', () => {
+    const boyz = (choice: string | false) => side('Orks', ['Boyz'], { rules: { 'Waaagh!': choice } })
+    expect(fight(marines(), boyz('This unit is riled up')).ranged()).toBeLessThan(fight(marines(), boyz(false)).ranged())
+  })
+
+  it('Deathshroud Manreaper modes count every carrier', () => {
+    const [champion, terminator] = ['Deathshroud Terminator Champion · Manreaper', 'Deathshroud Terminator · Manreaper']
+    const plan = (models: number, sweeping: readonly string[]) => {
+      const attacker = side('Death Guard', [{ name: 'Deathshroud Terminators', models }])
+      const choices = fight(attacker, marines()).matchup.plans.melee!.choices
+      const sweep = (label: string) => {
+        const choice = choices.find((candidate) => candidate.label === label)!
+        return [choice.key, choice.options.find((option) => option.label === '➤ Manreaper - sweep')!.value]
+      }
+      return profiles(fight(attacker, marines(), {}, Object.fromEntries(sweeping.map(sweep))).matchup.plans.melee)
+    }
+    expect([plan(3, []), plan(3, [champion]), plan(3, [champion, terminator]), plan(4, [champion, terminator])]).toEqual([
+      [['➤ Manreaper - strike', 3]],
+      [
+        ['➤ Manreaper - strike', 2],
+        ['➤ Manreaper - sweep', 1],
+      ],
+      [['➤ Manreaper - sweep', 3]],
+      [['➤ Manreaper - sweep', 4]],
+    ])
+  })
+
+  it('indirect fire costs less when spotted than when unobserved', () => {
+    const crawler = side('Death Guard', ['Plagueburst Crawler'])
+    const shot = (indirectFire: 'direct' | 'unobserved' | 'spotted') => fight(crawler, marines(), { ranged: { indirectFire } }).ranged()
+    const spotted = shot('spotted')
+    expect(shot('unobserved') < spotted && spotted < shot('direct')).toBe(true)
+  })
+
+  it('Black Templars field no retired Templar Vows', () => {
+    const templars = side('Black Templars', ['Sword Brethren Squad'])
+    expect(templars.rules.map((rule) => rule.name)).not.toContain('Templar Vows')
+  })
+
+  it.each([
+    ['Rattlejoint Ague', { toughness: -1, save: 1 }],
+    ['Scabrous Soulrot', { toughness: -1, save: 0 }],
+    ['Skullsquirm Blight', { toughness: -1, save: 0 }],
+  ])("Nurgle's Gift %s afflicts the defender", (plague, change) => {
+    const defence = (choice: string | false) => {
+      const [group] = fight(side('Death Guard', ['Plague Marines'], { rules: { "Nurgle's Gift (Aura)": choice } }), marines()).request
+        .ranged!.target.groups
+      return group!
+    }
+    const [healthy, afflicted] = [defence(false), defence(`Opponent afflicted · ${plague}`)]
+    expect({ toughness: afflicted.toughness - healthy.toughness, save: afflicted.save - healthy.save }).toEqual(change)
+  })
+
+  it("a defending unit's Nurgle's Gift gives it cover", () => {
+    const cover = (choice: string | false) =>
+      fight(marines(), side('Death Guard', ['Plague Marines'], { rules: { "Nurgle's Gift (Aura)": choice } })).request.ranged!.options.cover
+    expect([cover('Opponent afflicted · Skullsquirm Blight'), cover(false)]).toEqual([true, false])
+  })
+
+  it.each([
+    ['Skorpekh Lord', 'Crimson Harvest', 'Charged this turn · Target in Engagement Range', 'melee'],
+    ['Annihilation Barge', 'Malevolent Arcing', 'Against the selected target', 'ranged'],
+  ] as const)('%s adds %s mortal wounds to its %s', (name, rule, label, phase) => {
+    const attack = (choice: string | false) => fight(side('Necrons', [name], { rules: { [rule]: choice } }), marines())[phase]()
+    expect(attack(label)).toBeGreaterThan(attack(false))
+  })
+
+  it('offers Matter Absorption only against a vehicle, where it adds mortal wounds', () => {
+    const dragon = (choice?: string | false) =>
+      side('Necrons', ["C'tan Shard of the Void Dragon"], choice === undefined ? {} : { rules: { 'Matter Absorption': choice } })
+    const raider = side('Space Marines', ['Land Raider'])
+    expect({
+      infantry: offered(dragon(), marines(), 'attacker'),
+      vehicle: offered(dragon(), raider, 'attacker'),
+      absorbs: fight(dragon('Target within 12"'), raider).ranged() > fight(dragon(false), raider).ranged(),
+    }).toEqual({ infantry: [], vehicle: ['Matter Absorption'], absorbs: true })
+  })
+
+  it('offers Belial only the rules the simulator calculates', () => {
+    const belial = side('Dark Angels', ['Belial'])
+    expect({ attacker: offered(belial, marines(), 'attacker'), defender: offered(belial, marines(), 'defender') }).toEqual({
+      attacker: ['Grand Master of the Deathwing'],
+      defender: [],
+    })
+  })
+
+  it('Immortals led by an Overlord calculate every phase against Deathshroud led by Typhus', () => {
+    const { matchup, answer, request } = fight(
+      side('Necrons', ['Immortals', { name: 'Overlord', attachedTo: 0 }]),
+      side('Death Guard', ['Deathshroud Terminators', { name: 'Typhus', attachedTo: 0 }]),
+    )
+    expect({
+      errors: [...matchup.plans.ranged!.errors, ...matchup.plans.melee!.errors, ...(matchup.target?.error ? [matchup.target.error] : [])],
+      combined: answer.combined?.result !== undefined,
+      typhus: request.ranged!.target.groups.find((group) => group.unit === 'Typhus')?.feelNoPainSources,
+    }).toEqual({ errors: [], combined: true, typhus: [{ unit: 'Deathshroud Terminators', value: 4 }] })
+  })
+
+  describe('roster rules', () => {
+    it('offers Invasion Fleet Hormagaunts only calculated rules, and Synapse adds to their melee', () => {
+      const gaunts = (choice?: string | false) =>
+        side('Tyranids', ['Hormagaunts'], { detachment: 'Invasion Fleet', ...(choice === undefined ? {} : { rules: { Synapse: choice } }) })
+      const warriors = side('Necrons', ['Necron Warriors'])
+      expect({
+        attacker: offered(gaunts(), warriors, 'attacker'),
+        defender: offered(gaunts(), warriors, 'defender'),
+        synapse:
+          fight(gaunts('This unit is within 6" of one or more friendly SYNAPSE models'), warriors).melee() >
+          fight(gaunts(false), warriors).melee(),
+      }).toEqual({ attacker: ['Synapse', 'Adrenal Surge'], defender: ['Rapid Regeneration'], synapse: true })
+    })
+
+    it("a Spiritseer's Spirit Mark gives Wraithguard Sustained Hits 1 in both phases, and only as attacker", () => {
+      const raider = side('Space Marines', ['Land Raider'])
+      const wraithguard = (choice?: string | false) =>
+        side('Aeldari', ['Spiritseer', 'Wraithguard'], {
+          detachment: 'Warhost',
+          pickIndex: 1,
+          ...(choice === undefined ? {} : { rules: { 'Spirit Mark (Psychic)': choice } }),
+        })
+      const [off, on] = [fight(wraithguard(false), raider), fight(wraithguard('Selected within 6" · Against the selected target'), raider)]
+      const spiritseer = side('Aeldari', ['Spiritseer', 'Wraithguard'], { detachment: 'Warhost' })
+      expect({
+        default: wraithguard().snapshot.rules?.some((rule) => rule.name === 'Spirit Mark (Psychic)'),
+        ranged: on.ranged() > off.ranged(),
+        melee: on.melee() > off.melee(),
+        sustained: on.request.ranged!.weapons.map((weapon) => weapon.sustained),
+        spiritseer: offered(spiritseer, raider, 'attacker').includes('Spirit Mark (Psychic)'),
+        defender: offered(wraithguard(), raider, 'defender'),
+      }).toEqual({ default: false, ranged: true, melee: true, sustained: [1], spiritseer: false, defender: [] })
+    })
+
+    it("Asurmen's Hand of Asuryan and Blitzing Firepower each add to his shooting", () => {
+      const asurmen = (rules: Record<string, string | false>) =>
+        fight(side('Aeldari', ['Asurmen'], { detachment: 'Warhost', rules }), marines())
+      const off = asurmen({ 'Hand of Asuryan': false, 'Blitzing Firepower': false })
+      const hand = asurmen({ 'Hand of Asuryan': 'Ability activated', 'Blitzing Firepower': false })
+      const both = asurmen({ 'Hand of Asuryan': 'Ability activated', 'Blitzing Firepower': 'Target within 12"' })
+      expect([hand.ranged() > off.ranged(), both.ranged() > hand.ranged()]).toEqual([true, true])
+    })
+
+    it('Gladius Intercessors ignore cover with Storm of devastation, and Armour of Contempt protects them only as defender', () => {
+      const gladius = (rules: Record<string, string | false> = {}) =>
+        side('Space Marines', ['Intercessor Squad'], { detachment: 'Gladius Task Force', rules })
+      const storm = (choice: string | false) =>
+        fight(gladius({ 'Storm of devastation': choice }), marines(), { ranged: { cover: true } }).ranged()
+      const contempt = (choice: string | false) => fight(marines(), gladius({ 'Armour of Contempt': choice })).ranged()
+      expect({
+        open: Number(
+          fight(gladius({ 'Storm of devastation': false }), marines())
+            .ranged()
+            .toFixed(2),
+        ),
+        storm: storm('Active') > storm(false),
+        contempt: contempt('Active') < contempt(false),
+        attacker: offered(gladius(), marines(), 'attacker').includes('Armour of Contempt'),
+      }).toEqual({ open: 2.22, storm: true, contempt: true, attacker: false })
+    })
+
+    it("a Chronomancer's Solar Pulse needs the Chronomancer in the roster and lets Immortals ignore cover", () => {
+      const immortals = (picks: string[], rules: Record<string, string | false> = {}) =>
+        side('Necrons', picks, { detachment: 'Canoptek Court', rules })
+      const pulse = (choice: string | false) =>
+        fight(immortals(['Immortals', 'Chronomancer'], { 'Solar Pulse': choice }), marines(), { ranged: { cover: true } }).ranged()
+      expect({
+        alone: immortals(['Immortals']).rules.some((rule) => rule.name === 'Solar Pulse'),
+        pulse: pulse('Selected objective within 18" of source · Condition the rule states') > pulse(false),
+      }).toEqual({ alone: false, pulse: true })
+    })
+  })
+
   it.each([
     ['Blood Angels', 'Lemartes', 'ranged'],
     ['Chaos Daemons', 'Pink Horrors', 'ranged'],
@@ -51,6 +326,11 @@ describe.skipIf(!fs.existsSync(directory))('simulator catalogue projections', ()
     const attack = attacks(unit(faction, name))[phase]
     expect(attack.plan.errors).toEqual([])
     expect(damage(attack, phase)).toBeGreaterThan(0)
+  })
+
+  it('calculates the Avatar of Khaine’s Sustained Hits D3 shooting', () => {
+    const attack = attacks(unit('Aeldari', 'Avatar of Khaine')).ranged
+    expect({ errors: attack.plan.errors, damage: damage(attack, 'ranged') > 0 }).toEqual({ errors: [], damage: true })
   })
 
   it.each(['strike', 'sweep'])('Defiler calculates its Shearing claws %s profile', (mode) => {

@@ -3,7 +3,7 @@ import { datasheetInBySlug } from '../shared/catalogue'
 import { calculateRosterPrice } from '../shared/pricing'
 import { pickerConstruction, pickerUnitsFor } from '../shared/pickerUnits'
 import { groupOfEntry, unitIdsIn, unitsIn } from '../shared/cataloguePicker'
-import { ability, bookOf, categories, offered, points, shelfOf, withCards } from './catalogue.fixtures'
+import { ability, bookOf, categories, offered, points, PTS, shelfOf, withCards } from './catalogue.fixtures'
 
 describe('the shelf a datasheet is filed under', () => {
   const shelfOfTitan = (links: { id: string; targetId: string; name: string; primary?: boolean }[]) =>
@@ -683,6 +683,49 @@ describe('the picker', () => {
       restored: { ctan: 330, warrior: 100 },
       rosterUnit: 375,
     })
+  })
+
+  it('updates a cached picker price when a detachment grants a keyword the price reads', () => {
+    const book = bookOf({
+      categoryEntries: [{ id: 'blessed', name: 'Blessed' }],
+      selectionEntries: [
+        {
+          id: 'detachments',
+          name: 'Detachment',
+          type: 'upgrade',
+          selectionEntryGroups: [
+            {
+              id: 'detachment-choices',
+              name: 'Detachment',
+              selectionEntries: [
+                {
+                  id: 'blessing',
+                  name: 'Blessing',
+                  type: 'upgrade',
+                  modifiers: [{ type: 'add', field: 'category', value: 'blessed', scope: 'roster', affects: 'entries.model' }],
+                },
+              ],
+            },
+          ],
+        },
+        {
+          id: 'warrior',
+          name: 'Warrior',
+          type: 'model',
+          costs: points(100),
+          modifiers: [
+            {
+              type: 'increment',
+              field: PTS,
+              value: 25,
+              conditions: [{ type: 'instanceOf', scope: 'self', childId: 'blessed', field: 'selections', value: 1 }],
+            },
+          ],
+        },
+      ],
+    })
+    const pick = (detachmentIds: string[]) => pickerUnitsFor(book, null, 'cat', '', 2000, [], detachmentIds)[0]?.points
+    expect([pick([]), pick(['blessing'])]).toEqual([100, 125])
   })
 
   it('prices the smallest legal version of each datasheet', () => {

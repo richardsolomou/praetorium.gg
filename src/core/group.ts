@@ -42,6 +42,21 @@ export function hiddenListGameOpen(game: { pastAt: number | null }, now: number)
   return game.pastAt === null || now < game.pastAt
 }
 
+/** The revealed game a player last sealed a list for: the only one of a group's games that asks them to share it. */
+export function latestHiddenListGameSealedBy<
+  Game extends { revealedAt: number | null; players: readonly { userId: string; sealed: boolean }[] },
+>(games: readonly Game[], userId: string | null) {
+  let latest: Game | null = null
+  for (const game of games)
+    if (
+      game.revealedAt !== null &&
+      game.players.some((player) => player.userId === userId && player.sealed) &&
+      (latest === null || game.revealedAt > latest.revealedAt!)
+    )
+      latest = game
+  return latest
+}
+
 export const GROUP_MEMBER_STATUSES = ['pending', 'accepted'] as const
 export type GroupMemberStatus = (typeof GROUP_MEMBER_STATUSES)[number]
 
@@ -78,3 +93,7 @@ export function visibleGroupMembers<T extends { userId: string; status: GroupMem
 
 /** How many groups and tournaments a player's home page lists, which bounds the per-group summary it asks for. */
 export const HOME_GROUPS_SHOWN = 5
+
+/** Orders groups by their latest game, most recent first, with groups that have none last. */
+export const byLatestGame = (one: { lastBattleAt: number | null }, other: { lastBattleAt: number | null }) =>
+  (other.lastBattleAt ?? 0) - (one.lastBattleAt ?? 0)

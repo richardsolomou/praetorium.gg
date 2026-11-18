@@ -14,7 +14,9 @@ import { RevealedLists } from '../sealedEvents/SealedEventArmies'
 import { useSealList } from '../sealedEvents/SealList'
 import { SealedEventRuleFields } from '../sealedEvents/SealedEventRuleFields'
 import { useSealedEventRefresh } from '../sealedEvents/sealedEvent'
+import { SealedEventRosterSharing } from '../sealedEvents/SealedEventRosterSharing'
 import { memberNameOf, useGroupRefresh, type Group } from './group'
+import { SealingPlayer } from './SealingPlayer'
 
 type League = NonNullable<Awaited<ReturnType<typeof groupLeague>>>
 type LeagueGame = NonNullable<League['game']>
@@ -131,6 +133,37 @@ export function SealLeagueList({ group, game, sealed, primary }: { group: Group;
   )
 }
 
+/** Who has sealed a list for a draft league, with the viewer's own by name. */
+export function LeagueSealing({
+  group,
+  league,
+  game,
+  viewerId,
+}: {
+  group: Group
+  league: League
+  game: LeagueGame
+  viewerId: string | null
+}) {
+  // Only the viewer's own list is named before the reveal, so nobody else needs the record.
+  const { data: record } = useQuery({ ...sealedEventQuery(game.token), enabled: viewerId !== null && game.sealedIds.includes(viewerId) })
+  const ownList = record?.entries.find((entry) => entry.userId === viewerId)?.rosterName ?? null
+  return (
+    <ul aria-label="Sealed lists" className="mt-3 divide-y divide-edge overflow-hidden part">
+      {league.players.map((player) => (
+        <SealingPlayer
+          key={player.userId}
+          group={group}
+          userId={player.userId}
+          viewerId={viewerId}
+          sealed={game.sealedIds.includes(player.userId)}
+          list={player.userId === viewerId ? ownList : null}
+        />
+      ))}
+    </ul>
+  )
+}
+
 /** Every player's list, revealed when the league was published. */
 export function LeagueLists({ group, game, viewerId }: { group: Group; game: LeagueGame; viewerId: string | null }) {
   const { data: record } = useQuery(sealedEventQuery(game.token))
@@ -139,13 +172,18 @@ export function LeagueLists({ group, game, viewerId }: { group: Group; game: Lea
   const groups = useEntrantGroups(record ?? undefined, entries, (entry) => nameOf(entry.userId))
   if (!record) return null
   return (
-    <RevealedLists
-      token={game.token}
-      eventToken={game.token}
-      groups={groups}
-      viewerId={viewerId}
-      label={(entry) => nameOf(entry.userId)}
-      onSimulate={null}
-    />
+    <>
+      {viewerId && game.sealedIds.includes(viewerId) ? (
+        <SealedEventRosterSharing className="mb-3" token={game.token} eventToken={game.token} userId={viewerId} />
+      ) : null}
+      <RevealedLists
+        token={game.token}
+        eventToken={game.token}
+        groups={groups}
+        viewerId={viewerId}
+        label={(entry) => nameOf(entry.userId)}
+        onSimulate={null}
+      />
+    </>
   )
 }

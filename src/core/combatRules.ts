@@ -37,6 +37,8 @@ export type CombatRule = {
   appliedAs?: string[]
   models?: number
   keywords?: readonly string[]
+  /** The keywords only some of the unit's models have, which `keywords` also lists. */
+  partialKeywords?: readonly string[]
   /** What a rule published as a token is judged against once a device loads its words. */
   judge?: CombatRuleJudge
   /** What the rule's words decide for this placement, recorded where a token stands for them. */
@@ -48,6 +50,8 @@ export type CombatRule = {
  */
 export type CombatReading = {
   compiled: { choices: CombatRuleChoice[]; defaultChoice: number } | null
+  /** The compiled reading with the weapon abilities that change no roll, recorded where it differs, for a datasheet. */
+  shown?: { choices: CombatRuleChoice[]; defaultChoice: number } | null
   legacy: CombatRuleChoice[]
   legacyDefault: number
   roles: CombatRuleEffect['role'][]
@@ -105,8 +109,21 @@ export type CombatRuleEffect = {
   mortalWounds?: NonNullable<CombatInput['mortalWounds']>[number] & { perModel?: boolean; sacrifice?: number }
   damageReroll?: 'ones' | 'any'
   damageReduction?: number
+  /** A unit characteristic no roll reads, as a Move bonus, which only a datasheet shows. */
+  unitStat?: { kind: 'movement' | 'leadership' | 'objective-control'; add: number }
+  /** The named ability the effect gives the unit, as Stealth, which a datasheet lists beside what it changes. */
+  ability?: string
+  /** Options of the unit's other rules this makes active together, as an enhancement that makes two Doctrina Imperatives active. */
+  activates?: string[]
 }
-export type CombatRuleChoice = { label: string; effects: CombatRuleEffect[] }
+export type CombatRuleChoice = {
+  label: string
+  effects: CombatRuleEffect[]
+  /** The named option this choice is one of, as a Doctrina Imperative or a Battle Protocol, where it is not only a condition. */
+  option?: string
+  /** Whether the option picked is one for the whole army, as a Doctrina Imperative is, rather than one for each unit, as an Order is. */
+  armyWide?: true
+}
 /** `source` names the unit whose ability it is, so a combined estimate can end it when that unit is destroyed (19.04). */
 export type ActiveCombatRule = { name: string; source?: string; appliedAs?: readonly string[]; effects: CombatRuleEffect[] }
 
@@ -117,16 +134,42 @@ export const combatRuleProjected = (rule: Pick<ActiveCombatRule, 'name' | 'appli
 export const combatRuleKey = (rule: CombatRule) => `${rule.source}:${rule.name}`
 
 export function activeCombatRules(rules: readonly CombatRule[], choices: Readonly<Record<string, number>>) {
+  const chosen = rules.map((rule) => ({
+    rule,
+    options: combatRuleChoices(rule),
+    at: (choices[combatRuleKey(rule)] ?? combatRuleDefault(rule)) - 1,
+  }))
+  const together = [
+    ...new Set(
+      chosen.flatMap(({ options, at }) => options[at]?.effects.flatMap((effect) => effect.activates ?? []) ?? []).map(combatTextKey),
+    ),
+  ]
   return [
     ...new Map(
-      rules.flatMap((rule) => {
-        const choice = combatRuleChoices(rule)[(choices[combatRuleKey(rule)] ?? combatRuleDefault(rule)) - 1]
-        return choice
-          ? [[rule.name, { name: rule.name, source: rule.source, appliedAs: rule.appliedAs, effects: choice.effects }] as const]
-          : []
+      chosen.flatMap(({ rule, options, at }) => {
+        const effects = (together.length ? effectsTogether(options, at, together) : undefined) ?? options[at]?.effects
+        return effects ? [[rule.name, { name: rule.name, source: rule.source, appliedAs: rule.appliedAs, effects }] as const] : []
       }),
     ).values(),
   ]
+}
+
+/**
+ * Every named option of a rule at once, each under the condition its chosen option states, or undefined where the rule
+ * lacks one of them. The round's choice no longer matters once both Doctrina Imperatives are active for a unit.
+ */
+function effectsTogether(options: readonly CombatRuleChoice[], at: number, names: readonly string[]) {
+  const parts = options.map((choice) => {
+    const [head, ...condition] = choice.label.split(' · ')
+    return { choice, head: combatTextKey(head!), condition: condition.join(' · ') }
+  })
+  const condition = parts[at] && names.includes(parts[at].head) ? parts[at].condition : ''
+  const picked = names.map(
+    (name) =>
+      parts.find((part) => part.head === name && part.condition === condition) ??
+      parts.find((part) => part.head === name && !part.condition),
+  )
+  return picked.every(Boolean) ? picked.flatMap((part) => part!.choice.effects) : undefined
 }
 
 /** A defence another attached member shares that the roster already counts in this unit's characteristics, so no estimate can remove it. */
@@ -208,9 +251,16 @@ const compiledRule = (rule: CombatRule) => (rule.reading ? rule.reading.compiled
 /** The roles a rule's words take, as recorded for its placement where a token stands for them. */
 export const ruleRoles = (rule: CombatRule) => rule.reading?.roles ?? combatRuleRoles(rule.description)
 
-export function combatRuleChoices(rule: CombatRule): CombatRuleChoice[] {
+// Which choices are named options matters only to a datasheet, so the simulator's choices leave it out.
+export const combatRuleChoices = (rule: CombatRule) =>
+  ruleChoices(rule, compiledRule(rule)).map(({ label, effects }) => ({ label, effects }))
+
+/** The choices with the weapon abilities that change no roll, as [ASSAULT], for a datasheet that shows all a rule gives. */
+export const shownRuleChoices = (rule: CombatRule) =>
+  ruleChoices(rule, rule.reading ? (rule.reading.shown ?? rule.reading.compiled) : compileCombatRule(rule, { shown: true }))
+
+function ruleChoices(rule: CombatRule, compiled: ReturnType<typeof compiledRule>): CombatRuleChoice[] {
   if (rule.included) return []
-  const compiled = compiledRule(rule)
   if (compiled)
     return compiled.choices.map((choice) => ({
       ...choice,
@@ -329,17 +379,40 @@ export function combatRuleRoles(description: string): CombatRuleEffect['role'][]
   const offensiveTarget = /select [^.]*enemy|enemy unit hit by|that targets (?:a|an|the closest|your .+? target)/i.test(text)
   const attackingText = text.replace(/(?:until|after|just after) (?:an enemy|the attacking) unit [^.]*?(?:attacks|fought|shot), /gi, '')
   const attacking =
-    /(?:a model (?:in|with)|this model|the bearer|this unit)[^.;]*?makes? (?:a ranged |a melee |a |an )attack|weapons? equipped|(?:this|that|your) unit(?:'s)?[^.;]*?(?:attacks?[^.;]*?have|weapons? have)|this unit['’]s (?:ranged |melee )?attacks|re-roll (?:one |the )?(?:hit|wound|damage) rolls?|change the result of one (?:hit|wound) roll|critical hit|lethal hits|sustained hits|devastating wounds|ignores cover|twin-linked|\+[1-9]\s*A\b/i.test(
+    /(?:a model (?:in|with)|this model|the bearer|this unit|model from your army)[^.;]*?makes? (?:a ranged |a melee |a psychic |a |an )attack|model from your army targets|weapons? equipped|(?:this|that|your) unit(?:'s)?[^.;]*?(?:attacks?[^.;]*?have|weapons? have)|(?:this unit['’]s|friendly (?:(?!attacking|enemy)[^.;])*?(?:units?|models)['’]s?) (?:ranged |melee |\[psychic\] )?(?:attacks|weapons)|(?:friendly [^.;]*?units?|unit from your army) (?:is|are) selected to (?:fight|shoot)|re-roll (?:one |the )?(?:hit|wound|damage) rolls?|change the result of one (?:hit|wound) roll|critical hit|lethal hits|sustained hits|devastating wounds|ignores cover|twin-linked|\+[1-9]\s*A\b/i.test(
       attackingText,
     )
-  const incoming = text.replace(/(?:a model|this model|the bearer|this unit)[^.;]*?makes? (?:a ranged |a melee |a |an )attack[^,.;]*/gi, '')
+  // Wording the compiler cannot read still names a roll or characteristic of the unit's own attacks, so it is reported rather than dropped.
+  const ownAttacks = attackingText.replace(
+    /[^.;]*?\b(?:is allocated to|saving throw|made against|the attacking (?:model|unit)|an enemy unit is within|targets? (?:(?:this|that|your|the bearer's) (?:unit|model)|the bearer|this model|a model in (?:this|that|your) unit|friendly|an? [^.;]*?unit from your army))[^.;]*/gi,
+    '',
+  )
+  const attackTerms =
+    /\b(?:hit|wound) rolls?\b|makes? an? psychic attack|\b(?:attacks|strength|armour penetration|damage|ballistic skill|weapon skill)(?: characteristics?)? of (?:[^.;]*?\bweapons\b|(?:the bearer's|this model's|this unit's|its) )|\+[1-9]\s*(?:WS|BS|S|AP|D)\b/i.test(
+      ownAttacks,
+    )
+  // An attack the unit makes is not one made against it, unless it is aimed at this unit.
+  const incoming = text.replace(
+    /(?:a model|this model|the bearer|this unit|model from your army)[^.;]*?makes? (?:a ranged |a melee |a psychic |a |an )attack(?! (?:that )?targets? (?:(?:this|your|the bearer's) (?:unit|model)\b(?!['’]s)|the bearer\b))[^,.;]*/gi,
+    '',
+  )
   const defending =
-    /(?:attack|attacks) (?:that )?(?:targets?|is allocated to) (?:(?:this|that|your) (?:unit|model)|the bearer|a model)|saving throw|invulnerable|feel no pain|(?:has|have|add|improve)[^.;]*?(?:toughness|save characteristic|wounds characteristic)|damage characteristic of (?:that|the) attack|stealth|benefit of cover/i.test(
+    /(?:attack|attacks) (?:that )?(?:targets?|is allocated to|(?:is |are )?made against) (?:(?:this|that|your) (?:unit|model)|the bearer|a model)|saving throw|invulnerable|feel no pain|(?:has|have|add|improve)[^.;]*?(?:toughness|save characteristic|wounds characteristic)|damage characteristic of (?:that|the) attack|stealth|benefit of cover/i.test(
       incoming,
     )
-  const enemyWeapons = /(?:weapons? equipped by|attacks? made by) (?:models in )?(?:that enemy|enemy|the attacking) unit/i.test(text)
-  const attacker = (offensiveTarget && (attacking || defending || /mortal wounds/i.test(text))) || (attacking && !enemyWeapons)
-  const defender = enemyWeapons || (defending && !offensiveTarget)
+  const enemyWeapons =
+    /(?:weapons? equipped by|attacks? made by) (?:models in )?(?:that enemy|enemy|the attacking) unit|enemy unit [^.;]*?each time a model in that unit makes/i.test(
+      text,
+    )
+  // A state other rules ask for, as both Doctrina Imperatives or being wholly within the Flow of Magic, can change how a unit attacks and is attacked.
+  const activates = /\bare both active for\b|\b(?:it|this unit|that unit) is wholly within your army['’]s\b/i.test(text)
+  const attacker =
+    activates ||
+    (offensiveTarget && (attacking || defending || /mortal wounds/i.test(text))) ||
+    ((attacking || attackTerms) && !enemyWeapons)
+  // Names the side's own units outright, so an offensive clause elsewhere in the rule cannot make it the enemy's.
+  const ownDefending = /attacks? (?:that )?targets? (?:friendly|an? [^.;]*?unit from your army)/i.test(incoming)
+  const defender = activates || enemyWeapons || ownDefending || (defending && !offensiveTarget)
   return [...(attacker ? ['attacker' as const] : []), ...(defender ? ['defender' as const] : [])]
 }
 
@@ -519,7 +592,15 @@ export function combatRuleProfiles(
           if (effect.keyword) {
             const keyword = effect.keyword
             const existing = values.find((value) => datasheetCharacteristicKind(value.name) === 'keywords')
+            const printed = profile.values.find((value) => datasheetCharacteristicKind(value.name) === 'keywords')
             const held = splitWeaponKeywords(existing?.value)
+            // The catalogue may print a granted keyword in its own words, so one it credits to this rule counts by kind.
+            if (
+              effectRole === role &&
+              combatRuleProjected(rule, printed?.modifiers) &&
+              splitWeaponKeywords(printed?.value).some((value) => combatKeywordKind(value) === combatKeywordKind(keyword))
+            )
+              continue
             const numbered = combatKeyword(keyword)
             if (held.some((value) => combatTextKey(value) === combatTextKey(keyword))) continue
             if (numbered?.amount !== undefined && !numbered.target) {
@@ -542,6 +623,7 @@ export function combatRuleProfiles(
             const next = {
               name: existing?.name ?? 'Keywords',
               value: [...held, keyword].join(', '),
+              baseValue: existing?.baseValue ?? existing?.value ?? '',
               modifiers: [...new Set([...(existing?.modifiers ?? []), rule.name])],
             }
             values = existing ? values.map((value) => (value === existing ? next : value)) : [...values, next]
@@ -574,15 +656,15 @@ export function adjustedCharacteristic(value: Characteristic, add: number, sourc
     const bonus = dice.bonus + add
     adjusted = `${dice.dice === 1 ? '' : dice.dice}D${dice.sides}${bonus ? `+${bonus}` : ''}`
   } else {
-    if (!/^-?\d+\+?$/.test(starting)) return value
-    const next = Number(starting.replace('+', '')) + add
+    if (!/^-?\d+[+"]?$/.test(starting)) return value
+    const next = Number.parseInt(starting) + add
     const bounded =
       kind === 'armour-penetration'
         ? Math.min(0, next)
         : kind === 'ballistic-skill' || kind === 'weapon-skill'
           ? Math.max(2, Math.min(6, next))
           : Math.max(1, next)
-    adjusted = `${bounded}${value.value.endsWith('+') ? '+' : ''}`
+    adjusted = `${bounded}${/[+"]$/.exec(value.value)?.[0] ?? ''}`
   }
   return {
     ...value,

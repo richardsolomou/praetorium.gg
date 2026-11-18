@@ -29,7 +29,7 @@ const COLUMNS = [
       {
         icon: ClipboardCheck,
         title: 'Roster grades',
-        text: 'Score a list out of 100 against tournament lists of the same faction and size, and see what it lacks.',
+        text: 'Score a list out of 100 against tournament lists of the same size, centred on your faction’s, and see what it lacks.',
       },
       {
         icon: Trophy,

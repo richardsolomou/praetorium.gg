@@ -33,7 +33,7 @@ import {
 } from './reminderDismissals'
 import { parseSeenMoment, passedMoments, reminderMomentStorageKey, sameSeenMoment, type SeenMoment } from './reminderMoments'
 import { armyRulesRequest, writtenStratagem } from './sideRules'
-import { formatName, type Side, type SideMission, sides } from '../../sides'
+import { formatName, lostMissionCards, type Side, type SideMission, sides } from '../../sides'
 import { asSecondary, battleSizeText } from '../../../core/battle'
 import type { BattleClock } from '../../../core/battleClock'
 import type { BattleView, MissionChoiceView } from '../../../core/battleView'
@@ -275,14 +275,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
     [table, rulesFor],
   )
   const attemptedPrepRepairs = useRef(new Map<string, number>())
-  const repairSide = table.find(
-    (side) =>
-      side.played &&
-      side.mission &&
-      !side.secondaryDeckReady &&
-      side.remainingSecondaries.length === 0 &&
-      (side.secondaryMode === 'fixed' || side.secondaries.length === 0),
-  )
+  const repairSide = table.find(lostMissionCards)
   const repairPrimary = repairSide?.primaryCard ?? primaryDeck.find((card) => card.key === repairSide?.mission?.id) ?? null
   useEffect(() => {
     if (pending || promptMinimized || !references || !secondaryDeck.length || !repairSide || !repairPrimary) return
@@ -699,6 +692,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
                     onActionRemindersChange={view.settings.manual ? undefined : updateActionReminders}
                     onRecordMissed={missedMoments.length ? () => setMissedDraft({}) : undefined}
                     onConcede={(playerId) => sendAction({ kind: 'end-battle', reason: 'conceded', concededBy: playerId })}
+                    onFinishEarly={() => sendAction({ kind: 'end-battle', reason: 'finished-early' })}
                     onDelete={() => {
                       if (!promptMinimized) remove.mutate()
                     }}

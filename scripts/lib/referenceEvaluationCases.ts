@@ -125,11 +125,11 @@ const referenceEvaluationFixtures: readonly Fixture[] = [
   },
   {
     name: 'missing description remains explicit',
-    expectedDocumentId: 'datasheet:genestealer-cults:achilles-ridgerunners',
-    expectedSectionId: 'ability-granted:c727-a3d8-fceb-6ebd',
+    expectedDocumentId: 'datasheet:tau-empire:broadside-battlesuits',
+    expectedSectionId: 'ability-granted:45a8-1aaa-cff6-938b',
     query: { kind: 'section-id' },
     kinds: ['datasheet'],
-    faction: 'Genestealer Cults',
+    faction: "T'au Empire",
   },
   {
     name: 'datasheet points',

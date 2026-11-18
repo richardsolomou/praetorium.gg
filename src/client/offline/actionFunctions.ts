@@ -1,3 +1,4 @@
+import { accountRead, favouriteFactions, favouriteDetachments, favouriteDatasheets, onboardingProgress } from './accountReads'
 import { boundedProgress, withCountsAs, withProgress, withWanted, type CollectionProgress } from '../../core/collection'
 import { withEntry, withMember } from '../../core/collections'
 import { withFavouriteDetachment, type FavouriteDetachment } from '../../core/favouriteDetachments'
@@ -11,10 +12,11 @@ import { matchingSealedEventBattles } from '../../shared/sealedEventBattleOption
 import { onboardingProgress as foldOnboarding, type OnboardingTaskId, type StoredOnboarding } from '../../core/onboarding'
 import * as server from '../../server/functions'
 import { offlineActionSchemas, type OfflineActionKind } from '../../contracts/offlineActions'
-import { localClient, localOwner, localDocument, localEngine, hasLocalChanges, queueLocal, rememberDocument } from './localRuntime'
+import { localClient, localOwner, localDocument, localEngine, hasLocalChanges, queueLocal } from './localRuntime'
 import { localConstruction } from './construction'
 import type { LocalRoster } from './localRuntime'
-import { accountChanged, cachedRead, isOffline } from './reads'
+import { queryResource } from '../../contracts/localState'
+import { cachedRead, isOffline } from './reads'
 import type { LocalDocumentUpdate } from './syncEngine'
 import {
   collectionCountsKey,
@@ -33,34 +35,21 @@ import {
   sealedEventRosterKey,
   sealedEventsKey,
   meKey,
-  notificationSettingsKey,
   onboardingKey,
   opponentsKey,
   friendSealedEventRostersKey,
   outdatedSealedEventEntriesKey,
   playerDefaultsKey,
+  rosterFoldersKey,
   recentMatchupsKey,
   abilityRemindersKey,
 } from '../queries/queryKeys'
 import type { RecentMatchup } from '../../core/recentMatchups'
 import { withAbilityReminder, type AbilityReminder } from '../../core/reminders'
+import { applyRosterFolderChange, NO_ROSTER_FOLDERS, type RosterFolders } from '../../core/rosterFolders'
 import { withoutRecentMatchup, withRecentMatchup } from '../../contracts/recentMatchups'
 import { onboardingAnswer } from '../../contracts/onboarding'
 import { OfflineRefusal } from './offlineRefusal'
-
-export const queryResource = (key: readonly unknown[]) => `query:${JSON.stringify(key)}`
-async function accountRead<T>(key: readonly unknown[], online: () => Promise<T>) {
-  const owner = localOwner()?.id
-  const resource = queryResource(key)
-  const local = await localDocument<T>(resource)
-  if (local !== undefined && (!navigator.onLine || (await hasLocalChanges(resource)))) return local
-  const result = await cachedRead(key, online, { updateCache: false })
-  const saved = await rememberDocument(resource, result, null, owner, undefined, JSON.stringify({ data: local }))
-  if (localOwner()?.id !== owner) throw accountChanged()
-  const retained = saved ? (saved.data as T) : result
-  localClient()?.setQueryData(key, retained)
-  return retained
-}
 
 export const collection = () => accountRead(collectionKey(), () => server.collection())
 export const collectionCounts = () => accountRead(collectionCountsKey(), () => server.collectionCounts())
@@ -69,16 +58,12 @@ export const collectionWishes = () => accountRead(collectionWishesKey(), () => s
 export const collectionCountsAs = () => accountRead(collectionCountsAsKey(), () => server.collectionCountsAs())
 export const fieldedDatasheets = () => cachedRead(fieldedDatasheetsKey(), () => server.fieldedDatasheets())
 export const wishlistSuggestions = () => cachedRead(wishlistSuggestionsKey(), () => server.wishlistSuggestions())
-export const favouriteFactions = () => accountRead(favouriteFactionsKey(), () => server.favouriteFactions())
-export const favouriteDetachments = () => accountRead(favouriteDetachmentsKey(), () => server.favouriteDetachments())
-export const favouriteDatasheets = () => accountRead(favouriteDatasheetsKey(), () => server.favouriteDatasheets())
 export const recentMatchups = () => accountRead(recentMatchupsKey(), () => server.recentMatchups())
 export const abilityReminders = () => accountRead(abilityRemindersKey(), () => server.abilityReminders())
 /** The alerts a list fielded on this device carries: the ones it last read or set, and none if it never read them. */
 export const savedAbilityReminders = async () => (await localDocument<AbilityReminder[]>(queryResource(abilityRemindersKey()))) ?? []
 export const playerDefaults = () => accountRead(playerDefaultsKey(), () => server.playerDefaults())
-export const onboardingProgress = () => accountRead(onboardingKey(), () => server.onboardingProgress())
-export const notificationSettings = () => cachedRead(notificationSettingsKey(), () => server.notificationSettings())
+export const rosterFolders = () => accountRead(rosterFoldersKey(), () => server.rosterFolders())
 export const friendships = () => cachedRead(friendshipsKey(), () => server.friendships())
 export const opponents = () => cachedRead(opponentsKey(), () => server.opponents())
 export const listSealedEvents = async (): ReturnType<typeof server.listSealedEvents> => {
@@ -317,6 +302,20 @@ export async function removeAbilityReminder(
     update: (current) => ((current as AbilityReminder[] | undefined) ?? saved).filter((reminder) => reminder.key !== args.data.key),
   })
   return null
+}
+export async function changeRosterFolders(
+  args: Parameters<typeof server.changeRosterFolders>[0],
+): ReturnType<typeof server.changeRosterFolders> {
+  const defer = deferredForAccount(false)
+  if (!localEngine()) return server.changeRosterFolders(args)
+  const change = offlineActionSchemas.changeRosterFolders.parse(args.data)
+  const resource = queryResource(rosterFoldersKey())
+  const saved = (await localDocument<RosterFolders>(resource)) ?? NO_ROSTER_FOLDERS
+  // The server applies the change to what it holds then, so the folders kept here only show it until the next read.
+  await defer('changeRosterFolders', change, resource, undefined, {
+    update: (current) => applyRosterFolderChange((current as RosterFolders | undefined) ?? saved, change),
+  })
+  return applyRosterFolderChange(saved, change)
 }
 export async function setPlayerDefaults(args: Parameters<typeof server.setPlayerDefaults>[0]): ReturnType<typeof server.setPlayerDefaults> {
   const defer = deferredForAccount()

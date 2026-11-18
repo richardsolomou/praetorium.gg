@@ -1,6 +1,6 @@
 import type { AnyRouter } from '@tanstack/react-router'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { afterInitialScreen } from './background'
+import { afterInitialScreen, warmOfflineFallbacks } from './background'
 let router: Pick<AnyRouter, 'state' | 'subscribe'>
 let resolved: () => void
 let frame: () => void
@@ -104,4 +104,26 @@ it('cancels bulk warming during the delay', () => {
   cancel()
   vi.runAllTimers()
   expect(window.requestIdleCallback).not.toHaveBeenCalled()
+})
+
+it('holds bulk warming for a better connection, then waits for idle without a deadline', () => {
+  const connection = Object.assign(new EventTarget(), { effectiveType: '2g', saveData: false })
+  vi.stubGlobal('navigator', { onLine: true, connection })
+  Object.assign(window, {
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  })
+  const warm = vi.fn()
+  const stop = warmOfflineFallbacks(router, warm)
+  expect(requestAnimationFrame).not.toHaveBeenCalled()
+  connection.effectiveType = '4g'
+  connection.dispatchEvent(new Event('change'))
+  frame()
+  frame()
+  vi.advanceTimersByTime(2_000)
+  expect(window.requestIdleCallback).toHaveBeenCalledWith(expect.any(Function), undefined)
+  expect(warm).not.toHaveBeenCalled()
+  idle()
+  expect(warm).toHaveBeenCalledOnce()
+  stop()
 })

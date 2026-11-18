@@ -20,6 +20,7 @@ import { discoveryCounts, discoveryScope, inDiscoveryScope, type DiscoveryCounts
 import { detachmentIds } from '../../core/savedRoster'
 import { rosterFaction } from '../../shared/rosterFaction'
 import { variantDifferences } from '../rosterDifferences'
+import type { RosterService } from '../services/rosterService'
 import { discoverRosterPage } from '../rosterDiscoveryPage'
 import { saveOwnedRoster } from '../saveOwnedRoster'
 import { rosterActions } from '../rosterActions'
@@ -29,6 +30,9 @@ import { byId, groupBy, chunks } from '../../core/collections'
 import type { RosterPick } from '../../core/roster'
 import { wishlistSuggestions as suggestFromRosters } from '../../core/wishlistSuggestions'
 import { ROSTER_NAME_MAX_LENGTH } from '../../core/battle'
+import { rosterPlayHistory, type RosterPlayHistory } from '../../core/rosterPlays'
+import { playedBattle } from '../standingsRefresh'
+import { reportServerFailure } from '../serverTelemetry'
 import { rosterChangeWithoutPricing, rosterStatus, rosterVerdict } from '../rosterStatus'
 import {
   copyRosterSchema,
@@ -239,23 +243,23 @@ export const sharedRoster = createServerFn({ method: 'GET' })
   .handler(({ data }) => rpc(async () => app().service.rosterService.sharedRoster(data.id, await currentUserId())))
 
 /** A reader's access to a roster, with the variant group its owner can switch between. */
-async function accessToRoster(data: { id: string }) {
-  const userId = await currentUserId()
-  const access = await app().service.rosterService.rosterAccess(data.id, userId)
-  if (!access) return null
-  const copiedFrom = await app().service.rosterService.copySource(access.roster.copiedFromRosterId, userId)
-  if (!access.editable || !userId) return { lentBy: null, ...access, variants: [], differences: null, copiedFrom }
-  const [variants, differences] = await Promise.all([
-    app().service.rosterService.rosterGroup(userId, access.roster),
-    variantDifferences(userId, [access.roster]),
+async function rosterAccessDetails(access: NonNullable<Awaited<ReturnType<RosterService['rosterAccess']>>>, userId: string | null) {
+  const service = app().service.rosterService
+  const owned = access.editable && userId
+  const [variants, differences, copiedFrom] = await Promise.all([
+    owned ? service.rosterGroup(owned, access.roster) : [],
+    owned ? variantDifferences(owned, [access.roster]) : null,
+    service.copySource(access.roster.copiedFromRosterId, userId),
   ])
-  return { lentBy: null, ...access, variants, differences: differences.get(access.roster.id) ?? null, copiedFrom }
+  return { lentBy: null, ...access, variants, differences: differences?.get(access.roster.id) ?? null, copiedFrom }
 }
 
 async function accessibleRoster(data: { id: string }) {
-  const access = await accessToRoster(data)
+  const userId = await currentUserId()
+  const access = await app().service.rosterService.rosterAccess(data.id, userId)
   if (!access) return null
-  return { ...access, faction: await app().factionFor(access.roster.catalogueId) }
+  const [details, faction] = await Promise.all([rosterAccessDetails(access, userId), app().factionFor(access.roster.catalogueId)])
+  return { ...details, faction }
 }
 
 export const rosterAccess = createServerFn({ method: 'GET' })
@@ -297,7 +301,29 @@ export const savedRosterPage = createServerFn({ method: 'GET' })
     ),
   )
 
-/** The lists a data update changed since they were saved; the full-library banner settles after the visible rows without monopolising the server. */
+/** How often each of the player's lists has been played to the end, and how those battles went. */
+export const savedRosterPlays = createServerFn({ method: 'GET' }).handler(() =>
+  rpc(() =>
+    forSignedIn([], async (id): Promise<RosterPlayHistory[]> => {
+      const instance = app()
+      const rosters = await instance.service.rosterService.savedRosters(id)
+      if (!rosters.length) return []
+      // Another server's refresh, or a failed one, leaves the stored results to read; its standings signal refetches these.
+      await instance.service.standingsService
+        .refreshStandings()
+        .catch((error: unknown) => reportServerFailure({ event: 'roster_plays_refresh_failed', error }, 'warn'))
+      const [entries, stored] = await Promise.all([instance.repository.sealedEntrySources(id), instance.repository.battleResultsByUser(id)])
+      // An older battle names only its host, which identifies the entry only when the player sealed one list there.
+      const perHost = groupBy(entries, (entry) => entry.hostToken)
+      const sealedFrom = new Map([
+        ...entries.map((entry) => [entry.eventToken, entry.rosterId] as const),
+        ...[...perHost].flatMap(([hostToken, sealed]) => (sealed.length === 1 ? [[hostToken, sealed[0]!.rosterId] as const] : [])),
+      ])
+      return rosterPlayHistory(id, stored.map(playedBattle), rosters, sealedFrom)
+    }),
+  ),
+)
+
 export const savedRosterChangedIds = createServerFn({ method: 'GET' }).handler(() =>
   rpc(() =>
     forSignedIn([], async (id): Promise<string[]> => {
@@ -344,14 +370,16 @@ export const rosterBootstrap = createServerFn({ method: 'GET' })
   .validator(rosterIdSchema)
   .handler(({ data }) =>
     rpc(async () => {
-      const access = await accessToRoster(data)
+      const userId = await currentUserId()
+      const access = await app().service.rosterService.rosterAccess(data.id, userId)
       if (!access) return null
       // The faction index omits exact root IDs a saved roster may still carry, so resolve the book as the builder would.
-      const [faction, price] = await Promise.all([
+      const [details, faction, price] = await Promise.all([
+        rosterAccessDetails(access, userId),
         app().factionFor(access.roster.catalogueId),
         cachedRosterPrice(access.roster, access.editable),
       ])
-      return { ...access, faction, price, changes: await changesSinceSaved(access.roster, price) }
+      return { ...details, faction, price, changes: await changesSinceSaved(access.roster, price) }
     }),
   )
 
@@ -504,6 +532,17 @@ export const setRosterLocked = createServerFn({ method: 'POST' })
       const saved = await app().service.rosterService.setRosterLocked(userId, data.id, data.locked)
       captureMutation(userId, 'roster_lock_updated', { locked: data.locked })
       return saved
+    }),
+  )
+
+export const declineRosterSharing = createServerFn({ method: 'POST' })
+  .validator(rosterIdSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const userId = await requireUserId()
+      await app().service.rosterService.declineRosterSharing(userId, data.id)
+      captureMutation(userId, 'roster_sharing_declined')
+      return null
     }),
   )
 

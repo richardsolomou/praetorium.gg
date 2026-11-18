@@ -38,7 +38,9 @@ import { app, type App } from './app'
 import { combatantSnapshot, readRules, withReadRules } from '../shared/rosterGradeMeasures'
 import {
   applyOptimizedLoadout,
-  compareOutcomes,
+  compareLoadouts,
+  loadoutChanges,
+  type LoadoutCandidate,
   type LoadoutCandidates,
   type LoadoutOptimization,
   type LoadoutScoring,
@@ -556,10 +558,21 @@ async function combatSides(corpus: ReferenceCorpus, input: Pick<SimulateCombatIn
 }
 
 export async function simulateCombat(input: SimulateCombatInput) {
+  const simulated = await combatSimulation(input)
+  if (simulated.error) return simulated.error
+  const { result } = simulated
+  return structured(result, {
+    refused_phases: [result.shooting, result.melee, result.shootingThenMelee].filter((part) => part.status === 'refused').length,
+    not_calculated: result.attacker.notCalculated.length + result.defender.notCalculated.length,
+  })
+}
+
+/** A simulate_combat answer, or the tool error that stops it. */
+async function combatSimulation(input: SimulateCombatInput) {
   const corpus = await activeReferenceCorpus()
-  if (!corpus) return refused([REFERENCE_UNAVAILABLE], 'unavailable')
+  if (!corpus) return { error: refused([REFERENCE_UNAVAILABLE], 'unavailable') }
   const built = await combatSides(corpus, input)
-  if (!built.sides) return built.error
+  if (!built.sides) return { error: built.error }
   const [attacker, defender] = built.sides
   const adjustments = input.modifiers ?? {}
   const preferences = await strongestWeaponPreferences(
@@ -615,10 +628,7 @@ export async function simulateCombat(input: SimulateCombatInput) {
     revisions: corpus.catalogue.revisions,
     attribution: [...new Set(documents.flatMap((document) => document.attribution))],
   }
-  return structured(result, {
-    refused_phases: [result.shooting, result.melee, result.shootingThenMelee].filter((part) => part.status === 'refused').length,
-    not_calculated: result.attacker.notCalculated.length + result.defender.notCalculated.length,
-  })
+  return { result }
 }
 
 const optimizeLoadoutInputSchema = simulateCombatInputSchema.omit({ weaponModes: true }).extend({
@@ -752,6 +762,8 @@ export async function optimizeCombatLoadout(input: OptimizeLoadoutInput) {
   const signal = AbortSignal.timeout(OPTIMIZE_MS)
   const score = loadoutScorer(signal)
   let current: OptimizedLoadout | undefined
+  // The first search's first candidate is the unit's own loadout, which every tie is kept closest to.
+  let origin: LoadoutCandidate | undefined
   let best: OptimizedLoadout | undefined
   let checked = 0
   let sentFirst = false
@@ -772,8 +784,8 @@ export async function optimizeCombatLoadout(input: OptimizeLoadoutInput) {
         skipped += found.skipped
         reason ??= found.reason
       }
-      if (found.best && (!top || compareOutcomes(found.best.result, top.result) > 0)) top = found.best
-      if (found.best && (!best || compareOutcomes(found.best.result, best.result) > 0)) best = found.best
+      if (found.best && (!top || compareLoadouts(found.best, top) > 0)) top = found.best
+      if (found.best && (!best || compareLoadouts(found.best, best) > 0)) best = found.best
     }
     try {
       const request = { catalogueId: resolved.catalogueId, detachmentIds: resolved.detachmentIds, picks, pickIndex: 0, walk }
@@ -781,6 +793,8 @@ export async function optimizeCombatLoadout(input: OptimizeLoadoutInput) {
         local = batch.local
         done = batch.done
         const read = batch.candidates.map((candidate) => ({
+          ...candidate,
+          changes: loadoutChanges(candidate, (origin ??= candidate)),
           members: candidate.members.map((member) => ({ ...member, rules: readRules(member.rules, words) })),
         }))
         // The unit's own loadout is scored alone so it can be reported as current.
@@ -810,7 +824,7 @@ export async function optimizeCombatLoadout(input: OptimizeLoadoutInput) {
   const climb = async (walk?: { seed: number; steps: number }) => {
     let found = await search(resolved.picks, walk)
     let here: OptimizedLoadout | undefined
-    while (found.local && !signal.aborted && found.top && (!here || compareOutcomes(found.top.result, here.result) > 0)) {
+    while (found.local && !signal.aborted && found.top && (!here || compareLoadouts(found.top, here) > 0)) {
       here = found.top
       found = await search(applyOptimizedLoadout(resolved.picks, here.picks))
     }
@@ -866,7 +880,7 @@ export async function optimizeCombatLoadout(input: OptimizeLoadoutInput) {
       outcome: outcome(loadout.result),
     }
   }
-  const better = !current || compareOutcomes(best.result, current.result) > 0
+  const better = !current || compareLoadouts(best, current) > 0
   return structured(
     {
       mode: input.mode,
@@ -878,6 +892,106 @@ export async function optimizeCombatLoadout(input: OptimizeLoadoutInput) {
     },
     { better, exhaustive, loadouts_checked: checked },
   )
+}
+
+const compareEnhancementsInputSchema = optimizeLoadoutInputSchema.extend({
+  points: z
+    .int()
+    .min(0)
+    .max(1_000)
+    .optional()
+    .describe('Only enhancements costing at most this many points, such as the points the list has left.'),
+})
+type CompareEnhancementsInput = z.infer<typeof compareEnhancementsInputSchema>
+const PHASE_OF_MODE = { combined: 'shootingThenMelee', ranged: 'shooting', melee: 'melee' } as const
+
+type PhaseOutcome = {
+  status: string
+  expectedModelsDestroyed?: number
+  expectedWoundsLost?: number
+  destroyedChance?: number
+  reasons?: string[]
+}
+type EnhancementRow = { bearer: string; enhancement: string; points: number } & (
+  | { outcome: PhaseOutcome; notCalculated?: true }
+  | { refused: string }
+)
+/** Better first: the likelier kill, then more models, then more wounds; an outcome the simulator could not fully estimate last. */
+const rowRank = (row: EnhancementRow) =>
+  'outcome' in row && !row.notCalculated
+    ? [row.outcome.destroyedChance ?? -1, row.outcome.expectedModelsDestroyed ?? -1, row.outcome.expectedWoundsLost ?? -1]
+    : [-2, -2, -2]
+
+/** Each enhancement the attacking unit's characters can take in its detachment, simulated in turn against the defender. */
+export async function compareEnhancements(input: CompareEnhancementsInput) {
+  const corpus = await activeReferenceCorpus()
+  if (!corpus) return refused([REFERENCE_UNAVAILABLE], 'unavailable')
+  const catalogues = serverCatalogues()
+  let offered: { member: number; bearer: string; enhancement: string; points: number }[]
+  try {
+    const named = await sidePicks(corpus, input.attacker, catalogues)
+    const [loaded, rules] = await Promise.all([catalogues.catalogueFor(named.catalogueId), catalogues.rulesFor(named.catalogueId)])
+    if (!loaded) return refused([REFERENCE_UNAVAILABLE], 'unavailable')
+    const detachmentIds = input.attacker.detachment ? [detachmentId(loaded, named.catalogueId, input.attacker.detachment)] : []
+    const joined = joinedPicks(loaded, named.catalogueId, detachmentIds, named.picks.slice(0, named.members))
+    const priced = sidePrice(loaded, rules, named.catalogueId, detachmentIds, joined)
+    offered = joined.flatMap((_, member) => {
+      const unit = priced?.units.find((candidate) => candidate.key === member)
+      return (unit?.choices ?? [])
+        .filter((choice) => choice.kind === 'enhancement')
+        .flatMap((choice) => choice.options)
+        .filter((option) => input.points === undefined || option.points <= input.points)
+        .map((option) => ({ member, bearer: unit!.name, enhancement: option.name, points: option.points }))
+    })
+  } catch (error) {
+    if (error instanceof CombatRefusal) return refused(error.reasons, error.type)
+    throw error
+  }
+  if (!offered.length)
+    return refused(
+      [
+        `No unit on the attacking side can take an enhancement${input.points === undefined ? '' : ` costing ${input.points} points or less`}${input.attacker.detachment ? ' in this detachment' : '; name the detachment whose enhancements to compare'}.`,
+      ],
+      'refused',
+    )
+  const bearing = (member: number | null, enhancement?: string): SideInput => ({
+    ...input.attacker,
+    enhancement: member === 0 ? enhancement : undefined,
+    ...(input.attacker.attached
+      ? { attached: input.attacker.attached.map((unit, at) => ({ ...unit, enhancement: member === at + 1 ? enhancement : undefined })) }
+      : {}),
+  })
+  const simulated = (attacker: SideInput) => combatSimulation({ attacker, defender: input.defender, modifiers: input.modifiers })
+  const phaseOf = (result: NonNullable<Awaited<ReturnType<typeof combatSimulation>>['result']>): PhaseOutcome => {
+    const { status, ...rest } = result[PHASE_OF_MODE[input.mode]]
+    return 'reasons' in rest
+      ? { status, reasons: rest.reasons }
+      : 'expectedWoundsLost' in rest
+        ? {
+            status,
+            expectedModelsDestroyed: rest.expectedModelsDestroyed,
+            expectedWoundsLost: rest.expectedWoundsLost,
+            destroyedChance: rest.destroyedChance,
+          }
+        : { status }
+  }
+  const without = await simulated(bearing(null))
+  if (without.error) return without.error
+  const rows: EnhancementRow[] = []
+  for (const { member, ...option } of offered) {
+    const found = await simulated(bearing(member, option.enhancement))
+    if (found.error) {
+      rows.push({ ...option, refused: found.error.content.map((item) => item.text).join(' ') })
+      continue
+    }
+    const unestimated = found.result.attacker.notCalculated.some((rule) => joinKey(rule.name) === joinKey(option.enhancement))
+    rows.push({ ...option, outcome: phaseOf(found.result), ...(unestimated ? { notCalculated: true as const } : {}) })
+  }
+  rows.sort((left, right) => {
+    const [a, b] = [rowRank(left), rowRank(right)]
+    return b[0]! - a[0]! || b[1]! - a[1]! || b[2]! - a[2]!
+  })
+  return structured({ mode: input.mode, without: phaseOf(without.result), enhancements: rows }, { enhancements: rows.length })
 }
 
 function sharedSide({ resolved }: Combatant, rules: SideInput['rules']) {
@@ -911,10 +1025,21 @@ export function registerCombatTools(tools: AgentTools) {
     {
       title: 'Find the best loadout against a unit',
       description:
-        "Searches the attacking unit's legal wargear, with any attached leaders, for the loadout most likely to destroy the defender, then the most models destroyed, then the most wounds, as the simulator's Optimize does. Takes the same sides as simulate_combat; the attacker's choices and spreads are where the search starts, and model counts, enhancements and detachment upgrades stay fixed. mode ranks shooting followed by melee (combined), or one phase. Returns best and current, each with every attacking unit's choices and spreads ready for a roster pick or simulate_combat (a group left out keeps its default), its wargear by name, the weapon modes it used, and its odds; better says whether best beats current. exhaustive is true only when every legal loadout was checked; otherwise notes say why a better one may exist. Loadouts with rules the simulator cannot estimate are left out and named in notes. Takes up to about 20 seconds.",
+        "Searches the attacking unit's legal wargear, with any attached leaders, for the loadout most likely to destroy the defender, then the most models destroyed, then the most wounds, then the most optional wargear that costs no points and replaces nothing, then the fewest choices changed from the start, as the simulator's Optimize does. Takes the same sides as simulate_combat; the attacker's choices and spreads are where the search starts, and model counts, enhancements and detachment upgrades stay fixed. mode ranks shooting followed by melee (combined), or one phase. Returns best and current, each with every attacking unit's choices and spreads ready for a roster pick or simulate_combat (a group left out keeps its default), its wargear by name, the weapon modes it used, and its odds; better says whether best beats current, or ties it while adding free wargear. exhaustive is true only when every legal loadout was checked; otherwise notes say why a better one may exist. Loadouts with rules the simulator cannot estimate are left out and named in notes. Takes up to about 20 seconds.",
       inputSchema: optimizeLoadoutInputSchema,
       annotations: READ_ONLY_TOOL,
     },
     optimizeCombatLoadout,
+  )
+  tools.registerTool(
+    'compare_enhancements',
+    {
+      title: 'Compare enhancements against a unit',
+      description:
+        "Simulates the attacking unit once with each enhancement its characters, including attached leaders, can take in the attacker's detachment, and once with none, against the defender, as simulate_combat does. Takes the same sides as simulate_combat; name the attacker's detachment, since enhancements come from it. Any enhancement the sides name is replaced by the one being compared. points keeps only enhancements costing that much or less, such as the points a list has spare. mode ranks shooting followed by melee (combined), or one phase. Returns without, the result with no enhancement, and enhancements, best first, each with its bearer, points and outcome. An enhancement with notCalculated has rules the simulator cannot estimate, so its outcome leaves them out; say so rather than ranking it. It compares damage against this one defender only, never what an enhancement does for movement, durability elsewhere or scoring.",
+      inputSchema: compareEnhancementsInputSchema,
+      annotations: READ_ONLY_TOOL,
+    },
+    compareEnhancements,
   )
 }

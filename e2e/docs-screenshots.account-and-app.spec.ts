@@ -65,6 +65,7 @@ test('notifications screenshots', async ({ browser }) => {
   const alice = await (await browser.newContext()).newPage()
   const bob = await (await browser.newContext({ viewport: { width: 1280, height: 900 } })).newPage()
   await signUp(bob, 'Brother Bob')
+  await bob.goto('/')
   await signUp(alice, 'Aurelia')
   await alice.goto('/friends')
   const sent = alice.locator('section').filter({ hasText: 'Sent requests' }).filter({ hasText: 'Brother Bob' })

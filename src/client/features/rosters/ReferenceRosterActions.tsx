@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { ChevronRight, Plus } from 'lucide-react'
 import { posthog } from 'posthog-js'
-import { useState } from 'react'
+import { createElement, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -12,13 +12,15 @@ import { datasheetOfferedByQuery, factionIndexQuery, meQuery, playerDefaultsQuer
 import { EMPTY_SETUP, type GuestDraft, readGuestDraft } from './guestDraft'
 import { type RosterReference, useNewRoster } from './newRoster'
 import { useAccountPrompt } from './AccountPrompt'
-import { RosterSetupDialog, type RosterSetupFaction } from './RosterSetupDialog'
+import type { RosterSetupFaction } from './RosterSetupDialog'
+import { useLoadedComponent } from '../../useLoadedComponent'
 import { rosterTitle } from './RosterSummary'
 import { sortRosters } from '../../../core/rosterSort'
 import { rulesVersionLabel } from '../../../core/catalogueEdition'
 import { Problem } from '../../components/Problem'
 
 const NO_DETACHMENTS: string[] = []
+const loadRosterSetup = () => import('./RosterSetupDialog').then((module) => module.RosterSetupDialog)
 
 /** The roster setup with a reference page's faction, and maybe its detachment, already chosen. */
 function StartRosterDialog({
@@ -37,6 +39,7 @@ function StartRosterDialog({
   reference: RosterReference
 }) {
   const create = useNewRoster(reference)
+  const RosterSetupDialog = useLoadedComponent(loadRosterSetup, open)
   const { data: factionIndex } = useQuery({ ...factionIndexQuery(), enabled: open })
   const { data: defaults = DEFAULT_PLAYER_DEFAULTS } = useQuery({ ...playerDefaultsQuery(), enabled: open && !create.guest })
   const value = {
@@ -46,21 +49,22 @@ function StartRosterDialog({
     ...(create.guest ? {} : { visibility: defaults.rosterVisibility, limit: defaults.battleSize }),
   }
   return (
-    <RosterSetupDialog
+    RosterSetupDialog &&
+    createElement(RosterSetupDialog, {
       // The dialog reads its value once, so defaults that arrive later start it again.
-      key={`${value.visibility}-${value.limit}`}
-      mode="create"
-      guest={create.guest}
-      open={open}
-      onOpenChange={onOpenChange}
-      factionOptions={factionIndex?.factions ?? [faction]}
-      initialFaction={faction}
-      value={value}
-      hasUnits={false}
-      pending={create.pending}
-      saveError={create.saveError}
-      onSave={(setup) => create.start(setup, add)}
-    />
+      key: `${value.visibility}-${value.limit}`,
+      mode: 'create',
+      guest: create.guest,
+      open,
+      onOpenChange,
+      factionOptions: factionIndex?.factions ?? [faction],
+      initialFaction: faction,
+      value,
+      hasUnits: false,
+      pending: create.pending,
+      saveError: create.saveError,
+      onSave: (setup) => create.start(setup, add),
+    })
   )
 }
 
@@ -78,7 +82,7 @@ export function StartRoster({
   closing?: boolean
 }) {
   const [open, setOpen] = useState(false)
-  const reference = closing ? 'detachment-closing' : detachmentId ? 'detachment' : 'faction'
+  const reference = closing ? (detachmentId ? 'detachment-closing' : 'faction-closing') : detachmentId ? 'detachment' : 'faction'
   const { data: me } = useQuery(meQuery())
   const account = useAccountPrompt()
   return (
@@ -108,12 +112,24 @@ export function StartRoster({
 
 /**
  * A datasheet page's way into the builder: a roster that can take the unit, or a new one.
+ * `closing` is the offer at the end of the page, counted apart from the one in its header.
  *
  * Which rosters can take it is the picker's answer for each roster's book, so a
  * Space Marines datasheet offers a Blood Angels list too. The builder then adds the
  * unit under that roster's own limits, and says so when it cannot.
  */
-export function AddToRoster({ faction, entryId, name }: { faction: RosterSetupFaction; entryId: string; name: string }) {
+export function AddToRoster({
+  faction,
+  entryId,
+  name,
+  closing = false,
+}: {
+  faction: RosterSetupFaction
+  entryId: string
+  name: string
+  closing?: boolean
+}) {
+  const reference = closing ? 'datasheet-closing' : 'datasheet'
   const [step, setStep] = useState<'closed' | 'choose' | 'create'>('closed')
   const [guestDraft, setGuestDraft] = useState<GuestDraft | null>(null)
   const { data: me } = useQuery(meQuery())
@@ -141,11 +157,11 @@ export function AddToRoster({ faction, entryId, name }: { faction: RosterSetupFa
   }
 
   const create = () => {
-    posthog.capture('roster_creation_started', { reference: 'datasheet' })
+    posthog.capture('roster_creation_started', { reference })
     setStep('create')
   }
   const open = () => {
-    posthog.capture('roster_add_started', { reference: 'datasheet' })
+    posthog.capture('roster_add_started', { reference })
     const draft = me ? null : readGuestDraft()
     setGuestDraft(draft)
     // A visitor with nothing built yet has only one place to go.
@@ -164,7 +180,7 @@ export function AddToRoster({ faction, entryId, name }: { faction: RosterSetupFa
   return (
     <>
       <Button size="sm" onClick={open}>
-        <Plus /> Add to roster
+        <Plus /> {closing ? 'Add to a list' : 'Add to roster'}
       </Button>
       <Dialog open={choosing} onOpenChange={(next) => !next && setStep('closed')}>
         <DialogContent>
@@ -238,7 +254,7 @@ export function AddToRoster({ faction, entryId, name }: { faction: RosterSetupFa
         onOpenChange={(next) => !next && setStep('closed')}
         faction={faction}
         add={entryId}
-        reference="datasheet"
+        reference={reference}
       />
       {account.prompt}
     </>

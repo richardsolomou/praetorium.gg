@@ -158,8 +158,8 @@ describe('catalogue combat wording families', () => {
     ).toEqual({
       defaultChoice: 0,
       choices: [
-        { label: 'LETHAL HITS', effects: [attack({ phases: ['ranged'], keyword: 'LETHAL HITS' })] },
-        { label: 'SUSTAINED HITS 1', effects: [attack({ phases: ['ranged'], keyword: 'SUSTAINED HITS 1' })] },
+        { label: 'LETHAL HITS', option: 'LETHAL HITS', effects: [attack({ phases: ['ranged'], keyword: 'LETHAL HITS' })] },
+        { label: 'SUSTAINED HITS 1', option: 'SUSTAINED HITS 1', effects: [attack({ phases: ['ranged'], keyword: 'SUSTAINED HITS 1' })] },
       ],
     })
   })
@@ -321,8 +321,8 @@ describe('catalogue combat wording families', () => {
     ).toEqual({
       defaultChoice: 0,
       choices: [
-        { label: 'LETHAL HITS', effects: [attack({ phases: ['melee'], keyword: 'LETHAL HITS' })] },
-        { label: 'SUSTAINED HITS 1', effects: [attack({ phases: ['melee'], keyword: 'SUSTAINED HITS 1' })] },
+        { label: 'LETHAL HITS', option: 'LETHAL HITS', effects: [attack({ phases: ['melee'], keyword: 'LETHAL HITS' })] },
+        { label: 'SUSTAINED HITS 1', option: 'SUSTAINED HITS 1', effects: [attack({ phases: ['melee'], keyword: 'SUSTAINED HITS 1' })] },
       ],
     })
   })
@@ -360,7 +360,7 @@ describe('catalogue combat wording families', () => {
   })
   it('retains stealth alongside deployment and targeting abilities', () => {
     expect(effects("Models in this model's unit have the Infiltrators, Lone Operative and Stealth abilities.")).toEqual([
-      [{ role: 'defender', phases: ['ranged'], options: { cover: true } }],
+      [{ role: 'defender', phases: ['ranged'], options: { cover: true }, ability: 'Stealth' }],
     ])
   })
   it('requires activation for an ability available at the start of any phase', () => {

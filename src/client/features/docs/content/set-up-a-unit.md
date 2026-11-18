@@ -4,7 +4,7 @@ Select a unit card to open its loadout. Use the minus and plus buttons to change
 
 ## Wargear and enhancements
 
-Each kind of model has its own card with its weapons and choices. Choices for the whole unit are under **Wargear options**. If a plus is disabled, its label says why: **Max 2** means that option is at its cap, and **Group full: 3/3** means the group's other options have used the room.
+Each kind of model has its own card with its weapons and choices. Choices for the whole unit are under **Wargear options**. If a plus is disabled, its label says why: **Max 2** means that option is at its cap, and **Group full: 3/3** means the group's other options have used the room. Wargear the datasheet gives to all models or none, such as a Combat Shield on every Vanguard Veteran, has a single plus that equips the whole squad.
 
 Pick enhancements and detachment **Unit upgrades** here too. **No enhancement** or **No upgrade** clears them.
 
@@ -52,6 +52,16 @@ Once aboard, the unit's card shows **Embarked in** (or **Unit embarked in** for 
 If a change means a unit no longer fits, such as a bigger squad or a Leader joining it, it goes back to the battlefield and a brief message says why. If the transport itself changes, the units added to the roster last go back first.
 
 Battle setup starts the unit in that transport, and you can still change it there.
+
+## Rules you choose during the battle
+
+Some rules put a unit in one of several options during the battle, such as the **Doctrina Imperatives** or the **Battle Protocols** a Cybernetica Datasmith gives Kastelan Robots. Each one the unit has is listed under its characteristics with its options. Pick an option to see the characteristics and weapons as it leaves them, including abilities like **Assault** that change no dice roll. Pick it again to clear it.
+
+When another rule makes several options active at once for the unit, such as **Cognitive Reinforcement** making both Doctrina Imperatives active, it shows **Both** with that rule's name. If that rule has a condition to check first, it's offered as an extra option instead.
+
+A unit that a rule lets hold more than one option at once, such as a unit led by Ursula Creed with two Orders, takes that many picks; a further pick replaces the oldest. A rule that adds an option to every other, as Stalwart's Honours adds **Take Cover!**, applies it with whichever you pick.
+
+A choice the whole army shares, like a Doctrina Imperative, follows you from unit to unit; any other, like an Order, stays with the unit you picked it for. Picks last until you reload the page, and a unit's own picks clear when you add, remove or move a unit. Nothing you pick here is saved or changes the list, and conditions such as being near a Battleline unit are left for you to check. Only rules Praetorium can read appear; the rest stay in the unit's abilities.
 
 ## Ability alerts
 

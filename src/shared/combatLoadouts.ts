@@ -27,6 +27,30 @@ type LoadoutRequest = {
 const ARMY_CHOICE = /enhancement|upgrade/i
 const weaponChoices = (choices: UnitChoice[]) =>
   choices.filter((choice) => choice.options.length && !isUnitCompositionChoice(choice) && !ARMY_CHOICE.test(choice.name))
+/**
+ * Wargear taken from an optional group that offers only it at no cost, such as a free icon: the group starts empty, so
+ * it displaces nothing. A group of alternatives, such as a Mark of Chaos, is a decision the ranking alone settles.
+ */
+export const freeWargear = (choices: UnitChoice[]) =>
+  weaponChoices(choices).flatMap((choice) =>
+    choice.optional && choice.options.length === 1 && choice.options[0]!.points === 0 && choice.options[0]!.profile === undefined
+      ? choice.options
+      : [],
+  )
+const freeAdditions = (choices: UnitChoice[]) => freeWargear(choices).reduce((total, option) => total + option.count, 0)
+/** Each weapon choice's taken options and counts, so loadouts compare by what is taken rather than how picks spell it. */
+const takenWargear = (choices: UnitChoice[]) =>
+  weaponChoices(choices).map((choice): [string, string] => [
+    choice.key,
+    choice.options
+      .filter((option) => option.count)
+      .map((option) => `${option.id}x${option.count}`)
+      .join(','),
+  ])
+const wargearPoints = (choices: UnitChoice[]) =>
+  weaponChoices(choices)
+    .flatMap((choice) => choice.options)
+    .reduce((total, option) => total + option.points * option.count, 0)
 
 /**
  * Each weapon choice the selected pick offers, every option built from the current loadout the way the
@@ -268,8 +292,20 @@ export async function* combatLoadoutCandidates(
           member(companion.pickIndex, companion.selected, companion.carriers, companion.rules, companion.models),
         ),
       ],
+      freeAdditions: built.reduce((total, unit) => total + freeAdditions(unit.choices), 0),
+      wargearPoints: built.reduce((total, unit) => total + wargearPoints(unit.choices), 0),
+      wargear: Object.fromEntries(
+        built.flatMap((unit, at) => takenWargear(unit.choices).map(([choice, taken]) => [`${indexes[at]}:${choice}`, taken])),
+      ),
     }
-    const equipmentKey = await digest(JSON.stringify(candidate.members.map(({ pick: _pick, ...description }) => description)))
+    // Wargear the simulator cannot see leaves the equipment alike, so what it adds and costs keeps both loadouts.
+    const equipmentKey = await digest(
+      JSON.stringify([
+        candidate.members.map(({ pick: _pick, ...description }) => description),
+        candidate.freeAdditions,
+        candidate.wargearPoints,
+      ]),
+    )
     if (equipment.has(equipmentKey)) return
     if (equipment.size >= SEARCH_LIMITS.equipment) throw incomplete()
     retain(equipmentKey)

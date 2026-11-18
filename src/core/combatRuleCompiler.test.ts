@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import { compileCombatRule } from './combatRuleCompiler'
-import { combatDamageStateSelections, combatRuleAppliesTo, combatRuleChoices, combatRuleDefault, type CombatRule } from './combatRules'
+import { combatReadingOf } from './combatReading'
+import {
+  combatDamageStateSelections,
+  combatRuleAppliesTo,
+  combatRuleChoices,
+  combatRuleDefault,
+  combatRuleRoles,
+  type CombatRule,
+  shownRuleChoices,
+} from './combatRules'
 
 const rule = (description: string, extra: Partial<CombatRule> = {}): CombatRule => ({
   id: 'buff',
@@ -82,6 +91,8 @@ You can re-roll the Charge roll.`
       choices: [
         {
           label: 'Challenge',
+          option: 'Challenge',
+          armyWide: true,
           effects: [{ role: 'attacker', phases: ['melee'], condition: 'not-stronger', options: { woundModifier: 1 } }],
         },
       ],
@@ -104,14 +115,23 @@ Improve the Save characteristic of models in this unit by 1 (this cannot improve
     expect(compileCombatRule(rule(description))).toEqual({
       defaultChoice: 0,
       choices: [
-        { label: 'Take Aim!', effects: [{ role: 'attacker', phases: ['ranged'], characteristic: { kind: 'ballistic-skill', add: -1 } }] },
+        {
+          label: 'Take Aim!',
+          option: 'Take Aim!',
+          effects: [{ role: 'attacker', phases: ['ranged'], characteristic: { kind: 'ballistic-skill', add: -1 } }],
+        },
         {
           label: 'First Rank, Fire! Second Rank, Fire!',
+          option: 'First Rank, Fire! Second Rank, Fire!',
           effects: [
             { role: 'attacker', phases: ['ranged'], requiresWeaponKeyword: 'Rapid Fire', characteristic: { kind: 'attacks', add: 1 } },
           ],
         },
-        { label: 'Take Cover!', effects: [{ role: 'defender', phases: ['ranged', 'melee'], improveSave: { by: 1, best: 3 } }] },
+        {
+          label: 'Take Cover!',
+          option: 'Take Cover!',
+          effects: [{ role: 'defender', phases: ['ranged', 'melee'], improveSave: { by: 1, best: 3 } }],
+        },
       ],
     })
   })
@@ -125,6 +145,21 @@ Each time a model in this unit makes a melee attack, add 1 to the Wound roll. In
       ),
     ).toBeNull()
   })
+  it('refuses a Toughness bonus for models in an afflicted enemy unit rather than giving it to the attacker', () =>
+    expect(
+      compileCombatRule(
+        rule(`If your Army Faction is ARMY, while an enemy unit is within Infection Range of one or more ARMY units from your army, it is Infected.
+
+### INFECTION RANGE
+Infection Range changes over the course of the battle: Infection Range cannot be greater than 12" after modifiers.
+
+### INFECTED
+During the Declare Battle Formations step, select one of the Plagues below. Until the end of the battle, while an enemy unit is Infected, subtract 1 from the Toughness characteristic of models in that unit, and that unit has the effect of your chosen Plague.
+
+### Bloat
+Add 1 to the Toughness characteristic of INFANTRY models in that unit.`),
+      ),
+    ).toBeNull())
   it.each(['bold', 'markdown'])('keeps enemy status and plague choices together with %s headings', (format) => {
     const heading = (name: string) => (format === 'bold' ? `**${name}**` : `### ${name}`)
     const description = `If your Army Faction is ARMY, while an enemy unit is within Infection Range of one or more ARMY units from your army, it is Infected.
@@ -153,6 +188,7 @@ Worsen the Move, Leadership and Objective Control characteristics of models in t
       choices: [
         {
           label: 'Opponent infected · Confusion',
+          option: 'Opponent infected · Confusion',
           effects: [
             { role: 'attacker', phases: ['ranged', 'melee'], targetToughness: -1 },
             { role: 'defender', phases: ['ranged'], options: { cover: true } },
@@ -161,12 +197,17 @@ Worsen the Move, Leadership and Objective Control characteristics of models in t
         },
         {
           label: 'Opponent infected · Brittleness',
+          option: 'Opponent infected · Brittleness',
           effects: [
             { role: 'attacker', phases: ['ranged', 'melee'], targetToughness: -1 },
             { role: 'attacker', phases: ['ranged', 'melee'], targetSaveModifier: 1 },
           ],
         },
-        { label: 'Opponent infected · Sluggishness', effects: [{ role: 'attacker', phases: ['ranged', 'melee'], targetToughness: -1 }] },
+        {
+          label: 'Opponent infected · Sluggishness',
+          option: 'Opponent infected · Sluggishness',
+          effects: [{ role: 'attacker', phases: ['ranged', 'melee'], targetToughness: -1 }],
+        },
       ],
     })
   })
@@ -339,14 +380,12 @@ Worsen the Move, Leadership and Objective Control characteristics of models in t
       [{ role: 'attacker', phases: ['melee'], options: { woundReroll: 'failed' } }],
     ])
   })
-  it('keeps two trailing conditions on their respective bonuses', () => {
-    expect(
-      effects(
-        'Each time a model in this unit makes an attack, add 1 to the Hit roll if this unit is below its Starting Strength, and add 1 to the Wound roll as well if this unit is Below Half-strength.',
-      ),
-    ).toEqual([
+  it.each([
+    'Each time a model in this unit makes an attack, add 1 to the Hit roll if this unit is below its Starting Strength, and add 1 to the Wound roll as well if this unit is Below Half-strength.',
+    'Each time a model in this unit makes an attack, add 1 to the Hit roll if this unit is below its Starting Strength, and add 1 to the Wound roll, as well, if this unit is Below Half-strength.',
+  ])('adds a bonus given "as well" only alongside the first: %s', (description) => {
+    expect(effects(description)).toEqual([
       [{ role: 'attacker', phases: ['ranged', 'melee'], options: { hitModifier: 1 } }],
-      [{ role: 'attacker', phases: ['ranged', 'melee'], options: { woundModifier: 1 } }],
       [
         { role: 'attacker', phases: ['ranged', 'melee'], options: { hitModifier: 1 } },
         { role: 'attacker', phases: ['ranged', 'melee'], options: { woundModifier: 1 } },
@@ -773,4 +812,183 @@ describe('shorthand transcriptions', () => {
         keywords: ['Lychguard'],
       }),
     ).toEqual(['Active']))
+})
+
+describe('wordings a rule gives a whole army or a keyword', () => {
+  const melee = (kind: 'strength' | 'armour-penetration', add: number) => ({
+    role: 'attacker',
+    phases: ['melee'],
+    characteristic: { kind, add },
+  })
+
+  it('reads an ability granted to the army, used after a charge, past the limits on what it may target', () =>
+    expect(
+      combatRuleChoices(
+        rule(
+          '**HOST** units from your army have the following ability:\n\n**Grand Entrance:** Each time this unit is selected to fight, if this unit made a Charge move this turn, it can use this ability. If it does, until the end of the phase:\n\n■ This unit cannot target a unit it was within Engagement Range of at the start of the turn.\n■ Improve the Strength and Armour Penetration characteristics of this unit’s melee weapons by 1.',
+          { scope: 'detachment', keywords: ['Host'] },
+        ),
+      ),
+    ).toEqual([{ label: 'Charged this turn · Ability activated', effects: [melee('strength', 1), melee('armour-penetration', -1)] }]))
+
+  const wardens = (extra: Partial<CombatRule>) =>
+    compileCombatRule(
+      rule('While the bearer is leading a unit, each time a **WARDEN** model in that unit makes an attack, add 1 to the Hit roll.', {
+        scope: 'attached',
+        models: 10,
+        ...extra,
+      }),
+    )
+
+  it('gives a bonus for models with a keyword to a unit whose every model has it', () =>
+    expect(wardens({ keywords: ['Warden'] })).toEqual({
+      choices: [{ label: 'Active', effects: [{ role: 'attacker', phases: ['ranged', 'melee'], options: { hitModifier: 1 } }] }],
+      defaultChoice: 1,
+    }))
+
+  it.each([
+    ['only some of whose models have the keyword', { keywords: ['Warden'], partialKeywords: ['Warden'] }],
+    ['that names its models without the keyword', { keywords: ['Herald'] }],
+  ])('refuses a bonus for models with a keyword in a unit %s', (_, extra) => expect(wardens(extra)).toBeNull())
+
+  it("adds Attacks only to the bearer's ranged weapons with a keyword", () =>
+    expect(effects('Add 3 to the Attacks characteristic of ranged Psychic weapons equipped by the bearer.')).toEqual([
+      [{ role: 'attacker', phases: ['ranged'], requiresWeaponKeyword: 'Psychic', characteristic: { kind: 'attacks', add: 3 } }],
+    ]))
+
+  it('ignores the modifiers a list names', () =>
+    expect(effects('Your unit can ignore modifiers to your unit’s:\n\n- BS.\n- <b>Hit rolls</b> and <b>wound rolls</b>.')).toEqual([
+      [
+        {
+          role: 'attacker',
+          phases: ['ranged', 'melee'],
+          ignoreSkillModifiers: true,
+          ignoreHitModifiers: true,
+          ignoreWoundModifiers: true,
+        },
+      ],
+    ]))
+
+  it.each([
+    ['puts a unit in a state other rules ask for', 'While the bearer’s unit is on the battlefield, it is wholly within your army’s Veil.'],
+    [
+      'changes the rolls of attacks it cannot calculate',
+      'Each time a **HOST** model from your army makes a Psychic Attack, re-roll a Wound roll of 1.',
+    ],
+  ])('reports a rule that %s', (_, description) => expect(combatRuleRoles(description)).toContain('attacker'))
+
+  it.each([
+    ['an attack aimed at it', 'Each time a model makes an attack that targets this model, subtract 1 from the Hit roll.'],
+    [
+      'an attack allocated to it',
+      'Each time an attack with a Damage characteristic of 1 is allocated to a **WARDEN** model from your army, add 1 to any armour saving throw made against that attack.',
+    ],
+    [
+      'a failed saving throw',
+      'Once per turn, the first time a saving throw is failed for the bearer, change the Damage characteristic of that attack to 0.',
+    ],
+  ])('reads %s as a defence alone', (_, description) => expect(combatRuleRoles(description)).toEqual(['defender']))
+})
+
+describe('rules a unit switches between during the battle', () => {
+  const routines = (bullet: string, name: (written: string) => string) =>
+    `At the start of the battle, if this model is leading a unit, that unit enters Guard Routine (see below). In your Command phase, if this model is leading a unit, you can select one routine from those listed below for that unit to enter. Once a unit enters a routine, it remains in that routine until it enters a different one.\n${bullet} ${name('Strike Routine')} Add 2 to the Attacks characteristic of ranged weapons equipped by **WAR ENGINE** models in this unit.\n${bullet} ${name('Guard Routine')} Add 1 to the Toughness characteristic of **WAR ENGINE** models in this unit.`
+
+  it.each([
+    ['a datacard', routines('■', (name) => `**${name}:**`)],
+    ['a catalogue', routines('-', (name) => `${name}:`)],
+  ])('offers each routine %s lists as a choice', (_, description) =>
+    expect(combatRuleChoices(rule(description, { keywords: ['War Engines'] }))).toEqual([
+      { label: 'Strike Routine', effects: [{ role: 'attacker', phases: ['ranged'], characteristic: { kind: 'attacks', add: 2 } }] },
+      { label: 'Guard Routine', effects: [{ role: 'defender', phases: ['ranged', 'melee'], toughness: 1 }] },
+    ]),
+  )
+
+  it('refuses a list with a line that is not one of its options', () =>
+    expect(
+      compileCombatRule(rule(`${routines('-', (name) => `${name}:`)}\nThis unit cannot change routine twice in one battle round.`)),
+    ).toBeNull())
+
+  it('shows a granted ability that changes no roll on a datasheet', () =>
+    expect(shownRuleChoices(rule('Ranged weapons equipped by models in this unit have the **[ASSAULT]** ability.'))).toEqual([
+      { label: 'Active', effects: [{ role: 'attacker', phases: ['ranged'], keyword: 'ASSAULT' }] },
+    ]))
+
+  it('shows a granted ability that changes no roll on a datasheet that holds only the recorded reading', () => {
+    const written = rule('Ranged weapons equipped by models in this unit have the **[ASSAULT]** ability.')
+    expect(shownRuleChoices({ ...written, description: '', reading: combatReadingOf(written) })).toEqual([
+      { label: 'Active', effects: [{ role: 'attacker', phases: ['ranged'], keyword: 'ASSAULT' }] },
+    ])
+  })
+})
+
+describe('Haloscreed Battleclade rules', () => {
+  const kastelanRobots = ['Faction: Adeptus Mechanicus', 'Imperium', 'Kastelan Robots', 'Legio Cybernetica', 'Vehicle', 'Walker']
+  const battleProtocols =
+    'At the start of the battle, if this model is leading a **KASTELAN ROBOTS** unit, that unit enters Aegis Protocols (see below). In your Command phase, if this model is leading a **KASTELAN ROBOTS** unit, you can select one protocol from those listed below for that unit to enter. Once a unit enters a protocol, it remains in that protocol until it enters a different one.\n\n■ **Protector Protocol:** Add 2 to the Attacks characteristic of ranged weapons equipped by **KASTELAN ROBOT** models in that unit.\n■ **Conqueror Protocol:** Add 2 to the Attacks characteristic of melee weapons equipped by **KASTELAN ROBOT** models in that unit.\n■ **Aegis Protocol:** Add 1 to the Toughness characteristic of **KASTELAN ROBOT** models in that unit.'
+  const noosphericTransference =
+    'In your Command phase, select one or more **ADEPTUS MECHANICUS** units from your army (including units that are embarked within **TRANSPORTS**). The maximum number of units you can select depends on the battle size, as follows:\n\nINCURSION: 1 UNIT\nSTRIKE FORCE: 2 UNITS\nONSLAUGHT: 3 UNITS\n\nUntil the start of your next Command phase, those units gain the **HALO OVERRIDE** keyword. Then, select one of the Override abilities below. Until the start of your next Command phase, units from your army with the **HALO OVERRIDE** keyword have the selected Override ability:\n\n### Electromotive Energisation\n\nAdd 2" to the Move characteristic of models in this unit.\n\n### Microactuator Bracing\n\nAdd 1 to the Toughness characteristic of models in this unit.\n\n### Predation Protocols\n\nThis unit is eligible to declare a charge in a turn in which it Advanced.\n\n### Muted Servomotors\n\nModels in this unit have the Stealth ability.'
+
+  it("reads a unit's ranged attacks re-rolling Damage rolls", () =>
+    expect(effects('This unit’s ranged attacks can re-roll <b>damage rolls</b>.')).toEqual([
+      [{ role: 'attacker', phases: ['ranged'], damageReroll: 'any' }],
+    ]))
+  it('reads more range and a Hazardous re-roll as changing no attack', () =>
+    expect(
+      compileCombatRule(
+        rule(
+          '**ADEPTUS MECHANICUS** model only. Add 6" to the range characteristic of ranged weapons equipped by models in the bearer’s unit and, each time a Hazardous test is taken for that unit, you can re‑roll the result.',
+        ),
+      ),
+    ).toEqual({ choices: [], defaultChoice: 0 }))
+  it('offers each protocol the unit can enter', () =>
+    expect(combatRuleChoices(rule(battleProtocols, { scope: 'attached', keywords: kastelanRobots, models: 2 }))).toEqual([
+      { label: 'Protector Protocol', effects: [{ role: 'attacker', phases: ['ranged'], characteristic: { kind: 'attacks', add: 2 } }] },
+      { label: 'Conqueror Protocol', effects: [{ role: 'attacker', phases: ['melee'], characteristic: { kind: 'attacks', add: 2 } }] },
+      { label: 'Aegis Protocol', effects: [{ role: 'defender', phases: ['ranged', 'melee'], toughness: 1 }] },
+    ]))
+  it('starts in the protocol the unit enters at the start of the battle', () =>
+    expect(combatRuleDefault(rule(battleProtocols, { scope: 'attached', keywords: kastelanRobots, models: 2 }))).toBe(3))
+  it('gives no protocol to a leader without the keyword it names', () =>
+    expect(combatRuleChoices(rule(battleProtocols, { scope: 'attached', keywords: ['Character', 'Cybernetica Datasmith'] }))).toEqual([]))
+  it('offers the selected abilities that change an attack', () =>
+    expect(combatRuleChoices(rule(noosphericTransference, { scope: 'detachment', keywords: kastelanRobots }))).toEqual([
+      { label: 'Microactuator Bracing', effects: [{ role: 'defender', phases: ['ranged', 'melee'], toughness: 1 }] },
+      { label: 'Muted Servomotors', effects: [{ role: 'defender', phases: ['ranged'], options: { cover: true }, ability: 'Stealth' }] },
+    ]))
+  it('reads protocols listed as dashes, as the catalogue prints them', () =>
+    expect(
+      combatRuleChoices(
+        rule(
+          'At the start of the battle, if this model is leading a ^^**Kastelan Robots^^** unit, that unit enters Aegis Protocols (see below). In your Command phase, if this model is leading a ^^**Kastelan Robots^^** unit, you can select one protocol from those listed below for that unit to enter. Once a unit enters a protocol, it remains in that protocol until it enters a different one.\n- Protector Protocol: Add 2 to the Attacks characteristic of ranged weapons equipped by ^^**Kastelan Robot^^** models in that unit.\n- Conqueror Protocol: Add 2 to the Attacks characteristic of melee weapons equipped by ^^**Kastelan Robot^^** models in that unit.\n- Aegis Protocol: Add 1 to the Toughness characteristic of ^^**Kastelan Robot^^** models in that unit.',
+          { scope: 'attached', keywords: kastelanRobots, models: 2 },
+        ),
+      ).map((choice) => choice.label),
+    ).toEqual(['Protector Protocol', 'Conqueror Protocol', 'Aegis Protocol']))
+  it('reads selected abilities titled by their first line, as the catalogue prints them', () =>
+    expect(
+      combatRuleChoices(
+        rule(noosphericTransference.replaceAll('**', '').replaceAll(/### (.+)\n\n/g, '$1\n'), {
+          scope: 'detachment',
+          keywords: kastelanRobots,
+        }),
+      ).map((choice) => choice.label),
+    ).toEqual(['Microactuator Bracing', 'Muted Servomotors']))
+  it('leaves the selected abilities off until the player selects the unit', () =>
+    expect(combatRuleDefault(rule(noosphericTransference, { scope: 'detachment', keywords: kastelanRobots }))).toBe(0))
+})
+
+describe('a condition a unit meets by its keyword or by standing near one that has it', () => {
+  const conqueror =
+    'Each time a model in this unit makes an attack, if this unit has the **BATTLELINE** keyword and/or it is within 6" of one or more friendly **ADEPTUS MECHANICUS BATTLELINE** units, improve the Armour Penetration characteristic of that attack by 1.'
+  const ap = { role: 'attacker', phases: ['ranged', 'melee'], characteristic: { kind: 'armour-penetration', add: -1 } }
+
+  it('always holds for a unit with the keyword', () =>
+    expect(combatRuleChoices(rule(conqueror, { keywords: ['Battleline', 'Skitarii'], models: 10 }))).toEqual([
+      { label: 'Active', effects: [ap] },
+    ]))
+  it('leaves a unit without the keyword the distance to choose, in its own words', () =>
+    expect(combatRuleChoices(rule(conqueror, { keywords: ['Character', 'Tech-Priest'] }))).toEqual([
+      { label: 'Within 6" of a friendly ADEPTUS MECHANICUS BATTLELINE unit', effects: [ap] },
+    ]))
 })

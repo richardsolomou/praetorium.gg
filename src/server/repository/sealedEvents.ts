@@ -261,6 +261,11 @@ export function withSealedEvents<B extends RepositoryBase>(Base: B) {
       })
     }
 
+    /** The saved list each of the player's sealed entries came from, by event and by host; never shown to anyone else. */
+    sealedEntrySources(userId: string) {
+      return this.product.sealedEntrySources(userId)
+    }
+
     outdatedSealedEventEntriesForRoster(userId: string, rosterId: string) {
       return this.product.outdatedSealedEventEntriesForRoster(userId, rosterId)
     }

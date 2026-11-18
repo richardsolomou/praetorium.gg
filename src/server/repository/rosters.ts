@@ -74,6 +74,10 @@ export function withRosters<B extends RepositoryBase>(Base: B) {
       return this.product.setRosterArchived(...args)
     }
 
+    declineRosterSharing(...args: Parameters<SpacetimeOperator['declineRosterSharing']>) {
+      return this.product.declineRosterSharing(...args)
+    }
+
     splitRosterVariant(...args: Parameters<SpacetimeOperator['splitRosterVariant']>) {
       return this.product.splitRosterVariant(...args)
     }

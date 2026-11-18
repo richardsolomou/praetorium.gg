@@ -1,8 +1,8 @@
 import { expect, it } from 'vitest'
 import type { SelectionEntry } from '../core/catalogue'
 import { DEFAULT_COMBAT_OPTIONS } from '../core/combat'
-import { applyOptimizedLoadout, optimizeLoadout } from '../core/combatLoadouts'
-import { bookOf } from './catalogue.fixtures'
+import { applyOptimizedLoadout, loadoutChanges, optimizeLoadout, type LoadoutCandidate } from '../core/combatLoadouts'
+import { bookOf, points } from './catalogue.fixtures'
 import { combatLoadoutCandidates, loadoutStates, withoutEmptyEntries } from '../shared/combatLoadouts'
 import { rosterCombatant } from '../shared/rosterCombatRules'
 
@@ -133,6 +133,62 @@ it('applies the best complete loadout and reproduces its scored attacks after re
     [rebuilt.carriers, ...rebuilt.companions.map((member) => member.carriers)].map((carriers) => carriers[0]!.weapons[0]!.name),
   ).toEqual(['Squad strong', 'Leader strong', 'Support strong'])
   expect(optimized.best!.result.meanDamage).toBeCloseTo((3 * 5) / 6, 12)
+})
+
+const banner = (id: string, cost: number) => ({
+  id: `${id}-group`,
+  name: id,
+  constraints: [{ id: `${id}-max`, type: 'max' as const, field: 'selections', scope: 'parent', value: 1 }],
+  selectionEntries: [
+    {
+      id,
+      name: id,
+      type: 'upgrade' as const,
+      costs: points(cost),
+      profiles: [{ id: `${id}-ability`, name: id, typeName: 'Abilities', characteristics: [{ name: 'Description', $text: 'Inspiring.' }] }],
+    },
+  ],
+})
+const bannerSquad = unit('squad', 'Squad')
+const bannered = bookOf({
+  selectionEntries: [
+    { ...bannerSquad, selectionEntryGroups: [...bannerSquad.selectionEntryGroups!, banner('free', 0), banner('paid', 10)] },
+  ],
+})
+
+it.each([
+  ['takes a free addition but not a paid one', {}, { 'free-group': 'free' }],
+  ['adds a free addition beside a paid one already taken', { 'paid-group': 'paid' }, { 'paid-group': 'paid', 'free-group': 'free' }],
+  [
+    'keeps a paid addition beside a free one already taken',
+    { 'paid-group': 'paid', 'free-group': 'free' },
+    { 'paid-group': 'paid', 'free-group': 'free' },
+  ],
+])('%s when the result cannot tell them apart', async (_, banners, expected) => {
+  const data = {
+    catalogueId: 'cat',
+    detachmentIds: [],
+    pickIndex: 0,
+    picks: [{ entryId: 'squad', choices: { 'squad-weapons': 'squad-strong', ...banners } }],
+  }
+  const found: LoadoutCandidate[] = []
+  for await (const batch of combatLoadoutCandidates(bannered, data, new AbortController().signal)) found.push(...batch.candidates)
+  const current = rosterCombatant(bannered, null, data)!
+  // Reversed, so the starting loadout is met last, as the site's workers can return it.
+  const optimized = optimizeLoadout(
+    { candidates: found.map((candidate) => ({ ...candidate, changes: loadoutChanges(candidate, found[0]!) })).toReversed() },
+    {
+      sheet: current.selected,
+      models: 1,
+      rules: [],
+      opponent: { keywords: [], rules: [] },
+      preferences: {},
+      excluded: { ranged: [], melee: [] },
+      phases: { ranged: { target, options: DEFAULT_COMBAT_OPTIONS, adjustment: {} }, melee: null },
+    },
+    'ranged',
+  )
+  expect(optimized.best!.picks[0]!.pick.choices).toEqual({ 'squad-weapons': 'squad-strong', ...expected })
 })
 
 it('includes the bodyguard and sibling support when optimizing from a selected leader', async () => {

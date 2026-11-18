@@ -500,8 +500,13 @@ const prepSchema = z.object({
 export const rosterContentSchema = z
   .object({
     id: id.optional(),
-    /** Empty when the player wants a name generated from the saved roster. */
-    name: z.string().trim().max(ROSTER_NAME_MAX_LENGTH),
+    name: z
+      .string()
+      .trim()
+      .max(ROSTER_NAME_MAX_LENGTH)
+      .describe(
+        'The roster title, or empty to have one generated from the army and kept current. Send a name only when the player chooses one.',
+      ),
     catalogueId: id.describe('Faction catalogue id, as get_unit_options gives it under roster.'),
     detachmentIds: z
       .array(detachmentIdSchema)

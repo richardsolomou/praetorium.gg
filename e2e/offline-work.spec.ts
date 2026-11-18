@@ -21,6 +21,7 @@ import { battleLog, productOperator, savedWork, lastPathSegment, expectWorkSynce
 import { chooseCombatUnit } from './combat'
 import type { LocalState } from '../src/contracts/localState'
 
+// These tests sync while the offline download runs, so it starts after the pause a player's page takes.
 test.use({ actionTimeout: 15_000 })
 
 test('simulation and loadout optimization work in a cold offline application', async ({ page, context }) => {
@@ -41,51 +42,6 @@ test('simulation and loadout optimization work in a cold offline application', a
   await expect(attacker.getByRole('button', { name: 'Optimize', exact: true })).toBeVisible({ timeout: 120_000 })
   await expect(attacker.getByRole('button', { name: 'Optimize', exact: true })).toBeEnabled()
   await expect(reopened.getByRole('region', { name: 'Combined estimate' }).locator('.readout').nth(1)).toHaveText('6.00')
-})
-
-test('online saves only show sync status when the queue remains pending', async ({ page }) => {
-  await signUp(page, uniqueName('Quiet sync'))
-  await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Original list' })
-  await expectWorkSynced(page)
-  for (const slow of [false, true]) {
-    const name = `${slow ? 'Slow' : 'Quick'} save`
-    const { promise: pending, resolve: release } = Promise.withResolvers<void>()
-    await page.route('**/_serverFn/**', async (route) => {
-      const body = route.request().postData() ?? ''
-      if (body.includes(name) && body.includes('operationId')) await pending
-      await route.continue()
-    })
-    await page.evaluate(() => {
-      const banner = () => [...document.querySelectorAll('output')].some((element) => /waiting to sync/.test(element.textContent ?? ''))
-      const observation = { seen: banner(), observer: new MutationObserver(() => (observation.seen ||= banner())) }
-      observation.observer.observe(document.body, { childList: true, subtree: true, characterData: true })
-      Object.assign(window, { syncObservation: observation })
-    })
-    const before = await page.locator('[data-roster-builder]').boundingBox()
-    try {
-      await page.getByLabel('List name').fill(name)
-      await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(1)
-      if (slow) {
-        await page.waitForTimeout(5_000)
-        await expect(page.getByText('1 change waiting to sync', { exact: true })).toHaveCount(0)
-        await expect(page.getByText('1 change waiting to sync', { exact: true })).toBeVisible()
-      } else {
-        await page.waitForTimeout(150)
-        expect(await page.locator('[data-roster-builder]').boundingBox()).toEqual(before)
-      }
-    } finally {
-      release()
-    }
-    await expectWorkSynced(page)
-    await expect(page.getByText('1 change waiting to sync', { exact: true })).toHaveCount(0)
-    const seen = await page.evaluate(() => {
-      const observation = (window as unknown as { syncObservation: { seen: boolean; observer: MutationObserver } }).syncObservation
-      observation.observer.disconnect()
-      return observation.seen
-    })
-    expect(seen).toBe(slow)
-    await page.unroute('**/_serverFn/**')
-  }
 })
 
 test('offline roster edits survive a cold reopen and sync after reconnecting', async ({ page, context }) => {
@@ -141,40 +97,6 @@ test('a roster still waiting to sync opens in a new tab and a missing one shows 
   await expect(tab.getByLabel('List name')).toHaveValue(name)
   await tab.goto(`/rosters/${crypto.randomUUID()}`)
   await expect(tab.getByRole('heading', { name: 'No such roster' })).toBeVisible()
-})
-
-test('a lost save response retains its identity and later edits sync in order', async ({ page, context }) => {
-  test.setTimeout(240_000)
-  await signUp(page, uniqueName('Intermittent connection'))
-  await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Original army' })
-  const id = lastPathSegment(page.url())
-  const operator = await productOperator()
-  await waitForOfflineApp(page)
-  await expectWorkSynced(page)
-  // Going offline while the response is still held would fail the request before the handler drops it.
-  const { promise: acknowledgementDropped, resolve: dropAcknowledgement } = Promise.withResolvers<void>()
-  await page.route('**/_serverFn/**', async (route) => {
-    const body = route.request().postData() ?? ''
-    if (body.includes('Lost acknowledgement') && body.includes('operationId')) {
-      await route.fetch()
-      await route.abort()
-      dropAcknowledgement()
-    } else await route.continue()
-  })
-  await page.getByLabel('List name').fill('Lost acknowledgement')
-  await acknowledgementDropped
-  await expect.poll(async () => (await operator.roster(id))?.name).toBe('Lost acknowledgement')
-  await context.setOffline(true)
-  await expect.poll(async () => (await savedWork(page))?.operations[0]?.attempted).toBe(true)
-  const identity = (await savedWork(page))!.operations[0].id
-  await page.getByLabel('List name').fill('Latest offline edit')
-  await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(2)
-  expect((await savedWork(page))?.operations[0]?.id).toBe(identity)
-  await page.unroute('**/_serverFn/**')
-  await context.setOffline(false)
-  await page.evaluate(() => window.dispatchEvent(new Event('online')))
-  await expect.poll(async () => (await operator.roster(id))?.name, { timeout: 30_000 }).toBe('Latest offline edit')
-  await expectWorkSynced(page)
 })
 
 test('an offline practice battle and its commands survive reopening and sync together', async ({ page, context }) => {

@@ -18,7 +18,7 @@ import {
   standingsQuery,
 } from '../../queries'
 import { warnIfSlow } from '../shell/slowLoader'
-import { HOME_GROUPS_SHOWN } from '../../../core/group'
+import { byLatestGame, HOME_GROUPS_SHOWN } from '../../../core/group'
 import type { QueryData } from '../../queries'
 
 type GroupRow = QueryData<typeof groupsQuery>[number]
@@ -29,8 +29,7 @@ export function homeMemberships(groups: readonly GroupRow[]) {
     .filter(({ ownMember }) => ownMember)
     .toSorted(
       (one, other) =>
-        Number(one.ownMember?.status === 'pending') - Number(other.ownMember?.status === 'pending') ||
-        (other.lastBattleAt ?? 0) - (one.lastBattleAt ?? 0),
+        Number(one.ownMember?.status === 'pending') - Number(other.ownMember?.status === 'pending') || byLatestGame(one, other),
     )
 }
 

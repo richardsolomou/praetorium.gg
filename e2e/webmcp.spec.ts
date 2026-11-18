@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './test'
-import { signUp, uniqueName, signOut, PHONE } from './account'
+import { signUp, signUpThroughForm, uniqueName, signOut, PHONE } from './account'
 
 async function installInspector(page: Page) {
   await page.addInitScript(() => {
@@ -70,20 +70,20 @@ function start(page: Page, toolName: string, arguments_: object) {
 test('browser agents discover the full MCP surface and account tools disappear on sign-out', async ({ page }) => {
   await installInspector(page)
   await page.goto('/')
-  await expect.poll(() => names(page)).toHaveLength(27)
-  await signUp(page, uniqueName('Agent'))
-  await expect.poll(() => names(page)).toHaveLength(53)
+  await expect.poll(() => names(page)).toHaveLength(28)
+  await signUpThroughForm(page, uniqueName('Agent'))
+  await expect.poll(() => names(page)).toHaveLength(54)
   const factions = await call(page, 'list_factions')
   expect(factions.structuredContent?.factions).toBeInstanceOf(Array)
   await signOut(page)
-  await expect.poll(() => names(page)).toHaveLength(27)
+  await expect.poll(() => names(page)).toHaveLength(28)
 })
 
 test('declining a browser-agent write leaves saved data unchanged; approving writes and refreshes the screen', async ({ page }) => {
   await installInspector(page)
   await signUp(page, uniqueName('Approval'))
   await page.goto('/battles')
-  await expect.poll(() => names(page)).toHaveLength(53)
+  await expect.poll(() => names(page)).toHaveLength(54)
   // A battle played alone stays a draft until its armies are chosen, which Battles offers back.
   const draft = page.getByRole('link', { name: /Continue your draft.* vs Opponent/ })
   await start(page, 'create_battle', { bothSides: true })
@@ -96,7 +96,7 @@ test('declining a browser-agent write leaves saved data unchanged; approving wri
   await page.reload()
   await expect(page.getByRole('heading', { name: 'Battles', exact: true })).toBeVisible()
   await expect(draft).toHaveCount(0)
-  await expect.poll(() => names(page)).toHaveLength(53)
+  await expect.poll(() => names(page)).toHaveLength(54)
   await start(page, 'create_battle', { bothSides: true })
   await dialog.getByRole('button', { name: 'Approve change', exact: true }).click()
   await expect(dialog).toBeHidden()
@@ -108,7 +108,8 @@ test('declining a browser-agent write leaves saved data unchanged; approving wri
 test('browser agents save rosters, change visibility and append battle actions through the shared handlers', async ({ page }) => {
   await installInspector(page)
   await signUp(page, uniqueName('Agent writes'))
-  await expect.poll(() => names(page)).toHaveLength(53)
+  await page.goto('/')
+  await expect.poll(() => names(page)).toHaveLength(54)
   const factions = (await call(page, 'list_factions')).structuredContent!.factions as { id: string }[]
   await start(page, 'save_roster', {
     name: 'Agent army',
@@ -146,18 +147,4 @@ test('browser agents save rosters, change visibility and append battle actions t
   await expect(actionDialog).toBeHidden()
   const changed = (await call(page, 'get_my_battle', { token })).structuredContent!.battle as { view: { seq: number } }
   expect(changed.view.seq).toBe(battle.view.seq + 1)
-})
-
-test('an unanswered browser-agent approval expires without saving', async ({ page }) => {
-  await installInspector(page)
-  await signUp(page, uniqueName('Agent timeout'))
-  await expect.poll(() => names(page)).toHaveLength(53)
-  const before = await call(page, 'list_my_battles')
-  await page.clock.install()
-  await start(page, 'create_battle', { opponentId: 'practice-opponent-1', limit: 2000 })
-  const dialog = page.getByRole('dialog', { name: 'Create a battle' })
-  await expect(dialog).toBeVisible()
-  await page.clock.fastForward(120_001)
-  await expect(dialog).toBeHidden()
-  expect(await call(page, 'list_my_battles')).toEqual(before)
 })

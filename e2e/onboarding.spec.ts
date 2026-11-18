@@ -7,7 +7,7 @@ import {
   chooseUnit,
   createBattle,
   createRoster,
-  signUp,
+  signUpThroughForm,
   takeTheTurn,
   uniqueName,
   waitForRosterSave,
@@ -83,29 +83,26 @@ async function practiceBattleGuide(page: Page, name: string, width: number) {
   await page.screenshot({ path: test.info().outputPath('battle-help-' + width + '.png') })
 }
 
-for (const width of [1440, 390]) {
-  test(`the simulator guide finishes and stays closed after a reload at ${width}px`, async ({ page }) => {
-    await page.setViewportSize({ width, height: 900 })
-    await signUp(page, uniqueName('Simulator Guide'))
-    await launch(page, '/simulator', 'First matchup guide')
-    await expect(prompt(page)).toContainText('Choose an attacker')
-    await chooseUnit(page, 'Attacker', 'Space Marines', 'Intercessor Squad')
-    await expect(prompt(page)).toContainText('Choose a defender')
-    await chooseUnit(page, 'Defender', 'Tyranids', 'Termagants')
-    await expect(prompt(page)).toContainText('Read the odds')
-    await page.screenshot({ path: test.info().outputPath('simulator-guide-' + width + '.png') })
-    await prompt(page).getByRole('button', { name: 'Finish tour' }).click()
-    await expect(prompt(page)).toBeHidden()
-    await page.reload()
-    await expect(page.getByRole('button', { name: 'First matchup guide', exact: true })).toBeVisible()
-    await expect(prompt(page)).toBeHidden()
-  })
-}
+test(`the simulator guide finishes and stays closed after a reload`, async ({ page }) => {
+  await signUpThroughForm(page, uniqueName('Simulator Guide'))
+  await launch(page, '/simulator', 'First matchup guide')
+  await expect(prompt(page)).toContainText('Choose an attacker')
+  await chooseUnit(page, 'Attacker', 'Space Marines', 'Intercessor Squad')
+  await expect(prompt(page)).toContainText('Choose a defender')
+  await chooseUnit(page, 'Defender', 'Tyranids', 'Termagants')
+  await expect(prompt(page)).toContainText('Read the odds')
+  await page.screenshot({ path: test.info().outputPath('simulator-guide.png') })
+  await prompt(page).getByRole('button', { name: 'Finish tour' }).click()
+  await expect(prompt(page)).toBeHidden()
+  await page.reload()
+  await expect(page.getByRole('button', { name: 'First matchup guide', exact: true })).toBeVisible()
+  await expect(prompt(page)).toBeHidden()
+})
 
 for (const signedIn of [false, true]) {
   test(`import guidance starts without an army and follows review for ${signedIn ? 'an account' : 'a visitor'}`, async ({ page }) => {
     await page.setViewportSize({ width: signedIn ? 1440 : 390, height: 900 })
-    if (signedIn) await signUp(page, uniqueName('Import Guide'))
+    if (signedIn) await signUpThroughForm(page, uniqueName('Import Guide'))
     else await page.goto('/')
     await page.goto('/rosters')
     await page.getByRole('button', { name: 'Import roster', exact: true }).click()
@@ -145,14 +142,14 @@ for (const signedIn of [false, true]) {
 test('the practice battle guide follows setup into live play', async ({ page }) => {
   test.setTimeout(240_000)
   await page.setViewportSize({ width: 1440, height: 900 })
-  await signUp(page, uniqueName('Battle Guide'))
+  await signUpThroughForm(page, uniqueName('Battle Guide'))
   const name = await army(page)
   for (const width of [1440, 390]) await practiceBattleGuide(page, name, width)
 })
 
 test('the first-army guide stops after adding a unit', async ({ page }) => {
   await page.setViewportSize(desktopContext.viewport)
-  await signUp(page, uniqueName('First Army Guide'))
+  await signUpThroughForm(page, uniqueName('First Army Guide'))
   await launch(page, '/rosters', 'Build guide')
   await page.getByRole('button', { name: 'New roster', exact: true }).click()
   const dialog = page.getByRole('dialog', { name: 'Create roster' })
@@ -212,45 +209,41 @@ test('the first-army guide stops after adding a unit', async ({ page }) => {
   await expect(prompt(page)).toBeHidden()
 })
 
-for (const width of [1440, 390]) {
-  test(`the contextual tournament guide follows creation at ${width}px`, async ({ page }) => {
-    await page.setViewportSize({ width, height: 900 })
-    await signUp(page, uniqueName('Tournament Guide'))
-    await page.goto('/tournaments')
-    await page.getByRole('button', { name: 'Tournament guide', exact: true }).click()
-    await expect(prompt(page)).toContainText('Run a tournament')
-    await page.getByRole('button', { name: 'New tournament', exact: true }).click()
-    await page.getByRole('dialog').getByLabel('Name', { exact: true }).fill(uniqueName('Guided tournament'))
-    await next(page, 'Format and points')
-    await next(page, 'Everything else can wait')
-    await page.locator('[data-onboarding="sealed-event-create"]').click()
-    await expect(page).toHaveURL(/\/tournaments\/[^/]+$/)
-    await next(page, 'Your entrants')
-    await next(page, 'Before the reveal')
-    await expect(prompt(page)).toContainText('Your own place')
-    await page.screenshot({ path: test.info().outputPath('tournament-guide-' + width + '.png') })
-    await prompt(page).getByRole('button', { name: 'Finish tour' }).click()
-    await expect(prompt(page)).toBeHidden()
-  })
+// One guide runs on a phone, where its anchors move into the application's own navigation.
+test('the tournament and group guides follow creation onto the new event', async ({ page }) => {
+  await signUpThroughForm(page, uniqueName('Event Guide'))
+  await page.goto('/tournaments')
+  await page.getByRole('button', { name: 'Tournament guide', exact: true }).click()
+  await expect(prompt(page)).toContainText('Run a tournament')
+  await page.getByRole('button', { name: 'New tournament', exact: true }).click()
+  await page.getByRole('dialog').getByLabel('Name', { exact: true }).fill(uniqueName('Guided tournament'))
+  await next(page, 'Format and points')
+  await next(page, 'Everything else can wait')
+  await page.locator('[data-onboarding="sealed-event-create"]').click()
+  await expect(page).toHaveURL(/\/tournaments\/[^/]+$/)
+  await next(page, 'Your entrants')
+  await next(page, 'Before the reveal')
+  await expect(prompt(page)).toContainText('Your own place')
+  await prompt(page).getByRole('button', { name: 'Finish tour' }).click()
+  await expect(prompt(page)).toBeHidden()
 
-  test(`the group guide follows creation onto the group at ${width}px`, async ({ page }) => {
-    await page.setViewportSize({ width, height: 900 })
-    await signUp(page, uniqueName('Group Guide'))
-    await launch(page, '/groups', 'Group guide')
-    await expect(prompt(page)).toContainText('Start a group')
-    await page.getByRole('button', { name: 'New group', exact: true }).click()
-    await page.getByRole('dialog').getByLabel('Name', { exact: true }).fill(uniqueName('Guided group'))
-    await next(page, 'Who finds it, who gets in')
-    await page.locator('[data-onboarding="group-create"]').click()
-    await expect(page).toHaveURL(/\/groups\/[^/]+$/)
-    await next(page, 'Invite your players')
-    await next(page, 'Play for the group')
-    await expect(prompt(page)).toContainText('Follow the standings')
-    await prompt(page).getByRole('button', { name: 'Finish tour' }).click()
-    await expect(prompt(page)).toBeHidden()
-  })
+  await page.setViewportSize({ width: 390, height: 900 })
+  await launch(page, '/groups', 'Group guide')
+  await expect(prompt(page)).toContainText('Start a group')
+  await page.getByRole('button', { name: 'New group', exact: true }).click()
+  await page.getByRole('dialog').getByLabel('Name', { exact: true }).fill(uniqueName('Guided group'))
+  await next(page, 'Who finds it, who gets in')
+  await page.locator('[data-onboarding="group-create"]').click()
+  await expect(page).toHaveURL(/\/groups\/[^/]+$/)
+  await next(page, 'Invite your players')
+  await next(page, 'Play for the group')
+  await expect(prompt(page)).toContainText('Follow the standings')
+  await prompt(page).getByRole('button', { name: 'Finish tour' }).click()
+  await expect(prompt(page)).toBeHidden()
+})
 
-  test(`reference help stays on the current page at ${width}px`, async ({ page }) => {
+test('reference help stays on the current page', async ({ page }) => {
+  for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 })
     await page.goto('/factions')
     await page.getByRole('button', { name: 'Search help', exact: true }).click()
@@ -259,5 +252,5 @@ for (const width of [1440, 390]) {
     await expect(page.locator('[data-onboarding="global-search"][data-onboarding-active="true"]')).toBeVisible()
     await prompt(page).getByRole('button', { name: 'Finish tour' }).click()
     await expect(prompt(page)).toBeHidden()
-  })
-}
+  }
+})

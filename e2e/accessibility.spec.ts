@@ -137,7 +137,7 @@ test.describe('a touch device', () => {
     const more = page.getByRole('button', { name: 'More models in Immortals', exact: true })
     expect(await more.evaluate((button) => button.getBoundingClientRect().right <= innerWidth)).toBe(true)
     await more.click()
-    await expect(page.getByLabel('Immortals models')).toHaveText('6')
+    await expect(page.getByLabel('Immortals models')).toHaveValue('6')
   })
 
   test('keeps reserve counts, the battle scoreboard and phase control readable at double text size', async ({ page }) => {
@@ -232,6 +232,7 @@ test.describe('a touch device', () => {
 
   test('keeps page tabs inside the screen at double text size, scrolled to the current one', async ({ page }) => {
     await signUp(page, 'Tabs')
+    await page.goto('/')
     await page.locator('[data-mobile-app-header]').getByRole('button', { name: 'Account menu for Tabs' }).click()
     await page.getByRole('menuitem', { name: 'My profile' }).click()
     await expect(page.getByRole('tab', { name: 'Collection' })).toBeVisible()

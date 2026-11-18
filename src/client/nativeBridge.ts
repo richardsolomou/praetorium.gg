@@ -2,6 +2,7 @@ import { parseLocalState, type LocalState } from '../contracts/localState'
 import { useSyncExternalStore } from 'react'
 import type { AppSnapshot } from '../contracts/appSnapshot'
 import type { WatchBattle } from '../contracts/watchBattle'
+import type { HomeWidget } from '../contracts/homeWidget'
 import { NATIVE_EVENTS, type Haptic, type NativeEvent, type NativePushAnswer } from '../contracts/nativeBridge'
 
 export type { NativePushAnswer }
@@ -13,8 +14,10 @@ type NativeCapability =
   | 'app-navigation'
   | 'back-gesture'
   | 'battle-active'
+  | 'battle-activity'
   | 'haptic'
   | 'haptic-styles'
+  | 'home-widget'
   | 'github-auth'
   | 'notifications'
   | 'notice-sync'
@@ -223,8 +226,14 @@ export async function requestNativeOfflineSave(doc: { html: string; savedAt: num
   )
 }
 
+/** Hands the shell the battle it follows on a paired Watch (`watch-battle`) or the Lock Screen (`battle-activity`). */
 export function setNativeWatchBattle(snapshot: WatchBattle | null) {
-  return send('watch-battle', { type: 'native-watch-battle', snapshot })
+  return send(supports('watch-battle') ? 'watch-battle' : 'battle-activity', { type: 'native-watch-battle', snapshot })
+}
+
+/** Hands the shell what its home screen widget shows; null empties it for a signed-out device. */
+export function setNativeHomeWidget(widget: HomeWidget | null) {
+  return send('home-widget', { type: 'native-home-widget', widget })
 }
 
 function subscribeCapabilities(changed: () => void) {
@@ -232,11 +241,12 @@ function subscribeCapabilities(changed: () => void) {
   return () => window.removeEventListener(NATIVE_EVENTS.capabilities, changed)
 }
 
-export function useNativeWatchBattleAvailability() {
+/** Whether the shell follows a live battle anywhere: `watch` when a paired Watch is among the places. */
+export function useNativeBattleFollowing() {
   return useSyncExternalStore(
     subscribeCapabilities,
-    () => supports('watch-battle'),
-    () => false,
+    () => (supports('watch-battle') ? 'watch' : supports('battle-activity') ? 'lock-screen' : null),
+    () => null,
   )
 }
 

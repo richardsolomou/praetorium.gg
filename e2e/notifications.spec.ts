@@ -11,6 +11,7 @@ test('a friend request shows on every device the recipient uses, and reading it 
   const aliceName = uniqueName('Alice')
   const bobName = uniqueName('Bob')
   const account = await signUp(bob, bobName)
+  await bob.goto('/')
   await signIn(bobElsewhere, account.email, account.password)
   await bobElsewhere.waitForURL('/')
   await signUp(alice, aliceName)

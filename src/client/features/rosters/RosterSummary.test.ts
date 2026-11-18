@@ -24,6 +24,7 @@ const roster = {
   baseRosterId: null,
   locked: false,
   archived: false,
+  sharingDeclined: false,
 } satisfies SavedRoster
 
 describe('roster summary', () => {

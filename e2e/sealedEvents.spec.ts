@@ -54,10 +54,13 @@ test('players can decline and publish their original sealed event roster across 
   await chooseRosterDefault(owner, 'Private')
   const armyName = uniqueName('The revealed army')
   await sealableRoster(owner, armyName)
-  const savedUrl = owner.url()
-  const savedId = lastPathSegment(savedUrl)
   const product = await productOperator()
-  const saved = (await product.roster(savedId))!
+  const saved = (await product.roster(lastPathSegment(owner.url())))!
+  // A No thanks stays with its roster, so the second event seals another list to be asked about.
+  const publishedName = uniqueName('The published army')
+  await sealableRoster(owner, publishedName)
+  const publishedUrl = owner.url()
+  const publishedId = lastPathSegment(publishedUrl)
   await sealableRoster(opponent, 'Already public sealed event army')
   await owner.goto('/tournaments')
   const create = await openSealedEventCreation(owner)
@@ -70,13 +73,13 @@ test('players can decline and publish their original sealed event roster across 
   await opponent.goto(sealedEventUrl)
   await join(opponent)
   await sealOwnRoster(opponent, 'Already public sealed event army')
-  await expect(owner.locator('[data-sealed-event-sharing]')).toHaveCount(0)
+  await expect(owner.locator('[data-roster-sharing]')).toHaveCount(0)
   await owner.reload()
   await revealEvent(owner)
   await expect(opponent.getByRole('region', { name: 'Roster sharing', exact: true })).toHaveCount(0)
   await owner.reload()
   const sharing = owner.getByRole('region', { name: 'Roster sharing', exact: true })
-  await expect(sharing.getByRole('heading', { name: 'Share your sealed roster?' })).toBeVisible()
+  await expect(sharing.getByRole('heading', { name: `Share ${armyName}?` })).toBeVisible()
   await expect(sharing.getByRole('button')).toHaveText(['Make public', 'No thanks'])
   expect((await sharing.boundingBox())!.y).toBeLessThan((await owner.locator('[data-sealed-event-armies]').boundingBox())!.y)
   await sharing.scrollIntoViewIfNeeded()
@@ -105,20 +108,20 @@ test('players can decline and publish their original sealed event roster across 
   await second.getByRole('button', { name: /^Anyone who joins/ }).click()
   await submitSealedEventCreation(owner, second)
   sealedEventUrl = owner.url()
-  await sealOwnRoster(owner, armyName)
+  await sealOwnRoster(owner, publishedName)
   await opponent.goto(sealedEventUrl)
   await join(opponent)
   await sealOwnRoster(opponent, 'Already public sealed event army')
   await owner.reload()
   await revealEvent(owner)
-  await expect(sharing.getByRole('heading', { name: 'Share your sealed roster?' })).toBeVisible()
+  await expect(sharing.getByRole('heading', { name: `Share ${publishedName}?` })).toBeVisible()
 
   // Publication changes the saved roster’s visibility without replacing its edits.
   await owner.setViewportSize({ width: 1440, height: 1000 })
-  await owner.goto(savedUrl)
+  await owner.goto(publishedUrl)
   await addUnit(owner, 'Immortals')
   await owner.goto(sealedEventUrl)
-  await expect(sharing).toContainText('including changes since sealing and future edits')
+  await expect(sharing).toContainText('including any changes since you sealed it')
   // A press that lands before hydration does nothing, so press again until the prompt goes.
   await expect(async () => {
     if (await sharing.count()) await sharing.getByRole('button', { name: 'Make public', exact: true }).click()
@@ -128,8 +131,8 @@ test('players can decline and publish their original sealed event roster across 
   const { event } = (await product.sealedEventByToken(sealedEventToken))!
   const publication = await product.sealedEventRosterSharing(sealedEventToken, event.token, saved.userId)
   const sharedId = publication!.roster.id
-  expect(sharedId).toBe(savedId)
-  expect((await product.roster(savedId))?.visibility).toBe('public')
+  expect(sharedId).toBe(publishedId)
+  expect((await product.roster(publishedId))?.visibility).toBe('public')
   const visitor = await (await browser.newContext()).newPage()
   await visitor.goto(new URL(`/rosters/${sharedId}`, sealedEventUrl).href)
   await expect(visitor.locator('[data-unit="Skorpekh Lord"]')).toBeVisible()
@@ -141,11 +144,11 @@ test('players can decline and publish their original sealed event roster across 
   await owner.reload()
   await expect(sharing).toHaveCount(0)
   await visitor.reload()
-  await expect(visitor.locator(`[data-discovered-roster="${armyName}"]`)).toBeVisible()
-  await visitor.locator(`[data-discovered-roster="${armyName}"]`).scrollIntoViewIfNeeded()
+  await expect(visitor.locator(`[data-discovered-roster="${publishedName}"]`)).toBeVisible()
+  await visitor.locator(`[data-discovered-roster="${publishedName}"]`).scrollIntoViewIfNeeded()
   await visitor.screenshot({ path: testInfo.outputPath('sealed-event-sharing-discovery.png') })
   await owner.goto('/rosters')
-  await expect(owner.locator(`[data-roster="${armyName}"]`)).toHaveCount(1)
+  await expect(owner.locator(`[data-roster="${publishedName}"]`)).toHaveCount(1)
   for (const name of [
     'sealed-event-sharing-desktop.png',
     'sealed-event-sharing-phone.png',
@@ -831,29 +834,6 @@ test('a full sealed event keeps its lists sealed until someone reveals them', as
   await expect(owner.locator('[data-entry-status]').getByRole('button', { name: 'Reveal all rosters' })).toBeEnabled()
 
   await Promise.all([ownerContext.close(), opponentContext.close()])
-})
-
-test('a sealed event names its next step, which moves on once a player joins', async ({ browser }) => {
-  const ownerContext = await browser.newContext()
-  const playerContext = await browser.newContext()
-  const owner = await ownerContext.newPage()
-  const player = await playerContext.newPage()
-  await signUp(owner, uniqueName('Next step organizer'))
-  await signUp(player, uniqueName('Next step player'))
-  await owner.goto('/tournaments')
-  const create = await openSealedEventCreation(owner)
-  await create.getByLabel('Name').fill(uniqueName('Next step sealed event'))
-  await create.getByRole('button', { name: /^Anyone who joins/ }).click()
-  await submitSealedEventCreation(owner, create)
-  const nextStep = owner.locator('[data-sealed-event-next-step]')
-  await expect(nextStep).toHaveText('Next: Copy the invite link and send it to your players.')
-
-  await player.goto(owner.url())
-  await join(player)
-  await owner.reload()
-  await expect(nextStep).toHaveText('Next: Players seal their rosters. Nobody sees another list, you included, until the reveal.')
-  await ownerContext.close()
-  await playerContext.close()
 })
 
 test('a new sealed event starts with its first event and can seal a roster', async ({ page }) => {

@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { ChevronRight, FileDiff, Layers, ScrollText, Swords, UserPlus } from 'lucide-react'
+import { ChevronRight, FileDiff, Hourglass, Layers, ScrollText, Swords, UserPlus } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { SectionHeading } from '../../components/SectionHeading'
 import { useMoment } from '../../dates'
@@ -26,11 +26,12 @@ const GAMES_SHOWN = 2
 
 /**
  * Everything waiting on the player, most pressing first: games they are in the middle of, as full cards, then league
- * games past their deadline, lists an event needs, league games still to play, lists a data update changed, and friend
- * requests.
+ * games past their deadline, lists an event needs, league games still to play, games left untouched, lists a data update
+ * changed, and friend requests.
  */
 export function HomeInProgress({
   games,
+  staleGames,
   viewerId,
   onDelete,
   rostersDue,
@@ -39,6 +40,8 @@ export function HomeInProgress({
   friendRequests,
 }: {
   games: readonly Battle[]
+  /** Unfinished games untouched long enough to leave the cards, still waiting to be finished on the battles page. */
+  staleGames: number
   viewerId: string
   onDelete?: (battle: Battle) => void
   rostersDue: readonly RosterDue[]
@@ -48,7 +51,7 @@ export function HomeInProgress({
 }) {
   const moment = useMoment()
   const moreGames = Math.max(0, games.length - GAMES_SHOWN)
-  const errands = rostersDue.length + leagueGames.length + (changedRosters ? 1 : 0) + (friendRequests ? 1 : 0)
+  const errands = rostersDue.length + leagueGames.length + (staleGames ? 1 : 0) + (changedRosters ? 1 : 0) + (friendRequests ? 1 : 0)
   if (!games.length && !errands) return null
   const league = (game: LeagueGameDue) => (
     <li key={`${game.groupToken}-${game.round}`}>
@@ -99,6 +102,15 @@ export function HomeInProgress({
               </li>
             ))}
             {leagueGames.filter((game) => !game.overdue).map(league)}
+            {staleGames ? (
+              <li>
+                <Link to="/battles" className={ROW}>
+                  <Row icon={<Hourglass className="size-4 text-discarded" aria-hidden />} detail="Untouched for two weeks or more">
+                    {countLabel(staleGames, 'unfinished game')} waiting
+                  </Row>
+                </Link>
+              </li>
+            ) : null}
             {changedRosters ? (
               <li>
                 <Link to="/rosters" search={{ updates: 'changed' }} className={ROW}>

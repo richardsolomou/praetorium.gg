@@ -44,10 +44,10 @@ export const rosterPickSchema = z.object({
   catalogueId: id.optional().describe("The unit's own catalogue when it differs from the roster's; usually omitted."),
   models: z.number().int().min(1).max(60).optional().describe('Unit size; defaults to the minimum.'),
   choices: z
-    .record(z.string().max(400), id)
+    .record(z.string().max(400), id.or(z.literal('')))
     .optional()
     .describe(
-      'One option per choice group, choice key to option id from get_unit_options, for groups it sets with choices: wargear, an enhancement, a detachment upgrade. Omitted groups keep their default.',
+      "One option per choice group, choice key to option id from get_unit_options, for groups it sets with choices: wargear, an enhancement, a detachment upgrade. Omitted groups keep their default; '' leaves an optional group empty.",
     ),
   spreads: z
     .record(z.string().max(400), z.record(z.string().max(64), z.number().int().min(0).max(60)))

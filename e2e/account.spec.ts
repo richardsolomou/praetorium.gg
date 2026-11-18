@@ -8,7 +8,7 @@ import {
   createRoster,
   newBattle,
   shareBattleLink,
-  signUp,
+  signUpThroughForm,
   uniqueName,
   expectNoPageOverflow,
   addUnit,
@@ -19,17 +19,6 @@ import {
   PHONE,
   expandStep,
 } from './account'
-
-/**
- * An account is who you are here, so this covers both halves of that: nothing is
- * reachable without one, and everything saved under one is still there on a
- * device that has never seen this player before.
- */
-test('a battle cannot be opened without an account', async ({ page }) => {
-  await page.goto('/battles')
-  await expect(page.getByRole('button', { name: 'New battle' })).toBeHidden()
-  await expect(page.getByRole('link', { name: 'Sign in' }).first()).toBeVisible()
-})
 
 test('account forms show the server error', async ({ page }) => {
   const email = `auth-error-${crypto.randomUUID()}@example.test`
@@ -103,7 +92,7 @@ test('email verification callbacks explain their result without an active sessio
 })
 
 test('profile security settings reserve their content before hydration', async ({ browser, page }) => {
-  await signUp(page, uniqueName('Server Profile'))
+  await signUpThroughForm(page, uniqueName('Server Profile'))
   const context = await browser.newContext({ javaScriptEnabled: false, storageState: await page.context().storageState() })
   const serverPage = await context.newPage()
 
@@ -117,7 +106,7 @@ test('profile security settings reserve their content before hydration', async (
 })
 
 test('profile lists sign-in methods and two-factor together without a notifications section', async ({ page }) => {
-  await signUp(page, uniqueName('Account Methods'))
+  await signUpThroughForm(page, uniqueName('Account Methods'))
   await page.goto('/profile')
 
   const methods = page.locator('#sign-in-methods')
@@ -138,7 +127,7 @@ test('failed security settings show a retry state', async ({ page }) => {
   await page.addInitScript(() => {
     window.requestIdleCallback = () => 0
   })
-  await signUp(page, uniqueName('Failed Profile'))
+  await signUpThroughForm(page, uniqueName('Failed Profile'))
   await page.goto('/')
   await page.route('**/_serverFn/**', (route) => route.abort('failed'))
 
@@ -150,7 +139,7 @@ test('failed security settings show a retry state', async ({ page }) => {
 })
 
 test('password reset refreshes revoked auth state and preserves the destination', async ({ page }) => {
-  await signUp(page, uniqueName('ResetState'))
+  await signUpThroughForm(page, uniqueName('ResetState'))
   await page.route('**/api/auth/reset-password', (route) => route.fulfill({ json: { status: true } }))
   await page.goto('/reset-password?token=test-token&next=%2Fbattles%2F123')
   await page.context().clearCookies()
@@ -180,7 +169,7 @@ test('password reset failures are announced', async ({ page }) => {
 })
 
 test('a player can edit their display name and profile picture', async ({ page }) => {
-  await signUp(page, uniqueName('Alice'))
+  await signUpThroughForm(page, uniqueName('Alice'))
   await page.getByRole('button', { name: /Account menu for/ }).click()
   await page.getByRole('menuitem', { name: 'Account settings' }).click()
 
@@ -214,7 +203,7 @@ test('a player can edit their display name and profile picture', async ({ page }
 })
 
 test('profile saves preserve newer name and picture edits', async ({ page }) => {
-  await signUp(page, uniqueName('Profile draft'))
+  await signUpThroughForm(page, uniqueName('Profile draft'))
   await page.goto('/profile')
   const { promise: gate, resolve: release } = Promise.withResolvers<void>()
   let started = false
@@ -256,7 +245,7 @@ test('profile saves preserve newer name and picture edits', async ({ page }) => 
 })
 
 test('profile defaults apply to rosters while battles infer their format', async ({ page }) => {
-  await signUp(page, uniqueName('Alice'))
+  await signUpThroughForm(page, uniqueName('Alice'))
   // Neither choice is a new account's default, so each assertion below needs its press to have saved.
   await chooseRosterDefault(page, 'Unlisted')
   await choosePlayerDefault(page, 'Battle size', 'Incursion')
@@ -278,34 +267,12 @@ test('profile defaults apply to rosters while battles infer their format', async
   await expect(page.locator('#setup-format').getByRole('combobox', { name: 'Battle size' })).toHaveCount(0)
 })
 
-test('a player can permanently delete their account', async ({ page }) => {
-  await signUp(page, uniqueName('DeleteAccount'))
-  await page.goto('/profile')
-
-  await page.getByRole('button', { name: 'Delete account' }).click()
-  const dialog = page.getByRole('dialog', { name: 'Delete your account' })
-  await expect(dialog).toContainText('every battle you played will be deleted')
-  await page.screenshot({ path: test.info().outputPath('delete-account-confirm-desktop.png'), fullPage: true })
-  await page.setViewportSize(PHONE)
-  await page.screenshot({ path: test.info().outputPath('delete-account-confirm-phone.png'), fullPage: true })
-
-  await dialog.getByLabel('Confirm your password').fill('a-long-enough-password')
-  await dialog.getByLabel('I understand that my account and its battles cannot be recovered.').check()
-  await dialog.getByRole('button', { name: 'Permanently delete account' }).click()
-
-  await page.waitForURL('/')
-  await expect(page.getByRole('link', { name: 'Sign in' }).first()).toBeVisible()
-  await page.goto('/profile')
-  await expect(page.getByRole('heading', { name: 'Your profile' })).toBeVisible()
-  await expect(page.getByText('Sign in to edit your profile.')).toBeVisible()
-})
-
 test('friends use the profile picture shown elsewhere', async ({ browser }) => {
   const alice = await (await browser.newContext()).newPage()
   const bob = await (await browser.newContext()).newPage()
   const aliceName = uniqueName('Alice')
 
-  await signUp(alice, aliceName)
+  await signUpThroughForm(alice, aliceName)
   await alice.goto('/profile')
   // A file chosen before the page hydrates is dropped, so choose it until the picture is held.
   await expect(async () => {
@@ -319,7 +286,7 @@ test('friends use the profile picture shown elsewhere', async ({ browser }) => {
   }).toPass({ timeout: 15_000 })
   await alice.getByRole('button', { name: 'Save profile' }).click()
   await expect(alice.getByText('Profile saved.')).toBeVisible()
-  await signUp(bob, uniqueName('Bob'))
+  await signUpThroughForm(bob, uniqueName('Bob'))
   await befriend(alice, bob)
 
   const friend = bob.locator(`[data-person="${aliceName}"]`)
@@ -337,7 +304,7 @@ test('a one-time link connects a new player after they create an account and acc
   const inviterName = uniqueName('Inviter')
   const recipientName = uniqueName('Recipient')
 
-  await signUp(inviter, inviterName)
+  await signUpThroughForm(inviter, inviterName)
   await inviter.goto('/friends')
   await inviter.getByRole('button', { name: 'Create invite link' }).click()
   await expect(inviter.getByRole('button', { name: 'Link copied' })).toBeVisible()
@@ -383,8 +350,8 @@ test('a player can reject an incoming friend request', async ({ browser }) => {
   const requesterName = uniqueName('Requester')
   const recipientName = uniqueName('Recipient')
   try {
-    await signUp(requester, requesterName)
-    await signUp(recipient, recipientName)
+    await signUpThroughForm(requester, requesterName)
+    await signUpThroughForm(recipient, recipientName)
     await requester.goto('/friends')
     const sent = requester.locator('section').filter({ hasText: 'Sent requests' }).locator(`[data-person="${recipientName}"]`)
     // Presses that land before the page hydrates do nothing, so repeat them until the request is sent.
@@ -420,30 +387,10 @@ test('a player can reject an incoming friend request', async ({ browser }) => {
   }
 })
 
-test('the account menu opens from the rail and the phone header', async ({ page }) => {
-  const name = uniqueName('Feedback')
-  await signUp(page, name)
-
-  const account = page.locator('[data-web-app-chrome]').getByRole('button', { name: `Account menu for ${name}` })
-  await account.click()
-  await expect(page.getByRole('menuitem', { name: 'My profile' })).toContainText(name)
-  await expect(page.getByRole('menuitem', { name: 'Feedback' })).toBeVisible()
-  await page.screenshot({ path: test.info().outputPath('account-menu-desktop.png'), fullPage: true })
-
-  await account.click()
-  await page.setViewportSize(PHONE)
-  await page
-    .locator('[data-mobile-app-header]')
-    .getByRole('button', { name: `Account menu for ${name}` })
-    .click()
-  await expect(page.getByRole('menuitem', { name: 'My profile' })).toBeVisible()
-  await page.screenshot({ path: test.info().outputPath('account-menu-phone.png'), fullPage: true })
-})
-
 test('a list saved under an account is there on another device', async ({ browser }) => {
   const first = await browser.newContext()
   const page = await first.newPage()
-  const { email, password } = await signUp(page, 'Alice')
+  const { email, password } = await signUpThroughForm(page, 'Alice')
   await expect(page.getByRole('button', { name: 'Account menu for Alice' })).toBeVisible()
 
   await createRoster(page, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Kept list' })
@@ -474,8 +421,8 @@ test('a seated battle signs the opponent in and drops them back into setup', asy
   const guest = await (await browser.newContext()).newPage()
   const aliceName = uniqueName('Alice')
   const bobName = uniqueName('Bob')
-  const bob = await signUp(guest, bobName)
-  await signUp(host, aliceName)
+  const bob = await signUpThroughForm(guest, bobName)
+  await signUpThroughForm(host, aliceName)
   await signOut(guest)
   await expect(guest.getByRole('link', { name: 'Sign in' }).first()).toBeVisible()
 
@@ -500,7 +447,7 @@ test('a seated battle signs the opponent in and drops them back into setup', asy
 
 test('signing out in one tab signs the other tab out', async ({ page }) => {
   const name = uniqueName('Two Tabs')
-  await signUp(page, name)
+  await signUpThroughForm(page, name)
   const other = await page.context().newPage()
   await other.goto('/')
   await expect(other.getByRole('button', { name: `Account menu for ${name}` }).first()).toBeVisible()

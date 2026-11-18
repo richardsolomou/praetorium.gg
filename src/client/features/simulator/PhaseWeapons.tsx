@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { WeaponProfiles } from '../../components/DatasheetProfiles'
@@ -7,7 +8,7 @@ import type { CombatantSnapshot } from '../../../core/combatMatchup'
 import type { WeaponAdjustment } from '../../../core/combatAdjustments'
 import { adjustedCharacteristic } from '../../../core/combatRules'
 import { datasheetCharacteristicKindOf } from '../../../core/datasheetStructure'
-import { wargearKey } from '../../../core/wargear'
+import { wargearKey } from '../../../core/wargearNames'
 import { groupBy } from '../../../core/collections'
 import { Problem } from '../../components/Problem'
 import { Choice, PHASE_TITLES, PhaseIcon } from './CombatControls'
@@ -72,7 +73,7 @@ export function withManualModifiers(profile: Datasheet['profiles'][number], adju
 }
 
 /** One phase's weapon choices and include switches, with what stops it calculating. */
-export function PhaseWeapons({
+export const PhaseWeapons = memo(function PhaseWeapons({
   phase,
   plan,
   hitRolls,
@@ -168,4 +169,4 @@ export function PhaseWeapons({
       </div>
     </section>
   )
-}
+})

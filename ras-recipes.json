@@ -46,7 +46,8 @@
       "notes": [
         "ci.yml runs `pnpm check`'s lanes side by side (static, build, unit, integration, points, browser builds, and the browser specs a change exercises), each in its own ci-<lane>.yml and reported under the job names main requires, with a daily full browser run that records spec coverage; it does not call check-js.yml.",
         "The application releases with Changesets (release.yml calls release-changesets.yml@v1) and deploys released revisions, so `changesets:check` is part of `pnpm check`.",
-        "Dependabot keeps the recipe's grouping and cooldown; better-auth and its @better-auth plugins are no longer ignored and move together in the same grouped pull request."
+        "Dependabot keeps the recipe's grouping and cooldown; better-auth and its @better-auth plugins are no longer ignored and move together in the same grouped pull request.",
+        "Dependabot groups `better-auth` with `@better-auth/*`, because Better Auth's plugins pin its core version and a lone bump splits the types."
       ]
     },
     "database-libsql": {
@@ -117,8 +118,8 @@
       ]
     },
     "posthog-server": {
-      "version": 3,
-      "commit": "0184a1e1bc4ababa9b89b4455014ba13be436df2",
+      "version": 4,
+      "commit": "251a36b063ee74278ea600493558fd52268d9afd",
       "files": {
         "src/server/rpcTelemetry.test.ts": "src/server/rpcTelemetry.test.ts",
         "src/server/rpcTelemetry.ts": "src/server/rpcTelemetry.ts",
@@ -135,8 +136,8 @@
       ]
     },
     "posthog-web": {
-      "version": 4,
-      "commit": "0184a1e1bc4ababa9b89b4455014ba13be436df2",
+      "version": 5,
+      "commit": "b9c98f6989bdf87707a9041eaf330c6c4fbf9ded",
       "files": {
         "scripts/posthogSourceMaps.test.ts": "scripts/posthogSourceMaps.test.ts",
         "scripts/posthogSourceMaps.ts": "scripts/posthogSourceMaps.ts",
@@ -156,8 +157,11 @@
         "src/client/posthog.tsx merges `applicationPostHogOptions` from src/posthog.ts over `postHogOptions`: dead clicks, more masked URL parameters (`state`, `code_challenge`, `sig`), before_send filters for impersonation, unactionable exceptions, private URLs and feature context, masked log URLs, and no session recording on the stream overlay, which is decided at init from the page's path.",
         "The router keeps its own `defaultOnCatch` (`reportRouteError`), which captures route exceptions after its module-recovery handling, and every route has the application's `defaultErrorComponent`.",
         "scripts/posthogSourceMaps.ts uploads symbol sets named `praetorium-web` at the commit (`GITHUB_SHA`), which error tracking matches releases by.",
+        "scripts/posthogSourceMaps.ts deletes the plugin's `augmentChunkHash`, so the random symbol-set chunk ids stay out of asset file names and unchanged code keeps its URL across releases; publishWebAssets keeps the first stored copy, whose chunk id was uploaded with its own release.",
+        "scripts/posthogSourceMaps.ts returns the client plugin alone, with no worker instance: every web worker is imported `?worker&inline`, so no worker file exists to map, and the ids a worker build injects would rename its parent chunk on every build. scripts/lib/offlineAppPlugin.ts strips the injected ids from the rebundled offline app for the same reason.",
         "Dockerfile.node keeps its own upload: the BuildKit secret is `posthog_api_key` (from the `POSTHOG_API_KEY` Actions secret), it retries the build and a `posthog-cli sourcemap upload` of `.output/public`, and deletes every remaining map.",
-        "Vite's `telemetry` chunk group keeps posthog-js and the PostHog packages in their own chunk."
+        "Vite's `telemetry` chunk group keeps posthog-js and the PostHog packages in their own chunk.",
+        "`postHogOptions` adds `ConversationsExtensions` for the support panel. The app's feedback form sends survey events directly."
       ]
     },
     "spacetimedb": {
@@ -220,8 +224,9 @@
         "The root route keeps the document in AppShell as its `component`, since the shell renders two different documents (the stream overlay and the app frame) around its providers; the chunk recovery script is in head() and the update notice in the app frame's body.",
         "The router keeps the application's own context (`origin` for absolute metadata), stale-build reload, route error recovery, view transitions, and error and not-found components.",
         "src/client/queryClient.ts keeps the application's caches, offline snapshot restore, and failure reporting around `new QueryClient`, and its own tests in place of the recipe's.",
-        "src/start.ts runs request timing first, then the recipe's middleware, then the crawler log, shared page cache, and public page load limits; function middleware adds the pending-write marker, and `serverFns.fetch` keeps the network error handling.",
+        "src/start.ts runs request timing first, then the recipe's middleware, then the crawler log, shared page cache, and public page load limits, and last the chunk import map, which src/server/chunkImportMap.ts writes straight after `<head>` because React hoists modulepreload links above anything the shell renders; function middleware adds the pending-write marker, and `serverFns.fetch` keeps the network error handling.",
         "`referrer-policy` stays `no-referrer`, the application's privacy choice, instead of `strict-origin-when-cross-origin`.",
+        "vite.config.ts turns on `build.chunkImportMap` for the client environment so a release renames only the chunks whose code changed; scripts/lib/chunkImportMapPlugin.ts hands the map to the server bundle, and the offline app rebundle resolves chunks through it.",
         "src/server/contentSecurityPolicy.ts adds the faction icon CDN and PostHog media hosts to img-src, the rules text host to connect-src, and `worker-src 'self' blob:` for combat workers; src/server/cspPlugin.ts (a Nitro response hook) still widens img-src with the deployment's public asset origin and adds `'unsafe-eval'` when SpacetimeDB is configured, since both are runtime settings.",
         "Static files Nitro serves no longer carry the security headers the Nitro `/**` route rule added; they still get their Cache-Control rules there.",
         "src/server/rpc.ts wraps the recipe's `run` in the application's PostHog observer and reports failures through it; `inTurn` streams per-item results with the same reporting.",

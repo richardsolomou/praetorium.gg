@@ -7,6 +7,7 @@ import {
   profileDescription,
   type InfoGroup,
   type InfoLink,
+  linkedProfile,
   nameOf,
   type Profile,
   targetOf,
@@ -25,7 +26,8 @@ import {
 } from '../core/evaluate'
 import { defaultSelection } from '../core/expand'
 import { unitChoices } from '../core/unitChoices'
-import { wargearKey, wargearOf } from '../core/wargear'
+import { wargearOf } from '../core/wargear'
+import { wargearKey } from '../core/wargearNames'
 import { combatCarriers, referenceOnlyWeapon } from '../core/combatLoadout'
 import { ruleReferenceMatches, splitWeaponKeywords } from '../core/ruleReference'
 import { routeSlug } from '../core/slug'
@@ -252,7 +254,7 @@ export function datasheetIn(loaded: LoadedCatalogue, catalogueId: string, entryI
 /** Support effects need selected abilities, without weapon stats or reference relationships. */
 export function datasheetAbilitiesIn(loaded: LoadedCatalogue, catalogueId: string, entryId: string, context: DatasheetContext) {
   const walked = walk(loaded, catalogueId, entryId, context, true)
-  return walked ? { name: walked.name, abilities: walked.abilities, keywords: walked.keywords } : null
+  return walked ? { name: walked.name, abilities: walked.abilities, enhancements: walked.enhancements, keywords: walked.keywords } : null
 }
 
 function assemble(loaded: LoadedCatalogue, catalogueId: string, entryId: string, walked: Walked | null): Datasheet | null {
@@ -271,6 +273,7 @@ function assemble(loaded: LoadedCatalogue, catalogueId: string, entryId: string,
     ...(walked.modelKeywords.length ? { modelKeywords: walked.modelKeywords } : {}),
     profiles: walked.profiles,
     abilities: walked.abilities,
+    ...(walked.enhancements.length ? { enhancements: walked.enhancements } : {}),
     composition: details?.composition ?? [],
     ...(details?.modelCount ? { modelCount: details.modelCount } : {}),
     loadout: details?.loadout ?? null,
@@ -369,9 +372,10 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
   }
   const profiles = new Map<string, { profile: Profile; lineage: string[]; owner: string[] }>()
   const abilities = new Map<string, Datasheet['abilities'][number]>()
+  const enhancements = new Map<string, Datasheet['abilities'][number]>()
   const keywordRules = new Map<string, Datasheet['keywordRules'][number]>()
   const visited = new Set<string>()
-  const addProfile = (profile: Profile, kind: AbilityKind, lineage: string[], owner: string[], source?: string) => {
+  const addProfile = (profile: Profile, kind: AbilityKind, lineage: string[], owner: string[], source?: string, into = abilities) => {
     if (profile.typeName === 'Abilities' && profile.name) {
       const profileLineage = [...lineage, profile.id]
       const hidden = modifiedProfileField(
@@ -383,7 +387,7 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
         modifiers,
       ).value
       if (hidden === 'true') return
-      abilities.set(`${kind}:${profile.id}`, { id: profile.id, name: profile.name, source, description: profileDescription(profile), kind })
+      into.set(`${kind}:${profile.id}`, { id: profile.id, name: profile.name, source, description: profileDescription(profile), kind })
     } else if (!abilitiesOnly) {
       profiles.set(profile.id, { profile, lineage, owner })
     }
@@ -432,7 +436,15 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
       const shared = loaded.index.shared.get(link.targetId)
       if (!shared) continue
       if ('characteristics' in shared && (!weaponsOnly || shared.typeName !== 'Abilities')) {
-        addProfile({ ...shared, name: link.name ?? shared.name }, kind, [...lineage, link.id, shared.id], [...owner, link.id, shared.id])
+        const profile = linkedProfile(link, shared)
+        // Link modifiers apply only to fielded models, so an unfielded model's variant is the shared profile itself.
+        const fielded = !selectedUnit || selected.has(definition.id)
+        addProfile(
+          fielded ? profile : { ...profile, id: shared.id },
+          kind,
+          [...lineage, link.id, shared.id],
+          [...owner, link.id, shared.id],
+        )
       }
     }
   }
@@ -496,7 +508,7 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
   // reach through a shared group of shared weapons the walk above does not enter.
   // `unitChoices` alone decides what is offered, so its options are the ones drawn:
   // every option's weapons, and the abilities only of the wargear the unit holds. An
-  // enhancement's prose is shown with the choice itself, so it is not an ability too.
+  // enhancement's prose is shown with the choice itself, so its abilities are kept apart for the simulator.
   const visitOption = (node: Selection, ancestors: string[], withAbilities: boolean) => {
     const definition = loaded.index.definitions.get(node.id)
     if (!definition) return
@@ -508,6 +520,17 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
       if (visited.has(source.id)) continue
       visited.add(source.id)
       addProfiles(source, lineage, 'wargear', false, !chosen || !withAbilities)
+      if (chosen && !withAbilities)
+        source.profiles?.forEach((profile) =>
+          addProfile(
+            profile,
+            'upgrade',
+            lineage,
+            definitionTokens(source),
+            source.name !== profile.name ? source.name : undefined,
+            enhancements,
+          ),
+        )
     }
     node.selections?.forEach((child) => visitOption(child, lineage, withAbilities))
   }
@@ -613,7 +636,8 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
     modelKeywords,
     catalogueOptions,
     profiles: uniqueProfiles(displayProfiles),
-    abilities: uniqueAbilities([...abilities.values(), ...grantedAbilities]),
+    abilities: uniqueAbilities(withGrantsOverLinks([...abilities.values()], grantedAbilities)),
+    enhancements: [...enhancements.values()],
     keywordRules: [...keywordRules.values()],
   }
 }
@@ -835,7 +859,7 @@ function grantedAbilitiesInAttachedUnit(
   rosterKeywordIds?: readonly (readonly string[])[],
 ): Datasheet['abilities'] {
   if (unitSelectionIndex === undefined) return []
-  const found = new Map<string, { name: string; models?: string; sources: Set<string>; ids: Set<string> }>()
+  const found = new Map<string, { name: string; models?: string; condition?: string; sources: Set<string>; ids: Set<string> }>()
   const keywordsBySelection = companionIndexes.length
     ? (rosterKeywordIds ?? keywordIdsBySelection(selections, index, { primaryCatalogueId: catalogueId }))
     : []
@@ -888,8 +912,14 @@ function grantedAbilitiesInAttachedUnit(
             if (grant.recipient === 'bearer' && origin !== 'self') continue
             if (grant.recipient === 'leader' && (origin !== 'companion' || !character)) continue
             if (grant.recipient === 'models' && (origin !== 'companion' || !selectedKeywords.has(grant.models!.toLowerCase()))) continue
-            const key = `${grant.name.toLowerCase()}:${grant.models?.toLowerCase() ?? ''}`
-            const granted = found.get(key) ?? { name: grant.name, models: grant.models, sources: new Set(), ids: new Set() }
+            const key = `${grant.name.toLowerCase()}:${grant.models?.toLowerCase() ?? ''}:${grant.condition?.toLowerCase() ?? ''}`
+            const granted = found.get(key) ?? {
+              name: grant.condition && !grant.name.endsWith('*') ? `${grant.name}*` : grant.name,
+              models: grant.models,
+              condition: grant.condition,
+              sources: new Set(),
+              ids: new Set(),
+            }
             granted.sources.add(profile.name)
             granted.ids.add(profile.id)
             found.set(key, granted)
@@ -900,13 +930,14 @@ function grantedAbilitiesInAttachedUnit(
   }
   collect(definitionsInSelections(selections, [unitSelectionIndex], index), 'self')
   collect(definitionsInSelections(selections, companionIndexes, index), 'companion')
-  return [...found.values()].map(({ name, models, sources, ids }) => ({
+  return [...found.values()].map(({ name, models, condition, sources, ids }) => ({
     id: `granted:${[...ids].toSorted().join(':')}`,
     name,
     source: [...sources].toSorted().join(', '),
     description: null,
     kind: 'core',
     ...(models ? { models } : {}),
+    ...(condition ? { condition } : {}),
   }))
 }
 
@@ -1078,6 +1109,22 @@ function uniqueProfiles(profiles: Datasheet['profiles']) {
       values: profile.values.map((value) => ({ ...value, value: comparableText(value.value) })),
     }),
   )
+}
+
+/**
+ * A limited grant replaces the asterisked core rule the datasheet links for it, as "Feel No Pain 4+*", so one chip
+ * says both what the asterisk means and where it came from.
+ */
+function withGrantsOverLinks(own: Datasheet['abilities'], granted: Datasheet['abilities']): Datasheet['abilities'] {
+  const name = (ability: Datasheet['abilities'][number]) => ability.name.trim().toLowerCase()
+  const linked = new Map(own.filter((ability) => ability.kind === 'core' && !ability.source).map((ability) => [name(ability), ability]))
+  const replaced = new Set(granted.flatMap((ability) => (ability.condition && linked.has(name(ability)) ? [name(ability)] : [])))
+  return [
+    ...own.filter((ability) => ability.kind !== 'core' || ability.source || !replaced.has(name(ability))),
+    ...granted.map((ability) =>
+      replaced.has(name(ability)) ? { ...ability, description: ability.description ?? linked.get(name(ability))!.description } : ability,
+    ),
+  ]
 }
 
 function uniqueAbilities(abilities: Datasheet['abilities']) {

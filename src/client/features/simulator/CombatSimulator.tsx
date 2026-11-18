@@ -1,6 +1,6 @@
 import { noExclusions } from '../../../core/combatMatchup'
 import { GuideHelp } from '../onboarding/GuideHelp'
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { memo, startTransition, useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { posthog } from 'posthog-js'
 import { ArrowLeftRight } from 'lucide-react'
 import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -49,7 +49,8 @@ function savedRosterSide(side: SimulatorSide, roster: CombatRoster | null, name:
 const savedCombatRoster = (roster: LocalRoster | null | undefined): CombatRoster | null => (roster ? { ...roster, pickIndex: 0 } : null)
 
 /** The standalone page keeps its matchup in the URL, so a link reopens the same calculation. */
-export function CombatSimulator({
+/** `shared` is the setup it opens with; each change after is reported through `onShare`. */
+export const CombatSimulator = memo(function CombatSimulator({
   shared,
   onShare,
   reference,
@@ -73,9 +74,7 @@ export function CombatSimulator({
       factions.data?.factions.find((faction) => faction.id === roster.catalogueId),
     )
   const savedRosters = (saved.data ?? []).filter((roster) => !roster.archived)
-  useEffect(() => {
-    if (session.shared !== shared) onShare(session.shared)
-  }, [session.shared, shared, onShare])
+  useEffect(() => onShare(session.shared), [session.shared, onShare])
   const ownerOf = useRosterOwners()
   const sealedEventSources = new Map<string, SimulatorRosterSource>(
     sealedEventRosters.map((entry) => {
@@ -133,9 +132,12 @@ export function CombatSimulator({
     if (!initial) return
     rosterRequests.current[0]++
     rosterRequests.current[1]++
-    setSession((current) => ({ key: current.key + 1, shared: value }))
-    setComparingRosters(false)
-    setProblem(null)
+    // A whole new matchup mounts, so it renders after the tap's frame is painted.
+    startTransition(() => {
+      setSession((current) => ({ key: current.key + 1, shared: value }))
+      setComparingRosters(false)
+      setProblem(null)
+    })
   }
   const setSide = (index: 0 | 1, side: SimulatorSide | null) => {
     rosterRequests.current[index]++
@@ -308,7 +310,7 @@ export function CombatSimulator({
       </PageContent>
     </main>
   )
-}
+})
 
 /** The selected unit, everything attached to it, and its roster, so a recent simulation names them too. */
 function joinedUnitName(combatant: Combatant) {
@@ -436,8 +438,9 @@ export function CombatSimulatorMatchup({
   }
   const calculated = useRef<string | null>(null)
   const state = JSON.stringify({ v: 1, sides: [first.shared, second.shared], swapped: reversed, matchup })
+  // The address and recent simulations follow the matchup in a render of their own, after the tap's frame is painted.
   useEffect(() => {
-    onChange?.(JSON.parse(state) as SimulatorState)
+    startTransition(() => onChange?.(JSON.parse(state) as SimulatorState))
   }, [state, onChange])
   useEffect(() => {
     const advance = () => {

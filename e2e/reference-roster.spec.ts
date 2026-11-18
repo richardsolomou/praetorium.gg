@@ -1,6 +1,5 @@
 import { expect, type Page, test } from './test'
-import { retryUntilVisible, chooseRosterAction } from './account'
-import { add } from './builder.harness'
+import { retryUntilVisible } from './account'
 import { guestDraft } from './storage'
 
 const DATASHEET = '/factions/necrons/datasheets/imotekh-the-stormlord'
@@ -41,6 +40,20 @@ test('a visitor starts a roster from a datasheet and is told when it cannot take
   await expect(page.locator('[data-unit]').filter({ hasText: 'Imotekh the Stormlord' })).toHaveCount(1)
 })
 
+test('a visitor who started a list at the end of a datasheet is offered it again on the home page', async ({ page }) => {
+  await page.goto(DATASHEET)
+  await page.waitForLoadState('networkidle')
+  await page.getByRole('button', { name: 'Add to a list', exact: true }).click()
+  await createFromSetup(page, 'Awakened Dynasty')
+  await expect(page.locator('[data-unit]').filter({ hasText: 'Imotekh the Stormlord' })).toHaveCount(1)
+  await expect.poll(() => guestDraft(page)).toContain('"picks":[{')
+  const draftUrl = page.url()
+
+  await page.goto('/')
+  await page.getByRole('link', { name: /Continue your Necrons list/ }).click()
+  await expect(page).toHaveURL(draftUrl)
+})
+
 test('a visitor starts a roster from a faction page with that faction chosen', async ({ page }) => {
   await page.goto('/factions/necrons')
   const setup = page.getByRole('dialog', { name: 'Create roster' })
@@ -67,42 +80,6 @@ test('a datasheet opens the simulator on the side the reader picks', async ({ pa
   await expect(page.getByRole('combobox', { name: 'Defender unit', exact: true })).toHaveText(/Imotekh the Stormlord/)
   await expect(page.getByRole('combobox', { name: 'Attacker unit', exact: true })).toHaveText(/Choose a unit/)
   await expect(page).not.toHaveURL(/from=/)
-})
-
-test('partial Eradicator squads retain their copy-tier prices through reload, view and export', { tag: '@catalogue' }, async ({ page }) => {
-  const name = 'Eradicator Squad with Heavy Bolters'
-  await addFromDatasheet(page, '/factions/space-marines/rules/mfm-1-6/datasheets/eradicator-squad-with-heavy-bolters')
-  await createFromSetup(page, 'Assault Brethren')
-  const cards = page.locator(`[data-unit="${name}"]`)
-  await expect(cards).toHaveCount(1)
-  await add(page, name)
-  await expect(cards).toHaveCount(2)
-  await add(page, name)
-  await expect(cards).toHaveCount(3)
-  for (const [index, points] of [100, 100, 130].entries()) await expect(cards.nth(index)).toContainText(`${points} pts`)
-  for (const [index, points] of [215, 215, 245].entries()) {
-    await cards.nth(index).getByRole('button', { name, exact: true }).click()
-    await page.getByRole('button', { name: `More models in ${name}`, exact: true }).click()
-    await expect(page.getByLabel(`${name} models`, { exact: true })).toHaveText('4')
-    await expect(cards.nth(index)).toContainText(`${points} pts`)
-  }
-  await expect
-    .poll(() =>
-      page.evaluate(() => {
-        const draft = localStorage.getItem('praetorium.guest-draft')
-        return draft ? JSON.parse(draft).draft.picks.map((pick: { models: number }) => pick.models) : []
-      }),
-    )
-    .toEqual([4, 4, 4])
-  await page.reload()
-  for (const [index, points] of [215, 215, 245].entries()) await expect(cards.nth(index)).toContainText(`${points} pts`)
-  await expect(page.getByText('675/2000', { exact: true })).toBeVisible()
-  await page.getByRole('button', { name: 'View', exact: true }).click()
-  await expect(page.getByText('675/2000', { exact: true })).toBeVisible()
-  await chooseRosterAction(page, 'Export text')
-  const exported = page.getByRole('dialog', { name: 'Export roster' }).locator('pre')
-  await expect(exported).toContainText('675 Points')
-  await expect(exported).toContainText(`${name} (245 Points)`)
 })
 
 for (const [width, name, slug, weapon] of [
@@ -140,30 +117,25 @@ for (const [width, name, slug, weapon] of [
   })
 }
 
-for (const width of [1440, 390]) {
-  test(`Eradicator melta profiles remain visible through reload and view at ${width}px`, async ({ page }, testInfo) => {
-    await page.setViewportSize({ width, height: 900 })
-    const name = 'Eradicator Squad with Melta Rifles'
-    await addFromDatasheet(page, '/factions/space-marines/datasheets/eradicator-squad-with-melta-rifles')
-    await createFromSetup(page, 'Assault Brethren')
-    const card = page.locator(`[data-unit="${name}"]`)
-    await card.getByRole('button', { name, exact: true }).click()
-    const rifles = page.getByRole('listitem', { name: /Melta rifle/i }).first()
-    const multi = page.getByRole('listitem', { name: /Multi-melta/i }).first()
-    await expect(rifles.getByText('HUNTER:Monster/Vehicle', { exact: true })).toBeVisible()
-    await expect(multi.getByText('HUNTER:Monster/Vehicle', { exact: true })).toBeVisible()
-    await expect(rifles.getByText('2 profiles', { exact: true })).toBeVisible()
-    await expect(multi.getByText('2 profiles', { exact: true })).toBeVisible()
-    await rifles.screenshot({ path: testInfo.outputPath('melta-rifle-editor.png') })
-    await multi.screenshot({ path: testInfo.outputPath('multi-melta-editor.png') })
-    await expect.poll(() => guestDraft(page)).toContain('"picks":[{')
-    if (width === 390) await page.getByRole('button', { name: 'Back to roster', exact: true }).click()
-    await page.reload()
-    await card.getByRole('button', { name, exact: true }).click()
-    await expect(rifles.getByText('HUNTER:Monster/Vehicle', { exact: true })).toBeVisible()
-    if (width === 390) await page.getByRole('button', { name: 'Back to roster', exact: true }).click()
-    await page.getByRole('button', { name: 'View', exact: true }).click()
-    await card.getByRole('button', { name, exact: true }).click()
-    await expect(rifles.getByText('HUNTER:Monster/Vehicle', { exact: true })).toBeVisible()
-  })
-}
+test(`Eradicator melta profiles remain visible through reload and view`, async ({ page }, testInfo) => {
+  const name = 'Eradicator Squad with Melta Rifles'
+  await addFromDatasheet(page, '/factions/space-marines/datasheets/eradicator-squad-with-melta-rifles')
+  await createFromSetup(page, 'Assault Brethren')
+  const card = page.locator(`[data-unit="${name}"]`)
+  await card.getByRole('button', { name, exact: true }).click()
+  const rifles = page.getByRole('listitem', { name: /Melta rifle/i }).first()
+  const multi = page.getByRole('listitem', { name: /Multi-melta/i }).first()
+  await expect(rifles.getByText('HUNTER:Monster/Vehicle', { exact: true })).toBeVisible()
+  await expect(multi.getByText('HUNTER:Monster/Vehicle', { exact: true })).toBeVisible()
+  await expect(rifles.getByText('2 profiles', { exact: true })).toBeVisible()
+  await expect(multi.getByText('2 profiles', { exact: true })).toBeVisible()
+  await rifles.screenshot({ path: testInfo.outputPath('melta-rifle-editor.png') })
+  await multi.screenshot({ path: testInfo.outputPath('multi-melta-editor.png') })
+  await expect.poll(() => guestDraft(page)).toContain('"picks":[{')
+  await page.reload()
+  await card.getByRole('button', { name, exact: true }).click()
+  await expect(rifles.getByText('HUNTER:Monster/Vehicle', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'View', exact: true }).click()
+  await card.getByRole('button', { name, exact: true }).click()
+  await expect(rifles.getByText('HUNTER:Monster/Vehicle', { exact: true })).toBeVisible()
+})

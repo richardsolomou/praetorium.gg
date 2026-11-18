@@ -7,12 +7,19 @@ import { NO_PREP, savedDraft } from './rosterDraft'
 import { invalidateSavedRosters, meQuery } from '../../queries'
 import { useState } from 'react'
 import { EMPTY_SETUP, guestDraftOf, newGuestDraft, writeGuestDraft } from './guestDraft'
-import { importedSetup, type MatchedImport } from './RosterImport'
+import { importedSetup, type MatchedImport } from './importedSetup'
 import type { RosterSetup } from './RosterSetupDialog'
 import type { MissionReference } from './rosterStart'
 
 /** The reference page a roster was started from, as telemetry names it. */
-export type RosterReference = 'datasheet' | 'detachment' | 'detachment-closing' | 'faction' | MissionReference
+export type RosterReference =
+  | 'datasheet'
+  | 'datasheet-closing'
+  | 'detachment'
+  | 'detachment-closing'
+  | 'faction'
+  | 'faction-closing'
+  | MissionReference
 
 /**
  * Starting a roster from a setup and opening it in the builder, with `add` asked of it there.

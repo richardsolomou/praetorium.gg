@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import type { ComponentProps, ReactNode } from 'react'
+import { type ComponentProps, type ReactNode, useMemo } from 'react'
 import { factionIndexQuery } from '../queries'
 import { FactionMark } from './FactionMark'
 import { SearchableSelect } from './SearchableSelect'
@@ -25,23 +25,16 @@ export function UnitPicker({
   onUnitChange: (catalogueId: string, entryId: string) => void
 }) {
   const factions = useQuery(factionIndexQuery())
-  const books = [
-    ...extraBooks,
-    ...index.map((book) => {
-      const faction = factions.data?.factions.find((entry) => entry.id === book.catalogueId)
-      return { ...book, icon: faction ? <FactionMark faction={faction} size="sm" /> : undefined }
-    }),
-  ]
-  return (
-    <SearchableSelect
-      {...props}
-      virtualized
-      value={selected ? unitValue(selected.catalogueId, selected.entryId) : ''}
-      onValueChange={(value) => {
-        const [catalogueId, entryId] = JSON.parse(value) as [string, string]
-        onUnitChange(catalogueId, entryId)
-      }}
-      groups={books
+  // Every datasheet of every army: rebuilt only when the books change, not on each redraw of the page holding the picker.
+  const groups = useMemo(
+    () =>
+      [
+        ...extraBooks,
+        ...index.map((book) => {
+          const faction = factions.data?.factions.find((entry) => entry.id === book.catalogueId)
+          return { ...book, icon: faction ? <FactionMark faction={faction} size="sm" /> : undefined }
+        }),
+      ]
         .filter((book) => book.units.length)
         .map((book) => ({
           label: book.name,
@@ -51,7 +44,19 @@ export function UnitPicker({
             detail: unit.points === null ? undefined : `${unit.points} pts`,
             icon: book.icon,
           })),
-        }))}
+        })),
+    [extraBooks, index, factions.data],
+  )
+  return (
+    <SearchableSelect
+      {...props}
+      virtualized
+      value={selected ? unitValue(selected.catalogueId, selected.entryId) : ''}
+      onValueChange={(value) => {
+        const [catalogueId, entryId] = JSON.parse(value) as [string, string]
+        onUnitChange(catalogueId, entryId)
+      }}
+      groups={groups}
     />
   )
 }

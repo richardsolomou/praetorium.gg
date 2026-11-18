@@ -10,6 +10,8 @@ import { ALICE, BOB, CAROL, builtRoster } from '../core/battle.fixtures'
 import { byId } from '../core/collections'
 import { battleFoldArgs } from '../core/offlineBattle'
 import { PROVISIONAL_BATTLES, standings } from '../core/standings'
+import { rosterPlayHistory } from '../core/rosterPlays'
+import { playedBattle } from './standingsRefresh'
 import { battleSummary, type BattleFaction } from '../shared/battleSummary'
 import { MODULE_URL, moduleFetch } from './moduleFetch.fixtures'
 import { PraetoriumService } from './service'
@@ -44,12 +46,13 @@ function product() {
   const ids: string[] = []
   const send = async (id: string, by: string, expectedSeq: number, command: Command, now: number) =>
     expect((await operator.submit({ battleId: id, userId: by, expectedSeq, command, now })).result.outcome).toBe('appended')
-  /** A battle `loser` concedes to `winner`, its commands at `at`, both fielding `catalogueId`. */
-  const conceded = async (id: string, winner: string, loser: string, at: number, catalogueId = 'cat') => {
+  /** A battle `loser` concedes to `winner`, its commands at `at`, both fielding `catalogueId`, saved as `<id>-<name>` unless `unsaved`. */
+  const conceded = async (id: string, winner: string, loser: string, at: number, catalogueId = 'cat', unsaved = false) => {
     const roster = (name: string): Command => {
       const command = builtRoster(name, ['Plague Marines'])
       if (command.kind !== 'attach-roster') throw new Error('Expected a roster.')
-      return { ...command, roster: { ...command.roster, built: { ...command.roster.built!, catalogueId } } }
+      const saved = unsaved ? {} : { id: `${id}-${name}` }
+      return { ...command, roster: { ...command.roster, ...saved, built: { ...command.roster.built!, catalogueId } } }
     }
     ids.push(id)
     await operator.createBattle({ id, token: `${id}-token`, userId: winner, opponentIds: [loser], now: at })
@@ -83,7 +86,7 @@ function product() {
     overall: expected.overall,
     factions: expected.factions.map((table) => table.rows),
   })
-  return { service, operator, names, conceded, reopen, replay, tables, replayed }
+  return { service, operator, repository, names, conceded, reopen, replay, tables, replayed }
 }
 
 it('rates the same after changes as a full replay of every log', async () => {
@@ -97,6 +100,19 @@ it('rates the same after changes as a full replay of every log', async () => {
   await operator.deleteBattle('two', BOB)
   names.set(CAROL, 'Caz')
   expect(tables(await service.standingsService.standings())).toEqual(replayed(await replay()))
+})
+
+it('counts finished battles for the saved list fielded, or the one of its name before battles named it', async () => {
+  const { service, repository, conceded } = product()
+  await conceded('one', ALICE, BOB, NOW - 1_000)
+  await conceded('two', ALICE, CAROL, NOW, 'cat', true)
+  await service.standingsService.refreshStandings()
+  const lists = [
+    { id: 'one-Winner army', name: 'Renamed since', catalogueId: 'cat' },
+    { id: 'older', name: 'Winner army', catalogueId: 'cat' },
+  ]
+  const history = rosterPlayHistory(ALICE, (await repository.battleResultsByUser(ALICE)).map(playedBattle), lists)
+  expect(history.map((list) => list.plays?.won)).toEqual([1, 1])
 })
 
 it('rates a battle finishing between rated ones the same as a full replay', async () => {
@@ -131,6 +147,14 @@ it('places a player on their profile where the leaderboard lists them', async ()
   }
   const { overall } = await service.standingsService.standings()
   expect((await service.standingsService.playerRankings(ALICE)).overall?.place).toBe(overall.rows.findIndex((row) => row.id === ALICE) + 1)
+})
+
+it('refreshes a previously read profile ranking after a battle is reopened', async () => {
+  const { service, conceded, reopen } = product()
+  await conceded('one', ALICE, BOB, NOW - 1_000)
+  await service.standingsService.playerRankings(ALICE)
+  await reopen('one', ALICE, NOW)
+  expect((await service.standingsService.playerRankings(ALICE)).history).toEqual([])
 })
 
 it('gives a player no place on their profile until they are ranked', async () => {
