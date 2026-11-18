@@ -67,6 +67,7 @@ test('a saved copy that finds the connection back offers the live app', async ({
   await page.goto('/')
   await expect(page.locator('main h1')).toBeVisible()
   await waitForOfflineApp(page)
+  await page.clock.install()
   await context.setOffline(true)
   await page.reload()
   await expect.poll(() => page.evaluate(() => Boolean(window.PraetoriumOffline))).toBe(true)
@@ -74,7 +75,9 @@ test('a saved copy that finds the connection back offers the live app', async ({
   await expect(notice).toHaveCount(0)
 
   await context.setOffline(false)
-  await expect(notice).toBeVisible({ timeout: 90_000 })
+  // The saved copy hears the connection back from the release check's next poll.
+  await page.clock.runFor(60_000)
+  await expect(notice).toBeVisible()
   await page.screenshot({ path: test.info().outputPath('saved-copy-back-online.png') })
   await notice.getByRole('button', { name: 'Reload' }).click()
   await expect.poll(() => page.evaluate(() => Boolean(window.PraetoriumOffline))).toBe(false)
