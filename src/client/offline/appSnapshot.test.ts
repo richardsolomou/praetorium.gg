@@ -132,3 +132,40 @@ it('restores even a just-saved response as one to fetch again, since a write bef
   restoreAppSnapshot(opened, parseAppSnapshot(JSON.parse(JSON.stringify(captureAppSnapshot(saved))))!)
   expect(opened.getQueryState(['saved-roster-page', 'army'])?.isInvalidated).toBe(true)
 })
+
+const savedRoster = (updatedAt: number, picks: unknown[]) => ({
+  version: 1 as const,
+  owner: 'alice',
+  queries: [
+    { key: ['me'], data: { id: 'alice' }, updatedAt: 1 },
+    { key: ['roster-access', 'army'], data: { roster: { id: 'army', updatedAt, picks } }, updatedAt: 5 },
+  ],
+})
+
+it('leaves out a saved roster older than the copy this device saved since', () => {
+  const client = new QueryClient()
+  restoreAppSnapshot(client, savedRoster(1, []), { 'roster:army': { data: { id: 'army', updatedAt: 2 }, serverVersion: 2 } })
+  expect(client.getQueryData(['roster-access', 'army'])).toBeUndefined()
+})
+
+it('takes back a saved roster it restored before this device saved a newer copy', () => {
+  const client = new QueryClient()
+  const snapshot = savedRoster(1, [])
+  restoreAppSnapshot(client, snapshot)
+  restoreAppSnapshot(client, snapshot, { 'roster:army': { data: { id: 'army', updatedAt: 2 }, serverVersion: 2 } })
+  expect(client.getQueryData(['roster-access', 'army'])).toBeUndefined()
+})
+
+it('restores the settings this device saved rather than an older saved screen of them', () => {
+  const client = new QueryClient()
+  const snapshot = {
+    version: 1 as const,
+    owner: 'alice',
+    queries: [
+      { key: ['me'], data: { id: 'alice' }, updatedAt: 1 },
+      { key: ['player-defaults'], data: { rosterVisibility: 'private' }, updatedAt: 5 },
+    ],
+  }
+  restoreAppSnapshot(client, snapshot, { 'query:["player-defaults"]': { data: { rosterVisibility: 'public' }, serverVersion: null } })
+  expect(client.getQueryData(['player-defaults'])).toEqual({ rosterVisibility: 'public' })
+})

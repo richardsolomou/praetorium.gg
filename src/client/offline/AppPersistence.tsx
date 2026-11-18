@@ -3,7 +3,7 @@ import { afterInitialScreen } from './background'
 import { useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { APP_SNAPSHOT_QUERIES } from '../../contracts/appSnapshot'
-import { captureAppSnapshot, restoreAppSnapshot } from './appSnapshot'
+import { captureAppSnapshot, deviceDocuments, restoreAppSnapshot } from './appSnapshot'
 import { APP_ACCOUNT_EVENT, clearSavedApp, readAppSnapshot, writeAppSnapshot } from './appStorage'
 import {
   battlesQuery,
@@ -160,13 +160,16 @@ export function AppPersistence() {
         .then(() => refresh())
     }
     const cancelInitial = afterInitialScreen(router, () => {
-      if (window.PraetoriumAppSnapshot) {
-        const current = client.getQueryData<{ id: string } | null>(meKey())
-        if (current !== undefined && (current?.id ?? null) !== window.PraetoriumAppSnapshot.owner) void clearSavedApp().catch(() => {})
-        else restoreAppSnapshot(client, window.PraetoriumAppSnapshot)
-      }
-      ready = true
-      save()
+      void (window.PraetoriumAppSnapshot ? deviceDocuments() : Promise.resolve(undefined)).then((documents) => {
+        if (!active) return
+        if (window.PraetoriumAppSnapshot) {
+          const current = client.getQueryData<{ id: string } | null>(meKey())
+          if (current !== undefined && (current?.id ?? null) !== window.PraetoriumAppSnapshot.owner) void clearSavedApp().catch(() => {})
+          else restoreAppSnapshot(client, window.PraetoriumAppSnapshot, documents)
+        }
+        ready = true
+        save()
+      })
     })
     const cancelPreparation = afterInitialScreen(router, () => void refresh(), 10_000)
     window.addEventListener('online', reconnect)
