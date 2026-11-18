@@ -1,4 +1,4 @@
-import type { ComponentProps } from 'react'
+import { type ComponentProps, memo } from 'react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { AttachmentRow } from '../../../core/attachmentRows'
@@ -69,9 +69,10 @@ type RosterCard = ReturnType<typeof rosterCards>[number]
 
 /**
  * The roster's units, shelved by role with attached units drawn together, or what
- * stands in for them while the list loads or before it holds any.
+ * stands in for them while the list loads or before it holds any. Memoised: the workspace redraws for every open and
+ * close of a pane, which leaves the cards as they were.
  */
-export function RosterUnitShelves({
+export const RosterUnitShelves = memo(function RosterUnitShelves({
   cards,
   arrangement,
   frozen,
@@ -281,4 +282,4 @@ export function RosterUnitShelves({
       ) : null}
     </RosterUnits>
   )
-}
+})

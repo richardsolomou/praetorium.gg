@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { memo } from 'react'
 import { fieldedRoster, fieldingPlayer } from './fieldedRoster'
 import { BattleRosterSnapshot } from './BattleRosterSnapshot'
 import { ListBuilder } from './ListBuilder'
@@ -9,7 +10,8 @@ import { pageSection, SectionLink } from '../../components/pageSections'
 
 const rosters = pageSection('/rosters')
 
-export function RosterPage({
+/** Memoised: the route redraws on every address change, such as the pane history a tap on a unit pushes. */
+export const RosterPage = memo(function RosterPage({
   id,
   battle,
   sealedEvent,
@@ -81,4 +83,4 @@ export function RosterPage({
       />
     </main>
   )
-}
+})

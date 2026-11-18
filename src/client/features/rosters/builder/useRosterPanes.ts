@@ -1,5 +1,5 @@
 import { useNavigate, useRouter, useRouterState } from '@tanstack/react-router'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { KeyedPick } from '../rosterPicks'
 import { useMediaQuery } from '../../../useMediaQuery'
 import { useHydrated } from '../../../useClientValue'
@@ -107,18 +107,23 @@ export function useRosterPanes({ path, workspacePath, picks }: { path: string; w
     setSelected(null)
     backFromPane()
   }, [backFromPane, loadoutInline, paneHistory, picks])
+  // Read when a pane opens rather than a dependency, so opening a pane keeps the callbacks the roster's cards hold.
+  const shownPaneHistory = useRef(paneHistory)
+  useLayoutEffect(() => {
+    shownPaneHistory.current = paneHistory
+  }, [paneHistory])
   const pushPaneHistory = useCallback(
     (pane: RosterPaneHistory, stack = false) => {
       paneHistoryRef.current = pane
       void navigate({
         href: `${path}#${ROSTER_PANE_HASH}`,
         hashScrollIntoView: false,
-        replace: Boolean(paneHistory) && !stack,
+        replace: Boolean(shownPaneHistory.current) && !stack,
         resetScroll: false,
         state: (current) => ({ ...current, rosterPane: pane }) as typeof current,
       })
     },
-    [navigate, paneHistory, path],
+    [navigate, path],
   )
 
   const closePane = useCallback(() => {

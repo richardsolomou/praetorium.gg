@@ -232,7 +232,7 @@ export function ListBuilder({
   // Storage holds the only copy of the choice, so a roster opens in the mode last chosen.
   const viewPreferred = useStoredValue(READ_ONLY_PREFERENCE) === 'true'
   const building = editable && !viewPreferred
-  const keptArrangement = useMatch({ from: '/rosters/$id/', shouldThrow: false })?.loaderData?.arrangement
+  const keptArrangement = useMatch({ from: '/rosters/$id/', shouldThrow: false, select: (match) => match.loaderData?.arrangement })
   const [arrangement, setArrangement] = useState(keptArrangement ?? 'attached')
   const frozenReference = Boolean(frozen) || (!editable && !resolvePersistedRoster)
   const pickerOpen = editable && (wideWorkspace || showing === 'picker')
@@ -497,6 +497,7 @@ export function ListBuilder({
         { status: factionRead.status, faction },
         factionIndex?.factions.map((candidate) => candidate.id),
       )
+  const cards = useMemo(() => rosterCards(frozen, units, picks), [frozen, units, picks])
   if (army === 'loading') return <RosterOutline />
   if (army !== 'ready')
     return (
@@ -513,7 +514,6 @@ export function ListBuilder({
   const points = frozen ? frozen.points : (priced?.points ?? 0)
   const over = enforces(waivedRules, 'points-limit') && (frozen ? frozen.points > budget : Boolean(priced && priced.points > budget))
   const illegal = Boolean(priced && (priced.errors.length || priced.detachmentError))
-  const cards = rosterCards(frozen, units, picks)
 
   // The shelves draw a card per datasheet; the header says how many units the list
   // brings, which is the same fold the library and the battle count it by.
