@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { Button } from '@/components/ui/button'
 import { ArrowUp } from 'lucide-react'
 import { ProfileGrid } from '../../components/DatasheetProfiles'
@@ -5,7 +6,7 @@ import { combatGroupProtection, type CombatInput, type CombatTargetGroup } from 
 import { combatUnitTarget } from '../../../core/combatUnit'
 import type { CombatantSnapshot } from '../../../core/combatMatchup'
 
-export function CombatDefences({
+export const CombatDefences = memo(function CombatDefences({
   unit,
   feelNoPain,
   configured,
@@ -89,4 +90,4 @@ export function CombatDefences({
       </table>
     </div>
   )
-}
+})

@@ -8,6 +8,7 @@ import { publicPageLoad, signedSessionCookie } from './server/publicPageLoad'
 import { publicRead, sharedPageCache } from './server/sharedPageCache'
 import { pendingWriteMiddleware } from './client/pendingWrites'
 import { serverFunctionFetch } from './client/networkErrors'
+import { withChunkImportMap } from './server/chunkImportMap'
 
 /** Loaded on first use, so the route tree stays out of this module's client copy and its unit tests. */
 let routePattern: Promise<(pathname: string) => string> | undefined
@@ -56,6 +57,11 @@ const publicPageLoadMiddleware = createMiddleware({ type: 'request' }).server(as
     : next(),
 )
 
+const chunkImportMapMiddleware = createMiddleware({ type: 'request' }).server(async ({ handlerType, next }) => {
+  const result = await next()
+  return handlerType === 'router' ? withChunkImportMap(result.response) : result
+})
+
 export const startInstance = createStart(() => ({
   serverFns: { fetch: (input, init) => serverFunctionFetch(input, init) },
   // Names each server function on its trace span and request metrics.
@@ -69,5 +75,6 @@ export const startInstance = createStart(() => ({
     crawlerRequestMiddleware,
     sharedPageCacheMiddleware,
     publicPageLoadMiddleware,
+    chunkImportMapMiddleware,
   ],
 }))
