@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.266.1 (2026-11-18)
+
+### Patch Changes
+
+- 0d6d9c1: [app] Reduce the JavaScript every page downloads by loading only the PostHog extensions Praetorium uses.
+
 ## 0.266.0 (2026-11-18)
 
 ### Minor Changes
