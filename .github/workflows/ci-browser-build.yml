@@ -12,8 +12,8 @@ on:
         value: ${{ jobs.browser-build.outputs.node-version }}
       runner-count:
         value: ${{ jobs.browser-build.outputs.runner-count }}
-      runtime-cached:
-        value: ${{ jobs.browser-build.outputs.runtime-cached }}
+      runtime-shared:
+        value: ${{ jobs.browser-build.outputs.runtime-shared }}
       runners:
         value: ${{ jobs.browser-build.outputs.runners }}
 
@@ -31,7 +31,7 @@ jobs:
     outputs:
       node-version: ${{ steps.node.outputs.version }}
       runner-count: ${{ steps.runners.outputs.count }}
-      runtime-cached: ${{ steps.runtime-cache.outputs.cache-hit }}
+      runtime-shared: ${{ steps.runtime.outputs.shared }}
       runners: ${{ steps.runners.outputs.runners }}
     steps:
       - uses: actions/checkout@v7
@@ -57,15 +57,13 @@ jobs:
         with:
           path: data-dev/e2e-build
           key: ${{ runner.os }}-${{ runner.arch }}-browser-build-${{ steps.browser-build.outputs.key }}
-      - name: Fingerprint the catalogue runtime
+      # A runtime the shared store already holds was compiled by an earlier build, so its compiler's live catalogue is prepared too.
+      - name: Check the shared store for this catalogue runtime
         id: runtime
-        run: echo "key=$(pnpm exec tsx scripts/catalogueRuntimeKey.ts)" >> "$GITHUB_OUTPUT"
-      - name: Restore the compiled catalogue runtime
-        id: runtime-cache
-        uses: actions/cache@v6
-        with:
-          path: ~/.cache/praetorium/runtime
-          key: catalogue-runtime-${{ steps.runtime.outputs.key }}
+        run: |
+          key="$(pnpm exec tsx scripts/catalogueRuntimeKey.ts)"
+          status="$(curl --silent --output /dev/null --write-out '%{http_code}' --head --retry 3 "https://s3.praetorium.gg/catalogue/runtime/by-key/$key.zip?uncached=$(date +%s)")"
+          echo "shared=$([ "$status" = 200 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
       - name: Build or restore the browser-test build
         run: pnpm exec tsx scripts/browserTestBuild.ts
       - uses: ./.github/actions/verify-browser-build

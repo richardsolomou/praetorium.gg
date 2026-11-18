@@ -18,8 +18,8 @@ permissions:
   contents: read
 
 # `just check` runs these lanes in sequence locally; CI runs them side by side so the fast ones answer first.
-# Each lane's steps live in its own `ci-<lane>.yml`. GitHub names a called workflow's checks `<caller> / <job>`,
-# so the short job after each lane reports it under the name the main branch requires, and skips when it skips.
+# Each lane's steps live in its own `ci-<lane>.yml`, and main requires its checks as `<lane> / <job>`. A lane always
+# runs and skips its own jobs for a change without runtime code, because a skipped check passes and a missing one blocks.
 jobs:
   changes:
     uses: ./.github/workflows/ci-scope.yml
@@ -31,56 +31,31 @@ jobs:
       runtime: ${{ needs.changes.outputs.runtime == 'true' }}
     secrets: inherit
 
-  static:
-    needs: static-lane
-    if: ${{ !cancelled() && needs.static-lane.result != 'skipped' }}
-    runs-on: ubuntu-latest
-    steps:
-      - run: test '${{ needs.static-lane.result }}' = success
-
   unit-lane:
     needs: changes
-    if: needs.changes.outputs.runtime == 'true'
     uses: ./.github/workflows/ci-unit.yml
+    with:
+      runtime: ${{ needs.changes.outputs.runtime == 'true' }}
     secrets: inherit
-
-  unit:
-    needs: unit-lane
-    if: ${{ !cancelled() && needs.unit-lane.result != 'skipped' }}
-    runs-on: ubuntu-latest
-    steps:
-      - run: test '${{ needs.unit-lane.result }}' = success
 
   integration-lane:
     needs: changes
-    if: needs.changes.outputs.runtime == 'true'
     uses: ./.github/workflows/ci-integration.yml
+    with:
+      runtime: ${{ needs.changes.outputs.runtime == 'true' }}
     secrets: inherit
-
-  integration:
-    needs: integration-lane
-    if: ${{ !cancelled() && needs.integration-lane.result != 'skipped' }}
-    runs-on: ubuntu-latest
-    steps:
-      - run: test '${{ needs.integration-lane.result }}' = success
 
   build-lane:
     # Starts beside the browser-test build: both restore the shared catalogue, and on a compiler change both compile it rather than one waiting for the other.
     needs: changes
-    if: needs.changes.outputs.runtime == 'true'
     uses: ./.github/workflows/ci-build.yml
+    with:
+      runtime: ${{ needs.changes.outputs.runtime == 'true' }}
     secrets: inherit
-
-  build:
-    needs: build-lane
-    if: ${{ !cancelled() && needs.build-lane.result != 'skipped' }}
-    runs-on: ubuntu-latest
-    steps:
-      - run: test '${{ needs.build-lane.result }}' = success
 
   live-catalogue:
     needs: [changes, browser-build]
-    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && needs.browser-build.outputs.runtime-cached != 'true'
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && needs.browser-build.outputs.runtime-shared != 'true'
     # The release prepares it anyway, so a failure here costs only time.
     continue-on-error: true
     runs-on: ubuntu-latest
@@ -126,16 +101,10 @@ jobs:
 
   points-lane:
     needs: changes
-    if: needs.changes.outputs.runtime == 'true'
     uses: ./.github/workflows/ci-points.yml
+    with:
+      runtime: ${{ needs.changes.outputs.runtime == 'true' }}
     secrets: inherit
-
-  points:
-    needs: points-lane
-    if: ${{ !cancelled() && needs.points-lane.result != 'skipped' }}
-    runs-on: ubuntu-latest
-    steps:
-      - run: test '${{ needs.points-lane.result }}' = success
 
   coverage-lane:
     needs: changes
