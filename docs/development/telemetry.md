@@ -14,6 +14,7 @@
 ## Runtime
 
 - Only production sends events. `VITE_POSTHOG_HOST` must be the ingestion host, not a reverse proxy that drops the forwarded visitor address.
+- Vite resolves `posthog-js` and `@posthog/react` to their slim entries. Register browser extensions in `src/client/posthogOptions.ts`. Conversations powers the support panel, and the feedback form captures survey events directly.
 - Durable sync captures only on the transaction that newly applies an action, never on retries. A sync answered `refused` or `conflict` returns normally, so it captures `sync_refused` with a bounded `cause`.
 - Write events go through `captureMutation` or `captureWrite`, which add `delivery` and, for account agent tools, `via: 'agent'`.
 - `battle_created` means a battle with every place filled: at creation for one that names its players, and when a draft's last army is chosen (`draft: true`) for one started alone, only the first time it is listed (`listed` on `submit_battle`), so a battle reopened by removing a player is not created twice. Starting a draft is `battle_draft_started` and joining one through its link is `battle_joined`, so drafts nobody joins never count as battles.

@@ -510,10 +510,10 @@ const SCREENSHOT = {
 const SCREENSHOT_LINE = /\nScreenshot: (http:\/\/[^/]+\/api\/feedback-screenshots\/[0-9a-f-]{36})$/
 
 /** Opens the factions page with the support service stubbed, once the page answers. */
-async function supportOnFactions(page: Page) {
+async function supportOnFactions(page: Page, earlier = 0) {
   await page.goto('/factions')
   await page.getByRole('button', { name: 'Search Praetorium' }).waitFor()
-  return stubSupport(page)
+  return stubSupport(page, earlier)
 }
 
 async function openFeedback(page: Page) {
@@ -604,8 +604,7 @@ test('an unread reply marks the account menu until the player reads it', async (
 })
 
 test('a long feedback history loads page by page as the player scrolls it', async ({ page }) => {
-  const support = await supportOnFactions(page)
-  await support.seed(45)
+  await supportOnFactions(page, 45)
   const yours = page.getByRole('menuitem', { name: 'Feedback' })
   await retryUntilVisible(yours, async () => {
     await page.keyboard.press('Escape')
@@ -641,8 +640,7 @@ test('a reply appears in an open conversation without reloading it', async ({ pa
 })
 
 test('a link from a reply email opens that conversation over the support page', async ({ page }) => {
-  const support = await supportOnFactions(page)
-  await support.seed(3)
+  const support = await supportOnFactions(page, 3)
   const [, linked] = await support.tickets()
   await support.reply(linked.id, 'We fixed it')
 
