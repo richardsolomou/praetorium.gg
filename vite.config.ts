@@ -1,3 +1,4 @@
+import { chunkImportMapPlugin } from './scripts/lib/chunkImportMapPlugin.ts'
 import { offlineAppPlugin } from './scripts/lib/offlineAppPlugin.ts'
 import { recentChangelogPlugin } from './scripts/lib/recentChangelogPlugin.ts'
 import tailwindcss from '@tailwindcss/vite'
@@ -29,6 +30,9 @@ export default defineConfig(({ mode }): UserConfig => {
         },
       },
     },
+    // Chunks import each other by stable names that the page's import map resolves, so a release renames only the
+    // chunks whose own code changed instead of every chunk that imports one.
+    environments: { client: { build: { chunkImportMap: true } } },
     // TanStack Start keeps better-auth out of pre-bundling, so without this
     // the browser meets its imports only on first load and Vite reloads the page for them.
     optimizeDeps: { include: ['better-auth > jose/errors'] },
@@ -73,6 +77,7 @@ export default defineConfig(({ mode }): UserConfig => {
       postHogSourceMaps(process.env),
       recentChangelogPlugin(),
       offlineAppPlugin(),
+      chunkImportMapPlugin(),
     ],
   }
 })

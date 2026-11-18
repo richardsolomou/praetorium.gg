@@ -7,7 +7,8 @@
  */
 export const contentSecurityPolicy: Record<string, string[]> = {
   'default-src': ["'self'"],
-  // Start streams its hydration data as inline scripts, and the root route adds chunk recovery.
+  // Start streams its hydration data as inline scripts, the root route adds chunk recovery, and every page starts with
+  // the chunk import map. A hash or nonce would switch 'unsafe-inline' off for Start's scripts, which carry neither.
   'script-src': ["'self'", "'unsafe-inline'"],
   'style-src': ["'self'", "'unsafe-inline'"],
   // Faction icons, and images in support replies.
