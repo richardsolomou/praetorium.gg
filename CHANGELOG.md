@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.265.4 (2026-11-18)
+
+### Patch Changes
+
+- 5f38c29: [app] Opening a roster straight after the app starts no longer shows an older copy that an edit could save over.
+
 ## 0.265.3 (2026-11-18)
 
 ### Patch Changes
