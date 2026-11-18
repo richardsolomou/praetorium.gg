@@ -350,7 +350,8 @@ export function winningListsStore(directory: string, catalogue: () => LoadedCata
       const text = await fs.readFile(listFile(directory, id), 'utf8').catch(() => null)
       if (!event || !player || !text) return null
       const kept = await readJson(importedFile(directory, id), importedSchema)
-      const { verdict, draft } = kept?.revision === revision && kept.release === release ? kept : await importAndKeep(directory, id, text, revision)
+      const { verdict, draft } =
+        kept?.revision === revision && kept.release === release ? kept : await importAndKeep(directory, id, text, revision)
       return verdict && draft ? { list: placed(verdict, id, event, player), units: draft.picks, draft, text } : null
     },
   }
