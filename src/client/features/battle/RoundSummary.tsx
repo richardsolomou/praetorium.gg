@@ -115,7 +115,7 @@ function SummaryScreen({ mark, view, sides: table, onClose }: Omit<Props, 'mark'
         data-round-summary={finished ? 'final' : mark.round}
         onClick={onClose}
         // Fades in as its contents lift into place and each side slides in from its own edge; leaves faster than it came, above the prompt it gives way to.
-        className="group/summary fixed inset-0 z-[55] cursor-pointer overflow-y-auto overscroll-contain bg-void text-bone outline-none transition-opacity duration-220 ease-(--ease-settle) data-ending-style:opacity-0 data-ending-style:duration-160 data-ending-style:ease-in data-starting-style:opacity-0 motion-reduce:transition-none"
+        className="group/summary fixed inset-0 z-[55] cursor-pointer overflow-x-hidden overflow-y-auto overscroll-contain bg-void text-bone outline-none transition-opacity duration-220 ease-(--ease-settle) data-ending-style:opacity-0 data-ending-style:duration-160 data-ending-style:ease-in data-starting-style:opacity-0 motion-reduce:transition-none"
       >
         {/* Each side's colour rises from its own edge, so the half a number sits in already says whose it is. */}
         <div
@@ -127,7 +127,7 @@ function SummaryScreen({ mark, view, sides: table, onClose }: Omit<Props, 'mark'
           }}
         />
         <div aria-hidden className="construction-grid fixed" />
-        <div className="relative mx-auto flex min-h-full w-full max-w-5xl flex-col overflow-x-clip transition-transform duration-320 ease-(--ease-settle) group-data-ending-style/summary:translate-y-2 group-data-ending-style/summary:duration-160 group-data-ending-style/summary:ease-in group-data-starting-style/summary:translate-y-4 motion-reduce:transition-none justify-center gap-6 px-4 pt-[calc(1.5rem+env(safe-area-inset-top))] pb-[calc(9rem+env(safe-area-inset-bottom))] min-[860px]:pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:gap-10 sm:px-8">
+        <div className="relative mx-auto flex min-h-full w-full max-w-5xl flex-col transition-transform duration-320 ease-(--ease-settle) group-data-ending-style/summary:translate-y-2 group-data-ending-style/summary:duration-160 group-data-ending-style/summary:ease-in group-data-starting-style/summary:translate-y-4 motion-reduce:transition-none justify-center gap-6 px-4 pt-[calc(1.5rem+env(safe-area-inset-top))] pb-[calc(9rem+env(safe-area-inset-bottom))] min-[860px]:pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:gap-10 sm:px-8">
           <header className="text-center">
             {finished ? <p className="eyebrow">Battle over</p> : null}
             <DialogPrimitive.Title className="mt-1 text-3xl leading-none font-bold text-balance break-words uppercase sm:text-5xl">
@@ -261,7 +261,7 @@ function FactionWatermark({ army, side, end }: { army: Army | undefined; side: n
       aria-hidden
       className={cn(
         'pointer-events-none absolute -top-8 -z-10 opacity-10 sm:-top-16',
-        end ? '-right-10 sm:-right-24' : '-left-10 sm:-left-24',
+        end ? '-right-10 sm:-right-6 xl:-right-24' : '-left-10 sm:-left-6 xl:-left-24',
       )}
     >
       <FactionMark
