@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.268.0 (2026-11-18)
+
+### Minor Changes
+
+- 2f8e7f8: [rosters] Collection and the Apps page point to HobbyKit for 3D-printable army holders, spray trays and paint racks.
+- 2f8e7f8: [reference] Datasheets link to HobbyKit, a free and open-source base generator, opened on the unit's base size.
+
 ## 0.267.0 (2026-11-18)
 
 ### Minor Changes
