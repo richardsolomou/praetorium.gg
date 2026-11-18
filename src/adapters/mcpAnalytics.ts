@@ -1,6 +1,6 @@
 import { getRequestHeaders, instrument, type BeforeSendFn } from '@posthog/mcp'
 import { PostHog } from 'posthog-node'
-import { version } from '../../package.json'
+import packageJson from '../../package.json' with { type: 'json' }
 import { hostVariable, postHogEnvironment, projectTokenVariable } from '../contracts/posthog'
 import { globalSingleton } from '../lib/globalSingleton'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
@@ -180,7 +180,7 @@ export function instrumentReferenceMcp(server: McpServer, toolNames: ReadonlySet
       request.method === 'initialize' || request.params?._meta?.[CLIENT_INFO_META]
         ? null
         : userAgentClient([getRequestHeaders(extra)?.['user-agent']].flat()[0]),
-    serverBuild: version,
+    serverBuild: packageJson.version,
     // Each request builds its own server, so this holds the one call it answers; the SDK sends a failed call before its exception.
     beforeSend: (event) => {
       if (event.event === '$exception') return unexpected ? privateMcpException(event) : null

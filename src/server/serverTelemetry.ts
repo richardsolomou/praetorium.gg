@@ -1,4 +1,4 @@
-import { version } from '../../package.json'
+import packageJson from '../../package.json' with { type: 'json' }
 import { deploymentHost, reportsToTelemetry, serverEventContext } from '../adapters/posthog'
 import { globalSingleton } from '../lib/globalSingleton'
 import { createTelemetry } from './telemetry'
@@ -11,7 +11,7 @@ export const serverTelemetry = () =>
   globalSingleton(SERVER_TELEMETRY, () => {
     const host = deploymentHost()
     return createTelemetry(reportsToTelemetry ? process.env : {}, {
-      serviceVersion: version,
+      serviceVersion: packageJson.version,
       resourceAttributes: host ? { 'deployment.host': host } : {},
       beforeSend: serverEventContext(host),
     })
