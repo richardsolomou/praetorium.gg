@@ -1,5 +1,26 @@
 # praetorium
 
+## 0.266.3 (2026-11-18)
+
+### Patch Changes
+
+- 5252934: [reference] Faction pages open faster on your first visit.
+- 5252934: [app] Background preparation for offline play waits for idle time and a good connection.
+- 0f871a7: [rosters] Public rosters and saved lists load faster when their points and legality need checking.
+
+  [rosters] Played armies load faster when their points and legality need checking.
+
+  [rosters] Opening a saved roster loads its editor and variant details together.
+
+  [simulator] Roster grades take less time to calculate.
+
+  [battles] Battle history and player profiles load faster.
+
+  [battles] Player rankings and achievements load faster when their results are up to date.
+
+- 20a98cd: [rosters] The unit picker opens faster when you build a roster with a different battle size or detachment.
+- 5252934: [app] The first screen loads with less work before it responds.
+
 ## 0.266.2 (2026-11-18)
 
 ### Patch Changes
