@@ -188,6 +188,7 @@ function offered(
   lineage: readonly Definition[],
   index: CatalogueIndex,
   options: ChoiceOptions,
+  roster = [...(options.roster ?? []), selection],
 ) {
   const answers = remember(
     remember(
@@ -199,7 +200,6 @@ function offered(
     () => new Map(),
   )
   return remember(answers, `${entryId}\0${options.primaryCatalogueId}\0${options.mustering}\0${path.join('/')}`, () => {
-    const roster = [...(options.roster ?? []), selection]
     return (
       !hiddenByRules(definition, index, { ...options, roster }, lineage) || !hiddenByRulesAt(definition, selection, path, index, options)
     )
@@ -222,7 +222,7 @@ function collectUnitChoices(entryId: string, selection: Selection, index: Catalo
   if (!entry) return []
   const minima = new Map<Definition, number>()
   const visible = (definition: Definition, lineage: readonly Definition[], path: readonly string[]) =>
-    offered(entryId, definition, selection, path, lineage, index, options)
+    offered(entryId, definition, selection, path, lineage, index, options, roster)
   const minimum = (definition: Definition) =>
     remember(minima, definition, () =>
       requiredCount(definition, index, {
