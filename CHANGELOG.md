@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.265.6 (2026-11-18)
+
+### Patch Changes
+
+- 04cb62d: [reference] A faction's datasheet list hides Legends and Crucible datasheets until you turn them on, and remembers your choice for every faction.
+
 ## 0.265.5 (2026-11-18)
 
 ### Patch Changes
