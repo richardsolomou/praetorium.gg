@@ -45,6 +45,7 @@ export type LoadoutChoice = {
     max: number
     default?: boolean
     mutableMin?: boolean
+    wholeSquad?: true
     replacements?: { choiceKey: string; optionId: string }[]
     description?: string | null
     keywordRules?: Datasheet['keywordRules']

@@ -2,4 +2,4 @@
 'praetorium.gg': patch
 ---
 
-[builder] Vanguard Veterans with Jump Packs can take a Combat Shield on every model, not just one.
+[builder] Combat Shields on Vanguard Veterans with Jump Packs are one choice for the whole squad, and every model can take one.
