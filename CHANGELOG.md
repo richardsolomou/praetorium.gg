@@ -1,5 +1,15 @@
 # praetorium
 
+## 0.269.0 (2026-11-18)
+
+### Minor Changes
+
+- 5856b94: [events] A group's organizers can unseal a player's list in a running league, so the player can seal a corrected one.
+
+### Patch Changes
+
+- 5856b94: [events] Sealing a replacement list after the reveal no longer says the list stays hidden until the reveal.
+
 ## 0.268.0 (2026-11-18)
 
 ### Minor Changes
