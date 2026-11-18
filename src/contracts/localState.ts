@@ -29,6 +29,9 @@ const localStateSchema = z.object({
 })
 export type LocalState = z.infer<typeof localStateSchema>
 
+/** The device document that holds a query's answer. */
+export const queryResource = (key: readonly unknown[]) => `query:${JSON.stringify(key)}`
+
 export function emptyLocalState(owner: string): LocalState {
   return { version: 1, owner, epoch: crypto.randomUUID(), revision: 0, operations: [], documents: {} }
 }

@@ -8,7 +8,8 @@ import {
   type AppSnapshot,
 } from '../../contracts/appSnapshot'
 import { meKey } from '../queries/queryKeys'
-import { stopLocalRuntime } from './localRuntime'
+import { queryResource, type LocalState } from '../../contracts/localState'
+import { localEngine, stopLocalRuntime } from './localRuntime'
 import { jsonByteLength } from '../../core/json'
 
 /** A filtered battle list is a passing question; offline, filters answer from the saved whole feeds instead. */
@@ -63,12 +64,54 @@ export function captureAppSnapshot(client: QueryClient): AppSnapshot | null {
   return { version: 1, owner, queries }
 }
 
-export function restoreAppSnapshot(client: QueryClient, snapshot: AppSnapshot) {
+type DeviceDocuments = LocalState['documents']
+
+/** The documents this device saved for the signed-in account; every edit reaches them before any screen shows it. */
+export async function deviceDocuments(): Promise<DeviceDocuments | undefined> {
+  try {
+    return (await localEngine()?.storage.read())?.documents
+  } catch {
+    return undefined
+  }
+}
+
+/** The roster a read answers with, whether alone or inside its access and price. */
+function carriedRoster(data: unknown) {
+  const roster = (data as { roster?: unknown } | null)?.roster ?? data
+  const { id, updatedAt } = (roster ?? {}) as { id?: unknown; updatedAt?: unknown }
+  return typeof id === 'string' && typeof updatedAt === 'number' ? { id, updatedAt } : undefined
+}
+
+/**
+ * The device's documents outrank saved screens: a screen saved before the page closed, or by another tab still
+ * holding an older copy, can trail an edit the device already holds, and an editor opened on it saves over that edit.
+ */
+function deviceAnswer(key: readonly unknown[], data: unknown, documents: DeviceDocuments) {
+  const roster = carriedRoster(data)
+  const saved = roster && documents[`roster:${roster.id}`]
+  if (saved && ((saved.data as { updatedAt?: number } | null)?.updatedAt ?? Infinity) > roster.updatedAt) return { outdated: true }
+  const query = documents[queryResource(key)]
+  return query ? { data: query.data } : { data }
+}
+
+/**
+ * Fills queries this page has not answered yet. Given the device's documents, it also takes back what an earlier
+ * restore filled from the same snapshot, so a page restored before storage could be read is corrected before it shows.
+ */
+export function restoreAppSnapshot(client: QueryClient, snapshot: AppSnapshot, documents?: DeviceDocuments) {
   const current = client.getQueryData(meKey()) as { id?: string; impersonatedBy?: string | null } | null | undefined
   if (current !== undefined && (current?.id !== (snapshot.owner ?? undefined) || current?.impersonatedBy)) return
   for (const query of snapshot.queries) {
-    if ((client.getQueryState(query.key)?.dataUpdatedAt ?? 0) >= query.updatedAt) continue
-    client.setQueryData(query.key, query.data, { updatedAt: query.updatedAt })
+    const state = client.getQueryState(query.key)
+    const restored = state?.data !== undefined && state.data === query.data
+    if (!restored && (state?.dataUpdatedAt ?? 0) >= query.updatedAt) continue
+    const answer = documents ? deviceAnswer(query.key, query.data, documents) : { data: query.data }
+    if ('outdated' in answer) {
+      if (restored) client.removeQueries({ queryKey: query.key, exact: true })
+      continue
+    }
+    if (restored && answer.data === query.data) continue
+    client.setQueryData(query.key, answer.data, { updatedAt: query.updatedAt })
     // The last write before the page closed can outrun the snapshot it would have marked, so even a recent answer is fetched again once shown.
     void client.invalidateQueries({ queryKey: query.key, exact: true }, { cancelRefetch: false })
   }

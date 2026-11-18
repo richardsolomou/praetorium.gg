@@ -39,7 +39,7 @@
 
 - Saved responses never authenticate requests, and session tokens never reach the browser.
 - Clear saved screens on sign-out or account change in every tab. Cross-tab account notices refresh the session; never set a temporary signed-out identity, which loops between tabs.
-- Restore cached references only into missing queries, never over a newer response.
+- Restore cached references only into missing queries, never over a newer response. The device's saved documents outrank saved screens: restore skips a roster older than the device's copy and takes account reads from the device.
 - The download is published in parts (`src/contracts/offlineReference.ts`) and stored compressed as published. A page decodes only the parts it reads and keeps a few, never every faction or rules version; battles read the rules part, never catalogues. The build fails on a part above its size limit.
 - Unsynced work is partitioned by owner; sign-out asks to sync, export, or discard it.
 

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { ability, bookOf, points } from '../../server/catalogue.fixtures'
 import type { AbilityReminder } from '../../core/reminders'
-import { queryResource } from './actionFunctions'
+import { queryResource } from '../../contracts/localState'
 import { abilityRemindersKey } from '../queries/queryKeys'
 import { saveRosterSchema } from '../../contracts/schemas'
 import type { BattleWorkspace } from '../../contracts/battleWorkspace'
