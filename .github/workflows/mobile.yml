@@ -13,7 +13,7 @@ on:
         type: boolean
         default: true
       provision_extensions:
-        description: Register and provision the Watch and widget targets using the existing iPhone distribution certificate
+        description: Provision the iPhone app, Watch and widget targets using the existing iPhone distribution certificate
         type: boolean
         default: false
 
@@ -94,7 +94,7 @@ jobs:
             echo "EXPO_ASC_KEY_ID=$APP_STORE_CONNECT_KEY_ID"
             echo "EXPO_ASC_ISSUER_ID=$APP_STORE_CONNECT_ISSUER_ID"
           } >> "$GITHUB_ENV"
-      - name: Provision the app extension signing profiles
+      - name: Provision the iOS signing profiles
         if: inputs.provision_extensions && steps.canary.outputs.build == 'true'
         run: pnpm --package=eas-cli@23.2.0 dlx -c 'node scripts/provisionExtensionsIos.js'
       - name: Build the canary iOS application
