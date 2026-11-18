@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.267.0 (2026-11-18)
+
+### Minor Changes
+
+- facb066: [app] The battle you're playing now shows on your phone's Lock Screen, with the round, phase, whose turn it is and both sides' VP and CP.
+- 162fddd: [app] A home screen widget now shows what's waiting on you: games in progress, league games and their deadlines, and tournaments that need your roster.
+
 ## 0.266.6 (2026-11-18)
 
 ### Patch Changes
