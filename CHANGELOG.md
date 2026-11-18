@@ -1,5 +1,18 @@
 # praetorium
 
+## 0.265.3 (2026-11-18)
+
+### Patch Changes
+
+- ab280c9: [app] After an update, the app loads faster because your device keeps the parts that did not change instead of downloading everything again.
+- bf56c14: [app] Moving between pages and tapping buttons responds faster on phones.
+- 4fea09b: [reference] Datasheet, detachment and faction pages open faster on devices that keep the reference saved for offline use.
+- c55a9a9: [simulator] Changing a unit's models or options in the simulator responds faster.
+- 44dccb3: [rosters] The unit picker opens faster, including the first time you open a roster after an update.
+- 7f9c514: [rosters] Opening a unit in a roster responds faster, most noticeably on phones.
+- 34e75ae: [app] Pages open faster, especially on phones, because each one downloads about 30% less code before it can respond.
+- 8aa6a79: [rosters] A tournament list opens straight away instead of being imported again each time it is read.
+
 ## 0.265.2 (2026-11-18)
 
 ### Patch Changes
