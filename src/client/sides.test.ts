@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { BattleView } from '../core/battleView'
-import { canWritePrep, fixedHandShort, missionCardsReady, type SideMission, sideName, sides } from './sides'
+import { canWritePrep, fixedHandShort, lostMissionCards, missionCardsReady, type SideMission, sideName, sides } from './sides'
 
 type ViewPlayer = BattleView['players'][number]
 
@@ -234,6 +234,17 @@ describe('the mission a side is held to', () => {
     expect(missionCardsReady(ready!)).toBe(false)
     ready!.secondaries.push({ key: 'b', name: 'B', points: 0, rounds: [], status: 'active' })
     expect(missionCardsReady(ready!)).toBe(true)
+  })
+
+  it('restores mission cards a running battle lost only for a side the viewer plays', () => {
+    const missions = [{ side: 0, mission: mission('mission-a', 15) }]
+    const side = (overrides: Partial<ViewPlayer> = {}) =>
+      sides(view([player({ id: 'alice', side: 0, isViewer: true, ...overrides })]), missions)[0]!
+
+    expect(lostMissionCards(side())).toBe(true)
+    expect(lostMissionCards(side({ secondaryDeckReady: true }))).toBe(false)
+    expect(lostMissionCards(side({ remainingSecondaries: [{ key: 'a', name: 'A' }] }))).toBe(false)
+    expect(lostMissionCards(side({ isViewer: false }))).toBe(false)
   })
 })
 
