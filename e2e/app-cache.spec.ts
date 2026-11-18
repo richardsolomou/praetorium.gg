@@ -177,6 +177,7 @@ test('sign-out finishes when saved-device storage is unavailable', async ({ page
   page.on('pageerror', (error) => errors.push(error.message))
   const player = uniqueName('Storage failure')
   await signUp(page, player)
+  await page.goto('/')
   await page.evaluate(() => {
     const state = window as Window & { failedStorageAttempts?: number }
     state.failedStorageAttempts = 0

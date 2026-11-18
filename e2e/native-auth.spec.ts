@@ -1,14 +1,14 @@
 import { hash, randomBytes, randomUUID } from 'node:crypto'
 import { expect, test } from './test'
 import { nativeAuthCompletionScript, nativeAuthConsumeScript, nativeAuthExchangeScript } from '../mobile/src/nativeAuth'
-import { signUp, uniqueName } from './account'
+import { signUpThroughForm, uniqueName } from './account'
 import { baseURL } from './stackEnv'
 import { withAuthSql, userIdNamed } from './storage'
 
 test('a native proof signs the WebView in and survives its final reload', async ({ browser }) => {
   const systemPage = await (await browser.newContext()).newPage()
   const name = uniqueName('Native auth')
-  await signUp(systemPage, name)
+  await signUpThroughForm(systemPage, name)
 
   const playerId = await userIdNamed(name)
   await withAuthSql((database) =>

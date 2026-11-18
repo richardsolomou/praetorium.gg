@@ -19,6 +19,7 @@
 
 - `just e2e` runs isolated production-mode stacks; never test against the interactive Vite preview, which skips production hydration.
 - Before hydration, presses, link navigations, and typed values are lost; retry until the outcome appears (`retryUntilVisible`, `followLink` in `e2e/account.ts`), never wait for time.
+- `signUp` creates the account through the auth endpoint and loads no page, so open one before reading the signed-in app; `signUpThroughForm` is for tests about signing up.
 - A changed URL can precede the routed content; wait for the destination heading.
 - Concurrent-tab save assertions check the persisted result, since either tab can flush the shared queue.
 - Specs calling `browser.newContext()` import `test` from `e2e/test.ts` so contexts close.

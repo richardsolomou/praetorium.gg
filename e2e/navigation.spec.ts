@@ -9,6 +9,7 @@ import {
   followLink,
   retryUntilVisible,
   signUp,
+  signUpThroughForm,
   visitorSetup,
   expectNoPageOverflow,
   chooseRosterAction,
@@ -274,7 +275,7 @@ document.addEventListener('DOMContentLoaded', () => { document.documentElement.d
 
 test('a signed-in player cannot return to the sign-in form', async ({ page }) => {
   const name = 'No stale sign in'
-  const credentials = await signUp(page, name)
+  const credentials = await signUpThroughForm(page, name)
 
   await page.goBack()
   await expect(page.getByRole('heading', { name: 'Welcome back', exact: true })).toHaveCount(0)

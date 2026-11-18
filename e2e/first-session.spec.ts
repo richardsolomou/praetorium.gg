@@ -4,7 +4,7 @@ import {
   advance,
   createRoster,
   setupStep,
-  signUp,
+  signUpThroughForm,
   startBattle,
   uniqueName,
   visitorSetup,
@@ -59,7 +59,7 @@ test('a guest reviews, imports and saves their first list', async ({ page }, tes
     await page.screenshot({ path: testInfo.outputPath(`guest-import-builder-${width}.png`) })
   }
   await page.setViewportSize({ width: 1440, height: 900 })
-  await signUp(page, uniqueName('Importer'))
+  await signUpThroughForm(page, uniqueName('Importer'))
   await page.goto('/rosters')
   await page.getByRole('button', { name: 'Save it', exact: true }).click()
   await expect(page).toHaveURL(/\/rosters\/[^/]+$/)
@@ -111,7 +111,7 @@ test('the first roster names each missing setup choice', async ({ page }, testIn
 // The desktop path through Battle options runs in the other battle journeys; a phone reaches it through the Battle tab.
 test('a casual player practises a round, corrects an action and reviews the finished game at 390px', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 900 })
-  await signUp(page, uniqueName('Practice learner'))
+  await signUpThroughForm(page, uniqueName('Practice learner'))
   await page.goto('/')
   await expect(page.getByRole('button', { name: 'Practise a game', exact: true })).toBeHidden()
   await page.screenshot({ path: testInfo.outputPath('home-actions.png') })
@@ -165,7 +165,7 @@ test('a friend invite QR code opens the same one-time invite link', async ({ bro
   const context = await browser.newContext({ permissions: ['clipboard-read', 'clipboard-write'], viewport: PHONE })
   try {
     const page = await context.newPage()
-    await signUp(page, uniqueName('QR inviter'))
+    await signUpThroughForm(page, uniqueName('QR inviter'))
     await page.goto('/friends')
     await page.getByRole('button', { name: 'Create invite link', exact: true }).click()
     await expect(page.getByRole('button', { name: 'Link copied', exact: true })).toBeVisible()
@@ -202,7 +202,7 @@ test('the first-game landing path fits', async ({ page }, testInfo) => {
 })
 
 test('a saved long roster prints every card without clipping or editing controls', async ({ page }, testInfo) => {
-  await signUp(page, uniqueName('Printer'))
+  await signUpThroughForm(page, uniqueName('Printer'))
   const dialog = await openImport(page)
   const entry = rosterText.slice(rosterText.indexOf('Immortals ('), rosterText.indexOf('Exported with'))
   const longRoster = rosterText.replace(entry, entry.repeat(12))
