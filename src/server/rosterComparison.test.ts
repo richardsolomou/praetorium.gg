@@ -19,7 +19,14 @@ const book = bookOf({
     model('beast', { T: '8', Sv: '3+', W: '12' }),
   ],
 })
-vi.mock('./app', () => ({ app: () => ({ catalogueFor: async () => book, rulesFor: async () => null }) }))
+vi.mock('./app', () => ({
+  app: () => ({
+    catalogueFor: async (id: string) => (id === 'cat' ? book : null),
+    rulesFor: async () => null,
+    factionsFor: async () => ({ factions: [] }),
+    factionFor: async () => null,
+  }),
+}))
 vi.mock('./publishedTextFiles', () => ({ serverWords: async () => () => null }))
 // Calculations against the beast never finish, as a slow pairing would not before the table's time limit.
 vi.mock('./combatCalculationPool', () => ({
@@ -33,9 +40,9 @@ vi.mock('./combatCalculationPool', () => ({
 
 import { compareRosters } from './rosterComparison'
 
-const roster = (entryIds: string[]) => ({
+const roster = (entryIds: string[], catalogueId = 'cat') => ({
   name: '',
-  catalogueId: 'cat',
+  catalogueId,
   detachmentIds: [],
   disposition: null,
   borrowedDetachmentId: null,
@@ -61,4 +68,14 @@ it('keeps the finished pairings when the table stops early and claims no best be
     shooting: { cells: [[expect.any(Array), null]], bestTargetOf: [[]], bestAttackerOf: [[0], []] },
     notCalculated: [{ phase: 'shooting', reason: 'Not finished before the table stopped.', pairings: [[0, 1]] }],
   })
+})
+
+it('names an unknown catalogueId instead of calling the army data unavailable', async () => {
+  const result = await compareRosters(
+    { attacker: roster(['gunner']), defender: roster(['trooper'], 'not-an-army'), rankBy: 'expectedWoundsLost' },
+    AbortSignal.timeout(1_000),
+  )
+  expect(result.content[0]?.text).toBe(
+    "No army uses the defending roster's catalogueId not-an-army. Take it from import_roster, get_my_roster or list_units.",
+  )
 })

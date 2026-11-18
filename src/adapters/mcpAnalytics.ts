@@ -58,7 +58,7 @@ export function privateMcpEvent(event: McpEvent, toolNames: ReadonlySet<string>)
   if (event.event === '$mcp_tool_call' && !(typeof tool === 'string' && toolNames.has(tool))) return null
   event.properties = {
     ...picked(event.properties, EVENT_PROPERTIES),
-    ...(event.properties.$mcp_is_error === true ? { $mcp_error_type: errorType(event.properties) } : {}),
+    ...(event.properties.$mcp_is_error === true ? failure(event.properties) : {}),
     ...outcome(event.properties),
     $ip: null,
   }
@@ -118,6 +118,27 @@ function errorType(properties: McpProperties): ToolErrorType {
   return typeof message === 'string' && MCP_INVALID_ARGUMENTS.test(message) ? 'validation' : 'internal'
 }
 
+const ERROR_MESSAGE_LENGTH = 300
+const EMAIL = /[^\s@]+@[^\s@]+\.[^\s@]+/g
+// Long unbroken runs are tokens or keys; catalogue ids and slugs carry hyphens and stay readable.
+const SECRET = /[A-Za-z0-9_]{32,}/g
+
+/**
+ * The category and the text the agent read, so a failure can be diagnosed. Only an anticipated failure keeps its text,
+ * which names game data and the arguments the agent sent; an unanticipated one could say anything.
+ */
+function failure(properties: McpProperties) {
+  const type = errorType(properties)
+  const message = properties.$mcp_error_message
+  if (type === 'internal' || typeof message !== 'string') return { $mcp_error_type: type }
+  return { $mcp_error_type: type, $mcp_error_message: privateErrorMessage(message) }
+}
+
+export function privateErrorMessage(message: string) {
+  const scrubbed = message.replace(EMAIL, '[email]').replace(SECRET, '[secret]')
+  return scrubbed.length > ERROR_MESSAGE_LENGTH ? `${scrubbed.slice(0, ERROR_MESSAGE_LENGTH - 1)}…` : scrubbed
+}
+
 /** A failure only a code fix resolves, which is worth an exception; declared refusals and bad arguments are not. */
 const unexpectedFailure = (event: McpEvent) =>
   event.event === '$mcp_tool_call' &&
@@ -133,7 +154,7 @@ function mcpClient() {
   return globalSingleton(MCP_ANALYTICS, () => {
     const environment = postHogEnvironment({ projectToken: process.env[projectTokenVariable], host: process.env[hostVariable] })
     if (!environment) return undefined
-    return new PostHog(environment.projectToken, { host: environment.host, before_send: serverEventContext(deploymentHost()) })
+    return new PostHog(environment.projectToken, { host: environment.host, beforeSend: serverEventContext(deploymentHost()) })
   })
 }
 

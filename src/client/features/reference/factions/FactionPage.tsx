@@ -21,6 +21,8 @@ import { SectionHeading } from '../../../components/SectionHeading'
 import { RUNNER_COLUMNS } from '../runnerColumns'
 import { BackLink } from '../BackLink'
 import { FactionGames } from './FactionGames'
+import { NextStep } from '../NextStep'
+import { ContinueGuestDraft } from '../../rosters/ContinueGuestDraft'
 
 export function FactionPage({ catalogueId }: { catalogueId: string }) {
   const { data: faction } = useQuery(factionQuery(catalogueId))
@@ -95,6 +97,7 @@ export function FactionPage({ catalogueId }: { catalogueId: string }) {
       />
       <PageContent className="space-y-6">
         <BackLink to="/factions">Factions</BackLink>
+        <ContinueGuestDraft surface="faction" />
         <section className="grid grid-cols-1 gap-2 sm:grid-cols-3">
           <FactionReferenceLink
             to="/factions/$catalogueId/datasheets"
@@ -223,6 +226,13 @@ export function FactionPage({ catalogueId }: { catalogueId: string }) {
               ))}
             </ol>
           </details>
+        ) : null}
+        {faction.detachments.length ? (
+          <NextStep
+            title={`Build a ${faction.displayName} list`}
+            description="Your faction is already filled in."
+            action={<StartRoster faction={faction} closing />}
+          />
         ) : null}
       </PageContent>
     </main>

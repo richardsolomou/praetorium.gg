@@ -25,6 +25,7 @@ type Props = {
   /** Shared by the table, unlike the reminders, so it is a command rather than a preference. */
   onTimerPausedChange: (paused: boolean) => void
   onConcede: (playerId: string) => void
+  onFinishEarly: () => void
   onDelete: () => void
 }
 
@@ -45,10 +46,11 @@ export function BattleMenu({
   onRecordMissed,
   onTimerPausedChange,
   onConcede,
+  onFinishEarly,
   onDelete,
 }: Props) {
   const [confirming, setConfirming] = useState<Ending | null>(null)
-  const endings: Ending[] = players
+  const concessions: Ending[] = players
     .filter((player) => !isPracticeSeat(player))
     .map((player) => ({
       key: `concede:${player.id}`,
@@ -58,6 +60,18 @@ export function BattleMenu({
         : `This records that ${player.name} conceded and ends the battle for every player.`,
       act: () => onConcede(player.id),
     }))
+  // A practice opponent's result counts for nobody, so a practice battle may also just stop where it stands.
+  const endings: Ending[] = players.some(isPracticeSeat)
+    ? [
+        {
+          key: 'finish-early',
+          label: 'End practice battle',
+          description: 'This ends the battle at the current score. Practice battles never count for records or standings.',
+          act: onFinishEarly,
+        },
+        ...concessions,
+      ]
+    : concessions
 
   return (
     <>
