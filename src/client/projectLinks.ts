@@ -5,6 +5,9 @@ export const NEW_ISSUE = `${SOURCE}/issues/new`
 
 export const SPONSOR = 'https://github.com/sponsors/richardsolomou'
 
+/** A free base and tray generator by the same maker. */
+export const HOBBYKIT = 'https://hobbykit.app'
+
 export const DISCORD = 'https://discord.gg/RFUMZNFwMu'
 
 export const PRIVACY_EMAIL = 'privacy@praetorium.gg'
