@@ -4,7 +4,7 @@ Select a unit card to open its loadout. Use the minus and plus buttons to change
 
 ## Wargear and enhancements
 
-Each kind of model has its own card with its weapons and choices. Choices for the whole unit are under **Wargear options**. If a plus is disabled, its label says why: **Max 2** means that option is at its cap, and **Group full: 3/3** means the group's other options have used the room.
+Each kind of model has its own card with its weapons and choices. Choices for the whole unit are under **Wargear options**. If a plus is disabled, its label says why: **Max 2** means that option is at its cap, and **Group full: 3/3** means the group's other options have used the room. Wargear the datasheet gives to all models or none, such as a Combat Shield on every Vanguard Veteran, has a single plus that equips the whole squad.
 
 Pick enhancements and detachment **Unit upgrades** here too. **No enhancement** or **No upgrade** clears them.
 

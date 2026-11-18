@@ -11,7 +11,8 @@ import { Problem } from '../../components/Problem'
 import { ProgressBar } from '../../components/ProgressBar'
 import { findImportableRosters } from '../../functions'
 import { countLabel } from '../../text'
-import { isMatchedImport, type MatchedImport, reportImportFailure } from './RosterImport'
+import { reportImportFailure } from './RosterImport'
+import { isMatchedImport, type MatchedImport } from './importedSetup'
 
 type Found = Awaited<Extract<Awaited<ReturnType<typeof findImportableRosters>>, { found: true }>['rosters'][number]>
 export type RosterApp = 'battlebase' | 'newrecruit'

@@ -7,6 +7,7 @@ const INERT = [
   /^docs\/[\s\S]+\.md$/,
   /^(README|CONTRIBUTING|CLAUDE|AGENTS|SECURITY|DESIGN|PRODUCT)\.md$/,
   /^\.changeset\/[^/]+\.md$/,
+  /^changelog\/[^/]+\.md$/,
   // The server bundles plugin/skills and refuses to start on a malformed one.
   /^plugin\/(?!skills\/)/,
   /^justfile$/,

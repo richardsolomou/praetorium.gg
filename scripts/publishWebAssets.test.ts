@@ -80,6 +80,30 @@ it('publishes the previous release copy when both releases built a chunk differi
   await publishWebAssets([previous, current], { base: 'https://storage.test/', request }, publicRequest)
   expect(stored.get('https://storage.test/web-assets/index-abcdefgh.js')).toBe(previousChunk)
 })
+/** A chunk as Vite writes it after naming it: its lazy import preloads `deps`, listed once and picked by index. */
+const lazyChunk = (deps: string[]) =>
+  `const __vite__mapDeps=(i,m=__vite__mapDeps,d=(m.f||(m.f=${JSON.stringify(deps)})))=>i.map(i=>d[i]);\n` +
+  `export const load = () => i(() => import("./lazy-abcdefgh.js"), __vite__mapDeps([${deps.map((_, index) => index).join(',')}]))`
+async function releases(previousDeps: string[], currentDeps: string[]) {
+  const [previous, current] = [await mkdtemp(path.join(tmpdir(), 'web-assets-')), await mkdtemp(path.join(tmpdir(), 'web-assets-'))]
+  directories.push(previous, current)
+  await writeFile(path.join(previous, 'index-abcdefgh.js'), lazyChunk(previousDeps))
+  await writeFile(path.join(current, 'index-abcdefgh.js'), lazyChunk(currentDeps))
+  return [previous, current]
+}
+it('publishes the previous release copy when only the scripts its lazy imports preload changed', async () => {
+  const builds = await releases(['assets/lazy-abcdefgh.js'], ['assets/lazy-abcdefgh.js', 'assets/added-abcdefgh.js'])
+  const { stored, request, publicRequest } = storage()
+  await publishWebAssets(builds, { base: 'https://storage.test/', request }, publicRequest)
+  expect(stored.get('https://storage.test/web-assets/index-abcdefgh.js')).toBe(lazyChunk(['assets/lazy-abcdefgh.js']))
+})
+it('stops when the stylesheets a chunk preloads changed under one name', async () => {
+  const builds = await releases(['assets/lazy-abcdefgh.js'], ['assets/lazy-abcdefgh.js', 'assets/lazy-abcdefgh.css'])
+  const { request, publicRequest } = storage()
+  await expect(publishWebAssets(builds, { base: 'https://storage.test/', request }, publicRequest)).rejects.toThrow(
+    'Web asset name collision',
+  )
+})
 it('stops when two releases built different code under one name', async () => {
   const [previous, current] = [await mkdtemp(path.join(tmpdir(), 'web-assets-')), await mkdtemp(path.join(tmpdir(), 'web-assets-'))]
   directories.push(previous, current)

@@ -10,6 +10,7 @@ const EXEMPT = [
   /^src\/spacetime\/generated\//,
   /^catalogue\//,
   /^CHANGELOG\.md$/,
+  /^changelog\//,
   /^\.changeset\//,
   /^e2e\/durations\.json$/,
   /^docs\/development\/groups-and-tournaments\.md$/,

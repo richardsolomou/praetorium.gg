@@ -84,7 +84,7 @@ import {
 } from '../../src/core/sealedEvent'
 import { clockLimitMinutes, commandSchema, parseRosterSnapshot, rosterPickSchema, rosterSnapshotOrNull } from '../../src/core/commands'
 import { SWISS_ROUNDS_MAX, swissResultLocked } from '../../src/core/swiss'
-import { compareStandings, currentRating, isProvisional } from '../../src/core/standings'
+import { standingsViewQuery, compareStandings, currentRating, isProvisional } from '../../src/core/standings'
 import type { SyncProductActionName } from '../../src/core/syncProductActions'
 import {
   hiddenListGameOpen,
@@ -1112,8 +1112,7 @@ function battleSeats(ctx: Context, battleId: string) {
   }
 }
 
-function battleData(ctx: Context, battleId: string) {
-  const { battle, rows, seats } = battleSeats(ctx, battleId)
+function battleData(ctx: Context, battleId: string, { battle, rows, seats } = battleSeats(ctx, battleId)) {
   const written = Array.from(ctx.db.commands.battleId.filter(battleId))
     .sort((left, right) => left.seq - right.seq)
     .flatMap((row): LoggedCommand[] => {
@@ -1141,8 +1140,8 @@ function battleData(ctx: Context, battleId: string) {
 }
 
 /** A battle's seats and log with the state they fold to. */
-function battleState(ctx: Context, battleId: string) {
-  const { seats, log } = battleData(ctx, battleId)
+function battleState(ctx: Context, battleId: string, seated?: ReturnType<typeof battleSeats>) {
+  const { seats, log } = battleData(ctx, battleId, seated)
   const state = reduceBattle(
     seats.map((seat) => seat.id),
     log,
@@ -1195,8 +1194,8 @@ function fixClocks(ctx: Context, eventId: string, minutes: number | null, by: st
  * `revision` is the release the reading server and this module were published from, so a release that changes the
  * fold refolds each battle once instead of serving what the previous one folded.
  */
-function battleDigestOf(ctx: Context, battleId: string, revision: string) {
-  const { rows, seats } = battleSeats(ctx, battleId)
+function battleDigestOf(ctx: Context, battleId: string, revision: string, seated = battleSeats(ctx, battleId)) {
+  const { rows, seats } = seated
   let commands = 0
   let lastSeq = 0
   for (const command of ctx.db.commands.battleId.filter(battleId)) {
@@ -1206,7 +1205,7 @@ function battleDigestOf(ctx: Context, battleId: string, revision: string) {
   const key = JSON.stringify([BATTLE_DIGEST_VERSION, revision, seats, rows.map((seat) => seat.claimedSeat ?? null), commands, lastSeq])
   const stored = ctx.db.battleDigests.battleId.find(battleId)
   if (stored?.key === key) return JSON.parse(stored.digest) as BattleDigest
-  const { log, state } = battleState(ctx, battleId)
+  const { log, state } = battleState(ctx, battleId, seated)
   const digest = battleDigest(state, log)
   const row = { battleId, key, digest: JSON.stringify(digest) }
   if (stored) ctx.db.battleDigests.battleId.update(row)
@@ -1216,8 +1215,8 @@ function battleDigestOf(ctx: Context, battleId: string, revision: string) {
 
 /** A battle as a list reads it: its seats and digest, without its log. */
 function battleCard(ctx: Context, battleId: string, revision: string) {
-  const { battle, seats } = battleSeats(ctx, battleId)
-  return { battle, seats, digest: battleDigestOf(ctx, battleId, revision) }
+  const seated = battleSeats(ctx, battleId)
+  return { battle: seated.battle, seats: seated.seats, digest: battleDigestOf(ctx, battleId, revision, seated) }
 }
 
 export const battleForOperator = spacetime.procedure({ battleId: t.string() }, t.string(), (ctx, { battleId }) =>
@@ -1473,12 +1472,12 @@ export const battleFeed = spacetime.procedure({ payload: t.string() }, t.string(
       // The public feed's candidates arrive in feed order, so the page is whole once it holds one more than it shows.
       if (input.scope === 'public' && rows.length > input.limit) break
       if (tx.db.battleDrafts.battleId.find(battle.id)) continue
-      const seats = Array.from(tx.db.battleUsers.battleId.filter(battle.id))
-      const seatIds = new Set(seats.map((seat) => seat.userId))
-      const hasPractice = seats.some((seat) => Boolean(tx.db.practiceOpponents.userId.find(seat.userId)))
-      if (input.scope === 'user' && input.withUserId && !seatIds.has(input.withUserId)) continue
-      if (input.scope === 'public' && (hasPractice || (input.viewerId && seatIds.has(input.viewerId)))) continue
-      if (input.scope === 'friends' && (hasPractice || seatIds.has(input.userId!))) continue
+      if (input.scope === 'user' && input.withUserId && !tx.db.battleUsers.key.find(JSON.stringify([battle.id, input.withUserId]))) continue
+      if (input.scope === 'public' || input.scope === 'friends') {
+        const excluded = input.scope === 'public' ? input.viewerId : input.userId
+        const seats = Array.from(tx.db.battleUsers.battleId.filter(battle.id))
+        if (seats.some(({ userId }) => userId === excluded || Boolean(tx.db.practiceOpponents.userId.find(userId)))) continue
+      }
       const at = safeNumber(lastActivity(tx, battle))
       if (
         (input.scope === 'public' || input.scope === 'friends') &&
@@ -1489,12 +1488,9 @@ export const battleFeed = spacetime.procedure({ payload: t.string() }, t.string(
         continue
       const row = { id: battle.id, token: battle.token, createdAt: safeNumber(battle.createdAt), at }
       if (input.before && inOrder(row, input.before) <= 0) continue
-      const last = rows.at(-1)
-      if (rows.length === input.limit + 1 && last && inOrder(row, last) >= 0) continue
       rows.push(row)
-      rows.sort(inOrder)
-      if (rows.length > input.limit + 1) rows.pop()
     }
+    if (input.scope !== 'public') rows.sort(inOrder)
     const shown = rows.slice(0, input.limit)
     const last = shown.at(-1)
     return productJson({
@@ -1709,6 +1705,12 @@ function standingOf({ key: _key, change: _change, finishedDay: _day, ...step }: 
   return step
 }
 
+function standingsAreFresh(state: ReturnType<typeof derivedState>, revision: bigint, versions: { results: string; ratings: string }) {
+  return (
+    state.version === versions.results && state.ratings === versions.ratings && state.ratingsFrom === undefined && state.seen === revision
+  )
+}
+
 /**
  * Takes the standings refresh for `holder` unless nothing that could change a result or rating has happened since the last
  * one with these versions, or another server holds it. A new results version rereads every battle; a new ratings version
@@ -1723,8 +1725,7 @@ export const claimStandingsRefresh = spacetime.procedure(
     operatorTx(ctx, (tx) => {
       const state = derivedState(tx, STANDINGS)
       const standings = standingsRevision(tx)
-      const same = state.version === input.results && state.ratings === input.ratings
-      if (same && state.ratingsFrom === undefined && state.seen === standings) return productJson({ state: 'fresh', standings })
+      if (standingsAreFresh(state, standings, input)) return productJson({ state: 'fresh', standings })
       const now = nowMs(tx)
       const generation = (version: string) => Number(version.split(':')[0]) || 0
       const armies = (version: string) => version.split(':')[1] ?? ''
@@ -1952,42 +1953,44 @@ export const leaderboard = spacetime.procedure({ activeSince: t.u64(), limit: t.
 
 /** Where one player sits in each table they are ranked in and played in since `activeSince`, and their overall rating after each counted battle. */
 export const playerStandings = spacetime.procedure({ userId: t.string(), activeSince: t.u64() }, t.string(), (ctx, input) =>
-  operatorTx(ctx, (tx) => {
-    const now = safeNumber(nowMs(tx))
-    const places = Array.from(tx.db.standings.playerId.filter(input.userId)).flatMap((own) => {
-      // A provisional player has no place of their own, and is no place's competition.
-      if (own.finishedAt < input.activeSince || isProvisional(own)) return []
-      const standing = standingRow(own, now)
-      let place = 1
-      let of = 0
-      for (const row of tx.db.standings.table.filter(own.table)) {
-        if (row.finishedAt < input.activeSince || isProvisional(row)) continue
-        of += 1
-        if (row.playerId !== own.playerId && compareStandings(standingRow(row, now), standing) < 0) place += 1
-      }
-      return [{ table: own.table, place, of, standing }]
-    })
-    const history = Array.from(tx.db.ratingSteps.playerId.filter(input.userId))
-      .filter((step) => step.table === '')
-      .sort((one, other) => (laterStep(one, other) ? 1 : -1))
-      .map((step) => ({ at: safeNumber(step.finishedAt), rating: step.rating }))
-    return productJson({ places, history })
-  }),
+  operatorTx(ctx, (tx) => productJson(playerStandingsFor(tx, input))),
 )
+
+function playerStandingsFor(tx: Context, input: { userId: string; activeSince: bigint }) {
+  const now = safeNumber(nowMs(tx))
+  const places = Array.from(tx.db.standings.playerId.filter(input.userId)).flatMap((own) => {
+    // A provisional player has no place of their own, and is no place's competition.
+    if (own.finishedAt < input.activeSince || isProvisional(own)) return []
+    const standing = standingRow(own, now)
+    let place = 1
+    let of = 0
+    for (const row of tx.db.standings.table.filter(own.table)) {
+      if (row.finishedAt < input.activeSince || isProvisional(row)) continue
+      of += 1
+      if (row.playerId !== own.playerId && compareStandings(standingRow(row, now), standing) < 0) place += 1
+    }
+    return [{ table: own.table, place, of, standing }]
+  })
+  const history = Array.from(tx.db.ratingSteps.playerId.filter(input.userId))
+    .filter((step) => step.table === '')
+    .sort((one, other) => (laterStep(one, other) ? 1 : -1))
+    .map((step) => ({ at: safeNumber(step.finishedAt), rating: step.rating }))
+  return { places, history }
+}
 
 /** How far each of these battles moved each seat's overall rating, for the battles the leaderboard counts. */
 export const ratingChanges = spacetime.procedure({ tokens: t.array(t.string()) }, t.string(), (ctx, { tokens }) =>
-  operatorTx(ctx, (tx) => {
-    if (tokens.length > 500) throw new SenderError('Too many battles')
-    return productJson(
-      tokens.flatMap((token) => {
-        const battle = tx.db.battles.token.find(token)
-        const steps = battle ? Array.from(tx.db.ratingSteps.battleId.filter(battle.id)).filter((step) => step.table === '') : []
-        return steps.length ? [{ token, changes: Object.fromEntries(steps.map((step) => [step.playerId, step.change])) }] : []
-      }),
-    )
-  }),
+  operatorTx(ctx, (tx) => productJson(ratingChangesFor(tx, tokens))),
 )
+
+function ratingChangesFor(tx: Context, tokens: readonly string[]) {
+  if (tokens.length > 500) throw new SenderError('Too many battles')
+  return tokens.flatMap((token) => {
+    const battle = tx.db.battles.token.find(token)
+    const steps = battle ? Array.from(tx.db.ratingSteps.battleId.filter(battle.id)).filter((step) => step.table === '') : []
+    return steps.length ? [{ token, changes: Object.fromEntries(steps.map((step) => [step.playerId, step.change])) }] : []
+  })
+}
 
 /** The stored results of every finished battle this player sits in. */
 export const battleResultsByUser = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
@@ -2003,16 +2006,33 @@ export const battleResultsByUser = spacetime.procedure({ userId: t.string() }, t
 
 /** A player's stored medals, and whether a write since their last check could have changed them. */
 export const achievementStatus = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
-  operatorTx(ctx, (tx) => {
-    const check = tx.db.achievementChecks.userId.find(userId)
-    return productJson({
-      revision: check?.revision ?? 0n,
-      checked: check?.checked ?? 0n,
-      earned: Array.from(tx.db.earnedAchievements.userId.filter(userId)).flatMap(({ achievementId, earnedAt, held, seen }) =>
-        held ? [{ achievementId, earnedAt: earnedAt ?? null, seen }] : [],
-      ),
-    })
-  }),
+  operatorTx(ctx, (tx) => productJson(achievementStatusFor(tx, userId))),
+)
+
+function achievementStatusFor(tx: Context, userId: string) {
+  const check = tx.db.achievementChecks.userId.find(userId)
+  return {
+    revision: check?.revision ?? 0n,
+    checked: check?.checked ?? 0n,
+    earned: Array.from(tx.db.earnedAchievements.userId.filter(userId)).flatMap(({ achievementId, earnedAt, held, seen }) =>
+      held ? [{ achievementId, earnedAt: earnedAt ?? null, seen }] : [],
+    ),
+  }
+}
+
+/** Reads a view with the freshness check in the same transaction; a miss leaves the refresh to the caller. */
+export const currentStandingsView = spacetime.procedure(
+  { results: t.string(), ratings: t.string(), payload: t.string() },
+  t.string(),
+  (ctx, { payload, ...versions }) =>
+    operatorTx(ctx, (tx) => {
+      const view = decodePayload(standingsViewQuery, payload, 'Invalid standings view')
+      const state = tx.db.derivedState.name.find(STANDINGS)
+      if (!state || !standingsAreFresh(state, standingsRevision(tx), versions)) return productJson(null)
+      if (view.kind === 'achievements') return productJson(achievementStatusFor(tx, view.userId))
+      if (view.kind === 'changes') return productJson(ratingChangesFor(tx, view.tokens))
+      return productJson(playerStandingsFor(tx, { userId: view.userId, activeSince: BigInt(view.activeSince) }))
+    }),
 )
 
 const achievementWrite = z.object({

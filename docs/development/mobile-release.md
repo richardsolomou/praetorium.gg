@@ -17,10 +17,11 @@ Android delivery stays disabled until the [physical-device gate](#physical-devic
 11. Enable Push Notifications for the App ID, add an APNs key as the Expo project's iOS push key, and from `mobile/` run `pnpm dlx eas-cli@23.2.0 credentials:configure-build -p ios -e production` with `EXPO_ASC_API_KEY_PATH`, `EXPO_ASC_KEY_ID`, `EXPO_ASC_ISSUER_ID`, `EXPO_APPLE_TEAM_ID`, `EXPO_APPLE_TEAM_TYPE`, and `EXPO_NO_CAPABILITY_SYNC=1` (capability sync tries to disable Sign in with Apple).
 12. Turn on Expo enhanced push security and set a Viewer-role Expo robot token as `EXPO_PUSH_ACCESS_TOKEN` in production.
 13. Before enabling Android delivery, upload the FCM V1 service-account key for the Firebase project in `mobile/google-services.json` to Expo.
-14. Provision the Watch target `gg.praetorium.watch` by dispatching `mobile.yml` with `-f provision_watch=true`.
+14. Provision the iPhone app, Watch and widget targets by dispatching `mobile.yml` with `-f provision_extensions=true`, and again after changing any capability, since that invalidates their profiles.
 
 ## Delivery
 
+- iOS builds run on GitHub's `xcode-27` runner, a public preview, because App Store uploads need the iOS 27 SDK from April 2027. If the image breaks a build, point `mobile.yml` and `mobile-validation.yml` back at `macos-26` until it's fixed.
 - Never start `mobile.yml` while a run is in progress; inspect the last run before restarting. It never submits for public review.
 - `-f force_build=false` publishes an OTA update after changing public JavaScript variables in EAS.
 - When local credentials fail, use the workflow's signing secrets before asking for an Apple login or new key.

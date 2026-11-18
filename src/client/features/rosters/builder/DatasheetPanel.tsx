@@ -238,6 +238,7 @@ function AbilitySummary({
                       : KEYWORD_TAG_CLASS
                   }
                   note={ability.source ? `Added by ${ability.source}` : undefined}
+                  condition={ability.condition}
                   highlightNote={false}
                 />
                 {reminders ? <ReminderButton subject={ability} controls={reminders} /> : null}

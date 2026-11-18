@@ -4,6 +4,10 @@ import { type RepositoryBase } from './area'
 /** Battle results, ratings, leaderboards and achievements. */
 export function withStandings<B extends RepositoryBase>(Base: B) {
   return class StandingsRepository extends Base {
+    get currentStandingsView() {
+      return this.product.currentStandingsView.bind(this.product)
+    }
+
     achievementFacts(...args: Parameters<SpacetimeOperator['achievementFacts']>) {
       return this.product.achievementFacts(...args)
     }

@@ -32,7 +32,7 @@ import { readRevisions } from './catalogueSources'
 import { mfmUnitFor } from '../shared/unitPoints'
 
 export const CANONICAL_CATALOGUE_FORMAT = 'praetorium.canonical-catalogue.v1' as const
-export const CANONICAL_CATALOGUE_COMPILER_VERSION = 25 as const
+export const CANONICAL_CATALOGUE_COMPILER_VERSION = 26 as const
 
 const characteristicSchema = z.object({
   name: z.string(),
@@ -103,6 +103,7 @@ const canonicalDatasheetSchema = z.object({
       description: z.string().nullable(),
       kind: z.enum(['core', 'faction', 'datasheet', 'rule', 'upgrade', 'wargear']),
       models: z.string().optional(),
+      condition: z.string().optional(),
     }),
   ),
   composition: z.array(z.string()),

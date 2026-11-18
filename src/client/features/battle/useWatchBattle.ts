@@ -3,7 +3,7 @@ import { posthog } from 'posthog-js'
 import { useEffect } from 'react'
 import type { BattleClock } from '../../../core/battleClock'
 import type { BattleView } from '../../../core/battleView'
-import { setNativeWatchBattle, useNativeWatchBattleAvailability } from '../../nativeBridge'
+import { setNativeWatchBattle, useNativeBattleFollowing } from '../../nativeBridge'
 import { battleQuery } from '../../queries'
 import type { SideMission } from '../../sides'
 import type { ReferenceCard } from './MissionCards'
@@ -18,7 +18,8 @@ export function useWatchBattle(
   prompts: WatchReminderPrompt[],
 ) {
   const queryClient = useQueryClient()
-  const available = useNativeWatchBattleAvailability()
+  const following = useNativeBattleFollowing()
+  const available = following !== null
   const polling = available && view.status === 'playing'
   // Query timers skip hidden pages, and 'always' refreshes on becoming visible however fresh the battle is.
   const { dataUpdatedAt } = useQuery({
@@ -35,8 +36,8 @@ export function useWatchBattle(
     const liveUrl = `${location.origin}/api/watch/battles/${encodeURIComponent(view.token)}`
     const snapshot = watchBattle(view, clock, missions, referenceFor, prompts, dataUpdatedAt, liveUrl)
     if (!snapshot) return
-    if (followedBattle() !== view.token) posthog.capture('watch_battle_followed', { status: view.status })
+    if (followedBattle() !== view.token) posthog.capture('watch_battle_followed', { status: view.status, watch: following === 'watch' })
     followBattle(view.token)
     setNativeWatchBattle(snapshot)
-  }, [view, clock, missions, referenceFor, prompts, queryClient, available, dataUpdatedAt])
+  }, [view, clock, missions, referenceFor, prompts, queryClient, available, following, dataUpdatedAt])
 }

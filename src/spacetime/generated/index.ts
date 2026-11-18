@@ -108,6 +108,7 @@ import * as CollectionPhotoIdsProcedure from './collection_photo_ids_procedure'
 import * as CollectionProfileProcedure from './collection_profile_procedure'
 import * as CollectionWishesByUserProcedure from './collection_wishes_by_user_procedure'
 import * as CreateBattleProcedure from './create_battle_procedure'
+import * as CurrentStandingsViewProcedure from './current_standings_view_procedure'
 import * as DatasheetPhotosProcedure from './datasheet_photos_procedure'
 import * as DeclineRosterSharingProcedure from './decline_roster_sharing_procedure'
 import * as DeleteBattleForOperatorProcedure from './delete_battle_for_operator_procedure'
@@ -358,6 +359,7 @@ const proceduresSchema = __procedures(
   __procedureSchema('collection_profile', CollectionProfileProcedure.params, CollectionProfileProcedure.returnType),
   __procedureSchema('collection_wishes_by_user', CollectionWishesByUserProcedure.params, CollectionWishesByUserProcedure.returnType),
   __procedureSchema('create_battle', CreateBattleProcedure.params, CreateBattleProcedure.returnType),
+  __procedureSchema('current_standings_view', CurrentStandingsViewProcedure.params, CurrentStandingsViewProcedure.returnType),
   __procedureSchema('datasheet_photos', DatasheetPhotosProcedure.params, DatasheetPhotosProcedure.returnType),
   __procedureSchema('decline_roster_sharing', DeclineRosterSharingProcedure.params, DeclineRosterSharingProcedure.returnType),
   __procedureSchema('delete_battle_for_operator', DeleteBattleForOperatorProcedure.params, DeleteBattleForOperatorProcedure.returnType),

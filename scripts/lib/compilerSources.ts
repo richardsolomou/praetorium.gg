@@ -34,16 +34,16 @@ export function treeFingerprint(root: string, inputs: readonly string[]) {
 export const catalogueAuthoring = (root = process.cwd()) => treeFingerprint(root, ['catalogue'])
 
 /**
- * The release bumps the version on every merge and only telemetry reads it, so a release would otherwise
- * miss every prepared catalogue.
+ * package.json holds release metadata and tooling, none of which changes what the compiler produces, and the bundle
+ * is only hashed. The release bumps its version on every merge and scripts change often, so it would otherwise
+ * invalidate every prepared catalogue.
  */
-const unversionedPackage = (root: string): Plugin => ({
-  name: 'unversioned-package',
+const withoutPackageJson = (root: string): Plugin => ({
+  name: 'without-package-json',
   enforce: 'pre',
   load(id) {
     if (path.basename(id) !== 'package.json' || path.dirname(fs.realpathSync(id)) !== fs.realpathSync(root)) return null
-    const { version: _version, ...rest } = JSON.parse(fs.readFileSync(id, 'utf8'))
-    return JSON.stringify(rest)
+    return '{}'
   },
 })
 
@@ -54,7 +54,7 @@ async function compilerBundle(root: string, entries: readonly string[]) {
     envDir: false,
     // No variable carries this prefix, so the image build's PostHog settings never reach the hash.
     envPrefix: 'PRAETORIUM_COMPILER_FINGERPRINT_',
-    plugins: [unversionedPackage(root)],
+    plugins: [withoutPackageJson(root)],
     logLevel: 'silent',
     mode: 'production',
     root,

@@ -1,4 +1,6 @@
-import { cachedRead, cachedPage, filteredPage } from './offline/reads'
+import type { LocalState } from '../contracts/localState'
+import { localClient, localOwner } from './offline/localRuntime'
+import { cachedRead, cachedPage, filteredPage, isOffline } from './offline/reads'
 import { battleFilterActive, matchesBattle, type BattleFilter } from '../core/battleFilter'
 import type { BattlesCursor } from '../contracts/battles'
 import * as server from '../server/functions'
@@ -9,6 +11,7 @@ import {
   friendBattlesKey,
   sealedEventBattlesKey,
   meKey,
+  notificationSettingsKey,
   playerBattlesKey,
   playerProfileKey,
   playerRankingsKey,
@@ -46,6 +49,7 @@ export function loadOfflineFallbacks() {
   return Promise.all(idleLoads.map((load) => load()))
 }
 
+export { favouriteFactions, favouriteDetachments, favouriteDatasheets, onboardingProgress } from './offline/accountReads'
 export { DELETED_ROSTER_MESSAGE } from './offline/rosterMessages'
 
 const worker = lazily(() => import('./offline/constructionWorker'))
@@ -77,7 +81,21 @@ export const rosterBootstrap = rosters('rosterBootstrap')
 export const sharedRoster = rosters('sharedRoster')
 export const saveRoster = rosters('saveRoster')
 export const copyRoster = rosters('copyRoster')
-export const projectLocalState = rosters('projectLocalState')
+const projectRosterState = rosters('projectLocalState')
+let projectedWork = false
+
+export function projectLocalState(state: LocalState) {
+  const client = localClient()
+  if (!client || localOwner()?.id !== state.owner) return
+  for (const [resource, document] of Object.entries(state.documents)) {
+    if (resource.startsWith('query:')) client.setQueryData(JSON.parse(resource.slice(6)), document.data)
+  }
+  // Online account reads restore independently of the engine. A previously projected queue
+  // still needs one final pass after it empties to remove its optimistic rows.
+  const hasWork = isOffline() || state.operations.length > 0
+  if (hasWork || projectedWork) projectRosterState(state)
+  projectedWork = hasWork
+}
 export const deleteRoster = rosters('deleteRoster')
 export const setRosterVisibility = rosters('setRosterVisibility')
 export const shareSealedEventRoster = rosters('shareSealedEventRoster')
@@ -114,14 +132,9 @@ export const collectionCountsAs = actions('collectionCountsAs')
 export const fieldedDatasheets = actions('fieldedDatasheets')
 export const wishlistSuggestions = actions('wishlistSuggestions')
 export const updateOnboardingProgress = actions('updateOnboardingProgress')
-export const favouriteFactions = actions('favouriteFactions')
-export const favouriteDetachments = actions('favouriteDetachments')
-export const favouriteDatasheets = actions('favouriteDatasheets')
 export const recentMatchups = actions('recentMatchups')
 export const playerDefaults = actions('playerDefaults')
 export const rosterFolders = actions('rosterFolders')
-export const onboardingProgress = actions('onboardingProgress')
-export const notificationSettings = actions('notificationSettings')
 export const friendships = actions('friendships')
 export const opponents = actions('opponents')
 export const listSealedEvents = actions('listSealedEvents')
@@ -168,6 +181,8 @@ export const createFriendInvite = actions('createFriendInvite')
 export const cancelFriendInvite = actions('cancelFriendInvite')
 export const createSealedEvent = actions('createSealedEvent')
 export const sealedEventBattleOptions = actions('sealedEventBattleOptions')
+
+export const notificationSettings = () => cachedRead(notificationSettingsKey(), () => server.notificationSettings())
 
 export const me = (args?: Parameters<typeof server.me>[0]) => cachedRead(meKey(), () => server.me(args))
 

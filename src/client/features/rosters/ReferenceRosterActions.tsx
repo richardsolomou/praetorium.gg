@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { ChevronRight, Plus } from 'lucide-react'
 import { posthog } from 'posthog-js'
-import { useState } from 'react'
+import { createElement, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -12,13 +12,15 @@ import { datasheetOfferedByQuery, factionIndexQuery, meQuery, playerDefaultsQuer
 import { EMPTY_SETUP, type GuestDraft, readGuestDraft } from './guestDraft'
 import { type RosterReference, useNewRoster } from './newRoster'
 import { useAccountPrompt } from './AccountPrompt'
-import { RosterSetupDialog, type RosterSetupFaction } from './RosterSetupDialog'
+import type { RosterSetupFaction } from './RosterSetupDialog'
+import { useLoadedComponent } from '../../useLoadedComponent'
 import { rosterTitle } from './RosterSummary'
 import { sortRosters } from '../../../core/rosterSort'
 import { rulesVersionLabel } from '../../../core/catalogueEdition'
 import { Problem } from '../../components/Problem'
 
 const NO_DETACHMENTS: string[] = []
+const loadRosterSetup = () => import('./RosterSetupDialog').then((module) => module.RosterSetupDialog)
 
 /** The roster setup with a reference page's faction, and maybe its detachment, already chosen. */
 function StartRosterDialog({
@@ -37,6 +39,7 @@ function StartRosterDialog({
   reference: RosterReference
 }) {
   const create = useNewRoster(reference)
+  const RosterSetupDialog = useLoadedComponent(loadRosterSetup, open)
   const { data: factionIndex } = useQuery({ ...factionIndexQuery(), enabled: open })
   const { data: defaults = DEFAULT_PLAYER_DEFAULTS } = useQuery({ ...playerDefaultsQuery(), enabled: open && !create.guest })
   const value = {
@@ -46,21 +49,22 @@ function StartRosterDialog({
     ...(create.guest ? {} : { visibility: defaults.rosterVisibility, limit: defaults.battleSize }),
   }
   return (
-    <RosterSetupDialog
+    RosterSetupDialog &&
+    createElement(RosterSetupDialog, {
       // The dialog reads its value once, so defaults that arrive later start it again.
-      key={`${value.visibility}-${value.limit}`}
-      mode="create"
-      guest={create.guest}
-      open={open}
-      onOpenChange={onOpenChange}
-      factionOptions={factionIndex?.factions ?? [faction]}
-      initialFaction={faction}
-      value={value}
-      hasUnits={false}
-      pending={create.pending}
-      saveError={create.saveError}
-      onSave={(setup) => create.start(setup, add)}
-    />
+      key: `${value.visibility}-${value.limit}`,
+      mode: 'create',
+      guest: create.guest,
+      open,
+      onOpenChange,
+      factionOptions: factionIndex?.factions ?? [faction],
+      initialFaction: faction,
+      value,
+      hasUnits: false,
+      pending: create.pending,
+      saveError: create.saveError,
+      onSave: (setup) => create.start(setup, add),
+    })
   )
 }
 

@@ -7,6 +7,7 @@ import { combatCalculationPool } from './combatCalculationPool'
 import { namedCombatant } from './combatTools'
 import { serverWords } from './publishedTextFiles'
 import { memoUntilSnapshotChanges } from './snapshotMemo'
+import { withServerSpan } from './serverTelemetry'
 
 // The pool refuses work beyond 64 pending calculations and shares two workers with the simulator, so grading asks a few at a time.
 const BATCH = 4
@@ -20,29 +21,34 @@ export async function calculateRosterGrades(data: PriceInput, signal: AbortSigna
   const instance = app()
   const [loaded, rules] = await Promise.all([instance.catalogueFor(data.catalogueId), instance.rulesFor(data.catalogueId)])
   if (!loaded) throw new Error('This roster’s army data is unavailable.')
-  const units = await measureRosterUnits({
-    loaded,
-    rules,
-    data,
-    words: await serverWords(),
-    references: await references(data.limit),
-    attachedShares,
-    // A busy or failed calculation service fails the whole request, so the reader can retry rather than read a gap.
-    calculate: async (requests) => {
-      const answers = []
-      for (let start = 0; start < requests.length; start += BATCH)
-        answers.push(
-          ...(await Promise.all(requests.slice(start, start + BATCH).map((request) => combatCalculationPool.calculate(request, signal)))),
-        )
-      return answers
-    },
-  })
+  const [words, referenceUnits] = await Promise.all([serverWords(), references(data.limit)])
+  const price = calculateRosterPrice(data, loaded, rules)
+  const units = await withServerSpan('roster_grades.measure', () =>
+    measureRosterUnits({
+      loaded,
+      rules,
+      data,
+      words,
+      references: referenceUnits,
+      price,
+      attachedShares,
+      // A busy or failed calculation service fails the whole request, so the reader can retry rather than read a gap.
+      calculate: async (requests) => {
+        const answers = []
+        for (let start = 0; start < requests.length; start += BATCH)
+          answers.push(
+            ...(await Promise.all(requests.slice(start, start + BATCH).map((request) => combatCalculationPool.calculate(request, signal)))),
+          )
+        return answers
+      },
+    }),
+  )
   // An older rules version's catalogue is the same book behind a prefix.
   const book =
     loaded.index.catalogues.get(data.catalogueId) ?? loaded.index.catalogues.get(data.catalogueId.slice(data.catalogueId.indexOf('~') + 1))
   // Staples of another battle size would name units a list of this size has no room for.
   const winning = instance.winningLists.unitCounts(data.catalogueId, data.limit)
-  const picks = calculateRosterPrice(data, loaded, rules)?.units ?? []
+  const picks = price?.units ?? []
   const tournament = winning
     ? tournamentComparison(picks, winning, (entryId) => loaded.index.definitions.get(entryId)?.name ?? entryId)
     : null

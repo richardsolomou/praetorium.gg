@@ -7,7 +7,7 @@ import { NO_PREP, savedDraft } from './rosterDraft'
 import { invalidateSavedRosters, meQuery } from '../../queries'
 import { useState } from 'react'
 import { EMPTY_SETUP, guestDraftOf, newGuestDraft, writeGuestDraft } from './guestDraft'
-import { importedSetup, type MatchedImport } from './RosterImport'
+import { importedSetup, type MatchedImport } from './importedSetup'
 import type { RosterSetup } from './RosterSetupDialog'
 import type { MissionReference } from './rosterStart'
 

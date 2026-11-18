@@ -27,6 +27,7 @@ const PLAYED_COUNTS_HOLD_MS = 60_000
 /** The most public battles Played counts walk, in the feed's largest pages; past it the counts are left out rather than undercounted. */
 const PLAYED_COUNT_BATTLES = 500
 const PLAYED_COUNT_PAGES = 20
+type ListedArmy = PlayedArmy & { battleId: string }
 
 export class BattleFeedService {
   private readonly publicFeedHeld = new Map<string, { until: number; page: Promise<unknown> }>()
@@ -144,9 +145,9 @@ export class BattleFeedService {
     viewerId: string | null,
     before?: BattlesCursor,
     factions: readonly BattleFaction[] = [],
-    accepts?: (armies: PlayedArmy[]) => PlayedArmy[] | Promise<PlayedArmy[]>,
+    accepts?: (armies: ListedArmy[]) => ListedArmy[] | Promise<ListedArmy[]>,
   ) {
-    const armies: PlayedArmy[] = []
+    const armies: ListedArmy[] = []
     const factionsById = byId(factions)
     let cursor = before
     for (let walked = 0; walked < (accepts ? FILTER_SCAN_PAGES : 1); walked++) {
@@ -156,7 +157,10 @@ export class BattleFeedService {
         viewerId,
       })
       const fielded = histories.flatMap((card) =>
-        playedArmies(card, card.digest, battleSummary(card, card.digest, null, null, factionsById)),
+        playedArmies(card, card.digest, battleSummary(card, card.digest, null, null, factionsById)).map((army) => ({
+          ...army,
+          battleId: card.battle.id,
+        })),
       )
       armies.push(...(accepts ? await accepts(fielded) : fielded))
       cursor = nextCursor ?? undefined
@@ -216,12 +220,12 @@ export class BattleFeedService {
   }
 
   /** The picks each army fielded, read from its battle's log; only the armies a page prices need them. */
-  async playedArmyPicks(armies: readonly PlayedArmy[]) {
-    const tokens = [...new Set(armies.map((army) => army.battle))]
-    const histories = await Promise.all(tokens.map((token) => this.repository.battleHistoryByToken(token)))
+  async playedArmyPicks(armies: readonly ListedArmy[]) {
+    if (!armies.length) return []
+    const ids = [...new Set(armies.map((army) => army.battleId))]
+    const histories = await this.repository.battlesByIds(ids)
     const fielded = new Map<string, { picks: RosterPick[]; fieldedAt?: number }>()
     for (const history of histories) {
-      if (!history) continue
       for (const player of foldHistory(history).players)
         if (player.roster?.built?.picks)
           fielded.set(`${history.battle.token}:${player.id}`, { picks: player.roster.built.picks, fieldedAt: player.roster.fieldedAt })
@@ -252,10 +256,13 @@ export class BattleFeedService {
     battles: T[],
   ): Promise<(T & { ratingChanges?: Readonly<Record<string, number>> })[]> {
     const finished = battles.flatMap((battle) => (battle.status === 'finished' ? [battle.token] : []))
-    if (finished.length) await this.standingsRefresh.refresh()
     const changes = new Map<string, Readonly<Record<string, number>>>()
     for (const batch of chunks(finished, 500))
-      for (const row of await this.repository.ratingChanges(batch)) changes.set(row.token, row.changes)
+      for (const row of await this.standingsRefresh.read(
+        (versions) => this.repository.currentStandingsView('changes', { tokens: batch }, versions),
+        () => this.repository.ratingChanges(batch),
+      ))
+        changes.set(row.token, row.changes)
     return battles.map((battle) => {
       const ratingChanges = changes.get(battle.token)
       return ratingChanges ? { ...battle, ratingChanges } : battle

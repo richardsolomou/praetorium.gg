@@ -34,6 +34,8 @@ export type Datasheet = {
     kind: AbilityKind
     /** The keyword a granted ability is limited to, when only some models in the unit have it. */
     models?: string
+    /** The attacks a granted ability is limited to, as "against Psychic Attacks", which its name marks with an asterisk. */
+    condition?: string
     /** What its text suggests for a reminder, recorded where the text is a token. */
     reminder?: ReminderSuggestion
   }[]

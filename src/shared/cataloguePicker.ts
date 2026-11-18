@@ -86,9 +86,13 @@ export function groupOfEntry(index: CatalogueIndex, entryId: string): UnitGroup 
 export const shelfIn = (index: CatalogueIndex, entryId: string, primaries: readonly string[]): UnitGroup =>
   primaries.map((id) => shelfOfCategory(index.categories.get(id)?.name)).find(Boolean) ?? groupOfEntry(index, entryId)
 
+const defaultSelections = new WeakMap<LoadedCatalogue, Map<string, Selection | null>>()
+
 /** A datasheet's keywords and shelf as one more copy of it in the roster would have them, which its detachments can change. */
 function listedUnitFacts(loaded: LoadedCatalogue, catalogueId: string, entryId: string, roster: readonly Selection[]) {
-  const selection = defaultSelection(entryId, loaded.index, { primaryCatalogueId: catalogueId })
+  const selection = cachedIn(defaultSelections, loaded, `${catalogueId}:${entryId}`, () =>
+    defaultSelection(entryId, loaded.index, { primaryCatalogueId: catalogueId }),
+  )
   if (!selection) return null
   const held = keywordsBySelection([...roster, selection], loaded.index, { primaryCatalogueId: catalogueId }).at(-1)!
   return { keywords: keywordNames(held.keywords, loaded.index), group: shelfIn(loaded.index, entryId, held.primaries) }
@@ -159,40 +163,29 @@ export function listedDatasheets(
   })
 }
 
-const gatedCache = new WeakMap<LoadedCatalogue, Map<string, Map<string, string[]>>>()
-
-/**
- * The datasheets a book's detachments show or hide, each with the names of the detachments it
- * is offered under, such as the Deathwatch a chapter fields only with Deathwatch Support.
- * Legends and allies are hidden alike under every detachment, so none of them are here.
- */
-function detachmentGatedDatasheets(loaded: LoadedCatalogue, catalogueId: string) {
-  return cachedIn(gatedCache, loaded, catalogueId, () => {
-    const options = { primaryCatalogueId: catalogueId, mustering: true }
-    const detachments = (loaded.detachments.get(catalogueId)?.options ?? []).map((option) => ({
-      name: option.name,
-      roster: rosterDetachments(loaded, catalogueId, [option.id]).selections,
-    }))
-    const gated = new Map<string, string[]>()
-    for (const { id, entry } of listedDatasheets(loaded, catalogueId, { nonMatchedPlay: true })) {
-      const shown = detachments.filter(({ roster }) => !hiddenByRules(entry, loaded.index, { ...options, roster }))
-      const hidden = hiddenByRules(entry, loaded.index, options)
-      if (shown.length !== (hidden ? 0 : detachments.length))
-        gated.set(
-          id,
-          shown.map(({ name }) => name),
-        )
-    }
-    return gated
-  })
-}
+const listedUnitIds = new WeakMap<LoadedCatalogue, Map<string, Set<string>>>()
+const detachmentOffers = new WeakMap<LoadedCatalogue, Map<string, string[] | null>>()
 
 /** The detachments that would offer a datasheet the roster's own detachments hide, or null when they offer it. */
 export function detachmentsUnlocking(loaded: LoadedCatalogue, catalogueId: string, entryId: string, roster: readonly Selection[]) {
-  const offeredBy = detachmentGatedDatasheets(loaded, catalogueId).get(entryId)
   const entry = loaded.index.definitions.get(entryId)
-  if (!offeredBy || !entry) return null
-  return hiddenByRules(entry, loaded.index, { primaryCatalogueId: catalogueId, mustering: true, roster }) ? offeredBy : null
+  const options = { primaryCatalogueId: catalogueId, mustering: true }
+  if (!entry || !hiddenByRules(entry, loaded.index, { ...options, roster })) return null
+  const listed = cachedIn(
+    listedUnitIds,
+    loaded,
+    catalogueId,
+    () => new Set(listedDatasheets(loaded, catalogueId, { nonMatchedPlay: true }).map(({ id }) => id)),
+  )
+  if (!listed.has(entryId)) return null
+  return cachedIn(detachmentOffers, loaded, JSON.stringify([catalogueId, entryId]), () => {
+    const detachments = loaded.detachments.get(catalogueId)?.options ?? []
+    const shown = detachments.flatMap((option) => {
+      const selections = rosterDetachments(loaded, catalogueId, [option.id]).selections
+      return hiddenByRules(entry, loaded.index, { ...options, roster: selections }) ? [] : [option.name]
+    })
+    return shown.length === (hiddenByRules(entry, loaded.index, options) ? 0 : detachments.length) ? null : shown
+  })
 }
 
 type ListOptions = {
@@ -296,14 +289,15 @@ function* listUnits(
 function* summarizeUnits(loaded: LoadedCatalogue, catalogueId: string, options: ListOptions): Steps<UnitSummary[]> {
   const units = yield* listUnits(loaded, catalogueId, options)
   const size = battleSizeSelection(loaded.index, options.battleSize ?? null)
-  const roster = [...(size ? [size] : []), ...options.detachments.selections]
+  const detachments = options.detachments.selections
   const summaries: UnitSummary[] = []
   for (const unit of units) {
     yield
     const kind = nonMatchedPlayKind(unit.name)
-    const { points, laterCopyPoints } = roster.length
-      ? rosterPrices(loaded, catalogueId, unit.id, roster)
-      : { points: listPriceOf(loaded, catalogueId, unit.id), laterCopyPoints: undefined }
+    const { points, laterCopyPoints } =
+      size || detachments.length
+        ? rosterPrices(loaded, catalogueId, unit.id, detachments, size)
+        : { points: listPriceOf(loaded, catalogueId, unit.id), laterCopyPoints: undefined }
     summaries.push({
       id: unit.id,
       slug: datasheetSlug(loaded, catalogueId, unit.id),
@@ -320,6 +314,8 @@ function* summarizeUnits(loaded: LoadedCatalogue, catalogueId: string, options: 
   return summaries
 }
 
+const pickerLimits = new WeakMap<LoadedCatalogue, Map<string, number | null>>()
+
 /**
  * How many of one datasheet the roster may hold, or null when nothing limits it.
  *
@@ -330,7 +326,9 @@ function* summarizeUnits(loaded: LoadedCatalogue, catalogueId: string, options: 
 function limitOf(loaded: LoadedCatalogue, catalogueId: string, entryId: string, battleSize: Selection | null) {
   const entry = loaded.index.definitions.get(entryId)
   if (!entry) return null
-  return rosterLimit(entry, loaded.index, { primaryCatalogueId: catalogueId, mustering: true, roster: battleSize ? [battleSize] : [] })
+  return cachedIn(pickerLimits, loaded, `${catalogueId}:${entryId}:${battleSize?.id ?? ''}`, () =>
+    rosterLimit(entry, loaded.index, { primaryCatalogueId: catalogueId, mustering: true, roster: battleSize ? [battleSize] : [] }),
+  )
 }
 
 export function contextualUnitLimit(

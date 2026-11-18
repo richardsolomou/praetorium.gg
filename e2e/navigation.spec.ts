@@ -471,7 +471,7 @@ test('server-rendered reference pages keep route-shaped payloads', { tag: '@cata
   // One section, never the five documents: the whole rules corpus is far larger.
   const ruleSection = await routePayload('/rules/core-rules/movement-phase')
 
-  expect(factions).toBeLessThan(290_000)
+  expect(factions).toBeLessThan(300_000)
   expect(missionPack).toBeLessThan(250_000)
   expect(ruleSection).toBeLessThan(250_000)
 })

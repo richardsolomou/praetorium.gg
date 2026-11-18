@@ -226,6 +226,30 @@ export function exclusiveSets(definition: Definition): string[][] {
   return found
 }
 
+/**
+ * What, once the unit holds any of it, takes this entry's maximum to nothing.
+ *
+ * The other way the catalogue writes an option the whole squad takes: "All models in
+ * this unit can each have their pistol replaced with 1 Combat Shield" closes every
+ * other loadout once one shield is held, rather than raising an error over a mix.
+ */
+export function closedBy(definition: Definition, index: CatalogueIndex): string[] {
+  const caps = new Set(
+    constraintsOn(definition, index)
+      .filter((constraint) => constraint.type === 'max')
+      .map((constraint) => constraint.id),
+  )
+  return definitionAndTarget(definition, index)
+    .flatMap((source) => source.modifiers ?? [])
+    .flatMap((modifier) => {
+      const [condition, ...others] = modifier.conditions ?? []
+      if (modifier.type !== 'set' || modifier.value !== 0 || !caps.has(modifier.field)) return []
+      if (!condition || others.length || modifier.conditionGroups?.length) return []
+      if (condition.type !== 'atLeast' || condition.value !== 1 || condition.field !== 'selections') return []
+      return condition.childId ? [condition.childId] : []
+    })
+}
+
 /** The nearest ancestor model a path sits inside, when it is not the unit's own root. */
 export function modelOwnerOf(trail: readonly string[], index: CatalogueIndex): { id: string; name: string; profile: string | null } | null {
   for (let length = trail.length; length > 0; length--) {

@@ -12,8 +12,8 @@ on:
         description: Build a new native binary even when the runtime is unchanged
         type: boolean
         default: true
-      provision_watch:
-        description: Register and provision the Watch target using the existing iPhone distribution certificate
+      provision_extensions:
+        description: Provision the iPhone app, Watch and widget targets using the existing iPhone distribution certificate
         type: boolean
         default: false
 
@@ -28,7 +28,7 @@ permissions:
 jobs:
   deliver:
     name: Deliver iOS
-    runs-on: macos-26
+    runs-on: xcode-27
     timeout-minutes: 360
     env:
       MOBILE_REVISION: ${{ inputs.revision || github.sha }}
@@ -50,7 +50,7 @@ jobs:
         id: canary
         env:
           GH_TOKEN: ${{ github.token }}
-          FORCE_IOS_BUILD: ${{ inputs.force_build || inputs.provision_watch }}
+          FORCE_IOS_BUILD: ${{ inputs.force_build || inputs.provision_extensions }}
           MOBILE_UPDATE_CHANNEL: canary
           POSTHOG_CLI_DRY_RUN: 'true'
         working-directory: mobile
@@ -60,7 +60,7 @@ jobs:
         if: github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
-          FORCE_IOS_BUILD: ${{ inputs.force_build || inputs.provision_watch }}
+          FORCE_IOS_BUILD: ${{ inputs.force_build || inputs.provision_extensions }}
           MOBILE_UPDATE_CHANNEL: stable
           POSTHOG_CLI_DRY_RUN: 'false'
         working-directory: mobile
@@ -94,9 +94,9 @@ jobs:
             echo "EXPO_ASC_KEY_ID=$APP_STORE_CONNECT_KEY_ID"
             echo "EXPO_ASC_ISSUER_ID=$APP_STORE_CONNECT_ISSUER_ID"
           } >> "$GITHUB_ENV"
-      - name: Provision the Watch signing profile
-        if: inputs.provision_watch && steps.canary.outputs.build == 'true'
-        run: pnpm --package=eas-cli@23.2.0 dlx -c 'node scripts/provisionWatchIos.js'
+      - name: Provision the iOS signing profiles
+        if: inputs.provision_extensions && steps.canary.outputs.build == 'true'
+        run: pnpm --package=eas-cli@23.2.0 dlx -c 'node scripts/provisionExtensionsIos.js'
       - name: Build the canary iOS application
         if: steps.canary.outputs.build == 'true'
         env:

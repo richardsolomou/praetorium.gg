@@ -179,7 +179,20 @@ export function ModelCard({
                 : (press(spend(row)) ?? (addDirect ? () => onChoose(addDirect.choice.key, addDirect.option.id) : undefined))
           const remove =
             press(free(row)) ?? (removeDirect ? () => onChoose(removeDirect.source.choice.key, removeDirect.replacement ?? '') : undefined)
-          const picked = choice.uniform || (choice.optional && choice.room === 1 && choice.options.length === 1)
+          const picked = choice.uniform || option.wholeSquad || (choice.optional && choice.room === 1 && choice.options.length === 1)
+          const putDown = choice.optional ? '' : option.wholeSquad ? choice.options.find((candidate) => candidate.default)?.id : undefined
+          // Putting down an option the whole squad took hands every model back its ordinary
+          // loadout, a sergeant who took the same wargear beside them included.
+          const putDownAll = (back: string) => {
+            onSpread(choice.key, () => wholeSquadTakes(choice, back))
+            if (!option.wholeSquad) return
+            for (const other of choices) {
+              const held = other.options.find((candidate) => candidate.id === other.chosen && candidate.count > 0)
+              const ordinary = other.options.find((candidate) => candidate.default)
+              if (other !== choice && held && ordinary && pieces.some((piece) => sameWargear(piece, held.name)))
+                onChoose(other.key, ordinary.id)
+            }
+          }
           const instructions = showOptions
             ? loadoutInstructions({ ...row, pieces }, model, models ?? [model], wargearGroups ?? [], (text) =>
                 loadedWords(text, textChoice),
@@ -211,8 +224,8 @@ export function ModelCard({
                     disabled={controlsDisabled}
                     onPick={
                       option.count > 0
-                        ? choice.optional
-                          ? () => onSpread(choice.key, () => wholeSquadTakes(choice, ''))
+                        ? putDown !== undefined
+                          ? () => putDownAll(putDown)
                           : undefined
                         : () => onSpread(choice.key, () => wholeSquadTakes(choice, option.id))
                     }
