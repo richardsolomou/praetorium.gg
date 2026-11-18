@@ -3,6 +3,8 @@ import { useParams } from '@tanstack/react-router'
 import { FactionBreadcrumb } from './FactionBreadcrumb'
 import { DetachmentReference } from './DetachmentReference'
 import { StartRoster } from '../../rosters/ReferenceRosterActions'
+import { NextStep } from '../NextStep'
+import { ContinueGuestDraft } from '../../rosters/ContinueGuestDraft'
 
 export function FactionDetachment() {
   const params = useParams({ strict: false })
@@ -19,16 +21,19 @@ export function FactionDetachment() {
         detachmentId={detachmentId}
         faction={faction}
         action={detachmentId ? <StartRoster faction={faction} detachmentId={detachmentId} /> : null}
-        afterHero={<FactionBreadcrumb faction={faction} />}
+        afterHero={
+          <>
+            <FactionBreadcrumb faction={faction} />
+            <ContinueGuestDraft surface="detachment" />
+          </>
+        }
         closing={
           detachment ? (
-            <section className="part flex flex-wrap items-center justify-between gap-3 p-4">
-              <div>
-                <h2 className="text-lg">Build a list with {detachment.name}</h2>
-                <p className="text-sm text-dim">Your faction and detachment are already filled in.</p>
-              </div>
-              <StartRoster faction={faction} detachmentId={detachment.id} closing />
-            </section>
+            <NextStep
+              title={`Build a list with ${detachment.name}`}
+              description="Your faction and detachment are already filled in."
+              action={<StartRoster faction={faction} detachmentId={detachment.id} closing />}
+            />
           ) : null
         }
       />
