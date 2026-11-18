@@ -63,7 +63,7 @@ export function buildUnit(
   context?: BuildContext,
 ): BuiltUnit | null {
   const first = assemble(entryId, index, models, choices, context)
-  if (!first) return null
+  if (!first || !Object.keys(choices ?? {}).length) return first
   const closed = new Set(
     evaluate([first.selection], index, context)
       .errors.filter((error) => error.limit?.max === 0)

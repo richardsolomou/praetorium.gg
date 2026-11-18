@@ -86,9 +86,13 @@ export function groupOfEntry(index: CatalogueIndex, entryId: string): UnitGroup 
 export const shelfIn = (index: CatalogueIndex, entryId: string, primaries: readonly string[]): UnitGroup =>
   primaries.map((id) => shelfOfCategory(index.categories.get(id)?.name)).find(Boolean) ?? groupOfEntry(index, entryId)
 
+const defaultSelections = new WeakMap<LoadedCatalogue, Map<string, Selection | null>>()
+
 /** A datasheet's keywords and shelf as one more copy of it in the roster would have them, which its detachments can change. */
 function listedUnitFacts(loaded: LoadedCatalogue, catalogueId: string, entryId: string, roster: readonly Selection[]) {
-  const selection = defaultSelection(entryId, loaded.index, { primaryCatalogueId: catalogueId })
+  const selection = cachedIn(defaultSelections, loaded, `${catalogueId}:${entryId}`, () =>
+    defaultSelection(entryId, loaded.index, { primaryCatalogueId: catalogueId }),
+  )
   if (!selection) return null
   const held = keywordsBySelection([...roster, selection], loaded.index, { primaryCatalogueId: catalogueId }).at(-1)!
   return { keywords: keywordNames(held.keywords, loaded.index), group: shelfIn(loaded.index, entryId, held.primaries) }
@@ -296,14 +300,15 @@ function* listUnits(
 function* summarizeUnits(loaded: LoadedCatalogue, catalogueId: string, options: ListOptions): Steps<UnitSummary[]> {
   const units = yield* listUnits(loaded, catalogueId, options)
   const size = battleSizeSelection(loaded.index, options.battleSize ?? null)
-  const roster = [...(size ? [size] : []), ...options.detachments.selections]
+  const detachments = options.detachments.selections
   const summaries: UnitSummary[] = []
   for (const unit of units) {
     yield
     const kind = nonMatchedPlayKind(unit.name)
-    const { points, laterCopyPoints } = roster.length
-      ? rosterPrices(loaded, catalogueId, unit.id, roster)
-      : { points: listPriceOf(loaded, catalogueId, unit.id), laterCopyPoints: undefined }
+    const { points, laterCopyPoints } =
+      size || detachments.length
+        ? rosterPrices(loaded, catalogueId, unit.id, detachments, size)
+        : { points: listPriceOf(loaded, catalogueId, unit.id), laterCopyPoints: undefined }
     summaries.push({
       id: unit.id,
       slug: datasheetSlug(loaded, catalogueId, unit.id),
@@ -320,6 +325,8 @@ function* summarizeUnits(loaded: LoadedCatalogue, catalogueId: string, options: 
   return summaries
 }
 
+const pickerLimits = new WeakMap<LoadedCatalogue, Map<string, number | null>>()
+
 /**
  * How many of one datasheet the roster may hold, or null when nothing limits it.
  *
@@ -330,7 +337,9 @@ function* summarizeUnits(loaded: LoadedCatalogue, catalogueId: string, options: 
 function limitOf(loaded: LoadedCatalogue, catalogueId: string, entryId: string, battleSize: Selection | null) {
   const entry = loaded.index.definitions.get(entryId)
   if (!entry) return null
-  return rosterLimit(entry, loaded.index, { primaryCatalogueId: catalogueId, mustering: true, roster: battleSize ? [battleSize] : [] })
+  return cachedIn(pickerLimits, loaded, `${catalogueId}:${entryId}:${battleSize?.id ?? ''}`, () =>
+    rosterLimit(entry, loaded.index, { primaryCatalogueId: catalogueId, mustering: true, roster: battleSize ? [battleSize] : [] }),
+  )
 }
 
 export function contextualUnitLimit(
