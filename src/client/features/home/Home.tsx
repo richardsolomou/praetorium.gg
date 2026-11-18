@@ -23,6 +23,7 @@ import { DeleteBattleDialog } from '../battles/DeleteBattle'
 import type { HomeRoster } from './HomeRosters'
 import { HomeView } from './HomeView'
 import { HomeNotifications } from './HomeNotifications'
+import { ContinueGuestDraft } from '../rosters/ContinueGuestDraft'
 import { ownEntryStatus } from '../sealedEvents/sealedEvent'
 import type { HomeGroup, HomeTournament } from './HomeGroups'
 import type { LeagueGameDue } from './HomeInProgress'
@@ -107,6 +108,7 @@ export function Home() {
         leaders={standings ? { rows: standings.overall.rows } : null}
         newBattle={<NewBattle variant="outline" />}
         notifications={me && !me.impersonatedBy ? <HomeNotifications /> : null}
+        guestDraft={me ? null : <ContinueGuestDraft surface="home" className="mt-6 max-w-md" />}
         onDelete={setDeleting}
       />
       <DeleteBattleDialog battle={deleting} onClose={() => setDeleting(null)} />

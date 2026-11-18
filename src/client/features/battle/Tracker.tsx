@@ -692,6 +692,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
                     onActionRemindersChange={view.settings.manual ? undefined : updateActionReminders}
                     onRecordMissed={missedMoments.length ? () => setMissedDraft({}) : undefined}
                     onConcede={(playerId) => sendAction({ kind: 'end-battle', reason: 'conceded', concededBy: playerId })}
+                    onFinishEarly={() => sendAction({ kind: 'end-battle', reason: 'finished-early' })}
                     onDelete={() => {
                       if (!promptMinimized) remove.mutate()
                     }}

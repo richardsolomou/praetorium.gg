@@ -1422,7 +1422,9 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
     }
     case 'end-battle': {
       if (state.status !== 'playing') return refuse('battle-not-running', 'the battle is not running')
-      // Older logs also hold battles called early; replay still applies them, but a new one only ends by concession.
+      // A practice battle has no opponent whose result counts, so its player may stop it where it stands; any other
+      // battle ends after its last turn or by concession, though older logs still replay the ones called early.
+      if (command.reason === 'finished-early' && !command.concededBy && state.players.some(isPracticeSeat)) return null
       if (command.reason !== 'conceded') return refuse('concession-required', 'a battle ends after its last turn or by concession')
       if (!command.concededBy) return refuse('concession-required', 'choose who conceded')
       const concedingPlayer = state.players.find((candidate) => candidate.id === command.concededBy)

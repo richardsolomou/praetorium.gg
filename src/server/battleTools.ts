@@ -220,10 +220,14 @@ export const agentCommandSchema = z.discriminatedUnion('kind', [
   command('switch-clock', 'Hands the chess clock to a side, such as for a reaction in the other side’s turn, until the phase ends.', {
     side: 'The side index, 0 or 1, from players[].side.',
   }),
-  command('end-battle', 'Ends the battle early by concession; a full battle ends itself after the last turn.', {
-    reason: 'conceded.',
-    concededBy: 'The conceding player id.',
-  }),
+  command(
+    'end-battle',
+    'Ends the battle early by concession, or a practice battle where it stands; a full battle ends itself after the last turn.',
+    {
+      reason: 'conceded, or finished-early for a practice battle.',
+      concededBy: 'The conceding player id; omit it when finishing early.',
+    },
+  ),
   command('reopen-battle', 'Reopens a finished battle to correct it.'),
   command('undo', 'Takes back the latest standing command. Use it instead of recording the opposite.', {
     target: 'The seq to take back: undoable from get_my_battle.',
