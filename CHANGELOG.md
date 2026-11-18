@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.266.6 (2026-11-18)
+
+### Patch Changes
+
+- 4290223: [app] What's new lists each faster-loading change from 18 November on its own instead of as one long entry.
+
 ## 0.266.5 (2026-11-18)
 
 ### Patch Changes
