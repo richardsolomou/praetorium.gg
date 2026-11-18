@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.265.5 (2026-11-18)
+
+### Patch Changes
+
+- c93e45e: [reference] Saved reference pages decode in the background, so opening one no longer holds up the page.
+- 3c4efef: [simulator] Taps on the simulator's model steppers and Try an example respond at once, with the results following a moment later.
+
 ## 0.265.4 (2026-11-18)
 
 ### Patch Changes
