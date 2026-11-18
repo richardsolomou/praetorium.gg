@@ -239,12 +239,7 @@ test('both devices settle mandatory tactical cards without racing', async ({ bro
   await expect(alice.getByRole('dialog').getByText('≈ Approximate placement · nearest ⅛″')).toBeVisible()
   await expect(alice.getByRole('dialog').locator('svg text').filter({ hasText: /^≈/ })).toHaveCount(26)
   await expect(alice.getByRole('dialog').getByText('Measure to the marked wall corners', { exact: false })).toBeVisible()
-  await expect(
-    alice
-      .getByRole('dialog')
-      .locator('svg text')
-      .filter({ hasText: /^8″$/ }),
-  ).toHaveCount(2)
+  await expect(alice.getByRole('dialog').locator('svg text').filter({ hasText: /^8″$/ })).toHaveCount(2)
   await alice
     .getByRole('dialog')
     .locator('[data-slot="dialog-body"]')

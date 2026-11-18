@@ -250,10 +250,7 @@ function mentionsDeploymentAbility(written: string): boolean {
 }
 
 function normalizeAbilityText(written: string): string {
-  return written
-    .replaceAll(/[″“”]/g, '"')
-    .normalize('NFKC')
-    .replaceAll('′′', '"')
+  return written.replaceAll(/[″“”]/g, '"').normalize('NFKC').replaceAll('′′', '"')
 }
 
 export const titleCaseAbility = (name: string) =>

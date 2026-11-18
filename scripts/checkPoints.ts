@@ -82,13 +82,7 @@ const catalogueAliases: Record<string, string> = {
 }
 
 /** The Munitorum Title-Cases every name and uses curly apostrophes; the catalogues do neither. */
-const normalise = (name: string) =>
-  name
-    .toLowerCase()
-    .replaceAll('armour', 'armor')
-    .replaceAll(/['’]/g, "'")
-    .replaceAll(/\s+/g, ' ')
-    .trim()
+const normalise = (name: string) => name.toLowerCase().replaceAll('armour', 'armor').replaceAll(/['’]/g, "'").replaceAll(/\s+/g, ' ').trim()
 
 const isLegends = (entry: SelectionEntry) => /\[legends\]/i.test(entry.name ?? '')
 
