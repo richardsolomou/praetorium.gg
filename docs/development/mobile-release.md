@@ -21,6 +21,7 @@ Android delivery stays disabled until the [physical-device gate](#physical-devic
 
 ## Delivery
 
+- iOS builds run on GitHub's `xcode-27` runner, a public preview, because App Store uploads need the iOS 27 SDK from April 2027. If the image breaks a build, point `mobile.yml` and `mobile-validation.yml` back at `macos-26` until it's fixed.
 - Never start `mobile.yml` while a run is in progress; inspect the last run before restarting. It never submits for public review.
 - `-f force_build=false` publishes an OTA update after changing public JavaScript variables in EAS.
 - When local credentials fail, use the workflow's signing secrets before asking for an Apple login or new key.
