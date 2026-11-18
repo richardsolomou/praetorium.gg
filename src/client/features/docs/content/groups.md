@@ -95,7 +95,7 @@ To run it again, an organizer presses **Start the next league** on the complete 
 
 To have everyone commit to one army for the whole league, turn on **Seal lists before it starts** when you press **Start a league**, then choose the points and house rules. Members join by pressing **Seal a list to join** and picking a saved list, and can swap it with **Swap your list** until the league is published. A list that offers more than one Force Disposition and names none asks which one it plays for the whole league as you seal it. The **League** tab lists everyone who has sealed, with your own list's name under yours. Nobody sees anyone else's list until then.
 
-**Publish** reveals every list at once, and every fixture is played with them: **Start battle** sets up the game with both sealed lists already in place. The revealed lists stay under **Lists** on the **League** tab.
+**Publish** reveals every list at once, and every fixture is played with them: **Start battle** sets up the game with both sealed lists already in place. The revealed lists stay under **Lists** on the **League** tab. If a list has a mistake, an organizer presses the unseal button on that player's row, then **Unseal roster**, and the player presses **Seal a replacement** there to seal a corrected list that fits the league. Their games show **Waiting for a list** until they do, and games already started keep the list they began with.
 
 ## Leave or delete a group
 

@@ -148,6 +148,7 @@ export function GroupHiddenListGame({
     pointsBudget: game.pointsBudget,
     seatPoints,
     shared: ownEntry ? sealedEventSharesPoints(game, ownEntry) : false,
+    revealed,
     onSealed: refresh,
   })
   const side = useMutation({

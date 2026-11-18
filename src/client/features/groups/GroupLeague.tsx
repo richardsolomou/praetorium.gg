@@ -281,7 +281,12 @@ function PublishedLeague({ group, league, viewerId }: { group: Group; league: Le
         <div data-league-lists>
           <SectionHeading title="Lists" />
           <p className="text-sm text-dim">Sealed to {leaguePoints(league.game)}. Every game is played with these.</p>
-          <LeagueLists group={group} game={league.game} viewerId={viewerId} />
+          <LeagueLists
+            group={group}
+            game={league.game}
+            viewerId={viewerId}
+            playerIds={league.complete ? undefined : league.players.map((player) => player.userId)}
+          />
         </div>
       ) : null}
       <ConfirmDialog
@@ -375,6 +380,7 @@ function Rounds({ group, league, viewerId, now }: { group: Group; league: League
     return player ? <span style={nameColour({ id: userId, colour: player.colour })}>{player.name}</span> : 'A player'
   }
   const rounds = [...new Set(league.fixtures.map((fixture) => fixture.round))].toSorted((a, b) => a - b)
+  const unsealed = (userId: string | null) => Boolean(userId && league.game && !league.game.sealedIds.includes(userId))
   const unsettled = (round: number) =>
     league.fixtures.some((fixture) => fixture.round === round && (fixture.status === 'open' || fixture.status === 'playing'))
   // Rounds play in any order, so the earliest with a game still to finish is current and later unfinished ones wait.
@@ -411,6 +417,7 @@ function Rounds({ group, league, viewerId, now }: { group: Group; league: League
                       fixture={fixture}
                       name={playerName}
                       viewerId={viewerId}
+                      waiting={unsealed(fixture.aId) || unsealed(fixture.bId)}
                       overdue={leagueFixtureOverdue(fixture.status, deadline, now)}
                       pending={play.isPending}
                       onPlay={(opponentId) => fixture.key && play.mutate({ opponentIds: [opponentId], fixture: fixture.key })}
@@ -440,6 +447,7 @@ function FixtureRow({
   fixture,
   name,
   viewerId,
+  waiting,
   overdue,
   pending,
   onPlay,
@@ -448,6 +456,8 @@ function FixtureRow({
   fixture: Fixture
   name: (userId: string) => ReactNode
   viewerId: string | null
+  /** Whether a player's sealed list was unsealed, so the game waits for its replacement. */
+  waiting: boolean
   overdue: boolean
   pending: boolean
   onPlay: (opponentId: string) => void
@@ -480,6 +490,8 @@ function FixtureRow({
         >
           {status === 'finished' ? `${battle.scores[0]} – ${battle.scores[1]}` : battle.status === 'playing' ? 'Playing' : 'Setting up'}
         </Link>
+      ) : fixture.key && waiting ? (
+        <span className="shrink-0 text-sm text-faint">Waiting for a list</span>
       ) : own && opponent && fixture.key ? (
         <Button size="sm" disabled={pending} onClick={() => onPlay(opponent)}>
           <Swords /> Start battle

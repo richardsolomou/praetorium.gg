@@ -1226,6 +1226,12 @@ describe('hidden-list games', () => {
       expect(publishWithStray(setup())).toBe('published')
     })
 
+    it('lets an organizer unseal a running league’s list for its player to replace', () => {
+      const fixture = setup()
+      publishWithStray(fixture)
+      expect(fixture.game({ op: 'unseal', ownerId: 'owner', userId: 'member' })).toBe('unsealed')
+    })
+
     it('starts the next league sealing on the same terms, with everyone sealing again', () => {
       const fixture = setup()
       publishWithStray(fixture)
