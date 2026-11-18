@@ -1,7 +1,6 @@
 import { noExclusions } from '../../../core/combatMatchup'
-import { useStableValue } from '../../useStableValue'
 import { GuideHelp } from '../onboarding/GuideHelp'
-import { memo, startTransition, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { memo, startTransition, useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { posthog } from 'posthog-js'
 import { ArrowLeftRight } from 'lucide-react'
 import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -140,7 +139,7 @@ export const CombatSimulator = memo(function CombatSimulator({
       setProblem(null)
     })
   }
-  const setSide = useCallback((index: 0 | 1, side: SimulatorSide | null) => {
+  const setSide = (index: 0 | 1, side: SimulatorSide | null) => {
     rosterRequests.current[index]++
     setSession((current) => {
       const state = decodeSimulatorState(current.shared)
@@ -150,29 +149,23 @@ export const CombatSimulator = memo(function CombatSimulator({
     })
     setComparingRosters(false)
     setProblem(null)
-  }, [])
-  const loadRoster = useCallback((key: string) => loadRosterSource(queryClient, rosterSourceFromKey(key)), [queryClient])
+  }
+  const loadRoster = (key: string) => loadRosterSource(queryClient, rosterSourceFromKey(key))
   /** A roster's unit as a side, or null when the roster or unit is gone. */
-  const rosterUnitSide = useCallback(
-    async (key: string, pickIndex: number): Promise<SimulatorSide | null> => {
-      const roster = await loadRoster(key)
-      const chosen = roster?.picks[pickIndex]
-      if (!roster || !chosen) return null
-      const { attachedTo: _attachedTo, note: _note, ...pick } = chosen
-      return { catalogueId: roster.catalogueId, pick, rules: {}, roster: { ...rosterSourceFromKey(key), pickIndex } }
-    },
-    [loadRoster],
-  )
-  const chooseRosterUnit = useCallback(
-    async (index: 0 | 1, key: string, pickIndex: number) => {
-      const request = ++rosterRequests.current[index]
-      const side = await rosterUnitSide(key, pickIndex)
-      if (request !== rosterRequests.current[index]) return
-      if (side) setSide(index, side)
-      else setProblem('That roster could not be opened.')
-    },
-    [rosterUnitSide, setSide],
-  )
+  const rosterUnitSide = async (key: string, pickIndex: number): Promise<SimulatorSide | null> => {
+    const roster = await loadRoster(key)
+    const chosen = roster?.picks[pickIndex]
+    if (!roster || !chosen) return null
+    const { attachedTo: _attachedTo, note: _note, ...pick } = chosen
+    return { catalogueId: roster.catalogueId, pick, rules: {}, roster: { ...rosterSourceFromKey(key), pickIndex } }
+  }
+  const chooseRosterUnit = async (index: 0 | 1, key: string, pickIndex: number) => {
+    const request = ++rosterRequests.current[index]
+    const side = await rosterUnitSide(key, pickIndex)
+    if (request !== rosterRequests.current[index]) return
+    if (side) setSide(index, side)
+    else setProblem('That roster could not be opened.')
+  }
   const swapped = linked?.swapped ?? false
   /** What a side fields in the unit matchup, as the side pickers name it. */
   const unitChoice = (index: 0 | 1) => {
@@ -209,7 +202,7 @@ export const CombatSimulator = memo(function CombatSimulator({
     setComparingRosters(false)
     setProblem(first === undefined || second === undefined ? 'That roster could not be opened.' : null)
   }
-  const rosterGroups = useStableValue([
+  const rosterGroups = [
     { label: 'Opened rosters', options: otherRosters },
     {
       label: 'Your rosters',
@@ -239,37 +232,18 @@ export const CombatSimulator = memo(function CombatSimulator({
         catalogueId: entry.catalogueId,
       })),
     },
-  ])
-  const firstSource = sides?.[0]?.roster?.saved?.source
-  const secondSource = sides?.[1]?.roster?.saved?.source
-  const firstRoster = useStableValue({
-    current: firstSource ? rosterSourceKey(firstSource) : null,
-    owner: ownerOf(firstSource),
-  })
-  const secondRoster = useStableValue({
-    current: secondSource ? rosterSourceKey(secondSource) : null,
-    owner: ownerOf(secondSource),
-  })
-  const firstRosters = useMemo<RosterNavigation>(
-    () => ({
-      ...firstRoster,
+  ]
+  const rosterNavigation = (index: 0 | 1): RosterNavigation => {
+    const fielded = sides?.[index]?.roster?.saved
+    return {
       groups: rosterGroups,
+      current: fielded ? rosterSourceKey(fielded.source) : null,
+      owner: ownerOf(fielded?.source),
       load: loadRoster,
-      chooseRosterUnit: (key, pickIndex) => void chooseRosterUnit(0, key, pickIndex),
-      replace: (side) => setSide(0, side),
-    }),
-    [firstRoster, rosterGroups, loadRoster, chooseRosterUnit, setSide],
-  )
-  const secondRosters = useMemo<RosterNavigation>(
-    () => ({
-      ...secondRoster,
-      groups: rosterGroups,
-      load: loadRoster,
-      chooseRosterUnit: (key, pickIndex) => void chooseRosterUnit(1, key, pickIndex),
-      replace: (side) => setSide(1, side),
-    }),
-    [secondRoster, rosterGroups, loadRoster, chooseRosterUnit, setSide],
-  )
+      chooseRosterUnit: (key, pickIndex) => void chooseRosterUnit(index, key, pickIndex),
+      replace: (side) => setSide(index, side),
+    }
+  }
   const share = useCallback((state: SimulatorState) => {
     const encoded = state.sides.some(Boolean) ? encodeSimulatorState(state) : undefined
     setSession((current) => (current.shared === encoded ? current : { ...current, shared: encoded }))
@@ -321,8 +295,8 @@ export const CombatSimulator = memo(function CombatSimulator({
                     key={session.key}
                     roster={sides?.[0]?.roster}
                     opponentRoster={sides?.[1]?.roster}
-                    firstRosters={firstRosters}
-                    secondRosters={secondRosters}
+                    firstRosters={rosterNavigation(0)}
+                    secondRosters={rosterNavigation(1)}
                     initial={linked && sides ? { ...linked, sides: [sides[0]!.side, sides[1]!.side] } : null}
                     onChange={share}
                     reference={reference}

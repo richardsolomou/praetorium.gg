@@ -60,7 +60,7 @@ export function useCombatant(roster?: CombatRoster, initial?: SimulatorSide | nu
       (initial ? [initial.pick, ...(initial.attached ?? []).map((pick) => ({ ...pick, attachedTo: pick.attachedTo ?? 0 }))] : []),
   )
   // An attached unit is fielded from its bodyguard, so a leader's own roster entry opens the whole unit the same way.
-  const pickIndex = useMemo(() => attachmentHost(picks.positioned, chosenIndex), [picks.positioned, chosenIndex])
+  const pickIndex = attachmentHost(picks.positioned, chosenIndex)
   const battlePicks = useStableValue(roster?.battle ? roster.picks : null)
   const { resetPicks } = picks
   useEffect(() => {
@@ -121,9 +121,8 @@ export function useCombatant(roster?: CombatRoster, initial?: SimulatorSide | nu
     enabled: Boolean(entryId && entryId === settled[pickIndex]?.entryId),
     placeholderData: (previous, query) => (query?.queryKey[5] === pickIndex ? previous : undefined),
   })
-  const texts = useMemo(() => combatantTexts(sheets.data), [sheets.data])
-  const { loaded } = useSourceTexts(texts)
-  const readable = useMemo(() => readableCombatant(sheets.data, loaded), [sheets.data, loaded])
+  useSourceTexts(combatantTexts(sheets.data))
+  const readable = sheets.data ? readableCombatant(sheets.data) : undefined
   // A battle fields frozen loadouts, so there is nothing to choose between.
   const loadoutContext =
     !roster?.battle && entryId && entryId === settled[pickIndex]?.entryId ? { catalogueId, detachmentIds, picks: settled, pickIndex } : null
@@ -263,33 +262,6 @@ export function useCombatant(roster?: CombatRoster, initial?: SimulatorSide | nu
         }
       : null,
   )
-  const { allocateKey, setPicks } = picks
-  const savedRoster = Boolean(roster)
-  const selectUnit = useCallback(
-    (catalogue: string, id: string) => {
-      setCatalogueId(catalogue)
-      setSelectedRules({})
-      const key = allocateKey()
-      setPicks((current) => {
-        const host = current[pickIndex]
-        if (!host) return [{ entryId: id, catalogueId: catalogue, key }]
-        return current.map((member) =>
-          member.key === host.key
-            ? { entryId: id, catalogueId: catalogue, key }
-            : member.attachedTo === host.key
-              ? { ...member, attachedTo: key }
-              : member,
-        )
-      })
-    },
-    [allocateKey, setPicks, pickIndex],
-  )
-  const selectDetachments = useCallback(
-    (ids: readonly string[]) => {
-      if (!savedRoster) setChosenDetachments({ catalogueId, ids })
-    },
-    [savedRoster, catalogueId],
-  )
   return {
     catalogueId,
     faction,
@@ -309,7 +281,9 @@ export function useCombatant(roster?: CombatRoster, initial?: SimulatorSide | nu
     detachmentOptions,
     detachmentNames: detachmentIds.flatMap((id) => detachmentOptions?.find((option) => option.id === id)?.name ?? []),
     limit,
-    selectDetachments,
+    selectDetachments: (ids: readonly string[]) => {
+      if (!roster) setChosenDetachments({ catalogueId, ids })
+    },
     pickIndex,
     pick,
     identity,
@@ -401,7 +375,22 @@ export function useCombatant(roster?: CombatRoster, initial?: SimulatorSide | nu
         ),
       )
     },
-    selectUnit,
+    selectUnit: (catalogue: string, id: string) => {
+      setCatalogueId(catalogue)
+      setSelectedRules({})
+      const key = picks.allocateKey()
+      picks.setPicks((current) => {
+        const host = current[pickIndex]
+        if (!host) return [{ entryId: id, catalogueId: catalogue, key }]
+        return current.map((member) =>
+          member.key === host.key
+            ? { entryId: id, catalogueId: catalogue, key }
+            : member.attachedTo === host.key
+              ? { ...member, attachedTo: key }
+              : member,
+        )
+      })
+    },
   }
 }
 

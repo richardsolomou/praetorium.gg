@@ -324,12 +324,10 @@ export function CombatMatchup({
             <summary className="rubric scroll-mt-header cursor-pointer py-3 text-info outline-none focus-visible:ring-2 focus-visible:ring-primary">
               Rules & buffs
             </summary>
-            {(buffsOpen ?? startOpen) && (
-              <div className="grid gap-4 pb-3 @xl:grid-cols-2">
-                {attackerBuffs}
-                {defenderBuffs}
-              </div>
-            )}
+            <div className="grid gap-4 pb-3 @xl:grid-cols-2">
+              {attackerBuffs}
+              {defenderBuffs}
+            </div>
           </details>
           <section aria-label="Modifiers" className="border-t border-edge">
             <ManualModifiers

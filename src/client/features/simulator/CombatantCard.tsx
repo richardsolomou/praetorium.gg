@@ -1,6 +1,6 @@
 import { PICKER_POPUP } from './CombatControls'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
+import { useContext, useState, type ReactNode } from 'react'
 import { ChevronDown, Plus, ScrollText, Settings, WandSparkles, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -30,8 +30,6 @@ import { Problem } from '../../components/Problem'
 import { ControlTooltip } from '../../components/ControlTooltip'
 import { countLabel, formatList } from '../../text'
 import { DropdownMenuItem } from '../../components/Menu'
-
-const NO_DETACHMENTS: NonNullable<Combatant['detachmentOptions']> = []
 
 export function CombatantCard({
   side,
@@ -79,15 +77,12 @@ export function CombatantCard({
     enabled: combatant.roster && factions.isSuccess && !indexedFaction,
   })
   const selectedFaction = indexedFaction ?? (combatant.roster ? rosterFaction.data : undefined)
-  const factionIcon = useCallback(
-    (catalogueId: string | undefined) => {
-      const faction =
-        (catalogueId ? factionFor(factions.data, catalogueId) : undefined) ??
-        (catalogueId === combatant.faction ? selectedFaction : undefined)
-      return faction ? <FactionMark faction={faction} size="sm" /> : undefined
-    },
-    [factions.data, combatant.faction, selectedFaction],
-  )
+  const factionIcon = (catalogueId: string | undefined) => {
+    const faction =
+      (catalogueId ? factionFor(factions.data, catalogueId) : undefined) ??
+      (catalogueId === combatant.faction ? selectedFaction : undefined)
+    return faction ? <FactionMark faction={faction} size="sm" /> : undefined
+  }
   const failed = factions.isError || catalogueUnits.isError || combatant.price.isError || combatant.sheets.isError
   const unavailable =
     picks.positioned.length > 0 &&
@@ -105,49 +100,36 @@ export function CombatantCard({
       : count + direction
   const more = nextSize(models, 1)
   const fewer = nextSize(models, -1)
-  const entryId = pick?.entryId
-  const unitName = unit?.name
-  const unitPoints = unit?.points
-  const selectedOutsideIndex = useMemo(
-    () =>
-      !combatant.roster &&
-      ready &&
-      entryId &&
-      unitName &&
-      unitPoints !== undefined &&
-      !catalogueUnits.data?.some(
-        (faction) => faction.catalogueId === combatant.faction && faction.units.some((entry) => entry.id === entryId),
-      )
-        ? [
-            {
-              catalogueId: combatant.faction,
-              name: selectedFaction ? `${selectedFaction.displayName} · ${rulesVersionLabel(selectedFaction)}` : 'Selected unit',
-              units: [{ id: entryId, name: unitName, points: unitPoints }],
-              icon: factionIcon(combatant.faction),
-            },
-          ]
-        : undefined,
-    [combatant.roster, ready, entryId, unitName, unitPoints, catalogueUnits.data, combatant.faction, selectedFaction, factionIcon],
-  )
-  const catalogue = useMemo(
-    () => ({
-      index: catalogueUnits.data ?? [],
-      emptyText: catalogueUnits.isPending ? 'Loading units…' : undefined,
-      extraBooks: selectedOutsideIndex,
-      selected: entryId && !combatant.roster ? { catalogueId: combatant.faction, entryId } : undefined,
-    }),
-    [catalogueUnits.data, catalogueUnits.isPending, selectedOutsideIndex, entryId, combatant.roster, combatant.faction],
-  )
+  const selectedOutsideIndex =
+    !combatant.roster &&
+    ready &&
+    pick &&
+    unit &&
+    !(catalogueUnits.data ?? []).some(
+      (faction) => faction.catalogueId === combatant.faction && faction.units.some((entry) => entry.id === pick.entryId),
+    )
+      ? [
+          {
+            catalogueId: combatant.faction,
+            name: selectedFaction ? `${selectedFaction.displayName} · ${rulesVersionLabel(selectedFaction)}` : 'Selected unit',
+            units: [{ id: pick.entryId, name: unit.name, points: unit.points }],
+            icon: factionIcon(combatant.faction),
+          },
+        ]
+      : undefined
   const unitPicker = (
     <SideUnitPicker
       side={side}
-      combatant={combatant.roster ? combatant : null}
-      unitName={unitName}
-      selectUnit={combatant.selectUnit}
+      combatant={combatant}
       rosters={rosters}
       factionIcon={factionIcon}
       loading={Boolean(pick) && !ready}
-      catalogue={catalogue}
+      catalogue={{
+        index: catalogueUnits.data ?? [],
+        emptyText: catalogueUnits.isPending ? 'Loading units…' : undefined,
+        extraBooks: selectedOutsideIndex,
+        selected: pick && !combatant.roster ? { catalogueId: combatant.faction, entryId: pick.entryId } : undefined,
+      }}
     />
   )
   const stepped = Boolean(battleUnit || !unit || unit.size.resizable)
@@ -310,7 +292,7 @@ export function CombatantCard({
                     value={picks.positioned[member.index]?.entryId ?? ''}
                     disabled={!ready || optimizer.busy}
                     searchPlaceholder="Search leaders and support…"
-                    onValueChange={(replacement) => combatant.replaceAttachment(member.index, replacement)}
+                    onValueChange={(entryId) => combatant.replaceAttachment(member.index, entryId)}
                     groups={[
                       {
                         label: 'Unit members',
@@ -378,7 +360,7 @@ export function CombatantCard({
                 {member.index === pickIndex && !combatant.roster ? (
                   <DetachmentPicker
                     side={side}
-                    options={combatant.detachmentOptions ?? NO_DETACHMENTS}
+                    options={combatant.detachmentOptions ?? []}
                     value={combatant.detachmentIds}
                     limit={combatant.limit}
                     unavailable={

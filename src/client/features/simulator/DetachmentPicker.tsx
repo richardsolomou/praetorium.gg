@@ -1,4 +1,3 @@
-import { memo } from 'react'
 import { Layers3 } from 'lucide-react'
 import {
   Combobox,
@@ -19,7 +18,7 @@ import { PICKER_POPUP } from './CombatControls'
 type Detachment = { id: string; name: string; points?: number | null; exclusiveWith?: readonly { id: string; limit: string }[] }
 
 /** Several detachments, within the battle size's detachment and DP limits. */
-export const DetachmentPicker = memo(function DetachmentPicker({
+export function DetachmentPicker({
   side,
   options,
   value,
@@ -106,4 +105,4 @@ export const DetachmentPicker = memo(function DetachmentPicker({
       </Combobox>
     </ControlTooltip>
   )
-})
+}
