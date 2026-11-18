@@ -14,6 +14,7 @@ import { offlineActionSchemas, type OfflineActionKind } from '../../contracts/of
 import { localClient, localOwner, localDocument, localEngine, hasLocalChanges, queueLocal, rememberDocument } from './localRuntime'
 import { localConstruction } from './construction'
 import type { LocalRoster } from './localRuntime'
+import { queryResource } from '../../contracts/localState'
 import { accountChanged, cachedRead, isOffline } from './reads'
 import type { LocalDocumentUpdate } from './syncEngine'
 import {
@@ -50,7 +51,6 @@ import { withoutRecentMatchup, withRecentMatchup } from '../../contracts/recentM
 import { onboardingAnswer } from '../../contracts/onboarding'
 import { OfflineRefusal } from './offlineRefusal'
 
-export const queryResource = (key: readonly unknown[]) => `query:${JSON.stringify(key)}`
 async function accountRead<T>(key: readonly unknown[], online: () => Promise<T>) {
   const owner = localOwner()?.id
   const resource = queryResource(key)
