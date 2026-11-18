@@ -2,12 +2,18 @@ name: CI points
 
 on:
   workflow_call:
+    inputs:
+      runtime:
+        description: Whether the change needs the runtime checks
+        type: boolean
+        required: true
 
 permissions:
   contents: read
 
 jobs:
   points:
+    if: inputs.runtime
     runs-on: ubuntu-latest
     env:
       HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}

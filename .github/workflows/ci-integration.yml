@@ -2,12 +2,18 @@ name: CI integration
 
 on:
   workflow_call:
+    inputs:
+      runtime:
+        description: Whether the change needs the runtime checks
+        type: boolean
+        required: true
 
 permissions:
   contents: read
 
 jobs:
   integration:
+    if: inputs.runtime
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -29,6 +35,7 @@ jobs:
 
   # Builds every published payload single-threaded, so it runs beside the other integration tests rather than after them.
   client-text:
+    if: inputs.runtime
     runs-on: ubuntu-latest
     # An offline reference no build has shared yet is uploaded under its key for every later build and deployment.
     env:
