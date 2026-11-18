@@ -17,7 +17,13 @@ export const referenceStaleTime = () => (currentReference() ? Infinity : SSR_STA
 export function referenceQuery<T>(key: readonly unknown[], online: () => Promise<T>) {
   return queryOptions({
     queryKey: key,
-    queryFn: ({ client }) => referenceRead(key, online, client.getQueryData<T>(key)),
+    queryFn: ({ client }) =>
+      referenceRead(key, online, client.getQueryData<T>(key), (fresh) =>
+        fresh.then(
+          (data) => client.setQueryData(key, data),
+          () => {},
+        ),
+      ),
     initialData: () => savedQuery<T>(referenceData(), key),
     initialDataUpdatedAt: () => (currentReference() ? Date.now() : (referenceData()?.savedAt ?? 0)),
     staleTime: referenceStaleTime,
