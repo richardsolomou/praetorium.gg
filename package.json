@@ -22,7 +22,7 @@
     "test:spacetime": "tsx scripts/spacetimeIntegration.ts",
     "spacetime:generate": "spacetime generate --lang typescript --module-path spacetimedb --out-dir src/spacetime/generated --yes && oxfmt src/spacetime/generated",
     "changeset": "changeset",
-    "version-packages": "changeset version && tsx scripts/dateChangelog.ts && tsx scripts/syncMobileVersion.ts && oxfmt --write mobile/app.json",
+    "version-packages": "changeset version && tsx scripts/dateChangelog.ts && tsx scripts/archiveChangelog.ts && tsx scripts/syncMobileVersion.ts && oxfmt --write mobile/app.json",
     "release": "changeset git-tag",
     "auth:db:generate": "drizzle-kit generate --config drizzle.auth.config.ts",
     "auth:db:check": "drizzle-kit check --config drizzle.auth.config.ts",
