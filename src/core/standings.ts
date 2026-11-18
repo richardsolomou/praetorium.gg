@@ -5,6 +5,7 @@ import type { CatalogueEdition } from './catalogueEdition'
 import { isGuestSeat } from './newBattle'
 import { routeSlug } from './slug'
 import { compareText } from './text'
+import { z } from 'zod'
 import { ordinal, rate, rating, type Rating } from 'openskill'
 
 /** The catalogue army a seat brought, as the battle list already names it. */
@@ -299,3 +300,11 @@ export function winRate(counts: { won: number; drawn: number; battles: number })
 export function averagePoints(counts: { points: number; battles: number }): number {
   return counts.battles ? counts.points / counts.battles : 0
 }
+
+export const standingsViewQuery = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('player'), userId: z.string(), activeSince: z.number().int().nonnegative() }),
+  z.object({ kind: z.literal('changes'), tokens: z.array(z.string()).max(500) }),
+  z.object({ kind: z.literal('achievements'), userId: z.string() }),
+])
+
+export type StandingsViewQuery = z.infer<typeof standingsViewQuery>

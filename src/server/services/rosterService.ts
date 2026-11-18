@@ -177,20 +177,25 @@ export class RosterService {
   async rosterAccess(id: string, userId: string | null = null) {
     const row = await this.repository.roster(id)
     if (!row) return null
+    return this.accessToRow(row, userId)
+  }
+
+  private async accessToRow(row: NonNullable<Awaited<ReturnType<RepositoryPort['roster']>>>, userId: string | null) {
     if (row.userId === userId) return { roster: rosterFromRow(row, true), editable: true }
     // Named rather than "anything but private", so a value added later is refused
     // until somebody decides it should not be.
     if (row.visibility === 'unlisted' || row.visibility === 'public') return { roster: readerRosterFromRow(row), editable: false }
-    const lender = userId ? await this.lender(id, userId) : null
+    const lender = userId ? await this.lender(row.id, userId) : null
     return lender ? { roster: readerRosterFromRow(row), editable: false, lentBy: lender } : null
   }
 
   /** The roster a copy was made from, named only while this reader may still open it. */
   async copySource(id: string | null, userId: string | null) {
-    if (!id || !(await this.rosterAccess(id, userId))) return null
+    if (!id) return null
     const row = await this.repository.roster(id)
-    const owner = row ? (await this.repository.namesByIds([row.userId])).get(row.userId) : undefined
-    return row && owner ? { id, name: row.name, ownerId: row.userId, ownerName: owner.name } : null
+    if (!row || !(await this.accessToRow(row, userId))) return null
+    const owner = (await this.repository.namesByIds([row.userId])).get(row.userId)
+    return owner ? { id, name: row.name, ownerId: row.userId, ownerName: owner.name } : null
   }
 
   async sharedRoster(id: string, userId: string | null = null) {

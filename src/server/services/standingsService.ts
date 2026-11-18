@@ -110,10 +110,14 @@ export class StandingsService {
 
   /** Where one player sits in each table they are ranked in, read from the same stored ratings the leaderboard pages. */
   async playerRankings(userId: string): Promise<PlayerRankings> {
-    await this.refreshStandings()
-    const { places, history } = await this.repository.playerStandings(userId, 0)
-    const [named] = await this.namedRows([{ id: userId }])
-    const armies = await this.armyTables()
+    const [{ places, history }, [named], armies] = await Promise.all([
+      this.standingsRefresh.read(
+        (versions) => this.repository.currentStandingsView('player', { userId, activeSince: 0 }, versions),
+        () => this.repository.playerStandings(userId, 0),
+      ),
+      this.namedRows([{ id: userId }]),
+      this.armyTables(),
+    ])
     const ranking = <T>(faction: T, place: (typeof places)[number]) => ({
       faction,
       place: place.place,
@@ -174,8 +178,10 @@ export class StandingsService {
   private async checkAchievements(userId: string): Promise<AchievementRows> {
     await this.syncAchievementDefinitions()
     // A finished battle reaches a player's revision only once the refresh stores its result.
-    await this.refreshStandings()
-    const status = await this.repository.achievementStatus(userId)
+    const status = await this.standingsRefresh.read(
+      (versions) => this.repository.currentStandingsView('achievements', { userId }, versions),
+      () => this.repository.achievementStatus(userId),
+    )
     const known = (rows: typeof status.earned) =>
       rows.filter((row): row is AchievementRows[number] => ACHIEVEMENT_IDS.has(row.achievementId))
     if (status.revision === status.checked) return known(status.earned)
@@ -196,8 +202,8 @@ export class StandingsService {
    * A tournament's winner is the top of the table its results page shows, read as an entrant so a private one counts.
    */
   private async earnedAchievements(userId: string) {
-    const factionsById = byId(await this.battleFactions())
-    const [stored, practice, facts] = await Promise.all([
+    const [factions, stored, practice, facts] = await Promise.all([
+      this.battleFactions(),
       this.repository.battleResultsByUser(userId),
       this.repository.practiceOpponentIds(),
       this.repository.achievementFacts(userId),
@@ -221,6 +227,7 @@ export class StandingsService {
         return { ...tournament, won: Boolean(table && !table.partial && table.swiss?.[0]?.userId === userId) }
       }),
     )
+    const factionsById = byId(factions)
     return achievements(
       userId,
       { ...facts, battles: stored.map((row) => storedBattle(row, factionsById)), recruits, tournaments },
@@ -230,7 +237,10 @@ export class StandingsService {
 
   /** How far one battle moved each player's overall rating, or null when the leaderboard does not count it. */
   async battleRatingChanges(token: string) {
-    await this.refreshStandings()
-    return (await this.repository.ratingChanges([token]))[0]?.changes ?? null
+    const [battle] = await this.standingsRefresh.read(
+      (versions) => this.repository.currentStandingsView('changes', { tokens: [token] }, versions),
+      () => this.repository.ratingChanges([token]),
+    )
+    return battle?.changes ?? null
   }
 }
