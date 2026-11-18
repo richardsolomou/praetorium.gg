@@ -1,7 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import { cn } from '@/lib/utils'
 import { battleColours } from '../../../core/playerColours'
-import { battleOutcome, type BattleOutcome } from '../../../core/standings'
+import { type BattleOutcome, playerOutcome } from '../../../core/standings'
 import { battleOutcomeStage, sideLost, sideWon } from '../../battleStage'
 import { summarySides, type SummarySide } from '../../battleSummary'
 import { FactionMark } from '../../components/FactionMark'
@@ -50,8 +50,7 @@ export function BattleLines({
     <ul className="@container divide-y divide-edge part">
       {battles.map((battle) => {
         const [ours, theirs] = summarySides(battle)
-        const seat = viewerId ? battle.playerIds.indexOf(viewerId) : -1
-        const outcome = seat !== -1 && battle.status === 'finished' ? battleOutcome(battle, battle.sides[seat]!) : null
+        const outcome = battle.status === 'finished' ? playerOutcome(battle, viewerId) : null
         const colours = battleColours(
           [ours, theirs].flatMap((side) => side?.seats.map(({ player }) => ({ ...player, side: side.index })) ?? []),
         )

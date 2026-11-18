@@ -14,7 +14,7 @@ import { z } from 'zod'
 import type { SealedEventSide } from '../../contracts/schemas'
 import { sealedEventRosterSharingSchema } from '../../contracts/sealedEventRosterSharing'
 import type { SpacetimeOperator } from '../spacetimeOperator'
-import { profileOf, type RepositoryBase } from './area'
+import { forwarding, profileOf, type RepositoryBase } from './area'
 
 /** When an event is played and when its rosters must be sealed by, either unset. */
 export type SealedEventSchedule = { playsAt: number | null; sealBy: number | null }
@@ -28,11 +28,9 @@ function tournamentDetails({ token: _token, createdAt: _createdAt, adminIds: _ad
 
 /** Tournaments, hidden-list games and the sealed events they hold. */
 export function withSealedEvents<B extends RepositoryBase>(Base: B) {
-  return class SealedEventRepository extends Base {
-    sealedEventNames(...args: Parameters<SpacetimeOperator['sealedEventNames']>) {
-      return this.product.sealedEventNames(...args)
-    }
-
+  return class SealedEventRepository extends forwarding(['sealedEventNames', 'sealedEntrySources', 'outdatedSealedEventEntriesForRoster'])(
+    Base,
+  ) {
     createTournament(input: {
       id: string
       token: string
@@ -262,13 +260,6 @@ export function withSealedEvents<B extends RepositoryBase>(Base: B) {
     }
 
     /** The saved list each of the player's sealed entries came from, by event and by host; never shown to anyone else. */
-    sealedEntrySources(userId: string) {
-      return this.product.sealedEntrySources(userId)
-    }
-
-    outdatedSealedEventEntriesForRoster(userId: string, rosterId: string) {
-      return this.product.outdatedSealedEventEntriesForRoster(userId, rosterId)
-    }
 
     async friendSealedEventRosters(viewerId: string) {
       const rows = await this.product.friendSealedEventRosters(viewerId)

@@ -1,5 +1,6 @@
 import { builtDetachments, type Roster } from './battle'
 import type { BattleDigest } from './battleDigest'
+import { byId } from './collections'
 import { currentCatalogueFamilyId } from './retiredCatalogueIds'
 import { facetActive, facetMatches, periodBounds, withinPeriod } from './listFilter'
 import type { PlayedArmyFilter } from './rosterDiscovery'
@@ -52,7 +53,7 @@ export function playedArmies(
   summary: StandingBattle,
 ): PlayedArmy[] {
   if (digest.status !== 'finished') return []
-  const seated = new Map(history.players.map((player) => [player.id, player]))
+  const seated = byId(history.players)
   const playedAt = digest.lastCommandAt ?? history.battle.createdAt
   return digest.seats.flatMap((seat) => {
     const { built } = seat

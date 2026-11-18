@@ -11,9 +11,8 @@ import { ungrouped } from '../../components/SearchableSelect'
 import { factionIndexQuery } from '../../queries'
 import { facetsOf } from '../../searchParams'
 import { countLabel, matchesSearch } from '../../text'
-import { factionSelectGroups } from './builder/factions'
 import type { LentRoster } from './LentRosters'
-import { RosterSortMenu, ROSTER_ASSESSMENT_DIMENSIONS } from './RosterFilters'
+import { RosterSortMenu, ROSTER_ASSESSMENT_DIMENSIONS, rosterDetachmentDimension, rosterFactionDimension } from './RosterFilters'
 import type { SavedRoster } from './rosterLibrary'
 import { useRosterPages } from './rosterPages'
 import { rosterTitle } from './RosterSummary'
@@ -55,40 +54,10 @@ export function useRosterChoiceFilter({ rosters, lent }: { rosters: readonly Sav
     .toSorted((left, right) => compareRosters(sort)(left.summary, right.summary))
 
   const all = [...rosters, ...lent.map(({ summary }) => summary)]
-  const tally = <T,>(values: T[]) => countBy(values, (value) => value)
-  const perFaction = tally(all.map((roster) => roster.catalogueId))
-  const perDetachment = tally(all.flatMap((roster) => roster.detachmentIds))
-  const perSize = tally(all.map((roster) => roster.limit))
-  const detachmentNames = new Map(
-    factions.flatMap((faction) => faction.detachments.map((detachment) => [detachment.id, detachment.name] as const)),
-  )
+  const perSize = countBy(all, (roster) => roster.limit)
   const dimensions: FilterDimension[] = [
-    {
-      key: 'faction',
-      label: 'Faction',
-      pinned: true,
-      groups: factionSelectGroups(
-        factions.filter((faction) => perFaction.has(faction.id)),
-        favourites,
-      ).map((group) => ({
-        ...group,
-        items: group.items.map((item) => ({
-          ...item,
-          value: factions.find((faction) => faction.id === item.value)?.slug ?? item.value,
-          detail: String(perFaction.get(item.value) ?? 0),
-        })),
-      })),
-    },
-    {
-      key: 'detachment',
-      label: 'Detachment',
-      pinned: true,
-      groups: ungrouped(
-        [...perDetachment]
-          .map(([id, count]) => ({ label: detachmentNames.get(id) ?? id, value: id, detail: String(count) }))
-          .toSorted((left, right) => left.label.localeCompare(right.label)),
-      ),
-    },
+    rosterFactionDimension(all, factions, favourites),
+    rosterDetachmentDimension(all, factions),
     {
       key: 'size',
       label: 'Battle size',

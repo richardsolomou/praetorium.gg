@@ -2,6 +2,7 @@ import { parseRosterSnapshot } from '../core/commands'
 import { type Command, isGameSize } from '../core/battle'
 import {
   isTeamFormat,
+  latestRound,
   alliedSealedEventRosterLimit,
   SEALED_EVENT_TEAM_ROSTER_LIMITS,
   sealedEventPairShares,
@@ -17,7 +18,7 @@ export function openPairing<T extends { round: number; aId: string; bId: string 
   userId: string,
   opponentId: string | undefined,
 ) {
-  const round = Math.max(0, ...pairings.map((pairing) => pairing.round))
+  const round = latestRound(pairings)
   const seated = (pairing: T, id: string | undefined) => pairing.aId === id || pairing.bId === id
   return pairings.find(
     (pairing) => pairing.round === round && pairing.battleToken === null && seated(pairing, userId) && seated(pairing, opponentId),

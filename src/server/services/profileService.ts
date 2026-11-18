@@ -18,7 +18,7 @@ import type { BattlesCursor } from '../../contracts/battles'
 import { battleFactionOf, battleSummary, type BattleFaction } from '../../shared/battleSummary'
 import { matchupMission } from '../../shared/battleRules'
 import { gameReferencesFor } from '../../shared/gameReferences'
-import type { BattleMissionRules, BattleReadRules } from '../rules'
+import type { BattleMissionRules, BattleReadRules } from '../../shared/rules'
 import type { BattleCard, RepositoryPort } from '../spacetimeRepository'
 import type { BattleFeedService } from './battleFeedService'
 
@@ -67,7 +67,7 @@ export class ProfileService {
   async playerBattles(
     userId: string,
     viewerId: string | null,
-    page: { before?: BattlesCursor; filter?: BattleFilter; order?: BattleOrder },
+    page: { before?: BattlesCursor | null; filter?: BattleFilter; order?: BattleOrder },
     rules?: BattleMissionRules | null,
     factions: readonly BattleFaction[] = [],
   ) {

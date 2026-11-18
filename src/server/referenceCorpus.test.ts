@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest'
 import type { CanonicalCatalogue } from '../contracts/catalogue'
 import { referenceCorpusCooperatively, referenceCorpusFor } from './referenceCorpus'
-import type { LoadedRules } from './rules'
+import type { LoadedRules } from '../shared/rules'
 import { bookOf, card, withCards } from './catalogue.fixtures'
 import { compileCanonicalCatalogue } from './canonicalCatalogue'
 

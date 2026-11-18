@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { bookOf, withCards } from './catalogue.fixtures'
 import { detachmentNamed, detachmentsOffering, factionIndexFor, factionsFor, isReferenceDetachment } from '../shared/factionReferences'
-import type { LoadedRules } from './rules'
+import type { LoadedRules } from '../shared/rules'
 import { referenceFactionDatasheets } from './referenceCatalogue'
 
 describe('joining catalogue detachments to their rules reference', () => {

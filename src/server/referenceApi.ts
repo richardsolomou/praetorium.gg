@@ -25,7 +25,7 @@ import {
   referenceUnits,
   type ReferenceUnitsQuery,
 } from './referenceService'
-import { DATACARDS_ATTRIBUTION } from './datacards'
+import { DATACARDS_ATTRIBUTION } from '../shared/datacards'
 import { ifNoneMatch } from './ifNoneMatch'
 import { fixedWindowRateLimit } from './rateLimit'
 import { catalogueEditionId } from '../core/catalogueEdition'

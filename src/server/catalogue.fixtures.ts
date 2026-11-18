@@ -7,9 +7,9 @@
  */
 
 import { buildIndex, type Catalogue, type CatalogueFile, type Modifier } from '../core/catalogue'
-import { characteristicNamesOf, detachmentsOf, factionsIn, type LoadedCatalogue } from './catalogueIndex'
+import { characteristicNamesOf, detachmentsOf, factionsIn, type LoadedCatalogue } from '../shared/catalogueIndex'
 import { unitsIn } from '../shared/cataloguePicker'
-import type { DatasheetDetails, FactionContent, LoadedDatacards } from './datacards'
+import type { DatasheetDetails, FactionContent, LoadedDatacards } from '../shared/datacards'
 
 export const PTS = 'cost-pts'
 

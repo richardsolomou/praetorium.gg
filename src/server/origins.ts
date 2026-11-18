@@ -4,12 +4,11 @@ export function configuredOrigin() {
 }
 
 function parseOrigin(value: string | undefined) {
-  if (!value?.trim()) return undefined
-  try {
-    return new URL(value).origin
-  } catch {
-    return undefined
-  }
+  return value ? URL.parse(value)?.origin : undefined
+}
+
+export function loopback(hostname: string) {
+  return hostname === 'localhost' || hostname === '[::1]' || /^127(?:\.\d{1,3}){3}$/.test(hostname)
 }
 
 // Any client can send these headers, so they count only behind a proxy that replaces them.

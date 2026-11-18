@@ -4,4 +4,4 @@
 - Never rewrite stored battle logs; older commands keep their original interpretation. Stratagem corrections go through `src/core/stratagemCorrections.ts`.
 - Card draws resolve on the server under the battle lock.
 - Geometry changes advance `TERRAIN_GEOMETRY_VERSION`.
-- Never put rules prose in a server response, snapshot, or offline bundle; the browser loads it from the pinned upstream URL. Correct core rules upstream, not in `catalogue/patches/`.
+- The browser loads rules prose from the pinned upstream URL; [catalogue data](catalogue-data.md#rules-text) says where the server may hold it. Correct core rules upstream, not in `catalogue/patches/`.

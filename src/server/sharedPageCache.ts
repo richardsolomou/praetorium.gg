@@ -1,4 +1,4 @@
-import { PUBLIC_PATH } from './crawlerRequests'
+import { publicRead } from './crawlerRequests'
 
 /**
  * Under the client's 30 second `SSR_STALE_TIME` with room for the page to load, so the data a cached page hydrates is
@@ -7,11 +7,6 @@ import { PUBLIC_PATH } from './crawlerRequests'
 export const SHARED_PAGE_CACHE = 'public, max-age=0, s-maxage=20'
 
 const SIGNED_IN = /(?:^|;\s*)(?:__Secure-)?better-auth\./
-
-/** A GET or HEAD for a public page. */
-export function publicRead(request: Request) {
-  return (request.method === 'GET' || request.method === 'HEAD') && PUBLIC_PATH.test(new URL(request.url).pathname)
-}
 
 /**
  * A public read with no sign of a session. Any `better-auth.` cookie counts, forged or not, because the cost of

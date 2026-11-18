@@ -1,5 +1,5 @@
 import type { BattleStatus } from '../core/battle'
-import { battleOutcome, type BattleOutcome, type StandingBattle } from '../core/standings'
+import { battleOutcome, type BattleOutcome, playerOutcome, type StandingBattle } from '../core/standings'
 
 /** Share stage labels and colors across battle lists, with setup amber, live green, and finished grey. */
 type BattleStage = { name: string; tint: string }
@@ -23,10 +23,8 @@ export const battleOutcomeStage = (outcome: keyof typeof OUTCOMES): BattleStage 
 
 /** A battle's stage as one viewer reads it: their own result once it is finished, otherwise its stage. */
 export function viewerStage(battle: StandingBattle, viewerId: string | null | undefined): BattleStage {
-  const seat = viewerId ? battle.playerIds.indexOf(viewerId) : -1
-  return seat !== -1 && battle.status === 'finished'
-    ? battleOutcomeStage(battleOutcome(battle, battle.sides[seat]!))
-    : battleStage(battle.status)
+  const outcome = battle.status === 'finished' ? playerOutcome(battle, viewerId) : null
+  return outcome ? battleOutcomeStage(outcome) : battleStage(battle.status)
 }
 
 /** Whether a side lost a finished battle, which lists fade so the winners stand out; a draw fades neither. */

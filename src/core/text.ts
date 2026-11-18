@@ -19,6 +19,9 @@ export function canonicalJson(value: unknown): string {
 
 export const capitalised = (text: string) => text.charAt(0).toLocaleUpperCase() + text.slice(1)
 
+/** At most `max` characters, the last an ellipsis when the text is cut. */
+export const clipped = (text: string, max: number) => (text.length > max ? `${text.slice(0, max - 1)}…` : text)
+
 /** A number as a list prints it, thousands separators included: 2,000. */
 export const printedNumber = (text: string) => Number(text.replaceAll(',', ''))
 
@@ -42,6 +45,13 @@ export const joinKey = (nameOrSlug: string) =>
 export const escapeRegExp = (value: string) => value.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
 export const countLabel = (total: number, one: string, many = `${one}s`) => `${total} ${total === 1 ? one : many}`
+
+/** A place in an order, such as "1st" or "3rd"; spelled out by hand because Hermes has no `Intl.PluralRules`. */
+export function placingLabel(placing: number) {
+  const remainder = placing % 100
+  const suffix = remainder >= 11 && remainder <= 13 ? 'th' : (['th', 'st', 'nd', 'rd'][placing % 10] ?? 'th')
+  return `${placing}${suffix}`
+}
 
 /** "a, b and c": British English has no serial comma. */
 export const formatList = (items: readonly string[]) => new Intl.ListFormat('en-GB').format(items)

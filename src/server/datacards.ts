@@ -28,7 +28,6 @@ import { type SourceTexts, comparableText, textKey, textTokensIn } from '../core
 import { textFactsOf } from '../shared/textFacts'
 import type { TextFacts } from '../core/textFacts'
 import { publishedTexts } from './sourceTexts'
-export * from '../shared/datacards'
 const NO_SECTIONS: SectionProse = () => new Map()
 
 const titleCase = (name: string) =>

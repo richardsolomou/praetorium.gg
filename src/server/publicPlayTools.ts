@@ -70,7 +70,7 @@ export function registerPublicPlayTools(server: AgentTools) {
       const { battles, nextCursor } = await instance.service.battleFeedService.publicBattles(
         null,
         rules,
-        { limit: BATTLES_PAGE, before: before ?? undefined, filter, order },
+        { limit: BATTLES_PAGE, before, filter, order },
         factions,
       )
       return structured({ battles: battles.map((battle) => agentBattle(battle, null)), nextCursor })

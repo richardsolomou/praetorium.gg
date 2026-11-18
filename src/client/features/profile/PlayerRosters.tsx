@@ -11,8 +11,7 @@ import type { QueryData, factionIndexQuery } from '../../queries'
 import { facetsOf } from '../../searchParams'
 import { PLAYER_ROSTER_FACETS, type PlayerRosterSearch } from './profileSearch'
 import { countLabel, matchesSearch } from '../../text'
-import { factionSelectGroups } from '../rosters/builder/factions'
-import { RosterSortMenu, ROSTER_POINTS_DIMENSION } from '../rosters/RosterFilters'
+import { RosterSortMenu, ROSTER_POINTS_DIMENSION, rosterDetachmentDimension, rosterFactionDimension } from '../rosters/RosterFilters'
 import { RosterSummary, rosterTitle } from '../rosters/RosterSummary'
 import type { SavedRoster } from '../rosters/rosterLibrary'
 
@@ -61,38 +60,10 @@ export function PlayerRosters({
     search.sort ?? 'updated-desc',
   )
   // The choices are what this player has published, each saying how many.
-  const tally = <T,>(values: T[]) => countBy(values, (value) => value)
-  const perFaction = tally(rosters.map((roster) => roster.catalogueId))
-  const perDetachment = tally(rosters.flatMap((roster) => roster.detachmentIds))
-  const perSize = tally(rosters.map((roster) => roster.limit))
-  const held = factions.filter((faction) => perFaction.has(faction.id))
-  const detachmentNames = new Map(
-    factions.flatMap((faction) => faction.detachments.map((detachment) => [detachment.id, detachment.name] as const)),
-  )
+  const perSize = countBy(rosters, (roster) => roster.limit)
   const dimensions: FilterDimension[] = [
-    {
-      key: 'faction',
-      label: 'Faction',
-      pinned: true,
-      groups: factionSelectGroups(held, favourites).map((group) => ({
-        ...group,
-        items: group.items.map((item) => ({
-          ...item,
-          value: factions.find((faction) => faction.id === item.value)?.slug ?? item.value,
-          detail: String(perFaction.get(item.value) ?? 0),
-        })),
-      })),
-    },
-    {
-      key: 'detachment',
-      label: 'Detachment',
-      pinned: true,
-      groups: ungrouped(
-        [...perDetachment]
-          .map(([id, count]) => ({ label: detachmentNames.get(id) ?? id, value: id, detail: String(count) }))
-          .toSorted((left, right) => left.label.localeCompare(right.label)),
-      ),
-    },
+    rosterFactionDimension(rosters, factions, favourites),
+    rosterDetachmentDimension(rosters, factions),
     {
       key: 'size',
       label: 'Battle size',

@@ -10,6 +10,7 @@
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { setTimeout as pause } from 'node:timers/promises'
 
 export type Listing = { list: string; faction?: string; detachment?: string; event?: string; date?: string }
 type Found = Listing & { text: () => Promise<string | null> }
@@ -23,7 +24,6 @@ const json = async <T>(url: string): Promise<T> => {
   if (!response.ok) throw new Error(`${url} answered ${response.status}`)
   return (await response.json()) as T
 }
-const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
 /** 40kstats.tabletopbattles.com's top-four lists, each list's raw text at its own address. */
 async function fortyKStats(): Promise<Found[]> {

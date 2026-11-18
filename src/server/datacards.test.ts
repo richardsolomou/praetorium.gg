@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
+import { loadDatacards } from './datacards'
 import {
   constructionCardKey,
   constructionDetachment,
@@ -9,12 +10,11 @@ import {
   enhancementEligibility,
   factionRestrictionCoverageIssues,
   factionRestrictions,
-  loadDatacards,
   prose,
   restrictedBy,
   type SectionProse,
   transformed,
-} from './datacards'
+} from '../shared/datacards'
 import { joinKey } from '../core/text'
 import { weaponGrantsIn } from '../shared/textFacts'
 import { wordsFrom } from './sourceTexts.fixtures'

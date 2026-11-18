@@ -1,16 +1,11 @@
 import { GROUP_MEMBER_STATUSES } from '../../core/group'
 import type { SealedEventAdmission, SealedEventVisibility } from '../../core/sealedEvent'
 import { z } from 'zod'
-import type { SpacetimeOperator } from '../spacetimeOperator'
-import { profileOf, type RepositoryBase } from './area'
+import { forwarding, profileOf, type RepositoryBase } from './area'
 
 /** Groups, their members and their leagues. */
 export function withGroups<B extends RepositoryBase>(Base: B) {
-  return class GroupRepository extends Base {
-    groupNames(...args: Parameters<SpacetimeOperator['groupNames']>) {
-      return this.product.groupNames(...args)
-    }
-
+  return class GroupRepository extends forwarding(['groupNames', 'claimLeagueDeadlineReminders'])(Base) {
     createGroup(input: {
       id: string
       token: string
@@ -92,10 +87,6 @@ export function withGroups<B extends RepositoryBase>(Base: B) {
 
     setGroupLeagueClock(token: string, actorId: string, minutes: number | null) {
       return this.product.groupCommand({ op: 'league-clock', token, actorId, minutes }, z.enum(['set', 'missing', 'forbidden']))
-    }
-
-    claimLeagueDeadlineReminders() {
-      return this.product.claimLeagueDeadlineReminders()
     }
 
     nextGroupLeague(

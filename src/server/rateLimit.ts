@@ -1,3 +1,5 @@
+import { clientAddress } from './crawlerRequests'
+
 type RateWindow = { startedAt: number; requests: number }
 const RATE_WINDOW_MS = 60_000
 const RATE_BUCKET_MAX = 10_000
@@ -10,8 +12,7 @@ export function fixedWindowRateLimit(error: string, limit: number) {
 
   return (request: Request) => {
     const now = Date.now()
-    const forwarded = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
-    const key = forwarded || 'unknown'
+    const key = clientAddress(request) || 'unknown'
     const current = rateWindows.get(key)
     if (current && now - current.startedAt < RATE_WINDOW_MS) {
       current.requests += 1

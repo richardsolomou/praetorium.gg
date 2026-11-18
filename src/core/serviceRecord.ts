@@ -297,8 +297,8 @@ export function serviceRecord(battles: readonly RecordBattle[], playerId: string
     averageInWins: mean(wins.map((one) => one.points)),
     averageInLosses: mean(losses.map((one) => one.points)),
     lossDifferential: mean(losses.map((one) => opponentScore(one.battle, one.side) - one.points)),
-    averagePrimary: mean(taken.map((one) => sideTotal(one, one.battle.primaries))),
-    averageSecondary: mean(taken.map((one) => sideTotal(one, one.battle.secondaries))),
+    averagePrimary: mean(taken.map((one) => sideScore({ sides: one.battle.sides, scores: one.battle.primaries }, one.side))),
+    averageSecondary: mean(taken.map((one) => sideScore({ sides: one.battle.sides, scores: one.battle.secondaries }, one.side))),
     ...streaks(taken),
     ...resources(taken),
     ...cardRecords(taken),
@@ -313,7 +313,7 @@ export function serviceRecord(battles: readonly RecordBattle[], playerId: string
  *
  * A side is one pool of command points, stratagems and cards, the same way it is
  * one score, so an ally is credited with the side's whole spend and every card it
- * held — added across the side's seats exactly as `sideTotal` adds its points.
+ * held — added across the side's seats exactly as `sideScore` adds its points.
  */
 function sidePlay(appearance: Appearance) {
   const plays = appearance.battle.sides.flatMap((side, seat) => (side === appearance.side ? (appearance.battle.plays[seat] ?? []) : []))
@@ -469,11 +469,6 @@ function opponentRecords(taken: readonly Appearance[]): OpponentRecord[] {
   return [...rows]
     .map(([id, { name, image, colour, against }]) => ({ id, name, image, colour, ...split(against) }))
     .toSorted((one, other) => other.battles - one.battles || other.rate - one.rate || one.name.localeCompare(other.name))
-}
-
-/** A side's half of the score, added up the same way `sideScore` adds the whole. */
-function sideTotal(appearance: Appearance, values: readonly number[]) {
-  return appearance.battle.sides.reduce((total, side, seat) => (side === appearance.side ? total + (values[seat] ?? 0) : total), 0)
 }
 
 /** One value a reader can filter by, how many of their battles carry it, and when the most recent of them was last played. */

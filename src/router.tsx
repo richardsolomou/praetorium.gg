@@ -6,6 +6,7 @@ import { writesPending } from './client/pendingWrites'
 import { staleBuildRelease } from './client/releaseUpdate'
 import { completedRouteRecovery, reloadStaleBuild, reportRouteError, routeRecoveryPending } from './client/routeErrors'
 import { openedTextPage } from './client/textPages'
+import { prefersReducedMotion } from './client/useMediaQuery'
 import { siteOrigin } from './server/requestOrigin'
 import { routeTree } from './routeTree.gen'
 
@@ -20,9 +21,7 @@ export function getRouter() {
     // Nor going back, which a back swipe has already animated; fading after it flashes the page being left.
     defaultViewTransition: {
       types: ({ pathChanged, fromLocation, toLocation }) =>
-        pathChanged &&
-        !(fromLocation && toLocation.state.__TSR_index < fromLocation.state.__TSR_index) &&
-        !matchMedia('(prefers-reduced-motion: reduce)').matches
+        pathChanged && !(fromLocation && toLocation.state.__TSR_index < fromLocation.state.__TSR_index) && !prefersReducedMotion()
           ? ['page']
           : false,
     },

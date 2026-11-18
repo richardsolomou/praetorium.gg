@@ -13,11 +13,11 @@ import {
 import { heldWargear } from '../shared/heldWargear'
 import { deploymentRules } from '../shared/rosterDeployment'
 import { factionRestrictionViolations, isCatalogueSelfContradiction, kotcViolations } from '../shared/formatRestrictions'
-import { descriptionKey } from './datacards'
+import { descriptionKey } from '../shared/datacards'
 import { rosterUseProblem } from '../core/rosterLegality'
 import { loadoutPicks } from '../core/rosterCopies'
 import { bookOf, categories, enhancement, points as pointsCost, shelfOf } from './catalogue.fixtures'
-import type { LoadedRules } from './rules'
+import type { LoadedRules } from '../shared/rules'
 import type { RosterPick } from '../core/roster'
 
 const cappedLord = (id: string, name: string) => ({

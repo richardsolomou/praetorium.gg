@@ -1,7 +1,7 @@
 import { battleFilterSchema } from '../core/battleFilter'
 import { facetSchema } from '../core/listFilter'
 import { battleOutcome } from '../core/standings'
-import { type AgentTools, READ_ONLY_TOOL, responseToolError, signedInPlayer, structured } from './agentTools'
+import { type AgentTools, READ_ONLY_TOOL, refusalsAsErrors, signedInPlayer, structured } from './agentTools'
 import { app } from './app'
 import { agentWrites } from './mutationTelemetry'
 import { rosterActions } from './rosterActions'
@@ -42,13 +42,8 @@ export const ACCOUNT_MCP_SCOPES: Record<string, 'mcp:read' | 'mcp:write'> = {
 // Rosters and battles can be public, so a write may publish to other players.
 export const WRITE = { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true } as const
 
-export async function resultOf(work: () => Promise<Record<string, unknown>>) {
-  try {
-    return structured(await agentWrites.run(true, work))
-  } catch (error) {
-    if (error instanceof Response && error.status < 500) return responseToolError(error)
-    throw error
-  }
+export function resultOf(work: () => Promise<Record<string, unknown>>) {
+  return refusalsAsErrors(async () => structured(await agentWrites.run(true, work)))
 }
 
 export const facet = (values: string) =>
@@ -195,7 +190,7 @@ export function registerAccountMcpTools(server: AgentTools, userId: string | nul
         const { battles, nextCursor } = await instance.service.battleFeedService.battles(
           player,
           rules,
-          { limit: BATTLES_PAGE, before: before ?? undefined, filter, order },
+          { limit: BATTLES_PAGE, before, filter, order },
           factions,
         )
         return { battles: battles.map((battle) => agentBattle(battle, player)), nextCursor }

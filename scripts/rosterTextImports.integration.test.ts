@@ -12,7 +12,7 @@ import {
   warmindWtc,
   warmindOfficial,
 } from '../src/core/rosterText.fixtures'
-import type { LoadedCatalogue } from '../src/server/catalogueIndex'
+import type { LoadedCatalogue } from '../src/shared/catalogueIndex'
 import { custodesFortyKApp, custodesOfficial } from '../src/core/rosterText.custodes.fixture'
 import { astraMilitarumNewRecruit, kriegGermanOfficial } from '../src/core/rosterText.krieg.fixture'
 import { necronsOfficial } from '../src/core/rosterText.necrons.fixture'

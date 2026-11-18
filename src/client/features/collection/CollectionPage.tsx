@@ -33,7 +33,7 @@ import { CollectionWishlist, type Datasheet } from './CollectionWishlist'
 import { RemoveFromCollection } from './RemoveFromCollection'
 import { ShelfLine } from './ShelfLine'
 import { groupBy } from '../../../core/collections'
-import { countLabel } from '../../text'
+import { countLabel, percentLabel } from '../../text'
 import { GuideHelp } from '../onboarding/GuideHelp'
 import { advanceOnboarding } from '../onboarding/onboarding'
 import { DropdownMenuItem } from '../../components/Menu'
@@ -275,7 +275,7 @@ export function CollectionPage() {
   )
 }
 
-const share = (part: number, whole: number) => (whole ? `${Math.round((part / whole) * 100)}%` : null)
+const share = (part: number, whole: number) => (whole ? percentLabel(part / whole) : null)
 
 /** One stage of the shelf, from sprue to painted, with its figure rising into place as it changes. */
 function Stage({ label, value, detail, tally }: { label: string; value: number | null; detail: string | null; tally?: string }) {

@@ -1,6 +1,7 @@
 import { picksAfterSetupChange } from '../../../core/rosterSetup'
 import { requireReviewedRoster, type ReviewedServerSave } from '../../offline/reviewedRoster'
 import { localEngine, localOwner } from '../../offline/localRuntime'
+import { ACCOUNT_CHANGED_AFTER_REVIEW } from '../../offline/rosterMessages'
 import { priceRoster, sharedRoster } from '../../functions'
 import type { RosterDraft } from './rosterDraft'
 import { rosterContentSchema } from '../../../contracts/schemas'
@@ -58,9 +59,9 @@ export async function reviewRosterSetup(source: RosterDraft | string, setup: Ros
 }
 
 export async function verifySetupReview(review: RosterSetupReview) {
-  if ((localOwner()?.id ?? null) !== review.ownerId) throw new Error('The account changed after this review. Reload before continuing.')
+  if ((localOwner()?.id ?? null) !== review.ownerId) throw new Error(ACCOUNT_CHANGED_AFTER_REVIEW)
   const current = await priceSetup(review.candidate)
-  if ((localOwner()?.id ?? null) !== review.ownerId) throw new Error('The account changed after this review. Reload before continuing.')
+  if ((localOwner()?.id ?? null) !== review.ownerId) throw new Error(ACCOUNT_CHANGED_AFTER_REVIEW)
   if (JSON.stringify(current) !== JSON.stringify(review.after))
     throw new Error('The rules or points changed after this review. Go back and review the changes again.')
 }

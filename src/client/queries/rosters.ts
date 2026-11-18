@@ -133,7 +133,7 @@ export const discoveredRostersQuery = (filter: RosterDiscoveryFilter, audience: 
     queryFn: ({ pageParam }) =>
       discoverRosters({ data: { ...filter, audience, sort, before: pageParam } }).then(requirePage('roster discovery read')),
     initialPageParam: null as RosterDiscoveryCursor | null,
-    getNextPageParam: (page) => page.nextCursor ?? undefined,
+    getNextPageParam: (page) => page.nextCursor,
     staleTime: SSR_STALE_TIME,
   })
 

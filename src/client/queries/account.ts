@@ -123,7 +123,7 @@ export const adminCollectionPhotosQuery = () =>
     queryKey: [...adminKey(), 'photos'],
     queryFn: ({ pageParam }) => adminCollectionPhotos({ data: { before: pageParam } }).then(requirePage('collection photos read')),
     initialPageParam: null as AdminCollectionPhotosCursor | null,
-    getNextPageParam: (page) => page.nextCursor ?? undefined,
+    getNextPageParam: (page) => page.nextCursor,
   })
 
 export const userProfileQuery = (userId: string) =>

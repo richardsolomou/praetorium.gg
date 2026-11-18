@@ -1,14 +1,13 @@
 import { completeStepsCooperatively } from './canonicalCatalogue'
 import { stepThrough } from '../shared/steps'
 import { unitSummaries, unitsIn } from '../shared/cataloguePicker'
-import { isReferenceDatasheet } from '../shared/catalogueIndex'
+import { isReferenceDatasheet, type LoadedCatalogue } from '../shared/catalogueIndex'
 import { coreRulesFirst } from '../shared/ruleDocuments'
 import type { CanonicalCatalogue, FactionDatasheet } from '../contracts/catalogue'
 import { datasheetInBySlug, datasheetSearchFieldsIn } from '../shared/catalogue'
 import { datasheetPageBySlug } from '../core/datasheetSlug'
-import type { LoadedCatalogue } from './catalogueIndex'
 import { describeDatasheetAbilities } from '../shared/datasheetDescriptions'
-import type { LoadedRules } from './rules'
+import type { LoadedRules } from '../shared/rules'
 import { ruleIndexOf, ruleSectionOf } from './rulesCore'
 
 type ReferenceSources = {

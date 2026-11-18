@@ -3,6 +3,7 @@ import { PREVIEW_SIZE, type PreviewCard, SITE } from '../contracts/linkPreview'
 import type { Datasheet } from '../contracts/catalogue'
 import type { RosterVisibility } from '../core/savedRoster'
 import type { ServiceRecord } from '../core/serviceRecord'
+import { clipped } from '../core/text'
 import { datasheetDescription, datasheetPoints } from './datasheetSummary'
 import { recordSummary } from './features/profile/recordSummary'
 import type { Rankings } from './features/profile/PlayerRankings'
@@ -36,7 +37,7 @@ type Page = {
 /** Long enough for any real name, short enough that whatever was typed, a preview stays bounded. */
 const TEXT_LIMIT = 80
 
-export const clip = (text: string) => (text.length > TEXT_LIMIT ? `${text.slice(0, TEXT_LIMIT - 1)}…` : text)
+export const clip = (text: string) => clipped(text, TEXT_LIMIT)
 
 const sitePreviewPath = '/api/previews/site'
 

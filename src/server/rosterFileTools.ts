@@ -1,24 +1,13 @@
-import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js'
 import { rulesVersionLabel } from '../core/catalogueEdition'
 import { encodeRosterExchange, ROSTER_EXCHANGE_MAX_CODE_LENGTH } from '../core/rosterExchange'
 import { importRosterSchema, saveRosterSchema } from '../contracts/schemas'
 import { calculateRosterPrice, calculateRosterTotals, savedRosterPriceInput } from '../shared/pricing'
 import { exportRosterFile, pricedDispositionNames } from '../shared/rosterFiles'
-import { READ_ONLY_TOOL, responseToolError, structured, toolError, type AgentTools } from './agentTools'
+import { READ_ONLY_TOOL, refusalsAsErrors, structured, toolError, type AgentTools } from './agentTools'
 import { app } from './app'
 import { importedRosterDraft, importRosterInput } from './rosterImport'
 
 type Imported = Awaited<ReturnType<typeof importRosterInput>>['result']
-
-/** A refusal the site shows the player becomes the tool's answer; server faults still throw. */
-async function refusalsAsErrors(work: () => Promise<CallToolResult>): Promise<CallToolResult> {
-  try {
-    return await work()
-  } catch (error) {
-    if (error instanceof Response && error.status < 500) return responseToolError(error)
-    throw error
-  }
-}
 
 async function importReview(imported: Imported) {
   const faction = imported.catalogueId ? await app().factionFor(imported.catalogueId) : null

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { byId } from './collections'
 
 export const ROSTER_FOLDER_NAME_MAX_LENGTH = 40
 export const ROSTER_FOLDERS_MAX = 50
@@ -12,10 +13,10 @@ type Folder = { id: string; name: string; parentId: string | null }
 
 /** A folder's ancestors from the top level down, or null when its parents loop or run deeper than folders may go. */
 function ancestry(folders: readonly Folder[], folderId: string): Folder[] | null {
-  const byId = new Map(folders.map((folder) => [folder.id, folder]))
+  const folderById = byId(folders)
   const path: Folder[] = []
-  for (let current = byId.get(folderId)?.parentId; current; current = byId.get(current)?.parentId) {
-    const parent = byId.get(current)
+  for (let current = folderById.get(folderId)?.parentId; current; current = folderById.get(current)?.parentId) {
+    const parent = folderById.get(current)
     if (!parent || path.length >= ROSTER_FOLDER_DEPTH_MAX) return null
     path.unshift(parent)
   }

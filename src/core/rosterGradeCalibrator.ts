@@ -14,6 +14,7 @@ import {
   type MetricKey,
   type ReferenceTargetKey,
 } from './rosterGrades'
+import { seededRandom, shuffle } from './swiss'
 
 export const CALIBRATED_SIZES = [600, 1000, 2000, 3000] as const satisfies readonly CalibratedSize[]
 /** A catalogue or parent with fewer tournament lists than this is placed among every faction's. */
@@ -25,32 +26,22 @@ const DRAWS = 6
 /** A tournament list, or one drawn from its units, at a battle size. */
 export type CalibrationList = { catalogueName: string; size: CalibratedSize; units: readonly GradedUnit[] }
 
-/** A generator seeded from text, so every run draws the same smaller lists from the same tournament lists. */
-export function seededRandom(seed: string) {
-  let state = 2166136261
-  for (const character of seed) state = Math.imul(state ^ character.charCodeAt(0), 16777619)
-  return () => {
-    state = (state + 0x6d2b79f5) | 0
-    let mixed = Math.imul(state ^ (state >>> 15), 1 | state)
-    mixed = (mixed + Math.imul(mixed ^ (mixed >>> 7), 61 | mixed)) ^ mixed
-    return ((mixed ^ (mixed >>> 14)) >>> 0) / 4294967296
-  }
+/** A generator seeded from text by its FNV-1a hash, so every run draws the same smaller lists from the same tournament lists. */
+function textSeededRandom(seed: string) {
+  let hash = 2166136261
+  for (const character of seed) hash = Math.imul(hash ^ character.charCodeAt(0), 16777619)
+  return seededRandom(hash)
 }
 
 /**
  * Of six draws of a list's own units that each fill what they can of `limit` in a random order, the one with the
  * most units, as a player fits as much as they can into a small game. A unit stays with everything attached to it.
  */
-export function drawnList(units: readonly GradedUnit[], limit: number, random: () => number): GradedUnit[] {
+function drawnList(units: readonly GradedUnit[], limit: number, random: () => number): GradedUnit[] {
   let best: GradedUnit[] = []
   for (let draw = 0; draw < DRAWS; draw++) {
-    const shuffled = [...units]
-    for (let index = shuffled.length - 1; index > 0; index--) {
-      const swap = Math.floor(random() * (index + 1))
-      ;[shuffled[index], shuffled[swap]] = [shuffled[swap]!, shuffled[index]!]
-    }
     let spent = 0
-    const kept = shuffled.filter((unit) => {
+    const kept = shuffle(units, random).filter((unit) => {
       if (spent + unit.points > limit) return false
       spent += unit.points
       return true
@@ -67,7 +58,7 @@ export function drawnList(units: readonly GradedUnit[], limit: number, random: (
 export function calibrationLists(lists: readonly { id: string; catalogueName: string; units: readonly GradedUnit[] }[]) {
   const byCatalogue = groupBy(lists, (list) => list.catalogueName)
   return lists.flatMap((list): CalibrationList[] => {
-    const random = seededRandom(list.id)
+    const random = textSeededRandom(list.id)
     const others = byCatalogue.get(list.catalogueName)!.filter((other) => other !== list)
     const partner = others[Math.floor(random() * others.length)]
     return [

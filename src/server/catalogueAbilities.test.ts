@@ -3,7 +3,7 @@ import { rulesReferencedIn } from '../shared/catalogueRules'
 import { abilityNamesIn, datasheetIn } from '../shared/catalogue'
 import { describeDatasheetAbilities, describeDatasheetAbilitiesWithContributions } from '../shared/datasheetDescriptions'
 import { ability, bookOf, points, shelfOf } from './catalogue.fixtures'
-import type { LoadedRules } from './rules'
+import type { LoadedRules } from '../shared/rules'
 
 describe('the abilities and wargear a datasheet lists', () => {
   it('resolves a faction ability linked to a rule declared at the catalogue root', () => {

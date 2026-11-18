@@ -1,3 +1,5 @@
+import { loopback } from './origins.ts'
+
 export type SpacetimeConnection = {
   /** Origin of the SpacetimeDB host. Plain HTTP is accepted only for loopback or `internalHost`. */
   url: string
@@ -21,9 +23,6 @@ export class SpacetimeRequestError extends Error {
     this.name = 'SpacetimeRequestError'
   }
 }
-
-// Not `loopback` from `middleware.ts`: publish scripts import this file outside Vite, where the middleware cannot load.
-const loopback = (hostname: string) => hostname === 'localhost' || hostname === '[::1]' || /^127(?:\.\d{1,3}){3}$/.test(hostname)
 
 export function spacetimeDatabaseUrl(connection: Pick<SpacetimeConnection, 'url' | 'database' | 'internalHost'>, path = '') {
   const base = new URL(connection.url)

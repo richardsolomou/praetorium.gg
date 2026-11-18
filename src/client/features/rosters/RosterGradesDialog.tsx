@@ -4,9 +4,10 @@ import { Crosshair, Flag, Footprints, Shield, TriangleAlert, type LucideIcon } f
 import { Skeleton } from '@/components/ui/skeleton'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { Problem } from '../../components/Problem'
+import { countBy } from '../../../core/collections'
 import type { RosterPick } from '../../../core/roster'
 import type { Grade, GradeCategory, GradeRow, RosterGrades, TournamentComparison } from '../../../core/rosterGrades'
-import { formatList } from '../../text'
+import { formatList, percentLabel } from '../../text'
 import { rosterGradesQuery, sharedRosterQuery } from '../../queries'
 import { claimInput, type GuestDraft } from './guestDraft'
 import { positionedPicks } from './rosterPicks'
@@ -241,8 +242,8 @@ function Tournament({ comparison }: { comparison: TournamentComparison }) {
     <section aria-label="Winning lists" className="part grid gap-1.5 px-3 py-2.5">
       <h3 className="rubric">Beside winning lists</h3>
       <p className="text-sm text-dim">
-        <span className="figure text-bone">{Math.round(comparison.stapleShare * 100)}%</span> of your points are in units that at least 3 in
-        10 of this army’s {comparison.lists} winning tournament lists field.
+        <span className="figure text-bone">{percentLabel(comparison.stapleShare)}</span> of your points are in units that at least 3 in 10
+        of this army’s {comparison.lists} winning tournament lists field.
         {comparison.leftOut.length ? ` They also often field ${formatList(comparison.leftOut.slice(0, 4))}.` : ''}
       </p>
     </section>
@@ -301,7 +302,7 @@ function Measure({ row }: { row: GradeRow }) {
         <span className="text-sm text-dim">{row.detail}</span>
         {row.units?.length ? (
           <span className="flex flex-wrap gap-1 pt-1">
-            {[...counted(row.units)].map(([unit, copies]) => (
+            {[...countBy(row.units, (unit) => unit)].map(([unit, copies]) => (
               <span key={unit} className="chip tracking-normal normal-case">
                 {copies > 1 ? `${unit} ×${copies}` : unit}
               </span>
@@ -314,11 +315,4 @@ function Measure({ row }: { row: GradeRow }) {
       </span>
     </li>
   )
-}
-
-/** A list can hold the same unit twice; one chip names it with its count. */
-function counted(names: readonly string[]) {
-  const counts = new Map<string, number>()
-  for (const name of names) counts.set(name, (counts.get(name) ?? 0) + 1)
-  return counts
 }

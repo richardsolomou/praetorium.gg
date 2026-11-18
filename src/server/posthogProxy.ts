@@ -26,10 +26,6 @@ export async function forwardToPostHog(request: Request, environment: Pick<PostH
 
   const dropped = new Set([...credentialHeaders, ...transportHeaders])
   const headers = new Headers([...request.headers].filter(([name]) => !dropped.has(name) && !name.startsWith('cf-')))
-  // PostHog takes the first `X-Forwarded-For` address as the client's; Cloudflare names the client separately, and a
-  // Worker's own fetch would otherwise make every event look like it came from Cloudflare.
-  const client = request.headers.get('cf-connecting-ip')
-  if (client) headers.set('x-forwarded-for', client)
 
   const response = await fetch(`${upstream}${path}${url.search}`, {
     method: request.method,

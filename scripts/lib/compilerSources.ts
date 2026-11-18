@@ -3,7 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { build, type Plugin, type Rolldown } from 'vite'
 
-export const compilerEntries = ['scripts/catalogueRefresh.ts', 'scripts/compileCatalogueRuntime.ts']
+const compilerEntries = ['scripts/catalogueRefresh.ts', 'scripts/compileCatalogueRuntime.ts']
 // The compiler reads catalogue configuration from disk; the seed build config bundles the production worker.
 const compilerFiles = ['catalogue', 'vite.seed.config.ts']
 export const testFile = /\.(?:integration\.)?test\.[^.]+$/
@@ -31,7 +31,7 @@ export function treeFingerprint(root: string, inputs: readonly string[]) {
 }
 
 /** Identifies the catalogue configuration a compiler materializes with: sources, composition and patches. */
-export const catalogueAuthoring = (root = process.cwd()) => treeFingerprint(root, ['catalogue'])
+export const catalogueAuthoring = () => treeFingerprint(process.cwd(), ['catalogue'])
 
 /**
  * package.json holds release metadata and tooling, none of which changes what the compiler produces, and the bundle
@@ -48,7 +48,7 @@ const withoutPackageJson = (root: string): Plugin => ({
 })
 
 /** The compiler's entry points bundled with every dependency they reach. */
-async function compilerBundle(root: string, entries: readonly string[]) {
+async function compilerBundle(root: string) {
   const result = (await build({
     configFile: false,
     envDir: false,
@@ -65,7 +65,7 @@ async function compilerBundle(root: string, entries: readonly string[]) {
       minify: false,
       reportCompressedSize: false,
       rolldownOptions: {
-        input: entries.map((entry) => path.join(root, entry)),
+        input: compilerEntries.map((entry) => path.join(root, entry)),
         // Module markers name each module's path, which depends on where dependencies are installed.
         experimental: { attachDebugInfo: 'none' },
         output: { entryFileNames: '[name].mjs', chunkFileNames: '[name].mjs', comments: false },
@@ -80,9 +80,9 @@ async function compilerBundle(root: string, entries: readonly string[]) {
  * invalidates prepared catalogues. Comments, formatting, unused exports and unrelated modules or
  * packages never reach the bundle.
  */
-export async function compilerFingerprint(root = process.cwd(), entries = compilerEntries) {
+export async function compilerFingerprint(root = process.cwd()) {
   const hash = createHash('sha256')
-  const outputs = await compilerBundle(root, entries)
+  const outputs = await compilerBundle(root)
   for (const output of outputs.toSorted((left, right) => left.fileName.localeCompare(right.fileName)))
     hash
       .update(output.fileName)

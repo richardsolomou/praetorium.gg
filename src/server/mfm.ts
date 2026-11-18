@@ -4,7 +4,6 @@ import { parse } from 'yaml'
 import { z } from 'zod'
 import { factionSchema, type MfmIndex } from '../shared/mfm'
 import { completeSteps, type Steps } from '../shared/steps'
-export * from '../shared/mfm'
 export function loadMfm(directory: string): MfmIndex | null {
   return completeSteps(loadMfmSteps(directory))
 }

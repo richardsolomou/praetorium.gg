@@ -33,7 +33,8 @@
         "src/routes/api/auth.$.ts rewrites preview OIDC requests before handing them to Better Auth.",
         "src/client/authClient.ts adds the plugins' client counterparts.",
         "The application's own auth tests (sqliteAuth.integration.test.ts and others) replace the recipe's auth.test.ts, which tests the recipe's createAuth.",
-        "`classifyAuthCallbackFailure` also reads `account not linked`, which Better Auth 1.7.14's link-account step still sends, and the earlier `email_doesn't_match` and `email_mismatch` codes that existing links carry, as the v5 helper did."
+        "`classifyAuthCallbackFailure` also reads `account not linked`, which Better Auth 1.7.14's link-account step still sends, and the earlier `email_doesn't_match` and `email_mismatch` codes that existing links carry, as the v5 helper did.",
+        "src/client/useAuthAction.ts reads hydration through `useHydrated()` from src/client/useClientValue.ts and keeps no mounted ref: React 19 ignores a state update after unmount, and only the latest call settles."
       ]
     },
     "ci": {
@@ -44,7 +45,7 @@
         ".github/workflows/ci.yml": ".github/workflows/ci.yml"
       },
       "notes": [
-        "ci.yml runs `pnpm check`'s lanes side by side (static, build, unit, integration, points, browser builds, and the browser specs a change exercises), each in its own ci-<lane>.yml and reported under the job names main requires, with a daily full browser run that records spec coverage; it does not call check-js.yml.",
+        "ci.yml runs `pnpm check`'s lanes side by side (static, build, unit, integration, points, and browser builds), each in its own ci-<lane>.yml and reported under the job names main requires, and its e2e lane runs every browser spec across the browser runner shards; it does not call check-js.yml.",
         "The application releases with Changesets (release.yml calls release-changesets.yml@v1) and deploys released revisions, so `changesets:check` is part of `pnpm check`.",
         "Dependabot keeps the recipe's grouping and cooldown; better-auth and its @better-auth plugins are no longer ignored and move together in the same grouped pull request.",
         "Dependabot groups `better-auth` with `@better-auth/*`, because Better Auth's plugins pin its core version and a lone bump splits the types."
@@ -100,7 +101,8 @@
       "notes": [
         "EMAIL_TEMPLATES holds the five production template ids (resetPassword, verifyEmail, supportReply, photoReport, importFailure) as constants; their ids are unchanged.",
         "`authEmails` sends only `url`, which the production reset and verification templates read, and an idempotency key of the template and the token's SHA-256, so a retried request sends once without PostHog storing the token.",
-        "src/adapters/email.test.ts is the application's own test of the disabled states and the email-only client."
+        "src/adapters/email.test.ts is the application's own test of the disabled states and the email-only client.",
+        "`send` passes `EMAIL_TEMPLATES[template]` without a missing-id check, since `EmailTemplate` only admits keys that have ids."
       ]
     },
     "posthog-auth-identity": {
@@ -114,7 +116,8 @@
         "`identify` sends the player's name and email as person properties, as the application did before, so support conversations and person profiles show who a player is; the test expects them.",
         "AppShell renders `PostHogIdentity` only once the `me` query has answered and never while an administrator impersonates a player, whose events are dropped anyway.",
         "The server side of the recipe is wired in src/server/rpc.ts, which passes the signed-in user from `currentUserId` to `observeServerFunction` on a reporting instance.",
-        "vitest.config.ts now includes `src/**/*.test.tsx`, so this recipe's and posthog-web's component tests run."
+        "vitest.config.ts now includes `src/**/*.test.tsx`, so this recipe's and posthog-web's component tests run.",
+        "src/server/rpc.ts shares one `reportedFailure` between `run` and `inTurn`."
       ]
     },
     "posthog-server": {
@@ -161,7 +164,9 @@
         "scripts/posthogSourceMaps.ts returns the client plugin alone, with no worker instance: every web worker is imported `?worker&inline`, so no worker file exists to map, and the ids a worker build injects would rename its parent chunk on every build. scripts/lib/offlineAppPlugin.ts strips the injected ids from the rebundled offline app for the same reason.",
         "Dockerfile.node keeps its own upload: the BuildKit secret is `posthog_api_key` (from the `POSTHOG_API_KEY` Actions secret), it retries the build and a `posthog-cli sourcemap upload` of `.output/public`, and deletes every remaining map.",
         "Vite's `telemetry` chunk group keeps posthog-js and the PostHog packages in their own chunk.",
-        "`postHogOptions` adds `ConversationsExtensions` for the support panel. The app's feedback form sends survey events directly."
+        "`postHogOptions` adds `ConversationsExtensions` for the support panel. The app's feedback form sends survey events directly.",
+        "src/client/posthog.tsx has no `captureRenderError`: the router's `defaultOnCatch` is `reportRouteError` in src/client/routeErrors.ts.",
+        "src/server/posthogProxy.ts does not copy `cf-connecting-ip` into `x-forwarded-for`: scripts/nodeServer.ts `forwardVisitor` already sets it for every request."
       ]
     },
     "spacetimedb": {
@@ -188,7 +193,8 @@
         "Databases are `praetorium-production` and `praetorium-staging`, previews `praetorium-pr-<number>`; scripts/publishProductModule.ts publishes with the owner token and Cloudflare Access headers, always accepting client-breaking automatic migrations, from dokploy-web.yml before the image changes.",
         "The browser does not use the recipe's `SpacetimeProvider`: src/client/spacetimeLive.ts keeps its own connection, served settings and a short-lived Better Auth token from /api/spacetime/token, and scripts/nodeServer.ts proxies `/spacetime/` on the application's origin, so the policy needs no SpacetimeDB origin; `'unsafe-eval'` is added at runtime by src/server/cspPlugin.ts.",
         "Bindings are formatted with oxfmt after generation (`pnpm spacetime:generate`), and ci-static.yml checks them with the same format command; there is no spacetime.yml, because ci-static.yml checks bindings and dokploy-web.yml publishes.",
-        "The CLI pin also lives in Dockerfile.node, which builds the module with the pinned release for both architectures."
+        "The CLI pin also lives in Dockerfile.node, which builds the module with the pinned release for both architectures.",
+        "src/server/spacetime.ts imports `loopback` from `./origins.ts`, with the extension so publish scripts can load it under Node type stripping."
       ]
     },
     "start-app": {
@@ -234,7 +240,10 @@
         "src/server/requestOrigin.ts keeps `siteOrigin`, the isomorphic origin for page metadata, on top of `publicOrigin`.",
         "Forwarded headers count only with `TRUST_PROXY=true`, where the application trusted them always; every deployment, preview, and local stack sets `APP_URL`, which `acceptedOrigins` and `publicOrigin` use instead.",
         "`react` and `react-dom` stay at the exact version `mobile/package.json` pins, so the workspace installs one React for the web and the native shell, even when the recipe is tested with a newer patch.",
-        "The server function CSRF check skips GET reads: with `referrer-policy: no-referrer`, a same-origin read from a client without `Sec-Fetch-Site` (the Android WebView on http, Safari before 16.4) carries no origin information, and a cross-site read cannot be read back."
+        "The server function CSRF check skips GET reads: with `referrer-policy: no-referrer`, a same-origin read from a client without `Sec-Fetch-Site` (the Android WebView on http, Safari before 16.4) carries no origin information, and a cross-site read cannot be read back.",
+        "src/server/origins.ts also exports `loopback`, which middleware.ts and spacetime.ts import, and parses origins with `URL.parse`.",
+        "src/server/rpc.ts shares one `reportedFailure` between `run` and `inTurn`.",
+        "src/start.ts imports `publicRead` from src/server/crawlerRequests.ts."
       ]
     },
     "tooling": {

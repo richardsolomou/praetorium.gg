@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { gameReferencesFor } from '../shared/gameReferences'
-import type { LoadedRules } from './rules'
+import type { LoadedRules } from '../shared/rules'
 
 describe('game references built from a stale rules object', () => {
   it('name the disposition slug back when the map is absent', () => {

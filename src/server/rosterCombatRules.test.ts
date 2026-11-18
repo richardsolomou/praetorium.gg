@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { combatRuleAppliesTo, combatRuleChoices } from '../core/combatRules'
 import { bookOf, categories } from './catalogue.fixtures'
-import type { LoadedRules } from './rules'
+import type { LoadedRules } from '../shared/rules'
 import { datasheetAbilitiesIn, datasheetIn } from '../shared/catalogue'
 import { rosterCombatant } from '../shared/rosterCombatRules'
 import { rosterDatasheetContext } from '../shared/rosterDatasheetContext'

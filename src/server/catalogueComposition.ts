@@ -3,7 +3,8 @@ import path from 'node:path'
 import { z } from 'zod'
 import { catalogueEditionSchema } from '../core/catalogueEdition'
 import { catalogueSourcesSchema, repositorySourceSchema } from './catalogueSources'
-import { loadMfm, mfmVersions } from './mfm'
+import { loadMfm } from './mfm'
+import { mfmVersions } from '../shared/mfm'
 import { isSafeRelativePath } from './relativePath'
 
 const sourceNames = ['definitions', 'points', 'datacards'] as const

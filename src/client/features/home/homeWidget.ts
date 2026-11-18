@@ -1,13 +1,13 @@
 import { HOME_WIDGET_ITEMS, type HomeWidget } from '../../../contracts/homeWidget'
 import type { Battle } from '../battles/battle'
 import { eventFullName } from '../sealedEvents/sealedEvent'
+import { capitalised, clipped } from '../../../core/text'
 import type { HomeTournament } from './HomeGroups'
 import type { LeagueGameDue, RosterDue } from './HomeInProgress'
 
 type Item = HomeWidget['items'][number]
 
-const clip = (text: string) => (text.length > 120 ? `${text.slice(0, 119)}…` : text)
-const capitalised = (text: string) => `${text[0]?.toUpperCase() ?? ''}${text.slice(1)}`
+const clip = (text: string) => clipped(text, 120)
 
 /** The other side's names in one of the player's games, as the battle cards name them. */
 function opponents(battle: Battle, viewerId: string) {

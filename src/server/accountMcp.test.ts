@@ -40,7 +40,7 @@ vi.mock('./app', () => ({
 
 import { registerAccountMcpTools } from './accountMcp'
 import { bookOf, points } from './catalogue.fixtures'
-import type { LoadedCatalogue } from './catalogueIndex'
+import type { LoadedCatalogue } from '../shared/catalogueIndex'
 
 beforeEach(() => capture.mockReset())
 
@@ -165,7 +165,7 @@ it('narrows an agent’s battle list by the filter and order it asks for', async
   expect(battles).toHaveBeenLastCalledWith(
     'player-1',
     null,
-    { limit: 25, before: undefined, filter: { faction: { in: ['necrons'], out: [] } }, order: 'oldest' },
+    { limit: 25, before: null, filter: { faction: { in: ['necrons'], out: [] } }, order: 'oldest' },
     [],
   )
 })

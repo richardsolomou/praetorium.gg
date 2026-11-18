@@ -20,7 +20,7 @@ import { selectedDetachmentRules } from './selectedDetachmentRules'
 import { keywordIdsBySelection, keywordNames } from '../core/evaluate'
 import { namespaceCarriers } from '../core/combatLoadouts'
 import { attachedProfilePrefix } from '../core/combatScenario'
-import { remember } from '../core/collections'
+import { byId, remember } from '../core/collections'
 import { WEAPON_ABILITY_KINDS } from '../core/combatKeywords'
 import { rulesNamed } from './catalogueRules'
 
@@ -391,5 +391,5 @@ function rosterCombatRules(
       }
     }
   }
-  return [...new Map(candidates.map((candidate) => [candidate.id, candidate])).values()]
+  return [...byId(candidates).values()]
 }

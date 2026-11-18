@@ -47,7 +47,7 @@ export const groupBattles = createServerFn({ method: 'GET' })
       app().service.groupResultsService.groupBattles(
         data.token,
         await currentUserId(),
-        { before: data.before ?? undefined, filter: data.filter, order: data.order },
+        { before: data.before, filter: data.filter, order: data.order },
         await app().battleFactionsFor(),
       ),
     ),

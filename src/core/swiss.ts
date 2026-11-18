@@ -167,6 +167,17 @@ function pairWithRematches(order: readonly string[], met: ReadonlySet<string>, a
   return null
 }
 
+/** Mulberry32: a small generator whose sequence the seed alone decides. */
+export function seededRandom(seed: number) {
+  let state = seed | 0
+  return () => {
+    state = (state + 0x6d2b79f5) | 0
+    let value = Math.imul(state ^ (state >>> 15), state | 1)
+    value ^= value + Math.imul(value ^ (value >>> 7), value | 61)
+    return ((value ^ (value >>> 14)) >>> 0) / 2 ** 32
+  }
+}
+
 export function shuffle<T>(items: readonly T[], random: () => number) {
   const shuffled = [...items]
   for (let index = shuffled.length - 1; index > 0; index--) {

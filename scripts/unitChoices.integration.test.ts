@@ -4,7 +4,7 @@ import { beforeAll, describe, expect, it } from 'vitest'
 import { nameOf } from '../src/core/catalogue'
 import { buildUnit } from '../src/core/roster'
 import { wargearOf } from '../src/core/wargear'
-import type { LoadedCatalogue } from '../src/server/catalogueIndex'
+import type { LoadedCatalogue } from '../src/shared/catalogueIndex'
 import { loadSnapshot } from './lib/catalogueSnapshotLoad'
 
 const directory = process.env.CATALOGUE_DIR ?? 'catalogue-data'

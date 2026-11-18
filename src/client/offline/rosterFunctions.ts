@@ -1,7 +1,7 @@
 import { partialMatchKey } from '@tanstack/react-query'
 import { requireReviewedRoster, type ReviewedServerSave } from './reviewedRoster'
 import { projectBattles } from './battleFunctions'
-import { accountChanged, accountGuard, cachedRead } from './reads'
+import { accountChanged, accountGuard, cachedRead, isOffline } from './reads'
 import { hasLocalChanges, localOwner, syncLocalWork } from './localRuntime'
 import { byId } from '../../core/collections'
 import { lockedRosterRefusal } from '../../core/rosterLock'
@@ -32,7 +32,7 @@ import { orderVariantGroup, variantName } from '../../core/rosterVariants'
 import type { LocalState } from '../../contracts/localState'
 import { playerDefaults } from './actionFunctions'
 import { localRosterAssessment } from './rosterAssessment'
-import { DELETED_ROSTER_MESSAGE } from './rosterMessages'
+import { ACCOUNT_CHANGED_AFTER_REVIEW, DELETED_ROSTER_MESSAGE } from './rosterMessages'
 import { calculationRead, SERVER_ONLY_TIMEOUT_MS } from './calculationRead'
 import { withTimeout } from '../abortSignals'
 import {
@@ -96,7 +96,7 @@ function pricedRoster(roster: LocalRoster) {
   const input = savedRosterPriceInput(roster)
   const cached = cachedPrice(input) ?? cachedPrice({ ...input, includeUnitLimits: true })
   if (cached !== undefined) return cached
-  if (typeof window !== 'undefined' && navigator.onLine) return null
+  if (!isOffline()) return null
   const data = builtConstruction(roster.catalogueId)
   return data ? calculateRosterPrice(input, data.catalogue, data.rules) : null
 }
@@ -105,7 +105,7 @@ export async function rosterAccess(args: Parameters<typeof server.rosterAccess>[
   const owner = localOwner()?.id
   const resource = `roster:${args.data.id}`
   const local = await localDocument<LocalRoster | null>(resource)
-  if (local !== undefined && (!navigator.onLine || (await hasLocalChanges(resource))))
+  if (local !== undefined && (isOffline() || (await hasLocalChanges(resource))))
     return local ? accessOf(local, await localEngine()?.storage.read()) : null
   try {
     let answered = false
@@ -165,7 +165,7 @@ export async function rosterBootstrap(args: Parameters<typeof server.rosterBoots
     assertAccount()
     return { ...(await accessOf(current, state)), price, changes }
   }
-  if (local !== undefined && (!navigator.onLine || (await hasLocalChanges(resource)))) return fromLocal()
+  if (local !== undefined && (isOffline() || (await hasLocalChanges(resource)))) return fromLocal()
   try {
     let answered = false
     const result = await cachedRead(rosterBootstrapKey(args.data.id), async () => {
@@ -198,7 +198,7 @@ export async function rosterBootstrap(args: Parameters<typeof server.rosterBoots
 
 export async function sharedRoster(args: Parameters<typeof server.sharedRoster>[0]): ReturnType<typeof server.sharedRoster> {
   const local = await localDocument<LocalRoster | null>(`roster:${args.data.id}`)
-  if (local !== undefined && (!navigator.onLine || (await hasLocalChanges(`roster:${args.data.id}`)))) return local
+  if (local !== undefined && (isOffline() || (await hasLocalChanges(`roster:${args.data.id}`)))) return local
   const access = await rosterAccess(args)
   return access?.roster ?? null
 }
@@ -210,8 +210,7 @@ export async function saveRoster(
   serverReview?: ReviewedServerSave,
 ): ReturnType<typeof server.saveRoster> {
   const owner = localOwner()?.id
-  if (reviewedOwner !== undefined && (owner ?? null) !== reviewedOwner)
-    throw new Error('The account changed after this review. Reload before continuing.')
+  if (reviewedOwner !== undefined && (owner ?? null) !== reviewedOwner) throw new Error(ACCOUNT_CHANGED_AFTER_REVIEW)
   if (!localEngine()) {
     if (!reviewed) return server.saveRoster(args)
     if (!serverReview || !owner || !args.data.id)
@@ -220,10 +219,10 @@ export async function saveRoster(
       signal: args.signal ?? AbortSignal.timeout(15_000),
       data: { ...serverReview, owner, roster: { ...args.data, id: args.data.id } },
     })
-    if (localOwner()?.id !== owner) throw new Error('The account changed after this review. Reload before continuing.')
+    if (localOwner()?.id !== owner) throw new Error(ACCOUNT_CHANGED_AFTER_REVIEW)
     if (answer.outcome !== 'applied') throw new Error(`${answer.message} Go back, reload it and review the changes again.`)
     const saved = await server.sharedRoster({ data: { id: args.data.id }, signal: args.signal ?? AbortSignal.timeout(15_000) })
-    if (localOwner()?.id !== owner) throw new Error('The account changed after this review. Reload before continuing.')
+    if (localOwner()?.id !== owner) throw new Error(ACCOUNT_CHANGED_AFTER_REVIEW)
     if (!saved || saved.updatedAt !== answer.version)
       throw new Error('This roster changed after your review. Go back, reload it and review the changes again.')
     requireReviewedRoster(saved, saveRosterSchema.parse(args.data))
@@ -557,7 +556,7 @@ export async function savedRosterLoadoutDatasheets(
       everyWeapon: false,
     }
   }
-  if (local && (!navigator.onLine || (await hasLocalChanges(resource))))
+  if (local && (isOffline() || (await hasLocalChanges(resource))))
     return checked(loadoutDatasheets({ data: inputFor(local), signal: args.signal }))
   return checked(
     calculationRead(
@@ -610,7 +609,7 @@ export async function savedRosterSummaries(args?: { signal?: AbortSignal }): Ret
   })
   const state = await engine?.storage.read()
   assertAccount()
-  return overlaySummaries(summaries, state, typeof window !== 'undefined' && !navigator.onLine)
+  return overlaySummaries(summaries, state, isOffline())
 }
 
 async function assessedRoster(roster: LocalRoster, owner: string, signal?: AbortSignal) {

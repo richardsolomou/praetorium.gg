@@ -1,7 +1,7 @@
 import { profileDescription } from '../core/catalogue'
 import type { CatalogueIndex, Definition } from '../core/catalogue'
 import { routeSlug } from '../core/slug'
-import { datacardsFactionKeys, type SectionProse } from './datacards'
+import { datacardsFactionKeys, type SectionProse } from '../shared/datacards'
 import { joinKey } from '../core/text'
 import { remember } from '../core/collections'
 

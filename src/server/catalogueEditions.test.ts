@@ -7,7 +7,7 @@ import type { CanonicalCatalogue, CanonicalDatasheet } from '../contracts/catalo
 import { shelfOf, withCards } from './catalogue.fixtures'
 import { catalogueEditionLoaders } from './catalogueEditions'
 import type { CatalogueEdition } from '../core/catalogueEdition'
-import type { LoadedRules } from './rules'
+import type { LoadedRules } from '../shared/rules'
 import { ALICE, BOB, builtRoster, log } from '../core/battle.fixtures'
 import { reduceBattle } from '../core/battle'
 import { battleSummary } from '../shared/battleSummary'

@@ -1,6 +1,6 @@
 import { createCsrfMiddleware, createMiddleware } from '@tanstack/react-start'
 import { contentSecurityPolicy } from './contentSecurityPolicy'
-import { acceptedOrigins, configuredOrigin } from './origins'
+import { acceptedOrigins, configuredOrigin, loopback } from './origins'
 import { withServerFunction } from './serverFunction'
 
 // Health checks reach the container by its internal name, so they must not be sent to the public one.
@@ -18,10 +18,6 @@ export function canonicalRedirect(requestUrl: string, canonicalOrigin: string | 
   } catch {
     return null
   }
-}
-
-export function loopback(hostname: string) {
-  return hostname === 'localhost' || hostname === '[::1]' || /^127(?:\.\d{1,3}){3}$/.test(hostname)
 }
 
 /** Sends a request for any other hostname to `APP_URL`, keeping the path; does nothing without `APP_URL`. */

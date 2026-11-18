@@ -4,7 +4,7 @@ import { rosterSourceKey, type SimulatorRosterSource } from '../../../contracts/
 import { ROSTER_SEARCH_MAX_LENGTH } from '../../../core/rosterDiscovery'
 import { battleQuery, discoveredRostersQuery, playedArmiesQuery, sealedEventRosterQuery, sharedRosterQuery } from '../../queries'
 import type { RosterGroup, RosterOption } from './RosterPicker'
-import { battleCombatRoster, sealedCombatRoster } from './rosterCombat'
+import { fieldedCombatRoster, sealedCombatRoster } from './rosterCombat'
 import type { CombatRoster } from './useCombatant'
 import { formatAgo } from '../../dates'
 import { formatList } from '../../text'
@@ -16,7 +16,7 @@ const SEARCH_MIN_LENGTH = 2
 export function loadRosterSource(queryClient: QueryClient, source: SimulatorRosterSource): Promise<CombatRoster | null> {
   const loading: Promise<CombatRoster | null> =
     'battle' in source
-      ? queryClient.query(battleQuery(source.battle.token)).then((screen) => battleCombatRoster(screen, source.battle.playerId).roster)
+      ? queryClient.query(battleQuery(source.battle.token)).then((screen) => fieldedCombatRoster(screen, source.battle.playerId).roster)
       : 'sealedEvent' in source
         ? queryClient
             .query(sealedEventRosterQuery(source.sealedEvent.token, source.sealedEvent.eventToken, source.sealedEvent.userId))
@@ -78,7 +78,7 @@ export function useRosterSearch(listed: ReadonlySet<string>, enabled: boolean) {
     if (!linked) return []
     if ('id' in linked) return linkedRoster.data ? option(linked, linkedRoster.data.name, linkedRoster.data.catalogueId) : []
     if (!('battle' in linked)) return []
-    const army = battleCombatRoster(linkedBattle.data, linked.battle.playerId)
+    const army = fieldedCombatRoster(linkedBattle.data, linked.battle.playerId)
     return army.roster ? option({ battle: { ...linked.battle, playerId: army.playerId! } }, army.name, army.roster.catalogueId) : []
   })()
   const groups: RosterGroup[] = !linked

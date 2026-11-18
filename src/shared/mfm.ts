@@ -1,6 +1,6 @@
 import { canonicalDetachmentName } from '../core/detachmentName'
 import { z } from 'zod'
-import { joinKey } from '../core/text'
+import { joinKey, placingLabel } from '../core/text'
 import { routeSlug } from '../core/slug'
 import { normalizedNameVariants } from '../core/name'
 import { factionDisplayName } from './factionNames'
@@ -108,18 +108,13 @@ function copyRange(range: string, copy: number) {
   const bounds = copyBounds(range)
   return bounds !== null && copy >= bounds.from && copy <= bounds.to
 }
-function ordinal(value: number) {
-  const remainder = value % 100
-  const suffix = remainder >= 11 && remainder <= 13 ? 'th' : (['th', 'st', 'nd', 'rd'][value % 10] ?? 'th')
-  return `${value}${suffix}`
-}
 export function mfmCopyLabel(range: string) {
   const bounds = copyBounds(range)
   if (!bounds) return range
-  if (!Number.isFinite(bounds.to)) return `Your ${ordinal(bounds.from)} + Unit Costs`
+  if (!Number.isFinite(bounds.to)) return `Your ${placingLabel(bounds.from)} + Unit Costs`
   return bounds.from === bounds.to
-    ? `Your ${ordinal(bounds.from)} Unit Costs`
-    : `Your ${ordinal(bounds.from)} To ${ordinal(bounds.to)} Units Cost`
+    ? `Your ${placingLabel(bounds.from)} Unit Costs`
+    : `Your ${placingLabel(bounds.from)} To ${placingLabel(bounds.to)} Units Cost`
 }
 export function mfmPrice(unit: MfmUnit, models: number, copy: number): number | null {
   const tiers = unit.pricing.filter((tier) => copyRange(tier.range, copy))

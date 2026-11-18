@@ -3,7 +3,7 @@ import type { CanonicalCatalogue, CanonicalDatasheet } from '../contracts/catalo
 import { bookOf, points, shelfOf } from './catalogue.fixtures'
 import type { ReferenceCorpus } from './referenceCorpus'
 import { missionMatchup, referenceRecord, referenceUnits, referenceFaction } from './referenceService'
-import type { LoadedRules } from './rules'
+import type { LoadedRules } from '../shared/rules'
 
 it('returns roster-planning facts for a whole detachment in one read', () => {
   const loaded = bookOf({

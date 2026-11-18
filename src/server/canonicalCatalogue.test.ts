@@ -16,9 +16,9 @@ import {
   readCanonicalCatalogue,
   referenceCatalogue,
 } from './canonicalCatalogue'
-import { DATACARDS_ATTRIBUTION, type DatasheetDetails } from './datacards'
+import { DATACARDS_ATTRIBUTION, type DatasheetDetails } from '../shared/datacards'
 import type { SelectionEntry } from '../core/catalogue'
-import { type LoadedRules, RULES_DATA_ATTRIBUTION } from './rules'
+import { type LoadedRules, RULES_DATA_ATTRIBUTION } from '../shared/rules'
 
 const revisions = { definitions: 'definitions-revision', datacards: 'datacards-revision' }
 

@@ -58,7 +58,7 @@ export function facetText(facet: Facet | undefined): FacetAddress | undefined {
 export const PERIODS = ['7d', '30d', '90d', '1y'] as const
 export type Period = (typeof PERIODS)[number]
 const PERIOD_DAYS: Record<Period, number> = { '7d': 7, '30d': 30, '90d': 90, '1y': 365 }
-const DAY_MS = 86_400_000
+export const DAY_MS = 86_400_000
 const dayPattern = /^\d{4}-\d{2}-\d{2}$/
 
 export const parseDay = (raw: unknown) =>

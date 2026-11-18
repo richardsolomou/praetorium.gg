@@ -1,10 +1,10 @@
 import { baselineShortfall } from './lib/baselines'
 import { nameOf } from '../src/core/catalogue'
 import { isNonMatchedPlayName } from '../src/core/name'
-import { isReferenceDatasheet } from '../src/server/catalogueIndex'
+import { isReferenceDatasheet } from '../src/shared/catalogueIndex'
 import { isMatchedPlayDatasheet } from '../src/shared/catalogueUnit'
 import { datacardJoinReport } from '../src/shared/datasheetJoin'
-import { hasDetachmentSemantics } from '../src/server/rules'
+import { hasDetachmentSemantics } from '../src/shared/rules'
 import { catalogueDataDirectory } from './lib/catalogueFiles'
 import { loadSnapshotWithRules } from './lib/catalogueSnapshotLoad'
 

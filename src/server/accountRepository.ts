@@ -3,10 +3,10 @@ import { alias } from 'drizzle-orm/sqlite-core'
 import type { LibSQLDatabase } from 'drizzle-orm/libsql'
 import { account, githubSponsor, schema, user } from '../db/authSchema'
 import { byId, remember } from '../core/collections'
+import { DAY_MS } from '../core/listFilter'
 import type { GithubSponsor } from './githubSponsors'
 import type { AdminUserCountSort, AdminUserSort, AdminUsersRequest } from '../admin'
 
-const DAY_MS = 24 * 60 * 60 * 1_000
 const APP_USE_WINDOW_MS = 30 * DAY_MS
 
 type UnlinkAccountResult =

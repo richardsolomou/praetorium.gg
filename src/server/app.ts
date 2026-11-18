@@ -5,8 +5,10 @@ import path from 'node:path'
 import { setTimeout as yieldToEventLoop } from 'node:timers/promises'
 import { deploymentHost } from '../adapters/posthog'
 import { reportServerFailure, serverTelemetry } from './serverTelemetry'
-import { catalogueDirectory, type LoadedCatalogue, loadCatalogue } from './catalogueIndex'
-import { type LoadedRules, loadRulesSteps } from './rules'
+import { catalogueDirectory, loadCatalogue } from './catalogueIndex'
+import { type LoadedCatalogue } from '../shared/catalogueIndex'
+import { loadRulesSteps } from './rules'
+import { type LoadedRules } from '../shared/rules'
 import {
   catalogueBaseUrl,
   catalogueLock,
@@ -339,10 +341,7 @@ function catalogueReads(getInstance: () => App, loaded: ReturnType<typeof catalo
         : null
     },
     factionsFor: async () => editions.factions(),
-    factionFor: async (catalogueId: string) => {
-      const faction = editions.factionFor(catalogueId)
-      return faction ?? null
-    },
+    factionFor: async (catalogueId: string) => editions.factionFor(catalogueId) ?? null,
     factionIconFor: async (id: string) => getInstance().rules()?.factionIcons.get(id) ?? null,
     searchIndexFor: async () => loaded.searchIndex(),
   }
