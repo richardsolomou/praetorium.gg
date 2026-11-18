@@ -462,14 +462,17 @@ test('rule tooltips open on touch and hover', async ({ browser, page }) => {
 })
 
 test('server-rendered reference pages keep route-shaped payloads', { tag: '@catalogue' }, async ({ request }) => {
-  const factions = await (await request.get('/factions')).body()
-  const missionPack = await (await request.get('/missions/chapter-approved-2026-2027')).body()
+  // Every page carries the same import map, so only what the route adds is measured.
+  const routePayload = async (path: string) =>
+    Buffer.byteLength((await (await request.get(path)).text()).replace(/<script type="importmap"[^>]*>[\s\S]*?<\/script>/, ''))
+  const factions = await routePayload('/factions')
+  const missionPack = await routePayload('/missions/chapter-approved-2026-2027')
   // One section, never the five documents: the whole rules corpus is far larger.
-  const ruleSection = await (await request.get('/rules/core-rules/movement-phase')).body()
+  const ruleSection = await routePayload('/rules/core-rules/movement-phase')
 
-  expect(factions.byteLength).toBeLessThan(290_000)
-  expect(missionPack.byteLength).toBeLessThan(250_000)
-  expect(ruleSection.byteLength).toBeLessThan(250_000)
+  expect(factions).toBeLessThan(290_000)
+  expect(missionPack).toBeLessThan(250_000)
+  expect(ruleSection).toBeLessThan(250_000)
 })
 
 test('a rule is read by the number the source prints against it', async ({ browser, page }) => {
