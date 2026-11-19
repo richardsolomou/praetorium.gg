@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.272.0 (2026-11-19)
+
+### Minor Changes
+
+- 5bd0cb6: [events] Swiss tournaments can be played by teams of 3 to 8: teams meet each round, choose who plays whom through secret defender and attacker picks revealed together, and rank on games won or victory points across their games.
+
 ## 0.271.1 (2026-11-19)
 
 ### Patch Changes
