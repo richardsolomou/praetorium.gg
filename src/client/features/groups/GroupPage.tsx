@@ -143,6 +143,9 @@ function GroupScreen({
     return round === undefined ? 'Friendly game' : `League · Round ${round}`
   }
   const label = labelWith(table?.games)
+  // A league still forming or being played is on now, so it sits above the summary; a finished one sits with the group's history.
+  const leagueOn = Boolean(league && !league.complete)
+  const leagueOverview = <LeagueOverview token={group.token} league={league} members={group.members} now={now} onShow={showTab} />
   const remove = useMutation({
     mutationFn: () => deleteGroup({ data: { token: group.token } }),
     onSettled: refresh,
@@ -243,10 +246,11 @@ function GroupScreen({
             <Tabs value={current} className="flex-col gap-0" onValueChange={(value) => showTab(value as GroupTab)}>
               <PageTabsList data-onboarding="group-tabs" tabs={tabs} />
               <TabsContent value="overview" className="mt-6 space-y-8">
-                {table ? <GroupAtAGlance token={group.token} table={table} /> : null}
                 <UpNext group={group} open={open} live={live} table={table} viewerId={viewerId} highlight={highlight} label={label} />
+                {leagueOn ? leagueOverview : null}
+                {table ? <GroupAtAGlance token={group.token} table={table} /> : null}
                 {table ? <StandingsSnapshot table={table} viewerId={viewerId} onAll={() => showTab('leaderboard')} /> : null}
-                <LeagueOverview token={group.token} league={league} members={group.members} now={now} onShow={showTab} />
+                {leagueOn ? null : leagueOverview}
                 {table ? (
                   <RecentResults
                     table={table}
@@ -577,7 +581,7 @@ function GroupNext({
   label: (battle: Battle) => string
   onShow: (tab: GroupTab, game?: string) => void
 }) {
-  const play = usePlayGroupGame(group.token)
+  const play = usePlayGroupGame(group.token, league?.game?.token)
   const moment = useMoment()
   const nameOf = memberNameOf(group)
   const battle = table?.active[0]

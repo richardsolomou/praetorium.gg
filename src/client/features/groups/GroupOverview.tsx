@@ -176,7 +176,7 @@ export function LeagueOverview({
   const byId = new Map(members.map((member) => [member.userId, member]))
   const withdrawn = new Set(league?.players.filter((player) => player.withdrawn).map((player) => player.userId))
   const games = league?.published ? league.fixtures.filter((fixture) => fixture.status !== 'bye' && fixture.status !== 'void') : []
-  const forming = league && !league.published ? league.players.length : 0
+  const forming = league?.published === false
   if (!games.length && !forming && !past?.length) return null
   const played = games.filter((fixture) => fixture.status === 'finished').length
   const rounds = Math.max(0, ...games.map((fixture) => fixture.round))
@@ -190,6 +190,13 @@ export function LeagueOverview({
     <section data-group-league-overview>
       <SectionHeading
         title="League"
+        detail={
+          forming ? (
+            <span className="chip">Forming</span>
+          ) : games.length && !league?.complete ? (
+            <span className="chip border-parchment/60 text-parchment">In progress</span>
+          ) : null
+        }
         action={
           <AllLink onClick={() => onShow('league')}>{league?.complete ? 'Final table' : games.length ? 'Fixtures' : 'League'}</AllLink>
         }
@@ -241,7 +248,8 @@ export function LeagueOverview({
         ) : null}
         {forming ? (
           <p className="p-4 text-sm text-dim">
-            <span className="font-bold text-bone">A league is forming.</span> {countLabel(forming, 'player')} joined so far; once it’s
+            <span className="font-bold text-bone">A league is forming.</span>{' '}
+            {league.players.length ? `${countLabel(league.players.length, 'player')} joined so far` : 'Nobody has joined yet'}; once it’s
             published, everyone plays everyone once.
           </p>
         ) : null}

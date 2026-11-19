@@ -262,6 +262,18 @@ function PublishedLeague({ group, league, viewerId }: { group: Group; league: Le
         entries={league.players}
         label={(player) => (player.withdrawn ? `${player.name} (withdrawn)` : player.name)}
       />
+      {league.game ? (
+        <div data-league-lists>
+          <SectionHeading title="Lists" />
+          <p className="text-sm text-dim">Sealed to {leaguePoints(league.game)}. Every game is played with these.</p>
+          <LeagueLists
+            group={group}
+            game={league.game}
+            viewerId={viewerId}
+            playerIds={league.complete ? undefined : league.players.map((player) => player.userId)}
+          />
+        </div>
+      ) : null}
       <div>
         <SectionHeading title="Fixtures" action={menu} />
         <p className="text-sm text-dim">
@@ -277,18 +289,6 @@ function PublishedLeague({ group, league, viewerId }: { group: Group; league: Le
         <LeagueClock group={group} league={league} />
         <Rounds group={group} league={league} viewerId={viewerId} now={now} />
       </div>
-      {league.game ? (
-        <div data-league-lists>
-          <SectionHeading title="Lists" />
-          <p className="text-sm text-dim">Sealed to {leaguePoints(league.game)}. Every game is played with these.</p>
-          <LeagueLists
-            group={group}
-            game={league.game}
-            viewerId={viewerId}
-            playerIds={league.complete ? undefined : league.players.map((player) => player.userId)}
-          />
-        </div>
-      ) : null}
       <ConfirmDialog
         open={confirming === 'withdraw'}
         title="Withdraw from the league?"
