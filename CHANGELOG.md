@@ -1,5 +1,16 @@
 # praetorium
 
+## 0.271.0 (2026-11-19)
+
+### Minor Changes
+
+- 99dfb86: [rosters] A roster can be read as a list, one line per unit with its model count, enhancements, transport and points, with Show as list in the roster's menu.
+
+### Patch Changes
+
+- 99dfb86: [rosters] A roster's Build and View switch and its menu now sit beside the roster's name, so the faction and detachment line keeps its full width on a phone.
+- 99dfb86: [rosters] The share dialog's link and copy button no longer run past the dialog on a phone.
+
 ## 0.270.3 (2026-11-19)
 
 ### Patch Changes
