@@ -67,6 +67,10 @@ describe('BattleBase text import', () => {
       })
     })
 
+    it('skips a separator line above the units', () => {
+      expect(fromBattleBaseText(`-->\n\n-----\n\n${cut}`, { setupOptional: true })?.unread).toEqual(['Spooky'])
+    })
+
     it('stays unread for the other layouts that try this reader first', () => {
       expect(fromBattleBaseText(cut)).toBeNull()
     })
@@ -163,6 +167,11 @@ describe('BattleBase text import', () => {
 
   it('reads a battle size priced in the singular', () => {
     expect(fromBattleBaseText(exportText.replace('Incursion (1,000 Points)', 'Incursion (1,000 Point)'))?.limit).toBe(1000)
+  })
+
+  it("reads a unit's size printed after its name", () => {
+    const parsed = fromBattleBaseText(exportText.replace('Lokhust Destroyers (170 Points)', 'Lokhust Destroyers x6 (170 Points)'))
+    expect(parsed?.units[1]).toMatchObject({ name: 'Lokhust Destroyers', models: 6 })
   })
 
   it('reads a unit marked for a keyword footnote', () => {

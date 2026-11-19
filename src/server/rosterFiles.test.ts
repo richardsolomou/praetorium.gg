@@ -1186,6 +1186,21 @@ Exported with BattleBase, Data Version: v20260812`,
     expect('unknown' in imported ? imported.unknown : []).toEqual([])
   })
 
+  describe('a list whose setup was cut down to its detachment', () => {
+    const imported = importRosterFile(
+      { file: `Pantheon of Woe\nOTHER DATASHEETS\n\nTomb Blades (70 pts)\n• 3x Twin gauss blaster\n` },
+      loaded,
+    )
+
+    it('reads the detachment', () => {
+      expect(imported.detachmentIds).toEqual(['pantheon'])
+    })
+
+    it('does not report the detachment as unread', () => {
+      expect(imported.unknown).toEqual([])
+    })
+  })
+
   it('replaces default repeated wargear with the exported choice', () => {
     const imported = importRosterFile(
       {
