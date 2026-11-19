@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.269.2 (2026-11-19)
+
+### Patch Changes
+
+- c7b57be: [events] A group's overview now opens with its league, marked in progress or forming, while one is on.
+- c7b57be: [events] A league's lists now show right under its table instead of below every round of fixtures.
+- c7b57be: [events] Start battle in Up next for you now starts a game in a league that seals lists, instead of failing.
+
 ## 0.269.1 (2026-11-19)
 
 ### Patch Changes
