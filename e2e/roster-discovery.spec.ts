@@ -112,7 +112,9 @@ test('a published army is found, duplicated and edited without changing it, and 
   await expect(reader.locator('[data-roster-copied-from]')).toHaveCount(0)
 })
 
-test('a faction page leads to its public armies, and a filter none match explains how armies are listed (phone)', async ({ browser }) => {
+test('a faction page leads to its public armies, a filter none match explains how armies are listed, and the filter sheet narrows them (phone)', async ({
+  browser,
+}) => {
   const page = await (await browser.newContext({ viewport: PHONE })).newPage()
   await page.goto('/factions/necrons')
   await page.getByRole('link', { name: 'Public armies' }).click()
@@ -123,6 +125,16 @@ test('a faction page leads to its public armies, and a filter none match explain
   await shot(page.locator('main'), test.info().outputPath('roster-discovery-empty-phone.png'))
   await page.getByRole('button', { name: 'Clear filters' }).click()
   await expect(page).toHaveURL(/\/rosters\?view=public$/)
+
+  await page.getByRole('button', { name: 'Filters', exact: true }).click()
+  await page.getByRole('button', { name: /^Faction/ }).click()
+  await page
+    .getByRole('button', { name: /^Necrons/ })
+    .first()
+    .click()
+  await page.getByRole('button', { name: 'Done', exact: true }).click()
+  await expect(page).toHaveURL(/\/rosters\?view=public&faction=necrons$/)
+  await expect(page.getByRole('button', { name: 'Filters, 1 in use' })).toBeVisible()
 })
 
 test('the old discovery address keeps its filters on the public rosters', async ({ page }) => {

@@ -202,6 +202,7 @@ export function RosterDiscoveryPage({ view, search }: { view: RosterAudience | '
     <main className="w-full">
       <PageHeader
         title="Rosters"
+        introduction
         description="Build, import, organize, and share your armies, or find one your friends and other players made public."
         actions={
           <>

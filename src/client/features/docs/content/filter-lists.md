@@ -20,6 +20,8 @@ Press the cross on a filter to remove it, or **Clear filters** to remove them al
 
 **Customise** picks which filters stay in the bar. A filter in use always shows, even when you have hidden it.
 
+On a phone, the filter button beside the search opens every filter in one sheet, and the bar shows only the filters in use. The button counts how many are in use.
+
 **Views** saves the filters you have chosen under a name. Views and your choice of filters are kept separately for each tab. Signed in, they follow your account to every device, and the views already on a device join your account the first time you open that tab. Without an account they stay on the device, and signing out removes them from it.
 
 ## When a search stops early

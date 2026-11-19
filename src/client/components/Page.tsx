@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils'
 export function PageHeader({
   title,
   description,
+  introduction = false,
   actions,
   help,
   media,
@@ -17,6 +18,8 @@ export function PageHeader({
 }: {
   title: ReactNode
   description?: ReactNode
+  /** The description only introduces the page, so a phone leaves it out and gives the room to the list below. */
+  introduction?: boolean
   actions?: ReactNode
   /** The page's guide, kept out of the way in the band's top corner as a dialog's is. */
   help?: ReactNode
@@ -39,7 +42,7 @@ export function PageHeader({
             {media}
             <div className="min-w-0">
               <h1 className="text-3xl break-words sm:text-4xl">{title}</h1>
-              {description ? <p className="mt-2 max-w-2xl text-sm text-dim">{description}</p> : null}
+              {description ? <p className={cn('mt-2 max-w-2xl text-sm text-dim', introduction && 'max-sm:hidden')}>{description}</p> : null}
             </div>
           </div>
           {actions ? <div className="flex flex-wrap gap-2">{actions}</div> : null}

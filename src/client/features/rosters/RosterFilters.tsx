@@ -49,7 +49,7 @@ export function RosterSortMenu({ value, onChange }: { value: RosterSort; onChang
     <DropdownMenu>
       <DropdownMenuTrigger render={<Button variant="outline" aria-label={`Sort: ${label}`} />}>
         <ArrowDownUp />
-        {label}
+        <span className="max-sm:hidden">{label}</span>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-56">
         <DropdownMenuRadioGroup value={value} onValueChange={(chosen) => onChange(chosen as RosterSort)}>
@@ -84,7 +84,7 @@ export function RosterGroupMenu({ value, onChange }: { value: RosterGrouping; on
     <DropdownMenu>
       <DropdownMenuTrigger render={<Button variant="outline" aria-label={`Group: ${label}`} />}>
         <Rows3 />
-        {value === 'none' ? 'Group' : label}
+        <span className="max-sm:hidden">{value === 'none' ? 'Group' : label}</span>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-56">
         <DropdownMenuRadioGroup value={value} onValueChange={(chosen) => onChange(chosen as RosterGrouping)}>
