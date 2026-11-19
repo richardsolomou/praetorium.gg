@@ -27,7 +27,6 @@ export function SealedEventResults<
   entries,
   label,
   sample = false,
-  teams = false,
   title = 'Results',
 }: {
   event: string
@@ -38,11 +37,11 @@ export function SealedEventResults<
   label: (entry: Entry) => string
   /** The sample tournament's made-up players, who have no profiles to open. */
   sample?: boolean
-  /** Rows are a team tournament's teams, which have no profiles to open either. */
-  teams?: boolean
   title?: string
 }) {
   const columns = FORMAT_COLUMNS[format]
+  // A team tournament's teams have no profiles to open.
+  const teams = format === 'teamGames' || format === 'teamPoints'
   const people = new Map(entries.map((entry) => [entry.userId, entry]))
   const { exportText, native, copied, problem } = useExportText()
   const exportFile = async () => {

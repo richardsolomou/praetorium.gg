@@ -4,7 +4,14 @@ import { useState, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { SQUAD_NAME_MAX_LENGTH, squadPairing, squadStepCount, SQUAD_STEPS, type SquadPairingState } from '../../../core/squad'
+import {
+  currentSquadStage,
+  SQUAD_NAME_MAX_LENGTH,
+  squadPairing,
+  squadStepChoices,
+  squadStepCount,
+  type SquadPairingState,
+} from '../../../core/squad'
 import { Problem } from '../../components/Problem'
 import { pickSquad, setSquad } from '../../functions'
 import { countLabel } from '../../text'
@@ -26,10 +33,8 @@ export function StartSquad({ token, sealedEvent }: { token: string; sealedEvent:
   return (
     <section data-start-squad className="space-y-3 part p-4 sm:p-5">
       <div>
-        <h2 className="text-lg leading-tight font-bold uppercase">Join a team</h2>
-        <p className="mt-1 text-sm text-dim">
-          {`Teams of ${sealedEvent.teams!.size} play each other. Join a team with room below, or start one and share the invite link with your teammates.`}
-        </p>
+        <h2 className="text-lg leading-tight font-bold uppercase">Start a team</h2>
+        <p className="mt-1 text-sm text-dim">Name it, then send your teammates the invite link so they can join it.</p>
       </div>
       <form
         className="flex flex-wrap items-end gap-2"
@@ -94,15 +99,6 @@ export function SquadAction({
   )
 }
 
-/** What one step asks of a team, and the players it may choose from. */
-function stepChoices(state: SquadPairingState, side: 0 | 1) {
-  const step = state.step!
-  const stage = state.stages[Math.floor(step.index / SQUAD_STEPS.length)]
-  if (step.kind === 'defender') return { count: 1, from: state.pools[side] }
-  if (step.kind === 'attackers') return { count: 2, from: state.pools[side].filter((id) => id !== stage!.defenders![side]) }
-  return { count: 1, from: stage!.attackers![1 - side]! }
-}
-
 /**
  * One meeting of two teams in a round: its score, and until its games are paired, the pairing process. Each step both
  * teams choose in secret; a step shows once both have chosen.
@@ -160,6 +156,7 @@ export function SquadMeeting({
           match={match}
           state={state}
           side={side}
+          organizes={sealedEvent.organizer}
           squadName={squadName}
           name={name}
           label={label}
@@ -178,6 +175,7 @@ function PairingProcess({
   match,
   state,
   side,
+  organizes,
   squadName,
   name,
   label,
@@ -188,6 +186,8 @@ function PairingProcess({
   match: SquadMatch
   state: SquadPairingState
   side: 0 | 1 | null
+  /** Whether the reader runs the event, and so may pick for a team that can't. */
+  organizes: boolean
   squadName: (squadId: string | null) => string
   name: (userId: string) => ReactNode
   label: (userId: string) => string
@@ -195,8 +195,23 @@ function PairingProcess({
 }) {
   const step = state.step!
   const squads = [match.aId, match.bId!] as const
-  const stage = state.stages[Math.floor(step.index / SQUAD_STEPS.length)]
-  const defenderAgainst = (team: 0 | 1) => stage?.defenders?.[1 - team]
+  const stage = currentSquadStage({ ...state, step })
+  const [standingIn, setStandingIn] = useState<0 | 1 | null>(null)
+  const chooser = (team: 0 | 1, standIn: boolean) => (
+    <PickChooser
+      key={`${match.round}-${match.table}-${step.index}-${team}`}
+      token={token}
+      sealedEvent={sealedEvent}
+      match={match}
+      state={{ ...state, step }}
+      side={team}
+      team={standIn ? { id: squads[team], name: squadName(squads[team]) } : null}
+      chosen={standIn ? null : match.chosen}
+      name={name}
+      label={label}
+      defender={step.kind === 'attackers' ? stage?.defenders?.[1 - team] : step.kind === 'accept' ? stage?.defenders?.[team] : undefined}
+    />
+  )
   const ask =
     step.kind === 'defender'
       ? 'a defender'
@@ -261,19 +276,31 @@ function PairingProcess({
           ))}
         </p>
       ) : null}
-      {side === null ? null : (
-        <PickChooser
-          key={`${match.round}-${match.table}-${step.index}`}
-          token={token}
-          sealedEvent={sealedEvent}
-          match={match}
-          state={state}
-          side={side}
-          name={name}
-          label={label}
-          defender={step.kind === 'attackers' ? defenderAgainst(side) : step.kind === 'accept' ? stage?.defenders?.[side] : undefined}
-        />
-      )}
+      {side !== null ? (
+        chooser(side, false)
+      ) : organizes && waiting.length ? (
+        <>
+          {/* A team whose players are gone would otherwise hold up the whole round. */}
+          <div className="flex flex-wrap items-center gap-2">
+            {waiting.map((squadId) => {
+              const team = squads.indexOf(squadId) as 0 | 1
+              return (
+                <Button
+                  key={squadId}
+                  size="sm"
+                  variant={standingIn === team ? 'default' : 'outline'}
+                  aria-pressed={standingIn === team}
+                  className="pointer-coarse:h-11"
+                  onClick={() => setStandingIn(standingIn === team ? null : team)}
+                >
+                  {`Pick for ${squadName(squadId)}`}
+                </Button>
+              )
+            })}
+          </div>
+          {standingIn !== null && waiting.includes(squads[standingIn]) ? chooser(standingIn, true) : null}
+        </>
+      ) : null}
     </div>
   )
 }
@@ -285,6 +312,8 @@ function PickChooser({
   match,
   state,
   side,
+  team,
+  chosen,
   name,
   label,
   defender,
@@ -292,8 +321,12 @@ function PickChooser({
   token: string
   sealedEvent: SealedEvent
   match: SquadMatch
-  state: SquadPairingState
+  state: SquadPairingState & { step: NonNullable<SquadPairingState['step']> }
   side: 0 | 1
+  /** The team an organizer picks for, or null when the reader picks for their own. */
+  team: { id: string; name: string } | null
+  /** What the team has locked in at this step, until the other team chooses too. */
+  chosen: readonly string[] | null
   name: (userId: string) => ReactNode
   /** A player's plain name, for a button whose colours would clash with their own. */
   label: (userId: string) => string
@@ -301,37 +334,51 @@ function PickChooser({
   defender: string | undefined
 }) {
   const refresh = useSealedEventRefresh(token)
-  const step = state.step!
-  const choices = stepChoices(state, side)
-  const [picked, setPicked] = useState<string[]>(() => [...(match.chosen ?? [])])
+  const { step } = state
+  const choices = squadStepChoices(state, side)
+  // A teammate may lock in or change the team's pick meanwhile, so the saved pick shows until this reader changes it.
+  const [edited, setEdited] = useState<string[] | null>(null)
+  const picked = edited ?? chosen ?? []
   const pick = useMutation({
     mutationFn: () =>
       pickSquad({
-        data: { token, eventToken: sealedEvent.eventToken, round: match.round, table: match.table, step: step.index, userIds: picked },
+        data: {
+          token,
+          eventToken: sealedEvent.eventToken,
+          round: match.round,
+          table: match.table,
+          step: step.index,
+          userIds: [...picked],
+          squadId: team?.id,
+        },
       }),
-    onSuccess: refresh,
+    onSuccess: async () => {
+      setEdited(null)
+      await refresh()
+    },
   })
   const toggle = (userId: string) =>
-    setPicked((current) =>
-      current.includes(userId)
-        ? current.filter((id) => id !== userId)
+    setEdited(
+      picked.includes(userId)
+        ? picked.filter((id) => id !== userId)
         : choices.count === 1
           ? [userId]
-          : [...current, userId].slice(-choices.count),
+          : [...picked, userId].slice(-choices.count),
     )
+  const whose = team ? `${team.name}’s` : 'your'
   const prompt =
     step.kind === 'defender'
-      ? 'Choose your defender'
+      ? `Choose ${whose} defender`
       : step.kind === 'attackers'
-        ? 'Choose two attackers'
-        : 'Choose whom your defender plays'
-  const saved = !!match.chosen && match.chosen.length === picked.length && match.chosen.every((id) => picked.includes(id))
+        ? `Choose ${whose} two attackers`
+        : `Choose whom ${whose} defender plays`
+  const saved = !!chosen && chosen.length === picked.length && chosen.every((id) => picked.includes(id))
   return (
     <fieldset className="space-y-2 rounded-lg border border-parchment/40 bg-parchment/5 p-3" disabled={pick.isPending}>
       <legend className="px-1 text-xs font-semibold tracking-label text-parchment uppercase">{prompt}</legend>
       {defender ? (
         <p className="text-xs text-dim">
-          {step.kind === 'attackers' ? 'Their defender is ' : 'Your defender is '}
+          {step.kind === 'attackers' ? 'The other defender is ' : `${team ? `${team.name}’s` : 'Your'} defender is `}
           {name(defender)}.
         </p>
       ) : null}
@@ -355,10 +402,10 @@ function PickChooser({
       </div>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <Button size="sm" disabled={picked.length !== choices.count || saved} onClick={() => pick.mutate()}>
-          {pick.isPending ? 'Saving…' : match.chosen ? 'Change choice' : 'Lock in'}
+          {pick.isPending ? 'Saving…' : chosen ? 'Change choice' : 'Lock in'}
         </Button>
         <p className="min-w-0 flex-1 text-xs text-dim">
-          {match.chosen
+          {chosen
             ? 'Locked in. You can change it until the other team chooses; then both show at once.'
             : `Pick ${countLabel(choices.count, 'player')}. Nobody sees it until the other team has chosen too.`}
         </p>

@@ -119,7 +119,7 @@ Each round, **Pair round** pairs teams rather than players: teams meet others on
 2. Each team chooses two attackers to send against the other team's defender.
 3. Each team chooses which of the two attackers its defender plays. The other attacker goes back to the team.
 
-This repeats until three or four players are left on each team. In that last round, the two attackers nobody chose play each other, as do the two players left over. Anyone on the team can choose for it, and can change the choice until the other team has chosen. Then each game gets its table and is played like any Swiss table. A team's games are scored together: the meeting's score shows beside it, and **Team results** ranks the teams above the players' own results.
+This repeats until three or four players are left on each team. In that last step, the two attackers nobody chose play each other, as do the two players left over. Anyone on the team can choose for it, and can change the choice until the other team has chosen. If a team can't choose, press **Pick for** with its name under the meeting to choose for it; you can't see the other team's choice first. Then each game gets its table and is played like any Swiss table. A team's games are scored together: the meeting's score shows beside it, and **Team results** ranks the teams above the players' own results.
 
 Nobody drops out of a team tournament, and you can't swap seats, since the teams choose the tables themselves.
 

@@ -68,7 +68,7 @@ import {
   hiddenListGameTimeZoneSchema,
 } from '../core/group'
 import { SWISS_ROUNDS_MAX } from '../core/swiss'
-import { SQUAD_NAME_MAX_LENGTH, SQUAD_SCORINGS, SQUAD_SIZES } from '../core/squad'
+import { SQUAD_NAME_MAX_LENGTH, squadRuleSchema, type SquadRule } from '../core/squad'
 import { GROUP_LEAGUE_PLAYERS_MAX, GROUP_LEAGUE_SEED_MAX } from '../core/groupLeague'
 import { PASSWORD_MIN_LENGTH, SOCIAL_PROVIDERS } from '../authConfig'
 import { PROFILE_NAME_MAX_LENGTH } from '../core/profileName'
@@ -107,10 +107,7 @@ const sealedEventRuleFields = {
   // Absent from an older client: no Swiss rounds or own points total on a new event, and an edit leaves them as they stand.
   rounds: z.number().int().min(1).max(SWISS_ROUNDS_MAX).nullable().optional(),
   // Absent from an older client: no teams on a new event, and an edit leaves them as they stand.
-  teams: z
-    .object({ size: z.union(SQUAD_SIZES.map((size) => z.literal(size))), scoring: z.enum(SQUAD_SCORINGS) })
-    .nullable()
-    .optional(),
+  teams: squadRuleSchema.nullable().optional(),
   pointsBudget,
   soloPoints: z.number().int().min(1).max(POINTS_BUDGET_MAX).nullable().optional(),
   allyPoints: z.number().int().min(1).max(POINTS_BUDGET_MAX).nullable().optional(),
@@ -124,7 +121,7 @@ const sealedEventSchedule = z
     path: ['sealBy'],
   })
 function validateSealedEventRule(
-  value: { format: TableShape; rosterLimit: number; rounds?: number | null; teams?: object | null } & Partial<SealedEventArmyPoints>,
+  value: { format: TableShape; rosterLimit: number; rounds?: number | null; teams?: SquadRule | null } & Partial<SealedEventArmyPoints>,
   context: z.RefinementCtx,
 ) {
   const armyPointsProblem = sealedEventArmyPointsError(value.format, value)
@@ -216,6 +213,8 @@ export const pickSquadSchema = z.object({
   table: z.number().int().min(1).max(1024),
   step: z.number().int().min(0).max(64),
   userIds: z.array(id).min(1).max(2),
+  /** The team an organizer picks for when it can't pick for itself. */
+  squadId: id.optional(),
 })
 /** Each seat's final score, by the pairing's two players in order. */
 export const reportTableResultSchema = z.object({

@@ -1775,8 +1775,33 @@ describe('swiss rounds', () => {
 })
 
 describe('team tournaments', () => {
-  const squads = { A: ['a1', 'a2', 'a3'], B: ['b1', 'b2', 'b3'] }
-  function setup({ revealed = true, squadOf = (userId: string): string | undefined => userId[0]!.toUpperCase() } = {}) {
+  const captain = { key: 'captain', entryId: 'captain', name: 'Captain', models: 1, points: 80, warlord: true, group: 'character' }
+  const teamArmy = {
+    name: 'Army',
+    text: 'Army',
+    built: {
+      catalogueId: 'catalogue',
+      revision: 'revision',
+      limit: 2000,
+      detachment: null,
+      disposition: null,
+      waivedRules: [],
+      units: [captain],
+    },
+  }
+  function setup({
+    revealed = true,
+    squadOf = (userId: string): string | undefined => userId[0]!.toUpperCase(),
+    squads = { A: ['a1', 'a2', 'a3'], B: ['b1', 'b2', 'b3'] },
+    sealed = (_userId: string): boolean => true,
+    sealBy,
+  }: {
+    revealed?: boolean
+    squadOf?: (userId: string) => string | undefined
+    squads?: Record<string, string[]>
+    sealed?: (userId: string) => boolean
+    sealBy?: bigint
+  } = {}) {
     const host = harness()
     host.call(host.operator, (ctx) => {
       insertTournament(ctx, {
@@ -1788,6 +1813,7 @@ describe('team tournaments', () => {
         rounds: 2,
         teamSize: 3,
         teamScoring: 'games',
+        sealBy,
       })
       for (const id of Object.keys(squads)) ctx.db.eventSquads.insert({ id, eventId: 'event', name: `Team ${id}`, createdAt: 1n })
       for (const userId of Object.values(squads).flat())
@@ -1799,7 +1825,7 @@ describe('team tournaments', () => {
           joinedAt: 1n,
           rosterId: undefined,
           rosterName: 'Army',
-          rosterSnapshot: JSON.stringify({ name: 'Army', text: '10 Intercessors' }),
+          rosterSnapshot: sealed(userId) ? JSON.stringify(teamArmy) : undefined,
           submittedAt: 1n,
           requiredLimit: undefined,
           teamId: undefined,
@@ -1814,13 +1840,15 @@ describe('team tournaments', () => {
           payload: JSON.stringify({ token: 'sealed-event', eventToken: 'event', ownerId: 'organizer', ...input }),
         }),
       ) as unknown
-    const pick = (ownerId: string, step: number, userIds: string[]) =>
-      command({ op: 'pick-squad', ownerId, round: 1, table: 1, step, userIds })
+    const pick = (ownerId: string, step: number, userIds: string[], squadId?: string) =>
+      command({ op: 'pick-squad', ownerId, round: 1, table: 1, step, userIds, squadId })
     const pairings = () =>
       host.call(host.operator, (ctx) =>
         Array.from(ctx.db.roundPairings.eventId.filter('event'), ({ table, aId, bId }) => [table, aId, bId]),
       )
-    return { command, pick, pairings }
+    const squadOfEntry = (userId: string) =>
+      host.call(host.operator, (ctx) => ctx.db.sealedEventEntries.key.find(JSON.stringify(['event', userId]))?.squadId)
+    return { command, pick, pairings, squadOfEntry }
   }
   const pairTeams = (command: ReturnType<typeof setup>['command']) => command({ op: 'pair-round', round: 1, pairs: [['A', 'B']] })
   /** Every step of a meeting of three: defenders, attackers, then which attacker each defender plays. */
@@ -1872,6 +1900,49 @@ describe('team tournaments', () => {
       [2, 'a2', 'b1'],
       [3, 'a3', 'b2'],
     ])
+  })
+
+  it('leaves a team none of whose players sealed by the deadline out of the pairings', () => {
+    const { command } = setup({
+      revealed: false,
+      squads: { A: ['a1', 'a2', 'a3'], B: ['b1', 'b2', 'b3'], C: ['c1', 'c2', 'c3'] },
+      sealed: (userId) => !userId.startsWith('c'),
+      sealBy: 1n,
+    })
+    command({ op: 'reveal', now: NOW })
+    expect(pairTeams(command)).toBe('paired')
+  })
+
+  it('takes a rejected player off their team', () => {
+    const { command, squadOfEntry } = setup({ revealed: false })
+    command({ op: 'moderate', userId: 'a1', status: 'rejected', memberLimit: 128 })
+    expect(squadOfEntry('a1')).toBeUndefined()
+  })
+
+  it('refuses a team a name another team has', () => {
+    const { command } = setup({ revealed: false, squadOf: (userId) => (userId === 'b3' ? undefined : userId[0]!.toUpperCase()) })
+    expect(command({ op: 'set-squad', ownerId: 'b3', squad: { create: { id: 'C', name: 'team a' } }, now: NOW })).toBe('taken')
+  })
+
+  it('fixes the teams once the rosters are out', () => {
+    const { command } = setup()
+    expect(command({ op: 'set-squad', ownerId: 'a1', squad: null, now: NOW })).toBe('closed')
+  })
+
+  it('lets an organizer pick for a team that can’t', () => {
+    const { command, pick } = setup()
+    pairTeams(command)
+    expect(pick('organizer', 0, ['a1'], 'A')).toBe('chosen')
+  })
+
+  it('reveals a team’s changed pick rather than its first', () => {
+    const { command, pick } = setup()
+    pairTeams(command)
+    pick('a1', 0, ['a1'])
+    pick('a2', 0, ['a2'])
+    pick('b1', 0, ['b1'])
+    // a1 is free to attack only if a2 ended up defending.
+    expect(pick('a1', 1, ['a1', 'a3'])).toBe('chosen')
   })
 
   it('holds the next round until every meeting has seated its games', () => {

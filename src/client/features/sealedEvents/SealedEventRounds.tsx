@@ -4,9 +4,9 @@ import { Dices, Lock, RotateCcw, Shuffle, Swords } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { IconAction } from './SealedEventEntrants'
-import { latestRound, type SealedEventEntryView } from '../../../core/sealedEvent'
+import { swissRound, type SealedEventEntryView } from '../../../core/sealedEvent'
 import { rematches, type SwissMatch } from '../../../core/swiss'
-import { squadStepCount } from '../../../core/squad'
+import { squadMeetingChoosing, squadTables } from '../../../core/squad'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { Problem } from '../../components/Problem'
 import { pairSealedEventRound, reopenSwissTable, setTableBattlefield } from '../../functions'
@@ -41,16 +41,14 @@ export function swissProgress(
   battles: readonly TableBattle[],
 ) {
   const { teams } = sealedEvent
-  const round = latestRound(teams ? sealedEvent.squadMatches : sealedEvent.pairings)
+  const round = swissRound(sealedEvent)
   const current = sealedEvent.pairings.filter((pairing) => pairing.round === round)
   const finished = new Set(battles.filter((battle) => battle.status === 'finished').map((battle) => battle.token))
   const open = current.filter(
     (pairing) =>
       pairing.bId !== null && !(pairing.battleToken && finished.has(pairing.battleToken)) && !forfeited(pairing, sealedEvent.entries),
   )
-  const choosing = teams
-    ? sealedEvent.squadMatches.filter((match) => match.round === round && match.bId && match.revealed.length < squadStepCount(teams.size))
-    : []
+  const choosing = teams ? sealedEvent.squadMatches.filter((match) => match.round === round && squadMeetingChoosing(match, teams.size)) : []
   return { round, rounds: sealedEvent.rounds ?? 0, current, open, choosing, complete: open.length === 0 && choosing.length === 0 }
 }
 
@@ -230,7 +228,11 @@ export function SealedEventRounds({
         <div className="space-y-4">
           {!progress.complete ? (
             <p className="text-sm text-dim">
-              {progress.choosing.length ? `${countLabel(progress.choosing.length, 'meeting')} still choosing pairings. ` : null}
+              {progress.choosing.length === 1
+                ? 'One meeting is still choosing its pairings. '
+                : progress.choosing.length
+                  ? `${progress.choosing.length} meetings are still choosing their pairings. `
+                  : null}
               {progress.open.length === 1
                 ? 'One table is still playing.'
                 : progress.open.length
@@ -263,9 +265,9 @@ export function SealedEventRounds({
                     {sealedEvent.squadMatches
                       .filter((match) => match.round === round)
                       .map((match) => {
-                        const first = (match.table - 1) * teams.size
+                        const { first, last } = squadTables(match.table, teams.size)
                         const tables = sealedEvent.pairings.filter(
-                          (pairing) => pairing.round === round && pairing.table > first && pairing.table <= first + teams.size,
+                          (pairing) => pairing.round === round && pairing.table >= first && pairing.table <= last,
                         )
                         const result = meetings.find((meeting) => meeting.round === round && meeting.a === match.aId)
                         return (

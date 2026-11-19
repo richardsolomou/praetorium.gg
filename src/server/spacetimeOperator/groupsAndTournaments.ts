@@ -113,7 +113,7 @@ const sealedEventRecord = z.object({
   pairings: z.array(sealedEventPairing),
   // Absent from a module released before team tournaments.
   squads: z
-    .array(z.object({ id: z.string(), name: z.string(), createdAt: z.number().int() }))
+    .array(z.object({ id: z.string(), name: z.string(), memberIds: z.array(z.string()) }))
     .nullish()
     .transform((value) => value ?? []),
   squadMatches: z

@@ -92,11 +92,7 @@ export function SealedEventReadiness({
     leaderless.length
       ? `${namesPhrase(leaderless.map(nameOf))} still ${leaderless.length === 1 ? 'needs' : 'need'} to choose whose Warlord leads their team.`
       : null,
-    !isOrganizer && squads && !squads.done
-      ? squads.waiting.length
-        ? `${namesPhrase(squads.waiting.map(nameOf))} ${squads.waiting.length === 1 ? 'is' : 'are'} not on a full team of ${squads.size} yet.`
-        : `Teams of ${squads.size} need at least ${squads.size * 2} players.`
-      : null,
+    !isOrganizer && squads && !squads.done ? checkDetail(squads, sealedEvent.format, nameOf) : null,
     !isOrganizer && organizerSteps.length
       ? `${organizers} still ${soleOrganizer ? 'needs' : 'need'} to ${namesPhrase(organizerSteps)}.`
       : null,

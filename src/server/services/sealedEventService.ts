@@ -554,21 +554,14 @@ export class SealedEventService {
     })
     if (result === 'set') return
     if (result === 'full') throw new Response('that team is full', { status: 409 })
+    if (result === 'taken') throw new Response('another team already has that name', { status: 409 })
     if (result === 'closed') throw new Response('teams are fixed once the rosters are out', { status: 409 })
     if (result === 'missing') throw new Response('no such team', { status: 404 })
     throw new Response('only a tournament’s players join its teams', { status: 403 })
   }
 
   /** Records a team's secret choice at the next step of its meeting; it shows once the other team has chosen too. */
-  async pickSquad(input: {
-    token: string
-    eventToken: string
-    ownerId: string
-    round: number
-    table: number
-    step: number
-    userIds: string[]
-  }) {
+  async pickSquad(input: Parameters<RepositoryPort['pickSquad']>[0]) {
     const result = await this.repository.pickSquad(input)
     if (typeof result === 'object') {
       this.notifier.notify([
@@ -586,7 +579,8 @@ export class SealedEventService {
     }
     if (result === 'chosen') return { revealed: false }
     if (result === 'missing') throw new Response('no such meeting this round', { status: 404 })
-    if (result === 'forbidden') throw new Response('only the two teams choose their pairings', { status: 403 })
+    if (result === 'forbidden')
+      throw new Response('only the two teams, or the organizer for one of them, choose its pairings', { status: 403 })
     if (result === 'paired') throw new Response('every game of this meeting is already paired', { status: 409 })
     if (result === 'not-available') throw new Response('choose from the players this step allows', { status: 400 })
     throw new Response('the pairing moved on while you chose; check it and choose again', { status: 409 })

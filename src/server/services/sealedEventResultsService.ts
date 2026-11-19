@@ -2,7 +2,7 @@ import { battleFilterActive, type BattleFilter, type BattleOrder } from '../../c
 import { battleOutcome, sideScore, type StandingBattle } from '../../core/standings'
 import { swissPairings, swissStandings, type SwissMatch } from '../../core/swiss'
 import { squadSwissMatches } from '../../core/squad'
-import { latestRound } from '../../core/sealedEvent'
+import { swissRound } from '../../core/sealedEvent'
 import { SEALED_EVENT_RESULTS_BATTLE_LIMIT, sealedEventResults } from '../../core/sealedEventResults'
 import type { BattlesCursor } from '../../contracts/battles'
 import type { BattleFaction } from '../../shared/battleSummary'
@@ -128,7 +128,7 @@ export class SealedEventResultsService {
           Math.random,
         )
       : swissPairings(players, swissMatches(sealedEvent.pairings, battles), Math.random, droppedIds(sealedEvent.entries))
-    const round = latestRound(teams ? sealedEvent.squadMatches : sealedEvent.pairings) + 1
+    const round = swissRound(sealedEvent) + 1
     const result = await this.repository.pairSealedEventRound({
       token: sealedEventToken,
       eventToken: sealedEvent.eventToken,

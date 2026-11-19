@@ -12,7 +12,7 @@ import {
 import { battleFeedQuery, feedKey } from './battles'
 import { battleFilterActive, type BattleFilter, type BattleOrder } from '../../core/battleFilter'
 import { SSR_STALE_TIME } from './shared'
-import { squadStepCount } from '../../core/squad'
+import { squadMeetingChoosing } from '../../core/squad'
 import {
   friendSealedEventRostersKey,
   sealedEventBattlesKey,
@@ -43,17 +43,23 @@ export const outdatedSealedEventEntriesQuery = (rosterId: string) =>
     queryFn: () => outdatedSealedEventEntriesForRoster({ data: { rosterId } }),
     staleTime: SSR_STALE_TIME,
   })
-const squadsChoosing = (sealedEvent: { teams: { size: number } | null; squadMatches: { bId: string | null; revealed: unknown[] }[] }) =>
-  sealedEvent.teams !== null &&
-  sealedEvent.squadMatches.some((match) => match.bId !== null && match.revealed.length < squadStepCount(sealedEvent.teams!.size))
+/** Whether the reader is waiting on a team meeting's next reveal: their own team's, or any while they run the event. */
+const awaitingPicks = (sealedEvent: {
+  organizer: boolean
+  teams: { size: number } | null
+  squadMatches: { own: boolean; bId: string | null; revealed: unknown[] }[]
+}) =>
+  sealedEvent.squadMatches.some(
+    (match) => (sealedEvent.organizer || match.own) && squadMeetingChoosing(match, sealedEvent.teams?.size ?? 0),
+  )
 
 export const sealedEventQuery = (token: string) =>
   queryOptions({
     queryKey: sealedEventKey(token),
     queryFn: () => openSealedEvent({ data: { token } }),
     staleTime: SSR_STALE_TIME,
-    // A team meeting's picks reveal when the other team chooses, so the page keeps polling while any meeting is choosing.
-    refetchInterval: ({ state }) => (state.data?.revealedAt && !squadsChoosing(state.data) ? false : 5_000),
+    // A team's picks reveal when the other team chooses, which only a page polling sees as it happens.
+    refetchInterval: ({ state }) => (state.data?.revealedAt && !awaitingPicks(state.data) ? false : 5_000),
   })
 
 export const sealedEventRosterQuery = (token: string, eventToken: string | undefined, userId: string) =>

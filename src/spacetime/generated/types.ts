@@ -246,6 +246,14 @@ export const EventBattles = __t.object('EventBattles', {
 })
 export type EventBattles = __Infer<typeof EventBattles>
 
+export const EventSquads = __t.object('EventSquads', {
+  id: __t.string(),
+  eventId: __t.string(),
+  name: __t.string(),
+  createdAt: __t.u64(),
+})
+export type EventSquads = __Infer<typeof EventSquads>
+
 export const ExternalAccounts = __t.object('ExternalAccounts', {
   key: __t.string(),
   userId: __t.string(),
@@ -627,6 +635,7 @@ export const SealedEventEntries = __t.object('SealedEventEntries', {
   teamId: __t.option(__t.string()),
   droppedAt: __t.option(__t.u64()),
   checkedInAt: __t.option(__t.u64()),
+  squadId: __t.option(__t.string()),
 })
 export type SealedEventEntries = __Infer<typeof SealedEventEntries>
 
@@ -674,6 +683,8 @@ export const SealedEvents = __t.object('SealedEvents', {
   roundEndsAt: __t.option(__t.u64()),
   scheduleFirst: __t.option(__t.bool()),
   clockLimitMinutes: __t.option(__t.u32()),
+  teamSize: __t.option(__t.u32()),
+  teamScoring: __t.option(__t.string()),
 })
 export type SealedEvents = __Infer<typeof SealedEvents>
 
@@ -693,6 +704,27 @@ export const Settings = __t.object('Settings', {
   audience: __t.string(),
 })
 export type Settings = __Infer<typeof Settings>
+
+export const SquadMatches = __t.object('SquadMatches', {
+  key: __t.string(),
+  eventId: __t.string(),
+  round: __t.u32(),
+  table: __t.u32(),
+  aId: __t.string(),
+  bId: __t.option(__t.string()),
+})
+export type SquadMatches = __Infer<typeof SquadMatches>
+
+export const SquadPicks = __t.object('SquadPicks', {
+  key: __t.string(),
+  eventId: __t.string(),
+  round: __t.u32(),
+  table: __t.u32(),
+  squadId: __t.string(),
+  step: __t.u32(),
+  userIds: __t.string(),
+})
+export type SquadPicks = __Infer<typeof SquadPicks>
 
 export const Standings = __t.object('Standings', {
   holder: __t.string(),

@@ -476,7 +476,6 @@ export function SealedEventView({
               partial={results.partial}
               entries={sealedEvent.squads.map((squad) => ({ userId: squad.id, name: squad.name, image: null }))}
               label={(squad) => squad.name}
-              teams
               title="Team results"
             />
           ) : null}

@@ -2,13 +2,13 @@ import { z } from 'zod'
 import {
   isTeamFormat,
   effectiveSealedEventAllowances,
-  latestRound,
+  swissRound,
   ownTable,
   sealedEventAllowanceOptions,
   sealedEventPairShares,
   sealedEventTableShape,
 } from '../core/sealedEvent'
-import { squadStepCount } from '../core/squad'
+import { squadMeetingChoosing } from '../core/squad'
 import { leagueFixtureOverdue } from '../core/groupLeague'
 import { tokenSchema } from '../contracts/schemas'
 import { gameReferencesFor } from '../shared/gameReferences'
@@ -96,9 +96,9 @@ function eventTodo(sealedEvent: SealedEvent, userId: string, battles: ReadonlyMa
   if (!entry.submitted) return []
   if (entry.dropped) return []
   if (sealedEvent.rounds === null) return ['Start a battle against another entrant with start_event_battle.']
-  const round = latestRound(sealedEvent.teams ? sealedEvent.squadMatches : sealedEvent.pairings)
+  const round = swissRound(sealedEvent)
   const meeting = sealedEvent.squadMatches.find((match) => match.round === round && squad && [match.aId, match.bId].includes(squad.id))
-  if (sealedEvent.teams && meeting?.bId && meeting.revealed.length < squadStepCount(sealedEvent.teams.size))
+  if (sealedEvent.teams && meeting && squadMeetingChoosing(meeting, sealedEvent.teams.size))
     return [
       meeting.chosen
         ? `Wait for the other team to make its round ${round} pick; yours is in.`
@@ -364,7 +364,7 @@ export function registerOrganisedPlayTools(server: AgentTools, userId: string | 
             effectiveSealedEventAllowances(format, sealedEvent.rosterLimit!, sealedEvent.allowances).includes(option.id),
           )
         : []
-      const round = latestRound(sealedEvent.teams ? sealedEvent.squadMatches : sealedEvent.pairings)
+      const round = swissRound(sealedEvent)
       const squadName = (id: string | null) => sealedEvent.squads.find((squad) => squad.id === id)?.name ?? null
       const table = (pairing: SealedEvent['pairings'][number]) => {
         const battle = pairing.battleToken ? battles.get(pairing.battleToken) : undefined

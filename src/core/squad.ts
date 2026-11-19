@@ -1,3 +1,4 @@
+import { z } from 'zod'
 import type { SwissMatch } from './swiss'
 
 /**
@@ -20,7 +21,8 @@ export const SQUAD_SCORINGS = ['games', 'points'] as const
 export type SquadScoring = (typeof SQUAD_SCORINGS)[number]
 
 /** A team tournament's teams: how many play for each, and how a team match is won. */
-export type SquadRule = { size: SquadSize; scoring: SquadScoring }
+export const squadRuleSchema = z.object({ size: z.union(SQUAD_SIZES.map((size) => z.literal(size))), scoring: z.enum(SQUAD_SCORINGS) })
+export type SquadRule = z.infer<typeof squadRuleSchema>
 
 export const SQUAD_STEPS = ['defender', 'attackers', 'accept'] as const
 export type SquadStep = (typeof SQUAD_STEPS)[number]
@@ -80,17 +82,23 @@ export function squadPairing(members: Pair<readonly string[]>, revealed: readonl
   }
 }
 
+/** The stage the next step belongs to, so far as both teams have revealed it. */
+export const currentSquadStage = (state: SquadPairingState & { step: object }) =>
+  state.stages[Math.floor(state.step.index / SQUAD_STEPS.length)]
+
+/** How many players one team picks at the next step, and from whom. */
+export function squadStepChoices(state: SquadPairingState & { step: NonNullable<SquadPairingState['step']> }, side: 0 | 1) {
+  const stage = currentSquadStage(state)
+  const pool = state.pools[side]
+  if (state.step.kind === 'defender') return { count: 1, from: pool }
+  if (state.step.kind === 'attackers') return { count: 2, from: pool.filter((id) => id !== stage!.defenders![side]) }
+  return { count: 1, from: stage!.attackers![1 - side]! }
+}
+
 /** Why one team's choice cannot be their next pick, or null when it can. */
 export function squadPickRefusal(state: SquadPairingState, side: 0 | 1, pick: readonly string[]): 'paired' | 'not-available' | null {
   if (!state.step) return 'paired'
-  const stage = state.stages[Math.floor(state.step.index / SQUAD_STEPS.length)]
-  const pool = state.pools[side]
-  const choices =
-    state.step.kind === 'defender'
-      ? { count: 1, from: pool }
-      : state.step.kind === 'attackers'
-        ? { count: 2, from: pool.filter((id) => id !== stage!.defenders![side]) }
-        : { count: 1, from: stage!.attackers![1 - side]! }
+  const choices = squadStepChoices({ ...state, step: state.step }, side)
   const valid = pick.length === choices.count && new Set(pick).size === pick.length && pick.every((id) => choices.from.includes(id))
   return valid ? null : 'not-available'
 }
@@ -109,6 +117,13 @@ export function squadMatch(
   return { outcome: score[0] > score[1] ? 'a' : score[1] > score[0] ? 'b' : 'draw', score }
 }
 
+/** Whether a meeting's two teams are still choosing who plays whom; a bye has nothing to choose. */
+export const squadMeetingChoosing = (match: { bId: string | null; revealed: readonly unknown[] }, size: number) =>
+  match.bId !== null && match.revealed.length < squadStepCount(size)
+
+/** The tables a meeting's games sit at: consecutive, after those of the meetings before it in its round. */
+export const squadTables = (meetingTable: number, size: number) => ({ first: (meetingTable - 1) * size + 1, last: meetingTable * size })
+
 type SquadPick = { round: number; table: number; squadId: string; step: number; userIds: readonly string[] }
 
 /** What a meeting's two teams have revealed, step by step in the meeting's order: each step once both teams chose it. */
@@ -122,10 +137,7 @@ export function revealedSquadPicks(match: { round: number; table: number; aId: s
   return { revealed, chosen: (squadId: string | null) => at(squadId, revealed.length) ?? null }
 }
 
-/**
- * Each team meeting as a Swiss result, scored from the games at its tables: a meeting's games sit at the `size` tables
- * after the ones of the meetings before it. A meeting's score stands in for victory points, so ties break on it.
- */
+/** Each team meeting as a Swiss result, scored from the games at its tables; its score stands in for victory points, so ties break on it. */
 export function squadSwissMatches(
   matches: readonly { round: number; table: number; aId: string; bId: string | null }[],
   games: readonly { round: number; table: number; outcome: 'a' | 'b' | 'draw' | null; vp: Pair<number> }[],
@@ -134,9 +146,9 @@ export function squadSwissMatches(
 ): SwissMatch[] {
   return matches.map((match) => {
     if (!match.bId) return { round: match.round, a: match.aId, b: null, outcome: null, vp: [0, 0] }
-    const first = (match.table - 1) * size
+    const { first, last } = squadTables(match.table, size)
     const { outcome, score } = squadMatch(
-      games.filter((game) => game.round === match.round && game.table > first && game.table <= first + size),
+      games.filter((game) => game.round === match.round && game.table >= first && game.table <= last),
       size,
       scoring,
     )

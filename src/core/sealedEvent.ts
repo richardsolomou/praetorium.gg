@@ -741,11 +741,17 @@ export function byTournamentDate(now: number) {
 /** The latest Swiss round paired, 0 before the first. */
 export const latestRound = (pairings: readonly { round: number }[]) => Math.max(0, ...pairings.map((pairing) => pairing.round))
 
+type SwissRounds = { pairings: readonly { round: number }[]; teams?: object | null; squadMatches?: readonly { round: number }[] }
+
+/** The latest Swiss round paired: of a team tournament's teams, whose players' tables come later, otherwise of players. */
+export const swissRound = (sealedEvent: SwissRounds) =>
+  latestRound(sealedEvent.teams ? (sealedEvent.squadMatches ?? []) : sealedEvent.pairings)
+
 /** A player's table in a Swiss round, the latest unless `round` names another. */
 export function ownTable<T extends { round: number; aId: string; bId: string | null; battleToken: string | null }>(
-  sealedEvent: { pairings: readonly T[] },
+  sealedEvent: Omit<SwissRounds, 'pairings'> & { pairings: readonly T[] },
   userId: string | null,
-  round = latestRound(sealedEvent.pairings),
+  round = swissRound(sealedEvent),
 ) {
   return sealedEvent.pairings.find((pairing) => pairing.round === round && (pairing.aId === userId || pairing.bId === userId))
 }

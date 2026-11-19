@@ -161,7 +161,10 @@ export function withSealedEvents<B extends RepositoryBase>(Base: B) {
       squad: { create: { id: string; name: string } } | { join: string } | null
       now: number
     }) {
-      return this.product.sealedEventCommand({ op: 'set-squad', ...input }, z.enum(['set', 'full', 'closed', 'missing', 'forbidden']))
+      return this.product.sealedEventCommand(
+        { op: 'set-squad', ...input },
+        z.enum(['set', 'full', 'taken', 'closed', 'missing', 'forbidden']),
+      )
     }
 
     pickSquad(input: {
@@ -172,6 +175,7 @@ export function withSealedEvents<B extends RepositoryBase>(Base: B) {
       table: number
       step: number
       userIds: string[]
+      squadId?: string
     }) {
       return this.product.sealedEventCommand(
         { op: 'pick-squad', ...input },
@@ -343,6 +347,8 @@ export function withSealedEvents<B extends RepositoryBase>(Base: B) {
         ...(event.revealedBy ? [event.revealedBy] : []),
       ])
       const revealed = event.revealedAt !== null
+      // Only an accepted entrant plays for a team, so only they read its picks before the other team's.
+      const viewerSquadId = entries.find((entry) => entry.userId === viewerId && entry.status === 'accepted')?.squadId ?? null
       // Only a revealed list or a pair's choice needs the snapshot itself.
       const rosters = new Map(
         entries.map((entry) => [entry.userId, revealed || entry.teamId ? rosterSnapshotOrNull(entry.rosterSnapshot) : null]),
@@ -390,23 +396,21 @@ export function withSealedEvents<B extends RepositoryBase>(Base: B) {
         scheduleFirst: event.scheduleFirst,
         clockLimitMinutes: event.clockLimitMinutes,
         teams: event.teamSize === null ? null : { size: event.teamSize, scoring: event.teamScoring },
-        squads: record.squads.flatMap((squad) => {
-          const memberIds = entries
-            .filter((entry) => entry.status === 'accepted' && entry.squadId === squad.id)
-            .map((entry) => entry.userId)
-          return memberIds.length ? [{ id: squad.id, name: squad.name, memberIds }] : []
-        }),
+        squads: record.squads,
         // Each meeting's picks as its two teams revealed them, and the reader's own team's choice still waiting on the other's.
         squadMatches: record.squadMatches.map((match) => {
-          const picks = revealedSquadPicks(match, squadPicks)
-          const own = viewerId === null ? null : (entries.find((entry) => entry.userId === viewerId)?.squadId ?? null)
-          const { chosen } = picks
+          const picks = revealedSquadPicks(
+            match,
+            squadPicks.filter((pick) => pick.round === match.round && pick.table === match.table),
+          )
+          const own = viewerSquadId === match.aId || viewerSquadId === match.bId
           return {
             ...match,
+            own,
             revealed: picks.revealed,
-            chosen: own === match.aId || own === match.bId ? chosen(own) : null,
+            chosen: own ? picks.chosen(viewerSquadId) : null,
             // Who has chosen the next step, never what.
-            ready: [match.aId, match.bId].filter((squadId) => chosen(squadId) !== null),
+            ready: [match.aId, match.bId].filter((squadId) => picks.chosen(squadId) !== null),
           }
         }),
         pairings,

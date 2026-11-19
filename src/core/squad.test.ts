@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { squadMatch, squadPairing, squadPickRefusal, squadStepCount } from './squad'
+import { squadMatch, squadPairing, squadPickRefusal, squadStepCount, squadSwissMatches } from './squad'
 
 const teams = (size: number) =>
   [Array.from({ length: size }, (_, index) => `a${index + 1}`), Array.from({ length: size }, (_, index) => `b${index + 1}`)] as const
@@ -110,5 +110,17 @@ describe('team match result', () => {
       outcome: 'b',
       score: [140, 205],
     })
+  })
+})
+
+describe('team standings', () => {
+  it('scores a later meeting from its own tables only', () => {
+    const game = (table: number, outcome: 'a' | 'b') => ({ round: 1, table, outcome, vp: [0, 0] as const })
+    const meetings = [
+      { round: 1, table: 1, aId: 'A', bId: 'B' },
+      { round: 1, table: 2, aId: 'C', bId: 'D' },
+    ]
+    const games = [game(1, 'a'), game(2, 'a'), game(3, 'a'), game(4, 'b'), game(5, 'b'), game(6, 'a')]
+    expect(squadSwissMatches(meetings, games, 3, 'games')[1]).toMatchObject({ outcome: 'b', vp: [1, 2] })
   })
 })
