@@ -6,7 +6,17 @@ import { routeSlug } from '../../src/core/slug'
 export const SOURCES = ['ours', 'gdcPin', 'gdcHead', 'kdc'] as const
 export type Source = (typeof SOURCES)[number]
 
-export const KINDS = ['stats', 'weapons', 'size', 'keywords', 'attachments', 'detachments', 'enhancements', 'wargear-caps'] as const
+export const KINDS = [
+  'stats',
+  'weapons',
+  'size',
+  'keywords',
+  'attachments',
+  'option-groups',
+  'detachments',
+  'enhancements',
+  'wargear-caps',
+] as const
 export type Kind = (typeof KINDS)[number]
 
 /**
