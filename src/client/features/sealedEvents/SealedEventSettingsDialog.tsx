@@ -94,6 +94,7 @@ function SettingsForm({
     rosterLimit: sealedEvent?.rosterLimit ?? SEALED_EVENT_DEFAULT_ROSTER_LIMIT,
     allowances: sealedEvent ? [...currentAllowances(sealedEvent)] : [],
     rounds: sealedEvent?.rounds ?? null,
+    teams: sealedEvent?.teams ?? null,
     pointsBudget: sealedEvent?.pointsBudget ?? null,
     soloPoints: sealedEvent?.soloPoints ?? null,
     allyPoints: sealedEvent?.allyPoints ?? null,
@@ -129,6 +130,7 @@ function SettingsForm({
     (sealedEvent !== null &&
       (!sameSet(value.allowances, currentAllowances(sealedEvent)) ||
         value.rounds !== sealedEvent.rounds ||
+        JSON.stringify(value.teams) !== JSON.stringify(sealedEvent.teams) ||
         value.pointsBudget !== sealedEvent.pointsBudget ||
         value.soloPoints !== sealedEvent.soloPoints ||
         value.allyPoints !== sealedEvent.allyPoints ||
@@ -152,6 +154,7 @@ function SettingsForm({
         rosterLimit,
         allowances,
         rounds,
+        teams,
         pointsBudget,
         soloPoints,
         allyPoints,
@@ -178,7 +181,7 @@ function SettingsForm({
               },
             })
           : createSealedEvent({
-              data: { ...details, format, rosterLimit, allowances, rounds, ...points, schedule, clockLimitMinutes, ownerPlays },
+              data: { ...details, format, rosterLimit, allowances, rounds, teams, ...points, schedule, clockLimitMinutes, ownerPlays },
             })
       await updateSealedEvent({
         data: {
@@ -187,7 +190,7 @@ function SettingsForm({
           ...(hiddenListGame ? {} : details),
           schedule,
           clockLimitMinutes,
-          ...(ruleLock || !ruleChanged ? {} : { rule: { format, rosterLimit, allowances, rounds, ...points } }),
+          ...(ruleLock || !ruleChanged ? {} : { rule: { format, rosterLimit, allowances, rounds, teams, ...points } }),
         },
       })
       if (isOwner && adminsChanged) await setSealedEventAdmins({ data: { token: mode.token, userIds: adminIds } })

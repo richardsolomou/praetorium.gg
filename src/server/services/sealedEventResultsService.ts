@@ -1,7 +1,8 @@
 import { battleFilterActive, type BattleFilter, type BattleOrder } from '../../core/battleFilter'
 import { battleOutcome, sideScore, type StandingBattle } from '../../core/standings'
 import { swissPairings, swissStandings, type SwissMatch } from '../../core/swiss'
-import { latestRound } from '../../core/sealedEvent'
+import { squadSwissMatches } from '../../core/squad'
+import { swissRound } from '../../core/sealedEvent'
 import { SEALED_EVENT_RESULTS_BATTLE_LIMIT, sealedEventResults } from '../../core/sealedEventResults'
 import type { BattlesCursor } from '../../contracts/battles'
 import type { BattleFaction } from '../../shared/battleSummary'
@@ -74,8 +75,21 @@ export class SealedEventResultsService {
       viewerId,
     )
     const entrantIds = sealedEvent.entries.filter((entry) => entry.status === 'accepted').map((entry) => entry.userId)
+    const { teams } = sealedEvent
+    const meetings = teams
+      ? squadSwissMatches(sealedEvent.squadMatches, tableResults(sealedEvent.pairings, battles), teams.size, teams.scoring)
+      : []
     return {
       ...sealedEventResults(entrantIds, battles),
+      teams: teams
+        ? swissStandings(
+            sealedEvent.squads.map((squad) => squad.id),
+            meetings,
+            new Set(),
+            sealedEvent.scheduleFirst,
+          )
+        : null,
+      meetings,
       swiss:
         sealedEvent.rounds === null
           ? null
@@ -105,14 +119,22 @@ export class SealedEventResultsService {
     // A battle past the read limit would read as unplayed and skew every score the pairing depends on.
     if (nextCursor !== null) throw new Response('this tournament has too many battles to pair its next round', { status: 409 })
     const players = sealedEvent.entries.filter((entry) => entry.status === 'accepted' && entry.submitted).map((entry) => entry.userId)
-    const matches = swissMatches(sealedEvent.pairings, battles)
-    const round = latestRound(sealedEvent.pairings) + 1
+    const { teams } = sealedEvent
+    // A team tournament pairs its teams, whose meetings then pair their own players.
+    const pairs = teams
+      ? swissPairings(
+          sealedEvent.squads.map((squad) => squad.id),
+          squadSwissMatches(sealedEvent.squadMatches, tableResults(sealedEvent.pairings, battles), teams.size, teams.scoring),
+          Math.random,
+        )
+      : swissPairings(players, swissMatches(sealedEvent.pairings, battles), Math.random, droppedIds(sealedEvent.entries))
+    const round = swissRound(sealedEvent) + 1
     const result = await this.repository.pairSealedEventRound({
       token: sealedEventToken,
       eventToken: sealedEvent.eventToken,
       ownerId: userId,
       round,
-      pairs: swissPairings(players, matches, Math.random, droppedIds(sealedEvent.entries)),
+      pairs,
     })
     if (result === 'paired') {
       this.notifier.notify([
@@ -198,6 +220,12 @@ export class SealedEventResultsService {
     })
   }
 }
+
+/** Each table's result beside the table it was played at. */
+const tableResults = (
+  pairings: Parameters<typeof swissMatches>[0] & readonly { table: number }[],
+  battles: Parameters<typeof swissMatches>[1],
+) => swissMatches(pairings, battles).map((match, index) => ({ ...match, table: pairings[index]!.table }))
 
 const droppedIds = (entries: readonly { userId: string; dropped: boolean }[]) =>
   new Set(entries.filter((entry) => entry.dropped).map((entry) => entry.userId))

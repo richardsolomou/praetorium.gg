@@ -29,6 +29,8 @@ import {
   checkInSchema,
   dropNoShowsSchema,
   swapTableSeatsSchema,
+  setSquadSchema,
+  pickSquadSchema,
   reportTableResultSchema,
   setTableBattlefieldSchema,
   tableBattlefieldsSchema,
@@ -323,6 +325,27 @@ export const swapTableSeats = createServerFn({ method: 'POST' })
       const userId = await requireUserId()
       await app().service.sealedEventService.swapSeats(data.token, data.eventToken ?? data.token, userId, data.players)
       captureMutation(userId, 'sealed_event_seats_swapped', {})
+    }),
+  )
+
+export const setSquad = createServerFn({ method: 'POST' })
+  .validator(setSquadSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const userId = await requireUserId()
+      await app().service.sealedEventService.setSquad(data.token, data.eventToken ?? data.token, userId, data.squad)
+      captureMutation(userId, 'sealed_event_team_set', { action: data.squad === null ? 'leave' : 'name' in data.squad ? 'create' : 'join' })
+    }),
+  )
+
+export const pickSquad = createServerFn({ method: 'POST' })
+  .validator(pickSquadSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const userId = await requireUserId()
+      const { token, eventToken, ...pick } = data
+      const result = await app().service.sealedEventService.pickSquad({ token, eventToken: eventToken ?? token, ownerId: userId, ...pick })
+      captureMutation(userId, 'sealed_event_team_pick', { step: data.step, revealed: result.revealed })
     }),
   )
 

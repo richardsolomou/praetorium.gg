@@ -59,6 +59,7 @@ export function SealedEventReadiness({
   })
   const owing = checks.find((check) => check.step === 'dispositions')?.waiting ?? []
   const leaderless = checks.find((check) => check.step === 'warlords')?.waiting ?? []
+  const squads = checks.find((check) => check.step === 'squads')
   const nameOf = (userId: string) => {
     const entry = sealedEvent.entries.find((candidate) => candidate.userId === userId)
     return entry ? label(entry) : 'someone'
@@ -91,6 +92,7 @@ export function SealedEventReadiness({
     leaderless.length
       ? `${namesPhrase(leaderless.map(nameOf))} still ${leaderless.length === 1 ? 'needs' : 'need'} to choose whose Warlord leads their team.`
       : null,
+    !isOrganizer && squads && !squads.done ? checkDetail(squads, sealedEvent.format, nameOf) : null,
     !isOrganizer && organizerSteps.length
       ? `${organizers} still ${soleOrganizer ? 'needs' : 'need'} to ${namesPhrase(organizerSteps)}.`
       : null,
@@ -249,6 +251,9 @@ export function checkDetail(
       if (check.short) return 'Invite more players: a solo player and two allies need three.'
       if (check.waiting.length) return `Give ${names(check.waiting)} a size.`
       return check.solo === 0 ? 'Make one player solo.' : 'Make two players allied.'
+    case 'squads':
+      if (check.short) return `Invite more players: two teams of ${check.size} need ${check.size * 2}.`
+      return `${names(check.waiting)} ${check.waiting.length === 1 ? 'is' : 'are'} not on a full team of ${check.size} yet.`
     case 'teams':
       if (check.short) return 'Invite more players: doubles needs an even number, at least four.'
       if (format === '2v1') return `Pair ${names(check.waiting)} with another ally.`

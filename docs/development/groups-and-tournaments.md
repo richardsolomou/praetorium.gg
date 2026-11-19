@@ -49,6 +49,14 @@ Swiss is a Praetorium house format for one-on-one tournaments, not a copy of any
 - Deleting a table's battle frees its pairing (`deleteBattle` in `spacetimedb/src/index.ts`), so the pair can start again.
 - Withdrawing and dropping: after reveal a player can withdraw themselves and an organizer can drop a no-show (`drop` in `sealedEventCommand`); a table with a dropped player counts as finished, so the next round can be paired without them.
 
+## Team tournaments
+
+A team tournament is a Swiss tournament format (`teamSize` on `sealed_events`), not a new kind. Players call its teams teams; code calls them squads (`event_squads`, an entry's `squadId`), because `teamId` already names a 2v1 or 2v2 pair. `src/core/squad.ts` owns the pairing process and how a meeting scores.
+
+- Players form squads themselves before the reveal, and the reveal waits until every eligible entrant is on a full one. A squad's members are its accepted entries. Leaving, rejection and the reveal's roster deadline each take an entrant off their squad (`leaveSquad`), which deletes a squad nobody plays for, so a team that never sealed is never paired.
+- `pair-round` writes `squad_matches`, not `round_pairings`. Each squad's secret picks are rows of `squad_picks`; a step is revealed only once both squads picked it, and the server shows a squad's accepted members its own pending pick and everyone else only who has picked. An organizer may pick for either squad, blind, so an absent team can't hold up the round. The pick that completes the process writes the meeting's games to `round_pairings` at tables `(meeting table - 1) × size + game`, so battles, scores, reopening and locking work as at any Swiss table.
+- Standings fold from those tables (`squadSwissMatches`): a meeting's score stands in for victory points in `swissStandings`. Nobody drops out and seats never swap, since the squads chose the tables.
+
 ## Groups
 
 `src/core/group.ts` owns decisions; `src/server/services/groupService.ts` owns operations, and `src/server/services/groupResultsService.ts` owns the reads that fold its battles, such as the group table (`groupStandings`).

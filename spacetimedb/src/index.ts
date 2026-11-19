@@ -84,6 +84,14 @@ import {
 } from '../../src/core/sealedEvent'
 import { clockLimitMinutes, commandSchema, parseRosterSnapshot, rosterPickSchema, rosterSnapshotOrNull } from '../../src/core/commands'
 import { SWISS_ROUNDS_MAX, swissResultLocked } from '../../src/core/swiss'
+import {
+  SQUAD_NAME_MAX_LENGTH,
+  revealedSquadPicks,
+  squadPairing,
+  squadPickRefusal,
+  squadRuleSchema,
+  squadTables,
+} from '../../src/core/squad'
 import { standingsViewQuery, compareStandings, currentRating, isProvisional } from '../../src/core/standings'
 import type { SyncProductActionName } from '../../src/core/syncProductActions'
 import {
@@ -552,6 +560,7 @@ function deleteHost(ctx: Context, host: EventHost) {
   clearTeamPicks(ctx, eventId)
   for (const row of Array.from(ctx.db.eventBattles.eventId.filter(eventId))) ctx.db.eventBattles.battleId.delete(row.battleId)
   for (const row of Array.from(ctx.db.roundPairings.eventId.filter(eventId))) ctx.db.roundPairings.key.delete(row.key)
+  clearSquads(ctx, eventId)
   ctx.db.sealedEvents.id.delete(eventId)
   if (host.kind === 'group') {
     ctx.db.hiddenListGames.eventId.delete(eventId)
@@ -586,7 +595,10 @@ function swissTable(ctx: Context, battleId: string) {
   const group = league && ctx.db.groups.id.find(league.groupId)
   return {
     battleRound: paired.round,
-    latestPairedRound: Math.max(...pairings.map((pairing) => pairing.round)),
+    latestPairedRound: Math.max(
+      ...pairings.map((pairing) => pairing.round),
+      ...Array.from(ctx.db.squadMatches.eventId.filter(link.eventId), (match) => match.round),
+    ),
     organizerIds: host ? hostOrganizerIds(ctx, host) : group ? groupOrganizerIds(ctx, group) : [],
   }
 }
@@ -4419,6 +4431,61 @@ function roundPairings(ctx: Context, eventId: string) {
   return Array.from(ctx.db.roundPairings.eventId.filter(eventId)).sort((a, b) => a.round - b.round || a.table - b.table)
 }
 
+function squadMatchRows(ctx: Context, eventId: string) {
+  return Array.from(ctx.db.squadMatches.eventId.filter(eventId)).sort((a, b) => a.round - b.round || a.table - b.table)
+}
+
+/** The latest Swiss round paired, of teams at a team tournament or of players otherwise. */
+function latestSwissRound(ctx: Context, event: SealedEventRow) {
+  const rows = event.teamSize === undefined ? roundPairings(ctx, event.id) : squadMatchRows(ctx, event.id)
+  return Math.max(0, ...rows.map((row) => row.round))
+}
+
+/** Each team's players at a team tournament, in the order they joined; only an accepted entrant plays for one. */
+function squadMembers(ctx: Context, eventId: string) {
+  const entries = sealedEventEntriesFor(ctx, eventId)
+  return new Map(
+    Array.from(ctx.db.eventSquads.eventId.filter(eventId), (squad): [string, string[]] => [
+      squad.id,
+      entries.filter((entry) => entry.status === 'accepted' && entry.squadId === squad.id).map((entry) => entry.userId),
+    ]),
+  )
+}
+
+/** Takes an entrant off their team; a team nobody plays for any more is gone, so its name is free again. */
+function leaveSquad(ctx: Context, entry: SealedEventEntryRow) {
+  if (entry.squadId === undefined) return entry
+  const left = { ...entry, squadId: undefined }
+  ctx.db.sealedEventEntries.key.update(left)
+  if (!squadMembers(ctx, entry.eventId).get(entry.squadId)?.length) ctx.db.eventSquads.id.delete(entry.squadId)
+  return left
+}
+
+/** An event's picks, or only one meeting's when `at` names it. */
+function squadPickRows(ctx: Context, eventId: string, at?: { round: number; table: number }) {
+  return Array.from(ctx.db.squadPicks.eventId.filter(eventId))
+    .filter((row) => !at || (row.round === at.round && row.table === at.table))
+    .map((row) => ({ ...row, userIds: z.array(z.string()).parse(JSON.parse(row.userIds)) }))
+}
+
+/** Whether every team meeting of a round has its games paired; a bye has none to pair. */
+function squadRoundPaired(ctx: Context, event: SealedEventRow & { teamSize: number }, round: number) {
+  const tables = new Set(
+    roundPairings(ctx, event.id)
+      .filter((pairing) => pairing.round === round)
+      .map((pairing) => pairing.table),
+  )
+  return squadMatchRows(ctx, event.id).every(
+    (match) => match.round !== round || match.bId === undefined || tables.has(squadTables(match.table, event.teamSize).first),
+  )
+}
+
+function clearSquads(ctx: Context, eventId: string) {
+  for (const row of Array.from(ctx.db.eventSquads.eventId.filter(eventId))) ctx.db.eventSquads.id.delete(row.id)
+  for (const row of Array.from(ctx.db.squadMatches.eventId.filter(eventId))) ctx.db.squadMatches.key.delete(row.key)
+  for (const row of Array.from(ctx.db.squadPicks.eventId.filter(eventId))) ctx.db.squadPicks.key.delete(row.key)
+}
+
 /** A bye is done as soon as it is paired; a table once its battle has ended or a player at it has dropped. */
 function pairingFinished(ctx: Context, pairing: { eventId: string; aId: string; bId: string | undefined; battleId: string | undefined }) {
   if (pairing.bId === undefined || droppedFrom(ctx, pairing.eventId, pairing.aId) || droppedFrom(ctx, pairing.eventId, pairing.bId))
@@ -4429,9 +4496,9 @@ function pairingFinished(ctx: Context, pairing: { eventId: string; aId: string; 
 
 /** A Swiss event is over once its final round is paired and every table has finished. */
 function swissFinished(ctx: Context, event: SealedEventRow) {
-  if (event.rounds === undefined) return false
-  const pairings = roundPairings(ctx, event.id)
-  return pairings.some((pairing) => pairing.round === event.rounds) && pairings.every((pairing) => pairingFinished(ctx, pairing))
+  if (event.rounds === undefined || latestSwissRound(ctx, event) !== event.rounds) return false
+  if (event.teamSize !== undefined && !squadRoundPaired(ctx, { ...event, teamSize: event.teamSize }, event.rounds)) return false
+  return roundPairings(ctx, event.id).every((pairing) => pairingFinished(ctx, pairing))
 }
 
 /**
@@ -4466,6 +4533,15 @@ function eventRecord(ctx: Context, host: EventHost) {
     teams: Array.from(ctx.db.sealedEventTeams.eventId.filter(event.id), ({ teamId, disposition }) => ({ teamId, disposition })),
     teamWarlords: Array.from(ctx.db.sealedEventTeamWarlords.eventId.filter(event.id), ({ teamId, userId }) => ({ teamId, userId })),
     pairings: roundPairings(ctx, event.id).map((pairing) => pairingView(ctx, pairing)),
+    squads: Array.from(squadMembers(ctx, event.id), ([id, memberIds]) => ({ id, name: ctx.db.eventSquads.id.find(id)!.name, memberIds })),
+    squadMatches: squadMatchRows(ctx, event.id).map((match) => ({
+      round: match.round,
+      table: match.table,
+      aId: match.aId,
+      bId: match.bId ?? null,
+    })),
+    // Every pick, chosen or revealed: the server shows a team its own and everyone only what both teams have revealed.
+    squadPicks: squadPickRows(ctx, event.id).map(({ key: _key, eventId: _eventId, ...pick }) => pick),
     battlefields: Array.from(ctx.db.eventBattlefields.eventId.filter(event.id)).map((row) => ({
       round: row.round,
       table: row.table,
@@ -4937,6 +5013,7 @@ function insertSealedEventEntry(ctx: Context, eventId: string, userId: string, s
     teamId: undefined,
     droppedAt: undefined,
     checkedInAt: undefined,
+    squadId: undefined,
   })
 }
 
@@ -4954,6 +5031,8 @@ const sealedEventRosterLimitInput = z.number().int().positive().max(10_000)
 const sealedEventMemberLimitInput = z.number().int().min(SEALED_EVENT_MEMBER_MIN).max(SEALED_EVENT_MEMBER_MAX)
 const sealedEventFormatInput = z.enum(TABLE_SHAPES)
 const sealedEventRoundsInput = z.number().int().min(1).max(SWISS_ROUNDS_MAX).nullable()
+/** A team tournament's team size and how a team match is won; null pairs players one by one. */
+const sealedEventTeamsInput = squadRuleSchema.nullable()
 const sealedEventPointsBudgetInput = z.number().int().min(POINTS_BUDGET_MIN).max(POINTS_BUDGET_MAX).nullable()
 const sealedEventScheduleInput = z.object({ playsAt: sealedEventTimeInput.nullable(), sealBy: sealedEventTimeInput.nullable() })
 
@@ -4970,6 +5049,7 @@ const sealedEventRuleInput = z.object({
   allowances: sealedEventAllowancesSchema.optional(),
   // Absent from an older client, which leaves the event's pairing and points as they stand.
   rounds: sealedEventRoundsInput.optional(),
+  teams: sealedEventTeamsInput.optional(),
   pointsBudget: sealedEventPointsBudgetInput.optional(),
   soloPoints: sealedEventArmyPointsInput.optional(),
   allyPoints: sealedEventArmyPointsInput.optional(),
@@ -5042,7 +5122,12 @@ function revealSealedEvent(tx: Context, event: SealedEventRow, now: number, acto
     (entry) => entry.status === 'accepted' && (!sealedEventSealingClosed({ sealBy }, now) || entry.rosterSnapshot !== undefined),
   )
   const checks = sealedEventRevealChecklist(
-    { format: (event.format ?? null) as TableShape | null, rosterLimit: event.rosterLimit ?? null, sealBy },
+    {
+      format: (event.format ?? null) as TableShape | null,
+      rosterLimit: event.rosterLimit ?? null,
+      sealBy,
+      teams: event.teamSize === undefined ? null : { size: event.teamSize },
+    },
     sealedEventRevealEntries(tx, event.id, all),
     now,
   )
@@ -5074,6 +5159,8 @@ function revealSealedEvent(tx: Context, event: SealedEventRow, now: number, acto
   )
     return { outcome: 'not-ready' as const }
   for (const entry of all.filter((row) => row.status === 'pending')) tx.db.sealedEventEntries.key.update({ ...entry, status: 'rejected' })
+  // The deadline left these out of play, so they leave their teams, and a team none of whose players sealed is never paired.
+  for (const entry of all.filter((row) => row.status === 'accepted' && row.rosterSnapshot === undefined)) leaveSquad(tx, entry)
   // Recorded outright, so the card a pair agreed on by default survives one of its lists being unsealed.
   for (const team of eventTeams(tx, event.id, all)) {
     if (team.disposition) setTeamPick(tx, event.id, team.id, team.disposition)
@@ -5093,6 +5180,7 @@ function sealedEventRevealEntries(ctx: Context, eventId: string, entries: Sealed
     submitted: entry.rosterSnapshot !== undefined,
     requiredLimit: entry.requiredLimit ?? null,
     teamId: entry.teamId ?? null,
+    squadId: entry.squadId ?? null,
     dispositionOwed: owing.has(entry.userId),
     warlordOwed: leaderless.has(entry.userId),
   }))
@@ -6265,6 +6353,7 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
         allowances: sealedEventAllowancesSchema.default([]),
         ownerPlays: z.boolean().default(false),
         rounds: sealedEventRoundsInput.default(null),
+        teams: sealedEventTeamsInput.default(null),
         pointsBudget: sealedEventPointsBudgetInput.default(null),
         soloPoints: sealedEventArmyPointsInput.default(null),
         allyPoints: sealedEventArmyPointsInput.default(null),
@@ -6276,7 +6365,13 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
       value,
     )
     const points = sealedEventPointsBudget(input.format ?? '1v1', input.rosterLimit, input.pointsBudget)
-    if (!points || (input.rounds !== null && (input.format ?? '1v1') !== '1v1') || sealedEventArmyPointsError(input.format ?? '1v1', input))
+    if (
+      !points ||
+      (input.rounds !== null && (input.format ?? '1v1') !== '1v1') ||
+      // Teams meet in Swiss rounds, so only a Swiss tournament has them.
+      (input.teams !== null && (input.rounds === null || operation !== 'create')) ||
+      sealedEventArmyPointsError(input.format ?? '1v1', input)
+    )
       return productJson('forbidden')
     const createdAt = BigInt(input.now)
     if (operation === 'create') {
@@ -6363,6 +6458,8 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
       scheduleFirst: undefined,
       clockLimitMinutes: input.clockLimitMinutes ?? undefined,
       sharedPoints: input.sharedPoints || undefined,
+      teamSize: input.teams?.size,
+      teamScoring: input.teams?.scoring,
     })
     if (input.ownerPlays) insertSealedEventEntry(tx, input.eventId, input.ownerId, 'accepted', input.now)
     touchEventById(tx, input.eventId)
@@ -6397,7 +6494,7 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
     if (sealedEventRegistrationFull(rules, accepted, entries.length, input.memberLimit)) return productJson('full')
     const organizers = hostOrganizerIds(tx, host)
     const status = rules.admission === 'automatic' || organizers.includes(input.userId) ? 'accepted' : 'pending'
-    if (existing) tx.db.sealedEventEntries.key.update({ ...existing, status, joinedAt: BigInt(input.now) })
+    if (existing) tx.db.sealedEventEntries.key.update({ ...existing, status, joinedAt: BigInt(input.now), squadId: undefined })
     else insertSealedEventEntry(tx, event.id, input.userId, status, input.now)
     touchEvent(tx, host)
     return productJson(status === 'pending' ? { status, organizerIds: organizers } : status)
@@ -6423,6 +6520,8 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
           'dismiss-roster-sharing',
           'drop',
           'check-in',
+          'set-squad',
+          'pick-squad',
         ].includes(operation) && !organizer
   )
     return productJson('forbidden')
@@ -6490,10 +6589,13 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
       ((input.rule.soloPoints !== undefined && input.rule.soloPoints !== (event.soloPoints ?? null)) ||
         (input.rule.allyPoints !== undefined && input.rule.allyPoints !== (event.allyPoints ?? null)) ||
         (input.rule.sharedPoints !== undefined && input.rule.sharedPoints !== (event.sharedPoints ?? false)))
+    const teams = event.teamSize === undefined ? null : { size: event.teamSize, scoring: event.teamScoring ?? 'games' }
+    const teamsChanged = input.rule?.teams !== undefined && JSON.stringify(input.rule.teams) !== JSON.stringify(teams)
     const rule =
       input.rule &&
       (shapeChanged ||
         pointsChanged ||
+        teamsChanged ||
         (input.rule.rounds !== undefined && (input.rule.rounds ?? undefined) !== event.rounds) ||
         (input.rule.pointsBudget !== undefined &&
           sealedEventPointsBudget(input.rule.format, input.rule.rosterLimit, input.rule.pointsBudget)?.budget !== event.pointsBudget) ||
@@ -6505,6 +6607,7 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
     const openAfterSealing =
       rule !== null &&
       !shapeChanged &&
+      !teamsChanged &&
       (rule.rounds === undefined || (rule.rounds ?? undefined) === event.rounds) &&
       (rule.pointsBudget === undefined || (rule.pointsBudget ?? undefined) === event.pointsBudget)
     if (rule) {
@@ -6521,6 +6624,8 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
       const rounds = rule.rounds === undefined ? event.rounds : (rule.rounds ?? undefined)
       // Swiss rounds pair duels, and a group's game never plays them.
       if (rounds !== undefined && (host.kind === 'group' || rule.format !== '1v1')) return productJson('forbidden')
+      const nextTeams = rule.teams === undefined ? teams : rule.teams
+      if (nextTeams !== null && rounds === undefined) return productJson('forbidden')
       const points =
         rule.pointsBudget === undefined
           ? { budget: rule.format === '1v1' && rule.rosterLimit === event.rosterLimit ? event.pointsBudget : undefined }
@@ -6541,6 +6646,8 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
         soloPoints,
         allyPoints,
         sharedPoints,
+        teamSize: nextTeams?.size,
+        teamScoring: nextTeams?.scoring,
       }
       if (!sealedListsFit(next, entries)) return productJson('misfit')
       tx.db.sealedEvents.id.update(next)
@@ -6548,6 +6655,14 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
       if (rule.format !== event.format || rule.rosterLimit !== event.rosterLimit) {
         for (const entry of entries) tx.db.sealedEventEntries.key.update({ ...entry, requiredLimit: undefined, teamId: undefined })
         clearTeamPicks(tx, event.id)
+      }
+      // Teams were formed for the size they had, so a new size or none forms them again.
+      if (nextTeams?.size !== teams?.size) {
+        clearSquads(tx, event.id)
+        for (const { key } of entries) {
+          const entry = tx.db.sealedEventEntries.key.find(key)!
+          if (entry.squadId !== undefined) tx.db.sealedEventEntries.key.update({ ...entry, squadId: undefined })
+        }
       }
     }
     if (input.schedule) {
@@ -6595,13 +6710,19 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
     )
     if (event.revealedAt === undefined || event.rounds === undefined) return productJson('not-ready')
     const pairings = roundPairings(tx, event.id)
-    const latest = Math.max(0, ...pairings.map((pairing) => pairing.round))
+    const latest = latestSwissRound(tx, event)
     if (input.round !== latest + 1 || input.round > event.rounds) return productJson('stale')
     if (pairings.some((pairing) => pairing.round === latest && !pairingFinished(tx, pairing))) return productJson('not-ready')
-    // Every entrant who sealed a list and hasn't dropped sits at exactly one table, and at most one sits the round out.
-    const players = sealedEventEntriesFor(tx, event.id)
-      .filter((entry) => entry.status === 'accepted' && entry.rosterSnapshot !== undefined && entry.droppedAt === undefined)
-      .map((entry) => entry.userId)
+    if (event.teamSize !== undefined && !squadRoundPaired(tx, { ...event, teamSize: event.teamSize }, latest))
+      return productJson('not-ready')
+    // Every entrant who sealed a list and hasn't dropped sits at exactly one table, and at most one sits the round out; at
+    // a team tournament every team does.
+    const players =
+      event.teamSize === undefined
+        ? sealedEventEntriesFor(tx, event.id)
+            .filter((entry) => entry.status === 'accepted' && entry.rosterSnapshot !== undefined && entry.droppedAt === undefined)
+            .map((entry) => entry.userId)
+        : [...squadMembers(tx, event.id).keys()]
     const seated = input.pairs.flatMap(([a, b]) => (b === null ? [a] : [a, b]))
     if (
       seated.length !== players.length ||
@@ -6611,23 +6732,118 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
     )
       return productJson('stale')
     tx.db.sealedEvents.id.update({ ...event, roundEndsAt: undefined })
-    for (const [index, [aId, bId]] of input.pairs.entries())
-      tx.db.roundPairings.insert({
-        key: JSON.stringify([event.id, input.round, index + 1]),
-        eventId: event.id,
-        round: input.round,
-        table: index + 1,
-        aId,
-        bId: bId ?? undefined,
-        battleId: undefined,
-      })
+    for (const [index, [aId, bId]] of input.pairs.entries()) {
+      const seat = { key: JSON.stringify([event.id, input.round, index + 1]), eventId: event.id, round: input.round, table: index + 1 }
+      if (event.teamSize === undefined) tx.db.roundPairings.insert({ ...seat, aId, bId: bId ?? undefined, battleId: undefined })
+      else tx.db.squadMatches.insert({ ...seat, aId, bId: bId ?? undefined })
+    }
     touchEvent(tx, host)
     return productJson('paired')
+  }
+  if (operation === 'set-squad') {
+    const input = sealedEventCommandInput(
+      z.object({
+        op: z.literal('set-squad'),
+        squad: z.union([
+          z.object({ create: z.object({ id: idInput, name: z.string().trim().min(1).max(SQUAD_NAME_MAX_LENGTH) }) }),
+          z.object({ join: idInput }),
+          z.null(),
+        ]),
+        now: sealedEventTimeInput,
+      }),
+      value,
+    )
+    if (event.teamSize === undefined) return productJson('forbidden')
+    if (event.revealedAt !== undefined) return productJson('closed')
+    const entry = tx.db.sealedEventEntries.key.find(JSON.stringify([event.id, ownerId]))
+    if (entry?.status !== 'accepted') return productJson('forbidden')
+    const members = squadMembers(tx, event.id)
+    const joining = input.squad && 'join' in input.squad ? tx.db.eventSquads.id.find(input.squad.join) : undefined
+    if (input.squad && 'join' in input.squad) {
+      if (joining?.eventId !== event.id) return productJson('missing')
+      if (entry.squadId === joining.id) return productJson('set')
+      if ((members.get(joining.id)?.length ?? 0) >= event.teamSize) return productJson('full')
+    }
+    const create = input.squad && 'create' in input.squad ? input.squad.create : null
+    // Teams are told apart by name in every meeting and table, so two can't share one.
+    const named = (name: string) => name.toLocaleLowerCase('en')
+    if (create && Array.from(tx.db.eventSquads.eventId.filter(event.id)).some((squad) => named(squad.name) === named(create.name)))
+      return productJson('taken')
+    const left = leaveSquad(tx, entry)
+    if (create) tx.db.eventSquads.insert({ id: create.id, eventId: event.id, name: create.name, createdAt: BigInt(input.now) })
+    const squadId = create?.id ?? joining?.id
+    if (squadId) tx.db.sealedEventEntries.key.update({ ...left, squadId })
+    touchEvent(tx, host)
+    return productJson('set')
+  }
+  if (operation === 'pick-squad') {
+    const input = sealedEventCommandInput(
+      z.object({
+        op: z.literal('pick-squad'),
+        round: z.number().int().min(1).max(SWISS_ROUNDS_MAX),
+        table: z.number().int().min(1).max(1024),
+        step: z.number().int().min(0).max(64),
+        userIds: z.array(idInput).min(1).max(2),
+        // The team an organizer picks for when it can't, so one absent team never holds up the round.
+        squadId: idInput.optional(),
+      }),
+      value,
+    )
+    const match = tx.db.squadMatches.key.find(JSON.stringify([event.id, input.round, input.table]))
+    const own = tx.db.sealedEventEntries.key.find(JSON.stringify([event.id, ownerId]))
+    if (!match?.bId || event.teamSize === undefined) return productJson('missing')
+    const inMatch = (id: string | undefined) => id === match.aId || id === match.bId
+    const squadId =
+      own?.status === 'accepted' && inMatch(own.squadId) ? own.squadId : organizer && inMatch(input.squadId) ? input.squadId : undefined
+    if (squadId === undefined) return productJson('forbidden')
+    const side = squadId === match.aId ? 0 : 1
+    const members = squadMembers(tx, event.id)
+    const teams = [members.get(match.aId) ?? [], members.get(match.bId) ?? []] as const
+    const { revealed, chosen } = revealedSquadPicks({ ...match, bId: match.bId }, squadPickRows(tx, event.id, match))
+    const state = squadPairing(teams, revealed)
+    if (state.step?.index !== input.step) return productJson('stale')
+    const refusal = squadPickRefusal(state, side, input.userIds)
+    if (refusal) return productJson(refusal)
+    const row = {
+      key: JSON.stringify([event.id, match.round, match.table, squadId, input.step]),
+      eventId: event.id,
+      round: match.round,
+      table: match.table,
+      squadId,
+      step: input.step,
+      userIds: JSON.stringify(input.userIds),
+    }
+    // A team may change its mind until the other team has chosen too, which reveals both.
+    if (chosen(row.squadId)) tx.db.squadPicks.key.update(row)
+    else tx.db.squadPicks.insert(row)
+    const other = chosen(side === 0 ? match.bId : match.aId)
+    let seated = false
+    if (other) {
+      const paired = squadPairing(teams, [...revealed, side === 0 ? [input.userIds, other] : [other, input.userIds]])
+      seated = !paired.step
+      if (seated)
+        for (const [index, [aId, bId]] of paired.games.entries()) {
+          const seat = squadTables(match.table, event.teamSize).first + index
+          tx.db.roundPairings.insert({
+            key: JSON.stringify([event.id, match.round, seat]),
+            eventId: event.id,
+            round: match.round,
+            table: seat,
+            aId,
+            bId,
+            battleId: undefined,
+          })
+        }
+    }
+    touchEvent(tx, host)
+    if (!other) return productJson('chosen')
+    // Both teams hear that the step is out, so whoever chose first need not keep watching the page.
+    return productJson({ outcome: seated ? 'seated' : 'revealed', recipientIds: [...teams[0], ...teams[1]] })
   }
   if (operation === 'set-tiebreak') {
     const input = sealedEventCommandInput(z.object({ op: z.literal('set-tiebreak'), scheduleFirst: z.boolean() }), value)
     // Changing the order once results exist could hand a place to whoever asked for it.
-    if (event.rounds === undefined || roundPairings(tx, event.id).length) return productJson('closed')
+    if (event.rounds === undefined || latestSwissRound(tx, event)) return productJson('closed')
     tx.db.sealedEvents.id.update({ ...event, scheduleFirst: input.scheduleFirst || undefined })
     touchEvent(tx, host)
     return productJson('set')
@@ -6644,6 +6860,8 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
   }
   if (operation === 'swap-seats') {
     const input = sealedEventCommandInput(z.object({ op: z.literal('swap-seats'), players: z.tuple([idInput, idInput]) }), value)
+    // A team tournament's tables come from its teams' pairing process, which nobody else overrides.
+    if (event.teamSize !== undefined) return productJson('forbidden')
     const pairings = roundPairings(tx, event.id)
     const latest = Math.max(0, ...pairings.map((pairing) => pairing.round))
     const current = pairings.filter((pairing) => pairing.round === latest)
@@ -6805,7 +7023,7 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
     }
     if (input.status === 'rejected')
       tx.db.sealedEventEntries.key.update({
-        ...entry,
+        ...leaveSquad(tx, entry),
         status: input.status,
         teamId: undefined,
         requiredLimit: undefined,
@@ -7120,7 +7338,7 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
     return productJson({ outcome: 'reminded', recipientIds })
   }
   if (operation === 'check-in' || operation === 'drop-no-shows') {
-    if (event.revealedAt === undefined || event.rounds === undefined || roundPairings(tx, event.id).length) return productJson('closed')
+    if (event.revealedAt === undefined || event.rounds === undefined || latestSwissRound(tx, event)) return productJson('closed')
     if (operation === 'check-in') {
       const input = sealedEventCommandInput(
         z.object({ op: z.literal('check-in'), userId: idInput, checkedIn: z.boolean(), now: sealedEventTimeInput }),
@@ -7131,6 +7349,8 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
       if (!entry || entry.status !== 'accepted' || entry.droppedAt !== undefined) return productJson('missing')
       tx.db.sealedEventEntries.key.update({ ...entry, checkedInAt: input.checkedIn ? BigInt(input.now) : undefined })
     } else {
+      // A team plays with every player it formed with, so nobody drops out of one.
+      if (event.teamSize !== undefined) return productJson('closed')
       const input = sealedEventCommandInput(z.object({ op: z.literal('drop-no-shows'), now: sealedEventTimeInput }), value)
       for (const entry of sealedEventEntriesFor(tx, event.id))
         if (
@@ -7148,7 +7368,7 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
     const input = sealedEventCommandInput(z.object({ op: z.literal('drop'), userId: idInput, now: sealedEventTimeInput }), value)
     // An entrant withdraws only themselves; dropping anyone else takes an organizer.
     if (input.userId !== ownerId && !organizer) return productJson('forbidden')
-    if (event.revealedAt === undefined || event.rounds === undefined) return productJson('closed')
+    if (event.revealedAt === undefined || event.rounds === undefined || event.teamSize !== undefined) return productJson('closed')
     const entry = tx.db.sealedEventEntries.key.find(JSON.stringify([event.id, input.userId]))
     if (!entry || entry.status !== 'accepted' || entry.droppedAt !== undefined) return productJson('missing')
     tx.db.sealedEventEntries.key.update({ ...entry, droppedAt: BigInt(input.now) })

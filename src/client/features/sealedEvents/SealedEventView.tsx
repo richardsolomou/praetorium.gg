@@ -62,6 +62,7 @@ import { SealedEventCombatDialog } from './SealedEventCombatDialog'
 import { SealedEventResults } from './SealedEventResults'
 import { useNow } from '../../useNow'
 import { forfeited, SealedEventRounds, swissProgress } from './SealedEventRounds'
+import { SquadAction, StartSquad } from './SealedEventSquads'
 import { TeamDispositionPanel } from './SealedEventTeamDisposition'
 import { TeamWarlordPanel } from './SealedEventTeamWarlord'
 import { SealedEventRosterSharing } from './SealedEventRosterSharing'
@@ -208,8 +209,12 @@ export function SealedEventView({
       ? accepted.filter((entry) => readsAlliedSealedEventRoster(sealedEvent.format, sealedEvent.rosterLimit, entry, ownEntry))
       : []
   const swiss = sealedEvent.rounds !== null
-  const table = swiss ? ownTable(sealedEvent, viewerId) : undefined
   const swissProgressNow = swissProgress(sealedEvent, eventBattles)
+  const table = swiss ? ownTable(sealedEvent, viewerId, swissProgressNow.round) : undefined
+  // At a team tournament the viewer's team meets another before any of its players has a table.
+  const ownMeeting = sealedEvent.squadMatches.find(
+    (match) => match.round === swissProgressNow.round && ownEntry?.squadId && [match.aId, match.bId].includes(ownEntry.squadId),
+  )
   const tableOpponent = table ? (table.aId === viewerId ? table.bId : table.aId) : null
   const tableForfeited = Boolean(table && !table.battleToken && forfeited(table, sealedEvent.entries))
   // In Swiss rounds the only battle to start is the viewer's own unplayed table, unless a player there has dropped.
@@ -222,7 +227,7 @@ export function SealedEventView({
     battleFormat !== '1v1' || !ownEntry?.submitted || !revealed
       ? undefined
       : swiss
-        ? swissDetail(table, ownEntry.dropped, tableForfeited, swissProgressNow, () => {
+        ? swissDetail(table, ownEntry.dropped, tableForfeited, swissProgressNow, ownMeeting, () => {
             const entry = sealedEvent.entries.find((candidate) => candidate.userId === tableOpponent)
             return entry ? label(entry) : 'your opponent'
           })
@@ -285,9 +290,13 @@ export function SealedEventView({
   )
   // The revealed rosters split by side or pair the way the entrant list does, so a pairing reads the same before and after.
   const groups = useEntrantGroups(sealedEvent, accepted, label)
+  const squadAction = (group: { squadId?: string }) =>
+    !revealed && group.squadId && ownEntry?.status === 'accepted' ? (
+      <SquadAction token={token} sealedEvent={sealedEvent} squadId={group.squadId} viewerSquadId={ownEntry.squadId} />
+    ) : undefined
   // Once the rosters are out, each player shows with their roster, so the entrant list has nothing left to say.
   const entrants = revealed ? null : isOrganizer ? (
-    <OrganizerEntrants sealedEvent={sealedEvent} token={token} row={row} />
+    <OrganizerEntrants sealedEvent={sealedEvent} token={token} row={row} squadAction={squadAction} />
   ) : (
     <section>
       <SectionHeading title="Entrants" count={accepted.length} />
@@ -297,7 +306,7 @@ export function SealedEventView({
         <div className="space-y-4">
           {groups.map((group) =>
             group.title ? (
-              <EntrantGroup key={group.key} group={group.key} title={group.title} detail={group.detail}>
+              <EntrantGroup key={group.key} group={group.key} title={group.title} detail={group.detail} action={squadAction(group)}>
                 <EntrantList>{group.entries.map((entry) => row(entry))}</EntrantList>
               </EntrantGroup>
             ) : (
@@ -311,7 +320,7 @@ export function SealedEventView({
   // Whoever moves the event on, the organizer or a player in it, reads its next step.
   // In Swiss rounds the status card and the rounds say what comes next, round by round, once the first is paired.
   const nextStep =
-    swiss && revealed && isOrganizer && !sealedEvent.pairings.length
+    swiss && revealed && isOrganizer && !swissProgressNow.round
       ? 'Check players in, then pair round 1 below.'
       : !(swiss && revealed) && (isOrganizer || ownEntry?.status === 'accepted')
         ? sealedEventNextStep(
@@ -401,6 +410,9 @@ export function SealedEventView({
           {!revealed && (isOrganizer || accepted.length) ? (
             <SealedEventReadiness token={token} sealedEvent={sealedEvent} viewerId={viewerId} isOrganizer={isOrganizer} label={label} />
           ) : null}
+          {!revealed && sealedEvent.teams && ownEntry?.status === 'accepted' && !ownEntry.squadId ? (
+            <StartSquad token={token} sealedEvent={sealedEvent} />
+          ) : null}
           {revealed ? (
             <SealedEventArmies
               token={token}
@@ -411,7 +423,7 @@ export function SealedEventView({
               revealedBy={sealedEvent.revealedByName}
               label={label}
               canUnseal={isOrganizer}
-              dropBy={!swiss ? null : isOrganizer ? 'organizer' : ownEntry?.status === 'accepted' ? 'player' : null}
+              dropBy={!swiss || sealedEvent.teams ? null : isOrganizer ? 'organizer' : ownEntry?.status === 'accepted' ? 'player' : null}
               onSimulate={ownEntry?.status === 'accepted' && ownEntry.submitted ? setSimulating : null}
             />
           ) : null}
@@ -435,6 +447,7 @@ export function SealedEventView({
               label={label}
               onPlay={(opponentId) => battle.mutate({ opponentId })}
               playing={battle.isPending}
+              meetings={results?.meetings}
             />
           ) : null}
           {revealed ? (
@@ -453,6 +466,17 @@ export function SealedEventView({
                     }
                   : undefined
               }
+            />
+          ) : null}
+          {results?.teams && sealedEvent.squadMatches.length ? (
+            <SealedEventResults
+              event={eventName(sealedEvent)}
+              rows={results.teams}
+              format={sealedEvent.teams?.scoring === 'points' ? 'teamPoints' : 'teamGames'}
+              partial={results.partial}
+              entries={sealedEvent.squads.map((squad) => ({ userId: squad.id, name: squad.name, image: null }))}
+              label={(squad) => squad.name}
+              title="Team results"
             />
           ) : null}
           {results?.swiss && sealedEvent.pairings.length ? (
@@ -629,6 +653,13 @@ export function entryStatus({
       steps: steps('join'),
     }
   }
+  if (!revealed && sealedEvent.teams && !ownEntry.squadId)
+    return {
+      title: 'Join a team',
+      detail: `Teams of ${sealedEvent.teams.size} play each other. Join one below or start your own.`,
+      action: ownEntry.submitted ? undefined : { label: 'Choose a roster', icon: <FileLock2 />, variant: 'outline', onClick: choose },
+      steps: steps('assign'),
+    }
   if (!revealed && ownEntry.requiredLimit === null && isTeamFormat(sealedEvent.format)) {
     const doubles = sealedEvent.format === '2v2'
     return {
@@ -836,10 +867,13 @@ export function swissDetail(
   dropped: boolean,
   forfeit: boolean,
   progress: ReturnType<typeof swissProgress>,
+  meeting: { bId: string | null } | undefined,
   opponent: () => string,
 ) {
   if (dropped) return 'You’re out of the Swiss rounds. Your results stay in the table.'
   if (!progress.round) return 'Waiting for the organizer to pair round 1.'
+  if (meeting && !meeting.bId) return `Your team has a bye in round ${progress.round}: it counts as a win.`
+  if (meeting && !table) return `Round ${progress.round}: your team chooses who plays whom below.`
   if (!table) return `Round ${progress.round} is under way.`
   if (!table.bId) return `You have a bye in round ${progress.round}: it counts as a win.`
   if (forfeit) return `${opponent()} dropped out, so round ${progress.round} counts as a bye for you.`

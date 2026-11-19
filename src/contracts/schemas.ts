@@ -68,6 +68,7 @@ import {
   hiddenListGameTimeZoneSchema,
 } from '../core/group'
 import { SWISS_ROUNDS_MAX } from '../core/swiss'
+import { SQUAD_NAME_MAX_LENGTH, squadRuleSchema, type SquadRule } from '../core/squad'
 import { GROUP_LEAGUE_PLAYERS_MAX, GROUP_LEAGUE_SEED_MAX } from '../core/groupLeague'
 import { PASSWORD_MIN_LENGTH, SOCIAL_PROVIDERS } from '../authConfig'
 import { PROFILE_NAME_MAX_LENGTH } from '../core/profileName'
@@ -105,6 +106,8 @@ const sealedEventRuleFields = {
   allowances: sealedEventAllowancesSchema.default([]),
   // Absent from an older client: no Swiss rounds or own points total on a new event, and an edit leaves them as they stand.
   rounds: z.number().int().min(1).max(SWISS_ROUNDS_MAX).nullable().optional(),
+  // Absent from an older client: no teams on a new event, and an edit leaves them as they stand.
+  teams: squadRuleSchema.nullable().optional(),
   pointsBudget,
   soloPoints: z.number().int().min(1).max(POINTS_BUDGET_MAX).nullable().optional(),
   allyPoints: z.number().int().min(1).max(POINTS_BUDGET_MAX).nullable().optional(),
@@ -118,7 +121,7 @@ const sealedEventSchedule = z
     path: ['sealBy'],
   })
 function validateSealedEventRule(
-  value: { format: TableShape; rosterLimit: number; rounds?: number | null } & Partial<SealedEventArmyPoints>,
+  value: { format: TableShape; rosterLimit: number; rounds?: number | null; teams?: SquadRule | null } & Partial<SealedEventArmyPoints>,
   context: z.RefinementCtx,
 ) {
   const armyPointsProblem = sealedEventArmyPointsError(value.format, value)
@@ -128,6 +131,7 @@ function validateSealedEventRule(
   }
   if (value.rounds != null && value.format !== '1v1')
     context.addIssue({ code: 'custom', path: ['rounds'], message: 'Swiss rounds pair duels only' })
+  if (value.teams && value.rounds == null) context.addIssue({ code: 'custom', path: ['teams'], message: 'teams meet in Swiss rounds' })
 }
 export const createSealedEventSchema = z
   .object({
@@ -147,6 +151,7 @@ export const createHiddenListGameSchema = z
     timeZone: hiddenListGameTimeZoneSchema.optional(),
     ...sealedEventRuleFields,
     rounds: z.null().optional(),
+    teams: z.null().optional(),
     schedule: sealedEventSchedule.optional(),
     clockLimitMinutes: clockLimitMinutes.nullable().default(null),
   })
@@ -192,6 +197,25 @@ export const checkInSchema = z.object({ ...sealedEvent, userId: id, checkedIn: z
 export const dropNoShowsSchema = z.object(sealedEvent)
 export const setTiebreakSchema = z.object({ ...sealedEvent, scheduleFirst: z.boolean() })
 export const swapTableSeatsSchema = z.object({ ...sealedEvent, players: z.tuple([id, id]) })
+/** Starts a team by name, joins one by id, or leaves the reader's team with null. */
+export const setSquadSchema = z.object({
+  ...sealedEvent,
+  squad: z.union([
+    z.object({ name: z.string().trim().min(1, 'name the team').max(SQUAD_NAME_MAX_LENGTH) }),
+    z.object({ squadId: id }),
+    z.null(),
+  ]),
+})
+/** One team's choice at one step of its meeting's pairing process. */
+export const pickSquadSchema = z.object({
+  ...sealedEvent,
+  round: z.number().int().min(1).max(SWISS_ROUNDS_MAX),
+  table: z.number().int().min(1).max(1024),
+  step: z.number().int().min(0).max(64),
+  userIds: z.array(id).min(1).max(2),
+  /** The team an organizer picks for when it can't pick for itself. */
+  squadId: id.optional(),
+})
 /** Each seat's final score, by the pairing's two players in order. */
 export const reportTableResultSchema = z.object({
   ...eventTable,

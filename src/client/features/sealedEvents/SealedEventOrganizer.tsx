@@ -41,7 +41,18 @@ import { nameColour } from '../../playerName'
 type EntrantRowRenderer = (entry: SealedEventEntryView, detail: ReactNode, controls?: ReactNode, last?: ReactNode) => ReactNode
 
 /** The organizer's view of who is in an open event: requests to answer, entrants to size, pair or remove, and who was turned away. */
-export function OrganizerEntrants({ sealedEvent, token, row }: { sealedEvent: SealedEvent; token: string; row: EntrantRowRenderer }) {
+export function OrganizerEntrants({
+  sealedEvent,
+  token,
+  row,
+  squadAction,
+}: {
+  sealedEvent: SealedEvent
+  token: string
+  row: EntrantRowRenderer
+  /** The organizer's own join or leave at a team tournament, which players form themselves. */
+  squadAction: (group: { squadId?: string }) => ReactNode
+}) {
   const refresh = useSealedEventRefresh(token)
   const eventToken = sealedEvent.eventToken
   const [removing, setRemoving] = useState<SealedEventEntryView | null>(null)
@@ -177,7 +188,7 @@ export function OrganizerEntrants({ sealedEvent, token, row }: { sealedEvent: Se
 
   const entrants = !accepted.length ? (
     <p className="text-sm text-dim">No entrants yet. Share the invite link to fill it.</p>
-  ) : isTeamFormat(sealedEvent.format) ? (
+  ) : isTeamFormat(sealedEvent.format) || sealedEvent.teams ? (
     <div className="space-y-4">
       {groups.map((group) => {
         const pairing = pairPool(group)
@@ -199,6 +210,8 @@ export function OrganizerEntrants({ sealedEvent, token, row }: { sealedEvent: Se
                     {pickedLive.length === 2 ? `Pair ${formatList(pickedLive.map(nameOf))}` : 'Pick two to pair'}
                   </span>
                 </Button>
+              ) : group.squadId ? (
+                squadAction(group)
               ) : group.teamId ? (
                 <Button
                   size="sm"

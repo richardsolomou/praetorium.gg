@@ -102,6 +102,15 @@ describe('notice messages', () => {
     ).toBe('Round 2 is paired. See your table.')
   })
 
+  it('tells a team its games have tables once the last pick is out', () => {
+    expect(
+      noticeMessage(
+        { kind: 'sealed-event-team-picks', actorId: 'alice', sealedEventToken: 'tournament', round: 1, seated: true },
+        { sealedEvent: 'Winter Team Clash' },
+      )?.body,
+    ).toBe('Round 1: your team’s games are paired. See your table.')
+  })
+
   it('drops a sealed event notice whose sealed event no longer exists', () => {
     expect(noticeMessage({ kind: 'sealed-event-revealed', actorId: 'alice', sealedEventToken: 'tournament' }, {})).toBeNull()
   })

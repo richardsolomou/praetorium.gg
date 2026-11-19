@@ -30,6 +30,8 @@ Sealing stores a copy: editing the saved roster later doesn't change it, so seal
 2. To play on Praetorium, confirm with the player, then call `start_event_battle`; in Swiss rounds it plays the paired opponent. Without Swiss rounds, name the opponent from `entrants`. Both sealed lists are attached for you. Then follow the set-up-a-battle skill and track it with track-a-battle.
 3. For a game not tracked here, ask for both final scores, and report only once both players agree on them. Then call `report_table_result` with the player's score and their opponent's.
 
+In a team tournament (`rules.teams`), the player starts or joins a team on its page before the reveal. Each round their team meets another in `rounds.meetings`, and the two teams choose who plays whom on its page, step by step: a defender, then two attackers, then which attacker their defender plays. Each pick stays secret until both teams have chosen; `picksRevealed` holds the steps already out. Once every game is paired, `rounds.yourTable` names the opponent. `teamStandings` ranks the teams.
+
 A result locks once the next round is paired. If it's wrong, the player asks the organizer to reopen it, then corrects the score and finishes the battle again.
 
 ## Group leagues

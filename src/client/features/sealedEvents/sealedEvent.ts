@@ -82,14 +82,29 @@ function sideGroups(
  *
  * `teamId` marks a pair, which plays together and seals one Force Disposition; a duel is one untitled run.
  */
-type EntrantGrouping<T> = { key: string; title?: string; detail?: string; teamId?: string; entries: T[] }
+type EntrantGrouping<T> = { key: string; title?: string; detail?: string; teamId?: string; squadId?: string; entries: T[] }
 
 /** The groups the entrant list, the organizer and the revealed rosters all split an event into, so a pairing reads the same everywhere. */
-export function entrantGroups<T extends Pick<SealedEventEntryView, 'teamId' | 'status' | 'requiredLimit'>>(
-  sealedEvent: Pick<SealedEvent, 'format' | 'rosterLimit' | 'soloPoints' | 'allyPoints' | 'sharedPoints'>,
+export function entrantGroups<T extends Pick<SealedEventEntryView, 'teamId' | 'squadId' | 'status' | 'requiredLimit'>>(
+  sealedEvent: Pick<SealedEvent, 'format' | 'rosterLimit' | 'soloPoints' | 'allyPoints' | 'sharedPoints' | 'teams' | 'squads'>,
   accepted: readonly T[],
   names: (members: T[]) => string,
 ): EntrantGrouping<T>[] {
+  const { teams } = sealedEvent
+  if (teams)
+    return [
+      ...sealedEvent.squads.map((squad) => {
+        const entries = accepted.filter((entry) => entry.squadId === squad.id)
+        return {
+          key: `squad-${squad.id}`,
+          title: squad.name,
+          detail: entries.length < teams.size ? `${entries.length} of ${teams.size} players` : names(entries),
+          squadId: squad.id,
+          entries,
+        }
+      }),
+      { key: 'unteamed', title: 'Not on a team yet', entries: accepted.filter((entry) => !entry.squadId) },
+    ].filter((group) => group.entries.length)
   const pairs = (entries: readonly T[], prefix: string, keyPrefix: string) =>
     doublesTeams(entries).map((team, index) => ({
       key: `${keyPrefix}-${index + 1}`,
@@ -121,9 +136,14 @@ export type EntryStep = { label: string; state: 'done' | 'current' | 'upcoming' 
 export type EntryStage = 'join' | 'assign' | 'seal' | 'reveal' | 'play'
 
 /** The path through an event with the stage the reader is on marked current, so it can only restate the status card's own decision. */
-export function entryProgress(sealedEvent: Pick<SealedEvent, 'format' | 'group'>, stage: EntryStage): EntryStep[] {
-  const assignment =
-    sealedEvent.format === '2v1' ? 'Play solo or get an ally' : sealedEvent.format === '2v2' ? 'Get paired with a teammate' : null
+export function entryProgress(sealedEvent: Pick<SealedEvent, 'format' | 'group' | 'teams'>, stage: EntryStage): EntryStep[] {
+  const assignment = sealedEvent.teams
+    ? 'Join a team'
+    : sealedEvent.format === '2v1'
+      ? 'Play solo or get an ally'
+      : sealedEvent.format === '2v2'
+        ? 'Get paired with a teammate'
+        : null
   const stages: { stage: EntryStage; label: string }[] = [
     { stage: 'join', label: `Join the ${sealedEventNoun(sealedEvent).noun}` },
     ...(assignment ? [{ stage: 'assign' as const, label: assignment }] : []),
@@ -234,6 +254,7 @@ export function sealedEventNextStep(
       recruiting: 'Share the invite link. This format needs more players before you can reveal.',
       sizing: 'Size players below: at least one solo and two allied.',
       pairing: `Pair ${shape === '2v1' ? 'the allies' : 'players into teams'} below.`,
+      forming: 'Players start and join teams below. Every team must be full before you can reveal.',
       sealing: 'Players seal their rosters. Nobody sees another list, you included, until the reveal.',
       choosing: 'Each team chooses its Force Disposition. Then you can reveal the rosters.',
       ready: 'Reveal the rosters. That opens every list at once and closes entry.',

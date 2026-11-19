@@ -31,6 +31,7 @@ import { TABLE_SHAPES, TABLE_SHAPE_LABELS, type TableShape } from '../../../core
 import { Choice } from '../../components/Choice'
 import { Problem } from '../../components/Problem'
 import { SWISS_ROUNDS_MAX } from '../../../core/swiss'
+import { SQUAD_SIZES, type SquadRule, type SquadSize } from '../../../core/squad'
 import { sealedEventAllowances } from './sealedEvent'
 import { asSentence, countLabel } from '../../text'
 import { DropdownMenuCheckboxItem, DropdownMenuLabel } from '../../components/Menu'
@@ -41,6 +42,8 @@ type SealedEventRuleValue = {
   rosterLimit: number
   allowances: SealedEventAllowance[]
   rounds: number | null
+  /** A team tournament's team size and how a team match is won, or null when players play for themselves. */
+  teams: SquadRule | null
   /** A duel's own points total under its battle size, or null for the size's full points. */
   pointsBudget: number | null
 } & SealedEventArmyPoints
@@ -51,6 +54,7 @@ const offeredAllowances = (rule: SealedEventRuleValue): SealedEventRuleValue => 
   allowances: offeredSealedEventAllowances(rule.format, rule.rosterLimit, rule.allowances),
   // Swiss rounds and an own points total are for duels only, and points per army for team shapes.
   rounds: rule.format === '1v1' ? rule.rounds : null,
+  teams: rule.format === '1v1' && rule.rounds !== null ? rule.teams : null,
   pointsBudget: rule.format === '1v1' && allowsPointsBudget(rule.rosterLimit) ? rule.pointsBudget : null,
   soloPoints: rule.format === '2v1' ? rule.soloPoints : null,
   allyPoints: rule.format === '2v2' ? rule.allyPoints : null,
@@ -298,7 +302,11 @@ function Pairing({
         ]}
         columns={2}
         disabled={disabled}
-        onChange={(pairing) => onChange({ ...value, rounds: pairing === 'open' ? null : (value.rounds ?? SWISS_DEFAULT_ROUNDS) })}
+        onChange={(pairing) =>
+          onChange(
+            pairing === 'open' ? { ...value, rounds: null, teams: null } : { ...value, rounds: value.rounds ?? SWISS_DEFAULT_ROUNDS },
+          )
+        }
       />
       {value.rounds === null ? null : (
         <div className="space-y-1.5">
@@ -319,12 +327,85 @@ function Pairing({
               ))}
             </SelectContent>
           </Select>
-          <p className="text-xs text-dim">Three suits up to eight players, four up to sixteen.</p>
+          <p className="text-xs text-dim">
+            {value.teams ? 'Three suits up to eight teams, four up to sixteen.' : 'Three suits up to eight players, four up to sixteen.'}
+          </p>
         </div>
       )}
+      {value.rounds === null ? null : <Teams value={value} disabled={disabled} onChange={onChange} />}
     </div>
   )
 }
+
+/** Whether Swiss rounds pair players or teams, and for teams how big each is and how a team match is won. */
+function Teams({
+  value,
+  disabled,
+  onChange,
+}: {
+  value: SealedEventRuleValue
+  disabled: boolean
+  onChange: (value: SealedEventRuleValue) => void
+}) {
+  const { teams } = value
+  return (
+    <div className="space-y-3">
+      <Choice
+        label="Players"
+        value={teams ? 'teams' : 'solo'}
+        options={[
+          { value: 'solo', name: 'Individual', detail: 'Each player is paired on their own score.' },
+          {
+            value: 'teams',
+            name: 'Teams',
+            detail: 'Teams meet each round and choose who plays whom through defenders and attackers.',
+          },
+        ]}
+        columns={2}
+        disabled={disabled}
+        onChange={(players) =>
+          onChange({ ...value, teams: players === 'solo' ? null : (teams ?? { size: SQUAD_DEFAULT_SIZE, scoring: 'games' }) })
+        }
+      />
+      {teams ? (
+        <>
+          <div className="space-y-1.5">
+            <Label htmlFor="sealed-event-team-size">Players per team</Label>
+            <Select
+              value={String(teams.size)}
+              disabled={disabled}
+              onValueChange={(size) => size && onChange({ ...value, teams: { ...teams, size: Number(size) as SquadSize } })}
+            >
+              <SelectTrigger id="sealed-event-team-size" className="h-11 w-full">
+                <SelectValue>{() => countLabel(teams.size, 'player')}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {SQUAD_SIZES.map((size) => (
+                  <SelectItem key={size} value={String(size)}>
+                    {countLabel(size, 'player')}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <Choice
+            label="Team result"
+            value={teams.scoring}
+            options={[
+              { value: 'games', name: 'Games won', detail: 'The team that wins more of its games wins; a draw counts half.' },
+              { value: 'points', name: 'Victory points', detail: 'The team with more victory points across its games wins.' },
+            ]}
+            columns={2}
+            disabled={disabled}
+            onChange={(scoring) => onChange({ ...value, teams: { ...teams, scoring } })}
+          />
+        </>
+      ) : null}
+    </div>
+  )
+}
+
+const SQUAD_DEFAULT_SIZE: SquadSize = 5
 
 const SWISS_DEFAULT_ROUNDS = 3
 

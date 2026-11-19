@@ -1,4 +1,4 @@
-Set up the tournament, get players in, wait for everyone to seal a roster in secret, then reveal the rosters together so people can play. The usual one-on-one tournament comes first. Swiss rounds and team formats follow.
+Set up the tournament, get players in, wait for everyone to seal a roster in secret, then reveal the rosters together so people can play. The usual one-on-one tournament comes first. Swiss rounds, teams and the 2v1 and 2v2 formats follow.
 
 To see one first, open the [sample tournament](/tournaments/sample). For a one-off inside a [group](/docs/groups), use a hidden-list game, which seals the same way and starts from the group page.
 
@@ -107,7 +107,23 @@ If a player leaves or doesn't show, press the drop button on their roster row, t
 
 If their table in the current round hasn't finished, their opponent takes it as a bye, so the next round can be paired. A battle already started at that table stays in the battle list but no longer counts for the round.
 
-## Team tournaments
+## Teams in Swiss rounds
+
+For a tournament where teams play teams, choose **Swiss rounds**, then **Teams** under **Players**. Set **Players per team**, from 3 to 8, and **Team result**: **Games won** gives the meeting to the team that wins more of its games, a draw counting half; **Victory points** gives it to the team with more victory points across its games. Players per team and the team result are locked once a list is sealed.
+
+Players join the tournament, then start a team or join one with room on the tournament page. You can reveal once every player is on a full team and has sealed a roster.
+
+Each round, **Pair round** pairs teams rather than players: teams meet others on the same score, and ties break on games won or victory points. Each meeting's two teams then choose who plays whom on the tournament page, step by step. Each step, both teams choose in secret, and both choices show once the second team has chosen:
+
+1. Each team chooses a defender.
+2. Each team chooses two attackers to send against the other team's defender.
+3. Each team chooses which of the two attackers its defender plays. The other attacker goes back to the team.
+
+This repeats until three or four players are left on each team. In that last step, the two attackers nobody chose play each other, as do the two players left over. Anyone on the team can choose for it, and can change the choice until the other team has chosen. If a team can't choose, press **Pick for** with its name under the meeting to choose for it; you can't see the other team's choice first. Then each game gets its table and is played like any Swiss table. A team's games are scored together: the meeting's score shows beside it, and **Team results** ranks the teams above the players' own results.
+
+Nobody drops out of a team tournament, and you can't swap seats, since the teams choose the tables themselves.
+
+## Solo vs pair and doubles
 
 Choose **Solo vs pair** (2v1) or **Doubles** (2v2) under **Battle format**. Every roster is built at the **Points** size or a smaller one, unless it waives **Points limit** and your house rules allow that. Every list needs a Warlord, because allies choose whose leads.
 

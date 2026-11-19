@@ -28,6 +28,7 @@ import {
   type SealedEventVisibility,
 } from '../../core/sealedEvent'
 import type { TableShape } from '../../core/tableShape'
+import type { SquadRule } from '../../core/squad'
 import { teamDisposition } from '../../core/teamDisposition'
 import type { SealedEventSide } from '../../contracts/schemas'
 import type { SealedEventSchedule, RepositoryPort } from '../spacetimeRepository'
@@ -47,10 +48,10 @@ export class SealedEventService {
     ownerId: string,
     input: TournamentDetails & EventRuleInput & { ownerPlays: boolean; schedule?: SealedEventSchedule; clockLimitMinutes?: number | null },
   ) {
-    const { format, rosterLimit, allowances, rounds, pointsBudget, soloPoints, allyPoints, sharedPoints, ...details } = input
+    const { format, rosterLimit, allowances, rounds, teams, pointsBudget, soloPoints, allyPoints, sharedPoints, ...details } = input
     const token = offlineIdentifier('tournamentToken', randomToken)
     const eventToken = offlineIdentifier('eventToken', randomToken)
-    const rule = eventRule({ format, rosterLimit, allowances, rounds, pointsBudget, soloPoints, allyPoints, sharedPoints })
+    const rule = eventRule({ format, rosterLimit, allowances, rounds, teams, pointsBudget, soloPoints, allyPoints, sharedPoints })
     const result = await this.repository.createTournament({
       id: offlineIdentifier('tournamentId', randomUUID),
       token,
@@ -542,6 +543,49 @@ export class SealedEventService {
     throw new Response('those players aren’t at different tables this round', { status: 409 })
   }
 
+  /** Starts a team with the reader in it, joins them to one, or with null takes them off theirs, before the reveal. */
+  async setSquad(token: string, eventToken: string, ownerId: string, squad: { name: string } | { squadId: string } | null) {
+    const result = await this.repository.setSealedEventSquad({
+      token,
+      eventToken,
+      ownerId,
+      squad: squad === null ? null : 'name' in squad ? { create: { id: randomUUID(), name: squad.name } } : { join: squad.squadId },
+      now: this.clock(),
+    })
+    if (result === 'set') return
+    if (result === 'full') throw new Response('that team is full', { status: 409 })
+    if (result === 'taken') throw new Response('another team already has that name', { status: 409 })
+    if (result === 'closed') throw new Response('teams are fixed once the rosters are out', { status: 409 })
+    if (result === 'missing') throw new Response('no such team', { status: 404 })
+    throw new Response('only a tournament’s players join its teams', { status: 403 })
+  }
+
+  /** Records a team's secret choice at the next step of its meeting; it shows once the other team has chosen too. */
+  async pickSquad(input: Parameters<RepositoryPort['pickSquad']>[0]) {
+    const result = await this.repository.pickSquad(input)
+    if (typeof result === 'object') {
+      this.notifier.notify([
+        {
+          kind: 'sealed-event-team-picks',
+          actorId: input.ownerId,
+          recipientIds: result.recipientIds,
+          sealedEventToken: input.token,
+          eventToken: input.eventToken,
+          round: input.round,
+          seated: result.outcome === 'seated',
+        },
+      ])
+      return { revealed: true }
+    }
+    if (result === 'chosen') return { revealed: false }
+    if (result === 'missing') throw new Response('no such meeting this round', { status: 404 })
+    if (result === 'forbidden')
+      throw new Response('only the two teams, or the organizer for one of them, choose its pairings', { status: 403 })
+    if (result === 'paired') throw new Response('every game of this meeting is already paired', { status: 409 })
+    if (result === 'not-available') throw new Response('choose from the players this step allows', { status: 400 })
+    throw new Response('the pairing moved on while you chose; check it and choose again', { status: 409 })
+  }
+
   /** The layouts one table can play on, once the rosters are out and its two sides are known. */
   async tableBattlefields(...args: Parameters<SealedEventService['seatedTable']>) {
     return (await this.seatedTable(...args)).battlefields
@@ -693,6 +737,7 @@ type EventRuleInput = {
   rosterLimit?: number
   allowances?: readonly SealedEventAllowance[]
   rounds?: number | null
+  teams?: SquadRule | null
   pointsBudget?: number | null
   soloPoints?: number | null
   allyPoints?: number | null
@@ -707,6 +752,7 @@ function eventRule(rule: EventRuleInput) {
     throw new Response(`choose a supported ${format} roster size`, { status: 400 })
   }
   if (rule.rounds != null && format !== '1v1') throw new Response('Swiss rounds pair duels only', { status: 400 })
+  if (rule.teams && rule.rounds == null) throw new Response('teams meet in Swiss rounds', { status: 400 })
   const pointsBudgetProblem =
     rule.pointsBudget == null
       ? null
@@ -721,6 +767,7 @@ function eventRule(rule: EventRuleInput) {
     rosterLimit,
     allowances: rule.allowances && offeredSealedEventAllowances(format, rosterLimit, rule.allowances),
     rounds: rule.rounds,
+    teams: rule.teams,
     pointsBudget: rule.pointsBudget,
     soloPoints: rule.soloPoints,
     allyPoints: rule.allyPoints,

@@ -36,6 +36,14 @@ export const noticeSubjectSchema = z.union([
     eventToken: token.optional(),
     round: z.number().int().positive(),
   }),
+  /** Both teams at a team tournament meeting have chosen a step: the next is theirs, or with `seated` its games have tables. */
+  z.object({
+    kind: z.literal('sealed-event-team-picks'),
+    sealedEventToken: token,
+    eventToken: token.optional(),
+    round: z.number().int().positive(),
+    seated: z.boolean(),
+  }),
   z.object({ kind: z.enum(['group-member-requested', 'group-member-accepted']), groupToken: token }),
   z.object({ kind: z.literal('group-league-deadline-reminder'), groupToken: token, round: z.number().int().positive() }),
   /** An army-data update changed the totals of `count` lists the recipient saved; it keeps only the ones it names. */
@@ -148,6 +156,15 @@ export function noticeMessage(notice: StoredNotice, names: { actor?: string; sea
     case 'sealed-event-round-paired':
       if (!names.sealedEvent) return null
       return { title: names.sealedEvent, body: `Round ${notice.round} is paired. See your table.`, path: sealedEventPath(notice) }
+    case 'sealed-event-team-picks':
+      if (!names.sealedEvent) return null
+      return {
+        title: names.sealedEvent,
+        body: notice.seated
+          ? `Round ${notice.round}: your team’s games are paired. See your table.`
+          : `Round ${notice.round}: both teams have chosen. Make your team’s next pick.`,
+        path: sealedEventPath(notice),
+      }
     case 'group-member-requested':
     case 'group-member-accepted':
       if (!names.group) return null

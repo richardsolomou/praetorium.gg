@@ -26,6 +26,7 @@ import { inputMoment, momentFromInput } from '../../dates'
 import { friendshipsQuery } from '../../queries'
 import { SealedEventRuleFields, GROUP_ROSTER_RULE, ROSTER_RULE } from './SealedEventRuleFields'
 import { sealedEventAllowances } from './sealedEvent'
+import type { SquadRule } from '../../../core/squad'
 
 export type SealedEventFormValue = {
   name: string
@@ -37,6 +38,7 @@ export type SealedEventFormValue = {
   rosterLimit: number
   allowances: SealedEventAllowance[]
   rounds: number | null
+  teams: SquadRule | null
   pointsBudget: number | null
   soloPoints: number | null
   allyPoints: number | null
