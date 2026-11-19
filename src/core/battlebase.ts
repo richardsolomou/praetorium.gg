@@ -136,7 +136,7 @@ export function fromBattleBaseText(input: string, { setupOptional = false } = {}
 
   const units: TextRosterUnit[] = []
   // Nothing above the units was read, so each line of it is reported rather than dropped.
-  const unread = headless ? lines.slice(firstAt, firstSection).filter((line) => line && !/^\+{3,}$/.test(line)) : []
+  const unread = headless ? lines.slice(firstAt, firstSection).filter((line) => line && !/^[\p{P}\p{S}]+$/u.test(line)) : []
   const groups: TextRosterUnit[][] = []
   const labels = new Map<TextRosterUnit, { label: string; selection: TextRosterUnit['selections'][number] }[]>()
   const bare: { unit: TextRosterUnit; selection: TextRosterUnit['selections'][number] }[] = []
@@ -169,7 +169,9 @@ export function fromBattleBaseText(input: string, { setupOptional = false } = {}
       continue
     }
     if (isUnit(line)) {
-      current = { name: price(line)!.name, selections: [], leading: null, warlord: false }
+      // BattleBase prints a unit's size after its name, as "Intercessor Squad x5".
+      const [, name, models] = price(line)!.name.match(/^(.*?)(?:\s+x(\d+))?$/)!
+      current = { name: name!, selections: [], leading: null, warlord: false, ...(models ? { models: Number(models) } : {}) }
       modelLine = model = undefined
       units.push(current)
       group?.push(current)
