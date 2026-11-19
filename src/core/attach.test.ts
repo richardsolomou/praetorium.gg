@@ -761,6 +761,92 @@ describe('attachment legality', () => {
     ).toBe('cannot be attached to Cadian Shock Troops, which already has 1 Command Squad')
   })
 
+  describe('a character whose role depends on the army', () => {
+    const index = indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'cato',
+          name: 'Cato Sicarius',
+          type: 'model',
+          profiles: [
+            {
+              ...ability('Support', 'This model can be attached to the following units: VICTRIX HONOUR GUARD'),
+              modifiers: [
+                {
+                  field: 'name',
+                  type: 'set',
+                  value: 'Leader',
+                  conditions: [{ childId: 'calgar-keyword', field: 'selections', scope: 'force', type: 'lessThan', value: 1 }],
+                },
+              ],
+            },
+          ],
+        },
+        {
+          id: 'konorius',
+          name: 'Kaius Konorius',
+          type: 'model',
+          profiles: [ability('Support', 'This model can be attached to the following units: VICTRIX HONOUR GUARD')],
+        },
+        { id: 'calgar', name: 'Marneus Calgar', type: 'model', categoryLinks: [{ id: 'calgar-link', targetId: 'calgar-keyword' }] },
+        { id: 'victrix', name: 'VICTRIX HONOUR GUARD', type: 'unit' },
+      ],
+    })
+    const together = [{ entryId: 'cato', attachedTo: 2 }, { entryId: 'konorius', attachedTo: 2 }, { entryId: 'victrix' }]
+
+    it('leads beside a support unit when the army has no Marneus Calgar', () => {
+      expect(attachmentErrors(together, index)).toEqual([])
+    })
+
+    it('supports once the army includes Marneus Calgar', () => {
+      expect(attachmentErrors([...together, { entryId: 'calgar' }], index).map((error) => error.message)).toEqual([
+        'cannot support VICTRIX HONOUR GUARD, which is already supported by Cato Sicarius',
+      ])
+    })
+  })
+
+  describe('a unit that takes a second leader at full strength', () => {
+    const shaper = (id: string) => ({
+      id,
+      name: id,
+      type: 'model' as const,
+      profiles: [ability('Leader', 'This model can be attached to the following units: KROOT CARNIVORES')],
+    })
+    const index = indexOf({
+      sharedSelectionEntries: [
+        shaper('war-shaper'),
+        shaper('flesh-shaper'),
+        {
+          id: 'carnivores',
+          name: 'KROOT CARNIVORES',
+          type: 'unit',
+          constraints: [{ id: 'leader-limit', childName: 'Leader', field: 'associations', scope: 'self', type: 'max', value: 1 }],
+          modifiers: [
+            {
+              field: 'leader-limit',
+              type: 'increment',
+              value: 1,
+              conditions: [{ childId: 'model', field: 'selections', scope: 'self', type: 'atLeast', value: 20 }],
+            },
+          ],
+          selectionEntries: [{ id: 'carnivore', name: 'Carnivore', type: 'model' }],
+        },
+      ],
+    })
+    const twoShapers = [{ entryId: 'war-shaper', attachedTo: 2 }, { entryId: 'flesh-shaper', attachedTo: 2 }, { entryId: 'carnivores' }]
+    const fielding = (count: number) => [undefined, undefined, { id: 'carnivores', selections: [{ id: 'carnivore', count }] }]
+
+    it('takes two leaders at twenty models', () => {
+      expect(attachmentErrors(twoShapers, index, fielding(20))).toEqual([])
+    })
+
+    it('takes one leader below twenty models', () => {
+      expect(attachmentErrors(twoShapers, index, fielding(10)).map((error) => error.message)).toEqual([
+        'cannot lead KROOT CARNIVORES, which is already led by war-shaper',
+      ])
+    })
+  })
+
   describe('a leader that joins a unit already led', () => {
     const leader = (id: string, name: string, categoryLinks?: { id: string; targetId: string; name: string }[]) => ({
       id,

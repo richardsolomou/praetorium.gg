@@ -12,6 +12,7 @@ import {
   importRosterFile,
   importRosterCatalogueId,
   matchesImportFaction,
+  assumeWarlord,
 } from '../shared/rosterFiles'
 import type { LoadedCatalogue } from '../shared/catalogueIndex'
 import { calculateRosterPrice } from '../shared/pricing'
@@ -3138,4 +3139,26 @@ Created with WarOrgan ()`,
     necrons,
   )
   expect(imported.units.map((unit) => unit.attachedTo)).toEqual([undefined, 0, undefined])
+})
+
+describe('a Warlord a list leaves unnamed', () => {
+  const picks = (): { toggles: Record<string, number> }[] => [{ toggles: {} }, { toggles: { crown: 0 } }, { toggles: { crown: 0 } }]
+
+  it('is left to the player when several units could be', () => {
+    const units = picks()
+    assumeWarlord(units)
+    expect(units.map((unit) => unit.toggles)).toEqual([{}, { crown: 0 }, { crown: 0 }])
+  })
+
+  it('is the first that could be when every choice leaves the list alike', () => {
+    const units = picks()
+    assumeWarlord(units, () => 0)
+    expect(units.map((unit) => unit.toggles)).toEqual([{}, { crown: 1 }, { crown: 0 }])
+  })
+
+  it('is the one leaving the list fewest errors, as a datasheet that must be Warlord', () => {
+    const units = picks()
+    assumeWarlord(units, () => (units[2]!.toggles['crown'] ? 0 : 1))
+    expect(units.map((unit) => unit.toggles)).toEqual([{}, { crown: 0 }, { crown: 1 }])
+  })
 })

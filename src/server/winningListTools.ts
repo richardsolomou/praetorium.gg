@@ -39,6 +39,8 @@ function placingSummary(corpus: ReferenceCorpus, dispositions: ReadonlyMap<strin
     disposition: list.disposition && (dispositions?.get(list.disposition) ?? list.disposition),
     battleSize: list.limit,
     points: list.points,
+    reportedPoints: list.reportedPoints,
+    legalToday: !list.problem,
   }
 }
 
@@ -48,7 +50,7 @@ export function registerWinningListTools(server: AgentTools) {
     {
       title: 'List tournament-winning lists',
       description:
-        "Lists a faction's top-four tournament placings from 40k Stats and Mini Headquarters whose lists import cleanly and are legal under today's army data, as the site's Tournament lists show them, newest first. A faction counts its whole family, so a list imported under an earlier rules version still counts. of is how many lists matched and events the date range of their events; a small of is a small sample. latestUpdate is the date of the faction's newest points or datasheet update and sinceLatestUpdate how many lists come from events since; lists from before it were built for other points, so weigh them less or pass since. detachments counts how many lists took each detachment. battleSizes counts the faction's lists at each size: when it has none at the size being built, say so, and read other sizes' lists as which units the faction favours rather than as a shape to copy. datasheets names every datasheet those lists field with how many of them field it, most first, and the unit sizes taken, most common first. Each list gives its placing, record, event, detachments, Force disposition, points and units with every copy's model count; pass its id to get_winning_list for the full list as a draft. A placing reflects the player and the field as much as the list: learn the shapes and staples these lists share rather than copying one. While checking is true the first import is still running and every count is partial; say so.",
+        "Lists a faction's top-four tournament placings from 40k Stats and Mini Headquarters whose lists import cleanly and are legal under today's army data, newest first; pass includeNoLongerLegal for lists a points or rules change has made illegal too, such as to read the meta from before a points rise. A faction counts its whole family, so a list imported under an earlier rules version still counts. of is how many lists matched and events the date range of their events; a small of is a small sample. latestUpdate is the date of the faction's newest points or datasheet update and sinceLatestUpdate how many lists come from events since; lists from before it were built for other points, so weigh them less or pass since. detachments counts how many lists took each detachment. battleSizes counts the faction's lists at each size: when it has none at the size being built, say so, and read other sizes' lists as which units the faction favours rather than as a shape to copy. datasheets names every datasheet those lists field with how many of them field it, most first, and the unit sizes taken, most common first. Each list gives its placing, record, event, detachments, Force disposition, points under today's data and as the player reported them, whether it is legal today, and units with every copy's model count; pass its id to get_winning_list for the full list as a draft. A placing reflects the player and the field as much as the list: learn the shapes and staples these lists share rather than copying one. While checking is true the first import is still running and every count is partial; say so.",
       inputSchema: {
         faction: z.string().trim().min(1).max(160).describe('Faction id, URL slug, or display name from list_reference or list_units.'),
         detachment: z
@@ -63,11 +65,15 @@ export function registerWinningListTools(server: AgentTools) {
           .date()
           .optional()
           .describe('Only placings from events on or after this date (YYYY-MM-DD), such as the latestUpdate an earlier call returned.'),
+        includeNoLongerLegal: z
+          .boolean()
+          .default(false)
+          .describe('Also list placings that import cleanly but break today’s points or rules, marked legalToday false.'),
         count: z.int().min(1).max(MAX_LISTS).default(10).describe('How many of the newest matching lists to return in full.'),
       },
       annotations: READ_ONLY_TOOL,
     },
-    async ({ faction, detachment, battleSize, since, count }) => {
+    async ({ faction, detachment, battleSize, since, includeNoLongerLegal, count }) => {
       const corpus = await activeReferenceCorpus()
       if (!corpus) return unavailable()
       const found = referenceFaction(corpus, faction)
@@ -82,13 +88,13 @@ export function registerWinningListTools(server: AgentTools) {
         throw error
       }
       const { lists, checking } = app().winningLists.lists()
-      const matched = matchingLists(lists ?? [], found.id, { detachmentId: wanted, battleSize }).filter(
+      const matched = matchingLists(lists ?? [], found.id, { detachmentId: wanted, battleSize, includeNoLongerLegal }).filter(
         (list) => !since || list.event.date >= since,
       )
       const dates = matched.map((list) => list.event.date).toSorted()
-      const sizes = tallied(matchingLists(lists ?? [], found.id, { detachmentId: wanted }).map((list) => String(list.limit))).map(
-        ({ name, lists: fielded }) => ({ battleSize: Number(name), lists: fielded }),
-      )
+      const sizes = tallied(
+        matchingLists(lists ?? [], found.id, { detachmentId: wanted, includeNoLongerLegal }).map((list) => String(list.limit)),
+      ).map(({ name, lists: fielded }) => ({ battleSize: Number(name), lists: fielded }))
       const recorded = (await changeLogPage({ faction: found.slug })).updates[0]?.recordedAt
       const latestUpdate = recorded ? new Date(recorded).toISOString().slice(0, 10) : null
       return structured(
@@ -108,7 +114,7 @@ export function registerWinningListTools(server: AgentTools) {
             units: list.datasheets.map(({ name, models }) => ({ name, models })),
           })),
         },
-        { lists: matched.length, checking, detachment: Boolean(detachment) },
+        { lists: matched.length, checking, detachment: Boolean(detachment), includeNoLongerLegal },
       )
     },
   )
@@ -117,7 +123,7 @@ export function registerWinningListTools(server: AgentTools) {
     {
       title: 'Read a tournament-winning list',
       description:
-        "Reads one top-four tournament placing from list_winning_lists as it imports under today's army data: its placing, record and event, the army text the player submitted, draft (the list in the shape check_roster, grade_roster, compare_rosters and save_roster take) and summary, which names each unit with its points, models, wargear, enhancements, Warlord and attachments. Grade the draft with grade_roster or set it against another list with compare_rosters rather than judging it yourself.",
+        "Reads one top-four tournament placing from list_winning_lists as it imports under today's army data: its placing, whether it is legal today, record and event, the army text the player submitted, draft (the list in the shape check_roster, grade_roster, compare_rosters and save_roster take) and summary, which names each unit with its points, models, wargear, enhancements, Warlord and attachments. Grade the draft with grade_roster or set it against another list with compare_rosters rather than judging it yourself.",
       inputSchema: { id: z.string().trim().min(1).max(64).describe('A list id from list_winning_lists.') },
       annotations: READ_ONLY_TOOL,
     },

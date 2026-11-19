@@ -45,8 +45,13 @@ const PLAYER_BANDS = [
 const PLAYERS_GROUPS = ungrouped(PLAYER_BANDS.map(({ value, label }) => ({ label, value })))
 const playersBand = (players: number | null) =>
   players === null ? 'unknown' : (PLAYER_BANDS.find((band) => players < band.below)?.value ?? 'major')
+const LEGALITY_GROUPS = ungrouped([
+  { label: 'Legal today', value: 'legal' },
+  { label: 'No longer legal', value: 'outdated' },
+])
+const legality = (list: WinningList) => (list.problem ? 'outdated' : 'legal')
 
-/** Recent top-four tournament lists that import into a roster with nothing to fix, each opening the import review. */
+/** Top-four tournament lists that import into a roster with nothing to fix, legal today or not, each opening the import review. */
 export function WinningListsPage({ search }: { search: WinningSearch }) {
   const navigate = useNavigate()
   const { data: me } = useQuery(meQuery())
@@ -95,6 +100,7 @@ export function WinningListsPage({ search }: { search: WinningSearch }) {
       facetMatches(facets.disposition, list.disposition ? [list.disposition] : []) &&
       facetMatches(facets.placing, [String(list.placing)]) &&
       facetMatches(facets.players, [playersBand(list.event.players)]) &&
+      facetMatches(facets.legality, [legality(list)]) &&
       withinPeriod(Date.parse(list.event.date), bounds) &&
       (!query ||
         [
@@ -139,6 +145,7 @@ export function WinningListsPage({ search }: { search: WinningSearch }) {
     { key: 'unit', label: 'Unit', pinned: true, groups: ungrouped(unitChoices) },
     { key: 'placing', label: 'Placing', pinned: true, groups: PLACING_GROUPS },
     { key: 'players', label: 'Event size', pinned: true, groups: PLAYERS_GROUPS },
+    { key: 'legality', label: 'Legality', pinned: true, groups: LEGALITY_GROUPS },
     {
       key: 'disposition',
       label: 'Force disposition',
@@ -157,6 +164,7 @@ export function WinningListsPage({ search }: { search: WinningSearch }) {
     tally('unit', ({ list }) => list.datasheets.map((datasheet) => datasheet.id)),
     tally('placing', ({ list }) => [String(list.placing)]),
     tally('players', ({ list }) => [playersBand(list.event.players)]),
+    tally('legality', ({ list }) => [legality(list)]),
     tally('disposition', ({ list }) => (list.disposition ? [list.disposition] : [])),
   ])
   const counted = dimensions.map((dimension) => {
@@ -222,8 +230,8 @@ export function WinningListsPage({ search }: { search: WinningSearch }) {
         <section>
           <h2 className="rubric border-b border-edge pb-2">Top-four tournament lists</h2>
           <p className="mt-2 text-xs text-dim">
-            Lists that finished top four at Warhammer 40,000 tournaments outside Praetorium, as published by <TopFourSources />. Only lists
-            legal under today’s data are shown, so a rules change can remove one.
+            Lists that finished top four at Warhammer 40,000 tournaments outside Praetorium, as published by <TopFourSources />. Lists a
+            points or rules change has since made illegal are marked rather than hidden, since they still show what was winning.
           </p>
           <div className="mt-2 space-y-3">
             {result.isError ? (
@@ -315,6 +323,7 @@ function WinningListCard({
           faction={faction}
           dispositionName={dispositionName}
           points={list.points}
+          problem={list.problem}
           showLock={false}
           showLegality
           dateLabel="played"

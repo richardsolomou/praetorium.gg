@@ -7,6 +7,8 @@ Paste a list from another army builder and Praetorium rebuilds it with its own p
 3. Paste into **Roster text or exchange code** and choose **Import pasted roster**.
 4. Read the [review](/docs/import-review), then accept it.
 
+A list that names no Warlord gets one when only one of its characters can be the Warlord. If several can, pick one in the builder.
+
 ![The Import roster dialog with an official-app Necrons export pasted into Roster text or exchange code.](screenshot:import-a-roster-paste 'Import pasted roster')
 
 Stuck? The **Import guide** help button at the top of the dialog walks you through it.
@@ -24,9 +26,9 @@ You can bring in several lists at once from these apps.
 
 ## Import a top-four tournament list
 
-The **Tournament lists** tab under [Rosters](/rosters?view=tournament-lists) shows lists that finished in the top four at Warhammer 40,000 tournaments outside Praetorium, as published by 40k Stats and Mini Headquarters. It only shows lists that import with nothing to fix and are legal under today's points, however long ago they were played.
+The **Tournament lists** tab under [Rosters](/rosters?view=tournament-lists) shows lists that finished in the top four at Warhammer 40,000 tournaments outside Praetorium, as published by 40k Stats and Mini Headquarters. It shows every list that imports with nothing to fix, however long ago it was played. A list that a points rise or rules change has made illegal stays on the tab, marked **Over limit** or **Not legal**, since it still shows what was winning before the change; its card says what the player reported it at. The trophies in the unit picker count only lists legal today. Many published lists leave out the Warlord. When that happens, the list takes the character that leaves it legal, or failing that the first one listed.
 
-1. Filter by faction, detachment, unit, placing, event size or date, or search for a list, event or unit.
+1. Filter by faction, detachment, unit, placing, event size, legality or date, or search for a list, event or unit.
 2. Choose a list to read it in full, unit by unit, without saving anything.
 3. Choose **Import** to open the usual review, then accept it to keep the list as your own roster.
 

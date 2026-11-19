@@ -300,13 +300,17 @@ function enclosingGroupOf(path: readonly string[], index: CatalogueIndex): Defin
 
 /**
  * The repeated model a group hangs off, when the group belongs to one model rather
- * than to the whole unit. A group of collective wargear belongs to the unit, so it
- * has no single carrier however many models are holding it.
+ * than to the whole unit. A group of collective wargear on the model belongs to the
+ * unit, so it has no single carrier however many models are holding it; one on a
+ * piece of wargear, as each Deathwatch Terminator's plasma cannon carries a melee
+ * weapon, belongs to whichever model holds that piece.
  */
 export function repeatedCarrierOn(groupPath: readonly string[], index: CatalogueIndex) {
   const groupId = groupPath.at(-1)
   const group = groupId ? index.definitions.get(groupId) : undefined
-  if (!group || isCollectiveGroup(group, index)) return null
+  if (!group) return null
+  const holder = index.definitions.get(groupPath.at(-2) ?? '')
+  if (isCollectiveGroup(group, index) && (!holder || resolve(holder, index).type !== 'upgrade')) return null
   const modelPath = groupPath.slice(0, -1)
   return repeatedModelOn(modelPath, index) ?? repeatableModelOn(modelPath, index)
 }

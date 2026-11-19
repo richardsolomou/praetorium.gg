@@ -24,7 +24,7 @@ import { spaceWolvesFortyKApp, spaceWolvesFortyKAppGrouped, spaceWolvesOfficial 
 import { agentsFortyKApp } from '../src/core/rosterText.agents.fixture'
 import { spaceMarinesFortyKAppMarkdown } from '../src/core/rosterText.spaceMarines.fixture'
 import { whiteScarsOfficialFlattened } from '../src/core/rosterText.whiteScars.fixture'
-import { nameOf } from '../src/core/catalogue'
+import { nameOf, resolve } from '../src/core/catalogue'
 import type { LoadedRules } from '../src/shared/rules'
 import { calculateRosterPrice } from '../src/shared/pricing'
 import { importRosterFile } from '../src/shared/rosterFiles'
@@ -173,6 +173,27 @@ describe.skipIf(!fs.existsSync(source))('genuine exports from other army builder
     expect(summary(official(faction, detachment, unit)).mismatches).toEqual([])
   })
 
+  it('gives each of two characters the enhancement of that name from a different detachment', () => {
+    const file = `List (2000 points)\n\nDrukhari\nExhibition of Slaughter and Spectacle of Spite (3 Detachment Points)\nPurge the Foe\nStrike Force (2000 points)\n\nCHARACTERS\n\nSuccubus (70 points)\n  • Warlord\n  • 1x Archite glaive and agoniser\n  • Enhancement: Periapt of Torments\n\nSuccubus (75 points)\n  • 1x Archite glaive and agoniser\n  • Enhancement: Periapt of Torments\n`
+    expect(priced(file)?.errors).toEqual([])
+  })
+
+  it('leaves a second copy of an enhancement where the list takes only one detachment offering it', () => {
+    const file = `List (2000 points)\n\nDrukhari\nSpectacle of Spite (2 Detachment Points)\nPurge the Foe\nStrike Force (2000 points)\n\nCHARACTERS\n\nSuccubus (75 points)\n  • Warlord\n  • 1x Archite glaive and agoniser\n  • Enhancement: Periapt of Torments\n\nSuccubus (75 points)\n  • 1x Archite glaive and agoniser\n  • Enhancement: Periapt of Torments\n`
+    expect(priced(file)?.errors.map((error) => error.message)).toEqual(['allows at most 1, has 2'])
+  })
+
+  it('makes the one character that can be Warlord the Warlord of a list naming none', () => {
+    const file = official('Ultramarines', 'Gladius Task Force', 'Marneus Calgar (180 points)\n  • 1x Gauntlets of Ultramar')
+    expect(priced(file)?.errors).toEqual([])
+  })
+
+  it('reads a datasheet sharing its name with a hidden older one as the one the app offers', () => {
+    const file = official('Ultramarines', 'Gladius Task Force', 'Marneus Calgar (180 points)\n  • 1x Gauntlets of Ultramar')
+    const [calgar] = imported(file).units
+    expect(resolve(catalogue.index.definitions.get(calgar!.entryId)!, catalogue.index).hidden).toBeFalsy()
+  })
+
   it('reads an upgrade older official-app data qualifies as "(Upgarde)"', () => {
     const file = official(
       'Dark Angels',
@@ -203,6 +224,30 @@ describe.skipIf(!fs.existsSync(source))('genuine exports from other army builder
     const held = priced(file)?.units.find((candidate) => candidate.name === unit)?.wargear ?? []
     return held.map((piece) => `${piece.count}x ${piece.name.toLowerCase()}`)
   }
+
+  it('arms each heavy-weapon Terminator with one melee weapon', () => {
+    const file = official(
+      'Space Marines',
+      'Gladius Task Force',
+      'Deathwatch Terminator Squad (200 points)\n  • 1x Deathwatch Terminator Sergeant\n    • 1x Storm Shield\n      1x Thunder Hammer\n  • 4x Deathwatch Terminator\n    • 3x Chainfist\n      3x Plasma Cannon\n      1x Storm Shield\n      1x Thunder Hammer',
+    )
+    expect(priced(file)?.errors).toEqual([])
+  })
+
+  it('gives a Stealth Battlesuits squad its one homing beacon and only the burst cannons it lists', () => {
+    const file = official(
+      "T'au Empire",
+      'Kauyon',
+      "Stealth Battlesuits (100 points)\n  • 1x Stealth Shas'vre\n    • 1x Battlesuit fists\n      1x Burst cannon\n      1x Gun Drone\n      1x Marker Drone\n      1x Pulse pistol\n  • 4x Stealth Shas'ui\n    • 4x Battlesuit fists\n      4x Burst cannon\n      1x Homing Beacon",
+    )
+    expect({
+      errors: priced(file)?.errors,
+      wargear: wargear(file, 'Stealth Battlesuits').filter((piece) => /beacon|fusion/.test(piece)),
+    }).toEqual({
+      errors: [],
+      wargear: ['1x homing beacon'],
+    })
+  })
 
   it("keeps a sergeant's wargear with the sergeant when the list names him differently", () => {
     const file = official(

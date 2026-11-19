@@ -13,6 +13,7 @@ import { fetchWithRetry } from './fetch'
 import { replaceFile } from './replaceFile'
 import { miniHeadquartersEvents } from './miniHeadquartersLists'
 import { importedRosterDraft, importRosterInput } from './rosterImport'
+import { assumeWarlord } from '../shared/rosterFiles'
 
 const SOURCE = 'https://40kstats.tabletopbattles.com'
 const HEADERS = { 'user-agent': 'praetorium.gg (+https://praetorium.gg)' }
@@ -44,7 +45,7 @@ const events = z.array(
 )
 type Events = z.infer<typeof events>
 
-/** What importing one list found under one catalogue revision; null for a list with anything to fix or not legal. */
+/** What importing one list found under one catalogue revision; null for a list with anything to fix. */
 const verdictSchema = z
   .object({
     name: z.string(),
@@ -57,6 +58,8 @@ const verdictSchema = z
     datasheets: z.array(z.object({ id: z.string(), name: z.string(), models: z.array(z.number().int()) })),
     points: z.number(),
     reportedPoints: z.number().nullable(),
+    /** Why today's points and rules would not field it, usually a points rise since the event; null for a list legal today. */
+    problem: z.enum(['over-limit', 'not-legal']).nullable(),
   })
   .nullable()
 type Verdict = z.infer<typeof verdictSchema>
@@ -109,7 +112,7 @@ export async function refreshWinningLists(directory: string) {
   if (french.failure) throw french.failure
 }
 
-/** A list's import, kept only when it has nothing to review and is legal: its verdict and the draft it was read as. */
+/** A list's import, kept only when it has nothing to review: its verdict, whether it is legal today, and the draft it was read as. */
 async function importWinningList(text: string) {
   const imported = await importRosterInput(text).catch(() => null)
   if (!imported) return null
@@ -119,8 +122,10 @@ async function importWinningList(text: string) {
   if (!limit) return null
   const disposition = 'disposition' in result ? (result.disposition ?? null) : null
   const roster = { catalogueId: result.catalogueId, detachmentIds: result.detachmentIds, disposition, limit, units: result.units }
-  const priced = calculateRosterPrice(roster, imported.loaded, imported.rules)
-  if (!priced || rosterUseProblem(priced, { limit })) return null
+  const price = () => calculateRosterPrice(roster, imported.loaded, imported.rules)
+  assumeWarlord(result.units, () => price()?.errors.length ?? Number.POSITIVE_INFINITY)
+  const priced = price()
+  if (!priced) return null
   const verdict: NonNullable<Verdict> = {
     // The importers' stand-in for an unnamed list; left empty, a card names it by faction and detachments instead.
     name: result.name === 'Imported list' ? '' : result.name,
@@ -132,6 +137,7 @@ async function importWinningList(text: string) {
     datasheets: fielded(priced.units),
     points: priced.points,
     reportedPoints: result.reportedPoints,
+    problem: rosterUseProblem(priced, { limit })?.kind ?? null,
   }
   return { verdict, draft: importedRosterDraft(result) }
 }
@@ -185,8 +191,9 @@ const readJson = async <T>(file: string, schema: z.ZodType<T>) => {
 }
 
 /**
- * Every cached placing whose list imports with nothing to review and is legal under this catalogue revision, which
- * is what keeps a list built for rules since changed out, whatever its age. Verdicts are kept on disk per revision,
+ * Every cached placing whose list imports with nothing to review under this catalogue revision, which is what keeps a
+ * list built for datasheets or options since removed out, whatever its age; one that is no longer legal, such as after
+ * a points rise, is kept with its problem. Verdicts are kept on disk per revision,
  * so a restart repeats no import and a day adds only new lists. `progress` gets those found so far as it goes, newest
  * events first, since the cache lists events that way.
  */
@@ -231,13 +238,15 @@ export async function importableLists(
 }
 
 /**
- * How many of a faction's lists field each datasheet, counting a list once however many copies it takes. A faction
- * is its family, so a list imported under one rules version counts towards a roster built under another.
+ * A faction's lists legal today, or every one when asked. A faction is its family, so a list imported under one rules
+ * version counts towards a roster built under another.
  */
-const factionLists = (lists: readonly WinningList[], catalogueId: string) => {
+const factionLists = (lists: readonly WinningList[], catalogueId: string, includeNoLongerLegal = false) => {
   const family = currentCatalogueFamilyId(catalogueId)
-  return lists.filter((list) => currentCatalogueFamilyId(list.catalogueId) === family)
+  return lists.filter((list) => (includeNoLongerLegal || !list.problem) && currentCatalogueFamilyId(list.catalogueId) === family)
 }
+
+/** How many of a faction's lists legal today field each datasheet, counting a list once however many copies it takes. */
 
 export function unitCounts(lists: readonly WinningList[], catalogueId: string, battleSize?: number) {
   const faction = factionLists(lists, catalogueId).filter((list) => !battleSize || list.limit === battleSize)
@@ -250,9 +259,9 @@ export function unitCounts(lists: readonly WinningList[], catalogueId: string, b
 export function matchingLists(
   lists: readonly WinningList[],
   catalogueId: string,
-  { detachmentId, battleSize }: { detachmentId?: string; battleSize?: number } = {},
+  { detachmentId, battleSize, includeNoLongerLegal }: { detachmentId?: string; battleSize?: number; includeNoLongerLegal?: boolean } = {},
 ) {
-  return factionLists(lists, catalogueId).filter(
+  return factionLists(lists, catalogueId, includeNoLongerLegal).filter(
     (list) => (!detachmentId || list.detachmentIds.includes(detachmentId)) && (!battleSize || list.limit === battleSize),
   )
 }
@@ -275,7 +284,7 @@ export function fieldedDatasheets(lists: readonly WinningList[]) {
     .toSorted((left, right) => right.lists - left.lists || left.name.localeCompare(right.name))
 }
 
-/** The faction's lists that field one datasheet, newest first, each with its copies' model counts, out of how many. */
+/** The faction's lists legal today that field one datasheet, newest first, each with its copies' model counts, out of how many. */
 export function unitLists(lists: readonly WinningList[], catalogueId: string, entryId: string) {
   const faction = factionLists(lists, catalogueId)
   return {
