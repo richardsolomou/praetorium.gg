@@ -6,7 +6,9 @@ import { remember } from '../../../core/collections'
 import { currentEntryId } from '../../../core/retiredCatalogueIds'
 import { hasWarlordToggle } from '../../../core/unitChoices'
 import { joinedUnits } from '../../../core/unitLoadouts'
+import { nicknamedUnit } from '../../../core/unitNotes'
 import { AttachedUnitBlock } from './builder/AttachedUnitBlock'
+import { RosterListRow } from './builder/RosterListRow'
 import { cardEmbark, type EmbarkCard, embarkRows, NO_EMBARK } from './builder/embarkModel'
 import { Section } from './builder/Section'
 import { frozenAttaches, rosterShelves, type ShelfArrangement, unitRoleRows } from './builder/shelves'
@@ -14,6 +16,7 @@ import { type AttachChoice, UnitCard } from './builder/UnitCard'
 import { canAddCopy, type LimitUnlocks, unitLimitMessage } from './builder/usePicks'
 import type { FrozenRoster } from './ListBuilder'
 import { RosterUnits } from './RosterPresentation'
+import type { RosterLayout } from './rosterArrangement'
 import { RosterReadiness } from './RosterReadiness'
 import { type AttachDirection, AttachedUnitActions, BuilderUnitCard, type useCardRelationships } from './RosterUnitCard'
 import type { KeyedPick } from './rosterPicks'
@@ -41,6 +44,7 @@ export const rosterCards = (
         name: unit.name,
         group: unit.group ?? ('other' as const),
         warlord: unit.warlord,
+        models: unit.models ?? 0,
         joined: unit.joined ?? [],
         unit: {
           entryId: unit.entryId ?? unit.key,
@@ -61,6 +65,7 @@ export const rosterCards = (
         name: unit.name,
         group: unit.group,
         warlord: hasWarlordToggle(unit.toggles),
+        models: unit.size.models,
         joined: NO_JOINED,
         unit,
       }))
@@ -75,6 +80,7 @@ type RosterCard = ReturnType<typeof rosterCards>[number]
 export const RosterUnitShelves = memo(function RosterUnitShelves({
   cards,
   arrangement,
+  layout,
   frozen,
   frozenEmbarks,
   picks,
@@ -106,6 +112,7 @@ export const RosterUnitShelves = memo(function RosterUnitShelves({
 }: {
   cards: RosterCard[]
   arrangement: ShelfArrangement
+  layout: RosterLayout
   frozen?: FrozenRoster
   frozenEmbarks: ReadonlyMap<number, EmbarkCard> | null
   picks: readonly KeyedPick[]
@@ -136,6 +143,23 @@ export const RosterUnitShelves = memo(function RosterUnitShelves({
   onChooseUnit: () => void
 }) {
   const shelves = rosterShelves<RosterCard>(cards, arrangement)
+  const embarkOf = (index: number) => (frozen ? frozenEmbarks?.get(index) : relationships.get(picks[index]?.key ?? -1)?.embark)
+  const listRow = (members: RosterCard[]) => (
+    <RosterListRow
+      key={members[0]!.key}
+      members={members.map(({ index, name, models, warlord, unit }) => ({
+        index,
+        name: nicknamedUnit(name, (frozen ? frozen.units[index] : picks[index])?.nickname),
+        models,
+        warlord,
+        specials: [...unit.enhancements, ...unit.upgrades],
+      }))}
+      points={members.reduce((total, member) => total + member.unit.points, 0)}
+      ridesIn={embarkOf(members[0]!.index)?.ridesIn?.name}
+      selected={selected}
+      onSelect={loadoutAvailable ? onSelect : undefined}
+    />
+  )
   const renderCard = ({ unit, index, joined, warlord }: RosterCard, inUnit = false) => {
     if (frozen)
       return (
@@ -206,10 +230,12 @@ export const RosterUnitShelves = memo(function RosterUnitShelves({
               title={plural}
               count={count}
               points={entries.flat().reduce((total, card) => total + card.unit.points, 0)}
-              runner
+              runner={layout === 'cards'}
+              list={layout === 'list'}
             >
               {entries.map((members) => {
                 const host = members[0]!
+                if (layout === 'list') return listRow(members)
                 return members.length > 1 ? (
                   <AttachedUnitBlock
                     key={host.key}
@@ -273,6 +299,7 @@ export const RosterUnitShelves = memo(function RosterUnitShelves({
       )}
       {showReadiness && units.length ? (
         <RosterReadiness
+          list={layout === 'list'}
           units={units.map((unit) => ({
             entryId: currentEntryId(unit.entryId, catalogueId),
             name: unit.name,

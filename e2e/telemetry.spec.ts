@@ -246,7 +246,7 @@ Exported with BattleBase, Data Version: v20260812`)
   expect(events.filter((event) => event.name === 'roster_import_review_required')).toEqual([])
 })
 
-test('building reports embarks and the roster arrangement without naming units', async ({ page }) => {
+test('building reports embarks, the roster layout and menu choices without naming units', async ({ page }) => {
   test.setTimeout(240_000)
   await signUp(page, uniqueName('Embark telemetry'))
   await newRoster(page, { faction: 'Space Marines', detachment: /Gladius Task Force/ })
@@ -264,13 +264,23 @@ test('building reports embarks and the roster arrangement without naming units',
   await waitForRosterSave(page, () => bar.getByRole('button', { name: 'Remove', exact: true }).click(), 'embarkedIn')
   await page.getByRole('button', { name: 'Roster actions' }).click()
   await page.getByRole('menuitemcheckbox', { name: 'Group attached units' }).click()
+  await page.getByRole('button', { name: 'Roster actions' }).click()
+  await page.getByRole('menuitemcheckbox', { name: 'Show as list' }).click()
+  for (const item of ['Edit roster setup', 'Grade this roster']) {
+    await page.getByRole('button', { name: 'Roster actions' }).click()
+    await page.getByRole('menuitem', { name: item, exact: true }).click()
+    await page.keyboard.press('Escape')
+  }
 
   await expect
-    .poll(() => events.filter((event) => ['roster_embark_updated', 'roster_arrangement_changed'].includes(event.name)))
+    .poll(() => events.filter((event) => /^roster_(embark|arrangement|layout|setup|grades)_/.test(event.name)))
     .toEqual([
       { name: 'roster_embark_updated', properties: { embarked: true } },
       { name: 'roster_embark_updated', properties: { embarked: false } },
       { name: 'roster_arrangement_changed', properties: { arrangement: 'role' } },
+      { name: 'roster_layout_changed', properties: { layout: 'list' } },
+      { name: 'roster_setup_opened', properties: {} },
+      { name: 'roster_grades_opened', properties: {} },
     ])
 })
 

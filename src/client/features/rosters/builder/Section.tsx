@@ -15,6 +15,8 @@ type Props = {
   points?: number
   /** Hangs the shelf's parts off a runner, as the roster's own units do. */
   runner?: boolean
+  /** Ruled lines in one panel under a small heading, for a roster read as a list. */
+  list?: boolean
 }
 
 /**
@@ -24,11 +26,11 @@ type Props = {
  * right number of units in each category, not by scrolling to the bottom to find
  * out.
  */
-export function Section({ title, count, children, defaultOpen = true, open, onOpenChange, points, runner = false }: Props) {
+export function Section({ title, count, children, defaultOpen = true, open, onOpenChange, points, runner = false, list = false }: Props) {
   return (
     <Collapsible render={<section />} defaultOpen={defaultOpen} open={open} onOpenChange={onOpenChange}>
-      <div className="flex w-full items-center gap-2 py-1.5">
-        <h2 className="rubric">{title}</h2>
+      <div className={`flex w-full items-center gap-2 ${list ? 'py-0.5' : 'py-1.5'}`}>
+        <h2 className={list ? 'eyebrow text-dim' : 'rubric'}>{title}</h2>
         {points === undefined ? null : <span className="readout text-xs text-dim">{points} pts</span>}
         <span className="ml-auto flex items-center gap-1.5">
           <span className="readout text-sm text-dim">{count}</span>
@@ -40,7 +42,17 @@ export function Section({ title, count, children, defaultOpen = true, open, onOp
         </span>
       </div>
       <CollapsibleContent>
-        <div className={runner ? 'runner gap-1.5 pb-3 [--gate-x:1.25rem] [--gate-y:1.125rem]' : 'space-y-1.5 pb-3'}>{children}</div>
+        <div
+          className={
+            list
+              ? 'mb-3 divide-y divide-edge overflow-hidden rounded-lg border border-edge bg-panel'
+              : runner
+                ? 'runner gap-1.5 pb-3 [--gate-x:1.25rem] [--gate-y:1.125rem]'
+                : 'space-y-1.5 pb-3'
+          }
+        >
+          {children}
+        </div>
       </CollapsibleContent>
     </Collapsible>
   )
