@@ -35,8 +35,11 @@ export type Attachment = {
 export type AttachmentSwap = { kind: Attachment['kind']; id: string; present: boolean }
 export type AttachmentLimits = Record<Attachment['kind'], number> & {
   categories: Record<string, { name: string; maximum: number }>
-  /** A higher limit while one of `by` is attached, as a Noxious Blightbringer lets Poxwalkers take a second Leader. */
-  raises?: { kind: Attachment['kind']; maximum: number; by: string[] }[]
+  /**
+   * A higher limit while every unit in `when` is attached, as a Noxious Blightbringer lets Poxwalkers take a second Leader
+   * and the Visarch beside Yvraine lets a Ynnari unit take both. A limit raised several ways has a raise for each.
+   */
+  raises?: { kind: Attachment['kind']; maximum: number; when: string[] }[]
   /** More of a kind once the unit fields this many models, as twenty Kroot Carnivores take a second Leader. */
   growths?: { kind: Attachment['kind']; models: number; more: number }[]
 }
@@ -77,8 +80,10 @@ export function attachmentLimitsOf(definition: Definition, index: CatalogueIndex
   const raises = (['leader', 'support'] as const).flatMap((kind) =>
     ofKind(kind).flatMap((constraint) =>
       modifiers.flatMap((modifier) => {
-        const by = modifier.field === constraint.id && modifier.type === 'set' ? raisingAttachments(modifier) : null
-        return by && typeof modifier.value === 'number' ? [{ kind, maximum: modifier.value, by }] : []
+        if (modifier.field !== constraint.id || typeof modifier.value !== 'number') return []
+        const raised = modifier.type === 'set' ? modifier.value : modifier.type === 'increment' ? constraint.value + modifier.value : null
+        const alternatives = raised === null ? null : attachedAlternatives(modifier.conditions, modifier.conditionGroups, 'and')
+        return (alternatives ?? []).map((when) => ({ kind, maximum: raised!, when }))
       }),
     ),
   )
@@ -116,22 +121,29 @@ function growingWith(modifier: Modifier): number | null {
   return condition.type === 'atLeast' ? condition.value : condition.type === 'greaterThan' ? condition.value + 1 : null
 }
 
-/** The units whose attachment the modifier waits on, or null when it waits on anything else. */
-function raisingAttachments(modifier: Modifier): string[] | null {
-  const groups = modifier.conditionGroups ?? []
-  const [group] = groups
-  const conditions =
-    groups.length === 0 && modifier.conditions?.length === 1
-      ? modifier.conditions
-      : groups.length === 1 && !modifier.conditions?.length && group?.type === 'or' && !group.conditionGroups?.length
-        ? (group.conditions ?? [])
-        : []
+/**
+ * Each set of units whose attachment together meets these conditions, or null when they wait on anything else, as
+ * Death Riders take a second Leader with their Commissar beside either Lord Marshal Dreir or Lord Solar Leontus.
+ */
+function attachedAlternatives(
+  conditions: readonly Condition[] = [],
+  groups: readonly ConditionGroup[] = [],
+  type: ConditionGroup['type'],
+): string[][] | null {
   const attached = (condition: Condition) =>
     condition.field === 'associations' &&
     condition.scope === 'self' &&
     Boolean(condition.childId) &&
     ((condition.type === 'atLeast' && condition.value === 1) || (condition.type === 'greaterThan' && condition.value === 0))
-  return conditions.length && conditions.every(attached) ? conditions.map((condition) => `id:${condition.childId}`) : null
+  const parts = [
+    ...conditions.map((condition) => (attached(condition) ? [[`id:${condition.childId}`]] : null)),
+    ...groups.map((group) => attachedAlternatives(group.conditions, group.conditionGroups, group.type)),
+  ]
+  if (!parts.length || parts.some((part) => part === null)) return null
+  const known = parts as string[][][]
+  return type === 'or'
+    ? known.flat()
+    : known.reduce<string[][]>((sets, part) => sets.flatMap((set) => part.map((more) => [...set, ...more])), [[]])
 }
 
 /** The ids and categories a host's association limits can name this unit by. */
@@ -502,9 +514,10 @@ export function attachmentRefusals<T extends AttachmentParty>(
   if (joiner.unattachable) refusals.push({ rule: 'unattachable' })
   const limits = host.attachmentLimits ?? { leader: 1, support: 1, categories: {} }
   const same = occupants.filter((other) => other.attachment?.kind === attachment.kind)
-  const named = new Set([joiner, ...occupants].flatMap((party) => party.attachmentCategories ?? []))
+  // A raise counts everything attached, as a Warlock Conclave the official app lists after both the Leaders it makes room for.
+  const named = new Set([joiner, ...occupants, ...companions].flatMap((party) => party.attachmentCategories ?? []))
   const raised = (limits.raises ?? []).filter(
-    (raise) => raise.kind === attachment.kind && raise.maximum > limits[attachment.kind] && raise.by.some((key) => named.has(key)),
+    (raise) => raise.kind === attachment.kind && raise.maximum > limits[attachment.kind] && raise.when.every((key) => named.has(key)),
   )
   const allowed = Math.max(limits[attachment.kind], ...raised.map((raise) => raise.maximum))
   // A datasheet that raises the limit says two of the same Leader still cannot share a unit, which the data does not record.
