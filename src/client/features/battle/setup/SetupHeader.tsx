@@ -49,7 +49,7 @@ export function SetupHeader({
           {watching
             ? 'The players are still setting up. Their choices show here, and the battle opens on this page once they start.'
             : draft
-              ? 'A draft until everyone has joined with an army.'
+              ? 'A draft until everyone has joined with an army. Your opponent joins from a link on their phone, and you can set it up before you meet. The rest takes a few minutes at the table.'
               : 'In the order the rules play it. Anyone at the table can answer for either side.'}
         </p>
       </div>

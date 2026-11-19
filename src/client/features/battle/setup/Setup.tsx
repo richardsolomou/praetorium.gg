@@ -354,6 +354,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
     complete: complete[id],
     settled: settled[id],
     locked: locked[id],
+    folded: locked[id] && !ready,
     current: next === id,
     skipped: skipped(id),
     watching,

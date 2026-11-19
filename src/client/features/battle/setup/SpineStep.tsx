@@ -11,9 +11,11 @@ import type { SectionId } from './sections'
 /**
  * One step of setup, hung from the spine.
  *
- * Every step opens, so the whole of setup reads at once; one not reached yet is faded and can't be used. Without
- * controls to show, as for a reader with no seat, a step waiting on the armies, or one the player has collapsed, it
- * reads as its answer: one line for a choice the table shares, or a cell either side of the spine for one each side makes.
+ * Every step opens, so the whole of setup reads at once; one not reached yet is faded and can't be used. Until everyone
+ * is seated with an army, a step not reached shows only its name and why it waits, so a fresh draft reads as the next
+ * thing to do. Without controls to show, as for a reader with no seat, a step waiting on the armies, or one the player
+ * has collapsed, it reads as its answer: one line for a choice the table shares, or a cell either side of the spine for
+ * one each side makes.
  */
 export function SpineStep({
   watching = false,
@@ -24,6 +26,7 @@ export function SpineStep({
   complete,
   settled,
   locked,
+  folded = false,
   current,
   collapsed,
   onCollapsedChange,
@@ -48,6 +51,8 @@ export function SpineStep({
   /** Whether it has been answered rather than only left at a valid default, which ticks it. */
   settled: boolean
   locked: boolean
+  /** Not reached while the table is still being seated, so only its name and hint show. */
+  folded?: boolean
   /** The first step still owed an answer. */
   current: boolean
   /** Folded to its answer by this device's reader. */
@@ -80,7 +85,7 @@ export function SpineStep({
         data-locked={locked}
         data-complete={complete}
         aria-labelledby={`setup-${id}-title`}
-        className={cn('relative scroll-mt-(--app-header)! pb-8', locked && 'text-faint')}
+        className={cn('relative scroll-mt-(--app-header)!', folded ? 'pb-4' : 'pb-8', locked && 'text-faint')}
       >
         <span
           aria-hidden
@@ -120,7 +125,7 @@ export function SpineStep({
           <h2 id={`setup-${id}-title`} className="flex min-h-11 min-w-0 flex-1 items-center text-lg normal-case sm:text-xl">
             <span className={cn('min-w-0', current ? 'text-bone' : locked ? 'text-faint' : undefined)}>{name}</span>
           </h2>
-          {watching || !children ? null : (
+          {watching || folded || !children ? null : (
             <Button
               variant="ghost"
               size="icon-lg"
@@ -143,55 +148,57 @@ export function SpineStep({
            * A collapsed answer is a mouse shortcut back to the step; the chevron is the keyboard's way, and a control drawn
            * inside the answer, such as a mission's card, keeps its own press.
            */}
-          <div
-            id={`setup-${id}-body`}
-            className={cn('relative mt-3', locked && 'opacity-50', reopens && 'cursor-pointer')}
-            inert={locked}
-            role="presentation"
-            onClick={reopens ? (event) => !(event.target as Element).closest('button') && onCollapsedChange(false) : undefined}
-          >
-            {body ? (
-              <div className={cn('relative', current ? 'rounded-2xl border-2 border-runner bg-panel shadow-lifted' : 'part')}>
-                {/* The step being answered is drawn out of the frame, joined back to the runner by its own sprue. */}
-                {current ? (
-                  <>
-                    <span
-                      aria-hidden
-                      className="absolute -top-5 -left-[3.75rem] h-9 w-[3.625rem] rounded-bl-xl border-b-2 border-l-2 border-runner max-sm:hidden"
-                    />
-                    <span
-                      aria-hidden
-                      className="absolute top-2.5 -left-1.5 size-2.5 rounded-full bg-parchment ring-3 ring-void max-sm:hidden"
-                    />
-                  </>
-                ) : null}
-                {sides && renderSide ? <SideSwitch sides={sides} renderSide={renderSide} /> : null}
-                <div className="space-y-4 p-3 sm:p-4">
-                  {body}
-                  {sides ? <SideSwitchNext sides={sides} /> : null}
-                </div>
-              </div>
-            ) : sides && renderSide ? (
-              <div className="grid grid-cols-2 items-stretch gap-2">
-                {sides.map((side, position) => (
-                  <div
-                    key={side.index}
-                    className={cn(
-                      'min-w-0 rounded-lg border border-t-2 border-edge bg-sunken px-3 py-2 text-sm',
-                      tint(side.index).edge,
-                      position ? 'text-right' : 'text-left',
-                    )}
-                  >
-                    {renderSide(side)}
+          {folded ? null : (
+            <div
+              id={`setup-${id}-body`}
+              className={cn('relative mt-3', locked && 'opacity-50', reopens && 'cursor-pointer')}
+              inert={locked}
+              role="presentation"
+              onClick={reopens ? (event) => !(event.target as Element).closest('button') && onCollapsedChange(false) : undefined}
+            >
+              {body ? (
+                <div className={cn('relative', current ? 'rounded-2xl border-2 border-runner bg-panel shadow-lifted' : 'part')}>
+                  {/* The step being answered is drawn out of the frame, joined back to the runner by its own sprue. */}
+                  {current ? (
+                    <>
+                      <span
+                        aria-hidden
+                        className="absolute -top-5 -left-[3.75rem] h-9 w-[3.625rem] rounded-bl-xl border-b-2 border-l-2 border-runner max-sm:hidden"
+                      />
+                      <span
+                        aria-hidden
+                        className="absolute top-2.5 -left-1.5 size-2.5 rounded-full bg-parchment ring-3 ring-void max-sm:hidden"
+                      />
+                    </>
+                  ) : null}
+                  {sides && renderSide ? <SideSwitch sides={sides} renderSide={renderSide} /> : null}
+                  <div className="space-y-4 p-3 sm:p-4">
+                    {body}
+                    {sides ? <SideSwitchNext sides={sides} /> : null}
                   </div>
-                ))}
-              </div>
-            ) : summary ? (
-              <div className="w-fit max-w-full rounded-lg border border-edge bg-sunken px-3 py-2 text-left text-sm text-balance">
-                {summary}
-              </div>
-            ) : null}
-          </div>
+                </div>
+              ) : sides && renderSide ? (
+                <div className="grid grid-cols-2 items-stretch gap-2">
+                  {sides.map((side, position) => (
+                    <div
+                      key={side.index}
+                      className={cn(
+                        'min-w-0 rounded-lg border border-t-2 border-edge bg-sunken px-3 py-2 text-sm',
+                        tint(side.index).edge,
+                        position ? 'text-right' : 'text-left',
+                      )}
+                    >
+                      {renderSide(side)}
+                    </div>
+                  ))}
+                </div>
+              ) : summary ? (
+                <div className="w-fit max-w-full rounded-lg border border-edge bg-sunken px-3 py-2 text-left text-sm text-balance">
+                  {summary}
+                </div>
+              ) : null}
+            </div>
+          )}
         </div>
       </section>
     </li>

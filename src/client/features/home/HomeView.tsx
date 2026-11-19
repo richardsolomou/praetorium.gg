@@ -50,6 +50,8 @@ export type HomeData = {
   leaders: { rows: readonly Standing[] } | null
   /** The control that opens a battle, supplied rather than imported: see `Home`. */
   newBattle?: ReactNode
+  /** Get started's way into setup, with the player's latest legal list already chosen, supplied for the same reason. */
+  firstGame?: ReactNode
   notifications?: ReactNode
   /** The way back to the list a visitor left on this device, supplied for the same reason as `newBattle`. */
   guestDraft?: ReactNode
@@ -85,6 +87,7 @@ export function HomeView({
   onboarding,
   leaders,
   newBattle,
+  firstGame,
   notifications,
   guestDraft,
   onDelete,
@@ -100,33 +103,29 @@ export function HomeView({
   // print it again two inches further down.
   const hero = me ? undefined : open.find(live)
   const { friends: shownFriends, open: rest } = watchedTables(friends, open, hero)
-  // Without a game going or played, the lists are what the player comes back for, so they lead.
-  const listsFirst = !going.length && !played.length
-  const rosterShelf = <HomeRosters rosters={rosters} count={rosterCount} changed={changedRosters} />
   if (me) {
     // A player who only builds lists has no record to show, and a strip of dashes would say they are losing.
     const battled = onboarding?.completedTasks.includes('battle') ?? false
     const opponents = <HomeRivals userId={me.id} rivals={rivals} />
     const stats =
-      battled && record !== null ? <HomeRecord userId={me.id} data={record} form={homeForm(finished, me.id)} className="mt-4" /> : null
+      battled && record !== null ? <HomeRecord userId={me.id} data={record} form={homeForm(finished, me.id)} className="mt-5" /> : null
     return (
       <main className="w-full">
-        <Welcome name={me.name} returning={mine.length > 0 || rosterCount > 0} newBattle={newBattle} stats={stats} />
+        {/* Setup asks for an army first, so a player with neither a list nor a game is offered the list. */}
+        <Welcome
+          name={me.name}
+          returning={mine.length > 0 || rosterCount > 0}
+          newBattle={rosterCount > 0 || mine.length > 0 ? newBattle : null}
+          stats={stats}
+        />
         {notifications}
         <div className="mx-auto w-full max-w-6xl space-y-10 px-5 py-8 sm:px-6">
           <Columns
             lead={
-              !battled ||
-              listsFirst ||
-              going.length ||
-              stale ||
-              rostersDue.length ||
-              leagueGames.length ||
-              changedRosters.size ||
-              friendRequests ? (
+              !battled || going.length || stale || rostersDue.length || leagueGames.length || changedRosters.size || friendRequests ? (
                 <>
                   {battled ? null : (
-                    <HomeGetStarted hasRoster={rosterCount > 0} inGroup={groups.some((group) => !group.pending)} newBattle={newBattle} />
+                    <HomeGetStarted hasRoster={rosterCount > 0} inGroup={groups.some((group) => !group.pending)} newBattle={firstGame} />
                   )}
                   <HomeInProgress
                     games={going}
@@ -138,18 +137,17 @@ export function HomeView({
                     changedRosters={changedRosters.size}
                     friendRequests={friendRequests}
                   />
-                  {/* An empty shelf would only repeat Get started's first step. */}
-                  {listsFirst && (battled || rosterCount > 0) ? rosterShelf : null}
                 </>
               ) : null
             }
             aside={
               <>
-                <AppCard stores={!me.usesApp} />
+                {/* The lists keep one place whatever else the page holds; an empty shelf would only repeat Get started's first step. */}
+                {battled || rosterCount > 0 ? <HomeRosters rosters={rosters} count={rosterCount} changed={changedRosters} /> : null}
                 <HomeGroups groups={groups} tournaments={tournaments} />
-                {listsFirst ? null : rosterShelf}
                 {/* A phone reads the side column before the results, so the opponents wait below them there. */}
                 <div className="max-lg:hidden">{opponents}</div>
+                <AppCard stores={!me.usesApp} />
               </>
             }
             rest={
@@ -194,19 +192,18 @@ export function HomeView({
   )
 }
 
-/** How many results the form guide reads, and how many armies it names. */
+/** How many results the form guide reads. */
 const FORM_SHOWN = 5
-const FORM_ARMIES = 3
 /** How many rated games the rating trend sums, so it says which way the player is going now rather than overall. */
 const RATING_TREND_GAMES = 10
 
-/** The player's latest results, newest first, the armies they brought to them, most brought first, and how their rating moved. */
+/** The player's latest results, newest first, the army they brought to most of them, and how their rating moved. */
 function homeForm(finished: readonly Battle[], playerId: string): HomeForm {
   const recent = finished.flatMap((battle) => {
     const seat = battle.playerIds.indexOf(playerId)
     return seat === -1 ? [] : [{ outcome: battleOutcome(battle, battle.sides[seat]!), faction: battle.factions?.[seat] ?? null }]
   })
-  const armies = new Map<string, HomeForm['armies'][number]>()
+  const armies = new Map<string, NonNullable<HomeForm['main']>>()
   for (const { faction } of recent) {
     if (faction) armies.set(faction.slug, { faction, battles: (armies.get(faction.slug)?.battles ?? 0) + 1 })
   }
@@ -218,7 +215,7 @@ function homeForm(finished: readonly Battle[], playerId: string): HomeForm {
   return {
     rating: trend.length ? { change: trend.reduce((total, change) => total + change, 0), games: trend.length } : null,
     outcomes: recent.slice(0, FORM_SHOWN).map(({ outcome }) => outcome),
-    armies: [...armies.values()].toSorted((one, other) => other.battles - one.battles).slice(0, FORM_ARMIES),
+    main: [...armies.values()].toSorted((one, other) => other.battles - one.battles)[0] ?? null,
   }
 }
 

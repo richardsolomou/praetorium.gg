@@ -6,6 +6,8 @@ import { SectionHeading } from '../../components/SectionHeading'
 /**
  * The three things that make Praetorium worth coming back to, for a player who has not finished a battle yet: a list,
  * a first game and a group to play it with. Each step is ticked by what the player has actually done.
+ *
+ * A game needs a list and an opponent at the table, so its step says so and only offers setup once there is a list.
  */
 export function HomeGetStarted({ hasRoster, inGroup, newBattle }: { hasRoster: boolean; inGroup: boolean; newBattle?: ReactNode }) {
   return (
@@ -17,8 +19,12 @@ export function HomeGetStarted({ hasRoster, inGroup, newBattle }: { hasRoster: b
             Build <ChevronRight className="size-4" aria-hidden />
           </Link>
         </Step>
-        <Step done={false} title="Play a battle" detail="Against a friend at the table, or a practice opponent.">
-          {newBattle}
+        <Step
+          done={false}
+          title="Track a game"
+          detail={`${hasRoster ? 'At the table with your opponent, who joins from a link on their phone.' : 'Once you have a roster and an opponent to play.'} It adds your CP, checks your stratagems and scores the cards.`}
+        >
+          {hasRoster ? newBattle : null}
         </Step>
         <Step done={inGroup} title="Join a group" detail="Keep a leaderboard and a league with the people you play.">
           <Link to="/groups" className={STEP_LINK}>

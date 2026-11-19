@@ -28,13 +28,13 @@ export function HomeRosters({ rosters, count, changed }: { rosters: readonly Hom
     <section data-home-rosters>
       <SectionHeading title="Your rosters" count={count} />
       {rosters.length ? (
-        <ul className="runner gap-2">
+        <ul className="part divide-y divide-edge overflow-hidden">
           {rosters.map(({ roster, faction, points, label, problem }) => (
             <li key={roster.id}>
               <Link
                 to="/rosters/$id"
                 params={{ id: roster.id }}
-                className="part flex min-h-13 min-w-0 items-center gap-2.5 px-4 py-3 transition-colors hover:border-runner-hi hover:bg-raised"
+                className="flex min-h-13 min-w-0 items-center gap-2.5 px-4 py-3 transition-colors hover:bg-raised"
               >
                 {faction ? <FactionMark faction={faction} size="sm" /> : null}
                 <span className="min-w-0 flex-1 truncate text-[0.9375rem] font-bold">{rosterTitle(roster, faction, label)}</span>

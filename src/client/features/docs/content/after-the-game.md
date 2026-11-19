@@ -10,7 +10,7 @@ Battles between accounts count in each player's record. Practice battles count n
 
 Under the result of a battle between accounts, you see your record against your opponent so far, with a link to it on your profile. Practice battles show no record.
 
-If an account you played isn't your friend yet, you can add them, or accept their request, from there, so you can start battles with each other later.
+If an account you played isn't your friend yet, you can add them, or accept their request, from there, so you can start battles with each other later. If they're already your friend, **Play them again** opens a new battle with them invited and the list you played already chosen.
 
 If the list you played is private or unlisted, you're asked whether to make it public. See [After you've played a list](/docs/copy-and-share#after-you-ve-played-a-list).
 

@@ -9,7 +9,7 @@ Open [Battles](/battles) and choose **New battle**. Setup opens straight away wi
 
 ![The Tracking step with the Guided and Manual choices.](screenshot:track-a-battle-tracking 'Tracking: Guided or Manual')
 
-Every step stays on the page. The ones you haven't reached yet are faded until the step before them is done.
+Until everyone has joined with an army, a step you haven't reached shows only its name and what it waits for. After that every step stays on the page, and the ones you haven't reached are faded until the step before them is done.
 
 A draft stays out of your battles until everyone has joined and chosen an army. **Continue your draft** on [Battles](/battles) takes you back to it, and its **⋮** menu or a right-click deletes it. **New battle** reuses a draft you haven't touched yet. A draft nobody changes for 14 days is deleted.
 

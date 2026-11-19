@@ -129,7 +129,12 @@ export function Home() {
         tournaments={tournaments}
         onboarding={onboarding}
         leaders={standings ? { rows: standings.overall.rows } : null}
-        newBattle={<NewBattle variant="outline" />}
+        newBattle={<NewBattle variant="outline" source="home" />}
+        firstGame={
+          <NewBattle variant="outline" source="get-started" rosterId={rosters.find((roster) => !roster.problem)?.roster.id}>
+            Set up
+          </NewBattle>
+        }
         notifications={me && !me.impersonatedBy ? <HomeNotifications /> : null}
         guestDraft={me ? null : <ContinueGuestDraft surface="home" className="mt-6 max-w-md" />}
         onDelete={setDeleting}

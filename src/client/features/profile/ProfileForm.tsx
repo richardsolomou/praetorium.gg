@@ -1,8 +1,8 @@
 import { Link } from '@tanstack/react-router'
-import type { ReactNode } from 'react'
 import { battleOutcome, type StandingFaction } from '../../../core/standings'
 import { FactionMark, type FactionPresentation } from '../../components/FactionMark'
 import type { Battle } from '../battles/battle'
+import { HeaderFact } from '../../components/HeaderFact'
 
 const FORM = 5
 
@@ -49,7 +49,7 @@ export function ProfileForm({
   return (
     <div className="flex flex-wrap items-stretch gap-2" data-profile-form>
       {form.length ? (
-        <Fact label="Form">
+        <HeaderFact label="Form">
           <span className="flex gap-1">
             {form.map(({ battle, seat }) => {
               const result = RESULT[battleOutcome(battle, battle.sides[seat]!)]
@@ -66,20 +66,20 @@ export function ProfileForm({
               )
             })}
           </span>
-        </Fact>
+        </HeaderFact>
       ) : null}
       {main ? (
-        <Fact label={played ? 'Plays most' : 'Builds most'}>
+        <HeaderFact label={played ? 'Plays most' : 'Builds most'}>
           <span className="flex items-center gap-1.5 text-sm font-bold text-bone uppercase">
             <FactionMark faction={main} size="sm" />
             {main.displayName}
           </span>
-        </Fact>
+        </HeaderFact>
       ) : null}
       {lists.count ? (
-        <Fact label="Lists">
+        <HeaderFact label="Lists">
           <span className="figure text-sm font-bold text-bone">{lists.count}</span>
-        </Fact>
+        </HeaderFact>
       ) : null}
       {rank ? (
         <Link
@@ -87,12 +87,12 @@ export function ProfileForm({
           search={{ faction: undefined }}
           className="flex [&>span]:transition-colors [&>span]:hover:border-runner [&>span]:hover:bg-raised"
         >
-          <Fact label="Leaderboard">
+          <HeaderFact label="Leaderboard">
             <span className="figure text-sm font-bold text-bone">
               #{rank.place}
               <span className="font-normal text-faint"> of {rank.of}</span>
             </span>
-          </Fact>
+          </HeaderFact>
         </Link>
       ) : null}
       {achievementPoints ? (
@@ -102,23 +102,14 @@ export function ProfileForm({
           search={{ tab: 'achievements' }}
           className="flex [&>span]:transition-colors [&>span]:hover:border-runner [&>span]:hover:bg-raised"
         >
-          <Fact label="Achievements">
+          <HeaderFact label="Achievements">
             <span className="figure text-sm font-bold text-bone">
               {achievementPoints}
               <span className="font-normal text-faint"> pts</span>
             </span>
-          </Fact>
+          </HeaderFact>
         </Link>
       ) : null}
     </div>
-  )
-}
-
-function Fact({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <span className="flex flex-col gap-1.5 rounded-lg border border-edge bg-sunken/60 px-3 py-2">
-      <span className="eyebrow text-faint">{label}</span>
-      {children}
-    </span>
   )
 }
