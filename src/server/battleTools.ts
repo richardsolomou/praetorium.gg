@@ -26,7 +26,7 @@ import type { LoadedRules } from '../shared/rules'
 import { resultOf, WRITE } from './accountMcp'
 import { type AgentTools, READ_ONLY_TOOL, signedInPlayer } from './agentTools'
 import { app } from './app'
-import { startDraftBattle } from './mutationTelemetry'
+import { shareBattleLink, startDraftBattle } from './mutationTelemetry'
 import { battleInvitePath } from '../core/notifications'
 import { submitBattleCommand } from './battleSubmission'
 import { productActions } from './productActions'
@@ -600,7 +600,7 @@ export function registerBattleTools(server: AgentTools, userId: string | null) {
           if (data.limit || data.manual)
             throw new Response('a battle started alone takes its size from the lists; choose manual tracking in setup', { status: 400 })
           const { token } = await startDraftBattle(owner(), data.missionPackId)
-          const { invite } = await app().service.shareBattle(token, owner())
+          const { invite } = await shareBattleLink(owner(), token)
           return { token, draft: true, url: `/battles/${encodeURIComponent(token)}`, joinUrl: battleInvitePath(invite) }
         }
         const { token } = await productActions.createBattle(owner(), data)

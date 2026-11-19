@@ -13,7 +13,7 @@ import { tokenSchema } from '../contracts/schemas'
 import { gameReferencesFor } from '../shared/gameReferences'
 import { type AgentTools, READ_ONLY_TOOL, signedInPlayer, structured } from './agentTools'
 import { app } from './app'
-import { agentWrites, captureMutation } from './mutationTelemetry'
+import { agentWrites, captureMutation, checkInSealedEventEntrant } from './mutationTelemetry'
 import { productActions } from './productActions'
 import type { PraetoriumService } from './service'
 import { BATTLES_PAGE } from './services/battleFeedService'
@@ -547,7 +547,7 @@ export function registerOrganisedPlayTools(server: AgentTools, userId: string | 
     ({ token: hostToken, eventToken, checkedIn }) =>
       write(async (owner) => {
         // Always the player's own seat: checking in someone else is the organizer's.
-        await app().service.sealedEventService.checkIn(hostToken, eventToken ?? hostToken, owner, owner, checkedIn)
+        await checkInSealedEventEntrant(owner, hostToken, eventToken ?? hostToken, owner, checkedIn)
         return { checkedIn }
       }),
   )

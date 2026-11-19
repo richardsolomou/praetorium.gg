@@ -305,7 +305,7 @@ export class PraetoriumService {
     const seats = await this.mustSeat(token, userId)
     const shared = await this.repository.battleInvite(seats.battle.id, userId, randomToken())
     if (!shared) throw new Response('only a player in this battle can share it', { status: 403 })
-    return { invite: shared.invite }
+    return { battleId: seats.battle.id, invite: shared.invite }
   }
 
   /** Sends a friend the battle's link as a notice; they join through it like anyone else who opens it. */
@@ -318,13 +318,13 @@ export class PraetoriumService {
     this.notifier.notify([
       { kind: 'battle-created', actorId: userId, recipientIds: [friendId], battleToken: token, sealedEvent: false, invite: shared.invite },
     ])
-    return { invite: shared.invite }
+    return { battleId: seats.battle.id, invite: shared.invite }
   }
 
   async stopSharingBattle(token: string, userId: string) {
     const seats = await this.mustSeat(token, userId)
     await this.repository.stopBattleInvite(seats.battle.id, userId)
-    return null
+    return { battleId: seats.battle.id }
   }
 
   /** Keeps the unconfirmed answers to a side's scoring prompt, unless the battle has already left the moment they answer. */
@@ -441,7 +441,8 @@ export class PraetoriumService {
     const seats = await this.mustSeat(token, userId)
     if (!(await this.repository.removeBattlePlayer(seats.battle.id, userId, playerId)))
       throw new Response('only the player who started the battle can remove someone, before it starts', { status: 403 })
-    return null
+    const removed = seats.players.find((player) => player.id === playerId)
+    return { battleId: seats.battle.id, practice: removed ? isPracticeSeat(removed) : false }
   }
 
   /** The drafts a player is in, newest first, for the one place they are listed. */
