@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.270.3 (2026-11-19)
+
+### Patch Changes
+
+- d229077: [reference] Cato Sicarius's datasheet and Victrix Honour Guard's page show that he can lead the unit as well as support it, depending on whether your army includes Marneus Calgar.
+
 ## 0.270.2 (2026-11-19)
 
 ### Patch Changes
