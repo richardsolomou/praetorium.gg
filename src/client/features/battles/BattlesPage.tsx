@@ -75,7 +75,7 @@ export function BattlesPage({ view: asked, search, order }: { view: BattlesView;
           me ? (
             <>
               {view === 'mine' ? <ImportBattles /> : null}
-              {view === 'mine' && !battles.length ? null : <NewBattle />}
+              {view === 'mine' && !battles.length ? null : <NewBattle source="battles" />}
             </>
           ) : (
             <Link to="/sign-in" search={{ next: '/battles' }} className={buttonClass()}>
@@ -140,9 +140,9 @@ export function BattlesPage({ view: asked, search, order }: { view: BattlesView;
               <PageState
                 headingLevel={2}
                 title="No battles yet"
-                explanation={`${TRACKER_PITCH} You can also practise on your own first.`}
+                explanation={TRACKER_PITCH}
                 icon={Swords}
-                action={<NewBattle />}
+                action={<NewBattle source="battles" />}
               />
             )
           ) : view === 'friends' ? (

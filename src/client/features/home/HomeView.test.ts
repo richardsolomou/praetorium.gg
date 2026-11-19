@@ -55,6 +55,14 @@ describe('home greeting', () => {
   })
 })
 
+describe('starting a game', () => {
+  const controls = { newBattle: createElement('button', null, 'New battle'), firstGame: createElement('button', null, 'Set up') }
+
+  it('offers no way into setup before the player has a list or a game', () => {
+    expect(text(render({ ...controls, onboarding: progress([]) }))).not.toMatch(/New battle|Set up/)
+  })
+})
+
 describe('home app offer', () => {
   it('offers the app to a player who has not opened it lately', () => {
     expect(render()).toContain('data-app-band')
@@ -93,11 +101,13 @@ describe('home record', () => {
   })
 
   it('reads the record, win rate, streak and leaderboard place', () => {
-    expect(text(battled({ record: record({ place: 4, of: 31 }) }))).toContain('7 – 1 – 4 record 63% won 3 wins in a row #4 of 31')
+    expect(text(battled({ record: record({ place: 4, of: 31 }) }))).toContain(
+      'Record 7 – 1 – 4 Won 63% Streak 3 wins in a row Leaderboard #4 of 31',
+    )
   })
 
   it('calls a player off the leaderboard unranked', () => {
-    expect(text(battled({ record: record(null) }))).toContain('wins in a row Unranked')
+    expect(text(battled({ record: record(null) }))).toContain('Leaderboard Unranked')
   })
 })
 
@@ -111,10 +121,10 @@ describe('changed lists', () => {
   })
 })
 
-describe('lists first', () => {
-  it("leads with a player's lists when they have no games", () => {
-    const markup = render({ onboarding: progress(['roster']) })
-    expect(markup.indexOf('data-home-rosters')).toBeLessThan(markup.indexOf('<aside'))
+describe('rosters', () => {
+  it("keeps a player's lists in the side column when they have no games", () => {
+    const markup = render({ onboarding: progress(['roster']), rosterCount: 1 })
+    expect(markup.indexOf('data-home-rosters')).toBeGreaterThan(markup.indexOf('<aside'))
   })
 })
 

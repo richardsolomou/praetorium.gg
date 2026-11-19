@@ -19,7 +19,7 @@ export function PracticeNextGame() {
         disabled={start.isPending}
         onClick={() => {
           posthog.capture('practice_next_game_opened')
-          start.mutate({})
+          start.mutate({ source: 'practice' })
         }}
       >
         Start a game

@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { Plus } from 'lucide-react'
 import { posthog } from 'posthog-js'
+import type { ReactNode } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { inviteToBattle, startDraft, submit } from '../../functions'
@@ -10,7 +11,8 @@ import { errorMessage } from '../../queryClient'
 import { advanceOnboarding } from '../onboarding/onboarding'
 import { useStartBattle } from './useStartBattle'
 
-type Start = { rosterId?: string; friendId?: string }
+/** `source` names the control for telemetry; a roster or friend start without one is named by what it brings. */
+type Start = { rosterId?: string; friendId?: string; source?: string }
 
 /**
  * Opens setup on a draft with only you at the table, reusing your untouched one. From a roster that army is already
@@ -21,8 +23,8 @@ export function useNewBattle() {
   const navigate = useNavigate()
   const { defaultMissionPackId } = useStartBattle()
   return useMutation({
-    onMutate: ({ rosterId, friendId }: Start) =>
-      posthog.capture('battle_creation_started', rosterId ? { source: 'roster' } : friendId ? { source: 'friend' } : {}),
+    onMutate: ({ rosterId, friendId, source = rosterId ? 'roster' : friendId ? 'friend' : undefined }: Start) =>
+      posthog.capture('battle_creation_started', source ? { source } : {}),
     mutationFn: async ({ rosterId, friendId }: Start) => {
       const draft = await startDraft({ data: { missionPackId: await defaultMissionPackId() } })
       // Setup still offers both, so either failing here is only a step left to do there.
@@ -48,7 +50,17 @@ export function useNewBattle() {
   })
 }
 
-export function NewBattle({ variant }: { variant?: 'outline' }) {
+export function NewBattle({
+  variant,
+  rosterId,
+  source,
+  children,
+}: {
+  variant?: 'outline'
+  rosterId?: string
+  source: string
+  children?: ReactNode
+}) {
   const start = useNewBattle()
   return (
     <Button
@@ -57,10 +69,14 @@ export function NewBattle({ variant }: { variant?: 'outline' }) {
       disabled={start.isPending}
       onClick={() => {
         advanceOnboarding('battle', 'battle-start', 'battle-setup-size')
-        start.mutate({})
+        start.mutate({ rosterId, source })
       }}
     >
-      <Plus /> New battle
+      {children ?? (
+        <>
+          <Plus /> New battle
+        </>
+      )}
     </Button>
   )
 }

@@ -1,9 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
+import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { BattleView } from '../../../core/battleView'
 import { isGuestSeat, isPracticeSeat } from '../../../core/newBattle'
 import { friendshipsQuery, playerProfileQuery } from '../../queries'
+import { useNewBattle } from '../battles/NewBattle'
 import { FriendAction } from '../friends/FriendAction'
 import { RosterSharingPrompt } from '../rosters/RosterSharingPrompt'
 import { recordSummary } from '../profile/recordSummary'
@@ -11,7 +13,7 @@ import { tint } from './battleTints'
 
 /**
  * Where a seated account now stands against the person they played, and the step towards being friends with the
- * people at the table, in one quiet panel showing only the parts that apply.
+ * people at the table or towards the next game with a friend, in one quiet panel showing only the parts that apply.
  */
 export function AfterBattle({ view }: { view: BattleView }) {
   const viewer = view.players.find((player) => player.isViewer)
@@ -23,10 +25,13 @@ export function AfterBattle({ view }: { view: BattleView }) {
   const seated = viewer !== undefined && !isGuestSeat(viewer.id)
   const friendships = useQuery({ ...friendshipsQuery(), enabled: seated && accounts.length > 0 })
   const profile = useQuery({ ...playerProfileQuery(view.viewerId), enabled: seated && rival !== null })
+  const again = useNewBattle()
   if (!seated) return null
   const strangers = friendships.data ? accounts.filter((person) => !friendships.data.friends.some(({ id }) => id === person.id)) : []
   const against = rival ? profile.data?.record.opponents.find(({ id }) => id === rival.id) : undefined
   const recording = rival !== null && (profile.isPending || against !== undefined)
+  // Only a friend can be invited straight into a battle, so a stranger is offered the friend request first.
+  const friend = rival && friendships.data?.friends.some(({ id }) => id === rival.id) ? rival : null
   if (!recording && !strangers.length) return null
 
   return (
@@ -61,6 +66,22 @@ export function AfterBattle({ view }: { view: BattleView }) {
         {strangers.map((person) => (
           <FriendAction key={person.id} person={person} event="battle_friend_requested" />
         ))}
+        {friend ? (
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={again.isPending}
+            onClick={() =>
+              again.mutate({
+                friendId: friend.id,
+                rosterId: viewer?.roster?.lentBy ? undefined : viewer?.roster?.id,
+                source: 'after-battle',
+              })
+            }
+          >
+            Play {friend.name} again
+          </Button>
+        ) : null}
       </div>
     </aside>
   )
