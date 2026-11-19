@@ -1,4 +1,5 @@
 import { attachmentErrors } from '../core/attach'
+import { uniqueBy } from '../core/collections'
 import { attachedUnit, attachmentHost } from '../core/attachedUnits'
 import { hasTextTokens } from '../core/sourceText'
 import { titleCaseAbility } from './catalogueAbilityGrants'
@@ -147,11 +148,15 @@ export function rosterCombatant(
   const hostIndex = attachmentHost(data.picks, data.pickIndex)
   const hostPick = data.picks[hostIndex]!
   const hostSheet = hostIndex === data.pickIndex ? sheet : companions.find((member) => member.pickIndex === hostIndex)?.selected
+  // A character the army decides the role of, as Cato Sicarius leading or supporting, is offered once; its role is the list's.
   const optionsFor = (replaceIndex?: number) =>
-    [
-      ...(hostSheet?.leaders ?? []).map((member) => ({ ...member, kind: 'leader' as const })),
-      ...(hostSheet?.supporters ?? []).map((member) => ({ ...member, kind: 'support' as const })),
-    ].flatMap((member) => {
+    uniqueBy(
+      [
+        ...(hostSheet?.leaders ?? []).map((member) => ({ ...member, kind: 'leader' as const })),
+        ...(hostSheet?.supporters ?? []).map((member) => ({ ...member, kind: 'support' as const })),
+      ],
+      (member) => member.entryId ?? member.name,
+    ).flatMap((member) => {
       if (!member.entryId || data.picks.some((pick, index) => index !== replaceIndex && pick.entryId === member.entryId)) return []
       const candidate = {
         entryId: member.entryId,
@@ -187,7 +192,7 @@ export function rosterCombatant(
     })
   const bodyguardOptions = () =>
     data.picks.length === 1
-      ? sheet.attachments.flatMap((member) => {
+      ? uniqueBy(sheet.attachments, (member) => member.entryId ?? member.name).flatMap((member) => {
           if (!member.entryId) return []
           const candidate = { entryId: member.entryId, catalogueId: hostPick.catalogueId ?? data.catalogueId }
           const built = buildRosterPick(

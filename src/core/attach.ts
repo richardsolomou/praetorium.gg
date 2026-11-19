@@ -692,6 +692,10 @@ export function armyIds(entryIds: readonly string[], index: CatalogueIndex): Set
   )
 }
 
+/** Every role the attachment can take, its own first, as a reference page lists Cato Sicarius both leading and supporting. */
+export const attachmentRoles = (attachment: Attachment): Attachment['kind'][] =>
+  attachment.swap && attachment.swap.kind !== attachment.kind ? [attachment.kind, attachment.swap.kind] : [attachment.kind]
+
 /** The attachment as this army has it, its swap settled. */
 export function inArmy<T extends Attachment | null>(attachment: T, army: ReadonlySet<string>): T {
   if (!attachment?.swap) return attachment

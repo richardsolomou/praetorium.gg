@@ -13,7 +13,7 @@ import {
   targetOf,
 } from '../core/catalogue'
 import { comparableText, withoutText } from '../core/sourceText'
-import { referenceAttachmentOf } from '../core/attach'
+import { attachmentRoles, referenceAttachmentOf } from '../core/attach'
 import {
   flattenedModifiers,
   infoLinkHiddenByRules,
@@ -285,7 +285,11 @@ function assemble(loaded: LoadedCatalogue, catalogueId: string, entryId: string,
     transport: details?.transport ?? null,
     ...(details?.transportCapacity ? { transportCapacity: details.transportCapacity } : {}),
     costs: details?.points ?? [],
-    attachments: attachment?.targets.map((target) => relationshipFor(loaded, catalogueId, target, attachment.kind)) ?? [],
+    attachments: attachment
+      ? attachmentRoles(attachment).flatMap((kind) =>
+          attachment.targets.map((target) => relationshipFor(loaded, catalogueId, target, kind)),
+        )
+      : [],
     leaders: relationships.leaders.map((leader) => relationshipFor(loaded, catalogueId, leader.name, undefined, leader.entryId)),
     supporters: relationships.supporters.map((supporter) =>
       relationshipFor(loaded, catalogueId, supporter.name, undefined, supporter.entryId),
