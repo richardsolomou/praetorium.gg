@@ -490,7 +490,8 @@ test('a league seals every list before it starts and plays its fixtures with the
   await score.getByRole('button', { name: 'Save score' }).click()
   await expect(score).toBeHidden()
   await expect(untracked.getByRole('link')).toHaveText('64 – 40')
-  await owner.locator('[data-fixture]').getByRole('button', { name: 'Start battle' }).first().click()
+  // Up next starts the owner's next fixture with the sealed lists too, as its row in the fixtures would.
+  await owner.locator('[data-group-next]').getByRole('button', { name: 'Start battle' }).click()
   await owner.waitForURL(/\/battles\/[^/]+$/)
   const battleId = await battleIdFor(lastPathSegment(owner.url()))
   const commands = await productSql<{ seq: number; body: string }>`SELECT seq, body FROM commands WHERE battle_id = ${battleId}`

@@ -28,7 +28,7 @@ Ratings work as on the site-wide [leaderboard](/leaderboard): everyone starts at
 
 **Up next for you**, beside the page on a computer and at its top on a phone, shows the one thing waiting on you: a battle you're playing, a list to seal, revealed lists to play, or your next league game. It's hidden when nothing is waiting.
 
-The **Overview** tab sums the group up: how many games it has played, who has played lately and which battles are in play this week, its most played armies, the top of the leaderboard with each player's latest results, the league's progress and table, **Recent results**, **Head to head** records between members, and the current and past hidden-list games. **Battles** lists every game played for the group, with [filters](/docs/filter-lists). **Leaderboard** rates every game played for the group. **League** has the round robin, with its own table and fixtures.
+The **Overview** tab sums the group up. What's on now leads it: the current hidden-list games and your unfinished group battles, then a league that's forming or in progress, with its progress and table. Below that come how many games the group has played, who has played lately and which battles are in play this week, its most played armies, the top of the leaderboard with each player's latest results, a finished league's result, **Recent results**, **Head to head** records between members, and past hidden-list games. **Battles** lists every game played for the group, with [filters](/docs/filter-lists). **Leaderboard** rates every game played for the group. **League** has the round robin: its own table, then any sealed lists, then the fixtures.
 
 ## Hidden-list games
 
