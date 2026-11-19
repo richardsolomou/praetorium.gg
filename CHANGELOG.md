@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.270.1 (2026-11-19)
+
+### Patch Changes
+
+- abdaea9: [rosters] A unit that takes a second Leader with a particular character, as Windriders do with Warlock Skyrunners and Ynnari units with both the Visarch and Yvraine, no longer reports the second Leader as illegal.
+
 ## 0.270.0 (2026-11-19)
 
 ### Minor Changes
