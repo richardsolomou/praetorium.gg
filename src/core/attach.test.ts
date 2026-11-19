@@ -847,6 +847,72 @@ describe('attachment legality', () => {
     })
   })
 
+  describe('a unit whose second leader takes a pair or alternatives', () => {
+    const leader = (id: string) => ({
+      id,
+      name: id,
+      type: 'model' as const,
+      profiles: [ability('Leader', 'This model can be attached to the following units: GUARDIAN DEFENDERS')],
+    })
+    const attached = (childId: string) => ({ childId, field: 'associations', scope: 'self', type: 'atLeast' as const, value: 1 })
+    const index = indexOf({
+      sharedSelectionEntries: [
+        leader('visarch'),
+        leader('yvraine'),
+        leader('farseer'),
+        leader('autarch'),
+        {
+          id: 'conclave',
+          name: 'conclave',
+          type: 'model' as const,
+          profiles: [ability('Support', 'This unit can be attached to the following units: GUARDIAN DEFENDERS')],
+        },
+        {
+          id: 'guardians',
+          name: 'GUARDIAN DEFENDERS',
+          type: 'unit',
+          constraints: [{ id: 'leader-limit', childName: 'Leader', field: 'associations', scope: 'self', type: 'max', value: 1 }],
+          modifiers: [
+            {
+              field: 'leader-limit',
+              type: 'increment',
+              value: 1,
+              conditionGroups: [
+                {
+                  type: 'or',
+                  conditions: [attached('conclave')],
+                  conditionGroups: [{ type: 'and', conditions: [attached('visarch'), attached('yvraine')] }],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    })
+    const messages = (first: string, second: string) =>
+      attachmentErrors([{ entryId: first, attachedTo: 2 }, { entryId: second, attachedTo: 2 }, { entryId: 'guardians' }], index).map(
+        (error) => error.message,
+      )
+
+    it('takes both of a pair', () => {
+      expect(messages('visarch', 'yvraine')).toEqual([])
+    })
+
+    it('takes a second leader beside the alternative listed after both leaders, as the official app lists support last', () => {
+      const units = [
+        { entryId: 'farseer', attachedTo: 3 },
+        { entryId: 'autarch', attachedTo: 3 },
+        { entryId: 'conclave', attachedTo: 3 },
+        { entryId: 'guardians' },
+      ]
+      expect(attachmentErrors(units, index)).toEqual([])
+    })
+
+    it('refuses half a pair beside another leader', () => {
+      expect(messages('visarch', 'farseer')).toEqual(['cannot lead GUARDIAN DEFENDERS, which is already led by visarch'])
+    })
+  })
+
   describe('a leader that joins a unit already led', () => {
     const leader = (id: string, name: string, categoryLinks?: { id: string; targetId: string; name: string }[]) => ({
       id,
