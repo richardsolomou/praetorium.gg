@@ -1,5 +1,5 @@
 import { cachedIn } from '../core/collections'
-import { referenceAttachmentOf } from '../core/attach'
+import { attachmentRoles, referenceAttachmentOf } from '../core/attach'
 import { nameOf } from '../core/catalogue'
 import { sameText } from '../core/text'
 import type { DatasheetRelationship } from '../core/datasheet'
@@ -46,8 +46,11 @@ function relationshipsOf(loaded: LoadedCatalogue, catalogueId: string, entryId: 
     if (!candidate || !isOfferedDatasheet(loaded.index, candidate, true)) continue
     const attachment = referenceAttachmentOf(candidate, loaded.index)
     if (!attachment?.targets.some((target) => sameText(target, name))) continue
-    const found = attachment.kind === 'leader' ? leaders : supporters
-    found.set(candidateId, { entryId: candidateId, name: nameOf(candidate, loaded.index.definitions) })
+    for (const kind of attachmentRoles(attachment))
+      (kind === 'leader' ? leaders : supporters).set(candidateId, {
+        entryId: candidateId,
+        name: nameOf(candidate, loaded.index.definitions),
+      })
   }
   return { leaders: [...leaders.values()], supporters: [...supporters.values()] }
 }
