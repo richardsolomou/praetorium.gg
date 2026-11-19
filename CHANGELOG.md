@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.272.1 (2026-11-19)
+
+### Patch Changes
+
+- 37f57a2: [rosters] Lists exported from BattleBase with each unit's size after its name now import with every unit and attachment in place.
+- 37f57a2: [rosters] A pasted list cut down to its units now takes its detachment from a line naming it above them, and no longer reports dividing lines as unread.
+
 ## 0.272.0 (2026-11-19)
 
 ### Minor Changes
