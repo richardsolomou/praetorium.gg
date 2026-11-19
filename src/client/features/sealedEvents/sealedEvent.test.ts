@@ -8,6 +8,7 @@ const STAGES: SealedEventStage[] = [
   'recruiting',
   'sizing',
   'pairing',
+  'forming',
   'sealing',
   'choosing',
   'ready',

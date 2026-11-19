@@ -66,7 +66,7 @@ export function TournamentSample({ stage }: { stage: SampleStage }) {
     ownSideSealed: true,
     allies: [],
     playDetail: revealed
-      ? swissDetail(table, false, false, progress, () => accepted.find((entry) => entry.userId === opponentId)?.name ?? '')
+      ? swissDetail(table, false, false, progress, undefined, () => accepted.find((entry) => entry.userId === opponentId)?.name ?? '')
       : undefined,
     alone: true,
     join: nothing,

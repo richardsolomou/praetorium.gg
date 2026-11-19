@@ -9,6 +9,7 @@ import {
   type SealedEventVisibility,
 } from '../../core/sealedEvent'
 import { TABLE_SHAPES, type TableShape } from '../../core/tableShape'
+import { revealedSquadPicks, type SquadRule } from '../../core/squad'
 import { openPairing, type SealedEventBattleSetup } from '../../shared/sealedEventBattle'
 import { z } from 'zod'
 import type { SealedEventSide } from '../../contracts/schemas'
@@ -47,6 +48,7 @@ export function withSealedEvents<B extends RepositoryBase>(Base: B) {
       allowances?: readonly SealedEventAllowance[]
       ownerPlays?: boolean
       rounds?: number | null
+      teams?: SquadRule | null
       pointsBudget?: number | null
       soloPoints?: number | null
       allyPoints?: number | null
@@ -103,6 +105,7 @@ export function withSealedEvents<B extends RepositoryBase>(Base: B) {
           rosterLimit: number
           allowances?: readonly SealedEventAllowance[]
           rounds?: number | null
+          teams?: SquadRule | null
           pointsBudget?: number | null
           soloPoints?: number | null
           allyPoints?: number | null
@@ -149,6 +152,34 @@ export function withSealedEvents<B extends RepositoryBase>(Base: B) {
 
     setSealedEventRoundTimer(input: { token: string; eventToken: string; ownerId: string; endsAt: number | null }) {
       return this.product.sealedEventCommand({ op: 'set-round-timer', ...input }, z.enum(['set', 'not-ready', 'missing', 'forbidden']))
+    }
+
+    setSealedEventSquad(input: {
+      token: string
+      eventToken: string
+      ownerId: string
+      squad: { create: { id: string; name: string } } | { join: string } | null
+      now: number
+    }) {
+      return this.product.sealedEventCommand({ op: 'set-squad', ...input }, z.enum(['set', 'full', 'closed', 'missing', 'forbidden']))
+    }
+
+    pickSquad(input: {
+      token: string
+      eventToken: string
+      ownerId: string
+      round: number
+      table: number
+      step: number
+      userIds: string[]
+    }) {
+      return this.product.sealedEventCommand(
+        { op: 'pick-squad', ...input },
+        z.union([
+          z.object({ outcome: z.enum(['revealed', 'seated']), recipientIds: z.array(z.string()) }),
+          z.enum(['chosen', 'stale', 'paired', 'not-available', 'missing', 'forbidden']),
+        ]),
+      )
     }
 
     swapSealedEventSeats(input: { token: string; eventToken: string; ownerId: string; players: [string, string] }) {
@@ -305,7 +336,7 @@ export function withSealedEvents<B extends RepositoryBase>(Base: B) {
     async sealedEventByToken(token: string, viewerId: string | null = null, eventToken?: string) {
       const record = await this.product.sealedEventByToken(token, eventToken)
       if (!record) return undefined
-      const { kind, tournament, group, event, organizerIds, entries, teams, teamWarlords, pairings } = record
+      const { kind, tournament, group, event, organizerIds, entries, teams, teamWarlords, pairings, squadPicks } = record
       const profiles = await this.accounts.profilesByIds([
         ...(tournament ? [tournament.ownerId, ...tournament.adminIds] : []),
         ...entries.map((entry) => entry.userId),
@@ -358,6 +389,26 @@ export function withSealedEvents<B extends RepositoryBase>(Base: B) {
         roundEndsAt: event.roundEndsAt,
         scheduleFirst: event.scheduleFirst,
         clockLimitMinutes: event.clockLimitMinutes,
+        teams: event.teamSize === null ? null : { size: event.teamSize, scoring: event.teamScoring },
+        squads: record.squads.flatMap((squad) => {
+          const memberIds = entries
+            .filter((entry) => entry.status === 'accepted' && entry.squadId === squad.id)
+            .map((entry) => entry.userId)
+          return memberIds.length ? [{ id: squad.id, name: squad.name, memberIds }] : []
+        }),
+        // Each meeting's picks as its two teams revealed them, and the reader's own team's choice still waiting on the other's.
+        squadMatches: record.squadMatches.map((match) => {
+          const picks = revealedSquadPicks(match, squadPicks)
+          const own = viewerId === null ? null : (entries.find((entry) => entry.userId === viewerId)?.squadId ?? null)
+          const { chosen } = picks
+          return {
+            ...match,
+            revealed: picks.revealed,
+            chosen: own === match.aId || own === match.bId ? chosen(own) : null,
+            // Who has chosen the next step, never what.
+            ready: [match.aId, match.bId].filter((squadId) => chosen(squadId) !== null),
+          }
+        }),
         pairings,
         battlefields: record.battlefields,
         occupiedCount: entries.filter((entry) => entry.status !== 'rejected').length,
@@ -379,6 +430,7 @@ export function withSealedEvents<B extends RepositoryBase>(Base: B) {
             army: revealed && roster ? sealedEventArmy(roster) : null,
             sealedAt: revealed ? entry.submittedAt : null,
             teamId: entry.teamId,
+            squadId: entry.squadId,
             requiredLimit: requiredSealedEventRosterLimit(event.format, event.rosterLimit, entry.requiredLimit, entry.teamId),
             sealedLimit: event.format === null && revealed ? (roster?.built?.limit ?? null) : null,
             dispositionOwed: pair?.owed ?? false,

@@ -5,7 +5,8 @@ import { type ReactNode, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { IconAction } from './SealedEventEntrants'
 import { latestRound, type SealedEventEntryView } from '../../../core/sealedEvent'
-import { rematches } from '../../../core/swiss'
+import { rematches, type SwissMatch } from '../../../core/swiss'
+import { squadStepCount } from '../../../core/squad'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { Problem } from '../../components/Problem'
 import { pairSealedEventRound, reopenSwissTable, setTableBattlefield } from '../../functions'
@@ -19,8 +20,10 @@ import { ReportTableResult } from './ReportTableResult'
 import { RoundClock, SwapSeats } from './RoundTools'
 import { CheckIn, TiebreakChoice } from './CheckIn'
 import { nameColour } from '../../playerName'
+import { SquadMeeting } from './SealedEventSquads'
 
 type Pairing = SealedEvent['pairings'][number]
+const NO_MEETINGS: readonly SwissMatch[] = []
 /** What the rounds read of a table's battle, which the sample tournament supplies without a real one. */
 type TableBattle = Pick<Battle, 'token' | 'status' | 'scores' | 'playerIds'>
 
@@ -29,16 +32,26 @@ export function forfeited(pairing: Pick<Pairing, 'aId' | 'bId'>, entries: readon
   return entries.some((entry) => entry.dropped && (entry.userId === pairing.aId || entry.userId === pairing.bId))
 }
 
-/** The rounds still to pair and whether the latest has every table finished, from the battles the page has loaded. */
-export function swissProgress(sealedEvent: Pick<SealedEvent, 'pairings' | 'rounds' | 'entries'>, battles: readonly TableBattle[]) {
-  const round = latestRound(sealedEvent.pairings)
+/**
+ * The rounds still to pair and whether the latest has every table finished, from the battles the page has loaded. At a
+ * team tournament a round is its teams' meetings, and a meeting still choosing its pairings holds the round open too.
+ */
+export function swissProgress(
+  sealedEvent: Pick<SealedEvent, 'pairings' | 'rounds' | 'entries' | 'teams' | 'squadMatches'>,
+  battles: readonly TableBattle[],
+) {
+  const { teams } = sealedEvent
+  const round = latestRound(teams ? sealedEvent.squadMatches : sealedEvent.pairings)
   const current = sealedEvent.pairings.filter((pairing) => pairing.round === round)
   const finished = new Set(battles.filter((battle) => battle.status === 'finished').map((battle) => battle.token))
   const open = current.filter(
     (pairing) =>
       pairing.bId !== null && !(pairing.battleToken && finished.has(pairing.battleToken)) && !forfeited(pairing, sealedEvent.entries),
   )
-  return { round, rounds: sealedEvent.rounds ?? 0, current, open, complete: open.length === 0 }
+  const choosing = teams
+    ? sealedEvent.squadMatches.filter((match) => match.round === round && match.bId && match.revealed.length < squadStepCount(teams.size))
+    : []
+  return { round, rounds: sealedEvent.rounds ?? 0, current, open, choosing, complete: open.length === 0 && choosing.length === 0 }
 }
 
 /**
@@ -55,11 +68,14 @@ export function SealedEventRounds({
   label,
   onPlay,
   playing,
+  meetings = NO_MEETINGS,
   sample = false,
 }: {
   sealedEvent: SealedEvent
   token: string
   battles: readonly TableBattle[]
+  /** Each team meeting's result so far, as the results table counts it. */
+  meetings?: readonly SwissMatch[]
   viewerId: string | null
   isOrganizer: boolean
   entries: readonly SealedEventEntryView[]
@@ -114,7 +130,28 @@ export function SealedEventRounds({
     .filter((pairing) => !pairing.battleToken)
     .flatMap((pairing) => (pairing.bId ? [pairing.aId, pairing.bId] : [pairing.aId]))
     .map(seatLabel)
-  const rounds = [...new Set(sealedEvent.pairings.map((pairing) => pairing.round))].toSorted((a, b) => b - a)
+  const { teams } = sealedEvent
+  const rounds = [...new Set((teams ? sealedEvent.squadMatches : sealedEvent.pairings).map((pairing) => pairing.round))].toSorted(
+    (a, b) => b - a,
+  )
+  const viewerSquadId = sealedEvent.entries.find((entry) => entry.userId === viewerId)?.squadId ?? null
+  const tableRow = (pairing: Pairing, round: number) => (
+    <TableRow
+      key={pairing.key}
+      pairing={pairing}
+      rematch={rematch.has(pairing)}
+      battle={pairing.battleToken ? byToken.get(pairing.battleToken) : undefined}
+      name={name}
+      forfeit={!pairing.battleToken && forfeited(pairing, entries)}
+      viewerId={viewerId}
+      current={round === progress.round}
+      onPlay={onPlay}
+      playing={playing}
+      sample={sample}
+      reopen={isOrganizer ? { token, eventToken: sealedEvent.eventToken } : undefined}
+      battlefield={sample ? undefined : { sealedEvent, token, organizes: isOrganizer }}
+    />
+  )
   const next = progress.round + 1
   const canPair = isOrganizer && next <= progress.rounds && progress.complete
   return (
@@ -157,7 +194,7 @@ export function SealedEventRounds({
       {progress.round && !progress.complete && !sample ? (
         <div className="mb-1 flex flex-wrap items-start justify-between gap-2">
           <RoundClock token={token} eventToken={sealedEvent.eventToken} endsAt={sealedEvent.roundEndsAt} organizes={isOrganizer} />
-          {isOrganizer && swappable.length >= 2 ? (
+          {isOrganizer && !teams && swappable.length >= 2 ? (
             <SwapSeats token={token} eventToken={sealedEvent.eventToken} players={swappable} />
           ) : null}
         </div>
@@ -183,15 +220,22 @@ export function SealedEventRounds({
       ) : null}
       {!rounds.length ? (
         <p className="text-sm text-dim">
-          {isOrganizer
-            ? 'Pair round 1 when everyone is ready. The first round is drawn at random; after that, players meet others on the same score.'
-            : 'The organizer pairs each round. The first is drawn at random; after that, players meet others on the same score.'}
+          {teams
+            ? `${isOrganizer ? 'Pair round 1 when everyone is ready.' : 'The organizer pairs each round.'} The first is drawn at random; after that, teams meet others on the same score. Each meeting’s two teams then choose who plays whom.`
+            : isOrganizer
+              ? 'Pair round 1 when everyone is ready. The first round is drawn at random; after that, players meet others on the same score.'
+              : 'The organizer pairs each round. The first is drawn at random; after that, players meet others on the same score.'}
         </p>
       ) : (
         <div className="space-y-4">
           {!progress.complete ? (
             <p className="text-sm text-dim">
-              {progress.open.length === 1 ? 'One table is still playing.' : `${progress.open.length} tables are still playing.`}{' '}
+              {progress.choosing.length ? `${countLabel(progress.choosing.length, 'meeting')} still choosing pairings. ` : null}
+              {progress.open.length === 1
+                ? 'One table is still playing.'
+                : progress.open.length
+                  ? `${progress.open.length} tables are still playing.`
+                  : null}{' '}
               {isOrganizer && next <= progress.rounds ? `Round ${next} pairs once every table has finished.` : null}
             </p>
           ) : next > progress.rounds ? (
@@ -214,27 +258,37 @@ export function SealedEventRounds({
                     ) : null}
                   </p>
                 ) : null}
-                <ol className="divide-y divide-edge">
-                  {sealedEvent.pairings
-                    .filter((pairing) => pairing.round === round)
-                    .map((pairing) => (
-                      <TableRow
-                        key={pairing.key}
-                        pairing={pairing}
-                        rematch={rematch.has(pairing)}
-                        battle={pairing.battleToken ? byToken.get(pairing.battleToken) : undefined}
-                        name={name}
-                        forfeit={!pairing.battleToken && forfeited(pairing, entries)}
-                        viewerId={viewerId}
-                        current={round === progress.round}
-                        onPlay={onPlay}
-                        playing={playing}
-                        sample={sample}
-                        reopen={isOrganizer ? { token, eventToken: sealedEvent.eventToken } : undefined}
-                        battlefield={sample ? undefined : { sealedEvent, token, organizes: isOrganizer }}
-                      />
-                    ))}
-                </ol>
+                {teams ? (
+                  <ol className="divide-y divide-edge">
+                    {sealedEvent.squadMatches
+                      .filter((match) => match.round === round)
+                      .map((match) => {
+                        const first = (match.table - 1) * teams.size
+                        const tables = sealedEvent.pairings.filter(
+                          (pairing) => pairing.round === round && pairing.table > first && pairing.table <= first + teams.size,
+                        )
+                        const result = meetings.find((meeting) => meeting.round === round && meeting.a === match.aId)
+                        return (
+                          <SquadMeeting
+                            key={match.table}
+                            token={token}
+                            sealedEvent={sealedEvent}
+                            match={match}
+                            viewerSquadId={viewerSquadId}
+                            score={tables.length && result ? result.vp : null}
+                            name={name}
+                            label={(userId) => seatLabel(userId).label}
+                          >
+                            {tables.map((pairing) => tableRow(pairing, round))}
+                          </SquadMeeting>
+                        )
+                      })}
+                  </ol>
+                ) : (
+                  <ol className="divide-y divide-edge">
+                    {sealedEvent.pairings.filter((pairing) => pairing.round === round).map((pairing) => tableRow(pairing, round))}
+                  </ol>
+                )}
               </div>
             ))}
           </div>

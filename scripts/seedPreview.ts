@@ -7,6 +7,7 @@ import type { SealedEventSide } from '../src/contracts/schemas'
 import type { RosterPick } from '../src/core/roster'
 import { rosterSnapshot } from '../src/core/rosterSnapshot'
 import { hiddenListGameOpen } from '../src/core/group'
+import type { SquadRule } from '../src/core/squad'
 import { rosterDiscoveryQuerySchema } from '../src/core/rosterDiscovery'
 import { routeSlug } from '../src/core/slug'
 import { account as authAccount, user } from '../src/db/authSchema'
@@ -927,6 +928,7 @@ async function seedInto(
   })
   await createOpenSealedEvent()
   await createSwissTournament()
+  await createTeamTournament()
   await createGroups()
   await createGroupLeagues()
   await createCrowdEvents()
@@ -994,6 +996,56 @@ async function seedInto(
           },
         )
       }
+    }
+  }
+
+  /**
+   * A team tournament in its first round: two teams of three have revealed their defenders, and the login's team is
+   * choosing its attackers.
+   */
+  async function createTeamTournament() {
+    const token = 'preview-tournament-teams'
+    const eventToken = 'preview-event-teams'
+    const wolves = 'Iron Wolves'
+    const kings = 'Ash Kings'
+    await createRevealedSealedEvent({
+      id: token,
+      token,
+      eventId: eventToken,
+      eventToken,
+      ownerId: previewUserId,
+      name: 'Winter Team Clash',
+      description: 'Teams of three over two Swiss rounds; each meeting’s teams choose defenders and attackers.',
+      visibility: 'public',
+      format: '1v1',
+      rounds: 2,
+      teams: { size: 3, scoring: 'games' },
+      entries: [
+        { userId: previewUserId, rosterId: 'preview-necrons-cursed-skyshroud', squad: wolves },
+        { userId: allyUserId, rosterId: 'preview-ally-astra-militarum', squad: wolves },
+        { userId: strangerUserId, rosterId: 'preview-stranger-aeldari', squad: wolves },
+        { userId: opponentUserId, rosterId: 'preview-opponent-orks', squad: kings },
+        { userId: rivalUserId, rosterId: 'preview-rival-orks', squad: kings },
+        { userId: wandererUserId, rosterId: 'preview-wanderer-orks', squad: kings },
+      ],
+    })
+    const sealedEvent = await repository.sealedEventByToken(token, previewUserId, eventToken)
+    if (sealedEvent?.squadMatches.length) return
+    const [first, second] = sealedEvent!.squads.map((squad) => squad.id)
+    const paired = await repository.pairSealedEventRound({
+      token,
+      eventToken,
+      ownerId: previewUserId,
+      round: 1,
+      pairs: [[first!, second!]],
+    })
+    if (paired !== 'paired') throw new Error(`Winter Team Clash could not be paired: ${paired}`)
+    for (const [ownerId, userIds] of [
+      [previewUserId, [allyUserId]],
+      [opponentUserId, [rivalUserId]],
+    ] as const) {
+      const result = await repository.pickSquad({ token, eventToken, ownerId, round: 1, table: 1, step: 0, userIds: [...userIds] })
+      if (typeof result !== 'object' && result !== 'chosen') throw new Error(`Winter Team Clash could not pick a defender: ${result}`)
     }
   }
 
@@ -1682,7 +1734,9 @@ async function seedInto(
     visibility: 'public' | 'private'
     format: '1v1' | '2v1' | '2v2'
     rounds?: number
-    entries: { userId: string; rosterId: string; requiredLimit?: number; teamId?: string }[]
+    teams?: SquadRule
+    /** `squad` names the team tournament team the entrant joins, which its first named entrant starts. */
+    entries: { userId: string; rosterId: string; requiredLimit?: number; teamId?: string; squad?: string }[]
     /** A battle to start once the rosters are out; a Swiss event's come from its pairings instead. */
     battle?: {
       id: string
@@ -1708,6 +1762,7 @@ async function seedInto(
         format: input.format,
         rosterLimit: 2_000,
         rounds: input.rounds ?? null,
+        teams: input.teams ?? null,
         now: now(),
       })
     }
@@ -1725,6 +1780,20 @@ async function seedInto(
             input.eventToken,
           )
         }
+      }
+      const started = new Set<string>()
+      for (const entry of input.entries) {
+        if (!entry.squad) continue
+        const squadId = `${input.id}-${entry.squad.toLowerCase().replaceAll(' ', '-')}`
+        const result = await repository.setSealedEventSquad({
+          token: input.token,
+          eventToken: input.eventToken,
+          ownerId: entry.userId,
+          squad: started.has(squadId) ? { join: squadId } : { create: { id: squadId, name: entry.squad } },
+          now: now(),
+        })
+        if (result !== 'set') throw new Error(`${input.name} could not seat a team: ${result}`)
+        started.add(squadId)
       }
       const teams = new Map<string, typeof input.entries>()
       for (const entry of input.entries) {

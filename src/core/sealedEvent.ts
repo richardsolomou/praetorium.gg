@@ -224,6 +224,8 @@ export type SealedEventRevealEntry = {
   dispositionOwed: boolean
   /** Whether this entrant's team has sealed both lists without settling whose Warlord leads it. */
   warlordOwed: boolean
+  /** The team the entrant plays for at a team tournament. */
+  squadId?: string | null
 }
 
 /**
@@ -239,12 +241,14 @@ export type SealedEventRevealCheck =
   /** `short` marks a size or pairing check that only more players can satisfy, whatever the organizer assigns. */
   | { step: 'sizes'; done: boolean; waiting: string[]; solo: number; allied: number; short: boolean }
   | { step: 'teams'; done: boolean; waiting: string[]; short: boolean }
+  /** A team tournament's players not yet on a full team, which they join themselves. */
+  | { step: 'squads'; done: boolean; waiting: string[]; short: boolean; size: number }
   | { step: 'lists'; done: boolean; waiting: string[] }
   | { step: 'dispositions'; done: boolean; waiting: string[] }
   | { step: 'warlords'; done: boolean; waiting: string[] }
 
 export function sealedEventRevealChecklist(
-  event: { format: TableShape | null; rosterLimit: number | null; sealBy?: number | null },
+  event: { format: TableShape | null; rosterLimit: number | null; sealBy?: number | null; teams?: { size: number } | null },
   entries: readonly SealedEventRevealEntry[],
   now: number,
 ): SealedEventRevealCheck[] {
@@ -279,6 +283,17 @@ export function sealedEventRevealChecklist(
     const unpaired = allies.filter((entry) => !entry.teamId || allies.filter((ally) => ally.teamId === entry.teamId).length !== 2)
     checks.push({ step: 'teams', done: unpaired.length === 0, waiting: unpaired.map((entry) => entry.userId), short })
   }
+  if (event.teams) {
+    const { size } = event.teams
+    const squadSizes = countBy(
+      accepted.flatMap((entry) => (entry.squadId ? [entry.squadId] : [])),
+      (squadId) => squadId,
+    )
+    const loose = accepted.filter((entry) => !entry.squadId || squadSizes.get(entry.squadId) !== size).map((entry) => entry.userId)
+    // Two full teams are the fewest that can meet.
+    const short = accepted.length < size * 2
+    checks.push({ step: 'squads', done: !short && loose.length === 0, waiting: loose, short, size })
+  }
   const unsealed = accepted.filter((entry) => !entry.submitted).map((entry) => entry.userId)
   checks.push({ step: 'lists', done: unsealed.length === 0, waiting: unsealed })
   if (isTeamFormat(event.format)) {
@@ -300,6 +315,7 @@ export type SealedEventStage =
   | 'recruiting'
   | 'sizing'
   | 'pairing'
+  | 'forming'
   | 'sealing'
   | 'choosing'
   | 'ready'
@@ -311,13 +327,20 @@ const STAGE_FOR_CHECK = {
   requests: 'approving',
   sizes: 'sizing',
   teams: 'pairing',
+  squads: 'forming',
   lists: 'sealing',
   dispositions: 'choosing',
   warlords: 'choosing',
 } as const satisfies Record<SealedEventRevealCheck['step'], SealedEventStage>
 
 export function sealedEventStage(
-  event: { format: TableShape | null; rosterLimit: number | null; revealedAt: number | null; sealBy?: number | null },
+  event: {
+    format: TableShape | null
+    rosterLimit: number | null
+    revealedAt: number | null
+    sealBy?: number | null
+    teams?: { size: number } | null
+  },
   entries: readonly SealedEventRevealEntry[],
   played: boolean,
   now: number,
@@ -327,7 +350,7 @@ export function sealedEventStage(
   if (entries.some((entry) => entry.status === 'pending')) return 'approving'
   const held = sealedEventRevealChecklist(event, entries, now).find((check) => !check.done)
   if (!held) return 'ready'
-  if ((held.step === 'sizes' || held.step === 'teams') && held.short) return 'recruiting'
+  if ((held.step === 'sizes' || held.step === 'teams' || held.step === 'squads') && held.short) return 'recruiting'
   return STAGE_FOR_CHECK[held.step]
 }
 

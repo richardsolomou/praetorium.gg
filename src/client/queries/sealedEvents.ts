@@ -12,6 +12,7 @@ import {
 import { battleFeedQuery, feedKey } from './battles'
 import { battleFilterActive, type BattleFilter, type BattleOrder } from '../../core/battleFilter'
 import { SSR_STALE_TIME } from './shared'
+import { squadStepCount } from '../../core/squad'
 import {
   friendSealedEventRostersKey,
   sealedEventBattlesKey,
@@ -42,12 +43,17 @@ export const outdatedSealedEventEntriesQuery = (rosterId: string) =>
     queryFn: () => outdatedSealedEventEntriesForRoster({ data: { rosterId } }),
     staleTime: SSR_STALE_TIME,
   })
+const squadsChoosing = (sealedEvent: { teams: { size: number } | null; squadMatches: { bId: string | null; revealed: unknown[] }[] }) =>
+  sealedEvent.teams !== null &&
+  sealedEvent.squadMatches.some((match) => match.bId !== null && match.revealed.length < squadStepCount(sealedEvent.teams!.size))
+
 export const sealedEventQuery = (token: string) =>
   queryOptions({
     queryKey: sealedEventKey(token),
     queryFn: () => openSealedEvent({ data: { token } }),
     staleTime: SSR_STALE_TIME,
-    refetchInterval: ({ state }) => (state.data?.revealedAt ? false : 5_000),
+    // A team meeting's picks reveal when the other team chooses, so the page keeps polling while any meeting is choosing.
+    refetchInterval: ({ state }) => (state.data?.revealedAt && !squadsChoosing(state.data) ? false : 5_000),
   })
 
 export const sealedEventRosterQuery = (token: string, eventToken: string | undefined, userId: string) =>

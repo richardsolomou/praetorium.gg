@@ -7,6 +7,7 @@ import {
   parseSealedEventAllowances,
 } from '../../core/sealedEvent'
 import { GROUP_MEMBER_STATUSES, GROUP_ROLES } from '../../core/group'
+import { SQUAD_SCORINGS, SQUAD_SIZES } from '../../core/squad'
 import { sealedEventRosterSharingSchema } from '../../contracts/sealedEventRosterSharing'
 import type { SpacetimeBase } from './client'
 
@@ -58,6 +59,15 @@ const sealedEvent = z.object({
   playsAt: z.number().int().nullable(),
   sealBy: z.number().int().nullable(),
   remindedAt: z.number().int().nullable(),
+  // Absent from a module released before team tournaments.
+  teamSize: z
+    .union(SQUAD_SIZES.map((size) => z.literal(size)))
+    .nullish()
+    .transform((value) => value ?? null),
+  teamScoring: z
+    .enum(SQUAD_SCORINGS)
+    .nullish()
+    .transform((value) => value ?? 'games'),
 })
 /** Who hosts an event: a tournament, or the group whose game it is, which `token` addresses either way. */
 const eventHost = {
@@ -89,6 +99,10 @@ const sealedEventEntry = z.object({
   teamId: z.string().nullable(),
   droppedAt: z.number().int().nullable(),
   checkedInAt: z.number().int().nullable(),
+  squadId: z
+    .string()
+    .nullish()
+    .transform((value) => value ?? null),
 })
 const sealedEventRecord = z.object({
   ...eventHost,
@@ -97,6 +111,27 @@ const sealedEventRecord = z.object({
   teams: z.array(z.object({ teamId: z.string(), disposition: z.string() })),
   teamWarlords: z.array(z.object({ teamId: z.string(), userId: z.string() })),
   pairings: z.array(sealedEventPairing),
+  // Absent from a module released before team tournaments.
+  squads: z
+    .array(z.object({ id: z.string(), name: z.string(), createdAt: z.number().int() }))
+    .nullish()
+    .transform((value) => value ?? []),
+  squadMatches: z
+    .array(z.object({ round: z.number().int(), table: z.number().int(), aId: z.string(), bId: z.string().nullable() }))
+    .nullish()
+    .transform((value) => value ?? []),
+  squadPicks: z
+    .array(
+      z.object({
+        round: z.number().int(),
+        table: z.number().int(),
+        squadId: z.string(),
+        step: z.number().int(),
+        userIds: z.array(z.string()),
+      }),
+    )
+    .nullish()
+    .transform((value) => value ?? []),
   battlefields: z.array(z.object({ round: z.number().int(), table: z.number().int(), patternId: z.string(), terrainLayoutId: z.string() })),
 })
 const sealedEventAddress = z.discriminatedUnion('kind', [

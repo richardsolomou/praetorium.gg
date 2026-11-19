@@ -22,7 +22,7 @@ import { UnsealRoster } from './SealedEventUnseal'
 import { nameColour } from '../../playerName'
 
 /** One titled side or team of rosters, or a duel's single untitled run. */
-export type ArmyGroup = { key: string; title?: string; detail?: string; entries: RevealedEntry[] }
+export type ArmyGroup = { key: string; title?: string; detail?: string; squadId?: string; entries: RevealedEntry[] }
 
 export type RevealedEntry = SealedEventEntryView & {
   army: SealedEventArmy | null
@@ -244,7 +244,8 @@ export function RevealedLists({
                   <h3 className="eyebrow text-dim">{group.title}</h3>
                   {group.detail ? <p className="text-xs text-faint">{group.detail}</p> : null}
                 </div>
-                {onSimulate && opponent && !group.entries.some((entry) => entry.userId === viewerId) ? (
+                {/* A team tournament's team is several armies that never fight as one, so only each army can be simulated. */}
+                {onSimulate && opponent && !group.squadId && !group.entries.some((entry) => entry.userId === viewerId) ? (
                   <SimulateButton label={group.title} onClick={() => onSimulate(opponent.userId)} />
                 ) : null}
               </div>

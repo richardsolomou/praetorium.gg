@@ -347,6 +347,10 @@ const sealedEvents = table(
     scheduleFirst: t.option(t.bool()).default(undefined),
     /** Each side's chess clock time for the event's battles, which their players can't change; absent leaves it to each table. */
     clockLimitMinutes: t.option(t.u32()).default(undefined),
+    /** Players per team at a team tournament, whose Swiss rounds pair teams; absent pairs players. */
+    teamSize: t.option(t.u32()).default(undefined),
+    /** How a team match is won, a `SquadScoring`; read only beside `teamSize`. */
+    teamScoring: t.option(t.string()).default(undefined),
   },
 )
 
@@ -457,6 +461,50 @@ const sealedEventEntries = table(
     droppedAt: t.option(t.u64()).default(undefined),
     /** When the entrant arrived at a Swiss event, before its first round. */
     checkedInAt: t.option(t.u64()).default(undefined),
+    /** The team the entrant plays for at a team tournament. */
+    squadId: t.option(t.string()).default(undefined),
+  },
+)
+
+/** A team at a team tournament, which its players form and join themselves before the reveal; it goes once its last player leaves. */
+const eventSquads = table(
+  { name: 'event_squads' },
+  {
+    id: t.string().primaryKey(),
+    eventId: t.string().index('btree'),
+    name: t.string(),
+    createdAt: t.u64(),
+  },
+)
+
+/**
+ * One meeting of two teams in one Swiss round, keyed by event, round and table. `bId` is absent for a bye. Its games
+ * become `round_pairings` once its pairing process ends, numbered after the meeting's table.
+ */
+const squadMatches = table(
+  { name: 'squad_matches' },
+  {
+    key: t.string().primaryKey(),
+    eventId: t.string().index('btree'),
+    round: t.u32(),
+    table: t.u32(),
+    aId: t.string(),
+    bId: t.option(t.string()),
+  },
+)
+
+/** One team's secret choice at one step of a meeting's pairing process; nobody else reads it until the other team has chosen too. */
+const squadPicks = table(
+  { name: 'squad_picks' },
+  {
+    key: t.string().primaryKey(),
+    eventId: t.string().index('btree'),
+    round: t.u32(),
+    table: t.u32(),
+    squadId: t.string(),
+    step: t.u32(),
+    /** A JSON array of the chosen players. */
+    userIds: t.string(),
   },
 )
 
@@ -975,6 +1023,9 @@ export const productTables = {
   tournamentAdmins,
   hiddenListGames,
   sealedEventEntries,
+  eventSquads,
+  squadMatches,
+  squadPicks,
   sealedEventTeams,
   sealedEventTeamWarlords,
   sealedEventRosterSharing,

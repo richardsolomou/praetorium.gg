@@ -89,6 +89,9 @@ function SealedEventScreen({
               // A hidden-list game's title already says its format and points.
               sealedEvent.group ? null : sealedEventFormat(sealedEvent),
               sealedEvent.rounds ? `Swiss, ${countLabel(sealedEvent.rounds, 'round')}` : null,
+              sealedEvent.teams
+                ? `Teams of ${sealedEvent.teams.size}, won on ${sealedEvent.teams.scoring === 'games' ? 'games' : 'victory points'}`
+                : null,
               sealedEventAllowances(sealedEvent),
               sealedEvent.clockLimitMinutes ? `Chess clock ${clockLimitLabel(sealedEvent.clockLimitMinutes)}` : null,
               sealedEventPlayers(sealedEvent, accepted),

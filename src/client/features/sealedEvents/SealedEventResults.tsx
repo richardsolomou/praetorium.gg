@@ -27,6 +27,7 @@ export function SealedEventResults<
   entries,
   label,
   sample = false,
+  teams = false,
   title = 'Results',
 }: {
   event: string
@@ -37,6 +38,8 @@ export function SealedEventResults<
   label: (entry: Entry) => string
   /** The sample tournament's made-up players, who have no profiles to open. */
   sample?: boolean
+  /** Rows are a team tournament's teams, which have no profiles to open either. */
+  teams?: boolean
   title?: string
 }) {
   const columns = FORMAT_COLUMNS[format]
@@ -53,7 +56,7 @@ export function SealedEventResults<
         return entry ? [{ place: place + 1, player: label(entry), figures: columns.map((column) => figureOf(column, row)) }] : []
       }),
     })
-    posthog.capture('sealed_event_results_exported', { swiss: format !== 'open', partial, players: rows.length })
+    posthog.capture('sealed_event_results_exported', { swiss: format !== 'open', teams, partial, players: rows.length })
     await exportText(csv, {
       name: `${safeFileName(event, 'event')}-results.csv`,
       type: 'text/csv;charset=utf-8',
@@ -81,7 +84,7 @@ export function SealedEventResults<
                 #
               </th>
               <th scope="col" className="px-2 py-3 font-normal sm:px-3">
-                Player
+                {teams ? 'Team' : 'Player'}
               </th>
               {columns.map((column) => (
                 <th key={column.key} scope="col" className="w-8 px-1 py-3 text-right font-normal sm:w-12 sm:px-3">
@@ -117,7 +120,7 @@ export function SealedEventResults<
                     </span>
                   </td>
                   <td className="overflow-hidden px-2 py-2.5 sm:px-3">
-                    {sample ? (
+                    {sample || teams ? (
                       <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 sm:flex-nowrap">{player}</div>
                     ) : (
                       <Link
@@ -185,7 +188,17 @@ const LEAGUE_COLUMNS = [
   ...SWISS_COLUMNS.filter((column) => column.key !== 'schedule'),
 ] as const
 
-const FORMAT_COLUMNS = { open: COLUMNS, swiss: SWISS_COLUMNS, league: LEAGUE_COLUMNS }
+/** A team's Swiss columns, its score from its games standing in for victory points as the tiebreak. */
+const teamColumns = (score: { short: string; title: string }) =>
+  SWISS_COLUMNS.map((column) => (column.key === 'vp' ? { ...column, ...score } : column))
+
+const FORMAT_COLUMNS = {
+  open: COLUMNS,
+  swiss: SWISS_COLUMNS,
+  league: LEAGUE_COLUMNS,
+  teamGames: teamColumns({ short: 'GW', title: 'Games won across its meetings, a draw counting half' }),
+  teamPoints: teamColumns({ short: 'VP', title: 'Victory points across its games' }),
+}
 
 type ResultColumn = { key: string; figure?: (row: ResultRow) => number }
 

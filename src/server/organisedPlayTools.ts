@@ -8,6 +8,7 @@ import {
   sealedEventPairShares,
   sealedEventTableShape,
 } from '../core/sealedEvent'
+import { squadStepCount } from '../core/squad'
 import { leagueFixtureOverdue } from '../core/groupLeague'
 import { tokenSchema } from '../contracts/schemas'
 import { gameReferencesFor } from '../shared/gameReferences'
@@ -72,7 +73,10 @@ function eventTodo(sealedEvent: SealedEvent, userId: string, battles: ReadonlyMa
   if (!entry) return revealed ? [] : ['Join with join_event.']
   if (entry.status === 'pending') return ['Wait for the organizer to let you in.']
   if (entry.status === 'rejected') return []
+  const squad = sealedEvent.squads.find((candidate) => candidate.id === entry.squadId)
   if (!revealed) {
+    if (sealedEvent.teams && entry.status === 'accepted' && !squad)
+      return [`Start a team or join one with room ${page}, then seal a roster with submit_event_roster.`]
     if (!entry.submitted) {
       if (isTeamFormat(sealedEvent.format) && entry.requiredLimit === null)
         return [
@@ -92,7 +96,14 @@ function eventTodo(sealedEvent: SealedEvent, userId: string, battles: ReadonlyMa
   if (!entry.submitted) return []
   if (entry.dropped) return []
   if (sealedEvent.rounds === null) return ['Start a battle against another entrant with start_event_battle.']
-  const round = latestRound(sealedEvent.pairings)
+  const round = latestRound(sealedEvent.teams ? sealedEvent.squadMatches : sealedEvent.pairings)
+  const meeting = sealedEvent.squadMatches.find((match) => match.round === round && squad && [match.aId, match.bId].includes(squad.id))
+  if (sealedEvent.teams && meeting?.bId && meeting.revealed.length < squadStepCount(sealedEvent.teams.size))
+    return [
+      meeting.chosen
+        ? `Wait for the other team to make its round ${round} pick; yours is in.`
+        : `Your team chooses who plays whom in round ${round} ${page}: a defender, then two attackers, then which attacker your defender plays.`,
+    ]
   if (!round)
     return [
       ...(entry.checkedIn ? [] : ['Check in with check_in_event before round 1 is paired.']),
@@ -104,6 +115,7 @@ function eventTodo(sealedEvent: SealedEvent, userId: string, battles: ReadonlyMa
   const opponentId = table && (table.aId === userId ? table.bId : table.aId)
   // An opponent who withdrew before the table finished leaves it as a bye.
   const forfeit = battle?.status !== 'finished' && sealedEvent.entries.some((other) => other.userId === opponentId && other.dropped)
+  if (meeting && !meeting.bId) return [`Your team has a bye in round ${round}.`, waitNext]
   if (!table || !table.bId || forfeit) return [table ? `You have a bye in round ${round}.` : '', waitNext].filter(Boolean)
   if (!table.battleToken)
     return [
@@ -319,7 +331,7 @@ export function registerOrganisedPlayTools(server: AgentTools, userId: string | 
     {
       title: 'Read a tournament or hidden-list game',
       description:
-        "Returns a tournament or hidden-list game as the signed-in player may see it: rules (format, size, points, what lists may break), dates, entrants with whether each sealed, your entry, Swiss rounds with your table and opponent, standings once lists are revealed, your battles in it, and todo: what you still need to do. Before the reveal nobody's list is shown but your own name for it. Requires mcp:read.",
+        "Returns a tournament or hidden-list game as the signed-in player may see it: rules (format, size, points, what lists may break), dates, entrants with whether each sealed, your entry, Swiss rounds with your table and opponent (and at a team tournament each team meeting's revealed picks), standings once lists are revealed (and team standings, whose score is games won or victory points), your battles in it, and todo: what you still need to do. Before the reveal nobody's list is shown but your own name for it. Requires mcp:read.",
       inputSchema: eventInput,
       annotations: READ_ONLY_TOOL,
     },
@@ -352,7 +364,8 @@ export function registerOrganisedPlayTools(server: AgentTools, userId: string | 
             effectiveSealedEventAllowances(format, sealedEvent.rosterLimit!, sealedEvent.allowances).includes(option.id),
           )
         : []
-      const round = latestRound(sealedEvent.pairings)
+      const round = latestRound(sealedEvent.teams ? sealedEvent.squadMatches : sealedEvent.pairings)
+      const squadName = (id: string | null) => sealedEvent.squads.find((squad) => squad.id === id)?.name ?? null
       const table = (pairing: SealedEvent['pairings'][number]) => {
         const battle = pairing.battleToken ? battles.get(pairing.battleToken) : undefined
         return {
@@ -389,6 +402,7 @@ export function registerOrganisedPlayTools(server: AgentTools, userId: string | 
           alliesSplitPoints: sealedEventPairShares(sealedEvent),
           allows: allows.map((option) => option.label),
           swissRounds: sealedEvent.rounds,
+          teams: sealedEvent.teams,
           clockLimitMinutes: sealedEvent.clockLimitMinutes,
         },
         playsAt: iso(sealedEvent.playsAt),
@@ -404,6 +418,7 @@ export function registerOrganisedPlayTools(server: AgentTools, userId: string | 
               teamId: entry.teamId,
               checkedIn: entry.checkedIn,
               withdrawn: entry.dropped,
+              teamName: squadName(entry.squadId),
               // Only your own pair's choices reach you before the reveal.
               team: entry.team && { disposition: entry.team.disposition, warlord: named(entry.team.warlord) },
             }
@@ -414,6 +429,7 @@ export function registerOrganisedPlayTools(server: AgentTools, userId: string | 
           status: other.status,
           sealed: other.submitted,
           teamId: other.teamId,
+          teamName: squadName(other.squadId),
           withdrawn: other.dropped,
           // Repeated here, not trusted from upstream alone: a list's army is never shown before the reveal.
           army:
@@ -434,6 +450,14 @@ export function registerOrganisedPlayTools(server: AgentTools, userId: string | 
                 total: sealedEvent.rounds,
                 current: round,
                 tablesThisRound: sealedEvent.pairings.filter((pairing) => pairing.round === round).length,
+                // Each team meeting this round, with the picks both teams have revealed so far.
+                meetings: sealedEvent.squadMatches
+                  .filter((match) => match.round === round)
+                  .map((match) => ({
+                    table: match.table,
+                    teams: [squadName(match.aId), squadName(match.bId)],
+                    picksRevealed: match.revealed.map((picks) => picks.map((ids) => ids.map(named))),
+                  })),
                 yourTable: current ? table(current) : null,
                 yourEarlierTables: sealedEvent.pairings
                   .filter((pairing) => pairing.round < round && (pairing.aId === me || pairing.bId === me))
@@ -451,6 +475,16 @@ export function registerOrganisedPlayTools(server: AgentTools, userId: string | 
             points: row.points,
             vp: row.vp ?? null,
           })),
+        teamStandings:
+          results?.teams?.map((row, at) => ({
+            place: at + 1,
+            team: squadName(row.userId),
+            won: row.won,
+            drawn: row.drawn,
+            lost: row.lost,
+            points: row.points,
+            score: row.vp,
+          })) ?? null,
         standingsPartial: results?.partial ?? false,
         yourBattles: mine.battles.map(tableBattle),
         todo: eventTodo(sealedEvent, me, battles),

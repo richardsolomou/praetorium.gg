@@ -42,3 +42,7 @@ If you didn't track the game here, press **Enter score** on your table after it 
 A bye counts as a win. The next round is paired once every table has finished, and earlier results are then locked. If a result is wrong, ask the organizer to reopen it. Then correct the score in the battle and finish it again. If the score was entered with **Enter score**, the organizer enters the corrected one.
 
 To leave, press the withdraw button on your roster row, then **Withdraw**. You aren't paired again and can't rejoin, and your results stay in the table. If your table in the current round hasn't finished, your opponent takes it as a bye. If your opponent withdraws or the organizer drops them before your table finishes, you get the bye.
+
+### Teams
+
+In a tournament played by teams, start a team or join one with room on the tournament page before the reveal. When the organizer pairs a round, your team meets another, and the two teams choose who plays whom: first a defender each, then two attackers each to send against the other defender, then which attacker your defender plays. Anyone on your team can choose for it. Nobody sees a choice until both teams have made theirs, and you can change yours until then. Once every game is paired, your table shows with **Start battle**. Your team's games are scored together in **Team results**.

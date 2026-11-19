@@ -34,6 +34,7 @@ export function StartLeagueDialog({ group, open, onClose }: { group: Group; open
     rosterLimit: SEALED_EVENT_DEFAULT_ROSTER_LIMIT,
     allowances: [],
     rounds: null,
+    teams: null,
     pointsBudget: null,
     soloPoints: null,
     allyPoints: null,
