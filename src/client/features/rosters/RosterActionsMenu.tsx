@@ -8,6 +8,7 @@ import {
   EllipsisVertical,
   GitBranchPlus,
   Group,
+  List,
   HandHelping,
   Lock,
   LockOpen,
@@ -27,7 +28,7 @@ import { DropdownMenuCheckboxItem, DropdownMenuItem, MenuSection } from '../../c
 import type { AccountReason } from './AccountPrompt'
 import type { ShelfArrangement } from './builder/shelves'
 import { peekGuestDraft } from './guestDraft'
-import { keepRosterArrangement } from './rosterArrangement'
+import { keepRosterArrangement, keepRosterLayout, type RosterLayout } from './rosterArrangement'
 import type { RosterActions } from './useRosterActions'
 import { VisibilityTag } from './VisibilityTag'
 
@@ -50,6 +51,8 @@ export function RosterActionsMenu({
   hasAttachedUnits,
   arrangement,
   setArrangement,
+  layout,
+  setLayout,
   ownsSaved,
   archived,
   visibility,
@@ -80,6 +83,8 @@ export function RosterActionsMenu({
   hasAttachedUnits: boolean
   arrangement: ShelfArrangement
   setArrangement: (next: ShelfArrangement) => void
+  layout: RosterLayout
+  setLayout: (next: RosterLayout) => void
   ownsSaved: boolean
   archived?: boolean
   visibility: RosterVisibility
@@ -113,20 +118,34 @@ export function RosterActionsMenu({
     </DropdownMenuItem>
   )
 
-  const displaySection = hasAttachedUnits ? (
+  const displaySection = hasUnits ? (
     <MenuSection label="Display">
       <DropdownMenuCheckboxItem
-        checked={arrangement === 'attached'}
+        checked={layout === 'list'}
         closeOnClick
         onCheckedChange={(checked) => {
-          const next = checked ? 'attached' : 'role'
-          setArrangement(next)
-          keepRosterArrangement(next)
-          posthog.capture('roster_arrangement_changed', { arrangement: next })
+          const next = checked ? 'list' : 'cards'
+          setLayout(next)
+          keepRosterLayout(next)
+          posthog.capture('roster_layout_changed', { layout: next })
         }}
       >
-        <Group /> Group attached units
+        <List /> Show as list
       </DropdownMenuCheckboxItem>
+      {hasAttachedUnits ? (
+        <DropdownMenuCheckboxItem
+          checked={arrangement === 'attached'}
+          closeOnClick
+          onCheckedChange={(checked) => {
+            const next = checked ? 'attached' : 'role'
+            setArrangement(next)
+            keepRosterArrangement(next)
+            posthog.capture('roster_arrangement_changed', { arrangement: next })
+          }}
+        >
+          <Group /> Group attached units
+        </DropdownMenuCheckboxItem>
+      ) : null}
     </MenuSection>
   ) : null
 
@@ -151,12 +170,12 @@ export function RosterActionsMenu({
   ) : null
 
   const testTargets = !frozen ? (
-    <DropdownMenuItem disabled={!hasUnits || pricing} onClick={onTestTargets}>
+    <DropdownMenuItem disabled={!hasUnits || pricing} onClick={chosen('roster_targets_opened', onTestTargets)}>
       <Calculator /> Test targets
     </DropdownMenuItem>
   ) : null
   const gradeItem = gradesAvailable ? (
-    <DropdownMenuItem disabled={!hasUnits} onClick={onGrade}>
+    <DropdownMenuItem disabled={!hasUnits} onClick={chosen('roster_grades_opened', onGrade)}>
       <ClipboardCheck /> Grade this roster
     </DropdownMenuItem>
   ) : null
@@ -172,6 +191,38 @@ export function RosterActionsMenu({
   return editable ? (
     <>
       {variantMenu}
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <div>
+              <ToggleGroup
+                value={[building ? 'build' : 'view']}
+                onValueChange={(value) => {
+                  if (value[0] === 'view' || value[0] === 'build') onReadOnlyMode(value[0] === 'view')
+                }}
+                variant="outline"
+                size="sm"
+                spacing={0}
+                aria-label="Roster mode"
+              >
+                <ToggleGroupItem
+                  value="build"
+                  className="border-primary/60 text-primary first:rounded-l-md last:rounded-r-md aria-pressed:bg-primary aria-pressed:text-primary-foreground"
+                >
+                  Build
+                </ToggleGroupItem>
+                <ToggleGroupItem
+                  value="view"
+                  className="border-primary/60 text-primary first:rounded-l-md last:rounded-r-md aria-pressed:bg-primary aria-pressed:text-primary-foreground"
+                >
+                  View
+                </ToggleGroupItem>
+              </ToggleGroup>
+            </div>
+          }
+        />
+        <TooltipContent side="bottom">View hides editing controls and simplifies cards and loadouts.</TooltipContent>
+      </Tooltip>
       <DropdownMenu>
         <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label="Roster actions" />}>
           <EllipsisVertical />
@@ -179,7 +230,7 @@ export function RosterActionsMenu({
         <DropdownMenuContent align="end" className="w-max">
           {playSection}
           <MenuSection label="Edit">
-            <DropdownMenuItem onClick={onSetup}>
+            <DropdownMenuItem onClick={chosen('roster_setup_opened', onSetup)}>
               <Pencil /> Edit roster setup
             </DropdownMenuItem>
             {savedId && !guest ? (
@@ -237,38 +288,6 @@ export function RosterActionsMenu({
           {manageSection}
         </DropdownMenuContent>
       </DropdownMenu>
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <div>
-              <ToggleGroup
-                value={[building ? 'build' : 'view']}
-                onValueChange={(value) => {
-                  if (value[0] === 'view' || value[0] === 'build') onReadOnlyMode(value[0] === 'view')
-                }}
-                variant="outline"
-                size="sm"
-                spacing={0}
-                aria-label="Roster mode"
-              >
-                <ToggleGroupItem
-                  value="build"
-                  className="border-primary/60 text-primary first:rounded-l-md last:rounded-r-md aria-pressed:bg-primary aria-pressed:text-primary-foreground"
-                >
-                  Build
-                </ToggleGroupItem>
-                <ToggleGroupItem
-                  value="view"
-                  className="border-primary/60 text-primary first:rounded-l-md last:rounded-r-md aria-pressed:bg-primary aria-pressed:text-primary-foreground"
-                >
-                  View
-                </ToggleGroupItem>
-              </ToggleGroup>
-            </div>
-          }
-        />
-        <TooltipContent side="bottom">View hides editing controls and simplifies cards and loadouts.</TooltipContent>
-      </Tooltip>
     </>
   ) : (
     <>
@@ -325,4 +344,10 @@ export function RosterActionsMenu({
       </DropdownMenu>
     </>
   )
+}
+
+/** Menu items whose own work sends no event, recorded on the choice so the menu's use can be compared. */
+const chosen = (event: string, action: () => void) => () => {
+  posthog.capture(event)
+  action()
 }

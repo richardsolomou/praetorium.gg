@@ -20,3 +20,6 @@ export const ROSTER_ROWS_COOKIE = 'praetorium_roster_rows'
 
 /** Whether the builder shelves attached units together, read by the server so the first frame is already arranged. */
 export const ROSTER_ARRANGEMENT_COOKIE = 'praetorium_roster_arrangement'
+
+/** Whether the builder draws units as cards or as a list, read by the server so the first frame is already laid out. */
+export const ROSTER_LAYOUT_COOKIE = 'praetorium_roster_layout'

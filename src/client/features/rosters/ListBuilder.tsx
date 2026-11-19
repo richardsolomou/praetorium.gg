@@ -234,6 +234,8 @@ export function ListBuilder({
   const building = editable && !viewPreferred
   const keptArrangement = useMatch({ from: '/rosters/$id/', shouldThrow: false, select: (match) => match.loaderData?.arrangement })
   const [arrangement, setArrangement] = useState(keptArrangement ?? 'attached')
+  const keptLayout = useMatch({ from: '/rosters/$id/', shouldThrow: false, select: (match) => match.loaderData?.layout })
+  const [layout, setLayout] = useState(keptLayout ?? 'cards')
   const frozenReference = Boolean(frozen) || (!editable && !resolvePersistedRoster)
   const pickerOpen = editable && (wideWorkspace || showing === 'picker')
   const pickerEnabled = workspaceMeasured && pickerOpen
@@ -742,6 +744,8 @@ export function ListBuilder({
             hasAttachedUnits={cards.some((card) => card.attachedTo !== undefined)}
             arrangement={arrangement}
             setArrangement={setArrangement}
+            layout={layout}
+            setLayout={setLayout}
             ownsSaved={ownsSaved}
             archived={initial.archived}
             visibility={visibility}
@@ -824,6 +828,7 @@ export function ListBuilder({
         <RosterUnitShelves
           cards={cards}
           arrangement={arrangement}
+          layout={layout}
           frozen={frozen}
           frozenEmbarks={frozenEmbarks}
           picks={picks}

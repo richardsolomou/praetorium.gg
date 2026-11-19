@@ -117,16 +117,17 @@ export function RosterShareDialog({ open, onClose, ...share }: RosterShareChoice
               <h3 id="share-link" className="eyebrow">
                 Link
               </h3>
-              <div className="flex items-stretch gap-2">
+              {/* The link gets the full width; the button labels run long enough to squeeze it to nothing beside them. */}
+              <div className="grid gap-2">
                 <input
                   readOnly
                   aria-label="Roster link"
                   value={share.link}
                   onFocus={(event) => event.currentTarget.select()}
-                  className="h-9 min-w-0 flex-1 truncate rounded-lg border border-edge bg-sunken px-3 font-mono text-xs text-dim data-[private]:text-faint"
+                  className="h-9 min-w-0 truncate rounded-lg border border-edge bg-sunken px-3 font-mono text-xs text-dim data-[private]:text-faint"
                   data-private={isPrivate || undefined}
                 />
-                <Button className="h-9 shrink-0" disabled={!share.link || share.copying || pending} onClick={share.onCopy}>
+                <Button className="h-9 sm:justify-self-start" disabled={!share.link || share.copying || pending} onClick={share.onCopy}>
                   {share.copied ? <Check /> : <Copy />}
                   {isPrivate
                     ? nativeShare

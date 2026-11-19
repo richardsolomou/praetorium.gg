@@ -133,128 +133,133 @@ export function RosterHeader({
 
   return (
     <header className="masthead-bleed relative border-b border-edge bg-void px-3 py-2 [--band:var(--color-void)]">
-      {/*
-       * A placeholder is not a value: it neither prints nor reads as a title. So the
-       * field only holds one where somebody can replace it, and every other reading
-       * of this list — a shared roster, a printed sheet — is given the words.
-       */}
-      <Input
-        id={nameId}
-        value={onNameChange ? name : name || placeholder || ''}
-        onChange={onNameChange}
-        maxLength={maxLength}
-        placeholder={placeholder}
-        aria-label="List name"
-        readOnly={!onNameChange}
-        data-print-hide={onNameChange && !name ? '' : undefined}
-        className="h-9 rounded-none border-0 bg-[transparent] px-0 font-display text-xl font-bold tracking-heading uppercase focus-visible:border-b focus-visible:border-parchment focus-visible:ring-0 md:text-2xl"
-      />
-      {onNameChange && !name && placeholder ? (
-        <p className="hidden h-9 items-center font-display text-xl font-bold tracking-heading uppercase print:flex">{placeholder}</p>
-      ) : null}
-
-      {faction || factionLoading || limit !== undefined ? (
-        <div className="mt-0.5 flex min-w-0 items-center gap-2 text-xs text-dim">
-          <span
-            ref={metaRef}
-            style={metaStyle}
-            data-slot="roster-meta"
-            className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto whitespace-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-          >
-            {/* Links first, then plain facts, so the line reads as where to look and then what it holds. */}
-            {[
-              faction ? (
-                <FactionReferenceLink
-                  key="faction"
-                  to="/factions/$catalogueId"
-                  params={{ catalogueId: faction.slug }}
-                  className="flex shrink-0 items-center self-stretch text-info hover:text-bone"
-                >
-                  <FactionLabel faction={faction} edition={edition} />
-                </FactionReferenceLink>
-              ) : factionLoading ? (
-                <Skeleton key="faction" className="h-5 w-28 shrink-0" aria-label="Loading faction" />
-              ) : null,
-              ...detachments.map((detachment) => {
-                const reference = faction?.detachments.find((candidate) => candidate.id === detachment.id)
-                const label = `${detachment.name}${detachment.points === null || detachment.points === undefined ? '' : ` · ${detachment.points} DP`}`
-                const key = `detachment-${detachment.id ?? detachment.name}`
-                return faction && reference && reference.referenceRoute !== null ? (
-                  <FactionReferenceLink
-                    key={key}
-                    to="/factions/$catalogueId/detachments/$detachmentId"
-                    params={{
-                      catalogueId: reference.referenceRoute?.catalogueId ?? faction.slug,
-                      detachmentId: reference.referenceRoute?.slug ?? reference.slug,
-                    }}
-                    className="shrink-0 text-info hover:text-bone"
-                  >
-                    {label}
-                  </FactionReferenceLink>
-                ) : (
-                  <span key={key} className="shrink-0">
-                    {label}
-                  </span>
-                )
-              }),
-              shownDispositions.length ? (
-                <span key="dispositions" className="contents">
-                  {shownDispositions.map((id) => {
-                    const known = factionDisposition(faction, id)
-                    return known ? (
-                      <Link
-                        key={id}
-                        to="/force-dispositions/$dispositionId"
-                        params={{ dispositionId: known.id }}
-                        className={`chip shrink-0 hover:text-bone ${dispositionTone(known.id)}`}
-                      >
-                        {known.name}
-                      </Link>
-                    ) : (
-                      <span key={id} className={`chip shrink-0 ${dispositionTone(id)}`}>
-                        {id}
-                      </span>
-                    )
-                  })}
-                </span>
-              ) : null,
-              hasPoints ? (
-                <span key="points" className="chip text-info">
-                  {points} pts
-                </span>
-              ) : null,
-              limit === undefined ? null : (
-                <span key="size" className="shrink-0">
-                  {battleSizeLabel(limit, pointsBudget)}
-                </span>
-              ),
-              unitCount === undefined ? null : (
-                <span key="units" className="shrink-0">
-                  {countLabel(unitCount, 'unit')}
-                </span>
-              ),
-              modelCount === undefined ? null : (
-                <span key="models" className="shrink-0">
-                  {countLabel(modelCount, 'model')}
-                </span>
-              ),
-            ]
-              .filter((part) => part !== null)
-              .map((part, index) => (
-                <span key={part.key} className="contents">
-                  {index ? <span aria-hidden>·</span> : null}
-                  {part}
-                </span>
-              ))}
-            <WaiverChip rules={waivers} />
+      {/* The actions sit beside the name at every width, and the facts take the next line. */}
+      <div className="flex min-w-0 flex-wrap items-center gap-x-2">
+        {/*
+         * A placeholder is not a value: it neither prints nor reads as a title. So the
+         * field only holds one where somebody can replace it, and every other reading
+         * of this list — a shared roster, a printed sheet — is given the words.
+         */}
+        <Input
+          id={nameId}
+          value={onNameChange ? name : name || placeholder || ''}
+          onChange={onNameChange}
+          maxLength={maxLength}
+          placeholder={placeholder}
+          aria-label="List name"
+          readOnly={!onNameChange}
+          data-print-hide={onNameChange && !name ? '' : undefined}
+          className="h-9 min-w-0 flex-1 basis-0 rounded-none border-0 bg-[transparent] px-0 font-display text-xl font-bold tracking-heading uppercase focus-visible:border-b focus-visible:border-parchment focus-visible:ring-0 md:text-2xl"
+        />
+        {actions ? (
+          <span className="flex shrink-0 items-center gap-1" data-print-hide>
+            {actions}
           </span>
-          {actions ? (
-            <span className="flex shrink-0 items-center gap-1" data-print-hide>
-              {actions}
+        ) : null}
+        {onNameChange && !name && placeholder ? (
+          <p className="hidden h-9 basis-full items-center font-display text-xl font-bold tracking-heading uppercase print:flex">
+            {placeholder}
+          </p>
+        ) : null}
+
+        {faction || factionLoading || limit !== undefined ? (
+          <div className="mt-0.5 flex min-w-0 basis-full items-center gap-2 text-xs text-dim">
+            <span
+              ref={metaRef}
+              style={metaStyle}
+              data-slot="roster-meta"
+              className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto whitespace-nowrap [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            >
+              {/* Links first, then plain facts, so the line reads as where to look and then what it holds. */}
+              {[
+                faction ? (
+                  <FactionReferenceLink
+                    key="faction"
+                    to="/factions/$catalogueId"
+                    params={{ catalogueId: faction.slug }}
+                    className="flex shrink-0 items-center self-stretch text-info hover:text-bone"
+                  >
+                    <FactionLabel faction={faction} edition={edition} />
+                  </FactionReferenceLink>
+                ) : factionLoading ? (
+                  <Skeleton key="faction" className="h-5 w-28 shrink-0" aria-label="Loading faction" />
+                ) : null,
+                ...detachments.map((detachment) => {
+                  const reference = faction?.detachments.find((candidate) => candidate.id === detachment.id)
+                  const label = `${detachment.name}${detachment.points === null || detachment.points === undefined ? '' : ` · ${detachment.points} DP`}`
+                  const key = `detachment-${detachment.id ?? detachment.name}`
+                  return faction && reference && reference.referenceRoute !== null ? (
+                    <FactionReferenceLink
+                      key={key}
+                      to="/factions/$catalogueId/detachments/$detachmentId"
+                      params={{
+                        catalogueId: reference.referenceRoute?.catalogueId ?? faction.slug,
+                        detachmentId: reference.referenceRoute?.slug ?? reference.slug,
+                      }}
+                      className="shrink-0 text-info hover:text-bone"
+                    >
+                      {label}
+                    </FactionReferenceLink>
+                  ) : (
+                    <span key={key} className="shrink-0">
+                      {label}
+                    </span>
+                  )
+                }),
+                shownDispositions.length ? (
+                  <span key="dispositions" className="contents">
+                    {shownDispositions.map((id) => {
+                      const known = factionDisposition(faction, id)
+                      return known ? (
+                        <Link
+                          key={id}
+                          to="/force-dispositions/$dispositionId"
+                          params={{ dispositionId: known.id }}
+                          className={`chip shrink-0 hover:text-bone ${dispositionTone(known.id)}`}
+                        >
+                          {known.name}
+                        </Link>
+                      ) : (
+                        <span key={id} className={`chip shrink-0 ${dispositionTone(id)}`}>
+                          {id}
+                        </span>
+                      )
+                    })}
+                  </span>
+                ) : null,
+                hasPoints ? (
+                  <span key="points" className="chip text-info">
+                    {points} pts
+                  </span>
+                ) : null,
+                limit === undefined ? null : (
+                  <span key="size" className="shrink-0">
+                    {battleSizeLabel(limit, pointsBudget)}
+                  </span>
+                ),
+                unitCount === undefined ? null : (
+                  <span key="units" className="shrink-0">
+                    {countLabel(unitCount, 'unit')}
+                  </span>
+                ),
+                modelCount === undefined ? null : (
+                  <span key="models" className="shrink-0">
+                    {countLabel(modelCount, 'model')}
+                  </span>
+                ),
+              ]
+                .filter((part) => part !== null)
+                .map((part, index) => (
+                  <span key={part.key} className="contents">
+                    {index ? <span aria-hidden>·</span> : null}
+                    {part}
+                  </span>
+                ))}
+              <WaiverChip rules={waivers} />
             </span>
-          ) : null}
-        </div>
-      ) : null}
+          </div>
+        ) : null}
+      </div>
 
       {children}
     </header>

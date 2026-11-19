@@ -41,6 +41,8 @@ To undo it, use **Remove** on the card showing **Leading** or **Supporting**, or
 
 An attached unit sits on its Bodyguard's shelf, which counts it as one unit. To put each card back on its role shelf, untick **Group attached units** under **Display** in the roster's menu. That's saved on this device for every roster.
 
+To read a long list at a glance, tick **Show as list** under **Display** in the roster's menu. Each unit, or each attached unit, takes one line: its model count, name, any enhancement or upgrade, the transport it starts in, and its points. Choose a name to open its loadout. Untick it to see wargear or attach and embark units. The choice is saved on this device for every roster.
+
 Supported unit-wide weapon grants appear on the attached unit's weapon profiles automatically, including Alpha Warrior's **Sustained Hits 1**. Detaching the source removes its grant from the Bodyguard's profiles.
 
 ## Start units embarked

@@ -5,8 +5,8 @@ import { pageHead, previewImage } from '../client/linkPreview'
 import { PageLoading } from '../client/components/PageState'
 import { requestedDatasheetSearch, useRequestedDatasheet } from '../client/features/rosters/requestedDatasheet'
 import { searchFlag, searchText } from '../client/searchParams'
-import { keptRosterArrangement } from '../client/features/rosters/rosterArrangement'
-import { ROSTER_ARRANGEMENT_COOKIE } from '../contracts/rosterCookies'
+import { keptRosterArrangement, keptRosterLayout } from '../client/features/rosters/rosterArrangement'
+import { ROSTER_ARRANGEMENT_COOKIE, ROSTER_LAYOUT_COOKIE } from '../contracts/rosterCookies'
 import { requestCookie } from '../server/requestCookie'
 
 export const Route = createFileRoute('/rosters/$id/')({
@@ -28,6 +28,7 @@ export const Route = createFileRoute('/rosters/$id/')({
     ...(await (await import('../client/features/rosters/rosterRouteData')).loadRoster(context.queryClient, params.id, deps, preload)),
     // Read by the server too, so the first frame is already arranged the way the player left it.
     arrangement: keptRosterArrangement(requestCookie(ROSTER_ARRANGEMENT_COOKIE)),
+    layout: keptRosterLayout(requestCookie(ROSTER_LAYOUT_COOKIE)),
   }),
   head: ({ loaderData, match, params }) => {
     const preview = loaderData?.preview
