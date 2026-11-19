@@ -1,10 +1,12 @@
 import { QueryClient, QueryObserver, environmentManager } from '@tanstack/react-query'
-import { afterEach, beforeEach, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, expect, it, vi } from 'vitest'
 import * as functions from '../../server/functions'
 import { BATTLE_ARRIVAL_CHECKS, BATTLE_ARRIVAL_INTERVAL_MS, battleArrivalQuery, battleQuery } from './battles'
 
 const screen = { kind: 'unavailable' } as Awaited<ReturnType<typeof functions.openBattle>>
 
+// The client loads its battle functions on first use, which fake timers cannot wait for; loaded first, they answer at once.
+beforeAll(() => import('../offline/battleFunctions'))
 // A reader's browser schedules the checks; tests run where TanStack Query would otherwise assume a server.
 beforeEach(() => environmentManager.setIsServer(() => false))
 afterEach(() => {
