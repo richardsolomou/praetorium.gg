@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.269.1 (2026-11-19)
+
+### Patch Changes
+
+- 766b2b1: [reference] Triumph of Saint Katherine's relics and the Librarians' psychic abilities now sit under their own headings instead of among the datasheet abilities.
+- 766b2b1: [reference] Belisarius Cawl, Thulia Ghuld and Chaplain Grimaldus now list the canticles, Icon of War abilities and Temple Relics they choose from, each under its own heading.
+- 766b2b1: [simulator] Abilities a character picks one of at a time, such as Saint Katherine's relics and Grimaldus's Temple Relics, are no longer all applied at once.
+
 ## 0.269.0 (2026-11-18)
 
 ### Minor Changes
@@ -1615,134 +1623,3 @@
 ### Patch Changes
 
 - c0962ff: [simulator] Keep recent simulations and roster lists on screen when a list fails to load during a short outage.
-
-## 0.221.7 (2026-11-05)
-
-### Patch Changes
-
-- fc2b8f0: [rosters] Importing ListForge short text reads options whose names hold a comma or end in brackets, as "1 mauler chainblade, 7 chainblades" or "Drakolithe (Once per battle, per token)".
-
-## 0.221.6 (2026-11-05)
-
-### Patch Changes
-
-- a560863: [rosters] Importing reads Ironbuilt's text export.
-
-## 0.221.5 (2026-11-05)
-
-### Patch Changes
-
-- c7b0952: [rosters] Importing War Organ text keeps its attached units when the paste lost its indentation, and reads a faction followed by its other name in brackets.
-- 700d4c8: [rosters] Imported Storm Guardians and similar squads no longer double the special weapons several loadouts share.
-- 700d4c8: [rosters] Importing reads a sergeant the official app names after his squad, as a "Purgator Justicar".
-- c7b0952: [rosters] Importing Warmind text reads datasheets and detachments marked "(Codex)" and pastes that kept only the rule over the faction, and leaves out units added during a battle without warning about them.
-
-## 0.221.4 (2026-11-05)
-
-### Patch Changes
-
-- af63688: [rosters] Imported wargear joined by "and" keeps a count stated on one of its pieces, as "2x Twin Neutronium Cascade Projectors".
-- af63688: [rosters] Importing ListForge text keeps attached units when the paste lost its indentation.
-- af63688: [rosters] Importing reads ListForge's short text export.
-
-## 0.221.3 (2026-11-05)
-
-### Patch Changes
-
-- 0167d59: [rosters] Importing reads New Recruit's Markdown export.
-- 548a739: [rosters] The import review names the data update that removed a detachment, datasheet or enhancement for armies on the current rules version too.
-
-## 0.221.2 (2026-11-05)
-
-### Patch Changes
-
-- 7204251: [rosters] The import review names the data update that removed a datasheet, detachment or enhancement an older list still takes.
-
-## 0.221.1 (2026-11-05)
-
-### Patch Changes
-
-- c4f23dc: [rosters] The import review says when a list was exported from older official-app data, which explains names it can no longer match.
-
-## 0.221.0 (2026-11-05)
-
-### Minor Changes
-
-- 109400b: [battles] Army names at the top of battle setup now open each side's roster.
-
-## 0.220.5 (2026-11-05)
-
-### Patch Changes
-
-- 2764a7d: [battles] Recording casualties during a battle no longer counts a model twice while the app waits for the service.
-- 974af93: [rosters] Importing from the official app reads the names its datasheet cards print, as "Dainal Komelius" or the French "Frimeurs".
-- 68e666f: [rosters] Imported lists read a model named in the plural with "-men", as "Navis Armsmen".
-
-## 0.220.4 (2026-11-05)
-
-### Patch Changes
-
-- 33d4918: [rosters] A list exported in another language keeps its translated unit, wargear and enhancement names, as the Spanish "Talismán del tormento".
-- 8ed71a3: [rosters] Importing from the official app reads a long detachment name it wrapped onto two lines.
-- f38ca4c: [rosters] Army text in another language imports offline as it does online.
-
-## 0.220.3 (2026-11-05)
-
-### Patch Changes
-
-- 79119ce: [rosters] Khorne Berzerkers can take eviscerator and plasma pistol Berzerkers in the builder, and imported lists keep them.
-- 8db6653: [rosters] Importing from the official app keeps a unit marked with "*" for a keyword footnote, which was left out.
-- 8db6653: [rosters] Importing French official-app text reads its attached units, headed "Unité 1 Attachée".
-- c86884a: [rosters] Importing a list whose faction is written "Imperial Agents" finds Agents of the Imperium.
-- 24d0ad2: [rosters] Importing official-app text reads attachments marked with an asterisk, as "* Attached as: Leader (Character)", instead of reporting the line.
-- 5b3fa44: [rosters] Importing official-app text keeps a bodyguard's enhancement listed above its attachment line, instead of reading the attachment as the enhancement.
-- 00045bd: [rosters] Importing a list now reads a model the catalogue names with its loadout in brackets, such as a Sicarian Infiltrator Princeps, and sizes its squad correctly.
-- 1a0147e: [rosters] Importing Carnifexes keeps the crushing claws their second arms take beside their deathspitters.
-- 7416f48: [rosters] A list stated as Space Marines whose units name one chapter, as Marneus Calgar does, imports as that chapter.
-- 7657283: [rosters] Importing an official-app list now reads "Close combat weapon" as the one melee weapon a datasheet starts with, such as a Prosecutor's gun stock.
-- 30c8452: [rosters] Imported Techmarines keep the Omnissian power axe and servo-arm that other apps list separately.
-- 10eb854: [rosters] Imported Crisis Battlesuit squads keep every drone the list states when it does not say which suit carries each.
-- 2050ab3: [rosters] Imported cyclone missile launcher Terminators keep their power fist and storm bolter, leaving a thunder hammer and storm shield to the squad's plain Terminator.
-- 7b5cb4b: [rosters] Importing an official-app list now reads a keyword its detachment grants, such as Houndpack Lance's Character, so War Dogs keep their enhancements and Warlord.
-- 8d62868: [rosters] Imported Trygons keep their Character upgrade and the enhancement it opens.
-- 16bb644: [rosters] Imported lists no longer report a Captain in Gravis Armour's power fist, or wargear spelled slightly differently from the catalogue such as an "Astartes chainsword", as missing.
-- 827a984: [rosters] Imported Grey Knights lists read an "Ancient" or "Paladin Ancient" as the model carrying the Ancient's Banner, and keep the squad's narthecium beside it.
-- a0ee2fa: [rosters] Imported Traitor Guardsmen squads no longer report their "Traitor Guardsmen" models as missing.
-- 1b8ff99: [rosters] Imported Jakhals keep a mauler chainblade the official app lists without the squad's autopistols.
-- cc80874: [rosters] Importing reads a wargear line that joins pieces with "and", as "Agent Firearm and Mystic Stave", as each piece the datasheet offers.
-- edeccf6: [rosters] Imported lists keep models the official app prefixes with their faction or a keyword, such as a Chaos Cultist or a World Eaters Terminator.
-- d399bcc: [rosters] Importing an official-app list now reads a model named for its loadout, such as a "Kill Team Heavy Intercessor with Melta Rifle, Bolt Pistol and Ceramite Fists".
-- 3fc9178: [rosters] Importing an official-app list now reads a model named by its kind alone, such as a Terminator Assault Squad's "Terminator".
-- 18e80ba: [rosters] Importing a list now keeps the wargear listed under a model with that model when the list names it differently, such as a Terminator Sergeant's thunder hammer.
-- 6ab891e: [rosters] Imported lists keep models named without their unit's last word, such as a Paragon or a Vanguard Veteran.
-- 2a9b514: [rosters] Importing official-app text joins attached groups the player renamed, instead of reading "Leader (Character)" and "Bodyguard" as wargear.
-- d4b0887: [rosters] Imported Gaunt's Ghosts keep Colm Corbec, Elim Rawne, Hlaine Larkin, Bragg and Oan Mkoll.
-- adbb6a2: [rosters] Imported squads no longer give a special weapon group more models than the squad has room for, so a Plague Marines list keeps its heavy plague weapon and gives the second plasma gun to its Champion.
-- 30c8452: [rosters] Imported lists keep weapons that only some models can carry, such as Chaos Terminator reaper autocannons, Chaos Biker plasma guns and Canoptek Wraith particle casters.
-- ad61eb9: [rosters] Importing a New Recruit list now counts the wargear a group of models holds after a choice the whole unit takes, such as Skorpekh Destroyers' hyperphase weapons.
-- ec429f0: [rosters] Importing a New Recruit list now attaches a character to the unit it supports.
-- 45faddd: [rosters] Importing a list no longer gives two models the same stated weapon, so a Battle Sisters Squad keeps its multi-melta, a Helbrute its second arm, a Deathwatch Terminator Sergeant his storm bolter and a Black Templars Lieutenant his power weapon.
-- 3606a99: [rosters] Imported Ork lists keep models the official app names in the singular, such as a Flash Git.
-- ffd374f: [rosters] Imported Hellions keep their Helliarch.
-- 30c8452: [rosters] Imported lists split wargear between models that offer the same options, such as Crisis Battlesuit drones, Talos arms and Harlequin Players' weapons.
-- d62da9d: [rosters] Importing official-app text reads a Soul Grinder by the allegiance it lists, as the Tzeentch Soul Grinder.
-- fcfb2b6: [rosters] Imported lists keep wargear printed under a model that cannot carry it for the squadmate who can, such as an Intercessor Squad's grenade launcher listed under its sergeant or a Corsair Voidreavers blaster.
-- 6c5e63f: [rosters] Imported lists keep models named by their profile, such as a Kill Team Intercessor with Jump Pack.
-- 2675adb: [rosters] Importing an official-app list keeps an enhancement printed for a whole unit whose models it names, such as a Rogue Trader Entourage's Fleetmaster.
-- 30c8452: [rosters] Imported lists keep a unit's icon when it is listed under the squad's champion, such as a Chosen or Chaos Bikers Chaos Icon and an Allarus Custodians Vexilla.
-- 654fe18: [rosters] Imported lists keep models written with "with" where the builder writes "w/", such as a Company Veteran with bolt rifle.
-- 96c3150: [rosters] Importing New Recruit's WTC text reads a unit's wargear wrapped onto the line under it, as "2x Tome-skull".
-- 24d0ad2: [rosters] Importing WTC text in the official app's layout reads wargear listed on unbulleted lines under a model.
-- 53d688f: [rosters] Importing from the official app reads a model whose first weapon is printed on the same line, as "4x Prosecutors • 4x Boltgun".
-- 9573b8a: [rosters] Importing a list keeps a known detachment that is joined by "and" to one Praetorium does not offer.
-- 3b6e6b7: [rosters] The builder offers a War Dog Executioner Snarling Rivalry, a Watch Master its enhancements, and a Titan or Watch Master the Warlord role, and imported lists keep them.
-- 3ebd90d: [rosters] A Castigator and other units with nested optional wargear can take every option at once, such as both a storm bolter and a hunter-killer missile.
-- 19f80fc: [rosters] Heavy weapon Terminators with the same heavy weapon can each take a different melee weapon.
-- d5e4fcf: [rosters] Importing from the official app reads a list whose name starts with a number, as "1 - Imperialis Fleet".
-- f5a81b2: [rosters] Importing from the official app reads lists with the battle size above the detachments, a note above the title, or a title without points.
-- b4d916c: [rosters] Imported twenty-model Neophyte Hybrids squads keep all four of their heavy weapons.
-- ff31ea3: [rosters] Importing from older versions of the official app matches squads it names by their models, as "Witchseekers" for Witchseeker Squad.
-- 95fdfaf: [rosters] Lists exported in another language now match their translated faction, detachment and disposition names.
-- 0c60a2f: [rosters] Importing from Warmind reads its newer text, which has no blank lines or closing "Built with Warmind" line.
-- 667b13c: [rosters] Lists exported from WarOrgan can now be imported.
-- ff1e14e: [rosters] Importing a WTC submission that holds a whole official-app export reads its setup lines and wargear instead of reporting them unread.
