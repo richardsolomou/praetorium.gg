@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.271.1 (2026-11-19)
+
+### Patch Changes
+
+- c99199c: [reference] Fulgrim's Daemon Primarch of Slaanesh abilities now sit under their own heading, named as the card prints it.
+- c99199c: [simulator] Fulgrim no longer has Beguiling Form, Daemonic Speed and Enthralling Hypnosis all at once.
+- c99199c: [reference] The Kill Rig's Warpath and Beastscent read "psychic level 1", as on the card.
+
 ## 0.271.0 (2026-11-19)
 
 ### Minor Changes
