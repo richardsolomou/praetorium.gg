@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import type { CanonicalDatasheet } from '../src/contracts/catalogue'
 import { targetOf } from '../src/core/catalogue'
+import { groupBy } from '../src/core/collections'
 import { datasheetCharacteristicKindOf } from '../src/core/datasheetStructure'
 import { optionWargear } from '../src/core/modelKinds'
 import { isNonMatchedPlayName, matchedPlayName, withoutFactionPrefix } from '../src/core/name'
@@ -56,6 +57,8 @@ type Sheet = {
   size: string | null
   keywords: string[]
   attachments: { leader: string[]; support?: string[] }
+  /** The abilities a character chooses between, under each group's heading; 40kdc-data has none. */
+  optionGroups?: { name: string; options: string[] }[]
 }
 
 const STATS = ['M', 'T', 'Sv', 'W', 'Ld', 'OC', 'InSv'] as const
@@ -122,6 +125,12 @@ function ourSheet(sheet: CanonicalDatasheet, size: string | null): Sheet {
       leader: sheet.attachments.filter((link) => link.kind === 'leader' && !isNonMatchedPlayName(link.name)).map((link) => link.name),
       support: sheet.attachments.filter((link) => link.kind === 'support' && !isNonMatchedPlayName(link.name)).map((link) => link.name),
     },
+    optionGroups: [
+      ...groupBy(
+        sheet.profiles.filter((profile) => profile.kind === 'other'),
+        (profile) => profile.type,
+      ),
+    ].map(([name, profiles]) => ({ name, options: profiles.map((profile) => profile.name) })),
   }
 }
 
@@ -190,6 +199,10 @@ function gdcSheet(cards: Cards, catalogueId: string, entryId: string): Sheet | u
       leader: (card.attachesTo ?? []).filter((link: Json) => link.type === 'leader').map((link: Json) => link.target),
       support: (card.attachesTo ?? []).filter((link: Json) => link.type === 'support').map((link: Json) => link.target),
     },
+    optionGroups: (card.abilities?.primarch ?? []).map((group: Json) => ({
+      name: en(group.name),
+      options: (group.abilities ?? []).map((ability: Json) => en(ability.name)),
+    })),
   }
 }
 
@@ -355,6 +368,23 @@ function compareSheets(faction: string, subject: string, sides: Sides): Finding[
   for (const kind of ['leader', 'support'] as const) {
     const targets = bySource(present, (source) => sides[source]!.attachments[kind])
     for (const { name, values } of presence(targets)) add('attachments', `${kind === 'leader' ? 'leads' : 'supports'} ${name}`, values)
+  }
+  // Sources head the same group differently, so options join by name. A group of ours that shares no option with a card's
+  // is one the cards print elsewhere, as an officer's Orders.
+  const groupsOf = (source: Source) => sides[source]?.optionGroups
+  const printed = (['gdcPin', 'gdcHead'] as const)
+    .flatMap((source) => groupsOf(source) ?? [])
+    .flatMap((group) => group.options.map((name) => ({ name })))
+  const compared = (source: Source) => groupsOf(source)?.filter((group) => group.options.some((option) => byName(printed, option)))
+  const groupSources = present.filter((source) => groupsOf(source))
+  const headed = groupSources.flatMap((source) =>
+    (compared(source) ?? []).flatMap((group) => group.options.map((name) => ({ name, heading: group.name }))),
+  )
+  const options = bySource(groupSources, (source) => compared(source)?.flatMap((group) => group.options))
+  // Every option gets its own row: `add` would fold a whole missing group into one.
+  for (const { name, values } of presence(options)) {
+    const result = finding(faction, subject, 'option-groups', `${byName(headed, name)!.heading}: ${name}`, values)
+    if (result) found.push(result)
   }
   return found
 }
