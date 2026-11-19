@@ -1,8 +1,10 @@
-import { Ban, Bookmark, Check, ChevronDown, SlidersHorizontal, Trash2, X } from 'lucide-react'
+import { Ban, Bookmark, Check, ChevronDown, ListFilter, SlidersHorizontal, Trash2, X } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import { Drawer, DrawerClose, DrawerContent, DrawerFooter, DrawerHeader, DrawerTitle, DrawerTrigger } from '@/components/ui/drawer'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -115,7 +117,8 @@ function periodLabel({ period, from, to }: PeriodFilter) {
 /**
  * The search, filters, saved views and sort every battle and roster list narrows by.
  *
- * Inline rather than in a dialog, so what is narrowing the list stays on screen beside it. Excluded values use the
+ * Inline rather than in a dialog, so what is narrowing the list stays on screen beside it. A phone keeps only the filters
+ * in use inline and gathers the rest in a sheet, so the list itself starts on the first screen. Excluded values use the
  * struck line form, the same as a discarded mission card, so "not this" never reads as a selection.
  */
 export function FilterBar({
@@ -162,6 +165,7 @@ export function FilterBar({
   )
   const pinnable = dimensions.filter((dimension) => optionsOf(dimension.groups).length)
   const periodPinned = period ? (preferences.pinned?.includes('period') ?? true) : false
+  const inUse = shown.filter((dimension) => facetActive(value[dimension.key])).length + Number(periodActive)
   const togglePin = (key: string, on: boolean) => {
     const current = preferences.pinned ?? [
       ...dimensions.filter((dimension) => dimension.pinned).map((dimension) => dimension.key),
@@ -192,8 +196,9 @@ export function FilterBar({
           }
           onDelete={(name) => save({ ...preferences, views: preferences.views.filter((view) => view.name !== name) })}
         />
+        <FilterSheet dimensions={pinnable} value={value} onChange={onChange} period={period} inUse={inUse} onClear={() => onApply({})} />
         <DropdownMenu>
-          <DropdownMenuTrigger render={<Button variant="outline" aria-label="Customise filters" />}>
+          <DropdownMenuTrigger render={<Button variant="outline" className="max-sm:hidden" aria-label="Customise filters" />}>
             <SlidersHorizontal />
             <span className="max-sm:sr-only">Customise</span>
           </DropdownMenuTrigger>
@@ -223,7 +228,7 @@ export function FilterBar({
         </DropdownMenu>
         {sort}
       </div>
-      <div className="flex flex-wrap items-center gap-1.5">
+      <div className={cn('flex flex-wrap items-center gap-1.5', !inUse && !active && !summary && 'max-sm:hidden')}>
         {shown.map((dimension) => (
           <FacetPill
             key={dimension.key}
@@ -277,7 +282,7 @@ function SettledSearch({
       label={label}
       clearLabel="Clear search"
       maxLength={maxLength}
-      className="min-w-48 flex-1"
+      className="min-w-28 flex-1 sm:min-w-48"
     />
   )
 }
@@ -304,7 +309,7 @@ function FacetPill({
   const count = on ? facet.in.length + facet.out.length : 0
   const name = first === null ? dimension.label : `${dimension.label}: ${labelOf(first)}${count > 1 ? ` and ${count - 1} more` : ''}`
   return (
-    <span className="inline-flex" data-filter={dimension.key}>
+    <span className={cn('inline-flex', !on && 'max-sm:hidden')} data-filter={dimension.key}>
       <Popover>
         <PopoverTrigger
           render={<button type="button" aria-label={name} className={cn(pillClass(on), on ? 'rounded-l-lg border-r-0' : 'rounded-lg')} />}
@@ -337,6 +342,94 @@ function FacetPill({
         </button>
       ) : null}
     </span>
+  )
+}
+
+/**
+ * Every filter on a phone, each opening the same choices its pill would. It replaces Customise there: with the whole
+ * set one press away, nothing needs pinning.
+ */
+function FilterSheet({
+  dimensions,
+  value,
+  onChange,
+  period,
+  inUse,
+  onClear,
+}: {
+  dimensions: FilterDimension[]
+  value: Record<string, Facet | undefined>
+  onChange: (key: string, facet: Facet | undefined) => void
+  period?: { label: string; value: PeriodFilter; onChange: (next: PeriodFilter) => void }
+  inUse: number
+  onClear: () => void
+}) {
+  return (
+    <Drawer>
+      <DrawerTrigger
+        render={<Button variant="outline" className="sm:hidden" aria-label={inUse ? `Filters, ${inUse} in use` : 'Filters'} />}
+      >
+        <ListFilter />
+        {inUse ? <span className="chip readout">{inUse}</span> : null}
+      </DrawerTrigger>
+      <DrawerContent>
+        <DrawerHeader className="flex-row items-center justify-between text-left">
+          <DrawerTitle className="rubric">Filters</DrawerTitle>
+          {inUse ? (
+            <Button variant="ghost" size="sm" onClick={onClear}>
+              Clear filters
+            </Button>
+          ) : null}
+        </DrawerHeader>
+        <div className="min-h-0 flex-1 divide-y divide-edge overflow-y-auto px-4 py-2">
+          {dimensions.map((dimension) => (
+            <SheetSection
+              key={dimension.key}
+              label={dimension.label}
+              chosen={<FacetSummary dimension={dimension} facet={value[dimension.key]} />}
+            >
+              <FacetChoices dimension={dimension} facet={value[dimension.key]} onChange={(facet) => onChange(dimension.key, facet)} />
+            </SheetSection>
+          ))}
+          {period ? (
+            <SheetSection label={period.label} chosen={periodLabel(period.value)}>
+              <PeriodChoices {...period} />
+            </SheetSection>
+          ) : null}
+        </div>
+        <DrawerFooter className="pt-2">
+          <DrawerClose render={<Button />}>Done</DrawerClose>
+        </DrawerFooter>
+      </DrawerContent>
+    </Drawer>
+  )
+}
+
+function SheetSection({ label, chosen, children }: { label: string; chosen: ReactNode; children: ReactNode }) {
+  return (
+    <Collapsible>
+      <CollapsibleTrigger className="group flex min-h-11 w-full items-center gap-2 text-left text-sm font-semibold text-bone">
+        <span className="shrink-0">{label}</span>
+        <span className="min-w-0 flex-1 truncate text-right text-xs font-normal">{chosen}</span>
+        <ChevronDown className="size-4 shrink-0 text-faint transition-transform group-data-panel-open:rotate-180" aria-hidden />
+      </CollapsibleTrigger>
+      <CollapsibleContent className="grid gap-2 pb-3">{children}</CollapsibleContent>
+    </Collapsible>
+  )
+}
+
+/** The first choice in a filter and how many more, struck through when it rules a value out. */
+function FacetSummary({ dimension, facet }: { dimension: FilterDimension; facet: Facet | undefined }) {
+  if (!facetActive(facet)) return null
+  const first = facet.in[0] ?? facet.out[0]!
+  const count = facet.in.length + facet.out.length
+  return (
+    <>
+      <span className={cn(facet.in[0] === undefined && 'text-discarded line-through')}>
+        {optionsOf(dimension.groups).find((option) => option.value === first)?.label ?? first}
+      </span>
+      {count > 1 ? <span className="readout ml-1 text-dim">+{count - 1}</span> : null}
+    </>
   )
 }
 
@@ -455,7 +548,7 @@ function FacetRow({
 function PeriodPill({ label, value, onChange }: { label: string; value: PeriodFilter; onChange: (next: PeriodFilter) => void }) {
   const chosen = periodLabel(value)
   return (
-    <span className="inline-flex" data-filter="period">
+    <span className={cn('inline-flex', !chosen && 'max-sm:hidden')} data-filter="period">
       <Popover>
         <PopoverTrigger
           render={
@@ -470,43 +563,7 @@ function PeriodPill({ label, value, onChange }: { label: string; value: PeriodFi
           {chosen ? <span className="truncate">{chosen}</span> : <ChevronDown className="size-3.5" aria-hidden />}
         </PopoverTrigger>
         <PopoverContent align="start" className="w-64 max-w-[calc(100vw-1.5rem)]">
-          <ul className="grid gap-px">
-            {PERIODS.map((period) => (
-              <li key={period}>
-                <button
-                  type="button"
-                  aria-pressed={value.period === period}
-                  onClick={() => onChange(value.period === period ? {} : { period })}
-                  className="flex min-h-9 w-full items-center justify-between rounded-md px-1.5 text-left text-sm hover:bg-raised"
-                >
-                  {PERIOD_LABEL[period]}
-                  {value.period === period ? <Check className="size-3.5 text-parchment" aria-hidden /> : null}
-                </button>
-              </li>
-            ))}
-          </ul>
-          <div className="grid grid-cols-2 gap-2 border-t border-edge pt-2">
-            <div>
-              <Label className="eyebrow block">From</Label>
-              <Input
-                type="date"
-                aria-label={`${label} from`}
-                value={value.from ?? ''}
-                onChange={(event) => onChange({ from: event.target.value || undefined, to: value.to })}
-                className="mt-1 px-1.5"
-              />
-            </div>
-            <div>
-              <Label className="eyebrow block">To</Label>
-              <Input
-                type="date"
-                aria-label={`${label} to`}
-                value={value.to ?? ''}
-                onChange={(event) => onChange({ from: value.from, to: event.target.value || undefined })}
-                className="mt-1 px-1.5"
-              />
-            </div>
-          </div>
+          <PeriodChoices label={label} value={value} onChange={onChange} />
         </PopoverContent>
       </Popover>
       {chosen ? (
@@ -520,6 +577,50 @@ function PeriodPill({ label, value, onChange }: { label: string; value: PeriodFi
         </button>
       ) : null}
     </span>
+  )
+}
+
+function PeriodChoices({ label, value, onChange }: { label: string; value: PeriodFilter; onChange: (next: PeriodFilter) => void }) {
+  return (
+    <>
+      <ul className="grid gap-px">
+        {PERIODS.map((period) => (
+          <li key={period}>
+            <button
+              type="button"
+              aria-pressed={value.period === period}
+              onClick={() => onChange(value.period === period ? {} : { period })}
+              className="flex min-h-9 w-full items-center justify-between rounded-md px-1.5 text-left text-sm hover:bg-raised"
+            >
+              {PERIOD_LABEL[period]}
+              {value.period === period ? <Check className="size-3.5 text-parchment" aria-hidden /> : null}
+            </button>
+          </li>
+        ))}
+      </ul>
+      <div className="grid grid-cols-2 gap-2 border-t border-edge pt-2">
+        <div>
+          <Label className="eyebrow block">From</Label>
+          <Input
+            type="date"
+            aria-label={`${label} from`}
+            value={value.from ?? ''}
+            onChange={(event) => onChange({ from: event.target.value || undefined, to: value.to })}
+            className="mt-1 px-1.5"
+          />
+        </div>
+        <div>
+          <Label className="eyebrow block">To</Label>
+          <Input
+            type="date"
+            aria-label={`${label} to`}
+            value={value.to ?? ''}
+            onChange={(event) => onChange({ from: value.from, to: event.target.value || undefined })}
+            className="mt-1 px-1.5"
+          />
+        </div>
+      </div>
+    </>
   )
 }
 

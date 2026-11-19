@@ -68,6 +68,7 @@ export function BattlesPage({ view: asked, search, order }: { view: BattlesView;
     <main className="w-full">
       <PageHeader
         title={me ? 'Battles' : 'Public battles'}
+        introduction
         description={
           me ? 'Start a game, pick one up, or watch your friends and others play.' : 'Watch a game in progress or review a finished battle.'
         }

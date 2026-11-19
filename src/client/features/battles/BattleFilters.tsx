@@ -46,7 +46,7 @@ function BattleOrderMenu({ order, onOrder }: { order?: BattleOrder; onOrder: (or
     <DropdownMenu>
       <DropdownMenuTrigger render={<Button variant="outline" aria-label={`Sort: ${label}`} />}>
         <ArrowDownUp />
-        {label}
+        <span className="max-sm:hidden">{label}</span>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-44">
         <DropdownMenuRadioGroup value={order ?? 'newest'} onValueChange={(chosen) => onOrder(chosen === 'oldest' ? 'oldest' : undefined)}>
