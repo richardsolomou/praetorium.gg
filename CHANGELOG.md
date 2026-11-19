@@ -1,5 +1,18 @@
 # praetorium
 
+## 0.269.3 (2026-11-19)
+
+### Patch Changes
+
+- bfa6189: [battles] The empty Battles page no longer points you at practising on your own.
+- bfa6189: [battles] The home page offers New battle once you have a roster or a game.
+- bfa6189: [battles] The home page shows your record as the same facts your profile opens with.
+- bfa6189: [rosters] Your rosters stay in the same place on the home page, even before your first battle.
+- bfa6189: [battles] Get started on the home page says what tracking a game needs, and its Set up opens setup with your latest legal list already chosen.
+- bfa6189: [battles] After a battle against a friend, Play them again opens a new battle with them invited and your list already chosen.
+- bfa6189: [battles] A new battle's setup says your opponent joins from a link and that you can set it up before you meet.
+- bfa6189: [battles] Until everyone has joined with an army, setup steps you haven't reached show only their name and what they wait for.
+
 ## 0.269.2 (2026-11-19)
 
 ### Patch Changes
