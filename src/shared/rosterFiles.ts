@@ -6,7 +6,7 @@ import { fromBattleBaseText } from '../core/battlebase'
 import { type Definition, type Modifier, nameOf, resolve } from '../core/catalogue'
 import { childrenOf, eachDefinition, isRosterToggle, maximumCount, modelProfileOf } from '../core/definitions'
 import { detachmentNameVariants } from '../core/detachmentName'
-import type { Selection } from '../core/evaluate'
+import { ENHANCEMENT_COST, type Selection } from '../core/evaluate'
 import { fromNewRecruitText } from '../core/newRecruit'
 import { normalizedNameVariants, withoutFactionPrefix } from '../core/name'
 import { fromListForgeText, fromListForgeShortText, fromListForgeWtcText } from '../core/listForge'
@@ -429,9 +429,12 @@ function importTextRoster(
   // A list can also name it after its faction, as 40k.app's "Chaos Warhound Titan" is a Chaos army's "Warhound Titan".
   const factionWords = new Set(normalized(faction.name).split(/[\s-]+/))
   const spelled = (name: string) => name.replaceAll('defence', 'defense')
+  // A retired datasheet can keep the current one's name, hidden until it moves to Legends, as the 200-point Marneus Calgar does.
+  const shownFirst = (matches: typeof datasheets) =>
+    matches.find((datasheet) => !resolve(loaded.index.definitions.get(datasheet.id)!, loaded.index).hidden) ?? matches[0]
   const datasheetNamed = (name: string): string | undefined => {
     const exact =
-      datasheets.find((datasheet) => spelled(datasheet.name) === spelled(name)) ??
+      shownFirst(datasheets.filter((datasheet) => spelled(datasheet.name) === spelled(name))) ??
       datasheets.find((datasheet) => spelled(datasheet.name) === `${spelled(name)} [legends]`)
     const plural = datasheets.filter((datasheet) => nameVariants(datasheet.name).includes(name))
     // Older official-app data names a squad by its models, as "Witchseekers" for "Witchseeker Squad".
@@ -506,6 +509,8 @@ function importTextRoster(
     return [read.pick]
   })
 
+  takeEnhancementsOnce(units, loaded.index, detachmentSelections)
+  assumeWarlord(units)
   attachTextUnits(parsed.units, units, sourceToImported)
   // A group that does not say which unit is its bodyguard joins the one unit of it another can join; legality then judges the rest.
   const joins = (member: { entryId: string }, host: { entryId: string }) => {
@@ -617,6 +622,74 @@ function note(found: Map<number, Map<string, string>>, unit: number, choices: re
   const named = found.get(unit) ?? new Map<string, string>()
   for (const choice of choices) named.set(choice.name, choice.reason)
   found.set(unit, named)
+}
+
+type Crowned = { toggles?: Record<string, number> }
+
+/**
+ * Marks a Warlord on a list that names none: the one unit that can be or, given `errors`, the one leaving the list fewest,
+ * first listed on a tie, since a list that placed at a tournament had one even where the text it was published as leaves
+ * it out. A datasheet the data makes Warlord whenever it is taken, as Ghazghkull Thraka, is found that way.
+ */
+export function assumeWarlord(picks: readonly Crowned[], errors?: () => number) {
+  if (picks.some((pick) => Object.values(pick.toggles ?? {}).some((count) => count > 0))) return
+  const candidates = picks.filter((pick) => Object.keys(pick.toggles ?? {}).length)
+  if (!candidates.length || (candidates.length > 1 && !errors)) return
+  const crown = (pick: Crowned, count: number) => {
+    const [key] = Object.keys(pick.toggles!)
+    pick.toggles = { ...pick.toggles, [key!]: count }
+  }
+  let best = candidates[0]!
+  let fewest = Number.POSITIVE_INFINITY
+  for (const pick of candidates.length > 1 ? candidates : []) {
+    crown(pick, 1)
+    const found = errors!()
+    crown(pick, 0)
+    if (found < fewest) [best, fewest] = [pick, found]
+  }
+  crown(best, 1)
+}
+
+/**
+ * An army takes each enhancement once, so a second character naming one another detachment also offers under that name,
+ * as Exhibition of Slaughter and Spectacle of Spite both offer a Periapt of Torments, takes that detachment's.
+ */
+function takeEnhancementsOnce(picks: readonly RosterPick[], index: LoadedCatalogue['index'], roster: readonly Selection[]) {
+  const enhancementType = [...index.costTypes.values()].find((cost) => cost.name === ENHANCEMENT_COST)?.id
+  const isEnhancement = (id: string) => {
+    const definition = index.definitions.get(id)
+    return Boolean(definition && resolve(definition, index).costs?.some((cost) => cost.typeId === enhancementType && cost.value > 0))
+  }
+  const taken = new Set<string>()
+  for (const pick of picks) {
+    for (const [key, optionId] of Object.entries(pick.choices ?? {})) {
+      if (!isEnhancement(optionId)) continue
+      if (!taken.has(optionId)) {
+        taken.add(optionId)
+        continue
+      }
+      const path = key.split('/')
+      const library = index.definitions.get(path.at(-2) ?? '')
+      const name = nameOf(index.definitions.get(optionId)!, index.definitions)
+      const named = (library ? childrenOf(library, index) : []).flatMap((group) =>
+        childrenOf(group.definition, index)
+          .filter((option) => !taken.has(option.id) && nameOf(option.definition, index.definitions) === name)
+          .map((option) => ({ key: [...path.slice(0, -1), group.id].join('/'), id: option.id })),
+      )
+      if (!named.length) continue
+      // Only a detachment the list takes offers its enhancement; another's would be a choice the unit cannot hold.
+      const context = { primaryCatalogueId: pick.catalogueId, roster }
+      const built = buildUnit(pick.entryId, index, pick.models, pick.choices, { ...context, spreads: pick.spreads })
+      const offered = built ? unitChoices(pick.entryId, built.selection, index, context) : []
+      const other = named.find((candidate) =>
+        offered.some((choice) => choice.key === candidate.key && choice.options.some((option) => option.id === candidate.id)),
+      )
+      if (!other) continue
+      delete pick.choices![key]
+      pick.choices![other.key] = other.id
+      taken.add(other.id)
+    }
+  }
 }
 
 function attachTextUnits(units: readonly TextRosterUnit[], picks: { attachedTo?: number }[], imported: ReadonlyMap<number, number>) {
@@ -1238,8 +1311,9 @@ function textRosterPick(
       return [[choice.key, Object.fromEntries(spread)]]
     }
     for (const choice of choices.filter(counted)) spreadEntries.push(...spreadFor(choice))
-    // A weapon spread under a model the list leaves out would only bring that model back.
-    const absent = spreadEntries.flatMap(([key, counts]) =>
+    // A weapon spread or choice under a model the list leaves out would only bring that model back, including one a first
+    // read left out, which a second read no longer offers a count for.
+    const absent = [...Object.entries(earlier), ...spreadEntries].flatMap(([key, counts]) =>
       Object.entries(counts).flatMap(([id, count]) => (count === 0 && isModel(id, loaded.index) ? [`${key}/${id}/`] : [])),
     )
     // A line stated under its model is that model's alone, as a heavy weapon Terminator's power fist is not a squadmate's.
@@ -1301,7 +1375,11 @@ function textRosterPick(
       catalogueId,
       models: built?.size.models ?? 1,
       choices: Object.fromEntries(
-        choices.flatMap((choice) => (singlePicks.has(choice.key) ? [[choice.key, singlePicks.get(choice.key)!]] : [])),
+        choices.flatMap((choice) =>
+          singlePicks.has(choice.key) && !absent.some((prefix) => choice.key.startsWith(prefix))
+            ? [[choice.key, singlePicks.get(choice.key)!]]
+            : [],
+        ),
       ),
       spreads: Object.fromEntries(spreadEntries.filter(([key]) => !absent.some((prefix) => key.startsWith(prefix)))),
       toggles,

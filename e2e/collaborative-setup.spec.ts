@@ -134,7 +134,11 @@ test('battle setup stays shared and does not wait for the other device', async (
   const defenderChoice = bob.getByRole('group', { name: 'Defender' })
   const defender = defenderChoice.getByRole('button', { name: new RegExp(aliceName) })
   const aliceDefender = alice.getByRole('group', { name: 'Defender' }).getByRole('button', { name: new RegExp(aliceName) })
-  await Promise.all([defender.click(), aliceDefender.click()])
+  await Promise.all([
+    defender.click(),
+    // Bob's answer can settle the step first, which collapses it on Alice's device before her click lands.
+    aliceDefender.click({ timeout: 10_000 }).catch(() => expect(alice.locator('#setup-defender')).toHaveAttribute('data-complete', 'true')),
+  ])
   await expect(alice.getByText('Your opponent got there first. Try that again.')).toBeHidden()
   await expect(bob.getByText('Your opponent got there first. Try that again.')).toBeHidden()
   await expect(alice.getByRole('region', { name: 'Deploy', exact: true })).toHaveAttribute('data-locked', 'false')

@@ -1,0 +1,39 @@
+diff --git a/definitions/Genestealer Cults.json b/definitions/Genestealer Cults.json
+--- a/definitions/Genestealer Cults.json
++++ b/definitions/Genestealer Cults.json
+@@ -11004,7 +11004,7 @@
+             ]
+           },
+           {
+-            "name": "Leader",
++            "name": "Support",
+             "id": "cb83-5005-32d4-8f79",
+             "hidden": false,
+             "typeId": "9cc3-6d83-4dd3-9b64",
+@@ -11546,7 +11546,7 @@
+             ]
+           },
+           {
+-            "name": "Leader",
++            "name": "Support",
+             "id": "d56a-1384-fab3-2f3d",
+             "hidden": false,
+             "typeId": "9cc3-6d83-4dd3-9b64",
+@@ -15250,7 +15250,7 @@
+             ]
+           },
+           {
+-            "name": "Leader",
++            "name": "Support",
+             "id": "019b-ee79-bb93-84da",
+             "hidden": false,
+             "typeId": "9cc3-6d83-4dd3-9b64",
+@@ -17942,7 +17942,7 @@
+             ]
+           },
+           {
+-            "name": "Leader",
++            "name": "Support",
+             "id": "22cf-2616-94aa-2362",
+             "hidden": false,
+             "typeId": "9cc3-6d83-4dd3-9b64",

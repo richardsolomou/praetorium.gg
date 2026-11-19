@@ -49,7 +49,7 @@
   "list_public_rosters": ["faction", "detachment", "battleSize", "q", "legalOnly", "sort", "before"],
   "list_reference": [],
   "list_units": ["faction", "battleSize", "detachment", "nonMatchedPlay", "query"],
-  "list_winning_lists": ["faction", "detachment", "battleSize", "since", "count"],
+  "list_winning_lists": ["faction", "detachment", "battleSize", "since", "includeNoLongerLegal", "count"],
   "optimize_loadout": ["attacker", "defender", "modifiers", "mode"],
   "report_table_result": ["token", "eventToken", "round", "yourScore", "opponentScore", "missionPackId"],
   "save_roster": [

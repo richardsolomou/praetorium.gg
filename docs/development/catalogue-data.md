@@ -36,7 +36,7 @@ Pins live in `catalogue/composition.json`, `catalogue/sources.json`, and `catalo
 ## Top-four lists
 
 - The Tournament lists tab's lists are fetched from 40k Stats and Mini Headquarters into `DATA_DIR/winning-lists` and imported on the web process in the background, paced between lists; never import them while answering a request.
-- Every published placing is kept, with no date window: importing cleanly and being legal under the current revision is what removes a list built for older rules, and the builder's unit counts read the same lists.
+- Every published placing is kept, with no date window: importing cleanly under the current revision is what removes a list built for removed datasheets or options. A list that imports but is no longer legal keeps its problem in its verdict and stays on the tab, marked; the builder's unit counts, grades and `list_winning_lists` by default read only lists legal today.
 - A first import under a revision pauses after each list for four times as long as the list took, so the server keeps answering and the import takes about an hour; the tab shows the lists checked so far until it finishes, while the unit counts wait for the full set rather than marking units from part of it.
 - Each list's verdict is kept per catalogue revision, and the draft its page reads per catalogue revision and app release, so a release that changes how lists import serves fresh drafts; changing what a verdict records must also change its stored shape, or old verdicts are served.
 

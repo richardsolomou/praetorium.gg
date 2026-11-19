@@ -17,6 +17,7 @@ import {
 import type { EvaluationError, Selection } from './evaluate'
 import { normalizedName, withoutFactionPrefix } from './name'
 import { sameText } from './text'
+import { modelCountOf } from './unitSize'
 import { readText } from './textFacts'
 
 /** An ability titled "Leader" or a leading association establishes that role; other attachments default to support. */
@@ -26,11 +27,18 @@ export type Attachment = {
   /** Keyword phrases the text names, which a list's own rules can hand to other units. */
   keywords?: string[]
   requiresLeader?: true
+  /** The other role the ability takes depending on the army, as Cato Sicarius leads unless the army includes Marneus Calgar. */
+  swap?: AttachmentSwap
 }
+
+/** `kind` while the army does (`present`) or does not hold a unit with entry or keyword `id`. */
+export type AttachmentSwap = { kind: Attachment['kind']; id: string; present: boolean }
 export type AttachmentLimits = Record<Attachment['kind'], number> & {
   categories: Record<string, { name: string; maximum: number }>
   /** A higher limit while one of `by` is attached, as a Noxious Blightbringer lets Poxwalkers take a second Leader. */
   raises?: { kind: Attachment['kind']; maximum: number; by: string[] }[]
+  /** More of a kind once the unit fields this many models, as twenty Kroot Carnivores take a second Leader. */
+  growths?: { kind: Attachment['kind']; models: number; more: number }[]
 }
 
 const CLAIM = /can be attached to the following units?/i
@@ -74,6 +82,14 @@ export function attachmentLimitsOf(definition: Definition, index: CatalogueIndex
       }),
     ),
   )
+  const growths = (['leader', 'support'] as const).flatMap((kind) =>
+    ofKind(kind).flatMap((constraint) =>
+      modifiers.flatMap((modifier) => {
+        const models = modifier.field === constraint.id && modifier.type === 'increment' ? growingWith(modifier) : null
+        return models !== null && typeof modifier.value === 'number' ? [{ kind, models, more: modifier.value }] : []
+      }),
+    ),
+  )
   const categories: AttachmentLimits['categories'] = {}
   for (const constraint of constraints) {
     const name = constraintName(constraint, index)
@@ -82,7 +98,22 @@ export function attachmentLimitsOf(definition: Definition, index: CatalogueIndex
     const existing = categories[key]
     categories[key] = { name, maximum: Math.min(existing?.maximum ?? Number.POSITIVE_INFINITY, constraint.value) }
   }
-  return { leader: maximum('leader'), support: maximum('support'), categories, ...(raises.length ? { raises } : {}) }
+  return {
+    leader: maximum('leader'),
+    support: maximum('support'),
+    categories,
+    ...(raises.length ? { raises } : {}),
+    ...(growths.length ? { growths } : {}),
+  }
+}
+
+/** The model count the modifier waits on the unit reaching, or null when it waits on anything else. */
+function growingWith(modifier: Modifier): number | null {
+  const [condition, ...others] = modifier.conditions ?? []
+  if (!condition || others.length || modifier.conditionGroups?.length) return null
+  const counted = condition.childId === 'model' && condition.field === 'selections' && condition.scope === 'self'
+  if (!counted) return null
+  return condition.type === 'atLeast' ? condition.value : condition.type === 'greaterThan' ? condition.value + 1 : null
 }
 
 /** The units whose attachment the modifier waits on, or null when it waits on anything else. */
@@ -146,6 +177,7 @@ export function attachmentOf(definition: Definition, index: CatalogueIndex, sele
     targets: uniqueNormalizedNames([...(attachment?.targets ?? []), ...associated.targets]),
     ...(attachment?.keywords ? { keywords: attachment.keywords } : {}),
     ...(attachment?.requiresLeader ? { requiresLeader: true as const } : {}),
+    ...(attachment?.swap ? { swap: attachment.swap } : {}),
   }
 }
 
@@ -291,7 +323,7 @@ const childrenOf = (definition: Definition): Definition[] => [
 ]
 
 function findAttachment(definition: Definition, index: CatalogueIndex): Attachment | null {
-  for (const [title, text] of statements(definition, index)) {
+  for (const [title, text, modifiers] of statements(definition, index)) {
     const claim = readText(text, index.textFacts, attachmentClaim, (facts) => facts.attachment ?? null)
     if (!claim) continue
     const categorized = claim.names.flatMap((name) => [name, ...categoryTargets(name, index)])
@@ -299,9 +331,10 @@ function findAttachment(definition: Definition, index: CatalogueIndex): Attachme
     const substitutions = attachmentSubstitutions(index)
     const targets = categorized.flatMap((name) => [name, ...(substitutions.get(normalizedName(name)) ?? [])])
     return {
-      kind: title.trim().toLowerCase() === 'leader' ? 'leader' : 'support',
+      kind: attachmentKind(title),
       targets: uniqueNormalizedNames(targets),
       ...(keywords.length ? { keywords } : {}),
+      ...withSwap(modifiers),
       ...(claim.requiresLeader ? { requiresLeader: true as const } : {}),
     }
   }
@@ -427,12 +460,17 @@ export type AttachmentRefusal<T> =
 /** The attachment facts of a datasheet in a list, read once for both judging and the client. */
 export function attachmentPartyOf(definition: Definition, index: CatalogueIndex, selection?: Selection) {
   const attachment = attachmentOf(definition, index, selection)
+  const limits = attachmentLimitsOf(definition, index)
+  const models = selection && limits.growths ? modelCountOf(selection, index) : 0
+  const grown = (kind: Attachment['kind']) =>
+    limits[kind] +
+    (limits.growths ?? []).reduce((more, growth) => more + (growth.kind === kind && models >= growth.models ? growth.more : 0), 0)
   const associationMax = definition.constraints
     ?.filter((constraint) => constraint.type === 'max' && constraint.field === 'associations')
     .map((constraint) => constraint.value)
   return {
     attachment,
-    attachmentLimits: attachmentLimitsOf(definition, index),
+    attachmentLimits: { ...limits, leader: grown('leader'), support: grown('support') },
     attachmentCategories: attachment ? attachmentCategoriesOf(definition, index) : [],
     ...(associationMax?.length && Math.min(...associationMax) < 1 ? { unattachable: true as const } : {}),
   }
@@ -489,13 +527,19 @@ export function attachmentErrors(
   keywords: readonly (readonly string[] | undefined)[] = [],
 ): EvaluationError[] {
   const errors: EvaluationError[] = []
+  const army = armyIds(
+    units.map((unit) => unit.entryId),
+    index,
+  )
   const parties = units.map((unit, position): AttachmentParty & { definition?: Definition } => {
     const definition = index.definitions.get(unit.entryId)
+    const party = definition ? attachmentPartyOf(definition, index, selections[position]) : { attachment: null }
     return {
       definition,
       name: definition?.name ?? unit.entryId,
       keywords: keywords[position],
-      ...(definition ? attachmentPartyOf(definition, index, selections[position]) : { attachment: null }),
+      ...party,
+      attachment: inArmy(party.attachment, army),
     }
   })
   const occupants = new Map<number, typeof parties>()
@@ -570,12 +614,12 @@ function errorMessage(
  * the datasheet the link points at — so both are read, the link first because it
  * may add one of its own.
  */
-function statements(definition: Definition, index: CatalogueIndex): [string, string][] {
-  const found: [string, string][] = []
+function statements(definition: Definition, index: CatalogueIndex): [string, string, readonly Modifier[]][] {
+  const found: [string, string, readonly Modifier[]][] = []
 
   const fromProfile = (profile: Profile, title: string) => {
     for (const characteristic of profile.characteristics ?? []) {
-      if (characteristic.$text) found.push([title, characteristic.$text])
+      if (characteristic.$text) found.push([title, characteristic.$text, profile.modifiers ?? []])
     }
   }
 
@@ -600,6 +644,46 @@ function statements(definition: Definition, index: CatalogueIndex): [string, str
   if (target !== definition) read(target)
 
   return found
+}
+
+const attachmentKind = (title: string): Attachment['kind'] => (title.trim().toLowerCase() === 'leader' ? 'leader' : 'support')
+
+/** A rename of the ability to the other role that waits only on whether the army holds one unit. */
+function withSwap(modifiers: readonly Modifier[]): { swap: AttachmentSwap } | Record<string, never> {
+  for (const modifier of modifiers) {
+    const [condition, ...others] = modifier.conditions ?? []
+    if (modifier.field !== 'name' || modifier.type !== 'set' || typeof modifier.value !== 'string') continue
+    if (!['leader', 'support'].includes(modifier.value.trim().toLowerCase())) continue
+    if (!condition?.childId || others.length || modifier.conditionGroups?.length) continue
+    if (condition.field !== 'selections' || condition.scope !== 'force') continue
+    const present = condition.type === 'atLeast' && condition.value === 1
+    const absent = condition.type === 'lessThan' && condition.value === 1
+    if (present || absent) return { swap: { kind: attachmentKind(modifier.value), id: condition.childId, present } }
+  }
+  return {}
+}
+
+/** The ids and keyword ids an army's units answer to, which an attachment's swap asks about. */
+export function armyIds(entryIds: readonly string[], index: CatalogueIndex): Set<string> {
+  return new Set(
+    entryIds.flatMap((id) => {
+      const definition = index.definitions.get(id)
+      if (!definition) return []
+      const target = targetOf(definition, index.definitions)
+      return [
+        definition.id,
+        target.id,
+        ...[definition, target].flatMap((source) => (source.categoryLinks ?? []).map((link) => link.targetId)),
+      ]
+    }),
+  )
+}
+
+/** The attachment as this army has it, its swap settled. */
+export function inArmy<T extends Attachment | null>(attachment: T, army: ReadonlySet<string>): T {
+  if (!attachment?.swap) return attachment
+  const { swap, ...rest } = attachment
+  return (army.has(swap.id) === swap.present ? { ...rest, kind: swap.kind } : rest) as T
 }
 
 function names(text: string): string[] {

@@ -1,5 +1,5 @@
 import { groupBy, RecentlyUsed, uniqueBy, remember } from '../core/collections'
-import { attachmentErrors, attachmentPartyOf } from '../core/attach'
+import { armyIds, attachmentErrors, attachmentPartyOf, inArmy } from '../core/attach'
 import { attachmentHost } from '../core/attachedUnits'
 import { routeSlug } from '../core/slug'
 import { borrowedDispositionError, detachmentPointBudget, detachmentPointsError, enforces, isKotcLimit } from '../core/battle'
@@ -682,6 +682,10 @@ function calculateRoster(
   // One fact, said once. A limit on a shared entry is broken by each selection of it,
   // and every one of them reports the same sentence about the same count.
   const errors = uniqueBy(reported, (error) => JSON.stringify([error.entryId, error.message]))
+  const army = armyIds(
+    picked.map((unit) => unit.entryId),
+    loaded.index,
+  )
 
   if (mode === 'assessment')
     return {
@@ -812,7 +816,8 @@ function calculateRoster(
             : [],
         ),
       )
-      const attachment = remember(builtAttachments, unit.source, () => attachmentPartyOf(definition, loaded.index, unit.selection))
+      const built = remember(builtAttachments, unit.source, () => attachmentPartyOf(definition, loaded.index, unit.selection))
+      const attachment = { ...built, attachment: inArmy(built.attachment, army) }
       return {
         key: unit.key,
         entryId: unit.entryId,

@@ -8,7 +8,12 @@ const list = (
   id: string,
   catalogueId: string,
   datasheets: string[],
-  { detachmentIds = [], limit = 2000, models = [5] }: { detachmentIds?: string[]; limit?: number; models?: number[] } = {},
+  {
+    detachmentIds = [],
+    limit = 2000,
+    models = [5],
+    problem = null,
+  }: { detachmentIds?: string[]; limit?: number; models?: number[]; problem?: WinningList['problem'] } = {},
 ): WinningList => ({
   id,
   name: '',
@@ -20,6 +25,7 @@ const list = (
   datasheets: datasheets.map((datasheet) => ({ id: datasheet, name: datasheet, models })),
   points: 2000,
   reportedPoints: 2000,
+  problem,
   placing: 1,
   record: 'W5 L0 D0',
   event: { name: 'GT', url: null, date: '2026-11-07', rounds: 5, players: 40, source: '40kstats' },
@@ -39,6 +45,18 @@ it("counts only a battle size's lists when given one, so a small list is never s
   const lists = [list('a', '470a-6daa-9014-12df', ['sammael']), list('b', '470a-6daa-9014-12df', ['outriders'], { limit: 1000 })]
 
   expect(unitCounts(lists, '470a-6daa-9014-12df', 1000)).toEqual({ lists: 1, units: { outriders: 1 } })
+})
+
+it('counts only lists legal today, so a points rise never marks units from lists that can no longer be fielded', () => {
+  const lists = [list('a', '470a-6daa-9014-12df', ['sammael']), list('b', '470a-6daa-9014-12df', ['outriders'], { problem: 'over-limit' })]
+
+  expect(unitCounts(lists, '470a-6daa-9014-12df')).toEqual({ lists: 1, units: { sammael: 1 } })
+})
+
+it('keeps lists no longer legal when asked for them', () => {
+  const lists = [list('a', '470a-6daa-9014-12df', []), list('b', '470a-6daa-9014-12df', [], { problem: 'over-limit' })]
+
+  expect(matchingLists(lists, '470a-6daa-9014-12df', { includeNoLongerLegal: true }).map(({ id }) => id)).toEqual(['a', 'b'])
 })
 
 it("keeps a faction family's lists that took the detachment at the battle size", () => {
