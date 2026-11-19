@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.270.2 (2026-11-19)
+
+### Patch Changes
+
+- 2077a51: [app] On a phone, roster and battle lists keep their filters behind one Filters button and show only those in use, so the list starts on the first screen.
+
 ## 0.270.1 (2026-11-19)
 
 ### Patch Changes
