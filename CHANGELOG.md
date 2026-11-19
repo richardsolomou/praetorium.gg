@@ -1,5 +1,22 @@
 # praetorium
 
+## 0.270.0 (2026-11-19)
+
+### Minor Changes
+
+- 0077475: [rosters] Top-four tournament lists that a points or rules change has made illegal stay on the Tournament lists tab, marked, so you can still see what was winning before the change, and a Legality filter hides them.
+
+### Patch Changes
+
+- 0077475: [rosters] An imported list that names no Warlord makes its only possible Warlord the Warlord, and a tournament list picks the one that keeps it legal.
+- 0077475: [rosters] An imported Marneus Calgar comes in as the current datasheet, so he can lead Victrix Honour Guard and Terminator squads.
+- 0077475: [rosters] Cato Sicarius leads Victrix Honour Guard, beside a Support character, unless your army includes Marneus Calgar.
+- 0077475: [rosters] A Deathwatch Terminator Squad can field up to three heavy weapons, each with its own melee weapon, without being marked illegal.
+- 0077475: [rosters] The Biophagus, Clamavus, Locus and Nexos are Support characters, so they can join a unit beside its Leader.
+- 0077475: [rosters] Twenty Kroot Carnivores can take two different Leaders, as their datasheet allows.
+- 0077475: [rosters] Importing a list whose two detachments each offer an enhancement of the same name gives each character the one it took.
+- 0077475: [rosters] An imported Stealth Battlesuits squad keeps its one homing beacon and the weapons the list gives it.
+
 ## 0.269.3 (2026-11-19)
 
 ### Patch Changes
