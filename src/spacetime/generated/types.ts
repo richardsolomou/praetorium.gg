@@ -636,6 +636,7 @@ export const SealedEventEntries = __t.object('SealedEventEntries', {
   droppedAt: __t.option(__t.u64()),
   checkedInAt: __t.option(__t.u64()),
   squadId: __t.option(__t.string()),
+  unsealedAt: __t.option(__t.u64()),
 })
 export type SealedEventEntries = __Infer<typeof SealedEventEntries>
 
@@ -685,6 +686,7 @@ export const SealedEvents = __t.object('SealedEvents', {
   clockLimitMinutes: __t.option(__t.u32()),
   teamSize: __t.option(__t.u32()),
   teamScoring: __t.option(__t.string()),
+  sideLocks: __t.option(__t.string()),
 })
 export type SealedEvents = __Infer<typeof SealedEvents>
 

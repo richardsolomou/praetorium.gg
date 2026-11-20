@@ -80,6 +80,7 @@ function insertTournament(ctx: Ctx, event: Partial<SealedEvent> = {}) {
     sharedPoints: undefined,
     teamSize: undefined,
     teamScoring: undefined,
+    sideLocks: undefined,
     ...event,
   })
   ctx.db.tournaments.insert({
@@ -122,6 +123,7 @@ describe('sharing a revealed sealed event roster', () => {
         droppedAt: undefined,
         checkedInAt: undefined,
         squadId: undefined,
+        unsealedAt: undefined,
       })
     })
     const save = (id = 'saved', changes: Record<string, unknown> = {}) =>
@@ -383,6 +385,7 @@ describe('what a sealed event allows', () => {
           droppedAt: undefined,
           checkedInAt: undefined,
           squadId: undefined,
+          unsealedAt: undefined,
         })
     })
     const command = (payload: Record<string, unknown>) =>
@@ -572,6 +575,26 @@ describe('what a sealed event allows', () => {
     expect(sealedEvent.command({ op: 'assign-team', ownerId: 'organizer', userIds: ['entrant'], teamId: 'other' })).toEqual({
       resealIds: ['ally'],
     })
+  })
+
+  it('refuses a first list after the reveal from an entry an older reveal left accepted', () => {
+    const sealedEvent = setup('[]')
+    sealedEvent.seal([])
+    sealedEvent.set({ sealBy: BigInt(NOW + 1) })
+    sealedEvent.reveal(NOW + 2)
+    sealedEvent.host.call(sealedEvent.host.operator, (ctx) =>
+      ctx.db.sealedEventEntries.key.update({ ...ctx.db.sealedEventEntries.key.find('["event","ally"]')!, status: 'accepted' }),
+    )
+    expect(sealedEvent.seal([], { userId: 'ally' })).toEqual({ outcome: 'missing' })
+  })
+
+  it('seals a corrected list in place of a revealed one an organizer unsealed', () => {
+    const sealedEvent = setup('[]')
+    sealedEvent.seal([])
+    sealedEvent.seal([], { userId: 'ally' })
+    sealedEvent.reveal(NOW)
+    sealedEvent.command({ op: 'unseal', ownerId: 'organizer', userId: 'entrant' })
+    expect(sealedEvent.seal([], { ownerId: 'friend', lent: true })).toMatchObject({ outcome: 'sealed' })
   })
 
   it('saves a duel’s points total changed on its own', () => {
@@ -795,6 +818,7 @@ describe('calendar feeds', () => {
           droppedAt,
           checkedInAt: undefined,
           squadId: undefined,
+          unsealedAt: undefined,
         })
     })
     const give = (userId: string, token = `feed-${userId}`) =>
@@ -1264,6 +1288,7 @@ describe('hidden-list games', () => {
             droppedAt: undefined,
             checkedInAt: undefined,
             squadId: undefined,
+            unsealedAt: undefined,
           })
         }
       })
@@ -1386,6 +1411,7 @@ describe('hidden-list games', () => {
           droppedAt: undefined,
           checkedInAt: undefined,
           squadId: undefined,
+          unsealedAt: undefined,
         })
     })
     const battle = (id: string) =>
@@ -1455,37 +1481,43 @@ describe('hidden-list games', () => {
     return { ...fixture, sit, sealed }
   }
 
-  it.each(['solo', null])('unseals the list of an ally a member leaves for %s', (side) => {
+  it('opens a private group’s sealed list to its members alone', () => {
     const game = pair()
-    expect([game.sit('owner', side), game.sealed()]).toEqual([{ resealIds: ['member'] }, false])
+    const read = (readerId: string) =>
+      module.sealedEventRosters(game.procedure(game.operator), { token: 'game', userId: 'member', eventToken: '', readerId }) !== 'null'
+    expect([read('owner'), read('stranger')]).toEqual([true, false])
   })
 
-  it('unseals the list of an ally whose partner leaves the group, and says who has to seal again', () => {
+  it('holds a member to the side whose sealed list they could read', () => {
+    const game = pair()
+    expect([
+      game.sit('owner', 'solo'),
+      game.sit('owner', null),
+      game.sit('owner', 'solo'),
+      game.sit('owner', 'pair'),
+      game.sealed(),
+    ]).toEqual(['side-locked', 'updated', 'side-locked', 'updated', true])
+  })
+
+  it('holds a member who leaves the group and returns to the side whose sealed list they could read', () => {
     const game = pair()
     game.group({ op: 'join', userId: 'third', now: NOW })
     game.group({ op: 'moderate', actorId: 'owner', userId: 'third', accept: true })
-    game.sit('owner', 'solo')
+    game.sit('owner', null)
     game.sit('third', 'pair')
-    game.call(game.operator, (ctx) =>
-      ctx.db.sealedEventEntries.key.update({ ...ctx.db.sealedEventEntries.key.find('["game-id","member"]')!, rosterSnapshot: '{}' }),
-    )
-    expect([game.group({ op: 'leave', userId: 'third' }), game.sealed()]).toEqual([
-      { resealed: [{ eventToken: 'game', userIds: ['member'] }] },
-      false,
-    ])
-  })
-
-  it('keeps an ally’s list sealed when their partner leaves the group after the roster deadline', () => {
-    const game = pair()
+    game.group({ op: 'leave', userId: 'third' })
     game.group({ op: 'join', userId: 'third', now: NOW })
     game.group({ op: 'moderate', actorId: 'owner', userId: 'third', accept: true })
-    game.sit('owner', 'solo')
-    game.sit('third', 'pair')
-    game.call(game.operator, (ctx) => {
-      ctx.db.sealedEventEntries.key.update({ ...ctx.db.sealedEventEntries.key.find('["game-id","member"]')!, rosterSnapshot: '{}' })
-      ctx.db.sealedEvents.id.update({ ...ctx.db.sealedEvents.id.find('game-id')!, sealBy: 1n })
-    })
-    expect([game.group({ op: 'leave', userId: 'third' }), game.sealed()]).toEqual(['left', true])
+    expect([game.sit('third', 'solo'), game.sealed()]).toEqual(['side-locked', true])
+  })
+
+  it('lets a member change side while no ally has sealed', () => {
+    const fixture = setup()
+    fixture.create('owner', { format: '2v1' })
+    const sit = (ownerId: string, side: string) => fixture.game({ op: 'set-side', ownerId, side, now: NOW })
+    sit('owner', 'pair')
+    sit('member', 'pair')
+    expect(sit('owner', 'solo')).toBe('updated')
   })
 
   it('keeps a member who leaves the group in the record of a game already revealed', () => {
@@ -1635,6 +1667,7 @@ describe('swiss rounds', () => {
           droppedAt: undefined,
           checkedInAt: undefined,
           squadId: undefined,
+          unsealedAt: undefined,
         })
     })
     const command = (input: Record<string, unknown>) =>
@@ -1963,6 +1996,7 @@ describe('team tournaments', () => {
           droppedAt: undefined,
           checkedInAt: undefined,
           squadId: squadOf(userId),
+          unsealedAt: undefined,
         })
     })
     const command = (input: Record<string, unknown>) =>
@@ -2107,6 +2141,7 @@ describe('friends’ sealed rosters', () => {
           droppedAt: undefined,
           checkedInAt: undefined,
           squadId: undefined,
+          unsealedAt: undefined,
         })
     }
     const finish = (battleId: string) =>
