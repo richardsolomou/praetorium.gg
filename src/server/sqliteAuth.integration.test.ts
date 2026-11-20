@@ -207,6 +207,62 @@ it('keeps a verified account’s other ways in when its password is reset', asyn
   })
 })
 
+it('links a provider the native shell asked for only once the shell, signed in, redeems its proof', async () => {
+  const auth = authFor({ ...testEnvironment, DISCORD_CLIENT_ID: 'discord-client', DISCORD_CLIENT_SECRET: 'discord-secret' })
+  const created = await auth.api.signUpEmail({
+    body: { email: `${randomUUID()}@example.com`, password: 'password1234', name: 'Native linker' },
+    returnHeaders: true,
+  })
+  const cookie = created.headers.get('set-cookie')!.split(';')[0]!
+  const playerId = created.response.user.id
+  const linked = async () =>
+    (await local.database.select({ provider: account.providerId }).from(account).where(eq(account.userId, playerId)))
+      .map((row) => row.provider)
+      .toSorted()
+  vi.stubGlobal('fetch', (input: string | URL | Request) => {
+    const url = new URL(input instanceof Request ? input.url : input)
+    if (url.pathname === '/api/oauth2/token') return Response.json({ access_token: 'test-token', token_type: 'bearer', expires_in: 3600 })
+    if (decodeURIComponent(url.pathname) === '/api/users/@me')
+      return Response.json({ id: '202', username: 'Player', avatar: null, discriminator: '1', email: 'player@example.com', verified: true })
+    throw new Error(`Unexpected OAuth request: ${url.pathname}`)
+  })
+  try {
+    const verifier = randomBytes(32).toString('base64url')
+    const challenge = createHash('sha256').update(verifier).digest('base64url')
+    const post = (endpoint: string, body: unknown, headers: Record<string, string> = {}) =>
+      auth.handler(
+        new Request(`https://praetorium.gg/api/auth${endpoint}`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', origin: 'https://praetorium.gg', ...headers },
+          body: JSON.stringify(body),
+        }),
+      )
+    // The browser the shell opens holds no session.
+    const started = await post('/native-auth-token/link', { action: 'link', bridge: 3, challenge, provider: 'discord', next: '/profile' })
+    const { url } = (await started.json()) as { url: string }
+    const state = new URL(url).searchParams.get('state')!
+    const callback = await auth.handler(
+      new Request(`https://praetorium.gg/api/auth/callback/discord?state=${encodeURIComponent(state)}&code=test-code`),
+    )
+    const landing = new URL(callback.headers.get('location')!)
+    const proof = Object.fromEntries(new URLSearchParams(landing.hash.slice(1)))
+    const proven = await linked()
+    const signedOut = await post('/native-auth-token/exchange', { ...proof, verifier })
+    const refused = await linked()
+    const redeemed = await post('/native-auth-token/exchange', { ...proof, verifier }, { cookie })
+    expect([landing.pathname, proven, signedOut.status, refused, redeemed.status, await linked()]).toEqual([
+      '/native-auth',
+      ['credential'],
+      400,
+      ['credential'],
+      200,
+      ['credential', 'discord'],
+    ])
+  } finally {
+    vi.unstubAllGlobals()
+  }
+})
+
 it.each([
   ['http://127.0.0.1:3000', 'http://localhost:3000'],
   ['http://localhost:3000', 'http://127.0.0.1:3000'],

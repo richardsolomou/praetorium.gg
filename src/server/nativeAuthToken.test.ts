@@ -23,6 +23,15 @@ describe('native authentication proof requests', () => {
     expect(nativeAuthProofRequest(request, 'https://praetorium.gg/api/auth')).toHaveProperty('status', 403)
   })
 
+  it('refuses a one-time session token another site posts', () => {
+    const request = new Request('https://praetorium.gg/api/auth/one-time-token/verify', {
+      method: 'POST',
+      headers: { 'sec-fetch-site': 'cross-site' },
+      body: '{}',
+    })
+    expect(nativeAuthProofRequest(request, 'https://praetorium.gg/api/auth')).toHaveProperty('status', 403)
+  })
+
   it('reconstructs a request supplied by another server runtime', async () => {
     const body = new TextEncoder().encode('{"proof":true}')
     const request = {

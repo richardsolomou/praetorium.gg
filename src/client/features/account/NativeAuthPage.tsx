@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { posthog } from 'posthog-js'
 import type { SocialAuthProvider } from '../../../authConfig'
 import { authClient } from '../../authClient'
-import { nativeAuthExchange, type NativeAuthAction } from '../../nativeAuth'
+import { nativeAuthExchange, startNativeLink, type NativeAuthAction } from '../../nativeAuth'
 import { captureAuthFailure } from './authFailureReason'
 
 const NATIVE_AUTH_CALLBACK = 'praetorium://auth'
@@ -31,6 +31,15 @@ function nativeAuthPath(
   if (search.complete) query.set('complete', 'true')
   if (search.requestSignUp) query.set('requestSignUp', 'true')
   return `/native-auth?${query}`
+}
+
+/** The proof the provider's answer left in the address, which only the shell that asked can use. */
+function linkProof() {
+  const proof = new URLSearchParams(window.location.hash.slice(1))
+  window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`)
+  const id = proof.get('id')
+  const token = proof.get('token')
+  return id && token ? { id, token } : null
 }
 
 function returnToApplication(
@@ -76,11 +85,13 @@ export function NativeAuthPage({ search }: { search: NativeAuthSearch }) {
         return
       }
       const exchange =
-        bridge >= 2
-          ? await nativeAuthExchange({ action, challenge, provider, next })
-          : await authClient.oneTimeToken
-              .generate()
-              .then((result) => (result.error || !result.data?.token ? null : { token: result.data.token }))
+        action === 'link'
+          ? linkProof()
+          : bridge >= 2
+            ? await nativeAuthExchange({ action, challenge, provider, next })
+            : await authClient.oneTimeToken
+                .generate()
+                .then((result) => (result.error || !result.data?.token ? null : { token: result.data.token }))
       if (!exchange) {
         posthog.capture('account_authentication_failed', { action, method: provider, native: true, reason: 'exchange_failed' })
         setFailed(true)
@@ -91,14 +102,12 @@ export function NativeAuthPage({ search }: { search: NativeAuthSearch }) {
 
     const begin = async () => {
       if (action === 'link') {
-        const sessionToken = new URLSearchParams(window.location.hash.slice(1)).get('session')
+        // A shell from before this proof also sends its session here, which this browser has no use for.
         window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}`)
-        if (!sessionToken) throw new Error('missing session token')
-        const exchanged = await authClient.oneTimeToken.verify({ token: sessionToken })
-        if (exchanged.error) throw exchanged.error
-        const back = nativeAuthPath({ action, bridge, challenge, complete: true, next, provider })
-        const linked = await authClient.linkSocial({ provider, callbackURL: back, errorCallbackURL: back })
-        if (linked.error) throw linked.error
+        if (bridge < 2 || !challenge) throw new Error('this app is too old to link a provider')
+        const url = await startNativeLink({ bridge: bridge as 2 | 3, challenge, provider, next })
+        if (!url) throw new Error('link could not start')
+        window.location.assign(url)
         return
       }
       const back = nativeAuthPath({ action, bridge, challenge, complete: true, next, provider, requestSignUp: search.requestSignUp })
