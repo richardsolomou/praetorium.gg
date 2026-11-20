@@ -34,8 +34,8 @@ const SOURCE = '\u0000source\u0000'
 /** More questions than any rule's words ask; a placement asking more records nothing and reads as unrecorded. */
 const MOST_QUESTIONS = 8
 
-const placementKey = (rule: Pick<CombatRule, 'scope' | 'models' | 'keywords'>) =>
-  `${rule.scope}:${rule.models === 1 ? 1 : 0}:${rule.keywords ? 1 : 0}`
+const placementKey = (rule: Pick<CombatRule, 'scope' | 'models' | 'keywords' | 'phases'>) =>
+  `${rule.scope}:${rule.models === 1 ? 1 : 0}:${rule.keywords ? 1 : 0}${rule.phases?.length ? `:${[...rule.phases].sort().join(',')}` : ''}`
 
 const comparable = (text: string) =>
   text
@@ -52,7 +52,11 @@ export function unquotedLabel(label: string, words: string) {
   const quotes = (clause: string) => clause.split(' ').length >= 5 && text.includes(comparable(clause))
   return label
     .split(' · ')
-    .map((part) => (part.split(/ or /i).some(quotes) ? 'Condition the rule states' : part))
+    .map((part) =>
+      part.split(/ or /i).some((clause) => quotes(clause) || (clause.endsWith('.') && clause.split(' ').length >= 5))
+        ? 'Condition the rule states'
+        : part,
+    )
     .join(' · ')
 }
 
@@ -71,7 +75,7 @@ export function combatReadingOf(rule: AnsweredRule): CombatReading {
 }
 
 /** A text's combat facts, or null for words that take no part in combat wherever they are placed. */
-export function combatFactsOf(words: string): CombatFacts | null {
+export function combatFactsOf(words: string, stratagem = false): CombatFacts | null {
   const judging = combatJudgingOf(words)
   const leaves: CombatReading[] = []
   const leafAt = new Map<string, number>()
@@ -85,26 +89,31 @@ export function combatFactsOf(words: string): CombatFacts | null {
     return at
   }
   const readings: Record<string, ReadingNode[]> = {}
-  for (const scope of SCOPES)
-    for (const models of [1, undefined])
-      for (const known of [true, false]) {
-        const tree = recordedTree((answers) =>
-          unquotedReading(
-            combatReadingOf({
-              id: '',
-              name: '',
-              source: SOURCE,
-              description: words,
-              scope,
-              models,
-              ...(known ? { keywords: [] } : {}),
-              answers,
-            }),
-            words,
-          ),
-        )
-        if (tree) readings[placementKey({ scope, models, keywords: known ? [] : undefined })] = flattened(tree, leaf)
-      }
+  const scopes = stratagem ? (['stratagem'] as const) : SCOPES
+  const phaseSets: CombatRule['phases'][] = stratagem ? [undefined, ['ranged'], ['melee'], ['ranged', 'melee']] : [undefined]
+  for (const scope of scopes)
+    for (const phases of phaseSets)
+      for (const models of [1, undefined])
+        for (const known of [true, false]) {
+          const keywords = known ? [] : undefined
+          const tree = recordedTree((answers) =>
+            unquotedReading(
+              combatReadingOf({
+                id: '',
+                name: '',
+                source: SOURCE,
+                description: words,
+                scope,
+                phases,
+                models,
+                keywords,
+                answers,
+              }),
+              words,
+            ),
+          )
+          if (tree) readings[placementKey({ scope, phases, models, keywords })] = flattened(tree, leaf)
+        }
   if (!judging.orders && !leaves.some(takesPart)) return null
   return { judging, readings, leaves }
 }
@@ -169,7 +178,6 @@ export function recordedCombatText(facts: CombatFacts | null): CombatText {
 /** The reading recorded for a rule's placement, answered from its own keywords and name, or null where none was. */
 export function combatReadingFor(facts: CombatFacts | null, rule: CombatRule): CombatReading | null {
   if (!facts) return NO_PART
-  if (rule.phases?.length) return null
   const nodes = facts.readings[placementKey(rule)]
   if (!nodes) return null
   const answer = ruleAnswers(rule)

@@ -269,7 +269,8 @@
         "tsconfig.json keeps the application's include list, `@/*` path, and `noUncheckedIndexedAccess`; e2e/ is type-checked by Playwright's own transform, as before.",
         ".oxlintrc.json also extends the domain preset and keeps the application's core and component layer rules.",
         "vitest.config.ts is the application's: the forks pool, the `@` alias, mobile and spacetimedb tests, and separate unit and integration configs.",
-        "pnpm-workspace.yaml is a workspace of the application, mobile/, and spacetimedb/, and keeps its own allowBuilds and packageExtensions."
+        "pnpm-workspace.yaml is a workspace of the application, mobile/, and spacetimedb/, and keeps its own allowBuilds and packageExtensions.",
+        "The workspace pins patched glob and fast-xml-parser versions for 40kdc-data because its dependency ranges still resolve to affected versions."
       ]
     }
   }

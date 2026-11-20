@@ -34,7 +34,7 @@ import { readRevisions } from './catalogueSources'
 import { mfmUnitFor } from '../shared/unitPoints'
 
 export const CANONICAL_CATALOGUE_FORMAT = 'praetorium.canonical-catalogue.v1' as const
-export const CANONICAL_CATALOGUE_COMPILER_VERSION = 27 as const
+export const CANONICAL_CATALOGUE_COMPILER_VERSION = 28 as const
 
 const characteristicSchema = z.object({
   name: z.string(),
@@ -75,6 +75,8 @@ const fieldResolutionSchema = z.object({
   strategy: z.enum(['single-source', 'sources-agree', 'merged', 'source-priority', 'fallback', 'unresolved']),
 })
 
+const countedName = z.object({ name: z.string(), count: z.number().int().positive() })
+
 const canonicalDatasheetSchema = z.object({
   catalogueId: z.string(),
   faction: z.string(),
@@ -113,6 +115,13 @@ const canonicalDatasheetSchema = z.object({
   loadout: z.string().nullable(),
   wargearOptions: z.array(z.string()),
   wargearGroups: z.array(z.object({ instruction: z.string(), options: z.array(z.string()) })).optional(),
+  configuration: z
+    .object({
+      models: z.array(countedName),
+      equipment: z.array(countedName),
+      choices: z.array(z.object({ name: z.string(), owner: z.string().optional(), options: z.array(z.string()) })),
+    })
+    .optional(),
   baseSize: z.string().nullable(),
   transport: z.string().nullable(),
   costs: z.array(
@@ -250,6 +259,7 @@ const canonicalCatalogueSchema = z.object({
     z.literal(14),
     z.literal(15),
     z.literal(16),
+    z.literal(27),
     z.literal(CANONICAL_CATALOGUE_COMPILER_VERSION),
   ]),
   revisions: z.record(z.string(), z.string()),

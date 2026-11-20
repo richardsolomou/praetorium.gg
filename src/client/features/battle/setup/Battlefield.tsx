@@ -255,7 +255,8 @@ const randomItem = <T,>(items: readonly T[]) => items[Math.floor(Math.random() *
 /** The three layout cards at their final geometry, while the pack is still being read. */
 function LayoutsLoading() {
   return (
-    <div className="mt-3 grid gap-3 sm:grid-cols-3" aria-label="Loading battlefield layouts">
+    <div className="mt-3 grid gap-3 sm:grid-cols-3">
+      <output className="sr-only">Loading battlefield layouts</output>
       {Array.from({ length: 3 }, (_, index) => (
         <div key={index} className="flex flex-col part p-3" aria-hidden>
           <Skeleton className="h-7 w-2/3" />

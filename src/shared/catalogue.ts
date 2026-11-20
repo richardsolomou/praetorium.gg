@@ -25,6 +25,7 @@ import {
   unitKeywordIds,
 } from '../core/evaluate'
 import { defaultSelection } from '../core/expand'
+import { buildUnit } from '../core/roster'
 import { unitChoices } from '../core/unitChoices'
 import { wargearOf } from '../core/wargear'
 import { wargearKey } from '../core/wargearNames'
@@ -246,9 +247,10 @@ export function datasheetSearchFieldsIn(
  */
 export function datasheetIn(loaded: LoadedCatalogue, catalogueId: string, entryId: string, context?: DatasheetContext): Datasheet | null {
   if (context) return assemble(loaded, catalogueId, entryId, walk(loaded, catalogueId, entryId, context))
-  return cachedIn(sheetCache, loaded, `${catalogueId}:${entryId}`, () =>
-    assemble(loaded, catalogueId, entryId, walkRecord(loaded, catalogueId, entryId)),
-  )
+  return cachedIn(sheetCache, loaded, `${catalogueId}:${entryId}`, () => {
+    const sheet = assemble(loaded, catalogueId, entryId, walkRecord(loaded, catalogueId, entryId))
+    return sheet && { ...sheet, configuration: unitConfiguration(loaded, catalogueId, entryId) }
+  })
 }
 
 /** Support effects need selected abilities, without weapon stats or reference relationships. */
@@ -295,6 +297,28 @@ function assemble(loaded: LoadedCatalogue, catalogueId: string, entryId: string,
       relationshipFor(loaded, catalogueId, supporter.name, undefined, supporter.entryId),
     ),
     keywordRules: walked.keywordRules,
+  }
+}
+
+function unitConfiguration(loaded: LoadedCatalogue, catalogueId: string, entryId: string): Datasheet['configuration'] {
+  const context = { primaryCatalogueId: catalogueId, mustering: true }
+  const unit = buildUnit(entryId, loaded.index, undefined, undefined, context)
+  if (!unit) return undefined
+  const { selection } = unit
+  const models = new Map<string, number>()
+  for (const model of combatCarriers(selection, loaded.index, context)) {
+    if (model.models) models.set(model.name, (models.get(model.name) ?? 0) + model.models)
+  }
+  return {
+    models: [...models].map(([name, count]) => ({ name, count })),
+    equipment: wargearOf(selection, loaded.index),
+    choices: uniqueBy(
+      unit.choices.flatMap((choice) => {
+        const options = [...new Set(choice.options.filter((option) => option.profile === undefined).map((option) => option.name))]
+        return options.length ? [{ name: choice.name, owner: choice.owner?.name, options }] : []
+      }),
+      ({ name, owner, options }) => JSON.stringify([name, owner, options]),
+    ),
   }
 }
 

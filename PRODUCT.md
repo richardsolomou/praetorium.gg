@@ -31,7 +31,7 @@ web
 
 ## Capabilities and Constraints
 
-- Publish rule names, numbers, costs and computed results from verified community sources (BSData, Game Datacards), never authored rules prose; rules text loads in the reader's browser only on request.
+- Publish names, numbers, costs and computed results from verified catalogue sources, with attributed community summaries where they match the current rule. Link to official publications for exact wording.
 - Report missing or unsupported rules; never guess them.
 - Tournaments pair Swiss rounds and groups run round-robin leagues with round deadlines; out of scope: matchmaking, chat, brackets, game appointments, locations, model positions, battle photos.
 - No account needed to watch public battles, read the leaderboard or reference, or try the builder.

@@ -1,5 +1,6 @@
 import type { AttachmentClaim } from './attach'
 import type { CombatFacts } from './combatReading'
+import type { BattleChoiceAllowance } from './battleChoices'
 import type { ReminderSuggestion } from './reminders'
 import type { UnitGeneration } from './rosterGrades'
 import { hasTextTokens, textKey, textTokensIn, withoutText } from './sourceText'
@@ -36,6 +37,9 @@ export type TextFacts = {
   movementTools?: string[]
   /** Null where the words take no part in combat. */
   combat?: CombatFacts | null
+  cardCombat?: CombatFacts | null
+  choiceAllowances?: BattleChoiceAllowance[]
+  choiceAllowancesRequireAttachment?: true
 }
 
 export type WeaponAbilityGrant = { keyword: string; recipients: string; exclusions?: string; profileTypes: string[] }

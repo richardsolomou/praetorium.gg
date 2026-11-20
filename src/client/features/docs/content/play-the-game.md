@@ -8,7 +8,7 @@ Every player has their own colour, shown on their name across Praetorium and in 
 
 In a guided battle, ending a phase where a card scores opens a scoring prompt. Press what the board paid on each card, or **Did not score (or chose not to)**. The next player's turn waits until this is finished. **Nothing scored** answers every card you haven't touched. What you've pressed stays if you leave the battle to check a rule and come back, even without a connection, until the scoring is confirmed or undone. Every phone at the battle shows the same presses, and any of them can carry on. At the end of the fifth round, the final prompt ends with **Finish battle**.
 
-Until you turn on rules text, each payout is named by its points instead of the card's words: the lower or higher of two payouts, or one counted for each time it is met. **Turn on Game Datacards** at the top of the prompt shows the card's conditions.
+Scoring prompts show a community summary where one is available. Otherwise, read the mission card for its conditions. The prompt still lists the payouts and when they score.
 
 ![The end-of-turn scoring prompt listing the primary and two secondary cards, each with its awards and a Did not score row.](screenshot:track-a-battle-scoring "Did not score (or chose not to), under a card's awards")
 

@@ -38,6 +38,7 @@ import { SimulateDatasheet } from '../../simulator/SimulateDatasheet'
 import { Keyword, KEYWORD_TAG_CLASS, KeywordList, type KeywordRule, UnitKeywords } from '../../../components/Keyword'
 import { ProfileRules } from '../../rosters/ProfileRules'
 import { RuleText } from '../../../components/RuleText'
+import { OfficialRulesLink } from '../../../components/SourceTextPrompt'
 import { PageContent, PageHeader } from '../../../components/Page'
 import { groupBy } from '../../../../core/collections'
 import { rulesVersionLabel } from '../../../../core/catalogueEdition'
@@ -304,19 +305,22 @@ function TopFourLists({
 }
 
 function UnitConfiguration({ sheet, rules }: { sheet: Datasheet; rules: KeywordRule[] }) {
+  const configuration = sheet.configuration
   // Sources print a lone "None" when a unit has no wargear options.
   const wargearOptions = sheet.wargearOptions.filter((option) => option.trim().toLowerCase() !== 'none')
-  if (!sheet.composition.length && !sheet.loadout && !wargearOptions.length && !sheet.costs.length) return null
+  if (!configuration && !sheet.composition.length && !sheet.loadout && !wargearOptions.length && !sheet.costs.length) return null
   return (
     <section>
       <SectionHeading title="Unit configuration" />
       <div className="overflow-hidden part">
         <div className="grid md:grid-cols-2 md:divide-x md:divide-edge">
           <div className="space-y-2 p-3">
-            <h3 className="eyebrow">Composition</h3>
-            {sheet.composition.map((line) => (
-              <RuleText key={line} text={line} rules={rules} />
-            ))}
+            <h3 className="eyebrow">{configuration ? 'Starting composition' : 'Composition'}</h3>
+            {configuration ? (
+              <ConfigurationItems items={configuration.models} />
+            ) : (
+              sheet.composition.map((line) => <RuleText key={line} text={line} rules={rules} />)
+            )}
             {sheet.baseSize ? <p className="text-sm whitespace-pre-line text-dim">Base size: {sheet.baseSize}</p> : null}
           </div>
           <div id="points" className="border-t border-edge p-3 md:border-t-0">
@@ -340,26 +344,57 @@ function UnitConfiguration({ sheet, rules }: { sheet: Datasheet; rules: KeywordR
             </div>
           </div>
         </div>
-        {sheet.loadout ? (
+        {configuration?.equipment.length || (!configuration && sheet.loadout) ? (
           <div id="loadout" className="border-t border-edge p-3">
-            <RuleText text={sheet.loadout} rules={rules} className="mt-0" />
+            {configuration ? (
+              <>
+                <h3 className="eyebrow mb-2">Starting equipment</h3>
+                <ConfigurationItems items={configuration.equipment} />
+              </>
+            ) : (
+              <RuleText text={sheet.loadout!} rules={rules} className="mt-0" />
+            )}
           </div>
         ) : null}
-        {wargearOptions.length ? (
+        {(configuration?.choices.length ?? wargearOptions.length) > 0 ? (
           <div id="wargear" className="border-t border-edge p-3">
-            <h3 className="eyebrow mb-2">Wargear options</h3>
+            <h3 className="eyebrow mb-2">{configuration ? 'Wargear overview' : 'Wargear options'}</h3>
             <ul className="list-disc space-y-1.5 pl-5 text-sm text-dim">
-              {wargearOptions.map((option) => (
-                <li key={option}>
-                  <RuleText text={option} rules={rules} />
-                </li>
-              ))}
+              {configuration
+                ? configuration.choices.map(({ name, owner, options }) => (
+                    <li key={JSON.stringify([name, owner, options])}>
+                      <span className="font-semibold text-bone">{owner ? `${owner} · ${name}` : name}</span>
+                      <span className="block">{options.join(' · ')}</span>
+                    </li>
+                  ))
+                : wargearOptions.map((option) => (
+                    <li key={option}>
+                      <RuleText text={option} rules={rules} />
+                    </li>
+                  ))}
             </ul>
+            {configuration ? (
+              <p className="mt-2 text-xs text-faint">
+                For wargear limits, see <OfficialRulesLink />.
+              </p>
+            ) : null}
           </div>
         ) : null}
       </div>
       <PrintTheBases sheet={sheet} />
     </section>
+  )
+}
+
+function ConfigurationItems({ items }: { items: NonNullable<Datasheet['configuration']>['models'] }) {
+  return (
+    <ul className="space-y-1 text-sm text-dim">
+      {items.map(({ name, count }) => (
+        <li key={name}>
+          {count} × {name}
+        </li>
+      ))}
+    </ul>
   )
 }
 

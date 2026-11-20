@@ -2,9 +2,8 @@
  * Rules text as Praetorium publishes it: never the words, only where they are.
  *
  * A token names the source file a string came from, how it is shown, and the SHA-256 of
- * the exact string the file holds. Every surface carries tokens in place of text, and a
- * reader's browser that has chosen to load the text swaps each for the string in the
- * pinned upstream file whose hash matches, so a wrong or altered file cannot answer.
+ * the exact string the file holds. Every surface carries tokens in place of text. The
+ * browser can resolve a token to a community summary checked against that wording.
  */
 /**
  * How a string is shown, applied to the whole source string a token names: `item3` is the

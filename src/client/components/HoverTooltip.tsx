@@ -76,7 +76,7 @@ export function HoverTooltip({
           <div className="max-h-56 overflow-y-auto px-2.5 py-1.5 font-rules text-xs text-dim">
             {typeof body === 'string' ? (
               <Suspense fallback={null}>
-                <RuleText text={body} className="mt-0 text-xs" authored />
+                <RuleText text={body} className="mt-0 text-xs" />
               </Suspense>
             ) : (
               body

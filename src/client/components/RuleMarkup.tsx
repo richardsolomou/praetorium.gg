@@ -1,12 +1,11 @@
 import { Link } from '@tanstack/react-router'
-import { useTextSourceChoice } from '../rulesText'
 import { type ReactNode, useMemo } from 'react'
 import { cn } from '@/lib/utils'
 import type { RuleLinks } from '../ruleLinks'
 import { parseRuleMarkup, type RuleInline, type RuleMarkupBlock } from '../ruleMarkup'
 import { useSourceText } from '../sourceText'
-import { type TextSource, hasTextTokens } from '../../core/sourceText'
-import { SourceTextPrompt } from './SourceTextPrompt'
+import { hasTextTokens } from '../../core/sourceText'
+import { RuleSummaryCredit, SourceTextPrompt } from './SourceTextPrompt'
 
 /**
  * A rule as the rules documents write it.
@@ -15,32 +14,20 @@ import { SourceTextPrompt } from './SourceTextPrompt'
  * browser as markup. A number one rule quotes in another becomes a link when the
  * reader can reach that rule and stays the printed number when they cannot.
  */
-export function RuleMarkup({
-  markup,
-  links,
-  className,
-  authored = false,
-  source = 'bsdata',
-}: {
-  markup: string
-  links: RuleLinks
-  className?: string
-  /** Words already shown or written by the app itself, which show to everyone. */
-  authored?: boolean
-  /** Where untokenized words came from: the catalogue's BSData words unless a loaded document says otherwise. */
-  source?: TextSource
-}) {
-  const choice = useTextSourceChoice()
+export function RuleMarkup({ markup, links, className }: { markup: string; links: RuleLinks; className?: string }) {
   if (hasTextTokens(markup)) return <SourcedRuleMarkup markup={markup} links={links} className={className} />
-  if (!authored && !choice.sources.has(source)) return <SourceTextPrompt missing="unchosen" source={source} className={className} />
   return <RuleMarkupBody markup={markup} links={links} className={className} />
 }
 
 function SourcedRuleMarkup({ markup, links, className }: { markup: string; links: RuleLinks; className?: string }) {
   const source = useSourceText(markup)
-  if (source.missing && source.missing !== 'unavailable')
-    return <SourceTextPrompt missing={source.missing} source={source.needs} className={className} />
-  return <RuleMarkupBody markup={source.text} links={links} className={className} />
+  if (source.missing) return <SourceTextPrompt missing={source.missing} className={className} />
+  return (
+    <>
+      <RuleMarkupBody markup={source.text} links={links} className={className} />
+      <RuleSummaryCredit />
+    </>
+  )
 }
 
 function RuleMarkupBody({ markup, links, className }: { markup: string; links: RuleLinks; className?: string }) {

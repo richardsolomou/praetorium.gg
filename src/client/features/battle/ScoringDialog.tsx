@@ -81,12 +81,12 @@ export function ScoringDialog({
   onAnswersChange,
 }: Props) {
   const conditions = due.flatMap((card) => card.awards.map(conditionLabel))
-  const { choice } = useSourceTexts(conditions)
+  useSourceTexts(conditions)
   // Asked once for the whole prompt: a row each would bury the payouts under identical lines.
-  const gap = textGap(conditions, choice)
+  const gap = textGap(conditions)
   const readable = (award: MissionAward) => {
     const condition = conditionLabel(award)
-    return condition !== null && textGap([condition], choice) === null ? condition : null
+    return condition !== null && textGap([condition]) === null ? condition : null
   }
   // A card counts once the player has pressed something on it, nothing scored included, so none is settled by default.
   const unanswered = due.filter((card) => !answers[card.key]).length
@@ -238,7 +238,7 @@ export function ScoringDialog({
 
         <DialogBody className="gap-3">
           <DialogDescription>Press what the board actually paid on each card.</DialogDescription>
-          {gap ? <SourceTextPrompt missing={gap.missing} source={gap.needs} /> : null}
+          {gap ? <SourceTextPrompt missing={gap} /> : null}
           {finalAwardsDue ? (
             <p className="text-sm text-dim">Final awards: {finalScoring} VP. Round limits do not apply; the battle limit still applies.</p>
           ) : null}

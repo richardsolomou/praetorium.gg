@@ -9,7 +9,7 @@ import {
   combatDamage,
   simulatorState,
 } from './combat'
-import { expect, startUnchosen, test, type Locator, type Page } from './test'
+import { expect, test, type Locator, type Page } from './test'
 import {
   chooseUnit as chooseCatalogueUnit,
   retryUntilVisible,
@@ -463,8 +463,6 @@ test('simulator first frame reserves its layout', async ({ browser, baseURL }) =
   }
   await expect(initialAttacker.getByRole('combobox', { name: 'Attacker add attached unit', exact: true })).toBeDisabled()
   const interactive = await browser.newPage({ viewport: { width: 1440, height: 1000 } })
-  // The script-free page cannot read a stored choice, so both pages are the same undecided device.
-  await startUnchosen(interactive.context())
   await interactive.goto(`${baseURL}/simulator`)
   for (const width of [1440, 390, 860, 1024]) {
     await page.setViewportSize({ width, height: 1000 })

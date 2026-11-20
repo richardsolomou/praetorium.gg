@@ -370,7 +370,7 @@ test('public reference data renders without client JavaScript', async ({ browser
 
   await page.goto('/missions/chapter-approved-2026-2027/matchups/disruption/take-and-hold')
   const deathTrap = page.getByRole('heading', { name: 'Death Trap', exact: true }).locator('..')
-  // The payouts are facts the page publishes; what each asks for is rules text, which loads only in a browser that asks for it.
+  // The payout is available even when the rule has no summary.
   await expect(deathTrap).toContainText('2 VP')
   await expect(deathTrap).not.toContainText('For each terrain area trapped this turn.')
   const missionId = await deathTrap.getAttribute('id')
@@ -485,33 +485,22 @@ test('a rule is read by the number the source prints against it', async ({ brows
   await expect(page).toHaveURL('/rules/core-rules/movement-phase')
   const remainStationary = page.locator('[id="09.04"]')
   await expect(remainStationary).toContainText(/remain stationary/i)
-  // A movement behaviour states its own fields, and one the source writes as a dash is
-  // not a rule: that is how it states Remain Stationary's maximum distance.
-  await expect(remainStationary).toContainText(/eligible if/i)
-  await expect(remainStationary).not.toContainText(/maximum distance/i)
+  await expect(page.getByRole('link', { name: 'Official rules and downloads' })).toBeVisible()
   // The printed rulebook's photography is not republished.
   await expect(page.locator('main img')).toHaveCount(0)
 
-  // A rule that quotes another rule's number links to it.
-  await page.locator('a[href="/rules/core-rules/movement-phase#09.04"]').first().click()
-  await expect(page).toHaveURL('/rules/core-rules/movement-phase#09.04')
+  await page.goto('/rules/core-rules/movement-phase#09.04')
+  await expect(remainStationary).toBeInViewport()
   await page.screenshot({ path: test.info().outputPath('rules-section.png'), fullPage: true })
-
-  // The source emphasises its examples in Markdown, which is read rather than shown.
-  await page.goto('/rules/core-rules/terrain')
-  const example = page.locator('p', { hasText: 'All sections of the' }).first()
-  await expect(example).toContainText('terrain feature (A) are more than')
-  await expect(example.locator('strong em')).not.toHaveCount(0)
-  expect(await page.locator('main').innerText()).not.toContain('***')
 
   // A clarification stays collapsed until the address names it.
   await page.goto('/rules/core-rules/core-concepts')
-  // The outline draws a clarification as a plain row until its loaded text makes it expandable.
   const clarification = page.locator('details[id="01.02.03"]')
   await expect(clarification).toBeAttached()
   expect(await clarification.evaluate((element: HTMLDetailsElement) => element.open)).toBe(false)
   await page.goto('/rules/core-rules/core-concepts#01.02.03')
   await expect.poll(() => clarification.evaluate((element: HTMLDetailsElement) => element.open)).toBe(true)
+  await expect(clarification.getByRole('link', { name: 'Official rules and downloads' })).toBeVisible()
 
   const mobileContext = await browser.newContext({ viewport: PHONE })
   const mobilePage = await mobileContext.newPage()
@@ -535,13 +524,14 @@ test('a rule is read by the number the source prints against it', async ({ brows
   await expect(page).toHaveURL('/rules/core-rules/moving#03.03')
 })
 
-test('the faction page shows its army rule in full when expanded', async ({ page }) => {
+test('the faction page links to its official army rule when expanded', async ({ page }) => {
   await page.goto('/factions/necrons')
 
   const armyRule = page.locator('details').filter({ has: page.getByRole('heading', { name: 'Reanimation Protocols', exact: true }) })
-  await expect(armyRule.getByText(/activates its Reanimation Protocols/).first()).toBeHidden()
+  const official = armyRule.getByRole('link', { name: 'Official rules and downloads' })
+  await expect(official).toBeHidden()
   await armyRule.locator('summary').click()
-  await expect(armyRule.getByText(/activates its Reanimation Protocols/).first()).toBeVisible()
+  await expect(official).toBeVisible()
   await expect(page.getByRole('button', { name: 'Reanimation Protocols', exact: true })).toHaveCount(0)
   await page.screenshot({ path: test.info().outputPath('faction-army-rule.png'), fullPage: true })
 
@@ -1043,7 +1033,7 @@ test('a player can enter through the roster library and browse the product', asy
   await expect(page).toHaveURL('/factions/necrons/rules/mfm-1-6')
   await expect(page.getByRole('link', { name: /Datasheets/ })).toBeVisible()
   const reanimationProtocols = page.locator('details').filter({ has: page.getByRole('heading', { name: 'Reanimation Protocols' }) })
-  await expect(reanimationProtocols).toContainText('Command phase')
+  await expect(reanimationProtocols).toContainText('Summary unavailable.')
   const cryptek = page.getByText('Cryptek Conclave').locator('../..')
   await expect(cryptek).toContainText('6 stratagems · 4 enhancements')
   await expect(cryptek).toContainText('2 DP')
@@ -1065,24 +1055,16 @@ test('a player can enter through the roster library and browse the product', asy
   await page.getByRole('link', { name: 'Necrons' }).click()
   await page.getByRole('link', { name: /Cryptek Conclave/ }).click()
   await expect(page).toHaveURL('/factions/necrons/rules/mfm-1-6/detachments/cryptek-conclave')
-  await expect(page.locator('main [data-faction-mark="necrons"]')).toBeVisible()
+  await expect(page.locator('main header [data-faction-mark="necrons"]')).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Cryptek Conclave', exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Technosorcerous Augmentations' })).toBeVisible()
   await expect(page.getByRole('heading', { name: /Enhancements/ })).toContainText('4')
-  await expect(page.getByRole('heading', { name: 'Quantum Abacus' })).toBeVisible()
-  const antiMonster = page.getByRole('button', { name: '[ANTI‑MONSTER 5+]' })
-  await antiMonster.hover()
-  await expect(page.getByRole('tooltip')).toContainText('Anti')
-  await page.getByRole('heading', { name: 'Cryptek Conclave', exact: true }).hover()
-  await expect(page.getByRole('tooltip')).toHaveCount(0)
+  const abacus = page.locator('article').filter({ has: page.getByRole('heading', { name: 'Quantum Abacus', exact: true }) })
+  await expect(abacus.getByText('40kdc community summary')).toBeVisible()
+  await expect(abacus).toContainText(/gain 1\s*CP/i)
   await expect(page.getByRole('heading', { name: /Stratagems/ })).toContainText('6')
   await expect(page.getByRole('heading', { name: 'Molecular Targeting' })).toBeVisible()
-  await expect(
-    page
-      .getByRole('heading', { name: /Stratagems/ })
-      .locator('..')
-      .locator('article > div:last-child'),
-  ).toHaveCount(6)
+  await expect(page.locator('article[id^="stratagem-"]')).toHaveCount(6)
   await page.reload()
   await expect(page.getByRole('heading', { name: 'Cryptek Conclave', exact: true })).toBeVisible()
   const detachmentResponse = await page.request.get('/factions/necrons/detachments/cryptek-conclave')
@@ -1116,23 +1098,26 @@ test('a player can enter through the roster library and browse the product', asy
   await expect(page.getByRole('heading', { name: /Wargear abilities/ })).toBeVisible()
   await expect(page.getByText('1 model', { exact: true }).first()).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Unit configuration' })).toBeVisible()
-  await expect(page.getByText('1 Overlord', { exact: true })).toBeVisible()
-  await expect(page.getByText(/This model is equipped with:/)).toBeVisible()
-  await expect(page.getByRole('heading', { name: /Wargear options/ })).toBeVisible()
-  await expect(page.getByText(/resurrection orb/).last()).toBeVisible()
+  await expect(page.getByText('1 × Overlord', { exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Starting equipment' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Wargear overview' })).toBeVisible()
+  await expect(page.locator('#wargear').getByText('Resurrection orb', { exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Attachments' })).toBeVisible()
   await expect(page.getByText('Can lead', { exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: /Detachments/ })).toHaveCount(0)
   await page.getByRole('button', { name: 'Devastating Wounds' }).first().hover()
   await expect(page.getByRole('tooltip').getByText('Devastating Wounds', { exact: true })).toBeVisible()
-  await expect(page.getByRole('tooltip')).toContainText('critical wound')
+  const tooltip = page.getByRole('tooltip')
+  await expect(
+    tooltip.getByText('40kdc community summary').or(tooltip.getByRole('link', { name: 'Official rules and downloads' })),
+  ).toBeVisible()
   await page.screenshot({ path: test.info().outputPath('keyword-tooltip.png'), fullPage: true })
   await page.reload()
   await expect(page.getByRole('heading', { name: 'Overlord', exact: true })).toBeVisible()
   await page.screenshot({ path: test.info().outputPath('datasheet.png'), fullPage: true })
   await page.goto('/factions/necrons/datasheets/ghost-ark')
-  await expect(page.getByRole('heading', { name: 'Transport' })).toBeVisible()
-  await expect(page.getByText(/transport capacity of 10/)).toBeVisible()
+  const transport = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Transport', exact: true }) })
+  await expect(transport.getByRole('link', { name: 'Official rules and downloads' })).toBeVisible()
   await page.screenshot({ path: test.info().outputPath('transport-datasheet.png'), fullPage: true })
   await page.setViewportSize(PHONE)
   await page.screenshot({ path: test.info().outputPath('transport-datasheet-phone.png'), fullPage: true })

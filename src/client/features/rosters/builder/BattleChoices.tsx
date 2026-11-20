@@ -1,22 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
 import { useCallback, useMemo, useSyncExternalStore } from 'react'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-import {
-  type BattleChoice,
-  battleChoiceActive,
-  battleChoiceAllowances,
-  battleChoices,
-  battleChoiceSheet,
-  togetherLabel,
-} from '../../../../core/battleChoices'
+import { type BattleChoice, battleChoiceActive, battleChoices, battleChoiceSheet, togetherLabel } from '../../../../core/battleChoices'
 import { uniqueBy } from '../../../../core/collections'
 import type { ActiveCombatRule } from '../../../../core/combatRules'
 import type { RosterPick } from '../../../../core/roster'
 import type { Datasheet } from '../../../../contracts/catalogue'
 import { combatantDatasheetQuery, type Fielded } from '../../../queries'
-import { loadedWords, useSourceTexts } from '../../../sourceText'
-import { hasTextTokens } from '../../../../core/sourceText'
-import { combatantTexts, readableRules } from '../../simulator/readableRules'
+import { readableRules } from '../../simulator/readableRules'
 import { HoverTooltip } from '../../../components/HoverTooltip'
 import { RuleText } from '../../../components/RuleText'
 import { pressedClass } from '../../simulator/CombatControls'
@@ -30,12 +21,6 @@ const subscribe = (listener: () => void) => {
   return () => listeners.delete(listener)
 }
 const NO_PICKS: Readonly<Record<string, readonly string[]>> = {}
-
-/** The ability texts that can widen a unit's choices: its own, and those of the units it is attached to. */
-function allowanceTexts(data: NonNullable<ReturnType<typeof useCombatantDatasheet>>) {
-  const texts = (sheet: Datasheet) => [...sheet.abilities, ...(sheet.enhancements ?? [])].flatMap(({ description }) => description ?? [])
-  return [...texts(data.selected), ...data.companions.flatMap((member) => texts(member.selected))]
-}
 
 function useCombatantDatasheet({
   enabled,
@@ -89,22 +74,7 @@ export function useBattleChoices({
     () => NO_PICKS,
   )
   const data = useCombatantDatasheet({ enabled, catalogueId, entryId, detachmentIds, picks, pickIndex, fielded })
-  const { loaded } = useSourceTexts(enabled && data ? [...combatantTexts(data), ...allowanceTexts(data)] : [])
-  const choices = useMemo(
-    () =>
-      enabled && data
-        ? battleChoices(
-            readableRules(data.rules),
-            battleChoiceAllowances(
-              allowanceTexts(data).flatMap((text) => (hasTextTokens(text) ? (loadedWords(text) ?? []) : text)),
-              data.companions.length > 0,
-            ),
-          )
-        : [],
-    // `loaded` changes as rule words arrive, which can turn a token into options.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [enabled, data, loaded],
-  )
+  const choices = useMemo(() => (enabled && data ? battleChoices(readableRules(data.rules), data.allowances) : []), [enabled, data])
   // A unit's own pick belongs to its place in this line-up, so adding, removing or moving a unit drops it rather than moving it.
   const lineUp = picks.map((pick) => pick.entryId).join(',')
   const keyOf = (choice: BattleChoice) => (choice.armyWide ? choice.rule.name : `${lineUp}#${pickIndex}:${choice.rule.name}`)

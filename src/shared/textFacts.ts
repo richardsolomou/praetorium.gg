@@ -1,7 +1,8 @@
 import { bracketedRuleReferences } from '../core/ruleReference'
 import { attachmentClaim, substitutedUnits } from '../core/attach'
 import { combatFactsOf } from '../core/combatReading'
-import { hasTextTokens, textKey, textTokensIn, withoutText } from '../core/sourceText'
+import { battleChoiceAllowances } from '../core/battleChoices'
+import { comparableText, hasTextTokens, textKey, textTokensIn, withoutText } from '../core/sourceText'
 import { movementToolsFrom, unitGenerationFrom } from './rosterGradeUtility'
 import { suggestReminderTimings, suggestReminderWhileDestroyed } from '../core/reminders'
 import { readText, statedIn, type TextFacts, type TextFactsByKey, type WeaponAbilityGrant } from '../core/textFacts'
@@ -20,11 +21,15 @@ export function textFactsOf(words: string): TextFacts | null {
   const weaponGrants = unconditionalWeaponAbilityGrants(words)
   const reserveSelectors = strategicReserveExemptionSelectors(words)
   const references = referencedRuleNames(words)
+  const choiceAllowances = battleChoiceAllowances([words], true)
+  const choiceAllowancesRequireAttachment = choiceAllowances.length > 0 && battleChoiceAllowances([words], false).length === 0
   const facts: TextFacts = {
     ...(weaponGrants.length ? { weaponGrants } : {}),
     ...(reserveSelectors.length ? { reserveSelectors } : {}),
     ...(grantsStrategicReserveExemption(words) ? { reserveExemption: true as const } : {}),
     ...(references.length ? { references } : {}),
+    ...(choiceAllowances.length ? { choiceAllowances } : {}),
+    ...(choiceAllowancesRequireAttachment ? { choiceAllowancesRequireAttachment: true as const } : {}),
   }
   return Object.keys(facts).length ? facts : null
 }
@@ -60,10 +65,14 @@ export function definitionFactsOf(words: string): TextFacts {
     ...(unitGeneration.length ? { unitGeneration } : {}),
     ...(movementTools.length ? { movementTools } : {}),
   }
+  return withCombatFacts(facts, words)
+}
+
+export function withCombatFacts(facts: TextFacts, words: string, key: 'combat' | 'cardCombat' = 'combat', stratagem = false) {
   let combat: TextFacts['combat']
-  return Object.defineProperty(facts, 'combat', {
+  return Object.defineProperty(facts, key, {
     enumerable: true,
-    get: () => (combat === undefined ? (combat = combatFactsOf(words)) : combat),
+    get: () => (combat === undefined ? (combat = combatFactsOf(words, stratagem)) : combat),
   })
 }
 
@@ -107,8 +116,20 @@ export const combatFactsIn = (text: string, facts: TextFactsByKey | undefined) =
     text,
     facts,
     () => undefined,
-    (found) => found.combat,
+    (found) => {
+      if ('combat' in found) return found.combat
+      if ('cardCombat' in found) return found.cardCombat
+      return facts?.get(comparableText(text))?.cardCombat
+    },
   )
+
+export function choiceAllowancesIn(text: string, facts: TextFactsByKey | undefined, attached: boolean) {
+  const { words, recorded } = statedIn(text, facts)
+  return [
+    ...recorded.flatMap((fact) => (attached || !fact.choiceAllowancesRequireAttachment ? (fact.choiceAllowances ?? []) : [])),
+    ...battleChoiceAllowances([words], attached),
+  ]
+}
 
 /** What a token's words suggest for a reminder, where they suggest anything. */
 export const reminderIn = (text: string, facts: TextFactsByKey | undefined) =>

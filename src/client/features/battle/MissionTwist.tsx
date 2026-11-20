@@ -1,5 +1,5 @@
 import { Info } from 'lucide-react'
-import { loadedWords, useSourceTexts } from '../../sourceText'
+import { displayedWords, useSourceTexts } from '../../sourceText'
 import type { ReactElement, ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -22,7 +22,7 @@ export const changesPrimary = (twist: Twist) => twist.changesPrimary === true
  */
 function TwistDialog({ twist, trigger, children }: { twist: Twist; trigger: ReactElement; children: ReactNode }) {
   useSourceTexts([twist.lore])
-  const lore = twist.lore ? loadedWords(twist.lore) : null
+  const lore = twist.lore ? displayedWords(twist.lore) : null
   return (
     <BattlePromptDialog minimizedLabel={twist.name} resumeLabel="Return to twist">
       <DialogTrigger render={trigger}>{children}</DialogTrigger>

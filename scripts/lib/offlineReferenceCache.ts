@@ -1,4 +1,5 @@
 import { hash } from 'node:crypto'
+import appPackage from '../../package.json' with { type: 'json' }
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -27,10 +28,17 @@ const sharedStore: ReferenceStore = {
   upload: (key, archive) => uploadArchive(STORE_PATH, key, archive),
 }
 
-/** The bundle reads what the compiled runtime reads, plus the snapshot's change history. */
+/** The download also depends on the snapshot's change history and the package that generates its summaries. */
 export function referenceBundleKey(directory: string, runtimeKey: string) {
   const history = path.join(directory, CATALOGUE_HISTORY_FILE)
-  return `${runtimeKey}-${hash('sha256', fs.existsSync(history) ? fs.readFileSync(history) : 'absent').slice(0, 16)}`
+  const revision = hash(
+    'sha256',
+    Buffer.concat([
+      Buffer.from(`rule-summaries:${appPackage.dependencies['@alpaca-software/40kdc-data']}\0`),
+      fs.existsSync(history) ? fs.readFileSync(history) : Buffer.from('absent'),
+    ]),
+  )
+  return `${runtimeKey}-${revision.slice(0, 16)}`
 }
 
 const manifestFiles = (manifest: Buffer) => {

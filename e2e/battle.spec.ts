@@ -368,7 +368,7 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
     .locator('[data-battle-report-scroll]')
     .getByRole('button', { name: `About ${stratagem}` })
     .click()
-  await expect(spectator.getByRole('dialog', { name: stratagem })).toContainText('Effect')
+  await expect(spectator.getByRole('dialog', { name: stratagem })).toContainText('used 1x this battle')
   await spectator.keyboard.press('Escape')
 
   // Nothing is scoreable mid-turn, and a mission cannot be completed early either:

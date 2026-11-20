@@ -19,7 +19,7 @@ export const PUBLIC_REFERENCE_QUERIES = new Set([
   'deployments',
   'rule-index',
   'rule-section',
-  'text-sources',
+  'rule-summaries',
   'import-translations',
 ])
 export const APP_SNAPSHOT_QUERIES = new Set([

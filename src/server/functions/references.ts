@@ -5,7 +5,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { withServerSpan } from '../serverTelemetry'
 import { app } from '../app'
 import { unitBattleDetailsIn } from '../../shared/catalogue'
-import { publishedTextFiles } from '../publishedTextFiles'
+import { catalogueDirectory } from '../catalogueIndex'
 import { booksOffering, pickerUnitsFor } from '../../shared/pickerUnits'
 import { detachmentsOffering } from '../../shared/factionReferences'
 
@@ -314,8 +314,17 @@ export const gameReferences = createServerFn({ method: 'GET' }).handler(() =>
   }),
 )
 
-/** Where each source file a rules-text token names lives upstream; Praetorium serves where the words are, never the words. */
-export const textSources = createServerFn({ method: 'GET' }).handler(() => snapshotRpc(async () => publishedTextFiles()))
+export const ruleSummaries = createServerFn({ method: 'GET' })
+  .validator(z.string().regex(/^[a-f0-9]{8}$/))
+  .handler(({ data }) =>
+    snapshotRpc(async () => {
+      const read = await memoUntilSnapshotChanges('rule-summary-reader', null, async () => {
+        const { ruleSummaryReader } = await import('../ruleSummaries')
+        return ruleSummaryReader(catalogueDirectory())
+      })
+      return read(data)
+    }),
+  )
 
 /** Every rules document and section by name, with the numbers their prose quotes. */
 export const ruleIndex = createServerFn({ method: 'GET' }).handler(() =>

@@ -14,7 +14,8 @@ test('enhancement choices show descriptions when rule and catalogue names differ
   const mark = enhancements.getByRole('button', { name: 'Select Mark of the Nekrosor' })
   await expect(mark).toBeVisible()
   const option = mark.locator('xpath=ancestor::article')
-  await expect(option).toContainText('add 1 to the Hit roll')
+  await expect(option).toContainText('+1 to Hit rolls')
+  await expect(option.getByText('40kdc community summary')).toBeVisible()
   await shot(option, test.info().outputPath('nekrosor-enhancement.png'))
 })
 
@@ -106,7 +107,7 @@ test('unit upgrades stay separate from character enhancements', async ({ page })
   const madness = upgrades.getByRole('button', { name: 'Select Deepening Madness' })
   await expect(madness).toBeVisible()
   await upgrades.getByRole('button', { name: 'ASSAULT' }).hover()
-  await expect(page.getByRole('tooltip')).toContainText('assault shooting')
+  await expect(page.getByRole('tooltip').getByRole('link', { name: 'Official rules and downloads' })).toBeVisible()
   await page.mouse.move(0, 0)
   await expect(page.getByRole('tooltip')).toBeHidden()
   const madnessOption = madness.locator('xpath=ancestor::article')
@@ -134,12 +135,11 @@ test('unit upgrades stay separate from character enhancements', async ({ page })
   await shot(exportDialog, test.info().outputPath('deepening-madness-export.png'))
   await exportDialog.getByRole('button', { name: 'Close' }).click()
 
-  // The upgrade appends [ASSAULT] to the weapon, and a keyword nothing on the
-  // datasheet links is still a rule a player can read — with what put it there.
+  // The upgrade appends [ASSAULT] to the weapon, and the tooltip names what put it there.
   const assault = page.getByRole('button', { name: 'Assault', exact: true }).first()
   await expect(assault).toBeVisible()
   await assault.hover()
-  await expect(page.getByRole('tooltip')).toContainText('assault shooting')
+  await expect(page.getByRole('tooltip').getByRole('link', { name: 'Official rules and downloads' })).toBeVisible()
   await expect(page.getByRole('tooltip')).toContainText('Added by Deepening Madness')
   await expect(assault).toHaveClass(/text-info/)
   await shot(page.getByRole('tooltip'), test.info().outputPath('added-keyword-tooltip.png'))
