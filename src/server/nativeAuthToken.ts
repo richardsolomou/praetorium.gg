@@ -3,6 +3,7 @@ import { constantTimeEqual } from 'better-auth/crypto'
 import type { AuthContext } from 'better-auth'
 import { createAuthEndpoint, getAuthoritativeSessionFromCtx, sessionMiddleware } from 'better-auth/api'
 import { setSessionCookie } from 'better-auth/cookies'
+import { isSameOriginRequest } from './origins'
 import { randomToken } from './random'
 import { z } from 'zod'
 import { SOCIAL_PROVIDERS } from '../authConfig'
@@ -69,15 +70,15 @@ export function nativeAuthProofRequest(request: Request, baseURL: string) {
   if (request.method !== 'POST') return request
   const base = new URL(baseURL)
   const basePath = base.pathname.replace(/\/+$/, '')
-  const address = new URL(request.url)
-  const pathname = address.pathname.replace(/\/+$/, '')
+  const pathname = new URL(request.url).pathname.replace(/\/+$/, '')
   const endpoint = pathname.startsWith(`${basePath}/`) ? pathname.slice(basePath.length) : pathname
   if (!NULL_ORIGIN_ENDPOINTS.has(endpoint)) return request
   const origin = request.headers.get('origin')
   const site = request.headers.get('sec-fetch-site')
-  const foreign = origin && origin !== 'null' && origin !== base.origin && origin !== address.origin
-  if (foreign || (site && site !== 'same-origin')) return new Response('cross-site request rejected', { status: 403 })
-  if (origin && origin !== 'null') return request
+  const named = origin && origin !== 'null'
+  if (named ? !isSameOriginRequest(request) : site && site !== 'same-origin')
+    return new Response('cross-site request rejected', { status: 403 })
+  if (named) return request
   const headers = new Headers(request.headers)
   headers.set('origin', base.origin)
   const init = { method: request.method, headers, body: request.body, duplex: 'half' as const, signal: request.signal }

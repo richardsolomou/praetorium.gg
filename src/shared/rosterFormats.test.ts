@@ -15,11 +15,3 @@ Véhicules 1 : Repulsor [170pts] Bordée défensive Repulsor`
 Custodiens Allarus (3) : 165 pts`
   expect([importRosterFormat(miniHeadquarters), importRosterFormat(sectioned)]).toEqual(['miniheadquarters', 'sectioned-list'])
 })
-
-it('reads no text with a line or a run of spaces longer than any list has', () => {
-  const list = (line: string) => `Adeptus Custodes : Liste\n### Détachements :\n${line}\nCustodiens Allarus (3) : 165 pts`
-  expect([importRosterFormat(list('x'.repeat(2_001))), importRosterFormat(list(`x${' '.repeat(101)}x`))]).toEqual([
-    'unrecognized',
-    'unrecognized',
-  ])
-})

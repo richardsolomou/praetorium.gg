@@ -99,6 +99,6 @@ To have everyone commit to one army for the whole league, turn on **Seal lists b
 
 ## Leave or delete a group
 
-**Leave group** takes you off the leaderboard and out of a hidden-list game that hasn't revealed its lists. Your games still count for your opponents, and your results come back if you rejoin. The owner can't leave their own group.
+**Leave group** takes you off the leaderboard and out of a hidden-list game that hasn't revealed its lists. If you leave before its roster deadline, your ally there is asked to seal again. Your games still count for your opponents, and your results come back if you rejoin. The owner can't leave their own group.
 
 **Delete group** removes the group, its members, its leaderboard, its league and its hidden-list games. Its battles stay.

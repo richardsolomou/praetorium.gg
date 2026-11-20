@@ -115,15 +115,17 @@ jobs:
         run: |
           python3 -m pip install --quiet boto3==1.43.113
           python3 scripts/publishCatalogue.py publish
-      - name: Pin the candidate on the branch
+      - name: Pin the candidate
+        if: steps.pinned.outputs.current != 'true'
+        run: pnpm catalogue:snapshot lock "$(jq -r .id build/release/release.json)"
+      - name: Push the pin to the branch
         if: steps.pinned.outputs.current != 'true'
         env:
-          # A personal token, so the pointer commit runs the required checks.
+          # A personal token, so the pointer commit runs the required checks. Only git runs in this step.
           PUSH_TOKEN: ${{ secrets.CHANGESETS_TOKEN }}
         run: |
           set -euo pipefail
           id="$(jq -r .id build/release/release.json)"
-          pnpm catalogue:snapshot lock "$id"
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add catalogue.json

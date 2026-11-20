@@ -14,13 +14,14 @@ describe('native authentication proof requests', () => {
     expect(nativeAuthProofRequest(request, 'https://praetorium.gg/api/auth').headers.get('origin')).toBe(expected)
   })
 
-  it.each<Record<string, string>>([{ origin: 'https://example.com' }, { 'sec-fetch-site': 'cross-site' }])(
-    'refuses a proof another site posts: %o',
-    (headers) => {
-      const request = new Request('https://praetorium.gg/api/auth/native-auth-token/exchange', { method: 'POST', headers, body: '{}' })
-      expect(nativeAuthProofRequest(request, 'https://praetorium.gg/api/auth')).toHaveProperty('status', 403)
-    },
-  )
+  it.each<Record<string, string>>([
+    { origin: 'https://example.com' },
+    { 'sec-fetch-site': 'cross-site' },
+    { 'sec-fetch-site': 'same-site' },
+  ])('refuses a proof another site posts: %o', (headers) => {
+    const request = new Request('https://praetorium.gg/api/auth/native-auth-token/exchange', { method: 'POST', headers, body: '{}' })
+    expect(nativeAuthProofRequest(request, 'https://praetorium.gg/api/auth')).toHaveProperty('status', 403)
+  })
 
   it('reconstructs a request supplied by another server runtime', async () => {
     const body = new TextEncoder().encode('{"proof":true}')

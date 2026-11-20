@@ -32,6 +32,8 @@ type AuthOptions = {
   userIdForNewAccount?: (email: string) => string
   deleteUserData: (userId: string) => Promise<void>
   revokeSessionAccess: (sessionId: string) => Promise<void>
+  /** Ends what an account's holder set up outside sign-in to keep reading it: its calendar link and notified devices. */
+  endStandingAccess?: (userId: string) => Promise<void>
   storeSocialAvatar: (url: string) => Promise<string | null>
   updateProfile: (
     data: Record<string, unknown>,
@@ -168,11 +170,12 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
 
   /**
    * Resetting a password proves who reads the mailbox, so it verifies the address. Whoever signed up with it before
-   * that may have been somebody else, so every other way they left into the account goes: linked sign-ins, two-factor
-   * and connected apps. Sessions end with the reset itself.
+   * that may have been somebody else, so every other way they left into the account goes: linked sign-ins, two-factor,
+   * connected apps, the calendar link and notified devices. Sessions end with the reset itself.
    */
   const claimUnverifiedAccount = async (reset: { id: string; emailVerified: boolean }) => {
     if (reset.emailVerified) return
+    await options.endStandingAccess?.(reset.id)
     await database.transaction(async (transaction) => {
       await transaction.delete(account).where(and(eq(account.userId, reset.id), ne(account.providerId, 'credential')))
       await transaction.delete(twoFactorTable).where(eq(twoFactorTable.userId, reset.id))

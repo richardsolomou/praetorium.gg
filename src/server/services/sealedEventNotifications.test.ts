@@ -30,6 +30,28 @@ describe('sealedEvent notifications', () => {
     ])
   })
 
+  it('tells the allies a side change unsealed to seal again', async () => {
+    const chooseSealedEventSide = vi.fn().mockResolvedValue({ resealIds: ['ally'] })
+    const { sealedEvent, notify } = service({ chooseSealedEventSide })
+    const moved = await sealedEvent.chooseSealedEventSide('group', 'player', 'solo', 'game')
+    expect([moved, notify.mock.calls]).toEqual([
+      { side: 'solo' },
+      [
+        [
+          [
+            {
+              kind: 'sealed-event-roster-reseal',
+              actorId: 'player',
+              recipientIds: ['ally'],
+              sealedEventToken: 'group',
+              eventToken: 'game',
+            },
+          ],
+        ],
+      ],
+    ])
+  })
+
   describe('table battlefields', () => {
     const roster = (disposition: string, dispositions: string[] = [disposition]) =>
       JSON.stringify({

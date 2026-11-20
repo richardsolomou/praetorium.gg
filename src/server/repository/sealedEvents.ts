@@ -339,7 +339,7 @@ export function withSealedEvents<B extends RepositoryBase>(Base: B) {
 
     async sealedEventByToken(token: string, viewerId: string | null = null, eventToken?: string) {
       const record = await this.product.sealedEventByToken(token, eventToken)
-      if (!record) return undefined
+      if (!record || (record.privateTo && !record.privateTo.includes(viewerId ?? ''))) return undefined
       const { kind, tournament, group, event, organizerIds, entries, teams, teamWarlords, pairings, squadPicks } = record
       const profiles = await this.accounts.profilesByIds([
         ...(tournament ? [tournament.ownerId, ...tournament.adminIds] : []),
@@ -609,18 +609,9 @@ export function withSealedEvents<B extends RepositoryBase>(Base: B) {
       return {
         snapshot: entry.rosterSnapshot!,
         format: event.format,
-        rosterLimit: event.rosterLimit,
         revealedAt: event.revealedAt,
-        sealed: { userId, status: 'accepted' as const, requiredLimit: entry.requiredLimit, teamId: entry.teamId },
-        reader:
-          reader && readerId
-            ? {
-                userId: readerId,
-                status: reader.status,
-                requiredLimit: reader.requiredLimit,
-                teamId: reader.teamId,
-              }
-            : null,
+        sealed: { userId, status: 'accepted' as const, teamId: entry.teamId },
+        reader: reader && readerId ? { userId: readerId, status: reader.status, teamId: reader.teamId } : null,
       }
     }
 

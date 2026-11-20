@@ -540,13 +540,36 @@ describe('what a sealed event allows', () => {
     expect(sealedEvent.seal([], { userId: 'ally' })).toEqual({ outcome: 'missing' })
   })
 
-  it('unseals the list of an ally the organizer moves an entrant away from', () => {
+  /** A solo vs pair event whose two entrants are paired, the ally's list sealed. */
+  function pairedAllies() {
     const sealedEvent = setup('[]', '2v1')
     sealedEvent.command({ op: 'assign-team', ownerId: 'organizer', userIds: ['entrant', 'ally'], teamId: 'pair' })
     sealedEvent.host.call(sealedEvent.host.operator, (ctx) =>
       ctx.db.sealedEventEntries.key.update({ ...ctx.db.sealedEventEntries.key.find('["event","ally"]')!, rosterSnapshot: '{}' }),
     )
-    expect(sealedEvent.command({ op: 'assign-limit', ownerId: 'organizer', userId: 'entrant', requiredLimit: 2000 })).toEqual({
+    const ally = () => sealedEvent.host.call(sealedEvent.host.operator, (ctx) => ctx.db.sealedEventEntries.key.find('["event","ally"]'))
+    return { ...sealedEvent, ally }
+  }
+
+  it('unseals the list of an ally the organizer moves an entrant away from', () => {
+    expect(pairedAllies().command({ op: 'assign-limit', ownerId: 'organizer', userId: 'entrant', requiredLimit: 2000 })).toEqual({
+      resealIds: ['ally'],
+    })
+  })
+
+  it('unseals the list of an ally whose partner the organizer removes', () => {
+    const sealedEvent = pairedAllies()
+    const removed = sealedEvent.command({ op: 'moderate', ownerId: 'organizer', userId: 'entrant', status: 'rejected', memberLimit: 128 })
+    expect([removed, sealedEvent.ally()?.rosterSnapshot, sealedEvent.ally()?.teamId]).toEqual([
+      { rejected: true, resealIds: ['ally'] },
+      undefined,
+      undefined,
+    ])
+  })
+
+  it('unseals the list of an ally the organizer takes out of a pair', () => {
+    const sealedEvent = pairedAllies()
+    expect(sealedEvent.command({ op: 'assign-team', ownerId: 'organizer', userIds: ['entrant'], teamId: 'other' })).toEqual({
       resealIds: ['ally'],
     })
   })
@@ -1399,6 +1422,16 @@ describe('hidden-list games', () => {
     ])
   })
 
+  it('names a private group’s accepted members as the only readers of its game', () => {
+    const fixture = setup()
+    fixture.create('owner')
+    fixture.group({ op: 'join', userId: 'waiting', now: NOW })
+    const record = JSON.parse(module.sealedEventByToken(fixture.procedure(fixture.operator), { token: 'game', eventToken: '' })) as {
+      privateTo: string[]
+    }
+    expect(record.privateTo.toSorted()).toEqual(['member', 'owner'])
+  })
+
   it('takes a member the group removes out of the game it is sealing lists for', () => {
     const fixture = setup()
     fixture.create('owner')
@@ -1407,21 +1440,59 @@ describe('hidden-list games', () => {
     expect(fixture.game({ op: 'reveal', ownerId: 'member', now: NOW })).toEqual({ outcome: 'forbidden' })
   })
 
-  it('unseals the list of an ally a member leaves for the other side', () => {
+  /** A solo vs pair game whose pair is the owner and a member, the member's list sealed. */
+  function pair() {
     const fixture = setup()
     fixture.create('owner', { format: '2v1' })
-    const sit = (ownerId: string, side: string) => fixture.game({ op: 'set-side', ownerId, side, now: NOW })
+    const sit = (ownerId: string, side: string | null) => fixture.game({ op: 'set-side', ownerId, side, now: NOW })
     sit('owner', 'pair')
     sit('member', 'pair')
     const key = JSON.stringify(['game-id', 'member'])
     fixture.call(fixture.operator, (ctx) =>
       ctx.db.sealedEventEntries.key.update({ ...ctx.db.sealedEventEntries.key.find(key)!, rosterSnapshot: '{}' }),
     )
-    const moved = sit('owner', 'solo')
-    expect([moved, fixture.call(fixture.operator, (ctx) => ctx.db.sealedEventEntries.key.find(key)?.rosterSnapshot)]).toEqual([
-      { resealIds: ['member'] },
-      undefined,
+    const sealed = () => fixture.call(fixture.operator, (ctx) => ctx.db.sealedEventEntries.key.find(key)?.rosterSnapshot !== undefined)
+    return { ...fixture, sit, sealed }
+  }
+
+  it.each(['solo', null])('unseals the list of an ally a member leaves for %s', (side) => {
+    const game = pair()
+    expect([game.sit('owner', side), game.sealed()]).toEqual([{ resealIds: ['member'] }, false])
+  })
+
+  it('unseals the list of an ally whose partner leaves the group, and says who has to seal again', () => {
+    const game = pair()
+    game.group({ op: 'join', userId: 'third', now: NOW })
+    game.group({ op: 'moderate', actorId: 'owner', userId: 'third', accept: true })
+    game.sit('owner', 'solo')
+    game.sit('third', 'pair')
+    game.call(game.operator, (ctx) =>
+      ctx.db.sealedEventEntries.key.update({ ...ctx.db.sealedEventEntries.key.find('["game-id","member"]')!, rosterSnapshot: '{}' }),
+    )
+    expect([game.group({ op: 'leave', userId: 'third' }), game.sealed()]).toEqual([
+      { resealed: [{ eventToken: 'game', userIds: ['member'] }] },
+      false,
     ])
+  })
+
+  it('keeps an ally’s list sealed when their partner leaves the group after the roster deadline', () => {
+    const game = pair()
+    game.group({ op: 'join', userId: 'third', now: NOW })
+    game.group({ op: 'moderate', actorId: 'owner', userId: 'third', accept: true })
+    game.sit('owner', 'solo')
+    game.sit('third', 'pair')
+    game.call(game.operator, (ctx) => {
+      ctx.db.sealedEventEntries.key.update({ ...ctx.db.sealedEventEntries.key.find('["game-id","member"]')!, rosterSnapshot: '{}' })
+      ctx.db.sealedEvents.id.update({ ...ctx.db.sealedEvents.id.find('game-id')!, sealBy: 1n })
+    })
+    expect([game.group({ op: 'leave', userId: 'third' }), game.sealed()]).toEqual(['left', true])
+  })
+
+  it('keeps a member who leaves the group in the record of a game already revealed', () => {
+    const game = pair()
+    game.call(game.operator, (ctx) => ctx.db.sealedEvents.id.update({ ...ctx.db.sealedEvents.id.find('game-id')!, revealedAt: 1n }))
+    game.group({ op: 'remove', actorId: 'owner', userId: 'member' })
+    expect(game.sealed()).toBe(true)
   })
 
   it('enters a member who seals a list without joining first', () => {
@@ -1742,6 +1813,14 @@ describe('swiss rounds', () => {
     const remove = () => module.removeBattle(swiss.host.procedure(swiss.host.operator), { battleId: 'battle-a', userId: 'a' })
     swiss.pairRoundTwo()
     expect(remove()).toBe(false)
+  })
+
+  it('lets an organizer who opened a table delete its result after a later round was paired', () => {
+    const swiss = setup()
+    swiss.playRoundOne()
+    swiss.pairRoundTwo()
+    swiss.admin('a')
+    expect(module.removeBattle(swiss.host.procedure(swiss.host.operator), { battleId: 'battle-a', userId: 'a' })).toBe(true)
   })
 
   it('refuses a player undoing the end of a result a later round was paired on', () => {

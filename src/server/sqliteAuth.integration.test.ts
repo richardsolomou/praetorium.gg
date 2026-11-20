@@ -7,7 +7,7 @@ import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, expect, it, vi } from 'vitest'
 import { createEmailVerificationToken } from 'better-auth/api'
 import { importAuthSqlite } from '../../scripts/nodeAuthSqlite'
-import { account, deletedUser, user } from '../db/authSchema'
+import { account, deletedUser, twoFactor, user } from '../db/authSchema'
 import { oauthAccessToken, oauthClient, oauthConsent, oauthRefreshToken } from '../db/oauthSchema'
 import { SqliteAccountRepository } from './accountRepository'
 import type { SpacetimeOperator } from './spacetimeOperator'
@@ -33,6 +33,8 @@ afterAll(async () => {
   if (directory) await rm(directory, { recursive: true, force: true })
 })
 
+const standingAccessEnded: string[] = []
+
 type AuthEvent = { userId: string; event: string; properties: Record<string, unknown> }
 function authFor(
   environment: NodeJS.ProcessEnv,
@@ -54,6 +56,9 @@ function authFor(
     },
     revokeSessionAccess: async (id) => {
       revoked.push(id)
+    },
+    endStandingAccess: async (userId) => {
+      standingAccessEnded.push(userId)
     },
     storeSocialAvatar,
     updateProfile: async (data) => ({ ok: true, data }),
@@ -141,30 +146,65 @@ it('counts a verification link only in a browser signed in to its account', asyn
     (await local.database.select({ verified: user.emailVerified }).from(user).where(eq(user.id, player.id)))[0]!.verified
   const elsewhere = await auth.handler(new Request(link))
   const stranger = await verified()
+  const other = await auth.api.signUpEmail({
+    body: { email: `${randomUUID()}@example.com`, password: 'password1234', name: 'Mailbox owner' },
+    returnHeaders: true,
+  })
+  const asAnother = await auth.handler(new Request(link, { headers: { cookie: other.headers.get('set-cookie')!.split(';')[0]! } }))
+  const unblessed = await verified()
   const signedIn = await auth.handler(new Request(link, { headers: { cookie } }))
-  expect([elsewhere.status, new URL(elsewhere.headers.get('location')!, link).pathname, stranger, signedIn.ok, await verified()]).toEqual([
-    302,
-    '/sign-in',
-    false,
-    true,
-    true,
-  ])
+  expect([
+    elsewhere.status,
+    new URL(elsewhere.headers.get('location')!, link).pathname,
+    stranger,
+    asAnother.status,
+    unblessed,
+    signedIn.ok,
+    await verified(),
+  ]).toEqual([302, '/sign-in', false, 403, false, true, true])
 })
 
-it('removes every other way into an unverified account when its password is reset', async () => {
-  const auth = authFor(testEnvironment)
+/** A player with Discord linked, two-factor on and an app connected, after resetting their password from the emailed link. */
+async function afterReset(auth: ReturnType<typeof authFor>, verified: boolean) {
   const { user: player } = await signUpAs(auth, 'Reset player', 'user')
+  if (verified) await auth.markEmailVerified(player.id)
   const context = await auth.$context
   await context.internalAdapter.linkAccount({ providerId: 'discord', accountId: randomUUID(), userId: player.id })
+  await local.database.insert(twoFactor).values({ id: randomUUID(), secret: 'secret', backupCodes: '[]', userId: player.id })
+  const token = randomUUID()
   await context.internalAdapter.createVerificationValue({
-    identifier: 'reset-password:claimed',
+    identifier: `reset-password:${token}`,
     value: player.id,
     expiresAt: new Date(Date.now() + 60_000),
   })
-  await auth.api.resetPassword({ body: { newPassword: 'another-password', token: 'claimed' } })
-  const [claimed] = await local.database.select({ verified: user.emailVerified }).from(user).where(eq(user.id, player.id))
+  await auth.api.resetPassword({ body: { newPassword: 'another-password', token } })
+  const [row] = await local.database.select({ verified: user.emailVerified }).from(user).where(eq(user.id, player.id))
   const ways = await local.database.select({ provider: account.providerId }).from(account).where(eq(account.userId, player.id))
-  expect([claimed!.verified, ways.map((way) => way.provider)]).toEqual([true, ['credential']])
+  const secondFactors = await local.database.select({ id: twoFactor.id }).from(twoFactor).where(eq(twoFactor.userId, player.id))
+  return {
+    verified: row!.verified,
+    ways: ways.map((way) => way.provider).toSorted(),
+    secondFactors: secondFactors.length,
+    standingAccessEnded: standingAccessEnded.includes(player.id),
+  }
+}
+
+it('removes every other way into an unverified account when its password is reset', async () => {
+  expect(await afterReset(authFor(testEnvironment), false)).toEqual({
+    verified: true,
+    ways: ['credential'],
+    secondFactors: 0,
+    standingAccessEnded: true,
+  })
+})
+
+it('keeps a verified account’s other ways in when its password is reset', async () => {
+  expect(await afterReset(authFor(testEnvironment), true)).toEqual({
+    verified: true,
+    ways: ['credential', 'discord'],
+    secondFactors: 1,
+    standingAccessEnded: false,
+  })
 })
 
 it.each([

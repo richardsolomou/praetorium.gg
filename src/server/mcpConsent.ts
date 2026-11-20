@@ -2,7 +2,8 @@ import { createServerFn } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
 import { APIError } from 'better-auth/api'
 import { constantTimeEqual, makeSignature } from 'better-auth/crypto'
-import { MCP_CONSENT_REFUSALS, mcpConsentDestination } from '../shared/mcpConsent'
+import { MCP_CONSENT_REFUSALS } from '../shared/mcpConsent'
+import { consentDestination } from './consentDestination'
 import { app } from './app'
 import { currentUser } from './playerSession'
 import { rpc } from './rpc'
@@ -31,7 +32,8 @@ export const mcpConsentDetails = createServerFn({ method: 'GET' }).handler(() =>
     return {
       signedIn: true as const,
       client: await consentClientName(instance.auth, clientId, request.headers),
-      destination: mcpConsentDestination(params.get('redirect_uri')),
+      // A client names itself, so where allowing sends the player is what tells an assistant from an app using its name.
+      destination: consentDestination(params.get('redirect_uri')),
       scopes: (params.get('scope') ?? '').split(' ').filter(Boolean),
       next: '',
     }

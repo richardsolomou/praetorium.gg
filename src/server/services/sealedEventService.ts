@@ -171,7 +171,8 @@ export class SealedEventService {
 
   /**
    * A private group's token is its invite link, and a public battle names the game it was played in. So a reader who
-   * names only the game learns the group from it only as an accepted member; one who names the group already holds the link.
+   * names only the game learns the group's address from it only as an accepted member; one who names the group already
+   * holds the link.
    */
   private async keepsGroupLink(groupToken: string, named: string, viewerId: string | null) {
     if (named === groupToken) return false
@@ -186,7 +187,7 @@ export class SealedEventService {
   /** `factions` names each revealed army as battle summaries do, including catalogues the current index no longer lists. */
   async sealedEvent(token: string, viewerId: string | null, eventToken?: string, factions: readonly BattleFaction[] = []) {
     const record = await this.repository.sealedEventByToken(token, viewerId, eventToken)
-    if (!record || (record.group && (await this.keepsGroupLink(record.group.token, token, viewerId)))) return null
+    if (!record) return null
     const { organizerIds, ...sealedEvent } = record
     const factionsById = byId(factions)
     const organizer = viewerId !== null && organizerIds.includes(viewerId)

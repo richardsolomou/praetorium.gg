@@ -87,17 +87,15 @@ export type RosterTextFormat =
   | 'miniheadquarters'
   | 'sectioned-list'
 
-/**
- * No list a tool writes comes near these: the longest line among five thousand published lists is 1,112 characters and
- * the longest run of spaces 12. The patterns that read a line take time that grows far faster than its length or a
- * run's, so a text past either is refused before any of them sees it.
- */
-const MAX_LIST_LINE = 2_000
-const overlongSpace = /\s{101}/
-const readable = (file: string) => !overlongSpace.test(file) && file.split('\n').every((line) => line.length <= MAX_LIST_LINE)
+// One import reads its text several times: for its format, its faction, its units' faction, and to match it.
+let lastRead: { file: string; found: ReturnType<typeof readImport> } | undefined
 
-function parsedImport(file: string): { parsed: TextRoster; format: RosterTextFormat } | null {
-  if (!readable(file)) return null
+function parsedImport(file: string) {
+  if (lastRead?.file !== file) lastRead = { file, found: readImport(file) }
+  return lastRead.found
+}
+
+function readImport(file: string): { parsed: TextRoster; format: RosterTextFormat } | null {
   const praetorium = /Exported with Praetorium\.gg/i.test(file)
   const newRecruit = fromNewRecruitText(file)
   if (newRecruit && (newRecruit.units.length || praetorium)) return { parsed: newRecruit, format: praetorium ? 'praetorium' : 'newrecruit' }

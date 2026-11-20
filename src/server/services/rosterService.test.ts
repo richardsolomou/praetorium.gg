@@ -269,7 +269,7 @@ describe('the roster a copy came from', () => {
   })
 
   it('names a public source and its owner for another reader', async () => {
-    expect(await source('public').copySource('copy', 'user-2')).toEqual({
+    expect((await source('public').rosterAccessAndSource('copy', 'user-2'))?.copiedFrom).toEqual({
       id: 'source',
       name: 'Original army',
       ownerId: 'user-1',
@@ -278,16 +278,17 @@ describe('the roster a copy came from', () => {
   })
 
   it('names nothing once the source is private to another reader', async () => {
-    expect(await source('private').copySource('copy', 'user-2')).toBeNull()
+    expect((await source('private').rosterAccessAndSource('copy', 'user-2'))?.copiedFrom).toBeNull()
   })
 
   it('names a private source to its own owner', async () => {
-    expect((await source('private').copySource('copy', 'user-1'))?.name).toBe('Original army')
+    expect((await source('private').rosterAccessAndSource('copy', 'user-1'))?.copiedFrom?.name).toBe('Original army')
   })
 
   it('names an unlisted source to whoever copied it, and to no other reader of the copy', async () => {
     const unlisted = source('unlisted')
-    expect([(await unlisted.copySource('copy', 'user-3'))?.id, await unlisted.copySource('copy', 'user-2')]).toEqual(['source', null])
+    const named = async (reader: string) => (await unlisted.rosterAccessAndSource('copy', reader))?.copiedFrom?.id ?? null
+    expect([await named('user-3'), await named('user-2')]).toEqual(['source', null])
   })
 
   it('keeps the id of the list a roster was copied from away from its readers', async () => {
@@ -295,9 +296,10 @@ describe('the roster a copy came from', () => {
   })
 
   it('names nothing when the source was deleted', async () => {
-    const copy = { ...row, id: 'copy', prep: null, copiedFromRosterId: 'source' }
+    const copy = { ...row, id: 'copy', prep: null, visibility: 'public', copiedFromRosterId: 'source' }
     const roster = vi.fn(async (id: string) => (id === 'copy' ? copy : undefined))
-    expect(await new RosterService({ roster } as unknown as RepositoryPort, () => 0).copySource('copy', 'user-2')).toBeNull()
+    const service = new RosterService({ roster } as unknown as RepositoryPort, () => 0)
+    expect((await service.rosterAccessAndSource('copy', 'user-2'))?.copiedFrom).toBeNull()
   })
 })
 
