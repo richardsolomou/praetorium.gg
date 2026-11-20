@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.273.2 (2026-11-20)
+
+### Patch Changes
+
+- 54fbce2: [app] Linking Apple, Google, Discord or GitHub from the app no longer signs the phone's browser in to your account, and needs a current version of the app.
+
 ## 0.273.1 (2026-11-20)
 
 ### Patch Changes
