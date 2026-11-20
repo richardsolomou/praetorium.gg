@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.272.2 (2026-11-20)
+
+### Patch Changes
+
+- d805b90: [app] Linking a sign-in method by email now requires a verified email address from the provider.
+
 ## 0.272.1 (2026-11-19)
 
 ### Patch Changes
@@ -1684,30 +1690,3 @@
 ### Patch Changes
 
 - 98f1006: [app] Each Android beta step shows the Google page it opens, with the button to tap ringed.
-
-## 0.222.2 (2026-11-06)
-
-### Patch Changes
-
-- 6862ff1: [app] The Android beta steps say to sign in to Google before joining the testers' group, which offers no way to join while signed out.
-- 8e518be: [app] Fixes a page reload sometimes failing with an error when the site was slow to respond.
-
-## 0.222.1 (2026-11-06)
-
-### Patch Changes
-
-- 185d42e: [app] The app store badges sit in a slim strip under Home's opening band, showing only Google Play on an Android phone, and the Android beta links each of its three steps directly.
-- af93d1c: [app] The sign-in and password reset pages use the slim top bar instead of the side navigation.
-
-## 0.222.0 (2026-11-06)
-
-### Minor Changes
-
-- 8795f57: [app] Android players can join the app's beta from Home, and the mobile app guide explains how.
-- 8795f57: [app] Home shows where to get the iPhone and iPad app from the App Store, and Safari on an iPhone offers it in a banner.
-
-## 0.221.8 (2026-11-06)
-
-### Patch Changes
-
-- c0962ff: [simulator] Keep recent simulations and roster lists on screen when a list fails to load during a short outage.
