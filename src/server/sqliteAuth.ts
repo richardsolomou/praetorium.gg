@@ -175,7 +175,6 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
    */
   const claimUnverifiedAccount = async (reset: { id: string; emailVerified: boolean }) => {
     if (reset.emailVerified) return
-    await options.endStandingAccess?.(reset.id)
     await database.transaction(async (transaction) => {
       await transaction.delete(account).where(and(eq(account.userId, reset.id), ne(account.providerId, 'credential')))
       await transaction.delete(twoFactorTable).where(eq(twoFactorTable.userId, reset.id))
@@ -184,6 +183,7 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
       await transaction.delete(oauthConsent).where(eq(oauthConsent.userId, reset.id))
       await transaction.update(user).set({ emailVerified: true, twoFactorEnabled: false }).where(eq(user.id, reset.id))
     })
+    await options.endStandingAccess?.(reset.id)
   }
 
   const rehostSocialAvatarOnSignUp = async (data: { image?: string | null }) => {

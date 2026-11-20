@@ -95,7 +95,14 @@ function parsedImport(file: string) {
   return lastRead.found
 }
 
+/**
+ * Matching a name against the catalogue takes time that grows with the square of its length, and a name is as long as
+ * its line. The longest line among five thousand published lists is 1,112 characters.
+ */
+const MAX_LIST_LINE = 2_000
+
 function readImport(file: string): { parsed: TextRoster; format: RosterTextFormat } | null {
+  if (file.split('\n').some((line) => line.length > MAX_LIST_LINE)) return null
   const praetorium = /Exported with Praetorium\.gg/i.test(file)
   const newRecruit = fromNewRecruitText(file)
   if (newRecruit && (newRecruit.units.length || praetorium)) return { parsed: newRecruit, format: praetorium ? 'praetorium' : 'newrecruit' }

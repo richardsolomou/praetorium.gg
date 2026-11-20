@@ -16,7 +16,7 @@ If your email isn't verified yet, a **Verify your email** box sits at the top of
 
 Until you verify, an Apple, Google, Discord or GitHub account with the same email can't sign you in. Link it here instead.
 
-Resetting your password from the email link also verifies your address. If it wasn't verified before, the reset removes every linked provider, two-factor authentication and connected assistant, since someone else may have set them up. Add them again afterwards.
+Resetting your password from the email link also verifies your address. If it wasn't verified before, the reset removes every linked provider, two-factor authentication, connected assistant, calendar link and device signed up for notifications, since someone else may have set them up. Add them again afterwards.
 
 ## Two-factor authentication
 
