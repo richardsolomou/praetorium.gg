@@ -67,7 +67,7 @@ export const openSealedEvent = createServerFn({ method: 'GET' })
 /** Where an old or indirect event link lands now, for the route that received it to redirect to. */
 export const eventAddress = createServerFn({ method: 'GET' })
   .validator(sealedEventSchema)
-  .handler(({ data }) => rpc(() => app().service.sealedEventService.eventAddress(data.token, data.eventToken)))
+  .handler(({ data }) => rpc(async () => app().service.sealedEventService.eventAddress(data.token, await currentUserId(), data.eventToken)))
 
 export const listSealedEventBattles = createServerFn({ method: 'GET' })
   .validator(sealedEventBattlesSchema)

@@ -1598,7 +1598,7 @@ async function seedInto(
       for (const seat of game.seats) {
         if (!seat.side) continue
         const result = await repository.chooseSealedEventSide(gameToken, seat.userId, seat.side, now())
-        if (result !== 'updated') throw new Error(`group game ${game.key} could not seat a player: ${result}`)
+        if (result !== 'updated') throw new Error(`group game ${game.key} could not seat a player: ${JSON.stringify(result)}`)
       }
       for (const seat of game.seats) {
         const saved = await repository.roster(seat.rosterId)

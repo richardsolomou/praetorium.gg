@@ -91,6 +91,12 @@ export function visibleGroupMembers<T extends { userId: string; status: GroupMem
   return members.filter((member) => member.status === 'accepted' || organizer || member.userId === viewerId)
 }
 
+/** Whether a private group keeps what it plays from this reader, who is not one of its accepted members. */
+export const hiddenFromViewer = (
+  group: { visibility: string; members: readonly { userId: string; status: string }[] },
+  viewerId: string | null,
+) => group.visibility === 'private' && !group.members.some((member) => member.userId === viewerId && member.status === 'accepted')
+
 /** How many groups and tournaments a player's home page lists, which bounds the per-group summary it asks for. */
 export const HOME_GROUPS_SHOWN = 5
 

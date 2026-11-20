@@ -52,9 +52,22 @@ export class GroupService {
 
   async leaveGroup(token: string, userId: string) {
     const result = await this.repository.leaveGroup(token, userId)
+    if (typeof result === 'object') return this.askToReseal(userId, result.resealed)
     if (result === 'left') return
     if (result === 'missing') throw new Response('you are not in this group', { status: 404 })
     throw new Response('the owner cannot leave their own group', { status: 409 })
+  }
+
+  /** A member who left a game still sealing lists took their allies' lists with them. A notice names a game by its own token. */
+  private askToReseal(actorId: string, resealed: readonly { eventToken: string; userIds: string[] }[]) {
+    this.notifier.notify(
+      resealed.map(({ eventToken, userIds }) => ({
+        kind: 'sealed-event-roster-reseal' as const,
+        actorId,
+        recipientIds: userIds,
+        sealedEventToken: eventToken,
+      })),
+    )
   }
 
   async moderateGroupMember(token: string, actorId: string, userId: string, accept: boolean) {
@@ -67,6 +80,7 @@ export class GroupService {
 
   async removeGroupMember(token: string, actorId: string, userId: string) {
     const result = await this.repository.removeGroupMember(token, actorId, userId)
+    if (typeof result === 'object') return this.askToReseal(actorId, result.resealed)
     if (result === 'removed') return
     if (result === 'missing') throw new Response('no such member', { status: 404 })
     throw new Response('only the owner can remove an admin, and nobody can remove the owner', { status: 403 })

@@ -451,34 +451,21 @@ export function sealedEventPlaysAlone(
 }
 
 /** The facts about an entry that decide whether its reader is on the same side of the table. */
-export type SealedEventAllyEntry = Pick<SealedEventRevealEntry, 'userId' | 'status' | 'requiredLimit' | 'teamId'>
+export type SealedEventAllyEntry = Pick<SealedEventRevealEntry, 'userId' | 'status' | 'teamId'>
 
-/** Before reveal, doubles teammates and 2v1 allies may read each other’s sealed rosters; solo and 1v1 entrants cannot. */
-export function readsAlliedSealedEventRoster(
-  format: TableShape | null,
-  eventLimit: number | null,
-  reader: SealedEventAllyEntry | null,
-  sealed: SealedEventAllyEntry,
-) {
+/**
+ * Before reveal, the two allies of a doubles team or a 2v1 pair may read each other’s sealed rosters; solo and 1v1
+ * entrants cannot, nor can an ally nobody is paired with yet, who may still be given the solo seat.
+ */
+export function readsAlliedSealedEventRoster(format: TableShape | null, reader: SealedEventAllyEntry | null, sealed: SealedEventAllyEntry) {
   if (!reader || reader.userId === sealed.userId) return false
   if (reader.status !== 'accepted' || sealed.status !== 'accepted') return false
-  if (format === '2v2') return reader.teamId !== null && reader.teamId === sealed.teamId
-  if (format === '2v1') {
-    if (eventLimit === null) return false
-    const allied = alliedSealedEventRosterLimit(eventLimit)
-    return reader.requiredLimit === allied && sealed.requiredLimit === allied
-  }
-  return false
+  return (format === '2v2' || format === '2v1') && reader.teamId !== null && reader.teamId === sealed.teamId
 }
 
 /** Before reveal, an entrant reads their own sealed roster and any ally's. */
-export function readsSealedRoster(
-  format: TableShape | null,
-  eventLimit: number | null,
-  reader: SealedEventAllyEntry | null,
-  sealed: SealedEventAllyEntry,
-) {
-  return reader?.userId === sealed.userId || readsAlliedSealedEventRoster(format, eventLimit, reader, sealed)
+export function readsSealedRoster(format: TableShape | null, reader: SealedEventAllyEntry | null, sealed: SealedEventAllyEntry) {
+  return reader?.userId === sealed.userId || readsAlliedSealedEventRoster(format, reader, sealed)
 }
 
 /**

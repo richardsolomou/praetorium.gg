@@ -4,11 +4,30 @@ import { addCountedPieces, attachGroups, joinGroup, type AttachedGroup, type Tex
 const detachmentHeading = /^#+\s*D[ée]tachements?\s*:?\s*$/i
 const title = /^(.+?)\s+:\s+(.+)$/
 const dispositionLine = /^=>\s*Disposition\s*:\s*(.+)$/i
-const section = /^-{2,}\s*.+?\s*-{2,}$/
-/** "[Seigneur de guerre] Tétrarque (3) : 85 pts(+20)", where a bracketed tag before the name is a mark or an army's initials. */
-const unitLine = /^((?:\[[^\]]+\]\s*)*)(.+?)\s*(?:\((\d+)\))?\s*:\s*\d+\s*pts?\b.*$/i
+/** "--- Infanterie ---". */
+const isSection = (line: string) => line.length >= 5 && line.startsWith('--') && line.endsWith('--')
+const tags = /^(?:\[[^\]]+\]\s*)*/
+const cost = /:\s*\d+\s*pts?\b/i
+const counted = /^\((\d+)\)$/
 const warlordTag = /\[\s*Seigneur de guerre\s*\]/i
 const total = /^Total\s*:\s*(\d+)\s*points?/i
+
+/**
+ * "[Seigneur de guerre] Tétrarque (3) : 85 pts(+20)", where a bracketed tag before the name is a mark or an army's
+ * initials. Read in steps: one pattern for the whole line tries every way to share a run of spaces between its parts,
+ * which takes minutes on a long line with no cost.
+ */
+function unitOf(line: string) {
+  const tagged = line.match(tags)![0]
+  const rest = line.slice(tagged.length)
+  // The name is at least one character, so the cost starts after it.
+  const at = rest.slice(1).search(cost)
+  if (at < 0) return null
+  const named = rest.slice(0, at + 1).trimEnd()
+  const open = named.lastIndexOf('(')
+  const models = open > 0 ? named.slice(open).match(counted)?.[1] : undefined
+  return { tags: tagged, name: models ? named.slice(0, open).trimEnd() : named, models: models ? Number(models) : null }
+}
 
 /**
  * A list layout French events publish: its army and name on the first line, a "### Détachements :" heading over
@@ -36,7 +55,7 @@ export function fromSectionedListText(input: string): TextRoster | null {
   for (const raw of lines.slice(at + 1)) {
     const attached = raw.startsWith('|')
     const line = raw.replace(/^\|\s*/, '')
-    if (!line || section.test(line) || total.test(line)) continue
+    if (!line || isSection(line) || total.test(line)) continue
     const bullet = line.match(/^\*\s*(.+)$/)?.[1]
     if (bullet && !units.length) {
       // Each names its army first, as "Adeptus Custodes - Lions de l'Empereur".
@@ -73,14 +92,14 @@ export function fromSectionedListText(input: string): TextRoster | null {
         )
       continue
     }
-    const unit = line.match(unitLine)
+    const unit = unitOf(line)
     if (unit) {
       current = {
-        name: unit[2]!.trim(),
+        name: unit.name,
         selections: [],
         leading: null,
-        warlord: warlordTag.test(unit[1]!),
-        ...(unit[3] ? { models: Number(unit[3]) } : {}),
+        warlord: warlordTag.test(unit.tags),
+        ...(unit.models ? { models: unit.models } : {}),
       }
       units.push(current)
       if (attached && host) joinGroup(groups, host, current)

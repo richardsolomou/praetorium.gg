@@ -409,6 +409,14 @@ export function app(): App {
       email,
       deleteUserData: (userId: string) => operator.deleteUserData(userId),
       revokeSessionAccess: (sessionId: string) => operator.revokeSession(sessionId),
+      endStandingAccess: async (userId: string) => {
+        const [devices, browsers] = await Promise.all([operator.pushTargets([userId]), operator.webPushTargets([userId])])
+        await Promise.all([
+          operator.removeCalendarFeed(userId),
+          operator.deletePushTokens(devices.map((device) => device.token)),
+          operator.deleteWebPushSubscriptions(browsers.map((browser) => browser.endpoint)),
+        ])
+      },
       storeSocialAvatar: storeProfileImageFromUrl,
       updateProfile: profileUpdate,
       profilePictureUploaded: (userId: string, image: string) =>

@@ -5,9 +5,9 @@ Open the invite link your organizer sent, or find a public tournament on [Tourna
 1. Open **Choose a roster**. It lists your rosters built to the tournament's points, and to its points total when it sets one, plus any that fit under **Lent by friends**.
 2. Pick one and press **Seal**.
 
-Before the reveal, only you and your assigned ally can read your sealed roster. Being the organizer gives no extra access. You can **Swap roster** until the reveal. Editing the saved roster afterwards doesn't change the sealed copy. The tournament page offers a replacement when the saved one has changed.
+Before the reveal, only you and the ally you're paired with can read your sealed roster. Being the organizer gives no extra access. If your ally moves to another seat, your roster is unsealed and you're asked to seal again. You can **Swap roster** until the reveal. Editing the saved roster afterwards doesn't change the sealed copy. The tournament page offers a replacement when the saved one has changed.
 
-If the tournament has a roster deadline, seal before it. After it you can't seal, and you sit the tournament out. [Add dates to your calendar](/docs/calendar) to see the deadline and the play day in your own calendar app.
+If the tournament has a roster deadline, seal before it. After it you can't seal, and once the lists are revealed you're out of the tournament. [Add dates to your calendar](/docs/calendar) to see the deadline and the play day in your own calendar app.
 
 The tournament page shows what it allows beside its format, such as **Matched play** or **Legends allowed · Restrictions off: Warlord**. A roster that breaks those rules can't be sealed.
 

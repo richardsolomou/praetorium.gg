@@ -40,3 +40,11 @@ it('imports an exchange code saved on an exact root book the faction index lists
   await importRosterInput('exchange code')
   expect(mocks.catalogueFor).toHaveBeenCalledWith('necrons-root')
 })
+
+it('refuses a text built to keep a reader backtracking, in the time a slow list takes', async () => {
+  mocks.exchange = false
+  const stalling = `My list\n──────────\nFaction: Orks\n${'a  ·  '.repeat(24)}\nBuilt with Warmind`
+  const started = performance.now()
+  const refused = await importRosterInput(stalling).catch((thrown: unknown) => thrown)
+  expect([refused instanceof Response && refused.status, performance.now() - started < 2_000]).toEqual([400, true])
+})

@@ -28,7 +28,7 @@ vi.mock('../app', () => ({
         discoverRosters: mocks.discover,
         rostersLentTo: mocks.lent,
         rosterAccess: mocks.access,
-        copySource: async () => null,
+        rosterAccessAndSource: mocks.access,
       },
     },
   }),

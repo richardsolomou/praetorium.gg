@@ -83,4 +83,10 @@ describe('sectioned list text import', () => {
   it('reads nothing without its detachment heading', () => {
     expect(fromSectionedListText('Adeptus Custodes : Liste\n\nCustodiens Allarus (3) : 165 pts')).toBeNull()
   })
+
+  it('reads a long line without a cost in the time a short one takes', () => {
+    const started = performance.now()
+    fromSectionedListText(`Adeptus Custodes : Liste\n### Détachements :\n[a]${' '.repeat(400)}x`)
+    expect(performance.now() - started).toBeLessThan(500)
+  })
 })
