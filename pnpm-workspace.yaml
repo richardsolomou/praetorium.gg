@@ -21,4 +21,6 @@ packageExtensions:
       '@babel/runtime': ^7.20.0
 overrides:
   'fflate@0.7.3': 0.7.5
+  '@alpaca-software/40kdc-data>fast-xml-parser': 5.12.0
+  '@alpaca-software/40kdc-data>glob': 14.0.2
   '@expo/fingerprint>minimatch': 11.0.8
