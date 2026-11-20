@@ -167,7 +167,9 @@ export const openSealedEventRoster = createServerFn({ method: 'GET' })
 
 export const openRevealedSealedEventRosters = createServerFn({ method: 'GET' })
   .validator(sealedEventSchema)
-  .handler(({ data }) => rpc(() => app().service.sealedEventService.revealedSealedEventRosters(data.token, data.eventToken)))
+  .handler(({ data }) =>
+    rpc(async () => app().service.sealedEventService.revealedSealedEventRosters(data.token, data.eventToken, await currentUserId())),
+  )
 
 export const listFriendSealedEventRosters = createServerFn({ method: 'GET' }).handler(() =>
   rpc(async () => {
