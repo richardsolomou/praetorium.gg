@@ -1,5 +1,5 @@
 import type { CatalogueFile } from '../core/catalogue'
-import { datasheetProfileKind, weaponShaped } from '../core/datasheetStructure'
+import { datasheetCharacteristicKind, datasheetProfileKind, weaponShaped } from '../core/datasheetStructure'
 import { resolvedText, textKey, textToken, textTokensIn } from '../core/sourceText'
 import type { TextFacts } from '../core/textFacts'
 import { remember } from '../core/collections'
@@ -17,7 +17,7 @@ const isRulesProfile = (node: Node) =>
   typeof node.typeName === 'string' &&
   Array.isArray(node.characteristics) &&
   !STRUCTURE_PROFILES.has(datasheetProfileKind(node.typeName)) &&
-  !weaponShaped((node.characteristics as { name?: unknown }[]).map(({ name }) => String(name)))
+  !weaponShaped((node.characteristics as { name?: unknown }[]).map(({ name }) => datasheetCharacteristicKind(String(name))))
 /** Modifiers that write a characteristic's text rather than count. */
 const TEXT_MODIFIERS = new Set(['set', 'append', 'replace'])
 
