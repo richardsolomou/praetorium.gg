@@ -2,15 +2,15 @@
   "format": "praetorium.catalogue-lock.v1",
   "pointer": {
     "format": "praetorium.catalogue-pointer.v1",
-    "id": "d0a44de5cb31be24a62de3e462af516d6fe1b354089aa3e4b390755fdedc9982",
-    "archiveSha256": "c7779c294afb3bbbe8837f6e07986158517c7a0119ef505dc0b94b6749090283",
+    "id": "29e26d2cb41d721554e796c5de89c68b05a307dcff755c76472c85215bce775b",
+    "archiveSha256": "e1286ede7f87e17dc02eb703f005431ea274cfc1066cab6bfde996cd886adeef",
     "objects": true,
-    "authoringRevision": "002ecaba6984e23dd2545fdf0c77c85185192d6d"
+    "authoringRevision": "7a2ac39e2a7609b6aeffe1da40583b52e12d522d"
   },
   "revisions": {
-    "definitions": "93715469835869ee2f641929674cb9ecbbd56158cb3ea8e9a6abf05b69250d86",
+    "definitions": "5dd8d752371f98e7945d1ce2d60f336a2756b295fd1562c6d15e042e7b512c2b",
     "points": "6a63139e5dbffafd5da0b9d5912e3250c845adbd8317bc8ead6ca30d5f5b5aae",
-    "datacards": "4a70bd7d56ce0caddecdbaa68eb24fbf7c63d97ab840f4a144bd6c2c8a4919e1",
+    "datacards": "73b266d8a31be5a09b30ba5fb8154d333ee4e040c1252d074284346f591117b1",
     "battlemaster": "acabfa43bd2d7cabfc868789ff01c1d2f467e770baf1b77a5bf4c301ed3ab4e7",
     "icons": "99b7cb90655dddbd8acdef9ab40d52ae5fe61db0",
     "translations": "4dd982ca14a0ed9e7b99ce42ae03a569ab171ecb"
