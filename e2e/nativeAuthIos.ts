@@ -8,7 +8,7 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { promisify } from 'node:util'
 import { localControlPort } from '../scripts/localDevPreview'
 import { localTestEnvironment, reserveLocalPort } from '../scripts/lib/localStack'
-import { userIdFor, withAuthSql } from './storage'
+import { nativeSignInProof, userIdFor, withAuthSql } from './storage'
 import { SpacetimeOperator } from '../src/server/spacetimeOperator'
 import { parseAppSnapshot } from '../src/contracts/appSnapshot'
 import { parseSavedReference } from '../mobile/src/offlineReference'
@@ -173,17 +173,7 @@ async function nativeAuth(requestUrl: URL, response: ServerResponse) {
   }
   expectedAuthenticatedDestination = destination
   events.push('native-auth-start')
-  const generated = await requestPublic(
-    '/api/auth/native-auth-token/generate',
-    'POST',
-    { 'content-type': 'application/json', cookie: fixtureCookie, origin: publicUrl },
-    JSON.stringify({ action, challenge, next, provider }),
-  )
-  if (generated.status !== 200) {
-    response.writeHead(502).end(`Proof generation returned ${generated.status}.`)
-    return
-  }
-  const exchange = JSON.parse(generated.body) as { id: string; token: string }
+  const exchange = await nativeSignInProof(fixtureUserId, { challenge, next, provider }, dataDirectory)
   const callback = new URL('praetorium://auth')
   for (const [name, value] of Object.entries({ action, challenge, next, provider, version: '3', ...exchange })) {
     callback.searchParams.set(name, value)

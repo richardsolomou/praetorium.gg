@@ -1,16 +1,10 @@
 import { hash } from 'node:crypto'
 import { constantTimeEqual } from 'better-auth/crypto'
 import type { AuthContext, GenericEndpointContext } from 'better-auth'
-import {
-  createAuthEndpoint,
-  createAuthMiddleware,
-  getAuthoritativeSessionFromCtx,
-  getSessionFromCtx,
-  sessionMiddleware,
-} from 'better-auth/api'
+import { createAuthEndpoint, createAuthMiddleware, getSessionFromCtx, isAPIError } from 'better-auth/api'
 import { setSessionCookie } from 'better-auth/cookies'
 import { symmetricDecrypt, symmetricEncrypt } from 'better-auth/crypto'
-import { generateIdTokenNonce, getOAuthCallbackPath, linkOAuthAccount } from 'better-auth/oauth2'
+import { generateIdTokenNonce, getOAuthCallbackPath, handleOAuthUserInfo, linkOAuthAccount } from 'better-auth/oauth2'
 import { isSameOriginRequest } from './origins'
 import { randomToken } from './random'
 import { z } from 'zod'
@@ -21,15 +15,15 @@ const EXCHANGE_MINUTES = 3
 const NULL_ORIGIN_ENDPOINTS = new Set(['/native-auth-token/exchange', '/native-auth-token/consume'])
 // Each of these signs its caller in or links a sign-in to them from a token alone, so no other site may post one.
 const SAME_ORIGIN_ENDPOINTS = new Set([...NULL_ORIGIN_ENDPOINTS, '/one-time-token/verify'])
-const LINK_MINUTES = 10
+const PROVIDER_MINUTES = 10
 const exchangeBody = z.object({
   id: z.string().min(32).max(128),
   token: z.string().min(32).max(128),
   verifier: z.string().regex(PKCE_VALUE),
   navigation: z.literal('1').optional(),
 })
-const generateBody = z.object({
-  action: z.literal('sign-in'),
+const asked = z.object({
+  action: z.enum(['link', 'sign-in']),
   challenge: z.string().regex(PKCE_VALUE),
   provider: z.enum(SOCIAL_PROVIDERS),
   next: z
@@ -52,20 +46,23 @@ const generateBody = z.object({
     }),
 })
 
-const linkBody = generateBody.extend({ action: z.literal('link'), bridge: z.union([z.literal(2), z.literal(3)]) })
+const startBody = asked.extend({ bridge: z.union([z.literal(2), z.literal(3)]), requestSignUp: z.boolean().optional() })
 
-/** A browser's session, handed to the shell that asked for it. */
-const sessionRecord = generateBody.extend({ sessionToken: z.string().min(1), userId: z.string().min(1) })
 /**
- * Proof that a browser signed in to a provider, with nothing linked yet. The browser holds no Praetorium session, so
- * a link somebody else sent it attaches nothing; only the shell that asked, signed in itself, turns the proof into a link.
+ * What the browser the shell opened leaves for that shell, and never keeps itself: anyone can send an address that
+ * opens that browser, so it is never signed in and links nothing. Only the shell that asked holds the verifier.
  */
-const proofRecord = linkBody.omit({ bridge: true }).extend({ proof: z.string().min(1) })
-const exchangeRecordSchema = z.union([sessionRecord, proofRecord])
+const exchangeRecordSchema = z.union([
+  /** A session the provider's sign-in created, for the shell's WebView to take. */
+  asked.extend({ action: z.literal('sign-in'), sessionToken: z.string().min(1), userId: z.string().min(1) }),
+  /** Proof of who signed in to the provider, for the shell, signed in itself, to link to its own account. */
+  asked.extend({ action: z.literal('link'), proof: z.string().min(1) }),
+])
 type ExchangeRecord = z.infer<typeof exchangeRecordSchema>
 
-const linkStateSchema = linkBody.extend({ codeVerifier: z.string(), idTokenNonce: z.string().optional() })
-const linkStateIdentifier = (state: string) => `native-link:${state}`
+const startedSchema = startBody.extend({ codeVerifier: z.string(), idTokenNonce: z.string().optional() })
+type Started = z.infer<typeof startedSchema>
+const startedIdentifier = (state: string) => `native-auth-state:${state}`
 const proofSchema = z.object({
   account: z.record(z.string(), z.unknown()),
   userInfo: z.record(z.string(), z.unknown()),
@@ -73,72 +70,95 @@ const proofSchema = z.object({
   scopes: z.array(z.string()).optional(),
 })
 
-/** Where the browser returns to the page that hands the shell its answer; a proof rides in the fragment, which no server logs. */
-function linkReturn(baseURL: string, link: z.infer<typeof linkBody>, answer: { id: string; token: string } | { error: string }) {
+/** Where the browser returns to the page that hands the shell its answer; the answer rides in the fragment, which no server logs. */
+function pageReturn(baseURL: string, started: Started, answer: { id: string; token: string } | { error: string }) {
   const page = new URL('/native-auth', baseURL)
   page.search = new URLSearchParams({
-    action: 'link',
-    bridge: String(link.bridge),
-    challenge: link.challenge,
+    action: started.action,
+    bridge: String(started.bridge),
+    challenge: started.challenge,
     complete: 'true',
-    next: link.next,
-    provider: link.provider,
+    next: started.next,
+    provider: started.provider,
     ...('error' in answer ? { error: answer.error } : {}),
   }).toString()
   if ('id' in answer) page.hash = new URLSearchParams(answer).toString()
   return page.toString()
 }
 
-/** The provider's answer to a link the shell started: its identity is proven and kept for the shell, never linked here. */
-async function proveLink(context: GenericEndpointContext, state: string) {
-  const stored = await context.context.internalAdapter.consumeVerificationValue(linkStateIdentifier(state))
-  const link = stored && stored.expiresAt > new Date() ? linkStateSchema.safeParse(JSON.parse(stored.value)).data : undefined
-  if (!link) return null
-  const back = (answer: Parameters<typeof linkReturn>[2]) => linkReturn(context.context.baseURL, link, answer)
+type Options = {
+  /** Called once a provider sign-in the shell asked for has a session, since no later hook sees one made here. */
+  signedIn?: (context: GenericEndpointContext, userId: string) => Promise<void>
+}
+
+/**
+ * The provider's answer to what the shell started, or null for a callback the shell did not start. A sign-in gets its
+ * session and a link its proof, each stored for the shell to collect; this browser is given neither.
+ */
+async function answerShell(context: GenericEndpointContext, state: string, options: Options) {
+  const stored = await context.context.internalAdapter.consumeVerificationValue(startedIdentifier(state))
+  const started = stored && stored.expiresAt > new Date() ? startedSchema.safeParse(JSON.parse(stored.value)).data : undefined
+  if (!started) return null
+  const back = (answer: Parameters<typeof pageReturn>[2]) => pageReturn(context.context.baseURL, started, answer)
   const query = z
     .object({ code: z.string().optional(), device_id: z.string().optional(), user: z.string().optional() })
     .parse(context.query)
-  const provider = context.context.socialProviders.find((candidate) => candidate.id === link.provider)
+  const provider = context.context.socialProviders.find((candidate) => candidate.id === started.provider)
   if (!provider || !query.code) return back({ error: 'provider_refused' })
   try {
     const tokens = await provider.validateAuthorizationCode({
       code: query.code,
-      codeVerifier: link.codeVerifier,
+      codeVerifier: started.codeVerifier,
       deviceId: query.device_id,
       redirectURI: `${context.context.baseURL}${getOAuthCallbackPath(provider)}`,
     })
-    const user: unknown = query.user ? JSON.parse(query.user) : undefined
-    const result = tokens && (await provider.getUserInfo({ ...tokens, expectedIdTokenNonce: link.idTokenNonce, user } as never))
+    const user = z
+      .string()
+      .transform((value) => JSON.parse(value) as unknown)
+      .safeParse(query.user).data
+    const result = tokens && (await provider.getUserInfo({ ...tokens, expectedIdTokenNonce: started.idTokenNonce, user } as never))
     if (!tokens || !result?.user) return back({ error: 'provider_refused' })
-    const accountId = String(await provider.accountSubject({ tokens, profile: result.data }))
-    const proof: z.input<typeof proofSchema> = {
-      account: { providerId: provider.id, accountId, ...tokens, scope: tokens.scopes?.join(',') },
-      userInfo: result.user,
-      profile: { ...result.data },
-      scopes: tokens.scopes,
+    const accountId = String(await provider.accountSubject({ tokens, profile: result.data })).trim()
+    // Better Auth's own callback refuses a subject that is no identity at all.
+    if (!accountId || accountId === 'undefined' || accountId === 'null') return back({ error: 'provider_refused' })
+    const account = { providerId: provider.id, accountId, ...tokens, scope: tokens.scopes?.join(',') }
+    const { action: _action, bridge: _bridge, codeVerifier: _codeVerifier, idTokenNonce: _nonce, requestSignUp, ...shell } = started
+    let record: ExchangeRecord
+    if (started.action === 'link') {
+      const proof: z.input<typeof proofSchema> = { account, userInfo: result.user, profile: { ...result.data }, scopes: tokens.scopes }
+      // The provider's tokens rest here until the shell collects them.
+      record = { ...shell, action: 'link', proof: await symmetricEncrypt({ key: context.context.secret, data: JSON.stringify(proof) }) }
+    } else {
+      if (!result.user.email) return back({ error: 'email_not_found' })
+      const signedIn = await handleOAuthUserInfo(context, {
+        userInfo: { ...result.user, id: accountId, email: result.user.email, name: result.user.name || '' },
+        account,
+        callbackURL: started.next,
+        disableSignUp: (provider.disableImplicitSignUp && !requestSignUp) || provider.options?.disableSignUp,
+        overrideUserInfo: provider.options?.overrideUserInfoOnSignIn,
+        source: { method: 'oauth', oauth: { providerId: provider.id, profile: { ...result.data } } },
+      })
+      if (signedIn.error || !signedIn.data) return back({ error: (signedIn.error ?? 'provider_refused').split(' ').join('_') })
+      record = { ...shell, action: 'sign-in', sessionToken: signedIn.data.session.token, userId: signedIn.data.user.id }
+      await options.signedIn?.(context, signedIn.data.user.id)
     }
     const id = randomToken(24)
     const token = randomToken(32)
-    const { bridge: _bridge, codeVerifier: _codeVerifier, idTokenNonce: _idTokenNonce, ...asked } = link
-    const value: ExchangeRecord = {
-      ...asked,
-      // The provider's tokens rest here until the shell collects them.
-      proof: await symmetricEncrypt({ key: context.context.secret, data: JSON.stringify(proof) }),
-    }
     await context.context.internalAdapter.createVerificationValue({
       identifier: exchangeIdentifier(id, token),
-      value: JSON.stringify(value),
+      value: JSON.stringify(record),
       expiresAt: new Date(Date.now() + EXCHANGE_MINUTES * 60 * 1000),
     })
     return back({ id, token })
   } catch (error) {
-    context.context.logger.error('Native link proof failed', error)
+    if (isAPIError(error) && typeof error.body?.code === 'string') return back({ error: error.body.code })
+    context.context.logger.error('Native provider answer failed', error)
     return back({ error: 'provider_refused' })
   }
 }
 
 /** Links the proven identity to whoever the shell is signed in as, by the rules a link started on the site follows. */
-async function linkProof(context: GenericEndpointContext, record: z.infer<typeof proofRecord>) {
+async function linkProof(context: GenericEndpointContext, record: Extract<ExchangeRecord, { action: 'link' }>) {
   const session = await getSessionFromCtx(context)
   if (!session) return 'Sign in before linking a provider'
   const proof = proofSchema.parse(JSON.parse(await symmetricDecrypt({ key: context.context.secret, data: record.proof })))
@@ -199,7 +219,7 @@ export function nativeAuthProofRequest(request: Request, baseURL: string) {
   return new Request(request.url, init)
 }
 
-export function nativeAuthToken() {
+export function nativeAuthToken(options: Options = {}) {
   return {
     id: 'praetorium-native-auth-token',
     onRequest: async (request: Request, context: AuthContext) => {
@@ -214,23 +234,23 @@ export function nativeAuthToken() {
             Boolean(context.path?.startsWith('/callback/')) && context.method === 'GET',
           handler: createAuthMiddleware(async (context) => {
             const state: unknown = context.query?.state
-            const answer = typeof state === 'string' ? await proveLink(context, state) : null
+            const answer = typeof state === 'string' ? await answerShell(context, state, options) : null
             if (answer) throw context.redirect(answer)
           }),
         },
       ],
     },
     endpoints: {
-      startNativeLink: createAuthEndpoint('/native-auth-token/link', { method: 'POST', body: linkBody }, async (context) => {
+      startNativeAuth: createAuthEndpoint('/native-auth-token/start', { method: 'POST', body: startBody }, async (context) => {
         const provider = context.context.socialProviders.find((candidate) => candidate.id === context.body.provider)
         if (!provider) throw context.error('BAD_REQUEST', { message: 'Provider is not available' })
         const state = randomToken(32)
         const codeVerifier = randomToken(64)
         const idTokenNonce = generateIdTokenNonce(provider)
         await context.context.internalAdapter.createVerificationValue({
-          identifier: linkStateIdentifier(state),
-          value: JSON.stringify({ ...context.body, codeVerifier, idTokenNonce } satisfies z.infer<typeof linkStateSchema>),
-          expiresAt: new Date(Date.now() + LINK_MINUTES * 60 * 1000),
+          identifier: startedIdentifier(state),
+          value: JSON.stringify({ ...context.body, codeVerifier, idTokenNonce } satisfies Started),
+          expiresAt: new Date(Date.now() + PROVIDER_MINUTES * 60 * 1000),
         })
         const url = await provider.createAuthorizationURL({
           state,
@@ -240,31 +260,6 @@ export function nativeAuthToken() {
         })
         return context.json({ url: url.toString() })
       }),
-      generateNativeAuthToken: createAuthEndpoint(
-        '/native-auth-token/generate',
-        { method: 'POST', body: generateBody, use: [sessionMiddleware] },
-        async (context) => {
-          const authenticated = await getAuthoritativeSessionFromCtx(context)
-          if (!authenticated) throw context.error('UNAUTHORIZED')
-          const accounts = await context.context.internalAdapter.findAccounts(authenticated.user.id)
-          if (!accounts.some((account) => account.providerId === context.body.provider)) {
-            throw context.error('BAD_REQUEST', { message: 'Provider is not linked' })
-          }
-          const id = randomToken(24)
-          const token = randomToken(32)
-          const value: ExchangeRecord = {
-            ...context.body,
-            sessionToken: authenticated.session.token,
-            userId: authenticated.user.id,
-          }
-          await context.context.internalAdapter.createVerificationValue({
-            identifier: exchangeIdentifier(id, token),
-            value: JSON.stringify(value),
-            expiresAt: new Date(Date.now() + EXCHANGE_MINUTES * 60 * 1000),
-          })
-          return context.json({ id, token })
-        },
-      ),
       exchangeNativeAuthToken: createAuthEndpoint(
         '/native-auth-token/exchange',
         {
@@ -286,7 +281,7 @@ export function nativeAuthToken() {
           if (!exchange || exchange.expiresAt <= new Date()) throw terminal('Invalid token')
           const record = exchangeRecord(exchange.value)
           if (!record || !hasChallenge(record, context.body.verifier)) throw terminal('Invalid token')
-          if ('proof' in record) {
+          if (record.action === 'link') {
             const refusal = await linkProof(context, record)
             if (refusal) throw terminal(refusal)
           } else {

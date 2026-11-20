@@ -1,9 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createElement } from 'react'
 import { renderToString } from 'react-dom/server'
-import { QueryClient } from '@tanstack/react-query'
-import { writesPending } from './pendingWrites'
-import { canUseGithubAuth, hasNativeAuthBridge, nativeAuthExchange, requestNativeAuth, useGithubAuthAvailability } from './nativeAuth'
+import { canUseGithubAuth, hasNativeAuthBridge, requestNativeAuth, useGithubAuthAvailability } from './nativeAuth'
 
 describe('native auth web bridge', () => {
   afterEach(() => vi.unstubAllGlobals())
@@ -34,20 +32,6 @@ describe('native auth web bridge', () => {
     expect(postMessage).not.toHaveBeenCalled()
   })
 
-  it('sends a versioned message to a compatible shell', async () => {
-    const postMessage = vi.fn()
-    vi.stubGlobal('window', { PraetoriumNative: { bridgeVersion: 1 }, ReactNativeWebView: { postMessage } })
-
-    await expect(requestNativeAuth({ action: 'sign-in', provider: 'discord', next: '/profile' })).resolves.toBe(true)
-    expect(JSON.parse(postMessage.mock.calls[0]![0])).toEqual({
-      version: 1,
-      type: 'native-auth',
-      action: 'sign-in',
-      provider: 'discord',
-      next: '/profile',
-    })
-  })
-
   it('uses a per-flow proof with the retryable authentication protocol', async () => {
     const postMessage = vi.fn()
     vi.stubGlobal('window', { PraetoriumNative: { bridgeVersion: 2 }, ReactNativeWebView: { postMessage } })
@@ -70,14 +54,4 @@ describe('native auth web bridge', () => {
     expect(message.challenge).toHaveLength(43)
     expect(message.verifier).toHaveLength(43)
   })
-})
-
-it('holds automatic reloads while the native sign-in token is requested', async () => {
-  let answer!: () => void
-  vi.stubGlobal('fetch', () => new Promise<Response>((resolve) => (answer = () => resolve(Response.json({ id: 'id', token: 'token' })))))
-  const exchanging = nativeAuthExchange({ action: 'sign-in', challenge: 'challenge', provider: 'google', next: '/rosters' })
-  expect(writesPending(new QueryClient())).toBe(true)
-  answer()
-  await exchanging
-  vi.unstubAllGlobals()
 })
