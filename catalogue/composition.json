@@ -5,7 +5,7 @@
       "source": "definitions",
       "repository": "richardsolomou/wh40k-11e",
       "branch": "feat/custodes-codex",
-      "revision": "67b3e5b1fc0e14bf4ea939e00232c658c808581c",
+      "revision": "3b8a13e481254e369ca69fa69033a01549f80e17",
       "license": null,
       "attribution": "Custodes codex transcribed from orpheax/custobuilder and checked against scanned codex pages, maintained in the Praetorium fork.",
       "files": ["Imperium - Adeptus Custodes.json"]
@@ -14,7 +14,7 @@
       "source": "datacards",
       "repository": "richardsolomou/wh40k-11e",
       "branch": "feat/custodes-codex",
-      "revision": "67b3e5b1fc0e14bf4ea939e00232c658c808581c",
+      "revision": "3b8a13e481254e369ca69fa69033a01549f80e17",
       "license": null,
       "attribution": "Custodes codex transcribed from orpheax/custobuilder and checked against scanned codex pages, maintained in the Praetorium fork.",
       "path": "11th/gdc",
