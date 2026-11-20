@@ -29,3 +29,27 @@ describe('a catalogue text shown as its card twin', () => {
     expect(shown.fact(keyOf(card))).toEqual({ ...texts.fact(keyOf(own)), reminder: { timings: [] } })
   })
 })
+
+describe('a statline printed under its own profile type', () => {
+  const power = {
+    catalogue: {
+      id: 'book',
+      name: 'Book',
+      sharedProfiles: [
+        {
+          id: 'power',
+          name: 'Cosmic fire',
+          typeName: "C'tan Powers",
+          characteristics: [
+            { name: 'A', typeId: 'a', $text: '3D6' },
+            { name: 'D', typeId: 'd', $text: '1' },
+          ],
+        },
+      ],
+    },
+  } as unknown as CatalogueFile
+
+  it('keeps its characteristics as printed', () => {
+    expect(JSON.stringify(definitionTexts([{ file: power, path: 'definitions/book.json' }]).files[0]!.file)).toContain('"3D6"')
+  })
+})

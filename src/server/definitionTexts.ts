@@ -1,5 +1,5 @@
 import type { CatalogueFile } from '../core/catalogue'
-import { datasheetProfileKind } from '../core/datasheetStructure'
+import { datasheetProfileKind, weaponShaped } from '../core/datasheetStructure'
 import { resolvedText, textKey, textToken, textTokensIn } from '../core/sourceText'
 import type { TextFacts } from '../core/textFacts'
 import { remember } from '../core/collections'
@@ -11,6 +11,13 @@ import { publishedTexts } from './sourceTexts'
 
 /** Profiles whose characteristics are numbers and keywords; every other profile's are its rules text. */
 const STRUCTURE_PROFILES = new Set(['unit', 'ranged-weapon', 'melee-weapon'])
+
+/** A profile whose characteristics are rules text: not a statline, even one printed under its own type such as a C'tan power. */
+const isRulesProfile = (node: Node) =>
+  typeof node.typeName === 'string' &&
+  Array.isArray(node.characteristics) &&
+  !STRUCTURE_PROFILES.has(datasheetProfileKind(node.typeName)) &&
+  !weaponShaped((node.characteristics as { name?: unknown }[]).map(({ name }) => String(name)))
 /** Modifiers that write a characteristic's text rather than count. */
 const TEXT_MODIFIERS = new Set(['set', 'append', 'replace'])
 
@@ -135,8 +142,7 @@ function visitTexts(value: unknown, found: (raw: string, rules: boolean) => void
   if (Array.isArray(value)) for (const entry of value) visitTexts(entry, found, textTypes, ruleProfile)
   else if (value && typeof value === 'object') {
     const node = value as Node
-    const characteristics = typeof node.typeName === 'string' && Array.isArray(node.characteristics)
-    const rules = characteristics && !STRUCTURE_PROFILES.has(datasheetProfileKind(node.typeName as string))
+    const rules = isRulesProfile(node)
     for (const [key, entry] of Object.entries(node)) {
       if (typeof entry === 'string') {
         if (entry.trim() && (key === 'description' || key === '$text')) found(entry, key === 'description' || ruleProfile)
@@ -177,10 +183,7 @@ function withRulesTokens(file: CatalogueFile, textTypes: ReadonlySet<string>, sw
     }
     if (!value || typeof value !== 'object') return value
     const node = value as Node
-    const rules =
-      typeof node.typeName === 'string' &&
-      Array.isArray(node.characteristics) &&
-      !STRUCTURE_PROFILES.has(datasheetProfileKind(node.typeName))
+    const rules = isRulesProfile(node)
     let next: Node | undefined
     for (const [key, entry] of Object.entries(node)) {
       const visited =

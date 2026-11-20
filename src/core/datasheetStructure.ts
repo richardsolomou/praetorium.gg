@@ -70,6 +70,10 @@ const characteristicKinds: Readonly<Record<string, DatasheetCharacteristicKind>>
 export const datasheetCharacteristicKind = (name: string): DatasheetCharacteristicKind =>
   remember(characteristicKindsByName, name, () => characteristicKinds[joinKey(name)] ?? 'other')
 
+/** Characteristics that make a weapon line, under whatever profile type prints them. */
+export const weaponShaped = (names: readonly string[]) =>
+  (['attacks', 'damage'] as const).every((kind) => names.some((name) => datasheetCharacteristicKind(name) === kind))
+
 type DatasheetCharacteristic = Datasheet['profiles'][number]['values'][number] & { kind?: DatasheetCharacteristicKind }
 type DatasheetProfile = Omit<Datasheet['profiles'][number], 'values'> & {
   kind?: DatasheetProfileKind
