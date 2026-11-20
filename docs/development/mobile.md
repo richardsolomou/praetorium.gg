@@ -35,6 +35,7 @@
 - The Lock Screen (iOS Live Activity, Android ongoing notification) takes the same snapshot as the Watch whenever the shell has `battle-activity`, but only for a seated viewer, and ends when it finishes or the phone stops following it. It changes only while the app runs; nothing pushes it from the server. The Live Activity's attributes are one Swift file that the `PraetoriumWidgets` extension (`plugins/withWidgets.js`) compiles from the app module, since ActivityKit matches the two by type.
 - The home screen widget draws what Home last published (`homeWidget`, sent while the shell has `home-widget`) and never fetches. iOS shares it through the `group.gg.praetorium` App Group, which the app and `PraetoriumWidgets` must both be entitled to; Android keeps it in the module's preferences and redraws on each save.
 - Keep the Watch snapshot at `version: 1` and add only optional fields; installed watches reject any other version, and older shells strip unknown keys.
+- The browser the shell opens to link a provider never holds a Praetorium session: anyone can send a link that opens it, so it only proves who signed in to the provider (`proveLink` in `src/server/nativeAuthToken.ts`), and the shell's own signed-in WebView turns that proof into the link when it redeems it. The endpoints that sign a caller in or link to them from a token alone refuse a request from any other site.
 
 ## Check it
 
