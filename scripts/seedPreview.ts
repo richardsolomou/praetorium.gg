@@ -355,6 +355,10 @@ export async function seedPreview(providedSnapshots?: PreviewSnapshots) {
       },
       snapshots,
     )
+    await database
+      .update(user)
+      .set({ role: 'admin' })
+      .where(eq(user.id, previewAccountId(process.env.SPACETIME_DATABASE, PREVIEW_EMAIL)))
     for (const opponent of PRACTICE_OPPONENTS) {
       const email = `${opponent.id}@praetorium.invalid`
       const [existing] = await database.select({ email: user.email }).from(user).where(eq(user.id, opponent.id)).limit(1)

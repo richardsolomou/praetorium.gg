@@ -1,3 +1,5 @@
+import { boundedBody } from './boundedBody'
+
 /** A preview deployment's issuer: this site's own HTTPS origin, under the path a preview is served from, and nothing else. */
 export function isPreviewIssuer(issuer: URL, origin: string) {
   return (
@@ -27,15 +29,19 @@ export function previewOidcRequest(request: Request, issuer?: string, externalOr
   return new Request(incoming, { method: request.method, headers: request.headers })
 }
 
-export async function previewOAuthPostRequest(request: Request, issuer?: string, externalOrigin?: string) {
-  if (!issuer || request.method !== 'POST') return request
-  const configured = new URL(issuer)
+/** Better Auth parses POST bodies before running endpoint middleware. */
+export async function authPostRequest(request: Request, issuer?: string, externalOrigin?: string) {
   const incoming = new URL(request.url)
-  if (
-    !isPreviewIssuer(configured, externalOrigin ? new URL(externalOrigin).origin : incoming.origin) ||
-    !incoming.pathname.startsWith(`${configured.pathname}/oauth2/`)
-  )
-    return request
-  incoming.pathname = `/api/auth${incoming.pathname.slice(configured.pathname.length)}`
-  return new Request(incoming, { method: 'POST', headers: request.headers, body: await request.arrayBuffer() })
+  if (issuer) {
+    const configured = new URL(issuer)
+    if (
+      isPreviewIssuer(configured, externalOrigin ? new URL(externalOrigin).origin : incoming.origin) &&
+      incoming.pathname.startsWith(`${configured.pathname}/oauth2/`)
+    ) {
+      incoming.pathname = `/api/auth${incoming.pathname.slice(configured.pathname.length)}`
+    }
+  }
+  const limit = incoming.pathname.startsWith('/api/auth/native-auth-token/') ? 8 * 1024 : 1024 * 1024
+  const body = await boundedBody(request, limit)
+  return body && new Request(incoming, { method: 'POST', headers: request.headers, body, signal: request.signal })
 }

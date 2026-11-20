@@ -4,6 +4,8 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { importAuthSqlite } from '../../scripts/nodeAuthSqlite'
+import { eq } from 'drizzle-orm'
+import { user } from '../db/authSchema'
 import { SIGN_IN_REQUIRED } from '../core/session'
 import { createSqliteAuth } from './sqliteAuth'
 import { localAuthDatabase } from './localAuthDatabase'
@@ -54,12 +56,10 @@ beforeAll(async () => {
     storeSocialAvatar: async () => null,
     updateProfile: async (data) => ({ ok: true, data }),
   })
-  administrator = (
-    await auth.api.signUpEmail({
-      body: { email: `admin-${randomUUID()}@example.com`, password: 'password1234', name: 'Admin' },
-      returnHeaders: true,
-    })
-  ).headers
+  const credentials = { email: `admin-${randomUUID()}@example.com`, password: 'password1234' }
+  const admin = await auth.api.signUpEmail({ body: { ...credentials, name: 'Admin' } })
+  await local.database.update(user).set({ role: 'admin' }).where(eq(user.id, admin.user.id))
+  administrator = (await auth.api.signInEmail({ body: credentials, returnHeaders: true })).headers
 })
 
 afterAll(async () => {

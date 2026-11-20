@@ -22,7 +22,7 @@
       },
       "notes": [
         "The secret stays in `AUTH_SECRET`, passed to Better Auth explicitly, instead of `BETTER_AUTH_SECRET`: production, the hourly auth backups (`auth-secret` in each archive), the restore runbook, previews, and the local stack all use that name, and the public page load limit verifies session cookies with it, so renaming it would sign everyone out unless every one of those moved in the same deploy. A production build refuses to start without it, as the recipe's check does.",
-        "src/server/sqliteAuth.ts is the application's Better Auth configuration: email and password with a 10-character minimum and auto sign-in, Apple, Google, Discord and GitHub with trusted account linking across emails, the admin, one-time token, native auth token, two-factor, JWT (the SpacetimeDB identity issuer), MCP, OAuth provider and CIMD plugins, avatar re-hosting, deletion hooks, and analytics callbacks; the recipe's session, rate limit, account, and email-and-password values are written in.",
+        "src/server/sqliteAuth.ts is the application's Better Auth configuration: email and password with a 10-character minimum and auto sign-in, Apple, Google, Discord and GitHub with verified social account linking across emails and operator-assigned administrators, the admin, one-time token, native auth token, two-factor, JWT (the SpacetimeDB identity issuer), MCP, OAuth provider and CIMD plugins, avatar re-hosting, deletion hooks, and analytics callbacks; the recipe's session, rate limit, account, and email-and-password values are written in.",
         "`AUTH_RATE_LIMIT=off` turns rate limits off for browser-test stacks.",
         "Better Auth reads the client IP from `cf-connecting-ip` and then `x-forwarded-for`, because production only accepts traffic from Cloudflare (docs/deployment.md).",
         "No `tanstackStartCookies()`: the application's server functions forward Better Auth's cookies themselves.",
@@ -166,7 +166,7 @@
         "Vite's `telemetry` chunk group keeps posthog-js and the PostHog packages in their own chunk.",
         "`postHogOptions` adds `ConversationsExtensions` for the support panel. The app's feedback form sends survey events directly.",
         "src/client/posthog.tsx has no `captureRenderError`: the router's `defaultOnCatch` is `reportRouteError` in src/client/routeErrors.ts.",
-        "src/server/posthogProxy.ts does not copy `cf-connecting-ip` into `x-forwarded-for`: scripts/nodeServer.ts `forwardVisitor` already sets it for every request."
+        "src/server/posthogProxy.ts does not copy `cf-connecting-ip` into `x-forwarded-for`: scripts/nodeServer.ts `forwardVisitor` already sets it for every request. The proxy bounds telemetry batches to four MiB before forwarding them."
       ]
     },
     "spacetimedb": {

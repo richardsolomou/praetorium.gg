@@ -49,6 +49,11 @@ function proxied(path: string, init: RequestInit = {}) {
 }
 
 describe('forwardToPostHog', () => {
+  it('rejects oversized telemetry before forwarding it', async () => {
+    const response = await proxied('/t/e/', { method: 'POST', body: new Uint8Array(4 * 1024 * 1024 + 1) })
+    expect({ status: response.status, forwarded: received.length }).toEqual({ status: 413, forwarded: 0 })
+  })
+
   it('sends events to the ingestion host without the proxy path', async () => {
     await proxied('/t/e/?compression=gzip-js', { method: 'POST', body: 'payload' })
     expect(received.map(({ host, method, url, body }) => ({ host, method, url, body }))).toEqual([

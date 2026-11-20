@@ -2,7 +2,7 @@ Everything here is in [Account settings](/profile). Open the account menu and ch
 
 ## Sign-in methods
 
-**Sign-in and security** lists **Password** and each provider, marked **Linked** or **Available to link**. To add a provider, choose **Link** beside it and sign in with it. Any linked method then signs you into the same account.
+**Sign-in and security** lists **Password** and each provider, marked **Linked** or **Available to link**. Verify your email with the provider first. To add it, choose **Link** beside it and sign in with it. Any linked method then signs you into the same account.
 
 To change your password, choose **Change** on the password row and enter your **Current password** and a **New password**. Changing it signs out every other device.
 

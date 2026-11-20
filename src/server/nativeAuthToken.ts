@@ -60,7 +60,7 @@ function exchangeRecord(value: string) {
   }
 }
 
-export async function nativeAuthProofRequest(request: Request, baseURL: string) {
+export function nativeAuthProofRequest(request: Request, baseURL: string) {
   if (request.method !== 'POST') return request
   const origin = request.headers.get('origin')
   if (origin && origin !== 'null') return request
@@ -71,14 +71,15 @@ export async function nativeAuthProofRequest(request: Request, baseURL: string) 
   if (!NULL_ORIGIN_ENDPOINTS.has(endpoint)) return request
   const headers = new Headers(request.headers)
   headers.set('origin', base.origin)
-  return new Request(request.url, { method: request.method, headers, body: await request.arrayBuffer() })
+  const init = { method: request.method, headers, body: request.body, duplex: 'half' as const, signal: request.signal }
+  return new Request(request.url, init)
 }
 
 export function nativeAuthToken() {
   return {
     id: 'praetorium-native-auth-token',
     onRequest: async (request: Request, context: AuthContext) => {
-      const normalized = await nativeAuthProofRequest(request, context.baseURL)
+      const normalized = nativeAuthProofRequest(request, context.baseURL)
       if (normalized !== request) return { request: normalized }
     },
     endpoints: {

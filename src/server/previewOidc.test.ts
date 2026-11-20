@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { previewOAuthPostRequest, previewOidcRequest } from './previewOidc'
+import { authPostRequest, previewOidcRequest } from './previewOidc'
 
 const issuer = `https://pr-606.praetorium.gg/api/auth/preview/${'c'.repeat(40)}`
 
@@ -42,12 +42,22 @@ it('routes a preview token request without copying a foreign Request implementat
     url: `${issuer}/oauth2/token`,
     method: 'POST',
     headers: new Headers({ 'content-type': 'application/x-www-form-urlencoded' }),
-    arrayBuffer: async () => new TextEncoder().encode('grant_type=authorization_code').buffer,
+    body: new Response('grant_type=authorization_code').body,
   } as Request
-  const rewritten = await previewOAuthPostRequest(foreign, issuer)
+  const rewritten = (await authPostRequest(foreign, issuer))!
   expect({ url: rewritten.url, method: rewritten.method, body: await rewritten.text() }).toEqual({
     url: 'https://pr-606.praetorium.gg/api/auth/oauth2/token',
     method: 'POST',
     body: 'grant_type=authorization_code',
   })
+})
+
+it.each([
+  ['/api/auth/native-auth-token/generate', 8192],
+  ['/api/auth/native-auth-token/exchange', 8192],
+  ['/api/auth/sign-up/email', 1024 * 1024],
+  [new URL(issuer).pathname + '/oauth2/token', 1024 * 1024],
+])('bounds the body before parsing %s', async (path, limit) => {
+  const request = new Request(new URL(path, issuer), { method: 'POST', body: new Uint8Array(limit + 1) })
+  expect(await authPostRequest(request, issuer)).toBeNull()
 })

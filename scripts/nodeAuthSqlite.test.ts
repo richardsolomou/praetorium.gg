@@ -128,7 +128,7 @@ it('imports the auth schema, handles concurrent sign-ups, and restores sessions 
     ),
   )
   const rows = await database.select({ role: user.role }).from(user)
-  expect({ users: rows.length, admins: rows.filter((row) => row.role === 'admin').length }).toEqual({ users: count, admins: 1 })
+  expect({ users: rows.length, admins: rows.filter((row) => row.role === 'admin').length }).toEqual({ users: count, admins: 0 })
   const cookie = created[0]!.headers.get('set-cookie')?.split(';')[0]
   if (!cookie) throw new Error('Sign-up did not create a session')
   const headers = new Headers({ cookie })
@@ -183,7 +183,7 @@ it('accepts simultaneous sign-ups from two separate app processes', async () => 
     const shared = await local.auth.api.getSession({ headers: new Headers({ cookie: session.cookie }) })
     expect({ users: roles.length, admins: roles.filter((row) => row.role === 'admin').length, sessionUserId: shared?.user.id }).toEqual({
       users: 20,
-      admins: 1,
+      admins: 0,
       sessionUserId: session.userId,
     })
   } finally {

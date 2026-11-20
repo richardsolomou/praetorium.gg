@@ -5,6 +5,7 @@ import { boundedBytes } from './boundedBody'
 import { parseImageDataUrl, sniffedImageType } from './privateImages'
 
 const CONTENT_TYPE_EXTENSION: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' }
+const avatarOrigins = new Set(['https://avatars.githubusercontent.com', 'https://lh3.googleusercontent.com', 'https://cdn.discordapp.com'])
 const FETCHED_IMAGE_MAX_BYTES = 5_000_000
 
 /**
@@ -41,11 +42,13 @@ export async function storeProfileImage(dataUrl: string): Promise<string> {
  * Returns null instead of throwing: a broken or slow avatar fetch must not block sign-up or linking.
  */
 export async function storeProfileImageFromUrl(url: string): Promise<string | null> {
+  const source = URL.parse(url)
+  if (!source || !avatarOrigins.has(source.origin) || source.username || source.password) return null
   const store = configuredObjectStore()
   if (!store) return null
   let bytes: Buffer
   try {
-    const response = await fetch(url, { signal: AbortSignal.timeout(5000) })
+    const response = await fetch(source, { redirect: 'error', signal: AbortSignal.timeout(5000) })
     if (!response.ok) return null
     bytes = await boundedBytes(response, FETCHED_IMAGE_MAX_BYTES, 'profile picture too large')
   } catch {

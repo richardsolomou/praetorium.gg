@@ -33,7 +33,13 @@ afterAll(async () => {
 })
 
 type AuthEvent = { userId: string; event: string; properties: Record<string, unknown> }
-function authFor(environment: NodeJS.ProcessEnv, revoked: string[] = [], deleted: string[] = [], events?: AuthEvent[]) {
+function authFor(
+  environment: NodeJS.ProcessEnv,
+  revoked: string[] = [],
+  deleted: string[] = [],
+  events?: AuthEvent[],
+  storeSocialAvatar: (url: string) => Promise<string | null> = async () => null,
+) {
   return createSqliteAuth(local.database, secret, {
     environment,
     captureAuthentication: async (userId, event, properties) => {
@@ -48,12 +54,12 @@ function authFor(environment: NodeJS.ProcessEnv, revoked: string[] = [], deleted
     revokeSessionAccess: async (id) => {
       revoked.push(id)
     },
-    storeSocialAvatar: async () => null,
+    storeSocialAvatar,
     updateProfile: async (data) => ({ ok: true, data }),
   })
 }
 
-it('signs up, claims an administrator, and revokes its product session', async () => {
+it('signs up, creates an ordinary account, and revokes its product session', async () => {
   const revoked: string[] = []
   const auth = authFor({ APP_URL: 'https://praetorium.gg', AUTH_RATE_LIMIT: 'off', SPACETIME_AUDIENCE: 'praetorium-test' }, revoked)
   const created = await auth.api.signUpEmail({
@@ -64,7 +70,7 @@ it('signs up, claims an administrator, and revokes its product session', async (
   if (!cookie) throw new Error('Sign-up did not set a session cookie')
   const headers = new Headers({ cookie })
   const current = await auth.api.getSession({ headers })
-  expect(current?.user.role).toBe('admin')
+  expect(current?.user.role).toBe('user')
   const { token } = await auth.api.getToken({ headers })
   await jwtVerify(token, createLocalJWKSet(await auth.api.getJwks()), {
     issuer: 'https://praetorium.gg/api/auth',
@@ -78,6 +84,47 @@ it('signs up, claims an administrator, and revokes its product session', async (
   await auth.api.signOut({ headers })
   expect(revoked).toEqual([current!.session.id])
   expect(await auth.api.getSession({ headers })).toBeNull()
+})
+
+it('discards email registration images before provider avatar storage', async () => {
+  const store = vi.fn(async () => 'https://example.test/stored.png')
+  const auth = authFor(testEnvironment, [], [], undefined, store)
+  const created = await auth.api.signUpEmail({
+    body: { email: 'image@example.test', name: 'Player', password: 'password1234', image: 'https://avatars.githubusercontent.com/u/1' },
+  })
+  expect({ stored: store.mock.calls.length, image: created.user.image }).toEqual({ stored: 0, image: null })
+})
+
+it('requires provider email verification for automatic account linking', async () => {
+  const auth = authFor({ ...testEnvironment, DISCORD_CLIENT_ID: 'discord-client', DISCORD_CLIENT_SECRET: 'discord-secret' })
+  const player = await signUpAs(auth, 'Discord player', 'user')
+  await auth.markEmailVerified(player.user.id)
+  let verified = false
+  vi.stubGlobal('fetch', (input: string | URL | Request) => {
+    const url = new URL(input instanceof Request ? input.url : input)
+    if (url.pathname === '/api/oauth2/token') return Response.json({ access_token: 'test-token', token_type: 'bearer' })
+    if (decodeURIComponent(url.pathname) === '/api/users/@me')
+      return Response.json({ id: '101', username: 'Player', avatar: null, discriminator: '1', email: player.user.email, verified })
+    throw new Error(`Unexpected OAuth request: ${url.pathname}`)
+  })
+  try {
+    const destinations = []
+    // A verified match links the identity. Subsequent sign-ins use that identity directly.
+    for (verified of [false, true, false]) {
+      const start = await auth.api.signInSocial({ body: { provider: 'discord', callbackURL: '/rosters' }, returnHeaders: true })
+      const state = new URL(start.response.url!).searchParams.get('state')!
+      const callback = await auth.handler(
+        new Request(`https://praetorium.gg/api/auth/callback/discord?state=${encodeURIComponent(state)}&code=test-code`, {
+          headers: { cookie: start.headers.get('set-cookie')!.split(';')[0]! },
+        }),
+      )
+      const landing = new URL(callback.headers.get('location')!, testEnvironment.APP_URL)
+      destinations.push(landing.searchParams.get('error') ?? landing.pathname)
+    }
+    expect(destinations).toEqual(['account_not_linked', '/rosters', '/rosters'])
+  } finally {
+    vi.unstubAllGlobals()
+  }
 })
 
 it.each([

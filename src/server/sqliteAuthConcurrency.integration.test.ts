@@ -45,14 +45,14 @@ function auth(connection: ReturnType<typeof localAuthDatabase>) {
   })
 }
 
-test('concurrent first sign-ups on independent SQLite connections assign one administrator', async () => {
+test('concurrent first sign-ups on independent SQLite connections create ordinary accounts', async () => {
   await isolatedDatabase(async (left, right) => {
     await Promise.all([
       auth(left).api.signUpEmail({ body: { email: 'left@example.test', password: 'password1234', name: 'Left' } }),
       auth(right).api.signUpEmail({ body: { email: 'right@example.test', password: 'password1234', name: 'Right' } }),
     ])
     const administrators = await left.database.select({ id: user.id }).from(user).where(eq(user.role, 'admin'))
-    expect(administrators).toHaveLength(1)
+    expect(administrators).toHaveLength(0)
   })
 })
 
@@ -62,6 +62,7 @@ test('concurrent administrator demotions preserve one administrator in SQLite', 
     const rightAuth = auth(right)
     const first = await leftAuth.api.signUpEmail({ body: { email: 'first@example.test', password: 'password1234', name: 'First' } })
     const second = await rightAuth.api.signUpEmail({ body: { email: 'second@example.test', password: 'password1234', name: 'Second' } })
+    await left.database.update(user).set({ role: 'admin' }).where(eq(user.id, first.user.id))
     await leftAuth.changeUserRole(first.user.id, second.user.id, 'admin')
     const results = await Promise.all([
       leftAuth.changeUserRole(first.user.id, second.user.id, 'user'),

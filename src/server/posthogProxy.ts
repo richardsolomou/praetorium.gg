@@ -1,3 +1,4 @@
+import { boundedBody } from './boundedBody'
 import { ingestPath, type PostHogEnvironment } from '../contracts/posthog'
 
 // A same-origin request carries the application's session cookie and any bearer token, and PostHog reads neither.
@@ -27,10 +28,12 @@ export async function forwardToPostHog(request: Request, environment: Pick<PostH
   const dropped = new Set([...credentialHeaders, ...transportHeaders])
   const headers = new Headers([...request.headers].filter(([name]) => !dropped.has(name) && !name.startsWith('cf-')))
 
+  const body = await boundedBody(request, 4 * 1024 * 1024)
+  if (!body) return new Response('Payload too large', { status: 413 })
   const response = await fetch(`${upstream}${path}${url.search}`, {
     method: request.method,
     headers,
-    body: request.method === 'GET' || request.method === 'HEAD' ? null : await request.arrayBuffer(),
+    body: request.method === 'GET' || request.method === 'HEAD' ? null : body,
     redirect: 'manual',
   })
 

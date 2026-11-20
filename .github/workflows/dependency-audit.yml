@@ -1,0 +1,25 @@
+name: Production dependency audit
+
+on:
+  pull_request:
+    paths:
+      - '**/package.json'
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - .github/workflows/dependency-audit.yml
+  schedule:
+    - cron: '21 5 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: richardsolomou/ras-stack/actions/setup-js@v1
+        with:
+          install: 'false'
+      - run: pnpm audit --prod

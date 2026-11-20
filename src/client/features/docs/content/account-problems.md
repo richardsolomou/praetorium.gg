@@ -14,7 +14,7 @@ Reset links last an hour and work once. Choose **Return to sign in** and request
 
 ### "An account already uses this email. Sign in with its existing method, then link this provider from your profile."
 
-You signed up with a password and haven't verified that email. Sign in with your password, then either link the provider under **Sign-in and security** or verify your email. See [Sign-in methods](/docs/account-security#sign-in-methods).
+Verify your email with the provider you’re trying to add. If you signed up with a password, sign in with it and verify your Praetorium email or link the provider under **Sign-in and security**. See [Sign-in methods](/docs/account-security#sign-in-methods).
 
 ### "Could not sign in with this provider. Try again."
 

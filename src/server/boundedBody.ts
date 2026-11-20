@@ -1,37 +1,28 @@
 import { Transform } from 'node:stream'
 
-/** Reads a request body as text, or returns null once it exceeds `limit` bytes. */
-export async function boundedText(request: Request, limit: number): Promise<string | null> {
-  if (Number(request.headers.get('content-length') ?? 0) > limit) return null
-  if (!request.body) return ''
-  const reader = request.body.getReader()
-  const decoder = new TextDecoder()
-  let text = ''
-  let size = 0
-  for (;;) {
-    const { done, value } = await reader.read()
-    if (done) return text + decoder.decode()
-    size += value.byteLength
-    if (size > limit) {
-      await reader.cancel()
-      return null
-    }
-    text += decoder.decode(value, { stream: true })
-  }
-}
-
-/** Reads a response body, throwing `message` once it exceeds `limit` bytes. */
-export async function boundedBytes(response: Response, limit: number, message: string): Promise<Buffer> {
-  if (Number(response.headers.get('content-length') ?? 0) > limit) throw new Error(message)
+/** Counts bytes as they arrive because clients may omit the content length. */
+export async function boundedBody(source: Request | Response, limit: number): Promise<Buffer<ArrayBuffer> | null> {
+  if (Number(source.headers.get('content-length')) > limit) return null
   const parts: Uint8Array[] = []
   let size = 0
-  if (response.body)
-    for await (const chunk of response.body) {
+  if (source.body)
+    for await (const chunk of source.body) {
       size += chunk.byteLength
-      if (size > limit) throw new Error(message)
+      if (size > limit) return null
       parts.push(chunk)
     }
   return Buffer.concat(parts)
+}
+
+export async function boundedText(request: Request, limit: number) {
+  const bytes = await boundedBody(request, limit)
+  return bytes && new TextDecoder().decode(bytes)
+}
+
+export async function boundedBytes(response: Response, limit: number, message: string) {
+  const bytes = await boundedBody(response, limit)
+  if (!bytes) throw new Error(message)
+  return bytes
 }
 
 export function byteLimit(limit: number, message: string, onChunk?: (chunk: Buffer) => void) {
