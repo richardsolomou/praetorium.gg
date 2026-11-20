@@ -3,6 +3,7 @@ import {
   asSecondary,
   builtDetachments,
   FIXED_SECONDARIES,
+  STRATAGEM_CP_MAX,
   isKotcLimit,
   scoringDue,
   secondaryDrawTarget,
@@ -14,6 +15,7 @@ import {
   type Command,
 } from '../core/battle'
 import type { BattleView } from '../core/battleView'
+import { scoringDueFromTheirTurn } from '../core/battleSecondaries'
 import { commandSchema, idSchema, rosterLimitSchema } from '../core/commands'
 import { sideStratagems } from '../core/sideStratagems'
 import { KOTC_BATTLEFIELD_MATCHUP_IDS } from '../contracts/terrain'
@@ -23,7 +25,7 @@ import { selectedBattleDetachmentData } from '../shared/battleDetachmentData'
 import { setupReferenceError } from '../shared/battleRules'
 import { gameReferencesFor } from '../shared/gameReferences'
 import type { LoadedRules } from '../shared/rules'
-import { resultOf, WRITE } from './accountMcp'
+import { resultOf, WRITE } from './accountToolResult'
 import { type AgentTools, READ_ONLY_TOOL, signedInPlayer } from './agentTools'
 import { app } from './app'
 import { shareBattleLink, startDraftBattle } from './mutationTelemetry'
@@ -103,6 +105,16 @@ const attachSavedRoster = z
   })
   .describe('Armies step: fields a saved roster on a seat, frozen as it is now. A place you play yourself fields one of your rosters.')
 
+const useNewOrders = z
+  .object({
+    kind: z.literal('use-new-orders'),
+    stratagemKey: idSchema.describe('The New Orders stratagem key from next.stratagems.'),
+    secondaryKey: idSchema.describe('The active tactical secondary to replace, by key from get_my_battle.'),
+    cp: z.number().int().min(0).max(STRATAGEM_CP_MAX).optional(),
+    playerId: idSchema.optional().describe(PLAYER),
+  })
+  .describe('Uses New Orders to discard a tactical secondary and draw a random replacement in one action.')
+
 /**
  * The commands an agent records, each with what it means. Narrower than the site's
  * contract: rosters are fielded by id, and the mission cards and random draws the
@@ -162,6 +174,7 @@ export const agentCommandSchema = z.discriminatedUnion('kind', [
     cp: 'What it cost this time, when the board changed its listed cost.',
     ...PLAYER_FIELD,
   }),
+  useNewOrders,
   command('request-advance', 'Asks to end the phase when cards score now (next.scoringDue): opens scoring.', PLAYER_FIELD),
   command('score-settlement', 'Records what cards scored at this moment, which also completes the scoring review.', {
     scores:
@@ -235,7 +248,9 @@ export const agentCommandSchema = z.discriminatedUnion('kind', [
 ])
 
 /** The kinds this file builds; every other kind is the domain's own shape and passes through `commandSchema`. */
-type Assembled = z.output<typeof configureBattle | typeof attachSavedRoster | typeof setSecondaries | typeof drawSecondaries>
+type Assembled = z.output<
+  typeof configureBattle | typeof attachSavedRoster | typeof setSecondaries | typeof drawSecondaries | typeof useNewOrders
+>
 type Submitted = z.infer<typeof submitSchema>['command']
 
 /** Every army on the seat's side, with the stratagems its detachments bring, and the core cards the snapshot holds. */
@@ -334,12 +349,17 @@ export async function agentBattleCommand(owner: string, token: string, sent: obj
       ...(manual ? { manual: true } : {}),
     })
   }
-  if (submitted.kind === 'draw-secondaries') {
+  if (submitted.kind === 'draw-secondaries' || submitted.kind === 'use-new-orders') {
     const { state } = await app().service.seatedBattle(token, owner, rules)
     const seat = state.players.find((player) => player.id === (submitted.playerId ?? owner))
     if (!seat) throw new Response('that player is not in this battle', { status: 400 })
     const captain = sideCaptain(state, seat.side)
     const deck = undrawnSecondaries(captain)
+    if (submitted.kind === 'use-new-orders') {
+      const replacement = deck[0]
+      if (!replacement) throw new Response('There are no secondary cards left to draw.', { status: 400 })
+      return commandSchema.parse({ ...submitted, secondary: asSecondary(replacement) })
+    }
     const owed = Math.max(1, Math.min(secondaryDrawTarget(captain) - captain.secondariesDrawnThisTurn.length, deck.length))
     // Without keys the service deals the cards at random under the battle lock; these only say how many.
     const cards = submitted.keys
@@ -497,6 +517,7 @@ export function battleNext(
   const active = state.activePlayerId ? sideCaptain(state, state.players.find((player) => player.id === state.activePlayerId)!.side) : null
   const playerId = active?.id
   const settlement = state.pendingSettlement
+  const scoringPlayer = settlement && state.players.find((player) => player.id === settlement.playerId)
   const owed =
     active && sideOwes(state, active) === 'cards'
       ? undrawnSecondaries(active).slice(0, secondaryDrawTarget(active) - active.secondariesDrawnThisTurn.length)
@@ -522,7 +543,14 @@ export function battleNext(
       name: named.get(active.id),
       you: view.players.some((player) => player.isViewer && player.side === active.side),
     },
-    settlement: settlement && { playerId: settlement.playerId, name: named.get(settlement.playerId), round: settlement.round },
+    settlement: settlement && {
+      playerId: settlement.playerId,
+      name: named.get(settlement.playerId),
+      round: settlement.round,
+      scoringDue: scoringPlayer
+        ? scoringDueFromTheirTurn(state, scoringPlayer, settlement.round).map(({ key, name, category }) => ({ key, name, category }))
+        : [],
+    },
     scoringDue: active ? scoringDue(state, active).map(({ key, name, category }) => ({ key, name, category })) : [],
     allowed: commands.filter((probe) => !probe.refusal).map((probe) => probe.kind),
     advanceRefusal: commands.find((probe) => probe.kind === 'advance')?.refusal ?? null,

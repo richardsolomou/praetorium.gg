@@ -3,7 +3,7 @@ import { boundedProgress, groupCollection } from '../core/collection'
 import { routeSlug } from '../core/slug'
 import { rosterArchiveSchema, rosterIdSchema } from '../contracts/schemas'
 import { type AgentTools, READ_ONLY_TOOL, signedInPlayer } from './agentTools'
-import { resultOf } from './accountMcp'
+import { resultOf } from './accountToolResult'
 import { app } from './app'
 import { rosterActions } from './rosterActions'
 

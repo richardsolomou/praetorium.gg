@@ -109,3 +109,27 @@ it('starts the battle against the paired Swiss opponent when none is named', asy
   await call('start_event_battle', { token: 'cup' })
   expect(createSealedEventBattle).toHaveBeenLastCalledWith('player-1', expect.objectContaining({ opponentId: 'opponent' }))
 })
+
+it('passes a sealed league fixture key to the battle start service', async () => {
+  createSealedEventBattle.mockResolvedValueOnce({ token: 'battle-1' })
+  await call('start_event_battle', { token: 'sealed-lists', opponentId: 'opponent', fixtureKey: 'fixture-1' })
+  expect(createSealedEventBattle).toHaveBeenLastCalledWith(
+    'player-1',
+    expect.objectContaining({ token: 'sealed-lists', opponentId: 'opponent', fixtureKey: 'fixture-1' }),
+  )
+})
+
+it('finds an earlier Swiss table for an organizer who did not play it', async () => {
+  sealedEvent.mockResolvedValueOnce(
+    tournament({
+      organizer: true,
+      entries: [entry('alice'), entry('bob')],
+      pairings: [
+        { key: 'r1t1', round: 1, table: 1, aId: 'alice', bId: 'bob', battleToken: 'round-one' },
+        { key: 'r2t1', round: 2, table: 1, aId: 'alice', bId: 'bob', battleToken: null },
+      ],
+    }),
+  )
+  const result = await call('get_my_event', { token: 'cup', tableRound: 1 })
+  expect(result.structuredContent).toMatchObject({ rounds: { tables: [{ round: 1, battle: { token: 'round-one' } }] } })
+})

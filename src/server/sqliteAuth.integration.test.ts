@@ -183,7 +183,7 @@ it('authorizes an MCP client with consent and resource-bound scopes', async () =
   expect(await metadata.json()).toMatchObject({
     resource: 'https://praetorium.gg/mcp',
     authorization_servers: ['https://praetorium.gg/api/auth'],
-    scopes_supported: ['mcp:read', 'mcp:write'],
+    scopes_supported: ['mcp:read', 'mcp:write', 'mcp:manage'],
   })
 
   const registered = await auth.handler(
@@ -267,6 +267,7 @@ it('authorizes an MCP client with consent and resource-bound scopes', async () =
   })
   expect(payload).toMatchObject({ sub: signup.response.user.id, client_id: clientId, scope: 'mcp:read mcp:write offline_access' })
   expect(await auth.hasMcpConsent(signup.response.user.id, clientId)).toBe(true)
+  expect(await auth.hasMcpConsent(signup.response.user.id, clientId, 'mcp:manage')).toBe(false)
   const consents = await auth.api.getOAuthConsents({ headers: new Headers({ cookie }) })
   await local.database.insert(oauthConsent).values({
     id: randomUUID(),

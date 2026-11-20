@@ -14,6 +14,7 @@ import {
 import { currentUser } from './playerSession'
 import { ownTable } from '../core/sealedEvent'
 import { readEvent } from './organisedPlayTools'
+import { additionalAccountApproval } from './additionalAccountTools'
 
 function browserTools(userId: string | null) {
   const tools = createAgentTools(userId)
@@ -29,7 +30,7 @@ export async function browserAgentDescriptors() {
     .map((tool) => ({
       ...tool,
       description: tool.account
-        ? tool.description.replace(/ Requires mcp:(?:read|write)\./, ' Uses the signed-in account.') +
+        ? tool.description.replace(/ Requires mcp:(?:read|write|manage)\./, ' Uses the signed-in account.') +
           (tool.readOnly ? '' : ' Requires the player to approve the proposed change on the page; do not approve it yourself.')
         : tool.description,
     }))
@@ -49,7 +50,8 @@ export async function prepareBrowserAgentWrite(name: string, input: unknown, exp
   if (!user || user.id !== expectedUserId || user.impersonatedBy) {
     throw new Response('Your account changed. Ask again after signing in.', { status: 401 })
   }
-  if (ACCOUNT_MCP_SCOPES[name] !== 'mcp:write') {
+  const scope = ACCOUNT_MCP_SCOPES[name]
+  if (scope !== 'mcp:write' && scope !== 'mcp:manage') {
     throw new Response('This tool does not accept write approval.', { status: 400 })
   }
   const normalized = await browserTools(user.id).parseInput(name, input)
@@ -157,7 +159,7 @@ export async function prepareBrowserAgentWrite(name: string, input: unknown, exp
       break
     }
     default:
-      summary = `Run ${name}.`
+      summary = (await additionalAccountApproval(name, user.id, normalized)) ?? `Run ${name}.`
   }
   // Execution validates the original arguments again; migrated output can lose its folded rules version.
   return { input: JSON.stringify(input), summary }

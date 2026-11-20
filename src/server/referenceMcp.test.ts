@@ -433,6 +433,28 @@ it('keeps browser resource adapters out of MCP discovery metadata', async () => 
   ])
 })
 
+it('offers battle invites, organizer actions and collection edits as signed-in tools', async () => {
+  const response = await handleReferenceMcp(rpcRequest('tools/list'))
+  const { tools } = (await response.json()).result
+  expect(
+    tools
+      .filter((tool: { name: string }) =>
+        ['get_battle_invite', 'join_battle', 'report_league_result', 'pair_tournament_round', 'set_collection_models'].includes(tool.name),
+      )
+      .map((tool: { name: string; _meta: { securitySchemes: { scopes: string[] }[] } }) => [
+        tool.name,
+        tool._meta.securitySchemes[0]?.scopes[0],
+      ])
+      .sort(),
+  ).toEqual([
+    ['get_battle_invite', 'mcp:read'],
+    ['join_battle', 'mcp:manage'],
+    ['pair_tournament_round', 'mcp:manage'],
+    ['report_league_result', 'mcp:manage'],
+    ['set_collection_models', 'mcp:manage'],
+  ])
+})
+
 it('keeps every published tool and argument', async () => {
   const response = await handleReferenceMcp(rpcRequest('tools/list'))
   const { tools } = ((await response.json()) as { result: { tools: { name: string; inputSchema: { properties?: object } }[] } }).result

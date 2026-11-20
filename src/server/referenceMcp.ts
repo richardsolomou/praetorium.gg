@@ -19,6 +19,7 @@ import {
   promptMessages,
 } from './referenceAgentContext'
 import { agentSkills } from './agentSkills'
+import { MCP_ACCOUNT_SCOPES } from '../shared/mcpConsent'
 
 const MCP_REQUEST_MAX_BYTES = 64 * 1024
 
@@ -57,7 +58,7 @@ export async function handleReferenceMcp(request: Request) {
         // The keys are this server's own; through the public address a rolling deploy can route the fetch to a container that is not serving.
         jwksUrl: `http://127.0.0.1:${process.env.PORT ?? 3000}/api/auth/jwks`,
         ...(scope ? { requiredScopes: [scope] } : {}),
-        challengeScopes: ['mcp:read', 'mcp:write'],
+        challengeScopes: [...MCP_ACCOUNT_SCOPES],
       },
     )
     try {
@@ -132,7 +133,7 @@ export function referenceMcpOptions() {
 }
 
 function referenceMcpServer(userId: string | null, origin: string) {
-  const server = new McpServer({ name: 'praetorium-reference', version: '1.4.0' }, { instructions: PRAETORIUM_MCP_INSTRUCTIONS })
+  const server = new McpServer({ name: 'praetorium-reference', version: '1.5.0' }, { instructions: PRAETORIUM_MCP_INSTRUCTIONS })
   const tools = createAgentTools(userId)
   tools.registerMcp(server, origin, {
     scopes: ACCOUNT_MCP_SCOPES,

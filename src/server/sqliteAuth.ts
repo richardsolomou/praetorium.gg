@@ -23,6 +23,7 @@ import { configuredAuthProviderOptions } from './authProviders'
 import { nativeAuthToken } from './nativeAuthToken'
 import { trustedOrigins } from './origins'
 import { isNativeOAuthState } from './nativeOAuthState'
+import { MCP_ACCOUNT_SCOPES } from '../shared/mcpConsent'
 
 type Environment = NodeJS.ProcessEnv
 
@@ -114,7 +115,7 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
         .limit(1)
       await options.captureMcpConnection(userId, event, {
         client: (client?.name || clientId).slice(0, MCP_CLIENT_NAME_MAX),
-        write: scopes.includes('mcp:write'),
+        write: scopes.includes('mcp:write') || scopes.includes('mcp:manage'),
       })
     } catch (error) {
       ;(await auth.$context).logger.error('MCP connection analytics capture failed', error)
@@ -341,7 +342,7 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
         resource: mcpResource,
         loginPage: '/sign-in',
         consentPage: '/mcp-consent',
-        scopes: ['openid', 'profile', 'offline_access', 'mcp:read', 'mcp:write'],
+        scopes: ['openid', 'profile', 'offline_access', ...MCP_ACCOUNT_SCOPES],
         allowDynamicClientRegistration: true,
         allowUnauthenticatedClientRegistration: true,
       }),

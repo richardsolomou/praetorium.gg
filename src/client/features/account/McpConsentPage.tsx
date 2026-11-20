@@ -46,6 +46,12 @@ export function McpConsentPage({
             {scopes.includes('mcp:write') && (
               <li>Edit your rosters, set up and record battles, and seal lists and report results in groups and tournaments.</li>
             )}
+            {scopes.includes('mcp:manage') && (
+              <li>
+                Edit your collection, lend rosters, manage battle invites and act as you in groups, leagues and tournaments, including ones
+                you organize.
+              </li>
+            )}
             {scopes.includes('offline_access') && <li>Stay connected until you revoke access.</li>}
           </ul>
           {error && <Problem className="mt-4 text-base">{error}</Problem>}

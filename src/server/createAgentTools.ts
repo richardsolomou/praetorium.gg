@@ -12,6 +12,7 @@ import { registerRosterTools } from './rosterTools'
 import { registerRosterAccountTools } from './rosterAccountTools'
 import { registerRosterFileTools } from './rosterFileTools'
 import { registerWinningListTools } from './winningListTools'
+import { registerAdditionalAccountTools } from './additionalAccountTools'
 
 export function createAgentTools(userId: string | null) {
   const tools = new AgentTools()
@@ -29,6 +30,7 @@ export function createAgentTools(userId: string | null) {
     registerRosterAccountTools(tools, userId)
   })
   tools.section('events', () => registerOrganisedPlayTools(tools, userId))
+  tools.section('account', () => registerAdditionalAccountTools(tools, userId))
   tools.section('skills', () => registerSkillTools(tools))
   return tools
 }

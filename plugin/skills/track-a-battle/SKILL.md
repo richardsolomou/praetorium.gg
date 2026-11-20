@@ -26,6 +26,8 @@ Never resend a command after an error or a lost response without reading the bat
 
 ## What to record when
 
+Use `use-new-orders` with the stratagem key and active tactical secondary key when the player wants to replace a card. Praetorium draws the replacement. If `next.settlement` is present, use its `scoringDue` for the previous turn.
+
 `next.allowed` lists the turn commands the battle accepts now, and `next.advanceRefusal` says why the phase can't end yet.
 
 - **Start of the Command phase.** If `next.settlement` names a side, its cards may have scored at the end of the opponent's turn: record those points with `score-settlement` and that `round`, then `settle-opponent-turn`. A tactical side then sends `draw-secondaries`: random by default, or the exact `keys` drawn at the table. Then send `acknowledge-draw`. Both sides gain their Command phase CP automatically.

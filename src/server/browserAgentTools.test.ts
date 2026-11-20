@@ -32,6 +32,7 @@ vi.mock('./app', () => ({
 vi.mock('./referenceApi', () => ({ activeReferenceCorpus: async () => null, referenceDocumentFor: async () => null }))
 
 import { browserAgentDescriptors, executeBrowserAgentTool, prepareBrowserAgentWrite } from './browserAgentTools'
+import { additionalAccountScopes } from './additionalAccountTools'
 
 beforeEach(() => {
   user.mockResolvedValue({ id: 'player-1', impersonatedBy: null })
@@ -42,6 +43,7 @@ it('exposes every MCP tool and both resources and prompts for a signed-in player
   const tools = await browserAgentDescriptors()
   expect(tools.map((tool) => tool.name).sort()).toEqual(
     [
+      ...Object.keys(additionalAccountScopes),
       'list_my_rosters',
       'get_my_roster',
       'list_my_battles',
@@ -117,23 +119,28 @@ it('requires approval for each account write', async () => {
       .filter((tool) => !tool.readOnly)
       .map((tool) => tool.name)
       .sort(),
-  ).toEqual([
-    'check_in_event',
-    'copy_roster',
-    'create_battle',
-    'delete_battle',
-    'delete_roster',
-    'join_event',
-    'join_group',
-    'join_league',
-    'report_table_result',
-    'save_roster',
-    'set_roster_archived',
-    'set_roster_visibility',
-    'start_event_battle',
-    'submit_battle_action',
-    'submit_event_roster',
-  ])
+  ).toEqual(
+    [
+      ...Object.entries(additionalAccountScopes)
+        .filter(([, scope]) => scope === 'mcp:manage')
+        .map(([name]) => name),
+      'check_in_event',
+      'copy_roster',
+      'create_battle',
+      'delete_battle',
+      'delete_roster',
+      'join_event',
+      'join_group',
+      'join_league',
+      'report_table_result',
+      'save_roster',
+      'set_roster_archived',
+      'set_roster_visibility',
+      'start_event_battle',
+      'submit_battle_action',
+      'submit_event_roster',
+    ].sort(),
+  )
 })
 
 it('binds account calls to the current server session', async () => {

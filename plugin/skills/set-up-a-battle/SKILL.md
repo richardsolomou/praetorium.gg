@@ -7,6 +7,8 @@ description: Start a Praetorium battle for a signed-in player and set the table 
 
 These tools need the player's Praetorium account. If a tool asks for sign-in, explain that battles need their account and let them connect it.
 
+To resume a setup, call `list_my_battle_drafts` and open the draft with `get_my_battle`. To send an in-app invite for a draft, confirm the recipient first and call `invite_friend_to_battle`.
+
 ## Create the battle
 
 1. Call `list_my_opponents`. Ask who they're playing: a friend or a practice opponent from that list by `id`. Every seat belongs to an account, and a game tracked alone uses a practice opponent.

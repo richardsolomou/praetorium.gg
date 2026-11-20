@@ -1,3 +1,4 @@
+import { call, installInspector, names as agentTools } from './webmcpInspector'
 import { recordEvents } from './telemetry.harness'
 import { expect, test, type Locator, type Page } from './test'
 import { befriend, createBattle, retryUntilVisible, setupStep, signInAsPreview, signUp, uniqueName, sealableRoster, PHONE } from './account'
@@ -440,6 +441,7 @@ test('a league seals every list before it starts and plays its fixtures with the
     browser.newContext(),
   ])
   const [owner, second, third] = await Promise.all(contexts.map((context) => context.newPage()))
+  await installInspector(owner)
   const names = ['Sealed league host', 'Sealed league second', 'Sealed league third'].map(uniqueName)
   for (const [index, page] of [owner, second, third].entries()) {
     await signUp(page, names[index])
@@ -490,10 +492,19 @@ test('a league seals every list before it starts and plays its fixtures with the
   await score.getByRole('button', { name: 'Save score' }).click()
   await expect(score).toBeHidden()
   await expect(untracked.getByRole('link')).toHaveText('64 – 40')
-  // Up next starts the owner's next fixture with the sealed lists too, as its row in the fixtures would.
-  await owner.locator('[data-group-next]').getByRole('button', { name: 'Start battle' }).click()
-  await owner.waitForURL(/\/battles\/[^/]+$/)
-  const battleId = await battleIdFor(lastPathSegment(owner.url()))
+  // The assistant takes the playable fixture and its sealed-list arguments from the group read.
+  await expect.poll(() => agentTools(owner)).toContain('get_my_group')
+  const result = await call(owner, 'get_my_group', { token: lastPathSegment(url) })
+  const leagueResult = result.structuredContent?.league as {
+    yourFixtures: { startTool: string | null; start: Record<string, unknown> | null }[]
+  }
+  const fixture = leagueResult.yourFixtures.find(({ start }) => start !== null)!
+  expect(fixture.startTool).toBe('start_event_battle')
+  const starting = call(owner, fixture.startTool!, fixture.start!)
+  await owner.getByRole('dialog', { name: 'Start my tournament battle' }).getByRole('button', { name: 'Approve change' }).click()
+  const started = await starting
+  expect(started.isError).not.toBe(true)
+  const battleId = await battleIdFor(started.structuredContent!.token as string)
   const commands = await productSql<{ seq: number; body: string }>`SELECT seq, body FROM commands WHERE battle_id = ${battleId}`
   const kinds = commands.toSorted((a, b) => a.seq - b.seq).map((row) => (JSON.parse(row.body) as Command).kind)
   expect(kinds.slice(0, 2)).toEqual(['set-battle-group', 'configure-battle'])

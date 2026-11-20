@@ -1,55 +1,9 @@
 import { expect, test, type Page } from './test'
+import mcpSurface from '../src/server/mcpSurface.json' with { type: 'json' }
 import { signUp, signUpThroughForm, uniqueName, signOut, PHONE } from './account'
 
-async function installInspector(page: Page) {
-  await page.addInitScript(() => {
-    const tools = new Map<string, { execute: (input: object, options: { signal: AbortSignal }) => Promise<unknown> }>()
-    const results: unknown[] = []
-    Object.defineProperty(document, 'modelContext', {
-      configurable: true,
-      value: {
-        registerTool: async (
-          tool: { name: string; execute: (input: object, options: { signal: AbortSignal }) => Promise<unknown> },
-          options: { signal: AbortSignal },
-        ) => {
-          if (options.signal.aborted) return
-          tools.set(tool.name, tool)
-          options.signal.addEventListener('abort', () => tools.delete(tool.name), { once: true })
-        },
-      },
-    })
-    Object.assign(window, {
-      agentInspector: {
-        names: () => [...tools.keys()].sort(),
-        call: (name: string, input: object) => tools.get(name)!.execute(input, { signal: new AbortController().signal }),
-        start: (name: string, input: object) => {
-          void tools
-            .get(name)!
-            .execute(input, { signal: new AbortController().signal })
-            .then((result) => results.push(result))
-        },
-        results,
-      },
-    })
-  })
-}
+import { call, installInspector, names } from './webmcpInspector'
 
-function names(page: Page) {
-  return page.evaluate(() => (window as unknown as { agentInspector: { names: () => string[] } }).agentInspector.names())
-}
-function call(page: Page, toolName: string, arguments_: object = {}) {
-  return page.evaluate(
-    ({ name, input }) =>
-      (
-        window as unknown as {
-          agentInspector: {
-            call: (name: string, input: object) => Promise<{ structuredContent?: Record<string, unknown>; isError?: boolean }>
-          }
-        }
-      ).agentInspector.call(name, input),
-    { name: toolName, input: arguments_ },
-  )
-}
 /** The token the latest approved create_battle answered with. */
 function createdToken(page: Page) {
   return page.evaluate(
@@ -66,13 +20,41 @@ function start(page: Page, toolName: string, arguments_: object) {
   )
 }
 
+test('a browser assistant joins another player’s draft only after approval', async ({ page, browser }) => {
+  const host = uniqueName('Host')
+  await installInspector(page)
+  await signUp(page, host)
+  await page.goto('/battles')
+  await expect.poll(() => names(page)).toContain('create_battle')
+  const draft = call(page, 'create_battle')
+  await page.getByRole('dialog', { name: 'Create a battle' }).getByRole('button', { name: 'Approve change' }).click()
+  const created = (await draft).structuredContent as { token: string; joinUrl: string }
+  const invite = decodeURIComponent(new URL(created.joinUrl, page.url()).pathname.split('/').at(-1)!)
+
+  const visitor = await (await browser.newContext()).newPage()
+  await installInspector(visitor)
+  await signUp(visitor, uniqueName('Invitee'))
+  await visitor.goto('/battles')
+  await expect.poll(() => names(visitor)).toContain('join_battle')
+  const info = await call(visitor, 'get_battle_invite', { invite })
+  expect(info.structuredContent).toMatchObject({ hostName: host, token: null })
+
+  const joining = call(visitor, 'join_battle', { invite, side: 1 })
+  const approval = visitor.getByRole('dialog', { name: 'Join a battle from an invite' })
+  await expect(approval.getByText(`Join ${host}’s battle on side 2.`)).toBeVisible()
+  await visitor.screenshot({ path: test.info().outputPath('join-battle-approval.png') })
+  await approval.getByRole('button', { name: 'Approve change' }).click()
+  expect((await joining).structuredContent).toMatchObject({ token: created.token })
+  expect((await call(visitor, 'get_my_battle', { token: created.token })).isError).not.toBe(true)
+})
+
 // The inspector stands in for browser discovery; every tool executes against the real isolated server.
 test('browser agents discover the full MCP surface and account tools disappear on sign-out', async ({ page }) => {
   await installInspector(page)
   await page.goto('/')
   await expect.poll(() => names(page)).toHaveLength(28)
   await signUpThroughForm(page, uniqueName('Agent'))
-  await expect.poll(() => names(page)).toHaveLength(54)
+  await expect.poll(() => names(page)).toHaveLength(Object.keys(mcpSurface).length + 4)
   const factions = await call(page, 'list_factions')
   expect(factions.structuredContent?.factions).toBeInstanceOf(Array)
   await signOut(page)
@@ -83,7 +65,7 @@ test('declining a browser-agent write leaves saved data unchanged; approving wri
   await installInspector(page)
   await signUp(page, uniqueName('Approval'))
   await page.goto('/battles')
-  await expect.poll(() => names(page)).toHaveLength(54)
+  await expect.poll(() => names(page)).toHaveLength(Object.keys(mcpSurface).length + 4)
   // A battle played alone stays a draft until its armies are chosen, which Battles offers back.
   const draft = page.getByRole('link', { name: /Continue your draft.* vs Opponent/ })
   await start(page, 'create_battle', { bothSides: true })
@@ -96,7 +78,7 @@ test('declining a browser-agent write leaves saved data unchanged; approving wri
   await page.reload()
   await expect(page.getByRole('heading', { name: 'Battles', exact: true })).toBeVisible()
   await expect(draft).toHaveCount(0)
-  await expect.poll(() => names(page)).toHaveLength(54)
+  await expect.poll(() => names(page)).toHaveLength(Object.keys(mcpSurface).length + 4)
   await start(page, 'create_battle', { bothSides: true })
   await dialog.getByRole('button', { name: 'Approve change', exact: true }).click()
   await expect(dialog).toBeHidden()
@@ -109,7 +91,7 @@ test('browser agents save rosters, change visibility and append battle actions t
   await installInspector(page)
   await signUp(page, uniqueName('Agent writes'))
   await page.goto('/')
-  await expect.poll(() => names(page)).toHaveLength(54)
+  await expect.poll(() => names(page)).toHaveLength(Object.keys(mcpSurface).length + 4)
   const factions = (await call(page, 'list_factions')).structuredContent!.factions as { id: string }[]
   await start(page, 'save_roster', {
     name: 'Agent army',

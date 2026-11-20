@@ -73,6 +73,32 @@ function seated(viewer: string, entries: [string, Command][], missions: { side: 
 
 const battleAction = (command: object) => call('player-1', 'submit_battle_action', { token: 'battle-1', expectedSeq: 4, command })
 
+it('submits New Orders against the player’s real deck at the requested sequence', async () => {
+  const held = { key: 'held', name: 'Held mission' }
+  const available = { key: 'available', name: 'Available mission' }
+  seated(ALICE, [
+    ...started(),
+    [
+      ALICE,
+      { kind: 'set-prep', stratagems: [], primary: null, secondaryMode: 'tactical', secondaries: [], secondaryDeck: [held, available] },
+    ],
+    [ALICE, { kind: 'draw-secondary', secondary: held }],
+  ])
+  submit.mockResolvedValueOnce({ result: { outcome: 'appended' } })
+  await call(ALICE, 'submit_battle_action', {
+    token: 'battle-1',
+    expectedSeq: 4,
+    command: { kind: 'use-new-orders', stratagemKey: 'new-orders', secondaryKey: held.key },
+  })
+  expect(submit).toHaveBeenLastCalledWith(
+    'battle-1',
+    ALICE,
+    4,
+    { kind: 'use-new-orders', stratagemKey: 'new-orders', secondaryKey: held.key, secondary: available },
+    null,
+  )
+})
+
 it('submits a battle command with the current sequence and account identity', async () => {
   submit.mockResolvedValueOnce({ result: { outcome: 'appended' } })
   await battleAction({ kind: 'set-painted', painted: true })

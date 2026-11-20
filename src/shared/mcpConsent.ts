@@ -1,3 +1,6 @@
+export const MCP_ACCOUNT_SCOPES = ['mcp:read', 'mcp:write', 'mcp:manage'] as const
+export type McpAccountScope = (typeof MCP_ACCOUNT_SCOPES)[number]
+
 /**
  * What the consent page's loader refuses with when a connection cannot go ahead but nothing is broken.
  *
