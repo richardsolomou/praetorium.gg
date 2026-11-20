@@ -791,6 +791,20 @@ function leaveLeague(ctx: Context, groupId: string, userId: string) {
   return true
 }
 
+/** Takes a player who left the group out of its games still sealing lists; a revealed game keeps its record of them. */
+function leaveHiddenListGames(ctx: Context, groupId: string, userId: string) {
+  for (const game of ctx.db.hiddenListGames.groupId.filter(groupId)) {
+    const event = ctx.db.sealedEvents.id.find(game.eventId)
+    const entry = event && ctx.db.sealedEventEntries.key.find(JSON.stringify([event.id, userId]))
+    // A league's draft is left through the league.
+    if (!event || !entry || event.revealedAt !== undefined || game.leagueId !== undefined) continue
+    unsealAllies(ctx, entry)
+    if (entry.teamId) clearTeamPicks(ctx, event.id, new Set([entry.teamId]))
+    ctx.db.sealedEventEntries.key.delete(entry.key)
+    touchEventById(ctx, event.id)
+  }
+}
+
 const NOT_A_FIXTURE = 'this battle is not an open fixture of the league'
 
 /** The open fixture a new battle plays: its two players only, both still in the league, counted for its group. */
@@ -5001,6 +5015,17 @@ function admitWaiting(
 /** The fields an entry's sealed list fills, all cleared. */
 const UNSEALED = { rosterId: undefined, rosterName: undefined, rosterSnapshot: undefined, submittedAt: undefined }
 
+/**
+ * Unseals the lists of the allies an entrant leaves behind, and returns who has to seal again. The entrant read them
+ * as an ally and may face them next, so a list stays sealed only among the allies who could read it.
+ */
+function unsealAllies(ctx: Context, entry: SealedEventEntryRow, keepTeam = true) {
+  if (entry.teamId === undefined) return []
+  const allies = sealedEventEntriesFor(ctx, entry.eventId).filter((row) => row.teamId === entry.teamId && row.userId !== entry.userId)
+  for (const ally of allies) ctx.db.sealedEventEntries.key.update({ ...ally, ...(keepTeam ? {} : { teamId: undefined }), ...UNSEALED })
+  return allies.filter((ally) => ally.rosterSnapshot !== undefined).map((ally) => ally.userId)
+}
+
 function insertSealedEventEntry(ctx: Context, eventId: string, userId: string, status: 'accepted' | 'pending', now: number) {
   ctx.db.sealedEventEntries.insert({
     key: JSON.stringify([eventId, userId]),
@@ -5160,7 +5185,9 @@ function revealSealedEvent(tx: Context, event: SealedEventRow, now: number, acto
     return { outcome: 'not-ready' as const }
   for (const entry of all.filter((row) => row.status === 'pending')) tx.db.sealedEventEntries.key.update({ ...entry, status: 'rejected' })
   // The deadline left these out of play, so they leave their teams, and a team none of whose players sealed is never paired.
-  for (const entry of all.filter((row) => row.status === 'accepted' && row.rosterSnapshot === undefined)) leaveSquad(tx, entry)
+  // They leave the event too: an entry still accepted could seal now, against every list the reveal shows.
+  for (const entry of all.filter((row) => row.status === 'accepted' && row.rosterSnapshot === undefined))
+    tx.db.sealedEventEntries.key.update({ ...leaveSquad(tx, entry), status: 'rejected' })
   // Recorded outright, so the card a pair agreed on by default survives one of its lists being unsealed.
   for (const team of eventTeams(tx, event.id, all)) {
     if (team.disposition) setTeamPick(tx, event.id, team.id, team.disposition)
@@ -5342,6 +5369,7 @@ function groupCommandIn(tx: Context, args: unknown[]) {
     touchGroup(tx, group.id)
     tx.db.groupMembers.key.delete(memberKey(input.userId))
     leaveLeague(tx, group.id, input.userId)
+    leaveHiddenListGames(tx, group.id, input.userId)
     resolveGroupRequests(tx, group, [input.userId])
     return productJson('left')
   }
@@ -5411,6 +5439,7 @@ function groupCommandIn(tx: Context, args: unknown[]) {
     touchGroup(tx, group.id)
     tx.db.groupMembers.key.delete(row.key)
     leaveLeague(tx, group.id, input.userId)
+    leaveHiddenListGames(tx, group.id, input.userId)
     return productJson('removed')
   }
   if (input.op === 'league-draw') {
@@ -5659,6 +5688,9 @@ export const groupByToken = spacetime.procedure({ token: t.string() }, t.string(
   }),
 )
 
+/** A side change's answer: who it unsealed, or the plain word a server from before that reads, when it unsealed nobody. */
+const sideChange = (resealIds: string[]) => (resealIds.length ? { resealIds } : 'updated')
+
 /** The seat a side of a group's team game names. */
 function hiddenListGameSeat(format: string | undefined, rosterLimit: number | undefined, side: (typeof HIDDEN_LIST_GAME_SIDES)[number]) {
   if (rosterLimit === undefined) return null
@@ -5879,6 +5911,9 @@ function removeBattleIn(tx: Context, args: unknown[]) {
     .filter((seat) => seat.side === 0)
     .sort((left, right) => (left.joinedAt > right.joinedAt ? 1 : left.joinedAt < right.joinedAt ? -1 : 0))[0]
   if (!opener || opener.userId !== userId) return false
+  // Deleting a result changes the standings as reopening it does, so the same lock holds once a later round is paired.
+  const swiss = finishedAt(tx, battleId) === null ? null : swissTable(tx, battleId)
+  if (swiss && swissResultLocked({ ...swiss, isOrganizer: swiss.organizerIds.includes(userId) })) return false
   deleteBattle(tx, battleId)
   return true
 }
@@ -7004,22 +7039,13 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
       if (entry.status === 'rejected' && entries.filter((row) => row.status !== 'rejected').length >= input.memberLimit)
         return productJson('full')
     }
-    // A doubles team shares one Warlord, so losing a member clears the partner's list; a 2v1 ally's list stands alone.
-    const sharedTeam = event.format === '2v2'
-    const resealIds =
-      input.status === 'rejected' && entry.teamId && sharedTeam
-        ? entries
-            .filter((row) => row.userId !== entry.userId && row.teamId === entry.teamId && row.rosterSnapshot !== undefined)
-            .map((row) => row.userId)
-        : []
+    // Losing a member clears the partner's list, which the member read; a doubles partner also waits for a new size.
+    const resealIds = input.status === 'rejected' ? unsealAllies(tx, entry, false) : []
     if (input.status === 'rejected' && entry.teamId) {
       clearTeamPicks(tx, event.id, new Set([entry.teamId]))
-      for (const teammate of entries.filter((row) => row.teamId === entry.teamId))
-        tx.db.sealedEventEntries.key.update({
-          ...teammate,
-          teamId: undefined,
-          ...(sharedTeam ? { requiredLimit: undefined, ...UNSEALED } : {}),
-        })
+      if (event.format === '2v2')
+        for (const teammate of entries.filter((row) => row.teamId === entry.teamId && row.userId !== entry.userId))
+          tx.db.sealedEventEntries.key.update({ ...tx.db.sealedEventEntries.key.find(teammate.key)!, requiredLimit: undefined })
     }
     if (input.status === 'rejected')
       tx.db.sealedEventEntries.key.update({
@@ -7053,13 +7079,8 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
     const resealIds = entry.requiredLimit !== input.requiredLimit && entry.rosterSnapshot !== undefined ? [entry.userId] : []
     if (entry.requiredLimit !== input.requiredLimit) {
       // A new size takes the entrant out of any allied pair; the partner stays allied and waits for another.
-      if (entry.teamId) {
-        for (const teammate of sealedEventEntriesFor(tx, event.id).filter(
-          (row) => row.teamId === entry.teamId && row.userId !== entry.userId,
-        ))
-          tx.db.sealedEventEntries.key.update({ ...teammate, teamId: undefined })
-        clearTeamPicks(tx, event.id, new Set([entry.teamId]))
-      }
+      resealIds.push(...unsealAllies(tx, entry, false))
+      if (entry.teamId) clearTeamPicks(tx, event.id, new Set([entry.teamId]))
       tx.db.sealedEventEntries.key.update({
         ...entry,
         requiredLimit: input.requiredLimit,
@@ -7092,20 +7113,24 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
     const affected = entries.filter((entry) => userIds.includes(entry.userId) || (entry.teamId && oldTeams.has(entry.teamId)))
     clearTeamPicks(tx, event.id, oldTeams)
     if (event.format === '2v1') {
-      // Each allied list stands on its own, so pairing keeps it unless the entrant was solo and needs a smaller one.
+      // An allied list stands on its own, so pairing keeps it unless the entrant was solo and needs a smaller one, or
+      // leaves an ally who has read it.
       const allied = alliedSealedEventRosterLimit(event.rosterLimit)
       const paired = userIds.length === 2 ? userIds : []
-      const resized = affected.filter((entry) => paired.includes(entry.userId) && entry.requiredLimit !== allied)
+      const unsealed = affected.filter(
+        (entry) => entry.teamId !== undefined || (paired.includes(entry.userId) && entry.requiredLimit !== allied),
+      )
       for (const entry of affected) {
-        const resize = resized.includes(entry)
+        const pairing = paired.includes(entry.userId)
         tx.db.sealedEventEntries.key.update({
           ...entry,
-          teamId: paired.includes(entry.userId) ? input.teamId : undefined,
-          ...(resize ? { requiredLimit: allied, ...UNSEALED } : {}),
+          teamId: pairing ? input.teamId : undefined,
+          ...(pairing ? { requiredLimit: allied } : {}),
+          ...(unsealed.includes(entry) ? UNSEALED : {}),
         })
       }
       touchEvent(tx, host)
-      const resealIds = resized.filter((entry) => entry.rosterSnapshot !== undefined).map((entry) => entry.userId)
+      const resealIds = unsealed.filter((entry) => entry.rosterSnapshot !== undefined).map((entry) => entry.userId)
       return productJson({ resealIds })
     }
     const resealIds = affected.filter((entry) => entry.rosterSnapshot !== undefined).map((entry) => entry.userId)
@@ -7139,12 +7164,12 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
     const key = JSON.stringify([event.id, ownerId])
     const entry = tx.db.sealedEventEntries.key.find(key)
     if (input.side === null) {
-      if (entry) {
-        if (entry.teamId) clearTeamPicks(tx, event.id, new Set([entry.teamId]))
-        tx.db.sealedEventEntries.key.delete(key)
-        touchEvent(tx, host)
-      }
-      return productJson('updated')
+      if (!entry) return productJson('updated')
+      const resealIds = unsealAllies(tx, entry)
+      if (entry.teamId) clearTeamPicks(tx, event.id, new Set([entry.teamId]))
+      tx.db.sealedEventEntries.key.delete(key)
+      touchEvent(tx, host)
+      return productJson(sideChange(resealIds))
     }
     const seat = hiddenListGameSeat(event.format, event.rosterLimit, input.side)
     if (!seat) return productJson('wrong-format')
@@ -7156,6 +7181,7 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
     if (taken >= seat.places) return productJson('full')
     // Both sides' Force Disposition and Warlord picks were made for the old line-up, so each side chooses again.
     clearTeamPicks(tx, event.id, new Set([entry?.teamId, seat.teamId].filter((id): id is string => id !== undefined)))
+    const resealIds = entry ? unsealAllies(tx, entry) : []
     if (!entry) insertSealedEventEntry(tx, event.id, ownerId, 'accepted', input.now)
     const current = tx.db.sealedEventEntries.key.find(key)!
     tx.db.sealedEventEntries.key.update({
@@ -7167,7 +7193,7 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
       ...UNSEALED,
     })
     touchEvent(tx, host)
-    return productJson('updated')
+    return productJson(sideChange(resealIds))
   }
   if (operation === 'submit') {
     const input = sealedEventCommandInput(
@@ -7405,6 +7431,8 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
       value,
     )
     if (event.revealedAt === undefined) return productJson(false)
+    // A revealed game still lists a player who has since left the group, who no longer starts its battles.
+    if (host.kind === 'group' && !isGroupMember(tx, host.group.id, ownerId)) return productJson(false)
     // A league's sealed lists play only its fixtures, and each counts for its group as any fixture does.
     const counts = host.kind === 'group' && leagueId !== undefined ? { kind: 'set-battle-group' as const, groupId: host.group.id } : null
     const initialCommands = counts ? [counts, ...input.initialCommands] : input.initialCommands

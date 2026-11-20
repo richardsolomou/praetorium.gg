@@ -2,7 +2,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
 import { APIError } from 'better-auth/api'
 import { constantTimeEqual, makeSignature } from 'better-auth/crypto'
-import { MCP_CONSENT_REFUSALS } from '../shared/mcpConsent'
+import { MCP_CONSENT_REFUSALS, mcpConsentDestination } from '../shared/mcpConsent'
 import { app } from './app'
 import { currentUser } from './playerSession'
 import { rpc } from './rpc'
@@ -24,12 +24,14 @@ export const mcpConsentDetails = createServerFn({ method: 'GET' }).handler(() =>
       return {
         signedIn: false as const,
         client: null,
+        destination: null,
         scopes: [] as string[],
         next: new URL(request.url).pathname + new URL(request.url).search,
       }
     return {
       signedIn: true as const,
       client: await consentClientName(instance.auth, clientId, request.headers),
+      destination: mcpConsentDestination(params.get('redirect_uri')),
       scopes: (params.get('scope') ?? '').split(' ').filter(Boolean),
       next: '',
     }

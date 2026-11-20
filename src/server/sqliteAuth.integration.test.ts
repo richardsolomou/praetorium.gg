@@ -5,6 +5,7 @@ import path from 'node:path'
 import { createLocalJWKSet, exportJWK, generateKeyPair, jwtVerify, SignJWT } from 'jose'
 import { eq } from 'drizzle-orm'
 import { afterAll, beforeAll, expect, it, vi } from 'vitest'
+import { createEmailVerificationToken } from 'better-auth/api'
 import { importAuthSqlite } from '../../scripts/nodeAuthSqlite'
 import { account, deletedUser, user } from '../db/authSchema'
 import { oauthAccessToken, oauthClient, oauthConsent, oauthRefreshToken } from '../db/oauthSchema'
@@ -125,6 +126,45 @@ it('requires provider email verification for automatic account linking', async (
   } finally {
     vi.unstubAllGlobals()
   }
+})
+
+it('counts a verification link only in a browser signed in to its account', async () => {
+  const auth = authFor(testEnvironment)
+  const created = await auth.api.signUpEmail({
+    body: { email: `${randomUUID()}@example.com`, password: 'password1234', name: 'Unverified player' },
+    returnHeaders: true,
+  })
+  const player = created.response.user
+  const cookie = created.headers.get('set-cookie')!.split(';')[0]!
+  const link = `https://praetorium.gg/api/auth/verify-email?token=${await createEmailVerificationToken(secret, player.email)}`
+  const verified = async () =>
+    (await local.database.select({ verified: user.emailVerified }).from(user).where(eq(user.id, player.id)))[0]!.verified
+  const elsewhere = await auth.handler(new Request(link))
+  const stranger = await verified()
+  const signedIn = await auth.handler(new Request(link, { headers: { cookie } }))
+  expect([elsewhere.status, new URL(elsewhere.headers.get('location')!, link).pathname, stranger, signedIn.ok, await verified()]).toEqual([
+    302,
+    '/sign-in',
+    false,
+    true,
+    true,
+  ])
+})
+
+it('removes every other way into an unverified account when its password is reset', async () => {
+  const auth = authFor(testEnvironment)
+  const { user: player } = await signUpAs(auth, 'Reset player', 'user')
+  const context = await auth.$context
+  await context.internalAdapter.linkAccount({ providerId: 'discord', accountId: randomUUID(), userId: player.id })
+  await context.internalAdapter.createVerificationValue({
+    identifier: 'reset-password:claimed',
+    value: player.id,
+    expiresAt: new Date(Date.now() + 60_000),
+  })
+  await auth.api.resetPassword({ body: { newPassword: 'another-password', token: 'claimed' } })
+  const [claimed] = await local.database.select({ verified: user.emailVerified }).from(user).where(eq(user.id, player.id))
+  const ways = await local.database.select({ provider: account.providerId }).from(account).where(eq(account.userId, player.id))
+  expect([claimed!.verified, ways.map((way) => way.provider)]).toEqual([true, ['credential']])
 })
 
 it.each([

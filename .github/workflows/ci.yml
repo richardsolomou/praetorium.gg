@@ -55,7 +55,8 @@ jobs:
 
   live-catalogue:
     needs: [changes, browser-build]
-    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && needs.browser-build.outputs.runtime-shared != 'true'
+    # Not for Dependabot: its runs execute dependency versions nobody has reviewed, and this job holds the store's keys.
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]' && needs.browser-build.outputs.runtime-shared != 'true'
     # The release prepares it anyway, so a failure here costs only time.
     continue-on-error: true
     runs-on: ubuntu-latest

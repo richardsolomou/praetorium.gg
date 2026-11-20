@@ -131,7 +131,7 @@ In a 2v1 the pair shares the battle size, so it plays 2,000 against 2,000: the a
 
 In doubles, **Set points per army** changes what **Each player** may spend. Leave it empty for half the battle size. Allies seal lists saved to the same points total, unless you switch on **Allies split their points**, which lets each pair spend its points however they agree.
 
-Before the reveal, give each player in a 2v1 a solo or allied size and pair the allies. In doubles, pair everyone into teams of two. Each team then chooses its Force Disposition and whose Warlord leads. Changing a player's size or team clears the roster they sealed.
+Before the reveal, give each player in a 2v1 a solo or allied size and pair the allies. In doubles, pair everyone into teams of two. Each team then chooses its Force Disposition and whose Warlord leads. Changing a player's size or team clears the roster they sealed, and the roster of an ally they leave behind, who has to seal again.
 
 ## Organizers
 

@@ -202,12 +202,8 @@ export function SealedEventView({
             entry.sealedLimit === ownEntry.sealedLimit,
         )
       : sealedEntrants
-  const readsRoster = (entry: SealedEventEntryView) =>
-    entry.submitted && readsSealedRoster(sealedEvent.format, sealedEvent.rosterLimit, ownEntry ?? null, entry)
-  const allies =
-    ownEntry && !revealed
-      ? accepted.filter((entry) => readsAlliedSealedEventRoster(sealedEvent.format, sealedEvent.rosterLimit, entry, ownEntry))
-      : []
+  const readsRoster = (entry: SealedEventEntryView) => entry.submitted && readsSealedRoster(sealedEvent.format, ownEntry ?? null, entry)
+  const allies = ownEntry && !revealed ? accepted.filter((entry) => readsAlliedSealedEventRoster(sealedEvent.format, entry, ownEntry)) : []
   const swiss = sealedEvent.rounds !== null
   const swissProgressNow = swissProgress(sealedEvent, eventBattles)
   const table = swiss ? ownTable(sealedEvent, viewerId, swissProgressNow.round) : undefined

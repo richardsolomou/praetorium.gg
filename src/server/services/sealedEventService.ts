@@ -6,6 +6,7 @@ import { byId } from '../../core/collections'
 import type { Notice } from '../../core/notifications'
 import { randomInt, randomUUID } from 'node:crypto'
 import { randomToken } from '../random'
+import { hiddenFromViewer } from '../../core/group'
 import { GROUP_LEAGUE_PLAYERS_MAX, GROUP_LEAGUE_SEED_MAX } from '../../core/groupLeague'
 import { pointsBudgetError, pointsLabel, type Roster } from '../../core/battle'
 import { commandSchema, parseRosterSnapshot, rosterSnapshotOrNull } from '../../core/commands'
@@ -163,8 +164,19 @@ export class SealedEventService {
     return (await this.repository.sealedEventsVisibleTo(userId)).toSorted(byTournamentDate(this.clock()))
   }
 
-  eventAddress(token: string, eventToken?: string) {
-    return this.repository.eventAddress(token, eventToken)
+  async eventAddress(token: string, viewerId: string | null, eventToken?: string) {
+    const address = await this.repository.eventAddress(token, eventToken)
+    return address && 'groupToken' in address && (await this.keepsGroupLink(address.groupToken, token, viewerId)) ? null : address
+  }
+
+  /**
+   * A private group's token is its invite link, and a public battle names the game it was played in. So a reader who
+   * names only the game learns the group from it only as an accepted member; one who names the group already holds the link.
+   */
+  private async keepsGroupLink(groupToken: string, named: string, viewerId: string | null) {
+    if (named === groupToken) return false
+    const group = await this.repository.groupByToken(groupToken)
+    return !group || hiddenFromViewer(group, viewerId)
   }
 
   outdatedSealedEventEntriesForRoster(userId: string, rosterId: string) {
@@ -174,7 +186,7 @@ export class SealedEventService {
   /** `factions` names each revealed army as battle summaries do, including catalogues the current index no longer lists. */
   async sealedEvent(token: string, viewerId: string | null, eventToken?: string, factions: readonly BattleFaction[] = []) {
     const record = await this.repository.sealedEventByToken(token, viewerId, eventToken)
-    if (!record) return null
+    if (!record || (record.group && (await this.keepsGroupLink(record.group.token, token, viewerId)))) return null
     const { organizerIds, ...sealedEvent } = record
     const factionsById = byId(factions)
     const organizer = viewerId !== null && organizerIds.includes(viewerId)
@@ -293,7 +305,8 @@ export class SealedEventService {
 
   async chooseSealedEventSide(token: string, userId: string, side: SealedEventSide | null, eventToken?: string) {
     const result = await this.repository.chooseSealedEventSide(token, userId, side, this.clock(), eventToken)
-    if (result === 'updated') return { side }
+    if (typeof result === 'object') this.notifySealedEvent('sealed-event-roster-reseal', userId, result.resealIds, token, eventToken)
+    if (typeof result === 'object' || result === 'updated') return { side }
     if (result === 'missing') throw new Response('no such event', { status: 404 })
     if (result === 'forbidden') throw new Response('only a group’s players choose their own side', { status: 403 })
     if (result === 'closed') throw new Response('sides cannot change once the lists are out or past their deadline', { status: 409 })
@@ -452,8 +465,7 @@ export class SealedEventService {
    */
   async sealedEventRoster(token: string, userId: string, eventToken?: string, readerId?: string | null) {
     const sealed = await this.repository.sealedEventRoster(token, userId, eventToken, readerId)
-    if (!sealed || (sealed.revealedAt === null && !readsSealedRoster(sealed.format, sealed.rosterLimit, sealed.reader, sealed.sealed)))
-      return null
+    if (!sealed || (sealed.revealedAt === null && !readsSealedRoster(sealed.format, sealed.reader, sealed.sealed))) return null
     return readableSealedRoster(parseRosterSnapshot(sealed.snapshot))
   }
 

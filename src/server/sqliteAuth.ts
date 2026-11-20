@@ -10,12 +10,12 @@ import { admin, jwt, oneTimeToken, twoFactor } from 'better-auth/plugins'
 import { mcp } from '@better-auth/mcp'
 import { cimd } from '@better-auth/cimd'
 import { fetchClientMetadataResource } from '@better-auth/cimd/node'
-import { and, desc, eq, gt, sql } from 'drizzle-orm'
+import { and, desc, eq, gt, ne, sql } from 'drizzle-orm'
 import type { LibSQLDatabase } from 'drizzle-orm/libsql'
 import { z } from 'zod'
 import { authEmails, type EmailDelivery } from '../adapters/email'
 import { PASSWORD_MIN_LENGTH, SOCIAL_PROVIDERS, type SocialAuthProvider } from '../authConfig'
-import { account, deletedUser, schema, session as sessionTable, user } from '../db/authSchema'
+import { account, deletedUser, schema, session as sessionTable, twoFactor as twoFactorTable, user } from '../db/authSchema'
 import { oauthAccessToken, oauthClient, oauthConsent, oauthRefreshToken, oauthSchema } from '../db/oauthSchema'
 import type { AdminConnection, AdminSession } from '../admin'
 import { APPLE_AUTH_ORIGIN, appleCredentials, revokeAppleToken } from './appleAuth'
@@ -153,6 +153,36 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
     if (linked) await revokeAppleTokens(linked)
   }
 
+  /**
+   * A verification link proves only who reads the mailbox. Anyone can sign up with somebody else's address, so the link
+   * counts only in a browser signed in to that account: otherwise its reader would bless a password they never chose.
+   */
+  const requireOwnSession = async (userId: string, request: Request | undefined) => {
+    const session = request ? await auth.api.getSession({ headers: request.headers }) : null
+    if (session?.user.id === userId) return
+    if (!request || session)
+      throw new APIError('FORBIDDEN', { message: 'Sign in to the account this link was sent to, then open it again.' })
+    const link = new URL(request.url)
+    throw new APIError('FOUND', undefined, { location: `/sign-in?${new URLSearchParams({ next: link.pathname + link.search })}` })
+  }
+
+  /**
+   * Resetting a password proves who reads the mailbox, so it verifies the address. Whoever signed up with it before
+   * that may have been somebody else, so every other way they left into the account goes: linked sign-ins, two-factor
+   * and connected apps. Sessions end with the reset itself.
+   */
+  const claimUnverifiedAccount = async (reset: { id: string; emailVerified: boolean }) => {
+    if (reset.emailVerified) return
+    await database.transaction(async (transaction) => {
+      await transaction.delete(account).where(and(eq(account.userId, reset.id), ne(account.providerId, 'credential')))
+      await transaction.delete(twoFactorTable).where(eq(twoFactorTable.userId, reset.id))
+      await transaction.delete(oauthRefreshToken).where(eq(oauthRefreshToken.userId, reset.id))
+      await transaction.delete(oauthAccessToken).where(eq(oauthAccessToken.userId, reset.id))
+      await transaction.delete(oauthConsent).where(eq(oauthConsent.userId, reset.id))
+      await transaction.update(user).set({ emailVerified: true, twoFactorEnabled: false }).where(eq(user.id, reset.id))
+    })
+  }
+
   const rehostSocialAvatarOnSignUp = async (data: { image?: string | null }) => {
     if (!data.image) return
     const stored = await options.storeSocialAvatar(data.image)
@@ -193,8 +223,12 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
       autoSignIn: true,
       requireEmailVerification: false,
       ...(emails ? { sendResetPassword: emails.sendResetPassword } : {}),
+      onPasswordReset: ({ user: reset }) => claimUnverifiedAccount(reset),
     },
-    emailVerification: emails ? { sendOnSignUp: true, sendVerificationEmail: emails.sendVerificationEmail } : undefined,
+    emailVerification: {
+      ...(emails ? { sendOnSignUp: true, sendVerificationEmail: emails.sendVerificationEmail } : {}),
+      beforeEmailVerification: (unverified, request) => requireOwnSession(unverified.id, request),
+    },
     socialProviders: configuredAuthProviderOptions(environment),
     account: {
       encryptOAuthTokens: true,
@@ -211,6 +245,9 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
       },
     },
     disabledPaths: [
+      // Nothing here reads a provider's tokens back, and whoever a sign-in was linked to by mistake could.
+      '/get-access-token',
+      '/refresh-token',
       '/unlink-account',
       '/admin/create-user',
       '/admin/set-user-password',

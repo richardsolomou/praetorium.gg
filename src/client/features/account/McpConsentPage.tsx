@@ -8,11 +8,13 @@ import { authClient } from '../../authClient'
 export function McpConsentPage({
   signedIn,
   client,
+  destination,
   scopes,
   next,
 }: {
   signedIn: boolean
   client: string | null
+  destination: string | null
   scopes: readonly string[]
   next: string
 }) {
@@ -37,6 +39,11 @@ export function McpConsentPage({
       {signedIn ? (
         <>
           <p className="mt-4 text-dim">{client} is asking to access your Praetorium account.</p>
+          {destination && (
+            <p className="mt-2 text-sm text-dim">
+              Allowing access sends you on to <strong className="text-bone">{destination}</strong>. Cancel unless that is where you started.
+            </p>
+          )}
           <ul className="mt-6 list-disc space-y-2 pl-5 text-sm">
             {scopes.includes('openid') && <li>Identify your Praetorium account.</li>}
             {scopes.includes('profile') && <li>Read your profile name and picture.</li>}

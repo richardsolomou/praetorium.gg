@@ -517,7 +517,10 @@ export function withSealedEvents<B extends RepositoryBase>(Base: B) {
     chooseSealedEventSide(token: string, ownerId: string, side: SealedEventSide | null, now: number, eventToken?: string) {
       return this.product.sealedEventCommand(
         { op: 'set-side', token, ownerId, side, now, eventToken: eventToken ?? '' },
-        z.enum(['updated', 'missing', 'forbidden', 'closed', 'wrong-format', 'full', 'members-only']),
+        z.union([
+          z.object({ resealIds: z.array(z.string()) }),
+          z.enum(['updated', 'missing', 'forbidden', 'closed', 'wrong-format', 'full', 'members-only']),
+        ]),
       )
     }
 

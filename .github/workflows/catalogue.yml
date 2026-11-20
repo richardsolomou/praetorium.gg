@@ -36,11 +36,11 @@ jobs:
       R2_ACCESS_KEY_ID: ${{ secrets.PRIVATE_R2_ACCESS_KEY_ID }}
       R2_SECRET_ACCESS_KEY: ${{ secrets.PRIVATE_R2_SECRET_ACCESS_KEY }}
     steps:
-      # A personal token, so the pointer commit runs the required checks.
+      # The token that pushes the pin stays out of the checkout, where every script below could read it.
       - uses: actions/checkout@v7
         with:
           ref: ${{ env.BRANCH }}
-          token: ${{ secrets.CHANGESETS_TOKEN }}
+          persist-credentials: false
       - name: Compare catalogue/ with the pinned snapshot
         id: pinned
         env:
@@ -117,6 +117,9 @@ jobs:
           python3 scripts/publishCatalogue.py publish
       - name: Pin the candidate on the branch
         if: steps.pinned.outputs.current != 'true'
+        env:
+          # A personal token, so the pointer commit runs the required checks.
+          PUSH_TOKEN: ${{ secrets.CHANGESETS_TOKEN }}
         run: |
           set -euo pipefail
           id="$(jq -r .id build/release/release.json)"
@@ -128,7 +131,7 @@ jobs:
           # A release or merge can land on the branch while the snapshot builds; the pin
           # touches only catalogue.json, so it replays onto the new tip, and a conflict there fails.
           for attempt in 1 2 3; do
-            git push origin "HEAD:$BRANCH" && exit 0
+            git push "https://x-access-token:$PUSH_TOKEN@github.com/$GITHUB_REPOSITORY" "HEAD:$BRANCH" && exit 0
             [ "$attempt" = 3 ] && break
             git fetch origin "$BRANCH"
             git rebase "origin/$BRANCH"

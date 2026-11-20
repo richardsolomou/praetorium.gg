@@ -189,11 +189,16 @@ export class RosterService {
     return lender ? { roster: readerRosterFromRow(row), editable: false, lentBy: lender } : null
   }
 
-  /** The roster a copy was made from, named only while this reader may still open it. */
-  async copySource(id: string | null, userId: string | null) {
-    if (!id) return null
-    const row = await this.repository.roster(id)
-    if (!row || !(await this.accessToRow(row, userId))) return null
+  /**
+   * The roster a copy was made from, named only while this reader may still open it. An unlisted one is named only to
+   * its owner and the copy's, because its id is its link.
+   */
+  async copySource(copyId: string, userId: string | null) {
+    const copy = await this.repository.roster(copyId)
+    const id = copy?.copiedFromRosterId
+    const row = id ? await this.repository.roster(id) : undefined
+    if (!id || !row || !(await this.accessToRow(row, userId))) return null
+    if (row.visibility === 'unlisted' && userId !== row.userId && userId !== copy.userId) return null
     const owner = (await this.repository.namesByIds([row.userId])).get(row.userId)
     return owner ? { id, name: row.name, ownerId: row.userId, ownerName: owner.name } : null
   }

@@ -249,7 +249,7 @@ async function rosterAccessDetails(access: NonNullable<Awaited<ReturnType<Roster
   const [variants, differences, copiedFrom] = await Promise.all([
     owned ? service.rosterGroup(owned, access.roster) : [],
     owned ? variantDifferences(owned, [access.roster]) : null,
-    service.copySource(access.roster.copiedFromRosterId, userId),
+    service.copySource(access.roster.id, userId),
   ])
   return { lentBy: null, ...access, variants, differences: differences?.get(access.roster.id) ?? null, copiedFrom }
 }

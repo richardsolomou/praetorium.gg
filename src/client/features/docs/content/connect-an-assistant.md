@@ -31,9 +31,9 @@ The answer should come with a link to the Immortals datasheet. Open it before yo
 
 ## Using your rosters and battles
 
-The first time the assistant needs your rosters or battles, it opens this page on Praetorium so you can choose what it may do. [Let an assistant use your account](/docs/assistant-account) explains each permission and how to revoke them.
+The first time the assistant needs your rosters or battles, it opens this page on Praetorium so you can choose what it may do. An app chooses the name the page shows, so check the address it says **Allow access** sends you on to, and cancel unless that is where you started. [Let an assistant use your account](/docs/assistant-account) explains each permission and how to revoke them.
 
-![The Connect to Praetorium page, where Claude asks to read and edit rosters and battles, with Allow access and Cancel.](screenshot:assistant-consent 'Connect to Praetorium, the first time an assistant needs your account')
+![The Connect to Praetorium page, where Claude asks to read and edit rosters and battles, the address allowing sends you on to, and Allow access and Cancel.](screenshot:assistant-consent 'Connect to Praetorium, the first time an assistant needs your account')
 
 ## Why answers link instead of quoting rules
 
