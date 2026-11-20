@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.273.3 (2026-11-20)
+
+### Patch Changes
+
+- 4861a1f: [rosters] Each rule a unit chooses between during the battle now has its own line on its datasheet, saying how many of its options the unit can hold at once.
+- 404f549: [rosters] Kasrkin now take the extra Order Warrior Elite gives them on their datasheet, so they hold two Orders, or three while Ursula Creed leads them.
+
 ## 0.273.2 (2026-11-20)
 
 ### Patch Changes
