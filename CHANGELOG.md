@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.273.1 (2026-11-20)
+
+### Patch Changes
+
+- 9baa4ee: [events] In a group's team game you stay on your side once an ally there has sealed, and their list stays sealed if you step out or leave.
+- 9baa4ee: [events] A private group's sealed and revealed lists open to its members alone.
+
 ## 0.273.0 (2026-11-20)
 
 ### Minor Changes
