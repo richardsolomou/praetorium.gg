@@ -31,10 +31,10 @@ const subscribe = (listener: () => void) => {
 }
 const NO_PICKS: Readonly<Record<string, readonly string[]>> = {}
 
-/** The ability texts that can widen a unit's choices: its own while it leads a unit, and those of the units leading it. */
+/** The ability texts that can widen a unit's choices: its own, and those of the units it is attached to. */
 function allowanceTexts(data: NonNullable<ReturnType<typeof useCombatantDatasheet>>) {
   const texts = (sheet: Datasheet) => [...sheet.abilities, ...(sheet.enhancements ?? [])].flatMap(({ description }) => description ?? [])
-  return [...(data.companions.length ? texts(data.selected) : []), ...data.companions.flatMap((member) => texts(member.selected))]
+  return [...texts(data.selected), ...data.companions.flatMap((member) => texts(member.selected))]
 }
 
 function useCombatantDatasheet({
@@ -95,7 +95,10 @@ export function useBattleChoices({
       enabled && data
         ? battleChoices(
             readableRules(data.rules),
-            battleChoiceAllowances(allowanceTexts(data).flatMap((text) => (hasTextTokens(text) ? (loadedWords(text) ?? []) : text))),
+            battleChoiceAllowances(
+              allowanceTexts(data).flatMap((text) => (hasTextTokens(text) ? (loadedWords(text) ?? []) : text)),
+              data.companions.length > 0,
+            ),
           )
         : [],
     // `loaded` changes as rule words arrive, which can turn a token into options.
@@ -177,7 +180,7 @@ const smallChip = `${pressedClass} min-h-6 px-1.5 py-0`
 export function BattleChoices({ choices, chosen, onChoose, rules }: Props) {
   if (!choices.length) return null
   return (
-    <section aria-label="In battle" className="flex flex-wrap items-center gap-x-3 gap-y-1">
+    <section aria-label="In battle" className="flex flex-col gap-y-1.5">
       {choices.map(({ rule, options, together, limit }) => {
         const short = shortLabels(options)
         return (
@@ -186,22 +189,25 @@ export function BattleChoices({ choices, chosen, onChoose, rules }: Props) {
             {together ? (
               <span className="text-xs text-bone">{togetherLabel(together)}</span>
             ) : (
-              <ToggleGroup
-                multiple={limit > 1}
-                value={[...(chosen[rule.name] ?? [])]}
-                onValueChange={(value) => onChoose(rule.name, value)}
-                variant="outline"
-                size="sm"
-                spacing={1}
-                className="flex-wrap"
-                aria-label={rule.name}
-              >
-                {options.map(({ label }) => (
-                  <ToggleGroupItem key={label} value={label} aria-label={label} className={smallChip}>
-                    {short.get(label)}
-                  </ToggleGroupItem>
-                ))}
-              </ToggleGroup>
+              <>
+                <ToggleGroup
+                  multiple={limit > 1}
+                  value={[...(chosen[rule.name] ?? [])]}
+                  onValueChange={(value) => onChoose(rule.name, value)}
+                  variant="outline"
+                  size="sm"
+                  spacing={1}
+                  className="flex-wrap"
+                  aria-label={rule.name}
+                >
+                  {options.map(({ label }) => (
+                    <ToggleGroupItem key={label} value={label} aria-label={label} className={smallChip}>
+                      {short.get(label)}
+                    </ToggleGroupItem>
+                  ))}
+                </ToggleGroup>
+                <span className="text-xs text-faint">{limit > 1 ? `Up to ${limit} at once` : 'One at a time'}</span>
+              </>
             )}
           </div>
         )

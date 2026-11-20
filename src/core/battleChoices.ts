@@ -19,25 +19,32 @@ export type BattleChoice = {
   armyWide: boolean
   /** The options another of the unit's rules always keeps active together, as Cognitive Reinforcement does, and that rule. */
   together?: { labels: string[]; source: string }
-  /** How many options the unit can be in at once: one, or more where another rule allows it, as some officers do for Orders. */
+  /** How many options the unit can be in at once: one, or more where other rules allow it, as some officers and Warrior Elite do for Orders. */
   limit: number
   /** An option the unit is also in whenever it is in another, as Take Cover! is for a unit some officers lead. */
   also?: string
 }
 
-/** What another of a unit's rules allows a choice it is in, named by the plural its options go by, as Orders. */
-export type BattleChoiceAllowance = { options: string } & ({ limit: number } | { also: string })
+/**
+ * What another of a unit's rules allows a choice it is in, named by the plural its options go by, as Orders: a higher
+ * limit, as some officers give, more options on top of it, as Warrior Elite gives, or an option that comes with any other.
+ */
+export type BattleChoiceAllowance = { options: string } & ({ limit: number } | { extra: number } | { also: string })
 
-const NUMBERS: Record<string, number> = { two: 2, three: 3 }
+const NUMBERS: Record<string, number> = { one: 1, two: 2, three: 3 }
+const count = (written: string) => NUMBERS[written.toLowerCase()] ?? Number(written)
 
-/** What these rule texts allow the unit's choices, as being affected by two Orders at once. */
-export function battleChoiceAllowances(texts: readonly string[]): BattleChoiceAllowance[] {
+/** What these rule texts allow the unit's choices, as being affected by two Orders at once; a leader's only while `attached`. */
+export function battleChoiceAllowances(texts: readonly string[], attached: boolean): BattleChoiceAllowance[] {
   return texts.flatMap((text) => {
     const written = normalizeCombatText(text)
+    if (!attached && /\bis leading a unit\b/i.test(written)) return []
     const limit = /can be affected by up to (two|three|[2-9]) different (\w+) at the same time/i.exec(written)
+    const extra = /select (one|two|three|[1-9]) (\w+) to affect this unit\b.*?\bin addition to any other \2s\b/i.exec(written)
     const also = /when that unit is issued an? (\w+), it is also affected by the (.+?) \1\b/i.exec(written)
     return [
-      ...(limit ? [{ options: limit[2]!, limit: NUMBERS[limit[1]!.toLowerCase()] ?? Number(limit[1]) }] : []),
+      ...(limit ? [{ options: limit[2]!, limit: count(limit[1]!) }] : []),
+      ...(extra ? [{ options: `${extra[2]}s`, extra: count(extra[1]!) }] : []),
       ...(also ? [{ options: `${also[1]}s`, also: also[2]! }] : []),
     ]
   })
@@ -88,7 +95,9 @@ export function battleChoices(rules: readonly CombatRule[], allowances: readonly
     const allowed = allowances.filter((allowance) =>
       new RegExp(`\\b${allowance.options}\\b`, 'i').test(normalizeCombatText(rule.description)),
     )
-    const limit = Math.max(1, ...allowed.flatMap((allowance) => ('limit' in allowance ? [allowance.limit] : [])))
+    const limit =
+      Math.max(1, ...allowed.flatMap((allowance) => ('limit' in allowance ? [allowance.limit] : []))) +
+      allowed.reduce((sum, allowance) => sum + ('extra' in allowance ? allowance.extra : 0), 0)
     const also = allowed.flatMap((allowance) =>
       'also' in allowance
         ? chosen.filter(({ label }) => combatTextKey(label) === combatTextKey(allowance.also)).map(({ label }) => label)
