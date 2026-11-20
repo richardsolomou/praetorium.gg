@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.273.5 (2026-11-20)
+
+### Patch Changes
+
+- 2070e82: [reference] The Tesseract Vault's C'tan powers show their range, attacks, strength, AP and damage again instead of unreadable codes.
+
 ## 0.273.4 (2026-11-20)
 
 ### Patch Changes
