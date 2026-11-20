@@ -112,10 +112,15 @@ async function answerShell(context: GenericEndpointContext, state: string, optio
       deviceId: query.device_id,
       redirectURI: `${context.context.baseURL}${getOAuthCallbackPath(provider)}`,
     })
-    const user: unknown = query.user ? JSON.parse(query.user) : undefined
+    const user = z
+      .string()
+      .transform((value) => JSON.parse(value) as unknown)
+      .safeParse(query.user).data
     const result = tokens && (await provider.getUserInfo({ ...tokens, expectedIdTokenNonce: started.idTokenNonce, user } as never))
     if (!tokens || !result?.user) return back({ error: 'provider_refused' })
-    const accountId = String(await provider.accountSubject({ tokens, profile: result.data }))
+    const accountId = String(await provider.accountSubject({ tokens, profile: result.data })).trim()
+    // Better Auth's own callback refuses a subject that is no identity at all.
+    if (!accountId || accountId === 'undefined' || accountId === 'null') return back({ error: 'provider_refused' })
     const account = { providerId: provider.id, accountId, ...tokens, scope: tokens.scopes?.join(',') }
     const { action: _action, bridge: _bridge, codeVerifier: _codeVerifier, idTokenNonce: _nonce, requestSignUp, ...shell } = started
     let record: ExchangeRecord

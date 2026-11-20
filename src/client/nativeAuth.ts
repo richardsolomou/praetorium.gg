@@ -6,20 +6,20 @@ import { toBase64Url } from '../core/base64'
 export type NativeAuthAction = 'link' | 'sign-in'
 
 type NativeAuthRequest = {
-  version: 1 | 2 | 3
+  version: 2 | 3
   type: 'native-auth'
   action: NativeAuthAction
   provider: SocialAuthProvider
   next: string
   requestSignUp?: boolean
   sessionToken?: string
-  challenge?: string
-  verifier?: string
+  challenge: string
+  verifier: string
 }
 
 export function hasNativeAuthBridge() {
   const version = nativeBridgeVersion()
-  return typeof window !== 'undefined' && (version === 1 || version === 2 || version === 3) && Boolean(window.ReactNativeWebView)
+  return typeof window !== 'undefined' && (version === 2 || version === 3) && Boolean(window.ReactNativeWebView)
 }
 
 export function canUseGithubAuth() {
@@ -40,7 +40,7 @@ async function nativeAuthProof() {
 export async function requestNativeAuth(request: Omit<NativeAuthRequest, 'challenge' | 'type' | 'verifier' | 'version'>) {
   if (!hasNativeAuthBridge() || !window.ReactNativeWebView) return false
   const version = window.PraetoriumNative!.bridgeVersion as NativeAuthRequest['version']
-  const proof = version >= 2 ? await nativeAuthProof() : {}
+  const proof = await nativeAuthProof()
   window.ReactNativeWebView.postMessage(JSON.stringify({ version, type: 'native-auth', ...request, ...proof } satisfies NativeAuthRequest))
   return true
 }

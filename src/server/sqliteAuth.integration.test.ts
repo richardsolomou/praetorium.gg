@@ -967,6 +967,68 @@ it('signs the native shell in through a proof, and never the browser it opened',
   }
 })
 
+it('signs the native shell in from an identity token a provider posts back', async () => {
+  const auth = authFor(githubEnvironment)
+  const { privateKey, publicKey } = await generateKeyPair('RS256')
+  const key = { ...(await exportJWK(publicKey)), kid: 'native-test', alg: 'RS256' }
+  const idToken = await new SignJWT({ sub: 'native-google', email: 'native-google@example.test', email_verified: true, name: 'Player' })
+    .setProtectedHeader({ alg: 'RS256', kid: key.kid })
+    .setIssuer('https://accounts.google.com')
+    .setAudience('google-client')
+    .setIssuedAt()
+    .setExpirationTime('5m')
+    .sign(privateKey)
+  vi.stubGlobal('fetch', async (input: string | URL | Request) => {
+    const url = new URL(input instanceof Request ? input.url : input)
+    if (url.href === 'https://oauth2.googleapis.com/token')
+      return Response.json({ access_token: 'test-token', token_type: 'bearer', expires_in: 3600, id_token: idToken })
+    if (url.href === 'https://www.googleapis.com/oauth2/v3/certs') return Response.json({ keys: [key] })
+    throw new Error(`Unexpected OAuth request: ${url.href}`)
+  })
+  try {
+    const verifier = randomBytes(32).toString('base64url')
+    const json = { 'content-type': 'application/json', origin: 'https://praetorium.gg' }
+    const started = await auth.handler(
+      new Request('https://praetorium.gg/api/auth/native-auth-token/start', {
+        method: 'POST',
+        headers: json,
+        body: JSON.stringify({
+          action: 'sign-in',
+          bridge: 3,
+          challenge: createHash('sha256').update(verifier).digest('base64url'),
+          provider: 'google',
+          next: '/rosters',
+        }),
+      }),
+    )
+    const state = new URL(((await started.json()) as { url: string }).url).searchParams.get('state')!
+    // A provider that posts its answer, as Apple does, is sent on to the same address as a read.
+    const posted = await auth.handler(
+      new Request('https://praetorium.gg/api/auth/callback/google', {
+        method: 'POST',
+        headers: { 'content-type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ state, code: 'test-code' }),
+      }),
+    )
+    const callback = await auth.handler(new Request(posted.headers.get('location')!))
+    const proof = Object.fromEntries(new URLSearchParams(new URL(callback.headers.get('location')!).hash.slice(1)))
+    const exchanged = await auth.handler(
+      new Request('https://praetorium.gg/api/auth/native-auth-token/exchange', {
+        method: 'POST',
+        headers: json,
+        body: JSON.stringify({ ...proof, verifier }),
+      }),
+    )
+    const cookie = exchanged.headers
+      .getSetCookie()
+      .find((value) => value.includes('session_token='))!
+      .split(';')[0]!
+    expect((await auth.api.getSession({ headers: new Headers({ cookie }) }))?.user.email).toBe('native-google@example.test')
+  } finally {
+    vi.unstubAllGlobals()
+  }
+})
+
 it('refuses a sign-in on the site whose callback lost its state cookie', async () => {
   const auth = authFor(githubEnvironment)
   const start = await auth.handler(

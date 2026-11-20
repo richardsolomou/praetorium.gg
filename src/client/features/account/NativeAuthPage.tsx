@@ -13,7 +13,7 @@ export type NativeAuthSearch = {
   next?: string
   provider?: SocialAuthProvider
   requestSignUp?: boolean
-  bridge?: 1 | 2 | 3
+  bridge?: 2 | 3
   challenge?: string
 }
 

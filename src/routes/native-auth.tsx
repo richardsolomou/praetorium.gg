@@ -13,16 +13,7 @@ export const Route = createFileRoute('/native-auth')({
     next: localRedirectPath(search.next),
     provider: SOCIAL_PROVIDERS.find((provider) => provider === search.provider),
     requestSignUp: searchFlag(search.requestSignUp) || undefined,
-    bridge:
-      search.bridge === undefined
-        ? 1
-        : search.bridge === 3 || search.bridge === '3'
-          ? 3
-          : search.bridge === 2 || search.bridge === '2'
-            ? 2
-            : search.bridge === 1 || search.bridge === '1'
-              ? 1
-              : undefined,
+    bridge: search.bridge === 3 || search.bridge === '3' ? 3 : search.bridge === 2 || search.bridge === '2' ? 2 : undefined,
     challenge: typeof search.challenge === 'string' && PKCE_VALUE.test(search.challenge) ? search.challenge : undefined,
   }),
   component: () => <NativeAuthPage search={Route.useSearch()} />,

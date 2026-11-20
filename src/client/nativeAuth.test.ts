@@ -32,20 +32,6 @@ describe('native auth web bridge', () => {
     expect(postMessage).not.toHaveBeenCalled()
   })
 
-  it('sends a versioned message to a compatible shell', async () => {
-    const postMessage = vi.fn()
-    vi.stubGlobal('window', { PraetoriumNative: { bridgeVersion: 1 }, ReactNativeWebView: { postMessage } })
-
-    await expect(requestNativeAuth({ action: 'sign-in', provider: 'discord', next: '/profile' })).resolves.toBe(true)
-    expect(JSON.parse(postMessage.mock.calls[0]![0])).toEqual({
-      version: 1,
-      type: 'native-auth',
-      action: 'sign-in',
-      provider: 'discord',
-      next: '/profile',
-    })
-  })
-
   it('uses a per-flow proof with the retryable authentication protocol', async () => {
     const postMessage = vi.fn()
     vi.stubGlobal('window', { PraetoriumNative: { bridgeVersion: 2 }, ReactNativeWebView: { postMessage } })

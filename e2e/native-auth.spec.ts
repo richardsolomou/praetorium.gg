@@ -63,3 +63,26 @@ ${nativeAuthCompletionScript(baseURL)}`,
   await expect(webView.getByRole('button', { name: `Account menu for ${name}` })).toBeVisible()
   await webViewContext.close()
 })
+
+test('the page the shell opens hands the provider’s answer back to the shell', async ({ page }) => {
+  const asked = { action: 'sign-in', bridge: '3', challenge: 'c'.repeat(43), complete: 'true', next: '/rosters', provider: 'google' }
+  const answer = { id: 'i'.repeat(32), token: 't'.repeat(43) }
+  // No app answers the scheme here, so the address the page asks to go to is read from the browser itself.
+  const devtools = await page.context().newCDPSession(page)
+  await devtools.send('Page.enable')
+  const sent = new Promise<string>((resolve) =>
+    devtools.on('Page.frameRequestedNavigation', (event) => {
+      if (event.url.startsWith('praetorium://')) resolve(event.url)
+    }),
+  )
+  await page.goto(`/native-auth?${new URLSearchParams(asked)}#${new URLSearchParams(answer)}`)
+  const handed = new URL(await sent)
+  expect(Object.fromEntries(handed.searchParams)).toEqual({
+    action: 'sign-in',
+    next: '/rosters',
+    provider: 'google',
+    version: '3',
+    challenge: asked.challenge,
+    ...answer,
+  })
+})
