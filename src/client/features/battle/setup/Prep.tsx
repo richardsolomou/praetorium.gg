@@ -184,7 +184,8 @@ export function Prep({ view, side, send, pending }: Props) {
   // pending, because a request this side never makes stays pending forever.
   if (!rules && results.some((result) => result.isFetching)) {
     return (
-      <div data-secondary-deck-ready={deckReady} className="space-y-3" aria-label="Loading mission data">
+      <div data-secondary-deck-ready={deckReady} className="space-y-3">
+        <output className="sr-only">Loading mission data</output>
         <div className="grid gap-2 sm:grid-cols-2" aria-hidden>
           <Skeleton className="h-14 w-full" />
           <Skeleton className="h-14 w-full" />

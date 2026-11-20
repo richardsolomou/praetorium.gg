@@ -426,8 +426,7 @@ test('the first character added is the warlord, which its unit editor can hand o
   const groups = loadout.locator('legend, .eyebrow').filter({ hasText: /^(Weapons|Wargear)$/ })
   await expect(groups.first()).toHaveText(/Weapons/i)
   await expect(groups.nth(1)).toHaveText(/Wargear/i)
-  // The resurrection orb stays in the rules face used throughout the loadout.
-  await expect(loadout.locator('[data-slot], div').filter({ hasText: 'this unit resurrects' }).last()).toHaveClass(/font-rules/)
+  await expect(loadout.getByText(/^resurrection orb$/i).first()).toBeVisible()
   const profile = loadout.locator('[data-slot="unit-profile"]')
   await expect(profile.getByText('Sv', { exact: true })).toBeVisible()
   await expect(profile.getByText('Invulnerable save', { exact: true })).toBeVisible()
@@ -812,7 +811,7 @@ test('Cadian Shock Troops can take their full special weapon allowance', async (
   await page.getByLabel('Add a unit').fill('Leman Russ Commander')
   await page.getByRole('button', { name: 'View Leman Russ Commander datasheet' }).click()
   const orders = page.locator('aside[aria-label="Datasheet"]').getByRole('heading', { name: 'Orders', exact: true }).locator('..')
-  await expect(orders).toContainText('This Officer can issue 2 Orders to Squadron units.')
+  await expect(orders.getByRole('link', { name: 'Official rules and downloads' })).toBeVisible()
   await page.getByLabel('Add a unit').fill('Callidus Assassin')
   await page.getByRole('button', { name: 'Toggle Agents of the Imperium' }).click()
   await page.getByRole('button', { name: 'Add Callidus Assassin', exact: true }).click()
@@ -901,19 +900,11 @@ async function orkLoadoutVariants(page: Page) {
   await expect(loadout.getByRole('region', { name: 'kombi-rokkit profiles', exact: true })).toContainText('2 profiles')
   const datasheetHref = await loadout.getByRole('link', { name: 'Open full datasheet in a new tab' }).getAttribute('href')
   await loadout.getByRole('button', { name: 'Waaagh!', exact: true }).click()
-  await expect(page.getByRole('tooltip')).toContainText('riled up')
-  await expect(
-    page
-      .getByRole('tooltip')
-      .locator('strong')
-      .filter({ hasText: /^ORKS$/ }),
-  ).toBeVisible()
-  await expect(page.getByRole('tooltip').getByRole('listitem').first()).toContainText('Re-roll')
-  await expect(page.getByRole('tooltip').getByRole('listitem')).toHaveCount(5)
+  await expect(page.getByRole('tooltip').getByRole('link', { name: 'Official rules and downloads' })).toBeVisible()
   await page.keyboard.press('Escape')
 
   // The previous tooltip can still be closing as this one opens, so read this one by its own text.
-  const lethalHits = page.getByRole('tooltip').filter({ hasText: /automatically wound/i })
+  const lethalHits = page.getByRole('tooltip').filter({ hasText: 'Lethal Hits' })
   await loadout.getByRole('button', { name: 'LETHAL HITS: non-MONSTER/VEHICLE', exact: true }).first().click()
   await expect(lethalHits).toBeVisible()
   await page.keyboard.press('Escape')

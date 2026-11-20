@@ -14,6 +14,7 @@ type Summary = { digest: string; description: string }
 export function ruleSummaryIndex(summaries: Iterable<Summary>) {
   const index = new Map<string, string | null>()
   for (const { digest, description } of summaries) {
+    if (/^While (.+) has the (.+) ability, \1 gains the \2 ability\.$/i.test(description)) continue
     if (!index.has(digest)) index.set(digest, description)
     else if (index.get(digest) !== description) index.set(digest, null)
   }

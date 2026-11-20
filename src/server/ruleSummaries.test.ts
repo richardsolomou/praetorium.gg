@@ -23,6 +23,13 @@ it('withholds wording reproduced by the renderer', () => {
   expect(ruleSummaryIn(summaries, '<b>Add 1</b> to Strength.')).toBeUndefined()
 })
 
+it('withholds a description that only grants the ability it requires', () => {
+  const summaries = ruleSummaryIndex([
+    { digest, description: 'While the unit has the Fights First ability, the unit gains the Fights First ability.' },
+  ])
+  expect(ruleSummaryIn(summaries, 'Add 1 to Strength.')).toBeUndefined()
+})
+
 it('withholds a summary that repeats a paragraph of another printed rule', () => {
   const line = 'This model is eligible to shoot during a turn in which it has already moved.'
   const summaries = ruleSummaryIndex([{ digest, description: `The effect has two parts.\n${line}` }])
