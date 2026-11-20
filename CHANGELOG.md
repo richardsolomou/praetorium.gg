@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.273.4 (2026-11-20)
+
+### Patch Changes
+
+- c5e7bf3: [app] Signing in with Apple, Google, Discord or GitHub from the app no longer leaves the phone's browser signed in to your account.
+
 ## 0.273.3 (2026-11-20)
 
 ### Patch Changes
