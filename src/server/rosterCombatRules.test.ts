@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { combatRuleAppliesTo, combatRuleChoices } from '../core/combatRules'
+import { textKey, textTokensIn } from '../core/sourceText'
 import { bookOf, categories } from './catalogue.fixtures'
 import type { LoadedRules } from '../shared/rules'
 import { datasheetAbilitiesIn, datasheetIn } from '../shared/catalogue'
 import { rosterCombatant } from '../shared/rosterCombatRules'
 import { rosterDatasheetContext } from '../shared/rosterDatasheetContext'
+import { choiceAllowancesIn, textFactsOf } from '../shared/textFacts'
+import { sourceTexts } from './sourceTexts'
 
 const aura =
   'While a friendly **ARMY** unit (excluding **MONSTER** and **TITANIC** units) is within 6" of this model, each time a model in that unit makes an attack, if that model has the **CULT** keyword or that enemy unit is the closest eligible target, that attack has the [SUSTAINED HITS 1] ability.'
@@ -34,6 +37,27 @@ const book = bookOf({
   ],
 })
 const input = { catalogueId: 'cat', detachmentIds: [], picks: [{ entryId: 'recipient' }, { entryId: 'source' }], pickIndex: 0 }
+
+describe('recorded Orders allowances', () => {
+  const tokenOf = sourceTexts('order-allowance-test')
+  const extra = 'You can select one Order to affect this unit in addition to any other Orders issued to it.'
+  const leader = 'While this model is leading a unit, that unit can be affected by up to two different Orders at the same time.'
+
+  it('offers a standalone unit its own extra Order', () => {
+    const token = tokenOf(extra, 'prose')
+    const loaded = bookOf({ selectionEntries: [{ id: 'recipient', type: 'model', profiles: [profile('Warrior Elite', token)] }] })
+    loaded.index.textFacts = new Map([[textKey(textTokensIn(token)[0]!), textFactsOf(extra)!]])
+    expect(rosterCombatant(loaded, null, { ...input, picks: [{ entryId: 'recipient' }] })?.allowances).toEqual([
+      { options: 'Orders', extra: 1 },
+    ])
+  })
+
+  it.each([false, true])('scopes a recorded leader limit to an attached unit (%s)', (attached) => {
+    const token = tokenOf(leader, 'prose')
+    const facts = new Map([[textKey(textTokensIn(token)[0]!), textFactsOf(leader)!]])
+    expect(choiceAllowancesIn(token, facts, attached)).toEqual(attached ? [{ options: 'Orders', limit: 2 }] : [])
+  })
+})
 
 describe('roster support rules', () => {
   it('offers a marked-enemy bonus to its friendly recipient from another roster unit', () => {

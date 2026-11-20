@@ -207,6 +207,62 @@ it('keeps a verified account’s other ways in when its password is reset', asyn
   })
 })
 
+it('links a provider the native shell asked for only once the shell, signed in, redeems its proof', async () => {
+  const auth = authFor({ ...testEnvironment, DISCORD_CLIENT_ID: 'discord-client', DISCORD_CLIENT_SECRET: 'discord-secret' })
+  const created = await auth.api.signUpEmail({
+    body: { email: `${randomUUID()}@example.com`, password: 'password1234', name: 'Native linker' },
+    returnHeaders: true,
+  })
+  const cookie = created.headers.get('set-cookie')!.split(';')[0]!
+  const playerId = created.response.user.id
+  const linked = async () =>
+    (await local.database.select({ provider: account.providerId }).from(account).where(eq(account.userId, playerId)))
+      .map((row) => row.provider)
+      .toSorted()
+  vi.stubGlobal('fetch', (input: string | URL | Request) => {
+    const url = new URL(input instanceof Request ? input.url : input)
+    if (url.pathname === '/api/oauth2/token') return Response.json({ access_token: 'test-token', token_type: 'bearer', expires_in: 3600 })
+    if (decodeURIComponent(url.pathname) === '/api/users/@me')
+      return Response.json({ id: '202', username: 'Player', avatar: null, discriminator: '1', email: 'player@example.com', verified: true })
+    throw new Error(`Unexpected OAuth request: ${url.pathname}`)
+  })
+  try {
+    const verifier = randomBytes(32).toString('base64url')
+    const challenge = createHash('sha256').update(verifier).digest('base64url')
+    const post = (endpoint: string, body: unknown, headers: Record<string, string> = {}) =>
+      auth.handler(
+        new Request(`https://praetorium.gg/api/auth${endpoint}`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', origin: 'https://praetorium.gg', ...headers },
+          body: JSON.stringify(body),
+        }),
+      )
+    // The browser the shell opens holds no session.
+    const started = await post('/native-auth-token/link', { action: 'link', bridge: 3, challenge, provider: 'discord', next: '/profile' })
+    const { url } = (await started.json()) as { url: string }
+    const state = new URL(url).searchParams.get('state')!
+    const callback = await auth.handler(
+      new Request(`https://praetorium.gg/api/auth/callback/discord?state=${encodeURIComponent(state)}&code=test-code`),
+    )
+    const landing = new URL(callback.headers.get('location')!)
+    const proof = Object.fromEntries(new URLSearchParams(landing.hash.slice(1)))
+    const proven = await linked()
+    const signedOut = await post('/native-auth-token/exchange', { ...proof, verifier })
+    const refused = await linked()
+    const redeemed = await post('/native-auth-token/exchange', { ...proof, verifier }, { cookie })
+    expect([landing.pathname, proven, signedOut.status, refused, redeemed.status, await linked()]).toEqual([
+      '/native-auth',
+      ['credential'],
+      400,
+      ['credential'],
+      200,
+      ['credential', 'discord'],
+    ])
+  } finally {
+    vi.unstubAllGlobals()
+  }
+})
+
 it.each([
   ['http://127.0.0.1:3000', 'http://localhost:3000'],
   ['http://localhost:3000', 'http://127.0.0.1:3000'],
@@ -256,14 +312,16 @@ it('does not trust loopback sign-in origins for a hosted app', async () => {
   expect(response.status).toBe(403)
 })
 
-it('authorizes an MCP client with consent and resource-bound scopes', async () => {
+it.each([false, true])('authorizes an MCP client with consent and resource-bound scopes (management %s)', async (management) => {
+  const scope = management ? 'mcp:read mcp:write mcp:manage offline_access' : 'mcp:read mcp:write offline_access'
+  const email = management ? 'mcp-manage@example.com' : 'mcp@example.com'
   const events: AuthEvent[] = []
   const auth = authFor({ APP_URL: 'https://praetorium.gg', AUTH_RATE_LIMIT: 'off', SPACETIME_AUDIENCE: 'praetorium-test' }, [], [], events)
   const metadata = await auth.handler(new Request('https://praetorium.gg/.well-known/oauth-protected-resource/mcp'))
   expect(await metadata.json()).toMatchObject({
     resource: 'https://praetorium.gg/mcp',
     authorization_servers: ['https://praetorium.gg/api/auth'],
-    scopes_supported: ['mcp:read', 'mcp:write'],
+    scopes_supported: ['mcp:read', 'mcp:write', 'mcp:manage'],
   })
 
   const registered = await auth.handler(
@@ -283,7 +341,7 @@ it('authorizes an MCP client with consent and resource-bound scopes', async () =
   const { client_id: clientId } = await registered.json()
 
   const signup = await auth.api.signUpEmail({
-    body: { email: 'mcp@example.com', password: 'password1234', name: 'MCP player' },
+    body: { email, password: 'password1234', name: 'MCP player' },
     returnHeaders: true,
   })
   const cookie = signup.headers.get('set-cookie')?.split(';')[0]
@@ -295,7 +353,7 @@ it('authorizes an MCP client with consent and resource-bound scopes', async () =
     client_id: clientId,
     redirect_uri: 'https://client.example/callback',
     response_type: 'code',
-    scope: 'mcp:read mcp:write offline_access',
+    scope,
     code_challenge: challenge,
     code_challenge_method: 'S256',
     resource: 'https://praetorium.gg/mcp',
@@ -345,8 +403,9 @@ it('authorizes an MCP client with consent and resource-bound scopes', async () =
     issuer: 'https://praetorium.gg/api/auth',
     audience: 'https://praetorium.gg/mcp',
   })
-  expect(payload).toMatchObject({ sub: signup.response.user.id, client_id: clientId, scope: 'mcp:read mcp:write offline_access' })
+  expect(payload).toMatchObject({ sub: signup.response.user.id, client_id: clientId, scope })
   expect(await auth.hasMcpConsent(signup.response.user.id, clientId)).toBe(true)
+  expect(await auth.hasMcpConsent(signup.response.user.id, clientId, 'mcp:manage')).toBe(management)
   const consents = await auth.api.getOAuthConsents({ headers: new Headers({ cookie }) })
   await local.database.insert(oauthConsent).values({
     id: randomUUID(),
@@ -379,7 +438,7 @@ it('authorizes an MCP client with consent and resource-bound scopes', async () =
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Origin: 'https://praetorium.gg' },
       body: JSON.stringify({
-        email: 'mcp@example.com',
+        email,
         password: 'password1234',
         oauth_query: new URL(loginUrl, 'https://praetorium.gg').search.slice(1),
       }),

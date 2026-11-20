@@ -306,8 +306,9 @@ export class SealedEventService {
 
   async chooseSealedEventSide(token: string, userId: string, side: SealedEventSide | null, eventToken?: string) {
     const result = await this.repository.chooseSealedEventSide(token, userId, side, this.clock(), eventToken)
-    if (typeof result === 'object') this.notifySealedEvent('sealed-event-roster-reseal', userId, result.resealIds, token, eventToken)
-    if (typeof result === 'object' || result === 'updated') return { side }
+    if (result === 'updated') return { side }
+    if (result === 'side-locked')
+      throw new Response('you sat beside a sealed list on another side, so you can only play on that side', { status: 409 })
     if (result === 'missing') throw new Response('no such event', { status: 404 })
     if (result === 'forbidden') throw new Response('only a group’s players choose their own side', { status: 403 })
     if (result === 'closed') throw new Response('sides cannot change once the lists are out or past their deadline', { status: 409 })
@@ -471,8 +472,8 @@ export class SealedEventService {
   }
 
   /** Every revealed list as `sealedEventRoster` gives one to any reader of the event; nothing before the reveal, whoever asks. */
-  async revealedSealedEventRosters(token: string, eventToken?: string) {
-    const sealed = await this.repository.sealedRosters(token, eventToken)
+  async revealedSealedEventRosters(token: string, eventToken?: string, viewerId: string | null = null) {
+    const sealed = await this.repository.sealedRosters(token, eventToken, viewerId)
     if (!sealed || sealed.revealedAt === null) return []
     // An unreadable list stays in as null, so the bundle says so rather than leaving its player out.
     return sealed.rosters.map(({ userId, snapshot }) => {
@@ -518,8 +519,10 @@ export class SealedEventService {
     this.checkInOutcome(result)
   }
 
-  async dropNoShows(token: string, eventToken: string, ownerId: string) {
-    this.checkInOutcome(await this.repository.dropSealedEventNoShows({ token, eventToken, ownerId, now: this.clock() }))
+  async dropNoShows(token: string, eventToken: string, ownerId: string, expectedUserIds?: string[]) {
+    const result = await this.repository.dropSealedEventNoShows({ token, eventToken, ownerId, expectedUserIds, now: this.clock() })
+    if (result === 'stale') throw new Response('The no-show list changed. Read get_my_event again.', { status: 409 })
+    this.checkInOutcome(result)
   }
 
   private checkInOutcome(result: 'ok' | 'closed' | 'missing' | 'forbidden') {
@@ -547,8 +550,14 @@ export class SealedEventService {
     throw new Response('pair a round before starting its clock', { status: 409 })
   }
 
-  async swapSeats(token: string, eventToken: string, ownerId: string, players: [string, string]) {
-    const result = await this.repository.swapSealedEventSeats({ token, eventToken, ownerId, players })
+  async swapSeats(
+    token: string,
+    eventToken: string,
+    ownerId: string,
+    players: [string, string],
+    expected?: { round: number; tables: [number, number] },
+  ) {
+    const result = await this.repository.swapSealedEventSeats({ token, eventToken, ownerId, players, expected })
     if (result === 'swapped') return
     if (result === 'missing') throw new Response('no such event', { status: 404 })
     if (result === 'forbidden') throw new Response('only the organizer can change the pairings', { status: 403 })
@@ -643,7 +652,10 @@ export class SealedEventService {
     } = await this.seatedTable(token, eventToken, round, table, missionPackId, rules)
     const chosen = battlefield === 'roll' ? options[Math.floor(Math.random() * options.length)] : battlefield
     if (battlefield === 'roll' && !chosen) throw new Response('these armies have no battlefields to roll', { status: 409 })
-    if (chosen && !options.some(({ terrainLayoutId }) => terrainLayoutId === chosen.terrainLayoutId))
+    if (
+      chosen &&
+      !options.some(({ patternId, terrainLayoutId }) => patternId === chosen.patternId && terrainLayoutId === chosen.terrainLayoutId)
+    )
       throw new Response('that battlefield does not match these armies', { status: 409 })
     const result = await this.repository.setSealedEventBattlefield({
       token,
@@ -652,6 +664,7 @@ export class SealedEventService {
       round,
       table,
       battlefield: chosen ?? null,
+      expectedPlayers: round > 0 ? playerIds : undefined,
     })
     if (result === 'set') {
       this.notifySealedEvent(
@@ -661,7 +674,7 @@ export class SealedEventService {
         token,
         eventToken,
       )
-      return
+      return chosen ? { patternId: chosen.patternId, terrainLayoutId: chosen.terrainLayoutId } : null
     }
     if (result === 'missing') throw new Response('no such event', { status: 404 })
     if (result === 'forbidden') throw new Response('only the organizer can set a battlefield', { status: 403 })

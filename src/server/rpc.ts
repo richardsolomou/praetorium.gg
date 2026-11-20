@@ -77,7 +77,7 @@ function currentRequest() {
  * it, so work stops where it went wrong as it would in one loop.
  */
 export function inTurn<T, R>(items: readonly T[], work: (item: T) => Promise<R>): Promise<R>[] {
-  const context = failureContext(getRequest())
+  const context = failureContext(currentRequest())
   let previous: Promise<unknown> = Promise.resolve()
   return items.map((item) => {
     const result = previous.then(async () => {

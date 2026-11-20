@@ -1,4 +1,5 @@
 import { expect, test } from './test'
+import mcpSurface from '../src/server/mcpSurface.json' with { type: 'json' }
 import { signUp, uniqueName, signOut } from './account'
 
 test.use({ launchOptions: { args: ['--enable-blink-features=WebMCP,WebMCPTesting'] } })
@@ -17,7 +18,7 @@ test('the native browser API registers, executes and removes Praetorium tools', 
   expect(await page.evaluate(() => typeof (document as Document & { modelContext?: NativeContext }).modelContext)).toBe('object')
   await expect.poll(() => page.evaluate(nativeTools)).toHaveLength(28)
   await signUp(page, uniqueName('Native agent'))
-  await expect.poll(() => page.evaluate(nativeTools)).toHaveLength(54)
+  await expect.poll(() => page.evaluate(nativeTools)).toHaveLength(Object.keys(mcpSurface).length + 4)
   const result = await page.evaluate(async () => {
     const context = (document as Document & { modelContext: NativeContext }).modelContext
     const tool = (await context.getTools()).find((entry) => entry.name === 'list_my_rosters')!

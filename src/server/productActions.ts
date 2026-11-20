@@ -1,5 +1,5 @@
 import type { z } from 'zod'
-import { rosterContentSchema, type saveRosterSchema } from '../contracts/schemas'
+import { publishGroupLeagueSchema, rosterContentSchema, type saveRosterSchema } from '../contracts/schemas'
 import { currentRosterIds } from '../core/retiredCatalogueIds'
 import { offlineActionSchemas as schemas, type OfflineActionKind } from '../contracts/offlineActions'
 import { onboardingAnswer } from '../contracts/onboarding'
@@ -51,6 +51,11 @@ export async function submitSealedEventRoster(owner: string, data: z.output<type
   })
   return null
 }
+
+export const publishGroupLeague = action(publishGroupLeagueSchema, async (owner, { token, ...draw }) => {
+  await app().service.groupService.publishLeague(token, owner, draw)
+  captureMutation(owner, 'group_league_published', { players: draw.playerIds.length })
+})
 
 export const productActions = {
   setOwned: action(schemas.setOwned, async (owner, data) => {

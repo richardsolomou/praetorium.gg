@@ -32,3 +32,8 @@ it('opens a private group’s game to its members alone', async () => {
   const opens = (viewerId: string | null) => repository.sealedEventByToken('game', viewerId).then(Boolean)
   expect([await opens('member'), await opens('stranger'), await opens(null)]).toEqual([true, false, false])
 })
+
+it('opens a private group’s revealed lists to its members alone', async () => {
+  const opens = (viewerId: string | null) => repository.sealedRosters('game', undefined, viewerId).then(Boolean)
+  expect([await opens('member'), await opens('stranger'), await opens(null)]).toEqual([true, false, false])
+})

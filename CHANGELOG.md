@@ -1,5 +1,24 @@
 # praetorium
 
+## 0.273.2 (2026-11-20)
+
+### Patch Changes
+
+- 54fbce2: [app] Linking Apple, Google, Discord or GitHub from the app no longer signs the phone's browser in to your account, and needs a current version of the app.
+
+## 0.273.1 (2026-11-20)
+
+### Patch Changes
+
+- 9baa4ee: [events] In a group's team game you stay on your side once an ally there has sealed, and their list stays sealed if you step out or leave.
+- 9baa4ee: [events] A private group's sealed and revealed lists open to its members alone.
+
+## 0.273.0 (2026-11-20)
+
+### Minor Changes
+
+- 4e34888: [assistant] Join battles from invites, track New Orders and outstanding scoring, import BattleBase history in batches, organize rosters and collections, play sealed league fixtures, and manage tournament tables with separate account permission.
+
 ## 0.272.4 (2026-11-20)
 
 ### Patch Changes

@@ -150,7 +150,7 @@ const smallChip = `${pressedClass} min-h-6 px-1.5 py-0`
 export function BattleChoices({ choices, chosen, onChoose, rules }: Props) {
   if (!choices.length) return null
   return (
-    <section aria-label="In battle" className="flex flex-wrap items-center gap-x-3 gap-y-1">
+    <section aria-label="In battle" className="flex flex-col gap-y-1.5">
       {choices.map(({ rule, options, together, limit }) => {
         const short = shortLabels(options)
         return (
@@ -159,22 +159,25 @@ export function BattleChoices({ choices, chosen, onChoose, rules }: Props) {
             {together ? (
               <span className="text-xs text-bone">{togetherLabel(together)}</span>
             ) : (
-              <ToggleGroup
-                multiple={limit > 1}
-                value={[...(chosen[rule.name] ?? [])]}
-                onValueChange={(value) => onChoose(rule.name, value)}
-                variant="outline"
-                size="sm"
-                spacing={1}
-                className="flex-wrap"
-                aria-label={rule.name}
-              >
-                {options.map(({ label }) => (
-                  <ToggleGroupItem key={label} value={label} aria-label={label} className={smallChip}>
-                    {short.get(label)}
-                  </ToggleGroupItem>
-                ))}
-              </ToggleGroup>
+              <>
+                <ToggleGroup
+                  multiple={limit > 1}
+                  value={[...(chosen[rule.name] ?? [])]}
+                  onValueChange={(value) => onChoose(rule.name, value)}
+                  variant="outline"
+                  size="sm"
+                  spacing={1}
+                  className="flex-wrap"
+                  aria-label={rule.name}
+                >
+                  {options.map(({ label }) => (
+                    <ToggleGroupItem key={label} value={label} aria-label={label} className={smallChip}>
+                      {short.get(label)}
+                    </ToggleGroupItem>
+                  ))}
+                </ToggleGroup>
+                <span className="text-xs text-faint">{limit > 1 ? `Up to ${limit} at once` : 'One at a time'}</span>
+              </>
             )}
           </div>
         )

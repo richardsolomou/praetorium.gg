@@ -52,6 +52,12 @@ export async function inviteFriendToBattle(userId: string, token: string, friend
   return { invite }
 }
 
+export async function joinInvitedBattle(userId: string, invite: string, side: 0 | 1) {
+  const result = await app().service.joinBattle(invite, userId, side)
+  if (result.joined) captureMutation(userId, 'battle_joined', { battle_id: result.battleId })
+  return { token: result.token }
+}
+
 export async function stopSharingBattleLink(userId: string, token: string) {
   const { battleId } = await app().service.stopSharingBattle(token, userId)
   captureMutation(userId, 'battle_link_stopped', { battle_id: battleId })

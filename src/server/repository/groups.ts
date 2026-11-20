@@ -3,8 +3,8 @@ import type { SealedEventAdmission, SealedEventVisibility } from '../../core/sea
 import { z } from 'zod'
 import { forwarding, profileOf, type RepositoryBase } from './area'
 
-/** Who a departure unsealed in which of the group's games, answered in place of the plain word when it unsealed anyone. */
-const resealed = z.object({ resealed: z.array(z.object({ eventToken: z.string(), userIds: z.array(z.string()) })) })
+/** A module released before sides were held answers a departure that unsealed an ally with who it unsealed. */
+const departed = <W extends string>(word: W) => z.object({ resealed: z.array(z.unknown()) }).transform(() => word)
 
 /** Groups, their members and their leagues. */
 export function withGroups<B extends RepositoryBase>(Base: B) {
@@ -45,7 +45,7 @@ export function withGroups<B extends RepositoryBase>(Base: B) {
     }
 
     leaveGroup(token: string, userId: string) {
-      return this.product.groupCommand({ op: 'leave', token, userId }, z.union([resealed, z.enum(['left', 'missing', 'owner'])]))
+      return this.product.groupCommand({ op: 'leave', token, userId }, z.union([departed('left'), z.enum(['left', 'missing', 'owner'])]))
     }
 
     moderateGroupMember(token: string, actorId: string, userId: string, accept: boolean) {
@@ -58,7 +58,7 @@ export function withGroups<B extends RepositoryBase>(Base: B) {
     removeGroupMember(token: string, actorId: string, userId: string) {
       return this.product.groupCommand(
         { op: 'remove', token, actorId, userId },
-        z.union([resealed, z.enum(['removed', 'missing', 'forbidden'])]),
+        z.union([departed('removed'), z.enum(['removed', 'missing', 'forbidden'])]),
       )
     }
 

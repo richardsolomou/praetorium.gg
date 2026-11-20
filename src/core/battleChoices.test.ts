@@ -199,7 +199,7 @@ describe('a unit that can be in more than one option', () => {
     'If your Army Faction is ARMY, OFFICER with this ability can issue Orders. Each time one does, select one of the Orders below.\n\n### HOLD FAST!\nAdd 1 to the Toughness characteristic of models in this unit.\n\n### OPEN FIRE!\nImprove the Ballistic Skill characteristic of ranged weapons equipped by models in this unit by 1.\n\n### CHARGE!\nAdd 3" to the Move characteristic of models in this unit.',
     { name: 'Orders' },
   )
-  const choiceWith = (text: string) => battleChoices([orders], battleChoiceAllowances([text]))[0]!
+  const choiceWith = (...texts: string[]) => battleChoices([orders], battleChoiceAllowances(texts, true))[0]!
   const effectsWith = (text: string, picked: string[]) => battleChoiceActive(choiceWith(text), picked) ?? []
 
   it('takes two Orders at once where another rule allows it', () =>
@@ -208,6 +208,23 @@ describe('a unit that can be in more than one option', () => {
     ).toBe(2))
 
   it('takes one Order where nothing allows more', () => expect(battleChoices([orders])[0]!.limit).toBe(1))
+
+  const warriorElite =
+    'Once per battle round, at the start of any phase, you can select one Order to affect this unit until the start of your next Command phase, in addition to any other Orders issued to this unit by an OFFICER model this battle round.'
+
+  it('adds an Order the unit selects itself to those its leader allows', () =>
+    expect(choiceWith('That unit can be affected by up to two different Orders at the same time.', warriorElite).limit).toBe(3))
+
+  it('ignores a leader allowance while the unit leads nothing', () =>
+    expect(
+      battleChoices(
+        [orders],
+        battleChoiceAllowances(
+          ['While this model is leading a unit, that unit can be affected by up to two different Orders at the same time.'],
+          false,
+        ),
+      )[0]!.limit,
+    ).toBe(1))
 
   it('applies both Orders picked', () =>
     expect(

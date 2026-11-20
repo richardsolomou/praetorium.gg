@@ -142,8 +142,8 @@ export function withSealedEvents<B extends RepositoryBase>(Base: B) {
       return this.product.sealedEventCommand({ op: 'check-in', ...input }, z.enum(['ok', 'closed', 'missing', 'forbidden']))
     }
 
-    dropSealedEventNoShows(input: { token: string; eventToken: string; ownerId: string; now: number }) {
-      return this.product.sealedEventCommand({ op: 'drop-no-shows', ...input }, z.enum(['ok', 'closed', 'missing', 'forbidden']))
+    dropSealedEventNoShows(input: { token: string; eventToken: string; ownerId: string; expectedUserIds?: string[]; now: number }) {
+      return this.product.sealedEventCommand({ op: 'drop-no-shows', ...input }, z.enum(['ok', 'closed', 'missing', 'forbidden', 'stale']))
     }
 
     setSealedEventTiebreak(input: { token: string; eventToken: string; ownerId: string; scheduleFirst: boolean }) {
@@ -186,7 +186,13 @@ export function withSealedEvents<B extends RepositoryBase>(Base: B) {
       )
     }
 
-    swapSealedEventSeats(input: { token: string; eventToken: string; ownerId: string; players: [string, string] }) {
+    swapSealedEventSeats(input: {
+      token: string
+      eventToken: string
+      ownerId: string
+      players: [string, string]
+      expected?: { round: number; tables: [number, number] }
+    }) {
       return this.product.sealedEventCommand(
         { op: 'swap-seats', ...input },
         z.enum(['swapped', 'stale', 'started', 'missing', 'forbidden']),
@@ -200,6 +206,7 @@ export function withSealedEvents<B extends RepositoryBase>(Base: B) {
       round: number
       table: number
       battlefield: { patternId: string; terrainLayoutId: string } | null
+      expectedPlayers?: string[]
     }) {
       return this.product.sealedEventCommand(
         { op: 'set-battlefield', ...input },
@@ -518,8 +525,9 @@ export function withSealedEvents<B extends RepositoryBase>(Base: B) {
       return this.product.sealedEventCommand(
         { op: 'set-side', token, ownerId, side, now, eventToken: eventToken ?? '' },
         z.union([
-          z.object({ resealIds: z.array(z.string()) }),
-          z.enum(['updated', 'missing', 'forbidden', 'closed', 'wrong-format', 'full', 'members-only']),
+          // A module released before sides were held answers a change that unsealed an ally with who it unsealed.
+          z.object({ resealIds: z.array(z.string()) }).transform(() => 'updated' as const),
+          z.enum(['updated', 'missing', 'forbidden', 'closed', 'wrong-format', 'full', 'members-only', 'side-locked']),
         ]),
       )
     }
@@ -616,9 +624,9 @@ export function withSealedEvents<B extends RepositoryBase>(Base: B) {
     }
 
     /** Every accepted entrant's sealed list in one read, with whether the event has revealed them. */
-    async sealedRosters(token: string, eventToken?: string) {
+    async sealedRosters(token: string, eventToken?: string, viewerId: string | null = null) {
       const record = await this.product.sealedEventByToken(token, eventToken)
-      if (!record) return null
+      if (!record || (record.privateTo && !record.privateTo.includes(viewerId ?? ''))) return null
       return {
         revealedAt: record.event.revealedAt,
         rosters: record.entries.flatMap((entry) =>

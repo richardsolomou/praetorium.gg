@@ -39,6 +39,7 @@ export type TextFacts = {
   combat?: CombatFacts | null
   cardCombat?: CombatFacts | null
   choiceAllowances?: BattleChoiceAllowance[]
+  choiceAllowancesRequireAttachment?: true
 }
 
 export type WeaponAbilityGrant = { keyword: string; recipients: string; exclusions?: string; profileTypes: string[] }

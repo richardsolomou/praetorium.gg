@@ -1,5 +1,5 @@
 import { sameSide } from './battlePrimitives'
-import { appliesInMode, cardsDue, type MissionAward } from './scoring'
+import { appliesInMode, cardsDue, cardsDueFromTheirTurn, type MissionAward } from './scoring'
 import type { PlayerId, Secondary, Command, PlayerState, BattleState } from './battle'
 import { BATTLE_ROUNDS } from './battlePhases'
 import { commandArmy } from './battleSides'
@@ -77,7 +77,7 @@ function dueSecondary(player: PlayerState, secondary: Secondary, awards: Mission
   return { ...secondary, category: 'secondary' as const, awards: awards.filter((award) => appliesInMode(award, player.secondaryMode)) }
 }
 
-export function scoringDue(state: BattleState, player: PlayerState) {
+function scoringCards(player: PlayerState) {
   const primary = player.primaryCard?.awards
     ? [{ ...player.primaryCard, category: 'primary' as const, awards: player.primaryCard.awards }]
     : []
@@ -85,6 +85,12 @@ export function scoringDue(state: BattleState, player: PlayerState) {
     if (player.secondaryStatus[secondary.key] !== 'active' || !secondary.awards) return []
     return [dueSecondary(player, secondary, secondary.awards)]
   })
+  return [...primary, ...secondaries]
+}
+
+export function scoringDue(state: BattleState, player: PlayerState) {
+  const firstSide = state.players.find(({ id }) => id === state.firstPlayerId)?.side
+  const finalRoundFallback = firstSide !== undefined && player.side !== firstSide ? player.secondariesDrawnThisTurn : []
   return cardsDue(
     {
       phase: state.phase,
@@ -93,8 +99,19 @@ export function scoringDue(state: BattleState, player: PlayerState) {
       endOfBattle: atBattleEnd(state) && player.finalPrimary === 0,
     },
     true,
-    [...primary, ...secondaries],
-    [],
+    scoringCards(player),
+    finalRoundFallback,
+    player.secondaryMode,
+  )
+}
+
+export function scoringDueFromTheirTurn(state: BattleState, player: PlayerState, round: number) {
+  return cardsDueFromTheirTurn(
+    round,
+    BATTLE_ROUNDS,
+    scoringCards(player),
+    activeTacticalSecondaries(player).map(({ key }) => key),
+    atBattleEnd(state) && player.finalPrimary === 0,
     player.secondaryMode,
   )
 }

@@ -351,6 +351,8 @@ const sealedEvents = table(
     teamSize: t.option(t.u32()).default(undefined),
     /** How a team match is won, a `SquadScoring`; read only beside `teamSize`. */
     teamScoring: t.option(t.string()).default(undefined),
+    /** The side each player of a group's team game is held to, as JSON by user id, having sat beside a sealed list there. */
+    sideLocks: t.option(t.string()).default(undefined),
   },
 )
 
@@ -463,6 +465,8 @@ const sealedEventEntries = table(
     checkedInAt: t.option(t.u64()).default(undefined),
     /** The team the entrant plays for at a team tournament. */
     squadId: t.option(t.string()).default(undefined),
+    /** When an organizer unsealed this revealed list, which lets its player seal a corrected one. */
+    unsealedAt: t.option(t.u64()).default(undefined),
   },
 )
 

@@ -11,7 +11,8 @@ export function isNativeOAuthState(value: string, state: string, provider: strin
     const allowed = new Set(['action', 'bridge', 'challenge', 'complete', 'next', 'provider', 'requestSignUp'])
     if (callback.origin !== base.origin || callback.pathname !== '/native-auth') return false
     if ([...search.keys()].some((key) => !allowed.has(key))) return false
-    if (search.get('action') !== 'sign-in' && search.get('action') !== 'link') return false
+    // A link the shell asks for never signs this browser in, so only its sign-in does.
+    if (search.get('action') !== 'sign-in') return false
     if (search.get('provider') !== provider || !SOCIAL_PROVIDERS.includes(provider as (typeof SOCIAL_PROVIDERS)[number])) return false
     if (search.get('bridge') !== '2' && search.get('bridge') !== '3') return false
     if (!/^[-\w]{43}$/.test(search.get('challenge') ?? '') || search.get('complete') !== 'true') return false

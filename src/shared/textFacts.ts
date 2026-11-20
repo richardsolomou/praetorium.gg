@@ -21,13 +21,15 @@ export function textFactsOf(words: string): TextFacts | null {
   const weaponGrants = unconditionalWeaponAbilityGrants(words)
   const reserveSelectors = strategicReserveExemptionSelectors(words)
   const references = referencedRuleNames(words)
-  const choiceAllowances = battleChoiceAllowances([words])
+  const choiceAllowances = battleChoiceAllowances([words], true)
+  const choiceAllowancesRequireAttachment = choiceAllowances.length > 0 && battleChoiceAllowances([words], false).length === 0
   const facts: TextFacts = {
     ...(weaponGrants.length ? { weaponGrants } : {}),
     ...(reserveSelectors.length ? { reserveSelectors } : {}),
     ...(grantsStrategicReserveExemption(words) ? { reserveExemption: true as const } : {}),
     ...(references.length ? { references } : {}),
     ...(choiceAllowances.length ? { choiceAllowances } : {}),
+    ...(choiceAllowancesRequireAttachment ? { choiceAllowancesRequireAttachment: true as const } : {}),
   }
   return Object.keys(facts).length ? facts : null
 }
@@ -121,9 +123,12 @@ export const combatFactsIn = (text: string, facts: TextFactsByKey | undefined) =
     },
   )
 
-export function choiceAllowancesIn(text: string, facts: TextFactsByKey | undefined) {
+export function choiceAllowancesIn(text: string, facts: TextFactsByKey | undefined, attached: boolean) {
   const { words, recorded } = statedIn(text, facts)
-  return [...recorded.flatMap((fact) => fact.choiceAllowances ?? []), ...battleChoiceAllowances([words])]
+  return [
+    ...recorded.flatMap((fact) => (attached || !fact.choiceAllowancesRequireAttachment ? (fact.choiceAllowances ?? []) : [])),
+    ...battleChoiceAllowances([words], attached),
+  ]
 }
 
 /** What a token's words suggest for a reminder, where they suggest anything. */

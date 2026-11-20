@@ -214,9 +214,9 @@ export function rosterCombatant(
   const attachmentReplacements = attachmentChoices
     ? Object.fromEntries(members.filter((index) => data.picks[index]?.attachedTo === hostIndex).map((index) => [index, optionsFor(index)]))
     : {}
-  const allowances = (companions.length ? [sheet, ...companions.map((member) => member.selected)] : []).flatMap((member) =>
+  const allowances = [sheet, ...companions.map((member) => member.selected)].flatMap((member) =>
     [...member.abilities, ...(member.enhancements ?? [])].flatMap(({ description }) =>
-      description ? choiceAllowancesIn(description, loaded.index.textFacts) : [],
+      description ? choiceAllowancesIn(description, loaded.index.textFacts, companions.length > 0) : [],
     ),
   )
   return {

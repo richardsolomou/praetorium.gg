@@ -12,7 +12,7 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parent.parent
 # Snapshots carry the source files, rules text included, so they are kept where only Praetorium reads them.
-BUCKET = "praetorium-private"
+BUCKET = "praetorium-catalogue"
 OBJECT_WORKERS = 16
 
 

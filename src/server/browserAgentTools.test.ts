@@ -1,6 +1,11 @@
 import { beforeEach, expect, it, vi } from 'vitest'
 
-const { user, ownRoster, saveOwnedRoster } = vi.hoisted(() => ({ user: vi.fn(), ownRoster: vi.fn(), saveOwnedRoster: vi.fn() }))
+const { user, ownRoster, usableRoster, saveOwnedRoster } = vi.hoisted(() => ({
+  user: vi.fn(),
+  ownRoster: vi.fn(),
+  usableRoster: vi.fn(),
+  saveOwnedRoster: vi.fn(),
+}))
 vi.mock('./saveOwnedRoster', () => ({ saveOwnedRoster }))
 vi.mock('./playerSession', () => ({ currentUser: user }))
 vi.mock('./publishedTextFiles', () => ({
@@ -21,7 +26,7 @@ vi.mock('./app', () => ({
           pairings: [{ round: 1, table: 1, aId: 'opponent-1', bId: 'player-1' }],
         }),
       },
-      rosterService: { rosterAccess: async () => ({ roster: { name: 'My army' } }) },
+      rosterService: { usableRoster, rosterAccess: async () => ({ roster: { name: 'My army' } }) },
     },
     repository: { playerDefaults: async () => ({ rosterVisibility: 'public', battleSize: 2000 }) },
     catalogueFor: async () => null,
@@ -32,16 +37,19 @@ vi.mock('./app', () => ({
 vi.mock('./referenceApi', () => ({ activeReferenceCorpus: async () => null, referenceDocumentFor: async () => null }))
 
 import { browserAgentDescriptors, executeBrowserAgentTool, prepareBrowserAgentWrite } from './browserAgentTools'
+import { additionalAccountScopes } from './additionalAccountTools'
 
 beforeEach(() => {
   user.mockResolvedValue({ id: 'player-1', impersonatedBy: null })
   ownRoster.mockResolvedValue({ id: 'roster-1', name: 'My army' })
+  usableRoster.mockResolvedValue({ roster: { id: 'roster-1', name: 'My army' }, lentBy: null })
 })
 
 it('exposes every MCP tool and both resources and prompts for a signed-in player', async () => {
   const tools = await browserAgentDescriptors()
   expect(tools.map((tool) => tool.name).sort()).toEqual(
     [
+      ...Object.keys(additionalAccountScopes),
       'list_my_rosters',
       'get_my_roster',
       'list_my_battles',
@@ -117,23 +125,28 @@ it('requires approval for each account write', async () => {
       .filter((tool) => !tool.readOnly)
       .map((tool) => tool.name)
       .sort(),
-  ).toEqual([
-    'check_in_event',
-    'copy_roster',
-    'create_battle',
-    'delete_battle',
-    'delete_roster',
-    'join_event',
-    'join_group',
-    'join_league',
-    'report_table_result',
-    'save_roster',
-    'set_roster_archived',
-    'set_roster_visibility',
-    'start_event_battle',
-    'submit_battle_action',
-    'submit_event_roster',
-  ])
+  ).toEqual(
+    [
+      ...Object.entries(additionalAccountScopes)
+        .filter(([, scope]) => scope === 'mcp:manage')
+        .map(([name]) => name),
+      'check_in_event',
+      'copy_roster',
+      'create_battle',
+      'delete_battle',
+      'delete_roster',
+      'join_event',
+      'join_group',
+      'join_league',
+      'report_table_result',
+      'save_roster',
+      'set_roster_archived',
+      'set_roster_visibility',
+      'start_event_battle',
+      'submit_battle_action',
+      'submit_event_roster',
+    ].sort(),
+  )
 })
 
 it('binds account calls to the current server session', async () => {
@@ -244,4 +257,10 @@ it.each([
   const proposal = await prepareBrowserAgentWrite('save_roster', input, 'player-1')
   await executeBrowserAgentTool('save_roster', JSON.parse(proposal.input), 'player-1')
   expect(saveOwnedRoster).toHaveBeenLastCalledWith('player-1', expect.objectContaining({ catalogueId: expected }))
+})
+
+it('names a borrowed roster when approving an event seal', async () => {
+  usableRoster.mockResolvedValueOnce({ roster: { id: 'loan', name: 'Lent army' }, lentBy: { userId: 'friend' } })
+  const result = await prepareBrowserAgentWrite('submit_event_roster', { token: 'cup', rosterId: 'loan' }, 'player-1')
+  expect(result.summary).toBe('Seal “Lent army” as your list for “Friday Swiss”.')
 })

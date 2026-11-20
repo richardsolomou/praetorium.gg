@@ -6,7 +6,7 @@ import { currentUserId, requireUserId } from '../playerSession'
 import { BATTLES_PAGE } from '../services/battleFeedService'
 import { mutationRpc, rpc } from '../rpc'
 import { captureMutation, checkInSealedEventEntrant } from '../mutationTelemetry'
-import { captureBattleCommand } from '../battleTelemetry'
+import { reopenTournamentTable, tournamentBattlefieldRules } from '../tournamentTableActions'
 import { shareSealedEventRosterSchema } from '../../contracts/sealedEventRosterSharing'
 import {
   addSealedEventEntrantsSchema,
@@ -167,7 +167,9 @@ export const openSealedEventRoster = createServerFn({ method: 'GET' })
 
 export const openRevealedSealedEventRosters = createServerFn({ method: 'GET' })
   .validator(sealedEventSchema)
-  .handler(({ data }) => rpc(() => app().service.sealedEventService.revealedSealedEventRosters(data.token, data.eventToken)))
+  .handler(({ data }) =>
+    rpc(async () => app().service.sealedEventService.revealedSealedEventRosters(data.token, data.eventToken, await currentUserId())),
+  )
 
 export const listFriendSealedEventRosters = createServerFn({ method: 'GET' }).handler(() =>
   rpc(async () => {
@@ -273,12 +275,6 @@ export const pairSealedEventRound = createServerFn({ method: 'POST' })
     }),
   )
 
-const loadedRules = async () => {
-  const rules = await app().rulesFor()
-  if (!rules) throw new Response('battlefields are unavailable right now', { status: 503 })
-  return rules
-}
-
 export const checkInEntrant = createServerFn({ method: 'POST' })
   .validator(checkInSchema)
   .handler(({ data }) =>
@@ -359,7 +355,7 @@ export const tableBattlefields = createServerFn({ method: 'GET' })
         data.round,
         data.table,
         data.missionPackId,
-        await loadedRules(),
+        await tournamentBattlefieldRules(),
       ),
     ),
   )
@@ -377,7 +373,7 @@ export const setTableBattlefield = createServerFn({ method: 'POST' })
         data.table,
         data.missionPackId,
         data.battlefield,
-        await loadedRules(),
+        await tournamentBattlefieldRules(),
       )
       captureMutation(userId, 'sealed_event_battlefield_set', {
         rolled: data.battlefield === 'roll',
@@ -406,18 +402,4 @@ export const reportTableResult = createServerFn({ method: 'POST' })
 
 export const reopenSwissTable = createServerFn({ method: 'POST' })
   .validator(reopenSwissTableSchema)
-  .handler(({ data }) =>
-    mutationRpc(async () => {
-      const userId = await requireUserId()
-      const startedAt = performance.now()
-      const { battleId, result } = await app().service.sealedEventResultsService.reopenSwissTable(
-        data.token,
-        data.eventToken,
-        data.battleToken,
-        userId,
-      )
-      await captureBattleCommand(userId, battleId, { kind: 'reopen-battle' }, { result }, performance.now() - startedAt, 'direct')
-      if (result.outcome === 'refused') throw new Response(result.reason, { status: 409 })
-      if (result.outcome === 'stale') throw new Response('the battle changed while it was being reopened, so try again', { status: 409 })
-    }),
-  )
+  .handler(({ data }) => mutationRpc(async () => reopenTournamentTable(await requireUserId(), data)))

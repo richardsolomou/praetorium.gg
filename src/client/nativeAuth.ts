@@ -46,8 +46,20 @@ export async function requestNativeAuth(request: Omit<NativeAuthRequest, 'challe
   return true
 }
 
+/**
+ * Where the provider takes a link the native shell asked for. This browser holds no Praetorium session: it only proves
+ * who signed in to the provider, and the shell, signed in itself, links that to its own account.
+ */
+export function startNativeLink(request: { bridge: 2 | 3; challenge: string; provider: SocialAuthProvider; next: string }) {
+  return fetch('/api/auth/native-auth-token/link', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ action: 'link', ...request }),
+  }).then(async (response) => (response.ok ? ((await response.json()) as { url: string }).url : null))
+}
+
 /** The one-time token the native shell exchanges for this sign-in, bound to the shell's challenge. */
-export function nativeAuthExchange(request: { action: NativeAuthAction; challenge?: string; provider: SocialAuthProvider; next: string }) {
+export function nativeAuthExchange(request: { action: 'sign-in'; challenge?: string; provider: SocialAuthProvider; next: string }) {
   return holdingReload(
     fetch('/api/auth/native-auth-token/generate', {
       method: 'POST',

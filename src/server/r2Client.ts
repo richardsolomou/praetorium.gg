@@ -19,6 +19,11 @@ export function privateR2Client(environment: NodeJS.ProcessEnv = process.env) {
   return configuredClient(environment, 'R2', 'praetorium-private')
 }
 
+/** The bucket that holds only catalogue snapshots, so a key that reads it for a test run reads nothing of the players'. */
+export function catalogueR2Client(environment: NodeJS.ProcessEnv = process.env) {
+  return configuredClient(environment, 'R2', 'praetorium-catalogue')
+}
+
 export function publicAssetsR2Client(environment: NodeJS.ProcessEnv = process.env) {
   return configuredClient(environment, 'ASSETS_R2', 'praetorium')
 }
