@@ -221,7 +221,7 @@ it('links a provider the native shell asked for only once the shell, signed in, 
       .toSorted()
   vi.stubGlobal('fetch', (input: string | URL | Request) => {
     const url = new URL(input instanceof Request ? input.url : input)
-    if (url.pathname === '/api/oauth2/token') return Response.json({ access_token: 'test-token', token_type: 'bearer' })
+    if (url.pathname === '/api/oauth2/token') return Response.json({ access_token: 'test-token', token_type: 'bearer', expires_in: 3600 })
     if (decodeURIComponent(url.pathname) === '/api/users/@me')
       return Response.json({ id: '202', username: 'Player', avatar: null, discriminator: '1', email: 'player@example.com', verified: true })
     throw new Error(`Unexpected OAuth request: ${url.pathname}`)
