@@ -3,14 +3,15 @@ import {
   isTeamFormat,
   effectiveSealedEventAllowances,
   swissRound,
+  tournamentNoShowIds,
   ownTable,
   sealedEventAllowanceOptions,
   sealedEventPairShares,
   sealedEventTableShape,
 } from '../core/sealedEvent'
-import { squadMeetingChoosing } from '../core/squad'
+import { squadMeetingChoosing, squadPairing, squadStepChoices } from '../core/squad'
 import { leagueFixtureOverdue } from '../core/groupLeague'
-import { tokenSchema } from '../contracts/schemas'
+import { createSealedEventBattleSchema, tableBattlefieldsSchema, tokenSchema } from '../contracts/schemas'
 import { gameReferencesFor } from '../shared/gameReferences'
 import { type AgentTools, READ_ONLY_TOOL, signedInPlayer, structured } from './agentTools'
 import { app } from './app'
@@ -205,7 +206,7 @@ export function registerOrganisedPlayTools(server: AgentTools, userId: string | 
     {
       title: 'Read one of my groups',
       description:
-        "Returns a group as its page shows it to the signed-in player: members (ids for create_battle's opponentIds), the leaderboard, recent finished games and your unfinished ones, its current hidden-list games, and its league with the table, your fixtures, and once every game is played its winners. An open fixture's start is the create_battle input that plays it for the league. A private group shows only its name until you are a member. Requires mcp:read.",
+        "Returns a group as its page shows it to the signed-in player: members (ids for create_battle's opponentIds), the leaderboard, recent finished games and your unfinished ones, its current hidden-list games, and its league with the table, your fixtures, and once every game is played its winners. An open fixture names the tool in startTool and its arguments in start. A private group shows only its name until you are a member. Requires mcp:read.",
       inputSchema: { token: tokenField.describe('The group token, from list_my_events or its invite link.') },
       annotations: READ_ONLY_TOOL,
     },
@@ -236,12 +237,23 @@ export function registerOrganisedPlayTools(server: AgentTools, userId: string | 
       const named = (id: string | null) => (id ? { id, name: names.get(id) ?? 'A player' } : null)
       const now = Date.now()
       const games = found.games.filter((game) => game.pastAt === null)
+      const sealedIds = league?.game?.sealedIds
       const myFixtures =
         league?.published === true
           ? league.fixtures
               .filter((fixture) => fixture.aId === me || fixture.bId === me)
               .map((fixture) => {
                 const opponent = fixture.aId === me ? fixture.bId : fixture.aId
+                const startTool = league.game ? 'start_event_battle' : 'create_battle'
+                const waitingForRoster = sealedIds
+                  ? [me, opponent].filter((id): id is string => id !== null && !sealedIds.includes(id))
+                  : []
+                const start =
+                  fixture.status === 'open' && opponent && fixture.key && !waitingForRoster.length
+                    ? league.game
+                      ? { token: league.game.token, opponentId: opponent, fixtureKey: fixture.key }
+                      : { opponentIds: [opponent], groupToken: found.token, fixture: fixture.key }
+                    : null
                 return {
                   round: fixture.round,
                   opponent: named(opponent),
@@ -253,10 +265,9 @@ export function registerOrganisedPlayTools(server: AgentTools, userId: string | 
                     url: battleUrl(fixture.battle.token),
                     status: fixture.battle.status,
                   },
-                  start:
-                    fixture.status === 'open' && opponent && fixture.key
-                      ? { opponentIds: [opponent], groupToken: found.token, fixture: fixture.key }
-                      : null,
+                  start,
+                  startTool: start ? startTool : null,
+                  waitingForRoster: waitingForRoster.map(named),
                 }
               })
           : []
@@ -266,6 +277,13 @@ export function registerOrganisedPlayTools(server: AgentTools, userId: string | 
         members: found.members
           .filter((member) => member.status === 'accepted')
           .map((member) => ({ id: member.userId, name: member.name, role: member.userId === found.ownerId ? 'owner' : member.role })),
+        ...(found.organizer
+          ? {
+              pendingMembers: found.members
+                .filter(({ status }) => status === 'pending')
+                .map(({ userId: memberId, name }) => ({ id: memberId, name })),
+            }
+          : {}),
         leaderboard: standings.table.rows.map((row, at) => ({
           place: at + 1,
           id: row.id,
@@ -295,6 +313,19 @@ export function registerOrganisedPlayTools(server: AgentTools, userId: string | 
           complete: league.complete,
           winners: league.winnerIds.map((winnerId) => named(winnerId)!),
           clockLimitMinutes: league.clockLimitMinutes,
+          hiddenListGame: league.game && {
+            token: league.game.token,
+            url: `/groups/${encodeURIComponent(found.token)}?tab=league`,
+          },
+          ...(league.seed === null
+            ? {}
+            : {
+                publish: {
+                  token: found.token,
+                  seed: league.seed,
+                  playerIds: league.players.filter(({ withdrawn }) => !withdrawn).map(({ userId: memberId }) => memberId),
+                },
+              }),
           players: league.players.map((entry) => ({ id: entry.userId, name: entry.name, withdrawn: entry.withdrawn })),
           table: league.table.map((row, at) => ({
             place: at + 1,
@@ -310,7 +341,13 @@ export function registerOrganisedPlayTools(server: AgentTools, userId: string | 
         todo: [
           ...(own?.status === 'pending' ? ['Wait for an organizer to let you in.'] : []),
           ...(!own ? ['Join with join_group.'] : []),
-          ...(league && !league.published && own?.status === 'accepted' && !inLeague ? ['Join the draft league with join_league.'] : []),
+          ...(league && !league.published && own?.status === 'accepted' && !inLeague
+            ? [
+                league.game
+                  ? `Seal a list for the league using submit_event_roster with token ${league.game.token}.`
+                  : 'Join the draft league with join_league.',
+              ]
+            : []),
           ...games.flatMap((game) =>
             game.revealedAt === null && game.players.some((entry) => entry.userId === me && !entry.sealed)
               ? [`Seal a list for hidden-list game ${game.token}: read it with get_my_event.`]
@@ -318,7 +355,7 @@ export function registerOrganisedPlayTools(server: AgentTools, userId: string | 
           ),
           ...myFixtures.flatMap((fixture) =>
             fixture.start
-              ? [`Play your round ${fixture.round} league game against ${fixture.opponent?.name} with create_battle and its start.`]
+              ? [`Play your round ${fixture.round} league game against ${fixture.opponent?.name} using its startTool and start arguments.`]
               : [],
           ),
         ],
@@ -331,11 +368,16 @@ export function registerOrganisedPlayTools(server: AgentTools, userId: string | 
     {
       title: 'Read a tournament or hidden-list game',
       description:
-        "Returns a tournament or hidden-list game as the signed-in player may see it: rules (format, size, points, what lists may break), dates, entrants with whether each sealed, your entry, Swiss rounds with your table and opponent (and at a team tournament each team meeting's revealed picks), standings once lists are revealed (and team standings, whose score is games won or victory points), your battles in it, and todo: what you still need to do. Before the reveal nobody's list is shown but your own name for it. Requires mcp:read.",
-      inputSchema: eventInput,
+        "Returns a tournament or hidden-list game as the signed-in player may see it: rules (format, size, points, what lists may break), dates, entrants with whether each sealed, your entry, Swiss rounds with your table and opponent (and at a team tournament each team meeting's revealed picks), standings once lists are revealed (and team standings, whose score is games won or victory points), your battles in it, and todo: what you still need to do. Organizers also see entrants’ check-in, noShowIds before the first solo Swiss round, and table results. Pass tableRound to inspect an earlier round’s tables. If a tracked battle has unknown status in a partial event, read it by token with get_public_battle. Before the reveal nobody's list is shown but your own name for it. Requires mcp:read.",
+      inputSchema: {
+        ...eventInput,
+        tableRound: tableBattlefieldsSchema.shape.round
+          .optional()
+          .describe('Round whose tables an organizer wants to inspect, defaulting to the current round.'),
+      },
       annotations: READ_ONLY_TOOL,
     },
-    async ({ token: hostToken, eventToken }) => {
+    async ({ token: hostToken, eventToken, tableRound }) => {
       const me = player()
       const instance = app()
       const sealedEvent = await readEvent(hostToken, eventToken, me)
@@ -343,7 +385,14 @@ export function registerOrganisedPlayTools(server: AgentTools, userId: string | 
       const [rules, factions] = await Promise.all([instance.rulesFor(), instance.battleFactionsFor()])
       const [results, mine] = revealed
         ? await Promise.all([
-            instance.service.sealedEventResultsService.sealedEventResults(sealedEvent.token, sealedEvent.eventToken, rules, factions, me),
+            instance.service.sealedEventResultsService.sealedEventResults(
+              sealedEvent.token,
+              sealedEvent.eventToken,
+              rules,
+              factions,
+              me,
+              sealedEvent.organizer,
+            ),
             instance.service.sealedEventResultsService.sealedEventBattles(
               sealedEvent.token,
               sealedEvent.eventToken,
@@ -354,7 +403,7 @@ export function registerOrganisedPlayTools(server: AgentTools, userId: string | 
             ),
           ])
         : [null, { battles: [] }]
-      const battles = new Map(mine.battles.map((battle) => [battle.token, battle]))
+      const battles = new Map([...(results?.battles ?? []), ...mine.battles].map((battle) => [battle.token, battle]))
       const names = new Map(sealedEvent.entries.map((entry) => [entry.userId, entry.name]))
       const named = (id: string | null) => (id ? { id, name: names.get(id) ?? 'A player' } : null)
       const entry = sealedEvent.entries.find((candidate) => candidate.userId === me)
@@ -366,6 +415,7 @@ export function registerOrganisedPlayTools(server: AgentTools, userId: string | 
         : []
       const round = swissRound(sealedEvent)
       const squadName = (id: string | null) => sealedEvent.squads.find((squad) => squad.id === id)?.name ?? null
+      const squadMembers = (id: string) => sealedEvent.squads.find((squad) => squad.id === id)?.memberIds ?? []
       const table = (pairing: SealedEvent['pairings'][number]) => {
         const battle = pairing.battleToken ? battles.get(pairing.battleToken) : undefined
         return {
@@ -393,6 +443,14 @@ export function registerOrganisedPlayTools(server: AgentTools, userId: string | 
         group: sealedEvent.group,
         url: eventUrl(sealedEvent),
         organizer: sealedEvent.organizer,
+        ...(sealedEvent.organizer && revealed && sealedEvent.rounds !== null && sealedEvent.teams === null && round === 0
+          ? { noShowIds: tournamentNoShowIds(sealedEvent.entries) }
+          : {}),
+        tournament: sealedEvent.tournament && {
+          visibility: sealedEvent.tournament.visibility,
+          admission: sealedEvent.tournament.admission,
+          playerLimit: sealedEvent.tournament.playerLimit,
+        },
         rules: {
           format,
           size: sealedEvent.rosterLimit,
@@ -431,6 +489,7 @@ export function registerOrganisedPlayTools(server: AgentTools, userId: string | 
           teamId: other.teamId,
           teamName: squadName(other.squadId),
           withdrawn: other.dropped,
+          ...(sealedEvent.organizer ? { checkedIn: other.checkedIn } : {}),
           // Repeated here, not trusted from upstream alone: a list's army is never shown before the reveal.
           army:
             revealed && other.army
@@ -443,6 +502,7 @@ export function registerOrganisedPlayTools(server: AgentTools, userId: string | 
                 }
               : null,
         })),
+        teams: sealedEvent.squads.map(({ id, name, memberIds }) => ({ id, name, members: memberIds.map(named) })),
         rounds:
           sealedEvent.rounds === null
             ? null
@@ -453,11 +513,41 @@ export function registerOrganisedPlayTools(server: AgentTools, userId: string | 
                 // Each team meeting this round, with the picks both teams have revealed so far.
                 meetings: sealedEvent.squadMatches
                   .filter((match) => match.round === round)
-                  .map((match) => ({
-                    table: match.table,
-                    teams: [squadName(match.aId), squadName(match.bId)],
-                    picksRevealed: match.revealed.map((picks) => picks.map((ids) => ids.map(named))),
-                  })),
+                  .map((match) => {
+                    const sides = [match.aId, match.bId] as const
+                    const viewerTeam =
+                      entry?.status === 'accepted' && !entry.dropped && sides.includes(entry.squadId) ? entry.squadId : null
+                    const state = match.bId ? squadPairing([squadMembers(match.aId), squadMembers(match.bId)], match.revealed) : null
+                    const step = state?.step
+                    return {
+                      table: match.table,
+                      teams: sides.map(squadName),
+                      picksRevealed: match.revealed.map((picks) => picks.map((ids) => ids.map(named))),
+                      next: state &&
+                        step && {
+                          index: step.index,
+                          kind: step.kind,
+                          options: ([0, 1] as const).flatMap((side) => {
+                            const id = sides[side]
+                            if (!id || (viewerTeam ? id !== viewerTeam : !sealedEvent.organizer || match.ready.includes(id))) return []
+                            const { count, from } = squadStepChoices({ ...state, step }, side)
+                            return [{ squadId: id, count, players: from.map(named) }]
+                          }),
+                        },
+                    }
+                  }),
+                ...(sealedEvent.organizer
+                  ? {
+                      tables: sealedEvent.pairings
+                        .filter((pairing) => pairing.round === (tableRound ?? round))
+                        .map((pairing) => ({
+                          round: pairing.round,
+                          table: pairing.table,
+                          players: [named(pairing.aId), named(pairing.bId)],
+                          battle: table(pairing).battle,
+                        })),
+                    }
+                  : {}),
                 yourTable: current ? table(current) : null,
                 yourEarlierTables: sealedEvent.pairings
                   .filter((pairing) => pairing.round < round && (pairing.aId === me || pairing.bId === me))
@@ -547,10 +637,10 @@ export function registerOrganisedPlayTools(server: AgentTools, userId: string | 
     {
       title: 'Seal my roster for a tournament',
       description:
-        "Seals one of the signed-in player's saved rosters for a tournament or hidden-list game, or replaces the list sealed before, with the site's checks: battle size, points, the event's house rules, a Warlord, and the roster deadline. Sealing stores a copy; later edits to the saved roster don't change it. Before the reveal only you and an assigned ally can read it. A player who plays alone fixes their Force Disposition by sealing it: when the list offers several, ask which and pass it. Check the roster with get_my_roster first, and seal only after the player confirms. Requires mcp:write.",
+        "Seals one of the signed-in player's saved or borrowed rosters for a tournament or hidden-list game, or replaces the list sealed before, with the site's checks: battle size, points, the event's house rules, a Warlord, and the roster deadline. Sealing stores a copy; later edits to the saved roster don't change it. Before the reveal only you and an assigned ally can read it. A player who plays alone fixes their Force Disposition by sealing it: when the list offers several, ask which and pass it. Check a saved roster with get_my_roster or open the borrowed roster link from list_borrowed_rosters. Seal only after the player confirms. Requires mcp:write.",
       inputSchema: {
         ...eventInput,
-        rosterId: z.string().min(1).max(128).describe('A roster id from list_my_rosters.'),
+        rosterId: z.string().min(1).max(128).describe('A roster id from list_my_rosters or list_borrowed_rosters.'),
         disposition: z
           .string()
           .min(1)
@@ -591,17 +681,18 @@ export function registerOrganisedPlayTools(server: AgentTools, userId: string | 
     {
       title: 'Start my tournament battle',
       description:
-        "Starts the battle for a revealed tournament or hidden-list game with both sealed lists attached, as Start battle on its page does, and returns its token for get_my_battle and submit_battle_action. In Swiss rounds omit opponentId to play your current table; Swiss refuses anyone else. Otherwise name the opponent from get_my_event's entrants, and for a team game the ally and second opponent too. For a league fixture use create_battle with the fixture's start instead. Requires mcp:write.",
+        "Starts the battle for a revealed tournament or hidden-list game with both sealed lists attached, as Start battle on its page does, and returns its token for get_my_battle and submit_battle_action. In Swiss rounds omit opponentId to play your current table; Swiss refuses anyone else. Otherwise name the opponent from get_my_event's entrants, and for a team game the ally and second opponent too. For a league with sealed lists, pass the fixtureKey, token and opponentId from get_my_group. Requires mcp:write.",
       inputSchema: {
         ...eventInput,
         opponentId: z.string().min(1).max(128).optional().describe('An entrant id; omit in Swiss rounds for your paired opponent.'),
         allyId: z.string().min(1).max(128).optional().describe('Your ally in a 2v1 or 2v2 game.'),
         secondOpponentId: z.string().min(1).max(128).optional().describe('The second opposing player in a 2v1 or 2v2 game.'),
         missionPackId,
+        fixtureKey: createSealedEventBattleSchema.shape.fixtureKey.describe('The sealed league fixture key from get_my_group.'),
       },
       annotations: WRITE,
     },
-    ({ token: hostToken, eventToken, opponentId, allyId, secondOpponentId, missionPackId: packId }) =>
+    ({ token: hostToken, eventToken, opponentId, allyId, secondOpponentId, missionPackId: packId, fixtureKey }) =>
       write(async (owner) => {
         let opponent = opponentId
         if (!opponent) {
@@ -617,6 +708,7 @@ export function registerOrganisedPlayTools(server: AgentTools, userId: string | 
           opponentId: opponent,
           allyId,
           secondOpponentId,
+          fixtureKey,
           missionPackId: packId ?? (await currentPackId()),
         })
         return { token: battleToken, url: battleUrl(battleToken) }
@@ -642,7 +734,6 @@ export function registerOrganisedPlayTools(server: AgentTools, userId: string | 
       write(async (owner) => {
         const sealedEvent = await readEvent(hostToken, eventToken, owner)
         const table = ownTable(sealedEvent, owner, round)
-        // Reporting another table is the organizer's, which the assistant leaves to the page.
         if (!table) throw new Response('You have no table in that round. Read get_my_event for your table.', { status: 404 })
         if (!table.bId) throw new Response('A bye has no score to report.', { status: 409 })
         const vp: [number, number] = table.aId === owner ? [yourScore, opponentScore] : [opponentScore, yourScore]
@@ -654,6 +745,7 @@ export function registerOrganisedPlayTools(server: AgentTools, userId: string | 
           vp,
           packId ?? (await currentPackId()),
           owner,
+          { expectedPlayers: [table.aId, table.bId] },
         )
         captureMutation(owner, 'sealed_event_result_reported', { round: table.round })
         return { round: table.round, table: table.table, yourScore, opponentScore }

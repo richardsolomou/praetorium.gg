@@ -1,13 +1,15 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js'
 import { requireMcpAuth } from '@better-auth/mcp'
+import { createInsufficientScopeError } from 'better-auth/oauth2'
 import { instrumentReferenceMcp } from '../adapters/mcpAnalytics'
 import { app } from './app'
 import { referenceRateLimit } from './referenceApi'
 import { PRAETORIUM_MCP_INSTRUCTIONS } from './referenceGuide'
 import { ACCOUNT_MCP_SCOPES } from './accountMcp'
 import { createAgentTools } from './createAgentTools'
-import { boundedText } from './boundedBody'
+import { boundedBody } from './boundedBody'
+import { agentInputMaxBytes, AGENT_INPUT_MAX_BYTES } from '../contracts/agentTools'
 import { publicOrigin } from './origins'
 import { absoluteAgentText } from './agentLinks'
 import {
@@ -19,22 +21,14 @@ import {
   promptMessages,
 } from './referenceAgentContext'
 import { agentSkills } from './agentSkills'
+import { MCP_ACCOUNT_SCOPES } from '../shared/mcpConsent'
 
-const MCP_REQUEST_MAX_BYTES = 64 * 1024
+const RPC_OVERHEAD_BYTES = 8 * 1024
 
 export async function handleReferenceMcp(request: Request) {
   if (request.method !== 'POST') return referenceMcpResponse(mcpError(405, -32000, 'Method not allowed.', { Allow: 'POST' }))
   const limited = referenceRateLimit(request)
   if (limited) return referenceMcpResponse(limited)
-  const body = await boundedMcpBody(request)
-  if ('error' in body) return referenceMcpResponse(body.error)
-  const parsed = body.parsed
-  const call =
-    parsed && typeof parsed === 'object' && 'method' in parsed && parsed.method === 'tools/call' && 'params' in parsed
-      ? parsed.params
-      : null
-  const name = call && typeof call === 'object' && 'name' in call && typeof call.name === 'string' ? call.name : null
-  const scope = name && Object.hasOwn(ACCOUNT_MCP_SCOPES, name) ? ACCOUNT_MCP_SCOPES[name] : undefined
   // Without a token an account tool answers with a tool error carrying the sign-in challenge, so the session keeps its
   // public tools; only a token that fails verification gets the transport 401.
   if (request.headers.has('authorization')) {
@@ -43,21 +37,26 @@ export async function handleReferenceMcp(request: Request) {
     const protectedHandler = requireMcpAuth(
       auth,
       async (verified, claims) => {
-        if (
-          typeof claims.sub !== 'string' ||
-          typeof claims.client_id !== 'string' ||
-          !(await auth.hasMcpConsent(claims.sub, claims.client_id, scope))
+        if (typeof claims.sub !== 'string' || typeof claims.client_id !== 'string') return revokedMcpResponse(resource)
+        const scopes = typeof claims.scope === 'string' ? claims.scope.split(/\s+/) : []
+        const canImport = scopes.includes('mcp:manage') && (await auth.hasMcpConsent(claims.sub, claims.client_id, 'mcp:manage'))
+        const body = await boundedMcpBody(
+          verified,
+          canImport ? agentInputMaxBytes('import_collection') + RPC_OVERHEAD_BYTES : AGENT_INPUT_MAX_BYTES,
         )
+        if ('error' in body) return body.error
+        const scope = body.tool && Object.hasOwn(ACCOUNT_MCP_SCOPES, body.tool) ? ACCOUNT_MCP_SCOPES[body.tool] : undefined
+        if (scope && !scopes.includes(scope)) throw createInsufficientScopeError([scope])
+        if (!(canImport && scope === 'mcp:manage') && !(await auth.hasMcpConsent(claims.sub, claims.client_id, scope)))
           return revokedMcpResponse(resource)
-        return serveMcp(verified, parsed, claims.sub)
+        return serveMcp(verified, body.parsed, claims.sub)
       },
       {
         resource,
         issuer: auth.issuer,
         // The keys are this server's own; through the public address a rolling deploy can route the fetch to a container that is not serving.
         jwksUrl: `http://127.0.0.1:${process.env.PORT ?? 3000}/api/auth/jwks`,
-        ...(scope ? { requiredScopes: [scope] } : {}),
-        challengeScopes: ['mcp:read', 'mcp:write'],
+        challengeScopes: [...MCP_ACCOUNT_SCOPES],
       },
     )
     try {
@@ -69,7 +68,8 @@ export async function handleReferenceMcp(request: Request) {
       )
     }
   }
-  return referenceMcpResponse(await serveMcp(request, parsed, null))
+  const body = await boundedMcpBody(request, AGENT_INPUT_MAX_BYTES)
+  return referenceMcpResponse('error' in body ? body.error : await serveMcp(request, body.parsed, null))
 }
 
 /** Where a client reads how to sign in to the MCP resource. */
@@ -95,16 +95,24 @@ async function serveMcp(request: Request, parsed: unknown, userId: string | null
   }
 }
 
-async function boundedMcpBody(request: Request): Promise<{ parsed: unknown } | { error: Response }> {
-  const text = await boundedText(request, MCP_REQUEST_MAX_BYTES)
-  if (text === null) return { error: mcpError(413, -32000, 'Request body is too large.') }
+async function boundedMcpBody(request: Request, limit: number): Promise<{ parsed: unknown; tool: string | null } | { error: Response }> {
+  const bytes = await boundedBody(request, limit)
+  const tooLarge = () => ({ error: mcpError(413, -32000, 'Request body is too large.') })
+  if (bytes === null) return tooLarge()
   let parsed: unknown
   try {
-    parsed = JSON.parse(text)
+    parsed = JSON.parse(bytes.toString('utf8'))
   } catch {
     return { error: mcpError(400, -32700, 'Parse error: Invalid JSON') }
   }
-  return Array.isArray(parsed) ? { error: mcpError(400, -32600, 'JSON-RPC batches are not supported.') } : { parsed }
+  if (Array.isArray(parsed)) return { error: mcpError(400, -32600, 'JSON-RPC batches are not supported.') }
+  const call =
+    parsed && typeof parsed === 'object' && 'method' in parsed && parsed.method === 'tools/call' && 'params' in parsed
+      ? parsed.params
+      : null
+  const tool = call && typeof call === 'object' && 'name' in call && typeof call.name === 'string' ? call.name : null
+  if (bytes.length > AGENT_INPUT_MAX_BYTES && tool !== 'import_collection') return tooLarge()
+  return { parsed, tool }
 }
 
 function referenceMcpResponse(response: Response) {
@@ -132,7 +140,7 @@ export function referenceMcpOptions() {
 }
 
 function referenceMcpServer(userId: string | null, origin: string) {
-  const server = new McpServer({ name: 'praetorium-reference', version: '1.4.0' }, { instructions: PRAETORIUM_MCP_INSTRUCTIONS })
+  const server = new McpServer({ name: 'praetorium-reference', version: '1.5.0' }, { instructions: PRAETORIUM_MCP_INSTRUCTIONS })
   const tools = createAgentTools(userId)
   tools.registerMcp(server, origin, {
     scopes: ACCOUNT_MCP_SCOPES,

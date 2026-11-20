@@ -105,25 +105,7 @@ export function WebMcp() {
         </DialogHeader>
         <DialogBody>
           <p className="text-bone">{proposal.summary}</p>
-          <details>
-            <summary className="cursor-pointer text-dim">All proposed changes</summary>
-            <dl className="grid min-w-0 gap-3">
-              {Object.entries(proposal.input).map(([key, value]) => (
-                <div key={key} className="min-w-0">
-                  <dt className="eyebrow">{key.replace(/([a-z])([A-Z])/g, '$1 $2').replaceAll('_', ' ')}</dt>
-                  <dd className="mt-1 break-words whitespace-pre-wrap text-bone">
-                    {value !== null && typeof value === 'object' ? (
-                      <pre className="max-h-48 overflow-y-auto whitespace-pre-wrap break-all text-xs">{JSON.stringify(value, null, 2)}</pre>
-                    ) : typeof value === 'string' ? (
-                      value
-                    ) : (
-                      (JSON.stringify(value) ?? 'None')
-                    )}
-                  </dd>
-                </div>
-              ))}
-            </dl>
-          </details>
+          <ProposedArguments input={proposal.input} />
           {proposal.error ? (
             <Problem>{proposal.error} Check the saved roster or battle before asking your assistant to try again.</Problem>
           ) : null}
@@ -145,5 +127,32 @@ export function WebMcp() {
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  )
+}
+
+function ProposedArguments({ input }: Pick<WriteProposal, 'input'>) {
+  const [open, setOpen] = useState(false)
+  return (
+    <details onToggle={(event) => setOpen(event.currentTarget.open)}>
+      <summary className="cursor-pointer text-dim">All proposed changes</summary>
+      {open ? (
+        <dl className="grid min-w-0 gap-3">
+          {Object.entries(input).map(([key, value]) => (
+            <div key={key} className="min-w-0">
+              <dt className="eyebrow">{key.replace(/([a-z])([A-Z])/g, '$1 $2').replaceAll('_', ' ')}</dt>
+              <dd className="mt-1 break-words whitespace-pre-wrap text-bone">
+                {value !== null && typeof value === 'object' ? (
+                  <pre className="max-h-48 overflow-y-auto whitespace-pre-wrap break-all text-xs">{JSON.stringify(value, null, 2)}</pre>
+                ) : typeof value === 'string' ? (
+                  value
+                ) : (
+                  (JSON.stringify(value) ?? 'None')
+                )}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      ) : null}
+    </details>
   )
 }

@@ -26,7 +26,7 @@ test('assistant screenshots', async ({ page, request, baseURL }) => {
     client_id: clientId,
     redirect_uri: CALLBACK,
     response_type: 'code',
-    scope: 'mcp:read mcp:write offline_access',
+    scope: 'mcp:read mcp:write mcp:manage offline_access',
     code_challenge: createHash('sha256').update(randomBytes(32).toString('base64url')).digest('base64url'),
     code_challenge_method: 'S256',
     resource: new URL('/mcp', baseURL).href,
@@ -37,6 +37,9 @@ test('assistant screenshots', async ({ page, request, baseURL }) => {
   const consent = page.getByRole('main')
   const allow = consent.getByRole('button', { name: 'Allow access' })
   await expect(consent.getByText('Claude is asking to access your Praetorium account.')).toBeVisible()
+  await expect(consent.getByText('assistant.example', { exact: true })).toBeVisible()
+  await expect(consent.getByText(/delete saved rosters/)).toBeVisible()
+  await expect(consent.getByText(/Link your BattleBase account/)).toBeVisible()
   // The page's main grows to fill the viewport; the capture only needs its content.
   await consent.evaluate((element) => ((element as HTMLElement).style.flex = 'none'))
   await capture('assistant-consent', consent, allow, { padded: true })

@@ -1,4 +1,10 @@
 export const AGENT_INPUT_MAX_BYTES = 64 * 1024
+// All 5,000 collection rows may carry 32 alternative catalogue IDs each.
+const COLLECTION_IMPORT_MAX_BYTES = 12 * 1024 * 1024
+
+export function agentInputMaxBytes(name: string) {
+  return name === 'import_collection' ? COLLECTION_IMPORT_MAX_BYTES : AGENT_INPUT_MAX_BYTES
+}
 
 export type AgentToolDescriptor = {
   name: string

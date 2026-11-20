@@ -67,6 +67,25 @@ it('offers final awards alongside the second side final turn', () => {
   ])
 })
 
+it('offers a late drawn secondary with a final-round fallback to the second side', () => {
+  const state = reduceBattle(PLAYERS, history(59))
+  const player = state.players[1]!
+  player.secondaries = [
+    {
+      key: 'hold',
+      name: 'Hold',
+      awards: [{ ...awards[0]!, trigger: { ...awards[0]!.trigger, timing: 'end-of-turn-or-final-round', playerTurn: 'opponent-turn' } }],
+    },
+  ]
+  player.secondaryStatus = { hold: 'active' }
+  player.secondariesDrawnThisTurn = ['hold']
+  expect(
+    scoringDue(state, player)
+      .filter(({ category }) => category === 'secondary')
+      .map(({ key }) => key),
+  ).toEqual(['hold'])
+})
+
 it('refuses a final award before both final turns have ended', () => {
   expect(commandRefusal(reduceBattle(PLAYERS, history(53)), ALICE, { ...finalScore, playerId: ALICE })?.code).toBe('invalid-settlement')
 })

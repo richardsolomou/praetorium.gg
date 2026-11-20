@@ -742,3 +742,12 @@ export function ownTable<T extends { round: number; aId: string; bId: string | n
 ) {
   return sealedEvent.pairings.find((pairing) => pairing.round === round && (pairing.aId === userId || pairing.bId === userId))
 }
+
+export function tournamentNoShowIds(
+  entries: readonly { userId: string; status: string; submitted: boolean; checkedIn: boolean; dropped: boolean }[],
+) {
+  return entries
+    .filter(({ status, submitted, checkedIn, dropped }) => status === 'accepted' && submitted && !checkedIn && !dropped)
+    .map(({ userId }) => userId)
+    .sort()
+}

@@ -3,6 +3,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { app } from '../app'
 import { HOME_GROUPS_SHOWN } from '../../core/group'
 import { currentUserId, requireUserId } from '../playerSession'
+import { publishGroupLeague as publishLeague, signedInAction } from '../productActions'
 import { mutationRpc, rpc } from '../rpc'
 import { captureMutation } from '../mutationTelemetry'
 import {
@@ -93,13 +94,7 @@ export const startSealedGroupLeague = createServerFn({ method: 'POST' })
 
 export const publishGroupLeague = createServerFn({ method: 'POST' })
   .validator(publishGroupLeagueSchema)
-  .handler(({ data: { token, ...draw } }) =>
-    mutationRpc(async () => {
-      const userId = await requireUserId()
-      await app().service.groupService.publishLeague(token, userId, draw)
-      captureMutation(userId, 'group_league_published', { players: draw.playerIds.length })
-    }),
-  )
+  .handler(({ data }) => signedInAction(publishLeague, data))
 
 export const setGroupLeagueDeadline = createServerFn({ method: 'POST' })
   .validator(groupLeagueDeadlineSchema)

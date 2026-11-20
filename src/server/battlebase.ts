@@ -16,11 +16,17 @@ const BATTLE_FIELDS =
 
 const player = z.object({ id: z.string(), username: z.string(), tagline: z.string().nullable() })
 
-async function query<T extends z.ZodType>(schema: T, document: string, variables: Record<string, unknown>): Promise<z.infer<T>> {
+async function query<T extends z.ZodType>(
+  schema: T,
+  document: string,
+  variables: Record<string, unknown>,
+  signal?: AbortSignal,
+): Promise<z.infer<T>> {
   const response = await fetchWithRetry(endpoint(), {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ query: document, variables }),
+    signal,
   })
   const body = response.ok ? z.object({ data: z.unknown() }).safeParse(await response.json().catch(() => null)) : null
   const data = body?.success ? schema.safeParse(body.data.data) : null
@@ -29,13 +35,14 @@ async function query<T extends z.ZodType>(schema: T, document: string, variables
 }
 
 /** A BattleBase player by the name they go by now, or by the id that stays theirs when they rename. */
-export async function battlebasePlayer(by: { username: string } | { id: string }) {
+export async function battlebasePlayer(by: { username: string } | { id: string }, signal?: AbortSignal) {
   const { user } = await query(
     z.object({ user: player.nullable() }),
     'username' in by
       ? 'query Player($username: String!) { user(username: $username) { id username tagline } }'
       : 'query Player($id: ID!) { user(id: $id) { id username tagline } }',
     by,
+    signal,
   )
   return user
 }
@@ -44,17 +51,22 @@ export async function battlebasePlayer(by: { username: string } | { id: string }
 export async function battlebaseBattles(id: string) {
   const battles: { id: string }[] = []
   for (let before: string | undefined; battles.length < MAX_BATTLES;) {
-    const { user } = await query(
-      z.object({ user: z.object({ battles: z.array(z.looseObject({ id: z.string() })) }).nullable() }),
-      `query Battles($id: ID!, $last: Int, $before: ID) { user(id: $id) { battles(last: $last, before: $before) { ${BATTLE_FIELDS} } } }`,
-      { id, last: PAGE, before },
-    )
-    const page = user?.battles ?? []
+    const page = await battlebaseBattlePage(id, PAGE, before)
     battles.push(...page)
     if (page.length < PAGE) break
     before = page.at(-1)!.id
   }
   return battles.slice(0, MAX_BATTLES)
+}
+
+export async function battlebaseBattlePage(id: string, limit: number, before?: string, signal?: AbortSignal) {
+  const { user } = await query(
+    z.object({ user: z.object({ battles: z.array(z.looseObject({ id: z.string() })) }).nullable() }),
+    `query Battles($id: ID!, $last: Int, $before: ID) { user(id: $id) { battles(last: $last, before: $before) { ${BATTLE_FIELDS} } } }`,
+    { id, last: limit, before },
+    signal,
+  )
+  return (user?.battles ?? []).slice(0, limit)
 }
 
 /** A player's public BattleBase rosters, newest first; null when no player has that name. */

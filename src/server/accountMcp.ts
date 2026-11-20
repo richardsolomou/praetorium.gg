@@ -1,16 +1,19 @@
 import { battleFilterSchema } from '../core/battleFilter'
 import { facetSchema } from '../core/listFilter'
 import { battleOutcome } from '../core/standings'
-import { type AgentTools, READ_ONLY_TOOL, refusalsAsErrors, signedInPlayer, structured } from './agentTools'
+import { type AgentTools, READ_ONLY_TOOL, signedInPlayer } from './agentTools'
 import { app } from './app'
-import { agentWrites } from './mutationTelemetry'
+import { resultOf, WRITE } from './accountToolResult'
+import { additionalAccountScopes } from './additionalAccountTools'
+import type { McpAccountScope } from '../shared/mcpConsent'
 import { rosterActions } from './rosterActions'
 import { reusableRoster, rosterSummary } from './rosterTools'
 import type { PraetoriumService } from './service'
 import { BATTLES_PAGE } from './services/battleFeedService'
 import { battlesFeedSchema, playerProfileSchema, rosterIdSchema, rosterVisibilitySchema, saveRosterSchema } from '../contracts/schemas'
 
-export const ACCOUNT_MCP_SCOPES: Record<string, 'mcp:read' | 'mcp:write'> = {
+export const ACCOUNT_MCP_SCOPES: Record<string, McpAccountScope> = {
+  ...additionalAccountScopes,
   list_my_rosters: 'mcp:read',
   get_my_roster: 'mcp:read',
   get_my_collection: 'mcp:read',
@@ -37,13 +40,6 @@ export const ACCOUNT_MCP_SCOPES: Record<string, 'mcp:read' | 'mcp:write'> = {
   list_my_opponents: 'mcp:read',
   get_my_battle_report: 'mcp:read',
   delete_battle: 'mcp:write',
-}
-
-// Rosters and battles can be public, so a write may publish to other players.
-export const WRITE = { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true } as const
-
-export function resultOf(work: () => Promise<Record<string, unknown>>) {
-  return refusalsAsErrors(async () => structured(await agentWrites.run(true, work)))
 }
 
 export const facet = (values: string) =>

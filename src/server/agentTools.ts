@@ -21,7 +21,8 @@ type ToolConfig<Shape extends z.ZodRawShape> = {
 }
 
 type RegisteredTool = {
-  descriptor: AgentToolDescriptor
+  descriptor: Omit<AgentToolDescriptor, 'inputSchema' | 'account'>
+  inputSchema: z.ZodType
   registerMcp: (server: McpServer, origin: string, auth: McpAuth) => void
   parse: (input: unknown) => Promise<Record<string, unknown>>
   execute: (input: unknown) => Promise<CallToolResult>
@@ -98,13 +99,7 @@ export async function responseToolError(response: Response) {
   const { status } = response
   if (status >= 500) return toolError(status === 503 ? 'unavailable' : 'internal', 'Praetorium could not complete this request.')
   const type: ToolErrorType =
-    status === 401 || status === 403
-      ? 'unauthorized'
-      : status === 404
-        ? 'not_found'
-        : status === 400 || status === 422
-          ? 'validation'
-          : 'refused'
+    status === 401 ? 'unauthorized' : status === 404 ? 'not_found' : status === 400 || status === 422 ? 'validation' : 'refused'
   return toolError(type, await response.text())
 }
 
@@ -149,10 +144,9 @@ export class AgentTools {
         name,
         title: config.title,
         description: config.description,
-        inputSchema: z.toJSONSchema(schema, { io: 'input', target: 'draft-07', unrepresentable: 'any' }),
         readOnly: config.annotations.readOnlyHint === true,
-        account: false,
       },
+      inputSchema: schema,
       registerMcp: (server, origin, auth) =>
         server.registerTool<z.ZodRawShape, z.ZodObject<Shape>>(
           name,
@@ -185,8 +179,9 @@ export class AgentTools {
   }
 
   descriptors(accountTools: Readonly<Record<string, unknown>>): AgentToolDescriptor[] {
-    return [...this.tools.values()].map(({ descriptor }) => ({
+    return [...this.tools.values()].map(({ descriptor, inputSchema }) => ({
       ...descriptor,
+      inputSchema: z.toJSONSchema(inputSchema, { io: 'input', target: 'draft-07', unrepresentable: 'any' }),
       account: Object.hasOwn(accountTools, descriptor.name),
     }))
   }

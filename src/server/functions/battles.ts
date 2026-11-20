@@ -7,8 +7,8 @@ import { BATTLES_PAGE } from '../services/battleFeedService'
 import { submitBattleCommand } from '../battleSubmission'
 import { mutationRpc, rpc } from '../rpc'
 import {
-  captureMutation,
   inviteFriendToBattle,
+  joinInvitedBattle,
   removePlayerFromBattle,
   shareBattleLink,
   startDraftBattle,
@@ -246,14 +246,7 @@ export const guestInviteBattle = createServerFn({ method: 'GET' })
 
 export const joinBattle = createServerFn({ method: 'POST' })
   .validator(joinBattleSchema)
-  .handler(({ data }) =>
-    mutationRpc(async () => {
-      const userId = await requireUserId()
-      const result = await app().service.joinBattle(data.invite, userId, data.side)
-      if (result.joined) captureMutation(userId, 'battle_joined', { battle_id: result.battleId })
-      return { token: result.token }
-    }),
-  )
+  .handler(({ data }) => mutationRpc(async () => joinInvitedBattle(await requireUserId(), data.invite, data.side)))
 
 export const playBothSides = createServerFn({ method: 'POST' })
   .validator(tokenSchema)

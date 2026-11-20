@@ -6908,7 +6908,17 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
     return productJson('set')
   }
   if (operation === 'swap-seats') {
-    const input = sealedEventCommandInput(z.object({ op: z.literal('swap-seats'), players: z.tuple([idInput, idInput]) }), value)
+    const tableNumber = z.number().int().min(1).max(1024)
+    const input = sealedEventCommandInput(
+      z.object({
+        op: z.literal('swap-seats'),
+        players: z.tuple([idInput, idInput]),
+        expected: z
+          .object({ round: z.number().int().min(1).max(SWISS_ROUNDS_MAX), tables: z.tuple([tableNumber, tableNumber]) })
+          .optional(),
+      }),
+      value,
+    )
     // A team tournament's tables come from its teams' pairing process, which nobody else overrides.
     if (event.teamSize !== undefined) return productJson('forbidden')
     const pairings = roundPairings(tx, event.id)
@@ -6916,6 +6926,11 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
     const current = pairings.filter((pairing) => pairing.round === latest)
     const [one, two] = input.players.map((id) => current.find((pairing) => pairing.aId === id || pairing.bId === id))
     if (!one || !two || input.players[0] === input.players[1] || one === two) return productJson('stale')
+    if (
+      input.expected &&
+      (input.expected.round !== latest || input.expected.tables[0] !== one.table || input.expected.tables[1] !== two.table)
+    )
+      return productJson('stale')
     if (one.battleId !== undefined || two.battleId !== undefined) return productJson('started')
     const swapped = (pairing: typeof one, from: string, to: string) => ({
       ...pairing,
@@ -6936,6 +6951,7 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
         round: z.number().int().min(0).max(SWISS_ROUNDS_MAX),
         table: z.number().int().min(0).max(1024),
         battlefield: z.object({ patternId: idInput, terrainLayoutId: idInput }).nullable(),
+        expectedPlayers: z.array(idInput).max(2).optional(),
       }),
       value,
     )
@@ -6946,6 +6962,14 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
         : roundPairings(tx, event.id).find((row) => row.round === input.round && row.table === input.table)
     const hasTable = event.rounds === undefined ? input.round === 0 && input.table === 0 : pairing?.bId !== undefined
     if (!hasTable) return productJson('stale')
+    if (
+      input.expectedPlayers &&
+      (!pairing?.bId ||
+        input.expectedPlayers.length !== 2 ||
+        !input.expectedPlayers.includes(pairing.aId) ||
+        !input.expectedPlayers.includes(pairing.bId))
+    )
+      return productJson('stale')
     const battleIds =
       event.rounds === undefined
         ? Array.from(tx.db.eventBattles.eventId.filter(event.id)).map(({ battleId }) => battleId)
@@ -7386,15 +7410,27 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
     } else {
       // A team plays with every player it formed with, so nobody drops out of one.
       if (event.teamSize !== undefined) return productJson('closed')
-      const input = sealedEventCommandInput(z.object({ op: z.literal('drop-no-shows'), now: sealedEventTimeInput }), value)
-      for (const entry of sealedEventEntriesFor(tx, event.id))
-        if (
+      const input = sealedEventCommandInput(
+        z.object({
+          op: z.literal('drop-no-shows'),
+          now: sealedEventTimeInput,
+          expectedUserIds: z.array(idInput).max(SEALED_EVENT_MEMBER_MAX).optional(),
+        }),
+        value,
+      )
+      const noShows = sealedEventEntriesFor(tx, event.id).filter(
+        (entry) =>
           entry.status === 'accepted' &&
           entry.rosterSnapshot !== undefined &&
           entry.droppedAt === undefined &&
-          entry.checkedInAt === undefined
-        )
-          tx.db.sealedEventEntries.key.update({ ...entry, droppedAt: BigInt(input.now) })
+          entry.checkedInAt === undefined,
+      )
+      const expected = input.expectedUserIds?.sort()
+      if (expected) {
+        const actual = noShows.map(({ userId }) => userId).sort()
+        if (actual.length !== expected.length || actual.some((id, index) => id !== expected[index])) return productJson('stale')
+      }
+      for (const entry of noShows) tx.db.sealedEventEntries.key.update({ ...entry, droppedAt: BigInt(input.now) })
     }
     touchEvent(tx, host)
     return productJson('ok')
