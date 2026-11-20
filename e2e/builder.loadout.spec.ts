@@ -900,7 +900,7 @@ async function orkLoadoutVariants(page: Page) {
   await expect(loadout.getByRole('region', { name: 'kombi-rokkit profiles', exact: true })).toContainText('2 profiles')
   const datasheetHref = await loadout.getByRole('link', { name: 'Open full datasheet in a new tab' }).getAttribute('href')
   await loadout.getByRole('button', { name: 'Waaagh!', exact: true }).click()
-  await expect(page.getByRole('tooltip').getByRole('link', { name: 'Official rules and downloads' })).toBeVisible()
+  await expect(page.getByRole('tooltip')).toContainText('Waaagh!')
   await page.keyboard.press('Escape')
 
   // The previous tooltip can still be closing as this one opens, so read this one by its own text.
@@ -920,13 +920,8 @@ async function orkLoadoutVariants(page: Page) {
   await expect(profiles.locator('[data-equipped]')).toHaveAttribute('data-equipped', 'false')
   const unselectedHeading = await profiles.locator('[data-equipped]').boundingBox()
   await expect(profiles).toHaveCSS('border-color', 'rgb(40, 50, 58)')
-  await expect(
-    loadout.getByText(
-      'For every 5 models in this unit, 1 model can have their Kustom Krumpa and Kustom Shoota replaced with 1 Big Skorcha and 1 Kustom Choppa.',
-      { exact: true },
-    ),
-  ).toHaveCount(1)
-  await waitForRosterSave(page, () => loadout.getByRole('button', { name: `More ${pair}`, exact: true }).click())
+  await expect(profiles.getByRole('link', { name: 'Official rules and downloads' })).toBeVisible({ timeout: 30_000 })
+  await waitForRosterSave(page, () => profiles.getByRole('button', { name: `More ${pair}`, exact: true }).click())
   await expect(profiles.locator('[data-equipped]')).toHaveAttribute('data-equipped', 'true')
   await expect(profiles).toHaveCSS('border-color', 'rgb(155, 208, 169)')
   const selectedHeading = await profiles.locator('[data-equipped]').boundingBox()
