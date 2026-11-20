@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { boundedBytes } from './boundedBody'
+import { boundedBytes, boundedText } from './boundedBody'
 
 const streamed = (...chunks: number[]) =>
   new Response(
@@ -15,4 +15,9 @@ describe('boundedBytes', () => {
   it('refuses a body that grows past the limit without declaring its length', async () => {
     await expect(boundedBytes(streamed(4, 4), 6, 'too large')).rejects.toThrow('too large')
   })
+})
+
+it('decodes JSON with a UTF-8 byte order mark', async () => {
+  const request = new Request('https://example.test', { method: 'POST', body: '\ufeff{}' })
+  expect(await boundedText(request, 5)).toBe('{}')
 })

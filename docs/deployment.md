@@ -5,6 +5,10 @@
 - Origin traffic must stay restricted to Cloudflare; the server trusts its visitor header for rate limits.
 - Two rules live in the Cloudflare dashboard, not the repository. The HTML Cache Rule skips `better-auth.` cookies, `/_serverFn/`, and `/api/`, and its browser TTL must respect the origin. "Cache public reference API and images" lists public paths explicitly; never replace it with a blanket `/api/` rule, because photos, screenshots, private previews, and server functions must stay uncached.
 
+## First administrator
+
+Register and verify the operator account, then confirm its player ID from that account’s profile. From an operator connection to the auth SQLite database, bind that ID to `?1` in `UPDATE user SET role = 'admin' WHERE id = ?1 AND emailVerified = 1 AND NOT EXISTS (SELECT 1 FROM user WHERE role = 'admin') RETURNING id`. Verify that it returns the intended ID and sign in again. On an installation without mail delivery or a social sign-in provider, confirm control of the intended player account out of band and use the same query with the ID and empty-admin checks alone. An existing administrator can manage subsequent role changes in the app.
+
 ## Delivery
 
 - `release.yml` releases each merge to `main`, or on dispatch, then `dokploy-web.yml` deploys it. Roll back by dispatching `dokploy-web.yml` with a `revision`; the next merge redeploys `main` unless Release is disabled.

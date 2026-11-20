@@ -10,11 +10,9 @@ import { admin, jwt, oneTimeToken, twoFactor } from 'better-auth/plugins'
 import { mcp } from '@better-auth/mcp'
 import { cimd } from '@better-auth/cimd'
 import { fetchClientMetadataResource } from '@better-auth/cimd/node'
-import { and, desc, eq, gt, notExists, sql } from 'drizzle-orm'
+import { and, desc, eq, gt, sql } from 'drizzle-orm'
 import type { LibSQLDatabase } from 'drizzle-orm/libsql'
-import pRetry from 'p-retry'
 import { z } from 'zod'
-import { errorHasCode } from './errorHasCode'
 import { authEmails, type EmailDelivery } from '../adapters/email'
 import { PASSWORD_MIN_LENGTH, SOCIAL_PROVIDERS, type SocialAuthProvider } from '../authConfig'
 import { account, deletedUser, schema, session as sessionTable, user } from '../db/authSchema'
@@ -123,26 +121,6 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
     }
   }
 
-  const claimInitialAdmin = async (userId: string) => {
-    const [promoted] = await pRetry(
-      () =>
-        database
-          .update(user)
-          .set({ role: 'admin' })
-          .where(and(eq(user.id, userId), notExists(database.select({ id: user.id }).from(user).where(eq(user.role, 'admin')))))
-          .returning(),
-      {
-        retries: 5,
-        minTimeout: 20,
-        maxTimeout: 250,
-        maxRetryTime: 1_500,
-        randomize: true,
-        shouldRetry: ({ error }) => errorHasCode(error, 'SQLITE_BUSY'),
-      },
-    )
-    if (promoted) await (await auth.$context).internalAdapter.refreshUserSessions(promoted)
-  }
-
   // An administrator viewing as the player is not the player being active.
   const recordSeen = async (row: { userId?: string; updatedAt?: Date; impersonatedBy?: unknown }) => {
     if (!row.userId || !row.updatedAt || row.impersonatedBy) return
@@ -220,7 +198,7 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
     socialProviders: configuredAuthProviderOptions(environment),
     account: {
       encryptOAuthTokens: true,
-      accountLinking: { enabled: true, trustedProviders: [...SOCIAL_PROVIDERS], allowDifferentEmails: true },
+      accountLinking: { enabled: true, allowDifferentEmails: true },
     },
     user: {
       additionalFields: PLAYER_FIELDS,
@@ -255,7 +233,7 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
           before: async (data, context) => {
             // A player's name is public, so an email sign-up never falls back to part of the address.
             if (context?.path === '/sign-up/email' && !data.name?.trim()) throw new APIError('BAD_REQUEST', { message: 'Enter your name.' })
-            const avatar = await rehostSocialAvatarOnSignUp(data)
+            const avatar = context?.path === '/sign-up/email' ? { data: { ...data, image: null } } : await rehostSocialAvatarOnSignUp(data)
             if (!options.userIdForNewAccount) return avatar
             return { data: { ...avatar?.data, id: options.userIdForNewAccount(data.email) } }
           },
@@ -274,7 +252,6 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
       account: {
         create: {
           after: async (created, context) => {
-            await claimInitialAdmin(created.userId)
             await applySocialAvatarIfMissing(created, context)
             const provider = SOCIAL_PROVIDERS.find((method) => method === created.providerId)
             // An account made in the same request as its player is how they signed up, not a method added later.

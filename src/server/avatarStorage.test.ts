@@ -66,8 +66,16 @@ describe('storeProfileImageFromUrl', () => {
     configuredObjectStore.mockReturnValue(null)
     const fetchSpy = vi.fn()
     vi.stubGlobal('fetch', fetchSpy)
-    expect(await storeProfileImageFromUrl('https://provider.example/avatar.png')).toBeNull()
+    expect(await storeProfileImageFromUrl('https://avatars.githubusercontent.com/avatar.png')).toBeNull()
     expect(fetchSpy).not.toHaveBeenCalled()
+  })
+
+  it('only contacts provider avatar origins', async () => {
+    configuredObjectStore.mockReturnValue(STORE)
+    const request = vi.fn()
+    vi.stubGlobal('fetch', request)
+    await storeProfileImageFromUrl('https://example.test/avatar.png')
+    expect(request).not.toHaveBeenCalled()
   })
 
   it('downloads and uploads under a content-addressed key', async () => {
@@ -77,7 +85,11 @@ describe('storeProfileImageFromUrl', () => {
       'fetch',
       vi.fn(async () => new Response(bytes, { status: 200, headers: { 'content-type': 'image/png' } })),
     )
-    const url = await storeProfileImageFromUrl('https://provider.example/avatar.png')
+    const url = await storeProfileImageFromUrl('https://avatars.githubusercontent.com/avatar.png')
+    expect(fetch).toHaveBeenCalledWith(
+      new URL('https://avatars.githubusercontent.com/avatar.png'),
+      expect.objectContaining({ redirect: 'error' }),
+    )
     expect(url).toMatch(/^https:\/\/s3\.praetorium\.gg\/avatars\/[0-9a-f]{64}\.png$/)
     expect(putIfAbsent).toHaveBeenCalledWith(STORE, expect.stringContaining('avatars/'), bytes, 'image/png')
   })
@@ -90,7 +102,7 @@ describe('storeProfileImageFromUrl', () => {
         throw new Error('network error')
       }),
     )
-    expect(await storeProfileImageFromUrl('https://provider.example/avatar.png')).toBeNull()
+    expect(await storeProfileImageFromUrl('https://avatars.githubusercontent.com/avatar.png')).toBeNull()
     expect(putIfAbsent).not.toHaveBeenCalled()
   })
 
@@ -100,7 +112,7 @@ describe('storeProfileImageFromUrl', () => {
       'fetch',
       vi.fn(async () => new Response(null, { status: 404 })),
     )
-    expect(await storeProfileImageFromUrl('https://provider.example/avatar.png')).toBeNull()
+    expect(await storeProfileImageFromUrl('https://avatars.githubusercontent.com/avatar.png')).toBeNull()
   })
 
   it('returns null for a content type outside the allowed raster types', async () => {
@@ -109,7 +121,7 @@ describe('storeProfileImageFromUrl', () => {
       'fetch',
       vi.fn(async () => new Response(Buffer.from('<svg/>'), { status: 200, headers: { 'content-type': 'image/svg+xml' } })),
     )
-    expect(await storeProfileImageFromUrl('https://provider.example/avatar.svg')).toBeNull()
+    expect(await storeProfileImageFromUrl('https://avatars.githubusercontent.com/avatar.svg')).toBeNull()
     expect(putIfAbsent).not.toHaveBeenCalled()
   })
 })

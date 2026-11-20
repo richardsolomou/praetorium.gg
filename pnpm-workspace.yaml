@@ -19,3 +19,6 @@ packageExtensions:
   posthog-react-native:
     dependencies:
       '@babel/runtime': ^7.20.0
+overrides:
+  'fflate@0.7.3': 0.7.5
+  '@expo/fingerprint>minimatch': 11.0.8
