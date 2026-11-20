@@ -3,7 +3,7 @@ import { expect, test } from './test'
 import { nativeAuthCompletionScript, nativeAuthConsumeScript, nativeAuthExchangeScript } from '../mobile/src/nativeAuth'
 import { signUpThroughForm, uniqueName } from './account'
 import { baseURL } from './stackEnv'
-import { withAuthSql, userIdNamed } from './storage'
+import { nativeSignInProof, withAuthSql, userIdNamed } from './storage'
 
 test('a native proof signs the WebView in and survives its final reload', async ({ browser }) => {
   const systemPage = await (await browser.newContext()).newPage()
@@ -19,19 +19,7 @@ test('a native proof signs the WebView in and survives its final reload', async 
 
   const verifier = randomBytes(32).toString('base64url')
   const challenge = hash('sha256', verifier, 'base64url')
-  const exchange = await systemPage.evaluate(
-    async (body) => {
-      const response = await fetch('/api/auth/native-auth-token/generate', {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(body),
-      })
-      if (!response.ok) throw new Error(`Native proof generation returned ${response.status}.`)
-      return (await response.json()) as { id: string; token: string }
-    },
-    { action: 'sign-in', challenge, next: '/rosters', provider: 'google' },
-  )
+  const exchange = await nativeSignInProof(playerId, { challenge, next: '/rosters', provider: 'google' })
   await systemPage.context().close()
 
   const callback = {

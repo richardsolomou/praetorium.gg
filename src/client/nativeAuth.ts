@@ -2,7 +2,6 @@ import { useClientValue } from './useClientValue'
 import type { SocialAuthProvider } from '../authConfig'
 import { nativeBridgeVersion } from './nativeBridge'
 import { toBase64Url } from '../core/base64'
-import { holdingReload } from './pendingWrites'
 
 export type NativeAuthAction = 'link' | 'sign-in'
 
@@ -47,25 +46,20 @@ export async function requestNativeAuth(request: Omit<NativeAuthRequest, 'challe
 }
 
 /**
- * Where the provider takes a link the native shell asked for. This browser holds no Praetorium session: it only proves
- * who signed in to the provider, and the shell, signed in itself, links that to its own account.
+ * Where the provider takes what the native shell asked for. This browser is never signed in to Praetorium: the
+ * provider's answer is kept for the shell, which alone holds the verifier that collects it.
  */
-export function startNativeLink(request: { bridge: 2 | 3; challenge: string; provider: SocialAuthProvider; next: string }) {
-  return fetch('/api/auth/native-auth-token/link', {
+export function startNativeAuth(request: {
+  action: NativeAuthAction
+  bridge: 2 | 3
+  challenge: string
+  provider: SocialAuthProvider
+  next: string
+  requestSignUp?: boolean
+}) {
+  return fetch('/api/auth/native-auth-token/start', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ action: 'link', ...request }),
+    body: JSON.stringify(request),
   }).then(async (response) => (response.ok ? ((await response.json()) as { url: string }).url : null))
-}
-
-/** The one-time token the native shell exchanges for this sign-in, bound to the shell's challenge. */
-export function nativeAuthExchange(request: { action: 'sign-in'; challenge?: string; provider: SocialAuthProvider; next: string }) {
-  return holdingReload(
-    fetch('/api/auth/native-auth-token/generate', {
-      method: 'POST',
-      credentials: 'same-origin',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(request),
-    }),
-  ).then(async (response) => (response.ok ? ((await response.json()) as { id: string; token: string }) : null))
 }

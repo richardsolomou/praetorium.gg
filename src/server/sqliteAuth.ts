@@ -4,7 +4,6 @@ import type { Account, GenericEndpointContext } from 'better-auth'
 import { betterAuth } from 'better-auth'
 import { drizzleAdapter } from 'better-auth/adapters/drizzle'
 import { APIError, createAuthMiddleware } from 'better-auth/api'
-import { applySetCookies } from 'better-auth/cookies'
 import { decryptOAuthToken } from 'better-auth/oauth2'
 import { admin, jwt, oneTimeToken, twoFactor } from 'better-auth/plugins'
 import { mcp } from '@better-auth/mcp'
@@ -22,7 +21,6 @@ import { APPLE_AUTH_ORIGIN, appleCredentials, revokeAppleToken } from './appleAu
 import { configuredAuthProviderOptions } from './authProviders'
 import { nativeAuthToken } from './nativeAuthToken'
 import { trustedOrigins } from './origins'
-import { isNativeOAuthState } from './nativeOAuthState'
 import { MCP_ACCOUNT_SCOPES } from '../shared/mcpConsent'
 
 type Environment = NodeJS.ProcessEnv
@@ -313,22 +311,6 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
         delete: { before: async (deleted) => options.revokeSessionAccess(deleted.id) },
       },
     },
-    hooks: {
-      before: createAuthMiddleware(async (context) => {
-        if (!context.path.startsWith('/callback/')) return
-        const provider = context.params?.id ?? context.path.split('/').pop()
-        const state = context.query?.state
-        if (typeof provider !== 'string' || typeof state !== 'string') return
-        // Better Auth keys database OAuth state as `auth-state:<state>` and does not export the helper that builds it.
-        const stored = await context.context.internalAdapter.findVerificationValue(`auth-state:${state}`)
-        if (!stored || !isNativeOAuthState(stored.value, state, provider, context.context.baseURL)) return
-        const stateCookie = context.context.createAuthCookie('state')
-        const signedCookie = await context.setSignedCookie(stateCookie.name, state, context.context.secret, stateCookie.attributes)
-        const headers = new Headers(context.request?.headers ?? context.headers)
-        applySetCookies(headers, [signedCookie])
-        return { context: { headers } }
-      }),
-    },
     rateLimit: {
       enabled: environment.AUTH_RATE_LIMIT !== 'off',
       storage: 'database',
@@ -357,7 +339,11 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
     plugins: [
       admin({ adminRoles: ['admin'], defaultRole: 'user', allowImpersonatingAdmins: false, impersonationSessionDuration: 60 * 60 }),
       oneTimeToken({ expiresIn: 3, storeToken: 'hashed' }),
-      nativeAuthToken(),
+      nativeAuthToken({
+        signedIn: async (context, userId) => {
+          if (!createdAccounts.has(context.context)) await captureAuthentication(userId, 'account_signed_in', context)
+        },
+      }),
       twoFactor({ issuer: 'Praetorium' }),
       jwt({
         jwks: { keyPairConfig: { alg: 'ES256' } },

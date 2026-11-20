@@ -53,7 +53,7 @@ it('routes a preview token request without copying a foreign Request implementat
 })
 
 it.each([
-  ['/api/auth/native-auth-token/generate', 8192],
+  ['/api/auth/native-auth-token/start', 8192],
   ['/api/auth/native-auth-token/exchange', 8192],
   ['/api/auth/sign-up/email', 1024 * 1024],
   [new URL(issuer).pathname + '/oauth2/token', 1024 * 1024],

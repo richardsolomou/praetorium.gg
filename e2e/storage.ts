@@ -1,6 +1,7 @@
 import { expect, type Page } from '@playwright/test'
 import type { LocalState } from '../src/contracts/localState'
 import type { Command } from '../src/core/battle'
+import { hash, randomBytes, randomUUID } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
@@ -66,6 +67,32 @@ export async function withAuthSql<T>(work: (database: DatabaseSync) => T, direct
   } finally {
     database.close()
   }
+}
+
+/**
+ * The answer a provider sign-in leaves for the native shell, written as the server writes it: the newest session of
+ * `userId`, kept under `challenge` for the shell's verifier to collect.
+ */
+export async function nativeSignInProof(userId: string, asked: { challenge: string; next: string; provider: string }, directory = root) {
+  const id = randomBytes(24).toString('base64url')
+  const token = randomBytes(32).toString('base64url')
+  await withAuthSql((database) => {
+    const session = database.prepare('SELECT token FROM session WHERE userId = ? ORDER BY createdAt DESC').get(userId) as
+      | { token: string }
+      | undefined
+    if (!session) throw new Error('The fixture account has no session to hand to the shell.')
+    database
+      .prepare('INSERT INTO verification (id, identifier, value, expiresAt, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(
+        randomUUID(),
+        `native-auth:${id}:${hash('sha256', token, 'base64url')}`,
+        JSON.stringify({ action: 'sign-in', ...asked, sessionToken: session.token, userId }),
+        Date.now() + 180_000,
+        Date.now(),
+        Date.now(),
+      )
+  }, directory)
+  return { id, token }
 }
 
 /** The id or token a page's address ends with. */
