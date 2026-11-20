@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.272.3 (2026-11-20)
+
+### Patch Changes
+
+- 46df05b: [reference] The Coronus Grav-Carrier now carries up to 8 Adeptus Custodes Infantry models and refuses Jump Pack models.
+
 ## 0.272.2 (2026-11-20)
 
 ### Patch Changes
