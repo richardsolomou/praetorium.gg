@@ -24,4 +24,4 @@ A battle you play alone has no opponent whose result matters, so **Battle option
 
 A game you're in that nobody has played for three days shows its date and **Resume** in amber on its card. On the home page, games untouched for two weeks or more move into one **unfinished games waiting** row that opens your battles page.
 
-Only the person who created the battle can **Delete battle**. That removes it for everyone, for good.
+Only the person who created the battle can **Delete battle**. That removes it for everyone, for good. A finished tournament game can't be deleted once the next round is paired; ask an organizer to correct it.

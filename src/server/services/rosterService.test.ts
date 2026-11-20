@@ -251,9 +251,11 @@ describe('public roster discovery', () => {
 })
 
 describe('the roster a copy came from', () => {
+  /** `user-3`'s public copy of a list `user-1` owns. */
   const source = (visibility: 'private' | 'unlisted' | 'public', lentBy: string | null = null) => {
     const stored = { ...row, id: 'source', name: 'Original army', prep: null, visibility }
-    const roster = vi.fn().mockResolvedValue(stored)
+    const copy = { ...row, id: 'copy', userId: 'user-3', prep: null, visibility: 'public', copiedFromRosterId: 'source' }
+    const roster = vi.fn(async (id: string) => (id === 'copy' ? copy : stored))
     const usableRoster = vi.fn().mockResolvedValue(lentBy ? { roster: stored, lentBy } : null)
     const namesByIds = vi.fn().mockResolvedValue(new Map([['user-1', { id: 'user-1', name: 'Original owner' }]]))
     return new RosterService({ roster, usableRoster, namesByIds } as unknown as RepositoryPort, () => 0)
@@ -267,7 +269,7 @@ describe('the roster a copy came from', () => {
   })
 
   it('names a public source and its owner for another reader', async () => {
-    expect(await source('public').copySource('source', 'user-2')).toEqual({
+    expect((await source('public').rosterAccessAndSource('copy', 'user-2'))?.copiedFrom).toEqual({
       id: 'source',
       name: 'Original army',
       ownerId: 'user-1',
@@ -276,16 +278,28 @@ describe('the roster a copy came from', () => {
   })
 
   it('names nothing once the source is private to another reader', async () => {
-    expect(await source('private').copySource('source', 'user-2')).toBeNull()
+    expect((await source('private').rosterAccessAndSource('copy', 'user-2'))?.copiedFrom).toBeNull()
   })
 
   it('names a private source to its own owner', async () => {
-    expect((await source('private').copySource('source', 'user-1'))?.name).toBe('Original army')
+    expect((await source('private').rosterAccessAndSource('copy', 'user-1'))?.copiedFrom?.name).toBe('Original army')
+  })
+
+  it('names an unlisted source to whoever copied it, and to no other reader of the copy', async () => {
+    const unlisted = source('unlisted')
+    const named = async (reader: string) => (await unlisted.rosterAccessAndSource('copy', reader))?.copiedFrom?.id ?? null
+    expect([await named('user-3'), await named('user-2')]).toEqual(['source', null])
+  })
+
+  it('keeps the id of the list a roster was copied from away from its readers', async () => {
+    expect((await source('public').rosterAccess('copy', 'user-2'))?.roster.copiedFromRosterId).toBeNull()
   })
 
   it('names nothing when the source was deleted', async () => {
-    const service = new RosterService({ roster: vi.fn().mockResolvedValue(undefined) } as unknown as RepositoryPort, () => 0)
-    expect(await service.copySource('source', 'user-2')).toBeNull()
+    const copy = { ...row, id: 'copy', prep: null, visibility: 'public', copiedFromRosterId: 'source' }
+    const roster = vi.fn(async (id: string) => (id === 'copy' ? copy : undefined))
+    const service = new RosterService({ roster } as unknown as RepositoryPort, () => 0)
+    expect((await service.rosterAccessAndSource('copy', 'user-2'))?.copiedFrom).toBeNull()
   })
 })
 

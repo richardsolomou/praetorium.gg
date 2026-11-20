@@ -92,7 +92,7 @@ export function fromMiniHeadquartersText(input: string): TextRoster | null {
       continue
     }
     // Wargear printed on the line below its unit; anything else is a note the player added.
-    if (/^\d+\s+\S|^[^\s:]+[^:]*,/.test(line) && !current.selections.length) addCountedPieces(current, line.split(',').map(withoutCost))
+    if (/^\d+\s+\S|^[^\s:][^:]*,/.test(line) && !current.selections.length) addCountedPieces(current, line.split(',').map(withoutCost))
     else unread.push(line)
   }
   attachGroups(units, groups)

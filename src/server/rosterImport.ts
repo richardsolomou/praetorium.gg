@@ -11,10 +11,12 @@ import {
   importRosterUnitFaction,
   matchesImportFaction,
   type RosterTextFormat,
+  importRosterFormat,
 } from '../shared/rosterFiles'
 import type { CatalogueTranslations } from '../shared/catalogueTranslations'
 import { app } from './app'
 import { requireCatalogue } from './requireCatalogue'
+import { withinTime } from './timeLimit'
 
 export type Factions = NonNullable<Awaited<ReturnType<ReturnType<typeof app>['factionsFor']>>>['factions']
 
@@ -81,7 +83,16 @@ async function importedFaction(
   return stated && matchesImportFaction(name, stated.name, translations) ? stated : null
 }
 
+/** How long reading one pasted text may hold the server. The slowest of five thousand published lists takes 16 ms. */
+const READ_MS = 250
+
 async function importText(file: string, factions: Factions) {
+  // The readers' patterns can be made to backtrack for hours by a text built for it, so the first read is timed.
+  try {
+    withinTime(READ_MS, () => importRosterFormat(file))
+  } catch {
+    throw new Response('this text takes too long to read as an army list', { status: 400 })
+  }
   const instance = app()
   const translations = instance.catalogueTranslations()
   const factionName = importRosterFaction(file)

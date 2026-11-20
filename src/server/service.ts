@@ -517,7 +517,7 @@ export class PraetoriumService {
   async deleteBattle(token: string, userId: string) {
     const seats = await this.mustSeat(token, userId)
     if (!(await this.repository.deleteBattle(seats.battle.id, userId)))
-      throw new Response('only the battle creator can delete it', { status: 403 })
+      throw new Response('only the battle creator can delete it, and not a result the next round was paired on', { status: 403 })
     return seats.battle.id
   }
 

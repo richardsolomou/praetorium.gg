@@ -203,74 +203,57 @@ describe('readsAlliedSealedEventRoster', () => {
   const ally = (userId: string, over: Partial<SealedEventAllyEntry> = {}): SealedEventAllyEntry => ({
     userId,
     status: 'accepted',
-    requiredLimit: 1_000,
-    teamId: null,
+    teamId: 'pair',
     ...over,
   })
 
   it('pairs a doubles entrant with the teammate the organizer gave them', () => {
     const reader = ally('alice', { teamId: 'team-a' })
-    expect(readsAlliedSealedEventRoster('2v2', 2_000, reader, ally('bob', { teamId: 'team-a' }))).toBe(true)
-    expect(readsAlliedSealedEventRoster('2v2', 2_000, reader, ally('carol', { teamId: 'team-b' }))).toBe(false)
+    expect(readsAlliedSealedEventRoster('2v2', reader, ally('bob', { teamId: 'team-a' }))).toBe(true)
+    expect(readsAlliedSealedEventRoster('2v2', reader, ally('carol', { teamId: 'team-b' }))).toBe(false)
   })
 
   it('withholds a doubles roster until the organizer has paired both readers', () => {
-    expect(readsAlliedSealedEventRoster('2v2', 2_000, ally('alice'), ally('bob'))).toBe(false)
+    expect(readsAlliedSealedEventRoster('2v2', ally('alice', { teamId: null }), ally('bob', { teamId: null }))).toBe(false)
   })
 
-  it('joins every 2v1 allied entrant, who can never be seated against each other', () => {
-    expect(readsAlliedSealedEventRoster('2v1', 2_000, ally('bob'), ally('carol'))).toBe(true)
-  })
-
-  it('keeps the 2v1 solo roster away from the pair who will face it', () => {
-    const solo = ally('alice', { requiredLimit: 2_000 })
-    expect(readsAlliedSealedEventRoster('2v1', 2_000, ally('bob'), solo)).toBe(false)
-    expect(readsAlliedSealedEventRoster('2v1', 2_000, solo, ally('bob'))).toBe(false)
-  })
-
-  it('waits for the 2v1 assignment that says which side an entrant is on', () => {
-    expect(readsAlliedSealedEventRoster('2v1', 2_000, ally('bob', { requiredLimit: null }), ally('carol'))).toBe(false)
+  it('keeps a 2v1 ally’s roster from an entrant it is not paired with, who may yet take the solo seat', () => {
+    expect([
+      readsAlliedSealedEventRoster('2v1', ally('bob', { teamId: null }), ally('carol')),
+      readsAlliedSealedEventRoster('2v1', ally('bob'), ally('carol')),
+    ]).toEqual([false, true])
   })
 
   it('gives a 1v1 entrant nothing, because anybody there could be the opponent', () => {
-    expect(readsAlliedSealedEventRoster('1v1', 2_000, ally('alice', { requiredLimit: 2_000 }), ally('bob', { requiredLimit: 2_000 }))).toBe(
-      false,
-    )
-    expect(readsAlliedSealedEventRoster(null, 2_000, ally('alice'), ally('bob'))).toBe(false)
+    expect(readsAlliedSealedEventRoster('1v1', ally('alice'), ally('bob'))).toBe(false)
+    expect(readsAlliedSealedEventRoster(null, ally('alice'), ally('bob'))).toBe(false)
   })
 
-  it('is not a way to read your own sealed list, or to read one as a visitor', () => {
-    expect(readsAlliedSealedEventRoster('2v1', 2_000, ally('bob'), ally('bob'))).toBe(false)
-    expect(readsAlliedSealedEventRoster('2v1', 2_000, null, ally('bob'))).toBe(false)
+  it('does not make an entrant their own ally', () => {
+    expect(readsAlliedSealedEventRoster('2v1', ally('bob'), ally('bob'))).toBe(false)
   })
 
   it('ignores an ally who is not in the event yet', () => {
-    expect(readsAlliedSealedEventRoster('2v1', 2_000, ally('bob', { status: 'pending' }), ally('carol'))).toBe(false)
-    expect(readsAlliedSealedEventRoster('2v1', 2_000, ally('bob'), ally('carol', { status: 'rejected' }))).toBe(false)
+    expect(readsAlliedSealedEventRoster('2v1', ally('bob', { status: 'pending' }), ally('carol'))).toBe(false)
+    expect(readsAlliedSealedEventRoster('2v1', ally('bob'), ally('carol', { status: 'rejected' }))).toBe(false)
   })
 })
 
 describe('readsSealedRoster', () => {
-  const entry = (userId: string, requiredLimit: number | null = 1_000): SealedEventAllyEntry => ({
-    userId,
-    status: 'accepted',
-    requiredLimit,
-    teamId: null,
-  })
+  const entry = (userId: string, teamId: string | null = null): SealedEventAllyEntry => ({ userId, status: 'accepted', teamId })
 
   it('lets an entrant read their own sealed list in any format', () => {
-    expect(readsSealedRoster('1v1', 2_000, entry('bob', 2_000), entry('bob', 2_000))).toBe(true)
+    expect(readsSealedRoster('1v1', entry('bob'), entry('bob'))).toBe(true)
   })
 
   it('lets a 2v1 ally read the other ally', () => {
-    expect(readsSealedRoster('2v1', 2_000, entry('bob'), entry('carol'))).toBe(true)
+    expect(readsSealedRoster('2v1', entry('bob', 'pair'), entry('carol', 'pair'))).toBe(true)
   })
 
   it('keeps a 1v1 opponent sealed', () => {
-    expect(readsSealedRoster('1v1', 2_000, entry('alice', 2_000), entry('bob', 2_000))).toBe(false)
+    expect(readsSealedRoster('1v1', entry('alice'), entry('bob'))).toBe(false)
   })
 })
-
 describe('sealedEventRegistrationFull', () => {
   it('fills an automatic event at its player limit', () => {
     expect(sealedEventRegistrationFull({ admission: 'automatic', playerLimit: 4 }, 4, 4)).toBe(true)

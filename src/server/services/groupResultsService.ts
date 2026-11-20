@@ -1,4 +1,5 @@
 import { leagueComplete, leagueDraw, leagueFixtureOverdue, leagueFixtureStatus, leagueWinners } from '../../core/groupLeague'
+import { hiddenFromViewer } from '../../core/group'
 import { groupSummary } from '../../core/groupSummary'
 import type { BattleFilter, BattleOrder } from '../../core/battleFilter'
 import { isProvisional, sideScore, standings } from '../../core/standings'
@@ -345,6 +346,3 @@ function groupBattlesOf<History extends BattleCard>(
     return state.groupId === group.id || fromGame || (state.eventToken === null && state.sealedEventToken === group.token)
   })
 }
-
-const hiddenFromViewer = (group: { visibility: string; members: readonly { userId: string; status: string }[] }, viewerId: string | null) =>
-  group.visibility === 'private' && !group.members.some((member) => member.userId === viewerId && member.status === 'accepted')

@@ -106,6 +106,11 @@ const sealedEventEntry = z.object({
 })
 const sealedEventRecord = z.object({
   ...eventHost,
+  // The only readers of a private group's game; absent from a module released before it said so.
+  privateTo: z
+    .array(z.string())
+    .nullish()
+    .transform((value) => value ?? null),
   organizerIds: z.array(z.string()),
   entries: z.array(sealedEventEntry),
   teams: z.array(z.object({ teamId: z.string(), disposition: z.string() })),

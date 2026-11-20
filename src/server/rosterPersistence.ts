@@ -67,11 +67,11 @@ export function rosterFromRow(row: NonNullable<Awaited<ReturnType<SpacetimeOpera
 }
 
 /**
- * The saved roster as somebody other than its owner reads it: without unit notes, and with no
- * variant base, which can be a list the reader may not open.
+ * The saved roster as somebody other than its owner reads it: without unit notes, and with neither its variant base
+ * nor the list it was copied from, either of which can be a list the reader may not open.
  */
 export function readerRosterFromRow(row: NonNullable<Awaited<ReturnType<SpacetimeOperator['roster']>>>) {
-  const roster = { ...rosterFromRow(row), baseRosterId: null }
+  const roster = { ...rosterFromRow(row), baseRosterId: null, copiedFromRosterId: null }
   return { ...roster, picks: withoutUnitNotes(roster.picks) }
 }
 

@@ -68,7 +68,7 @@ jobs:
       - name: Check the precompiled Expo modules link
         if: steps.canary.outputs.build == 'true' || steps.stable.outputs.build == 'true'
         run: bash scripts/checkExpoPrecompiledLinks.sh
-      - uses: ruby/setup-ruby@v1
+      - uses: ruby/setup-ruby@f9c4492e86def3e644ab32a0ef185eda5b0c20d0 # v1.342.0
         if: steps.canary.outputs.build == 'true' || steps.stable.outputs.build == 'true'
         with:
           ruby-version: '3.4'
