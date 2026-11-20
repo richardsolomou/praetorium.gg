@@ -45,11 +45,12 @@ test('a full saved army prints selected equipment, both detachments and every pa
   await expect(pack.getByRole('heading', { name: /^Cursed Legion$/i })).toBeVisible()
   await expect(pack.getByRole('heading', { name: /^Skyshroud Spearhead$/i })).toBeVisible()
   await expect(pack.getByRole('heading', { name: /Insane Bravery/ })).toHaveCount(1)
+  await expect(pack).toContainText('Rules summaries are generated from 40kdc community contributions.')
   const immortals = pack.locator('[data-print-datasheet="Immortals"]')
   await expect(immortals).toContainText('10× Gauss blaster')
   expect(exported).toContain('10x Gauss blaster')
   await page.setViewportSize(PHONE)
-  await expect(page.getByRole('button', { name: 'Print battle reference pack', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Print battle reference pack', exact: true })).toBeEnabled()
   await page.screenshot({ path: testInfo.outputPath('print-pack-phone.png') })
   await page.evaluate(() => {
     Object.defineProperty(window, 'ReactNativeWebView', {

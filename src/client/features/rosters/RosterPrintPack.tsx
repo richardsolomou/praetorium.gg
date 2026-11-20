@@ -149,7 +149,8 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
   const texts = data ? printedTexts(data) : []
   useSourceTexts(texts)
   const gap = textGap(texts)
-  usePrintWhenReady(Boolean(data) && gap !== 'loading' && gap !== 'failed')
+  const summariesReady = gap !== 'loading' && gap !== 'failed'
+  usePrintWhenReady(Boolean(data) && summariesReady)
 
   if (!data)
     return (
@@ -189,7 +190,7 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
         <Button variant="outline" onClick={onClose}>
           Return to roster
         </Button>
-        <Button disabled={gap !== null} onClick={() => window.print()}>
+        <Button disabled={!summariesReady} onClick={() => window.print()}>
           Print battle reference pack
         </Button>
       </div>
@@ -333,7 +334,10 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
           </section>
         </div>
         {/* A printed pack leaves the app and its sources page, so it names where its words and prices came from. */}
-        <p>Rules text from BSData and Game Datacards; prices from the BSData Munitorum Field Manual. Data sources: praetorium.gg/sources</p>
+        <p>
+          Rules summaries are generated from 40kdc community contributions. Prices are from the BSData Munitorum Field Manual. See{' '}
+          <a href="https://praetorium.gg/sources">praetorium.gg/sources</a>.
+        </p>
       </div>
     </div>
   )

@@ -24,7 +24,7 @@ It needs a defender, both units to have finished loading, and a legal attacker. 
 
 The search hit its time limit. The best loadout found so far is kept.
 
-### "Rules text isn't loaded." under Rules & buffs
+### A rule is missing from Rules & buffs
 
 The simulator uses the effects it can read from the catalogue's rules. A community summary can help you understand an ability, but effects the simulator can't calculate still need to be resolved separately.
 

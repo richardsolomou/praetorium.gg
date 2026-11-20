@@ -81,7 +81,9 @@ function soleToken(text: string) {
 const ruled = (facts: TextFacts | undefined) =>
   facts &&
   Object.fromEntries(
-    Object.keys(facts).flatMap((key) => (key === 'combat' || key === 'references' ? [] : [[key, facts[key as keyof TextFacts]]])),
+    Object.keys(facts).flatMap((key) =>
+      key === 'combat' || key === 'cardCombat' || key === 'references' ? [] : [[key, facts[key as keyof TextFacts]]],
+    ),
   )
 
 /**
