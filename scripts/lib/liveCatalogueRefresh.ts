@@ -10,7 +10,7 @@ import {
   assertCatalogueSourcesAllowed,
   configuredCatalogueRevocations,
 } from '../../src/server/catalogueSnapshot'
-import { privateR2Client } from '../../src/server/r2Client'
+import { catalogueR2Client } from '../../src/server/r2Client'
 import { fetchInto } from '../../src/server/sync'
 import { loadMfm } from '../../src/server/mfm'
 import { mfmVersions } from '../../src/shared/mfm'
@@ -54,7 +54,7 @@ export function prepareLiveRevision(root: string, compiler: string, { bootstrap 
     let next = bootstrap
       ? { sources: catalogueSources, composition: configured }
       : await resolveCatalogueUpstream(catalogueSources, configured, console.log)
-    const privateStore = Boolean(process.env.R2_ACCESS_KEY_ID || process.env.R2_SECRET_ACCESS_KEY) && Boolean(privateR2Client())
+    const privateStore = Boolean(process.env.R2_ACCESS_KEY_ID || process.env.R2_SECRET_ACCESS_KEY) && Boolean(catalogueR2Client())
     const directory = path.join(staging, 'catalogue')
     let prior = previous ? path.join(previous.directory, 'catalogue') : null
     if (bootstrap && !previous && archive && privateStore) {

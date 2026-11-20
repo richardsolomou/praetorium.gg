@@ -30,6 +30,6 @@ jobs:
         run: pnpm catalogue:history-seed --out /tmp/catalogue-history-seed.json
       - name: Publish and verify the seed
         run: |
-          aws s3 cp /tmp/catalogue-history-seed.json s3://praetorium-private/catalogue/changes/seed.json --endpoint-url "$SNAPSHOT_ENDPOINT" --content-type application/json --cache-control no-store --only-show-errors
-          aws s3 cp s3://praetorium-private/catalogue/changes/seed.json /tmp/published-seed.json --endpoint-url "$SNAPSHOT_ENDPOINT" --only-show-errors
+          aws s3 cp /tmp/catalogue-history-seed.json s3://praetorium-catalogue/catalogue/changes/seed.json --endpoint-url "$SNAPSHOT_ENDPOINT" --content-type application/json --cache-control no-store --only-show-errors
+          aws s3 cp s3://praetorium-catalogue/catalogue/changes/seed.json /tmp/published-seed.json --endpoint-url "$SNAPSHOT_ENDPOINT" --only-show-errors
           cmp /tmp/catalogue-history-seed.json /tmp/published-seed.json
