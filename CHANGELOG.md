@@ -1,5 +1,20 @@
 # praetorium
 
+## 0.272.4 (2026-11-20)
+
+### Patch Changes
+
+- acc04af: [events] When your ally moves to another seat or size, your sealed list is unsealed and you're asked to seal again.
+- acc04af: [assistant] Connecting an assistant now shows where allowing access sends you.
+- acc04af: [events] A finished tournament game can no longer be deleted by its players once the next round is paired.
+- acc04af: [events] An entrant who missed the roster deadline is out of the tournament once its lists are revealed and can no longer seal one.
+- acc04af: [events] In a solo vs pair tournament, only the ally you're paired with can read your sealed list before the reveal.
+- acc04af: [events] A private group's hidden-list game no longer opens from one of its battles unless you're a member.
+- acc04af: [events] Leaving or being removed from a group takes you out of its hidden-list game while lists are still sealed.
+- acc04af: [app] Resetting the password of an account whose email was never verified now verifies it and removes its linked providers, two-factor, connected assistants, calendar link and notification devices.
+- acc04af: [rosters] A copy of an unlisted roster no longer names the original to other readers.
+- acc04af: [app] A verification email link now counts only in a browser signed in to that account, and asks you to sign in anywhere else.
+
 ## 0.272.3 (2026-11-20)
 
 ### Patch Changes
