@@ -1511,6 +1511,14 @@ describe('hidden-list games', () => {
     expect([game.sit('third', 'solo'), game.sealed()]).toEqual(['side-locked', true])
   })
 
+  it('releases every held side when the game changes format', () => {
+    const game = pair()
+    game.sit('owner', null)
+    game.sit('member', null)
+    game.game({ op: 'update', ownerId: 'owner', rule: { format: '2v2', rosterLimit: 2000 } })
+    expect(game.sit('owner', 'team-2')).toBe('updated')
+  })
+
   it('lets a member change side while no ally has sealed', () => {
     const fixture = setup()
     fixture.create('owner', { format: '2v1' })

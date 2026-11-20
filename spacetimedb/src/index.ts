@@ -6726,6 +6726,8 @@ function sealedEventCommandIn(tx: Context, args: unknown[]) {
       // Sizes and pairs follow the format and points; what lists may waive leaves them standing.
       if (rule.format !== event.format || rule.rosterLimit !== event.rosterLimit) {
         for (const entry of entries) tx.db.sealedEventEntries.key.update({ ...entry, requiredLimit: undefined, teamId: undefined })
+        // The sides players were held to are gone with the format, and no list is sealed for a hold to protect.
+        tx.db.sealedEvents.id.update({ ...next, sideLocks: undefined })
         clearTeamPicks(tx, event.id)
       }
       // Teams were formed for the size they had, so a new size or none forms them again.
