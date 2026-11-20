@@ -14,7 +14,6 @@ import {
 import { RuleText } from './RuleText'
 import { SourceTextPrompt } from './SourceTextPrompt'
 import { textGap, useSourceTexts } from '../sourceText'
-import type { TextSourceChoice } from '../rulesText'
 import { groupBy } from '../../core/collections'
 
 /**
@@ -45,21 +44,21 @@ export function MissionCardReference({
   )
   const actions = card.actions ?? []
   const texts = [card.text, ...card.awards.map(conditionLabel), ...actions.map(missionActionText)]
-  const { choice } = useSourceTexts(texts)
+  useSourceTexts(texts)
   // One ask for the card, rather than one in place of every condition and action it prints.
-  const gap = textGap(texts, choice)
+  const gap = textGap(texts)
   return (
     <article className="space-y-4">
       {type ? <span className="chip">{type}</span> : null}
-      {gap ? <SourceTextPrompt missing={gap.missing} source={gap.needs} className="block" /> : null}
-      {readable(card.text, choice) ? <RuleText text={card.text!} className="mt-0 text-base text-bone" /> : null}
+      {gap ? <SourceTextPrompt missing={gap} className="block" /> : null}
+      {readable(card.text) ? <RuleText text={card.text!} className="mt-0 text-base text-bone" /> : null}
       {groups.size || actions.length ? (
         <ul className="runner gap-3 [--gate-x:1.125rem] [--gate-y:1.625rem]">
           {[...groups.values()].map((awards) => (
-            <ScoringBlock key={groupKey(awards[0]!)} awards={awards} choice={choice} />
+            <ScoringBlock key={groupKey(awards[0]!)} awards={awards} />
           ))}
           {actions.map((action) => (
-            <ActionBlock key={action.name} action={action} choice={choice} />
+            <ActionBlock key={action.name} action={action} />
           ))}
         </ul>
       ) : null}
@@ -68,9 +67,9 @@ export function MissionCardReference({
 }
 
 /** Whether a text's words are here to show; until they are, the card's one prompt stands in for them. */
-const readable = (text: string | null, choice: TextSourceChoice) => text !== null && textGap([text], choice) === null
+const readable = (text: string | null) => text !== null && textGap([text]) === null
 
-function ScoringBlock({ awards, choice }: { awards: Award[]; choice: TextSourceChoice }) {
+function ScoringBlock({ awards }: { awards: Award[] }) {
   const first = awards[0]
   if (!first) return null
   const round = roundLabel(first.trigger)
@@ -98,7 +97,7 @@ function ScoringBlock({ awards, choice }: { awards: Award[]; choice: TextSourceC
             <div key={`${award.vp}-${award.criteria ?? at}`}>
               {join ? <AwardJoin join={join} /> : null}
               <div className="flex items-baseline justify-between gap-6 py-2.5">
-                {readable(conditionLabel(award), choice) ? (
+                {readable(conditionLabel(award)) ? (
                   <RuleText text={conditionLabel(award)!} className="mt-0 min-w-0 text-base text-bone" />
                 ) : (
                   <p className="min-w-0 text-base text-bone">{payoutLabel(award, awards)}</p>
@@ -134,7 +133,7 @@ function AwardJoin({ join }: { join: 'or' | 'plus' }) {
  * prints them. A line the pack does not state is left out rather than shown empty,
  * so an action with no restriction states none.
  */
-function ActionBlock({ action, choice }: { action: MissionAction; choice: TextSourceChoice }) {
+function ActionBlock({ action }: { action: MissionAction }) {
   const text = missionActionText(action)
   return (
     <li className="part p-4">
@@ -142,7 +141,7 @@ function ActionBlock({ action, choice }: { action: MissionAction; choice: TextSo
         <span className="chip">Action</span>
         <span className="font-display text-sm leading-tight font-bold tracking-heading text-bone uppercase">{action.name}</span>
       </p>
-      {text && readable(text, choice) ? <RuleText text={text} className="mt-3 space-y-3 text-base text-bone" /> : null}
+      {text && readable(text) ? <RuleText text={text} className="mt-3 space-y-3 text-base text-bone" /> : null}
     </li>
   )
 }

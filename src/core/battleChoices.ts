@@ -85,8 +85,10 @@ export function battleChoices(rules: readonly CombatRule[], allowances: readonly
       return labels.length > 1 ? [{ ...activator, labels }] : []
     })
     const always = together.find((activator) => activator.always)
-    const allowed = allowances.filter((allowance) =>
-      new RegExp(`\\b${allowance.options}\\b`, 'i').test(normalizeCombatText(rule.description)),
+    const allowed = allowances.filter(
+      (allowance) =>
+        (rule.orders === true && allowance.options.toLowerCase() === 'orders') ||
+        new RegExp(`\\b${allowance.options}\\b`, 'i').test(normalizeCombatText(rule.description)),
     )
     const limit = Math.max(1, ...allowed.flatMap((allowance) => ('limit' in allowance ? [allowance.limit] : [])))
     const also = allowed.flatMap((allowance) =>

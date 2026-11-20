@@ -3,7 +3,7 @@ import { uniqueBy } from '../core/collections'
 import { attachedUnit, attachmentHost } from '../core/attachedUnits'
 import { hasTextTokens } from '../core/sourceText'
 import { titleCaseAbility } from './catalogueAbilityGrants'
-import { abilityGrantsIn, combatFactsIn } from './textFacts'
+import { abilityGrantsIn, choiceAllowancesIn, combatFactsIn } from './textFacts'
 import { recordedCombatText } from '../core/combatReading'
 import { type CombatRule, type CombatRuleJudge, combatRuleProjected, judgedCombatRule } from '../core/combatRules'
 import { datasheetCharacteristicKind, datasheetProfileKind } from '../core/datasheetStructure'
@@ -214,6 +214,11 @@ export function rosterCombatant(
   const attachmentReplacements = attachmentChoices
     ? Object.fromEntries(members.filter((index) => data.picks[index]?.attachedTo === hostIndex).map((index) => [index, optionsFor(index)]))
     : {}
+  const allowances = (companions.length ? [sheet, ...companions.map((member) => member.selected)] : []).flatMap((member) =>
+    [...member.abilities, ...(member.enhancements ?? [])].flatMap(({ description }) =>
+      description ? choiceAllowancesIn(description, loaded.index.textFacts) : [],
+    ),
+  )
   return {
     selected: sheet,
     models: context.unitSelections.find((unit) => unit.pickIndex === data.pickIndex)!.models,
@@ -223,6 +228,7 @@ export function rosterCombatant(
     }),
     rules: rosterCombatRules(loaded, rules, data, context, sheet),
     companions,
+    allowances,
     attachmentOptions,
     attachmentReplacements,
     attachmentErrors: [
@@ -281,7 +287,6 @@ function rosterCombatRules(
     // Every unit's keywords are known only once the roster is read; `supportKeywords` fills as it is.
     const placement: CombatRuleJudge = { ...judge, keywords: sheet.keywords, unitKeywords, supportKeywords }
     const recorded = recordedCombat(rule.description)
-    // A token without combat facts is judged where its words load (`readableRules`), against the same placement.
     if (recorded === undefined && hasTextTokens(rule.description))
       candidates.push({ ...placed, keywords: sheet.keywords, judge: placement })
     else {

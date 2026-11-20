@@ -5,7 +5,6 @@ import { createQueryClient } from './client/queryClient'
 import { writesPending } from './client/pendingWrites'
 import { staleBuildRelease } from './client/releaseUpdate'
 import { completedRouteRecovery, reloadStaleBuild, reportRouteError, routeRecoveryPending } from './client/routeErrors'
-import { openedTextPage } from './client/textPages'
 import { prefersReducedMotion } from './client/useMediaQuery'
 import { siteOrigin } from './server/requestOrigin'
 import { routeTree } from './routeTree.gen'
@@ -47,10 +46,6 @@ export function getRouter() {
         // Back and forward have already reached their entry; blocking them would make the router step the browser back.
         return reloading && (action === 'PUSH' || action === 'REPLACE')
       },
-    })
-    // A filter rewriting the address stays on the same page, so only a new path asks failed rules text again.
-    router.subscribe('onBeforeNavigate', ({ pathChanged }) => {
-      if (pathChanged) openedTextPage()
     })
     router.subscribe('onRendered', () => {
       if (!routeRecoveryPending(window.location.href)) return

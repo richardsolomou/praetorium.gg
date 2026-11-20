@@ -48,6 +48,7 @@
     "changesets:check": "tsx scripts/checkChangesets.ts"
   },
   "dependencies": {
+    "@alpaca-software/40kdc-data": "1.5.0",
     "@base-ui/react": "^1.9.0",
     "@better-auth/cimd": "1.7.21",
     "@better-auth/mcp": "1.7.21",

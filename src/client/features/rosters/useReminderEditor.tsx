@@ -11,7 +11,7 @@ import {
 } from '../../../core/reminders'
 import type { RosterPick } from '../../../core/roster'
 import { reminderAbilitiesQuery } from '../../queries'
-import { loadedWords } from '../../sourceText'
+import { withoutText } from '../../../core/sourceText'
 import { ReminderEditorDialog, type ReminderDraft } from './ReminderEditorDialog'
 import type { useAbilityReminders } from './useAbilityReminders'
 import type { useRosterPrice } from './useRosterPrice'
@@ -41,7 +41,7 @@ export function useReminderEditor({
     active: (subject: ReminderSubject) => abilityAlerts.settings.some((reminder) => reminder.key === reminderKey(subject)),
     onSelect: (subject: ReminderSubject) => {
       const key = reminderKey(subject)
-      const description = loadedWords(subject.description ?? '') ?? ''
+      const description = withoutText(subject.description ?? '')
       const suggested = subject.reminder ?? {
         timings: suggestReminderTimings(description),
         ...(suggestReminderWhileDestroyed(description) ? { whileDestroyed: true as const } : {}),

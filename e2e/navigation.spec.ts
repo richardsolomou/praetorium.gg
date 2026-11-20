@@ -370,7 +370,7 @@ test('public reference data renders without client JavaScript', async ({ browser
 
   await page.goto('/missions/chapter-approved-2026-2027/matchups/disruption/take-and-hold')
   const deathTrap = page.getByRole('heading', { name: 'Death Trap', exact: true }).locator('..')
-  // The payouts are facts the page publishes; what each asks for is rules text, which loads only in a browser that asks for it.
+  // The payout is available even when the rule has no summary.
   await expect(deathTrap).toContainText('2 VP')
   await expect(deathTrap).not.toContainText('For each terrain area trapped this turn.')
   const missionId = await deathTrap.getAttribute('id')

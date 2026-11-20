@@ -25,6 +25,7 @@ import { datasheetCharacteristicKind, weaponPhase } from './datasheetStructure'
 import { combatKeyword, combatKeywordApplies, combatKeywordKind, combatKeywordPhraseMatches } from './combatKeywords'
 
 export type CombatRule = {
+  orders?: true
   id: string
   name: string
   source: string
@@ -476,7 +477,7 @@ export function judgedCombatRule(
   // Orders reach any unit an officer chooses, so every unit fields the army rule and officers' own copies step aside.
   if (judging.orders)
     return judge.origin === 'army' && combatTargetAdmits(judging.orders.target, judge.keywords)
-      ? read({ ...rule, keywords: judge.keywords })
+      ? read({ ...rule, keywords: judge.keywords, orders: true })
       : null
   if (judge.origin === 'army') return null
   if (judge.origin === 'own') {

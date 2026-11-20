@@ -1,39 +1,23 @@
-import { TEXT_SOURCES } from '../../../core/sourceText'
-import { TextSourceRow } from '../../components/TextSourcesDialog'
-import { chooseTextSource, useTextSourceChoice } from '../../rulesText'
-import { useHydrated } from '../../useClientValue'
 import { LegalLinks, LegalPage, LegalSection } from './LegalPage'
 
 const linkClass = 'text-info hover:text-parchment'
 
-function TextSourceSwitches() {
-  const choice = useTextSourceChoice()
-  // The stored choice is unknown until hydration, so the switches wait unseen rather than flipping (styles.css).
-  const ready = useHydrated()
-  return (
-    <div className="space-y-2">
-      {TEXT_SOURCES.map((source) => (
-        <TextSourceRow
-          key={source}
-          source={source}
-          checked={choice.sources.has(source)}
-          disabled={!ready}
-          onCheckedChange={(on) => chooseTextSource(source, on)}
-        />
-      ))}
-    </div>
-  )
-}
-
 export function Sources() {
   return (
-    <LegalPage title="Data sources" updated="4 November 2026">
-      <LegalSection title="Rules text">
+    <LegalPage title="Data sources" updated="20 November 2026">
+      <LegalSection title="Rules summaries">
         <p>
-          Rules text is copyrighted material, so Praetorium doesn’t host or serve it. If you choose a source, your browser fetches the text
-          directly from that community project, and it stays on your device.
+          Rules summaries are generated from mechanics contributed by Alpaca Software and the 40kdc community and published under{' '}
+          <a href="https://creativecommons.org/licenses/by/4.0/" className={linkClass}>
+            CC BY 4.0
+          </a>
+          . Praetorium matches them to its rules versions. The official publications carry the full wording.
         </p>
-        <TextSourceSwitches />
+        <p>
+          <a href="https://40kdc.alpacasoft.dev" className={linkClass}>
+            Powered by 40kdc-data
+          </a>
+        </p>
       </LegalSection>
 
       <LegalSection title="Community data">
@@ -41,7 +25,7 @@ export function Sources() {
         <LegalLinks>
           <li>
             Faction entries, constraints, modifiers, and costs from{' '}
-            <a href="https://github.com/richardsolomou/wh40k-11e" className={linkClass}>
+            <a href="https://www.bsdata.net/" className={linkClass}>
               BSData
             </a>
             .

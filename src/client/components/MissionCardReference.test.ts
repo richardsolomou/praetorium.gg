@@ -1,16 +1,10 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import type { MissionAward } from '../missionText'
 import { MissionCardReference } from './MissionCardReference'
 import { textToken } from '../../core/sourceText'
-
-// These render a reader who has chosen to load rules text; `RuleText.test.ts` covers one who has not.
-vi.mock('../rulesText', async (original) => {
-  const actual = await original<typeof import('../rulesText')>()
-  return { ...actual, useTextSourceChoice: vi.fn(() => actual.textSourceChoiceFrom('bsdata,game-datacards')) }
-})
 
 const trigger = {
   timing: 'end-of-turn',
@@ -127,9 +121,7 @@ describe('mission card reference', () => {
     expect(withAction()).not.toContain('Restriction:')
   })
 
-  it('asks for unloaded rules text once and names each payout from its numbers', async () => {
-    const { useTextSourceChoice, textSourceChoiceFrom } = await import('../rulesText')
-    vi.mocked(useTextSourceChoice).mockReturnValue(textSourceChoiceFrom(''))
+  it('shows one loading status for summaries and names each payout from its numbers', () => {
     const words = (hash: string) => textToken({ file: '0123abcd', transform: 'prose', hash })
     const markup = render(
       createElement(MissionCardReference, {
@@ -140,11 +132,10 @@ describe('mission card reference', () => {
         },
       }),
     )
-    vi.mocked(useTextSourceChoice).mockReset()
-    expect([markup.match(/isn’t loaded/g)?.length, markup.includes('The lower payout.'), markup.includes('The higher payout.')]).toEqual([
-      1,
-      true,
-      true,
-    ])
+    expect([
+      markup.match(/Loading rule summary/g)?.length,
+      markup.includes('The lower payout.'),
+      markup.includes('The higher payout.'),
+    ]).toEqual([1, true, true])
   })
 })

@@ -11,10 +11,8 @@ import { pickedOptionalRules, pointsBudgetOf, waivedFormatRules } from '../../..
 import { factionQuery, detachmentDetailQuery, detachmentRulesQuery, loadoutDatasheetsQuery, priceQuery } from '../../queries'
 import type { priceRoster } from '../../functions'
 import { RuleText } from '../../components/RuleText'
-import { openTextSourcesDialog } from '../../components/textSourcesDialogState'
-import { loadedText, retryFailedTextFiles, useSourceTexts } from '../../sourceText'
-import { hasTextTokens } from '../../../core/sourceText'
-import type { TextSourceChoice } from '../../rulesText'
+import { textGap, useSourceTexts } from '../../sourceText'
+import { SourceTextPrompt } from '../../components/SourceTextPrompt'
 import { ruleProfileSections, weaponShapedProfile } from '../../datasheet'
 import { PRINTED_RULE, RosterPrintDatasheet } from './RosterPrintDatasheet'
 import { normalisePicks } from './rosterPicks'
@@ -147,11 +145,11 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
     ...referencedRulesOf(pack).map((rule) => rule.description),
   ]
 
-  // A pack goes to paper only with every rule's words in it, so it waits for the rules text this device loads.
+  // Wait for the available summaries before opening the print dialog.
   const texts = data ? printedTexts(data) : []
-  const { choice } = useSourceTexts(texts)
-  const gap = data ? textGap(texts, choice) : null
-  usePrintWhenReady(Boolean(data) && gap === null)
+  useSourceTexts(texts)
+  const gap = textGap(texts)
+  usePrintWhenReady(Boolean(data) && gap !== 'loading' && gap !== 'failed')
 
   if (!data)
     return (
@@ -195,7 +193,11 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
           Print battle reference pack
         </Button>
       </div>
-      {gap ? <TextGapNotice gap={gap} /> : null}
+      {gap ? (
+        <div data-print-hide>
+          <SourceTextPrompt missing={gap} />
+        </div>
+      ) : null}
       <div data-battle-reference-pack>
         <header className="pack-masthead">
           <p className="pack-kicker">Battle reference pack</p>
@@ -333,47 +335,6 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
         {/* A printed pack leaves the app and its sources page, so it names where its words and prices came from. */}
         <p>Rules text from BSData and Game Datacards; prices from the BSData Munitorum Field Manual. Data sources: praetorium.gg/sources</p>
       </div>
-    </div>
-  )
-}
-
-type TextGap = 'unchosen' | 'loading' | 'failed'
-
-/** What still keeps rules text off the page, the most actionable first, or null once every text has loaded. */
-function textGap(texts: readonly string[], choice: TextSourceChoice): TextGap | null {
-  const gaps = new Set(
-    texts.map((text) => {
-      // Text without tokens is BSData's own words, which show only where the reader chose BSData.
-      if (!hasTextTokens(text)) return choice.sources.has('bsdata') ? null : 'unchosen'
-      const missing = loadedText(text, choice).missing
-      return missing === 'unavailable' ? null : missing
-    }),
-  )
-  return (['unchosen', 'failed', 'loading'] as const).find((gap) => gaps.has(gap)) ?? null
-}
-
-function TextGapNotice({ gap }: { gap: TextGap }) {
-  return (
-    <div className="mx-3 mb-3 flex flex-wrap items-center gap-3 rounded-lg border border-edge bg-sunken p-3 text-sm" data-print-hide>
-      {gap === 'unchosen' ? (
-        <>
-          <p className="min-w-0 flex-1">Printing needs the rules text, which loads on this device from the community sources you choose.</p>
-          <Button size="sm" onClick={() => openTextSourcesDialog()}>
-            Turn on external sources
-          </Button>
-        </>
-      ) : gap === 'failed' ? (
-        <>
-          <p role="alert" className="min-w-0 flex-1">
-            Some rules text could not be loaded, so the pack is not ready to print.
-          </p>
-          <Button size="sm" variant="outline" onClick={() => void retryFailedTextFiles()}>
-            Retry
-          </Button>
-        </>
-      ) : (
-        <output>Loading rules text…</output>
-      )}
     </div>
   )
 }

@@ -26,7 +26,7 @@ The search hit its time limit. The best loadout found so far is kept.
 
 ### "Rules text isn't loaded." under Rules & buffs
 
-The simulator works rules out from their wording, which your browser loads from community sources you choose. Until you choose some, abilities, detachment rules and stratagems are left out. Press **Turn on external sources** and turn on the ones you want.
+The simulator uses the effects it can read from the catalogue's rules. A community summary can help you understand an ability, but effects the simulator can't calculate still need to be resolved separately.
 
 ### A buff does nothing
 

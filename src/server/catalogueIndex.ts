@@ -85,10 +85,11 @@ export function* loadCatalogueSteps(directory = catalogueDirectory(), edition?: 
 
 /** Cards with the catalogue's words they quote swapped for the catalogue's tokens. */
 function publishedDatacards(cards: LoadedDatacards, token: (raw: string) => string | null): LoadedDatacards {
-  const published = withDefinitionTokens(cards, token)
+  const { textFacts, ...content } = cards
+  const published = withDefinitionTokens(content, token)
   const texts = (descriptions: ReadonlyMap<string, string>) =>
     new Map([...descriptions].map(([key, text]) => [key, withDefinitionTokensIn(text, token)]))
-  return { ...published, armyRules: texts(cards.armyRules), enhancements: texts(cards.enhancements) }
+  return { ...published, textFacts, armyRules: texts(cards.armyRules), enhancements: texts(cards.enhancements) }
 }
 
 /** Cards without their abilities and readings, which only found the catalogue texts' twins and which a device never reads. */

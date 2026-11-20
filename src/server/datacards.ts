@@ -25,7 +25,7 @@ import {
 } from '../shared/datacards'
 import { completeSteps, type Steps } from '../shared/steps'
 import { type SourceTexts, comparableText, textKey, textTokensIn } from '../core/sourceText'
-import { textFactsOf } from '../shared/textFacts'
+import { textFactsOf, withCombatFacts } from '../shared/textFacts'
 import type { TextFacts } from '../core/textFacts'
 import { publishedTexts } from './sourceTexts'
 const NO_SECTIONS: SectionProse = () => new Map()
@@ -58,7 +58,8 @@ function recording(texts: SourceTexts, facts: Map<string, TextFacts>, readings: 
       const words = transformed(raw, transform)
       readings.set(key, hash('sha256', words))
       const found = textFactsOf(words)
-      if (found) facts.set(key, found)
+      if (transform === 'prose') facts.set(key, withCombatFacts(found ?? {}, words, 'cardCombat'))
+      else if (found) facts.set(key, found)
     }
     return published
   }
@@ -73,6 +74,14 @@ export function* loadDatacardsSteps(
   const textFacts = new Map<string, TextFacts>()
   const textReadings = new Map<string, string>()
   const textsOf = (file: string) => recording(textsFor(file), textFacts, textReadings)
+  const stratagemDescription = (card: Record<string, unknown>, texts: SourceTexts) => {
+    const description = stratagemText(card, texts)
+    if (description && textTokensIn(description).length) {
+      const words = stratagemText(card, transformed)
+      if (words) textFacts.set(comparableText(description), withCombatFacts({}, words, 'cardCombat', true))
+    }
+    return description
+  }
   const factions = new Map<string, FactionContent>()
   const detachmentRules = new Map<string, Map<string, Map<string, string>>>()
   const enhancements = new Map<string, Map<string, string>>()
@@ -111,7 +120,7 @@ export function* loadDatacardsSteps(
   const core = path.join(directory, 'core.json')
   if (fs.existsSync(core)) {
     const parsed = readSharedJson(core, strings) as { stratagems?: unknown }
-    for (const card of records(parsed, 'stratagems')) stratagemText(card, textsOf(core))
+    for (const card of records(parsed, 'stratagems')) stratagemDescription(card, textsOf(core))
   }
   const datasheetNames = [
     ...new Set(files.flatMap((parsed) => records(parsed, 'datasheets').flatMap((entry) => localizedField(entry, 'name') ?? []))),
@@ -184,7 +193,7 @@ export function* loadDatacardsSteps(
     for (const stratagem of records(parsed, 'stratagems')) {
       const name = localizedField(stratagem, 'name')
       const detachment = stringField(stratagem, 'detachment')
-      const description = stratagemText(stratagem, parsed.texts)
+      const description = stratagemDescription(stratagem, parsed.texts)
       if (name && detachment && description) {
         const card = { name: name === name.toLowerCase() ? titleCase(name) : name, description }
         remember(stratagems, descriptionKey(detachment, name), description)

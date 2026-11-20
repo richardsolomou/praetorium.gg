@@ -45,6 +45,11 @@ export type Datasheet = {
   loadout: string | null
   wargearOptions: string[]
   wargearGroups?: { instruction: string; options: string[] }[]
+  configuration?: {
+    models: { name: string; count: number }[]
+    equipment: { name: string; count: number }[]
+    choices: { name: string; owner?: string; options: string[] }[]
+  }
   baseSize: string | null
   transport: string | null
   /** How many models `composition` prints, for pages that cannot read its lines. */

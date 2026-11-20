@@ -1,5 +1,5 @@
 import { Check } from 'lucide-react'
-import { loadedWords, useSourceTexts } from '../../sourceText'
+import { displayedWords, useSourceTexts } from '../../sourceText'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { DialogBody, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
@@ -54,7 +54,7 @@ export function DrawDialog({
   // The condition is the card's own words, so it reads as those once they load and is named generically until then.
   const whenDrawnFor = (key: string) => {
     const rule = publishedWhenDrawn(key)
-    return rule?.condition ? { ...rule, condition: loadedWords(rule.condition) ?? 'the card’s condition holds' } : rule
+    return rule?.condition ? { ...rule, condition: displayedWords(rule.condition) ?? 'the card’s condition holds' } : rule
   }
   /**
    * What this turn dealt, apart from what the hand was already carrying.

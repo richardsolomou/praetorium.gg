@@ -36,9 +36,6 @@ export const publishedTextLocations = () =>
     return { files, holds, recordsHolding, scanFilesNamedIn } satisfies ScannableTextLocations
   })
 
-/** Just those upstream files for the active snapshot; Praetorium serves where the words are, never the words. */
-export const publishedTextFiles = async () => (await publishedTextLocations()).files
-
 /**
  * The words behind a text's tokens, read from the active snapshot so the server can calculate from them,
  * or null when a token names no string it holds. What is calculated may leave the server; the words never do.

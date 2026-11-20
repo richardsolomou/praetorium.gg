@@ -1,5 +1,5 @@
 import path from 'node:path'
-import { textSourceFiles } from '../../src/server/sourceTexts'
+import { ruleSummaryReader, summaryFiles } from '../../src/server/ruleSummaries'
 import { publishedSearchIndex } from '../../src/server/globalSearch'
 import { downloadedDefinitionFacts } from '../../src/server/definitionTexts'
 import { hash } from 'node:crypto'
@@ -159,7 +159,8 @@ export async function writeReferenceBundle(outDir: string, directory: string, ru
         )
     }
   }
-  put(['text-sources'], textSourceFiles(directory, readCatalogueComposition(directory)))
+  const summaries = ruleSummaryReader(directory)
+  for (const id of summaryFiles(directory).keys()) put(['rule-summaries', id], await summaries(id))
   // Pasted army text in another language is read on the device too, so the names it may state travel with the download;
   // translated descriptions stay behind, as do entries BSData names with a notice of several sentences.
   const stateable = new Set([

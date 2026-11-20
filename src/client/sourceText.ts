@@ -1,227 +1,103 @@
-import { useQuery } from '@tanstack/react-query'
 import { useEffect, useSyncExternalStore } from 'react'
-import { transformed } from '../shared/datacards'
-import {
-  type TextSource,
-  type TextSourceFile,
-  type TextToken,
-  hasTextTokens,
-  resolvedText,
-  textTokensIn,
-  withoutText,
-} from '../core/sourceText'
-import { textSources } from './functions'
-import { referenceQuery } from './queries/shared'
-import { type TextSourceChoice, reportTextLoadFailure, textSourceChoice, upstreamBytes, useTextSourceChoice } from './rulesText'
-import { HASHING_FAILED, hashedSourceStrings } from './sourceStrings'
-import { workerAnswer } from './workerAnswer'
-import { textPage } from './textPages'
+import { comparableText, hasTextTokens, resolvedText, textTokensIn, withoutText, type TextToken } from '../core/sourceText'
+import { ruleSummaries } from './functions'
+import { referenceRead } from './offline/runtime'
 
-/** Far longer than the slowest phone takes, so only a worker that has stopped answering reaches it. */
-const HASHING_TIMEOUT_MS = 60_000
-
-/**
- * Parsing a faction's file and hashing each of its strings would hold a phone's main thread for hundreds of
- * milliseconds on every page that shows rules text, so a browser does it in a worker.
- */
-async function hashedInBackground(bytes: ArrayBuffer) {
-  if (typeof Worker === 'undefined') return hashedSourceStrings(bytes)
-  const { default: SourceStringsWorker } = await import('./sourceStrings.worker?worker&inline')
-  const worker = new SourceStringsWorker()
-  const answer = await workerAnswer<Map<string, string> | null | typeof HASHING_FAILED>(worker, bytes, {
-    timeoutMs: HASHING_TIMEOUT_MS,
-  }).finally(() => worker.terminate())
-  if (answer === HASHING_FAILED) throw new Error('This device could not read the rules text file')
-  return answer
-}
-
-/** Every string a pinned upstream file holds, by the truncated hash a token names it by. */
-async function loadSourceStrings(url: string): Promise<ReadonlyMap<string, string>> {
-  // The file is not compared whole: each string answers only a token naming its own hash.
-  // It must still parse, or the device would keep the broken answer and serve it on every visit.
-  let strings: Map<string, string> | null = null
-  await upstreamBytes(url, async (response) => {
-    const bytes = await response.arrayBuffer()
-    strings = await hashedInBackground(bytes)
-    return strings ? bytes : null
-  })
-  return strings!
-}
-
-/** Read from the downloaded reference while it is current, so a device can load text it reached offline. */
-const textSourcesQuery = () => referenceQuery(['text-sources'], () => textSources())
-
-/**
- * The upstream files this page has loaded, shared by every component and read outside
- * React too: the simulator compiles rules from their words wherever it runs.
- */
-const urls = new Map<string, string>()
-const sourceOf = new Map<string, TextSource>()
-const files = new Map<string, { strings?: ReadonlyMap<string, string>; failed?: true; page?: number }>()
+type Summaries = Readonly<Record<string, string>>
+const files = new Map<string, Summaries | 'loading' | 'failed'>()
 const listeners = new Set<() => void>()
 let version = 0
-const changed = () => {
+
+function setFile(id: string, value: Summaries | 'loading' | 'failed') {
+  files.set(id, value)
   version += 1
   for (const listener of listeners) listener()
 }
 
-/**
- * Starts loading one file, once per page; every reader of the store renders again when it lands.
- * A failure stays until the reader retries or opens another page, so rows mounting as a list scrolls cannot repeat it.
- */
-export function loadTextFile(id: string): Promise<void> {
-  const url = urls.get(id)
-  if (!url) return Promise.resolve()
-  const pending = loading.get(url)
-  const file = files.get(url)
-  if (pending && !(file?.failed && file.page !== textPage())) return pending
-  files.set(url, {})
-  const loaded = loadSourceStrings(url).then(
-    (strings) => {
-      files.set(url, { strings })
-      changed()
-    },
-    (error: unknown) => {
-      files.set(url, { failed: true, page: textPage() })
-      reportTextLoadFailure({ source: sourceOf.get(id), url }, error)
-      changed()
-    },
+async function load(id: string) {
+  if (files.has(id)) return
+  setFile(id, 'loading')
+  return referenceRead(['rule-summaries', id], () => ruleSummaries({ data: id })).then(
+    (summaries) => setFile(id, summaries),
+    () => setFile(id, 'failed'),
   )
-  loading.set(url, loaded)
-  return loaded
 }
-const loading = new Map<string, Promise<void>>()
 
-/** Asks again for every file whose load failed. */
 export async function retryFailedTextFiles() {
-  const retries = [...urls].flatMap(([id, url]) => {
-    if (!files.get(url)?.failed) return []
-    loading.delete(url)
-    return [loadTextFile(id)]
-  })
-  await Promise.all(retries)
+  await Promise.all(
+    [...files].flatMap(([id, state]) => {
+      if (state !== 'failed') return []
+      files.delete(id)
+      return [load(id)]
+    }),
+  )
 }
 
-/** Where each file a token names lives upstream, and its source, as the server lists them. */
-export function registerTextSources(table: Readonly<Record<string, TextSourceFile>>) {
-  let added = false
-  for (const [id, { url, source }] of Object.entries(table)) {
-    if (urls.get(id) === url) continue
-    urls.set(id, url)
-    sourceOf.set(id, source)
-    added = true
-  }
-  if (added) changed()
+export type MissingText = 'loading' | 'failed' | 'unavailable' | null
+
+function summaryOf(token: TextToken) {
+  if (!wholeText(token)) return null
+  const file = files.get(token.file)
+  return typeof file === 'object' ? (file[token.hash] ?? null) : null
 }
 
-/** What stands in for text this device has not chosen to load, is still loading, could not load, or cannot find. */
-export type MissingText = 'unchosen' | 'loading' | 'failed' | 'unavailable' | null
-/** Text as this device can show it, and the one source to turn on when that alone would load it. */
-type LoadedText = { text: string; missing: MissingText; needs?: TextSource }
-type TextGap = { missing: Exclude<MissingText, null>; needs?: TextSource }
-
-/**
- * The sources a text's tokens need that this device has not chosen: the one authority for
- * whether a token's words may load. Null while the file list that says so is not here yet.
- */
-function unchosenSources(tokens: readonly TextToken[], choice: TextSourceChoice): TextSource[] | null {
-  if (urls.size === 0) return null
-  const needs = new Set<TextSource>()
-  for (const { file } of tokens) {
-    const source = sourceOf.get(file)
-    if (source && !choice.sources.has(source)) needs.add(source)
-  }
-  return [...needs]
+function wholeText({ transform }: TextToken) {
+  return transform === 'plain' || transform === 'prose' || transform === 'trim'
 }
 
-const lookup = ({ file, transform, hash }: TextToken) => {
-  const url = urls.get(file)
-  const raw = url ? files.get(url)?.strings?.get(hash) : undefined
-  return raw === undefined ? null : transformed(raw, transform)
-}
-
-/** Text as this device can show it now, and the reason any token in it is still missing. */
-export function loadedText(text: string, choice = textSourceChoice()): LoadedText {
+export function loadedText(text: string): { text: string; missing: MissingText } {
   if (!hasTextTokens(text)) return { text, missing: null }
-  const tokens = textTokensIn(text)
-  const needs = unchosenSources(tokens, choice)
-  if (needs === null ? choice.sources.size === 0 : needs.length > 0)
-    return { text: withoutText(text), missing: 'unchosen', needs: needs?.length === 1 ? needs[0] : undefined }
-  const waiting = tokens.some(({ file }) => {
-    const url = urls.get(file)
-    if (!url) return urls.size === 0
-    const loaded = files.get(url)
-    return !loaded?.strings && !loaded?.failed
-  })
-  if (waiting) return { text: withoutText(text), missing: 'loading' }
-  const failed = tokens.some(({ file }) => {
-    const url = urls.get(file)
-    return url !== undefined && files.get(url)?.failed === true
-  })
-  if (failed) return { text: withoutText(text), missing: 'failed' }
-  return {
-    text: resolvedText(text, lookup, () => '—'),
-    missing: tokens.some((token) => lookup(token) === null) ? 'unavailable' : null,
-  }
+  const all = textTokensIn(text)
+  const tokens = all.filter(wholeText)
+  if (tokens.some(({ file }) => files.get(file) === 'failed')) return { text: withoutText(text), missing: 'failed' }
+  if (tokens.some(({ file }) => !files.has(file) || files.get(file) === 'loading')) return { text: withoutText(text), missing: 'loading' }
+  const id = tokens[0]?.file
+  const compound = id && tokens.every(({ file }) => file === id) ? files.get(id) : undefined
+  const summary = typeof compound === 'object' ? compound[comparableText(text)] : undefined
+  if (summary) return { text: summary, missing: null }
+  const complete = all.every((token) => summaryOf(token) !== null)
+  return complete ? { text: resolvedText(text, summaryOf, () => ''), missing: null } : { text: withoutText(text), missing: 'unavailable' }
 }
 
-/** A text's words once every token in it has loaded, or null: for rules that must not be read from part of a text. */
-export function loadedWords(text: string, choice = textSourceChoice()) {
-  const loaded = loadedText(text, choice)
+/** For display only. Legal and scoring checks use their recorded facts. */
+export function displayedWords(text: string) {
+  const loaded = loadedText(text)
   return loaded.missing === null ? loaded.text : null
 }
 
-/**
- * Why some of these texts are not shown yet, or null when every one is: a screen of many
- * rules asks once, naming the source only when every gap needs the same one.
- */
-export function textGap(texts: readonly (string | null | undefined)[], choice = textSourceChoice()): TextGap | null {
-  const gaps = texts.flatMap((text): TextGap[] => {
-    const { missing, needs } = text ? loadedText(text, choice) : { missing: null }
-    return missing && missing !== 'unavailable' ? [{ missing, needs }] : []
-  })
-  const unchosen = gaps.filter((gap) => gap.missing === 'unchosen')
-  const needs = unchosen[0]?.needs
-  if (unchosen.length) return { missing: 'unchosen', needs: unchosen.every((gap) => gap.needs === needs) ? needs : undefined }
-  return gaps.find((gap) => gap.missing === 'failed') ?? gaps[0] ?? null
+export function textGap(texts: readonly (string | null | undefined)[]) {
+  const gaps = new Set(texts.flatMap((text) => (text ? [loadedText(text).missing] : [])))
+  return (['failed', 'loading', 'unavailable'] as const).find((gap) => gaps.has(gap)) ?? null
 }
 
 const subscribe = (listener: () => void) => {
   listeners.add(listener)
-  return () => {
-    listeners.delete(listener)
-  }
+  return () => listeners.delete(listener)
 }
 
-/**
- * Loads the files these texts name from the sources the reader has chosen, and renders
- * again as each arrives; read the texts through `loadedText` or `loadedWords`. The file
- * list loads either way, since it is what names the source a missing text would come from.
- */
 export function useSourceTexts(texts: readonly (string | null | undefined)[]) {
-  const choice = useTextSourceChoice()
-  const ids = [...new Set(texts.flatMap((text) => (text && hasTextTokens(text) ? textTokensIn(text).map((token) => token.file) : [])))]
-  const { data: table } = useQuery({ ...textSourcesQuery(), enabled: ids.length > 0 })
-  const wanted = ids.join(',')
+  const requested = [
+    ...new Set(
+      texts.flatMap((text) =>
+        text
+          ? textTokensIn(text)
+              .filter(wholeText)
+              .map(({ file }) => file)
+          : [],
+      ),
+    ),
+  ].join(',')
   useEffect(() => {
-    if (!table) return
-    registerTextSources(table)
-    for (const id of wanted.split(',')) {
-      const source = table[id]?.source
-      if (source && choice.sources.has(source)) void loadTextFile(id)
-    }
-  }, [table, choice, wanted])
-  const loaded = useSyncExternalStore(
+    if (requested) for (const id of requested.split(',')) void load(id)
+  }, [requested])
+  return useSyncExternalStore(
     subscribe,
     () => version,
     () => 0,
   )
-  // `loaded` changes as files arrive, so work memoized on it reads the newest words.
-  return { choice, loaded }
 }
 
-/** One text as this device can show it, loading what it names when the reader has chosen to. */
-export function useSourceText(text: string): LoadedText {
-  const { choice } = useSourceTexts([text])
-  return loadedText(text, choice)
+export function useSourceText(text: string) {
+  useSourceTexts([text])
+  return loadedText(text)
 }

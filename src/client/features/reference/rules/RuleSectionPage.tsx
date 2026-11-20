@@ -6,11 +6,8 @@ import type { RuleEntry } from '../../../../contracts/rules'
 import { type RuleLinks, ruleLinks } from '../../../ruleLinks'
 import { ruleIndexQuery, ruleSectionQuery } from '../../../queries'
 import { RuleMarkup } from '../../../components/RuleMarkup'
-import { SourceTextPrompt } from '../../../components/SourceTextPrompt'
-import type { MissingText } from '../../../sourceText'
+import { OfficialRulesLink } from '../../../components/SourceTextPrompt'
 import { PageContent, PageHeader } from '../../../components/Page'
-import { useRuleText, withText } from '../../../rulesText'
-import { RulesTextNotice } from './RulesTextNotice'
 import { revealHashTarget } from '../../../hashTarget'
 import { BackLink } from '../BackLink'
 
@@ -23,15 +20,8 @@ import { BackLink } from '../BackLink'
 export function RuleSectionPage({ documentId, sectionId }: { documentId: string; sectionId: string }) {
   const { data: index } = useQuery(ruleIndexQuery())
   const { data } = useQuery(ruleSectionQuery(documentId, sectionId))
-  const text = useRuleText(data?.document.text ?? null)
   const hash = useLocation({ select: (location) => location.hash })
-  const loaded = text.document?.sections.find((candidate) => candidate.slug === sectionId)
-  // The outline names and numbers every rule; the loaded file gives each rule its text, matched by the rule's id.
-  const shown = data?.section && loaded ? withText(data.section, loaded) : data?.section
-  // A link to a clarification lands on a collapsed one, so the address opens it. Done
-  // to the element rather than through a prop: the server cannot know the address, and
-  // a reader's own toggle must survive every later render. Loaded text replaces the
-  // outline's elements, so it runs again once that text lands.
+  const shown = data?.section
   useEffect(() => {
     if (shown) revealHashTarget(hash)
   }, [hash, shown])
@@ -43,9 +33,6 @@ export function RuleSectionPage({ documentId, sectionId }: { documentId: string;
   const sections = index.documents.find((candidate) => candidate.slug === documentId)?.sections ?? []
   const at = sections.findIndex((candidate) => candidate.slug === sectionId)
   const links = ruleLinks(index, documentId)
-  const missing: MissingText =
-    !data.document.text || text.query.isError ? 'unavailable' : !text.chosen ? 'unchosen' : text.document ? null : 'loading'
-
   return (
     <main className="w-full">
       <PageHeader title={shown.title} />
@@ -53,10 +40,12 @@ export function RuleSectionPage({ documentId, sectionId }: { documentId: string;
         <BackLink to="/rules/$documentId" params={{ documentId }}>
           {data.document.title}
         </BackLink>
-        <RulesTextNotice text={data.document.text} state={text} />
+        <p className="part p-3 text-sm text-dim">
+          For the full wording, see <OfficialRulesLink />.
+        </p>
         <div className="runner gap-2.5 [--gate-y:1.5rem]">
           {shown.entries.map((entry) => (
-            <Rule key={entry.anchor} entry={entry} links={links} missing={missing} current={target === entry.anchor} />
+            <Rule key={entry.anchor} entry={entry} links={links} current={target === entry.anchor} />
           ))}
         </div>
         <nav className="flex items-stretch justify-between gap-2">
@@ -87,7 +76,7 @@ const subscribeToHash = (onChange: () => void) => {
 const currentHash = () => decodeURIComponent(window.location.hash.slice(1))
 const noHash = () => ''
 
-function Rule({ entry, links, missing, current }: { entry: RuleEntry; links: RuleLinks; missing: MissingText; current: boolean }) {
+function Rule({ entry, links, current }: { entry: RuleEntry; links: RuleLinks; current: boolean }) {
   return (
     <article
       id={entry.anchor}
@@ -99,7 +88,6 @@ function Rule({ entry, links, missing, current }: { entry: RuleEntry; links: Rul
         <h2 className="text-lg sm:text-xl">{entry.title}</h2>
         {entry.cost === null ? null : <span className="chip readout">{entry.cost} CP</span>}
       </div>
-      {missing ? <SourceTextPrompt missing={missing} source="game-datacards" className="mt-2" /> : null}
       {entry.lore ? <p className="mt-2 font-rules text-sm text-faint italic">{entry.lore}</p> : null}
       {entry.facts.length ? (
         <dl className="mt-3 space-y-2 border-t border-edge pt-3">
@@ -107,7 +95,7 @@ function Rule({ entry, links, missing, current }: { entry: RuleEntry; links: Rul
             <div key={fact.label}>
               <dt className="eyebrow">{fact.label}</dt>
               <dd>
-                <RuleMarkup markup={fact.markup} links={links} source="game-datacards" className="mt-1" />
+                <RuleMarkup markup={fact.markup} links={links} className="mt-1" />
               </dd>
             </div>
           ))}
@@ -122,20 +110,7 @@ function Rule({ entry, links, missing, current }: { entry: RuleEntry; links: Rul
             </h3>
           )
         }
-        if (block.kind === 'prose')
-          return <RuleMarkup key={key} markup={block.markup} links={links} source="game-datacards" className="mt-3" />
-        if (block.markup === null) {
-          return (
-            <div
-              key={key}
-              id={block.anchor ?? undefined}
-              className="mt-3 flex scroll-mt-header items-center gap-2 rounded-lg border border-edge bg-sunken px-3 py-2"
-            >
-              {block.code ? <span className="readout shrink-0 text-xs text-faint">{block.code}</span> : null}
-              <span className="min-w-0 flex-1 text-sm font-semibold text-bone">{block.title}</span>
-            </div>
-          )
-        }
+        if (block.kind === 'prose') return <RuleMarkup key={key} markup={block.markup} links={links} className="mt-3" />
         return (
           <details key={key} id={block.anchor ?? undefined} className="group mt-3 scroll-mt-header rounded-lg border border-edge bg-sunken">
             <summary className="flex cursor-pointer items-center gap-2 px-3 py-2 hover:bg-raised">
@@ -143,7 +118,13 @@ function Rule({ entry, links, missing, current }: { entry: RuleEntry; links: Rul
               <span className="min-w-0 flex-1 text-sm font-semibold text-bone">{block.title}</span>
               <ChevronRight className="size-3.5 shrink-0 text-faint transition-transform group-open:rotate-90" aria-hidden />
             </summary>
-            <RuleMarkup markup={block.markup} links={links} source="game-datacards" className="border-t border-edge px-3 py-2" />
+            {block.markup ? (
+              <RuleMarkup markup={block.markup} links={links} className="border-t border-edge px-3 py-2" />
+            ) : (
+              <p className="border-t border-edge px-3 py-2 text-sm">
+                <OfficialRulesLink />
+              </p>
+            )}
           </details>
         )
       })}

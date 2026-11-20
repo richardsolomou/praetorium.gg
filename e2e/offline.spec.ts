@@ -89,7 +89,6 @@ test('the complete reference keeps its existing UI after a cold offline launch',
   test.setTimeout(240_000)
   const player = uniqueName('Offline reference')
   await signUp(page, player)
-  // Rules text loads from its source while online and stays on the device for the offline launch.
   await page.goto('/rules/core-rules/moving')
   await expect(page.locator('main details').first()).toBeAttached()
   await page.goto('/rules')
@@ -187,6 +186,9 @@ test('the complete reference keeps its existing UI after a cold offline launch',
   await offline.goto(`/factions/necrons/rules/${catalogueId}/datasheets/immortals`)
   await expect(offline.getByRole('heading', { name: 'Immortals', exact: true })).toBeVisible()
   await expect(offline).toHaveURL(`/factions/necrons/rules/mfm-1-6/datasheets/immortals`)
+  await offline.goto('/factions/space-marines/datasheets/gladiator-lancer')
+  const lancer = offline.locator('article').filter({ has: offline.getByRole('heading', { name: /aqu[il]lon optics/i }) })
+  await expect(lancer.getByText('40kdc community summary')).toBeVisible()
   await offline.goto('/missions')
   await expect(offline.getByRole('heading', { name: 'Chapter Approved 2026-2027', exact: true })).toBeVisible()
   await offline.getByRole('link', { name: 'Battlefield Dominance', exact: true }).click()

@@ -14,8 +14,7 @@ export const contentSecurityPolicy: Record<string, string[]> = {
   // Faction icons, and images in support replies.
   'img-src': ["'self'", 'data:', 'https://cdn.jsdelivr.net', 'https://us-media.posthog.com'],
   'font-src': ["'self'", 'data:'],
-  // Rules text loads from its pinned upstream files.
-  'connect-src': ["'self'", 'https://raw.githubusercontent.com'],
+  'connect-src': ["'self'"],
   // Combat calculations run in bundled workers.
   'worker-src': ["'self'", 'blob:'],
   'object-src': ["'none'"],
