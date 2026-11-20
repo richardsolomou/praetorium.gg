@@ -8,7 +8,7 @@ let root: string
 let catalogue: string
 let stored: { body: Uint8Array; headers: Record<string, string>; etag: string } | null
 const store = {
-  base: 'https://store.test/praetorium-private/',
+  base: 'https://store.test/praetorium-catalogue/',
   client: {
     fetch: vi.fn(async (_url: string, init?: RequestInit) => {
       const headers = new Headers(init?.headers)

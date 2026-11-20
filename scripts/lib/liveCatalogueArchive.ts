@@ -3,7 +3,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { promisify } from 'node:util'
-import { privateR2Client } from '../../src/server/r2Client'
+import { catalogueR2Client } from '../../src/server/r2Client'
 
 const execute = promisify(execFile)
 const TARGET = /^(?:production|staging)$/
@@ -29,7 +29,7 @@ const sameVersion = (left: LiveCatalogueVersion | null, right: LiveCatalogueVers
   Boolean(left && right && left.authoring === right.authoring && left.sources === right.sources)
 
 /**
- * Publishes a live catalogue to the private bucket, where a release's new replica starts from it. `base` is the version
+ * Publishes a live catalogue to the catalogue bucket, where a release's new replica starts from it. `base` is the version
  * it was refreshed from: when another refresh has replaced that version since, the archive is left alone rather than
  * risk putting older sources over newer ones.
  */
@@ -38,7 +38,7 @@ export async function publishLiveCatalogue(
   target: string,
   version: LiveCatalogueVersion,
   base: LiveCatalogueVersion | null,
-  r2: Store | null = privateR2Client(),
+  r2: Store | null = catalogueR2Client(),
 ) {
   const object = liveObject(target, r2)
   const head = await object.fetch(object.url, { method: 'HEAD', signal: AbortSignal.timeout(30_000) })
@@ -74,7 +74,7 @@ export async function publishLiveCatalogue(
  * The version of a target's published live catalogue, or null when it has none (or one published without a version).
  * The catalogue is unpacked into `directory` only when it was materialized with `authoring`.
  */
-export async function fetchLiveCatalogue(target: string, directory: string, authoring: string, r2: Store | null = privateR2Client()) {
+export async function fetchLiveCatalogue(target: string, directory: string, authoring: string, r2: Store | null = catalogueR2Client()) {
   const object = liveObject(target, r2)
   const response = await object.fetch(object.url, { signal: AbortSignal.timeout(600_000) })
   if (response.status === 404) return null

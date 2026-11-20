@@ -385,7 +385,7 @@ it('reuses a cached private snapshot without credentials or network access', asy
     throw new Error('cached snapshots must not make network requests')
   }
 
-  await expect(fetchSnapshot(cached, 'r2://praetorium-private/catalogue', pointer)).resolves.toBe(false)
+  await expect(fetchSnapshot(cached, 'r2://praetorium-catalogue/catalogue', pointer)).resolves.toBe(false)
 })
 
 it('validates catalogue update modes', () => {
@@ -458,9 +458,9 @@ it('reads the private bucket with signed requests', async () => {
     requests.push({ url: input instanceof Request ? input.url : input.toString(), signed: new Headers(init?.headers).has('authorization') })
     return new Response(fs.readFileSync(archive))
   }
-  await fetchSnapshot(path.join(root, 'installed'), 'r2://praetorium-private/catalogue', pointer)
+  await fetchSnapshot(path.join(root, 'installed'), 'r2://praetorium-catalogue/catalogue', pointer)
   expect(requests).toEqual([
-    { url: `https://${'a'.repeat(32)}.r2.cloudflarestorage.com/praetorium-private/catalogue/snapshots/${pointer.id}.zip`, signed: true },
+    { url: `https://${'a'.repeat(32)}.r2.cloudflarestorage.com/praetorium-catalogue/catalogue/snapshots/${pointer.id}.zip`, signed: true },
   ])
 })
 
@@ -468,7 +468,7 @@ it('refuses to read the private bucket without its credentials', async () => {
   vi.stubEnv('R2_ACCOUNT_ID', '')
   vi.stubEnv('R2_ACCESS_KEY_ID', '')
   vi.stubEnv('R2_SECRET_ACCESS_KEY', '')
-  await expect(fetchCurrentPointer('r2://praetorium-private/catalogue')).rejects.toThrow(/Catalogue snapshots are private/)
+  await expect(fetchCurrentPointer('r2://praetorium-catalogue/catalogue')).rejects.toThrow(/Catalogue snapshots are private/)
 })
 
 it('downloads the archive again when the connection drops mid-body', async () => {

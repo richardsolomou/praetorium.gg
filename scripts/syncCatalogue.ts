@@ -12,7 +12,7 @@ import {
   installedSnapshot,
 } from '../src/server/catalogueSnapshot'
 import { PRIVATE_CATALOGUE_BASE } from '../src/server/catalogueStore'
-import { privateR2Client } from '../src/server/r2Client'
+import { catalogueR2Client } from '../src/server/r2Client'
 import { readCatalogueComposition } from '../src/server/catalogueComposition'
 import { catalogueCacheRoot } from './lib/catalogueCache'
 import { catalogueDataDirectory } from './lib/catalogueFiles'
@@ -47,7 +47,7 @@ if (argument === '--check') {
     argument === '--prepare' &&
     base === PRIVATE_CATALOGUE_BASE &&
     installedSnapshot(cacheRoot ? path.join(cacheRoot, catalogueLock.pointer.id) : dataDirectory)?.id !== catalogueLock.pointer.id &&
-    !privateR2Client()
+    !catalogueR2Client()
   ) {
     console.log('Building pinned public catalogue sources; snapshot-only historical editions are omitted.')
     execFileSync(process.execPath, ['--import', 'tsx', path.join(root, 'scripts/materializeCatalogue.ts'), '--without-stored-editions'], {

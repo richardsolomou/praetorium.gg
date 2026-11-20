@@ -1,21 +1,21 @@
 import { type FetchRetryOptions, fetchWithRetry } from './fetch'
-import { privateR2Client } from './r2Client'
+import { catalogueR2Client } from './r2Client'
 
 /**
- * Where catalogue snapshots live: Praetorium's private bucket, since a snapshot carries its
+ * Where catalogue snapshots live: a private bucket of their own, since a snapshot carries its
  * source files and their rules text. Contributors without its credentials build the
  * catalogue from its pinned sources instead, without the retired editions only the store holds.
  */
-export const PRIVATE_CATALOGUE_BASE = 'r2://praetorium-private/catalogue'
+export const PRIVATE_CATALOGUE_BASE = 'r2://praetorium-catalogue/catalogue'
 
-const PRIVATE_OBJECT = /^r2:\/\/praetorium-private\/(.+)$/
+const PRIVATE_OBJECT = /^r2:\/\/praetorium-catalogue\/(.+)$/
 
-/** A catalogue artifact from the private bucket, signed, or from a plain HTTP store such as the local development server. */
+/** A catalogue artifact from the catalogue bucket, signed, or from a plain HTTP store such as the local development server. */
 export async function fetchCatalogueObject(url: string, init: RequestInit = {}, options?: FetchRetryOptions): Promise<Response> {
   if (!url.startsWith('r2://')) return fetchWithRetry(url, init, options)
   const key = PRIVATE_OBJECT.exec(url)?.[1]
-  if (!key) throw new Error(`catalogue store ${url} is not Praetorium's private bucket`)
-  const store = privateR2Client()
+  if (!key) throw new Error(`catalogue store ${url} is not Praetorium's catalogue bucket`)
+  const store = catalogueR2Client()
   if (!store)
     throw new Error(
       'Catalogue snapshots are private: set R2_ACCOUNT_ID, R2_ACCESS_KEY_ID and R2_SECRET_ACCESS_KEY to read them, or build the catalogue from its sources with `CATALOGUE_DIR=catalogue-data just catalogue-materialize --without-stored-editions`.',
