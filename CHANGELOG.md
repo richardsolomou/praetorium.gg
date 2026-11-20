@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.273.0 (2026-11-20)
+
+### Minor Changes
+
+- 4e34888: [assistant] Join battles from invites, track New Orders and outstanding scoring, import BattleBase history in batches, organize rosters and collections, play sealed league fixtures, and manage tournament tables with separate account permission.
+
 ## 0.272.4 (2026-11-20)
 
 ### Patch Changes
