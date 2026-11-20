@@ -1,6 +1,6 @@
 import { sameWargear, wargearBaseName } from '../core/wargearNames'
 import { splitWeaponKeywords as splitKeywords } from '../core/ruleReference'
-import { datasheetCharacteristicKindOf, datasheetProfileKindOf } from '../core/datasheetStructure'
+import { datasheetCharacteristicKindOf, datasheetProfileKindOf, weaponShaped } from '../core/datasheetStructure'
 import type { Datasheet } from '../contracts/catalogue'
 import { normalizedName, normalizedNameVariants } from '../core/name'
 import { groupBy } from '../core/collections'
@@ -57,8 +57,7 @@ export function ruleProfileSections(profiles: readonly Profile[]) {
 }
 
 /** A profile printed as a weapon line under its own type, such as a C'tan power. */
-export const weaponShapedProfile = (profile: Profile) =>
-  ['attacks', 'damage'].every((kind) => profile.values.some((value) => datasheetCharacteristicKindOf(value) === kind))
+export const weaponShapedProfile = (profile: Profile) => weaponShaped(profile.values.map(datasheetCharacteristicKindOf))
 
 /**
  * The keywords something in the list put on a weapon: the ones the printed profile
