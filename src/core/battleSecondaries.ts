@@ -89,6 +89,8 @@ function scoringCards(player: PlayerState) {
 }
 
 export function scoringDue(state: BattleState, player: PlayerState) {
+  const firstSide = state.players.find(({ id }) => id === state.firstPlayerId)?.side
+  const finalRoundFallback = firstSide !== undefined && player.side !== firstSide ? player.secondariesDrawnThisTurn : []
   return cardsDue(
     {
       phase: state.phase,
@@ -98,7 +100,7 @@ export function scoringDue(state: BattleState, player: PlayerState) {
     },
     true,
     scoringCards(player),
-    [],
+    finalRoundFallback,
     player.secondaryMode,
   )
 }

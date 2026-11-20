@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { PostHog } from 'posthog-node'
+import { exportJWK, generateKeyPair, SignJWT } from 'jose'
 import type { CanonicalCatalogue } from '../contracts/catalogue'
 import type { ReferenceCorpus } from './referenceCorpus'
 
@@ -42,7 +43,11 @@ const corpus: ReferenceCorpus = {
   revision: 'snapshot',
 }
 
-const { rateLimit } = vi.hoisted(() => ({ rateLimit: vi.fn(() => null as Response | null) }))
+const { hasMcpConsent, importCollection, rateLimit } = vi.hoisted(() => ({
+  importCollection: vi.fn(),
+  hasMcpConsent: vi.fn(async () => true),
+  rateLimit: vi.fn(() => null as Response | null),
+}))
 
 vi.mock('./referenceApi', async () => {
   const { referenceRecord } = await import('./referenceService')
@@ -61,17 +66,24 @@ vi.mock('./app', () => ({
     searchIndexFor: async () => null,
     catalogueFor: async () => null,
     rulesFor: async () => null,
+    service: { rosterService: { importCollection } },
+    telemetry: { posthog: { capture: vi.fn() } },
     auth: {
       $context: Promise.resolve({ baseURL: 'https://praetorium.gg/api/auth', internalAdapter: {} }),
       mcpResource: 'https://praetorium.gg/mcp',
       issuer: 'https://praetorium.gg/api/auth',
+      hasMcpConsent,
     },
   }),
 }))
 
 import { handleReferenceMcp, referenceMcpOptions } from './referenceMcp'
 
-beforeEach(() => rateLimit.mockReturnValue(null))
+beforeEach(() => {
+  rateLimit.mockReturnValue(null)
+  hasMcpConsent.mockResolvedValue(true)
+  importCollection.mockReset()
+})
 
 const toolRequest = (name: string, args: object = {}) =>
   new Request('https://praetorium.gg/mcp', {
@@ -396,6 +408,72 @@ it('rejects MCP request bodies over the byte limit', async () => {
     status: 413,
     body: { error: { code: -32000 } },
   })
+})
+
+const requestSigningKeys = generateKeyPair('ES256')
+
+async function signedRequest(request: Request, scope: string) {
+  const { privateKey, publicKey } = await requestSigningKeys
+  const key = await exportJWK(publicKey)
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => Response.json({ keys: [{ ...key, kid: 'collection-import' }] })),
+  )
+  const token = await new SignJWT({ scope, azp: 'review-client', client_id: 'review-client' })
+    .setProtectedHeader({ alg: 'ES256', kid: 'collection-import' })
+    .setIssuer('https://praetorium.gg/api/auth')
+    .setAudience('https://praetorium.gg/mcp')
+    .setSubject('collector')
+    .setExpirationTime('5m')
+    .sign(privateKey)
+  request.headers.set('authorization', `Bearer ${token}`)
+  return request
+}
+
+it('accepts a large collection replacement in one management call', async () => {
+  const rows = Array.from({ length: 800 }, (_, i) => ({
+    entryId: `70f49209-98f3-4307-9ced-${String(i).padStart(12, '0')}`,
+    models: 5,
+    built: 3,
+    painted: 2,
+    wanted: 1,
+  }))
+  importCollection.mockResolvedValueOnce({ imported: 800 })
+  try {
+    const response = await handleReferenceMcp(await signedRequest(toolRequest('import_collection', { rows, replace: true }), 'mcp:manage'))
+    expect(response.status).toBe(200)
+    expect(importCollection).toHaveBeenCalledWith('collector', rows, true)
+  } finally {
+    vi.unstubAllGlobals()
+  }
+})
+
+it('challenges an existing read and write grant for management access', async () => {
+  try {
+    const rows = [{ entryId: 'marines', models: 1, built: 0, painted: 0, wanted: 0 }]
+    const response = await handleReferenceMcp(
+      await signedRequest(toolRequest('import_collection', { rows, replace: false }), 'mcp:read mcp:write'),
+    )
+    expect({ status: response.status, challenge: response.headers.get('www-authenticate') }).toMatchObject({
+      status: 403,
+      challenge: expect.stringContaining('scope="mcp:manage"'),
+    })
+    expect(importCollection).not.toHaveBeenCalled()
+  } finally {
+    vi.unstubAllGlobals()
+  }
+})
+
+it('refuses a management token when the required grant is gone', async () => {
+  hasMcpConsent.mockResolvedValue(false)
+  try {
+    const rows = [{ entryId: 'marines', models: 1, built: 0, painted: 0, wanted: 0 }]
+    const response = await handleReferenceMcp(await signedRequest(toolRequest('import_collection', { rows, replace: false }), 'mcp:manage'))
+    expect(response.status).toBe(401)
+    expect(importCollection).not.toHaveBeenCalled()
+  } finally {
+    vi.unstubAllGlobals()
+  }
 })
 
 it('rejects stateful MCP methods', async () => {

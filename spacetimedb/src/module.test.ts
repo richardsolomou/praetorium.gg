@@ -1621,9 +1621,49 @@ describe('swiss rounds', () => {
     expect([dropped, gone, command({ op: 'check-in', userId: 'a', checkedIn: false, now: NOW })]).toEqual(['ok', ['d'], 'closed'])
   })
 
+  it('keeps every entrant when check-in changes the confirmed no-show list', () => {
+    const { host, command } = setup()
+    for (const userId of ['a', 'b', 'c']) command({ op: 'check-in', userId, checkedIn: true, now: NOW })
+    command({ op: 'check-in', userId: 'd', checkedIn: true, now: NOW })
+    command({ op: 'check-in', userId: 'c', checkedIn: false, now: NOW })
+    const result = command({ op: 'drop-no-shows', expectedUserIds: ['d'], now: NOW })
+    const dropped = host.call(host.operator, (ctx) =>
+      Array.from(ctx.db.sealedEventEntries.eventId.filter('event')).filter(({ droppedAt }) => droppedAt !== undefined),
+    )
+    expect({ result, dropped }).toEqual({ result: 'stale', dropped: [] })
+  })
+
   it('lets a player check in only themselves', () => {
     const { command } = setup()
     expect(command({ op: 'check-in', ownerId: 'a', userId: 'b', checkedIn: true, now: NOW })).toBe('forbidden')
+  })
+
+  it('rejects a seat swap when a player has moved from their confirmed table', () => {
+    const { pair, command } = setup()
+    pair(1, [
+      ['a', 'b'],
+      ['c', 'd'],
+    ])
+    command({ op: 'swap-seats', players: ['b', 'c'] })
+    expect(command({ op: 'swap-seats', players: ['b', 'd'], expected: { round: 1, tables: [1, 2] } })).toBe('stale')
+  })
+
+  it('rejects assigning a Swiss battlefield after the table’s opponents change', () => {
+    const { pair, command } = setup()
+    pair(1, [
+      ['a', 'b'],
+      ['c', 'd'],
+    ])
+    command({ op: 'swap-seats', players: ['b', 'c'] })
+    expect(
+      command({
+        op: 'set-battlefield',
+        round: 1,
+        table: 1,
+        expectedPlayers: ['a', 'b'],
+        battlefield: { patternId: 'pattern', terrainLayoutId: 'layout' },
+      }),
+    ).toBe('stale')
   })
 
   it('swaps two players between unstarted tables and clears their battlefields', () => {

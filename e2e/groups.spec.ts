@@ -492,7 +492,11 @@ test('a league seals every list before it starts and plays its fixtures with the
   await score.getByRole('button', { name: 'Save score' }).click()
   await expect(score).toBeHidden()
   await expect(untracked.getByRole('link')).toHaveText('64 – 40')
-  // The assistant takes the playable fixture and its sealed-list arguments from the group read.
+  await owner.locator('[data-group-next]').getByRole('button', { name: 'Start battle' }).click()
+  await owner.waitForURL(/\/battles\/[^/]+$/)
+  const uiBattleId = await battleIdFor(lastPathSegment(owner.url()))
+  await owner.goto(`${url}?tab=league`)
+  // The assistant takes the other playable fixture and its sealed-list arguments from the group read.
   await expect.poll(() => agentTools(owner)).toContain('get_my_group')
   const result = await call(owner, 'get_my_group', { token: lastPathSegment(url) })
   const leagueResult = result.structuredContent?.league as {
@@ -505,10 +509,13 @@ test('a league seals every list before it starts and plays its fixtures with the
   const started = await starting
   expect(started.isError).not.toBe(true)
   const battleId = await battleIdFor(started.structuredContent!.token as string)
-  const commands = await productSql<{ seq: number; body: string }>`SELECT seq, body FROM commands WHERE battle_id = ${battleId}`
-  const kinds = commands.toSorted((a, b) => a.seq - b.seq).map((row) => (JSON.parse(row.body) as Command).kind)
-  expect(kinds.slice(0, 2)).toEqual(['set-battle-group', 'configure-battle'])
-  expect(kinds).toContain('lock-sealed-event-rosters')
+  expect(battleId).not.toBe(uiBattleId)
+  for (const id of [battleId, uiBattleId]) {
+    const commands = await productSql<{ seq: number; body: string }>`SELECT seq, body FROM commands WHERE battle_id = ${id}`
+    const kinds = commands.toSorted((a, b) => a.seq - b.seq).map((row) => (JSON.parse(row.body) as Command).kind)
+    expect(kinds.slice(0, 2)).toEqual(['set-battle-group', 'configure-battle'])
+    expect(kinds).toContain('lock-sealed-event-rosters')
+  }
   await Promise.all(contexts.map((context) => context.close()))
 })
 

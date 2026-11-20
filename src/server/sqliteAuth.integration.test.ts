@@ -176,7 +176,9 @@ it('does not trust loopback sign-in origins for a hosted app', async () => {
   expect(response.status).toBe(403)
 })
 
-it('authorizes an MCP client with consent and resource-bound scopes', async () => {
+it.each([false, true])('authorizes an MCP client with consent and resource-bound scopes (management %s)', async (management) => {
+  const scope = management ? 'mcp:read mcp:write mcp:manage offline_access' : 'mcp:read mcp:write offline_access'
+  const email = management ? 'mcp-manage@example.com' : 'mcp@example.com'
   const events: AuthEvent[] = []
   const auth = authFor({ APP_URL: 'https://praetorium.gg', AUTH_RATE_LIMIT: 'off', SPACETIME_AUDIENCE: 'praetorium-test' }, [], [], events)
   const metadata = await auth.handler(new Request('https://praetorium.gg/.well-known/oauth-protected-resource/mcp'))
@@ -203,7 +205,7 @@ it('authorizes an MCP client with consent and resource-bound scopes', async () =
   const { client_id: clientId } = await registered.json()
 
   const signup = await auth.api.signUpEmail({
-    body: { email: 'mcp@example.com', password: 'password1234', name: 'MCP player' },
+    body: { email, password: 'password1234', name: 'MCP player' },
     returnHeaders: true,
   })
   const cookie = signup.headers.get('set-cookie')?.split(';')[0]
@@ -215,7 +217,7 @@ it('authorizes an MCP client with consent and resource-bound scopes', async () =
     client_id: clientId,
     redirect_uri: 'https://client.example/callback',
     response_type: 'code',
-    scope: 'mcp:read mcp:write offline_access',
+    scope,
     code_challenge: challenge,
     code_challenge_method: 'S256',
     resource: 'https://praetorium.gg/mcp',
@@ -265,9 +267,9 @@ it('authorizes an MCP client with consent and resource-bound scopes', async () =
     issuer: 'https://praetorium.gg/api/auth',
     audience: 'https://praetorium.gg/mcp',
   })
-  expect(payload).toMatchObject({ sub: signup.response.user.id, client_id: clientId, scope: 'mcp:read mcp:write offline_access' })
+  expect(payload).toMatchObject({ sub: signup.response.user.id, client_id: clientId, scope })
   expect(await auth.hasMcpConsent(signup.response.user.id, clientId)).toBe(true)
-  expect(await auth.hasMcpConsent(signup.response.user.id, clientId, 'mcp:manage')).toBe(false)
+  expect(await auth.hasMcpConsent(signup.response.user.id, clientId, 'mcp:manage')).toBe(management)
   const consents = await auth.api.getOAuthConsents({ headers: new Headers({ cookie }) })
   await local.database.insert(oauthConsent).values({
     id: randomUUID(),
@@ -300,7 +302,7 @@ it('authorizes an MCP client with consent and resource-bound scopes', async () =
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Origin: 'https://praetorium.gg' },
       body: JSON.stringify({
-        email: 'mcp@example.com',
+        email,
         password: 'password1234',
         oauth_query: new URL(loginUrl, 'https://praetorium.gg').search.slice(1),
       }),

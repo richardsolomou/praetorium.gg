@@ -47,10 +47,11 @@ export function McpConsentPage({
               <li>Edit your rosters, set up and record battles, and seal lists and report results in groups and tournaments.</li>
             )}
             {scopes.includes('mcp:manage') && (
-              <li>
-                Edit your collection, lend rosters, manage battle invites and act as you in groups, leagues and tournaments, including ones
-                you organize.
-              </li>
+              <>
+                <li>Edit your collection, publish, lend or delete saved rosters, and manage battle invites.</li>
+                <li>Act as you in groups, leagues and tournaments, including ones you organize.</li>
+                <li>Link your BattleBase account and import its battles.</li>
+              </>
             )}
             {scopes.includes('offline_access') && <li>Stay connected until you revoke access.</li>}
           </ul>

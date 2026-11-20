@@ -63,6 +63,7 @@ export class SealedEventResultsService {
     rules?: BattleMissionRules | null,
     factions?: readonly BattleFaction[],
     viewerId: string | null = null,
+    includeTableBattles = false,
   ) {
     const sealedEvent = await this.sealedEventService.sealedEvent(sealedEventToken, viewerId, eventToken)
     if (!sealedEvent?.revealedAt) return null
@@ -81,6 +82,7 @@ export class SealedEventResultsService {
       : []
     return {
       ...sealedEventResults(entrantIds, battles),
+      ...(includeTableBattles && sealedEvent.organizer ? { battles } : {}),
       teams: teams
         ? swissStandings(
             sealedEvent.squads.map((squad) => squad.id),
@@ -187,13 +189,18 @@ export class SealedEventResultsService {
     vp: [number, number],
     missionPackId: string | null,
     userId: string,
+    { expectedPlayers, organizerOnly = false }: { expectedPlayers?: [string, string]; organizerOnly?: boolean } = {},
   ) {
     const sealedEvent = await this.sealedEventService.sealedEvent(sealedEventToken, userId, eventToken)
     if (!sealedEvent) throw new Response('no such tournament', { status: 404 })
+    if (organizerOnly && !sealedEvent.organizer)
+      throw new Response('Only a tournament organizer can report another table’s result.', { status: 403 })
     const pairing = sealedEvent.pairings.find((candidate) => candidate.round === round && candidate.table === table)
     if (!pairing?.bId) throw new Response('no such table in this tournament', { status: 404 })
     if (!sealedEvent.organizer && userId !== pairing.aId && userId !== pairing.bId)
       throw new Response('only the organizer or the table’s players can report its score', { status: 403 })
+    if (expectedPlayers && (pairing.aId !== expectedPlayers[0] || pairing.bId !== expectedPlayers[1]))
+      throw new Response('The table’s players changed. Read get_my_event again.', { status: 409 })
     const token =
       pairing.battleToken ??
       (

@@ -144,7 +144,7 @@ export async function prepareBrowserAgentWrite(name: string, input: unknown, exp
       const table = ownTable(sealedEvent, user.id, data.round)
       const tableOpponent = table && (table.aId === user.id ? table.bId : table.aId)
       const opponent = data.opponentId ?? (sealedEvent.rounds === null ? null : tableOpponent)
-      const roster = data.rosterId ? await instance.service.sealedEventService.ownRoster(user.id, data.rosterId) : null
+      const roster = data.rosterId ? (await instance.service.rosterService.usableRoster(user.id, data.rosterId))?.roster : null
       if (data.rosterId && !roster) throw new Response('Roster not found.', { status: 404 })
       summary =
         name === 'join_event'

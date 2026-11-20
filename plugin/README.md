@@ -16,7 +16,7 @@ Praetorium is an open source Warhammer 40,000 army builder, combat simulator and
 - **review-my-battles** looks back at your results, win rates and leaderboard places.
 - **play-in-a-tournament** takes you through a tournament, hidden-list game or league: sealing a list, finding your table and reporting the score.
 
-Reference lookups, winning tournament lists, list imports, checks and grades, and the simulator work without an account. Tools for your rosters, collection, battles, tournaments and groups ask you to sign in to Praetorium, which shows a consent page listing the access requested. Management access covers collection changes, roster loans, battle invites and organizer actions, subject to the player's existing permissions. You can revoke access under Connected apps on your profile.
+Reference lookups, winning tournament lists, list imports, checks and grades, and the simulator work without an account. Tools for your rosters, collection, battles, tournaments and groups ask you to sign in to Praetorium, which shows a consent page listing the access requested. Management access covers collection changes, publishing, lending and deleting rosters, battle invites, organizer actions, and linking a BattleBase account to import battles. Praetorium applies the player's existing permissions. You can revoke access under Connected apps on your profile.
 
 ## What it sends
 

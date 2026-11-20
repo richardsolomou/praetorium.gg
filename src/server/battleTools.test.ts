@@ -2,7 +2,8 @@ import { beforeEach, expect, it, vi } from 'vitest'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js'
 import { reduceBattle, type Command } from '../core/battle'
-import { ALICE, BOB, NAMES, PLAYERS, log, roster, started } from '../core/battle.fixtures'
+import { ALICE, BOB, NAMES, PLAYERS, log, roster, started, turns } from '../core/battle.fixtures'
+import type { MissionAward } from '../core/scoring'
 import { battleView } from '../core/battleView'
 
 const { submit, seatedBattle, createBattle, capture, rules } = vi.hoisted(() => ({
@@ -72,6 +73,47 @@ function seated(viewer: string, entries: [string, Command][], missions: { side: 
 }
 
 const battleAction = (command: object) => call('player-1', 'submit_battle_action', { token: 'battle-1', expectedSeq: 4, command })
+
+it('shows only the secondaries due for the previous player turn', async () => {
+  const card = (key: string, playerTurn: 'your-turn' | 'opponent-turn') => ({
+    key,
+    name: key,
+    awards: [
+      {
+        vp: 4,
+        per: null,
+        mode: null,
+        max: null,
+        group: null,
+        cumulative: false,
+        criteria: 'Condition',
+        trigger: { timing: 'end-of-turn', phase: null, playerTurn, roundMin: 1, roundMax: 1 },
+      },
+    ] satisfies MissionAward[],
+  })
+  seated(ALICE, [
+    ...started(),
+    [
+      ALICE,
+      {
+        kind: 'set-prep',
+        primary: null,
+        stratagems: [],
+        secondaryMode: 'fixed',
+        secondaries: [card('Opponent turn', 'opponent-turn'), card('Own turn', 'your-turn')],
+      },
+    ],
+    ...turns(6, ALICE),
+    [BOB, { kind: 'settle-opponent-turn' }],
+    ...turns(6, BOB),
+  ])
+  const payload = await call(ALICE, 'get_my_battle', { token: 'battle-1' })
+  expect(payload.result.structuredContent.next.settlement).toMatchObject({
+    playerId: ALICE,
+    round: 1,
+    scoringDue: [{ key: 'Opponent turn', category: 'secondary' }],
+  })
+})
 
 it('submits New Orders against the player’s real deck at the requested sequence', async () => {
   const held = { key: 'held', name: 'Held mission' }

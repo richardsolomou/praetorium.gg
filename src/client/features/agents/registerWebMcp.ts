@@ -1,4 +1,4 @@
-import { AGENT_INPUT_MAX_BYTES, type AgentToolDescriptor } from '../../../contracts/agentTools'
+import { agentInputMaxBytes, type AgentToolDescriptor } from '../../../contracts/agentTools'
 import { anySignal } from '../../abortSignals'
 import { errorMessage } from '../../queryClient'
 
@@ -48,7 +48,7 @@ export async function installWebMcp(context: ModelContext, descriptors: AgentToo
           let error: string | null = null
           try {
             let serialized = JSON.stringify(input)
-            if (!serialized || new TextEncoder().encode(serialized).byteLength > AGENT_INPUT_MAX_BYTES) {
+            if (!serialized || new TextEncoder().encode(serialized).byteLength > agentInputMaxBytes(tool.name)) {
               return failure('The proposed input is too large.')
             }
             let summary = ''

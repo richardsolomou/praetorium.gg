@@ -17,7 +17,7 @@ Read access lets the assistant:
 - list your saved rosters and read one of them as you'd see it in the builder: each unit's name, points, wargear, enhancements, Warlord and attachments, the total, any problems that stop it being fielded, and any restrictions Praetorium couldn't check
 - list your battles, 25 at a time, narrowed the way the battles page narrows them, such as by result, army, opponent, mission pack or date, and read the current state of one you're seated in
 - read your record as your profile shows it, such as win rates by detachment and mission pack, and your leaderboard places
-- find a draft to resume, read a finished battle's report, and see who you can start a battle with
+- read a battle invite, find a draft to resume, read a finished battle's report, and see who you can start a battle with
 - read the models in your collection and wishlist, and see your saved folders and unit loadouts
 - read your groups, leagues, tournaments and hidden-list games: what's due, your table and opponent, standings and results. The same rules as the site decide which sealed lists you can open. It can also see who holds a loan of your roster and which lists friends lent you.
 
@@ -30,13 +30,13 @@ Change access also lets it:
 
 Management access also lets it:
 
-- read an invite, join the chosen side, create or retire an invite link, send a friend an in-app invite, or manage players in a battle draft you created
+- join the chosen side of a battle invite, create or retire an invite link, send a friend an in-app invite, or manage players in a battle draft you created
 - update owned, built, painted and wanted models and which datasheets your models can be fielded as, or import your collection in bulk
 - lock or unlock a roster, separate a variant, lend a list to a friend, or end a roster loan. It can also apply a bulk roster change, organize folders, and save, rename or delete a unit loadout
 - create and manage groups, review membership requests, draw and publish leagues, set deadlines and chess clocks, and report an agreed league result if you organize the group
 - create tournaments and hidden-list games, manage entrants and teams, unseal or reveal lists where you have permission, pair rounds, check players in, drop no-shows, swap seats, assign battlefields, and report or reopen scores as the organizer
 - choose your side in a hidden-list game, withdraw from a tournament or league, and submit your team's picks in team Swiss
-- link a BattleBase account by verifying its tagline and import finished public battles from it
+- link a BattleBase account by verifying its tagline and import finished public battles from it in batches
 
 An existing connection with change access asks you to grant management access before using those actions.
 
@@ -44,7 +44,7 @@ Changes go through the same checks as the site. A battle with nobody named start
 
 ## Revoke access
 
-Open your [profile](/profile) and find **Connected apps**. Each app shows what it can do, such as **Read rosters, battles and events**, **Change rosters, battles and events**, or **Manage collection, invites, groups and tournaments**.
+Open your [profile](/profile) and find **Connected apps**. Each app shows what it can do, such as **Read rosters, battles and events**, **Change rosters, battles and events**, or **Manage rosters, collection, invites, events and BattleBase**.
 
 Choose **Revoke access** next to an app to disconnect it straight away. It loses access to your account, though public lookups still work. Connecting again later asks for permission again.
 

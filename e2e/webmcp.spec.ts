@@ -130,3 +130,26 @@ test('browser agents save rosters, change visibility and append battle actions t
   const changed = (await call(page, 'get_my_battle', { token })).structuredContent!.battle as { view: { seq: number } }
   expect(changed.view.seq).toBe(battle.view.seq + 1)
 })
+
+test('browser agents import a collection that exceeds the standard tool request size', async ({ page }) => {
+  await installInspector(page)
+  await signUp(page, uniqueName('Large collection'))
+  await page.goto('/')
+  await expect.poll(() => names(page)).toContain('import_collection')
+  const rows = Array.from({ length: 800 }, (_, index) => ({
+    entryId: `70f49209-98f3-4307-9ced-${String(index).padStart(12, '0')}`,
+    models: 5,
+    built: 3,
+    painted: 2,
+    wanted: 0,
+  }))
+  const importing = call(page, 'import_collection', { rows, replace: true })
+  const approval = page.getByRole('dialog', { name: 'Import multiple collection entries' })
+  await expect(approval.getByText('Import 800 entries and overwrite matching collection counts.')).toBeVisible()
+  await expect(approval.locator('dl')).toHaveCount(0)
+  await approval.getByText('All proposed changes').click()
+  await expect(approval.locator('dl')).toContainText(rows[0].entryId)
+  await approval.getByText('All proposed changes').click()
+  await approval.getByRole('button', { name: 'Approve change' }).click()
+  expect((await importing).structuredContent).toMatchObject({ added: 800 })
+})

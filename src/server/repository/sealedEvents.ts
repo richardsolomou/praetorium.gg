@@ -142,8 +142,8 @@ export function withSealedEvents<B extends RepositoryBase>(Base: B) {
       return this.product.sealedEventCommand({ op: 'check-in', ...input }, z.enum(['ok', 'closed', 'missing', 'forbidden']))
     }
 
-    dropSealedEventNoShows(input: { token: string; eventToken: string; ownerId: string; now: number }) {
-      return this.product.sealedEventCommand({ op: 'drop-no-shows', ...input }, z.enum(['ok', 'closed', 'missing', 'forbidden']))
+    dropSealedEventNoShows(input: { token: string; eventToken: string; ownerId: string; expectedUserIds?: string[]; now: number }) {
+      return this.product.sealedEventCommand({ op: 'drop-no-shows', ...input }, z.enum(['ok', 'closed', 'missing', 'forbidden', 'stale']))
     }
 
     setSealedEventTiebreak(input: { token: string; eventToken: string; ownerId: string; scheduleFirst: boolean }) {
@@ -186,7 +186,13 @@ export function withSealedEvents<B extends RepositoryBase>(Base: B) {
       )
     }
 
-    swapSealedEventSeats(input: { token: string; eventToken: string; ownerId: string; players: [string, string] }) {
+    swapSealedEventSeats(input: {
+      token: string
+      eventToken: string
+      ownerId: string
+      players: [string, string]
+      expected?: { round: number; tables: [number, number] }
+    }) {
       return this.product.sealedEventCommand(
         { op: 'swap-seats', ...input },
         z.enum(['swapped', 'stale', 'started', 'missing', 'forbidden']),
@@ -200,6 +206,7 @@ export function withSealedEvents<B extends RepositoryBase>(Base: B) {
       round: number
       table: number
       battlefield: { patternId: string; terrainLayoutId: string } | null
+      expectedPlayers?: string[]
     }) {
       return this.product.sealedEventCommand(
         { op: 'set-battlefield', ...input },

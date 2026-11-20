@@ -37,7 +37,8 @@ test('assistant screenshots', async ({ page, request, baseURL }) => {
   const consent = page.getByRole('main')
   const allow = consent.getByRole('button', { name: 'Allow access' })
   await expect(consent.getByText('Claude is asking to access your Praetorium account.')).toBeVisible()
-  await expect(consent.getByText(/Edit your collection, lend rosters/)).toBeVisible()
+  await expect(consent.getByText(/delete saved rosters/)).toBeVisible()
+  await expect(consent.getByText(/Link your BattleBase account/)).toBeVisible()
   // The page's main grows to fill the viewport; the capture only needs its content.
   await consent.evaluate((element) => ((element as HTMLElement).style.flex = 'none'))
   await capture('assistant-consent', consent, allow, { padded: true })

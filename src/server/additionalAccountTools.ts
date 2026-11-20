@@ -4,7 +4,8 @@ import type { AgentTools } from './agentTools'
 import { read, write } from './accountToolDefinition'
 import { app } from './app'
 import { captureMutation, joinInvitedBattle, removePlayerFromBattle, shareBattleLink, stopSharingBattleLink } from './mutationTelemetry'
-import { productActions } from './productActions'
+import { productActions, publishGroupLeague } from './productActions'
+import { leagueFixtureUnfinished } from '../core/groupLeague'
 import { battleInvitePath } from '../core/notifications'
 import { workflowAccountTools } from './workflowAccountTools'
 
@@ -17,10 +18,20 @@ const inviteInput = forms.battleInviteSchema.extend({
   invite: forms.battleInviteSchema.shape.invite.describe('The invite token in the last path segment of the Praetorium join link.'),
 })
 
+const tournamentResultInput = forms.reportTableResultSchema.extend({
+  expectedPlayers: forms.swapTableSeatsSchema.shape.players.describe('The two player IDs in seat order from get_my_event.'),
+})
+
 async function eventForApproval(owner: string, input: { token: string; eventToken?: string }) {
   const event = await app().service.sealedEventService.sealedEvent(input.token, owner, input.eventToken)
   if (!event) throw new Response('Tournament or hidden-list game not found.', { status: 404 })
   return event
+}
+
+function entrantName(event: Awaited<ReturnType<typeof eventForApproval>>, id: string) {
+  const entrant = event.entries.find(({ userId }) => userId === id)
+  if (!entrant) throw new Response('Entrant not found.', { status: 404 })
+  return entrant.name
 }
 
 const tools = {
@@ -266,7 +277,7 @@ const tools = {
       const league = await app().service.groupResultsService.groupLeague(token, owner)
       if (!league || (!league.published && !league.organizer)) throw new Response('No league draw is available.', { status: 404 })
       const selectedRound =
-        round ?? league.fixtures.find(({ status }) => status === 'open' || status === 'playing')?.round ?? league.fixtures[0]?.round ?? null
+        round ?? league.fixtures.find(({ status }) => leagueFixtureUnfinished(status))?.round ?? league.fixtures[0]?.round ?? null
       const names = new Map(league.players.map(({ userId, name }) => [userId, name]))
       return {
         round: selectedRound,
@@ -308,10 +319,7 @@ const tools = {
     'Publish a league draw',
     'A group organizer publishes the reviewed draw. Use the seed and ordered playerIds from get_my_group. Confirm the fixtures before publishing.',
     forms.publishGroupLeagueSchema,
-    async (owner, { token, ...draw }) => {
-      await app().service.groupService.publishLeague(token, owner, draw)
-      captureMutation(owner, 'group_league_published', { players: draw.playerIds.length })
-    },
+    publishGroupLeague,
     publicChange,
   ),
   set_league_deadline: write(
@@ -441,6 +449,13 @@ const tools = {
     forms.assignSealedEventTeamSchema,
     (owner, data) => productActions.assignSealedEventTeam(owner, data),
     publicChange,
+    async (owner, input) => {
+      const data = forms.assignSealedEventTeamSchema.parse(input)
+      const event = await eventForApproval(owner, data)
+      const entrants = data.userIds.map((id) => entrantName(event, id))
+      const name = event.tournament?.name ?? 'this hidden-list game'
+      return entrants.length === 1 ? `Separate ${entrants[0]} from their ally in ${name}.` : `Team up ${entrants.join(' and ')} in ${name}.`
+    },
   ),
   unseal_event_roster: write(
     'Unseal an entrant’s roster',
@@ -448,6 +463,11 @@ const tools = {
     forms.sealedEventRosterSchema,
     (owner, data) => productActions.unsealSealedEventRoster(owner, data),
     publicChange,
+    async (owner, input) => {
+      const data = forms.sealedEventRosterSchema.parse(input)
+      const event = await eventForApproval(owner, data)
+      return `Unseal ${entrantName(event, data.userId)}’s roster in ${event.tournament?.name ?? 'this hidden-list game'}.`
+    },
   ),
   reveal_event_rosters: write(
     'Reveal sealed rosters',
@@ -477,22 +497,24 @@ const tools = {
   ),
   report_tournament_table: write(
     'Report a tournament table score',
-    'An organizer reports a score for a tournament table. Obtain the round, table and seat order from get_my_event. Confirm both players and scores. Players at the table can use report_table_result instead.',
-    forms.reportTableResultSchema,
-    async (owner, { token, eventToken, round, table, vp, missionPackId }) => {
-      const instance = app()
-      const event = await instance.service.sealedEventService.sealedEvent(token, owner, eventToken)
-      if (!event?.organizer) throw new Response('Only a tournament organizer can report another table’s result.', { status: 403 })
-      await instance.service.sealedEventResultsService.reportTableResult(token, eventToken, round, table, vp, missionPackId, owner)
+    'An organizer reports a score for a tournament table. Obtain the round, table and seat order from get_my_event. Confirm both players and scores, then pass those same player IDs in expectedPlayers. Players at the table can use report_table_result instead.',
+    tournamentResultInput,
+    async (owner, { token, eventToken, round, table, vp, missionPackId, expectedPlayers }) => {
+      await app().service.sealedEventResultsService.reportTableResult(token, eventToken, round, table, vp, missionPackId, owner, {
+        expectedPlayers,
+        organizerOnly: true,
+      })
       captureMutation(owner, 'sealed_event_result_reported', { round })
     },
     publicChange,
     async (owner, input) => {
-      const data = forms.reportTableResultSchema.parse(input)
+      const data = tournamentResultInput.parse(input)
       const event = await eventForApproval(owner, data)
       const table = event.pairings.find((pairing) => pairing.round === data.round && pairing.table === data.table)
       if (!event.organizer || !table?.bId) throw new Response('Table not found or you do not organize it.', { status: 404 })
-      const name = (id: string) => event.entries.find((entry) => entry.userId === id)?.name ?? id
+      if (table.aId !== data.expectedPlayers[0] || table.bId !== data.expectedPlayers[1])
+        throw new Response('The table’s players changed. Read get_my_event again.', { status: 409 })
+      const name = (id: string) => entrantName(event, id)
       return `Report ${name(table.aId)} ${data.vp[0]}–${data.vp[1]} ${name(table.bId)} at table ${data.table}, round ${data.round} of ${event.tournament?.name ?? 'this tournament'}.`
     },
   ),

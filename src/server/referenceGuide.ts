@@ -43,7 +43,7 @@ export const PRAETORIUM_GUIDE = {
 
 export const PRAETORIUM_MCP_INSTRUCTIONS = [
   PRAETORIUM_GUIDE.product,
-  'Public reference tools work without signing in. Account tools require OAuth sign-in; read and write access have separate scopes.',
+  'Public reference tools work without signing in. Account tools require OAuth sign-in; read, change and management access have separate scopes.',
   ...PRAETORIUM_GUIDE.agentWorkflow,
   PRAETORIUM_GUIDE.dataModel[2],
   PRAETORIUM_GUIDE.dataModel[3],

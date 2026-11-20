@@ -252,7 +252,7 @@ export function AccountSecurity({ me, preferences }: { me: AccountIdentity; pref
                 detail={[
                   connection.scopes.includes('mcp:read') ? 'Read rosters, battles and events' : null,
                   connection.scopes.includes('mcp:write') ? 'Change rosters, battles and events' : null,
-                  connection.scopes.includes('mcp:manage') ? 'Manage collection, invites, groups and tournaments' : null,
+                  connection.scopes.includes('mcp:manage') ? 'Manage rosters, collection, invites, events and BattleBase' : null,
                 ]
                   .filter(Boolean)
                   .join(' · ')}
