@@ -31,10 +31,10 @@ const subscribe = (listener: () => void) => {
 }
 const NO_PICKS: Readonly<Record<string, readonly string[]>> = {}
 
-/** The ability texts that can widen a unit's choices: its own while it leads a unit, and those of the units leading it. */
+/** The ability texts that can widen a unit's choices: its own, and those of the units it is attached to. */
 function allowanceTexts(data: NonNullable<ReturnType<typeof useCombatantDatasheet>>) {
   const texts = (sheet: Datasheet) => [...sheet.abilities, ...(sheet.enhancements ?? [])].flatMap(({ description }) => description ?? [])
-  return [...(data.companions.length ? texts(data.selected) : []), ...data.companions.flatMap((member) => texts(member.selected))]
+  return [...texts(data.selected), ...data.companions.flatMap((member) => texts(member.selected))]
 }
 
 function useCombatantDatasheet({
@@ -95,7 +95,10 @@ export function useBattleChoices({
       enabled && data
         ? battleChoices(
             readableRules(data.rules),
-            battleChoiceAllowances(allowanceTexts(data).flatMap((text) => (hasTextTokens(text) ? (loadedWords(text) ?? []) : text))),
+            battleChoiceAllowances(
+              allowanceTexts(data).flatMap((text) => (hasTextTokens(text) ? (loadedWords(text) ?? []) : text)),
+              data.companions.length > 0,
+            ),
           )
         : [],
     // `loaded` changes as rule words arrive, which can turn a token into options.

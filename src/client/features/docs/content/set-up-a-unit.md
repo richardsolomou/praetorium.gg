@@ -61,7 +61,7 @@ Some rules put a unit in one of several options during the battle, such as the *
 
 When another rule makes several options active at once for the unit, such as **Cognitive Reinforcement** making both Doctrina Imperatives active, it shows **Both** with that rule's name. If that rule has a condition to check first, it's offered as an extra option instead.
 
-A unit that a rule lets hold more than one option at once, such as a unit led by Ursula Creed with two Orders, takes that many picks; a further pick replaces the oldest. A rule that adds an option to every other, as Stalwart's Honours adds **Take Cover!**, applies it with whichever you pick.
+A unit that a rule lets hold more than one option at once, such as a unit led by Ursula Creed with two Orders, takes that many picks; a further pick replaces the oldest. A rule that gives the unit an option of its own on top, as Warrior Elite does for Kasrkin, adds one more pick, so Kasrkin led by Ursula Creed take three Orders. A rule that adds an option to every other, as Stalwart's Honours adds **Take Cover!**, applies it with whichever you pick.
 
 A choice the whole army shares, like a Doctrina Imperative, follows you from unit to unit; any other, like an Order, stays with the unit you picked it for. Picks last until you reload the page, and a unit's own picks clear when you add, remove or move a unit. Nothing you pick here is saved or changes the list, and conditions such as being near a Battleline unit are left for you to check. Only rules Praetorium can read appear; the rest stay in the unit's abilities.
 
