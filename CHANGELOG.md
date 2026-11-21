@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.274.8 (2026-11-21)
+
+### Patch Changes
+
+- bd02070: [rosters] Importing a list with no detachment line now takes the detachments its enhancements belong to, so those enhancements are kept.
+
 ## 0.274.7 (2026-11-21)
 
 ### Patch Changes
