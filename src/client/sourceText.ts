@@ -10,7 +10,8 @@ import {
   textTokensIn,
   withoutText,
 } from '../core/sourceText'
-import { textSources } from './functions'
+import { TEXT_HOMES_MAX } from '../contracts/schemas'
+import { textHomesFor, textSources } from './functions'
 import { referenceQuery } from './queries/shared'
 import { type TextSourceChoice, reportTextLoadFailure, textSourceChoice, upstreamBytes, useTextSourceChoice } from './rulesText'
 import { HASHING_FAILED, hashedSourceStrings } from './sourceStrings'
@@ -114,6 +115,26 @@ export function registerTextSources(table: Readonly<Record<string, TextSourceFil
   if (added) changed()
 }
 
+/**
+ * Where strings now live whose tokens name a file this snapshot replaced, by hash, as the server answered: a battle
+ * keeps the tokens it began with. Null where no current file holds the string.
+ */
+const homes = new Map<string, string | null>()
+const asking = new Set<string>()
+
+export function registerTextHomes(answer: Readonly<Record<string, string | null>>) {
+  for (const [hash, file] of Object.entries(answer)) homes.set(hash, file)
+  changed()
+}
+
+/** The file a token's string is read from: its own, or where the string lives now once its own was replaced. */
+const fileOf = ({ file, hash }: TextToken) => (urls.has(file) ? file : (homes.get(hash) ?? file))
+
+/** The hashes of the tokens whose files the file list no longer names and whose string's home nobody has asked about yet. */
+const homelessHashes = (tokens: readonly TextToken[], table: Readonly<Record<string, TextSourceFile>>) => [
+  ...new Set(tokens.flatMap(({ file, hash }) => (table[file] || homes.has(hash) || asking.has(hash) ? [] : [hash]))),
+]
+
 /** What stands in for text this device has not chosen to load, is still loading, could not load, or cannot find. */
 export type MissingText = 'unchosen' | 'loading' | 'failed' | 'unavailable' | null
 /** Text as this device can show it, and the one source to turn on when that alone would load it. */
@@ -127,15 +148,16 @@ type TextGap = { missing: Exclude<MissingText, null>; needs?: TextSource }
 function unchosenSources(tokens: readonly TextToken[], choice: TextSourceChoice): TextSource[] | null {
   if (urls.size === 0) return null
   const needs = new Set<TextSource>()
-  for (const { file } of tokens) {
-    const source = sourceOf.get(file)
+  for (const token of tokens) {
+    const source = sourceOf.get(fileOf(token))
     if (source && !choice.sources.has(source)) needs.add(source)
   }
   return [...needs]
 }
 
-const lookup = ({ file, transform, hash }: TextToken) => {
-  const url = urls.get(file)
+const lookup = (token: TextToken) => {
+  const { transform, hash } = token
+  const url = urls.get(fileOf(token))
   const raw = url ? files.get(url)?.strings?.get(hash) : undefined
   return raw === undefined ? null : transformed(raw, transform)
 }
@@ -147,15 +169,15 @@ export function loadedText(text: string, choice = textSourceChoice()): LoadedTex
   const needs = unchosenSources(tokens, choice)
   if (needs === null ? choice.sources.size === 0 : needs.length > 0)
     return { text: withoutText(text), missing: 'unchosen', needs: needs?.length === 1 ? needs[0] : undefined }
-  const waiting = tokens.some(({ file }) => {
-    const url = urls.get(file)
-    if (!url) return urls.size === 0
+  const waiting = tokens.some((token) => {
+    const url = urls.get(fileOf(token))
+    if (!url) return urls.size === 0 || !homes.has(token.hash)
     const loaded = files.get(url)
     return !loaded?.strings && !loaded?.failed
   })
   if (waiting) return { text: withoutText(text), missing: 'loading' }
-  const failed = tokens.some(({ file }) => {
-    const url = urls.get(file)
+  const failed = tokens.some((token) => {
+    const url = urls.get(fileOf(token))
     return url !== undefined && files.get(url)?.failed === true
   })
   if (failed) return { text: withoutText(text), missing: 'failed' }
@@ -200,9 +222,16 @@ const subscribe = (listener: () => void) => {
  */
 export function useSourceTexts(texts: readonly (string | null | undefined)[]) {
   const choice = useTextSourceChoice()
-  const ids = [...new Set(texts.flatMap((text) => (text && hasTextTokens(text) ? textTokensIn(text).map((token) => token.file) : [])))]
-  const { data: table } = useQuery({ ...textSourcesQuery(), enabled: ids.length > 0 })
-  const wanted = ids.join(',')
+  const loaded = useSyncExternalStore(
+    subscribe,
+    () => version,
+    () => 0,
+  )
+  const tokens = texts.flatMap((text) => (text && hasTextTokens(text) ? textTokensIn(text) : []))
+  const { data: table } = useQuery({ ...textSourcesQuery(), enabled: tokens.length > 0 })
+  const wanted = [...new Set(tokens.map(fileOf))].join(',')
+  const homeless = table && choice.sources.size ? homelessHashes(tokens, table).slice(0, TEXT_HOMES_MAX) : []
+  const asked = homeless.join(',')
   useEffect(() => {
     if (!table) return
     registerTextSources(table)
@@ -211,11 +240,16 @@ export function useSourceTexts(texts: readonly (string | null | undefined)[]) {
       if (source && choice.sources.has(source)) void loadTextFile(id)
     }
   }, [table, choice, wanted])
-  const loaded = useSyncExternalStore(
-    subscribe,
-    () => version,
-    () => 0,
-  )
+  useEffect(() => {
+    // Components rendered together find the same hashes, and the first to run asks for them all.
+    const hashes = asked ? asked.split(',').filter((hash) => !asking.has(hash)) : []
+    if (!hashes.length) return
+    for (const hash of hashes) asking.add(hash)
+    // Offline, or refused: the strings stay unavailable rather than loading forever.
+    textHomesFor({ data: { hashes } }).then(registerTextHomes, () =>
+      registerTextHomes(Object.fromEntries(hashes.map((hash) => [hash, null]))),
+    )
+  }, [asked])
   // `loaded` changes as files arrive, so work memoized on it reads the newest words.
   return { choice, loaded }
 }

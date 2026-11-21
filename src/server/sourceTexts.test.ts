@@ -10,6 +10,7 @@ import {
   sourceTexts,
   textFileId,
   textFileIdsIn,
+  textHomesSteps,
   textRecordsSteps,
   textSourceFiles,
   upstreamUrl,
@@ -123,6 +124,26 @@ describe('the files a reader can load', () => {
 
   it('lists nothing outside the text sources', () => {
     expect(Object.keys(files)).toHaveLength(2)
+  })
+})
+
+describe('where a string a replaced file held lives now', () => {
+  const hashOf = (text: string) => createHash('sha256').update(text).digest('hex').slice(0, 16)
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-text-homes-'))
+  const write = (file: string, body: unknown) => {
+    fs.mkdirSync(path.dirname(path.join(root, file)), { recursive: true })
+    fs.writeFileSync(path.join(root, file), JSON.stringify(body))
+  }
+  write('datacards/11th/gdc/necrons.json', { effect: { en: 'Reanimate.' } })
+  write('editions/codex/definitions/Necrons.json', { description: 'Only in a rules version.' })
+  const homeOf = completeSteps(textHomesSteps(root, composition))
+
+  it('names the current file holding the string', () => {
+    expect(homeOf(hashOf('Reanimate.'))).toBe(textFileId(raw('owner/datacards', 'c'.repeat(40), '11th/gdc/necrons.json')))
+  })
+
+  it('names no file for a string no current file holds', () => {
+    expect(homeOf(hashOf('Reworded since.'))).toBeNull()
   })
 })
 
