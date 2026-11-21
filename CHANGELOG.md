@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.274.4 (2026-11-21)
+
+### Patch Changes
+
+- bdea78e: [rosters] The Sternguard Veteran Sergeant carries a Chainsword by default, as the datasheet prints.
+
 ## 0.274.3 (2026-11-21)
 
 ### Patch Changes
