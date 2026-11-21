@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.274.6 (2026-11-21)
+
+### Patch Changes
+
+- ecfc84e: [battles] Ending a tactical turn no longer asks you to discard secondaries once your side has gained its extra CP for the round.
+
 ## 0.274.5 (2026-11-21)
 
 ### Patch Changes
