@@ -9,7 +9,7 @@ import {
   type CatalogueSourceConfig,
   type SnapshotSourceName,
 } from '../../src/server/catalogueSources'
-import { fetchBattlemasterInto, fetchInto } from '../../src/server/sync'
+import { fetchBattlemasterInto, fetchInto, fetchReleaseInto } from '../../src/server/sync'
 import { applyPatches } from './cataloguePatches'
 import type { CatalogueComposition } from '../../src/server/catalogueComposition'
 import { replaceDirectory } from '../../src/server/replaceDirectory'
@@ -67,8 +67,9 @@ export async function materializeCatalogue(directory: string, sources = catalogu
       if (!source) throw new Error(`${name} is not configured`)
       const target = path.join(staged, name)
       if (name === 'battlemaster') await fetchBattlemasterInto(sources.battlemaster, target)
+      else if (name === 'summaries') await fetchReleaseInto(sources.summaries!, target)
       else {
-        const repository = source as Exclude<typeof source, CatalogueSourceConfig['battlemaster']>
+        const repository = source as Exclude<typeof source, CatalogueSourceConfig['battlemaster'] | CatalogueSourceConfig['summaries']>
         await fetchInto(repository.repository, repository.revision, target, repository.path)
         if (name === 'icons') selectIcons(staged, sources.icons)
       }

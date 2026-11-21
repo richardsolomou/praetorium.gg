@@ -4,7 +4,8 @@ import os from 'node:os'
 import path from 'node:path'
 import { zipSync } from 'fflate'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { extractSourceArchive, fetchBattlemasterInto } from './sync'
+import { extractSourceArchive, fetchBattlemasterInto, fetchReleaseInto } from './sync'
+import { ustar } from './ustar.fixtures'
 
 let directory: string
 beforeEach(() => {
@@ -161,4 +162,43 @@ it('refuses a Battlemaster catalogue whose layouts are malformed', async () => {
   )
 
   await expect(fetchBattlemasterInto(battlemaster, path.join(directory, 'target'), null)).rejects.toThrow('catalog has an unexpected shape')
+})
+
+const summaries = (revision: string) => ({
+  repository: 'owner/catalogue',
+  release: 'v0.1.0',
+  asset: 'catalogue.tar',
+  revision,
+  license: 'MIT',
+})
+
+it('lays out a release archive that matches its pin', async () => {
+  const { archive, revision } = ustar([['summaries/rule.txt', 'A summary.']])
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => new Response(archive)),
+  )
+  await fetchReleaseInto(summaries(revision), path.join(directory, 'target'))
+
+  expect(fs.readFileSync(path.join(directory, 'target', 'summaries', 'rule.txt'), 'utf8')).toBe('A summary.')
+})
+
+it('refuses a release archive that differs from its pin', async () => {
+  const { archive } = ustar([['summaries/rule.txt', 'A summary.']])
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => new Response(archive)),
+  )
+
+  await expect(fetchReleaseInto(summaries('0'.repeat(64)), path.join(directory, 'target'))).rejects.toThrow('does not match')
+})
+
+it('refuses a link inside a release archive', async () => {
+  const { archive, revision } = ustar([['summaries/rule.txt', '', '2']])
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => new Response(archive)),
+  )
+
+  await expect(fetchReleaseInto(summaries(revision), path.join(directory, 'target'))).rejects.toThrow('not a regular file')
 })

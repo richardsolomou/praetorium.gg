@@ -38,6 +38,7 @@ import {
   type ReferenceQuery,
 } from '../../src/contracts/offlineReference'
 import { loadCatalogueTranslations } from '../../src/server/catalogueTranslations'
+import { loadRuleSummaries } from '../../src/server/ruleSummaries'
 import type { CatalogueRuntime } from '../../src/server/catalogueRuntime'
 
 export function constructionFilesForEdition(files: CatalogueFile[], edition?: CatalogueEdition): CatalogueFile[] {
@@ -101,6 +102,7 @@ export async function writeReferenceBundle(outDir: string, directory: string, ru
   if (!canonical) throw new Error('Offline reference canonical catalogue is unavailable')
   const sources = { catalogue: () => catalogue, rules: () => rules, canonicalCatalogue: () => canonical }
   const history = loadCatalogueHistory(directory) ?? []
+  const summaries = loadRuleSummaries(directory)
   const historyCanonical = (slug: string) => versions.pageCanonical(slug, versions.canonicalFor(slug), () => canonical)
   const queries: ReferenceQuery[] = []
   const put = (key: readonly unknown[], data: unknown) => {
@@ -155,7 +157,7 @@ export async function writeReferenceBundle(outDir: string, directory: string, ru
       if (detachment.referenceRoute?.catalogueId === faction.slug)
         put(
           ['detachment-detail', faction.id, detachment.slug],
-          detachmentReference(selectedCatalogue, selectedRules, faction.id, detachment.slug),
+          detachmentReference(selectedCatalogue, selectedRules, faction.id, detachment.slug, summaries(faction.id)),
         )
     }
   }

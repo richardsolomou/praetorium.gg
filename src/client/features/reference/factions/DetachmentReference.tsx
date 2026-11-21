@@ -4,6 +4,8 @@ import type { ReactNode } from 'react'
 import { routeSlug } from '../../../../core/slug'
 import { detachmentDetailQuery } from '../../../queries'
 import { RuleText } from '../../../components/RuleText'
+import type { KeywordRule } from '../../../components/Keyword'
+import { useSourceText } from '../../../sourceText'
 import { dispositionTone } from '../../../components/rosterSetup'
 import { FactionMark, factionColour, type FactionPresentation } from '../../../components/FactionMark'
 import { FavouriteDetachmentToggle } from './FavouriteDetachmentToggle'
@@ -113,7 +115,13 @@ export function DetachmentReference({
                     <h2 className="text-base">{enhancement.name}</h2>
                     {enhancement.points === null ? null : <span className="chip shrink-0 text-info">{enhancement.points} pts</span>}
                   </div>
-                  {enhancement.description ? <RuleText text={enhancement.description} rules={detachment.keywordRules} /> : <Unavailable />}
+                  {enhancement.summary ? (
+                    <SummarizedRule summary={enhancement.summary} text={enhancement.description} rules={detachment.keywordRules} />
+                  ) : enhancement.description ? (
+                    <RuleText text={enhancement.description} rules={detachment.keywordRules} />
+                  ) : (
+                    <Unavailable />
+                  )}
                 </article>
               ))}
             </div>
@@ -138,7 +146,7 @@ export function DetachmentReference({
 
           <section aria-label="Stratagems">
             <SectionHeading title="Stratagems" count={detachment.stratagems.length} />
-            {detachment.stratagems.some((stratagem) => !stratagem.description) ? (
+            {detachment.stratagems.some((stratagem) => !stratagem.summary && !stratagem.description) ? (
               <p className="text-sm text-dim">Some stratagem descriptions are not available.</p>
             ) : null}
             <div className="mt-2 grid gap-2 md:grid-cols-2">
@@ -156,7 +164,11 @@ export function DetachmentReference({
                     </div>
                     <span className="chip shrink-0">{stratagem.cp} CP</span>
                   </div>
-                  {stratagem.description ? <RuleText text={stratagem.description} rules={detachment.keywordRules} /> : null}
+                  {stratagem.summary ? (
+                    <SummarizedRule summary={stratagem.summary} text={stratagem.description} rules={detachment.keywordRules} />
+                  ) : stratagem.description ? (
+                    <RuleText text={stratagem.description} rules={detachment.keywordRules} />
+                  ) : null}
                 </article>
               ))}
             </div>
@@ -166,6 +178,23 @@ export function DetachmentReference({
         </PageContent>
       </div>
     </div>
+  )
+}
+
+/** A summary everyone reads, with the card's own words beneath once the reader has loaded that source. */
+function SummarizedRule({ summary, text, rules }: { summary: string; text: string | null; rules: KeywordRule[] }) {
+  const source = useSourceText(text ?? '')
+  return (
+    <>
+      <p className="eyebrow mt-3">Community summary</p>
+      <RuleText text={summary} rules={rules} className="mt-1" authored />
+      {text && !source.missing ? (
+        <>
+          <p className="eyebrow mt-3">Rules text</p>
+          <RuleText text={text} rules={rules} className="mt-1" />
+        </>
+      ) : null}
+    </>
   )
 }
 
