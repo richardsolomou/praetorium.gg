@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.274.7 (2026-11-21)
+
+### Patch Changes
+
+- 84172b3: [battles] A unit's datasheet in battle strikes through the weapons of fallen models again, and pressing a model scrolls to its weapons.
+
 ## 0.274.6 (2026-11-21)
 
 ### Patch Changes
