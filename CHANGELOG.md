@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.274.11 (2026-11-21)
+
+### Patch Changes
+
+- 1b4c353: [rosters] A wargear option such as a Redemptor's heavy onslaught gatling cannon no longer also shows a shorter weapon whose name sits inside its own.
+
 ## 0.274.10 (2026-11-21)
 
 ### Patch Changes
