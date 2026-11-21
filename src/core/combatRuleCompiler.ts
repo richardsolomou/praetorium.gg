@@ -179,13 +179,19 @@ function optionChoices(
   options: readonly (readonly [string, CombatRule])[],
   compile: (option: CombatRule) => ReturnType<typeof compileCombatRule>,
   armyWide = false,
+  selected?: string,
 ) {
   const choices: CombatRuleChoice[] = []
   for (const [name, option] of options) {
     const compiled = compile(option)
     if (!compiled) return null
     choices.push(
-      ...compiled.choices.map((choice) => ({ ...labelledChoice(name, choice), option: name, ...(armyWide ? { armyWide } : {}) })),
+      ...compiled.choices.map((choice) => ({
+        ...labelledChoice(name, choice),
+        option: name,
+        ...(armyWide ? { armyWide } : {}),
+        ...(selected ? { selected } : {}),
+      })),
     )
   }
   return { choices, defaultChoice: 0 }
@@ -300,6 +306,7 @@ function compileRule(
       options.map((option) => [option.name, { ...rule, description: option.description }]),
       compileOption,
       true,
+      unshouted(selectedAbility[2]!.replaceAll('*', '')),
     )
   }
   const stances =

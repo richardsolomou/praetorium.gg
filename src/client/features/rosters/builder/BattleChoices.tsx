@@ -57,6 +57,9 @@ function useCombatantDatasheet({
   return useQuery({
     ...combatantDatasheetQuery(catalogueId, entryId ?? '', detachmentIds, picks, pickIndex ?? 0, [], fielded),
     enabled: enabled && Boolean(entryId) && pickIndex !== null && picks[pickIndex]?.entryId === entryId,
+    // A wargear change refetches the same unit; keeping its last choices stops the rows above the wargear collapsing meanwhile.
+    placeholderData: (previous, previousQuery) =>
+      previousQuery?.queryKey[2] === entryId && previousQuery?.queryKey[5] === pickIndex ? previous : undefined,
   }).data
 }
 
@@ -107,9 +110,12 @@ export function useBattleChoices({
   )
   // A unit's own pick belongs to its place in this line-up, so adding, removing or moving a unit drops it rather than moving it.
   const lineUp = picks.map((pick) => pick.entryId).join(',')
-  const keyOf = (choice: BattleChoice) => (choice.armyWide ? choice.rule.name : `${lineUp}#${pickIndex}:${choice.rule.name}`)
+  const unitKey = (choice: BattleChoice) => `${lineUp}#${pickIndex}:${choice.rule.name}`
+  const keyOf = (choice: BattleChoice) => (choice.armyWide ? choice.rule.name : unitKey(choice))
+  // Only the units a player selected for a rule such as Noospheric Transference have the army's pick.
+  const pickOf = (choice: BattleChoice) => (choice.selected && !chosen[unitKey(choice)]?.length ? undefined : chosen[keyOf(choice)])
   const picked = useStableValue<Record<string, readonly string[]>>(
-    Object.fromEntries(choices.flatMap((choice) => (chosen[keyOf(choice)]?.length ? [[choice.rule.name, chosen[keyOf(choice)]!]] : []))),
+    Object.fromEntries(choices.flatMap((choice) => (pickOf(choice)?.length ? [[choice.rule.name, pickOf(choice)!]] : []))),
   )
   const active = useMemo(
     (): ActiveCombatRule[] =>
@@ -136,9 +142,15 @@ export function useBattleChoices({
       const choice = choices.find((candidate) => candidate.rule.name === rule)
       if (!choice || !scope) return
       const next = { ...chosen }
+      const store = (key: string, values: readonly string[]) => {
+        if (values.length) next[key] = values
+        else delete next[key]
+      }
       // Past the limit, the newest pick replaces the oldest, as a new Order replaces the last.
-      if (options.length) next[keyOf(choice)] = options.slice(-choice.limit)
-      else delete next[keyOf(choice)]
+      const kept = options.slice(-choice.limit)
+      // Picking an option selects the unit and sets the army's pick; clearing it leaves the pick to the other selected units.
+      if (choice.selected) store(unitKey(choice), kept.length ? [choice.selected] : [])
+      if (kept.length || !choice.selected) store(keyOf(choice), kept)
       picksByScope.set(scope, next)
       for (const listener of listeners) listener()
     },
@@ -181,7 +193,7 @@ export function BattleChoices({ choices, chosen, onChoose, rules }: Props) {
   if (!choices.length) return null
   return (
     <section aria-label="In battle" className="flex flex-col gap-y-1.5">
-      {choices.map(({ rule, options, together, limit }) => {
+      {choices.map(({ rule, options, together, limit, selected }) => {
         const short = shortLabels(options)
         return (
           <div key={rule.name} className="flex min-w-0 flex-wrap items-center gap-1">
@@ -206,7 +218,9 @@ export function BattleChoices({ choices, chosen, onChoose, rules }: Props) {
                     </ToggleGroupItem>
                   ))}
                 </ToggleGroup>
-                <span className="text-xs text-faint">{limit > 1 ? `Up to ${limit} at once` : 'One at a time'}</span>
+                <span className="text-xs text-faint">
+                  {selected ? 'The same for every unit you pick it on' : limit > 1 ? `Up to ${limit} at once` : 'One at a time'}
+                </span>
               </>
             )}
           </div>

@@ -48,6 +48,15 @@ describe('survivingUnits', () => {
     expect(survivingUnits([captain, intercessors], [])).toEqual([])
   })
 
+  it('keeps the units after a duplicate, standing its source in for it until it is priced', () => {
+    expect(survivingUnits([captain, intercessors, hellblasters], [captain, intercessors, intercessors, hellblasters])).toEqual([0, 1, 1, 2])
+  })
+
+  it('does not stand a unit in for an inserted copy with other wargear', () => {
+    const armed = { ...intercessors, choices: { weapon: 'bolt-rifle' } }
+    expect(survivingUnits([captain, armed, hellblasters], [captain, armed, intercessors, hellblasters])).toEqual([0, 1])
+  })
+
   it('stops where the old prices stop describing this list', () => {
     // Nothing is left to match the captain against, so his card and everything after
     // it waits rather than being drawn against the wrong unit.

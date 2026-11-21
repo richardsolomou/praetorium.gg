@@ -54,7 +54,7 @@ export function useRosterPrice({
      */
     placeholderData: (previous, previousQuery) => {
       if (!previous || !samePriceContext(previousQuery?.queryKey, priceRequest.queryKey)) return undefined
-      const kept = survivingUnits(previousQuery?.queryKey.at(-1), picks)
+      const kept = survivingUnits(previousQuery?.queryKey.at(-1), positioned)
       if (!kept) return undefined
       if (kept.length === previous.units.length && kept.every((at, index) => at === index)) return previous
       const units = []

@@ -974,6 +974,10 @@ describe('Haloscreed Battleclade rules', () => {
         }),
       ).map((choice) => choice.label),
     ).toEqual(['Microactuator Bracing', 'Muted Servomotors']))
+  it('gives the selected ability only to the units the player selects, by the keyword they gain', () =>
+    expect(
+      shownRuleChoices(rule(noosphericTransference, { scope: 'detachment', keywords: kastelanRobots })).map((choice) => choice.selected),
+    ).toEqual(['Halo Override', 'Halo Override', 'Halo Override']))
   it('leaves the selected abilities off until the player selects the unit', () =>
     expect(combatRuleDefault(rule(noosphericTransference, { scope: 'detachment', keywords: kastelanRobots }))).toBe(0))
 })

@@ -44,6 +44,15 @@ describe('rules a player chooses between during the battle', () => {
   it('keeps one pick for the army when a rule makes its option active for the army', () =>
     expect(battleChoices([stances])[0]!.armyWide).toBe(true))
 
+  it('names the keyword a unit needs before the army pick reaches it', () =>
+    expect(
+      battleChoices([
+        rule(
+          'In your Command phase, select one or more **ARMY** units from your army. Until the start of your next Command phase, those units gain the **CHOSEN FEW** keyword. Then, select one of the Gift abilities below. Until the start of your next Command phase, units from your army with the **CHOSEN FEW** keyword have the selected Gift ability:\n\n### Iron Skin\n\nAdd 1 to the Toughness characteristic of models in this unit.\n\n### Veil\n\nModels in this unit have the Stealth ability.',
+        ),
+      ])[0]!.selected,
+    ).toBe('Chosen Few'))
+
   it('keeps a pick for each unit when each unit is in its own option', () =>
     expect(
       battleChoices([

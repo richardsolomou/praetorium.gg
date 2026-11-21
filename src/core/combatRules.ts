@@ -123,6 +123,8 @@ export type CombatRuleChoice = {
   option?: string
   /** Whether the option picked is one for the whole army, as a Doctrina Imperative is, rather than one for each unit, as an Order is. */
   armyWide?: true
+  /** The keyword the units a player selects gain, as Halo Override: only they have an army-wide option picked for it. */
+  selected?: string
 }
 /** `source` names the unit whose ability it is, so a combined estimate can end it when that unit is destroyed (19.04). */
 export type ActiveCombatRule = { name: string; source?: string; appliedAs?: readonly string[]; effects: CombatRuleEffect[] }
