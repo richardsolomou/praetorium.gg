@@ -13,7 +13,12 @@ import type { loadoutDatasheets } from '../../../../server/functions'
 import { datasheetFixture } from '../../../../core/datasheet.fixtures'
 
 /** The loadout panel for a unit whose datasheet carries these profiles. */
-function loadoutMarkup(unit: LoadoutUnit | null, profiles: Datasheet['profiles'] = [], loading = false) {
+function loadoutMarkup(
+  unit: LoadoutUnit | null,
+  profiles: Datasheet['profiles'] = [],
+  loading = false,
+  props: Partial<Parameters<typeof Loadout>[0]> = {},
+) {
   const queryClient = new QueryClient()
   const picks = [{ entryId: unit?.entryId ?? 'unit' }]
   if (unit) {
@@ -45,6 +50,7 @@ function loadoutMarkup(unit: LoadoutUnit | null, profiles: Datasheet['profiles']
         pickIndex: 0,
         onChoose: () => undefined,
         onSpread: () => undefined,
+        ...props,
       }),
     ),
   )
@@ -179,6 +185,33 @@ it('lists weapons a chosen bundle replaced among the equipped weapons of a unit 
     markup.indexOf('</section>', markup.indexOf('Equipped ranged weapons')),
   )
   expect(equipped).toContain('Excruciator cannon')
+})
+
+describe('a unit read in battle', () => {
+  const weapon = (name: string, type: string) => ({ id: name, name, type, values: [{ name: 'A', value: '2' }] })
+  const unit: LoadoutUnit = {
+    entryId: 'squad',
+    name: 'Squad',
+    points: 60,
+    size: { min: 5, max: 5, models: 5, resizable: false },
+    toggles: [],
+    models: [],
+    choices: [],
+  }
+  const markup = () =>
+    loadoutMarkup(unit, [weapon('Lasgun', 'Ranged Weapons'), weapon('Chainsword', 'Melee Weapons')], false, {
+      showOptions: false,
+      standing: { fallen: (carries) => carries('Chainsword'), sought: (carries) => carries('Lasgun') },
+    })
+  const tag = (name: string) => markup().slice(markup().lastIndexOf('<div', markup().indexOf(`>${name}<`)), markup().indexOf(`>${name}<`))
+
+  it('marks a weapon nobody standing carries', () => {
+    expect(tag('Chainsword')).toContain('data-fallen="true"')
+  })
+
+  it('marks the weapon of the models a player asked to see', () => {
+    expect(tag('Lasgun')).toContain('data-sought="true"')
+  })
 })
 
 it('groups firing profiles under one weapon within a paired loadout', () => {

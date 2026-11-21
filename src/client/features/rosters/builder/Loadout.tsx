@@ -5,13 +5,14 @@ import type { Datasheet } from '../../../../contracts/catalogue'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import type { RosterPick } from '../../../../core/roster'
 import { isUnitCompositionChoice } from '../../../../core/unitChoices'
-import { primaryUnitProfile } from '../../../datasheet'
+import { primaryUnitProfile, weaponProfileGroups } from '../../../datasheet'
 import { datasheetLoad, type Fielded, loadoutDatasheetsQuery } from '../../../queries'
 import { useSettled } from '../../../useSettled'
-import { UnitProfile, WeaponProfiles, WeaponSummary } from '../../../components/DatasheetProfiles'
+import { UnitProfile, type WeaponMark, WeaponProfiles, WeaponSummary } from '../../../components/DatasheetProfiles'
 import {
   type LoadoutModel,
   type LoadoutUnit,
+  profilesCarry,
   viewedWeapons,
   orderedChoices,
   unmodeledGrantedWeapons,
@@ -168,6 +169,12 @@ export function Loadout({
   const profile = primaryUnitProfile(sheet)
 
   const viewed = showOptions ? null : viewedWeapons(unit, weapons, sheet.profiles)
+  const mark: WeaponMark | undefined = standing
+    ? (profiles) => {
+        const carries = (piece: string) => profilesCarry(profiles, piece)
+        return { fallen: standing.fallen(carries), sought: standing.sought(carries) }
+      }
+    : undefined
   const { models, loose } = divide(unit)
   const saved = pickIndex === null ? undefined : picks[pickIndex]?.spreads
   // Read-only views list the unit's weapons by type, so only choices that are not wargear stay below them.
@@ -194,8 +201,10 @@ export function Loadout({
           </div>
           {viewed ? (
             <div className="space-y-6">
-              {viewed.ranged.length ? <WeaponSummary title="Equipped ranged weapons" weapons={viewed.ranged} rules={rules} /> : null}
-              <MeleeByModel groups={viewed.melee} rules={rules} />
+              {viewed.ranged.length ? (
+                <WeaponSummary title="Equipped ranged weapons" weapons={viewed.ranged} rules={rules} mark={mark} />
+              ) : null}
+              <MeleeByModel groups={viewed.melee} rules={rules} mark={mark} />
             </div>
           ) : unit.models.length ? (
             <div className="space-y-6">
@@ -325,14 +334,22 @@ function divide(unit: LoadoutUnit): { models: Map<LoadoutModel, Stood>; loose: L
   return { models, loose }
 }
 
-function MeleeByModel({ groups, rules }: { groups: ReturnType<typeof viewedWeapons>['melee']; rules: Datasheet['keywordRules'] }) {
+function MeleeByModel({
+  groups,
+  rules,
+  mark,
+}: {
+  groups: ReturnType<typeof viewedWeapons>['melee']
+  rules: Datasheet['keywordRules']
+  mark?: WeaponMark
+}) {
   const [whole] = groups
   if (!whole?.weapons.length) return null
   const choose = (count: number) => (
     <span className="font-rules text-xs font-normal normal-case text-info">{count > 1 ? 'Choose one each' : 'Choose one'}</span>
   )
   const byModel = groups.some((group) => group.name)
-  if (!byModel && !whole.choose) return <WeaponSummary title="Equipped melee weapons" weapons={whole.weapons} rules={rules} />
+  if (!byModel && !whole.choose) return <WeaponSummary title="Equipped melee weapons" weapons={whole.weapons} rules={rules} mark={mark} />
   return (
     <section>
       <h2 className="rubric flex items-baseline justify-between gap-2">
@@ -340,22 +357,26 @@ function MeleeByModel({ groups, rules }: { groups: ReturnType<typeof viewedWeapo
         {byModel ? <span className="font-rules text-xs font-normal normal-case text-faint">One per model</span> : choose(whole.count)}
       </h2>
       <div className="mt-2 space-y-3">
-        {groups.map((group) => (
-          <div key={group.key}>
-            {group.name ? (
-              <p className="eyebrow mb-1.5 flex items-baseline justify-between gap-2 text-bone">
-                <span className="min-w-0">
-                  {group.name}
-                  {group.choose ? <span className="ml-2">{choose(group.count)}</span> : null}
-                </span>
-                <span className="readout normal-case text-dim">{group.count}</span>
-              </p>
-            ) : null}
-            <div className="space-y-1.5">
-              <WeaponProfiles weapons={group.weapons} rules={rules} />
+        {groups.map((group) => {
+          const states = weaponProfileGroups(group.weapons).map((profiles) => mark?.(profiles))
+          const fallen = states.every((state) => state?.fallen)
+          return (
+            <div key={group.key} data-sought={states.some((state) => state?.sought) || undefined} className="scroll-mt-2.5">
+              {group.name ? (
+                <p className={`eyebrow mb-1.5 flex items-baseline justify-between gap-2 text-bone ${fallen ? 'opacity-50' : ''}`}>
+                  <span className={`min-w-0 ${fallen ? 'line-through' : ''}`}>
+                    {group.name}
+                    {group.choose ? <span className="ml-2">{choose(group.count)}</span> : null}
+                  </span>
+                  <span className="readout normal-case text-dim">{group.count}</span>
+                </p>
+              ) : null}
+              <div className="space-y-1.5">
+                <WeaponProfiles weapons={group.weapons} rules={rules} mark={mark} />
+              </div>
             </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
     </section>
   )

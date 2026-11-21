@@ -40,7 +40,20 @@ export function ProfileGrid({ values, columns = 6 }: { values: readonly DisplayV
   )
 }
 
-export function WeaponSummary({ title, weapons, rules }: { title: string; weapons: Profile[]; rules: Datasheet['keywordRules'] }) {
+/** How a battle reads a weapon, given every profile it has: carried by nobody standing, or held by the models a player asked to see. */
+export type WeaponMark = (profiles: readonly Profile[]) => { fallen: boolean; sought: boolean }
+
+export function WeaponSummary({
+  title,
+  weapons,
+  rules,
+  mark,
+}: {
+  title: string
+  weapons: Profile[]
+  rules: Datasheet['keywordRules']
+  mark?: WeaponMark
+}) {
   const count = weaponProfileGroups(weapons).reduce((total, profiles) => total + (profiles[0]?.count ?? 1), 0)
   return (
     <section>
@@ -49,7 +62,7 @@ export function WeaponSummary({ title, weapons, rules }: { title: string; weapon
         <span className="readout text-faint">{count}</span>
       </h2>
       <div className="mt-2 space-y-1.5">
-        <WeaponProfiles weapons={weapons} rules={rules} />
+        <WeaponProfiles weapons={weapons} rules={rules} mark={mark} />
       </div>
     </section>
   )
@@ -61,23 +74,45 @@ export function WeaponProfiles({
   showName = true,
   showCount = true,
   embedded = false,
+  mark,
 }: {
   weapons: readonly Profile[]
   rules: Datasheet['keywordRules']
   showName?: boolean
   showCount?: boolean
   embedded?: boolean
+  mark?: WeaponMark
 }) {
   return weaponProfileGroups(weapons).map((profiles) => {
     const first = profiles[0]!
+    const state = mark?.(profiles)
     if (profiles.length === 1) {
-      return <WeaponProfile key={first.id} weapon={first} rules={rules} showName={showName} showCount={showCount} embedded={embedded} />
+      return (
+        <WeaponProfile
+          key={first.id}
+          weapon={first}
+          rules={rules}
+          showName={showName}
+          showCount={showCount}
+          embedded={embedded}
+          state={state}
+        />
+      )
     }
     const name = weaponProfileGroupName(profiles)
     return (
-      <section key={first.id} aria-label={`${name} profiles`} className={embedded ? 'mx-2 my-1.5' : 'part p-2'}>
+      <section
+        key={first.id}
+        aria-label={`${name} profiles`}
+        {...marked(state)}
+        className={`${embedded ? 'mx-2 my-1.5' : 'part p-2'} scroll-mt-2.5 ${state?.fallen ? 'opacity-50' : ''}`}
+      >
         <h3 className="flex items-baseline justify-between gap-2 text-xs">
-          {showName ? <span>{showCount && first.count && first.count > 1 ? `${first.count}× ${name}` : name}</span> : null}
+          {showName ? (
+            <span className={state?.fallen ? 'line-through' : undefined}>
+              {showCount && first.count && first.count > 1 ? `${first.count}× ${name}` : name}
+            </span>
+          ) : null}
           <span className="shrink-0 font-rules font-normal normal-case text-faint">{profiles.length} profiles</span>
         </h3>
         <div className="mt-1 ml-3 border-l-2 border-runner pl-3">
@@ -97,6 +132,11 @@ export function WeaponProfiles({
   })
 }
 
+const marked = (state?: ReturnType<WeaponMark>) => ({
+  'data-fallen': state?.fallen || undefined,
+  'data-sought': state?.sought || undefined,
+})
+
 /** Something to say under a weapon profile, such as its odds in a combat simulation; most screens say nothing. */
 export const WeaponProfileNote = createContext<((weapon: Profile) => ReactNode) | null>(null)
 
@@ -107,6 +147,7 @@ function WeaponProfile({
   showName = true,
   showCount = true,
   embedded = false,
+  state,
 }: {
   weapon: Profile
   rules: Datasheet['keywordRules']
@@ -114,14 +155,17 @@ function WeaponProfile({
   showName?: boolean
   showCount?: boolean
   embedded?: boolean
+  state?: ReturnType<WeaponMark>
 }) {
   const keywords = weapon.values.find((value) => datasheetCharacteristicKindOf(value) === 'keywords')
   const keywordText = keywords?.value.trim()
   const note = useContext(WeaponProfileNote)?.(weapon)
   return (
-    <div className={`${embedded ? '' : 'part '}px-2 py-1.5`}>
+    <div {...marked(state)} className={`${embedded ? '' : 'part '}scroll-mt-2.5 px-2 py-1.5 ${state?.fallen ? 'opacity-50' : ''}`}>
       {showName ? (
-        <h3 className={label ? 'font-rules text-xs font-medium normal-case text-dim' : 'text-xs'}>
+        <h3
+          className={`${label ? 'font-rules text-xs font-medium normal-case text-dim' : 'text-xs'} ${state?.fallen ? 'line-through' : ''}`}
+        >
           {showCount && weapon.count && weapon.count > 1 ? `${weapon.count}× ${weapon.name}` : (label ?? weapon.name)}
         </h3>
       ) : null}
