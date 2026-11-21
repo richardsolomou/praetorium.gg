@@ -58,6 +58,7 @@ import {
   WARLORD_REASON,
   factionOfDatasheets,
   chapterOfDatasheets,
+  enhancementDetachment,
 } from './importMismatch'
 import { DISPOSITIONS, type LoadedCatalogue } from './catalogueIndex'
 import { datacardOf } from './datasheetJoin'
@@ -427,7 +428,22 @@ function importTextRoster(
     return [part]
   }
   const parts = whole.length || !detachmentName ? [] : detachmentName.split(/,\s+/).flatMap((part) => (known(part) ? [part] : joined(part)))
-  const detachments = whole.length ? whole : parts.flatMap((part) => detachmentsNamed(part, offered, translations, printed))
+  // A list that names no detachment, as a New Recruit export without its header, still took the ones its enhancements belong to.
+  const enhancementDetachments = () => [
+    ...new Set(
+      parsed.units.flatMap((unit) =>
+        unit.selections.flatMap((selection) => {
+          const [, name] = selection.name.match(/^Enhancements?:\s*(.+)$/i) ?? []
+          return enhancementDetachment(upgradeName(name ?? '').trim(), loaded, faction.id) ?? []
+        }),
+      ),
+    ),
+  ]
+  const detachments = whole.length
+    ? whole
+    : detachmentName
+      ? parts.flatMap((part) => detachmentsNamed(part, offered, translations, printed))
+      : enhancementDetachments()
   const unknown: UnmatchedName[] = parts
     .filter((part) => !known(part))
     .map((part) => ({ name: part, reason: unmatchedDetachmentReason(part, faction.id, loaded, removed) }))

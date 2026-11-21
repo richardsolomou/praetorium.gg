@@ -1531,6 +1531,22 @@ Exported with BattleBase, Data Version: v20260812`,
     ])
   })
 
+  it('takes the detachment of an enhancement in a list that names none', () => {
+    const imported = importRosterFile(
+      {
+        file: `CHARACTERS
+
+Lokhust Lord (80 Points)
+  • Enhancements: Veil of Darkness
+
+Exported with New Recruit v38.18, Data Version: v17`,
+      },
+      loaded,
+    )
+
+    expect(imported.detachmentIds).toEqual(['skyshroud'])
+  })
+
   it('separates an enhancement of the chosen detachment from one of another', () => {
     const imported = importRosterFile(
       {
