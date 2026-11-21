@@ -498,8 +498,8 @@ function ModelLines({
               whole={alive === line.models}
               actionable={actionable}
               disabled={blocked}
-              removeLabel={`Remove a ${line.name} from ${unit.name}`}
-              returnLabel={`Return a ${line.name} to ${unit.name}`}
+              removeLabel={`Remove a model from ${line.name} in ${unit.name}`}
+              returnLabel={`Return a model to ${line.name} in ${unit.name}`}
               onStep={(delta) => press({ kind: 'wound-unit', unitKey: unit.key, delta, line: at, playerId })}
             />
             {wounds && wounds > 1 ? (
@@ -510,8 +510,8 @@ function ModelLines({
                 whole={alive === line.models && damage === 0}
                 actionable={actionable}
                 disabled={blocked || !alive}
-                removeLabel={`Take a wound off a ${line.name} in ${unit.name}`}
-                returnLabel={`Heal a wound on a ${line.name} in ${unit.name}`}
+                removeLabel={`Take a wound off ${line.name} in ${unit.name}`}
+                returnLabel={`Heal a wound on ${line.name} in ${unit.name}`}
                 onStep={(delta) => press({ kind: 'damage-unit', unitKey: unit.key, delta, line: at, playerId })}
               />
             ) : null}

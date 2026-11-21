@@ -51,7 +51,7 @@ test('an army is read and its losses recorded without leaving the battle', async
   })
 
   // Models come off the squad, and what is left of the army says so behind the dialog.
-  const removeModel = squad.getByRole('button', { name: 'Remove a model from Plague Marines' })
+  const removeModel = squad.getByRole('button', { name: 'Remove a model from Plague Marine in Plague Marines' })
   await removeModel.click()
   await started
   await removeModel.click()
@@ -89,14 +89,17 @@ test('an army is read and its losses recorded without leaving the battle', async
   // A squad counts both whole models and the one taking damage, as a table does: the first wound leaves every
   // model standing, and the second takes the model and starts again on the one behind it.
   const drone = army.locator('[data-army-list] [data-unit="Foetid Bloat-drone"]')
-  await expect(squad.locator('[data-count="models"]')).toHaveText('3/5')
-  await expect(squad.locator('[data-count="wounds"]')).toHaveText('2/2')
-  await squad.getByRole('button', { name: 'Take a wound off Plague Marines' }).click()
-  await expect(squad.locator('[data-count="wounds"]')).toHaveText('1/2')
-  await expect(squad.locator('[data-count="models"]')).toHaveText('3/5')
-  await squad.getByRole('button', { name: 'Take a wound off Plague Marines' }).click()
-  await expect(squad.locator('[data-count="models"]')).toHaveText('2/5')
-  await expect(squad.locator('[data-count="wounds"]')).toHaveText('2/2')
+  // The squad's total comes first; each kind of model counts its own wounds on its row.
+  const squadModels = squad.locator('[data-count="models"]').first()
+  const marineWounds = squad.locator('[data-model-line="Plague Marine"] [data-count="wounds"]')
+  await expect(squadModels).toHaveText('3/5')
+  await expect(marineWounds).toHaveText('2/2')
+  await squad.getByRole('button', { name: 'Take a wound off Plague Marine in Plague Marines' }).click()
+  await expect(marineWounds).toHaveText('1/2')
+  await expect(squadModels).toHaveText('3/5')
+  await squad.getByRole('button', { name: 'Take a wound off Plague Marine in Plague Marines' }).click()
+  await expect(squadModels).toHaveText('2/5')
+  await expect(marineWounds).toHaveText('2/2')
   // One model of ten wounds counts only the wounds: there are no models to count.
   await expect(drone.locator('[data-count="models"]')).toHaveCount(0)
   await expect(drone.locator('[data-count="wounds"]')).toHaveText('10/10')
