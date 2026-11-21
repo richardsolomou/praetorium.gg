@@ -1,5 +1,14 @@
 # praetorium
 
+## 0.273.7 (2026-11-21)
+
+### Patch Changes
+
+- 39562b1: [rosters] Duplicating a unit no longer hides the units after it for a moment and scrolls the roster.
+- 39562b1: [rosters] Changing a unit's wargear no longer makes the battle choices above it, such as Orders or Doctrina Imperatives, blink and scroll the loadout.
+- a9e0235: [rosters] Noospheric Transference now only changes the units you pick an Override on, instead of every unit in the army.
+- 39562b1: [rosters] Adding a unit's first copy, or removing its last, no longer shifts the rows of the unit picker.
+
 ## 0.273.6 (2026-11-21)
 
 ### Patch Changes
