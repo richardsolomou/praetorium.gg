@@ -54,12 +54,6 @@ export function battleChoiceAllowances(texts: readonly string[], attached: boole
 
 type Effect = ActiveCombatRule['effects'][number]
 const unconditional = (effect: Effect) => !effect.condition && !effect.targetKeywords && !effect.excludedTargetKeywords
-/** What `battleChoiceSheet` draws: a weapon's ability or characteristic, or one of the unit's. */
-const drawn = (effect: Effect) =>
-  unconditional(effect) &&
-  (unitChanges(effect, '').length > 0 ||
-    Boolean(effect.ability) ||
-    (effect.role === 'attacker' && Boolean(effect.keyword || effect.characteristic)))
 
 /**
  * Each rule with two or more named options a unit can be in, every option once under its own name. An option's condition,
@@ -90,7 +84,8 @@ export function battleChoices(rules: readonly CombatRule[], allowances: readonly
       if (!options.has(label) || choice.label === choice.option) options.set(label, { label, effects })
     }
     const chosen = [...options.values()]
-    if (chosen.length < 2 || !chosen.some((option) => option.effects.some(drawn))) return []
+    // Options worded as conditions, as a bonus that grows if the unit charged, are the player's to check rather than to pick.
+    if (chosen.length < 2 || chosen.some(({ label }) => /^If /i.test(label))) return []
     const together = activators.flatMap((activator) => {
       const labels = chosen.flatMap(({ label }) => (activator.names.includes(combatTextKey(label)) ? [label] : []))
       return labels.length > 1 ? [{ ...activator, labels }] : []

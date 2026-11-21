@@ -59,7 +59,8 @@ export function ArmyLoadout({ army, unit, seek }: { army: Army; unit: UnitState;
             embedded
             showOptions={false}
             fielded={fielded}
-            battleChoices={`battle:${army.playerId}:${army.roster!.fieldedAt}`}
+            // The list's key, so a pick reads the same here, on its roster page and in the builder.
+            battleChoices={army.rosterId ? `roster:${army.rosterId}` : `battle:${army.playerId}:${army.roster!.fieldedAt}`}
             standing={standingWargear(unit, seek?.line)}
             unavailable={<FieldedUnit unit={unit} />}
             footer={matches ? <UnitPhoto entryId={selected!.entryId} name={selected!.name} /> : undefined}

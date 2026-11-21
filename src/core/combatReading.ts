@@ -7,6 +7,7 @@ import {
   combatRuleChoices,
   combatRuleDefault,
   combatRuleRoles,
+  namesOptions,
 } from './combatRules'
 import { type AnsweredRule, compileCombatRule, type RuleQuestion, ruleAnswers } from './combatRuleCompiler'
 
@@ -156,7 +157,8 @@ function unquotedReading(reading: CombatReading, words: string): CombatReading {
 }
 
 const takesPart = (reading: CombatReading) =>
-  reading.compiled ? reading.compiled.choices.some((choice) => choice.effects.length) : reading.roles.length > 0
+  (reading.compiled ? reading.compiled.choices.some((choice) => choice.effects.length) : reading.roles.length > 0) ||
+  namesOptions((reading.shown ?? reading.compiled)?.choices ?? [])
 
 const NO_PART: CombatReading = { compiled: null, legacy: [], legacyDefault: 0, roles: [] }
 

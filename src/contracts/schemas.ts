@@ -2,6 +2,7 @@ import { ADMIN_USER_ROLES, ADMIN_USER_SORTS } from '../admin'
 import { z } from 'zod'
 import { LIST_FILTER_SCOPES, listPreferencesSchema } from '../core/listFilter'
 import { BATTLE_ORDERS, battleFilterSchema } from '../core/battleFilter'
+import { battleChoicePicksSchema, battleChoiceScopeSchema } from '../core/battleChoicePicks'
 import { REPLAY_BATCH_SIZE } from './battles'
 import { tourTaskIds } from '../core/onboarding'
 import { PLAYER_SEARCH_MAX_LENGTH } from '../core/playerSearch'
@@ -367,6 +368,8 @@ export const playerDefaultsSchema = z
   .object({ rosterVisibility: z.enum(ROSTER_VISIBILITIES), battleSize: z.number().int() })
   .refine(isPlayerDefaults, 'choose a supported battle size')
 export const listFilterPreferencesSchema = z.object({ scope: z.enum(LIST_FILTER_SCOPES), preferences: listPreferencesSchema })
+export const battleChoiceScopeInputSchema = z.object({ scope: battleChoiceScopeSchema })
+export const battleChoicesInputSchema = battleChoiceScopeInputSchema.extend({ picks: battleChoicePicksSchema })
 export const pushPreferenceSchema = z.object({ enabled: z.boolean() })
 export const pushDeviceSchema = z.object({ token: pushTokenSchema, platform: z.enum(PUSH_PLATFORMS) })
 export const pushTokenOnlySchema = z.object({ token: pushTokenSchema })

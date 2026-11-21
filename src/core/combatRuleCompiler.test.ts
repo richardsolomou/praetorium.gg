@@ -922,6 +922,29 @@ describe('rules a unit switches between during the battle', () => {
   })
 })
 
+describe('a rule that lists options to select one of', () => {
+  const doctrines = (title: (name: string) => string) =>
+    `At the start of your Command phase, you can select one Combat Doctrine listed below. If you do, that Combat Doctrine is active for friendly ADEPTUS ASTARTES units with this ability until the start of your next Command Phase\n\n${title('Assault Doctrine')}When this unit is selected to make an Advance move, that Advance move does not prevent this unit from being eligible to declare a charge.\n\n${title('Devastator Doctrine')}This unit's ranged attacks have [ASSAULT]\n\nUnless otherwise stated.\n- You can only select each Combat Doctrine once per battle`
+
+  it.each([
+    ['plain title lines', (name: string) => `${name}\n`],
+    ['bold titles', (name: string) => `**${name}**\n\n`],
+  ])('names each option on a datasheet, calculating the ones it can, with %s', (_, title) =>
+    expect(shownRuleChoices(rule(doctrines(title)))).toEqual([
+      { label: 'Assault Doctrine', option: 'Assault Doctrine', armyWide: true, effects: [] },
+      {
+        label: 'Devastator Doctrine',
+        option: 'Devastator Doctrine',
+        armyWide: true,
+        effects: [{ role: 'attacker', phases: ['ranged'], keyword: 'ASSAULT' }],
+      },
+    ]),
+  )
+
+  it('leaves it out of a calculation while an option cannot be read', () =>
+    expect(compileCombatRule(rule(doctrines((name) => `${name}\n`)))).toBeNull())
+})
+
 describe('Haloscreed Battleclade rules', () => {
   const kastelanRobots = ['Faction: Adeptus Mechanicus', 'Imperium', 'Kastelan Robots', 'Legio Cybernetica', 'Vehicle', 'Walker']
   const battleProtocols =
@@ -977,7 +1000,11 @@ describe('Haloscreed Battleclade rules', () => {
   it('gives the selected ability only to the units the player selects, by the keyword they gain', () =>
     expect(
       shownRuleChoices(rule(noosphericTransference, { scope: 'detachment', keywords: kastelanRobots })).map((choice) => choice.selected),
-    ).toEqual(['Halo Override', 'Halo Override', 'Halo Override']))
+    ).toEqual(['Halo Override', 'Halo Override', 'Halo Override', 'Halo Override']))
+  it('names an override that changes no attack on a datasheet, so the pick is still noted', () =>
+    expect(
+      shownRuleChoices(rule(noosphericTransference, { scope: 'detachment', keywords: kastelanRobots })).map((choice) => choice.option),
+    ).toContain('Predation Protocols'))
   it('leaves the selected abilities off until the player selects the unit', () =>
     expect(combatRuleDefault(rule(noosphericTransference, { scope: 'detachment', keywords: kastelanRobots }))).toBe(0))
 })

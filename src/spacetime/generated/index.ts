@@ -61,6 +61,7 @@ import ReplaceCalendarFeedReducer from './replace_calendar_feed_reducer'
 import ReplaceFriendInviteReducer from './replace_friend_invite_reducer'
 import ReportCollectionPhotoReducer from './report_collection_photo_reducer'
 import RevokeSessionReducer from './revoke_session_reducer'
+import SetBattleChoicesReducer from './set_battle_choices_reducer'
 import SetCollectionCountsAsReducer from './set_collection_counts_as_reducer'
 import SetCollectionModelsReducer from './set_collection_models_reducer'
 import SetCollectionPhotoReducer from './set_collection_photo_reducer'
@@ -83,6 +84,7 @@ import * as AdminCollectionPhotosProcedure from './admin_collection_photos_proce
 import * as BattleByInviteProcedure from './battle_by_invite_procedure'
 import * as BattleByTokenProcedure from './battle_by_token_procedure'
 import * as BattleChangesProcedure from './battle_changes_procedure'
+import * as BattleChoicesProcedure from './battle_choices_procedure'
 import * as BattleDraftStateProcedure from './battle_draft_state_procedure'
 import * as BattleFeedProcedure from './battle_feed_procedure'
 import * as BattleForOperatorProcedure from './battle_for_operator_procedure'
@@ -306,6 +308,7 @@ const reducersSchema = __reducers(
   __reducerSchema('replace_friend_invite', ReplaceFriendInviteReducer),
   __reducerSchema('report_collection_photo', ReportCollectionPhotoReducer),
   __reducerSchema('revoke_session', RevokeSessionReducer),
+  __reducerSchema('set_battle_choices', SetBattleChoicesReducer),
   __reducerSchema('set_collection_counts_as', SetCollectionCountsAsReducer),
   __reducerSchema('set_collection_models', SetCollectionModelsReducer),
   __reducerSchema('set_collection_photo', SetCollectionPhotoReducer),
@@ -330,6 +333,7 @@ const proceduresSchema = __procedures(
   __procedureSchema('battle_by_invite', BattleByInviteProcedure.params, BattleByInviteProcedure.returnType),
   __procedureSchema('battle_by_token', BattleByTokenProcedure.params, BattleByTokenProcedure.returnType),
   __procedureSchema('battle_changes', BattleChangesProcedure.params, BattleChangesProcedure.returnType),
+  __procedureSchema('battle_choices', BattleChoicesProcedure.params, BattleChoicesProcedure.returnType),
   __procedureSchema('battle_draft_state', BattleDraftStateProcedure.params, BattleDraftStateProcedure.returnType),
   __procedureSchema('battle_feed', BattleFeedProcedure.params, BattleFeedProcedure.returnType),
   __procedureSchema('battle_for_operator', BattleForOperatorProcedure.params, BattleForOperatorProcedure.returnType),
