@@ -167,7 +167,7 @@ function otherFaction(stated: string, catalogueId: string, loaded: LoadedCatalog
 }
 
 /** Which detachment of this faction prints an enhancement by that name, if any does. */
-function enhancementDetachment(stated: string, loaded: LoadedCatalogue, catalogueId: string) {
+export function enhancementDetachment(stated: string, loaded: LoadedCatalogue, catalogueId: string) {
   const options = loaded.detachments.get(catalogueId)?.options ?? []
   return options.find((option) => loaded.datacards.enhancements.has(descriptionKey(option.name, stated))) ?? null
 }

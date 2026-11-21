@@ -18,7 +18,7 @@ The faction line names a different army from the unit's, often because the expor
 
 ### An enhancement is "an enhancement of the … detachment"
 
-The detachment line didn't match or is missing. Check the detachment name in the review, then add the detachment and enhancement in the builder.
+The detachment line didn't match, or names other detachments. A list with no detachment line takes the detachments its enhancements belong to. Check the detachment name in the review, then add the detachment and enhancement in the builder.
 
 ### The exchange code is "incomplete or damaged"
 
