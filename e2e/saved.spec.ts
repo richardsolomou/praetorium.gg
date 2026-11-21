@@ -638,7 +638,7 @@ test('a saved list is reopened, duplicated, shared and published', async ({ brow
   await expect(guestLoadout.getByLabel('Loading loadout')).toBeVisible()
   await expect(guestLoadout.getByText('Select a unit from the roster to see its loadout.')).toHaveCount(0)
   releaseLoadout()
-  await expect(guestLoadout.getByText('Gauss blaster', { exact: true }).first()).toBeVisible()
+  await expect(guestLoadout.getByRole('heading', { name: '6× Gauss blaster', exact: true })).toBeVisible()
   await guest.unroute('**/_serverFn/**')
   await expect(guest.locator('[data-unit="Immortals"]')).toContainText('6x Gauss blaster')
   await expect(guestLoadout.getByRole('button', { name: 'More Gauss blaster' })).toHaveCount(0)

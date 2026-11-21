@@ -137,5 +137,6 @@ test(`Eradicator melta profiles remain visible through reload and view`, async (
   await expect(rifles.getByText('HUNTER:Monster/Vehicle', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'View', exact: true }).click()
   await card.getByRole('button', { name, exact: true }).click()
-  await expect(rifles.getByText('HUNTER:Monster/Vehicle', { exact: true })).toBeVisible()
+  const viewedRifles = page.getByRole('region', { name: /Melta rifle profiles/i })
+  await expect(viewedRifles.getByText('HUNTER:Monster/Vehicle', { exact: true }).first()).toBeVisible()
 })

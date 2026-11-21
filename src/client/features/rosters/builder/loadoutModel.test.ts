@@ -10,6 +10,7 @@ import {
   loadoutFixedCount,
   loadoutRowCount,
   loadoutInstructions,
+  viewedWeapons,
   modelCount,
   ordered,
   orderedModelWargear,
@@ -25,6 +26,7 @@ import {
   unmodeledGrantedWeapons,
   optionNameMatches,
   weaponProfilesFor,
+  weaponTotals,
   wholeSquadTakes,
   withDraftSpreadCounts,
 } from './loadoutModel'
@@ -45,6 +47,68 @@ const choice = (options: LoadoutChoice['options'], room: number, optional = fals
 })
 
 const weapon = (name: string, type: string) => ({ id: name, name, type, values: [] })
+
+describe('melee weapons by kind of model', () => {
+  const alpha = (...fixed: string[]): LoadoutModel => ({
+    name: 'Alpha',
+    fixed: fixed.map((name) => ({ name })),
+    members: [{ id: 'alpha', choiceKey: null, baseCount: 1 }],
+    rows: [],
+  })
+  const melee = (name: string, keywords = '-') => ({
+    ...weapon(name, 'Melee Weapons'),
+    values: [{ name: 'Keywords', value: keywords }],
+  })
+  const unit = (...models: LoadoutModel[]) => ({
+    models,
+    choices: [],
+    size: { min: 1, max: 10, models: models.reduce((total, model) => total + modelCount(model, []), 0), resizable: true },
+  })
+  const trooper = { ...alpha('Close combat weapon'), name: 'Trooper', members: [{ id: 'trooper', choiceKey: null, baseCount: 4 }] }
+
+  it('asks a model holding two melee weapons to choose one', () => {
+    const profiles = [melee('Close combat weapon'), melee('Alpha combat weapon')]
+
+    expect(viewedWeapons(unit(alpha('Close combat weapon', 'Alpha combat weapon')), profiles, profiles).melee[0]?.choose).toBe(true)
+  })
+
+  it('does not count an Extra Attacks weapon as a choice', () => {
+    const profiles = [melee('Close combat weapon'), melee('Mechadendrites', 'Extra Attacks')]
+
+    expect(viewedWeapons(unit(alpha('Close combat weapon', 'Mechadendrites')), profiles, profiles).melee[0]?.choose).toBe(false)
+  })
+
+  it('asks a lone character to choose between its weapon and an enhancement weapon no card holds', () => {
+    const profiles = [melee('Close combat weapon'), melee("Imperium's Sword")]
+
+    expect(viewedWeapons(unit(alpha('Close combat weapon')), profiles, profiles).melee[0]?.choose).toBe(true)
+  })
+
+  it('keeps a melee weapon no card holds when the unit has several kinds of model', () => {
+    const profiles = [melee('Close combat weapon'), melee('Alpha combat weapon'), melee('Squad blade')]
+    const groups = viewedWeapons(unit(alpha('Close combat weapon', 'Alpha combat weapon'), trooper), profiles, profiles).melee
+
+    expect(groups.flatMap((group) => group.weapons.map(({ name }) => name))).toContain('Squad blade')
+  })
+
+  it('lists a weapon a card holds even when the equipped profiles leave it out', () => {
+    const profiles = [weapon('Boltgun', 'Ranged Weapons'), melee('Close combat weapon')]
+
+    expect(viewedWeapons(unit(alpha('Boltgun', 'Close combat weapon')), profiles, []).ranged.map(({ name }) => name)).toEqual(['Boltgun'])
+  })
+
+  it('reads as one list when no model has to choose', () => {
+    const profiles = [melee('Close combat weapon')]
+
+    expect(viewedWeapons(unit(alpha('Close combat weapon'), trooper), profiles, profiles).melee.map(({ name }) => name)).toEqual([''])
+  })
+
+  it('asks a unit without model cards to choose when it holds more melee weapons than models', () => {
+    const profiles = [melee('Power fist'), melee('Power weapon')]
+
+    expect(viewedWeapons({ ...unit(alpha()), models: [] }, profiles, profiles).melee[0]?.choose).toBe(true)
+  })
+})
 
 it('shows an equipped enhancement weapon outside the model loadout without repeating its other weapons', () => {
   const model: LoadoutModel = {
@@ -277,6 +341,15 @@ describe('matching a wargear name to what describes it', () => {
     ]
 
     expect(uniqueWeaponProfiles(profiles).map(({ id }) => id)).toEqual(['sergeant'])
+  })
+
+  it('totals the same weapon carried by different kinds of model', () => {
+    const profiles = [
+      { ...weapon('Galvanic rifle', 'Ranged Weapons'), id: 'alpha', count: 1 },
+      { ...weapon('Galvanic rifle', 'Ranged Weapons'), id: 'ranger', count: 7 },
+    ]
+
+    expect(weaponTotals(profiles).map(({ count }) => count)).toEqual([8])
   })
 
   it('preserves genuinely different profiles of the same weapon', () => {

@@ -4,6 +4,7 @@ import type { Datasheet } from '../../../../contracts/catalogue'
 import type { CombatFacts } from '../../../../core/combatReading'
 import type { ReminderSuggestion } from '../../../../core/reminders'
 import { DEFAULT_WARGEAR } from '../../../../shared/datacards'
+import { weaponProfileGroups } from '../../../datasheet'
 import {
   modelFixedCount,
   modelRowCount,
@@ -240,10 +241,19 @@ export function showLoadoutEntry(count: number, showOptions: boolean) {
 export const weaponPieceMatches = (pieceName: string, profileName: string) =>
   sameWargear(pieceName, profileName) || wargearKey(pieceName) === wargearKey(profileName, true)
 
+const sameProfile = (profile: WeaponProfileData) =>
+  JSON.stringify({ name: profile.name.trim().toLocaleLowerCase(), type: profile.type, values: profile.values })
+
 export function uniqueWeaponProfiles(profiles: readonly WeaponProfileData[]) {
-  return uniqueBy(profiles, (profile) =>
-    JSON.stringify({ name: profile.name.trim().toLocaleLowerCase(), type: profile.type, values: profile.values }),
-  )
+  return uniqueBy(profiles, sameProfile)
+}
+
+/** One profile per weapon the unit carries, counting every model that holds it whichever kind of model it is. */
+export function weaponTotals(profiles: readonly WeaponProfileData[]) {
+  return [...groupBy(profiles, sameProfile).values()].map((same) => ({
+    ...same[0]!,
+    count: same.reduce((total, profile) => total + (profile.count ?? 1), 0),
+  }))
 }
 
 export const weaponProfileNames = (profile: WeaponProfileData) =>
@@ -711,4 +721,72 @@ export function poolHandlers(model: LoadoutModel, choices: readonly LoadoutChoic
     spend: (row: ModelRow) => factoredOr(row, true, pooledSpend),
     free: (row: ModelRow) => factoredOr(row, false, pooledFree),
   }
+}
+
+const extraAttacks = (profile: WeaponProfileData) => profile.values.some((value) => /extra attacks/i.test(value.value))
+
+const isRanged = (profile: WeaponProfileData) => profile.type === 'Ranged Weapons'
+const isMeleeProfile = (profile: WeaponProfileData) => profile.type === 'Melee Weapons'
+
+/** Each kind of model with the weapons its card shows it carrying, profiled as the list modifies them. */
+function carriedByModel(unit: Pick<LoadoutUnit, 'models' | 'choices'>, available: readonly WeaponProfileData[]) {
+  return unit.models.flatMap((model) => {
+    const count = modelCount(model, unit.choices)
+    if (!count) return []
+    const weapons = weaponTotals(
+      orderedModelWargear(model, unit.choices, available).flatMap((entry) => {
+        const pieces = 'fixed' in entry ? undefined : entry.pieces
+        const carried = 'fixed' in entry ? loadoutFixedCount(model, entry.fixed, unit.choices) : loadoutRowCount(entry.row, unit.choices)
+        return carried ? weaponProfilesFor({ name: entry.name, pieces }, available).map((profile) => ({ ...profile, count: carried })) : []
+      }),
+    )
+    return [{ key: model.members.map((member) => member.id).join('/'), name: model.name, count, weapons }]
+  })
+}
+
+/**
+ * What a read-only loadout shows: every gun the unit fires in one list, and its melee
+ * weapons by the kind of model carrying them only where that answers something. A model
+ * fights with one melee weapon unless it has [EXTRA ATTACKS], so `choose` marks models
+ * holding more than one, and a unit where none do reads as one list.
+ *
+ * The cards say who carries what, the same as the roster card; `equipped` adds only what
+ * no card holds, such as an enhancement's weapon, which goes to the only kind of model
+ * when there is one and otherwise stands apart under no name.
+ */
+export function viewedWeapons(
+  unit: Pick<LoadoutUnit, 'models' | 'choices' | 'size'>,
+  available: readonly WeaponProfileData[],
+  equipped: readonly WeaponProfileData[],
+) {
+  const kinds = carriedByModel(unit, available)
+  const placed = new Set(kinds.flatMap((kind) => kind.weapons.flatMap(weaponProfileNames)).map((name) => wargearKey(name)))
+  const unplaced = weaponTotals(equipped).filter((profile) => !weaponProfileNames(profile).some((name) => placed.has(wargearKey(name))))
+  const carried = kinds.length ? weaponTotals([...kinds.flatMap((kind) => kind.weapons), ...unplaced]) : weaponTotals(equipped)
+  const whole = { key: 'unit', name: '', count: unit.size.models, weapons: carried.filter(isMeleeProfile) }
+  const meleeKinds = kinds.flatMap((kind) => {
+    const weapons = kind.weapons.filter(isMeleeProfile)
+    return weapons.length ? [{ ...kind, weapons }] : []
+  })
+  const unplacedMelee = unplaced.filter(isMeleeProfile)
+  const [only, ...others] = meleeKinds
+  const groups = !meleeKinds.length
+    ? [whole]
+    : !unplacedMelee.length
+      ? meleeKinds
+      : only && !others.length
+        ? [{ ...only, weapons: [...only.weapons, ...unplacedMelee] }]
+        : [...meleeKinds, { key: 'unplaced', name: '', count: 0, weapons: unplacedMelee }]
+  const answered = groups.map((group) => ({ ...group, choose: group.count > 0 && meleeHeld(group.weapons) > group.count }))
+  return {
+    ranged: carried.filter(isRanged),
+    melee: answered.some((group) => group.choose) ? answered : [{ ...whole, choose: false }],
+  }
+}
+
+/** How many melee weapons a kind of model holds that compete to be the one it fights with. */
+function meleeHeld(weapons: readonly WeaponProfileData[]) {
+  return weaponProfileGroups(weapons)
+    .filter((modes) => modes.some((profile) => !extraAttacks(profile)))
+    .reduce((total, modes) => total + (modes[0]?.count ?? 1), 0)
 }
