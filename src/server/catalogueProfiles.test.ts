@@ -464,6 +464,34 @@ describe('the profile modifiers on a datasheet', () => {
     ])
   })
 
+  it('keeps a chosen weapon whose shared profile an unchosen option also links', () => {
+    const chainsword = (id: string) => ({
+      id,
+      name: 'Chainsword',
+      type: 'upgrade' as const,
+      infoLinks: [{ id: `${id}-link`, targetId: 'chainsword-profile', type: 'profile' as const }],
+    })
+    const book = bookOf({
+      sharedProfiles: [{ id: 'chainsword-profile', name: 'Chainsword', typeName: 'Melee Weapons', characteristics: [] }],
+      selectionEntries: [
+        {
+          id: 'unit',
+          name: 'Squad',
+          type: 'unit',
+          selectionEntries: [
+            { id: 'sergeant', name: 'Sergeant', type: 'model', selectionEntries: [chainsword('sergeant-chainsword')] },
+            { id: 'trooper', name: 'Trooper', type: 'model', selectionEntries: [chainsword('trooper-chainsword')] },
+          ],
+        },
+      ],
+    })
+    const selections = [{ id: 'unit', selections: [{ id: 'sergeant', selections: [{ id: 'sergeant-chainsword' }] }, { id: 'trooper' }] }]
+
+    expect(datasheetIn(book, 'cat', 'unit', { selections, unitSelectionIndex: 0 })?.profiles.map(({ name }) => name)).toContain(
+      'Chainsword',
+    )
+  })
+
   it('applies modifiers declared on a linked profile', () => {
     const book = bookOf({
       sharedProfiles: [
