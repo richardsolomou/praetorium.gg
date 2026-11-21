@@ -1,0 +1,15 @@
+diff --git a/definitions/Imperium - Space Marines.json b/definitions/Imperium - Space Marines.json
+--- a/definitions/Imperium - Space Marines.json
++++ b/definitions/Imperium - Space Marines.json
+@@ -17883,7 +17883,10 @@
+                     "id": "6cfb-5b5e-5441-a1af",
+                     "defaultSelectionEntryId": "464b-51e7-0c71-6895",
+                     "hidden": false,
+-                    "constraints": [{"id": "30c-b27-f921-ffb6", "field": "selections", "scope": "parent", "shared": true, "type": "max", "value": 1}],
++                    "constraints": [
++                      {"id": "6cfb-5b5e-5441-a1b0", "field": "selections", "scope": "parent", "shared": true, "type": "min", "value": 1},
++                      {"id": "30c-b27-f921-ffb6", "field": "selections", "scope": "parent", "shared": true, "type": "max", "value": 1}
++                    ],
+                     "entryLinks": [
+                       {
+                         "name": "Power weapon",
