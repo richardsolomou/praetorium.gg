@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { combatAtHealth, combatSurvivors, validCombatSurvivors } from './combatSurvivors'
+import { combatAtHealth, combatSurvivors, lineSurvivors, validCombatSurvivors } from './combatSurvivors'
 import type { Datasheet } from './datasheet'
 import { datasheetFixture } from './datasheet.fixtures'
 
@@ -25,6 +25,15 @@ describe('combat survivors', () => {
   it('refuses to guess which mixed weapons survived', () => {
     const carriers = [...squad, { name: 'Gunner', models: 1, weapons: [{ name: 'Plasma', count: 1 }] }]
     expect(combatAtHealth({ sheet: armed, models: 6, carriers }, { models: 3, startingModels: 6, damage: 0 }).allocationRequired).toBe(true)
+  })
+  it('takes the survivors a battle recorded by kind', () => {
+    const carriers = [...squad, { name: 'Gunner', models: 1, weapons: [{ name: 'Plasma', count: 1 }] }]
+    const lines = [
+      { name: 'Sergeant', models: 1, alive: 0 },
+      { name: 'Troopers', models: 4, alive: 2 },
+      { name: 'Gunner', models: 1, alive: 1 },
+    ]
+    expect(lineSurvivors(carriers, [], lines)?.map((carrier) => carrier.weapons[0]!.count)).toEqual([0, 2, 1])
   })
   it('uses an explicit valid survivor allocation', () => {
     const selected = [squad[0]!, { ...squad[1]!, models: 2, weapons: [{ name: 'Rifle', count: 2 }] }]

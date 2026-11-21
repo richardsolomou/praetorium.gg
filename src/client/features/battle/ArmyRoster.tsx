@@ -79,6 +79,7 @@ function usePendingCasualties(units: readonly UnitState[], send: SendCommand) {
 export function ArmyRoster({ army, side, finished, actionable, pending, blocked = false, send, onSimulate, token }: Props) {
   const [open, setOpen] = useState(false)
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
+  const [seek, setSeek] = useState<{ key: string; line: number; press: number } | null>(null)
   const [destroyedOpen, setDestroyedOpen] = useState(false)
   const { units, press } = usePendingCasualties(army.units, send)
   const roster = army.roster
@@ -109,7 +110,22 @@ export function ArmyRoster({ army, side, finished, actionable, pending, blocked 
       warlord={leads && unit.warlord === true}
       inUnit={inUnit}
       selected={unit.key === selected?.key}
-      onSelect={readable(unit) ? () => setSelectedKey(unit.key) : undefined}
+      onSelect={
+        readable(unit)
+          ? () => {
+              setSelectedKey(unit.key)
+              setSeek(null)
+            }
+          : undefined
+      }
+      onSeek={
+        readable(unit)
+          ? (line) => {
+              setSelectedKey(unit.key)
+              setSeek((last) => ({ key: unit.key, line, press: (last?.press ?? 0) + 1 }))
+            }
+          : undefined
+      }
       onSimulate={canSimulate(unit) ? () => simulate(unit.key) : undefined}
     />
   )
@@ -233,7 +249,7 @@ export function ArmyRoster({ army, side, finished, actionable, pending, blocked 
               {/* Keyed so another unit's datasheet starts from the top. */}
               <DialogBody key={selected?.key} data-army-detail className={selected ? 'p-0' : 'max-[859px]:hidden'}>
                 {selected ? (
-                  <ArmyLoadout army={army} unit={selected} />
+                  <ArmyLoadout army={army} unit={selected} seek={seek?.key === selected.key ? seek : undefined} />
                 ) : (
                   <p className="py-8 text-center text-sm text-dim">Select a unit to see its datasheet.</p>
                 )}
@@ -254,11 +270,14 @@ function BattleUnit({
   inUnit,
   selected,
   onSelect,
+  onSeek,
   onSimulate,
   ...controls
 }: {
   selected: boolean
   onSelect?: () => void
+  /** Opens the unit's datasheet at the wargear of one of its model lines. */
+  onSeek?: (line: number) => void
   onSimulate?: () => void
   unit: UnitState
   warlord: boolean
@@ -296,7 +315,7 @@ function BattleUnit({
                 </Button>
               </ControlTooltip>
             ) : null}
-            {worthSaying ? <UnitStatus {...controls} unit={unit} /> : null}
+            {worthSaying ? <UnitStatus {...controls} unit={unit} onSeek={onSeek} /> : null}
           </>
         ) : undefined
       }
@@ -305,7 +324,16 @@ function BattleUnit({
 }
 
 /** Expose model and wound controls only where the frozen unit has those counts; the domain decides whether a wound removes a model. */
-function UnitStatus({ unit, army, actionable, pending, blocked, send, press }: { unit: UnitState } & UnitControls) {
+function UnitStatus({
+  unit,
+  army,
+  actionable,
+  pending,
+  blocked,
+  send,
+  press,
+  onSeek,
+}: { unit: UnitState; onSeek?: (line: number) => void } & UnitControls) {
   const { units, playerId } = army
   const mark = (destroyed: boolean) => press({ kind: 'set-unit', unitKey: unit.key, destroyed, playerId })
   // The wounds a squad still has are the front model's; the ones behind it are whole.
@@ -352,32 +380,41 @@ function UnitStatus({ unit, army, actionable, pending, blocked, send, press }: {
           {unit.formation === 'embarked' ? 'Disembark' : 'Arrive'}
         </Button>
       ) : null}
-      {unit.models > 1 ? (
-        <Counter
-          noun="models"
-          left={unit.alive}
-          of={unit.models}
-          whole={unit.alive === unit.models}
-          actionable={actionable}
-          disabled={blocked}
-          removeLabel={`Remove a model from ${unit.name}`}
-          returnLabel={`Return a model to ${unit.name}`}
-          onStep={(delta) => press({ kind: 'wound-unit', unitKey: unit.key, delta, playerId })}
-        />
-      ) : null}
-      {unit.wounds && unit.wounds > 1 ? (
-        <Counter
-          noun="wounds"
-          left={wounds}
-          of={unit.wounds}
-          whole={unit.alive === unit.models && unit.damage === 0}
-          actionable={actionable}
-          disabled={blocked}
-          removeLabel={`Take a wound off ${unit.name}`}
-          returnLabel={`Heal a wound on ${unit.name}`}
-          onStep={(delta) => press({ kind: 'damage-unit', unitKey: unit.key, delta, playerId })}
-        />
-      ) : null}
+      {unit.modelLines && unit.lines ? (
+        // The rows below change the count; this keeps the whole unit readable at a glance.
+        <span className="flex shrink-0 items-center gap-1.5">
+          <Readout noun="models" left={unit.alive} of={unit.models} />
+        </span>
+      ) : (
+        <>
+          {unit.models > 1 ? (
+            <Counter
+              noun="models"
+              left={unit.alive}
+              of={unit.models}
+              whole={unit.alive === unit.models}
+              actionable={actionable}
+              disabled={blocked}
+              removeLabel={`Remove a model from ${unit.name}`}
+              returnLabel={`Return a model to ${unit.name}`}
+              onStep={(delta) => press({ kind: 'wound-unit', unitKey: unit.key, delta, playerId })}
+            />
+          ) : null}
+          {unit.wounds && unit.wounds > 1 ? (
+            <Counter
+              noun="wounds"
+              left={wounds}
+              of={unit.wounds}
+              whole={unit.alive === unit.models && unit.damage === 0}
+              actionable={actionable}
+              disabled={blocked}
+              removeLabel={`Take a wound off ${unit.name}`}
+              returnLabel={`Heal a wound on ${unit.name}`}
+              onStep={(delta) => press({ kind: 'damage-unit', unitKey: unit.key, delta, playerId })}
+            />
+          ) : null}
+        </>
+      )}
       {actionable ? (
         <Button
           variant="ghost"
@@ -390,7 +427,98 @@ function UnitStatus({ unit, army, actionable, pending, blocked, send, press }: {
           Destroyed
         </Button>
       ) : null}
+      {unit.modelLines && unit.lines ? (
+        <ModelLines
+          unit={unit}
+          lines={unit.modelLines}
+          standing={unit.lines}
+          actionable={actionable}
+          blocked={blocked}
+          press={press}
+          playerId={playerId}
+          onSeek={onSeek}
+        />
+      ) : null}
     </>
+  )
+}
+
+/** One row per kind of model, so a squad records which of its sergeant, specialists and troopers fell. */
+function ModelLines({
+  unit,
+  lines,
+  standing,
+  actionable,
+  blocked,
+  press,
+  playerId,
+  onSeek,
+}: {
+  unit: UnitState
+  lines: NonNullable<UnitState['modelLines']>
+  standing: NonNullable<UnitState['lines']>
+  actionable: boolean
+  blocked: boolean
+  press: Press
+  playerId: Army['playerId']
+  onSeek?: (line: number) => void
+}) {
+  return (
+    <ul data-model-lines className="flex basis-full flex-col gap-1.5">
+      {lines.map((line, at) => {
+        const { alive, damage } = standing[at]!
+        const wounds = line.wounds ?? unit.wounds
+        return (
+          // oxlint-disable-next-line react/no-array-index-key -- The log names a model line by its position, which never changes.
+          <li key={at} data-model-line={line.name} className={`flex flex-wrap items-center gap-x-4 gap-y-1 ${alive ? '' : 'text-dim'}`}>
+            <span className="min-w-0 flex-1 basis-40">
+              {onSeek ? (
+                <button
+                  type="button"
+                  className={`text-left text-xs font-medium underline-offset-2 hover:underline ${alive ? '' : 'line-through'}`}
+                  aria-label={`Show the ${line.name} in ${unit.name}'s datasheet`}
+                  onClick={() => onSeek(at)}
+                >
+                  {line.name}
+                </button>
+              ) : (
+                <span className={`text-xs font-medium ${alive ? '' : 'line-through'}`}>{line.name}</span>
+              )}
+              {line.wargear.length ? (
+                <span className="block truncate text-2xs text-dim">
+                  {/* A piece not carried one each, such as one storm bolter among four, says how many so it isn't read as everyone's. */}
+                  {line.wargear.map((piece) => (piece.count === line.models ? piece.name : `${piece.count}× ${piece.name}`)).join(', ')}
+                </span>
+              ) : null}
+            </span>
+            <Counter
+              noun={line.models === 1 ? 'model' : 'models'}
+              left={alive}
+              of={line.models}
+              whole={alive === line.models}
+              actionable={actionable}
+              disabled={blocked}
+              removeLabel={`Remove a model from ${line.name} in ${unit.name}`}
+              returnLabel={`Return a model to ${line.name} in ${unit.name}`}
+              onStep={(delta) => press({ kind: 'wound-unit', unitKey: unit.key, delta, line: at, playerId })}
+            />
+            {wounds && wounds > 1 ? (
+              <Counter
+                noun="wounds"
+                left={alive ? wounds - damage : 0}
+                of={wounds}
+                whole={alive === line.models && damage === 0}
+                actionable={actionable}
+                disabled={blocked || !alive}
+                removeLabel={`Take a wound off ${line.name} in ${unit.name}`}
+                returnLabel={`Heal a wound on ${line.name} in ${unit.name}`}
+                onStep={(delta) => press({ kind: 'damage-unit', unitKey: unit.key, delta, line: at, playerId })}
+              />
+            ) : null}
+          </li>
+        )
+      })}
+    </ul>
   )
 }
 
@@ -429,15 +557,23 @@ function Counter({
           <Minus aria-hidden />
         </Button>
       ) : null}
-      <span data-count={noun} className="readout text-xs font-semibold">
-        {left}/{of}
-      </span>
-      <span className="text-2xs text-dim">{noun}</span>
+      <Readout noun={noun} left={left} of={of} />
       {actionable ? (
         <Button variant="outline" size="icon-xs" disabled={disabled || whole} aria-label={returnLabel} onClick={() => onStep(1)}>
           <Plus aria-hidden />
         </Button>
       ) : null}
     </span>
+  )
+}
+
+function Readout({ noun, left, of }: { noun: string; left: number; of: number }) {
+  return (
+    <>
+      <span data-count={noun} className="readout text-xs font-semibold">
+        {left}/{of}
+      </span>
+      <span className="text-2xs text-dim">{noun}</span>
+    </>
   )
 }

@@ -28,7 +28,10 @@ import { defaultSelection } from '../core/expand'
 import { unitChoices } from '../core/unitChoices'
 import { wargearOf } from '../core/wargear'
 import { wargearKey } from '../core/wargearNames'
-import { combatCarriers, referenceOnlyWeapon } from '../core/combatLoadout'
+import { carrierModelProfiles, type CombatCarrier, combatCarriers, referenceOnlyWeapon } from '../core/combatLoadout'
+import type { ModelLine } from '../core/battle'
+import { modelLineDrafts } from '../core/modelLines'
+import { MODEL_LINES_MAX } from '../core/commands'
 import { ruleReferenceMatches, splitWeaponKeywords } from '../core/ruleReference'
 import { routeSlug } from '../core/slug'
 import { matchesKeywordSelector, normalizeKeywordSelector } from '../core/keywords'
@@ -79,6 +82,31 @@ export function woundsOf(profiles: readonly { type: string; values: readonly { n
       .filter((value) => Number.isFinite(value) && value > 0),
   )
   return values.size === 1 ? [...values][0]! : null
+}
+
+/**
+ * A unit's models by what they are and carry, which a battle names its casualties by.
+ *
+ * Nothing for a unit of one kind, and nothing where the lines would not add up to the
+ * unit, since a line the player cannot match to a model on the table is worse than
+ * counting the unit as a whole. A line's wounds are named only where the unit has
+ * no single number for them, such as a Nob among Boyz.
+ */
+export function modelLinesOf(
+  carriers: readonly CombatCarrier[],
+  wargear: readonly { name: string; count: number }[],
+  models: number,
+  sheet: Datasheet | null,
+): ModelLine[] | undefined {
+  const lines = modelLineDrafts(carriers, wargear)
+  if (lines.length < 2 || lines.length > MODEL_LINES_MAX || lines.reduce((total, line) => total + line.models, 0) !== models)
+    return undefined
+  const profiles = sheet?.profiles.filter((profile) => profile.type.toLowerCase() === 'unit') ?? []
+  const mixed = woundsOf(profiles) === null
+  return lines.map(({ carriers: [first], ...line }) => {
+    const wounds = mixed ? woundsOf(carrierModelProfiles(carriers[first!]!, profiles).map((at) => profiles[at]!)) : null
+    return { ...line, ...(wounds === null ? {} : { wounds }) }
+  })
 }
 
 export function unitBattleDetailsIn(loaded: LoadedCatalogue, catalogueId: string, entryIds: readonly string[]) {

@@ -19,6 +19,12 @@ export function battleCombatRoster(
       startingModels: unit?.models ?? 0,
       damage: restored ? 0 : (unit?.damage ?? 0),
       wounds: unit?.wounds,
+      ...(unit?.modelLines && unit.lines && !restored
+        ? {
+            lines: unit.modelLines.map((line, at) => ({ name: line.name, models: line.models, alive: unit.lines![at]!.alive })),
+            wargear: unit.wargear ?? [],
+          }
+        : {}),
       available: Boolean(unit && (finished || (!unit.destroyed && unit.alive > 0 && unit.formation === 'battlefield'))),
     }
   })

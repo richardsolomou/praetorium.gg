@@ -206,7 +206,17 @@ export function changedFormation(unit: UnitState, formation: UnitFormation, rede
 /** A frozen list's units as they stand when it is attached: on the battlefield, unhurt. */
 export const fieldedUnits = (submitted: readonly SubmittedUnit[]): UnitState[] =>
   submitted.map((unit) =>
-    Object.assign({ destroyed: false, deployed: true, formation: 'battlefield' as const, alive: unit.models, damage: 0 }, unit),
+    Object.assign(
+      {
+        destroyed: false,
+        deployed: true,
+        formation: 'battlefield' as const,
+        alive: unit.models,
+        damage: 0,
+        ...(unit.modelLines ? { lines: unit.modelLines.map((line) => ({ alive: line.models, damage: 0 })) } : {}),
+      },
+      unit,
+    ),
   )
 
 /**
@@ -260,36 +270,77 @@ export function unitWoundsLeft(unit: UnitState): number | null {
 }
 
 type CasualtyCommand = Extract<Command, { kind: 'set-unit' | 'wound-unit' | 'damage-unit' }>
+type Standing = { alive: number; damage: number }
+
+/**
+ * What is left of one count of models after a casualty command: the whole unit, or
+ * one of its model lines.
+ *
+ * The model that was carrying the damage is the one that just left, and a model
+ * returning arrives whole, so either way nothing is still wounded. Damage lands on
+ * one model until that model is gone and then moves to the next, so what is left is
+ * a single number of wounds and where the model line falls inside it is division.
+ * Keeping the two as separate counters to be nudged in step is how they end up
+ * disagreeing.
+ */
+function standingAfter(standing: Standing, command: Extract<CasualtyCommand, { delta: number }>, wounds: number | undefined): Standing {
+  if (command.kind === 'wound-unit') return { alive: standing.alive + command.delta, damage: 0 }
+  if (!wounds) return standing
+  const remaining = standing.alive * wounds - standing.damage + command.delta
+  const alive = Math.ceil(remaining / wounds)
+  return { alive, damage: alive * wounds - remaining }
+}
+
+const lineWounds = (unit: Pick<UnitState, 'modelLines' | 'wounds'>, line: number) => unit.modelLines?.[line]?.wounds ?? unit.wounds
 
 /** What is left of a unit after one casualty command, which the fold and the roster's pending presses both read. */
-export function casualtyOutcome(unit: UnitState, command: CasualtyCommand): Pick<UnitState, 'alive' | 'damage' | 'destroyed'> {
-  switch (command.kind) {
-    // The three stay in step in both directions: a unit brought back is whole again,
-    // and a unit that is gone has nothing left standing to be carrying a wound.
-    case 'set-unit':
-      return { destroyed: command.destroyed, alive: command.destroyed ? 0 : unit.models, damage: 0 }
-    // The model that was carrying the damage is the one that just left, and a model
-    // returning to the unit arrives whole, so either way nothing is still wounded.
-    // Losing the last model is losing the unit: one event, not two states that could
-    // contradict each other.
-    case 'wound-unit': {
-      const alive = unit.alive + command.delta
-      return { alive, damage: 0, destroyed: alive === 0 }
+export function casualtyOutcome(unit: UnitState, command: CasualtyCommand): Pick<UnitState, 'alive' | 'damage' | 'destroyed' | 'lines'> {
+  // The counts stay in step in both directions: a unit brought back is whole again,
+  // and a unit that is gone has nothing left standing to be carrying a wound.
+  if (command.kind === 'set-unit')
+    return {
+      destroyed: command.destroyed,
+      alive: command.destroyed ? 0 : unit.models,
+      damage: 0,
+      ...(unit.modelLines ? { lines: unit.modelLines.map((line) => ({ alive: command.destroyed ? 0 : line.models, damage: 0 })) } : {}),
     }
-    case 'damage-unit': {
-      const left = unitWoundsLeft(unit)
-      if (left === null || !unit.wounds) return unit
-      /*
-       * Wounds are the whole of it, and the models fall out of the arithmetic.
-       *
-       * Damage lands on one model until that model is gone and then moves to the next,
-       * so what a unit has left is a single number of wounds and where the model line
-       * falls inside it is division. Keeping the two as separate counters to be nudged
-       * in step is how they end up disagreeing.
-       */
-      const remaining = left + command.delta
-      const alive = Math.ceil(remaining / unit.wounds)
-      return { alive, damage: alive * unit.wounds - remaining, destroyed: alive === 0 }
-    }
+  const at = command.line
+  if (at === undefined || !unit.lines) {
+    // Losing the last model is losing the unit: one event, not two states that could contradict each other.
+    const { alive, damage } = standingAfter(unit, command, unit.wounds)
+    return { alive, damage, destroyed: alive === 0 }
   }
+  const lines = unit.lines.map((line, index) => (index === at ? standingAfter(line, command, lineWounds(unit, at)) : line))
+  const alive = lines.reduce((total, line) => total + line.alive, 0)
+  return { lines, alive, damage: lines.reduce((total, line) => total + line.damage, 0), destroyed: alive === 0 }
+}
+
+/** Why a model or wound count cannot change as asked; a unit split into model lines names the line every time. */
+export function casualtyRefusal(units: readonly UnitState[], command: Extract<CasualtyCommand, { delta: number }>): Refusal | null {
+  const unit = units.find((candidate) => candidate.key === command.unitKey)
+  if (!unit) return refuse('unknown-unit', 'that is not one of your units')
+  const noun = command.kind === 'wound-unit' ? 'models' : 'wounds'
+  if (!Number.isInteger(command.delta) || command.delta === 0) return refuse('invalid-amount', `${noun} come off in whole numbers`)
+  if (unit.lines && command.line === undefined) return refuse('unnamed-model', 'say which of the unit’s models this is')
+  const line = command.line === undefined ? undefined : unit.modelLines?.[command.line]
+  if (command.line !== undefined && !line) return refuse('unknown-model', 'that is not one of the unit’s models')
+  const standing = (line && unit.lines?.[command.line!]) || unit
+  const models = line?.models ?? unit.models
+  let after: Standing
+  if (command.kind === 'wound-unit') {
+    if (standing.alive + command.delta < 0) return refuse('out-of-range', 'there are not that many models left')
+    if (standing.alive + command.delta > models) return refuse('out-of-range', 'that is more models than the unit has')
+    after = standingAfter(standing, command, undefined)
+  } else {
+    // Refused rather than guessed at: a unit whose models do not share a wounds
+    // characteristic has no single number to count against, and inventing one
+    // would put a squad's sergeant and his veterans on the same track.
+    const wounds = command.line === undefined ? unit.wounds : lineWounds(unit, command.line)
+    if (!wounds) return refuse('wounds-unknown', 'the datasheet does not give this unit a single wounds characteristic')
+    const left = standing.alive * wounds - standing.damage
+    if (left + command.delta < 0) return refuse('out-of-range', 'there are not that many wounds left')
+    if (left + command.delta > models * wounds) return refuse('out-of-range', 'that is more wounds than the unit has')
+    after = standingAfter(standing, command, wounds)
+  }
+  return embarkedCapacityError(units, unit, unit.alive - standing.alive + after.alive)
 }

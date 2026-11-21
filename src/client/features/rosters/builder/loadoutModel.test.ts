@@ -17,6 +17,7 @@ import {
   pressedCounts,
   poolHandlers,
   relativeSpread,
+  rowCarries,
   orderedChoices,
   replacementChoice,
   spreadHandlers,
@@ -978,5 +979,15 @@ describe('why one more of an option cannot be added', () => {
   it('names nothing while the option and its group both have room', () => {
     const group = choice([option('blaster', 1, 3), option('carbine', 0, 3)], 3)
     expect(increaseBlocked(group, group.options[1]!)).toBeNull()
+  })
+})
+
+describe('a row carrying a piece a battle names', () => {
+  it('is not a longer weapon that contains its name', () => {
+    expect(rowCarries({ name: 'Heavy bolt pistol' }, 'Bolt pistol')).toBe(false)
+  })
+
+  it('is a pairing holding the piece', () => {
+    expect(rowCarries({ name: 'Lasgun and Vox-caster', pieces: ['Lasgun', 'Vox-caster'] }, 'Vox-caster')).toBe(true)
   })
 })

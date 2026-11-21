@@ -1,7 +1,15 @@
 import type { Attachment } from './attach'
 import type { PrintedTransport } from './transport'
 import { attachmentRows } from './attachmentRows'
-import { customPointsBudget, type FormatRuleId, pointsBudgetOf, type Roster, strategicReserveLimit, type SubmittedUnit } from './battle'
+import {
+  customPointsBudget,
+  type FormatRuleId,
+  type ModelLine,
+  pointsBudgetOf,
+  type Roster,
+  strategicReserveLimit,
+  type SubmittedUnit,
+} from './battle'
 import type { RosterPick } from './roster'
 import type { RosterReminder } from './reminders'
 import { nicknamedUnit } from './unitNotes'
@@ -45,6 +53,7 @@ type PricedRoster = {
     keywords: readonly string[]
     toggles: readonly { name: string; selected: boolean }[]
     size: { models: number; resizable: boolean }
+    modelLines?: readonly ModelLine[]
     attachment: Attachment | null
     wargear: readonly { name: string; count: number }[]
     enhancements: readonly string[]
@@ -167,6 +176,9 @@ export function frozenUnits(picks: readonly RosterPick[], units: PricedRoster['u
       points: unit.points,
       models: unit.size.models,
       ...(detail?.wounds ? { wounds: detail.wounds } : {}),
+      ...(unit.modelLines
+        ? { modelLines: unit.modelLines.map((line) => ({ ...line, wargear: line.wargear.map((piece) => ({ ...piece })) })) }
+        : {}),
       ...(detail?.transportRule ? { transportRule: detail.transportRule } : {}),
       ...(detail?.transportCapacity ? { transportCapacity: detail.transportCapacity } : {}),
       keywords: [...unit.keywords],
