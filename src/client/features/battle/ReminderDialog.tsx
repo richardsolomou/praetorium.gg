@@ -5,6 +5,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/compon
 import { groupedReminders, type RosterReminder } from '../../../core/reminders'
 import type { ReminderDismissalScope } from './reminderDismissals'
 import { RuleText } from '../../components/RuleText'
+import { useSourceText } from '../../sourceText'
 import { BattleDialogContent, BattlePromptDialog } from './BattlePromptDialog'
 import { DropdownMenuItem } from '../../components/Menu'
 
@@ -40,11 +41,7 @@ export function ReminderDialog({
                 {groups.length > 1 ? <HideFor ability={reminder.ability} onHide={(scope) => onDismiss(members, scope)} /> : null}
               </div>
               {units ? <p className="eyebrow mt-1">{units}</p> : null}
-              {reminder.description ? (
-                <div className="mt-2 text-xs">
-                  <RuleText text={reminder.description} rules={[]} />
-                </div>
-              ) : null}
+              {reminder.description ? <ReminderText text={reminder.description} /> : null}
             </article>
           ))}
         </DialogBody>
@@ -58,6 +55,16 @@ export function ReminderDialog({
         </DialogFooter>
       </BattleDialogContent>
     </BattlePromptDialog>
+  )
+}
+
+/** A battle keeps the text its alerts had when it began; text no snapshot this device knows still holds is left out, not dashed. */
+function ReminderText({ text }: { text: string }) {
+  if (useSourceText(text).missing === 'unavailable') return null
+  return (
+    <div className="mt-2 text-xs">
+      <RuleText text={text} rules={[]} />
+    </div>
   )
 }
 
