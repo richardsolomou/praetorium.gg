@@ -941,7 +941,7 @@ describe('a rule that lists options to select one of', () => {
     ]),
   )
 
-  it('refuses it in a calculation rather than applying one option as always on', () =>
+  it('leaves it out of a calculation while an option cannot be read', () =>
     expect(compileCombatRule(rule(doctrines((name) => `${name}\n`)))).toBeNull())
 })
 
