@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.273.6 (2026-11-21)
+
+### Patch Changes
+
+- 02b7b28: [reference] Four Pantheon of Woe stratagems and enhancements now show a plain-language summary on the detachment page, online and offline, without turning on rules text.
+
 ## 0.273.5 (2026-11-20)
 
 ### Patch Changes
@@ -1710,42 +1716,3 @@
 - d14ba2c: [rosters] When a unit is at its limit, its menu now says why Duplicate unit is unavailable.
 - 5010aaa: [rosters] Your rosters no longer jump down the page as the library finishes loading.
 - d07261e: [rosters] When a plus button stops at a limit, such as a unit's largest size, the limit now shows next to it without moving the controls around it.
-
-## 0.222.8 (2026-11-07)
-
-### Patch Changes
-
-- 9ab2b6e: [rosters] Importing from the official app in another language reads models only a datasheet's composition names, as the French "Chef de Meute de Griffes Sanglantes".
-- 9ab2b6e: [rosters] Importing from the official app in another language reads a detachment another faction's card names, as Space Wolves' French "Force d’Assaut Terminator".
-- 9ab2b6e: [rosters] Importing from the official app in French reads Wolf Guard Headtakers.
-
-## 0.222.7 (2026-11-07)
-
-### Patch Changes
-
-- 708d763: [reference] Missions stays highlighted in the side menu on a force disposition's page, and battle setup no longer says allies must split points evenly when they don't have to.
-
-## 0.222.6 (2026-11-07)
-
-### Patch Changes
-
-- 7b7f1eb: [app] The docs are rewritten in plainer language, with the most common task first on each page.
-
-## 0.222.5 (2026-11-07)
-
-### Patch Changes
-
-- d0d485d: [app] The side menu now keeps Groups, Tournaments and Leaderboard together under Community.
-
-## 0.222.4 (2026-11-07)
-
-### Patch Changes
-
-- 473e5a0: [reference] Force dispositions now live on the Missions page, so the separate Dispositions page and menu entry are gone; each disposition's own page still lists its missions and detachments.
-- 473e5a0: [app] On phones, the Discord and GitHub links have moved from the top bar to the Community section of More, and Docs is now a tile at the top of More.
-
-## 0.222.3 (2026-11-07)
-
-### Patch Changes
-
-- 98f1006: [app] Each Android beta step shows the Google page it opens, with the button to tap ringed.
