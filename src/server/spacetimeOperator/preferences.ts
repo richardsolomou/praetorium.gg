@@ -6,6 +6,7 @@ import { playerDefaultsSchema } from '../../contracts/schemas'
 import { rosterFoldersSchema, type RosterFolderChange } from '../../core/rosterFolders'
 import { recentMatchupSchema, type RecentMatchup } from '../../core/recentMatchups'
 import { abilityReminderSchema, type AbilityReminder } from '../../core/reminders'
+import { battleChoicePicksSchema, type BattleChoicePicks } from '../../core/battleChoicePicks'
 import { unitLoadoutSchema, type UnitLoadout } from '../../core/unitLoadouts'
 import type { SpacetimeBase } from './client'
 
@@ -110,6 +111,14 @@ export function withPreferences<B extends SpacetimeBase>(Base: B) {
 
     async setListFilterPreferences(userId: string, scope: ListFilterScope, preferences: ListPreferences, now: number) {
       return this.read('set_list_filter_preferences', [userId, scope, JSON.stringify(preferences), now], z.boolean())
+    }
+
+    async battleChoices(userId: string, scope: string) {
+      return this.read('battle_choices', [userId, scope], battleChoicePicksSchema.nullable())
+    }
+
+    async setBattleChoices(userId: string, scope: string, picks: BattleChoicePicks, now: number) {
+      await this.call('set_battle_choices', [userId, scope, JSON.stringify(picks), now])
     }
 
     async rosterFolders(userId: string) {

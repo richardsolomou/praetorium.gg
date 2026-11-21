@@ -50,6 +50,12 @@ import {
 } from '../../src/core/rosterFolders'
 import { BATTLE_ORDERS } from '../../src/core/battleFilter'
 import { LIST_FILTER_SCOPES, LIST_PREFERENCES_MAX_LENGTH, listPreferencesSchema } from '../../src/core/listFilter'
+import {
+  BATTLE_CHOICE_PICKS_MAX_LENGTH,
+  BATTLE_CHOICE_SCOPE_LIMIT,
+  battleChoicePicksSchema,
+  battleChoiceScopeSchema,
+} from '../../src/core/battleChoicePicks'
 import { matchupPairingSchema, RECENT_MATCHUP_LIMIT, recentMatchupSchema } from '../../src/core/recentMatchups'
 import { onboardingTaskIds, tourTaskIds } from '../../src/core/onboarding'
 import {
@@ -944,6 +950,7 @@ export const deleteUserData = spacetime.reducer({ userId: t.string() }, (ctx, { 
   ctx.db.playerDefaults.userId.delete(userId)
   ctx.db.rosterFolders.userId.delete(userId)
   for (const row of Array.from(ctx.db.listFilterPreferences.userId.filter(userId))) ctx.db.listFilterPreferences.id.delete(row.id)
+  for (const row of Array.from(ctx.db.battleChoices.userId.filter(userId))) ctx.db.battleChoices.key.delete(row.key)
   for (const row of Array.from(ctx.db.sealedEventRosterSharing.userId.filter(userId))) ctx.db.sealedEventRosterSharing.key.delete(row.key)
   touchPublic(ctx, 'collection')
   for (const row of Array.from(ctx.db.pushTokens.userId.filter(userId))) ctx.db.pushTokens.token.delete(row.token)
@@ -4058,6 +4065,29 @@ export const setListFilterPreferences = spacetime.procedure(
       else tx.db.listFilterPreferences.insert(row)
       return productJson(true)
     }),
+)
+
+export const battleChoices = spacetime.procedure({ userId: t.string(), scope: t.string() }, t.string(), (ctx, input) =>
+  operatorTx(ctx, (tx) => {
+    const row = tx.db.battleChoices.key.find(JSON.stringify([input.userId, input.scope]))
+    return productJson(row ? (JSON.parse(row.picks) as unknown) : null)
+  }),
+)
+
+export const setBattleChoices = spacetime.reducer(
+  { userId: t.string(), scope: t.string(), picks: t.string(), at: t.u64() },
+  (ctx, input) => {
+    requireOperator(ctx)
+    const [userId, scope, at] = z.tuple([idInput, battleChoiceScopeSchema, timestampArg]).parse([input.userId, input.scope, input.at])
+    if (input.picks.length > BATTLE_CHOICE_PICKS_MAX_LENGTH) throw new SenderError('Invalid battle choices')
+    const picks = JSON.stringify(decodePayload(battleChoicePicksSchema, input.picks, 'Invalid battle choices'))
+    const key = JSON.stringify([userId, scope])
+    const row = { key, userId, scope, picks, at }
+    if (ctx.db.battleChoices.key.find(key)) ctx.db.battleChoices.key.update(row)
+    else ctx.db.battleChoices.insert(row)
+    const kept = Array.from(ctx.db.battleChoices.userId.filter(userId)).sort((a, b) => (a.at === b.at ? 0 : a.at > b.at ? -1 : 1))
+    for (const old of kept.slice(BATTLE_CHOICE_SCOPE_LIMIT)) ctx.db.battleChoices.key.delete(old.key)
+  },
 )
 
 export const registerPushToken = spacetime.reducer(

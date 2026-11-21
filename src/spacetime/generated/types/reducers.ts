@@ -33,6 +33,7 @@ import ReplaceCalendarFeedReducer from '../replace_calendar_feed_reducer'
 import ReplaceFriendInviteReducer from '../replace_friend_invite_reducer'
 import ReportCollectionPhotoReducer from '../report_collection_photo_reducer'
 import RevokeSessionReducer from '../revoke_session_reducer'
+import SetBattleChoicesReducer from '../set_battle_choices_reducer'
 import SetCollectionCountsAsReducer from '../set_collection_counts_as_reducer'
 import SetCollectionModelsReducer from '../set_collection_models_reducer'
 import SetCollectionPhotoReducer from '../set_collection_photo_reducer'
@@ -72,6 +73,7 @@ export type ReplaceCalendarFeedParams = __Infer<typeof ReplaceCalendarFeedReduce
 export type ReplaceFriendInviteParams = __Infer<typeof ReplaceFriendInviteReducer>
 export type ReportCollectionPhotoParams = __Infer<typeof ReportCollectionPhotoReducer>
 export type RevokeSessionParams = __Infer<typeof RevokeSessionReducer>
+export type SetBattleChoicesParams = __Infer<typeof SetBattleChoicesReducer>
 export type SetCollectionCountsAsParams = __Infer<typeof SetCollectionCountsAsReducer>
 export type SetCollectionModelsParams = __Infer<typeof SetCollectionModelsReducer>
 export type SetCollectionPhotoParams = __Infer<typeof SetCollectionPhotoReducer>

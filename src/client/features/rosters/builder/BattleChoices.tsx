@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { useCallback, useMemo, useSyncExternalStore } from 'react'
+import { useCallback, useMemo } from 'react'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import {
   type BattleChoice,
@@ -21,15 +21,7 @@ import { HoverTooltip } from '../../../components/HoverTooltip'
 import { RuleText } from '../../../components/RuleText'
 import { pressedClass } from '../../simulator/CombatControls'
 import { useStableValue } from '../../../useStableValue'
-
-// Picks outlive a pane that closes, as the battle's unit dialog does between units, until the page reloads.
-const picksByScope = new Map<string, Readonly<Record<string, readonly string[]>>>()
-const listeners = new Set<() => void>()
-const subscribe = (listener: () => void) => {
-  listeners.add(listener)
-  return () => listeners.delete(listener)
-}
-const NO_PICKS: Readonly<Record<string, readonly string[]>> = {}
+import { useBattleChoicePicks } from './battleChoicePicks'
 
 /** The ability texts that can widen a unit's choices: its own, and those of the units it is attached to. */
 function allowanceTexts(data: NonNullable<ReturnType<typeof useCombatantDatasheet>>) {
@@ -86,11 +78,7 @@ export function useBattleChoices({
   fielded: Fielded
 }) {
   const enabled = scope !== undefined
-  const chosen = useSyncExternalStore(
-    subscribe,
-    () => (scope && picksByScope.get(scope)) || NO_PICKS,
-    () => NO_PICKS,
-  )
+  const stored = useBattleChoicePicks(scope)
   const data = useCombatantDatasheet({ enabled, catalogueId, entryId, detachmentIds, picks, pickIndex, fielded })
   const { loaded } = useSourceTexts(enabled && data ? [...combatantTexts(data), ...allowanceTexts(data)] : [])
   const choices = useMemo(
@@ -108,12 +96,16 @@ export function useBattleChoices({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [enabled, data, loaded],
   )
-  // A unit's own pick belongs to its place in this line-up, so adding, removing or moving a unit drops it rather than moving it.
   const lineUp = picks.map((pick) => pick.entryId).join(',')
-  const unitKey = (choice: BattleChoice) => `${lineUp}#${pickIndex}:${choice.rule.name}`
-  const keyOf = (choice: BattleChoice) => (choice.armyWide ? choice.rule.name : unitKey(choice))
-  // Only the units a player selected for a rule such as Noospheric Transference have the army's pick.
-  const pickOf = (choice: BattleChoice) => (choice.selected && !chosen[unitKey(choice)]?.length ? undefined : chosen[keyOf(choice)])
+  const units = stored.picks.lineUp === lineUp ? stored.picks.units : {}
+  const unitKey = (choice: BattleChoice) => `${pickIndex}:${choice.rule.name}`
+  const pickOf = (choice: BattleChoice) =>
+    // Only the units a player selected for a rule such as Noospheric Transference have the army's pick.
+    choice.selected && !units[unitKey(choice)]?.length
+      ? undefined
+      : choice.armyWide
+        ? stored.picks.army[choice.rule.name]
+        : units[unitKey(choice)]
   const picked = useStableValue<Record<string, readonly string[]>>(
     Object.fromEntries(choices.flatMap((choice) => (pickOf(choice)?.length ? [[choice.rule.name, pickOf(choice)!]] : []))),
   )
@@ -140,19 +132,19 @@ export function useBattleChoices({
     chosen: picked,
     choose: (rule: string, options: readonly string[]) => {
       const choice = choices.find((candidate) => candidate.rule.name === rule)
-      if (!choice || !scope) return
-      const next = { ...chosen }
-      const store = (key: string, values: readonly string[]) => {
-        if (values.length) next[key] = values
-        else delete next[key]
+      if (!choice) return
+      const next = { army: { ...stored.picks.army }, lineUp, units: { ...units } }
+      const store = (to: Record<string, string[]>, key: string, values: string[]) => {
+        if (values.length) to[key] = values
+        else delete to[key]
       }
       // Past the limit, the newest pick replaces the oldest, as a new Order replaces the last.
       const kept = options.slice(-choice.limit)
       // Picking an option selects the unit and sets the army's pick; clearing it leaves the pick to the other selected units.
-      if (choice.selected) store(unitKey(choice), kept.length ? [choice.selected] : [])
-      if (kept.length || !choice.selected) store(keyOf(choice), kept)
-      picksByScope.set(scope, next)
-      for (const listener of listeners) listener()
+      if (choice.selected) store(next.units, unitKey(choice), kept.length ? [choice.selected] : [])
+      if (kept.length || !choice.selected)
+        store(choice.armyWide ? next.army : next.units, choice.armyWide ? choice.rule.name : unitKey(choice), kept)
+      stored.save(next)
     },
     keywordRules,
     sheet,

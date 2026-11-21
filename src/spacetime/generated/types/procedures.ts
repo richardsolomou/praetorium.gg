@@ -15,6 +15,7 @@ import * as AdminCollectionPhotosProcedure from '../admin_collection_photos_proc
 import * as BattleByInviteProcedure from '../battle_by_invite_procedure'
 import * as BattleByTokenProcedure from '../battle_by_token_procedure'
 import * as BattleChangesProcedure from '../battle_changes_procedure'
+import * as BattleChoicesProcedure from '../battle_choices_procedure'
 import * as BattleDraftStateProcedure from '../battle_draft_state_procedure'
 import * as BattleFeedProcedure from '../battle_feed_procedure'
 import * as BattleForOperatorProcedure from '../battle_for_operator_procedure'
@@ -165,6 +166,8 @@ export type BattleByTokenArgs = __Infer<typeof BattleByTokenProcedure.params>
 export type BattleByTokenResult = __Infer<typeof BattleByTokenProcedure.returnType>
 export type BattleChangesArgs = __Infer<typeof BattleChangesProcedure.params>
 export type BattleChangesResult = __Infer<typeof BattleChangesProcedure.returnType>
+export type BattleChoicesArgs = __Infer<typeof BattleChoicesProcedure.params>
+export type BattleChoicesResult = __Infer<typeof BattleChoicesProcedure.returnType>
 export type BattleDraftStateArgs = __Infer<typeof BattleDraftStateProcedure.params>
 export type BattleDraftStateResult = __Infer<typeof BattleDraftStateProcedure.returnType>
 export type BattleFeedArgs = __Infer<typeof BattleFeedProcedure.params>

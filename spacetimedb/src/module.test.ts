@@ -10,6 +10,7 @@ vi.mock('spacetime:sys@2.2', async (original) => ({ ...(await original<object>()
 import spacetime, * as module from './index'
 import { UNIT_LOADOUT_NAME_MAX_LENGTH, UNIT_LOADOUTS_MAX } from '../../src/core/unitLoadouts'
 import { ABILITY_REMINDERS_MAX } from '../../src/core/reminders'
+import { BATTLE_CHOICE_SCOPE_LIMIT } from '../../src/core/battleChoicePicks'
 import { SEALED_EVENT_REMINDER_COOLDOWN_MS } from '../../src/core/sealedEvent'
 import { NOTICE_RETENTION_MS, NOTICES_PER_USER } from '../../src/core/notificationConfig'
 import { LEAGUE_DEADLINE_REMINDER_MS } from '../../src/core/groupLeague'
@@ -4288,6 +4289,54 @@ describe('recent matchups', () => {
     remember(setup, 'a', 1)
     setup.call(setup.operator, (ctx) => module.deleteUserData(ctx, { userId: 'owner' }))
     expect(recent(setup)).toEqual([])
+  })
+})
+
+describe('battle choice picks', () => {
+  const picks = (army: string) => JSON.stringify({ army: { 'Doctrina Imperatives': [army] }, lineUp: 'a,b', units: {} })
+  const save = (setup: ReturnType<typeof harness>, scope: string, army: string, at: number) =>
+    setup.call(setup.operator, (ctx) => module.setBattleChoices(ctx, { userId: 'owner', scope, picks: picks(army), at: BigInt(at) }))
+  const read = (setup: ReturnType<typeof harness>, scope: string) =>
+    JSON.parse(module.battleChoices(setup.procedure(setup.operator), { userId: 'owner', scope })) as unknown
+
+  it('keeps the latest picks for a scope', () => {
+    const setup = harness()
+    save(setup, 'roster:a', 'Protector Imperative', 1)
+    save(setup, 'roster:a', 'Conqueror Imperative', 2)
+    expect(read(setup, 'roster:a')).toEqual(JSON.parse(picks('Conqueror Imperative')))
+  })
+
+  it('reads nothing for a scope never picked in', () => {
+    expect(read(harness(), 'roster:a')).toBeNull()
+  })
+
+  it('drops the oldest scope past the limit', () => {
+    const setup = harness()
+    for (let index = 0; index <= BATTLE_CHOICE_SCOPE_LIMIT; index += 1) save(setup, `roster:${index}`, 'Protector Imperative', index)
+    expect(read(setup, 'roster:0')).toBeNull()
+  })
+
+  it('refuses picks of another shape', () => {
+    const setup = harness()
+    expect(() =>
+      setup.call(setup.operator, (ctx) => module.setBattleChoices(ctx, { userId: 'owner', scope: 'roster:a', picks: '{}', at: 1n })),
+    ).toThrow()
+  })
+
+  it('refuses picks from anyone but the operator', () => {
+    const setup = harness()
+    expect(() =>
+      setup.call(player('owner'), (ctx) =>
+        module.setBattleChoices(ctx, { userId: 'owner', scope: 'roster:a', picks: picks('Protector Imperative'), at: 1n }),
+      ),
+    ).toThrow()
+  })
+
+  it('forgets every pick with the account', () => {
+    const setup = harness()
+    save(setup, 'roster:a', 'Protector Imperative', 1)
+    setup.call(setup.operator, (ctx) => module.deleteUserData(ctx, { userId: 'owner' }))
+    expect(read(setup, 'roster:a')).toBeNull()
   })
 })
 

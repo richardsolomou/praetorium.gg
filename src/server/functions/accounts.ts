@@ -21,6 +21,8 @@ import { fixedWindowRateLimit } from '../rateLimit'
 import { mutationRpc, rpc } from '../rpc'
 import { unlinkSignInMethod } from '../signInMethods'
 import {
+  battleChoiceScopeInputSchema,
+  battleChoicesInputSchema,
   listFilterPreferencesSchema,
   playerDefaultsSchema,
   favouriteDetachmentSchema,
@@ -76,6 +78,17 @@ export const setListFilterPreferences = createServerFn({ method: 'POST' })
   .validator(listFilterPreferencesSchema)
   .handler(({ data }) =>
     mutationRpc(async () => app().repository.setListFilterPreferences(await requireUserId(), data.scope, data.preferences, Date.now())),
+  )
+
+/** What the player picked for Orders and the like in one list or battle, on every device they sign in on. */
+export const battleChoices = createServerFn({ method: 'GET' })
+  .validator(battleChoiceScopeInputSchema)
+  .handler(({ data }) => rpc(() => forSignedIn(null, (id) => app().repository.battleChoices(id, data.scope))))
+
+export const setBattleChoices = createServerFn({ method: 'POST' })
+  .validator(battleChoicesInputSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => app().repository.setBattleChoices(await requireUserId(), data.scope, data.picks, Date.now())),
   )
 
 /** What this player's new rosters and battles start with. */

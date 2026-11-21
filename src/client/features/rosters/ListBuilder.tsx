@@ -606,7 +606,7 @@ export function ListBuilder({
   const datasheetCatalogueId = preview?.catalogueId ?? loadoutCatalogueId
   const loadout = (
     <Loadout
-      battleChoices={`roster:${savedId ?? draftId}`}
+      battleChoices={`roster:${savedId || draftId}`}
       catalogueId={loadoutCatalogueId}
       unit={optimisticUnit}
       loading={selectedUnitLoading}

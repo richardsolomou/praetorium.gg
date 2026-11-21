@@ -6,6 +6,7 @@ import type { AdminCollectionPhotosCursor } from '../../contracts/collection'
 import {
   abilityReminders,
   accountMethods,
+  battleChoices,
   activeFriendInvite,
   calendarFeedToken,
   adminPlayerBattles,
@@ -33,6 +34,7 @@ import { withTimeout } from '../abortSignals'
 import {
   abilityRemindersKey,
   adminKey,
+  battleChoicesKey,
   collectionProfileKey,
   friendInviteKey,
   meKey,
@@ -78,6 +80,8 @@ export const playerDefaultsQuery = () =>
 /** The player's ability alerts, which every roster they build and field applies. */
 export const abilityRemindersQuery = () =>
   queryOptions({ queryKey: abilityRemindersKey(), queryFn: () => abilityReminders(), staleTime: SSR_STALE_TIME })
+export const battleChoicesQuery = (scope: string) =>
+  queryOptions({ queryKey: battleChoicesKey(scope), queryFn: () => battleChoices({ data: { scope } }), staleTime: SSR_STALE_TIME })
 export const mcpConnectionsQuery = () => queryOptions({ queryKey: ['mcp-connections'], queryFn: () => mcpConnections() })
 export const onboardingQuery = () =>
   queryOptions({ queryKey: onboardingKey(), queryFn: () => onboardingProgress(), staleTime: SSR_STALE_TIME })

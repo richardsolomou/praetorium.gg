@@ -158,6 +158,18 @@ const listFilterPreferences = table(
   },
 )
 
+/** A player's in-battle picks for one list or battle, as one `battleChoicePicksSchema` document. */
+const battleChoices = table(
+  { name: 'battle_choices' },
+  {
+    key: t.string().primaryKey(),
+    userId: t.string().index('btree'),
+    scope: t.string(),
+    picks: t.string(),
+    at: t.u64(),
+  },
+)
+
 /** A player's roster folders and which list is filed in each, as one `rosterFoldersSchema` document. */
 const rosterFolders = table(
   { name: 'roster_folders' },
@@ -1010,6 +1022,7 @@ export const productTables = {
   pushPreferences,
   notices,
   listFilterPreferences,
+  battleChoices,
   playerDefaults,
   rosterFolders,
   pushTokens,

@@ -1,6 +1,6 @@
 import { forwarding } from './area'
 
-/** A player's onboarding, reminders, saved filters, defaults, push devices and calendar feed link. */
+/** A player's onboarding, reminders, saved filters, battle picks, defaults, push devices and calendar feed link. */
 export const withPreferences = forwarding([
   'onboardingProgress',
   'updateOnboardingProgress',
@@ -11,6 +11,8 @@ export const withPreferences = forwarding([
   'setPushEnabled',
   'listFilterPreferences',
   'setListFilterPreferences',
+  'battleChoices',
+  'setBattleChoices',
   'rosterFolders',
   'changeRosterFolders',
   'playerDefaults',
