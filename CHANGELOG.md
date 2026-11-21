@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.274.9 (2026-11-21)
+
+### Patch Changes
+
+- 04dc34a: [battles] A unit's wargear counts drop as its models fall, so losing the omnispex bearer leaves nine radium carbines, not ten.
+
 ## 0.274.8 (2026-11-21)
 
 ### Patch Changes
