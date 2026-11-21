@@ -186,8 +186,14 @@ function SummarizedRule({ summary, text, rules }: { summary: string; text: strin
   const source = useSourceText(text ?? '')
   return (
     <>
-      <RuleText text={summary} rules={rules} authored />
-      {text && !source.missing ? <RuleText text={text} rules={rules} /> : null}
+      <p className="eyebrow mt-3">Community summary</p>
+      <RuleText text={summary} rules={rules} className="mt-1" authored />
+      {text && !source.missing ? (
+        <>
+          <p className="eyebrow mt-3">Rules text</p>
+          <RuleText text={text} rules={rules} className="mt-1" />
+        </>
+      ) : null}
     </>
   )
 }

@@ -34,8 +34,8 @@ export function Sources() {
           directly from that community project, and it stays on your device.
         </p>
         <p>
-          A few stratagems and enhancements also show a plain-language summary that Praetorium does host, written for the rules version it
-          names. The card’s own words still appear beneath it once you choose that card’s source.
+          Some detachment cards show a Community summary from 40K Catalogue. Praetorium hosts these plain-language explanations for the
+          card’s rules version. When you load the rules text from its source, it appears below the summary.
         </p>
         <TextSourceSwitches />
       </LegalSection>
