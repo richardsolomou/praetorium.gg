@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.273.8 (2026-11-21)
+
+### Patch Changes
+
+- 9eeaaf2: [battles] Battle reminders show their rule's current text again instead of a row of dashes after a data update.
+
 ## 0.273.7 (2026-11-21)
 
 ### Patch Changes
