@@ -265,7 +265,25 @@ export function weaponProfilesFor(option: { name: string; pieces?: readonly stri
       ? option.pieces.flatMap((name) =>
           profiles.filter((profile) => weaponProfileNames(profile).some((candidate) => weaponPieceMatches(name, candidate))),
         )
-      : profiles.filter((profile) => weaponProfileNames(profile).some((name) => optionNameMatches(option.name, name))),
+      : profilesNamedBy(option.name, profiles),
+  )
+}
+
+/**
+ * The profiles an option's name describes, leaving out a weapon whose name only shows up inside a longer
+ * weapon's: a "Heavy onslaught gatling cannon" does not also carry the "Onslaught gatling cannon".
+ */
+function profilesNamedBy(optionName: string, profiles: readonly WeaponProfileData[]) {
+  const matched = profiles.filter((profile) => weaponProfileNames(profile).some((name) => optionNameMatches(optionName, name)))
+  const bases = new Set(matched.flatMap((profile) => weaponProfileNames(profile).map((name) => normalizeName(wargearBaseName(name)))))
+  return matched.filter((profile) =>
+    weaponProfileNames(profile).some((name) => {
+      const base = normalizeName(wargearBaseName(name))
+      const rest = [...bases]
+        .filter((longer) => longer.length > base.length && longer.includes(base))
+        .reduce((left, longer) => left.replaceAll(longer, ' '), normalizeName(optionName))
+      return rest === normalizeName(optionName) || rest.includes(base)
+    }),
   )
 }
 
@@ -277,6 +295,13 @@ export const profilesCarry = (profiles: readonly WeaponProfileData[], piece: str
 export const rowCarries = (row: { name: string; pieces?: readonly string[] }, piece: string) =>
   (row.pieces?.length ? row.pieces : [row.name]).some((held) => weaponPieceMatches(held, piece))
 
+const normalizeName = (name: string) =>
+  name
+    .replace(/^[^\p{L}\p{N}]+/u, '')
+    .trim()
+    .toLocaleLowerCase()
+    .replaceAll(/\s+/g, '')
+
 /**
  * Whether a wargear option and a profile or rule are the same thing.
  *
@@ -285,15 +310,9 @@ export const rowCarries = (row: { name: string; pieces?: readonly string[] }, pi
  * suffixed the way the source prints a missile launcher's "➤ Missile Launcher - Frag".
  */
 export function optionNameMatches(optionName: string, candidateName: string) {
-  const normalize = (name: string) =>
-    name
-      .replace(/^[^\p{L}\p{N}]+/u, '')
-      .trim()
-      .toLocaleLowerCase()
-      .replaceAll(/\s+/g, '')
-  const option = normalize(optionName)
-  const candidate = normalize(candidateName)
-  const baseCandidate = normalize(wargearBaseName(candidateName))
+  const option = normalizeName(optionName)
+  const candidate = normalizeName(candidateName)
+  const baseCandidate = normalizeName(wargearBaseName(candidateName))
   const modeOf = candidate.startsWith(option) ? candidate.slice(option.length) : null
   return (
     candidate === option ||
@@ -335,14 +354,11 @@ export function ordered<T extends { name: string }>(
     .flatMap((cluster) => cluster.entries)
 }
 
-const profilesFor = (name: string, weapons: readonly WeaponProfileData[]) =>
-  weapons.filter((weapon) => weaponProfileNames(weapon).some((candidate) => optionNameMatches(name, candidate)))
-
 // A combi-weapon has a melee profile and is still a gun, so what it also does cannot
 // decide where it goes.
 const isMelee = (name: string, weapons: readonly WeaponProfileData[]) =>
-  profilesFor(name, weapons).some((weapon) => weapon.type === 'Melee Weapons') &&
-  !profilesFor(name, weapons).some((weapon) => weapon.type === 'Ranged Weapons')
+  profilesNamedBy(name, weapons).some((weapon) => weapon.type === 'Melee Weapons') &&
+  !profilesNamedBy(name, weapons).some((weapon) => weapon.type === 'Ranged Weapons')
 
 /**
  * The questions the unit answers as a whole, in the order a datasheet asks them.
@@ -359,7 +375,7 @@ export function orderedChoices<T extends { options: readonly { name: string }[] 
 ) {
   const band = (choice: T) => {
     const names = choice.options.map((option) => option.name)
-    if (!names.some((name) => profilesFor(name, weapons).length)) return 2
+    if (!names.some((name) => profilesNamedBy(name, weapons).length)) return 2
     return names.every((name) => isMelee(name, weapons)) ? 1 : 0
   }
   return choices
