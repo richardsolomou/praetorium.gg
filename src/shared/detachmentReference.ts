@@ -1,5 +1,6 @@
 import { rulesReferencedIn } from './catalogueRules'
 import { routeSlug } from '../core/slug'
+import { joinKey } from '../core/text'
 import { describedEnhancements, mergeDetachmentRules } from './catalogueDescriptions'
 import { DATACARDS_ATTRIBUTION, descriptionKey } from './datacards'
 import { detachmentPoints } from './detachmentPoints'
@@ -9,7 +10,14 @@ import { detachmentNamed } from './factionReferences'
 import { enhancementKey, isUpgrade, mfmAttribution, mfmDetachmentFor, mfmEnhancementPoints, withoutUpgrade } from './mfm'
 import { factionContentOf } from './factionNames'
 
-export function detachmentReference(loaded: LoadedCatalogue, rules: LoadedRules, catalogueId: string, detachmentSlug: string) {
+/** `summaries` are shown beside a rule for reading only, so nothing that plays a rule passes them. */
+export function detachmentReference(
+  loaded: LoadedCatalogue,
+  rules: LoadedRules,
+  catalogueId: string,
+  detachmentSlug: string,
+  summaries: ReadonlyMap<string, string> = new Map(),
+) {
   const faction = loaded.index.catalogues.get(catalogueId)
   if (!faction) return null
   const option = loaded.detachments.get(catalogueId)?.options.find((candidate) => routeSlug(candidate.name) === detachmentSlug)
@@ -37,11 +45,12 @@ export function detachmentReference(loaded: LoadedCatalogue, rules: LoadedRules,
     upgrades: allUpgrades,
   })
   const detachmentRuleCards = mergeDetachmentRules(catalogueDetail?.rules ?? [], detail?.rules ?? [])
-  const enhancements = [
+  const enhancements: { name: string; points: number | null; description: string | null; summary?: string }[] = [
     ...allEnhancements.map((enhancement) => ({
       name: enhancement.name,
       points: mfm ? (mfmEnhancementPoints(mfm, enhancement.name) ?? enhancement.points) : enhancement.points,
       description: described.get(descriptionKey(option.name, enhancement.name)) ?? null,
+      ...summaryOf(summaries, summaries.size ? enhancementCardIds(loaded, detail?.name ?? option.name, enhancement.name) : []),
     })),
     ...(catalogueDetail?.forcedEnhancements.filter(
       (forced) => !allEnhancements.some((enhancement) => enhancementKey(enhancement.name) === enhancementKey(forced.name)),
@@ -62,7 +71,7 @@ export function detachmentReference(loaded: LoadedCatalogue, rules: LoadedRules,
     rules: detachmentRuleCards,
     enhancements,
     upgrades,
-    stratagems: detail?.stratagems ?? [],
+    stratagems: (detail?.stratagems ?? []).map((stratagem) => ({ ...stratagem, ...summaryOf(summaries, [stratagem.id]) })),
     keywordRules: rulesReferencedIn(loaded, [
       ...detachmentRuleCards.map((rule) => rule.description),
       ...enhancements.map((enhancement) => enhancement.description),
@@ -71,6 +80,19 @@ export function detachmentReference(loaded: LoadedCatalogue, rules: LoadedRules,
     ]),
     attribution: detail ? [attribution ?? DATACARDS_ATTRIBUTION, sourceAttribution].filter(Boolean).join('. ') : sourceAttribution,
   }
+}
+
+/** The Game Datacards IDs of a detachment's enhancement, from every faction file that prints it. */
+function enhancementCardIds(loaded: LoadedCatalogue, detachment: string, name: string) {
+  return [...new Set(loaded.datacards.factions.values())]
+    .flatMap((content) => content.enhancements.get(joinKey(detachment)) ?? [])
+    .filter((card) => enhancementKey(card.name) === enhancementKey(name))
+    .flatMap((card) => card.ids ?? [])
+}
+
+function summaryOf(summaries: ReadonlyMap<string, string>, ids: readonly string[] = []): { summary?: string } {
+  const summary = ids.map((id) => summaries.get(id)).find(Boolean)
+  return summary ? { summary } : {}
 }
 
 function upgradeDescription(catalogue: string | null, card: string | null) {

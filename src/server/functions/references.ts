@@ -285,7 +285,9 @@ export const detachmentDetail = createServerFn({ method: 'GET' })
     snapshotRpc(async () => {
       const rules = await app().rulesFor(data.catalogueId)
       const catalogue = await app().catalogueFor(data.catalogueId)
-      return rules && catalogue ? detachmentReference(catalogue, rules, data.catalogueId, data.slug) : null
+      return rules && catalogue
+        ? detachmentReference(catalogue, rules, data.catalogueId, data.slug, app().ruleSummaries()(data.catalogueId))
+        : null
     }),
   )
 

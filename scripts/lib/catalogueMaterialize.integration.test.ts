@@ -7,6 +7,7 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { catalogueSources } from '../../src/server/catalogueSources'
 import { packCatalogueSnapshot } from '../../src/server/catalogueSnapshot'
 import { materializeCatalogue } from './catalogueMaterialize'
+import { ustar } from '../../src/server/ustar.fixtures'
 
 let root: string
 let directory: string
@@ -21,6 +22,8 @@ const objectiveLayout = {
   litePayload: { v: 1, k: 'bml', id, b: 'sf60x44', a: 'c', s: ['purge-the-foe', 'reconnaissance', 1, 3], i: [[0, 2, 1, 0, 0, 'c']] },
 }
 
+const summaries = ustar([['manifest.json', '{"records":[]}']])
+
 function sources() {
   return {
     ...catalogueSources,
@@ -31,6 +34,7 @@ function sources() {
       revision: createHash('sha256').update(catalogKey).digest('hex'),
     },
     icons: { ...catalogueSources.icons, icons: { 'test-faction': 'test/icon.svg' } },
+    summaries: { ...catalogueSources.summaries!, revision: summaries.revision },
   }
 }
 
@@ -58,6 +62,7 @@ function downloads() {
     }
     if (target.includes(`/${catalogueSources.translations!.repository}/zip/`))
       return new Response(archive({ 'data/es.json': '{"Necrons":"Necrones"}\n' }))
+    if (target.includes('/releases/download/')) return new Response(summaries.archive)
     if (target.includes('/v1.1/public/tts/layouts')) {
       return Response.json({ catalogKey, layouts: [{ id, owner, layoutKey: 'layout-key' }] })
     }
@@ -114,7 +119,7 @@ it('omits disabled sources without fetching or retaining old files', async () =>
   const download = vi.fn()
   vi.stubGlobal('fetch', download)
   await materializeCatalogue(directory, sources(), {
-    disabled: new Set(['definitions', 'points', 'datacards', 'battlemaster', 'icons', 'translations']),
+    disabled: new Set(['definitions', 'points', 'datacards', 'battlemaster', 'icons', 'translations', 'summaries']),
     patchesDirectory: path.join(root, 'patches'),
   })
 

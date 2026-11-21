@@ -28,6 +28,17 @@ const battlemasterSourceSchema = z.object({
   description: z.string().optional(),
 })
 
+const releaseSourceSchema = z.object({
+  repository: z.string().regex(/^[\w.-]+\/[\w.-]+$/, 'expected owner/name'),
+  release: z.string().regex(/^v\d+\.\d+\.\d+$/, 'expected a release tag'),
+  asset: z.string().regex(/^[\w.-]+\.tar$/, 'expected a tar asset name'),
+  revision: z.string().regex(/^[0-9a-f]{64}$/, 'expected the archive SHA-256'),
+  license: z.string().min(1).nullable(),
+  licenseUrl: z.url().optional(),
+  attribution: z.string().optional(),
+  description: z.string().optional(),
+})
+
 export const catalogueSourcesSchema = z.object({
   definitions: repositorySourceSchema,
   points: repositorySourceSchema,
@@ -40,11 +51,12 @@ export const catalogueSourcesSchema = z.object({
   battlemaster: battlemasterSourceSchema,
   // Optional because snapshots published before it record their sources without it.
   translations: repositorySourceSchema.optional(),
+  summaries: releaseSourceSchema.optional(),
 })
 
 const SOURCE_NAMES = ['definitions', 'points', 'datacards'] as const
 export type SourceName = (typeof SOURCE_NAMES)[number]
-export const SNAPSHOT_SOURCE_NAMES = [...SOURCE_NAMES, 'battlemaster', 'icons', 'translations'] as const
+export const SNAPSHOT_SOURCE_NAMES = [...SOURCE_NAMES, 'battlemaster', 'icons', 'translations', 'summaries'] as const
 /** Sources earlier published snapshots carry; they are read as history and never materialized again. */
 const RETIRED_SOURCE_NAMES = ['rules', 'marineCodex'] as const
 export type SnapshotSourceName = (typeof SNAPSHOT_SOURCE_NAMES)[number] | (typeof RETIRED_SOURCE_NAMES)[number]
@@ -73,6 +85,7 @@ export const readRevisions = (directory: string, historical = false) =>
 
 export type CatalogueSourceConfig = z.infer<typeof catalogueSourcesSchema>
 export type BattlemasterSource = CatalogueSourceConfig['battlemaster']
+export type ReleaseSource = z.infer<typeof releaseSourceSchema>
 
 export const catalogueSources = catalogueSourcesSchema.parse(rawSources)
 

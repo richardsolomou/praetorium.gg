@@ -21,7 +21,7 @@ const reads = vi.hoisted(() => ({ factionIndexFor: vi.fn(), catalogueFor: vi.fn(
 vi.mock('../../src/server/app', () => ({ app: () => reads }))
 
 let root: string
-const disabled = new Set(['icons', 'battlemaster', 'translations'] as const)
+const disabled = new Set(['icons', 'battlemaster', 'translations', 'summaries'] as const)
 const pin = 'a'.repeat(40)
 const book = (name: string, cost: number, detachment: string) =>
   JSON.stringify({
@@ -155,6 +155,7 @@ async function retainedSnapshot() {
     ['battlemaster', 'layouts/test.json', '{}'],
     ['icons', 'test.svg', '<svg/>'],
     ['translations', 'es.json', '{}'],
+    ['summaries', 'manifest.json', '{}'],
   ] as const) {
     revisions[name] = catalogueSources[name]!.revision
     fs.mkdirSync(path.dirname(path.join(directory, name, file)), { recursive: true })
@@ -461,6 +462,7 @@ it('records authored source pins inside the immutable snapshot', async () => {
     ['battlemaster', 'layouts/test.json', '{}'],
     ['icons', 'test.svg', '<svg/>'],
     ['translations', 'es.json', '{}'],
+    ['summaries', 'manifest.json', '{}'],
   ] as const) {
     revisions[name] = catalogueSources[name]!.revision
     fs.mkdirSync(path.dirname(path.join(directory, name, file)), { recursive: true })
