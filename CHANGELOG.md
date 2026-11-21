@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.274.5 (2026-11-21)
+
+### Patch Changes
+
+- 9eba3bb: [battles] A model carrying an enhanced data-tether is named for it in full, rather than as a data-tether.
+- e5ecf9f: [battles] A battle in a group or tournament records casualties by kind of model for lists sealed before that was possible.
+
 ## 0.274.4 (2026-11-21)
 
 ### Patch Changes
