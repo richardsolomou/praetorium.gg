@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { textToken } from '../core/sourceText'
 import type { TextSource } from '../core/sourceText'
 import { textSourceChoiceFrom } from './rulesText'
-import { loadTextFile, loadedText, loadedWords, registerTextSources, retryFailedTextFiles } from './sourceText'
+import { loadTextFile, loadedText, loadedWords, registerTextHomes, registerTextSources, retryFailedTextFiles } from './sourceText'
 import { openedTextPage } from './textPages'
 
 const capture = vi.hoisted(() => vi.fn())
@@ -91,6 +91,27 @@ describe('rules text on this device', () => {
     file('0000000e')
     await loadTextFile('0000000e')
     expect(loadedWords(`${token('0000000e')} ${token('0000000e', 'Missing.')}`, all)).toBeNull()
+  })
+})
+
+describe('a token naming a file a catalogue update replaced', () => {
+  it('waits while asking where its string lives now', () => {
+    file('00000030')
+    expect(loadedText(token('00000031', 'Asked about.'), all).missing).toBe('loading')
+  })
+
+  it('reads its string from the file that holds it now', async () => {
+    serve({ effect: { en: 'Moved.' } })
+    file('00000032')
+    registerTextHomes({ [hash('Moved.')]: '00000032' })
+    await loadTextFile('00000032')
+    expect(loadedText(token('00000033', 'Moved.'), all)).toEqual({ text: 'Moved.', missing: null })
+  })
+
+  it('is unavailable once no current file holds its string', () => {
+    file('00000034')
+    registerTextHomes({ [hash('Reworded.')]: null })
+    expect(loadedText(token('00000035', 'Reworded.'), all).missing).toBe('unavailable')
   })
 })
 

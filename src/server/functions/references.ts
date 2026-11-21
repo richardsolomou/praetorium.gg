@@ -5,7 +5,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { withServerSpan } from '../serverTelemetry'
 import { app } from '../app'
 import { unitBattleDetailsIn } from '../../shared/catalogue'
-import { publishedTextFiles } from '../publishedTextFiles'
+import { publishedTextFiles, textHomes } from '../publishedTextFiles'
 import { booksOffering, pickerUnitsFor } from '../../shared/pickerUnits'
 import { detachmentsOffering } from '../../shared/factionReferences'
 
@@ -39,6 +39,7 @@ import {
   terrainReferencesSchema,
   unitsSchema,
   unitWoundsSchema,
+  textHomesSchema,
 } from '../../contracts/schemas'
 
 /** A reference read, cached against the snapshot's ETag when fetched directly. */
@@ -318,6 +319,11 @@ export const gameReferences = createServerFn({ method: 'GET' }).handler(() =>
 
 /** Where each source file a rules-text token names lives upstream; Praetorium serves where the words are, never the words. */
 export const textSources = createServerFn({ method: 'GET' }).handler(() => snapshotRpc(async () => publishedTextFiles()))
+
+/** Where strings now live whose tokens name a file the active snapshot replaced, so a battle's older text still loads. */
+export const textHomesFor = createServerFn({ method: 'GET' })
+  .validator(textHomesSchema)
+  .handler(({ data }) => snapshotRpc(async () => textHomes(data.hashes)))
 
 /** Every rules document and section by name, with the numbers their prose quotes. */
 export const ruleIndex = createServerFn({ method: 'GET' }).handler(() =>
