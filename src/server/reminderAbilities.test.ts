@@ -62,6 +62,32 @@ describe('the abilities a roster’s units hold for alerts', () => {
     ).toEqual([0, 2])
   })
 
+  it('fields an alert with the text its ability prints now', () => {
+    expect(
+      fieldingReminders(book, null, roster, units, [
+        { key: 'datasheet:shroud', ability: 'Translocation Shroud', description: 'Text from an older snapshot', timings },
+      ])[0]?.description,
+    ).toBe('Translocation Shroud text')
+  })
+
+  it('fields an enhancement alert with the text its chosen option prints now', () => {
+    expect(
+      fieldingReminders(
+        book,
+        null,
+        roster,
+        [
+          {
+            key: 1,
+            name: 'Warrior',
+            choices: [{ kind: 'enhancement', chosen: 'casket', options: [{ id: 'casket', description: 'Now' }] }],
+          },
+        ],
+        [{ key: 'enhancement:casket', ability: 'Casket', description: 'Then', timings }],
+      )[0]?.description,
+    ).toBe('Now')
+  })
+
   it('freezes an alert for a chosen enhancement', () => {
     expect(
       fieldingReminders(

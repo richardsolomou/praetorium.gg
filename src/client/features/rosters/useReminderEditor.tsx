@@ -47,14 +47,17 @@ export function useReminderEditor({
         ...(suggestReminderWhileDestroyed(description) ? { whileDestroyed: true as const } : {}),
       }
       resetAbilityAlert()
+      const saved = abilityAlerts.settings.find((reminder) => reminder.key === key)
       setReminderDraft(
-        abilityAlerts.settings.find((reminder) => reminder.key === key) ?? {
-          key,
-          ability: subject.name,
-          description: subject.description ?? '',
-          timings: suggested.timings,
-          ...(!armyReminder(subject) && suggested.whileDestroyed ? { whileDestroyed: true } : {}),
-        },
+        saved
+          ? { ...saved, description: subject.description ?? saved.description }
+          : {
+              key,
+              ability: subject.name,
+              description: subject.description ?? '',
+              timings: suggested.timings,
+              ...(!armyReminder(subject) && suggested.whileDestroyed ? { whileDestroyed: true } : {}),
+            },
       )
     },
   }
