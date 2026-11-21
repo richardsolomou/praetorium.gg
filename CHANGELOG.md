@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.274.2 (2026-11-21)
+
+### Patch Changes
+
+- 70aabcb: [rosters] View mode and battles list a unit's ranged and melee weapons separately, and group melee weapons by model where a model has to choose which one to fight with.
+
 ## 0.274.1 (2026-11-21)
 
 ### Patch Changes
