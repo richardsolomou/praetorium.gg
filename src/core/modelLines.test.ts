@@ -77,6 +77,15 @@ describe('model lines', () => {
     expect(vox?.wargear.map((piece) => piece.name)).toEqual(['Lasgun', 'Vox-caster'])
   })
 
+  it('name a specialist by the full name of the piece its mark shortens', () => {
+    const carriers = [
+      { name: 'Skitarii Ranger', models: 8, weapons: [{ name: 'Galvanic rifle', count: 8 }] },
+      { name: 'Skitarii Ranger w/ data-tether', models: 1, weapons: [{ name: 'Galvanic rifle', count: 1 }] },
+    ]
+    const tether = modelLineDrafts(carriers, [{ name: 'Enhanced data-tether', count: 1 }])[1]
+    expect(tether?.name).toBe('Enhanced data-tether')
+  })
+
   it('field survivors of a merged line from the carriers it spans', () => {
     const carriers = [
       { name: 'Kroot Farstalker', models: 8, weapons: [{ name: 'Farstalker firearm', count: 8 }] },

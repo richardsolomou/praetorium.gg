@@ -82,7 +82,10 @@ function named(lines: ModelLineDraft[], wargear: readonly { name: string; count:
     if (mark && kin.filter((other) => markOf(other) && wargearKey(markOf(other)!) === wargearKey(mark)).length === 1) {
       const held = line.wargear.find((piece) => wargearKey(piece.name) === wargearKey(mark))
       if (held) return { ...line, name: shown(held.name) }
-      const listed = wargear.find((piece) => wargearKey(piece.name) === wargearKey(mark))
+      // The data's mark can shorten the piece it names: "w/ data-tether" for an Enhanced data-tether.
+      const shortened = wargear.filter((piece) => wargearKey(piece.name).endsWith(`-${wargearKey(mark)}`))
+      const listed =
+        wargear.find((piece) => wargearKey(piece.name) === wargearKey(mark)) ?? (shortened.length === 1 ? shortened[0] : undefined)
       // A piece the weapons leave out, such as a vox-caster, is still what this model carries.
       return listed
         ? { ...line, name: shown(listed.name), wargear: [...line.wargear, { name: listed.name, count: line.models }] }

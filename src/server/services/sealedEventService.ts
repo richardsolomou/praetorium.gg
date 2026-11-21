@@ -690,7 +690,7 @@ export class SealedEventService {
     eventToken?: string,
     allyId?: string,
     secondOpponentId?: string,
-    fieldAlerts: (roster: Roster, playerId: string) => Promise<Roster> = async (roster) => roster,
+    fieldList: (roster: Roster, playerId: string) => Promise<Roster> = async (roster) => roster,
     fixtureKey?: string,
     /** Skips telling the players, for a battle started only to record its score. */
     quiet = false,
@@ -721,7 +721,7 @@ export class SealedEventService {
         const initialCommands = await Promise.all(
           prepared.initialCommands.map(async (command) =>
             command.kind === 'attach-roster'
-              ? { ...command, roster: await fieldAlerts(command.roster, command.playerId ?? userId) }
+              ? { ...command, roster: await fieldList(command.roster, command.playerId ?? userId) }
               : command,
           ),
         )

@@ -4,7 +4,7 @@ import { currentRosterIds } from '../core/retiredCatalogueIds'
 import { offlineActionSchemas as schemas, type OfflineActionKind } from '../contracts/offlineActions'
 import { onboardingAnswer } from '../contracts/onboarding'
 import { app } from './app'
-import { rosterForUse, withCurrentAlerts } from './rosterUsage'
+import { rosterForUse, fieldedSealedList } from './rosterUsage'
 import { captureMutation, captureBattleCreated, captureSealedEventCreated, captureSealedEventBattleCreated } from './mutationTelemetry'
 import { requireUserId } from './playerSession'
 import { mutationRpc } from './rpc'
@@ -285,7 +285,7 @@ export const productActions = {
       data.eventToken,
       data.allyId,
       data.secondOpponentId,
-      withCurrentAlerts,
+      fieldedSealedList,
       data.fixtureKey,
     )
     captureSealedEventBattleCreated(owner, result)
