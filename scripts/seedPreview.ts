@@ -438,6 +438,7 @@ async function readBack(repository: SpacetimeRepository, product: SpacetimeOpera
       Date.now(),
     )
     await repository.listFilterPreferences(userId)
+    await repository.battleChoices(userId, 'roster:preview-astra-militarum-combined-arms')
     await repository.pushEnabled(userId)
     // Reaches the notice procedures without adding any: a notice never goes to the player who caused it.
     await repository.storeNotices([{ kind: 'friend-accepted', actorId: userId, recipientIds: [userId] }], Date.now())
