@@ -10,7 +10,7 @@ On someone else's roster, it opens the main simulator with their unit defending,
 
 Choose **Simulate** on a player's army, or on one of its units to start with that unit. Each unit comes in with its current models and wounds, and a single model's **Damaged** rule switches on when its wounds are in range. Destroyed, reserve and embarked units can't be picked.
 
-To try a different state, change the model count or **Wounded model · wounds left**. If losses could have come from different models, **Survivors** lets you choose who's left.
+To try a different state, change the model count or **Wounded model · wounds left**. If losses could have come from different models, **Survivors** lets you choose who's left. A unit whose fallen models were removed by kind in the battle starts with exactly those survivors.
 
 The pairing joins your **Recent simulations** too, but it reopens at full strength.
 

@@ -2,7 +2,14 @@ import { groupBy, RecentlyUsed, uniqueBy, remember } from '../core/collections'
 import { armyIds, attachmentErrors, attachmentPartyOf, inArmy } from '../core/attach'
 import { attachmentHost } from '../core/attachedUnits'
 import { routeSlug } from '../core/slug'
-import { borrowedDispositionError, detachmentPointBudget, detachmentPointsError, enforces, isKotcLimit } from '../core/battle'
+import {
+  borrowedDispositionError,
+  detachmentPointBudget,
+  detachmentPointsError,
+  enforces,
+  isKotcLimit,
+  type ModelLine,
+} from '../core/battle'
 import { type CatalogueIndex, targetOf } from '../core/catalogue'
 import {
   battleSizeSelection,
@@ -23,7 +30,8 @@ import { type ChoiceOptions, hasWarlordToggle, type UnitChoice, unitChoices } fr
 import { withUnitSpread } from '../core/unitSpread'
 import { wargearOf } from '../core/wargear'
 import { rulesReferencedIn } from './catalogueRules'
-import { contextualAbilityNamesIn, datasheetIn, toughnessOf } from './catalogue'
+import { contextualAbilityNamesIn, datasheetIn, modelLinesOf, toughnessOf } from './catalogue'
+import { combatCarriers } from '../core/combatLoadout'
 import { matchesKeywordSelector } from '../core/keywords'
 import { describedEnhancements } from './catalogueDescriptions'
 import { cardName, descriptionKey } from './datacards'
@@ -50,6 +58,7 @@ const sharedBuiltUnitsFor = (loaded: LoadedCatalogue) =>
 /** Projections of one built unit, kept for as long as the unit itself is. */
 const builtModelKinds = new WeakMap<BuiltUnit, ModelKind[]>()
 const builtAttachments = new WeakMap<BuiltUnit, ReturnType<typeof attachmentPartyOf>>()
+const builtModelLines = new WeakMap<BuiltUnit, ModelLine[] | undefined>()
 
 /**
  * A list as the catalogue reads it: every pick expanded, grouped by the book it
@@ -817,6 +826,15 @@ function calculateRoster(
         ),
       )
       const built = remember(builtAttachments, unit.source, () => attachmentPartyOf(definition, loaded.index, unit.selection))
+      const held = wargear.filter((piece) => !specialSelections.has(routeSlug(piece.name)) || specialWargear.has(routeSlug(piece.name)))
+      const modelLines = remember(builtModelLines, unit.source, () =>
+        modelLinesOf(
+          combatCarriers(unit.selection, loaded.index, options),
+          held,
+          unit.size.models,
+          datasheetIn(loaded, catalogueId, unit.entryId),
+        ),
+      )
       const attachment = { ...built, attachment: inArmy(built.attachment, army) }
       return {
         key: unit.key,
@@ -840,10 +858,11 @@ function calculateRoster(
             : choice,
         ),
         models,
+        ...(modelLines ? { modelLines } : {}),
         toggles: unit.toggles,
         enhancements: selectedEnhancements,
         upgrades,
-        wargear: wargear.filter((piece) => !specialSelections.has(routeSlug(piece.name)) || specialWargear.has(routeSlug(piece.name))),
+        wargear: held,
         group: shelfIn(
           loaded.index,
           unit.entryId,

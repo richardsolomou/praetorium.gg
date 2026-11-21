@@ -53,6 +53,8 @@ function command(kind: Command['kind'], description: string, fields: Record<stri
 }
 
 const PLAYER_FIELD = { playerId: PLAYER }
+const MODEL_LINE =
+  'The index in the unit’s modelLines of the kind of model, such as its sergeant; required when the unit has modelLines and refused otherwise.'
 
 const configureBattle = z
   .object({
@@ -213,13 +215,19 @@ export const agentCommandSchema = z.discriminatedUnion('kind', [
   command('wound-unit', 'Removes (negative) or restores (positive) whole models from a unit.', {
     unitKey: 'A unit key from players[].units[].key.',
     delta: 'Models to restore (positive) or remove (negative).',
+    line: MODEL_LINE,
     ...PLAYER_FIELD,
   }),
-  command('damage-unit', 'Records wounds lost or healed across a unit whose models share one wounds characteristic.', {
-    unitKey: 'A unit key from players[].units[].key.',
-    delta: 'Wounds healed (positive) or lost (negative).',
-    ...PLAYER_FIELD,
-  }),
+  command(
+    'damage-unit',
+    'Records wounds lost or healed across a unit whose models share one wounds characteristic, or on one of its modelLines.',
+    {
+      unitKey: 'A unit key from players[].units[].key.',
+      delta: 'Wounds healed (positive) or lost (negative).',
+      line: MODEL_LINE,
+      ...PLAYER_FIELD,
+    },
+  ),
   command('set-unit', 'Marks a unit destroyed, or brings it back.', {
     unitKey: 'A unit key from players[].units[].key.',
     destroyed: 'Whether the unit is destroyed.',

@@ -259,6 +259,10 @@ export function weaponProfilesFor(option: { name: string; pieces?: readonly stri
   )
 }
 
+/** Whether a loadout row holds a piece a battle names: one of its own pieces, never a longer name containing it. */
+export const rowCarries = (row: { name: string; pieces?: readonly string[] }, piece: string) =>
+  (row.pieces?.length ? row.pieces : [row.name]).some((held) => weaponPieceMatches(held, piece))
+
 /**
  * Whether a wargear option and a profile or rule are the same thing.
  *

@@ -26,7 +26,7 @@ import {
   wholeSquadTakes,
 } from './loadoutModel'
 import type { WeaponProfileData } from './loadoutModel'
-import { type OptionNote, PickControl, PoolStepper, WargearRow } from './LoadoutControls'
+import { type OptionNote, PickControl, PoolStepper, type StandingWargear, WargearRow } from './LoadoutControls'
 import { loadedWords, useSourceTexts } from '../../../sourceText'
 import { sameWargear } from '../../../../core/wargearNames'
 
@@ -54,6 +54,7 @@ export function ModelCard({
   showOptions = true,
   optionNote,
   saved,
+  standing,
 }: {
   model: LoadoutModel
   choices: LoadoutChoice[]
@@ -72,6 +73,7 @@ export function ModelCard({
   optionNote?: OptionNote
   /** The pick's saved counts, which every press folds against. */
   saved?: Record<string, SpreadCounts>
+  standing?: StandingWargear
 }) {
   const count = modelCount(model, choices)
   const { spend, free } = poolHandlers(model, choices, weapons)
@@ -146,6 +148,7 @@ export function ModelCard({
                 abilities={abilities}
                 rules={rules}
                 highlightSelection={showOptions}
+                standing={standing}
               />
             )
           }
@@ -214,6 +217,7 @@ export function ModelCard({
               rules={rules}
               highlightSelection={showOptions}
               instructions={instructions}
+              standing={standing}
               annotation={optionNote?.(row.choiceKey, row.optionId)}
               control={
                 picked ? (

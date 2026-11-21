@@ -393,6 +393,60 @@ describe('models within a unit', () => {
   })
 })
 
+describe('models by kind within a unit', () => {
+  /** Boyz led by a Nob, whose models carry different wargear and wounds. */
+  const mob = (): [string, Command][] => {
+    const boyz = builtRoster('Orks', ['Boyz'], { models: 10 })
+    if (boyz.kind !== 'attach-roster' || !boyz.roster.built) throw new Error('expected built roster')
+    boyz.roster.built.units[0]!.modelLines = [
+      { name: 'Boy', models: 9, wounds: 1, wargear: [{ name: 'Slugga', count: 9 }] },
+      { name: 'Nob', models: 1, wounds: 3, wargear: [{ name: 'Power klaw', count: 1 }] },
+    ]
+    return [
+      [ALICE, boyz],
+      [BOB, roster('Death Guard')],
+      [ALICE, { kind: 'begin-battle', firstPlayerId: ALICE }],
+    ]
+  }
+
+  const boyz = (state: ReturnType<typeof reduceBattle>) => state.players.find((player) => player.id === ALICE)?.units[0]
+
+  it('come off the kind that fell', () => {
+    const state = reduceBattle(PLAYERS, log(...mob(), [ALICE, { kind: 'wound-unit', unitKey: 'u0', delta: -1, line: 1 }]))
+    expect(boyz(state)?.lines?.map((line) => line.alive)).toEqual([9, 0])
+  })
+
+  it('still count the unit as a whole', () => {
+    const state = reduceBattle(PLAYERS, log(...mob(), [ALICE, { kind: 'wound-unit', unitKey: 'u0', delta: -1, line: 1 }]))
+    expect(boyz(state)?.alive).toBe(9)
+  })
+
+  it('must say which kind fell', () => {
+    const state = reduceBattle(PLAYERS, log(...mob()))
+    expect(validate(state, ALICE, { kind: 'wound-unit', unitKey: 'u0', delta: -1 })).toBe('say which of the unit’s models this is')
+  })
+
+  it('cannot take more of a kind than it holds', () => {
+    const state = reduceBattle(PLAYERS, log(...mob()))
+    expect(validate(state, ALICE, { kind: 'wound-unit', unitKey: 'u0', delta: -2, line: 1 })).toBe('there are not that many models left')
+  })
+
+  it('take wounds against the kind’s own characteristic', () => {
+    const state = reduceBattle(PLAYERS, log(...mob(), [ALICE, { kind: 'damage-unit', unitKey: 'u0', delta: -2, line: 1 }]))
+    expect(boyz(state)?.lines?.[1]).toEqual({ alive: 1, damage: 2 })
+  })
+
+  it('come back whole when the unit is brought back', () => {
+    const history = log(
+      ...mob(),
+      [ALICE, { kind: 'wound-unit', unitKey: 'u0', delta: -1, line: 1 }],
+      [ALICE, { kind: 'set-unit', unitKey: 'u0', destroyed: true }],
+      [ALICE, { kind: 'set-unit', unitKey: 'u0', destroyed: false }],
+    )
+    expect(boyz(reduceBattle(PLAYERS, history))?.lines?.map((line) => line.alive)).toEqual([9, 1])
+  })
+})
+
 describe('wounds within a unit', () => {
   /** A squad whose models each take three wounds, so a model dies part-way through a volley. */
   const squad = (): [string, Command][] => [

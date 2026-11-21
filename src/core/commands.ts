@@ -36,6 +36,13 @@ const rosterLimit = z.number().int().min(0).max(POINTS_BUDGET_MAX)
 /** Each side's time for the whole battle on its chess clock. */
 export const clockLimitMinutes = z.number().int().min(5).max(300)
 const name = z.string().min(1).max(ROSTER_NAME_MAX_LENGTH)
+export const MODEL_LINES_MAX = 20
+const modelLine = z
+  .number()
+  .int()
+  .min(0)
+  .max(MODEL_LINES_MAX - 1)
+  .optional()
 export { id as idSchema, name as nameSchema, rosterLimit as rosterLimitSchema }
 export const detachmentIdSchema = z.string().min(1).max(128)
 // Descriptions are for agents, who build picks from get_unit_options without seeing the builder.
@@ -243,6 +250,18 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
                 points: z.number().int().min(0).max(10_000),
                 models: z.number().int().min(0).max(100),
                 wounds: z.number().int().min(1).max(100).optional(),
+                modelLines: z
+                  .array(
+                    z.object({
+                      name: name,
+                      models: z.number().int().min(1).max(100),
+                      wounds: z.number().int().min(1).max(100).optional(),
+                      wargear: z.array(z.object({ name: name, count: z.number().int().min(1).max(100) })).max(50),
+                    }),
+                  )
+                  .min(2)
+                  .max(MODEL_LINES_MAX)
+                  .optional(),
                 entryId: id.optional(),
                 group: z.enum(UNIT_GROUPS).optional(),
                 warlord: z.boolean().optional(),
@@ -298,8 +317,8 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
     playerId: id.optional(),
   }),
   z.object({ kind: z.literal('set-painted'), painted: z.boolean(), playerId: id.optional() }),
-  z.object({ kind: z.literal('wound-unit'), unitKey: id, delta: z.number().int(), playerId: id.optional() }),
-  z.object({ kind: z.literal('damage-unit'), unitKey: id, delta: z.number().int(), playerId: id.optional() }),
+  z.object({ kind: z.literal('wound-unit'), unitKey: id, delta: z.number().int(), line: modelLine, playerId: id.optional() }),
+  z.object({ kind: z.literal('damage-unit'), unitKey: id, delta: z.number().int(), line: modelLine, playerId: id.optional() }),
   z.object({ kind: z.literal('set-deployment'), patternId: id.nullable() }),
   z.object({ kind: z.literal('set-battlefield'), patternId: id, terrainLayoutId: id }),
   z.object({ kind: z.literal('fix-battlefield'), patternId: id, terrainLayoutId: id }),

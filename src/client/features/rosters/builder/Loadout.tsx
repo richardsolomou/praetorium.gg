@@ -17,7 +17,7 @@ import {
   type SpreadUpdate,
   wholeSquadTakes,
 } from './loadoutModel'
-import { EitherChoice, LoadoutLoading, type OptionNote, SpecialChoice, SpreadChoice } from './LoadoutControls'
+import { EitherChoice, LoadoutLoading, type OptionNote, SpecialChoice, SpreadChoice, type StandingWargear } from './LoadoutControls'
 import { ModelCard } from './ModelCard'
 import { BattleChoices, useBattleChoices } from './BattleChoices'
 import type { ReminderControls } from '../ReminderButton'
@@ -52,6 +52,8 @@ type Props = {
   footer?: ReactNode
   /** Whose in-battle picks the pane offers, as a list or an army in a battle, showing the profiles as each leaves them. */
   battleChoices?: string
+  /** What a battle's survivors still carry, so wargear nobody standing holds reads as gone. */
+  standing?: StandingWargear
 }
 
 /**
@@ -84,6 +86,7 @@ export function Loadout({
   header,
   footer,
   battleChoices,
+  standing,
 }: Props) {
   const posthog = usePostHog()
   const capturedAt = useRef(0)
@@ -203,6 +206,7 @@ export function Loadout({
                   showOptions={showOptions}
                   optionNote={optionNote}
                   saved={saved}
+                  standing={standing}
                   {...described}
                 />
               ))}

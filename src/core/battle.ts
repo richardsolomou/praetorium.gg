@@ -48,8 +48,8 @@ import {
   fieldedUnits,
   startingEmbarks,
   disembarkPassengers,
-  unitWoundsLeft,
   casualtyOutcome,
+  casualtyRefusal,
 } from './battleUnits'
 import {
   sideDisposition,
@@ -265,6 +265,13 @@ export type SubmittedUnit = {
    * them.
    */
   wounds?: number
+  /**
+   * The unit's models split by what they are and carry, when it holds more than one
+   * kind: a sergeant, a plasma gunner and the troopers. Casualties then name a line,
+   * so the log knows who fell. Absent for a unit of one kind, and from logs written
+   * before this was recorded, which count the unit as a whole.
+   */
+  modelLines?: ModelLine[]
   /** Frozen roster-card details, absent from battle logs created before snapshots had a full roster view. */
   entryId?: string
   group?: UnitGroup
@@ -303,6 +310,14 @@ export type SubmittedUnit = {
   embarkedSpace?: number
 }
 
+export type ModelLine = {
+  name: string
+  models: number
+  /** Each model's wounds, where the line's differ from the rest of the unit's and the datasheet gives one number. */
+  wounds?: number
+  wargear: { name: string; count: number }[]
+}
+
 /** A unit's standing in the battle. Attached rosters begin on the battlefield. */
 export type UnitState = SubmittedUnit & {
   destroyed: boolean
@@ -330,6 +345,8 @@ export type UnitState = SubmittedUnit & {
    * know: there is nothing for a wound to be counted against.
    */
   damage: number
+  /** Each of `modelLines`' standing, in its order; `alive` and `damage` are their sums. */
+  lines?: { alive: number; damage: number }[]
 }
 
 /**
@@ -531,9 +548,10 @@ export type Command =
       warlords?: { side: number; playerId: PlayerId }[]
     }
   | ({ kind: 'set-unit'; unitKey: string; destroyed: boolean } & OnBehalfOf)
-  | ({ kind: 'wound-unit'; unitKey: string; delta: number } & OnBehalfOf)
+  /** `line` names which of the unit's `modelLines` the models belong to, and is required when it has them. */
+  | ({ kind: 'wound-unit'; unitKey: string; delta: number; line?: number } & OnBehalfOf)
   /** `delta` is the change in wounds left, so a unit taking damage is negative, like models. */
-  | ({ kind: 'damage-unit'; unitKey: string; delta: number } & OnBehalfOf)
+  | ({ kind: 'damage-unit'; unitKey: string; delta: number; line?: number } & OnBehalfOf)
   | ({ kind: 'deploy-unit'; unitKey: string; deployed: boolean } & OnBehalfOf)
   | ({ kind: 'set-unit-formation'; unitKey: string; formation: UnitFormation; transportKey?: string } & OnBehalfOf)
   | ({ kind: 'set-painted'; painted: boolean } & OnBehalfOf)
@@ -737,6 +755,7 @@ export type RefusalCode =
   | 'unit-unchanged'
   | 'unknown-command'
   | 'unknown-deployment'
+  | 'unknown-model'
   | 'unknown-player'
   | 'unknown-secondary'
   | 'unknown-setup-step'
@@ -745,6 +764,7 @@ export type RefusalCode =
   | 'unknown-terrain'
   | 'unknown-unit'
   | 'unnamed-card'
+  | 'unnamed-model'
   | 'unsupported-battle-size'
   | 'unsupported-player-count'
   | 'wounds-unknown'
@@ -1466,30 +1486,10 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
     // The bonus is for a painted army, settled before the battle and paid as it begins.
     case 'set-painted':
       return state.status === 'setup' ? null : refuse('battle-started', 'the battle ready bonus is set before the battle begins')
-    case 'wound-unit': {
+    case 'wound-unit':
+    case 'damage-unit':
       if (state.status !== 'playing') return refuse('battle-not-running', 'the battle is not running')
-      const unit = player.units.find((candidate) => candidate.key === command.unitKey)
-      if (!unit) return refuse('unknown-unit', 'that is not one of your units')
-      if (!Number.isInteger(command.delta) || command.delta === 0) return refuse('invalid-amount', 'models come off in whole numbers')
-      if (unit.alive + command.delta < 0) return refuse('out-of-range', 'there are not that many models left')
-      if (unit.alive + command.delta > unit.models) return refuse('out-of-range', 'that is more models than the unit has')
-      return embarkedCapacityError(player.units, unit, unit.alive + command.delta)
-    }
-    case 'damage-unit': {
-      if (state.status !== 'playing') return refuse('battle-not-running', 'the battle is not running')
-      const unit = player.units.find((candidate) => candidate.key === command.unitKey)
-      if (!unit) return refuse('unknown-unit', 'that is not one of your units')
-      // Refused rather than guessed at: a unit whose models do not share a wounds
-      // characteristic has no single number to count against, and inventing one
-      // would put a squad's sergeant and his veterans on the same track.
-      const left = unitWoundsLeft(unit)
-      if (left === null || !unit.wounds)
-        return refuse('wounds-unknown', 'the datasheet does not give this unit a single wounds characteristic')
-      if (!Number.isInteger(command.delta) || command.delta === 0) return refuse('invalid-amount', 'wounds come off in whole numbers')
-      if (left + command.delta < 0) return refuse('out-of-range', 'there are not that many wounds left')
-      if (left + command.delta > unit.models * unit.wounds) return refuse('out-of-range', 'that is more wounds than the unit has')
-      return embarkedCapacityError(player.units, unit, Math.ceil((left + command.delta) / unit.wounds))
-    }
+      return casualtyRefusal(player.units, command)
     case 'set-deployment':
     case 'set-battlefield': {
       // The battlefield is shared, so either player may set it, and only before the

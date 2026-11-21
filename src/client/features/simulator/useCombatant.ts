@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type SetStateAction } from 'react'
 import type { FormatRuleId, OptionalRuleId } from '../../../core/battle'
 import type { RosterPick } from '../../../core/roster'
-import { combatAtHealth } from '../../../core/combatSurvivors'
+import { combatAtHealth, lineSurvivors } from '../../../core/combatSurvivors'
 import type { CombatCarrier } from '../../../core/combatLoadout'
 import { combatDamageStateSelections, combatRuleSelections } from '../../../core/combatRules'
 import { useSourceTexts } from '../../sourceText'
@@ -35,7 +35,18 @@ export type CombatRoster = {
   /** Whose list this is, when a comparison fields more than one roster on a side. */
   owner?: RosterOwner
   battle?: {
-    units: { available: boolean; key: string; name: string; models: number; startingModels: number; damage: number; wounds?: number }[]
+    units: {
+      available: boolean
+      key: string
+      name: string
+      models: number
+      startingModels: number
+      damage: number
+      wounds?: number
+      /** Which of the unit's models still stand, where the battle records them by kind, and the wargear its lines were drawn from. */
+      lines?: { name: string; models: number; alive: number }[]
+      wargear?: { name: string; count: number }[]
+    }[]
   }
 }
 
@@ -141,7 +152,7 @@ export function useCombatant(roster?: CombatRoster, initial?: SimulatorSide | nu
       ? combatAtHealth(
           { sheet: sheets.data.selected, models: sheets.data.models, carriers: sheets.data.carriers },
           { models, startingModels: battleUnit.startingModels, damage },
-          allocations[allocationKey],
+          allocations[allocationKey] ?? battleSurvivors(sheets.data.carriers, battleUnit, models),
         )
       : null
   const survivors = sheets.data ? (liveUnit ? (liveUnit.allocationRequired ? null : liveUnit.carriers) : sheets.data.carriers) : null
@@ -181,7 +192,7 @@ export function useCombatant(roster?: CombatRoster, initial?: SimulatorSide | nu
       ? combatAtHealth(
           projected,
           { models: memberModels, startingModels: battleMember.startingModels, damage: projected.damage },
-          allocations[memberKey],
+          allocations[memberKey] ?? battleSurvivors(member.carriers, battleMember, memberModels),
         )
       : projected
   })
@@ -431,4 +442,9 @@ function shareable(
     ...(attached.length ? { attached } : {}),
     ...(detachmentIds.length ? { detachmentIds: [...detachmentIds] } : {}),
   }
+}
+
+/** The battle's own record of who stands, while the simulator is still at the count the battle left the unit at. */
+function battleSurvivors(carriers: readonly CombatCarrier[], unit: NonNullable<CombatRoster['battle']>['units'][number], models: number) {
+  return unit.lines && models === unit.models ? lineSurvivors(carriers, unit.wargear ?? [], unit.lines) : undefined
 }

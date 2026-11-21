@@ -14,6 +14,7 @@ import {
   type SpreadCounts,
   type SpreadUpdate,
   spreadHandlers,
+  rowCarries,
   weaponProfilesFor,
   weaponProfileNames,
   weaponPieceMatches,
@@ -139,6 +140,7 @@ export function WargearRow({
   annotation,
   highlightSelection = true,
   instructions,
+  standing,
 }: Described & {
   name: string
   pieces?: readonly string[]
@@ -148,17 +150,25 @@ export function WargearRow({
   annotation?: ReactNode
   highlightSelection?: boolean
   instructions?: readonly string[]
+  standing?: StandingWargear
 }) {
   const matching = weaponProfilesFor({ name, pieces }, weapons)
+  const carries = (piece: string) => rowCarries({ name, pieces }, piece)
+  const fallen = standing?.fallen(carries)
   const label = (
     <span className="min-w-0 flex-1">
-      <span className="block text-sm font-semibold">{name}</span>
+      <span className={`block text-sm font-semibold ${fallen ? 'line-through' : ''}`}>{name}</span>
       {points ? <span className="readout text-2xs text-info">+{points} each</span> : null}
       {annotation}
     </span>
   )
   return (
-    <li aria-label={name} className={`${OPTION} print:break-inside-avoid ${count && highlightSelection ? PICKED : 'border-edge'}`}>
+    <li
+      aria-label={name}
+      data-fallen={fallen || undefined}
+      data-sought={standing?.sought(carries) || undefined}
+      className={`${OPTION} scroll-mt-2.5 print:break-inside-avoid ${count && highlightSelection ? PICKED : 'border-edge'} ${fallen ? 'opacity-50' : ''}`}
+    >
       {instructions?.map((instruction) => (
         <RuleText key={instruction} text={instruction} rules={rules} className="!mt-0 p-2.5 text-xs leading-[1.125rem]" />
       ))}
@@ -176,6 +186,14 @@ export function WargearRow({
       </div>
     </li>
   )
+}
+
+/** What a battle knows of a unit's models, asked of each row through whether the row carries a named piece. */
+export type StandingWargear = {
+  /** Whether a piece the row carries is held by no model still standing. */
+  fallen: (carries: (piece: string) => boolean) => boolean
+  /** Whether the row carries what tells apart the models a player asked to see. */
+  sought: (carries: (piece: string) => boolean) => boolean
 }
 
 /** Waits for the complete loadout so its sections arrive together instead of in stages. */

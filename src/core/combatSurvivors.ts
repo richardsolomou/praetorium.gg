@@ -1,6 +1,7 @@
 import type { Datasheet } from './datasheet'
 import { weaponPhase } from './datasheetStructure'
 import { carriedCount, type CombatCarrier } from './combatLoadout'
+import { modelLineDrafts } from './modelLines'
 import { combatTarget } from './combatProfiles'
 import type { CombatMember } from './combatUnit'
 
@@ -45,6 +46,40 @@ export function combatSurvivors(carriers: readonly CombatCarrier[], models: numb
   )
     return null
   return [{ ...carriers[0]!, models, weapons: loadouts[0]!.map((weapon) => ({ ...weapon, count: weapon.count * models })) }]
+}
+
+/**
+ * What still stands of these carriers by a battle's model lines, where the lines are the ones these carriers make;
+ * otherwise nothing. A line spanning carriers loses models from any of them, since they carry the same.
+ */
+export function lineSurvivors(
+  carriers: readonly CombatCarrier[],
+  wargear: readonly { name: string; count: number }[],
+  lines: readonly { name: string; models: number; alive: number }[],
+): CombatCarrier[] | undefined {
+  const drafts = modelLineDrafts(carriers, wargear)
+  if (drafts.length !== lines.length || drafts.some((draft, at) => draft.name !== lines[at]!.name || draft.models !== lines[at]!.models))
+    return undefined
+  const standing = carriers.map(() => 0)
+  drafts.forEach((draft, at) => {
+    let left = lines[at]!.alive
+    for (const index of draft.carriers) {
+      const taken = Math.min(left, carriers[index]!.models - standing[index]!)
+      standing[index] = standing[index]! + taken
+      left -= taken
+    }
+  })
+  const alive = lines.reduce((total, line) => total + line.alive, 0)
+  const survivors = carriers.map((carrier, at) => {
+    if (carrier.unitWide) return alive ? carrier : { ...carrier, weapons: carrier.weapons.map((weapon) => ({ ...weapon, count: 0 })) }
+    const models = standing[at]!
+    return {
+      ...carrier,
+      models,
+      weapons: carrier.weapons.map((weapon) => ({ ...weapon, count: (weapon.count / carrier.models) * models })),
+    }
+  })
+  return validCombatSurvivors(carriers, survivors, alive) ? survivors : undefined
 }
 
 export function validCombatSurvivors(original: readonly CombatCarrier[], survivors: readonly CombatCarrier[], models: number) {
