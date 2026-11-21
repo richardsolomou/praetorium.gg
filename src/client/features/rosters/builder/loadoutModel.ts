@@ -269,6 +269,10 @@ export function weaponProfilesFor(option: { name: string; pieces?: readonly stri
   )
 }
 
+/** Whether a weapon, given every profile it has, is a piece a battle names. */
+export const profilesCarry = (profiles: readonly WeaponProfileData[], piece: string) =>
+  profiles.some((profile) => weaponProfileNames(profile).some((name) => weaponPieceMatches(piece, name)))
+
 /** Whether a loadout row holds a piece a battle names: one of its own pieces, never a longer name containing it. */
 export const rowCarries = (row: { name: string; pieces?: readonly string[] }, piece: string) =>
   (row.pieces?.length ? row.pieces : [row.name]).some((held) => weaponPieceMatches(held, piece))
