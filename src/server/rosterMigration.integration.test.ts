@@ -5,7 +5,7 @@ import { rosterForUse } from './rosterUsage'
 import { app } from './app'
 
 vi.mock('./app', () => ({ app: vi.fn() }))
-vi.mock('./rosterUsage', () => ({ rosterForUse: vi.fn(), withCurrentAlerts: vi.fn() }))
+vi.mock('./rosterUsage', () => ({ rosterForUse: vi.fn(), fieldedSealedList: vi.fn() }))
 
 const book = '2261-79a5-19d9-1668'
 const raw = {

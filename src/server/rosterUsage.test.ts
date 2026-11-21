@@ -3,7 +3,7 @@ import { sealedEventRosterFixture } from './sealedEventRoster.fixtures'
 import { app } from './app'
 import { ability, bookOf, points } from './catalogue.fixtures'
 import { rosterUseError, rosterUseProblem } from '../core/rosterLegality'
-import { rosterForUse, withCurrentAlerts } from './rosterUsage'
+import { rosterForUse, fieldedSealedList } from './rosterUsage'
 
 vi.mock('./app', () => ({ app: vi.fn() }))
 
@@ -271,6 +271,52 @@ it('fields alerts set after a list was sealed', async () => {
   lentFrom(null)
   const { snapshot: sealed } = await rosterForUse('owner', 'roster', { sealing: true })
   lentFrom(null, { owner: [alert] })
-  const fielded = await withCurrentAlerts(sealed, 'owner')
+  const fielded = await fieldedSealedList(sealed, 'owner')
   expect(fielded.reminders?.map((reminder) => reminder.unit)).toEqual([{ index: 0, name: 'Squad' }])
+})
+
+it('fields model lines onto a list sealed without them', async () => {
+  const gun = (id: string, name: string) => ({
+    id,
+    name,
+    type: 'upgrade' as const,
+    profiles: [{ id: `${id}-profile`, name, typeName: 'Ranged Weapons', characteristics: [{ name: 'A', $text: '1' }] }],
+    constraints: [{ id: `${id}-min`, type: 'min' as const, value: 1, field: 'selections', scope: 'parent' }],
+  })
+  const model = (id: string, name: string, count: number, weapon: ReturnType<typeof gun>) => ({
+    id,
+    name,
+    type: 'model' as const,
+    constraints: [{ id: `${id}-min`, type: 'min' as const, value: count, field: 'selections', scope: 'parent' }],
+    selectionEntries: [weapon],
+  })
+  vi.mocked(app).mockReturnValue({
+    repository: { abilityRemindersByUser: async () => [] },
+    service: { rosterService: { usableRoster: async () => ({ roster: lentRoster, lentBy: null }) } },
+    catalogueFor: async () =>
+      bookOf({
+        selectionEntries: [
+          {
+            id: 'squad',
+            name: 'Squad',
+            type: 'unit',
+            costs: points(100),
+            selectionEntries: [
+              model('sergeant', 'Sergeant', 1, gun('pistol', 'Pistol')),
+              model('trooper', 'Trooper', 4, gun('rifle', 'Rifle')),
+            ],
+          },
+        ],
+      }),
+    rulesFor: async () => ({
+      factionKeys: new Map(),
+      detachmentReferences: new Map(),
+      detachmentDetails: new Map(),
+      factionRestrictions: new Map(),
+    }),
+  } as never)
+  const { snapshot } = await rosterForUse('owner', 'roster', { sealing: true })
+  const sealed = { ...snapshot, built: { ...snapshot.built!, units: snapshot.built!.units.map(({ modelLines: _lines, ...unit }) => unit) } }
+  const fielded = await fieldedSealedList(sealed, 'owner')
+  expect(fielded.built?.units[0]?.modelLines?.map((line) => line.name)).toEqual(['Sergeant', 'Trooper'])
 })

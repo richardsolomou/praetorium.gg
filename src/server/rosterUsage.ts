@@ -50,16 +50,21 @@ async function frozenRoster(saved: UsableRoster, settings: readonly AbilityRemin
   return rosterSnapshot({ ...saved, reminders: fieldingReminders(catalogue, rules, saved, priced.units, settings) }, priced, details)
 }
 
-/** A sealed list with its player's alerts; one the catalogue no longer prices into its sealed units fields none. */
-export async function withCurrentAlerts(roster: Roster, userId: string): Promise<Roster> {
+/**
+ * A sealed list as a battle fields it: with its player's alerts, and with the model lines a list sealed before
+ * units were split into them lacks. A list the catalogue no longer prices into its sealed units gains neither.
+ */
+export async function fieldedSealedList(roster: Roster, userId: string): Promise<Roster> {
   // An older sealed list carries the alerts it was sealed with, which never field.
   const { reminders: _sealed, ...list } = roster
   const built = roster.built
   if (!built?.picks) return list
-  const settings = await app().repository.abilityRemindersByUser(userId)
-  if (!settings.length) return list
   const catalogueId = migratedEditionId(built.catalogueId)
-  const [catalogue, rules] = await Promise.all([app().catalogueFor(catalogueId), app().rulesFor(catalogueId)])
+  const [catalogue, rules, settings] = await Promise.all([
+    app().catalogueFor(catalogueId),
+    app().rulesFor(catalogueId),
+    app().repository.abilityRemindersByUser(userId),
+  ])
   if (!catalogue || !rules) return list
   const saved = {
     catalogueId,
@@ -70,8 +75,18 @@ export async function withCurrentAlerts(roster: Roster, userId: string): Promise
     waivedRules: built.waivedRules ?? [],
   }
   const priced = calculateRosterPrice(savedRosterPriceInput(saved), catalogue, rules)
-  const sameUnits = (units: readonly { entryId: string }[]) =>
-    units.map((unit) => unit.entryId).join() === built.units.map((unit) => unit.entryId).join()
-  if (!priced || !sameUnits(priced.units)) return list
-  return { ...list, reminders: frozenReminders(fieldingReminders(catalogue, rules, saved, priced.units, settings), priced.units) }
+  if (!priced || priced.units.map((unit) => unit.entryId).join() !== built.units.map((unit) => unit.entryId).join()) return list
+  const units = built.units.map((unit, index) => {
+    const lines = priced.units[index]?.modelLines
+    return unit.modelLines || !lines || lines.reduce((total, line) => total + line.models, 0) !== unit.models
+      ? unit
+      : { ...unit, modelLines: lines.map((line) => ({ ...line, wargear: line.wargear.map((piece) => ({ ...piece })) })) }
+  })
+  return {
+    ...list,
+    built: { ...built, units },
+    ...(settings.length
+      ? { reminders: frozenReminders(fieldingReminders(catalogue, rules, saved, priced.units, settings), priced.units) }
+      : {}),
+  }
 }
