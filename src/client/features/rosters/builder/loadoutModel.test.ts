@@ -295,6 +295,24 @@ describe('matching a wargear name to what describes it', () => {
     ).toEqual(['Dual Caestus Fists', 'Projectors'])
   })
 
+  it('keeps a shorter weapon whose name sits inside the option out of it', () => {
+    expect(
+      weaponProfilesFor({ name: 'Heavy Onslaught Gatling Cannon' }, [
+        weapon('Heavy Onslaught Gatling Cannon', 'Ranged Weapons'),
+        weapon('Onslaught gatling cannon', 'Ranged Weapons'),
+      ]).map((profile) => profile.name),
+    ).toEqual(['Heavy Onslaught Gatling Cannon'])
+  })
+
+  it('keeps a shorter weapon the option also names on its own', () => {
+    expect(
+      weaponProfilesFor({ name: 'Heavy bolter and bolter' }, [
+        weapon('Heavy bolter', 'Ranged Weapons'),
+        weapon('Bolter', 'Ranged Weapons'),
+      ]).map((profile) => profile.name),
+    ).toEqual(['Heavy bolter', 'Bolter'])
+  })
+
   it('keeps marked and unmarked firing modes on structured equipment', () => {
     expect(
       weaponProfilesFor({ name: 'Launcher and Blade', pieces: ['Launcher', 'Blade'] }, [
