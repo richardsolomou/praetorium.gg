@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.274.10 (2026-11-21)
+
+### Patch Changes
+
+- b64e6af: [rosters] A datasheet opened from the unit picker lists every weapon the unit can take as its weapon options, not only its default loadout.
+
 ## 0.274.9 (2026-11-21)
 
 ### Patch Changes
