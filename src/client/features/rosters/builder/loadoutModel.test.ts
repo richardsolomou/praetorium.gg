@@ -10,7 +10,7 @@ import {
   loadoutFixedCount,
   loadoutRowCount,
   loadoutInstructions,
-  meleeByModel,
+  viewedWeapons,
   modelCount,
   ordered,
   orderedModelWargear,
@@ -58,32 +58,54 @@ describe('melee weapons by kind of model', () => {
     ...weapon(name, 'Melee Weapons'),
     values: [{ name: 'Keywords', value: keywords }],
   })
+  const unit = (...models: LoadoutModel[]) => ({
+    models,
+    choices: [],
+    size: { min: 1, max: 10, models: models.reduce((total, model) => total + modelCount(model, []), 0), resizable: true },
+  })
+  const trooper = { ...alpha('Close combat weapon'), name: 'Trooper', members: [{ id: 'trooper', choiceKey: null, baseCount: 4 }] }
 
   it('asks a model holding two melee weapons to choose one', () => {
     const profiles = [melee('Close combat weapon'), melee('Alpha combat weapon')]
 
-    expect(meleeByModel([alpha('Close combat weapon', 'Alpha combat weapon')], [], profiles)[0]?.choose).toBe(true)
+    expect(viewedWeapons(unit(alpha('Close combat weapon', 'Alpha combat weapon')), profiles, profiles).melee[0]?.choose).toBe(true)
   })
 
   it('does not count an Extra Attacks weapon as a choice', () => {
     const profiles = [melee('Close combat weapon'), melee('Mechadendrites', 'Extra Attacks')]
 
-    expect(meleeByModel([alpha('Close combat weapon', 'Mechadendrites')], [], profiles)[0]?.choose).toBe(false)
+    expect(viewedWeapons(unit(alpha('Close combat weapon', 'Mechadendrites')), profiles, profiles).melee[0]?.choose).toBe(false)
   })
 
   it('asks a lone character to choose between its weapon and an enhancement weapon no card holds', () => {
     const profiles = [melee('Close combat weapon'), melee("Imperium's Sword")]
 
-    expect(meleeByModel([alpha('Close combat weapon')], [], profiles)[0]?.choose).toBe(true)
+    expect(viewedWeapons(unit(alpha('Close combat weapon')), profiles, profiles).melee[0]?.choose).toBe(true)
   })
 
   it('keeps a melee weapon no card holds when the unit has several kinds of model', () => {
-    const trooper = { ...alpha('Close combat weapon'), name: 'Trooper', members: [{ id: 'trooper', choiceKey: null, baseCount: 4 }] }
-    const profiles = [melee('Close combat weapon'), melee('Squad blade')]
+    const profiles = [melee('Close combat weapon'), melee('Alpha combat weapon'), melee('Squad blade')]
+    const groups = viewedWeapons(unit(alpha('Close combat weapon', 'Alpha combat weapon'), trooper), profiles, profiles).melee
 
-    expect(
-      meleeByModel([alpha('Close combat weapon'), trooper], [], profiles).flatMap((group) => group.weapons.map(({ name }) => name)),
-    ).toContain('Squad blade')
+    expect(groups.flatMap((group) => group.weapons.map(({ name }) => name))).toContain('Squad blade')
+  })
+
+  it('lists a weapon a card holds even when the equipped profiles leave it out', () => {
+    const profiles = [weapon('Boltgun', 'Ranged Weapons'), melee('Close combat weapon')]
+
+    expect(viewedWeapons(unit(alpha('Boltgun', 'Close combat weapon')), profiles, []).ranged.map(({ name }) => name)).toEqual(['Boltgun'])
+  })
+
+  it('reads as one list when no model has to choose', () => {
+    const profiles = [melee('Close combat weapon')]
+
+    expect(viewedWeapons(unit(alpha('Close combat weapon'), trooper), profiles, profiles).melee.map(({ name }) => name)).toEqual([''])
+  })
+
+  it('asks a unit without model cards to choose when it holds more melee weapons than models', () => {
+    const profiles = [melee('Power fist'), melee('Power weapon')]
+
+    expect(viewedWeapons({ ...unit(alpha()), models: [] }, profiles, profiles).melee[0]?.choose).toBe(true)
   })
 })
 
