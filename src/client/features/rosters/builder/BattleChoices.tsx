@@ -57,6 +57,9 @@ function useCombatantDatasheet({
   return useQuery({
     ...combatantDatasheetQuery(catalogueId, entryId ?? '', detachmentIds, picks, pickIndex ?? 0, [], fielded),
     enabled: enabled && Boolean(entryId) && pickIndex !== null && picks[pickIndex]?.entryId === entryId,
+    // A wargear change refetches the same unit; keeping its last choices stops the rows above the wargear collapsing meanwhile.
+    placeholderData: (previous, previousQuery) =>
+      previousQuery?.queryKey[2] === entryId && previousQuery?.queryKey[5] === pickIndex ? previous : undefined,
   }).data
 }
 

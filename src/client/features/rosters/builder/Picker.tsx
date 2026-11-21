@@ -523,7 +523,12 @@ const PickerRow = memo(function PickerRow({
             {held}
             {limit === null ? '' : `/${limit}`} in roster
           </span>
-        ) : null}
+        ) : (
+          // Held open so adding a unit's first copy, or removing its last, moves no row under the pointer.
+          <span aria-hidden className="readout invisible block text-2xs">
+            0 in roster
+          </span>
+        )}
       </div>
       <span className="ml-auto flex max-w-full shrink-0 flex-wrap items-center justify-end gap-1.5">
         {topFour ? (
