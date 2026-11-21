@@ -18,7 +18,7 @@ import { unitRoleRows } from '../rosters/builder/shelves'
 import { formationLabel } from './setup/chrome'
 import type { BattleCombatSelection } from '../simulator/BattleCombatDialog'
 import { tint } from './battleTints'
-import { ArmyLoadout } from './ArmyLoadout'
+import { ArmyLoadout, standingWargearCounts } from './ArmyLoadout'
 import { ArmyThreats } from './ArmyThreats'
 
 type Props = {
@@ -293,7 +293,7 @@ function BattleUnit({
       unit={{
         entryId: unit.entryId ?? unit.key,
         name: unit.name,
-        wargear: unit.wargear ?? [],
+        wargear: standingWargearCounts(unit),
         attachment: null,
         enhancements: unit.enhancements ?? [],
         upgrades: unit.upgrades ?? [],

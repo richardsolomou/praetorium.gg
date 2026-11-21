@@ -194,6 +194,8 @@ export type StandingWargear = {
   fallen: (carries: (piece: string) => boolean) => boolean
   /** Whether the row carries what tells apart the models a player asked to see. */
   sought: (carries: (piece: string) => boolean) => boolean
+  /** How many of a piece the row carries the models still standing hold, where the battle knows who holds it. */
+  left: (carries: (piece: string) => boolean) => number | undefined
 }
 
 /** Waits for the complete loadout so its sections arrive together instead of in stages. */
