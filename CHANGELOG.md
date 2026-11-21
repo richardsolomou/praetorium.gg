@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.274.0 (2026-11-21)
+
+### Minor Changes
+
+- 20ec11a: [battles] A unit with more than one kind of model, such as a sergeant, a plasma gunner and troopers, lists each kind in the battle, so you remove the model that actually fell and track its wounds on its own row; Simulate then fields exactly the models still standing.
+- 2c73d5c: [battles] Pressing a model's row in a unit opens its datasheet at that model's wargear, and wargear no surviving model carries is struck through.
+
 ## 0.273.9 (2026-11-21)
 
 ### Patch Changes
