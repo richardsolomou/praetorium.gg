@@ -656,6 +656,8 @@ export function ListBuilder({
       detachmentIds={detachmentIds}
       picks={previewPicks ?? positioned}
       pickIndex={preview ? (previewPicks ? positioned.length : null) : selected}
+      // A preview's pick holds only the default loadout, but the player is choosing whether to take the unit at all.
+      everyWeapon={Boolean(preview)}
       onRelationshipSelect={(entryId, unitName) => inspect(datasheetCatalogueId, entryId, unitName)}
       onReferenceRoute={setReference}
       abilityReminders={building && !preview && selected !== null ? reminders.controls : undefined}

@@ -31,6 +31,8 @@ type Props = {
   detachmentRules?: readonly ReminderSubject[]
   /** A list a battle or sealed event froze, read on the rules version it was fielded under. */
   fielded?: Fielded
+  /** List every weapon the unit can take as options, not only those its pick carries. */
+  everyWeapon?: boolean
 }
 
 export function DatasheetPanel({
@@ -46,6 +48,7 @@ export function DatasheetPanel({
   abilityReminders,
   detachmentRules,
   fielded = false,
+  everyWeapon = false,
 }: Props) {
   // Only once the player stops changing the list, so a held stepper asks once.
   const detachments = useSettled(detachmentIds)
@@ -61,7 +64,7 @@ export function DatasheetPanel({
       contextual ? detachments : [],
       contextual ? settledPicks : [],
       contextual ? settledIndex : null,
-      false,
+      everyWeapon,
       fielded,
     ),
     enabled: providedSheet === undefined && Boolean(catalogueId && entryId),
@@ -94,14 +97,21 @@ export function DatasheetPanel({
 
   const model = primaryUnitProfile(sheet)
   const structured = datasheetProfilesByKind(sheet)
-  const ranged = structured.ranged
-  const melee = structured.melee
+  // The unit carries none of its options yet, so a count would read as its loadout.
+  const uncounted = (profiles: typeof structured.ranged) =>
+    everyWeapon ? profiles.map(({ count: _count, ...profile }) => profile) : profiles
+  const ranged = uncounted(structured.ranged)
+  const melee = uncounted(structured.melee)
   const transport = separateTransport(sheet)
   const content = (
     <div data-slot="datasheet-content" className="w-full min-w-0 space-y-4">
       {!embedded && model ? <UnitProfile profile={model} /> : null}
-      {!embedded && ranged.length ? <WeaponSummary title="Ranged weapons" weapons={ranged} rules={sheet.keywordRules} /> : null}
-      {!embedded && melee.length ? <WeaponSummary title="Melee weapons" weapons={melee} rules={sheet.keywordRules} /> : null}
+      {!embedded && ranged.length ? (
+        <WeaponSummary title={everyWeapon ? 'Ranged weapon options' : 'Ranged weapons'} weapons={ranged} rules={sheet.keywordRules} />
+      ) : null}
+      {!embedded && melee.length ? (
+        <WeaponSummary title={everyWeapon ? 'Melee weapon options' : 'Melee weapons'} weapons={melee} rules={sheet.keywordRules} />
+      ) : null}
       <AbilitySummary
         abilities={referenceAbilities(sheet.abilities, sheet.attachments)}
         rules={sheet.keywordRules}
