@@ -69,12 +69,36 @@ describe('rules a player chooses between during the battle', () => {
       ]),
     ).toEqual([]))
 
-  it('leaves out a rule whose options change nothing a datasheet shows', () =>
+  it('keeps a rule whose options change nothing a datasheet shows, so the pick is still noted', () =>
     expect(
       battleChoices([
         rule(
           'At the start of the battle round, you can select one of the Battle Stances below. Until the end of the battle round, that Battle Stance is active for your army, and all units from your army that have the Battle Stances ability gain the relevant abilities shown below.\n\n### HOLD STANCE\n\n■ Each time a model in this unit makes an attack, re-roll a Hit roll of 1.\n\n### ADVANCE STANCE\n\n■ Each time a model in this unit makes an attack, re-roll a Wound roll of 1.',
         ),
+      ])[0]!.options.map((option) => option.label),
+    ).toEqual(['Hold Stance', 'Advance Stance']))
+
+  it('offers by name the options of a rule it cannot calculate', () =>
+    expect(
+      battleChoices([
+        rule(
+          'At the start of your Command phase, you can select one combat doctrine listed below. If you do, that combat doctrine is active for friendly units with this ability until the start of your next Command phase.\n\n### Assault Doctrine\n\nThis unit can shoot in a turn in which it Fell Back.\n\n### Tactical Doctrine\n\nThis unit can shoot and charge in a turn in which it Advanced.',
+        ),
+      ])[0],
+    ).toMatchObject({
+      armyWide: true,
+      options: [
+        { label: 'Assault Doctrine', effects: [] },
+        { label: 'Tactical Doctrine', effects: [] },
+      ],
+    }))
+
+  it('leaves out alternatives worded as a condition, which the player checks rather than picks', () =>
+    expect(
+      battleChoices([
+        rule("This model's melee attacks have: ■ +1 Attacks. ■ Or: If this unit made a charge move this turn, +2 Attacks.", {
+          scope: 'unit',
+        }),
       ]),
     ).toEqual([]))
 

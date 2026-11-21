@@ -174,6 +174,35 @@ export function compileCombatRule(
   return compileRule(rule, { shown })
 }
 
+/**
+ * The options a rule lists for the player to select one of: its headed sections, or else short title lines each over
+ * their text, up to the first paragraph that is not one.
+ */
+function listedOptions(printed: string) {
+  // Notes printed after the options, as how often each can be selected, belong to none of them.
+  const description = printed.replace(/\n\s*Unless otherwise stated\b[\s\S]*$/i, '')
+  const named = namedSections(description)
+  if (named.sections.length > 1) return named
+  const paragraphs = description
+    .split(/\n\s*\n/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean)
+  const titled = (paragraph: string) => {
+    const [first, ...rest] = paragraph.split('\n')
+    const name = first!.trim()
+    return rest.length && name.split(' ').length <= 6 && !/[.:]$/.test(name) ? { name, description: rest.join('\n') } : null
+  }
+  const start = paragraphs.findIndex((paragraph) => titled(paragraph))
+  if (start < 1) return named
+  const sections: { name: string; description: string }[] = []
+  for (const paragraph of paragraphs.slice(start)) {
+    const option = titled(paragraph)
+    if (!option) break
+    sections.push(option)
+  }
+  return { intro: paragraphs.slice(0, start).join('\n\n'), sections }
+}
+
 /** Compiles each named option as its own rule; one the compiler cannot read refuses the whole rule. */
 function optionChoices(
   options: readonly (readonly [string, CombatRule])[],
@@ -202,7 +231,10 @@ function compileRule(
   { enemy = false, shown = false }: CompileOptions,
 ): { choices: CombatRuleChoice[]; defaultChoice: number } | null {
   if (rule.description.length > 12_000) return null
-  const compileOption = (option: CombatRule) => compileRule(option, { shown })
+  // A datasheet still names an option the compiler cannot read, changing nothing, so the player can keep track of the pick.
+  const unread = (compiled: ReturnType<typeof compileRule>) =>
+    shown && !compiled?.choices.length ? { choices: [{ label: 'Active', effects: [] }], defaultChoice: 0 } : compiled
+  const compileOption = (option: CombatRule) => unread(compileRule(option, { shown }))
   const named = namedSections(rule.description)
   const intro = normalizeCombatText(named.intro)
   const vows =
@@ -262,7 +294,7 @@ function compileRule(
             ),
         },
       ]),
-      (option) => compileRule(option, { enemy: Boolean(status), shown }),
+      (option) => unread(compileRule(option, { enemy: Boolean(status), shown })),
       vows,
     )
   }
@@ -334,6 +366,19 @@ function compileRule(
     })
     return options.length ? optionChoices(options, compileOption) : null
   }
+  // Any other rule that lists options to select one of, as Combat Doctrines: a datasheet names an option it cannot calculate.
+  const listed = listedOptions(rule.description)
+  const listing = normalizeCombatText(listed.intro)
+  if (
+    /\bselect one (?:of the following|of the [^.]+? (?:listed )?below|[^.]+? listed below)\b/i.test(listing) &&
+    listed.sections.length > 1 &&
+    listed.sections.length <= 12
+  )
+    return optionChoices(
+      listed.sections.map((section) => [section.name, { ...rule, description: section.description }]),
+      compileOption,
+      /\b(?:your army|friendly)\b/i.test(listing),
+    )
   const effectSection = ruleSection(rule.description, 'Effect') ?? rule.description
   let text = printedPhrasing(normalizeCombatText(markedBullets(effectSection)))
     .replace(/^.+? (?:model|unit) only(?: \(excluding [^)]+\))?\.\s*/i, '')

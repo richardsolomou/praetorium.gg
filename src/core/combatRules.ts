@@ -56,6 +56,9 @@ export type CombatReading = {
   legacyDefault: number
   roles: CombatRuleEffect['role'][]
 }
+/** Whether choices name several options a player picks between, which a datasheet keeps track of though they may change no attack. */
+export const namesOptions = (choices: readonly CombatRuleChoice[]) => new Set(choices.flatMap((choice) => choice.option ?? [])).size > 1
+
 /** A rule's place in a roster that its words decide whether and how it applies within. */
 export type CombatRuleJudge = {
   /** The unit's own datasheet ability, another unit's ability, a stratagem or detachment rule, or its faction's army rule. */
@@ -507,7 +510,10 @@ export function readCombatRule(rule: CombatRule, words: string): CombatRule | nu
 
 function combatRuleIsRelevant(rule: CombatRule) {
   const compiled = compiledRule(rule)
-  return compiled ? compiled.choices.some((choice) => choice.effects.length) : ruleRoles(rule).length > 0
+  return (
+    (compiled ? compiled.choices.some((choice) => choice.effects.length) : ruleRoles(rule).length > 0) ||
+    namesOptions(shownRuleChoices(rule))
+  )
 }
 
 export function combatEffectAppliesTo(effect: CombatRuleEffect, role: CombatRuleEffect['role'], opposingKeywords?: readonly string[]) {
