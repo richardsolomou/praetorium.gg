@@ -478,6 +478,10 @@ describe('secondaries', () => {
     expect(validate(tacticalEnd(), ALICE, { kind: 'advance' })).toBe('review the tactical hand before ending the turn')
   })
 
+  it('ends the turn without a hand review once the round’s additional CP is gained', () => {
+    expect(validate(tacticalEnd([ALICE, { kind: 'adjust-cp', delta: 1 }]), ALICE, { kind: 'advance' })).toBeNull()
+  })
+
   it('refuses to grant a command point when nothing is discarded', () => {
     expect(validate(tacticalEnd(), ALICE, { kind: 'resolve-tactical-hand', keys: [], gainCp: true })).toBe(
       'discard a secondary to gain a command point',

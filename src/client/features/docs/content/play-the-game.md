@@ -12,7 +12,7 @@ Until you turn on rules text, each payout is named by its points instead of the 
 
 ![The end-of-turn scoring prompt listing the primary and two secondary cards, each with its awards and a Did not score row.](screenshot:track-a-battle-scoring "Did not score (or chose not to), under a card's awards")
 
-Tactical cards are drawn when a turn needs them, at random or by selecting exact cards. Discarding tactical cards at the end of your turn gains 1 CP.
+Tactical cards are drawn when a turn needs them, at random or by selecting exact cards. Discarding tactical cards at the end of your turn gains 1 CP; once your side has gained its extra CP for the round, the turn ends without asking, unless a card's beacon unit was destroyed.
 
 When a card asks you to pick objectives, they're named from the deployment: each player's **home**, the **centre**, an **expansion** nearer one player's zone, and a **flank** as near to both. On six-objective layouts, the centre pair is named by the side each sits on. Left and right are as seen from the zone of the player choosing.
 

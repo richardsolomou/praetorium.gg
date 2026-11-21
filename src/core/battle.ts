@@ -20,7 +20,13 @@ import { correctStratagemTiming } from './stratagemCorrections'
 import type { PrintedTransport } from './transport'
 import type { CatalogueEdition } from './catalogueEdition'
 import type { MissionSelection, MissionSelectionKind } from './missionSelections'
-import { applyMissionSelection, missionSelectionRefusal, recordBeaconDestruction, type SavedMissionSelection } from './missionSelections'
+import {
+  applyMissionSelection,
+  beaconLost,
+  missionSelectionRefusal,
+  recordBeaconDestruction,
+  type SavedMissionSelection,
+} from './missionSelections'
 import { PHASES, type Phase, type TurnScope, BATTLE_ROUNDS } from './battlePhases'
 import { PLAYERS_PER_BATTLE, battleCapacity } from './battleSeats'
 import {
@@ -1434,9 +1440,7 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
       const due = scoringDue(state, player)
       if (due.length && !state.advanceRequested) return refuse('scoring-unreviewed', 'review mission scoring before ending the phase')
       if (due.length && !state.scoringAcknowledged) return refuse('scoring-unreviewed', 'finish mission scoring before ending the phase')
-      const unresolvedTactical =
-        state.phase === 'end' && player.secondaryMode === 'tactical' && activeTacticalSecondaries(player).length > 0
-      if (unresolvedTactical && !state.advanceRequested)
+      if (state.phase === 'end' && tacticalHandToReview(state, player) && !state.advanceRequested)
         return refuse('tactical-hand-unreviewed', 'review the tactical hand before ending the turn')
       return null
     }
@@ -2245,6 +2249,14 @@ function fewestCpSince(state: BattleState, player: PlayerState, moment: BattleMo
 }
 
 /** A gain beyond the side's own Command phase, which the rules cap at one a battle round. */
+/** A hand is worth reviewing only while discarding can still gain the round's CP, or a card must go for its lost beacon. */
+function tacticalHandToReview(state: BattleState, player: PlayerState) {
+  if (player.secondaryMode !== 'tactical') return false
+  const active = activeTacticalSecondaries(player)
+  if (!active.length) return false
+  return state.settings.manual === true || !bonusCpRefusal(player, state.round, 1) || active.some((card) => beaconLost(player, card.key))
+}
+
 function bonusCpRefusal(player: PlayerState, round: number, delta: number): Refusal | null {
   return (player.bonusCpByRound[round - 1] ?? 0) + delta > 1
     ? refuse('cp-gain-limit', 'a side can gain at most 1 additional command point per battle round')
