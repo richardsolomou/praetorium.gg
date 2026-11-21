@@ -590,7 +590,17 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
     const weapon = profileType === 'Ranged Weapons' || profileType === 'Melee Weapons'
     const intrinsic = owner.includes(root.id) || owner.includes(sheet.id)
     if (selectedUnit && weapon && !context?.everyWeapon && referenceOnlyWeapon(profile.name)) return []
-    if (selectedUnit && weapon && !context?.everyWeapon && !intrinsic && !owner.some((id) => selected.has(id))) return []
+    // A shared profile several options link is stored once, under the last path the walk took, which may be an
+    // unchosen option, so the carriers say whether a model holds it.
+    if (
+      selectedUnit &&
+      weapon &&
+      !context?.everyWeapon &&
+      !intrinsic &&
+      !equippedCounts.has(profile.id) &&
+      !owner.some((id) => selected.has(id))
+    )
+      return []
     const equipment = weapon
       ? owner
           .map((id) => loaded.index.definitions.get(id))
