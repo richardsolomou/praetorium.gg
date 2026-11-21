@@ -17,6 +17,8 @@ export type BattleChoice = {
   options: { label: string; effects: ActiveCombatRule['effects'] }[]
   /** One pick for the whole army, as a Doctrina Imperative; otherwise each unit has its own, as an Order. */
   armyWide: boolean
+  /** The keyword a unit gains when the player selects it, as Halo Override; only selected units have the army's pick. */
+  selected?: string
   /** The options another of the unit's rules always keeps active together, as Cognitive Reinforcement does, and that rule. */
   together?: { labels: string[]; source: string }
   /** How many options the unit can be in at once: one, or more where other rules allow it, as some officers and Warrior Elite do for Orders. */
@@ -78,8 +80,10 @@ export function battleChoices(rules: readonly CombatRule[], allowances: readonly
   ).flatMap((rule) => {
     const options = new Map<string, BattleChoice['options'][number]>()
     let armyWide = false
+    let selected: string | undefined
     for (const choice of shown.get(rule)!) {
       armyWide ||= Boolean(choice.armyWide)
+      selected ??= choice.selected
       if (!choice.option) continue
       const label = unshouted(choice.option)
       const effects = choice.effects.map((effect) => (effect.keyword ? { ...effect, keyword: unshouted(effect.keyword) } : effect))
@@ -103,7 +107,7 @@ export function battleChoices(rules: readonly CombatRule[], allowances: readonly
         ? chosen.filter(({ label }) => combatTextKey(label) === combatTextKey(allowance.also)).map(({ label }) => label)
         : [],
     )[0]
-    const extent = { limit, ...(also ? { also } : {}) }
+    const extent = { limit, ...(also ? { also } : {}), ...(selected ? { selected } : {}) }
     if (always) return [{ rule, options: chosen, armyWide, ...extent, together: { labels: always.labels, source: always.source } }]
     const offered = together.map(({ labels, source }) => ({
       label: togetherLabel({ labels, source }),
