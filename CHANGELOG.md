@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.273.9 (2026-11-21)
+
+### Patch Changes
+
+- 5dff606: [battles] Reminders in a battle started before a data update show their rule's text again wherever its wording is unchanged.
+
 ## 0.273.8 (2026-11-21)
 
 ### Patch Changes
