@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.274.1 (2026-11-21)
+
+### Patch Changes
+
+- 373e734: [rosters] Orders, Doctrina Imperatives and Overrides you pick on a unit stay picked after a reload, with your account when you're signed in.
+- 373e734: [battles] An Order or Imperative picked for a unit shows the same in the army builder, on the list's page and in a battle's units.
+- fbadc44: [rosters] Rules you pick an option of, such as Combat Doctrines, Hyper-adaptations and Martial Ka'tah, now show on unit datasheets even when the option changes no characteristic, so you can keep track of your pick.
+
 ## 0.274.0 (2026-11-21)
 
 ### Minor Changes
