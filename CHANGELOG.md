@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.274.3 (2026-11-21)
+
+### Patch Changes
+
+- d62cc1f: [rosters] A unit's equipped weapons no longer leave out a weapon that another of its options also offers, such as a Legionary's Astartes chainsword.
+
 ## 0.274.2 (2026-11-21)
 
 ### Patch Changes
