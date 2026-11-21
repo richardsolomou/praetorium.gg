@@ -41,7 +41,7 @@ export function ProfileGrid({ values, columns = 6 }: { values: readonly DisplayV
 }
 
 /** How a battle reads a weapon, given every profile it has: carried by nobody standing, or held by the models a player asked to see. */
-export type WeaponMark = (profiles: readonly Profile[]) => { fallen: boolean; sought: boolean }
+export type WeaponMark = (profiles: readonly Profile[]) => { fallen: boolean; sought: boolean; left?: number }
 
 export function WeaponSummary({
   title,
@@ -54,7 +54,7 @@ export function WeaponSummary({
   rules: Datasheet['keywordRules']
   mark?: WeaponMark
 }) {
-  const count = weaponProfileGroups(weapons).reduce((total, profiles) => total + (profiles[0]?.count ?? 1), 0)
+  const count = weaponProfileGroups(weapons).reduce((total, profiles) => total + carried(profiles[0]!, mark?.(profiles)), 0)
   return (
     <section>
       <h2 className="rubric flex items-baseline justify-between">
@@ -110,7 +110,7 @@ export function WeaponProfiles({
         <h3 className="flex items-baseline justify-between gap-2 text-xs">
           {showName ? (
             <span className={state?.fallen ? 'line-through' : undefined}>
-              {showCount && first.count && first.count > 1 ? `${first.count}× ${name}` : name}
+              {showCount && carried(first, state) > 1 ? `${carried(first, state)}× ${name}` : name}
             </span>
           ) : null}
           <span className="shrink-0 font-rules font-normal normal-case text-faint">{profiles.length} profiles</span>
@@ -131,6 +131,9 @@ export function WeaponProfiles({
     )
   })
 }
+
+/** How many of a weapon the unit carries, or in a battle, how many its models still standing do. */
+const carried = (weapon: Profile, state?: ReturnType<WeaponMark>) => state?.left ?? weapon.count ?? 1
 
 const marked = (state?: ReturnType<WeaponMark>) => ({
   'data-fallen': state?.fallen || undefined,
@@ -166,7 +169,7 @@ function WeaponProfile({
         <h3
           className={`${label ? 'font-rules text-xs font-medium normal-case text-dim' : 'text-xs'} ${state?.fallen ? 'line-through' : ''}`}
         >
-          {showCount && weapon.count && weapon.count > 1 ? `${weapon.count}× ${weapon.name}` : (label ?? weapon.name)}
+          {showCount && carried(weapon, state) > 1 ? `${carried(weapon, state)}× ${weapon.name}` : (label ?? weapon.name)}
         </h3>
       ) : null}
       {note}

@@ -90,7 +90,16 @@ const ignoreEdit = () => undefined
  * A row is gone when some piece it carries is held only by fallen models, and sought when it carries what
  * only the pressed line holds, or, for a line holding nothing of its own, anything that line holds.
  */
-function standingWargear(unit: UnitState, sought?: number): StandingWargear | undefined {
+/** The unit's wargear as its models still standing carry it, where the battle knows who holds what. */
+export function standingWargearCounts(unit: UnitState): { name: string; count: number }[] {
+  const standing = standingWargear(unit)
+  return (unit.wargear ?? []).flatMap((piece) => {
+    const left = standing?.left((held) => sameWargear(held, piece.name))
+    return left === undefined ? [piece] : left ? [{ ...piece, count: left }] : []
+  })
+}
+
+export function standingWargear(unit: UnitState, sought?: number): StandingWargear | undefined {
   const lines = unit.modelLines
   const standing = unit.lines
   if (!lines || !standing) return undefined
@@ -104,5 +113,11 @@ function standingWargear(unit: UnitState, sought?: number): StandingWargear | un
         line.wargear.some((piece) => carries(piece.name) && holders(piece.name).every((at) => standing[at]!.alive === 0)),
       ),
     sought: (carries) => marks.some(carries),
+    left: (carries) => {
+      const held = lines.flatMap((line, at) =>
+        line.wargear.filter((piece) => carries(piece.name)).map((piece) => (piece.count / line.models) * standing[at]!.alive),
+      )
+      return held.length ? Math.round(held.reduce((total, count) => total + count, 0)) : undefined
+    },
   }
 }

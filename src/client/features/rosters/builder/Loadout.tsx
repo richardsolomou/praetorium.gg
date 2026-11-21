@@ -172,7 +172,7 @@ export function Loadout({
   const mark: WeaponMark | undefined = standing
     ? (profiles) => {
         const carries = (piece: string) => profilesCarry(profiles, piece)
-        return { fallen: standing.fallen(carries), sought: standing.sought(carries) }
+        return { fallen: standing.fallen(carries), sought: standing.sought(carries), left: standing.left(carries) }
       }
     : undefined
   const { models, loose } = divide(unit)

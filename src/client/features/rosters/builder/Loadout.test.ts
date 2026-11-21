@@ -201,7 +201,7 @@ describe('a unit read in battle', () => {
   const markup = () =>
     loadoutMarkup(unit, [weapon('Lasgun', 'Ranged Weapons'), weapon('Chainsword', 'Melee Weapons')], false, {
       showOptions: false,
-      standing: { fallen: (carries) => carries('Chainsword'), sought: (carries) => carries('Lasgun') },
+      standing: { fallen: (carries) => carries('Chainsword'), sought: (carries) => carries('Lasgun'), left: () => undefined },
     })
   const tag = (name: string) => markup().slice(markup().lastIndexOf('<div', markup().indexOf(`>${name}<`)), markup().indexOf(`>${name}<`))
 
