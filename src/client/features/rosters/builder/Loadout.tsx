@@ -8,12 +8,14 @@ import { isUnitCompositionChoice } from '../../../../core/unitChoices'
 import { primaryUnitProfile } from '../../../datasheet'
 import { datasheetLoad, type Fielded, loadoutDatasheetsQuery } from '../../../queries'
 import { useSettled } from '../../../useSettled'
-import { UnitProfile, WeaponSummary } from '../../../components/DatasheetProfiles'
+import { UnitProfile, WeaponProfiles, WeaponSummary } from '../../../components/DatasheetProfiles'
 import {
   type LoadoutModel,
   type LoadoutUnit,
+  meleeByModel,
   orderedChoices,
   unmodeledGrantedWeapons,
+  weaponTotals,
   type SpreadUpdate,
   wholeSquadTakes,
 } from './loadoutModel'
@@ -57,9 +59,10 @@ type Props = {
 /**
  * What the selected unit is carrying.
  *
- * A card per kind of model, the way a datasheet reads, and below them whatever the
- * unit chooses as a whole. Deciding which of the two a choice belongs to is this
- * file's only real work — the controls themselves live in `LoadoutControls.tsx` and
+ * While building, a card per kind of model, the way a datasheet reads, and below them
+ * whatever the unit chooses as a whole. Read-only, every gun the unit fires in one list
+ * and the melee weapons by model, since each model fights with only one. Deciding which
+ * of the two places a choice belongs to is this file's only real work — the controls themselves live in `LoadoutControls.tsx` and
  * the reasoning behind them in `loadoutModel.ts`.
  */
 export function Loadout({
@@ -155,17 +158,18 @@ export function Loadout({
   const rules = battle.keywordRules(availableSheet.keywordRules)
   const abilities = availableSheet.abilities
 
-  const equippedRanged = sheet.profiles.filter((profile) => profile.type === 'Ranged Weapons')
-  const equippedMelee = sheet.profiles.filter((profile) => profile.type === 'Melee Weapons')
+  const equippedRanged = weaponTotals(sheet.profiles.filter((profile) => profile.type === 'Ranged Weapons'))
+  const equippedMelee = weaponTotals(sheet.profiles.filter((profile) => profile.type === 'Melee Weapons'))
   const extraRanged = unmodeledGrantedWeapons(equippedRanged, unit.models, unit.choices)
   const extraMelee = unmodeledGrantedWeapons(equippedMelee, unit.models, unit.choices)
   const profile = primaryUnitProfile(sheet)
 
   const { models, loose } = divide(unit)
   const saved = pickIndex === null ? undefined : picks[pickIndex]?.spreads
+  // Read-only views list the unit's weapons by type, so only choices that are not wargear stay below them.
   const visibleLoose = showOptions
     ? loose
-    : loose.filter((choice) => choice.options.some((option) => option.count || choice.chosen === option.id))
+    : loose.filter((choice) => choice.kind && choice.options.some((option) => option.count || choice.chosen === option.id))
   const described = { weapons, abilities, rules }
   const Container = embedded ? 'div' : ScrollArea
 
@@ -184,7 +188,12 @@ export function Loadout({
             {profile ? <UnitProfile profile={profile} /> : null}
             <BattleChoices choices={battle.choices} chosen={battle.chosen} onChoose={battle.choose} rules={rules} />
           </div>
-          {unit.models.length ? (
+          {!showOptions && unit.models.length ? (
+            <div className="space-y-6">
+              {equippedRanged.length ? <WeaponSummary title="Equipped ranged weapons" weapons={equippedRanged} rules={rules} /> : null}
+              <MeleeByModel unit={unit} profiles={sheet.profiles} rules={rules} />
+            </div>
+          ) : unit.models.length ? (
             <div className="space-y-6">
               {unit.models.map((model) => (
                 <ModelCard
@@ -309,4 +318,35 @@ function divide(unit: LoadoutUnit): { models: Map<LoadoutModel, Stood>; loose: L
   // A card only counts its own option where the group is not drawn below as well.
   const models = new Map([...stood].filter(([, found]) => !loose.includes(found.choice)))
   return { models, loose }
+}
+
+function MeleeByModel({ unit, profiles, rules }: { unit: LoadoutUnit; profiles: Datasheet['profiles']; rules: Datasheet['keywordRules'] }) {
+  const groups = meleeByModel(unit.models, unit.choices, profiles)
+  if (!groups.length) return null
+  return (
+    <section>
+      <h2 className="rubric flex items-baseline justify-between">
+        <span>Equipped melee weapons</span>
+        <span className="font-rules text-xs font-normal normal-case text-faint">One per model</span>
+      </h2>
+      <div className="mt-2 space-y-3">
+        {groups.map((group) => (
+          <div key={group.key}>
+            {group.name ? (
+              <p className="eyebrow mb-1.5 flex items-baseline justify-between gap-2 text-bone">
+                <span className="min-w-0">
+                  {group.name}
+                  {group.choose ? <span className="ml-2 font-rules font-normal normal-case text-info">Choose one each</span> : null}
+                </span>
+                <span className="readout normal-case text-dim">{group.count}</span>
+              </p>
+            ) : null}
+            <div className="space-y-1.5">
+              <WeaponProfiles weapons={group.weapons} rules={rules} showCount={!group.choose} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  )
 }

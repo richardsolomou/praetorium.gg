@@ -36,7 +36,10 @@ test(`saved Tankbustas count doubled fixed weapons through reload and view at 39
   await page.getByRole('button', { name: 'View', exact: true }).click()
   await expect(card.getByRole('listitem').filter({ hasText: 'Busta Rokkit Launcha' })).toHaveText(wargear(6, 'Busta Rokkit Launcha'))
   await card.getByRole('button', { name: 'Tankbustas', exact: true }).click()
-  await expect(loadout.getByLabel('Busta Rokkit Launcha count', { exact: true }).last()).toHaveText('2')
-  await loadout.getByLabel('Busta Rokkit Launcha count', { exact: true }).last().scrollIntoViewIfNeeded()
+  const launchas = loadout
+    .getByRole('region', { name: /busta rokkit launcha profiles/i })
+    .getByRole('heading', { name: /^6× busta rokkit launcha/i })
+  await expect(launchas).toBeVisible()
+  await launchas.scrollIntoViewIfNeeded()
   await page.screenshot({ path: testInfo.outputPath('doubled-view.png') })
 })

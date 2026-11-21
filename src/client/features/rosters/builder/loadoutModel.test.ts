@@ -10,6 +10,7 @@ import {
   loadoutFixedCount,
   loadoutRowCount,
   loadoutInstructions,
+  meleeByModel,
   modelCount,
   ordered,
   orderedModelWargear,
@@ -24,6 +25,7 @@ import {
   unmodeledGrantedWeapons,
   optionNameMatches,
   weaponProfilesFor,
+  weaponTotals,
   wholeSquadTakes,
   withDraftSpreadCounts,
 } from './loadoutModel'
@@ -44,6 +46,46 @@ const choice = (options: LoadoutChoice['options'], room: number, optional = fals
 })
 
 const weapon = (name: string, type: string) => ({ id: name, name, type, values: [] })
+
+describe('melee weapons by kind of model', () => {
+  const alpha = (...fixed: string[]): LoadoutModel => ({
+    name: 'Alpha',
+    fixed: fixed.map((name) => ({ name })),
+    members: [{ id: 'alpha', choiceKey: null, baseCount: 1 }],
+    rows: [],
+  })
+  const melee = (name: string, keywords = '-') => ({
+    ...weapon(name, 'Melee Weapons'),
+    values: [{ name: 'Keywords', value: keywords }],
+  })
+
+  it('asks a model holding two melee weapons to choose one', () => {
+    const profiles = [melee('Close combat weapon'), melee('Alpha combat weapon')]
+
+    expect(meleeByModel([alpha('Close combat weapon', 'Alpha combat weapon')], [], profiles)[0]?.choose).toBe(true)
+  })
+
+  it('does not count an Extra Attacks weapon as a choice', () => {
+    const profiles = [melee('Close combat weapon'), melee('Mechadendrites', 'Extra Attacks')]
+
+    expect(meleeByModel([alpha('Close combat weapon', 'Mechadendrites')], [], profiles)[0]?.choose).toBe(false)
+  })
+
+  it('asks a lone character to choose between its weapon and an enhancement weapon no card holds', () => {
+    const profiles = [melee('Close combat weapon'), melee("Imperium's Sword")]
+
+    expect(meleeByModel([alpha('Close combat weapon')], [], profiles)[0]?.choose).toBe(true)
+  })
+
+  it('keeps a melee weapon no card holds when the unit has several kinds of model', () => {
+    const trooper = { ...alpha('Close combat weapon'), name: 'Trooper', members: [{ id: 'trooper', choiceKey: null, baseCount: 4 }] }
+    const profiles = [melee('Close combat weapon'), melee('Squad blade')]
+
+    expect(
+      meleeByModel([alpha('Close combat weapon'), trooper], [], profiles).flatMap((group) => group.weapons.map(({ name }) => name)),
+    ).toContain('Squad blade')
+  })
+})
 
 it('shows an equipped enhancement weapon outside the model loadout without repeating its other weapons', () => {
   const model: LoadoutModel = {
@@ -276,6 +318,15 @@ describe('matching a wargear name to what describes it', () => {
     ]
 
     expect(uniqueWeaponProfiles(profiles).map(({ id }) => id)).toEqual(['sergeant'])
+  })
+
+  it('totals the same weapon carried by different kinds of model', () => {
+    const profiles = [
+      { ...weapon('Galvanic rifle', 'Ranged Weapons'), id: 'alpha', count: 1 },
+      { ...weapon('Galvanic rifle', 'Ranged Weapons'), id: 'ranger', count: 7 },
+    ]
+
+    expect(weaponTotals(profiles).map(({ count }) => count)).toEqual([8])
   })
 
   it('preserves genuinely different profiles of the same weapon', () => {

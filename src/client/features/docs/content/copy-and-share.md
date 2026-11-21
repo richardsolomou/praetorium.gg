@@ -8,7 +8,7 @@ In the library, choose **Share…** in a roster's menu. Under **Who can open it*
 - **Export text** gives you text to **Copy text** or **Download text**. See [Exchange codes and export](/docs/exchange-and-export) for what it holds.
 - **Print** prepares a compact two-column reference pack with a datasheet for each unit, then army and detachment rules, stratagems, and the abilities and weapon rules your units use.
 
-The **Build**/**View** switch in the header hides editing controls for reading at the table.
+The **Build**/**View** switch in the header hides editing controls for reading at the table, and lists each unit's ranged weapons together and its melee weapons by model, since each model fights with one.
 
 ### After you've played a list
 

@@ -4,6 +4,7 @@ import type { Datasheet } from '../../../../contracts/catalogue'
 import type { CombatFacts } from '../../../../core/combatReading'
 import type { ReminderSuggestion } from '../../../../core/reminders'
 import { DEFAULT_WARGEAR } from '../../../../shared/datacards'
+import { weaponProfileGroups } from '../../../datasheet'
 import {
   modelFixedCount,
   modelRowCount,
@@ -240,10 +241,19 @@ export function showLoadoutEntry(count: number, showOptions: boolean) {
 export const weaponPieceMatches = (pieceName: string, profileName: string) =>
   sameWargear(pieceName, profileName) || wargearKey(pieceName) === wargearKey(profileName, true)
 
+const sameProfile = (profile: WeaponProfileData) =>
+  JSON.stringify({ name: profile.name.trim().toLocaleLowerCase(), type: profile.type, values: profile.values })
+
 export function uniqueWeaponProfiles(profiles: readonly WeaponProfileData[]) {
-  return uniqueBy(profiles, (profile) =>
-    JSON.stringify({ name: profile.name.trim().toLocaleLowerCase(), type: profile.type, values: profile.values }),
-  )
+  return uniqueBy(profiles, sameProfile)
+}
+
+/** One profile per weapon the unit carries, counting every model that holds it whichever kind of model it is. */
+export function weaponTotals(profiles: readonly WeaponProfileData[]) {
+  return [...groupBy(profiles, sameProfile).values()].map((same) => ({
+    ...same[0]!,
+    count: same.reduce((total, profile) => total + (profile.count ?? 1), 0),
+  }))
 }
 
 export const weaponProfileNames = (profile: WeaponProfileData) =>
@@ -707,4 +717,50 @@ export function poolHandlers(model: LoadoutModel, choices: readonly LoadoutChoic
     spend: (row: ModelRow) => factoredOr(row, true, pooledSpend),
     free: (row: ModelRow) => factoredOr(row, false, pooledFree),
   }
+}
+
+const extraAttacks = (profile: WeaponProfileData) => profile.values.some((value) => /extra attacks/i.test(value.value))
+
+/**
+ * The melee weapons each kind of model carries, since a model fights with only one of
+ * them unless it has [EXTRA ATTACKS]; `choose` marks a kind whose models each hold more
+ * than one. A weapon no card holds, such as an enhancement's, goes to the only kind of
+ * model when there is one and otherwise stands apart under no name.
+ */
+export function meleeByModel(models: readonly LoadoutModel[], choices: readonly LoadoutChoice[], profiles: readonly WeaponProfileData[]) {
+  const equipped = weaponTotals(profiles.filter((profile) => profile.type === 'Melee Weapons'))
+  const placed = new Set<string>()
+  const groups = models.flatMap((model) => {
+    const count = modelCount(model, choices)
+    if (!count) return []
+    const weapons = weaponTotals(
+      orderedModelWargear(model, choices, profiles).flatMap((entry) => {
+        const pieces = 'fixed' in entry ? undefined : entry.pieces
+        const carried = 'fixed' in entry ? loadoutFixedCount(model, entry.fixed, choices) : loadoutRowCount(entry.row, choices)
+        const melee = weaponProfilesFor({ name: entry.name, pieces }, equipped)
+        return carried ? melee.map((profile) => ({ ...profile, count: carried })) : []
+      }),
+    )
+    weapons.forEach((weapon) => placed.add(sameProfile(weapon)))
+    const key = model.members.map((member) => member.id).join('/')
+    return weapons.length ? [{ key, name: model.name, count, weapons }] : []
+  })
+  const unplaced = equipped.filter((weapon) => !placed.has(sameProfile(weapon)))
+  const [only, ...others] = groups
+  const all = unplaced.length
+    ? only && !others.length
+      ? [{ ...only, weapons: [...only.weapons, ...unplaced] }]
+      : [...groups, { key: 'unplaced', name: '', count: 0, weapons: unplaced }]
+    : groups
+  return all.map((group) => ({
+    ...group,
+    choose: Boolean(group.name) && meleeHeld(group.weapons) > group.count,
+  }))
+}
+
+/** How many melee weapons a kind of model holds that compete to be the one it fights with. */
+function meleeHeld(weapons: readonly WeaponProfileData[]) {
+  return weaponProfileGroups(weapons)
+    .filter((modes) => modes.some((profile) => !extraAttacks(profile)))
+    .reduce((total, modes) => total + (modes[0]?.count ?? 1), 0)
 }
