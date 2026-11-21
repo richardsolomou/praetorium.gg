@@ -862,8 +862,12 @@ const needsCardReferences = (side: Side | undefined) =>
     side?.secondaries.some((card) => card.status === 'active' && card.awards === undefined),
   )
 
-const discardableSecondaries = (side: Side) =>
-  side.secondaryMode === 'tactical' ? side.secondaries.filter((card) => card.status === 'active').map((card) => card.key) : []
+/** The cards the end-of-turn discard prompt offers: none once discarding can't gain CP, unless a lost beacon forces one out. */
+const discardableSecondaries = (side: Side) => {
+  if (side.secondaryMode !== 'tactical') return []
+  const active = side.secondaries.filter((card) => card.status === 'active')
+  return side.canGainCp || active.some((card) => card.beaconLost) ? active.map((card) => card.key) : []
+}
 
 /** The cards a side was holding, as keys, so a later hand can be told from this one. */
 const heldKeys = (side: Side | undefined) => (side?.secondaries ?? []).filter((card) => card.status === 'active').map((card) => card.key)
