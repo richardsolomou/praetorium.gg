@@ -16,12 +16,13 @@ export function fromNewRecruitMarkdown(input: string): TextRoster | null {
     .replaceAll('\r', '')
     .split('\n')
     .map((line) => line.trim())
-  if (!lines.some((line) => /^#\s*\+\+\s*Army Roster\s*\+\+/i.test(line))) return null
+  // The title is "<faction> - <list name> - [1995 pts]", where the faction's own name is hyphenated the same way. It
+  // alone marks an export copied without its headings.
+  const title = lines.find(Boolean)?.match(/^(.+?)\s+-\s+\[(\d[\d,]*)\s*pts?\]$/i)
+  if (!title && !lines.some((line) => /^#\s*\+\+\s*Army Roster\s*\+\+/i.test(line))) return null
   const field = (label: string) =>
     lines.map((line) => line.match(new RegExp(`^${label}(?:\\s*\\[[^\\]]*\\])?:\\s*(.+)$`, 'i'))?.[1]).find(Boolean) ?? null
 
-  // The title is "<faction> - <list name> - [1995 pts]", where the faction's own name is hyphenated the same way.
-  const title = lines.find(Boolean)?.match(/^(.+?)\s+-\s+\[(\d[\d,]*)\s*pts?\]$/i)
   const segments = title?.[1]!.split(' - ') ?? []
   const size = field('Battle Size')?.match(/^(.+?)\s*\((\d[\d,]*)\s*points?\s*limit\)$/i)
 
@@ -29,8 +30,8 @@ export function fromNewRecruitMarkdown(input: string): TextRoster | null {
   const body: string[] = []
   for (const [at, line] of lines.entries()) {
     if (at === titleAt || !line || line.startsWith('#') || /^Show\/Hide Options$/i.test(line)) continue
-    // A bodyguard's "Leader:" and "Supported by:" repeat what its character's own line states.
-    if (/^[•*]\s*(?:Leader|Supported by):/i.test(line)) continue
+    // A bodyguard's "Leader:", "Led by:" and "Supported by:" repeat what its character's own line states.
+    if (/^[•*]\s*(?:Leader|Led by|Supported by):/i.test(line)) continue
     const relation = line.match(/^[•*]\s*(Leading|Supporting):\s*(.+)$/i)
     if (relation) {
       body.push(`${relation[1]} ${relation[2]}`)
