@@ -135,9 +135,9 @@ export const combatSchema = z.object({
     woundReroll: reroll,
     lethal: z.boolean(),
     commandReroll: z.enum(['attacks', 'hit', 'wound', 'save', 'damage']).optional(),
-    /** One hit or wound roll each that the attacker's rules let it re-roll this phase, spent like the Command Re-roll. */
+    /** One hit, wound or damage roll each that the attacker's rules let it re-roll this phase, spent like the Command Re-roll. */
     singleRerolls: z
-      .array(z.enum(['hit', 'wound']))
+      .array(z.enum(['hit', 'wound', 'damage']))
       .max(4)
       .optional(),
   }),
@@ -407,7 +407,7 @@ type RerollKind = (typeof REROLL_KINDS)[number]
 
 /** How many single-die re-rolls of each kind a phase holds: its Command Re-roll and those the attacker's rules grant. */
 export function singleRerollCounts(options: CombatOptions) {
-  const counts: Record<RerollKind, number> = { attacks: 0, hit: 0, wound: 0, save: 0 }
+  const counts: Record<RerollKind | 'damage', number> = { attacks: 0, hit: 0, wound: 0, save: 0, damage: 0 }
   for (const kind of options.singleRerolls ?? []) counts[kind]++
   if (options.commandReroll && options.commandReroll !== 'damage') counts[options.commandReroll]++
   return counts
@@ -514,25 +514,46 @@ function addInto(target: State, source: State, weight = 1) {
 
 const tailsOf = new WeakMap<Weights, Weights>()
 
-/** Wounds one unsaved attack takes, for each target group and each number of wounds its current model has left. */
-type Losses = readonly (readonly Weights[])[]
+/**
+ * Wounds one unsaved attack takes, for each target group and each number of wounds its current model has left; while
+ * a single damage re-roll is unspent, `spending` splits them into the share that keeps it and the share that spends it.
+ */
+type Losses = {
+  readonly points: readonly (readonly Weights[])[]
+  readonly spending?: readonly (readonly (readonly [kept: Weights, spent: Weights])[])[]
+}
 
-/** One unsaved attack's damage, discarding whatever exceeds the current model's wounds. */
+/** Adds `points` of damage to the model at `at`, discarding whatever exceeds its `room` wounds. */
+function spread(result: State, at: number, weight: number, points: Weights, room: number) {
+  const tails = remember(tailsOf, points, () => points.map((_, from) => points.slice(from).reduce((total, chance) => total + chance, 0)))
+  for (let wounds = 0; wounds < Math.min(room, points.length); wounds++) result[at + wounds]! += weight * points[wounds]!
+  if (room < points.length) result[at + room]! += weight * tails[room]!
+}
+
+/**
+ * One unsaved attack's damage. A state holds one layer of `layout.total + 1` cells for each number of single damage
+ * re-rolls still unspent, and spending one moves its share down a layer.
+ */
 function inflict(state: State, lost: Losses, layout: Allocation, applies?: (at: number) => boolean) {
+  const cells = layout.total + 1
   const result = new Float64Array(state.length)
-  result[layout.total] = state[layout.total]!
-  for (let at = 0; at < layout.total; at++) {
-    const weight = state[at]!
-    if (!weight) continue
-    if (applies && !applies(at)) {
-      result[at]! += weight
-      continue
+  for (let base = 0; base < state.length; base += cells) {
+    result[base + layout.total] = state[base + layout.total]!
+    for (let at = 0; at < layout.total; at++) {
+      const weight = state[base + at]!
+      if (!weight) continue
+      if (applies && !applies(at)) {
+        result[base + at]! += weight
+        continue
+      }
+      const room = layout.remaining[at]!
+      const group = layout.group[at]!
+      if (base && lost.spending) {
+        const [kept, spent] = lost.spending[group]![room]!
+        spread(result, base + at, weight, kept, room)
+        spread(result, base - cells + at, weight, spent, room)
+      } else spread(result, base + at, weight, lost.points[group]![room]!, room)
     }
-    const room = layout.remaining[at]!
-    const points = lost[layout.group[at]!]![room]!
-    const tails = remember(tailsOf, points, () => points.map((_, from) => points.slice(from).reduce((total, chance) => total + chance, 0)))
-    for (let wounds = 0; wounds < Math.min(room, points.length); wounds++) result[at + wounds]! += weight * points[wounds]!
-    if (room < points.length) result[at + room]! += weight * tails[room]!
   }
   return result
 }
@@ -621,6 +642,25 @@ function packetLosses(weapon: CombatWeapon, target: CombatInput['target'], preve
   if (weapon.damageReroll === 'any') return Array.from({ length: wounds + 1 }, (_, room) => byRoom(room))
   const points = byRoom(1)
   return Array.from({ length: wounds + 1 }, () => points)
+}
+
+/**
+ * `packetLosses` split by whether a single damage re-roll is spent: on the first roll the weapon's own re-rolls leave
+ * that a free re-roll of any Damage roll would take.
+ */
+function packetSpending(weapon: CombatWeapon, target: CombatInput['target'], prevention: number, halfRange: boolean, wounds: number) {
+  const rolled = diceWeights(weapon.damage)
+  const byRoll = lossesByRoll(weapon, target, prevention, halfRange)
+  const fresh = mixed(rolled.map((chance, value) => [byRoll[value]!, chance]))
+  const own = rerollsDamage(weapon, target, prevention, halfRange)
+  const single = rerollsDamage({ ...weapon, damageReroll: 'any' }, target, prevention, halfRange)
+  return Array.from({ length: wounds + 1 }, (_, room) => {
+    const spends = (value: number) => !own(value, room) && single(value, room)
+    return [
+      mixed(rolled.map((chance, value) => [own(value, room) ? fresh : byRoll[value]!, spends(value) ? 0 : chance])),
+      mixed(rolled.map((chance, value) => [fresh, spends(value) ? chance : 0])),
+    ] as const
+  })
 }
 
 type Polynomial = Map<number, number>
@@ -934,6 +974,7 @@ function allocateSaves(
   faces: readonly [Weights, Weights],
   lost: Losses,
   events: number,
+  size: number,
 ) {
   let states = start
   const kinds = start.size && [...start.keys()].some((key) => key >= events) ? [0, 1] : [0]
@@ -960,7 +1001,7 @@ function allocateSaves(
       }
       states = next
     }
-  return states.get(0) ?? new Float64Array(layout.total + 1)
+  return states.get(0) ?? new Float64Array(size)
 }
 
 function resolvePool(
@@ -972,16 +1013,24 @@ function resolvePool(
   pool: Float64Array,
 ) {
   const { target } = input
-  const losses = (mortal: boolean) =>
-    target.groups.map((group) => {
+  const cells = layout.total + 1
+  const losses = (mortal: boolean): Losses => {
+    const packets = target.groups.map((group) => {
       const protection = combatGroupProtection(target, group)
       const prevention = Math.min(
         protection.feelNoPain ?? 7,
         weapon.psychic ? (protection.psychicFeelNoPain ?? 7) : 7,
         mortal ? (protection.mortalFeelNoPain ?? 7) : 7,
       )
-      return packetLosses(weapon, protection, prevention, plan.halfRange, group.wounds)
+      return [protection, prevention, group.wounds] as const
     })
+    return {
+      points: packets.map((packet) => packetLosses(weapon, packet[0], packet[1], plan.halfRange, packet[2])),
+      ...(state.length > cells
+        ? { spending: packets.map((packet) => packetSpending(weapon, packet[0], packet[1], plan.halfRange, packet[2])) }
+        : {}),
+    }
+  }
   const ordinaryLost = losses(false)
   const devastatingLost = losses(true)
   const devastatingStride = plan.stride('devastating')
@@ -1003,7 +1052,7 @@ function resolvePool(
     afterDevastating.forEach((before, count) => {
       const weight = pool[count * devastatingStride + cell * saveStride]!
       if (!weight || !before.length) return
-      for (let at = 0; at < into.length; at++) if (!part || part(at)) into[at]! += weight * before[at]!
+      for (let at = 0; at < into.length; at++) if (!part || part(at % cells)) into[at]! += weight * before[at]!
     })
     return into
   }
@@ -1027,7 +1076,7 @@ function resolvePool(
     }
     const group = target.groups[rolling]!
     const faces = [plan.saveFaces(false, group), plan.saveFaces(plan.separateCritical, group)] as const
-    addInto(result, allocateSaves(start, weapon, input, layout, faces, ordinaryLost, plan.events))
+    addInto(result, allocateSaves(start, weapon, input, layout, faces, ordinaryLost, plan.events, state.length))
   }
   return result
 }
@@ -1049,7 +1098,10 @@ function workOf(input: CombatInput, layout: Allocation) {
     const saving = plan.failChances ? plan.events * states : (plan.separateCritical ? 12 : 6) * saveCells * plan.events * states
     return (
       total +
-      rerollSpace(input).pairs * toughnesses * (build + combine + saving * (input.target.saveReroll ? input.target.groups.length : 1))
+      rerollSpace(input).pairs *
+        (singleRerollCounts(input.options).damage + 1) *
+        toughnesses *
+        (build + combine + saving * (input.target.saveReroll ? input.target.groups.length : 1))
     )
   }, mortalWork)
 }
@@ -1107,14 +1159,18 @@ function resolveCombat(input: CombatInput, layout: Allocation, initial: State, m
   mortals('before')
   // Outcomes by the single-die re-rolls still unspent; weapons resolve in order, so each goes to the first that can use it.
   const space = rerollSpace(input)
-  let held = new Map([[space.start, state]])
+  const cells = layout.total + 1
+  const layered = new Float64Array(cells * (singleRerollCounts(input.options).damage + 1))
+  layered.set(state, layered.length - cells)
+  let held = new Map<number, State>([[space.start, layered]])
   const byToughness = (from: State) => {
     const parts = new Map<number, State>()
-    for (let at = 0; at < layout.total; at++) {
-      const weight = from[at]!
-      if (!weight) continue
+    for (let index = 0; index < from.length; index++) {
+      const weight = from[index]!
+      const at = index % cells
+      if (!weight || at === layout.total) continue
       const part = parts.get(layout.toughness[at]!) ?? new Float64Array(from.length)
-      part[at] = weight
+      part[index] = weight
       parts.set(layout.toughness[at]!, part)
     }
     return parts
@@ -1124,13 +1180,13 @@ function resolveCombat(input: CombatInput, layout: Allocation, initial: State, m
     const into = (end: number) => {
       const existing = next.get(end)
       if (existing) return existing
-      const created = new Float64Array(state.length)
+      const created = new Float64Array(layered.length)
       next.set(end, created)
       return created
     }
     const parts = new Map<number, Map<number, State>>()
     for (const [start, from] of held) {
-      into(start)[layout.total]! += from[layout.total]!
+      for (let wiped = layout.total; wiped < from.length; wiped += cells) into(start)[wiped]! += from[wiped]!
       parts.set(start, byToughness(from))
     }
     for (const toughness of new Set([...parts.values()].flatMap((part) => [...part.keys()]))) {
@@ -1145,8 +1201,8 @@ function resolveCombat(input: CombatInput, layout: Allocation, initial: State, m
     }
     held = next
   }
-  state = new Float64Array(state.length)
-  for (const part of held.values()) addInto(state, part)
+  state = new Float64Array(cells)
+  for (const part of held.values()) for (let index = 0; index < part.length; index++) state[index % cells]! += part[index]!
   mortals('after')
   return state
 }

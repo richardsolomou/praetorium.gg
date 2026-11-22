@@ -194,13 +194,14 @@ function phaseMatchup(
     }
   }
   // Attached members scope their options to their own weapons, except single-die re-rolls, which the whole unit shares.
+  const targetKeywords = defender ? combatUnitKeywords(defender) : []
   const unitAttackOptions = (phase: CombatPhase): Partial<CombatOptions> => {
-    if (!attacker?.companions?.length) return combatRuleOptions(attackRules, 'attacker', phase)
+    if (!attacker?.companions?.length) return combatRuleOptions(attackRules, 'attacker', phase, targetKeywords)
     const memberRules = uniqueBy(
       [attacker, ...attacker.companions].flatMap((member) => member.rules ?? []),
       (rule) => rule.name,
     )
-    const { singleRerolls } = combatRuleOptions(memberRules, 'attacker', phase)
+    const { singleRerolls } = combatRuleOptions(memberRules, 'attacker', phase, targetKeywords)
     return singleRerolls ? { singleRerolls } : {}
   }
   const attackOptions = { ranged: unitAttackOptions('ranged'), melee: unitAttackOptions('melee') }
@@ -247,9 +248,7 @@ function phaseMatchup(
       phase,
     }
   }
-  const attacks = attacker
-    ? combatAttacks(attacker, { keywords: defender ? combatUnitKeywords(defender) : [], rules: defenceRules }, preferences, excluded)
-    : null
+  const attacks = attacker ? combatAttacks(attacker, { keywords: targetKeywords, rules: defenceRules }, preferences, excluded) : null
   const weaponAdjustment = (phase: CombatPhase, adjustments: CombatAdjustments) =>
     combineWeaponAdjustments(adjustments.weapons?.all ?? {}, adjustments.weapons?.[phase] ?? {})
   const scenario = (phase: CombatPhase, adjustments: CombatAdjustments): CombatInput | null => {

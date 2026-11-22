@@ -414,8 +414,8 @@ export function optimizeLoadout(
         JSON.stringify(combatRuleDefences(setup.target, [], phase, attacker.rules))
       const sameOptions =
         members.length > 1 ||
-        JSON.stringify(combatRuleOptions(scoring.rules ?? [], 'attacker', phase)) ===
-          JSON.stringify(combatRuleOptions(attacker.rules, 'attacker', phase))
+        JSON.stringify(combatRuleOptions(scoring.rules ?? [], 'attacker', phase, scoring.opponent.keywords)) ===
+          JSON.stringify(combatRuleOptions(attacker.rules, 'attacker', phase, scoring.opponent.keywords))
       if (!sameDefences || !sameOptions) throw new Error('Some loadouts change unit-wide rules. Optimization could not finish.')
     }
     const search = (preferences: Record<string, string>, chosen: ReadonlySet<string>) => {

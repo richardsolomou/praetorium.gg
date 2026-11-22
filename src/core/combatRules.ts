@@ -686,6 +686,7 @@ export function combatRuleOptions(
   rules: readonly ActiveCombatRule[],
   role: CombatRuleEffect['role'],
   phase: CombatPhase,
+  targetKeywords: readonly string[] = [],
 ): Partial<CombatOptions> {
   const result: Partial<CombatOptions> = {}
   for (const rule of rules)
@@ -696,11 +697,15 @@ export function combatRuleOptions(
         !effect.options ||
         effect.condition ||
         effect.requiresWeaponKeyword ||
-        effect.weapon ||
-        effect.targetKeywords ||
-        effect.excludedTargetKeywords
+        effect.weapon
       )
         continue
+      // Every attack in a matchup has the one target, so a single-die re-roll for some targets holds for all of them or none.
+      if (effect.targetKeywords || effect.excludedTargetKeywords) {
+        if (effect.options.singleRerolls && matchesEffectTarget(effect, targetKeywords))
+          result.singleRerolls = [...(result.singleRerolls ?? []), ...effect.options.singleRerolls]
+        continue
+      }
       if (effect.options.cover) result.cover = true
       for (const field of ['hitModifier', 'woundModifier'] as const) result[field] = (result[field] ?? 0) + (effect.options[field] ?? 0)
       result.positiveWoundModifier = (result.positiveWoundModifier ?? 0) + Math.max(0, effect.options.woundModifier ?? 0)

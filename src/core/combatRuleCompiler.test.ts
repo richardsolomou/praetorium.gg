@@ -55,6 +55,37 @@ describe('composed combat rules', () => {
   it('gives single-die re-rolls to no unit without the named keyword', () => {
     expect(effects(magnaImperator, { scope: 'detachment', keywords: ['Imperium'] })).toEqual([])
   })
+  it('reads single-die re-rolls listed as bullets', () => {
+    expect(effects('This unit’s ranged attacks can:\n\n- Re-roll one **hit roll**.\n- Re-roll one **wound roll**.')).toEqual([
+      [{ role: 'attacker', phases: ['ranged'], options: { singleRerolls: ['hit', 'wound'] } }],
+    ])
+  })
+  it('keeps a damage re-roll and the target keywords that single-die re-rolls are limited to', () => {
+    expect(
+      effects(
+        'This unit’s ranged attacks that target a **Monster/Vehicle** unit can:\n\n- Re-roll one **hit roll**.\n- Re-roll one **wound roll**.\n- Re-roll one **damage roll**.',
+      ),
+    ).toEqual([
+      [
+        {
+          role: 'attacker',
+          phases: ['ranged'],
+          targetKeywords: ['Monster', 'Vehicle'],
+          options: { singleRerolls: ['hit', 'wound', 'damage'] },
+        },
+      ],
+    ])
+  })
+  const ironstorm =
+    'Friendly **Adeptus Astartes Vehicle** units’ (excluding **walker** units) ranged attacks can:\n\n- Re-roll one **hit roll**.\n- Re-roll one **wound roll**.'
+  it('gives a friendly units’ attack rule to a unit with its keywords', () => {
+    expect(effects(ironstorm, { scope: 'detachment', keywords: ['Adeptus Astartes', 'Vehicle'] })).toEqual([
+      [{ role: 'attacker', phases: ['ranged'], options: { singleRerolls: ['hit', 'wound'] } }],
+    ])
+  })
+  it('gives a friendly units’ attack rule to no unit it excludes', () => {
+    expect(effects(ironstorm, { scope: 'detachment', keywords: ['Adeptus Astartes', 'Vehicle', 'Walker'] })).toEqual([])
+  })
   it('does not discard italicized combat instructions as flavour', () => {
     expect(
       compileCombatRule(

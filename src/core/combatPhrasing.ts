@@ -8,6 +8,11 @@ import { capitalised } from './text'
 export function printedPhrasing(text: string) {
   return text
     .replace(/can: Re-roll (hit|wound) rolls of 1\. Re-roll (hit|wound) rolls of 1\./gi, 'can re-roll $1 rolls of 1 and $2 rolls of 1.')
+    .replace(
+      /\bcan:((?: ■ Re-roll one (?:hit|wound|damage) roll\.?)+)(?! ■ (?:Or:|Re-roll one))/gi,
+      (_, list: string) =>
+        `can re-roll ${[...list.matchAll(/Re-roll one (hit|wound|damage) roll/gi)].map((roll) => `one ${roll[1]!.toLowerCase()} roll`).join(' and ')}.`,
+    )
     .split(/(?<=\.)\s+/)
     .map((sentence) => offensiveSentence(sentence) ?? chargedSentence(sentence) ?? auraSentence(sentence) ?? sentence)
     .join(' ')

@@ -599,6 +599,25 @@ describe('combat rule effects', () => {
         'ranged',
       ).hitModifier,
     ).toBe(2))
+  describe('single-die re-rolls limited to some targets', () => {
+    const optics = [
+      {
+        name: 'Optics',
+        effects: [
+          {
+            role: 'attacker' as const,
+            phases: ['ranged' as const],
+            targetKeywords: ['Vehicle'],
+            options: { singleRerolls: ['damage' as const] },
+          },
+        ],
+      },
+    ]
+    it('applies them against a target with the keyword', () =>
+      expect(combatRuleOptions(optics, 'attacker', 'ranged', ['Vehicle']).singleRerolls).toEqual(['damage']))
+    it('leaves them out against any other target', () =>
+      expect(combatRuleOptions(optics, 'attacker', 'ranged', ['Infantry']).singleRerolls).toBeUndefined())
+  })
   it('stacks damage reduction from distinct rules', () => {
     const effects = [{ role: 'defender' as const, phases: ['ranged' as const], damageReduction: 1 }]
     expect(
