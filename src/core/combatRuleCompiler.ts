@@ -779,6 +779,16 @@ function compileRule(
       const next = condition(conditional[1]!, context)
       return next ? again(conditional[2]!, next) : next === false ? [] : null
     }
+    const friendlyUnits = /^Friendly (.+?) units'( \(excluding .+? units\))? ((?:ranged |melee )?attacks .+)$/i.exec(written)
+    if (friendlyUnits) {
+      const eligible = hasKeywords(friendlyUnits[1]! + (friendlyUnits[2] ?? ''))
+      if (eligible === false) return []
+      return again(`this unit's ${friendlyUnits[3]}`, {
+        ...context,
+        conditions:
+          eligible === null ? [...context.conditions, `For ${friendlyUnits[1]} units${friendlyUnits[2] ?? ''}`] : context.conditions,
+      })
+    }
     const friendlyAttack = /^each time a friendly (.+?) model makes (.+)$/i.exec(written)
     if (friendlyAttack) return again(`each time an ${friendlyAttack[1]} model from your army makes ${friendlyAttack[2]}`)
     const armyAttack =
@@ -1085,18 +1095,23 @@ function compileRule(
       })
     }
     const singleRerolls =
-      /^(?:its|(?:this|your|that) unit's) (ranged |melee )?attacks can re-roll one (hit|wound) roll(?: and one (hit|wound) roll)?$/i.exec(
+      /^(?:its|(?:this|your|that) unit's) (ranged |melee )?attacks(?: that target an? ([A-Z/ ]+?) unit)? can re-roll (one (?:hit|wound|damage) roll(?:,? (?:and )?one (?:hit|wound|damage) roll)*)$/i.exec(
         written,
       )
     if (singleRerolls) {
-      // One die for the whole unit cannot be split between weapons or targets.
-      if (context.weapon || context.requiresWeaponKeyword || context.targetKeywords || context.excludedTargetKeywords || context.condition)
-        return null
+      // One die for the whole unit cannot be split between weapons; the matchup's one target meets a keyword for every attack or none.
+      if (context.weapon || context.requiresWeaponKeyword || context.condition) return null
       return effect(
-        { ...context, phases: phasesOf(singleRerolls[1], context.phases) },
+        {
+          ...context,
+          phases: phasesOf(singleRerolls[1], context.phases),
+          ...(singleRerolls[2] ? { targetKeywords: singleRerolls[2].split('/') } : {}),
+        },
         {
           options: {
-            singleRerolls: [singleRerolls[2]!, singleRerolls[3]].flatMap((kind) => (kind ? [kind.toLowerCase() as 'hit' | 'wound'] : [])),
+            singleRerolls: [...singleRerolls[3]!.matchAll(/one (hit|wound|damage) roll/gi)].map(
+              (kind) => kind[1]!.toLowerCase() as 'hit' | 'wound' | 'damage',
+            ),
           },
         },
       )

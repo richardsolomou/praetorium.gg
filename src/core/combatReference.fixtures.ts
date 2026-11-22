@@ -132,6 +132,13 @@ export function attackSequence({ target, weapons, options, mortalWounds = [] }: 
       const prevention = mortal ? Math.min(feelNoPain, protection.mortalFeelNoPain ?? 7) : feelNoPain
       let rolledDamage = roll(weapon.damage, random)
       if (rerollsDamage(weapon, protection, prevention, halfRange)(rolledDamage, remaining)) rolledDamage = roll(weapon.damage, random)
+      else if (
+        left.damage &&
+        rerollsDamage({ ...weapon, damageReroll: 'any' }, protection, prevention, halfRange)(rolledDamage, remaining)
+      ) {
+        rolledDamage = roll(weapon.damage, random)
+        left.damage--
+      }
       const baseDamage = rolledDamage + (halfRange ? roll(weapon.melta, random) : 0)
       const rolled =
         baseDamage === 0 ? 0 : Math.max(1, Math.ceil(baseDamage / (protection.damageDivisor ?? 1) - (protection.damageReduction ?? 0)))

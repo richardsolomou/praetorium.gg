@@ -48,7 +48,7 @@ When a shooting type costs a weapon -1 to hit, its card shows the roll it needs 
 
 **Command Re-roll** re-rolls the first failed hit, wound or save roll no other rule already re-rolled, taking weapons in order, or the first single-die Attacks roll below its average. Hit rolls for indirect fire can't be re-rolled. A damage roll, an Attacks roll of several dice, and saves when the defender's models or critical wounds need different saves aren't calculated, and that phase says so.
 
-Rules that re-roll one hit or wound roll, such as the Adeptus Custodes **Magna Imperator**, work the same way: the first failed roll of that kind each phase. An attached unit gets it once.
+Rules that re-roll one hit or wound roll, such as the Adeptus Custodes **Magna Imperator**, work the same way: the first failed roll of that kind each phase. An attached unit gets it once. A rule that re-rolls one damage roll, such as the Gladiator Lancer's **Aquilon Optics**, spends it on the first damage roll a free re-roll of any damage roll would take (see below). A rule limited to attacks against some targets, such as **MONSTER** or **VEHICLE** units, applies only when the defender has one of those keywords.
 
 Rules that re-roll any Damage roll, such as Fire Dragons' **Assured Destruction**, re-roll only when a fresh roll is expected to take more wounds off the model the attack is allocated to. A roll that already destroys that model is kept.
 

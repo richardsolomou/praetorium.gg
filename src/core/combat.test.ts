@@ -983,6 +983,30 @@ describe('exact calculation against every roll sequence', () => {
         Object.assign(scenario.weapons[0]!, { attacks: attacks(2), skill: 4, damage: attacks(1) })
       },
     ],
+    [
+      'one damage re-roll spent across weapons on the first roll a fresh roll beats',
+      (scenario: CombatInput) => {
+        scenario.target.groups = [group({ models: 2, wounds: 4 })]
+        scenario.target.damage = 1
+        scenario.options.singleRerolls = ['damage']
+        scenario.weapons = [torrent({ damage: { dice: 1, sides: 3, bonus: 0 } }), torrent({ damage: { dice: 1, sides: 3, bonus: 1 } })]
+      },
+    ],
+    [
+      'one damage re-roll beside re-rolled damage rolls of one and a hit re-roll, with Devastating Wounds',
+      (scenario: CombatInput) => {
+        scenario.target.groups = [group({ wounds: 3, save: 4 })]
+        scenario.options.singleRerolls = ['hit', 'damage']
+        Object.assign(scenario.weapons[0]!, {
+          skill: 4,
+          strength: 8,
+          devastating: true,
+          criticalWound: 4,
+          damage: { dice: 1, sides: 6, bonus: 0 },
+          damageReroll: 'ones',
+        })
+      },
+    ],
   ])('matches %s', (_, arrange) => {
     const scenario = input()
     arrange(scenario)
