@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.274.13 (2026-11-22)
+
+### Patch Changes
+
+- 8d1bd9d: [rosters] New Recruit lists copied without their headings now import instead of being rejected as an unsupported export.
+
 ## 0.274.12 (2026-11-22)
 
 ### Patch Changes
