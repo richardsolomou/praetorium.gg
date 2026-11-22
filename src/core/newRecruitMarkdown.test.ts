@@ -42,3 +42,28 @@ it('reads the setup and units of a New Recruit Markdown export', () => {
     ],
   })
 })
+
+/** The shape of the automatic import failure report on 22 November 2026: the export with its headings and options left out. */
+const bare = `Imperium - Adeptus Astartes - Black Templars - Imperium - [2330 pts]
+
+Castellan [75 pts]:
+  • Supporting: Sword Brethren Squad
+Champion of the Chapter [Crucible] [90 pts]
+
+Crusader Squad [160 pts]:
+• 1x Sword Brother
+• 3x Initiate w/Bolt Rifle
+• 2x Neophyte w/ Shotgun
+Sword Brethren Squad [115 pts]:
+• 3x Sword Brother
+• 1x Sword Brother w/ Twin Lightning Claws
+  • Supported by: Castellan`
+
+it('reads the export without its headings', () => {
+  expect(fromNewRecruitMarkdown(bare)?.units.map(({ name, models, leading }) => ({ name, models, leading }))).toEqual([
+    { name: 'Castellan', models: 1, leading: 'Sword Brethren Squad' },
+    { name: 'Champion of the Chapter [Crucible]', models: 1, leading: null },
+    { name: 'Crusader Squad', models: 6, leading: null },
+    { name: 'Sword Brethren Squad', models: 4, leading: null },
+  ])
+})
