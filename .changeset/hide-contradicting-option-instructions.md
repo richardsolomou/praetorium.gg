@@ -2,4 +2,4 @@
 'praetorium.gg': patch
 ---
 
-[rosters] A wargear option's instruction no longer shows beside a model whose own choices say something different.
+[rosters] Where a wargear option's instruction disagrees with a model's own choices, the loadout says what that model can take instead.
