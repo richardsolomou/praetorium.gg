@@ -12,7 +12,7 @@ import {
 import { fetchBattlemasterInto, fetchInto, fetchReleaseInto } from '../../src/server/sync'
 import { applyPatches } from './cataloguePatches'
 import { type CatalogueComposition, readCatalogueComposition } from '../../src/server/catalogueComposition'
-import { checkVsDataRelease } from '../../src/server/vsDataRelease'
+import { checkVsDataRelease, compactVsDataRelease } from '../../src/server/vsDataRelease'
 import { replaceDirectory } from '../../src/server/replaceDirectory'
 import { composeCatalogue, validateCatalogueImports } from './catalogueComposition'
 
@@ -75,6 +75,7 @@ export async function materializeCatalogue(directory: string, sources = catalogu
           target,
           editions.map((entry) => entry.edition.id),
         )
+        compactVsDataRelease(target)
       } else {
         const repository = source as Exclude<typeof source, CatalogueSourceConfig['battlemaster'] | CatalogueSourceConfig['summaries']>
         await fetchInto(repository.repository, repository.revision, target, repository.path)

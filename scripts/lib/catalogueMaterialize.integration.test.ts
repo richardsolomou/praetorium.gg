@@ -114,6 +114,12 @@ it('includes only the configured Game Datacards edition and selected icons', asy
   expect(fs.readdirSync(path.join(directory, 'icons'))).toEqual(['test-faction.svg'])
 })
 
+it('keeps one compact file of a verified VS Data release', async () => {
+  await materializeCatalogue(directory, sources(), { patchesDirectory: path.join(root, 'patches') })
+
+  expect(fs.readdirSync(path.join(directory, 'summaries'))).toEqual(['summaries.json'])
+})
+
 it('omits disabled sources without fetching or retaining old files', async () => {
   fs.mkdirSync(directory)
   fs.writeFileSync(path.join(directory, 'old.json'), '{}')

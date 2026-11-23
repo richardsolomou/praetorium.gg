@@ -7,6 +7,7 @@ import { completeSteps } from '../shared/steps'
 import { readCatalogueComposition } from './catalogueComposition'
 import { textHash, textSourceFiles } from './sourceTexts'
 import { vsDataReleaseFiles, writeFiles } from './vsData.fixtures'
+import { compactVsDataRelease } from './vsDataRelease'
 import { vsDataSummariesSteps } from './vsDataSummaries'
 
 const effect = 'Until the end of the phase, each time a model in your unit makes an attack, add 1 to the Hit roll.'
@@ -28,6 +29,7 @@ function snapshot(summary: string, update = 'MFM 1.6') {
     ['datacards/11th/gdc/necrons.json', JSON.stringify({ stratagems: [stratagem] })],
     ...vsDataReleaseFiles([record], update).map(([file, text]): [string, string] => [`summaries/${file}`, text]),
   ])
+  compactVsDataRelease(path.join(directory, 'summaries'))
   const summaries = completeSteps(vsDataSummariesSteps(directory, []))
   const [file] = Object.keys(textSourceFiles(directory, readCatalogueComposition(directory)))
   return { summaries, file: file! }

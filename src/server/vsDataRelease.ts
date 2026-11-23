@@ -2,7 +2,7 @@ import { hash } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import { z } from 'zod'
-import { vsDataEdition, vsDataKey, type VsDataRulesVersion } from '../shared/vsData'
+import { type VsDataSummariesFile, vsDataEdition, vsDataKey, type VsDataRulesVersion } from '../shared/vsData'
 
 const fileSchema = z.object({ path: z.string().min(1), sha256: z.string().regex(/^[0-9a-f]{64}$/) })
 const manifestSchema = z.object({
@@ -22,8 +22,26 @@ const manifestSchema = z.object({
 })
 export type VsDataManifest = z.infer<typeof manifestSchema>
 
+const refSchema = z.object({ kind: z.string().min(1), id: z.string().min(1) })
+const identitySchema = z.object({
+  entries: z.array(refSchema.extend({ aliases: z.array(z.string()).optional(), retired: z.unknown().optional() })),
+})
+const recordSchema = refSchema.extend({
+  rulesVersion: z.object({ update: z.string() }),
+  data: z.object({
+    summary: z.string().min(1),
+    summarySpans: z
+      .array(z.object({ start: z.number().int(), end: z.number().int(), bold: z.literal(true).optional(), target: refSchema.optional() }))
+      .optional(),
+    citations: z.array(z.object({ type: z.string(), title: z.string(), url: z.string().optional(), page: z.string().optional() })),
+    interpretation: z.array(z.object({ question: z.string() })).optional(),
+  }),
+})
+
 const MANIFEST = 'manifest.json'
 const IDENTITY = 'identity.json'
+/** The one file the snapshot keeps of a VS Data release. */
+export const VS_DATA_SUMMARIES = 'summaries.json'
 
 /** The release's manifest, or null where the folder holds no VS Data catalogue release. */
 export function readVsDataManifest(directory: string): VsDataManifest | null {
@@ -89,3 +107,45 @@ export function checkVsDataRelease(directory: string, editions: readonly string[
 }
 
 const describe = ({ edition, update }: VsDataRulesVersion) => `${edition} ${update}`
+
+/**
+ * Replaces a verified release with the one file Praetorium reads, so the snapshot does not carry thousands of
+ * record files, the identity and the typed facts: each summary of the release's rules version, and the aliases
+ * of every current entry a summary is for or links to.
+ */
+export function compactVsDataRelease(directory: string) {
+  const manifest = readVsDataManifest(directory)!
+  const read = (file: string): unknown => JSON.parse(fs.readFileSync(path.join(directory, file), 'utf8'))
+  const records = manifest.categories
+    .flatMap((category) => category.records)
+    .map((entry) => recordSchema.parse(read(entry.path)))
+    .filter((record) => record.rulesVersion.update === manifest.rulesVersion.update)
+  const wanted = new Set(
+    records.flatMap((record) => [
+      vsDataKey(record),
+      ...(record.data.summarySpans ?? []).flatMap((span) => (span.target ? [vsDataKey(span.target)] : [])),
+    ]),
+  )
+  const entries = identitySchema
+    .parse(read(manifest.identity.path))
+    .entries.filter((entry) => !entry.retired && wanted.has(vsDataKey(entry)))
+  const compact: VsDataSummariesFile = {
+    release: manifest.release,
+    rulesVersion: manifest.rulesVersion,
+    entries: Object.fromEntries(entries.map((entry) => [vsDataKey(entry), entry.aliases ?? []])),
+    records: records.map(({ kind, id, data }) => {
+      const publisher = data.citations.find((citation) => citation.type === 'publisher' && citation.url)
+      return {
+        kind,
+        id,
+        summary: data.summary,
+        spans: data.summarySpans ?? [],
+        citation: publisher ? { title: publisher.title, url: publisher.url!, page: publisher.page ?? null } : null,
+        questions: (data.interpretation ?? []).map(({ question }) => question),
+      }
+    }),
+  }
+  fs.rmSync(directory, { recursive: true })
+  fs.mkdirSync(directory)
+  fs.writeFileSync(path.join(directory, VS_DATA_SUMMARIES), `${JSON.stringify(compact)}\n`)
+}

@@ -8,15 +8,14 @@ import {
   type GdcRuleKind,
   gdcRuleRecords,
   vsDataEdition,
-  vsDataIdentitySchema,
   vsDataIndex,
   vsDataKey,
-  vsDataRecordSchema,
-  type VsDataRecord,
+  type VsDataSummariesFile,
+  vsDataSummariesSchema,
 } from '../shared/vsData'
 import { readCatalogueComposition } from './catalogueComposition'
 import { textFileId, textHash, textSourcePaths } from './sourceTexts'
-import { readVsDataManifest } from './vsDataRelease'
+import { VS_DATA_SUMMARIES } from './vsDataRelease'
 
 export const NO_RULE_SUMMARIES: RuleSummaries = { records: {}, texts: {}, entries: {} }
 
@@ -40,35 +39,25 @@ export type VsDataSummaries = {
  * withheld, so nothing served can be their words. Links to core rules land on their rules pages.
  */
 export function* vsDataSummariesSteps(directory: string, documents: readonly RuleDocument[]): Steps<VsDataSummaries | null> {
-  const folder = path.join(directory, 'summaries')
-  const manifest = readVsDataManifest(folder)
+  const kept = path.join(directory, 'summaries', VS_DATA_SUMMARIES)
+  const release = fs.existsSync(kept) ? vsDataSummariesSchema.parse(readJson(kept)) : null
   const composition = readCatalogueComposition(directory)
-  const edition = manifest && vsDataEdition(manifest.rulesVersion)
+  const edition = release && vsDataEdition(release.rulesVersion)
   const version = composition?.editions.find((entry) => entry.edition.id === edition)
-  if (!manifest || !edition || !version) return null
+  if (!release || !edition || !version) return null
   const prefix = version.base ? null : `editions/${edition}/`
-  const files = textSourcePaths(directory, composition).filter((file) => {
-    const relative = path.relative(directory, file.path).split(path.sep).join('/')
+  const files = textSourcePaths(directory, composition).filter((source) => {
+    const relative = path.relative(directory, source.path).split(path.sep).join('/')
     return prefix ? relative.startsWith(prefix) : !relative.startsWith('editions/')
   })
-  const index = vsDataIndex(vsDataIdentitySchema.parse(readJson(path.join(folder, manifest.identity.path))))
+  const index = vsDataIndex(release.entries)
   const links = ruleLinks(documents)
-  const summaries = new Map<string, RuleSummary>()
-  for (const category of manifest.categories)
-    for (const entry of category.records) {
-      const record = vsDataRecordSchema.parse(readJson(path.join(folder, entry.path)))
-      if (record.rulesVersion.update !== manifest.rulesVersion.update) continue
-      summaries.set(
-        vsDataKey(record),
-        summaryOf(record, (target) =>
-          index
-            .aliasesOf(target)
-            .map((alias) => links.get(alias))
-            .find(Boolean),
-        ),
-      )
-      if (summaries.size % 256 === 0) yield
-    }
+  const link = (target: { kind: string; id: string }) =>
+    index
+      .aliasesOf(target)
+      .map((alias) => links.get(alias))
+      .find(Boolean)
+  const summaries = new Map(release.records.map((record) => [vsDataKey(record), summaryOf(record, link)]))
   const withheld = yield* withoutOriginalWording(summaries, files)
   const cards = new Map(files.filter((file) => file.source === 'game-datacards').map((file) => [textFileId(file.url), file.path]))
   const read = (file: string) => gdcRuleRecords(readJson(file))
@@ -112,17 +101,18 @@ function summariesFor(
   return answer
 }
 
-function summaryOf(record: VsDataRecord, link: (target: { kind: string; id: string }) => RuleSummaryLink | undefined): RuleSummary {
-  const { summary, summarySpans = [], citations, interpretation = [] } = record.data
-  const publisher = citations.find((citation) => citation.type === 'publisher')
+function summaryOf(
+  { summary, spans, citation, questions }: VsDataSummariesFile['records'][number],
+  link: (target: { kind: string; id: string }) => RuleSummaryLink | undefined,
+): RuleSummary {
   return {
     summary,
-    spans: summarySpans.flatMap(({ start, end, bold, target }) => {
+    spans: spans.flatMap(({ start, end, bold, target }) => {
       const to = target && link(target)
       return bold || to ? [{ start, end, ...(bold ? { bold } : {}), ...(to ? { link: to } : {}) }] : []
     }),
-    citation: publisher ? { title: publisher.title, url: publisher.url, page: publisher.page ?? null } : null,
-    questions: interpretation.map(({ question }) => question),
+    citation,
+    questions,
   }
 }
 

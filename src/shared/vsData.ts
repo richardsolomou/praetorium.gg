@@ -7,37 +7,32 @@ export type VsDataRef = z.infer<typeof refSchema>
 const rulesVersionSchema = z.object({ edition: z.string().min(1), update: z.string().min(1) })
 export type VsDataRulesVersion = z.infer<typeof rulesVersionSchema>
 
-/** A VS Data identity release: every entry of one rules version, with the other IDs that resolve to it. */
-export const vsDataIdentitySchema = z.object({
+const spanSchema = z.object({
+  start: z.number().int(),
+  end: z.number().int(),
+  bold: z.literal(true).optional(),
+  target: refSchema.optional(),
+})
+export type VsDataSpan = z.infer<typeof spanSchema>
+
+/**
+ * What the snapshot keeps of a verified VS Data release: each summary with its spans, first publisher citation
+ * and open questions, and the aliases of every entry a summary is for or links to.
+ */
+export const vsDataSummariesSchema = z.object({
+  release: z.string(),
   rulesVersion: rulesVersionSchema,
-  entries: z.array(
+  entries: z.record(z.string(), z.array(z.string())),
+  records: z.array(
     refSchema.extend({
-      name: z.string(),
-      aliases: z.array(z.string()).optional(),
-      retired: z.unknown().optional(),
+      summary: z.string().min(1),
+      spans: z.array(spanSchema),
+      citation: z.object({ title: z.string(), url: z.string(), page: z.string().nullable() }).nullable(),
+      questions: z.array(z.string()),
     }),
   ),
 })
-export type VsDataIdentity = z.infer<typeof vsDataIdentitySchema>
-
-/** One summary record, as a `rules-reference` or `mission-rules` category publishes it. */
-export const vsDataRecordSchema = refSchema.extend({
-  rulesVersion: rulesVersionSchema,
-  data: z.object({
-    summary: z.string().min(1),
-    summarySpans: z
-      .array(z.object({ start: z.number().int(), end: z.number().int(), bold: z.literal(true).optional(), target: refSchema.optional() }))
-      .optional(),
-    citations: z.array(
-      z.discriminatedUnion('type', [
-        z.object({ type: z.literal('app'), title: z.string() }),
-        z.object({ type: z.literal('publisher'), title: z.string(), url: z.string(), page: z.string().optional() }),
-      ]),
-    ),
-    interpretation: z.array(z.object({ question: z.string() })).optional(),
-  }),
-})
-export type VsDataRecord = z.infer<typeof vsDataRecordSchema>
+export type VsDataSummariesFile = z.infer<typeof vsDataSummariesSchema>
 
 export const vsDataKey = ({ kind, id }: VsDataRef) => `${kind}:${id}`
 
@@ -50,20 +45,18 @@ export function vsDataEdition(rulesVersion: VsDataRulesVersion) {
   return rulesVersion.edition === '11th' && major ? `mfm-${major}-${minor}` : null
 }
 
-/** Active entries by every ID that names them: their own `kind:id` and each alias. */
-export function vsDataIndex(identity: VsDataIdentity) {
-  const entries = new Map<string, VsDataRef>()
-  const aliases = new Map<string, string[]>()
-  for (const { kind, id, aliases: names = [], retired } of identity.entries) {
-    if (retired) continue
-    const ref = { kind, id }
-    entries.set(vsDataKey(ref), ref)
-    for (const alias of names) entries.set(alias, ref)
-    aliases.set(vsDataKey(ref), names)
+/** Entries by every ID that names them: their own `kind:id` and each alias. */
+export function vsDataIndex(entries: Readonly<Record<string, readonly string[]>>) {
+  const byName = new Map<string, VsDataRef>()
+  for (const [key, aliases] of Object.entries(entries)) {
+    const at = key.indexOf(':')
+    const ref = { kind: key.slice(0, at), id: key.slice(at + 1) }
+    byName.set(key, ref)
+    for (const alias of aliases) byName.set(alias, ref)
   }
   return {
-    entry: (key: string) => entries.get(key),
-    aliasesOf: (ref: VsDataRef) => aliases.get(vsDataKey(ref)) ?? [],
+    entry: (name: string) => byName.get(name),
+    aliasesOf: (ref: VsDataRef) => entries[vsDataKey(ref)] ?? [],
   }
 }
 
