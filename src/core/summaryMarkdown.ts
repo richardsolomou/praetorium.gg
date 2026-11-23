@@ -4,7 +4,8 @@ export type SummaryBlock = { paragraph: SummaryInline[] } | { list: 'ordered' | 
 
 const UNORDERED = /^- (.*)$/
 const ORDERED = /^\d+\. (.*)$/
-const LINK = /\[([^\]\n]+)\]\(vsdata:([a-z0-9-]+)\/([^\s)]+)\)/g
+// Link text may hold one level of balanced brackets, as CommonMark allows, so `[[LETHAL HITS]](vsdata:…)` links `[LETHAL HITS]`.
+const LINK = /\[((?:[^[\]\n]|\[[^[\]\n]*\])+)\]\(vsdata:([a-z0-9-]+)\/([^\s)]+)\)/g
 
 /**
  * A summary in VS Data's restricted Markdown: paragraphs split by a blank line, a block whose every line starts "- " or
@@ -43,7 +44,10 @@ export function spannedParagraph(
   const runs: SummaryInline[] = []
   let read = 0
   // A span out of range, empty, or overlapping the one before it is left out rather than misplacing the text around it.
-  for (const span of spans.toSorted((left, right) => left.start - right.start)) {
+  for (const given of spans.toSorted((left, right) => left.start - right.start)) {
+    // A link to an ability printed in brackets, as `[LANCE]`, takes its brackets, as a Markdown link's text does.
+    const bracketed = given.target && text[given.start - 1] === '[' && text[given.end] === ']'
+    const span = bracketed ? { ...given, start: given.start - 1, end: given.end + 1 } : given
     if (span.start < read || span.end <= span.start || span.end > text.length) continue
     if (span.start > read) runs.push({ text: text.slice(read, span.start) })
     runs.push({

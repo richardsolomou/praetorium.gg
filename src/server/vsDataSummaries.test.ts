@@ -144,3 +144,18 @@ it('reads a core rule clarification printed in an FAQ’s own words as that FAQ'
   )
   expect(summaries!.summariesIn(card('core_rules.json')).entries['rule#01.04.06']).toBe('faq:core-rules.errata.drawing-a-line')
 })
+
+it('serves a linked bracketed weapon ability as that ability, bold with its brackets', () => {
+  const summary = 'Its weapons gain **[[DEVASTATING WOUNDS]](vsdata:weapon-ability/devastating-wounds)** this phase.'
+  const devastating = { kind: 'weapon-ability', id: 'devastating-wounds', aliases: [], summary: 'Critical Wounds become mortal wounds.' }
+  const { summaries, base } = snapshot([{ update: 'MFM 1.6', summary }], [devastating])
+  expect(summaries!.summariesIn(base).records['ability:necrons.test.focused-fire']?.blocks).toEqual([
+    {
+      paragraph: [
+        { text: 'Its weapons gain ' },
+        { text: '[DEVASTATING WOUNDS]', bold: true, ability: 'weapon-ability:devastating-wounds' },
+        { text: ' this phase.' },
+      ],
+    },
+  ])
+})
