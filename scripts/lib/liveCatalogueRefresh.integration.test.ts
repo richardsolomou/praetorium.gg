@@ -24,7 +24,7 @@ vi.mock('./catalogueMaterialize', () => ({
   },
 }))
 const fetchPinnedSnapshot = vi.hoisted(() =>
-  vi.fn(async (_directory: string) => {
+  vi.fn(async (_directory: string): Promise<void> => {
     throw new Error('a published catalogue must not need the pinned snapshot')
   }),
 )
