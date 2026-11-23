@@ -61,7 +61,11 @@ export function RosterPrintDatasheet({ sheet }: { sheet: Datasheet }) {
                 {ability.name}
                 {ability.source ? ` (${ability.source})` : ''}
               </dt>
-              <dd>{ability.description ? <RuleText text={ability.description} className={PRINTED_RULE} name={ability.name} /> : null}</dd>
+              <dd>
+                {ability.description ? (
+                  <RuleText text={ability.description} className={PRINTED_RULE} name={ability.name} abilityId={ability.id} />
+                ) : null}
+              </dd>
             </div>
           ))}
           {extras.flatMap((section) =>

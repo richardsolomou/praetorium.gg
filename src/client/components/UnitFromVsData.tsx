@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { createContext, useContext } from 'react'
 import type { RuleSummary, RuleSummaryBlock, RuleSummaryInline } from '../../contracts/rules'
-import { unitAbilitySlug } from '../../core/summaryMarkdown'
 import { catalogueEditionId } from '../../core/catalogueEdition'
 import type { VsDataUnit, VsDataUnits } from '../../shared/vsData'
 import { ruleUnitsQuery } from '../queries/references'
+import { abilitySummaryIn } from '../../shared/vsDataAbilities'
 
 /** What VS Data's roster and transport data say of one datasheet's unit: undefined while asked for, null where it has none. */
 export function useVsDataUnit(catalogueId: string, entryId: string, enabled = true): VsDataUnit | null | undefined {
@@ -15,25 +15,6 @@ function useVsDataUnits(catalogueId: string, enabled: boolean): VsDataUnits | nu
   const { data, isPending } = useQuery({ ...ruleUnitsQuery(catalogueEditionId(catalogueId)), enabled })
   if (!enabled) return null
   return data ?? (isPending ? undefined : null)
-}
-
-const owned = new WeakMap<VsDataUnits, Map<string, Map<string, RuleSummary>>>()
-
-/** Each ability by the unit or faction whose id it starts with, then by `unitAbilitySlug`, read once per answer. */
-function abilitiesByOwner(units: VsDataUnits) {
-  let byOwner = owned.get(units)
-  if (!byOwner) {
-    byOwner = new Map()
-    for (const [id, summary] of Object.entries(units.abilities)) {
-      const at = id.lastIndexOf('.')
-      const slug = unitAbilitySlug(id.slice(at + 1))
-      const abilities = byOwner.get(id.slice(0, at)) ?? new Map<string, RuleSummary>()
-      if (!abilities.has(slug)) abilities.set(slug, summary)
-      byOwner.set(id.slice(0, at), abilities)
-    }
-    owned.set(units, byOwner)
-  }
-  return byOwner
 }
 
 const unitIn = (units: VsDataUnits | null | undefined, entryId: string) =>
@@ -53,22 +34,11 @@ export const detachmentRulesOwner = (catalogueId: string, factionSlug: string, d
  * The summary of an ability of the datasheet or detachment around it, by the ability's name: how a rule whose text only
  * BSData prints reaches its VS Data record. Undefined while asked for, null where there is none or no owner around it.
  */
-export function useUnitAbilitySummary(name: string | undefined, enabled: boolean): RuleSummary | null | undefined {
+export function useUnitAbilitySummary(name: string | undefined, enabled: boolean, id?: string): RuleSummary | null | undefined {
   const [catalogueId = '', subject = ''] = useContext(DatasheetUnit)?.split('#') ?? []
   const units = useVsDataUnits(catalogueId, enabled && Boolean(subject && name))
-  const owner = subject.startsWith('@') ? subject.slice(1) : unitIn(units, subject)?.id
   if (units === undefined) return undefined
-  if (!owner || !name || !units) return null
-  const byOwner = abilitiesByOwner(units)
-  const slug = unitAbilitySlug(name)
-  // The owner's own ability first, then its faction's, as its army rule and shared abilities are the faction's, then the
-  // one faction that has it, as a chapter's datasheets print the Space Marines' army rule.
-  const faction = [...byOwner].filter(([held, abilities]) => !held.includes('.') && abilities.has(slug))
-  return (
-    byOwner.get(owner)?.get(slug) ??
-    byOwner.get(owner.split('.')[0]!)?.get(slug) ??
-    (faction.length === 1 ? faction[0]![1].get(slug)! : null)
-  )
+  return units && name ? abilitySummaryIn(units, subject, name, id) : null
 }
 
 type Line = RuleSummaryInline[]

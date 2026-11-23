@@ -100,13 +100,15 @@ type UnitOption = VsDataUnit['options'][number]
 
 /**
  * The options a row's wargear comes from, as VS Data writes them: those offering most of its pieces, of the model the
- * option names where the unit has a model of that name, so a leader's option stays off the same weapon its troops take.
+ * option names where the unit has a model of that name, so a leader's option stays off the same weapon its troops take,
+ * and none whose wording its steppers contradict.
  */
 export function loadoutInstructions(
   row: Pick<ModelRow, 'name' | 'pieces'>,
   model: LoadoutModel,
   models: readonly LoadoutModel[],
   options: readonly UnitOption[],
+  unit: { choices: readonly LoadoutChoice[]; models: number },
 ): UnitOption[] {
   const names = row.pieces ?? [row.name]
   const candidates = options.flatMap((option) => {
@@ -118,7 +120,73 @@ export function loadoutInstructions(
     return matches ? [{ option, matches }] : []
   })
   const best = Math.max(0, ...candidates.map((candidate) => candidate.matches))
-  return candidates.filter((candidate) => candidate.matches === best).map((candidate) => candidate.option)
+  return candidates
+    .filter((candidate) => candidate.matches === best)
+    .map((candidate) => candidate.option)
+    .filter((option) => !optionContradictions(option, model, models, unit.choices, unit.models).length)
+}
+
+const pieceKey = (name: string) => wargearKey(wargearBaseName(name))
+
+/**
+ * Where an option's wording would contradict the steppers beside it, which follow the catalogue: a choice no stepper of
+ * the unit offers, a piece it replaces that the model does not carry by default (a model a choice stands for already
+ * took the swap), or a cap on one choice above what its steppers can reach at the unit's size.
+ */
+export function optionContradictions(
+  option: UnitOption,
+  model: LoadoutModel,
+  models: readonly LoadoutModel[],
+  choices: readonly LoadoutChoice[],
+  unitModels: number,
+): string[] {
+  const rowPieces = (owner: LoadoutModel) => (row: ModelRow) => modelRowPieces(row, owner.rows)
+  const pieces = (name: string) => name.split(' and ')
+  const offered = new Set(
+    [
+      ...choices.flatMap((choice) => choice.options.flatMap((candidate) => [candidate.name, ...(candidate.pieces ?? [])])),
+      ...models.flatMap((kind) => [
+        ...kind.name.split(/ w\/ | with /).slice(1),
+        ...kind.fixed.map((piece) => piece.name),
+        ...kind.rows.flatMap(rowPieces(kind)),
+      ]),
+    ]
+      .flatMap((name) => [name, ...pieces(name)])
+      .map(pieceKey),
+  )
+  const carried = new Set(
+    [
+      ...model.fixed.map((piece) => piece.name),
+      ...model.rows.filter((row) => loadoutRowSources(row, choices).some(({ option: source }) => source.default)).flatMap(rowPieces(model)),
+    ]
+      .flatMap((name) => [name, ...pieces(name)])
+      .map(pieceKey),
+  )
+  const standsForChoice = model.members.some((member) => member.choiceKey !== null)
+  return [
+    ...option.choices.flatMap((choice) =>
+      offered.has(pieceKey(choice)) || pieces(choice).every((piece) => offered.has(pieceKey(piece)))
+        ? []
+        : [`offers ${choice}, which no stepper offers`],
+    ),
+    ...(standsForChoice ? [] : (option.replaces ?? [])).flatMap(([piece]) =>
+      carried.has(pieceKey(piece)) ? [] : [`replaces ${piece}, which this model does not carry`],
+    ),
+    ...(option.caps ?? []).flatMap((cap) => {
+      if (cap.choices.length !== 1) return []
+      const wanted = pieces(cap.choices[0]!).map(pieceKey)
+      const row = model.rows.find((candidate) => {
+        const held = rowPieces(model)(candidate).map(pieceKey)
+        return held.length === wanted.length && wanted.every((piece) => held.includes(piece))
+      })
+      const limit = row && Math.max(0, ...loadoutRowSources(row, choices).map(({ option: source }) => source.max))
+      const allowed = cap.max * (cap.perModels ? Math.floor(unitModels / cap.perModels) : 1)
+      // A stepper's maximum only bounds a choice; the roster check may still refuse fewer, so only a lower one contradicts.
+      return row && limit !== undefined && limit < allowed
+        ? [`caps ${cap.choices[0]} at ${allowed} where the steppers stop at ${limit}`]
+        : []
+    }),
+  ]
 }
 
 const sameModel = (name: string, carrier: string) => new RegExp(`^${escapeRegExp(carrier)}s?$`, 'i').test(name)
