@@ -1,6 +1,7 @@
 import { expect, it } from 'vitest'
 import type { CanonicalCatalogue } from '../contracts/catalogue'
-import { referenceCorpusCooperatively, referenceCorpusFor } from './referenceCorpus'
+import { referenceCorpusCooperatively, referenceCorpusFor, referenceDocument } from './referenceCorpus'
+import type { ReferenceDocument } from '../contracts/reference'
 import type { LoadedRules } from '../shared/rules'
 import { bookOf, card, withCards } from './catalogue.fixtures'
 import { compileCanonicalCatalogue } from './canonicalCatalogue'
@@ -429,4 +430,10 @@ it('keeps building the catalogue it scanned when another is published mid-build'
   })
 
   expect(corpus?.catalogue.revisions.definitions).toBe('scanned')
+})
+
+it('finds a mission record by the Game Datacards ID it once had', () => {
+  const document = { id: 'mission:secondary:chapter-approved-2026-2027.assassination' } as ReferenceDocument
+  const byId = new Map([[document.id, document]])
+  expect(referenceDocument({ byId }, 'mission:secondary:56ceebfa-1be3-4520-a7cb-10b5e8b2a150')).toBe(document)
 })
