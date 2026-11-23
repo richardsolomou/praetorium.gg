@@ -27,7 +27,9 @@ import {
 } from './loadoutModel'
 import type { WeaponProfileData } from './loadoutModel'
 import { type OptionNote, PickControl, PoolStepper, type StandingWargear, WargearRow } from './LoadoutControls'
-import { ownWords } from '../../../../core/sourceText'
+import { unitOption } from '../../../components/UnitFromVsData'
+import { textOf } from '../../../components/RuleSummaryText'
+import type { VsDataUnit } from '../../../../shared/vsData'
 import { sameWargear } from '../../../../core/wargearNames'
 
 /**
@@ -45,7 +47,7 @@ export function ModelCard({
   weapons,
   abilities,
   rules,
-  wargearGroups,
+  unitOptions,
   models,
   onChoose,
   onSpread,
@@ -63,7 +65,8 @@ export function ModelCard({
   weapons: WeaponProfileData[]
   abilities: Datasheet['abilities']
   rules: Datasheet['keywordRules']
-  wargearGroups?: Datasheet['wargearGroups']
+  /** The unit's wargear options as VS Data writes them, whose wording each row they offer shows above it. */
+  unitOptions?: VsDataUnit['options']
   models?: readonly LoadoutModel[]
   onChoose: (key: string, optionId: string) => void
   onSpread: (key: string, update: SpreadUpdate) => void
@@ -196,11 +199,13 @@ export function ModelCard({
             }
           }
           const instructions = showOptions
-            ? loadoutInstructions({ ...row, pieces }, model, models ?? [model], wargearGroups ?? [], ownWords).filter((instruction) => {
-                if (statedInstructions.has(instruction)) return false
-                statedInstructions.add(instruction)
-                return true
-              })
+            ? loadoutInstructions({ ...row, pieces }, model, models ?? [model], unitOptions ?? [])
+                .map(unitOption)
+                .filter((instruction) => {
+                  if (statedInstructions.has(textOf(instruction))) return false
+                  statedInstructions.add(textOf(instruction))
+                  return true
+                })
             : []
           return (
             <WargearRow

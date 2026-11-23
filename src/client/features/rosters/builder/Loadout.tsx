@@ -22,6 +22,7 @@ import {
 } from './loadoutModel'
 import { EitherChoice, LoadoutLoading, type OptionNote, SpecialChoice, SpreadChoice, type StandingWargear } from './LoadoutControls'
 import { ModelCard } from './ModelCard'
+import { useVsDataUnit } from '../../../components/UnitFromVsData'
 import { BattleChoices, useBattleChoices } from './BattleChoices'
 import type { ReminderControls } from '../ReminderButton'
 import { Problem } from '../../../components/Problem'
@@ -137,6 +138,7 @@ export function Loadout({
     fielded,
   })
   const sheet = useMemo(() => battleSheet(sheets?.selected), [battleSheet, sheets?.selected])
+  const unitOptions = useVsDataUnit(catalogueId, unit?.entryId ?? '', Boolean(unit?.entryId))?.options
   // Every weapon the unit could take, priced and modified as this list would have
   // it: an enhancement that adds to a weapon's Attacks is part of the choice, so it
   // has to be visible before the choice is made rather than after.
@@ -215,7 +217,7 @@ export function Loadout({
                   key={model.members.map((member) => member.id).join('/')}
                   model={model}
                   models={unit.models}
-                  wargearGroups={availableSheet.wargearGroups}
+                  unitOptions={unitOptions}
                   choices={unit.choices}
                   stands={models.get(model) ?? null}
                   onChoose={onChoose}
