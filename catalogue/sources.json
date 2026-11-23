@@ -105,11 +105,6 @@
     "revision": "c2415f853c7e09ee279198d02d0820081d73fe7c6e21e448ef2cac14467cc4ce",
     "earlier": [
       {
-        "release": "rules-custodes-11e-v0.4.0",
-        "asset": "vs-data-custodes-11e-rule-summaries-v0.4.0.tar",
-        "revision": "dbaab40331e1187a61cedc91df5b666eb7fca027deb060f7878e834bfda35f8a"
-      },
-      {
         "release": "rules-legacy-profiles-v0.4.0",
         "asset": "vs-data-legacy-profiles-rule-summaries-v0.4.0.tar",
         "revision": "c4574d017fcaba3e9b42c07a4d8923f46d7eacf331c07787bde45a46bac604be"
