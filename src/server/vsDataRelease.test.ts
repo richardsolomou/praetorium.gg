@@ -91,3 +91,29 @@ it('keeps each Stratagem’s typed facts, naming the Detachment it references', 
   const [kept] = JSON.parse(fs.readFileSync(file, 'utf8')).stratagems
   expect([kept.detachment, kept.limit, kept.windows.length]).toEqual(['Shadowkeepers', 'battle', 2])
 })
+
+it('keeps a Stratagem in its own group where its reference names another Detachment', () => {
+  fs.rmSync(directory, { recursive: true, force: true })
+  const stratagem = {
+    kind: 'ability',
+    id: 'space-marines.medusas-wrath.vengeful-animus',
+    aliases: [],
+    summary: 'Vengeful animus.',
+    data: {
+      ruleType: 'stratagem',
+      cp: 1,
+      group: "Medusa's Wrath",
+      detachment: { kind: 'detachment', id: 'space-marines.ironstorm-spearhead' },
+      stratagem: { phases: ['fight'], turn: 'any' },
+    },
+  }
+  writeFiles(
+    directory,
+    vsDataReleaseFiles([stratagem], 'MFM 1.4', [
+      { kind: 'detachment', id: 'space-marines.ironstorm-spearhead', name: 'Ironstorm Spearhead' },
+    ]),
+  )
+  const file = `${directory}.json`
+  compactVsDataRelease(directory, file)
+  expect(JSON.parse(fs.readFileSync(file, 'utf8')).stratagems[0].detachment).toBe("Medusa's Wrath")
+})

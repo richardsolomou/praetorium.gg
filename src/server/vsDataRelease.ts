@@ -48,6 +48,7 @@ const recordSchema = refSchema.extend({
       .optional(),
     interpretation: z.array(z.object({ question: z.string() })).optional(),
     ruleType: z.string().optional(),
+    group: z.string().optional(),
     detachment: z.object({ id: z.string() }).optional(),
     cp: z.number().int().optional(),
     stratagem: z.unknown().optional(),
@@ -151,7 +152,10 @@ function stratagemOf(
     return []
   const name = identity.find((entry) => entry.kind === kind && entry.id === id)?.name
   const core = data.ruleType === 'core-stratagem'
-  const detachment = core ? null : (identity.find((entry) => entry.kind === 'detachment' && entry.id === data.detachment?.id)?.name ?? null)
+  // The card's own group wins: where a rules version has no entry for that Detachment, the reference names another.
+  const detachment = core
+    ? null
+    : (data.group ?? identity.find((entry) => entry.kind === 'detachment' && entry.id === data.detachment?.id)?.name ?? null)
   const facts = factsSchema.safeParse(data.facts)
   const parsed = vsDataStratagemSchema.safeParse({
     id,
