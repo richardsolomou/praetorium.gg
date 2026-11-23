@@ -250,19 +250,16 @@ export function* loadDatacardsSteps(
     textFacts,
     textReadings,
   }
-  const stratagemTexts = [
-    ...stratagemTexts.values(),
-    ...descriptionsIn([loaded.stratagems, [...factions.values()].map((content) => content.stratagems)]),
-  ]
+  const stratagems = [...stratagemTexts.values()]
   recordCombat(
     [
-      ...stratagemTexts,
+      ...stratagems,
       ...[...enhancements.values(), ...armyRules.values()].flatMap((texts) => [...texts.values()]),
       ...descriptionsIn([loaded.factions, loaded.detachmentRules]),
     ],
     textFacts,
     textWords,
-    new Set(stratagemTexts),
+    new Set(stratagems),
   )
   return loaded
 }
