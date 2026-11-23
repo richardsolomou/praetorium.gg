@@ -1,6 +1,7 @@
 import { bracketedRuleReferences } from '../core/ruleReference'
 import { attachmentClaim, substitutedUnits } from '../core/attach'
 import { combatFactsOf } from '../core/combatReading'
+import { offeredOptionsIn, statedAllowances } from '../core/battleChoices'
 import { hasTextTokens, textKey, textTokensIn, withoutText } from '../core/sourceText'
 import { movementToolsFrom, unitGenerationFrom } from './rosterGradeUtility'
 import { suggestReminderTimings, suggestReminderWhileDestroyed } from '../core/reminders'
@@ -20,11 +21,15 @@ export function textFactsOf(words: string): TextFacts | null {
   const weaponGrants = unconditionalWeaponAbilityGrants(words)
   const reserveSelectors = strategicReserveExemptionSelectors(words)
   const references = referencedRuleNames(words)
+  const allowances = statedAllowances(words)
+  const offered = offeredOptionsIn(words)
   const facts: TextFacts = {
     ...(weaponGrants.length ? { weaponGrants } : {}),
     ...(reserveSelectors.length ? { reserveSelectors } : {}),
     ...(grantsStrategicReserveExemption(words) ? { reserveExemption: true as const } : {}),
     ...(references.length ? { references } : {}),
+    ...(allowances.length ? { battleChoiceAllowances: allowances } : {}),
+    ...(offered.length ? { offeredOptions: offered } : {}),
   }
   return Object.keys(facts).length ? facts : null
 }
@@ -202,4 +207,16 @@ function referencedRuleNames(text: string): string[] {
     }),
     ...bracketedRuleReferences(text).filter((name): name is string => Boolean(name)),
   ]
+}
+
+/** What a text allows a unit's battle choices: from its own words, and recorded for each token it holds. */
+export function allowancesIn(text: string, facts?: TextFactsByKey) {
+  const { words, recorded } = statedIn(text, facts)
+  return [...recorded.flatMap((fact) => fact.battleChoiceAllowances ?? []), ...statedAllowances(words)]
+}
+
+/** The options a rule's text offers by their plural: from its own words, and recorded for each token it holds. */
+export function offeredOptionsOf(text: string, facts?: TextFactsByKey) {
+  const { words, recorded } = statedIn(text, facts)
+  return [...recorded.flatMap((fact) => fact.offeredOptions ?? []), ...offeredOptionsIn(words)]
 }
