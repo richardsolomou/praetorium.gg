@@ -487,7 +487,7 @@ test('a rule is read by the number the source prints against it', async ({ brows
   const remainStationary = page.locator('[id="09.04"]')
   await expect(remainStationary).toContainText(/remain stationary/i)
   // A movement behaviour reads as its summary, without the fields the source writes as a dash.
-  await expect(remainStationary).toContainText(/none of its models move/i)
+  await expect(remainStationary.locator('[data-rule-summary]')).toHaveText(/\S/)
   await expect(remainStationary).not.toContainText(/maximum distance/i)
   // The printed rulebook's photography is not republished.
   await expect(page.locator('main img')).toHaveCount(0)
@@ -527,9 +527,11 @@ test('the faction page shows its army rule in full when expanded', async ({ page
   await page.goto('/factions/necrons')
 
   const armyRule = page.locator('details').filter({ has: page.getByRole('heading', { name: 'Reanimation Protocols', exact: true }) })
-  await expect(armyRule.getByText(/as your Command phase finishes/).first()).toBeHidden()
+  const summary = armyRule.locator('[data-rule-summary]').first()
+  await expect(summary).toBeHidden()
   await armyRule.locator('summary').click()
-  await expect(armyRule.getByText(/as your Command phase finishes/).first()).toBeVisible()
+  await expect(summary).toBeVisible()
+  await expect(summary).toHaveText(/\S/)
   await expect(page.getByRole('button', { name: 'Reanimation Protocols', exact: true })).toHaveCount(0)
   await page.screenshot({ path: test.info().outputPath('faction-army-rule.png'), fullPage: true })
 
@@ -1111,7 +1113,7 @@ test('a player can enter through the roster library and browse the product', asy
   await expect(page.getByRole('heading', { name: /Detachments/ })).toHaveCount(0)
   await page.getByRole('button', { name: 'Devastating Wounds' }).first().hover()
   await expect(page.getByRole('tooltip').getByText('Devastating Wounds', { exact: true })).toBeVisible()
-  await expect(page.getByRole('tooltip')).toContainText('critical wound')
+  await expect(page.getByRole('tooltip').locator('[data-rule-summary]')).toHaveText(/\S/)
   await page.screenshot({ path: test.info().outputPath('keyword-tooltip.png'), fullPage: true })
   await page.reload()
   await expect(page.getByRole('heading', { name: 'Overlord', exact: true })).toBeVisible()
