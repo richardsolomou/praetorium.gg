@@ -93,15 +93,5 @@
     "attribution": "Terrain geometry provided by Battlemaster",
     "description": "Exact public terrain-area, roof, and wall geometry for Chapter Approved and Combat Patrol layouts.",
     "revision": "acabfa43bd2d7cabfc868789ff01c1d2f467e770baf1b77a5bf4c301ed3ab4e7"
-  },
-  "summaries": {
-    "repository": "richardsolomou/40k-catalogue",
-    "release": "v0.1.0",
-    "asset": "40k-catalogue-necrons-v0.1.0.tar",
-    "license": "MIT",
-    "licenseUrl": "https://github.com/richardsolomou/40k-catalogue/blob/main/LICENSE",
-    "attribution": "Rules summaries from richardsolomou/40k-catalogue",
-    "description": "Original rules summaries, each recording the rules version it describes.",
-    "revision": "536d57cacef6de261761597f0f372f5920b1e20272ade587f69001706102d8c5"
   }
 }
