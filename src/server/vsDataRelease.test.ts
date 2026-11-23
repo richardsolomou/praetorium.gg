@@ -3,7 +3,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, expect, it } from 'vitest'
 import { vsDataReleaseFiles, writeFiles } from './vsData.fixtures'
-import { checkVsDataRelease, vsDataReleaseErrors } from './vsDataRelease'
+import { checkVsDataRelease, compactVsDataRelease, vsDataReleaseErrors } from './vsDataRelease'
 
 const record = { kind: 'ability', id: 'necrons.test.phase-shift', aliases: [], summary: 'Move one unit.' }
 let directory: string
@@ -39,4 +39,23 @@ it('refuses a release for an MFM no rules version plays', () => {
   expect(() => checkVsDataRelease(directory, [{ id: 'mfm-1-6', name: 'MFM 1.6' }])).toThrow(
     'describes 11th MFM 1.5, which no rules version plays',
   )
+})
+
+it('keeps the credit each adapted record names, once', () => {
+  const credit = {
+    credit: 'A data project',
+    url: 'https://example.com/data',
+    licence: 'https://creativecommons.org/licenses/by/4.0/legalcode',
+  }
+  fs.rmSync(directory, { recursive: true })
+  writeFiles(
+    directory,
+    vsDataReleaseFiles([
+      { ...record, attribution: credit },
+      { ...record, id: 'necrons.test.other', attribution: credit },
+    ]),
+  )
+  const file = `${directory}.json`
+  compactVsDataRelease(directory, file)
+  expect(JSON.parse(fs.readFileSync(file, 'utf8')).attributions).toEqual([credit])
 })

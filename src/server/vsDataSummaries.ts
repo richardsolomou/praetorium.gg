@@ -10,6 +10,7 @@ import {
   vsDataEdition,
   vsDataIndex,
   vsDataKey,
+  type VsDataAttribution,
   type VsDataSummariesFile,
   vsDataSummariesSchema,
 } from '../shared/vsData'
@@ -28,12 +29,15 @@ export type VsDataSummaries = {
   summariesIn: (file: string) => RuleSummaries
   /** Every Game Datacards record of one rules version, once each, for the coverage report. */
   joins: (edition: string) => VsDataJoin[]
+  /** The upstream work the served summaries adapt, once each, which the Sources page credits. */
+  attributions: VsDataAttribution[]
   /** The summaries dropped because they repeat a source's own wording, as `edition kind:id`. */
   withheld: readonly string[]
 }
 
 type Version = {
   edition: string
+  attributions: VsDataAttribution[]
   files: ReturnType<typeof editionTextFiles>
   index: ReturnType<typeof vsDataIndex>
   summaries: Map<string, RuleSummary>
@@ -71,7 +75,7 @@ export function* vsDataSummariesSteps(directory: string, documents: readonly Rul
         .map((alias) => links.get(alias))
         .find(Boolean)
     const summaries = new Map(release.records.map((record) => [vsDataKey(record), summaryOf(record, link)]))
-    versions.push({ edition, files, index, summaries })
+    versions.push({ edition, attributions: release.attributions, files, index, summaries })
     yield
   }
   if (!versions.length) return null
@@ -89,6 +93,11 @@ export function* vsDataSummariesSteps(directory: string, documents: readonly Rul
   const held = new RecentlyUsed<string, RuleSummaries>(16)
   return {
     editions: versions.map((version) => version.edition),
+    attributions: [
+      ...new Map(
+        versions.flatMap((version) => version.attributions).map((credit) => [`${credit.credit} ${credit.licence}`, credit]),
+      ).values(),
+    ],
     withheld,
     summariesIn: (id) => {
       const card = cards.get(id)
@@ -99,9 +108,14 @@ export function* vsDataSummariesSteps(directory: string, documents: readonly Rul
       const version = versions.find((candidate) => candidate.edition === edition)
       for (const file of version?.files ?? [])
         if (file.source === 'game-datacards')
-          for (const { kind, key } of read(file.path)) {
-            const ref = version!.index.entry(key)
-            joins.set(key, { kind, key, named: Boolean(ref), served: Boolean(ref && version!.summaries.has(vsDataKey(ref))) })
+          for (const { kind, keys } of read(file.path)) {
+            const ref = version!.index.entry(keys)
+            joins.set(keys[0]!, {
+              kind,
+              key: keys[0]!,
+              named: Boolean(ref),
+              served: Boolean(ref && version!.summaries.has(vsDataKey(ref))),
+            })
           }
       return [...joins.values()]
     },
@@ -114,8 +128,8 @@ function summariesFor(
   summaries: ReadonlyMap<string, RuleSummary>,
 ) {
   const answer: RuleSummaries = { records: {}, texts: {}, entries: {} }
-  for (const { key, texts, entry } of records) {
-    const ref = index.entry(key)
+  for (const { keys, texts, entry } of records) {
+    const ref = index.entry(keys)
     const id = ref && vsDataKey(ref)
     const summary = id && summaries.get(id)
     if (!id || !summary) continue

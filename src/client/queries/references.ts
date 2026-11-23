@@ -21,6 +21,7 @@ import {
   globalSearch,
   ruleIndex,
   ruleSection,
+  ruleSummaryCredits,
   ruleSummaryRecords,
   terrainReferences,
 } from '../functions'
@@ -131,6 +132,8 @@ export const ruleSectionQuery = (documentId: string, sectionId: string) =>
     ...referenceQuery(['rule-section', documentId, sectionId], () => ruleSection({ data: { documentId, sectionId } })),
     enabled: Boolean(documentId && sectionId),
   })
+/** The upstream work the served summaries adapt. */
+export const ruleSummaryCreditsQuery = () => referenceQuery(['rule-summary-credits'], () => ruleSummaryCredits())
 /** One source file's summaries; a failed read only leaves its rules on their own text, so it is not retried. */
 export const ruleSummariesQuery = (file: string) =>
   queryOptions({

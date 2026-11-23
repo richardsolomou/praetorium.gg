@@ -29,8 +29,8 @@ function snapshot(releases: { update: string; summary: string }[]) {
   const base = composition.editions.filter((entry) => 'base' in entry && entry.base)
   writeFiles(directory, [
     ['composition.json', JSON.stringify({ ...composition, editions: [...base, codex] })],
-    ['datacards/11th/gdc/necrons.json', JSON.stringify({ stratagems: [stratagem] })],
-    ['editions/custodes-11e/datacards/11th/gdc/necrons.json', JSON.stringify({ stratagems: [stratagem] })],
+    ['datacards/11th/gdc/necrons.json', JSON.stringify({ id: 'necrons', stratagems: [stratagem] })],
+    ['editions/custodes-11e/datacards/11th/gdc/necrons.json', JSON.stringify({ id: 'necrons', stratagems: [stratagem] })],
   ])
   fs.mkdirSync(path.join(directory, 'summaries'))
   releases.forEach(({ update, summary }, at) => {

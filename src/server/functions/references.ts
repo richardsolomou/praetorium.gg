@@ -327,16 +327,19 @@ export const textSources = createServerFn({ method: 'GET' }).handler(() => snaps
  */
 export const ruleSummaryRecords = createServerFn({ method: 'GET' })
   .validator(textFileSchema)
-  .handler(({ data }) =>
-    snapshotRpc(async () => {
-      const summaries = await memoUntilSnapshotChanges('vs-data-summaries', null, async () => {
-        const [canonical, rules] = await Promise.all([app().canonicalCatalogueFor(), app().rulesFor()])
-        const documents = canonical?.ruleDocuments ?? rules?.ruleDocuments ?? []
-        return completeStepsCooperatively(vsDataSummariesSteps(catalogueDirectory(), documents))
-      })
-      return summaries?.summariesIn(data.file) ?? NO_RULE_SUMMARIES
-    }),
-  )
+  .handler(({ data }) => snapshotRpc(async () => (await vsDataSummaries())?.summariesIn(data.file) ?? NO_RULE_SUMMARIES))
+
+/** The upstream work the served summaries adapt, which the Sources page credits. */
+export const ruleSummaryCredits = createServerFn({ method: 'GET' }).handler(() =>
+  snapshotRpc(async () => (await vsDataSummaries())?.attributions ?? []),
+)
+
+const vsDataSummaries = () =>
+  memoUntilSnapshotChanges('vs-data-summaries', null, async () => {
+    const [canonical, rules] = await Promise.all([app().canonicalCatalogueFor(), app().rulesFor()])
+    const documents = canonical?.ruleDocuments ?? rules?.ruleDocuments ?? []
+    return completeStepsCooperatively(vsDataSummariesSteps(catalogueDirectory(), documents))
+  })
 
 /** Every rules document and section by name, with the numbers their prose quotes. */
 export const ruleIndex = createServerFn({ method: 'GET' }).handler(() =>

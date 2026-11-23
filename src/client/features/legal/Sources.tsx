@@ -1,6 +1,27 @@
+import { useQuery } from '@tanstack/react-query'
+import { ruleSummaryCreditsQuery } from '../../queries/references'
 import { LegalLinks, LegalPage, LegalSection } from './LegalPage'
 
 const linkClass = 'text-info hover:text-parchment'
+
+/** The upstream work the pinned summaries adapt, as their records credit it: nothing where none does. */
+function SummaryCredits() {
+  const { data: credits = [] } = useQuery(ruleSummaryCreditsQuery())
+  return credits.map((credit) => (
+    <span key={`${credit.credit} ${credit.licence}`}>
+      {' '}
+      Some of them adapt work by{' '}
+      <a href={credit.url} className={linkClass}>
+        {credit.credit}
+      </a>
+      , licensed under{' '}
+      <a href={credit.licence} className={linkClass}>
+        {/creativecommons\.org\/licenses\/by\/4\.0/.test(credit.licence) ? 'CC BY 4.0' : 'its own licence'}
+      </a>
+      .
+    </span>
+  ))
+}
 
 export function Sources() {
   return (
@@ -55,15 +76,8 @@ export function Sources() {
             <a href="https://github.com/richardsolomou/vs-data" className={linkClass}>
               VS Data
             </a>
-            , licensed under MIT. Some of them adapt structured rules data from{' '}
-            <a href="https://github.com/wn-mitch/40kdc-data" className={linkClass}>
-              40kdc
-            </a>{' '}
-            by Alpaca Software and the 40kdc community contributors, licensed under{' '}
-            <a href="https://creativecommons.org/licenses/by/4.0/" className={linkClass}>
-              CC BY 4.0
-            </a>
-            .
+            , licensed under MIT.
+            <SummaryCredits />
           </li>
           <li>
             Translated faction, detachment, and force disposition names, used to read lists exported in another language, from{' '}

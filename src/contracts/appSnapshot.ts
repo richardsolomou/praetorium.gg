@@ -21,6 +21,7 @@ export const PUBLIC_REFERENCE_QUERIES = new Set([
   'rule-section',
   'text-sources',
   'rule-summary-records',
+  'rule-summary-credits',
   'import-translations',
 ])
 export const APP_SNAPSHOT_QUERIES = new Set([

@@ -2,7 +2,13 @@ import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 
-type FixtureRecord = { kind: string; id: string; aliases: string[]; summary: string }
+type FixtureRecord = {
+  kind: string
+  id: string
+  aliases: string[]
+  summary: string
+  attribution?: { credit: string; url: string; licence: string }
+}
 
 /** The files of a VS Data catalogue release holding `records`, as an archive lays them out. */
 export function vsDataReleaseFiles(records: FixtureRecord[], update = 'MFM 1.6'): [string, string][] {
@@ -13,7 +19,7 @@ export function vsDataReleaseFiles(records: FixtureRecord[], update = 'MFM 1.6')
     rulesVersion,
     entries: records.map(({ kind, id, aliases, summary }) => ({ kind, id, name: summary.split(' ')[0], aliases })),
   })
-  const recordFiles = records.map(({ kind, id, summary }): [string, string] => [
+  const recordFiles = records.map(({ kind, id, summary, attribution }): [string, string] => [
     `records/rules-reference/${kind}/${id}.json`,
     JSON.stringify({
       formatVersion: 1,
@@ -21,6 +27,7 @@ export function vsDataReleaseFiles(records: FixtureRecord[], update = 'MFM 1.6')
       id,
       rulesVersion,
       source: { title: 'An app build' },
+      ...(attribution ? { attribution: { ...attribution, revision: 'abc', changes: 'Adapted.' } } : {}),
       data: { summary, citations: [{ type: 'publisher', title: 'A faction pack', url: 'https://example.com/pack.pdf', page: '3' }] },
     }),
   ])

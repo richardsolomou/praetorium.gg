@@ -2,7 +2,7 @@ import { hash } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import { z } from 'zod'
-import { type VsDataSummariesFile, vsDataEdition, vsDataKey, type VsDataRulesVersion } from '../shared/vsData'
+import { vsDataAttributionSchema, type VsDataSummariesFile, vsDataEdition, vsDataKey, type VsDataRulesVersion } from '../shared/vsData'
 
 const fileSchema = z.object({ path: z.string().min(1), sha256: z.string().regex(/^[0-9a-f]{64}$/) })
 const manifestSchema = z.object({
@@ -28,6 +28,7 @@ const identitySchema = z.object({
 })
 const recordSchema = refSchema.extend({
   rulesVersion: z.object({ update: z.string() }),
+  attribution: vsDataAttributionSchema.optional(),
   data: z.object({
     summary: z.string().min(1),
     summarySpans: z
@@ -133,6 +134,20 @@ export function compactVsDataRelease(directory: string, file: string) {
     release: manifest.release,
     rulesVersion: manifest.rulesVersion,
     entries: Object.fromEntries(entries.map((entry) => [vsDataKey(entry), entry.aliases ?? []])),
+    attributions: [
+      ...new Map(
+        records.flatMap(({ attribution }) =>
+          attribution
+            ? [
+                [
+                  `${attribution.credit} ${attribution.licence}`,
+                  { credit: attribution.credit, url: attribution.url, licence: attribution.licence },
+                ],
+              ]
+            : [],
+        ),
+      ).values(),
+    ],
     records: records.map(({ kind, id, data }) => ({
       kind,
       id,

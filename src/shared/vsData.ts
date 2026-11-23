@@ -7,6 +7,9 @@ export type VsDataRef = z.infer<typeof refSchema>
 const rulesVersionSchema = z.object({ edition: z.string().min(1), update: z.string().min(1) })
 export type VsDataRulesVersion = z.infer<typeof rulesVersionSchema>
 
+export const vsDataAttributionSchema = z.object({ credit: z.string(), url: z.string(), licence: z.string() })
+export type VsDataAttribution = z.infer<typeof vsDataAttributionSchema>
+
 const spanSchema = z.object({
   start: z.number().int(),
   end: z.number().int(),
@@ -16,13 +19,14 @@ const spanSchema = z.object({
 export type VsDataSpan = z.infer<typeof spanSchema>
 
 /**
- * What the snapshot keeps of a verified VS Data release: each summary with its spans and open questions, and the
- * aliases of every entry a summary is for or links to.
+ * What the snapshot keeps of a verified VS Data release: each summary with its spans and open questions, the aliases
+ * of every entry a summary is for or links to, and the upstream work its records adapt, which must be credited.
  */
 export const vsDataSummariesSchema = z.object({
   release: z.string(),
   rulesVersion: rulesVersionSchema,
   entries: z.record(z.string(), z.array(z.string())),
+  attributions: z.array(vsDataAttributionSchema).default([]),
   records: z.array(
     refSchema.extend({
       summary: z.string().min(1),
@@ -53,7 +57,8 @@ export function vsDataIndex(entries: Readonly<Record<string, readonly string[]>>
     for (const alias of aliases) byName.set(alias, ref)
   }
   return {
-    entry: (name: string) => byName.get(name),
+    /** The entry the first of these names that VS Data knows resolves to. */
+    entry: (names: readonly string[]) => names.map((name) => byName.get(name)).find(Boolean),
     aliasesOf: (ref: VsDataRef) => entries[vsDataKey(ref)] ?? [],
   }
 }
@@ -75,25 +80,34 @@ export type GdcRuleKind =
   | 'mission twist'
 
 /**
- * A Game Datacards record by the key VS Data names it with, and the strings it prints its rule in: the
- * strings a rules-text token can name. `key` is an identity alias, or `kind:id` where VS Data keys the
+ * A Game Datacards record by the keys VS Data may name it with, most specific first, and the strings it prints its
+ * rule in: the strings a rules-text token can name. A key is an identity alias, or `kind:id` where VS Data keys the
  * record by the source's own name, as it does keywords. `entry` is the rules-document entry a core rule is.
  */
-export type GdcRuleRecord = { kind: GdcRuleKind; key: string; texts: string[]; entry?: string }
+export type GdcRuleRecord = { kind: GdcRuleKind; keys: string[]; texts: string[]; entry?: string }
 
 /**
  * VS Data's alias grammar for Game Datacards records: `gdc.` and the record's kind, then its UUID with
  * dots for dashes, then for a rule a card prints by name, that name in lower case with dots between its
- * words. Core rules are aliased by the source's own entry UUID.
+ * words. A datasheet several factions print names each faction's copy of an ability with `.faction.` and
+ * the faction's UUID, and a wargear ability that shares another ability's name with `.slot.wargear` before
+ * that. Core rules are aliased by the source's own entry UUID.
  */
 export function gdcRuleRecords(file: unknown): GdcRuleRecord[] {
   const root = fieldsOf(file)
   if (!root) return []
   const records: GdcRuleRecord[] = []
-  const add = (kind: GdcRuleKind, key: string, texts: (string | null)[], entry?: string) =>
-    records.push({ kind, key, texts: texts.filter((text): text is string => Boolean(text)), ...(entry ? { entry } : {}) })
+  const add = (kind: GdcRuleKind, keys: string | string[], texts: (string | null)[], entry?: string) =>
+    records.push({
+      kind,
+      keys: typeof keys === 'string' ? [keys] : keys,
+      texts: texts.filter((text): text is string => Boolean(text)),
+      ...(entry ? { entry } : {}),
+    })
+  // The core stratagems' file is no faction's, and every stratagem in it is core, whichever type it is.
+  const coreFile = typeof root.id !== 'string'
   for (const stratagem of list(root.stratagems)) {
-    const core = stratagem.type === 'Core Stratagem'
+    const core = coreFile
     const texts = ['when', 'target', 'effect', 'restrictions'].map((field) => raw(stratagem[field]))
     add(core ? 'core stratagem' : 'stratagem', `gdc.${core ? 'core.stratagem' : 'stratagem'}.${dotted(stratagem.id)}`, texts)
   }
@@ -107,9 +121,14 @@ export function gdcRuleRecords(file: unknown): GdcRuleRecord[] {
       add('detachment rule', `gdc.detachment.rule.${dotted(detachment.detachment_id)}.${named(rule.name)}`, blockTexts(rule.rules))
   for (const datasheet of list(root.datasheets)) {
     const abilities = fieldsOf(datasheet.abilities)
+    const faction = datasheet.faction_id ? `.faction.${dotted(datasheet.faction_id)}` : ''
     // Wargear and special abilities are a datasheet's abilities too, aliased alike.
-    for (const ability of ['other', 'wargear', 'special'].flatMap((group) => list(abilities?.[group])))
-      add('unit ability', `gdc.unit.ability.${dotted(datasheet.id)}.${named(ability.name)}`, [raw(ability.description)])
+    for (const group of ['other', 'wargear', 'special'])
+      for (const ability of list(abilities?.[group])) {
+        const base = `gdc.unit.ability.${dotted(datasheet.id)}.${named(ability.name)}`
+        const slotted = group === 'wargear' ? [`${base}.slot.wargear${faction}`, `${base}.slot.wargear`] : []
+        add('unit ability', [...slotted, `${base}${faction}`, base], [raw(ability.description)])
+      }
   }
   for (const keyword of list(root.keywords)) {
     const kind = Array.isArray(keyword.appliesTo) && keyword.appliesTo.includes('weapons') ? 'weapon-ability' : 'core-ability'
