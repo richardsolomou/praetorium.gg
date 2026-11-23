@@ -22,7 +22,7 @@ import {
 } from './loadoutModel'
 import { EitherChoice, LoadoutLoading, type OptionNote, SpecialChoice, SpreadChoice, type StandingWargear } from './LoadoutControls'
 import { ModelCard } from './ModelCard'
-import { useVsDataUnit } from '../../../components/UnitFromVsData'
+import { DatasheetUnit, datasheetUnit, useVsDataUnit } from '../../../components/UnitFromVsData'
 import { BattleChoices, useBattleChoices } from './BattleChoices'
 import type { ReminderControls } from '../ReminderButton'
 import { Problem } from '../../../components/Problem'
@@ -185,119 +185,122 @@ export function Loadout({
     : loose.filter((choice) => choice.kind && choice.options.some((option) => option.count || choice.chosen === option.id))
   const described = { weapons, abilities, rules }
   const Container = embedded ? 'div' : ScrollArea
+  const unitKey = datasheetUnit(catalogueId, unit.entryId)
 
   return (
-    <div className={`flex min-w-0 flex-col ${embedded ? '' : 'h-full'}`}>
-      <Container
-        className={
-          embedded
-            ? 'min-w-0 p-2.5'
-            : 'min-h-0 min-w-0 max-w-full flex-1 overflow-hidden [&_[data-slot=scroll-area-viewport]]:touch-pan-y [&_[data-slot=scroll-area-viewport]]:!overflow-x-hidden [&_[data-slot=scroll-area-viewport]]:overscroll-x-none [&_[data-slot=scroll-area-viewport]]:p-2.5'
-        }
-      >
-        <div className="w-full min-w-0 space-y-4">
-          {header}
-          <div className="space-y-1.5">
-            {profile ? <UnitProfile profile={profile} /> : null}
-            <BattleChoices choices={battle.choices} chosen={battle.chosen} onChoose={battle.choose} rules={rules} />
-          </div>
-          {viewed ? (
-            <div className="space-y-6">
-              {viewed.ranged.length ? (
-                <WeaponSummary title="Equipped ranged weapons" weapons={viewed.ranged} rules={rules} mark={mark} />
-              ) : null}
-              <MeleeByModel groups={viewed.melee} rules={rules} mark={mark} />
+    <DatasheetUnit.Provider value={unitKey}>
+      <div className={`flex min-w-0 flex-col ${embedded ? '' : 'h-full'}`}>
+        <Container
+          className={
+            embedded
+              ? 'min-w-0 p-2.5'
+              : 'min-h-0 min-w-0 max-w-full flex-1 overflow-hidden [&_[data-slot=scroll-area-viewport]]:touch-pan-y [&_[data-slot=scroll-area-viewport]]:!overflow-x-hidden [&_[data-slot=scroll-area-viewport]]:overscroll-x-none [&_[data-slot=scroll-area-viewport]]:p-2.5'
+          }
+        >
+          <div className="w-full min-w-0 space-y-4">
+            {header}
+            <div className="space-y-1.5">
+              {profile ? <UnitProfile profile={profile} /> : null}
+              <BattleChoices choices={battle.choices} chosen={battle.chosen} onChoose={battle.choose} rules={rules} />
             </div>
-          ) : unit.models.length ? (
-            <div className="space-y-6">
-              {unit.models.map((model) => (
-                <ModelCard
-                  // A datasheet can name two kinds of model the same, so what tells
-                  // the cards apart is the models they hold rather than the heading.
-                  key={model.members.map((member) => member.id).join('/')}
-                  model={model}
-                  models={unit.models}
-                  unitOptions={unitOptions}
-                  choices={unit.choices}
-                  stands={models.get(model) ?? null}
-                  onChoose={onChoose}
-                  onSpread={onSpread}
-                  editable={editable}
-                  controlsDisabled={controlsDisabled}
-                  showOptions={showOptions}
-                  optionNote={optionNote}
-                  saved={saved}
-                  standing={standing}
-                  {...described}
-                />
-              ))}
-              {extraRanged.length ? <WeaponSummary title="Equipped ranged weapons" weapons={extraRanged} rules={rules} /> : null}
-              {extraMelee.length ? <WeaponSummary title="Equipped melee weapons" weapons={extraMelee} rules={rules} /> : null}
-            </div>
-          ) : (
-            <>
-              {equippedRanged.length ? <WeaponSummary title="Equipped ranged weapons" weapons={equippedRanged} rules={rules} /> : null}
-              {equippedMelee.length ? <WeaponSummary title="Equipped melee weapons" weapons={equippedMelee} rules={rules} /> : null}
-            </>
-          )}
-          {visibleLoose.length ? (
-            <section>
-              <h3 className="rubric flex items-baseline justify-between border-b border-edge pb-1.5">
-                <span>Wargear options</span>
-                <span className="readout">{visibleLoose.length}</span>
-              </h3>
-              <div className="mt-3 grid gap-5">
-                {orderedChoices(visibleLoose, weapons).map((choice) =>
-                  choice.kind ? (
-                    <SpecialChoice
-                      key={choice.key}
-                      choice={choice}
-                      unitName={unit.name}
-                      editable={editable}
-                      controlsDisabled={controlsDisabled}
-                      onChoose={onChoose}
-                      showOptions={showOptions}
-                      reminders={reminders}
-                    />
-                  ) : choice.room > 1 && !choice.uniform ? (
-                    <SpreadChoice
-                      key={choice.key}
-                      choice={choice}
-                      editable={editable}
-                      controlsDisabled={controlsDisabled}
-                      onSpread={onSpread}
-                      weapons={weapons}
-                      abilities={availableSheet.abilities}
-                      rules={rules}
-                      showOptions={showOptions}
-                      optionNote={optionNote}
-                      saved={saved?.[choice.key]}
-                    />
-                  ) : (
-                    <EitherChoice
-                      key={choice.key}
-                      choice={choice}
-                      unitName={unit.name}
-                      editable={editable}
-                      controlsDisabled={controlsDisabled}
-                      // A squad that must match answers once, and every model follows.
-                      onChoose={choice.uniform ? (key, optionId) => onSpread(key, () => wholeSquadTakes(choice, optionId)) : onChoose}
-                      weapons={weapons}
-                      abilities={availableSheet.abilities}
-                      rules={rules}
-                      showOptions={showOptions}
-                      optionNote={optionNote}
-                    />
-                  ),
-                )}
+            {viewed ? (
+              <div className="space-y-6">
+                {viewed.ranged.length ? (
+                  <WeaponSummary title="Equipped ranged weapons" weapons={viewed.ranged} rules={rules} mark={mark} />
+                ) : null}
+                <MeleeByModel groups={viewed.melee} rules={rules} mark={mark} />
               </div>
-            </section>
-          ) : null}
-          {sheet && reference ? cloneElement(reference, { providedSheet: sheet }) : null}
-          {footer}
-        </div>
-      </Container>
-    </div>
+            ) : unit.models.length ? (
+              <div className="space-y-6">
+                {unit.models.map((model) => (
+                  <ModelCard
+                    // A datasheet can name two kinds of model the same, so what tells
+                    // the cards apart is the models they hold rather than the heading.
+                    key={model.members.map((member) => member.id).join('/')}
+                    model={model}
+                    models={unit.models}
+                    unitOptions={unitOptions}
+                    choices={unit.choices}
+                    stands={models.get(model) ?? null}
+                    onChoose={onChoose}
+                    onSpread={onSpread}
+                    editable={editable}
+                    controlsDisabled={controlsDisabled}
+                    showOptions={showOptions}
+                    optionNote={optionNote}
+                    saved={saved}
+                    standing={standing}
+                    {...described}
+                  />
+                ))}
+                {extraRanged.length ? <WeaponSummary title="Equipped ranged weapons" weapons={extraRanged} rules={rules} /> : null}
+                {extraMelee.length ? <WeaponSummary title="Equipped melee weapons" weapons={extraMelee} rules={rules} /> : null}
+              </div>
+            ) : (
+              <>
+                {equippedRanged.length ? <WeaponSummary title="Equipped ranged weapons" weapons={equippedRanged} rules={rules} /> : null}
+                {equippedMelee.length ? <WeaponSummary title="Equipped melee weapons" weapons={equippedMelee} rules={rules} /> : null}
+              </>
+            )}
+            {visibleLoose.length ? (
+              <section>
+                <h3 className="rubric flex items-baseline justify-between border-b border-edge pb-1.5">
+                  <span>Wargear options</span>
+                  <span className="readout">{visibleLoose.length}</span>
+                </h3>
+                <div className="mt-3 grid gap-5">
+                  {orderedChoices(visibleLoose, weapons).map((choice) =>
+                    choice.kind ? (
+                      <SpecialChoice
+                        key={choice.key}
+                        choice={choice}
+                        unitName={unit.name}
+                        editable={editable}
+                        controlsDisabled={controlsDisabled}
+                        onChoose={onChoose}
+                        showOptions={showOptions}
+                        reminders={reminders}
+                      />
+                    ) : choice.room > 1 && !choice.uniform ? (
+                      <SpreadChoice
+                        key={choice.key}
+                        choice={choice}
+                        editable={editable}
+                        controlsDisabled={controlsDisabled}
+                        onSpread={onSpread}
+                        weapons={weapons}
+                        abilities={availableSheet.abilities}
+                        rules={rules}
+                        showOptions={showOptions}
+                        optionNote={optionNote}
+                        saved={saved?.[choice.key]}
+                      />
+                    ) : (
+                      <EitherChoice
+                        key={choice.key}
+                        choice={choice}
+                        unitName={unit.name}
+                        editable={editable}
+                        controlsDisabled={controlsDisabled}
+                        // A squad that must match answers once, and every model follows.
+                        onChoose={choice.uniform ? (key, optionId) => onSpread(key, () => wholeSquadTakes(choice, optionId)) : onChoose}
+                        weapons={weapons}
+                        abilities={availableSheet.abilities}
+                        rules={rules}
+                        showOptions={showOptions}
+                        optionNote={optionNote}
+                      />
+                    ),
+                  )}
+                </div>
+              </section>
+            ) : null}
+            {sheet && reference ? cloneElement(reference, { providedSheet: sheet }) : null}
+            {footer}
+          </div>
+        </Container>
+      </div>
+    </DatasheetUnit.Provider>
   )
 }
 

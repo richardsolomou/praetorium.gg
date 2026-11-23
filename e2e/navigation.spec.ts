@@ -539,7 +539,9 @@ test('the faction page shows its army rule in full when expanded', async ({ page
   await page.screenshot({ path: test.info().outputPath('faction-army-rule-phone.png'), fullPage: true })
 
   await page.goto('/factions/necrons/datasheets/overlord')
-  await expect(page.getByRole('button', { name: 'Reanimation Protocols', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Reanimation Protocols', exact: true }).click()
+  // The faction ability's chip shows the summary its faction's VS Data record gives it.
+  await expect(page.getByRole('tooltip').locator('[data-rule-summary]')).toHaveText(/\S/)
 })
 
 test('opening faction datasheets does not render the route error boundary', async ({ page }) => {
