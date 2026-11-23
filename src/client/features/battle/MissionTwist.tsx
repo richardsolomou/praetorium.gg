@@ -51,7 +51,7 @@ function TwistDialog({
 
 /** The twist's name, which opens it. For the places that only report what is in play. */
 export function TwistName({ twist }: { twist: Twist }) {
-  const summary = useMissionSummary('mission-twist', twist.id)
+  const { summary } = useMissionSummary('mission-twist', twist.id)
   if (!summary) return <span className={CARD_NAME}>{twist.name}</span>
   return (
     <TwistDialog
@@ -73,7 +73,7 @@ export function TwistName({ twist }: { twist: Twist }) {
  * asked and the answer is in what each of them says.
  */
 export function TwistInfo({ twist }: { twist: Twist }) {
-  const summary = useMissionSummary('mission-twist', twist.id)
+  const { summary } = useMissionSummary('mission-twist', twist.id)
   if (!summary) return null
   return (
     <TwistDialog

@@ -32,10 +32,11 @@ export function useMissionSummaries(enabled = true) {
   return (kind: MissionKind, id: string): RuleSummary | null => data?.records[`${kind}:${id}`] ?? null
 }
 
-/** The VS Data summary of a mission card, award, action or twist, by its kind and ID. */
+/** The VS Data summary of a mission card, award, action or twist, by its kind and ID, and whether it is still loading. */
 export function useMissionSummary(kind: MissionKind, id: string | undefined) {
-  const summaryOf = useMissionSummaries(Boolean(id))
-  return id ? summaryOf(kind, id) : null
+  const { data, isPending } = useQuery({ ...ruleSummariesQuery(MISSION_SUMMARIES), enabled: Boolean(id) })
+  if (!id) return { summary: null, pending: false }
+  return { summary: data?.records[`${kind}:${id}`] ?? null, pending: isPending }
 }
 
 /** Whether the summaries of every rule these texts print have been asked for and answered, so a printout can wait for them. */

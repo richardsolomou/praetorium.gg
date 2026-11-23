@@ -5,7 +5,7 @@ import { buttonClass } from '../../../components/buttonClass'
 import { DispositionChip } from '../../battle/setup/chrome'
 import { gameReferencesQuery } from '../../../queries'
 import { PageContent, PageHeader } from '../../../components/Page'
-import { RuleSummaryText } from '../../../components/RuleSummaryText'
+import { RuleSummaryLoading, RuleSummaryText } from '../../../components/RuleSummaryText'
 import { useMissionSummary } from '../../../ruleSummaries'
 import type { MissionTwist } from '../../../../contracts/missions'
 import { matchupMission } from '../../../../shared/gameReferences'
@@ -141,11 +141,15 @@ export function MissionPackPage({ packId }: { packId: string }) {
 }
 
 function TwistReference({ twist }: { twist: MissionTwist }) {
-  const summary = useMissionSummary('mission-twist', twist.id)
+  const { summary, pending } = useMissionSummary('mission-twist', twist.id)
   return (
     <article id={`twist-${twist.id}`} className="scroll-mt-header part p-4">
       <h3 className="text-lg">{twist.name}</h3>
-      {summary ? <RuleSummaryText summary={summary} className="mt-3 text-base text-bone" /> : null}
+      {summary ? (
+        <RuleSummaryText summary={summary} className="mt-3 text-base text-bone" />
+      ) : pending ? (
+        <RuleSummaryLoading className="mt-3" />
+      ) : null}
     </article>
   )
 }

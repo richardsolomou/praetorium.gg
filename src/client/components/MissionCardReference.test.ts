@@ -4,7 +4,8 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import type { MissionAward } from '../missionText'
 import { MissionCardReference } from './MissionCardReference'
-import { textToken } from '../../core/sourceText'
+import { MISSION_SUMMARIES } from '../../contracts/rules'
+import { ruleSummariesQuery } from '../queries/references'
 
 const trigger = {
   timing: 'end-of-turn',
@@ -26,6 +27,8 @@ const award = (vp: number, criteria: string, group: string | null): MissionAward
 
 const render = (card: ReturnType<typeof createElement>) =>
   renderToStaticMarkup(createElement(QueryClientProvider, { client: new QueryClient() }, card))
+
+const summarised = { ...award(3, 'Hold an objective.', null), id: 'pack.card.o1-s1' }
 
 describe('mission card reference', () => {
   it('labels alternative and additional objectives', () => {
@@ -97,18 +100,22 @@ describe('mission card reference', () => {
     expect(render(createElement(MissionCardReference, { card }))).toContain('SECURE ASSET')
   })
 
-  it('names each payout from its numbers where no summary says what it asks', () => {
-    const words = (hash: string) => textToken({ file: '0123abcd', transform: 'prose', hash })
-    const markup = render(
-      createElement(MissionCardReference, {
-        card: {
-          key: 'take-and-hold',
-          name: 'Take and Hold',
-          awards: [award(3, words('0'.repeat(16)), 'hold'), award(6, words('1'.repeat(16)), 'hold')],
-        },
-      }),
+  it('holds an award summary’s place while it loads', () => {
+    const markup = render(createElement(MissionCardReference, { card: { key: 'card', name: 'Card', awards: [summarised] } }))
+    expect(markup).toContain('aria-busy')
+  })
+
+  it('leaves an award without a summary blank once summaries load', () => {
+    const client = new QueryClient()
+    client.setQueryData(ruleSummariesQuery(MISSION_SUMMARIES).queryKey, { records: {}, texts: {}, entries: {} })
+    const markup = renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        { client },
+        createElement(MissionCardReference, { card: { key: 'card', name: 'Card', awards: [summarised] } }),
+      ),
     )
-    expect([markup.includes('The lower payout.'), markup.includes('The higher payout.')]).toEqual([true, true])
+    expect(markup).not.toContain('aria-busy')
   })
 })
 

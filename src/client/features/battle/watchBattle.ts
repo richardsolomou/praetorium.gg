@@ -71,9 +71,13 @@ export function watchBattle(
         appliesInMode(award, card.kind === 'Primary' ? undefined : yours?.secondaryMode),
       )
       const summary = awardsOnce(awards)
-        .map(
-          ({ award, triggers }, index, once) =>
-            `${[payoutJoin(award, once[index - 1]?.award), momentsLabel(triggers)].filter(Boolean).join(' · ')}: ${award.vp} VP${award.per ? ` per ${award.per}` : ''}${award.max !== null ? ` (max ${award.max})` : ''}. ${ownWords(conditionLabel(award) ?? '') || 'Check the full card on your iPhone.'}`,
+        .map(({ award, triggers }, index, once) =>
+          [
+            `${[payoutJoin(award, once[index - 1]?.award), momentsLabel(triggers)].filter(Boolean).join(' · ')}: ${award.vp} VP${award.per ? ` per ${award.per}` : ''}${award.max !== null ? ` (max ${award.max})` : ''}.`,
+            ownWords(conditionLabel(award) ?? ''),
+          ]
+            .filter(Boolean)
+            .join(' '),
         )
         .join('\n\n')
       return {

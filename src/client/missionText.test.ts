@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { alternatives, appliesInMode, awardLimit, awardTotal, counted, type MissionAward, payoutJoin, payoutLabel } from './missionText'
+import { alternatives, appliesInMode, awardLimit, awardTotal, counted, payoutJoin } from './missionText'
 
 describe('which payouts apply to a hand', () => {
   it.each(['tactical', 'fixed'])('includes standard payouts in a %s hand', (mode) => {
@@ -72,42 +72,5 @@ describe('how a card pays', () => {
 
   it('labels an independent payout as additional', () => {
     expect(payoutJoin(tier(null), tier('centre-hold'))).toBe('plus')
-  })
-})
-
-describe('naming a payout the source left unstructured', () => {
-  const bare = (vp: number, group: string | null): MissionAward => ({
-    vp,
-    per: null,
-    mode: null,
-    max: null,
-    group,
-    criteria: null,
-    trigger: { timing: 'end-of-turn', phase: null, playerTurn: 'your-turn', roundMin: null, roundMax: null },
-  })
-
-  it('calls the cheaper of two tiers the lower payout', () => {
-    const tiers = [bare(3, 'centre-hold'), bare(5, 'centre-hold')]
-    expect(payoutLabel(tiers[0]!, tiers)).toBe('The lower payout.')
-  })
-
-  it('calls the dearer of two tiers the higher payout', () => {
-    const tiers = [bare(3, 'centre-hold'), bare(5, 'centre-hold')]
-    expect(payoutLabel(tiers[1]!, tiers)).toBe('The higher payout.')
-  })
-
-  it('names tiers that pay the same by where the card prints them', () => {
-    const tiers = [bare(3, 'purge'), bare(3, 'purge')]
-    expect(tiers.map((tier) => payoutLabel(tier, tiers))).toEqual(['The first payout.', 'The second payout.'])
-  })
-
-  it('names a counted payout by its count', () => {
-    const each = [{ ...bare(1, null), per: 'each' }]
-    expect(payoutLabel(each[0]!, each)).toBe('For each time it is met.')
-  })
-
-  it('points at the card when a payout stands alone', () => {
-    const only = [bare(5, null)]
-    expect(payoutLabel(only[0]!, only)).toBe('As the card describes.')
   })
 })

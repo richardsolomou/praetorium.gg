@@ -1,5 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
+import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import type { RuleSummary, RuleSummarySpan } from '../../contracts/rules'
 import { summarySegments } from '../../core/summarySpans'
@@ -37,6 +38,16 @@ export function RuleSummaryText({
           The official text leaves this open: {question}
         </p>
       ))}
+    </div>
+  )
+}
+
+/** Where a summary still loading will show: two lines of skeleton the size of its text. */
+export function RuleSummaryLoading({ className }: { className?: string }) {
+  return (
+    <div aria-busy aria-label="Loading summary" className={cn('mt-2 w-full space-y-2 py-1', className)}>
+      <Skeleton className="h-3.5 w-full" />
+      <Skeleton className="h-3.5 w-2/3" />
     </div>
   )
 }
