@@ -3,7 +3,13 @@ import { withTextPointers, withoutText } from '../core/sourceText'
 import { publishedTextLocations } from './publishedTextFiles'
 import { REFERENCE_KINDS, type ReferenceDocument, type ReferenceKind } from '../contracts/reference'
 import { app } from './app'
-import { datasheetRoute, referenceCorpusCooperatively, referenceDocumentMarkdown, type ReferenceCorpus } from './referenceCorpus'
+import {
+  datasheetRoute,
+  referenceCorpusCooperatively,
+  referenceDocument,
+  referenceDocumentMarkdown,
+  type ReferenceCorpus,
+} from './referenceCorpus'
 import {
   REFERENCE_FILTER_MAX_LENGTH,
   REFERENCE_QUERY_MAX_LENGTH,
@@ -118,7 +124,7 @@ export async function referenceMissionMatchupFor(query: MissionMatchupQuery) {
 /** The document a reference id names, with the corpus it came from; null while no snapshot can answer. */
 export async function referenceDocumentFor(id: string) {
   const corpus = await activeReferenceCorpus(referenceRecordCatalogueId(id))
-  return corpus && { corpus, document: corpus.byId.get(id) }
+  return corpus && { corpus, document: referenceDocument(corpus, id) }
 }
 
 export const referenceSearchResponse = rateLimited(async (request: Request) => {

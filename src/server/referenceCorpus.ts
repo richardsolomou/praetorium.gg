@@ -1,4 +1,5 @@
 import { hash } from 'node:crypto'
+import { currentMissionId } from '../core/legacyIds'
 import { hasTextTokens, textPointersIn, type TextLocations } from '../core/sourceText'
 import type { CanonicalCatalogue, CanonicalDatasheet, CanonicalDetachment } from '../contracts/catalogue'
 import { DISPOSITION_PACK_SECTION, type ReferenceDocument, type ReferenceSection } from '../contracts/reference'
@@ -27,6 +28,12 @@ export type ReferenceSources = {
   textLocations?: TextLocations | ScannableTextLocations
   /** Each faction's route and detachments, which file detachments under their pages and say which offer a force disposition. */
   factions?: readonly (ReferenceFaction & DispositionFaction)[]
+}
+
+/** A reference document by its id, or by the id it had when it named a mission, deployment or layout by its Game Datacards ID. */
+export function referenceDocument(corpus: Pick<ReferenceCorpus, 'byId'>, id: string) {
+  const at = id.lastIndexOf(':')
+  return corpus.byId.get(id) ?? corpus.byId.get(`${id.slice(0, at + 1)}${currentMissionId(id.slice(at + 1))}`)
 }
 
 export type ReferenceCorpus = {
