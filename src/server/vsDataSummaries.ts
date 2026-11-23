@@ -2,7 +2,14 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { RecentlyUsed, remember } from '../core/collections'
 import { sourceStrings } from '../core/sourceText'
-import { MISSION_SUMMARIES, type RuleDocument, type RuleSummaries, type RuleSummary, type RuleSummaryLink, RuleSummarySpan } from '../contracts/rules'
+import {
+  MISSION_SUMMARIES,
+  type RuleDocument,
+  type RuleSummaries,
+  type RuleSummary,
+  type RuleSummaryLink,
+  type RuleSummarySpan,
+} from '../contracts/rules'
 import type { Steps } from '../shared/steps'
 import {
   type GdcRuleKind,
