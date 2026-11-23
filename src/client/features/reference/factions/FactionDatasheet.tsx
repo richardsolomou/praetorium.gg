@@ -185,7 +185,7 @@ export function Abilities({ abilities, rules }: { abilities: DisplayAbility[]; r
           <article id={`ability-${ability.id}`} key={ability.id} className="part p-3">
             <h3 className="text-sm">{ability.source ?? ability.name}</h3>
             {ability.source ? <p className="eyebrow mt-1">{ability.name}</p> : null}
-            {ability.description ? <RuleText text={ability.description} rules={rules} name={ability.name} /> : null}
+            {ability.description ? <RuleText text={ability.description} rules={rules} name={ability.name} abilityId={ability.id} /> : null}
           </article>
         ))}
       </div>

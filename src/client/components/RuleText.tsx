@@ -100,6 +100,7 @@ export function RuleText({
   className,
   authored = false,
   name,
+  abilityId,
 }: {
   text: string
   rules?: KeywordRule[]
@@ -107,14 +108,16 @@ export function RuleText({
   authored?: boolean
   /** The ability's name, which finds its summary through the datasheet around it where its text alone does not. */
   name?: string
+  /** The ability's BSData profile id, which VS Data may alias it by. */
+  abilityId?: string
 }) {
-  if (hasTextTokens(text)) return <SummarizedRule text={text} className={className} name={name} />
+  if (hasTextTokens(text)) return <SummarizedRule text={text} className={className} name={name} abilityId={abilityId} />
   return authored ? <RuleTextBody text={text} rules={rules} className={className} /> : null
 }
 
-function SummarizedRule({ text, className, name }: { text: string; className?: string; name?: string }) {
+function SummarizedRule({ text, className, name, abilityId }: { text: string; className?: string; name?: string; abilityId?: string }) {
   const { summary, pending } = useRuleSummary(text)
-  const ofUnit = useUnitAbilitySummary(name, !pending && !summary)
+  const ofUnit = useUnitAbilitySummary(name, !pending && !summary, abilityId)
   // A core ability a datasheet prints in BSData's words, such as Leader, is VS Data's core ability of that name.
   const core = useAbilitySummary(name && !pending && !summary && ofUnit === null ? { name } : null)
   if (pending || ofUnit === undefined || core === undefined) return <RuleSummarySkeleton className={className} />

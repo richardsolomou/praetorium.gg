@@ -60,7 +60,12 @@ export type VsDataUnit = z.infer<typeof vsDataUnitSchema>
  * What datasheets show from VS Data for one rules version: each unit's roster and transport data with its VS Data id, by
  * its BSData entry id, and every ability's summary by VS Data id, which starts with its unit's or its faction's.
  */
-export type VsDataUnits = { units: Record<string, VsDataUnit & { id: string }>; abilities: Record<string, RuleSummary> }
+export type VsDataUnits = {
+  units: Record<string, VsDataUnit & { id: string }>
+  abilities: Record<string, RuleSummary>
+  /** The VS Data id of each ability aliased to a BSData profile, by that profile's id. */
+  aliases: Record<string, string>
+}
 
 /**
  * What the snapshot keeps of a verified VS Data release: each summary with its spans and open questions, the aliases

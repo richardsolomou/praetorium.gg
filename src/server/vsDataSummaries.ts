@@ -104,6 +104,16 @@ export function* vsDataSummariesSteps(directory: string, documents: readonly Rul
             key.startsWith('ability:') ? [[key.slice('ability:'.length), summary] as const] : [],
           ),
         ),
+        // An ability VS Data aliases to a BSData profile, by that profile's id, as BSData ids are written with dashes.
+        aliases: Object.fromEntries(
+          Object.entries(file.entries).flatMap(([key, aliases]) =>
+            key.startsWith('ability:') && summaries.has(key)
+              ? aliases
+                  .filter((alias) => alias.startsWith('bsdata.'))
+                  .map((alias) => [alias.slice('bsdata.'.length).replaceAll('.', '-'), key.slice('ability:'.length)] as const)
+              : [],
+          ),
+        ),
       }
       return { edition, index, units, summaries }
     })
@@ -149,7 +159,7 @@ export function* vsDataSummariesSteps(directory: string, documents: readonly Rul
     ],
     unitsIn: (edition) => {
       const id = edition ?? held[0]!.edition.id
-      return (held.some((entry) => entry.edition.id === id) && versionOf(id)?.units) || { units: {}, abilities: {} }
+      return (held.some((entry) => entry.edition.id === id) && versionOf(id)?.units) || { units: {}, abilities: {}, aliases: {} }
     },
     summariesIn: (id) => {
       const card = cards.get(id)

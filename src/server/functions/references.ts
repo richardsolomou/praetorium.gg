@@ -349,7 +349,9 @@ export const ruleAbilitySummaries = createServerFn({ method: 'GET' }).handler(()
  */
 export const ruleUnits = createServerFn({ method: 'GET' })
   .validator(z.object({ edition: z.string().max(80).nullable() }))
-  .handler(({ data }) => snapshotRpc(async () => (await vsDataSummaries())?.unitsIn(data.edition) ?? { units: {}, abilities: {} }))
+  .handler(({ data }) =>
+    snapshotRpc(async () => (await vsDataSummaries())?.unitsIn(data.edition) ?? { units: {}, abilities: {}, aliases: {} }),
+  )
 
 /** The upstream work the served summaries adapt, which the Sources page credits. */
 export const ruleSummaryCredits = createServerFn({ method: 'GET' }).handler(() =>

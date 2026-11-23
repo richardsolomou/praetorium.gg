@@ -269,7 +269,9 @@ function AbilitySummary({
                 {reminders ? <ReminderButton subject={ability} controls={reminders} /> : null}
               </div>
               {ability.source ? <p className="eyebrow mt-1">{ability.name}</p> : null}
-              {ability.description ? <RuleText text={ability.description} rules={rules} name={ability.name} /> : null}
+              {ability.description ? (
+                <RuleText text={ability.description} rules={rules} name={ability.name} abilityId={ability.id} />
+              ) : null}
             </article>
           ))}
         </div>
