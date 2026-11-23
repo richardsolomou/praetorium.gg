@@ -1,7 +1,8 @@
 import type { ComponentProps } from 'react'
 import type { Datasheet } from '../../core/datasheet'
 import { ruleReferenceMatches } from '../../core/ruleReference'
-import { RuleText } from './RuleText'
+import { RuleSummaryText } from './RuleSummaryText'
+import { useAbilitySummary, useRuleSummary } from '../ruleSummaries'
 import { splitKeywords } from '../datasheet'
 import { HoverTooltip } from './HoverTooltip'
 
@@ -35,7 +36,7 @@ export function Keyword({
   const body = (
     <>
       {condition ? <p className="text-xs">* Only {condition}.</p> : null}
-      {rule?.description ? <RuleText text={rule.description} className={condition ? 'mt-1.5 text-xs' : 'mt-0 text-xs'} /> : null}
+      {rule?.description ? <KeywordRuleSummary rule={rule} className={condition ? 'mt-1.5 text-xs' : 'mt-0 text-xs'} /> : null}
     </>
   )
 
@@ -49,6 +50,17 @@ export function Keyword({
       {name}
     </HoverTooltip>
   )
+}
+
+/**
+ * A keyword's rule: the summary of the text it prints or, where that text is not one VS Data summarizes, such as a
+ * catalogue's own printing of a weapon ability, the summary of the ability it names.
+ */
+function KeywordRuleSummary({ rule, className }: { rule: KeywordRule; className: string }) {
+  const { summary, pending } = useRuleSummary(rule.description)
+  const named = useAbilitySummary(summary || pending ? null : { name: rule.name })
+  const shown = summary ?? named
+  return shown ? <RuleSummaryText summary={shown} className={className} abilities={false} /> : null
 }
 
 const nothingAdded: string[] = []

@@ -70,9 +70,15 @@ export function statedIn(text: string, facts: TextFactsByKey | undefined) {
 }
 
 /**
- * What one text says, read from its words or, where it is a token, from the facts recorded for it.
- * A token without facts, or a text of several, says nothing.
+ * Where a text's facts are recorded: a lone token's under its key, and a text of several parts, such as a stratagem's
+ * sections, under the keys of all its tokens, so the key never carries words printed between them.
  */
+export function factsKey(text: string) {
+  const tokens = textTokensIn(text)
+  return tokens.length === 1 && withoutText(text) === '' ? textKey(tokens[0]!) : `+${tokens.map(textKey).join('+')}`
+}
+
+/** What one text says, read from its words or, where it holds tokens, from the facts recorded for it. Unrecorded, it says nothing. */
 export function readText<T>(
   text: string,
   facts: TextFactsByKey | undefined,
@@ -80,7 +86,5 @@ export function readText<T>(
   recorded: (facts: TextFacts) => T,
 ): T {
   if (!hasTextTokens(text)) return read(text)
-  const [token, ...rest] = textTokensIn(text)
-  const found = token && !rest.length && withoutText(text) === '' ? facts?.get(textKey(token)) : undefined
-  return recorded(found ?? {})
+  return recorded(facts?.get(factsKey(text)) ?? {})
 }

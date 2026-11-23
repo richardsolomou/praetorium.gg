@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { RecentlyUsed, remember } from '../core/collections'
 import { sourceStrings } from '../core/sourceText'
-import type { RuleDocument, RuleSummaries, RuleSummary, RuleSummaryLink } from '../contracts/rules'
+import type { RuleDocument, RuleSummaries, RuleSummary, RuleSummaryLink, RuleSummarySpan } from '../contracts/rules'
 import type { Steps } from '../shared/steps'
 import {
   type GdcRuleKind,
@@ -29,6 +29,11 @@ export type VsDataSummaries = {
   summariesIn: (file: string) => RuleSummaries
   /** Every Game Datacards record of one rules version, once each, for the coverage report. */
   joins: (edition: string) => VsDataJoin[]
+  /**
+   * The current rules version's summaries of the weapon and core abilities, by `kind:id`, which a keyword's tooltip
+   * and a summary naming the ability show.
+   */
+  abilities: Record<string, RuleSummary>
   /** The upstream work the served summaries adapt, once each, which the Sources page credits. */
   attributions: VsDataAttribution[]
   /** The summaries dropped because they repeat a source's own wording, as `edition kind:id`. */
@@ -74,7 +79,8 @@ export function* vsDataSummariesSteps(directory: string, documents: readonly Rul
         .aliasesOf(target)
         .map((alias) => links.get(alias))
         .find(Boolean)
-    const summaries = new Map(release.records.map((record) => [vsDataKey(record), summaryOf(record, link)]))
+    const abilities = new Set(release.records.flatMap((record) => (ABILITY_KINDS.includes(record.kind) ? [vsDataKey(record)] : [])))
+    const summaries = new Map(release.records.map((record) => [vsDataKey(record), summaryOf(record, link, abilities)]))
     versions.push({ edition, attributions: release.attributions, files, index, summaries })
     yield
   }
@@ -93,6 +99,7 @@ export function* vsDataSummariesSteps(directory: string, documents: readonly Rul
   const held = new RecentlyUsed<string, RuleSummaries>(16)
   return {
     editions: versions.map((version) => version.edition),
+    abilities: Object.fromEntries([...versions[0]!.summaries].filter(([key]) => ABILITY_KINDS.some((kind) => key.startsWith(`${kind}:`)))),
     attributions: [
       ...new Map(
         versions.flatMap((version) => version.attributions).map((credit) => [`${credit.credit} ${credit.licence}`, credit]),
@@ -143,18 +150,44 @@ function summariesFor(
   return answer
 }
 
+/** The kinds of VS Data record a keyword chip names, whose summaries a tooltip shows. */
+const ABILITY_KINDS = ['weapon-ability', 'core-ability']
+
 function summaryOf(
   { summary, spans, questions }: VsDataSummariesFile['records'][number],
   link: (target: { kind: string; id: string }) => RuleSummaryLink | undefined,
+  abilities: ReadonlySet<string>,
 ): RuleSummary {
-  return {
-    summary,
-    spans: spans.flatMap(({ start, end, bold, target }) => {
-      const to = target && link(target)
-      return bold || to ? [{ start, end, ...(bold ? { bold } : {}), ...(to ? { link: to } : {}) }] : []
-    }),
-    questions,
+  const held: RuleSummarySpan[] = spans.flatMap(({ start, end, bold, target }) => {
+    const to = target && link(target)
+    const ability = target && abilities.has(vsDataKey(target)) ? vsDataKey(target) : undefined
+    return bold || to || ability
+      ? [{ start, end, ...(bold ? { bold } : {}), ...(to ? { link: to } : {}), ...(ability ? { ability } : {}) }]
+      : []
+  })
+  // A summary prints a weapon ability in brackets, as the cards do, often without a span naming it.
+  for (const match of summary.matchAll(/\[([^[\]]+)\]/g)) {
+    const ability = bracketedAbility(match[1]!, abilities)
+    const start = match.index
+    const end = start + match[0].length
+    const same = held.find((span) => span.start === start && span.end === end)
+    if (!ability || same?.ability) continue
+    if (same) same.ability = ability
+    else if (!held.some((span) => span.start < end && start < span.end)) held.push({ start, end, ability })
   }
+  return { summary, spans: held.toSorted((left, right) => left.start - right.start), questions }
+}
+
+/** The ability a bracketed name such as `ANTI-INFANTRY 3+` or `SUSTAINED HITS D3` is, by its key, where VS Data has it. */
+function bracketedAbility(printed: string, abilities: ReadonlySet<string>) {
+  const name = printed
+    .normalize('NFKC')
+    .toLowerCase()
+    .replace(/(?:\s+(?:\d*d\d+(?:\+\d+)?|\d+\+?|x\+?))+$/, '')
+    .replace(/^anti-.*/, 'anti')
+  // A qualified ability such as `LETHAL HITS: non-VEHICLE` is the ability itself where VS Data keeps no record of the qualified one.
+  const slugs = [name, name.split(':')[0]!].map((form) => form.replaceAll(/[^a-z0-9]+/g, '-').replaceAll(/^-|-$/g, ''))
+  return slugs.flatMap((slug) => ABILITY_KINDS.map((kind) => `${kind}:${slug}`)).find((key) => abilities.has(key))
 }
 
 /** Each rules-document entry's page and anchor, by the entry's id. */

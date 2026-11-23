@@ -21,6 +21,7 @@ import {
   globalSearch,
   ruleIndex,
   ruleSection,
+  ruleAbilitySummaries,
   ruleSummaryCredits,
   ruleSummaryRecords,
   terrainReferences,
@@ -134,6 +135,8 @@ export const ruleSectionQuery = (documentId: string, sectionId: string) =>
   })
 /** The upstream work the served summaries adapt. */
 export const ruleSummaryCreditsQuery = () => referenceQuery(['rule-summary-credits'], () => ruleSummaryCredits())
+/** The weapon and core ability summaries keyword tooltips show. */
+export const ruleAbilitySummariesQuery = () => referenceQuery(['rule-ability-summaries'], () => ruleAbilitySummaries())
 /** One source file's summaries; a failed read only leaves its rules on their own text, so it is not retried. */
 export const ruleSummariesQuery = (file: string) =>
   queryOptions({

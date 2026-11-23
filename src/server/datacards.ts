@@ -24,9 +24,10 @@ import {
   transformed,
 } from '../shared/datacards'
 import { completeSteps, type Steps } from '../shared/steps'
-import { type SourceTexts, comparableText, textKey, textTokensIn } from '../core/sourceText'
+import { type SourceTexts, comparableText, resolvedText, textKey, textTokensIn } from '../core/sourceText'
+import { combatFactsOf } from '../core/combatReading'
 import { textFactsOf } from '../shared/textFacts'
-import type { TextFacts } from '../core/textFacts'
+import { factsKey, type TextFacts } from '../core/textFacts'
 import { publishedTexts } from './sourceTexts'
 const NO_SECTIONS: SectionProse = () => new Map()
 
@@ -49,19 +50,64 @@ export function loadDatacards(
  * Tokens that record, as each is made, what the roster rules read from its words, so
  * those facts outlive the words, and a digest of the words it shows.
  */
-function recording(texts: SourceTexts, facts: Map<string, TextFacts>, readings: Map<string, string>): SourceTexts {
+function recording(
+  texts: SourceTexts,
+  facts: Map<string, TextFacts>,
+  readings: Map<string, string>,
+  words: Map<string, string>,
+): SourceTexts {
   return (raw, transform) => {
     const published = texts(raw, transform)
     for (const token of textTokensIn(published)) {
       const key = textKey(token)
       if (readings.has(key)) continue
-      const words = transformed(raw, transform)
-      readings.set(key, hash('sha256', words))
-      const found = textFactsOf(words)
+      const said = transformed(raw, transform)
+      readings.set(key, hash('sha256', said))
+      words.set(key, said)
+      const found = textFactsOf(said)
       if (found) facts.set(key, found)
     }
     return published
   }
+}
+
+/**
+ * What every rule the cards describe decides in combat, recorded beside its tokens so a device that never holds the
+ * words plays it as the server would: a lone token's facts gain it, and a rule of several, such as a stratagem's
+ * sections, is recorded under all its tokens. Each reads its words only when asked, as the reading covers every placement.
+ */
+function recordCombat(descriptions: Iterable<string>, facts: Map<string, TextFacts>, words: ReadonlyMap<string, string>) {
+  for (const text of descriptions) {
+    const tokens = textTokensIn(text)
+    if (!tokens.length || tokens.some((token) => !words.has(textKey(token)))) continue
+    const key = factsKey(text)
+    const found = facts.get(key)
+    if (found && 'combat' in found) continue
+    const said = resolvedText(
+      text,
+      (token) => words.get(textKey(token))!,
+      () => '',
+    )
+    let combat: TextFacts['combat']
+    facts.set(
+      key,
+      Object.defineProperty({ ...found }, 'combat', {
+        enumerable: true,
+        get: () => (combat === undefined ? (combat = combatFactsOf(said)) : combat),
+      }),
+    )
+  }
+}
+
+/** Every rules text a value holds under a `description` field, which is where the cards keep a rule's text. */
+function* descriptionsIn(value: unknown): Generator<string> {
+  if (value instanceof Map || value instanceof Set) for (const entry of value.values()) yield* descriptionsIn(entry)
+  else if (Array.isArray(value)) for (const entry of value) yield* descriptionsIn(entry)
+  else if (value && typeof value === 'object')
+    for (const [field, entry] of Object.entries(value)) {
+      if (field === 'description' && typeof entry === 'string') yield entry
+      else yield* descriptionsIn(entry)
+    }
 }
 
 export function* loadDatacardsSteps(
@@ -72,7 +118,9 @@ export function* loadDatacardsSteps(
 ): Steps<LoadedDatacards> {
   const textFacts = new Map<string, TextFacts>()
   const textReadings = new Map<string, string>()
-  const textsOf = (file: string) => recording(textsFor(file), textFacts, textReadings)
+  const textWords = new Map<string, string>()
+  const textsOf = (file: string) => recording(textsFor(file), textFacts, textReadings, textWords)
+  const coreStratagems: string[] = []
   const factions = new Map<string, FactionContent>()
   const detachmentRules = new Map<string, Map<string, Map<string, string>>>()
   const enhancements = new Map<string, Map<string, string>>()
@@ -111,7 +159,7 @@ export function* loadDatacardsSteps(
   const core = path.join(directory, 'core.json')
   if (fs.existsSync(core)) {
     const parsed = readSharedJson(core, strings) as { stratagems?: unknown }
-    for (const card of records(parsed, 'stratagems')) stratagemText(card, textsOf(core))
+    for (const card of records(parsed, 'stratagems')) coreStratagems.push(stratagemText(card, textsOf(core)) ?? '')
   }
   const datasheetNames = [
     ...new Set(files.flatMap((parsed) => records(parsed, 'datasheets').flatMap((entry) => localizedField(entry, 'name') ?? []))),
@@ -193,7 +241,7 @@ export function* loadDatacardsSteps(
       }
     }
   }
-  return {
+  const loaded = {
     factions,
     keywordRules: keywordDescriptions(directory, ['weapons', 'abilities'], ['exact', 'parameterized'], textsOf),
     detachmentRules: new Map(
@@ -209,6 +257,16 @@ export function* loadDatacardsSteps(
     textFacts,
     textReadings,
   }
+  recordCombat(
+    [
+      ...coreStratagems,
+      ...[...enhancements.values(), ...armyRules.values()].flatMap((texts) => [...texts.values()]),
+      ...descriptionsIn([loaded.factions, loaded.detachmentRules, loaded.stratagems]),
+    ],
+    textFacts,
+    textWords,
+  )
+  return loaded
 }
 export function keywordAbilityDescriptions(directory: string, textsFor: TextsFor = publishedTexts) {
   return new Map(

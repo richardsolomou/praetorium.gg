@@ -38,6 +38,7 @@ import { SimulateDatasheet } from '../../simulator/SimulateDatasheet'
 import { Keyword, KEYWORD_TAG_CLASS, KeywordList, type KeywordRule, UnitKeywords } from '../../../components/Keyword'
 import { ProfileRules } from '../../rosters/ProfileRules'
 import { RuleText } from '../../../components/RuleText'
+import { useRuleSummary } from '../../../ruleSummaries'
 import { PageContent, PageHeader } from '../../../components/Page'
 import { groupBy } from '../../../../core/collections'
 import { rulesVersionLabel } from '../../../../core/catalogueEdition'
@@ -559,10 +560,12 @@ export function TransportReference({
   abilities: readonly Pick<DisplayAbility, 'name'>[]
   rules: KeywordRule[]
 }) {
+  const shown = transport && separateTransport({ transport, abilities })
+  // Only a summary of the rule is ever shown, so a rule without one leaves no empty section.
+  const { summary } = useRuleSummary(shown ?? '')
   if (!transport) return null
   const anchors = <ReferenceAnchors prefix="profile" ids={profiles.map((profile) => profile.id)} />
-  const shown = separateTransport({ transport, abilities })
-  if (!shown) return anchors
+  if (!shown || !summary) return anchors
   return (
     <section>
       {anchors}

@@ -35,8 +35,11 @@ export type RuleIndex = { documents: RuleDocumentSummary[]; references: RuleRefe
 
 /** Where a summary's link lands: a rule on a rules page. */
 export type RuleSummaryLink = { document: string; section: string; anchor: string }
-/** A bold or linked range of a summary, in UTF-16 offsets with an exclusive end. */
-export type RuleSummarySpan = { start: number; end: number; bold?: true; link?: RuleSummaryLink }
+/**
+ * A bold or linked range of a summary, in UTF-16 offsets with an exclusive end. `ability` names the weapon or core
+ * ability it prints, as `kind:id` in the ability summaries, whose summary its tooltip shows.
+ */
+export type RuleSummarySpan = { start: number; end: number; bold?: true; link?: RuleSummaryLink; ability?: string }
 /** One VS Data summary: original wording, shown for reading only. */
 export type RuleSummary = {
   summary: string

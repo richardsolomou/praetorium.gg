@@ -85,7 +85,9 @@ export function* loadCatalogueSteps(directory = catalogueDirectory(), edition?: 
 
 /** Cards with the catalogue's words they quote swapped for the catalogue's tokens. */
 function publishedDatacards(cards: LoadedDatacards, token: (raw: string) => string | null): LoadedDatacards {
-  const published = withDefinitionTokens(cards, token)
+  // The facts hold no text, and walking them would read every combat reading they hold only when asked.
+  const { textFacts, ...rest } = cards
+  const published = { ...withDefinitionTokens(rest, token), ...(textFacts ? { textFacts } : {}) }
   const texts = (descriptions: ReadonlyMap<string, string>) =>
     new Map([...descriptions].map(([key, text]) => [key, withDefinitionTokensIn(text, token)]))
   return { ...published, armyRules: texts(cards.armyRules), enhancements: texts(cards.enhancements) }

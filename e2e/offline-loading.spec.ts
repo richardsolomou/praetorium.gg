@@ -81,9 +81,11 @@ test('an unopened rule from an older download stays readable throughout hosted r
   await page.getByRole('navigation', { name: 'Primary' }).getByRole('link', { name: 'Rules', exact: true }).click()
   await page.locator('a[href="/rules/core-rules/moving"]').first().click()
   await expect(page.getByRole('heading', { name: 'Saved Moving', exact: true })).toBeVisible()
-  await page.locator('main details summary').first().click()
+  // The download carries the summaries too, so the rule reads while the service is held and after it answers.
+  const summary = page.locator('main [data-rule-summary]').first()
+  await expect(summary).toBeVisible()
   await page.screenshot({ path: test.info().outputPath('saved-rule-revalidating.png') })
   release()
   await expect(page.getByRole('heading', { name: '03. Moving', exact: true })).toBeVisible()
-  await expect(page.locator('main details').first()).toHaveAttribute('open', '')
+  await expect(summary).toBeVisible()
 })

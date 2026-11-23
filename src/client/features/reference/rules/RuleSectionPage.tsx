@@ -20,13 +20,14 @@ import { BackLink } from '../BackLink'
 export function RuleSectionPage({ documentId, sectionId }: { documentId: string; sectionId: string }) {
   const { data: index } = useQuery(ruleIndexQuery())
   const { data } = useQuery(ruleSectionQuery(documentId, sectionId))
-  const summaryOf = useRuleEntrySummaries(data?.document.text?.url ?? null)
+  const { summaryOf, settled } = useRuleEntrySummaries(data?.document.text?.url ?? null)
   const hash = useLocation({ select: (location) => location.hash })
   const shown = data?.section
-  // The server cannot know the address, so the rule or clarification it names is brought into view in the browser.
+  // The server cannot know the address, so the rule or clarification it names is brought into view in the browser,
+  // and again once the summaries above it have arrived and moved it down.
   useEffect(() => {
-    if (shown) revealHashTarget(hash)
-  }, [hash, shown])
+    if (shown && settled) revealHashTarget(hash)
+  }, [hash, shown, settled])
   // The server never sees the address's hash, so the rule it names is gated once the page is in the browser;
   // `hash` above re-renders this on in-app navigation, which fires no event.
   const target = useSyncExternalStore(subscribeToHash, currentHash, noHash)

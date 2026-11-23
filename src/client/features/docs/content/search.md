@@ -12,7 +12,7 @@ If no datasheet matches, search offers **Close matches** for a misspelt name. Ea
 
 ## Read a rule
 
-Most rules show a plain-language summary, written for their rules version by VS Data, an open community project, and checked against the official sources. Linked words open the core rule they name. Where the official text leaves a point open, a faint note under the summary says so, and the summary reads it one way. [Data sources](/sources) credits where summaries come from.
+Most rules show a plain-language summary, written for their rules version by VS Data, an open community project, and checked against the official sources. Linked words open the core rule they name. A weapon or core ability a summary names, such as [LETHAL HITS], shows its own summary when you hover over or tap it, as it does on a datasheet's weapons. Where the official text leaves a point open, a faint note under the summary says so, and the summary reads it one way. [Data sources](/sources) credits where summaries come from.
 
 Summaries are for reading only: the builder, the simulator and battles never work from them. Praetorium never shows a rule in its official wording, so a rule without a summary shows its name and numbers only.
 

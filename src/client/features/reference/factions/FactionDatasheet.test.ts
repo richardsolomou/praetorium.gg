@@ -1,9 +1,10 @@
 import { type PropsWithChildren, createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { describe, expect, it, vi } from 'vitest'
 import { Abilities, ProfileTable, Relationships, TransportReference } from './FactionDatasheet'
 
-// A prompt for rules text not loaded links to the data sources page.
+// Summaries link to the core rules they name.
 vi.mock('@tanstack/react-router', () => ({
   Link: ({ children }: PropsWithChildren) => createElement('a', null, children),
 }))
@@ -83,14 +84,20 @@ it('anchors compact abilities and relationship abilities', () => {
   expect(relationshipMarkup).toContain('id="ability-leader"')
 })
 
+// A transport rule shows only where it has a summary, which it asks for.
+const withQueries = (element: ReturnType<typeof createElement>) =>
+  createElement(QueryClientProvider, { client: new QueryClient() }, element)
+
 it('anchors structured transport profiles beside transport prose', () => {
   const markup = renderToStaticMarkup(
-    createElement(TransportReference, {
-      transport: 'Carries twelve models.',
-      profiles: [{ id: 'capacity' }],
-      abilities: [],
-      rules: [],
-    }),
+    withQueries(
+      createElement(TransportReference, {
+        transport: 'Carries twelve models.',
+        profiles: [{ id: 'capacity' }],
+        abilities: [],
+        rules: [],
+      }),
+    ),
   )
 
   expect(markup).toContain('id="profile-capacity"')
@@ -98,12 +105,14 @@ it('anchors structured transport profiles beside transport prose', () => {
 
 it('leaves the transport rule to the abilities when they already print it', () => {
   const markup = renderToStaticMarkup(
-    createElement(TransportReference, {
-      transport: 'Carries twelve models.',
-      profiles: [],
-      abilities: [{ name: 'TRANSPORT' }],
-      rules: [],
-    }),
+    withQueries(
+      createElement(TransportReference, {
+        transport: 'Carries twelve models.',
+        profiles: [],
+        abilities: [{ name: 'TRANSPORT' }],
+        rules: [],
+      }),
+    ),
   )
 
   expect(markup).not.toContain('Carries twelve models.')

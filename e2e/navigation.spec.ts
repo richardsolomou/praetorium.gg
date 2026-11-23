@@ -458,8 +458,9 @@ test('rule tooltips open on touch and hover', async ({ browser, page }) => {
   await page.getByRole('button', { name: '[RAPID FIRE 1]' }).focus()
   await page.keyboard.press('Enter')
   await expect(page.getByRole('tooltip')).toContainText('Rapid Fire')
+  // Tab moves on to the next ability, which opens its own summary instead.
   await page.keyboard.press('Tab')
-  await expect(page.getByRole('tooltip')).toHaveCount(0)
+  await expect(page.getByRole('tooltip').filter({ hasText: 'Rapid Fire' })).toHaveCount(0)
 })
 
 test('server-rendered reference pages keep route-shaped payloads', { tag: '@catalogue' }, async ({ request }) => {
@@ -485,9 +486,8 @@ test('a rule is read by the number the source prints against it', async ({ brows
   await expect(page).toHaveURL('/rules/core-rules/movement-phase')
   const remainStationary = page.locator('[id="09.04"]')
   await expect(remainStationary).toContainText(/remain stationary/i)
-  // A movement behaviour states its own fields, and one the source writes as a dash is
-  // not a rule: that is how it states Remain Stationary's maximum distance.
-  await expect(remainStationary).toContainText(/eligible if/i)
+  // A movement behaviour reads as its summary, without the fields the source writes as a dash.
+  await expect(remainStationary).toContainText(/none of its models move/i)
   await expect(remainStationary).not.toContainText(/maximum distance/i)
   // The printed rulebook's photography is not republished.
   await expect(page.locator('main img')).toHaveCount(0)
@@ -497,21 +497,9 @@ test('a rule is read by the number the source prints against it', async ({ brows
   await expect(page).toHaveURL('/rules/core-rules/movement-phase#09.04')
   await page.screenshot({ path: test.info().outputPath('rules-section.png'), fullPage: true })
 
-  // The source emphasises its examples in Markdown, which is read rather than shown.
-  await page.goto('/rules/core-rules/terrain')
-  const example = page.locator('p', { hasText: 'All sections of the' }).first()
-  await expect(example).toContainText('terrain feature (A) are more than')
-  await expect(example.locator('strong em')).not.toHaveCount(0)
-  expect(await page.locator('main').innerText()).not.toContain('***')
-
-  // A clarification stays collapsed until the address names it.
-  await page.goto('/rules/core-rules/core-concepts')
-  // The outline draws a clarification as a plain row until its loaded text makes it expandable.
-  const clarification = page.locator('details[id="01.02.03"]')
-  await expect(clarification).toBeAttached()
-  expect(await clarification.evaluate((element: HTMLDetailsElement) => element.open)).toBe(false)
+  // A clarification is a row of its own, which its address brings into view.
   await page.goto('/rules/core-rules/core-concepts#01.02.03')
-  await expect.poll(() => clarification.evaluate((element: HTMLDetailsElement) => element.open)).toBe(true)
+  await expect(page.locator('[id="01.02.03"]')).toBeInViewport()
 
   const mobileContext = await browser.newContext({ viewport: PHONE })
   const mobilePage = await mobileContext.newPage()
@@ -539,9 +527,9 @@ test('the faction page shows its army rule in full when expanded', async ({ page
   await page.goto('/factions/necrons')
 
   const armyRule = page.locator('details').filter({ has: page.getByRole('heading', { name: 'Reanimation Protocols', exact: true }) })
-  await expect(armyRule.getByText(/activates its Reanimation Protocols/).first()).toBeHidden()
+  await expect(armyRule.getByText(/as your Command phase finishes/).first()).toBeHidden()
   await armyRule.locator('summary').click()
-  await expect(armyRule.getByText(/activates its Reanimation Protocols/).first()).toBeVisible()
+  await expect(armyRule.getByText(/as your Command phase finishes/).first()).toBeVisible()
   await expect(page.getByRole('button', { name: 'Reanimation Protocols', exact: true })).toHaveCount(0)
   await page.screenshot({ path: test.info().outputPath('faction-army-rule.png'), fullPage: true })
 
@@ -1065,13 +1053,13 @@ test('a player can enter through the roster library and browse the product', asy
   await page.getByRole('link', { name: 'Necrons' }).click()
   await page.getByRole('link', { name: /Cryptek Conclave/ }).click()
   await expect(page).toHaveURL('/factions/necrons/rules/mfm-1-6/detachments/cryptek-conclave')
-  await expect(page.locator('main [data-faction-mark="necrons"]')).toBeVisible()
+  await expect(page.locator('main [data-faction-mark="necrons"]').first()).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Cryptek Conclave', exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Technosorcerous Augmentations' })).toBeVisible()
   await expect(page.getByRole('heading', { name: /Enhancements/ })).toContainText('4')
   await expect(page.getByRole('heading', { name: 'Quantum Abacus' })).toBeVisible()
-  const antiMonster = page.getByRole('button', { name: '[ANTI‑MONSTER 5+]' })
-  await antiMonster.hover()
+  const antiInfantry = page.getByRole('button', { name: '[ANTI-INFANTRY 3+]' })
+  await antiInfantry.hover()
   await expect(page.getByRole('tooltip')).toContainText('Anti')
   await page.getByRole('heading', { name: 'Cryptek Conclave', exact: true }).hover()
   await expect(page.getByRole('tooltip')).toHaveCount(0)
@@ -1129,8 +1117,9 @@ test('a player can enter through the roster library and browse the product', asy
   await expect(page.getByRole('heading', { name: 'Overlord', exact: true })).toBeVisible()
   await page.screenshot({ path: test.info().outputPath('datasheet.png'), fullPage: true })
   await page.goto('/factions/necrons/datasheets/ghost-ark')
-  await expect(page.getByRole('heading', { name: 'Transport' })).toBeVisible()
-  await expect(page.getByText(/transport capacity of 10/)).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Repair Barge' })).toBeVisible()
+  // The transport rule has no summary, and its wording is never shown, so it leaves no empty section.
+  await expect(page.getByRole('heading', { name: 'Transport', exact: true })).toHaveCount(0)
   await page.screenshot({ path: test.info().outputPath('transport-datasheet.png'), fullPage: true })
   await page.setViewportSize(PHONE)
   await page.screenshot({ path: test.info().outputPath('transport-datasheet-phone.png'), fullPage: true })

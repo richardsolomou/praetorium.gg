@@ -8,9 +8,10 @@ import type { Datasheet, DatasheetRelationship } from '../../../../contracts/cat
 import { datasheetQuery, type Fielded } from '../../../queries'
 import { useSettled } from '../../../useSettled'
 import { UnitProfile, WeaponSummary } from '../../../components/DatasheetProfiles'
-import { Keyword, KEYWORD_TAG_CLASS, UnitKeywords } from '../../../components/Keyword'
+import { Keyword, KEYWORD_TAG_CLASS, type KeywordRule, UnitKeywords } from '../../../components/Keyword'
 import { abilitySections, attachmentGroups, primaryUnitProfile, referenceAbilities, separateTransport } from '../../../datasheet'
 import { RuleText } from '../../../components/RuleText'
+import { useRuleSummary } from '../../../ruleSummaries'
 import { ProfileRules } from '../ProfileRules'
 import { ReminderButton, type ReminderControls } from '../ReminderButton'
 import type { ReminderSubject } from '../../../../core/reminders'
@@ -119,14 +120,7 @@ export function DatasheetPanel({
         detachmentRules={detachmentRules}
       />
       <ProfileRules profiles={sheet.profiles} rules={sheet.keywordRules} compact />
-      {transport ? (
-        <section>
-          <h2 className="rubric">Transport</h2>
-          <div className="mt-2 part px-2 py-1.5">
-            <RuleText text={transport} rules={sheet.keywordRules} />
-          </div>
-        </section>
-      ) : null}
+      {transport ? <TransportRule text={transport} rules={sheet.keywordRules} /> : null}
       {sheet.referenceRoute ? (
         <div className="border-t border-edge pt-3">
           <UnitKeywords className="min-w-0" sheet={sheet} />
@@ -296,5 +290,19 @@ function AbilitySummary({
         ))}
       </div>
     </section>,
+  )
+}
+
+/** A transport's rule, shown only where it has a summary, so a rule without one leaves no empty section. */
+function TransportRule({ text, rules }: { text: string; rules: KeywordRule[] }) {
+  const { summary } = useRuleSummary(text)
+  if (!summary) return null
+  return (
+    <section>
+      <h2 className="rubric">Transport</h2>
+      <div className="mt-2 part px-2 py-1.5">
+        <RuleText text={text} rules={rules} />
+      </div>
+    </section>
   )
 }

@@ -23,7 +23,7 @@ const record = (summary: string) => ({
 const codex = composition.editions.find((entry) => entry.edition.id === 'custodes-11e')!
 
 /** A snapshot of the base rules and the Custodes codex, each printing the stratagem, with a release per summary given. */
-function snapshot(releases: { update: string; summary: string }[]) {
+function snapshot(releases: { update: string; summary: string }[], others: Parameters<typeof vsDataReleaseFiles>[0] = []) {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'vs-data-summaries-'))
   directories.push(directory)
   const base = composition.editions.filter((entry) => 'base' in entry && entry.base)
@@ -35,7 +35,7 @@ function snapshot(releases: { update: string; summary: string }[]) {
   fs.mkdirSync(path.join(directory, 'summaries'))
   releases.forEach(({ update, summary }, at) => {
     const unpacked = path.join(directory, `release-${at}`)
-    writeFiles(unpacked, vsDataReleaseFiles([record(summary)], update))
+    writeFiles(unpacked, vsDataReleaseFiles([record(summary), ...others], update))
     compactVsDataRelease(unpacked, path.join(directory, 'summaries', `${at}.json`))
   })
   const summaries = completeSteps(vsDataSummariesSteps(directory, []))
@@ -74,4 +74,12 @@ it('reads an earlier rules version’s cards with that version’s own release',
   ])
   const answer = summaries!.summariesIn(custodes)
   expect(answer.records[answer.texts[textHash(effect)]![0]!]?.summary).toBe('Under the codex, pick a unit to hit more often.')
+})
+
+it('opens a weapon ability a summary prints in brackets', () => {
+  const lethalHits = { kind: 'weapon-ability', id: 'lethal-hits', aliases: [], summary: 'A Critical Hit wounds automatically.' }
+  const { summaries, base } = snapshot([{ update: 'MFM 1.6', summary: 'Its weapons gain [LETHAL HITS] this phase.' }], [lethalHits])
+  expect(summaries!.summariesIn(base).records['ability:necrons.test.focused-fire']?.spans).toEqual([
+    { start: 17, end: 30, ability: 'weapon-ability:lethal-hits' },
+  ])
 })

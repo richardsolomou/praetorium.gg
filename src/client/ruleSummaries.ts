@@ -1,7 +1,8 @@
 import { useQueries, useQuery } from '@tanstack/react-query'
-import type { RuleSummaries, RuleSummary } from '../contracts/rules'
-import { hasTextTokens, type TextToken, textTokensIn } from '../core/sourceText'
-import { ruleSummariesQuery } from './queries/references'
+import type { RuleSummary } from '../contracts/rules'
+import { hasTextTokens, textTokensIn } from '../core/sourceText'
+import { summaryNamedBy } from '../shared/ruleSummaries'
+import { ruleAbilitySummariesQuery, ruleSummariesQuery } from './queries/references'
 import { textSources } from './functions'
 import { referenceQuery } from './queries/shared'
 
@@ -23,17 +24,6 @@ export function useRuleSummary(text: string): SummaryLookup {
   return { summary: summaryNamedBy(tokens, new Map(files.map((file, at) => [file, answers[at]?.data]))), pending: false }
 }
 
-/**
- * The summary of a rule printing every token's string. A line several rules share, such as a stratagem's timing,
- * narrows the rule down only together with the others; rules left alike print the same words, such as one stratagem
- * several detachments offer, so the first one's summary describes them all.
- */
-export function summaryNamedBy(tokens: readonly TextToken[], ofFile: ReadonlyMap<string, RuleSummaries | undefined>) {
-  const [first = [], ...rest] = tokens.map((token) => ofFile.get(token.file)?.texts[token.hash] ?? [])
-  const [id] = rest.reduce((shared, holders) => shared.filter((held) => holders.includes(held)), first)
-  return (id && tokens.map((token) => ofFile.get(token.file)?.records[id]).find(Boolean)) || null
-}
-
 /** Whether the summaries of every rule these texts print have been asked for and answered, so a printout can wait for them. */
 export function useRuleSummariesSettled(texts: readonly string[]) {
   const files = [...new Set(texts.flatMap((text) => (hasTextTokens(text) ? textTokensIn(text).map((token) => token.file) : [])))]
@@ -43,13 +33,32 @@ export function useRuleSummariesSettled(texts: readonly string[]) {
 /** Where each source file a token names lives upstream, which names the file a rules document is printed in. */
 const textSourcesQuery = () => referenceQuery(['text-sources'], () => textSources())
 
-/** The summaries of a rules document's entries, by entry id, once the file it is printed in is known. */
+/**
+ * The summaries of a rules document's entries, by entry id, once the file it is printed in is known, and whether they
+ * have been asked for and answered, as they lengthen the page they arrive on.
+ */
 export function useRuleEntrySummaries(url: string | null) {
-  const { data: table } = useQuery({ ...textSourcesQuery(), enabled: Boolean(url) })
+  const { data: table, isFetched: located } = useQuery({ ...textSourcesQuery(), enabled: Boolean(url) })
   const file = table && Object.entries(table).find(([, entry]) => entry.url === url)?.[0]
-  const { data } = useQuery({ ...ruleSummariesQuery(file ?? ''), enabled: Boolean(file) })
-  return (entry: string): RuleSummary | undefined => {
-    const id = data?.entries[entry]
-    return id ? data.records[id] : undefined
+  const { data, isFetched } = useQuery({ ...ruleSummariesQuery(file ?? ''), enabled: Boolean(file) })
+  return {
+    settled: !url || (located && (!file || isFetched)),
+    summaryOf: (entry: string): RuleSummary | undefined => {
+      const id = data?.entries[entry]
+      return id ? data.records[id] : undefined
+    },
   }
+}
+
+/** The summary of a weapon or core ability, by its `kind:id` or, for a keyword, by its name; null until it is known. */
+export function useAbilitySummary(ability: { key: string } | { name: string } | null): RuleSummary | null {
+  const { data } = useQuery({ ...ruleAbilitySummariesQuery(), enabled: Boolean(ability) })
+  if (!ability || !data) return null
+  if ('key' in ability) return data[ability.key] ?? null
+  const slug = ability.name
+    .normalize('NFKC')
+    .toLowerCase()
+    .replaceAll(/[^a-z0-9]+/g, '-')
+    .replaceAll(/^-|-$/g, '')
+  return data[`weapon-ability:${slug}`] ?? data[`core-ability:${slug}`] ?? null
 }
