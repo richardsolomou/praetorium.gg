@@ -212,7 +212,8 @@ export async function fetchReleaseInto(source: ReleaseSource, target: string) {
   replaceDirectory(staging, target)
 }
 
-const MAX_RELEASE_BYTES = 64 * 1024 * 1024
+// A VS Data release carries the datasheets and points it summarizes as well as the summaries, about 70 MB a rules version.
+const MAX_RELEASE_BYTES = 128 * 1024 * 1024
 
 /**
  * The regular files of a ustar archive; any other entry, such as a link, is refused. A PAX extended
