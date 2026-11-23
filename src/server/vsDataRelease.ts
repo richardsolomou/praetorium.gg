@@ -49,6 +49,11 @@ const recordSchema = refSchema.extend({
   }),
 })
 
+const unresolvedSummary = (record: unknown) => {
+  const summary = (record as { data?: { summary?: unknown } } | null)?.data?.summary
+  return typeof summary === 'object' && summary !== null && 'unresolved' in summary
+}
+
 const MANIFEST = 'manifest.json'
 /** The categories whose records are rule summaries; others, such as mission packs, hold data Praetorium reads elsewhere. */
 const SUMMARY_CATEGORIES = new Set(['rules-reference', 'mission-rules'])
@@ -211,7 +216,10 @@ export function compactVsDataRelease(directory: string, file: string) {
   const records = manifest.categories
     .filter((category) => SUMMARY_CATEGORIES.has(category.name))
     .flatMap((category) => category.records)
-    .map((entry) => recordSchema.parse(read(entry.path)))
+    .map((entry) => read(entry.path))
+    // A summary VS Data holds back as `{ "unresolved": … }` reads as no summary, as any other gap does.
+    .filter((record) => !unresolvedSummary(record))
+    .map((record) => recordSchema.parse(record))
     .filter((record) => record.rulesVersion.update === manifest.rulesVersion.update)
   const wanted = new Set(
     records.flatMap((record) => [
