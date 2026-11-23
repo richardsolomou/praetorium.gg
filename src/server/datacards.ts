@@ -28,7 +28,8 @@ import { type SourceTexts, comparableText, resolvedText, textKey, textTokensIn }
 import { combatFactsOf } from '../core/combatReading'
 import { textFactsOf } from '../shared/textFacts'
 import { factsKey, type TextFacts } from '../core/textFacts'
-import { publishedTexts } from './sourceTexts'
+import { RecentlyUsed, remember as rememberIn } from '../core/collections'
+import { publishedTexts, stringsByHash } from './sourceTexts'
 const NO_SECTIONS: SectionProse = () => new Map()
 
 const titleCase = (name: string) =>
@@ -54,16 +55,17 @@ function recording(
   texts: SourceTexts,
   facts: Map<string, TextFacts>,
   readings: Map<string, string>,
-  words: Map<string, string>,
+  file: string,
+  files: Map<string, string>,
 ): SourceTexts {
   return (raw, transform) => {
     const published = texts(raw, transform)
     for (const token of textTokensIn(published)) {
       const key = textKey(token)
+      files.set(token.file, file)
       if (readings.has(key)) continue
       const said = transformed(raw, transform)
       readings.set(key, hash('sha256', said))
-      words.set(key, said)
       const found = textFactsOf(said)
       if (found) facts.set(key, found)
     }
@@ -79,29 +81,46 @@ function recording(
 function recordCombat(
   descriptions: Iterable<string>,
   facts: Map<string, TextFacts>,
-  words: ReadonlyMap<string, string>,
+  files: ReadonlyMap<string, string>,
   stratagems: ReadonlySet<string>,
 ) {
   for (const text of descriptions) {
     const tokens = textTokensIn(text)
-    if (!tokens.length || tokens.some((token) => !words.has(textKey(token)))) continue
+    if (!tokens.length || tokens.some((token) => !files.has(token.file))) continue
     const key = factsKey(text)
     const found = facts.get(key)
     if (found && 'combat' in found) continue
-    const said = resolvedText(
-      text,
-      (token) => words.get(textKey(token))!,
-      () => '',
-    )
     let combat: TextFacts['combat']
     facts.set(
       key,
       Object.defineProperty({ ...found }, 'combat', {
         enumerable: true,
-        get: () => (combat === undefined ? (combat = combatFactsOf(said, stratagems.has(text))) : combat),
+        get: () => (combat === undefined ? (combat = combatFactsOf(wordsOf(text, files), stratagems.has(text))) : combat),
       }),
     )
   }
+}
+
+// Read back from its file when a reading is asked for, as a server holding every rules version's card words for the
+// few it reads would hold far more than the readings.
+const heldStrings = new RecentlyUsed<string, ReadonlyMap<string, string>>(4)
+const wordsOf = (text: string, files: ReadonlyMap<string, string>) =>
+  resolvedText(
+    text,
+    (token) => {
+      const raw = rememberIn(heldStrings, files.get(token.file)!, () => stringsByHash(files.get(token.file)!)).get(token.hash)
+      return raw === undefined ? null : transformed(raw, token.transform)
+    },
+    () => '',
+  )
+
+// A server reads a card's words itself, so only a process building the device download records the cards' readings: a
+// server holding them for every rules version it loads would spend its heap on them.
+let cardReadings = false
+
+/** Records each card rule's combat reading in the cards loaded from now on, for the device download. */
+export function recordCardReadings() {
+  cardReadings = true
 }
 
 /** Every rules text a value holds under a `description` field, which is where the cards keep a rule's text. */
@@ -123,8 +142,8 @@ export function* loadDatacardsSteps(
 ): Steps<LoadedDatacards> {
   const textFacts = new Map<string, TextFacts>()
   const textReadings = new Map<string, string>()
-  const textWords = new Map<string, string>()
-  const textsOf = (file: string) => recording(textsFor(file), textFacts, textReadings, textWords)
+  const textFiles = new Map<string, string>()
+  const textsOf = (file: string) => recording(textsFor(file), textFacts, textReadings, file, textFiles)
   const coreStratagems: string[] = []
   const factions = new Map<string, FactionContent>()
   const detachmentRules = new Map<string, Map<string, Map<string, string>>>()
@@ -262,20 +281,22 @@ export function* loadDatacardsSteps(
     textFacts,
     textReadings,
   }
-  const stratagemTexts = [
-    ...coreStratagems,
-    ...descriptionsIn([loaded.stratagems, [...factions.values()].map((content) => content.stratagems)]),
-  ]
-  recordCombat(
-    [
-      ...stratagemTexts,
-      ...[...enhancements.values(), ...armyRules.values()].flatMap((texts) => [...texts.values()]),
-      ...descriptionsIn([loaded.factions, loaded.detachmentRules]),
-    ],
-    textFacts,
-    textWords,
-    new Set(stratagemTexts),
-  )
+  if (cardReadings) {
+    const stratagemTexts = [
+      ...coreStratagems,
+      ...descriptionsIn([loaded.stratagems, [...factions.values()].map((content) => content.stratagems)]),
+    ]
+    recordCombat(
+      [
+        ...stratagemTexts,
+        ...[...enhancements.values(), ...armyRules.values()].flatMap((texts) => [...texts.values()]),
+        ...descriptionsIn([loaded.factions, loaded.detachmentRules]),
+      ],
+      textFacts,
+      textFiles,
+      new Set(stratagemTexts),
+    )
+  }
   return loaded
 }
 export function keywordAbilityDescriptions(directory: string, textsFor: TextsFor = publishedTexts) {

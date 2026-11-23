@@ -5,28 +5,27 @@ import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { parseArgs } from 'node:util'
 import { chromium } from '@playwright/test'
-import { importAuthSqlite, migrateAuthSqlite } from './nodeAuthSqlite'
 
 /**
- * The built server's live heap and resident memory after startup and after a player opens each kind of reference page,
- * as a container runs it: production mode, the live catalogue a refresh prepared, and the heap a 2 GiB container gives
- * Node. `--budget <MiB>` fails the run when the live heap after any page exceeds it, so a change that grows what the
- * server holds is caught before a deploy. It borrows `just dev`'s SpacetimeDB, which reading the reference barely touches.
+ * The application server's live heap and resident memory once it reports ready and after a player opens each kind of
+ * reference page, started as a preview container starts it: `scripts/nodeServer.ts` in production mode, seeding the
+ * preview, preparing its live catalogue from a published snapshot (`--snapshot`, standing in for the snapshot store),
+ * and with the heap a preview's container gives Node (`--heap`, in MiB, which a 3 GiB preview sets to 2048). `--budget <MiB>` fails the run when the live heap at any step exceeds
+ * it, so a change that grows what the server holds is caught before a deploy. It borrows `just dev`'s SpacetimeDB.
  *
- *   pnpm build
- *   CATALOGUE_LIVE_DIR=<root> CATALOGUE_COMPILER=<key> CATALOGUE_AUTHORING=<key> node .output/server/catalogue-refresh.mjs --baseline
- *   pnpm exec tsx scripts/measureServingMemory.ts --live <root> [--build .output] [--budget 600]
+ *   pnpm build && pnpm exec tsx scripts/measureServingMemory.ts --snapshot catalogue-data [--checkout .] [--heap 2048] [--budget 1500]
  */
 const { values } = parseArgs({
   options: {
-    build: { type: 'string', default: '.output' },
-    live: { type: 'string' },
+    checkout: { type: 'string', default: '.' },
+    snapshot: { type: 'string' },
     budget: { type: 'string' },
     port: { type: 'string', default: '3917' },
+    heap: { type: 'string', default: '2048' },
   },
 })
-if (!values.live) throw new Error('expected --live <the live catalogue root a refresh prepared>')
-const build = path.resolve(values.build)
+if (!values.snapshot) throw new Error('expected --snapshot <a materialized catalogue snapshot>')
+const checkout = path.resolve(values.checkout)
 const port = Number(values.port)
 const origin = `http://127.0.0.1:${port}`
 const stack = JSON.parse(fs.readFileSync('data-dev/active-preview.json', 'utf8')) as {
@@ -39,38 +38,64 @@ const credentials = JSON.parse(fs.readFileSync(path.join(stack.dataDir, 'credent
   authSecret: string
 }
 const work = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-serving-memory-'))
-const samples = path.join(work, 'memory.jsonl')
-// Collected first, so the numbers are what the server holds rather than garbage it has yet to free.
+const data = path.join(work, 'data')
+fs.mkdirSync(data)
+// Every Node process the server starts samples itself; collected first, so the numbers are what it holds.
+const samples = path.join(work, 'samples')
+fs.mkdirSync(samples)
 const sampler = path.join(work, 'sampler.cjs')
 fs.writeFileSync(
   sampler,
   `const fs = require('node:fs')
+const file = ${JSON.stringify(samples)} + '/' + process.pid + '.jsonl'
+fs.writeFileSync(file, JSON.stringify({ script: process.argv[1] }) + '\\n')
 setInterval(() => {
   globalThis.gc?.()
   const { heapUsed, rss } = process.memoryUsage()
-  fs.appendFileSync(${JSON.stringify(samples)}, JSON.stringify({ heapUsed, rss }) + '\\n')
+  fs.appendFileSync(file, JSON.stringify({ heapUsed, rss }) + '\\n')
 }, 1000).unref()
 `,
 )
-// An empty accounts database, as a new container starts with.
-const auth = path.join(work, 'auth.sqlite')
-await importAuthSqlite(path.resolve('drizzle-auth/0000_curly_gambit.sql'), auth)
-migrateAuthSqlite(auth)
 
-const { CATALOGUE_DIR: _, ...environment } = process.env
-const server = spawn(process.execPath, [path.join(build, 'server/index.mjs')], {
+const { CATALOGUE_DIR: _, R2_ACCESS_KEY_ID: _key, R2_SECRET_ACCESS_KEY: _secret, ...environment } = process.env
+// A preview's refresh fetches the snapshot's prepared outputs from the store in seconds; this prepares them first,
+// without the heap limit, so the limit falls on the application alone, as it does in a preview.
+const { key, authoring } = JSON.parse(fs.readFileSync(path.join(checkout, '.output/server/catalogue-compiler.json'), 'utf8')) as {
+  key: string
+  authoring: string
+}
+const live = path.join(data, 'catalogues', key)
+fs.mkdirSync(live, { recursive: true })
+await new Promise<void>((resolve, reject) =>
+  spawn(process.execPath, ['.output/server/catalogue-refresh.mjs', '--baseline'], {
+    cwd: checkout,
+    env: {
+      ...environment,
+      CATALOGUE_LIVE_DIR: live,
+      CATALOGUE_COMPILER: key,
+      CATALOGUE_AUTHORING: authoring,
+      CATALOGUE_DIR: path.resolve(values.snapshot!),
+    },
+    stdio: ['ignore', 'ignore', 'inherit'],
+  }).once('exit', (code) => (code === 0 ? resolve() : reject(new Error(`the catalogue refresh exited with ${code}`)))),
+)
+
+const server = spawn(process.execPath, ['scripts/nodeServer.ts'], {
+  cwd: checkout,
   env: {
     ...environment,
     NODE_ENV: 'production',
-    NODE_OPTIONS: `--max-old-space-size=1024 --expose-gc --require ${sampler}`,
-    NITRO_PORT: String(port),
-    NITRO_HOST: '127.0.0.1',
+    NODE_OPTIONS: `--max-old-space-size=${Number(values.heap)} --expose-gc --require ${sampler}`,
+    PORT: String(port),
+    NODE_INTERNAL_PORT: String(port + 1),
     APP_URL: origin,
-    DATA_DIR: path.join(work, 'data'),
-    AUTH_SQLITE_PATH: auth,
+    DATA_DIR: data,
+    AUTH_SQLITE_PATH: path.join(data, 'auth.sqlite'),
+    AUTH_INITIALIZE_EMPTY: 'true',
+    PRAETORIUM_SEED_PREVIEW: 'true',
     AUTH_SECRET: credentials.authSecret,
     CATALOGUE_RUNTIME_FETCH: 'true',
-    CATALOGUE_LIVE_DIR: path.resolve(values.live),
+    CATALOGUE_DIR: path.resolve(values.snapshot),
     CATALOGUE_UPDATE_MODE: 'off',
     SPACETIME_URL: `http://127.0.0.1:${stack.spacetimePort}`,
     SPACETIME_DATABASE: stack.database,
@@ -81,30 +106,36 @@ const server = spawn(process.execPath, [path.join(build, 'server/index.mjs')], {
 })
 const exited = new Promise<number | null>((resolve) => server.once('exit', resolve))
 
-const latest = () => {
-  const lines = fs.existsSync(samples) ? fs.readFileSync(samples, 'utf8').trim().split('\n') : []
-  return lines.length ? (JSON.parse(lines.at(-1)!) as { heapUsed: number; rss: number }) : null
+/** The application process's latest sample, and the most it has held so far. */
+const application = () => {
+  for (const name of fs.readdirSync(samples)) {
+    const lines = fs.readFileSync(path.join(samples, name), 'utf8').trim().split('\n')
+    if (!(JSON.parse(lines[0]!) as { script?: string }).script?.endsWith('server/index.mjs')) continue
+    const taken = lines.slice(1).map((line) => JSON.parse(line) as { heapUsed: number; rss: number })
+    if (taken.length) return { latest: taken.at(-1)!, peak: Math.max(...taken.map((sample) => sample.heapUsed)) }
+  }
+  return null
 }
 const mib = (bytes: number) => Math.round(bytes / 1024 / 1024)
-const rows: { step: string; heap: number; rss: number }[] = []
+const rows: { step: string; heap: number; peakHeap: number; rss: number }[] = []
 const record = async (step: string) => {
   await delay(3_000)
   if (server.exitCode !== null) throw new Error(`the server exited with ${server.exitCode} after ${rows.at(-1)?.step ?? 'starting'}`)
-  const sample = latest()
-  if (!sample) throw new Error('the server recorded no memory sample')
-  rows.push({ step, heap: mib(sample.heapUsed), rss: mib(sample.rss) })
+  const sampled = application()
+  if (!sampled) throw new Error('the application recorded no memory sample')
+  rows.push({ step, heap: mib(sampled.latest.heapUsed), peakHeap: mib(sampled.peak), rss: mib(sampled.latest.rss) })
 }
 
 try {
-  // Health also asks for the accounts database's backups, which this server has none of.
+  const started = performance.now()
   for (let ready = false; !ready;) {
-    if (server.exitCode !== null) throw new Error(`the server exited with ${server.exitCode}`)
-    ready = await fetch(`${origin}/rules`)
+    if (server.exitCode !== null) throw new Error(`the server exited with ${server.exitCode} before it was ready`)
+    ready = await fetch(`${origin}/api/health`)
       .then((response) => response.ok)
       .catch(() => false)
-    if (!ready) await delay(500)
+    if (!ready) await delay(1_000)
   }
-  await record('startup')
+  await record(`ready after ${Math.round((performance.now() - started) / 1_000)}s`)
   const browser = await chromium.launch()
   try {
     const page = await browser.newPage()
@@ -122,14 +153,16 @@ try {
     await browser.close()
   }
   const budget = values.budget === undefined ? null : Number(values.budget)
-  const peak = Math.max(...rows.map((row) => row.heap))
+  const peak = Math.max(...rows.map((row) => row.peakHeap))
   if (budget !== null && peak > budget) {
     console.error(`Live heap reached ${peak} MiB, over the ${budget} MiB budget`)
     process.exitCode = 1
   }
 } finally {
   if (rows.length) console.table(rows)
+  const sampled = application()
+  if (sampled) console.log(`application peak live heap: ${mib(sampled.peak)} MiB`)
   server.kill('SIGTERM')
-  await Promise.race([exited, delay(10_000)])
+  await Promise.race([exited, delay(15_000)])
   fs.rmSync(work, { recursive: true, force: true })
 }

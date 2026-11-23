@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import { beforeAll, describe, expect, it } from 'vitest'
 import { combatRuleAppliesTo, type CombatRule } from '../src/core/combatRules'
+import { recordCardReadings } from '../src/server/datacards'
 import { snapshotWords } from '../src/server/sourceTexts'
 import { readableCombatant } from '../src/client/features/simulator/readableRules'
 import { combatUnitsFor } from '../src/shared/combatUnits'
@@ -20,6 +21,7 @@ describe.skipIf(!fs.existsSync(directory))('buffs a device plays from recorded f
   let words: ReturnType<typeof snapshotWords>
 
   beforeAll(() => {
+    recordCardReadings()
     snapshot = loadSnapshotWithRules(directory)
     index = combatUnitsFor(snapshot.catalogue, snapshot.rules)
     words = snapshotWords(directory)

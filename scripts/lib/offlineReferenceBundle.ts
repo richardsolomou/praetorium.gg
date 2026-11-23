@@ -1,3 +1,4 @@
+import { recordCardReadings } from '../../src/server/datacards'
 import path from 'node:path'
 import { textSourceFiles } from '../../src/server/sourceTexts'
 import { publishedSearchIndex } from '../../src/server/globalSearch'
@@ -84,6 +85,7 @@ export function sharedEdition(source: OfflineConstructionSource, base: OfflineCo
 }
 
 export async function writeReferenceBundle(outDir: string, directory: string, runtime?: CatalogueRuntime) {
+  recordCardReadings()
   const { catalogue, rules } = loadSnapshotWithRules(directory)
   const versions = catalogueEditionLoaders(
     directory,
