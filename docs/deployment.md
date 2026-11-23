@@ -29,6 +29,7 @@ Register and verify the operator account, then confirm its player ID from that a
 - Previews run at `pr-<number>.praetorium.gg`; ready means `/api/health` reports the expected commit. Each built preview waits for maintainer approval in the `pr-preview` environment before it deploys, so pushes do not crowd production on hera.
 - Previews are public and share one runtime catalogue cache; keep sensitive data out. Redeploying resets their data.
 - Previews share hera with production, so each is capped at 2 GiB and at most three run: deploying another stops the one first deployed longest ago until its next deploy.
+- That cap gives Node about a 1 GiB heap, which the server nearly fills after a few reference pages. `scripts/measureServingMemory.ts` measures the built server's live heap page by page against a live catalogue, with `--budget` to fail over a limit; run it on main and the branch before changing what the server keeps.
 - Sign in with `preview@praetorium.gg` / `preview-preview-preview` or `opponent@praetorium.gg` / `opponent-opponent-opponent`.
 
 ## Backups

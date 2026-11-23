@@ -16,6 +16,7 @@ import { applyPatches } from './cataloguePatches'
 import { type CatalogueComposition, readCatalogueComposition } from '../../src/server/catalogueComposition'
 import { checkVsDataRelease, compactVsDataRelease } from '../../src/server/vsDataRelease'
 import { replaceDirectory } from '../../src/server/replaceDirectory'
+import { withholdCopiedSummaries } from '../../src/server/vsDataSummaries'
 import { composeCatalogue, validateCatalogueImports } from './catalogueComposition'
 
 const root = path.resolve(import.meta.dirname, '..', '..')
@@ -130,6 +131,10 @@ export async function materializeCatalogue(directory: string, sources = catalogu
       for (const name of selected.filter((source) => source === 'icons' || source === 'battlemaster'))
         applyPatches(staged, path.join(patches, name), name)
       if (!omitted.has('definitions')) validateCatalogueImports(path.join(staged, 'definitions'))
+      // Read once here, beside every source file, rather than by each server that serves the summaries.
+      if (!omitted.has('summaries'))
+        for (const withheld of withholdCopiedSummaries(staged))
+          options.report?.(`summary withheld for repeating a source's words: ${withheld}`)
     }
     fs.rmSync(path.join(staged, '.git'), { recursive: true })
     checkOutput()

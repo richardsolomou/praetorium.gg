@@ -7,8 +7,8 @@ import { completeSteps } from '../shared/steps'
 import { readCatalogueComposition } from './catalogueComposition'
 import { textFileId, textHash, textSourcePaths } from './sourceTexts'
 import { vsDataReleaseFiles, writeFiles } from './vsData.fixtures'
-import { compactVsDataRelease } from './vsDataRelease'
-import { vsDataSummariesSteps } from './vsDataSummaries'
+import { checkVsDataRelease, compactVsDataRelease } from './vsDataRelease'
+import { vsDataSummariesSteps, withholdCopiedSummaries } from './vsDataSummaries'
 
 const effect = 'Until the end of the phase, each time a model in your unit makes an attack, add 1 to the Hit roll.'
 const stratagem = { id: 'f06fa0ef-917a-57c2-955d-325a082d942c', when: { en: 'Your Shooting phase.' }, effect: { en: effect } }
@@ -36,8 +36,13 @@ function snapshot(releases: { update: string; summary: string }[], others: Param
   releases.forEach(({ update, summary }, at) => {
     const unpacked = path.join(directory, `release-${at}`)
     writeFiles(unpacked, vsDataReleaseFiles([record(summary), ...others], update))
-    compactVsDataRelease(unpacked, path.join(directory, 'summaries', `${at}.json`))
+    const edition = checkVsDataRelease(
+      unpacked,
+      [...base, codex].map((entry) => entry.edition),
+    )
+    compactVsDataRelease(unpacked, path.join(directory, 'summaries', `${edition}.json`))
   })
+  withholdCopiedSummaries(directory)
   const summaries = completeSteps(vsDataSummariesSteps(directory, []))
   const files = textSourcePaths(directory, readCatalogueComposition(directory))
   const file = (edition: boolean) => textFileId(files.find(({ path: at }) => at.includes('/editions/') === edition)!.url)
