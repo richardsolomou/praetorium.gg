@@ -16,8 +16,8 @@ const spanSchema = z.object({
 export type VsDataSpan = z.infer<typeof spanSchema>
 
 /**
- * What the snapshot keeps of a verified VS Data release: each summary with its spans, first publisher citation
- * and open questions, and the aliases of every entry a summary is for or links to.
+ * What the snapshot keeps of a verified VS Data release: each summary with its spans and open questions, and the
+ * aliases of every entry a summary is for or links to.
  */
 export const vsDataSummariesSchema = z.object({
   release: z.string(),
@@ -27,7 +27,6 @@ export const vsDataSummariesSchema = z.object({
     refSchema.extend({
       summary: z.string().min(1),
       spans: z.array(spanSchema),
-      citation: z.object({ title: z.string(), url: z.string(), page: z.string().nullable() }).nullable(),
       questions: z.array(z.string()),
     }),
   ),
@@ -37,12 +36,11 @@ export type VsDataSummariesFile = z.infer<typeof vsDataSummariesSchema>
 export const vsDataKey = ({ kind, id }: VsDataRef) => `${kind}:${id}`
 
 /**
- * The Praetorium rules version a VS Data release describes: `MFM 1.6` is `mfm-1-6`. Only that version's
- * cards print the rules its summaries describe, so no other version shows them.
+ * The Praetorium rules version a VS Data release describes, which VS Data names as Praetorium does: only that
+ * version's cards print the rules its summaries describe, so no other version shows them.
  */
-export function vsDataEdition(rulesVersion: VsDataRulesVersion) {
-  const [, major, minor] = /^MFM (\d+)\.(\d+)$/.exec(rulesVersion.update) ?? []
-  return rulesVersion.edition === '11th' && major ? `mfm-${major}-${minor}` : null
+export function vsDataEdition(rulesVersion: VsDataRulesVersion, editions: readonly { id: string; name: string }[]) {
+  return rulesVersion.edition === '11th' ? (editions.find((edition) => edition.name === rulesVersion.update)?.id ?? null) : null
 }
 
 /** Entries by every ID that names them: their own `kind:id` and each alias. */
@@ -107,9 +105,12 @@ export function gdcRuleRecords(file: unknown): GdcRuleRecord[] {
   for (const detachment of list(rules?.detachment))
     for (const rule of list(detachment.rules))
       add('detachment rule', `gdc.detachment.rule.${dotted(detachment.detachment_id)}.${named(rule.name)}`, blockTexts(rule.rules))
-  for (const datasheet of list(root.datasheets))
-    for (const ability of list(fieldsOf(datasheet.abilities)?.other))
+  for (const datasheet of list(root.datasheets)) {
+    const abilities = fieldsOf(datasheet.abilities)
+    // Wargear and special abilities are a datasheet's abilities too, aliased alike.
+    for (const ability of ['other', 'wargear', 'special'].flatMap((group) => list(abilities?.[group])))
       add('unit ability', `gdc.unit.ability.${dotted(datasheet.id)}.${named(ability.name)}`, [raw(ability.description)])
+  }
   for (const keyword of list(root.keywords)) {
     const kind = Array.isArray(keyword.appliesTo) && keyword.appliesTo.includes('weapons') ? 'weapon-ability' : 'core-ability'
     add('keyword', `${kind}:${String(keyword.key)}`, [raw(keyword.description)])

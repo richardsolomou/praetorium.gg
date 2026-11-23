@@ -11,10 +11,7 @@ import { pickedOptionalRules, pointsBudgetOf, waivedFormatRules } from '../../..
 import { factionQuery, detachmentDetailQuery, detachmentRulesQuery, loadoutDatasheetsQuery, priceQuery } from '../../queries'
 import type { priceRoster } from '../../functions'
 import { RuleText } from '../../components/RuleText'
-import { openTextSourcesDialog } from '../../components/textSourcesDialogState'
-import { loadedText, retryFailedTextFiles, useSourceTexts } from '../../sourceText'
-import { hasTextTokens } from '../../../core/sourceText'
-import type { TextSourceChoice } from '../../rulesText'
+import { useRuleSummariesSettled } from '../../ruleSummaries'
 import { ruleProfileSections, weaponShapedProfile } from '../../datasheet'
 import { PRINTED_RULE, RosterPrintDatasheet } from './RosterPrintDatasheet'
 import { normalisePicks } from './rosterPicks'
@@ -129,7 +126,7 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
       ).values(),
     ]
   }
-  // Every rules text the pack draws, so printing can wait until the device has loaded each one.
+  // Every rule the pack draws, so printing can wait until the device has each one's summary.
   const printedTexts = (pack: Pack) => [
     ...pack.groups.flatMap(({ host, joined }) =>
       [host, ...joined].flatMap(({ sheets }) => [
@@ -147,11 +144,8 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
     ...referencedRulesOf(pack).map((rule) => rule.description),
   ]
 
-  // A pack goes to paper only with every rule's words in it, so it waits for the rules text this device loads.
-  const texts = data ? printedTexts(data) : []
-  const { choice } = useSourceTexts(texts)
-  const gap = data ? textGap(texts, choice) : null
-  usePrintWhenReady(Boolean(data) && gap === null)
+  const settled = useRuleSummariesSettled(data ? printedTexts(data) : [])
+  usePrintWhenReady(Boolean(data) && settled)
 
   if (!data)
     return (
@@ -191,11 +185,10 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
         <Button variant="outline" onClick={onClose}>
           Return to roster
         </Button>
-        <Button disabled={gap !== null} onClick={() => window.print()}>
+        <Button disabled={!settled} onClick={() => window.print()}>
           Print battle reference pack
         </Button>
       </div>
-      {gap ? <TextGapNotice gap={gap} /> : null}
       <div data-battle-reference-pack>
         <header className="pack-masthead">
           <p className="pack-kicker">Battle reference pack</p>
@@ -331,49 +324,8 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
           </section>
         </div>
         {/* A printed pack leaves the app and its sources page, so it names where its words and prices came from. */}
-        <p>Rules text from BSData and Game Datacards; prices from the BSData Munitorum Field Manual. Data sources: praetorium.gg/sources</p>
+        <p>Rules summaries from VS Data; prices from the BSData Munitorum Field Manual. Data sources: praetorium.gg/sources</p>
       </div>
-    </div>
-  )
-}
-
-type TextGap = 'unchosen' | 'loading' | 'failed'
-
-/** What still keeps rules text off the page, the most actionable first, or null once every text has loaded. */
-function textGap(texts: readonly string[], choice: TextSourceChoice): TextGap | null {
-  const gaps = new Set(
-    texts.map((text) => {
-      // Text without tokens is BSData's own words, which show only where the reader chose BSData.
-      if (!hasTextTokens(text)) return choice.sources.has('bsdata') ? null : 'unchosen'
-      const missing = loadedText(text, choice).missing
-      return missing === 'unavailable' ? null : missing
-    }),
-  )
-  return (['unchosen', 'failed', 'loading'] as const).find((gap) => gaps.has(gap)) ?? null
-}
-
-function TextGapNotice({ gap }: { gap: TextGap }) {
-  return (
-    <div className="mx-3 mb-3 flex flex-wrap items-center gap-3 rounded-lg border border-edge bg-sunken p-3 text-sm" data-print-hide>
-      {gap === 'unchosen' ? (
-        <>
-          <p className="min-w-0 flex-1">Printing needs the rules text, which loads on this device from the community sources you choose.</p>
-          <Button size="sm" onClick={() => openTextSourcesDialog()}>
-            Turn on external sources
-          </Button>
-        </>
-      ) : gap === 'failed' ? (
-        <>
-          <p role="alert" className="min-w-0 flex-1">
-            Some rules text could not be loaded, so the pack is not ready to print.
-          </p>
-          <Button size="sm" variant="outline" onClick={() => void retryFailedTextFiles()}>
-            Retry
-          </Button>
-        </>
-      ) : (
-        <output>Loading rules text…</output>
-      )}
     </div>
   )
 }

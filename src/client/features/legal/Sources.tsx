@@ -1,44 +1,15 @@
-import { TEXT_SOURCES } from '../../../core/sourceText'
-import { TextSourceRow } from '../../components/TextSourcesDialog'
-import { chooseTextSource, useTextSourceChoice } from '../../rulesText'
-import { useHydrated } from '../../useClientValue'
 import { LegalLinks, LegalPage, LegalSection } from './LegalPage'
 
 const linkClass = 'text-info hover:text-parchment'
-
-function TextSourceSwitches() {
-  const choice = useTextSourceChoice()
-  // The stored choice is unknown until hydration, so the switches wait unseen rather than flipping (styles.css).
-  const ready = useHydrated()
-  return (
-    <div className="space-y-2">
-      {TEXT_SOURCES.map((source) => (
-        <TextSourceRow
-          key={source}
-          source={source}
-          checked={choice.sources.has(source)}
-          disabled={!ready}
-          onCheckedChange={(on) => chooseTextSource(source, on)}
-        />
-      ))}
-    </div>
-  )
-}
 
 export function Sources() {
   return (
     <LegalPage title="Data sources" updated="23 November 2026">
       <LegalSection title="Rules text">
         <p>
-          Rules text is copyrighted material, so Praetorium doesn’t host or serve it. If you choose a source, your browser fetches the text
-          directly from that community project, and it stays on your device.
+          Rules text is copyrighted material, so Praetorium never shows or serves it. Rules appear as plain-language summaries from VS Data,
+          written for each rules version and checked against the official sources. A rule without a summary shows its name and numbers only.
         </p>
-        <p>
-          Most rules show a VS Data summary instead: a plain-language explanation written for the current rules version, which names the
-          official document it was checked against. Praetorium hosts these summaries. When you load the rules text from its source, it
-          appears below the summary.
-        </p>
-        <TextSourceSwitches />
       </LegalSection>
 
       <LegalSection title="Community data">
@@ -80,11 +51,19 @@ export function Sources() {
             , licensed under AGPL-3.0.
           </li>
           <li>
-            Plain-language rules summaries for the current rules version from{' '}
+            Plain-language rules summaries for each rules version from{' '}
             <a href="https://github.com/richardsolomou/vs-data" className={linkClass}>
               VS Data
             </a>
-            , licensed under MIT.
+            , licensed under MIT. Some of them adapt structured rules data from{' '}
+            <a href="https://github.com/wn-mitch/40kdc-data" className={linkClass}>
+              40kdc
+            </a>{' '}
+            by Alpaca Software and the 40kdc community contributors, licensed under{' '}
+            <a href="https://creativecommons.org/licenses/by/4.0/" className={linkClass}>
+              CC BY 4.0
+            </a>
+            .
           </li>
           <li>
             Translated faction, detachment, and force disposition names, used to read lists exported in another language, from{' '}

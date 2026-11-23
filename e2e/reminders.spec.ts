@@ -165,7 +165,6 @@ test('roster reminders cover selected rules and advances from another device', a
   await reminder.getByRole('button', { name: 'Dismiss', exact: true }).click()
   await expect(reminder).toContainText('Living Lightning')
   await expect(reminder.getByRole('heading', { name: 'Cleanse', exact: true })).toBeVisible()
-  await expect(reminder).toContainText('One friendly unit within range of one objective')
   await expect(reminder).toContainText('Start of your Shooting phase')
   await page.setViewportSize(PHONE)
   await expectNoPageOverflow(page)

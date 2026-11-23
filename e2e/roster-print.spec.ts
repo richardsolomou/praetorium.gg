@@ -1,4 +1,4 @@
-import { expect, startUnchosen, test } from './test'
+import { expect, test } from './test'
 import {
   createRoster,
   signInAsPreview,
@@ -95,10 +95,7 @@ test('a full saved army prints selected equipment, both detachments and every pa
   await page.screenshot({ path: testInfo.outputPath('recorded-full-army.png') })
 })
 
-test('a pack waits for its rules text before it prints', async ({ browser }) => {
-  const context = await browser.newContext()
-  await startUnchosen(context)
-  const page = await context.newPage()
+test('a pack prints its rules as summaries', async ({ page }) => {
   await page.addInitScript(() => {
     window.print = () => {
       document.documentElement.dataset.printed = 'true'
@@ -106,13 +103,8 @@ test('a pack waits for its rules text before it prints', async ({ browser }) => 
   })
   await signInAsPreview(page)
   await page.goto('/rosters/preview-necrons-cursed-skyshroud?print=true')
-  await expect(page.getByText('Printing needs the rules text')).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Print battle reference pack', exact: true })).toBeDisabled()
-  await expect(page.locator('html')).not.toHaveAttribute('data-printed', 'true')
-  await page.evaluate(() => localStorage.setItem('praetorium-text-sources', 'bsdata,game-datacards'))
-  await page.reload()
   await expect(page.locator('html')).toHaveAttribute('data-printed', 'true')
-  await expect(page.locator('[data-battle-reference-pack]')).not.toContainText('Rules text isn’t loaded')
+  await expect(page.locator('[data-battle-reference-pack] [data-rule-summary]').first()).toBeVisible()
 })
 
 test('attached datasheets stay grouped and a missing reference never prints a partial pack', async ({ page }) => {

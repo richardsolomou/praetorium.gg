@@ -1,5 +1,5 @@
 import { watchLive, type WatchBattle } from '../../../contracts/watchBattle'
-import { loadedWords } from '../../sourceText'
+import { ownWords } from '../../../core/sourceText'
 import type { BattleView } from '../../../core/battleView'
 import type { BattleClock } from '../../../core/battleClock'
 import type { RosterReminder } from '../../../core/reminders'
@@ -49,7 +49,7 @@ export function watchBattle(
       unit: reminder.unit ? clip(reminder.unit.name, 80) : null,
       moment: clip(prompt.moment, 120),
       // A watch cannot load rules text, so it gets the words this device has loaded or none, never a token cut short.
-      description: clip(loadedWords(reminder.description) ?? '', 500),
+      description: clip(ownWords(reminder.description) ?? '', 500),
     })),
   )
   const uniqueReminders = [...new Map(reminders.map((reminder) => [reminder.id, reminder])).values()]
@@ -72,7 +72,7 @@ export function watchBattle(
       const summary = awards
         .map(
           (award, index) =>
-            `${[payoutJoin(award, awards[index - 1]), timingLabel(award.trigger), roundLabel(award.trigger)].filter(Boolean).join(' · ')}: ${award.vp} VP${award.per ? ` per ${award.per}` : ''}${award.max !== null ? ` (max ${award.max})` : ''}. ${loadedWords(conditionLabel(award) ?? '') || 'Check the full card on your iPhone.'}`,
+            `${[payoutJoin(award, awards[index - 1]), timingLabel(award.trigger), roundLabel(award.trigger)].filter(Boolean).join(' · ')}: ${award.vp} VP${award.per ? ` per ${award.per}` : ''}${award.max !== null ? ` (max ${award.max})` : ''}. ${ownWords(conditionLabel(award) ?? '') || 'Check the full card on your iPhone.'}`,
         )
         .join('\n\n')
       return {

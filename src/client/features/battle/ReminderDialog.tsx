@@ -5,7 +5,6 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/compon
 import { groupedReminders, type RosterReminder } from '../../../core/reminders'
 import type { ReminderDismissalScope } from './reminderDismissals'
 import { RuleText } from '../../components/RuleText'
-import { useSourceText } from '../../sourceText'
 import { BattleDialogContent, BattlePromptDialog } from './BattlePromptDialog'
 import { DropdownMenuItem } from '../../components/Menu'
 
@@ -58,9 +57,8 @@ export function ReminderDialog({
   )
 }
 
-/** A battle keeps the text its alerts had when it began; text no snapshot this device knows still holds is left out, not dashed. */
+/** An alert's rule shows as its summary, or not at all. */
 function ReminderText({ text }: { text: string }) {
-  if (useSourceText(text).missing === 'unavailable') return null
   return (
     <div className="mt-2 text-xs">
       <RuleText text={text} rules={[]} />

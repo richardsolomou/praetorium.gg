@@ -14,67 +14,95 @@ import {
   vsDataSummariesSchema,
 } from '../shared/vsData'
 import { readCatalogueComposition } from './catalogueComposition'
-import { textFileId, textHash, textSourcePaths } from './sourceTexts'
-import { VS_DATA_SUMMARIES } from './vsDataRelease'
+import { editionTextFiles, textHash } from './sourceTexts'
 
 export const NO_RULE_SUMMARIES: RuleSummaries = { records: {}, texts: {}, entries: {} }
 
-/** One Game Datacards record of the summarized rules version: whether VS Data names it, and whether its summary is served. */
+/** One Game Datacards record of a summarized rules version: whether VS Data names it, and whether its summary is served. */
 export type VsDataJoin = { kind: GdcRuleKind; key: string; named: boolean; served: boolean }
 
 export type VsDataSummaries = {
-  /** The rules version the summaries describe. */
-  edition: string
-  /** The summaries for the rules one Game Datacards file of that version prints, by the file's token ID. */
+  /** The rules versions the pinned releases describe, the base first. */
+  editions: string[]
+  /** The summaries for the rules one Game Datacards file prints, by the file's token ID, read for its rules version. */
   summariesIn: (file: string) => RuleSummaries
-  /** Every Game Datacards record of that version, once each, for the coverage report. */
-  joins: () => VsDataJoin[]
-  /** The summaries dropped because they repeat a source's own wording. */
+  /** Every Game Datacards record of one rules version, once each, for the coverage report. */
+  joins: (edition: string) => VsDataJoin[]
+  /** The summaries dropped because they repeat a source's own wording, as `edition kind:id`. */
   withheld: readonly string[]
 }
 
+type Version = {
+  edition: string
+  files: ReturnType<typeof editionTextFiles>
+  index: ReturnType<typeof vsDataIndex>
+  summaries: Map<string, RuleSummary>
+}
+
 /**
- * The pinned VS Data release, read for the rules version it describes, which must be the snapshot's
- * base or one of its rules versions. A summary repeating a sentence of either source's rules text is
- * withheld, so nothing served can be their words. Links to core rules land on their rules pages.
+ * The pinned VS Data releases, one file each, every one read for the rules version it describes. A summary
+ * repeating a sentence of either source's rules text is withheld, so nothing served can be their words. A file several
+ * rules versions hold alike, which their tokens name alike, is read as the base's where the base holds it. Links to
+ * core rules land on their rules pages.
  */
 export function* vsDataSummariesSteps(directory: string, documents: readonly RuleDocument[]): Steps<VsDataSummaries | null> {
-  const kept = path.join(directory, 'summaries', VS_DATA_SUMMARIES)
-  const release = fs.existsSync(kept) ? vsDataSummariesSchema.parse(readJson(kept)) : null
+  const folder = path.join(directory, 'summaries')
   const composition = readCatalogueComposition(directory)
-  const edition = release && vsDataEdition(release.rulesVersion)
-  const version = composition?.editions.find((entry) => entry.edition.id === edition)
-  if (!release || !edition || !version) return null
-  const prefix = version.base ? null : `editions/${edition}/`
-  const files = textSourcePaths(directory, composition).filter((source) => {
-    const relative = path.relative(directory, source.path).split(path.sep).join('/')
-    return prefix ? relative.startsWith(prefix) : !relative.startsWith('editions/')
+  const editions = composition?.editions ?? []
+  // A snapshot published before releases were kept this way holds other files here, which name no rules version.
+  const releases = (fs.existsSync(folder) ? fs.readdirSync(folder) : []).flatMap((name) => {
+    const parsed = name.endsWith('.json') ? vsDataSummariesSchema.safeParse(readJson(path.join(folder, name))) : null
+    return parsed?.success ? [parsed.data] : []
   })
-  const index = vsDataIndex(release.entries)
   const links = ruleLinks(documents)
-  const link = (target: { kind: string; id: string }) =>
-    index
-      .aliasesOf(target)
-      .map((alias) => links.get(alias))
-      .find(Boolean)
-  const summaries = new Map(release.records.map((record) => [vsDataKey(record), summaryOf(record, link)]))
-  const withheld = yield* withoutOriginalWording(summaries, files)
-  const cards = new Map(files.filter((file) => file.source === 'game-datacards').map((file) => [textFileId(file.url), file.path]))
+  const versions: Version[] = []
+  for (const release of releases) {
+    const edition = vsDataEdition(
+      release.rulesVersion,
+      editions.map((entry) => entry.edition),
+    )
+    const version = editions.find((entry) => entry.edition.id === edition)
+    if (!edition || !version) continue
+    const files = editionTextFiles(directory, version.base ? null : edition)
+    const index = vsDataIndex(release.entries)
+    const link = (target: { kind: string; id: string }) =>
+      index
+        .aliasesOf(target)
+        .map((alias) => links.get(alias))
+        .find(Boolean)
+    const summaries = new Map(release.records.map((record) => [vsDataKey(record), summaryOf(record, link)]))
+    versions.push({ edition, files, index, summaries })
+    yield
+  }
+  if (!versions.length) return null
+  const order = (version: Version) => {
+    const at = editions.findIndex((entry) => entry.edition.id === version.edition)
+    return editions[at]?.base ? -1 : at
+  }
+  versions.sort((left, right) => order(left) - order(right))
+  const withheld = yield* withoutOriginalWording(versions)
+  const cards = new Map<string, { file: string; version: Version }>()
+  for (const version of versions)
+    for (const file of version.files)
+      if (file.source === 'game-datacards' && !cards.has(file.id)) cards.set(file.id, { file: file.path, version })
   const read = (file: string) => gdcRuleRecords(readJson(file))
   const held = new RecentlyUsed<string, RuleSummaries>(16)
   return {
-    edition,
+    editions: versions.map((version) => version.edition),
     withheld,
     summariesIn: (id) => {
-      const file = cards.get(id)
-      return file ? remember(held, id, () => summariesFor(read(file), index, summaries)) : NO_RULE_SUMMARIES
+      const card = cards.get(id)
+      return card ? remember(held, id, () => summariesFor(read(card.file), card.version.index, card.version.summaries)) : NO_RULE_SUMMARIES
     },
-    joins: () => {
+    joins: (edition) => {
       const joins = new Map<string, VsDataJoin>()
-      for (const { kind, key } of [...cards.values()].flatMap(read)) {
-        const ref = index.entry(key)
-        joins.set(key, { kind, key, named: Boolean(ref), served: Boolean(ref && summaries.has(vsDataKey(ref))) })
-      }
+      const version = versions.find((candidate) => candidate.edition === edition)
+      for (const file of version?.files ?? [])
+        if (file.source === 'game-datacards')
+          for (const { kind, key } of read(file.path)) {
+            const ref = version!.index.entry(key)
+            joins.set(key, { kind, key, named: Boolean(ref), served: Boolean(ref && version!.summaries.has(vsDataKey(ref))) })
+          }
       return [...joins.values()]
     },
   }
@@ -102,7 +130,7 @@ function summariesFor(
 }
 
 function summaryOf(
-  { summary, spans, citation, questions }: VsDataSummariesFile['records'][number],
+  { summary, spans, questions }: VsDataSummariesFile['records'][number],
   link: (target: { kind: string; id: string }) => RuleSummaryLink | undefined,
 ): RuleSummary {
   return {
@@ -111,7 +139,6 @@ function summaryOf(
       const to = target && link(target)
       return bold || to ? [{ start, end, ...(bold ? { bold } : {}), ...(to ? { link: to } : {}) }] : []
     }),
-    citation,
     questions,
   }
 }
@@ -126,18 +153,25 @@ function ruleLinks(documents: readonly RuleDocument[]) {
   return links
 }
 
-/** Removes each summary that repeats, as a whole or in a sentence, a string of the source files, and names what it removed. */
-function* withoutOriginalWording(summaries: Map<string, RuleSummary>, files: readonly { path: string }[]): Steps<string[]> {
-  const byWording = new Map<string, string[]>()
-  for (const [id, { summary }] of summaries) for (const wording of wordingsOf(summary)) remember(byWording, wording, () => []).push(id)
-  const withheld = new Set<string>()
-  for (const file of files) {
-    for (const text of sourceStrings(readJson(file.path)))
-      for (const wording of wordingsOf(text)) for (const id of byWording.get(wording) ?? []) withheld.add(id)
+/**
+ * Removes each summary that repeats, as a whole or in a sentence, a string of any of the source files, and names what
+ * it removed. A file several rules versions hold is read once.
+ */
+function* withoutOriginalWording(versions: readonly Version[]): Steps<string[]> {
+  const byWording = new Map<string, { version: Version; id: string }[]>()
+  for (const version of versions)
+    for (const [id, { summary }] of version.summaries)
+      for (const wording of wordingsOf(summary)) remember(byWording, wording, () => []).push({ version, id })
+  const withheld = new Map<string, { version: Version; id: string }>()
+  const files = new Map(versions.flatMap((version) => version.files.map((file) => [file.id, file.path])))
+  for (const file of files.values()) {
+    for (const text of sourceStrings(readJson(file)))
+      for (const wording of wordingsOf(text))
+        for (const found of byWording.get(wording) ?? []) withheld.set(`${found.version.edition} ${found.id}`, found)
     yield
   }
-  for (const id of withheld) summaries.delete(id)
-  return [...withheld].toSorted()
+  for (const { version, id } of withheld.values()) version.summaries.delete(id)
+  return [...withheld.keys()].toSorted()
 }
 
 /** A sentence this short says too little to be anybody's wording. */

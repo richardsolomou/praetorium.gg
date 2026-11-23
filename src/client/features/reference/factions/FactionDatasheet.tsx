@@ -138,7 +138,7 @@ export function FactionDatasheet() {
         {melee.length ? <ProfileTable title="Melee weapons" profiles={melee} keywordRules={sheet.keywordRules} /> : null}
         <Abilities abilities={abilities} rules={sheet.keywordRules} />
         <ProfileRules profiles={sheet.profiles} rules={sheet.keywordRules} />
-        <UnitConfiguration sheet={sheet} rules={sheet.keywordRules} />
+        <UnitConfiguration sheet={sheet} />
         <TopFourLists faction={faction} entryId={sheet.id} name={sheet.name} />
         <PointsChanges faction={faction} slug={sheet.slug} />
         <TransportReference transport={sheet.transport} profiles={structured.transport} abilities={abilities} rules={sheet.keywordRules} />
@@ -303,10 +303,9 @@ function TopFourLists({
   )
 }
 
-function UnitConfiguration({ sheet, rules }: { sheet: Datasheet; rules: KeywordRule[] }) {
-  // Sources print a lone "None" when a unit has no wargear options.
-  const wargearOptions = sheet.wargearOptions.filter((option) => option.trim().toLowerCase() !== 'none')
-  if (!sheet.composition.length && !sheet.loadout && !wargearOptions.length && !sheet.costs.length) return null
+/** A unit's base size and prices; its composition, loadout and wargear options are a source's own words, never shown. */
+function UnitConfiguration({ sheet }: { sheet: Datasheet }) {
+  if (!sheet.baseSize && !sheet.costs.length) return null
   return (
     <section>
       <SectionHeading title="Unit configuration" />
@@ -314,9 +313,6 @@ function UnitConfiguration({ sheet, rules }: { sheet: Datasheet; rules: KeywordR
         <div className="grid md:grid-cols-2 md:divide-x md:divide-edge">
           <div className="space-y-2 p-3">
             <h3 className="eyebrow">Composition</h3>
-            {sheet.composition.map((line) => (
-              <RuleText key={line} text={line} rules={rules} />
-            ))}
             {sheet.baseSize ? <p className="text-sm whitespace-pre-line text-dim">Base size: {sheet.baseSize}</p> : null}
           </div>
           <div id="points" className="border-t border-edge p-3 md:border-t-0">
@@ -340,23 +336,6 @@ function UnitConfiguration({ sheet, rules }: { sheet: Datasheet; rules: KeywordR
             </div>
           </div>
         </div>
-        {sheet.loadout ? (
-          <div id="loadout" className="border-t border-edge p-3">
-            <RuleText text={sheet.loadout} rules={rules} className="mt-0" />
-          </div>
-        ) : null}
-        {wargearOptions.length ? (
-          <div id="wargear" className="border-t border-edge p-3">
-            <h3 className="eyebrow mb-2">Wargear options</h3>
-            <ul className="list-disc space-y-1.5 pl-5 text-sm text-dim">
-              {wargearOptions.map((option) => (
-                <li key={option}>
-                  <RuleText text={option} rules={rules} />
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
       </div>
       <PrintTheBases sheet={sheet} />
     </section>

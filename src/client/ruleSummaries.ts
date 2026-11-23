@@ -2,7 +2,8 @@ import { useQueries, useQuery } from '@tanstack/react-query'
 import type { RuleSummaries, RuleSummary } from '../contracts/rules'
 import { hasTextTokens, type TextToken, textTokensIn } from '../core/sourceText'
 import { ruleSummariesQuery } from './queries/references'
-import { textSourcesQuery } from './sourceText'
+import { textSources } from './functions'
+import { referenceQuery } from './queries/shared'
 
 /** A summary describes a whole rule, so it stands in only for tokens showing whole strings, not one bullet of a list. */
 const WHOLE_STRING = new Set(['prose', 'plain', 'trim'])
@@ -10,8 +11,7 @@ const WHOLE_STRING = new Set(['prose', 'plain', 'trim'])
 type SummaryLookup = { summary: RuleSummary | null; pending: boolean }
 
 /**
- * The VS Data summary of the rule a text prints, where its tokens together name strings of that one rule
- * and no other, and whether that is still being asked.
+ * The VS Data summary of the rule a text prints, and whether that is still being asked.
  */
 export function useRuleSummary(text: string): SummaryLookup {
   const tokens = hasTextTokens(text) ? textTokensIn(text) : []
@@ -23,15 +23,27 @@ export function useRuleSummary(text: string): SummaryLookup {
   return { summary: summaryNamedBy(tokens, new Map(files.map((file, at) => [file, answers[at]?.data]))), pending: false }
 }
 
-/** The one summarized rule printing every token's string, if exactly one does. */
+/**
+ * The summary of a rule printing every token's string. A line several rules share, such as a stratagem's timing,
+ * narrows the rule down only together with the others; rules left alike print the same words, such as one stratagem
+ * several detachments offer, so the first one's summary describes them all.
+ */
 export function summaryNamedBy(tokens: readonly TextToken[], ofFile: ReadonlyMap<string, RuleSummaries | undefined>) {
-  // A line several rules share, such as a stratagem's timing, narrows the rule down only together with the others.
   const [first = [], ...rest] = tokens.map((token) => ofFile.get(token.file)?.texts[token.hash] ?? [])
-  const [id, ...others] = rest.reduce((shared, holders) => shared.filter((held) => holders.includes(held)), first)
-  return (id && !others.length && tokens.map((token) => ofFile.get(token.file)?.records[id]).find(Boolean)) || null
+  const [id] = rest.reduce((shared, holders) => shared.filter((held) => holders.includes(held)), first)
+  return (id && tokens.map((token) => ofFile.get(token.file)?.records[id]).find(Boolean)) || null
 }
 
-/** The summaries of a rules document's entries, by entry id, once the file it is read from is known. */
+/** Whether the summaries of every rule these texts print have been asked for and answered, so a printout can wait for them. */
+export function useRuleSummariesSettled(texts: readonly string[]) {
+  const files = [...new Set(texts.flatMap((text) => (hasTextTokens(text) ? textTokensIn(text).map((token) => token.file) : [])))]
+  return useQueries({ queries: files.map(ruleSummariesQuery) }).every((answer) => !answer.isPending)
+}
+
+/** Where each source file a token names lives upstream, which names the file a rules document is printed in. */
+const textSourcesQuery = () => referenceQuery(['text-sources'], () => textSources())
+
+/** The summaries of a rules document's entries, by entry id, once the file it is printed in is known. */
 export function useRuleEntrySummaries(url: string | null) {
   const { data: table } = useQuery({ ...textSourcesQuery(), enabled: Boolean(url) })
   const file = table && Object.entries(table).find(([, entry]) => entry.url === url)?.[0]

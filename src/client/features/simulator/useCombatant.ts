@@ -5,8 +5,7 @@ import type { RosterPick } from '../../../core/roster'
 import { combatAtHealth, lineSurvivors } from '../../../core/combatSurvivors'
 import type { CombatCarrier } from '../../../core/combatLoadout'
 import { combatDamageStateSelections, combatRuleSelections } from '../../../core/combatRules'
-import { useSourceTexts } from '../../sourceText'
-import { combatantTexts, readableCombatant } from './readableRules'
+import { readableCombatant } from './readableRules'
 import { combatLoadoutsQuery, combatantDatasheetQuery, factionQuery, priceQuery } from '../../queries'
 import type { SimulatorRosterSource, SimulatorSide } from '../../../contracts/simulatorState'
 import type { RosterOwner } from './rosterOwners'
@@ -132,7 +131,6 @@ export function useCombatant(roster?: CombatRoster, initial?: SimulatorSide | nu
     enabled: Boolean(entryId && entryId === settled[pickIndex]?.entryId),
     placeholderData: (previous, query) => (query?.queryKey[5] === pickIndex ? previous : undefined),
   })
-  useSourceTexts(combatantTexts(sheets.data))
   const readable = sheets.data ? readableCombatant(sheets.data) : undefined
   // A battle fields frozen loadouts, so there is nothing to choose between.
   const loadoutContext =

@@ -1116,10 +1116,8 @@ test('a player can enter through the roster library and browse the product', asy
   await expect(page.getByRole('heading', { name: /Wargear abilities/ })).toBeVisible()
   await expect(page.getByText('1 model', { exact: true }).first()).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Unit configuration' })).toBeVisible()
-  await expect(page.getByText('1 Overlord', { exact: true })).toBeVisible()
-  await expect(page.getByText(/This model is equipped with:/)).toBeVisible()
-  await expect(page.getByRole('heading', { name: /Wargear options/ })).toBeVisible()
-  await expect(page.getByText(/resurrection orb/).last()).toBeVisible()
+  // Composition, loadout and wargear options are the source's own words, so the page states none of them.
+  await expect(page.getByText(/This model is equipped with:/)).toHaveCount(0)
   await expect(page.getByRole('heading', { name: 'Attachments' })).toBeVisible()
   await expect(page.getByText('Can lead', { exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: /Detachments/ })).toHaveCount(0)

@@ -14,7 +14,7 @@ test('enhancement choices show descriptions when rule and catalogue names differ
   const mark = enhancements.getByRole('button', { name: 'Select Mark of the Nekrosor' })
   await expect(mark).toBeVisible()
   const option = mark.locator('xpath=ancestor::article')
-  await expect(option).toContainText('add 1 to the Hit roll')
+  await expect(option.locator('[data-rule-summary]')).toBeVisible()
   await shot(option, test.info().outputPath('nekrosor-enhancement.png'))
 })
 
@@ -105,10 +105,6 @@ test('unit upgrades stay separate from character enhancements', async ({ page })
   const upgrades = page.getByRole('group', { name: 'Lokhust Destroyers Unit upgrades' })
   const madness = upgrades.getByRole('button', { name: 'Select Deepening Madness' })
   await expect(madness).toBeVisible()
-  await upgrades.getByRole('button', { name: 'ASSAULT' }).hover()
-  await expect(page.getByRole('tooltip')).toContainText('assault shooting')
-  await page.mouse.move(0, 0)
-  await expect(page.getByRole('tooltip')).toBeHidden()
   const madnessOption = madness.locator('xpath=ancestor::article')
   await expect(madnessOption.locator('[data-rule-summary]')).toHaveCSS('font-family', /^"Sofia Sans Semi Condensed Variable"/)
   await shot(madnessOption, test.info().outputPath('deepening-madness-option.png'))
@@ -139,7 +135,7 @@ test('unit upgrades stay separate from character enhancements', async ({ page })
   const assault = page.getByRole('button', { name: 'Assault', exact: true }).first()
   await expect(assault).toBeVisible()
   await assault.hover()
-  await expect(page.getByRole('tooltip')).toContainText('assault shooting')
+  await expect(page.getByRole('tooltip')).toContainText(/assault shooting/i)
   await expect(page.getByRole('tooltip')).toContainText('Added by Deepening Madness')
   await expect(assault).toHaveClass(/text-info/)
   await shot(page.getByRole('tooltip'), test.info().outputPath('added-keyword-tooltip.png'))
@@ -242,10 +238,9 @@ test('wargear abilities are explained beside their choices', async ({ page }) =>
     .click()
 
   const loadout = page.locator('aside[aria-label="Loadout"]')
-  for (const name of ['Shadowloom', 'Nebuloscope']) {
-    const option = loadout.getByRole('listitem').filter({ hasText: name })
-    await expect(option.locator('[data-slot="option-abilities"] p')).not.toHaveCount(0)
-  }
+  // Shadowloom's ability is the one Game Datacards prints, which VS Data summarizes.
+  const shadowloom = loadout.getByRole('listitem').filter({ hasText: 'Shadowloom' })
+  await expect(shadowloom.locator('[data-slot="option-abilities"] [data-rule-summary]')).not.toHaveCount(0)
 
   await expect(loadout.getByLabel('Tomb Blades models')).toHaveText('3')
   await loadout.getByRole('button', { name: 'More Shadowloom' }).click()

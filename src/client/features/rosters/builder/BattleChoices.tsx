@@ -14,9 +14,8 @@ import type { ActiveCombatRule } from '../../../../core/combatRules'
 import type { RosterPick } from '../../../../core/roster'
 import type { Datasheet } from '../../../../contracts/catalogue'
 import { combatantDatasheetQuery, type Fielded } from '../../../queries'
-import { loadedWords, useSourceTexts } from '../../../sourceText'
 import { hasTextTokens } from '../../../../core/sourceText'
-import { combatantTexts, readableRules } from '../../simulator/readableRules'
+import { readableRules } from '../../simulator/readableRules'
 import { HoverTooltip } from '../../../components/HoverTooltip'
 import { RuleText } from '../../../components/RuleText'
 import { pressedClass } from '../../simulator/CombatControls'
@@ -80,21 +79,19 @@ export function useBattleChoices({
   const enabled = scope !== undefined
   const stored = useBattleChoicePicks(scope)
   const data = useCombatantDatasheet({ enabled, catalogueId, entryId, detachmentIds, picks, pickIndex, fielded })
-  const { loaded } = useSourceTexts(enabled && data ? [...combatantTexts(data), ...allowanceTexts(data)] : [])
   const choices = useMemo(
     () =>
       enabled && data
         ? battleChoices(
             readableRules(data.rules),
             battleChoiceAllowances(
-              allowanceTexts(data).flatMap((text) => (hasTextTokens(text) ? (loadedWords(text) ?? []) : text)),
+              // A token's words never reach the browser, so only allowances the catalogue states in its own data count.
+              allowanceTexts(data).filter((text) => !hasTextTokens(text)),
               data.companions.length > 0,
             ),
           )
         : [],
-    // `loaded` changes as rule words arrive, which can turn a token into options.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [enabled, data, loaded],
+    [enabled, data],
   )
   const lineUp = picks.map((pick) => pick.entryId).join(',')
   const units = stored.picks.lineUp === lineUp ? stored.picks.units : {}

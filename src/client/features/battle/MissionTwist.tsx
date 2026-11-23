@@ -1,5 +1,5 @@
 import { Info } from 'lucide-react'
-import { loadedWords, useSourceTexts } from '../../sourceText'
+import { ownWords } from '../../../core/sourceText'
 import type { ReactElement, ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -21,8 +21,7 @@ export const changesPrimary = (twist: Twist) => twist.changesPrimary === true
  * wherever it appears rather than printed inline on a screen that is asking a question.
  */
 function TwistDialog({ twist, trigger, children }: { twist: Twist; trigger: ReactElement; children: ReactNode }) {
-  useSourceTexts([twist.lore])
-  const lore = twist.lore ? loadedWords(twist.lore) : null
+  const lore = twist.lore ? ownWords(twist.lore) : null
   return (
     <BattlePromptDialog minimizedLabel={twist.name} resumeLabel="Return to twist">
       <DialogTrigger render={trigger}>{children}</DialogTrigger>

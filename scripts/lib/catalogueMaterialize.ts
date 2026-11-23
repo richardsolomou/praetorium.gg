@@ -5,6 +5,8 @@ import path from 'node:path'
 import {
   catalogueSources,
   disabledCatalogueSources,
+  type ReleaseSource,
+  releasesOf,
   SNAPSHOT_SOURCE_NAMES,
   type CatalogueSourceConfig,
   type SnapshotSourceName,
@@ -44,6 +46,19 @@ function selectIcons(directory: string, source: CatalogueSourceConfig['icons']) 
   fs.renameSync(selected, path.join(directory, 'icons'))
 }
 
+/** Each pinned VS Data release, verified, as one file named for the rules version it describes. */
+async function materializeSummaries(source: ReleaseSource, target: string, composition: CatalogueComposition | null | undefined) {
+  const editions = ((composition ?? readCatalogueComposition(path.join(root, 'catalogue')))?.editions ?? []).map((entry) => entry.edition)
+  fs.mkdirSync(target)
+  for (const release of releasesOf(source)) {
+    const unpacked = `${target}.release`
+    await fetchReleaseInto(release, unpacked)
+    const file = path.join(target, `${checkVsDataRelease(unpacked, editions)}.json`)
+    if (fs.existsSync(file)) throw new Error(`${release.release} describes a rules version another pinned release already does`)
+    compactVsDataRelease(unpacked, file)
+  }
+}
+
 export async function materializeCatalogue(directory: string, sources = catalogueSources, options: MaterializeOptions = {}) {
   const checkOutput = () => {
     if (fs.lstatSync(directory, { throwIfNoEntry: false })?.isSymbolicLink())
@@ -68,21 +83,17 @@ export async function materializeCatalogue(directory: string, sources = catalogu
       if (!source) throw new Error(`${name} is not configured`)
       const target = path.join(staged, name)
       if (name === 'battlemaster') await fetchBattlemasterInto(sources.battlemaster, target)
-      else if (name === 'summaries') {
-        await fetchReleaseInto(sources.summaries!, target)
-        const editions = (options.composition ?? readCatalogueComposition(path.join(root, 'catalogue')))?.editions ?? []
-        checkVsDataRelease(
-          target,
-          editions.map((entry) => entry.edition.id),
-        )
-        compactVsDataRelease(target)
-      } else {
+      else if (name === 'summaries') await materializeSummaries(sources.summaries!, target, options.composition)
+      else {
         const repository = source as Exclude<typeof source, CatalogueSourceConfig['battlemaster'] | CatalogueSourceConfig['summaries']>
         await fetchInto(repository.repository, repository.revision, target, repository.path)
         if (name === 'icons') selectIcons(staged, sources.icons)
       }
       const corrections = !options.composition ? applyPatches(staged, path.join(patches, name), name) : null
-      revisions[name] = corrections ? hash('sha256', JSON.stringify({ base: source.revision, corrections })) : source.revision
+      // One pin's archive names its revision; several are named together, so changing any one changes the revision.
+      const pinned = name === 'summaries' ? releasesOf(sources.summaries!) : [source]
+      const revision = pinned.length > 1 ? hash('sha256', JSON.stringify(pinned.map((release) => release.revision))) : source.revision
+      revisions[name] = corrections ? hash('sha256', JSON.stringify({ base: revision, corrections })) : revision
       options.report?.(`${name}: ${source.revision}`)
     }
     fs.writeFileSync(path.join(staged, 'revision.json'), `${JSON.stringify(revisions, null, 2)}\n`)

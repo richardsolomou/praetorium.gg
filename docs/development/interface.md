@@ -31,6 +31,7 @@
 
 - Battle setup opens every step, and one not reached yet is faded and `inert`. A settled step starts collapsed to its answer, and a player may collapse or open any step by hand; that choice is per device and lasts until the page reloads. A collapsed answer reopens its step on a click, except where it names something to read, such as a mission's card or the battlefield's measurements. Choosing, changing and removing an army and its per-army settings live on the face-off cards (`src/client/features/battle/setup/FaceOff.tsx`), not in a step.
 - Frozen battle and sealed event snapshots show their recorded cards, totals, and version, never today's legality or warnings.
+- A rule shows its VS Data summary through `RuleText`, never the source's wording; a rule without a summary shows its name and structured values, with no placeholder.
 - A copy names its source only while the reader may still open it (`rosterAccess`).
 - Link previews use the signed-out view and ignore the session; inaccessible images return `404` with `no-store`. Battles expose only the spectator view.
 

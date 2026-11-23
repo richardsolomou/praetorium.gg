@@ -24,6 +24,10 @@ const objectiveLayout = {
 }
 
 const summaries = ustar(vsDataReleaseFiles([{ kind: 'ability', id: 'test.rule', aliases: [], summary: 'A summary.' }]))
+const earlierSummaries = ustar(
+  vsDataReleaseFiles([{ kind: 'ability', id: 'test.rule', aliases: [], summary: 'An older summary.' }], 'MFM 1.5'),
+)
+const earlier = { release: 'rules-marine-points-1013-v0.2.0', asset: 'earlier.tar', revision: earlierSummaries.revision }
 
 function sources() {
   return {
@@ -35,7 +39,7 @@ function sources() {
       revision: createHash('sha256').update(catalogKey).digest('hex'),
     },
     icons: { ...catalogueSources.icons, icons: { 'test-faction': 'test/icon.svg' } },
-    summaries: { ...catalogueSources.summaries!, revision: summaries.revision },
+    summaries: { ...catalogueSources.summaries!, revision: summaries.revision, earlier: [] },
   }
 }
 
@@ -63,6 +67,7 @@ function downloads() {
     }
     if (target.includes(`/${catalogueSources.translations!.repository}/zip/`))
       return new Response(archive({ 'data/es.json': '{"Necrons":"Necrones"}\n' }))
+    if (target.includes(`/releases/download/${earlier.release}/`)) return new Response(earlierSummaries.archive)
     if (target.includes('/releases/download/')) return new Response(summaries.archive)
     if (target.includes('/v1.1/public/tts/layouts')) {
       return Response.json({ catalogKey, layouts: [{ id, owner, layoutKey: 'layout-key' }] })
@@ -114,10 +119,15 @@ it('includes only the configured Game Datacards edition and selected icons', asy
   expect(fs.readdirSync(path.join(directory, 'icons'))).toEqual(['test-faction.svg'])
 })
 
-it('keeps one compact file of a verified VS Data release', async () => {
-  await materializeCatalogue(directory, sources(), { patchesDirectory: path.join(root, 'patches') })
+it('keeps one compact file of each verified VS Data release, named for its rules version', async () => {
+  const pinned = sources()
+  await materializeCatalogue(
+    directory,
+    { ...pinned, summaries: { ...pinned.summaries, earlier: [earlier] } },
+    { patchesDirectory: path.join(root, 'patches') },
+  )
 
-  expect(fs.readdirSync(path.join(directory, 'summaries'))).toEqual(['summaries.json'])
+  expect(fs.readdirSync(path.join(directory, 'summaries')).toSorted()).toEqual(['marine-points-1013.json', 'mfm-1-6.json'])
 })
 
 it('omits disabled sources without fetching or retaining old files', async () => {

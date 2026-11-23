@@ -1,14 +1,10 @@
 import { createContext, type ReactNode, useContext, useMemo } from 'react'
-import { useTextSourceChoice } from '../rulesText'
 import Markdown, { type Components } from 'react-markdown'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
 import type { RuleLinks } from '../ruleLinks'
 import { Keyword, type KeywordRule } from './Keyword'
-import { CitedRules } from './CitedRules'
 import { RuleMarkup } from './RuleMarkup'
-import { SourceTextPrompt } from './SourceTextPrompt'
-import { useSourceText } from '../sourceText'
 import { useRuleSummary } from '../ruleSummaries'
 import { RuleSummaryText } from './RuleSummaryText'
 import { hasTextTokens } from '../../core/sourceText'
@@ -94,76 +90,43 @@ export function ruleSegments(text: string): RuleSegment[] {
 const noLinks: RuleLinks = new Map()
 
 /**
- * Rules text, shown once the reader has chosen to load rules text on this device. `authored`
- * marks words the app writes itself, which show to everyone.
+ * A rule as a reader sees it. Praetorium never shows a source's own wording: a rule the source prints, which
+ * the text names by token, shows its VS Data summary or nothing at all. `authored` marks words the app writes itself.
  */
 export function RuleText({
   text,
   rules = noRules,
   className,
   authored = false,
-  cite = false,
 }: {
   text: string
   rules?: KeywordRule[]
   className?: string
   authored?: boolean
-  /** Also write out the core rules the text quotes by number. */
-  cite?: boolean
 }) {
-  const choice = useTextSourceChoice()
-  if (hasTextTokens(text)) return <SourcedRuleText text={text} rules={rules} className={className} cite={cite} />
-  // BSData's words reach this device to compute from, and show only where the reader chose to load BSData text.
-  if (!authored && !choice.sources.has('bsdata'))
-    return <SourceTextPrompt missing="unchosen" source="bsdata" className={cn('mt-2', className)} />
-  return <RuleTextBody text={text} rules={rules} className={className} cite={cite} />
+  if (hasTextTokens(text)) return <SummarizedRule text={text} className={className} />
+  return authored ? <RuleTextBody text={text} rules={rules} className={className} /> : null
 }
 
-/**
- * Published text names its source rather than stating it, so it is read from that source before it is drawn.
- * A rule VS Data summarizes shows the summary to everyone, and beneath it the source's words, or the way to load them.
- */
-function SourcedRuleText({ text, rules, className, cite }: { text: string; rules: KeywordRule[]; className?: string; cite: boolean }) {
-  const source = useSourceText(text)
-  const { summary, pending } = useRuleSummary(text)
-  if (summary)
-    return (
-      <>
-        <RuleSummaryText summary={summary} className={className} />
-        {source.missing ? (
-          // A summary is not the rule's wording, so the way to load the wording stays beside it.
-          source.missing === 'unavailable' ? null : (
-            <SourceTextPrompt missing={source.missing} source={source.needs} className={cn('mt-2', className)} />
-          )
-        ) : (
-          <>
-            <p className="eyebrow mt-3">Rules text</p>
-            <RuleTextBody text={source.text} rules={rules} className={cn('mt-1', className)} cite={cite} />
-          </>
-        )}
-      </>
-    )
-  // Labels with nothing loaded beneath them say nothing, so a card waiting on its text shows only why.
-  if (source.missing && source.missing !== 'unavailable')
-    return <SourceTextPrompt missing={pending ? 'loading' : source.missing} source={source.needs} className={cn('mt-2', className)} />
-  return <RuleTextBody text={source.text} rules={rules} className={className} cite={cite} />
+function SummarizedRule({ text, className }: { text: string; className?: string }) {
+  const { summary } = useRuleSummary(text)
+  return summary ? <RuleSummaryText summary={summary} className={className} /> : null
 }
 
-function RuleTextBody({ text, rules, className, cite }: { text: string; rules: KeywordRule[]; className?: string; cite: boolean }) {
+function RuleTextBody({ text, rules, className }: { text: string; rules: KeywordRule[]; className?: string }) {
   const segments = useMemo(() => ruleSegments(text), [text])
   return (
     <Rules value={rules}>
       <div className={cn('mt-2 space-y-2 font-rules text-sm text-dim', className)}>
         {segments.map((segment, at) => {
           const key = `${segment.kind}-${at}`
-          if (segment.kind === 'table') return <RuleMarkup key={key} markup={segment.text} links={noLinks} authored />
+          if (segment.kind === 'table') return <RuleMarkup key={key} markup={segment.text} links={noLinks} />
           return (
             <Markdown key={key} components={components}>
               {segment.text}
             </Markdown>
           )
         })}
-        {cite ? <CitedRules text={text} /> : null}
       </div>
     </Rules>
   )

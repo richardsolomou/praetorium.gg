@@ -1,16 +1,10 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import type { MissionAward } from '../missionText'
 import { MissionCardReference } from './MissionCardReference'
 import { textToken } from '../../core/sourceText'
-
-// These render a reader who has chosen to load rules text; `RuleText.test.ts` covers one who has not.
-vi.mock('../rulesText', async (original) => {
-  const actual = await original<typeof import('../rulesText')>()
-  return { ...actual, useTextSourceChoice: vi.fn(() => actual.textSourceChoiceFrom('bsdata,game-datacards')) }
-})
 
 const trigger = {
   timing: 'end-of-turn',
@@ -35,7 +29,7 @@ const render = (card: ReturnType<typeof createElement>) =>
   renderToStaticMarkup(createElement(QueryClientProvider, { client: new QueryClient() }, card))
 
 describe('mission card reference', () => {
-  it('shows the card instructions and labels alternative and additional objectives', () => {
+  it('labels alternative and additional objectives', () => {
     const markup = render(
       createElement(MissionCardReference, {
         card: {
@@ -52,10 +46,6 @@ describe('mission card reference', () => {
     )
 
     expect(markup).toContain('aria-label="Alternative objective"')
-    expect(markup).toContain('WHEN DRAWN:')
-    expect(markup).toContain('Select one friendly unit on the battlefield or embarked within a')
-    expect(markup).toContain('TRANSPORT')
-    expect(markup).toContain('beacon')
     expect(markup).toContain('>or</span>')
     expect(markup).toContain('aria-label="Additional objective"')
     expect(markup).toContain('>plus</span>')
@@ -114,22 +104,12 @@ describe('mission card reference', () => {
   const withAction = () =>
     render(createElement(MissionCardReference, { card: { name: 'Secure Asset', text: null, awards: [], actions: [action] } }))
 
-  it('prints every line the pack states for an action the card names', () => {
+  it('names an action the card names without the pack’s own words', () => {
     const markup = withAction()
-
-    expect(markup).toContain('SECURE ASSET')
-    expect(markup).toContain('Effect:')
-    expect(markup).toContain('secures the asset')
-    expect(markup).toContain('Once per turn.')
+    expect([markup.includes('SECURE ASSET'), markup.includes('secures the asset')]).toEqual([true, false])
   })
 
-  it('leaves out an action line the pack does not state', () => {
-    expect(withAction()).not.toContain('Restriction:')
-  })
-
-  it('asks for unloaded rules text once and names each payout from its numbers', async () => {
-    const { useTextSourceChoice, textSourceChoiceFrom } = await import('../rulesText')
-    vi.mocked(useTextSourceChoice).mockReturnValue(textSourceChoiceFrom(''))
+  it('names each payout from its numbers where no summary says what it asks', () => {
     const words = (hash: string) => textToken({ file: '0123abcd', transform: 'prose', hash })
     const markup = render(
       createElement(MissionCardReference, {
@@ -140,11 +120,6 @@ describe('mission card reference', () => {
         },
       }),
     )
-    vi.mocked(useTextSourceChoice).mockReset()
-    expect([markup.match(/isn’t loaded/g)?.length, markup.includes('The lower payout.'), markup.includes('The higher payout.')]).toEqual([
-      1,
-      true,
-      true,
-    ])
+    expect([markup.includes('The lower payout.'), markup.includes('The higher payout.')]).toEqual([true, true])
   })
 })

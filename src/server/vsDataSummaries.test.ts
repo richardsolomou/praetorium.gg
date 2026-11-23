@@ -5,7 +5,7 @@ import { afterEach, expect, it } from 'vitest'
 import composition from '../../catalogue/composition.json' with { type: 'json' }
 import { completeSteps } from '../shared/steps'
 import { readCatalogueComposition } from './catalogueComposition'
-import { textHash, textSourceFiles } from './sourceTexts'
+import { textFileId, textHash, textSourcePaths } from './sourceTexts'
 import { vsDataReleaseFiles, writeFiles } from './vsData.fixtures'
 import { compactVsDataRelease } from './vsDataRelease'
 import { vsDataSummariesSteps } from './vsDataSummaries'
@@ -14,25 +14,34 @@ const effect = 'Until the end of the phase, each time a model in your unit makes
 const stratagem = { id: 'f06fa0ef-917a-57c2-955d-325a082d942c', when: { en: 'Your Shooting phase.' }, effect: { en: effect } }
 const directories: string[] = []
 
-function snapshot(summary: string, update = 'MFM 1.6') {
+const record = (summary: string) => ({
+  kind: 'ability',
+  id: 'necrons.test.focused-fire',
+  aliases: ['gdc.stratagem.f06fa0ef.917a.57c2.955d.325a082d942c'],
+  summary,
+})
+const codex = composition.editions.find((entry) => entry.edition.id === 'custodes-11e')!
+
+/** A snapshot of the base rules and the Custodes codex, each printing the stratagem, with a release per summary given. */
+function snapshot(releases: { update: string; summary: string }[]) {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'vs-data-summaries-'))
   directories.push(directory)
   const base = composition.editions.filter((entry) => 'base' in entry && entry.base)
-  const record = {
-    kind: 'ability',
-    id: 'necrons.test.focused-fire',
-    aliases: ['gdc.stratagem.f06fa0ef.917a.57c2.955d.325a082d942c'],
-    summary,
-  }
   writeFiles(directory, [
-    ['composition.json', JSON.stringify({ ...composition, editions: base })],
+    ['composition.json', JSON.stringify({ ...composition, editions: [...base, codex] })],
     ['datacards/11th/gdc/necrons.json', JSON.stringify({ stratagems: [stratagem] })],
-    ...vsDataReleaseFiles([record], update).map(([file, text]): [string, string] => [`summaries/${file}`, text]),
+    ['editions/custodes-11e/datacards/11th/gdc/necrons.json', JSON.stringify({ stratagems: [stratagem] })],
   ])
-  compactVsDataRelease(path.join(directory, 'summaries'))
+  fs.mkdirSync(path.join(directory, 'summaries'))
+  releases.forEach(({ update, summary }, at) => {
+    const unpacked = path.join(directory, `release-${at}`)
+    writeFiles(unpacked, vsDataReleaseFiles([record(summary)], update))
+    compactVsDataRelease(unpacked, path.join(directory, 'summaries', `${at}.json`))
+  })
   const summaries = completeSteps(vsDataSummariesSteps(directory, []))
-  const [file] = Object.keys(textSourceFiles(directory, readCatalogueComposition(directory)))
-  return { summaries, file: file! }
+  const files = textSourcePaths(directory, readCatalogueComposition(directory))
+  const file = (edition: boolean) => textFileId(files.find(({ path: at }) => at.includes('/editions/') === edition)!.url)
+  return { summaries, base: file(false), custodes: file(true) }
 }
 
 afterEach(() => {
@@ -40,8 +49,8 @@ afterEach(() => {
 })
 
 it('names a stratagem summary for every string its card prints', () => {
-  const { summaries, file } = snapshot('Pick one of your units to hit more often this phase.')
-  const answer = summaries!.summariesIn(file)
+  const { summaries, base } = snapshot([{ update: 'MFM 1.6', summary: 'Pick one of your units to hit more often this phase.' }])
+  const answer = summaries!.summariesIn(base)
   expect([answer.texts[textHash(stratagem.when.en)], answer.texts[textHash(effect)]]).toEqual([
     ['ability:necrons.test.focused-fire'],
     ['ability:necrons.test.focused-fire'],
@@ -49,10 +58,20 @@ it('names a stratagem summary for every string its card prints', () => {
 })
 
 it('withholds a summary that repeats a sentence of the card', () => {
-  const { summaries, file } = snapshot(`Use this in your Shooting phase. ${effect}`)
-  expect(summaries!.summariesIn(file).texts).toEqual({})
+  const { summaries, base } = snapshot([{ update: 'MFM 1.6', summary: `Use this in your Shooting phase. ${effect}` }])
+  expect(summaries!.summariesIn(base).texts).toEqual({})
 })
 
-it('summarizes no rules version but the one the release describes', () => {
-  expect(snapshot('Pick one of your units to hit more often this phase.', 'MFM 1.5').summaries).toBeNull()
+it('summarizes no rules version but the one a release describes', () => {
+  const { summaries, custodes } = snapshot([{ update: 'MFM 1.6', summary: 'Pick one of your units to hit more often.' }])
+  expect(summaries!.summariesIn(custodes).texts).toEqual({})
+})
+
+it('reads an earlier rules version’s cards with that version’s own release', () => {
+  const { summaries, custodes } = snapshot([
+    { update: 'MFM 1.6', summary: 'Pick one of your units to hit more often.' },
+    { update: codex.edition.name, summary: 'Under the codex, pick a unit to hit more often.' },
+  ])
+  const answer = summaries!.summariesIn(custodes)
+  expect(answer.records[answer.texts[textHash(effect)]![0]!]?.summary).toBe('Under the codex, pick a unit to hit more often.')
 })

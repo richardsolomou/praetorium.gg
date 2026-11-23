@@ -36,5 +36,7 @@ it('refuses a symbolic link inside the release', () => {
 it('refuses a release for an MFM no rules version plays', () => {
   fs.rmSync(directory, { recursive: true })
   writeFiles(directory, vsDataReleaseFiles([record], 'MFM 1.5'))
-  expect(() => checkVsDataRelease(directory, ['mfm-1-6'])).toThrow('describes 11th MFM 1.5, which no rules version plays')
+  expect(() => checkVsDataRelease(directory, [{ id: 'mfm-1-6', name: 'MFM 1.6' }])).toThrow(
+    'describes 11th MFM 1.5, which no rules version plays',
+  )
 })

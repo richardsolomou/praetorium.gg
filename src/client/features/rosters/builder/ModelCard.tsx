@@ -27,7 +27,7 @@ import {
 } from './loadoutModel'
 import type { WeaponProfileData } from './loadoutModel'
 import { type OptionNote, PickControl, PoolStepper, type StandingWargear, WargearRow } from './LoadoutControls'
-import { loadedWords, useSourceTexts } from '../../../sourceText'
+import { ownWords } from '../../../../core/sourceText'
 import { sameWargear } from '../../../../core/wargearNames'
 
 /**
@@ -107,7 +107,6 @@ export function ModelCard({
       onRemove: taken && choice.optional ? () => onChoose(choice.key, '') : undefined,
     }
   }
-  const { choice: textChoice } = useSourceTexts((wargearGroups ?? []).map((group) => group.instruction))
   const counted = heading()
   if (!showOptions && !count) return null
   const statedInstructions = new Set<string>()
@@ -197,9 +196,7 @@ export function ModelCard({
             }
           }
           const instructions = showOptions
-            ? loadoutInstructions({ ...row, pieces }, model, models ?? [model], wargearGroups ?? [], (text) =>
-                loadedWords(text, textChoice),
-              ).filter((instruction) => {
+            ? loadoutInstructions({ ...row, pieces }, model, models ?? [model], wargearGroups ?? [], ownWords).filter((instruction) => {
                 if (statedInstructions.has(instruction)) return false
                 statedInstructions.add(instruction)
                 return true

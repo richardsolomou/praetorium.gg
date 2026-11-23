@@ -123,6 +123,30 @@ export const retainedSnapshots =
     }
   }
 
+/**
+ * Each JSON file of the text sources one rules version's copy holds, the root's when `edition` is null, with the
+ * token ID its strings are published under: a rules version kept whole from an older snapshot has files no upstream
+ * address names, which its tokens name by their place in the snapshot instead.
+ */
+export function editionTextFiles(root: string, edition: string | null) {
+  const found: { id: string; path: string; source: TextSource }[] = []
+  const prefix = edition ? `editions/${edition}/` : ''
+  const visit = (directory: string, source: TextSource) => {
+    for (const entry of fs.readdirSync(path.join(root, directory), { withFileTypes: true })) {
+      const file = `${directory}/${entry.name}`
+      if (entry.isDirectory()) visit(file, source)
+      else if (entry.name.endsWith('.json'))
+        found.push({ id: textFileId(upstreamOf(root)(file) ?? file), path: path.join(root, file), source })
+    }
+  }
+  for (const [directory, source] of [
+    ['definitions', 'bsdata'],
+    ['datacards', 'game-datacards'],
+  ] as const)
+    if (fs.existsSync(path.join(root, prefix, directory))) visit(`${prefix}${directory}`, source)
+  return found
+}
+
 /** Each JSON file of the text sources a snapshot holds, at the root and in every rules version, with where it lives upstream. */
 export function textSourcePaths(root: string, composition: CatalogueComposition | null) {
   const found: (TextSourceFile & { path: string })[] = []
@@ -158,35 +182,6 @@ export function textSourceFiles(root: string, composition: CatalogueComposition 
 
 export const textFilesFrom = (paths: readonly TextSourceFile[]): Record<string, TextSourceFile> =>
   Object.fromEntries(paths.map(({ url, source }) => [textFileId(url), { url, source }]))
-
-/**
- * Which of a snapshot's own files holds a string, by its hash: a token copied before a catalogue update names a file
- * the update replaced, and its string, where unchanged, lives on in that file's successor. Only the first 32 bits of
- * each hash are kept, so the index stays small; a reader's browser still matches the whole hash before showing words.
- */
-export function* textHomesSteps(root: string, composition: CatalogueComposition | null): Steps<(hash: string) => string | null> {
-  const files = textSourcePaths(root, composition).filter((file) => !path.relative(root, file.path).startsWith('editions'))
-  const entries: [number, number][] = []
-  for (const [at, file] of files.entries()) {
-    for (const key of stringsByHash(file.path).keys()) entries.push([parseInt(key.slice(0, 8), 16), at])
-    yield
-  }
-  entries.sort((left, right) => left[0] - right[0] || left[1] - right[1])
-  const prefixes = Uint32Array.from(entries, ([prefix]) => prefix)
-  const homes = Uint16Array.from(entries, ([, at]) => at)
-  const ids = files.map((file) => textFileId(file.url))
-  return (key) => {
-    const prefix = parseInt(key.slice(0, 8), 16)
-    let low = 0
-    let high = prefixes.length
-    while (low < high) {
-      const middle = (low + high) >>> 1
-      if (prefixes[middle]! < prefix) low = middle + 1
-      else high = middle
-    }
-    return prefixes[low] === prefix ? ids[homes[low]!]! : null
-  }
-}
 
 /** Every string a source file holds, under the hash its tokens name it by. */
 export const stringsByHash = (file: string): ReadonlyMap<string, string> =>

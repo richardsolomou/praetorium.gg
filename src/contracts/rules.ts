@@ -37,13 +37,10 @@ export type RuleIndex = { documents: RuleDocumentSummary[]; references: RuleRefe
 export type RuleSummaryLink = { document: string; section: string; anchor: string }
 /** A bold or linked range of a summary, in UTF-16 offsets with an exclusive end. */
 export type RuleSummarySpan = { start: number; end: number; bold?: true; link?: RuleSummaryLink }
-/** The publisher document a summary was checked against, where it names one. */
-export type RuleSummaryCitation = { title: string; url: string; page: string | null }
 /** One VS Data summary: original wording, shown for reading only. */
 export type RuleSummary = {
   summary: string
   spans: RuleSummarySpan[]
-  citation: RuleSummaryCitation | null
   /** Points the official text leaves open, which the summary reads one way. */
   questions: string[]
 }

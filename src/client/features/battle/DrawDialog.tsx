@@ -1,5 +1,5 @@
 import { Check } from 'lucide-react'
-import { loadedWords, useSourceTexts } from '../../sourceText'
+import { ownWords } from '../../../core/sourceText'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { DialogBody, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
@@ -50,11 +50,10 @@ export function DrawDialog({
 }: Props) {
   const colours = tint(side.index)
   const held = side.secondaries.filter((card) => card.status === 'active')
-  useSourceTexts(held.map((card) => publishedWhenDrawn(card.key)?.condition))
-  // The condition is the card's own words, so it reads as those once they load and is named generically until then.
+  // A condition in the card's own words is named generically, since the browser never holds them.
   const whenDrawnFor = (key: string) => {
     const rule = publishedWhenDrawn(key)
-    return rule?.condition ? { ...rule, condition: loadedWords(rule.condition) ?? 'the card’s condition holds' } : rule
+    return rule?.condition ? { ...rule, condition: ownWords(rule.condition) ?? 'the card’s condition holds' } : rule
   }
   /**
    * What this turn dealt, apart from what the hand was already carrying.

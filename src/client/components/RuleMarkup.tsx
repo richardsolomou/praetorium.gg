@@ -1,49 +1,14 @@
 import { Link } from '@tanstack/react-router'
-import { useTextSourceChoice } from '../rulesText'
 import { type ReactNode, useMemo } from 'react'
 import { cn } from '@/lib/utils'
 import type { RuleLinks } from '../ruleLinks'
 import { parseRuleMarkup, type RuleInline, type RuleMarkupBlock } from '../ruleMarkup'
-import { useSourceText } from '../sourceText'
-import { type TextSource, hasTextTokens } from '../../core/sourceText'
-import { SourceTextPrompt } from './SourceTextPrompt'
 
 /**
- * A rule as the rules documents write it.
- *
- * The source's own markup is read into blocks first, so nothing here is given to the
- * browser as markup. A number one rule quotes in another becomes a link when the
- * reader can reach that rule and stays the printed number when they cannot.
+ * Markup the app writes itself, such as a table, read into blocks first so nothing here is given to the browser
+ * as markup. A number one rule quotes in another becomes a link when the reader can reach that rule.
  */
-export function RuleMarkup({
-  markup,
-  links,
-  className,
-  authored = false,
-  source = 'bsdata',
-}: {
-  markup: string
-  links: RuleLinks
-  className?: string
-  /** Words already shown or written by the app itself, which show to everyone. */
-  authored?: boolean
-  /** Where untokenized words came from: the catalogue's BSData words unless a loaded document says otherwise. */
-  source?: TextSource
-}) {
-  const choice = useTextSourceChoice()
-  if (hasTextTokens(markup)) return <SourcedRuleMarkup markup={markup} links={links} className={className} />
-  if (!authored && !choice.sources.has(source)) return <SourceTextPrompt missing="unchosen" source={source} className={className} />
-  return <RuleMarkupBody markup={markup} links={links} className={className} />
-}
-
-function SourcedRuleMarkup({ markup, links, className }: { markup: string; links: RuleLinks; className?: string }) {
-  const source = useSourceText(markup)
-  if (source.missing && source.missing !== 'unavailable')
-    return <SourceTextPrompt missing={source.missing} source={source.needs} className={className} />
-  return <RuleMarkupBody markup={source.text} links={links} className={className} />
-}
-
-function RuleMarkupBody({ markup, links, className }: { markup: string; links: RuleLinks; className?: string }) {
+export function RuleMarkup({ markup, links, className }: { markup: string; links: RuleLinks; className?: string }) {
   const blocks = useMemo(() => parseRuleMarkup(markup), [markup])
   return (
     <div className={cn('space-y-2 font-rules text-sm text-dim', className)}>

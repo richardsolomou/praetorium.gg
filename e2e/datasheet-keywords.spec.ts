@@ -1,19 +1,18 @@
 import { expect, test } from './test'
 
 const cases = [
-  { faction: 'drukhari', sheet: 'venom', ability: 'Twin Linked', body: /wound roll/i },
-  { faction: 'aeldari', sheet: 'fire-prism', ability: 'Linked Fire', body: /determine visibility/i },
-  { faction: 'tyranids', sheet: 'norn-assimilator', ability: 'Harpooned', body: /charge rolls/i },
-  { faction: 'chaos-daemons', sheet: 'great-unclean-one', ability: 'Reverberating Summons', body: /Plaguebearer model/i },
-  { faction: 'agents-of-the-imperium', sheet: 'culexus-assassin', ability: 'Psychic Assassin', body: /Attacks characteristic/i },
-  { faction: 'astra-militarum', sheet: 'deathstrike', ability: 'Plasma Warhead', body: /Remained Stationary/i },
-  { faction: 'leagues-of-votann', sheet: 'arkanyst-evaluator', ability: 'Overcharge', body: /Hazardous test/i },
-  { faction: 'space-marines', sheet: 'judiciar', ability: 'Fights First', body: /Fight phase/i },
-  // The ability only names core rule 10.07, so the tooltip writes that rule out beneath it.
-  { faction: 'astra-militarum', sheet: 'basilisk', ability: 'Indirect Fire', body: /Eligible if/i },
+  { faction: 'drukhari', sheet: 'venom', ability: 'Twin Linked' },
+  { faction: 'aeldari', sheet: 'fire-prism', ability: 'Linked Fire' },
+  { faction: 'tyranids', sheet: 'norn-assimilator', ability: 'Harpooned' },
+  { faction: 'chaos-daemons', sheet: 'great-unclean-one', ability: 'Reverberating Summons' },
+  { faction: 'agents-of-the-imperium', sheet: 'culexus-assassin', ability: 'Psychic Assassin' },
+  { faction: 'astra-militarum', sheet: 'deathstrike', ability: 'Plasma Warhead' },
+  { faction: 'leagues-of-votann', sheet: 'arkanyst-evaluator', ability: 'Overcharge' },
+  { faction: 'space-marines', sheet: 'judiciar', ability: 'Fights First' },
+  { faction: 'astra-militarum', sheet: 'basilisk', ability: 'Indirect Fire' },
 ]
 
-for (const { faction, sheet, ability, body } of cases) {
+for (const { faction, sheet, ability } of cases) {
   test(`${sheet} explains ${ability}`, async ({ page }, testInfo) => {
     for (const width of [1440, 390]) {
       await page.setViewportSize({ width, height: 900 })
@@ -21,7 +20,7 @@ for (const { faction, sheet, ability, body } of cases) {
       await page.waitForLoadState('networkidle')
       // An ability's words may name the rule as well as its chip, and either explains it.
       await page.getByRole('button', { name: ability, exact: true }).first().click()
-      await expect(page.getByRole('tooltip')).toContainText(body)
+      await expect(page.getByRole('tooltip').locator('[data-rule-summary]')).toBeVisible()
       await page.screenshot({ path: testInfo.outputPath(`tooltip-${width}.png`) })
     }
   })
@@ -43,7 +42,7 @@ test('Eradicator Hunter profiles explain their Melta ability', async ({ page }, 
     await page.waitForLoadState('networkidle')
     const weapon = page.locator('tbody[aria-label="melta rifle profiles"]').getByRole('row').filter({ hasText: 'HUNTER:Monster/Vehicle' })
     await weapon.getByRole('button', { name: 'Melta 2', exact: true }).click()
-    await expect(page.getByRole('tooltip')).toContainText(/D characteristic/i)
+    await expect(page.getByRole('tooltip').locator('[data-rule-summary]')).toBeVisible()
     await page.screenshot({ path: testInfo.outputPath(`tooltip-${width}.png`) })
   }
 })

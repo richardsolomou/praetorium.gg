@@ -34,6 +34,9 @@ export const textToken = ({ file, transform, hash }: TextToken) => `${OPEN}${fil
 
 export const hasTextTokens = (text: string) => text.includes(OPEN)
 
+/** A text's words where it names no source's words by token, else null: a browser never holds a token's words. */
+export const ownWords = (text: string) => (hasTextTokens(text) ? null : text)
+
 export function textTokensIn(text: string): TextToken[] {
   return [...text.matchAll(TOKEN)].map(([, file, transform, hash]) => ({ file: file!, transform: transform as TextTransform, hash: hash! }))
 }

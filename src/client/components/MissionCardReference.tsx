@@ -12,13 +12,12 @@ import {
   title,
 } from '../missionText'
 import { RuleText } from './RuleText'
-import { SourceTextPrompt } from './SourceTextPrompt'
-import { textGap, useSourceTexts } from '../sourceText'
-import type { TextSourceChoice } from '../rulesText'
+import { RuleSummaryText } from './RuleSummaryText'
+import { useRuleSummary } from '../ruleSummaries'
 import { groupBy } from '../../core/collections'
 
 /**
- * What a card asks for and what it pays, as the pack prints it, with the actions it names.
+ * What a card asks for and what it pays, as its summaries say it, with the actions it names.
  *
  * A few secondaries pay differently depending on how the side draws its cards, and
  * the pack prints both. Once a side has settled on fixed or tactical, only one of
@@ -44,22 +43,17 @@ export function MissionCardReference({
     groupKey,
   )
   const actions = card.actions ?? []
-  const texts = [card.text, ...card.awards.map(conditionLabel), ...actions.map(missionActionText)]
-  const { choice } = useSourceTexts(texts)
-  // One ask for the card, rather than one in place of every condition and action it prints.
-  const gap = textGap(texts, choice)
   return (
     <article className="space-y-4">
       {type ? <span className="chip">{type}</span> : null}
-      {gap ? <SourceTextPrompt missing={gap.missing} source={gap.needs} className="block" /> : null}
-      {readable(card.text, choice) ? <RuleText text={card.text!} className="mt-0 text-base text-bone" /> : null}
+      {card.text ? <RuleText text={card.text} className="mt-0 text-base text-bone" /> : null}
       {groups.size || actions.length ? (
         <ul className="runner gap-3 [--gate-x:1.125rem] [--gate-y:1.625rem]">
           {[...groups.values()].map((awards) => (
-            <ScoringBlock key={groupKey(awards[0]!)} awards={awards} choice={choice} />
+            <ScoringBlock key={groupKey(awards[0]!)} awards={awards} />
           ))}
           {actions.map((action) => (
-            <ActionBlock key={action.name} action={action} choice={choice} />
+            <ActionBlock key={action.name} action={action} />
           ))}
         </ul>
       ) : null}
@@ -67,10 +61,7 @@ export function MissionCardReference({
   )
 }
 
-/** Whether a text's words are here to show; until they are, the card's one prompt stands in for them. */
-const readable = (text: string | null, choice: TextSourceChoice) => text !== null && textGap([text], choice) === null
-
-function ScoringBlock({ awards, choice }: { awards: Award[]; choice: TextSourceChoice }) {
+function ScoringBlock({ awards }: { awards: Award[] }) {
   const first = awards[0]
   if (!first) return null
   const round = roundLabel(first.trigger)
@@ -98,11 +89,7 @@ function ScoringBlock({ awards, choice }: { awards: Award[]; choice: TextSourceC
             <div key={`${award.vp}-${award.criteria ?? at}`}>
               {join ? <AwardJoin join={join} /> : null}
               <div className="flex items-baseline justify-between gap-6 py-2.5">
-                {readable(conditionLabel(award), choice) ? (
-                  <RuleText text={conditionLabel(award)!} className="mt-0 min-w-0 text-base text-bone" />
-                ) : (
-                  <p className="min-w-0 text-base text-bone">{payoutLabel(award, awards)}</p>
-                )}
+                <AwardCondition award={award} awards={awards} className="mt-0 min-w-0 text-base text-bone" />
                 <span className="figure shrink-0 text-xl leading-none font-semibold text-bone">
                   {award.vp}
                   <span className="font-sans text-2xs font-semibold tracking-label text-dim"> VP</span>
@@ -114,6 +101,13 @@ function ScoringBlock({ awards, choice }: { awards: Award[]; choice: TextSourceC
       </div>
     </li>
   )
+}
+
+/** What an award asks for: its summary, or how it pays where it has none. */
+export function AwardCondition({ award, awards, className }: { award: Award; awards: Award[]; className: string }) {
+  const { summary } = useRuleSummary(conditionLabel(award) ?? '')
+  if (summary) return <RuleSummaryText summary={summary} className={className} />
+  return <p className={className}>{payoutLabel(award, awards)}</p>
 }
 
 /** Whether the next condition replaces the one above or can score alongside it. */
@@ -130,11 +124,9 @@ function AwardJoin({ join }: { join: 'or' | 'plus' }) {
 /**
  * An action the card names, which is how most of what it pays is earned.
  *
- * Written out the way a stratagem is, in the pack's own words and in the order it
- * prints them. A line the pack does not state is left out rather than shown empty,
- * so an action with no restriction states none.
+ * Its summary, where VS Data writes one; an action without one shows its name alone.
  */
-function ActionBlock({ action, choice }: { action: MissionAction; choice: TextSourceChoice }) {
+function ActionBlock({ action }: { action: MissionAction }) {
   const text = missionActionText(action)
   return (
     <li className="part p-4">
@@ -142,7 +134,7 @@ function ActionBlock({ action, choice }: { action: MissionAction; choice: TextSo
         <span className="chip">Action</span>
         <span className="font-display text-sm leading-tight font-bold tracking-heading text-bone uppercase">{action.name}</span>
       </p>
-      {text && readable(text, choice) ? <RuleText text={text} className="mt-3 space-y-3 text-base text-bone" /> : null}
+      {text ? <RuleText text={text} className="mt-3 space-y-3 text-base text-bone" /> : null}
     </li>
   )
 }

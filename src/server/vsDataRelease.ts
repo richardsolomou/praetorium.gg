@@ -33,15 +33,14 @@ const recordSchema = refSchema.extend({
     summarySpans: z
       .array(z.object({ start: z.number().int(), end: z.number().int(), bold: z.literal(true).optional(), target: refSchema.optional() }))
       .optional(),
-    citations: z.array(z.object({ type: z.string(), title: z.string(), url: z.string().optional(), page: z.string().optional() })),
     interpretation: z.array(z.object({ question: z.string() })).optional(),
   }),
 })
 
 const MANIFEST = 'manifest.json'
+/** The categories whose records are rule summaries; others, such as mission packs, hold data Praetorium reads elsewhere. */
+const SUMMARY_CATEGORIES = new Set(['rules-reference', 'mission-rules'])
 const IDENTITY = 'identity.json'
-/** The one file the snapshot keeps of a VS Data release. */
-export const VS_DATA_SUMMARIES = 'summaries.json'
 
 /** The release's manifest, or null where the folder holds no VS Data catalogue release. */
 export function readVsDataManifest(directory: string): VsDataManifest | null {
@@ -97,26 +96,27 @@ export function vsDataReleaseErrors(directory: string): string[] {
  * Refuses a VS Data release that fails verification, or that describes an MFM no rules version here
  * plays: its summaries would show on cards printing other rules.
  */
-export function checkVsDataRelease(directory: string, editions: readonly string[]) {
+export function checkVsDataRelease(directory: string, editions: readonly { id: string; name: string }[]) {
   const errors = vsDataReleaseErrors(directory)
   if (errors.length) throw new Error(`VS Data release failed verification:\n${errors.join('\n')}`)
   const { rulesVersion } = readVsDataManifest(directory)!
-  const edition = vsDataEdition(rulesVersion)
-  if (!edition || !editions.includes(edition))
-    throw new Error(`VS Data release describes ${describe(rulesVersion)}, which no rules version plays`)
+  const edition = vsDataEdition(rulesVersion, editions)
+  if (!edition) throw new Error(`VS Data release describes ${describe(rulesVersion)}, which no rules version plays`)
+  return edition
 }
 
 const describe = ({ edition, update }: VsDataRulesVersion) => `${edition} ${update}`
 
 /**
- * Replaces a verified release with the one file Praetorium reads, so the snapshot does not carry thousands of
+ * Reduces a verified release to the one file Praetorium reads, `file`, so the snapshot does not carry thousands of
  * record files, the identity and the typed facts: each summary of the release's rules version, and the aliases
- * of every current entry a summary is for or links to.
+ * of every current entry a summary is for or links to. The unpacked release is removed.
  */
-export function compactVsDataRelease(directory: string) {
+export function compactVsDataRelease(directory: string, file: string) {
   const manifest = readVsDataManifest(directory)!
-  const read = (file: string): unknown => JSON.parse(fs.readFileSync(path.join(directory, file), 'utf8'))
+  const read = (name: string): unknown => JSON.parse(fs.readFileSync(path.join(directory, name), 'utf8'))
   const records = manifest.categories
+    .filter((category) => SUMMARY_CATEGORIES.has(category.name))
     .flatMap((category) => category.records)
     .map((entry) => recordSchema.parse(read(entry.path)))
     .filter((record) => record.rulesVersion.update === manifest.rulesVersion.update)
@@ -133,19 +133,14 @@ export function compactVsDataRelease(directory: string) {
     release: manifest.release,
     rulesVersion: manifest.rulesVersion,
     entries: Object.fromEntries(entries.map((entry) => [vsDataKey(entry), entry.aliases ?? []])),
-    records: records.map(({ kind, id, data }) => {
-      const publisher = data.citations.find((citation) => citation.type === 'publisher' && citation.url)
-      return {
-        kind,
-        id,
-        summary: data.summary,
-        spans: data.summarySpans ?? [],
-        citation: publisher ? { title: publisher.title, url: publisher.url!, page: publisher.page ?? null } : null,
-        questions: (data.interpretation ?? []).map(({ question }) => question),
-      }
-    }),
+    records: records.map(({ kind, id, data }) => ({
+      kind,
+      id,
+      summary: data.summary,
+      spans: data.summarySpans ?? [],
+      questions: (data.interpretation ?? []).map(({ question }) => question),
+    })),
   }
   fs.rmSync(directory, { recursive: true })
-  fs.mkdirSync(directory)
-  fs.writeFileSync(path.join(directory, VS_DATA_SUMMARIES), `${JSON.stringify(compact)}\n`)
+  fs.writeFileSync(file, `${JSON.stringify(compact)}\n`)
 }

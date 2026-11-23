@@ -35,7 +35,7 @@ export function Keyword({
   const body = (
     <>
       {condition ? <p className="text-xs">* Only {condition}.</p> : null}
-      {rule?.description ? <RuleText text={rule.description} className={condition ? 'mt-1.5 text-xs' : 'mt-0 text-xs'} cite /> : null}
+      {rule?.description ? <RuleText text={rule.description} className={condition ? 'mt-1.5 text-xs' : 'mt-0 text-xs'} /> : null}
     </>
   )
 

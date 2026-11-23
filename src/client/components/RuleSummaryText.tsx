@@ -4,12 +4,10 @@ import type { RuleSummary, RuleSummarySpan } from '../../contracts/rules'
 import { summarySegments } from '../../core/summarySpans'
 
 /**
- * A VS Data summary, which everyone can read: original wording that names the publisher document it was
- * checked against, and says where the official text leaves a point open. Its spans are drawn as they
- * stand, never read as Markdown, so the summary cannot mark itself up.
+ * A VS Data summary, which everyone can read: original wording that says where the official text leaves a
+ * point open. Its spans are drawn as they stand, never read as Markdown, so the summary cannot mark itself up.
  */
 export function RuleSummaryText({ summary, className }: { summary: RuleSummary; className?: string }) {
-  const { citation } = summary
   return (
     <div data-rule-summary className={cn('mt-2 space-y-1.5 font-rules text-sm text-dim', className)}>
       <p>
@@ -22,17 +20,6 @@ export function RuleSummaryText({ summary, className }: { summary: RuleSummary; 
           The official text leaves this open: {question}
         </p>
       ))}
-      <p className="font-sans text-xs text-faint">
-        <span>VS Data summary</span>
-        {citation ? (
-          <>
-            {' · '}
-            <a href={citation.url} target="_blank" rel="noopener" className="hover:text-bone">
-              {citation.page ? `${citation.title}, p. ${citation.page}` : citation.title}
-            </a>
-          </>
-        ) : null}
-      </p>
     </div>
   )
 }

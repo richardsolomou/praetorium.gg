@@ -5,7 +5,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { withServerSpan } from '../serverTelemetry'
 import { app } from '../app'
 import { unitBattleDetailsIn } from '../../shared/catalogue'
-import { publishedTextFiles, textHomes } from '../publishedTextFiles'
+import { publishedTextFiles } from '../publishedTextFiles'
 import { booksOffering, pickerUnitsFor } from '../../shared/pickerUnits'
 import { detachmentsOffering } from '../../shared/factionReferences'
 
@@ -42,7 +42,6 @@ import {
   terrainReferencesSchema,
   unitsSchema,
   unitWoundsSchema,
-  textHomesSchema,
   textFileSchema,
 } from '../../contracts/schemas'
 
@@ -338,11 +337,6 @@ export const ruleSummaryRecords = createServerFn({ method: 'GET' })
       return summaries?.summariesIn(data.file) ?? NO_RULE_SUMMARIES
     }),
   )
-
-/** Where strings now live whose tokens name a file the active snapshot replaced, so a battle's older text still loads. */
-export const textHomesFor = createServerFn({ method: 'GET' })
-  .validator(textHomesSchema)
-  .handler(({ data }) => snapshotRpc(async () => textHomes(data.hashes)))
 
 /** Every rules document and section by name, with the numbers their prose quotes. */
 export const ruleIndex = createServerFn({ method: 'GET' }).handler(() =>

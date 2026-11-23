@@ -4,22 +4,10 @@ import { DialogBody, DialogDescription, DialogFooter, DialogHeader, DialogTitle 
 import { modelCountChoices } from '../../../core/unitSize'
 import type { Command } from '../../../core/battle'
 import type { BattleView } from '../../../core/battleView'
-import {
-  alternatives,
-  appliesInMode,
-  awardLimit,
-  awardTotal,
-  conditionLabel,
-  counted,
-  type MissionAward,
-  payoutJoin,
-  payoutLabel,
-} from '../../missionText'
+import { alternatives, appliesInMode, awardLimit, awardTotal, counted, type MissionAward, payoutJoin } from '../../missionText'
 import { capRoom, cardsDue, cardsDueFromTheirTurn, type DueCard, finishesOnScore, scoredThisRound, settleAgainstCaps } from '../../scoring'
 import { type Side, sideName } from '../../sides'
-import { RuleText } from '../../components/RuleText'
-import { SourceTextPrompt } from '../../components/SourceTextPrompt'
-import { textGap, useSourceTexts } from '../../sourceText'
+import { AwardCondition } from '../../components/MissionCardReference'
 import { MissionName, type ReferenceCard } from './MissionCards'
 import { MissionSelectionRecords } from './MissionSelectionRecord'
 import { BattleDialogContent, BattlePromptDialog } from './BattlePromptDialog'
@@ -80,14 +68,6 @@ export function ScoringDialog({
   answers,
   onAnswersChange,
 }: Props) {
-  const conditions = due.flatMap((card) => card.awards.map(conditionLabel))
-  const { choice } = useSourceTexts(conditions)
-  // Asked once for the whole prompt: a row each would bury the payouts under identical lines.
-  const gap = textGap(conditions, choice)
-  const readable = (award: MissionAward) => {
-    const condition = conditionLabel(award)
-    return condition !== null && textGap([condition], choice) === null ? condition : null
-  }
   // A card counts once the player has pressed something on it, nothing scored included, so none is settled by default.
   const unanswered = due.filter((card) => !answers[card.key]).length
   const answerFor = (card: DueCard) => answers[card.key] ?? card.awards.map(() => 0)
@@ -238,7 +218,6 @@ export function ScoringDialog({
 
         <DialogBody className="gap-3">
           <DialogDescription>Press what the board actually paid on each card.</DialogDescription>
-          {gap ? <SourceTextPrompt missing={gap.missing} source={gap.needs} /> : null}
           {finalAwardsDue ? (
             <p className="text-sm text-dim">Final awards: {finalScoring} VP. Round limits do not apply; the battle limit still applies.</p>
           ) : null}
@@ -294,7 +273,6 @@ export function ScoringDialog({
                       key={`${award.vp}-${award.criteria ?? at}`}
                       card={card}
                       award={award}
-                      condition={readable(award)}
                       join={payoutJoin(award, card.awards[at - 1])}
                       times={taken[at] ?? 0}
                       pending={pending}
@@ -358,7 +336,6 @@ export function ScoringDialog({
 function AwardRow({
   card,
   award,
-  condition,
   join,
   times,
   pending,
@@ -367,8 +344,6 @@ function AwardRow({
 }: {
   card: DueCard
   award: MissionAward
-  /** The card's words for what this pays on, or null to name it from its numbers until they load. */
-  condition: string | null
   /** Whether this replaces the payout above or can score alongside it. */
   join: 'or' | 'plus' | null
   times: number
@@ -390,11 +365,7 @@ function AwardRow({
         </span>
       ) : null}
       <span className="min-w-0 flex-1 text-sm">
-        {condition ? (
-          <RuleText text={condition} className="mt-0 space-y-1 text-sm text-bone" />
-        ) : (
-          <span className="text-sm text-bone">{payoutLabel(award, card.awards)}</span>
-        )}
+        <AwardCondition award={award} awards={card.awards} className="mt-0 space-y-1 text-sm text-bone" />
         {award.trigger.timing === 'end-of-battle' ? <span className="mt-0.5 block text-3xs text-faint">End of battle</span> : null}
         {counted(award) ? (
           <span className="mt-0.5 block text-3xs text-faint">
