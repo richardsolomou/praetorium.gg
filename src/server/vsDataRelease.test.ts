@@ -154,3 +154,17 @@ it('keeps what a datasheet shows of a unit, its models and wargear named, under 
     },
   ])
 })
+
+it('reads a record whose summary VS Data holds as unresolved as having none', () => {
+  fs.rmSync(directory, { recursive: true })
+  writeFiles(
+    directory,
+    vsDataReleaseFiles([
+      record,
+      { ...record, id: 'necrons.test.held', data: { summary: { unresolved: 'Repeated the official wording.' } } },
+    ]),
+  )
+  const file = `${directory}.json`
+  compactVsDataRelease(directory, file)
+  expect(JSON.parse(fs.readFileSync(file, 'utf8')).records.map(({ id }: { id: string }) => id)).toEqual(['necrons.test.phase-shift'])
+})
