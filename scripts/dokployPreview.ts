@@ -19,12 +19,15 @@ import { requiredEnv } from './lib/requiredEnv.ts'
 import { waitForWebRevision } from './lib/webReadiness.ts'
 
 const execFile = promisify(execFileCallback)
+// The catalogue bucket's read-only key, so a preview starts from the snapshot CI tested instead of building one from sources.
+const snapshotKey = ['SNAPSHOT_R2_ACCOUNT_ID', 'SNAPSHOT_R2_ACCESS_KEY_ID', 'SNAPSHOT_R2_SECRET_ACCESS_KEY']
 const allowedSecrets = [
   'SPACETIME_URL',
   'SPACETIME_ADMIN_TOKEN',
   'SPACETIME_ACCESS_CLIENT_ID',
   'SPACETIME_ACCESS_CLIENT_SECRET',
   'SPACETIME_INTERNAL_HOST',
+  ...snapshotKey,
 ]
 
 export function previewDatabase(number: string) {
@@ -163,6 +166,7 @@ async function deploy() {
   const previewUrl = `https://${config.subdomainPrefix}-${number}.${config.domain}`
   const admin = requiredEnv('SPACETIME_ADMIN_TOKEN')
   const internalHost = internalSpacetimeHost()
+  const snapshot = snapshotKey.map((variable) => `${variable}=${requiredEnv(variable)}`)
   await removeDatabase(number)
   const identity = await createIdentity()
   if (typeof identity.identity !== 'string' || !/^[0-9a-f]{64}$/.test(identity.identity) || typeof identity.token !== 'string') {
@@ -186,6 +190,7 @@ async function deploy() {
     `SPACETIME_AUDIENCE=${name}`,
     `SPACETIME_ISSUER=${issuer}`,
     `SPACETIME_OPERATOR_TOKEN=${identity.token}`,
+    ...snapshot,
   ].join('\n')
   try {
     await execFile('pnpm', ['exec', 'ras', 'preview', 'dokploy', 'deploy'], { env: process.env, timeout: 900_000, maxBuffer: 4_000_000 })

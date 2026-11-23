@@ -54,7 +54,9 @@ export function prepareLiveRevision(root: string, compiler: string, { bootstrap 
     let next = bootstrap
       ? { sources: catalogueSources, composition: configured }
       : await resolveCatalogueUpstream(catalogueSources, configured, console.log)
-    const privateStore = Boolean(process.env.R2_ACCESS_KEY_ID || process.env.R2_SECRET_ACCESS_KEY) && Boolean(catalogueR2Client())
+    const privateStore =
+      Boolean(process.env.SNAPSHOT_R2_ACCESS_KEY_ID || process.env.R2_ACCESS_KEY_ID || process.env.R2_SECRET_ACCESS_KEY) &&
+      Boolean(catalogueR2Client())
     const directory = path.join(staging, 'catalogue')
     let prior = previous ? path.join(previous.directory, 'catalogue') : null
     if (bootstrap && !previous && archive && privateStore) {

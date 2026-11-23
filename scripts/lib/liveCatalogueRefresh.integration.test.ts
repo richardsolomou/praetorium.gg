@@ -23,11 +23,14 @@ vi.mock('./catalogueMaterialize', () => ({
     throw new Error('unchanged sources must not be materialized')
   },
 }))
+const fetchPinnedSnapshot = vi.hoisted(() =>
+  vi.fn(async (_directory: string): Promise<void> => {
+    throw new Error('a published catalogue must not need the pinned snapshot')
+  }),
+)
 vi.mock('../../src/server/catalogueSnapshot', async (actual) => ({
   ...(await actual<typeof import('../../src/server/catalogueSnapshot')>()),
-  fetchPinnedSnapshot: async () => {
-    throw new Error('a published catalogue must not need the pinned snapshot')
-  },
+  fetchPinnedSnapshot,
 }))
 // The catalogue a release's refresh materialized, as `composeCatalogue` records it.
 vi.mock('./liveCatalogueArchive', () => ({
@@ -73,4 +76,21 @@ it('finds unchanged upstream sources unchanged after starting from the published
   await refreshLiveCatalogue(root, prepareLiveRevision(root, compiler, { bootstrap: true, archive: { target: 'production', authoring } }))
 
   expect(await refreshLiveCatalogue(root, prepareLiveRevision(root, compiler))).toBe(false)
+})
+
+it('starts a preview from the pinned snapshot with only the read-only snapshot key', async () => {
+  for (const name of ['R2_ACCOUNT_ID', 'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY', 'CATALOGUE_DIR']) vi.stubEnv(name, undefined)
+  vi.stubEnv('SNAPSHOT_R2_ACCOUNT_ID', '0'.repeat(32))
+  vi.stubEnv('SNAPSHOT_R2_ACCESS_KEY_ID', 'key')
+  vi.stubEnv('SNAPSHOT_R2_SECRET_ACCESS_KEY', 'secret')
+  fetchPinnedSnapshot.mockImplementationOnce(async (directory) => {
+    fs.mkdirSync(directory, { recursive: true })
+    fs.writeFileSync(path.join(directory, 'revision.json'), JSON.stringify({ definitions: catalogueSources.definitions.revision }))
+    fs.writeFileSync(path.join(directory, 'composition.json'), JSON.stringify({ ...configured, baseSources: catalogueSources }))
+  })
+  const parent = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-live-refresh-'))
+  directories.push(parent)
+  const root = path.join(parent, compiler)
+
+  expect(await refreshLiveCatalogue(root, prepareLiveRevision(root, compiler, { bootstrap: true }))).toBe(true)
 })

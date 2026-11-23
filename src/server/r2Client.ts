@@ -2,8 +2,7 @@ import { AwsClient } from 'aws4fetch'
 // scripts/nodeServer.ts runs this module under plain Node, which needs the extension.
 import { localDevelopmentObjects } from './localObjectStore.ts'
 
-function configuredClient(environment: NodeJS.ProcessEnv, prefix: string, bucket: string) {
-  const account = environment.R2_ACCOUNT_ID
+function configuredClient(environment: NodeJS.ProcessEnv, prefix: string, bucket: string, account = environment.R2_ACCOUNT_ID) {
   const accessKeyId = environment[`${prefix}_ACCESS_KEY_ID`]
   const secretAccessKey = environment[`${prefix}_SECRET_ACCESS_KEY`]
   if (!account && !accessKeyId && !secretAccessKey) return null
@@ -19,8 +18,13 @@ export function privateR2Client(environment: NodeJS.ProcessEnv = process.env) {
   return configuredClient(environment, 'R2', 'praetorium-private')
 }
 
-/** The bucket that holds only catalogue snapshots, so a key that reads it for a test run reads nothing of the players'. */
+/**
+ * The bucket that holds only catalogue snapshots, so a key that reads it for a test run reads nothing of the players'.
+ * Previews hold only its read-only key, as `SNAPSHOT_R2_*`, so no other bucket's client takes that key up.
+ */
 export function catalogueR2Client(environment: NodeJS.ProcessEnv = process.env) {
+  if (environment.SNAPSHOT_R2_ACCESS_KEY_ID)
+    return configuredClient(environment, 'SNAPSHOT_R2', 'praetorium-catalogue', environment.SNAPSHOT_R2_ACCOUNT_ID)
   return configuredClient(environment, 'R2', 'praetorium-catalogue')
 }
 
