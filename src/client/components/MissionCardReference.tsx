@@ -119,7 +119,8 @@ export function AwardCondition({ award, className }: { award: Award; className: 
   const byToken = useRuleSummary(conditionLabel(award) ?? '')
   const summary = byId.summary ?? byToken.summary
   if (summary) return <RuleSummaryText summary={summary} className={className} />
-  if (byId.pending || byToken.pending) return <RuleSummarySkeleton className={className} />
+  // A row lays its summary out beside the VP, where only a growing skeleton has width.
+  if (byId.pending || byToken.pending) return <RuleSummarySkeleton className={`${className} flex-1`} />
   return <span className="min-w-0 flex-1" />
 }
 
