@@ -58,6 +58,6 @@ describe('redrawOffer', () => {
       heldCards: [],
       noEnemy: { entity: 'unit', characteristic: 'starting-strength', min: 13 },
     }
-    expect(redrawOffer(rule, 3, [])?.message).toBe('You can put this back if no enemy unit has a Starting Strength of 13 or more.')
+    expect(redrawOffer(rule, 3, [])?.message).toBe('You can put this back if no enemy unit has a **Starting Strength** of 13 or more.')
   })
 })

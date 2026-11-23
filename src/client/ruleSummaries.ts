@@ -26,12 +26,6 @@ export function useRuleSummary(text: string): SummaryLookup {
 
 type MissionKind = 'mission-card' | 'mission-award' | 'mission-action' | 'mission-twist'
 
-/** The VS Data summaries of the mission pack's records, by kind and VS Data ID. */
-export function useMissionSummaries(enabled = true) {
-  const { data } = useQuery({ ...ruleSummariesQuery(MISSION_SUMMARIES), enabled })
-  return (kind: MissionKind, id: string): RuleSummary | null => data?.records[`${kind}:${id}`] ?? null
-}
-
 /** The VS Data summary of a mission card, award, action or twist, by its kind and ID, and whether it is still loading. */
 export function useMissionSummary(kind: MissionKind, id: string | undefined) {
   const { data, isPending } = useQuery({ ...ruleSummariesQuery(MISSION_SUMMARIES), enabled: Boolean(id) })

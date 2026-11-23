@@ -12,19 +12,15 @@ export const missionActionReminderStorageKey = (battleToken: string) => `praetor
 
 export const missionActionRemindersEnabled = (stored: string | null) => stored !== 'off'
 
-/** Mission actions due at the start of the active player's Shooting phase, each described by its summary. */
-export function missionActionReminders(
-  side: MissionHand,
-  referenceFor: (key: string) => MissionReference | undefined,
-  summaryOf: (action: string) => string | null,
-): RosterReminder[] {
+/** Mission actions due at the start of the active player's Shooting phase, each described by its VS Data action ID, whose summary the reminder shows. */
+export function missionActionReminders(side: MissionHand, referenceFor: (key: string) => MissionReference | undefined): RosterReminder[] {
   const cards = [...(side.primaryCard ? [side.primaryCard] : []), ...side.secondaries.filter((card) => card.status === 'active')]
 
   return cards.flatMap((card) =>
     (referenceFor(card.key)?.actions ?? []).map((action, index) => ({
       key: `${MISSION_ACTION_REMINDER_PREFIX}${card.key}:${index}`,
       ability: card.name.toLocaleLowerCase() === action.name.toLocaleLowerCase() ? card.name : `${card.name}: ${action.name}`,
-      description: summaryOf(action.id) ?? '',
+      description: action.id,
       timings: [{ moment: 'phase-start', phase: 'shooting', turn: 'your-turn' }],
     })),
   )

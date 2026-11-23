@@ -5,6 +5,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/compon
 import { groupedReminders, type RosterReminder } from '../../../core/reminders'
 import type { ReminderDismissalScope } from './reminderDismissals'
 import { RuleText } from '../../components/RuleText'
+import { RuleSummarySkeleton, RuleSummaryText } from '../../components/RuleSummaryText'
+import { useMissionSummary } from '../../ruleSummaries'
 import { MISSION_ACTION_REMINDER_PREFIX } from '../../missionActionReminders'
 import { BattleDialogContent, BattlePromptDialog } from './BattlePromptDialog'
 import { DropdownMenuItem } from '../../components/Menu'
@@ -41,8 +43,12 @@ export function ReminderDialog({
                 {groups.length > 1 ? <HideFor ability={reminder.ability} onHide={(scope) => onDismiss(members, scope)} /> : null}
               </div>
               {units ? <p className="eyebrow mt-1">{units}</p> : null}
-              {reminder.description ? (
-                <ReminderText text={reminder.description} summary={reminder.key.startsWith(MISSION_ACTION_REMINDER_PREFIX)} />
+              {reminder.key.startsWith(MISSION_ACTION_REMINDER_PREFIX) ? (
+                <MissionActionText id={reminder.description} />
+              ) : reminder.description ? (
+                <div className="mt-2 text-xs">
+                  <RuleText text={reminder.description} rules={[]} />
+                </div>
               ) : null}
             </article>
           ))}
@@ -60,13 +66,11 @@ export function ReminderDialog({
   )
 }
 
-/** An alert's rule shows as its summary, or not at all; a mission action's alert is its VS Data summary already. */
-function ReminderText({ text, summary }: { text: string; summary: boolean }) {
-  return (
-    <div className="mt-2 text-xs">
-      <RuleText text={text} rules={[]} authored={summary} />
-    </div>
-  )
+/** A mission action's alert, described by its VS Data action ID: that action's summary, formatted. */
+function MissionActionText({ id }: { id: string }) {
+  const { summary, pending } = useMissionSummary('mission-action', id)
+  if (summary) return <RuleSummaryText summary={summary} className="mt-2 text-xs" />
+  return pending ? <RuleSummarySkeleton className="mt-2" /> : null
 }
 
 function HideFor({

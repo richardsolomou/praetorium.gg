@@ -6,6 +6,8 @@ import { nextDraw } from '../../scoring'
 import { type Side, sideName } from '../../sides'
 import type { WhenDrawn } from '../../../contracts/missions'
 import { redrawOffer } from './drawOffer'
+import { RuleSummaryText } from '../../components/RuleSummaryText'
+import { summaryBlocks } from '../../../core/summaryMarkdown'
 import { MissionDetailsDialog, MissionName, type MissionDetails, type ReferenceCard } from './MissionCards'
 import { CARD, tint } from './battleTints'
 import { UndoLatest, type UndoTarget } from './UndoLatest'
@@ -217,7 +219,10 @@ export function DrawDialog({
                     {cardName(card)}
                     {offer ? (
                       <>
-                        <p className="text-2xs text-dim">{offer.message}</p>
+                        <RuleSummaryText
+                          summary={{ blocks: summaryBlocks(offer.message), questions: [] }}
+                          className="mt-0 text-2xs text-dim"
+                        />
                         <Button
                           variant="outline"
                           size="xs"

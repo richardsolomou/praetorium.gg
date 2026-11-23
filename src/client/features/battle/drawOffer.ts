@@ -1,8 +1,9 @@
 import { sameMissionId } from '../../../core/legacyIds'
 import type { WhenDrawn } from '../../../contracts/missions'
 
-const CHARACTERISTICS = { wounds: 'a Wounds characteristic', 'starting-strength': 'a Starting Strength' } as const
+const CHARACTERISTICS = { wounds: 'a **Wounds** characteristic', 'starting-strength': 'a **Starting Strength**' } as const
 
+/** `message` is summary Markdown, so the rules terms it names read bold as a summary's do. */
 type DrawOffer = { message: string; status: 'returned' | 'discarded'; label: string; required: boolean }
 
 /**

@@ -30,12 +30,7 @@ export function summaryBlocks(markdown: string): SummaryBlock[] {
 
 /** The words a summary says, without its markup: what is compared with a source's wording. */
 export function summaryText(markdown: string) {
-  return blocksText(summaryBlocks(markdown))
-}
-
-/** The words of a summary already read into blocks, a paragraph or list per line group. */
-export function blocksText(blocks: readonly ({ paragraph: { text: string }[] } | { items: { text: string }[][] })[]) {
-  return blocks
+  return summaryBlocks(markdown)
     .map((block) => ('paragraph' in block ? [block.paragraph] : block.items).map((runs) => runs.map((run) => run.text).join('')).join('\n'))
     .join('\n\n')
 }

@@ -12,8 +12,6 @@ import { deploymentFor } from '../../battleSummary'
 import { battleQuery, deploymentsQuery, detachmentRulesQuery, forgetBattle, gameReferencesQuery } from '../../queries'
 import { missionCardsByKey, primaryCards, secondaryCards } from './missionDeck'
 import { currentMissionId, sameMissionId } from '../../../core/legacyIds'
-import { blocksText } from '../../../core/summaryMarkdown'
-import { useMissionSummaries } from '../../ruleSummaries'
 import {
   MISSION_ACTION_REMINDER_PREFIX,
   missionActionReminderStorageKey,
@@ -269,13 +267,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
     (cardsByKey.get(key)?.awards ?? []).filter((award) => appliesInMode(award, mode))
   const referenceFor = useCallback((key: string): ReferenceCard | undefined => cardsByKey.get(currentMissionId(key)), [cardsByKey])
   useWatchBattle(view, clock, missions, referenceFor, reminderPrompts)
-  const missionSummaryOf = useMissionSummaries(Boolean(active?.isViewer))
-  const activeMissionActionReminders = active?.isViewer
-    ? missionActionReminders(active, referenceFor, (action) => {
-        const summary = missionSummaryOf('mission-action', action)
-        return summary ? blocksText(summary.blocks) : null
-      })
-    : EMPTY_REMINDERS
+  const activeMissionActionReminders = active?.isViewer ? missionActionReminders(active, referenceFor) : EMPTY_REMINDERS
   const writtenFor = useCallback((side: Side, key: string): StratagemText | undefined => writtenStratagem(rulesFor(side), key), [rulesFor])
   const whenDrawnFor = (key: string): WhenDrawn | undefined =>
     secondaryDeck.find((card) => sameMissionId(card.key, key))?.whenDrawn ?? undefined
