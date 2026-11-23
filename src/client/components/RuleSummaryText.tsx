@@ -62,10 +62,10 @@ function List({ ordered, children }: { ordered: boolean; children: ReactNode }) 
   return ordered ? <ol className={className}>{children}</ol> : <ul className={className}>{children}</ul>
 }
 
-const textOf = (runs: readonly RuleSummaryInline[]) => runs.map((run) => run.text).join('')
+export const textOf = (runs: readonly RuleSummaryInline[]) => runs.map((run) => run.text).join('')
 
 /** A line's runs, each keyed by where it starts in the line. */
-function Runs({ runs, abilities }: { runs: readonly RuleSummaryInline[]; abilities: boolean }) {
+export function Runs({ runs, abilities = true }: { runs: readonly RuleSummaryInline[]; abilities?: boolean }) {
   let start = 0
   return runs.map((run) => {
     const key = start
