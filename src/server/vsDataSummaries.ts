@@ -20,6 +20,13 @@ import { editionTextFiles, textHash } from './sourceTexts'
 
 export const NO_RULE_SUMMARIES: RuleSummaries = { records: {}, texts: {}, entries: {} }
 
+/**
+ * One source file's summaries, by its token ID; for an ID no file of the snapshot has, word that a data update replaced
+ * it, as a token kept from before one names, so its strings are looked up where they live now.
+ */
+export const summariesOfFile = (file: string, files: Readonly<Record<string, unknown>>, summaries: VsDataSummaries | null | undefined) =>
+  file in files ? (summaries?.summariesIn(file) ?? NO_RULE_SUMMARIES) : { ...NO_RULE_SUMMARIES, replaced: true as const }
+
 /** One Game Datacards record of a summarized rules version: whether VS Data names it, and whether its summary is served. */
 export type VsDataJoin = { kind: GdcRuleKind; key: string; named: boolean; served: boolean }
 

@@ -183,6 +183,35 @@ export function textSourceFiles(root: string, composition: CatalogueComposition 
 export const textFilesFrom = (paths: readonly TextSourceFile[]): Record<string, TextSourceFile> =>
   Object.fromEntries(paths.map(({ url, source }) => [textFileId(url), { url, source }]))
 
+/**
+ * Which of a snapshot's own files holds a string, by its hash: a token copied before a catalogue update names a file
+ * the update replaced, and its string, where unchanged, lives on in that file's successor. Only the first 32 bits of
+ * each hash are kept, so the index stays small; a summary is still found only by the whole hash.
+ */
+export function* textHomesSteps(root: string, composition: CatalogueComposition | null): Steps<(hash: string) => string | null> {
+  const files = textSourcePaths(root, composition).filter((file) => !path.relative(root, file.path).startsWith('editions'))
+  const entries: [number, number][] = []
+  for (const [at, file] of files.entries()) {
+    for (const key of stringsByHash(file.path).keys()) entries.push([parseInt(key.slice(0, 8), 16), at])
+    yield
+  }
+  entries.sort((left, right) => left[0] - right[0] || left[1] - right[1])
+  const prefixes = Uint32Array.from(entries, ([prefix]) => prefix)
+  const homes = Uint16Array.from(entries, ([, at]) => at)
+  const ids = files.map((file) => textFileId(file.url))
+  return (key) => {
+    const prefix = parseInt(key.slice(0, 8), 16)
+    let low = 0
+    let high = prefixes.length
+    while (low < high) {
+      const middle = (low + high) >>> 1
+      if (prefixes[middle]! < prefix) low = middle + 1
+      else high = middle
+    }
+    return prefixes[low] === prefix ? ids[homes[low]!]! : null
+  }
+}
+
 /** Every string a source file holds, under the hash its tokens name it by. */
 export const stringsByHash = (file: string): ReadonlyMap<string, string> =>
   new Map([...sourceStrings(JSON.parse(fs.readFileSync(file, 'utf8')))].map((value) => [textHash(value), value]))
