@@ -2,7 +2,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { RecentlyUsed, remember } from '../core/collections'
 import { sourceStrings } from '../core/sourceText'
-import type { RuleDocument, RuleSummaries, RuleSummary, RuleSummaryLink, RuleSummarySpan } from '../contracts/rules'
+import type { RuleDocument, RuleSummaries, RuleSummary, RuleSummaryInline, RuleSummaryLink } from '../contracts/rules'
+import { spannedParagraph, type SummaryInline, summaryBlocks, summaryText } from '../core/summaryMarkdown'
 import type { Steps } from '../shared/steps'
 import {
   type GdcRuleKind,
@@ -155,24 +156,42 @@ function summaryOf(
   link: (target: { kind: string; id: string }) => RuleSummaryLink | undefined,
   abilities: ReadonlySet<string>,
 ): RuleSummary {
-  const held: RuleSummarySpan[] = spans.flatMap(({ start, end, bold, target }) => {
-    const to = target && link(target)
-    const ability = target && abilities.has(vsDataKey(target)) ? vsDataKey(target) : undefined
-    return bold || to || ability
-      ? [{ start, end, ...(bold ? { bold } : {}), ...(to ? { link: to } : {}), ...(ability ? { ability } : {}) }]
-      : []
-  })
-  // A summary prints a weapon ability in brackets, as the cards do, often without a span naming it.
-  for (const match of summary.matchAll(/\[([^[\]]+)\]/g)) {
-    const ability = bracketedAbility(match[1]!, abilities)
-    const start = match.index
-    const end = start + match[0].length
-    const same = held.find((span) => span.start === start && span.end === end)
-    if (!ability || same?.ability) continue
-    if (same) same.ability = ability
-    else if (!held.some((span) => span.start < end && start < span.end)) held.push({ start, end, ability })
+  const blocks = spans.length ? [spannedParagraph(summary, spans)] : summaryBlocks(summary)
+  const runs = (inlines: SummaryInline[]) => inlines.flatMap((inline) => served(inline, link, abilities))
+  return {
+    blocks: blocks.map((block) =>
+      'paragraph' in block ? { paragraph: runs(block.paragraph) } : { list: block.list, items: block.items.map(runs) },
+    ),
+    questions,
   }
-  return { summary, spans: held.toSorted((left, right) => left.start - right.start), questions }
+}
+
+/**
+ * A run as it is served: a link to the rule it names, or the ability whose summary its tooltip shows. A summary prints
+ * a weapon ability in brackets, as the cards do, often without naming it, so a bracketed name in plain text is one too.
+ */
+function served(
+  { text, bold, target }: SummaryInline,
+  link: (target: { kind: string; id: string }) => RuleSummaryLink | undefined,
+  abilities: ReadonlySet<string>,
+): RuleSummaryInline[] {
+  const emphasis = bold ? { bold: true as const } : {}
+  if (target) {
+    const to = link(target)
+    const ability = abilities.has(vsDataKey(target)) ? vsDataKey(target) : undefined
+    return [{ text, ...emphasis, ...(to ? { link: to } : {}), ...(ability ? { ability } : {}) }]
+  }
+  const runs: RuleSummaryInline[] = []
+  let read = 0
+  for (const match of text.matchAll(/\[([^[\]]+)\]/g)) {
+    const ability = bracketedAbility(match[1]!, abilities)
+    if (!ability) continue
+    if (match.index > read) runs.push({ text: text.slice(read, match.index), ...emphasis })
+    runs.push({ text: match[0], ...emphasis, ability })
+    read = match.index + match[0].length
+  }
+  if (read < text.length) runs.push({ text: text.slice(read), ...emphasis })
+  return runs
 }
 
 /** The ability a bracketed name such as `ANTI-INFANTRY 3+` or `SUSTAINED HITS D3` is, by its key, where VS Data has it. */
@@ -216,7 +235,8 @@ export function withholdCopiedSummaries(directory: string): string[] {
   const byWording = new Map<string, { edition: string; key: string }[]>()
   for (const { edition, release } of releases)
     for (const record of release.records)
-      for (const wording of wordingsOf(record.summary)) remember(byWording, wording, () => []).push({ edition, key: vsDataKey(record) })
+      for (const wording of wordingsOf(summaryText(record.summary)))
+        remember(byWording, wording, () => []).push({ edition, key: vsDataKey(record) })
   const readers = new Map<string, Set<string>>()
   for (const { edition, files } of releases) for (const file of files) remember(readers, file.path, () => new Set()).add(edition)
   const withheld = new Set<string>()

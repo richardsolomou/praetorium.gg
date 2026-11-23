@@ -36,14 +36,15 @@ export type RuleIndex = { documents: RuleDocumentSummary[]; references: RuleRefe
 /** Where a summary's link lands: a rule on a rules page. */
 export type RuleSummaryLink = { document: string; section: string; anchor: string }
 /**
- * A bold or linked range of a summary, in UTF-16 offsets with an exclusive end. `ability` names the weapon or core
- * ability it prints, as `kind:id` in the ability summaries, whose summary its tooltip shows.
+ * A run of a summary's text: bold, linking to a rule, or naming the weapon or core ability whose summary its tooltip
+ * shows, as `kind:id` in the ability summaries.
  */
-export type RuleSummarySpan = { start: number; end: number; bold?: true; link?: RuleSummaryLink; ability?: string }
+export type RuleSummaryInline = { text: string; bold?: true; link?: RuleSummaryLink; ability?: string }
+/** A paragraph or a list of a summary, each item a line of runs. */
+export type RuleSummaryBlock = { paragraph: RuleSummaryInline[] } | { list: 'ordered' | 'unordered'; items: RuleSummaryInline[][] }
 /** One VS Data summary: original wording, shown for reading only. */
 export type RuleSummary = {
-  summary: string
-  spans: RuleSummarySpan[]
+  blocks: RuleSummaryBlock[]
   /** Points the official text leaves open, which the summary reads one way. */
   questions: string[]
 }

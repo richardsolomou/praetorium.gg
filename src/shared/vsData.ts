@@ -30,7 +30,8 @@ export const vsDataSummariesSchema = z.object({
   records: z.array(
     refSchema.extend({
       summary: z.string().min(1),
-      spans: z.array(spanSchema),
+      // Spans are VS Data's markup before its Markdown; a Markdown release has none.
+      spans: z.array(spanSchema).default([]),
       questions: z.array(z.string()),
     }),
   ),

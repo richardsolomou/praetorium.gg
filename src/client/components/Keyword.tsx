@@ -1,7 +1,7 @@
 import type { ComponentProps } from 'react'
 import type { Datasheet } from '../../core/datasheet'
 import { ruleReferenceMatches } from '../../core/ruleReference'
-import { RuleSummaryText } from './RuleSummaryText'
+import { RuleSummarySkeleton, RuleSummaryText } from './RuleSummaryText'
 import { useAbilitySummary, useRuleSummary } from '../ruleSummaries'
 import { splitKeywords } from '../datasheet'
 import { HoverTooltip } from './HoverTooltip'
@@ -59,6 +59,7 @@ export function Keyword({
 function KeywordRuleSummary({ rule, className }: { rule: KeywordRule; className: string }) {
   const { summary, pending } = useRuleSummary(rule.description)
   const named = useAbilitySummary(summary || pending ? null : { name: rule.name })
+  if (pending || named === undefined) return <RuleSummarySkeleton className={className} />
   const shown = summary ?? named
   return shown ? <RuleSummaryText summary={shown} className={className} abilities={false} /> : null
 }

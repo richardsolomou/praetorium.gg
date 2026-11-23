@@ -6,7 +6,7 @@ import type { RuleLinks } from '../ruleLinks'
 import { Keyword, type KeywordRule } from './Keyword'
 import { RuleMarkup } from './RuleMarkup'
 import { useRuleSummary } from '../ruleSummaries'
-import { RuleSummaryText } from './RuleSummaryText'
+import { RuleSummarySkeleton, RuleSummaryText } from './RuleSummaryText'
 import { hasTextTokens } from '../../core/sourceText'
 
 const noRules: KeywordRule[] = []
@@ -109,7 +109,8 @@ export function RuleText({
 }
 
 function SummarizedRule({ text, className }: { text: string; className?: string }) {
-  const { summary } = useRuleSummary(text)
+  const { summary, pending } = useRuleSummary(text)
+  if (pending) return <RuleSummarySkeleton className={className} />
   return summary ? <RuleSummaryText summary={summary} className={className} /> : null
 }
 
