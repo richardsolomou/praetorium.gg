@@ -244,13 +244,8 @@ function served(
   const emphasis = bold ? { bold: true as const } : {}
   if (target) {
     const to = link(target)
-    // A bracketed name linked to a rule no page or ability holds still opens the ability its brackets name.
-    const bracketed = /^\[([^[\]]+)\]$/.exec(text)?.[1]
-    const ability = abilities.has(vsDataKey(target))
-      ? vsDataKey(target)
-      : !to && bracketed
-        ? bracketedAbility(bracketed, abilities)
-        : undefined
+    // A run naming a weapon or core ability, linked to that ability's core rule instead, still opens the ability.
+    const ability = abilities.has(vsDataKey(target)) ? vsDataKey(target) : bracketedAbility(text.replace(/^\[|\]$/g, ''), abilities)
     return [{ text, ...emphasis, ...(to ? { link: to } : {}), ...(ability ? { ability } : {}) }]
   }
   const runs: RuleSummaryInline[] = []

@@ -100,7 +100,7 @@ it('opens a weapon ability a summary prints in brackets', () => {
   ])
 })
 
-it('opens a bracketed weapon ability whose link names a rule no page or ability holds', () => {
+it('opens the weapon ability a run names where its link names the ability’s core rule', () => {
   const devastatingWounds = {
     kind: 'weapon-ability',
     id: 'devastating-wounds',
