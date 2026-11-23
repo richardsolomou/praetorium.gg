@@ -57,6 +57,24 @@ it('cuts a spanned summary at its spans, leaving out one that overlaps the one b
   })
 })
 
+it('links a bracketed ability, keeping its brackets in the link text', () => {
+  expect(summaryBlocks('Gains **[[DEVASTATING WOUNDS]](vsdata:weapon-ability/devastating-wounds)**.')).toEqual([
+    {
+      paragraph: [
+        { text: 'Gains ' },
+        { text: '[DEVASTATING WOUNDS]', bold: true, target: { kind: 'weapon-ability', id: 'devastating-wounds' } },
+        { text: '.' },
+      ],
+    },
+  ])
+})
+
+it('keeps the brackets around a linked ability inside its span', () => {
+  expect(spannedParagraph('Gains [LANCE].', [{ start: 7, end: 12, target: { kind: 'weapon-ability', id: 'lance' } }])).toEqual({
+    paragraph: [{ text: 'Gains ' }, { text: '[LANCE]', target: { kind: 'weapon-ability', id: 'lance' } }, { text: '.' }],
+  })
+})
+
 it('reads an ability name and its VS Data id alike', () => {
   expect(
     [
@@ -66,6 +84,17 @@ it('reads an ability name and its VS Data id alike', () => {
       'My Will Be Done',
       'guardian-protocols-aura',
       'miraculous-saviour-once-per-battle-per-army',
+      'Chief Librarian (Psyker level 3)',
+      'chief-librarian-psyker-level-3',
     ].map(unitAbilitySlug),
-  ).toEqual(['damaged', 'smite', 'lords-will', 'my-will-be-done', 'guardian-protocols', 'miraculous-saviour'])
+  ).toEqual([
+    'damaged',
+    'smite',
+    'lords-will',
+    'my-will-be-done',
+    'guardian-protocols',
+    'miraculous-saviour',
+    'chief-librarian',
+    'chief-librarian',
+  ])
 })

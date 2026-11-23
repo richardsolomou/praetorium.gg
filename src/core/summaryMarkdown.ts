@@ -4,7 +4,8 @@ export type SummaryBlock = { paragraph: SummaryInline[] } | { list: 'ordered' | 
 
 const UNORDERED = /^- (.*)$/
 const ORDERED = /^\d+\. (.*)$/
-const LINK = /\[([^\]\n]+)\]\(vsdata:([a-z0-9-]+)\/([^\s)]+)\)/g
+// Link text may hold one level of balanced brackets, as CommonMark allows, so `[[LETHAL HITS]](vsdata:…)` links `[LETHAL HITS]`.
+const LINK = /\[((?:[^[\]\n]|\[[^[\]\n]*\])+)\]\(vsdata:([a-z0-9-]+)\/([^\s)]+)\)/g
 
 /**
  * A summary in VS Data's restricted Markdown: paragraphs split by a blank line, a block whose every line starts "- " or
@@ -43,7 +44,10 @@ export function spannedParagraph(
   const runs: SummaryInline[] = []
   let read = 0
   // A span out of range, empty, or overlapping the one before it is left out rather than misplacing the text around it.
-  for (const span of spans.toSorted((left, right) => left.start - right.start)) {
+  for (const given of spans.toSorted((left, right) => left.start - right.start)) {
+    // A link to an ability printed in brackets, as `[LANCE]`, takes its brackets, as a Markdown link's text does.
+    const bracketed = given.target && text[given.start - 1] === '[' && text[given.end] === ']'
+    const span = bracketed ? { ...given, start: given.start - 1, end: given.end + 1 } : given
     if (span.start < read || span.end <= span.start || span.end > text.length) continue
     if (span.start > read) runs.push({ text: text.slice(read, span.start) })
     runs.push({
@@ -83,7 +87,8 @@ function links(text: string): SummaryInline[] {
 
 /**
  * An ability's name or VS Data id reduced to what both say alike: a datasheet's "Damaged: 1-5 Wounds Remaining" or
- * "[Psychic Abilities] - Smite", and an id with "-aura" or "-once-per-battle" its datasheet does not print.
+ * "[Psychic Abilities] - Smite", and an id with "-aura", "-psyker-level-3" or "-once-per-battle" its datasheet prints in
+ * brackets or not at all.
  */
 export function unitAbilitySlug(name: string) {
   return name
@@ -97,6 +102,6 @@ export function unitAbilitySlug(name: string) {
     .replaceAll(/['’]/g, '')
     .replaceAll(/[^a-z0-9]+/g, '-')
     .replaceAll(/^-|-$/g, '')
-    .replace(/-(?:aura|psychic(?:-level-\d+)?|once-per-.*)$/, '')
+    .replace(/-(?:aura|psychic(?:-level-\d+)?|psyker-level-\d+|once-per-.*)$/, '')
     .replace(/^damaged-.*$/, 'damaged')
 }

@@ -40,30 +40,33 @@ const unitIn = (units: VsDataUnits | null | undefined, entryId: string) =>
   units === undefined ? undefined : (units?.units[entryId] ?? null)
 
 /**
- * The datasheet whose abilities the rules texts inside it are, so one VS Data reaches only through its unit can be found:
- * its catalogue and entry ids as `datasheetUnit` writes them.
+ * Whose abilities the rules texts inside it are, so one VS Data reaches only through their owner can be found: a
+ * datasheet's catalogue and entry ids as `datasheetUnit` writes them, or a detachment as `detachmentRulesOwner` does.
  */
 export const DatasheetUnit = createContext<string | null>(null)
 export const datasheetUnit = (catalogueId: string, entryId: string) => `${catalogueId}#${entryId}`
+/** A detachment as the owner of its rules, enhancements and upgrades: VS Data names them `<faction>.<detachment>.<name>`. */
+export const detachmentRulesOwner = (catalogueId: string, factionSlug: string, detachmentSlug: string) =>
+  `${catalogueId}#@${factionSlug}.${detachmentSlug}`
 
 /**
- * The summary of an ability of the datasheet around it, by the ability's name: how a rule whose text only BSData prints
- * reaches its VS Data record. Undefined while asked for, null where there is none or no datasheet around it.
+ * The summary of an ability of the datasheet or detachment around it, by the ability's name: how a rule whose text only
+ * BSData prints reaches its VS Data record. Undefined while asked for, null where there is none or no owner around it.
  */
 export function useUnitAbilitySummary(name: string | undefined, enabled: boolean): RuleSummary | null | undefined {
-  const [catalogueId = '', entryId = ''] = useContext(DatasheetUnit)?.split('#') ?? []
-  const units = useVsDataUnits(catalogueId, enabled && Boolean(entryId && name))
-  const unit = unitIn(units, entryId)
+  const [catalogueId = '', subject = ''] = useContext(DatasheetUnit)?.split('#') ?? []
+  const units = useVsDataUnits(catalogueId, enabled && Boolean(subject && name))
+  const owner = subject.startsWith('@') ? subject.slice(1) : unitIn(units, subject)?.id
   if (units === undefined) return undefined
-  if (!unit || !name || !units) return null
+  if (!owner || !name || !units) return null
   const byOwner = abilitiesByOwner(units)
   const slug = unitAbilitySlug(name)
-  // The unit's own ability first, then its faction's, as its army rule and shared abilities are the faction's, then the
+  // The owner's own ability first, then its faction's, as its army rule and shared abilities are the faction's, then the
   // one faction that has it, as a chapter's datasheets print the Space Marines' army rule.
-  const faction = [...byOwner].filter(([owner, abilities]) => !owner.includes('.') && abilities.has(slug))
+  const faction = [...byOwner].filter(([held, abilities]) => !held.includes('.') && abilities.has(slug))
   return (
-    byOwner.get(unit.id)?.get(slug) ??
-    byOwner.get(unit.id.split('.')[0]!)?.get(slug) ??
+    byOwner.get(owner)?.get(slug) ??
+    byOwner.get(owner.split('.')[0]!)?.get(slug) ??
     (faction.length === 1 ? faction[0]![1].get(slug)! : null)
   )
 }

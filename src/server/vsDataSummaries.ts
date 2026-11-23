@@ -124,6 +124,24 @@ export function* vsDataSummariesSteps(directory: string, documents: readonly Rul
       if (file.source === 'game-datacards' && !cards.has(file.id)) cards.set(file.id, { file: file.path, edition: entry.edition.id })
   yield
   const read = (file: string) => gdcRuleRecords(readJson(file))
+  // Game Datacards prints every FAQ in a rules version's `faqs.json`.
+  const faqs = new Map<string, ReadonlyMap<string, string[]>>()
+  const faqsByText = (edition: string) =>
+    remember(faqs, edition, () => {
+      const byText = new Map<string, string[]>()
+      for (const file of filesOf(held.find((entry) => entry.edition.id === edition)!))
+        if (file.source === 'game-datacards' && path.basename(file.path) === 'faqs.json')
+          for (const record of read(file.path))
+            if (record.kind === 'FAQ') for (const text of record.texts) byText.set(textHash(text), record.keys)
+      return byText
+    })
+  // A clarification the core rules print in an FAQ's own words is that FAQ, which VS Data names.
+  const recordsIn = (file: string, edition: string) =>
+    read(file).map((record) =>
+      record.kind === 'core rule clarification'
+        ? { ...record, keys: [...record.keys, ...record.texts.flatMap((text) => faqsByText(edition).get(textHash(text)) ?? [])] }
+        : record,
+    )
   const answers = new RecentlyUsed<string, RuleSummaries>(16)
   return {
     editions: held.map((entry) => entry.edition.id),
@@ -151,7 +169,7 @@ export function* vsDataSummariesSteps(directory: string, documents: readonly Rul
       const card = cards.get(id)
       const version = card && versionOf(card.edition)
       return card && version
-        ? remember(answers, id, () => summariesFor(read(card.file), version.index, version.summaries))
+        ? remember(answers, id, () => summariesFor(recordsIn(card.file, card.edition), version.index, version.summaries))
         : NO_RULE_SUMMARIES
     },
     joins: (edition) => {
@@ -160,7 +178,7 @@ export function* vsDataSummariesSteps(directory: string, documents: readonly Rul
       const version = entry && versionOf(edition)
       for (const file of entry && version ? filesOf(entry) : [])
         if (file.source === 'game-datacards')
-          for (const { kind, keys } of read(file.path)) {
+          for (const { kind, keys } of recordsIn(file.path, edition)) {
             const ref = version!.index.entry(keys)
             joins.set(keys[0]!, {
               kind,

@@ -26,6 +26,7 @@ const codex = composition.editions.find((entry) => entry.edition.id === 'custode
 function snapshot(
   releases: { update: string; summary: string; data?: Record<string, unknown> }[],
   others: Parameters<typeof vsDataReleaseFiles>[0] = [],
+  cards: [string, unknown][] = [],
 ) {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'vs-data-summaries-'))
   directories.push(directory)
@@ -34,6 +35,7 @@ function snapshot(
     ['composition.json', JSON.stringify({ ...composition, editions: [...base, codex] })],
     ['datacards/11th/gdc/necrons.json', JSON.stringify({ id: 'necrons', stratagems: [stratagem] })],
     ['editions/custodes-11e/datacards/11th/gdc/necrons.json', JSON.stringify({ id: 'necrons', stratagems: [stratagem] })],
+    ...cards.map(([file, card]): [string, string] => [`datacards/11th/gdc/${file}`, JSON.stringify(card)]),
   ])
   fs.mkdirSync(path.join(directory, 'summaries'))
   releases.forEach(({ update, summary, data }, at) => {
@@ -48,8 +50,9 @@ function snapshot(
   withholdCopiedSummaries(directory)
   const summaries = completeSteps(vsDataSummariesSteps(directory, []))
   const files = textSourcePaths(directory, readCatalogueComposition(directory))
-  const file = (edition: boolean) => textFileId(files.find(({ path: at }) => at.includes('/editions/') === edition)!.url)
-  return { summaries, base: file(false), custodes: file(true) }
+  const file = (edition: boolean, name = 'necrons.json') =>
+    textFileId(files.find(({ path: at }) => at.includes('/editions/') === edition && at.endsWith(`/${name}`))!.url)
+  return { summaries, base: file(false), custodes: file(true), card: (name: string) => file(false, name) }
 }
 
 afterEach(() => {
@@ -130,6 +133,47 @@ it('serves a Markdown summary as its paragraphs and lists, its links landing on 
       items: [
         [{ text: 'Lethal Hits', ability: 'weapon-ability:lethal-hits' }],
         [{ text: 'Re-roll', bold: true }, { text: ' a Hit roll of 1.' }],
+      ],
+    },
+  ])
+})
+
+it('reads a core rule clarification printed in an FAQ’s own words as that FAQ', () => {
+  const ruling = 'Measure to the closest point of the base.'
+  const faq = { kind: 'faq', id: 'core-rules.errata.drawing-a-line', aliases: ['gdc.faq.72526908.2ec3.4aba.be92.5988e42686e5'] }
+  const { summaries, card } = snapshot(
+    [{ update: 'MFM 1.6', summary: 'Pick one of your units to hit more often.' }],
+    [{ ...faq, summary: 'Lines run between the nearest edges of the bases.' }],
+    [
+      ['faqs.json', { faqs: [{ id: '72526908-2ec3-4aba-be92-5988e42686e5', errataText: ruling }] }],
+      [
+        'core/core_rules.json',
+        {
+          cardType: 'coreRules',
+          sections: [
+            {
+              containers: [
+                { id: 'rule', components: [{ type: 'accordion', title: { en: '01.04.06 - Drawing a Line' }, text: { en: ruling } }] },
+              ],
+            },
+          ],
+        },
+      ],
+    ],
+  )
+  expect(summaries!.summariesIn(card('core_rules.json')).entries['rule#01.04.06']).toBe('faq:core-rules.errata.drawing-a-line')
+})
+
+it('serves a linked bracketed weapon ability as that ability, bold with its brackets', () => {
+  const summary = 'Its weapons gain **[[DEVASTATING WOUNDS]](vsdata:weapon-ability/devastating-wounds)** this phase.'
+  const devastating = { kind: 'weapon-ability', id: 'devastating-wounds', aliases: [], summary: 'Critical Wounds become mortal wounds.' }
+  const { summaries, base } = snapshot([{ update: 'MFM 1.6', summary }], [devastating])
+  expect(summaries!.summariesIn(base).records['ability:necrons.test.focused-fire']?.blocks).toEqual([
+    {
+      paragraph: [
+        { text: 'Its weapons gain ' },
+        { text: '[DEVASTATING WOUNDS]', bold: true, ability: 'weapon-ability:devastating-wounds' },
+        { text: ' this phase.' },
       ],
     },
   ])

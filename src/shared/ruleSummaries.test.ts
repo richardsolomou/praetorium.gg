@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest'
 import type { RuleSummary } from '../contracts/rules'
-import { summaryNamedBy, summaryPlainText } from './ruleSummaries'
+import { abilityKeysNamed, summaryNamedBy, summaryPlainText } from './ruleSummaries'
 
 const summary = (text: string): RuleSummary => ({ blocks: [{ paragraph: [{ text }] }], questions: [] })
 const textOf = (found: RuleSummary | null) =>
@@ -34,4 +34,8 @@ it('reads a summary as plain text, its bold as plain and each list item on a lin
       questions: [],
     }),
   ).toBe('Select one:\n\n• Advance.\n• Fall Back.')
+})
+
+it('names a core ability that takes a value by its name alone too', () => {
+  expect(abilityKeysNamed('Feel No Pain 5+')).toContain('core-ability:feel-no-pain')
 })

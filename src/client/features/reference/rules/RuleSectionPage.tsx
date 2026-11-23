@@ -9,6 +9,7 @@ import { useRuleEntrySummaries } from '../../../ruleSummaries'
 import { PageContent, PageHeader } from '../../../components/Page'
 import { revealHashTarget } from '../../../hashTarget'
 import { BackLink } from '../BackLink'
+import { clarificationEntry } from '../../../../shared/vsData'
 
 /**
  * One section of one rules document, which is as much as anybody reads at a time: each rule's name and number,
@@ -45,7 +46,7 @@ export function RuleSectionPage({ documentId, sectionId }: { documentId: string;
         </BackLink>
         <div className="runner gap-2.5 [--gate-y:1.5rem]">
           {shown.entries.map((entry) => (
-            <Rule key={entry.anchor} entry={entry} summary={summaryOf(entry.id)} loading={!settled} current={target === entry.anchor} />
+            <Rule key={entry.anchor} entry={entry} summaryOf={summaryOf} loading={!settled} current={target === entry.anchor} />
           ))}
         </div>
         <nav className="flex items-stretch justify-between gap-2">
@@ -78,15 +79,16 @@ const noHash = () => ''
 
 function Rule({
   entry,
-  summary,
+  summaryOf,
   loading,
   current,
 }: {
   entry: RuleEntry
-  summary: RuleSummary | undefined
+  summaryOf: (entry: string) => RuleSummary | undefined
   loading: boolean
   current: boolean
 }) {
+  const summary = summaryOf(entry.id)
   return (
     <article
       id={entry.anchor}
@@ -109,14 +111,14 @@ function Rule({
           )
         }
         if (block.kind === 'prose') return null
+        const clarified = block.code ? summaryOf(clarificationEntry(entry.id, block.code)) : undefined
         return (
-          <div
-            key={key}
-            id={block.anchor ?? undefined}
-            className="mt-3 flex scroll-mt-header items-center gap-2 rounded-lg border border-edge bg-sunken px-3 py-2"
-          >
-            {block.code ? <span className="readout shrink-0 text-xs text-faint">{block.code}</span> : null}
-            <span className="min-w-0 flex-1 text-sm font-semibold text-bone">{block.title}</span>
+          <div key={key} id={block.anchor ?? undefined} className="mt-3 scroll-mt-header rounded-lg border border-edge bg-sunken px-3 py-2">
+            <div className="flex items-center gap-2">
+              {block.code ? <span className="readout shrink-0 text-xs text-faint">{block.code}</span> : null}
+              <span className="min-w-0 flex-1 text-sm font-semibold text-bone">{block.title}</span>
+            </div>
+            {clarified ? <RuleSummaryText summary={clarified} /> : null}
           </div>
         )
       })}

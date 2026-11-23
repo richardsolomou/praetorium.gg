@@ -523,6 +523,11 @@ test('a rule is read by the number the source prints against it', async ({ brows
   await expect(page).toHaveURL('/rules/core-rules/moving#03.03')
 })
 
+test('a detachment enhancement only BSData prints shows its summary', async ({ page }) => {
+  await page.goto('/factions/chaos-space-marines/detachments/deceptors')
+  await expect(page.locator('#enhancement-shroud-of-obfuscation [data-rule-summary]')).toHaveText(/\S/)
+})
+
 test('the faction page shows its army rule in full when expanded', async ({ page }) => {
   await page.goto('/factions/necrons')
 
@@ -539,7 +544,9 @@ test('the faction page shows its army rule in full when expanded', async ({ page
   await page.screenshot({ path: test.info().outputPath('faction-army-rule-phone.png'), fullPage: true })
 
   await page.goto('/factions/necrons/datasheets/overlord')
-  await expect(page.getByRole('button', { name: 'Reanimation Protocols', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Reanimation Protocols', exact: true }).click()
+  // The faction ability's chip shows the summary its faction's VS Data record gives it.
+  await expect(page.getByRole('tooltip').locator('[data-rule-summary]')).toHaveText(/\S/)
 })
 
 test('opening faction datasheets does not render the route error boundary', async ({ page }) => {

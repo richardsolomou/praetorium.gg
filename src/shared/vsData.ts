@@ -220,6 +220,7 @@ export type GdcRuleKind =
   | 'unit ability'
   | 'keyword'
   | 'core rule'
+  | 'core rule clarification'
   | 'mission card'
   | 'mission award'
   | 'mission action'
@@ -285,6 +286,16 @@ export function gdcRuleRecords(file: unknown): GdcRuleRecord[] {
       for (const container of list(section.containers)) {
         const fields = [container.stratagem, container.behaviour].flatMap((value) => Object.values(fieldsOf(value) ?? {}))
         add('core rule', String(container.id), [...blockTexts(container.components), ...fields.map(raw)], String(container.id))
+        for (const component of list(container.components)) {
+          const code = component.type === 'accordion' ? clarificationTitle(english(component.title) ?? '').code : null
+          if (code)
+            add(
+              'core rule clarification',
+              `gdc.core.rule.clarification.${dotted(container.id)}.${dotted(code)}`,
+              [raw(component.text)],
+              clarificationEntry(String(container.id), code),
+            )
+        }
       }
   for (const mission of [...list(root.primaryMissions), ...list(root.secondaryMissions)]) {
     add('mission card', `gdc.mission.card.text.${dotted(mission.id)}`, [raw(mission.description)])
@@ -304,6 +315,15 @@ export function gdcRuleRecords(file: unknown): GdcRuleRecord[] {
   for (const twist of list(root.missionTwists)) add('mission twist', `gdc.mission.twist.${dotted(twist.id)}`, [raw(twist.rules)])
   return records
 }
+
+/** A core rule clarification's number and name, from the title the source prints, as "01.04.06 - Drawing a Line". */
+export function clarificationTitle(title: string) {
+  const [, code, name] = /^(\d+(?:\.\d+)+)\s*[-–—]\s*(.+)$/.exec(title) ?? []
+  return { code: code ?? null, name: name ?? title }
+}
+
+/** How a core rule clarification is named among a rules document's entries: its rule's id and its own number. */
+export const clarificationEntry = (rule: string, code: string) => `${rule}#${code}`
 
 const dotted = (id: unknown) => String(id).replaceAll('-', '.')
 const named = (name: unknown) =>
