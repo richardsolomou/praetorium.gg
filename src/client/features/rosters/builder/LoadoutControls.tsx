@@ -173,7 +173,11 @@ export function WargearRow({
       className={`${OPTION} scroll-mt-2.5 print:break-inside-avoid ${count && highlightSelection ? PICKED : 'border-edge'} ${fallen ? 'opacity-50' : ''}`}
     >
       {instructions?.map((instruction) => (
-        <div key={blocksText(instruction)} className="space-y-0.5 p-2.5 font-rules text-xs leading-[1.125rem] text-dim">
+        <div
+          key={blocksText(instruction)}
+          data-option-instruction
+          className="space-y-0.5 p-2.5 font-rules text-xs leading-[1.125rem] text-dim"
+        >
           <Blocks blocks={instruction} />
         </div>
       ))}
