@@ -399,11 +399,11 @@ test('a tank is armed but not crowned', async ({ page }) => {
     .click()
   await expect(page.getByRole('button', { name: 'Remove Captain Warlord' })).toBeVisible()
   const melee = loadout.getByRole('group', { name: 'Captain Melee Weapon' })
-  await expect(melee.getByRole('button', { name: 'Select Power fist', exact: true })).toHaveAttribute('aria-pressed', 'true')
   await expect(melee.getByRole('button', { name: 'Select Master-crafted power weapon', exact: true })).toHaveAttribute(
     'aria-pressed',
-    'false',
+    'true',
   )
+  await expect(melee.getByRole('button', { name: 'Select Power fist', exact: true })).toHaveAttribute('aria-pressed', 'false')
 })
 
 test('the first character added is the warlord, which its unit editor can hand on', async ({ page }) => {

@@ -166,6 +166,20 @@ test('Cleanse and Centre Ground prompt for scoring on the first turn', async ({ 
   await expect(remaining).toBeHidden()
 })
 
+test('a battle mission card shows what its action and awards ask for', async ({ page }) => {
+  await signUp(page, uniqueName('Mission action summary'))
+  const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Mission action roster' })
+  await practiceBattle(page, roster)
+  await startBattle(page, undefined, true, ['Cleanse', 'Centre Ground'])
+  await playerPanel(page, 0).getByRole('button', { name: 'Read Cleanse', exact: true }).click()
+  const card = page.getByRole('dialog', { name: 'Cleanse', exact: true })
+  // A summary is loaded after the card opens, so its words are checked for being there rather than for what they say.
+  const action = card.getByRole('listitem').filter({ hasText: /^Action/ })
+  await expect(action.locator('[data-rule-summary]').first()).toHaveText(/\S/)
+  await expect(card.locator('[data-rule-summary]').nth(1)).toHaveText(/\S/)
+  await page.screenshot({ path: test.info().outputPath('battle-mission-action.png') })
+})
+
 test('a double tap on the turn control ends one phase', async ({ page }) => {
   await signUp(page, uniqueName('Double tap'))
   const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Double tap roster' })
