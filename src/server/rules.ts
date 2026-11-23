@@ -65,8 +65,8 @@ export function* loadRulesSteps(
   // A retained Detachment fills in from its namesake in the base release, or, where VS Data says its entry is another
   // base entry, as a rules version printing a Detachment under an older name does, from that entry's cards instead.
   const inDetachment = (name: string) => {
-    const [own, base] = pools as [(typeof pools)[number], (typeof pools)[number] | undefined]
-    if (!base) return own.inDetachment(name)
+    const [own, base] = pools
+    if (!own || !base) return own?.inDetachment(name) ?? []
     const others = own.entriesNamed(name).flatMap(({ aliases }) => aliases.filter((alias) => base.hasEntry(alias)))
     return printed([own.inDetachment(name), others.length ? base.inEntries(others) : base.inDetachment(name)])
   }

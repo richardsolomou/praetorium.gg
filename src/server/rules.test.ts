@@ -848,3 +848,8 @@ it('inherits generic Marine cards without leaking another chapter’s detachment
   })
   expect([...rules().detachmentReferences.get('salamanders')!.keys()].sort()).toEqual(['forgefathers-seekers', 'gladius-task-force'])
 })
+
+it('offers no Stratagems from a snapshot that holds no VS Data release', () => {
+  fs.rmSync(path.join(directory, 'summaries'), { recursive: true })
+  expect(loadRules(directory)?.byDetachment.get('death-guard')?.get('flyblown-host') ?? []).toEqual([])
+})
