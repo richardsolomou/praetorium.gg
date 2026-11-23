@@ -7,10 +7,13 @@ type FixtureRecord = {
   kind: string
   id: string
   aliases: string[]
-  summary: string
+  /** A summary record's text; a record of another category gives its `data` instead. */
+  summary?: string
+  name?: string
+  category?: string
+  /** A summary record's further data, such as a Stratagem's typed fields, or another record's whole data. */
+  data?: unknown
   attribution?: { credit: string; url: string; licence: string }
-  /** More of the record's data, such as a Stratagem's typed fields. */
-  data?: Record<string, unknown>
 }
 
 /** The files of a VS Data catalogue release holding `records`, and identity `entries` without records, as an archive lays them out. */
@@ -24,10 +27,13 @@ export function vsDataReleaseFiles(
     formatVersion: 1,
     revision: 1,
     rulesVersion,
-    entries: [...records.map(({ kind, id, aliases, summary }) => ({ kind, id, name: summary.split(' ')[0], aliases })), ...entries],
+    entries: [
+      ...records.map(({ kind, id, aliases, summary, name }) => ({ kind, id, name: name ?? summary?.split(' ')[0], aliases })),
+      ...entries,
+    ],
   })
-  const recordFiles = records.map(({ kind, id, summary, attribution, data }): [string, string] => [
-    `records/rules-reference/${kind}/${id}.json`,
+  const recordFiles = records.map(({ kind, id, summary, attribution, category = 'rules-reference', data }): [string, string] => [
+    `records/${category}/${kind}/${id}.json`,
     JSON.stringify({
       formatVersion: 1,
       kind,
@@ -35,11 +41,14 @@ export function vsDataReleaseFiles(
       rulesVersion,
       source: { title: 'An app build' },
       ...(attribution ? { attribution: { ...attribution, revision: 'abc', changes: 'Adapted.' } } : {}),
-      data: {
-        summary,
-        citations: [{ type: 'publisher', title: 'A faction pack', url: 'https://example.com/pack.pdf', page: '3' }],
-        ...data,
-      },
+      data:
+        summary === undefined
+          ? data
+          : {
+              summary,
+              citations: [{ type: 'publisher', title: 'A faction pack', url: 'https://example.com/pack.pdf', page: '3' }],
+              ...(data as Record<string, unknown> | undefined),
+            },
     }),
   ])
   const sha256 = (text: string) => createHash('sha256').update(text).digest('hex')
@@ -50,16 +59,18 @@ export function vsDataReleaseFiles(
     rulesVersion,
     identity: { path: 'identity.json', sha256: sha256(identity) },
     schemas: [],
-    categories: [
-      {
-        name: 'rules-reference',
-        status: 'partial',
-        sources: [],
-        records: recordFiles
-          .map(([file, text], at) => ({ kind: records[at]!.kind, id: records[at]!.id, path: file, sha256: sha256(text) }))
-          .toSorted((left, right) => (`${left.kind}:${left.id}` < `${right.kind}:${right.id}` ? -1 : 1)),
-      },
-    ],
+    categories: [...new Set(['rules-reference', ...records.map((record) => record.category ?? 'rules-reference')])].map((name) => ({
+      name,
+      status: 'partial',
+      sources: [],
+      records: recordFiles
+        .flatMap(([file, text], at) =>
+          (records[at]!.category ?? 'rules-reference') === name
+            ? [{ kind: records[at]!.kind, id: records[at]!.id, path: file, sha256: sha256(text) }]
+            : [],
+        )
+        .toSorted((left, right) => (`${left.kind}:${left.id}` < `${right.kind}:${right.id}` ? -1 : 1)),
+    })),
   })
   return [['manifest.json', manifest], ['identity.json', identity], ...recordFiles]
 }

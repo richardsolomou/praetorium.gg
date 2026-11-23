@@ -9,9 +9,11 @@ import {
   type VsDataStratagem,
   vsDataStratagemSchema,
   type VsDataSummariesFile,
+  type VsDataUnit,
   vsDataEdition,
   vsDataKey,
   type VsDataRulesVersion,
+  vsDataUnitSchema,
 } from '../shared/vsData'
 
 const fileSchema = z.object({ path: z.string().min(1), sha256: z.string().regex(/^[0-9a-f]{64}$/) })
@@ -171,6 +173,87 @@ function stratagemOf(
   return parsed.success && (core || detachment) ? [parsed.data] : []
 }
 
+const unitDataSchema = z.object({ sizes: z.array(z.number().int()).default([]) })
+const modelDataSchema = z.object({
+  unit: z.string(),
+  min: z.number().int(),
+  max: z.number().int(),
+  wargear: z.record(z.string(), z.number().int()).default({}),
+})
+const optionDataSchema = z.object({
+  unit: z.string(),
+  carrier: z.string().optional(),
+  per: z.union([z.literal('carrier'), z.object({ models: z.number().int() })]).nullish(),
+  choose: z.object({ min: z.number().int(), max: z.number().int() }),
+  choices: z.array(z.string()),
+  replaces: z.record(z.string(), z.number().int()).optional(),
+  caps: z
+    .array(
+      z.object({
+        choices: z.array(z.string()),
+        max: z.number().int(),
+        per: z.union([z.literal('carrier'), z.object({ models: z.number().int() })]).nullish(),
+      }),
+    )
+    .optional(),
+})
+const transportDataSchema = z.object({
+  unit: z.string(),
+  capacity: vsDataUnitSchema.shape.transport.unwrap().omit({ firingDeck: true }).optional(),
+  firingDeck: z.number().int().optional(),
+})
+
+/**
+ * Each unit's datasheet data from the release's roster definitions and transport facts, with its models and wargear
+ * named, and no field a datasheet does not show.
+ */
+function compactUnits(
+  manifest: VsDataManifest,
+  read: (name: string) => unknown,
+  identity: readonly { kind: string; id: string; name?: string }[],
+): Record<string, VsDataUnit> {
+  const names = new Map(identity.map((entry) => [entry.id, entry.name]))
+  const named = (id: string) => names.get(id) ?? id
+  const counted = (counts: Record<string, number>) => Object.entries(counts).map(([id, count]) => [named(id), count] as [string, number])
+  const recordsOf = (category: string, kind: string) =>
+    (manifest.categories.find((candidate) => candidate.name === category)?.records ?? [])
+      .filter((entry) => entry.path.split('/')[2] === kind)
+      .map((entry) => read(entry.path) as { id: string; rulesVersion?: { update?: string }; data: unknown })
+      .filter((record) => record.rulesVersion?.update === manifest.rulesVersion.update)
+  const units: Record<string, VsDataUnit> = {}
+  const unitOf = (id: string) => (units[id] ??= { sizes: [], models: [], options: [] })
+  for (const record of recordsOf('rosters', 'unit')) unitOf(record.id).sizes = unitDataSchema.parse(record.data).sizes
+  for (const record of recordsOf('rosters', 'model')) {
+    const data = modelDataSchema.parse(record.data)
+    unitOf(data.unit).models.push({ name: named(record.id), min: data.min, max: data.max, wargear: counted(data.wargear) })
+  }
+  for (const record of recordsOf('rosters', 'roster-option')) {
+    const data = optionDataSchema.parse(record.data)
+    unitOf(data.unit).options.push({
+      ...(data.carrier ? { carrier: named(data.carrier) } : {}),
+      ...(data.per && data.per !== 'carrier' ? { perModels: data.per.models } : {}),
+      choose: data.choose,
+      choices: data.choices.map(named),
+      ...(data.replaces ? { replaces: counted(data.replaces) } : {}),
+      ...(data.caps
+        ? {
+            caps: data.caps.map((cap) => ({
+              choices: cap.choices.map(named),
+              max: cap.max,
+              ...(cap.per && cap.per !== 'carrier' ? { perModels: cap.per.models } : {}),
+            })),
+          }
+        : {}),
+    })
+  }
+  for (const record of recordsOf('profiles', 'transport-profile')) {
+    const data = transportDataSchema.parse(record.data)
+    if (data.capacity || data.firingDeck !== undefined)
+      unitOf(data.unit).transport = { ...data.capacity, ...(data.firingDeck !== undefined ? { firingDeck: data.firingDeck } : {}) }
+  }
+  return units
+}
+
 const describe = ({ edition, update }: VsDataRulesVersion) => `${edition} ${update}`
 
 /**
@@ -195,22 +278,24 @@ export function compactVsDataRelease(directory: string, file: string) {
         .flatMap((run) => (run.target ? [vsDataKey(run.target)] : [])),
     ]),
   )
-  const identity = identitySchema.parse(read(manifest.identity.path)).entries.filter((entry) => !entry.retired)
-  const entries = identity.filter((entry) => wanted.has(vsDataKey(entry)))
+  const identity = identitySchema.parse(read(manifest.identity.path)).entries
+  const units = compactUnits(manifest, read, identity)
+  for (const id of Object.keys(units)) wanted.add(vsDataKey({ kind: 'unit', id }))
+  const current = identity.filter((entry) => !entry.retired)
+  const entries = current.filter((entry) => wanted.has(vsDataKey(entry)))
   const compact: VsDataSummariesFile = {
     release: manifest.release,
     rulesVersion: manifest.rulesVersion,
     entries: Object.fromEntries(entries.map((entry) => [vsDataKey(entry), entry.aliases ?? []])),
-    stratagems: records.flatMap((record) => stratagemOf(record, identity)),
+    stratagems: records.flatMap((record) => stratagemOf(record, current)),
     missionPacks: manifest.categories
       .filter((category) => category.name === MISSION_PACKS)
       .flatMap((category) => category.records)
       .map((entry) => packRecordSchema.parse(read(entry.path)))
       .filter((record) => record.rulesVersion.update === manifest.rulesVersion.update)
       .map((record) => record.data),
-    missionActions: identity.flatMap((entry) =>
-      entry.kind === 'mission-action' && entry.name ? [{ id: entry.id, name: entry.name }] : [],
-    ),
+    missionActions: current.flatMap((entry) => (entry.kind === 'mission-action' && entry.name ? [{ id: entry.id, name: entry.name }] : [])),
+    units,
     attributions: [
       ...new Map(
         records.flatMap(({ attribution }) =>

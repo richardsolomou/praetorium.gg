@@ -337,6 +337,14 @@ export const ruleAbilitySummaries = createServerFn({ method: 'GET' }).handler(()
   snapshotRpc(async () => (await vsDataSummaries())?.abilities() ?? {}),
 )
 
+/**
+ * What a datasheet shows of each unit from VS Data's roster and transport data, by BSData entry id, for one rules version
+ * (the current one where null).
+ */
+export const ruleUnits = createServerFn({ method: 'GET' })
+  .validator(z.object({ edition: z.string().max(80).nullable() }))
+  .handler(({ data }) => snapshotRpc(async () => (await vsDataSummaries())?.unitsIn(data.edition) ?? { units: {}, abilities: {} }))
+
 /** The upstream work the served summaries adapt, which the Sources page credits. */
 export const ruleSummaryCredits = createServerFn({ method: 'GET' }).handler(() =>
   snapshotRpc(async () => (await vsDataSummaries())?.attributions() ?? []),

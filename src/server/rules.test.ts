@@ -118,6 +118,7 @@ function release({
     stratagems,
     missionPacks,
     missionActions: [],
+    units: {},
     records: [],
   }
   write(path.join(directory, 'summaries', `${base.edition.id}.json`), file)

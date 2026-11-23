@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import type { RuleSummary } from '../contracts/rules'
 import { english } from './datacards'
 
 const refSchema = z.object({ kind: z.string().min(1), id: z.string().min(1) })
@@ -112,6 +113,48 @@ export type VsDataWindow = z.infer<typeof windowSchema>
 
 export const isUnresolved = (value: unknown): value is { unresolved: string } =>
   Boolean(value && typeof value === 'object' && 'unresolved' in value)
+const countedSchema = z.array(z.tuple([z.string(), z.number().int()]))
+const selectorsSchema = z.object({ selectors: z.array(z.string()) })
+
+/**
+ * What a datasheet shows of a unit from VS Data's roster definitions and transport facts, with models and wargear
+ * named: its models and how many of each, what each carries, the options its models take, and what it can carry.
+ */
+export const vsDataUnitSchema = z.object({
+  sizes: z.array(z.number().int()),
+  models: z.array(
+    z.object({
+      name: z.string(),
+      min: z.number().int(),
+      max: z.number().int(),
+      wargear: countedSchema,
+    }),
+  ),
+  options: z.array(
+    z.object({
+      carrier: z.string().optional(),
+      perModels: z.number().int().optional(),
+      choose: z.object({ min: z.number().int(), max: z.number().int() }),
+      choices: z.array(z.string()),
+      replaces: countedSchema.optional(),
+      caps: z.array(z.object({ choices: z.array(z.string()), max: z.number().int(), perModels: z.number().int().optional() })).optional(),
+    }),
+  ),
+  transport: z
+    .object({
+      loads: z.array(z.array(z.object({ count: z.string(), limit: z.number().int(), selectors: z.array(z.string()) }))).optional(),
+      excluded: z.array(selectorsSchema).optional(),
+      space: z.array(selectorsSchema.partial().extend({ size: z.number().int() })).optional(),
+      firingDeck: z.number().int().optional(),
+    })
+    .optional(),
+})
+export type VsDataUnit = z.infer<typeof vsDataUnitSchema>
+/**
+ * What datasheets show from VS Data for one rules version: each unit's roster and transport data with its VS Data id, by
+ * its BSData entry id, and every ability's summary by VS Data id, which starts with its unit's or its faction's.
+ */
+export type VsDataUnits = { units: Record<string, VsDataUnit & { id: string }>; abilities: Record<string, RuleSummary> }
 
 /**
  * What the snapshot keeps of a verified VS Data release: each summary with its spans and open questions, the aliases
@@ -127,6 +170,8 @@ export const vsDataSummariesSchema = z.object({
   missionPacks: z.array(vsDataMissionPackSchema).default([]),
   /** The mission actions the packs' cards name, each under the ID of the card it extends. */
   missionActions: z.array(z.object({ id: z.string(), name: z.string() })).default([]),
+  /** Each unit's datasheet data by VS Data id; its BSData aliases are in `entries` under `unit:<id>`. */
+  units: z.record(z.string(), vsDataUnitSchema).default({}),
   records: z.array(
     refSchema.extend({
       summary: z.string().min(1),
