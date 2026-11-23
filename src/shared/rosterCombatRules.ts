@@ -6,6 +6,7 @@ import { titleCaseAbility } from './catalogueAbilityGrants'
 import { abilityGrantsIn, combatFactsIn } from './textFacts'
 import { combatFactsOf, recordedCombatText } from '../core/combatReading'
 import { type CombatRule, type CombatRuleJudge, combatRuleProjected, judgedCombatRule } from '../core/combatRules'
+import { type BattleChoiceAllowance, battleChoiceAllowances, namesAllowedOptions } from '../core/battleChoices'
 import { datasheetCharacteristicKind, datasheetProfileKind } from '../core/datasheetStructure'
 import { routeSlug } from '../core/slug'
 import { datasheetIn, datasheetAbilitiesIn } from './catalogue'
@@ -72,6 +73,29 @@ export function withRecordedRules<T extends { rules: CombatRule[]; companions: {
     ...combatant,
     rules: recorded(combatant.rules),
     companions: combatant.companions.map((member) => ({ ...member, rules: recorded(member.rules) })),
+  }
+}
+
+/**
+ * What a combatant's abilities and enhancements, and those of the units leading it, allow the battle choices of its rules,
+ * as a second Order: read from the words `words` gives, which only a server holds, and matched to the rules they widen
+ * by name, so a device applies them without words. A text `words` cannot read allows nothing.
+ */
+export function withBattleChoiceAllowances<T extends { selected: Datasheet; rules: CombatRule[]; companions: { selected: Datasheet }[] }>(
+  combatant: T,
+  words: (text: string) => string | null,
+): T & { battleChoiceAllowances: BattleChoiceAllowance[] } {
+  const read = (text: string) => (hasTextTokens(text) ? words(text) : text)
+  const texts = [combatant.selected, ...combatant.companions.map((member) => member.selected)].flatMap((sheet) =>
+    [...sheet.abilities, ...(sheet.enhancements ?? [])].flatMap(({ description }) => (description ? (read(description) ?? []) : [])),
+  )
+  const ruleWords = combatant.rules.map((rule) => ({ name: rule.name, words: read(rule.description) ?? '' }))
+  return {
+    ...combatant,
+    battleChoiceAllowances: battleChoiceAllowances(texts, combatant.companions.length > 0).map((allowance) => ({
+      ...allowance,
+      rules: ruleWords.filter((rule) => namesAllowedOptions(allowance, rule.words)).map((rule) => rule.name),
+    })),
   }
 }
 

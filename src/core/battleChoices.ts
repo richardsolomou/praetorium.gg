@@ -31,7 +31,15 @@ export type BattleChoice = {
  * What another of a unit's rules allows a choice it is in, named by the plural its options go by, as Orders: a higher
  * limit, as some officers give, more options on top of it, as Warrior Elite gives, or an option that comes with any other.
  */
-export type BattleChoiceAllowance = { options: string } & ({ limit: number } | { extra: number } | { also: string })
+export type BattleChoiceAllowance = {
+  options: string
+  /** The rules it widens, by name, where they were matched from words a device does not hold; otherwise those whose text names its options. */
+  rules?: string[]
+} & ({ limit: number } | { extra: number } | { also: string })
+
+/** Whether a rule's words name the options an allowance widens, as "Orders". */
+export const namesAllowedOptions = (allowance: BattleChoiceAllowance, words: string) =>
+  new RegExp(`\\b${allowance.options}\\b`, 'i').test(normalizeCombatText(words))
 
 const NUMBERS: Record<string, number> = { one: 1, two: 2, three: 3 }
 const count = (written: string) => NUMBERS[written.toLowerCase()] ?? Number(written)
@@ -92,7 +100,7 @@ export function battleChoices(rules: readonly CombatRule[], allowances: readonly
     })
     const always = together.find((activator) => activator.always)
     const allowed = allowances.filter((allowance) =>
-      new RegExp(`\\b${allowance.options}\\b`, 'i').test(normalizeCombatText(rule.description)),
+      allowance.rules ? allowance.rules.includes(rule.name) : namesAllowedOptions(allowance, rule.description),
     )
     const limit =
       Math.max(1, ...allowed.flatMap((allowance) => ('limit' in allowance ? [allowance.limit] : []))) +

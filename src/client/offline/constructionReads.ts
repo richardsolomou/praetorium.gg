@@ -5,7 +5,7 @@ import { calculateRosterPrice } from '../../shared/pricing'
 import { pickerUnitsFor, booksOffering } from '../../shared/pickerUnits'
 import { rosterDatasheetContext } from '../../shared/rosterDatasheetContext'
 import { rosterDatasheet, rosterLoadoutDatasheets } from '../../shared/rosterReads'
-import { datasheetCombatant } from '../../shared/rosterCombatRules'
+import { datasheetCombatant, withBattleChoiceAllowances } from '../../shared/rosterCombatRules'
 import { combatLoadoutSpace } from '../../shared/combatLoadouts'
 import { exportRosterFile, importRosterFile, importRosterExchange, pricedDispositionNames } from '../../shared/rosterFiles'
 import { ROSTER_EXCHANGE_RULES_UNAVAILABLE, type decodeRosterExchange } from '../../core/rosterExchange'
@@ -35,8 +35,11 @@ export const constructionReads = {
     rosterDatasheet(catalogue, data, rosterDatasheetContext(catalogue, datasheetSchema.parse(data)), data.everyWeapon ?? false, rules),
   loadoutDatasheets: ({ catalogue, rules }: Construction, data: Data<typeof server.loadoutDatasheets>) =>
     rosterLoadoutDatasheets(catalogue, datasheetSchema.parse(data), rules),
-  combatantDatasheet: ({ catalogue, rules }: Construction, data: Data<typeof server.combatantDatasheet>) =>
-    datasheetCombatant(catalogue, rules, { ...datasheetSchema.parse(data), inactivePicks: data.inactivePicks }),
+  combatantDatasheet: ({ catalogue, rules }: Construction, data: Data<typeof server.combatantDatasheet>) => {
+    const combatant = datasheetCombatant(catalogue, rules, { ...datasheetSchema.parse(data), inactivePicks: data.inactivePicks })
+    // A device holds no words, so only the allowances the catalogue states in its own data count.
+    return combatant && withBattleChoiceAllowances(combatant, () => null)
+  },
   combatantDatasheets: ({ catalogue, rules }: Construction, data: Data<typeof server.combatantDatasheets>) =>
     rosterCombatants(catalogue, rules, rosterCombatantsSchema.parse(data)),
   combatLoadouts: ({ catalogue }: Construction, data: Data<typeof server.combatLoadouts>) =>

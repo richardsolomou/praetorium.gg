@@ -15,7 +15,7 @@ import { mutationRpc, rpc } from '../rpc'
 import { OWN_SEARCH_BATTLES, ownSearchLists, type OwnSearchData } from '../../core/referenceSearch'
 import { rosterDatasheetContext } from '../../shared/rosterDatasheetContext'
 import { serverWords } from '../publishedTextFiles'
-import { datasheetCombatant, withRecordedRules } from '../../shared/rosterCombatRules'
+import { datasheetCombatant, withBattleChoiceAllowances, withRecordedRules } from '../../shared/rosterCombatRules'
 import { combatLoadoutSpace } from '../../shared/combatLoadouts'
 import { currentUserId, forSignedIn } from '../playerSession'
 import { preparePicker } from '../rosterPicker'
@@ -188,8 +188,10 @@ export const combatantDatasheet = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const loaded = await app().catalogueFor(data.catalogueId)
       const combatant = loaded && datasheetCombatant(loaded, await app().rulesFor(data.catalogueId), data)
-      // The cards record no readings in a server, so their rules are judged from their words here, as a device cannot.
-      return combatant && withRecordedRules(combatant, await serverWords())
+      if (!combatant) return null
+      // The cards record no readings in a server, so their rules, and what abilities allow their choices, are read from their words here, as a device cannot.
+      const words = await serverWords()
+      return withBattleChoiceAllowances(withRecordedRules(combatant, words), words)
     }),
   )
 
