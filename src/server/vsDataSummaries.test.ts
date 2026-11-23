@@ -23,7 +23,10 @@ const record = (summary: string) => ({
 const codex = composition.editions.find((entry) => entry.edition.id === 'custodes-11e')!
 
 /** A snapshot of the base rules and the Custodes codex, each printing the stratagem, with a release per summary given. */
-function snapshot(releases: { update: string; summary: string }[], others: Parameters<typeof vsDataReleaseFiles>[0] = []) {
+function snapshot(
+  releases: { update: string; summary: string; data?: Record<string, unknown> }[],
+  others: Parameters<typeof vsDataReleaseFiles>[0] = [],
+) {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'vs-data-summaries-'))
   directories.push(directory)
   const base = composition.editions.filter((entry) => 'base' in entry && entry.base)
@@ -33,9 +36,9 @@ function snapshot(releases: { update: string; summary: string }[], others: Param
     ['editions/custodes-11e/datacards/11th/gdc/necrons.json', JSON.stringify({ id: 'necrons', stratagems: [stratagem] })],
   ])
   fs.mkdirSync(path.join(directory, 'summaries'))
-  releases.forEach(({ update, summary }, at) => {
+  releases.forEach(({ update, summary, data }, at) => {
     const unpacked = path.join(directory, `release-${at}`)
-    writeFiles(unpacked, vsDataReleaseFiles([record(summary), ...others], update))
+    writeFiles(unpacked, vsDataReleaseFiles([{ ...record(summary), ...(data ? { data } : {}) }, ...others], update))
     const edition = checkVsDataRelease(
       unpacked,
       [...base, codex].map((entry) => entry.edition),
@@ -95,6 +98,25 @@ it('opens a weapon ability a summary prints in brackets', () => {
       ],
     },
   ])
+})
+
+it('opens a bracketed weapon ability whose link names a rule no page or ability holds', () => {
+  const devastatingWounds = {
+    kind: 'weapon-ability',
+    id: 'devastating-wounds',
+    aliases: [],
+    summary: 'A Critical Wound inflicts mortal wounds.',
+  }
+  const summary = 'Its weapons gain [DEVASTATING WOUNDS].'
+  const data = { summarySpans: [{ start: 17, end: 37, bold: true, target: { kind: 'core-rule', id: 'devastating-wounds' } }] }
+  const { summaries, base } = snapshot([{ update: 'MFM 1.6', summary, data }], [devastatingWounds])
+  expect(summaries!.summariesIn(base).records['ability:necrons.test.focused-fire']?.blocks[0]).toEqual({
+    paragraph: [
+      { text: 'Its weapons gain ' },
+      { text: '[DEVASTATING WOUNDS]', bold: true, ability: 'weapon-ability:devastating-wounds' },
+      { text: '.' },
+    ],
+  })
 })
 
 it('serves a Markdown summary as its paragraphs and lists, its links landing on the rules they name', () => {
