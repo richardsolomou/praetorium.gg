@@ -418,6 +418,9 @@ test('public reference data renders without client JavaScript', async ({ browser
   await expect(page).toHaveTitle(/Cryptek Conclave detachment — Necrons — Praetorium/)
   await expect(page.locator('meta[property="og:description"]')).toHaveAttribute('content', /Cryptek Conclave rules, enhancements/)
   await expectCanonical(page, '/factions/necrons/rules/mfm-1-6/detachments/cryptek-conclave')
+  // An enhancement only BSData prints reaches its VS Data summary through its detachment.
+  await page.goto('/factions/chaos-space-marines/detachments/deceptors')
+  await expect(page.locator('#enhancement-shroud-of-obfuscation [data-rule-summary]')).toHaveText(/\S/)
 
   await page.goto('/rules/core-rules/movement-phase')
   await expect(page.getByRole('heading', { name: 'Movement Phase', exact: true })).toBeVisible()
