@@ -1,0 +1,12 @@
+diff --git a/definitions/Imperium - Space Marines.json b/definitions/Imperium - Space Marines.json
+--- a/definitions/Imperium - Space Marines.json
++++ b/definitions/Imperium - Space Marines.json
+@@ -80179,7 +80179,7 @@
+               {
+                 "name": "Combat knife",
+                 "id": "812d-8e13-8148-1db6",
+-                "hidden": false,
++                "hidden": true,
+                 "import": true,
+                 "type": "upgrade",
+                 "infoLinks": [{"name": "Precision", "id": "7e56-07ee-125e-84a6", "hidden": false, "targetId": "9143-31ae-e0a6-6007", "type": "rule"}],

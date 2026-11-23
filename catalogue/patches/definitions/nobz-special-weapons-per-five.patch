@@ -1,0 +1,43 @@
+diff --git a/definitions/Orks.json b/definitions/Orks.json
+--- a/definitions/Orks.json
++++ b/definitions/Orks.json
+@@ -16449,7 +16449,8 @@
+                     "hidden": false,
+                     "import": true,
+                     "type": "model",
+-                    "constraints": [{"id": "bbd3-35c2-f651-9a50", "field": "selections", "scope": "parent", "shared": true, "type": "max", "value": 2}],
++                    "constraints": [{"id": "bbd3-35c2-f651-9a50", "field": "selections", "scope": "parent", "shared": true, "type": "max", "value": 1}],
++                    "modifiers": [{"field": "bbd3-35c2-f651-9a50", "type": "increment", "value": 1, "conditions": [{"childId": "model", "field": "selections", "includeChildSelections": true, "scope": "unit", "shared": true, "type": "atLeast", "value": 10}]}],
+                     "entryLinks": [
+                       {
+                         "name": "Big Choppa",
+@@ -16494,7 +16495,8 @@
+                     "hidden": false,
+                     "import": true,
+                     "type": "model",
+-                    "constraints": [{"id": "3c0c-9d9c-0412-2773", "field": "selections", "scope": "parent", "shared": true, "type": "max", "value": 2}],
++                    "constraints": [{"id": "3c0c-9d9c-0412-2773", "field": "selections", "scope": "parent", "shared": true, "type": "max", "value": 1}],
++                    "modifiers": [{"field": "3c0c-9d9c-0412-2773", "type": "increment", "value": 1, "conditions": [{"childId": "model", "field": "selections", "includeChildSelections": true, "scope": "unit", "shared": true, "type": "atLeast", "value": 10}]}],
+                     "entryLinks": [
+                       {
+                         "name": "Kustom Choppa",
+@@ -16574,7 +16576,8 @@
+                     "hidden": false,
+                     "import": true,
+                     "type": "model",
+-                    "constraints": [{"id": "a308-fbb6-79a6-e3f7", "field": "selections", "scope": "parent", "shared": true, "type": "max", "value": 2}],
++                    "constraints": [{"id": "a308-fbb6-79a6-e3f7", "field": "selections", "scope": "parent", "shared": true, "type": "max", "value": 1}],
++                    "modifiers": [{"field": "a308-fbb6-79a6-e3f7", "type": "increment", "value": 1, "conditions": [{"childId": "model", "field": "selections", "includeChildSelections": true, "scope": "unit", "shared": true, "type": "atLeast", "value": 10}]}],
+                     "entryLinks": [
+                       {
+                         "name": "Kustom Choppa",
+@@ -16654,7 +16657,8 @@
+                     "hidden": false,
+                     "import": true,
+                     "type": "model",
+-                    "constraints": [{"id": "de27-99c5-46d1-63b8", "field": "selections", "scope": "parent", "shared": true, "type": "max", "value": 2}],
++                    "constraints": [{"id": "de27-99c5-46d1-63b8", "field": "selections", "scope": "parent", "shared": true, "type": "max", "value": 1}],
++                    "modifiers": [{"field": "de27-99c5-46d1-63b8", "type": "increment", "value": 1, "conditions": [{"childId": "model", "field": "selections", "includeChildSelections": true, "scope": "unit", "shared": true, "type": "atLeast", "value": 10}]}],
+                     "entryLinks": [
+                       {
+                         "name": "Kustom Krumpa",
