@@ -40,7 +40,14 @@ function sources() {
       revision: createHash('sha256').update(catalogKey).digest('hex'),
     },
     icons: { ...catalogueSources.icons, icons: { 'test-faction': 'test/icon.svg' } },
-    summaries: { ...catalogueSources.summaries!, revision: summaries.revision, earlier: [] },
+    summaries: {
+      repository: 'example/summaries',
+      release: 'v1.0.0',
+      asset: 'summaries-v1.0.0.tar',
+      license: 'MIT',
+      revision: summaries.revision,
+      earlier: [],
+    },
   }
 }
 

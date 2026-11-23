@@ -47,8 +47,8 @@ function weaponKeywords(read: VsDataSummaries) {
             name,
             Boolean(
               (tokens.length && summaryNamedBy(tokens, ofFile)) ||
-              read.abilities[`weapon-ability:${slug}`] ||
-              read.abilities[`core-ability:${slug}`],
+              read.abilities()[`weapon-ability:${slug}`] ||
+              read.abilities()[`core-ability:${slug}`],
             ),
           )
         }
@@ -77,8 +77,6 @@ if (!summaries) {
   served[summaries.editions[0]!]!['weapon keyword'] = keywords.size - unshown.length
   console.log(`weapon ability keywords in the catalogue: ${keywords.size - unshown.length} of ${keywords.size} show a summary`)
   for (const name of unshown) console.log(`  no summary | ${name}`)
-  console.log(`withheld for repeating a source's wording: ${summaries.withheld.length}`)
-  if (process.argv.includes('--details')) for (const id of summaries.withheld) console.log(`  withheld | ${id}`)
   if (process.argv.includes('--write')) fs.writeFileSync(baselineFile, `${JSON.stringify(served, null, 2)}\n`)
   for (const [edition, kinds] of Object.entries(baseline))
     for (const [kind, count] of Object.entries(kinds)) {

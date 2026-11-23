@@ -170,7 +170,8 @@ function sourceDirectoryComplete(directory: string, name: SnapshotSourceName) {
 
 function includedSources(directory: string, disabled: ReadonlySet<SnapshotSourceName>) {
   const revisions = readRevisions(directory)
-  const included = SNAPSHOT_SOURCE_NAMES.filter((name) => !disabled.has(name))
+  // `summaries` is optional, so a catalogue configured without it packs without it.
+  const included = SNAPSHOT_SOURCE_NAMES.filter((name) => !disabled.has(name) && catalogueSources[name])
   for (const name of included) {
     if (!revisions[name]) throw new Error(`catalogue snapshot has no ${name} revision`)
     if (!sourceDirectoryComplete(directory, name)) throw new Error(`catalogue snapshot has no ${name} files`)

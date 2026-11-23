@@ -1,3 +1,4 @@
+import { recordCardReadings } from '../../src/server/datacards'
 import path from 'node:path'
 import { textSourceFiles } from '../../src/server/sourceTexts'
 import { MISSION_SUMMARIES } from '../../src/contracts/rules'
@@ -85,6 +86,7 @@ export function sharedEdition(source: OfflineConstructionSource, base: OfflineCo
 }
 
 export async function writeReferenceBundle(outDir: string, directory: string, runtime?: CatalogueRuntime) {
+  recordCardReadings()
   const { catalogue, rules } = loadSnapshotWithRules(directory)
   const versions = catalogueEditionLoaders(
     directory,
@@ -165,8 +167,8 @@ export async function writeReferenceBundle(outDir: string, directory: string, ru
   const textFiles = textSourceFiles(directory, readCatalogueComposition(directory))
   put(['text-sources'], textFiles)
   const summaries = completeSteps(vsDataSummariesSteps(directory, canonical.ruleDocuments))
-  put(['rule-summary-credits'], summaries?.attributions ?? [])
-  put(['rule-ability-summaries'], summaries?.abilities ?? {})
+  put(['rule-summary-credits'], summaries?.attributions() ?? [])
+  put(['rule-ability-summaries'], summaries?.abilities() ?? {})
   for (const file of summaries ? [...Object.keys(textFiles), MISSION_SUMMARIES] : []) {
     const answer = summaries!.summariesIn(file)
     // A file no summary reads stays out, and its query falls back to the source's own text as offline.

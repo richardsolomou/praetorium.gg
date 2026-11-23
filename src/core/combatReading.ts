@@ -9,7 +9,6 @@ import {
   combatRuleRoles,
   namesOptions,
 } from './combatRules'
-import { RecentlyUsed, remember } from './collections'
 import { type AnsweredRule, compileCombatRule, normalizeCombatText, type RuleQuestion, ruleAnswers } from './combatRuleCompiler'
 
 /**
@@ -69,8 +68,13 @@ export function combatReadingOf(rule: AnsweredRule): CombatReading {
   }
 }
 
-// Every rules version prints most texts alike, so each is read once however many versions hold it.
-const readTexts = new RecentlyUsed<string, CombatFacts | null>(32_768)
+// Every rules version prints most texts alike, so a text is read once while any version still holds its reading; held
+// weakly, so a server keeps no reading that no catalogue it holds refers to.
+const readTexts = { plain: new Map<string, WeakRef<CombatFacts>>(), phased: new Map<string, WeakRef<CombatFacts>>() }
+const inertTexts = { plain: new Set<string>(), phased: new Set<string>() }
+const released = new FinalizationRegistry<{ held: Map<string, WeakRef<CombatFacts>>; words: string }>(({ held, words }) => {
+  if (!held.get(words)?.deref()) held.delete(words)
+})
 
 /**
  * A text's combat facts, or null for words that take no part in combat wherever they are placed. A stratagem's placement
@@ -78,7 +82,17 @@ const readTexts = new RecentlyUsed<string, CombatFacts | null>(32_768)
  * each set of phases is most of the cost of reading a text.
  */
 export function combatFactsOf(words: string, phased = false): CombatFacts | null {
-  return remember(readTexts, `${phased ? 'phased' : 'plain'}:${words}`, () => readCombatFacts(words, phased))
+  const kind = phased ? 'phased' : 'plain'
+  if (inertTexts[kind].has(words)) return null
+  const held = readTexts[kind].get(words)?.deref()
+  if (held) return held
+  const facts = readCombatFacts(words, phased)
+  if (!facts) inertTexts[kind].add(words)
+  else {
+    readTexts[kind].set(words, new WeakRef(facts))
+    released.register(facts, { held: readTexts[kind], words })
+  }
+  return facts
 }
 
 function readCombatFacts(words: string, phased: boolean): CombatFacts | null {

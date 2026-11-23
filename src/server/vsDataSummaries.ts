@@ -14,7 +14,6 @@ import type { Steps } from '../shared/steps'
 import {
   type GdcRuleKind,
   gdcRuleRecords,
-  vsDataEdition,
   vsDataIndex,
   vsDataKey,
   type VsDataAttribution,
@@ -43,88 +42,89 @@ export type VsDataSummaries = {
    * The current rules version's summaries of the weapon and core abilities, by `kind:id`, which a keyword's tooltip
    * and a summary naming the ability show.
    */
-  abilities: Record<string, RuleSummary>
+  abilities: () => Record<string, RuleSummary>
   /** The upstream work the served summaries adapt, once each, which the Sources page credits. */
-  attributions: VsDataAttribution[]
-  /** The summaries dropped because they repeat a source's own wording, as `edition kind:id`. */
-  withheld: readonly string[]
+  attributions: () => VsDataAttribution[]
 }
 
 type Version = {
   edition: string
-  attributions: VsDataAttribution[]
-  files: ReturnType<typeof editionTextFiles>
   index: ReturnType<typeof vsDataIndex>
   summaries: Map<string, RuleSummary>
 }
 
 /**
- * The pinned VS Data releases, one file each, every one read for the rules version it describes. A summary
- * repeating a sentence of either source's rules text is withheld, so nothing served can be their words. A file several
- * rules versions hold alike, which their tokens name alike, is read as the base's where the base holds it. Links to
- * core rules land on their rules pages.
+ * The pinned VS Data releases, one file each, every one read for the rules version it describes and only once a rule
+ * of that version is asked for, as a server mostly serves the current one. Materializing has already withheld every
+ * summary repeating a source's words (`withholdCopiedSummaries`). A file several rules versions hold alike, which their
+ * tokens name alike, is read as the base's where the base holds it. Links to core rules land on their rules pages.
  */
 export function* vsDataSummariesSteps(directory: string, documents: readonly RuleDocument[]): Steps<VsDataSummaries | null> {
   const folder = path.join(directory, 'summaries')
-  const composition = readCatalogueComposition(directory)
-  const editions = composition?.editions ?? []
-  // A snapshot published before releases were kept this way holds other files here, which name no rules version.
-  const releases = (fs.existsSync(folder) ? fs.readdirSync(folder) : []).flatMap((name) => {
-    const parsed = name.endsWith('.json') ? vsDataSummariesSchema.safeParse(readJson(path.join(folder, name))) : null
-    return parsed?.success ? [parsed.data] : []
-  })
+  const order = (readCatalogueComposition(directory)?.editions ?? []).toSorted(
+    (left, right) => Number(right.base ?? false) - Number(left.base ?? false),
+  )
+  // Materializing names each file for the rules version its release describes; a snapshot published before releases
+  // were kept this way holds other files here, which name none.
+  const held = order.filter((entry) => fs.existsSync(path.join(folder, `${entry.edition.id}.json`)))
+  if (!held.length) return null
+  const release = (edition: string) => {
+    const parsed = vsDataSummariesSchema.safeParse(readJson(path.join(folder, `${edition}.json`)))
+    return parsed.success ? parsed.data : null
+  }
   const links = ruleLinks(documents)
-  const versions: Version[] = []
-  for (const release of releases) {
-    const edition = vsDataEdition(
-      release.rulesVersion,
-      editions.map((entry) => entry.edition),
-    )
-    const version = editions.find((entry) => entry.edition.id === edition)
-    if (!edition || !version) continue
-    const files = editionTextFiles(directory, version.base ? null : edition)
-    const index = vsDataIndex(release.entries)
-    const link = (target: { kind: string; id: string }) =>
-      index
-        .aliasesOf(target)
-        .map((alias) => links.get(alias))
-        .find(Boolean)
-    const abilities = new Set(release.records.flatMap((record) => (ABILITY_KINDS.includes(record.kind) ? [vsDataKey(record)] : [])))
-    const summaries = new Map(release.records.map((record) => [vsDataKey(record), summaryOf(record, link, abilities)]))
-    versions.push({ edition, attributions: release.attributions, files, index, summaries })
-    yield
-  }
-  if (!versions.length) return null
-  const order = (version: Version) => {
-    const at = editions.findIndex((entry) => entry.edition.id === version.edition)
-    return editions[at]?.base ? -1 : at
-  }
-  versions.sort((left, right) => order(left) - order(right))
-  const withheld = yield* withoutOriginalWording(versions)
-  const cards = new Map<string, { file: string; version: Version }>()
-  for (const version of versions)
-    for (const file of version.files)
-      if (file.source === 'game-datacards' && !cards.has(file.id)) cards.set(file.id, { file: file.path, version })
+  const versions = new Map<string, Version | null>()
+  const versionOf = (edition: string) =>
+    remember(versions, edition, () => {
+      const file = release(edition)
+      if (!file) return null
+      const index = vsDataIndex(file.entries)
+      const link = (target: { kind: string; id: string }) =>
+        index
+          .aliasesOf(target)
+          .map((alias) => links.get(alias))
+          .find(Boolean)
+      const abilities = new Set(file.records.flatMap((record) => (ABILITY_KINDS.includes(record.kind) ? [vsDataKey(record)] : [])))
+      return { edition, index, summaries: new Map(file.records.map((record) => [vsDataKey(record), summaryOf(record, link, abilities)])) }
+    })
+  const filesOf = (entry: (typeof held)[number]) => editionTextFiles(directory, entry.base ? null : entry.edition.id)
+  const cards = new Map<string, { file: string; edition: string }>()
+  for (const entry of held)
+    for (const file of filesOf(entry))
+      if (file.source === 'game-datacards' && !cards.has(file.id)) cards.set(file.id, { file: file.path, edition: entry.edition.id })
+  yield
   const read = (file: string) => gdcRuleRecords(readJson(file))
-  const held = new RecentlyUsed<string, RuleSummaries>(16)
+  const answers = new RecentlyUsed<string, RuleSummaries>(16)
   return {
-    editions: versions.map((version) => version.edition),
-    abilities: Object.fromEntries([...versions[0]!.summaries].filter(([key]) => ABILITY_KINDS.some((kind) => key.startsWith(`${kind}:`)))),
-    attributions: [
+    editions: held.map((entry) => entry.edition.id),
+    abilities: () =>
+      Object.fromEntries(
+        [...(versionOf(held[0]!.edition.id)?.summaries ?? [])].filter(([key]) => ABILITY_KINDS.some((kind) => key.startsWith(`${kind}:`))),
+      ),
+    // Read without keeping the versions, as only the Sources page asks.
+    attributions: () => [
       ...new Map(
-        versions.flatMap((version) => version.attributions).map((credit) => [`${credit.credit} ${credit.licence}`, credit]),
+        held
+          .flatMap((entry) => release(entry.edition.id)?.attributions ?? [])
+          .map((credit) => [`${credit.credit} ${credit.licence}`, credit]),
       ).values(),
     ],
-    withheld,
     summariesIn: (id) => {
-      if (id === MISSION_SUMMARIES) return remember(held, id, () => missionSummaries(versions[0]!.summaries))
+      if (id === MISSION_SUMMARIES) {
+        const version = versionOf(held[0]!.edition.id)
+        return version ? remember(answers, id, () => missionSummaries(version.summaries)) : NO_RULE_SUMMARIES
+      }
       const card = cards.get(id)
-      return card ? remember(held, id, () => summariesFor(read(card.file), card.version.index, card.version.summaries)) : NO_RULE_SUMMARIES
+      const version = card && versionOf(card.edition)
+      return card && version
+        ? remember(answers, id, () => summariesFor(read(card.file), version.index, version.summaries))
+        : NO_RULE_SUMMARIES
     },
     joins: (edition) => {
       const joins = new Map<string, VsDataJoin>()
-      const version = versions.find((candidate) => candidate.edition === edition)
-      for (const file of version?.files ?? [])
+      const entry = held.find((candidate) => candidate.edition.id === edition)
+      const version = entry && versionOf(edition)
+      for (const file of entry && version ? filesOf(entry) : [])
         if (file.source === 'game-datacards')
           for (const { kind, keys } of read(file.path)) {
             const ref = version!.index.entry(keys)
@@ -231,24 +231,37 @@ function ruleLinks(documents: readonly RuleDocument[]) {
 }
 
 /**
- * Removes each summary that repeats, as a whole or in a sentence, a string of any of the source files, and names what
- * it removed. A file several rules versions hold is read once.
+ * Removes from each materialized release every summary that repeats, as a whole or in a sentence, a string of a source
+ * file of the rules version it describes, so nothing served can be a source's words, and names what it removed as
+ * `edition kind:id`. A file several rules versions hold is read once.
  */
-function* withoutOriginalWording(versions: readonly Version[]): Steps<string[]> {
-  const byWording = new Map<string, { version: Version; id: string }[]>()
-  for (const version of versions)
-    for (const [id, { summary }] of version.summaries)
-      for (const wording of wordingsOf(summary)) remember(byWording, wording, () => []).push({ version, id })
-  const withheld = new Map<string, { version: Version; id: string }>()
-  const files = new Map(versions.flatMap((version) => version.files.map((file) => [file.id, file.path])))
-  for (const file of files.values()) {
+export function withholdCopiedSummaries(directory: string): string[] {
+  const folder = path.join(directory, 'summaries')
+  const entries = (readCatalogueComposition(directory)?.editions ?? []).filter((entry) =>
+    fs.existsSync(path.join(folder, `${entry.edition.id}.json`)),
+  )
+  const releases = entries.map((entry) => ({
+    edition: entry.edition.id,
+    file: path.join(folder, `${entry.edition.id}.json`),
+    release: vsDataSummariesSchema.parse(readJson(path.join(folder, `${entry.edition.id}.json`))),
+    files: editionTextFiles(directory, entry.base ? null : entry.edition.id),
+  }))
+  const byWording = new Map<string, { edition: string; key: string }[]>()
+  for (const { edition, release } of releases)
+    for (const record of release.records)
+      for (const wording of wordingsOf(record.summary)) remember(byWording, wording, () => []).push({ edition, key: vsDataKey(record) })
+  const readers = new Map<string, Set<string>>()
+  for (const { edition, files } of releases) for (const file of files) remember(readers, file.path, () => new Set()).add(edition)
+  const withheld = new Set<string>()
+  for (const [file, editions] of readers)
     for (const text of sourceStrings(readJson(file)))
       for (const wording of wordingsOf(text))
-        for (const found of byWording.get(wording) ?? []) withheld.set(`${found.version.edition} ${found.id}`, found)
-    yield
+        for (const found of byWording.get(wording) ?? []) if (editions.has(found.edition)) withheld.add(`${found.edition} ${found.key}`)
+  for (const { edition, file, release } of releases) {
+    const records = release.records.filter((record) => !withheld.has(`${edition} ${vsDataKey(record)}`))
+    if (records.length !== release.records.length) fs.writeFileSync(file, JSON.stringify({ ...release, records }))
   }
-  for (const { version, id } of withheld.values()) version.summaries.delete(id)
-  return [...withheld.keys()].toSorted()
+  return [...withheld].toSorted()
 }
 
 /** A sentence this short says too little to be anybody's wording. */

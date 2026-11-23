@@ -153,6 +153,8 @@ async function startNodeServer(lifecycle: ReturnType<typeof nodeLifecycle>) {
       path.resolve(process.env.DATA_DIR ?? '/data'),
       lifecycle.signal,
       startupRemainingMs(),
+      // A preview shows the catalogue its pull request pins, and rebuilding newer ones would take CPU production shares.
+      { followUpstream: process.env.PRAETORIUM_SEED_PREVIEW !== 'true' },
     )
   }
   if (!existsSync(authPath) && process.env.AUTH_INITIALIZE_EMPTY === 'true') {

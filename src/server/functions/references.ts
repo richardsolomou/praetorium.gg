@@ -331,12 +331,12 @@ export const ruleSummaryRecords = createServerFn({ method: 'GET' })
 
 /** The current rules version's weapon and core ability summaries, by `kind:id`, which keyword tooltips show. */
 export const ruleAbilitySummaries = createServerFn({ method: 'GET' }).handler(() =>
-  snapshotRpc(async () => (await vsDataSummaries())?.abilities ?? {}),
+  snapshotRpc(async () => (await vsDataSummaries())?.abilities() ?? {}),
 )
 
 /** The upstream work the served summaries adapt, which the Sources page credits. */
 export const ruleSummaryCredits = createServerFn({ method: 'GET' }).handler(() =>
-  snapshotRpc(async () => (await vsDataSummaries())?.attributions ?? []),
+  snapshotRpc(async () => (await vsDataSummaries())?.attributions() ?? []),
 )
 
 const vsDataSummaries = () =>
