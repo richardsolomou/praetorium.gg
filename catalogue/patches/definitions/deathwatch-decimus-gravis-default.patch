@@ -1,0 +1,12 @@
+diff --git a/definitions/Imperium - Space Marines.json b/definitions/Imperium - Space Marines.json
+--- a/definitions/Imperium - Space Marines.json
++++ b/definitions/Imperium - Space Marines.json
+@@ -83497,7 +83497,7 @@
+           {
+             "name": "Weapon",
+             "id": "3899-8463-5291-674b",
+-            "defaultSelectionEntryId": "dc61-590e-f638-6584",
++            "defaultSelectionEntryId": "eb92-7d50-f15b-4ad5",
+             "hidden": false,
+             "constraints": [
+               {"id": "97cc-8f6a-129e-7000-min", "field": "selections", "includeChildSelections": false, "scope": "parent", "shared": true, "type": "min", "value": 1},
