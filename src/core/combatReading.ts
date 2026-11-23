@@ -68,8 +68,11 @@ export function combatReadingOf(rule: AnsweredRule): CombatReading {
   }
 }
 
-/** A text's combat facts, or null for words that take no part in combat wherever they are placed. */
-export function combatFactsOf(words: string): CombatFacts | null {
+/**
+ * A text's combat facts, or null for words that take no part in combat wherever they are placed. Without `phased`,
+ * a stratagem's placements are left out, which take part only once given phases: enough to compare two texts' readings.
+ */
+export function combatFactsOf(words: string, phased = true): CombatFacts | null {
   const judging = combatJudgingOf(words)
   const leaves: CombatReading[] = []
   const leafAt = new Map<string, number>()
@@ -84,7 +87,7 @@ export function combatFactsOf(words: string): CombatFacts | null {
   }
   const readings: Record<string, ReadingNode[]> = {}
   for (const scope of SCOPES)
-    for (const phases of scope === 'stratagem' ? STRATAGEM_PHASES : [undefined])
+    for (const phases of scope !== 'stratagem' ? [undefined] : phased ? STRATAGEM_PHASES : [])
       for (const models of [1, undefined])
         for (const known of [true, false]) {
           const tree = recordedTree((answers) =>

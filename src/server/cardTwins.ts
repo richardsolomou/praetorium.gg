@@ -1,6 +1,7 @@
 import { hash } from 'node:crypto'
 import { type Definition, profileDescription, targetOf } from '../core/catalogue'
 import { RecentlyUsed, cachedIn, groupBy, remember } from '../core/collections'
+import { combatFactsOf } from '../core/combatReading'
 import { normalizeRuleReference } from '../core/ruleReference'
 import { routeSlug } from '../core/slug'
 import { type TextToken, textKey, textToken, textTokensIn, withoutText } from '../core/sourceText'
@@ -50,8 +51,11 @@ export function cardTwins(loaded: LoadedCatalogue): Map<string, CardTwin> {
   })
   const facts = (key: string) => loaded.definitions?.fact(key)
   const stated = (own: string) => textFactsOf(loaded.definitions?.words(own) ?? '')
-  // Combat facts are read only for texts that share a card text: reading them is the slow part.
-  const reading = (key: string) => remember(readings, key, () => hash('sha256', JSON.stringify([ruled(facts(key)), facts(key)?.combat])))
+  // Combat facts are read only for texts that share a card text, and without a stratagem's phases: reading them is the slow part.
+  const reading = (key: string, own: string) =>
+    remember(readings, key, () =>
+      hash('sha256', JSON.stringify([ruled(facts(key)), combatFactsOf(loaded.definitions?.words(own) ?? '', false)])),
+    )
   return new Map(
     [...groupBy(sole, (twin) => twin.card).values()].flatMap((group) => {
       // Where catalogue texts sharing a card text read differently, the wording most datasheets print takes it.
@@ -59,7 +63,7 @@ export function cardTwins(loaded: LoadedCatalogue): Map<string, CardTwin> {
       const [most, next] =
         group.length === 1
           ? [group]
-          : [...groupBy(group, (twin) => reading(twin.key)).values()].toSorted((left, right) => printed(right) - printed(left))
+          : [...groupBy(group, (twin) => reading(twin.key, twin.own)).values()].toSorted((left, right) => printed(right) - printed(left))
       if (next && printed(next) === printed(most!)) return []
       const { card: cardKey, own, token } = most![0]!
       // A card readers already saw alone keeps answering with its own facts there.
