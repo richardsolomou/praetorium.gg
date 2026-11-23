@@ -39,7 +39,7 @@ import { Keyword, KEYWORD_TAG_CLASS, KeywordList, type KeywordRule, UnitKeywords
 import { ProfileRules } from '../../rosters/ProfileRules'
 import { RuleText } from '../../../components/RuleText'
 import { useRuleSummary } from '../../../ruleSummaries'
-import { RuleSummarySkeleton, Runs, textOf } from '../../../components/RuleSummaryText'
+import { Blocks, blocksText, RuleSummarySkeleton, Runs, textOf } from '../../../components/RuleSummaryText'
 import {
   DatasheetUnit,
   datasheetUnit,
@@ -382,8 +382,8 @@ function UnitConfiguration({ sheet, catalogueId }: { sheet: Datasheet; catalogue
             <h3 className="eyebrow mb-2">Wargear options</h3>
             <ul className="list-disc space-y-1.5 pl-5 text-sm text-dim">
               {options.map((option) => (
-                <li key={textOf(option)}>
-                  <Runs runs={option} />
+                <li key={blocksText(option)} className="space-y-0.5">
+                  <Blocks blocks={option} />
                 </li>
               ))}
             </ul>

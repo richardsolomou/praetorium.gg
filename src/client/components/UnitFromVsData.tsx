@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { createContext, useContext } from 'react'
-import type { RuleSummary, RuleSummaryInline } from '../../contracts/rules'
+import type { RuleSummary, RuleSummaryBlock, RuleSummaryInline } from '../../contracts/rules'
 import { unitAbilitySlug } from '../../core/summaryMarkdown'
 import { catalogueEditionId } from '../../core/catalogueEdition'
 import type { VsDataUnit, VsDataUnits } from '../../shared/vsData'
@@ -107,8 +107,8 @@ export const unitComposition = (unit: VsDataUnit): Line[] =>
 export const unitLoadout = (unit: VsDataUnit): Line[] =>
   unit.models.filter((model) => model.wargear.length).map((model) => line(`${model.name}: `, listed(counted(model.wargear), 'and'), '.'))
 
-/** One option a unit's models take, in Praetorium's words. */
-export function unitOption(option: VsDataUnit['options'][number]): Line {
+/** One option a unit's models take, in Praetorium's words: what it allows, then a short list of the limits on its choices. */
+export function unitOption(option: VsDataUnit['options'][number]): RuleSummaryBlock[] {
   const who = option.carrier
     ? option.perModels
       ? `For every ${option.perModels} models, 1 ${option.carrier}`
@@ -116,16 +116,17 @@ export function unitOption(option: VsDataUnit['options'][number]): Line {
     : 'The unit'
   const how = option.choose.max > 1 ? [`up to ${option.choose.max} of `, ...listed(option.choices, 'and')] : listed(option.choices)
   const instead = option.replaces?.length ? [' in place of ', ...listed(counted(option.replaces), 'and')] : []
-  const caps = (option.caps ?? []).map((cap) => [
-    ` At most ${cap.max} `,
-    ...listed(cap.choices),
-    `${cap.perModels ? ` for every ${cap.perModels} models` : ''}.`,
-  ])
-  return line(`${who} can take `, how, instead, '.', ...caps)
+  const limits = (option.caps ?? []).map((cap) =>
+    line(`At most ${cap.max} `, ...listed(cap.choices), `${cap.perModels ? ` for every ${cap.perModels} models` : ''}.`),
+  )
+  return [
+    { paragraph: line(`${who} can take `, how, instead, '.') },
+    ...(limits.length ? [{ list: 'unordered' as const, items: limits }] : []),
+  ]
 }
 
 /** Each option a unit's models take, in Praetorium's words. */
-export const unitOptions = (unit: VsDataUnit): Line[] => unit.options.map(unitOption)
+export const unitOptions = (unit: VsDataUnit) => unit.options.map(unitOption)
 
 /** What a transport can carry, as lines, its keywords and Firing Deck in bold. */
 export function unitTransport(unit: VsDataUnit): Line[] {

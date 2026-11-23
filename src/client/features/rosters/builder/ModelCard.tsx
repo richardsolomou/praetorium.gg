@@ -28,7 +28,7 @@ import {
 import type { WeaponProfileData } from './loadoutModel'
 import { type OptionNote, PickControl, PoolStepper, type StandingWargear, WargearRow } from './LoadoutControls'
 import { unitOption } from '../../../components/UnitFromVsData'
-import { textOf } from '../../../components/RuleSummaryText'
+import { blocksText } from '../../../components/RuleSummaryText'
 import type { VsDataUnit } from '../../../../shared/vsData'
 import { sameWargear } from '../../../../core/wargearNames'
 
@@ -202,8 +202,8 @@ export function ModelCard({
             ? loadoutInstructions({ ...row, pieces }, model, models ?? [model], unitOptions ?? [])
                 .map(unitOption)
                 .filter((instruction) => {
-                  if (statedInstructions.has(textOf(instruction))) return false
-                  statedInstructions.add(textOf(instruction))
+                  if (statedInstructions.has(blocksText(instruction))) return false
+                  statedInstructions.add(blocksText(instruction))
                   return true
                 })
             : []

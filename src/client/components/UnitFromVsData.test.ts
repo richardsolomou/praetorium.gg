@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { pluralModel, unitComposition, unitTransport } from './UnitFromVsData'
+import { pluralModel, unitComposition, unitOption, unitTransport } from './UnitFromVsData'
 
 it('counts a unit’s models as a datasheet does', () => {
   const model = (name: string, min: number, max: number) => ({ name, min, max, wargear: [] })
@@ -50,5 +50,20 @@ it('bolds the keywords a transport carries, as BSData prints them', () => {
   ).toEqual([
     [{ text: 'Carries 12 ' }, { text: 'ASTRA MILITARUM INFANTRY', bold: true }, { text: ' models.' }],
     [{ text: 'Cannot carry ' }, { text: 'ARTILLERY', bold: true }, { text: ' models.' }],
+  ])
+})
+
+it('lists the limits on an option’s choices under what the option allows', () => {
+  expect(
+    unitOption({
+      carrier: 'Nob',
+      choose: { min: 0, max: 1 },
+      choices: ['Big Choppa', 'Power Klaw'],
+      replaces: [['Choppa', 1]],
+      caps: [{ choices: ['Power Klaw'], max: 1, perModels: 5 }],
+    }),
+  ).toEqual([
+    { paragraph: [{ text: 'Each Nob can take Big Choppa or Power Klaw in place of Choppa.' }] },
+    { list: 'unordered', items: [[{ text: 'At most 1 Power Klaw for every 5 models.' }]] },
   ])
 })

@@ -925,6 +925,9 @@ async function orkLoadoutVariants(page: Page) {
   await expect(
     loadout.getByText(/Each Nob can take .*Big Skorcha and Kustom Choppa in place of Kustom Krumpa and Kustom Shoota\./),
   ).toHaveCount(1)
+  await expect(
+    loadout.getByRole('listitem').filter({ hasText: /^At most 1 Big Skorcha and Kustom Choppa for every 5 models\.$/ }),
+  ).toHaveCount(1)
   await waitForRosterSave(page, () => loadout.getByRole('button', { name: `More ${pair}`, exact: true }).click())
   await expect(profiles.locator('[data-equipped]')).toHaveAttribute('data-equipped', 'true')
   await expect(profiles).toHaveCSS('border-color', 'rgb(155, 208, 169)')
