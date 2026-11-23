@@ -39,7 +39,7 @@ import { Keyword, KEYWORD_TAG_CLASS, KeywordList, type KeywordRule, UnitKeywords
 import { ProfileRules } from '../../rosters/ProfileRules'
 import { RuleText } from '../../../components/RuleText'
 import { useRuleSummary } from '../../../ruleSummaries'
-import { RuleSummarySkeleton } from '../../../components/RuleSummaryText'
+import { Blocks, blocksText, RuleSummarySkeleton, Runs, textOf } from '../../../components/RuleSummaryText'
 import {
   DatasheetUnit,
   datasheetUnit,
@@ -340,8 +340,8 @@ function UnitConfiguration({ sheet, catalogueId }: { sheet: Datasheet; catalogue
             <h3 className="eyebrow">Composition</h3>
             {unit === undefined ? <RuleSummarySkeleton className="mt-0" /> : null}
             {composition.map((line) => (
-              <p key={line} className="text-sm text-dim">
-                {line}
+              <p key={textOf(line)} className="text-sm text-dim">
+                <Runs runs={line} />
               </p>
             ))}
             {sheet.baseSize ? <p className="text-sm whitespace-pre-line text-dim">Base size: {sheet.baseSize}</p> : null}
@@ -371,8 +371,8 @@ function UnitConfiguration({ sheet, catalogueId }: { sheet: Datasheet; catalogue
           <div id="loadout" className="border-t border-edge p-3">
             <h3 className="eyebrow mb-2">Loadout</h3>
             {loadout.map((line) => (
-              <p key={line} className="text-sm text-dim">
-                {line}
+              <p key={textOf(line)} className="text-sm text-dim">
+                <Runs runs={line} />
               </p>
             ))}
           </div>
@@ -382,7 +382,9 @@ function UnitConfiguration({ sheet, catalogueId }: { sheet: Datasheet; catalogue
             <h3 className="eyebrow mb-2">Wargear options</h3>
             <ul className="list-disc space-y-1.5 pl-5 text-sm text-dim">
               {options.map((option) => (
-                <li key={option}>{option}</li>
+                <li key={blocksText(option)} className="space-y-0.5">
+                  <Blocks blocks={option} />
+                </li>
               ))}
             </ul>
           </div>
@@ -628,8 +630,8 @@ export function TransportReference({
       <SectionHeading title="Transport" />
       <div className="part space-y-1 p-3">
         {facts.map((line) => (
-          <p key={line} className="text-sm text-dim">
-            {line}
+          <p key={textOf(line)} className="text-sm text-dim">
+            <Runs runs={line} />
           </p>
         ))}
         {shown && summary ? <RuleText text={shown} rules={rules} className={facts.length ? 'mt-2' : 'mt-0'} /> : null}

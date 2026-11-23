@@ -25,8 +25,8 @@ function screen(entries: [string, Command][] = started(), viewer = ALICE, player
   )
   return { view, clock: battleClock(players, history, playerSides) }
 }
-const project = (value: ReturnType<typeof screen>, prompts: WatchReminderPrompt[] = []) =>
-  watchBattle(value.view, value.clock, [], () => undefined, prompts, 1000, 'https://praetorium.test/api/watch/battles/battle')
+const project = (value: ReturnType<typeof screen>, prompts: WatchReminderPrompt[] = [], described?: (text: string) => string | null) =>
+  watchBattle(value.view, value.clock, [], () => undefined, prompts, 1000, 'https://praetorium.test/api/watch/battles/battle', described)
 
 describe('watch battle snapshot', () => {
   it('reads scores and CP from the saved battle flow', () => {
@@ -134,6 +134,74 @@ describe('watch battle snapshot', () => {
     expect(project(value)?.objectives[0]?.summary).toBe(
       'End of your turn · Battle rounds 2–4: 3 VP. Hold one objective.\n\nor · End of your turn · Battle rounds 2–4: 5 VP. Hold two objectives.',
     )
+  })
+
+  it('describes rules it holds only as tokens in the plain text the phone gives it', () => {
+    const rule = '⟦0000abcd:plain:0123456789abcdef⟧'
+    const command = builtRoster('Army', [])
+    if (command.kind !== 'attach-roster') throw new Error('Expected roster')
+    command.roster.reminders = [{ ...personalReminder('rule'), description: rule }]
+    const award: MissionAward = {
+      vp: 3,
+      per: null,
+      mode: null,
+      max: null,
+      group: null,
+      criteria: rule,
+      trigger: { timing: 'end-of-turn', phase: null, playerTurn: 'your-turn', roundMin: null, roundMax: null },
+    }
+    const value = screen([
+      [ALICE, command],
+      [
+        ALICE,
+        {
+          kind: 'set-prep',
+          stratagems: [],
+          secondaries: [],
+          primary: { key: 'primary', name: 'Primary', awards: [award] },
+          secondaryMode: 'fixed',
+        },
+      ],
+      ...started().slice(1),
+    ])
+    const reminders = value.view.players.find((player) => player.isViewer)?.roster?.reminders ?? []
+    const snapshot = project(
+      value,
+      [{ reminders, moment: 'Start of your Command phase', context: { round: 1, activePlayerId: ALICE, phase: 'command' } }],
+      (text) => (text === rule ? 'Hold the centre.' : null),
+    )
+    expect([snapshot?.reminders[0]?.description, snapshot?.objectives[0]?.summary]).toEqual([
+      'Hold the centre.',
+      'End of your turn · Any battle round: 3 VP. Hold the centre.',
+    ])
+  })
+
+  it('describes a VS Data award by its summary', () => {
+    const award: MissionAward = {
+      vp: 3,
+      per: null,
+      mode: null,
+      max: null,
+      group: null,
+      id: 'pack.primary.o1-s1',
+      criteria: null,
+      trigger: { timing: 'end-of-turn', phase: null, playerTurn: 'your-turn', roundMin: null, roundMax: null },
+    }
+    const value = screen([
+      [
+        ALICE,
+        {
+          kind: 'set-prep',
+          stratagems: [],
+          secondaries: [],
+          primary: { key: 'primary', name: 'Primary', awards: [award] },
+          secondaryMode: 'fixed',
+        },
+      ],
+      ...started(),
+    ])
+    const snapshot = project(value, [], (text) => (text === 'mission-award:pack.primary.o1-s1' ? 'Hold the centre.' : null))
+    expect(snapshot?.objectives[0]?.summary).toBe('End of your turn · Any battle round: 3 VP. Hold the centre.')
   })
 
   it('stops the projected clock while paused', () => {

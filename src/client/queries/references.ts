@@ -26,6 +26,7 @@ import {
   ruleSummaryCredits,
   ruleSummaryRecords,
   terrainReferences,
+  textHomesFor,
 } from '../functions'
 import { referenceQuery, referenceStaleTime, SSR_STALE_TIME } from './shared'
 import {
@@ -144,5 +145,11 @@ export const ruleAbilitySummariesQuery = () => referenceQuery(['rule-ability-sum
 export const ruleSummariesQuery = (file: string) =>
   queryOptions({
     ...referenceQuery(['rule-summary-records', file], () => ruleSummaryRecords({ data: { file } })),
+    retry: false,
+  })
+/** The file each string now lives in, by hash, for tokens naming a file a data update replaced; failing, they find no summary. */
+export const textHomesQuery = (hashes: readonly string[]) =>
+  queryOptions({
+    ...referenceQuery(['text-homes', hashes.join(',')], () => textHomesFor({ data: { hashes: [...hashes] } })),
     retry: false,
   })

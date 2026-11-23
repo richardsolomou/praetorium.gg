@@ -61,4 +61,6 @@ export type RuleSummaries = {
   records: Record<string, RuleSummary>
   texts: Record<string, string[]>
   entries: Record<string, string>
+  /** No file of the active snapshot has this id: a data update replaced it, so its strings live in another file now. */
+  replaced?: true
 }

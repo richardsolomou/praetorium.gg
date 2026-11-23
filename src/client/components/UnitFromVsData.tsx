@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { createContext, useContext } from 'react'
-import type { RuleSummary } from '../../contracts/rules'
+import type { RuleSummary, RuleSummaryBlock, RuleSummaryInline } from '../../contracts/rules'
 import { unitAbilitySlug } from '../../core/summaryMarkdown'
 import { catalogueEditionId } from '../../core/catalogueEdition'
 import type { VsDataUnit, VsDataUnits } from '../../shared/vsData'
@@ -68,52 +68,88 @@ export function useUnitAbilitySummary(name: string | undefined, enabled: boolean
   )
 }
 
+type Line = RuleSummaryInline[]
+type Run = string | RuleSummaryInline
+
+/** A line of runs, each string plain; adjacent plain runs join, so a line reads the same however it was put together. */
+const line = (...runs: readonly (Run | readonly Run[])[]): Line =>
+  runs.flat().reduce<Line>((joined, run) => {
+    const next = typeof run === 'string' ? { text: run } : run
+    const last = joined.at(-1)
+    if (!next.text) return joined
+    if (last && !last.bold && !next.bold && !last.link && !next.link && !last.ability && !next.ability) last.text += next.text
+    else joined.push({ ...next })
+    return joined
+  }, [])
+/** A keyword or rule name, bold as BSData prints them. */
+const bold = (text: string): RuleSummaryInline => ({ text, bold: true })
+
 const range = (min: number, max: number) => (min === max ? `${min}` : `${min}–${max}`)
-const listed = (items: readonly string[], last = 'or') =>
-  items.length < 2 ? (items[0] ?? '') : `${items.slice(0, -1).join(', ')} ${last} ${items.at(-1)}`
+/** Items as one run of a sentence, joined by commas and `last`. */
+const listed = <T,>(items: readonly T[], last = 'or'): (T | string)[] =>
+  items.flatMap((item, at) => [...(at === 0 ? [] : [at === items.length - 1 ? ` ${last} ` : ', ']), item])
 const counted = (items: readonly (readonly [string, number])[]) => items.map(([name, count]) => (count === 1 ? name : `${count} × ${name}`))
 
-/** Each model line of a unit, as "5–10 Immortal". */
-export const unitComposition = (unit: VsDataUnit) => unit.models.map((model) => `${range(model.min, model.max)} ${model.name}`)
-
-/** What each model carries before any option is taken. */
-export const unitLoadout = (unit: VsDataUnit) =>
-  unit.models.filter((model) => model.wargear.length).map((model) => `${model.name}: ${listed(counted(model.wargear), 'and')}.`)
-
-/** Each option a unit's models take, in Praetorium's words. */
-export function unitOptions(unit: VsDataUnit) {
-  return unit.options.map((option) => {
-    const who = option.carrier
-      ? option.perModels
-        ? `For every ${option.perModels} models, 1 ${option.carrier}`
-        : `Each ${option.carrier}`
-      : 'The unit'
-    const how = option.choose.max > 1 ? `up to ${option.choose.max} of ${listed(option.choices, 'and')}` : listed(option.choices)
-    const instead = option.replaces?.length ? ` in place of ${listed(counted(option.replaces), 'and')}` : ''
-    const caps = (option.caps ?? []).map(
-      (cap) => ` At most ${cap.max} ${listed(cap.choices)}${cap.perModels ? ` for every ${cap.perModels} models` : ''}.`,
-    )
-    return `${who} can take ${how}${instead}.${caps.join('')}`
-  })
+/** A model's name for more than one of it, as a datasheet writes "5–10 Immortals" or "2 Canoptek Wraiths". */
+export function pluralModel(name: string) {
+  const [, head = '', last = ''] = /^(.*?)(\S+)$/.exec(name) ?? []
+  if (/(?:man)$/i.test(last)) return `${head}${last.slice(0, -2)}en`
+  if (/[^aeiou]y$/i.test(last)) return `${head}${last.slice(0, -1)}ies`
+  if (/(?:s|x|z|ch|sh)$/i.test(last)) return `${head}${last}es`
+  return `${name}s`
 }
 
-/** What a transport can carry, as lines. */
-export function unitTransport(unit: VsDataUnit) {
+/** Each model line of a unit, as "5–10 Immortals" or "1 Overlord". */
+export const unitComposition = (unit: VsDataUnit): Line[] =>
+  unit.models.map((model) => line(`${range(model.min, model.max)} ${model.max === 1 ? model.name : pluralModel(model.name)}`))
+
+/** What each model carries before any option is taken. */
+export const unitLoadout = (unit: VsDataUnit): Line[] =>
+  unit.models.filter((model) => model.wargear.length).map((model) => line(`${model.name}: `, listed(counted(model.wargear), 'and'), '.'))
+
+/** One option a unit's models take, in Praetorium's words: what it allows, then a short list of the limits on its choices. */
+export function unitOption(option: VsDataUnit['options'][number]): RuleSummaryBlock[] {
+  const who = option.carrier
+    ? option.perModels
+      ? `For every ${option.perModels} models, 1 ${option.carrier}`
+      : `Each ${option.carrier}`
+    : 'The unit'
+  const how = option.choose.max > 1 ? [`up to ${option.choose.max} of `, ...listed(option.choices, 'and')] : listed(option.choices)
+  const instead = option.replaces?.length ? [' in place of ', ...listed(counted(option.replaces), 'and')] : []
+  const limits = (option.caps ?? []).map((cap) =>
+    line(`At most ${cap.max} `, ...listed(cap.choices), `${cap.perModels ? ` for every ${cap.perModels} models` : ''}.`),
+  )
+  return [
+    { paragraph: line(`${who} can take `, how, instead, '.') },
+    ...(limits.length ? [{ list: 'unordered' as const, items: limits }] : []),
+  ]
+}
+
+/** Each option a unit's models take, in Praetorium's words. */
+export const unitOptions = (unit: VsDataUnit) => unit.options.map(unitOption)
+
+/** What a transport can carry, as lines, its keywords and Firing Deck in bold. */
+export function unitTransport(unit: VsDataUnit): Line[] {
   const transport = unit.transport
   if (!transport) return []
+  const selectors = (names: readonly string[]) => listed(names.map(bold))
   const loads = (transport.loads ?? []).map((load) =>
-    listed(
-      load.map((pool) => `${pool.limit} ${listed(pool.selectors)} ${pool.count === 'models' ? 'models' : pool.count}`),
-      'and',
+    line(
+      ...listed(
+        load.map((pool) => line(`${pool.limit} `, selectors(pool.selectors), ` ${pool.count === 'models' ? 'models' : pool.count}`)),
+        'and',
+      ),
     ),
   )
   return [
-    ...(loads.length ? [`Carries ${listed(loads)}.`] : []),
-    ...(transport.excluded ?? []).map((excluded) => `Cannot carry ${listed(excluded.selectors)} models.`),
-    ...(transport.space ?? []).map(
-      (space) =>
-        `${space.selectors?.length ? `${listed(space.selectors)} models take` : 'Each model takes'} the space of ${space.size} models.`,
+    ...(loads.length ? [line('Carries ', ...listed(loads), '.')] : []),
+    ...(transport.excluded ?? []).map((excluded) => line('Cannot carry ', selectors(excluded.selectors), ' models.')),
+    ...(transport.space ?? []).map((space) =>
+      line(
+        space.selectors?.length ? [...selectors(space.selectors), ' models take'] : 'Each model takes',
+        ` the space of ${space.size} models.`,
+      ),
     ),
-    ...(transport.firingDeck !== undefined ? [`Firing Deck ${transport.firingDeck}.`] : []),
+    ...(transport.firingDeck !== undefined ? [line(bold(`Firing Deck ${transport.firingDeck}`), '.')] : []),
   ]
 }

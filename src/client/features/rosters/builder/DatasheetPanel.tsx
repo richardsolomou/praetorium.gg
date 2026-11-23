@@ -13,6 +13,7 @@ import { abilitySections, attachmentGroups, primaryUnitProfile, referenceAbiliti
 import { RuleText } from '../../../components/RuleText'
 import { useRuleSummary } from '../../../ruleSummaries'
 import { DatasheetUnit, datasheetUnit, unitTransport, useVsDataUnit } from '../../../components/UnitFromVsData'
+import { Runs, textOf } from '../../../components/RuleSummaryText'
 import { ProfileRules } from '../ProfileRules'
 import { ReminderButton, type ReminderControls } from '../ReminderButton'
 import type { ReminderSubject } from '../../../../core/reminders'
@@ -317,8 +318,8 @@ function TransportRule({
       <h2 className="rubric">Transport</h2>
       <div className="mt-2 space-y-1 part px-2 py-1.5">
         {facts.map((line) => (
-          <p key={line} className="text-sm text-dim">
-            {line}
+          <p key={textOf(line)} className="text-sm text-dim">
+            <Runs runs={line} />
           </p>
         ))}
         {text && summary ? <RuleText text={text} rules={rules} /> : null}

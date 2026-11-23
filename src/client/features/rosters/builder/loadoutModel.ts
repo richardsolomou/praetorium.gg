@@ -3,7 +3,7 @@ import { groupBy, uniqueBy } from '../../../../core/collections'
 import type { Datasheet } from '../../../../contracts/catalogue'
 import type { CombatFacts } from '../../../../core/combatReading'
 import type { ReminderSuggestion } from '../../../../core/reminders'
-import { DEFAULT_WARGEAR } from '../../../../shared/datacards'
+import type { VsDataUnit } from '../../../../shared/vsData'
 import { weaponProfileGroups } from '../../../datasheet'
 import {
   modelFixedCount,
@@ -96,26 +96,32 @@ export function unmodeledGrantedWeapons(
   )
 }
 
+type UnitOption = VsDataUnit['options'][number]
+
+/**
+ * The options a row's wargear comes from, as VS Data writes them: those offering most of its pieces, of the model the
+ * option names where the unit has a model of that name, so a leader's option stays off the same weapon its troops take.
+ */
 export function loadoutInstructions(
   row: Pick<ModelRow, 'name' | 'pieces'>,
   model: LoadoutModel,
   models: readonly LoadoutModel[],
-  groups: NonNullable<Datasheet['wargearGroups']>,
-  /** An instruction's words, or null while they are not loaded, when it is read as naming no model. */
-  wordsOf: (instruction: string) => string | null = (instruction) => instruction,
-) {
+  options: readonly UnitOption[],
+): UnitOption[] {
   const names = row.pieces ?? [row.name]
-  const candidates = groups.flatMap((group) => {
-    if (group.instruction === DEFAULT_WARGEAR) return []
-    const words = wordsOf(group.instruction) ?? ''
-    const namedModels = models.filter((candidate) => new RegExp(`\\b${escapeRegExp(candidate.name)}(?:s\\b|\\b)`, 'i').test(words))
-    if (namedModels.length && !namedModels.includes(model)) return []
-    const matches = group.options.filter((option) => names.some((name) => sameWargear(wargearBaseName(option), name))).length
-    return matches ? [{ instruction: group.instruction, matches }] : []
+  const candidates = options.flatMap((option) => {
+    const carriers = option.carrier ? models.filter((candidate) => sameModel(candidate.name, option.carrier!)) : []
+    if (carriers.length && !carriers.includes(model)) return []
+    // A choice of several pieces, as "Big Skorcha and Kustom Choppa", counts each piece the row holds.
+    const pieces = new Set(option.choices.flatMap((choice) => choice.split(' and ')).map((piece) => wargearKey(wargearBaseName(piece))))
+    const matches = names.filter((name) => pieces.has(wargearKey(name))).length
+    return matches ? [{ option, matches }] : []
   })
   const best = Math.max(0, ...candidates.map((candidate) => candidate.matches))
-  return [...new Set(candidates.filter((candidate) => candidate.matches === best).map((candidate) => candidate.instruction))]
+  return candidates.filter((candidate) => candidate.matches === best).map((candidate) => candidate.option)
 }
+
+const sameModel = (name: string, carrier: string) => new RegExp(`^${escapeRegExp(carrier)}s?$`, 'i').test(name)
 
 type LoadoutRowSource = { choice: LoadoutChoice; option: LoadoutOption }
 

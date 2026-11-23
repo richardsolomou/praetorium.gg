@@ -2,7 +2,7 @@ import type { ScannableTextLocations } from './referenceCorpus'
 import { readCatalogueComposition } from './catalogueComposition'
 import { catalogueDirectory } from './catalogueIndex'
 import { memoUntilSnapshotChanges } from './snapshotMemo'
-import { recordIdsIn, snapshotWords, textFileIdsIn, textFilesFrom, textRecordsSteps, textSourcePaths } from './sourceTexts'
+import { recordIdsIn, snapshotWords, textFileIdsIn, textFilesFrom, textHomesSteps, textRecordsSteps, textSourcePaths } from './sourceTexts'
 import { completeStepsCooperatively } from './canonicalCatalogue'
 import { remember } from '../core/collections'
 import { completeSteps } from '../shared/steps'
@@ -44,3 +44,12 @@ export const publishedTextFiles = async () => (await publishedTextLocations()).f
  * or null when a token names no string it holds. What is calculated may leave the server; the words never do.
  */
 export const serverWords = () => memoUntilSnapshotChanges('text-words', null, async () => snapshotWords(catalogueDirectory()))
+
+/** The current file holding each string, by hash, for tokens that name a file the active snapshot replaced; null where none does. */
+export async function textHomes(hashes: readonly string[]) {
+  const homeOf = await memoUntilSnapshotChanges('text-homes', null, async () => {
+    const directory = catalogueDirectory()
+    return completeStepsCooperatively(textHomesSteps(directory, readCatalogueComposition(directory)))
+  })
+  return Object.fromEntries(hashes.map((hash) => [hash, homeOf(hash)]))
+}

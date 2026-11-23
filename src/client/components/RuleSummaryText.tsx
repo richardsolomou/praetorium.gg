@@ -2,7 +2,7 @@ import { Link } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
-import type { RuleSummary, RuleSummaryInline } from '../../contracts/rules'
+import type { RuleSummary, RuleSummaryBlock, RuleSummaryInline } from '../../contracts/rules'
 import { titleCaseAbility } from '../../shared/catalogueAbilityGrants'
 import { useAbilitySummary } from '../ruleSummaries'
 import { HoverTooltip } from './HoverTooltip'
@@ -23,21 +23,7 @@ export function RuleSummaryText({
 }) {
   return (
     <div data-rule-summary className={cn('mt-2 space-y-1.5 font-rules text-sm text-dim', className)}>
-      {summary.blocks.map((block) =>
-        'paragraph' in block ? (
-          <p key={textOf(block.paragraph)}>
-            <Runs runs={block.paragraph} abilities={abilities} />
-          </p>
-        ) : (
-          <List key={block.items.map(textOf).join('\n')} ordered={block.list === 'ordered'}>
-            {block.items.map((item) => (
-              <li key={textOf(item)}>
-                <Runs runs={item} abilities={abilities} />
-              </li>
-            ))}
-          </List>
-        ),
-      )}
+      <Blocks blocks={summary.blocks} abilities={abilities} />
       {summary.questions.map((question) => (
         <p key={question} className="font-sans text-xs text-faint italic">
           The official text leaves this open: {question}
@@ -46,6 +32,29 @@ export function RuleSummaryText({
     </div>
   )
 }
+
+/** A summary's paragraphs and lists, or wording Praetorium writes in the same shape, each block keyed by its text. */
+export function Blocks({ blocks, abilities = true }: { blocks: readonly RuleSummaryBlock[]; abilities?: boolean }) {
+  return blocks.map((block) =>
+    'paragraph' in block ? (
+      <p key={textOf(block.paragraph)}>
+        <Runs runs={block.paragraph} abilities={abilities} />
+      </p>
+    ) : (
+      <List key={block.items.map(textOf).join('\n')} ordered={block.list === 'ordered'}>
+        {block.items.map((item) => (
+          <li key={textOf(item)}>
+            <Runs runs={item} abilities={abilities} />
+          </li>
+        ))}
+      </List>
+    ),
+  )
+}
+
+/** The text of blocks, which tells one apart from another. */
+export const blocksText = (blocks: readonly RuleSummaryBlock[]) =>
+  blocks.map((block) => ('paragraph' in block ? textOf(block.paragraph) : block.items.map(textOf).join('\n'))).join('\n\n')
 
 /** What stands in a summary's place while it is asked for, in the size of a short one. */
 export function RuleSummarySkeleton({ className }: { className?: string }) {
@@ -62,10 +71,10 @@ function List({ ordered, children }: { ordered: boolean; children: ReactNode }) 
   return ordered ? <ol className={className}>{children}</ol> : <ul className={className}>{children}</ul>
 }
 
-const textOf = (runs: readonly RuleSummaryInline[]) => runs.map((run) => run.text).join('')
+export const textOf = (runs: readonly RuleSummaryInline[]) => runs.map((run) => run.text).join('')
 
 /** A line's runs, each keyed by where it starts in the line. */
-function Runs({ runs, abilities }: { runs: readonly RuleSummaryInline[]; abilities: boolean }) {
+export function Runs({ runs, abilities = true }: { runs: readonly RuleSummaryInline[]; abilities?: boolean }) {
   let start = 0
   return runs.map((run) => {
     const key = start

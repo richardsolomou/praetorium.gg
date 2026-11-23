@@ -1,32 +1,18 @@
 import { useQuery } from '@tanstack/react-query'
 import { useCallback, useMemo } from 'react'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-import {
-  type BattleChoice,
-  battleChoiceActive,
-  battleChoiceAllowances,
-  battleChoices,
-  battleChoiceSheet,
-  togetherLabel,
-} from '../../../../core/battleChoices'
+import { type BattleChoice, battleChoiceActive, battleChoices, battleChoiceSheet, togetherLabel } from '../../../../core/battleChoices'
 import { uniqueBy } from '../../../../core/collections'
 import type { ActiveCombatRule } from '../../../../core/combatRules'
 import type { RosterPick } from '../../../../core/roster'
 import type { Datasheet } from '../../../../contracts/catalogue'
 import { combatantDatasheetQuery, type Fielded } from '../../../queries'
-import { hasTextTokens } from '../../../../core/sourceText'
 import { readableRules } from '../../simulator/readableRules'
 import { HoverTooltip } from '../../../components/HoverTooltip'
 import { RuleText } from '../../../components/RuleText'
 import { pressedClass } from '../../simulator/CombatControls'
 import { useStableValue } from '../../../useStableValue'
 import { useBattleChoicePicks } from './battleChoicePicks'
-
-/** The ability texts that can widen a unit's choices: its own, and those of the units it is attached to. */
-function allowanceTexts(data: NonNullable<ReturnType<typeof useCombatantDatasheet>>) {
-  const texts = (sheet: Datasheet) => [...sheet.abilities, ...(sheet.enhancements ?? [])].flatMap(({ description }) => description ?? [])
-  return [...texts(data.selected), ...data.companions.flatMap((member) => texts(member.selected))]
-}
 
 function useCombatantDatasheet({
   enabled,
@@ -80,17 +66,7 @@ export function useBattleChoices({
   const stored = useBattleChoicePicks(scope)
   const data = useCombatantDatasheet({ enabled, catalogueId, entryId, detachmentIds, picks, pickIndex, fielded })
   const choices = useMemo(
-    () =>
-      enabled && data
-        ? battleChoices(
-            readableRules(data.rules),
-            battleChoiceAllowances(
-              // A token's words never reach the browser, so only allowances the catalogue states in its own data count.
-              allowanceTexts(data).filter((text) => !hasTextTokens(text)),
-              data.companions.length > 0,
-            ),
-          )
-        : [],
+    () => (enabled && data ? battleChoices(readableRules(data.rules), data.battleChoiceAllowances) : []),
     [enabled, data],
   )
   const lineUp = picks.map((pick) => pick.entryId).join(',')

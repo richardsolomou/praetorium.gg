@@ -136,63 +136,30 @@ it('shows an equipped enhancement weapon outside the model loadout without repea
 describe('loadout instructions', () => {
   const trooper: LoadoutModel = { name: 'Trooper', fixed: [], members: [], rows: [] }
   const leader: LoadoutModel = { ...trooper, name: 'Leader' }
+  const offer = (choices: string[], carrier?: string) => ({ choose: { min: 0, max: 1 }, choices, ...(carrier ? { carrier } : {}) })
 
-  it('uses the rule for the complete pair rather than another loadout sharing its blade', () => {
+  it('uses the option for the complete pair rather than another sharing its blade', () => {
+    const pair = offer(['Rifle and Blade'])
     expect(
-      loadoutInstructions(
-        { name: 'Rifle and Blade', pieces: ['Rifle', 'Blade'] },
-        trooper,
-        [trooper],
-        [
-          { instruction: 'Take Rifle and Blade together.', options: ['Rifle', 'Blade'] },
-          { instruction: 'Take Cannon and Blade together.', options: ['Cannon', 'Blade'] },
-        ],
-      ),
-    ).toEqual(['Take Rifle and Blade together.'])
+      loadoutInstructions({ name: 'Rifle and Blade', pieces: ['Rifle', 'Blade'] }, trooper, [trooper], [pair, offer(['Cannon and Blade'])]),
+    ).toEqual([pair])
   })
 
-  it('keeps a leader restriction off the same weapon offered to ordinary troops', () => {
-    expect(
-      loadoutInstructions(
-        { name: 'Plasma gun' },
-        trooper,
-        [trooper, leader],
-        [
-          { instruction: 'The Leader can replace their rifle with a plasma gun.', options: ['Plasma gun'] },
-          { instruction: 'One Trooper can take one of these weapons.', options: ['Plasma gun', 'Meltagun'] },
-        ],
-      ),
-    ).toEqual(['One Trooper can take one of these weapons.'])
+  it('keeps a leader option off the same weapon offered to ordinary troops', () => {
+    const troops = offer(['Plasma gun', 'Meltagun'], 'Trooper')
+    expect(loadoutInstructions({ name: 'Plasma gun' }, trooper, [trooper, leader], [offer(['Plasma gun'], 'Leader'), troops])).toEqual([
+      troops,
+    ])
   })
 
-  it('reads which model a published instruction names from its loaded words', () => {
-    expect(
-      loadoutInstructions(
-        { name: 'Plasma gun' },
-        trooper,
-        [trooper, leader],
-        [
-          { instruction: '⟦a1⟧', options: ['Plasma gun'] },
-          { instruction: '⟦b2⟧', options: ['Plasma gun', 'Meltagun'] },
-        ],
-        (instruction) =>
-          instruction === '⟦a1⟧' ? 'The Leader can replace their rifle with a plasma gun.' : 'One Trooper can take one of these weapons.',
-      ),
-    ).toEqual(['⟦b2⟧'])
+  it('shows a leader option on the leader', () => {
+    const own = offer(['Plasma gun'], 'Leader')
+    expect(loadoutInstructions({ name: 'Plasma gun' }, leader, [trooper, leader], [own, offer(['Plasma gun'], 'Trooper')])).toEqual([own])
   })
 
-  it('matches a wargear ability with a source suffix without inventing a rule for a default weapon', () => {
-    expect(
-      loadoutInstructions(
-        { name: 'Rifle and Icon', pieces: ['Rifle', 'Icon'] },
-        trooper,
-        [trooper],
-        [
-          { instruction: 'Default Wargear', options: ['Rifle'] },
-          { instruction: 'One model can carry an icon.', options: ['Icon (Aura)'] },
-        ],
-      ),
-    ).toEqual(['One model can carry an icon.'])
+  it('matches a wargear ability with a source suffix', () => {
+    const icon = offer(['Icon (Aura)'])
+    expect(loadoutInstructions({ name: 'Rifle and Icon', pieces: ['Rifle', 'Icon'] }, trooper, [trooper], [icon])).toEqual([icon])
   })
 })
 

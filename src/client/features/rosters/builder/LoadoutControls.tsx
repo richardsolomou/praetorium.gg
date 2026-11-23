@@ -2,6 +2,8 @@ import type { ReactNode } from 'react'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { Datasheet } from '../../../../contracts/catalogue'
 import { RuleText } from '../../../components/RuleText'
+import { Blocks, blocksText } from '../../../components/RuleSummaryText'
+import type { RuleSummaryBlock } from '../../../../contracts/rules'
 import { CountButton, Stepper } from '../../../components/Stepper'
 import { WeaponProfiles } from '../../../components/DatasheetProfiles'
 import { weaponProfileGroups } from '../../../datasheet'
@@ -149,7 +151,8 @@ export function WargearRow({
   control?: ReactNode
   annotation?: ReactNode
   highlightSelection?: boolean
-  instructions?: readonly string[]
+  /** What the options this row comes from allow, in Praetorium's words. */
+  instructions?: readonly RuleSummaryBlock[][]
   standing?: StandingWargear
 }) {
   const matching = weaponProfilesFor({ name, pieces }, weapons)
@@ -170,7 +173,9 @@ export function WargearRow({
       className={`${OPTION} scroll-mt-2.5 print:break-inside-avoid ${count && highlightSelection ? PICKED : 'border-edge'} ${fallen ? 'opacity-50' : ''}`}
     >
       {instructions?.map((instruction) => (
-        <RuleText key={instruction} text={instruction} rules={rules} className="!mt-0 p-2.5 text-xs leading-[1.125rem]" />
+        <div key={blocksText(instruction)} className="space-y-0.5 p-2.5 font-rules text-xs leading-[1.125rem] text-dim">
+          <Blocks blocks={instruction} />
+        </div>
       ))}
       <div className="flex items-center gap-2 px-2.5 py-1.5" data-equipped={count > 0}>
         {label}

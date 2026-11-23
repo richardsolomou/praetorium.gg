@@ -584,6 +584,13 @@ export const detachmentRulesSchema = z.object({
 })
 export const detachmentDetailSchema = z.object({ catalogueId, slug })
 /** A source file as rules-text tokens name it. */
+export const TEXT_HOMES_MAX = 50
+export const textHomesSchema = z.object({
+  hashes: z
+    .array(z.string().regex(/^[0-9a-f]{16}$/))
+    .min(1)
+    .max(TEXT_HOMES_MAX),
+})
 export const textFileSchema = z.object({ file: z.union([z.string().regex(/^[0-9a-f]{8}$/), z.literal(MISSION_SUMMARIES)]) })
 
 export const rosterIdSchema = z.object({ id })

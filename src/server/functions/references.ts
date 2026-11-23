@@ -5,7 +5,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { withServerSpan } from '../serverTelemetry'
 import { app } from '../app'
 import { unitBattleDetailsIn } from '../../shared/catalogue'
-import { publishedTextFiles } from '../publishedTextFiles'
+import { publishedTextFiles, textHomes } from '../publishedTextFiles'
 import { booksOffering, pickerUnitsFor } from '../../shared/pickerUnits'
 import { detachmentsOffering } from '../../shared/factionReferences'
 
@@ -24,7 +24,7 @@ import { cacheUntilSnapshotChanges } from '../snapshotCache'
 import { memoUntilSnapshotChanges } from '../snapshotMemo'
 import { catalogueDirectory } from '../catalogueIndex'
 import { completeStepsCooperatively } from '../canonicalCatalogue'
-import { NO_RULE_SUMMARIES, vsDataSummariesSteps } from '../vsDataSummaries'
+import { summariesOfFile, vsDataSummariesSteps } from '../vsDataSummaries'
 import { selectedBattleDetachmentData } from '../../shared/battleDetachmentData'
 import { detachmentReference } from '../../shared/detachmentReference'
 import { referenceDatasheetBySlug, referenceFactionDatasheets, referenceRuleIndex, referenceRuleSection } from '../referenceCatalogue'
@@ -44,6 +44,7 @@ import {
   unitsSchema,
   unitWoundsSchema,
   textFileSchema,
+  textHomesSchema,
 } from '../../contracts/schemas'
 
 /** A reference read, cached against the snapshot's ETag when fetched directly. */
@@ -324,13 +325,18 @@ export const gameReferences = createServerFn({ method: 'GET' }).handler(() =>
 /** Where each source file a rules-text token names lives upstream; Praetorium serves where the words are, never the words. */
 export const textSources = createServerFn({ method: 'GET' }).handler(() => snapshotRpc(async () => publishedTextFiles()))
 
+/** Where strings now live whose tokens name a file the active snapshot replaced, so a battle's older rules still find their summaries. */
+export const textHomesFor = createServerFn({ method: 'GET' })
+  .validator(textHomesSchema)
+  .handler(({ data }) => snapshotRpc(async () => textHomes(data.hashes)))
+
 /**
  * The VS Data summaries of the rules one source file prints, by the hashes its tokens name: original wording
  * everyone can read, which game calculations never receive.
  */
 export const ruleSummaryRecords = createServerFn({ method: 'GET' })
   .validator(textFileSchema)
-  .handler(({ data }) => snapshotRpc(async () => (await vsDataSummaries())?.summariesIn(data.file) ?? NO_RULE_SUMMARIES))
+  .handler(({ data }) => snapshotRpc(async () => summariesOfFile(data.file, await publishedTextFiles(), await vsDataSummaries())))
 
 /** The current rules version's weapon and core ability summaries, by `kind:id`, which keyword tooltips show. */
 export const ruleAbilitySummaries = createServerFn({ method: 'GET' }).handler(() =>

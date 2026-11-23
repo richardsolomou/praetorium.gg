@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest'
 import type { RuleSummary } from '../contracts/rules'
-import { summaryNamedBy } from './ruleSummaries'
+import { summaryNamedBy, summaryPlainText } from './ruleSummaries'
 
 const summary = (text: string): RuleSummary => ({ blocks: [{ paragraph: [{ text }] }], questions: [] })
 const textOf = (found: RuleSummary | null) =>
@@ -22,4 +22,16 @@ it('reads words several rules print alike as the first one’s summary', () => {
 
 it('names no summary where no rule prints every line', () => {
   expect(summaryNamedBy([token('shared'), token('unknown')], new Map([['file', answer]]))).toBeNull()
+})
+
+it('reads a summary as plain text, its bold as plain and each list item on a line', () => {
+  expect(
+    summaryPlainText({
+      blocks: [
+        { paragraph: [{ text: 'Select ' }, { text: 'one', bold: true }, { text: ':' }] },
+        { list: 'unordered', items: [[{ text: 'Advance.' }], [{ text: 'Fall Back.' }]] },
+      ],
+      questions: [],
+    }),
+  ).toBe('Select one:\n\n• Advance.\n• Fall Back.')
 })

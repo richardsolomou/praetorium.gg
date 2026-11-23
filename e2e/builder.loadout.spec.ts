@@ -921,8 +921,13 @@ async function orkLoadoutVariants(page: Page) {
   await expect(profiles.locator('[data-equipped]')).toHaveAttribute('data-equipped', 'false')
   const unselectedHeading = await profiles.locator('[data-equipped]').boundingBox()
   await expect(profiles).toHaveCSS('border-color', 'rgb(40, 50, 58)')
-  // The option's instruction is the datasheet's own words, which the loadout never states.
-  await expect(loadout.getByText(/For every 5 models in this unit/)).toHaveCount(0)
+  // The option's instruction is Praetorium's own wording, stated once for every row the option offers.
+  await expect(
+    loadout.getByText(/Each Nob can take .*Big Skorcha and Kustom Choppa in place of Kustom Krumpa and Kustom Shoota\./),
+  ).toHaveCount(1)
+  await expect(
+    loadout.getByRole('listitem').filter({ hasText: /^At most 1 Big Skorcha and Kustom Choppa for every 5 models\.$/ }),
+  ).toHaveCount(1)
   await waitForRosterSave(page, () => loadout.getByRole('button', { name: `More ${pair}`, exact: true }).click())
   await expect(profiles.locator('[data-equipped]')).toHaveAttribute('data-equipped', 'true')
   await expect(profiles).toHaveCSS('border-color', 'rgb(155, 208, 169)')

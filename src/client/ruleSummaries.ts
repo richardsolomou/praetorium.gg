@@ -1,27 +1,49 @@
 import { useQueries, useQuery } from '@tanstack/react-query'
-import { MISSION_SUMMARIES, type RuleSummary } from '../contracts/rules'
-import { hasTextTokens, textTokensIn } from '../core/sourceText'
-import { summaryNamedBy } from '../shared/ruleSummaries'
-import { ruleAbilitySummariesQuery, ruleSummariesQuery } from './queries/references'
+import { MISSION_SUMMARIES, type RuleSummaries, type RuleSummary } from '../contracts/rules'
+import { TEXT_HOMES_MAX } from '../contracts/schemas'
+import { summaryNamedBy, tokensAtHome, wholeRuleTokens } from '../shared/ruleSummaries'
+import { ruleAbilitySummariesQuery, ruleSummariesQuery, textHomesQuery } from './queries/references'
 import { textSources } from './functions'
 import { referenceQuery } from './queries/shared'
 
-/** A summary describes a whole rule, so it stands in only for tokens showing whole strings, not one bullet of a list. */
-const WHOLE_STRING = new Set(['prose', 'plain', 'trim'])
-
 type SummaryLookup = { summary: RuleSummary | null; pending: boolean }
 
+const unique = <T>(values: readonly T[]) => [...new Set(values)]
+
 /**
- * The VS Data summary of the rule a text prints, and whether that is still being asked.
+ * The VS Data summaries of the rules these texts print, and whether any is still being asked. A token naming a file a
+ * data update replaced, as an older battle's or saved reminder's does, reads the summary from the file its string
+ * lives in now.
  */
+export function useRuleSummaries(texts: readonly string[]) {
+  const tokens = texts.flatMap(wholeRuleTokens)
+  const own = unique(tokens.map((token) => token.file))
+  const ownAnswers = useQueries({ queries: own.map(ruleSummariesQuery) })
+  const ofFile = new Map<string, RuleSummaries | undefined>(own.map((file, at) => [file, ownAnswers[at]?.data]))
+  const hashes = unique(tokens.filter((token) => ofFile.get(token.file)?.replaced).map((token) => token.hash))
+    .toSorted()
+    .slice(0, TEXT_HOMES_MAX)
+  const homes = useQuery({ ...textHomesQuery(hashes), enabled: hashes.length > 0 })
+  const homeFiles = unique(tokensAtHome(tokens, ofFile, homes.data).map((token) => token.file)).filter((file) => !ofFile.has(file))
+  const homeAnswers = useQueries({ queries: homeFiles.map(ruleSummariesQuery) })
+  for (const [at, file] of homeFiles.entries()) ofFile.set(file, homeAnswers[at]?.data)
+  const pending =
+    ownAnswers.some((answer) => answer.isPending) ||
+    (hashes.length > 0 && homes.isPending) ||
+    homeAnswers.some((answer) => answer.isPending)
+  return {
+    pending,
+    summaryOf: (text: string): RuleSummary | null => {
+      const named = wholeRuleTokens(text)
+      return named.length ? summaryNamedBy(tokensAtHome(named, ofFile, homes.data), ofFile) : null
+    },
+  }
+}
+
+/** The VS Data summary of the rule a text prints, and whether that is still being asked. */
 export function useRuleSummary(text: string): SummaryLookup {
-  const tokens = hasTextTokens(text) ? textTokensIn(text) : []
-  const whole = tokens.length > 0 && tokens.every((token) => WHOLE_STRING.has(token.transform))
-  const files = whole ? [...new Set(tokens.map((token) => token.file))] : []
-  const answers = useQueries({ queries: files.map(ruleSummariesQuery) })
-  if (!whole) return { summary: null, pending: false }
-  if (answers.some((answer) => answer.isPending)) return { summary: null, pending: true }
-  return { summary: summaryNamedBy(tokens, new Map(files.map((file, at) => [file, answers[at]?.data]))), pending: false }
+  const { pending, summaryOf } = useRuleSummaries([text])
+  return pending ? { summary: null, pending } : { summary: summaryOf(text), pending }
 }
 
 type MissionKind = 'mission-card' | 'mission-award' | 'mission-action' | 'mission-twist'
@@ -34,10 +56,7 @@ export function useMissionSummary(kind: MissionKind, id: string | undefined) {
 }
 
 /** Whether the summaries of every rule these texts print have been asked for and answered, so a printout can wait for them. */
-export function useRuleSummariesSettled(texts: readonly string[]) {
-  const files = [...new Set(texts.flatMap((text) => (hasTextTokens(text) ? textTokensIn(text).map((token) => token.file) : [])))]
-  return useQueries({ queries: files.map(ruleSummariesQuery) }).every((answer) => !answer.isPending)
-}
+export const useRuleSummariesSettled = (texts: readonly string[]) => !useRuleSummaries(texts).pending
 
 /** Where each source file a token names lives upstream, which names the file a rules document is printed in. */
 const textSourcesQuery = () => referenceQuery(['text-sources'], () => textSources())

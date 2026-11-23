@@ -1,4 +1,5 @@
 import type { AttachmentClaim } from './attach'
+import type { StatedAllowance } from './battleChoices'
 import type { CombatFacts } from './combatReading'
 import type { ReminderSuggestion } from './reminders'
 import type { UnitGeneration } from './rosterGrades'
@@ -34,6 +35,9 @@ export type TextFacts = {
   /** The units the text adds to its army, and the movement it allows, as the roster grades read them. */
   unitGeneration?: UnitGeneration[]
   movementTools?: string[]
+  /** What the text allows a unit's battle choices, as a second Order, and the options it offers by their plural, as Orders. */
+  battleChoiceAllowances?: StatedAllowance[]
+  offeredOptions?: string[]
   /** Null where the words take no part in combat. */
   combat?: CombatFacts | null
 }
