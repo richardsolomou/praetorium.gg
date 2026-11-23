@@ -26,7 +26,7 @@ import {
   SECONDARIES_MAX,
   STRATAGEMS_MAX,
 } from '../core/battle'
-import { clockLimitMinutes } from '../core/commands'
+import { clockLimitMinutes, ruleIdSchema } from '../core/commands'
 import { abilityReminderSchema, rosterReminderSchema, ROSTER_REMINDERS_MAX } from '../core/reminders'
 import { scoringDraftSchema } from '../core/scoringDraft'
 import {
@@ -226,7 +226,7 @@ export const reportTableResultSchema = z.object({
 /** A layout to fix, `roll` to draw one of the table's layouts, or null to let the players choose. */
 export const setTableBattlefieldSchema = z.object({
   ...eventTable,
-  battlefield: z.union([z.object({ patternId: id, terrainLayoutId: id }), z.literal('roll'), z.null()]),
+  battlefield: z.union([z.object({ patternId: ruleIdSchema, terrainLayoutId: ruleIdSchema }), z.literal('roll'), z.null()]),
 })
 export const reopenSwissTableSchema = z.object({ ...sealedEvent, battleToken: token })
 export const openSealedEventSchema = z.object(sealedEvent)

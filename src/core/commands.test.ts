@@ -306,3 +306,15 @@ describe('the round a settlement names', () => {
     expect(commandSchema.safeParse({ kind: 'set-prep', ...prep }).success).toBe(true)
   })
 })
+
+it('accepts the longest VS Data layout and Stratagem IDs a battle records', () => {
+  expect([
+    commandSchema.safeParse({
+      kind: 'set-battlefield',
+      patternId: 'chapter-approved-2026-2027.tipping-point',
+      terrainLayoutId: 'chapter-approved-2026-2027.priority-assets-priority-assets-layout-a',
+    }).success,
+    commandSchema.safeParse({ kind: 'use-stratagem', key: 'adeptus-custodes.shield-captain-in-allarus-terminator-armour.teleport-strike' })
+      .success,
+  ]).toEqual([true, true])
+})
