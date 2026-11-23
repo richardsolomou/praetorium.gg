@@ -1,7 +1,7 @@
 import { useQueries, useQuery } from '@tanstack/react-query'
 import type { RuleSummaries, RuleSummary } from '../contracts/rules'
 import { TEXT_HOMES_MAX } from '../contracts/schemas'
-import { summaryNamedBy, tokensAtHome, wholeRuleTokens } from '../shared/ruleSummaries'
+import { abilityKeysNamed, summaryNamedBy, tokensAtHome, wholeRuleTokens } from '../shared/ruleSummaries'
 import { ruleAbilitySummariesQuery, ruleSummariesQuery, textHomesQuery } from './queries/references'
 import { textSources } from './functions'
 import { referenceQuery } from './queries/shared'
@@ -75,10 +75,9 @@ export function useAbilitySummary(ability: { key: string } | { name: string } | 
   if (!ability) return null
   if (!data) return isPending ? undefined : null
   if ('key' in ability) return data[ability.key] ?? null
-  const slug = ability.name
-    .normalize('NFKC')
-    .toLowerCase()
-    .replaceAll(/[^a-z0-9]+/g, '-')
-    .replaceAll(/^-|-$/g, '')
-  return data[`weapon-ability:${slug}`] ?? data[`core-ability:${slug}`] ?? null
+  return (
+    abilityKeysNamed(ability.name)
+      .map((key) => data[key])
+      .find(Boolean) ?? null
+  )
 }

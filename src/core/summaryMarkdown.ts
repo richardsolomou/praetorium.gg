@@ -83,7 +83,8 @@ function links(text: string): SummaryInline[] {
 
 /**
  * An ability's name or VS Data id reduced to what both say alike: a datasheet's "Damaged: 1-5 Wounds Remaining" or
- * "[Psychic Abilities] - Smite", and an id with "-aura" or "-once-per-battle" its datasheet does not print.
+ * "[Psychic Abilities] - Smite", and an id with "-aura", "-psyker-level-3" or "-once-per-battle" its datasheet prints in
+ * brackets or not at all.
  */
 export function unitAbilitySlug(name: string) {
   return name
@@ -97,6 +98,6 @@ export function unitAbilitySlug(name: string) {
     .replaceAll(/['’]/g, '')
     .replaceAll(/[^a-z0-9]+/g, '-')
     .replaceAll(/^-|-$/g, '')
-    .replace(/-(?:aura|psychic(?:-level-\d+)?|once-per-.*)$/, '')
+    .replace(/-(?:aura|psychic(?:-level-\d+)?|psyker-level-\d+|once-per-.*)$/, '')
     .replace(/^damaged-.*$/, 'damaged')
 }

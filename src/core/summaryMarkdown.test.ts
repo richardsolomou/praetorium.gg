@@ -66,6 +66,17 @@ it('reads an ability name and its VS Data id alike', () => {
       'My Will Be Done',
       'guardian-protocols-aura',
       'miraculous-saviour-once-per-battle-per-army',
+      'Chief Librarian (Psyker level 3)',
+      'chief-librarian-psyker-level-3',
     ].map(unitAbilitySlug),
-  ).toEqual(['damaged', 'smite', 'lords-will', 'my-will-be-done', 'guardian-protocols', 'miraculous-saviour'])
+  ).toEqual([
+    'damaged',
+    'smite',
+    'lords-will',
+    'my-will-be-done',
+    'guardian-protocols',
+    'miraculous-saviour',
+    'chief-librarian',
+    'chief-librarian',
+  ])
 })
