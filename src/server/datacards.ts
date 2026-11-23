@@ -76,7 +76,12 @@ function recording(
  * words plays it as the server would: a lone token's facts gain it, and a rule of several, such as a stratagem's
  * sections, is recorded under all its tokens. Each reads its words only when asked, as the reading covers every placement.
  */
-function recordCombat(descriptions: Iterable<string>, facts: Map<string, TextFacts>, words: ReadonlyMap<string, string>) {
+function recordCombat(
+  descriptions: Iterable<string>,
+  facts: Map<string, TextFacts>,
+  words: ReadonlyMap<string, string>,
+  stratagems: ReadonlySet<string>,
+) {
   for (const text of descriptions) {
     const tokens = textTokensIn(text)
     if (!tokens.length || tokens.some((token) => !words.has(textKey(token)))) continue
@@ -93,7 +98,7 @@ function recordCombat(descriptions: Iterable<string>, facts: Map<string, TextFac
       key,
       Object.defineProperty({ ...found }, 'combat', {
         enumerable: true,
-        get: () => (combat === undefined ? (combat = combatFactsOf(said)) : combat),
+        get: () => (combat === undefined ? (combat = combatFactsOf(said, stratagems.has(text))) : combat),
       }),
     )
   }
@@ -257,14 +262,19 @@ export function* loadDatacardsSteps(
     textFacts,
     textReadings,
   }
+  const stratagemTexts = [
+    ...coreStratagems,
+    ...descriptionsIn([loaded.stratagems, [...factions.values()].map((content) => content.stratagems)]),
+  ]
   recordCombat(
     [
-      ...coreStratagems,
+      ...stratagemTexts,
       ...[...enhancements.values(), ...armyRules.values()].flatMap((texts) => [...texts.values()]),
-      ...descriptionsIn([loaded.factions, loaded.detachmentRules, loaded.stratagems]),
+      ...descriptionsIn([loaded.factions, loaded.detachmentRules]),
     ],
     textFacts,
     textWords,
+    new Set(stratagemTexts),
   )
   return loaded
 }

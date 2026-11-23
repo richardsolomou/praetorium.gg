@@ -9,6 +9,7 @@ import {
   combatRuleRoles,
   namesOptions,
 } from './combatRules'
+import { RecentlyUsed, remember } from './collections'
 import { type AnsweredRule, compileCombatRule, normalizeCombatText, type RuleQuestion, ruleAnswers } from './combatRuleCompiler'
 
 /**
@@ -68,11 +69,19 @@ export function combatReadingOf(rule: AnsweredRule): CombatReading {
   }
 }
 
+// Every rules version prints most texts alike, so each is read once however many versions hold it.
+const readTexts = new RecentlyUsed<string, CombatFacts | null>(32_768)
+
 /**
- * A text's combat facts, or null for words that take no part in combat wherever they are placed. Without `phased`,
- * a stratagem's placements are left out, which take part only once given phases: enough to compare two texts' readings.
+ * A text's combat facts, or null for words that take no part in combat wherever they are placed. A stratagem's placement
+ * takes part only once given phases, which only a text a stratagem prints needs (`phased`): reading a placement for
+ * each set of phases is most of the cost of reading a text.
  */
-export function combatFactsOf(words: string, phased = true): CombatFacts | null {
+export function combatFactsOf(words: string, phased = false): CombatFacts | null {
+  return remember(readTexts, `${phased ? 'phased' : 'plain'}:${words}`, () => readCombatFacts(words, phased))
+}
+
+function readCombatFacts(words: string, phased: boolean): CombatFacts | null {
   const judging = combatJudgingOf(words)
   const leaves: CombatReading[] = []
   const leafAt = new Map<string, number>()

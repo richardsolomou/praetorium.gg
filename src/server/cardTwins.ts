@@ -51,11 +51,9 @@ export function cardTwins(loaded: LoadedCatalogue): Map<string, CardTwin> {
   })
   const facts = (key: string) => loaded.definitions?.fact(key)
   const stated = (own: string) => textFactsOf(loaded.definitions?.words(own) ?? '')
-  // Combat facts are read only for texts that share a card text, and without a stratagem's phases: reading them is the slow part.
+  // Combat facts are read only for texts that share a card text: reading them is the slow part.
   const reading = (key: string, own: string) =>
-    remember(readings, key, () =>
-      hash('sha256', JSON.stringify([ruled(facts(key)), combatFactsOf(loaded.definitions?.words(own) ?? '', false)])),
-    )
+    remember(readings, key, () => hash('sha256', JSON.stringify([ruled(facts(key)), combatFactsOf(loaded.definitions?.words(own) ?? '')])))
   return new Map(
     [...groupBy(sole, (twin) => twin.card).values()].flatMap((group) => {
       // Where catalogue texts sharing a card text read differently, the wording most datasheets print takes it.

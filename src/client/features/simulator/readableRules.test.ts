@@ -29,7 +29,7 @@ describe('rules the simulator can compile on this device', () => {
 
   it('keeps a rule named by a token whose reading the server recorded', () => {
     const placed = rule(tokenFor(words))
-    const recorded = { ...placed, reading: combatReadingFor(combatFactsOf(words), placed)! }
+    const recorded = { ...placed, reading: combatReadingFor(combatFactsOf(words, true), placed)! }
     expect(recorded.reading?.roles).not.toEqual([])
     expect(readableRules([recorded])).toEqual([recorded])
   })
