@@ -1,7 +1,7 @@
 import { groupBy } from './collections'
 import { capitalised, plainQuotes } from './text'
 import { z } from 'zod'
-import { type Phase, type Stratagem, TURN_SCOPES, type TurnScope } from './battle'
+import { type Phase, type Stratagem, type StratagemWindow, TURN_SCOPES, type TurnScope } from './battle'
 import { routeSlug } from './slug'
 
 const REMINDER_MOMENTS = ['phase-start', 'phase-end', 'turn-start', 'turn-end', 'round-start', 'round-end'] as const
@@ -321,9 +321,13 @@ export const TURN_LABELS: Record<TurnScope, string> = {
  * When a stratagem can be used, as "Shooting, Fight phase · Your turn · Once per battle", or by each phase's own turn
  * as "Shooting phase, opponent’s turn or Fight phase, either turn · Once per phase".
  */
+/** The phases a Stratagem is used in, each with its own turn, such as "Shooting phase, opponent’s turn or Fight phase, either turn". */
+export const stratagemWindowsLabel = (windows: readonly StratagemWindow[]) =>
+  windows.map(({ phase, turn }) => `${phaseName(phase)} phase, ${TURN_LABELS[turn].toLocaleLowerCase()}`).join(' or ')
+
 export const stratagemTiming = (stratagem: Pick<Stratagem, 'phases' | 'turn' | 'limit' | 'windows'>) => [
   ...(stratagem.windows
-    ? [stratagem.windows.map(({ phase, turn }) => `${phaseName(phase)} phase, ${TURN_LABELS[turn].toLocaleLowerCase()}`).join(' or ')]
+    ? [stratagemWindowsLabel(stratagem.windows)]
     : [
         stratagem.phases?.length ? `${stratagem.phases.map(phaseName).join(', ')} phase` : 'Any phase',
         TURN_LABELS[stratagem.turn ?? 'either'],

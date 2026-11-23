@@ -266,6 +266,25 @@ it('times a Stratagem by the turn each of its phases is in', () => {
   ])
 })
 
+it('shows a Stratagem’s turn for each of its phases on its detachment’s reference', () => {
+  release({
+    stratagems: [
+      {
+        ...reapers,
+        phases: ['shooting', 'fight'],
+        windows: [
+          { phase: 'shooting', turn: 'opponent' },
+          { phase: 'fight', turn: 'any' },
+        ],
+      },
+    ],
+  })
+  expect(rules().detachmentDetails.get('death-guard')?.get('flyblown-host')?.stratagems[0]?.windows).toEqual([
+    { phase: 'shooting', turn: 'opponent-turn' },
+    { phase: 'fight', turn: 'either' },
+  ])
+})
+
 it('recognizes a detachment whose slug contains an accented name', () => {
   write(path.join(directory, 'datacards', '11th', 'gdc', 'votann.json'), {
     name: 'Leagues of Votann',

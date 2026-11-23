@@ -1,3 +1,4 @@
+import { stratagemWindowsLabel } from '../core/reminders'
 import { hash } from 'node:crypto'
 import { currentMissionId } from '../core/legacyIds'
 import { awardsOnce } from '../core/scoring'
@@ -626,8 +627,7 @@ function detachmentDocument(
           [
             `${stratagem.cp} CP`,
             stratagem.type,
-            stratagem.phases.join(', '),
-            stratagem.turn,
+            ...(stratagem.windows ? [stratagemWindowsLabel(stratagem.windows)] : [stratagem.phases.join(', '), stratagem.turn]),
             stratagem.description ?? 'Description unavailable.',
           ],
           stratagem.id,

@@ -1,3 +1,4 @@
+import type { StratagemWindow } from '../core/battlePhases'
 import type { Attachment, AttachmentLimits } from '../core/attach'
 import type { UnitGroup } from '../core/unitGroups'
 import type { Datasheet, StructuredDatasheetProfile } from '../core/datasheet'
@@ -93,6 +94,8 @@ export type CanonicalDetachment = {
     type: string | null
     phases: string[]
     turn: string | null
+    /** Each phase with its own turn, where they differ; then it decides over `phases` and `turn`. */
+    windows?: StratagemWindow[]
     description: string | null
   }[]
   keywordRules: { name: string; description: string }[]

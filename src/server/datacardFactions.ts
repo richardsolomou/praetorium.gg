@@ -88,6 +88,7 @@ export function factionsFromDatacards(datacards: LoadedDatacards, iconDirectory:
             type: card.type,
             phases: card.phases ?? [],
             turn: card.turn ?? null,
+            ...(card.windows ? { windows: card.windows } : {}),
             description: card.description,
           }))
           .sort((a, b) => compareText(a.name, b.name)),

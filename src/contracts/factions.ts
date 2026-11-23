@@ -1,3 +1,4 @@
+import type { StratagemWindow } from '../core/battlePhases'
 export type EnhancementEligibility = { anyOf: string[][]; excluded: string[]; requiredAbilities?: string[]; requiredWargear?: string[] }
 
 export type DetachmentReference = {
@@ -23,6 +24,8 @@ export type DetachmentRulesDetail = {
     type: string | null
     phases: string[]
     turn: string | null
+    /** Each phase with its own turn, where they differ; then it decides over `phases` and `turn`. */
+    windows?: StratagemWindow[]
     description: string | null
   }[]
 }
