@@ -370,7 +370,7 @@ test('public reference data renders without client JavaScript', async ({ browser
 
   await page.goto('/missions/chapter-approved-2026-2027/matchups/disruption/take-and-hold')
   const deathTrap = page.getByRole('heading', { name: 'Death Trap', exact: true }).locator('..')
-  // The payouts are facts the page publishes; what each asks for is rules text, which loads only in a browser that asks for it.
+  // The payouts are facts the page publishes; what each asks for is a summary the browser loads.
   await expect(deathTrap).toContainText('2 VP')
   await expect(deathTrap).not.toContainText('For each terrain area trapped this turn.')
   const missionId = await deathTrap.getAttribute('id')
@@ -526,6 +526,15 @@ test('a rule is read by the number the source prints against it', async ({ brows
 test('a detachment enhancement only BSData prints shows its summary', async ({ page }) => {
   await page.goto('/factions/chaos-space-marines/detachments/deceptors')
   await expect(page.locator('#enhancement-shroud-of-obfuscation [data-rule-summary]')).toHaveText(/\S/)
+})
+
+test('a mission card shows what each of its awards asks for', async ({ page }) => {
+  await page.goto('/missions/chapter-approved-2026-2027/secondaries/assassination')
+  await page.waitForLoadState('networkidle')
+  const summaries = page.getByRole('main').locator('[data-rule-summary]')
+  await expect(summaries.first()).toHaveText(/\S/)
+  expect(await summaries.count()).toBeGreaterThan(1)
+  await page.screenshot({ path: test.info().outputPath('mission-card-awards.png'), fullPage: true })
 })
 
 test('the faction page shows its army rule in full when expanded', async ({ page }) => {
