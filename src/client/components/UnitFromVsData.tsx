@@ -73,8 +73,18 @@ const listed = (items: readonly string[], last = 'or') =>
   items.length < 2 ? (items[0] ?? '') : `${items.slice(0, -1).join(', ')} ${last} ${items.at(-1)}`
 const counted = (items: readonly (readonly [string, number])[]) => items.map(([name, count]) => (count === 1 ? name : `${count} × ${name}`))
 
-/** Each model line of a unit, as "5–10 Immortal". */
-export const unitComposition = (unit: VsDataUnit) => unit.models.map((model) => `${range(model.min, model.max)} ${model.name}`)
+/** A model's name for more than one of it, as a datasheet writes "5–10 Immortals" or "2 Canoptek Wraiths". */
+export function pluralModel(name: string) {
+  const [, head = '', last = ''] = /^(.*?)(\S+)$/.exec(name) ?? []
+  if (/(?:man)$/i.test(last)) return `${head}${last.slice(0, -2)}en`
+  if (/[^aeiou]y$/i.test(last)) return `${head}${last.slice(0, -1)}ies`
+  if (/(?:s|x|z|ch|sh)$/i.test(last)) return `${head}${last}es`
+  return `${name}s`
+}
+
+/** Each model line of a unit, as "5–10 Immortals" or "1 Overlord". */
+export const unitComposition = (unit: VsDataUnit) =>
+  unit.models.map((model) => `${range(model.min, model.max)} ${model.max === 1 ? model.name : pluralModel(model.name)}`)
 
 /** What each model carries before any option is taken. */
 export const unitLoadout = (unit: VsDataUnit) =>
