@@ -220,6 +220,7 @@ export function Loadout({
                     model={model}
                     models={unit.models}
                     unitOptions={unitOptions}
+                    unitModels={unit.size.models}
                     choices={unit.choices}
                     stands={models.get(model) ?? null}
                     onChoose={onChoose}

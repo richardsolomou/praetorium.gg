@@ -48,6 +48,7 @@ export function ModelCard({
   abilities,
   rules,
   unitOptions,
+  unitModels,
   models,
   onChoose,
   onSpread,
@@ -67,6 +68,8 @@ export function ModelCard({
   rules: Datasheet['keywordRules']
   /** The unit's wargear options as VS Data writes them, whose wording each row they offer shows above it. */
   unitOptions?: VsDataUnit['options']
+  /** How many models the unit holds, which an option's caps per so many models are read at. */
+  unitModels?: number
   models?: readonly LoadoutModel[]
   onChoose: (key: string, optionId: string) => void
   onSpread: (key: string, update: SpreadUpdate) => void
@@ -199,7 +202,7 @@ export function ModelCard({
             }
           }
           const instructions = showOptions
-            ? loadoutInstructions({ ...row, pieces }, model, models ?? [model], unitOptions ?? [])
+            ? loadoutInstructions({ ...row, pieces }, model, models ?? [model], unitOptions ?? [], { choices, models: unitModels ?? count })
                 .map(unitOption)
                 .filter((instruction) => {
                   if (statedInstructions.has(blocksText(instruction))) return false

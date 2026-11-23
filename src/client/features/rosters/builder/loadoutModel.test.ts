@@ -134,32 +134,65 @@ it('shows an equipped enhancement weapon outside the model loadout without repea
 })
 
 describe('loadout instructions', () => {
-  const trooper: LoadoutModel = { name: 'Trooper', fixed: [], members: [], rows: [] }
+  const carried = ['Rifle', 'Blade', 'Cannon', 'Plasma gun', 'Meltagun', 'Icon'].map((name) => ({ name }))
+  const trooper: LoadoutModel = { name: 'Trooper', fixed: carried, members: [], rows: [] }
+  const unit = { choices: [], models: 5 }
   const leader: LoadoutModel = { ...trooper, name: 'Leader' }
   const offer = (choices: string[], carrier?: string) => ({ choose: { min: 0, max: 1 }, choices, ...(carrier ? { carrier } : {}) })
 
   it('uses the option for the complete pair rather than another sharing its blade', () => {
     const pair = offer(['Rifle and Blade'])
     expect(
-      loadoutInstructions({ name: 'Rifle and Blade', pieces: ['Rifle', 'Blade'] }, trooper, [trooper], [pair, offer(['Cannon and Blade'])]),
+      loadoutInstructions(
+        { name: 'Rifle and Blade', pieces: ['Rifle', 'Blade'] },
+        trooper,
+        [trooper],
+        [pair, offer(['Cannon and Blade'])],
+        unit,
+      ),
     ).toEqual([pair])
   })
 
   it('keeps a leader option off the same weapon offered to ordinary troops', () => {
     const troops = offer(['Plasma gun', 'Meltagun'], 'Trooper')
-    expect(loadoutInstructions({ name: 'Plasma gun' }, trooper, [trooper, leader], [offer(['Plasma gun'], 'Leader'), troops])).toEqual([
-      troops,
-    ])
+    expect(
+      loadoutInstructions({ name: 'Plasma gun' }, trooper, [trooper, leader], [offer(['Plasma gun'], 'Leader'), troops], unit),
+    ).toEqual([troops])
   })
 
   it('shows a leader option on the leader', () => {
     const own = offer(['Plasma gun'], 'Leader')
-    expect(loadoutInstructions({ name: 'Plasma gun' }, leader, [trooper, leader], [own, offer(['Plasma gun'], 'Trooper')])).toEqual([own])
+    expect(loadoutInstructions({ name: 'Plasma gun' }, leader, [trooper, leader], [own, offer(['Plasma gun'], 'Trooper')], unit)).toEqual([
+      own,
+    ])
   })
 
   it('matches a wargear ability with a source suffix', () => {
     const icon = offer(['Icon (Aura)'])
-    expect(loadoutInstructions({ name: 'Rifle and Icon', pieces: ['Rifle', 'Icon'] }, trooper, [trooper], [icon])).toEqual([icon])
+    expect(loadoutInstructions({ name: 'Rifle and Icon', pieces: ['Rifle', 'Icon'] }, trooper, [trooper], [icon], unit)).toEqual([icon])
+  })
+
+  it('hides an option offering a piece no stepper of the unit offers', () => {
+    expect(loadoutInstructions({ name: 'Plasma gun' }, trooper, [trooper], [offer(['Plasma gun', 'Lascannon'])], unit)).toEqual([])
+  })
+
+  it('hides an option replacing a piece the model does not carry', () => {
+    expect(
+      loadoutInstructions({ name: 'Plasma gun' }, trooper, [trooper], [{ ...offer(['Plasma gun']), replaces: [['Bolter', 1]] }], unit),
+    ).toEqual([])
+  })
+
+  it('hides an option whose cap its steppers cannot reach', () => {
+    const gun = option('plasma', 0, 1)
+    const row = { name: 'Plasma gun', choiceKey: 'weapons', optionId: 'plasma' }
+    const armed: LoadoutModel = { ...trooper, rows: [row] }
+    const capped = { ...offer(['Plasma gun']), caps: [{ choices: ['Plasma gun'], max: 1, perModels: 5 }] }
+    expect(
+      loadoutInstructions(row, armed, [armed], [capped], {
+        choices: [{ ...choice([{ ...gun, name: 'Plasma gun' }], 2), key: 'weapons' }],
+        models: 10,
+      }),
+    ).toEqual([])
   })
 })
 
