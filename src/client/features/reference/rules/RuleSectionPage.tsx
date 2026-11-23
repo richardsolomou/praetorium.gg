@@ -123,7 +123,7 @@ function Rule({
       </div>
       {summary ? <RuleSummaryText summary={summary} className="mt-3" /> : null}
       {summary && !missing ? <p className="eyebrow mt-4">Rules text</p> : null}
-      {missing && !summary ? <SourceTextPrompt missing={missing} source="game-datacards" className="mt-2" /> : null}
+      {missing ? <SourceTextPrompt missing={missing} source="game-datacards" className="mt-2" /> : null}
       {entry.lore ? <p className="mt-2 font-rules text-sm text-faint italic">{entry.lore}</p> : null}
       {entry.facts.length ? (
         <dl className="mt-3 space-y-2 border-t border-edge pt-3">

@@ -121,7 +121,7 @@ export function RuleText({
 
 /**
  * Published text names its source rather than stating it, so it is read from that source before it is drawn.
- * A rule VS Data summarizes shows the summary to everyone, and the source's words beneath once loaded.
+ * A rule VS Data summarizes shows the summary to everyone, and beneath it the source's words, or the way to load them.
  */
 function SourcedRuleText({ text, rules, className, cite }: { text: string; rules: KeywordRule[]; className?: string; cite: boolean }) {
   const source = useSourceText(text)
@@ -130,7 +130,12 @@ function SourcedRuleText({ text, rules, className, cite }: { text: string; rules
     return (
       <>
         <RuleSummaryText summary={summary} className={className} />
-        {source.missing ? null : (
+        {source.missing ? (
+          // A summary is not the rule's wording, so the way to load the wording stays beside it.
+          source.missing === 'unavailable' ? null : (
+            <SourceTextPrompt missing={source.missing} source={source.needs} className={cn('mt-2', className)} />
+          )
+        ) : (
           <>
             <p className="eyebrow mt-3">Rules text</p>
             <RuleTextBody text={source.text} rules={rules} className={cn('mt-1', className)} cite={cite} />

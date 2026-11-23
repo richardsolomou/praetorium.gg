@@ -1091,7 +1091,7 @@ test('a player can enter through the roster library and browse the product', asy
   await page.setViewportSize(PHONE)
   await page.screenshot({ path: test.info().outputPath('detachment-phone.png'), fullPage: true })
   await page.setViewportSize({ width: 1280, height: 720 })
-  await page.getByRole('link', { name: 'Necrons' }).click()
+  await page.getByRole('link', { name: 'Necrons', exact: true }).click()
   await page.getByRole('link', { name: /Datasheets/ }).click()
   await expect(page).toHaveURL(/\/datasheets$/)
   await expect(page.getByLabel('Find a datasheet')).toBeVisible()
