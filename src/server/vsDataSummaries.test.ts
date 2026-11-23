@@ -23,7 +23,11 @@ const record = (summary: string) => ({
 const codex = composition.editions.find((entry) => entry.edition.id === 'custodes-11e')!
 
 /** A snapshot of the base rules and the Custodes codex, each printing the stratagem, with a release per summary given. */
-function snapshot(releases: { update: string; summary: string }[], others: Parameters<typeof vsDataReleaseFiles>[0] = []) {
+function snapshot(
+  releases: { update: string; summary: string }[],
+  others: Parameters<typeof vsDataReleaseFiles>[0] = [],
+  cards: [string, unknown][] = [],
+) {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'vs-data-summaries-'))
   directories.push(directory)
   const base = composition.editions.filter((entry) => 'base' in entry && entry.base)
@@ -31,6 +35,7 @@ function snapshot(releases: { update: string; summary: string }[], others: Param
     ['composition.json', JSON.stringify({ ...composition, editions: [...base, codex] })],
     ['datacards/11th/gdc/necrons.json', JSON.stringify({ id: 'necrons', stratagems: [stratagem] })],
     ['editions/custodes-11e/datacards/11th/gdc/necrons.json', JSON.stringify({ id: 'necrons', stratagems: [stratagem] })],
+    ...cards.map(([file, card]): [string, string] => [`datacards/11th/gdc/${file}`, JSON.stringify(card)]),
   ])
   fs.mkdirSync(path.join(directory, 'summaries'))
   releases.forEach(({ update, summary }, at) => {
@@ -45,8 +50,9 @@ function snapshot(releases: { update: string; summary: string }[], others: Param
   withholdCopiedSummaries(directory)
   const summaries = completeSteps(vsDataSummariesSteps(directory, []))
   const files = textSourcePaths(directory, readCatalogueComposition(directory))
-  const file = (edition: boolean) => textFileId(files.find(({ path: at }) => at.includes('/editions/') === edition)!.url)
-  return { summaries, base: file(false), custodes: file(true) }
+  const file = (edition: boolean, name = 'necrons.json') =>
+    textFileId(files.find(({ path: at }) => at.includes('/editions/') === edition && at.endsWith(`/${name}`))!.url)
+  return { summaries, base: file(false), custodes: file(true), card: (name: string) => file(false, name) }
 }
 
 afterEach(() => {
@@ -111,4 +117,30 @@ it('serves a Markdown summary as its paragraphs and lists, its links landing on 
       ],
     },
   ])
+})
+
+it('reads a core rule clarification printed in an FAQ’s own words as that FAQ', () => {
+  const ruling = 'Measure to the closest point of the base.'
+  const faq = { kind: 'faq', id: 'core-rules.errata.drawing-a-line', aliases: ['gdc.faq.72526908.2ec3.4aba.be92.5988e42686e5'] }
+  const { summaries, card } = snapshot(
+    [{ update: 'MFM 1.6', summary: 'Pick one of your units to hit more often.' }],
+    [{ ...faq, summary: 'Lines run between the nearest edges of the bases.' }],
+    [
+      ['faqs.json', { faqs: [{ id: '72526908-2ec3-4aba-be92-5988e42686e5', errataText: ruling }] }],
+      [
+        'core/core_rules.json',
+        {
+          cardType: 'coreRules',
+          sections: [
+            {
+              containers: [
+                { id: 'rule', components: [{ type: 'accordion', title: { en: '01.04.06 - Drawing a Line' }, text: { en: ruling } }] },
+              ],
+            },
+          ],
+        },
+      ],
+    ],
+  )
+  expect(summaries!.summariesIn(card('core_rules.json')).entries['rule#01.04.06']).toBe('faq:core-rules.errata.drawing-a-line')
 })

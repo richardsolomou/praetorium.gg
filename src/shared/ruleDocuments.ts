@@ -2,6 +2,7 @@ import { routeSlug } from '../core/slug'
 import { capitalised } from '../core/text'
 import type { RuleBlock, RuleDocument, RuleEntry, RuleFact, RuleSection, RuleTextSource } from '../contracts/rules'
 import { english } from './datacards'
+import { clarificationTitle } from './vsData'
 
 /** Read every declared core rules document from the source and use only its printed rule numbers; omit the printed rulebook’s photography. */
 const RULES_CARD_TYPE = 'coreRules'
@@ -146,8 +147,8 @@ function readBlock(component: Record<string, unknown>): RuleBlock[] {
       const title = english(component.title)
       if (!title || !text) return []
       // A clarification is titled with its own number, one level below the entry's.
-      const [, code, name] = /^(\d+(?:\.\d+)+)\s*[-–—]\s*(.+)$/.exec(title) ?? []
-      return [{ kind: 'clarification', code: code ?? null, anchor: code ?? null, title: name ?? title, markup: text }]
+      const { code, name } = clarificationTitle(title)
+      return [{ kind: 'clarification', code, anchor: code, title: name, markup: text }]
     }
     default:
       return []
