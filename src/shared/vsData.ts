@@ -27,12 +27,15 @@ const stratagemPhaseSchema = z.enum([...phaseSchema.options, 'end-of-turn'])
 /**
  * A Stratagem's typed facts as the snapshot keeps them: its record's CP, phases, turn and type, the windows that pair a
  * phase with its own turn where its phases' turns differ, the limit its facts type, and the Detachment it belongs to
- * by name, or null for a core Stratagem.
+ * by name and entry, or null for a core Stratagem.
  */
 export const vsDataStratagemSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
   detachment: z.string().min(1).nullable(),
+  /** The Detachment entry it references, and the other entries VS Data says that Detachment is. */
+  detachmentId: z.string().min(1).nullable().default(null),
+  detachmentAliases: z.array(z.string()).default([]),
   cp: z.number().int().min(0),
   phases: z.array(stratagemPhaseSchema).min(1),
   turn: turnSchema,

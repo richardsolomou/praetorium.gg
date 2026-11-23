@@ -50,7 +50,6 @@ const recordSchema = refSchema.extend({
       .optional(),
     interpretation: z.array(z.object({ question: z.string() })).optional(),
     ruleType: z.string().optional(),
-    group: z.string().optional(),
     detachment: z.object({ id: z.string() }).optional(),
     cp: z.number().int().optional(),
     stratagem: z.unknown().optional(),
@@ -152,22 +151,22 @@ export function checkVsDataRelease(directory: string, editions: readonly { id: s
 /** A Stratagem record's typed facts, or none for any other record; the limit is read only from versioned facts. */
 function stratagemOf(
   { kind, id, data }: z.infer<typeof recordSchema>,
-  identity: readonly { kind: string; id: string; name?: string }[],
+  identity: readonly { kind: string; id: string; name?: string; aliases?: string[] }[],
 ): VsDataStratagem[] {
   const stratagem = typedStratagemSchema.safeParse(data.stratagem)
   if (kind !== 'ability' || !data.ruleType || !STRATAGEM_RULE_TYPES.has(data.ruleType) || data.cp === undefined || !stratagem.success)
     return []
   const name = identity.find((entry) => entry.kind === kind && entry.id === id)?.name
   const core = data.ruleType === 'core-stratagem'
-  // The card's own group wins: where a rules version has no entry for that Detachment, the reference names another.
-  const detachment = core
-    ? null
-    : (data.group ?? identity.find((entry) => entry.kind === 'detachment' && entry.id === data.detachment?.id)?.name ?? null)
+  const entry = core ? undefined : identity.find((candidate) => candidate.kind === 'detachment' && candidate.id === data.detachment?.id)
+  const detachment = core ? null : (entry?.name ?? null)
   const facts = factsSchema.safeParse(data.facts)
   const parsed = vsDataStratagemSchema.safeParse({
     id,
     name,
     detachment,
+    detachmentId: entry?.id ?? null,
+    detachmentAliases: entry?.aliases ?? [],
     cp: data.cp,
     phases: stratagem.data.phases,
     turn: stratagem.data.turn,

@@ -23,6 +23,8 @@ const reapers: VsDataStratagem = {
   id: 'death-guard.flyblown-host.grim-reapers',
   name: 'Grim Reapers',
   detachment: 'Flyblown Host',
+  detachmentId: 'death-guard.flyblown-host',
+  detachmentAliases: [],
   cp: 1,
   phases: ['fight'],
   turn: 'any',
@@ -33,6 +35,8 @@ const reroll: VsDataStratagem = {
   id: 'core.command-re-roll',
   name: 'Command Re-roll',
   detachment: null,
+  detachmentId: null,
+  detachmentAliases: [],
   cp: 1,
   phases: ['command', 'movement', 'shooting', 'charge', 'fight', 'end-of-turn'],
   turn: 'any',
@@ -264,6 +268,46 @@ it('times a Stratagem by the turn each of its phases is in', () => {
     { phase: 'shooting', turn: 'opponent-turn' },
     { phase: 'fight', turn: 'either' },
   ])
+})
+
+it('fills a retained Detachment from the base Detachment VS Data says it is, not its namesake', () => {
+  const card = (id: string, detachment: string, detachmentId: string, detachmentAliases: string[] = []): VsDataStratagem => ({
+    ...reapers,
+    id,
+    name: id,
+    detachment,
+    detachmentId,
+    detachmentAliases,
+  })
+  release({ stratagems: [reapers, card('death-guard.plague-host.tide', 'Plague Host', 'death-guard.plague-host'), reroll] })
+  const retained: VsDataSummariesFile = {
+    release: '0.1.0',
+    rulesVersion: { edition: '11th', update: 'Earlier' },
+    entries: {},
+    attributions: [],
+    stratagems: [card('death-guard.plague-host.miasma', 'Flyblown Host', 'death-guard.flyblown-host', ['death-guard.plague-host'])],
+    missionPacks: [],
+    missionActions: [],
+    units: {},
+    records: [],
+  }
+  write(path.join(directory, 'summaries', 'earlier.json'), retained)
+  write(path.join(directory, 'datacards', '11th', 'gdc', 'deathguard.json'), {
+    name: 'Death Guard',
+    datasheets: [],
+    detachments: [{ name: { en: 'Flyblown Host' }, detachmentPoints: 2, forceDisposition: { name: { en: 'Disruption' } } }],
+    stratagems: [
+      { id: 'grim-reapers', name: { en: 'Grim Reapers' }, detachment: 'Flyblown Host', effect: { en: 'Cut them down.' } },
+      { id: 'tide', name: { en: 'Tide' }, detachment: 'Plague Host', effect: { en: 'Rise.' } },
+    ],
+  })
+  const loaded = loadRules(directory, { rulesVersion: 'earlier' })!
+  expect(
+    loaded.byDetachment
+      .get('death-guard')
+      ?.get('flyblown-host')
+      ?.map((stratagem) => stratagem.key),
+  ).toEqual(['death-guard.plague-host.miasma', 'death-guard.plague-host.tide'])
 })
 
 it('shows a Stratagem’s turn for each of its phases on its detachment’s reference', () => {

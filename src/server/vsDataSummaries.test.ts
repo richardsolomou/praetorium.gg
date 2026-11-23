@@ -8,7 +8,8 @@ import { readCatalogueComposition } from './catalogueComposition'
 import { textFileId, textHash, textSourcePaths } from './sourceTexts'
 import { vsDataReleaseFiles, writeFiles } from './vsData.fixtures'
 import { checkVsDataRelease, compactVsDataRelease } from './vsDataRelease'
-import { vsDataSummariesSteps, withholdCopiedSummaries } from './vsDataSummaries'
+import { MISSION_SUMMARIES } from '../contracts/rules'
+import { NO_RULE_SUMMARIES, summariesOfFile, type VsDataSummaries, vsDataSummariesSteps, withholdCopiedSummaries } from './vsDataSummaries'
 
 const effect = 'Until the end of the phase, each time a model in your unit makes an attack, add 1 to the Hit roll.'
 const stratagem = { id: 'f06fa0ef-917a-57c2-955d-325a082d942c', when: { en: 'Your Shooting phase.' }, effect: { en: effect } }
@@ -177,4 +178,12 @@ it('serves a linked bracketed weapon ability as that ability, bold with its brac
       ],
     },
   ])
+})
+
+it('serves the mission pack’s summaries, which no source file holds', () => {
+  const missions = { records: { 'mission-award:pack.card.o1-s1': { blocks: [], questions: [] } }, texts: {}, entries: {} }
+  const summaries = {
+    summariesIn: (file: string) => (file === MISSION_SUMMARIES ? missions : NO_RULE_SUMMARIES),
+  } as unknown as VsDataSummaries
+  expect(summariesOfFile(MISSION_SUMMARIES, {}, summaries)).toBe(missions)
 })

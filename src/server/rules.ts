@@ -62,7 +62,14 @@ export function* loadRulesSteps(
       cards.flatMap((list, at) => (at ? list.filter((card) => describe(card.key)) : list)),
       (card) => card.key,
     )
-  const inDetachment = (name: string) => printed(pools.map((pool) => pool.inDetachment(name)))
+  // A retained Detachment fills in from its namesake in the base release, or, where VS Data says its entry is another
+  // base entry, as a rules version printing a Detachment under an older name does, from that entry's cards instead.
+  const inDetachment = (name: string) => {
+    const [own, base] = pools as [(typeof pools)[number], (typeof pools)[number] | undefined]
+    if (!base) return own.inDetachment(name)
+    const others = own.entriesNamed(name).flatMap(({ aliases }) => aliases.filter((alias) => base.hasEntry(alias)))
+    return printed([own.inDetachment(name), others.length ? base.inEntries(others) : base.inDetachment(name)])
+  }
   const core = printed(pools.map((pool) => pool.core))
   const factions = factionsFromDatacards(datacards, iconDirectory, (name) =>
     inDetachment(name).map((card) => ({ ...card, description: describe(card.key) })),
