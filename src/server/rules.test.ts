@@ -270,7 +270,7 @@ it('times a Stratagem by the turn each of its phases is in', () => {
   ])
 })
 
-it('fills a retained Detachment from the base Detachment VS Data says it is, not its namesake', () => {
+it('fills no retained Detachment VS Data says is another base entry from its namesake', () => {
   const card = (id: string, detachment: string, detachmentId: string, detachmentAliases: string[] = []): VsDataStratagem => ({
     ...reapers,
     id,
@@ -307,7 +307,7 @@ it('fills a retained Detachment from the base Detachment VS Data says it is, not
       .get('death-guard')
       ?.get('flyblown-host')
       ?.map((stratagem) => stratagem.key),
-  ).toEqual(['death-guard.plague-host.miasma', 'death-guard.plague-host.tide'])
+  ).toEqual(['death-guard.plague-host.miasma'])
 })
 
 it('shows a Stratagem’s turn for each of its phases on its detachment’s reference', () => {
