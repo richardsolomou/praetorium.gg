@@ -90,8 +90,10 @@ export const missionAwardSchema = z.object({
   per: z.string().max(200).nullable(),
   mode: z.string().max(40).nullable(),
   max: z.number().int().min(0).max(100).nullable(),
-  group: z.string().max(100).nullable(),
-  cumulative: z.boolean(),
+  group: z.string().max(200).nullable(),
+  /** The VS Data award whose summary says what it asks for. */
+  id: z.string().max(200).optional(),
+  /** What a Game Datacards card asked for, as a token. */
   criteria: z.string().max(2_000).nullable(),
   trigger: z.object({
     timing: z.string().max(80).nullable(),

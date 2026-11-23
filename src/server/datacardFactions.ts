@@ -7,9 +7,13 @@ import { constructionDetachment, datacardsFactionKeys, type LoadedDatacards } fr
 import { SUPPLEMENTAL_FACTION_ICONS } from './factionIconSources'
 import { joinKey } from '../core/text'
 import type { DetachmentReference, DetachmentRulesDetail, LoadedFactions } from './rulesFactions'
+import type { VsStratagemCard } from './vsDataStratagems'
+
+/** A Detachment's Stratagems by its name, with each card's wording as tokens where Game Datacards prints it. */
+export type StratagemsIn = (detachment: string) => (VsStratagemCard & { description: string | null })[]
 import { isUpgrade, withoutUpgrade } from '../shared/mfm'
 
-export function factionsFromDatacards(datacards: LoadedDatacards, iconDirectory: string): LoadedFactions {
+export function factionsFromDatacards(datacards: LoadedDatacards, iconDirectory: string, stratagemsIn: StratagemsIn): LoadedFactions {
   const factionNames = new Map<string, string>()
   const factionIcons = new Map<string, string>()
   const factionRules = new Map<string, { name: string; description: string }>()
@@ -47,23 +51,10 @@ export function factionsFromDatacards(datacards: LoadedDatacards, iconDirectory:
       const sourceEnhancements = content.enhancements.get(joinKey(name)) ?? []
       const enhancements = sourceEnhancements.filter((card) => !isUpgrade(card.name))
       const upgrades = sourceEnhancements.filter((card) => isUpgrade(card.name))
-      const cards = content.stratagems.get(joinKey(name)) ?? []
+      const cards = stratagemsIn(name)
       stratagems.set(
         id,
-        cards.flatMap((card) =>
-          card.phases === null || card.turn === null
-            ? []
-            : [
-                {
-                  key: card.id,
-                  name: card.name,
-                  cp: card.cp,
-                  limit: card.limit,
-                  ...(card.phases.length ? { phases: card.phases } : {}),
-                  turn: card.turn,
-                },
-              ],
-        ),
+        cards.map(({ type: _type, description: _description, ...stratagem }) => stratagem),
       )
       references.set(id, {
         enhancements: enhancements.length,
@@ -91,12 +82,12 @@ export function factionsFromDatacards(datacards: LoadedDatacards, iconDirectory:
         })),
         stratagems: cards
           .map((card) => ({
-            id: card.id,
+            id: card.key,
             name: card.name,
             cp: card.cp,
             type: card.type,
             phases: card.phases ?? [],
-            turn: card.turn,
+            turn: card.turn ?? null,
             description: card.description,
           }))
           .sort((a, b) => compareText(a.name, b.name)),

@@ -87,7 +87,7 @@ export function shelfOf(...catalogues: Partial<Catalogue>[]): LoadedCatalogue {
     factions: new Map(),
     detachmentRules: new Map(),
     enhancements: new Map(),
-    stratagems: new Map(),
+    stratagemTexts: new Map(),
     armyRules: new Map(),
     constructionDetachments: new Map(),
   }
@@ -167,8 +167,7 @@ export const withCards = (name: string, cards: readonly string[] | ReadonlyMap<s
     datasheetDetails: details,
     detachments: new Set(),
     enhancements: new Map(),
-    stratagems: new Map(),
-    stratagemIssues: [],
+    stratagemTexts: new Map(),
     detachmentRules: new Map(),
     factionAbilityNames: new Set(),
     armyRules: [],

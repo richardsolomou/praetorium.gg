@@ -1,3 +1,4 @@
+import { sameMissionId } from '../../../../core/legacyIds'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
@@ -56,7 +57,7 @@ export function Prep({ view, side, send, pending }: Props) {
     return !request?.catalogueId || !request.detachmentNames.length || Boolean(result.data)
   })
   // The deck is the instance's, so it is read once here rather than once per army.
-  const primaryCard = primaryCards(references).find((card) => card.key === side.mission?.id)
+  const primaryCard = primaryCards(references).find((card) => sameMissionId(card.key, side.mission?.id))
   const deck = secondaryCards(references)
   /**
    * The cards that may be taken as fixed.
@@ -87,7 +88,7 @@ export function Prep({ view, side, send, pending }: Props) {
             ? []
             : (next.secondaries ?? chosen)
                 .slice(-FIXED_SECONDARIES)
-                .map((secondary) => deck.find((card) => card.key === secondary.key) ?? secondary)
+                .map((secondary) => deck.find((card) => sameMissionId(card.key, secondary.key)) ?? secondary)
                 .map(asSecondary),
         secondaryDeck: deck.map(asSecondary),
         primary,
@@ -238,9 +239,9 @@ export function Prep({ view, side, send, pending }: Props) {
           chosen={chosen}
           pending={pending}
           onToggle={(card) => {
-            const held = chosen.some((entry) => entry.key === card.key)
+            const held = chosen.some((entry) => sameMissionId(entry.key, card.key))
             const secondaries = held
-              ? chosen.filter((entry) => entry.key !== card.key)
+              ? chosen.filter((entry) => !sameMissionId(entry.key, card.key))
               : [...chosen, { key: card.key, name: card.name }].slice(-FIXED_SECONDARIES)
             save({ secondaries })
           }}
@@ -275,7 +276,7 @@ function SecondaryPicker({
     // so the hand reads by line form before any button does.
     <ul className="runner gap-1.5 [--gate-x:1.125rem] [--gate-y:1.3125rem]">
       {cards.map((card) => {
-        const held = chosen.some((entry) => entry.key === card.key)
+        const held = chosen.some((entry) => sameMissionId(entry.key, card.key))
         return (
           <li
             key={card.key}

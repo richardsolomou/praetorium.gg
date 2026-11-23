@@ -2,15 +2,8 @@ import { describe, expect, it } from 'vitest'
 import type { MissionAction } from '../contracts/missions'
 import { missionActionReminderStorageKey, missionActionReminders, missionActionRemindersEnabled } from './missionActionReminders'
 
-const action = (name: string): MissionAction => ({
-  name,
-  starts: 'Your Shooting phase.',
-  completes: 'At the end of your turn.',
-  effect: null,
-  units: 'One unit from your army.',
-  useLimit: null,
-  restriction: null,
-})
+const action = (name: string): MissionAction => ({ id: name.toLowerCase(), name })
+const summaryOf = (id: string) => (id === 'raise the banner' ? 'Raise a banner on an objective.' : null)
 
 const references = new Map([
   ['primary', { key: 'primary', name: 'Primary', actions: [action('Raise the Banner')] }],
@@ -39,6 +32,7 @@ describe('mission action reminders', () => {
           ],
         },
         (key) => references.get(key),
+        summaryOf,
       ),
     ).toEqual([
       expect.objectContaining({ key: 'mission-action:primary:0', ability: 'Primary: Raise the Banner' }),
@@ -49,22 +43,29 @@ describe('mission action reminders', () => {
 
   it('uses a shooting-phase start timing on the player turn', () => {
     expect(
-      missionActionReminders({ primaryCard: { key: 'primary', name: 'Primary' }, secondaries: [] }, (key) => references.get(key))[0]
-        ?.timings,
+      missionActionReminders(
+        { primaryCard: { key: 'primary', name: 'Primary' }, secondaries: [] },
+        (key) => references.get(key),
+        summaryOf,
+      )[0]?.timings,
     ).toEqual([{ moment: 'phase-start', phase: 'shooting', turn: 'your-turn' }])
   })
 
   it('does not repeat an action with the same name as its card', () => {
     expect(
-      missionActionReminders({ primaryCard: { key: 'same', name: 'Cleanse' }, secondaries: [] }, (key) => references.get(key))[0]?.ability,
+      missionActionReminders({ primaryCard: { key: 'same', name: 'Cleanse' }, secondaries: [] }, (key) => references.get(key), summaryOf)[0]
+        ?.ability,
     ).toBe('Cleanse')
   })
 
-  it('keeps the action instructions in the reminder', () => {
+  it('describes the action by its summary', () => {
     expect(
-      missionActionReminders({ primaryCard: { key: 'primary', name: 'Primary' }, secondaries: [] }, (key) => references.get(key))[0]
-        ?.description,
-    ).toBe('**Starts:** Your Shooting phase.\n\n**Completes:** At the end of your turn.\n\n**Units:** One unit from your army.')
+      missionActionReminders(
+        { primaryCard: { key: 'primary', name: 'Primary' }, secondaries: [] },
+        (key) => references.get(key),
+        summaryOf,
+      )[0]?.description,
+    ).toBe('Raise a banner on an objective.')
   })
 
   it('omits cards whose reference or actions are unavailable', () => {
@@ -72,6 +73,7 @@ describe('mission action reminders', () => {
       missionActionReminders(
         { primaryCard: { key: 'missing', name: 'Missing' }, secondaries: [{ key: 'active', name: 'Active', status: 'active' }] },
         () => undefined,
+        summaryOf,
       ),
     ).toEqual([])
   })

@@ -2,15 +2,16 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { terrainFromDatacards } from './datacardTerrain'
+import { missionTerrain } from './missionTerrain'
+import { missionPack } from './vsData.fixtures'
 import { battlemasterGeometry } from './rulesTerrain'
 
 let directory: string
 const id = 'terrain-01234567-89ab-cdef-0123-456789abcdef'
-const pack = { layouts: [{ id: 'layout-a', name: 'Purge the Foe / Reconnaissance - Layout A', deployments: [] }] }
+const pack = missionPack({ layouts: [{ id: 'layout-a', name: 'Purge the Foe / Reconnaissance - Layout A', aliases: [], deployments: [] }] })
 
 beforeEach(() => {
-  directory = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-datacard-terrain-'))
+  directory = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-mission-terrain-'))
   fs.mkdirSync(path.join(directory, 'layouts'))
   fs.writeFileSync(path.join(directory, 'catalog.json'), JSON.stringify({ layouts: [{ id }] }))
   const part = (name: string) => ({
@@ -59,11 +60,11 @@ beforeEach(() => {
 afterEach(() => fs.rmSync(directory, { recursive: true, force: true }))
 
 it('leaves a layout unlabelled when a terrain letter does not appear twice', () => {
-  expect(terrainFromDatacards([pack], directory).terrainLayouts[0]?.geometry?.areas[0]?.markers).toEqual([])
+  expect(missionTerrain([pack], directory).terrainLayouts[0]?.geometry?.areas[0]?.markers).toEqual([])
 })
 
 it('keeps the shared geometry labelled when one layout drops its letters', () => {
-  terrainFromDatacards([pack], directory)
+  missionTerrain([pack], directory)
   expect(battlemasterGeometry(directory, id)?.areas[0]?.markers.map((marker) => marker.label)).toEqual(['AB'])
 })
 
@@ -87,8 +88,8 @@ describe('deployment territories', () => {
       objectives: Array.from({ length: 5 }, (_, index) => ({ center: { x: index, y: 0 } })),
     }
     fs.writeFileSync(file, JSON.stringify(layout))
-    return terrainFromDatacards([{ ...pack, deployments: [{ id: 'deployment', name: 'Hammer and Anvil' }] }], directory).deployments[0]
-      ?.attackerTerritory
+    return missionTerrain([{ ...pack, deployments: [{ id: 'deployment', name: 'Hammer and Anvil', aliases: [] }] }], directory)
+      .deployments[0]?.attackerTerritory
   }
   const westHalf = [
     { x: -30, y: 22 },

@@ -150,7 +150,6 @@ it('includes the force disposition matrix and primary mission scoring', () => {
       {
         key: 'death-trap',
         name: 'Death Trap',
-        text: null,
         awards: [
           {
             vp: 5,
@@ -158,7 +157,6 @@ it('includes the force disposition matrix and primary mission scoring', () => {
             max: null,
             mode: null,
             group: null,
-            cumulative: false,
             criteria: 'Trap an objective.',
             trigger: {
               timing: 'end-of-turn',
@@ -177,7 +175,6 @@ it('includes the force disposition matrix and primary mission scoring', () => {
       {
         key: 'behind-enemy-lines',
         name: 'Behind Enemy Lines',
-        text: 'Reach the enemy deployment zone.',
         awards: [
           {
             vp: 4,
@@ -185,18 +182,15 @@ it('includes the force disposition matrix and primary mission scoring', () => {
             max: null,
             mode: null,
             group: null,
-            cumulative: false,
             criteria: 'One unit is wholly within the enemy deployment zone.',
             trigger: { timing: 'end-of-turn', phase: null, playerTurn: 'your-turn', roundMin: null, roundMax: null },
           },
         ],
         actions: [],
-        whenDrawn: { operation: 'redraw', roundMax: 1, heldCards: ['engage-on-all-fronts'], condition: null },
+        whenDrawn: { operation: 'redraw', roundMax: 1, heldCards: ['engage-on-all-fronts'] },
       },
     ],
-    missionTwists: new Map([
-      ['chapter-approved-2026-2027', [{ id: 'fog-of-war', name: 'Fog of War', lore: null, rules: 'Visibility is limited.' }]],
-    ]),
+    missionTwists: new Map([['chapter-approved-2026-2027', [{ id: 'fog-of-war', name: 'Fog of War', changesPrimary: true }]]]),
     fixedSecondaryCaps: new Map([['chapter-approved-2026-2027', 20]]),
     deployments: [
       {
@@ -272,7 +266,9 @@ it('includes the force disposition matrix and primary mission scoring', () => {
   expect(document.sections.find((entry) => entry.id === 'mission-limits')?.text).toContain(
     'Each fixed secondary mission can score at most 20 VP.',
   )
-  expect(document.sections.find((entry) => entry.id === 'twist-fog-of-war')?.text).toContain('Visibility is limited.')
+  expect(document.sections.find((entry) => entry.id === 'twist-fog-of-war')?.text).toBe(
+    'A mission twist that changes the primary missions.',
+  )
   expect(mission.sections.find((entry) => entry.id === 'mission-death-trap')).toMatchObject({
     url: '/missions/chapter-approved-2026-2027/matchups/disruption/take-and-hold#mission-death-trap',
     text: expect.stringMatching(/Trap an objective\..*5 VP/s),

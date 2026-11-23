@@ -1,3 +1,4 @@
+import { MISSION_SUMMARIES } from './rules'
 import { ADMIN_USER_ROLES, ADMIN_USER_SORTS } from '../admin'
 import { z } from 'zod'
 import { LIST_FILTER_SCOPES, listPreferencesSchema } from '../core/listFilter'
@@ -583,7 +584,7 @@ export const detachmentRulesSchema = z.object({
 })
 export const detachmentDetailSchema = z.object({ catalogueId, slug })
 /** A source file as rules-text tokens name it. */
-export const textFileSchema = z.object({ file: z.string().regex(/^[0-9a-f]{8}$/) })
+export const textFileSchema = z.object({ file: z.union([z.string().regex(/^[0-9a-f]{8}$/), z.literal(MISSION_SUMMARIES)]) })
 
 export const rosterIdSchema = z.object({ id })
 /** `setup` saves a reviewed rules-version conversion as a variant, leaving the original as it was. */

@@ -59,3 +59,40 @@ it('keeps the credit each adapted record names, once', () => {
   compactVsDataRelease(directory, file)
   expect(JSON.parse(fs.readFileSync(file, 'utf8')).attributions).toEqual([credit])
 })
+
+it('keeps each Stratagem’s typed facts, naming its Detachment by group or by the Detachment its ID extends', () => {
+  const stratagem = (id: string, group?: string) => ({
+    kind: 'ability',
+    id,
+    aliases: [],
+    summary: `${id} summary.`,
+    data: {
+      ruleType: 'stratagem',
+      cp: 1,
+      ...(group ? { group } : {}),
+      stratagem: { phases: ['shooting', 'fight'], turn: 'any', type: 'battle-tactic' },
+      facts: { format: 'vs-data-facts', version: '1', fields: { stratagem: { limit: 'battle' } } },
+    },
+  })
+  fs.rmSync(directory, { recursive: true })
+  writeFiles(
+    directory,
+    vsDataReleaseFiles(
+      [stratagem('necrons.awakened-dynasty.protocol', 'Awakened Dynasty'), stratagem('adeptus-custodes.shadowkeepers.no-escape')],
+      'MFM 1.6',
+      [{ kind: 'detachment', id: 'adeptus-custodes.shadowkeepers', name: 'Shadowkeepers' }],
+    ),
+  )
+  const file = `${directory}.json`
+  compactVsDataRelease(directory, file)
+  expect(
+    JSON.parse(fs.readFileSync(file, 'utf8')).stratagems.map(({ id, detachment, limit }: Record<string, unknown>) => ({
+      id,
+      detachment,
+      limit,
+    })),
+  ).toEqual([
+    { id: 'adeptus-custodes.shadowkeepers.no-escape', detachment: 'Shadowkeepers', limit: 'battle' },
+    { id: 'necrons.awakened-dynasty.protocol', detachment: 'Awakened Dynasty', limit: 'battle' },
+  ])
+})

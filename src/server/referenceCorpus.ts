@@ -181,7 +181,14 @@ function missionDocuments(
     ]),
   ])
   const twists = pack.twists.map((twist) =>
-    section(files, url, `twist-${twist.id}`, twist.name, [twist.lore, twist.rules ?? 'Rules unavailable.'], twist.id),
+    section(
+      files,
+      url,
+      `twist-${twist.id}`,
+      twist.name,
+      [`A mission twist${twist.changesPrimary ? ' that changes the primary missions' : ''}.`],
+      twist.id,
+    ),
   )
   return [
     {
@@ -401,30 +408,20 @@ function missionCardLines(
   card: GameReferencePack['missions'][number]['card'] | GameReferences['secondaries'][number] | null,
 ): (string | null | undefined)[] {
   return [
-    card?.text,
     card?.selection ? `Battle tracking: ${selectionTracking[card.selection]}.` : null,
     ...(card?.awards ?? []).flatMap((award) => [
-      `Scoring: ${award.criteria ?? 'Criteria unavailable.'}`,
-      `Award: ${award.vp} VP${award.per ? ` per ${award.per}` : ''}${award.max === null ? '' : `, up to ${award.max} VP`}${award.cumulative ? ', cumulative' : ''}`,
+      award.criteria ? `Scoring: ${award.criteria}` : null,
+      `Award: ${award.vp} VP${award.per ? ` per ${award.per}` : ''}${award.max === null ? '' : `, up to ${award.max} VP`}`,
       missionTiming(award.trigger),
       award.mode ? `Mode: ${award.mode}` : null,
       award.group ? `Exclusive group: ${award.group}` : null,
     ]),
-    ...(card?.actions ?? []).flatMap((action) => [
-      `Action: ${action.name}`,
-      action.starts ? `Starts: ${action.starts}` : null,
-      action.completes ? `Completes: ${action.completes}` : null,
-      action.effect ? `Effect: ${action.effect}` : null,
-      action.units ? `Units: ${action.units}` : null,
-      action.useLimit ? `Use limit: ${action.useLimit}` : null,
-      action.restriction ? `Restriction: ${action.restriction}` : null,
-    ]),
+    ...(card?.actions ?? []).map((action) => `Action: ${action.name}`),
     card?.whenDrawn ? `When drawn: ${card.whenDrawn.operation}.` : null,
     card?.whenDrawn?.roundMax === null || card?.whenDrawn?.roundMax === undefined
       ? null
       : `When-drawn rule applies through battle round ${card.whenDrawn.roundMax}.`,
     card?.whenDrawn?.heldCards.length ? `When-drawn related cards: ${card.whenDrawn.heldCards.join(', ')}.` : null,
-    card?.whenDrawn?.condition,
   ]
 }
 

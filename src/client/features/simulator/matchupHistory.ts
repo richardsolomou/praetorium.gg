@@ -33,7 +33,7 @@ export function useMatchupHistory() {
 const GLADIUS_TASK_FORCE = 'd2dc-693e-b491-b16d'
 const AWAKENED_DYNASTY = '9ebf-2bbd-6059-1d40'
 const OVERLORD_ENHANCEMENT = { '57d3-bc99-c36e-a78b': '3cc5-4b3-9380-981a' } // Enaegic Dermal Bond
-const STORM_OF_DEVASTATION = 'stratagem:23d16a9e-8818-54c8-bf9c-35255cb6ad32'
+const STORM_OF_DEVASTATION = 'stratagem:space-marines.gladius-task-force.storm-of-devastation'
 
 /** A led and supported squad against a led bodyguard, with a stratagem, an enhancement and half range in play. */
 export function exampleMatchup(index: CombatUnitIndex): SimulatorState | null {

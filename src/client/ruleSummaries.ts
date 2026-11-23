@@ -1,5 +1,5 @@
 import { useQueries, useQuery } from '@tanstack/react-query'
-import type { RuleSummary } from '../contracts/rules'
+import { MISSION_SUMMARIES, type RuleSummary } from '../contracts/rules'
 import { hasTextTokens, textTokensIn } from '../core/sourceText'
 import { summaryNamedBy } from '../shared/ruleSummaries'
 import { ruleAbilitySummariesQuery, ruleSummariesQuery } from './queries/references'
@@ -22,6 +22,20 @@ export function useRuleSummary(text: string): SummaryLookup {
   if (!whole) return { summary: null, pending: false }
   if (answers.some((answer) => answer.isPending)) return { summary: null, pending: true }
   return { summary: summaryNamedBy(tokens, new Map(files.map((file, at) => [file, answers[at]?.data]))), pending: false }
+}
+
+type MissionKind = 'mission-card' | 'mission-award' | 'mission-action' | 'mission-twist'
+
+/** The VS Data summaries of the mission pack's records, by kind and VS Data ID. */
+export function useMissionSummaries(enabled = true) {
+  const { data } = useQuery({ ...ruleSummariesQuery(MISSION_SUMMARIES), enabled })
+  return (kind: MissionKind, id: string): RuleSummary | null => data?.records[`${kind}:${id}`] ?? null
+}
+
+/** The VS Data summary of a mission card, award, action or twist, by its kind and ID. */
+export function useMissionSummary(kind: MissionKind, id: string | undefined) {
+  const summaryOf = useMissionSummaries(Boolean(id))
+  return id ? summaryOf(kind, id) : null
 }
 
 /** Whether the summaries of every rule these texts print have been asked for and answered, so a printout can wait for them. */

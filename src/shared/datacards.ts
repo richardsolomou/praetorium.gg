@@ -1,8 +1,6 @@
 import { withoutFactionPrefix } from '../core/name'
 import { canonicalDetachmentName } from '../core/detachmentName'
 import { remember, uniqueBy } from '../core/collections'
-import type { Stratagem } from '../core/battle'
-import { PHASES } from '../core/battlePhases'
 import { routeSlug } from '../core/slug'
 import { catalogueFactionName } from './factionNames'
 import { countLabel, foldedText, joinKey } from '../core/text'
@@ -79,16 +77,6 @@ type ConstructionEnhancement = {
   eligibility: EnhancementEligibility | null
 }
 import type { EnhancementEligibility } from '../contracts/factions'
-type FactionStratagem = {
-  id: string
-  name: string
-  cp: number
-  limit: Stratagem['limit']
-  phases: NonNullable<Stratagem['phases']> | null
-  turn: NonNullable<Stratagem['turn']> | null
-  type: string | null
-  description: string
-}
 export type FactionContent = {
   name: string
   attribution?: string
@@ -103,8 +91,8 @@ export type FactionContent = {
   printedDetachments?: readonly (readonly string[])[]
   /** Unambiguous cards by their detachment's accent- and spacing-insensitive join key. */
   enhancements: ReadonlyMap<string, readonly ConstructionEnhancement[]>
-  stratagems: ReadonlyMap<string, readonly FactionStratagem[]>
-  stratagemIssues: readonly string[]
+  /** Each Stratagem card's wording as tokens, by its Game Datacards ID, which the simulator and keyword links read. */
+  stratagemTexts: ReadonlyMap<string, string>
   detachmentRules: ReadonlyMap<string, readonly RuleCard[]>
   armyRules: RuleCard[]
   /** The army rules its datasheets print by name, whether or not the file carries the card. */
@@ -127,8 +115,8 @@ export type LoadedDatacards = {
   detachmentRules: ReadonlyMap<string, readonly RuleCard[]>
   /** By `descriptionKey`. */
   enhancements: ReadonlyMap<string, string>
-  /** By `descriptionKey`, carrying the name as the card prints it: the rules dataset shouts. */
-  stratagems: ReadonlyMap<string, RuleCard>
+  /** Every Stratagem card's wording as tokens, core Stratagems included, by its Game Datacards ID. */
+  stratagemTexts: ReadonlyMap<string, string>
   /** Every army rule by its slug, where the files agree on what it says. */
   armyRules: ReadonlyMap<string, string>
   /** By detachment slug, retaining every exact-name candidate so conflicts fail closed. */
@@ -189,37 +177,6 @@ export function constructionDetachment(
   if (answers.size !== 1) return null
   const answer = answers.values().next().value!
   return answer.points === null || !answer.dispositions.length ? null : { points: answer.points, dispositions: answer.dispositions }
-}
-function cardPhases(value: unknown): NonNullable<Stratagem['phases']> | null {
-  if (!Array.isArray(value) || !value.length) return null
-  const allowed = new Set<string>([...PHASES, 'any'])
-  if (!value.every((phase) => typeof phase === 'string' && allowed.has(phase))) return null
-  if (value.includes('any')) return value.length === 1 ? [] : null
-  return [...new Set(value)] as NonNullable<Stratagem['phases']>
-}
-function phaseFromWhen(value: string | null): NonNullable<Stratagem['phases']> | null {
-  const phases = [...(value?.matchAll(/\b(command|movement|shooting|charge|fight|end) phase\b/gi) ?? [])].map((match) =>
-    match[1]!.toLowerCase(),
-  )
-  return phases.length === 1 ? (phases as NonNullable<Stratagem['phases']>) : null
-}
-function cardTurn(value: unknown): NonNullable<Stratagem['turn']> | null {
-  if (value === 'your') return 'your-turn'
-  if (value === 'opponents') return 'opponent-turn'
-  if (value === 'either') return 'either'
-  return null
-}
-// Some source tags contradict the printed When line, such as a Movement phase card tagged Fight in either turn; a single printed phase wins.
-function stratagemTiming(entry: Record<string, unknown>) {
-  const when = localizedField(entry, 'when')
-  const printed = phaseFromWhen(when)
-  const tagged = cardPhases(entry.phase)
-  const untagged = Array.isArray(entry.phase) && entry.phase.length === 0
-  const phases =
-    tagged === null ? (untagged ? printed : null) : printed && tagged.length && !tagged.includes(printed[0]!) ? printed : tagged
-  const owner = printed && when?.match(/\b(your|opponent['’]s) (?:command|movement|shooting|charge|fight|end) phase\b/i)?.[1]
-  const turn = owner ? (owner.toLowerCase() === 'your' ? 'your-turn' : 'opponent-turn') : cardTurn(entry.turn)
-  return { phases, turn }
 }
 export function factionContent(
   name: string,
@@ -283,57 +240,11 @@ export function factionContent(
     const key = joinKey(candidate.detachment)
     enhancements.set(key, [...(enhancements.get(key) ?? []), resolved])
   }
-  const stratagemCandidates = new Map<string, Map<string, FactionStratagem | null>>()
-  const stratagemIds = new Map<string, { cards: Map<string, FactionStratagem | null>; name: string }>()
-  const stratagemIssues: string[] = []
+  const stratagemTexts = new Map<string, string>()
   for (const entry of records(parsed, 'stratagems')) {
-    const detachment = stringField(entry, 'detachment')
-    if (!detachment) {
-      stratagemIssues.push(`${localizedField(entry, 'name') ?? 'unnamed card'}: missing detachment`)
-      continue
-    }
-    const key = joinKey(detachment)
-    const cards = stratagemCandidates.get(key) ?? new Map<string, FactionStratagem | null>()
-    stratagemCandidates.set(key, cards)
     const id = stringField(entry, 'id')
-    const stratagemName = localizedField(entry, 'name')
-    const cp = integerField(entry, 'cost')
     const description = stratagemText(entry, texts)
-    const { phases, turn } = stratagemTiming(entry)
-    if (!id || !stratagemName || cp === null || !description) {
-      if (stratagemName) cards.set(routeSlug(stratagemName), null)
-      if (id) {
-        const previous = stratagemIds.get(id)
-        if (previous) previous.cards.set(previous.name, null)
-      }
-      stratagemIssues.push(`${detachment} | ${stratagemName ?? 'unnamed card'}: incomplete card`)
-      continue
-    }
-    if (phases === null || !turn) stratagemIssues.push(`${detachment} | ${stratagemName}: incomplete card`)
-    const card = {
-      id,
-      name: stratagemName,
-      cp,
-      limit: stratagemLimit(localizedField(entry, 'restrictions')),
-      phases,
-      turn,
-      type: stringField(entry, 'type'),
-      description,
-    }
-    const nameKey = routeSlug(stratagemName)
-    const previous = cards.get(nameKey)
-    const previousId = stratagemIds.get(id)
-    if (previousId && (previousId.cards !== cards || previousId.name !== nameKey)) {
-      previousId.cards.set(previousId.name, null)
-      cards.set(nameKey, null)
-      stratagemIssues.push(`${detachment} | ${stratagemName}: conflicting card id`)
-      continue
-    }
-    stratagemIds.set(id, { cards, name: nameKey })
-    if (previous && JSON.stringify(previous) !== JSON.stringify(card)) {
-      stratagemIssues.push(`${detachment} | ${stratagemName}: conflicting card name`)
-    }
-    cards.set(nameKey, previous === undefined ? card : previous && JSON.stringify(previous) === JSON.stringify(card) ? card : null)
+    if (id && description) stratagemTexts.set(id, description)
   }
   const detachmentRules = new Map<string, Map<string, Set<string>>>()
   for (const entry of detachmentRuleCards(parsed.rules, name, sections, texts)) {
@@ -370,13 +281,7 @@ export function factionContent(
     ),
     ...(printedDetachments.length ? { printedDetachments } : {}),
     enhancements,
-    stratagems: new Map(
-      [...stratagemCandidates].map(([detachment, cards]) => [
-        detachment,
-        [...cards.values()].filter((card): card is FactionStratagem => card !== null),
-      ]),
-    ),
-    stratagemIssues,
+    stratagemTexts,
     detachmentRules: new Map(
       [...detachmentRules].map(([detachment, rules]) => [
         detachment,
@@ -535,18 +440,11 @@ export function transformed(raw: string, transform: TextTransform) {
   if (transform === 'trim') return raw.trim()
   if (transform === 'rest') return prose(raw.replaceAll(LIST_ITEM, '').replaceAll(/<\/?ul>/g, ''))
   if (transform.startsWith('item')) return prose([...raw.matchAll(LIST_ITEM)][Number(transform.slice(4))]?.[1] ?? '')
-  if (transform === 'condition') return whenDrawnCondition(raw) ?? ''
   // The catalogue writes a table as one row per line, which Markdown would run together.
   if (transform.startsWith('para')) return (paragraphsOf(raw)[Number(transform.slice(4))] ?? '').replaceAll('\n', '  \n')
   return raw
 }
 
-/** What a secondary card's when-drawn rule says must hold for it to be discarded and replaced, as the card prints it. */
-export function whenDrawnCondition(text: string) {
-  const plain = text.trim().replaceAll('**', '').replaceAll('‑', '-').replaceAll(/\s+/g, ' ')
-  const replacement = /^WHEN DRAWN: If (.+?), you can discard this card and draw one new Secondary Mission card\.?$/i.exec(plain)
-  return replacement ? replacement[1]!.replace(/^there /i, 'there ') : null
-}
 const searchWords = (text: string) => foldedText(text).match(/[a-z0-9]+/g) ?? []
 
 // One load passes every faction's enhancements the same list of datasheet names, thousands long.
@@ -670,20 +568,6 @@ export function stratagemText(card: Record<string, unknown>, texts: SourceTexts)
     section('Restrictions', 'restrictions'),
   ].filter((part): part is string => Boolean(part))
   return sections.length ? sections.join('\n\n') : null
-}
-export function stratagemLimit(restrictions: string | null): Stratagem['limit'] {
-  const text = restrictions?.replaceAll(/<[^>]*>|\*\*/g, '') ?? ''
-  const usage =
-    /(?:you cannot use this stratagem more than|you can only use this stratagem|this stratagem can only be used) once per (battle round|battle|turn)\b/i.exec(
-      text,
-    )
-  return usage?.[1]?.toLowerCase() === 'battle round'
-    ? 'battle-round'
-    : usage?.[1]?.toLowerCase() === 'battle'
-      ? 'battle'
-      : usage?.[1]?.toLowerCase() === 'turn'
-        ? 'turn'
-        : 'phase'
 }
 type RestrictionSentence = { faction: string; sentence: string }
 

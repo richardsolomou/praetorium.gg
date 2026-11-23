@@ -1,5 +1,4 @@
 import type { MissionAction } from '../../contracts/missions'
-import { missionActionText } from '../missionActionReminders'
 import {
   appliesInMode,
   conditionLabel,
@@ -11,9 +10,8 @@ import {
   timingLabel,
   title,
 } from '../missionText'
-import { RuleText } from './RuleText'
 import { RuleSummaryText } from './RuleSummaryText'
-import { useRuleSummary } from '../ruleSummaries'
+import { useMissionSummary, useRuleSummary } from '../ruleSummaries'
 import { groupBy } from '../../core/collections'
 
 /**
@@ -32,7 +30,7 @@ export function MissionCardReference({
   type,
   mode,
 }: {
-  card: { name: string; text: string | null; awards: Award[]; actions?: readonly MissionAction[] }
+  card: { key: string; name: string; awards: Award[]; actions?: readonly MissionAction[] }
   /** The chip naming what kind of card this is; omit it when the page already says so. */
   type?: string
   /** The side's secondary mode, when it is known. Unset shows every way it can pay. */
@@ -43,17 +41,18 @@ export function MissionCardReference({
     groupKey,
   )
   const actions = card.actions ?? []
+  const summary = useMissionSummary('mission-card', card.key)
   return (
     <article className="space-y-4">
       {type ? <span className="chip">{type}</span> : null}
-      {card.text ? <RuleText text={card.text} className="mt-0 text-base text-bone" /> : null}
+      {summary ? <RuleSummaryText summary={summary} className="mt-0 text-base text-bone" /> : null}
       {groups.size || actions.length ? (
         <ul className="runner gap-3 [--gate-x:1.125rem] [--gate-y:1.625rem]">
           {[...groups.values()].map((awards) => (
             <ScoringBlock key={groupKey(awards[0]!)} awards={awards} />
           ))}
           {actions.map((action) => (
-            <ActionBlock key={action.name} action={action} />
+            <ActionBlock key={action.id} action={action} />
           ))}
         </ul>
       ) : null}
@@ -103,9 +102,11 @@ function ScoringBlock({ awards }: { awards: Award[] }) {
   )
 }
 
-/** What an award asks for: its summary, or how it pays where it has none. */
+/** What an award asks for: its summary, by its VS Data ID or the token a battle saved, or how it pays where it has none. */
 export function AwardCondition({ award, awards, className }: { award: Award; awards: Award[]; className: string }) {
-  const { summary } = useRuleSummary(conditionLabel(award) ?? '')
+  const byId = useMissionSummary('mission-award', award.id)
+  const { summary: byToken } = useRuleSummary(conditionLabel(award) ?? '')
+  const summary = byId ?? byToken
   if (summary) return <RuleSummaryText summary={summary} className={className} />
   return <p className={className}>{payoutLabel(award, awards)}</p>
 }
@@ -127,14 +128,14 @@ function AwardJoin({ join }: { join: 'or' | 'plus' }) {
  * Its summary, where VS Data writes one; an action without one shows its name alone.
  */
 function ActionBlock({ action }: { action: MissionAction }) {
-  const text = missionActionText(action)
+  const summary = useMissionSummary('mission-action', action.id)
   return (
     <li className="part p-4">
       <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
         <span className="chip">Action</span>
         <span className="font-display text-sm leading-tight font-bold tracking-heading text-bone uppercase">{action.name}</span>
       </p>
-      {text ? <RuleText text={text} className="mt-3 space-y-3 text-base text-bone" /> : null}
+      {summary ? <RuleSummaryText summary={summary} className="mt-3 space-y-3 text-base text-bone" /> : null}
     </li>
   )
 }

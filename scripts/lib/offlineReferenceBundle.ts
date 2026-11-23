@@ -1,5 +1,6 @@
 import path from 'node:path'
 import { textSourceFiles } from '../../src/server/sourceTexts'
+import { MISSION_SUMMARIES } from '../../src/contracts/rules'
 import { publishedSearchIndex } from '../../src/server/globalSearch'
 import { downloadedDefinitionFacts } from '../../src/server/definitionTexts'
 import { hash } from 'node:crypto'
@@ -166,7 +167,7 @@ export async function writeReferenceBundle(outDir: string, directory: string, ru
   const summaries = completeSteps(vsDataSummariesSteps(directory, canonical.ruleDocuments))
   put(['rule-summary-credits'], summaries?.attributions ?? [])
   put(['rule-ability-summaries'], summaries?.abilities ?? {})
-  for (const file of summaries ? Object.keys(textFiles) : []) {
+  for (const file of summaries ? [...Object.keys(textFiles), MISSION_SUMMARIES] : []) {
     const answer = summaries!.summariesIn(file)
     // A file no summary reads stays out, and its query falls back to the source's own text as offline.
     if (Object.keys(answer.records).length) put(['rule-summary-records', file], answer)

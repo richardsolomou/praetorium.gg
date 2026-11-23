@@ -814,7 +814,7 @@ const loaded: LoadedCatalogue = {
     factions: new Map(),
     detachmentRules: new Map(),
     enhancements: new Map([[descriptionKey('Skyshroud Spearhead', 'Veil of Darkness'), 'Vanishes.']]),
-    stratagems: new Map(),
+    stratagemTexts: new Map(),
     armyRules: new Map(),
     constructionDetachments: new Map(),
   },

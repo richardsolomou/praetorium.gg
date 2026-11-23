@@ -1,3 +1,4 @@
+import { currentStratagemId } from '../../../core/legacyStratagemIds'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { attachedUnitList } from '../../../core/attachedUnits'
@@ -294,7 +295,7 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
           <section className="pack-section">
             <h2>Stratagems</h2>
             {stratagems.map((stratagem) => {
-              const written = data.cards.written.find((card) => card.key === stratagem.key)
+              const written = data.cards.written.find((card) => card.key === currentStratagemId(stratagem.key))
               return (
                 <section className="pack-rule pack-stratagem" key={stratagem.key}>
                   <h3>

@@ -2,7 +2,16 @@ import { hash } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import { z } from 'zod'
-import { vsDataAttributionSchema, type VsDataSummariesFile, vsDataEdition, vsDataKey, type VsDataRulesVersion } from '../shared/vsData'
+import {
+  vsDataAttributionSchema,
+  vsDataMissionPackSchema,
+  type VsDataStratagem,
+  vsDataStratagemSchema,
+  type VsDataSummariesFile,
+  vsDataEdition,
+  vsDataKey,
+  type VsDataRulesVersion,
+} from '../shared/vsData'
 
 const fileSchema = z.object({ path: z.string().min(1), sha256: z.string().regex(/^[0-9a-f]{64}$/) })
 const manifestSchema = z.object({
@@ -24,7 +33,9 @@ export type VsDataManifest = z.infer<typeof manifestSchema>
 
 const refSchema = z.object({ kind: z.string().min(1), id: z.string().min(1) })
 const identitySchema = z.object({
-  entries: z.array(refSchema.extend({ aliases: z.array(z.string()).optional(), retired: z.unknown().optional() })),
+  entries: z.array(
+    refSchema.extend({ name: z.string().optional(), aliases: z.array(z.string()).optional(), retired: z.unknown().optional() }),
+  ),
 })
 const recordSchema = refSchema.extend({
   rulesVersion: z.object({ update: z.string() }),
@@ -35,12 +46,30 @@ const recordSchema = refSchema.extend({
       .array(z.object({ start: z.number().int(), end: z.number().int(), bold: z.literal(true).optional(), target: refSchema.optional() }))
       .optional(),
     interpretation: z.array(z.object({ question: z.string() })).optional(),
+    ruleType: z.string().optional(),
+    group: z.string().optional(),
+    cp: z.number().int().optional(),
+    stratagem: z.unknown().optional(),
+    facts: z.unknown().optional(),
   }),
+})
+const typedStratagemSchema = z.object({ phases: z.array(z.string()), turn: z.string(), type: z.string().optional() })
+/** Only versioned facts are typed; the unversioned format is a draft reading. */
+const factsSchema = z.object({
+  format: z.literal('vs-data-facts'),
+  fields: z.object({ stratagem: z.object({ limit: z.string().optional() }).optional() }),
+})
+const packRecordSchema = z.object({
+  kind: z.literal('mission-pack'),
+  rulesVersion: z.object({ update: z.string() }),
+  data: vsDataMissionPackSchema,
 })
 
 const MANIFEST = 'manifest.json'
-/** The categories whose records are rule summaries; others, such as mission packs, hold data Praetorium reads elsewhere. */
+/** The categories whose records are rule summaries; others, such as datasheets, hold data Praetorium reads elsewhere. */
 const SUMMARY_CATEGORIES = new Set(['rules-reference', 'mission-rules'])
+const MISSION_PACKS = 'mission-packs'
+const STRATAGEM_RULE_TYPES = new Set(['stratagem', 'core-stratagem'])
 const IDENTITY = 'identity.json'
 
 /** The release's manifest, or null where the folder holds no VS Data catalogue release. */
@@ -106,12 +135,42 @@ export function checkVsDataRelease(directory: string, editions: readonly { id: s
   return edition
 }
 
+/**
+ * A Stratagem record's typed facts, or none for any other record. A record names its Detachment by `group`, or
+ * failing that by the Detachment entry its ID extends; the limit is read only from versioned facts.
+ */
+function stratagemOf(
+  { kind, id, data }: z.infer<typeof recordSchema>,
+  identity: readonly { kind: string; id: string; name?: string }[],
+): VsDataStratagem[] {
+  const stratagem = typedStratagemSchema.safeParse(data.stratagem)
+  if (kind !== 'ability' || !data.ruleType || !STRATAGEM_RULE_TYPES.has(data.ruleType) || data.cp === undefined || !stratagem.success)
+    return []
+  const name = identity.find((entry) => entry.kind === kind && entry.id === id)?.name
+  const core = data.ruleType === 'core-stratagem'
+  const detachment = core
+    ? null
+    : (data.group ?? identity.find((entry) => entry.kind === 'detachment' && id.startsWith(`${entry.id}.`))?.name ?? null)
+  const facts = factsSchema.safeParse(data.facts)
+  const parsed = vsDataStratagemSchema.safeParse({
+    id,
+    name,
+    detachment,
+    cp: data.cp,
+    phases: stratagem.data.phases,
+    turn: stratagem.data.turn,
+    type: stratagem.data.type ?? null,
+    limit: (facts.success && facts.data.fields.stratagem?.limit) || null,
+  })
+  return parsed.success && (core || detachment) ? [parsed.data] : []
+}
+
 const describe = ({ edition, update }: VsDataRulesVersion) => `${edition} ${update}`
 
 /**
  * Reduces a verified release to the one file Praetorium reads, `file`, so the snapshot does not carry thousands of
- * record files, the identity and the typed facts: each summary of the release's rules version, and the aliases
- * of every current entry a summary is for or links to. The unpacked release is removed.
+ * record files and the identity: each summary of the release's rules version, the aliases of every current entry a
+ * summary is for or links to, each Stratagem's typed facts and the mission packs. The unpacked release is removed.
  */
 export function compactVsDataRelease(directory: string, file: string) {
   const manifest = readVsDataManifest(directory)!
@@ -127,13 +186,22 @@ export function compactVsDataRelease(directory: string, file: string) {
       ...(record.data.summarySpans ?? []).flatMap((span) => (span.target ? [vsDataKey(span.target)] : [])),
     ]),
   )
-  const entries = identitySchema
-    .parse(read(manifest.identity.path))
-    .entries.filter((entry) => !entry.retired && wanted.has(vsDataKey(entry)))
+  const identity = identitySchema.parse(read(manifest.identity.path)).entries.filter((entry) => !entry.retired)
+  const entries = identity.filter((entry) => wanted.has(vsDataKey(entry)))
   const compact: VsDataSummariesFile = {
     release: manifest.release,
     rulesVersion: manifest.rulesVersion,
     entries: Object.fromEntries(entries.map((entry) => [vsDataKey(entry), entry.aliases ?? []])),
+    stratagems: records.flatMap((record) => stratagemOf(record, identity)),
+    missionPacks: manifest.categories
+      .filter((category) => category.name === MISSION_PACKS)
+      .flatMap((category) => category.records)
+      .map((entry) => packRecordSchema.parse(read(entry.path)))
+      .filter((record) => record.rulesVersion.update === manifest.rulesVersion.update)
+      .map((record) => record.data),
+    missionActions: identity.flatMap((entry) =>
+      entry.kind === 'mission-action' && entry.name ? [{ id: entry.id, name: entry.name }] : [],
+    ),
     attributions: [
       ...new Map(
         records.flatMap(({ attribution }) =>

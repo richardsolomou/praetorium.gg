@@ -21,7 +21,6 @@ const payout = (vp: number, on: Partial<AwardTrigger>): MissionAward => ({
   mode: null,
   max: null,
   group: null,
-  cumulative: false,
   criteria: null,
   trigger: trigger(on),
 })

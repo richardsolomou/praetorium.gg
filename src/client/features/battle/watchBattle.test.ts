@@ -115,7 +115,6 @@ describe('watch battle snapshot', () => {
       mode: null,
       max: null,
       group: 'tier',
-      cumulative: false,
       criteria: 'Hold one objective.',
       trigger: { timing: 'end-of-turn', phase: null, playerTurn: 'your-turn', roundMin: 2, roundMax: 4 },
     }

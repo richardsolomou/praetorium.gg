@@ -82,7 +82,6 @@ describe('naming a payout the source left unstructured', () => {
     mode: null,
     max: null,
     group,
-    cumulative: false,
     criteria: null,
     trigger: { timing: 'end-of-turn', phase: null, playerTurn: 'your-turn', roundMin: null, roundMax: null },
   })

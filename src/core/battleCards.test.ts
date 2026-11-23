@@ -678,7 +678,6 @@ describe('secondaries', () => {
           mode: null,
           max: null,
           group: null,
-          cumulative: false,
           criteria: 'Hold the objective.',
           trigger: { timing: 'end-of-turn' as const, phase: null, playerTurn: 'opponent-turn' as const, roundMin: null, roundMax: null },
         },
