@@ -1,5 +1,6 @@
 import { hash } from 'node:crypto'
 import { currentMissionId } from '../core/legacyIds'
+import { awardsOnce } from '../core/scoring'
 import { hasTextTokens, textPointersIn, type TextLocations } from '../core/sourceText'
 import type { CanonicalCatalogue, CanonicalDatasheet, CanonicalDetachment } from '../contracts/catalogue'
 import { DISPOSITION_PACK_SECTION, type ReferenceDocument, type ReferenceSection } from '../contracts/reference'
@@ -416,10 +417,10 @@ function missionCardLines(
 ): (string | null | undefined)[] {
   return [
     card?.selection ? `Battle tracking: ${selectionTracking[card.selection]}.` : null,
-    ...(card?.awards ?? []).flatMap((award) => [
+    ...awardsOnce(card?.awards ?? []).flatMap(({ award, triggers }) => [
       award.criteria ? `Scoring: ${award.criteria}` : null,
       `Award: ${award.vp} VP${award.per ? ` per ${award.per}` : ''}${award.max === null ? '' : `, up to ${award.max} VP`}`,
-      missionTiming(award.trigger),
+      ...triggers.map(missionTiming),
       award.mode ? `Mode: ${award.mode}` : null,
       award.group ? `Exclusive group: ${award.group}` : null,
     ]),

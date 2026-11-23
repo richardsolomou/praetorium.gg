@@ -4,7 +4,8 @@ import type { BattleView } from '../../../core/battleView'
 import type { BattleClock } from '../../../core/battleClock'
 import type { RosterReminder } from '../../../core/reminders'
 import { jsonByteLength } from '../../../core/json'
-import { appliesInMode, conditionLabel, payoutJoin, roundLabel, timingLabel } from '../../missionText'
+import { appliesInMode, conditionLabel, momentsLabel, payoutJoin } from '../../missionText'
+import { awardsOnce } from '../../../core/scoring'
 import { sides, sideName, type SideMission } from '../../sides'
 import type { ReferenceCard } from './MissionCards'
 import type { ReminderDismissalContext } from './reminderDismissals'
@@ -69,10 +70,10 @@ export function watchBattle(
       const awards = (reference?.awards ?? card.awards ?? []).filter((award) =>
         appliesInMode(award, card.kind === 'Primary' ? undefined : yours?.secondaryMode),
       )
-      const summary = awards
+      const summary = awardsOnce(awards)
         .map(
-          (award, index) =>
-            `${[payoutJoin(award, awards[index - 1]), timingLabel(award.trigger), roundLabel(award.trigger)].filter(Boolean).join(' · ')}: ${award.vp} VP${award.per ? ` per ${award.per}` : ''}${award.max !== null ? ` (max ${award.max})` : ''}. ${ownWords(conditionLabel(award) ?? '') || 'Check the full card on your iPhone.'}`,
+          ({ award, triggers }, index, once) =>
+            `${[payoutJoin(award, once[index - 1]?.award), momentsLabel(triggers)].filter(Boolean).join(' · ')}: ${award.vp} VP${award.per ? ` per ${award.per}` : ''}${award.max !== null ? ` (max ${award.max})` : ''}. ${ownWords(conditionLabel(award) ?? '') || 'Check the full card on your iPhone.'}`,
         )
         .join('\n\n')
       return {

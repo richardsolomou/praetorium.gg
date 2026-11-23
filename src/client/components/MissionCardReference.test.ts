@@ -111,3 +111,24 @@ describe('mission card reference', () => {
     expect([markup.includes('The lower payout.'), markup.includes('The higher payout.')]).toEqual([true, true])
   })
 })
+
+it('prints an award claimed at two moments once, under both', () => {
+  const held = { ...award(3, 'Hold an objective.', null), id: 'pack.card.o2-s1' }
+  const markup = render(
+    createElement(MissionCardReference, {
+      card: {
+        key: 'card',
+        name: 'Card',
+        awards: [
+          { ...held, trigger: { ...trigger, timing: 'end-of-phase', phase: 'command', roundMin: 2, roundMax: 4 } },
+          { ...held, trigger: { ...trigger, roundMin: 5, roundMax: 5 } },
+        ],
+      },
+    }),
+  )
+  expect([markup.split('>3<span').length - 1, markup.includes('Battle rounds 2–4'), markup.includes('Battle round 5')]).toEqual([
+    1,
+    true,
+    true,
+  ])
+})

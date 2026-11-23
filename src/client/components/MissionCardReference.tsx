@@ -13,6 +13,7 @@ import {
 import { RuleSummaryText } from './RuleSummaryText'
 import { useMissionSummary, useRuleSummary } from '../ruleSummaries'
 import { groupBy } from '../../core/collections'
+import { awardsOnce } from '../../core/scoring'
 
 /**
  * What a card asks for and what it pays, as its summaries say it, with the actions it names.
@@ -36,10 +37,7 @@ export function MissionCardReference({
   /** The side's secondary mode, when it is known. Unset shows every way it can pay. */
   mode?: string
 }) {
-  const groups = groupBy(
-    card.awards.filter((candidate) => appliesInMode(candidate, mode)),
-    groupKey,
-  )
+  const groups = groupBy(awardsOnce(card.awards.filter((candidate) => appliesInMode(candidate, mode))), groupKey)
   const actions = card.actions ?? []
   const summary = useMissionSummary('mission-card', card.key)
   return (
@@ -48,8 +46,8 @@ export function MissionCardReference({
       {summary ? <RuleSummaryText summary={summary} className="mt-0 text-base text-bone" /> : null}
       {groups.size || actions.length ? (
         <ul className="runner gap-3 [--gate-x:1.125rem] [--gate-y:1.625rem]">
-          {[...groups.values()].map((awards) => (
-            <ScoringBlock key={groupKey(awards[0]!)} awards={awards} />
+          {[...groups].map(([key, awards]) => (
+            <ScoringBlock key={key} entries={awards} />
           ))}
           {actions.map((action) => (
             <ActionBlock key={action.id} action={action} />
@@ -60,27 +58,37 @@ export function MissionCardReference({
   )
 }
 
-function ScoringBlock({ awards }: { awards: Award[] }) {
-  const first = awards[0]
+/** Payouts claimed at the same moments, each printed once under every moment it is claimed at. */
+function ScoringBlock({ entries }: { entries: ReturnType<typeof awardsOnce> }) {
+  const first = entries[0]
   if (!first) return null
-  const round = roundLabel(first.trigger)
-  const timing = timingLabel(first.trigger)
+  const awards = entries.map((entry) => entry.award)
   return (
     <li className="part p-4">
-      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-        {timing ? (
-          <p className="font-display text-sm leading-tight font-bold tracking-heading text-bone uppercase">
-            <span className="mr-1.5 font-sans text-2xs font-semibold tracking-label text-dim">When</span>
-            {timing}
-          </p>
-        ) : null}
-        {first.mode || round ? (
-          <span className="flex flex-wrap gap-1">
-            {first.mode ? <span className="chip">{title(first.mode)}</span> : null}
-            {round ? <span className="chip">{round}</span> : null}
-          </span>
-        ) : null}
-      </div>
+      {first.triggers.map((trigger, at) => {
+        const round = roundLabel(trigger)
+        const timing = timingLabel(trigger)
+        const mode = at === 0 ? first.award.mode : null
+        return (
+          <div
+            key={`${trigger.timing}-${trigger.phase}-${trigger.roundMin}`}
+            className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2"
+          >
+            {timing ? (
+              <p className="font-display text-sm leading-tight font-bold tracking-heading text-bone uppercase">
+                <span className="mr-1.5 font-sans text-2xs font-semibold tracking-label text-dim">{at ? 'Or' : 'When'}</span>
+                {timing}
+              </p>
+            ) : null}
+            {mode || round ? (
+              <span className="flex flex-wrap gap-1">
+                {mode ? <span className="chip">{title(mode)}</span> : null}
+                {round ? <span className="chip">{round}</span> : null}
+              </span>
+            ) : null}
+          </div>
+        )
+      })}
       <div className="mt-1.5 -mb-2.5">
         {awards.map((award, at) => {
           const join = payoutJoin(award, awards[at - 1])

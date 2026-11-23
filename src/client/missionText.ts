@@ -129,8 +129,12 @@ export function roundLabel(trigger: MissionAward['trigger']): string | null {
  */
 export { appliesInMode }
 
-export const groupKey = (award: MissionAward) =>
-  [award.mode, award.trigger.timing, award.trigger.phase, award.trigger.playerTurn, award.trigger.roundMin, award.trigger.roundMax].join(
-    '|',
-  )
+const triggerKey = (trigger: MissionAward['trigger']) =>
+  [trigger.timing, trigger.phase, trigger.playerTurn, trigger.roundMin, trigger.roundMax].join('|')
+/** The payouts that print under one heading: the same mode, claimed at the same moments. */
+export const groupKey = ({ award, triggers }: { award: MissionAward; triggers: readonly MissionAward['trigger'][] }) =>
+  [award.mode, ...triggers.map(triggerKey)].join('/')
+/** When an award is claimed, every moment of it, for a line of text. */
+export const momentsLabel = (triggers: readonly MissionAward['trigger'][]) =>
+  triggers.map((trigger) => [timingLabel(trigger), roundLabel(trigger)].filter(Boolean).join(' · ')).join(' or ')
 export const title = (value: string) => value.replaceAll('-', ' ').replaceAll(/\b\w/g, (letter) => letter.toLocaleUpperCase())
