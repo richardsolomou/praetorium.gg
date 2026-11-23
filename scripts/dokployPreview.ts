@@ -111,7 +111,7 @@ async function productModule(image: string) {
 const catalogueCache = { type: 'volume', volumeName: 'praetorium-preview-catalogues', mountPath: '/data' } as const
 
 // Every preview shares hera with production, so a preview must hit its own limit before the host runs out.
-const memoryLimit = String(2 * 1024 ** 3)
+const memoryLimit = String(3 * 1024 ** 3)
 
 /**
  * Caps memory and mounts the catalogue cache every preview shares, before the application first
@@ -136,10 +136,10 @@ export async function prepareApplication(client: DokployClient, name: string) {
   await client.api('mounts.create', { body: { ...catalogueCache, serviceType: 'application', serviceId: applicationId } })
 }
 
-// Three capped previews and production's peak fit in hera's memory together.
-const runningPreviewLimit = 3
+// Two capped previews and production's peak fit in hera's memory together.
+const runningPreviewLimit = 2
 
-/** Stops the longest-standing other previews, so this one runs as at most the third. Its next deploy starts a stopped preview again. */
+/** Stops the longest-standing other previews, so this one runs as at most the second. Its next deploy starts a stopped preview again. */
 export async function makeRoomForPreview(client: DokployClient, prefix: string, name: string) {
   const preview = new RegExp(`^${prefix}-pr-[1-9][0-9]{0,7}$`)
   const running = ((await client.applications()) as (DokployApplication & { createdAt: string; applicationStatus: string })[])
@@ -184,6 +184,9 @@ async function deploy() {
     'AUTH_SQLITE_PATH=/home/node/auth.sqlite',
     'AUTH_INITIALIZE_EMPTY=true',
     'PRAETORIUM_SEED_PREVIEW=true',
+    // Fixed rather than derived from the container limit (about 1.7 GiB at 3 GiB): main's server holds about 1 GiB after four
+    // reference pages, and the remaining GiB covers native memory.
+    'NODE_OPTIONS=--max-old-space-size=2048',
     `SPACETIME_URL=http://${internalHost}:3000/`,
     `SPACETIME_INTERNAL_HOST=${internalHost}`,
     `SPACETIME_DATABASE=${name}`,
