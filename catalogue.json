@@ -2,10 +2,10 @@
   "format": "praetorium.catalogue-lock.v1",
   "pointer": {
     "format": "praetorium.catalogue-pointer.v1",
-    "id": "65b3ec3eceb9adff89183f19ba067ee03a2d07639b03a76f65ae0d10ae0b0842",
-    "archiveSha256": "71f9cef1ea08309c6a8cb6f27907d3743cbe0670b848d08d991442795eca7e4f",
+    "id": "7766e31292e6d4ba59645afe7575b5d0fddc859639d4cb53187a3323677d30b4",
+    "archiveSha256": "754193dfa9accb2901a812f53a77df58149d2edf6e7a1e753b0203604dc8a56d",
     "objects": true,
-    "authoringRevision": "32196e8e7d7d57bc99e2a1fcc1d1e8fca1108688"
+    "authoringRevision": "4696d7aa3e0e926f4eaf8789146008c0aaee4e3f"
   },
   "revisions": {
     "definitions": "a3acc64df64812b3736aad47d2411e90d045e3fb8888c01ef160989ff6d6e4ac",
