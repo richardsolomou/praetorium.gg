@@ -67,6 +67,7 @@ export function referencePart(key: readonly unknown[]): string | null {
     return typeof key[1] === 'string' ? `faction:${key[1]}` : null
   if (key[0] === 'terrain-references') return `terrain:${key.slice(2).join(',')}`
   if (key[0] === 'rule-summary-records') return typeof key[1] === 'string' ? `rule-summaries:${key[1]}` : null
+  if (key[0] === 'rule-units') return `rule-units:${typeof key[1] === 'string' ? key[1] : 'current'}`
   return OWN_PARTS.has(String(key[0])) ? String(key[0]) : null
 }
 

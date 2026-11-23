@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { spannedParagraph, summaryBlocks, summaryText } from './summaryMarkdown'
+import { spannedParagraph, summaryBlocks, summaryText, unitAbilitySlug } from './summaryMarkdown'
 
 it('splits paragraphs at a blank line and joins the lines within one', () => {
   expect(summaryBlocks('Roll a D6.\nAdd 1.\n\nOn a 4+, gain 1 CP.')).toEqual([
@@ -55,4 +55,17 @@ it('cuts a spanned summary at its spans, leaving out one that overlaps the one b
   ).toEqual({
     paragraph: [{ text: 'Roll', bold: true }, { text: ' a D6.' }],
   })
+})
+
+it('reads an ability name and its VS Data id alike', () => {
+  expect(
+    [
+      'Damaged: 1-5 Wounds Remaining',
+      '[Psychic Abilities] - Smite',
+      '*Lord’s Will (Aura)',
+      'My Will Be Done',
+      'guardian-protocols-aura',
+      'miraculous-saviour-once-per-battle-per-army',
+    ].map(unitAbilitySlug),
+  ).toEqual(['damaged', 'smite', 'lords-will', 'my-will-be-done', 'guardian-protocols', 'miraculous-saviour'])
 })

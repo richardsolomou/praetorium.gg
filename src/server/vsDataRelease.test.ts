@@ -59,3 +59,40 @@ it('keeps the credit each adapted record names, once', () => {
   compactVsDataRelease(directory, file)
   expect(JSON.parse(fs.readFileSync(file, 'utf8')).attributions).toEqual([credit])
 })
+
+it('keeps what a datasheet shows of a unit, its models and wargear named, under its BSData alias', () => {
+  const roster = (kind: string, id: string, data: unknown, name = id) => ({ kind, id, name, aliases: [], category: 'rosters', data })
+  const files = vsDataReleaseFiles([
+    record,
+    { ...roster('unit', 'necrons.ghost-ark', { sizes: [1] }), aliases: ['bsdata.aa11.bb22'] },
+    roster(
+      'model',
+      'necrons.ghost-ark.ghost-ark',
+      { unit: 'necrons.ghost-ark', min: 1, max: 1, wargear: { 'necrons.ghost-ark.gauss-flayer-array': 2 } },
+      'Ghost Ark',
+    ),
+    roster('wargear', 'necrons.ghost-ark.gauss-flayer-array', {}, 'Gauss flayer array'),
+    {
+      kind: 'transport-profile',
+      id: 'necrons.ghost-ark',
+      aliases: [],
+      category: 'profiles',
+      data: { unit: 'necrons.ghost-ark', capacity: { loads: [[{ count: 'models', limit: 10, selectors: ['NECRON WARRIORS'] }]] } },
+    },
+  ])
+  fs.rmSync(directory, { recursive: true })
+  writeFiles(directory, files)
+  const file = `${directory}.json`
+  compactVsDataRelease(directory, file)
+  const compact = JSON.parse(fs.readFileSync(file, 'utf8'))
+  fs.rmSync(file)
+  expect([compact.entries['unit:necrons.ghost-ark'], compact.units['necrons.ghost-ark']]).toEqual([
+    ['bsdata.aa11.bb22'],
+    {
+      sizes: [1],
+      models: [{ name: 'Ghost Ark', min: 1, max: 1, wargear: [['Gauss flayer array', 2]] }],
+      options: [],
+      transport: { loads: [[{ count: 'models', limit: 10, selectors: ['NECRON WARRIORS'] }]] },
+    },
+  ])
+})

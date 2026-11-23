@@ -12,6 +12,7 @@ import {
   vsDataKey,
   type VsDataAttribution,
   type VsDataSummariesFile,
+  type VsDataUnits,
   vsDataSummariesSchema,
 } from '../shared/vsData'
 import { readCatalogueComposition } from './catalogueComposition'
@@ -36,12 +37,15 @@ export type VsDataSummaries = {
   abilities: () => Record<string, RuleSummary>
   /** The upstream work the served summaries adapt, once each, which the Sources page credits. */
   attributions: () => VsDataAttribution[]
+  /** What datasheets show from VS Data for a rules version (the current one where null); none for one it has no release of. */
+  unitsIn: (edition: string | null) => VsDataUnits
 }
 
 type Version = {
   edition: string
   index: ReturnType<typeof vsDataIndex>
   summaries: Map<string, RuleSummary>
+  units: VsDataUnits
 }
 
 /**
@@ -76,7 +80,25 @@ export function* vsDataSummariesSteps(directory: string, documents: readonly Rul
           .map((alias) => links.get(alias))
           .find(Boolean)
       const abilities = new Set(file.records.flatMap((record) => (ABILITY_KINDS.includes(record.kind) ? [vsDataKey(record)] : [])))
-      return { edition, index, summaries: new Map(file.records.map((record) => [vsDataKey(record), summaryOf(record, link, abilities)])) }
+      const summaries = new Map(file.records.map((record) => [vsDataKey(record), summaryOf(record, link, abilities)]))
+      // A unit's BSData aliases name its entry id with dots for dashes.
+      const units = {
+        units: Object.fromEntries(
+          Object.entries(file.units).flatMap(([id, unit]) =>
+            index
+              .aliasesOf({ kind: 'unit', id })
+              .filter((alias) => alias.startsWith('bsdata.'))
+              .map((alias) => [alias.slice('bsdata.'.length).replaceAll('.', '-'), { ...unit, id }] as const),
+          ),
+        ),
+        // Every ability by its VS Data id, which a unit's own abilities and its faction's start with.
+        abilities: Object.fromEntries(
+          [...summaries].flatMap(([key, summary]) =>
+            key.startsWith('ability:') ? [[key.slice('ability:'.length), summary] as const] : [],
+          ),
+        ),
+      }
+      return { edition, index, units, summaries }
     })
   const filesOf = (entry: (typeof held)[number]) => editionTextFiles(directory, entry.base ? null : entry.edition.id)
   const cards = new Map<string, { file: string; edition: string }>()
@@ -100,6 +122,10 @@ export function* vsDataSummariesSteps(directory: string, documents: readonly Rul
           .map((credit) => [`${credit.credit} ${credit.licence}`, credit]),
       ).values(),
     ],
+    unitsIn: (edition) => {
+      const id = edition ?? held[0]!.edition.id
+      return (held.some((entry) => entry.edition.id === id) && versionOf(id)?.units) || { units: {}, abilities: {} }
+    },
     summariesIn: (id) => {
       const card = cards.get(id)
       const version = card && versionOf(card.edition)

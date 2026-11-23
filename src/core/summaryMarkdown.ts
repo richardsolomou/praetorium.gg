@@ -80,3 +80,23 @@ function links(text: string): SummaryInline[] {
   runs.push({ text: text.slice(read) })
   return runs
 }
+
+/**
+ * An ability's name or VS Data id reduced to what both say alike: a datasheet's "Damaged: 1-5 Wounds Remaining" or
+ * "[Psychic Abilities] - Smite", and an id with "-aura" or "-once-per-battle" its datasheet does not print.
+ */
+export function unitAbilitySlug(name: string) {
+  return name
+    .normalize('NFKD')
+    .replaceAll(/\p{M}/gu, '')
+    .toLowerCase()
+    .replace(/^\*+/, '')
+    .replace(/^\[psychic abilities\]\s*-\s*/, '')
+    .replace(/^damaged\b.*$/, 'damaged')
+    .replaceAll(/\([^)]*\)|\[[^\]]*\]/g, ' ')
+    .replaceAll(/['’]/g, '')
+    .replaceAll(/[^a-z0-9]+/g, '-')
+    .replaceAll(/^-|-$/g, '')
+    .replace(/-(?:aura|psychic(?:-level-\d+)?|once-per-.*)$/, '')
+    .replace(/^damaged-.*$/, 'damaged')
+}

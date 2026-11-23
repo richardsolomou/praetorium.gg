@@ -6,7 +6,11 @@ type FixtureRecord = {
   kind: string
   id: string
   aliases: string[]
-  summary: string
+  /** A summary record's text; a record of another category gives its `data` instead. */
+  summary?: string
+  name?: string
+  category?: string
+  data?: unknown
   attribution?: { credit: string; url: string; licence: string }
 }
 
@@ -17,10 +21,10 @@ export function vsDataReleaseFiles(records: FixtureRecord[], update = 'MFM 1.6')
     formatVersion: 1,
     revision: 1,
     rulesVersion,
-    entries: records.map(({ kind, id, aliases, summary }) => ({ kind, id, name: summary.split(' ')[0], aliases })),
+    entries: records.map(({ kind, id, aliases, summary, name }) => ({ kind, id, name: name ?? summary?.split(' ')[0], aliases })),
   })
-  const recordFiles = records.map(({ kind, id, summary, attribution }): [string, string] => [
-    `records/rules-reference/${kind}/${id}.json`,
+  const recordFiles = records.map(({ kind, id, summary, attribution, category = 'rules-reference', data }): [string, string] => [
+    `records/${category}/${kind}/${id}.json`,
     JSON.stringify({
       formatVersion: 1,
       kind,
@@ -28,7 +32,10 @@ export function vsDataReleaseFiles(records: FixtureRecord[], update = 'MFM 1.6')
       rulesVersion,
       source: { title: 'An app build' },
       ...(attribution ? { attribution: { ...attribution, revision: 'abc', changes: 'Adapted.' } } : {}),
-      data: { summary, citations: [{ type: 'publisher', title: 'A faction pack', url: 'https://example.com/pack.pdf', page: '3' }] },
+      data: data ?? {
+        summary,
+        citations: [{ type: 'publisher', title: 'A faction pack', url: 'https://example.com/pack.pdf', page: '3' }],
+      },
     }),
   ])
   const sha256 = (text: string) => createHash('sha256').update(text).digest('hex')
@@ -39,16 +46,18 @@ export function vsDataReleaseFiles(records: FixtureRecord[], update = 'MFM 1.6')
     rulesVersion,
     identity: { path: 'identity.json', sha256: sha256(identity) },
     schemas: [],
-    categories: [
-      {
-        name: 'rules-reference',
-        status: 'partial',
-        sources: [],
-        records: recordFiles
-          .map(([file, text], at) => ({ kind: records[at]!.kind, id: records[at]!.id, path: file, sha256: sha256(text) }))
-          .toSorted((left, right) => (`${left.kind}:${left.id}` < `${right.kind}:${right.id}` ? -1 : 1)),
-      },
-    ],
+    categories: [...new Set(['rules-reference', ...records.map((record) => record.category ?? 'rules-reference')])].map((name) => ({
+      name,
+      status: 'partial',
+      sources: [],
+      records: recordFiles
+        .flatMap(([file, text], at) =>
+          (records[at]!.category ?? 'rules-reference') === name
+            ? [{ kind: records[at]!.kind, id: records[at]!.id, path: file, sha256: sha256(text) }]
+            : [],
+        )
+        .toSorted((left, right) => (`${left.kind}:${left.id}` < `${right.kind}:${right.id}` ? -1 : 1)),
+    })),
   })
   return [['manifest.json', manifest], ['identity.json', identity], ...recordFiles]
 }

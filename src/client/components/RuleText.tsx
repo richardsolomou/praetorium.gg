@@ -5,8 +5,9 @@ import { cn } from '@/lib/utils'
 import type { RuleLinks } from '../ruleLinks'
 import { Keyword, type KeywordRule } from './Keyword'
 import { RuleMarkup } from './RuleMarkup'
-import { useRuleSummary } from '../ruleSummaries'
+import { useAbilitySummary, useRuleSummary } from '../ruleSummaries'
 import { RuleSummarySkeleton, RuleSummaryText } from './RuleSummaryText'
+import { useUnitAbilitySummary } from './UnitFromVsData'
 import { hasTextTokens } from '../../core/sourceText'
 
 const noRules: KeywordRule[] = []
@@ -98,20 +99,27 @@ export function RuleText({
   rules = noRules,
   className,
   authored = false,
+  name,
 }: {
   text: string
   rules?: KeywordRule[]
   className?: string
   authored?: boolean
+  /** The ability's name, which finds its summary through the datasheet around it where its text alone does not. */
+  name?: string
 }) {
-  if (hasTextTokens(text)) return <SummarizedRule text={text} className={className} />
+  if (hasTextTokens(text)) return <SummarizedRule text={text} className={className} name={name} />
   return authored ? <RuleTextBody text={text} rules={rules} className={className} /> : null
 }
 
-function SummarizedRule({ text, className }: { text: string; className?: string }) {
+function SummarizedRule({ text, className, name }: { text: string; className?: string; name?: string }) {
   const { summary, pending } = useRuleSummary(text)
-  if (pending) return <RuleSummarySkeleton className={className} />
-  return summary ? <RuleSummaryText summary={summary} className={className} /> : null
+  const ofUnit = useUnitAbilitySummary(name, !pending && !summary)
+  // A core ability a datasheet prints in BSData's words, such as Leader, is VS Data's core ability of that name.
+  const core = useAbilitySummary(name && !pending && !summary && ofUnit === null ? { name } : null)
+  if (pending || ofUnit === undefined || core === undefined) return <RuleSummarySkeleton className={className} />
+  const shown = summary ?? ofUnit ?? core
+  return shown ? <RuleSummaryText summary={shown} className={className} /> : null
 }
 
 function RuleTextBody({ text, rules, className }: { text: string; rules: KeywordRule[]; className?: string }) {

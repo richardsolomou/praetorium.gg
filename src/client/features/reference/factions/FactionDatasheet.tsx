@@ -39,6 +39,16 @@ import { Keyword, KEYWORD_TAG_CLASS, KeywordList, type KeywordRule, UnitKeywords
 import { ProfileRules } from '../../rosters/ProfileRules'
 import { RuleText } from '../../../components/RuleText'
 import { useRuleSummary } from '../../../ruleSummaries'
+import { RuleSummarySkeleton } from '../../../components/RuleSummaryText'
+import {
+  DatasheetUnit,
+  datasheetUnit,
+  unitComposition,
+  unitLoadout,
+  unitOptions,
+  unitTransport,
+  useVsDataUnit,
+} from '../../../components/UnitFromVsData'
 import { PageContent, PageHeader } from '../../../components/Page'
 import { groupBy } from '../../../../core/collections'
 import { rulesVersionLabel } from '../../../../core/catalogueEdition'
@@ -70,85 +80,95 @@ export function FactionDatasheet() {
   const visibleAbilityIds = new Set(abilities.map((ability) => ability.id))
   const relationshipAbilityIds = sheet.abilities.filter((ability) => !visibleAbilityIds.has(ability.id)).map((ability) => ability.id)
 
+  const unitKey = datasheetUnit(faction.id, sheet.id)
   return (
-    <main id="summary" className="w-full">
-      <PageHeader
-        tint={factionColour(faction.slug, faction.displayName)}
-        title={sheet.name}
-        media={<FactionMark faction={faction} />}
-        actions={
-          <div className="flex flex-wrap items-center gap-1">
-            <AddToRoster faction={faction} entryId={sheet.id} name={sheet.name} />
-            <DatasheetAddMenu entryId={sheet.id} name={sheet.name} />
-            <SimulateDatasheet catalogueId={faction.id} entryId={sheet.id} />
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() =>
-                reportDataProblem({
-                  from: 'datasheet',
-                  name: sheet.name,
-                  faction: faction.displayName,
-                  rulesVersion: rulesVersionLabel(faction),
-                  catalogueId: faction.id,
-                  entryId: sheet.id,
-                })
-              }
-            >
-              <MessageSquareWarning /> Something wrong?
-            </Button>
-          </div>
-        }
-      >
-        {sheet.modelCount || sheet.points !== null ? (
-          <div className="flex flex-wrap gap-1">
-            {sheet.modelCount ? <span className="chip">{sheet.modelCount}</span> : null}
-            {sheet.points === null ? null : <span className="chip text-bone">{sheet.points} pts</span>}
-          </div>
-        ) : null}
-        <UnitKeywords id="keyword-rules" className="mt-2" sheet={sheet} />
-      </PageHeader>
-      <PageContent className="space-y-6">
-        <FactionBreadcrumb faction={faction} datasheets />
-        <ContinueGuestDraft surface="datasheet" />
-
-        {unit.length === 1 && unit[0] ? <UnitCharacteristics profile={unit[0]} anchorIds={unitAnchorIds.get(unit[0].id)} /> : null}
-        {unit.length > 1 ? (
-          <ProfileTable
-            title="Models"
-            profiles={unit}
-            omit={NON_STATLINE_KINDS}
-            keywordRules={sheet.keywordRules}
-            anchorIds={unitAnchorIds}
-          />
-        ) : null}
-        {unit.length > 1 && invulnerable.length ? (
-          <section>
-            <SectionHeading title="Invulnerable save" />
-            <div className="flex flex-wrap gap-2">
-              {invulnerable.map((profile) => (
-                <div key={profile.name} className="part px-3 py-2">
-                  <span className="text-sm font-semibold">{profile.name}</span>
-                  <span className="readout ml-3 text-dim">{profile.value}</span>
-                </div>
-              ))}
+    <DatasheetUnit.Provider value={unitKey}>
+      <main id="summary" className="w-full">
+        <PageHeader
+          tint={factionColour(faction.slug, faction.displayName)}
+          title={sheet.name}
+          media={<FactionMark faction={faction} />}
+          actions={
+            <div className="flex flex-wrap items-center gap-1">
+              <AddToRoster faction={faction} entryId={sheet.id} name={sheet.name} />
+              <DatasheetAddMenu entryId={sheet.id} name={sheet.name} />
+              <SimulateDatasheet catalogueId={faction.id} entryId={sheet.id} />
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() =>
+                  reportDataProblem({
+                    from: 'datasheet',
+                    name: sheet.name,
+                    faction: faction.displayName,
+                    rulesVersion: rulesVersionLabel(faction),
+                    catalogueId: faction.id,
+                    entryId: sheet.id,
+                  })
+                }
+              >
+                <MessageSquareWarning /> Something wrong?
+              </Button>
             </div>
-          </section>
-        ) : null}
-        {ranged.length ? <ProfileTable title="Ranged weapons" profiles={ranged} keywordRules={sheet.keywordRules} /> : null}
-        {melee.length ? <ProfileTable title="Melee weapons" profiles={melee} keywordRules={sheet.keywordRules} /> : null}
-        <Abilities abilities={abilities} rules={sheet.keywordRules} />
-        <ProfileRules profiles={sheet.profiles} rules={sheet.keywordRules} />
-        <UnitConfiguration sheet={sheet} />
-        <TopFourLists faction={faction} entryId={sheet.id} name={sheet.name} />
-        <PointsChanges faction={faction} slug={sheet.slug} />
-        <TransportReference transport={sheet.transport} profiles={structured.transport} abilities={abilities} rules={sheet.keywordRules} />
-        <Relationships sheet={sheet} abilityIds={relationshipAbilityIds} />
-        <DatasheetPhotos entryId={sheet.id} name={sheet.name} />
-        <FactionGames faction={faction} />
-        <DatasheetNextStep faction={faction} sheet={sheet} />
-      </PageContent>
-    </main>
+          }
+        >
+          {sheet.modelCount || sheet.points !== null ? (
+            <div className="flex flex-wrap gap-1">
+              {sheet.modelCount ? <span className="chip">{sheet.modelCount}</span> : null}
+              {sheet.points === null ? null : <span className="chip text-bone">{sheet.points} pts</span>}
+            </div>
+          ) : null}
+          <UnitKeywords id="keyword-rules" className="mt-2" sheet={sheet} />
+        </PageHeader>
+        <PageContent className="space-y-6">
+          <FactionBreadcrumb faction={faction} datasheets />
+          <ContinueGuestDraft surface="datasheet" />
+
+          {unit.length === 1 && unit[0] ? <UnitCharacteristics profile={unit[0]} anchorIds={unitAnchorIds.get(unit[0].id)} /> : null}
+          {unit.length > 1 ? (
+            <ProfileTable
+              title="Models"
+              profiles={unit}
+              omit={NON_STATLINE_KINDS}
+              keywordRules={sheet.keywordRules}
+              anchorIds={unitAnchorIds}
+            />
+          ) : null}
+          {unit.length > 1 && invulnerable.length ? (
+            <section>
+              <SectionHeading title="Invulnerable save" />
+              <div className="flex flex-wrap gap-2">
+                {invulnerable.map((profile) => (
+                  <div key={profile.name} className="part px-3 py-2">
+                    <span className="text-sm font-semibold">{profile.name}</span>
+                    <span className="readout ml-3 text-dim">{profile.value}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          ) : null}
+          {ranged.length ? <ProfileTable title="Ranged weapons" profiles={ranged} keywordRules={sheet.keywordRules} /> : null}
+          {melee.length ? <ProfileTable title="Melee weapons" profiles={melee} keywordRules={sheet.keywordRules} /> : null}
+          <Abilities abilities={abilities} rules={sheet.keywordRules} />
+          <ProfileRules profiles={sheet.profiles} rules={sheet.keywordRules} />
+          <UnitConfiguration sheet={sheet} catalogueId={faction.id} />
+          <TopFourLists faction={faction} entryId={sheet.id} name={sheet.name} />
+          <PointsChanges faction={faction} slug={sheet.slug} />
+          <TransportReference
+            transport={sheet.transport}
+            profiles={structured.transport}
+            abilities={abilities}
+            rules={sheet.keywordRules}
+            catalogueId={faction.id}
+            entryId={sheet.id}
+          />
+          <Relationships sheet={sheet} abilityIds={relationshipAbilityIds} />
+          <DatasheetPhotos entryId={sheet.id} name={sheet.name} />
+          <FactionGames faction={faction} />
+          <DatasheetNextStep faction={faction} sheet={sheet} />
+        </PageContent>
+      </main>
+    </DatasheetUnit.Provider>
   )
 }
 
@@ -165,7 +185,7 @@ export function Abilities({ abilities, rules }: { abilities: DisplayAbility[]; r
           <article id={`ability-${ability.id}`} key={ability.id} className="part p-3">
             <h3 className="text-sm">{ability.source ?? ability.name}</h3>
             {ability.source ? <p className="eyebrow mt-1">{ability.name}</p> : null}
-            {ability.description ? <RuleText text={ability.description} rules={rules} /> : null}
+            {ability.description ? <RuleText text={ability.description} rules={rules} name={ability.name} /> : null}
           </article>
         ))}
       </div>
@@ -304,9 +324,13 @@ function TopFourLists({
   )
 }
 
-/** A unit's base size and prices; its composition, loadout and wargear options are a source's own words, never shown. */
-function UnitConfiguration({ sheet }: { sheet: Datasheet }) {
-  if (!sheet.baseSize && !sheet.costs.length) return null
+/** A unit's composition, loadout, options, base size and prices; all but the prices and base size come from VS Data. */
+function UnitConfiguration({ sheet, catalogueId }: { sheet: Datasheet; catalogueId: string }) {
+  const unit = useVsDataUnit(catalogueId, sheet.id)
+  const composition = unit ? unitComposition(unit) : []
+  const loadout = unit ? unitLoadout(unit) : []
+  const options = unit ? unitOptions(unit) : []
+  if (!sheet.baseSize && !sheet.costs.length && !composition.length) return null
   return (
     <section>
       <SectionHeading title="Unit configuration" />
@@ -314,6 +338,12 @@ function UnitConfiguration({ sheet }: { sheet: Datasheet }) {
         <div className="grid md:grid-cols-2 md:divide-x md:divide-edge">
           <div className="space-y-2 p-3">
             <h3 className="eyebrow">Composition</h3>
+            {unit === undefined ? <RuleSummarySkeleton className="mt-0" /> : null}
+            {composition.map((line) => (
+              <p key={line} className="text-sm text-dim">
+                {line}
+              </p>
+            ))}
             {sheet.baseSize ? <p className="text-sm whitespace-pre-line text-dim">Base size: {sheet.baseSize}</p> : null}
           </div>
           <div id="points" className="border-t border-edge p-3 md:border-t-0">
@@ -337,6 +367,26 @@ function UnitConfiguration({ sheet }: { sheet: Datasheet }) {
             </div>
           </div>
         </div>
+        {loadout.length ? (
+          <div id="loadout" className="border-t border-edge p-3">
+            <h3 className="eyebrow mb-2">Loadout</h3>
+            {loadout.map((line) => (
+              <p key={line} className="text-sm text-dim">
+                {line}
+              </p>
+            ))}
+          </div>
+        ) : null}
+        {options.length ? (
+          <div id="wargear" className="border-t border-edge p-3">
+            <h3 className="eyebrow mb-2">Wargear options</h3>
+            <ul className="list-disc space-y-1.5 pl-5 text-sm text-dim">
+              {options.map((option) => (
+                <li key={option}>{option}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
       </div>
       <PrintTheBases sheet={sheet} />
     </section>
@@ -554,24 +604,35 @@ export function TransportReference({
   profiles,
   abilities,
   rules,
+  catalogueId = '',
+  entryId = '',
 }: {
   transport: string | null
   profiles: readonly Pick<DisplayProfile, 'id'>[]
   abilities: readonly Pick<DisplayAbility, 'name'>[]
   rules: KeywordRule[]
+  catalogueId?: string
+  entryId?: string
 }) {
   const shown = transport && separateTransport({ transport, abilities })
-  // Only a summary of the rule is ever shown, so a rule without one leaves no empty section.
   const { summary } = useRuleSummary(shown ?? '')
-  if (!transport) return null
+  const unit = useVsDataUnit(catalogueId, entryId)
+  const facts = unit ? unitTransport(unit) : []
+  if (!transport && !facts.length) return null
   const anchors = <ReferenceAnchors prefix="profile" ids={profiles.map((profile) => profile.id)} />
-  if (!shown || !summary) return anchors
+  // Only a summary of the rule and VS Data's transport facts are ever shown, so a rule with neither leaves no section.
+  if (!(shown && summary) && !facts.length) return anchors
   return (
     <section>
       {anchors}
       <SectionHeading title="Transport" />
-      <div className="part p-3">
-        <RuleText text={shown} rules={rules} className="mt-0" />
+      <div className="part space-y-1 p-3">
+        {facts.map((line) => (
+          <p key={line} className="text-sm text-dim">
+            {line}
+          </p>
+        ))}
+        {shown && summary ? <RuleText text={shown} rules={rules} className={facts.length ? 'mt-2' : 'mt-0'} /> : null}
       </div>
     </section>
   )

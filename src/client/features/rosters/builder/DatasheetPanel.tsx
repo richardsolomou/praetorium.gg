@@ -12,6 +12,7 @@ import { Keyword, KEYWORD_TAG_CLASS, type KeywordRule, UnitKeywords } from '../.
 import { abilitySections, attachmentGroups, primaryUnitProfile, referenceAbilities, separateTransport } from '../../../datasheet'
 import { RuleText } from '../../../components/RuleText'
 import { useRuleSummary } from '../../../ruleSummaries'
+import { DatasheetUnit, datasheetUnit, unitTransport, useVsDataUnit } from '../../../components/UnitFromVsData'
 import { ProfileRules } from '../ProfileRules'
 import { ReminderButton, type ReminderControls } from '../ReminderButton'
 import type { ReminderSubject } from '../../../../core/reminders'
@@ -120,7 +121,7 @@ export function DatasheetPanel({
         detachmentRules={detachmentRules}
       />
       <ProfileRules profiles={sheet.profiles} rules={sheet.keywordRules} compact />
-      {transport ? <TransportRule text={transport} rules={sheet.keywordRules} /> : null}
+      <TransportRule text={transport} rules={sheet.keywordRules} catalogueId={catalogueId} entryId={sheet.id} />
       {sheet.referenceRoute ? (
         <div className="border-t border-edge pt-3">
           <UnitKeywords className="min-w-0" sheet={sheet} />
@@ -129,11 +130,13 @@ export function DatasheetPanel({
       <RelationshipSummary sheet={sheet} onSelect={onRelationshipSelect} />
     </div>
   )
+  const unitKey = datasheetUnit(catalogueId, sheet.id)
+  const unitContent = <DatasheetUnit.Provider value={unitKey}>{content}</DatasheetUnit.Provider>
   return embedded ? (
-    <div className="border-t border-edge pt-4">{content}</div>
+    <div className="border-t border-edge pt-4">{unitContent}</div>
   ) : (
     <ScrollArea className="h-full min-w-0 max-w-full overflow-hidden [&_[data-slot=scroll-area-viewport]]:touch-pan-y [&_[data-slot=scroll-area-viewport]]:!overflow-x-hidden [&_[data-slot=scroll-area-viewport]]:overscroll-x-none [&_[data-slot=scroll-area-viewport]]:p-3">
-      {content}
+      {unitContent}
     </ScrollArea>
   )
 }
@@ -265,7 +268,7 @@ function AbilitySummary({
                 {reminders ? <ReminderButton subject={ability} controls={reminders} /> : null}
               </div>
               {ability.source ? <p className="eyebrow mt-1">{ability.name}</p> : null}
-              {ability.description ? <RuleText text={ability.description} rules={rules} /> : null}
+              {ability.description ? <RuleText text={ability.description} rules={rules} name={ability.name} /> : null}
             </article>
           ))}
         </div>
@@ -293,15 +296,32 @@ function AbilitySummary({
   )
 }
 
-/** A transport's rule, shown only where it has a summary, so a rule without one leaves no empty section. */
-function TransportRule({ text, rules }: { text: string; rules: KeywordRule[] }) {
-  const { summary } = useRuleSummary(text)
-  if (!summary) return null
+/** A transport's VS Data facts and its rule's summary, shown only where there is either, so neither leaves an empty section. */
+function TransportRule({
+  text,
+  rules,
+  catalogueId,
+  entryId,
+}: {
+  text: string | null
+  rules: KeywordRule[]
+  catalogueId: string
+  entryId: string
+}) {
+  const { summary } = useRuleSummary(text ?? '')
+  const unit = useVsDataUnit(catalogueId, entryId)
+  const facts = unit ? unitTransport(unit) : []
+  if (!(text && summary) && !facts.length) return null
   return (
     <section>
       <h2 className="rubric">Transport</h2>
-      <div className="mt-2 part px-2 py-1.5">
-        <RuleText text={text} rules={rules} />
+      <div className="mt-2 space-y-1 part px-2 py-1.5">
+        {facts.map((line) => (
+          <p key={line} className="text-sm text-dim">
+            {line}
+          </p>
+        ))}
+        {text && summary ? <RuleText text={text} rules={rules} /> : null}
       </div>
     </section>
   )

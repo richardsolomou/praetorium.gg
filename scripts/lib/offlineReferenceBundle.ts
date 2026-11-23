@@ -168,6 +168,7 @@ export async function writeReferenceBundle(outDir: string, directory: string, ru
   const summaries = completeSteps(vsDataSummariesSteps(directory, canonical.ruleDocuments))
   put(['rule-summary-credits'], summaries?.attributions() ?? [])
   put(['rule-ability-summaries'], summaries?.abilities() ?? {})
+  for (const [at, edition] of (summaries?.editions ?? []).entries()) put(['rule-units', at ? edition : null], summaries!.unitsIn(edition))
   for (const file of summaries ? Object.keys(textFiles) : []) {
     const answer = summaries!.summariesIn(file)
     // A file no summary reads stays out, and its query falls back to the source's own text as offline.

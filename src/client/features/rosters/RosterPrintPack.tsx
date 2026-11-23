@@ -2,13 +2,15 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { attachedUnitList } from '../../../core/attachedUnits'
 import { ATTACHMENT_LABELS } from '../../../core/attachmentRows'
-import { rulesVersionLabel } from '../../../core/catalogueEdition'
+import { catalogueEditionId, rulesVersionLabel } from '../../../core/catalogueEdition'
 import type { RosterPick } from '../../../core/roster'
 import { stratagemTiming } from '../../../core/reminders'
 import { nicknamedUnit } from '../../../core/unitNotes'
 import type { FormatRuleId, OptionalRuleId } from '../../../core/battle'
 import { pickedOptionalRules, pointsBudgetOf, waivedFormatRules } from '../../../core/battle'
 import { factionQuery, detachmentDetailQuery, detachmentRulesQuery, loadoutDatasheetsQuery, priceQuery } from '../../queries'
+import { ruleUnitsQuery } from '../../queries/references'
+import { DatasheetUnit, datasheetUnit } from '../../components/UnitFromVsData'
 import type { priceRoster } from '../../functions'
 import { RuleText } from '../../components/RuleText'
 import { useRuleSummariesSettled } from '../../ruleSummaries'
@@ -49,6 +51,8 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
       const picks = normalisePicks(input.picks)
       const faction = await client.query({ ...factionQuery(input.catalogueId), staleTime: 0 })
       if (!faction) throw new Error('The army reference is unavailable.')
+      // An ability only BSData prints finds its summary through its unit, so the pack waits for the units as for summaries.
+      await client.query(ruleUnitsQuery(catalogueEditionId(input.catalogueId)))
       const selected = input.detachmentIds.map((id) => faction.detachments.find((detachment) => detachment.id === id))
       if (selected.some((detachment) => !detachment)) throw new Error('A selected detachment reference is unavailable.')
       const detachments = []
@@ -253,7 +257,7 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
                     <span>Note</span> {input.picks[unit.key]?.note}
                   </p>
                 ) : null}
-                <RosterPrintDatasheet sheet={unit.sheets.selected!} />
+                <UnitPrintDatasheet catalogueId={input.catalogueId} sheet={unit.sheets.selected!} />
               </article>
             ))}
           </section>
@@ -327,5 +331,15 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
         <p>Rules summaries from VS Data; prices from the BSData Munitorum Field Manual. Data sources: praetorium.gg/sources</p>
       </div>
     </div>
+  )
+}
+
+/** A unit's printed datasheet, its abilities finding their summaries through the unit where their text alone does not. */
+function UnitPrintDatasheet({ catalogueId, sheet }: { catalogueId: string; sheet: Parameters<typeof RosterPrintDatasheet>[0]['sheet'] }) {
+  const unitKey = datasheetUnit(catalogueId, sheet.id)
+  return (
+    <DatasheetUnit.Provider value={unitKey}>
+      <RosterPrintDatasheet sheet={sheet} />
+    </DatasheetUnit.Provider>
   )
 }
