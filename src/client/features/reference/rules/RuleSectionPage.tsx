@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useEffect, useSyncExternalStore } from 'react'
 import type { RuleEntry, RuleSummary } from '../../../../contracts/rules'
 import { ruleIndexQuery, ruleSectionQuery } from '../../../queries'
-import { RuleSummaryText } from '../../../components/RuleSummaryText'
+import { RuleSummarySkeleton, RuleSummaryText } from '../../../components/RuleSummaryText'
 import { useRuleEntrySummaries } from '../../../ruleSummaries'
 import { PageContent, PageHeader } from '../../../components/Page'
 import { revealHashTarget } from '../../../hashTarget'
@@ -45,7 +45,7 @@ export function RuleSectionPage({ documentId, sectionId }: { documentId: string;
         </BackLink>
         <div className="runner gap-2.5 [--gate-y:1.5rem]">
           {shown.entries.map((entry) => (
-            <Rule key={entry.anchor} entry={entry} summary={summaryOf(entry.id)} current={target === entry.anchor} />
+            <Rule key={entry.anchor} entry={entry} summary={summaryOf(entry.id)} loading={!settled} current={target === entry.anchor} />
           ))}
         </div>
         <nav className="flex items-stretch justify-between gap-2">
@@ -76,7 +76,17 @@ const subscribeToHash = (onChange: () => void) => {
 const currentHash = () => decodeURIComponent(window.location.hash.slice(1))
 const noHash = () => ''
 
-function Rule({ entry, summary, current }: { entry: RuleEntry; summary: RuleSummary | undefined; current: boolean }) {
+function Rule({
+  entry,
+  summary,
+  loading,
+  current,
+}: {
+  entry: RuleEntry
+  summary: RuleSummary | undefined
+  loading: boolean
+  current: boolean
+}) {
   return (
     <article
       id={entry.anchor}
@@ -88,7 +98,7 @@ function Rule({ entry, summary, current }: { entry: RuleEntry; summary: RuleSumm
         <h2 className="text-lg sm:text-xl">{entry.title}</h2>
         {entry.cost === null ? null : <span className="chip readout">{entry.cost} CP</span>}
       </div>
-      {summary ? <RuleSummaryText summary={summary} className="mt-3" /> : null}
+      {summary ? <RuleSummaryText summary={summary} className="mt-3" /> : loading ? <RuleSummarySkeleton className="mt-3" /> : null}
       {entry.blocks.map((block, at) => {
         const key = `${block.kind}-${at}`
         if (block.kind === 'heading') {

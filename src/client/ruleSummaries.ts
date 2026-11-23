@@ -65,10 +65,11 @@ export function useRuleEntrySummaries(url: string | null) {
   }
 }
 
-/** The summary of a weapon or core ability, by its `kind:id` or, for a keyword, by its name; null until it is known. */
-export function useAbilitySummary(ability: { key: string } | { name: string } | null): RuleSummary | null {
-  const { data } = useQuery({ ...ruleAbilitySummariesQuery(), enabled: Boolean(ability) })
-  if (!ability || !data) return null
+/** The summary of a weapon or core ability, by its `kind:id` or, for a keyword, by its name: undefined while it is asked for, null where VS Data has none. */
+export function useAbilitySummary(ability: { key: string } | { name: string } | null): RuleSummary | null | undefined {
+  const { data, isPending } = useQuery({ ...ruleAbilitySummariesQuery(), enabled: Boolean(ability) })
+  if (!ability) return null
+  if (!data) return isPending ? undefined : null
   if ('key' in ability) return data[ability.key] ?? null
   const slug = ability.name
     .normalize('NFKC')

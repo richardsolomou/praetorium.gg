@@ -5,7 +5,7 @@ import { buttonClass } from '../../../components/buttonClass'
 import { DispositionChip } from '../../battle/setup/chrome'
 import { gameReferencesQuery } from '../../../queries'
 import { PageContent, PageHeader } from '../../../components/Page'
-import { RuleSummaryLoading, RuleSummaryText } from '../../../components/RuleSummaryText'
+import { RuleSummarySkeleton, RuleSummaryText } from '../../../components/RuleSummaryText'
 import { useMissionSummary } from '../../../ruleSummaries'
 import type { MissionTwist } from '../../../../contracts/missions'
 import { matchupMission } from '../../../../shared/gameReferences'
@@ -148,7 +148,7 @@ function TwistReference({ twist }: { twist: MissionTwist }) {
       {summary ? (
         <RuleSummaryText summary={summary} className="mt-3 text-base text-bone" />
       ) : pending ? (
-        <RuleSummaryLoading className="mt-3" />
+        <RuleSummarySkeleton className="mt-3" />
       ) : null}
     </article>
   )

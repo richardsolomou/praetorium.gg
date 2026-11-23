@@ -4,7 +4,7 @@ import { attachedUnit, attachmentHost } from '../core/attachedUnits'
 import { hasTextTokens } from '../core/sourceText'
 import { titleCaseAbility } from './catalogueAbilityGrants'
 import { abilityGrantsIn, combatFactsIn } from './textFacts'
-import { recordedCombatText } from '../core/combatReading'
+import { combatFactsOf, recordedCombatText } from '../core/combatReading'
 import { type CombatRule, type CombatRuleJudge, combatRuleProjected, judgedCombatRule } from '../core/combatRules'
 import { datasheetCharacteristicKind, datasheetProfileKind } from '../core/datasheetStructure'
 import { routeSlug } from '../core/slug'
@@ -51,6 +51,28 @@ export function datasheetCombatant(
       weaponAbilityRules: remember(weaponAbilityRulesByCatalogue, loaded, () => rulesNamed(loaded, WEAPON_ABILITY_KINDS)),
     }
   )
+}
+
+/**
+ * A combatant whose rules a device can play without their words: each rule still left as a token is judged from the
+ * combat facts its words give, which the server reads here, as a device judges a rule whose facts the cards recorded.
+ */
+export function withRecordedRules<T extends { rules: CombatRule[]; companions: { rules: CombatRule[] }[] }>(
+  combatant: T,
+  words: (text: string) => string | null,
+): T {
+  const recorded = (rules: readonly CombatRule[]) =>
+    rules.flatMap((rule) => {
+      const said = rule.judge && hasTextTokens(rule.description) ? words(rule.description) : null
+      if (said === null) return [rule]
+      const { judge, ...placed } = rule
+      return judgedCombatRule(placed, judge!, recordedCombatText(combatFactsOf(said, rule.scope === 'stratagem'))) ?? []
+    })
+  return {
+    ...combatant,
+    rules: recorded(combatant.rules),
+    companions: combatant.companions.map((member) => ({ ...member, rules: recorded(member.rules) })),
+  }
 }
 
 export function rosterCombatant(

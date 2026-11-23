@@ -102,7 +102,7 @@ describe('mission card reference', () => {
 
   it('holds an award summary’s place while it loads', () => {
     const markup = render(createElement(MissionCardReference, { card: { key: 'card', name: 'Card', awards: [summarised] } }))
-    expect(markup).toContain('aria-busy')
+    expect(markup).toContain('data-rule-summary-loading')
   })
 
   it('leaves an award without a summary blank once summaries load', () => {
@@ -115,7 +115,7 @@ describe('mission card reference', () => {
         createElement(MissionCardReference, { card: { key: 'card', name: 'Card', awards: [summarised] } }),
       ),
     )
-    expect(markup).not.toContain('aria-busy')
+    expect(markup).not.toContain('data-rule-summary-loading')
   })
 })
 

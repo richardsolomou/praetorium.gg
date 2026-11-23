@@ -557,8 +557,7 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     page: 'home',
     href: '/',
     title: 'Search everything',
-    description:
-      'Search for a unit, rule, faction, mission, or one of your armies. Open a result to read it; use its source link when you need the full rules text.',
+    description: 'Search for a unit, rule, faction, mission, or one of your armies. Open a result to read it.',
     placement: 'left',
     final: true,
   },

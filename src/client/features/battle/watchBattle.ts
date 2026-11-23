@@ -49,7 +49,7 @@ export function watchBattle(
       title: clip(reminder.ability, 80),
       unit: reminder.unit ? clip(reminder.unit.name, 80) : null,
       moment: clip(prompt.moment, 120),
-      // A watch cannot load rules text, so it gets the words this device has loaded or none, never a token cut short.
+      // A watch gets a reminder's own words only, never a token cut short.
       description: clip(ownWords(reminder.description) ?? '', 500),
     })),
   )

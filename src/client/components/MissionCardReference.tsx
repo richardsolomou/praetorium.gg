@@ -9,7 +9,7 @@ import {
   timingLabel,
   title,
 } from '../missionText'
-import { RuleSummaryLoading, RuleSummaryText } from './RuleSummaryText'
+import { RuleSummarySkeleton, RuleSummaryText } from './RuleSummaryText'
 import { useMissionSummary, useRuleSummary } from '../ruleSummaries'
 import { groupBy } from '../../core/collections'
 import { awardsOnce } from '../../core/scoring'
@@ -45,7 +45,7 @@ export function MissionCardReference({
       {summary ? (
         <RuleSummaryText summary={summary} className="mt-0 text-base text-bone" />
       ) : pending ? (
-        <RuleSummaryLoading className="mt-0" />
+        <RuleSummarySkeleton className="mt-0" />
       ) : null}
       {groups.size || actions.length ? (
         <ul className="runner gap-3 [--gate-x:1.125rem] [--gate-y:1.625rem]">
@@ -119,7 +119,7 @@ export function AwardCondition({ award, className }: { award: Award; className: 
   const byToken = useRuleSummary(conditionLabel(award) ?? '')
   const summary = byId.summary ?? byToken.summary
   if (summary) return <RuleSummaryText summary={summary} className={className} />
-  if (byId.pending || byToken.pending) return <RuleSummaryLoading className={className} />
+  if (byId.pending || byToken.pending) return <RuleSummarySkeleton className={className} />
   return <span className="min-w-0 flex-1" />
 }
 
@@ -150,7 +150,7 @@ function ActionBlock({ action }: { action: MissionAction }) {
       {summary ? (
         <RuleSummaryText summary={summary} className="mt-3 space-y-3 text-base text-bone" />
       ) : pending ? (
-        <RuleSummaryLoading className="mt-3" />
+        <RuleSummarySkeleton className="mt-3" />
       ) : null}
     </li>
   )

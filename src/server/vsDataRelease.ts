@@ -1,3 +1,4 @@
+import { summaryBlocks } from '../core/summaryMarkdown'
 import { hash } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -185,6 +186,9 @@ export function compactVsDataRelease(directory: string, file: string) {
     records.flatMap((record) => [
       vsDataKey(record),
       ...(record.data.summarySpans ?? []).flatMap((span) => (span.target ? [vsDataKey(span.target)] : [])),
+      ...summaryBlocks(record.data.summary)
+        .flatMap((block) => ('paragraph' in block ? block.paragraph : block.items.flat()))
+        .flatMap((run) => (run.target ? [vsDataKey(run.target)] : [])),
     ]),
   )
   const identity = identitySchema.parse(read(manifest.identity.path)).entries.filter((entry) => !entry.retired)

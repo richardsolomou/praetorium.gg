@@ -12,6 +12,7 @@ import { deploymentFor } from '../../battleSummary'
 import { battleQuery, deploymentsQuery, detachmentRulesQuery, forgetBattle, gameReferencesQuery } from '../../queries'
 import { missionCardsByKey, primaryCards, secondaryCards } from './missionDeck'
 import { currentMissionId, sameMissionId } from '../../../core/legacyIds'
+import { blocksText } from '../../../core/summaryMarkdown'
 import { useMissionSummaries } from '../../ruleSummaries'
 import {
   MISSION_ACTION_REMINDER_PREFIX,
@@ -270,7 +271,10 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
   useWatchBattle(view, clock, missions, referenceFor, reminderPrompts)
   const missionSummaryOf = useMissionSummaries(Boolean(active?.isViewer))
   const activeMissionActionReminders = active?.isViewer
-    ? missionActionReminders(active, referenceFor, (action) => missionSummaryOf('mission-action', action)?.summary ?? null)
+    ? missionActionReminders(active, referenceFor, (action) => {
+        const summary = missionSummaryOf('mission-action', action)
+        return summary ? blocksText(summary.blocks) : null
+      })
     : EMPTY_REMINDERS
   const writtenFor = useCallback((side: Side, key: string): StratagemText | undefined => writtenStratagem(rulesFor(side), key), [rulesFor])
   const whenDrawnFor = (key: string): WhenDrawn | undefined =>

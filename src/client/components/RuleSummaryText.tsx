@@ -2,15 +2,14 @@ import { Link } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
-import type { RuleSummary, RuleSummarySpan } from '../../contracts/rules'
-import { summarySegments } from '../../core/summarySpans'
+import type { RuleSummary, RuleSummaryInline } from '../../contracts/rules'
 import { titleCaseAbility } from '../../shared/catalogueAbilityGrants'
 import { useAbilitySummary } from '../ruleSummaries'
 import { HoverTooltip } from './HoverTooltip'
 
 /**
- * A VS Data summary, which everyone can read: original wording that says where the official text leaves a
- * point open. Its spans are drawn as they stand, never read as Markdown, so the summary cannot mark itself up.
+ * A VS Data summary, which everyone can read: original wording that says where the official text leaves a point open.
+ * Its paragraphs, lists and runs are drawn from the blocks the server read, so the summary cannot mark itself up further.
  */
 export function RuleSummaryText({
   summary,
@@ -24,15 +23,21 @@ export function RuleSummaryText({
 }) {
   return (
     <div data-rule-summary className={cn('mt-2 space-y-1.5 font-rules text-sm text-dim', className)}>
-      <p>
-        {summarySegments(summary.summary, summary.spans).map((segment) => (
-          <Segment
-            key={segment.start}
-            text={segment.text}
-            span={abilities ? segment.span : segment.span && { ...segment.span, ability: undefined }}
-          />
-        ))}
-      </p>
+      {summary.blocks.map((block) =>
+        'paragraph' in block ? (
+          <p key={textOf(block.paragraph)}>
+            <Runs runs={block.paragraph} abilities={abilities} />
+          </p>
+        ) : (
+          <List key={block.items.map(textOf).join('\n')} ordered={block.list === 'ordered'}>
+            {block.items.map((item) => (
+              <li key={textOf(item)}>
+                <Runs runs={item} abilities={abilities} />
+              </li>
+            ))}
+          </List>
+        ),
+      )}
       {summary.questions.map((question) => (
         <p key={question} className="font-sans text-xs text-faint italic">
           The official text leaves this open: {question}
@@ -42,25 +47,42 @@ export function RuleSummaryText({
   )
 }
 
-/** Where a summary still loading will show: two lines of skeleton the size of its text. */
-export function RuleSummaryLoading({ className }: { className?: string }) {
+/** What stands in a summary's place while it is asked for, in the size of a short one. */
+export function RuleSummarySkeleton({ className }: { className?: string }) {
   return (
-    <div aria-busy aria-label="Loading summary" className={cn('mt-2 w-full space-y-2 py-1', className)}>
+    <div data-rule-summary-loading aria-hidden className={cn('mt-2 space-y-1.5', className)}>
       <Skeleton className="h-3.5 w-full" />
       <Skeleton className="h-3.5 w-2/3" />
     </div>
   )
 }
 
-function Segment({ text, span }: { text: string; span?: RuleSummarySpan }) {
-  const shown = span?.bold ? <strong className="font-semibold text-bone">{text}</strong> : text
-  if (span?.ability) return <AbilitySegment text={text} ability={span.ability} shown={shown} />
-  if (!span?.link) return shown
+function List({ ordered, children }: { ordered: boolean; children: ReactNode }) {
+  const className = cn('space-y-0.5 pl-4', ordered ? 'list-decimal' : 'list-disc')
+  return ordered ? <ol className={className}>{children}</ol> : <ul className={className}>{children}</ul>
+}
+
+const textOf = (runs: readonly RuleSummaryInline[]) => runs.map((run) => run.text).join('')
+
+/** A line's runs, each keyed by where it starts in the line. */
+function Runs({ runs, abilities }: { runs: readonly RuleSummaryInline[]; abilities: boolean }) {
+  let start = 0
+  return runs.map((run) => {
+    const key = start
+    start += run.text.length
+    return <Run key={key} run={abilities ? run : { ...run, ability: undefined }} />
+  })
+}
+
+function Run({ run }: { run: RuleSummaryInline }) {
+  const shown = run.bold ? <strong className="font-semibold text-bone">{run.text}</strong> : run.text
+  if (run.ability) return <AbilityRun text={run.text} ability={run.ability} shown={shown} />
+  if (!run.link) return shown
   return (
     <Link
       to="/rules/$documentId/$sectionId"
-      params={{ documentId: span.link.document, sectionId: span.link.section }}
-      hash={span.link.anchor}
+      params={{ documentId: run.link.document, sectionId: run.link.section }}
+      hash={run.link.anchor}
       className="text-info hover:text-parchment"
     >
       {shown}
@@ -69,7 +91,7 @@ function Segment({ text, span }: { text: string; span?: RuleSummarySpan }) {
 }
 
 /** An ability the summary names, such as `[RAPID FIRE 1]`, printed as it stands and opening that ability's summary. */
-function AbilitySegment({ text, ability, shown }: { text: string; ability: string; shown: ReactNode }) {
+function AbilityRun({ text, ability, shown }: { text: string; ability: string; shown: ReactNode }) {
   const summary = useAbilitySummary({ key: ability })
   if (!summary) return shown
   return (

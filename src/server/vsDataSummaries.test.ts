@@ -78,13 +78,37 @@ it('reads an earlier rules version’s cards with that version’s own release',
     { update: codex.edition.name, summary: 'Under the codex, pick a unit to hit more often.' },
   ])
   const answer = summaries!.summariesIn(custodes)
-  expect(answer.records[answer.texts[textHash(effect)]![0]!]?.summary).toBe('Under the codex, pick a unit to hit more often.')
+  expect(answer.records[answer.texts[textHash(effect)]![0]!]?.blocks).toEqual([
+    { paragraph: [{ text: 'Under the codex, pick a unit to hit more often.' }] },
+  ])
 })
 
 it('opens a weapon ability a summary prints in brackets', () => {
   const lethalHits = { kind: 'weapon-ability', id: 'lethal-hits', aliases: [], summary: 'A Critical Hit wounds automatically.' }
   const { summaries, base } = snapshot([{ update: 'MFM 1.6', summary: 'Its weapons gain [LETHAL HITS] this phase.' }], [lethalHits])
-  expect(summaries!.summariesIn(base).records['ability:necrons.test.focused-fire']?.spans).toEqual([
-    { start: 17, end: 30, ability: 'weapon-ability:lethal-hits' },
+  expect(summaries!.summariesIn(base).records['ability:necrons.test.focused-fire']?.blocks).toEqual([
+    {
+      paragraph: [
+        { text: 'Its weapons gain ' },
+        { text: '[LETHAL HITS]', ability: 'weapon-ability:lethal-hits' },
+        { text: ' this phase.' },
+      ],
+    },
+  ])
+})
+
+it('serves a Markdown summary as its paragraphs and lists, its links landing on the rules they name', () => {
+  const summary = 'Pick one:\n\n- [Lethal Hits](vsdata:weapon-ability/lethal-hits)\n- **Re-roll** a Hit roll of 1.'
+  const lethalHits = { kind: 'weapon-ability', id: 'lethal-hits', aliases: [], summary: 'A Critical Hit wounds automatically.' }
+  const { summaries, base } = snapshot([{ update: 'MFM 1.6', summary }], [lethalHits])
+  expect(summaries!.summariesIn(base).records['ability:necrons.test.focused-fire']?.blocks).toEqual([
+    { paragraph: [{ text: 'Pick one:' }] },
+    {
+      list: 'unordered',
+      items: [
+        [{ text: 'Lethal Hits', ability: 'weapon-ability:lethal-hits' }],
+        [{ text: 'Re-roll', bold: true }, { text: ' a Hit roll of 1.' }],
+      ],
+    },
   ])
 })
