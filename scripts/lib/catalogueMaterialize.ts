@@ -11,7 +11,8 @@ import {
 } from '../../src/server/catalogueSources'
 import { fetchBattlemasterInto, fetchInto, fetchReleaseInto } from '../../src/server/sync'
 import { applyPatches } from './cataloguePatches'
-import type { CatalogueComposition } from '../../src/server/catalogueComposition'
+import { type CatalogueComposition, readCatalogueComposition } from '../../src/server/catalogueComposition'
+import { checkVsDataRelease } from '../../src/server/vsDataRelease'
 import { replaceDirectory } from '../../src/server/replaceDirectory'
 import { composeCatalogue, validateCatalogueImports } from './catalogueComposition'
 
@@ -67,8 +68,14 @@ export async function materializeCatalogue(directory: string, sources = catalogu
       if (!source) throw new Error(`${name} is not configured`)
       const target = path.join(staged, name)
       if (name === 'battlemaster') await fetchBattlemasterInto(sources.battlemaster, target)
-      else if (name === 'summaries') await fetchReleaseInto(sources.summaries!, target)
-      else {
+      else if (name === 'summaries') {
+        await fetchReleaseInto(sources.summaries!, target)
+        const editions = (options.composition ?? readCatalogueComposition(path.join(root, 'catalogue')))?.editions ?? []
+        checkVsDataRelease(
+          target,
+          editions.map((entry) => entry.edition.id),
+        )
+      } else {
         const repository = source as Exclude<typeof source, CatalogueSourceConfig['battlemaster'] | CatalogueSourceConfig['summaries']>
         await fetchInto(repository.repository, repository.revision, target, repository.path)
         if (name === 'icons') selectIcons(staged, sources.icons)

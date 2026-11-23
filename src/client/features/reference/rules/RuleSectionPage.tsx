@@ -2,10 +2,12 @@ import { useQuery } from '@tanstack/react-query'
 import { Link, useLocation } from '@tanstack/react-router'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useEffect, useSyncExternalStore } from 'react'
-import type { RuleEntry } from '../../../../contracts/rules'
+import type { RuleEntry, RuleSummary } from '../../../../contracts/rules'
 import { type RuleLinks, ruleLinks } from '../../../ruleLinks'
 import { ruleIndexQuery, ruleSectionQuery } from '../../../queries'
 import { RuleMarkup } from '../../../components/RuleMarkup'
+import { RuleSummaryText } from '../../../components/RuleSummaryText'
+import { useRuleEntrySummaries } from '../../../ruleSummaries'
 import { SourceTextPrompt } from '../../../components/SourceTextPrompt'
 import type { MissingText } from '../../../sourceText'
 import { PageContent, PageHeader } from '../../../components/Page'
@@ -24,6 +26,7 @@ export function RuleSectionPage({ documentId, sectionId }: { documentId: string;
   const { data: index } = useQuery(ruleIndexQuery())
   const { data } = useQuery(ruleSectionQuery(documentId, sectionId))
   const text = useRuleText(data?.document.text ?? null)
+  const summaryOf = useRuleEntrySummaries(data?.document.text?.url ?? null)
   const hash = useLocation({ select: (location) => location.hash })
   const loaded = text.document?.sections.find((candidate) => candidate.slug === sectionId)
   // The outline names and numbers every rule; the loaded file gives each rule its text, matched by the rule's id.
@@ -56,7 +59,14 @@ export function RuleSectionPage({ documentId, sectionId }: { documentId: string;
         <RulesTextNotice text={data.document.text} state={text} />
         <div className="runner gap-2.5 [--gate-y:1.5rem]">
           {shown.entries.map((entry) => (
-            <Rule key={entry.anchor} entry={entry} links={links} missing={missing} current={target === entry.anchor} />
+            <Rule
+              key={entry.anchor}
+              entry={entry}
+              summary={summaryOf(entry.id)}
+              links={links}
+              missing={missing}
+              current={target === entry.anchor}
+            />
           ))}
         </div>
         <nav className="flex items-stretch justify-between gap-2">
@@ -87,7 +97,19 @@ const subscribeToHash = (onChange: () => void) => {
 const currentHash = () => decodeURIComponent(window.location.hash.slice(1))
 const noHash = () => ''
 
-function Rule({ entry, links, missing, current }: { entry: RuleEntry; links: RuleLinks; missing: MissingText; current: boolean }) {
+function Rule({
+  entry,
+  summary,
+  links,
+  missing,
+  current,
+}: {
+  entry: RuleEntry
+  summary: RuleSummary | undefined
+  links: RuleLinks
+  missing: MissingText
+  current: boolean
+}) {
   return (
     <article
       id={entry.anchor}
@@ -99,7 +121,9 @@ function Rule({ entry, links, missing, current }: { entry: RuleEntry; links: Rul
         <h2 className="text-lg sm:text-xl">{entry.title}</h2>
         {entry.cost === null ? null : <span className="chip readout">{entry.cost} CP</span>}
       </div>
-      {missing ? <SourceTextPrompt missing={missing} source="game-datacards" className="mt-2" /> : null}
+      {summary ? <RuleSummaryText summary={summary} className="mt-3" /> : null}
+      {summary && !missing ? <p className="eyebrow mt-4">Rules text</p> : null}
+      {missing && !summary ? <SourceTextPrompt missing={missing} source="game-datacards" className="mt-2" /> : null}
       {entry.lore ? <p className="mt-2 font-rules text-sm text-faint italic">{entry.lore}</p> : null}
       {entry.facts.length ? (
         <dl className="mt-3 space-y-2 border-t border-edge pt-3">

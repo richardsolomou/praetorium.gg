@@ -50,7 +50,7 @@ async function loadSourceStrings(url: string): Promise<ReadonlyMap<string, strin
 }
 
 /** Read from the downloaded reference while it is current, so a device can load text it reached offline. */
-const textSourcesQuery = () => referenceQuery(['text-sources'], () => textSources())
+export const textSourcesQuery = () => referenceQuery(['text-sources'], () => textSources())
 
 /**
  * The upstream files this page has loaded, shared by every component and read outside

@@ -21,6 +21,9 @@ import { preparePicker } from '../rosterPicker'
 import { pickersOpened } from '../recentPickers'
 import { cacheUntilSnapshotChanges } from '../snapshotCache'
 import { memoUntilSnapshotChanges } from '../snapshotMemo'
+import { catalogueDirectory } from '../catalogueIndex'
+import { completeStepsCooperatively } from '../canonicalCatalogue'
+import { NO_RULE_SUMMARIES, vsDataSummariesSteps } from '../vsDataSummaries'
 import { selectedBattleDetachmentData } from '../../shared/battleDetachmentData'
 import { detachmentReference } from '../../shared/detachmentReference'
 import { referenceDatasheetBySlug, referenceFactionDatasheets, referenceRuleIndex, referenceRuleSection } from '../referenceCatalogue'
@@ -40,6 +43,7 @@ import {
   unitsSchema,
   unitWoundsSchema,
   textHomesSchema,
+  textFileSchema,
 } from '../../contracts/schemas'
 
 /** A reference read, cached against the snapshot's ETag when fetched directly. */
@@ -286,9 +290,7 @@ export const detachmentDetail = createServerFn({ method: 'GET' })
     snapshotRpc(async () => {
       const rules = await app().rulesFor(data.catalogueId)
       const catalogue = await app().catalogueFor(data.catalogueId)
-      return rules && catalogue
-        ? detachmentReference(catalogue, rules, data.catalogueId, data.slug, app().ruleSummaries()(data.catalogueId))
-        : null
+      return rules && catalogue ? detachmentReference(catalogue, rules, data.catalogueId, data.slug) : null
     }),
   )
 
@@ -319,6 +321,23 @@ export const gameReferences = createServerFn({ method: 'GET' }).handler(() =>
 
 /** Where each source file a rules-text token names lives upstream; Praetorium serves where the words are, never the words. */
 export const textSources = createServerFn({ method: 'GET' }).handler(() => snapshotRpc(async () => publishedTextFiles()))
+
+/**
+ * The VS Data summaries of the rules one source file prints, by the hashes its tokens name: original wording
+ * everyone can read, which game calculations never receive.
+ */
+export const ruleSummaryRecords = createServerFn({ method: 'GET' })
+  .validator(textFileSchema)
+  .handler(({ data }) =>
+    snapshotRpc(async () => {
+      const summaries = await memoUntilSnapshotChanges('vs-data-summaries', null, async () => {
+        const [canonical, rules] = await Promise.all([app().canonicalCatalogueFor(), app().rulesFor()])
+        const documents = canonical?.ruleDocuments ?? rules?.ruleDocuments ?? []
+        return completeStepsCooperatively(vsDataSummariesSteps(catalogueDirectory(), documents))
+      })
+      return summaries?.summariesIn(data.file) ?? NO_RULE_SUMMARIES
+    }),
+  )
 
 /** Where strings now live whose tokens name a file the active snapshot replaced, so a battle's older text still loads. */
 export const textHomesFor = createServerFn({ method: 'GET' })

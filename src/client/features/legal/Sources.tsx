@@ -27,15 +27,16 @@ function TextSourceSwitches() {
 
 export function Sources() {
   return (
-    <LegalPage title="Data sources" updated="21 November 2026">
+    <LegalPage title="Data sources" updated="23 November 2026">
       <LegalSection title="Rules text">
         <p>
           Rules text is copyrighted material, so Praetorium doesn’t host or serve it. If you choose a source, your browser fetches the text
           directly from that community project, and it stays on your device.
         </p>
         <p>
-          Some detachment cards show a Community summary from 40K Catalogue. Praetorium hosts these plain-language explanations for the
-          card’s rules version. When you load the rules text from its source, it appears below the summary.
+          Most rules show a VS Data summary instead: a plain-language explanation written for the current rules version, which names the
+          official document it was checked against. Praetorium hosts these summaries. When you load the rules text from its source, it
+          appears below the summary.
         </p>
         <TextSourceSwitches />
       </LegalSection>
@@ -79,9 +80,9 @@ export function Sources() {
             , licensed under AGPL-3.0.
           </li>
           <li>
-            Plain-language summaries of some stratagems and enhancements, written for the rules version they name, from{' '}
-            <a href="https://github.com/richardsolomou/40k-catalogue" className={linkClass}>
-              40k-catalogue
+            Plain-language rules summaries for the current rules version from{' '}
+            <a href="https://github.com/richardsolomou/vs-data" className={linkClass}>
+              VS Data
             </a>
             , licensed under MIT.
           </li>

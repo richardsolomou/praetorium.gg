@@ -38,7 +38,8 @@ import {
   type ReferenceQuery,
 } from '../../src/contracts/offlineReference'
 import { loadCatalogueTranslations } from '../../src/server/catalogueTranslations'
-import { loadRuleSummaries } from '../../src/server/ruleSummaries'
+import { vsDataSummariesSteps } from '../../src/server/vsDataSummaries'
+import { completeSteps } from '../../src/shared/steps'
 import type { CatalogueRuntime } from '../../src/server/catalogueRuntime'
 
 export function constructionFilesForEdition(files: CatalogueFile[], edition?: CatalogueEdition): CatalogueFile[] {
@@ -102,7 +103,6 @@ export async function writeReferenceBundle(outDir: string, directory: string, ru
   if (!canonical) throw new Error('Offline reference canonical catalogue is unavailable')
   const sources = { catalogue: () => catalogue, rules: () => rules, canonicalCatalogue: () => canonical }
   const history = loadCatalogueHistory(directory) ?? []
-  const summaries = loadRuleSummaries(directory)
   const historyCanonical = (slug: string) => versions.pageCanonical(slug, versions.canonicalFor(slug), () => canonical)
   const queries: ReferenceQuery[] = []
   const put = (key: readonly unknown[], data: unknown) => {
@@ -157,11 +157,18 @@ export async function writeReferenceBundle(outDir: string, directory: string, ru
       if (detachment.referenceRoute?.catalogueId === faction.slug)
         put(
           ['detachment-detail', faction.id, detachment.slug],
-          detachmentReference(selectedCatalogue, selectedRules, faction.id, detachment.slug, summaries(faction.id)),
+          detachmentReference(selectedCatalogue, selectedRules, faction.id, detachment.slug),
         )
     }
   }
-  put(['text-sources'], textSourceFiles(directory, readCatalogueComposition(directory)))
+  const textFiles = textSourceFiles(directory, readCatalogueComposition(directory))
+  put(['text-sources'], textFiles)
+  const summaries = completeSteps(vsDataSummariesSteps(directory, canonical.ruleDocuments))
+  for (const file of summaries ? Object.keys(textFiles) : []) {
+    const answer = summaries!.summariesIn(file)
+    // A file no summary reads stays out, and its query falls back to the source's own text as offline.
+    if (Object.keys(answer.records).length) put(['rule-summary-records', file], answer)
+  }
   // Pasted army text in another language is read on the device too, so the names it may state travel with the download;
   // translated descriptions stay behind, as do entries BSData names with a notice of several sentences.
   const stateable = new Set([

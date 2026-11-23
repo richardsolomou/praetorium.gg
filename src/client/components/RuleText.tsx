@@ -9,6 +9,8 @@ import { CitedRules } from './CitedRules'
 import { RuleMarkup } from './RuleMarkup'
 import { SourceTextPrompt } from './SourceTextPrompt'
 import { useSourceText } from '../sourceText'
+import { useRuleSummary } from '../ruleSummaries'
+import { RuleSummaryText } from './RuleSummaryText'
 import { hasTextTokens } from '../../core/sourceText'
 
 const noRules: KeywordRule[] = []
@@ -117,12 +119,28 @@ export function RuleText({
   return <RuleTextBody text={text} rules={rules} className={className} cite={cite} />
 }
 
-/** Published text names its source rather than stating it, so it is read from that source before it is drawn. */
+/**
+ * Published text names its source rather than stating it, so it is read from that source before it is drawn.
+ * A rule VS Data summarizes shows the summary to everyone, and the source's words beneath once loaded.
+ */
 function SourcedRuleText({ text, rules, className, cite }: { text: string; rules: KeywordRule[]; className?: string; cite: boolean }) {
   const source = useSourceText(text)
+  const { summary, pending } = useRuleSummary(text)
+  if (summary)
+    return (
+      <>
+        <RuleSummaryText summary={summary} className={className} />
+        {source.missing ? null : (
+          <>
+            <p className="eyebrow mt-3">Rules text</p>
+            <RuleTextBody text={source.text} rules={rules} className={cn('mt-1', className)} cite={cite} />
+          </>
+        )}
+      </>
+    )
   // Labels with nothing loaded beneath them say nothing, so a card waiting on its text shows only why.
   if (source.missing && source.missing !== 'unavailable')
-    return <SourceTextPrompt missing={source.missing} source={source.needs} className={cn('mt-2', className)} />
+    return <SourceTextPrompt missing={pending ? 'loading' : source.missing} source={source.needs} className={cn('mt-2', className)} />
   return <RuleTextBody text={source.text} rules={rules} className={className} cite={cite} />
 }
 

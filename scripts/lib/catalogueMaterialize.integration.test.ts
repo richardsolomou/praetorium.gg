@@ -8,6 +8,7 @@ import { catalogueSources } from '../../src/server/catalogueSources'
 import { packCatalogueSnapshot } from '../../src/server/catalogueSnapshot'
 import { materializeCatalogue } from './catalogueMaterialize'
 import { ustar } from '../../src/server/ustar.fixtures'
+import { vsDataReleaseFiles } from '../../src/server/vsData.fixtures'
 
 let root: string
 let directory: string
@@ -22,7 +23,7 @@ const objectiveLayout = {
   litePayload: { v: 1, k: 'bml', id, b: 'sf60x44', a: 'c', s: ['purge-the-foe', 'reconnaissance', 1, 3], i: [[0, 2, 1, 0, 0, 'c']] },
 }
 
-const summaries = ustar([['manifest.json', '{"records":[]}']])
+const summaries = ustar(vsDataReleaseFiles([{ kind: 'ability', id: 'test.rule', aliases: [], summary: 'A summary.' }]))
 
 function sources() {
   return {

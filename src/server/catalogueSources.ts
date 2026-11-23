@@ -30,7 +30,7 @@ const battlemasterSourceSchema = z.object({
 
 const releaseSourceSchema = z.object({
   repository: z.string().regex(/^[\w.-]+\/[\w.-]+$/, 'expected owner/name'),
-  release: z.string().regex(/^v\d+\.\d+\.\d+$/, 'expected a release tag'),
+  release: z.string().regex(/^(?:[a-z0-9]+-)*v\d+\.\d+\.\d+$/, 'expected a release tag'),
   asset: z.string().regex(/^[\w.-]+\.tar$/, 'expected a tar asset name'),
   revision: z.string().regex(/^[0-9a-f]{64}$/, 'expected the archive SHA-256'),
   license: z.string().min(1).nullable(),

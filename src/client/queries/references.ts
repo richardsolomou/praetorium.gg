@@ -21,6 +21,7 @@ import {
   globalSearch,
   ruleIndex,
   ruleSection,
+  ruleSummaryRecords,
   terrainReferences,
 } from '../functions'
 import { referenceQuery, referenceStaleTime, SSR_STALE_TIME } from './shared'
@@ -129,4 +130,10 @@ export const ruleSectionQuery = (documentId: string, sectionId: string) =>
   queryOptions({
     ...referenceQuery(['rule-section', documentId, sectionId], () => ruleSection({ data: { documentId, sectionId } })),
     enabled: Boolean(documentId && sectionId),
+  })
+/** One source file's summaries; a failed read only leaves its rules on their own text, so it is not retried. */
+export const ruleSummariesQuery = (file: string) =>
+  queryOptions({
+    ...referenceQuery(['rule-summary-records', file], () => ruleSummaryRecords({ data: { file } })),
+    retry: false,
   })

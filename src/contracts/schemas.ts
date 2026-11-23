@@ -589,6 +589,8 @@ export const textHomesSchema = z.object({
     .min(1)
     .max(TEXT_HOMES_MAX),
 })
+/** A source file as rules-text tokens name it. */
+export const textFileSchema = z.object({ file: z.string().regex(/^[0-9a-f]{8}$/) })
 
 export const rosterIdSchema = z.object({ id })
 /** `setup` saves a reviewed rules-version conversion as a variant, leaving the original as it was. */

@@ -32,7 +32,7 @@ export function sourceTexts(upstream: string): SourceTexts {
   return (raw, transform) => textToken({ file, transform, hash: textHash(raw) })
 }
 
-const textHash = (raw: string) => hash('sha256', raw).slice(0, TEXT_HASH_LENGTH)
+export const textHash = (raw: string) => hash('sha256', raw).slice(0, TEXT_HASH_LENGTH)
 
 /** Values read between pauses in a resumable scan of a source file. */
 const SCAN_STEP = 256
