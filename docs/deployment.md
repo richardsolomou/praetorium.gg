@@ -28,7 +28,7 @@ Register and verify the operator account, then confirm its player ID from that a
 
 - Previews run at `pr-<number>.praetorium.gg`; ready means `/api/health` reports the expected commit. Each built preview waits for maintainer approval in the `pr-preview` environment before it deploys, so pushes do not crowd production on hera.
 - Previews are public and share one runtime catalogue cache; keep sensitive data out. Redeploying resets their data.
-- A preview starts from the snapshot its commit pins, as CI tests it, and downloads the server projections CI built for it, instead of building a catalogue from sources. It holds only `SNAPSHOT_R2_*`, the read-only key for the catalogue bucket, because preview code is unreviewed and must never reach the backups or players' photos that `PRIVATE_R2_*` opens. Photo and screenshot storage therefore stays off in previews.
+- A preview starts from the snapshot its commit pins, as CI tests it, and downloads the server projections and browser downloads its pull request's CI build published for that snapshot and compiler, instead of building a catalogue from sources; it builds them itself only when its compiler differs from the merge ref's. It holds only `SNAPSHOT_R2_*`, the read-only key for the catalogue bucket, because preview code is unreviewed and must never reach the backups or players' photos that `PRIVATE_R2_*` opens. Photo and screenshot storage therefore stays off in previews.
 - Previews share hera with production, so each is capped at 2 GiB and at most three run: deploying another stops the one first deployed longest ago until its next deploy.
 - Sign in with `preview@praetorium.gg` / `preview-preview-preview` or `opponent@praetorium.gg` / `opponent-opponent-opponent`.
 
