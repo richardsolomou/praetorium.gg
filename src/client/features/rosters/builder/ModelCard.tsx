@@ -11,7 +11,9 @@ import {
   type LoadoutOption,
   loadoutRowCount,
   loadoutRowSources,
-  loadoutInstructions,
+  catalogueInstruction,
+  matchedInstructions,
+  optionContradictions,
   modelCount,
   orderedModelWargear,
   type PoolChange,
@@ -201,15 +203,19 @@ export function ModelCard({
                 onChoose(other.key, ordinary.id)
             }
           }
-          const instructions = showOptions
-            ? loadoutInstructions({ ...row, pieces }, model, models ?? [model], unitOptions ?? [], { choices, models: unitModels ?? count })
-                .map(unitOption)
-                .filter((instruction) => {
-                  if (statedInstructions.has(blocksText(instruction))) return false
-                  statedInstructions.add(blocksText(instruction))
-                  return true
-                })
-            : []
+          const matched = showOptions ? matchedInstructions({ ...row, pieces }, model, models ?? [model], unitOptions ?? []) : []
+          const consistent = matched.filter(
+            (offered) => !optionContradictions(offered, model, models ?? [model], choices, unitModels ?? count).length,
+          )
+          // Where the steppers contradict VS Data's wording, the row says what its own steppers offer instead.
+          const fallback = consistent.length || !matched.length ? null : catalogueInstruction(row, model, choices)
+          const instructions = [...consistent.map(unitOption), ...(fallback ? [[{ paragraph: [{ text: fallback }] }]] : [])].filter(
+            (instruction) => {
+              if (statedInstructions.has(blocksText(instruction))) return false
+              statedInstructions.add(blocksText(instruction))
+              return true
+            },
+          )
           return (
             <WargearRow
               key={`${row.choiceKey}/${row.optionId}/${entry.name}`}

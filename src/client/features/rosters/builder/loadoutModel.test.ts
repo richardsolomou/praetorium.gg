@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  catalogueInstruction,
   canAddPooledOption,
   changedDraftSpreadCounts,
   choiceRemoval,
@@ -194,6 +195,19 @@ describe('loadout instructions', () => {
       }),
     ).toEqual([])
   })
+})
+
+it('states a row’s choice from its own steppers’ options', () => {
+  const row = { name: 'Flamer', choiceKey: 'group', optionId: 'flamer' }
+  const model: LoadoutModel = { name: 'Neophyte', fixed: [], members: [], rows: [row] }
+  const weapons = choice(
+    [
+      { ...option('flamer', 0, 1), name: 'Flamer' },
+      { ...option('webber', 0, 1), name: 'Webber' },
+    ],
+    2,
+  )
+  expect(catalogueInstruction(row, model, [weapons])).toBe('Neophyte can take Flamer or Webber.')
 })
 
 it('does not remove a mandatory copy while allowing an additional copy', () => {

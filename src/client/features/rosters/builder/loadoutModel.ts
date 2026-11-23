@@ -110,6 +110,18 @@ export function loadoutInstructions(
   options: readonly UnitOption[],
   unit: { choices: readonly LoadoutChoice[]; models: number },
 ): UnitOption[] {
+  return matchedInstructions(row, model, models, options).filter(
+    (option) => !optionContradictions(option, model, models, unit.choices, unit.models).length,
+  )
+}
+
+/** The options a row's wargear comes from, as `loadoutInstructions` finds them, whether or not the steppers agree. */
+export function matchedInstructions(
+  row: Pick<ModelRow, 'name' | 'pieces'>,
+  model: LoadoutModel,
+  models: readonly LoadoutModel[],
+  options: readonly UnitOption[],
+): UnitOption[] {
   const names = row.pieces ?? [row.name]
   const candidates = options.flatMap((option) => {
     const carriers = option.carrier ? models.filter((candidate) => sameModel(candidate.name, option.carrier!)) : []
@@ -120,10 +132,19 @@ export function loadoutInstructions(
     return matches ? [{ option, matches }] : []
   })
   const best = Math.max(0, ...candidates.map((candidate) => candidate.matches))
-  return candidates
-    .filter((candidate) => candidate.matches === best)
-    .map((candidate) => candidate.option)
-    .filter((option) => !optionContradictions(option, model, models, unit.choices, unit.models).length)
+  return candidates.filter((candidate) => candidate.matches === best).map((candidate) => candidate.option)
+}
+
+/**
+ * A row's choice in Praetorium's own words, from the steppers' own options, for a row whose VS Data option they
+ * contradict: what the model can take there, as "Neophyte can take Flamer, Webber or Autogun.".
+ */
+export function catalogueInstruction(row: ModelRow, model: LoadoutModel, choices: readonly LoadoutChoice[]): string | null {
+  const choice = loadoutRowSources(row, choices)[0]?.choice
+  const names = [...new Set(choice?.options.map((option) => option.name) ?? [])]
+  if (!choice || names.length < (choice.optional ? 1 : 2)) return null
+  const listed = names.length < 2 ? names[0]! : `${names.slice(0, -1).join(', ')} or ${names.at(-1)}`
+  return `${model.name} can take ${listed}.`
 }
 
 const pieceKey = (name: string) => wargearKey(wargearBaseName(name))
