@@ -6,6 +6,7 @@ import { zipSync } from 'fflate'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { catalogueSources } from '../../src/server/catalogueSources'
 import { packCatalogueSnapshot } from '../../src/server/catalogueSnapshot'
+import { readCatalogueComposition } from '../../src/server/catalogueComposition'
 import { materializeCatalogue } from './catalogueMaterialize'
 import { ustar } from '../../src/server/ustar.fixtures'
 import { vsDataReleaseFiles } from '../../src/server/vsData.fixtures'
@@ -128,6 +129,30 @@ it('keeps one compact file of each verified VS Data release, named for its rules
   )
 
   expect(fs.readdirSync(path.join(directory, 'summaries')).toSorted()).toEqual(['marine-points-1013.json', 'mfm-1-6.json'])
+})
+
+it('verifies a release for a rules version a build leaves out, and keeps only the versions it builds', async () => {
+  // A build without the private store leaves out the rules versions only a published snapshot holds, as a preview's does.
+  const stored = ustar(
+    vsDataReleaseFiles([{ kind: 'ability', id: 'test.rule', aliases: [], summary: 'A stored summary.' }], 'MFM 1.5 · 2 Oct 2026'),
+  )
+  const pin = { release: 'rules-legacy-profiles-v0.4.0', asset: 'stored.tar', revision: stored.revision }
+  const fetched = downloads()
+  vi.stubGlobal('fetch', async (url: string | URL) =>
+    String(url).includes(`/releases/download/${pin.release}/`) ? new Response(stored.archive) : fetched(url),
+  )
+  const configured = readCatalogueComposition(path.resolve('catalogue'))!
+  const pinned = sources()
+  await materializeCatalogue(
+    directory,
+    { ...pinned, summaries: { ...pinned.summaries, earlier: [pin] } },
+    {
+      source: 'summaries',
+      composition: { ...configured, editions: configured.editions.filter((entry) => !entry.snapshot) },
+    },
+  )
+
+  expect(fs.readdirSync(path.join(directory, 'summaries'))).toEqual(['mfm-1-6.json'])
 })
 
 it('omits disabled sources without fetching or retaining old files', async () => {

@@ -47,13 +47,31 @@ function selectIcons(directory: string, source: CatalogueSourceConfig['icons']) 
 }
 
 /** Each pinned VS Data release, verified, as one file named for the rules version it describes. */
-async function materializeSummaries(source: ReleaseSource, target: string, composition: CatalogueComposition | null | undefined) {
-  const editions = ((composition ?? readCatalogueComposition(path.join(root, 'catalogue')))?.editions ?? []).map((entry) => entry.edition)
+/**
+ * Each pinned VS Data release, verified and matched to the rules version it describes among those the checkout
+ * configures, kept compact for each version `composition` builds; a build may leave some out, such as the versions only
+ * the private store holds, and their releases are verified all the same.
+ */
+async function materializeSummaries(
+  source: ReleaseSource,
+  target: string,
+  composition: CatalogueComposition | null | undefined,
+  report?: (message: string) => void,
+) {
+  const configured = readCatalogueComposition(path.resolve('catalogue')) ?? composition
+  const built = new Set((composition ?? configured)?.editions.map((entry) => entry.edition.id))
+  const editions = (configured?.editions ?? []).map((entry) => entry.edition)
   fs.mkdirSync(target)
   for (const release of releasesOf(source)) {
     const unpacked = `${target}.release`
     await fetchReleaseInto(release, unpacked)
-    const file = path.join(target, `${checkVsDataRelease(unpacked, editions)}.json`)
+    const edition = checkVsDataRelease(unpacked, editions)
+    if (!built.has(edition)) {
+      fs.rmSync(unpacked, { recursive: true, force: true })
+      report?.(`${release.release} verified; this build leaves out ${edition}`)
+      continue
+    }
+    const file = path.join(target, `${edition}.json`)
     if (fs.existsSync(file)) throw new Error(`${release.release} describes a rules version another pinned release already does`)
     compactVsDataRelease(unpacked, file)
   }
@@ -83,7 +101,7 @@ export async function materializeCatalogue(directory: string, sources = catalogu
       if (!source) throw new Error(`${name} is not configured`)
       const target = path.join(staged, name)
       if (name === 'battlemaster') await fetchBattlemasterInto(sources.battlemaster, target)
-      else if (name === 'summaries') await materializeSummaries(sources.summaries!, target, options.composition)
+      else if (name === 'summaries') await materializeSummaries(sources.summaries!, target, options.composition, options.report)
       else {
         const repository = source as Exclude<typeof source, CatalogueSourceConfig['battlemaster'] | CatalogueSourceConfig['summaries']>
         await fetchInto(repository.repository, repository.revision, target, repository.path)
