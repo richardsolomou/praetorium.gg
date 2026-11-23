@@ -8,7 +8,10 @@ import { battlemasterGeometry } from './rulesTerrain'
 
 let directory: string
 const id = 'terrain-01234567-89ab-cdef-0123-456789abcdef'
-const pack = missionPack({ layouts: [{ id: 'layout-a', name: 'Purge the Foe / Reconnaissance - Layout A', aliases: [], deployments: [] }] })
+const pack = missionPack({
+  dispositions: [{ id: 'purge-the-foe', name: 'Purge the Foe', aliases: [] }],
+  layouts: [{ id: 'layout-a', name: 'Purge the Foe / Reconnaissance - Layout A', aliases: [], deployments: [] }],
+})
 
 beforeEach(() => {
   directory = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-mission-terrain-'))

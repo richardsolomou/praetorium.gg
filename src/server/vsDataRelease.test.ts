@@ -60,39 +60,34 @@ it('keeps the credit each adapted record names, once', () => {
   expect(JSON.parse(fs.readFileSync(file, 'utf8')).attributions).toEqual([credit])
 })
 
-it('keeps each Stratagem’s typed facts, naming its Detachment by group or by the Detachment its ID extends', () => {
-  const stratagem = (id: string, group?: string) => ({
+it('keeps each Stratagem’s typed facts, naming the Detachment it references', () => {
+  fs.rmSync(directory, { recursive: true })
+  const stratagem = {
     kind: 'ability',
-    id,
+    id: 'adeptus-custodes.shadowkeepers.no-escape',
     aliases: [],
-    summary: `${id} summary.`,
+    summary: 'No escape.',
     data: {
       ruleType: 'stratagem',
       cp: 1,
-      ...(group ? { group } : {}),
-      stratagem: { phases: ['shooting', 'fight'], turn: 'any', type: 'battle-tactic' },
+      detachment: { kind: 'detachment', id: 'adeptus-custodes.shadowkeepers' },
+      stratagem: {
+        phases: ['shooting', 'fight'],
+        turn: 'any',
+        windows: [
+          { phase: 'shooting', turn: 'opponent' },
+          { phase: 'fight', turn: 'any' },
+        ],
+      },
       facts: { format: 'vs-data-facts', version: '1', fields: { stratagem: { limit: 'battle' } } },
     },
-  })
-  fs.rmSync(directory, { recursive: true })
+  }
   writeFiles(
     directory,
-    vsDataReleaseFiles(
-      [stratagem('necrons.awakened-dynasty.protocol', 'Awakened Dynasty'), stratagem('adeptus-custodes.shadowkeepers.no-escape')],
-      'MFM 1.6',
-      [{ kind: 'detachment', id: 'adeptus-custodes.shadowkeepers', name: 'Shadowkeepers' }],
-    ),
+    vsDataReleaseFiles([stratagem], 'MFM 1.6', [{ kind: 'detachment', id: 'adeptus-custodes.shadowkeepers', name: 'Shadowkeepers' }]),
   )
   const file = `${directory}.json`
   compactVsDataRelease(directory, file)
-  expect(
-    JSON.parse(fs.readFileSync(file, 'utf8')).stratagems.map(({ id, detachment, limit }: Record<string, unknown>) => ({
-      id,
-      detachment,
-      limit,
-    })),
-  ).toEqual([
-    { id: 'adeptus-custodes.shadowkeepers.no-escape', detachment: 'Shadowkeepers', limit: 'battle' },
-    { id: 'necrons.awakened-dynasty.protocol', detachment: 'Awakened Dynasty', limit: 'battle' },
-  ])
+  const [kept] = JSON.parse(fs.readFileSync(file, 'utf8')).stratagems
+  expect([kept.detachment, kept.limit, kept.windows.length]).toEqual(['Shadowkeepers', 'battle', 2])
 })

@@ -47,13 +47,18 @@ const recordSchema = refSchema.extend({
       .optional(),
     interpretation: z.array(z.object({ question: z.string() })).optional(),
     ruleType: z.string().optional(),
-    group: z.string().optional(),
+    detachment: z.object({ id: z.string() }).optional(),
     cp: z.number().int().optional(),
     stratagem: z.unknown().optional(),
     facts: z.unknown().optional(),
   }),
 })
-const typedStratagemSchema = z.object({ phases: z.array(z.string()), turn: z.string(), type: z.string().optional() })
+const typedStratagemSchema = z.object({
+  phases: z.array(z.string()),
+  turn: z.string(),
+  windows: z.unknown().optional(),
+  type: z.string().optional(),
+})
 /** Only versioned facts are typed; the unversioned format is a draft reading. */
 const factsSchema = z.object({
   format: z.literal('vs-data-facts'),
@@ -135,10 +140,7 @@ export function checkVsDataRelease(directory: string, editions: readonly { id: s
   return edition
 }
 
-/**
- * A Stratagem record's typed facts, or none for any other record. A record names its Detachment by `group`, or
- * failing that by the Detachment entry its ID extends; the limit is read only from versioned facts.
- */
+/** A Stratagem record's typed facts, or none for any other record; the limit is read only from versioned facts. */
 function stratagemOf(
   { kind, id, data }: z.infer<typeof recordSchema>,
   identity: readonly { kind: string; id: string; name?: string }[],
@@ -148,9 +150,7 @@ function stratagemOf(
     return []
   const name = identity.find((entry) => entry.kind === kind && entry.id === id)?.name
   const core = data.ruleType === 'core-stratagem'
-  const detachment = core
-    ? null
-    : (data.group ?? identity.find((entry) => entry.kind === 'detachment' && id.startsWith(`${entry.id}.`))?.name ?? null)
+  const detachment = core ? null : (identity.find((entry) => entry.kind === 'detachment' && entry.id === data.detachment?.id)?.name ?? null)
   const facts = factsSchema.safeParse(data.facts)
   const parsed = vsDataStratagemSchema.safeParse({
     id,
@@ -159,6 +159,7 @@ function stratagemOf(
     cp: data.cp,
     phases: stratagem.data.phases,
     turn: stratagem.data.turn,
+    ...(stratagem.data.windows ? { windows: stratagem.data.windows } : {}),
     type: stratagem.data.type ?? null,
     limit: (facts.success && facts.data.fields.stratagem?.limit) || null,
   })

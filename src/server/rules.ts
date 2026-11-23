@@ -8,7 +8,6 @@ import { factionsFromDatacards } from './datacardFactions'
 import { missionTerrain } from './missionTerrain'
 import { kotcTerrain } from './kotcTerrain'
 import { combatPatrolTerrain } from './combatPatrolTerrain'
-import { readMissionPacks } from './missionPacks'
 import { readVsDataRelease } from './vsDataSummaries'
 import { vsDataMissions } from './vsDataMissions'
 import { vsDataStratagems } from './vsDataStratagems'
@@ -93,7 +92,7 @@ export function* loadRulesSteps(
     deployments.push(kotc.deployment)
     terrainLayouts.push(kotc.layout)
   }
-  const patrol = combatPatrolTerrain(readMissionPacks(datacardsDirectory), battlemasterDirectory)
+  const patrol = combatPatrolTerrain(packs, battlemasterDirectory)
   deployments.push(...patrol.deployments)
   terrainLayouts.push(...patrol.terrainLayouts)
 

@@ -27,7 +27,7 @@ import {
   recordBeaconDestruction,
   type SavedMissionSelection,
 } from './missionSelections'
-import { PHASES, type Phase, type TurnScope, BATTLE_ROUNDS } from './battlePhases'
+import { PHASES, type Phase, type StratagemWindow, type TurnScope, BATTLE_ROUNDS, stratagemTimingRefusal } from './battlePhases'
 import { PLAYERS_PER_BATTLE, battleCapacity } from './battleSeats'
 import {
   DETACHMENTS_MAX,
@@ -78,7 +78,7 @@ import {
 } from './battleSecondaries'
 import { playedMoment, momentOrder, missedMomentRefusal, missedScoreRefusal } from './battleMoments'
 
-export { PHASES, type Phase, TURN_SCOPES, type TurnScope, BATTLE_ROUNDS } from './battlePhases'
+export { PHASES, type Phase, TURN_SCOPES, type TurnScope, type StratagemWindow, BATTLE_ROUNDS } from './battlePhases'
 export { battleCapacity, openPlaces, stillFilling } from './battleSeats'
 export {
   DETACHMENTS_MAX,
@@ -366,6 +366,8 @@ export type Stratagem = {
   limit: StratagemLimit
   phases?: Phase[]
   turn?: TurnScope
+  /** Each phase with its own turn, where the stratagem's phases fall in different turns; it then decides alone. */
+  windows?: StratagemWindow[]
   /**
    * The detachment that prints it, where one does. Recorded because a side of allies
    * pools two detachments and their rules do not pool with them — each ally's
@@ -2210,13 +2212,13 @@ function stratagemRefusal(
 ): Refusal | null {
   const moment = missed ?? { round: state.round, phase: state.phase, turn: state.activePlayerId ?? '' }
   const when = missed ? 'that' : 'this'
-  if (stratagem.phases?.length && !stratagem.phases.includes(moment.phase))
-    return refuse('stratagem-wrong-phase', `${stratagem.name} cannot be used in ${when} phase`)
-  if (stratagem.turn === 'your-turn' && !sameSide(state, moment.turn, player.id))
-    return refuse('stratagem-wrong-turn', `${stratagem.name} is used on your turn`)
-  if (stratagem.turn === 'opponent-turn' && sameSide(state, moment.turn, player.id)) {
-    return refuse('stratagem-wrong-turn', `${stratagem.name} is used on your opponent’s turn`)
-  }
+  const timing = stratagemTimingRefusal(stratagem, moment.phase, sameSide(state, moment.turn, player.id))
+  if (timing?.refused === 'phase') return refuse('stratagem-wrong-phase', `${stratagem.name} cannot be used in ${when} phase`)
+  if (timing?.refused === 'turn')
+    return refuse(
+      'stratagem-wrong-turn',
+      `${stratagem.name} is used on ${timing.turn === 'your-turn' ? 'your' : 'your opponent’s'} turn${stratagem.windows ? ` in ${when} phase` : ''}`,
+    )
   const cost = overriddenCost ?? stratagem.cp
   if (!Number.isInteger(cost) || cost < 0 || cost > STRATAGEM_CP_MAX) return refuse('invalid-amount', 'that is not a possible cost')
   if (player.cp < cost) return refuse('not-enough-cp', 'not enough command points')

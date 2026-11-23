@@ -76,7 +76,8 @@ export function missionTerrain(packs: readonly VsDataMissionPack[], battlemaster
   const deployments: Deployment[] = []
   const terrainLayouts: TerrainLayout[] = []
   const battlemaster = battlemasterSlots(battlemasterDirectory)
-  for (const pack of packs) {
+  // Combat Patrol's battlefields are its own (`combatPatrolTerrain`).
+  for (const pack of packs.filter((candidate) => candidate.dispositions.length)) {
     for (const { id, name } of pack.deployments) {
       const geometry = battlemaster.deployments.get(joinKey(name))
       deployments.push({

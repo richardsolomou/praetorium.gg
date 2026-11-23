@@ -1,7 +1,6 @@
-import type { Stratagem } from '../core/battle'
+import { type Phase, PHASES, type Stratagem } from '../core/battle'
 import { canonicalDetachmentName } from '../core/detachmentName'
 import { routeSlug } from '../core/slug'
-import { correctStratagemTiming } from '../core/stratagemCorrections'
 import type { VsDataStratagem } from '../shared/vsData'
 
 /** A Stratagem as the battle rules and reference pages read it: its timing, and the type a card is labelled with. */
@@ -14,19 +13,21 @@ const TYPES = {
   'epic-deed': 'Epic Deed',
   wargear: 'Wargear',
 } as const
-/** VS Data names a Stratagem usable in any phase by listing all five it can name, which leaves out the end of a turn. */
-const ANY_PHASE = 5
+/** VS Data's phase as a turn ends is the battle's end phase. */
+const phaseOf = (phase: VsDataStratagem['phases'][number]): Phase => (phase === 'end-of-turn' ? 'end' : phase)
 
 function cardOf(stratagem: VsDataStratagem): VsStratagemCard {
-  const timing = correctStratagemTiming({
+  const phases = stratagem.phases.map(phaseOf)
+  const timing: Stratagem = {
     key: stratagem.id,
     name: stratagem.name,
     cp: stratagem.cp,
     // The core rules' limit, which a Stratagem's typed facts leave out only when it says nothing else.
     limit: stratagem.limit ?? 'phase',
-    ...(stratagem.phases.length < ANY_PHASE ? { phases: stratagem.phases } : {}),
+    ...(phases.length < PHASES.length ? { phases } : {}),
     turn: TURNS[stratagem.turn],
-  })
+    ...(stratagem.windows ? { windows: stratagem.windows.map(({ phase, turn }) => ({ phase: phaseOf(phase), turn: TURNS[turn] })) } : {}),
+  }
   const type = stratagem.type ? TYPES[stratagem.type] : stratagem.detachment === null ? 'Core Stratagem' : null
   return { ...timing, type }
 }

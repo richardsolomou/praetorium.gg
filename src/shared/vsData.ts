@@ -20,18 +20,22 @@ export type VsDataSpan = z.infer<typeof spanSchema>
 
 const phaseSchema = z.enum(['command', 'movement', 'shooting', 'charge', 'fight'])
 const turnSchema = z.enum(['own', 'opponent', 'any'])
+/** A Stratagem can also be used as a turn ends, which no mission scores at as a phase. */
+const stratagemPhaseSchema = z.enum([...phaseSchema.options, 'end-of-turn'])
 
 /**
- * A Stratagem's typed facts as the snapshot keeps them: its record's CP, phases, turn and type, the limit its facts
- * type, and the Detachment it belongs to by name, or null for a core Stratagem.
+ * A Stratagem's typed facts as the snapshot keeps them: its record's CP, phases, turn and type, the windows that pair a
+ * phase with its own turn where its phases' turns differ, the limit its facts type, and the Detachment it belongs to
+ * by name, or null for a core Stratagem.
  */
 export const vsDataStratagemSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
   detachment: z.string().min(1).nullable(),
   cp: z.number().int().min(0),
-  phases: z.array(phaseSchema).min(1),
+  phases: z.array(stratagemPhaseSchema).min(1),
   turn: turnSchema,
+  windows: z.array(z.object({ phase: stratagemPhaseSchema, turn: turnSchema })).optional(),
   type: z.enum(['battle-tactic', 'strategic-ploy', 'epic-deed', 'wargear']).nullable(),
   limit: z.enum(['phase', 'turn', 'battle-round', 'battle']).nullable(),
 })
@@ -77,9 +81,9 @@ export const vsDataMissionPackSchema = z.object({
   layouts: z.array(memberSchema.extend({ deployments: z.array(z.string()) })),
   primaries: z.array(
     memberSchema.extend({
-      pairings: z.array(
-        z.object({ friendly: z.string(), opposition: z.string(), deployments: z.array(z.string()), layouts: z.array(z.string()) }),
-      ),
+      pairings: z
+        .array(z.object({ friendly: z.string(), opposition: z.string(), deployments: z.array(z.string()), layouts: z.array(z.string()) }))
+        .default([]),
       awards: z.array(awardSchema),
     }),
   ),
@@ -93,6 +97,9 @@ export const vsDataMissionPackSchema = z.object({
           required: z.boolean(),
           untilRound: z.number().int().optional(),
           ifActive: z.string().optional(),
+          ifNoEnemy: z
+            .object({ entity: z.enum(['model', 'unit']), characteristic: z.enum(['wounds', 'starting-strength']), min: z.number().int() })
+            .optional(),
         }),
       ).optional(),
     }),

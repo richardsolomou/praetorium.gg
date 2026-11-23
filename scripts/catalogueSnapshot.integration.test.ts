@@ -277,6 +277,7 @@ it('omits source paths that no product or catalogue check reads', () => {
   expect(distributableCatalogueFile('definitions/README.md')).toBe(false)
   expect(distributableCatalogueFile('rules/data/core/_reports/report.json')).toBe(false)
   expect(distributableCatalogueFile('datacards/11th/gdc/combatpatrol/aeldari.json')).toBe(false)
+  expect(distributableCatalogueFile('datacards/11th/gdc/missions/combat_patrol.json')).toBe(false)
   expect(distributableCatalogueFile('datacards/11th/gdc/core/core_rules.json')).toBe(true)
   expect(distributableCatalogueFile('datacards/11th/gdc/kotc.json')).toBe(true)
 })

@@ -10,6 +10,8 @@ export type WhenDrawn = {
   roundMax: number | null
   required?: boolean
   heldCards: string[]
+  /** It may go back while no enemy model or unit has this characteristic at this value or more. */
+  noEnemy?: { entity: 'model' | 'unit'; characteristic: 'wounds' | 'starting-strength'; min: number }
 }
 
 /** An optional twist a pack offers, by its VS Data ID; players read its summary. */

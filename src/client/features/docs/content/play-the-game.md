@@ -24,7 +24,7 @@ In a manual battle, each side has **−1**, **+1** and **+5** buttons for primar
 
 Guided battles give each side its Command phase CP automatically. **+1 CP** records your one extra command point for the round, then reads **CP gain used**. Discarding a secondary for CP uses the same allowance.
 
-To use a stratagem, press its cost button, for example **2 CP**. If the cost depends on the board, the **⋮** beside it lets you spend a different amount. A greyed-out stratagem shows why on hover: wrong phase, wrong turn, not enough CP, or its use limit is already spent. A stratagem usable in any phase is never refused for its phase.
+To use a stratagem, press its cost button, for example **2 CP**. If the cost depends on the board, the **⋮** beside it lets you spend a different amount. A greyed-out stratagem shows why on hover: wrong phase, wrong turn, not enough CP, or its use limit is already spent. A stratagem usable in any phase is never refused for its phase, and one whose turn differs by phase, such as your opponent's Shooting phase or either player's Fight phase, is checked against the phase you're in.
 
 On a phone, the CP figure beside the phase button opens the stratagems you can play now, for whichever side's tab is open, with **+1 CP** beside the command points at the top. Use the buttons at its foot to switch sides. Swipe sideways across the battle to move between **Your side**, **Battle** and **Opponent**.
 

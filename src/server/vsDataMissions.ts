@@ -40,35 +40,22 @@ function triggerOf(window: VsDataWindow): AwardTrigger {
 }
 
 /**
- * Awards VS Data types as paying for each occurrence where the card, and its own summary, pay once.
- * Corrected here until VS Data types them so.
- */
-const PAID_ONCE = new Set(['chapter-approved-2026-2027.surveil-the-foe.o2-s1', 'chapter-approved-2026-2027.surveil-the-foe.o2-s2'])
-
-/** The objective an award belongs to, which VS Data writes as its ID's last part: `o2` of `….o2-s1`. */
-const objectiveOf = (award: VsDataAward) => /\.(o\d+)-s\d+$/.exec(award.id)?.[1] ?? null
-
-/**
- * One award per window it can be claimed in, which is how a battle log records a card's payouts. An `exclusive`
- * group names an objective, and VS Data marks only its higher tiers with it, so every award of that objective
- * played the same way is one of its tiers, as each one's summary says.
+ * One award per window it can be claimed in, which is how a battle log records a card's payouts. The tiers of an
+ * `exclusive` group played the same way are alternatives to each other.
  */
 function awardsOf(card: { id: string; awards: readonly VsDataAward[] }, secondary: boolean): MissionAward[] {
-  const modeOf = (award: VsDataAward) => (award.modes?.length === 1 ? award.modes[0]! : secondary ? 'standard' : null)
-  const tiers = new Set(card.awards.flatMap((award) => (award.exclusive ? [`${award.exclusive}:${modeOf(award)}`] : [])))
   return card.awards.flatMap((award) => {
-    const mode = modeOf(award)
-    const tier = `${objectiveOf(award)}:${mode}`
+    const mode = award.modes?.length === 1 ? award.modes[0]! : secondary ? 'standard' : null
     return award.windows.flatMap((window) =>
       isUnresolved(window)
         ? []
         : [
             {
               vp: award.vp,
-              per: award.count === 'each' && !PAID_ONCE.has(award.id) ? 'each' : null,
+              per: award.count === 'each' ? 'each' : null,
               max: award.max ?? null,
               mode,
-              group: tiers.has(tier) ? `${card.id}:${tier}` : null,
+              group: award.exclusive ? `${card.id}:${award.exclusive}:${mode}` : null,
               // Shown as its VS Data summary, by ID.
               id: award.id,
               criteria: null,
@@ -88,6 +75,7 @@ function whenDrawnOf(rule: VsDataMissionPack['secondaries'][number]['whenDrawn']
     roundMax: rule.untilRound ?? null,
     required: rule.required,
     heldCards: rule.ifActive ? [rule.ifActive] : [],
+    ...(rule.ifNoEnemy ? { noEnemy: rule.ifNoEnemy } : {}),
   }
 }
 
@@ -104,7 +92,8 @@ export function vsDataMissions(packs: readonly VsDataMissionPack[], actions: rea
   const fixedSecondaryCaps = new Map<string, number>()
   const dispositions = new Map<string, string>()
   const actionsOf = (card: string): MissionAction[] => actions.filter(({ id }) => id.startsWith(`${card}.`))
-  for (const pack of packs) {
+  // A pack without dispositions, as Combat Patrol is, picks its primary by Detachment, which a battle does not record.
+  for (const pack of packs.filter((candidate) => candidate.dispositions.length)) {
     const packId = routeSlug(pack.name)
     const cap = (value: (typeof pack.caps)['primary'], field: 'perRound' | 'perBattle') =>
       isUnresolved(value) ? null : (value[field] ?? null)

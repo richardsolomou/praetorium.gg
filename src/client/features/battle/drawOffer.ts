@@ -1,6 +1,8 @@
 import { sameMissionId } from '../../../core/legacyIds'
 import type { WhenDrawn } from '../../../contracts/missions'
 
+const CHARACTERISTICS = { wounds: 'a Wounds characteristic', 'starting-strength': 'a Starting Strength' } as const
+
 type DrawOffer = { message: string; status: 'returned' | 'discarded'; label: string; required: boolean }
 
 /**
@@ -30,6 +32,15 @@ export function redrawOffer(rule: WhenDrawn | undefined, round: number, held: re
       status: 'returned',
       label: 'Put back and draw another',
       required,
+    }
+  }
+  if (rule.noEnemy) {
+    const { entity, characteristic, min } = rule.noEnemy
+    return {
+      message: `You can put this back if no enemy ${entity} has ${CHARACTERISTICS[characteristic]} of ${min} or more.`,
+      status: 'returned',
+      label: 'Put back and draw another',
+      required: false,
     }
   }
   return held.some((card) => rule.heldCards.some((paired) => sameMissionId(paired, card.key)))

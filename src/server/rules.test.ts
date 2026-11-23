@@ -34,7 +34,7 @@ const reroll: VsDataStratagem = {
   name: 'Command Re-roll',
   detachment: null,
   cp: 1,
-  phases: ['command', 'movement', 'shooting', 'charge', 'fight'],
+  phases: ['command', 'movement', 'shooting', 'charge', 'fight', 'end-of-turn'],
   turn: 'any',
   type: null,
   limit: 'phase',
@@ -241,9 +241,28 @@ it('takes the core rules’ once per phase limit where a Stratagem’s facts sta
   expect(rules().byDetachment.get('death-guard')?.get('flyblown-host')?.[0]?.limit).toBe('phase')
 })
 
-it('keeps New Orders once per battle where VS Data types it once per phase', () => {
-  release({ stratagems: [{ ...reroll, id: 'core.new-orders', name: 'New Orders', phases: ['command'], turn: 'own' }] })
-  expect(rules().core[0]?.limit).toBe('battle')
+it('keeps a Stratagem out of the end of a turn where VS Data leaves that phase out', () => {
+  release({ stratagems: [{ ...reroll, phases: ['command', 'movement', 'shooting', 'charge', 'fight'] }] })
+  expect(rules().core[0]?.phases).toEqual(['command', 'movement', 'shooting', 'charge', 'fight'])
+})
+
+it('times a Stratagem by the turn each of its phases is in', () => {
+  release({
+    stratagems: [
+      {
+        ...reapers,
+        phases: ['shooting', 'fight'],
+        windows: [
+          { phase: 'shooting', turn: 'opponent' },
+          { phase: 'fight', turn: 'any' },
+        ],
+      },
+    ],
+  })
+  expect(rules().byDetachment.get('death-guard')?.get('flyblown-host')?.[0]?.windows).toEqual([
+    { phase: 'shooting', turn: 'opponent-turn' },
+    { phase: 'fight', turn: 'either' },
+  ])
 })
 
 it('recognizes a detachment whose slug contains an accented name', () => {
@@ -484,17 +503,17 @@ it('schedules only scoring moments declared by the card', () => {
   ])
 })
 
-it('groups every tier of an objective played the same way where VS Data marks only the higher tier exclusive', () => {
-  const tier = (step: number, vp: number, mode: 'fixed' | 'tactical', exclusive?: string) => ({
+it('groups the tiers of an exclusive objective played the same way', () => {
+  const tier = (step: number, vp: number, mode: 'fixed' | 'tactical') => ({
     id: `chapter-approved.no-prisoners.o1-s${step}`,
     vp,
     count: 'once' as const,
     modes: [mode],
-    ...(exclusive ? { exclusive } : {}),
+    exclusive: 'o1',
     criterion: { summary: 'Hold table quarters.' },
     windows: [{ at: 'turn-end' as const, turn: 'own' as const }],
   })
-  const awards = [tier(1, 2, 'fixed'), tier(2, 3, 'tactical'), tier(3, 4, 'fixed', 'o1'), tier(4, 5, 'tactical', 'o1')]
+  const awards = [tier(1, 2, 'fixed'), tier(2, 3, 'tactical'), tier(3, 4, 'fixed'), tier(4, 5, 'tactical')]
   release({ missionPacks: [{ ...pack, secondaries: [{ ...pack.secondaries[0]!, modes: ['fixed', 'tactical'], awards }] }] })
   expect(rules().secondaries[0]?.awards.map((award) => award.group)).toEqual([
     'chapter-approved.no-prisoners:o1:fixed',
@@ -655,6 +674,31 @@ it('leaves a when-drawn rule VS Data has not typed for the player to judge', () 
     roundMax: null,
     heldCards: [],
   })
+})
+
+it('lets a card go back while no enemy has a characteristic at a value', () => {
+  const noEnemy = { entity: 'model' as const, characteristic: 'wounds' as const, min: 10 }
+  expect(secondary({ whenDrawn: { action: 'redraw', required: false, ifNoEnemy: noEnemy } })?.whenDrawn).toEqual({
+    operation: 'redraw',
+    roundMax: null,
+    required: false,
+    heldCards: [],
+    noEnemy,
+  })
+})
+
+it('plays no cards from a pack that picks its primary by Detachment', () => {
+  release({
+    missionPacks: [
+      pack,
+      missionPack({
+        id: 'combat-patrol',
+        name: 'Combat Patrol',
+        primaries: [{ ...pack.primaries[0]!, id: 'combat-patrol.slay', pairings: [] }],
+      }),
+    ],
+  })
+  expect(rules().primaries.map((card) => card.key)).toEqual(['chapter-approved.death-trap'])
 })
 
 it('preserves the fifth-round fallback on opponent-turn secondaries', () => {

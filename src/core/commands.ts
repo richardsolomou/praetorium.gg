@@ -153,6 +153,10 @@ export const stratagemSchema = z.object({
   limit: z.enum(STRATAGEM_LIMITS),
   phases: z.array(phase).max(PHASES.length).optional(),
   turn: z.enum(TURN_SCOPES).optional(),
+  windows: z
+    .array(z.object({ phase, turn: z.enum(TURN_SCOPES) }))
+    .max(PHASES.length * TURN_SCOPES.length)
+    .optional(),
 })
 const stratagem = stratagemSchema.extend({ detachment: z.string().min(1).max(STRATAGEM_SOURCE_MAX_LENGTH).optional() })
 const battlePrep = z.object({

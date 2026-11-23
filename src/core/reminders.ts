@@ -317,9 +317,16 @@ export const TURN_LABELS: Record<TurnScope, string> = {
   either: 'Either turn',
 }
 
-/** When a stratagem can be used, as "Shooting, Fight phase · Your turn · Once per battle". */
-export const stratagemTiming = (stratagem: Pick<Stratagem, 'phases' | 'turn' | 'limit'>) => [
-  stratagem.phases?.length ? `${stratagem.phases.map(phaseName).join(', ')} phase` : 'Any phase',
-  TURN_LABELS[stratagem.turn ?? 'either'],
+/**
+ * When a stratagem can be used, as "Shooting, Fight phase · Your turn · Once per battle", or by each phase's own turn
+ * as "Shooting phase, opponent’s turn or Fight phase, either turn · Once per phase".
+ */
+export const stratagemTiming = (stratagem: Pick<Stratagem, 'phases' | 'turn' | 'limit' | 'windows'>) => [
+  ...(stratagem.windows
+    ? [stratagem.windows.map(({ phase, turn }) => `${phaseName(phase)} phase, ${TURN_LABELS[turn].toLocaleLowerCase()}`).join(' or ')]
+    : [
+        stratagem.phases?.length ? `${stratagem.phases.map(phaseName).join(', ')} phase` : 'Any phase',
+        TURN_LABELS[stratagem.turn ?? 'either'],
+      ]),
   stratagem.limit === 'unlimited' ? 'No use limit' : `Once per ${stratagem.limit.replace('-', ' ')}`,
 ]
