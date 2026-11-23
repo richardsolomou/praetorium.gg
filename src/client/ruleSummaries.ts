@@ -1,21 +1,13 @@
 import { useQueries, useQuery } from '@tanstack/react-query'
 import type { RuleSummaries, RuleSummary } from '../contracts/rules'
 import { TEXT_HOMES_MAX } from '../contracts/schemas'
-import { hasTextTokens, textTokensIn } from '../core/sourceText'
-import { summaryNamedBy, tokensAtHome } from '../shared/ruleSummaries'
+import { summaryNamedBy, tokensAtHome, wholeRuleTokens } from '../shared/ruleSummaries'
 import { ruleAbilitySummariesQuery, ruleSummariesQuery, textHomesQuery } from './queries/references'
 import { textSources } from './functions'
 import { referenceQuery } from './queries/shared'
 
-/** A summary describes a whole rule, so it stands in only for tokens showing whole strings, not one bullet of a list. */
-const WHOLE_STRING = new Set(['prose', 'plain', 'trim'])
-
 type SummaryLookup = { summary: RuleSummary | null; pending: boolean }
 
-const wholeTokens = (text: string) => {
-  const tokens = hasTextTokens(text) ? textTokensIn(text) : []
-  return tokens.length > 0 && tokens.every((token) => WHOLE_STRING.has(token.transform)) ? tokens : []
-}
 const unique = <T>(values: readonly T[]) => [...new Set(values)]
 
 /**
@@ -24,7 +16,7 @@ const unique = <T>(values: readonly T[]) => [...new Set(values)]
  * lives in now.
  */
 export function useRuleSummaries(texts: readonly string[]) {
-  const tokens = texts.flatMap(wholeTokens)
+  const tokens = texts.flatMap(wholeRuleTokens)
   const own = unique(tokens.map((token) => token.file))
   const ownAnswers = useQueries({ queries: own.map(ruleSummariesQuery) })
   const ofFile = new Map<string, RuleSummaries | undefined>(own.map((file, at) => [file, ownAnswers[at]?.data]))
@@ -42,7 +34,7 @@ export function useRuleSummaries(texts: readonly string[]) {
   return {
     pending,
     summaryOf: (text: string): RuleSummary | null => {
-      const named = wholeTokens(text)
+      const named = wholeRuleTokens(text)
       return named.length ? summaryNamedBy(tokensAtHome(named, ofFile, homes.data), ofFile) : null
     },
   }

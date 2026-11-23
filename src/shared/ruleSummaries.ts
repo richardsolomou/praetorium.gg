@@ -1,5 +1,20 @@
-import type { RuleSummaries } from '../contracts/rules'
-import type { TextToken } from '../core/sourceText'
+import type { RuleSummaries, RuleSummary } from '../contracts/rules'
+import { hasTextTokens, type TextToken, textToken, textTokensIn } from '../core/sourceText'
+
+/** A summary describes a whole rule, so it stands in only for tokens showing whole strings, not one bullet of a list. */
+const WHOLE_STRING = new Set(['prose', 'plain', 'trim'])
+
+/** The tokens of a text a summary can stand in for: none unless every one shows a whole string. */
+export function wholeRuleTokens(text: string) {
+  const tokens = hasTextTokens(text) ? textTokensIn(text) : []
+  return tokens.every((token) => WHOLE_STRING.has(token.transform)) ? tokens : []
+}
+
+/** The whole rule a clause of it is cut from, as a card's When Drawn condition is from its When Drawn rule. */
+export const wholeRuleOf = (clause: string) =>
+  textTokensIn(clause)
+    .map((token) => textToken({ ...token, transform: 'plain' }))
+    .join('')
 
 /**
  * The summary of a rule printing every token's string. A line several rules share, such as a stratagem's timing,
@@ -25,3 +40,15 @@ export const tokensAtHome = (
     const home = ofFile.get(token.file)?.replaced && homes?.[token.hash]
     return home ? { ...token, file: home } : token
   })
+
+/** A summary as plain text, for a screen that draws no markup: paragraphs apart, list items on lines of their own. */
+export const summaryPlainText = ({ blocks }: RuleSummary) =>
+  blocks
+    .map((block) =>
+      'paragraph' in block
+        ? block.paragraph.map((run) => run.text).join('')
+        : block.items
+            .map((item, at) => `${block.list === 'ordered' ? `${at + 1}.` : '•'} ${item.map((run) => run.text).join('')}`)
+            .join('\n'),
+    )
+    .join('\n\n')
