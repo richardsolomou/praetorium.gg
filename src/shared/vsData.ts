@@ -27,15 +27,21 @@ const stratagemPhaseSchema = z.enum([...phaseSchema.options, 'end-of-turn'])
 /**
  * A Stratagem's typed facts as the snapshot keeps them: its record's CP, phases, turn and type, the windows that pair a
  * phase with its own turn where its phases' turns differ, the limit its facts type, and the Detachment it belongs to
- * by name and entry, or null for a core Stratagem.
+ * by name, or null for a core Stratagem.
  */
+export const vsDataDetachmentSchema = z.object({
+  name: z.string().min(1),
+  stratagems: z.array(z.string()),
+  stratagemsUnlisted: z.array(z.string()),
+  enhancements: z.array(z.string()),
+  enhancementsUnlisted: z.array(z.string()),
+})
+export type VsDataDetachment = z.infer<typeof vsDataDetachmentSchema>
+
 export const vsDataStratagemSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
   detachment: z.string().min(1).nullable(),
-  /** The Detachment entry it references, and the other entries VS Data says that Detachment is. */
-  detachmentId: z.string().min(1).nullable().default(null),
-  detachmentAliases: z.array(z.string()).default([]),
   cp: z.number().int().min(0),
   phases: z.array(stratagemPhaseSchema).min(1),
   turn: turnSchema,
@@ -178,6 +184,11 @@ export const vsDataSummariesSchema = z.object({
   missionPacks: z.array(vsDataMissionPackSchema).default([]),
   /** The mission actions the packs' cards name, each under the ID of the card it extends. */
   missionActions: z.array(z.object({ id: z.string(), name: z.string() })).default([]),
+  /**
+   * Each Detachment of the rules version, by name, with the Stratagems and Enhancements its build prints: the ones the
+   * release publishes by ID, and by name the printed ones it does not.
+   */
+  detachments: z.array(vsDataDetachmentSchema).default([]),
   /** Each unit's datasheet data by VS Data id; its BSData aliases are in `entries` under `unit:<id>`. */
   units: z.record(z.string(), vsDataUnitSchema).default({}),
   records: z.array(

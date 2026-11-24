@@ -1,7 +1,7 @@
 import { type Phase, PHASES, type Stratagem } from '../core/battle'
 import { canonicalDetachmentName } from '../core/detachmentName'
 import { routeSlug } from '../core/slug'
-import type { VsDataStratagem } from '../shared/vsData'
+import type { VsDataDetachment, VsDataStratagem } from '../shared/vsData'
 
 /** A Stratagem as the battle rules and reference pages read it: its timing, and the type a card is labelled with. */
 export type VsStratagemCard = Stratagem & { type: string | null }
@@ -33,32 +33,29 @@ function cardOf(stratagem: VsDataStratagem): VsStratagemCard {
 }
 
 /**
- * The Stratagems of a VS Data release: each Detachment's by its name's slug, the entries each named Detachment's cards
- * reference with the other entries VS Data says they are, whether a card references an entry, and the core ones.
+ * The Stratagems of a VS Data release: each Detachment's by its name's slug, each by its ID, the core ones every army
+ * has, and what each Detachment's build prints where the release lists it.
  */
-export function vsDataStratagems(stratagems: readonly VsDataStratagem[]) {
+export function vsDataStratagems(stratagems: readonly VsDataStratagem[], detachments: readonly VsDataDetachment[] = []) {
   const byDetachment = new Map<string, VsStratagemCard[]>()
-  const referenced = new Set<string>()
-  const entries = new Map<string, Map<string, readonly string[]>>()
+  const byId = new Map<string, VsStratagemCard>()
   const core: VsStratagemCard[] = []
   for (const stratagem of stratagems) {
     const card = cardOf(stratagem)
+    byId.set(stratagem.id, card)
     if (stratagem.detachment === null) core.push(card)
     else {
-      const slug = routeSlug(canonicalDetachmentName(stratagem.detachment))
+      const slug = slugOf(stratagem.detachment)
       byDetachment.set(slug, [...(byDetachment.get(slug) ?? []), card])
-      if (stratagem.detachmentId) {
-        referenced.add(stratagem.detachmentId)
-        if (!entries.has(slug)) entries.set(slug, new Map())
-        entries.get(slug)!.set(stratagem.detachmentId, stratagem.detachmentAliases)
-      }
     }
   }
-  const slugOf = (name: string) => routeSlug(canonicalDetachmentName(name))
+  const listings = new Map(detachments.map((detachment) => [slugOf(detachment.name), detachment]))
   return {
     inDetachment: (name: string) => byDetachment.get(slugOf(name)) ?? [],
-    hasEntry: (id: string) => referenced.has(id),
-    entriesNamed: (name: string) => [...(entries.get(slugOf(name)) ?? [])].map(([id, aliases]) => ({ id, aliases })),
+    byId: (id: string) => byId.get(id),
+    listing: (name: string) => listings.get(slugOf(name)),
     core,
   }
 }
+
+const slugOf = (name: string) => routeSlug(canonicalDetachmentName(name))

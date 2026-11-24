@@ -175,7 +175,7 @@ export function DetachmentReference({
                             .join(' · ')}
                         </p>
                       </div>
-                      <span className="chip shrink-0">{stratagem.cp} CP</span>
+                      {stratagem.cp === null ? null : <span className="chip shrink-0">{stratagem.cp} CP</span>}
                     </div>
                     {stratagem.description ? <RuleText text={stratagem.description} rules={detachment.keywordRules} /> : null}
                   </article>

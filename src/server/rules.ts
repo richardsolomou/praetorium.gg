@@ -45,11 +45,11 @@ export function* loadRulesSteps(
   } = {},
 ): Steps<LoadedRules | null> {
   const datacards = catalogue?.datacards ?? (yield* loadDatacardsSteps(datacardsDirectory))
-  // Missions are the current pack's whatever the rules version. Stratagems are the rules version's own; a card its
-  // Game Datacards files print that its release does not carry yet plays as the base release types it.
+  // Missions are the current pack's whatever the rules version. Stratagems are the rules version's own, each Detachment's
+  // the ones its release lists for it; a listed card its release does not type plays as the base release types it.
   const vsData = readVsDataRelease(vsDataDirectory)
   const releases = [rulesVersion ? readVsDataRelease(vsDataDirectory, rulesVersion) : null, vsData].filter((release) => release !== null)
-  const pools = releases.map((release) => vsDataStratagems(release.stratagems))
+  const pools = releases.map((release) => vsDataStratagems(release.stratagems, release.detachments))
   const indexes = releases.map((release) => vsDataIndex(release.entries))
   // The card's wording as tokens, read through the Game Datacards IDs VS Data aliases, for the simulator and keyword links.
   const describe = (key: string) =>
@@ -62,18 +62,36 @@ export function* loadRulesSteps(
       cards.flatMap((list, at) => (at ? list.filter((card) => describe(card.key)) : list)),
       (card) => card.key,
     )
-  // A retained Detachment fills in from its namesake in the base release, except one VS Data says is another base
-  // entry, as a rules version printing a Detachment under an older name does: its namesake is a different Detachment.
   const inDetachment = (name: string) => {
     const [own, base] = pools
-    if (!own || !base) return own?.inDetachment(name) ?? []
-    const renamed = own.entriesNamed(name).some(({ aliases }) => aliases.some((alias) => base.hasEntry(alias)))
-    return renamed ? own.inDetachment(name) : printed([own.inDetachment(name), base.inDetachment(name)])
+    const listing = own?.listing(name)
+    // A Detachment the release does not list fills in from its namesake in the base release where the rules version's
+    // Game Datacards files print the card, until VS Data lists every Detachment those files carry.
+    if (!own || !listing) return { cards: own ? printed([own.inDetachment(name), base?.inDetachment(name) ?? []]) : [], listing: null }
+    const cards = listing.stratagems.flatMap((id) => own.byId(id) ?? base?.byId(id) ?? [])
+    return { cards: uniqueBy(cards, (card) => card.key), listing }
   }
+  // The Game Datacards IDs of the Enhancements a release lists, through the aliases VS Data gives them.
+  const enhancementIds = (ids: readonly string[]) =>
+    ids.flatMap((id) =>
+      indexes
+        .flatMap((index) => index.aliasesOf({ kind: 'ability', id }))
+        .flatMap((alias) => (alias.startsWith('gdc.enhancement.') ? [alias.slice('gdc.enhancement.'.length).replaceAll('.', '-')] : [])),
+    )
   const core = printed(pools.map((pool) => pool.core))
-  const factions = factionsFromDatacards(datacards, iconDirectory, (name) =>
-    inDetachment(name).map((card) => ({ ...card, description: describe(card.key) })),
-  )
+  const factions = factionsFromDatacards(datacards, iconDirectory, (name) => {
+    const { cards, listing } = inDetachment(name)
+    return {
+      stratagems: cards.map((card) => ({ ...card, description: describe(card.key) })),
+      ...(listing
+        ? {
+            stratagemsUnlisted: listing.stratagemsUnlisted,
+            enhancements: new Set(enhancementIds(listing.enhancements)),
+            enhancementsUnlisted: listing.enhancementsUnlisted,
+          }
+        : {}),
+    }
+  })
   const missing = yield* missingArmyRulesFromCatalogueSteps(path.join(directory, 'definitions'), datacards)
   const catalogueRules = catalogue?.definitions ? withDefinitionTokens(missing, catalogue.definitions.token) : missing
   const keywordRules = keywordAbilityDescriptions(datacardsDirectory)

@@ -92,33 +92,32 @@ it('keeps each Stratagem’s typed facts, naming the Detachment it references', 
   expect([kept.detachment, kept.limit, kept.windows.length]).toEqual(['Shadowkeepers', 'battle', 2])
 })
 
-it('names the Detachment entry a Stratagem references and the entries VS Data says it is', () => {
+it('keeps what each Detachment’s build prints, by the Detachment’s name', () => {
   fs.rmSync(directory, { recursive: true, force: true })
-  const stratagem = {
-    kind: 'ability',
-    id: 'space-marines.medusas-wrath.vengeful-animus',
+  const detachment = {
+    kind: 'detachment',
+    id: 'space-marines.ironstorm-spearhead',
+    name: 'Ironstorm Spearhead',
     aliases: [],
-    summary: 'Vengeful animus.',
+    category: 'rosters',
     data: {
-      ruleType: 'stratagem',
-      cp: 1,
-      detachment: { kind: 'detachment', id: 'space-marines.ironstorm-spearhead' },
-      stratagem: { phases: ['fight'], turn: 'any' },
+      stratagems: ['space-marines.medusas-wrath.ancient-fury'],
+      stratagemsUnlisted: ['Mercy Is Weakness'],
+      enhancements: ['space-marines.medusas-wrath.adept-of-the-omnissiah'],
+      enhancementsUnlisted: ['Master of Machine War'],
     },
   }
-  writeFiles(
-    directory,
-    vsDataReleaseFiles([stratagem], 'MFM 1.4', [
-      { kind: 'detachment', id: 'space-marines.ironstorm-spearhead', name: 'Ironstorm Spearhead', aliases: ['iron-hands.medusas-wrath'] },
-    ]),
-  )
+  writeFiles(directory, vsDataReleaseFiles([record, detachment], 'MFM 1.4'))
   const file = `${directory}.json`
   compactVsDataRelease(directory, file)
-  const [kept] = JSON.parse(fs.readFileSync(file, 'utf8')).stratagems
-  expect([kept.detachment, kept.detachmentId, kept.detachmentAliases]).toEqual([
-    'Ironstorm Spearhead',
-    'space-marines.ironstorm-spearhead',
-    ['iron-hands.medusas-wrath'],
+  expect(JSON.parse(fs.readFileSync(file, 'utf8')).detachments).toEqual([
+    {
+      name: 'Ironstorm Spearhead',
+      stratagems: ['space-marines.medusas-wrath.ancient-fury'],
+      stratagemsUnlisted: ['Mercy Is Weakness'],
+      enhancements: ['space-marines.medusas-wrath.adept-of-the-omnissiah'],
+      enhancementsUnlisted: ['Master of Machine War'],
+    },
   ])
 })
 
@@ -171,4 +170,17 @@ it('reads a record whose summary VS Data holds as unresolved as having none', ()
   const file = `${directory}.json`
   compactVsDataRelease(directory, file)
   expect(JSON.parse(fs.readFileSync(file, 'utf8')).records.map(({ id }: { id: string }) => id)).toEqual(['necrons.test.phase-shift'])
+})
+
+it('leaves out a card with no text of its own, keeping the summaries of what it asks', () => {
+  fs.rmSync(directory, { recursive: true, force: true })
+  const card = { kind: 'mission-card', id: 'pack.death-trap', aliases: [], category: 'mission-rules', data: {} }
+  const award = { kind: 'mission-award', id: 'pack.death-trap.o1-s1', aliases: [], category: 'mission-rules', summary: 'Hold the centre.' }
+  writeFiles(directory, vsDataReleaseFiles([record, card, award]))
+  const file = `${directory}.json`
+  compactVsDataRelease(directory, file)
+  expect(JSON.parse(fs.readFileSync(file, 'utf8')).records.map((kept: { id: string }) => kept.id)).toEqual([
+    'necrons.test.phase-shift',
+    'pack.death-trap.o1-s1',
+  ])
 })

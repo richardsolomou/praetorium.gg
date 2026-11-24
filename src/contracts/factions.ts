@@ -20,7 +20,8 @@ export type DetachmentRulesDetail = {
   stratagems: {
     id: string
     name: string
-    cp: number
+    /** Null for a Stratagem its build prints that VS Data does not publish yet. */
+    cp: number | null
     type: string | null
     phases: string[]
     turn: string | null

@@ -625,7 +625,7 @@ function detachmentDocument(
           `stratagem-${routeSlug(stratagem.name) || index + 1}`,
           stratagem.name,
           [
-            `${stratagem.cp} CP`,
+            stratagem.cp === null ? null : `${stratagem.cp} CP`,
             stratagem.type,
             ...(stratagem.windows ? [stratagemWindowsLabel(stratagem.windows)] : [stratagem.phases.join(', '), stratagem.turn]),
             stratagem.description ?? 'Description unavailable.',

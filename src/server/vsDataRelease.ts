@@ -6,6 +6,7 @@ import { z } from 'zod'
 import {
   vsDataAttributionSchema,
   vsDataMissionPackSchema,
+  type VsDataDetachment,
   type VsDataStratagem,
   vsDataStratagemSchema,
   type VsDataSummariesFile,
@@ -44,7 +45,8 @@ const recordSchema = refSchema.extend({
   rulesVersion: z.object({ update: z.string() }),
   attribution: vsDataAttributionSchema.optional(),
   data: z.object({
-    summary: z.string().min(1),
+    // A card with no text of its own, such as a mission card whose awards say what it asks, has a null summary.
+    summary: z.string().min(1).nullish(),
     summarySpans: z
       .array(z.object({ start: z.number().int(), end: z.number().int(), bold: z.literal(true).optional(), target: refSchema.optional() }))
       .optional(),
@@ -151,22 +153,19 @@ export function checkVsDataRelease(directory: string, editions: readonly { id: s
 /** A Stratagem record's typed facts, or none for any other record; the limit is read only from versioned facts. */
 function stratagemOf(
   { kind, id, data }: z.infer<typeof recordSchema>,
-  identity: readonly { kind: string; id: string; name?: string; aliases?: string[] }[],
+  identity: readonly { kind: string; id: string; name?: string }[],
 ): VsDataStratagem[] {
   const stratagem = typedStratagemSchema.safeParse(data.stratagem)
   if (kind !== 'ability' || !data.ruleType || !STRATAGEM_RULE_TYPES.has(data.ruleType) || data.cp === undefined || !stratagem.success)
     return []
   const name = identity.find((entry) => entry.kind === kind && entry.id === id)?.name
   const core = data.ruleType === 'core-stratagem'
-  const entry = core ? undefined : identity.find((candidate) => candidate.kind === 'detachment' && candidate.id === data.detachment?.id)
-  const detachment = core ? null : (entry?.name ?? null)
+  const detachment = core ? null : (identity.find((entry) => entry.kind === 'detachment' && entry.id === data.detachment?.id)?.name ?? null)
   const facts = factsSchema.safeParse(data.facts)
   const parsed = vsDataStratagemSchema.safeParse({
     id,
     name,
     detachment,
-    detachmentId: entry?.id ?? null,
-    detachmentAliases: entry?.aliases ?? [],
     cp: data.cp,
     phases: stratagem.data.phases,
     turn: stratagem.data.turn,
@@ -258,6 +257,31 @@ function compactUnits(
   return units
 }
 
+const detachmentDataSchema = z.object({
+  stratagems: z.array(z.string()).default([]),
+  stratagemsUnlisted: z.array(z.string()).default([]),
+  enhancements: z.array(z.string()).default([]),
+  enhancementsUnlisted: z.array(z.string()).default([]),
+})
+
+/** Each Detachment the release's roster records list for its rules version, named, with what its build prints. */
+function detachmentsOf(
+  manifest: VsDataManifest,
+  read: (name: string) => unknown,
+  identity: readonly { kind: string; id: string; name?: string }[],
+): VsDataDetachment[] {
+  const names = new Map(identity.flatMap((entry) => (entry.kind === 'detachment' && entry.name ? [[entry.id, entry.name] as const] : [])))
+  return (manifest.categories.find((category) => category.name === 'rosters')?.records ?? [])
+    .filter((entry) => entry.path.split('/')[2] === 'detachment')
+    .map((entry) => read(entry.path) as { id: string; rulesVersion?: { update?: string }; data: unknown })
+    .filter((record) => record.rulesVersion?.update === manifest.rulesVersion.update)
+    .flatMap((record) => {
+      const name = names.get(record.id)
+      const lists = detachmentDataSchema.safeParse(record.data)
+      return name && lists.success ? [{ name, ...lists.data }] : []
+    })
+}
+
 const describe = ({ edition, update }: VsDataRulesVersion) => `${edition} ${update}`
 
 /**
@@ -280,7 +304,7 @@ export function compactVsDataRelease(directory: string, file: string) {
     records.flatMap((record) => [
       vsDataKey(record),
       ...(record.data.summarySpans ?? []).flatMap((span) => (span.target ? [vsDataKey(span.target)] : [])),
-      ...summaryBlocks(record.data.summary)
+      ...summaryBlocks(record.data.summary ?? '')
         .flatMap((block) => ('paragraph' in block ? block.paragraph : block.items.flat()))
         .flatMap((run) => (run.target ? [vsDataKey(run.target)] : [])),
     ]),
@@ -302,6 +326,7 @@ export function compactVsDataRelease(directory: string, file: string) {
       .filter((record) => record.rulesVersion.update === manifest.rulesVersion.update)
       .map((record) => record.data),
     missionActions: current.flatMap((entry) => (entry.kind === 'mission-action' && entry.name ? [{ id: entry.id, name: entry.name }] : [])),
+    detachments: detachmentsOf(manifest, read, current),
     units,
     attributions: [
       ...new Map(
@@ -317,13 +342,19 @@ export function compactVsDataRelease(directory: string, file: string) {
         ),
       ).values(),
     ],
-    records: records.map(({ kind, id, data }) => ({
-      kind,
-      id,
-      summary: data.summary,
-      spans: data.summarySpans ?? [],
-      questions: (data.interpretation ?? []).map(({ question }) => question),
-    })),
+    records: records.flatMap(({ kind, id, data }) =>
+      data.summary == null
+        ? []
+        : [
+            {
+              kind,
+              id,
+              summary: data.summary,
+              spans: data.summarySpans ?? [],
+              questions: (data.interpretation ?? []).map(({ question }) => question),
+            },
+          ],
+    ),
   }
   fs.rmSync(directory, { recursive: true })
   fs.writeFileSync(file, `${JSON.stringify(compact)}\n`)
