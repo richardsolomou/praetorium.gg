@@ -221,7 +221,7 @@ function DatasheetLoading() {
   )
 }
 
-function AbilitySummary({
+export function AbilitySummary({
   abilities,
   rules,
   reminders,
@@ -275,18 +275,24 @@ function AbilitySummary({
           {title} <span className="readout text-faint">{found.length}</span>
         </h2>
         <div className="mt-2 space-y-1.5">
-          {found.map((ability) => (
-            <article key={ability.id} className="relative part px-2 py-1.5">
-              <div className="flex items-start justify-between gap-2">
-                <h3 className="text-xs">{ability.source ?? ability.name}</h3>
-                {reminders ? <ReminderButton subject={ability} controls={reminders} /> : null}
-              </div>
-              {ability.source ? <p className="eyebrow mt-1">{ability.name}</p> : null}
-              {ability.description ? (
-                <RuleText text={ability.description} rules={rules} name={ability.name} abilityId={ability.id} />
-              ) : null}
-            </article>
-          ))}
+          {found.map((ability) => {
+            const text = ability.description ? (
+              <RuleText text={ability.description} rules={rules} name={ability.name} abilityId={ability.id} />
+            ) : null
+            // A rule the list's detachment gives the unit by name, as Possessed Slaughterband's Brazen Fury on Eightbound, is that detachment's.
+            const granted = detachmentRules?.find((rule) => rule.name === ability.name)
+            const owner = granted?.id && detachmentRuleOwners?.[granted.id.split('/')[0]!]
+            return (
+              <article key={ability.id} className="relative part px-2 py-1.5">
+                <div className="flex items-start justify-between gap-2">
+                  <h3 className="text-xs">{ability.source ?? ability.name}</h3>
+                  {reminders ? <ReminderButton subject={ability} controls={reminders} /> : null}
+                </div>
+                {ability.source ? <p className="eyebrow mt-1">{ability.name}</p> : null}
+                {owner && text ? <DatasheetUnit.Provider value={owner}>{text}</DatasheetUnit.Provider> : text}
+              </article>
+            )
+          })}
         </div>
       </section>
     )
