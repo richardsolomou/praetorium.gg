@@ -65,5 +65,7 @@ it('does not migrate saved loadouts before resolving their retained catalogue ed
     entryId: '8b71-580f-ad19-83d7',
     choices: { '692c-f7be-75d4-ba2d/f1f6-718e-222f-9ed5': 'b440-75d0-9e95-486a' },
   }
-  expect(rosterFromRow({ ...row, catalogueId: 'previous~f89b-84e0-6e3b-f1e2', picks: JSON.stringify([pick]) }).picks).toEqual([pick])
+  expect(rosterFromRow({ ...row, catalogueId: 'previous~f89b-84e0-6e3b-f1e2', picks: JSON.stringify([pick]) }).picks).toEqual([
+    { ...pick, floor: true },
+  ])
 })

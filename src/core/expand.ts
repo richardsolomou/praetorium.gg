@@ -6,7 +6,11 @@ import { childrenOf, hasDynamicSelectionLimit, MAX_DEPTH, maximumCount, type Opt
 import { evaluate, type EvaluateOptions, hiddenByRules, type Selection } from './evaluate'
 import { updateSelection, withCounts, withPlaceFor } from './selection'
 
-type DefaultOptions = EvaluateOptions & { maxDepth?: number }
+type DefaultOptions = EvaluateOptions & {
+  maxDepth?: number
+  /** Start every choice at its cheapest option, the named default only settling a tie: the build the Munitorum prices a datasheet by. */
+  floor?: boolean
+}
 
 /**
  * The smallest legal selection of an entry, or null when the id is unknown.
@@ -49,8 +53,8 @@ export function expand(
     // consumes the group's allowance. Mixed squads commonly put the ordinary
     // model first and a required sergeant later in the catalogue.
     const reserved = available.reduce((total, child) => total + insistedOn(child, definition, index, depth - 1, carriers, options), 0)
-    let remaining = Math.max(0, count - reserved)
-    for (const child of ordered(target, available, index)) {
+    let remaining = Math.max(0, count - reserved) || optionalDefault(target, available, index, count, options)
+    for (const child of ordered(target, available, index, options.floor)) {
       const scale = scaleOf(child.definition, definition, index, carriers)
       const minimum = insistedOn(child, definition, index, depth - 1, carriers, options)
       const cap = maximumCount(child.definition, index, options)
@@ -144,24 +148,32 @@ function withinOwnLimit(
 }
 
 /**
- * What a group offers, best first: the cheapest, then what the group names as its
- * default, then entries before nested groups.
- *
- * Cheapest first, because a mandatory choice has to be made for the player and
- * making it an expensive one puts points on a list nobody asked for — the floor of
- * a datasheet is what this is for. The catalogue's own default does not always
- * stand at that floor: an Achilles Ridgerunner names the heavy mining laser, which
- * the Munitorum prices as ten points of wargear over the base cost. So the named
- * default only settles a choice between options that cost the same.
+ * The one piece an optional group starts with: the wargear it names as its default, as a Rhino's card prints its
+ * pintle combi-bolter. Models are what a squad's size asks for, so a default model is never added this way.
  */
-function ordered(group: Definition, options: Option[], index: CatalogueIndex): Option[] {
+function optionalDefault(group: Definition, available: readonly Option[], index: CatalogueIndex, count: number, options: DefaultOptions) {
   const named = 'defaultSelectionEntryId' in group ? group.defaultSelectionEntryId : undefined
-  return options.toSorted(
-    (left, right) =>
-      pointsOf(left, index) - pointsOf(right, index) ||
-      Number(right.id === named) - Number(left.id === named) ||
-      kindOf(left, index) - kindOf(right, index),
-  )
+  if (options.floor || count > 0 || !named) return 0
+  const option = available.find((candidate) => candidate.id === named)
+  const type = option && resolve(option.definition, index).type
+  return type && type !== 'model' && type !== 'unit' ? 1 : 0
+}
+
+/**
+ * What a group offers, best first: what the group names as its default, then the
+ * cheapest, then entries before nested groups.
+ *
+ * The named default is what the card prints, as the official app starts a unit on
+ * it even where the Munitorum prices it: an Achilles Ridgerunner starts with the
+ * heavy mining laser and its ten points. Without one, a mandatory choice is made
+ * at the floor of the datasheet rather than putting points on a list nobody asked for.
+ */
+function ordered(group: Definition, options: Option[], index: CatalogueIndex, floor = false): Option[] {
+  const named = 'defaultSelectionEntryId' in group ? group.defaultSelectionEntryId : undefined
+  const cost = (left: Option, right: Option) => pointsOf(left, index) - pointsOf(right, index)
+  const default_ = (left: Option, right: Option) => Number(right.id === named) - Number(left.id === named)
+  const [first, second] = floor ? [cost, default_] : [default_, cost]
+  return options.toSorted((left, right) => first(left, right) || second(left, right) || kindOf(left, index) - kindOf(right, index))
 }
 
 const kindOf = (option: Option, index: CatalogueIndex) => (resolve(option.definition, index).type === undefined ? 1 : 0)

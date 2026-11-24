@@ -1281,19 +1281,23 @@ function measure(spec: Measurable, node: Node, root: Node, index: CatalogueIndex
   const origins = resolveScope(spec.scope, node, root, index, census)
   if (!origins.length) return 0
 
-  const seen = new Set<Node>()
+  // How many of each match the scope holds: above its holder, a weapon stored once for each of two identical models is
+  // two weapons. A per-parent count stays as stored, since `carriers` scales that limit instead.
+  const fieldedWithin = spec.scope !== 'parent' && spec.scope !== 'self'
+  const seen = new Map<Node, number>()
   // Asked of the ancestors, `instanceOf` is about the bearer's own lineage: the roster above it holds every other unit.
   const lineageOnly = spec.includeSelf && spec.scope === 'ancestor'
   for (const origin of origins) {
-    if (spec.includeSelf && matches(origin, spec.childId, root, index, census)) seen.add(origin)
+    if (spec.includeSelf && matches(origin, spec.childId, root, index, census)) seen.set(origin, origin.count)
     if (lineageOnly) continue
     for (const candidate of selectionsUnder(origin, spec.includeChildSelections === true)) {
-      if (matches(candidate, spec.childId, root, index, census)) seen.add(candidate)
+      if (!seen.has(candidate) && matches(candidate, spec.childId, root, index, census))
+        seen.set(candidate, fieldedWithin && origin.fielded > 0 ? candidate.fielded / origin.fielded : candidate.count)
     }
   }
-  const matching = [...seen]
+  const matching = [...seen.keys()]
 
-  if (spec.field === 'selections') return matching.reduce((total, each) => total + each.count, 0)
+  if (spec.field === 'selections') return [...seen.values()].reduce((total, held) => total + held, 0)
   // Attachments live on saved picks, outside the selection tree. Only profile
   // projection supplies them; ordinary evaluation validates them separately.
   if (spec.field === 'associations') return census.associations

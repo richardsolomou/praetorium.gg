@@ -439,7 +439,7 @@ export const copyPlayedArmy = createServerFn({ method: 'POST' })
       const userId = await requireUserId()
       const instance = app()
       const { rosterVisibility } = await instance.repository.playerDefaults(userId)
-      const roster = { ...(await playedArmyCopy(data)), visibility: rosterVisibility }
+      const roster = { ...(await playedArmyCopy(data)), visibility: rosterVisibility, printedDefaults: true as const }
       const saved = await saveOwnedRoster(userId, roster)
       await captureRosterCreated(instance, userId, roster, { played: true })
       return { id: saved.id }

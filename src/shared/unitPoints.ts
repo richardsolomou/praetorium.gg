@@ -93,9 +93,11 @@ function computeUnitPointAdjustment(
   copy: number,
 ) {
   const unit = mfmUnitFor(loaded, primaryCatalogueId, entryId)
+  // The Munitorum's price is for the unit at its floor; a default that costs more is charged on top, as the app does.
   const built = buildUnit(entryId, loaded.index, requestedModels, undefined, {
     primaryCatalogueId,
     mustering: true,
+    floor: true,
   })
   if (!built) return 0
   const models = requestedModels ?? built.size.models

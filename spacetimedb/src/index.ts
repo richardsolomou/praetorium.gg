@@ -2858,6 +2858,8 @@ const rosterInput = z
       .transform((value) => value ?? null),
     visibility: z.enum(ROSTER_VISIBILITIES),
     source: z.enum(ROSTER_SOURCES),
+    // Sent by servers that start a choice on its printed default; a save from an older one keeps its units' cheapest.
+    printedDefaults: z.literal(true).optional(),
     now: z.number().int().nonnegative(),
   })
   .refine(({ limit, pointsBudget }) => !pointsBudgetError(limit, pointsBudget))
@@ -3084,6 +3086,7 @@ function saveRosterIn(tx: Context, input: ReturnType<typeof parseRoster>) {
     borrowedDetachmentId: input.borrowedDetachmentId ?? undefined,
     visibility: input.visibility,
     source: input.source,
+    printedDefaults: input.printedDefaults,
     updatedAt: nextVersion(current, now),
   }
   if (current) {

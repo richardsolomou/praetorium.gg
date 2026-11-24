@@ -158,29 +158,24 @@ it('keeps what a datasheet shows of a unit, its models and wargear named, under 
   ])
 })
 
+it('reads a complete record with no summary of its own, as a mission card is, as having none', () => {
+  fs.rmSync(directory, { recursive: true })
+  writeFiles(directory, vsDataReleaseFiles([record, { ...record, id: 'necrons.test.card', summary: undefined, data: { text: 'none' } }]))
+  const file = `${directory}.json`
+  compactVsDataRelease(directory, file)
+  expect(JSON.parse(fs.readFileSync(file, 'utf8')).records.map(({ id }: { id: string }) => id)).toEqual(['necrons.test.phase-shift'])
+})
+
 it('reads a record whose summary VS Data holds as unresolved as having none', () => {
   fs.rmSync(directory, { recursive: true })
   writeFiles(
     directory,
     vsDataReleaseFiles([
       record,
-      { ...record, id: 'necrons.test.held', data: { summary: { unresolved: 'Repeated the official wording.' } } },
+      { ...record, id: 'necrons.test.held', summary: undefined, data: { summary: { unresolved: 'Repeated the official wording.' } } },
     ]),
   )
   const file = `${directory}.json`
   compactVsDataRelease(directory, file)
   expect(JSON.parse(fs.readFileSync(file, 'utf8')).records.map(({ id }: { id: string }) => id)).toEqual(['necrons.test.phase-shift'])
-})
-
-it('leaves out a card with no text of its own, keeping the summaries of what it asks', () => {
-  fs.rmSync(directory, { recursive: true, force: true })
-  const card = { kind: 'mission-card', id: 'pack.death-trap', aliases: [], category: 'mission-rules', data: {} }
-  const award = { kind: 'mission-award', id: 'pack.death-trap.o1-s1', aliases: [], category: 'mission-rules', summary: 'Hold the centre.' }
-  writeFiles(directory, vsDataReleaseFiles([record, card, award]))
-  const file = `${directory}.json`
-  compactVsDataRelease(directory, file)
-  expect(JSON.parse(fs.readFileSync(file, 'utf8')).records.map((kept: { id: string }) => kept.id)).toEqual([
-    'necrons.test.phase-shift',
-    'pack.death-trap.o1-s1',
-  ])
 })

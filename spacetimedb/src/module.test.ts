@@ -237,7 +237,7 @@ describe('sharing a revealed sealed event roster', () => {
     const fixture = setup()
     fixture.save('saved', { picks: '[{"entryId":"other"}]' })
     fixture.command('share-roster')
-    expect(fixture.test.db.rosters.id.find('saved')).toMatchObject({ visibility: 'public', picks: '[{"entryId":"other"}]' })
+    expect(fixture.test.db.rosters.id.find('saved')).toMatchObject({ visibility: 'public', picks: '[{"entryId":"other","floor":true}]' })
   })
 
   it('does not create a copy when publishing', () => {
@@ -3612,13 +3612,26 @@ describe('roster lock', () => {
       now: NOW,
     })
 
+  it('stores a save from a server that starts choices on their printed default as it arrives', () => {
+    const { test, operator, procedure } = harness()
+    const payload = { ...JSON.parse(roster('[{"entryId":"unit-proof"}]')), printedDefaults: true }
+    module.saveRoster(procedure(operator), { payload: JSON.stringify(payload) })
+    expect(test.db.rosters.id.find('roster')).toMatchObject({ picks: '[{"entryId":"unit-proof"}]', printedDefaults: true })
+  })
+
+  it('keeps the cheapest choices of a save from an older server', () => {
+    const { test, operator, procedure } = harness()
+    module.saveRoster(procedure(operator), { payload: roster('[{"entryId":"unit-proof"}]') })
+    expect(test.db.rosters.id.find('roster')).toMatchObject({ picks: '[{"entryId":"unit-proof","floor":true}]', printedDefaults: true })
+  })
+
   it('refuses a content save to a locked roster and keeps its picks', () => {
     const { test, operator, procedure } = harness()
     module.saveRoster(procedure(operator), { payload: roster('[{"entryId":"unit-proof"}]') })
     module.setRosterLocked(procedure(operator), { id: 'roster', userId: 'owner', locked: true, now: BigInt(NOW + 1) })
     expect([module.saveRoster(procedure(operator), { payload: roster('[]') }), test.db.rosters.id.find('roster')?.picks]).toEqual([
       'locked',
-      '[{"entryId":"unit-proof"}]',
+      '[{"entryId":"unit-proof","floor":true}]',
     ])
   })
 })

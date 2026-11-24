@@ -1,0 +1,12 @@
+diff --git a/definitions/Chaos - Chaos Space Marines.json b/definitions/Chaos - Chaos Space Marines.json
+--- a/definitions/Chaos - Chaos Space Marines.json
++++ b/definitions/Chaos - Chaos Space Marines.json
+@@ -36096,7 +36096,7 @@
+                 "name": "Arm weapons",
+                 "id": "ad0a-fe59-6b35-1434",
+                 "collective": false,
+-                "defaultSelectionEntryId": "cf57-33c7-551b-fa36",
++                "defaultSelectionEntryId": "c88-2aa6-d866-2d82",
+                 "hidden": false,
+                 "import": true,
+                 "constraints": [

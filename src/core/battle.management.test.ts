@@ -1156,3 +1156,21 @@ describe('deployment', () => {
     expect(validate(state, ALICE, { kind: 'set-unit', unitKey: 'u0', destroyed: true })).toBe('the unit is already lost')
   })
 })
+
+describe('a list fielded before choices started on their printed default', () => {
+  const fielded = (printedDefaults?: true) => {
+    const command = builtRoster('Astra Militarum', ['Leman Russ Battle Tank'])
+    if (command.kind !== 'attach-roster' || !command.roster.built) throw new Error('expected built roster')
+    command.roster.built.picks = [{ entryId: 'leman-russ' }]
+    if (printedDefaults) command.roster.built.printedDefaults = printedDefaults
+    return reduceBattle(PLAYERS, log([ALICE, command])).players[0]?.roster?.built?.picks
+  }
+
+  it('keeps the cheapest of each choice its units never made', () => {
+    expect(fielded()).toEqual([{ entryId: 'leman-russ', floor: true }])
+  })
+
+  it('leaves a list fielded since then on the printed default', () => {
+    expect(fielded(true)).toEqual([{ entryId: 'leman-russ' }])
+  })
+})

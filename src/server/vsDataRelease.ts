@@ -45,8 +45,7 @@ const recordSchema = refSchema.extend({
   rulesVersion: z.object({ update: z.string() }),
   attribution: vsDataAttributionSchema.optional(),
   data: z.object({
-    // A card with no text of its own, such as a mission card whose awards say what it asks, has a null summary.
-    summary: z.string().min(1).nullish(),
+    summary: z.string().min(1),
     summarySpans: z
       .array(z.object({ start: z.number().int(), end: z.number().int(), bold: z.literal(true).optional(), target: refSchema.optional() }))
       .optional(),
@@ -75,10 +74,8 @@ const packRecordSchema = z.object({
   data: vsDataMissionPackSchema,
 })
 
-const unresolvedSummary = (record: unknown) => {
-  const summary = (record as { data?: { summary?: unknown } } | null)?.data?.summary
-  return typeof summary === 'object' && summary !== null && 'unresolved' in summary
-}
+/** A record with words of its own to show: not one VS Data holds back as `{ "unresolved": … }`, nor one, such as a mission card, complete without its own text. */
+const hasSummary = (record: unknown) => typeof (record as { data?: { summary?: unknown } } | null)?.data?.summary === 'string'
 
 const MANIFEST = 'manifest.json'
 /** The categories whose records are rule summaries; others, such as datasheets, hold data Praetorium reads elsewhere. */
@@ -296,15 +293,15 @@ export function compactVsDataRelease(directory: string, file: string) {
     .filter((category) => SUMMARY_CATEGORIES.has(category.name))
     .flatMap((category) => category.records)
     .map((entry) => read(entry.path))
-    // A summary VS Data holds back as `{ "unresolved": … }` reads as no summary, as any other gap does.
-    .filter((record) => !unresolvedSummary(record))
+    // A record without a summary of its own reads as having none, as any other gap does.
+    .filter(hasSummary)
     .map((record) => recordSchema.parse(record))
     .filter((record) => record.rulesVersion.update === manifest.rulesVersion.update)
   const wanted = new Set(
     records.flatMap((record) => [
       vsDataKey(record),
       ...(record.data.summarySpans ?? []).flatMap((span) => (span.target ? [vsDataKey(span.target)] : [])),
-      ...summaryBlocks(record.data.summary ?? '')
+      ...summaryBlocks(record.data.summary)
         .flatMap((block) => ('paragraph' in block ? block.paragraph : block.items.flat()))
         .flatMap((run) => (run.target ? [vsDataKey(run.target)] : [])),
     ]),
@@ -342,19 +339,13 @@ export function compactVsDataRelease(directory: string, file: string) {
         ),
       ).values(),
     ],
-    records: records.flatMap(({ kind, id, data }) =>
-      data.summary == null
-        ? []
-        : [
-            {
-              kind,
-              id,
-              summary: data.summary,
-              spans: data.summarySpans ?? [],
-              questions: (data.interpretation ?? []).map(({ question }) => question),
-            },
-          ],
-    ),
+    records: records.map(({ kind, id, data }) => ({
+      kind,
+      id,
+      summary: data.summary,
+      spans: data.summarySpans ?? [],
+      questions: (data.interpretation ?? []).map(({ question }) => question),
+    })),
   }
   fs.rmSync(directory, { recursive: true })
   fs.writeFileSync(file, `${JSON.stringify(compact)}\n`)

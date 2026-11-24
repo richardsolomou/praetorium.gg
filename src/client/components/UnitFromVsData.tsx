@@ -58,9 +58,12 @@ const line = (...runs: readonly (Run | readonly Run[])[]): Line =>
 const bold = (text: string): RuleSummaryInline => ({ text, bold: true })
 
 const range = (min: number, max: number) => (min === max ? `${min}` : `${min}–${max}`)
-/** Items as one run of a sentence, joined by commas and `last`. */
-const listed = <T,>(items: readonly T[], last = 'or'): (T | string)[] =>
-  items.flatMap((item, at) => [...(at === 0 ? [] : [at === items.length - 1 ? ` ${last} ` : ', ']), item])
+/** Items as one run of a sentence, joined by `comma` and `last`. */
+const listed = <T,>(items: readonly T[], last = 'or', comma = ','): (T | string)[] =>
+  items.flatMap((item, at) => [
+    ...(at === 0 ? [] : [at < items.length - 1 ? `${comma} ` : comma === ',' ? ` ${last} ` : `${comma} ${last} `]),
+    item,
+  ])
 const counted = (items: readonly (readonly [string, number])[]) => items.map(([name, count]) => (count === 1 ? name : `${count} × ${name}`))
 
 /** A model's name for more than one of it, as a datasheet writes "5–10 Immortals" or "2 Canoptek Wraiths". */
@@ -72,9 +75,18 @@ export function pluralModel(name: string) {
   return `${name}s`
 }
 
-/** Each model line of a unit, as "5–10 Immortals" or "1 Overlord". */
-export const unitComposition = (unit: VsDataUnit): Line[] =>
-  unit.models.map((model) => line(`${range(model.min, model.max)} ${model.max === 1 ? model.name : pluralModel(model.name)}`))
+/**
+ * Each model line of a unit, as "5–10 Immortals" or "1 Overlord", then the unit's size where its lines do not add up to it,
+ * as a Brotherhood Terminator Squad's optional Ancient takes the place of one of its Terminators.
+ */
+export function unitComposition(unit: VsDataUnit): Line[] {
+  const lines = unit.models.map((model) => line(`${range(model.min, model.max)} ${model.max === 1 ? model.name : pluralModel(model.name)}`))
+  if (!unit.sizes.length) return lines
+  const [fewest, most] = [Math.min(...unit.sizes), Math.max(...unit.sizes)]
+  const low = unit.models.reduce((total, model) => total + model.min, 0)
+  const high = unit.models.reduce((total, model) => total + model.max, 0)
+  return low === fewest && high === most ? lines : [...lines, line(`${range(fewest, most)} models in all`)]
+}
 
 /** What each model carries before any option is taken. */
 export const unitLoadout = (unit: VsDataUnit): Line[] =>
@@ -87,13 +99,18 @@ export function unitOption(option: VsDataUnit['options'][number]): RuleSummaryBl
       ? `For every ${option.perModels} models, 1 ${option.carrier}`
       : `Each ${option.carrier}`
     : 'The unit'
-  const how = option.choose.max > 1 ? [`up to ${option.choose.max} of `, ...listed(option.choices, 'and')] : listed(option.choices)
+  // Semicolons keep a choice of several pieces, as "Holy fire and Plasma gun", from reading as separate choices.
+  const comma = option.choices.some((choice) => choice.includes(' and ')) ? ';' : ','
+  const how =
+    option.choose.max > 1
+      ? [`up to ${option.choose.max} of `, ...listed(option.choices, 'and', comma)]
+      : listed(option.choices, 'or', comma)
   const instead = option.replaces?.length ? [' in place of ', ...listed(counted(option.replaces), 'and')] : []
   const limits = (option.caps ?? []).map((cap) =>
     line(`At most ${cap.max} `, ...listed(cap.choices), `${cap.perModels ? ` for every ${cap.perModels} models` : ''}.`),
   )
   return [
-    { paragraph: line(`${who} can take `, how, instead, '.') },
+    { paragraph: line(`${who} ${option.choose.min ? 'takes' : 'can take'} `, how, instead, '.') },
     ...(limits.length ? [{ list: 'unordered' as const, items: limits }] : []),
   ]
 }

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { RosterPick } from '../../../core/roster'
 import { picksAfterDetachmentChange } from '../../../core/rosterSetup'
+import { annotatedPicks } from './rosterPicks'
 
 describe('changing roster detachments', () => {
   const picks: RosterPick[] = [
@@ -53,4 +54,8 @@ it('keeps allied selections and attachments when shrinking removes a detachment'
     { entryId: 'captain', attachedTo: 1, choices: { weapon: 'sword' } },
     { entryId: 'ally', catalogueId: 'allies', models: 3 },
   ])
+})
+
+it('keeps a saved unit on the cheapest choices it never made through the builder', () => {
+  expect(annotatedPicks([{ entryId: 'leman-russ', floor: true }])[0]?.floor).toBe(true)
 })

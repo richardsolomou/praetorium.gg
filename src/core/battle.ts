@@ -77,6 +77,7 @@ import {
   atBattleEnd,
 } from './battleSecondaries'
 import { playedMoment, momentOrder, missedMomentRefusal, missedScoreRefusal } from './battleMoments'
+import { flooredPicks } from './printedDefaults'
 
 export { PHASES, type Phase, TURN_SCOPES, type TurnScope, type StratagemWindow, BATTLE_ROUNDS } from './battlePhases'
 export { battleCapacity, openPlaces, stillFilling } from './battleSeats'
@@ -238,6 +239,8 @@ export type BuiltRoster = {
   /** The format restrictions the list was built without, so it prices in the battle as it did in the builder. */
   waivedRules?: FormatRuleId[]
   picks?: RosterPick[]
+  /** Fielded by code that starts a choice on its printed default; picks fielded before keep their cheapest. */
+  printedDefaults?: true
   /**
    * The units as submitted, fixed at the moment the list was attached.
    *
@@ -1812,7 +1815,15 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number, 
     }
     case 'attach-roster': {
       if (state.status === 'setup') state.firstPlayerId = null
-      player.roster = { ...command.roster, name: command.roster.name.trim(), fieldedAt: at }
+      const { built } = command.roster
+      // A list fielded before choices started on their printed default keeps the cheapest of each it never made.
+      const fieldedBuilt = built?.picks && !built.printedDefaults ? { ...built, picks: flooredPicks(built.picks) } : built
+      player.roster = {
+        ...command.roster,
+        ...(fieldedBuilt ? { built: fieldedBuilt } : {}),
+        name: command.roster.name.trim(),
+        fieldedAt: at,
+      }
       player.rosterSeq = seq
       // A replaced list is a different army, so nothing about the old one survives.
       const fielded = fieldedUnits(command.roster.built?.units ?? [])

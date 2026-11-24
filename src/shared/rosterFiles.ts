@@ -716,7 +716,7 @@ function takeEnhancementsOnce(picks: readonly RosterPick[], index: LoadedCatalog
       if (!named.length) continue
       // Only a detachment the list takes offers its enhancement; another's would be a choice the unit cannot hold.
       const context = { primaryCatalogueId: pick.catalogueId, roster }
-      const built = buildUnit(pick.entryId, index, pick.models, pick.choices, { ...context, spreads: pick.spreads })
+      const built = buildUnit(pick.entryId, index, pick.models, pick.choices, { ...context, spreads: pick.spreads, floor: pick.floor })
       const offered = built ? unitChoices(pick.entryId, built.selection, index, context) : []
       const other = named.find((candidate) =>
         offered.some((choice) => choice.key === candidate.key && choice.options.some((option) => option.id === candidate.id)),

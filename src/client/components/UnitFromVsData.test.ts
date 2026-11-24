@@ -12,6 +12,20 @@ it('counts a unit’s models as a datasheet does', () => {
   ).toEqual(['5–10 Immortals', '1 Overlord', '3–6 Canoptek Wraiths'])
 })
 
+it('gives a unit’s size where its model lines do not add up to it', () => {
+  const model = (name: string, min: number, max: number) => ({ name, min, max, wargear: [] })
+  expect(
+    unitComposition({
+      sizes: [4, 5, 6, 7, 8, 9, 10],
+      options: [],
+      models: [model('Ancient', 0, 1), model('Justicar', 1, 1), model('Terminator', 2, 9)],
+    })
+      .at(-1)
+      ?.map((run) => run.text)
+      .join(''),
+  ).toBe('4–10 models in all')
+})
+
 it('writes a model’s plural as English does', () => {
   expect(
     [
@@ -66,4 +80,16 @@ it('lists the limits on an option’s choices under what the option allows', () 
     { paragraph: [{ text: 'Each Nob can take Big Choppa or Power Klaw in place of Choppa.' }] },
     { list: 'unordered', items: [[{ text: 'At most 1 Power Klaw for every 5 models.' }]] },
   ])
+})
+
+it('separates choices with semicolons when one names several pieces of wargear', () => {
+  expect(
+    unitOption({ carrier: 'Missionary', choose: { min: 0, max: 1 }, choices: ['Meltagun', 'Holy fire and Plasma gun', 'Plasma gun'] })[0],
+  ).toEqual({ paragraph: [{ text: 'Each Missionary can take Meltagun; Holy fire and Plasma gun; or Plasma gun.' }] })
+})
+
+it('says a model takes a choice it must make', () => {
+  expect(unitOption({ carrier: 'Gun Servitor', choose: { min: 1, max: 1 }, choices: ['Heavy bolter', 'Heavy arc rifle'] })[0]).toEqual({
+    paragraph: [{ text: 'Each Gun Servitor takes Heavy bolter or Heavy arc rifle.' }],
+  })
 })
