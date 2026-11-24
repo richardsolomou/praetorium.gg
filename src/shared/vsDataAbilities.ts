@@ -32,15 +32,13 @@ export function abilitySummaryIn(units: VsDataUnits, subject: string, name: stri
   const aliased = id ? units.aliases[id] : undefined
   if (aliased && units.abilities[aliased]) return units.abilities[aliased]
   const owner = subject.startsWith('@') ? subject.slice(1) : units.units[subject]?.id
-  if (!owner) return null
   const byOwner = abilitiesByOwner(units)
   const slug = abilityKey(name)
   // The owner's own ability first, then its faction's, as its army rule and shared abilities are the faction's, then the
-  // one faction that has it, as a chapter's datasheets print the Space Marines' army rule.
+  // one faction that has it, as a chapter's datasheets and a Crucible datasheet with no VS Data unit print an army rule.
   const faction = [...byOwner].filter(([held, abilities]) => !held.includes('.') && abilities.has(slug))
   return (
-    byOwner.get(owner)?.get(slug) ??
-    byOwner.get(owner.split('.')[0]!)?.get(slug) ??
+    (owner ? (byOwner.get(owner)?.get(slug) ?? byOwner.get(owner.split('.')[0]!)?.get(slug)) : undefined) ??
     (faction.length === 1 ? faction[0]![1].get(slug)! : null)
   )
 }
