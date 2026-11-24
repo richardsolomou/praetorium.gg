@@ -91,7 +91,7 @@ if (!summaries) {
   const served: Record<string, Record<string, number>> = {}
   for (const edition of summaries.editions) {
     // Missions are read from VS Data's own packs, not Game Datacards' mission cards, which the app no longer reads.
-    const missionKinds = new Set(Object.values(MISSION_KINDS) as string[])
+    const missionKinds = new Set<string>(Object.values(MISSION_KINDS))
     const joins = [...summaries.joins(edition).filter((join) => !missionKinds.has(join.kind)), ...missionJoins(edition)]
     const ofEdition: Record<string, number> = (served[edition] = {})
     console.log(`VS Data summaries for ${edition}`)
