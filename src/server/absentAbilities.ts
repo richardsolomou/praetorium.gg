@@ -107,3 +107,34 @@ export function withoutAbsentAbilities(
   }
   return files.map((file) => visit(file, undefined) as CatalogueFile)
 }
+
+/**
+ * Whether a rules version marks a Detachment's rule absent, by the Praetorium faction and Detachment slugs that print
+ * it: its own Detachment's, or, where another faction prints it, as a Chapter prints a Space Marines Detachment, the
+ * one faction's VS Data holds that Detachment under.
+ */
+export function absentDetachmentRule(
+  release: { entries: Readonly<Record<string, readonly string[]>>; absentDetachmentRules?: readonly (readonly [string, string])[] } | null,
+): (faction: string, detachment: string, rule: string) => boolean {
+  const pairs = release?.absentDetachmentRules ?? []
+  if (!pairs.length) return () => false
+  const units = new Set(Object.keys(release!.entries).flatMap((key) => (key.startsWith('unit:') ? [key.slice('unit:'.length)] : [])))
+  const marked = new Map<string, Set<string>>()
+  const holders = new Map<string, Set<string>>()
+  const hold = (owner: string) => {
+    const [faction, detachment, ...rest] = owner.split('.')
+    if (!faction || !detachment || rest.length || units.has(owner)) return
+    holders.set(detachment, (holders.get(detachment) ?? new Set()).add(faction))
+  }
+  for (const key of Object.keys(release!.entries)) if (key.startsWith('ability:')) hold(key.slice('ability:'.length, key.lastIndexOf('.')))
+  for (const [detachment, key] of pairs) {
+    marked.set(detachment, (marked.get(detachment) ?? new Set()).add(key))
+    hold(detachment)
+  }
+  return (faction, detachment, rule) => {
+    const key = abilityKey(rule)
+    if (marked.get(`${faction}.${detachment}`)?.has(key)) return true
+    const owners = holders.get(detachment)
+    return owners?.size === 1 && Boolean(marked.get(`${[...owners][0]}.${detachment}`)?.has(key))
+  }
+}

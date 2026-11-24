@@ -367,16 +367,21 @@ function absentAbilitiesOf(
   const unitAliases = new Map(identity.flatMap((entry) => (entry.kind === 'unit' ? [[entry.id, bsdata(entry.aliases)] as const] : [])))
   const profiles: [string, string][] = []
   const names: [string, string][] = []
+  const detachments: [string, string][] = []
   for (const entry of identity) {
     if (entry.kind !== 'ability' || !entry.absent) continue
     const own = bsdata(entry.aliases)
+    // A Detachment's rule is hidden under that Detachment, by the VS Data id it names it by.
+    if (entry.name)
+      for (const reference of entry.references ?? [])
+        if (reference.kind === 'detachment') detachments.push([reference.id, abilityKey(entry.name)])
     for (const reference of entry.references ?? [])
       for (const datasheet of reference.kind === 'unit' ? (unitAliases.get(reference.id) ?? []) : []) {
         if (own.length) profiles.push(...own.map((profile): [string, string] => [datasheet, profile]))
         else if (entry.name) names.push([datasheet, abilityKey(entry.name)])
       }
   }
-  return { profiles, names }
+  return { profiles, names, detachments }
 }
 
 const describe = ({ edition, update }: VsDataRulesVersion) => `${edition} ${update}`
@@ -436,6 +441,7 @@ export function compactVsDataRelease(directory: string, file: string) {
     detachments: detachmentsOf(manifest, read, current),
     ...(absent.profiles.length ? { absentAbilities: absent.profiles } : {}),
     ...(absent.names.length ? { absentAbilityNames: absent.names } : {}),
+    ...(absent.detachments.length ? { absentDetachmentRules: absent.detachments } : {}),
     units,
     attributions: [
       ...new Map(

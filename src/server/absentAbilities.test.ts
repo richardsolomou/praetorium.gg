@@ -5,7 +5,7 @@ import { expect, it } from 'vitest'
 import type { Catalogue } from '../core/catalogue'
 import { contextualAbilityNamesIn, datasheetIn } from '../shared/catalogue'
 import { ability, bookOf } from './catalogue.fixtures'
-import { absentAbilitiesFor, withoutAbsentAbilities } from './absentAbilities'
+import { absentAbilitiesFor, absentDetachmentRule, withoutAbsentAbilities } from './absentAbilities'
 
 const catalogue = (): Partial<Catalogue> => ({
   sharedProfiles: [ability('rage', 'Black Rage')],
@@ -108,4 +108,17 @@ it('leaves an ability a datasheet marks absent out of the abilities its grants a
   const [file] = linked([['ancient-link', 'banner']], ['ancient-link', 'other-link'])
   const book = bookOf({ ...file!.catalogue!, entryLinks: file!.catalogue!.entryLinks!.filter((each) => each.id === 'ancient-link') })
   expect(contextualAbilityNamesIn(book, 'cat', 'ancient-link', { selections: [] })).toEqual([])
+})
+
+it('hides a detachment rule the rules version marks absent under that detachment only, and where another faction prints it', () => {
+  const absent = absentDetachmentRule({
+    entries: { 'ability:space-marines.ironstorm-spearhead.ironstorm-relic': [] },
+    absentDetachmentRules: [['space-marines.ironstorm-spearhead', 'armoured-wrath']],
+  })
+  expect([
+    absent('space-marines', 'ironstorm-spearhead', 'Armoured Wrath'),
+    absent('dark-angels', 'ironstorm-spearhead', 'Armoured Wrath'),
+    absent('space-marines', 'gladius-task-force', 'Armoured Wrath'),
+    absent('space-marines', 'ironstorm-spearhead', 'Armoured Assault'),
+  ]).toEqual([true, true, false, false])
 })

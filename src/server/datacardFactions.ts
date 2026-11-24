@@ -25,7 +25,13 @@ export type DetachmentCards = (detachment: string) => {
 }
 import { enhancementKey, isUpgrade, withoutUpgrade } from '../shared/mfm'
 
-export function factionsFromDatacards(datacards: LoadedDatacards, iconDirectory: string, detachmentCards: DetachmentCards): LoadedFactions {
+export function factionsFromDatacards(
+  datacards: LoadedDatacards,
+  iconDirectory: string,
+  detachmentCards: DetachmentCards,
+  /** Whether the rules version marks a Detachment's rule absent, which every view of its rules then leaves out. */
+  absentRule: (faction: string, detachment: string, rule: string) => boolean = () => false,
+): LoadedFactions {
   const factionNames = new Map<string, string>()
   const factionIcons = new Map<string, string>()
   const factionRules = new Map<string, { name: string; description: string }>()
@@ -84,7 +90,7 @@ export function factionsFromDatacards(datacards: LoadedDatacards, iconDirectory:
         name,
         points: construction?.points ?? null,
         dispositions: construction?.dispositions ?? [],
-        rules: [...(content.detachmentRules.get(joinKey(name)) ?? [])],
+        rules: (content.detachmentRules.get(joinKey(name)) ?? []).filter((rule) => !absentRule(owner, id, rule.name)),
         enhancements: enhancements.map((card) => ({
           name: card.name,
           points: card.points,

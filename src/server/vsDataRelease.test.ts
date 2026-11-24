@@ -332,6 +332,23 @@ it('keeps an absent ability with no BSData alias by its datasheet and name, as s
   expect(compact.absentAbilityNames).toEqual([['cd69-af58', 'astarte-banner']])
 })
 
+it('keeps each detachment rule the identity marks absent from the rules version, by detachment and abilityKey', () => {
+  fs.rmSync(directory, { recursive: true })
+  const wrath = {
+    kind: 'ability',
+    id: 'space-marines.ironstorm-spearhead.armoured-wrath',
+    name: 'Armoured Wrath',
+    absent: true as const,
+    references: [{ kind: 'detachment', id: 'space-marines.ironstorm-spearhead' }],
+  }
+  writeFiles(directory, vsDataReleaseFiles([record], 'MFM 1.4', [wrath]))
+  const file = `${directory}.json`
+  compactVsDataRelease(directory, file)
+  const compact = JSON.parse(fs.readFileSync(file, 'utf8'))
+  fs.rmSync(file)
+  expect(compact.absentDetachmentRules).toEqual([['space-marines.ironstorm-spearhead', 'armoured-wrath']])
+})
+
 it('reads a complete record with no summary of its own, as a mission card is, as having none', () => {
   fs.rmSync(directory, { recursive: true })
   writeFiles(directory, vsDataReleaseFiles([record, { ...record, id: 'necrons.test.card', summary: undefined, data: { text: 'none' } }]))

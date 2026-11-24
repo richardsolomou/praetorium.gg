@@ -1,3 +1,4 @@
+import { absentDetachmentRule } from './absentAbilities'
 import fs from 'node:fs'
 import path from 'node:path'
 import { routeSlug } from '../core/slug'
@@ -118,20 +119,26 @@ export function* loadRulesSteps(
         .flatMap((alias) => (alias.startsWith('gdc.enhancement.') ? [alias.slice('gdc.enhancement.'.length).replaceAll('.', '-')] : [])),
     )
   const core = printed(pools.map((pool) => pool.core))
-  const factions = factionsFromDatacards(datacards, iconDirectory, (name) => {
-    const { cards, unlisted, listing } = inDetachment(name)
-    if (listing?.absent) return { absent: true, stratagems: [] }
-    return {
-      stratagems: cards.map((card) => ({ ...card, description: describe(card.key) })),
-      ...(listing
-        ? {
-            stratagemsUnlisted: unlisted,
-            enhancements: new Set(enhancementIds(listing.enhancements)),
-            enhancementsUnlisted: listing.enhancementsUnlisted,
-          }
-        : {}),
-    }
-  })
+  const absentRule = absentDetachmentRule(releases[0] ?? null)
+  const factions = factionsFromDatacards(
+    datacards,
+    iconDirectory,
+    (name) => {
+      const { cards, unlisted, listing } = inDetachment(name)
+      if (listing?.absent) return { absent: true, stratagems: [] }
+      return {
+        stratagems: cards.map((card) => ({ ...card, description: describe(card.key) })),
+        ...(listing
+          ? {
+              stratagemsUnlisted: unlisted,
+              enhancements: new Set(enhancementIds(listing.enhancements)),
+              enhancementsUnlisted: listing.enhancementsUnlisted,
+            }
+          : {}),
+      }
+    },
+    absentRule,
+  )
   const missing = yield* missingArmyRulesFromCatalogueSteps(path.join(directory, 'definitions'), datacards)
   const catalogueRules = catalogue?.definitions ? withDefinitionTokens(missing, catalogue.definitions.token) : missing
   const keywordRules = keywordAbilityDescriptions(datacardsDirectory)
