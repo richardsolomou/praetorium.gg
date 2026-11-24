@@ -467,7 +467,12 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
       if (ownRules) addRule(link, 'faction')
       const shared = loaded.index.shared.get(link.targetId)
       if (!shared) continue
-      if ('characteristics' in shared && (!weaponsOnly || shared.typeName !== 'Abilities')) {
+      if (
+        'characteristics' in shared &&
+        (!weaponsOnly || shared.typeName !== 'Abilities') &&
+        // A link hidden outright is never shown; one a roster condition hides stays, as a Weirdboy's Wurrband powers do.
+        !(link.hidden && !flattenedModifiers([link]).some((modifier) => modifier.field === 'hidden'))
+      ) {
         const profile = linkedProfile(link, shared)
         // Link modifiers apply only to fielded models, so an unfielded model's variant is the shared profile itself.
         const fielded = !selectedUnit || selected.has(definition.id)
