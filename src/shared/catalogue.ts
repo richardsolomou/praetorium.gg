@@ -1,3 +1,4 @@
+import { abilityKey } from './vsDataAbilities'
 import { withoutFactionPrefix } from '../core/name'
 import { canonicalDetachmentName } from '../core/detachmentName'
 import { cachedIn, remember, uniqueBy } from '../core/collections'
@@ -410,6 +411,8 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
   const addProfile = (profile: Profile, kind: AbilityKind, lineage: string[], owner: string[], source?: string, into = abilities) => {
     if (profile.typeName === 'Abilities' && profile.name) {
       const profileLineage = [...lineage, profile.id]
+      const absent = root.absentAbilities
+      if (absent && (absent.profiles.some((id) => profileLineage.includes(id)) || absent.keys.includes(abilityKey(profile.name)))) return
       const hidden = modifiedProfileField(
         String(profile.hidden ?? false),
         'hidden',

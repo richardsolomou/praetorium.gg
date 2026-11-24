@@ -17,7 +17,8 @@ export function absentAbilitiesFor(
   directory: string,
   editionId?: string,
 ): { profiles: readonly AbsentAbility[]; names: readonly AbsentAbilityName[] } {
-  const root = editionId ? path.resolve(directory, '..', '..') : directory
+  // The base rules version is read from the snapshot's root even when named.
+  const root = editionId && path.basename(path.dirname(directory)) === 'editions' ? path.resolve(directory, '..', '..') : directory
   const id = editionId ?? readCatalogueComposition(directory)?.editions.find((entry) => entry.base)?.edition.id
   const file = id ? path.join(root, 'summaries', `${id}.json`) : null
   if (!file || !fs.existsSync(file)) return { profiles: [], names: [] }
@@ -32,10 +33,10 @@ type Hiding = { ids: Set<string>; keys: Set<string> }
 
 /**
  * The files with each absent ability hidden on its datasheet, by its profile's id or, without one, by its name: its
- * profile where the datasheet's entry holds it, and the entry's link to it where the profile is shared, so another
- * datasheet that prints it keeps it. A datasheet that is a faction's link to a shared entry hides it in that entry,
- * where every link to the entry is such a datasheet. Files are shared between rules versions, so only the path to what
- * changes is copied.
+ * profile where the datasheet's entry, or an entry only it links to, holds it, and that entry's link to it where the
+ * profile is shared. A datasheet also carries what it marks absent as `absentAbilities`, which the datasheet walk
+ * leaves out, so a shared entry another datasheet links to keeps it there. Files are shared between rules versions, so
+ * only the path to what changes is copied.
  */
 export function withoutAbsentAbilities(
   files: CatalogueFile[],
@@ -48,15 +49,15 @@ export function withoutAbsentAbilities(
     byDatasheet.get(datasheet) ?? byDatasheet.set(datasheet, { ids: new Set(), keys: new Set() }).get(datasheet)!
   for (const [datasheet, profile] of absent) of(datasheet).ids.add(profile)
   for (const [datasheet, key] of named) of(datasheet).keys.add(key)
-  // A shared entry every link to which is an absent ability's datasheet, or lies within one, hides what they all hide.
-  const linksTo = new Map<string, string[]>()
+  const datasheets = new Map(byDatasheet)
+  // An entry only one link reaches belongs to that link's datasheet alone, so it hides there in place.
+  const linksTo = new Map<string, number>()
   const nodes = new Map<string, Record<string, unknown>>()
-  const linksIn = (node: unknown, found: (link: string, target: string) => void): void => {
+  const linksIn = (node: unknown, found: (target: string) => void): void => {
     if (Array.isArray(node)) return node.forEach((entry) => linksIn(entry, found))
     if (!node || typeof node !== 'object') return
     const fields = node as Record<string, unknown>
-    if (fields.type === 'selectionEntry' && typeof fields.id === 'string' && typeof fields.targetId === 'string')
-      found(fields.id, fields.targetId)
+    if (fields.type === 'selectionEntry' && typeof fields.targetId === 'string') found(fields.targetId)
     for (const value of Object.values(fields)) if (value && typeof value === 'object') linksIn(value, found)
   }
   const index = (node: unknown): void => {
@@ -67,22 +68,13 @@ export function withoutAbsentAbilities(
     for (const value of Object.values(fields)) if (value && typeof value === 'object') index(value)
   }
   index(files)
-  linksIn(files, (link, target) => linksTo.set(target, [...(linksTo.get(target) ?? []), link]))
-  const reachedBy = new Map<string, Map<string, Hiding>>()
+  linksIn(files, (target) => linksTo.set(target, (linksTo.get(target) ?? 0) + 1))
   const queue = [...byDatasheet.keys()]
   for (let id = queue.pop(); id !== undefined; id = queue.pop()) {
     const hiding = byDatasheet.get(id)!
-    linksIn(nodes.get(id), (link, target) => {
-      const reached = reachedBy.get(target) ?? reachedBy.set(target, new Map()).get(target)!
-      reached.set(link, hiding)
-      if (byDatasheet.has(target) || !linksTo.get(target)?.every((each) => reached.has(each))) return
-      const [first, ...rest] = [...reached.values()]
-      const shared = {
-        ids: new Set([...first!.ids].filter((held) => rest.every((other) => other.ids.has(held)))),
-        keys: new Set([...first!.keys].filter((held) => rest.every((other) => other.keys.has(held)))),
-      }
-      if (!shared.ids.size && !shared.keys.size) return
-      byDatasheet.set(target, shared)
+    linksIn(nodes.get(id), (target) => {
+      if (linksTo.get(target) !== 1 || byDatasheet.has(target)) return
+      byDatasheet.set(target, hiding)
       queue.push(target)
     })
   }
@@ -107,6 +99,8 @@ export function withoutAbsentAbilities(
         typeof fields.id === 'string' &&
         (active.ids.has(fields.id) || (fields.typeName === 'Abilities' && byName))) ||
         (fields.type === 'profile' && ((typeof fields.targetId === 'string' && active.ids.has(fields.targetId)) || byName)))
+    const marked = typeof fields.id === 'string' ? datasheets.get(fields.id) : undefined
+    if (marked) (changed ??= { ...fields }).absentAbilities = { profiles: [...marked.ids], keys: [...marked.keys] }
     return absentHere ? { ...(changed ?? fields), hidden: true } : (changed ?? node)
   }
   return files.map((file) => visit(file, undefined) as CatalogueFile)

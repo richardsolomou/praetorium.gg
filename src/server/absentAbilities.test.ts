@@ -1,8 +1,11 @@
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
 import { expect, it } from 'vitest'
 import type { Catalogue } from '../core/catalogue'
 import { datasheetIn } from '../shared/catalogue'
 import { ability, bookOf } from './catalogue.fixtures'
-import { withoutAbsentAbilities } from './absentAbilities'
+import { absentAbilitiesFor, withoutAbsentAbilities } from './absentAbilities'
 
 const catalogue = (): Partial<Catalogue> => ({
   sharedProfiles: [ability('rage', 'Black Rage')],
@@ -83,7 +86,20 @@ it('hides an absent ability on a datasheet its faction links to, where no other 
   expect(datasheetIn(book, 'cat', 'ancient-link')?.abilities).toEqual([])
 })
 
-it('keeps an absent ability on a linked datasheet another datasheet links to as well', () =>
-  expect(
-    linked([['ancient-link', 'banner']], ['ancient-link', 'other-link'])[0]!.catalogue!.sharedSelectionEntries![0]!.profiles![0]!.hidden,
-  ).toBeUndefined())
+it('hides an absent ability on the one datasheet of a shared entry that marks it, and keeps it on the other', () => {
+  const [file] = linked([['ancient-link', 'banner']], ['ancient-link', 'other-link'])
+  const shown = (link: string) => {
+    const book = bookOf({ ...file!.catalogue!, entryLinks: file!.catalogue!.entryLinks!.filter((each) => each.id === link) })
+    return datasheetIn(book, 'cat', link)?.abilities.map((shownAbility) => shownAbility.name)
+  }
+  expect([shown('ancient-link'), shown('other-link')]).toEqual([[], ['Astartes Banner']])
+})
+
+it('reads the base rules version’s absent abilities when it is named, as its own page loads it', () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'absent-'))
+  fs.mkdirSync(path.join(directory, 'summaries'))
+  fs.writeFileSync(path.join(directory, 'summaries', 'base.json'), JSON.stringify({ absentAbilities: [['ancient', 'banner']] }))
+  const read = absentAbilitiesFor(directory, 'base')
+  fs.rmSync(directory, { recursive: true })
+  expect(read.profiles).toEqual([['ancient', 'banner']])
+})
