@@ -48,3 +48,14 @@ it('reads a summary as plain text, its bold as plain and each list item on a lin
 it('names a core ability that takes a value by its name alone too', () => {
   expect(abilityKeysNamed('Feel No Pain 5+')).toContain('core-ability:feel-no-pain')
 })
+
+it('names a qualified ability by the ability alone, and one that takes a dice value without it', () => {
+  expect(
+    [abilityKeysNamed('DEVASTATING WOUNDS: MONSTER/VEHICLE'), abilityKeysNamed('Deadly Demise D6+2')].map((keys) =>
+      keys.filter((key) => key.startsWith('core-ability:')),
+    ),
+  ).toEqual([
+    ['core-ability:devastating-wounds-monster-vehicle', 'core-ability:devastating-wounds'],
+    ['core-ability:deadly-demise-d6-2', 'core-ability:deadly-demise'],
+  ])
+})

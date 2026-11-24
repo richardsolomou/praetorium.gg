@@ -1,5 +1,6 @@
 import type { RuleSummary } from '../contracts/rules'
 import { unitAbilitySlug } from '../core/summaryMarkdown'
+import { abilityKeysNamed } from './ruleSummaries'
 import type { VsDataUnits } from './vsData'
 
 const owned = new WeakMap<VsDataUnits, Map<string, Map<string, RuleSummary>>>()
@@ -36,7 +37,11 @@ function ownersAbility(units: VsDataUnits, subject: string, name: string, id?: s
   const slug = abilityKey(name)
   // A record VS Data publishes once for several units, as the Land Raiders' Damaged, by the units it names.
   const shared = unit?.shared?.find((held) => abilityKey(held.slice(held.lastIndexOf('.') + 1)) === slug && units.abilities[held])
-  const aliased = id ? units.aliases[id] : undefined
+  // VS Data aliases a few profiles to another unit's record in like words, as a Legends Assault Squad's Hammer of Wrath to
+  // the Negavolt Cultists' Voltagheist Field, so another owner's alias reaches it only by the same name.
+  const alias = id ? units.aliases[id] : undefined
+  const aliasOwner = alias?.slice(0, alias.lastIndexOf('.'))
+  const aliased = alias && (aliasOwner === owner || !aliasOwner?.includes('.') || namesIt(alias, name)) ? alias : undefined
   // Then its faction's, as its army rule and shared abilities are the faction's, then the one faction that has it, as a
   // chapter's datasheets and a Crucible datasheet with no VS Data unit print an army rule.
   const faction = [...byOwner].filter(([held, abilities]) => !held.includes('.') && abilities.has(slug))
@@ -64,18 +69,6 @@ export function abilitySummaryIn(units: VsDataUnits, subject: string, name: stri
   return [...own, ...faction].find(Boolean) ?? null
 }
 
-const unitIds = new WeakMap<VsDataUnits, ReadonlySet<string>>()
-
-/** Whether a record, by `kind:id`, is an ability one of the release's units owns, and not this datasheet's own unit. */
-function otherUnitsAbility(units: VsDataUnits, subject: string, record: string) {
-  if (!record.startsWith('ability:')) return false
-  const bare = record.slice('ability:'.length)
-  const owner = bare.slice(0, bare.lastIndexOf('.'))
-  let ids = unitIds.get(units)
-  if (!ids) unitIds.set(units, (ids = new Set(Object.values(units.units).map((unit) => unit.id))))
-  return ids.has(owner) && owner !== units.units[subject]?.id
-}
-
 /**
  * A datasheet ability's summary: its owner's own record, or the one of its own unit its printed text names, as a file
  * an earlier rules version prints alike names the base's; then the weapon or core ability its printed text names, then
@@ -91,20 +84,27 @@ export function datasheetAbilitySummary(
 ): RuleSummary | null {
   const { own, faction } = units ? ownersAbility(units, subject, name, id) : { own: [], faction: [] }
   const ability = printed?.id.startsWith('ability:') ? printed : null
-  const owner = units?.units[subject]?.id
-  const ownUnits = owner !== undefined && ability?.id.slice('ability:'.length, ability.id.lastIndexOf('.')) === owner
-  const reaches =
-    ability &&
-    (!units ||
-      !otherUnitsAbility(units, subject, ability.id) ||
-      abilityKey(ability.id.slice(ability.id.lastIndexOf('.') + 1)) === abilityKey(name))
+  const owner = subject.startsWith('@') ? subject.slice(1) : units?.units[subject]?.id
+  const held = ability?.id.slice('ability:'.length, ability.id.lastIndexOf('.'))
+  const ownUnits = owner !== undefined && held === owner
+  // Another owner's record, a unit's, a Detachment's or another faction's, reaches it only by the same name.
+  const reaches = ability && (!units || ownUnits || !held?.includes('.') || namesIt(ability.id, name))
   return (
     [
       ...own,
-      ownUnits ? ability.summary : undefined,
-      ability ? undefined : printed?.summary,
+      ownUnits ? ability?.summary : undefined,
+      ability || !printed || !namesIt(printed.id, name) ? undefined : printed.summary,
       ...faction,
       reaches ? ability.summary : undefined,
     ].find(Boolean) ?? null
+  )
+}
+
+/** Whether a record, by `kind:id`, is of this name: its key, or the name's without the value or qualifier it takes. */
+function namesIt(record: string, name: string) {
+  const key = record.slice(Math.max(record.lastIndexOf('.'), record.indexOf(':')) + 1)
+  const letters = (slug: string) => abilityKey(slug).replaceAll('-', '')
+  return [abilityKey(name), ...abilityKeysNamed(name).map((named) => named.slice(named.indexOf(':') + 1))].some(
+    (named) => letters(named) === letters(key),
   )
 }

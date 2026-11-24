@@ -113,3 +113,38 @@ it('reads a faction chip under the faction-level alias VS Data gives a detachmen
     datasheetAbilitySummary(titans, 'warlord', 'Warp Rifts', undefined, null),
   ]).toEqual([warpRifts, warpRifts])
 })
+
+it('reads no detachment’s rule of another name that a unit’s printed text names', () => {
+  const firstPrince = said('First Prince of Chaos')
+  const furies: VsDataUnits = {
+    units: { furies: { id: 'chaos-daemons.furies', sizes: [], models: [], options: [] } },
+    aliases: {},
+    abilities: { 'chaos-daemons.shadow-legion.first-prince-of-chaos': firstPrince },
+  }
+  expect(
+    datasheetAbilitySummary(furies, 'furies', 'Gloam Rot', undefined, {
+      id: 'ability:chaos-daemons.shadow-legion.first-prince-of-chaos',
+      summary: firstPrince,
+    }),
+  ).toBeNull()
+})
+
+it('reads no weapon ability its printed text names for another qualifier than the chip’s', () => {
+  const infantry = said('Devastating Wounds against Infantry')
+  expect(
+    datasheetAbilitySummary(daemons({}), 'flamers', 'DEVASTATING WOUNDS: MONSTER/VEHICLE', undefined, {
+      id: 'weapon-ability:devastating-wounds-infantry',
+      summary: infantry,
+    }),
+  ).toBeNull()
+})
+
+it('reads no other unit’s ability of another name that VS Data aliases a profile to', () => {
+  const voltagheist = said('Voltagheist Field')
+  const marines: VsDataUnits = {
+    units: { assault: { id: 'space-marines.assault-squad-with-jump-packs', sizes: [], models: [], options: [] } },
+    aliases: { 'hammer-of-wrath-profile': 'chaos-space-marines.negavolt-cultists.voltagheist-field' },
+    abilities: { 'chaos-space-marines.negavolt-cultists.voltagheist-field': voltagheist },
+  }
+  expect(datasheetAbilitySummary(marines, 'assault', 'Hammer of Wrath', 'hammer-of-wrath-profile', null)).toBeNull()
+})
