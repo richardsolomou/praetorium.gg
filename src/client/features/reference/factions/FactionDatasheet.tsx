@@ -9,7 +9,6 @@ import {
   datasheetCharacteristicKindOf,
   datasheetProfileKindOf,
   datasheetProfilesByKind,
-  invulnerableSaveOf,
   NON_STATLINE_KINDS,
   statlineValues,
 } from '../../../../core/datasheetStructure'
@@ -52,6 +51,7 @@ import {
   useVsDataUnit,
 } from '../../../components/UnitFromVsData'
 import type { VsDataInvulnerableSave } from '../../../../shared/vsData'
+import type { RuleSummary } from '../../../../contracts/rules'
 import { PageContent, PageHeader } from '../../../components/Page'
 import { groupBy } from '../../../../core/collections'
 import { rulesVersionLabel } from '../../../../core/catalogueEdition'
@@ -68,17 +68,19 @@ export function FactionDatasheet() {
   const params = useParams({ strict: false })
   const faction = useReferenceFaction()
   const { data: sheet } = useQuery(datasheetSlugQuery(faction?.id ?? '', params.entryId ?? ''))
-  // VS Data's saves replace the catalogue's figure, as they say which attacks and models a save is for and its condition.
-  const saves = useVsDataUnit(faction?.id ?? '', sheet?.id ?? '', Boolean(faction && sheet))?.invulnerableSaves
+  const vsDataSaves = useVsDataUnit(faction?.id ?? '', sheet?.id ?? '', Boolean(faction && sheet))?.invulnerableSaves
   if (!sheet || !faction) return null
   const structured = datasheetProfilesByKind(sheet)
   const unitGroups = characteristicProfileGroups(structured.unit)
   const unit = unitGroups.map((group) => group[0]!)
   const unitAnchorIds = new Map(unitGroups.map((group) => [group[0]!.id, group.map((profile) => profile.id)]))
-  const invulnerable = unit.flatMap((profile) => {
-    const value = profile.values.find((characteristic) => datasheetCharacteristicKindOf(characteristic) === 'invulnerable-save')?.value
-    return value ? [{ name: profile.name, value }] : []
-  })
+  // VS Data's saves replace the catalogue's figure, which shows while they load in the same place, so nothing moves.
+  const saves = vsDataSaves?.length
+    ? vsDataSaves.map(vsDataSaveShown)
+    : unit.flatMap((profile) => {
+        const value = profile.values.find((characteristic) => datasheetCharacteristicKindOf(characteristic) === 'invulnerable-save')?.value
+        return value ? [{ key: profile.id, model: unit.length > 1 ? profile.name : undefined, value }] : []
+      })
   const ranged = structured.ranged
   const melee = structured.melee
   const abilities = referenceAbilities(sheet.abilities, sheet.attachments)
@@ -129,9 +131,7 @@ export function FactionDatasheet() {
           <FactionBreadcrumb faction={faction} datasheets />
           <ContinueGuestDraft surface="datasheet" />
 
-          {unit.length === 1 && unit[0] ? (
-            <UnitCharacteristics profile={unit[0]} anchorIds={unitAnchorIds.get(unit[0].id)} invulnerable={!saves?.length} />
-          ) : null}
+          {unit.length === 1 && unit[0] ? <UnitCharacteristics profile={unit[0]} anchorIds={unitAnchorIds.get(unit[0].id)} /> : null}
           {unit.length > 1 ? (
             <ProfileTable
               title="Models"
@@ -141,20 +141,7 @@ export function FactionDatasheet() {
               anchorIds={unitAnchorIds}
             />
           ) : null}
-          {saves?.length ? <InvulnerableSaves saves={saves} /> : null}
-          {!saves?.length && unit.length > 1 && invulnerable.length ? (
-            <section>
-              <SectionHeading title="Invulnerable save" />
-              <div className="flex flex-wrap gap-2">
-                {invulnerable.map((profile) => (
-                  <div key={profile.name} className="part px-3 py-2">
-                    <span className="text-sm font-semibold">{profile.name}</span>
-                    <span className="readout ml-3 text-dim">{profile.value}</span>
-                  </div>
-                ))}
-              </div>
-            </section>
-          ) : null}
+          {saves.length ? <InvulnerableSaves saves={saves} /> : null}
           {ranged.length ? <ProfileTable title="Ranged weapons" profiles={ranged} keywordRules={sheet.keywordRules} /> : null}
           {melee.length ? <ProfileTable title="Melee weapons" profiles={melee} keywordRules={sheet.keywordRules} /> : null}
           <Abilities abilities={abilities} rules={sheet.keywordRules} />
@@ -493,17 +480,7 @@ export function Relationships({
 
 type DisplayProfile = StructuredDatasheetProfile
 
-function UnitCharacteristics({
-  profile,
-  anchorIds = noAnchorIds,
-  invulnerable: showInvulnerable = true,
-}: {
-  profile: DisplayProfile
-  anchorIds?: readonly string[]
-  /** False where VS Data's saves are shown instead. */
-  invulnerable?: boolean
-}) {
-  const invulnerable = showInvulnerable ? invulnerableSaveOf(profile.values)?.value : undefined
+function UnitCharacteristics({ profile, anchorIds = noAnchorIds }: { profile: DisplayProfile; anchorIds?: readonly string[] }) {
   const values = statlineValues(profile.values)
   return (
     <section id={`profile-${profile.id}`}>
@@ -516,37 +493,39 @@ function UnitCharacteristics({
           </div>
         ))}
       </div>
-      {invulnerable ? (
-        <div className="mt-2 flex items-center justify-between part px-4 py-2.5">
-          <span className="rubric text-xs text-bone">Invulnerable save</span>
-          <span className="figure text-2xl leading-none font-semibold">{invulnerable}</span>
-        </div>
-      ) : null}
     </section>
   )
 }
 
-/** Each invulnerable save VS Data gives the unit: the model it is for, the attacks it is against and its condition. */
-export function InvulnerableSaves({ saves }: { saves: readonly VsDataInvulnerableSave[] }) {
+type ShownSave = { key: string; model?: string; value: string; scope?: string | null; summary?: RuleSummary }
+
+/** A save as VS Data types it: the model it is for, the attacks it is against and its condition's summary. */
+export const vsDataSaveShown = (save: VsDataInvulnerableSave): ShownSave => ({
+  key: save.profile + (save.against ?? ''),
+  model: save.model,
+  value: `${save.roll}+`,
+  scope: invulnerableSaveScope(save),
+  summary: save.summary,
+})
+
+/** Each invulnerable save of the unit, with the model it is for, the attacks it is against and its condition. */
+export function InvulnerableSaves({ saves }: { saves: readonly ShownSave[] }) {
   return (
     <section>
       <SectionHeading title="Invulnerable save" />
       <div className="grid gap-2 md:grid-cols-2">
-        {saves.map((save) => {
-          const scope = invulnerableSaveScope(save)
-          return (
-            <div key={save.profile + (save.against ?? '')} className="part px-4 py-2.5">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  {save.model ? <p className="rubric text-xs text-bone">{save.model}</p> : null}
-                  {scope ? <p className="text-sm text-dim">{scope}</p> : null}
-                </div>
-                <span className="figure text-2xl leading-none font-semibold">{save.roll}+</span>
+        {saves.map((save) => (
+          <div key={save.key} className="part px-4 py-2.5">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                {save.model ? <p className="rubric text-xs text-bone">{save.model}</p> : null}
+                {save.scope ? <p className="text-sm text-dim">{save.scope}</p> : null}
               </div>
-              {save.summary ? <RuleSummaryText summary={save.summary} className="mt-1" /> : null}
+              <span className="figure text-2xl leading-none font-semibold">{save.value}</span>
             </div>
-          )
-        })}
+            {save.summary ? <RuleSummaryText summary={save.summary} className="mt-1" /> : null}
+          </div>
+        ))}
       </div>
     </section>
   )
