@@ -76,13 +76,13 @@ test('a battle that seated a guest before every seat needed an account still ope
   await page.screenshot({ path: test.info().outputPath('guest-battle-phone.png'), fullPage: true })
   await page.setViewportSize({ width: 1440, height: 900 })
 
-  const concede = page.getByRole('menuitem', { name: `Concede for ${GUEST}`, exact: true })
+  const concede = page.getByRole('menuitem', { name: 'Concede battle', exact: true })
   await retryUntilVisible(concede, () => page.getByRole('button', { name: 'Battle options' }).click())
   await concede.click()
-  await page
-    .getByRole('alertdialog')
-    .getByRole('button', { name: `Concede for ${GUEST}`, exact: true })
-    .click()
+  const confirmation = page.getByRole('alertdialog', { name: 'Concede battle?' })
+  await confirmation.getByRole('combobox', { name: 'Who is conceding?' }).click()
+  await page.getByRole('option', { name: GUEST, exact: true }).click()
+  await confirmation.getByRole('button', { name: 'Concede battle', exact: true }).click()
   await expect(scoreboard(page).getByRole('heading')).toContainText('wins by concession')
 
   const visitor = await (await browser.newContext()).newPage()
