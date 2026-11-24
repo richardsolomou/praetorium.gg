@@ -1,5 +1,5 @@
 import { hash } from 'node:crypto'
-import { absentAbilitiesFor, withoutAbsentAbilities } from './absentAbilities'
+import { absentAbilitiesFor, absentDetachmentRuleFor, withoutAbsentAbilities, withoutAbsentDetachmentRules } from './absentAbilities'
 import { withDefinitionTokens, withDefinitionTokensIn } from './sourceTexts'
 import { definitionTexts } from './definitionTexts'
 import { cardTwins } from './cardTwins'
@@ -67,7 +67,7 @@ export function* loadCatalogueSteps(directory = catalogueDirectory(), edition?: 
   // The cards name sections they do not describe, and the catalogue is where those words are.
   const cards = yield* loadDatacardsSteps(path.join(directory, 'datacards', '11th', 'gdc'), catalogueSections(index, texts.words), strings)
   cardFacts = cards.textFacts
-  const datacards = publishedDatacards(cards, texts.token)
+  const datacards = withoutAbsentDetachmentRules(publishedDatacards(cards, texts.token), absentDetachmentRuleFor(directory, edition?.id))
   const ownTexts: LoadedCatalogue = {
     ...catalogueFromIndex(index, selected, datacards),
     definitions: texts,

@@ -5,7 +5,8 @@ import { expect, it } from 'vitest'
 import type { Catalogue } from '../core/catalogue'
 import { contextualAbilityNamesIn, datasheetIn } from '../shared/catalogue'
 import { ability, bookOf } from './catalogue.fixtures'
-import { absentAbilitiesFor, absentDetachmentRule, withoutAbsentAbilities } from './absentAbilities'
+import type { LoadedDatacards } from '../shared/datacards'
+import { absentAbilitiesFor, absentDetachmentRule, withoutAbsentAbilities, withoutAbsentDetachmentRules } from './absentAbilities'
 
 const catalogue = (): Partial<Catalogue> => ({
   sharedProfiles: [ability('rage', 'Black Rage')],
@@ -121,4 +122,19 @@ it('hides a detachment rule the rules version marks absent under that detachment
     absent('space-marines', 'gladius-task-force', 'Armoured Wrath'),
     absent('space-marines', 'ironstorm-spearhead', 'Armoured Assault'),
   ]).toEqual([true, true, false, false])
+})
+
+it('drops a weapon-granting detachment rule marked absent from that detachment’s cards, and keeps it under another', () => {
+  const grant = { name: 'Armoured Wrath', description: 'Ranged weapons have [LETHAL HITS].' }
+  const content = { name: 'Space Marines', detachments: new Set(['Ironstorm Spearhead', 'Gladius Task Force']) }
+  const datacards = {
+    factions: new Map([['space-marines', content]]),
+    detachmentRules: new Map([
+      ['ironstorm-spearhead', [grant]],
+      ['gladius-task-force', [grant]],
+    ]),
+  } as unknown as LoadedDatacards
+  const absent = absentDetachmentRule({ entries: {}, absentDetachmentRules: [['space-marines.ironstorm-spearhead', 'armoured-wrath']] })
+  const kept = withoutAbsentDetachmentRules(datacards, absent).detachmentRules
+  expect([kept.get('ironstorm-spearhead'), kept.get('gladius-task-force')]).toEqual([[], [grant]])
 })

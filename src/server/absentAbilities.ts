@@ -2,6 +2,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import type { CatalogueFile } from '../core/catalogue'
 import { abilityKey } from '../shared/vsDataAbilities'
+import { routeSlug } from '../core/slug'
+import type { LoadedDatacards } from '../shared/datacards'
 import { readCatalogueComposition } from './catalogueComposition'
 
 /** A datasheet and an ability profile on it, by BSData ids, that a rules version does not print. */
@@ -17,18 +19,28 @@ export function absentAbilitiesFor(
   directory: string,
   editionId?: string,
 ): { profiles: readonly AbsentAbility[]; names: readonly AbsentAbilityName[] } {
+  const release = absentIn(directory, editionId)
+  return { profiles: release?.absentAbilities ?? [], names: release?.absentAbilityNames ?? [] }
+}
+
+/** Whether the rules version a catalogue directory holds marks a Detachment's rule absent, as `absentDetachmentRule` reads it. */
+export const absentDetachmentRuleFor = (directory: string, editionId?: string) => absentDetachmentRule(absentIn(directory, editionId))
+
+/** What a rules version's compacted release marks absent, read from the snapshot `directory` is, or is under for a rules version. */
+function absentIn(directory: string, editionId?: string) {
   // The base rules version is read from the snapshot's root even when named.
   const root = editionId && path.basename(path.dirname(directory)) === 'editions' ? path.resolve(directory, '..', '..') : directory
   const editions = readCatalogueComposition(root)?.editions ?? []
   const entry = editions.find((candidate) => (editionId ? candidate.edition.id === editionId : candidate.base))
   const id = entry?.summaries ?? entry?.edition.id ?? editionId
   const file = id ? path.join(root, 'summaries', `${id}.json`) : null
-  if (!file || !fs.existsSync(file)) return { profiles: [], names: [] }
-  const { absentAbilities, absentAbilityNames } = JSON.parse(fs.readFileSync(file, 'utf8')) as {
+  if (!file || !fs.existsSync(file)) return null
+  return JSON.parse(fs.readFileSync(file, 'utf8')) as {
+    entries: Record<string, string[]>
     absentAbilities?: AbsentAbility[]
     absentAbilityNames?: AbsentAbilityName[]
+    absentDetachmentRules?: [string, string][]
   }
-  return { profiles: absentAbilities ?? [], names: absentAbilityNames ?? [] }
 }
 
 type Hiding = { ids: Set<string>; keys: Set<string> }
@@ -137,4 +149,31 @@ export function absentDetachmentRule(
     const owners = holders.get(detachment)
     return owners?.size === 1 && Boolean(marked.get(`${[...owners][0]}.${detachment}`)?.has(key))
   }
+}
+
+/**
+ * The cards' Detachment rules by Detachment slug, without a rule every faction printing that Detachment marks absent, so
+ * what reads the cards alone, as the weapon abilities a Detachment's rules grant, leaves it out as the rules do.
+ */
+export function withoutAbsentDetachmentRules(
+  datacards: LoadedDatacards,
+  absent: (faction: string, detachment: string, rule: string) => boolean,
+): LoadedDatacards {
+  const printers = new Map<string, Set<string>>()
+  for (const content of new Set(datacards.factions.values()))
+    for (const name of content.detachments)
+      printers.set(
+        routeSlug(name),
+        (printers.get(routeSlug(name)) ?? new Set()).add(routeSlug(content.detachmentFactions?.get(name) ?? content.name)),
+      )
+  let changed = false
+  const detachmentRules = new Map(
+    [...datacards.detachmentRules].map(([detachment, rules]) => {
+      const factions = [...(printers.get(detachment) ?? [''])]
+      const kept = rules.filter((rule) => !factions.every((faction) => absent(faction, detachment, rule.name)))
+      if (kept.length !== rules.length) changed = true
+      return [detachment, kept] as const
+    }),
+  )
+  return changed ? { ...datacards, detachmentRules } : datacards
 }
