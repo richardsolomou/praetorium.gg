@@ -3,7 +3,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { expect, it } from 'vitest'
 import type { Catalogue } from '../core/catalogue'
-import { datasheetIn } from '../shared/catalogue'
+import { contextualAbilityNamesIn, datasheetIn } from '../shared/catalogue'
 import { ability, bookOf } from './catalogue.fixtures'
 import { absentAbilitiesFor, withoutAbsentAbilities } from './absentAbilities'
 
@@ -102,4 +102,10 @@ it('reads the base rules version’s absent abilities when it is named, as its o
   const read = absentAbilitiesFor(directory, 'base')
   fs.rmSync(directory, { recursive: true })
   expect(read.profiles).toEqual([['ancient', 'banner']])
+})
+
+it('leaves an ability a datasheet marks absent out of the abilities its grants and deployment are read from', () => {
+  const [file] = linked([['ancient-link', 'banner']], ['ancient-link', 'other-link'])
+  const book = bookOf({ ...file!.catalogue!, entryLinks: file!.catalogue!.entryLinks!.filter((each) => each.id === 'ancient-link') })
+  expect(contextualAbilityNamesIn(book, 'cat', 'ancient-link', { selections: [] })).toEqual([])
 })
