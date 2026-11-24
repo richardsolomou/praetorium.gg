@@ -1,5 +1,14 @@
 # praetorium
 
+## 0.274.16 (2026-11-24)
+
+### Patch Changes
+
+- 9a7d595: [battles] Choose who concedes from one battle menu action, with yourself selected by default.
+- 9a7d595: [battles] Keep Shooting-phase mission reminders such as Cleanse in the phase where the action starts.
+- 9a7d595: [battles] Show embarked units under their transports in the deployment checklist.
+- 9a7d595: [rosters] Let Fireknife Battlesuits keep two weapons and up to two different drones per suit.
+
 ## 0.274.15 (2026-11-24)
 
 ### Patch Changes
