@@ -19,7 +19,9 @@ export function absentAbilitiesFor(
 ): { profiles: readonly AbsentAbility[]; names: readonly AbsentAbilityName[] } {
   // The base rules version is read from the snapshot's root even when named.
   const root = editionId && path.basename(path.dirname(directory)) === 'editions' ? path.resolve(directory, '..', '..') : directory
-  const id = editionId ?? readCatalogueComposition(directory)?.editions.find((entry) => entry.base)?.edition.id
+  const editions = readCatalogueComposition(root)?.editions ?? []
+  const entry = editions.find((candidate) => (editionId ? candidate.edition.id === editionId : candidate.base))
+  const id = entry?.summaries ?? entry?.edition.id ?? editionId
   const file = id ? path.join(root, 'summaries', `${id}.json`) : null
   if (!file || !fs.existsSync(file)) return { profiles: [], names: [] }
   const { absentAbilities, absentAbilityNames } = JSON.parse(fs.readFileSync(file, 'utf8')) as {

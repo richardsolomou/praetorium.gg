@@ -88,11 +88,13 @@ export function* vsDataSummariesSteps(directory: string, documents: readonly Rul
   )
   // Materializing names each file for the rules version its release describes; a snapshot published before releases
   // were kept this way holds other files here, which name none.
-  const held = order.filter((entry) => fs.existsSync(path.join(folder, `${entry.edition.id}.json`)))
+  const releaseOf = (entry: (typeof order)[number]) => entry.summaries ?? entry.edition.id
+  const held = order.filter((entry) => fs.existsSync(path.join(folder, `${releaseOf(entry)}.json`)))
   if (!held.length) return null
   const release = (edition: string) => {
-    const parsed = vsDataSummariesSchema.safeParse(readJson(path.join(folder, `${edition}.json`)))
-    return parsed.success ? parsed.data : null
+    const entry = held.find((candidate) => candidate.edition.id === edition)
+    const parsed = entry && vsDataSummariesSchema.safeParse(readJson(path.join(folder, `${releaseOf(entry)}.json`)))
+    return parsed && parsed.success ? parsed.data : null
   }
   const links = ruleLinks(documents)
   const versions = new Map<string, Version | null>()
@@ -244,11 +246,14 @@ function missionSummaries(summaries: ReadonlyMap<string, RuleSummary>): RuleSumm
 }
 
 /**
- * The compacted VS Data release a rules version reads, the base rules version's by default, or null where the
- * snapshot holds none for it.
+ * The compacted VS Data release a rules version reads, the base rules version's by default, or that of the rules
+ * version VS Data folded it into, or null where the snapshot holds none for it.
  */
 export function readVsDataRelease(directory: string, edition?: string): VsDataSummariesFile | null {
-  const id = edition ?? readCatalogueComposition(directory)?.editions.find((entry) => entry.base)?.edition.id
+  const entry = readCatalogueComposition(directory)?.editions.find((candidate) =>
+    edition ? candidate.edition.id === edition : candidate.base,
+  )
+  const id = entry?.summaries ?? entry?.edition.id ?? edition
   const file = id ? path.join(directory, 'summaries', `${id}.json`) : null
   if (!file || !fs.existsSync(file)) return null
   const parsed = vsDataSummariesSchema.safeParse(readJson(file))

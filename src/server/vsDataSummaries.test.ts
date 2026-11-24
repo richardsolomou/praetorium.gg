@@ -21,7 +21,7 @@ const record = (summary: string) => ({
   aliases: ['gdc.stratagem.f06fa0ef.917a.57c2.955d.325a082d942c'],
   summary,
 })
-const codex = composition.editions.find((entry) => entry.edition.id === 'custodes-11e')!
+const { summaries: folded, ...codex } = composition.editions.find((entry) => entry.edition.id === 'custodes-11e')!
 
 /** A snapshot of the base rules and the Custodes codex, each printing the stratagem, with a release per summary given. */
 function snapshot(
@@ -29,12 +29,14 @@ function snapshot(
   others: Parameters<typeof vsDataReleaseFiles>[0] = [],
   cards: [string, unknown][] = [],
   documents: readonly RuleDocument[] = [],
+  /** Whether the codex reads the base rules version's release, as VS Data folded it into that one. */
+  readsBase = false,
 ) {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'vs-data-summaries-'))
   directories.push(directory)
   const base = composition.editions.filter((entry) => 'base' in entry && entry.base)
   writeFiles(directory, [
-    ['composition.json', JSON.stringify({ ...composition, editions: [...base, codex] })],
+    ['composition.json', JSON.stringify({ ...composition, editions: [...base, readsBase ? { ...codex, summaries: folded } : codex] })],
     ['datacards/11th/gdc/necrons.json', JSON.stringify({ id: 'necrons', stratagems: [stratagem] })],
     ['editions/custodes-11e/datacards/11th/gdc/necrons.json', JSON.stringify({ id: 'necrons', stratagems: [stratagem] })],
     ...cards.map(([file, card]): [string, string] => [`datacards/11th/gdc/${file}`, JSON.stringify(card)]),
@@ -78,6 +80,11 @@ it('withholds a summary that repeats a sentence of the card', () => {
 it('summarizes no rules version but the one a release describes', () => {
   const { summaries, custodes } = snapshot([{ update: 'MFM 1.6', summary: 'Pick one of your units to hit more often.' }])
   expect(summaries!.summariesIn(custodes).texts).toEqual({})
+})
+
+it('reads a rules version VS Data folded into another with that one’s release', () => {
+  const { summaries, custodes } = snapshot([{ update: 'MFM 1.6', summary: 'Pick one of your units to hit more often.' }], [], [], [], true)
+  expect(summaries!.summariesIn(custodes).texts[textHash(effect)]).toEqual(['ability:necrons.test.focused-fire'])
 })
 
 it('reads an earlier rules version’s cards with that version’s own release', () => {
