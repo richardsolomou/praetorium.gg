@@ -84,8 +84,9 @@ export function Runs({ runs, abilities = true }: { runs: readonly RuleSummaryInl
 }
 
 function Run({ run }: { run: RuleSummaryInline }) {
-  const shown = run.bold ? <strong className="font-semibold text-bone">{run.text}</strong> : run.text
-  if (run.ability) return <AbilityRun text={run.text} ability={run.ability} shown={shown} />
+  // A bold link keeps the link's colour, so it still reads as one.
+  const shown = run.bold ? <strong className={cn('font-semibold', !run.link && 'text-bone')}>{run.text}</strong> : run.text
+  if (run.ability) return <AbilityRun text={run.text} ability={run.ability} shown={<Run run={{ ...run, ability: undefined }} />} />
   if (!run.link) return shown
   return (
     <Link

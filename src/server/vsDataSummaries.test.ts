@@ -8,7 +8,7 @@ import { readCatalogueComposition } from './catalogueComposition'
 import { textFileId, textHash, textSourcePaths } from './sourceTexts'
 import { vsDataReleaseFiles, writeFiles } from './vsData.fixtures'
 import { checkVsDataRelease, compactVsDataRelease } from './vsDataRelease'
-import { MISSION_SUMMARIES } from '../contracts/rules'
+import { MISSION_SUMMARIES, type RuleDocument } from '../contracts/rules'
 import { NO_RULE_SUMMARIES, summariesOfFile, type VsDataSummaries, vsDataSummariesSteps, withholdCopiedSummaries } from './vsDataSummaries'
 
 const effect = 'Until the end of the phase, each time a model in your unit makes an attack, add 1 to the Hit roll.'
@@ -28,6 +28,7 @@ function snapshot(
   releases: { update: string; summary: string; data?: Record<string, unknown> }[],
   others: Parameters<typeof vsDataReleaseFiles>[0] = [],
   cards: [string, unknown][] = [],
+  documents: readonly RuleDocument[] = [],
 ) {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'vs-data-summaries-'))
   directories.push(directory)
@@ -49,7 +50,7 @@ function snapshot(
     compactVsDataRelease(unpacked, path.join(directory, 'summaries', `${edition}.json`))
   })
   withholdCopiedSummaries(directory)
-  const summaries = completeSteps(vsDataSummariesSteps(directory, []))
+  const summaries = completeSteps(vsDataSummariesSteps(directory, documents))
   const files = textSourcePaths(directory, readCatalogueComposition(directory))
   const file = (edition: boolean, name = 'necrons.json') =>
     textFileId(files.find(({ path: at }) => at.includes('/editions/') === edition && at.endsWith(`/${name}`))!.url)
@@ -178,6 +179,29 @@ it('serves a linked bracketed weapon ability as that ability, bold with its brac
       ],
     },
   ])
+})
+
+it('links a bracketed weapon ability to the core rule that prints it', () => {
+  const devastating = { kind: 'weapon-ability', id: 'devastating-wounds', aliases: [], summary: 'Critical Wounds become mortal wounds.' }
+  const rule = { kind: 'core-rule', id: 'devastating-wounds', aliases: ['rule#24.05'], summary: 'Critical Wounds become mortal wounds.' }
+  const document = { slug: 'core-rules', sections: [{ slug: 'core-abilities', entries: [{ id: 'rule#24.05', anchor: '24.05' }] }] }
+  const { summaries, base } = snapshot(
+    [{ update: 'MFM 1.6', summary: 'Its weapons gain [DEVASTATING WOUNDS] this phase.' }],
+    [devastating, rule],
+    [],
+    [document as unknown as RuleDocument],
+  )
+  expect(summaries!.summariesIn(base).records['ability:necrons.test.focused-fire']?.blocks[0]).toEqual({
+    paragraph: [
+      { text: 'Its weapons gain ' },
+      {
+        text: '[DEVASTATING WOUNDS]',
+        link: { document: 'core-rules', section: 'core-abilities', anchor: '24.05' },
+        ability: 'weapon-ability:devastating-wounds',
+      },
+      { text: ' this phase.' },
+    ],
+  })
 })
 
 it('serves the mission pack’s summaries, which no source file holds', () => {

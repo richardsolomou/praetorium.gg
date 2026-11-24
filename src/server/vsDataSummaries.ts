@@ -101,9 +101,10 @@ export function* vsDataSummariesSteps(directory: string, documents: readonly Rul
       const file = release(edition)
       if (!file) return null
       const index = vsDataIndex(file.entries)
+      // A weapon or core ability has no rules entry of its own, so it links to the core rule of its id that prints it.
       const link = (target: { kind: string; id: string }) =>
-        index
-          .aliasesOf(target)
+        [target, ...(ABILITY_KINDS.includes(target.kind) ? [{ kind: 'core-rule', id: target.id }] : [])]
+          .flatMap((ref) => index.aliasesOf(ref))
           .map((alias) => links.get(alias))
           .find(Boolean)
       const abilities = new Set(file.records.flatMap((record) => (ABILITY_KINDS.includes(record.kind) ? [vsDataKey(record)] : [])))
@@ -315,7 +316,9 @@ function served(
     const ability = bracketedAbility(match[1]!, abilities)
     if (!ability) continue
     if (match.index > read) runs.push({ text: text.slice(read, match.index), ...emphasis })
-    runs.push({ text: match[0], ...emphasis, ability })
+    const [kind, id] = ability.split(':') as [string, string]
+    const to = link({ kind, id })
+    runs.push({ text: match[0], ...emphasis, ...(to ? { link: to } : {}), ability })
     read = match.index + match[0].length
   }
   if (read < text.length) runs.push({ text: text.slice(read), ...emphasis })
