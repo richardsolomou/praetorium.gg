@@ -166,6 +166,7 @@ test('roster reminders cover selected rules and advances from another device', a
   await expect(reminder).toContainText('Living Lightning')
   await expect(reminder.getByRole('heading', { name: 'Cleanse', exact: true })).toBeVisible()
   await expect(reminder).toContainText('Start of your Shooting phase')
+  await reminder.screenshot({ path: test.info().outputPath('cleanse-shooting.png') })
   await page.setViewportSize(PHONE)
   await expectNoPageOverflow(page)
   await expectNoHorizontalOverflow(reminder)
@@ -208,6 +209,22 @@ test('roster reminders cover selected rules and advances from another device', a
     .click()
   await opponent.locator('[data-army-roster] [data-unit="Plasmancer"]').getByRole('button', { name: 'Mark Plasmancer destroyed' }).click()
   await expect(reminder).toBeHidden()
+})
+
+test('Cleanse expires when another device ends the Shooting phase', async ({ browser }) => {
+  const page = await (await browser.newContext(desktopContext)).newPage()
+  const opponent = await (await browser.newContext(desktopContext)).newPage()
+  await signUp(opponent, uniqueName('Cleanse opponent'))
+  const guestRoster = await createRoster(opponent, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/ })
+  await signUp(page, uniqueName('Cleanse player'))
+  const hostRoster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/ })
+  await setupBattle(page, opponent, { hostRoster, guestRoster, openingSecondaries: ['Cleanse', 'Assassination'] })
+  await advance(page)
+  await advance(opponent)
+  const reminder = page.getByRole('dialog', { name: /Battle reminders?/ })
+  await expect(reminder.getByRole('heading', { name: 'Cleanse', exact: true })).toBeVisible()
+  await advance(opponent)
+  await expect(page.getByRole('heading', { name: 'charge phase' })).toBeVisible()
 })
 
 // roundReminderMoment in reminders.test.ts places the boundaries for either first side.

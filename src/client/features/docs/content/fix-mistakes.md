@@ -6,7 +6,7 @@ Undo doesn't reverse casualties. Use the opposite control: return a model, heal 
 
 Forgot something? In a guided battle, **Battle options** › **Record a missed action** books a stratagem, victory points or the extra CP against an earlier phase of this round or the last. End-of-battle points can't be recorded late. A stratagem's **⋮** menu has **Record as missed…**, which opens the same dialog.
 
-![The Battle options menu: Action reminders, Record a missed action, Pause timer, Copy stream overlay link, Concede battle and Delete battle.](screenshot:track-a-battle-battle-options 'Record a missed action, in Battle options')
+![Record a missed action highlighted in the Battle options menu, above the controls for ending a practice battle, conceding and deleting.](screenshot:track-a-battle-battle-options 'Record a missed action, in Battle options')
 
 ## Play on several devices
 
@@ -18,7 +18,7 @@ Seated players can keep going offline if they've opened the battle online once. 
 
 A battle finishes when the fifth round's scoring is done.
 
-To stop early, open **Battle options** and choose **Concede battle**, or **Concede for [name]** for someone else. A concession is a loss for that side whatever the score.
+To stop early, open **Battle options** and choose **Concede battle**. The dialog selects you by default. Choose the player who is conceding, then confirm. Their side loses whatever the score.
 
 A battle you play alone has no opponent whose result matters, so **Battle options** also offers **End practice battle**. It ends the game at the current score, and practice games never count for your record or the leaderboard.
 

@@ -1,5 +1,16 @@
 import { expect, type Page, test } from './test'
-import { addUnit, createRoster, setupStep, signUp, uniqueName, waitForRosterSave, practiceBattle, PHONE, desktopContext } from './account'
+import {
+  addUnit,
+  chooseBattlefield,
+  createRoster,
+  setupStep,
+  signUp,
+  uniqueName,
+  waitForRosterSave,
+  practiceBattle,
+  PHONE,
+  desktopContext,
+} from './account'
 import { attach, expectNoHorizontalOverflow, shot, closePicker } from './builder.harness'
 
 const SIZES = [
@@ -7,6 +18,41 @@ const SIZES = [
   [desktopContext, 'desktop'],
 ] as const
 const SQUAD = 'Intercessor Squad'
+
+test('the deployment checklist identifies two Land Raiders by their passengers', async ({ page }, testInfo) => {
+  await page.setViewportSize(PHONE)
+  await signUp(page, uniqueName('Land Raider passengers'))
+  const roster = await createRoster(page, { faction: 'Space Marines', detachment: /Gladius Task Force/ })
+  for (const name of ['Land Raider', 'Land Raider', SQUAD, 'Terminator Squad']) await addUnit(page, name)
+  await closePicker(page)
+  for (const [unit, number] of [
+    [SQUAD, 1],
+    ['Terminator Squad', 2],
+  ] as const) {
+    await page
+      .locator(`[data-unit="${unit}"]`)
+      .getByRole('button', { name: `Embark in transport: ${unit}`, exact: true })
+      .click()
+    await waitForRosterSave(page, () =>
+      page.getByRole('menuitem', { name: `Embark ${unit} in Land Raider #${number}`, exact: true }).click(),
+    )
+  }
+  await practiceBattle(page, roster)
+  await chooseBattlefield(page)
+  const defender = page.getByRole('group', { name: 'Defender', exact: true })
+  await defender.getByRole('button').first().click()
+  await setupStep(page, 'Deploy')
+  const deploy = page.getByRole('region', { name: 'Deploy', exact: true })
+  const first = deploy.getByRole('button', { name: `Land Raider #1 Embarked: ${SQUAD}`, exact: true })
+  const second = deploy.getByRole('button', { name: 'Land Raider #2 Embarked: Terminator Squad', exact: true })
+  await expect(first).toBeVisible()
+  await expect(second).toBeVisible()
+  await first.click()
+  await expect(first).toHaveAttribute('aria-pressed', 'true')
+  await expect(second).toHaveAttribute('aria-pressed', 'false')
+  await first.scrollIntoViewIfNeeded()
+  await page.screenshot({ path: testInfo.outputPath('land-raiders-phone.png') })
+})
 
 /** The roster's cards, with the picker or loadout put away on a phone. */
 async function cards(page: Page) {

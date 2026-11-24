@@ -449,10 +449,12 @@ function spreadIndependentRepeatedGroup(
     // A limit can depend on the unit, as a Gun Drone's does, so it is read where the option would stand.
     const limit =
       selectionCountBoundsAt(selection, [...path, option.id], index, evaluation)?.maximum ?? maximumCount(option.definition, index)
-    const most = Math.max(1, limit ?? picks)
+    const most = limit ?? picks
+    if (most === 0) continue
     let remaining = Math.min(Math.max(0, counts[option.id] ?? 0), carriers * most)
     const equipped: Selection[] = []
-    for (const model of variants) {
+    // Give one-per-model options to the least-equipped models first so a later option still fits.
+    for (const model of most === 1 ? variants.toSorted((left, right) => picked(left) - picked(right)) : variants) {
       const modelCount = model.count ?? 1
       const capacity = Math.min(most, picks - picked(model))
       if (capacity <= 0) {

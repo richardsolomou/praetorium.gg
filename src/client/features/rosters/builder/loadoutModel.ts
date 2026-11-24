@@ -31,6 +31,8 @@ export type LoadoutChoice = {
   optional: boolean
   carried: boolean
   room: number
+  least?: number
+  multiplePerModel?: true
   /** The squad answers this once for all of it, however many models carry it. */
   uniform: boolean
   owner: { id: string; name: string; profile: string | null } | null
@@ -771,12 +773,22 @@ export function poolHandlers(model: LoadoutModel, choices: readonly LoadoutChoic
     // squad allowed one.
     const kin = shared.filter((entry) => entry.choice.key === taker.choice.key)
     const full = takenIn(taker.choice) >= taker.choice.room
+    if (taker.choice.multiplePerModel) {
+      if (!canAddPooledOption(taker.option)) return null
+      if (!full) return move([], [taker])
+      if (taker.choice.optional) return null
+      const donor = kin
+        .filter((entry) => !sameSource(entry, taker) && entry.option.count > entry.option.min)
+        .toSorted((one, other) => donorPriority(one.option, other.option))[0]
+      return donor ? move([donor], [taker]) : null
+    }
     const band = bandOf(taker.row)
     const sharesPool = (row: ModelRow) => row.choiceKey === taker.choice.key || bandOf(row) === band
+    const poolsWithTaker = (row: ModelRow) => sharesPool(row) && participates(row, taker.choice.key)
     const pool =
-      full && !addsModel(model, taker) ? kin : shared.filter((entry) => sharesPool(entry.row) && participates(entry.row, taker.choice.key))
+      full && !addsModel(model, taker) ? kin : shared.filter((entry) => !entry.choice.multiplePerModel && poolsWithTaker(entry.row))
     const occupied = model.rows
-      .filter((row) => sharesPool(row) && participates(row, taker.choice.key))
+      .filter((row) => poolsWithTaker(row) && !findOption(choices, row.choiceKey, row.optionId)?.choice.multiplePerModel)
       .reduce((total, row) => total + rowCount(row), 0)
     // A model option with room joins the squad; it does not replace another
     // specialist on this card. The squad's model group supplies the body.
@@ -801,8 +813,16 @@ export function poolHandlers(model: LoadoutModel, choices: readonly LoadoutChoic
 
   const free = (giver: Entry) => {
     if (giver.option.count <= 0 || giver.option.count <= giver.option.min) return null
+    if (giver.choice.multiplePerModel) {
+      if (takenIn(giver.choice) > (giver.choice.least ?? 0)) return move([giver], [])
+      const taker = shared
+        .filter((entry) => entry.choice === giver.choice && !sameSource(entry, giver) && canAddPooledOption(entry.option))
+        .toSorted((one, other) => donorPriority(one.option, other.option))[0]
+      return taker ? move([giver], [taker]) : null
+    }
     const requiredSlot = !giver.choice.optional && !addsModel(model, giver) && takenIn(giver.choice) <= Math.min(giver.choice.room, count)
     const taker = shared
+      .filter((entry) => !entry.choice.multiplePerModel)
       .filter((entry) => !requiredSlot || entry.option.default)
       .filter((entry) => participates(entry.row, giver.choice.key))
       .filter((entry) => entry.choice.key === giver.choice.key || bandOf(entry.row) === bandOf(giver.row))

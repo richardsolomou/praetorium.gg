@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { leagueFixtureOverdue, leagueFixtureUnfinished } from '../../../core/groupLeague'
 import type { GroupSummary } from '../../../core/groupSummary'
-import { isProvisional, type BattleOutcome, type Standing } from '../../../core/standings'
+import { type BattleOutcome, type Standing } from '../../../core/standings'
 import { battleOutcomeStage } from '../../battleStage'
 import { FactionMark } from '../../components/FactionMark'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
@@ -94,8 +94,7 @@ export function StandingsSnapshot({ table, viewerId, onAll }: { table: GroupTabl
   const head = rows.slice(0, STANDINGS_SHOWN)
   const own = rows.find((row) => row.id === viewerId)
   const shown = own && !head.includes(own) ? [...head, own] : head
-  // Places count ranked players only, as the full table numbers them.
-  const place = new Map(rows.filter((row) => !isProvisional(row)).map((row, index) => [row.id, index + 1]))
+  const place = new Map(rows.map((row, index) => [row.id, index + 1]))
   return (
     <section data-group-standings>
       <SectionHeading title="Standings" action={<AllLink onClick={onAll}>Leaderboard</AllLink>} />
@@ -104,7 +103,6 @@ export function StandingsSnapshot({ table, viewerId, onAll }: { table: GroupTabl
           <StandingRow key={row.id} row={row} place={place.get(row.id)} form={table.summary.form[row.id] ?? []} you={row.id === viewerId} />
         ))}
       </ol>
-      {rows.some(isProvisional) ? <p className="mt-2 text-xs text-faint">Players with fewer than five games aren’t placed yet.</p> : null}
     </section>
   )
 }

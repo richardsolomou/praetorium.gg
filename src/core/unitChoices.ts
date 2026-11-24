@@ -68,6 +68,8 @@ export type UnitChoice = {
   room: number
   /** How many selections the group must hold across its carriers, when it must hold some. */
   least?: number
+  /** Each model has multiple slots in this group, separate from its other equipment. */
+  multiplePerModel?: true
   /** Whether each option brings its own required models, so taking one also sets the squad's size, as Jakhals' "8 chainblades" and "17 chainblades" do. */
   bundlesModels?: true
   /** For such a choice, the option to hold at each size: the one closest to the weapons held now. */
@@ -357,6 +359,13 @@ function collectUnitChoices(entryId: string, selection: Selection, index: Catalo
           ? effectiveCount(selection, repeating.path, repeating.definition, index, options)
           : scaleOf(child.definition, definition, index, carriers)
         const capacity = maximumCountAt(selection, here, child.definition, index, options)
+        const owner = modelOwnerOf(trail, index)
+        const multiplePerModel =
+          owner &&
+          capacity !== null &&
+          capacity > 1 &&
+          capacity !== UNBOUNDED &&
+          choosable.every((option) => resolve(option.definition, index).type === 'upgrade')
         const fixed = choosable.some((option) => minimum(option.definition) > 0)
         // Wargear in a group with no cap, hanging off an entry or only uncapped groups, shares
         // no room: a Ratlings squad may take its Battlemutt and its demolition gear together,
@@ -456,6 +465,7 @@ function collectUnitChoices(entryId: string, selection: Selection, index: Catalo
             return replacingMaximum(selection, here, option, countOf(option.id) + spare, sizePath, index, options)
           }
           if (!repeating) return legalMaximum(selection, here, option, adjustable, adjustableRoom, index, options)
+          if (multiplePerModel) return Math.min(capFor(option), adjustableRoom)
           return separate ? roomFor(option) : adjustableRoom
         }
         // A squad the data will not let hold two of these at once answers the group
@@ -487,6 +497,7 @@ function collectUnitChoices(entryId: string, selection: Selection, index: Catalo
               minimum(child.definition) === 0 || (sized !== undefined && adjustable.every((option) => minimum(option.definition) === 0)),
             room: adjustableRoom,
             ...(minimum(child.definition) > 0 ? { least: minimum(child.definition) * scale } : {}),
+            ...(multiplePerModel ? { multiplePerModel: true as const } : {}),
             ...(!isUnitCompositionChoice({
               name: inner.name ?? '',
               options: adjustable.map((option) => ({ name: resolve(option.definition, index).name })),
@@ -514,7 +525,7 @@ function collectUnitChoices(entryId: string, selection: Selection, index: Catalo
             })),
             uniform,
             carried: Boolean(repeating),
-            owner: modelOwnerOf(trail, index),
+            owner,
           })
         }
       }
