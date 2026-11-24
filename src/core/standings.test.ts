@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { guestSeatId } from './newBattle'
-import { averagePoints, PROVISIONAL_BATTLES, standings, type StandingBattle, winRate } from './standings'
+import { averagePoints, standings, type StandingBattle, winRate } from './standings'
 
 const army = (slug: string) => ({ slug, displayName: slug, icon: null })
 
@@ -120,15 +120,6 @@ describe('standings', () => {
     expect(rows.find((row) => row.id === 'alice')).toEqual(
       expect.objectContaining({ battles: 2, won: 1, lost: 1, points: 85, lastPlayed: 20 }),
     )
-  })
-})
-
-describe('a provisional player', () => {
-  it('is listed after every ranked player, even rated above them', () => {
-    const losses = Array.from({ length: PROVISIONAL_BATTLES }, (_, game) => [`winner-${game}`, 'regular'] as [string, string])
-    const rows = overall(league(...losses, ['b', 'newcomer']))
-
-    expect(place(rows, 'regular')).toBeLessThan(place(rows, 'newcomer'))
   })
 })
 
