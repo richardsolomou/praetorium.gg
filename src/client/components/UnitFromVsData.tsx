@@ -80,8 +80,9 @@ export function unitComposition(unit: VsDataUnit): Line[] {
   const lines = unit.models.map((model) => line(`${range(model.min, model.max)} ${model.max === 1 ? model.name : pluralModel(model.name)}`))
   if (!unit.sizes.length) return lines
   const [fewest, most] = [Math.min(...unit.sizes), Math.max(...unit.sizes)]
-  const summed = unit.models.reduce(([low, high], model) => [low + model.min, high + model.max], [0, 0])
-  return summed[0] === fewest && summed[1] === most ? lines : [...lines, line(`${range(fewest, most)} models in all`)]
+  const low = unit.models.reduce((total, model) => total + model.min, 0)
+  const high = unit.models.reduce((total, model) => total + model.max, 0)
+  return low === fewest && high === most ? lines : [...lines, line(`${range(fewest, most)} models in all`)]
 }
 
 /** What each model carries before any option is taken. */
