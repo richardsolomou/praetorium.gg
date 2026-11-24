@@ -71,9 +71,9 @@ export function* loadRulesSteps(
   // shares with them.
   const owners = (name: string) => {
     const owning = contents.flatMap((content) =>
-      [...content.detachments]
-        .filter((detachment) => joinKey(detachment) === joinKey(name))
-        .flatMap((detachment) => [content.name, content.detachmentFactions?.get(detachment) ?? content.name]),
+      [...content.detachments].flatMap((detachment) =>
+        joinKey(detachment) === joinKey(name) ? [content.name, content.detachmentFactions?.get(detachment) ?? content.name] : [],
+      ),
     )
     const parents = contents.flatMap((content) => (owning.includes(content.name) && content.parentName ? [content.parentName] : []))
     return new Set([...owning, ...parents].map(joinKey))
