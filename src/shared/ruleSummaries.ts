@@ -54,8 +54,9 @@ export const summaryPlainText = ({ blocks }: RuleSummary) =>
     .join('\n\n')
 
 /**
- * The keys a weapon or core ability named on a datasheet may have among the ability summaries: its name, then without
- * the value it takes, as "Feel No Pain 5+" is the core ability Feel No Pain.
+ * The keys a weapon or core ability, or a core rule such as Benefit of Cover that an ability grants, named on a
+ * datasheet may have among the ability summaries: its name, then without the value it takes, as "Feel No Pain 5+" is
+ * the core ability Feel No Pain.
  */
 export function abilityKeysNamed(name: string) {
   const slug = name
@@ -64,5 +65,5 @@ export function abilityKeysNamed(name: string) {
     .replaceAll(/[^a-z0-9]+/g, '-')
     .replaceAll(/^-|-$/g, '')
   const plain = slug.replace(/-d?\d+$/, '')
-  return [...new Set([slug, plain])].flatMap((key) => [`weapon-ability:${key}`, `core-ability:${key}`])
+  return [...new Set([slug, plain])].flatMap((key) => [`weapon-ability:${key}`, `core-ability:${key}`, `core-rule:${key}`])
 }

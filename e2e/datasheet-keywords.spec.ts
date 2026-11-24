@@ -10,6 +10,7 @@ const cases = [
   { faction: 'leagues-of-votann', sheet: 'arkanyst-evaluator', ability: 'Overcharge' },
   { faction: 'space-marines', sheet: 'judiciar', ability: 'Fights First' },
   { faction: 'astra-militarum', sheet: 'basilisk', ability: 'Indirect Fire' },
+  { faction: 'astra-militarum', sheet: 'gaunts-ghosts', ability: 'Benefit Of Cover' },
 ]
 
 for (const { faction, sheet, ability } of cases) {

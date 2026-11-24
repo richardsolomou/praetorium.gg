@@ -53,7 +53,7 @@ export type VsDataSummaries = {
   /** Every Game Datacards record of one rules version, once each, for the coverage report. */
   joins: (edition: string) => VsDataJoin[]
   /**
-   * The current rules version's summaries of the weapon and core abilities, by `kind:id`, which a keyword's tooltip
+   * The current rules version's summaries of the weapon and core abilities and whole core rules, by `kind:id`, which a keyword's tooltip
    * and a summary naming the ability show.
    */
   abilities: () => Record<string, RuleSummary>
@@ -179,10 +179,7 @@ export function* vsDataSummariesSteps(directory: string, documents: readonly Rul
   const answers = new RecentlyUsed<string, RuleSummaries>(16)
   return {
     editions: held.map((entry) => entry.edition.id),
-    abilities: () =>
-      Object.fromEntries(
-        [...(versionOf(held[0]!.edition.id)?.summaries ?? [])].filter(([key]) => ABILITY_KINDS.some((kind) => key.startsWith(`${kind}:`))),
-      ),
+    abilities: () => Object.fromEntries([...(versionOf(held[0]!.edition.id)?.summaries ?? [])].filter(([key]) => isAbilitySummary(key))),
     // Read without keeping the versions, as only the Sources page asks.
     attributions: () => [
       ...new Map(
@@ -268,6 +265,10 @@ function summariesFor(
 
 /** The kinds of VS Data record a keyword chip names, whose summaries a tooltip shows. */
 const ABILITY_KINDS = ['weapon-ability', 'core-ability']
+
+/** Whether a keyword chip can name this record: an ability, or a whole core rule an ability grants, not one of its parts. */
+const isAbilitySummary = (key: string) =>
+  ABILITY_KINDS.some((kind) => key.startsWith(`${kind}:`)) || (key.startsWith('core-rule:') && !key.includes('.'))
 
 function summaryOf(
   { summary, spans, questions }: VsDataSummariesFile['records'][number],

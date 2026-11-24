@@ -34,10 +34,12 @@ export function Keyword({
     .filter((candidate) => ruleReferenceMatches(reference, candidate.name))
     .toSorted((left, right) => right.name.length - left.name.length)[0]
   if (!rule && !note && !condition) return <span className={className}>{name}</span>
+  // An ability something else in the list grants prints no text of its own, so its tooltip finds the summary by name.
+  const explained = rule?.description ? rule : note ? { name: reference, description: '' } : null
   const body = (
     <>
       {condition ? <p className="text-xs">* Only {condition}.</p> : null}
-      {rule?.description ? <KeywordRuleSummary rule={rule} className={condition ? 'mt-1.5 text-xs' : 'mt-0 text-xs'} /> : null}
+      {explained ? <KeywordRuleSummary rule={explained} className={condition ? 'mt-1.5 text-xs' : 'mt-0 text-xs'} /> : null}
     </>
   )
 
@@ -45,7 +47,7 @@ export function Keyword({
     <HoverTooltip
       className={`${className} ${note && highlightNote ? 'font-semibold text-info' : 'text-parchment'} hover:text-bone`}
       title={rule?.name ?? name}
-      body={condition || rule?.description ? body : undefined}
+      body={condition || explained ? body : undefined}
       note={note}
     >
       {name}

@@ -78,7 +78,7 @@ export function useRuleEntrySummaries(url: string | null) {
   }
 }
 
-/** The summary of a weapon or core ability, by its `kind:id` or, for a keyword, by its name: undefined while it is asked for, null where VS Data has none. */
+/** The summary of a weapon or core ability or core rule, by its `kind:id` or, for a keyword, by its name: undefined while it is asked for, null where VS Data has none. */
 export function useAbilitySummary(ability: { key: string } | { name: string } | null): RuleSummary | null | undefined {
   const { data, isPending } = useQuery({ ...ruleAbilitySummariesQuery(), enabled: Boolean(ability) })
   if (!ability) return null

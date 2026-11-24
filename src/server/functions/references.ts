@@ -338,7 +338,7 @@ export const ruleSummaryRecords = createServerFn({ method: 'GET' })
   .validator(textFileSchema)
   .handler(({ data }) => snapshotRpc(async () => summariesOfFile(data.file, await publishedTextFiles(), await vsDataSummaries())))
 
-/** The current rules version's weapon and core ability summaries, by `kind:id`, which keyword tooltips show. */
+/** The current rules version's weapon ability, core ability and core rule summaries, by `kind:id`, which keyword tooltips show. */
 export const ruleAbilitySummaries = createServerFn({ method: 'GET' }).handler(() =>
   snapshotRpc(async () => (await vsDataSummaries())?.abilities() ?? {}),
 )
