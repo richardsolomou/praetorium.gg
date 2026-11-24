@@ -234,8 +234,9 @@ export function FactionAbilities({
   faction: { id: string; displayName: string }
   rules: readonly { name: string; description: string }[]
 }) {
+  const owner = factionRulesOwner(faction.id, routeSlug(faction.displayName))
   return (
-    <DatasheetUnit.Provider value={factionRulesOwner(faction.id, routeSlug(faction.displayName))}>
+    <DatasheetUnit.Provider value={owner}>
       <section>
         <SectionHeading title="Faction abilities" />
         <div className="grid gap-2">
