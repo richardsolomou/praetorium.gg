@@ -1,6 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { ShelfLink } from '../../components/ShelfLink'
-import { isProvisional, type Standing } from '../../../core/standings'
+import type { Standing } from '../../../core/standings'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { SectionHeading } from '../../components/SectionHeading'
 import { nameColour } from '../../playerName'
@@ -15,8 +15,7 @@ const TOP = 5
  * with the rating the order comes from and the wins behind it. Absent until somebody
  * is ranked, because an empty table is the opposite of the point.
  */
-export function HomeLeaders({ rows: all }: { rows: readonly Standing[] }) {
-  const rows = all.filter((row) => !isProvisional(row))
+export function HomeLeaders({ rows }: { rows: readonly Standing[] }) {
   if (!rows.length) return null
   return (
     <section data-home-leaders>
