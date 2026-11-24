@@ -18,6 +18,9 @@ import {
 import { readCatalogueComposition } from './catalogueComposition'
 import { editionTextFiles, textHash } from './sourceTexts'
 
+/** An alias naming a VS Data id, rather than another source's, such as `bsdata.` or `gdc.`. */
+const isVsDataId = (alias: string) => !/^(bsdata|gdc)\./.test(alias)
+
 export const NO_RULE_SUMMARIES: RuleSummaries = { records: {}, texts: {}, entries: {} }
 
 /**
@@ -88,6 +91,7 @@ export function* vsDataSummariesSteps(directory: string, documents: readonly Rul
           .find(Boolean)
       const abilities = new Set(file.records.flatMap((record) => (ABILITY_KINDS.includes(record.kind) ? [vsDataKey(record)] : [])))
       const summaries = new Map(file.records.map((record) => [vsDataKey(record), summaryOf(record, link, abilities)]))
+      const abilitySummaries = [...summaries].filter(([key]) => key.startsWith('ability:'))
       // A unit's BSData aliases name its entry id with dots for dashes.
       const units = {
         units: Object.fromEntries(
@@ -98,12 +102,13 @@ export function* vsDataSummariesSteps(directory: string, documents: readonly Rul
               .map((alias) => [alias.slice('bsdata.'.length).replaceAll('.', '-'), { ...unit, id }] as const),
           ),
         ),
-        // Every ability by its VS Data id, which a unit's own abilities and its faction's start with.
-        abilities: Object.fromEntries(
-          [...summaries].flatMap(([key, summary]) =>
-            key.startsWith('ability:') ? [[key.slice('ability:'.length), summary] as const] : [],
-          ),
-        ),
+        // Every ability by its VS Data id, which a unit's own abilities and its faction's start with, and by each former
+        // VS Data id it is aliased under, as Cogbound Alliance is by the Mechanicus Allies the detachment prints.
+        abilities: Object.fromEntries([
+          ...abilitySummaries.flatMap(([key, summary]) => (file.entries[key] ?? []).filter(isVsDataId).map((id) => [id, summary] as const)),
+          // Last, so an ability's own id wins over another's former one.
+          ...abilitySummaries.map(([key, summary]) => [key.slice('ability:'.length), summary] as const),
+        ]),
         // An ability VS Data aliases to a BSData profile, by that profile's id, as BSData ids are written with dashes.
         aliases: Object.fromEntries(
           Object.entries(file.entries).flatMap(([key, aliases]) =>
