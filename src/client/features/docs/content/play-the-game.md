@@ -46,7 +46,7 @@ Open **Units** under a player's name to see their units. Remove models and wound
 
 **Battle note** records a rules call or house rule in the battle log, up to 500 characters. Anyone who can watch the battle can read notes.
 
-**Battle options** holds **Pause timer** (shared by the whole table), **Action reminders** for your own list's reminders, and the ways the battle ends.
+**Battle options** holds **Pause timer** (shared by the whole table), **Action reminders** for your mission cards, and the ways the battle ends. The app reminds you of Shooting-phase mission actions as your Shooting phase begins.
 
 ## Chess clock
 

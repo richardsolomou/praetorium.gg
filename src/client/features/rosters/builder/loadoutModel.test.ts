@@ -1002,6 +1002,48 @@ it('returns a required replacement to the default weapon without emptying the sl
   expect(poolHandlers(model, [group], []).free(rows[1]!)).toEqual([['weapons', { axe: 0, blade: 1 }]])
 })
 
+describe('a suit with separate two-slot weapon and drone groups', () => {
+  const keys = { guns: 'suit/weapons', drones: 'suit/drones' }
+  const rows = [
+    { name: 'Plasma rifle', choiceKey: keys.guns, optionId: 'plasma' },
+    { name: 'Missile pod', choiceKey: keys.guns, optionId: 'missile' },
+    { name: 'Gun Drone', choiceKey: keys.drones, optionId: 'gun' },
+    { name: 'Marker Drone', choiceKey: keys.drones, optionId: 'marker' },
+    { name: 'Shield Drone', choiceKey: keys.drones, optionId: 'shield' },
+  ]
+  const model: LoadoutModel = { name: 'Suit', fixed: [], members: [{ id: 'suit', choiceKey: null, baseCount: 1 }], rows }
+  const weapons = rows.slice(0, 3).map(({ name }) => weapon(name, 'Ranged Weapons'))
+  const handlers = (gun: number, shield: number) =>
+    poolHandlers(
+      model,
+      [
+        { ...choice([option('plasma', 2, 2), option('missile', 0, 2)], 2), key: keys.guns, least: 2, multiplePerModel: true },
+        {
+          ...choice([option('gun', gun, 1), option('marker', 0, 1), option('shield', shield, 1)], 2, true),
+          key: keys.drones,
+          multiplePerModel: true,
+        },
+      ],
+      weapons,
+    )
+
+  it('adds a Gun Drone without replacing either plasma rifle', () => {
+    expect(handlers(0, 0).spend(rows[2]!)).toEqual([[keys.drones, { gun: 1 }]])
+  })
+
+  it('adds a Marker Drone alongside a Shield Drone', () => {
+    expect(handlers(0, 1).spend(rows[3]!)).toEqual([[keys.drones, { marker: 1 }]])
+  })
+
+  it('requires removing a drone before taking a third', () => {
+    expect(handlers(1, 1).spend(rows[3]!)).toBeNull()
+  })
+
+  it('keeps both weapon slots filled when a rifle is removed', () => {
+    expect(handlers(0, 0).free(rows[0]!)).toEqual([[keys.guns, { plasma: 1, missile: 1 }]])
+  })
+})
+
 it.each([
   [1, 'free'],
   [2, 'free'],

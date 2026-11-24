@@ -27,6 +27,8 @@ Mission, Secondaries, Reserves, Deploy and Pre-battle rules start at a valid def
 
 On a phone, an open step shows one side at a time. Tap the other side's tab, or **Show** at the bottom, to see their choices.
 
+The **Deploy** checklist shows the units embarked in each transport. Tick the transport when you place it.
+
 ## Battle size and points
 
 The size follows your rosters from the first list chosen. Each side plays to its lists added together, and the bigger side sets the size: two 1,000-point allies make a 2,000-point side. An ally who hasn't chosen yet counts at their partner's list size. Imported text-only armies need you to choose the size yourself.
