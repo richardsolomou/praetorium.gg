@@ -348,6 +348,32 @@ it('plays a printed card its release does not publish as a release types the Gam
   ).toEqual([reapers.id])
 })
 
+it('takes an Enhancement a release names by the card of that name whatever qualifier either prints, and leaves out an Upgrade', () => {
+  write(path.join(directory, 'summaries', 'earlier.json'), {
+    release: '0.1.0',
+    rulesVersion: { edition: '11th', update: 'Earlier' },
+    entries: {},
+    attributions: [],
+    stratagems: [],
+    detachments: [
+      {
+        name: 'Flyblown Host',
+        stratagems: [],
+        stratagemsUnlisted: [],
+        enhancements: [],
+        enhancementsUnlisted: ['Living Plague (Aura)', 'Plaguecaster (Upgrade)'],
+      },
+    ],
+    records: [],
+  })
+  expect(
+    loadRules(directory, { rulesVersion: 'earlier' })!
+      .detachmentDetails.get('death-guard')
+      ?.get('flyblown-host')
+      ?.enhancements.map((enhancement) => [enhancement.name, enhancement.points]),
+  ).toEqual([['Living Plague', 20]])
+})
+
 it('drops a Detachment a rules version’s build does not have', () => {
   write(path.join(directory, 'summaries', 'earlier.json'), {
     release: '0.1.0',

@@ -23,7 +23,7 @@ export type DetachmentCards = (detachment: string) => {
   enhancements?: ReadonlySet<string>
   enhancementsUnlisted?: readonly string[]
 }
-import { isUpgrade, withoutUpgrade } from '../shared/mfm'
+import { enhancementKey, isUpgrade, withoutUpgrade } from '../shared/mfm'
 
 export function factionsFromDatacards(datacards: LoadedDatacards, iconDirectory: string, detachmentCards: DetachmentCards): LoadedFactions {
   const factionNames = new Map<string, string>()
@@ -160,11 +160,13 @@ export function factionsFromDatacards(datacards: LoadedDatacards, iconDirectory:
 function listedEnhancements(content: FactionContent, detachment: string, ids: ReadonlySet<string>, unlisted: readonly string[]) {
   const cards = [...content.enhancements.values()].flat().filter((card) => !isUpgrade(card.name))
   const listed = cards.filter((card) => card.ids?.some((id) => ids.has(id)))
+  // An Upgrade is the Detachment's own, never an Enhancement, and a name is joined without the qualifier a card can print,
+  // as the release's "Osseus Key" is the card's "Osseus Key (Aura)".
   const named = unlisted
-    .filter((name) => !listed.some((card) => joinKey(card.name) === joinKey(name)))
+    .filter((name) => !isUpgrade(name) && !listed.some((card) => enhancementKey(card.name) === enhancementKey(name)))
     .map(
       (name) =>
-        cards.find((card) => joinKey(card.name) === joinKey(name)) ?? {
+        cards.find((card) => enhancementKey(card.name) === enhancementKey(name)) ?? {
           name,
           detachment,
           points: null,
@@ -172,5 +174,5 @@ function listedEnhancements(content: FactionContent, detachment: string, ids: Re
           eligibility: null,
         },
     )
-  return uniqueBy([...listed, ...named], (card) => joinKey(card.name))
+  return uniqueBy([...listed, ...named], (card) => enhancementKey(card.name))
 }
