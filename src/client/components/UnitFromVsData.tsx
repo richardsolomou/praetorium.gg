@@ -72,9 +72,17 @@ export function pluralModel(name: string) {
   return `${name}s`
 }
 
-/** Each model line of a unit, as "5–10 Immortals" or "1 Overlord". */
-export const unitComposition = (unit: VsDataUnit): Line[] =>
-  unit.models.map((model) => line(`${range(model.min, model.max)} ${model.max === 1 ? model.name : pluralModel(model.name)}`))
+/**
+ * Each model line of a unit, as "5–10 Immortals" or "1 Overlord", then the unit's size where its lines do not add up to it,
+ * as a Brotherhood Terminator Squad's optional Ancient takes the place of one of its Terminators.
+ */
+export function unitComposition(unit: VsDataUnit): Line[] {
+  const lines = unit.models.map((model) => line(`${range(model.min, model.max)} ${model.max === 1 ? model.name : pluralModel(model.name)}`))
+  if (!unit.sizes.length) return lines
+  const [fewest, most] = [Math.min(...unit.sizes), Math.max(...unit.sizes)]
+  const summed = unit.models.reduce(([low, high], model) => [low + model.min, high + model.max], [0, 0])
+  return summed[0] === fewest && summed[1] === most ? lines : [...lines, line(`${range(fewest, most)} models in all`)]
+}
 
 /** What each model carries before any option is taken. */
 export const unitLoadout = (unit: VsDataUnit): Line[] =>

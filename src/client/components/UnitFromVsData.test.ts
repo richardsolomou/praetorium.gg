@@ -12,6 +12,20 @@ it('counts a unit’s models as a datasheet does', () => {
   ).toEqual(['5–10 Immortals', '1 Overlord', '3–6 Canoptek Wraiths'])
 })
 
+it('gives a unit’s size where its model lines do not add up to it', () => {
+  const model = (name: string, min: number, max: number) => ({ name, min, max, wargear: [] })
+  expect(
+    unitComposition({
+      sizes: [4, 5, 6, 7, 8, 9, 10],
+      options: [],
+      models: [model('Ancient', 0, 1), model('Justicar', 1, 1), model('Terminator', 2, 9)],
+    })
+      .at(-1)
+      ?.map((run) => run.text)
+      .join(''),
+  ).toBe('4–10 models in all')
+})
+
 it('writes a model’s plural as English does', () => {
   expect(
     [
