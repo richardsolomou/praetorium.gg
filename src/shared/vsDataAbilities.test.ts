@@ -94,3 +94,22 @@ it('reads its own unit’s record its printed text names before a core ability o
     }),
   ).toBe(own)
 })
+
+it('reads a faction chip under the faction-level alias VS Data gives a detachment’s rule for the unit’s own faction', () => {
+  const warpRifts = said('Warp Rifts')
+  const titans: VsDataUnits = {
+    units: { warlord: { id: 'chaos-titan-legions.chaos-warlord-titan', sizes: [], models: [], options: [] } },
+    aliases: {},
+    // VS Data's alias `chaos-titan-legions.warp-rifts` is indexed as an ability id beside the record's own; another
+    // faction's rule of the name leaves the one-faction fallback no answer, so the unit's own faction must reach it.
+    abilities: {
+      'chaos-daemons.daemonic-incursion.warp-rifts': warpRifts,
+      'chaos-titan-legions.warp-rifts': warpRifts,
+      'chaos-daemons.warp-rifts': said('Daemonic Warp Rifts'),
+    },
+  }
+  expect([
+    abilitySummaryIn(titans, 'warlord', 'Warp Rifts'),
+    datasheetAbilitySummary(titans, 'warlord', 'Warp Rifts', undefined, null),
+  ]).toEqual([warpRifts, warpRifts])
+})
