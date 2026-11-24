@@ -4,14 +4,17 @@ import type { VsDataUnits } from './vsData'
 
 const owned = new WeakMap<VsDataUnits, Map<string, Map<string, RuleSummary>>>()
 
-/** Each ability by the unit or faction whose id it starts with, then by `unitAbilitySlug`, read once per answer. */
+/** `unitAbilitySlug` without each word's trailing "s", as a datasheet's "Bomb Squig" is VS Data's "Bomb Squigs". */
+const abilityKey = (name: string) => unitAbilitySlug(name).replaceAll(/(?<=[a-z0-9]{2}[a-rt-z0-9])s(?=-|$)/g, '')
+
+/** Each ability by the unit or faction whose id it starts with, then by `abilityKey`, read once per answer. */
 function abilitiesByOwner(units: VsDataUnits) {
   let byOwner = owned.get(units)
   if (!byOwner) {
     byOwner = new Map()
     for (const [id, summary] of Object.entries(units.abilities)) {
       const at = id.lastIndexOf('.')
-      const slug = unitAbilitySlug(id.slice(at + 1))
+      const slug = abilityKey(id.slice(at + 1))
       const abilities = byOwner.get(id.slice(0, at)) ?? new Map<string, RuleSummary>()
       if (!abilities.has(slug)) abilities.set(slug, summary)
       byOwner.set(id.slice(0, at), abilities)
@@ -31,7 +34,7 @@ export function abilitySummaryIn(units: VsDataUnits, subject: string, name: stri
   const owner = subject.startsWith('@') ? subject.slice(1) : units.units[subject]?.id
   if (!owner) return null
   const byOwner = abilitiesByOwner(units)
-  const slug = unitAbilitySlug(name)
+  const slug = abilityKey(name)
   // The owner's own ability first, then its faction's, as its army rule and shared abilities are the faction's, then the
   // one faction that has it, as a chapter's datasheets print the Space Marines' army rule.
   const faction = [...byOwner].filter(([held, abilities]) => !held.includes('.') && abilities.has(slug))
