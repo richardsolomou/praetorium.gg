@@ -31,9 +31,10 @@ export function useRuleSummaries(texts: readonly string[]) {
     ownAnswers.some((answer) => answer.isPending) ||
     (hashes.length > 0 && homes.isPending) ||
     homeAnswers.some((answer) => answer.isPending)
-  const recordOf = (text: string) => {
+  /** `name` is the ability printing `text`, whose own name settles which of several abilities printing it alike it is. */
+  const recordOf = (text: string, name?: string) => {
     const named = wholeRuleTokens(text)
-    return named.length ? summaryNamedBy(tokensAtHome(named, ofFile, homes.data), ofFile) : null
+    return named.length ? summaryNamedBy(tokensAtHome(named, ofFile, homes.data), ofFile, name) : null
   }
   return { pending, recordOf, summaryOf: (text: string): RuleSummary | null => recordOf(text)?.summary ?? null }
 }

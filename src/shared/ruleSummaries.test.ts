@@ -20,6 +20,15 @@ it('reads words several rules print alike as the first one’s summary', () => {
   expect(textOf(summaryNamedBy([token('shared')], new Map([['file', answer]])))).toBe('First stratagem.')
 })
 
+it('reads words several abilities print alike as the one of the ability’s own name', () => {
+  const alike = {
+    records: { 'ability:sm.captain.relic-shield': summary('Relic shield.'), 'ability:sm.squad.storm-shield': summary('Storm shield.') },
+    texts: { shield: ['ability:sm.captain.relic-shield', 'ability:sm.squad.storm-shield'] },
+    entries: {},
+  }
+  expect(textOf(summaryNamedBy([token('shield')], new Map([['file', alike]]), 'Storm Shield'))).toBe('Storm shield.')
+})
+
 it('names no summary where no rule prints every line', () => {
   expect(summaryNamedBy([token('shared'), token('unknown')], new Map([['file', answer]]))).toBeNull()
 })

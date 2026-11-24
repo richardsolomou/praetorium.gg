@@ -51,7 +51,7 @@ export function useDatasheetAbilitySummary(text: string, name: string | undefine
   const [catalogueId = '', subject = ''] = useContext(DatasheetUnit)?.split('#') ?? []
   const units = useVsDataUnits(catalogueId, Boolean(subject && name))
   if (pending || units === undefined) return undefined
-  const printed = recordOf(text)
+  const printed = recordOf(text, name)
   return name ? datasheetAbilitySummary(units, subject, name, id, printed) : (printed?.summary ?? null)
 }
 
