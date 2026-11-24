@@ -94,7 +94,7 @@ it('says a model takes a choice it must make', () => {
   })
 })
 
-it('says which choices a model line starts with where its models differ', () => {
+it('says how many of a model line start with each choice where its models differ', () => {
   expect(
     unitLoadout({
       sizes: [9],
@@ -111,5 +111,5 @@ it('says which choices a model line starts with where its models differ', () => 
         },
       ],
     }).map((line) => line.map((run) => run.text).join('')),
-  ).toEqual(['Gun Servitor: Servo-claw.', 'Gun Servitor starts with Heavy arc rifle and Heavy bolter.'])
+  ).toEqual(['Gun Servitor: Servo-claw.', 'Of the Gun Servitor models, 1 starts with Heavy arc rifle and 1 with Heavy bolter.'])
 })

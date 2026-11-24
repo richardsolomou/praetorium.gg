@@ -90,19 +90,36 @@ export function unitComposition(unit: VsDataUnit): Line[] {
 }
 
 /**
- * What each model carries before any option is taken, then the choices some of a model line start with where its models
- * differ, as one of a Servitor Battleclade's Gun Servitors starts with a heavy bolter and the other a heavy arc rifle.
+ * What each model carries before any option is taken, each line followed by how many of its models start with each
+ * choice where they differ, as one of a Servitor Battleclade's two Gun Servitors starts with a heavy bolter.
  */
-export const unitLoadout = (unit: VsDataUnit): Line[] => [
-  ...unit.models
-    .filter((model) => model.wargear.length)
-    .map((model) => line(`${model.name}: `, listed(counted(model.wargear), 'and'), '.')),
-  ...unit.options.flatMap((option) => {
-    if (!option.defaults?.length) return []
-    const comma = option.defaults.some(([choice]) => choice.includes(' and ')) ? ';' : ','
-    return [line(`${option.carrier ?? 'The unit'} starts with `, listed(counted(option.defaults), 'and', comma), '.')]
-  }),
-]
+export function unitLoadout(unit: VsDataUnit): Line[] {
+  const defaults = (carrier: string | undefined) =>
+    unit.options.flatMap((option) =>
+      option.carrier === carrier && option.defaults?.length
+        ? [
+            line(
+              `Of the ${carrier ?? 'unit'}${carrier ? ' models' : '’s models'}, `,
+              listed(
+                option.defaults.map(
+                  ([choice, count], at) => `${count} ${at ? 'with' : count === 1 ? 'starts with' : 'start with'} ${choice}`,
+                ),
+                'and',
+                option.defaults.some(([choice]) => choice.includes(' and ')) ? ';' : ',',
+              ),
+              '.',
+            ),
+          ]
+        : [],
+    )
+  return [
+    ...unit.models.flatMap((model) => [
+      ...(model.wargear.length ? [line(`${model.name}: `, listed(counted(model.wargear), 'and'), '.')] : []),
+      ...defaults(model.name),
+    ]),
+    ...defaults(undefined),
+  ]
+}
 
 /** One option a unit's models take, in Praetorium's words: what it allows, then a short list of the limits on its choices. */
 export function unitOption(option: VsDataUnit['options'][number]): RuleSummaryBlock[] {
