@@ -2,7 +2,7 @@ import { useQueries, useQuery } from '@tanstack/react-query'
 import { MISSION_SUMMARIES, type RuleSummaries, type RuleSummary } from '../contracts/rules'
 import { TEXT_HOMES_MAX } from '../contracts/schemas'
 import { abilityKeysNamed, summaryNamedBy, tokensAtHome, wholeRuleTokens } from '../shared/ruleSummaries'
-import { ruleAbilitySummariesQuery, ruleSummariesQuery, textHomesQuery } from './queries/references'
+import { ruleAbilitySummariesQuery, ruleCoreSummaryQuery, ruleSummariesQuery, textHomesQuery } from './queries/references'
 import { textSources } from './functions'
 import { referenceQuery } from './queries/shared'
 
@@ -78,15 +78,22 @@ export function useRuleEntrySummaries(url: string | null) {
   }
 }
 
-/** The summary of a weapon or core ability or core rule, by its `kind:id` or, for a keyword, by its name: undefined while it is asked for, null where VS Data has none. */
+/**
+ * The summary of a weapon or core ability, by its `kind:id` or, for a keyword, by its name, and failing that of the whole
+ * core rule of that name, as a granted Benefit of Cover is: undefined while it is asked for, null where VS Data has none.
+ */
 export function useAbilitySummary(ability: { key: string } | { name: string } | null): RuleSummary | null | undefined {
   const { data, isPending } = useQuery({ ...ruleAbilitySummariesQuery(), enabled: Boolean(ability) })
+  const keys = ability && 'name' in ability ? abilityKeysNamed(ability.name) : []
+  const named = data && keys.map((key) => data[key]).find(Boolean)
+  // Only asked once no ability summary answers, as most names are abilities and the core rules are many.
+  const coreRules = useQueries({
+    queries: (data && !named ? keys.filter((key) => key.startsWith('core-rule:')) : []).map(ruleCoreSummaryQuery),
+  })
   if (!ability) return null
   if (!data) return isPending ? undefined : null
   if ('key' in ability) return data[ability.key] ?? null
-  return (
-    abilityKeysNamed(ability.name)
-      .map((key) => data[key])
-      .find(Boolean) ?? null
-  )
+  if (named) return named
+  if (coreRules.some((answer) => answer.isPending)) return undefined
+  return coreRules.map((answer) => answer.data).find(Boolean) ?? null
 }

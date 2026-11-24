@@ -55,8 +55,7 @@ export const summaryPlainText = ({ blocks }: RuleSummary) =>
 
 /**
  * The keys a weapon or core ability, or a core rule such as Benefit of Cover that an ability grants, named on a
- * datasheet may have among the ability summaries: its name, then without the value it takes, as "Feel No Pain 5+" is
- * the core ability Feel No Pain.
+ * datasheet may have: its name, then without the value it takes, as "Feel No Pain 5+" is the core ability Feel No Pain.
  */
 export function abilityKeysNamed(name: string) {
   const slug = name

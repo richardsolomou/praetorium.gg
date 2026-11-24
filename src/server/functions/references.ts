@@ -338,10 +338,15 @@ export const ruleSummaryRecords = createServerFn({ method: 'GET' })
   .validator(textFileSchema)
   .handler(({ data }) => snapshotRpc(async () => summariesOfFile(data.file, await publishedTextFiles(), await vsDataSummaries())))
 
-/** The current rules version's weapon ability, core ability and core rule summaries, by `kind:id`, which keyword tooltips show. */
+/** The current rules version's weapon and core ability summaries, by `kind:id`, which keyword tooltips show. */
 export const ruleAbilitySummaries = createServerFn({ method: 'GET' }).handler(() =>
   snapshotRpc(async () => (await vsDataSummaries())?.abilities() ?? {}),
 )
+
+/** The summary of one whole core rule, by `core-rule:id`, which an ability chip names where no ability summary does, or null. */
+export const ruleCoreSummary = createServerFn({ method: 'GET' })
+  .validator(z.object({ key: z.string().regex(/^core-rule:[a-z0-9-]{1,120}$/) }))
+  .handler(({ data }) => snapshotRpc(async () => (await vsDataSummaries())?.coreRules()[data.key] ?? null))
 
 /**
  * What a datasheet shows of each unit from VS Data's roster and transport data, by BSData entry id, for one rules version

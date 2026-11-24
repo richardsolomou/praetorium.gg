@@ -23,6 +23,7 @@ export const PUBLIC_REFERENCE_QUERIES = new Set([
   'rule-summary-records',
   'rule-summary-credits',
   'rule-ability-summaries',
+  'rule-core-summary',
   'rule-units',
   'import-translations',
 ])

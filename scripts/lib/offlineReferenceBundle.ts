@@ -169,6 +169,7 @@ export async function writeReferenceBundle(outDir: string, directory: string, ru
   const summaries = completeSteps(vsDataSummariesSteps(directory, canonical.ruleDocuments))
   put(['rule-summary-credits'], summaries?.attributions() ?? [])
   put(['rule-ability-summaries'], summaries?.abilities() ?? {})
+  for (const [key, summary] of Object.entries(summaries?.coreRules() ?? {})) put(['rule-core-summary', key], summary)
   for (const [at, edition] of (summaries?.editions ?? []).entries()) put(['rule-units', at ? edition : null], summaries!.unitsIn(edition))
   for (const file of summaries ? [...Object.keys(textFiles), MISSION_SUMMARIES] : []) {
     const answer = summaries!.summariesIn(file)
