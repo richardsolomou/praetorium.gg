@@ -89,8 +89,8 @@ test("Pantheon of Woe adds a C'tan shard's required enhancement", async ({ page 
   await page.goto('/factions/necrons/datasheets/lokhust-lord')
   const lokhustProfile = page.locator('main section').first()
   await expect(page.getByText('Models', { exact: true })).toHaveCount(0)
-  await expect(lokhustProfile.getByText('Invulnerable save', { exact: true })).toBeVisible()
-  await expect(lokhustProfile.getByText('4+', { exact: true })).toBeVisible()
+  await expect(page.locator('main').getByRole('heading', { name: 'Invulnerable save' })).toBeVisible()
+  await expect(page.locator('main [data-slot="invulnerable-save"]').getByText('4+', { exact: true })).toBeVisible()
   await shot(lokhustProfile, test.info().outputPath('lokhust-lord-characteristics.png'))
 })
 

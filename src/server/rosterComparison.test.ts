@@ -19,6 +19,8 @@ const book = bookOf({
     model('beast', { T: '8', Sv: '3+', W: '12' }),
   ],
 })
+// Their invulnerable saves are the catalogue's, as these units have no VS Data unit.
+vi.mock('./servedVsData', () => ({ servedVsDataUnits: async () => null }))
 vi.mock('./app', () => ({
   app: () => ({
     catalogueFor: async (id: string) => (id === 'cat' ? book : null),

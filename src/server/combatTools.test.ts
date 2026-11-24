@@ -279,6 +279,9 @@ vi.mock('./app', () => ({
   }),
 }))
 
+// Their invulnerable saves are the catalogue's, as these units have no VS Data unit.
+vi.mock('./servedVsData', () => ({ servedVsDataUnits: async () => null }))
+
 vi.mock('./publishedTextFiles', () => ({
   serverWords: async () => (text: string) =>
     text === CARD_TOKEN ? 'Each time a model in this unit makes an attack, add 1 to the Hit roll.' : null,
