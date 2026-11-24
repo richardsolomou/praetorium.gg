@@ -1,3 +1,4 @@
+import { sameMissionId } from '../../../../core/legacyIds'
 import { Button } from '@/components/ui/button'
 import { changesPrimary, type Twist, TwistInfo } from '../MissionTwist'
 import { CHOOSABLE, CHOSEN, SetupNote } from './chrome'
@@ -14,7 +15,7 @@ export function TwistChoice({
   disabled: boolean
   onChoose: (id: string | null) => void
 }) {
-  const chosen = twists.find((twist) => twist.id === chosenId)
+  const chosen = twists.find((twist) => sameMissionId(twist.id, chosenId))
 
   return (
     <fieldset>
@@ -39,10 +40,10 @@ export function TwistChoice({
           <div key={twist.id} className="relative">
             <Button
               variant="outline"
-              aria-pressed={chosenId === twist.id}
+              aria-pressed={sameMissionId(chosenId, twist.id)}
               disabled={disabled}
               className={`h-auto w-full justify-start py-2 pr-9 pl-3 text-left text-sm font-bold whitespace-normal uppercase ${
-                chosenId === twist.id ? CHOSEN : CHOOSABLE
+                sameMissionId(chosenId, twist.id) ? CHOSEN : CHOOSABLE
               }`}
               onClick={() => onChoose(twist.id)}
             >

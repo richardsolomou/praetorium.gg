@@ -67,6 +67,8 @@ export function catalogueEditionLoaders(
         const rules = yield* loadRulesSteps(target, {
           battlemasterDirectory: path.join(directory, 'battlemaster'),
           iconDirectory: path.join(directory, 'icons'),
+          vsDataDirectory: directory,
+          rulesVersion: editionId,
           catalogue,
         })
         const result: EditionContext = { catalogue, rules, canonical: new Map() }

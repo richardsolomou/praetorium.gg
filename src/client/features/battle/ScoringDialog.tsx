@@ -365,7 +365,7 @@ function AwardRow({
         </span>
       ) : null}
       <span className="min-w-0 flex-1 text-sm">
-        <AwardCondition award={award} awards={card.awards} className="mt-0 space-y-1 text-sm text-bone" />
+        <AwardCondition award={award} className="mt-0 space-y-1 text-sm text-bone" />
         {award.trigger.timing === 'end-of-battle' ? <span className="mt-0.5 block text-3xs text-faint">End of battle</span> : null}
         {counted(award) ? (
           <span className="mt-0.5 block text-3xs text-faint">

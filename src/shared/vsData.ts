@@ -19,6 +19,111 @@ const spanSchema = z.object({
 })
 export type VsDataSpan = z.infer<typeof spanSchema>
 
+const phaseSchema = z.enum(['command', 'movement', 'shooting', 'charge', 'fight'])
+const turnSchema = z.enum(['own', 'opponent', 'any'])
+/** A Stratagem can also be used as a turn ends, which no mission scores at as a phase. */
+const stratagemPhaseSchema = z.enum([...phaseSchema.options, 'end-of-turn'])
+
+/**
+ * A Stratagem's typed facts as the snapshot keeps them: its record's CP, phases, turn and type, the windows that pair a
+ * phase with its own turn where its phases' turns differ, the limit its facts type, and the Detachment it belongs to
+ * by name, or null for a core Stratagem.
+ */
+export const vsDataDetachmentSchema = z.object({
+  name: z.string().min(1),
+  /** Set where the rules version's build has no such Detachment, though another source prints it. */
+  absent: z.literal(true).optional(),
+  stratagems: z.array(z.string()),
+  stratagemsUnlisted: z.array(z.string()),
+  enhancements: z.array(z.string()),
+  enhancementsUnlisted: z.array(z.string()),
+})
+export type VsDataDetachment = z.infer<typeof vsDataDetachmentSchema>
+
+export const vsDataStratagemSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  detachment: z.string().min(1).nullable(),
+  cp: z.number().int().min(0),
+  phases: z.array(stratagemPhaseSchema).min(1),
+  turn: turnSchema,
+  windows: z.array(z.object({ phase: stratagemPhaseSchema, turn: turnSchema })).optional(),
+  type: z.enum(['battle-tactic', 'strategic-ploy', 'epic-deed', 'wargear']).nullable(),
+  limit: z.enum(['phase', 'turn', 'battle-round', 'battle']).nullable(),
+})
+export type VsDataStratagem = z.infer<typeof vsDataStratagemSchema>
+
+/** A part of a mission pack VS Data has not typed yet. */
+const unresolvedSchema = z.object({ unresolved: z.string() })
+const orUnresolved = <T extends z.ZodType>(schema: T) => z.union([schema, unresolvedSchema])
+const roundsSchema = z.object({ from: z.number().int().optional(), to: z.number().int().optional() })
+const windowSchema = z.union([
+  z.object({
+    at: z.literal('phase-end'),
+    phase: phaseSchema,
+    turn: turnSchema,
+    rounds: roundsSchema.optional(),
+    orBattleEnd: z.literal(true).optional(),
+  }),
+  z.object({ at: z.literal('turn-end'), turn: turnSchema, rounds: roundsSchema.optional(), orBattleEnd: z.literal(true).optional() }),
+  z.object({ at: z.literal('battle-end') }),
+])
+const modeSchema = z.enum(['fixed', 'tactical'])
+const awardSchema = z.object({
+  id: z.string(),
+  vp: z.number().int(),
+  count: z.enum(['once', 'each']),
+  max: z.number().int().optional(),
+  modes: z.array(modeSchema).optional(),
+  exclusive: z.string().optional(),
+  criterion: orUnresolved(z.object({ summary: z.string() })),
+  windows: z.array(orUnresolved(windowSchema)),
+})
+const capSchema = orUnresolved(z.object({ perRound: z.number().int().optional(), perBattle: z.number().int().optional() }))
+const memberSchema = z.object({ id: z.string(), name: z.string(), aliases: z.array(z.string()).default([]) })
+
+/** A VS Data mission pack, format 1: what a player decides and scores in one pack. */
+export const vsDataMissionPackSchema = z.object({
+  formatVersion: z.literal(1),
+  id: z.string(),
+  name: z.string(),
+  caps: z.object({ primary: capSchema, secondary: capSchema, fixedSecondaryPerCard: capSchema }),
+  dispositions: z.array(memberSchema),
+  deployments: z.array(memberSchema),
+  layouts: z.array(memberSchema.extend({ deployments: z.array(z.string()) })),
+  primaries: z.array(
+    memberSchema.extend({
+      pairings: z
+        .array(z.object({ friendly: z.string(), opposition: z.string(), deployments: z.array(z.string()), layouts: z.array(z.string()) }))
+        .default([]),
+      awards: z.array(awardSchema),
+    }),
+  ),
+  secondaries: z.array(
+    memberSchema.extend({
+      modes: z.array(modeSchema),
+      awards: z.array(awardSchema),
+      whenDrawn: orUnresolved(
+        z.object({
+          action: z.literal('redraw'),
+          required: z.boolean(),
+          untilRound: z.number().int().optional(),
+          ifActive: z.string().optional(),
+          ifNoEnemy: z
+            .object({ entity: z.enum(['model', 'unit']), characteristic: z.enum(['wounds', 'starting-strength']), min: z.number().int() })
+            .optional(),
+        }),
+      ).optional(),
+    }),
+  ),
+  twists: z.array(memberSchema.extend({ changesPrimary: z.boolean() })),
+})
+export type VsDataMissionPack = z.infer<typeof vsDataMissionPackSchema>
+export type VsDataAward = z.infer<typeof awardSchema>
+export type VsDataWindow = z.infer<typeof windowSchema>
+
+export const isUnresolved = (value: unknown): value is { unresolved: string } =>
+  Boolean(value && typeof value === 'object' && 'unresolved' in value)
 const countedSchema = z.array(z.tuple([z.string(), z.number().int()]))
 const selectorsSchema = z.object({ selectors: z.array(z.string()) })
 
@@ -69,13 +174,23 @@ export type VsDataUnits = {
 
 /**
  * What the snapshot keeps of a verified VS Data release: each summary with its spans and open questions, the aliases
- * of every entry a summary is for or links to, and the upstream work its records adapt, which must be credited.
+ * of every entry a summary is for or links to, the upstream work its records adapt, which must be credited, and the
+ * typed Stratagems and mission packs the battle rules read.
  */
 export const vsDataSummariesSchema = z.object({
   release: z.string(),
   rulesVersion: rulesVersionSchema,
   entries: z.record(z.string(), z.array(z.string())),
   attributions: z.array(vsDataAttributionSchema).default([]),
+  stratagems: z.array(vsDataStratagemSchema).default([]),
+  missionPacks: z.array(vsDataMissionPackSchema).default([]),
+  /** The mission actions the packs' cards name, each under the ID of the card it extends. */
+  missionActions: z.array(z.object({ id: z.string(), name: z.string() })).default([]),
+  /**
+   * Each Detachment of the rules version, by name, with the Stratagems and Enhancements its build prints: the ones the
+   * release publishes by ID, and by name the printed ones it does not.
+   */
+  detachments: z.array(vsDataDetachmentSchema).default([]),
   /** Each unit's datasheet data by VS Data id; its BSData aliases are in `entries` under `unit:<id>`. */
   units: z.record(z.string(), vsDataUnitSchema).default({}),
   records: z.array(

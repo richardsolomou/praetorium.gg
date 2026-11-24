@@ -1,3 +1,4 @@
+import { currentStratagemId } from '../../../core/legacyStratagemIds'
 import { useQuery } from '@tanstack/react-query'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type SetStateAction } from 'react'
 import type { FormatRuleId, OptionalRuleId } from '../../../core/battle'
@@ -49,6 +50,16 @@ export type CombatRoster = {
   }
 }
 
+const STRATAGEM = 'stratagem:'
+/** Rule choices a link or recent matchup saved, with a Stratagem saved by its Game Datacards ID read as its current one. */
+const currentRules = (rules: Record<string, number>) =>
+  Object.fromEntries(
+    Object.entries(rules).map(([key, value]) => [
+      key.startsWith(STRATAGEM) ? `${STRATAGEM}${currentStratagemId(key.slice(STRATAGEM.length))}` : key,
+      value,
+    ]),
+  )
+
 /** `initial` restores a standalone side from a shared link; a roster side starts from its roster. */
 export function useCombatant(roster?: CombatRoster, initial?: SimulatorSide | null) {
   const [catalogueId, setCatalogueId] = useState(roster?.catalogueId ?? initial?.catalogueId ?? '')
@@ -58,7 +69,11 @@ export function useCombatant(roster?: CombatRoster, initial?: SimulatorSide | nu
   // Picks are keyed by position when seeded, so restored rule choices belong to the restored pick's identity.
   const [selectedRules, setSelectedRules] = useState<Record<string, Record<string, number>>>(() =>
     initial
-      ? { [`${initial.pick.catalogueId ?? initial.catalogueId}:${roster?.pickIndex ?? 0}:${initial.pick.entryId}`]: initial.rules }
+      ? {
+          [`${initial.pick.catalogueId ?? initial.catalogueId}:${roster?.pickIndex ?? 0}:${initial.pick.entryId}`]: currentRules(
+            initial.rules,
+          ),
+        }
       : {},
   )
   const [initialPreferences] = useState(initial?.preferences ?? {})

@@ -52,6 +52,11 @@ export type RuleSummary = {
  * The summaries for the rules one source file prints: `texts` names the records printing each string, by
  * its hash, since several rules can share a line, and `entries` the record of each rules-document entry by its id.
  */
+/**
+ * The summaries of the current mission pack's cards, awards, actions and twists, asked for in place of a source file:
+ * mission data carries VS Data IDs, never tokens, so its records are keyed `kind:id`.
+ */
+export const MISSION_SUMMARIES = 'missions'
 export type RuleSummaries = {
   records: Record<string, RuleSummary>
   texts: Record<string, string[]>

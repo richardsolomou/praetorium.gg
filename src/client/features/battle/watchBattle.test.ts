@@ -115,7 +115,6 @@ describe('watch battle snapshot', () => {
       mode: null,
       max: null,
       group: 'tier',
-      cumulative: false,
       criteria: 'Hold one objective.',
       trigger: { timing: 'end-of-turn', phase: null, playerTurn: 'your-turn', roundMin: 2, roundMax: 4 },
     }
@@ -148,7 +147,6 @@ describe('watch battle snapshot', () => {
       mode: null,
       max: null,
       group: null,
-      cumulative: false,
       criteria: rule,
       trigger: { timing: 'end-of-turn', phase: null, playerTurn: 'your-turn', roundMin: null, roundMax: null },
     }
@@ -176,6 +174,34 @@ describe('watch battle snapshot', () => {
       'Hold the centre.',
       'End of your turn · Any battle round: 3 VP. Hold the centre.',
     ])
+  })
+
+  it('describes a VS Data award by its summary', () => {
+    const award: MissionAward = {
+      vp: 3,
+      per: null,
+      mode: null,
+      max: null,
+      group: null,
+      id: 'pack.primary.o1-s1',
+      criteria: null,
+      trigger: { timing: 'end-of-turn', phase: null, playerTurn: 'your-turn', roundMin: null, roundMax: null },
+    }
+    const value = screen([
+      [
+        ALICE,
+        {
+          kind: 'set-prep',
+          stratagems: [],
+          secondaries: [],
+          primary: { key: 'primary', name: 'Primary', awards: [award] },
+          secondaryMode: 'fixed',
+        },
+      ],
+      ...started(),
+    ])
+    const snapshot = project(value, [], (text) => (text === 'mission-award:pack.primary.o1-s1' ? 'Hold the centre.' : null))
+    expect(snapshot?.objectives[0]?.summary).toBe('End of your turn · Any battle round: 3 VP. Hold the centre.')
   })
 
   it('stops the projected clock while paused', () => {

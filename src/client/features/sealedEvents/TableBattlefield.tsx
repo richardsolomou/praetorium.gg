@@ -1,3 +1,4 @@
+import { sameMissionId } from '../../../core/legacyIds'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Map as MapIcon, Shuffle } from 'lucide-react'
 import { useState } from 'react'
@@ -45,8 +46,10 @@ export function TableBattlefield({ sealedEvent, token, round, table, canChange, 
     onSuccess: refresh,
   })
   if (!current && !canChange) return null
-  const name = deployments.data?.find((pattern) => pattern.id === current?.patternId)?.name
-  const shown = (available.data?.options ?? []).filter((option) => canChange || option.terrainLayoutId === current?.terrainLayoutId)
+  const name = deployments.data?.find((pattern) => sameMissionId(pattern.id, current?.patternId))?.name
+  const shown = (available.data?.options ?? []).filter(
+    (option) => canChange || sameMissionId(option.terrainLayoutId, current?.terrainLayoutId),
+  )
   return (
     <>
       <Button
@@ -97,7 +100,7 @@ export function TableBattlefield({ sealedEvent, token, round, table, canChange, 
               {shown.map((option) => {
                 const layout = references.data?.layouts.find((candidate) => candidate.id === option.terrainLayoutId)
                 const deployment = deployments.data?.find((pattern) => pattern.id === option.patternId)
-                const selected = current?.terrainLayoutId === option.terrainLayoutId
+                const selected = sameMissionId(current?.terrainLayoutId, option.terrainLayoutId)
                 return layout && deployment ? (
                   <article key={option.terrainLayoutId} className="flex flex-col border bg-panel p-3">
                     <p className="truncate text-sm text-dim">{deployment.name}</p>

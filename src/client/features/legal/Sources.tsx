@@ -44,7 +44,7 @@ export function Sources() {
             .
           </li>
           <li>
-            Stratagem, detachment, mission, and layout names and numbers from{' '}
+            Detachment names and numbers from{' '}
             <a href="https://github.com/game-datacards/datasources" className={linkClass}>
               Game Datacards
             </a>
@@ -72,7 +72,7 @@ export function Sources() {
             , licensed under AGPL-3.0.
           </li>
           <li>
-            Plain-language rules summaries for each rules version from{' '}
+            Plain-language rules summaries for each rules version, and stratagem timings and mission scoring, from{' '}
             <a href="https://github.com/richardsolomou/vs-data" className={linkClass}>
               VS Data
             </a>

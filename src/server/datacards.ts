@@ -32,9 +32,6 @@ import { RecentlyUsed, remember as rememberIn } from '../core/collections'
 import { publishedTexts, stringsByHash } from './sourceTexts'
 const NO_SECTIONS: SectionProse = () => new Map()
 
-const titleCase = (name: string) =>
-  name.toLowerCase().replaceAll(/(^|[\s(\-–—])([a-z])/g, (_, before: string, letter: string) => `${before}${letter.toUpperCase()}`)
-
 /** How each file's strings are published: tokens, except for checks that read the source's words directly. */
 export type TextsFor = (file: string) => SourceTexts
 
@@ -144,12 +141,10 @@ export function* loadDatacardsSteps(
   const textReadings = new Map<string, string>()
   const textFiles = new Map<string, string>()
   const textsOf = (file: string) => recording(textsFor(file), textFacts, textReadings, file, textFiles)
-  const coreStratagems: string[] = []
   const factions = new Map<string, FactionContent>()
   const detachmentRules = new Map<string, Map<string, Map<string, string>>>()
   const enhancements = new Map<string, Map<string, string>>()
-  const stratagems = new Map<string, Map<string, string>>()
-  const stratagemNames = new Map<string, string>()
+  const stratagemTexts = new Map<string, string>()
   const armyRules = new Map<string, Map<string, string>>()
   const constructionDetachments = new Map<string, ConstructionDetachment[]>()
   // Texts are compared by what they say: one card copied into two files publishes two tokens for one text.
@@ -165,7 +160,7 @@ export function* loadDatacardsSteps(
       factions,
       detachmentRules: new Map(),
       enhancements: new Map(),
-      stratagems: new Map(),
+      stratagemTexts,
       armyRules: new Map(),
       constructionDetachments: new Map(),
       textFacts,
@@ -179,11 +174,14 @@ export function* loadDatacardsSteps(
       files.push({ ...(parsed as DatacardsFaction & { name: string }), texts: textsOf(file) })
     yield
   }
-  // Core stratagems are read by `coreFromDatacards`, which publishes the same tokens; their facts belong with these.
   const core = path.join(directory, 'core.json')
   if (fs.existsSync(core)) {
     const parsed = readSharedJson(core, strings) as { stratagems?: unknown }
-    for (const card of records(parsed, 'stratagems')) coreStratagems.push(stratagemText(card, textsOf(core)) ?? '')
+    for (const card of records(parsed, 'stratagems')) {
+      const id = stringField(card, 'id')
+      const description = stratagemText(card, textsOf(core))
+      if (id && description) stratagemTexts.set(id, description)
+    }
   }
   const datasheetNames = [
     ...new Set(files.flatMap((parsed) => records(parsed, 'datasheets').flatMap((entry) => localizedField(entry, 'name') ?? []))),
@@ -253,17 +251,7 @@ export function* loadDatacardsSteps(
       const description = localizedField(enhancement, 'description')
       if (name && detachment && description) remember(enhancements, descriptionKey(detachment, name), parsed.texts(description, 'prose'))
     }
-    for (const stratagem of records(parsed, 'stratagems')) {
-      const name = localizedField(stratagem, 'name')
-      const detachment = stringField(stratagem, 'detachment')
-      const description = stratagemText(stratagem, parsed.texts)
-      if (name && detachment && description) {
-        const card = { name: name === name.toLowerCase() ? titleCase(name) : name, description }
-        remember(stratagems, descriptionKey(detachment, name), description)
-        // A card printed entirely in lower case is a slip in the file, not how the name reads.
-        stratagemNames.set(descriptionKey(detachment, name), card.name)
-      }
-    }
+    for (const [id, description] of content.stratagemTexts) stratagemTexts.set(id, description)
   }
   const loaded = {
     factions,
@@ -275,26 +263,23 @@ export function* loadDatacardsSteps(
       ]),
     ),
     enhancements: agreed(enhancements),
-    stratagems: new Map([...agreed(stratagems)].map(([key, description]) => [key, { name: stratagemNames.get(key)!, description }])),
+    stratagemTexts,
     armyRules: agreed(armyRules),
     constructionDetachments,
     textFacts,
     textReadings,
   }
   if (cardReadings) {
-    const stratagemTexts = [
-      ...coreStratagems,
-      ...descriptionsIn([loaded.stratagems, [...factions.values()].map((content) => content.stratagems)]),
-    ]
+    const stratagems = [...stratagemTexts.values()]
     recordCombat(
       [
-        ...stratagemTexts,
+        ...stratagems,
         ...[...enhancements.values(), ...armyRules.values()].flatMap((texts) => [...texts.values()]),
         ...descriptionsIn([loaded.factions, loaded.detachmentRules]),
       ],
       textFacts,
       textFiles,
-      new Set(stratagemTexts),
+      new Set(stratagems),
     )
   }
   return loaded

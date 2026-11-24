@@ -1,15 +1,17 @@
 import { Info } from 'lucide-react'
-import { ownWords } from '../../../core/sourceText'
 import type { ReactElement, ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { DialogBody, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../../components/Dialog'
 import { BattleDialogContent, BattlePromptDialog } from './BattlePromptDialog'
 import { CARD_NAME, CARD_NAME_LINK } from './battleTints'
-import { RuleText } from '../../components/RuleText'
+import { RuleSummaryText } from '../../components/RuleSummaryText'
+import type { RuleSummary } from '../../../contracts/rules'
+import type { MissionTwist } from '../../../contracts/missions'
+import { useMissionSummary } from '../../ruleSummaries'
 
 /** An optional twist a mission pack prints, which changes one rule for the whole battle. */
-export type Twist = { id: string; name: string; lore: string | null; rules: string | null; changesPrimary?: boolean }
+export type Twist = MissionTwist
 
 /** Warn when a printed twist changes primary missions: the app records the twist but cannot apply its unstructured replacement rules. */
 export const changesPrimary = (twist: Twist) => twist.changesPrimary === true
@@ -20,17 +22,28 @@ export const changesPrimary = (twist: Twist) => twist.changesPrimary === true
  * A twist bends a rule for every turn of the game, so its text stays one press away
  * wherever it appears rather than printed inline on a screen that is asking a question.
  */
-function TwistDialog({ twist, trigger, children }: { twist: Twist; trigger: ReactElement; children: ReactNode }) {
-  const lore = twist.lore ? ownWords(twist.lore) : null
+function TwistDialog({
+  twist,
+  summary,
+  trigger,
+  children,
+}: {
+  twist: Twist
+  summary: RuleSummary
+  trigger: ReactElement
+  children: ReactNode
+}) {
   return (
     <BattlePromptDialog minimizedLabel={twist.name} resumeLabel="Return to twist">
       <DialogTrigger render={trigger}>{children}</DialogTrigger>
       <BattleDialogContent size="md">
         <DialogHeader>
           <DialogTitle>{twist.name}</DialogTitle>
-          <DialogDescription>{lore ?? 'What this twist changes for the whole battle.'}</DialogDescription>
+          <DialogDescription>What this twist changes for the whole battle.</DialogDescription>
         </DialogHeader>
-        <DialogBody>{twist.rules ? <RuleText text={twist.rules} /> : null}</DialogBody>
+        <DialogBody>
+          <RuleSummaryText summary={summary} />
+        </DialogBody>
       </BattleDialogContent>
     </BattlePromptDialog>
   )
@@ -38,10 +51,12 @@ function TwistDialog({ twist, trigger, children }: { twist: Twist; trigger: Reac
 
 /** The twist's name, which opens it. For the places that only report what is in play. */
 export function TwistName({ twist }: { twist: Twist }) {
-  if (!twist.rules) return <span className={CARD_NAME}>{twist.name}</span>
+  const { summary } = useMissionSummary('mission-twist', twist.id)
+  if (!summary) return <span className={CARD_NAME}>{twist.name}</span>
   return (
     <TwistDialog
       twist={twist}
+      summary={summary}
       trigger={<button type="button" aria-label={`Read ${twist.name}`} className={cn(CARD_NAME, CARD_NAME_LINK, 'text-left')} />}
     >
       {twist.name}
@@ -58,10 +73,12 @@ export function TwistName({ twist }: { twist: Twist }) {
  * asked and the answer is in what each of them says.
  */
 export function TwistInfo({ twist }: { twist: Twist }) {
-  if (!twist.rules) return null
+  const { summary } = useMissionSummary('mission-twist', twist.id)
+  if (!summary) return null
   return (
     <TwistDialog
       twist={twist}
+      summary={summary}
       trigger={
         <Button
           variant="ghost"

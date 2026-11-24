@@ -1,10 +1,12 @@
+import { MISSION_ACTION_REMINDER_PREFIX } from '../../missionActionReminders'
 import { watchLive, type WatchBattle } from '../../../contracts/watchBattle'
 import { ownWords } from '../../../core/sourceText'
 import type { BattleView } from '../../../core/battleView'
 import type { BattleClock } from '../../../core/battleClock'
 import type { RosterReminder } from '../../../core/reminders'
 import { jsonByteLength } from '../../../core/json'
-import { appliesInMode, conditionLabel, payoutJoin, roundLabel, timingLabel } from '../../missionText'
+import { appliesInMode, conditionLabel, momentsLabel, payoutJoin } from '../../missionText'
+import { awardsOnce } from '../../../core/scoring'
 import { sides, sideName, type SideMission } from '../../sides'
 import type { ReferenceCard } from './MissionCards'
 import type { ReminderDismissalContext } from './reminderDismissals'
@@ -58,7 +60,8 @@ export function watchBattleTexts(view: BattleView, missions: Missions, reference
 
 /**
  * What a watch shows of a battle. A watch holds no rules text, so a rule's words are its own where it has them and
- * otherwise `described`, plain text the phone gives it, as a rule's summary; never a token cut short.
+ * otherwise `described`, plain text the phone gives it, as a rule's summary; never a token cut short. A mission award or
+ * action is described by its summary's `kind:id`.
  */
 export function watchBattle(
   view: BattleView,
@@ -73,13 +76,17 @@ export function watchBattle(
   if (view.status === 'setup') return null
   const { table, yours, objectives } = viewerObjectives(view, missions, referenceFor)
   const plain = (text: string) => ownWords(text) ?? described(text)
+  const reminderText = (reminder: { key: string; description: string }) =>
+    reminder.key.startsWith(MISSION_ACTION_REMINDER_PREFIX)
+      ? described(`mission-action:${reminder.description}`)
+      : plain(reminder.description)
   const reminders = (yours ? prompts : []).flatMap((prompt) =>
     prompt.reminders.map((reminder) => ({
       id: clip(JSON.stringify([prompt.context.round, prompt.context.activePlayerId, prompt.context.phase, reminder.key]), 500),
       title: clip(reminder.ability, 80),
       unit: reminder.unit ? clip(reminder.unit.name, 80) : null,
       moment: clip(prompt.moment, 120),
-      description: clip(plain(reminder.description) ?? '', 500),
+      description: clip(reminderText(reminder) ?? '', 500),
     })),
   )
   const uniqueReminders = [...new Map(reminders.map((reminder) => [reminder.id, reminder])).values()]
@@ -95,10 +102,14 @@ export function watchBattle(
       return { ...side, name: clip(named ? sideName(named) : '', 160), yours: Boolean(named?.isViewer) }
     }),
     objectives: objectives.map(({ card, awards }) => {
-      const summary = awards
-        .map(
-          (award, index) =>
-            `${[payoutJoin(award, awards[index - 1]), timingLabel(award.trigger), roundLabel(award.trigger)].filter(Boolean).join(' · ')}: ${award.vp} VP${award.per ? ` per ${award.per}` : ''}${award.max !== null ? ` (max ${award.max})` : ''}. ${plain(conditionLabel(award) ?? '') || 'Check the full card on your iPhone.'}`,
+      const summary = awardsOnce(awards)
+        .map(({ award, triggers }, index, once) =>
+          [
+            `${[payoutJoin(award, once[index - 1]?.award), momentsLabel(triggers)].filter(Boolean).join(' · ')}: ${award.vp} VP${award.per ? ` per ${award.per}` : ''}${award.max !== null ? ` (max ${award.max})` : ''}.`,
+            plain(conditionLabel(award) ?? '') || (award.id ? described(`mission-award:${award.id}`) : null),
+          ]
+            .filter(Boolean)
+            .join(' '),
         )
         .join('\n\n')
       return {

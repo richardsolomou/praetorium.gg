@@ -376,7 +376,7 @@ test('public reference data renders without client JavaScript', async ({ browser
   const missionId = await deathTrap.getAttribute('id')
   expect(missionId).toMatch(/^mission-/)
   await page.goto(`/missions/chapter-approved-2026-2027/matchups/disruption/take-and-hold#${missionId}`)
-  await expect(page.locator(`#${missionId}`)).toBeVisible()
+  await expect(page.locator(`[id="${missionId}"]`)).toBeVisible()
   await expect(page.locator('[id^="terrain-"]').first()).toBeAttached()
   await expect(page.locator('[id^="deployment-"]').first()).toBeAttached()
   await expect(page).toHaveTitle(/Disruption vs Take and Hold — Chapter Approved 2026-2027 — Praetorium/)

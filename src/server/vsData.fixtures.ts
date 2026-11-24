@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
+import type { VsDataMissionPack } from '../shared/vsData'
 
 type FixtureRecord = {
   kind: string
@@ -10,18 +11,26 @@ type FixtureRecord = {
   summary?: string
   name?: string
   category?: string
+  /** A summary record's further data, such as a Stratagem's typed fields, or another record's whole data. */
   data?: unknown
   attribution?: { credit: string; url: string; licence: string }
 }
 
-/** The files of a VS Data catalogue release holding `records`, as an archive lays them out. */
-export function vsDataReleaseFiles(records: FixtureRecord[], update = 'MFM 1.6'): [string, string][] {
+/** The files of a VS Data catalogue release holding `records`, and identity `entries` without records, as an archive lays them out. */
+export function vsDataReleaseFiles(
+  records: FixtureRecord[],
+  update = 'MFM 1.6',
+  entries: { kind: string; id: string; name: string; aliases?: string[] }[] = [],
+): [string, string][] {
   const rulesVersion = { edition: '11th', update }
   const identity = JSON.stringify({
     formatVersion: 1,
     revision: 1,
     rulesVersion,
-    entries: records.map(({ kind, id, aliases, summary, name }) => ({ kind, id, name: name ?? summary?.split(' ')[0], aliases })),
+    entries: [
+      ...records.map(({ kind, id, aliases, summary, name }) => ({ kind, id, name: name ?? summary?.split(' ')[0], aliases })),
+      ...entries,
+    ],
   })
   const recordFiles = records.map(({ kind, id, summary, attribution, category = 'rules-reference', data }): [string, string] => [
     `records/${category}/${kind}/${id}.json`,
@@ -32,10 +41,14 @@ export function vsDataReleaseFiles(records: FixtureRecord[], update = 'MFM 1.6')
       rulesVersion,
       source: { title: 'An app build' },
       ...(attribution ? { attribution: { ...attribution, revision: 'abc', changes: 'Adapted.' } } : {}),
-      data: data ?? {
-        summary,
-        citations: [{ type: 'publisher', title: 'A faction pack', url: 'https://example.com/pack.pdf', page: '3' }],
-      },
+      data:
+        summary === undefined
+          ? data
+          : {
+              summary,
+              citations: [{ type: 'publisher', title: 'A faction pack', url: 'https://example.com/pack.pdf', page: '3' }],
+              ...(data as Record<string, unknown> | undefined),
+            },
     }),
   ])
   const sha256 = (text: string) => createHash('sha256').update(text).digest('hex')
@@ -68,3 +81,18 @@ export function writeFiles(directory: string, files: [string, string][]) {
     fs.writeFileSync(path.join(directory, file), text)
   }
 }
+
+/** A mission pack with nothing in it but what a test gives. */
+export const missionPack = (parts: Partial<VsDataMissionPack> = {}): VsDataMissionPack => ({
+  formatVersion: 1,
+  id: 'test-pack',
+  name: 'Test Pack',
+  caps: { primary: {}, secondary: {}, fixedSecondaryPerCard: {} },
+  dispositions: [],
+  deployments: [],
+  layouts: [],
+  primaries: [],
+  secondaries: [],
+  twists: [],
+  ...parts,
+})

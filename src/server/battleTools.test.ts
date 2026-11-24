@@ -85,7 +85,6 @@ it('shows only the secondaries due for the previous player turn', async () => {
         mode: null,
         max: null,
         group: null,
-        cumulative: false,
         criteria: 'Condition',
         trigger: { timing: 'end-of-turn', phase: null, playerTurn, roundMin: 1, roundMax: 1 },
       },

@@ -8,7 +8,8 @@ import { readCatalogueComposition } from './catalogueComposition'
 import { textFileId, textHash, textSourcePaths } from './sourceTexts'
 import { vsDataReleaseFiles, writeFiles } from './vsData.fixtures'
 import { checkVsDataRelease, compactVsDataRelease } from './vsDataRelease'
-import { vsDataSummariesSteps, withholdCopiedSummaries } from './vsDataSummaries'
+import { MISSION_SUMMARIES } from '../contracts/rules'
+import { NO_RULE_SUMMARIES, summariesOfFile, type VsDataSummaries, vsDataSummariesSteps, withholdCopiedSummaries } from './vsDataSummaries'
 
 const effect = 'Until the end of the phase, each time a model in your unit makes an attack, add 1 to the Hit roll.'
 const stratagem = { id: 'f06fa0ef-917a-57c2-955d-325a082d942c', when: { en: 'Your Shooting phase.' }, effect: { en: effect } }
@@ -24,7 +25,7 @@ const codex = composition.editions.find((entry) => entry.edition.id === 'custode
 
 /** A snapshot of the base rules and the Custodes codex, each printing the stratagem, with a release per summary given. */
 function snapshot(
-  releases: { update: string; summary: string }[],
+  releases: { update: string; summary: string; data?: Record<string, unknown> }[],
   others: Parameters<typeof vsDataReleaseFiles>[0] = [],
   cards: [string, unknown][] = [],
 ) {
@@ -38,9 +39,9 @@ function snapshot(
     ...cards.map(([file, card]): [string, string] => [`datacards/11th/gdc/${file}`, JSON.stringify(card)]),
   ])
   fs.mkdirSync(path.join(directory, 'summaries'))
-  releases.forEach(({ update, summary }, at) => {
+  releases.forEach(({ update, summary, data }, at) => {
     const unpacked = path.join(directory, `release-${at}`)
-    writeFiles(unpacked, vsDataReleaseFiles([record(summary), ...others], update))
+    writeFiles(unpacked, vsDataReleaseFiles([{ ...record(summary), ...(data ? { data } : {}) }, ...others], update))
     const edition = checkVsDataRelease(
       unpacked,
       [...base, codex].map((entry) => entry.edition),
@@ -103,6 +104,25 @@ it('opens a weapon ability a summary prints in brackets', () => {
   ])
 })
 
+it('opens the weapon ability a run names where its link names the ability’s core rule', () => {
+  const devastatingWounds = {
+    kind: 'weapon-ability',
+    id: 'devastating-wounds',
+    aliases: [],
+    summary: 'A Critical Wound inflicts mortal wounds.',
+  }
+  const summary = 'Its weapons gain [DEVASTATING WOUNDS].'
+  const data = { summarySpans: [{ start: 17, end: 37, bold: true, target: { kind: 'core-rule', id: 'devastating-wounds' } }] }
+  const { summaries, base } = snapshot([{ update: 'MFM 1.6', summary, data }], [devastatingWounds])
+  expect(summaries!.summariesIn(base).records['ability:necrons.test.focused-fire']?.blocks[0]).toEqual({
+    paragraph: [
+      { text: 'Its weapons gain ' },
+      { text: '[DEVASTATING WOUNDS]', bold: true, ability: 'weapon-ability:devastating-wounds' },
+      { text: '.' },
+    ],
+  })
+})
+
 it('serves a Markdown summary as its paragraphs and lists, its links landing on the rules they name', () => {
   const summary = 'Pick one:\n\n- [Lethal Hits](vsdata:weapon-ability/lethal-hits)\n- **Re-roll** a Hit roll of 1.'
   const lethalHits = { kind: 'weapon-ability', id: 'lethal-hits', aliases: [], summary: 'A Critical Hit wounds automatically.' }
@@ -158,4 +178,12 @@ it('serves a linked bracketed weapon ability as that ability, bold with its brac
       ],
     },
   ])
+})
+
+it('serves the mission pack’s summaries, which no source file holds', () => {
+  const missions = { records: { 'mission-award:pack.card.o1-s1': { blocks: [], questions: [] } }, texts: {}, entries: {} }
+  const summaries = {
+    summariesIn: (file: string) => (file === MISSION_SUMMARIES ? missions : NO_RULE_SUMMARIES),
+  } as unknown as VsDataSummaries
+  expect(summariesOfFile(MISSION_SUMMARIES, {}, summaries)).toBe(missions)
 })

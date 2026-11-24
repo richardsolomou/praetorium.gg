@@ -1,22 +1,9 @@
-import type { Phase } from '../../../core/battle'
+import { type Phase, type StratagemWindow, stratagemTimingRefusal, type TurnScope } from '../../../core/battlePhases'
 
-type StratagemTiming = {
-  phases?: Phase[]
-  turn?: string
-}
-
-function playableIn(stratagem: StratagemTiming, phase: Phase) {
-  return !stratagem.phases?.length || stratagem.phases.includes(phase)
-}
-
-function playableOnTurn(stratagem: StratagemTiming, ownTurn: boolean) {
-  if (stratagem.turn === 'your-turn') return ownTurn
-  if (stratagem.turn === 'opponent-turn') return !ownTurn
-  return true
-}
+type StratagemTiming = { phases?: Phase[]; turn?: TurnScope; windows?: StratagemWindow[] }
 
 export function stratagemVisibleNow(stratagem: StratagemTiming, phase: Phase, ownTurn: boolean, showAll = false) {
-  return showAll || (playableOnTurn(stratagem, ownTurn) && playableIn(stratagem, phase))
+  return showAll || !stratagemTimingRefusal(stratagem, phase, ownTurn)
 }
 
 export function hiddenNow(stratagems: readonly StratagemTiming[], phase: Phase, ownTurn: boolean) {

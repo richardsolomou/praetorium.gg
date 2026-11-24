@@ -3,8 +3,7 @@ import path from 'node:path'
 import { routeSlug } from '../core/slug'
 import { compareText } from '../core/text'
 import type { Deployment, Point, TerrainLayout } from '../contracts/terrain'
-import { type MissionPack } from './missionPacks'
-import { english, records } from '../shared/datacards'
+import type { VsDataMissionPack } from '../shared/vsData'
 import { battlemasterGeometry } from './rulesTerrain'
 import { joinKey } from '../core/text'
 
@@ -72,20 +71,17 @@ function battlemasterSlots(directory: string) {
 const validPoint = (point: Point) => Number.isFinite(point.x) && Number.isFinite(point.y)
 const boardPoint = (point: Point): Point => ({ x: point.x + 30, y: 22 - point.y })
 
-export function terrainFromDatacards(packs: readonly MissionPack[], battlemasterDirectory: string) {
+/** Each mission pack's deployments and layouts, by their VS Data IDs, drawn with Battlemaster's geometry for their names. */
+export function missionTerrain(packs: readonly VsDataMissionPack[], battlemasterDirectory: string) {
   const deployments: Deployment[] = []
   const terrainLayouts: TerrainLayout[] = []
   const battlemaster = battlemasterSlots(battlemasterDirectory)
-  for (const pack of packs) {
-    if (pack.isCombatPatrol === true) continue
-    const deploymentIds = new Map<string, string>()
-    for (const raw of records(pack, 'deployments')) {
-      const name = english(raw.name)
-      if (!name || typeof raw.id !== 'string') continue
-      deploymentIds.set(name, raw.id)
+  // Combat Patrol's battlefields are its own (`combatPatrolTerrain`).
+  for (const pack of packs.filter((candidate) => candidate.dispositions.length)) {
+    for (const { id, name } of pack.deployments) {
       const geometry = battlemaster.deployments.get(joinKey(name))
       deployments.push({
-        id: raw.id,
+        id,
         name,
         description: null,
         zones: geometry?.zones ?? [],
@@ -93,17 +89,13 @@ export function terrainFromDatacards(packs: readonly MissionPack[], battlemaster
         objectives: geometry?.objectives ?? [],
       })
     }
-    for (const raw of records(pack, 'layouts')) {
-      const name = english(raw.name)
-      if (!name || typeof raw.id !== 'string') continue
-      const match = /^(.+) \/ (.+) - Layout ([ABC])$/.exec(name)
+    for (const layout of pack.layouts) {
+      const match = /^(.+) \/ (.+) - Layout ([ABC])$/.exec(layout.name)
       if (!match) continue
       const left = routeSlug(match[1]!)
       const right = routeSlug(match[2]!)
       const variant = match[3]!.charCodeAt(0) - 64
       const slotId = battlemaster.slots.get([...[left, right].sort(), variant].join('|'))
-      const permitted = Array.isArray(raw.deployments) ? raw.deployments : []
-      const deploymentId = permitted.length === 1 && typeof permitted[0] === 'string' ? (deploymentIds.get(permitted[0]) ?? null) : null
       const source = slotId ? battlemasterGeometry(battlemasterDirectory, slotId) : null
       const markers = source?.areas.flatMap((area) => area.markers) ?? []
       const geometry =
@@ -111,12 +103,12 @@ export function terrainFromDatacards(packs: readonly MissionPack[], battlemaster
           ? { ...source, areas: source.areas.map((area) => ({ ...area, markers: [] })) }
           : source
       terrainLayouts.push({
-        id: raw.id,
-        name,
+        id: layout.id,
+        name: layout.name,
         description: null,
         matchupId: `${left}-vs-${right}`,
         variant,
-        deploymentId,
+        deploymentId: layout.deployments.length === 1 ? layout.deployments[0]! : null,
         pieces: [],
         geometry,
       })

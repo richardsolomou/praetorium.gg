@@ -1,7 +1,4 @@
 import { Check } from 'lucide-react'
-import { hasTextTokens, ownWords } from '../../../core/sourceText'
-import { summaryPlainText, wholeRuleOf } from '../../../shared/ruleSummaries'
-import { useRuleSummaries } from '../../ruleSummaries'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { DialogBody, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
@@ -9,6 +6,8 @@ import { nextDraw } from '../../scoring'
 import { type Side, sideName } from '../../sides'
 import type { WhenDrawn } from '../../../contracts/missions'
 import { redrawOffer } from './drawOffer'
+import { RuleSummaryText } from '../../components/RuleSummaryText'
+import { summaryBlocks } from '../../../core/summaryMarkdown'
 import { MissionDetailsDialog, MissionName, type MissionDetails, type ReferenceCard } from './MissionCards'
 import { CARD, tint } from './battleTints'
 import { UndoLatest, type UndoTarget } from './UndoLatest'
@@ -45,28 +44,13 @@ export function DrawDialog({
   pending,
   send,
   referenceFor,
-  whenDrawnFor: publishedWhenDrawn,
+  whenDrawnFor,
   onDone,
   initialSelection,
   onSelectionChange,
 }: Props) {
   const colours = tint(side.index)
   const held = side.secondaries.filter((card) => card.status === 'active')
-  // A condition in the card's own words is named generically, since the browser never holds them.
-  const whenDrawnFor = (key: string) => {
-    const rule = publishedWhenDrawn(key)
-    return rule?.condition ? { ...rule, condition: ownWords(rule.condition) ?? 'the card’s condition holds' } : rule
-  }
-  // Such a condition is a clause of the card's When Drawn rule, whose summary states the rule whole.
-  const conditionRules = held.flatMap((card) => {
-    const condition = publishedWhenDrawn(card.key)?.condition
-    return condition && hasTextTokens(condition) ? [[card.key, wholeRuleOf(condition)] as const] : []
-  })
-  const { summaryOf } = useRuleSummaries(conditionRules.map(([, rule]) => rule))
-  const conditionSummary = (key: string) => {
-    const summary = summaryOf(conditionRules.find(([card]) => card === key)?.[1] ?? '')
-    return summary && summaryPlainText(summary)
-  }
   /**
    * What this turn dealt, apart from what the hand was already carrying.
    *
@@ -235,9 +219,10 @@ export function DrawDialog({
                     {cardName(card)}
                     {offer ? (
                       <>
-                        <p className="text-2xs whitespace-pre-line text-dim">
-                          {(rule?.condition && conditionSummary(card.key)) || offer.message}
-                        </p>
+                        <RuleSummaryText
+                          summary={{ blocks: summaryBlocks(offer.message), questions: [] }}
+                          className="mt-0 text-2xs text-dim"
+                        />
                         <Button
                           variant="outline"
                           size="xs"

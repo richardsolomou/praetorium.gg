@@ -4,6 +4,7 @@ import type { ReactNode } from 'react'
 import { routeSlug } from '../../../../core/slug'
 import { detachmentDetailQuery } from '../../../queries'
 import { RuleText } from '../../../components/RuleText'
+import { stratagemWindowsLabel } from '../../../../core/reminders'
 import { DatasheetUnit, detachmentRulesOwner } from '../../../components/UnitFromVsData'
 import { dispositionTone } from '../../../components/rosterSetup'
 import { FactionMark, factionColour, type FactionPresentation } from '../../../components/FactionMark'
@@ -164,12 +165,17 @@ export function DetachmentReference({
                       <div>
                         <h2 className="text-base">{stratagem.name}</h2>
                         <p className="eyebrow mt-1">
-                          {[stratagem.type, ...stratagem.phases.map(title), stratagem.turn ? title(stratagem.turn) : null]
+                          {[
+                            stratagem.type,
+                            ...(stratagem.windows
+                              ? [stratagemWindowsLabel(stratagem.windows)]
+                              : [...stratagem.phases.map(title), stratagem.turn ? title(stratagem.turn) : null]),
+                          ]
                             .filter(Boolean)
                             .join(' · ')}
                         </p>
                       </div>
-                      <span className="chip shrink-0">{stratagem.cp} CP</span>
+                      {stratagem.cp === null ? null : <span className="chip shrink-0">{stratagem.cp} CP</span>}
                     </div>
                     {stratagem.description ? <RuleText text={stratagem.description} rules={detachment.keywordRules} /> : null}
                   </article>

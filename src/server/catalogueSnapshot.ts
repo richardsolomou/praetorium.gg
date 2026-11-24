@@ -190,7 +190,7 @@ export function distributableCatalogueFile(name: string): boolean {
   if (name.startsWith('datacards/11th/gdc/combatpatrol/') || name.startsWith('datacards/11th/gdc/layouts/')) return false
   if (name.startsWith('datacards/11th/gdc/')) {
     const relative = name.slice('datacards/11th/gdc/'.length)
-    return /^[^/]+\.json$/.test(relative) || /^core\/[^/]+\.json$/.test(relative) || /^missions\/[^/]+\.json$/.test(relative)
+    return /^[^/]+\.json$/.test(relative) || /^core\/[^/]+\.json$/.test(relative)
   }
   return true
 }

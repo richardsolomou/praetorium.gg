@@ -5,6 +5,8 @@ import type { BattleClock } from '../../../core/battleClock'
 import type { BattleView } from '../../../core/battleView'
 import { setNativeWatchBattle, useNativeBattleFollowing } from '../../nativeBridge'
 import { battleQuery } from '../../queries'
+import { ruleSummariesQuery } from '../../queries/references'
+import { MISSION_SUMMARIES } from '../../../contracts/rules'
 import type { SideMission } from '../../sides'
 import type { ReferenceCard } from './MissionCards'
 import { watchBattle, watchBattleTexts, type WatchReminderPrompt } from './watchBattle'
@@ -29,7 +31,12 @@ export function useWatchBattle(
     [available, view, missions, referenceFor, prompts],
   )
   // A watch holds no rules text, so each rule goes to it as its summary's plain text.
-  const { summaryOf, pending: describing } = useRuleSummaries(texts)
+  const { summaryOf, pending: describingRules } = useRuleSummaries(texts)
+  const { data: missionSummaries, isPending: describingMissions } = useQuery({
+    ...ruleSummariesQuery(MISSION_SUMMARIES),
+    enabled: available,
+  })
+  const describing = describingRules || (available && describingMissions)
   const described = useStableValue(
     Object.fromEntries(
       texts.flatMap((text) => {
@@ -51,10 +58,26 @@ export function useWatchBattle(
     const held = queryClient.getQueryData(battleQuery(view.token).queryKey)
     if (!held || held.kind === 'unavailable' || held.view.seq !== view.seq) return
     const liveUrl = `${location.origin}/api/watch/battles/${encodeURIComponent(view.token)}`
-    const snapshot = watchBattle(view, clock, missions, referenceFor, prompts, dataUpdatedAt, liveUrl, (text) => described[text] ?? null)
+    const snapshot = watchBattle(view, clock, missions, referenceFor, prompts, dataUpdatedAt, liveUrl, (text) => {
+      const mission = missionSummaries?.records[text]
+      return described[text] ?? (mission ? summaryPlainText(mission) : null)
+    })
     if (!snapshot) return
     if (followedBattle() !== view.token) posthog.capture('watch_battle_followed', { status: view.status, watch: following === 'watch' })
     followBattle(view.token)
     setNativeWatchBattle(snapshot)
-  }, [view, clock, missions, referenceFor, prompts, queryClient, available, following, dataUpdatedAt, described, describing])
+  }, [
+    view,
+    clock,
+    missions,
+    referenceFor,
+    prompts,
+    queryClient,
+    available,
+    following,
+    dataUpdatedAt,
+    described,
+    describing,
+    missionSummaries,
+  ])
 }

@@ -2,7 +2,14 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { RecentlyUsed, remember } from '../core/collections'
 import { sourceStrings } from '../core/sourceText'
-import type { RuleDocument, RuleSummaries, RuleSummary, RuleSummaryInline, RuleSummaryLink } from '../contracts/rules'
+import {
+  MISSION_SUMMARIES,
+  type RuleDocument,
+  type RuleSummaries,
+  type RuleSummary,
+  type RuleSummaryInline,
+  type RuleSummaryLink,
+} from '../contracts/rules'
 import { spannedParagraph, type SummaryInline, summaryBlocks, summaryText } from '../core/summaryMarkdown'
 import type { Steps } from '../shared/steps'
 import {
@@ -24,11 +31,13 @@ const isVsDataId = (alias: string) => !/^(bsdata|gdc)\./.test(alias)
 export const NO_RULE_SUMMARIES: RuleSummaries = { records: {}, texts: {}, entries: {} }
 
 /**
- * One source file's summaries, by its token ID; for an ID no file of the snapshot has, word that a data update replaced
- * it, as a token kept from before one names, so its strings are looked up where they live now.
+ * One source file's summaries, by its token ID, or the mission pack's; for an ID no file of the snapshot has, word that a
+ * data update replaced it, as a token kept from before one names, so its strings are looked up where they live now.
  */
 export const summariesOfFile = (file: string, files: Readonly<Record<string, unknown>>, summaries: VsDataSummaries | null | undefined) =>
-  file in files ? (summaries?.summariesIn(file) ?? NO_RULE_SUMMARIES) : { ...NO_RULE_SUMMARIES, replaced: true as const }
+  file in files || file === MISSION_SUMMARIES
+    ? (summaries?.summariesIn(file) ?? NO_RULE_SUMMARIES)
+    : { ...NO_RULE_SUMMARIES, replaced: true as const }
 
 /** One Game Datacards record of a summarized rules version: whether VS Data names it, and whether its summary is served. */
 export type VsDataJoin = { kind: GdcRuleKind; key: string; named: boolean; served: boolean }
@@ -36,7 +45,10 @@ export type VsDataJoin = { kind: GdcRuleKind; key: string; named: boolean; serve
 export type VsDataSummaries = {
   /** The rules versions the pinned releases describe, the base first. */
   editions: string[]
-  /** The summaries for the rules one Game Datacards file prints, by the file's token ID, read for its rules version. */
+  /**
+   * The summaries for the rules one Game Datacards file prints, by the file's token ID, read for its rules version;
+   * or, for `MISSION_SUMMARIES`, the current rules' mission records by `kind:id`.
+   */
   summariesIn: (file: string) => RuleSummaries
   /** Every Game Datacards record of one rules version, once each, for the coverage report. */
   joins: (edition: string) => VsDataJoin[]
@@ -167,6 +179,10 @@ export function* vsDataSummariesSteps(directory: string, documents: readonly Rul
       return (held.some((entry) => entry.edition.id === id) && versionOf(id)?.units) || { units: {}, abilities: {}, aliases: {} }
     },
     summariesIn: (id) => {
+      if (id === MISSION_SUMMARIES) {
+        const version = versionOf(held[0]!.edition.id)
+        return version ? remember(answers, id, () => missionSummaries(version.summaries)) : NO_RULE_SUMMARIES
+      }
       const card = cards.get(id)
       const version = card && versionOf(card.edition)
       return card && version
@@ -191,6 +207,25 @@ export function* vsDataSummariesSteps(directory: string, documents: readonly Rul
       return [...joins.values()]
     },
   }
+}
+
+const MISSION_KINDS = ['mission-card:', 'mission-award:', 'mission-action:', 'mission-twist:']
+
+function missionSummaries(summaries: ReadonlyMap<string, RuleSummary>): RuleSummaries {
+  const records = [...summaries].filter(([key]) => MISSION_KINDS.some((kind) => key.startsWith(kind)))
+  return { records: Object.fromEntries(records), texts: {}, entries: {} }
+}
+
+/**
+ * The compacted VS Data release a rules version reads, the base rules version's by default, or null where the
+ * snapshot holds none for it.
+ */
+export function readVsDataRelease(directory: string, edition?: string): VsDataSummariesFile | null {
+  const id = edition ?? readCatalogueComposition(directory)?.editions.find((entry) => entry.base)?.edition.id
+  const file = id ? path.join(directory, 'summaries', `${id}.json`) : null
+  if (!file || !fs.existsSync(file)) return null
+  const parsed = vsDataSummariesSchema.safeParse(readJson(file))
+  return parsed.success ? parsed.data : null
 }
 
 function summariesFor(
@@ -244,7 +279,8 @@ function served(
   const emphasis = bold ? { bold: true as const } : {}
   if (target) {
     const to = link(target)
-    const ability = abilities.has(vsDataKey(target)) ? vsDataKey(target) : undefined
+    // A run naming a weapon or core ability, linked to that ability's core rule instead, still opens the ability.
+    const ability = abilities.has(vsDataKey(target)) ? vsDataKey(target) : bracketedAbility(text.replace(/^\[|\]$/g, ''), abilities)
     return [{ text, ...emphasis, ...(to ? { link: to } : {}), ...(ability ? { ability } : {}) }]
   }
   const runs: RuleSummaryInline[] = []

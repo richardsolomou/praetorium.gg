@@ -1,3 +1,4 @@
+import { MISSION_SUMMARIES } from './rules'
 import { ADMIN_USER_ROLES, ADMIN_USER_SORTS } from '../admin'
 import { z } from 'zod'
 import { LIST_FILTER_SCOPES, listPreferencesSchema } from '../core/listFilter'
@@ -25,7 +26,7 @@ import {
   SECONDARIES_MAX,
   STRATAGEMS_MAX,
 } from '../core/battle'
-import { clockLimitMinutes } from '../core/commands'
+import { clockLimitMinutes, ruleIdSchema } from '../core/commands'
 import { abilityReminderSchema, rosterReminderSchema, ROSTER_REMINDERS_MAX } from '../core/reminders'
 import { scoringDraftSchema } from '../core/scoringDraft'
 import {
@@ -225,7 +226,7 @@ export const reportTableResultSchema = z.object({
 /** A layout to fix, `roll` to draw one of the table's layouts, or null to let the players choose. */
 export const setTableBattlefieldSchema = z.object({
   ...eventTable,
-  battlefield: z.union([z.object({ patternId: id, terrainLayoutId: id }), z.literal('roll'), z.null()]),
+  battlefield: z.union([z.object({ patternId: ruleIdSchema, terrainLayoutId: ruleIdSchema }), z.literal('roll'), z.null()]),
 })
 export const reopenSwissTableSchema = z.object({ ...sealedEvent, battleToken: token })
 export const openSealedEventSchema = z.object(sealedEvent)
@@ -598,7 +599,7 @@ export const textHomesSchema = z.object({
     .min(1)
     .max(TEXT_HOMES_MAX),
 })
-export const textFileSchema = z.object({ file: z.string().regex(/^[0-9a-f]{8}$/) })
+export const textFileSchema = z.object({ file: z.union([z.string().regex(/^[0-9a-f]{8}$/), z.literal(MISSION_SUMMARIES)]) })
 
 export const rosterIdSchema = z.object({ id })
 /** `setup` saves a reviewed rules-version conversion as a variant, leaving the original as it was. */

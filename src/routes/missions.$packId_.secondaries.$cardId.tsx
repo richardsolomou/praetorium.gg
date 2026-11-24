@@ -8,15 +8,18 @@ export const Route = createFileRoute('/missions/$packId_/secondaries/$cardId')({
     const data = await context.queryClient.query({ ...gameReferencesQuery(), staleTime: 'static' })
     const pack = data?.packs.find((candidate) => candidate.id === params.packId)
     const card = data?.secondaries.find((candidate) => candidate.slug === params.cardId)
-    // Search engines indexed these pages by source key before they had slugs.
-    const keyed = pack && !card && data!.secondaries.find((candidate) => candidate.key === params.cardId)
-    if (keyed)
-      throw redirect({
-        to: '/missions/$packId/secondaries/$cardId',
-        params: { packId: pack.id, cardId: keyed.slug },
-        hash: location.hash,
-        replace: true,
-      })
+    // Search engines indexed these pages by source key, a Game Datacards ID, before they had slugs.
+    if (pack && !card) {
+      const { sameMissionId } = await import('../core/legacyIds')
+      const keyed = data!.secondaries.find((candidate) => sameMissionId(candidate.key, params.cardId))
+      if (keyed)
+        throw redirect({
+          to: '/missions/$packId/secondaries/$cardId',
+          params: { packId: pack.id, cardId: keyed.slug },
+          hash: location.hash,
+          replace: true,
+        })
+    }
     if (!pack || !card) throw notFound()
     return { pack: pack.name, card: card.name }
   },
