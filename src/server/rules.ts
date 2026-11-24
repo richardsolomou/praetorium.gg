@@ -62,14 +62,31 @@ export function* loadRulesSteps(
       cards.flatMap((list, at) => (at ? list.filter((card) => describe(card.key)) : list)),
       (card) => card.key,
     )
+  const printedStratagems = [...new Set(datacards.factions.values())].flatMap((content) => content.stratagemCards ?? [])
   const inDetachment = (name: string) => {
     const [own, base] = pools
     const listing = own?.listing(name)
     // A Detachment the release does not list fills in from its namesake in the base release where the rules version's
     // Game Datacards files print the card, until VS Data lists every Detachment those files carry.
-    if (!own || !listing) return { cards: own ? printed([own.inDetachment(name), base?.inDetachment(name) ?? []]) : [], listing: null }
-    const cards = listing.stratagems.flatMap((id) => own.byId(id) ?? base?.byId(id) ?? [])
-    return { cards: uniqueBy(cards, (card) => card.key), listing }
+    if (!own || !listing)
+      return { cards: own ? printed([own.inDetachment(name), base?.inDetachment(name) ?? []]) : [], unlisted: [], listing: null }
+    const typed = (id: string) => own.byId(id) ?? base?.byId(id)
+    const listed = listing.stratagems.flatMap((id) => typed(id) ?? [])
+    // A card the build prints that the release does not publish plays as a release types the Game Datacards card of
+    // that name, the one this Detachment prints first; one no release types stays a name.
+    const unlisted = listing.stratagemsUnlisted.map((card) => {
+      const named = printedStratagems.filter((print) => joinKey(print.name) === joinKey(card))
+      const ids = [...named.filter((print) => joinKey(print.detachment ?? '') === joinKey(name)), ...named].map((print) => print.id)
+      const ref = ids
+        .map((id) => indexes.map((index) => index.entry([`gdc.stratagem.${id.replaceAll('-', '.')}`])).find(Boolean))
+        .find(Boolean)
+      return (ref && typed(ref.id)) ?? card
+    })
+    return {
+      cards: uniqueBy([...listed, ...unlisted.filter((card) => typeof card !== 'string')], (card) => card.key),
+      unlisted: unlisted.filter((card) => typeof card === 'string'),
+      listing,
+    }
   }
   // The Game Datacards IDs of the Enhancements a release lists, through the aliases VS Data gives them.
   const enhancementIds = (ids: readonly string[]) =>
@@ -80,12 +97,12 @@ export function* loadRulesSteps(
     )
   const core = printed(pools.map((pool) => pool.core))
   const factions = factionsFromDatacards(datacards, iconDirectory, (name) => {
-    const { cards, listing } = inDetachment(name)
+    const { cards, unlisted, listing } = inDetachment(name)
     return {
       stratagems: cards.map((card) => ({ ...card, description: describe(card.key) })),
       ...(listing
         ? {
-            stratagemsUnlisted: listing.stratagemsUnlisted,
+            stratagemsUnlisted: unlisted,
             enhancements: new Set(enhancementIds(listing.enhancements)),
             enhancementsUnlisted: listing.enhancementsUnlisted,
           }

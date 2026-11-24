@@ -93,6 +93,8 @@ export type FactionContent = {
   enhancements: ReadonlyMap<string, readonly ConstructionEnhancement[]>
   /** Each Stratagem card's wording as tokens, by its Game Datacards ID, which the simulator and keyword links read. */
   stratagemTexts: ReadonlyMap<string, string>
+  /** Each Stratagem card's Game Datacards ID with the name and Detachment it prints, so a card known only by name is found. */
+  stratagemCards?: readonly { id: string; name: string; detachment: string | null }[]
   detachmentRules: ReadonlyMap<string, readonly RuleCard[]>
   armyRules: RuleCard[]
   /** The army rules its datasheets print by name, whether or not the file carries the card. */
@@ -241,10 +243,13 @@ export function factionContent(
     enhancements.set(key, [...(enhancements.get(key) ?? []), resolved])
   }
   const stratagemTexts = new Map<string, string>()
+  const stratagemCards: { id: string; name: string; detachment: string | null }[] = []
   for (const entry of records(parsed, 'stratagems')) {
     const id = stringField(entry, 'id')
     const description = stratagemText(entry, texts)
     if (id && description) stratagemTexts.set(id, description)
+    const stratagem = localizedField(entry, 'name')
+    if (id && stratagem) stratagemCards.push({ id, name: stratagem, detachment: stringField(entry, 'detachment') ?? null })
   }
   const detachmentRules = new Map<string, Map<string, Set<string>>>()
   for (const entry of detachmentRuleCards(parsed.rules, name, sections, texts)) {
@@ -282,6 +287,7 @@ export function factionContent(
     ...(printedDetachments.length ? { printedDetachments } : {}),
     enhancements,
     stratagemTexts,
+    stratagemCards,
     detachmentRules: new Map(
       [...detachmentRules].map(([detachment, rules]) => [
         detachment,

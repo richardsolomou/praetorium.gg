@@ -333,6 +333,7 @@ it('indexes the faction-owned datasheets and detachments', () => {
     detachments: new Set(['Inner Circle Task Force', 'Unforgiven Task Force']),
     enhancements: new Map(),
     stratagemTexts: new Map(),
+    stratagemCards: [],
     detachmentRules: new Map(),
     factionAbilityNames: new Set(),
     armyRules: [],

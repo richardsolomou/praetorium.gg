@@ -328,6 +328,26 @@ it('takes a retained Detachment’s Stratagems from its listing, and names the p
   ])
 })
 
+it('plays a printed card its release does not publish as a release types the Game Datacards card of that name', () => {
+  write(path.join(directory, 'summaries', 'earlier.json'), {
+    release: '0.1.0',
+    rulesVersion: { edition: '11th', update: 'Earlier' },
+    entries: { [`ability:${reapers.id}`]: ['gdc.stratagem.grim.reapers'] },
+    attributions: [],
+    stratagems: [],
+    detachments: [
+      { name: 'Flyblown Host', stratagems: [], stratagemsUnlisted: ['Grim Reapers'], enhancements: [], enhancementsUnlisted: [] },
+    ],
+    records: [],
+  })
+  expect(
+    loadRules(directory, { rulesVersion: 'earlier' })!
+      .byDetachment.get('death-guard')
+      ?.get('flyblown-host')
+      ?.map((card) => card.key),
+  ).toEqual([reapers.id])
+})
+
 it('shows a Stratagem’s turn for each of its phases on its detachment’s reference', () => {
   release({
     stratagems: [
