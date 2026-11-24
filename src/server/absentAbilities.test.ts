@@ -23,7 +23,7 @@ const catalogue = (): Partial<Catalogue> => ({
   ],
 })
 const version = (absent: readonly (readonly [string, string])[]) => {
-  const [file] = withoutAbsentAbilities([{ catalogue: { id: 'cat', name: 'Test catalogue', ...catalogue() } as Catalogue }], absent)
+  const [file] = withoutAbsentAbilities([{ catalogue: { id: 'cat', name: 'Test catalogue', ...catalogue() } }], absent)
   const book = bookOf(file!.catalogue!)
   return (id: string) => datasheetIn(book, 'cat', id)?.abilities.map((shown) => shown.name)
 }
@@ -43,7 +43,7 @@ it('keeps the ability on a rules version that does not mark it absent', () =>
   expect(version([])('ancient')).toEqual(['Astartes Banner', 'Black Rage']))
 
 it('leaves the files another rules version shares untouched', () => {
-  const shared = { catalogue: { id: 'cat', name: 'Test catalogue', ...catalogue() } as Catalogue }
+  const shared = { catalogue: { id: 'cat', name: 'Test catalogue', ...catalogue() } }
   const before = JSON.stringify(shared)
   withoutAbsentAbilities([shared], [['ancient', 'banner']])
   expect(JSON.stringify(shared)).toBe(before)
