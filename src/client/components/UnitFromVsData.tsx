@@ -58,9 +58,12 @@ const line = (...runs: readonly (Run | readonly Run[])[]): Line =>
 const bold = (text: string): RuleSummaryInline => ({ text, bold: true })
 
 const range = (min: number, max: number) => (min === max ? `${min}` : `${min}–${max}`)
-/** Items as one run of a sentence, joined by commas and `last`. */
-const listed = <T,>(items: readonly T[], last = 'or'): (T | string)[] =>
-  items.flatMap((item, at) => [...(at === 0 ? [] : [at === items.length - 1 ? ` ${last} ` : ', ']), item])
+/** Items as one run of a sentence, joined by `comma` and `last`. */
+const listed = <T,>(items: readonly T[], last = 'or', comma = ','): (T | string)[] =>
+  items.flatMap((item, at) => [
+    ...(at === 0 ? [] : [at < items.length - 1 ? `${comma} ` : comma === ',' ? ` ${last} ` : `${comma} ${last} `]),
+    item,
+  ])
 const counted = (items: readonly (readonly [string, number])[]) => items.map(([name, count]) => (count === 1 ? name : `${count} × ${name}`))
 
 /** A model's name for more than one of it, as a datasheet writes "5–10 Immortals" or "2 Canoptek Wraiths". */
@@ -96,13 +99,18 @@ export function unitOption(option: VsDataUnit['options'][number]): RuleSummaryBl
       ? `For every ${option.perModels} models, 1 ${option.carrier}`
       : `Each ${option.carrier}`
     : 'The unit'
-  const how = option.choose.max > 1 ? [`up to ${option.choose.max} of `, ...listed(option.choices, 'and')] : listed(option.choices)
+  // Semicolons keep a choice of several pieces, as "Holy fire and Plasma gun", from reading as separate choices.
+  const comma = option.choices.some((choice) => choice.includes(' and ')) ? ';' : ','
+  const how =
+    option.choose.max > 1
+      ? [`up to ${option.choose.max} of `, ...listed(option.choices, 'and', comma)]
+      : listed(option.choices, 'or', comma)
   const instead = option.replaces?.length ? [' in place of ', ...listed(counted(option.replaces), 'and')] : []
   const limits = (option.caps ?? []).map((cap) =>
     line(`At most ${cap.max} `, ...listed(cap.choices), `${cap.perModels ? ` for every ${cap.perModels} models` : ''}.`),
   )
   return [
-    { paragraph: line(`${who} can take `, how, instead, '.') },
+    { paragraph: line(`${who} ${option.choose.min ? 'takes' : 'can take'} `, how, instead, '.') },
     ...(limits.length ? [{ list: 'unordered' as const, items: limits }] : []),
   ]
 }

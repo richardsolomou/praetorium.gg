@@ -81,3 +81,15 @@ it('lists the limits on an option’s choices under what the option allows', () 
     { list: 'unordered', items: [[{ text: 'At most 1 Power Klaw for every 5 models.' }]] },
   ])
 })
+
+it('separates choices with semicolons when one names several pieces of wargear', () => {
+  expect(
+    unitOption({ carrier: 'Missionary', choose: { min: 0, max: 1 }, choices: ['Meltagun', 'Holy fire and Plasma gun', 'Plasma gun'] })[0],
+  ).toEqual({ paragraph: [{ text: 'Each Missionary can take Meltagun; Holy fire and Plasma gun; or Plasma gun.' }] })
+})
+
+it('says a model takes a choice it must make', () => {
+  expect(unitOption({ carrier: 'Gun Servitor', choose: { min: 1, max: 1 }, choices: ['Heavy bolter', 'Heavy arc rifle'] })[0]).toEqual({
+    paragraph: [{ text: 'Each Gun Servitor takes Heavy bolter or Heavy arc rifle.' }],
+  })
+})
