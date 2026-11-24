@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.274.15 (2026-11-24)
+
+### Patch Changes
+
+- e7e431b: [battles] Players appear on the leaderboard with a place from their first battle, instead of after five.
+- 9fe0e79: [rosters] The unit picker's top-four trophy is bronze, silver or gold by how many of the faction's top-four lists take the unit.
+
 ## 0.274.14 (2026-11-23)
 
 ### Patch Changes
@@ -1471,77 +1478,3 @@
 ### Patch Changes
 
 - 6229356: [battles] Watching a battle you are not playing in now follows each move as it happens, without reloading.
-
-## 0.229.3 (2026-11-10)
-
-### Patch Changes
-
-- d5183ca: [battles] Battle setup's Format step now says the battle size comes after the armies, instead of "Determined by your rosters", until every list is in.
-- cdbe543: [battles] Public and friends' games now list the most recently played first, and a battle nobody has started leaves them two days after its last change, until it begins.
-- d5183ca: [battles] Watching a battle that has not started now shows its setup, with each side's choices so far, instead of an empty scoreboard.
-
-## 0.229.2 (2026-11-10)
-
-### Patch Changes
-
-- 484111e: [events] Groups have a Battles tab listing every game played for the group, with filters, and Recent games links to it.
-- 484111e: [battles] A player's Battles tab now lists every battle you may watch them in, with the same filters as the Battles page, and keeps the Record tab's filters when you switch to it.
-- 484111e: [rosters] A player's Rosters tab can be searched, filtered by faction, detachment, battle size and points, and sorted.
-- 484111e: [events] A tournament's battle list can be searched and filtered by status, army, player and more.
-
-## 0.229.1 (2026-11-10)
-
-### Patch Changes
-
-- fb035f5: [app] Battle lists, group and tournament pages, player records, the home page and played armies load faster, and stay fast as more battles are played.
-
-## 0.229.0 (2026-11-10)
-
-### Minor Changes
-
-- 0336f3a: [rosters] Your rosters can now be grouped by faction, detachment, or battle size, with the sort you chose kept inside each group, and each group can be folded away.
-
-### Patch Changes
-
-- 93cd269: [app] Changing a filter, the sort, or the search on the roster, battle and profile lists no longer jumps back to the top of the page.
-
-## 0.228.11 (2026-11-10)
-
-### Patch Changes
-
-- 9e9d613: [app] Changing a filter on the battle lists, the public, friends' and played rosters, or a player's record now keeps the page on screen and says it is updating, instead of blanking the page while it loads.
-
-## 0.228.10 (2026-11-10)
-
-### Patch Changes
-
-- 49f0b97: [app] Pages open faster on a first visit, because each page now downloads much less of the app before it starts.
-- addadcc: [rosters] Your roster list no longer jumps when it finishes loading.
-
-## 0.228.9 (2026-11-10)
-
-### Patch Changes
-
-- 193a637: [rosters] A leader now gets the defences of the bodyguards it leads, and the shooting + melee estimate ends them in melee when shooting destroys the bodyguards.
-
-## 0.228.8 (2026-11-10)
-
-### Patch Changes
-
-- 1562d55: [events] Changing only a tournament's Swiss rounds or a duel's points total now saves.
-- d71dc96: [events] The help pages now say exactly who can read a sealed roster and which battles count on the leaderboard.
-- 946352a: [app] Try again on the app's could not load screen reopens the page you were on.
-- a1d6e9e: [rosters] Fixed several cases where saving or using a roster could unexpectedly switch it to older rules.
-- 946352a: [simulator] The simulator says once, not twice, when a unit could not load.
-
-## 0.228.7 (2026-11-10)
-
-### Patch Changes
-
-- f038208: [simulator] The combat simulator now calculates Conversion weapons, such as the Brôkhyr Thunderkyn's SP conversion beamer, instead of refusing them.
-
-## 0.228.6 (2026-11-10)
-
-### Patch Changes
-
-- 5065332: [rosters] Importing a New Recruit link no longer flags a combined weapon that newer data splits up, such as a Bolt Rifle w/ Grenade Launcher, when its parts were imported.
