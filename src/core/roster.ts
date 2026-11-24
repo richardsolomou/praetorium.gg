@@ -37,9 +37,13 @@ export type RosterPick = {
   nickname?: string
   /** The owner's private preparation note; see `withoutUnitNotes`. */
   note?: string
+  /** Saved before a choice started on the option its card prints: a choice it never made stays on the cheapest, as it was. */
+  floor?: true
 }
 
 type BuildContext = ChoiceOptions & {
+  /** Build at the floor of every choice, as `defaultSelection` does with `floor`. */
+  floor?: boolean
   spreads?: Readonly<Record<string, Record<string, number>>>
   toggles?: Readonly<Record<string, number>>
 }

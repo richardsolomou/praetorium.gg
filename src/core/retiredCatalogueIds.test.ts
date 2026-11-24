@@ -87,8 +87,8 @@ describe('retired catalogue ids', () => {
       detachmentIds: [gladius.retired],
       borrowedDetachmentId: stormlance.retired,
       picks: [
-        { entryId: calgar.retired },
-        { entryId: intercessors.retired, catalogueId: `legacy-profiles~${spaceMarines.retired}`, models: 10, attachedTo: 0 },
+        { entryId: calgar.retired, floor: true },
+        { entryId: intercessors.retired, catalogueId: `legacy-profiles~${spaceMarines.retired}`, models: 10, attachedTo: 0, floor: true },
       ],
       updatedAt: 0,
     })

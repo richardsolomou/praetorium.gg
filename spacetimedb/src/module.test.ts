@@ -237,7 +237,7 @@ describe('sharing a revealed sealed event roster', () => {
     const fixture = setup()
     fixture.save('saved', { picks: '[{"entryId":"other"}]' })
     fixture.command('share-roster')
-    expect(fixture.test.db.rosters.id.find('saved')).toMatchObject({ visibility: 'public', picks: '[{"entryId":"other"}]' })
+    expect(fixture.test.db.rosters.id.find('saved')).toMatchObject({ visibility: 'public', picks: '[{"entryId":"other","floor":true}]' })
   })
 
   it('does not create a copy when publishing', () => {
@@ -3618,7 +3618,7 @@ describe('roster lock', () => {
     module.setRosterLocked(procedure(operator), { id: 'roster', userId: 'owner', locked: true, now: BigInt(NOW + 1) })
     expect([module.saveRoster(procedure(operator), { payload: roster('[]') }), test.db.rosters.id.find('roster')?.picks]).toEqual([
       'locked',
-      '[{"entryId":"unit-proof"}]',
+      '[{"entryId":"unit-proof","floor":true}]',
     ])
   })
 })

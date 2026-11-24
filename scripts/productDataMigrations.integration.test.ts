@@ -29,7 +29,7 @@ export const seedMigrationFixture = spacetime.reducer({ broken: t.bool() }, (ctx
   ctx.db.rosters.insert({ ...base, id: 'old' })
   ctx.db.rosters.insert({ ...base, id: 'reminded', automaticName: false, locked: false, detachmentId: '[]', prep: '{"stratagems":[],"secondaries":[],"reminders":[{"key":"datasheet:lightning:0","ability":"Living Lightning","description":"","unit":{"index":0,"name":"Plasmancer"},"timings":[{"moment":"turn-start","phase":null,"turn":"your-turn"}]}],"remindersEnabled":true}' })
   ctx.db.rosters.insert({ ...base, id: 'locked', name: 'Locked', automaticName: false, locked: true })
-  ctx.db.rosters.insert({ ...base, id: 'current', automaticName: false, locked: false, detachmentId: '["second","first"]', picks: '[{"entryId":"unit","note":"Hold home"}]', prep: undefined })
+  ctx.db.rosters.insert({ ...base, id: 'current', automaticName: false, locked: false, detachmentId: '["second","first"]', picks: '[{"entryId":"unit","note":"Hold home","floor":true}]', prep: undefined })
   if (broken) ctx.db.rosters.insert({ ...base, id: 'bad', picks: '{' })
   for (const [entryId, models] of [['heart', undefined], ['duplicate', undefined], ['models', 12]] as const) {
     const key = JSON.stringify([base.userId, entryId])
@@ -105,6 +105,7 @@ it.skipIf(!existsSync(cli))(
         automaticName: true,
         locked: false,
         detachmentId: '["first"]',
+        picks: '[{"entryId":"unit","nickname":"Leader","note":"Hold home","floor":true}]',
         prep: '{"stratagems":[],"secondaries":[],"remindersEnabled":false}',
       })
       expect(await migrateProductData(source)).toEqual({ rosters: 0, collection: 0, ability_reminders: 0 })

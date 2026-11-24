@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import rawRetired from '../../catalogue/retired-ids.json' with { type: 'json' }
 import rawMigrations from '../../catalogue/roster-migrations.json' with { type: 'json' }
+import { flooredPicks } from './printedDefaults'
 import type { RosterPick } from './roster'
 import { catalogueEditionId, editionCatalogueId, editionFamilyId, picksForCatalogueEdition } from './catalogueEdition'
 import { editionMigrationDatasheets, foldedEditionIds, migratedEditionId, migratedEditionPick, onFoldedEdition } from './editionMigrations'
@@ -212,7 +213,7 @@ function idsWithinRulesVersion<T extends RosterIds>(roster: T): T {
     catalogueId: currentCatalogueId(roster.catalogueId),
     detachmentIds: roster.detachmentIds.map((id) => currentDetachmentId(id, roster.catalogueId)),
     ...(roster.borrowedDetachmentId ? { borrowedDetachmentId: currentDetachmentId(roster.borrowedDetachmentId, roster.catalogueId) } : {}),
-    ...(roster.picks ? { picks: roster.picks.map((pick) => currentPick(pick, roster.catalogueId)) } : {}),
-    ...(roster.units ? { units: roster.units.map((pick) => currentPick(pick, roster.catalogueId)) } : {}),
+    ...(roster.picks ? { picks: flooredPicks(roster.picks, roster.updatedAt).map((pick) => currentPick(pick, roster.catalogueId)) } : {}),
+    ...(roster.units ? { units: flooredPicks(roster.units, roster.updatedAt).map((pick) => currentPick(pick, roster.catalogueId)) } : {}),
   }
 }

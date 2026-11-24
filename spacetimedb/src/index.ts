@@ -2,6 +2,8 @@ import { ScheduleAt } from 'spacetimedb'
 import { SenderError, schema, table, t, type InferSchema, type ProcedureCtx, type ReducerCtx, type ViewCtx } from 'spacetimedb/server'
 import { detachmentIds, ROSTER_SOURCES, ROSTER_VISIBILITIES } from '../../src/core/savedRoster'
 import { migrateStoredRoster } from '../../src/core/savedRosterMigrations'
+import { flooredPicks } from '../../src/core/printedDefaults'
+import type { RosterPick } from '../../src/core/roster'
 import { lockedRosterRefusal, storedRosterContent } from '../../src/core/rosterLock'
 import { listUnitCount } from '../../src/core/attachedUnits'
 import { ROSTER_BATCH_ACTIONS, ROSTER_BATCH_CHANGES, ROSTER_BATCH_MAX, ROSTER_LIBRARY_BATCH_SIZE } from '../../src/core/rosterLibrary'
@@ -2864,11 +2866,15 @@ const rosterInput = z
 
 function parseRoster(payload: string) {
   const row = decodePayload(rosterInput, payload, 'Invalid roster')
-  return migrateStoredRoster({
+  const migrated = migrateStoredRoster({
     ...row,
     /** Undefined when the client predates custom budgets, so its save keeps the stored one. */
     pointsBudget: row.pointsBudget === undefined ? undefined : customPointsBudget(row.limit, row.pointsBudget),
   })
+  // A save made before choices started on the printed default, as a device queues offline, keeps its cheapest choices.
+  const picks = JSON.parse(migrated.picks) as RosterPick[]
+  const floored = flooredPicks(picks, row.now)
+  return floored.some((pick, at) => pick !== picks[at]) ? { ...migrated, picks: JSON.stringify(floored) } : migrated
 }
 
 export const rosterById = spacetime.procedure({ id: t.string() }, t.string(), (ctx, { id }) =>

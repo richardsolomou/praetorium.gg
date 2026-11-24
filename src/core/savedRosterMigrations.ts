@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { editionCatalogueId, picksForCatalogueEdition } from './catalogueEdition'
 import { migratedEditionId, migratedEditionPick, onFoldedEdition } from './editionMigrations'
 import { retainedRulesEdition } from './retainedRosterRules'
+import { flooredPicks } from './printedDefaults'
 import type { RosterPick } from './roster'
 import { migrateSavedRoster } from './retiredRosterFields'
 
@@ -20,13 +21,15 @@ export function migrateStoredRoster<
 >(row: T) {
   if (row.picks.length > 1_000_000 || (row.prep?.length ?? 0) > 100_000 || (row.detachmentId?.length ?? 0) > 1_000)
     throw new Error('Saved roster exceeds migration limits')
-  const picks = z.array(z.record(z.string(), z.unknown())).parse(JSON.parse(row.picks)) as unknown as RosterPick[]
+  const savedPicks = z.array(z.record(z.string(), z.unknown())).parse(JSON.parse(row.picks)) as unknown as RosterPick[]
   const prep = row.prep ? z.record(z.string(), z.unknown()).parse(JSON.parse(row.prep)) : null
   const detachments = row.detachmentId
     ? row.detachmentId.startsWith('[')
       ? z.array(z.string()).parse(JSON.parse(row.detachmentId))
       : [row.detachmentId]
     : []
+  // Stored so a unit keeps the choices it never made once a later save moves `updatedAt` past the change.
+  const picks = flooredPicks(savedPicks, row.updatedAt === undefined ? undefined : Number(row.updatedAt))
   const folded = onFoldedEdition(row.catalogueId)
   // Any later write bumps `updatedAt`, so the rules version its current date selects is stored before one can move it.
   const retained = folded
@@ -53,7 +56,7 @@ export function migrateStoredRoster<
     automaticName: row.automaticName ?? !row.name,
     locked: row.locked ?? false,
     detachmentId: JSON.stringify(detachments),
-    picks: JSON.stringify(migrated.picks) === JSON.stringify(picks) ? row.picks : JSON.stringify(migrated.picks),
+    picks: JSON.stringify(migrated.picks) === JSON.stringify(savedPicks) ? row.picks : JSON.stringify(migrated.picks),
     prep: JSON.stringify(migrated.prep) === JSON.stringify(prep) ? row.prep : JSON.stringify(migrated.prep),
   }
 }

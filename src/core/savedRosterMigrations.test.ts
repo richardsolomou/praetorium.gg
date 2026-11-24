@@ -1,5 +1,6 @@
 import { expect, it } from 'vitest'
 import { migrateSavedRoster } from './retiredRosterFields'
+import { PRINTED_DEFAULTS_FROM } from './printedDefaults'
 import { migrateStoredRoster } from './savedRosterMigrations'
 
 const row = {
@@ -18,8 +19,22 @@ it('upgrades stored roster fields without changing selections, nicknames, privat
     automaticName: true,
     locked: false,
     detachmentId: '["awakened-dynasty"]',
+    picks: '[{"entryId":"overlord","nickname":"Leader","note":"Hold home","choices":{"weapon":"staff"},"floor":true}]',
     prep: '{"stratagems":[],"secondaries":[],"remindersEnabled":false}',
   })
+})
+
+it('marks a unit saved before choices started on the printed default to keep the cheapest', () => {
+  expect(JSON.parse(migrateStoredRoster({ ...row, updatedAt: BigInt(PRINTED_DEFAULTS_FROM - 1) }).picks)[0].floor).toBe(true)
+})
+
+it('leaves a unit saved since choices started on the printed default unmarked', () => {
+  expect(JSON.parse(migrateStoredRoster({ ...row, updatedAt: BigInt(PRINTED_DEFAULTS_FROM) }).picks)[0].floor).toBeUndefined()
+})
+
+it('leaves a unit being saved now unmarked', () => {
+  const { updatedAt: _saved, ...incoming } = row
+  expect(JSON.parse(migrateStoredRoster(incoming).picks)[0].floor).toBeUndefined()
 })
 
 it('preserves current metadata and ordered detachments on repeated upgrades', () => {
@@ -37,7 +52,7 @@ it('moves a stored roster on a folded rules version, and its allied picks, to th
   const migrated = migrateStoredRoster(folded)
   expect({ catalogueId: migrated.catalogueId, picks: migrated.picks, again: migrateStoredRoster(migrated) }).toEqual({
     catalogueId: '470a-6daa-9014-12df',
-    picks: '[{"entryId":"captain","catalogueId":"e0af-67df-9d63-8fb7"}]',
+    picks: '[{"entryId":"captain","catalogueId":"e0af-67df-9d63-8fb7","floor":true}]',
     again: migrated,
   })
 })

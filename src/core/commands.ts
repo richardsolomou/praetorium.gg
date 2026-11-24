@@ -82,6 +82,10 @@ export const rosterPickSchema = z.object({
     .describe('Index in picks of the TRANSPORT this unit starts embarked in; set it on the bodyguard unit, never on its attached leader.'),
   nickname: z.string().max(UNIT_NICKNAME_MAX_LENGTH).optional(),
   note: z.string().max(UNIT_NOTE_MAX_LENGTH).optional(),
+  floor: z
+    .literal(true)
+    .optional()
+    .describe('Set on a unit saved before choices started on the printed default; keep it as read, never set it.'),
 })
 const phase = z.enum(PHASES)
 const missed = z.object({ round: z.number().int().min(1).max(BATTLE_ROUNDS), phase, turn: id }).optional()

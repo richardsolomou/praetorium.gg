@@ -89,6 +89,7 @@ function rosterForces(
         roster,
         spreads: wanted.spreads,
         toggles: wanted.toggles,
+        floor: wanted.floor,
       })
       if (cacheKey) unitCache?.set(cacheKey, built)
     }
@@ -330,6 +331,7 @@ function changedCountErrors(
           roster,
           spreads: wanted.spreads,
           toggles: saved.toggles,
+          floor: saved.floor,
         })
         unitCache.set(cacheKey, alone)
       }
@@ -619,6 +621,7 @@ function calculateRoster(
         primaryCatalogueId: data.catalogueId,
         mustering: true,
         roster,
+        floor: data.units[unit.key]?.floor,
       })
       if (!composed) continue
       const walk = (node: Selection) => {

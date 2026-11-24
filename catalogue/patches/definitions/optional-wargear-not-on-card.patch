@@ -1,0 +1,44 @@
+diff --git a/definitions/Imperium - Agents of the Imperium.json b/definitions/Imperium - Agents of the Imperium.json
+--- a/definitions/Imperium - Agents of the Imperium.json
++++ b/definitions/Imperium - Agents of the Imperium.json
+@@ -16001,7 +16001,6 @@
+               {
+                 "name": "Melee Weapon",
+                 "id": "ba58-b1c9-1f77-bf57",
+-                "defaultSelectionEntryId": "6473-407b-5c20-59c2",
+                 "hidden": false,
+                 "constraints": [{"id": "d7f0-c653-8512-3a48-max", "field": "selections", "includeChildSelections": false, "scope": "parent", "shared": true, "type": "max", "value": 1}],
+                 "selectionEntries": [
+diff --git a/definitions/Imperium - Grey Knights.json b/definitions/Imperium - Grey Knights.json
+--- a/definitions/Imperium - Grey Knights.json
++++ b/definitions/Imperium - Grey Knights.json
+@@ -2262,7 +2262,6 @@
+               {
+                 "name": "Wargear",
+                 "id": "8032-b82d-886c-13e0",
+-                "defaultSelectionEntryId": "fb41-0f9a-0bff-2d7a",
+                 "hidden": false,
+                 "constraints": [{"id": "8484-c7de-bdc9-6f51", "field": "selections", "scope": "parent", "shared": true, "type": "max", "value": 1}],
+                 "entryLinks": [
+diff --git a/definitions/Aeldari - Aeldari Library.json b/definitions/Aeldari - Aeldari Library.json
+--- a/definitions/Aeldari - Aeldari Library.json
++++ b/definitions/Aeldari - Aeldari Library.json
+@@ -61034,7 +61034,6 @@
+               {
+                 "name": "Pistol Choice",
+                 "id": "8bb8-3864-f51b-de2e",
+-                "defaultSelectionEntryId": "7005-b8f9-cd47-a13d",
+                 "hidden": false,
+                 "constraints": [{"id": "ef8c-ff0f-95df-b54e", "field": "selections", "scope": "parent", "shared": true, "type": "max", "value": 1}],
+                 "selectionEntries": [
+diff --git a/definitions/T'au Empire.json b/definitions/T'au Empire.json
+--- a/definitions/T'au Empire.json
++++ b/definitions/T'au Empire.json
+@@ -4207,7 +4207,6 @@
+               {
+                 "name": "Hover Drone",
+                 "id": "f852-414-2bd4-d251",
+-                "defaultSelectionEntryId": "7b1c-902d-feb6-6fd6",
+                 "hidden": false,
+                 "sortIndex": 2,
+                 "selectionEntries": [

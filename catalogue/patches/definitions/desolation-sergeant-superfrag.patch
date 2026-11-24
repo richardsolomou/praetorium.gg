@@ -1,0 +1,29 @@
+diff --git a/definitions/Imperium - Space Marines.json b/definitions/Imperium - Space Marines.json
+--- a/definitions/Imperium - Space Marines.json
++++ b/definitions/Imperium - Space Marines.json
+@@ -35833,25 +35833,6 @@
+                           {"name": "Heavy", "id": "e787-d349-7a3e-8e3f", "hidden": false, "targetId": "1202-10a8-78e9-4c67", "type": "rule"},
+                           {"name": "Blast", "id": "7454-aa8a-adee-f35", "hidden": false, "targetId": "6c1f-1cf7-ff25-c99e", "type": "rule"}
+                         ],
+-                        "modifiers": [
+-                          {
+-                            "field": "hidden",
+-                            "type": "set",
+-                            "value": true,
+-                            "conditions": [
+-                              {
+-                                "id": "97d7-4406-c060-3398",
+-                                "childId": "3790-2d2a-c0de-7e98",
+-                                "field": "selections",
+-                                "includeChildSelections": true,
+-                                "scope": "a3ea-7a0d-fef8-23bf",
+-                                "shared": true,
+-                                "type": "lessThan",
+-                                "value": 1
+-                              }
+-                            ]
+-                          }
+-                        ],
+                         "profiles": [
+                           {
+                             "name": "Superfrag Rocket Launcher",

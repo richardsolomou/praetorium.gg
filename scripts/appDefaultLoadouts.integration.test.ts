@@ -15,12 +15,13 @@ describe.skipIf(!fs.existsSync(path.join(directory, 'definitions')))('default lo
     ;({ catalogue: loaded } = loadSnapshot(directory))
   })
 
-  const chosen = (entryId: string, group: string) => {
+  /** What a new unit holds in a group, or with `floor`, what a unit saved before the printed default won holds. */
+  const chosen = (entryId: string, group: string, alongside?: string, floor?: true) => {
     const catalogueId = loaded.factions.find((faction) => loaded.index.datasheets.get(faction.id)?.has(entryId))!.id
-    const choice = buildUnit(entryId, loaded.index, undefined, {}, { primaryCatalogueId: catalogueId })!.choices.find(
-      (candidate) => candidate.name === group,
+    const choice = buildUnit(entryId, loaded.index, undefined, {}, { primaryCatalogueId: catalogueId, floor })!.choices.find(
+      (candidate) => candidate.name === group && (!alongside || candidate.options.some((option) => option.name === alongside)),
     )!
-    return choice.options.find((option) => option.id === choice.chosen)?.name
+    return choice.options.find((option) => option.count > 0)?.name
   }
 
   it.each([
@@ -32,4 +33,20 @@ describe.skipIf(!fs.existsSync(path.join(directory, 'definitions')))('default lo
     ['Wulfen with Storm Shields', 'a947-7113-3284-4248', 'Wulfen', 'Wulfen w/Auto-launcher'],
     ['Corsair Voidreavers', '94d7-39fb-35da-3a39', '4-9 Voidreavers', 'Voidreaver with sword and pistol'],
   ])('gives the %s its app default', (_, entryId, group, expected) => expect(chosen(entryId, group)).toBe(expected))
+
+  it.each([
+    ['Leman Russ Battle Tank', '4071-d276-4b66-b186', 'Lascannon', 'Lascannon', undefined],
+    ['Achilles Ridgerunners', '977e-7c17-5a03-746b', 'Heavy Mining Laser', 'Heavy mining laser', undefined],
+    ['Ravager', 'db8-7a89-3b82-c492', 'Weapon Option', 'Dark Lance', undefined],
+    ['Repulsor Executioner', '6d49-e23e-978b-7160', 'Turret Weapon', 'Heavy Laser Destroyer', undefined],
+    ['Desolation Sergeant', 'd7cd-4833-9dc7-6857', 'Weapon Option', 'Superfrag Rocket Launcher', 'Vengor launcher'],
+    ['Chaos Rhino (Death Guard)', 'a0fc-8a48-f51e-f81b', 'Pintle weapon', 'Combi-bolter', undefined],
+    ['Ynnari Wyches', '5ac0-062e-cca4-558b', 'Pistol Choice', 'Splinter Pistol', undefined],
+    ['Einhyr Hearthguard', '70ac-ee9a-7ee4-b58a', 'Exchange melee weapon for hammer', 'Concussion gauntlet', undefined],
+  ])('starts a new %s on the wargear its card prints, whatever it costs', (_, entryId, group, expected, alongside) =>
+    expect(chosen(entryId, group, alongside)).toBe(expected),
+  )
+
+  it('keeps a Leman Russ saved before the printed default won on its cheapest sponson', () =>
+    expect(chosen('4071-d276-4b66-b186', 'Lascannon', undefined, true)).toBe('Heavy bolter'))
 })
