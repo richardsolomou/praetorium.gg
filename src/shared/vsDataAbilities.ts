@@ -100,11 +100,28 @@ export function datasheetAbilitySummary(
   )
 }
 
-/** Whether a record, by `kind:id`, is of this name: its key, or the name's without the value or qualifier it takes. */
+/**
+ * Whether a record, by `kind:id`, is of this name: its key, or the name's without the value or qualifier it takes, but
+ * for a misspelling of up to two letters in a long name, as a datasheet's Dessication Conduit is VS Data's Desiccation.
+ */
 function namesIt(record: string, name: string) {
-  const key = record.slice(Math.max(record.lastIndexOf('.'), record.indexOf(':')) + 1)
-  const letters = (slug: string) => abilityKey(slug).replaceAll('-', '')
-  return [abilityKey(name), ...abilityKeysNamed(name).map((named) => named.slice(named.indexOf(':') + 1))].some(
-    (named) => letters(named) === letters(key),
-  )
+  const key = letters(record.slice(Math.max(record.lastIndexOf('.'), record.indexOf(':')) + 1))
+  return [abilityKey(name), ...abilityKeysNamed(name).map((named) => named.slice(named.indexOf(':') + 1))].some((named) => {
+    const spelt = letters(named)
+    return spelt === key || (Math.min(spelt.length, key.length) >= 10 && misspelt(spelt, key))
+  })
+}
+
+const letters = (slug: string) => abilityKey(slug).replaceAll('-', '')
+
+/** Whether two spellings are at most two insertions, deletions or substitutions apart. */
+function misspelt(left: string, right: string) {
+  if (Math.abs(left.length - right.length) > 2) return false
+  let row = Array.from({ length: right.length + 1 }, (_, at) => at)
+  for (let i = 0; i < left.length; i++) {
+    const next = [i + 1]
+    for (let j = 0; j < right.length; j++) next.push(Math.min(row[j + 1]! + 1, next[j]! + 1, row[j]! + (left[i] === right[j] ? 0 : 1)))
+    row = next
+  }
+  return row[right.length]! <= 2
 }

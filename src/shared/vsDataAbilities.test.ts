@@ -148,3 +148,13 @@ it('reads no other unit’s ability of another name that VS Data aliases a profi
   }
   expect(datasheetAbilitySummary(marines, 'assault', 'Hammer of Wrath', 'hammer-of-wrath-profile', null)).toBeNull()
 })
+
+it('reads another unit’s ability VS Data aliases a profile to whose name the datasheet misspells', () => {
+  const conduit = said('Desiccation Conduit')
+  const deathGuard: VsDataUnits = {
+    units: { lord: { id: 'death-guard.chaos-lord-in-terminator-armour', sizes: [], models: [], options: [] } },
+    aliases: { 'conduit-profile': 'death-guard.death-guard-chaos-lord.desiccation-conduit-aura' },
+    abilities: { 'death-guard.death-guard-chaos-lord.desiccation-conduit-aura': conduit },
+  }
+  expect(datasheetAbilitySummary(deathGuard, 'lord', 'Dessication Conduit (Aura)', 'conduit-profile', null)).toBe(conduit)
+})
