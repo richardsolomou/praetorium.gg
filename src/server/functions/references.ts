@@ -16,15 +16,15 @@ import { OWN_SEARCH_BATTLES, ownSearchLists, type OwnSearchData } from '../../co
 import { rosterDatasheetContext } from '../../shared/rosterDatasheetContext'
 import { serverWords } from '../publishedTextFiles'
 import { datasheetCombatant, withRecordedRules } from '../../shared/rosterCombatRules'
+import { servedVsDataSummaries, servedVsDataUnits } from '../servedVsData'
+import { withVsDataSaves } from '../../shared/vsDataSaves'
 import { combatLoadoutSpace } from '../../shared/combatLoadouts'
 import { currentUserId, forSignedIn } from '../playerSession'
 import { preparePicker } from '../rosterPicker'
 import { pickersOpened } from '../recentPickers'
 import { cacheUntilSnapshotChanges } from '../snapshotCache'
 import { memoUntilSnapshotChanges } from '../snapshotMemo'
-import { catalogueDirectory } from '../catalogueIndex'
-import { completeStepsCooperatively } from '../canonicalCatalogue'
-import { summariesOfFile, vsDataSummariesSteps } from '../vsDataSummaries'
+import { summariesOfFile } from '../vsDataSummaries'
 import { selectedBattleDetachmentData } from '../../shared/battleDetachmentData'
 import { detachmentReference } from '../../shared/detachmentReference'
 import { referenceDatasheetBySlug, referenceFactionDatasheets, referenceRuleIndex, referenceRuleSection } from '../referenceCatalogue'
@@ -190,7 +190,7 @@ export const combatantDatasheet = createServerFn({ method: 'POST' })
       const loaded = await app().catalogueFor(data.catalogueId)
       const combatant = loaded && datasheetCombatant(loaded, await app().rulesFor(data.catalogueId), data)
       // The cards record no readings in a server, so their rules are judged from their words here, as a device cannot.
-      return combatant && withRecordedRules(combatant, await serverWords())
+      return combatant && withVsDataSaves(withRecordedRules(combatant, await serverWords()), await servedVsDataUnits(data.catalogueId))
     }),
   )
 
@@ -358,12 +358,7 @@ export const ruleSummaryCredits = createServerFn({ method: 'GET' }).handler(() =
   snapshotRpc(async () => (await vsDataSummaries())?.attributions() ?? []),
 )
 
-const vsDataSummaries = () =>
-  memoUntilSnapshotChanges('vs-data-summaries', null, async () => {
-    const [canonical, rules] = await Promise.all([app().canonicalCatalogueFor(), app().rulesFor()])
-    const documents = canonical?.ruleDocuments ?? rules?.ruleDocuments ?? []
-    return completeStepsCooperatively(vsDataSummariesSteps(catalogueDirectory(), documents))
-  })
+const vsDataSummaries = servedVsDataSummaries
 
 /** Every rules document and section by name, with the numbers their prose quotes. */
 export const ruleIndex = createServerFn({ method: 'GET' }).handler(() =>

@@ -1,4 +1,6 @@
 import type { Worker } from 'node:worker_threads'
+import { servedVsDataUnits } from './servedVsData'
+import { withVsDataSaves } from '../shared/vsDataSaves'
 import { workSlots } from './agentPoolWork'
 import { z } from 'zod'
 import type { CombatResult, CombatPhase } from '../core/combat'
@@ -406,7 +408,7 @@ async function combatant(corpus: ReferenceCorpus, side: SideInput, role: Role, c
   }
   const unread = rosterCombatant(loaded, rules, { catalogueId: resolved.catalogueId, detachmentIds, picks: resolved.picks, pickIndex: 0 })
   if (!unread) throw new CombatRefusal([`${side.unit} could not be loaded.`])
-  const projection = withReadRules(unread, await serverWords())
+  const projection = withVsDataSaves(withReadRules(unread, await serverWords()), await servedVsDataUnits(resolved.catalogueId))
   const requested = [side, ...(side.attached ?? [])]
   const members = [{ ...projection, pickIndex: 0 }, ...projection.companions]
   const health = members.map((member) => {

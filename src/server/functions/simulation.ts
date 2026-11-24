@@ -4,6 +4,8 @@ import { rosterCombatantsSchema, combatRequestsSchema } from '../../contracts/co
 import { forgetMatchupSchema, priceSchema, rememberMatchupSchema } from '../../contracts/schemas'
 import { rosterCombatants } from '../../shared/rosterCombatants'
 import { withRecordedRules } from '../../shared/rosterCombatRules'
+import { servedVsDataUnits } from '../servedVsData'
+import { withVsDataSaves } from '../../shared/vsDataSaves'
 import { serverWords } from '../publishedTextFiles'
 import { app } from '../app'
 import { forSignedIn } from '../playerSession'
@@ -20,8 +22,9 @@ export const combatantDatasheets = createServerFn({ method: 'POST' })
       if (!loaded) return data.pickIndices.map(() => null)
       // The cards record no readings in a server, so their rules are judged from their words here, as a device cannot.
       const words = await serverWords()
+      const units = await servedVsDataUnits(data.catalogueId)
       return rosterCombatants(loaded, await app().rulesFor(data.catalogueId), data).map(
-        (combatant) => combatant && withRecordedRules(combatant, words),
+        (combatant) => combatant && withVsDataSaves(withRecordedRules(combatant, words), units),
       )
     }),
   )
