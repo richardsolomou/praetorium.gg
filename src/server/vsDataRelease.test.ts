@@ -169,6 +169,20 @@ it('keeps what a datasheet shows of a unit, its models and wargear named, under 
   ])
 })
 
+it('keeps a unit the identity aliases to a BSData entry, with no roster record, as a unit with nothing to show', () => {
+  fs.rmSync(directory, { recursive: true })
+  const devotee = { kind: 'unit', id: 'adepta-sororitas.inspiring-devotee', name: 'Inspiring Devotee', aliases: ['bsdata.68a5.7e40'] }
+  writeFiles(directory, vsDataReleaseFiles([record], 'MFM 1.6', [devotee]))
+  const file = `${directory}.json`
+  compactVsDataRelease(directory, file)
+  const compact = JSON.parse(fs.readFileSync(file, 'utf8'))
+  fs.rmSync(file)
+  expect([compact.entries['unit:adepta-sororitas.inspiring-devotee'], compact.units['adepta-sororitas.inspiring-devotee']]).toEqual([
+    ['bsdata.68a5.7e40'],
+    { sizes: [], models: [], options: [] },
+  ])
+})
+
 it('reads a complete record with no summary of its own, as a mission card is, as having none', () => {
   fs.rmSync(directory, { recursive: true })
   writeFiles(directory, vsDataReleaseFiles([record, { ...record, id: 'necrons.test.card', summary: undefined, data: { text: 'none' } }]))

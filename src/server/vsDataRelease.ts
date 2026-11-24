@@ -210,12 +210,13 @@ const transportDataSchema = z.object({
 
 /**
  * Each unit's datasheet data from the release's roster definitions and transport facts, with its models and wargear
- * named, and no field a datasheet does not show.
+ * named, and no field a datasheet does not show, then each other unit the identity aliases to a BSData entry, as a
+ * Crucible datasheet has only its abilities, so a datasheet finds its unit and that unit's abilities.
  */
 function compactUnits(
   manifest: VsDataManifest,
   read: (name: string) => unknown,
-  identity: readonly { kind: string; id: string; name?: string }[],
+  identity: readonly { kind: string; id: string; name?: string; aliases?: readonly string[]; retired?: unknown }[],
 ): Record<string, VsDataUnit> {
   const names = new Map(identity.map((entry) => [entry.id, entry.name]))
   const named = (id: string) => names.get(id) ?? id
@@ -256,6 +257,8 @@ function compactUnits(
     if (data.capacity || data.firingDeck !== undefined)
       unitOf(data.unit).transport = { ...data.capacity, ...(data.firingDeck !== undefined ? { firingDeck: data.firingDeck } : {}) }
   }
+  for (const entry of identity)
+    if (entry.kind === 'unit' && !entry.retired && entry.aliases?.some((alias) => alias.startsWith('bsdata.'))) unitOf(entry.id)
   return units
 }
 
