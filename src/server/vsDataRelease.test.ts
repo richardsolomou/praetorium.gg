@@ -121,6 +121,17 @@ it('keeps what each Detachment’s build prints, by the Detachment’s name', ()
   ])
 })
 
+it('keeps a Detachment the identity marks absent from the build as absent', () => {
+  fs.rmSync(directory, { recursive: true, force: true })
+  const absent = { kind: 'detachment', id: 'space-marines.tactical-brethren', name: 'Tactical Brethren', absent: true as const }
+  writeFiles(directory, vsDataReleaseFiles([record], 'MFM 1.4', [absent]))
+  const file = `${directory}.json`
+  compactVsDataRelease(directory, file)
+  expect(JSON.parse(fs.readFileSync(file, 'utf8')).detachments).toEqual([
+    { name: 'Tactical Brethren', absent: true, stratagems: [], stratagemsUnlisted: [], enhancements: [], enhancementsUnlisted: [] },
+  ])
+})
+
 it('keeps what a datasheet shows of a unit, its models and wargear named, under its BSData alias', () => {
   const roster = (kind: string, id: string, data: unknown, name = id) => ({ kind, id, name, aliases: [], category: 'rosters', data })
   const files = vsDataReleaseFiles([

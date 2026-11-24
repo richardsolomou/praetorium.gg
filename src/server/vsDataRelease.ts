@@ -38,7 +38,12 @@ export type VsDataManifest = z.infer<typeof manifestSchema>
 const refSchema = z.object({ kind: z.string().min(1), id: z.string().min(1) })
 const identitySchema = z.object({
   entries: z.array(
-    refSchema.extend({ name: z.string().optional(), aliases: z.array(z.string()).optional(), retired: z.unknown().optional() }),
+    refSchema.extend({
+      name: z.string().optional(),
+      aliases: z.array(z.string()).optional(),
+      retired: z.unknown().optional(),
+      absent: z.literal(true).optional(),
+    }),
   ),
 })
 const recordSchema = refSchema.extend({
@@ -262,14 +267,22 @@ const detachmentDataSchema = z.object({
   enhancementsUnlisted: z.array(z.string()).default([]),
 })
 
-/** Each Detachment the release's roster records list for its rules version, named, with what its build prints. */
+/**
+ * Each Detachment the release's roster records list for its rules version, named, with what its build prints, then each
+ * the identity marks absent from that build, which has no roster record.
+ */
 function detachmentsOf(
   manifest: VsDataManifest,
   read: (name: string) => unknown,
-  identity: readonly { kind: string; id: string; name?: string }[],
+  identity: readonly { kind: string; id: string; name?: string; absent?: true }[],
 ): VsDataDetachment[] {
   const names = new Map(identity.flatMap((entry) => (entry.kind === 'detachment' && entry.name ? [[entry.id, entry.name] as const] : [])))
-  return (manifest.categories.find((category) => category.name === 'rosters')?.records ?? [])
+  const absent = identity.flatMap((entry) =>
+    entry.kind === 'detachment' && entry.absent && entry.name
+      ? [{ name: entry.name, ...detachmentDataSchema.parse({ absent: true }) }]
+      : [],
+  )
+  const listed = (manifest.categories.find((category) => category.name === 'rosters')?.records ?? [])
     .filter((entry) => entry.path.split('/')[2] === 'detachment')
     .map((entry) => read(entry.path) as { id: string; rulesVersion?: { update?: string }; data: unknown })
     .filter((record) => record.rulesVersion?.update === manifest.rulesVersion.update)
@@ -278,6 +291,7 @@ function detachmentsOf(
       const lists = detachmentDataSchema.safeParse(record.data)
       return name && lists.success ? [{ name, ...lists.data }] : []
     })
+  return [...listed, ...absent]
 }
 
 const describe = ({ edition, update }: VsDataRulesVersion) => `${edition} ${update}`
