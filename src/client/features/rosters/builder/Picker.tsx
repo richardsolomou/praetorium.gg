@@ -12,6 +12,7 @@ import type { UnitSummary } from '../../../../contracts/catalogue'
 import type { NonMatchedPlayKind } from '../../../../core/name'
 import type { RosterPick } from '../../../../core/roster'
 import { SearchField } from '../../../components/SearchField'
+import { METALS } from '../../profile/AchievementBadge'
 import { ACCOUNT_FILTERS, type AccountFilter, FilterChip } from '../../../components/FilterChip'
 import { DatasheetMatchReasons } from '../../../components/DatasheetMatchReasons'
 import { HoverTooltip } from '../../../components/HoverTooltip'
@@ -437,10 +438,15 @@ export const Picker = memo(function Picker({
   )
 })
 
-/** A unit at least a quarter of the faction's top-four lists take, marked so the common choices stand out. */
+/**
+ * A unit at least a quarter of the faction's top-four lists take, marked so the common choices stand out: bronze from a
+ * quarter, silver from half, gold from three quarters.
+ */
 function commonInTopFour(counts: { lists: number; units: Record<string, number> } | null | undefined, entryId: string) {
   const lists = counts?.units[entryId] ?? 0
-  return counts && lists * 4 >= counts.lists && lists ? { lists, of: counts.lists } : null
+  if (!counts || !lists || lists * 4 < counts.lists) return null
+  const metal: 'bronze' | 'silver' | 'gold' = lists * 4 >= counts.lists * 3 ? 'gold' : lists * 2 >= counts.lists ? 'silver' : 'bronze'
+  return { lists, of: counts.lists, metal }
 }
 
 function PickerSkeleton() {
@@ -468,7 +474,7 @@ type PickerRowProps = {
   limit: number | null
   held: number
   /** How many of the faction's top-four tournament lists field it, out of how many, when enough do to mark it. */
-  topFour: { lists: number; of: number } | null
+  topFour: { lists: number; of: number; metal: 'bronze' | 'silver' | 'gold' } | null
   full: boolean
   /** Points beyond the list's room, marked on the price alone so the row keeps its height; never blocks the add. */
   over: number | null
@@ -536,9 +542,9 @@ const PickerRow = memo(function PickerRow({
             title={`In ${topFour.lists} of ${topFour.of} top-four lists`}
             body="Lists that finished top four at Warhammer 40,000 tournaments outside Praetorium, as published by 40k Stats and Mini Headquarters."
             label={`${unit.name} is in ${topFour.lists} of ${topFour.of} top-four tournament lists`}
-            className="size-6 shrink-0 text-faint no-underline hover:text-dim"
+            className="size-6 shrink-0 no-underline"
           >
-            <Trophy className="size-3.5" />
+            <Trophy className="size-3.5" style={{ color: METALS[topFour.metal][1] }} />
           </HoverTooltip>
         ) : null}
         {onFavourite ? (
