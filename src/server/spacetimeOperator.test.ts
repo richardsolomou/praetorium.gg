@@ -309,3 +309,26 @@ it('reads a roster discovery cursor carrying a field added after this build', as
     ).nextCursor?.id,
   ).toBe('roster')
 })
+
+it('tells the module a roster it saves starts each choice on its printed default', async () => {
+  const request = vi.fn(async () => Response.json('inserted'))
+  const operator = new SpacetimeOperator('https://spacetime.example/', 'preview-42', 'operator-secret', request)
+  await operator.saveRoster({
+    id: 'roster-1',
+    userId: 'user-1',
+    name: 'Army',
+    catalogueId: 'necrons',
+    detachmentId: null,
+    disposition: null,
+    limit: 2000,
+    picks: '[]',
+    prep: null,
+    tags: '[]',
+    waivedRules: '[]',
+    visibility: 'private',
+    source: 'editable',
+    now: 1,
+  })
+  const [, init] = request.mock.calls[0] as unknown as [URL, RequestInit]
+  expect(JSON.parse((JSON.parse(String(init.body)) as string[])[0]!).printedDefaults).toBe(true)
+})

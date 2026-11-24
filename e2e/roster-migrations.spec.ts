@@ -39,8 +39,7 @@ test('preserved rules remain explicit and conversion is optional', { tag: '@cata
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.reload()
   await expect(notice).toBeVisible()
-  // Seeded as a save from before choices started on their printed default, so its units keep their cheapest.
-  expect((await operator.roster(id))?.picks).toBe(JSON.stringify(picks.map((pick) => ({ ...pick, floor: true }))))
+  expect((await operator.roster(id))?.picks).toBe(JSON.stringify(picks))
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 })
     await expectNoPageOverflow(page)
@@ -94,7 +93,7 @@ test('converts a retired Marine faction identity without discarding its generate
   await waitForRosterSave(page, () => confirmRosterSetup(dialog), '4029-9237-e8db-af55')
   await page.reload()
   await expect(notice).toHaveCount(0)
-  expect(JSON.parse((await operator.roster(id))!.picks)).toEqual([{ entryId: '984d-c25b-86dd-9970', floor: true }])
+  expect(JSON.parse((await operator.roster(id))!.picks)).toEqual([{ entryId: '984d-c25b-86dd-9970' }])
 })
 
 test('library and builder point a roster on earlier released rules at the current version', { tag: '@catalogue' }, async ({ page }) => {
