@@ -29,6 +29,8 @@ export type TextFacts = {
   ownWeaponGrant?: GrantedWeaponKeyword
   ledWeaponGrant?: GrantedWeaponKeyword
   invulnerableSave?: string
+  /** A text that is a value alone, as the save an ability named for an invulnerable save holds. */
+  bareValue?: string
   /** An enhancement that upgrades a weapon it names after "following weapon:". */
   linkedWeapon?: true
   reminder?: ReminderSuggestion

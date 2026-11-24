@@ -46,6 +46,7 @@ export function definitionFactsOf(words: string): TextFacts {
   const ownWeaponGrant = ownWeaponGrantIn(words)
   const ledWeaponGrant = ledWeaponGrantIn(words)
   const invulnerableSave = invulnerableSaveIn(words)
+  const bareValue = /^\s*(\d+\+)\s*$/.exec(words)?.[1]
   const timings = suggestReminderTimings(words)
   const whileDestroyed = suggestReminderWhileDestroyed(words)
   const unitGeneration = unitGenerationFrom(words)
@@ -60,6 +61,7 @@ export function definitionFactsOf(words: string): TextFacts {
     ...(ownWeaponGrant ? { ownWeaponGrant } : {}),
     ...(ledWeaponGrant ? { ledWeaponGrant } : {}),
     ...(invulnerableSave ? { invulnerableSave } : {}),
+    ...(bareValue ? { bareValue } : {}),
     ...(/following weapon:\s*$/i.test(words) ? { linkedWeapon: true as const } : {}),
     ...(timings.length || whileDestroyed ? { reminder: { timings, ...(whileDestroyed ? { whileDestroyed: true as const } : {}) } } : {}),
     ...(unitGeneration.length ? { unitGeneration } : {}),
@@ -107,6 +109,14 @@ export const ledWeaponGrantOf = (text: string, facts: TextFactsByKey | undefined
 
 export const invulnerableSaveOf = (text: string, facts: TextFactsByKey | undefined) =>
   readText(text, facts, invulnerableSaveIn, (found) => found.invulnerableSave ?? null)
+
+export const bareValueOf = (text: string, facts: TextFactsByKey | undefined) =>
+  readText(
+    text,
+    facts,
+    (words) => /^\s*(\d+\+)\s*$/.exec(words)?.[1] ?? null,
+    (found) => found.bareValue ?? null,
+  )
 
 /** A catalogue text's combat facts, null where its words take no part; undefined for words, and tokens the catalogue records none for. */
 export const combatFactsIn = (text: string, facts: TextFactsByKey | undefined) =>

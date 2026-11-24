@@ -1,3 +1,4 @@
+import { isWrittenInvulnerableSave } from '../core/datasheetStructure'
 import { abilityKey } from './vsDataAbilities'
 import { withoutFactionPrefix } from '../core/name'
 import { canonicalDetachmentName } from '../core/detachmentName'
@@ -46,6 +47,7 @@ import { relationshipFor, relationshipsFor } from './catalogueRelationships'
 import { deploymentAbilities, parseAbilityGrants, parsedAbilityGrants } from './catalogueAbilityGrants'
 import {
   abilityGrantsIn,
+  bareValueOf,
   invulnerableSaveOf,
   ledWeaponGrantOf,
   normalizedAbilityGrantsIn,
@@ -383,8 +385,12 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
           ...weaponAbilitiesInAttachedUnit(context.selections, context.unitSelectionIndex, context.companions ?? [], loaded.index),
         ]
       : []
-  const grantedInvulnerableSaves =
-    context && !abilitiesOnly ? invulnerableSavesInSelectedUnit(context.selections, context.unitSelectionIndex, loaded.index) : []
+  // A datasheet read alone shows the save its own abilities give each model, as a roster fielding it would.
+  const grantedInvulnerableSaves = abilitiesOnly
+    ? []
+    : context
+      ? invulnerableSavesInSelectedUnit(context.selections, context.unitSelectionIndex, loaded.index)
+      : invulnerableSavesOnDatasheet(root, loaded.index)
   const grantedAbilities = context
     ? grantedAbilitiesInAttachedUnit(
         context.selections,
@@ -1112,15 +1118,48 @@ function invulnerableSavesInSelectedUnit(
   index: LoadedCatalogue['index'],
 ): GrantedInvulnerableSave[] {
   if (unitSelectionIndex === undefined) return []
+  return invulnerableSavesIn(
+    definitionsInSelections(selections, [unitSelectionIndex], index),
+    absentIn(selections, [unitSelectionIndex], index),
+    index,
+  )
+}
+
+/**
+ * The saves a datasheet's own abilities give each model it can field, as its page shows them with no roster around it:
+ * its units' and models', never wargear's, which only a roster that takes it has.
+ */
+function invulnerableSavesOnDatasheet(root: Definition, index: LoadedCatalogue['index']): GrantedInvulnerableSave[] {
+  const found = new Map<string, Definition>()
+  const visit = (definition: Definition) => {
+    if (found.has(definition.id) || targetOf(definition, index.definitions).type === 'upgrade') return
+    found.set(definition.id, definition)
+    for (const source of definitionAndTarget(definition, index))
+      for (const child of [...(source.selectionEntries ?? []), ...(source.selectionEntryGroups ?? []), ...(source.entryLinks ?? [])])
+        visit(child)
+  }
+  visit(root)
+  return invulnerableSavesIn([...found.values()], root.absentAbilities, index)
+}
+
+function invulnerableSavesIn(definitions: readonly Definition[], absent: AbsentAbilities, index: LoadedCatalogue['index']) {
   const found = new Map<string, GrantedInvulnerableSave>()
-  const absent = absentIn(selections, [unitSelectionIndex], index)
-  for (const definition of definitionsInSelections(selections, [unitSelectionIndex], index)) {
+  for (const definition of definitions) {
     for (const source of definitionAndTarget(definition, index)) {
       for (const profile of abilityProfilesOf(source, index, absent)) {
         const description = profileDescription(profile)
-        const value = description && invulnerableSaveOf(description, index.textFacts)
+        // An ability named for the save may hold its value alone, as a Legends datasheet's does.
+        const value =
+          description &&
+          (invulnerableSaveOf(description, index.textFacts) ??
+            (isWrittenInvulnerableSave(profile.name) ? bareValueOf(description, index.textFacts) : null))
         if (!value) continue
-        const granted = { value, source: profile.name, originIds: definitionTokens(definition) }
+        // A save is its own model's alone, by id rather than by its type or keywords, which every model shares.
+        const granted = {
+          value,
+          source: profile.name,
+          originIds: [definition.id, 'targetId' in definition ? definition.targetId : undefined].filter((id): id is string => Boolean(id)),
+        }
         found.set(JSON.stringify(granted), granted)
       }
     }
@@ -1153,7 +1192,10 @@ function addGrantedInvulnerableSave(
 ) {
   if (values.some((value) => value.name === 'InSv')) return values
   const save = saves.find((candidate) => candidate.originIds.some((id) => owner.includes(id)))
-  return save ? [...values, { name: 'InSv', value: save.value, baseValue: '', modifiers: [save.source] }] : values
+  if (!save) return values
+  // A model's own written save is its characteristic, not one the roster grants, so VS Data's typed save may stand for it.
+  if (isWrittenInvulnerableSave(save.source)) return [...values, { name: 'InSv', value: save.value }]
+  return [...values, { name: 'InSv', value: save.value, baseValue: '', modifiers: [save.source] }]
 }
 
 function addGrantedWeaponAbilities(
