@@ -44,11 +44,25 @@ export function useInvulnerableSaves(sheet: Pick<Datasheet, 'id' | 'profiles'>) 
 const LOOKS = {
   datasheet: { list: 'grid gap-2 md:grid-cols-2', save: 'part px-4 py-2.5', value: 'figure text-2xl leading-none font-semibold' },
   panel: { list: 'space-y-1.5', save: 'part px-2 py-1.5', value: 'readout text-base' },
-  print: { list: 'pack-saves', save: '', value: 'pack-save-value' },
 }
 
 /** Each save with the model it is for, the attacks it is against and its condition, read the same wherever it shows. */
-export function InvulnerableSaves({ saves, look = 'datasheet' }: { saves: readonly ShownSave[]; look?: keyof typeof LOOKS }) {
+export function InvulnerableSaves({ saves, look = 'datasheet' }: { saves: readonly ShownSave[]; look?: keyof typeof LOOKS | 'print' }) {
+  // A printed pack sets each save on one line at the pack's own size, as it does an ability.
+  if (look === 'print')
+    return (
+      <div data-slot="invulnerable-saves">
+        {saves.map((save) => (
+          <div key={save.key} data-slot="invulnerable-save">
+            <p>
+              <strong>Invulnerable save{save.model ? ` (${save.model})` : ''}:</strong> {save.value}
+              {save.scope ? `, ${save.scope.toLowerCase()}` : ''}
+            </p>
+            {save.summary ? <RuleSummaryText summary={save.summary} className="mt-0 text-[length:inherit] leading-[inherit]" /> : null}
+          </div>
+        ))}
+      </div>
+    )
   const classes = LOOKS[look]
   const list = (
     <div className={classes.list}>
@@ -69,8 +83,14 @@ export function InvulnerableSaves({ saves, look = 'datasheet' }: { saves: readon
   if (look === 'panel') return list
   return (
     <section>
-      {look === 'datasheet' ? <SectionHeading title="Invulnerable save" /> : <h3>Invulnerable save</h3>}
+      <SectionHeading title="Invulnerable save" />
       {list}
     </section>
   )
+}
+
+/** The saves of the datasheet inside `DatasheetUnit`, for a view that has no other use for VS Data's unit. */
+export function DatasheetSaves({ sheet, look }: { sheet: Pick<Datasheet, 'id' | 'profiles'>; look?: keyof typeof LOOKS | 'print' }) {
+  const saves = useInvulnerableSaves(sheet)
+  return saves.length ? <InvulnerableSaves saves={saves} look={look} /> : null
 }

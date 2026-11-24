@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { DatasheetSaves } from '../../../components/InvulnerableSaves'
 import { usePostHog } from '@posthog/react'
 import { cloneElement, type ReactElement, type ReactNode, useEffect, useMemo, useRef } from 'react'
 import type { Datasheet } from '../../../../contracts/catalogue'
@@ -200,7 +201,8 @@ export function Loadout({
           <div className="w-full min-w-0 space-y-4">
             {header}
             <div className="space-y-1.5">
-              {profile ? <UnitProfile profile={profile} /> : null}
+              {profile ? <UnitProfile profile={profile} invulnerable={false} /> : null}
+              {profile ? <DatasheetSaves sheet={{ id: unit.entryId, profiles: [profile] }} look="panel" /> : null}
               <BattleChoices choices={battle.choices} chosen={battle.chosen} onChoose={battle.choose} rules={rules} />
             </div>
             {viewed ? (
