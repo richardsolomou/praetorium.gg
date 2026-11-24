@@ -20,7 +20,14 @@ type FixtureRecord = {
 export function vsDataReleaseFiles(
   records: FixtureRecord[],
   update = 'MFM 1.6',
-  entries: { kind: string; id: string; name: string; aliases?: string[]; absent?: true }[] = [],
+  entries: {
+    kind: string
+    id: string
+    name: string
+    aliases?: string[]
+    absent?: true
+    references?: { kind: string; id: string }[]
+  }[] = [],
 ): [string, string][] {
   const rulesVersion = { edition: '11th', update }
   const identity = JSON.stringify({

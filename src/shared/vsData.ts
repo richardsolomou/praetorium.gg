@@ -133,6 +133,8 @@ const selectorsSchema = z.object({ selectors: z.array(z.string()) })
  */
 export const vsDataUnitSchema = z.object({
   sizes: z.array(z.number().int()),
+  /** The `shared.*` abilities VS Data publishes once for several units, this one among them. */
+  shared: z.array(z.string()).optional(),
   /** How many of each model the unit starts with, where that is not its smallest size. */
   defaultModels: countedSchema.optional(),
   models: z.array(

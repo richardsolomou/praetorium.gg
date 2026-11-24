@@ -25,25 +25,31 @@ function abilitiesByOwner(units: VsDataUnits) {
 }
 
 /**
- * An ability's summary among VS Data's, for the datasheet entry (or `@` and the VS Data owner) it is printed on: the
- * ability VS Data aliases to its BSData profile, then by name the owner's own, its faction's, then the one faction's that has it.
+ * An ability's summary among VS Data's, for the datasheet entry (or `@` and the VS Data owner) it is printed on: by name
+ * the owner's own, then a record it shares with other units, the ability VS Data aliases to its BSData profile, then its
+ * faction's, the one detachment of that name's and the one faction's that has it.
  */
 export function abilitySummaryIn(units: VsDataUnits, subject: string, name: string, id?: string): RuleSummary | null {
-  const aliased = id ? units.aliases[id] : undefined
-  if (aliased && units.abilities[aliased]) return units.abilities[aliased]
-  const owner = subject.startsWith('@') ? subject.slice(1) : units.units[subject]?.id
+  const unit = subject.startsWith('@') ? undefined : units.units[subject]
+  const owner = subject.startsWith('@') ? subject.slice(1) : unit?.id
   const byOwner = abilitiesByOwner(units)
   const slug = abilityKey(name)
-  // The owner's own ability first, then its faction's, as its army rule and shared abilities are the faction's, then the
-  // one faction that has it, as a chapter's datasheets and a Crucible datasheet with no VS Data unit print an army rule.
+  // A record VS Data publishes once for several units, as the Land Raiders' Damaged, by the units it names.
+  const shared = unit?.shared?.find((held) => abilityKey(held.slice(held.lastIndexOf('.') + 1)) === slug && units.abilities[held])
+  const aliased = id ? units.aliases[id] : undefined
+  // Then its faction's, as its army rule and shared abilities are the faction's, then the one faction that has it, as a
+  // chapter's datasheets and a Crucible datasheet with no VS Data unit print an army rule.
   const faction = [...byOwner].filter(([held, abilities]) => !held.includes('.') && abilities.has(slug))
   // A detachment another faction's page shows, as Dark Angels show the Space Marines' Stormlance Task Force, is the one
   // owner of that detachment's name.
   const detachment = subject.startsWith('@') && owner?.includes('.') ? owner.slice(owner.indexOf('.')) : null
-  const shared = detachment ? [...byOwner].filter(([held, abilities]) => held.endsWith(detachment) && abilities.has(slug)) : []
+  const named = detachment ? [...byOwner].filter(([held, abilities]) => held.endsWith(detachment) && abilities.has(slug)) : []
   return (
-    (owner ? (byOwner.get(owner)?.get(slug) ?? byOwner.get(owner.split('.')[0]!)?.get(slug)) : undefined) ??
-    (shared.length === 1 ? shared[0]![1].get(slug)! : undefined) ??
+    (owner ? byOwner.get(owner)?.get(slug) : undefined) ??
+    (shared ? units.abilities[shared] : undefined) ??
+    (aliased ? units.abilities[aliased] : undefined) ??
+    (owner ? byOwner.get(owner.split('.')[0]!)?.get(slug) : undefined) ??
+    (named.length === 1 ? named[0]![1].get(slug)! : undefined) ??
     (faction.length === 1 ? faction[0]![1].get(slug)! : null)
   )
 }

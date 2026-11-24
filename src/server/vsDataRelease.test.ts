@@ -245,6 +245,29 @@ it('keeps each invulnerable save a unit’s profiles print, a model’s own by i
   ])
 })
 
+it('keeps for each unit a shared record names the shared abilities it is one of', () => {
+  fs.rmSync(directory, { recursive: true })
+  const unit = (id: string) => ({ kind: 'unit', id, name: id, aliases: [`bsdata.${id.length}`] })
+  const damaged = {
+    kind: 'ability',
+    id: 'shared.land-raider.damaged',
+    name: 'Damaged',
+    references: [
+      { kind: 'unit', id: 'space-marines.land-raider' },
+      { kind: 'core-rule', id: 'hit-rolls' },
+    ],
+  }
+  writeFiles(directory, vsDataReleaseFiles([record], 'MFM 1.6', [unit('space-marines.land-raider'), unit('space-marines.rhino'), damaged]))
+  const file = `${directory}.json`
+  compactVsDataRelease(directory, file)
+  const compact = JSON.parse(fs.readFileSync(file, 'utf8'))
+  fs.rmSync(file)
+  expect([compact.units['space-marines.land-raider'].shared, compact.units['space-marines.rhino'].shared]).toEqual([
+    ['shared.land-raider.damaged'],
+    undefined,
+  ])
+})
+
 it('reads a complete record with no summary of its own, as a mission card is, as having none', () => {
   fs.rmSync(directory, { recursive: true })
   writeFiles(directory, vsDataReleaseFiles([record, { ...record, id: 'necrons.test.card', summary: undefined, data: { text: 'none' } }]))

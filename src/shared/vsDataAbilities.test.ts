@@ -19,3 +19,20 @@ it('finds a card of a detachment another faction’s page shows by the one owner
       'Feinting Withdrawal',
     ),
   ).toBe(summary))
+
+it('finds a record VS Data shares between units for each unit it names, and for no other', () => {
+  const units: VsDataUnits = {
+    units: {
+      raider: { id: 'space-marines.land-raider', sizes: [], models: [], options: [], shared: ['shared.land-raider.damaged'] },
+      crusader: { id: 'space-marines.land-raider-crusader', sizes: [], models: [], options: [], shared: ['shared.land-raider.damaged'] },
+      rhino: { id: 'space-marines.rhino', sizes: [], models: [], options: [] },
+    },
+    aliases: {},
+    abilities: { 'shared.land-raider.damaged': summary },
+  }
+  expect(['raider', 'crusader', 'rhino'].map((entry) => abilitySummaryIn(units, entry, 'Damaged: 1-5 Wounds Remaining'))).toEqual([
+    summary,
+    summary,
+    null,
+  ])
+})

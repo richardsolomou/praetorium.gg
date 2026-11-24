@@ -43,6 +43,7 @@ const identitySchema = z.object({
       aliases: z.array(z.string()).optional(),
       retired: z.unknown().optional(),
       absent: z.literal(true).optional(),
+      references: z.array(refSchema).optional(),
     }),
   ),
 })
@@ -373,6 +374,12 @@ export function compactVsDataRelease(directory: string, file: string) {
         .flatMap((run) => (run.target ? [vsDataKey(run.target)] : [])),
     ]),
   )
+  // A record published once for several units names them, so each keeps the shared abilities it is one of.
+  for (const entry of identity)
+    if (entry.kind === 'ability' && entry.id.startsWith('shared.') && !entry.retired)
+      for (const reference of entry.references ?? [])
+        if (reference.kind === 'unit' && units[reference.id])
+          units[reference.id]!.shared = [...(units[reference.id]!.shared ?? []), entry.id]
   for (const id of Object.keys(units)) wanted.add(vsDataKey({ kind: 'unit', id }))
   const current = identity.filter((entry) => !entry.retired)
   const entries = current.filter((entry) => wanted.has(vsDataKey(entry)))
