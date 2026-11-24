@@ -255,6 +255,7 @@ function compactUnits(
 }
 
 const detachmentDataSchema = z.object({
+  absent: z.literal(true).optional(),
   stratagems: z.array(z.string()).default([]),
   stratagemsUnlisted: z.array(z.string()).default([]),
   enhancements: z.array(z.string()).default([]),

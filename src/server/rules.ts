@@ -66,6 +66,7 @@ export function* loadRulesSteps(
   const inDetachment = (name: string) => {
     const [own, base] = pools
     const listing = own?.listing(name)
+    if (listing?.absent) return { cards: [], unlisted: [], listing }
     // A Detachment the release does not list fills in from its namesake in the base release where the rules version's
     // Game Datacards files print the card, until VS Data lists every Detachment those files carry.
     if (!own || !listing)
@@ -98,6 +99,7 @@ export function* loadRulesSteps(
   const core = printed(pools.map((pool) => pool.core))
   const factions = factionsFromDatacards(datacards, iconDirectory, (name) => {
     const { cards, unlisted, listing } = inDetachment(name)
+    if (listing?.absent) return { absent: true, stratagems: [] }
     return {
       stratagems: cards.map((card) => ({ ...card, description: describe(card.key) })),
       ...(listing

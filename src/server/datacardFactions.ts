@@ -11,11 +11,13 @@ import type { DetachmentReference, DetachmentRulesDetail, LoadedFactions } from 
 import type { VsStratagemCard } from './vsDataStratagems'
 
 /**
- * A Detachment's Stratagems by its name, with each card's wording as tokens where Game Datacards prints it, and, where
+ * Whether a rules version's build has a Detachment at all, its Stratagems by its name, with each card's wording as tokens where Game Datacards prints it, and, where
  * its release lists what the Detachment's build prints, the Stratagems it does not publish by name, the Game Datacards
  * IDs of the Enhancements it lists and those it does not publish by name.
  */
 export type DetachmentCards = (detachment: string) => {
+  /** The rules version's build has no such Detachment. */
+  absent?: true
   stratagems: (VsStratagemCard & { description: string | null })[]
   stratagemsUnlisted?: readonly string[]
   enhancements?: ReadonlySet<string>
@@ -46,6 +48,8 @@ export function factionsFromDatacards(datacards: LoadedDatacards, iconDirectory:
     const parent = content.parentName ? routeSlug(content.parentName) : null
     detachmentReferences.set(faction, detachmentReferences.get(faction) ?? new Map())
     for (const name of content.detachments) {
+      const listed = detachmentCards(name)
+      if (listed.absent) continue
       const ownerName = content.detachmentFactions?.get(name) ?? content.name
       const owner = routeSlug(ownerName)
       for (const key of datacardsFactionKeys(ownerName)) factionKeys.set(key, owner)
@@ -58,7 +62,6 @@ export function factionsFromDatacards(datacards: LoadedDatacards, iconDirectory:
       byDetachment.set(owner, stratagems)
       const id = routeSlug(name)
       const construction = constructionDetachment(datacards, content.name, name, parent)
-      const listed = detachmentCards(name)
       const cards = listed.stratagems
       const sourceEnhancements = content.enhancements.get(joinKey(name)) ?? []
       const enhancements = listed.enhancements

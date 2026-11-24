@@ -31,6 +31,8 @@ const stratagemPhaseSchema = z.enum([...phaseSchema.options, 'end-of-turn'])
  */
 export const vsDataDetachmentSchema = z.object({
   name: z.string().min(1),
+  /** Set where the rules version's build has no such Detachment, though another source prints it. */
+  absent: z.literal(true).optional(),
   stratagems: z.array(z.string()),
   stratagemsUnlisted: z.array(z.string()),
   enhancements: z.array(z.string()),

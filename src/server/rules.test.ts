@@ -348,6 +348,25 @@ it('plays a printed card its release does not publish as a release types the Gam
   ).toEqual([reapers.id])
 })
 
+it('drops a Detachment a rules version’s build does not have', () => {
+  write(path.join(directory, 'summaries', 'earlier.json'), {
+    release: '0.1.0',
+    rulesVersion: { edition: '11th', update: 'Earlier' },
+    entries: {},
+    attributions: [],
+    stratagems: [],
+    detachments: [
+      { name: 'Flyblown Host', absent: true, stratagems: [], stratagemsUnlisted: [], enhancements: [], enhancementsUnlisted: [] },
+    ],
+    records: [],
+  })
+  const loaded = loadRules(directory, { rulesVersion: 'earlier' })!
+  expect([
+    loaded.byDetachment.get('death-guard')?.has('flyblown-host'),
+    loaded.detachmentDetails.get('death-guard')?.has('flyblown-host'),
+  ]).toEqual([false, false])
+})
+
 it('shows a Stratagem’s turn for each of its phases on its detachment’s reference', () => {
   release({
     stratagems: [
