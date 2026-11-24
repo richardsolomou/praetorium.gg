@@ -3612,6 +3612,19 @@ describe('roster lock', () => {
       now: NOW,
     })
 
+  it('stores a save from a server that starts choices on their printed default as it arrives', () => {
+    const { test, operator, procedure } = harness()
+    const payload = { ...JSON.parse(roster('[{"entryId":"unit-proof"}]')), printedDefaults: true }
+    module.saveRoster(procedure(operator), { payload: JSON.stringify(payload) })
+    expect(test.db.rosters.id.find('roster')).toMatchObject({ picks: '[{"entryId":"unit-proof"}]', printedDefaults: true })
+  })
+
+  it('keeps the cheapest choices of a save from an older server', () => {
+    const { test, operator, procedure } = harness()
+    module.saveRoster(procedure(operator), { payload: roster('[{"entryId":"unit-proof"}]') })
+    expect(test.db.rosters.id.find('roster')).toMatchObject({ picks: '[{"entryId":"unit-proof","floor":true}]', printedDefaults: true })
+  })
+
   it('refuses a content save to a locked roster and keeps its picks', () => {
     const { test, operator, procedure } = harness()
     module.saveRoster(procedure(operator), { payload: roster('[{"entryId":"unit-proof"}]') })

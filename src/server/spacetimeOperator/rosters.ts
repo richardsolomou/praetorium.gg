@@ -34,6 +34,10 @@ const rosterRow = z.object({
     .boolean()
     .nullish()
     .transform((declined) => declined === true),
+  printedDefaults: z
+    .boolean()
+    .nullish()
+    .transform((printed) => printed === true),
   copiedFromRosterId: z.string().nullable(),
   visibility: z.enum(ROSTER_VISIBILITIES),
   source: z.enum(ROSTER_SOURCES),

@@ -2,8 +2,6 @@ import { ScheduleAt } from 'spacetimedb'
 import { SenderError, schema, table, t, type InferSchema, type ProcedureCtx, type ReducerCtx, type ViewCtx } from 'spacetimedb/server'
 import { detachmentIds, ROSTER_SOURCES, ROSTER_VISIBILITIES } from '../../src/core/savedRoster'
 import { migrateStoredRoster } from '../../src/core/savedRosterMigrations'
-import { flooredPicks } from '../../src/core/printedDefaults'
-import type { RosterPick } from '../../src/core/roster'
 import { lockedRosterRefusal, storedRosterContent } from '../../src/core/rosterLock'
 import { listUnitCount } from '../../src/core/attachedUnits'
 import { ROSTER_BATCH_ACTIONS, ROSTER_BATCH_CHANGES, ROSTER_BATCH_MAX, ROSTER_LIBRARY_BATCH_SIZE } from '../../src/core/rosterLibrary'
@@ -2860,21 +2858,19 @@ const rosterInput = z
       .transform((value) => value ?? null),
     visibility: z.enum(ROSTER_VISIBILITIES),
     source: z.enum(ROSTER_SOURCES),
+    // Sent by servers that start a choice on its printed default; a save from an older one keeps its units' cheapest.
+    printedDefaults: z.literal(true).optional(),
     now: z.number().int().nonnegative(),
   })
   .refine(({ limit, pointsBudget }) => !pointsBudgetError(limit, pointsBudget))
 
 function parseRoster(payload: string) {
   const row = decodePayload(rosterInput, payload, 'Invalid roster')
-  const migrated = migrateStoredRoster({
+  return migrateStoredRoster({
     ...row,
     /** Undefined when the client predates custom budgets, so its save keeps the stored one. */
     pointsBudget: row.pointsBudget === undefined ? undefined : customPointsBudget(row.limit, row.pointsBudget),
   })
-  // A save made before choices started on the printed default, as a device queues offline, keeps its cheapest choices.
-  const picks = JSON.parse(migrated.picks) as RosterPick[]
-  const floored = flooredPicks(picks, row.now)
-  return floored.some((pick, at) => pick !== picks[at]) ? { ...migrated, picks: JSON.stringify(floored) } : migrated
 }
 
 export const rosterById = spacetime.procedure({ id: t.string() }, t.string(), (ctx, { id }) =>
@@ -3090,6 +3086,7 @@ function saveRosterIn(tx: Context, input: ReturnType<typeof parseRoster>) {
     borrowedDetachmentId: input.borrowedDetachmentId ?? undefined,
     visibility: input.visibility,
     source: input.source,
+    printedDefaults: input.printedDefaults,
     updatedAt: nextVersion(current, now),
   }
   if (current) {

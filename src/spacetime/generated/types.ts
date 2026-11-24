@@ -601,6 +601,7 @@ export const Rosters = __t.object('Rosters', {
   copiedFromRosterId: __t.option(__t.string()),
   archived: __t.option(__t.bool()),
   sharingDeclined: __t.option(__t.bool()),
+  printedDefaults: __t.option(__t.bool()),
 })
 export type Rosters = __Infer<typeof Rosters>
 

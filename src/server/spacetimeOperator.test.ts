@@ -107,7 +107,9 @@ it('reads compact roster summaries without requiring picks or preparation data',
   }
   const request = vi.fn(async () => Response.json(JSON.stringify([summary])))
   const operator = new SpacetimeOperator('https://spacetime.example/', 'preview-42', 'operator-secret', request)
-  expect(await operator.rosterSummariesByUser('user-1')).toEqual([{ ...summary, archived: false, sharingDeclined: false }])
+  expect(await operator.rosterSummariesByUser('user-1')).toEqual([
+    { ...summary, archived: false, sharingDeclined: false, printedDefaults: false },
+  ])
   const [url, init] = request.mock.calls[0] as unknown as [URL, RequestInit]
   expect([url.pathname, init.body]).toEqual(['/v1/database/preview-42/call/roster_summaries_by_user', '["user-1"]'])
 })

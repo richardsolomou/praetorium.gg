@@ -2,7 +2,6 @@ import { z } from 'zod'
 import { editionCatalogueId, picksForCatalogueEdition } from './catalogueEdition'
 import { migratedEditionId, migratedEditionPick, onFoldedEdition } from './editionMigrations'
 import { retainedRulesEdition } from './retainedRosterRules'
-import { flooredPicks } from './printedDefaults'
 import type { RosterPick } from './roster'
 import { migrateSavedRoster } from './retiredRosterFields'
 
@@ -17,6 +16,8 @@ export function migrateStoredRoster<
     picks: string
     prep?: string | null
     updatedAt?: bigint | number
+    /** Saved by code that starts a choice on its printed default; a row without it gets `floor` on every unit, once. */
+    printedDefaults?: boolean | null
   },
 >(row: T) {
   if (row.picks.length > 1_000_000 || (row.prep?.length ?? 0) > 100_000 || (row.detachmentId?.length ?? 0) > 1_000)
@@ -28,8 +29,7 @@ export function migrateStoredRoster<
       ? z.array(z.string()).parse(JSON.parse(row.detachmentId))
       : [row.detachmentId]
     : []
-  // Stored so a unit keeps the choices it never made once a later save moves `updatedAt` past the change.
-  const picks = flooredPicks(savedPicks, row.updatedAt === undefined ? undefined : Number(row.updatedAt))
+  const picks = row.printedDefaults ? savedPicks : flooredPicks(savedPicks)
   const folded = onFoldedEdition(row.catalogueId)
   // Any later write bumps `updatedAt`, so the rules version its current date selects is stored before one can move it.
   const retained = folded
@@ -52,6 +52,7 @@ export function migrateStoredRoster<
   }) as { picks: unknown; prep: unknown }
   return {
     ...row,
+    printedDefaults: true,
     catalogueId,
     automaticName: row.automaticName ?? !row.name,
     locked: row.locked ?? false,
@@ -60,3 +61,7 @@ export function migrateStoredRoster<
     prep: JSON.stringify(migrated.prep) === JSON.stringify(prep) ? row.prep : JSON.stringify(migrated.prep),
   }
 }
+
+/** Every unit marked to keep the cheapest option of each choice it never made, as it was saved before a printed default won. */
+export const flooredPicks = <T extends RosterPick>(picks: readonly T[]): T[] =>
+  picks.map((pick) => (pick.floor ? pick : { ...pick, floor: true }))
