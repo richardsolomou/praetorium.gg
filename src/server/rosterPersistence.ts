@@ -2,7 +2,7 @@ import { FORMAT_RULE_IDS, OPTIONAL_RULE_IDS, type FormatRuleId, type OptionalRul
 import { picksSchema, savedPrepSchema } from '../contracts/schemas'
 import type { SpacetimeOperator } from './spacetimeOperator'
 import { currentRosterIds } from '../core/retiredCatalogueIds'
-import { flooredPicks } from '../core/savedRosterMigrations'
+import { flooredPicks } from '../core/printedDefaults'
 import { withoutUnitNotes } from '../core/unitNotes'
 import { detachmentIds } from '../core/savedRoster'
 

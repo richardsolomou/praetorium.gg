@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { editionCatalogueId, picksForCatalogueEdition } from './catalogueEdition'
 import { migratedEditionId, migratedEditionPick, onFoldedEdition } from './editionMigrations'
 import { retainedRulesEdition } from './retainedRosterRules'
+import { flooredPicks } from './printedDefaults'
 import type { RosterPick } from './roster'
 import { migrateSavedRoster } from './retiredRosterFields'
 
@@ -61,7 +62,3 @@ export function migrateStoredRoster<
     prep: JSON.stringify(migrated.prep) === JSON.stringify(prep) ? row.prep : JSON.stringify(migrated.prep),
   }
 }
-
-/** Every unit marked to keep the cheapest option of each choice it never made, as it was saved before a printed default won. */
-export const flooredPicks = <T extends RosterPick>(picks: readonly T[]): T[] =>
-  picks.map((pick) => (pick.floor ? pick : { ...pick, floor: true }))

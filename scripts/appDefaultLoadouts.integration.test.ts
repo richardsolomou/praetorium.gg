@@ -1,6 +1,8 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { beforeAll, describe, expect, it } from 'vitest'
+import { reduceBattle } from '../src/core/battle'
+import { ALICE, builtRoster, log, PLAYERS } from '../src/core/battle.fixtures'
 import { buildUnit } from '../src/core/roster'
 import type { LoadedCatalogue } from '../src/shared/catalogueIndex'
 import { loadSnapshot } from './lib/catalogueSnapshotLoad'
@@ -49,4 +51,21 @@ describe.skipIf(!fs.existsSync(path.join(directory, 'definitions')))('default lo
 
   it('keeps a Leman Russ saved before the printed default won on its cheapest sponson', () =>
     expect(chosen('4071-d276-4b66-b186', 'Lascannon', undefined, true)).toBe('Heavy bolter'))
+
+  /** The sponson a Leman Russ fielded in a battle is rebuilt with, from the picks the battle's log holds. */
+  const fieldedSponson = (printedDefaults?: true) => {
+    const command = builtRoster('Astra Militarum', ['Leman Russ Battle Tank'])
+    if (command.kind !== 'attach-roster' || !command.roster.built) throw new Error('expected built roster')
+    command.roster.built.picks = [{ entryId: '4071-d276-4b66-b186' }]
+    if (printedDefaults) command.roster.built.printedDefaults = printedDefaults
+    const [pick] = reduceBattle(PLAYERS, log([ALICE, command])).players[0]!.roster!.built!.picks!
+    const catalogueId = loaded.factions.find((faction) => loaded.index.datasheets.get(faction.id)?.has(pick!.entryId))!.id
+    const unit = buildUnit(pick!.entryId, loaded.index, undefined, {}, { primaryCatalogueId: catalogueId, floor: pick!.floor })!
+    return unit.choices.find((choice) => choice.name === 'Lascannon')!.options.find((option) => option.count > 0)?.name
+  }
+
+  it('rebuilds a Leman Russ fielded before the printed default won on its cheapest sponson', () =>
+    expect(fieldedSponson()).toBe('Heavy bolter'))
+
+  it('rebuilds a Leman Russ fielded since on its printed lascannon', () => expect(fieldedSponson(true)).toBe('Lascannon'))
 })

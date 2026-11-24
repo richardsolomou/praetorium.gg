@@ -244,6 +244,8 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
           detachmentIds: z.array(detachmentIdSchema).max(DETACHMENTS_MAX).optional(),
           waivedRules: z.array(z.enum(FORMAT_RULE_IDS)).max(FORMAT_RULE_IDS.length).optional(),
           picks: z.array(rosterPickSchema).max(100).optional(),
+          /** Fielded by code that starts a choice on its printed default; picks fielded before keep their cheapest. */
+          printedDefaults: z.literal(true).optional(),
           units: z
             .array(
               z.object({
