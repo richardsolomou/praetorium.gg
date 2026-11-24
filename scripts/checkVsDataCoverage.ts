@@ -5,6 +5,14 @@ import { ruleReferenceMatches, splitWeaponKeywords } from '../src/core/ruleRefer
 import { textTokensIn } from '../src/core/sourceText'
 import { loadCanonicalCatalogue } from '../src/server/canonicalCatalogue'
 import { readVsDataRelease, type VsDataSummaries, vsDataSummariesSteps } from '../src/server/vsDataSummaries'
+import { absentDetachmentRule } from '../src/server/absentAbilities'
+import { catalogueEditionLoaders } from '../src/server/catalogueEditions'
+import { definitionAndTarget } from '../src/core/catalogue'
+import { catalogueEditionId } from '../src/core/catalogueEdition'
+import { routeSlug } from '../src/core/slug'
+import { canonicalDetachmentName } from '../src/core/detachmentName'
+import { weaponGrantsIn } from '../src/shared/textFacts'
+import { loadSnapshotWithRules } from './lib/catalogueSnapshotLoad'
 import { summaryNamedBy } from '../src/shared/ruleSummaries'
 import { completeSteps } from '../src/shared/steps'
 import { baselineShortfall } from './lib/baselines'
@@ -85,6 +93,49 @@ function missionJoins(edition: string) {
   )
 }
 
+/**
+ * Each Detachment rule a rules version's release marks absent that grants weapon abilities through the catalogue's own
+ * rules, which the absent filter does not reach: only the cards' rules are filtered.
+ */
+function absentWeaponGrants(editions: readonly string[]) {
+  const marked = editions.flatMap((edition) => {
+    const release = readVsDataRelease(directory, edition)
+    return release?.absentDetachmentRules?.length ? [{ edition, absent: absentDetachmentRule(release) }] : []
+  })
+  if (!marked.length) return []
+  const { catalogue, rules } = loadSnapshotWithRules(directory)
+  const versions = catalogueEditionLoaders(
+    directory,
+    () => catalogue,
+    () => rules,
+    null,
+  )
+  const base = editions[0]
+  return versions.factions()!.factions.flatMap((faction) => {
+    const of = marked.find(({ edition }) => edition === (catalogueEditionId(faction.id) ?? base))
+    const loaded = of && versions.catalogueFor(faction.id)
+    if (!of || !loaded) return []
+    const factionSlug = routeSlug(faction.name.split(' - ').at(-1)!)
+    return (loaded.detachments.get(faction.id)?.options ?? []).flatMap((option) => {
+      const definition = loaded.index.definitions.get(option.id)
+      const detachment = routeSlug(canonicalDetachmentName(option.name))
+      return (definition ? definitionAndTarget(definition, loaded.index) : []).flatMap((source) =>
+        [
+          ...(source.infoLinks ?? []).filter((link) => link.type === 'rule').map((link) => loaded.index.rules.get(link.targetId)),
+          ...(source.rules ?? []),
+        ].flatMap((rule) =>
+          rule?.name &&
+          rule.description &&
+          weaponGrantsIn(rule.description, loaded.index.textFacts).length &&
+          of.absent(factionSlug, detachment, rule.name)
+            ? [`${rule.name} under ${option.name} in ${of.edition}`]
+            : [],
+        ),
+      )
+    })
+  })
+}
+
 if (!summaries) {
   baselineShortfall('the snapshot has no VS Data summaries for any of its rules versions')
 } else {
@@ -105,6 +156,10 @@ if (!summaries) {
       for (const join of joins.filter((candidate) => !candidate.served))
         console.log(`  ${join.named ? 'no summary' : 'unnamed   '} | ${join.key}`)
   }
+  for (const grant of new Set(absentWeaponGrants(summaries.editions)))
+    baselineShortfall(
+      `VS Data marks the Detachment rule ${grant} absent, and it grants weapon abilities through the catalogue's own rules: the BSData weapon-grant path needs the absent filter`,
+    )
   const keywords = weaponKeywords(summaries)
   const unshown = [...keywords].flatMap(([name, found]) => (found ? [] : [name]))
   served[summaries.editions[0]!]!['weapon keyword'] = keywords.size - unshown.length
