@@ -25,7 +25,7 @@ import { Pane } from './builder/Pane'
 import { useRosterPanes } from './builder/useRosterPanes'
 import { UnitAnnotations } from './builder/UnitAnnotations'
 import { UnitPhoto } from './builder/UnitPhoto'
-import { useDetachmentRules } from './builder/useDetachmentRules'
+import { detachmentRuleOwners, useDetachmentRules } from './builder/useDetachmentRules'
 import { canAddCopy, unitLimitMessage, usePicks } from './builder/usePicks'
 import type { RosterSetup, RosterSetupFaction } from './RosterSetupDialog'
 import { RosterExportDialog } from './RosterExportDialog'
@@ -226,6 +226,7 @@ export function ListBuilder({
   const { isLoading: factionLoading } = factionRead
   const faction = factionRead.data ?? (initialFaction?.id === catalogueId ? initialFaction : null)
   const detachmentRules = useDetachmentRules(catalogueId, faction?.detachments, detachmentIds)
+  const ruleOwners = detachmentRuleOwners(catalogueId, faction)
   const currentRules = currentRulesFor(catalogueId, factionIndex?.factions ?? [])
   // View mode simplifies the owner's roster cards and loadouts without taking away
   // their unit picker. Other readers still get the roster without builder controls.
@@ -644,6 +645,7 @@ export function ListBuilder({
           onReferenceRoute={setReference}
           abilityReminders={building && selected !== null ? reminders.controls : undefined}
           detachmentRules={detachmentRules}
+          detachmentRuleOwners={ruleOwners}
           fielded={fielding}
         />
       }
@@ -662,6 +664,7 @@ export function ListBuilder({
       onReferenceRoute={setReference}
       abilityReminders={building && !preview && selected !== null ? reminders.controls : undefined}
       detachmentRules={detachmentRules}
+      detachmentRuleOwners={ruleOwners}
       fielded={fielding}
     />
   )

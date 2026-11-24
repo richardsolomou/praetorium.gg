@@ -33,6 +33,8 @@ type Props = {
   onReferenceRoute?: (reference: { entryId: string; route: Datasheet['referenceRoute'] | undefined } | null) => void
   abilityReminders?: ReminderControls
   detachmentRules?: readonly ReminderSubject[]
+  /** Whose rules each detachment's are, by detachment id, as `detachmentRuleOwners` names them. */
+  detachmentRuleOwners?: Readonly<Record<string, string>>
   /** A list a battle or sealed event froze, read on the rules version it was fielded under. */
   fielded?: Fielded
   /** List every weapon the unit can take as options, not only those its pick carries. */
@@ -51,6 +53,7 @@ export function DatasheetPanel({
   onReferenceRoute,
   abilityReminders,
   detachmentRules,
+  detachmentRuleOwners,
   fielded = false,
   everyWeapon = false,
 }: Props) {
@@ -127,6 +130,7 @@ export function DatasheetPanel({
         rules={sheet.keywordRules}
         reminders={abilityReminders}
         detachmentRules={detachmentRules}
+        detachmentRuleOwners={detachmentRuleOwners}
       />
       <ProfileRules profiles={sheet.profiles} rules={sheet.keywordRules} compact />
       <TransportRule text={transport} rules={sheet.keywordRules} catalogueId={catalogueId} entryId={sheet.id} />
@@ -222,11 +226,13 @@ function AbilitySummary({
   rules,
   reminders,
   detachmentRules,
+  detachmentRuleOwners,
 }: {
   abilities: Datasheet['abilities']
   rules: Datasheet['keywordRules']
   reminders?: ReminderControls
   detachmentRules?: readonly ReminderSubject[]
+  detachmentRuleOwners?: Readonly<Record<string, string>>
 }) {
   const sections = Object.entries(abilitySections).map(([kind, title]) => {
     const found = abilities.filter((ability) => ability.kind === kind)
@@ -295,12 +301,16 @@ function AbilitySummary({
         Detachment rules <span className="readout text-faint">{detachmentRules.length}</span>
       </h2>
       <div className="mt-2 flex flex-wrap gap-1">
-        {detachmentRules.map((rule) => (
-          <span key={rule.id} className="inline-flex items-center gap-0.5">
-            <Keyword name={rule.name} rules={described} className={KEYWORD_TAG_CLASS} />
-            {reminders ? <ReminderButton subject={rule} controls={reminders} /> : null}
-          </span>
-        ))}
+        {detachmentRules.map((rule) => {
+          const owner = rule.id && detachmentRuleOwners?.[rule.id.split('/')[0]!]
+          const chip = <Keyword name={rule.name} rules={described} className={KEYWORD_TAG_CLASS} />
+          return (
+            <span key={rule.id} className="inline-flex items-center gap-0.5">
+              {owner ? <DatasheetUnit.Provider value={owner}>{chip}</DatasheetUnit.Provider> : chip}
+              {reminders ? <ReminderButton subject={rule} controls={reminders} /> : null}
+            </span>
+          )
+        })}
       </div>
     </section>,
   )
