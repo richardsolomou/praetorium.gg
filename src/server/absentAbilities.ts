@@ -120,16 +120,20 @@ export function withoutAbsentAbilities(
   return files.map((file) => visit(file, undefined) as CatalogueFile)
 }
 
+type ReleaseAbsences = {
+  entries: Readonly<Record<string, readonly string[]>>
+  absentDetachmentRules?: readonly (readonly [string, string])[]
+} | null
+
 /**
- * Whether a rules version marks a Detachment's rule absent, by the Praetorium faction and Detachment slugs that print
- * it: its own Detachment's, or, where another faction prints it, as a Chapter prints a Space Marines Detachment, the
- * one faction's VS Data holds that Detachment under.
+ * The `abilityKey`s of the rules a rules version marks absent under a Detachment, by the Praetorium faction and Detachment
+ * slugs that print it: its own Detachment's, and, where another faction prints it, as a Chapter prints a Space Marines
+ * Detachment, those of the one faction VS Data holds that Detachment under.
  */
-export function absentDetachmentRule(
-  release: { entries: Readonly<Record<string, readonly string[]>>; absentDetachmentRules?: readonly (readonly [string, string])[] } | null,
-): (faction: string, detachment: string, rule: string) => boolean {
+export function absentDetachmentRuleKeys(release: ReleaseAbsences): (faction: string, detachment: string) => ReadonlySet<string> {
+  const none: ReadonlySet<string> = new Set()
   const pairs = release?.absentDetachmentRules ?? []
-  if (!pairs.length) return () => false
+  if (!pairs.length) return () => none
   const units = new Set(Object.keys(release!.entries).flatMap((key) => (key.startsWith('unit:') ? [key.slice('unit:'.length)] : [])))
   const marked = new Map<string, Set<string>>()
   const holders = new Map<string, Set<string>>()
@@ -143,12 +147,18 @@ export function absentDetachmentRule(
     marked.set(detachment, (marked.get(detachment) ?? new Set()).add(key))
     hold(detachment)
   }
-  return (faction, detachment, rule) => {
-    const key = abilityKey(rule)
-    if (marked.get(`${faction}.${detachment}`)?.has(key)) return true
+  return (faction, detachment) => {
     const owners = holders.get(detachment)
-    return owners?.size === 1 && Boolean(marked.get(`${[...owners][0]}.${detachment}`)?.has(key))
+    const held = owners?.size === 1 ? marked.get(`${[...owners][0]}.${detachment}`) : undefined
+    const own = marked.get(`${faction}.${detachment}`)
+    return own && held ? new Set([...own, ...held]) : (own ?? held ?? none)
   }
+}
+
+/** Whether a rules version marks a Detachment's rule absent, as `absentDetachmentRuleKeys` reads its releases. */
+export function absentDetachmentRule(release: ReleaseAbsences): (faction: string, detachment: string, rule: string) => boolean {
+  const keys = absentDetachmentRuleKeys(release)
+  return (faction, detachment, rule) => keys(faction, detachment).has(abilityKey(rule))
 }
 
 /**

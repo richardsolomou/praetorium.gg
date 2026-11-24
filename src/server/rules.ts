@@ -1,4 +1,4 @@
-import { absentDetachmentRule } from './absentAbilities'
+import { absentDetachmentRuleKeys } from './absentAbilities'
 import fs from 'node:fs'
 import path from 'node:path'
 import { routeSlug } from '../core/slug'
@@ -119,7 +119,7 @@ export function* loadRulesSteps(
         .flatMap((alias) => (alias.startsWith('gdc.enhancement.') ? [alias.slice('gdc.enhancement.'.length).replaceAll('.', '-')] : [])),
     )
   const core = printed(pools.map((pool) => pool.core))
-  const absentRule = absentDetachmentRule(releases[0] ?? null)
+  const absentRules = absentDetachmentRuleKeys(releases[0] ?? null)
   const factions = factionsFromDatacards(
     datacards,
     iconDirectory,
@@ -137,7 +137,7 @@ export function* loadRulesSteps(
           : {}),
       }
     },
-    absentRule,
+    absentRules,
   )
   const missing = yield* missingArmyRulesFromCatalogueSteps(path.join(directory, 'definitions'), datacards)
   const catalogueRules = catalogue?.definitions ? withDefinitionTokens(missing, catalogue.definitions.token) : missing

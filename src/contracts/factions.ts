@@ -15,6 +15,8 @@ export type DetachmentRulesDetail = {
   points: number | null
   dispositions: string[]
   rules: { name: string; description: string }[]
+  /** The `abilityKey`s of the rules the rules version marks absent here, which the catalogue's own rules must not add back. */
+  absentRules?: string[]
   enhancements: { name: string; points: number | null; description: string | null; eligibility: EnhancementEligibility | null }[]
   upgrades: { name: string; points: number | null; description: string | null }[]
   stratagems: {

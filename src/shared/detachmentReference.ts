@@ -36,7 +36,7 @@ export function detachmentReference(loaded: LoadedCatalogue, rules: LoadedRules,
     enhancements: allEnhancements,
     upgrades: allUpgrades,
   })
-  const detachmentRuleCards = mergeDetachmentRules(catalogueDetail?.rules ?? [], detail?.rules ?? [])
+  const detachmentRuleCards = mergeDetachmentRules(catalogueDetail?.rules ?? [], detail?.rules ?? [], detail?.absentRules)
   const enhancements = [
     ...allEnhancements.map((enhancement) => ({
       name: enhancement.name,

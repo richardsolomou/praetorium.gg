@@ -3,6 +3,7 @@ import path from 'node:path'
 import type { Stratagem } from '../core/battle'
 import { uniqueBy } from '../core/collections'
 import { routeSlug } from '../core/slug'
+import { abilityKey } from '../shared/vsDataAbilities'
 import { compareText } from '../core/text'
 import { constructionDetachment, datacardsFactionKeys, type FactionContent, type LoadedDatacards } from '../shared/datacards'
 import { SUPPLEMENTAL_FACTION_ICONS } from './factionIconSources'
@@ -29,8 +30,8 @@ export function factionsFromDatacards(
   datacards: LoadedDatacards,
   iconDirectory: string,
   detachmentCards: DetachmentCards,
-  /** Whether the rules version marks a Detachment's rule absent, which every view of its rules then leaves out. */
-  absentRule: (faction: string, detachment: string, rule: string) => boolean = () => false,
+  /** The `abilityKey`s of the rules the rules version marks absent under a Detachment, which every view of its rules leaves out. */
+  absentRules: (faction: string, detachment: string) => ReadonlySet<string> = () => new Set(),
 ): LoadedFactions {
   const factionNames = new Map<string, string>()
   const factionIcons = new Map<string, string>()
@@ -67,6 +68,7 @@ export function factionsFromDatacards(
       detachmentDetails.set(owner, details)
       byDetachment.set(owner, stratagems)
       const id = routeSlug(name)
+      const absent = absentRules(owner, id)
       const construction = constructionDetachment(datacards, content.name, name, parent)
       const cards = listed.stratagems
       const sourceEnhancements = content.enhancements.get(joinKey(name)) ?? []
@@ -90,7 +92,8 @@ export function factionsFromDatacards(
         name,
         points: construction?.points ?? null,
         dispositions: construction?.dispositions ?? [],
-        rules: (content.detachmentRules.get(joinKey(name)) ?? []).filter((rule) => !absentRule(owner, id, rule.name)),
+        rules: (content.detachmentRules.get(joinKey(name)) ?? []).filter((rule) => !absent.has(abilityKey(rule.name))),
+        ...(absent.size ? { absentRules: [...absent] } : {}),
         enhancements: enhancements.map((card) => ({
           name: card.name,
           points: card.points,
