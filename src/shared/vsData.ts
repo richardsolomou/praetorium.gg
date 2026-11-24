@@ -169,6 +169,8 @@ export const vsDataUnitSchema = z.object({
         roll: z.number().int(),
         against: z.enum(['ranged', 'melee']).optional(),
         conditional: z.literal(true).optional(),
+        /** The `unit-profile` record summarizing its condition. */
+        condition: z.string().optional(),
       }),
     )
     .optional(),

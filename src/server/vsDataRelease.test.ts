@@ -239,7 +239,7 @@ it('keeps each invulnerable save a unit’s profiles print, a model’s own by i
     compact.units['adepta-sororitas.repentia-squad'].invulnerableSaves,
     compact.records.find((kept: { kind: string }) => kept.kind === 'unit-profile')?.summary,
   ]).toEqual([
-    [{ profile: 'drukhari.wyches', roll: 6, against: 'ranged', conditional: true }],
+    [{ profile: 'drukhari.wyches', roll: 6, against: 'ranged', conditional: true, condition: 'drukhari.wyches' }],
     [{ profile: 'adepta-sororitas.repentia-squad.repentia-superior', model: 'Repentia Superior', roll: 6 }],
     'Against melee attacks, this save is 4+.',
   ])
@@ -265,6 +265,33 @@ it('keeps for each unit a shared record names the shared abilities it is one of'
   expect([compact.units['space-marines.land-raider'].shared, compact.units['space-marines.rhino'].shared]).toEqual([
     ['shared.land-raider.damaged'],
     undefined,
+  ])
+})
+
+it('keeps every save a profile holds, as one against ranged attacks and another against melee', () => {
+  fs.rmSync(directory, { recursive: true })
+  const profile = {
+    kind: 'unit-profile',
+    id: 'drukhari.wyches',
+    name: 'Wyches',
+    aliases: [],
+    category: 'profiles',
+    data: {
+      unit: 'drukhari.wyches',
+      invulnerableSave: [
+        { roll: 6, against: 'ranged' },
+        { roll: 4, against: 'melee' },
+      ],
+    },
+  }
+  writeFiles(directory, vsDataReleaseFiles([record, profile]))
+  const file = `${directory}.json`
+  compactVsDataRelease(directory, file)
+  const compact = JSON.parse(fs.readFileSync(file, 'utf8'))
+  fs.rmSync(file)
+  expect(compact.units['drukhari.wyches'].invulnerableSaves).toEqual([
+    { profile: 'drukhari.wyches', roll: 6, against: 'ranged' },
+    { profile: 'drukhari.wyches', roll: 4, against: 'melee' },
   ])
 })
 

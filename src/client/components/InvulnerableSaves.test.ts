@@ -19,3 +19,14 @@ it('shows the catalogue’s figure where VS Data has no save for the unit', () =
 
 it('shows a save the roster grants as the catalogue projects it', () =>
   expect(shownSaves({ profiles: [profile('4+', ['Enhancement'])] }, typed).map(({ value }) => value)).toEqual(['4+']))
+
+it('shows each of a profile’s saves with the attacks it is against', () =>
+  expect(
+    shownSaves({ profiles: [profile('4+* / 6+')] }, [
+      { profile: 'drukhari.wyches', roll: 6, against: 'ranged' },
+      { profile: 'drukhari.wyches', roll: 4, against: 'melee' },
+    ]).map(({ value, scope }) => [value, scope]),
+  ).toEqual([
+    ['6+', 'Against ranged attacks'],
+    ['4+', 'Against melee attacks'],
+  ]))

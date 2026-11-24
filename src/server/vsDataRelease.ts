@@ -207,16 +207,16 @@ const optionDataSchema = z.object({
     )
     .optional(),
 })
+const invulnerableSaveSchema = z.object({
+  roll: z.number().int(),
+  against: z.enum(['ranged', 'melee']).optional(),
+  conditional: z.literal(true).optional(),
+  summary: z.string().optional(),
+})
+// A profile can hold several saves, as Wyches' against ranged attacks and against melee ones.
 const unitProfileDataSchema = z.object({
   unit: z.string(),
-  invulnerableSave: z
-    .object({
-      roll: z.number().int(),
-      against: z.enum(['ranged', 'melee']).optional(),
-      conditional: z.literal(true).optional(),
-      summary: z.string().optional(),
-    })
-    .optional(),
+  invulnerableSave: z.union([invulnerableSaveSchema, z.array(invulnerableSaveSchema)]).optional(),
 })
 const transportDataSchema = z.object({
   unit: z.string(),
@@ -283,19 +283,24 @@ function compactUnits(
   // A condition's summary is kept as the profile's own record, so it is served and withheld as any other summary is.
   const conditions: { kind: string; id: string; summary: string }[] = []
   for (const record of recordsOf('profiles', 'unit-profile')) {
-    const { unit, invulnerableSave: save } = unitProfileDataSchema.parse(record.data)
-    if (!save) continue
-    unitOf(unit).invulnerableSaves = [
-      ...(unitOf(unit).invulnerableSaves ?? []),
-      {
-        profile: record.id,
-        ...(record.id !== unit ? { model: named(record.id) } : {}),
-        roll: save.roll,
-        ...(save.against ? { against: save.against } : {}),
-        ...(save.conditional ? { conditional: true as const } : {}),
-      },
-    ]
-    if (save.summary) conditions.push({ kind: 'unit-profile', id: record.id, summary: save.summary })
+    const { unit, invulnerableSave } = unitProfileDataSchema.parse(record.data)
+    const saves = invulnerableSave === undefined ? [] : [invulnerableSave].flat()
+    for (const [at, save] of saves.entries()) {
+      // Each condition is its own record, named by the profile and, where it holds several, the save's place.
+      const condition = saves.length > 1 ? `${record.id}#${at}` : record.id
+      unitOf(unit).invulnerableSaves = [
+        ...(unitOf(unit).invulnerableSaves ?? []),
+        {
+          profile: record.id,
+          ...(record.id !== unit ? { model: named(record.id) } : {}),
+          roll: save.roll,
+          ...(save.against ? { against: save.against } : {}),
+          ...(save.conditional ? { conditional: true as const } : {}),
+          ...(save.summary ? { condition } : {}),
+        },
+      ]
+      if (save.summary) conditions.push({ kind: 'unit-profile', id: condition, summary: save.summary })
+    }
   }
   for (const record of recordsOf('profiles', 'transport-profile')) {
     const data = transportDataSchema.parse(record.data)

@@ -72,3 +72,17 @@ it('drops the catalogue’s written save, which the typed one stands for, and ch
   })
   expect(twice.rules.map((rule) => rule.name)).toEqual(['Invulnerable save 5+'])
 })
+
+it('holds each of a profile’s saves for its own attacks', () => {
+  const projected = combatant(
+    [model('Wych', '4+* / 6+')],
+    [
+      { profile: 'wyches', roll: 6, against: 'ranged' },
+      { profile: 'wyches', roll: 4, against: 'melee' },
+    ],
+  )
+  expect(activeCombatRules(projected.rules, {}).flatMap(({ effects }) => effects)).toEqual([
+    { role: 'defender', phases: ['ranged'], invulnerable: 6 },
+    { role: 'defender', phases: ['melee'], invulnerable: 4 },
+  ])
+})

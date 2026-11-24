@@ -121,7 +121,7 @@ export function* vsDataSummariesSteps(directory: string, documents: readonly Rul
                       ...(unit.invulnerableSaves
                         ? {
                             invulnerableSaves: unit.invulnerableSaves.map((save) => {
-                              const summary = save.conditional ? summaries.get(`unit-profile:${save.profile}`) : undefined
+                              const summary = save.condition ? summaries.get(`unit-profile:${save.condition}`) : undefined
                               return summary ? { ...save, summary } : save
                             }),
                           }
