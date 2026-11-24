@@ -25,11 +25,11 @@ function abilitiesByOwner(units: VsDataUnits) {
 }
 
 /**
- * An ability's summary among VS Data's, for the datasheet entry (or `@` and the VS Data owner) it is printed on: by name
- * the owner's own, then a record it shares with other units, the ability VS Data aliases to its BSData profile, then its
- * faction's, the one detachment of that name's and the one faction's that has it.
+ * An ability's summaries among VS Data's, for the datasheet entry (or `@` and the VS Data owner) it is printed on, by
+ * name, in order: the owner's own, a record it shares with other units and the ability VS Data aliases to its BSData
+ * profile; then its faction's, the one detachment of that name's and the one faction's that has it.
  */
-export function abilitySummaryIn(units: VsDataUnits, subject: string, name: string, id?: string): RuleSummary | null {
+function ownersAbility(units: VsDataUnits, subject: string, name: string, id?: string) {
   const unit = subject.startsWith('@') ? undefined : units.units[subject]
   const owner = subject.startsWith('@') ? subject.slice(1) : unit?.id
   const byOwner = abilitiesByOwner(units)
@@ -44,12 +44,56 @@ export function abilitySummaryIn(units: VsDataUnits, subject: string, name: stri
   // owner of that detachment's name.
   const detachment = subject.startsWith('@') && owner?.includes('.') ? owner.slice(owner.indexOf('.')) : null
   const named = detachment ? [...byOwner].filter(([held, abilities]) => held.endsWith(detachment) && abilities.has(slug)) : []
-  return (
-    (owner ? byOwner.get(owner)?.get(slug) : undefined) ??
-    (shared ? units.abilities[shared] : undefined) ??
-    (aliased ? units.abilities[aliased] : undefined) ??
-    (owner ? byOwner.get(owner.split('.')[0]!)?.get(slug) : undefined) ??
-    (named.length === 1 ? named[0]![1].get(slug)! : undefined) ??
-    (faction.length === 1 ? faction[0]![1].get(slug)! : null)
-  )
+  return {
+    own: [
+      owner ? byOwner.get(owner)?.get(slug) : undefined,
+      shared ? units.abilities[shared] : undefined,
+      aliased ? units.abilities[aliased] : undefined,
+    ],
+    faction: [
+      owner ? byOwner.get(owner.split('.')[0]!)?.get(slug) : undefined,
+      named.length === 1 ? named[0]![1].get(slug) : undefined,
+      faction.length === 1 ? faction[0]![1].get(slug) : undefined,
+    ],
+  }
+}
+
+/** An ability's summary among VS Data's, by name, for the datasheet entry (or `@` and the VS Data owner) it is printed on. */
+export function abilitySummaryIn(units: VsDataUnits, subject: string, name: string, id?: string): RuleSummary | null {
+  const { own, faction } = ownersAbility(units, subject, name, id)
+  return [...own, ...faction].find(Boolean) ?? null
+}
+
+const unitIds = new WeakMap<VsDataUnits, ReadonlySet<string>>()
+
+/** Whether a record, by `kind:id`, is an ability one of the release's units owns, and not this datasheet's own unit. */
+function otherUnitsAbility(units: VsDataUnits, subject: string, record: string) {
+  if (!record.startsWith('ability:')) return false
+  const bare = record.slice('ability:'.length)
+  const owner = bare.slice(0, bare.lastIndexOf('.'))
+  let ids = unitIds.get(units)
+  if (!ids) unitIds.set(units, (ids = new Set(Object.values(units.units).map((unit) => unit.id))))
+  return ids.has(owner) && owner !== units.units[subject]?.id
+}
+
+/**
+ * A datasheet ability's summary: its owner's own record, then the weapon or core ability its printed text names, then
+ * its faction's, and last any other record its printed text names, which reaches another unit's ability only by the same
+ * name, as Game Datacards prints a few cards in another's words, such as Karanak's Pack Leader in a Sorcerer's Warptime.
+ */
+export function datasheetAbilitySummary(
+  units: VsDataUnits | null,
+  subject: string,
+  name: string,
+  id: string | undefined,
+  printed: { id: string; summary: RuleSummary } | null,
+): RuleSummary | null {
+  const { own, faction } = units ? ownersAbility(units, subject, name, id) : { own: [], faction: [] }
+  const ability = printed?.id.startsWith('ability:') ? printed : null
+  const reaches =
+    ability &&
+    (!units ||
+      !otherUnitsAbility(units, subject, ability.id) ||
+      abilityKey(ability.id.slice(ability.id.lastIndexOf('.') + 1)) === abilityKey(name))
+  return [...own, ability ? undefined : printed?.summary, ...faction, reaches ? ability.summary : undefined].find(Boolean) ?? null
 }

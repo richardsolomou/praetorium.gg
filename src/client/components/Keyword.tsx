@@ -2,8 +2,8 @@ import type { ComponentProps } from 'react'
 import type { Datasheet } from '../../core/datasheet'
 import { ruleReferenceMatches } from '../../core/ruleReference'
 import { RuleSummarySkeleton, RuleSummaryText } from './RuleSummaryText'
-import { useUnitAbilitySummary } from './UnitFromVsData'
-import { useAbilitySummary, useRuleSummary } from '../ruleSummaries'
+import { useDatasheetAbilitySummary } from './UnitFromVsData'
+import { useAbilitySummary } from '../ruleSummaries'
 import { splitKeywords } from '../datasheet'
 import { HoverTooltip } from './HoverTooltip'
 
@@ -56,16 +56,15 @@ export function Keyword({
 }
 
 /**
- * A keyword's rule: the summary of the text it prints or, where that text is not one VS Data summarizes, such as a
- * catalogue's own printing of a weapon ability, the summary of the weapon or core ability it names, and failing that
- * the ability of that name of the datasheet around it or its faction, as a faction ability chip names one.
+ * A keyword's rule: the ability of that name of the datasheet around it or its faction, as a faction ability chip names
+ * one, or the summary of the text it prints, by `useDatasheetAbilitySummary`; and where neither is one VS Data
+ * summarizes, such as a catalogue's own printing of a weapon ability, the summary of the weapon or core ability it names.
  */
 function KeywordRuleSummary({ rule, className }: { rule: KeywordRule; className: string }) {
-  const { summary, pending } = useRuleSummary(rule.description)
-  const named = useAbilitySummary(summary || pending ? null : { name: rule.name })
-  const ofUnit = useUnitAbilitySummary(rule.name, !pending && !summary && named === null)
-  if (pending || named === undefined || ofUnit === undefined) return <RuleSummarySkeleton className={className} />
-  const shown = summary ?? named ?? ofUnit
+  const own = useDatasheetAbilitySummary(rule.description, rule.name)
+  const named = useAbilitySummary(own === null ? { name: rule.name } : null)
+  if (own === undefined || named === undefined) return <RuleSummarySkeleton className={className} />
+  const shown = own ?? named
   return shown ? <RuleSummaryText summary={shown} className={className} abilities={false} /> : null
 }
 

@@ -5,9 +5,9 @@ import { cn } from '@/lib/utils'
 import type { RuleLinks } from '../ruleLinks'
 import { Keyword, type KeywordRule } from './Keyword'
 import { RuleMarkup } from './RuleMarkup'
-import { useAbilitySummary, useRuleSummary } from '../ruleSummaries'
+import { useAbilitySummary } from '../ruleSummaries'
 import { RuleSummarySkeleton, RuleSummaryText } from './RuleSummaryText'
-import { useUnitAbilitySummary } from './UnitFromVsData'
+import { useDatasheetAbilitySummary } from './UnitFromVsData'
 import { hasTextTokens } from '../../core/sourceText'
 
 const noRules: KeywordRule[] = []
@@ -116,12 +116,11 @@ export function RuleText({
 }
 
 function SummarizedRule({ text, className, name, abilityId }: { text: string; className?: string; name?: string; abilityId?: string }) {
-  const { summary, pending } = useRuleSummary(text)
-  const ofUnit = useUnitAbilitySummary(name, !pending && !summary, abilityId)
+  const own = useDatasheetAbilitySummary(text, name, abilityId)
   // A core ability a datasheet prints in BSData's words, such as Leader, is VS Data's core ability of that name.
-  const core = useAbilitySummary(name && !pending && !summary && ofUnit === null ? { name } : null)
-  if (pending || ofUnit === undefined || core === undefined) return <RuleSummarySkeleton className={className} />
-  const shown = summary ?? ofUnit ?? core
+  const core = useAbilitySummary(name && own === null ? { name } : null)
+  if (own === undefined || core === undefined) return <RuleSummarySkeleton className={className} />
+  const shown = own ?? core
   return shown ? <RuleSummaryText summary={shown} className={className} /> : null
 }
 

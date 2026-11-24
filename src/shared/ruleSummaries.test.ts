@@ -3,8 +3,8 @@ import type { RuleSummary } from '../contracts/rules'
 import { abilityKeysNamed, summaryNamedBy, summaryPlainText } from './ruleSummaries'
 
 const summary = (text: string): RuleSummary => ({ blocks: [{ paragraph: [{ text }] }], questions: [] })
-const textOf = (found: RuleSummary | null) =>
-  found?.blocks[0] && 'paragraph' in found.blocks[0] ? found.blocks[0].paragraph[0]?.text : null
+const textOf = (found: { summary: RuleSummary } | null) =>
+  found?.summary.blocks[0] && 'paragraph' in found.summary.blocks[0] ? found.summary.blocks[0].paragraph[0]?.text : null
 const answer = {
   records: { 'ability:a': summary('First stratagem.'), 'ability:b': summary('Second stratagem.') },
   texts: { shared: ['ability:a', 'ability:b'], own: ['ability:b'] },

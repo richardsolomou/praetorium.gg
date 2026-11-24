@@ -31,13 +31,11 @@ export function useRuleSummaries(texts: readonly string[]) {
     ownAnswers.some((answer) => answer.isPending) ||
     (hashes.length > 0 && homes.isPending) ||
     homeAnswers.some((answer) => answer.isPending)
-  return {
-    pending,
-    summaryOf: (text: string): RuleSummary | null => {
-      const named = wholeRuleTokens(text)
-      return named.length ? summaryNamedBy(tokensAtHome(named, ofFile, homes.data), ofFile) : null
-    },
+  const recordOf = (text: string) => {
+    const named = wholeRuleTokens(text)
+    return named.length ? summaryNamedBy(tokensAtHome(named, ofFile, homes.data), ofFile) : null
   }
+  return { pending, recordOf, summaryOf: (text: string): RuleSummary | null => recordOf(text)?.summary ?? null }
 }
 
 /** The VS Data summary of the rule a text prints, and whether that is still being asked. */

@@ -48,6 +48,6 @@ describe.skipIf(!fs.existsSync(directory))('a rule kept from before a data updat
   it('shows the summary of the file its string lives in now', () => {
     const { url, hash, summary } = summarizedRule()
     const older = { file: textFileId(url.replace(/[0-9a-f]{40}/, '0'.repeat(40))), transform: 'plain' as const, hash }
-    expect(read([older], { [hash]: homeOf(hash) })).toEqual(summary)
+    expect(read([older], { [hash]: homeOf(hash) })?.summary).toEqual(summary)
   })
 })

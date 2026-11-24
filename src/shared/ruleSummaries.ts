@@ -17,14 +17,18 @@ export const wholeRuleOf = (clause: string) =>
     .join('')
 
 /**
- * The summary of a rule printing every token's string. A line several rules share, such as a stratagem's timing,
- * narrows the rule down only together with the others; rules left alike print the same words, such as one stratagem
- * several detachments offer, so the first one's summary describes them all.
+ * The record of a rule printing every token's string, by its `kind:id`, and its summary. A line several rules share, such
+ * as a stratagem's timing, narrows the rule down only together with the others; rules left alike print the same words,
+ * such as one stratagem several detachments offer, so the first one's summary describes them all.
  */
-export function summaryNamedBy(tokens: readonly TextToken[], ofFile: ReadonlyMap<string, RuleSummaries | undefined>) {
+export function summaryNamedBy(
+  tokens: readonly TextToken[],
+  ofFile: ReadonlyMap<string, RuleSummaries | undefined>,
+): { id: string; summary: RuleSummary } | null {
   const [first = [], ...rest] = tokens.map((token) => ofFile.get(token.file)?.texts[token.hash] ?? [])
   const [id] = rest.reduce((shared, holders) => shared.filter((held) => holders.includes(held)), first)
-  return (id && tokens.map((token) => ofFile.get(token.file)?.records[id]).find(Boolean)) || null
+  const summary = id && tokens.map((token) => ofFile.get(token.file)?.records[id]).find(Boolean)
+  return id && summary ? { id, summary } : null
 }
 
 /**

@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest'
 import type { VsDataUnits } from './vsData'
-import { abilitySummaryIn } from './vsDataAbilities'
+import { abilitySummaryIn, datasheetAbilitySummary } from './vsDataAbilities'
 
 const summary = { blocks: [], questions: [] }
 const units: VsDataUnits = { units: {}, aliases: {}, abilities: { 'orks.tankbustas.bomb-squigs': summary } }
@@ -35,4 +35,52 @@ it('finds a record VS Data shares between units for each unit it names, and for 
     summary,
     null,
   ])
+})
+
+const said = (text: string) => ({ blocks: [{ paragraph: [{ text }] }], questions: [] })
+const packLeader = said('Pack Leader')
+const warptime = said('Warptime')
+const daemons = (abilities: VsDataUnits['abilities']): VsDataUnits => ({
+  units: {
+    karanak: { id: 'chaos-daemons.karanak', sizes: [], models: [], options: [] },
+    sorcerer: { id: 'chaos-space-marines.sorcerer-in-terminator-armour', sizes: [], models: [], options: [] },
+    flamers: { id: 'chaos-daemons.flamers', sizes: [], models: [], options: [] },
+    exalted: { id: 'chaos-daemons.exalted-flamer', sizes: [], models: [], options: [] },
+  },
+  aliases: {},
+  abilities,
+})
+// Game Datacards prints Karanak's Pack Leader in the words of a Sorcerer's Warptime, so the printed text names that record.
+const printedWarptime = { id: 'ability:chaos-space-marines.sorcerer-in-terminator-armour.warptime', summary: warptime }
+
+it('reads a datasheet ability from its own unit’s record before the record its printed text names', () =>
+  expect(
+    datasheetAbilitySummary(
+      daemons({ 'chaos-daemons.karanak.pack-leader': packLeader, 'chaos-space-marines.sorcerer-in-terminator-armour.warptime': warptime }),
+      'karanak',
+      'Pack Leader',
+      undefined,
+      printedWarptime,
+    ),
+  ).toBe(packLeader))
+
+it('reads no other unit’s ability of another name that its printed text names', () =>
+  expect(
+    datasheetAbilitySummary(
+      daemons({ 'chaos-space-marines.sorcerer-in-terminator-armour.warptime': warptime }),
+      'karanak',
+      'Pack Leader',
+      undefined,
+      printedWarptime,
+    ),
+  ).toBeNull())
+
+it('reads another unit’s ability of the same name that its printed text names', () => {
+  const fire = said('Fire of Tzeentch')
+  expect(
+    datasheetAbilitySummary(daemons({}), 'flamers', 'Fire of Tzeentch', undefined, {
+      id: 'ability:chaos-daemons.exalted-flamer.fire-of-tzeentch',
+      summary: fire,
+    }),
+  ).toBe(fire)
 })

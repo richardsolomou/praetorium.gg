@@ -4,7 +4,8 @@ import type { RuleSummary, RuleSummaryBlock, RuleSummaryInline } from '../../con
 import { catalogueEditionId } from '../../core/catalogueEdition'
 import type { VsDataInvulnerableSave, VsDataUnit, VsDataUnits } from '../../shared/vsData'
 import { ruleUnitsQuery } from '../queries/references'
-import { abilitySummaryIn } from '../../shared/vsDataAbilities'
+import { abilitySummaryIn, datasheetAbilitySummary } from '../../shared/vsDataAbilities'
+import { useRuleSummaries } from '../ruleSummaries'
 
 /** What VS Data's roster and transport data say of one datasheet's unit: undefined while asked for, null where it has none. */
 export function useVsDataUnit(catalogueId: string, entryId: string, enabled = true): VsDataUnit | null | undefined {
@@ -39,6 +40,19 @@ export function useUnitAbilitySummary(name: string | undefined, enabled: boolean
   const units = useVsDataUnits(catalogueId, enabled && Boolean(subject && name))
   if (units === undefined) return undefined
   return units && name ? abilitySummaryIn(units, subject, name, id) : null
+}
+
+/**
+ * The summary of a rule a datasheet or detachment around it prints, by `datasheetAbilitySummary`: its owner's own record
+ * first, then the record its printed text names. Undefined while asked for, null where there is none.
+ */
+export function useDatasheetAbilitySummary(text: string, name: string | undefined, id?: string): RuleSummary | null | undefined {
+  const { pending, recordOf } = useRuleSummaries([text])
+  const [catalogueId = '', subject = ''] = useContext(DatasheetUnit)?.split('#') ?? []
+  const units = useVsDataUnits(catalogueId, Boolean(subject && name))
+  if (pending || units === undefined) return undefined
+  const printed = recordOf(text)
+  return name ? datasheetAbilitySummary(units, subject, name, id, printed) : (printed?.summary ?? null)
 }
 
 /**
