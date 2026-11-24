@@ -41,11 +41,14 @@ function withSaves<T extends Member>(member: T, saves: readonly VsDataInvulnerab
   // A model's own save is on its profile, so Ibram Gaunt's protects his wounds and not his Ghosts'.
   const savedBy = (name: string) =>
     always.find((save) => save.model === name) ?? (unitProfiles.length === 1 ? always[0] : always.find((save) => !save.model))
+  // A model VS Data names otherwise than the datasheet, as its Kill Team Terminator is Garran Branatar, keeps the catalogue's figure.
+  const renamed = always.some((save) => save.model && !unitProfiles.some((profile) => profile.name === save.model))
   const selected: Datasheet = {
     ...member.selected,
     profiles: member.selected.profiles.map((profile) => {
       if (datasheetProfileKind(profile.type) !== 'unit') return profile
       const save = savedBy(profile.name)
+      if (!save && renamed) return profile
       // A save the roster grants, as an enhancement does, stays as the catalogue projects it.
       const projected = profile.values.find((value) => isInvulnerable(value.name) && value.modifiers?.length)
       if (projected) return profile

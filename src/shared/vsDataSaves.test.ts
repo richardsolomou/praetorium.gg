@@ -55,6 +55,21 @@ it('puts a model’s own save on that model only', () => {
   ])
 })
 
+it('keeps the catalogue’s save on a model VS Data names otherwise, as a Kill Team Terminator is Garran Branatar', () => {
+  const projected = combatant(
+    [model('Chaplain Cassius', '4+'), model('Garran Branatar', '4+'), model('Vael Donatus')],
+    [
+      { profile: 'cassius', model: 'Chaplain Cassius', roll: 4 },
+      { profile: 'terminator', model: 'Kill Team Terminator', roll: 4 },
+    ],
+  )
+  expect(projected.selected.profiles.map((profile) => profile.values.find((value) => value.name === 'InSv')?.value)).toEqual([
+    '4+',
+    '4+',
+    undefined,
+  ])
+})
+
 it('drops the catalogue’s written save, which the typed one stands for, and changes nothing applied twice', () => {
   const once = combatant([model('Knight Paladin', '5+*')], [{ profile: 'paladin', roll: 5, against: 'ranged' }])
   const twice = withVsDataSaves(once, {
