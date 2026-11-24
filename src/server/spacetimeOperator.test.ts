@@ -330,5 +330,5 @@ it('tells the module a roster it saves starts each choice on its printed default
     now: 1,
   })
   const [, init] = request.mock.calls[0] as unknown as [URL, RequestInit]
-  expect(JSON.parse((JSON.parse(String(init.body)) as string[])[0]!).printedDefaults).toBe(true)
+  expect(JSON.parse((JSON.parse(init.body as string) as string[])[0]!).printedDefaults).toBe(true)
 })
