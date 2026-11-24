@@ -85,12 +85,24 @@ export function unitComposition(unit: VsDataUnit): Line[] {
   const [fewest, most] = [Math.min(...unit.sizes), Math.max(...unit.sizes)]
   const low = unit.models.reduce((total, model) => total + model.min, 0)
   const high = unit.models.reduce((total, model) => total + model.max, 0)
-  return low === fewest && high === most ? lines : [...lines, line(`${range(fewest, most)} models in all`)]
+  const sized = low === fewest && high === most ? lines : [...lines, line(`${range(fewest, most)} models in all`)]
+  return unit.defaultModels ? [...sized, line('It starts as ', listed(counted(unit.defaultModels), 'and'), '.')] : sized
 }
 
-/** What each model carries before any option is taken. */
-export const unitLoadout = (unit: VsDataUnit): Line[] =>
-  unit.models.filter((model) => model.wargear.length).map((model) => line(`${model.name}: `, listed(counted(model.wargear), 'and'), '.'))
+/**
+ * What each model carries before any option is taken, then the choices some of a model line start with where its models
+ * differ, as one of a Servitor Battleclade's Gun Servitors starts with a heavy bolter and the other a heavy arc rifle.
+ */
+export const unitLoadout = (unit: VsDataUnit): Line[] => [
+  ...unit.models
+    .filter((model) => model.wargear.length)
+    .map((model) => line(`${model.name}: `, listed(counted(model.wargear), 'and'), '.')),
+  ...unit.options.flatMap((option) => {
+    if (!option.defaults?.length) return []
+    const comma = option.defaults.some(([choice]) => choice.includes(' and ')) ? ';' : ','
+    return [line(`${option.carrier ?? 'The unit'} starts with `, listed(counted(option.defaults), 'and', comma), '.')]
+  }),
+]
 
 /** One option a unit's models take, in Praetorium's words: what it allows, then a short list of the limits on its choices. */
 export function unitOption(option: VsDataUnit['options'][number]): RuleSummaryBlock[] {

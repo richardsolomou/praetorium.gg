@@ -133,6 +133,8 @@ const selectorsSchema = z.object({ selectors: z.array(z.string()) })
  */
 export const vsDataUnitSchema = z.object({
   sizes: z.array(z.number().int()),
+  /** How many of each model the unit starts with, where that is not its smallest size. */
+  defaultModels: countedSchema.optional(),
   models: z.array(
     z.object({
       name: z.string(),
@@ -149,6 +151,8 @@ export const vsDataUnitSchema = z.object({
       choices: z.array(z.string()),
       replaces: countedSchema.optional(),
       caps: z.array(z.object({ choices: z.array(z.string()), max: z.number().int(), perModels: z.number().int().optional() })).optional(),
+      /** How many of the carrier's models take each choice before any change, where the models' defaults differ. */
+      defaults: countedSchema.optional(),
     }),
   ),
   transport: z

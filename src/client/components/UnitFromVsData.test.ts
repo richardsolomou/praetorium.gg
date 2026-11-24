@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { pluralModel, unitComposition, unitOption, unitTransport } from './UnitFromVsData'
+import { pluralModel, unitComposition, unitLoadout, unitOption, unitTransport } from './UnitFromVsData'
 
 it('counts a unit’s models as a datasheet does', () => {
   const model = (name: string, min: number, max: number) => ({ name, min, max, wargear: [] })
@@ -92,4 +92,24 @@ it('says a model takes a choice it must make', () => {
   expect(unitOption({ carrier: 'Gun Servitor', choose: { min: 1, max: 1 }, choices: ['Heavy bolter', 'Heavy arc rifle'] })[0]).toEqual({
     paragraph: [{ text: 'Each Gun Servitor takes Heavy bolter or Heavy arc rifle.' }],
   })
+})
+
+it('says which choices a model line starts with where its models differ', () => {
+  expect(
+    unitLoadout({
+      sizes: [9],
+      models: [{ name: 'Gun Servitor', min: 2, max: 2, wargear: [['Servo-claw', 1]] }],
+      options: [
+        {
+          carrier: 'Gun Servitor',
+          choose: { min: 1, max: 1 },
+          choices: ['Heavy bolter', 'Heavy arc rifle'],
+          defaults: [
+            ['Heavy arc rifle', 1],
+            ['Heavy bolter', 1],
+          ],
+        },
+      ],
+    }).map((line) => line.map((run) => run.text).join('')),
+  ).toEqual(['Gun Servitor: Servo-claw.', 'Gun Servitor starts with Heavy arc rifle and Heavy bolter.'])
 })

@@ -178,7 +178,11 @@ function stratagemOf(
   return parsed.success && (core || detachment) ? [parsed.data] : []
 }
 
-const unitDataSchema = z.object({ sizes: z.array(z.number().int()).default([]) })
+const unitDataSchema = z.object({
+  sizes: z.array(z.number().int()).default([]),
+  defaults: z.record(z.string(), z.record(z.string(), z.number().int())).optional(),
+  defaultModels: z.record(z.string(), z.number().int()).optional(),
+})
 const modelDataSchema = z.object({
   unit: z.string(),
   min: z.number().int(),
@@ -228,14 +232,19 @@ function compactUnits(
       .filter((record) => record.rulesVersion?.update === manifest.rulesVersion.update)
   const units: Record<string, VsDataUnit> = {}
   const unitOf = (id: string) => (units[id] ??= { sizes: [], models: [], options: [] })
-  for (const record of recordsOf('rosters', 'unit')) unitOf(record.id).sizes = unitDataSchema.parse(record.data).sizes
+  const unitData = recordsOf('rosters', 'unit').map((record) => ({ id: record.id, data: unitDataSchema.parse(record.data) }))
+  for (const { id, data } of unitData) {
+    unitOf(id).sizes = data.sizes
+    if (data.defaultModels) unitOf(id).defaultModels = counted(data.defaultModels)
+  }
   for (const record of recordsOf('rosters', 'model')) {
     const data = modelDataSchema.parse(record.data)
     unitOf(data.unit).models.push({ name: named(record.id), min: data.min, max: data.max, wargear: counted(data.wargear) })
   }
+  const options = new Map<string, VsDataUnit['options'][number]>()
   for (const record of recordsOf('rosters', 'roster-option')) {
     const data = optionDataSchema.parse(record.data)
-    unitOf(data.unit).options.push({
+    const option: VsDataUnit['options'][number] = {
       ...(data.carrier ? { carrier: named(data.carrier) } : {}),
       ...(data.per && data.per !== 'carrier' ? { perModels: data.per.models } : {}),
       choose: data.choose,
@@ -250,8 +259,15 @@ function compactUnits(
             })),
           }
         : {}),
-    })
+    }
+    options.set(record.id, option)
+    unitOf(data.unit).options.push(option)
   }
+  for (const { data } of unitData)
+    for (const [id, defaults] of Object.entries(data.defaults ?? {})) {
+      const option = options.get(id)
+      if (option) option.defaults = counted(defaults)
+    }
   for (const record of recordsOf('profiles', 'transport-profile')) {
     const data = transportDataSchema.parse(record.data)
     if (data.capacity || data.firingDeck !== undefined)

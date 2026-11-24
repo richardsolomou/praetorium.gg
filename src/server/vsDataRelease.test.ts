@@ -183,6 +183,37 @@ it('keeps a unit the identity aliases to a BSData entry, with no roster record, 
   ])
 })
 
+it('keeps the choices a unit’s models start with where they differ, by the option they are of', () => {
+  const roster = (kind: string, id: string, data: unknown, name = id) => ({ kind, id, name, aliases: [], category: 'rosters', data })
+  const unit = 'adeptus-mechanicus.servitor-battleclade'
+  const files = vsDataReleaseFiles([
+    record,
+    roster('unit', unit, {
+      sizes: [9],
+      defaults: { [`${unit}.gun-servitor-wargear`]: { [`${unit}.heavy-arc-rifle`]: 1, [`${unit}.heavy-bolter`]: 1 } },
+    }),
+    roster('roster-option', `${unit}.gun-servitor-wargear`, {
+      unit,
+      carrier: `${unit}.gun-servitor`,
+      choose: { min: 1, max: 1 },
+      choices: [`${unit}.heavy-bolter`, `${unit}.heavy-arc-rifle`],
+    }),
+    roster('model', `${unit}.gun-servitor`, { unit, min: 2, max: 2, wargear: {} }, 'Gun Servitor'),
+    roster('wargear', `${unit}.heavy-bolter`, {}, 'Heavy bolter'),
+    roster('wargear', `${unit}.heavy-arc-rifle`, {}, 'Heavy arc rifle'),
+  ])
+  fs.rmSync(directory, { recursive: true })
+  writeFiles(directory, files)
+  const file = `${directory}.json`
+  compactVsDataRelease(directory, file)
+  const compact = JSON.parse(fs.readFileSync(file, 'utf8'))
+  fs.rmSync(file)
+  expect(compact.units[unit].options[0].defaults).toEqual([
+    ['Heavy arc rifle', 1],
+    ['Heavy bolter', 1],
+  ])
+})
+
 it('reads a complete record with no summary of its own, as a mission card is, as having none', () => {
   fs.rmSync(directory, { recursive: true })
   writeFiles(directory, vsDataReleaseFiles([record, { ...record, id: 'necrons.test.card', summary: undefined, data: { text: 'none' } }]))
