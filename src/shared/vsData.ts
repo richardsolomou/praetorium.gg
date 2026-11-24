@@ -215,6 +215,8 @@ export const vsDataSummariesSchema = z.object({
    * release publishes by ID, and by name the printed ones it does not.
    */
   detachments: z.array(vsDataDetachmentSchema).default([]),
+  /** Each datasheet and ability profile, by BSData ids, the rules version does not print though BSData gives it. */
+  absentAbilities: z.array(z.tuple([z.string(), z.string()])).optional(),
   /** Each unit's datasheet data by VS Data id; its BSData aliases are in `entries` under `unit:<id>`. */
   units: z.record(z.string(), vsDataUnitSchema).default({}),
   records: z.array(

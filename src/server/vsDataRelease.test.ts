@@ -295,6 +295,25 @@ it('keeps every save a profile holds, as one against ranged attacks and another 
   ])
 })
 
+it('keeps each datasheet and ability profile the identity marks absent from the rules version, by BSData ids', () => {
+  fs.rmSync(directory, { recursive: true })
+  const ancient = { kind: 'unit', id: 'blood-angels.ancient', name: 'Ancient', aliases: ['bsdata.cd69.af58'] }
+  const banner = {
+    kind: 'ability',
+    id: 'blood-angels.ancient.astartes-banner',
+    name: 'Astartes Banner',
+    aliases: ['bsdata.4873.a8a2'],
+    absent: true as const,
+    references: [{ kind: 'unit', id: 'blood-angels.ancient' }],
+  }
+  writeFiles(directory, vsDataReleaseFiles([record], 'MFM 1.4', [ancient, banner]))
+  const file = `${directory}.json`
+  compactVsDataRelease(directory, file)
+  const compact = JSON.parse(fs.readFileSync(file, 'utf8'))
+  fs.rmSync(file)
+  expect(compact.absentAbilities).toEqual([['cd69-af58', '4873-a8a2']])
+})
+
 it('reads a complete record with no summary of its own, as a mission card is, as having none', () => {
   fs.rmSync(directory, { recursive: true })
   writeFiles(directory, vsDataReleaseFiles([record, { ...record, id: 'necrons.test.card', summary: undefined, data: { text: 'none' } }]))

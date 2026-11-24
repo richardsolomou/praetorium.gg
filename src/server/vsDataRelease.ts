@@ -347,6 +347,32 @@ function detachmentsOf(
   return [...listed, ...absent]
 }
 
+/** The BSData ids of each datasheet and ability profile the identity marks absent from this rules version. */
+function absentAbilitiesOf(
+  identity: readonly {
+    kind: string
+    id: string
+    aliases?: readonly string[]
+    absent?: true
+    references?: readonly { kind: string; id: string }[]
+  }[],
+) {
+  const bsdata = (aliases: readonly string[] | undefined) =>
+    (aliases ?? []).flatMap((alias) => (alias.startsWith('bsdata.') ? [alias.slice('bsdata.'.length).replaceAll('.', '-')] : []))
+  const unitAliases = new Map(identity.flatMap((entry) => (entry.kind === 'unit' ? [[entry.id, bsdata(entry.aliases)] as const] : [])))
+  return identity.flatMap((entry) =>
+    entry.kind === 'ability' && entry.absent
+      ? (entry.references ?? [])
+          .filter((reference) => reference.kind === 'unit')
+          .flatMap((reference) =>
+            (unitAliases.get(reference.id) ?? []).flatMap((datasheet) =>
+              bsdata(entry.aliases).map((profile) => [datasheet, profile] as [string, string]),
+            ),
+          )
+      : [],
+  )
+}
+
 const describe = ({ edition, update }: VsDataRulesVersion) => `${edition} ${update}`
 
 /**
@@ -388,6 +414,7 @@ export function compactVsDataRelease(directory: string, file: string) {
   for (const id of Object.keys(units)) wanted.add(vsDataKey({ kind: 'unit', id }))
   const current = identity.filter((entry) => !entry.retired)
   const entries = current.filter((entry) => wanted.has(vsDataKey(entry)))
+  const absent = absentAbilitiesOf(current)
   const compact: VsDataSummariesFile = {
     release: manifest.release,
     rulesVersion: manifest.rulesVersion,
@@ -401,6 +428,7 @@ export function compactVsDataRelease(directory: string, file: string) {
       .map((record) => record.data),
     missionActions: current.flatMap((entry) => (entry.kind === 'mission-action' && entry.name ? [{ id: entry.id, name: entry.name }] : [])),
     detachments: detachmentsOf(manifest, read, current),
+    ...(absent.length ? { absentAbilities: absent } : {}),
     units,
     attributions: [
       ...new Map(

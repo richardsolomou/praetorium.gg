@@ -1,4 +1,5 @@
 import { hash } from 'node:crypto'
+import { absentAbilitiesFor, withoutAbsentAbilities } from './absentAbilities'
 import { withDefinitionTokens, withDefinitionTokensIn } from './sourceTexts'
 import { definitionTexts } from './definitionTexts'
 import { cardTwins } from './cardTwins'
@@ -41,6 +42,9 @@ export function* loadCatalogueSteps(directory = catalogueDirectory(), edition?: 
     yield
   }
   if (!read.length) return null
+  // An ability VS Data marks absent from this rules version's datasheets is hidden there, so no view or calculation shows it.
+  const absent = absentAbilitiesFor(directory, edition?.id)
+  if (absent.length) for (const entry of read) entry.file = withoutAbsentAbilities([entry.file], absent)[0]!
 
   // The catalogue reads its rules texts as tokens with their facts, as a device's catalogue does; only the server keeps the words.
   const texts = definitionTexts(read)
