@@ -22,8 +22,8 @@ const catalogue = (): Partial<Catalogue> => ({
     },
   ],
 })
-const version = (absent: readonly (readonly [string, string])[]) => {
-  const [file] = withoutAbsentAbilities([{ catalogue: { id: 'cat', name: 'Test catalogue', ...catalogue() } }], absent)
+const version = (absent: readonly (readonly [string, string])[], named: readonly (readonly [string, string])[] = []) => {
+  const [file] = withoutAbsentAbilities([{ catalogue: { id: 'cat', name: 'Test catalogue', ...catalogue() } }], absent, named)
   const book = bookOf(file!.catalogue!)
   return (id: string) => datasheetIn(book, 'cat', id)?.abilities.map((shown) => shown.name)
 }
@@ -38,6 +38,20 @@ it('hides an ability on the datasheet a rules version marks it absent from, own 
 
 it('keeps a shared ability on another datasheet that prints it', () =>
   expect(version([['ancient', 'rage']])('captain')).toEqual(['Black Rage']))
+
+it('hides an ability marked absent by name where it has no BSData alias, own or shared', () =>
+  expect(
+    version(
+      [],
+      [
+        ['ancient', 'astarte-banner'],
+        ['ancient', 'black-rage'],
+      ],
+    )('ancient'),
+  ).toEqual([]))
+
+it('keeps an ability marked absent by name on another datasheet that prints it', () =>
+  expect(version([], [['ancient', 'black-rage']])('captain')).toEqual(['Black Rage']))
 
 it('keeps the ability on a rules version that does not mark it absent', () =>
   expect(version([])('ancient')).toEqual(['Astartes Banner', 'Black Rage']))

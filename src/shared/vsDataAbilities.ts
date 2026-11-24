@@ -5,7 +5,7 @@ import type { VsDataUnits } from './vsData'
 const owned = new WeakMap<VsDataUnits, Map<string, Map<string, RuleSummary>>>()
 
 /** `unitAbilitySlug` without each word's trailing "s", as a datasheet's "Bomb Squig" is VS Data's "Bomb Squigs". */
-const abilityKey = (name: string) => unitAbilitySlug(name).replaceAll(/(?<=[a-z0-9]{2}[a-rt-z0-9])s(?=-|$)/g, '')
+export const abilityKey = (name: string) => unitAbilitySlug(name).replaceAll(/(?<=[a-z0-9]{2}[a-rt-z0-9])s(?=-|$)/g, '')
 
 /** Each ability by the unit or faction whose id it starts with, then by `abilityKey`, read once per answer. */
 function abilitiesByOwner(units: VsDataUnits) {

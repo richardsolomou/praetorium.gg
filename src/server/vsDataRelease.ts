@@ -1,4 +1,5 @@
 import { summaryBlocks } from '../core/summaryMarkdown'
+import { abilityKey } from '../shared/vsDataAbilities'
 import { hash } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -347,11 +348,15 @@ function detachmentsOf(
   return [...listed, ...absent]
 }
 
-/** The BSData ids of each datasheet and ability profile the identity marks absent from this rules version. */
+/**
+ * Each datasheet and ability the identity marks absent from this rules version, by BSData ids: the profile's where the
+ * ability has a BSData alias, and otherwise its `abilityKey`, as several absent rows sharing one alias keep none.
+ */
 function absentAbilitiesOf(
   identity: readonly {
     kind: string
     id: string
+    name?: string
     aliases?: readonly string[]
     absent?: true
     references?: readonly { kind: string; id: string }[]
@@ -360,17 +365,18 @@ function absentAbilitiesOf(
   const bsdata = (aliases: readonly string[] | undefined) =>
     (aliases ?? []).flatMap((alias) => (alias.startsWith('bsdata.') ? [alias.slice('bsdata.'.length).replaceAll('.', '-')] : []))
   const unitAliases = new Map(identity.flatMap((entry) => (entry.kind === 'unit' ? [[entry.id, bsdata(entry.aliases)] as const] : [])))
-  return identity.flatMap((entry) =>
-    entry.kind === 'ability' && entry.absent
-      ? (entry.references ?? [])
-          .filter((reference) => reference.kind === 'unit')
-          .flatMap((reference) =>
-            (unitAliases.get(reference.id) ?? []).flatMap((datasheet) =>
-              bsdata(entry.aliases).map((profile) => [datasheet, profile] as [string, string]),
-            ),
-          )
-      : [],
-  )
+  const profiles: [string, string][] = []
+  const names: [string, string][] = []
+  for (const entry of identity) {
+    if (entry.kind !== 'ability' || !entry.absent) continue
+    const own = bsdata(entry.aliases)
+    for (const reference of entry.references ?? [])
+      for (const datasheet of reference.kind === 'unit' ? (unitAliases.get(reference.id) ?? []) : []) {
+        if (own.length) profiles.push(...own.map((profile): [string, string] => [datasheet, profile]))
+        else if (entry.name) names.push([datasheet, abilityKey(entry.name)])
+      }
+  }
+  return { profiles, names }
 }
 
 const describe = ({ edition, update }: VsDataRulesVersion) => `${edition} ${update}`
@@ -428,7 +434,8 @@ export function compactVsDataRelease(directory: string, file: string) {
       .map((record) => record.data),
     missionActions: current.flatMap((entry) => (entry.kind === 'mission-action' && entry.name ? [{ id: entry.id, name: entry.name }] : [])),
     detachments: detachmentsOf(manifest, read, current),
-    ...(absent.length ? { absentAbilities: absent } : {}),
+    ...(absent.profiles.length ? { absentAbilities: absent.profiles } : {}),
+    ...(absent.names.length ? { absentAbilityNames: absent.names } : {}),
     units,
     attributions: [
       ...new Map(
