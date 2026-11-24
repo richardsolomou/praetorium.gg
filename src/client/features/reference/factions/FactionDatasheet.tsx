@@ -39,7 +39,7 @@ import { Keyword, KEYWORD_TAG_CLASS, KeywordList, type KeywordRule, UnitKeywords
 import { ProfileRules } from '../../rosters/ProfileRules'
 import { RuleText } from '../../../components/RuleText'
 import { useRuleSummary } from '../../../ruleSummaries'
-import { Blocks, blocksText, RuleSummarySkeleton, Runs, textOf } from '../../../components/RuleSummaryText'
+import { Blocks, blocksText, RuleSummarySkeleton, RuleSummaryText, Runs, textOf } from '../../../components/RuleSummaryText'
 import {
   DatasheetUnit,
   datasheetUnit,
@@ -47,6 +47,7 @@ import {
   unitLoadout,
   unitOptions,
   unitTransport,
+  useUnitAbilitySummary,
   useVsDataUnit,
 } from '../../../components/UnitFromVsData'
 import { PageContent, PageHeader } from '../../../components/Page'
@@ -620,10 +621,12 @@ export function TransportReference({
   const { summary } = useRuleSummary(shown ?? '')
   const unit = useVsDataUnit(catalogueId, entryId)
   const facts = unit ? unitTransport(unit) : []
+  // A capacity VS Data cannot type, as the Manta's, shows as its summary of the unit's Transport ability instead.
+  const ofUnit = useUnitAbilitySummary('Transport', Boolean(shown) && !summary && !facts.length)
   if (!transport && !facts.length) return null
   const anchors = <ReferenceAnchors prefix="profile" ids={profiles.map((profile) => profile.id)} />
   // Only a summary of the rule and VS Data's transport facts are ever shown, so a rule with neither leaves no section.
-  if (!(shown && summary) && !facts.length) return anchors
+  if (!(shown && summary) && !ofUnit && !facts.length) return anchors
   return (
     <section>
       {anchors}
@@ -635,6 +638,7 @@ export function TransportReference({
           </p>
         ))}
         {shown && summary ? <RuleText text={shown} rules={rules} className={facts.length ? 'mt-2' : 'mt-0'} /> : null}
+        {ofUnit && !summary ? <RuleSummaryText summary={ofUnit} className="mt-0" /> : null}
       </div>
     </section>
   )

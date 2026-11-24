@@ -3,6 +3,9 @@ import { renderToStaticMarkup } from 'react-dom/server'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { describe, expect, it, vi } from 'vitest'
 import { Abilities, ProfileTable, Relationships, TransportReference } from './FactionDatasheet'
+import { DatasheetUnit, datasheetUnit } from '../../../components/UnitFromVsData'
+import { ruleUnitsQuery } from '../../../queries/references'
+import type { VsDataUnits } from '../../../../shared/vsData'
 
 // Summaries link to the core rules they name.
 vi.mock('@tanstack/react-router', () => ({
@@ -116,4 +119,34 @@ it('leaves the transport rule to the abilities when they already print it', () =
   )
 
   expect(markup).not.toContain('Carries twelve models.')
+})
+
+it('shows VS Data’s summary of a Transport ability whose capacity it cannot type', () => {
+  const client = new QueryClient()
+  const units: VsDataUnits = {
+    units: { manta: { id: 'tau-empire.manta', sizes: [1], models: [], options: [] } },
+    abilities: { 'tau-empire.manta.transport': { blocks: [{ paragraph: [{ text: 'It carries three loads at once.' }] }], questions: [] } },
+    aliases: {},
+  }
+  client.setQueryData(ruleUnitsQuery(null).queryKey, units)
+  const markup = renderToStaticMarkup(
+    createElement(
+      QueryClientProvider,
+      { client },
+      createElement(
+        DatasheetUnit.Provider,
+        { value: datasheetUnit('cat', 'manta') },
+        createElement(TransportReference, {
+          transport: 'Carries twelve models.',
+          profiles: [],
+          abilities: [],
+          rules: [],
+          catalogueId: 'cat',
+          entryId: 'manta',
+        }),
+      ),
+    ),
+  )
+
+  expect(markup).toContain('It carries three loads at once.')
 })

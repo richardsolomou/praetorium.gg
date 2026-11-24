@@ -12,8 +12,8 @@ import { Keyword, KEYWORD_TAG_CLASS, type KeywordRule, UnitKeywords } from '../.
 import { abilitySections, attachmentGroups, primaryUnitProfile, referenceAbilities, separateTransport } from '../../../datasheet'
 import { RuleText } from '../../../components/RuleText'
 import { useRuleSummary } from '../../../ruleSummaries'
-import { DatasheetUnit, datasheetUnit, unitTransport, useVsDataUnit } from '../../../components/UnitFromVsData'
-import { Runs, textOf } from '../../../components/RuleSummaryText'
+import { DatasheetUnit, datasheetUnit, unitTransport, useUnitAbilitySummary, useVsDataUnit } from '../../../components/UnitFromVsData'
+import { RuleSummaryText, Runs, textOf } from '../../../components/RuleSummaryText'
 import { ProfileRules } from '../ProfileRules'
 import { ReminderButton, type ReminderControls } from '../ReminderButton'
 import type { ReminderSubject } from '../../../../core/reminders'
@@ -314,7 +314,9 @@ function TransportRule({
   const { summary } = useRuleSummary(text ?? '')
   const unit = useVsDataUnit(catalogueId, entryId)
   const facts = unit ? unitTransport(unit) : []
-  if (!(text && summary) && !facts.length) return null
+  // A capacity VS Data cannot type, as the Manta's, shows as its summary of the unit's Transport ability instead.
+  const ofUnit = useUnitAbilitySummary('Transport', Boolean(text) && !summary && !facts.length)
+  if (!(text && summary) && !ofUnit && !facts.length) return null
   return (
     <section>
       <h2 className="rubric">Transport</h2>
@@ -325,6 +327,7 @@ function TransportRule({
           </p>
         ))}
         {text && summary ? <RuleText text={text} rules={rules} /> : null}
+        {ofUnit && !summary ? <RuleSummaryText summary={ofUnit} /> : null}
       </div>
     </section>
   )
