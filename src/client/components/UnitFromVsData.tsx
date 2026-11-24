@@ -41,6 +41,15 @@ export function useUnitAbilitySummary(name: string | undefined, enabled: boolean
   return units && name ? abilitySummaryIn(units, subject, name, id) : null
 }
 
+/**
+ * Every ability summary of a rules version's release by VS Data id, as a card the build has only in its app is found by
+ * its id, with no printed text to name it by. Undefined while asked for, null where there is none.
+ */
+export function useReleaseAbilities(catalogueId: string, enabled = true): VsDataUnits['abilities'] | null | undefined {
+  const units = useVsDataUnits(catalogueId, enabled)
+  return units === undefined ? undefined : (units?.abilities ?? null)
+}
+
 type Line = RuleSummaryInline[]
 type Run = string | RuleSummaryInline
 

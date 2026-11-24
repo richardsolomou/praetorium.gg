@@ -37,8 +37,13 @@ export function abilitySummaryIn(units: VsDataUnits, subject: string, name: stri
   // The owner's own ability first, then its faction's, as its army rule and shared abilities are the faction's, then the
   // one faction that has it, as a chapter's datasheets and a Crucible datasheet with no VS Data unit print an army rule.
   const faction = [...byOwner].filter(([held, abilities]) => !held.includes('.') && abilities.has(slug))
+  // A detachment another faction's page shows, as Dark Angels show the Space Marines' Stormlance Task Force, is the one
+  // owner of that detachment's name.
+  const detachment = subject.startsWith('@') && owner?.includes('.') ? owner.slice(owner.indexOf('.')) : null
+  const shared = detachment ? [...byOwner].filter(([held, abilities]) => held.endsWith(detachment) && abilities.has(slug)) : []
   return (
     (owner ? (byOwner.get(owner)?.get(slug) ?? byOwner.get(owner.split('.')[0]!)?.get(slug)) : undefined) ??
+    (shared.length === 1 ? shared[0]![1].get(slug)! : undefined) ??
     (faction.length === 1 ? faction[0]![1].get(slug)! : null)
   )
 }

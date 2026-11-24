@@ -5,7 +5,8 @@ import { routeSlug } from '../../../../core/slug'
 import { detachmentDetailQuery } from '../../../queries'
 import { RuleText } from '../../../components/RuleText'
 import { stratagemWindowsLabel } from '../../../../core/reminders'
-import { DatasheetUnit, detachmentRulesOwner } from '../../../components/UnitFromVsData'
+import { DatasheetUnit, detachmentRulesOwner, useReleaseAbilities, useUnitAbilitySummary } from '../../../components/UnitFromVsData'
+import { RuleSummarySkeleton, RuleSummaryText } from '../../../components/RuleSummaryText'
 import { dispositionTone } from '../../../components/rosterSetup'
 import { FactionMark, factionColour, type FactionPresentation } from '../../../components/FactionMark'
 import { FavouriteDetachmentToggle } from './FavouriteDetachmentToggle'
@@ -34,6 +35,8 @@ export function DetachmentReference({
   closing?: ReactNode
 }) {
   const { data: detachment, isPending, isError } = useQuery(detachmentDetailQuery(catalogueId, slug))
+  // A Stratagem the build has only in its app prints no text, so its summary is the release's record of its id.
+  const release = useReleaseAbilities(catalogueId, Boolean(detachment?.stratagems.some((stratagem) => !stratagem.description)))
   if (isPending)
     return (
       <PageState
@@ -124,7 +127,7 @@ export function DetachmentReference({
                     {enhancement.description ? (
                       <RuleText text={enhancement.description} rules={detachment.keywordRules} name={enhancement.name} />
                     ) : (
-                      <Unavailable />
+                      <SummaryByName name={enhancement.name} />
                     )}
                   </article>
                 ))}
@@ -154,7 +157,7 @@ export function DetachmentReference({
 
             <section aria-label="Stratagems">
               <SectionHeading title="Stratagems" count={detachment.stratagems.length} />
-              {detachment.stratagems.some((stratagem) => !stratagem.description) ? (
+              {detachment.stratagems.some((stratagem) => !stratagem.description && !release?.[stratagem.id]) ? (
                 <p className="text-sm text-dim">Some stratagem descriptions are not available.</p>
               ) : null}
               <div className="mt-2 grid gap-2 md:grid-cols-2">
@@ -177,7 +180,11 @@ export function DetachmentReference({
                       </div>
                       {stratagem.cp === null ? null : <span className="chip shrink-0">{stratagem.cp} CP</span>}
                     </div>
-                    {stratagem.description ? <RuleText text={stratagem.description} rules={detachment.keywordRules} /> : null}
+                    {stratagem.description ? (
+                      <RuleText text={stratagem.description} rules={detachment.keywordRules} />
+                    ) : release?.[stratagem.id] ? (
+                      <RuleSummaryText summary={release[stratagem.id]!} />
+                    ) : null}
                   </article>
                 ))}
               </div>
@@ -193,4 +200,11 @@ export function DetachmentReference({
 
 function Unavailable() {
   return <p className="mt-2 text-sm text-dim">No description is available.</p>
+}
+
+/** The VS Data summary of a card the build has only in its app, found by its name among the detachment's records. */
+function SummaryByName({ name }: { name: string }) {
+  const summary = useUnitAbilitySummary(name, true)
+  if (summary === undefined) return <RuleSummarySkeleton />
+  return summary ? <RuleSummaryText summary={summary} /> : <Unavailable />
 }

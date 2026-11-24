@@ -10,3 +10,12 @@ it('finds an ability whose name a datasheet prints in the singular and VS Data i
 
 it('finds the army rule a datasheet with no VS Data unit prints by the one faction that has it', () =>
   expect(abilitySummaryIn({ units: {}, aliases: {}, abilities: { 'orks.waaagh': summary } }, 'crucible-entry', 'Waaagh!')).toBe(summary))
+
+it('finds a card of a detachment another faction’s page shows by the one owner of that detachment', () =>
+  expect(
+    abilitySummaryIn(
+      { units: {}, aliases: {}, abilities: { 'space-marines.stormlance-task-force.feinting-withdrawal': summary } },
+      '@dark-angels.stormlance-task-force',
+      'Feinting Withdrawal',
+    ),
+  ).toBe(summary))

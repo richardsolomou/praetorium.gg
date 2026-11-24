@@ -22,7 +22,13 @@ export type ReferenceCard = ComponentProps<typeof MissionCardReference>['card'] 
 export type MissionDetails = { name: string; card: ReferenceCard; type: string; mode?: string }
 
 /** What a stratagem actually says, as the detachment page prints it. */
-export type StratagemText = { type: string | null; description: string | null; keywordRules: { name: string; description: string }[] }
+export type StratagemText = {
+  type: string | null
+  description: string | null
+  keywordRules: { name: string; description: string }[]
+  /** The rules version it is written for, whose release summarizes a card the build has only in its app. */
+  catalogueId?: string
+}
 
 type Props = {
   view: BattleView

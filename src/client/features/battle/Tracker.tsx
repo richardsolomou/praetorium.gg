@@ -268,7 +268,18 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
   const referenceFor = useCallback((key: string): ReferenceCard | undefined => cardsByKey.get(currentMissionId(key)), [cardsByKey])
   useWatchBattle(view, clock, missions, referenceFor, reminderPrompts)
   const activeMissionActionReminders = active?.isViewer ? missionActionReminders(active, referenceFor) : EMPTY_REMINDERS
-  const writtenFor = useCallback((side: Side, key: string): StratagemText | undefined => writtenStratagem(rulesFor(side), key), [rulesFor])
+  const writtenFor = useCallback(
+    (side: Side, key: string): StratagemText | undefined => {
+      for (const [at, result] of ruleResults.entries()) {
+        const request = ruleRequests[at]
+        if (request?.side !== side.index || !result.data) continue
+        const written = writtenStratagem([result.data], key)
+        if (written) return { ...written, catalogueId: request.catalogueId }
+      }
+      return undefined
+    },
+    [ruleResults, ruleRequests],
+  )
   const whenDrawnFor = (key: string): WhenDrawn | undefined =>
     secondaryDeck.find((card) => sameMissionId(card.key, key))?.whenDrawn ?? undefined
   const coreKeysBySide = useMemo(
