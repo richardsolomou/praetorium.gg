@@ -9,6 +9,7 @@ import { textFileId, textHash, textSourcePaths } from './sourceTexts'
 import { vsDataReleaseFiles, writeFiles } from './vsData.fixtures'
 import { checkVsDataRelease, compactVsDataRelease } from './vsDataRelease'
 import { MISSION_SUMMARIES, type RuleDocument } from '../contracts/rules'
+import { abilitySummaryIn } from '../shared/vsDataAbilities'
 import { NO_RULE_SUMMARIES, summariesOfFile, type VsDataSummaries, vsDataSummariesSteps, withholdCopiedSummaries } from './vsDataSummaries'
 
 const effect = 'Until the end of the phase, each time a model in your unit makes an attack, add 1 to the Hit roll.'
@@ -209,6 +210,21 @@ it('links a bracketed weapon ability to the core rule that prints it', () => {
       { text: ' this phase.' },
     ],
   })
+})
+
+it('reads a detachment rule under the id VS Data aliases it by, for its own faction and another fielding the detachment', () => {
+  const bloodtainted = {
+    kind: 'ability',
+    id: 'chaos-daemons.blood-legion.blood-tainted',
+    aliases: ['chaos-daemons.blood-legion.bloodtainted'],
+    summary: 'Fight with renewed fury.',
+  }
+  const { summaries } = snapshot([{ update: 'MFM 1.6', summary: 'Pick one of your units to hit more often.' }], [bloodtainted])
+  const units = summaries!.unitsIn(null)
+  const summary = units.abilities['chaos-daemons.blood-legion.blood-tainted']
+  expect(
+    ['@titanicus-traitoris.blood-legion', '@chaos-daemons.blood-legion'].map((owner) => abilitySummaryIn(units, owner, 'Bloodtainted')),
+  ).toEqual([summary, summary])
 })
 
 it('serves the mission pack’s summaries, which no source file holds', () => {
