@@ -144,7 +144,7 @@ describe('copiedArmy', () => {
   const [army] = battle('finished')
 
   it('copies the army without its player’s notes', () => {
-    expect(copiedArmy({ ...army!, picks }).picks).toEqual([{ entryId: 'immortals', models: 10, floor: true }])
+    expect(copiedArmy({ ...army!, picks }).picks).toEqual([{ entryId: 'immortals', models: 10 }])
   })
 
   it('keeps the detachments and battle size it was fielded with', () => {

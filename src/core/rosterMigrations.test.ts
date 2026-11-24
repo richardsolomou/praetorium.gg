@@ -202,11 +202,7 @@ it('retains removed Dark Angels detachments and loadouts on their original rules
     ],
     updatedAt: 0,
   }
-  expect(currentRosterIds(currentRosterIds(roster))).toEqual({
-    ...roster,
-    catalogueId: 'legacy-rosters~470a-6daa-9014-12df',
-    picks: roster.picks.map((pick) => ({ ...pick, floor: true })),
-  })
+  expect(currentRosterIds(currentRosterIds(roster))).toEqual({ ...roster, catalogueId: 'legacy-rosters~470a-6daa-9014-12df' })
 })
 
 it('retains a removed loadout even when every selected detachment still exists', () => {
@@ -245,11 +241,7 @@ it('keeps mixed original Marine gear and profile upgrades on the earlier complet
     ],
     updatedAt: 0,
   }
-  expect(currentRosterIds(currentRosterIds(roster))).toEqual({
-    ...roster,
-    catalogueId: 'legacy-marine-old~470a-6daa-9014-12df',
-    picks: roster.picks.map((pick) => ({ ...pick, floor: true })),
-  })
+  expect(currentRosterIds(currentRosterIds(roster))).toEqual({ ...roster, catalogueId: 'legacy-marine-old~470a-6daa-9014-12df' })
 })
 
 it('uses later retained Marine rules when no earlier removed gear was saved', () => {
