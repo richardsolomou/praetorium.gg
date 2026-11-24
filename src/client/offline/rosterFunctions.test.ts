@@ -192,3 +192,8 @@ it('copies a custom points budget into a variant saved on the device', async () 
   await copyRoster({ data: { id: 'original', variant: true } })
   expect(mocks.queue.mock.calls[0]?.[3].data).toMatchObject({ limit: 2000, pointsBudget: 1500 })
 })
+
+it('queues a save that says it starts each choice on its printed default', async () => {
+  await saveRoster({ data: { ...roster, name: 'Renamed' } })
+  expect(mocks.queue.mock.calls[0]?.[1].printedDefaults).toBe(true)
+})

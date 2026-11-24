@@ -125,6 +125,8 @@ export async function seedRoster(
     visibility: 'private',
     source: 'editable',
     now: Date.now(),
+    // Saved as this app saves one, unless the roster says otherwise.
+    printedDefaults: true,
     ...roster,
   })
   return { id, operator, outcome }

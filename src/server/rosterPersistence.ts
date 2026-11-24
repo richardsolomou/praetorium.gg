@@ -17,6 +17,8 @@ type RosterColumns = {
   borrowedDetachmentId?: string | null
   baseRosterId?: string | null
   copiedFromRosterId?: string | null
+  /** Sent by code that starts a choice on its printed default; without it the module keeps each unit on its cheapest. */
+  printedDefaults?: true
 }
 
 /** Encodes a roster's columns for storage; `rosterFromRow` reads them back. */
@@ -32,7 +34,7 @@ export function rosterRow<R extends RosterColumns>(roster: R) {
     borrowedDetachmentId: roster.borrowedDetachmentId ?? null,
     baseRosterId: roster.baseRosterId ?? null,
     copiedFromRosterId: roster.copiedFromRosterId ?? null,
-    printedDefaults: true as const,
+    printedDefaults: roster.printedDefaults,
   }
 }
 

@@ -77,6 +77,8 @@ type SaveRosterInput = {
   borrowedDetachmentId?: string | null
   baseRosterId?: string | null
   copiedFromRosterId?: string | null
+  /** Sent by code that starts a choice on its printed default; without it the module keeps each unit on its cheapest. */
+  printedDefaults?: boolean
   visibility: RosterVisibility
   source: RosterSource
   now: number
@@ -178,8 +180,7 @@ export function withRosters<B extends SpacetimeBase>(Base: B) {
             ...input,
             optionalRules: input.optionalRules ?? '[]',
             borrowedDetachmentId: input.borrowedDetachmentId ?? null,
-            // This server starts a choice on its printed default, so the module keeps these picks as they are.
-            printedDefaults: true,
+            printedDefaults: input.printedDefaults === true ? true : undefined,
           }),
         ],
         z.enum(['inserted', 'updated', 'forbidden', 'locked']),

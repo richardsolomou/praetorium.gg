@@ -88,7 +88,7 @@ it('uses the captured server version and receipt for a native-v3 account save', 
   const saved = await nativeSave()
   expect({ saved, request: mocks.sync.mock.calls[0]?.[0].data, directWrites: mocks.directSave.mock.calls.length }).toEqual({
     saved: { id: 'army', updatedAt: 9 },
-    request: { ...receipt, owner: 'alice', roster: { ...original, limit: 1000 } },
+    request: { ...receipt, owner: 'alice', roster: { ...original, limit: 1000, printedDefaults: true } },
     directWrites: 0,
   })
 })
@@ -99,8 +99,8 @@ it('preserves the same server receipt and candidate after an uncertain native sa
   await expect(nativeSave()).rejects.toThrow('Connection lost')
   await nativeSave()
   expect(mocks.sync.mock.calls.map(([request]) => request.data)).toEqual([
-    { ...receipt, owner: 'alice', roster: { ...original, limit: 1000 } },
-    { ...receipt, owner: 'alice', roster: { ...original, limit: 1000 } },
+    { ...receipt, owner: 'alice', roster: { ...original, limit: 1000, printedDefaults: true } },
+    { ...receipt, owner: 'alice', roster: { ...original, limit: 1000, printedDefaults: true } },
   ])
 })
 

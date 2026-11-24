@@ -555,7 +555,15 @@ export const rosterContentSchema = z
   .superRefine(validatePointsBudget)
   .overwrite(withStandardBudget)
 
-export const saveRosterSchema = rosterContentSchema.overwrite(currentRosterIds)
+export const saveRosterSchema = rosterContentSchema
+  .extend({
+    // Kept out of the content a review compares, as a stored row reads back without it.
+    printedDefaults: z
+      .literal(true)
+      .optional()
+      .describe('Sent by code that starts a choice on its printed default; a save without it keeps each unit on its cheapest.'),
+  })
+  .overwrite(currentRosterIds)
 
 const attachSavedRosterSchema = z.object({ kind: z.literal('attach-saved-roster'), rosterId: id, playerId: id.optional() }).strict()
 /**
