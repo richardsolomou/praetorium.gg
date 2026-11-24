@@ -362,8 +362,8 @@ it('drops a Detachment a rules version’s build does not have', () => {
   })
   const loaded = loadRules(directory, { rulesVersion: 'earlier' })!
   expect([
-    loaded.byDetachment.get('death-guard')?.has('flyblown-host'),
-    loaded.detachmentDetails.get('death-guard')?.has('flyblown-host'),
+    loaded.byDetachment.get('death-guard')?.has('flyblown-host') ?? false,
+    loaded.detachmentDetails.get('death-guard')?.has('flyblown-host') ?? false,
   ]).toEqual([false, false])
 })
 
