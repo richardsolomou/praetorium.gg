@@ -4,15 +4,16 @@ import { z } from 'zod'
 import { ruleReferenceMatches, splitWeaponKeywords } from '../src/core/ruleReference'
 import { textTokensIn } from '../src/core/sourceText'
 import { loadCanonicalCatalogue } from '../src/server/canonicalCatalogue'
-import { type VsDataSummaries, vsDataSummariesSteps } from '../src/server/vsDataSummaries'
+import { readVsDataRelease, type VsDataSummaries, vsDataSummariesSteps } from '../src/server/vsDataSummaries'
 import { summaryNamedBy } from '../src/shared/ruleSummaries'
 import { completeSteps } from '../src/shared/steps'
 import { baselineShortfall } from './lib/baselines'
 import { catalogueDataDirectory } from './lib/catalogueFiles'
 
 /**
- * How many Game Datacards records of each summarized rules version show a VS Data summary, by kind, and how many of the
- * current catalogue's weapon ability keywords a datasheet's tooltip shows one for. A ratchet: a count may not fall
+ * How many Game Datacards records of each summarized rules version show a VS Data summary, by kind, how many of the cards,
+ * awards, actions and twists its VS Data mission packs hold do, and how many of the current catalogue's weapon ability
+ * keywords a datasheet's tooltip shows one for. A ratchet: a count may not fall
  * below `catalogue/vs-data-coverage.json`. Add `--write` to raise it, `--details` to list misses.
  */
 const baselineFile = path.resolve(import.meta.dirname, '..', 'catalogue', 'vs-data-coverage.json')
@@ -54,12 +55,44 @@ function weaponKeywords(read: VsDataSummaries) {
         }
   return shown
 }
+const MISSION_KINDS = {
+  'mission-card': 'mission card',
+  'mission-award': 'mission award',
+  'mission-action': 'mission action',
+  'mission-twist': 'mission twist',
+}
+
+/** Each mission record a rules version's mission packs name, as the mission pages show them, and whether it has a summary. */
+function missionJoins(edition: string) {
+  const release = readVsDataRelease(directory, edition)
+  if (!release) return []
+  const summarized = new Set(release.records.map((record) => `${record.kind}:${record.id}`))
+  const ids = {
+    'mission-card': release.missionPacks.flatMap((pack) => [...pack.primaries, ...pack.secondaries].map((card) => card.id)),
+    'mission-award': release.missionPacks.flatMap((pack) =>
+      [...pack.primaries, ...pack.secondaries].flatMap((card) => card.awards.map((award) => award.id)),
+    ),
+    'mission-action': release.missionActions.map((action) => action.id),
+    'mission-twist': release.missionPacks.flatMap((pack) => pack.twists.map((twist) => twist.id)),
+  }
+  return Object.entries(ids).flatMap(([kind, held]) =>
+    [...new Set(held)].map((id) => ({
+      kind: MISSION_KINDS[kind as keyof typeof MISSION_KINDS],
+      key: `${kind}:${id}`,
+      named: true,
+      served: summarized.has(`${kind}:${id}`),
+    })),
+  )
+}
+
 if (!summaries) {
   baselineShortfall('the snapshot has no VS Data summaries for any of its rules versions')
 } else {
   const served: Record<string, Record<string, number>> = {}
   for (const edition of summaries.editions) {
-    const joins = summaries.joins(edition)
+    // Missions are read from VS Data's own packs, not Game Datacards' mission cards, which the app no longer reads.
+    const missionKinds = new Set(Object.values(MISSION_KINDS) as string[])
+    const joins = [...summaries.joins(edition).filter((join) => !missionKinds.has(join.kind)), ...missionJoins(edition)]
     const ofEdition: Record<string, number> = (served[edition] = {})
     console.log(`VS Data summaries for ${edition}`)
     for (const kind of new Set(joins.map((join) => join.kind))) {
