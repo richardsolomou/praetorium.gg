@@ -34,7 +34,7 @@ import { readRevisions } from './catalogueSources'
 import { mfmUnitFor } from '../shared/unitPoints'
 
 export const CANONICAL_CATALOGUE_FORMAT = 'praetorium.canonical-catalogue.v1' as const
-export const CANONICAL_CATALOGUE_COMPILER_VERSION = 29 as const
+export const CANONICAL_CATALOGUE_COMPILER_VERSION = 30 as const
 
 const characteristicSchema = z.object({
   name: z.string(),
@@ -166,7 +166,7 @@ const canonicalDetachmentSchema = z.object({
     z.object({
       id: z.string(),
       name: z.string(),
-      cp: z.number(),
+      cp: z.number().nullable(),
       type: z.string().nullable(),
       phases: z.array(z.string()),
       turn: z.string().nullable(),
