@@ -28,10 +28,14 @@ export function absentAbilitiesFor(
   return { profiles: absentAbilities ?? [], names: absentAbilityNames ?? [] }
 }
 
+type Hiding = { ids: Set<string>; keys: Set<string> }
+
 /**
  * The files with each absent ability hidden on its datasheet, by its profile's id or, without one, by its name: its
  * profile where the datasheet's entry holds it, and the entry's link to it where the profile is shared, so another
- * datasheet that prints it keeps it. Files are shared between rules versions, so only the path to what changes is copied.
+ * datasheet that prints it keeps it. A datasheet that is a faction's link to a shared entry hides it in that entry,
+ * where every link to the entry is such a datasheet. Files are shared between rules versions, so only the path to what
+ * changes is copied.
  */
 export function withoutAbsentAbilities(
   files: CatalogueFile[],
@@ -39,12 +43,50 @@ export function withoutAbsentAbilities(
   named: readonly AbsentAbilityName[] = [],
 ): CatalogueFile[] {
   if (!absent.length && !named.length) return files
-  const byDatasheet = new Map<string, { ids: Set<string>; keys: Set<string> }>()
+  const byDatasheet = new Map<string, Hiding>()
   const of = (datasheet: string) =>
     byDatasheet.get(datasheet) ?? byDatasheet.set(datasheet, { ids: new Set(), keys: new Set() }).get(datasheet)!
   for (const [datasheet, profile] of absent) of(datasheet).ids.add(profile)
   for (const [datasheet, key] of named) of(datasheet).keys.add(key)
-  const visit = (node: unknown, hiding: { ids: ReadonlySet<string>; keys: ReadonlySet<string> } | undefined): unknown => {
+  // A shared entry every link to which is an absent ability's datasheet, or lies within one, hides what they all hide.
+  const linksTo = new Map<string, string[]>()
+  const nodes = new Map<string, Record<string, unknown>>()
+  const linksIn = (node: unknown, found: (link: string, target: string) => void): void => {
+    if (Array.isArray(node)) return node.forEach((entry) => linksIn(entry, found))
+    if (!node || typeof node !== 'object') return
+    const fields = node as Record<string, unknown>
+    if (fields.type === 'selectionEntry' && typeof fields.id === 'string' && typeof fields.targetId === 'string')
+      found(fields.id, fields.targetId)
+    for (const value of Object.values(fields)) if (value && typeof value === 'object') linksIn(value, found)
+  }
+  const index = (node: unknown): void => {
+    if (Array.isArray(node)) return node.forEach(index)
+    if (!node || typeof node !== 'object') return
+    const fields = node as Record<string, unknown>
+    if (typeof fields.id === 'string' && !nodes.has(fields.id)) nodes.set(fields.id, fields)
+    for (const value of Object.values(fields)) if (value && typeof value === 'object') index(value)
+  }
+  index(files)
+  linksIn(files, (link, target) => linksTo.set(target, [...(linksTo.get(target) ?? []), link]))
+  const reachedBy = new Map<string, Map<string, Hiding>>()
+  const queue = [...byDatasheet.keys()]
+  for (let id = queue.pop(); id !== undefined; id = queue.pop()) {
+    const hiding = byDatasheet.get(id)!
+    linksIn(nodes.get(id), (link, target) => {
+      const reached = reachedBy.get(target) ?? reachedBy.set(target, new Map()).get(target)!
+      reached.set(link, hiding)
+      if (byDatasheet.has(target) || !linksTo.get(target)?.every((each) => reached.has(each))) return
+      const [first, ...rest] = [...reached.values()]
+      const shared = {
+        ids: new Set([...first!.ids].filter((held) => rest.every((other) => other.ids.has(held)))),
+        keys: new Set([...first!.keys].filter((held) => rest.every((other) => other.keys.has(held)))),
+      }
+      if (!shared.ids.size && !shared.keys.size) return
+      byDatasheet.set(target, shared)
+      queue.push(target)
+    })
+  }
+  const visit = (node: unknown, hiding: Hiding | undefined): unknown => {
     if (Array.isArray(node)) {
       const next = node.map((entry) => visit(entry, hiding))
       return next.some((entry, at) => entry !== node[at]) ? next : node

@@ -44,7 +44,12 @@ export function* loadCatalogueSteps(directory = catalogueDirectory(), edition?: 
   if (!read.length) return null
   // An ability VS Data marks absent from this rules version's datasheets is hidden there, so no view or calculation shows it.
   const absent = absentAbilitiesFor(directory, edition?.id)
-  for (const entry of read) entry.file = withoutAbsentAbilities([entry.file], absent.profiles, absent.names)[0]!
+  const visible = withoutAbsentAbilities(
+    read.map((entry) => entry.file),
+    absent.profiles,
+    absent.names,
+  )
+  for (const [at, entry] of read.entries()) entry.file = visible[at]!
 
   // The catalogue reads its rules texts as tokens with their facts, as a device's catalogue does; only the server keeps the words.
   const texts = definitionTexts(read)

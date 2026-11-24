@@ -62,3 +62,28 @@ it('leaves the files another rules version shares untouched', () => {
   withoutAbsentAbilities([shared], [['ancient', 'banner']])
   expect(JSON.stringify(shared)).toBe(before)
 })
+
+const linked = (absent: readonly (readonly [string, string])[], links: string[]) =>
+  withoutAbsentAbilities(
+    [
+      {
+        catalogue: {
+          id: 'cat',
+          name: 'Test catalogue',
+          sharedSelectionEntries: [{ id: 'ancient', name: 'Ancient', type: 'model', profiles: [ability('banner', 'Astartes Banner')] }],
+          entryLinks: links.map((id) => ({ id, name: 'Ancient', targetId: 'ancient', type: 'selectionEntry' as const })),
+        },
+      },
+    ],
+    absent,
+  )
+
+it('hides an absent ability on a datasheet its faction links to, where no other datasheet links to it', () => {
+  const book = bookOf(linked([['ancient-link', 'banner']], ['ancient-link'])[0]!.catalogue!)
+  expect(datasheetIn(book, 'cat', 'ancient-link')?.abilities).toEqual([])
+})
+
+it('keeps an absent ability on a linked datasheet another datasheet links to as well', () =>
+  expect(
+    linked([['ancient-link', 'banner']], ['ancient-link', 'other-link'])[0]!.catalogue!.sharedSelectionEntries![0]!.profiles![0]!.hidden,
+  ).toBeUndefined())
