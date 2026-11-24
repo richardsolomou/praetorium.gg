@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { createContext, useContext } from 'react'
 import type { RuleSummary, RuleSummaryBlock, RuleSummaryInline } from '../../contracts/rules'
 import { catalogueEditionId } from '../../core/catalogueEdition'
-import type { VsDataUnit, VsDataUnits } from '../../shared/vsData'
+import type { VsDataInvulnerableSave, VsDataUnit, VsDataUnits } from '../../shared/vsData'
 import { ruleUnitsQuery } from '../queries/references'
 import { abilitySummaryIn } from '../../shared/vsDataAbilities'
 
@@ -49,6 +49,10 @@ export function useReleaseAbilities(catalogueId: string, enabled = true): VsData
   const units = useVsDataUnits(catalogueId, enabled)
   return units === undefined ? undefined : (units?.abilities ?? null)
 }
+
+/** What an invulnerable save applies to, as "Against ranged attacks", or nothing where it applies to every attack. */
+export const invulnerableSaveScope = (save: Pick<VsDataInvulnerableSave, 'against'>) =>
+  save.against ? `Against ${save.against} attacks` : null
 
 type Line = RuleSummaryInline[]
 type Run = string | RuleSummaryInline

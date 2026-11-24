@@ -2,7 +2,7 @@ import { type PropsWithChildren, createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { describe, expect, it, vi } from 'vitest'
-import { Abilities, ProfileTable, Relationships, TransportReference } from './FactionDatasheet'
+import { Abilities, InvulnerableSaves, ProfileTable, Relationships, TransportReference } from './FactionDatasheet'
 import { DatasheetUnit, datasheetUnit } from '../../../components/UnitFromVsData'
 import { ruleUnitsQuery } from '../../../queries/references'
 import type { VsDataUnits } from '../../../../shared/vsData'
@@ -149,4 +149,24 @@ it('shows VS Data’s summary of a Transport ability whose capacity it cannot ty
   )
 
   expect(markup).toContain('It carries three loads at once.')
+})
+
+it('shows which attacks and model an invulnerable save is for, and its condition', () => {
+  const markup = renderToStaticMarkup(
+    createElement(InvulnerableSaves, {
+      saves: [
+        {
+          profile: 'drukhari.wyches',
+          roll: 6,
+          against: 'ranged',
+          conditional: true,
+          summary: { blocks: [{ paragraph: [{ text: 'Against melee attacks, this save is 4+.' }] }], questions: [] },
+        },
+        { profile: 'adepta-sororitas.repentia-squad.repentia-superior', model: 'Repentia Superior', roll: 6 },
+      ],
+    }),
+  )
+  expect(
+    ['Against ranged attacks', 'Against melee attacks, this save is 4+.', 'Repentia Superior'].every((text) => markup.includes(text)),
+  ).toBe(true)
 })

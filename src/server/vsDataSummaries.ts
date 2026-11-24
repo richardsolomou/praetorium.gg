@@ -111,7 +111,24 @@ export function* vsDataSummariesSteps(directory: string, documents: readonly Rul
             index
               .aliasesOf({ kind: 'unit', id })
               .filter((alias) => alias.startsWith('bsdata.'))
-              .map((alias) => [alias.slice('bsdata.'.length).replaceAll('.', '-'), { ...unit, id }] as const),
+              .map(
+                (alias) =>
+                  [
+                    alias.slice('bsdata.'.length).replaceAll('.', '-'),
+                    {
+                      ...unit,
+                      id,
+                      ...(unit.invulnerableSaves
+                        ? {
+                            invulnerableSaves: unit.invulnerableSaves.map((save) => {
+                              const summary = save.conditional ? summaries.get(`unit-profile:${save.profile}`) : undefined
+                              return summary ? { ...save, summary } : save
+                            }),
+                          }
+                        : {}),
+                    },
+                  ] as const,
+              ),
           ),
         ),
         // Every ability by its VS Data id, which a unit's own abilities and its faction's start with, and by each former

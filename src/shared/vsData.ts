@@ -155,6 +155,21 @@ export const vsDataUnitSchema = z.object({
       defaults: countedSchema.optional(),
     }),
   ),
+  /**
+   * Each invulnerable save the unit's profiles print: a model's own where it is not the unit's, the attacks it is only
+   * against, and whether a condition, summarized in the release's `unit-profile` record of `profile`, limits it.
+   */
+  invulnerableSaves: z
+    .array(
+      z.object({
+        profile: z.string(),
+        model: z.string().optional(),
+        roll: z.number().int(),
+        against: z.enum(['ranged', 'melee']).optional(),
+        conditional: z.literal(true).optional(),
+      }),
+    )
+    .optional(),
   transport: z
     .object({
       loads: z.array(z.array(z.object({ count: z.string(), limit: z.number().int(), selectors: z.array(z.string()) }))).optional(),
@@ -169,8 +184,9 @@ export type VsDataUnit = z.infer<typeof vsDataUnitSchema>
  * What datasheets show from VS Data for one rules version: each unit's roster and transport data with its VS Data id, by
  * its BSData entry id, and every ability's summary by VS Data id, which starts with its unit's or its faction's.
  */
+export type VsDataInvulnerableSave = NonNullable<VsDataUnit['invulnerableSaves']>[number] & { summary?: RuleSummary }
 export type VsDataUnits = {
-  units: Record<string, VsDataUnit & { id: string }>
+  units: Record<string, Omit<VsDataUnit, 'invulnerableSaves'> & { id: string; invulnerableSaves?: VsDataInvulnerableSave[] }>
   abilities: Record<string, RuleSummary>
   /** The VS Data id of each ability aliased to a BSData profile, by that profile's id. */
   aliases: Record<string, string>

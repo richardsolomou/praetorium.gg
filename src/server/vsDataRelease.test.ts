@@ -214,6 +214,37 @@ it('keeps the choices a unit’s models start with where they differ, by the opt
   ])
 })
 
+it('keeps each invulnerable save a unit’s profiles print, a model’s own by its name, a condition by its summary', () => {
+  const profile = (id: string, data: unknown, name = id) => ({ kind: 'unit-profile', id, name, aliases: [], category: 'profiles', data })
+  const files = vsDataReleaseFiles([
+    record,
+    profile('drukhari.wyches', {
+      unit: 'drukhari.wyches',
+      invulnerableSave: { roll: 6, against: 'ranged', conditional: true, summary: 'Against melee attacks, this save is 4+.' },
+    }),
+    profile(
+      'adepta-sororitas.repentia-squad.repentia-superior',
+      { unit: 'adepta-sororitas.repentia-squad', invulnerableSave: { roll: 6 } },
+      'Repentia Superior',
+    ),
+  ])
+  fs.rmSync(directory, { recursive: true })
+  writeFiles(directory, files)
+  const file = `${directory}.json`
+  compactVsDataRelease(directory, file)
+  const compact = JSON.parse(fs.readFileSync(file, 'utf8'))
+  fs.rmSync(file)
+  expect([
+    compact.units['drukhari.wyches'].invulnerableSaves,
+    compact.units['adepta-sororitas.repentia-squad'].invulnerableSaves,
+    compact.records.find((kept: { kind: string }) => kept.kind === 'unit-profile')?.summary,
+  ]).toEqual([
+    [{ profile: 'drukhari.wyches', roll: 6, against: 'ranged', conditional: true }],
+    [{ profile: 'adepta-sororitas.repentia-squad.repentia-superior', model: 'Repentia Superior', roll: 6 }],
+    'Against melee attacks, this save is 4+.',
+  ])
+})
+
 it('reads a complete record with no summary of its own, as a mission card is, as having none', () => {
   fs.rmSync(directory, { recursive: true })
   writeFiles(directory, vsDataReleaseFiles([record, { ...record, id: 'necrons.test.card', summary: undefined, data: { text: 'none' } }]))

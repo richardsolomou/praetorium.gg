@@ -206,6 +206,17 @@ const optionDataSchema = z.object({
     )
     .optional(),
 })
+const unitProfileDataSchema = z.object({
+  unit: z.string(),
+  invulnerableSave: z
+    .object({
+      roll: z.number().int(),
+      against: z.enum(['ranged', 'melee']).optional(),
+      conditional: z.literal(true).optional(),
+      summary: z.string().optional(),
+    })
+    .optional(),
+})
 const transportDataSchema = z.object({
   unit: z.string(),
   capacity: vsDataUnitSchema.shape.transport.unwrap().omit({ firingDeck: true }).optional(),
@@ -221,7 +232,7 @@ function compactUnits(
   manifest: VsDataManifest,
   read: (name: string) => unknown,
   identity: readonly { kind: string; id: string; name?: string; aliases?: readonly string[]; retired?: unknown }[],
-): Record<string, VsDataUnit> {
+) {
   const names = new Map(identity.map((entry) => [entry.id, entry.name]))
   const named = (id: string) => names.get(id) ?? id
   const counted = (counts: Record<string, number>) => Object.entries(counts).map(([id, count]) => [named(id), count] as [string, number])
@@ -268,6 +279,23 @@ function compactUnits(
       const option = options.get(id)
       if (option) option.defaults = counted(defaults)
     }
+  // A condition's summary is kept as the profile's own record, so it is served and withheld as any other summary is.
+  const conditions: { kind: string; id: string; summary: string }[] = []
+  for (const record of recordsOf('profiles', 'unit-profile')) {
+    const { unit, invulnerableSave: save } = unitProfileDataSchema.parse(record.data)
+    if (!save) continue
+    unitOf(unit).invulnerableSaves = [
+      ...(unitOf(unit).invulnerableSaves ?? []),
+      {
+        profile: record.id,
+        ...(record.id !== unit ? { model: named(record.id) } : {}),
+        roll: save.roll,
+        ...(save.against ? { against: save.against } : {}),
+        ...(save.conditional ? { conditional: true as const } : {}),
+      },
+    ]
+    if (save.summary) conditions.push({ kind: 'unit-profile', id: record.id, summary: save.summary })
+  }
   for (const record of recordsOf('profiles', 'transport-profile')) {
     const data = transportDataSchema.parse(record.data)
     if (data.capacity || data.firingDeck !== undefined)
@@ -275,7 +303,7 @@ function compactUnits(
   }
   for (const entry of identity)
     if (entry.kind === 'unit' && !entry.retired && entry.aliases?.some((alias) => alias.startsWith('bsdata.'))) unitOf(entry.id)
-  return units
+  return { units, conditions }
 }
 
 const detachmentDataSchema = z.object({
@@ -323,14 +351,19 @@ const describe = ({ edition, update }: VsDataRulesVersion) => `${edition} ${upda
 export function compactVsDataRelease(directory: string, file: string) {
   const manifest = readVsDataManifest(directory)!
   const read = (name: string): unknown => JSON.parse(fs.readFileSync(path.join(directory, name), 'utf8'))
-  const records = manifest.categories
-    .filter((category) => SUMMARY_CATEGORIES.has(category.name))
-    .flatMap((category) => category.records)
-    .map((entry) => read(entry.path))
-    // A record without a summary of its own reads as having none, as any other gap does.
-    .filter(hasSummary)
-    .map((record) => recordSchema.parse(record))
-    .filter((record) => record.rulesVersion.update === manifest.rulesVersion.update)
+  const identity = identitySchema.parse(read(manifest.identity.path)).entries
+  const { units, conditions } = compactUnits(manifest, read, identity)
+  const records = [
+    ...manifest.categories
+      .filter((category) => SUMMARY_CATEGORIES.has(category.name))
+      .flatMap((category) => category.records)
+      .map((entry) => read(entry.path))
+      // A record without a summary of its own reads as having none, as any other gap does.
+      .filter(hasSummary)
+      .map((record) => recordSchema.parse(record))
+      .filter((record) => record.rulesVersion.update === manifest.rulesVersion.update),
+    ...conditions.map(({ kind, id, summary }) => recordSchema.parse({ kind, id, rulesVersion: manifest.rulesVersion, data: { summary } })),
+  ]
   const wanted = new Set(
     records.flatMap((record) => [
       vsDataKey(record),
@@ -340,8 +373,6 @@ export function compactVsDataRelease(directory: string, file: string) {
         .flatMap((run) => (run.target ? [vsDataKey(run.target)] : [])),
     ]),
   )
-  const identity = identitySchema.parse(read(manifest.identity.path)).entries
-  const units = compactUnits(manifest, read, identity)
   for (const id of Object.keys(units)) wanted.add(vsDataKey({ kind: 'unit', id }))
   const current = identity.filter((entry) => !entry.retired)
   const entries = current.filter((entry) => wanted.has(vsDataKey(entry)))

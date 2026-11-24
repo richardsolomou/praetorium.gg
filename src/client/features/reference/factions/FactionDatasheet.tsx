@@ -46,10 +46,12 @@ import {
   unitComposition,
   unitLoadout,
   unitOptions,
+  invulnerableSaveScope,
   unitTransport,
   useUnitAbilitySummary,
   useVsDataUnit,
 } from '../../../components/UnitFromVsData'
+import type { VsDataInvulnerableSave } from '../../../../shared/vsData'
 import { PageContent, PageHeader } from '../../../components/Page'
 import { groupBy } from '../../../../core/collections'
 import { rulesVersionLabel } from '../../../../core/catalogueEdition'
@@ -66,6 +68,8 @@ export function FactionDatasheet() {
   const params = useParams({ strict: false })
   const faction = useReferenceFaction()
   const { data: sheet } = useQuery(datasheetSlugQuery(faction?.id ?? '', params.entryId ?? ''))
+  // VS Data's saves replace the catalogue's figure, as they say which attacks and models a save is for and its condition.
+  const saves = useVsDataUnit(faction?.id ?? '', sheet?.id ?? '', Boolean(faction && sheet))?.invulnerableSaves
   if (!sheet || !faction) return null
   const structured = datasheetProfilesByKind(sheet)
   const unitGroups = characteristicProfileGroups(structured.unit)
@@ -125,7 +129,9 @@ export function FactionDatasheet() {
           <FactionBreadcrumb faction={faction} datasheets />
           <ContinueGuestDraft surface="datasheet" />
 
-          {unit.length === 1 && unit[0] ? <UnitCharacteristics profile={unit[0]} anchorIds={unitAnchorIds.get(unit[0].id)} /> : null}
+          {unit.length === 1 && unit[0] ? (
+            <UnitCharacteristics profile={unit[0]} anchorIds={unitAnchorIds.get(unit[0].id)} invulnerable={!saves?.length} />
+          ) : null}
           {unit.length > 1 ? (
             <ProfileTable
               title="Models"
@@ -135,7 +141,8 @@ export function FactionDatasheet() {
               anchorIds={unitAnchorIds}
             />
           ) : null}
-          {unit.length > 1 && invulnerable.length ? (
+          {saves?.length ? <InvulnerableSaves saves={saves} /> : null}
+          {!saves?.length && unit.length > 1 && invulnerable.length ? (
             <section>
               <SectionHeading title="Invulnerable save" />
               <div className="flex flex-wrap gap-2">
@@ -486,8 +493,17 @@ export function Relationships({
 
 type DisplayProfile = StructuredDatasheetProfile
 
-function UnitCharacteristics({ profile, anchorIds = noAnchorIds }: { profile: DisplayProfile; anchorIds?: readonly string[] }) {
-  const invulnerable = invulnerableSaveOf(profile.values)?.value
+function UnitCharacteristics({
+  profile,
+  anchorIds = noAnchorIds,
+  invulnerable: showInvulnerable = true,
+}: {
+  profile: DisplayProfile
+  anchorIds?: readonly string[]
+  /** False where VS Data's saves are shown instead. */
+  invulnerable?: boolean
+}) {
+  const invulnerable = showInvulnerable ? invulnerableSaveOf(profile.values)?.value : undefined
   const values = statlineValues(profile.values)
   return (
     <section id={`profile-${profile.id}`}>
@@ -506,6 +522,32 @@ function UnitCharacteristics({ profile, anchorIds = noAnchorIds }: { profile: Di
           <span className="figure text-2xl leading-none font-semibold">{invulnerable}</span>
         </div>
       ) : null}
+    </section>
+  )
+}
+
+/** Each invulnerable save VS Data gives the unit: the model it is for, the attacks it is against and its condition. */
+export function InvulnerableSaves({ saves }: { saves: readonly VsDataInvulnerableSave[] }) {
+  return (
+    <section>
+      <SectionHeading title="Invulnerable save" />
+      <div className="grid gap-2 md:grid-cols-2">
+        {saves.map((save) => {
+          const scope = invulnerableSaveScope(save)
+          return (
+            <div key={save.profile + (save.against ?? '')} className="part px-4 py-2.5">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  {save.model ? <p className="rubric text-xs text-bone">{save.model}</p> : null}
+                  {scope ? <p className="text-sm text-dim">{scope}</p> : null}
+                </div>
+                <span className="figure text-2xl leading-none font-semibold">{save.roll}+</span>
+              </div>
+              {save.summary ? <RuleSummaryText summary={save.summary} className="mt-1" /> : null}
+            </div>
+          )
+        })}
+      </div>
     </section>
   )
 }
