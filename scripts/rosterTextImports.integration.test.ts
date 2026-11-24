@@ -1490,4 +1490,25 @@ Exported with App Version: v2.8.0 (2), Data Version: v981`).mismatches,
     const found = priced(custodesOfficial)?.units.find((candidate) => candidate.name === unit)
     expect(found?.upgrades).toContain(upgrade)
   })
+
+  it.each(['Contemptor combat weapon', 'Contemptor Fist'])(
+    "reads the Venerable Contemptor Dreadnought's melee weapon as an official app of either age spells it: %s",
+    (weapon) => {
+      const file = `Test (1,000 Points)
+
+Adeptus Custodes
+Lions of the Emperor (1 Detachment Point)
+Strike Force (1,000 Points)
+
+OTHER DATASHEETS
+
+Venerable Contemptor Dreadnought (170 Points)
+• 1x Combi-bolter
+• 1x ${weapon}
+• 1x Multi-melta
+`
+      const result = imported(file)
+      expect([result.units.length, result.unknown, result.unplaced]).toEqual([1, [], []])
+    },
+  )
 })

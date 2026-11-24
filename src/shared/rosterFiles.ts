@@ -854,9 +854,11 @@ const modelAliases = (name: string) => {
 }
 // BSData prefixes weapons the official app does not, as its "Astartes Chainsword" and "Steed's savage claws" are the app's "Chainsword" and "Savage claws".
 // "Exo-armour" and "Exoarmour", "sabre & clawed limbs" and "sabre and clawed limbs", "Company Veteran w/ Bolt Rifle" and "with bolt rifle", are one piece.
-// The official app's "Transdimensional isolator" and "Boss Nob" are the catalogue's "Dimensional isolator" and "Nob".
+// The official app's "Transdimensional isolator" and "Boss Nob" are the catalogue's "Dimensional isolator" and "Nob", and
+// app data before v981 prints the Venerable Contemptor Dreadnought's "Contemptor Fist" as a "Contemptor combat weapon".
 const spellingKey = (name: string) =>
   name
+    .replace(/^contemptor combat weapon$/, 'contemptor fist')
     .replace(/^(?:astartes|\S+'s) /, '')
     .replace(/^transdimensional /, 'dimensional ')
     .replace(/^boss nob\b/, 'nob')

@@ -1,0 +1,21 @@
+diff --git a/definitions/Imperium - Adeptus Custodes.json b/definitions/Imperium - Adeptus Custodes.json
+--- a/definitions/Imperium - Adeptus Custodes.json
++++ b/definitions/Imperium - Adeptus Custodes.json
+@@ -23432,7 +23432,7 @@
+                 ]
+               },
+               {
+-                "name": "Contemptor combat weapon",
++                "name": "Contemptor Fist",
+                 "id": "355c-3441-af3d-849",
+                 "hidden": false,
+                 "import": true,
+@@ -23468,7 +23468,7 @@
+                 ],
+                 "profiles": [
+                   {
+-                    "name": "Contemptor combat weapon",
++                    "name": "Contemptor Fist",
+                     "id": "d311-c2b6-b701-2ac7",
+                     "hidden": false,
+                     "typeId": "8a40-4aaa-c780-9046",
