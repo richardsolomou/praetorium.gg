@@ -30,6 +30,8 @@ export const datasheetUnit = (catalogueId: string, entryId: string) => `${catalo
 /** A detachment as the owner of its rules, enhancements and upgrades: VS Data names them `<faction>.<detachment>.<name>`. */
 export const detachmentRulesOwner = (catalogueId: string, factionSlug: string, detachmentSlug: string) =>
   `${catalogueId}#@${factionSlug}.${detachmentSlug}`
+/** A faction as the owner of its army rules: VS Data names them `<faction>.<name>`. */
+export const factionRulesOwner = (catalogueId: string, factionSlug: string) => `${catalogueId}#@${factionSlug}`
 
 /**
  * The summary of an ability of the datasheet or detachment around it, by the ability's name: how a rule whose text only
