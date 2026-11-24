@@ -3,6 +3,7 @@ import {
   datasheetCharacteristicKind,
   datasheetCharacteristicKindOf,
   datasheetProfileKind,
+  isWrittenInvulnerableSave,
   datasheetProfileKindOf,
   profileBaseSize,
   structureDatasheetProfiles,
@@ -95,3 +96,10 @@ describe('datasheet structure', () => {
     })
   })
 })
+
+it('knows the catalogue’s abilities that write out an invulnerable save, and no other', () =>
+  expect(
+    ['Invulnerable Save (5+*)', '*Invulnerable Save', 'Invulnerable Save', 'Daemonic Save', 'Shield of the Invulnerable'].map(
+      isWrittenInvulnerableSave,
+    ),
+  ).toEqual([true, true, true, false, false]))

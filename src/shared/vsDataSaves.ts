@@ -1,6 +1,6 @@
 import type { RuleSummary } from '../contracts/rules'
 import type { Datasheet } from '../core/datasheet'
-import { datasheetCharacteristicKind, datasheetProfileKind } from '../core/datasheetStructure'
+import { datasheetCharacteristicKind, datasheetProfileKind, isWrittenInvulnerableSave } from '../core/datasheetStructure'
 import type { CombatRule, CombatRuleChoice } from '../core/combatRules'
 import type { VsDataInvulnerableSave, VsDataUnits } from './vsData'
 
@@ -59,7 +59,7 @@ function withSaves<T extends Member>(member: T, saves: readonly VsDataInvulnerab
     selected,
     // VS Data's typed saves stand for the catalogue's written ones, so a save is not counted twice.
     rules: [
-      ...member.rules.filter((rule) => !/\binvulnerable save\b/i.test(rule.name)),
+      ...member.rules.filter((rule) => !isWrittenInvulnerableSave(rule.name)),
       ...ruled.map((save) => saveRule(member.selected, save)),
     ],
   }

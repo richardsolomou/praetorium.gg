@@ -1,5 +1,10 @@
 import type { Datasheet } from '../../../contracts/catalogue'
-import { datasheetCharacteristicKindOf, datasheetProfilesByKind, statlineValues } from '../../../core/datasheetStructure'
+import {
+  datasheetCharacteristicKindOf,
+  datasheetProfilesByKind,
+  isWrittenInvulnerableSave,
+  statlineValues,
+} from '../../../core/datasheetStructure'
 import { RuleText } from '../../components/RuleText'
 import { InvulnerableSaves, useInvulnerableSaves } from '../../components/InvulnerableSaves'
 import { unitKeywordsText } from '../../components/Keyword'
@@ -25,10 +30,12 @@ const statsOf = (profile: Profile) => profile.values.filter((value) => datasheet
  */
 export function RosterPrintDatasheet({ sheet }: { sheet: Datasheet }) {
   const { unit, ranged, melee } = datasheetProfilesByKind(sheet)
-  const own = sheet.abilities.filter((ability) => ability.kind !== 'core' && ability.kind !== 'faction')
-  const shared = sheet.abilities.filter((ability) => ability.kind === 'core' || ability.kind === 'faction')
-  const extras = ruleProfileSections(sheet.profiles)
   const saves = useInvulnerableSaves({ id: sheet.id, profiles: unit })
+  // The printed save stands for the catalogue's ability writing it out.
+  const listed = sheet.abilities.filter((ability) => !saves.length || !isWrittenInvulnerableSave(ability.name))
+  const own = listed.filter((ability) => ability.kind !== 'core' && ability.kind !== 'faction')
+  const shared = listed.filter((ability) => ability.kind === 'core' || ability.kind === 'faction')
+  const extras = ruleProfileSections(sheet.profiles)
 
   return (
     <>

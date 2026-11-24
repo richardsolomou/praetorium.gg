@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { datasheetProfilesByKind } from '../../../../core/datasheetStructure'
+import { datasheetProfilesByKind, isWrittenInvulnerableSave } from '../../../../core/datasheetStructure'
 import type { RosterPick } from '../../../../core/roster'
 import type { Datasheet, DatasheetRelationship } from '../../../../contracts/catalogue'
 import { datasheetQuery, type Fielded } from '../../../queries'
@@ -120,7 +120,10 @@ export function DatasheetPanel({
         <WeaponSummary title={everyWeapon ? 'Melee weapon options' : 'Melee weapons'} weapons={melee} rules={sheet.keywordRules} />
       ) : null}
       <AbilitySummary
-        abilities={referenceAbilities(sheet.abilities, sheet.attachments)}
+        // The save shown with the profile, here or in the loadout around it, stands for the ability writing it out.
+        abilities={referenceAbilities(sheet.abilities, sheet.attachments).filter(
+          (ability) => !saves.length || !isWrittenInvulnerableSave(ability.name),
+        )}
         rules={sheet.keywordRules}
         reminders={abilityReminders}
         detachmentRules={detachmentRules}

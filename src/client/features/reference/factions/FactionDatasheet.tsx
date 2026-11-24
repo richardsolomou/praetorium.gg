@@ -9,6 +9,7 @@ import {
   datasheetCharacteristicKindOf,
   datasheetProfileKindOf,
   datasheetProfilesByKind,
+  isWrittenInvulnerableSave,
   NON_STATLINE_KINDS,
   statlineValues,
 } from '../../../../core/datasheetStructure'
@@ -76,7 +77,10 @@ export function FactionDatasheet() {
   const saves = shownSaves({ profiles: unit }, vsDataSaves)
   const ranged = structured.ranged
   const melee = structured.melee
-  const abilities = referenceAbilities(sheet.abilities, sheet.attachments)
+  // The save shown above stands for the catalogue's ability writing it out.
+  const abilities = referenceAbilities(sheet.abilities, sheet.attachments).filter(
+    (ability) => !saves.length || !isWrittenInvulnerableSave(ability.name),
+  )
   const visibleAbilityIds = new Set(abilities.map((ability) => ability.id))
   const relationshipAbilityIds = sheet.abilities.filter((ability) => !visibleAbilityIds.has(ability.id)).map((ability) => ability.id)
 
