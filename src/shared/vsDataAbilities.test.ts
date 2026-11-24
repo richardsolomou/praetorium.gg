@@ -84,3 +84,13 @@ it('reads another unit’s ability of the same name that its printed text names'
     }),
   ).toBe(fire)
 })
+
+it('reads its own unit’s record its printed text names before a core ability of that name', () => {
+  const own = said('Flamers support')
+  expect(
+    datasheetAbilitySummary(daemons({ 'core.support': said('Support') }), 'flamers', 'Support', undefined, {
+      id: 'ability:chaos-daemons.flamers.support',
+      summary: own,
+    }),
+  ).toBe(own)
+})

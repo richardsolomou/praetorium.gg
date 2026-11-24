@@ -77,7 +77,8 @@ function otherUnitsAbility(units: VsDataUnits, subject: string, record: string) 
 }
 
 /**
- * A datasheet ability's summary: its owner's own record, then the weapon or core ability its printed text names, then
+ * A datasheet ability's summary: its owner's own record, or the one of its own unit its printed text names, as a file
+ * an earlier rules version prints alike names the base's; then the weapon or core ability its printed text names, then
  * its faction's, and last any other record its printed text names, which reaches another unit's ability only by the same
  * name, as Game Datacards prints a few cards in another's words, such as Karanak's Pack Leader in a Sorcerer's Warptime.
  */
@@ -90,10 +91,20 @@ export function datasheetAbilitySummary(
 ): RuleSummary | null {
   const { own, faction } = units ? ownersAbility(units, subject, name, id) : { own: [], faction: [] }
   const ability = printed?.id.startsWith('ability:') ? printed : null
+  const owner = units?.units[subject]?.id
+  const ownUnits = owner !== undefined && ability?.id.slice('ability:'.length, ability.id.lastIndexOf('.')) === owner
   const reaches =
     ability &&
     (!units ||
       !otherUnitsAbility(units, subject, ability.id) ||
       abilityKey(ability.id.slice(ability.id.lastIndexOf('.') + 1)) === abilityKey(name))
-  return [...own, ability ? undefined : printed?.summary, ...faction, reaches ? ability.summary : undefined].find(Boolean) ?? null
+  return (
+    [
+      ...own,
+      ownUnits ? ability.summary : undefined,
+      ability ? undefined : printed?.summary,
+      ...faction,
+      reaches ? ability.summary : undefined,
+    ].find(Boolean) ?? null
+  )
 }
