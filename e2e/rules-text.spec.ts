@@ -12,7 +12,7 @@ test('a rules page shows a summary of every rule and never its wording', async (
   expect(await response?.text()).not.toContain(prose)
   const rules = page.getByRole('main').getByRole('article')
   await expect(rules.first()).toBeVisible()
-  await expect(page.getByRole('main').locator('[data-rule-summary]')).toHaveCount(await rules.count())
+  await expect(rules.filter({ hasNot: page.locator('[data-rule-summary]') })).toHaveCount(0)
   await expect(page.getByText(prose)).toHaveCount(0)
 })
 
