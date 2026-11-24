@@ -229,6 +229,18 @@ it('uses the current detachment points and its VS Data Stratagems', () => {
   })
 })
 
+it('takes a card older app data marks "(Upgarde)" as an Upgrade', () => {
+  const file = path.join(directory, 'datacards', '11th', 'gdc', 'deathguard.json')
+  const faction = JSON.parse(fs.readFileSync(file, 'utf8'))
+  faction.enhancements.push({ id: 'battery', name: { en: 'Plague Battery (Upgarde)' }, detachment: 'Flyblown Host', cost: 10 })
+  write(file, faction)
+  const detail = rules().detachmentDetails.get('death-guard')?.get('flyblown-host')
+  expect([detail?.enhancements.map((card) => card.name), detail?.upgrades.map((card) => card.name)]).toEqual([
+    ['Living Plague'],
+    ['Plague Battery'],
+  ])
+})
+
 it('describes a Stratagem with the Game Datacards card VS Data aliases', () => {
   const [card] = rules().detachmentDetails.get('death-guard')?.get('flyblown-host')?.stratagems ?? []
   expect(card?.description && wordsFrom(directory)(card.description)).toBe('**Effect:** Cut them down.')
