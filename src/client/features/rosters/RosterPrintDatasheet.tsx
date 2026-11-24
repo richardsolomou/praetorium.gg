@@ -1,11 +1,7 @@
 import type { Datasheet } from '../../../contracts/catalogue'
-import {
-  datasheetCharacteristicKindOf,
-  datasheetProfilesByKind,
-  invulnerableSaveOf,
-  statlineValues,
-} from '../../../core/datasheetStructure'
+import { datasheetCharacteristicKindOf, datasheetProfilesByKind, statlineValues } from '../../../core/datasheetStructure'
 import { RuleText } from '../../components/RuleText'
+import { InvulnerableSaves, useInvulnerableSaves } from '../../components/InvulnerableSaves'
 import { unitKeywordsText } from '../../components/Keyword'
 import { ruleProfileSections, weaponProfileGroups, weaponShapedProfile } from '../../datasheet'
 
@@ -32,10 +28,12 @@ export function RosterPrintDatasheet({ sheet }: { sheet: Datasheet }) {
   const own = sheet.abilities.filter((ability) => ability.kind !== 'core' && ability.kind !== 'faction')
   const shared = sheet.abilities.filter((ability) => ability.kind === 'core' || ability.kind === 'faction')
   const extras = ruleProfileSections(sheet.profiles)
+  const saves = useInvulnerableSaves({ id: sheet.id, profiles: unit })
 
   return (
     <>
       {unit.length ? <StatTable profiles={unit} /> : null}
+      {saves.length ? <InvulnerableSaves saves={saves} look="print" /> : null}
       {ranged.length || melee.length ? (
         <table className="pack-weapons">
           <thead>
@@ -97,12 +95,10 @@ export function RosterPrintDatasheet({ sheet }: { sheet: Datasheet }) {
   )
 }
 
-/** Every unit profile in one table, named only when the datasheet has more than one, with an invulnerable save column if any has one. */
+/** Every unit profile in one table, named only when the datasheet has more than one; the invulnerable saves print below it. */
 function StatTable({ profiles }: { profiles: Profile[] }) {
   const shown = (profile: Profile) => statlineValues(profile.values)
-  const invulnerable = (profile: Profile) => invulnerableSaveOf(profile.values)
   const columns = shown(profiles[0]!).map((value) => value.name)
-  const anyInvulnerable = profiles.some(invulnerable)
   const named = profiles.length > 1
   return (
     <table className="pack-stats">
@@ -114,22 +110,17 @@ function StatTable({ profiles }: { profiles: Profile[] }) {
               {name}
             </th>
           ))}
-          {anyInvulnerable ? <th scope="col">Inv</th> : null}
         </tr>
       </thead>
       <tbody>
-        {profiles.map((profile) => {
-          const save = invulnerable(profile)
-          return (
-            <tr key={profile.id}>
-              {named ? <th scope="row">{profile.name}</th> : null}
-              {shown(profile).map((value) => (
-                <td key={value.name}>{shownValue(value)}</td>
-              ))}
-              {anyInvulnerable ? <td>{save ? shownValue(save) : '—'}</td> : null}
-            </tr>
-          )
-        })}
+        {profiles.map((profile) => (
+          <tr key={profile.id}>
+            {named ? <th scope="row">{profile.name}</th> : null}
+            {shown(profile).map((value) => (
+              <td key={value.name}>{shownValue(value)}</td>
+            ))}
+          </tr>
+        ))}
       </tbody>
     </table>
   )

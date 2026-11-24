@@ -2,7 +2,8 @@ import { type PropsWithChildren, createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { describe, expect, it, vi } from 'vitest'
-import { Abilities, InvulnerableSaves, ProfileTable, Relationships, TransportReference, vsDataSaveShown } from './FactionDatasheet'
+import { Abilities, ProfileTable, Relationships, TransportReference } from './FactionDatasheet'
+import { InvulnerableSaves, shownSaves } from '../../../components/InvulnerableSaves'
 import { DatasheetUnit, datasheetUnit } from '../../../components/UnitFromVsData'
 import { ruleUnitsQuery } from '../../../queries/references'
 import type { VsDataInvulnerableSave, VsDataUnits } from '../../../../shared/vsData'
@@ -162,7 +163,7 @@ it('shows which attacks and model an invulnerable save is for, and its condition
     },
     { profile: 'adepta-sororitas.repentia-squad.repentia-superior', model: 'Repentia Superior', roll: 6 },
   ]
-  const markup = renderToStaticMarkup(createElement(InvulnerableSaves, { saves: saves.map(vsDataSaveShown) }))
+  const markup = renderToStaticMarkup(createElement(InvulnerableSaves, { saves: shownSaves({ profiles: [] }, saves) }))
   expect(
     ['Against ranged attacks', 'Against melee attacks, this save is 4+.', 'Repentia Superior'].every((text) => markup.includes(text)),
   ).toBe(true)

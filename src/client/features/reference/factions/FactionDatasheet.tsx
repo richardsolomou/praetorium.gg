@@ -45,13 +45,11 @@ import {
   unitComposition,
   unitLoadout,
   unitOptions,
-  invulnerableSaveScope,
   unitTransport,
   useUnitAbilitySummary,
   useVsDataUnit,
 } from '../../../components/UnitFromVsData'
-import type { VsDataInvulnerableSave } from '../../../../shared/vsData'
-import type { RuleSummary } from '../../../../contracts/rules'
+import { InvulnerableSaves, shownSaves } from '../../../components/InvulnerableSaves'
 import { PageContent, PageHeader } from '../../../components/Page'
 import { groupBy } from '../../../../core/collections'
 import { rulesVersionLabel } from '../../../../core/catalogueEdition'
@@ -75,12 +73,7 @@ export function FactionDatasheet() {
   const unit = unitGroups.map((group) => group[0]!)
   const unitAnchorIds = new Map(unitGroups.map((group) => [group[0]!.id, group.map((profile) => profile.id)]))
   // VS Data's saves replace the catalogue's figure, which shows while they load in the same place, so nothing moves.
-  const saves = vsDataSaves?.length
-    ? vsDataSaves.map(vsDataSaveShown)
-    : unit.flatMap((profile) => {
-        const value = profile.values.find((characteristic) => datasheetCharacteristicKindOf(characteristic) === 'invulnerable-save')?.value
-        return value ? [{ key: profile.id, model: unit.length > 1 ? profile.name : undefined, value }] : []
-      })
+  const saves = shownSaves({ profiles: unit }, vsDataSaves)
   const ranged = structured.ranged
   const melee = structured.melee
   const abilities = referenceAbilities(sheet.abilities, sheet.attachments)
@@ -490,40 +483,6 @@ function UnitCharacteristics({ profile, anchorIds = noAnchorIds }: { profile: Di
           <div key={value.name} className="min-w-0 part px-1 pt-2 pb-2.5 text-center">
             <p className="eyebrow">{value.name}</p>
             <p className="figure mt-1 text-2xl leading-none font-semibold sm:text-3xl">{value.value}</p>
-          </div>
-        ))}
-      </div>
-    </section>
-  )
-}
-
-type ShownSave = { key: string; model?: string; value: string; scope?: string | null; summary?: RuleSummary }
-
-/** A save as VS Data types it: the model it is for, the attacks it is against and its condition's summary. */
-export const vsDataSaveShown = (save: VsDataInvulnerableSave): ShownSave => ({
-  key: save.profile + (save.against ?? ''),
-  model: save.model,
-  value: `${save.roll}+`,
-  scope: invulnerableSaveScope(save),
-  summary: save.summary,
-})
-
-/** Each invulnerable save of the unit, with the model it is for, the attacks it is against and its condition. */
-export function InvulnerableSaves({ saves }: { saves: readonly ShownSave[] }) {
-  return (
-    <section>
-      <SectionHeading title="Invulnerable save" />
-      <div className="grid gap-2 md:grid-cols-2">
-        {saves.map((save) => (
-          <div key={save.key} className="part px-4 py-2.5">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                {save.model ? <p className="rubric text-xs text-bone">{save.model}</p> : null}
-                {save.scope ? <p className="text-sm text-dim">{save.scope}</p> : null}
-              </div>
-              <span className="figure text-2xl leading-none font-semibold">{save.value}</span>
-            </div>
-            {save.summary ? <RuleSummaryText summary={save.summary} className="mt-1" /> : null}
           </div>
         ))}
       </div>

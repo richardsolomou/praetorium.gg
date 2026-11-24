@@ -13,6 +13,7 @@ import { abilitySections, attachmentGroups, primaryUnitProfile, referenceAbiliti
 import { RuleText } from '../../../components/RuleText'
 import { useRuleSummary } from '../../../ruleSummaries'
 import { DatasheetUnit, datasheetUnit, unitTransport, useUnitAbilitySummary, useVsDataUnit } from '../../../components/UnitFromVsData'
+import { InvulnerableSaves, shownSaves } from '../../../components/InvulnerableSaves'
 import { RuleSummaryText, Runs, textOf } from '../../../components/RuleSummaryText'
 import { ProfileRules } from '../ProfileRules'
 import { ReminderButton, type ReminderControls } from '../ReminderButton'
@@ -80,6 +81,7 @@ export function DatasheetPanel({
     onReferenceRoute?.(entryId ? { entryId, route: referenceRoute } : null)
     return () => onReferenceRoute?.(null)
   }, [entryId, onReferenceRoute, referenceRoute])
+  const vsDataSaves = useVsDataUnit(catalogueId, entryId ?? '', Boolean(catalogueId && entryId))?.invulnerableSaves
 
   if (!entryId) {
     return (
@@ -99,6 +101,7 @@ export function DatasheetPanel({
   }
 
   const model = primaryUnitProfile(sheet)
+  const saves = shownSaves(model ? { profiles: [model] } : sheet, vsDataSaves)
   const structured = datasheetProfilesByKind(sheet)
   // The unit carries none of its options yet, so a count would read as its loadout.
   const uncounted = (profiles: typeof structured.ranged) =>
@@ -108,7 +111,8 @@ export function DatasheetPanel({
   const transport = separateTransport(sheet)
   const content = (
     <div data-slot="datasheet-content" className="w-full min-w-0 space-y-4">
-      {!embedded && model ? <UnitProfile profile={model} /> : null}
+      {!embedded && model ? <UnitProfile profile={model} invulnerable={false} /> : null}
+      {!embedded && saves.length ? <InvulnerableSaves saves={saves} look="panel" /> : null}
       {!embedded && ranged.length ? (
         <WeaponSummary title={everyWeapon ? 'Ranged weapon options' : 'Ranged weapons'} weapons={ranged} rules={sheet.keywordRules} />
       ) : null}
