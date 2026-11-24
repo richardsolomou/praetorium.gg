@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest'
 import { datasheetFixture } from '../core/datasheet.fixtures'
 import { combatTarget } from '../core/combatProfiles'
-import { combatRuleChoices, combatRuleDefault, type CombatRule } from '../core/combatRules'
+import { activeCombatRules, combatRuleChoices, combatRuleKey, type CombatRule } from '../core/combatRules'
 import type { VsDataInvulnerableSave } from './vsData'
 import { withVsDataSaves } from './vsDataSaves'
 
@@ -26,19 +26,17 @@ const saveRule = (projected: ReturnType<typeof combatant>) => projected.rules.fi
 
 it('holds a save against ranged attacks only for ranged attacks', () => {
   const rule = saveRule(combatant([model('Knight Paladin', '5+*')], [{ profile: 'paladin', roll: 5, against: 'ranged' }]))
-  expect(combatRuleChoices(rule)[combatRuleDefault(rule)]!.effects).toEqual([{ role: 'defender', phases: ['ranged'], invulnerable: 5 }])
+  expect(activeCombatRules([rule], {})[0]!.effects).toEqual([{ role: 'defender', phases: ['ranged'], invulnerable: 5 }])
 })
 
 it('leaves a conditional save off until a player turns it on, labelled by its condition’s summary', () => {
   const summary = { blocks: [{ paragraph: [{ text: 'Until it loses a wound.' }] }], questions: [] }
   const rule = saveRule(combatant([model('Archon', '2+*')], [{ profile: 'archon', roll: 2, conditional: true, summary }]))
-  expect([combatRuleDefault(rule), combatRuleChoices(rule).map(({ label, effects }) => [label, effects.length])]).toEqual([
-    0,
-    [
-      ['Condition not met', 0],
-      ['Until it loses a wound.', 1],
-    ],
-  ])
+  expect([
+    activeCombatRules([rule], {}).length,
+    activeCombatRules([rule], { [combatRuleKey(rule)]: 1 }).map(({ effects }) => effects),
+    combatRuleChoices(rule).map(({ label }) => label),
+  ]).toEqual([0, [[{ role: 'defender', phases: ['ranged', 'melee'], invulnerable: 2 }]], ['Until it loses a wound.']])
 })
 
 it('lets a unit whose catalogue figure is starred be a defender', () => {

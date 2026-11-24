@@ -20,16 +20,17 @@ export const summaryWords = (summary: RuleSummary) =>
 function saveRule(sheet: Datasheet, save: VsDataInvulnerableSave): CombatRule {
   const phases = save.against ? [save.against] : (['ranged', 'melee'] as const)
   const scope = save.against ? `Against ${save.against} attacks` : 'Against every attack'
-  const held: CombatRuleChoice = { label: scope, effects: [{ role: 'defender', phases: [...phases], invulnerable: save.roll }] }
   const label = save.conditional && save.summary ? summaryWords(save.summary) : scope
-  const choices: CombatRuleChoice[] = save.conditional ? [{ label: 'Condition not met', effects: [] }, { ...held, label }] : [held]
+  const choices: CombatRuleChoice[] = [{ label, effects: [{ role: 'defender', phases: [...phases], invulnerable: save.roll }] }]
+  // A selection counts from 1, 0 leaving the rule off, as a conditional save is until a player turns it on.
+  const defaultChoice = save.conditional ? 0 : 1
   return {
     id: `${VS_DATA_SAVE}${save.profile}:${save.against ?? ''}`,
     name: `Invulnerable save ${save.roll}+`,
     source: sheet.name,
     description: label,
     scope: 'unit',
-    reading: { compiled: { choices, defaultChoice: 0 }, legacy: choices, legacyDefault: 0, roles: ['defender'] },
+    reading: { compiled: { choices, defaultChoice }, legacy: choices, legacyDefault: defaultChoice, roles: ['defender'] },
   }
 }
 
