@@ -62,7 +62,22 @@ export function* loadRulesSteps(
       cards.flatMap((list, at) => (at ? list.filter((card) => describe(card.key)) : list)),
       (card) => card.key,
     )
-  const printedStratagems = [...new Set(datacards.factions.values())].flatMap((content) => content.stratagemCards ?? [])
+  const contents = [...new Set(datacards.factions.values())]
+  const printedStratagems = contents.flatMap((content) =>
+    (content.stratagemCards ?? []).map((print) => ({ ...print, faction: content.name })),
+  )
+  // The factions printing a Detachment and the one whose own it is, as a Dark Angels file prints the Space Marines'
+  // Ironstorm Spearhead, then the faction each belongs to, as the Space Marines print the cards a Dark Angels Detachment
+  // shares with them.
+  const owners = (name: string) => {
+    const owning = contents.flatMap((content) =>
+      [...content.detachments]
+        .filter((detachment) => joinKey(detachment) === joinKey(name))
+        .flatMap((detachment) => [content.name, content.detachmentFactions?.get(detachment) ?? content.name]),
+    )
+    const parents = contents.flatMap((content) => (owning.includes(content.name) && content.parentName ? [content.parentName] : []))
+    return new Set([...owning, ...parents].map(joinKey))
+  }
   const inDetachment = (name: string) => {
     const [own, base] = pools
     const listing = own?.listing(name)
@@ -74,10 +89,16 @@ export function* loadRulesSteps(
     const typed = (id: string) => own.byId(id) ?? base?.byId(id)
     const listed = listing.stratagems.flatMap((id) => typed(id) ?? [])
     // A card the build prints that the release does not publish plays as a release types the Game Datacards card of
-    // that name, the one this Detachment prints first; one no release types stays a name.
+    // that name, the one this Detachment prints first, then one its own faction prints, as another faction's card of the
+    // name can name its own units; one no release types stays a name.
+    const owning = owners(name)
     const unlisted = listing.stratagemsUnlisted.map((card) => {
       const named = printedStratagems.filter((print) => joinKey(print.name) === joinKey(card))
-      const ids = [...named.filter((print) => joinKey(print.detachment ?? '') === joinKey(name)), ...named].map((print) => print.id)
+      const ids = [
+        ...named.filter((print) => joinKey(print.detachment ?? '') === joinKey(name)),
+        ...named.filter((print) => owning.has(joinKey(print.faction))),
+        ...named,
+      ].map((print) => print.id)
       const ref = ids
         .map((id) => indexes.map((index) => index.entry([`gdc.stratagem.${id.replaceAll('-', '.')}`])).find(Boolean))
         .find(Boolean)

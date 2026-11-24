@@ -360,6 +360,41 @@ it('plays a printed card its release does not publish as a release types the Gam
   ).toEqual([reapers.id])
 })
 
+it('plays a printed card its release does not publish as its own faction’s card of that name before another’s', () => {
+  const datacards = path.join(directory, 'datacards', '11th', 'gdc')
+  const deathGuard = JSON.parse(fs.readFileSync(path.join(datacards, 'deathguard.json'), 'utf8'))
+  deathGuard.detachments.push({ name: { en: 'Plague Host' } })
+  deathGuard.stratagems.push({ id: 'dg-rot', name: { en: 'Rot Unbound' }, detachment: 'Plague Host', effect: { en: 'Rot.' } })
+  write(path.join(datacards, 'deathguard.json'), deathGuard)
+  write(path.join(datacards, 'agents.json'), {
+    name: 'Agents of the Imperium',
+    datasheets: [],
+    detachments: [{ name: { en: 'Hunters' } }],
+    stratagems: [{ id: 'agents-rot', name: { en: 'Rot Unbound' }, detachment: 'Hunters', effect: { en: 'Rot.' } }],
+  })
+  const card = (id: string, detachment: string): VsDataStratagem => ({ ...reapers, id, name: 'Rot Unbound', detachment })
+  write(path.join(directory, 'summaries', 'earlier.json'), {
+    release: '0.1.0',
+    rulesVersion: { edition: '11th', update: 'Earlier' },
+    entries: {
+      'ability:agents.hunters.rot-unbound': ['gdc.stratagem.agents.rot'],
+      'ability:death-guard.plague-host.rot-unbound': ['gdc.stratagem.dg.rot'],
+    },
+    attributions: [],
+    stratagems: [card('agents.hunters.rot-unbound', 'Hunters'), card('death-guard.plague-host.rot-unbound', 'Plague Host')],
+    detachments: [
+      { name: 'Flyblown Host', stratagems: [], stratagemsUnlisted: ['Rot Unbound'], enhancements: [], enhancementsUnlisted: [] },
+    ],
+    records: [],
+  })
+  expect(
+    loadRules(directory, { rulesVersion: 'earlier' })!
+      .byDetachment.get('death-guard')
+      ?.get('flyblown-host')
+      ?.map((stratagem) => stratagem.key),
+  ).toEqual(['death-guard.plague-host.rot-unbound'])
+})
+
 it('takes an Enhancement a release names by the card of that name whatever qualifier either prints, and leaves out an Upgrade', () => {
   write(path.join(directory, 'summaries', 'earlier.json'), {
     release: '0.1.0',
