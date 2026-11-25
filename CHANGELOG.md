@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.277.8 (2026-11-25)
+
+### Patch Changes
+
+- d3469f0: [battles] Bring It Down and A Grievous Blow are discarded again when no enemy model or unit is big enough to score them, as the cards say, instead of going back into the deck.
+- d3469f0: [reference] Soul Sight's summary now says every friendly unit shooting at the chosen enemy gets Ignores Cover, not just the Librarian's unit.
+- d3469f0: [reference] 37 Stratagem summaries that misstated their card, such as Vengeful Surge's re-roll and On My Position's 3D3 mortal wounds, now say what the card says.
+
 ## 0.277.7 (2026-11-25)
 
 ### Patch Changes
