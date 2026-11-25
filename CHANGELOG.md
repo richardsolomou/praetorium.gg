@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.276.1 (2026-11-25)
+
+### Patch Changes
+
+- a6f08ad: [reference] Name the Sternguard Veteran Squad's hit re-roll ability Veteran Marksmen, as the codex does.
+
 ## 0.276.0 (2026-11-25)
 
 ### Minor Changes
