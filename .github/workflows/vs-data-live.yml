@@ -1,0 +1,120 @@
+name: VS Data live
+
+# While the VS_DATA_LIVE variable is true, opens a PR pinning each rules version's summaries to VS Data's newest release,
+# and merges it once its snapshot is pinned, no VS Data coverage count falls and the required checks pass, which releases
+# it like any merge. A release the snapshot build refuses never gets a snapshot, so its PR stays open. Unset it to pin by hand.
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  # Checks a pin PR as soon as its snapshot build finishes, rather than at the next half hour.
+  workflow_run:
+    workflows: [Catalogue snapshot]
+    types: [completed]
+    branches: ['chore/vs-data-*']
+  workflow_dispatch:
+
+concurrency:
+  group: vs-data-live
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  pin:
+    if: vars.VS_DATA_LIVE == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # A personal token, so the pin's PR runs the snapshot build and the required checks.
+      GH_TOKEN: ${{ secrets.CHANGESETS_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: richardsolomou/ras-stack/actions/setup-js@v1
+      - name: Pin VS Data's newest releases
+        id: pins
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          base="$(git rev-parse HEAD:catalogue)"
+          moved="$(pnpm exec tsx scripts/updateVsDataPins.ts)"
+          [ -n "$moved" ] || { echo "Every pin is VS Data's newest release"; exit 0; }
+          pnpm exec oxfmt --write catalogue/sources.json
+          # Named by main's catalogue too, so once main's catalogue moves, a fresh PR replaces one that now conflicts.
+          name="$(printf '%s %s' "$base" "$(git hash-object catalogue/sources.json)" | sha256sum | cut -c1-8)"
+          {
+            echo "branch=chore/vs-data-$name"
+            echo "moved<<EOF"
+            echo "$moved"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+      - name: Close superseded pin PRs
+        env:
+          BRANCH: ${{ steps.pins.outputs.branch }}
+        run: |
+          set -euo pipefail
+          # Main or the current pin carries every release an older pin PR does. `$ENV` is jq's.
+          # shellcheck disable=SC2016
+          gh pr list --state open --limit 100 --json headRefName,number \
+            -q '.[] | select((.headRefName | startswith("chore/vs-data-")) and .headRefName != $ENV.BRANCH) | .number' |
+            while read -r older; do gh pr close "$older" --delete-branch --comment "Superseded by ${BRANCH:-main}."; done
+      - name: Open the pin
+        id: open
+        if: steps.pins.outputs.branch
+        env:
+          BRANCH: ${{ steps.pins.outputs.branch }}
+          MOVED: ${{ steps.pins.outputs.moved }}
+        run: |
+          set -euo pipefail
+          state="$(gh pr view "$BRANCH" --json state,autoMergeRequest -q '.state + " " + (.autoMergeRequest != null | tostring)' 2>/dev/null || true)"
+          case "$state" in
+            'OPEN true') echo "$BRANCH merges once its checks pass"; exit 0 ;;
+            'OPEN false') echo "check=true" >> "$GITHUB_OUTPUT"; exit 0 ;;
+            CLOSED*) echo "$BRANCH was closed unmerged, so its releases stay unpinned"; exit 0 ;;
+          esac
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git switch --create "$BRANCH"
+          git commit --message "chore(catalogue): pin VS Data's newest releases" catalogue/sources.json
+          git push --force "https://x-access-token:$GH_TOKEN@github.com/$GITHUB_REPOSITORY" "HEAD:$BRANCH"
+          body="$(printf "Pins VS Data's newest releases while VS_DATA_LIVE is on:\n\n%s\n\nVS Data live merges it once its snapshot is pinned and no VS Data coverage count falls.\n" "$MOVED")"
+          gh pr create --head "$BRANCH" --base main --title "chore(catalogue): pin VS Data's newest releases" --body "$body"
+      - name: Check out the pin's snapshot
+        id: snapshot
+        if: steps.open.outputs.check
+        env:
+          BRANCH: ${{ steps.pins.outputs.branch }}
+        run: |
+          set -euo pipefail
+          git fetch --quiet origin "$BRANCH"
+          git checkout --quiet --force FETCH_HEAD
+          # The snapshot build pins catalogue.json last, so until then CI tests the snapshot main pins.
+          if [[ "$(jq -r .pointer.authoringRevision catalogue.json)" != "$(git rev-parse HEAD:catalogue)" ]]; then
+            echo "$BRANCH has no snapshot of its catalogue yet"
+            exit 0
+          fi
+          echo "pinned=true" >> "$GITHUB_OUTPUT"
+      - uses: ./.github/actions/catalogue-sync
+        if: steps.snapshot.outputs.pinned
+        with:
+          r2-account-id: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          r2-access-key-id: ${{ secrets.SNAPSHOT_R2_ACCESS_KEY_ID }}
+          r2-secret-access-key: ${{ secrets.SNAPSHOT_R2_SECRET_ACCESS_KEY }}
+      - name: Merge the pin once its checks pass
+        if: steps.snapshot.outputs.pinned
+        env:
+          BRANCH: ${{ steps.pins.outputs.branch }}
+        run: |
+          set -euo pipefail
+          # Every other baseline only reports in the snapshot build and CI; this one holds the pin back.
+          pnpm exec tsx scripts/checkVsDataCoverage.ts
+          # Auto-merge refuses a PR whose required checks have already passed.
+          if [[ "$(gh pr view "$BRANCH" --json mergeStateStatus -q .mergeStateStatus)" =~ ^(CLEAN|UNSTABLE)$ ]]; then
+            gh pr merge "$BRANCH" --merge
+          else
+            gh pr merge "$BRANCH" --auto --merge
+          fi
