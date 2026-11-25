@@ -71,3 +71,17 @@ it('reads an Order allowance that holds only while leading', () => {
   const facts = textFactsOfVsData({ options: { allowances: [{ options: 'Orders', limit: 2, whileLeading: true }] } })
   expect(facts.battleChoiceAllowances).toEqual([{ options: 'Orders', limit: 2, leading: true }])
 })
+
+it('rolls mortal wounds once per point of Toughness where VS Data says so', () => {
+  const mortals = {
+    timing: 'before',
+    rolls: 1,
+    perToughness: true,
+    max: 6,
+    outcomes: [{ min: 5, max: 6, damage: { dice: 0, sides: 6, bonus: 1 } }],
+  }
+  const facts = textFactsOfVsData(
+    combat({ choices: [{ conditions: [], effects: [{ role: 'attacker', attacks: ['melee'], mortalWounds: mortals }] }], default: 1 }),
+  )
+  expect(facts.combat!.leaves[0]!.compiled!.choices[0]!.effects[0]!.mortalWounds).toMatchObject({ perToughness: true, limit: 6 })
+})

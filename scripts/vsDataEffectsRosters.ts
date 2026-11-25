@@ -153,7 +153,13 @@ for (const [index, { listing, imported }] of clean.entries()) {
           everyWeapon: false,
         } as never)
         return {
-          reminders: JSON.stringify((sheet?.abilities ?? []).map((ability) => [ability.name, ability.reminder ?? null])),
+          // A reminder with no timing and no destroyed trigger suggests nothing, as no reminder does.
+          reminders: JSON.stringify(
+            (sheet?.abilities ?? []).map((ability) => [
+              ability.name,
+              ability.reminder?.timings.length || ability.reminder?.whileDestroyed ? ability.reminder : null,
+            ]),
+          ),
           allowances: JSON.stringify(combatant?.battleChoiceAllowances ?? []),
         }
       }

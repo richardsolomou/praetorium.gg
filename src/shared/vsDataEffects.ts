@@ -4,6 +4,7 @@ import type { CombatReading, CombatRuleChoice, CombatRuleEffect, CombatTarget } 
 import type { RuleQuestion } from '../core/combatRuleCompiler'
 import type { ReminderTiming } from '../core/reminders'
 import type { TextFacts, WrittenAbilityGrant } from '../core/textFacts'
+import { titleCaseAbility } from './catalogueAbilityGrants'
 
 /**
  * VS Data's typed effect blocks (`vs-data-facts` version 1, VS Data's `docs/rule-facts.md`), read into the facts
@@ -76,6 +77,7 @@ const effectSchema = z.strictObject({
       rolls: z.int().min(1),
       psychic: z.boolean().optional(),
       perModel: z.literal(true).optional(),
+      perToughness: z.literal(true).optional(),
       sacrifice: z.int().min(1).optional(),
       outcomes: z.array(z.strictObject({ min: z.int().min(1).max(6), max: z.int().min(1).max(6), damage: diceSchema })).min(1),
       max: z.int().min(1).optional(),
@@ -422,8 +424,8 @@ function effectOf(effect: VsDataEffect): CombatRuleEffect | null {
   return {
     ...applied,
     phases: attacks,
-    ...(weaponAbility ? { keyword: weaponAbility } : {}),
-    ...(weaponHas ? { requiresWeaponKeyword: weaponHas } : {}),
+    ...(weaponAbility ? { keyword: titleCaseAbility(weaponAbility) } : {}),
+    ...(weaponHas ? { requiresWeaponKeyword: titleCaseAbility(weaponHas) } : {}),
     ...(Object.keys(options).length ? { options } : {}),
     ...(characteristic
       ? {
@@ -590,7 +592,7 @@ export function textFactsOfVsData(blocks: Readonly<Record<string, unknown>>): Te
     grant.to === 'army'
       ? [
           {
-            keyword: grant.ability,
+            keyword: titleCaseAbility(grant.ability),
             recipients: grant.keywords!.join(', '),
             ...(grant.excludedKeywords ? { exclusions: grant.excludedKeywords.join(', ') } : {}),
             profileTypes: grant.attacks.map((attacks) => PROFILE[attacks]),
@@ -600,7 +602,7 @@ export function textFactsOfVsData(blocks: Readonly<Record<string, unknown>>): Te
   )
   const weaponGrantTo = (to: 'own-unit' | 'led-unit') => {
     const grant = weaponAbilities.find((candidate) => candidate.to === to)
-    return grant && { keyword: grant.ability, profileTypes: grant.attacks.map((attacks) => PROFILE[attacks]) }
+    return grant && { keyword: titleCaseAbility(grant.ability), profileTypes: grant.attacks.map((attacks) => PROFILE[attacks]) }
   }
   const ownWeaponGrant = weaponGrantTo('own-unit')
   const ledWeaponGrant = weaponGrantTo('led-unit')
@@ -630,7 +632,8 @@ export function textFactsOfVsData(blocks: Readonly<Record<string, unknown>>): Te
           },
         }
       : {}),
-    ...(roster?.addsUnits ? { unitGeneration: roster.addsUnits } : {}),
+    // VS Data writes weapon abilities and the units a rule adds in capitals, as selectors; Praetorium names them as printed.
+    ...(roster?.addsUnits ? { unitGeneration: roster.addsUnits.map((added) => ({ ...added, unit: titleCaseAbility(added.unit) })) } : {}),
     ...(roster?.movement ? { movementTools: roster.movement.map((movement) => MOVEMENT[movement]) } : {}),
     ...(attachment?.units
       ? { attachment: { names: attachment.units, ...(attachment.requiresLeader ? { requiresLeader: true } : {}) } }
