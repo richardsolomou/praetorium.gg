@@ -18,7 +18,8 @@ import { loadRuleDocuments } from './rulesCore'
 import { catalogueDirectory } from './catalogueIndex'
 import { type LoadedCatalogue } from '../shared/catalogueIndex'
 import { missingArmyRulesFromCatalogueSteps } from './catalogueArmyRules'
-import { withDefinitionTokens } from './sourceTexts'
+import { retainedSnapshots, upstreamUrl, withDefinitionTokens } from './sourceTexts'
+import { readCatalogueComposition } from './catalogueComposition'
 import { joinKey } from '../core/text'
 import { type LoadedRules } from '../shared/rules'
 import { completeSteps, type Steps } from '../shared/steps'
@@ -32,15 +33,16 @@ export function* loadRulesSteps(
     battlemasterDirectory = path.join(directory, 'battlemaster'),
     iconDirectory = fs.existsSync(path.join(directory, 'icons')) ? path.join(directory, 'icons') : path.join(directory, 'faction-icons'),
     datacardsDirectory = path.join(directory, 'datacards', '11th', 'gdc'),
-    vsDataDirectory = directory,
+    snapshotDirectory = directory,
     rulesVersion,
     catalogue,
   }: {
     battlemasterDirectory?: string
     iconDirectory?: string
     datacardsDirectory?: string
-    /** The snapshot holding the VS Data releases, and the rules version whose Stratagems these rules read. */
-    vsDataDirectory?: string
+    /** The snapshot root, holding the VS Data releases and the composition that says where its files live upstream. */
+    snapshotDirectory?: string
+    /** The rules version whose Stratagems these rules read. */
     rulesVersion?: string
     /** The catalogue already read, whose cards are parsed once and whose tokens the army rules read from its files take. */
     catalogue?: Pick<LoadedCatalogue, 'datacards' | 'definitions'>
@@ -49,8 +51,8 @@ export function* loadRulesSteps(
   const datacards = catalogue?.datacards ?? (yield* loadDatacardsSteps(datacardsDirectory))
   // Missions are the current pack's whatever the rules version. Stratagems are the rules version's own, each Detachment's
   // the ones its release lists for it; a listed card its release does not type plays as the base release types it.
-  const vsData = readVsDataRelease(vsDataDirectory)
-  const releases = [rulesVersion ? readVsDataRelease(vsDataDirectory, rulesVersion) : null, vsData].filter((release) => release !== null)
+  const vsData = readVsDataRelease(snapshotDirectory)
+  const releases = [rulesVersion ? readVsDataRelease(snapshotDirectory, rulesVersion) : null, vsData].filter((release) => release !== null)
   const pools = releases.map((release) => vsDataStratagems(release.stratagems, release.detachments))
   const indexes = releases.map((release) => vsDataIndex(release.entries))
   // The card's wording as tokens, read through the Game Datacards IDs VS Data aliases, for the simulator and keyword links.
@@ -197,7 +199,13 @@ export function* loadRulesSteps(
       const description = describe(card.key)
       return description ? [{ id: card.key, type: card.type, description }] : []
     }),
-    ruleDocuments: loadRuleDocuments(datacardsDirectory),
+    ruleDocuments: loadRuleDocuments(datacardsDirectory, (file) =>
+      upstreamUrl(
+        path.relative(snapshotDirectory, file),
+        readCatalogueComposition(snapshotDirectory),
+        retainedSnapshots(snapshotDirectory),
+      ),
+    ),
     ...missions,
     deployments,
     terrainLayouts,

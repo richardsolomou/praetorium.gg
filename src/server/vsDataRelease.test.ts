@@ -4,6 +4,7 @@ import path from 'node:path'
 import { afterEach, beforeEach, expect, it } from 'vitest'
 import { vsDataReleaseFiles, writeFiles } from './vsData.fixtures'
 import { checkVsDataRelease, compactVsDataRelease, vsDataReleaseErrors } from './vsDataRelease'
+import { vsDataEffectsPath } from '../shared/vsDataEffects'
 
 const record = { kind: 'ability', id: 'necrons.test.phase-shift', aliases: [], summary: 'Move one unit.' }
 let directory: string
@@ -407,4 +408,35 @@ it('reads a record whose summary VS Data holds as unresolved as having none', ()
   const file = `${directory}.json`
   compactVsDataRelease(directory, file)
   expect(JSON.parse(fs.readFileSync(file, 'utf8')).records.map(({ id }: { id: string }) => id)).toEqual(['necrons.test.phase-shift'])
+})
+
+it('keeps each record’s effect blocks beside its summaries, naming the rules they reference', () => {
+  fs.rmSync(directory, { recursive: true })
+  const ability = {
+    ...record,
+    data: {
+      facts: {
+        format: 'vs-data-facts',
+        version: '1',
+        fields: { reminder: { timings: [{ at: 'turn-start', turn: 'own' }] }, references: [{ kind: 'core-ability', id: 'deep-strike' }] },
+      },
+    },
+  }
+  writeFiles(directory, vsDataReleaseFiles([ability], 'MFM 1.6', [{ kind: 'core-ability', id: 'deep-strike', name: 'Deep Strike' }]))
+  const file = `${directory}.json`
+  compactVsDataRelease(directory, file)
+  expect(JSON.parse(fs.readFileSync(vsDataEffectsPath(file), 'utf8')).effects).toEqual({
+    'ability:necrons.test.phase-shift': { reminder: { timings: [{ at: 'turn-start', turn: 'own' }] }, references: ['Deep Strike'] },
+  })
+})
+
+it('holds back an effect block Praetorium cannot read as unresolved', () => {
+  fs.rmSync(directory, { recursive: true })
+  const fields = { reminder: { timings: [{ at: 'turn-start', turn: 'own', during: 'the battle' }] } }
+  writeFiles(directory, vsDataReleaseFiles([{ ...record, data: { facts: { format: 'vs-data-facts', version: '1', fields } } }]))
+  const file = `${directory}.json`
+  compactVsDataRelease(directory, file)
+  expect(JSON.parse(fs.readFileSync(vsDataEffectsPath(file), 'utf8')).effects['ability:necrons.test.phase-shift'].reminder).toEqual({
+    unresolved: 'Praetorium cannot read this reminder block',
+  })
 })

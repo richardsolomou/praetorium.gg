@@ -1,5 +1,26 @@
 # praetorium
 
+## 0.276.3 (2026-11-25)
+
+### Patch Changes
+
+- f1c3972: [rosters] Import an official app list that is over its points without reporting the app's error lines.
+- f1c3972: [rosters] Import a Battle Sisters Squad with a Ministorum flamer beside its heavy weapon.
+- f1c3972: [rosters] Import a Militarum Tempestus Command Squad marked Warlord from a New Recruit share link.
+- 7dd5ca7: [reference] Show the rules summaries on the core rules, Chapter Approved, Combat Patrol and Event Companion pages again.
+
+## 0.276.2 (2026-11-25)
+
+### Patch Changes
+
+- 61b0701: [simulator] Calculate abilities that give ranged attacks a weapon ability against targets within a distance of the unit, as the Land Raider Redeemer's Wrath of the Machine Spirit.
+
+## 0.276.1 (2026-11-25)
+
+### Patch Changes
+
+- a6f08ad: [reference] Name the Sternguard Veteran Squad's hit re-roll ability Veteran Marksmen, as the codex does.
+
 ## 0.276.0 (2026-11-25)
 
 ### Minor Changes
