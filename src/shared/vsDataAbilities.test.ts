@@ -114,6 +114,17 @@ it('reads a faction chip under the faction-level alias VS Data gives a detachmen
   ]).toEqual([warpRifts, warpRifts])
 })
 
+it('reads a faction page’s army rule under the VS Data faction its name stands for', () => {
+  const imperial = said('Towering Example')
+  const titans: VsDataUnits = {
+    units: {},
+    aliases: {},
+    factions: { 'adeptus-titanicus': 'titan-legions' },
+    abilities: { 'titan-legions.towering-example': imperial, 'chaos-titan-legions.towering-example': said('Traitor Towering Example') },
+  }
+  expect(abilitySummaryIn(titans, '@adeptus-titanicus', 'Towering Example')).toBe(imperial)
+})
+
 it('reads no detachment’s rule of another name that a unit’s printed text names', () => {
   const firstPrince = said('First Prince of Chaos')
   const furies: VsDataUnits = {

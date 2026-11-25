@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { RecentlyUsed, remember } from '../core/collections'
+import { routeSlug } from '../core/slug'
 import { sourceStrings } from '../core/sourceText'
 import {
   MISSION_SUMMARIES,
@@ -154,6 +155,13 @@ export function* vsDataSummariesSteps(directory: string, documents: readonly Rul
                   .filter((alias) => alias.startsWith('bsdata.'))
                   .map((alias) => [alias.slice('bsdata.'.length).replaceAll('.', '-'), key.slice('ability:'.length)] as const)
               : [],
+          ),
+        ),
+        // A faction a catalogue names as VS Data does but under another id, as its Adeptus Titanicus is `titan-legions`;
+        // a name that is itself an id, as Aeldari is, stays that faction's.
+        factions: Object.fromEntries(
+          Object.entries(file.factions).flatMap(([name, id]) =>
+            routeSlug(name) === id || Object.values(file.factions).includes(routeSlug(name)) ? [] : [[routeSlug(name), id] as const],
           ),
         ),
       }

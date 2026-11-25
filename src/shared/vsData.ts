@@ -194,6 +194,8 @@ export type VsDataUnits = {
   abilities: Record<string, RuleSummary>
   /** The VS Data id of each ability aliased to a BSData profile, by that profile's id. */
   aliases: Record<string, string>
+  /** The VS Data id of each faction whose name's slug is no faction's id, by that slug, as Adeptus Titanicus is `titan-legions`. */
+  factions?: Record<string, string>
 }
 
 /**
@@ -221,6 +223,8 @@ export const vsDataSummariesSchema = z.object({
   absentDetachmentRules: z.array(z.tuple([z.string(), z.string()])).optional(),
   /** Each unit's datasheet data by VS Data id; its BSData aliases are in `entries` under `unit:<id>`. */
   units: z.record(z.string(), vsDataUnitSchema).default({}),
+  /** Each faction's VS Data id by its name. */
+  factions: z.record(z.string(), z.string()).default({}),
   records: z.array(
     refSchema.extend({
       summary: z.string().min(1),

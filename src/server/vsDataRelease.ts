@@ -443,6 +443,9 @@ export function compactVsDataRelease(directory: string, file: string) {
     ...(absent.names.length ? { absentAbilityNames: absent.names } : {}),
     ...(absent.detachments.length ? { absentDetachmentRules: absent.detachments } : {}),
     units,
+    factions: Object.fromEntries(
+      current.flatMap((entry) => (entry.kind === 'faction' && entry.name ? [[entry.name, entry.id] as const] : [])),
+    ),
     attributions: [
       ...new Map(
         records.flatMap(({ attribution }) =>

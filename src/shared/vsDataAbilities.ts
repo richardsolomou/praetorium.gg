@@ -25,6 +25,12 @@ function abilitiesByOwner(units: VsDataUnits) {
   return byOwner
 }
 
+/** An `@` owner as VS Data names it: a faction, or a faction's detachment, by the faction's VS Data id. */
+function vsDataOwner(units: VsDataUnits | null, subject: string) {
+  const [faction = '', ...rest] = subject.slice(1).split('.')
+  return [units?.factions?.[faction] ?? faction, ...rest].join('.')
+}
+
 /**
  * An ability's summaries among VS Data's, for the datasheet entry (or `@` and the VS Data owner) it is printed on, by
  * name, in order: the owner's own, a record it shares with other units and the ability VS Data aliases to its BSData
@@ -32,7 +38,7 @@ function abilitiesByOwner(units: VsDataUnits) {
  */
 function ownersAbility(units: VsDataUnits, subject: string, name: string, id?: string) {
   const unit = subject.startsWith('@') ? undefined : units.units[subject]
-  const owner = subject.startsWith('@') ? subject.slice(1) : unit?.id
+  const owner = subject.startsWith('@') ? vsDataOwner(units, subject) : unit?.id
   const byOwner = abilitiesByOwner(units)
   const slug = abilityKey(name)
   // A record VS Data publishes once for several units, as the Land Raiders' Damaged, by the units it names.
@@ -96,7 +102,7 @@ export function datasheetAbilitySummary(
 ): RuleSummary | null {
   const { own, faction } = units ? ownersAbility(units, subject, name, id) : { own: [], faction: [] }
   const ability = printed?.id.startsWith('ability:') ? printed : null
-  const owner = subject.startsWith('@') ? subject.slice(1) : units?.units[subject]?.id
+  const owner = subject.startsWith('@') ? vsDataOwner(units, subject) : units?.units[subject]?.id
   const held = ability?.id.slice('ability:'.length, ability.id.lastIndexOf('.'))
   // A detachment's own record is under its faction's VS Data id, which an edition's catalogue id stands in for.
   const detachment = subject.startsWith('@') && owner?.includes('.') ? owner.slice(owner.indexOf('.')) : null
