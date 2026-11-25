@@ -78,6 +78,9 @@ export function detachmentRefusal(
 ): DetachmentRefusal | null {
   const most = detachmentLimit(limit, waived)
   if (selected.length >= most) return { kind: 'count', reason: `An army can include at most ${countLabel(most, 'detachment')}.` }
+  // A detachment the army can never add explains that first: waiving detachment points would not let it in.
+  const conflict = detachmentConflict(detachment, selected)
+  if (conflict) return { kind: 'conflict', reason: conflict }
   const allowance = detachmentPointBudget(limit)
   // A lone detachment is never over budget, whatever it costs.
   if (selected.length && allowance !== null && detachment.points != null && enforces(waived, 'detachment-points')) {
@@ -85,6 +88,5 @@ export function detachmentRefusal(
     if (detachment.points > left)
       return { kind: 'points', reason: `${detachment.name} costs ${detachment.points} DP, and only ${left} of ${allowance} DP are left.` }
   }
-  const conflict = detachmentConflict(detachment, selected)
-  return conflict ? { kind: 'conflict', reason: conflict } : null
+  return null
 }
