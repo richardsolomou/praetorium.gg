@@ -55,6 +55,7 @@ import {
   weaponGrantsIn,
 } from './textFacts'
 import type { AbilityKind, Datasheet } from '../contracts/catalogue'
+import { baseSizeOf } from './vsDataBaseSizes'
 
 export function toughnessOf(profiles: readonly { type: string; values: readonly { name: string; value: string }[] }[]): number | null {
   const values = profiles
@@ -342,7 +343,7 @@ function assemble(loaded: LoadedCatalogue, catalogueId: string, entryId: string,
       ? details.wargear
       : catalogueOptions.map(({ name: optionName, options }) => `**${optionName}:** ${options}.`),
     ...(details?.wargearGroups?.length ? { wargearGroups: details.wargearGroups } : {}),
-    baseSize: details?.baseSize ?? null,
+    baseSize: baseSizeOf(loaded, entryId),
     transport: details?.transport ?? null,
     ...(details?.transportCapacity ? { transportCapacity: details.transportCapacity } : {}),
     costs: details?.points ?? [],

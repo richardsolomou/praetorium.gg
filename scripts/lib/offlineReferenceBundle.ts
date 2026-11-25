@@ -237,6 +237,7 @@ export async function writeReferenceBundle(outDir: string, directory: string, ru
     definitionFacts: packRuntimeData(downloadedDefinitionFacts(selectedCatalogue)),
     datacards: packRuntimeData(selectedCatalogue.datacards),
     ...(selectedCatalogue.keywords ? { keywords: [...selectedCatalogue.keywords] } : {}),
+    ...(selectedCatalogue.baseSizes ? { baseSizes: { ...selectedCatalogue.baseSizes } } : {}),
     mfm: packRuntimeData(selectedCatalogue.mfm ?? null),
     rules: packRuntimeData({ ...selectedRules, terrainLayouts: [], terrainTemplates: [] }),
   })

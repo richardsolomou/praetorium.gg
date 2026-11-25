@@ -149,7 +149,6 @@ export const card = (over: Partial<DatasheetDetails> = {}): DatasheetDetails => 
   composition: [],
   loadout: null,
   wargear: [],
-  baseSize: null,
   transport: null,
   points: [],
   attachesTo: [],

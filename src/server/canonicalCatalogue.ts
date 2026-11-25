@@ -34,7 +34,7 @@ import { readRevisions } from './catalogueSources'
 import { mfmUnitFor } from '../shared/unitPoints'
 
 export const CANONICAL_CATALOGUE_FORMAT = 'praetorium.canonical-catalogue.v1' as const
-export const CANONICAL_CATALOGUE_COMPILER_VERSION = 35 as const
+export const CANONICAL_CATALOGUE_COMPILER_VERSION = 36 as const
 
 const characteristicSchema = z.object({
   name: z.string(),
@@ -69,7 +69,7 @@ const relationshipSchema = z.object({
   route: z.object({ catalogueId: z.string(), slug: z.string() }).nullable(),
 })
 
-const sourceNameSchema = z.enum(['definitions', 'points', 'rules', 'datacards', 'battlemaster'])
+const sourceNameSchema = z.enum(['definitions', 'points', 'rules', 'datacards', 'battlemaster', 'summaries'])
 const fieldResolutionSchema = z.object({
   sources: z.array(sourceNameSchema),
   strategy: z.enum(['single-source', 'sources-agree', 'merged', 'source-priority', 'fallback', 'unresolved']),
@@ -392,8 +392,10 @@ export function* canonicalCatalogueSteps(
       const description = describeDatasheetAbilitiesWithContributions(loaded, faction.id, projected, rules, { reference: true })
       if (!description) continue
       const { datasheet: described, contributions: abilityContributions } = description
-      const cardsBaseSize = described.baseSize
-      const baseSize = cardsBaseSize || profileBaseSize(described.profiles)
+      // VS Data types every base an official source prints; BSData's profile stands in for the Warhammer Legends ones
+      // no source prints, until VS Data or a decision covers them (#2009).
+      const vsDataBaseSize = described.baseSize
+      const baseSize = vsDataBaseSize || profileBaseSize(described.profiles)
       const cardsComposition = described.composition
       const cardsCosts = described.costs
       const mfmUnit = mfmUnitFor(loaded, faction.id, entryId)
@@ -409,7 +411,6 @@ export function* canonicalCatalogueSteps(
       const costPoint = singleUnqualifiedPoint(sourceCosts)
       const points = sourceCosts.length ? costPoint : described.points
       const usesDatacards = Boolean(
-        cardsBaseSize ||
         cardsComposition.length ||
         cardsCosts.length ||
         described.loadout ||
@@ -471,7 +472,7 @@ export function* canonicalCatalogueSteps(
             composition: sourceOrUnresolved(cardsComposition.length ? 'datacards' : null),
             loadout: sourceOrUnresolved(joined && described.loadout ? 'datacards' : null),
             wargear: sourceOrUnresolved(joined?.details.wargear.length ? 'datacards' : 'definitions', !joined?.details.wargear.length),
-            baseSize: sourceOrUnresolved(cardsBaseSize ? 'datacards' : baseSize ? 'definitions' : null),
+            baseSize: sourceOrUnresolved(vsDataBaseSize ? 'summaries' : baseSize ? 'definitions' : null),
             transport: sourceOrUnresolved(joined && described.transport ? 'datacards' : null),
             costs: costsResolution,
             relationships: sourceOrUnresolved('definitions'),

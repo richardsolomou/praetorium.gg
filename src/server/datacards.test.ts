@@ -272,7 +272,6 @@ it('indexes the faction-owned datasheets and detachments', () => {
           modelCount: '1 model',
           loadout: '**This model is equipped with:** Crozius arcanum.',
           wargear: ['This model cannot replace its wargear.'],
-          baseSize: '50mm',
           transport: 'This model has a transport capacity of 6 **INFANTRY** models.',
           transportCapacity: {
             main: { capacity: 6, carries: 'INFANTRY' },
@@ -295,7 +294,6 @@ it('indexes the faction-owned datasheets and detachments', () => {
           composition: [],
           loadout: null,
           wargear: [],
-          baseSize: null,
           transport: null,
           points: [],
           attachesTo: [],
@@ -596,27 +594,6 @@ it('reads both dispositions offered by a three-point detachment and rejects malf
     conflicting: null,
     malformed: null,
   })
-})
-
-it('adds dimensions to named flying bases', () => {
-  directory = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-datacards-'))
-  fs.writeFileSync(
-    path.join(directory, 'aeldari.json'),
-    JSON.stringify({
-      name: 'Aeldari',
-      datasheets: [
-        { name: { en: 'Falcon' }, baseSize: { en: 'Large Flying Base' } },
-        { name: { en: 'Farseer Skyrunner' }, baseSize: { en: 'Small Flying Base' } },
-        { name: { en: 'Crimson Hunter' }, baseSize: { en: 'Aircraft Flying Base' } },
-      ],
-      detachments: [],
-    }),
-  )
-
-  const details = loadWords(directory).factions.get('aeldari')?.datasheetDetails
-  expect([details?.get('Falcon')?.baseSize, details?.get('Farseer Skyrunner')?.baseSize, details?.get('Crimson Hunter')?.baseSize]).toEqual(
-    ['Large Flying Base (Ø60mm)', 'Small Flying Base (Ø32mm)', 'Aircraft Flying Base (120 × 92 mm oval)'],
-  )
 })
 
 it('reads a transport rule printed as a special ability', () => {
