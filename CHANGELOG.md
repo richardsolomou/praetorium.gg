@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.277.7 (2026-11-25)
+
+### Patch Changes
+
+- c1105c1: [simulator] A weapon with a Hunter profile, such as the Eradicators' melta rifle, now fires one profile per model: the Hunter profile against a MONSTER or VEHICLE, the standard one otherwise.
+
 ## 0.277.6 (2026-11-25)
 
 ### Patch Changes
