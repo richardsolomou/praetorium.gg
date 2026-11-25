@@ -988,6 +988,19 @@ describe('setup', () => {
     expect(validate(reduceBattle(PLAYERS, log()), ALICE, command)).toBe('invalid detachment combination')
   })
 
+  it('attaches a list over the allowance whose owner waived detachment points', () => {
+    const command = builtRoster('Necrons', ['Immortals'])
+    if (command.kind !== 'attach-roster' || !command.roster.built) throw new Error('expected a built roster')
+    command.roster.built.detachments = [
+      { name: 'Cryptek Conclave', points: 2 },
+      { name: 'Hand of the Dynasty', points: 1 },
+    ]
+    command.roster.built.detachmentPointBudget = 2
+    command.roster.built.waivedRules = ['detachment-points']
+
+    expect(validate(reduceBattle(PLAYERS, log()), ALICE, command)).toBeNull()
+  })
+
   it('allows one detachment above the multi-detachment allowance', () => {
     const command = builtRoster('Necrons', ['Immortals'])
     if (command.kind !== 'attach-roster' || !command.roster.built) throw new Error('expected a built roster')
