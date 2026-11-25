@@ -32,7 +32,7 @@ function measuredBytes(data: unknown) {
 }
 
 export function captureAppSnapshot(client: QueryClient): AppSnapshot | null {
-  const me = client.getQueryData(meKey()) as { id: string; impersonatedBy?: string | null } | null | undefined
+  const me = client.getQueryData<{ id: string; impersonatedBy?: string | null } | null>(meKey())
   if (me === undefined || me?.impersonatedBy) return null
   const owner = me?.id ?? null
   const queries: AppSnapshot['queries'] = []
@@ -99,7 +99,7 @@ function deviceAnswer(key: readonly unknown[], data: unknown, documents: DeviceD
  * restore filled from the same snapshot, so a page restored before storage could be read is corrected before it shows.
  */
 export function restoreAppSnapshot(client: QueryClient, snapshot: AppSnapshot, documents?: DeviceDocuments) {
-  const current = client.getQueryData(meKey()) as { id?: string; impersonatedBy?: string | null } | null | undefined
+  const current = client.getQueryData<{ id?: string; impersonatedBy?: string | null } | null>(meKey())
   if (current !== undefined && (current?.id !== (snapshot.owner ?? undefined) || current?.impersonatedBy)) return
   for (const query of snapshot.queries) {
     const state = client.getQueryState(query.key)
@@ -118,7 +118,7 @@ export function restoreAppSnapshot(client: QueryClient, snapshot: AppSnapshot, d
 }
 
 export function reconcileAppAccount(client: QueryClient, me: { id: string; impersonatedBy?: string | null } | null) {
-  const previous = client.getQueryData(meKey()) as { id?: string; impersonatedBy?: string | null } | null | undefined
+  const previous = client.getQueryData<{ id?: string; impersonatedBy?: string | null } | null>(meKey())
   if (previous === undefined || (previous?.id === me?.id && previous?.impersonatedBy === me?.impersonatedBy)) return false
   const privateQuery = (query: { queryKey: readonly unknown[] }) =>
     query.queryKey[0] !== 'me' &&
