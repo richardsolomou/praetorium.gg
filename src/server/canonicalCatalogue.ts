@@ -4,7 +4,7 @@ import { setImmediate as yieldToEventLoop } from 'node:timers/promises'
 import { replaceFileSync } from './replaceFile'
 import { z } from 'zod'
 import { completeSteps, type Steps } from '../shared/steps'
-import { profileBaseSize, structureDatasheetProfiles } from '../core/datasheetStructure'
+import { structureDatasheetProfiles } from '../core/datasheetStructure'
 import { compareText } from '../core/text'
 import type {
   CanonicalCatalogue,
@@ -34,7 +34,7 @@ import { readRevisions } from './catalogueSources'
 import { mfmUnitFor } from '../shared/unitPoints'
 
 export const CANONICAL_CATALOGUE_FORMAT = 'praetorium.canonical-catalogue.v1' as const
-export const CANONICAL_CATALOGUE_COMPILER_VERSION = 36 as const
+export const CANONICAL_CATALOGUE_COMPILER_VERSION = 37 as const
 
 const characteristicSchema = z.object({
   name: z.string(),
@@ -392,10 +392,7 @@ export function* canonicalCatalogueSteps(
       const description = describeDatasheetAbilitiesWithContributions(loaded, faction.id, projected, rules, { reference: true })
       if (!description) continue
       const { datasheet: described, contributions: abilityContributions } = description
-      // VS Data types every base an official source prints; BSData's profile stands in for the Warhammer Legends ones
-      // no source prints, until VS Data or a decision covers them (#2009).
-      const vsDataBaseSize = described.baseSize
-      const baseSize = vsDataBaseSize || profileBaseSize(described.profiles)
+      const { baseSize } = described
       const cardsComposition = described.composition
       const cardsCosts = described.costs
       const mfmUnit = mfmUnitFor(loaded, faction.id, entryId)
@@ -472,7 +469,7 @@ export function* canonicalCatalogueSteps(
             composition: sourceOrUnresolved(cardsComposition.length ? 'datacards' : null),
             loadout: sourceOrUnresolved(joined && described.loadout ? 'datacards' : null),
             wargear: sourceOrUnresolved(joined?.details.wargear.length ? 'datacards' : 'definitions', !joined?.details.wargear.length),
-            baseSize: sourceOrUnresolved(vsDataBaseSize ? 'summaries' : baseSize ? 'definitions' : null),
+            baseSize: sourceOrUnresolved(baseSize ? 'summaries' : null),
             transport: sourceOrUnresolved(joined && described.transport ? 'datacards' : null),
             costs: costsResolution,
             relationships: sourceOrUnresolved('definitions'),

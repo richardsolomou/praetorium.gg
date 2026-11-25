@@ -5,7 +5,6 @@ import {
   datasheetProfileKind,
   isWrittenInvulnerableSave,
   datasheetProfileKindOf,
-  profileBaseSize,
   structureDatasheetProfiles,
 } from './datasheetStructure'
 
@@ -80,21 +79,6 @@ describe('datasheet structure', () => {
     expect(datasheetCharacteristicKindOf(profiles[0]!.values[0]!)).toBe('toughness')
   })
 
-  describe('profileBaseSize', () => {
-    const unit = (name: string, base: string) => ({ id: name, name, type: 'Unit', values: [{ name: 'Base', value: base }] })
-
-    it('reads one base shared by every model', () => {
-      expect(profileBaseSize([unit('Clanblade', '75x42mm'), unit('Clanblade Leader', '75x42mm')])).toBe('75x42mm')
-    })
-
-    it('names each model when their bases differ', () => {
-      expect(profileBaseSize([unit('Captain', '40mm'), unit('Veteran', '32mm')])).toBe('Captain: 40mm\nVeteran: 32mm')
-    })
-
-    it('ignores a Base characteristic outside unit profiles', () => {
-      expect(profileBaseSize([{ ...unit('Gun', '1'), type: 'Ranged Weapons' }])).toBeNull()
-    })
-  })
 })
 
 it('knows the catalogue’s abilities that write out an invulnerable save, and no other', () =>

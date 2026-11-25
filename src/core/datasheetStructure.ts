@@ -108,16 +108,6 @@ export function datasheetProfilesByKind(sheet: Pick<Datasheet, 'profiles'>) {
   }
 }
 
-/** The unit profiles' Base characteristic, as the datacards write a base size: one value, or a `Model: size` line per model when they differ. */
-export function profileBaseSize(profiles: readonly DatasheetProfile[]): string | null {
-  const bases = profiles.flatMap((profile) => {
-    const value = profile.values.find((characteristic) => datasheetCharacteristicKindOf(characteristic) === 'base-size')?.value.trim()
-    return value && datasheetProfileKindOf(profile) === 'unit' ? [{ name: profile.name, value }] : []
-  })
-  if (new Set(bases.map((base) => base.value)).size <= 1) return bases[0]?.value ?? null
-  return bases.map((base) => `${base.name}: ${base.value}`).join('\n')
-}
-
 /** What a unit's statline shows apart from its columns, or not at all. */
 export const NON_STATLINE_KINDS: readonly DatasheetCharacteristicKind[] = ['invulnerable-save', 'base-size']
 
