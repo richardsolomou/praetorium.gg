@@ -413,7 +413,9 @@ function namesOf(manifest: VsDataManifest, read: (name: string) => unknown, iden
       const names = spellings.get(vsDataKey(entry)) ?? []
       // A spelling ending in a full stop, as some Kill Team models' Spanish and Italian names, reads as the card's sentence.
       names.push(
-        ...[entry.display, ...(entry.aliases ?? []).map((alias) => alias.name)].filter((name) => name !== undefined && !name.endsWith('.')),
+        ...[entry.display, ...(entry.aliases ?? []).map((alias) => alias.name)].filter(
+          (name): name is string => name !== undefined && !name.endsWith('.'),
+        ),
       )
       spellings.set(vsDataKey(entry), names)
     }
