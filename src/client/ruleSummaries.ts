@@ -78,6 +78,17 @@ export function useRuleEntrySummaries(url: string | null) {
 }
 
 /**
+ * The summary of the weapon or core ability a keyword names, by its name: undefined while asked for, null where VS Data
+ * has no such ability.
+ */
+export function useKeywordSummary(name: string): RuleSummary | null | undefined {
+  const { data, isPending } = useQuery(ruleAbilitySummariesQuery())
+  if (!data) return isPending ? undefined : null
+  const keys = abilityKeysNamed(name).filter((key) => !key.startsWith('core-rule:'))
+  return keys.map((key) => data[key]).find(Boolean) ?? null
+}
+
+/**
  * The summary of a weapon or core ability, by its `kind:id` or, for a keyword, by its name, and failing that of the whole
  * core rule of that name, as a granted Benefit of Cover is: undefined while it is asked for, null where VS Data has none.
  */
