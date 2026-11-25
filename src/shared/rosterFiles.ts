@@ -1378,6 +1378,7 @@ function textRosterPick(
       )
     }
     const singlePicks = new Map<string, string>()
+    const statedPicks = new Set<string>()
     for (const at of [...choices.keys()].toSorted((left, right) => Number(choices[left]!.optional) - Number(choices[right]!.optional))) {
       const choice = choices[at]!
       if (counted(choice)) continue
@@ -1401,6 +1402,7 @@ function textRosterPick(
         const pieces = new Map([...(aliases[at]!.get(found) ?? [])].filter(([name]) => scopes[at]!.stated.has(name)))
         if (!absent.some((prefix) => choice.key.startsWith(prefix))) taken.push({ at, pieces })
         singlePicks.set(choice.key, found)
+        statedPicks.add(choice.key)
         continue
       }
       // An optional default whose pieces another choice took is let go, so the group beside it can hold what the list states.
@@ -1408,6 +1410,17 @@ function textRosterPick(
       const given = choice.chosen && [...(aliases[at]!.get(choice.chosen)?.keys() ?? [])].some((name) => spent.has(name))
       if (choice.optional && given && !leftFor(at, choice.chosen)) singlePicks.set(choice.key, '')
       else if (choice.chosen) singlePicks.set(choice.key, choice.chosen)
+    }
+    // Of choices in a group that holds one, the one the list states takes it, so a Battle Sister's heavy bolter puts
+    // down the special weapon her other choice would default to.
+    for (const choice of choices) {
+      if (!choice.optional || statedPicks.has(choice.key) || !singlePicks.get(choice.key)) continue
+      const parent = choice.key.slice(0, choice.key.lastIndexOf('/'))
+      const group = loaded.index.definitions.get(parent.split('/').at(-1)!)
+      const sibling = (other: (typeof choices)[number]) =>
+        statedPicks.has(other.key) && other.key.startsWith(`${parent}/`) && !other.key.slice(parent.length + 1).includes('/')
+      if (group && resolve(group, loaded.index).type === undefined && maximumCount(group, loaded.index) === 1 && choices.some(sibling))
+        singlePicks.set(choice.key, '')
     }
     const pick = {
       entryId,

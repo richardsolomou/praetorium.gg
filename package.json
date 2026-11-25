@@ -1,6 +1,6 @@
 {
   "name": "praetorium.gg",
-  "version": "0.276.1",
+  "version": "0.276.3",
   "private": true,
   "description": "Build Warhammer 40,000 armies and track games from setup to final score.",
   "license": "AGPL-3.0-only",
@@ -35,6 +35,7 @@
     "catalogue:history-seed": "node --max-old-space-size=8192 --import tsx scripts/catalogueHistorySeed.ts",
     "catalogue:descriptions": "tsx scripts/checkDescriptions.ts",
     "catalogue:terrain": "tsx scripts/checkTerrain.ts",
+    "catalogue:effects": "node --max-old-space-size=8192 --import tsx scripts/vsDataEffectsParity.ts",
     "catalogue:sync": "tsx scripts/syncCatalogue.ts",
     "catalogue:snapshot": "tsx scripts/catalogueSnapshot.ts",
     "catalogue:materialize": "tsx scripts/materializeCatalogue.ts",
