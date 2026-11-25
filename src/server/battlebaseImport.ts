@@ -74,7 +74,7 @@ function army(battle: BattlebaseBattle, creator: boolean, { loaded, rules, facti
   const list = parsed?.success ? battlebaseTextRoster(parsed.data, names, limit) : null
   const named = { roster: namedArmy(ids, list, factions, limit, revision), units: {} }
   if (!list || !parsed?.success || limit === null) return named
-  const imported = matchParsedRoster(list, loaded)
+  const imported = matchParsedRoster(list, loaded, { names: rules?.importNames })
   if (!imported.catalogueId || imported.units.length !== list.units.length) return named
   const saved = {
     id: '',

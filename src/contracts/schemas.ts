@@ -702,7 +702,7 @@ export type PriceInput = z.infer<typeof priceSchema>
 
 /** Exports whatever the builder is showing, so it works before a list is attached. */
 export const exportRosterSchema = priceSchema
-  .safeExtend({ name: z.string().trim().min(1).max(120), pointsBudget })
+  .safeExtend({ name: z.string().trim().min(1).max(120), pointsBudget, format: z.enum(['readable', 'ros']).optional() })
   .superRefine(validatePointsBudget)
   .overwrite(withStandardBudget)
 export type ExportRosterInput = z.infer<typeof exportRosterSchema>

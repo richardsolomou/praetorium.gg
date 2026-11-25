@@ -814,12 +814,10 @@ function modelOnlyKeywords(models: readonly { name: string; keywords: string[] }
 }
 
 /** Selected and offered-weapon views sharing the expensive roster modifier fold. */
-export function datasheetViewsIn(
-  loaded: LoadedCatalogue,
-  catalogueId: string,
-  entryId: string,
-  context: Omit<DatasheetContext, 'everyWeapon' | 'everyWargearAbility' | 'modifiers'>,
-) {
+type RosterContext = Omit<DatasheetContext, 'everyWeapon' | 'everyWargearAbility' | 'modifiers'>
+
+/** The roster's context with the modifiers its other selections put on this unit's profiles. */
+function withProfileModifiers(loaded: LoadedCatalogue, catalogueId: string, entryId: string, context: RosterContext) {
   const modifiers = profileModifiers(
     context.selections,
     entryId,
@@ -828,7 +826,15 @@ export function datasheetViewsIn(
     context.unitSelectionIndex,
     context.companions ?? [],
   )
-  const shared = { ...context, modifiers }
+  return { ...context, modifiers }
+}
+
+/** The weapons a unit carries in its roster, without the every-weapon view `datasheetViewsIn` also builds. */
+export const selectedDatasheetIn = (loaded: LoadedCatalogue, catalogueId: string, entryId: string, context: RosterContext) =>
+  datasheetIn(loaded, catalogueId, entryId, withProfileModifiers(loaded, catalogueId, entryId, context))
+
+export function datasheetViewsIn(loaded: LoadedCatalogue, catalogueId: string, entryId: string, context: RosterContext) {
+  const shared = withProfileModifiers(loaded, catalogueId, entryId, context)
   const selection = context.unitSelectionIndex === undefined ? undefined : context.selections[context.unitSelectionIndex]
   const options = { primaryCatalogueId: catalogueId, roster: context.selections.filter((entry) => entry !== selection) }
   return {

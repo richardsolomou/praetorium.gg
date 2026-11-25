@@ -17,7 +17,9 @@ Pins live in `catalogue/composition.json`, `catalogue/sources.json`, and `catalo
 - Parsed sources from `src/server/sharedJson.ts` are shared: copy before changing.
 - Construction reads go in `constructionReads.ts` so the worker and server agree.
 - Points come from the [MFM fork](https://github.com/richardsolomou/wh40k-11e-mfm); never duplicate prices in definitions.
-- Translated names come from [wh40k-11e-translations](https://github.com/richardsolomou/wh40k-11e-translations), a pinnable copy of nrdata.org, which serves only its live state; refresh it there with `bin/update` and a commit, never by fetching nrdata.org at build time.
+- Imports read a list in any of the official app's languages through the names each rules version's VS Data release localises (`localisation/<language>.json`): compacting keeps every spelling of each faction, Detachment, Enhancement, unit and the models and wargear under it, English first (`names`), and the rules a list is imported into carry them by BSData entry id (`importNames`), so an app spelling also bridges to BSData's. `loadCatalogueTranslations` adds them to the import translations.
+- Community translations, including Portuguese and Russian, which the app does not print, come from [wh40k-11e-translations](https://github.com/richardsolomou/wh40k-11e-translations), a pinnable copy of nrdata.org, which serves only its live state; refresh it there with `bin/update` and a commit, never by fetching nrdata.org at build time. They are New Recruit's spellings keyed by BSData's English names, with no licence VS Data could publish them under, so they stay an import-only source here.
+- `pnpm exec tsx scripts/importParity.ts record <file>` records what every import corpus list imports to; `compare <before> <after>` lists each that changed. A change to how imports read names keeps every list the same, or reads more of it.
 - Definitions no longer update upstream. After a points update, dataslate or codex, run `just drift` and work its report (`data-dev/drift/drift.md`, JSON beside it): "likely edit" rows first, where Game Datacards and 40kdc-data agree against us, then "GDC differs" rows. Game Datacards is the authority; a 40kdc-only row is a lead to check against the cards, never an edit on its own. "New in GDC HEAD" shows what a Game Datacards bump would change.
 - `changes/history.json` is immutable.
 
@@ -48,6 +50,10 @@ A release holds this bar, which only goes up:
 
 - `just points` matches at least 99.9% of Munitorum prices and every faction file.
 - Of the tournament lists in each of the `40kstats` and `lexmechanic` corpora exported from the official app's newest data, at least 95% import clean (`pnpm exec tsx scripts/importCorpus.ts run --source <source> --since 2026-06-20 --live`), and no change makes a clean list unclean.
+
+## Saved IDs in VS Data
+
+`catalogue/legacy-ids/{books,detachments,units,enhancements}.json` give the VS Data ID of each book, Detachment, datasheet and Enhancement ID a saved list can hold, and only grow: `scripts/freezeRosterIds.ts <catalogue directory> <unpacked releases, one directory per rules version>` adds what a new snapshot or release names and refuses to move a frozen ID. Read a list's IDs once its rules version is known (`currentRosterIds`): a key is `<rules version>~<ID>` where a retained rules version reads the ID otherwise, else the ID itself, and an Enhancement's key is `<VS Data Detachment>/<option ID>`, since one entry serves Detachments VS Data records apart. Books map by hand, Detachments and Enhancements by name within their faction with the script's reviewed spellings, datasheets by VS Data's `bsdata.*` aliases, else by exact name, and retired IDs through the retired-ID, migration and retained-version aliases.
 
 ## Roster migration
 

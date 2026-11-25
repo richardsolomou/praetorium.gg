@@ -63,7 +63,7 @@ test(`repeated units keep their own custom names and private notes from the buil
   await expect(cards.nth(1)).toContainText(BRAVO_NOTE)
   await shot(owner.locator('[data-roster-builder]'), test.info().outputPath(`unit-annotation-cards.png`))
 
-  await chooseRosterAction(owner, 'Export text')
+  await chooseRosterAction(owner, 'Export')
   const exported = owner.getByRole('dialog', { name: 'Export roster' })
   await expect(exported.locator('pre')).toContainText('• Custom name: Rot Alpha')
   await expect(exported.locator('pre')).toContainText('• Custom name: Rot Bravo')

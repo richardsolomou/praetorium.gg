@@ -94,7 +94,7 @@ type ExportedRoster = Pick<SavedRoster, 'catalogueId' | 'detachmentIds' | 'dispo
   waivedRules?: FormatRuleId[]
 }
 
-/** What "Export text" sends, whether the builder or the library asks. */
+/** What "Export" sends, whether the builder or the library asks. */
 export const exportInput = (roster: ExportedRoster, name: string): Parameters<typeof exportRoster>[0]['data'] => ({
   catalogueId: roster.catalogueId,
   detachmentIds: roster.detachmentIds,

@@ -112,7 +112,8 @@ export function useRosterActions(
   const take = useMutation({
     mutationFn: async ({ roster: summary, title }: { roster: SavedRoster; title: string }) => {
       const roster = await load(summary)
-      return exportRoster({ data: exportInput(roster, roster.name || title) })
+      const input = exportInput(roster, roster.name || title)
+      return { ...(await exportRoster({ data: input })), input }
     },
     onSuccess: (exported) => setExportText(exported),
   })

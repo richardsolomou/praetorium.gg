@@ -1,8 +1,8 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { z } from 'zod'
-import { legacyIdsSchema } from '../src/core/legacyIds'
 import { vsDataMissionPackSchema } from '../src/shared/vsData'
+import { freezeLegacyIds } from './lib/legacyIdFiles'
 
 /**
  * Adds to `catalogue/legacy-ids/` every Game Datacards Stratagem and mission ID an unpacked VS Data catalogue release
@@ -12,7 +12,6 @@ import { vsDataMissionPackSchema } from '../src/shared/vsData'
  */
 const [release] = process.argv.slice(2)
 if (!release) throw new Error('Usage: tsx scripts/freezeLegacyIds.ts <unpacked VS Data release>')
-const folder = path.join(import.meta.dirname, '../catalogue/legacy-ids')
 const read = (name: string): unknown => JSON.parse(fs.readFileSync(path.join(release, name), 'utf8'))
 
 const manifest = z
@@ -44,17 +43,4 @@ const found = {
     ),
   ),
 }
-for (const section of ['stratagems', 'missions'] as const) {
-  const file = path.join(folder, `${section}.json`)
-  const frozen = legacyIdsSchema.parse(
-    fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : { format: 'praetorium.legacy-ids.v1', ids: {} },
-  )
-  for (const [id, current] of found[section]) {
-    const held = frozen.ids[id]
-    if (held !== undefined && held !== current) throw new Error(`${id} is frozen as ${held}; this release names it ${current}`)
-    frozen.ids[id] = current
-  }
-  const ids = Object.fromEntries(Object.entries(frozen.ids).toSorted(([left], [right]) => (left < right ? -1 : 1)))
-  fs.writeFileSync(file, `${JSON.stringify({ ...frozen, ids }, null, 2)}\n`)
-  console.log(`${Object.keys(ids).length} ${section} IDs frozen`)
-}
+for (const section of ['stratagems', 'missions'] as const) freezeLegacyIds(section, found[section])

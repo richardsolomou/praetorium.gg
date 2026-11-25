@@ -13,6 +13,7 @@ import { readVsDataRelease } from './vsDataSummaries'
 import { vsDataMissions } from './vsDataMissions'
 import { vsDataStratagems } from './vsDataStratagems'
 import { vsDataIndex } from '../shared/vsData'
+import { importNamesOf } from '../shared/importNames'
 import { loadRuleDocuments } from './rulesCore'
 import { catalogueDirectory } from './catalogueIndex'
 import { type LoadedCatalogue } from '../shared/catalogueIndex'
@@ -210,5 +211,7 @@ export function* loadRulesSteps(
     terrainLayouts,
     terrainTemplates: [],
     dataslate: null,
+    // A list is read in the rules version it is imported into, which the release beside the base one describes.
+    importNames: importNamesOf(releases[0]?.names, releases[0]?.entries ?? {}),
   }
 }

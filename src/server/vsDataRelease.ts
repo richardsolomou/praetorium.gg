@@ -12,6 +12,7 @@ import {
   type VsDataStratagem,
   vsDataStratagemSchema,
   type VsDataSummariesFile,
+  type VsDataNames,
   type VsDataUnit,
   vsDataEdition,
   vsDataKey,
@@ -25,6 +26,7 @@ const manifestSchema = z.object({
   release: z.string(),
   rulesVersion: z.object({ edition: z.string(), update: z.string() }),
   identity: fileSchema,
+  localisation: z.array(fileSchema.extend({ language: z.string() })).default([]),
   schemas: z.array(fileSchema),
   categories: z.array(
     z.object({
@@ -49,6 +51,7 @@ const identitySchema = z.object({
     }),
   ),
 })
+type IdentityEntry = z.infer<typeof identitySchema>['entries'][number]
 const recordSchema = refSchema.extend({
   rulesVersion: z.object({ update: z.string() }),
   attribution: vsDataAttributionSchema.optional(),
@@ -122,7 +125,7 @@ export function vsDataReleaseErrors(directory: string): string[] {
   const manifest = readVsDataManifest(directory)
   if (!manifest) return [...errors, `${MANIFEST}: not a VS Data catalogue release`]
   if (manifest.identity.path !== IDENTITY) errors.push(`/identity/path must be ${IDENTITY}`)
-  const listed = [...manifest.schemas, manifest.identity]
+  const listed = [...manifest.schemas, manifest.identity, ...manifest.localisation]
   manifest.categories.forEach((category, at) => {
     if (at > 0 && manifest.categories[at - 1]!.name >= category.name) errors.push(`/categories/${at} is not in ascending name order`)
     if (category.status === 'retained') {
@@ -390,6 +393,75 @@ function absentAbilitiesOf(
   return { profiles, names, detachments }
 }
 
+const localisationSchema = z.object({
+  entries: z.array(
+    refSchema.extend({
+      display: z.string().optional(),
+      aliases: z.array(z.object({ name: z.string() })).optional(),
+    }),
+  ),
+})
+
+/**
+ * Every spelling the release's localisation gives each faction, Detachment, Enhancement and unit, and each model and
+ * piece of wargear of a unit, the identity's English name first; an entity no language spells otherwise is left out.
+ */
+function namesOf(manifest: VsDataManifest, read: (name: string) => unknown, identity: readonly IdentityEntry[]): VsDataNames {
+  const spellings = new Map<string, string[]>()
+  for (const { path: file } of manifest.localisation)
+    for (const entry of localisationSchema.parse(read(file)).entries) {
+      const names = spellings.get(vsDataKey(entry)) ?? []
+      // A spelling ending in a full stop, as some Kill Team models' Spanish and Italian names, reads as the card's sentence.
+      names.push(
+        ...[entry.display, ...(entry.aliases ?? []).map((alias) => alias.name)].filter(
+          (name): name is string => name !== undefined && !name.endsWith('.'),
+        ),
+      )
+      spellings.set(vsDataKey(entry), names)
+    }
+  const spelled = (entry: IdentityEntry) => {
+    const names = [...new Set([entry.name!, ...(spellings.get(vsDataKey(entry)) ?? [])])]
+    return entry.name && names.length > 1 ? [names] : []
+  }
+  const current = identity.filter((entry) => !entry.retired && !entry.absent)
+  const refers = (entry: IdentityEntry, kind: string) => (entry.references ?? []).filter((reference) => reference.kind === kind)
+  // A unit's pieces are its models and the wargear they carry or its options offer, which VS Data names under the unit.
+  const pieces = new Map<string, IdentityEntry[]>()
+  const hold = (unit: string, piece: IdentityEntry | undefined) => {
+    if (piece && !pieces.get(unit)?.includes(piece)) pieces.set(unit, [...(pieces.get(unit) ?? []), piece])
+  }
+  const byKey = new Map(current.map((entry) => [vsDataKey(entry), entry]))
+  const units = new Set(current.flatMap((entry) => (entry.kind === 'unit' ? [entry.id] : [])))
+  for (const entry of current) {
+    if (entry.kind !== 'model' && entry.kind !== 'roster-option' && entry.kind !== 'wargear') continue
+    const owners = [...refers(entry, 'unit').map(({ id }) => id), entry.id.slice(0, entry.id.lastIndexOf('.'))].filter((id) =>
+      units.has(id),
+    )
+    for (const unit of owners) {
+      if (entry.kind !== 'roster-option') hold(unit, entry)
+      for (const { id } of refers(entry, 'wargear')) hold(unit, byKey.get(`wargear:${id}`))
+    }
+  }
+  const enhancements = new Set(
+    current.flatMap((entry) => (entry.kind === 'detachment' ? refers(entry, 'ability').map(({ id }) => id) : [])),
+  )
+  const ofKind = (kind: string, wanted: (entry: IdentityEntry) => boolean = () => true) =>
+    current.filter((entry) => entry.kind === kind && wanted(entry)).flatMap(spelled)
+  return {
+    factions: ofKind('faction'),
+    detachments: ofKind('detachment'),
+    enhancements: ofKind('ability', (entry) => enhancements.has(entry.id)),
+    units: Object.fromEntries(
+      current.flatMap((entry) => {
+        if (entry.kind !== 'unit') return []
+        const [name] = spelled(entry)
+        const held = (pieces.get(entry.id) ?? []).flatMap(spelled)
+        return name || held.length ? [[entry.id, { name: name ?? [], pieces: held }] as const] : []
+      }),
+    ),
+  }
+}
+
 const describe = ({ edition, update }: VsDataRulesVersion) => `${edition} ${update}`
 
 /**
@@ -457,7 +529,8 @@ export function compactVsDataRelease(directory: string, file: string) {
       for (const reference of entry.references ?? [])
         if (reference.kind === 'unit' && units[reference.id])
           units[reference.id]!.shared = [...(units[reference.id]!.shared ?? []), entry.id]
-  for (const id of Object.keys(units)) wanted.add(vsDataKey({ kind: 'unit', id }))
+  const names = namesOf(manifest, read, identity)
+  for (const id of new Set([...Object.keys(units), ...Object.keys(names.units)])) wanted.add(vsDataKey({ kind: 'unit', id }))
   const current = identity.filter((entry) => !entry.retired)
   const entries = current.filter((entry) => wanted.has(vsDataKey(entry)))
   const absent = absentAbilitiesOf(current)
@@ -478,6 +551,7 @@ export function compactVsDataRelease(directory: string, file: string) {
     ...(absent.names.length ? { absentAbilityNames: absent.names } : {}),
     ...(absent.detachments.length ? { absentDetachmentRules: absent.detachments } : {}),
     units,
+    names,
     factions: Object.fromEntries(
       current.flatMap((entry) => (entry.kind === 'faction' && entry.name ? [[entry.name, entry.id] as const] : [])),
     ),

@@ -1,5 +1,19 @@
 # praetorium
 
+## 0.277.1 (2026-11-25)
+
+### Patch Changes
+
+- 7a1781d: [rosters] Importing a list the official app exported in another language now reads more of its units and wargear.
+- 7a1781d: [rosters] Enhancements and upgrades in a list exported in another language now come in by their translated names.
+- 7a1781d: [rosters] Squads in a list exported in another language now come in with the number of models the list gives.
+
+## 0.277.0 (2026-11-25)
+
+### Minor Changes
+
+- b333858: [rosters] Export a roster for Tabletop Simulator: download its file and load it there with Yellowscribe.
+
 ## 0.276.3 (2026-11-25)
 
 ### Patch Changes

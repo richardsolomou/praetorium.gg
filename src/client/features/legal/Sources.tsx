@@ -72,7 +72,8 @@ export function Sources() {
             , licensed under AGPL-3.0.
           </li>
           <li>
-            Plain-language rules summaries for each rules version, and stratagem timings and mission scoring, from{' '}
+            Plain-language rules summaries for each rules version, stratagem timings and mission scoring, and the names the official app
+            prints in each of its languages, used to read lists exported in another language, from{' '}
             <a href="https://github.com/richardsolomou/vs-data" className={linkClass}>
               VS Data
             </a>
@@ -80,7 +81,7 @@ export function Sources() {
             <SummaryCredits />
           </li>
           <li>
-            Translated faction, detachment, and force disposition names, used to read lists exported in another language, from{' '}
+            Further translated names, used to read lists exported in another language, from{' '}
             <a href="https://nrdata.org" className={linkClass}>
               New Recruit’s community translations
             </a>
