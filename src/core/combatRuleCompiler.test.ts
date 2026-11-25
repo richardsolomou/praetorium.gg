@@ -281,6 +281,21 @@ Worsen the Move, Leadership and Objective Control characteristics of models in t
       ],
     })
   })
+  it('grants a restricted ability to ranged attacks that target a unit near the source', () => {
+    expect(
+      compileCombatRule(
+        rule('This unit’s ranged attacks that target a unit within 12" of this unit have [Devastating Wounds: non-Monster/vehicle]'),
+      ),
+    ).toEqual({
+      defaultChoice: 0,
+      choices: [
+        {
+          label: 'Target within 12"',
+          effects: [{ role: 'attacker', phases: ['ranged'], keyword: 'Devastating Wounds: non-Monster/vehicle' }],
+        },
+      ],
+    })
+  })
   it('refuses a named-weapon replacement with an unknown additional ability', () => {
     expect(compileCombatRule(rule('Its Rifle weapon has a Damage characteristic of 3 and the [UNSUPPORTED] ability.'))).toBeNull()
   })

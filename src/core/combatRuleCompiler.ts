@@ -537,7 +537,7 @@ function compileRule(
     if (/^(?:(?:targeting|Target is|against) )?that (?:enemy )?unit$/i.test(predicate)) predicate = 'Against the selected target'
     if (/^the target of that attack is an enemy unit within range of an objective marker$/i.test(predicate))
       predicate = 'Target within range of an objective marker'
-    predicate = predicate.replace(/^targeting an enemy unit within (\d+)"$/i, 'Target within $1"')
+    predicate = predicate.replace(/^(?:targeting )?an enemy unit within (\d+)"$/i, 'Target within $1"')
     return { ...context, conditions: [...context.conditions, capitalised(predicate)] }
   }
   const recipient = (phrase: string, context: Context): Context | false | null => {
@@ -1207,6 +1207,11 @@ function compileRule(
           `${mixedGrant[1]} ${mixedGrant[4]}`,
         ].join('. '),
       )
+    // An attack only ever targets an enemy, so "attacks that target a unit within 12" of this unit" is the targeting condition.
+    written = written.replace(
+      /^((?:this|your|that) unit's (?:ranged |melee )?attacks) that target an? (?:enemy )?unit within (\d+)" of (?:this|that|your) unit (have|has|gain) (.+)$/i,
+      '$1 $3 $4 while targeting an enemy unit within $2"',
+    )
     const grant =
       /^(?:(ranged |melee )?weapons equipped by (.+?)|(?:this unit's|your unit's|that unit's|its|the bearer's) (ranged |melee )?(?:attacks|weapons)|those weapons|that attack) (?:have|has|gain) (?:the )?(.+?)(?: abilit(?:y|ies))?(?: (?:when|while) targeting (.+))?$/i.exec(
         written,
