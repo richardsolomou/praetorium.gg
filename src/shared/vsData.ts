@@ -141,13 +141,17 @@ const singleBaseSchema = z.union([plainBaseSchema, z.object({ alternatives: z.ar
  * A base VS Data types, with models and wargear by name: one size, sizes it leaves to the player, a size for each of a
  * profile's models, or a size the model takes with some wargear in place of its own.
  */
-export const vsDataBaseSizeSchema = z.union([
+const equippedBaseSchema = z.union([
   singleBaseSchema,
-  z.object({ byModel: z.array(z.object({ models: z.array(z.string()), size: singleBaseSchema })).min(1) }),
   z.object({ size: singleBaseSchema, withWargear: z.array(z.object({ wargear: z.array(z.string()), size: singleBaseSchema })).min(1) }),
+])
+export const vsDataBaseSizeSchema = z.union([
+  equippedBaseSchema,
+  z.object({ byModel: z.array(z.object({ models: z.array(z.string()), size: equippedBaseSchema })).min(1) }),
 ])
 export type VsDataBaseSize = z.infer<typeof vsDataBaseSizeSchema>
 export type VsDataSingleBase = z.infer<typeof singleBaseSchema>
+export type VsDataEquippedBase = z.infer<typeof equippedBaseSchema>
 
 /**
  * What a datasheet shows of a unit from VS Data's roster definitions and transport facts, with models and wargear

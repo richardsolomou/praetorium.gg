@@ -206,7 +206,7 @@ it('keeps a Detachment the identity marks absent from the build as absent', () =
   ])
 })
 
-it('keeps each stat line’s base, its models named, and a base no source prints as none', () => {
+it('keeps each stat line’s base, its models named, and one no source prints or of an unknown form as none', () => {
   const roster = (kind: string, id: string, data: unknown, name = id) => ({ kind, id, name, aliases: [], category: 'rosters', data })
   const profile = (id: string, data: unknown) => ({ kind: 'unit-profile', id, aliases: [], category: 'profiles', data })
   fs.rmSync(directory, { recursive: true })
@@ -228,13 +228,15 @@ it('keeps each stat line’s base, its models named, and a base no source prints
       }),
       roster('unit', 'unaligned-forces.bastion', { sizes: [1] }),
       profile('unaligned-forces.bastion', { unit: 'unaligned-forces.bastion', gaps: [{ field: 'baseSize', reason: 'no-source' }] }),
+      roster('unit', 'necrons.monolith', { sizes: [1] }),
+      profile('necrons.monolith', { unit: 'necrons.monolith', baseSize: { models: { crew: { diameter: 32 } } } }),
     ]),
   )
   const file = `${directory}.json`
   compactVsDataRelease(directory, file)
   const { units } = JSON.parse(fs.readFileSync(file, 'utf8'))
   fs.rmSync(file)
-  expect([units['tyranids.neurogaunts'].bases, units['unaligned-forces.bastion'].bases]).toEqual([
+  expect([units['tyranids.neurogaunts'].bases, units['unaligned-forces.bastion'].bases, units['necrons.monolith'].bases]).toEqual([
     [
       {
         size: {
@@ -245,6 +247,7 @@ it('keeps each stat line’s base, its models named, and a base no source prints
         },
       },
     ],
+    [{ size: null }],
     [{ size: null }],
   ])
 })

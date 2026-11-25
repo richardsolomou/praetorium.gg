@@ -22,11 +22,14 @@ const named = (names: readonly string[]) => [...new Set(names)].join(', ')
 
 /** A base's lines, each labelled with what takes it where the line is not the whole unit's. */
 function lines(size: VsDataBaseSize, label: string | null): [string | null, string][] {
-  if (typeof size === 'object' && 'byModel' in size) return size.byModel.map((part) => [named(part.models), singleText(part.size)])
+  if (typeof size === 'object' && 'byModel' in size) return size.byModel.flatMap((part) => lines(part.size, named(part.models)))
   if (typeof size === 'object' && 'withWargear' in size)
     return [
       [label, singleText(size.size)],
-      ...size.withWargear.map((part): [string, string] => [named(part.wargear), singleText(part.size)]),
+      ...size.withWargear.map((part): [string, string] => [
+        label ? `${label} with ${named(part.wargear)}` : named(part.wargear),
+        singleText(part.size),
+      ]),
     ]
   return [[label, singleText(size)]]
 }

@@ -19,6 +19,7 @@ import {
   vsDataEdition,
   vsDataKey,
   type VsDataRulesVersion,
+  type VsDataBaseSize,
   vsDataBaseSizeSchema,
   vsDataUnitSchema,
 } from '../shared/vsData'
@@ -301,11 +302,11 @@ function compactUnits(
   const conditions: { kind: string; id: string; summary: string }[] = []
   for (const record of recordsOf('profiles', 'unit-profile')) {
     const { unit, models, baseSize, gaps, invulnerableSave } = unitProfileDataSchema.parse(record.data)
-    // A base no official source prints is a gap of its own; any other gap, or a form this reader does not know, leaves
-    // the line without a base to show.
-    const typed = baseSize === undefined ? null : vsDataBaseSizeSchema.safeParse(namedBase(baseSize, named))
-    const size = typed?.success ? typed.data : null
-    if (size || gaps?.some((gap) => gap.field === 'baseSize' && gap.reason === 'no-source'))
+    // A base no official source prints, or one in a form this reader does not know, is shown as none, which leaves the
+    // whole unit to its fallback; another gap leaves the stat line out.
+    const typed = baseSize === undefined ? null : vsDataBaseSizeSchema.safeParse(baseSize)
+    const size = typed?.success ? namedBase(typed.data, named) : null
+    if (typed || gaps?.some((gap) => gap.field === 'baseSize' && gap.reason === 'no-source'))
       unitOf(unit).bases = [...(unitOf(unit).bases ?? []), { ...(models ? { models: models.map(named) } : {}), size }]
     const saves = invulnerableSave === undefined ? [] : [invulnerableSave].flat()
     for (const [at, save] of saves.entries()) {
@@ -379,15 +380,20 @@ function coreRulesOf(
 }
 
 /** A typed base with the models and wargear it names by their names, as a datasheet prints them. */
-function namedBase(size: unknown, named: (id: string) => string): unknown {
-  if (Array.isArray(size)) return size.map((part) => namedBase(part, named))
-  if (!size || typeof size !== 'object') return size
+function namedBase<T extends VsDataBaseSize>(size: T, named: (id: string) => string): T {
+  if (typeof size !== 'object') return size
   return Object.fromEntries(
     Object.entries(size).map(([key, value]) => [
       key,
-      key === 'models' || key === 'wargear' ? (value as string[]).map(named) : namedBase(value, named),
+      key === 'models' || key === 'wargear'
+        ? (value as string[]).map(named)
+        : Array.isArray(value)
+          ? value.map((part) => namedBase(part, named))
+          : value && typeof value === 'object'
+            ? namedBase(value as VsDataBaseSize, named)
+            : value,
     ]),
-  )
+  ) as T
 }
 
 const detachmentDataSchema = z.object({

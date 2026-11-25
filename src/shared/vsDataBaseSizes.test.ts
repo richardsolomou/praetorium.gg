@@ -43,6 +43,20 @@ it.each<[string, VsDataUnit['bases'], string | null]>([
     ],
     '28.5mm',
   ],
+  [
+    'a base one model’s wargear changes',
+    [
+      {
+        size: {
+          byModel: [
+            { models: ['Sergeant'], size: { diameter: 32 } },
+            { models: ['Trooper'], size: { size: { diameter: 25 }, withWargear: [{ wargear: ['Heavy gun'], size: { diameter: 40 } }] } },
+          ],
+        },
+      },
+    ],
+    'Sergeant: 32mm\nTrooper: 25mm\nTrooper with Heavy gun: 40mm',
+  ],
   ['no base where no source prints one', [{ size: null }], null],
   [
     'no base where any stat line has none',
