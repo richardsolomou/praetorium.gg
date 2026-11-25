@@ -104,8 +104,9 @@ beforeEach(() => {
   })
 })
 
-const origin = { repository: 'owner/datasources', revision: 'a'.repeat(40), path: '11th/gdc' }
-const load = () => loadRuleDocuments(directory, origin)
+const upstream = (file: string) =>
+  `https://raw.githubusercontent.com/owner/datasources/${'a'.repeat(40)}/11th/gdc/core/${path.basename(file)}`
+const load = () => loadRuleDocuments(directory, upstream)
 const coreRulesFile = () => path.join(directory, 'core', 'core_rules.json')
 /** The document as a reader's browser reads it from the same file. */
 const full = () => ruleDocumentFrom(JSON.parse(fs.readFileSync(coreRulesFile(), 'utf8')))
