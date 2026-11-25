@@ -210,7 +210,7 @@ it('loads a named base edition from the root directory', () => {
     () => null,
   )
   selected.catalogueFor('codex~child')
-  expect(mocks.loadCatalogue).toHaveBeenCalledWith(directory, composition.editions[0].edition)
+  expect(mocks.loadCatalogue).toHaveBeenCalledWith(directory, composition.editions[0].edition, { snapshotDirectory: directory })
 })
 
 it('shares an edition load in progress with a request for it', () => {

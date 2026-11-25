@@ -22,8 +22,11 @@ import { CombatAnswerCache } from '../src/shared/combatAnswerCache'
 import { currentFactionIdsOf } from '../src/shared/factionReferences'
 import { datasheetIn } from '../src/shared/catalogue'
 import { describeDatasheetAbilities } from '../src/shared/datasheetDescriptions'
-import { gradeReferences, measureRosterUnits, referenceUnit, type RuleWords } from '../src/shared/rosterGradeMeasures'
+import { gradeReferences, measureRosterUnits, referenceUnit, type RuleWords, withReadRules } from '../src/shared/rosterGradeMeasures'
 import { datasheetCombatant } from '../src/shared/rosterCombatRules'
+import { rosterCombatants } from '../src/shared/rosterCombatants'
+import { rosterCombatIndices } from '../src/core/rosterCombatTable'
+import { combatRuleSelections } from '../src/core/combatRules'
 import { importCorpusLists } from './lib/importCorpusLists'
 import { CORPUS_ROOT, SOURCES } from './lib/importCorpusSources'
 import { errorText } from './lib/errorText'
@@ -97,6 +100,7 @@ const round = (value: number | null | undefined) => (value === null || value ===
 const counts: Record<string, Record<string, number>> = {}
 const bump = (check: string, status: string) => ((counts[check] ??= {})[status] = (counts[check][status] ?? 0) + 1)
 const differences: unknown[] = []
+const listGrades: unknown[] = []
 
 for (const [index, { listing, imported }] of clean.entries()) {
   const data: PriceInput = {
@@ -136,7 +140,54 @@ for (const [index, { listing, imported }] of clean.entries()) {
         if (status !== 'same') differences.push({ list: listing.list, unit: unit.name, check, today: left, vs: right })
       }
     }
+    // For each unit whose damage changed, the rules whose default effects read otherwise, to judge the change by.
+    if (
+      differences.some(
+        (difference) =>
+          (difference as { list?: string; check?: string }).list === listing.list && (difference as { check?: string }).check === 'damage',
+      )
+    ) {
+      const active = (loaded: LoadedCatalogue, read: RuleWords) => {
+        const pickIndices = rosterCombatIndices(data.units)
+        const projections = rosterCombatants(loaded, rules, {
+          catalogueId: data.catalogueId,
+          detachmentIds: data.detachmentIds,
+          picks: data.units,
+          pickIndices,
+          inactivePicks: [],
+        })
+        return projections.map((projection) => {
+          if (!projection) return new Map<string, string>()
+          const readRules = withReadRules(projection, read)
+          const all = [...readRules.rules, ...readRules.companions.flatMap((member) => member.rules)]
+          return new Map(
+            combatRuleSelections(all, {})
+              .active(all)
+              .map((rule) => [rule.name, JSON.stringify(rule.effects)]),
+          )
+        })
+      }
+      const [left, right] = [active(wordCatalogue, words), active(vsCatalogue, noWords)]
+      for (const [at, unit] of today!.entries()) {
+        const names = [...new Set([...left[at]!.keys(), ...right[at]!.keys()])].filter(
+          (name) => left[at]!.get(name) !== right[at]!.get(name),
+        )
+        if (names.length)
+          differences.push({
+            list: listing.list,
+            unit: unit.name,
+            check: 'rules',
+            rules: names.map((name) => ({ name, today: left[at]!.get(name) ?? null, vs: right[at]!.get(name) ?? null })),
+          })
+      }
+    }
     const grades = [today!, vs!].map((units) => rosterGrades(units, data.limit, book?.name ?? ''))
+    listGrades.push({
+      list: listing.list,
+      faction: book?.name ?? '',
+      today: { grade: grades[0]!.grade, categories: grades[0]!.categories.map((category) => [category.key, category.grade]) },
+      vs: { grade: grades[1]!.grade, categories: grades[1]!.categories.map((category) => [category.key, category.grade]) },
+    })
     const rows = grades.map((graded) => JSON.stringify([graded.grade, graded.categories, graded.missing, graded.units]))
     bump('grades', rows[0] === rows[1] ? 'same' : 'differs')
     if (rows[0] !== rows[1]) differences.push({ list: listing.list, check: 'grades', today: rows[0], vs: rows[1] })
@@ -179,6 +230,6 @@ for (const [index, { listing, imported }] of clean.entries()) {
 
 const out = values.out ?? path.resolve('data-dev', 'vs-data-effects-rosters.json')
 fs.mkdirSync(path.dirname(out), { recursive: true })
-fs.writeFileSync(out, `${JSON.stringify({ lists: clean.length, counts, differences }, null, 1)}\n`)
+fs.writeFileSync(out, `${JSON.stringify({ lists: clean.length, counts, listGrades, differences }, null, 1)}\n`)
 console.log(JSON.stringify({ lists: clean.length, counts }, null, 1))
 console.log(`written to ${out}`)
