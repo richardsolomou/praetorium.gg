@@ -1,4 +1,4 @@
-Use an exchange code to pass a list to another Praetorium player. It holds things the text format can't. Use **Export text** for other apps.
+Use an exchange code to pass a list to another Praetorium player. It holds things the text format can't. Use **Export** for other apps and Tabletop Simulator.
 
 ## Exchange codes and QR links
 
@@ -10,13 +10,17 @@ A code carries units, custom names, model counts, equipment, attachments, units 
 
 ## Exporting a list
 
-Open a roster's menu and choose **Export text**, then **Copy text** or, in the browser, **Download text**. Other builders can read it and Praetorium can import it back.
+Open a roster's menu and choose **Export**, then **Copy text** or, in the browser, **Download text**. Other builders can read it and Praetorium can import it back.
 
 ![The Export roster dialog showing the roster as text, with Download text and Copy text.](screenshot:import-a-roster-export-text 'Copy text')
 
 The text includes custom unit names, model counts, equipment, enhancements, the Warlord, attachments, setup and rules version. Unit notes, preparation, rule waivers and optional rules are left out.
 
-If the roster has units, detachments or options the current data no longer offers, the dialog warns that they're left out. Fix them before you submit the list anywhere. **Export text** and **Exchange code** are greyed out on an empty roster.
+## Tabletop Simulator
+
+In the browser, choose **Tabletop Simulator** at the top of **Export roster**, then **Download roster file**. Upload the file at [Yellowscribe](https://yellowscribe.link) and paste the code it gives you into its Tabletop Simulator mod. The file holds each unit's models, wargear, statlines, weapons, abilities and keywords. Ability descriptions come from the rules text sources you've turned on; without them the file names each ability only.
+
+If the roster has units, detachments or options the current data no longer offers, the dialog warns that they're left out. Fix them before you submit the list anywhere. **Export** and **Exchange code** are greyed out on an empty roster.
 
 ## Rules versions
 

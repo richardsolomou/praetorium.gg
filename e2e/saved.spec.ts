@@ -616,7 +616,7 @@ test('a saved list is reopened, duplicated, shared and published', async ({ brow
   await retryUntilVisible(duplicateHere, () => guest.getByRole('button', { name: 'Roster actions' }).click())
   await guest.getByRole('menuitem', { name: 'Share…' }).click()
   const guestShare = guest.getByRole('dialog', { name: /^Share / })
-  await expect(guestShare.getByRole('button', { name: /^Export text/ })).toBeVisible()
+  await expect(guestShare.getByRole('button', { name: /^Export\b/ })).toBeVisible()
   await expect(guestShare.getByRole('button', { name: /^Print/ })).toBeVisible()
   // A reader sees who can open the list but cannot change it.
   await expect(guestShare.getByRole('radio')).toHaveCount(0)

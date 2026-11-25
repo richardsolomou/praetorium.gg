@@ -628,6 +628,7 @@ export const exportRoster = createServerFn({ method: 'POST' })
         loaded,
         { ...priced, disposition: priced.disposition ?? null },
         pricedDispositionNames(priced, rules),
+        rules,
       )
       const userId = await currentUserId()
       if (userId)
@@ -636,6 +637,7 @@ export const exportRoster = createServerFn({ method: 'POST' })
           event: 'roster_exported',
           properties: {
             ...rosterTelemetryProperties(data, loaded, rules),
+            format: data.format ?? 'readable',
             unit_count: data.units.length,
           },
         })

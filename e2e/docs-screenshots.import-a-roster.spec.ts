@@ -44,7 +44,7 @@ test('import a roster', async ({ page }) => {
   await capture('import-a-roster-exchange-code', exchange, exchange.getByRole('button', { name: 'Copy code' }))
   await exchange.getByRole('button', { name: 'Close' }).first().click()
 
-  await chooseRosterAction(page, 'Export text')
+  await chooseRosterAction(page, 'Export')
   const exported = page.getByRole('dialog', { name: 'Export roster' })
   await expect(exported.locator('pre')).toContainText('Nekrosor Ammentar')
   await capture('import-a-roster-export-text', exported, exported.getByRole('button', { name: 'Copy text' }))

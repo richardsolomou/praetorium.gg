@@ -52,7 +52,13 @@ export const constructionReads = {
   exportRoster: ({ catalogue, rules }: Construction, data: Data<typeof server.exportRoster>) => {
     const priced = calculateRosterPrice(priceSchema.parse(data), catalogue, rules)
     if (!priced) throw new Error('Army data is unavailable.')
-    return exportRosterFile(data, catalogue, { ...priced, disposition: priced.disposition ?? null }, pricedDispositionNames(priced, rules))
+    return exportRosterFile(
+      data,
+      catalogue,
+      { ...priced, disposition: priced.disposition ?? null },
+      pricedDispositionNames(priced, rules),
+      rules,
+    )
   },
   importExchange: (
     { catalogue, rules }: Construction,

@@ -43,7 +43,7 @@ test('a list can be copied as Games Workshop text', async ({ browser }) => {
   await loadout.getByRole('button', { name: 'Select Tesla carbine' }).click()
   await expect(page.getByText('10x Tesla carbine')).toBeVisible()
 
-  await chooseRosterAction(page, 'Export text')
+  await chooseRosterAction(page, 'Export')
   const dialog = page.getByRole('dialog', { name: 'Export roster' })
   const text = dialog.locator('pre')
   const body = dialog.locator('[data-slot="dialog-body"]')
@@ -90,7 +90,7 @@ test('a list can be copied as Games Workshop text', async ({ browser }) => {
   await page.waitForURL(/\/rosters\/[^/]+$/)
   await page.reload()
   await expect(page.locator('[data-unit="Immortals"]')).toHaveCount(1)
-  await chooseRosterAction(page, 'Export text')
+  await chooseRosterAction(page, 'Export')
   const saved = page.getByRole('dialog', { name: 'Export roster' })
   await expect(saved.locator('pre')).toContainText('• Models: 10')
   await expect(saved.locator('pre')).toContainText('• 10x Tesla carbine')
@@ -113,7 +113,7 @@ async function importReviewed(page: Page, text: string, entries: number, points?
   await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
   await page.reload()
   await expect(page.locator('[data-unit]')).toHaveCount(entries)
-  await chooseRosterAction(page, 'Export text')
+  await chooseRosterAction(page, 'Export')
   return page.getByRole('dialog', { name: 'Export roster' })
 }
 
@@ -205,7 +205,7 @@ test('a visitor imports the reported Salamanders detachments and keeps them afte
     await expect(cards).toHaveCount(count)
     for (const card of await cards.all()) await expect(card).toContainText('Infernus Squad')
   }
-  await chooseRosterAction(page, 'Export text')
+  await chooseRosterAction(page, 'Export')
   const exported = page.getByRole('dialog', { name: 'Export roster' })
   for (const line of ['Dudes (1,435 Points)', 'Salamanders', 'Deathwatch Support', "Forgefather's Seekers", '3 Detachment Points'])
     await expect(exported.locator('pre')).toContainText(line)
@@ -246,7 +246,7 @@ Exported with BattleBase, Data Version: v20260812`)
     await waitForRosterSave(page, () => confirmRosterSetup(setup))
     await page.reload()
     await expect(page.getByText(disposition, { exact: true })).toBeVisible()
-    await chooseRosterAction(page, 'Export text')
+    await chooseRosterAction(page, 'Export')
     const exported = page.getByRole('dialog', { name: 'Export roster' })
     await expect(exported.locator('pre')).toContainText(`Force Disposition: ${disposition}\n`)
     await expect(exported.locator('pre')).not.toContainText('Force Dispositions:')
@@ -278,7 +278,7 @@ for (const count of [0, 1]) {
     await expect(page.locator('[data-unit="Immortals"]')).toHaveCount(count)
     await page.goto('/rosters')
     await expect(page.locator('[data-roster]')).toHaveCount(1)
-    await (await openLibraryShare(page, 'Saved entries')).getByRole('button', { name: /^Export text/ }).click()
+    await (await openLibraryShare(page, 'Saved entries')).getByRole('button', { name: /^Export\b/ }).click()
     const exported = page.getByRole('dialog', { name: 'Export roster' })
     expect((await exported.locator('pre').innerText()).match(/• Models: 5/g) ?? []).toHaveLength(count)
     if (count === 1) {
