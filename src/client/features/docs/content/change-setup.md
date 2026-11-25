@@ -4,7 +4,7 @@
 2. If the list has units, **Review changes** shows what happens to each one: **Unchanged**, **Changed**, **Needs review**, **Illegal** or **Removed**. Illegal units stay in the list for you to fix.
 3. Choose **Confirm changes** to save, or **Cancel** to save nothing.
 
-![The roster menu open beside the roster header, listing Edit roster setup, Create variant, Export text and more.](screenshot:build-an-army-roster-menu 'Edit roster setup in the roster menu')
+![The roster menu open beside the roster header, listing Edit roster setup, Create variant, Export and more.](screenshot:build-an-army-roster-menu 'Edit roster setup in the roster menu')
 
 ## Rules versions
 

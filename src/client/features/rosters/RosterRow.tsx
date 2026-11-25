@@ -303,7 +303,7 @@ function RosterActionItems({
           <VisibilityTag visibility={roster.visibility} />
         </Item>
         <Item disabled={actions.take.isPending} onClick={() => actions.take.mutate({ roster, title })}>
-          <Download /> Export text
+          <Download /> Export
         </Item>
         <Item onClick={orAccount('lend', onLend)}>
           <HandHelping /> Lend to a friend

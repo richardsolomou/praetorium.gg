@@ -124,7 +124,7 @@ test('unit upgrades stay separate from character enhancements', async ({ page })
   await reminder.getByRole('button', { name: 'Cancel' }).click()
   await shot(card, test.info().outputPath('deepening-madness-upgrade.png'))
 
-  await chooseRosterAction(page, 'Export text')
+  await chooseRosterAction(page, 'Export')
   const exportDialog = page.getByRole('dialog', { name: 'Export roster' })
   await expect(exportDialog).toContainText('Enhancement: Deepening Madness')
   await shot(exportDialog, test.info().outputPath('deepening-madness-export.png'))
