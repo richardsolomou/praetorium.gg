@@ -156,7 +156,7 @@ describe.skipIf(!fs.existsSync(directory))('simulator catalogue projections', ()
   it("Crushing Impact adds mortal wounds to a charging vehicle's fight", () => {
     const redeemer = (choice: string | false) =>
       side('Space Marines', ['Land Raider Redeemer'], { detachment: 'Gladius Task Force', rules: { 'Crushing Impact': choice } })
-    expect(fight(redeemer('Charged this turn · Target engaged'), marines()).melee()).toBeGreaterThan(
+    expect(fight(redeemer('Charged this turn · Selected target within Engagement Range'), marines()).melee()).toBeGreaterThan(
       fight(redeemer(false), marines()).melee(),
     )
   })

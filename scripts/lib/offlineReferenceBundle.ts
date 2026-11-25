@@ -235,7 +235,8 @@ export async function writeReferenceBundle(outDir: string, directory: string, ru
       selectedCatalogue.edition,
     ),
     definitionFacts: packRuntimeData(downloadedDefinitionFacts(selectedCatalogue)),
-    datacards: packRuntimeData(selectedCatalogue.datacards),
+    // The facts above hold every card text's too, so the cards' own facts would only repeat them.
+    datacards: packRuntimeData({ ...selectedCatalogue.datacards, textFacts: undefined }),
     ...(selectedCatalogue.keywords ? { keywords: [...selectedCatalogue.keywords] } : {}),
     mfm: packRuntimeData(selectedCatalogue.mfm ?? null),
     rules: packRuntimeData({ ...selectedRules, terrainLayouts: [], terrainTemplates: [] }),
