@@ -111,7 +111,22 @@ export async function materializeCatalogue(directory: string, sources = catalogu
       const corrections = !options.composition ? applyPatches(staged, path.join(patches, name), name) : null
       // One pin's archive names its revision; several are named together, so changing any one changes the revision.
       const pinned = name === 'summaries' ? releasesOf(sources.summaries!) : [source]
-      const revision = pinned.length > 1 ? hash('sha256', JSON.stringify(pinned.map((release) => release.revision))) : source.revision
+      const pins = pinned.length > 1 ? hash('sha256', JSON.stringify(pinned.map((release) => release.revision))) : source.revision
+      // Summaries are compacted here, so a change to compacting the same releases is a new revision too, which is what
+      // servers and browsers key their cached reads by.
+      const revision =
+        name === 'summaries'
+          ? hash(
+              'sha256',
+              JSON.stringify({
+                pins,
+                compacted: fs
+                  .readdirSync(target)
+                  .sort()
+                  .map((file) => [file, hash('sha256', fs.readFileSync(path.join(target, file)))]),
+              }),
+            )
+          : pins
       revisions[name] = corrections ? hash('sha256', JSON.stringify({ base: revision, corrections })) : revision
       options.report?.(`${name}: ${source.revision}`)
     }
