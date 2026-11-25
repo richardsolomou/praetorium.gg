@@ -31,7 +31,8 @@ import {
   referenceUnits,
   type ReferenceUnitsQuery,
 } from './referenceService'
-import { DATACARDS_ATTRIBUTION } from '../shared/datacards'
+import { VS_DATA_ATTRIBUTION } from '../shared/vsData'
+import { currentRulePage } from '../core/legacyRuleIds'
 import { ifNoneMatch } from './ifNoneMatch'
 import { fixedWindowRateLimit } from './rateLimit'
 import { catalogueEditionId } from '../core/catalogueEdition'
@@ -269,16 +270,18 @@ export const referenceDetachmentResponse = rateLimited(async (request: Request, 
 export const referenceRuleSectionResponse = rateLimited(async (request: Request, documentId: string, sectionId: string) => {
   const corpus = await activeReferenceCorpus()
   if (!corpus) return referenceUnavailable()
-  const document = corpus.catalogue.ruleDocuments.find((entry) => entry.slug === documentId || entry.id === documentId)
-  const section = document?.sections.find((entry) => entry.slug === sectionId || entry.id === sectionId)
+  // A page linked by its Game Datacards ids answers to the slugs those ids now name.
+  const [documentSlug, sectionSlug] = [currentRulePage(documentId).split('/')[0]!, currentRulePage(sectionId).split('/').at(-1)!]
+  const document = corpus.catalogue.ruleDocuments.find((entry) => entry.slug === documentSlug)
+  const section = document?.sections.find((entry) => entry.slug === sectionSlug)
   if (!document || !section) return problem('rules section not found', 404)
   const canonicalUrl = `/rules/${document.slug}/${section.slug}`
   const record: ReferenceRecord = {
     kind: 'rule',
     canonicalUrl,
-    revisions: { datacards: document.provenance.datacards.revision },
-    attribution: [DATACARDS_ATTRIBUTION],
-    data: { document: { id: document.id, slug: document.slug, title: document.title, updated: document.updated }, section },
+    revisions: { summaries: document.provenance.summaries.revision },
+    attribution: [VS_DATA_ATTRIBUTION],
+    data: { document: { id: document.id, slug: document.slug, title: document.title }, section },
   }
   const markdown = section.entries
     .map((entry) => {

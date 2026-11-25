@@ -1,35 +1,24 @@
-export type RuleBlock =
-  | { kind: 'prose'; markup: string }
-  | { kind: 'heading'; text: string }
-  | { kind: 'clarification'; code: string | null; anchor: string | null; title: string; markup: string | null }
-
-export type RuleFact = { label: string; markup: string }
+/** A clarification a rules document numbers beneath a rule, as 01.02.06 beneath Units and Models. */
+export type RuleClarification = { id: string; code: string | null; anchor: string; title: string }
 
 export type RuleEntry = {
+  /** The rule's VS Data `core-rule` id. */
   id: string
   code: string | null
   anchor: string
+  /** Addresses the rule answered to before VS Data outlined the documents, which older links still name. */
+  formerAnchors: string[]
   title: string
-  blocks: RuleBlock[]
-  facts: RuleFact[]
+  clarifications: RuleClarification[]
+  /** The CP of the core Stratagem the rule prints. */
   cost: number | null
-  lore: string | null
 }
 
 export type RuleSection = { id: string; slug: string; title: string; entries: RuleEntry[] }
-/** The pinned upstream file a document's text is read from, and the SHA-256 it must match. */
-export type RuleTextSource = { url: string; sha256: string }
-export type RuleDocument = {
-  id: string
-  slug: string
-  title: string
-  updated: string | null
-  text: RuleTextSource | null
-  sections: RuleSection[]
-}
+export type RuleDocument = { id: string; slug: string; title: string; sections: RuleSection[] }
 type RuleEntrySummary = { anchor: string; code: string | null; title: string }
 type RuleSectionSummary = { id: string; slug: string; title: string; entries: RuleEntrySummary[] }
-export type RuleDocumentSummary = { id: string; slug: string; title: string; updated: string | null; sections: RuleSectionSummary[] }
+export type RuleDocumentSummary = { id: string; slug: string; title: string; sections: RuleSectionSummary[] }
 export type RuleReference = { code: string; document: string; section: string; anchor: string; title: string }
 export type RuleIndex = { documents: RuleDocumentSummary[]; references: RuleReference[] }
 
@@ -57,6 +46,8 @@ export type RuleSummary = {
  * mission data carries VS Data IDs, never tokens, so its records are keyed `kind:id`.
  */
 export const MISSION_SUMMARIES = 'missions'
+/** The summaries of the current rules version's rules documents, asked for in place of a source file, keyed `core-rule:id`. */
+export const RULE_SUMMARIES = 'rules'
 export type RuleSummaries = {
   records: Record<string, RuleSummary>
   texts: Record<string, string[]>

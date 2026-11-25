@@ -387,33 +387,13 @@ export function referenceOpenApi(request: Request) {
           },
           ['id', 'name', 'cp', 'type', 'phases', 'turn', 'description'],
         ),
-        RuleBlock: {
-          oneOf: [
-            objectSchema({ kind: { type: 'string', const: 'prose' }, markup: { type: 'string' } }, ['kind', 'markup']),
-            objectSchema({ kind: { type: 'string', const: 'heading' }, text: { type: 'string' } }, ['kind', 'text']),
-            objectSchema(
-              {
-                kind: { type: 'string', const: 'clarification' },
-                code: nullable({ type: 'string' }),
-                anchor: nullable({ type: 'string' }),
-                title: { type: 'string' },
-                markup: { type: 'string' },
-              },
-              ['kind', 'code', 'anchor', 'title', 'markup'],
-            ),
-          ],
-        },
         RuleSectionData: objectSchema(
           {
-            document: objectSchema(
-              {
-                id: { type: 'string' },
-                slug: { type: 'string' },
-                title: { type: 'string' },
-                updated: nullable({ type: 'string' }),
-              },
-              ['id', 'slug', 'title', 'updated'],
-            ),
+            document: objectSchema({ id: { type: 'string' }, slug: { type: 'string' }, title: { type: 'string' } }, [
+              'id',
+              'slug',
+              'title',
+            ]),
             section: objectSchema(
               {
                 id: { type: 'string' },
@@ -426,16 +406,23 @@ export function referenceOpenApi(request: Request) {
                       id: { type: 'string' },
                       code: nullable({ type: 'string' }),
                       anchor: { type: 'string' },
+                      formerAnchors: stringArray(),
                       title: { type: 'string' },
-                      blocks: { type: 'array', items: schemaRef('RuleBlock') },
-                      facts: {
+                      clarifications: {
                         type: 'array',
-                        items: objectSchema({ label: { type: 'string' }, markup: { type: 'string' } }, ['label', 'markup']),
+                        items: objectSchema(
+                          {
+                            id: { type: 'string' },
+                            code: nullable({ type: 'string' }),
+                            anchor: { type: 'string' },
+                            title: { type: 'string' },
+                          },
+                          ['id', 'code', 'anchor', 'title'],
+                        ),
                       },
                       cost: nullable({ type: 'number' }),
-                      lore: nullable({ type: 'string' }),
                     },
-                    ['id', 'code', 'anchor', 'title', 'blocks', 'facts', 'cost', 'lore'],
+                    ['id', 'code', 'anchor', 'formerAnchors', 'title', 'clarifications', 'cost'],
                   ),
                 },
               },

@@ -127,6 +127,7 @@ function release({
     units: {},
     factions: {},
     keywords,
+    coreRules: [],
     records: [],
   }
   write(path.join(directory, 'summaries', `${base.edition.id}.json`), file)
@@ -326,6 +327,7 @@ it('takes a retained Detachment’s Stratagems from its listing, and names the p
     units: {},
     factions: {},
     keywords: {},
+    coreRules: [],
     records: [],
   }
   write(path.join(directory, 'summaries', 'earlier.json'), retained)

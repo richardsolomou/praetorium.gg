@@ -1,29 +1,18 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { BackLink } from '../BackLink'
-import { useDateFormatting } from '../../../dates'
 import { ruleIndexQuery } from '../../../queries'
 import { PageContent, PageHeader } from '../../../components/Page'
 
 /** One document's contents: every section, and every rule in it by number and name. */
 export function RuleContents({ documentId }: { documentId: string }) {
-  const { date } = useDateFormatting()
   const { data } = useQuery(ruleIndexQuery())
   const document = data?.documents.find((candidate) => candidate.slug === documentId)
   if (!data || !document) return null
 
   return (
     <main className="w-full">
-      <PageHeader
-        title={document.title}
-        description={
-          <>
-            {document.sections.length} sections.
-            {/* When the source last wrote this document, which is how current these rules are. */}
-            {document.updated ? ` Updated ${date(document.updated)}.` : null}
-          </>
-        }
-      />
+      <PageHeader title={document.title} description={`${document.sections.length} sections.`} />
       <PageContent className="space-y-8">
         <BackLink to="/rules">Rules</BackLink>
         {document.sections.map((section) => (

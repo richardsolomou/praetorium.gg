@@ -1,7 +1,7 @@
 import { recordCardReadings } from '../../src/server/datacards'
 import path from 'node:path'
 import { textSourceFiles } from '../../src/server/sourceTexts'
-import { MISSION_SUMMARIES } from '../../src/contracts/rules'
+import { MISSION_SUMMARIES, RULE_SUMMARIES } from '../../src/contracts/rules'
 import { publishedSearchIndex } from '../../src/server/globalSearch'
 import { downloadedDefinitionFacts } from '../../src/server/definitionTexts'
 import { hash } from 'node:crypto'
@@ -172,7 +172,7 @@ export async function writeReferenceBundle(outDir: string, directory: string, ru
   put(['rule-ability-summaries'], summaries?.abilities() ?? {})
   for (const [key, summary] of Object.entries(summaries?.coreRules() ?? {})) put(['rule-core-summary', key], summary)
   for (const [at, edition] of (summaries?.editions ?? []).entries()) put(['rule-units', at ? edition : null], summaries!.unitsIn(edition))
-  for (const file of summaries ? [...Object.keys(textFiles), MISSION_SUMMARIES] : []) {
+  for (const file of summaries ? [...Object.keys(textFiles), MISSION_SUMMARIES, RULE_SUMMARIES] : []) {
     const answer = summaries!.summariesIn(file)
     // A file no summary reads stays out, and its query falls back to the source's own text as offline.
     if (Object.keys(answer.records).length) put(['rule-summary-records', file], answer)
