@@ -305,6 +305,7 @@ export function CombatMatchup({
                 plan={plans[phase]}
                 hitRolls={hitRolls[phase]}
                 statAdjustment={statAdjustments[phase]}
+                distance={scenarios[phase]?.options.distance}
                 attacker={attacker}
                 busy={Boolean(scenarios[phase]) && resultsUpdating && !failed}
                 error={currentOutcome?.answer[phase]?.error}

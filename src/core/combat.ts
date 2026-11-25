@@ -14,6 +14,8 @@ const mortalWoundsSchema = z
   .object({
     timing: z.enum(['before', 'after']),
     rolls: z.int().min(1).max(100),
+    /** The most mortal wounds all the rolls together can inflict. */
+    limit: z.int().min(1).max(100).optional(),
     psychic: z.boolean().optional(),
     outcomes: z
       .array(z.object({ min: z.int().min(1).max(6), max: z.int().min(1).max(6), damage: diceSchema }))
@@ -115,6 +117,8 @@ export const combatSchema = z.object({
         melta: amountSchema,
         heavy: z.boolean(),
         lance: z.boolean(),
+        /** The printed Range in inches, which `options.distance` measures against. */
+        range: z.int().min(1).max(999).optional(),
       }),
     )
     .min(0)
@@ -125,6 +129,8 @@ export const combatSchema = z.object({
     cover: z.boolean(),
     indirectFire: z.enum(['direct', 'unobserved', 'spotted']).optional(),
     halfRange: z.boolean(),
+    /** Inches to the target: weapons that cannot reach it stay out, and each weapon is within half range on its own Range. */
+    distance: z.int().min(1).max(200).optional(),
     heavy: z.boolean(),
     charged: z.boolean(),
     hitModifier: modifier,
@@ -349,6 +355,16 @@ export function saveAdjustmentMatters(current: CombatInput, previous: CombatInpu
     })
   })
 }
+
+/** Whether a weapon's half-range abilities apply: always beyond the Shooting phase's choices, by its own Range at a set distance. */
+export function atHalfRange(weapon: CombatWeapon, options: CombatOptions) {
+  if (options.phase !== 'ranged') return false
+  if (options.halfRange) return true
+  return options.distance !== undefined && weapon.range !== undefined && options.distance * 2 <= weapon.range
+}
+
+export const inRange = (weapon: CombatWeapon, options: CombatOptions) =>
+  options.phase !== 'ranged' || options.distance === undefined || weapon.range === undefined || options.distance <= weapon.range
 
 export function halfRangeMatters(input: CombatInput) {
   return input.weapons.some((weapon) => maximum(weapon.rapidFire) > 0 || maximum(weapon.melta) > 0 || weapon.conversion)
@@ -700,7 +716,7 @@ function attackCounts(weapon: CombatWeapon, models: number, halfRange: boolean) 
 /** How one weapon resolves against one Toughness, before its pool is built. */
 function weaponPlan(weapon: CombatWeapon, input: CombatInput, toughness: number, models = targetModels(input.target)) {
   const { target, options } = input
-  const halfRange = options.phase === 'ranged' && options.halfRange
+  const halfRange = atHalfRange(weapon, options)
   const { indirect, skill, hitBonus, hitMinimum, woundBonus, wound } = attackRolls(weapon, options, toughness)
   const single = singleRerollCounts(options)
   const six = weapon.unmodifiedSix
@@ -1081,6 +1097,9 @@ function resolvePool(
   return result
 }
 
+const mostMortalWounds = (ability: NonNullable<CombatInput['mortalWounds']>[number]) =>
+  Math.min(ability.limit ?? Infinity, ability.rolls * Math.max(...ability.outcomes.map((outcome) => maximum(outcome.damage))))
+
 function workOf(input: CombatInput, layout: Allocation) {
   const toughnesses = new Set(layout.toughness).size
   const mortalWork = (input.mortalWounds ?? []).reduce(
@@ -1107,7 +1126,8 @@ function workOf(input: CombatInput, layout: Allocation) {
 }
 
 function checkedCombat(scenario: CombatInput) {
-  const input = combatSchema.parse(scenario)
+  const parsed = combatSchema.parse(scenario)
+  const input = { ...parsed, weapons: parsed.weapons.filter((weapon) => inRange(weapon, parsed.options)) }
   if (
     input.target.groups.some((group) =>
       group.feelNoPainSources?.some((source) => !input.target.groups.some((owner) => owner.unit === source.unit)),
@@ -1153,7 +1173,16 @@ function resolveCombat(input: CombatInput, layout: Allocation, initial: State, m
         const points = outcome ? diceWeights(outcome.damage) : [1]
         points.forEach((weight, wounds) => (attempt[wounds] = (attempt[wounds] ?? 0) + weight / 6))
       }
-      for (let i = 0; i < ability.rolls; i++) state = spill(state, attempt, layout, prevention)
+      if (ability.limit === undefined) {
+        for (let i = 0; i < ability.rolls; i++) state = spill(state, attempt, layout, prevention)
+        continue
+      }
+      // Mortal wounds spill one at a time, so spilling the capped total of every roll at once resolves the same.
+      let total: Weights = [1]
+      for (let i = 0; i < ability.rolls; i++) total = convolve(total, attempt)
+      const capped = total.slice(0, ability.limit + 1)
+      capped[ability.limit] = total.slice(ability.limit).reduce((left, weight) => left + weight, 0)
+      state = spill(state, capped, layout, prevention)
     }
   }
   mortals('before')
@@ -1222,15 +1251,12 @@ function combatResult(state: State, layout: Allocation, target: CombatInput['tar
 
 /** The most models a phase could destroy: each attack and Sustained Hit destroys at most one, and each mortal wound one. */
 function mostKills(input: CombatInput, models: number) {
-  const halfRange = input.options.phase === 'ranged' && input.options.halfRange
   const attacks = input.weapons.reduce((total, weapon) => {
-    const each = maximum(weapon.attacks) + extraAttacks(weapon, models) + (halfRange ? maximum(weapon.rapidFire) : 0)
+    const each =
+      maximum(weapon.attacks) + extraAttacks(weapon, models) + (atHalfRange(weapon, input.options) ? maximum(weapon.rapidFire) : 0)
     return total + weapon.count * each * (1 + maximum(weapon.sustained))
   }, 0)
-  const mortals = (input.mortalWounds ?? []).reduce(
-    (total, ability) => total + ability.rolls * Math.max(...ability.outcomes.map((outcome) => maximum(outcome.damage))),
-    0,
-  )
+  const mortals = (input.mortalWounds ?? []).reduce((total, ability) => total + mostMortalWounds(ability), 0)
   return attacks + mortals
 }
 

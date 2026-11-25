@@ -42,6 +42,27 @@ export function compileMortalRule(text: string, rule: CombatRule): CombatRuleCho
     /^At the start of the Fight phase, if this unit is within Engagement Range of one or more enemy units, you can select one model in this unit to destroy\. If you do, select one enemy unit within Engagement Range of that model and roll one D6, adding 1 to the result if that unit is an? ([A-Z]+)\. (.+)$/i.exec(
       text,
     )
+  // The 1s that wound the attacker's own unit are left out: the simulator measures only what the target loses.
+  const crushing =
+    /^Resolve the following sequence: 1\. Select one enemy unit engaged with your unit\. 2\. Select one model in your unit engaged with that enemy unit\. 3\. Roll a number of D6 equal to the T characteristic of that model: for each 1, your unit suffers 1 mortal wound; (for each [2-6]\+, that enemy unit suffers \d+ mortal wounds?) \(to a maximum of (\d+) mortal wounds per unit\)\.?$/i.exec(
+      text,
+    )
+  if (crushing) {
+    const result = outcomes(crushing[1]!)
+    if (!result) return null
+    return [
+      {
+        label: 'Charged this turn · Target engaged',
+        effects: [
+          {
+            role: 'attacker',
+            phases: ['melee'],
+            mortalWounds: { timing: 'before', rolls: 1, perToughness: true, limit: Number(crushing[2]), outcomes: result },
+          },
+        ],
+      },
+    ]
+  }
   if (sacrifice) {
     const base = outcomes(sacrifice[2]!)
     if (!base) return null

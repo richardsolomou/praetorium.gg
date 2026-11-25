@@ -11,6 +11,12 @@ import { joinKey } from './text'
 type Profile = ReturnType<typeof datasheetProfilesByKind>['profiles'][number]
 const value = (profile: Profile, kind: DatasheetCharacteristicKind) => profile.values.find((entry) => entry.kind === kind)?.value.trim()
 const integer = (text: string | undefined) => (text !== undefined && /^-?\d+\+?$/.test(text) ? Number(text.replace('+', '')) : null)
+/** The highest Toughness any of the datasheet's models has, or null when none prints a number. */
+export function highestToughness(sheet: Datasheet) {
+  const values = datasheetProfilesByKind(sheet).unit.flatMap((profile) => integer(value(profile, 'toughness')) ?? [])
+  return values.length ? Math.max(...values) : null
+}
+
 /**
  * The target as allocation groups (05.03) in datasheet order, with a label for each so a player can reorder them.
  * Carriers say how many models each profile has; they are only consulted when the profiles' defences differ.
@@ -126,6 +132,8 @@ function parseWeapon(profile: Profile, targetKeywords: readonly string[], phase:
     heavy: false,
     lance: false,
   }
+  const range = Number.parseInt(value(profile, 'range') ?? '', 10)
+  if (phase === 'ranged' && range > 0) weapon.range = range
   const seen = new Set<string>()
   for (const written of splitWeaponKeywords(value(profile, 'keywords'))) {
     const ability = combatKeyword(written)
