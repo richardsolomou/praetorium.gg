@@ -55,7 +55,7 @@ function loadEdition(id: string) {
     loadRules(target, {
       battlemasterDirectory: path.join(directory, 'battlemaster'),
       iconDirectory: path.join(directory, 'icons'),
-      vsDataDirectory: directory,
+      snapshotDirectory: directory,
       rulesVersion: id,
       catalogue: loaded,
     })

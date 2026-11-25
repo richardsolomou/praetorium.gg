@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.277.0 (2026-11-25)
+
+### Minor Changes
+
+- b333858: [rosters] Export a roster for Tabletop Simulator: download its file and load it there with Yellowscribe.
+
 ## 0.276.3 (2026-11-25)
 
 ### Patch Changes
