@@ -16,8 +16,8 @@ import type { LoadedRules } from './rules'
  * unit's selection tree as the catalogue built it, with its keywords as categories, its model and weapon profiles as
  * the builder evaluates them, and its abilities.
  *
- * Ability descriptions stay text tokens, so the file carries no rules text until the reader's device swaps them for
- * words it has loaded.
+ * Ability descriptions stay text tokens, so the file carries no rules text; the browser swaps each for its VS Data
+ * summary before saving it.
  */
 export function battleScribeRoster(
   data: { name: string; catalogueId: string; detachmentIds: string[]; units: RosterPick[] },

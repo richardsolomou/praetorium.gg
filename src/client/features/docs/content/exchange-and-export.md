@@ -18,7 +18,7 @@ The text includes custom unit names, model counts, equipment, enhancements, the 
 
 ## Tabletop Simulator
 
-In the browser, choose **Tabletop Simulator** at the top of **Export roster**, then **Download roster file**. Upload the file at [Yellowscribe](https://yellowscribe.link) and paste the code it gives you into its Tabletop Simulator mod. The file holds each unit's models, wargear, statlines, weapons, abilities and keywords. Ability descriptions come from the rules text sources you've turned on; without them the file names each ability only.
+In the browser, choose **Tabletop Simulator** at the top of **Export roster**, then **Download roster file**. Upload the file at [Yellowscribe](https://yellowscribe.link) and paste the code it gives you into its Tabletop Simulator mod. The file holds each unit's models, wargear, statlines, weapons, abilities and keywords. Each ability carries its VS Data summary where there is one, and only its name where there isn't.
 
 If the roster has units, detachments or options the current data no longer offers, the dialog warns that they're left out. Fix them before you submit the list anywhere. **Export** and **Exchange code** are greyed out on an empty roster.
 

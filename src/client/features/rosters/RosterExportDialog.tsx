@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Check, Copy, Download, ExternalLink, LoaderCircle } from 'lucide-react'
 import { posthog } from 'posthog-js'
-import { type ReactNode, useState } from 'react'
+import { type ReactNode, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { buttonClass } from '../../components/buttonClass'
@@ -9,9 +9,11 @@ import { Choice } from '../../components/Choice'
 import { nativeBridgeVersion } from '../../nativeBridge'
 import { exportRoster } from '../../functions'
 import { Problem } from '../../components/Problem'
-import { openTextSourcesDialog } from '../../components/textSourcesDialogState'
-import { resolvedText, textToken } from '../../../core/sourceText'
-import { loadedWords, retryFailedTextFiles, textGap, useSourceTexts } from '../../sourceText'
+import { useRuleSummaries } from '../../ruleSummaries'
+import { abilityKeysNamed, summaryPlainText } from '../../../shared/ruleSummaries'
+import { datasheetAbilitySummary } from '../../../shared/vsDataAbilities'
+import { catalogueEditionId } from '../../../core/catalogueEdition'
+import { ruleAbilitySummariesQuery, ruleUnitsQuery } from '../../queries/references'
 import { useCopyText } from '../../useCopyText'
 import { downloadFile, safeFileName } from '../../downloadFile'
 
@@ -140,19 +142,27 @@ function TextExport({ exported, omitted, formatChoice }: { exported: Exported; o
   )
 }
 
-/** Words as Tabletop Simulator prints them: it shows the sources' bold and keyword markers as written. */
-const unmarked = (words: string) =>
-  words
-    .replaceAll('**', '')
-    .replaceAll('^^', '')
-    .replaceAll(/<\/?ins>/g, '')
-
-const escapeXml = (value: string) =>
-  value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&apos;')
+/** Each ability the file describes, an Abilities profile's or a rule's, with the unit it belongs to. */
+function describedAbilities(file: Document) {
+  return [...file.querySelectorAll('force > selections > selection')].flatMap((unit) =>
+    [
+      ...unit.querySelectorAll('profile[typeName="Abilities"] > characteristics > characteristic[name="Description"], rule > description'),
+    ].map((description) => {
+      const ability = description.closest('profile, rule')!
+      return {
+        description,
+        owner: unit.getAttribute('entryId') ?? '',
+        name: ability.getAttribute('name') ?? '',
+        id: ability.getAttribute('id') ?? undefined,
+        text: description.textContent ?? '',
+      }
+    }),
+  )
+}
 
 /**
- * The file arrives with each ability's words as a token, swapped here for the words this device has loaded, so it
- * carries rules text only where the player chose a source for it.
+ * The file arrives with each ability's text as tokens, swapped here for its VS Data summary, so it never carries a
+ * source's own wording.
  */
 function TabletopExport({
   name,
@@ -169,21 +179,31 @@ function TabletopExport({
   omitted: number
   formatChoice: ReactNode
 }) {
-  const xml = file?.text ?? ''
-  const { choice } = useSourceTexts([xml])
-  const gap = xml ? textGap([xml], choice) : null
+  const parsed = useMemo(() => (file ? new DOMParser().parseFromString(file.text, 'application/xml') : null), [file])
+  const abilities = useMemo(() => (parsed ? describedAbilities(parsed) : []), [parsed])
+  const catalogueId = parsed?.querySelector('force')?.getAttribute('catalogueId') ?? ''
+  const printed = useRuleSummaries(abilities.map((ability) => ability.text))
+  const units = useQuery({ ...ruleUnitsQuery(catalogueEditionId(catalogueId)), enabled: Boolean(catalogueId) })
+  const core = useQuery(ruleAbilitySummariesQuery())
+  const ready = Boolean(parsed) && !printed.pending && !(catalogueId && units.isPending) && !core.isPending
+  // As a datasheet shows them: the unit's own record or the one its printed text names, else the core ability so named.
+  const summaryOf = ({ owner, name: ability, id, text }: (typeof abilities)[number]) =>
+    datasheetAbilitySummary(units.data ?? null, owner, ability, id, printed.recordOf(text, ability)) ??
+    abilityKeysNamed(ability)
+      .map((key) => core.data?.[key])
+      .find(Boolean) ??
+    null
   const download = () => {
-    if (!file) return
-    const resolved = resolvedText(
-      xml,
-      (token) => {
-        const words = loadedWords(textToken(token), choice)
-        return words === null ? null : escapeXml(unmarked(words))
-      },
-      () => '—',
-    )
-    downloadFile(`${safeFileName(name, 'roster')}.ros`, resolved, 'application/xml;charset=utf-8')
-    posthog.capture('roster_export_downloaded', { format: 'ros', rules_text: gap === null })
+    if (!parsed) return
+    const described = parsed.cloneNode(true) as Document
+    let summarised = 0
+    for (const ability of describedAbilities(described)) {
+      const summary = summaryOf(ability)
+      if (summary) summarised++
+      ability.description.textContent = summary ? summaryPlainText(summary) : '—'
+    }
+    downloadFile(`${safeFileName(name, 'roster')}.ros`, new XMLSerializer().serializeToString(described), 'application/xml;charset=utf-8')
+    posthog.capture('roster_export_downloaded', { format: 'ros', summarised, described: abilities.length })
   }
   return (
     <>
@@ -212,26 +232,6 @@ function TabletopExport({
             , which builds the army with each model's stats and abilities.
           </Step>
         </ol>
-        {gap?.missing === 'unchosen' ? (
-          <div className="flex flex-wrap items-center gap-3 rounded-lg border border-edge bg-sunken p-3">
-            <p className="min-w-0 flex-1">
-              Ability descriptions load on this device from the community sources you choose. Without them, the file names each ability
-              only.
-            </p>
-            <Button size="sm" variant="outline" onClick={() => openTextSourcesDialog(gap.needs)}>
-              Turn on external sources
-            </Button>
-          </div>
-        ) : gap?.missing === 'failed' ? (
-          <div className="flex flex-wrap items-center gap-3 rounded-lg border border-edge bg-sunken p-3">
-            <p role="alert" className="min-w-0 flex-1">
-              Some ability descriptions could not be loaded, so the file names those abilities only.
-            </p>
-            <Button size="sm" variant="outline" onClick={() => void retryFailedTextFiles()}>
-              Retry
-            </Button>
-          </div>
-        ) : null}
         {failed ? (
           <div className="flex flex-wrap items-center gap-3">
             <Problem className="min-w-0 flex-1">The roster file could not be prepared.</Problem>
@@ -241,7 +241,8 @@ function TabletopExport({
           </div>
         ) : null}
         <p className="text-xs text-dim">
-          Includes each unit's models, wargear, statlines, weapons, abilities and keywords. Unit notes and preparation are left out.
+          Includes each unit's models, wargear, statlines, weapons and keywords, and each ability with its VS Data summary where there is
+          one. Unit notes and preparation are left out.
         </p>
       </DialogBody>
       <DialogFooter>
@@ -249,9 +250,9 @@ function TabletopExport({
           <ExternalLink />
           Open Yellowscribe
         </a>
-        <Button disabled={!file || gap?.missing === 'loading'} onClick={download}>
-          {file ? <Download /> : <LoaderCircle className="animate-spin" />}
-          {!file ? 'Preparing file…' : gap?.missing === 'loading' ? 'Loading rules text…' : 'Download roster file'}
+        <Button disabled={!ready} onClick={download}>
+          {ready ? <Download /> : <LoaderCircle className="animate-spin" />}
+          {ready ? 'Download roster file' : 'Preparing file…'}
         </Button>
       </DialogFooter>
     </>
