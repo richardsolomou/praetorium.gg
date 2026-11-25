@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.277.5 (2026-11-25)
+
+### Patch Changes
+
+- 767c82e: [reference] Datasheets show each model's base size as the official app and Games Workshop's Base Size Guide print it, including flying bases and the bases some wargear changes.
+
 ## 0.277.4 (2026-11-25)
 
 ### Patch Changes
