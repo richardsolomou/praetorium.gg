@@ -93,6 +93,24 @@ it('keeps each Stratagem’s typed facts, naming the Detachment it references', 
   expect([kept.detachment, kept.limit, kept.windows.length]).toEqual(['Shadowkeepers', 'battle', 2])
 })
 
+it('keeps the name of each weapon and core ability, the keywords datasheets print', () => {
+  fs.rmSync(directory, { recursive: true, force: true })
+  writeFiles(
+    directory,
+    vsDataReleaseFiles([record], 'MFM 1.6', [
+      { kind: 'weapon-ability', id: 'sustained-hits', name: 'Sustained Hits' },
+      { kind: 'core-ability', id: 'deep-strike', name: 'Deep Strike' },
+      { kind: 'detachment', id: 'space-marines.gladius', name: 'Gladius Task Force' },
+    ]),
+  )
+  const file = `${directory}.json`
+  compactVsDataRelease(directory, file)
+  expect(JSON.parse(fs.readFileSync(file, 'utf8')).keywords).toEqual({
+    'weapon-ability:sustained-hits': 'Sustained Hits',
+    'core-ability:deep-strike': 'Deep Strike',
+  })
+})
+
 it('keeps what each Detachment’s build prints, by the Detachment’s name', () => {
   fs.rmSync(directory, { recursive: true, force: true })
   const detachment = {

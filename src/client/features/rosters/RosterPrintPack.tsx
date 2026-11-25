@@ -10,7 +10,7 @@ import { nicknamedUnit } from '../../../core/unitNotes'
 import type { FormatRuleId, OptionalRuleId } from '../../../core/battle'
 import { pickedOptionalRules, pointsBudgetOf, waivedFormatRules } from '../../../core/battle'
 import { factionQuery, detachmentDetailQuery, detachmentRulesQuery, loadoutDatasheetsQuery, priceQuery } from '../../queries'
-import { ruleUnitsQuery } from '../../queries/references'
+import { ruleAbilitySummariesQuery, ruleUnitsQuery } from '../../queries/references'
 import { DatasheetUnit, datasheetUnit } from '../../components/UnitFromVsData'
 import type { priceRoster } from '../../functions'
 import { RuleText } from '../../components/RuleText'
@@ -149,7 +149,10 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
     ...referencedRulesOf(pack).map((rule) => rule.description),
   ]
 
-  const settled = useRuleSummariesSettled(data ? printedTexts(data) : [])
+  // A rule with no text of its own prints VS Data's ability of its name, so the pack waits for those too.
+  const named = Boolean(data && [...data.faction.armyRules, ...referencedRulesOf(data)].some((rule) => !rule.description))
+  const abilities = useQuery({ ...ruleAbilitySummariesQuery(), enabled: named })
+  const settled = useRuleSummariesSettled(data ? printedTexts(data) : []) && !(named && abilities.isPending)
   usePrintWhenReady(Boolean(data) && settled)
 
   if (!data)
@@ -270,7 +273,7 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
               data.faction.armyRules.map((rule) => (
                 <section className="pack-rule" key={rule.name}>
                   <h3>{rule.name}</h3>
-                  <RuleText text={rule.description} className={PRINTED_RULE} />
+                  <RuleText text={rule.description} name={rule.name} className={PRINTED_RULE} />
                 </section>
               ))
             ) : (
@@ -323,7 +326,7 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
             {referencedRules.map((rule) => (
               <section className="pack-rule" key={`${rule.name}\0${rule.description}`}>
                 <h3>{rule.name}</h3>
-                <RuleText text={rule.description} className={PRINTED_RULE} />
+                <RuleText text={rule.description} name={rule.name} className={PRINTED_RULE} />
               </section>
             ))}
           </section>

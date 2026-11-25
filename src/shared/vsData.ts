@@ -238,6 +238,8 @@ export const vsDataSummariesSchema = z.object({
   factions: z.record(z.string(), z.string()).default({}),
   /** Every spelling the official app gives each name in any language, which imports read lists by. */
   names: vsDataNamesSchema.optional(),
+  /** The name of each weapon and core ability, the keywords a datasheet prints, by `kind:id`. */
+  keywords: z.record(z.string(), z.string()).default({}),
   records: z.array(
     refSchema.extend({
       summary: z.string().min(1),

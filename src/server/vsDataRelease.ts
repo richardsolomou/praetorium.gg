@@ -98,6 +98,7 @@ const MANIFEST = 'manifest.json'
 const SUMMARY_CATEGORIES = new Set(['rules-reference', 'mission-rules'])
 const MISSION_PACKS = 'mission-packs'
 const STRATAGEM_RULE_TYPES = new Set(['stratagem', 'core-stratagem'])
+const KEYWORD_KINDS = new Set(['weapon-ability', 'core-ability'])
 const IDENTITY = 'identity.json'
 
 /** The release's manifest, or null where the folder holds no VS Data catalogue release. */
@@ -554,6 +555,9 @@ export function compactVsDataRelease(directory: string, file: string) {
     names,
     factions: Object.fromEntries(
       current.flatMap((entry) => (entry.kind === 'faction' && entry.name ? [[entry.name, entry.id] as const] : [])),
+    ),
+    keywords: Object.fromEntries(
+      current.flatMap((entry) => (KEYWORD_KINDS.has(entry.kind) && entry.name ? [[vsDataKey(entry), entry.name] as const] : [])),
     ),
     attributions: [
       ...new Map(

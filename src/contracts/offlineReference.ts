@@ -13,6 +13,8 @@ export type OfflineConstructionSource = {
   /** What the rules read from the texts `files` hold as tokens; a download saved before they were tokens has words instead. */
   definitionFacts?: RuntimeData
   datacards: RuntimeData
+  /** The rules version's weapon and core abilities by name; a download saved before VS Data named them has none. */
+  keywords?: string[]
   mfm: RuntimeData
   rules: RuntimeData
 }
@@ -168,6 +170,7 @@ function isConstructionSource(data: OfflineConstructionSource) {
     data.datacards !== undefined &&
     data.mfm !== undefined &&
     data.rules !== undefined &&
+    (data.keywords === undefined || (Array.isArray(data.keywords) && data.keywords.every((name) => typeof name === 'string'))) &&
     (data.datacardExcludedCatalogueIds === undefined || catalogueReferencePolicySchema.safeParse(data).success)
   )
 }
