@@ -15,6 +15,16 @@ type DrawOffer = { message: string; status: 'returned' | 'discarded'; label: str
  */
 export function redrawOffer(rule: WhenDrawn | undefined, round: number, held: readonly { key: string }[]): DrawOffer | null {
   if (!rule) return null
+  if (rule.noEnemy) {
+    const { entity, characteristic, min } = rule.noEnemy
+    const discard = rule.operation === 'replace'
+    return {
+      message: `You can ${discard ? 'discard this' : 'put this back'} if no enemy ${entity} has ${CHARACTERISTICS[characteristic]} of ${min} or more.`,
+      status: discard ? 'discarded' : 'returned',
+      label: discard ? 'Discard and draw another' : 'Put back and draw another',
+      required: false,
+    }
+  }
   if (rule.operation === 'replace')
     return {
       message: 'Discard this if the card’s condition holds.',
@@ -33,15 +43,6 @@ export function redrawOffer(rule: WhenDrawn | undefined, round: number, held: re
       status: 'returned',
       label: 'Put back and draw another',
       required,
-    }
-  }
-  if (rule.noEnemy) {
-    const { entity, characteristic, min } = rule.noEnemy
-    return {
-      message: `You can put this back if no enemy ${entity} has ${CHARACTERISTICS[characteristic]} of ${min} or more.`,
-      status: 'returned',
-      label: 'Put back and draw another',
-      required: false,
     }
   }
   return held.some((card) => rule.heldCards.some((paired) => sameMissionId(paired, card.key)))

@@ -108,7 +108,7 @@ export const vsDataMissionPackSchema = z.object({
       awards: z.array(awardSchema),
       whenDrawn: orUnresolved(
         z.object({
-          action: z.literal('redraw'),
+          action: z.enum(['redraw', 'discard']),
           required: z.boolean(),
           untilRound: z.number().int().optional(),
           ifActive: z.string().optional(),

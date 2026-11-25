@@ -51,13 +51,18 @@ describe('redrawOffer', () => {
     })
   })
 
-  it('offers a return while no enemy has the characteristic the card names', () => {
+  it('offers a discard while no enemy has the characteristic the card names', () => {
     const rule: WhenDrawn = {
-      operation: 'redraw',
+      operation: 'replace',
       roundMax: null,
       heldCards: [],
       noEnemy: { entity: 'unit', characteristic: 'starting-strength', min: 13 },
     }
-    expect(redrawOffer(rule, 3, [])?.message).toBe('You can put this back if no enemy unit has a **Starting Strength** of 13 or more.')
+    expect(redrawOffer(rule, 3, [])).toEqual({
+      message: 'You can discard this if no enemy unit has a **Starting Strength** of 13 or more.',
+      status: 'discarded',
+      label: 'Discard and draw another',
+      required: false,
+    })
   })
 })
