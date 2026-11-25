@@ -58,3 +58,11 @@ it('reads a reminder’s turn as Praetorium names it', () => {
   const facts = textFactsOfVsData({ reminder: { timings: [{ at: 'phase-start', phase: 'shooting', turn: 'opponent' }] } })
   expect(facts.reminder).toEqual({ timings: [{ moment: 'phase-start', phase: 'shooting', turn: 'opponent-turn' }] })
 })
+
+it('calculates no mortal wounds VS Data places outside the attacks', () => {
+  const mortals = { timing: 'outside-attacks', rolls: 1, outcomes: [{ min: 4, max: 6, damage: { dice: 1, sides: 3, bonus: 0 } }] }
+  const facts = textFactsOfVsData(
+    combat({ choices: [{ conditions: [], effects: [{ role: 'attacker', attacks: ['ranged'], mortalWounds: mortals }] }], default: 1 }),
+  )
+  expect(facts.combat!.leaves[0]!.compiled!.choices[0]!.effects).toEqual([])
+})

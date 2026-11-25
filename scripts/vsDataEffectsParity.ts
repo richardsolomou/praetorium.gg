@@ -64,7 +64,9 @@ function loadEdition(id: string) {
 }
 const records = summaries.recordsIn(edition)
 const words = snapshotWords(directory)
-const effectsFile = path.join(directory, 'summaries', `${edition}.json`)
+// A rules version VS Data folds into another reads that one's release, as `vsDataSummariesSteps` does.
+const release = readCatalogueComposition(directory)?.editions.find((entry) => entry.edition.id === edition)?.summaries ?? edition
+const effectsFile = path.join(directory, 'summaries', `${release}.json`)
 if (!fs.existsSync(vsDataEffectsPath(effectsFile))) throw new Error(`the snapshot keeps no effect blocks for ${edition}`)
 const effects = (JSON.parse(fs.readFileSync(vsDataEffectsPath(effectsFile), 'utf8')) as VsDataEffectsFile).effects
 
@@ -273,7 +275,16 @@ const FIELDS: Record<string, (facts: TextFacts | undefined) => unknown> = {
   references: (facts) => (facts?.references?.length ? [...new Set(facts.references.map(lower))].toSorted() : undefined),
 }
 
-type Difference = { field: string; status: string; refused?: string[]; gained?: string[]; changed?: string[]; cause?: string }
+type Difference = {
+  field: string
+  status: string
+  refused?: string[]
+  gained?: string[]
+  changed?: string[]
+  cause?: string
+  /** Today's reading in the first refused placement, typed: what VS Data's blocks should give there. */
+  today?: string | null
+}
 
 /** Why VS Data's reading calculates nothing where today's does, as far as its blocks say. */
 function refusalCause(blocks: Readonly<Record<string, unknown>> | undefined) {

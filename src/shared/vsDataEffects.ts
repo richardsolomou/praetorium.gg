@@ -7,8 +7,10 @@ import type { TextFacts, WrittenAbilityGrant } from '../core/textFacts'
 
 /**
  * VS Data's typed effect blocks (`vs-data-facts` version 1, VS Data's `docs/rule-facts.md`), read into the facts
- * Praetorium's rules read of a text. Each schema is closed as VS Data's is, so a field Praetorium cannot apply fails the
- * block rather than being dropped from what it calculates.
+ * Praetorium's rules read of a text. Each schema is closed as VS Data's is, so a field Praetorium does not know fails the
+ * block rather than being dropped. A few fields it knows have no place in `TextFacts` yet, and read as Praetorium's own
+ * reading of the words always has: a grant's or invulnerable save's further condition and recipients, a target limited
+ * to Attached units, and a weapon ability for the bearer's weapons alone.
  */
 const keyword = z.string().min(1)
 const selectors = z.array(keyword).min(1)
@@ -392,15 +394,16 @@ function conditionLabel(condition: VsDataCondition): string {
 
 /**
  * An effect as Praetorium applies it. What VS Data limits to the bearer, or to models with some keywords, Praetorium still
- * gives the whole unit, and it changes no Wounds, as its own reading of the words always has: the simulator has no way to
- * give one model of a unit an effect yet. An effect left with nothing Praetorium applies is none.
+ * gives the whole unit, and it changes no Wounds and calculates no mortal wounds outside the attacks, as its own reading of
+ * the words always has: the simulator has no way to do either yet. An effect left with nothing Praetorium applies is none.
  */
 function effectOf(effect: VsDataEffect): CombatRuleEffect | null {
-  const { attacks, weaponAbility, weaponHas, rolls, characteristic, mortalWounds, ...rest } = effect
+  const { attacks, weaponAbility, weaponHas, rolls, characteristic, mortalWounds: mortals, ...rest } = effect
+  const mortalWounds = mortals?.timing === 'outside-attacks' ? undefined : mortals
   const { bearerOnly: _bearerOnly, modelKeywords: _modelKeywords, wounds: _wounds, regainWounds: _regainWounds, ...applied } = rest
   const { role: _role, ...given } = applied
-  if (!Object.keys(given).length && !weaponAbility && !rolls && !characteristic && !mortalWounds) return null
   const { saveReroll: _saveReroll, ...options } = rolls ?? {}
+  if (!Object.keys(given).length && !weaponAbility && !Object.keys(options).length && !characteristic && !mortalWounds) return null
   return {
     ...applied,
     phases: attacks,

@@ -76,7 +76,11 @@ const factsSchema = z.object({
   format: z.literal('vs-data-facts'),
   fields: z.object({ stratagem: z.object({ limit: z.string().optional() }).optional() }),
 })
-const effectFactsSchema = z.object({ format: z.literal('vs-data-facts'), fields: z.record(z.string(), z.unknown()) })
+const effectFactsSchema = z.object({
+  format: z.literal('vs-data-facts'),
+  version: z.literal('1'),
+  fields: z.record(z.string(), z.unknown()),
+})
 const packRecordSchema = z.object({
   kind: z.literal('mission-pack'),
   rulesVersion: z.object({ update: z.string() }),
