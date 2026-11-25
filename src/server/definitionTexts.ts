@@ -141,8 +141,11 @@ function withTokensSwapped<T>(value: T, swaps: ReadonlyMap<string, string>): T {
   return visit(value) as T
 }
 
-/** The rule or profile a rules text belongs to, by its catalogue id and name, and the catalogue file holding it. */
-export type TextHolder = { id: string; name: string; catalogue?: string }
+/**
+ * The rule or profile a rules text belongs to, by its catalogue id and name, the ids of the entries it sits within,
+ * outermost first, and the catalogue file holding it.
+ */
+export type TextHolder = { id: string; name: string; within: string[]; catalogue?: string }
 
 /**
  * Calls `found` with every description and characteristic a file holds, in the order a reader meets them, whether it is
@@ -159,7 +162,11 @@ function visitTexts(
   else if (value && typeof value === 'object') {
     const node = value as Node
     const rules = isRulesProfile(node)
-    const held = typeof node.id === 'string' && typeof node.name === 'string' ? { id: node.id, name: node.name } : holder
+    const named = typeof node.id === 'string' && typeof node.name === 'string'
+    // The entries a text sits within, outermost first, which name the datasheet holding it.
+    const held = named
+      ? { id: node.id as string, name: node.name as string, within: [...(holder?.within ?? []), ...(holder ? [holder.id] : [])] }
+      : holder
     for (const [key, entry] of Object.entries(node)) {
       if (typeof entry === 'string') {
         if (entry.trim() && (key === 'description' || key === '$text')) found(entry, key === 'description' || ruleProfile, held)

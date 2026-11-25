@@ -41,8 +41,8 @@ export type DefinitionTexts = {
   fact: (key: string) => TextFacts | undefined
   /** The facts of every text the definitions hold, for a device that will hold no words. */
   facts: () => ReadonlyMap<string, TextFacts>
-  /** The rules and profiles that hold a text, by `textKey`, each by its id and name and the catalogue whose file holds it. */
-  holders?: (key: string) => readonly { id: string; name: string; catalogue?: string }[]
+  /** The rules and profiles that hold a text, by `textKey`: each by its id and name, the entries it sits within and its catalogue. */
+  holders?: (key: string) => readonly { id: string; name: string; within: readonly string[]; catalogue?: string }[]
 }
 export const DISPOSITIONS = new Set(['take-and-hold', 'disruption', 'purge-the-foe', 'priority-assets', 'reconnaissance'])
 const DETACHMENT_ENTRY = 'detachment'

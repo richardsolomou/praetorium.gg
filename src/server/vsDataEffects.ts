@@ -71,23 +71,44 @@ export function vsDataTextFacts(
     for (const link of book?.catalogueLinks ?? [])
       for (const faction of factionsOf.get(book!.id) ?? []) remember(factionsOf, link.targetId, () => new Set()).add(faction)
   }
-  const sameBlocks = (keys: readonly string[]) => new Set(keys.map((key) => JSON.stringify(effects[key] ?? null))).size === 1
+  // The one reading candidates give, those VS Data has read first: a record without blocks has not been read.
+  const agreed = (keys: readonly string[]) => {
+    const read = keys.filter((key) => effects[key])
+    const pool = read.length ? read : keys
+    return pool.length && new Set(pool.map((key) => JSON.stringify(effects[key] ?? null))).size === 1 ? pool[0]! : null
+  }
+  // A Damaged profile is named for its wounds, as "Damaged: 1-4 Wounds Remaining", and VS Data's record is Damaged.
+  const nameKeys = (name: string) => [...new Set([abilityKey(name), abilityKey(name.split(':')[0]!)])]
 
   const joinOf = (factsKey: string): VsDataJoin => {
     const keys = factsKey.startsWith('+') ? factsKey.slice(1).split('+') : [factsKey]
     const tokens = keys.map((key) => ({ transform: key.slice(0, key.indexOf(':')), hash: key.slice(key.indexOf(':') + 1) }))
-    if (tokens.every((token) => WHOLE_STRING.has(token.transform))) {
-      const held = tokens.map((token) => printed.get(token.hash) ?? []).reduce((shared, ids) => shared.filter((id) => ids.includes(id)))
-      if (held.length) return sameBlocks(held) ? { record: held[0]!, by: 'card' } : { record: null, by: 'ambiguous' }
-    }
-    if (keys.length !== 1) return { record: null, by: 'none' }
+    const held = tokens.every((token) => WHOLE_STRING.has(token.transform))
+      ? tokens.map((token) => printed.get(token.hash) ?? []).reduce((shared, ids) => shared.filter((id) => ids.includes(id)))
+      : []
+    const card = agreed(held)
+    if (card) return { record: card, by: 'card' }
+    if (keys.length !== 1) return { record: null, by: held.length ? 'ambiguous' : 'none' }
+    // Of the records a card's string joins, or else of all, the one the catalogue rule or profile holding it names: by
+    // its alias, else by its name, its own datasheet's record first, then its own faction's.
     const holders = definitions.holders?.(factsKey) ?? []
-    const byAlias = [...new Set(holders.flatMap((holder) => aliased.get(holder.id) ?? []))].filter((key) => key.startsWith('ability:'))
-    if (byAlias.length) return sameBlocks(byAlias) ? { record: byAlias[0]!, by: 'alias' } : { record: null, by: 'ambiguous' }
-    const byName = [...new Set(holders.flatMap((holder) => named.get(abilityKey(holder.name)) ?? []))]
-    const own = byName.filter((key) => holders.some((holder) => factionsOf.get(holder.catalogue ?? '')?.has(factionOf(key))))
-    for (const candidates of [byName, own]) if (candidates.length && sameBlocks(candidates)) return { record: candidates[0]!, by: 'name' }
-    return { record: null, by: byName.length ? 'ambiguous' : 'none' }
+    const within = (candidates: readonly string[]) => (held.length ? candidates.filter((key) => held.includes(key)) : candidates)
+    const byAlias = within(
+      [...new Set(holders.flatMap((holder) => aliased.get(holder.id) ?? []))].filter((key) => key.startsWith('ability:')),
+    )
+    const alias = agreed(byAlias)
+    if (alias) return { record: alias, by: 'alias' }
+    const byName = within([...new Set(holders.flatMap((holder) => nameKeys(holder.name).flatMap((name) => named.get(name) ?? [])))])
+    const owners = holders.flatMap((holder) =>
+      holder.within.flatMap((id) => aliased.get(id) ?? []).filter((key) => key.startsWith('unit:')),
+    )
+    const ownSheet = byName.filter((key) => owners.some((owner) => key.startsWith(`ability:${owner.slice('unit:'.length)}.`)))
+    const ownFaction = byName.filter((key) => holders.some((holder) => factionsOf.get(holder.catalogue ?? '')?.has(factionOf(key))))
+    for (const candidates of [byName, ownSheet, ownFaction]) {
+      const found = agreed(candidates)
+      if (found) return { record: found, by: 'name' }
+    }
+    return { record: null, by: byName.length || byAlias.length || held.length ? 'ambiguous' : 'none' }
   }
   const joins = new Map<string, VsDataJoin>()
   const facts = new Map<string, TextFacts>()
