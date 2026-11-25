@@ -78,7 +78,6 @@ describe('datasheet structure', () => {
     expect(datasheetProfileKindOf(profiles[0]!)).toBe('unit')
     expect(datasheetCharacteristicKindOf(profiles[0]!.values[0]!)).toBe('toughness')
   })
-
 })
 
 it('knows the catalogue’s abilities that write out an invulnerable save, and no other', () =>
