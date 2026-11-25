@@ -188,6 +188,7 @@ it('keeps every spelling the localisation gives a unit, its pieces and a Detachm
         { kind: 'detachment', id: 'necrons.pantheon-of-woe', display: 'Panteón de la Aflicción' },
       ],
       fr: [{ kind: 'unit', id: 'necrons.tomb-blades', display: 'Lames Tombales', aliases: [{ name: 'Lame-tombeaux' }] }],
+      it: [{ kind: 'model', id: 'necrons.tomb-blades.tomb-blade', display: 'Lama Tombale con raggio a particelle.' }],
     }),
   )
   expect(vsDataReleaseErrors(directory)).toEqual([])
