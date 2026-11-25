@@ -1,5 +1,16 @@
 # praetorium
 
+## 0.276.0 (2026-11-25)
+
+### Minor Changes
+
+- 696a331: [simulator] Use Crushing Impact when a monster or vehicle charges, adding its mortal wounds before the fight.
+- 696a331: [simulator] Set how far away the target is, so weapons that can't reach it stay out and each weapon gets its half-range abilities by its own range.
+
+### Patch Changes
+
+- 696a331: [simulator] Offer stratagems for units named with a slash, such as Relics of the Dark Age for Infantry/Mounted units.
+
 ## 0.275.0 (2026-11-25)
 
 ### Minor Changes
