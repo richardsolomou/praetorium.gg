@@ -39,7 +39,7 @@ describe.skipIf(!fs.existsSync(directory))('roster grade facts read from the cat
 
   it('reads Biovores’ Spore Mines as a shooting-triggered unit shared across the army', async () => {
     const [biovores] = await measured([{ entryId: entry('Biovores') }])
-    expect(biovores?.unitGeneration).toEqual([{ unit: 'SPORE MINES', trigger: 'shooting', shared: true }])
+    expect(biovores?.unitGeneration).toEqual([{ unit: 'Spore Mines', trigger: 'shooting', shared: true }])
   })
 
   it('reads the Parasite of Mortrex’s Ripper Swarms as needing a kill', async () => {

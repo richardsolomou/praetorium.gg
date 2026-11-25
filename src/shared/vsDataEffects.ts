@@ -403,7 +403,7 @@ function conditionLabel(condition: VsDataCondition): string {
     case 'enemy-status':
       return `Opponent ${condition.status.toLowerCase()}`
     case 'own-status':
-      return `Own ${condition.status.toLowerCase()}`
+      return `This unit is ${condition.status.toLowerCase()}`
     case 'option':
       return ''
   }

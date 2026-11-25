@@ -236,7 +236,7 @@ describe.skipIf(!fs.existsSync(directory))('simulator catalogue projections', ()
 
   it.each([
     ['Skorpekh Lord', 'Crimson Harvest', 'Charged this turn · Target in Engagement Range', 'melee'],
-    ['Annihilation Barge', 'Malevolent Arcing', 'Against the selected target', 'ranged'],
+    ['Annihilation Barge', 'Malevolent Arcing', 'Active', 'ranged'],
   ] as const)('%s adds %s mortal wounds to its %s', (name, rule, label, phase) => {
     const attack = (choice: string | false) => fight(side('Necrons', [name], { rules: { [rule]: choice } }), marines())[phase]()
     expect(attack(label)).toBeGreaterThan(attack(false))
@@ -253,12 +253,14 @@ describe.skipIf(!fs.existsSync(directory))('simulator catalogue projections', ()
     }).toEqual({ infantry: ['Crushing Impact'], vehicle: ['Matter Absorption', 'Crushing Impact'], absorbs: true })
   })
 
-  it('offers Belial only the rules the simulator calculates', () => {
+  it('offers Belial only the rules the simulator calculates, Grand Master of the Deathwing only against a Character', () => {
     const belial = side('Dark Angels', ['Belial'])
-    expect({ attacker: offered(belial, marines(), 'attacker'), defender: offered(belial, marines(), 'defender') }).toEqual({
-      attacker: ['Grand Master of the Deathwing'],
-      defender: [],
-    })
+    const captain = side('Space Marines', ['Captain'])
+    expect({
+      attacker: offered(belial, marines(), 'attacker'),
+      defender: offered(belial, marines(), 'defender'),
+      character: offered(belial, captain, 'attacker'),
+    }).toEqual({ attacker: [], defender: [], character: ['Grand Master of the Deathwing'] })
   })
 
   it('Immortals led by an Overlord calculate every phase against Deathshroud led by Typhus', () => {
@@ -281,9 +283,7 @@ describe.skipIf(!fs.existsSync(directory))('simulator catalogue projections', ()
       expect({
         attacker: offered(gaunts(), warriors, 'attacker'),
         defender: offered(gaunts(), warriors, 'defender'),
-        synapse:
-          fight(gaunts('This unit is within 6" of one or more friendly SYNAPSE models'), warriors).melee() >
-          fight(gaunts(false), warriors).melee(),
+        synapse: fight(gaunts('Active'), warriors).melee() > fight(gaunts(false), warriors).melee(),
       }).toEqual({ attacker: ['Synapse', 'Adrenal Surge'], defender: ['Rapid Regeneration'], synapse: true })
     })
 
@@ -295,7 +295,10 @@ describe.skipIf(!fs.existsSync(directory))('simulator catalogue projections', ()
           pickIndex: 1,
           ...(choice === undefined ? {} : { rules: { 'Spirit Mark (Psychic)': choice } }),
         })
-      const [off, on] = [fight(wraithguard(false), raider), fight(wraithguard('Selected within 6" · Against the selected target'), raider)]
+      const [off, on] = [
+        fight(wraithguard(false), raider),
+        fight(wraithguard('Selected unit within 6" · Against the selected target'), raider),
+      ]
       const spiritseer = side('Aeldari', ['Spiritseer', 'Wraithguard'], { detachment: 'Warhost' })
       expect({
         default: wraithguard().snapshot.rules?.some((rule) => rule.name === 'Spirit Mark (Psychic)'),
@@ -341,7 +344,7 @@ describe.skipIf(!fs.existsSync(directory))('simulator catalogue projections', ()
         fight(immortals(['Immortals', 'Chronomancer'], { 'Solar Pulse': choice }), marines(), { ranged: { cover: true } }).ranged()
       expect({
         alone: immortals(['Immortals']).rules.some((rule) => rule.name === 'Solar Pulse'),
-        pulse: pulse('Selected objective within 18" of source · Condition the rule states') > pulse(false),
+        pulse: pulse('Condition the rule states') > pulse(false),
       }).toEqual({ alone: false, pulse: true })
     })
   })
