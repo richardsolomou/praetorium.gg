@@ -43,6 +43,7 @@ import {
 } from '../core/battle'
 import { catalogueFactionName, factionDisplayName } from './factionNames'
 import { englishNames, NO_TRANSLATIONS, translationsOf, type CatalogueTranslations } from './catalogueTranslations'
+import { NO_IMPORT_NAMES, type ImportNames } from './importNames'
 import {
   attachmentReason,
   normalized,
@@ -221,12 +222,15 @@ export function importRosterFile(
 export function matchParsedRoster(
   parsed: TextRoster,
   loaded: LoadedCatalogue | null,
-  factionNames = loaded?.factions.map((faction) => faction.name) ?? [],
-  translations: CatalogueTranslations = NO_TRANSLATIONS,
-  removed: RemovedNames = NO_REMOVALS,
+  {
+    factionNames = loaded?.factions.map((faction) => faction.name) ?? [],
+    translations = NO_TRANSLATIONS,
+    removed = NO_REMOVALS,
+    names = NO_IMPORT_NAMES,
+  }: { factionNames?: readonly string[]; translations?: CatalogueTranslations; removed?: RemovedNames; names?: ImportNames } = {},
 ) {
   if (parsed.units.length > 100) throw new Error('An imported roster can contain at most 100 entries.')
-  return importTextRoster(parsed, loaded, factionNames, translations, removed)
+  return importTextRoster(parsed, loaded, factionNames, { translations, removed, names })
 }
 
 /** A list already read into army text, from a pasted export or another app's own format, matched and priced. */
@@ -239,7 +243,7 @@ export function importParsedRoster(
   translations: CatalogueTranslations = NO_TRANSLATIONS,
   removed: RemovedNames = NO_REMOVALS,
 ) {
-  const result = matchParsedRoster(parsed, loaded, factionNames, translations, removed)
+  const result = matchParsedRoster(parsed, loaded, { factionNames, translations, removed, names: rules?.importNames })
   const price = (units: readonly RosterPick[]) =>
     result.catalogueId
       ? calculateRosterPrice(
@@ -381,13 +385,10 @@ const slug = (value: string) =>
     .replaceAll(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '')
 
-function importTextRoster(
-  parsed: TextRoster,
-  loaded: LoadedCatalogue | null,
-  factionNames: readonly string[],
-  translations: CatalogueTranslations,
-  removed: RemovedNames,
-) {
+type Spellings = { translations: CatalogueTranslations; removed: RemovedNames; names: ImportNames }
+
+function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue | null, factionNames: readonly string[], spellings: Spellings) {
+  const { translations, removed, names: appNames } = spellings
   // Builders allow longer titles than a saved roster keeps.
   const title = parsed.name.slice(0, ROSTER_NAME_MAX_LENGTH)
   const stated = loaded?.factions.find((candidate) => matchesImportFaction(parsed.faction, candidate.name, translations))
@@ -408,7 +409,7 @@ function importTextRoster(
   }
 
   const offered = loaded.detachments.get(faction.id)?.options ?? []
-  const printed = printedDetachments(loaded)
+  const printed = appNames.detachments
   // A list cut down to its units can keep its detachment's name on a line of its own above them.
   const unread = parsed.unread ?? []
   const namedDetachment = parsed.detachment
@@ -481,16 +482,14 @@ function importTextRoster(
     const [first, ...rest] = name.split(' ')
     return found ?? (rest.length && factionWords.has(first!) ? datasheetNamed(rest.join(' ')) : undefined)
   }
-  // A list exported in another language names its units in it, as the French "Mékadakka de Gros Mek", in the words its
-  // datasheet's card prints or the community translations give. Entries sharing a catalogue name, as Wolf Guard Headtakers
+  // A list exported in another language names its units in it, as the French "Mékadakka de Gros Mek", in the words the
+  // official app prints or the community translations give. Entries sharing a catalogue name, as Wolf Guard Headtakers
   // and their Crusade variant, resolve as that name does.
   let printedDatasheets: Map<string, Set<string>> | undefined
   const printedDatasheet = (name: string) => {
     printedDatasheets ??= datasheets
       .flatMap((datasheet) =>
-        (datacardOf(loaded, faction.id, datasheet.id)?.details.printedName ?? []).map(
-          (spelling) => [normalized(spelling), datasheet.name] as const,
-        ),
+        (appNames.datasheets.get(datasheet.id) ?? []).map((spelling) => [normalized(spelling), datasheet.name] as const),
       )
       .reduce((found, [spelling, own]) => found.set(spelling, (found.get(spelling) ?? new Set()).add(own)), new Map<string, Set<string>>())
     const owns = printedDatasheets.get(name)
@@ -532,8 +531,7 @@ function importTextRoster(
       detachmentIds,
       detachmentSelections,
       loaded,
-      translations,
-      removed,
+      spellings,
     )
     const allegiance = guessed
       ? [
@@ -775,19 +773,6 @@ function attachTextUnits(units: readonly TextRosterUnit[], picks: { attachedTo?:
   }
 }
 
-const printedDetachmentCache = new WeakMap<LoadedCatalogue, Map<string, readonly string[]>>()
-/** Every spelling the cards print a detachment in, by its English name: Space Wolves field Space Marines' "Force d’Assaut Terminator". */
-const printedDetachments = (loaded: LoadedCatalogue) =>
-  remember(printedDetachmentCache, loaded, () => {
-    const found = new Map<string, readonly string[]>()
-    for (const content of new Set(loaded.factionContents.values()))
-      for (const names of content.printedDetachments ?? []) {
-        const key = normalized(names[0]!)
-        found.set(key, [...new Set([...(found.get(key) ?? []), ...names])])
-      }
-    return found
-  })
-
 function detachmentsNamed<T extends { id: string; name: string }>(
   combined: string,
   options: readonly T[],
@@ -930,8 +915,7 @@ function textRosterPick(
   detachmentIds: readonly string[],
   roster: readonly Selection[],
   loaded: LoadedCatalogue,
-  translations: CatalogueTranslations,
-  removed: RemovedNames,
+  { translations, removed, names: appNames }: Spellings,
 ) {
   const stated = new Map<string, number>()
   const labels = new Map<string, string>()
@@ -1003,8 +987,8 @@ function textRosterPick(
       .flatMap((name) => englishNames(name, translations))
       .map((english) => resolved(english, enhancement))
       .find(Boolean)
-  // The official app prints its datasheet card's names, which can be another spelling of the catalogue's in any language.
-  const printedGroups = datacardOf(loaded, catalogueId, entryId)?.details.printedPieces ?? []
+  // The official app prints its own names, which can be another spelling of the catalogue's in any language.
+  const printedGroups = appNames.pieces.get(entryId) ?? []
   const printedAs = (label: string) => printedGroups.filter((names) => names.some((name) => normalized(name) === normalized(label)))
   const printed = (label: string, enhancement: boolean) =>
     printedAs(label)

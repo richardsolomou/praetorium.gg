@@ -198,6 +198,17 @@ export type VsDataUnits = {
   factions?: Record<string, string>
 }
 
+/** Each name's spellings, its English one first. */
+const spellingsSchema = z.array(z.array(z.string()))
+export const vsDataNamesSchema = z.object({
+  factions: spellingsSchema,
+  detachments: spellingsSchema,
+  enhancements: spellingsSchema,
+  /** Each unit's own spellings, and those of each model and piece of wargear it holds, by VS Data id. */
+  units: z.record(z.string(), z.object({ name: z.array(z.string()), pieces: spellingsSchema })),
+})
+export type VsDataNames = z.infer<typeof vsDataNamesSchema>
+
 /**
  * What the snapshot keeps of a verified VS Data release: each summary with its spans and open questions, the aliases
  * of every entry a summary is for or links to, the upstream work its records adapt, which must be credited, and the
@@ -225,6 +236,8 @@ export const vsDataSummariesSchema = z.object({
   units: z.record(z.string(), vsDataUnitSchema).default({}),
   /** Each faction's VS Data id by its name. */
   factions: z.record(z.string(), z.string()).default({}),
+  /** Every spelling the official app gives each name in any language, which imports read lists by. */
+  names: vsDataNamesSchema.optional(),
   records: z.array(
     refSchema.extend({
       summary: z.string().min(1),

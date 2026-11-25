@@ -28,6 +28,7 @@ export function vsDataReleaseFiles(
     absent?: true
     references?: { kind: string; id: string }[]
   }[] = [],
+  localisation: Record<string, { kind: string; id: string; display?: string; aliases?: { name: string }[] }[]> = {},
 ): [string, string][] {
   const rulesVersion = { edition: '11th', update }
   const identity = JSON.stringify({
@@ -58,6 +59,10 @@ export function vsDataReleaseFiles(
             },
     }),
   ])
+  const localisationFiles = Object.entries(localisation).map(([language, named]): [string, string] => [
+    `localisation/${language}.json`,
+    JSON.stringify({ formatVersion: 1, language, rulesVersion, entries: named }),
+  ])
   const sha256 = (text: string) => createHash('sha256').update(text).digest('hex')
   const manifest = JSON.stringify({
     formatVersion: 1,
@@ -65,6 +70,11 @@ export function vsDataReleaseFiles(
     revision: 1,
     rulesVersion,
     identity: { path: 'identity.json', sha256: sha256(identity) },
+    localisation: localisationFiles.map(([file, text]) => ({
+      language: file.slice('localisation/'.length, -'.json'.length),
+      path: file,
+      sha256: sha256(text),
+    })),
     schemas: [],
     categories: [...new Set(['rules-reference', ...records.map((record) => record.category ?? 'rules-reference')])].map((name) => ({
       name,
@@ -79,7 +89,7 @@ export function vsDataReleaseFiles(
         .toSorted((left, right) => (`${left.kind}:${left.id}` < `${right.kind}:${right.id}` ? -1 : 1)),
     })),
   })
-  return [['manifest.json', manifest], ['identity.json', identity], ...recordFiles]
+  return [['manifest.json', manifest], ['identity.json', identity], ...recordFiles, ...localisationFiles]
 }
 
 export function writeFiles(directory: string, files: [string, string][]) {
