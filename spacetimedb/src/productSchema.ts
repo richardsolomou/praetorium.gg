@@ -283,6 +283,8 @@ const rosters = table(
     archived: t.option(t.bool()).default(undefined),
     /** The owner answered No thanks to sharing it, so no screen asks them to make it public again. */
     sharingDeclined: t.option(t.bool()).default(undefined),
+    /** Saved by code that starts a choice on its printed default; `migrateStoredRoster` marks every older unit `floor`. */
+    printedDefaults: t.option(t.bool()).default(undefined),
   },
 )
 

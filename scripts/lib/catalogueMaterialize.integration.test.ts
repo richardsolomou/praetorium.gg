@@ -6,8 +6,10 @@ import { zipSync } from 'fflate'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { catalogueSources } from '../../src/server/catalogueSources'
 import { packCatalogueSnapshot } from '../../src/server/catalogueSnapshot'
+import { readCatalogueComposition } from '../../src/server/catalogueComposition'
 import { materializeCatalogue } from './catalogueMaterialize'
 import { ustar } from '../../src/server/ustar.fixtures'
+import { vsDataReleaseFiles } from '../../src/server/vsData.fixtures'
 
 let root: string
 let directory: string
@@ -22,7 +24,11 @@ const objectiveLayout = {
   litePayload: { v: 1, k: 'bml', id, b: 'sf60x44', a: 'c', s: ['purge-the-foe', 'reconnaissance', 1, 3], i: [[0, 2, 1, 0, 0, 'c']] },
 }
 
-const summaries = ustar([['manifest.json', '{"records":[]}']])
+const summaries = ustar(vsDataReleaseFiles([{ kind: 'ability', id: 'test.rule', aliases: [], summary: 'A summary.' }]))
+const earlierSummaries = ustar(
+  vsDataReleaseFiles([{ kind: 'ability', id: 'test.rule', aliases: [], summary: 'An older summary.' }], 'MFM 1.5'),
+)
+const earlier = { release: 'rules-marine-points-1013-v0.2.0', asset: 'earlier.tar', revision: earlierSummaries.revision }
 
 function sources() {
   return {
@@ -40,6 +46,7 @@ function sources() {
       asset: 'summaries-v1.0.0.tar',
       license: 'MIT',
       revision: summaries.revision,
+      earlier: [],
     },
   }
 }
@@ -68,6 +75,7 @@ function downloads() {
     }
     if (target.includes(`/${catalogueSources.translations!.repository}/zip/`))
       return new Response(archive({ 'data/es.json': '{"Necrons":"Necrones"}\n' }))
+    if (target.includes(`/releases/download/${earlier.release}/`)) return new Response(earlierSummaries.archive)
     if (target.includes('/releases/download/')) return new Response(summaries.archive)
     if (target.includes('/v1.1/public/tts/layouts')) {
       return Response.json({ catalogKey, layouts: [{ id, owner, layoutKey: 'layout-key' }] })
@@ -96,9 +104,12 @@ it('builds from the committed pins', async () => {
   await materializeCatalogue(directory, config, { patchesDirectory: path.join(root, 'patches') })
 
   expect(JSON.parse(fs.readFileSync(path.join(directory, 'definitions', 'unit.json'), 'utf8'))).toEqual({ name: 'Unit' })
-  expect(JSON.parse(fs.readFileSync(path.join(directory, 'revision.json'), 'utf8'))).toEqual(
-    Object.fromEntries(Object.entries(config).map(([name, source]) => [name, source.revision])),
-  )
+  // Summaries are compacted here, so their revision is their own rather than the pin's.
+  const { summaries: summariesRevision, ...revisions } = JSON.parse(fs.readFileSync(path.join(directory, 'revision.json'), 'utf8'))
+  expect([revisions, summariesRevision === config.summaries?.revision]).toEqual([
+    Object.fromEntries(Object.entries(config).flatMap(([name, source]) => (name === 'summaries' ? [] : [[name, source.revision]]))),
+    false,
+  ])
   expect(
     vi
       .mocked(fetch)
@@ -117,6 +128,41 @@ it('includes only the configured Game Datacards edition and selected icons', asy
 
   expect(fs.existsSync(path.join(directory, 'datacards', '10th'))).toBe(false)
   expect(fs.readdirSync(path.join(directory, 'icons'))).toEqual(['test-faction.svg'])
+})
+
+it('keeps one compact file of each verified VS Data release, named for its rules version', async () => {
+  const pinned = sources()
+  await materializeCatalogue(
+    directory,
+    { ...pinned, summaries: { ...pinned.summaries, earlier: [earlier] } },
+    { patchesDirectory: path.join(root, 'patches') },
+  )
+
+  expect(fs.readdirSync(path.join(directory, 'summaries')).toSorted()).toEqual(['marine-points-1013.json', 'mfm-1-6.json'])
+})
+
+it('verifies a release for a rules version a build leaves out, and keeps only the versions it builds', async () => {
+  // A build without the private store leaves out the rules versions only a published snapshot holds, as a preview's does.
+  const stored = ustar(
+    vsDataReleaseFiles([{ kind: 'ability', id: 'test.rule', aliases: [], summary: 'A stored summary.' }], 'MFM 1.5 · 2 Oct 2026'),
+  )
+  const pin = { release: 'rules-legacy-profiles-v0.4.0', asset: 'stored.tar', revision: stored.revision }
+  const fetched = downloads()
+  vi.stubGlobal('fetch', async (url: string | URL) =>
+    String(url).includes(`/releases/download/${pin.release}/`) ? new Response(stored.archive) : fetched(url),
+  )
+  const configured = readCatalogueComposition(path.resolve('catalogue'))!
+  const pinned = sources()
+  await materializeCatalogue(
+    directory,
+    { ...pinned, summaries: { ...pinned.summaries, earlier: [pin] } },
+    {
+      source: 'summaries',
+      composition: { ...configured, editions: configured.editions.filter((entry) => !entry.snapshot) },
+    },
+  )
+
+  expect(fs.readdirSync(path.join(directory, 'summaries'))).toEqual(['mfm-1-6.json'])
 })
 
 it('omits disabled sources without fetching or retaining old files', async () => {

@@ -2284,6 +2284,60 @@ describe('the profile modifiers on a datasheet', () => {
     })
   })
 
+  it('reads a model invulnerable save the catalogue gives as an ability of that value, on its datasheet as in a roster', () => {
+    const book = bookOf({
+      selectionEntries: [
+        {
+          id: 'tycho',
+          name: 'Captain Tycho',
+          type: 'model',
+          profiles: [
+            { id: 'tycho-profile', name: 'Captain Tycho', typeName: 'Unit', characteristics: [{ name: 'Sv', $text: '2+' }] },
+            { id: 'tycho-save', name: 'Invulnerable Save', typeName: 'Abilities', characteristics: [{ name: 'Description', $text: '4+' }] },
+          ],
+        },
+      ],
+    })
+    const saveOf = (context?: Parameters<typeof datasheetIn>[3]) =>
+      datasheetIn(book, 'cat', 'tycho', context)?.profiles[0]?.values.find((value) => value.name === 'InSv')?.value
+    expect([saveOf(), saveOf({ selections: [{ id: 'tycho' }], unitSelectionIndex: 0 })]).toEqual(['4+', '4+'])
+  })
+
+  it('gives a model’s own invulnerable save to that model alone, on its datasheet as in a roster', () => {
+    const model = (id: string, save?: string) => ({
+      id,
+      name: id,
+      type: 'model' as const,
+      profiles: [
+        { id: `${id}-profile`, name: id, typeName: 'Unit', characteristics: [{ name: 'Sv', $text: '3+' }] },
+        ...(save
+          ? [
+              {
+                id: `${id}-save`,
+                name: 'Invulnerable Save',
+                typeName: 'Abilities',
+                characteristics: [{ name: 'Description', $text: save }],
+              },
+            ]
+          : []),
+      ],
+    })
+    const book = bookOf({
+      selectionEntries: [
+        { id: 'kill-team', name: 'Kill Team', type: 'unit', selectionEntries: [model('Veteran'), model('Terminator', '4+')] },
+      ],
+    })
+    const savesOf = (context?: Parameters<typeof datasheetIn>[3]) =>
+      datasheetIn(book, 'cat', 'kill-team', context)?.profiles.map(
+        (profile) => profile.values.find((value) => value.name === 'InSv')?.value,
+      )
+    const fielded = { selections: [{ id: 'kill-team', selections: [{ id: 'Veteran' }, { id: 'Terminator' }] }], unitSelectionIndex: 0 }
+    expect([savesOf(), savesOf(fielded)]).toEqual([
+      [undefined, '4+'],
+      [undefined, '4+'],
+    ])
+  })
+
   it('reads a model invulnerable save when the catalogue only supplies its prose', () => {
     const book = bookOf({
       selectionEntries: [
@@ -2310,7 +2364,7 @@ describe('the profile modifiers on a datasheet', () => {
     })
 
     expect(datasheetIn(book, 'cat', 'captain', { selections: [{ id: 'captain' }], unitSelectionIndex: 0 })?.profiles[0]?.values).toEqual([
-      { name: 'InSv', value: '4+', baseValue: '', modifiers: ['Invulnerable Save'] },
+      { name: 'InSv', value: '4+' },
     ])
   })
 })

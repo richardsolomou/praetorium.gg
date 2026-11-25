@@ -333,6 +333,25 @@ describe('stratagems', () => {
     expect(validate(state, ALICE, { kind: 'use-stratagem', key: timed.key })).toBeNull()
   })
 
+  it('times a stratagem by the turn its window names for each phase', () => {
+    const timed = {
+      ...STRAT,
+      phases: ['shooting', 'fight'] as ['shooting', 'fight'],
+      turn: 'either' as const,
+      windows: [
+        { phase: 'shooting' as const, turn: 'opponent-turn' as const },
+        { phase: 'fight' as const, turn: 'either' as const },
+      ],
+    }
+    const prep: [string, Command] = [
+      ALICE,
+      { kind: 'set-prep', stratagems: [timed], secondaries: [], primary: null, secondaryMode: 'fixed' },
+    ]
+    const at = (phases: number) =>
+      validate(reduceBattle(PLAYERS, log(...started(), prep, ...turns(phases, ALICE))), ALICE, { kind: 'use-stratagem', key: timed.key })
+    expect([at(2), at(4)]).toEqual(['Grenade is used on your opponent’s turn in this phase', null])
+  })
+
   it('enforces opponent-turn timing independently', () => {
     const timed = { ...STRAT, turn: 'opponent-turn' as const }
     const state = reduceBattle(
@@ -678,7 +697,6 @@ describe('secondaries', () => {
           mode: null,
           max: null,
           group: null,
-          cumulative: false,
           criteria: 'Hold the objective.',
           trigger: { timing: 'end-of-turn' as const, phase: null, playerTurn: 'opponent-turn' as const, roundMin: null, roundMax: null },
         },

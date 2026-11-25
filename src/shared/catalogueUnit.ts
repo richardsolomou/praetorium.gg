@@ -73,7 +73,8 @@ function copyPrices(
   copies: readonly number[],
 ) {
   const options = { primaryCatalogueId: catalogueId, mustering: true, roster }
-  const built = buildUnit(entryId, loaded.index, undefined, undefined, options)
+  // A datasheet's listed price is the Munitorum's, for the unit at its floor; a default that costs more is charged once fielded.
+  const built = buildUnit(entryId, loaded.index, undefined, undefined, { ...options, floor: true })
   if (!built) return null
   const mfmUnit = mfmUnitFor(loaded, catalogueId, entryId)
   const wargearAdjustment = mfmOptionAdjustment(loaded.index, built, mfmUnit, [], options)

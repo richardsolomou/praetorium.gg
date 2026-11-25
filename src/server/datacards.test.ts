@@ -332,8 +332,8 @@ it('indexes the faction-owned datasheets and detachments', () => {
     ]),
     detachments: new Set(['Inner Circle Task Force', 'Unforgiven Task Force']),
     enhancements: new Map(),
-    stratagems: new Map(),
-    stratagemIssues: [],
+    stratagemTexts: new Map(),
+    stratagemCards: [],
     detachmentRules: new Map(),
     factionAbilityNames: new Set(),
     armyRules: [],
@@ -624,146 +624,6 @@ it('reads both dispositions offered by a three-point detachment and rejects malf
   })
 })
 
-it('reads faction stratagem cards while leaving unsupported timing unavailable', () => {
-  directory = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-datacards-'))
-  fs.writeFileSync(
-    path.join(directory, 'orks.json'),
-    JSON.stringify({
-      name: 'Orks',
-      datasheets: [],
-      detachments: [{ name: { en: 'War Horde' } }],
-      stratagems: [
-        {
-          id: 'hit-em-harder',
-          name: { en: 'Hit ’Em Harder' },
-          detachment: 'War Horde',
-          cost: 1,
-          phase: ['any'],
-          turn: 'your',
-          type: 'Battle Tactic',
-          effect: { en: 'Your attacks have Lethal Hits.' },
-        },
-        {
-          id: 'unknown-phase',
-          name: { en: 'Unknown Phase' },
-          detachment: 'War Horde',
-          cost: 1,
-          phase: ['deployment'],
-          turn: 'either',
-          effect: { en: 'Do something.' },
-        },
-        {
-          id: 'printed-phase',
-          name: { en: 'Order the Advance' },
-          detachment: 'War Horde',
-          cost: 1,
-          phase: [],
-          turn: 'your',
-          when: { en: 'Start of your Movement phase.' },
-          effect: { en: 'Advance.' },
-        },
-        {
-          id: 'mistagged',
-          name: { en: 'Mistagged' },
-          detachment: 'War Horde',
-          cost: 1,
-          phase: ['fight'],
-          turn: 'either',
-          when: { en: 'End of your Movement phase.' },
-          effect: { en: 'Hold.' },
-        },
-        {
-          id: 'shared-phase',
-          name: { en: 'Shared Phase' },
-          detachment: 'War Horde',
-          cost: 1,
-          phase: ['charge', 'movement'],
-          turn: 'your',
-          when: { en: 'Your Movement/Charge phase.' },
-          effect: { en: 'Move.' },
-        },
-      ],
-    }),
-  )
-
-  expect(loadWords(directory).factions.get('orks')?.stratagems.get('warhorde')).toEqual([
-    {
-      id: 'hit-em-harder',
-      name: 'Hit ’Em Harder',
-      cp: 1,
-      limit: 'phase',
-      phases: [],
-      turn: 'your-turn',
-      type: 'Battle Tactic',
-      description: '**Effect:** Your attacks have Lethal Hits.',
-    },
-    {
-      id: 'unknown-phase',
-      name: 'Unknown Phase',
-      cp: 1,
-      limit: 'phase',
-      phases: null,
-      turn: 'either',
-      type: null,
-      description: '**Effect:** Do something.',
-    },
-    {
-      id: 'printed-phase',
-      name: 'Order the Advance',
-      cp: 1,
-      limit: 'phase',
-      phases: ['movement'],
-      turn: 'your-turn',
-      type: null,
-      description: '**When:** Start of your Movement phase.\n\n**Effect:** Advance.',
-    },
-    {
-      id: 'mistagged',
-      name: 'Mistagged',
-      cp: 1,
-      limit: 'phase',
-      phases: ['movement'],
-      turn: 'your-turn',
-      type: null,
-      description: '**When:** End of your Movement phase.\n\n**Effect:** Hold.',
-    },
-    {
-      id: 'shared-phase',
-      name: 'Shared Phase',
-      cp: 1,
-      limit: 'phase',
-      phases: ['charge', 'movement'],
-      turn: 'your-turn',
-      type: null,
-      description: '**When:** Your Movement/Charge phase.\n\n**Effect:** Move.',
-    },
-  ])
-  expect(loadWords(directory).factions.get('orks')?.stratagemIssues).toEqual(['War Horde | Unknown Phase: incomplete card'])
-})
-
-it('leaves conflicting stratagem ids unavailable', () => {
-  directory = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-datacards-'))
-  fs.writeFileSync(
-    path.join(directory, 'orks.json'),
-    JSON.stringify({
-      name: 'Orks',
-      datasheets: [],
-      detachments: [{ name: { en: 'War Horde' } }],
-      stratagems: ['Charge', 'Retreat'].map((name) => ({
-        id: 'shared-id',
-        name: { en: name },
-        detachment: 'War Horde',
-        cost: 1,
-        phase: ['fight'],
-        turn: 'either',
-        effect: { en: 'Move.' },
-      })),
-    }),
-  )
-
-  expect(loadWords(directory).factions.get('orks')?.stratagems.get('warhorde')).toEqual([])
-})
-
 it('adds dimensions to named flying bases', () => {
   directory = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-datacards-'))
   fs.writeFileSync(
@@ -924,13 +784,11 @@ it('answers for a faction under the name the catalogues give it', () => {
     armyRule: datacards.armyRules.get('oath-of-moment'),
     detachmentRule: datacards.detachmentRules.get('gladius-task-force'),
     enhancement: datacards.enhancements.get(descriptionKey('Gladius Task Force', 'Artificer Armour')),
-    stratagem: datacards.stratagems.get(descriptionKey('Gladius Task Force', 'ARMOUR OF CONTEMPT')),
   }).toEqual({
     aliased: true,
     armyRule: 'Re-roll the Hit roll.',
     detachmentRule: [{ name: 'Combat Doctrines', description: 'Pick a doctrine.' }],
     enhancement: 'The bearer has a 2+ Save.',
-    stratagem: { name: 'Armour of Contempt', description: '**When:** Your opponent’s Shooting phase.\n\n**Effect:** Worsen the AP by 1.' },
   })
 })
 
@@ -1133,19 +991,15 @@ describe('what a faction file publishes', () => {
     )
     return loadDatacards(directory)
   }
-  const stratagem = () => published().factions.get('orks')?.stratagems.get(joinKey('War Horde'))?.[0]
+  const stratagem = () => published().stratagemTexts.get('hit-em-harder')
 
   it('publishes a stratagem without its words', () => {
-    expect(stratagem()?.description).not.toContain('Lethal Hits')
+    expect(stratagem()).not.toContain('Lethal Hits')
   })
 
   it('publishes a stratagem a reader can load the words of', () => {
-    const description = stratagem()!.description
+    const description = stratagem()!
     expect(wordsFrom(directory!)(description)).toBe('**Effect:** Your attacks have Lethal Hits.')
-  })
-
-  it('keeps the facts a stratagem states', () => {
-    expect(stratagem()).toMatchObject({ cp: 1, phases: ['fight'], turn: 'your-turn' })
   })
 
   it('records the weapon abilities a detachment rule grants, for rules that cannot read the rule', () => {
@@ -1172,6 +1026,6 @@ describe('what a faction file publishes', () => {
         path.join(directory, `${name}.json`),
         JSON.stringify(faction(name, 'No exclusions.', 'Your attacks have Lethal Hits.')),
       )
-    expect(loadDatacards(directory).stratagems.size).toBe(1)
+    expect(loadDatacards(directory).stratagemTexts.size).toBe(1)
   })
 })

@@ -1,0 +1,9 @@
+diff --git a/definitions/Imperium - Space Marines.json b/definitions/Imperium - Space Marines.json
+index 53924b4..585de7b 100644
+--- a/definitions/Imperium - Space Marines.json	
++++ b/definitions/Imperium - Space Marines.json	
+@@ -69948,3 +69948,3 @@
+             "id": "3d9b-1733-695b-dd91",
+-            "hidden": false,
++            "hidden": true,
+             "typeId": "9cc3-6d83-4dd3-9b64",

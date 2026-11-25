@@ -5,7 +5,9 @@ import { buttonClass } from '../../../components/buttonClass'
 import { DispositionChip } from '../../battle/setup/chrome'
 import { gameReferencesQuery } from '../../../queries'
 import { PageContent, PageHeader } from '../../../components/Page'
-import { RuleText } from '../../../components/RuleText'
+import { RuleSummarySkeleton, RuleSummaryText } from '../../../components/RuleSummaryText'
+import { useMissionSummary } from '../../../ruleSummaries'
+import type { MissionTwist } from '../../../../contracts/missions'
 import { matchupMission } from '../../../../shared/gameReferences'
 import { SectionHeading } from '../../../components/SectionHeading'
 import { RUNNER_COLUMNS } from '../runnerColumns'
@@ -128,16 +130,26 @@ export function MissionPackPage({ packId }: { packId: string }) {
             <SectionHeading title="Mission twists" count={pack.twists.length} />
             <div className="mt-3 grid gap-3 md:grid-cols-2">
               {pack.twists.map((twist) => (
-                <article id={`twist-${twist.id}`} key={twist.id} className="scroll-mt-header part p-4">
-                  <h3 className="text-lg">{twist.name}</h3>
-                  {twist.lore ? <RuleText text={twist.lore} /> : null}
-                  {twist.rules ? <RuleText text={twist.rules} className="mt-3 text-base text-bone" /> : null}
-                </article>
+                <TwistReference key={twist.id} twist={twist} />
               ))}
             </div>
           </section>
         ) : null}
       </PageContent>
     </main>
+  )
+}
+
+function TwistReference({ twist }: { twist: MissionTwist }) {
+  const { summary, pending } = useMissionSummary('mission-twist', twist.id)
+  return (
+    <article id={`twist-${twist.id}`} className="scroll-mt-header part p-4">
+      <h3 className="text-lg">{twist.name}</h3>
+      {summary ? (
+        <RuleSummaryText summary={summary} className="mt-3 text-base text-bone" />
+      ) : pending ? (
+        <RuleSummarySkeleton className="mt-3" />
+      ) : null}
+    </article>
   )
 }

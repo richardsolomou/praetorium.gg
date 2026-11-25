@@ -1,4 +1,5 @@
 import { hash } from 'node:crypto'
+import { absentAbilitiesFor, absentDetachmentRuleFor, withoutAbsentAbilities, withoutAbsentDetachmentRules } from './absentAbilities'
 import { withDefinitionTokens, withDefinitionTokensIn } from './sourceTexts'
 import { definitionTexts } from './definitionTexts'
 import { cardTwins } from './cardTwins'
@@ -41,6 +42,14 @@ export function* loadCatalogueSteps(directory = catalogueDirectory(), edition?: 
     yield
   }
   if (!read.length) return null
+  // An ability VS Data marks absent from this rules version's datasheets is hidden there, so no view or calculation shows it.
+  const absent = absentAbilitiesFor(directory, edition?.id)
+  const visible = withoutAbsentAbilities(
+    read.map((entry) => entry.file),
+    absent.profiles,
+    absent.names,
+  )
+  for (const [at, entry] of read.entries()) entry.file = visible[at]!
 
   // The catalogue reads its rules texts as tokens with their facts, as a device's catalogue does; only the server keeps the words.
   const texts = definitionTexts(read)
@@ -58,7 +67,7 @@ export function* loadCatalogueSteps(directory = catalogueDirectory(), edition?: 
   // The cards name sections they do not describe, and the catalogue is where those words are.
   const cards = yield* loadDatacardsSteps(path.join(directory, 'datacards', '11th', 'gdc'), catalogueSections(index, texts.words), strings)
   cardFacts = cards.textFacts
-  const datacards = publishedDatacards(cards, texts.token)
+  const datacards = withoutAbsentDetachmentRules(publishedDatacards(cards, texts.token), absentDetachmentRuleFor(directory, edition?.id))
   const ownTexts: LoadedCatalogue = {
     ...catalogueFromIndex(index, selected, datacards),
     definitions: texts,
@@ -85,7 +94,9 @@ export function* loadCatalogueSteps(directory = catalogueDirectory(), edition?: 
 
 /** Cards with the catalogue's words they quote swapped for the catalogue's tokens. */
 function publishedDatacards(cards: LoadedDatacards, token: (raw: string) => string | null): LoadedDatacards {
-  const published = withDefinitionTokens(cards, token)
+  // The facts hold no text, and walking them would read every combat reading they hold only when asked.
+  const { textFacts, ...rest } = cards
+  const published = { ...withDefinitionTokens(rest, token), ...(textFacts ? { textFacts } : {}) }
   const texts = (descriptions: ReadonlyMap<string, string>) =>
     new Map([...descriptions].map(([key, text]) => [key, withDefinitionTokensIn(text, token)]))
   return { ...published, armyRules: texts(cards.armyRules), enhancements: texts(cards.enhancements) }

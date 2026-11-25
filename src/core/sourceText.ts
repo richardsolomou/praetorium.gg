@@ -9,11 +9,10 @@
 /**
  * How a string is shown, applied to the whole source string a token names: `item3` is the
  * fourth bullet of a source's own HTML list, `rest` what that list leaves around it,
- * `condition` what a secondary card's when-drawn rule says must hold to discard it, and
  * `para2` the third paragraph of a catalogue text another source quotes only in part.
  */
-export type TextTransform = 'prose' | 'plain' | 'trim' | 'rest' | 'condition' | `item${number}` | `para${number}`
-const TRANSFORM = String.raw`prose|plain|trim|rest|condition|item\d{1,3}|para\d{1,3}`
+export type TextTransform = 'prose' | 'plain' | 'trim' | 'rest' | `item${number}` | `para${number}`
+const TRANSFORM = String.raw`prose|plain|trim|rest|item\d{1,3}|para\d{1,3}`
 
 /** The hash is truncated: it identifies one string within one file, it does not have to resist a search of all strings. */
 export const TEXT_HASH_LENGTH = 16
@@ -33,6 +32,9 @@ export type TextSourceFile = { url: string; source: TextSource }
 export const textToken = ({ file, transform, hash }: TextToken) => `${OPEN}${file}:${transform}:${hash}${CLOSE}`
 
 export const hasTextTokens = (text: string) => text.includes(OPEN)
+
+/** A text's words where it names no source's words by token, else null: a browser never holds a token's words. */
+export const ownWords = (text: string) => (hasTextTokens(text) ? null : text)
 
 export function textTokensIn(text: string): TextToken[] {
   return [...text.matchAll(TOKEN)].map(([, file, transform, hash]) => ({ file: file!, transform: transform as TextTransform, hash: hash! }))

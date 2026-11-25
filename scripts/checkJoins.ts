@@ -29,9 +29,6 @@ const datacardsOnlyDetachments = new Set(
     candidates.flatMap((candidate) => (hasDetachmentSemantics(rules, candidate) ? [] : [`${candidate.faction} | ${candidate.name}`])),
   ),
 )
-const stratagemIssues = [...new Set(loaded.datacards.factions.values())].flatMap((content) =>
-  content.stratagemIssues.map((issue) => `${content.name} | ${issue}`),
-)
 const constructionDetails = [...rules.detachmentDetails].flatMap(([faction, detachments]) =>
   [...detachments.values()].map((detachment) => ({ faction, detachment })),
 )
@@ -49,7 +46,6 @@ const enhancementsWithoutSemantics = constructionDetails.flatMap(({ faction, det
     .map((enhancement) => ({ faction, detachment: detachment.name, enhancement: enhancement.name })),
 )
 console.log(`Game Datacards detachments without usable stratagems: ${datacardsOnlyDetachments.size}`)
-console.log(`Game Datacards stratagems with invalid or conflicting mechanics: ${stratagemIssues.length}`)
 console.log(`Game Datacards detachments with invalid construction numbers: ${invalidDetachments.length}`)
 console.log(`Game Datacards enhancements with invalid points: ${invalidEnhancements.length}`)
 console.log(`Game Datacards enhancements without structured eligibility: ${enhancementsWithoutSemantics.length}`)
@@ -60,7 +56,6 @@ if (process.argv.includes('--details')) {
   for (const faction of report.factionsWithoutArmyRules) console.log(`  rules missing  | ${faction}`)
   for (const entry of report.nameJoins) console.log(`  joined by name | ${entry.faction} | ${entry.name}`)
   for (const issue of datacardsOnlyDetachments) console.log(`  cards only     | ${issue}`)
-  for (const issue of stratagemIssues) console.log(`  invalid card   | ${issue}`)
   for (const { faction, detachment } of invalidDetachments) console.log(`  invalid card   | ${faction} | ${detachment.name}`)
   for (const issue of invalidEnhancements) {
     console.log(`  invalid card   | ${issue.faction} | ${issue.detachment} | ${issue.enhancement}`)
@@ -82,4 +77,3 @@ if (datacardsOnlyDetachments.size > 3) {
 if (invalidDetachments.length || invalidEnhancements.length) {
   baselineShortfall('Game Datacards construction coverage fell below the pinned catalogue baseline')
 }
-if (stratagemIssues.length > 1) baselineShortfall('Game Datacards stratagem mechanics coverage fell below the pinned catalogue baseline')

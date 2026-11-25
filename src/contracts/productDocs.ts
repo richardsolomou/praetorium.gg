@@ -266,8 +266,8 @@ export const PRODUCT_DOCS = [
   {
     slug: 'search',
     section: 'Account and app',
-    title: 'Search Praetorium',
-    description: 'Find units by what they do, rules by number, and search from your browser.',
+    title: 'Search and read rules',
+    description: 'Find units by what they do and rules by number, read rule summaries, and search from your browser.',
   },
   {
     slug: 'account-problems',

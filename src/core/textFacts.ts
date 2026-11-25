@@ -1,4 +1,5 @@
 import type { AttachmentClaim } from './attach'
+import type { StatedAllowance } from './battleChoices'
 import type { CombatFacts } from './combatReading'
 import type { ReminderSuggestion } from './reminders'
 import type { UnitGeneration } from './rosterGrades'
@@ -28,12 +29,17 @@ export type TextFacts = {
   ownWeaponGrant?: GrantedWeaponKeyword
   ledWeaponGrant?: GrantedWeaponKeyword
   invulnerableSave?: string
+  /** A text that is a value alone, as the save an ability named for an invulnerable save holds. */
+  bareValue?: string
   /** An enhancement that upgrades a weapon it names after "following weapon:". */
   linkedWeapon?: true
   reminder?: ReminderSuggestion
   /** The units the text adds to its army, and the movement it allows, as the roster grades read them. */
   unitGeneration?: UnitGeneration[]
   movementTools?: string[]
+  /** What the text allows a unit's battle choices, as a second Order, and the options it offers by their plural, as Orders. */
+  battleChoiceAllowances?: StatedAllowance[]
+  offeredOptions?: string[]
   /** Null where the words take no part in combat. */
   combat?: CombatFacts | null
 }
@@ -70,9 +76,15 @@ export function statedIn(text: string, facts: TextFactsByKey | undefined) {
 }
 
 /**
- * What one text says, read from its words or, where it is a token, from the facts recorded for it.
- * A token without facts, or a text of several, says nothing.
+ * Where a text's facts are recorded: a lone token's under its key, and a text of several parts, such as a stratagem's
+ * sections, under the keys of all its tokens, so the key never carries words printed between them.
  */
+export function factsKey(text: string) {
+  const tokens = textTokensIn(text)
+  return tokens.length === 1 && withoutText(text) === '' ? textKey(tokens[0]!) : `+${tokens.map(textKey).join('+')}`
+}
+
+/** What one text says, read from its words or, where it holds tokens, from the facts recorded for it. Unrecorded, it says nothing. */
 export function readText<T>(
   text: string,
   facts: TextFactsByKey | undefined,
@@ -80,7 +92,5 @@ export function readText<T>(
   recorded: (facts: TextFacts) => T,
 ): T {
   if (!hasTextTokens(text)) return read(text)
-  const [token, ...rest] = textTokensIn(text)
-  const found = token && !rest.length && withoutText(text) === '' ? facts?.get(textKey(token)) : undefined
-  return recorded(found ?? {})
+  return recorded(facts?.get(factsKey(text)) ?? {})
 }

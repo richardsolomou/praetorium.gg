@@ -89,9 +89,8 @@ test('the complete reference keeps its existing UI after a cold offline launch',
   test.setTimeout(240_000)
   const player = uniqueName('Offline reference')
   await signUp(page, player)
-  // Rules text loads from its source while online and stays on the device for the offline launch.
   await page.goto('/rules/core-rules/moving')
-  await expect(page.locator('main details').first()).toBeAttached()
+  await expect(page.locator('main [data-rule-summary]').first()).toBeAttached()
   await page.goto('/rules')
   await waitForOfflineApp(page)
   expect(
@@ -111,11 +110,14 @@ test('the complete reference keeps its existing UI after a cold offline launch',
   await expect(page.getByRole('heading', { name: 'Saved Moving', exact: true })).toBeVisible()
   await context.setOffline(false)
   await page.evaluate(() => window.dispatchEvent(new Event('online')))
-  await page.locator('main details summary').first().click()
-  await expect(page.locator('main details').first()).toHaveAttribute('open', '')
+  await page
+    .locator('main article')
+    .first()
+    .evaluate((rule) => rule.setAttribute('data-kept', ''))
   release()
   await expect(page.getByRole('heading', { name: '03. Moving', exact: true })).toBeVisible({ timeout: 180_000 })
-  await expect(page.locator('main details').first()).toHaveAttribute('open', '')
+  // The page the reader has open stays as it is rather than being drawn again.
+  await expect(page.locator('main article[data-kept]')).toHaveCount(1)
   await expect(page).toHaveURL(/rules\/core-rules\/moving$/)
   await expect(page.getByRole('region', { name: 'Offline reference' })).toHaveCount(0)
   await expect
@@ -156,8 +158,7 @@ test('the complete reference keeps its existing UI after a cold offline launch',
     )
     .toEqual([true, true])
   await expect(offline.getByRole('region', { name: 'Offline reference' })).toHaveCount(0)
-  await offline.locator('main details summary').first().click()
-  await expect(offline.locator('main details').first()).toHaveAttribute('open', '')
+  await expect(offline.locator('main [data-rule-summary]').first()).toBeVisible()
   await offline.getByRole('button', { name: 'Search Praetorium', exact: true }).first().click()
   await offline.getByPlaceholder('Search everything…').fill('Imotekh')
   await scrollSearchResultIntoView(offline, offline.getByRole('option', { name: /Imotekh the Stormlord/ }).first())

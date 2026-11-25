@@ -8,8 +8,7 @@ import { nameOf } from '../src/core/catalogue'
 import { battleSizeSelection, rosterLimit } from '../src/core/evaluate'
 import { loadCatalogue } from '../src/server/catalogueIndex'
 import { type LoadedCatalogue } from '../src/shared/catalogueIndex'
-import { factionsFromDatacards } from '../src/server/datacardFactions'
-import { loadDatacards } from '../src/server/datacards'
+import { loadRules } from '../src/server/rules'
 import { routeSlug } from '../src/core/slug'
 import { datasheetIn } from '../src/shared/catalogue'
 import { isMatchedPlayDatasheet } from '../src/shared/catalogueUnit'
@@ -202,25 +201,14 @@ describe.skipIf(!fs.existsSync(source))('Custodes codex', () => {
 
   it.each([
     ['Superhuman Focus', 'Emperor’s Chosen', 'either', undefined],
-    ['In Auramite Clad', 'Emperor’s Chosen', 'opponent-turn', ['shooting', 'fight']],
-    ['Vigil Unending', 'Lions of the Emperor', 'opponent-turn', ['shooting', 'fight']],
+    ['In Auramite Clad', 'Emperor’s Chosen', 'either', ['shooting', 'fight']],
+    ['Honoured Interred', 'Might of the Moritoi', 'either', ['shooting', 'fight']],
     ['Gilded Champion', 'Auric Champions', 'either', undefined],
-  ])('offers %s from %s in battle with its printed timing', (name, detachment, turn, phases) => {
-    const pools = factionsFromDatacards(loadDatacards(path.join(source, 'datacards', '11th', 'gdc')), source).byDetachment
-    const card = pools
-      .get('adeptus-custodes')
+  ])('offers %s from %s in battle with its typed timing', (name, detachment, turn, phases) => {
+    const card = loadRules(source, { catalogue: loaded })
+      ?.byDetachment.get('adeptus-custodes')
       ?.get(routeSlug(detachment))
       ?.find((stratagem) => stratagem.name === name)
     expect(card && { turn: card.turn, phases: card.phases }).toEqual({ turn, phases })
-  })
-
-  it('keeps Honoured Interred out of battle while one turn cannot express its timing', () => {
-    const pools = factionsFromDatacards(loadDatacards(path.join(source, 'datacards', '11th', 'gdc')), source).byDetachment
-    expect(
-      pools
-        .get('adeptus-custodes')
-        ?.get(routeSlug('Might of the Moritoi'))
-        ?.map((stratagem) => stratagem.name),
-    ).not.toContain('Honoured Interred')
   })
 })

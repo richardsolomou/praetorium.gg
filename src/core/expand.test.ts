@@ -353,15 +353,40 @@ describe('a group that requires selections', () => {
     expect(chosen(group(1, options))).toEqual([{ id: 'blade', count: 1 }])
   })
 
-  it('takes the cheapest option even when the group names a costlier default', () => {
-    const catalogue = withDefault(
-      group(1, [
-        { id: 'lance', name: 'Lance', points: 5 },
-        { id: 'blade', name: 'Blade', points: 0 },
-      ]),
-      'lance',
-    )
-    expect(chosen(catalogue)).toEqual([{ id: 'blade', count: 1 }])
+  const costlierDefault = withDefault(
+    group(1, [
+      { id: 'lance', name: 'Lance', points: 5 },
+      { id: 'blade', name: 'Blade', points: 0 },
+    ]),
+    'lance',
+  )
+
+  it('takes the named default even when it costs more', () => {
+    expect(chosen(costlierDefault)).toEqual([{ id: 'lance', count: 1 }])
+  })
+
+  it('takes the cheapest option at the floor', () => {
+    expect(
+      defaultSelection('squad', indexOf(costlierDefault), { floor: true })?.selections?.[0]?.selections?.map((child) => child.id),
+    ).toEqual(['blade'])
+  })
+
+  it('starts an optional group on the wargear it names', () => {
+    expect(
+      chosen(
+        withDefault(
+          group(0, [
+            { id: 'combi', name: 'Combi-bolter' },
+            { id: 'launcher', name: 'Launcher' },
+          ]),
+          'combi',
+        ),
+      ),
+    ).toEqual([{ id: 'combi', count: 1 }])
+  })
+
+  it('leaves an optional group empty without a named default', () => {
+    expect(chosen(group(0, [{ id: 'combi', name: 'Combi-bolter' }]))).toBeUndefined()
   })
 
   it('stops at the option that settles the requirement its own absence raised', () => {

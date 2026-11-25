@@ -1,3 +1,4 @@
+import { currentMissionId, sameMissionId } from '../core/legacyIds'
 import { opposingSide, refuse } from '../core/battlePrimitives'
 import {
   type BattleState,
@@ -32,7 +33,9 @@ export function withAuthoritativeAwards<
     : null
   const card = (submitted: Secondary, available: Map<string, AvailableCard>) => {
     const authoritative = authoritativeCard(submitted, available)
-    return existing ? { ...authoritative, selection: existing.find((saved) => saved.key === submitted.key)?.selection } : authoritative
+    return existing
+      ? { ...authoritative, selection: existing.find((saved) => sameMissionId(saved.key, submitted.key))?.selection }
+      : authoritative
   }
   return {
     ...prep,
@@ -45,7 +48,7 @@ export function withAuthoritativeAwards<
 type AvailableCard = { key: string; name: string; awards: MissionAward[]; selection?: MissionSelectionKind }
 
 function authoritativeCard(submitted: Secondary, available: Map<string, AvailableCard>): Secondary {
-  const authoritative = available.get(submitted.key)
+  const authoritative = available.get(currentMissionId(submitted.key))
   return authoritative
     ? { key: authoritative.key, name: authoritative.name, awards: authoritative.awards, selection: authoritative.selection }
     : { key: submitted.key, name: submitted.name }
@@ -62,7 +65,8 @@ export function hydrateAuthoritativeAwards(state: BattleState, rules: BattleRead
       const primary = mission ? primaryByKey.get(mission.id) : null
       player.primaryCard = mission
         ? {
-            key: mission.id,
+            // A battle that saved the card by its Game Datacards ID keeps it, which its other commands name.
+            key: sameMissionId(player.primaryCard.key, mission.id) ? player.primaryCard.key : mission.id,
             name: mission.name,
             awards: player.primaryCard.awards ?? primary?.awards,
             selection: player.primaryCard.selection,
@@ -116,12 +120,12 @@ export function setupReferenceError(state: ReturnType<typeof reduceBattle>, rule
     if (!mission) return true
     if (!primaries.some((card) => card.key === mission.id) || expectedSecondaries.size === 0) return true
     const player = sideCaptain(state, sides[index]!)
-    if (player.primaryCard?.key !== mission.id) return false
+    if (!sameMissionId(player.primaryCard?.key, mission.id)) return false
     if (player.secondaryMode === 'fixed') {
       return (
         player.secondaries.length === FIXED_SECONDARIES &&
         new Set(player.secondaries.map((card) => card.key)).size === FIXED_SECONDARIES &&
-        player.secondaries.every((card) => fixedSecondaries.has(card.key)) &&
+        player.secondaries.every((card) => fixedSecondaries.has(currentMissionId(card.key))) &&
         completeDeck(player.secondaryDeck, expectedSecondaries)
       )
     }
@@ -130,24 +134,27 @@ export function setupReferenceError(state: ReturnType<typeof reduceBattle>, rule
   if (!prepared) return refuse('mission-cards-unprepared', 'every side must prepare its mission cards')
   const deploymentId = state.deploymentId
   if (!deploymentId) return refuse('missing-deployment', 'choose a deployment')
-  if (!rules.deployments.some((deployment) => deployment.id === deploymentId))
+  if (!rules.deployments.some((deployment) => sameMissionId(deployment.id, deploymentId)))
     return refuse('unknown-deployment', 'that deployment is not available')
   const kotc = isKotcLimit(state.settings.limit)
-  if (!kotc && missions.some((mission) => mission?.deploymentIds.length && !mission.deploymentIds.includes(deploymentId)))
+  if (
+    !kotc &&
+    missions.some((mission) => mission?.deploymentIds.length && !mission.deploymentIds.some((id) => sameMissionId(id, deploymentId)))
+  )
     return refuse('deployment-mismatch', 'that deployment does not match the mission')
   if (!state.settings.terrainLayoutId) return kotc ? refuse('missing-terrain', 'choose a battlefield') : null
-  const terrain = rules.terrainLayouts.find((layout) => layout.id === state.settings.terrainLayoutId)
+  const terrain = rules.terrainLayouts.find((layout) => sameMissionId(layout.id, state.settings.terrainLayoutId))
   if (!terrain) return refuse('unknown-terrain', 'that terrain layout is not available')
   const matchups = new Set(kotc ? KOTC_BATTLEFIELD_MATCHUP_IDS : one && two ? terrainMatchupIds([one, two]) : [])
   if (matchups.size && !matchups.has(terrain.matchupId)) return refuse('terrain-mismatch', 'that terrain layout does not match the armies')
-  if (terrain.deploymentId && terrain.deploymentId !== state.deploymentId)
+  if (terrain.deploymentId && !sameMissionId(terrain.deploymentId, state.deploymentId))
     return refuse('terrain-mismatch', 'that terrain layout does not match the deployment')
   if (!terrain.geometry) return refuse('terrain-geometry-missing', 'exact terrain data is not available yet')
   return null
 }
 
 function completeDeck(cards: { key: string }[] | null | undefined, expected: Set<string>): boolean {
-  return cards?.length === expected.size && cards.every((card) => expected.has(card.key))
+  return cards?.length === expected.size && cards.every((card) => expected.has(currentMissionId(card.key)))
 }
 
 export function repairPrepReferenceError(
@@ -167,7 +174,7 @@ export function repairPrepReferenceError(
   if (
     !mission ||
     !primaryExists ||
-    command.primary?.key !== mission.id ||
+    !sameMissionId(command.primary?.key, mission.id) ||
     !expectedSecondaries.size ||
     !completeDeck(command.secondaryDeck, expectedSecondaries)
   ) {

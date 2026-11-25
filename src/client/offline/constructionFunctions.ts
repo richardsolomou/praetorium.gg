@@ -5,7 +5,10 @@ import { deviceLoadoutSearch, prepareDeviceConstruction } from './constructionWo
 import type { ConstructionReadData, ConstructionReadName } from './constructionReads'
 import { matchesImportFaction, importRosterFaction, importRosterCatalogueId } from '../../shared/rosterFiles'
 import { decodeRosterExchange, isRosterExchangeCode } from '../../core/rosterExchange'
-import { loadSavedQuery, referenceData, savedQuery } from './runtime'
+import { loadSavedQuery, referenceData, referenceRead, savedQuery } from './runtime'
+import { catalogueEditionId } from '../../core/catalogueEdition'
+import { withVsDataSaves } from '../../shared/vsDataSaves'
+import type { VsDataUnits } from '../../shared/vsData'
 import { factionIndexKey, importTranslationsKey, factionKey } from '../queries/queryKeys'
 
 const read =
@@ -57,9 +60,29 @@ export const datasheetOfferedBy = async (args: Parameters<typeof server.datashee
   ).flat()
 export const datasheet = read('datasheet', (args) => server.datasheet(args))
 export const loadoutDatasheets = read('loadoutDatasheets', (args) => server.loadoutDatasheets(args))
-export const combatantDatasheet = read('combatantDatasheet', (args) => server.combatantDatasheet(args))
+// A combatant's invulnerable saves are VS Data's, whichever answers the read, so each rules version's units are fetched once.
+const vsDataUnits = new Map<string, Promise<VsDataUnits | null>>()
+function unitsFor(catalogueId: string | undefined) {
+  const edition = (catalogueId && catalogueEditionId(catalogueId)) ?? null
+  let held = vsDataUnits.get(edition ?? '')
+  if (!held) {
+    held = referenceRead(['rule-units', edition], () => server.ruleUnits({ data: { edition } })).catch(() => null)
+    vsDataUnits.set(edition ?? '', held)
+    void held.then((found) => found || vsDataUnits.delete(edition ?? ''))
+  }
+  return held
+}
+const readCombatant = read('combatantDatasheet', (args) => server.combatantDatasheet(args))
+export const combatantDatasheet = async (args: Parameters<typeof readCombatant>[0]) => {
+  const [combatant, typed] = await Promise.all([readCombatant(args), unitsFor(args.data.catalogueId)])
+  return combatant && withVsDataSaves(combatant, typed)
+}
 // A roster comparison sends these together and a device without the army's rules has no answer of its own, so a short deadline blanks whole rows.
-export const combatantDatasheets = read('combatantDatasheets', (args) => server.combatantDatasheets(args), 16_000)
+const readCombatants = read('combatantDatasheets', (args) => server.combatantDatasheets(args), 16_000)
+export const combatantDatasheets = async (args: Parameters<typeof readCombatants>[0]) => {
+  const [combatants, typed] = await Promise.all([readCombatants(args), unitsFor(args.data.catalogueId)])
+  return combatants.map((combatant) => combatant && withVsDataSaves(combatant, typed))
+}
 export const combatLoadouts = read('combatLoadouts', (args) => server.combatLoadouts(args))
 export const unitBattleDetails = read('unitBattleDetails', (args) => server.unitBattleDetails(args))
 export const reminderAbilities = read('reminderAbilities', (args) => server.reminderAbilities(args))

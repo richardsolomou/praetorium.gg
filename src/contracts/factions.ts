@@ -1,3 +1,4 @@
+import type { StratagemWindow } from '../core/battlePhases'
 export type EnhancementEligibility = { anyOf: string[][]; excluded: string[]; requiredAbilities?: string[]; requiredWargear?: string[] }
 
 export type DetachmentReference = {
@@ -14,15 +15,20 @@ export type DetachmentRulesDetail = {
   points: number | null
   dispositions: string[]
   rules: { name: string; description: string }[]
+  /** The `abilityKey`s of the rules the rules version marks absent here, which the catalogue's own rules must not add back. */
+  absentRules?: string[]
   enhancements: { name: string; points: number | null; description: string | null; eligibility: EnhancementEligibility | null }[]
   upgrades: { name: string; points: number | null; description: string | null }[]
   stratagems: {
     id: string
     name: string
-    cp: number
+    /** Null for a Stratagem its build prints that VS Data does not publish yet. */
+    cp: number | null
     type: string | null
     phases: string[]
     turn: string | null
+    /** Each phase with its own turn, where they differ; then it decides over `phases` and `turn`. */
+    windows?: StratagemWindow[]
     description: string | null
   }[]
 }

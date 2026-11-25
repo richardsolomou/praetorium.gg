@@ -11,6 +11,7 @@ import { deleteBattle } from '../../functions'
 import { deploymentFor } from '../../battleSummary'
 import { battleQuery, deploymentsQuery, detachmentRulesQuery, forgetBattle, gameReferencesQuery } from '../../queries'
 import { missionCardsByKey, primaryCards, secondaryCards } from './missionDeck'
+import { currentMissionId, sameMissionId } from '../../../core/legacyIds'
 import {
   MISSION_ACTION_REMINDER_PREFIX,
   missionActionReminderStorageKey,
@@ -248,7 +249,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
   const deckUnknown = referencesQuery.isPending || referencesQuery.isError
   const deployment = deploymentFor(view.deploymentId, deployments)
   const missionPack = references?.packs.find((entry) => entry.id === view.settings.missionPackId)
-  const twist = missionPack?.twists.find((entry) => entry.id === view.settings.twistId)
+  const twist = missionPack?.twists.find((entry) => sameMissionId(entry.id, view.settings.twistId))
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const remove = useMutation({
@@ -275,15 +276,27 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
   const cardsByKey = useMemo(() => missionCardsByKey(references), [references])
   const awardsFor = (key: string, mode?: string): MissionAward[] =>
     (cardsByKey.get(key)?.awards ?? []).filter((award) => appliesInMode(award, mode))
-  const referenceFor = useCallback((key: string): ReferenceCard | undefined => cardsByKey.get(key), [cardsByKey])
+  const referenceFor = useCallback((key: string): ReferenceCard | undefined => cardsByKey.get(currentMissionId(key)), [cardsByKey])
   useWatchBattle(view, clock, missions, referenceFor, currentReminderPrompts)
   const actionReminderPhase = actionRemindersEnabled && actionReminderWindow && active?.isViewer
   const activeMissionActionReminders =
     actionReminderPhase && active
       ? missionActionReminders(active, referenceFor).filter((reminder) => !reminderDismissed(reminder.key, reminderContext))
       : EMPTY_REMINDERS
-  const writtenFor = useCallback((side: Side, key: string): StratagemText | undefined => writtenStratagem(rulesFor(side), key), [rulesFor])
-  const whenDrawnFor = (key: string): WhenDrawn | undefined => secondaryDeck.find((card) => card.key === key)?.whenDrawn ?? undefined
+  const writtenFor = useCallback(
+    (side: Side, key: string): StratagemText | undefined => {
+      for (const [at, result] of ruleResults.entries()) {
+        const request = ruleRequests[at]
+        if (request?.side !== side.index || !result.data) continue
+        const written = writtenStratagem([result.data], key)
+        if (written) return { ...written, catalogueId: request.catalogueId }
+      }
+      return undefined
+    },
+    [ruleResults, ruleRequests],
+  )
+  const whenDrawnFor = (key: string): WhenDrawn | undefined =>
+    secondaryDeck.find((card) => sameMissionId(card.key, key))?.whenDrawn ?? undefined
   const coreKeysBySide = useMemo(
     () =>
       new Map(table.map((side) => [side.index, new Set(rulesFor(side).flatMap((rules) => rules.core.map((stratagem) => stratagem.key)))])),

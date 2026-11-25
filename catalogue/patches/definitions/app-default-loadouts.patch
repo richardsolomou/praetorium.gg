@@ -1,0 +1,179 @@
+diff --git a/definitions/Aeldari - Aeldari Library.json b/definitions/Aeldari - Aeldari Library.json
+--- a/definitions/Aeldari - Aeldari Library.json
++++ b/definitions/Aeldari - Aeldari Library.json
+@@ -4512,7 +4512,7 @@
+             "name": "4-9 Voidreavers",
+             "id": "b3ab-c0f4-3253-859c",
+             "collective": false,
+-            "defaultSelectionEntryId": "fcf9-7d09-a246-b925",
++            "defaultSelectionEntryId": "184e-6116-54ec-5804",
+             "hidden": false,
+             "import": true,
+             "sortIndex": 4,
+@@ -24424,7 +24424,7 @@
+               {
+                 "name": "Melee Weapon",
+                 "id": "1b6a-43a8-abd1-d86c",
+-                "defaultSelectionEntryId": "78a7-7d10-cf60-7eea",
++                "defaultSelectionEntryId": "662c-7606-d451-b256",
+                 "hidden": false,
+                 "constraints": [
+                   {"id": "d896-f9a7-80b7-6e28", "field": "selections", "scope": "parent", "shared": true, "type": "min", "value": 1},
+@@ -35794,6 +35794,7 @@
+                   {
+                     "name": "Wargear",
+                     "id": "1cbd-52f1-12ea-746d",
++                    "defaultSelectionEntryId": "914b-4bf2-ef28-e63a",
+                     "hidden": false,
+                     "constraints": [
+                       {"id": "4b27-3cb2-fb7e-6423", "field": "selections", "scope": "parent", "shared": true, "type": "min", "value": 1},
+@@ -60514,7 +60515,7 @@
+               {
+                 "name": "Left Arm",
+                 "id": "6bc5-e120-52b6-d591",
+-                "defaultSelectionEntryId": "d7cf-9b45-9800-5155",
++                "defaultSelectionEntryId": "2a80-e4b8-5161-7c7a",
+                 "hidden": false,
+                 "constraints": [
+                   {"id": "80c3-f899-eb53-0fa0", "field": "selections", "scope": "parent", "shared": true, "type": "min", "value": 1},
+@@ -61413,7 +61414,7 @@
+           {
+             "name": "9 Kabalite Warriors",
+             "id": "6b5a-0429-3257-d571",
+-            "defaultSelectionEntryId": "fcf4-fa38-24bd-f8b0",
++            "defaultSelectionEntryId": "6ac6-4590-88f8-71f8",
+             "hidden": false,
+             "sortIndex": 3,
+             "constraints": [
+diff --git a/definitions/Imperium - Astra Militarum - Library.json b/definitions/Imperium - Astra Militarum - Library.json
+--- a/definitions/Imperium - Astra Militarum - Library.json
++++ b/definitions/Imperium - Astra Militarum - Library.json
+@@ -4240,7 +4240,7 @@
+                   {
+                     "name": "Grenadier Gauntlet",
+                     "id": "0b5a-450e-dfb3-8143",
+-                    "defaultSelectionEntryId": "abf1-89f8-162d-cf16",
++                    "defaultSelectionEntryId": "cb59-454f-b49f-d03f",
+                     "hidden": false,
+                     "constraints": [
+                       {"id": "2183-6543-f2f7-3559", "field": "selections", "scope": "parent", "shared": true, "type": "min", "value": 1},
+@@ -4713,7 +4713,7 @@
+               {
+                 "name": "Chainsword",
+                 "id": "18df-42ba-b2e0-a164",
+-                "defaultSelectionEntryId": "d296-1bb0-11bf-3b3a",
++                "defaultSelectionEntryId": "0695-7ba0-d1b3-65ee",
+                 "hidden": false,
+                 "constraints": [
+                   {"id": "5243-ffa2-7ce-8b2e", "field": "selections", "scope": "parent", "shared": true, "type": "min", "value": 1},
+@@ -19356,7 +19356,7 @@
+               {
+                 "name": "Huge Knife",
+                 "id": "e221-1dc2-1aaf-d342",
+-                "defaultSelectionEntryId": "f907-268f-d51-69b5",
++                "defaultSelectionEntryId": "507e-db3a-b46d-1988",
+                 "hidden": false,
+                 "constraints": [
+                   {"id": "cdf3-cbf9-4c72-6a42", "field": "selections", "scope": "parent", "shared": true, "type": "min", "value": 1},
+diff --git a/definitions/Imperium - Space Marines.json b/definitions/Imperium - Space Marines.json
+--- a/definitions/Imperium - Space Marines.json
++++ b/definitions/Imperium - Space Marines.json
+@@ -24783,7 +24783,7 @@
+               {
+                 "name": "Weapon Option 3",
+                 "id": "7e68-ae54-ca48-6cbe",
+-                "defaultSelectionEntryId": "f0ac-c831-aaaa-a840",
++                "defaultSelectionEntryId": "f6e7-7f12-0429-052c",
+                 "hidden": false,
+                 "constraints": [
+                   {"id": "7cb5-f7d5-e797-21fd", "field": "selections", "scope": "parent", "shared": true, "type": "min", "value": 1},
+@@ -43870,7 +43870,7 @@
+               {
+                 "name": "Sponsons",
+                 "id": "edd-ef25-4c7f-69d8",
+-                "defaultSelectionEntryId": "52d7-5eff-50c4-6803",
++                "defaultSelectionEntryId": "58ca-ddd8-9aff-6a53",
+                 "hidden": false,
+                 "constraints": [
+                   {"id": "cf57-7e72-df71-bbea", "field": "selections", "scope": "parent", "shared": true, "type": "min", "value": 1},
+@@ -55366,7 +55366,7 @@
+               {
+                 "name": "Weapon Option",
+                 "id": "621e-c6a4-dac6-f0be",
+-                "defaultSelectionEntryId": "45ef-def0-1f82-fbf3",
++                "defaultSelectionEntryId": "71c8-881d-6940-748b",
+                 "hidden": false,
+                 "constraints": [
+                   {"id": "489b-b505-a987-a23d", "field": "selections", "scope": "parent", "shared": true, "type": "min", "value": 1},
+@@ -58369,7 +58369,7 @@
+                     "name": "Melee Weapon",
+                     "id": "1591-a4ae-50fb-3c21",
+                     "collective": false,
+-                    "defaultSelectionEntryId": "74b1-e680-e6f1-2845",
++                    "defaultSelectionEntryId": "e77-5303-12ad-cbde",
+                     "hidden": false,
+                     "import": true,
+                     "constraints": [
+@@ -59514,7 +59514,7 @@
+               {
+                 "name": "Bombs or missiles",
+                 "id": "1e85-6e9e-8136-3c58",
+-                "defaultSelectionEntryId": "dab2-19b1-892f-7d1d",
++                "defaultSelectionEntryId": "911b-cb8b-1963-81ac",
+                 "hidden": false,
+                 "constraints": [
+                   {"id": "ad21-d8a3-e64d-dff5", "field": "selections", "scope": "parent", "shared": true, "type": "min", "value": 1},
+diff --git a/definitions/Imperium - Space Wolves.json b/definitions/Imperium - Space Wolves.json
+--- a/definitions/Imperium - Space Wolves.json
++++ b/definitions/Imperium - Space Wolves.json
+@@ -19523,7 +19523,7 @@
+               {
+                 "name": "Replace Storm Shield",
+                 "id": "104d-380c-4727-d3be",
+-                "defaultSelectionEntryId": "a2bb-d1e4-4d17-0955",
++                "defaultSelectionEntryId": "5e9b-2699-d830-d333",
+                 "hidden": false,
+                 "constraints": [
+                   {"id": "2b45-778d-3a45-03b3", "field": "selections", "includeChildSelections": false, "scope": "parent", "shared": true, "type": "min", "value": 1},
+@@ -19827,7 +19827,7 @@
+           {
+             "name": "3-6 Wolf Guard Headtakers",
+             "id": "98a0-3e57-241e-8135",
+-            "defaultSelectionEntryId": "cbee-4afd-87ea-cfbb",
++            "defaultSelectionEntryId": "e212-9f2c-9824-2169",
+             "hidden": false,
+             "sortIndex": 1,
+             "constraints": [
+@@ -20599,7 +20599,7 @@
+               {
+                 "name": "3-6 Wolf Guard Headtakers",
+                 "id": "4cfb-ae14-1ab1-fa7d",
+-                "defaultSelectionEntryId": "fef4-300a-bd40-49fc",
++                "defaultSelectionEntryId": "c2ee-4f57-2ba8-e6b5",
+                 "hidden": false,
+                 "sortIndex": 2,
+                 "constraints": [
+diff --git a/definitions/Necrons.json b/definitions/Necrons.json
+--- a/definitions/Necrons.json
++++ b/definitions/Necrons.json
+@@ -17804,7 +17804,7 @@
+           {
+             "name": "1-3 Heavy Destroyers",
+             "id": "5355-4513-4f12-f69e",
+-            "defaultSelectionEntryId": "72a9-5a40-3553-43e6",
++            "defaultSelectionEntryId": "a184-1eed-7423-2f21",
+             "hidden": false,
+             "sortIndex": 3,
+             "constraints": [
+diff --git a/definitions/Orks.json b/definitions/Orks.json
+--- a/definitions/Orks.json
++++ b/definitions/Orks.json
+@@ -28532,7 +28532,7 @@
+               {
+                 "name": "Power Klaw",
+                 "id": "1a50-bfbe-962d-823",
+-                "defaultSelectionEntryId": "55b2-cc66-2517-6ed3",
++                "defaultSelectionEntryId": "f894-4a22-366b-f0ca",
+                 "hidden": false,
+                 "constraints": [
+                   {"id": "dba1-b88e-be0f-2281", "field": "selections", "includeChildSelections": false, "scope": "parent", "shared": true, "type": "min", "value": 1},

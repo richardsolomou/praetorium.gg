@@ -26,6 +26,21 @@ describe('the abilities and wargear a datasheet lists', () => {
     })
   })
 
+  it('leaves out an ability whose profile link is hidden', () => {
+    const book = bookOf({
+      sharedProfiles: [ability('aura', 'Lord of Deceit (Aura)')],
+      selectionEntries: [
+        {
+          id: 'swarmlord',
+          name: 'Swarmlord',
+          type: 'model',
+          infoLinks: [{ id: 'aura-link', targetId: 'aura', name: 'Lord of Deceit (Aura)', type: 'profile', hidden: true }],
+        },
+      ],
+    })
+    expect(datasheetIn(book, 'cat', 'swarmlord')?.abilities).toEqual([])
+  })
+
   it('separates faction, core, datasheet, rule and wargear abilities', () => {
     const book = bookOf({
       sharedProfiles: [ability('shared-ability', 'My Will Be Done')],

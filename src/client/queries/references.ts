@@ -21,7 +21,13 @@ import {
   globalSearch,
   ruleIndex,
   ruleSection,
+  ruleAbilitySummaries,
+  ruleCoreSummary,
+  ruleUnits,
+  ruleSummaryCredits,
+  ruleSummaryRecords,
   terrainReferences,
+  textHomesFor,
 } from '../functions'
 import { referenceQuery, referenceStaleTime, SSR_STALE_TIME } from './shared'
 import {
@@ -129,4 +135,24 @@ export const ruleSectionQuery = (documentId: string, sectionId: string) =>
   queryOptions({
     ...referenceQuery(['rule-section', documentId, sectionId], () => ruleSection({ data: { documentId, sectionId } })),
     enabled: Boolean(documentId && sectionId),
+  })
+/** The upstream work the served summaries adapt. */
+export const ruleSummaryCreditsQuery = () => referenceQuery(['rule-summary-credits'], () => ruleSummaryCredits())
+/** What a datasheet shows of each unit from VS Data, by BSData entry id, for one rules version (the current one where null). */
+export const ruleUnitsQuery = (edition: string | null) => referenceQuery(['rule-units', edition], () => ruleUnits({ data: { edition } }))
+/** The weapon and core ability summaries keyword tooltips show. */
+export const ruleAbilitySummariesQuery = () => referenceQuery(['rule-ability-summaries'], () => ruleAbilitySummaries())
+/** The summary of one whole core rule, by `core-rule:id`, which an ability chip names where no ability summary does. */
+export const ruleCoreSummaryQuery = (key: string) => referenceQuery(['rule-core-summary', key], () => ruleCoreSummary({ data: { key } }))
+/** One source file's summaries; a failed read only leaves its rules on their own text, so it is not retried. */
+export const ruleSummariesQuery = (file: string) =>
+  queryOptions({
+    ...referenceQuery(['rule-summary-records', file], () => ruleSummaryRecords({ data: { file } })),
+    retry: false,
+  })
+/** The file each string now lives in, by hash, for tokens naming a file a data update replaced; failing, they find no summary. */
+export const textHomesQuery = (hashes: readonly string[]) =>
+  queryOptions({
+    ...referenceQuery(['text-homes', hashes.join(',')], () => textHomesFor({ data: { hashes: [...hashes] } })),
+    retry: false,
   })

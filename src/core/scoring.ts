@@ -5,6 +5,22 @@ export type MissionAward = z.infer<typeof missionAwardSchema>
 
 export type AwardTrigger = MissionAward['trigger']
 
+/**
+ * A card's awards, each once with every moment it can be claimed at. A card records one award per moment, so an
+ * award scored at the end of the Command phase in some rounds and the end of the turn in another appears twice.
+ */
+export function awardsOnce(awards: readonly MissionAward[]) {
+  const found = new Map<string, { award: MissionAward; triggers: AwardTrigger[] }>()
+  for (const award of awards) {
+    const { trigger, ...rest } = award
+    const key = award.id ?? JSON.stringify(rest)
+    const held = found.get(key)
+    if (held) held.triggers.push(trigger)
+    else found.set(key, { award, triggers: [trigger] })
+  }
+  return [...found.values()]
+}
+
 export type DueCard = {
   key: string
   name: string

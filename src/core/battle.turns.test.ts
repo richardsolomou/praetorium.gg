@@ -202,7 +202,6 @@ describe('the turn sequence', () => {
       mode: null,
       max: null,
       group: null,
-      cumulative: false,
       criteria: 'Control an objective marker.',
       trigger: { timing: 'end-of-phase', phase: 'command', playerTurn: 'your-turn', roundMin: null, roundMax: null },
     }
@@ -254,7 +253,6 @@ describe('the turn sequence', () => {
           mode: 'standard',
           max: null,
           group: null,
-          cumulative: false,
           criteria: 'One objective was cleansed by your army this turn.',
           trigger: { timing: 'end-of-turn', phase: null, playerTurn: 'your-turn', roundMin: null, roundMax: null },
         },

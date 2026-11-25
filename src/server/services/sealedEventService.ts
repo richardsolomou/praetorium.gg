@@ -1,3 +1,4 @@
+import { sameMissionId } from '../../core/legacyIds'
 import { buildSealedEventBattle, SealedEventBattleSetupError } from '../../shared/sealedEventBattle'
 import { tableBattlefields } from '../../shared/tableBattlefields'
 import type { LoadedRules } from '../../shared/rules'
@@ -654,7 +655,10 @@ export class SealedEventService {
     if (battlefield === 'roll' && !chosen) throw new Response('these armies have no battlefields to roll', { status: 409 })
     if (
       chosen &&
-      !options.some(({ patternId, terrainLayoutId }) => patternId === chosen.patternId && terrainLayoutId === chosen.terrainLayoutId)
+      !options.some(
+        ({ patternId, terrainLayoutId }) =>
+          sameMissionId(patternId, chosen.patternId) && sameMissionId(terrainLayoutId, chosen.terrainLayoutId),
+      )
     )
       throw new Response('that battlefield does not match these armies', { status: 409 })
     const result = await this.repository.setSealedEventBattlefield({

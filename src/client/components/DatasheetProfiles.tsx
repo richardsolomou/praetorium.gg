@@ -7,8 +7,9 @@ import { addedKeywords, weaponProfileGroupName, weaponProfileGroups, weaponProfi
 
 type Profile = Datasheet['profiles'][number]
 
-export function UnitProfile({ profile }: { profile: Profile }) {
-  const invulnerable = invulnerableSaveOf(profile.values)
+/** `invulnerable` false leaves the save to `InvulnerableSaves`, which shows VS Data's. */
+export function UnitProfile({ profile, invulnerable: showInvulnerable = true }: { profile: Profile; invulnerable?: boolean }) {
+  const invulnerable = showInvulnerable ? invulnerableSaveOf(profile.values) : undefined
   const values = statlineValues(profile.values)
   return (
     <section data-slot="unit-profile">

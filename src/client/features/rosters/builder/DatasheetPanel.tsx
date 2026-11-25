@@ -2,15 +2,19 @@ import { useQuery } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { datasheetProfilesByKind } from '../../../../core/datasheetStructure'
+import { datasheetProfilesByKind, isWrittenInvulnerableSave } from '../../../../core/datasheetStructure'
 import type { RosterPick } from '../../../../core/roster'
 import type { Datasheet, DatasheetRelationship } from '../../../../contracts/catalogue'
 import { datasheetQuery, type Fielded } from '../../../queries'
 import { useSettled } from '../../../useSettled'
 import { UnitProfile, WeaponSummary } from '../../../components/DatasheetProfiles'
-import { Keyword, KEYWORD_TAG_CLASS, UnitKeywords } from '../../../components/Keyword'
+import { Keyword, KEYWORD_TAG_CLASS, type KeywordRule, UnitKeywords } from '../../../components/Keyword'
 import { abilitySections, attachmentGroups, primaryUnitProfile, referenceAbilities, separateTransport } from '../../../datasheet'
 import { RuleText } from '../../../components/RuleText'
+import { useRuleSummary } from '../../../ruleSummaries'
+import { DatasheetUnit, datasheetUnit, unitTransport, useUnitAbilitySummary, useVsDataUnit } from '../../../components/UnitFromVsData'
+import { InvulnerableSaves, shownSaves } from '../../../components/InvulnerableSaves'
+import { RuleSummaryText, Runs, textOf } from '../../../components/RuleSummaryText'
 import { ProfileRules } from '../ProfileRules'
 import { ReminderButton, type ReminderControls } from '../ReminderButton'
 import type { ReminderSubject } from '../../../../core/reminders'
@@ -29,6 +33,8 @@ type Props = {
   onReferenceRoute?: (reference: { entryId: string; route: Datasheet['referenceRoute'] | undefined } | null) => void
   abilityReminders?: ReminderControls
   detachmentRules?: readonly ReminderSubject[]
+  /** Whose rules each detachment's are, by detachment id, as `detachmentRuleOwners` names them. */
+  detachmentRuleOwners?: Readonly<Record<string, string>>
   /** A list a battle or sealed event froze, read on the rules version it was fielded under. */
   fielded?: Fielded
   /** List every weapon the unit can take as options, not only those its pick carries. */
@@ -47,6 +53,7 @@ export function DatasheetPanel({
   onReferenceRoute,
   abilityReminders,
   detachmentRules,
+  detachmentRuleOwners,
   fielded = false,
   everyWeapon = false,
 }: Props) {
@@ -77,6 +84,7 @@ export function DatasheetPanel({
     onReferenceRoute?.(entryId ? { entryId, route: referenceRoute } : null)
     return () => onReferenceRoute?.(null)
   }, [entryId, onReferenceRoute, referenceRoute])
+  const vsDataSaves = useVsDataUnit(catalogueId, entryId ?? '', Boolean(catalogueId && entryId))?.invulnerableSaves
 
   if (!entryId) {
     return (
@@ -96,6 +104,7 @@ export function DatasheetPanel({
   }
 
   const model = primaryUnitProfile(sheet)
+  const saves = shownSaves(model ? { profiles: [model] } : sheet, vsDataSaves)
   const structured = datasheetProfilesByKind(sheet)
   // The unit carries none of its options yet, so a count would read as its loadout.
   const uncounted = (profiles: typeof structured.ranged) =>
@@ -105,7 +114,8 @@ export function DatasheetPanel({
   const transport = separateTransport(sheet)
   const content = (
     <div data-slot="datasheet-content" className="w-full min-w-0 space-y-4">
-      {!embedded && model ? <UnitProfile profile={model} /> : null}
+      {!embedded && model ? <UnitProfile profile={model} invulnerable={false} /> : null}
+      {!embedded && saves.length ? <InvulnerableSaves saves={saves} look="panel" /> : null}
       {!embedded && ranged.length ? (
         <WeaponSummary title={everyWeapon ? 'Ranged weapon options' : 'Ranged weapons'} weapons={ranged} rules={sheet.keywordRules} />
       ) : null}
@@ -113,20 +123,17 @@ export function DatasheetPanel({
         <WeaponSummary title={everyWeapon ? 'Melee weapon options' : 'Melee weapons'} weapons={melee} rules={sheet.keywordRules} />
       ) : null}
       <AbilitySummary
-        abilities={referenceAbilities(sheet.abilities, sheet.attachments)}
+        // The save shown with the profile, here or in the loadout around it, stands for the ability writing it out.
+        abilities={referenceAbilities(sheet.abilities, sheet.attachments).filter(
+          (ability) => !saves.length || !isWrittenInvulnerableSave(ability.name),
+        )}
         rules={sheet.keywordRules}
         reminders={abilityReminders}
         detachmentRules={detachmentRules}
+        detachmentRuleOwners={detachmentRuleOwners}
       />
       <ProfileRules profiles={sheet.profiles} rules={sheet.keywordRules} compact />
-      {transport ? (
-        <section>
-          <h2 className="rubric">Transport</h2>
-          <div className="mt-2 part px-2 py-1.5">
-            <RuleText text={transport} rules={sheet.keywordRules} />
-          </div>
-        </section>
-      ) : null}
+      <TransportRule text={transport} rules={sheet.keywordRules} catalogueId={catalogueId} entryId={sheet.id} />
       {sheet.referenceRoute ? (
         <div className="border-t border-edge pt-3">
           <UnitKeywords className="min-w-0" sheet={sheet} />
@@ -135,11 +142,13 @@ export function DatasheetPanel({
       <RelationshipSummary sheet={sheet} onSelect={onRelationshipSelect} />
     </div>
   )
+  const unitKey = datasheetUnit(catalogueId, sheet.id)
+  const unitContent = <DatasheetUnit.Provider value={unitKey}>{content}</DatasheetUnit.Provider>
   return embedded ? (
-    <div className="border-t border-edge pt-4">{content}</div>
+    <div className="border-t border-edge pt-4">{unitContent}</div>
   ) : (
     <ScrollArea className="h-full min-w-0 max-w-full overflow-hidden [&_[data-slot=scroll-area-viewport]]:touch-pan-y [&_[data-slot=scroll-area-viewport]]:!overflow-x-hidden [&_[data-slot=scroll-area-viewport]]:overscroll-x-none [&_[data-slot=scroll-area-viewport]]:p-3">
-      {content}
+      {unitContent}
     </ScrollArea>
   )
 }
@@ -212,16 +221,18 @@ function DatasheetLoading() {
   )
 }
 
-function AbilitySummary({
+export function AbilitySummary({
   abilities,
   rules,
   reminders,
   detachmentRules,
+  detachmentRuleOwners,
 }: {
   abilities: Datasheet['abilities']
   rules: Datasheet['keywordRules']
   reminders?: ReminderControls
   detachmentRules?: readonly ReminderSubject[]
+  detachmentRuleOwners?: Readonly<Record<string, string>>
 }) {
   const sections = Object.entries(abilitySections).map(([kind, title]) => {
     const found = abilities.filter((ability) => ability.kind === kind)
@@ -264,16 +275,24 @@ function AbilitySummary({
           {title} <span className="readout text-faint">{found.length}</span>
         </h2>
         <div className="mt-2 space-y-1.5">
-          {found.map((ability) => (
-            <article key={ability.id} className="relative part px-2 py-1.5">
-              <div className="flex items-start justify-between gap-2">
-                <h3 className="text-xs">{ability.source ?? ability.name}</h3>
-                {reminders ? <ReminderButton subject={ability} controls={reminders} /> : null}
-              </div>
-              {ability.source ? <p className="eyebrow mt-1">{ability.name}</p> : null}
-              {ability.description ? <RuleText text={ability.description} rules={rules} /> : null}
-            </article>
-          ))}
+          {found.map((ability) => {
+            const text = ability.description ? (
+              <RuleText text={ability.description} rules={rules} name={ability.name} abilityId={ability.id} />
+            ) : null
+            // A rule the list's detachment gives the unit by name, as Possessed Slaughterband's Brazen Fury on Eightbound, is that detachment's.
+            const granted = detachmentRules?.find((rule) => rule.name === ability.name)
+            const owner = granted?.id && detachmentRuleOwners?.[granted.id.split('/')[0]!]
+            return (
+              <article key={ability.id} className="relative part px-2 py-1.5">
+                <div className="flex items-start justify-between gap-2">
+                  <h3 className="text-xs">{ability.source ?? ability.name}</h3>
+                  {reminders ? <ReminderButton subject={ability} controls={reminders} /> : null}
+                </div>
+                {ability.source ? <p className="eyebrow mt-1">{ability.name}</p> : null}
+                {owner && text ? <DatasheetUnit.Provider value={owner}>{text}</DatasheetUnit.Provider> : text}
+              </article>
+            )
+          })}
         </div>
       </section>
     )
@@ -288,13 +307,51 @@ function AbilitySummary({
         Detachment rules <span className="readout text-faint">{detachmentRules.length}</span>
       </h2>
       <div className="mt-2 flex flex-wrap gap-1">
-        {detachmentRules.map((rule) => (
-          <span key={rule.id} className="inline-flex items-center gap-0.5">
-            <Keyword name={rule.name} rules={described} className={KEYWORD_TAG_CLASS} />
-            {reminders ? <ReminderButton subject={rule} controls={reminders} /> : null}
-          </span>
-        ))}
+        {detachmentRules.map((rule) => {
+          const owner = rule.id && detachmentRuleOwners?.[rule.id.split('/')[0]!]
+          const chip = <Keyword name={rule.name} rules={described} className={KEYWORD_TAG_CLASS} />
+          return (
+            <span key={rule.id} className="inline-flex items-center gap-0.5">
+              {owner ? <DatasheetUnit.Provider value={owner}>{chip}</DatasheetUnit.Provider> : chip}
+              {reminders ? <ReminderButton subject={rule} controls={reminders} /> : null}
+            </span>
+          )
+        })}
       </div>
     </section>,
+  )
+}
+
+/** A transport's VS Data facts and its rule's summary, shown only where there is either, so neither leaves an empty section. */
+function TransportRule({
+  text,
+  rules,
+  catalogueId,
+  entryId,
+}: {
+  text: string | null
+  rules: KeywordRule[]
+  catalogueId: string
+  entryId: string
+}) {
+  const { summary } = useRuleSummary(text ?? '')
+  const unit = useVsDataUnit(catalogueId, entryId)
+  const facts = unit ? unitTransport(unit) : []
+  // A capacity VS Data cannot type, as the Manta's, shows as its summary of the unit's Transport ability instead.
+  const ofUnit = useUnitAbilitySummary('Transport', Boolean(text) && !summary && !facts.length)
+  if (!(text && summary) && !ofUnit && !facts.length) return null
+  return (
+    <section>
+      <h2 className="rubric">Transport</h2>
+      <div className="mt-2 space-y-1 part px-2 py-1.5">
+        {facts.map((line) => (
+          <p key={textOf(line)} className="text-sm text-dim">
+            <Runs runs={line} />
+          </p>
+        ))}
+        {text && summary ? <RuleText text={text} rules={rules} /> : null}
+        {ofUnit && !summary ? <RuleSummaryText summary={ofUnit} /> : null}
+      </div>
+    </section>
   )
 }

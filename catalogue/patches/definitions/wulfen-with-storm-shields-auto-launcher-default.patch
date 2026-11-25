@@ -1,0 +1,12 @@
+diff --git a/definitions/Imperium - Space Wolves.json b/definitions/Imperium - Space Wolves.json
+--- a/definitions/Imperium - Space Wolves.json
++++ b/definitions/Imperium - Space Wolves.json
+@@ -20217,7 +20217,7 @@
+           {
+             "name": "Wulfen",
+             "id": "3b6e-ae9c-91e1-653d",
+-            "defaultSelectionEntryId": "5741-95bf-9b61-ef4d",
++            "defaultSelectionEntryId": "3b44-c385-003c-13cf",
+             "hidden": false,
+             "sortIndex": 2,
+             "constraints": [

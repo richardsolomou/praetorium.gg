@@ -390,6 +390,40 @@ const withTroopers = (count: number): Selection => ({
   selections: [{ id: 'troopers', selections: [{ id: 'trooper', count }] }],
 })
 
+describe('a unit-wide limit on wargear its models each hold', () => {
+  const catalogue: Partial<Catalogue> = {
+    sharedSelectionEntries: [
+      {
+        id: 'squad',
+        name: 'Squad',
+        type: 'unit',
+        selectionEntries: [
+          {
+            id: 'gunner',
+            name: 'Gunner',
+            type: 'model',
+            selectionEntries: [
+              {
+                id: 'flamer',
+                name: 'Flamer',
+                type: 'upgrade',
+                constraints: [
+                  { id: 'flamer-max', type: 'max', value: 1, field: 'selections', scope: 'unit', includeChildSelections: true },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  }
+
+  it('counts the weapon once for each identical model holding it', () => {
+    const result = evaluateOne({ id: 'squad', selections: [{ id: 'gunner', count: 2, selections: [{ id: 'flamer' }] }] }, catalogue)
+    expect(result.errors.map((error) => error.message)).toEqual(['allows at most 1, has 2'])
+  })
+})
+
 describe('a squad priced by its size', () => {
   it('keeps the base price below the threshold', () => {
     expect(evaluateOne(withTroopers(4), squad()).points).toBe(80)

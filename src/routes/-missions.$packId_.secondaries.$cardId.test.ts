@@ -13,7 +13,7 @@ const load = (cardId: string) => {
   const queryClient = new QueryClient()
   queryClient.setQueryData(gameReferencesQuery().queryKey, {
     packs: [{ id: PACK, name: 'Chapter Approved 2026-2027' }],
-    secondaries: [{ key: ASSASSINATION, name: 'Assassination', slug: 'assassination' }],
+    secondaries: [{ key: 'chapter-approved-2026-2027.assassination', name: 'Assassination', slug: 'assassination' }],
   } as never)
   const loader = Route.options.loader
   if (typeof loader !== 'function') throw new Error('Missing secondary mission loader')
@@ -30,7 +30,7 @@ it('loads a secondary mission by its slug', async () => {
   await expect(load('assassination')).resolves.toEqual({ pack: 'Chapter Approved 2026-2027', card: 'Assassination' })
 })
 
-it('redirects a source-key URL to the slug', async () => {
+it('redirects a Game Datacards key URL to the slug', async () => {
   const error = await rejection(load(ASSASSINATION))
   expect(isRedirect(error) && error.options).toMatchObject({ params: { packId: PACK, cardId: 'assassination' }, hash: 'scoring' })
 })

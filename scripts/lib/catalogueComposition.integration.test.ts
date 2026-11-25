@@ -155,6 +155,7 @@ async function retainedSnapshot() {
     ['battlemaster', 'layouts/test.json', '{}'],
     ['icons', 'test.svg', '<svg/>'],
     ['translations', 'es.json', '{}'],
+    ['summaries', 'mfm-1-6.json', '{}'],
   ] as const) {
     revisions[name] = catalogueSources[name]!.revision
     fs.mkdirSync(path.dirname(path.join(directory, name, file)), { recursive: true })
@@ -461,6 +462,7 @@ it('records authored source pins inside the immutable snapshot', async () => {
     ['battlemaster', 'layouts/test.json', '{}'],
     ['icons', 'test.svg', '<svg/>'],
     ['translations', 'es.json', '{}'],
+    ['summaries', 'mfm-1-6.json', '{}'],
   ] as const) {
     revisions[name] = catalogueSources[name]!.revision
     fs.mkdirSync(path.dirname(path.join(directory, name, file)), { recursive: true })

@@ -1,7 +1,9 @@
 import type { ComponentProps } from 'react'
 import type { Datasheet } from '../../core/datasheet'
 import { ruleReferenceMatches } from '../../core/ruleReference'
-import { RuleText } from './RuleText'
+import { RuleSummarySkeleton, RuleSummaryText } from './RuleSummaryText'
+import { useDatasheetAbilitySummary } from './UnitFromVsData'
+import { useAbilitySummary } from '../ruleSummaries'
 import { splitKeywords } from '../datasheet'
 import { HoverTooltip } from './HoverTooltip'
 
@@ -32,10 +34,12 @@ export function Keyword({
     .filter((candidate) => ruleReferenceMatches(reference, candidate.name))
     .toSorted((left, right) => right.name.length - left.name.length)[0]
   if (!rule && !note && !condition) return <span className={className}>{name}</span>
+  // An ability something else in the list grants prints no text of its own, so its tooltip finds the summary by name.
+  const explained = rule?.description ? rule : note ? { name: reference, description: '' } : null
   const body = (
     <>
       {condition ? <p className="text-xs">* Only {condition}.</p> : null}
-      {rule?.description ? <RuleText text={rule.description} className={condition ? 'mt-1.5 text-xs' : 'mt-0 text-xs'} cite /> : null}
+      {explained ? <KeywordRuleSummary rule={explained} className={condition ? 'mt-1.5 text-xs' : 'mt-0 text-xs'} /> : null}
     </>
   )
 
@@ -43,12 +47,25 @@ export function Keyword({
     <HoverTooltip
       className={`${className} ${note && highlightNote ? 'font-semibold text-info' : 'text-parchment'} hover:text-bone`}
       title={rule?.name ?? name}
-      body={condition || rule?.description ? body : undefined}
+      body={condition || explained ? body : undefined}
       note={note}
     >
       {name}
     </HoverTooltip>
   )
+}
+
+/**
+ * A keyword's rule: the ability of that name of the datasheet around it or its faction, as a faction ability chip names
+ * one, or the summary of the text it prints, by `useDatasheetAbilitySummary`; and where neither is one VS Data
+ * summarizes, such as a catalogue's own printing of a weapon ability, the summary of the weapon or core ability it names.
+ */
+function KeywordRuleSummary({ rule, className }: { rule: KeywordRule; className: string }) {
+  const own = useDatasheetAbilitySummary(rule.description, rule.name)
+  const named = useAbilitySummary(own === null ? { name: rule.name } : null)
+  if (own === undefined || named === undefined) return <RuleSummarySkeleton className={className} />
+  const shown = own ?? named
+  return shown ? <RuleSummaryText summary={shown} className={className} abilities={false} /> : null
 }
 
 const nothingAdded: string[] = []

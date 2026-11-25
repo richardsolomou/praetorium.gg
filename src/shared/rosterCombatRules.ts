@@ -1,11 +1,13 @@
 import { attachmentErrors } from '../core/attach'
 import { uniqueBy } from '../core/collections'
 import { attachedUnit, attachmentHost } from '../core/attachedUnits'
-import { hasTextTokens } from '../core/sourceText'
+import { hasTextTokens, withoutText } from '../core/sourceText'
+import type { TextFactsByKey } from '../core/textFacts'
 import { titleCaseAbility } from './catalogueAbilityGrants'
-import { abilityGrantsIn, combatFactsIn } from './textFacts'
-import { recordedCombatText } from '../core/combatReading'
+import { abilityGrantsIn, allowancesIn, combatFactsIn, offeredOptionsOf } from './textFacts'
+import { combatFactsOf, recordedCombatText } from '../core/combatReading'
 import { type CombatRule, type CombatRuleJudge, combatRuleProjected, judgedCombatRule } from '../core/combatRules'
+import { allowancesWhile, type BattleChoiceAllowance, namesAllowedOptions } from '../core/battleChoices'
 import { datasheetCharacteristicKind, datasheetProfileKind } from '../core/datasheetStructure'
 import { routeSlug } from '../core/slug'
 import { datasheetIn, datasheetAbilitiesIn } from './catalogue'
@@ -41,16 +43,67 @@ const weaponAbilityRulesByCatalogue = new WeakMap<LoadedCatalogue, ReturnType<ty
  * One unit's combatant for its datasheet: a rule's option can give a weapon ability its weapons lack, so every weapon
  * ability's rule comes with it.
  */
-export function datasheetCombatant(
-  ...[loaded, ...rest]: Parameters<typeof rosterCombatant>
-): (NonNullable<ReturnType<typeof rosterCombatant>> & { weaponAbilityRules?: ReturnType<typeof rulesNamed> }) | null {
+export function datasheetCombatant(...[loaded, ...rest]: Parameters<typeof rosterCombatant>):
+  | (NonNullable<ReturnType<typeof rosterCombatant>> & {
+      weaponAbilityRules?: ReturnType<typeof rulesNamed>
+      battleChoiceAllowances: BattleChoiceAllowance[]
+    })
+  | null {
   const combatant = rosterCombatant(loaded, ...rest)
   return (
     combatant && {
       ...combatant,
       weaponAbilityRules: remember(weaponAbilityRulesByCatalogue, loaded, () => rulesNamed(loaded, WEAPON_ABILITY_KINDS)),
+      battleChoiceAllowances: battleChoiceAllowancesFor(combatant, loaded.index.textFacts),
     }
   )
+}
+
+/**
+ * A combatant whose rules a device can play without their words: each rule still left as a token is judged from the
+ * combat facts its words give, which the server reads here, as a device judges a rule whose facts the cards recorded.
+ */
+export function withRecordedRules<T extends { rules: CombatRule[]; companions: { rules: CombatRule[] }[] }>(
+  combatant: T,
+  words: (text: string) => string | null,
+): T {
+  const recorded = (rules: readonly CombatRule[]) =>
+    rules.flatMap((rule) => {
+      const said = rule.judge && hasTextTokens(rule.description) ? words(rule.description) : null
+      if (said === null) return [rule]
+      const { judge, ...placed } = rule
+      return judgedCombatRule(placed, judge!, recordedCombatText(combatFactsOf(said, rule.scope === 'stratagem'))) ?? []
+    })
+  return {
+    ...combatant,
+    rules: recorded(combatant.rules),
+    companions: combatant.companions.map((member) => ({ ...member, rules: recorded(member.rules) })),
+  }
+}
+
+/**
+ * What a combatant's abilities and enhancements, and those of the units leading it, allow the battle choices of its rules,
+ * as a second Order, each matched to the rules it widens by name: read from the facts recorded for their tokens, so a
+ * device holding no words answers as the server does.
+ */
+function battleChoiceAllowancesFor(
+  combatant: { selected: Datasheet; rules: CombatRule[]; companions: { selected: Datasheet }[] },
+  facts: TextFactsByKey | undefined,
+): BattleChoiceAllowance[] {
+  const stated = [combatant.selected, ...combatant.companions.map((member) => member.selected)].flatMap((sheet) =>
+    [...sheet.abilities, ...(sheet.enhancements ?? [])].flatMap(({ description }) => (description ? allowancesIn(description, facts) : [])),
+  )
+  const offered = combatant.rules.map((rule) => ({
+    name: rule.name,
+    words: withoutText(rule.description),
+    options: offeredOptionsOf(rule.description, facts).map((options) => options.toLowerCase()),
+  }))
+  return allowancesWhile(stated, combatant.companions.length > 0).map((allowance) => ({
+    ...allowance,
+    rules: offered
+      .filter((rule) => rule.options.includes(allowance.options.toLowerCase()) || namesAllowedOptions(allowance, rule.words))
+      .map((rule) => rule.name),
+  }))
 }
 
 export function rosterCombatant(

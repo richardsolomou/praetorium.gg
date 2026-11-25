@@ -29,6 +29,8 @@ export const catalogueCompositionSchema = z
         z.object({
           edition: catalogueEditionSchema,
           base: z.literal(true).optional(),
+          /** The rules version whose VS Data release this one reads, as VS Data folded this one into it. */
+          summaries: z.string().min(1).max(80).optional(),
           snapshot: z
             .object({
               format: z.literal('praetorium.catalogue-pointer.v1'),
@@ -55,6 +57,9 @@ export const catalogueCompositionSchema = z
     }
     const ids = composition.editions.map(({ edition }) => edition.id)
     if (new Set(ids).size !== ids.length) context.addIssue({ code: 'custom', message: 'duplicate edition IDs' })
+    for (const { edition, summaries } of composition.editions)
+      if (summaries !== undefined && (summaries === edition.id || !ids.includes(summaries)))
+        context.addIssue({ code: 'custom', message: `${edition.id} reads the summaries of no other rules version` })
     const routes = composition.editions.flatMap(({ edition }) => [...new Set([edition.id, edition.slug ?? edition.id])])
     if (new Set(routes).size !== routes.length) context.addIssue({ code: 'custom', message: 'conflicting edition rules slugs' })
     const defaults = composition.editions.filter(({ edition }) => edition.default).flatMap(({ edition }) => edition.catalogueIds)

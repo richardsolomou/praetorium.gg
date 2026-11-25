@@ -20,6 +20,11 @@ export const PUBLIC_REFERENCE_QUERIES = new Set([
   'rule-index',
   'rule-section',
   'text-sources',
+  'rule-summary-records',
+  'rule-summary-credits',
+  'rule-ability-summaries',
+  'rule-core-summary',
+  'rule-units',
   'import-translations',
 ])
 export const APP_SNAPSHOT_QUERIES = new Set([

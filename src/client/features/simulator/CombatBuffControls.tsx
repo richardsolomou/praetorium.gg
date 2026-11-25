@@ -14,8 +14,6 @@ import { Choice, Toggle } from './CombatControls'
 import type { Combatant } from './useCombatant'
 import { Problem } from '../../components/Problem'
 import { formatList } from '../../text'
-import { SourceTextPrompt } from '../../components/SourceTextPrompt'
-import { missingRuleText } from './readableRules'
 
 export function CombatBuffControls({ side, combatant, opponent }: { side: string; combatant: Combatant; opponent: Combatant }) {
   const role = side === 'Attacker' ? 'attacker' : 'defender'
@@ -65,8 +63,6 @@ export function CombatBuffControls({ side, combatant, opponent }: { side: string
     ['Stratagems', rules.filter(({ rule, choices }) => choices.length && rule.scope === 'stratagem')],
     ['Stats applied', rules.filter(({ choices }) => !choices.length)],
   ] as const
-  // Rules compile from their words, so unloaded ones are absent from the list above rather than off.
-  const missingText = missingRuleText(combatant.sheets.data)
   return (
     <section aria-label={`${side} buffs`} className="min-w-0">
       <section aria-label={`${side} rules`} className="space-y-3">
@@ -162,8 +158,6 @@ export function CombatBuffControls({ side, combatant, opponent }: { side: string
               Retry
             </Button>
           </Problem>
-        ) : missingText ? (
-          <SourceTextPrompt missing={missingText} />
         ) : !rules.length && !enhancements.length ? (
           <p className="text-xs text-faint">{combatant.unit ? 'No combat buffs available.' : 'Choose a unit to see its buffs.'}</p>
         ) : null}

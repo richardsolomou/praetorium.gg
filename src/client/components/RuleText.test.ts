@@ -7,27 +7,16 @@ vi.mock('@tanstack/react-router', () => ({
   Link: ({ children }: PropsWithChildren) => createElement('a', null, children),
 }))
 
-// A reader who has chosen to load rules text unless a test says otherwise.
-vi.mock('../rulesText', async (original) => {
-  const actual = await original<typeof import('../rulesText')>()
-  return { ...actual, useTextSourceChoice: vi.fn(() => actual.textSourceChoiceFrom('bsdata,game-datacards')) }
-})
-
 it('renders nested Markdown lists indented with non-breaking spaces', () => {
-  const markup = renderToStaticMarkup(createElement(RuleText, { text: '- First step\n \u00a0  - Nested step' }))
+  const markup = renderToStaticMarkup(createElement(RuleText, { text: '- First step\n \u00a0  - Nested step', authored: true }))
   expect([...markup.matchAll(/<ul\b/g)]).toHaveLength(2)
 })
 
-it('shows rules text the reader has not chosen to load as the choice to load it', async () => {
-  const { useTextSourceChoice, textSourceChoiceFrom } = await import('../rulesText')
-  vi.mocked(useTextSourceChoice).mockReturnValueOnce(textSourceChoiceFrom('game-datacards'))
-  const markup = renderToStaticMarkup(createElement(RuleText, { text: 'Re-roll a Hit roll of 1.' }))
-  expect(markup).not.toContain('Re-roll')
+it('never shows a source’s words the app did not write', () => {
+  expect(renderToStaticMarkup(createElement(RuleText, { text: 'Re-roll a Hit roll of 1.' }))).toBe('')
 })
 
-it('shows words the app writes to every reader', async () => {
-  const { useTextSourceChoice, textSourceChoiceFrom } = await import('../rulesText')
-  vi.mocked(useTextSourceChoice).mockReturnValueOnce(textSourceChoiceFrom(''))
+it('shows words the app writes to every reader', () => {
   expect(renderToStaticMarkup(createElement(RuleText, { text: 'Score 2 VP.', authored: true }))).toContain('Score 2 VP.')
 })
 

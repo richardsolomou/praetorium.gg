@@ -3,8 +3,7 @@ import path from 'node:path'
 import { z } from 'zod'
 import { COMBAT_PATROL_MATCHUP_ID, type Deployment, type TerrainLayout } from '../contracts/terrain'
 import { compareText } from '../core/text'
-import { english, records } from '../shared/datacards'
-import type { MissionPack } from './missionPacks'
+import type { VsDataMissionPack } from '../shared/vsData'
 import { battlemasterGeometry } from './rulesTerrain'
 
 const BOARD = { width: 44, height: 30 }
@@ -17,28 +16,28 @@ const sourceSchema = z.object({
     .min(1)
     .max(6),
 })
+const COMBAT_PATROL_PACK = 'combat-patrol'
 const catalogSchema = z.object({ layouts: z.array(z.object({ id: z.string(), name: z.string().optional() })) })
 
 /**
  * The Combat Patrol battlefields: the pack's deployments and mission layouts, drawn with Battlemaster's
  * terrain and the zones and territories the pack's printed maps measure, in Battlemaster's landscape frame.
  */
-export function combatPatrolTerrain(packs: readonly MissionPack[], battlemasterDirectory: string) {
+export function combatPatrolTerrain(packs: readonly VsDataMissionPack[], battlemasterDirectory: string) {
   const directory = path.join(battlemasterDirectory, 'combat-patrol')
-  const pack = packs.find((candidate) => candidate.isCombatPatrol === true)
+  const pack = packs.find((candidate) => candidate.id === COMBAT_PATROL_PACK)
   const sourceFile = path.join(directory, 'deployments.json')
   const catalogFile = path.join(directory, 'catalog.json')
   if (!pack || !fs.existsSync(sourceFile) || !fs.existsSync(catalogFile)) return { deployments: [], terrainLayouts: [] }
   const source = sourceSchema.parse(JSON.parse(fs.readFileSync(sourceFile, 'utf8')))
   const catalog = catalogSchema.parse(JSON.parse(fs.readFileSync(catalogFile, 'utf8')))
 
-  const deployments = records(pack, 'deployments').flatMap((raw): Deployment[] => {
-    const name = english(raw.name)
+  const deployments = pack.deployments.flatMap(({ id, name }): Deployment[] => {
     const drawn = source.deployments.find((entry) => entry.name === name)
-    if (!name || !drawn || typeof raw.id !== 'string') return []
+    if (!drawn) return []
     return [
       {
-        id: raw.id,
+        id,
         name,
         description: null,
         zones: [
@@ -50,18 +49,16 @@ export function combatPatrolTerrain(packs: readonly MissionPack[], battlemasterD
       },
     ]
   })
-  const terrainLayouts = records(pack, 'layouts').flatMap((raw): TerrainLayout[] => {
-    const name = english(raw.name)
-    const letter = name && /^Mission Layout ([ABC])$/.exec(name)?.[1]
-    const permitted = Array.isArray(raw.deployments) && raw.deployments.length === 1 ? raw.deployments[0] : null
-    const deployment = deployments.find((entry) => entry.name === permitted)
+  const terrainLayouts = pack.layouts.flatMap(({ id, name, deployments: permitted }): TerrainLayout[] => {
+    const letter = /^Mission Layout ([ABC])$/.exec(name)?.[1]
+    const deployment = permitted.length === 1 ? deployments.find((entry) => entry.id === permitted[0]) : undefined
     const entries = catalog.layouts.filter((entry) => entry.name === `Layout ${letter}`)
-    if (!name || !letter || !deployment || typeof raw.id !== 'string' || entries.length !== 1) return []
+    if (!letter || !deployment || entries.length !== 1) return []
     const geometry = battlemasterGeometry(directory, entries[0]!.id)
     if (geometry && (geometry.board.width !== BOARD.width || geometry.board.height !== BOARD.height)) return []
     return [
       {
-        id: raw.id,
+        id,
         name,
         description: null,
         matchupId: COMBAT_PATROL_MATCHUP_ID,

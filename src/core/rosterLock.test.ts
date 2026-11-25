@@ -123,7 +123,7 @@ describe('the content of a stored row', () => {
           automaticName: true,
           disposition: null,
           detachmentIds: ['awakened-dynasty'],
-          picks: [{ entryId: 'overlord' }],
+          picks: [{ entryId: 'overlord', floor: true }],
         },
       ),
     ).toBeNull()

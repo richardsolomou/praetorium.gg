@@ -1,6 +1,7 @@
 import { bracketedRuleReferences } from '../core/ruleReference'
 import { attachmentClaim, substitutedUnits } from '../core/attach'
 import { combatFactsOf } from '../core/combatReading'
+import { offeredOptionsIn, statedAllowances } from '../core/battleChoices'
 import { hasTextTokens, textKey, textTokensIn, withoutText } from '../core/sourceText'
 import { movementToolsFrom, unitGenerationFrom } from './rosterGradeUtility'
 import { suggestReminderTimings, suggestReminderWhileDestroyed } from '../core/reminders'
@@ -20,11 +21,15 @@ export function textFactsOf(words: string): TextFacts | null {
   const weaponGrants = unconditionalWeaponAbilityGrants(words)
   const reserveSelectors = strategicReserveExemptionSelectors(words)
   const references = referencedRuleNames(words)
+  const allowances = statedAllowances(words)
+  const offered = offeredOptionsIn(words)
   const facts: TextFacts = {
     ...(weaponGrants.length ? { weaponGrants } : {}),
     ...(reserveSelectors.length ? { reserveSelectors } : {}),
     ...(grantsStrategicReserveExemption(words) ? { reserveExemption: true as const } : {}),
     ...(references.length ? { references } : {}),
+    ...(allowances.length ? { battleChoiceAllowances: allowances } : {}),
+    ...(offered.length ? { offeredOptions: offered } : {}),
   }
   return Object.keys(facts).length ? facts : null
 }
@@ -41,6 +46,7 @@ export function definitionFactsOf(words: string): TextFacts {
   const ownWeaponGrant = ownWeaponGrantIn(words)
   const ledWeaponGrant = ledWeaponGrantIn(words)
   const invulnerableSave = invulnerableSaveIn(words)
+  const bareValue = /^\s*(\d+\+)\s*$/.exec(words)?.[1]
   const timings = suggestReminderTimings(words)
   const whileDestroyed = suggestReminderWhileDestroyed(words)
   const unitGeneration = unitGenerationFrom(words)
@@ -55,6 +61,7 @@ export function definitionFactsOf(words: string): TextFacts {
     ...(ownWeaponGrant ? { ownWeaponGrant } : {}),
     ...(ledWeaponGrant ? { ledWeaponGrant } : {}),
     ...(invulnerableSave ? { invulnerableSave } : {}),
+    ...(bareValue ? { bareValue } : {}),
     ...(/following weapon:\s*$/i.test(words) ? { linkedWeapon: true as const } : {}),
     ...(timings.length || whileDestroyed ? { reminder: { timings, ...(whileDestroyed ? { whileDestroyed: true as const } : {}) } } : {}),
     ...(unitGeneration.length ? { unitGeneration } : {}),
@@ -74,8 +81,10 @@ export function definitionFactsOf(words: string): TextFacts {
 export function gradeReadingsIn(text: string, facts: TextFactsByKey | undefined, words: (text: string) => string | null) {
   const [token, ...rest] = textTokensIn(text)
   const found = token && !rest.length && withoutText(text) === '' ? facts?.get(textKey(token)) : undefined
-  // Only the catalogue records combat for its texts, the cards never do.
-  if (found && 'combat' in found) return { unitGeneration: found.unitGeneration ?? [], movementTools: found.movementTools ?? [] }
+  // Only the catalogue records these, and a card twin always carries the catalogue's reminder; a card's own facts, which
+  // record its combat alone, leave its words to be read.
+  if (found && (found.unitGeneration || found.movementTools || found.reminder))
+    return { unitGeneration: found.unitGeneration ?? [], movementTools: found.movementTools ?? [] }
   const read = hasTextTokens(text) ? (words(text) ?? '') : text
   return { unitGeneration: unitGenerationFrom(read), movementTools: movementToolsFrom(read) }
 }
@@ -100,6 +109,14 @@ export const ledWeaponGrantOf = (text: string, facts: TextFactsByKey | undefined
 
 export const invulnerableSaveOf = (text: string, facts: TextFactsByKey | undefined) =>
   readText(text, facts, invulnerableSaveIn, (found) => found.invulnerableSave ?? null)
+
+export const bareValueOf = (text: string, facts: TextFactsByKey | undefined) =>
+  readText(
+    text,
+    facts,
+    (words) => /^\s*(\d+\+)\s*$/.exec(words)?.[1] ?? null,
+    (found) => found.bareValue ?? null,
+  )
 
 /** A catalogue text's combat facts, null where its words take no part; undefined for words, and tokens the catalogue records none for. */
 export const combatFactsIn = (text: string, facts: TextFactsByKey | undefined) =>
@@ -200,4 +217,16 @@ function referencedRuleNames(text: string): string[] {
     }),
     ...bracketedRuleReferences(text).filter((name): name is string => Boolean(name)),
   ]
+}
+
+/** What a text allows a unit's battle choices: from its own words, and recorded for each token it holds. */
+export function allowancesIn(text: string, facts?: TextFactsByKey) {
+  const { words, recorded } = statedIn(text, facts)
+  return [...recorded.flatMap((fact) => fact.battleChoiceAllowances ?? []), ...statedAllowances(words)]
+}
+
+/** The options a rule's text offers by their plural: from its own words, and recorded for each token it holds. */
+export function offeredOptionsOf(text: string, facts?: TextFactsByKey) {
+  const { words, recorded } = statedIn(text, facts)
+  return [...recorded.flatMap((fact) => fact.offeredOptions ?? []), ...offeredOptionsIn(words)]
 }

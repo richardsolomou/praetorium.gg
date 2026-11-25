@@ -16,7 +16,7 @@ import {
 } from '../core/battle'
 import type { BattleView } from '../core/battleView'
 import { scoringDueFromTheirTurn } from '../core/battleSecondaries'
-import { commandSchema, idSchema, rosterLimitSchema } from '../core/commands'
+import { commandSchema, idSchema, rosterLimitSchema, ruleIdSchema } from '../core/commands'
 import { sideStratagems } from '../core/sideStratagems'
 import { KOTC_BATTLEFIELD_MATCHUP_IDS } from '../contracts/terrain'
 import { terrainMatchupIds } from '../contracts/terrainReference'
@@ -66,7 +66,7 @@ const configureBattle = z
         'Battle size in points: 1000, 2000 or 3000, or 600 for King of the Colosseum; null takes it from the rosters, where each side plays to its lists added together and the bigger side sets the size.',
       ),
     missionPackId: idSchema.nullable().optional().describe('A mission pack id from list_reference; null for none.'),
-    twistId: idSchema.nullable().optional().describe('A twist id the chosen pack prints; null for none.'),
+    twistId: ruleIdSchema.nullable().optional().describe('A twist id the chosen pack prints; null for none.'),
     manual: z.boolean().optional().describe('true tracks the battle by hand, without mission cards, stratagems or CP automation.'),
   })
   .describe('Format step: changes only the battle settings given and keeps the rest.')
@@ -76,7 +76,7 @@ const setSecondaries = z
     kind: z.literal('set-secondaries'),
     mode: z.enum(['tactical', 'fixed']).describe('tactical draws cards during the battle; fixed keeps two chosen cards all game.'),
     fixed: z
-      .array(z.string().min(1).max(64))
+      .array(ruleIdSchema)
       .max(FIXED_SECONDARIES)
       .optional()
       .describe('With fixed, the two secondary card keys, from next.secondaryOptions where fixed is true.'),
@@ -90,7 +90,7 @@ const drawSecondaries = z
   .object({
     kind: z.literal('draw-secondaries'),
     keys: z
-      .array(z.string().min(1).max(64))
+      .array(ruleIdSchema)
       .min(1)
       .max(2)
       .optional()
@@ -110,8 +110,8 @@ const attachSavedRoster = z
 const useNewOrders = z
   .object({
     kind: z.literal('use-new-orders'),
-    stratagemKey: idSchema.describe('The New Orders stratagem key from next.stratagems.'),
-    secondaryKey: idSchema.describe('The active tactical secondary to replace, by key from get_my_battle.'),
+    stratagemKey: ruleIdSchema.describe('The New Orders stratagem key from next.stratagems.'),
+    secondaryKey: ruleIdSchema.describe('The active tactical secondary to replace, by key from get_my_battle.'),
     cp: z.number().int().min(0).max(STRATAGEM_CP_MAX).optional(),
     playerId: idSchema.optional().describe(PLAYER),
   })

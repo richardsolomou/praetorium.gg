@@ -2,20 +2,18 @@ import { useQuery } from '@tanstack/react-query'
 import { Link, useLocation } from '@tanstack/react-router'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useEffect, useSyncExternalStore } from 'react'
-import type { RuleEntry } from '../../../../contracts/rules'
-import { type RuleLinks, ruleLinks } from '../../../ruleLinks'
+import type { RuleEntry, RuleSummary } from '../../../../contracts/rules'
 import { ruleIndexQuery, ruleSectionQuery } from '../../../queries'
-import { RuleMarkup } from '../../../components/RuleMarkup'
-import { SourceTextPrompt } from '../../../components/SourceTextPrompt'
-import type { MissingText } from '../../../sourceText'
+import { RuleSummarySkeleton, RuleSummaryText } from '../../../components/RuleSummaryText'
+import { useRuleEntrySummaries } from '../../../ruleSummaries'
 import { PageContent, PageHeader } from '../../../components/Page'
-import { useRuleText, withText } from '../../../rulesText'
-import { RulesTextNotice } from './RulesTextNotice'
 import { revealHashTarget } from '../../../hashTarget'
 import { BackLink } from '../BackLink'
+import { clarificationEntry } from '../../../../shared/vsData'
 
 /**
- * One section of one rules document, which is as much as anybody reads at a time.
+ * One section of one rules document, which is as much as anybody reads at a time: each rule's name and number,
+ * and its VS Data summary, never the document's own words.
  *
  * A rule is addressed by the number the source prints against it, so a link from
  * another rule, from the contents, or from search lands on the rule itself.
@@ -23,18 +21,14 @@ import { BackLink } from '../BackLink'
 export function RuleSectionPage({ documentId, sectionId }: { documentId: string; sectionId: string }) {
   const { data: index } = useQuery(ruleIndexQuery())
   const { data } = useQuery(ruleSectionQuery(documentId, sectionId))
-  const text = useRuleText(data?.document.text ?? null)
+  const { summaryOf, settled } = useRuleEntrySummaries(data?.document.text?.url ?? null)
   const hash = useLocation({ select: (location) => location.hash })
-  const loaded = text.document?.sections.find((candidate) => candidate.slug === sectionId)
-  // The outline names and numbers every rule; the loaded file gives each rule its text, matched by the rule's id.
-  const shown = data?.section && loaded ? withText(data.section, loaded) : data?.section
-  // A link to a clarification lands on a collapsed one, so the address opens it. Done
-  // to the element rather than through a prop: the server cannot know the address, and
-  // a reader's own toggle must survive every later render. Loaded text replaces the
-  // outline's elements, so it runs again once that text lands.
+  const shown = data?.section
+  // The server cannot know the address, so the rule or clarification it names is brought into view in the browser,
+  // and again once the summaries above it have arrived and moved it down.
   useEffect(() => {
-    if (shown) revealHashTarget(hash)
-  }, [hash, shown])
+    if (shown && settled) revealHashTarget(hash)
+  }, [hash, shown, settled])
   // The server never sees the address's hash, so the rule it names is gated once the page is in the browser;
   // `hash` above re-renders this on in-app navigation, which fires no event.
   const target = useSyncExternalStore(subscribeToHash, currentHash, noHash)
@@ -42,9 +36,6 @@ export function RuleSectionPage({ documentId, sectionId }: { documentId: string;
 
   const sections = index.documents.find((candidate) => candidate.slug === documentId)?.sections ?? []
   const at = sections.findIndex((candidate) => candidate.slug === sectionId)
-  const links = ruleLinks(index, documentId)
-  const missing: MissingText =
-    !data.document.text || text.query.isError ? 'unavailable' : !text.chosen ? 'unchosen' : text.document ? null : 'loading'
 
   return (
     <main className="w-full">
@@ -53,10 +44,9 @@ export function RuleSectionPage({ documentId, sectionId }: { documentId: string;
         <BackLink to="/rules/$documentId" params={{ documentId }}>
           {data.document.title}
         </BackLink>
-        <RulesTextNotice text={data.document.text} state={text} />
         <div className="runner gap-2.5 [--gate-y:1.5rem]">
           {shown.entries.map((entry) => (
-            <Rule key={entry.anchor} entry={entry} links={links} missing={missing} current={target === entry.anchor} />
+            <Rule key={entry.anchor} entry={entry} summaryOf={summaryOf} loading={!settled} current={target === entry.anchor} />
           ))}
         </div>
         <nav className="flex items-stretch justify-between gap-2">
@@ -87,7 +77,18 @@ const subscribeToHash = (onChange: () => void) => {
 const currentHash = () => decodeURIComponent(window.location.hash.slice(1))
 const noHash = () => ''
 
-function Rule({ entry, links, missing, current }: { entry: RuleEntry; links: RuleLinks; missing: MissingText; current: boolean }) {
+function Rule({
+  entry,
+  summaryOf,
+  loading,
+  current,
+}: {
+  entry: RuleEntry
+  summaryOf: (entry: string) => RuleSummary | undefined
+  loading: boolean
+  current: boolean
+}) {
+  const summary = summaryOf(entry.id)
   return (
     <article
       id={entry.anchor}
@@ -99,20 +100,7 @@ function Rule({ entry, links, missing, current }: { entry: RuleEntry; links: Rul
         <h2 className="text-lg sm:text-xl">{entry.title}</h2>
         {entry.cost === null ? null : <span className="chip readout">{entry.cost} CP</span>}
       </div>
-      {missing ? <SourceTextPrompt missing={missing} source="game-datacards" className="mt-2" /> : null}
-      {entry.lore ? <p className="mt-2 font-rules text-sm text-faint italic">{entry.lore}</p> : null}
-      {entry.facts.length ? (
-        <dl className="mt-3 space-y-2 border-t border-edge pt-3">
-          {entry.facts.map((fact) => (
-            <div key={fact.label}>
-              <dt className="eyebrow">{fact.label}</dt>
-              <dd>
-                <RuleMarkup markup={fact.markup} links={links} source="game-datacards" className="mt-1" />
-              </dd>
-            </div>
-          ))}
-        </dl>
-      ) : null}
+      {summary ? <RuleSummaryText summary={summary} className="mt-3" /> : loading ? <RuleSummarySkeleton className="mt-3" /> : null}
       {entry.blocks.map((block, at) => {
         const key = `${block.kind}-${at}`
         if (block.kind === 'heading') {
@@ -122,29 +110,16 @@ function Rule({ entry, links, missing, current }: { entry: RuleEntry; links: Rul
             </h3>
           )
         }
-        if (block.kind === 'prose')
-          return <RuleMarkup key={key} markup={block.markup} links={links} source="game-datacards" className="mt-3" />
-        if (block.markup === null) {
-          return (
-            <div
-              key={key}
-              id={block.anchor ?? undefined}
-              className="mt-3 flex scroll-mt-header items-center gap-2 rounded-lg border border-edge bg-sunken px-3 py-2"
-            >
+        if (block.kind === 'prose') return null
+        const clarified = block.code ? summaryOf(clarificationEntry(entry.id, block.code)) : undefined
+        return (
+          <div key={key} id={block.anchor ?? undefined} className="mt-3 scroll-mt-header rounded-lg border border-edge bg-sunken px-3 py-2">
+            <div className="flex items-center gap-2">
               {block.code ? <span className="readout shrink-0 text-xs text-faint">{block.code}</span> : null}
               <span className="min-w-0 flex-1 text-sm font-semibold text-bone">{block.title}</span>
             </div>
-          )
-        }
-        return (
-          <details key={key} id={block.anchor ?? undefined} className="group mt-3 scroll-mt-header rounded-lg border border-edge bg-sunken">
-            <summary className="flex cursor-pointer items-center gap-2 px-3 py-2 hover:bg-raised">
-              {block.code ? <span className="readout shrink-0 text-xs text-faint">{block.code}</span> : null}
-              <span className="min-w-0 flex-1 text-sm font-semibold text-bone">{block.title}</span>
-              <ChevronRight className="size-3.5 shrink-0 text-faint transition-transform group-open:rotate-90" aria-hidden />
-            </summary>
-            <RuleMarkup markup={block.markup} links={links} source="game-datacards" className="border-t border-edge px-3 py-2" />
-          </details>
+            {clarified ? <RuleSummaryText summary={clarified} /> : null}
+          </div>
         )
       })}
     </article>

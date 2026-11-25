@@ -1,14 +1,11 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { terrainFromDatacards } from '../src/server/datacardTerrain'
-import { readMissionPacks } from '../src/server/missionPacks'
+import { missionTerrain } from '../src/server/missionTerrain'
+import { readVsDataRelease } from '../src/server/vsDataSummaries'
 import { catalogueDataDirectory } from './lib/catalogueFiles'
 
 const directory = catalogueDataDirectory()
-const layouts = terrainFromDatacards(
-  readMissionPacks(path.join(directory, 'datacards', '11th', 'gdc')),
-  path.join(directory, 'battlemaster'),
-).terrainLayouts
+const layouts = missionTerrain(readVsDataRelease(directory)?.missionPacks ?? [], path.join(directory, 'battlemaster')).terrainLayouts
 const available = layouts.filter((layout) => layout.geometry).length
 const labelled = layouts.filter((layout) => layout.geometry?.areas.some((area) => area.markers.length)).length
 const labels = ['AB', 'CD', 'EF', 'GH']

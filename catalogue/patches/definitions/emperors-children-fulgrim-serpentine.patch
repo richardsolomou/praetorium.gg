@@ -1,0 +1,9 @@
+diff --git a/definitions/Chaos - Emperor's Children.json b/definitions/Chaos - Emperor's Children.json
+index f212be2..54c22a4 100644
+--- a/definitions/Chaos - Emperor's Children.json	
++++ b/definitions/Chaos - Emperor's Children.json	
+@@ -706,3 +706,3 @@
+             "id": "9842-31b9-4cb1-d821",
+-            "hidden": false,
++            "hidden": true,
+             "typeId": "9cc3-6d83-4dd3-9b64",

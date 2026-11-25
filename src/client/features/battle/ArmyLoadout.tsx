@@ -7,7 +7,7 @@ import { Loadout } from '../rosters/builder/Loadout'
 import { normalisePicks } from '../rosters/rosterPicks'
 import { DatasheetPanel } from '../rosters/builder/DatasheetPanel'
 import { UnitPhoto } from '../rosters/builder/UnitPhoto'
-import { useDetachmentRules } from '../rosters/builder/useDetachmentRules'
+import { detachmentRuleOwners, useDetachmentRules } from '../rosters/builder/useDetachmentRules'
 import { FieldedUnit } from '../rosters/FieldedUnit'
 import type { StandingWargear } from '../rosters/builder/LoadoutControls'
 import { sameWargear } from '../../../core/wargearNames'
@@ -24,6 +24,7 @@ export function ArmyLoadout({ army, unit, seek }: { army: Army; unit: UnitState;
   const catalogueId = selected ? (picks[selected.key]?.catalogueId ?? built.catalogueId) : built.catalogueId
   const { data: faction } = useQuery(factionQuery(built.catalogueId))
   const detachmentRules = useDetachmentRules(built.catalogueId, faction?.detachments, detachmentIds)
+  const ruleOwners = detachmentRuleOwners(built.catalogueId, faction)
   const pane = useRef<HTMLDivElement>(null)
   // The datasheet can arrive after the press, so the row is waited for rather than looked for once.
   useEffect(() => {
@@ -74,6 +75,7 @@ export function ArmyLoadout({ army, unit, seek }: { army: Army; unit: UnitState;
                 pickIndex={selected?.key ?? null}
                 embedded
                 detachmentRules={detachmentRules}
+                detachmentRuleOwners={ruleOwners}
                 fielded={fielded}
               />
             }

@@ -1,15 +1,38 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import type { Stratagem } from '../core/battle'
+import { uniqueBy } from '../core/collections'
 import { routeSlug } from '../core/slug'
+import { abilityKey } from '../shared/vsDataAbilities'
 import { compareText } from '../core/text'
-import { constructionDetachment, datacardsFactionKeys, type LoadedDatacards } from '../shared/datacards'
+import { constructionDetachment, datacardsFactionKeys, type FactionContent, type LoadedDatacards } from '../shared/datacards'
 import { SUPPLEMENTAL_FACTION_ICONS } from './factionIconSources'
 import { joinKey } from '../core/text'
 import type { DetachmentReference, DetachmentRulesDetail, LoadedFactions } from './rulesFactions'
-import { isUpgrade, withoutUpgrade } from '../shared/mfm'
+import type { VsStratagemCard } from './vsDataStratagems'
 
-export function factionsFromDatacards(datacards: LoadedDatacards, iconDirectory: string): LoadedFactions {
+/**
+ * Whether a rules version's build has a Detachment at all, its Stratagems by its name, with each card's wording as tokens where Game Datacards prints it, and, where
+ * its release lists what the Detachment's build prints, the Stratagems it does not publish by name, the Game Datacards
+ * IDs of the Enhancements it lists and those it does not publish by name.
+ */
+export type DetachmentCards = (detachment: string) => {
+  /** The rules version's build has no such Detachment. */
+  absent?: true
+  stratagems: (VsStratagemCard & { description: string | null })[]
+  stratagemsUnlisted?: readonly string[]
+  enhancements?: ReadonlySet<string>
+  enhancementsUnlisted?: readonly string[]
+}
+import { enhancementKey, isUpgrade, withoutUpgrade } from '../shared/mfm'
+
+export function factionsFromDatacards(
+  datacards: LoadedDatacards,
+  iconDirectory: string,
+  detachmentCards: DetachmentCards,
+  /** The `abilityKey`s of the rules the rules version marks absent under a Detachment, which every view of its rules leaves out. */
+  absentRules: (faction: string, detachment: string) => ReadonlySet<string> = () => new Set(),
+): LoadedFactions {
   const factionNames = new Map<string, string>()
   const factionIcons = new Map<string, string>()
   const factionRules = new Map<string, { name: string; description: string }>()
@@ -32,6 +55,8 @@ export function factionsFromDatacards(datacards: LoadedDatacards, iconDirectory:
     const parent = content.parentName ? routeSlug(content.parentName) : null
     detachmentReferences.set(faction, detachmentReferences.get(faction) ?? new Map())
     for (const name of content.detachments) {
+      const listed = detachmentCards(name)
+      if (listed.absent) continue
       const ownerName = content.detachmentFactions?.get(name) ?? content.name
       const owner = routeSlug(ownerName)
       for (const key of datacardsFactionKeys(ownerName)) factionKeys.set(key, owner)
@@ -43,27 +68,17 @@ export function factionsFromDatacards(datacards: LoadedDatacards, iconDirectory:
       detachmentDetails.set(owner, details)
       byDetachment.set(owner, stratagems)
       const id = routeSlug(name)
+      const absent = absentRules(owner, id)
       const construction = constructionDetachment(datacards, content.name, name, parent)
+      const cards = listed.stratagems
       const sourceEnhancements = content.enhancements.get(joinKey(name)) ?? []
-      const enhancements = sourceEnhancements.filter((card) => !isUpgrade(card.name))
+      const enhancements = listed.enhancements
+        ? listedEnhancements(content, name, listed.enhancements, listed.enhancementsUnlisted ?? [])
+        : sourceEnhancements.filter((card) => !isUpgrade(card.name))
       const upgrades = sourceEnhancements.filter((card) => isUpgrade(card.name))
-      const cards = content.stratagems.get(joinKey(name)) ?? []
       stratagems.set(
         id,
-        cards.flatMap((card) =>
-          card.phases === null || card.turn === null
-            ? []
-            : [
-                {
-                  key: card.id,
-                  name: card.name,
-                  cp: card.cp,
-                  limit: card.limit,
-                  ...(card.phases.length ? { phases: card.phases } : {}),
-                  turn: card.turn,
-                },
-              ],
-        ),
+        cards.map(({ type: _type, description: _description, ...stratagem }) => stratagem),
       )
       references.set(id, {
         enhancements: enhancements.length,
@@ -77,7 +92,8 @@ export function factionsFromDatacards(datacards: LoadedDatacards, iconDirectory:
         name,
         points: construction?.points ?? null,
         dispositions: construction?.dispositions ?? [],
-        rules: [...(content.detachmentRules.get(joinKey(name)) ?? [])],
+        rules: (content.detachmentRules.get(joinKey(name)) ?? []).filter((rule) => !absent.has(abilityKey(rule.name))),
+        ...(absent.size ? { absentRules: [...absent] } : {}),
         enhancements: enhancements.map((card) => ({
           name: card.name,
           points: card.points,
@@ -89,17 +105,28 @@ export function factionsFromDatacards(datacards: LoadedDatacards, iconDirectory:
           points: card.points,
           description: card.description,
         })),
-        stratagems: cards
-          .map((card) => ({
-            id: card.id,
+        stratagems: [
+          ...cards.map((card) => ({
+            id: card.key,
             name: card.name,
             cp: card.cp,
             type: card.type,
             phases: card.phases ?? [],
-            turn: card.turn,
+            turn: card.turn ?? null,
+            ...(card.windows ? { windows: card.windows } : {}),
             description: card.description,
-          }))
-          .sort((a, b) => compareText(a.name, b.name)),
+          })),
+          // Printed in this build but not yet published, so shown by name like any card without a summary.
+          ...(listed.stratagemsUnlisted ?? []).map((unlisted) => ({
+            id: `${id}.${routeSlug(unlisted)}`,
+            name: unlisted,
+            cp: null,
+            type: null,
+            phases: [],
+            turn: null,
+            description: null,
+          })),
+        ].sort((a, b) => compareText(a.name, b.name)),
       })
     }
   }
@@ -133,4 +160,28 @@ export function factionsFromDatacards(datacards: LoadedDatacards, iconDirectory:
     detachmentDetails,
     byDetachment,
   }
+}
+
+/**
+ * The Enhancements a release lists for a Detachment, as the faction's Game Datacards cards print them wherever they file
+ * them, and those it does not publish yet by name, from a card of that name or by name alone.
+ */
+function listedEnhancements(content: FactionContent, detachment: string, ids: ReadonlySet<string>, unlisted: readonly string[]) {
+  const cards = [...content.enhancements.values()].flat().filter((card) => !isUpgrade(card.name))
+  const listed = cards.filter((card) => card.ids?.some((id) => ids.has(id)))
+  // An Upgrade is the Detachment's own, never an Enhancement, and a name is joined without the qualifier a card can print,
+  // as the release's "Osseus Key" is the card's "Osseus Key (Aura)".
+  const named = unlisted
+    .filter((name) => !isUpgrade(name) && !listed.some((card) => enhancementKey(card.name) === enhancementKey(name)))
+    .map(
+      (name) =>
+        cards.find((card) => enhancementKey(card.name) === enhancementKey(name)) ?? {
+          name,
+          detachment,
+          points: null,
+          description: null,
+          eligibility: null,
+        },
+    )
+  return uniqueBy([...listed, ...named], (card) => enhancementKey(card.name))
 }

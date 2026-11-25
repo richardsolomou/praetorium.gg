@@ -121,6 +121,12 @@ export function profileBaseSize(profiles: readonly DatasheetProfile[]): string |
 /** What a unit's statline shows apart from its columns, or not at all. */
 export const NON_STATLINE_KINDS: readonly DatasheetCharacteristicKind[] = ['invulnerable-save', 'base-size']
 
+/**
+ * Whether an ability is the catalogue writing out the unit's invulnerable save, as "Invulnerable Save (5+*)", which the
+ * save shown beside the characteristics stands for, so it is listed and counted once.
+ */
+export const isWrittenInvulnerableSave = (name: string) => /^\W*invulnerable save\b/i.test(name)
+
 export const invulnerableSaveOf = <Value extends Parameters<typeof datasheetCharacteristicKindOf>[0]>(values: readonly Value[]) =>
   values.find((value) => datasheetCharacteristicKindOf(value) === 'invulnerable-save')
 

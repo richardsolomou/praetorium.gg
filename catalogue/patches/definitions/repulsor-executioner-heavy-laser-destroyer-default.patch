@@ -1,0 +1,12 @@
+diff --git a/definitions/Imperium - Space Marines.json b/definitions/Imperium - Space Marines.json
+--- a/definitions/Imperium - Space Marines.json
++++ b/definitions/Imperium - Space Marines.json
+@@ -42609,7 +42609,7 @@
+               {
+                 "name": "Turret Weapon",
+                 "id": "8cf4-2d67-8084-ca6a",
+-                "defaultSelectionEntryId": "264c-997d-5a64-c072",
++                "defaultSelectionEntryId": "d41d-4177-a5f1-de",
+                 "hidden": false,
+                 "constraints": [
+                   {"id": "c815-f5f0-632b-c522", "field": "selections", "scope": "parent", "shared": true, "type": "min", "value": 1},

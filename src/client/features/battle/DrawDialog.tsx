@@ -1,5 +1,4 @@
 import { Check } from 'lucide-react'
-import { loadedWords, useSourceTexts } from '../../sourceText'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { DialogBody, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
@@ -7,6 +6,8 @@ import { nextDraw } from '../../scoring'
 import { type Side, sideName } from '../../sides'
 import type { WhenDrawn } from '../../../contracts/missions'
 import { redrawOffer } from './drawOffer'
+import { RuleSummaryText } from '../../components/RuleSummaryText'
+import { summaryBlocks } from '../../../core/summaryMarkdown'
 import { MissionDetailsDialog, MissionName, type MissionDetails, type ReferenceCard } from './MissionCards'
 import { CARD, tint } from './battleTints'
 import { UndoLatest, type UndoTarget } from './UndoLatest'
@@ -43,19 +44,13 @@ export function DrawDialog({
   pending,
   send,
   referenceFor,
-  whenDrawnFor: publishedWhenDrawn,
+  whenDrawnFor,
   onDone,
   initialSelection,
   onSelectionChange,
 }: Props) {
   const colours = tint(side.index)
   const held = side.secondaries.filter((card) => card.status === 'active')
-  useSourceTexts(held.map((card) => publishedWhenDrawn(card.key)?.condition))
-  // The condition is the card's own words, so it reads as those once they load and is named generically until then.
-  const whenDrawnFor = (key: string) => {
-    const rule = publishedWhenDrawn(key)
-    return rule?.condition ? { ...rule, condition: loadedWords(rule.condition) ?? 'the card’s condition holds' } : rule
-  }
   /**
    * What this turn dealt, apart from what the hand was already carrying.
    *
@@ -224,7 +219,10 @@ export function DrawDialog({
                     {cardName(card)}
                     {offer ? (
                       <>
-                        <p className="text-2xs text-dim">{offer.message}</p>
+                        <RuleSummaryText
+                          summary={{ blocks: summaryBlocks(offer.message), questions: [] }}
+                          className="mt-0 text-2xs text-dim"
+                        />
                         <Button
                           variant="outline"
                           size="xs"

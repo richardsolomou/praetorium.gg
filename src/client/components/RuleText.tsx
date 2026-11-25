@@ -1,14 +1,13 @@
 import { createContext, type ReactNode, useContext, useMemo } from 'react'
-import { useTextSourceChoice } from '../rulesText'
 import Markdown, { type Components } from 'react-markdown'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
 import type { RuleLinks } from '../ruleLinks'
 import { Keyword, type KeywordRule } from './Keyword'
-import { CitedRules } from './CitedRules'
 import { RuleMarkup } from './RuleMarkup'
-import { SourceTextPrompt } from './SourceTextPrompt'
-import { useSourceText } from '../sourceText'
+import { useAbilitySummary } from '../ruleSummaries'
+import { RuleSummarySkeleton, RuleSummaryText } from './RuleSummaryText'
+import { useDatasheetAbilitySummary, useUnitAbilitySummary } from './UnitFromVsData'
 import { hasTextTokens } from '../../core/sourceText'
 
 const noRules: KeywordRule[] = []
@@ -92,55 +91,60 @@ export function ruleSegments(text: string): RuleSegment[] {
 const noLinks: RuleLinks = new Map()
 
 /**
- * Rules text, shown once the reader has chosen to load rules text on this device. `authored`
- * marks words the app writes itself, which show to everyone.
+ * A rule as a reader sees it. Praetorium never shows a source's own wording: a rule the source prints, which
+ * the text names by token, shows its VS Data summary or nothing at all. `authored` marks words the app writes itself.
  */
 export function RuleText({
   text,
   rules = noRules,
   className,
   authored = false,
-  cite = false,
+  name,
+  abilityId,
 }: {
   text: string
   rules?: KeywordRule[]
   className?: string
   authored?: boolean
-  /** Also write out the core rules the text quotes by number. */
-  cite?: boolean
+  /** The ability's name, which finds its summary through the datasheet around it where its text alone does not. */
+  name?: string
+  /** The ability's BSData profile id, which VS Data may alias it by. */
+  abilityId?: string
 }) {
-  const choice = useTextSourceChoice()
-  if (hasTextTokens(text)) return <SourcedRuleText text={text} rules={rules} className={className} cite={cite} />
-  // BSData's words reach this device to compute from, and show only where the reader chose to load BSData text.
-  if (!authored && !choice.sources.has('bsdata'))
-    return <SourceTextPrompt missing="unchosen" source="bsdata" className={cn('mt-2', className)} />
-  return <RuleTextBody text={text} rules={rules} className={className} cite={cite} />
+  if (hasTextTokens(text)) return <SummarizedRule text={text} className={className} name={name} abilityId={abilityId} />
+  return authored ? <RuleTextBody text={text} rules={rules} className={className} /> : null
 }
 
-/** Published text names its source rather than stating it, so it is read from that source before it is drawn. */
-function SourcedRuleText({ text, rules, className, cite }: { text: string; rules: KeywordRule[]; className?: string; cite: boolean }) {
-  const source = useSourceText(text)
-  // Labels with nothing loaded beneath them say nothing, so a card waiting on its text shows only why.
-  if (source.missing && source.missing !== 'unavailable')
-    return <SourceTextPrompt missing={source.missing} source={source.needs} className={cn('mt-2', className)} />
-  return <RuleTextBody text={source.text} rules={rules} className={className} cite={cite} />
+/** A rule the catalogue prints no text for, by its owner's VS Data record of that name inside `DatasheetUnit`. */
+export function SummaryByName({ name, className, fallback = null }: { name: string; className?: string; fallback?: ReactNode }) {
+  const summary = useUnitAbilitySummary(name, true)
+  if (summary === undefined) return <RuleSummarySkeleton className={className} />
+  return summary ? <RuleSummaryText summary={summary} className={className} /> : fallback
 }
 
-function RuleTextBody({ text, rules, className, cite }: { text: string; rules: KeywordRule[]; className?: string; cite: boolean }) {
+function SummarizedRule({ text, className, name, abilityId }: { text: string; className?: string; name?: string; abilityId?: string }) {
+  const own = useDatasheetAbilitySummary(text, name, abilityId)
+  // A core ability a datasheet prints in BSData's words, such as Leader, is VS Data's core ability of that name.
+  const core = useAbilitySummary(name && own === null ? { name } : null)
+  if (own === undefined || core === undefined) return <RuleSummarySkeleton className={className} />
+  const shown = own ?? core
+  return shown ? <RuleSummaryText summary={shown} className={className} /> : null
+}
+
+function RuleTextBody({ text, rules, className }: { text: string; rules: KeywordRule[]; className?: string }) {
   const segments = useMemo(() => ruleSegments(text), [text])
   return (
     <Rules value={rules}>
       <div className={cn('mt-2 space-y-2 font-rules text-sm text-dim', className)}>
         {segments.map((segment, at) => {
           const key = `${segment.kind}-${at}`
-          if (segment.kind === 'table') return <RuleMarkup key={key} markup={segment.text} links={noLinks} authored />
+          if (segment.kind === 'table') return <RuleMarkup key={key} markup={segment.text} links={noLinks} />
           return (
             <Markdown key={key} components={components}>
               {segment.text}
             </Markdown>
           )
         })}
-        {cite ? <CitedRules text={text} /> : null}
       </div>
     </Rules>
   )
