@@ -1,0 +1,72 @@
+name: VS Data live
+
+# While the VS_DATA_LIVE variable is true, pins each rules version's summaries to VS Data's newest release and merges
+# the pin once its snapshot and the required checks pass, which releases it like any merge. Unset it to pin by hand.
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: vs-data-live
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  pin:
+    if: vars.VS_DATA_LIVE == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: richardsolomou/ras-stack/actions/setup-js@v1
+      - name: Pin VS Data's newest releases
+        id: pins
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          moved="$(pnpm exec tsx scripts/updateVsDataPins.ts)"
+          [ -n "$moved" ] || { echo "Every pin is VS Data's newest release"; exit 0; }
+          pnpm exec oxfmt --write catalogue/sources.json
+          # Named by every pin, so a release of an earlier rules version alone gets a branch of its own.
+          pins="$(jq -r '[.summaries.release, (.summaries.earlier[].release)] | join(" ")' catalogue/sources.json | sha256sum | cut -c1-8)"
+          printf -- "---\n'praetorium.gg': patch\n---\n\n[reference] Rules summaries update to VS Data's latest releases.\n" > ".changeset/vs-data-$pins.md"
+          {
+            echo "branch=chore/vs-data-$pins"
+            echo "moved<<EOF"
+            echo "$moved"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+      - name: Open the pin and merge it once it passes
+        if: steps.pins.outputs.branch
+        env:
+          # A personal token, so the pin's PR runs the snapshot build and the required checks.
+          GH_TOKEN: ${{ secrets.CHANGESETS_TOKEN }}
+          BRANCH: ${{ steps.pins.outputs.branch }}
+          MOVED: ${{ steps.pins.outputs.moved }}
+        run: |
+          set -euo pipefail
+          if gh pr view "$BRANCH" --json state -q .state 2>/dev/null | grep -q OPEN; then
+            echo "$BRANCH is already open"
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git switch --create "$BRANCH"
+          git add catalogue/sources.json .changeset
+          git commit --message "chore(catalogue): pin VS Data's newest releases"
+          git push --force "https://x-access-token:$GH_TOKEN@github.com/$GITHUB_REPOSITORY" "HEAD:$BRANCH"
+          body="$(printf "Pins VS Data's newest releases while VS_DATA_LIVE is on:\n\n%s\n" "$MOVED")"
+          gh pr create --head "$BRANCH" --base main --title "chore(catalogue): pin VS Data's newest releases" --body "$body"
+          gh pr merge "$BRANCH" --auto --merge
+          # An older pin still open is behind this one, which carries every newer release. `$ENV` is jq's.
+          # shellcheck disable=SC2016
+          gh pr list --state open --limit 100 --json headRefName,number \
+            -q '.[] | select((.headRefName | startswith("chore/vs-data-")) and .headRefName != $ENV.BRANCH) | .number' |
+            while read -r older; do gh pr close "$older" --delete-branch --comment "Superseded by $BRANCH."; done
