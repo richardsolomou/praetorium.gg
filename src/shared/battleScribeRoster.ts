@@ -5,7 +5,7 @@ import { datasheetCharacteristicKindOf } from '../core/datasheetStructure'
 import type { Selection } from '../core/evaluate'
 import type { RosterPick } from '../core/roster'
 import { textNickname } from '../core/textRoster'
-import { datasheetViewsIn } from './catalogue'
+import { selectedDatasheetIn } from './catalogue'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { describeDatasheetAbilities } from './datasheetDescriptions'
 import { rosterDatasheetContext, rosterDatasheetSelections } from './rosterDatasheetContext'
@@ -33,12 +33,7 @@ export function battleScribeRoster(
     const context = rosterDatasheetContext(loaded, { ...roster, pickIndex: unit.key }, prepared)
     if (!pick || !context) return []
     const catalogueId = pick.catalogueId ?? data.catalogueId
-    const sheet = describeDatasheetAbilities(
-      loaded,
-      catalogueId,
-      datasheetViewsIn(loaded, catalogueId, pick.entryId, context).selected,
-      rules,
-    )
+    const sheet = describeDatasheetAbilities(loaded, catalogueId, selectedDatasheetIn(loaded, catalogueId, pick.entryId, context), rules)
     const selection = context.selections[context.unitSelectionIndex]
     return sheet && selection ? [unitXml(selection, sheet, unit.points, textNickname(pick.nickname ?? ''), index)] : []
   })
