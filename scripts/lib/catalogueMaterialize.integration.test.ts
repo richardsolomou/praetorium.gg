@@ -105,8 +105,8 @@ it('builds from the committed pins', async () => {
 
   expect(JSON.parse(fs.readFileSync(path.join(directory, 'definitions', 'unit.json'), 'utf8'))).toEqual({ name: 'Unit' })
   // Summaries are compacted here, so their revision is their own rather than the pin's.
-  const { summaries, ...revisions } = JSON.parse(fs.readFileSync(path.join(directory, 'revision.json'), 'utf8'))
-  expect([revisions, summaries === config.summaries?.revision]).toEqual([
+  const { summaries: summariesRevision, ...revisions } = JSON.parse(fs.readFileSync(path.join(directory, 'revision.json'), 'utf8'))
+  expect([revisions, summariesRevision === config.summaries?.revision]).toEqual([
     Object.fromEntries(Object.entries(config).flatMap(([name, source]) => (name === 'summaries' ? [] : [[name, source.revision]]))),
     false,
   ])
