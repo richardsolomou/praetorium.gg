@@ -241,6 +241,19 @@ const attachmentSchema = z.strictObject({
   requiresLeader: z.literal(true).optional(),
   substitutes: z.array(z.string().min(1)).min(1).optional(),
 })
+const allowanceSchema = z
+  .strictObject({
+    options: z.string().min(1),
+    limit: z.int().min(2).optional(),
+    extra: z.int().min(1).optional(),
+    also: z.string().min(1).optional(),
+    whileLeading: z.literal(true).optional(),
+  })
+  .refine((allowance) => [allowance.limit, allowance.extra, allowance.also].filter((given) => given !== undefined).length === 1)
+const optionsSchema = z.strictObject({
+  offered: z.array(z.string().min(1)).min(1).optional(),
+  allowances: z.array(allowanceSchema).min(1).optional(),
+})
 const orUnresolved = <T extends z.ZodType>(schema: T) => z.union([unresolvedSchema, schema])
 
 /**
@@ -258,6 +271,7 @@ export const vsDataEffectBlocksSchema = z.object({
   reminder: orUnresolved(reminderSchema).optional(),
   roster: orUnresolved(rosterSchema).optional(),
   attachment: orUnresolved(attachmentSchema).optional(),
+  options: orUnresolved(optionsSchema).optional(),
   references: z.array(z.string().min(1)).optional(),
   combat: orUnresolved(combatSchema).optional(),
 })
@@ -286,6 +300,7 @@ export const EFFECT_BLOCKS = [
   'reminder',
   'roster',
   'attachment',
+  'options',
   'references',
   'combat',
 ] as const satisfies readonly (keyof VsDataEffectBlocks)[]
@@ -567,6 +582,7 @@ export function textFactsOfVsData(blocks: Readonly<Record<string, unknown>>): Te
   const reminder = blockOf(blocks, 'reminder')
   const roster = blockOf(blocks, 'roster')
   const attachment = blockOf(blocks, 'attachment')
+  const options = blockOf(blocks, 'options')
   const combat = blockOf(blocks, 'combat')
   const unreadCombat = blocks.combat !== undefined && !combat
   const references = blockOf(blocks, 'references')
@@ -620,6 +636,16 @@ export function textFactsOfVsData(blocks: Readonly<Record<string, unknown>>): Te
       ? { attachment: { names: attachment.units, ...(attachment.requiresLeader ? { requiresLeader: true } : {}) } }
       : {}),
     ...(attachment?.substitutes ? { substitutes: attachment.substitutes } : {}),
+    ...(options?.offered ? { offeredOptions: options.offered } : {}),
+    ...(options?.allowances
+      ? {
+          battleChoiceAllowances: options.allowances.map(({ whileLeading, limit, extra, also, ...allowance }) => ({
+            ...allowance,
+            ...(limit !== undefined ? { limit } : extra !== undefined ? { extra } : { also: also! }),
+            ...(whileLeading ? { leading: true as const } : {}),
+          })),
+        }
+      : {}),
     ...(references ? { references } : {}),
     combat: combat ? combatOf(combat) : unreadCombat ? UNREAD : null,
   }

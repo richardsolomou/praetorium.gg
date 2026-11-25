@@ -36,27 +36,33 @@ export function definitionTexts(
 ): DefinitionTexts & { withTwins: (twins: ReadonlyMap<string, { own: string; token: string; references: string[] }>) => TwinnedTexts } {
   const tokens = new Map<string, string>()
   const words = new Map<string, string>()
+  const holders = new Map<string, TextHolder[]>()
   // A statline's string takes part in which file names a string first, as published tokens always chose, but has no words to keep.
-  const register = (raw: string, token: string, rules: boolean) => {
+  const register = (raw: string, token: string, rules: boolean, holder: TextHolder | undefined) => {
     if (!tokens.has(raw)) tokens.set(raw, token)
-    if (rules) words.set(textKey(textTokensIn(tokens.get(raw)!)[0]!), raw)
+    if (!rules) return
+    const key = textKey(textTokensIn(tokens.get(raw)!)[0]!)
+    words.set(key, raw)
+    if (holder && !holders.get(key)?.some((held) => held.id === holder.id)) remember(holders, key, () => []).push(holder)
   }
   const textTypes = new Set<string>()
   for (const { file, path } of files) {
     const texts = publishedTexts(path)
+    const catalogue = (file.catalogue ?? file.gameSystem)?.id
     visitTexts(
       file,
-      (raw, rules) => {
-        register(raw, texts(raw, 'plain'), rules)
+      (raw, rules, found) => {
+        const holder = found && typeof catalogue === 'string' ? { ...found, catalogue } : found
+        register(raw, texts(raw, 'plain'), rules, holder)
         for (const [at, paragraph] of paragraphsOf(raw).entries())
-          if (paragraph !== raw) register(paragraph, texts(raw, `para${at}`), rules)
+          if (paragraph !== raw) register(paragraph, texts(raw, `para${at}`), rules, holder)
       },
       textTypes,
     )
   }
   for (const { file, path } of files) {
     const texts = publishedTexts(path)
-    visitModifiers(file, textTypes, (raw) => register(raw, texts(raw, 'plain'), true))
+    visitModifiers(file, textTypes, (raw) => register(raw, texts(raw, 'plain'), true, undefined))
   }
   const token = (raw: string) => tokens.get(raw) ?? null
   const facts = new Map<string, TextFacts>()
@@ -100,11 +106,12 @@ export function definitionTexts(
       words: (text) => resolvedText(text, (found) => words.get(ownKey(textKey(found))) ?? null, textToken),
       facts: () => new Map([...words.keys(), ...twinOf.keys()].map((key) => [key, factOf(key)!])),
       fact: factOf,
+      holders: (key) => holders.get(ownKey(key)) ?? [],
       shown,
     }
   }
   const own = withTwins(new Map())
-  return { files: own.files, token, words: own.words, facts: own.facts, fact: own.fact, withTwins }
+  return { files: own.files, token, words: own.words, facts: own.facts, fact: own.fact, holders: own.holders, withTwins }
 }
 
 /** Definitions that show card twins' tokens, and the same swap for files already built from the definitions. */
@@ -134,19 +141,29 @@ function withTokensSwapped<T>(value: T, swaps: ReadonlyMap<string, string>): T {
   return visit(value) as T
 }
 
+/** The rule or profile a rules text belongs to, by its catalogue id and name, and the catalogue file holding it. */
+export type TextHolder = { id: string; name: string; catalogue?: string }
+
 /**
- * Calls `found` with every description and characteristic a file holds, in the order a reader meets them, and
- * whether it is rules text, collecting the rule-like characteristics' types.
+ * Calls `found` with every description and characteristic a file holds, in the order a reader meets them, whether it is
+ * rules text, and the rule or profile holding it, collecting the rule-like characteristics' types.
  */
-function visitTexts(value: unknown, found: (raw: string, rules: boolean) => void, textTypes: Set<string>, ruleProfile = false) {
-  if (Array.isArray(value)) for (const entry of value) visitTexts(entry, found, textTypes, ruleProfile)
+function visitTexts(
+  value: unknown,
+  found: (raw: string, rules: boolean, holder: Omit<TextHolder, 'catalogue'> | undefined) => void,
+  textTypes: Set<string>,
+  ruleProfile = false,
+  holder?: Omit<TextHolder, 'catalogue'>,
+) {
+  if (Array.isArray(value)) for (const entry of value) visitTexts(entry, found, textTypes, ruleProfile, holder)
   else if (value && typeof value === 'object') {
     const node = value as Node
     const rules = isRulesProfile(node)
+    const held = typeof node.id === 'string' && typeof node.name === 'string' ? { id: node.id, name: node.name } : holder
     for (const [key, entry] of Object.entries(node)) {
       if (typeof entry === 'string') {
-        if (entry.trim() && (key === 'description' || key === '$text')) found(entry, key === 'description' || ruleProfile)
-      } else visitTexts(entry, found, textTypes, ruleProfile || (rules && key === 'characteristics'))
+        if (entry.trim() && (key === 'description' || key === '$text')) found(entry, key === 'description' || ruleProfile, held)
+      } else visitTexts(entry, found, textTypes, ruleProfile || (rules && key === 'characteristics'), held)
     }
     if (ruleProfile && typeof node.typeId === 'string') textTypes.add(node.typeId)
   }
@@ -201,15 +218,22 @@ function withRulesTokens(file: CatalogueFile, textTypes: ReadonlySet<string>, sw
 }
 
 /**
- * The definitions' facts as a device downloads them. A reference that names no rule the catalogue holds matches
- * nothing, and bold text can mark a whole sentence, so only references to known rules travel.
+ * The facts a device downloads: what the catalogue's rules read of every text its definitions and cards hold, as the
+ * server reads them. A reference that names no rule the catalogue holds matches nothing, and bold text can mark a whole
+ * sentence, so only references to known rules travel.
  */
 export function downloadedDefinitionFacts(loaded: LoadedCatalogue) {
+  const keys = new Set([
+    ...loaded.definitions!.facts().keys(),
+    ...(loaded.datacards.textFacts ? [...loaded.datacards.textFacts.keys()] : []),
+  ])
   return new Map(
-    [...loaded.definitions!.facts()].map(([key, facts]) => {
+    [...keys].flatMap((key) => {
+      const facts = loaded.index.textFacts?.get(key)
+      if (!facts) return []
       const { references, ...rest } = facts
       const known = references?.filter((name) => rulesNamed(loaded, [name]).length)
-      return [key, known?.length ? { ...rest, references: known } : rest] as const
+      return [[key, known?.length ? { ...rest, references: known } : rest] as const]
     }),
   )
 }

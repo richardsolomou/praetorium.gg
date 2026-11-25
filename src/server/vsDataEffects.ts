@@ -1,0 +1,115 @@
+import fs from 'node:fs'
+import path from 'node:path'
+import { remember } from '../core/collections'
+import type { TextFacts, TextFactsByKey } from '../core/textFacts'
+import type { DefinitionTexts } from '../shared/catalogueIndex'
+import { gdcRuleRecords, vsDataIndex, vsDataKey } from '../shared/vsData'
+import { abilityKey } from '../shared/vsDataAbilities'
+import { textFactsOfVsData, vsDataEffectsPath, type VsDataEffectsFile } from '../shared/vsDataEffects'
+import { readCatalogueComposition } from './catalogueComposition'
+import { readSharedJson } from './sharedJson'
+import { textHash } from './sourceTexts'
+import { readVsDataRelease } from './vsDataSummaries'
+
+/** A summary stands for a whole rule, so only a token showing a whole string joins its record. */
+const WHOLE_STRING = new Set(['prose', 'plain', 'trim'])
+
+/** How a text found its VS Data record, for the parity report. */
+export type VsDataJoin = { record: string; by: 'card' | 'alias' | 'name' } | { record: null; by: 'none' | 'ambiguous' }
+
+export type VsDataTextFacts = TextFactsByKey & { join: (key: string) => VsDataJoin }
+
+/**
+ * What each text of a rules version states, by `factsKey`, read from the VS Data record it joins: a card's string joins
+ * the record VS Data aliases its card to, as its summary does; a catalogue string joins the record VS Data aliases the
+ * rule or profile holding it to, else the record of that rule's name, its own faction's where several factions' say
+ * otherwise. A text that joins no record, or several that say different things, states nothing. Null where the
+ * snapshot keeps no effect blocks for the rules version.
+ */
+export function vsDataTextFacts(
+  /** The snapshot, which holds every rules version's release. */
+  root: string,
+  edition: string | undefined,
+  /** The rules version's own folder of card files. */
+  cardDirectory: string,
+  definitions: Pick<DefinitionTexts, 'holders' | 'files'>,
+  datasheets: ReadonlyMap<string, ReadonlySet<string>>,
+): VsDataTextFacts | null {
+  const entry = readCatalogueComposition(root)?.editions.find((candidate) => (edition ? candidate.edition.id === edition : candidate.base))
+  const file = entry && path.join(root, 'summaries', `${entry.summaries ?? entry.edition.id}.json`)
+  const release = entry && readVsDataRelease(root, entry.edition.id)
+  if (!file || !release || !fs.existsSync(vsDataEffectsPath(file))) return null
+  const effects = (JSON.parse(fs.readFileSync(vsDataEffectsPath(file), 'utf8')) as VsDataEffectsFile).effects
+  const index = vsDataIndex(release.entries)
+  // Each whole card string's records, by its hash.
+  const printed = new Map<string, string[]>()
+  for (const card of jsonFiles(cardDirectory))
+    for (const { keys, texts } of gdcRuleRecords(readSharedJson(card))) {
+      const ref = index.entry(keys)
+      if (!ref) continue
+      for (const hash of new Set(texts.flatMap((text) => [textHash(text), textHash(text.trim())])))
+        if (!printed.get(hash)?.includes(vsDataKey(ref))) remember(printed, hash, () => []).push(vsDataKey(ref))
+    }
+  // The record VS Data aliases a BSData rule, profile or entry to, by its id as BSData writes it.
+  const aliased = new Map<string, string>()
+  for (const [key, aliases] of Object.entries(release.entries))
+    for (const alias of aliases) if (alias.startsWith('bsdata.')) aliased.set(alias.slice('bsdata.'.length).replaceAll('.', '-'), key)
+  // Each ability record by its name's key.
+  const named = new Map<string, string[]>()
+  for (const key of Object.keys(release.entries))
+    if (key.startsWith('ability:')) remember(named, abilityKey(key.slice(key.lastIndexOf('.') + 1)), () => []).push(key)
+  // The VS Data factions a catalogue's own datasheets belong to, and those of each catalogue that imports it, as a library.
+  const factionsOf = new Map<string, Set<string>>()
+  const factionOf = (key: string) => key.slice(key.indexOf(':') + 1, key.indexOf('.'))
+  for (const [catalogue, entries] of datasheets)
+    for (const id of entries) {
+      const unit = aliased.get(id)
+      if (unit?.startsWith('unit:')) remember(factionsOf, catalogue, () => new Set()).add(factionOf(unit))
+    }
+  for (const { file: read } of definitions.files) {
+    const book = read.catalogue ?? read.gameSystem
+    for (const link of book?.catalogueLinks ?? [])
+      for (const faction of factionsOf.get(book!.id) ?? []) remember(factionsOf, link.targetId, () => new Set()).add(faction)
+  }
+  const sameBlocks = (keys: readonly string[]) => new Set(keys.map((key) => JSON.stringify(effects[key] ?? null))).size === 1
+
+  const joinOf = (factsKey: string): VsDataJoin => {
+    const keys = factsKey.startsWith('+') ? factsKey.slice(1).split('+') : [factsKey]
+    const tokens = keys.map((key) => ({ transform: key.slice(0, key.indexOf(':')), hash: key.slice(key.indexOf(':') + 1) }))
+    if (tokens.every((token) => WHOLE_STRING.has(token.transform))) {
+      const held = tokens.map((token) => printed.get(token.hash) ?? []).reduce((shared, ids) => shared.filter((id) => ids.includes(id)))
+      if (held.length) return sameBlocks(held) ? { record: held[0]!, by: 'card' } : { record: null, by: 'ambiguous' }
+    }
+    if (keys.length !== 1) return { record: null, by: 'none' }
+    const holders = definitions.holders?.(factsKey) ?? []
+    const byAlias = [...new Set(holders.flatMap((holder) => aliased.get(holder.id) ?? []))].filter((key) => key.startsWith('ability:'))
+    if (byAlias.length) return sameBlocks(byAlias) ? { record: byAlias[0]!, by: 'alias' } : { record: null, by: 'ambiguous' }
+    const byName = [...new Set(holders.flatMap((holder) => named.get(abilityKey(holder.name)) ?? []))]
+    const own = byName.filter((key) => holders.some((holder) => factionsOf.get(holder.catalogue ?? '')?.has(factionOf(key))))
+    for (const candidates of [byName, own]) if (candidates.length && sameBlocks(candidates)) return { record: candidates[0]!, by: 'name' }
+    return { record: null, by: byName.length ? 'ambiguous' : 'none' }
+  }
+  const joins = new Map<string, VsDataJoin>()
+  const facts = new Map<string, TextFacts>()
+  const join = (key: string) => remember(joins, key, () => joinOf(key))
+  return {
+    join,
+    get: (key) => {
+      const { record } = join(key)
+      return record ? remember(facts, record, () => textFactsOfVsData(effects[record] ?? {})) : undefined
+    },
+  }
+}
+
+function jsonFiles(directory: string): string[] {
+  if (!fs.existsSync(directory)) return []
+  return fs
+    .readdirSync(directory, { withFileTypes: true })
+    .flatMap((entry) =>
+      entry.isDirectory()
+        ? jsonFiles(path.join(directory, entry.name))
+        : entry.name.endsWith('.json')
+          ? [path.join(directory, entry.name)]
+          : [],
+    )
+}

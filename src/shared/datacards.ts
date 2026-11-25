@@ -5,7 +5,7 @@ import { routeSlug } from '../core/slug'
 import { catalogueFactionName } from './factionNames'
 import { countLabel, foldedText, joinKey } from '../core/text'
 import type { SourceTexts, TextTransform } from '../core/sourceText'
-import type { TextFactsByKey } from '../core/textFacts'
+import type { TextFacts } from '../core/textFacts'
 import { type PrintedTransport, printedTransport } from '../core/transport'
 /**
  * What Game Datacards says: the shape of each datasheet, and every piece of rules
@@ -124,7 +124,7 @@ export type LoadedDatacards = {
   /** By detachment slug, retaining every exact-name candidate so conflicts fail closed. */
   constructionDetachments: ReadonlyMap<string, readonly ConstructionDetachment[]>
   /** What the roster rules read from each published text, by `textKey`. */
-  textFacts?: TextFactsByKey
+  textFacts?: ReadonlyMap<string, TextFacts>
   /** A digest of the words each published text shows, by `textKey`, so texts that read alike are one; the server's alone. */
   textReadings?: ReadonlyMap<string, string>
 }

@@ -66,3 +66,8 @@ it('calculates no mortal wounds VS Data places outside the attacks', () => {
   )
   expect(facts.combat!.leaves[0]!.compiled!.choices[0]!.effects).toEqual([])
 })
+
+it('reads an Order allowance that holds only while leading', () => {
+  const facts = textFactsOfVsData({ options: { allowances: [{ options: 'Orders', limit: 2, whileLeading: true }] } })
+  expect(facts.battleChoiceAllowances).toEqual([{ options: 'Orders', limit: 2, leading: true }])
+})

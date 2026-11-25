@@ -62,7 +62,7 @@ export function catalogueEditionLoaders(
       loading.get(editionId) ??
       stepwise(function* () {
         const target = editionDirectory(directory, configuration)
-        const catalogue = yield* loadCatalogueSteps(target, configuration.edition)
+        const catalogue = yield* loadCatalogueSteps(target, configuration.edition, { vsDataDirectory: directory })
         if (!catalogue) throw new Error(`edition ${editionId} has no catalogue data`)
         const rules = yield* loadRulesSteps(target, {
           battlemasterDirectory: path.join(directory, 'battlemaster'),

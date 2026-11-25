@@ -3,7 +3,8 @@ import { absentAbilitiesFor, absentDetachmentRuleFor, withoutAbsentAbilities, wi
 import { withDefinitionTokens, withDefinitionTokensIn } from './sourceTexts'
 import { definitionTexts } from './definitionTexts'
 import { cardTwins } from './cardTwins'
-import type { TextFactsByKey } from '../core/textFacts'
+import type { TextFacts, TextFactsByKey } from '../core/textFacts'
+import { vsDataTextFacts } from './vsDataEffects'
 import fs from 'node:fs'
 import path from 'node:path'
 import { buildIndex, type CatalogueFile } from '../core/catalogue'
@@ -19,15 +20,36 @@ import { type DefinitionTexts, type LoadedCatalogue, catalogueFromIndex } from '
 import { completeSteps, type Steps } from '../shared/steps'
 import { liveCatalogueRevision } from './liveCatalogue'
 import { readRevisions } from './catalogueSources'
+const NO_FACTS: TextFacts = { combat: null }
+
+/** What list building reads of a text, which is still read from the words until lists are built from VS Data alone. */
+const LEGALITY = ['attachment', 'substitutes', 'reserveSelectors', 'reserveExemption'] as const
+const withLegality = (facts: TextFacts, words: TextFacts | undefined): TextFacts => {
+  const kept = Object.fromEntries(LEGALITY.flatMap((field) => (words?.[field] === undefined ? [] : [[field, words[field]]])))
+  const { attachment: _attachment, substitutes: _substitutes, reserveSelectors: _selectors, reserveExemption: _exemption, ...rest } = facts
+  return { ...rest, ...kept }
+}
+
 export function catalogueDirectory(dataDirectory = process.env.DATA_DIR ?? '/data') {
   const live = liveCatalogueRevision()
   return live ? path.join(live.directory, 'catalogue') : (process.env.CATALOGUE_DIR ?? path.join(path.resolve(dataDirectory), 'catalogue'))
 }
-export function loadCatalogue(directory = catalogueDirectory(), edition?: CatalogueEdition): LoadedCatalogue | null {
-  return completeSteps(loadCatalogueSteps(directory, edition))
+export function loadCatalogue(
+  directory = catalogueDirectory(),
+  edition?: CatalogueEdition,
+  options?: { vsDataDirectory?: string },
+): LoadedCatalogue | null {
+  return completeSteps(loadCatalogueSteps(directory, edition, options))
 }
 
-export function* loadCatalogueSteps(directory = catalogueDirectory(), edition?: CatalogueEdition): Steps<LoadedCatalogue | null> {
+export function* loadCatalogueSteps(
+  directory = catalogueDirectory(),
+  edition?: CatalogueEdition,
+  {
+    /** The snapshot holding every rules version's VS Data release, which a rules version's own folder does not. */
+    vsDataDirectory = directory,
+  }: { vsDataDirectory?: string } = {},
+): Steps<LoadedCatalogue | null> {
   const definitions = path.join(directory, 'definitions')
   const revisionFile = path.join(directory, 'revision.json')
   if (!fs.existsSync(definitions) || !fs.existsSync(revisionFile)) return null
@@ -56,8 +78,8 @@ export function* loadCatalogueSteps(directory = catalogueDirectory(), edition?: 
   yield
   const revisionId = catalogueRevision({ ...revision, ...(edition ? { edition: edition.id } : {}) })
   let cardFacts: TextFactsByKey | undefined
-  const indexOf = (source: DefinitionTexts, selected: CatalogueFile[]) =>
-    buildIndex(selected, revisionId, { get: (key) => source.fact(key) ?? cardFacts?.get(key) })
+  const indexOf = (source: DefinitionTexts, selected: CatalogueFile[], facts?: TextFactsByKey) =>
+    buildIndex(selected, revisionId, facts ?? { get: (key) => source.fact(key) ?? cardFacts?.get(key) })
   const policyFile = path.join(directory, 'reference-policy.json')
   const policy = fs.existsSync(policyFile) ? catalogueReferencePolicySchema.parse(JSON.parse(fs.readFileSync(policyFile, 'utf8'))) : null
   const files = texts.files.map(({ file }) => file)
@@ -65,7 +87,8 @@ export function* loadCatalogueSteps(directory = catalogueDirectory(), edition?: 
   const index = indexOf(texts, selected)
   yield
   // The cards name sections they do not describe, and the catalogue is where those words are.
-  const cards = yield* loadDatacardsSteps(path.join(directory, 'datacards', '11th', 'gdc'), catalogueSections(index, texts.words), strings)
+  const cardDirectory = path.join(directory, 'datacards', '11th', 'gdc')
+  const cards = yield* loadDatacardsSteps(cardDirectory, catalogueSections(index, texts.words), strings)
   cardFacts = cards.textFacts
   const datacards = withoutAbsentDetachmentRules(publishedDatacards(cards, texts.token), absentDetachmentRuleFor(directory, edition?.id))
   const ownTexts: LoadedCatalogue = {
@@ -81,9 +104,22 @@ export function* loadCatalogueSteps(directory = catalogueDirectory(), edition?: 
   // first time, and what the catalogue derives from them besides the index reads no text.
   const shown = texts.withTwins(twins)
   const shownCards = withoutTwinSearch(datacards)
+  // What every rule does is read from VS Data's effect blocks, where the snapshot keeps them; a text joining no record
+  // takes no part in anything the rules read.
+  const effects = vsDataTextFacts(vsDataDirectory, edition?.id, cardDirectory, shown, index.datasheets)
+  const readFacts = new Map<string, TextFacts>()
   const loaded: LoadedCatalogue = {
     ...ownTexts,
-    index: indexOf(shown, shown.shown(selected)),
+    index: indexOf(
+      shown,
+      shown.shown(selected),
+      effects
+        ? {
+            get: (key) =>
+              remember(readFacts, key, () => withLegality(effects.get(key) ?? NO_FACTS, shown.fact(key) ?? cardFacts?.get(key))),
+          }
+        : undefined,
+    ),
     definitions: shown,
     factionContents: shownCards.factions,
     datacards: shownCards,
