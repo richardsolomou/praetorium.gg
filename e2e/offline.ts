@@ -1,3 +1,4 @@
+import { RULE_OUTLINE } from '../src/contracts/rules'
 import { expect, type Page } from '@playwright/test'
 
 export const REFERENCE_CACHE = 'praetorium-reference-v3'
@@ -59,7 +60,9 @@ export const OLDER_REVISION = '0'.repeat(64)
 /** Replaces the saved download with an older one whose Moving rule has `title`, as a device holds before the service publishes a newer one. */
 export async function saveOlderMovingRule(page: Page, title: string) {
   const queries = await savedCore(page)
-  const moving = queries.find((entry) => entry.key.join('/') === 'rule-section/core-rules/moving')!.data as { section: { title: string } }
+  const moving = queries.find((entry) => entry.key.join('/') === `rule-section/${RULE_OUTLINE}/core-rules/moving`)!.data as {
+    section: { title: string }
+  }
   moving.section.title = title
   await page.evaluate(
     async ({ name, core: saved, revision }) => {
