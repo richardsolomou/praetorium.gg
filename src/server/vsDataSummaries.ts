@@ -67,6 +67,8 @@ export type VsDataSummaries = {
   attributions: () => VsDataAttribution[]
   /** What datasheets show from VS Data for a rules version (the current one where null); none for one it has no release of. */
   unitsIn: (edition: string | null) => VsDataUnits
+  /** The same, with each ability as its record's `kind:id`; none for a rules version it has no release of. */
+  recordsIn: (edition: string | null) => VsDataRecords | null
 }
 
 type Version = {
@@ -74,7 +76,11 @@ type Version = {
   index: ReturnType<typeof vsDataIndex>
   summaries: Map<string, RuleSummary>
   units: VsDataUnits
+  records: VsDataRecords
 }
+
+/** A release's units with each ability as the `kind:id` of the record whose summary datasheets show for it. */
+export type VsDataRecords = Omit<VsDataUnits, 'abilities'> & { abilities: Record<string, string> }
 
 /**
  * The pinned VS Data releases, one file each, every one read for the rules version it describes and only once a rule
@@ -113,6 +119,16 @@ export function* vsDataSummariesSteps(directory: string, documents: readonly Rul
       const abilities = new Set(file.records.flatMap((record) => (ABILITY_KINDS.includes(record.kind) ? [vsDataKey(record)] : [])))
       const summaries = new Map(file.records.map((record) => [vsDataKey(record), summaryOf(record, link, abilities)]))
       const abilitySummaries = [...summaries].filter(([key]) => key.startsWith('ability:'))
+      // Every ability by its VS Data id, which a unit's own abilities and its faction's start with, and by each former
+      // VS Data id it is aliased under, as Cogbound Alliance is by the Mechanicus Allies the detachment prints.
+      const abilitiesBy = <T>(value: (ability: (typeof abilitySummaries)[number]) => T) =>
+        Object.fromEntries([
+          ...abilitySummaries.flatMap((ability) =>
+            (file.entries[ability[0]] ?? []).filter(isVsDataId).map((id) => [id, value(ability)] as const),
+          ),
+          // Last, so an ability's own id wins over another's former one.
+          ...abilitySummaries.map((ability) => [ability[0].slice('ability:'.length), value(ability)] as const),
+        ])
       // A unit's BSData aliases name its entry id with dots for dashes.
       const units = {
         units: Object.fromEntries(
@@ -140,13 +156,7 @@ export function* vsDataSummariesSteps(directory: string, documents: readonly Rul
               ),
           ),
         ),
-        // Every ability by its VS Data id, which a unit's own abilities and its faction's start with, and by each former
-        // VS Data id it is aliased under, as Cogbound Alliance is by the Mechanicus Allies the detachment prints.
-        abilities: Object.fromEntries([
-          ...abilitySummaries.flatMap(([key, summary]) => (file.entries[key] ?? []).filter(isVsDataId).map((id) => [id, summary] as const)),
-          // Last, so an ability's own id wins over another's former one.
-          ...abilitySummaries.map(([key, summary]) => [key.slice('ability:'.length), summary] as const),
-        ]),
+        abilities: abilitiesBy(([, summary]) => summary),
         // An ability VS Data aliases to a BSData profile, by that profile's id, as BSData ids are written with dashes.
         aliases: Object.fromEntries(
           Object.entries(file.entries).flatMap(([key, aliases]) =>
@@ -165,7 +175,7 @@ export function* vsDataSummariesSteps(directory: string, documents: readonly Rul
           ),
         ),
       }
-      return { edition, index, units, summaries }
+      return { edition, index, units, records: { ...units, abilities: abilitiesBy(([key]) => key) }, summaries }
     })
   const filesOf = (entry: (typeof held)[number]) => editionTextFiles(directory, entry.base ? null : entry.edition.id)
   const cards = new Map<string, { file: string; edition: string }>()
@@ -214,6 +224,10 @@ export function* vsDataSummariesSteps(directory: string, documents: readonly Rul
     unitsIn: (edition) => {
       const id = edition ?? held[0]!.edition.id
       return (held.some((entry) => entry.edition.id === id) && versionOf(id)?.units) || { units: {}, abilities: {}, aliases: {} }
+    },
+    recordsIn: (edition) => {
+      const id = edition ?? held[0]!.edition.id
+      return (held.some((entry) => entry.edition.id === id) && versionOf(id)?.records) || null
     },
     summariesIn: (id) => {
       if (id === MISSION_SUMMARIES) {

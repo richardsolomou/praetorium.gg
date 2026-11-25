@@ -1,5 +1,6 @@
 import { summaryBlocks } from '../core/summaryMarkdown'
 import { abilityKey } from '../shared/vsDataAbilities'
+import { EFFECT_BLOCKS, type VsDataEffectsFile, vsDataEffectBlocksSchema, vsDataEffectsPath } from '../shared/vsDataEffects'
 import { hash } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -74,6 +75,11 @@ const typedStratagemSchema = z.object({
 const factsSchema = z.object({
   format: z.literal('vs-data-facts'),
   fields: z.object({ stratagem: z.object({ limit: z.string().optional() }).optional() }),
+})
+const effectFactsSchema = z.object({
+  format: z.literal('vs-data-facts'),
+  version: z.literal('1'),
+  fields: z.record(z.string(), z.unknown()),
 })
 const packRecordSchema = z.object({
   kind: z.literal('mission-pack'),
@@ -387,6 +393,34 @@ function absentAbilitiesOf(
 const describe = ({ edition, update }: VsDataRulesVersion) => `${edition} ${update}`
 
 /**
+ * Each record's effect blocks by `kind:id`, summarized or not, its rules named by the names the rules print, which is how
+ * Praetorium finds them. A record whose facts are in the unversioned format has no typed blocks.
+ */
+function effectsOf(released: readonly unknown[], update: string, identity: readonly z.infer<typeof identitySchema>['entries'][number][]) {
+  const names = new Map(identity.flatMap((entry) => (entry.name ? [[vsDataKey(entry), entry.name] as const] : [])))
+  const effects: VsDataEffectsFile['effects'] = {}
+  for (const record of released) {
+    const parsed = refSchema
+      .extend({ rulesVersion: z.object({ update: z.string() }), data: z.object({ facts: z.unknown().optional() }) })
+      .safeParse(record)
+    const facts = parsed.success && parsed.data.rulesVersion.update === update ? effectFactsSchema.safeParse(parsed.data.data.facts) : null
+    if (!facts?.success) continue
+    const blocks = Object.fromEntries(
+      EFFECT_BLOCKS.flatMap((block) => (block in facts.data.fields ? [[block, facts.data.fields[block]]] : [])),
+    )
+    if (!Object.keys(blocks).length) continue
+    const references = z.array(refSchema).optional().parse(blocks.references)
+    if (references) blocks.references = [...new Set(references.flatMap((reference) => names.get(vsDataKey(reference)) ?? []))]
+    // A block Praetorium cannot read, as one holding a field it does not know, is held back as VS Data holds back its own.
+    for (const block of EFFECT_BLOCKS)
+      if (block in blocks && !vsDataEffectBlocksSchema.shape[block].safeParse(blocks[block]).success)
+        blocks[block] = { unresolved: `Praetorium cannot read this ${block} block` }
+    effects[vsDataKey(parsed.data!)] = blocks
+  }
+  return effects
+}
+
+/**
  * Reduces a verified release to the one file Praetorium reads, `file`, so the snapshot does not carry thousands of
  * record files and the identity: each summary of the release's rules version, the aliases of every current entry a
  * summary is for or links to, each Stratagem's typed facts and the mission packs. The unpacked release is removed.
@@ -396,12 +430,13 @@ export function compactVsDataRelease(directory: string, file: string) {
   const read = (name: string): unknown => JSON.parse(fs.readFileSync(path.join(directory, name), 'utf8'))
   const identity = identitySchema.parse(read(manifest.identity.path)).entries
   const { units, conditions } = compactUnits(manifest, read, identity)
+  const released = manifest.categories
+    .filter((category) => SUMMARY_CATEGORIES.has(category.name))
+    .flatMap((category) => category.records)
+    .map((entry) => read(entry.path))
   const records = [
-    ...manifest.categories
-      .filter((category) => SUMMARY_CATEGORIES.has(category.name))
-      .flatMap((category) => category.records)
-      .map((entry) => read(entry.path))
-      // A record without a summary of its own reads as having none, as any other gap does.
+    // A record without a summary of its own reads as having none, as any other gap does.
+    ...released
       .filter(hasSummary)
       .map((record) => recordSchema.parse(record))
       .filter((record) => record.rulesVersion.update === manifest.rulesVersion.update),
@@ -468,6 +503,12 @@ export function compactVsDataRelease(directory: string, file: string) {
       questions: (data.interpretation ?? []).map(({ question }) => question),
     })),
   }
+  const effects: VsDataEffectsFile = {
+    release: manifest.release,
+    rulesVersion: manifest.rulesVersion,
+    effects: effectsOf(released, manifest.rulesVersion.update, identity),
+  }
   fs.rmSync(directory, { recursive: true })
   fs.writeFileSync(file, `${JSON.stringify(compact)}\n`)
+  fs.writeFileSync(vsDataEffectsPath(file), `${JSON.stringify(effects)}\n`)
 }
