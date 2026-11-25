@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.276.2 (2026-11-25)
+
+### Patch Changes
+
+- 61b0701: [simulator] Calculate abilities that give ranged attacks a weapon ability against targets within a distance of the unit, as the Land Raider Redeemer's Wrath of the Machine Spirit.
+
 ## 0.276.1 (2026-11-25)
 
 ### Patch Changes
