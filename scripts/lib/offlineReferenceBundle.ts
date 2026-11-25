@@ -1,7 +1,7 @@
 import { recordCardReadings } from '../../src/server/datacards'
 import path from 'node:path'
 import { textSourceFiles } from '../../src/server/sourceTexts'
-import { MISSION_SUMMARIES, RULE_SUMMARIES } from '../../src/contracts/rules'
+import { MISSION_SUMMARIES, RULE_OUTLINE, RULE_SUMMARIES } from '../../src/contracts/rules'
 import { publishedSearchIndex } from '../../src/server/globalSearch'
 import { downloadedDefinitionFacts } from '../../src/server/definitionTexts'
 import { hash } from 'node:crypto'
@@ -198,7 +198,7 @@ export async function writeReferenceBundle(outDir: string, directory: string, ru
   for (const document of ruleIndex!.documents)
     for (const section of document.sections)
       put(
-        ['rule-section', document.slug, section.slug],
+        ['rule-section', RULE_OUTLINE, document.slug, section.slug],
         referenceRuleSection(sources, { documentId: document.slug, sectionId: section.slug }),
       )
   const references = gameReferencesFor(rules)

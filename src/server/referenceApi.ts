@@ -270,10 +270,13 @@ export const referenceDetachmentResponse = rateLimited(async (request: Request, 
 export const referenceRuleSectionResponse = rateLimited(async (request: Request, documentId: string, sectionId: string) => {
   const corpus = await activeReferenceCorpus()
   if (!corpus) return referenceUnavailable()
-  // A page linked by its Game Datacards ids answers to the slugs those ids now name.
-  const [documentSlug, sectionSlug] = [currentRulePage(documentId).split('/')[0]!, currentRulePage(sectionId).split('/').at(-1)!]
+  // A page linked by its Game Datacards ids answers to the slugs those ids now name; a section's names its document too.
+  const documentSlug = currentRulePage(documentId)
+  const [sectionDocument, sectionSlug] = currentRulePage(sectionId).includes('/')
+    ? currentRulePage(sectionId).split('/')
+    : [documentSlug, sectionId]
   const document = corpus.catalogue.ruleDocuments.find((entry) => entry.slug === documentSlug)
-  const section = document?.sections.find((entry) => entry.slug === sectionSlug)
+  const section = sectionDocument === documentSlug ? document?.sections.find((entry) => entry.slug === sectionSlug) : undefined
   if (!document || !section) return problem('rules section not found', 404)
   const canonicalUrl = `/rules/${document.slug}/${section.slug}`
   const record: ReferenceRecord = {

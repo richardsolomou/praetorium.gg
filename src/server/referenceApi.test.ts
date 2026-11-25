@@ -17,7 +17,18 @@ const { document, corpus, state } = vi.hoisted(() => {
   return {
     document: record,
     corpus: {
-      catalogue: { revisions: { datacards: 'revision' }, datasheets: [], detachments: [], ruleDocuments: [] },
+      catalogue: {
+        revisions: { datacards: 'revision' },
+        datasheets: [],
+        detachments: [],
+        ruleDocuments: ['legends-orks', 'legends-space-marines'].map((slug) => ({
+          id: slug,
+          slug,
+          title: slug,
+          sections: [{ id: 'warhammer-legends', slug: 'warhammer-legends', title: 'Warhammer Legends', entries: [] }],
+          provenance: { summaries: { revision: 'revision' } },
+        })),
+      },
       documents: [record],
       byId: new Map([[record.id, record]]),
       revision: 'snapshot',
@@ -47,6 +58,7 @@ import {
   referenceGuideResponse,
   referenceIndexResponse,
   referenceRecordResponse,
+  referenceRuleSectionResponse,
   referenceSearchResponse,
   referenceUnitsResponse,
 } from './referenceApi'
@@ -262,3 +274,21 @@ it(
   },
   RATE_LIMIT_TIMEOUT,
 )
+
+it('opens a rules section by the Game Datacards ids of its document and section', async () => {
+  const response = await referenceRuleSectionResponse(
+    new Request('https://praetorium.gg/api/reference/v1/rules/86d19c98-0257-4c09-b4a4-20f53302a7dd/27d28f39-39a6-4868-9b2a-08e406d46690'),
+    '86d19c98-0257-4c09-b4a4-20f53302a7dd',
+    '27d28f39-39a6-4868-9b2a-08e406d46690',
+  )
+  expect((await response.json()).canonicalUrl).toBe('/rules/legends-orks/warhammer-legends')
+})
+
+it('opens no section by the id of another document’s section of the same name', async () => {
+  const response = await referenceRuleSectionResponse(
+    new Request('https://praetorium.gg/api/reference/v1/rules/86d19c98-0257-4c09-b4a4-20f53302a7dd/36963d73-22e2-4e50-b523-e6ae29b9ca22'),
+    '86d19c98-0257-4c09-b4a4-20f53302a7dd',
+    '36963d73-22e2-4e50-b523-e6ae29b9ca22',
+  )
+  expect(response.status).toBe(404)
+})

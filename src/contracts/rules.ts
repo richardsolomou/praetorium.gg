@@ -21,6 +21,8 @@ type RuleSectionSummary = { id: string; slug: string; title: string; entries: Ru
 export type RuleDocumentSummary = { id: string; slug: string; title: string; sections: RuleSectionSummary[] }
 export type RuleReference = { code: string; document: string; section: string; anchor: string; title: string }
 export type RuleIndex = { documents: RuleDocumentSummary[]; references: RuleReference[] }
+/** The shape a rules section is read in, in its query key, so a section a device saved in an earlier shape is never read as this one. */
+export const RULE_OUTLINE = 'vs-data'
 
 /** Where a summary's link lands: a rule on a rules page. */
 export type RuleSummaryLink = { document: string; section: string; anchor: string }
