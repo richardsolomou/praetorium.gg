@@ -169,6 +169,44 @@ it('keeps what a datasheet shows of a unit, its models and wargear named, under 
   ])
 })
 
+it('keeps every spelling the localisation gives a unit, its pieces and a Detachment, English first', () => {
+  fs.rmSync(directory, { recursive: true })
+  const entries = [
+    { kind: 'unit', id: 'necrons.tomb-blades', name: 'Tomb Blades', aliases: ['bsdata.aa11.bb22'] },
+    { kind: 'model', id: 'necrons.tomb-blades.tomb-blade', name: 'Tomb Blade', references: [{ kind: 'unit', id: 'necrons.tomb-blades' }] },
+    // Offered only through a bundle, so only its ID places it under the unit.
+    { kind: 'wargear', id: 'necrons.tomb-blades.particle-beamer', name: 'Particle Beamer' },
+    { kind: 'detachment', id: 'necrons.pantheon-of-woe', name: 'Pantheon of Woe' },
+  ]
+  writeFiles(
+    directory,
+    vsDataReleaseFiles([record], 'MFM 1.6', entries, {
+      es: [
+        { kind: 'unit', id: 'necrons.tomb-blades', display: 'Cuchillas sepulcrales' },
+        { kind: 'wargear', id: 'necrons.tomb-blades.particle-beamer', display: 'Haz de partículas' },
+        { kind: 'detachment', id: 'necrons.pantheon-of-woe', display: 'Panteón de la Aflicción' },
+      ],
+      fr: [{ kind: 'unit', id: 'necrons.tomb-blades', display: 'Lames Tombales', aliases: [{ name: 'Lame-tombeaux' }] }],
+    }),
+  )
+  expect(vsDataReleaseErrors(directory)).toEqual([])
+  const file = `${directory}.json`
+  compactVsDataRelease(directory, file)
+  const compact = JSON.parse(fs.readFileSync(file, 'utf8'))
+  fs.rmSync(file)
+  expect(compact.names).toEqual({
+    factions: [],
+    detachments: [['Pantheon of Woe', 'Panteón de la Aflicción']],
+    enhancements: [],
+    units: {
+      'necrons.tomb-blades': {
+        name: ['Tomb Blades', 'Cuchillas sepulcrales', 'Lames Tombales', 'Lame-tombeaux'],
+        pieces: [['Particle Beamer', 'Haz de partículas']],
+      },
+    },
+  })
+})
+
 it('keeps a unit the identity aliases to a BSData entry, with no roster record, as a unit with nothing to show', () => {
   fs.rmSync(directory, { recursive: true })
   const devotee = { kind: 'unit', id: 'adepta-sororitas.inspiring-devotee', name: 'Inspiring Devotee', aliases: ['bsdata.68a5.7e40'] }

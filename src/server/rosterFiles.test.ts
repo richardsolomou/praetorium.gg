@@ -15,6 +15,8 @@ import {
   assumeWarlord,
 } from '../shared/rosterFiles'
 import type { LoadedCatalogue } from '../shared/catalogueIndex'
+import type { LoadedRules } from '../shared/rules'
+import { importNamesOf } from '../shared/importNames'
 import { calculateRosterPrice } from '../shared/pricing'
 
 const system: CatalogueFile = { gameSystem: { id: 'gs', name: 'Test', costTypes: [{ id: 'pts', name: 'pts' }] } }
@@ -1728,6 +1730,48 @@ Exportada con la versión de la app: v2.4.0 (139), versión de los datos v925`,
         ['Tomb Blades', ['Cuchillas sepulcrales']],
         ['Particle beamer', ['Haz de partículas']],
       ]),
+    )
+
+    expect([imported.units.map((unit) => unit.entryId), imported.unknown, imported.unplaced]).toEqual([['tomb-blades'], [], []])
+  })
+
+  it('reads a datasheet and its wargear by the names the official app prints in the list’s language', () => {
+    const importNames = importNamesOf(
+      {
+        factions: [],
+        detachments: [],
+        enhancements: [],
+        units: {
+          'necrons.tomb-blades': { name: ['Tomb Blades', 'Cuchillas sepulcrales'], pieces: [['Particle Beamer', 'Haz de partículas']] },
+        },
+      },
+      { 'unit:necrons.tomb-blades': ['bsdata.tomb-blades'] },
+    )
+    const imported = importRosterFile(
+      {
+        file: `Cuchillas (70 puntos)
+
+Necrons
+Strike Force (2000 puntos)
+
+OTRAS HOJAS DE DATOS
+
+Cuchillas sepulcrales (70 puntos)
+  • 3 Tomb Blade
+     ◦ 3 Haz de partículas
+
+Exportada con la versión de la app: v2.4.0 (139), versión de los datos v925`,
+      },
+      loaded,
+      undefined,
+      {
+        factionNames: new Map(),
+        factionKeys: new Map(),
+        detachmentReferences: new Map(),
+        detachmentDetails: new Map(),
+        factionRestrictions: new Map(),
+        importNames,
+      } as Partial<LoadedRules> as LoadedRules,
     )
 
     expect([imported.units.map((unit) => unit.entryId), imported.unknown, imported.unplaced]).toEqual([['tomb-blades'], [], []])

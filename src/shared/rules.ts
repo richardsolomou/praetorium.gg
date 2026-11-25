@@ -1,3 +1,4 @@
+import type { ImportNames } from './importNames'
 import { canonicalDetachmentName } from '../core/detachmentName'
 import type { Stratagem } from '../core/battle'
 import { routeSlug } from '../core/slug'
@@ -49,6 +50,8 @@ export type LoadedRules = {
   terrainTemplates: TerrainTemplate[]
   /** Whatever the dataset says about how settled these numbers are. */
   dataslate: string | null
+  /** Every spelling the official app gives the names a list holds, which imports read lists written in its languages by. */
+  importNames?: ImportNames
 }
 export type BattleMissionRules = Pick<LoadedRules, 'missions' | 'fixedSecondaryCaps'>
 export type BattleReadRules = Pick<
