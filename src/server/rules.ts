@@ -3,7 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { routeSlug } from '../core/slug'
 import { uniqueBy } from '../core/collections'
-import { keywordAbilityDescriptions, loadDatacardsSteps } from './datacards'
+import { loadDatacardsSteps } from './datacards'
 import { factionRestrictions } from '../shared/datacards'
 import { factionsFromDatacards } from './datacardFactions'
 import { missionTerrain } from './missionTerrain'
@@ -144,15 +144,17 @@ export function* loadRulesSteps(
   )
   const missing = yield* missingArmyRulesFromCatalogueSteps(path.join(directory, 'definitions'), datacards)
   const catalogueRules = catalogue?.definitions ? withDefinitionTokens(missing, catalogue.definitions.token) : missing
-  const keywordRules = keywordAbilityDescriptions(datacardsDirectory)
+  // A core ability a faction lists among its army rules, as the Adeptus Titanicus list Super-heavy Walker, is VS Data's.
+  const coreAbilities = new Set(
+    Object.entries(releases[0]?.keywords ?? {}).flatMap(([key, name]) => (key.startsWith('core-ability:') ? [joinKey(name)] : [])),
+  )
   const supplementalArmyRules = new Map(catalogueRules)
   for (const content of new Set(datacards.factions.values())) {
     const faction = routeSlug(content.name)
     const sourceRules = catalogueRules.get(faction) ?? []
     const keywordMissing = [...content.factionAbilityNames].flatMap((name) => {
       if (content.armyRules.some((rule) => routeSlug(rule.name) === routeSlug(name))) return []
-      const description = keywordRules.get(joinKey(name))
-      return description ? [{ name, description }] : []
+      return coreAbilities.has(joinKey(name)) ? [{ name, description: '' }] : []
     })
     const preferred = new Set(keywordMissing.map((rule) => routeSlug(rule.name)))
     const selected = [...keywordMissing, ...sourceRules.filter((rule) => !preferred.has(routeSlug(rule.name)))]

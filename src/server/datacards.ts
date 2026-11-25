@@ -2,11 +2,8 @@ import { hash } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import { routeSlug } from '../core/slug'
-import { normalizeRuleReference } from '../core/ruleReference'
 import { readSharedJson } from './sharedJson'
-import { joinKey } from '../core/text'
 import {
-  type RuleCard,
   type SectionProse,
   type ConstructionDetachment,
   type FactionContent,
@@ -255,7 +252,6 @@ export function* loadDatacardsSteps(
   }
   const loaded = {
     factions,
-    keywordRules: keywordDescriptions(directory, ['weapons', 'abilities'], ['exact', 'parameterized'], textsOf),
     detachmentRules: new Map(
       [...detachmentRules].map(([detachment, rules]) => [
         detachment,
@@ -283,39 +279,4 @@ export function* loadDatacardsSteps(
     )
   }
   return loaded
-}
-export function keywordAbilityDescriptions(directory: string, textsFor: TextsFor = publishedTexts) {
-  return new Map(
-    keywordDescriptions(directory, ['abilities'], ['exact'], textsFor).map(({ name, description }) => [joinKey(name), description]),
-  )
-}
-function keywordDescriptions(
-  directory: string,
-  appliesTo: readonly string[],
-  matchTypes: readonly string[],
-  textsFor: TextsFor,
-): RuleCard[] {
-  const file = path.join(directory, 'keywords.json')
-  if (!fs.existsSync(file)) return []
-  const parsed = JSON.parse(fs.readFileSync(file, 'utf8')) as { keywords?: unknown }
-  const published = textsFor(file)
-  const candidates = new Map<string, { name: string; texts: Set<string> }>()
-  for (const entry of records({ keywords: parsed.keywords }, 'keywords')) {
-    if (
-      !matchTypes.includes(String(entry.matchType)) ||
-      !Array.isArray(entry.appliesTo) ||
-      !entry.appliesTo.some((kind) => appliesTo.includes(kind))
-    )
-      continue
-    const name = stringField(entry, 'name')
-    const description = localizedField(entry, 'descriptionLoc') ?? stringField(entry, 'description')
-    if (!name || !description) continue
-    const key = normalizeRuleReference(name)
-    const candidate = candidates.get(key) ?? { name, texts: new Set<string>() }
-    candidate.texts.add(published(description, 'prose'))
-    candidates.set(key, candidate)
-  }
-  return [...candidates.values()].flatMap(({ name, texts }) =>
-    texts.size === 1 ? [{ name, description: texts.values().next().value! }] : [],
-  )
 }

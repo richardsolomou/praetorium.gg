@@ -83,9 +83,10 @@ test('New Orders, discard CP and carried cards survive a complete two-player rou
   await expect(advanceButton(page)).toBeEnabled()
   await expect(side.getByRole('button', { name: /^Use New Orders for \d CP$/ })).toBeDisabled()
   await page.reload()
-  // A Beacon drawn as the replacement asks for its unit again on a fresh page.
+  // A Beacon drawn as the replacement asks for its unit again on a fresh page, after the board has drawn.
   const newOrders = side.getByRole('button', { name: /^Use New Orders for \d CP$/ })
   await expect(newOrders.or(page.getByRole('dialog', { name: / · choices$/ })).first()).toBeVisible()
+  if (orders[0]!.secondary.name === 'Beacon') await expect(page.getByRole('dialog', { name: / · choices$/ })).toBeVisible()
   await skipMissionChoices(page)
   await expect(newOrders).toBeDisabled()
   await expect(side.locator('[data-stat="cp"]')).toHaveText('0')

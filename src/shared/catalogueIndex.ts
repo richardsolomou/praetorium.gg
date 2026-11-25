@@ -23,6 +23,8 @@ export type LoadedCatalogue = {
   mfm?: MfmIndex | null
   /** Game Datacards, read once here and handed to the rules loader. */
   datacards: LoadedDatacards
+  /** The rules version's weapon and core abilities by name, from its VS Data release: the keywords whose rule is VS Data's. */
+  keywords?: readonly string[]
   /** The catalogue's own texts as the server read them from its files; a device's catalogue has none. */
   definitions?: DefinitionTexts
 }
