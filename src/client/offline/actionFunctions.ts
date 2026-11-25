@@ -12,7 +12,7 @@ import { matchingSealedEventBattles } from '../../shared/sealedEventBattleOption
 import { onboardingProgress as foldOnboarding, type OnboardingTaskId, type StoredOnboarding } from '../../core/onboarding'
 import * as server from '../../server/functions'
 import { offlineActionSchemas, type OfflineActionKind } from '../../contracts/offlineActions'
-import { localClient, localOwner, localDocument, localEngine, hasLocalChanges, queueLocal } from './localRuntime'
+import { localClient, localOwner, localDocument, localEngine, hasLocalChanges, hasSyncableChanges, queueLocal } from './localRuntime'
 import { localConstruction } from './construction'
 import type { LocalRoster } from './localRuntime'
 import { queryResource } from '../../contracts/localState'
@@ -466,6 +466,12 @@ export async function submitSealedEventRoster(
 ): ReturnType<typeof server.submitSealedEventRoster> {
   const defer = deferredForAccount()
   if (!localEngine()) return server.submitSealedEventRoster(args)
+  const resources = [`roster:${args.data.rosterId}`, `sealed-event:${args.data.token}`]
+  const pending = async () => (await Promise.all(resources.map(hasSyncableChanges))).some(Boolean)
+  // Online, the server seals its own copy once this device's changes land, so older army data or an older copy of the
+  // list on this device cannot refuse the seal; only an offline seal is held to what the device captured.
+  if (navigator.onLine && (await pending())) await attemptLocalSync()
+  if (navigator.onLine && !(await pending())) return server.submitSealedEventRoster(args)
   const roster = await localDocument<LocalRoster>(`roster:${args.data.rosterId}`)
   const construction = roster ? await localConstruction(roster.catalogueId) : null
   if (!roster || !construction) {
