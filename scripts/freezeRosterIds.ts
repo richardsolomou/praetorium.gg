@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { z } from 'zod'
-import { nameOf, targetOf } from '../src/core/catalogue'
+import { type Definition, nameOf, targetOf } from '../src/core/catalogue'
 import { readCatalogueComposition, editionDirectory } from '../src/server/catalogueComposition'
 import { groupBy } from '../src/core/collections'
 import { loadCatalogue } from '../src/server/catalogueIndex'
@@ -123,6 +123,20 @@ const SPELLINGS: Record<string, string> = {
 /** Reviewed spellings: a Detachment's name as VS Data prints it, by the name BSData gives it. */
 const DETACHMENT_SPELLINGS: Record<string, string> = { 'Brood Brother Auxilia': 'Brood Brothers Auxilia' }
 
+/** Every entry ID a definition's own conditions name, at any depth. */
+function childIds(definition: Definition): string[] {
+  const found: string[] = []
+  const visit = (value: unknown) => {
+    if (Array.isArray(value)) return value.forEach(visit)
+    if (!value || typeof value !== 'object') return
+    const record = value as Record<string, unknown>
+    if (typeof record.childId === 'string') found.push(record.childId)
+    for (const key of ['modifiers', 'modifierGroups', 'conditions', 'conditionGroups', 'localConditionGroups']) visit(record[key])
+  }
+  visit({ modifiers: definition.modifiers, modifierGroups: definition.modifierGroups })
+  return found
+}
+
 function readRelease(directory: string) {
   const read = (file: string): unknown => JSON.parse(fs.readFileSync(path.join(directory, file), 'utf8'))
   const entries = z.object({ entries: z.array(entrySchema) }).parse(read('identity.json')).entries
@@ -176,6 +190,8 @@ let base: Record<Section, Map<string, string>> | undefined
 for (const entry of composition.editions.toSorted((left, right) => Number(Boolean(right.base)) - Number(Boolean(left.base)))) {
   const release = path.join(releases, entry.edition.id)
   if (!fs.existsSync(release)) {
+    // Without the base, a retained rules version would be frozen as the current one.
+    if (entry.base) throw new Error(`${entry.edition.id} is the base rules version; its release is required`)
     console.log(`${entry.edition.id}: no release, skipped`)
     continue
   }
@@ -202,6 +218,7 @@ for (const entry of composition.editions.toSorted((left, right) => Number(Boolea
     return seen
   }
   const served = new Map<string, Set<string>>()
+  const optionDetachments = new Map<string, string>()
   const factionsOf = new Map<string, Set<string>>()
   for (const book of index.catalogues.values()) {
     const faction = BOOKS[book.id.slice(book.id.indexOf('~') + 1)]
@@ -253,11 +270,29 @@ for (const entry of composition.editions.toSorted((left, right) => Number(Boolea
         continue
       }
       add('detachments', option.id, detachment[0]!.id)
+      optionDetachments.set(option.id, detachment[0]!.id)
     }
   }
-  // Under a Detachment of a faction its book serves, an upgrade is the Enhancement of that name the Detachment offers.
-  // BSData marks Enhancements inconsistently (upgrades and some others cost no Enhancement), so the name decides; one
-  // entry can serve several Detachments VS Data records apart, so a key names the Detachment.
+  // Under a Detachment of a faction its book serves, an upgrade is the Enhancement of that name the Detachment offers,
+  // when BSData marks it as one: it costs an Enhancement (some cost none), sits in an Enhancements group, or shows only
+  // with that Detachment. A weapon that shares an Enhancement's name is none of these. One entry can serve several
+  // Detachments VS Data records apart, so a key names the Detachment.
+  const enhancementCost = [...index.costTypes.values()].find((type) => type.name === 'Enhancements')?.id
+  const parents = new Map<string, string[]>()
+  for (const definition of index.definitions.values())
+    for (const child of [
+      ...(definition.selectionEntries ?? []),
+      ...(definition.selectionEntryGroups ?? []),
+      ...(definition.entryLinks ?? []),
+    ])
+      parents.set(child.id, [...(parents.get(child.id) ?? []), definition.id])
+  const inEnhancementGroup = (id: string) => {
+    for (let frontier = parents.get(id) ?? [], depth = 0; frontier.length && depth < 3; depth++) {
+      if (frontier.some((at) => /enhancement/i.test(index.definitions.get(at)?.name ?? ''))) return true
+      frontier = frontier.flatMap((at) => parents.get(at) ?? [])
+    }
+    return false
+  }
   const offered = groupBy(
     vs.detachments.flatMap((detachment) =>
       (detachment.enhancements ?? []).map((enhancement) => ({
@@ -274,8 +309,10 @@ for (const entry of composition.editions.toSorted((left, right) => Number(Boolea
     const owner = index.catalogueOf.get(upgrade.id) ?? ''
     const factions = served.get(owner.slice(owner.indexOf('~') + 1))
     if (!factions) continue
-    const offers = (offered.get(enhancementName(SPELLINGS[upgrade.name] ?? upgrade.name)) ?? []).filter((offer) =>
-      factions.has(offer.detachment.faction),
+    const marked = upgrade.costs?.some((cost) => cost.typeId === enhancementCost) || inEnhancementGroup(definition.id)
+    const gated = new Set([...childIds(definition), ...childIds(upgrade)].flatMap((id) => optionDetachments.get(id) ?? []))
+    const offers = (offered.get(enhancementName(SPELLINGS[upgrade.name] ?? upgrade.name)) ?? []).filter(
+      (offer) => factions.has(offer.detachment.faction) && (marked || gated.has(offer.detachment.id)),
     )
     for (const { detachment, enhancement } of offers) add('enhancements', `${detachment.id}/${definition.id}`, enhancement)
   }
