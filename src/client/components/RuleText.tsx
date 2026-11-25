@@ -111,7 +111,8 @@ export function RuleText({
   /** The ability's BSData profile id, which VS Data may alias it by. */
   abilityId?: string
 }) {
-  if (hasTextTokens(text)) return <SummarizedRule text={text} className={className} name={name} abilityId={abilityId} />
+  // A rule with no text of its own, such as a core ability a faction lists, is VS Data's rule of its name.
+  if (hasTextTokens(text) || (!text && name)) return <SummarizedRule text={text} className={className} name={name} abilityId={abilityId} />
   return authored ? <RuleTextBody text={text} rules={rules} className={className} /> : null
 }
 

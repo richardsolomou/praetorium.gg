@@ -59,7 +59,7 @@ test(`Telemon bundles select and persist`, async ({ page }) => {
   await page.getByRole('button', { name: 'View', exact: true }).click()
   await expect(equipped.getByRole('heading', { name: '2× Twin Neutronium Cascade Projectors', exact: true })).toHaveCount(1)
   await expect(weapons.getByRole('button', { name: /^Select / })).toHaveCount(0)
-  await chooseRosterAction(page, 'Export text')
+  await chooseRosterAction(page, 'Export')
   const exported = page.getByRole('dialog', { name: 'Export roster' }).locator('pre')
   await expect(exported).toContainText('2x Twin Neutronium Cascade Projectors')
   await expect(exported).not.toContainText('Iliastus Accelerator Culverin')

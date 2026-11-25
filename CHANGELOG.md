@@ -1,5 +1,52 @@
 # praetorium
 
+## 0.277.3 (2026-11-25)
+
+### Patch Changes
+
+- 3df1468: [rosters] Exported list text names your Warlord when it's a character that must lead the army.
+
+## 0.277.2 (2026-11-25)
+
+### Patch Changes
+
+- b53f74f: [reference] The core rules' Torrent clarification shows its printed number, 24.37.01, and has a link of its own.
+
+## 0.277.1 (2026-11-25)
+
+### Patch Changes
+
+- 7a1781d: [rosters] Importing a list the official app exported in another language now reads more of its units and wargear.
+- 7a1781d: [rosters] Enhancements and upgrades in a list exported in another language now come in by their translated names.
+- 7a1781d: [rosters] Squads in a list exported in another language now come in with the number of models the list gives.
+
+## 0.277.0 (2026-11-25)
+
+### Minor Changes
+
+- b333858: [rosters] Export a roster for Tabletop Simulator: download its file and load it there with Yellowscribe.
+
+## 0.276.3 (2026-11-25)
+
+### Patch Changes
+
+- f1c3972: [rosters] Import an official app list that is over its points without reporting the app's error lines.
+- f1c3972: [rosters] Import a Battle Sisters Squad with a Ministorum flamer beside its heavy weapon.
+- f1c3972: [rosters] Import a Militarum Tempestus Command Squad marked Warlord from a New Recruit share link.
+- 7dd5ca7: [reference] Show the rules summaries on the core rules, Chapter Approved, Combat Patrol and Event Companion pages again.
+
+## 0.276.2 (2026-11-25)
+
+### Patch Changes
+
+- 61b0701: [simulator] Calculate abilities that give ranged attacks a weapon ability against targets within a distance of the unit, as the Land Raider Redeemer's Wrath of the Machine Spirit.
+
+## 0.276.1 (2026-11-25)
+
+### Patch Changes
+
+- a6f08ad: [reference] Name the Sternguard Veteran Squad's hit re-roll ability Veteran Marksmen, as the codex does.
+
 ## 0.276.0 (2026-11-25)
 
 ### Minor Changes

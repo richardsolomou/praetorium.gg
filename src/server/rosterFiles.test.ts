@@ -15,6 +15,8 @@ import {
   assumeWarlord,
 } from '../shared/rosterFiles'
 import type { LoadedCatalogue } from '../shared/catalogueIndex'
+import type { LoadedRules } from '../shared/rules'
+import { importNamesOf } from '../shared/importNames'
 import { calculateRosterPrice } from '../shared/pricing'
 
 const system: CatalogueFile = { gameSystem: { id: 'gs', name: 'Test', costTypes: [{ id: 'pts', name: 'pts' }] } }
@@ -784,6 +786,20 @@ const faction: CatalogueFile = {
           },
         ],
       },
+      {
+        id: 'phaeron',
+        name: 'Phaeron',
+        type: 'model',
+        entryLinks: [
+          {
+            id: 'phaeron-warlord',
+            name: 'Warlord',
+            targetId: 'warlord-ability',
+            type: 'selectionEntry',
+            constraints: [{ id: 'phaeron-warlord-min', type: 'min', value: 1, field: 'selections', scope: 'parent' }],
+          },
+        ],
+      },
     ],
     categoryEntries: [{ id: 'character', name: 'Character' }],
     sharedSelectionEntries: [
@@ -1079,6 +1095,7 @@ describe('roster export', () => {
             enhancements: ['Murdermind'],
             upgrades: [],
             wargear: [],
+            toggles: [],
           },
           {
             key: 1,
@@ -1090,6 +1107,7 @@ describe('roster export', () => {
             enhancements: [],
             upgrades: ['Deepening Madness'],
             wargear: [],
+            toggles: [],
           },
         ],
       },
@@ -1733,6 +1751,48 @@ Exportada con la versión de la app: v2.4.0 (139), versión de los datos v925`,
     expect([imported.units.map((unit) => unit.entryId), imported.unknown, imported.unplaced]).toEqual([['tomb-blades'], [], []])
   })
 
+  it('reads a datasheet and its wargear by the names the official app prints in the list’s language', () => {
+    const importNames = importNamesOf(
+      {
+        factions: [],
+        detachments: [],
+        enhancements: [],
+        units: {
+          'necrons.tomb-blades': { name: ['Tomb Blades', 'Cuchillas sepulcrales'], pieces: [['Particle Beamer', 'Haz de partículas']] },
+        },
+      },
+      { 'unit:necrons.tomb-blades': ['bsdata.tomb-blades'] },
+    )
+    const imported = importRosterFile(
+      {
+        file: `Cuchillas (70 puntos)
+
+Necrons
+Strike Force (2000 puntos)
+
+OTRAS HOJAS DE DATOS
+
+Cuchillas sepulcrales (70 puntos)
+  • 3 Tomb Blade
+     ◦ 3 Haz de partículas
+
+Exportada con la versión de la app: v2.4.0 (139), versión de los datos v925`,
+      },
+      loaded,
+      undefined,
+      {
+        factionNames: new Map(),
+        factionKeys: new Map(),
+        detachmentReferences: new Map(),
+        detachmentDetails: new Map(),
+        factionRestrictions: new Map(),
+        importNames,
+      } as Partial<LoadedRules> as LoadedRules,
+    )
+
+    expect([imported.units.map((unit) => unit.entryId), imported.unknown, imported.unplaced]).toEqual([['tomb-blades'], [], []])
+  })
+
   it('reads the faction from its datasheets where the official app translated its name', () => {
     const imported = importRosterFile(
       {
@@ -2200,6 +2260,7 @@ describe('Praetorium roster import', () => {
             enhancements: ['Demanding Leader'],
             upgrades: [],
             wargear: [],
+            toggles: [],
           },
           {
             key: 1,
@@ -2211,6 +2272,7 @@ describe('Praetorium roster import', () => {
             enhancements: [],
             upgrades: [],
             wargear: [],
+            toggles: [],
           },
         ],
       },
@@ -2340,6 +2402,7 @@ describe('custom unit names in text', () => {
     enhancements: [],
     upgrades: [],
     wargear: [],
+    toggles: [],
   })
   const exported = exportRosterFile(
     {
@@ -2675,6 +2738,9 @@ describe('readable roster export', () => {
     const price = calculateRosterPrice(input, loaded, null)!
     return exportRosterFile(input, loaded, { ...price, disposition: price.disposition ?? null }, ['Disruption'])
   }
+  it('names a unit the data makes Warlord though its pick saves no crown', () => {
+    expect(exportOf({ units: [{ entryId: 'phaeron' }] }).text).toContain('• Warlord')
+  })
   it('counts a saved detachment the text leaves out', () => {
     expect(exportOf({ detachmentIds: ['pantheon', 'retired-detachment'] }).omittedSelectionCount).toBe(1)
   })

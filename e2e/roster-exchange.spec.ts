@@ -18,7 +18,7 @@ const phone = { viewport: PHONE }
 
 /** The roster's exported text without its Exported with footer. */
 async function exportedText(page: Page) {
-  await chooseRosterAction(page, 'Export text')
+  await chooseRosterAction(page, 'Export')
   const dialog = page.getByRole('dialog', { name: 'Export roster' })
   const text = await dialog.locator('pre').innerText()
   await dialog.getByRole('button', { name: 'Close' }).click()

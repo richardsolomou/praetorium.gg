@@ -104,9 +104,11 @@ const pack = missionPack({
 function release({
   stratagems = [reapers, reroll],
   missionPacks = [pack],
+  keywords = {},
 }: {
   stratagems?: VsDataStratagem[]
   missionPacks?: VsDataMissionPack[]
+  keywords?: Record<string, string>
 }) {
   const file: VsDataSummariesFile = {
     release: '0.1.0',
@@ -121,6 +123,8 @@ function release({
     detachments: [],
     units: {},
     factions: {},
+    keywords,
+    coreRules: [],
     records: [],
   }
   write(path.join(directory, 'summaries', `${base.edition.id}.json`), file)
@@ -319,6 +323,8 @@ it('takes a retained Detachment’s Stratagems from its listing, and names the p
     ],
     units: {},
     factions: {},
+    keywords: {},
+    coreRules: [],
     records: [],
   }
   write(path.join(directory, 'summaries', 'earlier.json'), retained)
@@ -625,39 +631,14 @@ it('rejects a conflicting catalogue army ability', () => {
   expect(rules().supplementalArmyRules.has('orks')).toBe(false)
 })
 
-it('uses an exact Game Datacards ability definition omitted from a faction file', () => {
+it('lists VS Data’s core ability of a name a faction prints among its army rules', () => {
   write(path.join(directory, 'datacards', '11th', 'gdc', 'titan.json'), {
     name: 'Adeptus Titanicus',
     datasheets: [{ abilities: { faction: [{ name: { en: 'Super-heavy Walker' } }] } }],
     detachments: [],
   })
-  write(path.join(directory, 'datacards', '11th', 'gdc', 'keywords.json'), {
-    keywords: [
-      { name: 'Super-heavy Walker', description: 'Walk through terrain.', matchType: 'exact', appliesTo: ['abilities'] },
-      { name: 'Super-heavy Walker', description: 'Unrelated keyword.', matchType: 'exact', appliesTo: ['keywords'] },
-    ],
-  })
-  const words = wordsFrom(directory)
-  expect(
-    rules()
-      .supplementalArmyRules.get('adeptus-titanicus')
-      ?.map((rule) => ({ ...rule, description: words(rule.description) })),
-  ).toEqual([{ name: 'Super-heavy Walker', description: 'Walk through terrain.' }])
-})
-
-it('leaves conflicting Game Datacards ability definitions unresolved', () => {
-  write(path.join(directory, 'datacards', '11th', 'gdc', 'titan.json'), {
-    name: 'Adeptus Titanicus',
-    datasheets: [{ abilities: { faction: [{ name: { en: 'Super-heavy Walker' } }] } }],
-    detachments: [],
-  })
-  write(path.join(directory, 'datacards', '11th', 'gdc', 'keywords.json'), {
-    keywords: [
-      { name: 'Super-heavy Walker', description: 'First wording.', matchType: 'exact', appliesTo: ['abilities'] },
-      { name: 'Super-heavy Walker', description: 'Second wording.', matchType: 'exact', appliesTo: ['abilities'] },
-    ],
-  })
-  expect(rules().supplementalArmyRules.has('adeptus-titanicus')).toBe(false)
+  release({ keywords: { 'core-ability:super-heavy-walker': 'Super-heavy Walker', 'weapon-ability:blast': 'Blast' } })
+  expect(rules().supplementalArmyRules.get('adeptus-titanicus')).toEqual([{ name: 'Super-heavy Walker', description: '' }])
 })
 
 it('joins an army rule despite differences in name capitalization', () => {

@@ -30,8 +30,14 @@ export function treeFingerprint(root: string, inputs: readonly string[]) {
   return hash.digest('hex')
 }
 
-/** Identifies the catalogue configuration a compiler materializes with: sources, composition and patches. */
-export const catalogueAuthoring = () => treeFingerprint(process.cwd(), ['catalogue'])
+/**
+ * Code that decides what a materialized catalogue holds, beside its configuration: a published live catalogue is reused
+ * while this fingerprint matches, so a change to how a VS Data release is compacted would otherwise never reach it.
+ */
+const materializeFiles = ['scripts/lib/catalogueMaterialize.ts', 'src/server/vsDataRelease.ts', 'src/shared/vsData.ts']
+
+/** Identifies the catalogue configuration a compiler materializes with, and the code that materializes it. */
+export const catalogueAuthoring = () => treeFingerprint(process.cwd(), ['catalogue', ...materializeFiles])
 
 /**
  * package.json holds release metadata and tooling, none of which changes what the compiler produces, and the bundle

@@ -19,15 +19,16 @@ export function absentAbilitiesFor(
   directory: string,
   editionId?: string,
 ): { profiles: readonly AbsentAbility[]; names: readonly AbsentAbilityName[] } {
-  const release = absentIn(directory, editionId)
+  const release = compactReleaseIn(directory, editionId)
   return { profiles: release?.absentAbilities ?? [], names: release?.absentAbilityNames ?? [] }
 }
 
 /** Whether the rules version a catalogue directory holds marks a Detachment's rule absent, as `absentDetachmentRule` reads it. */
-export const absentDetachmentRuleFor = (directory: string, editionId?: string) => absentDetachmentRule(absentIn(directory, editionId))
+export const absentDetachmentRuleFor = (directory: string, editionId?: string) =>
+  absentDetachmentRule(compactReleaseIn(directory, editionId))
 
-/** What a rules version's compacted release marks absent, read from the snapshot `directory` is, or is under for a rules version. */
-function absentIn(directory: string, editionId?: string) {
+/** A rules version's compacted release, read from the snapshot `directory` is, or is under for a rules version. */
+export function compactReleaseIn(directory: string, editionId?: string) {
   // The base rules version is read from the snapshot's root even when named.
   const root = editionId && path.basename(path.dirname(directory)) === 'editions' ? path.resolve(directory, '..', '..') : directory
   const editions = readCatalogueComposition(root)?.editions ?? []
@@ -40,6 +41,7 @@ function absentIn(directory: string, editionId?: string) {
     absentAbilities?: AbsentAbility[]
     absentAbilityNames?: AbsentAbilityName[]
     absentDetachmentRules?: [string, string][]
+    keywords?: Record<string, string>
   }
 }
 

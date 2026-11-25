@@ -165,6 +165,21 @@ describe('BattleBase text import', () => {
     })
   })
 
+  it('leaves out the errors the app lists above the units', () => {
+    const errors = '\n\nERRORS\n• You are using more points (1,130) than your Battle Size allows (1,000).'
+    expect(fromBattleBaseText(exportText.replace('Incursion (1,000 Points)', `Incursion (1,000 Points)${errors}`))).toEqual(
+      fromBattleBaseText(exportText),
+    )
+  })
+
+  it('keeps the units after the errors of a paste that lost its blank lines', () => {
+    const errors = '\nERRORS\n• You are using more points (1,130) than your Battle Size allows (1,000).'
+    const flat = (text: string) => text.replaceAll(/\n\n+/g, '\n')
+    expect(fromBattleBaseText(flat(exportText.replace('Incursion (1,000 Points)', `Incursion (1,000 Points)${errors}`)))).toEqual(
+      fromBattleBaseText(flat(exportText)),
+    )
+  })
+
   it('reads a battle size priced in the singular', () => {
     expect(fromBattleBaseText(exportText.replace('Incursion (1,000 Points)', 'Incursion (1,000 Point)'))?.limit).toBe(1000)
   })

@@ -4,6 +4,7 @@ import path from 'node:path'
 import { afterEach, beforeEach, expect, it } from 'vitest'
 import { vsDataReleaseFiles, writeFiles } from './vsData.fixtures'
 import { checkVsDataRelease, compactVsDataRelease, vsDataReleaseErrors } from './vsDataRelease'
+import { vsDataEffectsPath } from '../shared/vsDataEffects'
 
 const record = { kind: 'ability', id: 'necrons.test.phase-shift', aliases: [], summary: 'Move one unit.' }
 let directory: string
@@ -92,6 +93,79 @@ it('keeps each Stratagem’s typed facts, naming the Detachment it references', 
   expect([kept.detachment, kept.limit, kept.windows.length]).toEqual(['Shadowkeepers', 'battle', 2])
 })
 
+it('keeps the name of each weapon and core ability, the keywords datasheets print', () => {
+  fs.rmSync(directory, { recursive: true, force: true })
+  writeFiles(
+    directory,
+    vsDataReleaseFiles([record], 'MFM 1.6', [
+      { kind: 'weapon-ability', id: 'sustained-hits', name: 'Sustained Hits' },
+      { kind: 'core-ability', id: 'deep-strike', name: 'Deep Strike' },
+      { kind: 'detachment', id: 'space-marines.gladius', name: 'Gladius Task Force' },
+    ]),
+  )
+  const file = `${directory}.json`
+  compactVsDataRelease(directory, file)
+  expect(JSON.parse(fs.readFileSync(file, 'utf8')).keywords).toEqual({
+    'weapon-ability:sustained-hits': 'Sustained Hits',
+    'core-ability:deep-strike': 'Deep Strike',
+  })
+})
+
+it('keeps where each rule of the rules documents reads and how a page addresses it', () => {
+  fs.rmSync(directory, { recursive: true, force: true })
+  const coreRule = (id: string, name: string, data: Record<string, unknown>) => ({
+    kind: 'core-rule',
+    id,
+    name,
+    aliases: [],
+    summary: `${name} summary.`,
+    data: { document: 'Core Rules', section: '15. Stratagems', ...data },
+  })
+  writeFiles(
+    directory,
+    vsDataReleaseFiles([
+      coreRule('command-re-roll', 'Command Re-Roll', {
+        ruleNumber: '15.02',
+        order: 4,
+        anchor: '15.02',
+        stratagem: { kind: 'ability', id: 'core.command-re-roll' },
+      }),
+      coreRule('command-re-roll.once', 'Once Per Phase', {
+        ruleNumber: '15.02.01',
+        order: 5,
+        anchor: '15.02.01',
+        parent: { kind: 'core-rule', id: 'command-re-roll' },
+      }),
+    ]),
+  )
+  const file = `${directory}.json`
+  compactVsDataRelease(directory, file)
+  expect(JSON.parse(fs.readFileSync(file, 'utf8')).coreRules).toEqual([
+    {
+      id: 'command-re-roll',
+      name: 'Command Re-Roll',
+      document: 'Core Rules',
+      section: '15. Stratagems',
+      number: '15.02',
+      parent: null,
+      order: 4,
+      anchor: '15.02',
+      stratagem: 'core.command-re-roll',
+    },
+    {
+      id: 'command-re-roll.once',
+      name: 'Once Per Phase',
+      document: 'Core Rules',
+      section: '15. Stratagems',
+      number: '15.02.01',
+      parent: 'command-re-roll',
+      order: 5,
+      anchor: '15.02.01',
+      stratagem: null,
+    },
+  ])
+})
+
 it('keeps what each Detachment’s build prints, by the Detachment’s name', () => {
   fs.rmSync(directory, { recursive: true, force: true })
   const detachment = {
@@ -167,6 +241,45 @@ it('keeps what a datasheet shows of a unit, its models and wargear named, under 
       transport: { loads: [[{ count: 'models', limit: 10, selectors: ['NECRON WARRIORS'] }]] },
     },
   ])
+})
+
+it('keeps every spelling the localisation gives a unit, its pieces and a Detachment, English first', () => {
+  fs.rmSync(directory, { recursive: true })
+  const entries = [
+    { kind: 'unit', id: 'necrons.tomb-blades', name: 'Tomb Blades', aliases: ['bsdata.aa11.bb22'] },
+    { kind: 'model', id: 'necrons.tomb-blades.tomb-blade', name: 'Tomb Blade', references: [{ kind: 'unit', id: 'necrons.tomb-blades' }] },
+    // Offered only through a bundle, so only its ID places it under the unit.
+    { kind: 'wargear', id: 'necrons.tomb-blades.particle-beamer', name: 'Particle Beamer' },
+    { kind: 'detachment', id: 'necrons.pantheon-of-woe', name: 'Pantheon of Woe' },
+  ]
+  writeFiles(
+    directory,
+    vsDataReleaseFiles([record], 'MFM 1.6', entries, {
+      es: [
+        { kind: 'unit', id: 'necrons.tomb-blades', display: 'Cuchillas sepulcrales' },
+        { kind: 'wargear', id: 'necrons.tomb-blades.particle-beamer', display: 'Haz de partículas' },
+        { kind: 'detachment', id: 'necrons.pantheon-of-woe', display: 'Panteón de la Aflicción' },
+      ],
+      fr: [{ kind: 'unit', id: 'necrons.tomb-blades', display: 'Lames Tombales', aliases: [{ name: 'Lame-tombeaux' }] }],
+      it: [{ kind: 'model', id: 'necrons.tomb-blades.tomb-blade', display: 'Lama Tombale con raggio a particelle.' }],
+    }),
+  )
+  expect(vsDataReleaseErrors(directory)).toEqual([])
+  const file = `${directory}.json`
+  compactVsDataRelease(directory, file)
+  const compact = JSON.parse(fs.readFileSync(file, 'utf8'))
+  fs.rmSync(file)
+  expect(compact.names).toEqual({
+    factions: [],
+    detachments: [['Pantheon of Woe', 'Panteón de la Aflicción']],
+    enhancements: [],
+    units: {
+      'necrons.tomb-blades': {
+        name: ['Tomb Blades', 'Cuchillas sepulcrales', 'Lames Tombales', 'Lame-tombeaux'],
+        pieces: [['Particle Beamer', 'Haz de partículas']],
+      },
+    },
+  })
 })
 
 it('keeps a unit the identity aliases to a BSData entry, with no roster record, as a unit with nothing to show', () => {
@@ -369,4 +482,35 @@ it('reads a record whose summary VS Data holds as unresolved as having none', ()
   const file = `${directory}.json`
   compactVsDataRelease(directory, file)
   expect(JSON.parse(fs.readFileSync(file, 'utf8')).records.map(({ id }: { id: string }) => id)).toEqual(['necrons.test.phase-shift'])
+})
+
+it('keeps each record’s effect blocks beside its summaries, naming the rules they reference', () => {
+  fs.rmSync(directory, { recursive: true })
+  const ability = {
+    ...record,
+    data: {
+      facts: {
+        format: 'vs-data-facts',
+        version: '1',
+        fields: { reminder: { timings: [{ at: 'turn-start', turn: 'own' }] }, references: [{ kind: 'core-ability', id: 'deep-strike' }] },
+      },
+    },
+  }
+  writeFiles(directory, vsDataReleaseFiles([ability], 'MFM 1.6', [{ kind: 'core-ability', id: 'deep-strike', name: 'Deep Strike' }]))
+  const file = `${directory}.json`
+  compactVsDataRelease(directory, file)
+  expect(JSON.parse(fs.readFileSync(vsDataEffectsPath(file), 'utf8')).effects).toEqual({
+    'ability:necrons.test.phase-shift': { reminder: { timings: [{ at: 'turn-start', turn: 'own' }] }, references: ['Deep Strike'] },
+  })
+})
+
+it('holds back an effect block Praetorium cannot read as unresolved', () => {
+  fs.rmSync(directory, { recursive: true })
+  const fields = { reminder: { timings: [{ at: 'turn-start', turn: 'own', during: 'the battle' }] } }
+  writeFiles(directory, vsDataReleaseFiles([{ ...record, data: { facts: { format: 'vs-data-facts', version: '1', fields } } }]))
+  const file = `${directory}.json`
+  compactVsDataRelease(directory, file)
+  expect(JSON.parse(fs.readFileSync(vsDataEffectsPath(file), 'utf8')).effects['ability:necrons.test.phase-shift'].reminder).toEqual({
+    unresolved: 'Praetorium cannot read this reminder block',
+  })
 })

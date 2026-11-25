@@ -29,7 +29,6 @@ it('publishes concrete OpenAPI response contracts', () => {
           required: ['kind', 'canonicalUrl', 'revisions', 'attribution', 'data'],
         },
         RuleSectionData: { required: ['document', 'section'] },
-        RuleBlock: { oneOf: expect.arrayContaining([expect.objectContaining({ required: ['kind', 'markup'] })]) },
         Error: { required: ['error'] },
       },
     },

@@ -5,7 +5,8 @@ import { awardsOnce } from '../core/scoring'
 import { hasTextTokens, textPointersIn, type TextLocations } from '../core/sourceText'
 import type { CanonicalCatalogue, CanonicalDatasheet, CanonicalDetachment } from '../contracts/catalogue'
 import { DISPOSITION_PACK_SECTION, type ReferenceDocument, type ReferenceSection } from '../contracts/reference'
-import type { RuleDocument, RuleEntry } from '../contracts/rules'
+import type { RuleEntry } from '../contracts/rules'
+import { VS_DATA_ATTRIBUTION } from '../shared/vsData'
 import { routeSlug } from '../core/slug'
 import { byId, remember } from '../core/collections'
 import type { MissionSelectionKind } from '../core/missionSelections'
@@ -129,7 +130,15 @@ function* referenceCorpusSteps(sources: ReferenceSources): Steps<ReferenceCorpus
     (left, right) => left.kind.localeCompare(right.kind) || left.title.localeCompare(right.title) || left.id.localeCompare(right.id),
   )
   const revision = hash('sha256', JSON.stringify({ catalogue, documents }))
-  const corpus = { catalogue, documents, byId: byId(documents), revision }
+  const ids = new Map(byId(documents))
+  // A rule addressed before VS Data outlined the documents keeps answering to the id it had then.
+  for (const document of catalogue.ruleDocuments)
+    for (const entry of document.sections.flatMap((section) => section.entries))
+      for (const former of entry.formerAnchors) {
+        const found = ids.get(`rule:${document.slug}:${entry.anchor}`)
+        if (found && !ids.has(`rule:${document.slug}:${former}`)) ids.set(`rule:${document.slug}:${former}`, found)
+      }
+  const corpus = { catalogue, documents, byId: ids as ReadonlyMap<string, ReferenceDocument>, revision }
   corpora.set(canonical, { catalogue: loaded, rules, files, factions: sources.factions, corpus })
   return corpus
 }
@@ -644,10 +653,7 @@ function detachmentDocument(
   }
 }
 
-function ruleDocuments(
-  files: TextLocations,
-  document: RuleDocument & { provenance: { datacards: { revision: string } } },
-): ReferenceDocument[] {
+function ruleDocuments(files: TextLocations, document: CanonicalCatalogue['ruleDocuments'][number]): ReferenceDocument[] {
   return document.sections.flatMap((ruleSection) =>
     ruleSection.entries.map((entry) => ruleDocument(files, document, ruleSection.slug, ruleSection.title, entry)),
   )
@@ -655,43 +661,25 @@ function ruleDocuments(
 
 function ruleDocument(
   files: TextLocations,
-  document: RuleDocument & { provenance: { datacards: { revision: string } } },
+  document: CanonicalCatalogue['ruleDocuments'][number],
   sectionSlug: string,
   sectionTitle: string,
   entry: RuleEntry,
 ): ReferenceDocument {
   const baseUrl = `/rules/${document.slug}/${sectionSlug}`
-  const url = `${baseUrl}#${entry.anchor}`
-  const main = section(
-    files,
-    baseUrl,
-    entry.anchor,
-    entry.title,
-    [
-      entry.code,
-      entry.cost === null ? null : `${entry.cost} CP`,
-      entry.lore,
-      ...entry.facts.map((fact) => `${fact.label}: ${fact.markup}`),
-      ...entry.blocks.flatMap((block) => (block.kind === 'clarification' ? [] : [block.kind === 'heading' ? block.text : block.markup])),
-    ],
-    entry.id,
-  )
-  const clarifications = entry.blocks.flatMap((block) =>
-    block.kind === 'clarification'
-      ? [section(files, baseUrl, block.anchor ?? entry.anchor, block.title, [block.code, block.markup], entry.id)]
-      : [],
-  )
   return {
     id: `rule:${document.slug}:${entry.anchor}`,
     kind: 'rule',
     title: entry.title,
     faction: null,
-    url,
-    revisions: { datacards: document.provenance.datacards.revision },
-    attribution: [DATACARDS_ATTRIBUTION],
+    url: `${baseUrl}#${entry.anchor}`,
+    revisions: { summaries: document.provenance.summaries.revision },
+    attribution: [VS_DATA_ATTRIBUTION],
     sections: present([
-      main,
-      ...clarifications,
+      section(files, baseUrl, entry.anchor, entry.title, [entry.code, entry.cost === null ? null : `${entry.cost} CP`]),
+      ...entry.clarifications.map((clarification) =>
+        section(files, baseUrl, clarification.anchor, clarification.title, [clarification.code]),
+      ),
       section(files, baseUrl, `context-${entry.anchor}`, 'Context', [document.title, sectionTitle]),
     ]),
   }

@@ -2,6 +2,9 @@ import { z } from 'zod'
 import type { RuleSummary } from '../contracts/rules'
 import { english } from './datacards'
 
+/** The credit a record Praetorium serves from VS Data alone carries. */
+export const VS_DATA_ATTRIBUTION = 'Rules data from VS Data'
+
 const refSchema = z.object({ kind: z.string().min(1), id: z.string().min(1) })
 export type VsDataRef = z.infer<typeof refSchema>
 
@@ -198,6 +201,35 @@ export type VsDataUnits = {
   factions?: Record<string, string>
 }
 
+/** Each name's spellings, its English one first. */
+const spellingsSchema = z.array(z.array(z.string()))
+export const vsDataNamesSchema = z.object({
+  factions: spellingsSchema,
+  detachments: spellingsSchema,
+  enhancements: spellingsSchema,
+  /** Each unit's own spellings, and those of each model and piece of wargear it holds, by VS Data id. */
+  units: z.record(z.string(), z.object({ name: z.array(z.string()), pieces: spellingsSchema })),
+})
+export type VsDataNames = z.infer<typeof vsDataNamesSchema>
+
+/**
+ * A rule of a rules document, as VS Data outlines the core rules, Chapter Approved and the other documents: where it reads
+ * in its document, under which section, its printed number, and the stable address a page links it by. A clarification
+ * the document numbers beneath a rule names that rule as `parent`; a rule that prints a core Stratagem names it.
+ */
+export const vsDataCoreRuleSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  document: z.string().min(1),
+  section: z.string().nullable(),
+  number: z.string().nullable(),
+  parent: z.string().nullable(),
+  order: z.number().int(),
+  anchor: z.string().min(1),
+  stratagem: z.string().nullable(),
+})
+export type VsDataCoreRule = z.infer<typeof vsDataCoreRuleSchema>
+
 /**
  * What the snapshot keeps of a verified VS Data release: each summary with its spans and open questions, the aliases
  * of every entry a summary is for or links to, the upstream work its records adapt, which must be credited, and the
@@ -225,6 +257,12 @@ export const vsDataSummariesSchema = z.object({
   units: z.record(z.string(), vsDataUnitSchema).default({}),
   /** Each faction's VS Data id by its name. */
   factions: z.record(z.string(), z.string()).default({}),
+  /** Every spelling the official app gives each name in any language, which imports read lists by. */
+  names: vsDataNamesSchema.optional(),
+  /** The name of each weapon and core ability, the keywords a datasheet prints, by `kind:id`. */
+  keywords: z.record(z.string(), z.string()).default({}),
+  /** Every rule of the rules documents, in no particular order. */
+  coreRules: z.array(vsDataCoreRuleSchema).default([]),
   records: z.array(
     refSchema.extend({
       summary: z.string().min(1),

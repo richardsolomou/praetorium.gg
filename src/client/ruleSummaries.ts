@@ -1,10 +1,8 @@
 import { useQueries, useQuery } from '@tanstack/react-query'
-import { MISSION_SUMMARIES, type RuleSummaries, type RuleSummary } from '../contracts/rules'
+import { MISSION_SUMMARIES, RULE_SUMMARIES, type RuleSummaries, type RuleSummary } from '../contracts/rules'
 import { TEXT_HOMES_MAX } from '../contracts/schemas'
 import { abilityKeysNamed, summaryNamedBy, tokensAtHome, wholeRuleTokens } from '../shared/ruleSummaries'
 import { ruleAbilitySummariesQuery, ruleCoreSummaryQuery, ruleSummariesQuery, textHomesQuery } from './queries/references'
-import { textSources } from './functions'
-import { referenceQuery } from './queries/shared'
 
 type SummaryLookup = { summary: RuleSummary | null; pending: boolean }
 
@@ -57,24 +55,24 @@ export function useMissionSummary(kind: MissionKind, id: string | undefined) {
 /** Whether the summaries of every rule these texts print have been asked for and answered, so a printout can wait for them. */
 export const useRuleSummariesSettled = (texts: readonly string[]) => !useRuleSummaries(texts).pending
 
-/** Where each source file a token names lives upstream, which names the file a rules document is printed in. */
-const textSourcesQuery = () => referenceQuery(['text-sources'], () => textSources())
+/**
+ * The summaries of the rules documents' rules and clarifications, by VS Data id, and whether they have been answered, as
+ * they lengthen the page they arrive on.
+ */
+export function useRuleEntrySummaries() {
+  const { data, isFetched } = useQuery(ruleSummariesQuery(RULE_SUMMARIES))
+  return { settled: isFetched, summaryOf: (rule: string): RuleSummary | undefined => data?.records[`core-rule:${rule}`] }
+}
 
 /**
- * The summaries of a rules document's entries, by entry id, once the file it is printed in is known, and whether they
- * have been asked for and answered, as they lengthen the page they arrive on.
+ * The summary of the weapon or core ability a keyword names, by its name: undefined while asked for, null where VS Data
+ * has no such ability.
  */
-export function useRuleEntrySummaries(url: string | null) {
-  const { data: table, isFetched: located } = useQuery({ ...textSourcesQuery(), enabled: Boolean(url) })
-  const file = table && Object.entries(table).find(([, entry]) => entry.url === url)?.[0]
-  const { data, isFetched } = useQuery({ ...ruleSummariesQuery(file ?? ''), enabled: Boolean(file) })
-  return {
-    settled: !url || (located && (!file || isFetched)),
-    summaryOf: (entry: string): RuleSummary | undefined => {
-      const id = data?.entries[entry]
-      return id ? data.records[id] : undefined
-    },
-  }
+export function useKeywordSummary(name: string): RuleSummary | null | undefined {
+  const { data, isPending } = useQuery(ruleAbilitySummariesQuery())
+  if (!data) return isPending ? undefined : null
+  const keys = abilityKeysNamed(name).filter((key) => !key.startsWith('core-rule:'))
+  return keys.map((key) => data[key]).find(Boolean) ?? null
 }
 
 /**

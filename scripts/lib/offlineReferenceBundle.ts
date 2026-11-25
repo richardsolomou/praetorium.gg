@@ -1,7 +1,7 @@
 import { recordCardReadings } from '../../src/server/datacards'
 import path from 'node:path'
 import { textSourceFiles } from '../../src/server/sourceTexts'
-import { MISSION_SUMMARIES } from '../../src/contracts/rules'
+import { MISSION_SUMMARIES, RULE_OUTLINE, RULE_SUMMARIES } from '../../src/contracts/rules'
 import { publishedSearchIndex } from '../../src/server/globalSearch'
 import { downloadedDefinitionFacts } from '../../src/server/definitionTexts'
 import { hash } from 'node:crypto'
@@ -40,7 +40,8 @@ import {
   type ReferenceQuery,
 } from '../../src/contracts/offlineReference'
 import { loadCatalogueTranslations } from '../../src/server/catalogueTranslations'
-import { vsDataSummariesSteps } from '../../src/server/vsDataSummaries'
+import { readVsDataRelease, vsDataSummariesSteps } from '../../src/server/vsDataSummaries'
+import { spellingGroups } from '../../src/shared/importNames'
 import { completeSteps } from '../../src/shared/steps'
 import type { CatalogueRuntime } from '../../src/server/catalogueRuntime'
 
@@ -171,7 +172,7 @@ export async function writeReferenceBundle(outDir: string, directory: string, ru
   put(['rule-ability-summaries'], summaries?.abilities() ?? {})
   for (const [key, summary] of Object.entries(summaries?.coreRules() ?? {})) put(['rule-core-summary', key], summary)
   for (const [at, edition] of (summaries?.editions ?? []).entries()) put(['rule-units', at ? edition : null], summaries!.unitsIn(edition))
-  for (const file of summaries ? [...Object.keys(textFiles), MISSION_SUMMARIES] : []) {
+  for (const file of summaries ? [...Object.keys(textFiles), MISSION_SUMMARIES, RULE_SUMMARIES] : []) {
     const answer = summaries!.summariesIn(file)
     // A file no summary reads stays out, and its query falls back to the source's own text as offline.
     if (Object.keys(answer.records).length) put(['rule-summary-records', file], answer)
@@ -185,6 +186,8 @@ export async function writeReferenceBundle(outDir: string, directory: string, ru
     ...catalogue.factions.map((faction) => faction.name.split(' - ').at(-1)!),
     ...[...catalogue.detachments.values()].flatMap((detachments) => detachments.options.map((option) => option.name)),
     ...(rules.dispositions?.values() ?? []),
+    // The official app's names are all names, but its English can differ from the catalogue's, as "Imperium’s Sword".
+    ...spellingGroups(readVsDataRelease(directory)?.names).flat(),
   ])
   put(
     ['import-translations'],
@@ -195,7 +198,7 @@ export async function writeReferenceBundle(outDir: string, directory: string, ru
   for (const document of ruleIndex!.documents)
     for (const section of document.sections)
       put(
-        ['rule-section', document.slug, section.slug],
+        ['rule-section', RULE_OUTLINE, document.slug, section.slug],
         referenceRuleSection(sources, { documentId: document.slug, sectionId: section.slug }),
       )
   const references = gameReferencesFor(rules)
@@ -233,6 +236,7 @@ export async function writeReferenceBundle(outDir: string, directory: string, ru
     ),
     definitionFacts: packRuntimeData(downloadedDefinitionFacts(selectedCatalogue)),
     datacards: packRuntimeData(selectedCatalogue.datacards),
+    ...(selectedCatalogue.keywords ? { keywords: [...selectedCatalogue.keywords] } : {}),
     mfm: packRuntimeData(selectedCatalogue.mfm ?? null),
     rules: packRuntimeData({ ...selectedRules, terrainLayouts: [], terrainTemplates: [] }),
   })

@@ -1,5 +1,7 @@
 import { summaryBlocks } from '../core/summaryMarkdown'
+import { type VsDataConstruction, vsDataConstructionSchema } from '../core/vsDataConstruction'
 import { abilityKey } from '../shared/vsDataAbilities'
+import { EFFECT_BLOCKS, type VsDataEffectsFile, vsDataEffectBlocksSchema, vsDataEffectsPath } from '../shared/vsDataEffects'
 import { hash } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -7,10 +9,12 @@ import { z } from 'zod'
 import {
   vsDataAttributionSchema,
   vsDataMissionPackSchema,
+  type VsDataCoreRule,
   type VsDataDetachment,
   type VsDataStratagem,
   vsDataStratagemSchema,
   type VsDataSummariesFile,
+  type VsDataNames,
   type VsDataUnit,
   vsDataEdition,
   vsDataKey,
@@ -24,6 +28,7 @@ const manifestSchema = z.object({
   release: z.string(),
   rulesVersion: z.object({ edition: z.string(), update: z.string() }),
   identity: fileSchema,
+  localisation: z.array(fileSchema.extend({ language: z.string() })).default([]),
   schemas: z.array(fileSchema),
   categories: z.array(
     z.object({
@@ -48,6 +53,7 @@ const identitySchema = z.object({
     }),
   ),
 })
+type IdentityEntry = z.infer<typeof identitySchema>['entries'][number]
 const recordSchema = refSchema.extend({
   rulesVersion: z.object({ update: z.string() }),
   attribution: vsDataAttributionSchema.optional(),
@@ -75,6 +81,11 @@ const factsSchema = z.object({
   format: z.literal('vs-data-facts'),
   fields: z.object({ stratagem: z.object({ limit: z.string().optional() }).optional() }),
 })
+const effectFactsSchema = z.object({
+  format: z.literal('vs-data-facts'),
+  version: z.literal('1'),
+  fields: z.record(z.string(), z.unknown()),
+})
 const packRecordSchema = z.object({
   kind: z.literal('mission-pack'),
   rulesVersion: z.object({ update: z.string() }),
@@ -89,6 +100,7 @@ const MANIFEST = 'manifest.json'
 const SUMMARY_CATEGORIES = new Set(['rules-reference', 'mission-rules'])
 const MISSION_PACKS = 'mission-packs'
 const STRATAGEM_RULE_TYPES = new Set(['stratagem', 'core-stratagem'])
+const KEYWORD_KINDS = new Set(['weapon-ability', 'core-ability'])
 const IDENTITY = 'identity.json'
 
 /** The release's manifest, or null where the folder holds no VS Data catalogue release. */
@@ -116,7 +128,7 @@ export function vsDataReleaseErrors(directory: string): string[] {
   const manifest = readVsDataManifest(directory)
   if (!manifest) return [...errors, `${MANIFEST}: not a VS Data catalogue release`]
   if (manifest.identity.path !== IDENTITY) errors.push(`/identity/path must be ${IDENTITY}`)
-  const listed = [...manifest.schemas, manifest.identity]
+  const listed = [...manifest.schemas, manifest.identity, ...manifest.localisation]
   manifest.categories.forEach((category, at) => {
     if (at > 0 && manifest.categories[at - 1]!.name >= category.name) errors.push(`/categories/${at} is not in ascending name order`)
     if (category.status === 'retained') {
@@ -313,6 +325,49 @@ function compactUnits(
   return { units, conditions }
 }
 
+const coreRuleDataSchema = z.object({
+  document: z.string(),
+  section: z.string().optional(),
+  ruleNumber: z.string().optional(),
+  parent: refSchema.optional(),
+  order: z.number().int(),
+  anchor: z.string(),
+  stratagem: refSchema.optional(),
+})
+
+/** Each rule of the release's rules documents, with what a page needs to place and address it. */
+function coreRulesOf(
+  manifest: VsDataManifest,
+  read: (name: string) => unknown,
+  identity: readonly { kind: string; id: string; name?: string }[],
+): VsDataCoreRule[] {
+  const names = new Map(identity.flatMap((entry) => (entry.kind === 'core-rule' && entry.name ? [[entry.id, entry.name] as const] : [])))
+  return manifest.categories
+    .flatMap((category) => category.records)
+    .filter((entry) => entry.path.split('/')[2] === 'core-rule')
+    .map((entry) => read(entry.path) as { id: string; rulesVersion?: { update?: string }; data: unknown })
+    .filter((record) => record.rulesVersion?.update === manifest.rulesVersion.update)
+    .flatMap((record) => {
+      const name = names.get(record.id)
+      const data = coreRuleDataSchema.safeParse(record.data)
+      return name && data.success
+        ? [
+            {
+              id: record.id,
+              name,
+              document: data.data.document,
+              section: data.data.section ?? null,
+              number: data.data.ruleNumber ?? null,
+              parent: data.data.parent?.id ?? null,
+              order: data.data.order,
+              anchor: data.data.anchor,
+              stratagem: data.data.stratagem?.id ?? null,
+            },
+          ]
+        : []
+    })
+}
+
 const detachmentDataSchema = z.object({
   absent: z.literal(true).optional(),
   stratagems: z.array(z.string()).default([]),
@@ -384,7 +439,104 @@ function absentAbilitiesOf(
   return { profiles, names, detachments }
 }
 
+const localisationSchema = z.object({
+  entries: z.array(
+    refSchema.extend({
+      display: z.string().optional(),
+      aliases: z.array(z.object({ name: z.string() })).optional(),
+    }),
+  ),
+})
+
+/**
+ * Every spelling the release's localisation gives each faction, Detachment, Enhancement and unit, and each model and
+ * piece of wargear of a unit, the identity's English name first; an entity no language spells otherwise is left out.
+ */
+function namesOf(manifest: VsDataManifest, read: (name: string) => unknown, identity: readonly IdentityEntry[]): VsDataNames {
+  const spellings = new Map<string, string[]>()
+  for (const { path: file } of manifest.localisation)
+    for (const entry of localisationSchema.parse(read(file)).entries) {
+      const names = spellings.get(vsDataKey(entry)) ?? []
+      // A spelling ending in a full stop, as some Kill Team models' Spanish and Italian names, reads as the card's sentence.
+      names.push(
+        ...[entry.display, ...(entry.aliases ?? []).map((alias) => alias.name)].filter(
+          (name): name is string => name !== undefined && !name.endsWith('.'),
+        ),
+      )
+      spellings.set(vsDataKey(entry), names)
+    }
+  const spelled = (entry: IdentityEntry) => {
+    const names = [...new Set([entry.name!, ...(spellings.get(vsDataKey(entry)) ?? [])])]
+    return entry.name && names.length > 1 ? [names] : []
+  }
+  const current = identity.filter((entry) => !entry.retired && !entry.absent)
+  const refers = (entry: IdentityEntry, kind: string) => (entry.references ?? []).filter((reference) => reference.kind === kind)
+  // A unit's pieces are its models and the wargear they carry or its options offer, which VS Data names under the unit.
+  const pieces = new Map<string, IdentityEntry[]>()
+  const hold = (unit: string, piece: IdentityEntry | undefined) => {
+    if (piece && !pieces.get(unit)?.includes(piece)) pieces.set(unit, [...(pieces.get(unit) ?? []), piece])
+  }
+  const byKey = new Map(current.map((entry) => [vsDataKey(entry), entry]))
+  const units = new Set(current.flatMap((entry) => (entry.kind === 'unit' ? [entry.id] : [])))
+  for (const entry of current) {
+    if (entry.kind !== 'model' && entry.kind !== 'roster-option' && entry.kind !== 'wargear') continue
+    const owners = [...refers(entry, 'unit').map(({ id }) => id), entry.id.slice(0, entry.id.lastIndexOf('.'))].filter((id) =>
+      units.has(id),
+    )
+    for (const unit of owners) {
+      if (entry.kind !== 'roster-option') hold(unit, entry)
+      for (const { id } of refers(entry, 'wargear')) hold(unit, byKey.get(`wargear:${id}`))
+    }
+  }
+  const enhancements = new Set(
+    current.flatMap((entry) => (entry.kind === 'detachment' ? refers(entry, 'ability').map(({ id }) => id) : [])),
+  )
+  const ofKind = (kind: string, wanted: (entry: IdentityEntry) => boolean = () => true) =>
+    current.filter((entry) => entry.kind === kind && wanted(entry)).flatMap(spelled)
+  return {
+    factions: ofKind('faction'),
+    detachments: ofKind('detachment'),
+    enhancements: ofKind('ability', (entry) => enhancements.has(entry.id)),
+    units: Object.fromEntries(
+      current.flatMap((entry) => {
+        if (entry.kind !== 'unit') return []
+        const [name] = spelled(entry)
+        const held = (pieces.get(entry.id) ?? []).flatMap(spelled)
+        return name || held.length ? [[entry.id, { name: name ?? [], pieces: held }] as const] : []
+      }),
+    ),
+  }
+}
+
 const describe = ({ edition, update }: VsDataRulesVersion) => `${edition} ${update}`
+
+/**
+ * Each record's effect blocks by `kind:id`, summarized or not, its rules named by the names the rules print, which is how
+ * Praetorium finds them. A record whose facts are in the unversioned format has no typed blocks.
+ */
+function effectsOf(released: readonly unknown[], update: string, identity: readonly z.infer<typeof identitySchema>['entries'][number][]) {
+  const names = new Map(identity.flatMap((entry) => (entry.name ? [[vsDataKey(entry), entry.name] as const] : [])))
+  const effects: VsDataEffectsFile['effects'] = {}
+  for (const record of released) {
+    const parsed = refSchema
+      .extend({ rulesVersion: z.object({ update: z.string() }), data: z.object({ facts: z.unknown().optional() }) })
+      .safeParse(record)
+    const facts = parsed.success && parsed.data.rulesVersion.update === update ? effectFactsSchema.safeParse(parsed.data.data.facts) : null
+    if (!facts?.success) continue
+    const blocks = Object.fromEntries(
+      EFFECT_BLOCKS.flatMap((block) => (block in facts.data.fields ? [[block, facts.data.fields[block]]] : [])),
+    )
+    if (!Object.keys(blocks).length) continue
+    const references = z.array(refSchema).optional().parse(blocks.references)
+    if (references) blocks.references = [...new Set(references.flatMap((reference) => names.get(vsDataKey(reference)) ?? []))]
+    // A block Praetorium cannot read, as one holding a field it does not know, is held back as VS Data holds back its own.
+    for (const block of EFFECT_BLOCKS)
+      if (block in blocks && !vsDataEffectBlocksSchema.shape[block].safeParse(blocks[block]).success)
+        blocks[block] = { unresolved: `Praetorium cannot read this ${block} block` }
+    effects[vsDataKey(parsed.data!)] = blocks
+  }
+  return effects
+}
 
 /**
  * Reduces a verified release to the one file Praetorium reads, `file`, so the snapshot does not carry thousands of
@@ -396,12 +548,13 @@ export function compactVsDataRelease(directory: string, file: string) {
   const read = (name: string): unknown => JSON.parse(fs.readFileSync(path.join(directory, name), 'utf8'))
   const identity = identitySchema.parse(read(manifest.identity.path)).entries
   const { units, conditions } = compactUnits(manifest, read, identity)
+  const released = manifest.categories
+    .filter((category) => SUMMARY_CATEGORIES.has(category.name))
+    .flatMap((category) => category.records)
+    .map((entry) => read(entry.path))
   const records = [
-    ...manifest.categories
-      .filter((category) => SUMMARY_CATEGORIES.has(category.name))
-      .flatMap((category) => category.records)
-      .map((entry) => read(entry.path))
-      // A record without a summary of its own reads as having none, as any other gap does.
+    // A record without a summary of its own reads as having none, as any other gap does.
+    ...released
       .filter(hasSummary)
       .map((record) => recordSchema.parse(record))
       .filter((record) => record.rulesVersion.update === manifest.rulesVersion.update),
@@ -422,7 +575,8 @@ export function compactVsDataRelease(directory: string, file: string) {
       for (const reference of entry.references ?? [])
         if (reference.kind === 'unit' && units[reference.id])
           units[reference.id]!.shared = [...(units[reference.id]!.shared ?? []), entry.id]
-  for (const id of Object.keys(units)) wanted.add(vsDataKey({ kind: 'unit', id }))
+  const names = namesOf(manifest, read, identity)
+  for (const id of new Set([...Object.keys(units), ...Object.keys(names.units)])) wanted.add(vsDataKey({ kind: 'unit', id }))
   const current = identity.filter((entry) => !entry.retired)
   const entries = current.filter((entry) => wanted.has(vsDataKey(entry)))
   const absent = absentAbilitiesOf(current)
@@ -443,8 +597,13 @@ export function compactVsDataRelease(directory: string, file: string) {
     ...(absent.names.length ? { absentAbilityNames: absent.names } : {}),
     ...(absent.detachments.length ? { absentDetachmentRules: absent.detachments } : {}),
     units,
+    names,
     factions: Object.fromEntries(
       current.flatMap((entry) => (entry.kind === 'faction' && entry.name ? [[entry.name, entry.id] as const] : [])),
+    ),
+    coreRules: coreRulesOf(manifest, read, current),
+    keywords: Object.fromEntries(
+      current.flatMap((entry) => (KEYWORD_KINDS.has(entry.kind) && entry.name ? [[vsDataKey(entry), entry.name] as const] : [])),
     ),
     attributions: [
       ...new Map(
@@ -468,6 +627,44 @@ export function compactVsDataRelease(directory: string, file: string) {
       questions: (data.interpretation ?? []).map(({ question }) => question),
     })),
   }
+  const effects: VsDataEffectsFile = {
+    release: manifest.release,
+    rulesVersion: manifest.rulesVersion,
+    effects: effectsOf(released, manifest.rulesVersion.update, identity),
+  }
   fs.rmSync(directory, { recursive: true })
   fs.writeFileSync(file, `${JSON.stringify(compact)}\n`)
+  fs.writeFileSync(vsDataEffectsPath(file), `${JSON.stringify(effects)}\n`)
 }
+
+/** The categories list building reads, kept whole rather than compacted. */
+const CONSTRUCTION_CATEGORIES = new Set(['rosters', 'points'])
+
+/** Writes `file` with the roster definitions and points snapshots of a verified release's own rules version. */
+export function writeVsDataConstruction(directory: string, file: string) {
+  const manifest = readVsDataManifest(directory)!
+  const read = (name: string): unknown => JSON.parse(fs.readFileSync(path.join(directory, name), 'utf8'))
+  const names = new Map(
+    identitySchema.parse(read(manifest.identity.path)).entries.map((entry) => [`${entry.kind}:${entry.id}`, entry.name]),
+  )
+  const records = manifest.categories
+    .filter((category) => CONSTRUCTION_CATEGORIES.has(category.name))
+    .flatMap((category) => category.records)
+    .map((entry) => constructionRecordSchema.parse(read(entry.path)))
+    .filter((record) => record.rulesVersion.update === manifest.rulesVersion.update)
+  const definitions: VsDataConstruction['definitions'] = {}
+  for (const record of records.filter((candidate) => candidate.kind !== 'points-snapshot'))
+    (definitions[record.kind] ??= {})[record.id] = { name: names.get(`${record.kind}:${record.id}`) ?? record.id, data: record.data }
+  const construction: VsDataConstruction = {
+    release: manifest.release,
+    rulesVersion: manifest.rulesVersion,
+    definitions,
+    points: records.filter((record) => record.kind === 'points-snapshot').map((record) => record.data),
+  }
+  fs.writeFileSync(file, JSON.stringify(vsDataConstructionSchema.parse(construction)))
+}
+
+const constructionRecordSchema = refSchema.extend({
+  rulesVersion: z.object({ update: z.string() }),
+  data: z.record(z.string(), z.unknown()),
+})

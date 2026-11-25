@@ -5,6 +5,7 @@ import { routeSlug } from '../core/slug'
 import { sourceStrings } from '../core/sourceText'
 import {
   MISSION_SUMMARIES,
+  RULE_SUMMARIES,
   type RuleDocument,
   type RuleSummaries,
   type RuleSummary,
@@ -36,7 +37,7 @@ export const NO_RULE_SUMMARIES: RuleSummaries = { records: {}, texts: {}, entrie
  * data update replaced it, as a token kept from before one names, so its strings are looked up where they live now.
  */
 export const summariesOfFile = (file: string, files: Readonly<Record<string, unknown>>, summaries: VsDataSummaries | null | undefined) =>
-  file in files || file === MISSION_SUMMARIES
+  file in files || file === MISSION_SUMMARIES || file === RULE_SUMMARIES
     ? (summaries?.summariesIn(file) ?? NO_RULE_SUMMARIES)
     : { ...NO_RULE_SUMMARIES, replaced: true as const }
 
@@ -48,7 +49,7 @@ export type VsDataSummaries = {
   editions: string[]
   /**
    * The summaries for the rules one Game Datacards file prints, by the file's token ID, read for its rules version;
-   * or, for `MISSION_SUMMARIES`, the current rules' mission records by `kind:id`.
+   * or, for `MISSION_SUMMARIES` and `RULE_SUMMARIES`, the current rules' mission or rules-document records by `kind:id`.
    */
   summariesIn: (file: string) => RuleSummaries
   /** Every Game Datacards record of one rules version, once each, for the coverage report. */
@@ -67,6 +68,8 @@ export type VsDataSummaries = {
   attributions: () => VsDataAttribution[]
   /** What datasheets show from VS Data for a rules version (the current one where null); none for one it has no release of. */
   unitsIn: (edition: string | null) => VsDataUnits
+  /** The same, with each ability as its record's `kind:id`; none for a rules version it has no release of. */
+  recordsIn: (edition: string | null) => VsDataRecords | null
 }
 
 type Version = {
@@ -74,7 +77,11 @@ type Version = {
   index: ReturnType<typeof vsDataIndex>
   summaries: Map<string, RuleSummary>
   units: VsDataUnits
+  records: VsDataRecords
 }
+
+/** A release's units with each ability as the `kind:id` of the record whose summary datasheets show for it. */
+export type VsDataRecords = Omit<VsDataUnits, 'abilities'> & { abilities: Record<string, string> }
 
 /**
  * The pinned VS Data releases, one file each, every one read for the rules version it describes and only once a rule
@@ -106,13 +113,20 @@ export function* vsDataSummariesSteps(directory: string, documents: readonly Rul
       const index = vsDataIndex(file.entries)
       // A weapon or core ability has no rules entry of its own, so it links to the core rule of its id that prints it.
       const link = (target: { kind: string; id: string }) =>
-        [target, ...(ABILITY_KINDS.includes(target.kind) ? [{ kind: 'core-rule', id: target.id }] : [])]
-          .flatMap((ref) => index.aliasesOf(ref))
-          .map((alias) => links.get(alias))
-          .find(Boolean)
+        target.kind === 'core-rule' || ABILITY_KINDS.includes(target.kind) ? links.get(target.id) : undefined
       const abilities = new Set(file.records.flatMap((record) => (ABILITY_KINDS.includes(record.kind) ? [vsDataKey(record)] : [])))
       const summaries = new Map(file.records.map((record) => [vsDataKey(record), summaryOf(record, link, abilities)]))
       const abilitySummaries = [...summaries].filter(([key]) => key.startsWith('ability:'))
+      // Every ability by its VS Data id, which a unit's own abilities and its faction's start with, and by each former
+      // VS Data id it is aliased under, as Cogbound Alliance is by the Mechanicus Allies the detachment prints.
+      const abilitiesBy = <T>(value: (ability: (typeof abilitySummaries)[number]) => T) =>
+        Object.fromEntries([
+          ...abilitySummaries.flatMap((ability) =>
+            (file.entries[ability[0]] ?? []).filter(isVsDataId).map((id) => [id, value(ability)] as const),
+          ),
+          // Last, so an ability's own id wins over another's former one.
+          ...abilitySummaries.map((ability) => [ability[0].slice('ability:'.length), value(ability)] as const),
+        ])
       // A unit's BSData aliases name its entry id with dots for dashes.
       const units = {
         units: Object.fromEntries(
@@ -140,13 +154,7 @@ export function* vsDataSummariesSteps(directory: string, documents: readonly Rul
               ),
           ),
         ),
-        // Every ability by its VS Data id, which a unit's own abilities and its faction's start with, and by each former
-        // VS Data id it is aliased under, as Cogbound Alliance is by the Mechanicus Allies the detachment prints.
-        abilities: Object.fromEntries([
-          ...abilitySummaries.flatMap(([key, summary]) => (file.entries[key] ?? []).filter(isVsDataId).map((id) => [id, summary] as const)),
-          // Last, so an ability's own id wins over another's former one.
-          ...abilitySummaries.map(([key, summary]) => [key.slice('ability:'.length), summary] as const),
-        ]),
+        abilities: abilitiesBy(([, summary]) => summary),
         // An ability VS Data aliases to a BSData profile, by that profile's id, as BSData ids are written with dashes.
         aliases: Object.fromEntries(
           Object.entries(file.entries).flatMap(([key, aliases]) =>
@@ -165,7 +173,7 @@ export function* vsDataSummariesSteps(directory: string, documents: readonly Rul
           ),
         ),
       }
-      return { edition, index, units, summaries }
+      return { edition, index, units, records: { ...units, abilities: abilitiesBy(([key]) => key) }, summaries }
     })
   const filesOf = (entry: (typeof held)[number]) => editionTextFiles(directory, entry.base ? null : entry.edition.id)
   const cards = new Map<string, { file: string; edition: string }>()
@@ -215,10 +223,15 @@ export function* vsDataSummariesSteps(directory: string, documents: readonly Rul
       const id = edition ?? held[0]!.edition.id
       return (held.some((entry) => entry.edition.id === id) && versionOf(id)?.units) || { units: {}, abilities: {}, aliases: {} }
     },
+    recordsIn: (edition) => {
+      const id = edition ?? held[0]!.edition.id
+      return (held.some((entry) => entry.edition.id === id) && versionOf(id)?.records) || null
+    },
     summariesIn: (id) => {
-      if (id === MISSION_SUMMARIES) {
+      if (id === MISSION_SUMMARIES || id === RULE_SUMMARIES) {
         const version = versionOf(held[0]!.edition.id)
-        return version ? remember(answers, id, () => missionSummaries(version.summaries)) : NO_RULE_SUMMARIES
+        const kinds = id === MISSION_SUMMARIES ? MISSION_KINDS : ['core-rule:']
+        return version ? remember(answers, id, () => summariesOfKinds(version.summaries, kinds)) : NO_RULE_SUMMARIES
       }
       const card = cards.get(id)
       const version = card && versionOf(card.edition)
@@ -248,8 +261,8 @@ export function* vsDataSummariesSteps(directory: string, documents: readonly Rul
 
 const MISSION_KINDS = ['mission-card:', 'mission-award:', 'mission-action:', 'mission-twist:']
 
-function missionSummaries(summaries: ReadonlyMap<string, RuleSummary>): RuleSummaries {
-  const records = [...summaries].filter(([key]) => MISSION_KINDS.some((kind) => key.startsWith(kind)))
+function summariesOfKinds(summaries: ReadonlyMap<string, RuleSummary>, kinds: readonly string[]): RuleSummaries {
+  const records = [...summaries].filter(([key]) => kinds.some((kind) => key.startsWith(kind)))
   return { records: Object.fromEntries(records), texts: {}, entries: {} }
 }
 
@@ -350,13 +363,14 @@ function bracketedAbility(printed: string, abilities: ReadonlySet<string>) {
   return slugs.flatMap((slug) => ABILITY_KINDS.map((kind) => `${kind}:${slug}`)).find((key) => abilities.has(key))
 }
 
-/** Each rules-document entry's page and anchor, by the entry's id. */
+/** Each rules-document rule's and clarification's page and anchor, by its VS Data id. */
 function ruleLinks(documents: readonly RuleDocument[]) {
   const links = new Map<string, RuleSummaryLink>()
   for (const document of documents)
     for (const section of document.sections)
       for (const entry of section.entries)
-        if (!links.has(entry.id)) links.set(entry.id, { document: document.slug, section: section.slug, anchor: entry.anchor })
+        for (const { id, anchor } of [entry, ...entry.clarifications])
+          if (!links.has(id)) links.set(id, { document: document.slug, section: section.slug, anchor })
   return links
 }
 

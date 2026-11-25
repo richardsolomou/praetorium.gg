@@ -3,7 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { routeSlug } from '../core/slug'
 import { uniqueBy } from '../core/collections'
-import { keywordAbilityDescriptions, loadDatacardsSteps } from './datacards'
+import { loadDatacardsSteps } from './datacards'
 import { factionRestrictions } from '../shared/datacards'
 import { factionsFromDatacards } from './datacardFactions'
 import { missionTerrain } from './missionTerrain'
@@ -13,7 +13,9 @@ import { readVsDataRelease } from './vsDataSummaries'
 import { vsDataMissions } from './vsDataMissions'
 import { vsDataStratagems } from './vsDataStratagems'
 import { vsDataIndex } from '../shared/vsData'
-import { loadRuleDocuments } from './rulesCore'
+import { importNamesOf } from '../shared/importNames'
+import { vsDataRuleDocuments } from '../shared/ruleDocuments'
+import { formerRuleIds } from '../core/legacyRuleIds'
 import { catalogueDirectory } from './catalogueIndex'
 import { type LoadedCatalogue } from '../shared/catalogueIndex'
 import { missingArmyRulesFromCatalogueSteps } from './catalogueArmyRules'
@@ -31,15 +33,16 @@ export function* loadRulesSteps(
     battlemasterDirectory = path.join(directory, 'battlemaster'),
     iconDirectory = fs.existsSync(path.join(directory, 'icons')) ? path.join(directory, 'icons') : path.join(directory, 'faction-icons'),
     datacardsDirectory = path.join(directory, 'datacards', '11th', 'gdc'),
-    vsDataDirectory = directory,
+    snapshotDirectory = directory,
     rulesVersion,
     catalogue,
   }: {
     battlemasterDirectory?: string
     iconDirectory?: string
     datacardsDirectory?: string
-    /** The snapshot holding the VS Data releases, and the rules version whose Stratagems these rules read. */
-    vsDataDirectory?: string
+    /** The snapshot root, holding the VS Data releases and the composition that says where its files live upstream. */
+    snapshotDirectory?: string
+    /** The rules version whose Stratagems these rules read. */
     rulesVersion?: string
     /** The catalogue already read, whose cards are parsed once and whose tokens the army rules read from its files take. */
     catalogue?: Pick<LoadedCatalogue, 'datacards' | 'definitions'>
@@ -48,8 +51,8 @@ export function* loadRulesSteps(
   const datacards = catalogue?.datacards ?? (yield* loadDatacardsSteps(datacardsDirectory))
   // Missions are the current pack's whatever the rules version. Stratagems are the rules version's own, each Detachment's
   // the ones its release lists for it; a listed card its release does not type plays as the base release types it.
-  const vsData = readVsDataRelease(vsDataDirectory)
-  const releases = [rulesVersion ? readVsDataRelease(vsDataDirectory, rulesVersion) : null, vsData].filter((release) => release !== null)
+  const vsData = readVsDataRelease(snapshotDirectory)
+  const releases = [rulesVersion ? readVsDataRelease(snapshotDirectory, rulesVersion) : null, vsData].filter((release) => release !== null)
   const pools = releases.map((release) => vsDataStratagems(release.stratagems, release.detachments))
   const indexes = releases.map((release) => vsDataIndex(release.entries))
   // The card's wording as tokens, read through the Game Datacards IDs VS Data aliases, for the simulator and keyword links.
@@ -141,15 +144,17 @@ export function* loadRulesSteps(
   )
   const missing = yield* missingArmyRulesFromCatalogueSteps(path.join(directory, 'definitions'), datacards)
   const catalogueRules = catalogue?.definitions ? withDefinitionTokens(missing, catalogue.definitions.token) : missing
-  const keywordRules = keywordAbilityDescriptions(datacardsDirectory)
+  // A core ability a faction lists among its army rules, as the Adeptus Titanicus list Super-heavy Walker, is VS Data's.
+  const coreAbilities = new Set(
+    Object.entries(releases[0]?.keywords ?? {}).flatMap(([key, name]) => (key.startsWith('core-ability:') ? [joinKey(name)] : [])),
+  )
   const supplementalArmyRules = new Map(catalogueRules)
   for (const content of new Set(datacards.factions.values())) {
     const faction = routeSlug(content.name)
     const sourceRules = catalogueRules.get(faction) ?? []
     const keywordMissing = [...content.factionAbilityNames].flatMap((name) => {
       if (content.armyRules.some((rule) => routeSlug(rule.name) === routeSlug(name))) return []
-      const description = keywordRules.get(joinKey(name))
-      return description ? [{ name, description }] : []
+      return coreAbilities.has(joinKey(name)) ? [{ name, description: '' }] : []
     })
     const preferred = new Set(keywordMissing.map((rule) => routeSlug(rule.name)))
     const selected = [...keywordMissing, ...sourceRules.filter((rule) => !preferred.has(routeSlug(rule.name)))]
@@ -196,11 +201,18 @@ export function* loadRulesSteps(
       const description = describe(card.key)
       return description ? [{ id: card.key, type: card.type, description }] : []
     }),
-    ruleDocuments: loadRuleDocuments(datacardsDirectory),
+    ruleDocuments: vsDataRuleDocuments(
+      releases[0]?.coreRules ?? [],
+      // The rules version's own CP wins over the base release's, as later entries of the map do.
+      releases.toReversed().flatMap((release) => release.stratagems),
+      formerRuleIds,
+    ),
     ...missions,
     deployments,
     terrainLayouts,
     terrainTemplates: [],
     dataslate: null,
+    // A list is read in the rules version it is imported into, which the release beside the base one describes.
+    importNames: importNamesOf(releases[0]?.names, releases[0]?.entries ?? {}),
   }
 }

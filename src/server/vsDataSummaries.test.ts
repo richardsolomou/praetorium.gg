@@ -8,7 +8,7 @@ import { readCatalogueComposition } from './catalogueComposition'
 import { textFileId, textHash, textSourcePaths } from './sourceTexts'
 import { vsDataReleaseFiles, writeFiles } from './vsData.fixtures'
 import { checkVsDataRelease, compactVsDataRelease } from './vsDataRelease'
-import { MISSION_SUMMARIES, type RuleDocument } from '../contracts/rules'
+import { MISSION_SUMMARIES, RULE_SUMMARIES, type RuleDocument } from '../contracts/rules'
 import { abilitySummaryIn } from '../shared/vsDataAbilities'
 import { NO_RULE_SUMMARIES, summariesOfFile, type VsDataSummaries, vsDataSummariesSteps, withholdCopiedSummaries } from './vsDataSummaries'
 
@@ -191,8 +191,11 @@ it('serves a linked bracketed weapon ability as that ability, bold with its brac
 
 it('links a bracketed weapon ability to the core rule that prints it', () => {
   const devastating = { kind: 'weapon-ability', id: 'devastating-wounds', aliases: [], summary: 'Critical Wounds become mortal wounds.' }
-  const rule = { kind: 'core-rule', id: 'devastating-wounds', aliases: ['rule#24.05'], summary: 'Critical Wounds become mortal wounds.' }
-  const document = { slug: 'core-rules', sections: [{ slug: 'core-abilities', entries: [{ id: 'rule#24.05', anchor: '24.05' }] }] }
+  const rule = { kind: 'core-rule', id: 'devastating-wounds', aliases: [], summary: 'Critical Wounds become mortal wounds.' }
+  const document = {
+    slug: 'core-rules',
+    sections: [{ slug: 'core-abilities', entries: [{ id: 'devastating-wounds', anchor: '24.05', clarifications: [] }] }],
+  }
   const { summaries, base } = snapshot(
     [{ update: 'MFM 1.6', summary: 'Its weapons gain [DEVASTATING WOUNDS] this phase.' }],
     [devastating, rule],
@@ -210,6 +213,12 @@ it('links a bracketed weapon ability to the core rule that prints it', () => {
       { text: ' this phase.' },
     ],
   })
+})
+
+it('serves the rules documents’ summaries by their own ids, apart from every other record', () => {
+  const rule = { kind: 'core-rule', id: 'moving', aliases: [], summary: 'Units move in the Movement phase.' }
+  const { summaries } = snapshot([{ update: 'MFM 1.6', summary: 'Move one unit.' }], [rule])
+  expect(Object.keys(summaries!.summariesIn(RULE_SUMMARIES).records)).toEqual(['core-rule:moving'])
 })
 
 it('reads a detachment rule under the id VS Data aliases it by, for its own faction and another fielding the detachment', () => {
