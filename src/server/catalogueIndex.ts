@@ -20,6 +20,8 @@ import { type DefinitionTexts, type LoadedCatalogue, catalogueFromIndex } from '
 import { completeSteps, type Steps } from '../shared/steps'
 import { liveCatalogueRevision } from './liveCatalogue'
 import { readRevisions } from './catalogueSources'
+const NO_FACTS: TextFacts = { combat: null }
+
 /** What list building reads of a text, which is still read from the words until lists are built from VS Data alone. */
 const LEGALITY = ['attachment', 'substitutes', 'reserveSelectors', 'reserveExemption'] as const
 const withLegality = (facts: TextFacts, words: TextFacts | undefined): TextFacts => {
@@ -103,7 +105,7 @@ export function* loadCatalogueSteps(
   const shown = texts.withTwins(twins)
   const shownCards = withoutTwinSearch(datacards)
   // What every rule does is read from VS Data's effect blocks, where the snapshot keeps them; a text joining no record
-  // VS Data has read yet keeps the reading of its words, so nothing calculated today stops being calculated.
+  // VS Data has read takes no part in anything the rules read.
   const effects = vsDataTextFacts(snapshotDirectory, edition?.id, cardDirectory, shown, index.datasheets)
   const readFacts = new Map<string, TextFacts>()
   const loaded: LoadedCatalogue = {
@@ -114,11 +116,7 @@ export function* loadCatalogueSteps(
       effects
         ? {
             get: (key) =>
-              remember(readFacts, key, () => {
-                const words = shown.fact(key) ?? cardFacts?.get(key)
-                const read = effects.get(key)
-                return read ? withLegality(read, words) : words
-              }),
+              remember(readFacts, key, () => withLegality(effects.get(key) ?? NO_FACTS, shown.fact(key) ?? cardFacts?.get(key))),
           }
         : undefined,
     ),
