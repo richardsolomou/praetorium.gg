@@ -41,13 +41,13 @@ import { SupportIdentity } from '../feedback/support'
 import { meQuery } from '../../queries'
 import { meKey } from '../../queries/queryKeys'
 import { COMMUNITY_LINKS, COMMUNITY_PAGES, FRIENDS_PAGE } from './CommunityLinks'
-import { followTextSourceChoice } from '../../rulesText'
+import { forgetRulesTextSources } from '../../forgetRulesText'
 import { OfflineReference } from '../../offline/OfflineReference'
 import { WebMcp } from '../agents/WebMcp'
 import { NativePushRegistration } from './NativePushRegistration'
 import { OnboardingGuide } from '../onboarding/OnboardingGuide'
 import { AppPersistence } from '../../offline/AppPersistence'
-import { ShellLiveProduct, ShellDisplayNamePrompt, ShellSupportPanel, ShellTextSourcesDialog, ShellAchievementToasts } from './ShellExtras'
+import { ShellLiveProduct, ShellDisplayNamePrompt, ShellSupportPanel, ShellAchievementToasts } from './ShellExtras'
 import { loadOfflineFallbacks } from '../../functions'
 import { warmOfflineFallbacks } from '../../offline/background'
 
@@ -350,7 +350,7 @@ function AppFrame() {
       }),
     [router, queryClient],
   )
-  useLayoutEffect(followTextSourceChoice, [])
+  useEffect(forgetRulesTextSources, [])
   useLayoutEffect(() => followRailState(immersive), [immersive])
   return (
     <html lang="en" suppressHydrationWarning>
@@ -422,7 +422,6 @@ function AppFrame() {
                 <OnboardingGuide />
                 {me && !me.name.trim() && !impersonating ? <ShellDisplayNamePrompt /> : null}
                 <ShellSupportPanel />
-                <ShellTextSourcesDialog />
                 {me?.impersonatedBy ? <ImpersonationBanner name={me.name} email={me.email} /> : null}
                 <NativePushRegistration />
                 <ReleaseUpdateNotice />

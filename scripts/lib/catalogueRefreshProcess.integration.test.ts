@@ -16,7 +16,7 @@ afterEach(async () => {
   }
 })
 
-async function fixture(cached = false) {
+async function fixture(cached = false, followUpstream = true) {
   const directory = await mkdtemp(path.join(tmpdir(), 'praetorium-refresh-output-'))
   const build = path.join(directory, 'build')
   const data = path.join(directory, 'data')
@@ -56,8 +56,10 @@ async function fixture(cached = false) {
         import { startCatalogueRefresh } from ${JSON.stringify(pathToFileURL(path.resolve('scripts/lib/catalogueRefreshProcess.ts')).href)};
         const controller = new AbortController();
         process.on('SIGTERM', () => controller.abort());
-        await startCatalogueRefresh(${JSON.stringify(build)}, ${JSON.stringify(data)}, controller.signal, 30 * 60_000);
-        console.log('Catalogue ready');
+        await startCatalogueRefresh(${JSON.stringify(build)}, ${JSON.stringify(data)}, controller.signal, 30 * 60_000, { followUpstream: ${followUpstream} });
+        // A refresh spawns its worker before its first await, so a running one already shows here.
+        const workers = process.getActiveResourcesInfo().filter((resource) => resource === 'ProcessWrap').length;
+        console.log(\`Catalogue ready with \${workers} workers\`);
       `,
     ],
     { env: { PATH: process.env.PATH }, stdio: ['ignore', 'pipe', 'pipe'] },
@@ -88,4 +90,9 @@ it('serves a retained catalogue while the update worker is still running', async
   expect(output.stdout).toContain('Catalogue ready')
   await finish()
   await closed
+})
+
+it('serves only the retained catalogue when it does not follow upstream', async () => {
+  const { output } = await fixture(true, false)
+  await expect.poll(() => output.stdout).toContain('Catalogue ready with 0 workers')
 })

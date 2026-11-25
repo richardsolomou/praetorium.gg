@@ -245,7 +245,7 @@ export function registerAccountMcpTools(server: AgentTools, userId: string | nul
     },
     (data) =>
       resultOf(async () => {
-        const { id, updatedAt } = await rosterActions.save(owner(), data)
+        const { id, updatedAt } = await rosterActions.save(owner(), { ...data, printedDefaults: true })
         return { id, updatedAt, url: `/rosters/${encodeURIComponent(id)}` }
       }),
   )

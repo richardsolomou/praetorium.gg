@@ -1,5 +1,7 @@
+import { recordCardReadings } from '../../src/server/datacards'
 import path from 'node:path'
 import { textSourceFiles } from '../../src/server/sourceTexts'
+import { MISSION_SUMMARIES, RULE_OUTLINE, RULE_SUMMARIES } from '../../src/contracts/rules'
 import { publishedSearchIndex } from '../../src/server/globalSearch'
 import { downloadedDefinitionFacts } from '../../src/server/definitionTexts'
 import { hash } from 'node:crypto'
@@ -38,7 +40,9 @@ import {
   type ReferenceQuery,
 } from '../../src/contracts/offlineReference'
 import { loadCatalogueTranslations } from '../../src/server/catalogueTranslations'
-import { loadRuleSummaries } from '../../src/server/ruleSummaries'
+import { readVsDataRelease, vsDataSummariesSteps } from '../../src/server/vsDataSummaries'
+import { spellingGroups } from '../../src/shared/importNames'
+import { completeSteps } from '../../src/shared/steps'
 import type { CatalogueRuntime } from '../../src/server/catalogueRuntime'
 
 export function constructionFilesForEdition(files: CatalogueFile[], edition?: CatalogueEdition): CatalogueFile[] {
@@ -83,6 +87,7 @@ export function sharedEdition(source: OfflineConstructionSource, base: OfflineCo
 }
 
 export async function writeReferenceBundle(outDir: string, directory: string, runtime?: CatalogueRuntime) {
+  recordCardReadings()
   const { catalogue, rules } = loadSnapshotWithRules(directory)
   const versions = catalogueEditionLoaders(
     directory,
@@ -102,7 +107,6 @@ export async function writeReferenceBundle(outDir: string, directory: string, ru
   if (!canonical) throw new Error('Offline reference canonical catalogue is unavailable')
   const sources = { catalogue: () => catalogue, rules: () => rules, canonicalCatalogue: () => canonical }
   const history = loadCatalogueHistory(directory) ?? []
-  const summaries = loadRuleSummaries(directory)
   const historyCanonical = (slug: string) => versions.pageCanonical(slug, versions.canonicalFor(slug), () => canonical)
   const queries: ReferenceQuery[] = []
   const put = (key: readonly unknown[], data: unknown) => {
@@ -157,11 +161,22 @@ export async function writeReferenceBundle(outDir: string, directory: string, ru
       if (detachment.referenceRoute?.catalogueId === faction.slug)
         put(
           ['detachment-detail', faction.id, detachment.slug],
-          detachmentReference(selectedCatalogue, selectedRules, faction.id, detachment.slug, summaries(faction.id)),
+          detachmentReference(selectedCatalogue, selectedRules, faction.id, detachment.slug),
         )
     }
   }
-  put(['text-sources'], textSourceFiles(directory, readCatalogueComposition(directory)))
+  const textFiles = textSourceFiles(directory, readCatalogueComposition(directory))
+  put(['text-sources'], textFiles)
+  const summaries = completeSteps(vsDataSummariesSteps(directory, canonical.ruleDocuments))
+  put(['rule-summary-credits'], summaries?.attributions() ?? [])
+  put(['rule-ability-summaries'], summaries?.abilities() ?? {})
+  for (const [key, summary] of Object.entries(summaries?.coreRules() ?? {})) put(['rule-core-summary', key], summary)
+  for (const [at, edition] of (summaries?.editions ?? []).entries()) put(['rule-units', at ? edition : null], summaries!.unitsIn(edition))
+  for (const file of summaries ? [...Object.keys(textFiles), MISSION_SUMMARIES, RULE_SUMMARIES] : []) {
+    const answer = summaries!.summariesIn(file)
+    // A file no summary reads stays out, and its query falls back to the source's own text as offline.
+    if (Object.keys(answer.records).length) put(['rule-summary-records', file], answer)
+  }
   // Pasted army text in another language is read on the device too, so the names it may state travel with the download;
   // translated descriptions stay behind, as do entries BSData names with a notice of several sentences.
   const stateable = new Set([
@@ -171,6 +186,8 @@ export async function writeReferenceBundle(outDir: string, directory: string, ru
     ...catalogue.factions.map((faction) => faction.name.split(' - ').at(-1)!),
     ...[...catalogue.detachments.values()].flatMap((detachments) => detachments.options.map((option) => option.name)),
     ...(rules.dispositions?.values() ?? []),
+    // The official app's names are all names, but its English can differ from the catalogue's, as "Imperium’s Sword".
+    ...spellingGroups(readVsDataRelease(directory)?.names).flat(),
   ])
   put(
     ['import-translations'],
@@ -181,7 +198,7 @@ export async function writeReferenceBundle(outDir: string, directory: string, ru
   for (const document of ruleIndex!.documents)
     for (const section of document.sections)
       put(
-        ['rule-section', document.slug, section.slug],
+        ['rule-section', RULE_OUTLINE, document.slug, section.slug],
         referenceRuleSection(sources, { documentId: document.slug, sectionId: section.slug }),
       )
   const references = gameReferencesFor(rules)
@@ -219,6 +236,7 @@ export async function writeReferenceBundle(outDir: string, directory: string, ru
     ),
     definitionFacts: packRuntimeData(downloadedDefinitionFacts(selectedCatalogue)),
     datacards: packRuntimeData(selectedCatalogue.datacards),
+    ...(selectedCatalogue.keywords ? { keywords: [...selectedCatalogue.keywords] } : {}),
     mfm: packRuntimeData(selectedCatalogue.mfm ?? null),
     rules: packRuntimeData({ ...selectedRules, terrainLayouts: [], terrainTemplates: [] }),
   })

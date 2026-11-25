@@ -1,3 +1,4 @@
+import { sameMissionId } from '../../../../core/legacyIds'
 import { useQuery } from '@tanstack/react-query'
 import { Check, Maximize2, Shuffle } from 'lucide-react'
 import { useEffect, useState, type ComponentProps } from 'react'
@@ -48,7 +49,8 @@ export function Battlefield({ view, send, pending, allowedIds, matchup }: Props)
   const fixed = singleColosseum ? available[0] : undefined
   const fixedTerrainId = fixed?.terrain.id
   const fixedPatternId = fixed?.deployment.id
-  const fixedSelected = fixed && view.settings.terrainLayoutId === fixed.terrain.id && view.deploymentId === fixed.deployment.id
+  const fixedSelected =
+    fixed && sameMissionId(view.settings.terrainLayoutId, fixed.terrain.id) && sameMissionId(view.deploymentId, fixed.deployment.id)
 
   useEffect(() => {
     if (!fixedTerrainId || !fixedPatternId || fixedSelected || pending || attemptedSeq === view.seq) return
@@ -113,7 +115,7 @@ export function Battlefield({ view, send, pending, allowedIds, matchup }: Props)
             }
           >
             {row.map(({ terrain, deployment }, index) => {
-              const selected = view.settings.terrainLayoutId === terrain.id && view.deploymentId === deployment.id
+              const selected = sameMissionId(view.settings.terrainLayoutId, terrain.id) && sameMissionId(view.deploymentId, deployment.id)
               // The Colosseum and Combat Patrol name their own battlefields, Combat Patrol's lettered already.
               const label = kotc ? null : String.fromCharCode(65 + index)
               return (
@@ -226,8 +228,8 @@ export function ChosenBattlefield({ view }: { view: BattleView }) {
   const [open, setOpen] = useState(false)
   const { data: deployments } = useQuery(deploymentsQuery())
   const { data: references } = useQuery(terrainReferencesQuery(battleMatchupIds(view)))
-  const deployment = deployments?.find((pattern) => pattern.id === view.deploymentId)
-  const terrain = references?.layouts.find((layout) => layout.id === view.settings.terrainLayoutId)
+  const deployment = deployments?.find((pattern) => sameMissionId(pattern.id, view.deploymentId))
+  const terrain = references?.layouts.find((layout) => sameMissionId(layout.id, view.settings.terrainLayoutId))
   if (!deployment) return <span className="text-dim">No layout yet</span>
   if (!terrain?.geometry) return <span className="font-bold uppercase">{deployment.name}</span>
   return (

@@ -93,6 +93,8 @@ export class RosterService {
       copiedFromRosterId?: string | null
       visibility: RosterVisibility
       source: RosterSource
+      /** Sent by code that starts a choice on its printed default; without it the module keeps each unit on its cheapest. */
+      printedDefaults?: true
     },
   ) {
     const id = roster.id ?? randomUUID()

@@ -9,7 +9,7 @@ import { reduceBattle, type Command } from '../core/battle'
 import { ALICE, BOB, CAROL, builtRoster } from '../core/battle.fixtures'
 import { byId } from '../core/collections'
 import { battleFoldArgs } from '../core/offlineBattle'
-import { PROVISIONAL_BATTLES, standings } from '../core/standings'
+import { standings } from '../core/standings'
 import { rosterPlayHistory } from '../core/rosterPlays'
 import { playedBattle } from './standingsRefresh'
 import { battleSummary, type BattleFaction } from '../shared/battleSummary'
@@ -141,10 +141,8 @@ it('lists each table with its own record for a player who fields several armies'
 
 it('places a player on their profile where the leaderboard lists them', async () => {
   const { service, conceded } = product()
-  for (let game = 0; game < PROVISIONAL_BATTLES; game++) {
-    await conceded(`alice-${game}`, ALICE, BOB, NOW - 4_000 + game)
-    await conceded(`carol-${game}`, CAROL, ALICE, NOW - 2_000 + game)
-  }
+  await conceded('alice', ALICE, BOB, NOW - 2_000)
+  await conceded('carol', CAROL, ALICE, NOW - 1_000)
   const { overall } = await service.standingsService.standings()
   expect((await service.standingsService.playerRankings(ALICE)).overall?.place).toBe(overall.rows.findIndex((row) => row.id === ALICE) + 1)
 })
@@ -155,12 +153,6 @@ it('refreshes a previously read profile ranking after a battle is reopened', asy
   await service.standingsService.playerRankings(ALICE)
   await reopen('one', ALICE, NOW)
   expect((await service.standingsService.playerRankings(ALICE)).history).toEqual([])
-})
-
-it('gives a player no place on their profile until they are ranked', async () => {
-  const { service, conceded } = product()
-  await conceded('one', ALICE, BOB, NOW)
-  expect((await service.standingsService.playerRankings(ALICE)).overall).toBeNull()
 })
 
 it('shows how far a battle moved each rating as a full replay does', async () => {

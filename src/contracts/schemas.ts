@@ -1,3 +1,4 @@
+import { MISSION_SUMMARIES, RULE_SUMMARIES } from './rules'
 import { ADMIN_USER_ROLES, ADMIN_USER_SORTS } from '../admin'
 import { z } from 'zod'
 import { LIST_FILTER_SCOPES, listPreferencesSchema } from '../core/listFilter'
@@ -25,7 +26,7 @@ import {
   SECONDARIES_MAX,
   STRATAGEMS_MAX,
 } from '../core/battle'
-import { clockLimitMinutes } from '../core/commands'
+import { clockLimitMinutes, ruleIdSchema } from '../core/commands'
 import { abilityReminderSchema, rosterReminderSchema, ROSTER_REMINDERS_MAX } from '../core/reminders'
 import { scoringDraftSchema } from '../core/scoringDraft'
 import {
@@ -225,7 +226,7 @@ export const reportTableResultSchema = z.object({
 /** A layout to fix, `roll` to draw one of the table's layouts, or null to let the players choose. */
 export const setTableBattlefieldSchema = z.object({
   ...eventTable,
-  battlefield: z.union([z.object({ patternId: id, terrainLayoutId: id }), z.literal('roll'), z.null()]),
+  battlefield: z.union([z.object({ patternId: ruleIdSchema, terrainLayoutId: ruleIdSchema }), z.literal('roll'), z.null()]),
 })
 export const reopenSwissTableSchema = z.object({ ...sealedEvent, battleToken: token })
 export const openSealedEventSchema = z.object(sealedEvent)
@@ -555,7 +556,15 @@ export const rosterContentSchema = z
   .superRefine(validatePointsBudget)
   .overwrite(withStandardBudget)
 
-export const saveRosterSchema = rosterContentSchema.overwrite(currentRosterIds)
+export const saveRosterSchema = rosterContentSchema
+  .extend({
+    // Kept out of the content a review compares, as a stored row reads back without it.
+    printedDefaults: z
+      .literal(true)
+      .optional()
+      .describe('Sent by code that starts a choice on its printed default; a save without it keeps each unit on its cheapest.'),
+  })
+  .overwrite(currentRosterIds)
 
 const attachSavedRosterSchema = z.object({ kind: z.literal('attach-saved-roster'), rosterId: id, playerId: id.optional() }).strict()
 /**
@@ -582,12 +591,16 @@ export const detachmentRulesSchema = z.object({
   detachmentNames: z.array(z.string().min(1).max(120)).min(1).max(DETACHMENTS_MAX),
 })
 export const detachmentDetailSchema = z.object({ catalogueId, slug })
+/** A source file as rules-text tokens name it. */
 export const TEXT_HOMES_MAX = 50
 export const textHomesSchema = z.object({
   hashes: z
     .array(z.string().regex(/^[0-9a-f]{16}$/))
     .min(1)
     .max(TEXT_HOMES_MAX),
+})
+export const textFileSchema = z.object({
+  file: z.union([z.string().regex(/^[0-9a-f]{8}$/), z.literal(MISSION_SUMMARIES), z.literal(RULE_SUMMARIES)]),
 })
 
 export const rosterIdSchema = z.object({ id })
@@ -691,7 +704,7 @@ export type PriceInput = z.infer<typeof priceSchema>
 
 /** Exports whatever the builder is showing, so it works before a list is attached. */
 export const exportRosterSchema = priceSchema
-  .safeExtend({ name: z.string().trim().min(1).max(120), pointsBudget })
+  .safeExtend({ name: z.string().trim().min(1).max(120), pointsBudget, format: z.enum(['readable', 'ros']).optional() })
   .superRefine(validatePointsBudget)
   .overwrite(withStandardBudget)
 export type ExportRosterInput = z.infer<typeof exportRosterSchema>

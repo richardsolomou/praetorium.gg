@@ -179,7 +179,7 @@ describe('the picker', () => {
     ])
   })
 
-  it('indexes a hidden link’s rendered profile, and not an ability the unit only has when taken', () => {
+  it('indexes no ability its datasheet hides, through a hidden link or a group the unit only has when taken', () => {
     const book = bookOf({
       sharedProfiles: [ability('shared-deceit', 'Shared Deceit')],
       selectionEntries: [
@@ -200,10 +200,7 @@ describe('the picker', () => {
       ],
     })
 
-    expect(unitsIn(book, 'cat', 'lord of deceit')).toEqual([])
-    expect(unitsIn(book, 'cat', 'shared deceit')).toEqual([
-      expect.objectContaining({ name: "C'tan Shard of the Deceiver", matchReasons: [{ kind: 'ability', value: 'Shared Deceit' }] }),
-    ])
+    expect([unitsIn(book, 'cat', 'lord of deceit'), unitsIn(book, 'cat', 'shared deceit')]).toEqual([[], []])
   })
 
   it('keeps offered datasheets whose visibility depends on force context', () => {

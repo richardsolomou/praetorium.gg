@@ -32,6 +32,8 @@ import { UNIT_NICKNAME_MAX_LENGTH, UNIT_NOTE_MAX_LENGTH } from './unitNotes'
 import { PROFILE_NAME_MAX_LENGTH } from './profileName'
 
 const id = z.string().min(1).max(64)
+/** A Stratagem, mission card, deployment, layout or twist: VS Data's IDs run past 64 characters. */
+const ruleId = z.string().min(1).max(128)
 const rosterLimit = z.number().int().min(0).max(POINTS_BUDGET_MAX)
 /** Each side's time for the whole battle on its chess clock. */
 export const clockLimitMinutes = z.number().int().min(5).max(300)
@@ -43,7 +45,7 @@ const modelLine = z
   .min(0)
   .max(MODEL_LINES_MAX - 1)
   .optional()
-export { id as idSchema, name as nameSchema, rosterLimit as rosterLimitSchema }
+export { id as idSchema, name as nameSchema, rosterLimit as rosterLimitSchema, ruleId as ruleIdSchema }
 export const detachmentIdSchema = z.string().min(1).max(128)
 // Descriptions are for agents, who build picks from get_unit_options without seeing the builder.
 export const rosterPickSchema = z.object({
@@ -82,6 +84,10 @@ export const rosterPickSchema = z.object({
     .describe('Index in picks of the TRANSPORT this unit starts embarked in; set it on the bodyguard unit, never on its attached leader.'),
   nickname: z.string().max(UNIT_NICKNAME_MAX_LENGTH).optional(),
   note: z.string().max(UNIT_NOTE_MAX_LENGTH).optional(),
+  floor: z
+    .literal(true)
+    .optional()
+    .describe('Set on a unit saved before choices started on the printed default; keep it as read, never set it.'),
 })
 const phase = z.enum(PHASES)
 const missed = z.object({ round: z.number().int().min(1).max(BATTLE_ROUNDS), phase, turn: id }).optional()
@@ -90,8 +96,10 @@ export const missionAwardSchema = z.object({
   per: z.string().max(200).nullable(),
   mode: z.string().max(40).nullable(),
   max: z.number().int().min(0).max(100).nullable(),
-  group: z.string().max(100).nullable(),
-  cumulative: z.boolean(),
+  group: z.string().max(200).nullable(),
+  /** The VS Data award whose summary says what it asks for. */
+  id: z.string().max(200).optional(),
+  /** What a Game Datacards card asked for, as a token. */
   criteria: z.string().max(2_000).nullable(),
   trigger: z.object({
     timing: z.string().max(80).nullable(),
@@ -102,7 +110,7 @@ export const missionAwardSchema = z.object({
   }),
 })
 const secondary = z.object({
-  key: id,
+  key: ruleId,
   name: name,
   awards: z.array(missionAwardSchema).max(20).optional(),
   selection: z.enum(MISSION_SELECTION_KINDS).optional(),
@@ -143,12 +151,16 @@ const missionSelection = z.discriminatedUnion('kind', [
 ])
 /** A stratagem as a roster's battle preparation saves it. */
 export const stratagemSchema = z.object({
-  key: id,
+  key: ruleId,
   name: name,
   cp: z.number().int().min(0).max(STRATAGEM_CP_MAX),
   limit: z.enum(STRATAGEM_LIMITS),
   phases: z.array(phase).max(PHASES.length).optional(),
   turn: z.enum(TURN_SCOPES).optional(),
+  windows: z
+    .array(z.object({ phase, turn: z.enum(TURN_SCOPES) }))
+    .max(PHASES.length * TURN_SCOPES.length)
+    .optional(),
 })
 const stratagem = stratagemSchema.extend({ detachment: z.string().min(1).max(STRATAGEM_SOURCE_MAX_LENGTH).optional() })
 const battlePrep = z.object({
@@ -167,7 +179,7 @@ const battlePrep = z.object({
 export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
   z.object({
     kind: z.literal('select-mission'),
-    cardKey: id,
+    cardKey: ruleId,
     occurrence: z.number().int().positive(),
     playerId: id.optional(),
     selection: missionSelection,
@@ -176,8 +188,8 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
     kind: z.literal('configure-battle'),
     limit: rosterLimit.nullable(),
     missionPackId: id.nullable(),
-    terrainLayoutId: id.nullable(),
-    twistId: id.nullable(),
+    terrainLayoutId: ruleId.nullable(),
+    twistId: ruleId.nullable(),
     teamBattle: z.boolean().optional(),
     playerCount: z.union([z.literal(2), z.literal(3), z.literal(4)]).optional(),
     places: z.tuple([z.number().int().min(1).max(2), z.number().int().min(1).max(2)]).optional(),
@@ -240,6 +252,8 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
           detachmentIds: z.array(detachmentIdSchema).max(DETACHMENTS_MAX).optional(),
           waivedRules: z.array(z.enum(FORMAT_RULE_IDS)).max(FORMAT_RULE_IDS.length).optional(),
           picks: z.array(rosterPickSchema).max(100).optional(),
+          /** Fielded by code that starts a choice on its printed default; picks fielded before keep their cheapest. */
+          printedDefaults: z.literal(true).optional(),
           units: z
             .array(
               z.object({
@@ -319,27 +333,27 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('set-painted'), painted: z.boolean(), playerId: id.optional() }),
   z.object({ kind: z.literal('wound-unit'), unitKey: id, delta: z.number().int(), line: modelLine, playerId: id.optional() }),
   z.object({ kind: z.literal('damage-unit'), unitKey: id, delta: z.number().int(), line: modelLine, playerId: id.optional() }),
-  z.object({ kind: z.literal('set-deployment'), patternId: id.nullable() }),
-  z.object({ kind: z.literal('set-battlefield'), patternId: id, terrainLayoutId: id }),
-  z.object({ kind: z.literal('fix-battlefield'), patternId: id, terrainLayoutId: id }),
+  z.object({ kind: z.literal('set-deployment'), patternId: ruleId.nullable() }),
+  z.object({ kind: z.literal('set-battlefield'), patternId: ruleId, terrainLayoutId: ruleId }),
+  z.object({ kind: z.literal('fix-battlefield'), patternId: ruleId, terrainLayoutId: ruleId }),
   z.object({ kind: z.literal('fix-clock'), minutes: clockLimitMinutes.nullable() }),
   z.object({ kind: z.literal('report-result'), vp: z.record(id, z.number().int().min(0).max(999)) }),
   z.object({
     kind: z.literal('use-stratagem'),
-    key: id,
+    key: ruleId,
     cp: z.number().int().min(0).max(STRATAGEM_CP_MAX).optional(),
     playerId: id.optional(),
     missed,
   }),
   z.object({
     kind: z.literal('use-new-orders'),
-    stratagemKey: id,
-    secondaryKey: id,
+    stratagemKey: ruleId,
+    secondaryKey: ruleId,
     secondary,
     cp: z.number().int().min(0).max(STRATAGEM_CP_MAX).optional(),
     playerId: id.optional(),
   }),
-  z.object({ kind: z.literal('score-secondary'), key: id, delta: z.number().int(), playerId: id.optional() }),
+  z.object({ kind: z.literal('score-secondary'), key: ruleId, delta: z.number().int(), playerId: id.optional() }),
   z.object({
     kind: z.literal('score-settlement'),
     scores: z
@@ -352,7 +366,7 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
           }),
           z.object({
             category: z.literal('secondary'),
-            key: id,
+            key: ruleId,
             delta: z.number().int().positive(),
             status: z.literal('achieved').optional(),
           }),
@@ -366,7 +380,7 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
   }),
   z.object({
     kind: z.literal('set-secondary-status'),
-    key: id,
+    key: ruleId,
     status: z.enum(['active', 'achieved', 'discarded', 'returned']),
     playerId: id.optional(),
   }),

@@ -3,7 +3,7 @@ import { groupBy, uniqueBy } from '../../../../core/collections'
 import type { Datasheet } from '../../../../contracts/catalogue'
 import type { CombatFacts } from '../../../../core/combatReading'
 import type { ReminderSuggestion } from '../../../../core/reminders'
-import { DEFAULT_WARGEAR } from '../../../../shared/datacards'
+import type { VsDataUnit } from '../../../../shared/vsData'
 import { weaponProfileGroups } from '../../../datasheet'
 import {
   modelFixedCount,
@@ -31,6 +31,8 @@ export type LoadoutChoice = {
   optional: boolean
   carried: boolean
   room: number
+  least?: number
+  multiplePerModel?: true
   /** The squad answers this once for all of it, however many models carry it. */
   uniform: boolean
   owner: { id: string; name: string; profile: string | null } | null
@@ -52,6 +54,8 @@ export type LoadoutChoice = {
     keywordRules?: Datasheet['keywordRules']
     combat?: CombatFacts | null
     reminder?: ReminderSuggestion
+    /** The id of the list's detachment an enhancement or upgrade belongs to, where the price could tell. */
+    detachment?: string
   }[]
 }
 
@@ -96,26 +100,121 @@ export function unmodeledGrantedWeapons(
   )
 }
 
+type UnitOption = VsDataUnit['options'][number]
+
+/**
+ * The options a row's wargear comes from, as VS Data writes them: those offering most of its pieces, of the model the
+ * option names where the unit has a model of that name, so a leader's option stays off the same weapon its troops take,
+ * and none whose wording its steppers contradict.
+ */
 export function loadoutInstructions(
   row: Pick<ModelRow, 'name' | 'pieces'>,
   model: LoadoutModel,
   models: readonly LoadoutModel[],
-  groups: NonNullable<Datasheet['wargearGroups']>,
-  /** An instruction's words, or null while they are not loaded, when it is read as naming no model. */
-  wordsOf: (instruction: string) => string | null = (instruction) => instruction,
-) {
+  options: readonly UnitOption[],
+  unit: { choices: readonly LoadoutChoice[]; models: number },
+): UnitOption[] {
+  return matchedInstructions(row, model, models, options).filter(
+    (option) => !optionContradictions(option, model, models, unit.choices, unit.models).length,
+  )
+}
+
+/** The options a row's wargear comes from, as `loadoutInstructions` finds them, whether or not the steppers agree. */
+export function matchedInstructions(
+  row: Pick<ModelRow, 'name' | 'pieces'>,
+  model: LoadoutModel,
+  models: readonly LoadoutModel[],
+  options: readonly UnitOption[],
+): UnitOption[] {
   const names = row.pieces ?? [row.name]
-  const candidates = groups.flatMap((group) => {
-    if (group.instruction === DEFAULT_WARGEAR) return []
-    const words = wordsOf(group.instruction) ?? ''
-    const namedModels = models.filter((candidate) => new RegExp(`\\b${escapeRegExp(candidate.name)}(?:s\\b|\\b)`, 'i').test(words))
-    if (namedModels.length && !namedModels.includes(model)) return []
-    const matches = group.options.filter((option) => names.some((name) => sameWargear(wargearBaseName(option), name))).length
-    return matches ? [{ instruction: group.instruction, matches }] : []
+  const candidates = options.flatMap((option) => {
+    const carriers = option.carrier ? models.filter((candidate) => sameModel(candidate.name, option.carrier!)) : []
+    if (carriers.length && !carriers.includes(model)) return []
+    // A choice of several pieces, as "Big Skorcha and Kustom Choppa", counts each piece the row holds.
+    const pieces = new Set(option.choices.flatMap((choice) => choice.split(' and ')).map((piece) => wargearKey(wargearBaseName(piece))))
+    const matches = names.filter((name) => pieces.has(wargearKey(name))).length
+    return matches ? [{ option, matches }] : []
   })
   const best = Math.max(0, ...candidates.map((candidate) => candidate.matches))
-  return [...new Set(candidates.filter((candidate) => candidate.matches === best).map((candidate) => candidate.instruction))]
+  return candidates.filter((candidate) => candidate.matches === best).map((candidate) => candidate.option)
 }
+
+/**
+ * A row's choice in Praetorium's own words, from the steppers' own options, for a row whose VS Data option they
+ * contradict: what the model can take there, as "Neophyte can take Flamer, Webber or Autogun.".
+ */
+export function catalogueInstruction(row: ModelRow, model: LoadoutModel, choices: readonly LoadoutChoice[]): string | null {
+  const choice = loadoutRowSources(row, choices)[0]?.choice
+  const names = [...new Set(choice?.options.map((option) => option.name) ?? [])]
+  if (!choice || names.length < (choice.optional ? 1 : 2)) return null
+  const listed = names.length < 2 ? names[0]! : `${names.slice(0, -1).join(', ')} or ${names.at(-1)}`
+  return `${model.name} can take ${listed}.`
+}
+
+const pieceKey = (name: string) => wargearKey(wargearBaseName(name))
+
+/**
+ * Where an option's wording would contradict the steppers beside it, which follow the catalogue: a choice no stepper of
+ * the unit offers, a piece it replaces that the model does not carry by default (a model a choice stands for already
+ * took the swap), or a cap on one choice above what its steppers can reach at the unit's size.
+ */
+export function optionContradictions(
+  option: UnitOption,
+  model: LoadoutModel,
+  models: readonly LoadoutModel[],
+  choices: readonly LoadoutChoice[],
+  unitModels: number,
+): string[] {
+  const rowPieces = (owner: LoadoutModel) => (row: ModelRow) => modelRowPieces(row, owner.rows)
+  const pieces = (name: string) => name.split(' and ')
+  const offered = new Set(
+    [
+      ...choices.flatMap((choice) => choice.options.flatMap((candidate) => [candidate.name, ...(candidate.pieces ?? [])])),
+      ...models.flatMap((kind) => [
+        ...kind.name.split(/ w\/ | with /).slice(1),
+        ...kind.fixed.map((piece) => piece.name),
+        ...kind.rows.flatMap(rowPieces(kind)),
+      ]),
+    ]
+      .flatMap((name) => [name, ...pieces(name)])
+      .map(pieceKey),
+  )
+  const carried = new Set(
+    [
+      ...model.fixed.map((piece) => piece.name),
+      ...model.rows.filter((row) => loadoutRowSources(row, choices).some(({ option: source }) => source.default)).flatMap(rowPieces(model)),
+    ]
+      .flatMap((name) => [name, ...pieces(name)])
+      .map(pieceKey),
+  )
+  const standsForChoice = model.members.some((member) => member.choiceKey !== null)
+  return [
+    ...option.choices.flatMap((choice) =>
+      offered.has(pieceKey(choice)) || pieces(choice).every((piece) => offered.has(pieceKey(piece)))
+        ? []
+        : [`offers ${choice}, which no stepper offers`],
+    ),
+    ...(standsForChoice ? [] : (option.replaces ?? [])).flatMap(([piece]) =>
+      carried.has(pieceKey(piece)) ? [] : [`replaces ${piece}, which this model does not carry`],
+    ),
+    ...(option.caps ?? []).flatMap((cap) => {
+      if (cap.choices.length !== 1) return []
+      const wanted = pieces(cap.choices[0]!).map(pieceKey)
+      const row = model.rows.find((candidate) => {
+        const held = rowPieces(model)(candidate).map(pieceKey)
+        return held.length === wanted.length && wanted.every((piece) => held.includes(piece))
+      })
+      const limit = row && Math.max(0, ...loadoutRowSources(row, choices).map(({ option: source }) => source.max))
+      const allowed = cap.max * (cap.perModels ? Math.floor(unitModels / cap.perModels) : 1)
+      // A stepper's maximum only bounds a choice; the roster check may still refuse fewer, so only a lower one contradicts.
+      return row && limit !== undefined && limit < allowed
+        ? [`caps ${cap.choices[0]} at ${allowed} where the steppers stop at ${limit}`]
+        : []
+    }),
+  ]
+}
+
+const sameModel = (name: string, carrier: string) => new RegExp(`^${escapeRegExp(carrier)}s?$`, 'i').test(name)
 
 type LoadoutRowSource = { choice: LoadoutChoice; option: LoadoutOption }
 
@@ -676,12 +775,22 @@ export function poolHandlers(model: LoadoutModel, choices: readonly LoadoutChoic
     // squad allowed one.
     const kin = shared.filter((entry) => entry.choice.key === taker.choice.key)
     const full = takenIn(taker.choice) >= taker.choice.room
+    if (taker.choice.multiplePerModel) {
+      if (!canAddPooledOption(taker.option)) return null
+      if (!full) return move([], [taker])
+      if (taker.choice.optional) return null
+      const donor = kin
+        .filter((entry) => !sameSource(entry, taker) && entry.option.count > entry.option.min)
+        .toSorted((one, other) => donorPriority(one.option, other.option))[0]
+      return donor ? move([donor], [taker]) : null
+    }
     const band = bandOf(taker.row)
     const sharesPool = (row: ModelRow) => row.choiceKey === taker.choice.key || bandOf(row) === band
+    const poolsWithTaker = (row: ModelRow) => sharesPool(row) && participates(row, taker.choice.key)
     const pool =
-      full && !addsModel(model, taker) ? kin : shared.filter((entry) => sharesPool(entry.row) && participates(entry.row, taker.choice.key))
+      full && !addsModel(model, taker) ? kin : shared.filter((entry) => !entry.choice.multiplePerModel && poolsWithTaker(entry.row))
     const occupied = model.rows
-      .filter((row) => sharesPool(row) && participates(row, taker.choice.key))
+      .filter((row) => poolsWithTaker(row) && !findOption(choices, row.choiceKey, row.optionId)?.choice.multiplePerModel)
       .reduce((total, row) => total + rowCount(row), 0)
     // A model option with room joins the squad; it does not replace another
     // specialist on this card. The squad's model group supplies the body.
@@ -706,8 +815,16 @@ export function poolHandlers(model: LoadoutModel, choices: readonly LoadoutChoic
 
   const free = (giver: Entry) => {
     if (giver.option.count <= 0 || giver.option.count <= giver.option.min) return null
+    if (giver.choice.multiplePerModel) {
+      if (takenIn(giver.choice) > (giver.choice.least ?? 0)) return move([giver], [])
+      const taker = shared
+        .filter((entry) => entry.choice === giver.choice && !sameSource(entry, giver) && canAddPooledOption(entry.option))
+        .toSorted((one, other) => donorPriority(one.option, other.option))[0]
+      return taker ? move([giver], [taker]) : null
+    }
     const requiredSlot = !giver.choice.optional && !addsModel(model, giver) && takenIn(giver.choice) <= Math.min(giver.choice.room, count)
     const taker = shared
+      .filter((entry) => !entry.choice.multiplePerModel)
       .filter((entry) => !requiredSlot || entry.option.default)
       .filter((entry) => participates(entry.row, giver.choice.key))
       .filter((entry) => entry.choice.key === giver.choice.key || bandOf(entry.row) === bandOf(giver.row))

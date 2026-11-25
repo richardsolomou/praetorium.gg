@@ -1,8 +1,15 @@
 import type { Datasheet } from './datasheet'
-import { MAX_COMBAT_MODELS, type CombatInput, type CombatOptions, type CombatWeapon, type CombatPhase } from './combat'
+import { MAX_COMBAT_MODELS, atHalfRange, type CombatInput, type CombatOptions, type CombatWeapon, type CombatPhase } from './combat'
 import { adjustCombatWeapon, type WeaponAdjustment } from './combatAdjustments'
 import type { CombatCarrier } from './combatLoadout'
-import { combatPlan, combatWeapons, resolveShootingType, shootingTypeChoice, weaponInShootingType } from './combatProfiles'
+import {
+  combatPlan,
+  combatWeapons,
+  highestToughness,
+  resolveShootingType,
+  shootingTypeChoice,
+  weaponInShootingType,
+} from './combatProfiles'
 import { combatRuleMortals, combatRuleProfiles, combatRuleSacrifices, combatRuleWeapons, type ActiveCombatRule } from './combatRules'
 import type { StructuredDatasheetProfile } from './datasheet'
 
@@ -42,7 +49,7 @@ function ruledAttack(
       models -= sacrificed
     } else rules = rules.map((rule) => ({ ...rule, effects: rule.effects.filter((effect) => !effect.mortalWounds?.sacrifice) }))
   }
-  const mortalWounds = combatRuleMortals(rules, phase, defender.keywords, carried, models)
+  const mortalWounds = combatRuleMortals(rules, phase, defender.keywords, carried, models, highestToughness(attacker.sheet))
   const weapons = combatRuleWeapons(
     attacker.sheet,
     combatRuleWeapons(attacker.sheet, carried, rules, 'attacker', phase, defender.keywords, scopedOptions).map((weapon, index) => ({
@@ -138,9 +145,11 @@ export function combatAttacks(
   return { ranged: attack('ranged'), melee: attack('melee') }
 }
 
-/** Every printed Conversion distance is half its weapon's range, so the Half range choice decides whether it applies. */
+/** Every printed Conversion distance is half its weapon's range, so being within half range decides whether it applies. */
 function withConversion(weapon: CombatWeapon, options: CombatOptions): CombatWeapon {
-  return weapon.conversion && !options.halfRange ? { ...weapon, [weapon.conversion]: Math.min(weapon[weapon.conversion] ?? 6, 4) } : weapon
+  return weapon.conversion && !atHalfRange(weapon, options)
+    ? { ...weapon, [weapon.conversion]: Math.min(weapon[weapon.conversion] ?? 6, 4) }
+    : weapon
 }
 
 /** The calculation for one phase, or null when nothing in it can attack. */

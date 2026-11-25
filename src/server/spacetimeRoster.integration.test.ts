@@ -234,6 +234,8 @@ const lockedInput = (userId: string, id = randomUUID(), now = Date.now()) => ({
   baseRosterId: null,
   visibility: 'private' as const,
   source: 'editable' as const,
+  // Saved by this server, which starts a choice on its printed default.
+  printedDefaults: true,
   now,
 })
 
@@ -477,5 +479,30 @@ it.skipIf(!url || !database || !token)('records a model count without duplicatin
     expect(await store.collectionByUser('other')).toEqual([])
   } finally {
     await store.removeFromCollection(userId, entryId)
+  }
+})
+
+it.skipIf(!url || !database || !token)('stores a queued save from an older app floored and one from this app as it arrives', async () => {
+  const store = new SpacetimeOperator(url!, database!, token!)
+  const userId = randomUUID()
+  const { printedDefaults: _older, ...older } = lockedInput(userId)
+  const current = lockedInput(userId, randomUUID())
+  const sync = (row: object) =>
+    store.syncRoster({
+      row: JSON.stringify(row),
+      operationId: randomUUID(),
+      fingerprint: 'c'.repeat(64),
+      expectedVersion: null,
+      deleted: false,
+    })
+  try {
+    await sync(older)
+    await sync(current)
+    expect([(await store.roster(older.id))?.picks, (await store.roster(current.id))?.picks]).toEqual([
+      '[{"entryId":"unit-proof","floor":true}]',
+      current.picks,
+    ])
+  } finally {
+    for (const id of [older.id, current.id]) await store.deleteRoster(id, userId)
   }
 })

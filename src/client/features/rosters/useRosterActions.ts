@@ -70,10 +70,10 @@ export function useRosterActions({
   const [exchangeCode, setExchangeCode] = useState<RosterExchangeCode | null>(null)
 
   const take = useMutation({
-    mutationFn: () =>
-      exportRoster({
-        data: exportInput({ ...setup, picks: annotated }, shownName || 'Roster'),
-      }),
+    mutationFn: async () => {
+      const input = exportInput({ ...setup, picks: annotated }, shownName || 'Roster')
+      return { ...(await exportRoster({ data: input })), input }
+    },
     onSuccess: (exported) => setExportText(exported),
   })
 

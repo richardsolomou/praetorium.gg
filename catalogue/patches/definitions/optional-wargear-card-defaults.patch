@@ -1,0 +1,63 @@
+diff --git a/definitions/Chaos - Death Guard.json b/definitions/Chaos - Death Guard.json
+--- a/definitions/Chaos - Death Guard.json
++++ b/definitions/Chaos - Death Guard.json
+@@ -20406,6 +20406,7 @@
+               {
+                 "name": "Pintle weapon",
+                 "id": "8465-a1cd-311a-37db",
++                "defaultSelectionEntryId": "9009-8214-3395-dc73",
+                 "collective": false,
+                 "hidden": false,
+                 "import": true,
+diff --git a/definitions/Aeldari - Aeldari Library.json b/definitions/Aeldari - Aeldari Library.json
+--- a/definitions/Aeldari - Aeldari Library.json
++++ b/definitions/Aeldari - Aeldari Library.json
+@@ -62325,7 +62325,7 @@
+                   {
+                     "name": "Pistol Choice",
+                     "id": "9ce5-3656-bccb-632f",
+-                    "defaultSelectionEntryId": "2679-b149-52a6-da94",
++                    "defaultSelectionEntryId": "44c8-fbdd-33da-2dbd",
+                     "hidden": false,
+                     "constraints": [{"id": "0cef-6c10-6068-1772", "field": "selections", "scope": "parent", "shared": true, "type": "max", "value": 1}],
+                     "selectionEntries": [
+diff --git a/definitions/Leagues of Votann.json b/definitions/Leagues of Votann.json
+--- a/definitions/Leagues of Votann.json
++++ b/definitions/Leagues of Votann.json
+@@ -6776,35 +6776,9 @@
+                     "name": "Concussion gauntlet",
+                     "id": "4af9-1fdc-54b3-617a",
+                     "collective": false,
+-                    "hidden": true,
++                    "hidden": false,
+                     "import": true,
+                     "type": "upgrade",
+-                    "constraints": [
+-                      {
+-                        "id": "d7eb-fe07-d167-9a06-min",
+-                        "automatic": true,
+-                        "field": "selections",
+-                        "includeChildForces": false,
+-                        "includeChildSelections": false,
+-                        "percentValue": false,
+-                        "scope": "parent",
+-                        "shared": true,
+-                        "type": "min",
+-                        "value": 0
+-                      },
+-                      {
+-                        "id": "d7eb-fe07-d167-9a06-max",
+-                        "automatic": true,
+-                        "field": "selections",
+-                        "includeChildForces": false,
+-                        "includeChildSelections": false,
+-                        "percentValue": false,
+-                        "scope": "parent",
+-                        "shared": true,
+-                        "type": "max",
+-                        "value": 0
+-                      }
+-                    ],
+                     "costs": [{"name": "pts", "typeId": "51b2-306e-1021-d207", "value": 0}],
+                     "entryLinks": [
+                       {"name": "Weapon Modifications", "id": "dbed-a8a9-0465-338c", "hidden": false, "import": true, "targetId": "f9da-852a-d7f0-92e9", "type": "selectionEntryGroup"}

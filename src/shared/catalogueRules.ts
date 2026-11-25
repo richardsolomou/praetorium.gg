@@ -4,10 +4,7 @@ import { referencesIn } from './textFacts'
 import { remember } from '../core/collections'
 import { comparableText } from '../core/sourceText'
 
-type RuleSource = {
-  index: Pick<LoadedCatalogue['index'], 'rules' | 'textFacts'>
-  datacards?: Pick<LoadedCatalogue['datacards'], 'keywordRules'>
-}
+type RuleSource = Pick<LoadedCatalogue, 'keywords'> & { index: Pick<LoadedCatalogue['index'], 'rules' | 'textFacts'> }
 
 export function rulesReferencedIn(loaded: RuleSource, texts: readonly (string | null)[]) {
   return rulesNamed(loaded, referencesIn(texts, loaded.index.textFacts))
@@ -31,9 +28,10 @@ function ruleNameIndex(loaded: RuleSource) {
       if (existing && !existing.descriptions.has(comparableText(rule.description))) existing.descriptions.set(...wording(rule.description))
       else if (!existing) bucket.push({ name: rule.name, descriptions: new Map([wording(rule.description)]), order: order++ })
     }
-    for (const rule of loaded.datacards?.keywordRules ?? []) {
-      const key = normalizeRuleReference(rule.name)
-      if (!index.has(key)) index.set(key, [{ name: rule.name, descriptions: new Map([wording(rule.description)]), order: order++ }])
+    // A keyword the catalogue prints no rule for is VS Data's ability of that name, which has no text to carry.
+    for (const name of loaded.keywords ?? []) {
+      const key = normalizeRuleReference(name)
+      if (!index.has(key)) index.set(key, [{ name, descriptions: new Map([['', '']]), order: order++ }])
     }
     return index
   })

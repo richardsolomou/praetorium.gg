@@ -70,7 +70,7 @@ export function describeDatasheetAbilitiesWithContributions(
       ability.description ??
       armyRule(ability.name) ??
       (ability.kind === 'core' && ability.source
-        ? (rulesNamed(loaded, [ability.name]).toSorted((left, right) => right.name.length - left.name.length)[0]?.description ?? null)
+        ? rulesNamed(loaded, [ability.name]).toSorted((left, right) => right.name.length - left.name.length)[0]?.description || null
         : null)
     const reminder = description === null ? undefined : reminderIn(description, loaded.index.textFacts)
     return {

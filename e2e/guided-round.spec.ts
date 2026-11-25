@@ -53,7 +53,9 @@ test('New Orders, discard CP and carried cards survive a complete two-player rou
   await expect(page.getByRole('dialog', { name: 'Your secondary missions', exact: true })).toBeVisible()
   await takeTheTurn(page)
   const commands = await loggedCommands(await battleIdFor(lastPathSegment(page.url())))
-  expect(commands.findLast((command) => command.kind === 'set-battlefield')?.terrainLayoutId).toBe('ed87b70c-bb09-49c7-bf06-54ca47956dcd')
+  expect(commands.findLast((command) => command.kind === 'set-battlefield')?.terrainLayoutId).toBe(
+    'chapter-approved-2026-2027.take-and-hold-take-and-hold-layout-a',
+  )
   const orders = commands.filter((command) => command.kind === 'use-new-orders')
   expect(orders).toHaveLength(1)
   test.info().annotations.push({ type: 'New Orders replacement', description: orders[0]!.secondary.name })
@@ -81,9 +83,10 @@ test('New Orders, discard CP and carried cards survive a complete two-player rou
   await expect(advanceButton(page)).toBeEnabled()
   await expect(side.getByRole('button', { name: /^Use New Orders for \d CP$/ })).toBeDisabled()
   await page.reload()
-  // A Beacon drawn as the replacement asks for its unit again on a fresh page.
+  // A Beacon drawn as the replacement asks for its unit again on a fresh page, after the board has drawn.
   const newOrders = side.getByRole('button', { name: /^Use New Orders for \d CP$/ })
   await expect(newOrders.or(page.getByRole('dialog', { name: / · choices$/ })).first()).toBeVisible()
+  if (orders[0]!.secondary.name === 'Beacon') await expect(page.getByRole('dialog', { name: / · choices$/ })).toBeVisible()
   await skipMissionChoices(page)
   await expect(newOrders).toBeDisabled()
   await expect(side.locator('[data-stat="cp"]')).toHaveText('0')
@@ -143,7 +146,7 @@ test('both sides settle source final awards beyond round caps through cold offli
   await page.getByRole('button', { name: 'Pass the turn', exact: true }).click()
   const finalTurn = page.getByRole('dialog', { name: /^Scoring end of turn points/ })
   await expect(finalTurn).toContainText('Final awards: 0 VP')
-  const primary = finalTurn.locator('[data-due="662be231-e658-4007-9e78-406749ebc71a"]')
+  const primary = finalTurn.locator('[data-due="chapter-approved-2026-2027.gather-intel"]')
   await expect(primary.getByText('End of battle', { exact: true })).toHaveCount(2)
   await primary.getByRole('button', { name: 'Gather Intel plus 4', exact: true }).click()
   await claimFinalAwards(primary)

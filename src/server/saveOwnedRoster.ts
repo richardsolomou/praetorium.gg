@@ -61,6 +61,7 @@ export async function copySavedRoster(userId: string, id: string, variant: boole
     prep: roster.prep,
     visibility: rosterVisibility,
     source: roster.source,
+    printedDefaults: true,
   }
   const saved = setup ? { ...data, ...convertedSetup(setup) } : data
   return { ...(await saveOwnedRoster(userId, saved, variant ? roster.id : null, variant ? null : roster.id)), data: saved }

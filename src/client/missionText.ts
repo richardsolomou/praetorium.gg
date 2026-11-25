@@ -10,33 +10,6 @@ export { awardTotal } from '../core/scoring'
 
 export type { MissionAward } from '../core/scoring'
 
-const ORDINALS = ['first', 'second', 'third', 'fourth']
-
-/**
- * What to call a payout while its condition's words are not loaded.
- *
- * Nothing is invented for it, only what the numbers already say: payouts in one group
- * are tiers of the same thing, ranked by what they pay or, when two pay the same, by
- * where the card prints them, and a counted payout pays per time it is met. Anything
- * else points back at the card.
- */
-export function payoutLabel(award: MissionAward, siblings: readonly MissionAward[]): string {
-  const tiers = siblings.filter((other) => alternatives(award, other))
-  if (tiers.length > 1) {
-    if (new Set(tiers.map((tier) => tier.vp)).size < tiers.length) {
-      const ordinal = ORDINALS[tiers.indexOf(award)]
-      return ordinal ? `The ${ordinal} payout.` : 'As the card describes.'
-    }
-    const ranked = tiers.toSorted((left, right) => left.vp - right.vp)
-    const rank = ranked.indexOf(award)
-    if (rank === 0) return tiers.length === 2 ? 'The lower payout.' : 'The lowest payout.'
-    if (rank === tiers.length - 1) return tiers.length === 2 ? 'The higher payout.' : 'The highest payout.'
-    return 'A middle payout.'
-  }
-  if (counted(award)) return 'For each time it is met.'
-  return 'As the card describes.'
-}
-
 /**
  * Whether picking one payout on a card rules another out.
  *
@@ -98,14 +71,7 @@ export function timingLabel(trigger: MissionAward['trigger']) {
     .join(' · ')
 }
 
-/**
- * What a payout asks for, or null when the pack did not say.
- *
- * The sentence is the mission pack's, not ours: paraphrasing a condition id into
- * English is a second wording of the same rule, free to drift from the card a player
- * is holding. Where the pack's payouts cannot be matched to this card's, the row
- * falls back to naming the payout and the card's own text stands beside it.
- */
+/** The token a battle saved for what a payout asks for, or null when it saved none. */
 export const conditionLabel = (award: MissionAward): string | null => award.criteria
 
 export function roundLabel(trigger: MissionAward['trigger']): string | null {
@@ -129,8 +95,12 @@ export function roundLabel(trigger: MissionAward['trigger']): string | null {
  */
 export { appliesInMode }
 
-export const groupKey = (award: MissionAward) =>
-  [award.mode, award.trigger.timing, award.trigger.phase, award.trigger.playerTurn, award.trigger.roundMin, award.trigger.roundMax].join(
-    '|',
-  )
+const triggerKey = (trigger: MissionAward['trigger']) =>
+  [trigger.timing, trigger.phase, trigger.playerTurn, trigger.roundMin, trigger.roundMax].join('|')
+/** The payouts that print under one heading: the same mode, claimed at the same moments. */
+export const groupKey = ({ award, triggers }: { award: MissionAward; triggers: readonly MissionAward['trigger'][] }) =>
+  [award.mode, ...triggers.map(triggerKey)].join('/')
+/** When an award is claimed, every moment of it, for a line of text. */
+export const momentsLabel = (triggers: readonly MissionAward['trigger'][]) =>
+  triggers.map((trigger) => [timingLabel(trigger), roundLabel(trigger)].filter(Boolean).join(' · ')).join(' or ')
 export const title = (value: string) => value.replaceAll('-', ' ').replaceAll(/\b\w/g, (letter) => letter.toLocaleUpperCase())

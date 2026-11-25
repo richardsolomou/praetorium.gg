@@ -2,20 +2,22 @@ import { describe, expect, it } from 'vitest'
 import { rulesNamed } from '../shared/catalogueRules'
 
 describe('keyword rule definitions', () => {
-  it.each(['Linked Fire', 'Harpooned', 'Reverberating Summons', 'Psychic Assassin', 'Plasma Warhead', 'Overcharge'])(
-    'uses the datacards definition for %s when the catalogue omits it',
-    (name) => {
-      const rule = { name, description: 'Source definition.' }
-      expect(rulesNamed({ index: { rules: new Map() }, datacards: { keywordRules: [rule] } }, [name])).toEqual([rule])
-    },
-  )
+  it('names VS Data’s ability, with no text, for a keyword the catalogue omits', () => {
+    expect(rulesNamed({ index: { rules: new Map() }, keywords: ['Linked Fire'] }, ['Linked Fire'])).toEqual([
+      { name: 'Linked Fire', description: '' },
+    ])
+  })
 
-  it('keeps the catalogue definition when a fallback defines the same name', () => {
+  it('answers a parameterized keyword by its name', () => {
+    expect(rulesNamed({ index: { rules: new Map() }, keywords: ['Sustained Hits'] }, ['Sustained Hits D3'])).toEqual([
+      { name: 'Sustained Hits', description: '' },
+    ])
+  })
+
+  it('keeps the catalogue definition when VS Data names the same keyword', () => {
     const rule = { id: 'rule', name: 'Stealth', description: 'Catalogue definition.' }
-    const source = {
-      index: { rules: new Map([[rule.id, rule]]) },
-      datacards: { keywordRules: [{ name: 'Stealth', description: 'Fallback definition.' }] },
-    }
-    expect(rulesNamed(source, ['Stealth'])).toEqual([{ name: 'Stealth', description: 'Catalogue definition.' }])
+    expect(rulesNamed({ index: { rules: new Map([[rule.id, rule]]) }, keywords: ['Stealth'] }, ['Stealth'])).toEqual([
+      { name: 'Stealth', description: 'Catalogue definition.' },
+    ])
   })
 })

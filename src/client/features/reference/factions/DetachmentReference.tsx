@@ -3,9 +3,10 @@ import { Link } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 import { routeSlug } from '../../../../core/slug'
 import { detachmentDetailQuery } from '../../../queries'
-import { RuleText } from '../../../components/RuleText'
-import type { KeywordRule } from '../../../components/Keyword'
-import { useSourceText } from '../../../sourceText'
+import { RuleText, SummaryByName } from '../../../components/RuleText'
+import { stratagemWindowsLabel } from '../../../../core/reminders'
+import { DatasheetUnit, detachmentRulesOwner, useReleaseAbilities } from '../../../components/UnitFromVsData'
+import { RuleSummaryText } from '../../../components/RuleSummaryText'
 import { dispositionTone } from '../../../components/rosterSetup'
 import { FactionMark, factionColour, type FactionPresentation } from '../../../components/FactionMark'
 import { FavouriteDetachmentToggle } from './FavouriteDetachmentToggle'
@@ -34,6 +35,8 @@ export function DetachmentReference({
   closing?: ReactNode
 }) {
   const { data: detachment, isPending, isError } = useQuery(detachmentDetailQuery(catalogueId, slug))
+  // A Stratagem the build has only in its app prints no text, so its summary is the release's record of its id.
+  const release = useReleaseAbilities(catalogueId, Boolean(detachment?.stratagems.some((stratagem) => !stratagem.description)))
   if (isPending)
     return (
       <PageState
@@ -54,150 +57,149 @@ export function DetachmentReference({
       />
     )
 
+  const owner = faction ? detachmentRulesOwner(catalogueId, faction.slug, slug) : null
   return (
-    <div id="summary">
-      <PageHeader
-        tint={faction ? factionColour(faction.slug, faction.displayName) : undefined}
-        title={detachment.name}
-        media={faction ? <FactionMark faction={faction} /> : undefined}
-        actions={
-          detachmentId || action ? (
-            <div className="flex flex-wrap items-center gap-1">
-              {detachmentId ? (
-                <FavouriteDetachmentToggle catalogueId={catalogueId} detachmentId={detachmentId} name={detachment.name} />
-              ) : null}
-              {action}
-            </div>
-          ) : null
-        }
-      >
-        {detachment.dispositions.length || detachment.points !== null ? (
-          <div className="flex flex-wrap gap-1">
-            {detachment.dispositions.map((disposition) => (
-              <Link
-                key={disposition}
-                to="/force-dispositions/$dispositionId"
-                params={{ dispositionId: routeSlug(disposition) }}
-                className={`chip hover:text-bone ${dispositionTone(disposition)}`}
-              >
-                {disposition}
-              </Link>
-            ))}
-            {detachment.points === null ? null : <span className="chip text-info">{detachment.points} DP</span>}
-          </div>
-        ) : null}
-      </PageHeader>
-      <div id="keyword-rules">
-        <PageContent className="space-y-6">
-          {afterHero}
-
-          {detachment.rules.length ? (
-            <section>
-              <SectionHeading title="Detachment rules" count={detachment.rules.length} />
-              <div className="grid gap-2">
-                {detachment.rules.map((rule) => (
-                  <article id={`rule-${routeSlug(rule.name)}`} key={rule.name} className="part p-4">
-                    <h2 className="text-lg">{rule.name}</h2>
-                    {rule.description ? <RuleText text={rule.description} rules={detachment.keywordRules} /> : <Unavailable />}
-                  </article>
-                ))}
+    <DatasheetUnit.Provider value={owner}>
+      <div id="summary">
+        <PageHeader
+          tint={faction ? factionColour(faction.slug, faction.displayName) : undefined}
+          title={detachment.name}
+          media={faction ? <FactionMark faction={faction} /> : undefined}
+          actions={
+            detachmentId || action ? (
+              <div className="flex flex-wrap items-center gap-1">
+                {detachmentId ? (
+                  <FavouriteDetachmentToggle catalogueId={catalogueId} detachmentId={detachmentId} name={detachment.name} />
+                ) : null}
+                {action}
               </div>
-            </section>
-          ) : null}
-
-          <section>
-            <SectionHeading title="Enhancements" count={detachment.enhancements.length} />
-            <div className="grid gap-2 md:grid-cols-2">
-              {!detachment.enhancements.length ? <p className="py-2 text-sm text-dim">No enhancement details are available.</p> : null}
-              {detachment.enhancements.map((enhancement) => (
-                <article id={`enhancement-${routeSlug(enhancement.name)}`} key={enhancement.name} className="part p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <h2 className="text-base">{enhancement.name}</h2>
-                    {enhancement.points === null ? null : <span className="chip shrink-0 text-info">{enhancement.points} pts</span>}
-                  </div>
-                  {enhancement.summary ? (
-                    <SummarizedRule summary={enhancement.summary} text={enhancement.description} rules={detachment.keywordRules} />
-                  ) : enhancement.description ? (
-                    <RuleText text={enhancement.description} rules={detachment.keywordRules} />
-                  ) : (
-                    <Unavailable />
-                  )}
-                </article>
+            ) : null
+          }
+        >
+          {detachment.dispositions.length || detachment.points !== null ? (
+            <div className="flex flex-wrap gap-1">
+              {detachment.dispositions.map((disposition) => (
+                <Link
+                  key={disposition}
+                  to="/force-dispositions/$dispositionId"
+                  params={{ dispositionId: routeSlug(disposition) }}
+                  className={`chip hover:text-bone ${dispositionTone(disposition)}`}
+                >
+                  {disposition}
+                </Link>
               ))}
+              {detachment.points === null ? null : <span className="chip text-info">{detachment.points} DP</span>}
             </div>
-          </section>
-
-          {detachment.upgrades.length ? (
-            <section>
-              <SectionHeading title="Unit upgrades" count={detachment.upgrades.length} />
-              <div className="grid gap-2 md:grid-cols-2">
-                {detachment.upgrades.map((upgrade) => (
-                  <article id={`upgrade-${routeSlug(upgrade.name)}`} key={upgrade.name} className="part p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <h2 className="text-base">{upgrade.name}</h2>
-                      {upgrade.points === null ? null : <span className="chip shrink-0 text-info">{upgrade.points} pts</span>}
-                    </div>
-                    {upgrade.description ? <RuleText text={upgrade.description} rules={detachment.keywordRules} /> : <Unavailable />}
-                  </article>
-                ))}
-              </div>
-            </section>
           ) : null}
+        </PageHeader>
+        <div id="keyword-rules">
+          <PageContent className="space-y-6">
+            {afterHero}
 
-          <section aria-label="Stratagems">
-            <SectionHeading title="Stratagems" count={detachment.stratagems.length} />
-            {detachment.stratagems.some((stratagem) => !stratagem.summary && !stratagem.description) ? (
-              <p className="text-sm text-dim">Some stratagem descriptions are not available.</p>
+            {detachment.rules.length ? (
+              <section>
+                <SectionHeading title="Detachment rules" count={detachment.rules.length} />
+                <div className="grid gap-2">
+                  {detachment.rules.map((rule) => (
+                    <article id={`rule-${routeSlug(rule.name)}`} key={rule.name} className="part p-4">
+                      <h2 className="text-lg">{rule.name}</h2>
+                      {rule.description ? (
+                        <RuleText text={rule.description} rules={detachment.keywordRules} name={rule.name} />
+                      ) : (
+                        <Unavailable />
+                      )}
+                    </article>
+                  ))}
+                </div>
+              </section>
             ) : null}
-            <div className="mt-2 grid gap-2 md:grid-cols-2">
-              {!detachment.stratagems.length ? <p className="py-2 text-sm text-dim">No stratagem details are available.</p> : null}
-              {detachment.stratagems.map((stratagem) => (
-                <article id={`stratagem-${routeSlug(stratagem.name)}`} key={stratagem.id} className="part p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <h2 className="text-base">{stratagem.name}</h2>
-                      <p className="eyebrow mt-1">
-                        {[stratagem.type, ...stratagem.phases.map(title), stratagem.turn ? title(stratagem.turn) : null]
-                          .filter(Boolean)
-                          .join(' · ')}
-                      </p>
+
+            <section>
+              <SectionHeading title="Enhancements" count={detachment.enhancements.length} />
+              <div className="grid gap-2 md:grid-cols-2">
+                {!detachment.enhancements.length ? <p className="py-2 text-sm text-dim">No enhancement details are available.</p> : null}
+                {detachment.enhancements.map((enhancement) => (
+                  <article id={`enhancement-${routeSlug(enhancement.name)}`} key={enhancement.name} className="part p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <h2 className="text-base">{enhancement.name}</h2>
+                      {enhancement.points === null ? null : <span className="chip shrink-0 text-info">{enhancement.points} pts</span>}
                     </div>
-                    <span className="chip shrink-0">{stratagem.cp} CP</span>
-                  </div>
-                  {stratagem.summary ? (
-                    <SummarizedRule summary={stratagem.summary} text={stratagem.description} rules={detachment.keywordRules} />
-                  ) : stratagem.description ? (
-                    <RuleText text={stratagem.description} rules={detachment.keywordRules} />
-                  ) : null}
-                </article>
-              ))}
-            </div>
-          </section>
+                    {enhancement.description ? (
+                      <RuleText text={enhancement.description} rules={detachment.keywordRules} name={enhancement.name} />
+                    ) : (
+                      <SummaryByName name={enhancement.name} fallback={<Unavailable />} />
+                    )}
+                  </article>
+                ))}
+              </div>
+            </section>
 
-          {closing}
-        </PageContent>
+            {detachment.upgrades.length ? (
+              <section>
+                <SectionHeading title="Unit upgrades" count={detachment.upgrades.length} />
+                <div className="grid gap-2 md:grid-cols-2">
+                  {detachment.upgrades.map((upgrade) => (
+                    <article id={`upgrade-${routeSlug(upgrade.name)}`} key={upgrade.name} className="part p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <h2 className="text-base">{upgrade.name}</h2>
+                        {upgrade.points === null ? null : <span className="chip shrink-0 text-info">{upgrade.points} pts</span>}
+                      </div>
+                      {upgrade.description ? (
+                        <RuleText text={upgrade.description} rules={detachment.keywordRules} name={upgrade.name} />
+                      ) : (
+                        <Unavailable />
+                      )}
+                    </article>
+                  ))}
+                </div>
+              </section>
+            ) : null}
+
+            <section aria-label="Stratagems">
+              <SectionHeading title="Stratagems" count={detachment.stratagems.length} />
+              {detachment.stratagems.some((stratagem) => !stratagem.description && !release?.[stratagem.id]) ? (
+                <p className="text-sm text-dim">Some stratagem descriptions are not available.</p>
+              ) : null}
+              <div className="mt-2 grid gap-2 md:grid-cols-2">
+                {!detachment.stratagems.length ? <p className="py-2 text-sm text-dim">No stratagem details are available.</p> : null}
+                {detachment.stratagems.map((stratagem) => (
+                  <article id={`stratagem-${routeSlug(stratagem.name)}`} key={stratagem.id} className="part p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <h2 className="text-base">{stratagem.name}</h2>
+                        <p className="eyebrow mt-1">
+                          {[
+                            stratagem.type,
+                            ...(stratagem.windows
+                              ? [stratagemWindowsLabel(stratagem.windows)]
+                              : [...stratagem.phases.map(title), stratagem.turn ? title(stratagem.turn) : null]),
+                          ]
+                            .filter(Boolean)
+                            .join(' · ')}
+                        </p>
+                      </div>
+                      {stratagem.cp === null ? null : <span className="chip shrink-0">{stratagem.cp} CP</span>}
+                    </div>
+                    {stratagem.description ? (
+                      <RuleText text={stratagem.description} rules={detachment.keywordRules} />
+                    ) : release?.[stratagem.id] ? (
+                      <RuleSummaryText summary={release[stratagem.id]!} />
+                    ) : null}
+                  </article>
+                ))}
+              </div>
+            </section>
+
+            {closing}
+          </PageContent>
+        </div>
       </div>
-    </div>
-  )
-}
-
-/** A summary everyone reads, with the card's own words beneath once the reader has loaded that source. */
-function SummarizedRule({ summary, text, rules }: { summary: string; text: string | null; rules: KeywordRule[] }) {
-  const source = useSourceText(text ?? '')
-  return (
-    <>
-      <p className="eyebrow mt-3">Community summary</p>
-      <RuleText text={summary} rules={rules} className="mt-1" authored />
-      {text && !source.missing ? (
-        <>
-          <p className="eyebrow mt-3">Rules text</p>
-          <RuleText text={text} rules={rules} className="mt-1" />
-        </>
-      ) : null}
-    </>
+    </DatasheetUnit.Provider>
   )
 }
 
 function Unavailable() {
   return <p className="mt-2 text-sm text-dim">No description is available.</p>
 }
+
+/** The VS Data summary of a card the build has only in its app, found by its name among the detachment's records. */

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { WhenDrawn } from '../../../contracts/missions'
 import { redrawOffer } from './drawOffer'
 
-const roundRule = (roundMax: number): WhenDrawn => ({ operation: 'redraw', roundMax, heldCards: [], condition: null })
+const roundRule = (roundMax: number): WhenDrawn => ({ operation: 'redraw', roundMax, heldCards: [] })
 
 describe('redrawOffer', () => {
   it('names round one without claiming there is an earlier round', () => {
@@ -28,7 +28,7 @@ describe('redrawOffer', () => {
   })
 
   it('offers paired-card redraws as optional', () => {
-    const rule: WhenDrawn = { operation: 'redraw', roundMax: null, heldCards: ['cleanse'], condition: null }
+    const rule: WhenDrawn = { operation: 'redraw', roundMax: null, heldCards: ['cleanse'] }
     expect(redrawOffer(rule, 2, [{ key: 'cleanse' }])).toEqual({
       message: 'You can put this back while its paired mission is active.',
       status: 'returned',
@@ -37,23 +37,27 @@ describe('redrawOffer', () => {
     })
   })
 
-  it('discards a mandatory conditional replacement instead of returning it', () => {
-    const rule: WhenDrawn = {
-      operation: 'replace',
-      roundMax: null,
-      heldCards: [],
-      condition: 'there are no enemy units with a Starting Strength of 5 or more on the battlefield',
-    }
-    expect(redrawOffer(rule, 1, [])).toEqual({
-      message: 'Discard this if there are no enemy units with a Starting Strength of 5 or more on the battlefield.',
+  it('pairs with a card a battle saved by its Game Datacards ID', () => {
+    const rule: WhenDrawn = { operation: 'redraw', roundMax: null, heldCards: ['chapter-approved-2026-2027.cleanse'] }
+    expect(redrawOffer(rule, 2, [{ key: 'b50dc2df-5fc8-419d-a15a-449879497fc7' }])?.status).toBe('returned')
+  })
+
+  it('discards a conditional replacement the player judges from the card', () => {
+    expect(redrawOffer({ operation: 'replace', roundMax: null, heldCards: [] }, 1, [])).toEqual({
+      message: 'Discard this if the card’s condition holds.',
       status: 'discarded',
       label: 'Discard and draw another',
       required: false,
     })
   })
 
-  it('does not invent a mandatory replacement without a board condition', () => {
-    const rule: WhenDrawn = { operation: 'replace', roundMax: null, heldCards: [], condition: null }
-    expect(redrawOffer(rule, 1, [])).toBeNull()
+  it('offers a return while no enemy has the characteristic the card names', () => {
+    const rule: WhenDrawn = {
+      operation: 'redraw',
+      roundMax: null,
+      heldCards: [],
+      noEnemy: { entity: 'unit', characteristic: 'starting-strength', min: 13 },
+    }
+    expect(redrawOffer(rule, 3, [])?.message).toBe('You can put this back if no enemy unit has a **Starting Strength** of 13 or more.')
   })
 })

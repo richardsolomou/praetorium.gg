@@ -8,7 +8,7 @@ Every player has their own colour, shown on their name across Praetorium and in 
 
 In a guided battle, ending a phase where a card scores opens a scoring prompt. Press what the board paid on each card, or **Did not score (or chose not to)**. The next player's turn waits until this is finished. **Nothing scored** answers every card you haven't touched. What you've pressed stays if you leave the battle to check a rule and come back, even without a connection, until the scoring is confirmed or undone. Every phone at the battle shows the same presses, and any of them can carry on. At the end of the fifth round, the final prompt ends with **Finish battle**.
 
-Until you turn on rules text, each payout is named by its points instead of the card's words: the lower or higher of two payouts, or one counted for each time it is met. **Turn on Game Datacards** at the top of the prompt shows the card's conditions.
+Each payout shows a plain-language summary of what it asks for, beside when it scores and how many VP it pays.
 
 ![The end-of-turn scoring prompt listing the primary and two secondary cards, each with its awards and a Did not score row.](screenshot:track-a-battle-scoring "Did not score (or chose not to), under a card's awards")
 
@@ -24,7 +24,7 @@ In a manual battle, each side has **−1**, **+1** and **+5** buttons for primar
 
 Guided battles give each side its Command phase CP automatically. **+1 CP** records your one extra command point for the round, then reads **CP gain used**. Discarding a secondary for CP uses the same allowance.
 
-To use a stratagem, press its cost button, for example **2 CP**. If the cost depends on the board, the **⋮** beside it lets you spend a different amount. A greyed-out stratagem shows why on hover: wrong phase, wrong turn, not enough CP, or its use limit is already spent.
+To use a stratagem, press its cost button, for example **2 CP**. If the cost depends on the board, the **⋮** beside it lets you spend a different amount. A greyed-out stratagem shows why on hover: wrong phase, wrong turn, not enough CP, or its use limit is already spent. A stratagem usable in any phase is never refused for its phase, and one whose turn differs by phase, such as your opponent's Shooting phase or either player's Fight phase, is checked against the phase you're in.
 
 On a phone, the CP figure beside the phase button opens the stratagems you can play now, for whichever side's tab is open, with **+1 CP** beside the command points at the top. Use the buttons at its foot to switch sides. Swipe sideways across the battle to move between **Your side**, **Battle** and **Opponent**.
 
@@ -46,7 +46,7 @@ Open **Units** under a player's name to see their units. Remove models and wound
 
 **Battle note** records a rules call or house rule in the battle log, up to 500 characters. Anyone who can watch the battle can read notes.
 
-**Battle options** holds **Pause timer** (shared by the whole table), **Action reminders** for your own list's reminders, and the ways the battle ends.
+**Battle options** holds **Pause timer** (shared by the whole table), **Action reminders** for your mission cards, and the ways the battle ends. The app reminds you of Shooting-phase mission actions as your Shooting phase begins.
 
 ## Chess clock
 

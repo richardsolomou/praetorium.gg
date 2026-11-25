@@ -1,3 +1,4 @@
+import { currentStratagemId } from '../../../core/legacyStratagemIds'
 import type { RosterView } from '../../../core/battleView'
 import { builtDetachments } from '../../../core/battle'
 
@@ -23,7 +24,7 @@ export function writtenStratagem<Written extends { key: string }, Keyword>(
   key: string,
 ) {
   for (const { written, keywordRules = [] } of rules) {
-    const entry = written.find((candidate) => candidate.key === key)
+    const entry = written.find((candidate) => candidate.key === currentStratagemId(key))
     if (entry) return { ...entry, keywordRules: [...keywordRules] }
   }
   return undefined

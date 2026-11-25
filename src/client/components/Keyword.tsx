@@ -1,7 +1,9 @@
 import type { ComponentProps } from 'react'
 import type { Datasheet } from '../../core/datasheet'
 import { ruleReferenceMatches } from '../../core/ruleReference'
-import { RuleText } from './RuleText'
+import { RuleSummarySkeleton, RuleSummaryText } from './RuleSummaryText'
+import { useDatasheetAbilitySummary } from './UnitFromVsData'
+import { useAbilitySummary, useKeywordSummary } from '../ruleSummaries'
 import { splitKeywords } from '../datasheet'
 import { HoverTooltip } from './HoverTooltip'
 
@@ -32,10 +34,13 @@ export function Keyword({
     .filter((candidate) => ruleReferenceMatches(reference, candidate.name))
     .toSorted((left, right) => right.name.length - left.name.length)[0]
   if (!rule && !note && !condition) return <span className={className}>{name}</span>
+  // A keyword VS Data's ability answers to, or one something else in the list grants, has no text, so its tooltip finds
+  // the summary by name.
+  const explained = rule ?? (note ? { name: reference, description: '' } : null)
   const body = (
     <>
       {condition ? <p className="text-xs">* Only {condition}.</p> : null}
-      {rule?.description ? <RuleText text={rule.description} className={condition ? 'mt-1.5 text-xs' : 'mt-0 text-xs'} cite /> : null}
+      {explained ? <KeywordRuleSummary rule={explained} className={condition ? 'mt-1.5 text-xs' : 'mt-0 text-xs'} /> : null}
     </>
   )
 
@@ -43,12 +48,28 @@ export function Keyword({
     <HoverTooltip
       className={`${className} ${note && highlightNote ? 'font-semibold text-info' : 'text-parchment'} hover:text-bone`}
       title={rule?.name ?? name}
-      body={condition || rule?.description ? body : undefined}
+      body={condition || explained ? body : undefined}
       note={note}
     >
       {name}
     </HoverTooltip>
   )
+}
+
+/**
+ * A keyword's rule: VS Data's weapon or core ability of its name; else the ability of that name of the datasheet around
+ * it or its faction, as a faction ability chip names one, or the summary of the text it prints, by
+ * `useDatasheetAbilitySummary`; and else the core rule of that name.
+ */
+function KeywordRuleSummary({ rule, className }: { rule: KeywordRule; className: string }) {
+  // VS Data's weapon or core ability of the keyword's name comes first, as an owner can print the same rule in other words.
+  const keyword = useKeywordSummary(rule.name)
+  const asked = keyword === null
+  const own = useDatasheetAbilitySummary(asked ? rule.description : '', asked && rule.description ? rule.name : undefined)
+  const named = useAbilitySummary(asked && own === null ? { name: rule.name } : null)
+  if (keyword === undefined || own === undefined || named === undefined) return <RuleSummarySkeleton className={className} />
+  const shown = keyword ?? own ?? named
+  return shown ? <RuleSummaryText summary={shown} className={className} abilities={false} /> : null
 }
 
 const nothingAdded: string[] = []

@@ -45,7 +45,6 @@ import type { CatalogueHistoryEntry } from '../core/catalogueHistory'
 import { combatUnitsFor } from '../shared/combatUnits'
 import type { CatalogueTranslations } from '../shared/catalogueTranslations'
 import { loadCatalogueTranslations } from './catalogueTranslations'
-import { loadRuleSummaries, type RuleSummaries } from './ruleSummaries'
 import { removedNamesOf, type RemovedNames } from '../shared/importMismatch'
 import { factionIndexFor, factionsFor } from '../shared/factionReferences'
 import { battleDetachmentData, type BattleDetachmentData } from '../shared/battleDetachmentData'
@@ -74,8 +73,6 @@ export type App = {
   canonicalCatalogueFor: (catalogueId?: string) => Promise<CanonicalCatalogue | null>
   /** Catalogue names in other languages, which read a list exported in another language. */
   catalogueTranslations: () => CatalogueTranslations
-  /** Rules summaries from the pinned summaries release, for reference pages only. */
-  ruleSummaries: () => RuleSummaries
   /** Stratagems and mission cards, null when that source has not been synced. */
   rules: () => LoadedRules | null
   rulesFor: (catalogueId?: string) => Promise<LoadedRules | null>
@@ -300,7 +297,6 @@ function catalogueLoaders(directory: string) {
     history: memoize(() => loadCatalogueHistory(directory)),
     removals: memoize(() => removedNamesOf(loadCatalogueHistory(directory) ?? [])),
     translations: memoize(() => loadCatalogueTranslations(directory)),
-    ruleSummaries: memoize(() => loadRuleSummaries(directory)),
     combatUnits: memoize(() => editions.combatUnits()),
     searchIndex: memoize(() => editions.searchIndex()),
   }
@@ -359,7 +355,6 @@ const catalogueFields = (getInstance: () => App, loaded: ReturnType<typeof catal
   catalogueHistory: loaded.history,
   catalogueRemovals: loaded.removals,
   catalogueTranslations: loaded.translations,
-  ruleSummaries: loaded.ruleSummaries,
   combatUnits: loaded.combatUnits,
   construction: loaded.construction,
   ...catalogueReads(getInstance, loaded),

@@ -1,3 +1,4 @@
+import { sameMissionId } from '../../../../core/legacyIds'
 import { SideNames } from '../PlayerName'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
@@ -244,7 +245,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
   // A twist belongs to the pack that prints it, so changing the pack drops it above.
   const chosenPack = references?.packs.find((pack) => pack.id === view.settings.missionPackId)
   const twists = chosenPack?.twists ?? []
-  const twist = twists.find((entry) => entry.id === view.settings.twistId)
+  const twist = twists.find((entry) => sameMissionId(entry.id, view.settings.twistId))
   /**
    * What a primary actually asks for, so the matchup can be read rather than only
    * named. Taken from the pack in play, or from wherever else it is printed for a

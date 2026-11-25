@@ -78,6 +78,7 @@ export const PhaseWeapons = memo(function PhaseWeapons({
   plan,
   hitRolls,
   statAdjustment,
+  distance,
   attacker,
   busy,
   error,
@@ -91,6 +92,8 @@ export const PhaseWeapons = memo(function PhaseWeapons({
   hitRolls: ReturnType<CombatMatchupView['hitRolls']>
   /** The manual stat modifiers this phase's weapons get, shown on their cards. */
   statAdjustment: WeaponAdjustment
+  /** Inches to the target, beyond which a weapon makes no attacks. */
+  distance: number | undefined
   attacker: CombatantSnapshot | null
   busy: boolean
   error: string | undefined
@@ -104,6 +107,10 @@ export const PhaseWeapons = memo(function PhaseWeapons({
     const roll = hitRolls.get(id)
     const penalised = plan?.used.some(({ profile, weapon }) => profile.id === id && (weapon?.hitModifier ?? 0) < 0)
     return penalised && roll?.needed ? { needed: roll.needed, moved: roll.needed !== roll.withoutPenalty } : null
+  }
+  const outOfRange = (id: string) => {
+    const range = plan?.used.find(({ profile }) => profile.id === id)?.weapon?.range
+    return distance !== undefined && range !== undefined && range < distance
   }
   return (
     <section aria-label={`${title} results`} aria-busy={busy} className="min-w-0 space-y-2">
@@ -140,6 +147,7 @@ export const PhaseWeapons = memo(function PhaseWeapons({
         <div className="space-y-1.5">
           {weaponToggleGroups(plan?.used ?? []).map(([key, group]) => {
             const included = !excluded.includes(key)
+            const unreached = group.every((profile) => outOfRange(profile.id))
             return (
               <div key={group[0]!.id} data-weapon-card className="relative min-w-0 rounded-lg border border-edge bg-sunken [&_h3]:pr-10">
                 <Switch
@@ -148,7 +156,7 @@ export const PhaseWeapons = memo(function PhaseWeapons({
                   checked={included}
                   onCheckedChange={(checked) => onIncludedChange(key, checked)}
                 />
-                <div className={`min-w-0 ${included ? '' : 'opacity-50'}`}>
+                <div className={`min-w-0 ${included && !unreached ? '' : 'opacity-50'}`}>
                   <WeaponProfiles
                     weapons={group.map((profile) => {
                       const roll = penalisedRoll(profile.id)
@@ -161,6 +169,7 @@ export const PhaseWeapons = memo(function PhaseWeapons({
                   {group.some((profile) => penalisedRoll(profile.id)?.moved) ? (
                     <p className="px-3 pb-2 text-xs text-dim">{SHOOTING_PENALTY}</p>
                   ) : null}
+                  {unreached ? <p className="px-3 pb-2 text-xs text-dim">Out of range at {distance}"</p> : null}
                 </div>
               </div>
             )

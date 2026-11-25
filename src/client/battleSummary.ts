@@ -1,9 +1,12 @@
+import { sameMissionId } from '../core/legacyIds'
 import type { StandingFaction } from '../core/standings'
 import { routeSlug } from '../core/slug'
 
 export function deploymentFor<T extends { id: string; name: string }>(id: string | null, deployments: readonly T[] = []): T | null {
   return (
-    deployments.find((deployment) => deployment.id === id) ?? deployments.find((deployment) => routeSlug(deployment.name) === id) ?? null
+    deployments.find((deployment) => sameMissionId(deployment.id, id)) ??
+    deployments.find((deployment) => routeSlug(deployment.name) === id) ??
+    null
   )
 }
 

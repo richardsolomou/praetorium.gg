@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  catalogueInstruction,
   canAddPooledOption,
   changedDraftSpreadCounts,
   choiceRemoval,
@@ -134,66 +135,79 @@ it('shows an equipped enhancement weapon outside the model loadout without repea
 })
 
 describe('loadout instructions', () => {
-  const trooper: LoadoutModel = { name: 'Trooper', fixed: [], members: [], rows: [] }
+  const carried = ['Rifle', 'Blade', 'Cannon', 'Plasma gun', 'Meltagun', 'Icon'].map((name) => ({ name }))
+  const trooper: LoadoutModel = { name: 'Trooper', fixed: carried, members: [], rows: [] }
+  const unit = { choices: [], models: 5 }
   const leader: LoadoutModel = { ...trooper, name: 'Leader' }
+  const offer = (choices: string[], carrier?: string) => ({ choose: { min: 0, max: 1 }, choices, ...(carrier ? { carrier } : {}) })
 
-  it('uses the rule for the complete pair rather than another loadout sharing its blade', () => {
+  it('uses the option for the complete pair rather than another sharing its blade', () => {
+    const pair = offer(['Rifle and Blade'])
     expect(
       loadoutInstructions(
         { name: 'Rifle and Blade', pieces: ['Rifle', 'Blade'] },
         trooper,
         [trooper],
-        [
-          { instruction: 'Take Rifle and Blade together.', options: ['Rifle', 'Blade'] },
-          { instruction: 'Take Cannon and Blade together.', options: ['Cannon', 'Blade'] },
-        ],
+        [pair, offer(['Cannon and Blade'])],
+        unit,
       ),
-    ).toEqual(['Take Rifle and Blade together.'])
+    ).toEqual([pair])
   })
 
-  it('keeps a leader restriction off the same weapon offered to ordinary troops', () => {
+  it('keeps a leader option off the same weapon offered to ordinary troops', () => {
+    const troops = offer(['Plasma gun', 'Meltagun'], 'Trooper')
     expect(
-      loadoutInstructions(
-        { name: 'Plasma gun' },
-        trooper,
-        [trooper, leader],
-        [
-          { instruction: 'The Leader can replace their rifle with a plasma gun.', options: ['Plasma gun'] },
-          { instruction: 'One Trooper can take one of these weapons.', options: ['Plasma gun', 'Meltagun'] },
-        ],
-      ),
-    ).toEqual(['One Trooper can take one of these weapons.'])
+      loadoutInstructions({ name: 'Plasma gun' }, trooper, [trooper, leader], [offer(['Plasma gun'], 'Leader'), troops], unit),
+    ).toEqual([troops])
   })
 
-  it('reads which model a published instruction names from its loaded words', () => {
-    expect(
-      loadoutInstructions(
-        { name: 'Plasma gun' },
-        trooper,
-        [trooper, leader],
-        [
-          { instruction: '⟦a1⟧', options: ['Plasma gun'] },
-          { instruction: '⟦b2⟧', options: ['Plasma gun', 'Meltagun'] },
-        ],
-        (instruction) =>
-          instruction === '⟦a1⟧' ? 'The Leader can replace their rifle with a plasma gun.' : 'One Trooper can take one of these weapons.',
-      ),
-    ).toEqual(['⟦b2⟧'])
+  it('shows a leader option on the leader', () => {
+    const own = offer(['Plasma gun'], 'Leader')
+    expect(loadoutInstructions({ name: 'Plasma gun' }, leader, [trooper, leader], [own, offer(['Plasma gun'], 'Trooper')], unit)).toEqual([
+      own,
+    ])
   })
 
-  it('matches a wargear ability with a source suffix without inventing a rule for a default weapon', () => {
-    expect(
-      loadoutInstructions(
-        { name: 'Rifle and Icon', pieces: ['Rifle', 'Icon'] },
-        trooper,
-        [trooper],
-        [
-          { instruction: 'Default Wargear', options: ['Rifle'] },
-          { instruction: 'One model can carry an icon.', options: ['Icon (Aura)'] },
-        ],
-      ),
-    ).toEqual(['One model can carry an icon.'])
+  it('matches a wargear ability with a source suffix', () => {
+    const icon = offer(['Icon (Aura)'])
+    expect(loadoutInstructions({ name: 'Rifle and Icon', pieces: ['Rifle', 'Icon'] }, trooper, [trooper], [icon], unit)).toEqual([icon])
   })
+
+  it('hides an option offering a piece no stepper of the unit offers', () => {
+    expect(loadoutInstructions({ name: 'Plasma gun' }, trooper, [trooper], [offer(['Plasma gun', 'Lascannon'])], unit)).toEqual([])
+  })
+
+  it('hides an option replacing a piece the model does not carry', () => {
+    expect(
+      loadoutInstructions({ name: 'Plasma gun' }, trooper, [trooper], [{ ...offer(['Plasma gun']), replaces: [['Bolter', 1]] }], unit),
+    ).toEqual([])
+  })
+
+  it('hides an option whose cap its steppers cannot reach', () => {
+    const gun = option('plasma', 0, 1)
+    const row = { name: 'Plasma gun', choiceKey: 'weapons', optionId: 'plasma' }
+    const armed: LoadoutModel = { ...trooper, rows: [row] }
+    const capped = { ...offer(['Plasma gun']), caps: [{ choices: ['Plasma gun'], max: 1, perModels: 5 }] }
+    expect(
+      loadoutInstructions(row, armed, [armed], [capped], {
+        choices: [{ ...choice([{ ...gun, name: 'Plasma gun' }], 2), key: 'weapons' }],
+        models: 10,
+      }),
+    ).toEqual([])
+  })
+})
+
+it('states a row’s choice from its own steppers’ options', () => {
+  const row = { name: 'Flamer', choiceKey: 'group', optionId: 'flamer' }
+  const model: LoadoutModel = { name: 'Neophyte', fixed: [], members: [], rows: [row] }
+  const weapons = choice(
+    [
+      { ...option('flamer', 0, 1), name: 'Flamer' },
+      { ...option('webber', 0, 1), name: 'Webber' },
+    ],
+    2,
+  )
+  expect(catalogueInstruction(row, model, [weapons])).toBe('Neophyte can take Flamer or Webber.')
 })
 
 it('does not remove a mandatory copy while allowing an additional copy', () => {
@@ -1000,6 +1014,48 @@ it('returns a required replacement to the default weapon without emptying the sl
   const model: LoadoutModel = { name: 'Leader', fixed: [], members: [{ id: 'leader', choiceKey: null, baseCount: 1 }], rows }
   const group = { ...choice([{ ...option('blade', 0, 2), default: true }, option('axe', 1, 2)], 2), key: 'weapons' }
   expect(poolHandlers(model, [group], []).free(rows[1]!)).toEqual([['weapons', { axe: 0, blade: 1 }]])
+})
+
+describe('a suit with separate two-slot weapon and drone groups', () => {
+  const keys = { guns: 'suit/weapons', drones: 'suit/drones' }
+  const rows = [
+    { name: 'Plasma rifle', choiceKey: keys.guns, optionId: 'plasma' },
+    { name: 'Missile pod', choiceKey: keys.guns, optionId: 'missile' },
+    { name: 'Gun Drone', choiceKey: keys.drones, optionId: 'gun' },
+    { name: 'Marker Drone', choiceKey: keys.drones, optionId: 'marker' },
+    { name: 'Shield Drone', choiceKey: keys.drones, optionId: 'shield' },
+  ]
+  const model: LoadoutModel = { name: 'Suit', fixed: [], members: [{ id: 'suit', choiceKey: null, baseCount: 1 }], rows }
+  const weapons = rows.slice(0, 3).map(({ name }) => weapon(name, 'Ranged Weapons'))
+  const handlers = (gun: number, shield: number) =>
+    poolHandlers(
+      model,
+      [
+        { ...choice([option('plasma', 2, 2), option('missile', 0, 2)], 2), key: keys.guns, least: 2, multiplePerModel: true },
+        {
+          ...choice([option('gun', gun, 1), option('marker', 0, 1), option('shield', shield, 1)], 2, true),
+          key: keys.drones,
+          multiplePerModel: true,
+        },
+      ],
+      weapons,
+    )
+
+  it('adds a Gun Drone without replacing either plasma rifle', () => {
+    expect(handlers(0, 0).spend(rows[2]!)).toEqual([[keys.drones, { gun: 1 }]])
+  })
+
+  it('adds a Marker Drone alongside a Shield Drone', () => {
+    expect(handlers(0, 1).spend(rows[3]!)).toEqual([[keys.drones, { marker: 1 }]])
+  })
+
+  it('requires removing a drone before taking a third', () => {
+    expect(handlers(1, 1).spend(rows[3]!)).toBeNull()
+  })
+
+  it('keeps both weapon slots filled when a rifle is removed', () => {
+    expect(handlers(0, 0).free(rows[0]!)).toEqual([[keys.guns, { plasma: 1, missile: 1 }]])
+  })
 })
 
 it.each([

@@ -1,0 +1,9 @@
+diff --git a/definitions/Imperium - Black Templars.json b/definitions/Imperium - Black Templars.json
+index 6c7ac05..598eef9 100644
+--- a/definitions/Imperium - Black Templars.json	
++++ b/definitions/Imperium - Black Templars.json	
+@@ -65,3 +65,3 @@
+         "id": "63d9-2355-9727-3346",
+-        "hidden": false,
++        "hidden": true,
+         "typeId": "9cc3-6d83-4dd3-9b64",

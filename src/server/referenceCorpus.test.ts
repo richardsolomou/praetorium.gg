@@ -1,6 +1,7 @@
 import { expect, it } from 'vitest'
 import type { CanonicalCatalogue } from '../contracts/catalogue'
-import { referenceCorpusCooperatively, referenceCorpusFor } from './referenceCorpus'
+import { referenceCorpusCooperatively, referenceCorpusFor, referenceDocument } from './referenceCorpus'
+import type { ReferenceDocument } from '../contracts/reference'
 import type { LoadedRules } from '../shared/rules'
 import { bookOf, card, withCards } from './catalogue.fixtures'
 import { compileCanonicalCatalogue } from './canonicalCatalogue'
@@ -20,8 +21,6 @@ function canonical(revision: string, text: string): CanonicalCatalogue {
         id: 'core',
         slug: 'core',
         title: 'Core Rules',
-        updated: null,
-        text: null,
         sections: [
           {
             id: 'movement',
@@ -32,16 +31,15 @@ function canonical(revision: string, text: string): CanonicalCatalogue {
                 id: 'move',
                 code: '1.1',
                 anchor: '1.1',
-                title: 'Move',
-                blocks: [{ kind: 'prose', markup: text }],
-                facts: [],
+                formerAnchors: ['move-uuid'],
+                title: text,
+                clarifications: [],
                 cost: null,
-                lore: null,
               },
             ],
           },
         ],
-        provenance: { datacards: { revision } },
+        provenance: { summaries: { revision } },
       },
     ],
     issues: [],
@@ -93,9 +91,9 @@ it('rebuilds the corpus when the active snapshot is replaced', () => {
   active = canonical('two', 'Replacement snapshot.')
   const after = referenceCorpusFor(sources)!
 
-  expect({ changed: after.revision !== before.revision, text: after.documents[0]?.sections[0]?.text }).toEqual({
+  expect({ changed: after.revision !== before.revision, title: after.documents[0]?.title }).toEqual({
     changed: true,
-    text: '1.1\nReplacement snapshot.',
+    title: 'Replacement snapshot.',
   })
 })
 
@@ -108,15 +106,19 @@ it('changes the corpus identity when projected content changes at the same sourc
   )
 })
 
-it('includes rule costs and lore in searchable and retrievable text', () => {
-  const source = canonical('one', 'Rule text.')
-  const entry = source.ruleDocuments[0]!.sections[0]!.entries[0]!
-  entry.cost = 2
-  entry.lore = 'A remembered victory guides the commander.'
+it('includes a rule’s cost in its retrievable text', () => {
+  const source = canonical('one', 'Rule.')
+  source.ruleDocuments[0]!.sections[0]!.entries[0]!.cost = 2
 
   const document = referenceCorpusFor({ canonicalCatalogue: () => source, catalogue: () => null, rules: () => null })!.documents[0]!
 
-  expect(document.sections[0]?.text).toContain('2 CP\nA remembered victory guides the commander.')
+  expect(document.sections[0]?.text).toBe('1.1\n2 CP')
+})
+
+it('finds a rule by the id its former address gave it', () => {
+  const corpus = referenceCorpusFor({ canonicalCatalogue: () => canonical('one', 'Move'), catalogue: () => null, rules: () => null })!
+
+  expect(referenceDocument(corpus, 'rule:core:move-uuid')?.id).toBe('rule:core:1.1')
 })
 
 it('includes the force disposition matrix and primary mission scoring', () => {
@@ -150,7 +152,6 @@ it('includes the force disposition matrix and primary mission scoring', () => {
       {
         key: 'death-trap',
         name: 'Death Trap',
-        text: null,
         awards: [
           {
             vp: 5,
@@ -158,7 +159,6 @@ it('includes the force disposition matrix and primary mission scoring', () => {
             max: null,
             mode: null,
             group: null,
-            cumulative: false,
             criteria: 'Trap an objective.',
             trigger: {
               timing: 'end-of-turn',
@@ -177,7 +177,6 @@ it('includes the force disposition matrix and primary mission scoring', () => {
       {
         key: 'behind-enemy-lines',
         name: 'Behind Enemy Lines',
-        text: 'Reach the enemy deployment zone.',
         awards: [
           {
             vp: 4,
@@ -185,18 +184,15 @@ it('includes the force disposition matrix and primary mission scoring', () => {
             max: null,
             mode: null,
             group: null,
-            cumulative: false,
             criteria: 'One unit is wholly within the enemy deployment zone.',
             trigger: { timing: 'end-of-turn', phase: null, playerTurn: 'your-turn', roundMin: null, roundMax: null },
           },
         ],
         actions: [],
-        whenDrawn: { operation: 'redraw', roundMax: 1, heldCards: ['engage-on-all-fronts'], condition: null },
+        whenDrawn: { operation: 'redraw', roundMax: 1, heldCards: ['engage-on-all-fronts'] },
       },
     ],
-    missionTwists: new Map([
-      ['chapter-approved-2026-2027', [{ id: 'fog-of-war', name: 'Fog of War', lore: null, rules: 'Visibility is limited.' }]],
-    ]),
+    missionTwists: new Map([['chapter-approved-2026-2027', [{ id: 'fog-of-war', name: 'Fog of War', changesPrimary: true }]]]),
     fixedSecondaryCaps: new Map([['chapter-approved-2026-2027', 20]]),
     deployments: [
       {
@@ -272,7 +268,9 @@ it('includes the force disposition matrix and primary mission scoring', () => {
   expect(document.sections.find((entry) => entry.id === 'mission-limits')?.text).toContain(
     'Each fixed secondary mission can score at most 20 VP.',
   )
-  expect(document.sections.find((entry) => entry.id === 'twist-fog-of-war')?.text).toContain('Visibility is limited.')
+  expect(document.sections.find((entry) => entry.id === 'twist-fog-of-war')?.text).toBe(
+    'A mission twist that changes the primary missions.',
+  )
   expect(mission.sections.find((entry) => entry.id === 'mission-death-trap')).toMatchObject({
     url: '/missions/chapter-approved-2026-2027/matchups/disruption/take-and-hold#mission-death-trap',
     text: expect.stringMatching(/Trap an objective\..*5 VP/s),
@@ -433,4 +431,10 @@ it('keeps building the catalogue it scanned when another is published mid-build'
   })
 
   expect(corpus?.catalogue.revisions.definitions).toBe('scanned')
+})
+
+it('finds a mission record by the Game Datacards ID it once had', () => {
+  const document = { id: 'mission:secondary:chapter-approved-2026-2027.assassination' } as ReferenceDocument
+  const byId = new Map([[document.id, document]])
+  expect(referenceDocument({ byId }, 'mission:secondary:56ceebfa-1be3-4520-a7cb-10b5e8b2a150')).toBe(document)
 })

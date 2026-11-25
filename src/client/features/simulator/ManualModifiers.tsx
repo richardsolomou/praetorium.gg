@@ -72,7 +72,17 @@ export const ManualModifiers = memo(function ManualModifiers({
   const [modifiersOpen, setModifiersOpen] = useState<boolean | null>(initiallyOpen ? true : null)
   const { plans, inheritedOptions } = matchup
   const change = <K extends keyof CombatOptions>(scope: PhaseScope, name: K, value: CombatOptions[K] | undefined) =>
-    setAdjustments((current) => ({ ...current, [scope]: { ...current[scope], [name]: value } }))
+    setAdjustments((current) => ({
+      ...current,
+      // A distance decides half range weapon by weapon, so it and the blanket Half range replace each other.
+      [scope]: {
+        ...current[scope],
+        [name]: value,
+        ...(name === 'distance' && value ? { halfRange: undefined } : {}),
+        ...(name === 'halfRange' && value ? { distance: undefined } : {}),
+      },
+    }))
+  const distances = rangeSteps(plans.ranged?.used ?? [], adjustments.ranged?.distance)
   const changeWeapon = <K extends keyof WeaponAdjustment>(scope: PhaseScope, name: K, value: WeaponAdjustment[K]) =>
     setAdjustments((current) => ({ ...current, weapons: { ...current.weapons, [scope]: { ...current.weapons?.[scope], [name]: value } } }))
   const changeTarget = <K extends keyof TargetAdjustment>(name: K, value: TargetAdjustment[K]) =>
@@ -259,6 +269,16 @@ export const ManualModifiers = memo(function ManualModifiers({
                         />
                       </span>
                     ))}
+                    {scope === 'ranged' && distances.length > 1 ? (
+                      <StepModifier
+                        name="Range"
+                        label="Range to the target"
+                        options={distances}
+                        value={adjustments.ranged?.distance}
+                        onChange={(value) => change('ranged', 'distance', value)}
+                        reason={noEffect('ranged', 'attack', 'distance', adjustments.ranged?.distance)}
+                      />
+                    ) : null}
                     {scope === 'ranged' && plans.ranged?.weapons.some((entry) => entry.indirectFire) ? (
                       <ChipFamily
                         value={adjustments.ranged?.indirectFire === 'direct' ? undefined : adjustments.ranged?.indirectFire}
@@ -346,6 +366,13 @@ export const ManualModifiers = memo(function ManualModifiers({
     </details>
   )
 })
+
+/** The distances where a weapon's reach or half range changes, nearest first, with the chosen one kept when the weapons change. */
+function rangeSteps(used: readonly { weapon: { range?: number } | null }[], chosen: number | undefined) {
+  const ranges = used.flatMap(({ weapon }) => (weapon?.range ? [Math.floor(weapon.range / 2), weapon.range] : []))
+  const steps = [...new Set([...ranges, ...(chosen ? [chosen] : [])])].filter((inches) => inches > 0).toSorted((a, b) => a - b)
+  return steps.length ? [[undefined, '—'] as const, ...steps.map((inches) => [inches, `${inches}"`] as const)] : []
+}
 
 function ChipRow({ label, children }: { label: string; children: ReactNode }) {
   return (

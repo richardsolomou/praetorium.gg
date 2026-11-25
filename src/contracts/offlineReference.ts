@@ -13,6 +13,8 @@ export type OfflineConstructionSource = {
   /** What the rules read from the texts `files` hold as tokens; a download saved before they were tokens has words instead. */
   definitionFacts?: RuntimeData
   datacards: RuntimeData
+  /** The rules version's weapon and core abilities by name; a download saved before VS Data named them has none. */
+  keywords?: string[]
   mfm: RuntimeData
   rules: RuntimeData
 }
@@ -66,6 +68,8 @@ export function referencePart(key: readonly unknown[]): string | null {
   if (key[0] === 'faction-datasheets' || key[0] === 'datasheet-slug' || key[0] === 'detachment-detail')
     return typeof key[1] === 'string' ? `faction:${key[1]}` : null
   if (key[0] === 'terrain-references') return `terrain:${key.slice(2).join(',')}`
+  if (key[0] === 'rule-summary-records') return typeof key[1] === 'string' ? `rule-summaries:${key[1]}` : null
+  if (key[0] === 'rule-units') return `rule-units:${typeof key[1] === 'string' ? key[1] : 'current'}`
   return OWN_PARTS.has(String(key[0])) ? String(key[0]) : null
 }
 
@@ -166,6 +170,7 @@ function isConstructionSource(data: OfflineConstructionSource) {
     data.datacards !== undefined &&
     data.mfm !== undefined &&
     data.rules !== undefined &&
+    (data.keywords === undefined || (Array.isArray(data.keywords) && data.keywords.every((name) => typeof name === 'string'))) &&
     (data.datacardExcludedCatalogueIds === undefined || catalogueReferencePolicySchema.safeParse(data).success)
   )
 }

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { Problem } from '../../components/Problem'
 import { ROSTER_VISIBILITIES, type RosterVisibility } from '../../../core/savedRoster'
-import { useNativeShare } from '../../nativeBridge'
+import { nativeBridgeVersion, useNativeShare } from '../../nativeBridge'
 import { shareButtonLabel } from '../../useShareLink'
 import { VISIBILITY_ICON, VISIBILITY_NAME, VISIBILITY_REACH } from './visibility'
 
@@ -152,8 +152,10 @@ export function RosterShareDialog({ open, onClose, ...share }: RosterShareChoice
             <div className="grid gap-2 sm:grid-cols-3">
               <CopyTile
                 icon={Download}
-                label="Export text"
-                detail="Readable text to paste anywhere"
+                label="Export"
+                detail={
+                  nativeBridgeVersion() === undefined ? 'Text to paste anywhere, or a Tabletop Simulator file' : 'Text to paste anywhere'
+                }
                 disabled={share.exporting}
                 onClick={handOff(share.onExport)}
               />

@@ -140,11 +140,6 @@ function idle(skill: Rating, idleMs: number): Rating {
   return { mu: skill.mu, sigma: Math.min(Math.sqrt(skill.sigma ** 2 + (idleVariancePerDay() * idleMs) / DAY_MS), fresh) }
 }
 
-/** Fewer battles than this in a table, and a player is listed apart from the ranked players, without a place. */
-export const PROVISIONAL_BATTLES = 5
-
-export const isProvisional = (row: Pick<Standing, 'battles'>) => row.battles < PROVISIONAL_BATTLES
-
 const mean = (values: readonly number[]) => values.reduce((total, value) => total + value, 0) / values.length
 
 /** The overall table's key. A faction table's key is its army's slug, which every rules version of the army shares. */
@@ -285,7 +280,6 @@ function ranked(entries: ReadonlyMap<string, Rated>, now: number): Standing[] {
 
 export function compareStandings(one: Standing, other: Standing): number {
   return (
-    Number(isProvisional(one)) - Number(isProvisional(other)) ||
     other.rating - one.rating ||
     other.won - one.won ||
     winRate(other) - winRate(one) ||

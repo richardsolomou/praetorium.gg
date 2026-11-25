@@ -113,6 +113,7 @@ export function rosterSnapshot(saved: SavedRoster, priced: PricedRoster, details
       // one screen where nothing can be done about it.
       waivedRules: [...saved.waivedRules],
       picks: saved.picks.map((pick) => ({ ...pick })),
+      printedDefaults: true,
       units: frozenUnits(saved.picks, priced.units, details),
     },
   }

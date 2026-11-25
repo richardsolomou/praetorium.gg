@@ -1,43 +1,36 @@
-import { TEXT_SOURCES } from '../../../core/sourceText'
-import { TextSourceRow } from '../../components/TextSourcesDialog'
-import { chooseTextSource, useTextSourceChoice } from '../../rulesText'
-import { useHydrated } from '../../useClientValue'
+import { useQuery } from '@tanstack/react-query'
+import { ruleSummaryCreditsQuery } from '../../queries/references'
 import { LegalLinks, LegalPage, LegalSection } from './LegalPage'
 
 const linkClass = 'text-info hover:text-parchment'
 
-function TextSourceSwitches() {
-  const choice = useTextSourceChoice()
-  // The stored choice is unknown until hydration, so the switches wait unseen rather than flipping (styles.css).
-  const ready = useHydrated()
-  return (
-    <div className="space-y-2">
-      {TEXT_SOURCES.map((source) => (
-        <TextSourceRow
-          key={source}
-          source={source}
-          checked={choice.sources.has(source)}
-          disabled={!ready}
-          onCheckedChange={(on) => chooseTextSource(source, on)}
-        />
-      ))}
-    </div>
-  )
+/** The upstream work the pinned summaries adapt, as their records credit it: nothing where none does. */
+function SummaryCredits() {
+  const { data: credits = [] } = useQuery(ruleSummaryCreditsQuery())
+  return credits.map((credit) => (
+    <span key={`${credit.credit} ${credit.licence}`}>
+      {' '}
+      Some of them adapt work by{' '}
+      <a href={credit.url} className={linkClass}>
+        {credit.credit}
+      </a>
+      , licensed under{' '}
+      <a href={credit.licence} className={linkClass}>
+        {/creativecommons\.org\/licenses\/by\/4\.0/.test(credit.licence) ? 'CC BY 4.0' : 'its own licence'}
+      </a>
+      .
+    </span>
+  ))
 }
 
 export function Sources() {
   return (
-    <LegalPage title="Data sources" updated="21 November 2026">
+    <LegalPage title="Data sources" updated="23 November 2026">
       <LegalSection title="Rules text">
         <p>
-          Rules text is copyrighted material, so Praetorium doesn’t host or serve it. If you choose a source, your browser fetches the text
-          directly from that community project, and it stays on your device.
+          Rules text is copyrighted material, so Praetorium never shows or serves it. Rules appear as plain-language summaries from VS Data,
+          written for each rules version and checked against the official sources. A rule without a summary shows its name and numbers only.
         </p>
-        <p>
-          Some detachment cards show a Community summary from 40K Catalogue. Praetorium hosts these plain-language explanations for the
-          card’s rules version. When you load the rules text from its source, it appears below the summary.
-        </p>
-        <TextSourceSwitches />
       </LegalSection>
 
       <LegalSection title="Community data">
@@ -51,7 +44,7 @@ export function Sources() {
             .
           </li>
           <li>
-            Stratagem, detachment, mission, and layout names and numbers from{' '}
+            Detachment names and numbers from{' '}
             <a href="https://github.com/game-datacards/datasources" className={linkClass}>
               Game Datacards
             </a>
@@ -79,14 +72,16 @@ export function Sources() {
             , licensed under AGPL-3.0.
           </li>
           <li>
-            Plain-language summaries of some stratagems and enhancements, written for the rules version they name, from{' '}
-            <a href="https://github.com/richardsolomou/40k-catalogue" className={linkClass}>
-              40k-catalogue
+            Plain-language rules summaries for each rules version, stratagem timings and mission scoring, and the names the official app
+            prints in each of its languages, used to read lists exported in another language, from{' '}
+            <a href="https://github.com/richardsolomou/vs-data" className={linkClass}>
+              VS Data
             </a>
             , licensed under MIT.
+            <SummaryCredits />
           </li>
           <li>
-            Translated faction, detachment, and force disposition names, used to read lists exported in another language, from{' '}
+            Further translated names, used to read lists exported in another language, from{' '}
             <a href="https://nrdata.org" className={linkClass}>
               New Recruit’s community translations
             </a>

@@ -1,23 +1,26 @@
 import { Check } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { z } from 'zod'
-import { attachedUnitList, joinedWith } from '../../../../core/attachedUnits'
+import { attachedUnitList, joinedWith, type AttachedUnit } from '../../../../core/attachedUnits'
+import { canTransport, transportLabel } from '../../../../core/battle'
+import { formatList } from '../../../../core/text'
 import { FilterChip } from '../../../components/FilterChip'
 import type { Army, Side } from '../../../sides'
 import { parseStored, useStoredValue, writeStoredValue } from '../../../storedValue'
 import { shelvesOf } from '../../../unitGroups'
 import { formationLabel, SetupSidePanel } from './chrome'
+import { reserveUnitLabel } from './reservesModel'
 
 type Rule = 'infiltrators' | 'scouts'
 
 // A unit held back is not on the table to do any of this, and a character and the
 // unit he joined are one unit doing it together or not at all.
-const onTable = (army: Army) => attachedUnitList(army.units).filter((unit) => unit.host.formation === 'battlefield')
-type Standing = ReturnType<typeof onTable>[number]
+const onTable = (unit: Standing) => unit.host.formation === 'battlefield'
+type Standing = AttachedUnit<Army['units'][number]>
 
 /** How many of a side's units start on the table, and how many of those carry the rule. */
 export function prebattleCounts(side: Side, rule: Rule) {
-  const units = side.armies.flatMap(onTable)
+  const units = side.armies.flatMap((army) => attachedUnitList(army.units).filter(onTable))
   return { onTable: units.length, carrying: units.filter((unit) => unit.prebattleRules.includes(rule)).length }
 }
 
@@ -34,12 +37,13 @@ export function PrebattleUnits({ sides }: { sides: Side[] }) {
       {sides.map((side) => (
         <SetupSidePanel key={side.index} side={side} className="space-y-3">
           {side.armies.map((army) => {
-            const standing = onTable(army)
+            const units = attachedUnitList(army.units)
+            const standing = units.filter(onTable)
             const carrying = standing.filter((unit) => unit.prebattleRules.includes('scouts'))
             return (
               <ArmyUnits key={army.playerId} army={army} chip={`${standing.length} on the table`} multiple={side.armies.length > 1}>
                 {carrying.length ? (
-                  <Shelves units={carrying} rule="scouts" />
+                  <Shelves army={army} units={units} listed={carrying} rule="scouts" />
                 ) : (
                   <p className="text-xs text-dim">No unit has a pre-battle move.</p>
                 )}
@@ -85,7 +89,8 @@ export function DeployUnits({ sides, storageKey }: { sides: Side[]; storageKey: 
         {sides.map((side) => (
           <SetupSidePanel key={side.index} side={side} className="space-y-3">
             {side.armies.map((army) => {
-              const standing = onTable(army)
+              const units = attachedUnitList(army.units)
+              const standing = units.filter(onTable)
               const down = standing.filter((unit) => placed.has(placedId(army, unit)))
               const listed =
                 shown === 'all' ? standing : standing.filter((unit) => placed.has(placedId(army, unit)) === (shown === 'placed'))
@@ -98,7 +103,9 @@ export function DeployUnits({ sides, storageKey }: { sides: Side[]; storageKey: 
                 >
                   {listed.length ? (
                     <Shelves
-                      units={listed}
+                      army={army}
+                      units={units}
+                      listed={listed}
                       rule="infiltrators"
                       isPlaced={(unit) => placed.has(placedId(army, unit))}
                       onToggle={(unit) => toggle(placedId(army, unit))}
@@ -138,28 +145,54 @@ function ArmyUnits({ army, chip, multiple, children }: { army: Army; chip: strin
 }
 
 function Shelves({
+  army,
   units,
+  listed,
   rule,
   isPlaced,
   onToggle,
 }: {
+  army: Army
   units: Standing[]
+  listed: Standing[]
   rule: Rule
   isPlaced?: (unit: Standing) => boolean
   onToggle?: (unit: Standing) => void
 }) {
-  return shelvesOf(units, (unit) => unit.host.group).map((shelf) => (
+  return shelvesOf(listed, (unit) => unit.host.group).map((shelf) => (
     <section key={shelf.id} className="space-y-1">
       <p className="eyebrow">{shelf.plural}</p>
       {shelf.units.map((unit) => (
-        <UnitRow key={unit.host.key} unit={unit} rule={rule} placed={isPlaced?.(unit)} onToggle={onToggle && (() => onToggle(unit))} />
+        <UnitRow
+          key={unit.host.key}
+          name={canTransport(unit.host) ? (transportLabel(army.units, unit.host.key) ?? unit.host.name) : unit.host.name}
+          unit={unit}
+          passengers={units.filter(({ host }) => host.embarkedIn === unit.host.key).map((passenger) => reserveUnitLabel(units, passenger))}
+          rule={rule}
+          placed={isPlaced?.(unit)}
+          onToggle={onToggle && (() => onToggle(unit))}
+        />
       ))}
     </section>
   ))
 }
 
-function UnitRow({ unit, rule, placed, onToggle }: { unit: Standing; rule: Rule; placed?: boolean; onToggle?: () => void }) {
-  const { host, joined } = unit
+function UnitRow({
+  name,
+  unit,
+  passengers,
+  rule,
+  placed,
+  onToggle,
+}: {
+  name: string
+  unit: Standing
+  passengers: string[]
+  rule: Rule
+  placed?: boolean
+  onToggle?: () => void
+}) {
+  const { joined } = unit
   const body = (
     <>
       <span className="flex min-w-0 items-center gap-2">
@@ -172,8 +205,9 @@ function UnitRow({ unit, rule, placed, onToggle }: { unit: Standing; rule: Rule;
           </span>
         ) : null}
         <span className="min-w-0">
-          <span className="block truncate text-sm font-semibold">{host.name}</span>
+          <span className="block wrap-break-word text-sm font-semibold">{name}</span>
           {joined.length ? <span className="block text-3xs text-dim">{joinedWith(joined.map((character) => character.name))}</span> : null}
+          {passengers.length ? <span className="block wrap-break-word text-3xs text-dim">Embarked: {formatList(passengers)}</span> : null}
         </span>
       </span>
       {unit.prebattleRules.includes(rule) ? (

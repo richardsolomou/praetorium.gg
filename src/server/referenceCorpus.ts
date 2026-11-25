@@ -1,8 +1,12 @@
+import { stratagemWindowsLabel } from '../core/reminders'
 import { hash } from 'node:crypto'
+import { currentMissionId } from '../core/legacyIds'
+import { awardsOnce } from '../core/scoring'
 import { hasTextTokens, textPointersIn, type TextLocations } from '../core/sourceText'
 import type { CanonicalCatalogue, CanonicalDatasheet, CanonicalDetachment } from '../contracts/catalogue'
 import { DISPOSITION_PACK_SECTION, type ReferenceDocument, type ReferenceSection } from '../contracts/reference'
-import type { RuleDocument, RuleEntry } from '../contracts/rules'
+import type { RuleEntry } from '../contracts/rules'
+import { VS_DATA_ATTRIBUTION } from '../shared/vsData'
 import { routeSlug } from '../core/slug'
 import { byId, remember } from '../core/collections'
 import type { MissionSelectionKind } from '../core/missionSelections'
@@ -27,6 +31,12 @@ export type ReferenceSources = {
   textLocations?: TextLocations | ScannableTextLocations
   /** Each faction's route and detachments, which file detachments under their pages and say which offer a force disposition. */
   factions?: readonly (ReferenceFaction & DispositionFaction)[]
+}
+
+/** A reference document by its id, or by the id it had when it named a mission, deployment or layout by its Game Datacards ID. */
+export function referenceDocument(corpus: Pick<ReferenceCorpus, 'byId'>, id: string) {
+  const at = id.lastIndexOf(':')
+  return corpus.byId.get(id) ?? corpus.byId.get(`${id.slice(0, at + 1)}${currentMissionId(id.slice(at + 1))}`)
 }
 
 export type ReferenceCorpus = {
@@ -120,7 +130,15 @@ function* referenceCorpusSteps(sources: ReferenceSources): Steps<ReferenceCorpus
     (left, right) => left.kind.localeCompare(right.kind) || left.title.localeCompare(right.title) || left.id.localeCompare(right.id),
   )
   const revision = hash('sha256', JSON.stringify({ catalogue, documents }))
-  const corpus = { catalogue, documents, byId: byId(documents), revision }
+  const ids = new Map(byId(documents))
+  // A rule addressed before VS Data outlined the documents keeps answering to the id it had then.
+  for (const document of catalogue.ruleDocuments)
+    for (const entry of document.sections.flatMap((section) => section.entries))
+      for (const former of entry.formerAnchors) {
+        const found = ids.get(`rule:${document.slug}:${entry.anchor}`)
+        if (found && !ids.has(`rule:${document.slug}:${former}`)) ids.set(`rule:${document.slug}:${former}`, found)
+      }
+  const corpus = { catalogue, documents, byId: ids as ReadonlyMap<string, ReferenceDocument>, revision }
   corpora.set(canonical, { catalogue: loaded, rules, files, factions: sources.factions, corpus })
   return corpus
 }
@@ -181,7 +199,14 @@ function missionDocuments(
     ]),
   ])
   const twists = pack.twists.map((twist) =>
-    section(files, url, `twist-${twist.id}`, twist.name, [twist.lore, twist.rules ?? 'Rules unavailable.'], twist.id),
+    section(
+      files,
+      url,
+      `twist-${twist.id}`,
+      twist.name,
+      [`A mission twist${twist.changesPrimary ? ' that changes the primary missions' : ''}.`],
+      twist.id,
+    ),
   )
   return [
     {
@@ -401,30 +426,20 @@ function missionCardLines(
   card: GameReferencePack['missions'][number]['card'] | GameReferences['secondaries'][number] | null,
 ): (string | null | undefined)[] {
   return [
-    card?.text,
     card?.selection ? `Battle tracking: ${selectionTracking[card.selection]}.` : null,
-    ...(card?.awards ?? []).flatMap((award) => [
-      `Scoring: ${award.criteria ?? 'Criteria unavailable.'}`,
-      `Award: ${award.vp} VP${award.per ? ` per ${award.per}` : ''}${award.max === null ? '' : `, up to ${award.max} VP`}${award.cumulative ? ', cumulative' : ''}`,
-      missionTiming(award.trigger),
+    ...awardsOnce(card?.awards ?? []).flatMap(({ award, triggers }) => [
+      award.criteria ? `Scoring: ${award.criteria}` : null,
+      `Award: ${award.vp} VP${award.per ? ` per ${award.per}` : ''}${award.max === null ? '' : `, up to ${award.max} VP`}`,
+      ...triggers.map(missionTiming),
       award.mode ? `Mode: ${award.mode}` : null,
       award.group ? `Exclusive group: ${award.group}` : null,
     ]),
-    ...(card?.actions ?? []).flatMap((action) => [
-      `Action: ${action.name}`,
-      action.starts ? `Starts: ${action.starts}` : null,
-      action.completes ? `Completes: ${action.completes}` : null,
-      action.effect ? `Effect: ${action.effect}` : null,
-      action.units ? `Units: ${action.units}` : null,
-      action.useLimit ? `Use limit: ${action.useLimit}` : null,
-      action.restriction ? `Restriction: ${action.restriction}` : null,
-    ]),
+    ...(card?.actions ?? []).map((action) => `Action: ${action.name}`),
     card?.whenDrawn ? `When drawn: ${card.whenDrawn.operation}.` : null,
     card?.whenDrawn?.roundMax === null || card?.whenDrawn?.roundMax === undefined
       ? null
       : `When-drawn rule applies through battle round ${card.whenDrawn.roundMax}.`,
     card?.whenDrawn?.heldCards.length ? `When-drawn related cards: ${card.whenDrawn.heldCards.join(', ')}.` : null,
-    card?.whenDrawn?.condition,
   ]
 }
 
@@ -619,10 +634,9 @@ function detachmentDocument(
           `stratagem-${routeSlug(stratagem.name) || index + 1}`,
           stratagem.name,
           [
-            `${stratagem.cp} CP`,
+            stratagem.cp === null ? null : `${stratagem.cp} CP`,
             stratagem.type,
-            stratagem.phases.join(', '),
-            stratagem.turn,
+            ...(stratagem.windows ? [stratagemWindowsLabel(stratagem.windows)] : [stratagem.phases.join(', '), stratagem.turn]),
             stratagem.description ?? 'Description unavailable.',
           ],
           stratagem.id,
@@ -639,10 +653,7 @@ function detachmentDocument(
   }
 }
 
-function ruleDocuments(
-  files: TextLocations,
-  document: RuleDocument & { provenance: { datacards: { revision: string } } },
-): ReferenceDocument[] {
+function ruleDocuments(files: TextLocations, document: CanonicalCatalogue['ruleDocuments'][number]): ReferenceDocument[] {
   return document.sections.flatMap((ruleSection) =>
     ruleSection.entries.map((entry) => ruleDocument(files, document, ruleSection.slug, ruleSection.title, entry)),
   )
@@ -650,43 +661,25 @@ function ruleDocuments(
 
 function ruleDocument(
   files: TextLocations,
-  document: RuleDocument & { provenance: { datacards: { revision: string } } },
+  document: CanonicalCatalogue['ruleDocuments'][number],
   sectionSlug: string,
   sectionTitle: string,
   entry: RuleEntry,
 ): ReferenceDocument {
   const baseUrl = `/rules/${document.slug}/${sectionSlug}`
-  const url = `${baseUrl}#${entry.anchor}`
-  const main = section(
-    files,
-    baseUrl,
-    entry.anchor,
-    entry.title,
-    [
-      entry.code,
-      entry.cost === null ? null : `${entry.cost} CP`,
-      entry.lore,
-      ...entry.facts.map((fact) => `${fact.label}: ${fact.markup}`),
-      ...entry.blocks.flatMap((block) => (block.kind === 'clarification' ? [] : [block.kind === 'heading' ? block.text : block.markup])),
-    ],
-    entry.id,
-  )
-  const clarifications = entry.blocks.flatMap((block) =>
-    block.kind === 'clarification'
-      ? [section(files, baseUrl, block.anchor ?? entry.anchor, block.title, [block.code, block.markup], entry.id)]
-      : [],
-  )
   return {
     id: `rule:${document.slug}:${entry.anchor}`,
     kind: 'rule',
     title: entry.title,
     faction: null,
-    url,
-    revisions: { datacards: document.provenance.datacards.revision },
-    attribution: [DATACARDS_ATTRIBUTION],
+    url: `${baseUrl}#${entry.anchor}`,
+    revisions: { summaries: document.provenance.summaries.revision },
+    attribution: [VS_DATA_ATTRIBUTION],
     sections: present([
-      main,
-      ...clarifications,
+      section(files, baseUrl, entry.anchor, entry.title, [entry.code, entry.cost === null ? null : `${entry.cost} CP`]),
+      ...entry.clarifications.map((clarification) =>
+        section(files, baseUrl, clarification.anchor, clarification.title, [clarification.code]),
+      ),
       section(files, baseUrl, `context-${entry.anchor}`, 'Context', [document.title, sectionTitle]),
     ]),
   }

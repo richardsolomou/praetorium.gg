@@ -1,7 +1,9 @@
 import type { Worker } from 'node:worker_threads'
+import { servedVsDataUnits } from './servedVsData'
+import { withVsDataSaves } from '../shared/vsDataSaves'
 import { workSlots } from './agentPoolWork'
 import { z } from 'zod'
-import type { CombatResult, CombatPhase } from '../core/combat'
+import { inRange, type CombatResult, type CombatPhase } from '../core/combat'
 import { combatAdjustmentsSchema } from '../core/combatAdjustments'
 import {
   combatMatchup,
@@ -140,7 +142,7 @@ const simulateCombatInputSchema = z.object({
   modifiers: combatAdjustmentsSchema
     .optional()
     .describe(
-      'Situational modifiers the simulator page offers, such as { "all": { "cover": true, "hitModifier": -1 } }, { "melee": { "charged": true } }, or { "target": { "invulnerable": 4 } }. commandReroll spends one Command Re-roll per phase on the first failed hit, wound, or save roll, or the first single-die Attacks roll below its average; compare with a run without it to judge the CP.',
+      'Situational modifiers the simulator page offers, such as { "all": { "cover": true, "hitModifier": -1 } }, { "melee": { "charged": true } }, { "ranged": { "distance": 18 } }, or { "target": { "invulnerable": 4 } }. distance is the inches to the target: weapons that cannot reach it make no attacks and are marked outOfRange, and each weapon is within half range by its own Range. commandReroll spends one Command Re-roll per phase on the first failed hit, wound, or save roll, or the first single-die Attacks roll below its average; compare with a run without it to judge the CP.',
     ),
   weaponModes: z
     .record(z.string().max(400), z.string().max(200))
@@ -406,7 +408,7 @@ async function combatant(corpus: ReferenceCorpus, side: SideInput, role: Role, c
   }
   const unread = rosterCombatant(loaded, rules, { catalogueId: resolved.catalogueId, detachmentIds, picks: resolved.picks, pickIndex: 0 })
   if (!unread) throw new CombatRefusal([`${side.unit} could not be loaded.`])
-  const projection = withReadRules(unread, await serverWords())
+  const projection = withVsDataSaves(withReadRules(unread, await serverWords()), await servedVsDataUnits(resolved.catalogueId))
   const requested = [side, ...(side.attached ?? [])]
   const members = [{ ...projection, pickIndex: 0 }, ...projection.companions]
   const health = members.map((member) => {
@@ -587,14 +589,21 @@ async function combatSimulation(input: SimulateCombatInput) {
   const answer = resolveCombatRequest(request, COMBAT_TOOL_MAX_WORK)
   const phase = (key: CombatPhase) => {
     const plan = matchup.plans[key]!
-    const weapons = plan.active.map((entry) => ({ name: entry.profile.name, count: entry.count }))
+    const options = request[key]?.options
+    const reaches = (weapon: (typeof plan.active)[number]['weapon']) => !weapon || !options || inRange(weapon, options)
+    const weapons = plan.active.map((entry) => ({
+      name: entry.profile.name,
+      count: entry.count,
+      ...(reaches(entry.weapon) ? {} : { outOfRange: true }),
+    }))
     const modes = plan.choices.map((choice) => ({ key: choice.key, label: choice.label, value: choice.value, options: choice.options }))
     const result = answer[key]
     const errors = [...(matchup.target?.error ? [matchup.target.error] : []), ...plan.errors]
     if (errors.length) return { status: 'refused' as const, reasons: errors, weapons, weaponModes: modes }
     if (!result) return { status: 'refused' as const, reasons: ['This phase could not be built.'], weapons, weaponModes: modes }
     if (result.error) return { status: 'refused' as const, reasons: [result.error], weapons, weaponModes: modes }
-    if (!request[key]!.weapons.length && !request[key]!.mortalWounds?.length) return { status: 'no attacks' as const }
+    if (!request[key]!.weapons.some((weapon) => inRange(weapon, request[key]!.options)) && !request[key]!.mortalWounds?.length)
+      return { status: 'no attacks' as const }
     return { status: 'estimated' as const, ...outcome(result.result!), weapons, weaponModes: modes }
   }
   const shooting = phase('ranged')

@@ -14,7 +14,7 @@ import { factionDisplayName } from '../shared/factionNames'
 import { dispositionMatchups, gameReferencesFor, matchupMission } from '../shared/gameReferences'
 import { detachmentsOffering, type DispositionFaction } from '../shared/factionReferences'
 import { terrainMatchupIds } from '../contracts/terrainReference'
-import { datasheetRoute, type ReferenceCorpus } from './referenceCorpus'
+import { datasheetRoute, referenceDocument, type ReferenceCorpus } from './referenceCorpus'
 import type { LoadedRules } from '../shared/rules'
 
 export type ReferenceFaction = { id: string; slug: string; name: string; datasheets: number; detachments: number }
@@ -283,7 +283,7 @@ export function referenceRecord(
   factions: readonly DispositionFaction[] = [],
 ) {
   if (id.startsWith('datasheet:')) return datasheetRecord(corpus, id)
-  const document = corpus.byId.get(id)
+  const document = referenceDocument(corpus, id)
   if (!document) return null
   const references = rules ? gameReferencesFor(rules) : null
   let data: unknown = document

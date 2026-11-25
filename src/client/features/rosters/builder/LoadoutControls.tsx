@@ -1,7 +1,10 @@
 import type { ReactNode } from 'react'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { Datasheet } from '../../../../contracts/catalogue'
-import { RuleText } from '../../../components/RuleText'
+import { RuleText, SummaryByName } from '../../../components/RuleText'
+import { DatasheetUnit } from '../../../components/UnitFromVsData'
+import { Blocks, blocksText } from '../../../components/RuleSummaryText'
+import type { RuleSummaryBlock } from '../../../../contracts/rules'
 import { CountButton, Stepper } from '../../../components/Stepper'
 import { WeaponProfiles } from '../../../components/DatasheetProfiles'
 import { weaponProfileGroups } from '../../../datasheet'
@@ -149,7 +152,8 @@ export function WargearRow({
   control?: ReactNode
   annotation?: ReactNode
   highlightSelection?: boolean
-  instructions?: readonly string[]
+  /** What the options this row comes from allow, in Praetorium's words. */
+  instructions?: readonly RuleSummaryBlock[][]
   standing?: StandingWargear
 }) {
   const matching = weaponProfilesFor({ name, pieces }, weapons)
@@ -170,7 +174,13 @@ export function WargearRow({
       className={`${OPTION} scroll-mt-2.5 print:break-inside-avoid ${count && highlightSelection ? PICKED : 'border-edge'} ${fallen ? 'opacity-50' : ''}`}
     >
       {instructions?.map((instruction) => (
-        <RuleText key={instruction} text={instruction} rules={rules} className="!mt-0 p-2.5 text-xs leading-[1.125rem]" />
+        <div
+          key={blocksText(instruction)}
+          data-option-instruction
+          className="space-y-0.5 p-2.5 font-rules text-xs leading-[1.125rem] text-dim"
+        >
+          <Blocks blocks={instruction} />
+        </div>
       ))}
       <div className="flex items-center gap-2 px-2.5 py-1.5" data-equipped={count > 0}>
         {label}
@@ -309,6 +319,7 @@ export function SpecialChoice({
   onChoose,
   showOptions = true,
   reminders,
+  detachmentRuleOwners,
 }: {
   choice: LoadoutChoice
   unitName: string
@@ -317,6 +328,8 @@ export function SpecialChoice({
   onChoose: (key: string, optionId: string) => void
   showOptions?: boolean
   reminders?: ReminderControls
+  /** Whose rules each detachment's are, by detachment id, as `detachmentRuleOwners` names them. */
+  detachmentRuleOwners?: Readonly<Record<string, string>>
 }) {
   const heading = choice.kind === 'upgrade' ? 'Unit upgrades' : choice.name
   const options = showOptions ? defaultFirst(choice.options) : choice.options.filter((option) => choice.chosen === option.id)
@@ -342,25 +355,34 @@ export function SpecialChoice({
             onDecline={() => choose('')}
           />
         ) : null}
-        {options.map((option) => (
-          <ChoiceOption
-            key={option.id}
-            option={option}
-            selected={choice.chosen === option.id}
-            highlightSelection={showOptions}
-            disabled={controlsDisabled}
-            onSelect={editable ? () => choose(option.id) : undefined}
-            action={
-              reminders && choice.chosen === option.id ? <ReminderButton subject={subject(option)} controls={reminders} /> : undefined
-            }
-          >
-            {option.description ? (
-              <div className="border-t border-edge px-2.5 pb-2">
-                <RuleText text={option.description} rules={option.keywordRules} className={PROSE} />
-              </div>
-            ) : null}
-          </ChoiceOption>
-        ))}
+        {options.map((option) => {
+          // An enhancement reads as its detachment's, by name, as that detachment's page shows it; else by its text alone.
+          const owner = option.detachment && detachmentRuleOwners?.[option.detachment]
+          const text = option.description ? (
+            <RuleText text={option.description} rules={option.keywordRules} className={PROSE} {...(owner ? { name: option.name } : {})} />
+          ) : owner ? (
+            <SummaryByName name={option.name} className={PROSE} />
+          ) : null
+          return (
+            <ChoiceOption
+              key={option.id}
+              option={option}
+              selected={choice.chosen === option.id}
+              highlightSelection={showOptions}
+              disabled={controlsDisabled}
+              onSelect={editable ? () => choose(option.id) : undefined}
+              action={
+                reminders && choice.chosen === option.id ? <ReminderButton subject={subject(option)} controls={reminders} /> : undefined
+              }
+            >
+              {text ? (
+                <div className="border-t border-edge px-2.5 pb-2">
+                  {owner ? <DatasheetUnit.Provider value={owner}>{text}</DatasheetUnit.Provider> : text}
+                </div>
+              ) : null}
+            </ChoiceOption>
+          )
+        })}
       </div>
     </fieldset>
   )

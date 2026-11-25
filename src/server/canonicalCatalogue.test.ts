@@ -332,18 +332,16 @@ describe('canonical catalogue', () => {
           id: 'core',
           slug: 'core-rules',
           title: 'Core Rules',
-          updated: null,
-          text: null,
           sections: [],
         },
       ],
-      'datacards-revision',
+      'summaries-revision',
     )
 
     expect(compiled).toEqual([
       expect.objectContaining({
         id: 'core',
-        provenance: { datacards: { revision: 'datacards-revision' } },
+        provenance: { summaries: { revision: 'summaries-revision' } },
       }),
     ])
   })

@@ -671,6 +671,25 @@ Exported with App Version: v2.8.1 (1), Data Version: v995`
       ['1x multi-melta', '1x meltagun'],
     ],
     [
+      'a heavy bolter beside a Ministorum flamer, which either weapon Sister could take',
+      'Adepta Sororitas',
+      'Battle Sisters Squad',
+      `Battle Sisters Squad (100 points)
+  • 1x Sister Superior
+    • 1x Bolt pistol
+      1x Close combat weapon
+      1x Plasma pistol
+      1x Power weapon
+  • 9x Battle Sister
+    • 9x Bolt pistol
+      7x Boltgun
+      9x Close combat weapon
+      1x Heavy bolter
+      1x Ministorum flamer
+      1x Simulacrum Imperialis`,
+      ['1x heavy bolter', '1x ministorum flamer'],
+    ],
+    [
       'a Lieutenant power weapon in his bolter’s place, beside the fists his melee choice alone offers',
       'Black Templars',
       'Lieutenant',
@@ -1490,4 +1509,25 @@ Exported with App Version: v2.8.0 (2), Data Version: v981`).mismatches,
     const found = priced(custodesOfficial)?.units.find((candidate) => candidate.name === unit)
     expect(found?.upgrades).toContain(upgrade)
   })
+
+  it.each(['Contemptor combat weapon', 'Contemptor Fist'])(
+    "reads the Venerable Contemptor Dreadnought's melee weapon as an official app of either age spells it: %s",
+    (weapon) => {
+      const file = `Test (1,000 Points)
+
+Adeptus Custodes
+Lions of the Emperor (1 Detachment Point)
+Strike Force (1,000 Points)
+
+OTHER DATASHEETS
+
+Venerable Contemptor Dreadnought (170 Points)
+• 1x Combi-bolter
+• 1x ${weapon}
+• 1x Multi-melta
+`
+      const result = imported(file)
+      expect([result.units.length, result.unknown, result.unplaced]).toEqual([1, [], []])
+    },
+  )
 })

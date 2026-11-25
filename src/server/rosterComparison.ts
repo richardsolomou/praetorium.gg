@@ -1,4 +1,6 @@
 import { z } from 'zod'
+import { servedVsDataUnits } from './servedVsData'
+import { withVsDataSaves } from '../shared/vsDataSaves'
 import { saveRosterSchema } from '../contracts/schemas'
 import type { CombatRequest } from '../core/combatMatchup'
 import { noExclusions, strongestWeaponPreferences, type CombatantSnapshot } from '../core/combatMatchup'
@@ -65,6 +67,7 @@ async function tableUnits(roster: Roster): Promise<TableUnit[] | 'unknown' | nul
   const [loaded, rules] = await Promise.all([instance.catalogueFor(roster.catalogueId), instance.rulesFor(roster.catalogueId)])
   if (!loaded) return (await instance.factionsFor()) && !(await instance.factionFor(roster.catalogueId)) ? 'unknown' : null
   const words = await serverWords()
+  const units = await servedVsDataUnits(roster.catalogueId)
   const pickIndices = rosterCombatIndices(roster.picks)
   const projections = rosterCombatants(loaded, rules, {
     catalogueId: roster.catalogueId,
@@ -84,7 +87,7 @@ async function tableUnits(roster: Roster): Promise<TableUnit[] | 'unknown' | nul
         snapshot: null,
         error: 'This unit is missing from the current army data.',
       }
-    const projection = withReadRules(unread, words)
+    const projection = withVsDataSaves(withReadRules(unread, words), units)
     const members = [projection, ...projection.companions]
     const unit = {
       name: members.map((member) => member.selected.name).join(' + '),
