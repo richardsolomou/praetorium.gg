@@ -8,6 +8,8 @@ Always-on effects that only change a profile sit under **Stats applied**. Anythi
 
 A rule marked **Check range** is an aura, so confirm the distance yourself.
 
+**Crushing Impact** appears under **Stratagems** for a **MONSTER** or **VEHICLE** that's attacking. Switched on, it rolls one D6 per point of the unit's highest Toughness before the fight, and each 5+ is a mortal wound on the target, up to 6. The mortal wounds your own unit takes on each 1 aren't shown.
+
 ## Manual modifiers
 
 Choose **All**, **Shooting** or **Melee**, then pick from these. A phase tab overrides **All**.
@@ -19,7 +21,8 @@ Values you count up or down, like a hit modifier or a Feel No Pain roll, are ste
 - **Command Re-roll**: the stratagem, once in that phase, on a hit, wound, save or Attacks roll.
 - **Stats**: A, BS or WS, S, AP and D, from −6 to +6. The weapon cards show the changed values.
 - **Abilities**: Sustained Hits, Lethal Hits, Devastating Wounds and damage re-rolls.
-- **Situation**: **Cover (−1 BS)**, **Half range**, **Charged**, plus indirect fire and **Decline Lethal Hits** when a weapon has them. Conversion weapons score Critical Hits on 4+ unless **Half range** is on.
+- **Situation**: **Cover (−1 BS)**, **Half range**, **Charged**, plus indirect fire and **Decline Lethal Hits** when a weapon has them. Conversion weapons score Critical Hits on 4+ unless they're within half range.
+- **Range**: on the Shooting tab, how many inches away the target is. Its steps are where one of the unit's weapons reaches its half range or its full range. Weapons that can't reach are left out and marked **Out of range**, and each weapon gets Rapid Fire, Melta and Conversion by its own half range. Setting a range replaces **Half range**, which treats every weapon as within half range.
 - **Defender**: T and Sv, an invulnerable save, Feel No Pain, save re-rolls, **−1 Damage** and **Half damage**.
 
 A dimmed chip, or a stepper with a dashed border, wouldn't change anything. Hover it to see why. **Reset** clears every modifier and weapon choice.

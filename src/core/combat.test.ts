@@ -137,6 +137,27 @@ describe('combat', () => {
       attackSequence(scenario, rolls(...(halfRange ? [1] : []), 4, ...(halfRange ? [4] : []), 1, ...(halfRange ? [1] : []))).killed,
     ).toBe(halfRange ? 2 : 1)
   })
+  describe('distance to the target', () => {
+    const rapidFire = (options: Partial<CombatInput['options']>) => {
+      const scenario = input()
+      Object.assign(scenario.weapons[0]!, { range: 24, rapidFire: { dice: 1, sides: 3, bonus: 0 }, torrent: true })
+      Object.assign(scenario.options, options)
+      return calculateCombat(scenario).meanDamage
+    }
+    it('leaves out a weapon that cannot reach the target', () => expect(rapidFire({ distance: 25 })).toBe(0))
+    it("applies half-range abilities within half the weapon's own range", () =>
+      expect(rapidFire({ distance: 12 })).toBe(rapidFire({ halfRange: true })))
+    it("withholds half-range abilities beyond half the weapon's own range", () =>
+      expect(rapidFire({ distance: 13 })).toBe(rapidFire({ halfRange: false })))
+  })
+  it('caps the mortal wounds every roll of one ability inflicts together', () => {
+    const scenario = input()
+    scenario.weapons = []
+    scenario.mortalWounds = [
+      { timing: 'before', rolls: 3, limit: 1, outcomes: [{ min: 2, max: 6, damage: { dice: 0, sides: 6, bonus: 1 } }] },
+    ]
+    expect(calculateCombat(scenario).meanDamage).toBeCloseTo(1 - 1 / 6 ** 3, 12)
+  })
   it('counts Cleave attacks from the original target size throughout the attack sequence', () => {
     const scenario = input()
     Object.assign(scenario.target.groups[0]!, { models: 5, wounds: 1 })

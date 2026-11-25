@@ -1,11 +1,14 @@
 import {
   COMBAT_PHASES,
+  atHalfRange,
   criticalThresholdMatters,
   halfRangeMatters,
+  inRange,
   rerollAdjustmentMatters,
   rerollRank,
   rollAdjustmentMatters,
   saveAdjustmentMatters,
+  type CombatInput,
   type CombatOptions,
   type CombatPhase,
 } from '../../../core/combat'
@@ -15,6 +18,15 @@ import { formatList, signedLabel } from '../../text'
 import { PHASE_TITLES } from './CombatControls'
 
 export type CombatMatchupView = ReturnType<typeof combatMatchup>
+
+/** Which weapons reach the target, and which of those that have a half-range ability are within half range. */
+const rangeReach = (input: CombatInput) =>
+  JSON.stringify(
+    input.weapons.map((weapon) => [
+      inRange(weapon, input.options),
+      halfRangeMatters({ ...input, weapons: [weapon] }) && atHalfRange(weapon, input.options),
+    ]),
+  )
 export type PhaseScope = CombatPhase | 'all'
 type AdjustmentSource = 'attack' | 'weapon' | 'target' | 'feelNoPain'
 
@@ -91,7 +103,7 @@ export function matchupModifiers(matchup: CombatMatchupView, adjustments: Combat
       if (['hitModifier', 'woundModifier', 'skill', 'strength', 'cover', 'heavy', 'charged', 'toughness'].includes(field))
         return rollAdjustmentMatters(current, next, ['hitModifier', 'skill', 'cover', 'heavy'].includes(field) ? 'hit' : 'wound')
       if (field === 'ap' || field === 'save' || field === 'invulnerable') return saveAdjustmentMatters(current, next)
-      if (field === 'halfRange') return halfRangeMatters(current) || halfRangeMatters(next)
+      if (field === 'halfRange' || field === 'distance') return rangeReach(current) !== rangeReach(next)
       return JSON.stringify(current) !== JSON.stringify(next)
     })
   }
@@ -157,6 +169,7 @@ export function matchupModifiers(matchup: CombatMatchupView, adjustments: Combat
     )
       return 'The defender already has an equal or better Feel No Pain roll.'
     if (field === 'halfRange') return 'No included weapon has Rapid Fire, Melta or Conversion.'
+    if (field === 'distance') return 'Every included weapon reaches this far, and none has Rapid Fire, Melta or Conversion within it.'
     if (field === 'sustained') return 'The included weapons already have equal or better Sustained Hits.'
     if (field === 'lethal' || field === 'devastating' || field === 'damageReroll') return 'The included weapons already have this ability.'
     return 'The current weapon rules, target, and other modifiers give the same result with or without this choice.'
@@ -218,6 +231,7 @@ export function matchupModifiers(matchup: CombatMatchupView, adjustments: Combat
       ] as const) {
         if (attack[field]) add(scope, 'attack', field, `${label} (${name})`, true)
       }
+      if (attack.distance) add(scope, 'attack', 'distance', `Range ${attack.distance}" (${name})`, attack.distance)
       if (attack.indirectFire && attack.indirectFire !== 'direct')
         add(scope, 'attack', 'indirectFire', `Indirect fire: ${attack.indirectFire} (${name})`, attack.indirectFire)
       if (attack.lethal !== undefined)

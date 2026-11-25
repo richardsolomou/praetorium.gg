@@ -49,7 +49,14 @@ describe.skipIf(!fs.existsSync(directory))('simulator catalogue projections', ()
       options: { ...DEFAULT_COMBAT_OPTIONS, phase },
     }).meanDamage
 
-  type Member = { name: string; models?: number; attachedTo?: number; spreads?: Record<string, Record<string, number>> }
+  /** `from` names the faction whose book holds the unit, when another faction fields it. */
+  type Member = {
+    name: string
+    from?: string
+    models?: number
+    attachedTo?: number
+    spreads?: Record<string, Record<string, number>>
+  }
   type Side = { snapshot: CombatantSnapshot; rules: CombatRule[] }
   /**
    * A roster's unit as the simulator fields it, with rules read from the snapshot's words. `rules` picks a rule's
@@ -62,8 +69,10 @@ describe.skipIf(!fs.existsSync(directory))('simulator catalogue projections', ()
   ): Side => {
     const book = index.find((candidate) => candidate.name === faction)!
     const picks = members.map((member): RosterPick => {
-      const { name, spreads, ...pick } = typeof member === 'string' ? { name: member } : member
-      const entryId = book.units.find((candidate) => candidate.name === name)!.id
+      const { name, from, spreads, ...rest } = typeof member === 'string' ? { name: member } : member
+      const home = from ? index.find((candidate) => candidate.name === from)! : book
+      const entryId = home.units.find((candidate) => candidate.name === name)!.id
+      const pick = from ? { ...rest, catalogueId: home.catalogueId } : rest
       if (!spreads) return { entryId, ...pick }
       const choices = buildUnit(entryId, snapshot.catalogue.index, pick.models, {}, { primaryCatalogueId: book.catalogueId })!.choices
       return {
@@ -144,6 +153,28 @@ describe.skipIf(!fs.existsSync(directory))('simulator catalogue projections', ()
     expect(fight(boyz('Ability activated'), marines()).ranged()).toBeGreaterThan(fight(boyz(false), marines()).ranged())
   })
 
+  it("Crushing Impact adds mortal wounds to a charging vehicle's fight", () => {
+    const redeemer = (choice: string | false) =>
+      side('Space Marines', ['Land Raider Redeemer'], { detachment: 'Gladius Task Force', rules: { 'Crushing Impact': choice } })
+    expect(fight(redeemer('Charged this turn · Target engaged'), marines()).melee()).toBeGreaterThan(
+      fight(redeemer(false), marines()).melee(),
+    )
+  })
+
+  it('Relics of the Dark Age adds Strength to Sternguard shooting in Wrath of the Rock', () => {
+    const sternguard = (choice: string | false) =>
+      side('Dark Angels', [{ name: 'Sternguard Veteran Squad', from: 'Space Marines', models: 10 }], {
+        detachment: 'Wrath of the Rock',
+        rules: { 'Relics of the Dark Age': choice },
+      })
+    expect(fight(sternguard('Active'), marines()).ranged()).toBeGreaterThan(fight(sternguard(false), marines()).ranged())
+  })
+
+  it('a weapon beyond the set range makes no attacks', () => {
+    const at = (distance: number) => fight(side('Space Marines', ['Land Raider Redeemer']), marines(), { ranged: { distance } }).ranged()
+    expect(at(13)).toBeLessThan(at(12))
+  })
+
   it('a Waaagh! protects defending Boyz', () => {
     const boyz = (choice: string | false) => side('Orks', ['Boyz'], { rules: { 'Waaagh!': choice } })
     expect(fight(marines(), boyz('This unit is riled up')).ranged()).toBeLessThan(fight(marines(), boyz(false)).ranged())
@@ -219,7 +250,7 @@ describe.skipIf(!fs.existsSync(directory))('simulator catalogue projections', ()
       infantry: offered(dragon(), marines(), 'attacker'),
       vehicle: offered(dragon(), raider, 'attacker'),
       absorbs: fight(dragon('Target within 12"'), raider).ranged() > fight(dragon(false), raider).ranged(),
-    }).toEqual({ infantry: [], vehicle: ['Matter Absorption'], absorbs: true })
+    }).toEqual({ infantry: ['Crushing Impact'], vehicle: ['Matter Absorption', 'Crushing Impact'], absorbs: true })
   })
 
   it('offers Belial only the rules the simulator calculates', () => {

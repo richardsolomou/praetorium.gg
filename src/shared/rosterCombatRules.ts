@@ -408,7 +408,8 @@ function rosterCombatRules(
       const either = !stratagem.phases.length || stratagem.phases.includes('command')
       const phases: CombatRule['phases'] = []
       if (either || stratagem.phases.includes('shooting')) phases.push('ranged')
-      if (either || stratagem.phases.includes('fight')) phases.push('melee')
+      // A Charge-phase effect, such as mortal wounds on ending a charge move, lands before the Fight phase that follows.
+      if (either || stratagem.phases.includes('fight') || stratagem.phases.includes('charge')) phases.push('melee')
       if (!phases.length) continue
       add(
         {

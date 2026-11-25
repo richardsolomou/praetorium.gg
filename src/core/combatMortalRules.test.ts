@@ -90,6 +90,22 @@ describe('separate mortal-wound abilities', () => {
       ])
     expect([bands(['Infantry']), bands(['Vehicle'])]).toEqual([[[1, ['2-5', '6-6']]], [[1, ['1-4', '5-6']]]])
   })
+  it("rolls a die for each point of the charging model's Toughness, capped at six mortal wounds", () => {
+    const crushing = rule(
+      '**When:** Your Charge phase, just after a friendly **MONSTER/VEHICLE** unit ends a **charge move**.\n\n**Target:** That **MONSTER/VEHICLE** unit\n\n**Effect:** Resolve the following sequence:\n\n**1.** Select one enemy unit **engaged** with your unit.\n\n**2.** Select one model in your unit **engaged** with that enemy unit.\n\n**3.** Roll a number of D6 equal to the T characteristic of that model: for each 1, your unit suffers 1 **mortal wound**; for each 5+, that enemy unit suffers 1 **mortal wound** (to a maximum of 6 **mortal wounds** per unit)',
+      { scope: 'stratagem', phases: ['melee'] },
+    )
+    const active = [{ name: 'Ability', effects: combatRuleChoices(crushing)[0]!.effects }]
+    expect(combatRuleMortals(active, 'melee', [], [], 1, 10)).toEqual([
+      {
+        timing: 'before',
+        rolls: 10,
+        limit: 6,
+        perToughness: true,
+        outcomes: [{ min: 5, max: 6, damage: { dice: 0, sides: 6, bonus: 1 } }],
+      },
+    ])
+  })
   it('does not enable an unknown extra mortal effect', () => {
     expect(combatRuleChoices(rule(charge + ' Double the target damage.'))).toEqual([])
   })

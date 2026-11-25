@@ -226,6 +226,7 @@ function phaseMatchup(
       ...base,
       cover: base.cover || Boolean(extra.cover),
       halfRange: base.halfRange || Boolean(extra.halfRange),
+      ...(extra.distance ? { distance: extra.distance } : {}),
       heavy: base.heavy || Boolean(extra.heavy),
       charged: base.charged || Boolean(extra.charged),
       lethal: extra.lethal ?? base.lethal,

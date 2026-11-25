@@ -38,9 +38,9 @@ export const normalizeCombatText = (text: string) =>
     .replaceAll('▪', '■')
     .replaceAll(/\s+/g, ' ')
     .trim()
-/** A rule's bold-labelled section, such as its Effect or Target, up to the next one. */
+/** A rule's bold-labelled section, such as its Effect or Target, up to the next one; a bold step number such as **1.** stays inside it. */
 export const ruleSection = (description: string, name: 'Effect' | 'Target') =>
-  new RegExp(`\\*\\*${name}:\\*\\*\\s*([\\s\\S]*?)(?=\\n\\n\\*\\*|$)`, 'i').exec(description)?.[1]
+  new RegExp(`\\*\\*${name}:\\*\\*\\s*([\\s\\S]*?)(?=\\n\\n\\*\\*[^*\\n]+:\\*\\*|$)`, 'i').exec(description)?.[1]
 /** Names a sub-rule's choice after the option it came from; its lone "Active" choice takes the name alone. */
 export const labelledChoice = (name: string, choice: CombatRuleChoice): CombatRuleChoice => ({
   ...choice,

@@ -49,7 +49,7 @@ const loaded = shelfOf(
             constraints: sizes(5, 10),
             profiles: [
               profile('trooper-stats', 'Trooper', 'Unit', { T: '4', Sv: '3+', W: '2' }),
-              profile('rifle', 'Rifle', 'Ranged Weapons', { A: '2', BS: '3+', S: '4', AP: '-1', D: '1' }),
+              profile('rifle', 'Rifle', 'Ranged Weapons', { Range: '24"', A: '2', BS: '3+', S: '4', AP: '-1', D: '1' }),
               profile('knife', 'Knife', 'Melee Weapons', { A: '1', WS: '3+', S: '4', AP: '0', D: '1' }),
             ],
           },
@@ -62,7 +62,7 @@ const loaded = shelfOf(
         categoryLinks: categories('Character'),
         profiles: [
           profile('leader-stats', 'Leader', 'Unit', { T: '4', Sv: '3+', W: '5' }),
-          profile('pistol', 'Pistol', 'Ranged Weapons', { A: '1', BS: '2+', S: '5', AP: '-1', D: '2' }),
+          profile('pistol', 'Pistol', 'Ranged Weapons', { Range: '12"', A: '1', BS: '2+', S: '5', AP: '-1', D: '2' }),
           profile('leader-rule', 'Leader', 'Abilities', { Description: 'This model can be attached to the following units:\n■ Squad' }),
         ],
         selectionEntryGroups: [
@@ -318,6 +318,18 @@ it('estimates each phase and the sequence for an attached unit and cites both da
     shootingThenMelee: { status: 'estimated' },
     attribution: ['Community data'],
   })
+})
+
+it('marks a weapon that cannot reach the target at the given distance', async () => {
+  const result = await simulateCombat({
+    attacker: { ...squad, models: 10, attached: [{ unit: 'Leader' }] },
+    defender: beast,
+    modifiers: { ranged: { distance: 18 } },
+  })
+  expect((result.structuredContent as { shooting: { weapons: unknown[] } }).shooting.weapons).toEqual([
+    { name: 'Rifle', count: 10 },
+    { name: 'Pistol', count: 1, outOfRange: true },
+  ])
 })
 
 describe('a unit joined to an attached unit', () => {
