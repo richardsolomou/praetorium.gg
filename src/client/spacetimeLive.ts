@@ -119,7 +119,7 @@ export function useSpacetimeLiveBattle(token: string) {
         return
       }
       if (seq !== undefined) {
-        const held = queryClient.getQueryData(battleQuery(token).queryKey) as { kind?: string; view?: { seq?: number } } | undefined
+        const held = queryClient.getQueryData<{ kind?: string; view?: { seq?: number } }>(battleQuery(token).queryKey)
         if (held?.kind === 'battle' && typeof held.view?.seq === 'number' && held.view.seq >= seq) {
           void queryClient.invalidateQueries({ queryKey: battlesQuery().queryKey })
           void queryClient.invalidateQueries({ queryKey: scoringDraftsKey(token) })
