@@ -130,7 +130,7 @@ it('includes only the configured Game Datacards edition and selected icons', asy
   expect(fs.readdirSync(path.join(directory, 'icons'))).toEqual(['test-faction.svg'])
 })
 
-it('keeps the summaries and effects of each verified VS Data release, named for its rules version', async () => {
+it('keeps the summaries, effects and construction of each verified VS Data release, named for its rules version', async () => {
   const pinned = sources()
   await materializeCatalogue(
     directory,
@@ -139,8 +139,10 @@ it('keeps the summaries and effects of each verified VS Data release, named for 
   )
 
   expect(fs.readdirSync(path.join(directory, 'summaries')).toSorted()).toEqual([
+    'marine-points-1013.construction.json',
     'marine-points-1013.effects.json',
     'marine-points-1013.json',
+    'mfm-1-6.construction.json',
     'mfm-1-6.effects.json',
     'mfm-1-6.json',
   ])
@@ -167,7 +169,11 @@ it('verifies a release for a rules version a build leaves out, and keeps only th
     },
   )
 
-  expect(fs.readdirSync(path.join(directory, 'summaries')).toSorted()).toEqual(['mfm-1-6.effects.json', 'mfm-1-6.json'])
+  expect(fs.readdirSync(path.join(directory, 'summaries')).toSorted()).toEqual([
+    'mfm-1-6.construction.json',
+    'mfm-1-6.effects.json',
+    'mfm-1-6.json',
+  ])
 })
 
 it('omits disabled sources without fetching or retaining old files', async () => {
