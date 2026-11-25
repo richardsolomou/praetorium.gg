@@ -9,6 +9,7 @@ import { z } from 'zod'
 import {
   vsDataAttributionSchema,
   vsDataMissionPackSchema,
+  type VsDataCoreRule,
   type VsDataDetachment,
   type VsDataStratagem,
   vsDataStratagemSchema,
@@ -324,6 +325,49 @@ function compactUnits(
   return { units, conditions }
 }
 
+const coreRuleDataSchema = z.object({
+  document: z.string(),
+  section: z.string().optional(),
+  ruleNumber: z.string().optional(),
+  parent: refSchema.optional(),
+  order: z.number().int(),
+  anchor: z.string(),
+  stratagem: refSchema.optional(),
+})
+
+/** Each rule of the release's rules documents, with what a page needs to place and address it. */
+function coreRulesOf(
+  manifest: VsDataManifest,
+  read: (name: string) => unknown,
+  identity: readonly { kind: string; id: string; name?: string }[],
+): VsDataCoreRule[] {
+  const names = new Map(identity.flatMap((entry) => (entry.kind === 'core-rule' && entry.name ? [[entry.id, entry.name] as const] : [])))
+  return manifest.categories
+    .flatMap((category) => category.records)
+    .filter((entry) => entry.path.split('/')[2] === 'core-rule')
+    .map((entry) => read(entry.path) as { id: string; rulesVersion?: { update?: string }; data: unknown })
+    .filter((record) => record.rulesVersion?.update === manifest.rulesVersion.update)
+    .flatMap((record) => {
+      const name = names.get(record.id)
+      const data = coreRuleDataSchema.safeParse(record.data)
+      return name && data.success
+        ? [
+            {
+              id: record.id,
+              name,
+              document: data.data.document,
+              section: data.data.section ?? null,
+              number: data.data.ruleNumber ?? null,
+              parent: data.data.parent?.id ?? null,
+              order: data.data.order,
+              anchor: data.data.anchor,
+              stratagem: data.data.stratagem?.id ?? null,
+            },
+          ]
+        : []
+    })
+}
+
 const detachmentDataSchema = z.object({
   absent: z.literal(true).optional(),
   stratagems: z.array(z.string()).default([]),
@@ -557,6 +601,7 @@ export function compactVsDataRelease(directory: string, file: string) {
     factions: Object.fromEntries(
       current.flatMap((entry) => (entry.kind === 'faction' && entry.name ? [[entry.name, entry.id] as const] : [])),
     ),
+    coreRules: coreRulesOf(manifest, read, current),
     keywords: Object.fromEntries(
       current.flatMap((entry) => (KEYWORD_KINDS.has(entry.kind) && entry.name ? [[vsDataKey(entry), entry.name] as const] : [])),
     ),

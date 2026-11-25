@@ -14,12 +14,12 @@ import { vsDataMissions } from './vsDataMissions'
 import { vsDataStratagems } from './vsDataStratagems'
 import { vsDataIndex } from '../shared/vsData'
 import { importNamesOf } from '../shared/importNames'
-import { loadRuleDocuments } from './rulesCore'
+import { vsDataRuleDocuments } from '../shared/ruleDocuments'
+import { formerRuleIds } from '../core/legacyRuleIds'
 import { catalogueDirectory } from './catalogueIndex'
 import { type LoadedCatalogue } from '../shared/catalogueIndex'
 import { missingArmyRulesFromCatalogueSteps } from './catalogueArmyRules'
-import { retainedSnapshots, upstreamUrl, withDefinitionTokens } from './sourceTexts'
-import { readCatalogueComposition } from './catalogueComposition'
+import { withDefinitionTokens } from './sourceTexts'
 import { joinKey } from '../core/text'
 import { type LoadedRules } from '../shared/rules'
 import { completeSteps, type Steps } from '../shared/steps'
@@ -201,12 +201,11 @@ export function* loadRulesSteps(
       const description = describe(card.key)
       return description ? [{ id: card.key, type: card.type, description }] : []
     }),
-    ruleDocuments: loadRuleDocuments(datacardsDirectory, (file) =>
-      upstreamUrl(
-        path.relative(snapshotDirectory, file),
-        readCatalogueComposition(snapshotDirectory),
-        retainedSnapshots(snapshotDirectory),
-      ),
+    ruleDocuments: vsDataRuleDocuments(
+      releases[0]?.coreRules ?? [],
+      // The rules version's own CP wins over the base release's, as later entries of the map do.
+      releases.toReversed().flatMap((release) => release.stratagems),
+      formerRuleIds,
     ),
     ...missions,
     deployments,
