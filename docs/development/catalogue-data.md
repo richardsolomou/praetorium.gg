@@ -48,6 +48,10 @@ A release holds this bar, which only goes up:
 - `just points` matches at least 99.9% of Munitorum prices and every faction file.
 - Of the tournament lists in each of the `40kstats` and `lexmechanic` corpora exported from the official app's newest data, at least 95% import clean (`pnpm exec tsx scripts/importCorpus.ts run --source <source> --since 2026-06-20 --live`), and no change makes a clean list unclean.
 
+## Saved IDs in VS Data
+
+`catalogue/legacy-ids/{books,detachments,units,enhancements}.json` give the VS Data ID of each book, Detachment, datasheet and Enhancement ID a saved list can hold, and only grow: `scripts/freezeRosterIds.ts <catalogue directory> <unpacked releases, one directory per rules version>` adds what a new snapshot or release names and refuses to move a frozen ID. Read a list's IDs once its rules version is known (`currentRosterIds`): a key is `<rules version>~<ID>` where a retained rules version reads the ID otherwise, else the ID itself, and an Enhancement's key is `<VS Data Detachment>/<option ID>`, since one entry serves Detachments VS Data records apart. Books map by hand, Detachments and Enhancements by name within their faction with the script's reviewed spellings, datasheets by VS Data's `bsdata.*` aliases, else by exact name, and retired IDs through the retired-ID, migration and retained-version aliases.
+
 ## Roster migration
 
 Before changing sources or saved-selection construction, baseline production rosters:
