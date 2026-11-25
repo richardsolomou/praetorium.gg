@@ -158,3 +158,22 @@ it('reads another unit’s ability VS Data aliases a profile to whose name the d
   }
   expect(datasheetAbilitySummary(deathGuard, 'lord', 'Dessication Conduit (Aura)', 'conduit-profile', null)).toBe(conduit)
 })
+
+it('reads its own unit’s record of another name that VS Data aliases its profile to', () => {
+  const transport = said('Banehammer transport')
+  const banehammer: VsDataUnits = {
+    units: { banehammer: { id: 'astra-militarum.banehammer', sizes: [], models: [], options: [] } },
+    aliases: { 'banehammer-profile': 'astra-militarum.banehammer.transport' },
+    abilities: { 'astra-militarum.banehammer.transport': transport },
+  }
+  expect(datasheetAbilitySummary(banehammer, 'banehammer', 'Banehammer', 'banehammer-profile', null)).toBe(transport)
+})
+
+it('reads no other faction’s rule of another name that VS Data aliases a profile to', () => {
+  const marines: VsDataUnits = {
+    units: { assault: { id: 'space-marines.assault-squad-with-jump-packs', sizes: [], models: [], options: [] } },
+    aliases: { 'hammer-of-wrath-profile': 'chaos-space-marines.dark-pacts' },
+    abilities: { 'chaos-space-marines.dark-pacts': said('Dark Pacts') },
+  }
+  expect(datasheetAbilitySummary(marines, 'assault', 'Hammer of Wrath', 'hammer-of-wrath-profile', null)).toBeNull()
+})

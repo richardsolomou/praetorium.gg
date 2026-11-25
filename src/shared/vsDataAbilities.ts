@@ -37,11 +37,13 @@ function ownersAbility(units: VsDataUnits, subject: string, name: string, id?: s
   const slug = abilityKey(name)
   // A record VS Data publishes once for several units, as the Land Raiders' Damaged, by the units it names.
   const shared = unit?.shared?.find((held) => abilityKey(held.slice(held.lastIndexOf('.') + 1)) === slug && units.abilities[held])
-  // VS Data aliases a few profiles to another unit's record in like words, as a Legends Assault Squad's Hammer of Wrath to
-  // the Negavolt Cultists' Voltagheist Field, so another owner's alias reaches it only by the same name.
+  // An alias to its owner's own record or its faction's holds under any name, as the Banehammer's "Banehammer" profile is
+  // its Transport; VS Data aliases a few profiles to another owner's in like words, as a Legends Assault Squad's Hammer of
+  // Wrath to the Negavolt Cultists' Voltagheist Field, so another owner's reaches it only by the same name.
   const alias = id ? units.aliases[id] : undefined
   const aliasOwner = alias?.slice(0, alias.lastIndexOf('.'))
-  const aliased = alias && (aliasOwner === owner || !aliasOwner?.includes('.') || namesIt(alias, name)) ? alias : undefined
+  const ownAlias = owner !== undefined && (aliasOwner === owner || aliasOwner === owner.split('.')[0])
+  const aliased = alias && (ownAlias || namesIt(alias, name)) ? alias : undefined
   // Then its faction's, as its army rule and shared abilities are the faction's, then the one faction that has it, as a
   // chapter's datasheets and a Crucible datasheet with no VS Data unit print an army rule.
   const faction = [...byOwner].filter(([held, abilities]) => !held.includes('.') && abilities.has(slug))
