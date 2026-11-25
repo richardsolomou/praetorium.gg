@@ -1,4 +1,5 @@
 import { TERRAIN_GEOMETRY_VERSION } from '../../contracts/terrainReference'
+import { RULE_OUTLINE } from '../../contracts/rules'
 import { withTimeout } from '../abortSignals'
 export { terrainMatchupIds } from '../../contracts/terrainReference'
 import { loadSearch, offlineSearch } from '../offline/runtime'
@@ -133,7 +134,7 @@ export const deploymentsQuery = () => referenceQuery(['deployments'], () => depl
 export const ruleIndexQuery = () => queryOptions({ ...referenceQuery(['rule-index'], () => ruleIndex()), ...untilLoaded })
 export const ruleSectionQuery = (documentId: string, sectionId: string) =>
   queryOptions({
-    ...referenceQuery(['rule-section', documentId, sectionId], () => ruleSection({ data: { documentId, sectionId } })),
+    ...referenceQuery(['rule-section', RULE_OUTLINE, documentId, sectionId], () => ruleSection({ data: { documentId, sectionId } })),
     enabled: Boolean(documentId && sectionId),
   })
 /** The upstream work the served summaries adapt. */
