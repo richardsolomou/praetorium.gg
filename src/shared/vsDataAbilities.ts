@@ -3,20 +3,23 @@ import { unitAbilitySlug } from '../core/summaryMarkdown'
 import { abilityKeysNamed } from './ruleSummaries'
 import type { VsDataUnits } from './vsData'
 
-const owned = new WeakMap<VsDataUnits, Map<string, Map<string, RuleSummary>>>()
+/** A release's units with each ability as a summary, as datasheets show them, or as anything else found the same way, such as its id. */
+type UnitsOf<T> = Omit<VsDataUnits, 'abilities'> & { abilities: Record<string, T> }
+
+const owned = new WeakMap<object, Map<string, Map<string, unknown>>>()
 
 /** `unitAbilitySlug` without each word's trailing "s", as a datasheet's "Bomb Squig" is VS Data's "Bomb Squigs". */
 export const abilityKey = (name: string) => unitAbilitySlug(name).replaceAll(/(?<=[a-z0-9]{2}[a-rt-z0-9])s(?=-|$)/g, '')
 
 /** Each ability by the unit or faction whose id it starts with, then by `abilityKey`, read once per answer. */
-function abilitiesByOwner(units: VsDataUnits) {
-  let byOwner = owned.get(units)
+function abilitiesByOwner<T>(units: UnitsOf<T>) {
+  let byOwner = owned.get(units) as Map<string, Map<string, T>> | undefined
   if (!byOwner) {
     byOwner = new Map()
     for (const [id, summary] of Object.entries(units.abilities)) {
       const at = id.lastIndexOf('.')
       const slug = abilityKey(id.slice(at + 1))
-      const abilities = byOwner.get(id.slice(0, at)) ?? new Map<string, RuleSummary>()
+      const abilities = byOwner.get(id.slice(0, at)) ?? new Map<string, T>()
       if (!abilities.has(slug)) abilities.set(slug, summary)
       byOwner.set(id.slice(0, at), abilities)
     }
@@ -26,7 +29,7 @@ function abilitiesByOwner(units: VsDataUnits) {
 }
 
 /** An `@` owner as VS Data names it: a faction, or a faction's detachment, by the faction's VS Data id. */
-function vsDataOwner(units: VsDataUnits | null, subject: string) {
+function vsDataOwner(units: Pick<VsDataUnits, 'factions'> | null, subject: string) {
   const [faction = '', ...rest] = subject.slice(1).split('.')
   return [units?.factions?.[faction] ?? faction, ...rest].join('.')
 }
@@ -36,7 +39,7 @@ function vsDataOwner(units: VsDataUnits | null, subject: string) {
  * name, in order: the owner's own, a record it shares with other units and the ability VS Data aliases to its BSData
  * profile; then its faction's, the one detachment of that name's and the one faction's that has it.
  */
-function ownersAbility(units: VsDataUnits, subject: string, name: string, id?: string) {
+function ownersAbility<T>(units: UnitsOf<T>, subject: string, name: string, id?: string) {
   const unit = subject.startsWith('@') ? undefined : units.units[subject]
   const owner = subject.startsWith('@') ? vsDataOwner(units, subject) : unit?.id
   const byOwner = abilitiesByOwner(units)
@@ -74,7 +77,7 @@ function ownersAbility(units: VsDataUnits, subject: string, name: string, id?: s
 }
 
 /** Its owner's record of this name, or else the one of its records a name the catalogue misspells stands for. */
-function ownedNamed(abilities: Map<string, RuleSummary> | undefined, slug: string, name: string) {
+function ownedNamed<T>(abilities: Map<string, T> | undefined, slug: string, name: string) {
   const exact = abilities?.get(slug)
   if (exact || !abilities) return exact
   const near = [...abilities].filter(([key]) => namesIt(key, name))
@@ -82,7 +85,7 @@ function ownedNamed(abilities: Map<string, RuleSummary> | undefined, slug: strin
 }
 
 /** An ability's summary among VS Data's, by name, for the datasheet entry (or `@` and the VS Data owner) it is printed on. */
-export function abilitySummaryIn(units: VsDataUnits, subject: string, name: string, id?: string): RuleSummary | null {
+export function abilitySummaryIn<T = RuleSummary>(units: UnitsOf<T>, subject: string, name: string, id?: string): T | null {
   const { own, faction } = ownersAbility(units, subject, name, id)
   return [...own, ...faction].find(Boolean) ?? null
 }
@@ -93,13 +96,13 @@ export function abilitySummaryIn(units: VsDataUnits, subject: string, name: stri
  * its faction's, and last any other record its printed text names, which reaches another unit's ability only by the same
  * name, as Game Datacards prints a few cards in another's words, such as Karanak's Pack Leader in a Sorcerer's Warptime.
  */
-export function datasheetAbilitySummary(
-  units: VsDataUnits | null,
+export function datasheetAbilitySummary<T = RuleSummary>(
+  units: UnitsOf<T> | null,
   subject: string,
   name: string,
   id: string | undefined,
-  printed: { id: string; summary: RuleSummary } | null,
-): RuleSummary | null {
+  printed: { id: string; summary: T } | null,
+): T | null {
   const { own, faction } = units ? ownersAbility(units, subject, name, id) : { own: [], faction: [] }
   const ability = printed?.id.startsWith('ability:') ? printed : null
   const owner = subject.startsWith('@') ? vsDataOwner(units, subject) : units?.units[subject]?.id
