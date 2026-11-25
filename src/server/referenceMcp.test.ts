@@ -69,7 +69,7 @@ vi.mock('./app', () => ({
     service: { rosterService: { importCollection } },
     telemetry: { posthog: { capture: vi.fn() } },
     auth: {
-      $context: Promise.resolve({ baseURL: 'https://praetorium.gg/api/auth', internalAdapter: {} }),
+      $context: Promise.resolve({ baseURL: 'https://praetorium.gg/api/auth', internalAdapter: {}, getPlugin: () => undefined }),
       mcpResource: 'https://praetorium.gg/mcp',
       issuer: 'https://praetorium.gg/api/auth',
       hasMcpConsent,
