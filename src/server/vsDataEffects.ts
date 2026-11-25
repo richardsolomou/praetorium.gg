@@ -5,6 +5,7 @@ import type { TextFacts, TextFactsByKey } from '../core/textFacts'
 import type { DefinitionTexts } from '../shared/catalogueIndex'
 import { gdcRuleRecords, vsDataIndex, vsDataKey } from '../shared/vsData'
 import { abilityKeysNamed } from '../shared/ruleSummaries'
+import { unitAbilitySlug } from '../core/summaryMarkdown'
 import { abilityKey } from '../shared/vsDataAbilities'
 import { textFactsOfVsData, vsDataEffectsPath, type VsDataEffectsFile } from '../shared/vsDataEffects'
 import { readCatalogueComposition } from './catalogueComposition'
@@ -72,11 +73,21 @@ export function vsDataTextFacts(
     for (const link of book?.catalogueLinks ?? [])
       for (const faction of factionsOf.get(book!.id) ?? []) remember(factionsOf, link.targetId, () => new Set()).add(faction)
   }
-  // The one reading candidates give, those VS Data has read first: a record without blocks has not been read.
+  // The one reading candidates give, those VS Data has read first, as a record without blocks has not been read: the
+  // candidate holding every block any of them holds, as each other reads it. VS Data leaves `reachesAttached` off the
+  // rule of a unit no Leader joins, where it reaches nothing, so the reading with it serves both.
+  const blocksOf = new Map<string, Map<string, string>>()
+  const blocks = (key: string) =>
+    remember(
+      blocksOf,
+      key,
+      () => new Map(Object.entries(effects[key] ?? {}).map(([block, value]) => [block, JSON.stringify(unreached(value))])),
+    )
+  const reaches = (key: string) => blocks(key).get('combat') !== JSON.stringify(effects[key]?.combat)
   const agreed = (keys: readonly string[]) => {
-    const read = keys.filter((key) => effects[key])
-    const pool = read.length ? read : keys
-    return pool.length && new Set(pool.map((key) => JSON.stringify(effects[key] ?? null))).size === 1 ? pool[0]! : null
+    const read = keys.filter((key) => effects[key]).toSorted((left, right) => Number(reaches(right)) - Number(reaches(left)))
+    if (!read.length) return keys[0] ?? null
+    return read.find((key) => read.every((other) => [...blocks(other)].every(([block, value]) => blocks(key).get(block) === value))) ?? null
   }
   // A Damaged profile is named for its wounds, as "Damaged: 1-4 Wounds Remaining", and VS Data's record is Damaged.
   const nameKeys = (name: string) => [...new Set([abilityKey(name), abilityKey(name.split(':')[0]!)])]
@@ -90,8 +101,8 @@ export function vsDataTextFacts(
     const card = agreed(held)
     if (card) return { record: card, by: 'card' }
     if (keys.length !== 1) return { record: null, by: held.length ? 'ambiguous' : 'none' }
-    // Of the records a card's string joins, or else of all, the one the catalogue rule or profile holding it names: by
-    // its alias, else by its name, its own datasheet's record first, then its own faction's.
+    // Of the records a card's string joins, or else of all, the one the catalogue rules or profiles holding it name: by
+    // their alias, else by their names.
     const holders = definitions.holders?.(factsKey) ?? []
     const within = (candidates: readonly string[]) => (held.length ? candidates.filter((key) => held.includes(key)) : candidates)
     const byAlias = within(
@@ -99,22 +110,26 @@ export function vsDataTextFacts(
     )
     const alias = agreed(byAlias)
     if (alias) return { record: alias, by: 'alias' }
-    // A core or weapon ability is its own record, named with any value it takes, as "Firing Deck 10" is Firing Deck.
-    const core = holders.flatMap((holder) =>
-      abilityKeysNamed(holder.name).filter((key) => !key.startsWith('core-rule:') && release.entries[key]),
-    )
-    const byName = within([
-      ...new Set([...holders.flatMap((holder) => nameKeys(holder.name).flatMap((name) => named.get(name) ?? [])), ...core]),
-    ])
-    const owners = holders.flatMap((holder) =>
-      holder.within.flatMap((id) => aliased.get(id) ?? []).filter((key) => key.startsWith('unit:')),
-    )
-    const ownSheet = byName.filter((key) => owners.some((owner) => key.startsWith(`ability:${owner.slice('unit:'.length)}.`)))
-    const ownFaction = byName.filter((key) => holders.some((holder) => factionsOf.get(holder.catalogue ?? '')?.has(factionOf(key))))
-    for (const candidates of [byName, ownSheet, ownFaction]) {
-      const found = agreed(candidates)
-      if (found) return { record: found, by: 'name' }
-    }
+    // Each holder's record by its name, its own datasheet's first, then its own faction's, then any, and of those the one
+    // it names exactly first, as Aleya's Daughter of the Abyss is not Daughters of the Abyss. Holders sharing the text
+    // must agree, as the Shield Captain's Praesidium Shield and the Redemptor's Duty Eternal read one string otherwise.
+    const byHolder = holders.map((holder) => {
+      // A core or weapon ability is its own record, named with any value it takes, as "Firing Deck 10" is Firing Deck.
+      const core = abilityKeysNamed(holder.name).filter((key) => !key.startsWith('core-rule:') && release.entries[key])
+      const byName = within([...new Set([...nameKeys(holder.name).flatMap((name) => named.get(name) ?? []), ...core])])
+      const owners = holder.within.flatMap((id) => aliased.get(id) ?? []).filter((key) => key.startsWith('unit:'))
+      const exact = (keys: readonly string[]) => keys.filter((key) => key.endsWith(`.${unitAbilitySlug(holder.name)}`))
+      const ownSheet = byName.filter((key) => owners.some((owner) => key.startsWith(`ability:${owner.slice('unit:'.length)}.`)))
+      const ownFaction = byName.filter((key) => factionsOf.get(holder.catalogue ?? '')?.has(factionOf(key)))
+      for (const pool of [ownSheet, ownFaction, byName].flatMap((candidates) => [exact(candidates), candidates])) {
+        const found = agreed(pool)
+        if (found) return { byName, found }
+      }
+      return { byName, found: null }
+    })
+    const found = agreed([...new Set(byHolder.flatMap((holder) => holder.found ?? []))])
+    if (found) return { record: found, by: 'name' }
+    const byName = byHolder.flatMap((holder) => holder.byName)
     return { record: null, by: byName.length || byAlias.length || held.length ? 'ambiguous' : 'none' }
   }
   const joins = new Map<string, VsDataJoin>()
@@ -128,6 +143,14 @@ export function vsDataTextFacts(
       return record && effects[record] ? remember(facts, record, () => textFactsOfVsData(effects[record]!)) : undefined
     },
   }
+}
+
+/** A block as it reads wherever a Leader can join its unit or not. */
+function unreached(block: unknown) {
+  if (!block || typeof block !== 'object' || !('applies' in block)) return block
+  const { applies, ...rest } = block as { applies: Record<string, unknown> }
+  const { reachesAttached: _reachesAttached, ...others } = applies
+  return { ...(Object.keys(others).length ? { applies: others } : {}), ...rest }
 }
 
 function jsonFiles(directory: string): string[] {

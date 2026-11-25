@@ -180,6 +180,17 @@ describe.skipIf(!fs.existsSync(directory))('simulator catalogue projections', ()
     expect(fight(marines(), boyz('This unit is riled up')).ranged()).toBeLessThan(fight(marines(), boyz(false)).ranged())
   })
 
+  it('a Redemptor Dreadnought’s Duty Eternal blunts stronger attacks, though other units’ rules print its words', () => {
+    const redemptor = (choice?: false) =>
+      side('Space Marines', ['Redemptor Dreadnought'], choice === false ? { rules: { 'Duty Eternal': false } } : {})
+    const landRaider = side('Space Marines', ['Land Raider'])
+    expect(fight(landRaider, redemptor()).ranged()).toBeLessThan(fight(landRaider, redemptor(false)).ranged())
+  })
+
+  it('Prosecutors shrug off psychic attacks as Daughters of the Abyss, not as Aleya’s Daughter of the Abyss', () => {
+    expect(combatUnitTarget(side('Adeptus Custodes', ['Prosecutor Squad']).snapshot, 'ranged').target?.psychicFeelNoPain).toBe(3)
+  })
+
   it('Deathshroud Manreaper modes count every carrier', () => {
     const [champion, terminator] = ['Deathshroud Terminator Champion · Manreaper', 'Deathshroud Terminator · Manreaper']
     const plan = (models: number, sweeping: readonly string[]) => {
