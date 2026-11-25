@@ -449,7 +449,7 @@ function effectOf(effect: VsDataEffect): CombatRuleEffect | null {
           }))(mortalWounds),
         }
       : {}),
-  } as CombatRuleEffect
+  }
 }
 
 function choiceOf(choice: z.infer<typeof choiceSchema>): CombatRuleChoice {

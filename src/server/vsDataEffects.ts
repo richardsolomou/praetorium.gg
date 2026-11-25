@@ -4,6 +4,7 @@ import { remember } from '../core/collections'
 import type { TextFacts, TextFactsByKey } from '../core/textFacts'
 import type { DefinitionTexts } from '../shared/catalogueIndex'
 import { gdcRuleRecords, vsDataIndex, vsDataKey } from '../shared/vsData'
+import { abilityKeysNamed } from '../shared/ruleSummaries'
 import { abilityKey } from '../shared/vsDataAbilities'
 import { textFactsOfVsData, vsDataEffectsPath, type VsDataEffectsFile } from '../shared/vsDataEffects'
 import { readCatalogueComposition } from './catalogueComposition'
@@ -98,7 +99,13 @@ export function vsDataTextFacts(
     )
     const alias = agreed(byAlias)
     if (alias) return { record: alias, by: 'alias' }
-    const byName = within([...new Set(holders.flatMap((holder) => nameKeys(holder.name).flatMap((name) => named.get(name) ?? [])))])
+    // A core or weapon ability is its own record, named with any value it takes, as "Firing Deck 10" is Firing Deck.
+    const core = holders.flatMap((holder) =>
+      abilityKeysNamed(holder.name).filter((key) => !key.startsWith('core-rule:') && release.entries[key]),
+    )
+    const byName = within([
+      ...new Set([...holders.flatMap((holder) => nameKeys(holder.name).flatMap((name) => named.get(name) ?? [])), ...core]),
+    ])
     const owners = holders.flatMap((holder) =>
       holder.within.flatMap((id) => aliased.get(id) ?? []).filter((key) => key.startsWith('unit:')),
     )
