@@ -29,6 +29,7 @@ import { unitChoices, unitToggles } from '../core/unitChoices'
 import { wargearOf } from '../core/wargear'
 import { textNickname, textNote, type TextRoster, type TextRosterUnit } from '../core/textRoster'
 import { nicknamedUnit } from '../core/unitNotes'
+import { battleScribeRoster } from './battleScribeRoster'
 import { gwTextGroup, gwTextVersionLines, toGwText, type GwTextRoster } from '../core/gwText'
 import type { UnitGroup } from '../core/unitGroups'
 import {
@@ -2043,9 +2044,18 @@ export const pricedDispositionNames = (
   rules: Pick<LoadedRules, 'dispositions'> | null,
 ) => (priced.disposition ? [priced.disposition] : priced.dispositions).map((id) => rules?.dispositions.get(id) ?? id)
 
-export function exportRosterFile(data: ExportRosterInput, loaded: LoadedCatalogue, priced: ExportPrice, dispositionNames: string[]) {
+export function exportRosterFile(
+  data: ExportRosterInput,
+  loaded: LoadedCatalogue,
+  priced: ExportPrice,
+  dispositionNames: string[],
+  rules: LoadedRules | null = null,
+) {
   return {
-    text: toGwText(readableRoster(data, loaded, priced, dispositionNames), version) + gwTextVersionLines(loaded.edition, data.catalogueId),
+    text:
+      data.format === 'ros'
+        ? battleScribeRoster(data, loaded, rules, priced)
+        : toGwText(readableRoster(data, loaded, priced, dispositionNames), version) + gwTextVersionLines(loaded.edition, data.catalogueId),
     name: data.name,
     omittedUnitCount: data.units.length - priced.units.length,
     /** Saved detachments and options of printed units the current data no longer offers, which the text leaves out. */

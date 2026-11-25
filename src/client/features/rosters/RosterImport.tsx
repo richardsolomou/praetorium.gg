@@ -297,8 +297,10 @@ export function RosterImport({
         <FileUp /> Import roster
       </Button>
       <Dialog open={open} onOpenChange={(next) => !working && setOpen(next)}>
+        {/* Held at the top rather than centred, so choosing where to import from leaves the choice where it was. */}
         <DialogContent
           size="md"
+          className="sm:top-8 sm:translate-y-0"
           // The whole dialog, so the guide keeps clear of the actions in its footer.
           data-onboarding={review ? 'import-review' : undefined}
           actions={
@@ -312,9 +314,7 @@ export function RosterImport({
             <DialogDescription>
               {review
                 ? 'Review the matched list and any missing choices before continuing.'
-                : mode !== 'text'
-                  ? 'Find your lists and import them together. A list with anything to check opens for review first.'
-                  : 'Paste a supported army-text export or an exchange code. You will review the entries and points before importing.'}
+                : 'Bring in a list from another app or another player. Anything to check opens for review before it is saved.'}
             </DialogDescription>
           </DialogHeader>
 
@@ -439,21 +439,10 @@ export function RosterImport({
                       setRefusal(refuseRosterFile(format, 'file'))
                     }}
                     placeholder="Paste Games Workshop roster text or an exchange code…"
-                    className="h-52 min-h-52 field-sizing-fixed resize-none overflow-y-auto font-mono text-xs"
+                    className="h-52 min-h-52 field-sizing-fixed resize-none overflow-y-auto bg-sunken px-4 py-3 font-mono leading-relaxed md:text-2xs dark:bg-sunken"
                     disabled={working}
                     maxLength={200_000}
                   />
-                  <Button
-                    className="w-full"
-                    disabled={!text.trim() || working}
-                    onClick={() => {
-                      setRefusal(null)
-                      bring.mutate({ file: text })
-                    }}
-                  >
-                    {working ? <LoaderCircle className="animate-spin" /> : <Copy />}
-                    Import pasted roster
-                  </Button>
                 </div>
               )}
             </div>
@@ -496,6 +485,17 @@ export function RosterImport({
                   {onImport ? 'Open imported draft' : matchedAll ? 'Import roster' : 'Import anyway'}
                 </Button>
               </>
+            ) : mode === 'text' ? (
+              <Button
+                disabled={!text.trim() || working}
+                onClick={() => {
+                  setRefusal(null)
+                  bring.mutate({ file: text })
+                }}
+              >
+                {working ? <LoaderCircle className="animate-spin" /> : <Copy />}
+                Import pasted roster
+              </Button>
             ) : null}
           </DialogFooter>
         </DialogContent>

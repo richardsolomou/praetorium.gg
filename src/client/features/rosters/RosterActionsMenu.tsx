@@ -114,7 +114,7 @@ export function RosterActionsMenu({
   )
   const exportItem = (
     <DropdownMenuItem disabled={take.isPending || !hasUnits} onClick={() => take.mutate()}>
-      <Download /> Export text
+      <Download /> Export
     </DropdownMenuItem>
   )
 
