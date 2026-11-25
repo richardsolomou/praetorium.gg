@@ -96,6 +96,15 @@ const clean = lists
   .toSorted((left, right) => left.listing.list.localeCompare(right.listing.list))
   .slice(0, Number(values.limit ?? 200))
 
+/** Effects as JSON whatever order their fields were written in and however their keywords are cased, which no rule reads. */
+const canonicalJson = (value: unknown) =>
+  JSON.stringify(value, (_, entry: unknown) =>
+    typeof entry === 'string'
+      ? entry.toLocaleLowerCase('en-GB')
+      : entry && typeof entry === 'object' && !Array.isArray(entry)
+        ? Object.fromEntries(Object.entries(entry).toSorted(([left], [right]) => left.localeCompare(right)))
+        : entry,
+  )
 const round = (value: number | null | undefined) => (value === null || value === undefined ? null : Math.round(value * 1000) / 1000)
 const counts: Record<string, Record<string, number>> = {}
 const bump = (check: string, status: string) => ((counts[check] ??= {})[status] = (counts[check][status] ?? 0) + 1)
@@ -163,7 +172,7 @@ for (const [index, { listing, imported }] of clean.entries()) {
           return new Map(
             combatRuleSelections(all, {})
               .active(all)
-              .map((rule) => [rule.name, JSON.stringify(rule.effects)]),
+              .map((rule) => [rule.name, canonicalJson(rule.effects)]),
           )
         })
       }
