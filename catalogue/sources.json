@@ -96,48 +96,48 @@
   },
   "summaries": {
     "repository": "richardsolomou/vs-data",
-    "release": "rules-mfm-1-6-v0.18.1",
-    "asset": "vs-data-mfm-1-6-rule-summaries-v0.18.1.tar",
+    "release": "rules-mfm-1-6-v0.18.4",
+    "asset": "vs-data-mfm-1-6-rule-summaries-v0.18.4.tar",
     "license": "MIT",
     "licenseUrl": "https://github.com/richardsolomou/vs-data/blob/main/LICENSE",
     "attribution": "Rules summaries from VS Data",
     "description": "Original plain-language summaries of the rules of each rules version, each citing the official sources it was checked against.",
-    "revision": "5a06af54bb9edd644a5342e67d443b0772635dee470eaceac66e3f9202cfa821",
+    "revision": "37f23af8d26e831dd12eb8011c9daf73e01cc829e9f11ae44c782f0ab07b180d",
     "earlier": [
       {
-        "release": "rules-legacy-profiles-v0.12.1",
-        "asset": "vs-data-legacy-profiles-rule-summaries-v0.12.1.tar",
-        "revision": "27e6eaa3d5a18e8aa0f0d2649d81094aa3d6570b14aa34011fd724bf0732356c"
+        "release": "rules-legacy-profiles-v0.12.4",
+        "asset": "vs-data-legacy-profiles-rule-summaries-v0.12.4.tar",
+        "revision": "1bf43b013668fe1232abd04d7aa8d9d75328f6c04a158ac92c24cca26ae4eef5"
       },
       {
-        "release": "rules-legacy-rosters-v0.12.1",
-        "asset": "vs-data-legacy-rosters-rule-summaries-v0.12.1.tar",
-        "revision": "ef2284ed36f98ebc6134944a2b1d7ce95b232328a067b30c7c80f7b284e1c05d"
+        "release": "rules-legacy-rosters-v0.12.4",
+        "asset": "vs-data-legacy-rosters-rule-summaries-v0.12.4.tar",
+        "revision": "93dc9370a111a706985d7317f53db6a8d0766b516ad565981d8937813afbafb3"
       },
       {
-        "release": "rules-legacy-marine-old-v0.12.1",
-        "asset": "vs-data-legacy-marine-old-rule-summaries-v0.12.1.tar",
-        "revision": "8b62c4480c35577969d91cfc92ded73aea8a3a56e35edf32194ee8248582ccd6"
+        "release": "rules-legacy-marine-old-v0.12.4",
+        "asset": "vs-data-legacy-marine-old-rule-summaries-v0.12.4.tar",
+        "revision": "48ee1b325a6965e6eacfade5ca77eaee2ef255b0c07d79972e5b35e4493046c1"
       },
       {
-        "release": "rules-current-rosters-v0.12.1",
-        "asset": "vs-data-current-rosters-rule-summaries-v0.12.1.tar",
-        "revision": "d5eb75f2b12856b1e45312a91593751bfe19b7c16fc8e085fc7d6acdf76ca191"
+        "release": "rules-current-rosters-v0.12.4",
+        "asset": "vs-data-current-rosters-rule-summaries-v0.12.4.tar",
+        "revision": "5918df9bacd579b9536560aff218c764b92587eb5d5dc88a4516bd810323f912"
       },
       {
-        "release": "rules-marine-main-v0.12.1",
-        "asset": "vs-data-marine-main-rule-summaries-v0.12.1.tar",
-        "revision": "2bc554449af60a5bfeb794f03bba2540b596ad122f404c9ed9c5c875b68bd34c"
+        "release": "rules-marine-main-v0.12.4",
+        "asset": "vs-data-marine-main-rule-summaries-v0.12.4.tar",
+        "revision": "2a9872bff3388f89c365992602c5573f6fd21710d54f11fa7952e60c2ad58434"
       },
       {
-        "release": "rules-marine-2026-10-13-v0.12.1",
-        "asset": "vs-data-marine-2026-10-13-rule-summaries-v0.12.1.tar",
-        "revision": "fcea2983768e8a92ec9121ae5ebefd2d4dec6cd897bd214eff0b3c3cbba5150b"
+        "release": "rules-marine-2026-10-13-v0.12.4",
+        "asset": "vs-data-marine-2026-10-13-rule-summaries-v0.12.4.tar",
+        "revision": "35eca06ba3021e3e1577ebaf3b88904709d3dcdd39e2409681020970d75a33e5"
       },
       {
-        "release": "rules-marine-points-1013-v0.12.1",
-        "asset": "vs-data-marine-points-1013-rule-summaries-v0.12.1.tar",
-        "revision": "9107a2576fd78ae6b6baa53ade46ee078abcc4497a9174bcf07ea02e6074425f"
+        "release": "rules-marine-points-1013-v0.12.4",
+        "asset": "vs-data-marine-points-1013-rule-summaries-v0.12.4.tar",
+        "revision": "d9314d6dee0c5b0d5331f536762d55efcdab639c1b147d09874f7c89fe183449"
       }
     ]
   }
