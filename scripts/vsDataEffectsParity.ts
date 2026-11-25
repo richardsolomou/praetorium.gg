@@ -213,7 +213,14 @@ const effectsShape = (reading: CombatReading | null) =>
  * whether anything else differs, such as what a datasheet shows or the units a rule admits.
  */
 function combatParity(today: CombatFacts | null | undefined, vs: CombatFacts | null | undefined, name: string, stratagem: boolean) {
-  const result = { refused: [] as string[], gained: [] as string[], changed: [] as string[], shown: false, judging: false }
+  const result = {
+    refused: [] as string[],
+    gained: [] as string[],
+    changed: [] as string[],
+    shown: false,
+    judging: false,
+    today: undefined as string | null | undefined,
+  }
   if (!today && !vs) return result
   const answers = answerSets(name, today, vs)
   const placements = new Set(
@@ -229,6 +236,7 @@ function combatParity(today: CombatFacts | null | undefined, vs: CombatFacts | n
       const list = l && !r ? result.refused : !l && r ? result.gained : l !== r ? result.changed : null
       if (values.detail && list === result.changed && !list.includes(placement))
         details.push({ name, placement, today: JSON.parse(l!), vs: JSON.parse(r!) })
+      if (list === result.refused && result.today === undefined) result.today = l
       if (list && !list.includes(placement)) list.push(placement)
       if (shape(left && { ...left, legacy: [], compiled: null }) !== shape(right && { ...right, legacy: [], compiled: null }))
         result.shown = true
