@@ -1,0 +1,8 @@
+diff --git a/definitions/Imperium - Space Marines.json b/definitions/Imperium - Space Marines.json
+--- a/definitions/Imperium - Space Marines.json
++++ b/definitions/Imperium - Space Marines.json
+@@ -16876,3 +16876,3 @@
+           {
+-            "name": "Sternguard Focus",
++            "name": "Veteran Marksmen",
+             "id": "f7ef-79f2-60c-8568",
