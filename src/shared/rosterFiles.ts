@@ -25,7 +25,7 @@ import { buildUnit } from '../core/roster'
 import { builtPickSelections } from '../core/rosterSelections'
 import { modelCountOf } from '../core/unitSize'
 import { at as selectionAt } from '../core/selection'
-import { unitChoices, unitToggles } from '../core/unitChoices'
+import { hasWarlordToggle, unitChoices, unitToggles, type UnitToggle } from '../core/unitChoices'
 import { wargearOf } from '../core/wargear'
 import { textNickname, textNote, type TextRoster, type TextRosterUnit } from '../core/textRoster'
 import { nicknamedUnit } from '../core/unitNotes'
@@ -2035,6 +2035,7 @@ type ExportPrice = {
     enhancements: string[]
     upgrades: string[]
     wargear: { name: string; count: number }[]
+    toggles: readonly UnitToggle[]
   }[]
 }
 
@@ -2090,7 +2091,7 @@ export function readableRoster(data: ExportRosterInput, loaded: LoadedCatalogue,
       attachedToEntry: data.units[unit.key]?.attachedTo !== undefined ? data.units[unit.key]!.attachedTo! + 1 : undefined,
       points: unit.points,
       group: gwTextGroup(unit.group),
-      warlord: Object.values(data.units[unit.key]?.toggles ?? {}).some((count) => count > 0),
+      warlord: hasWarlordToggle(unit.toggles),
       joined: attachmentRows(keyedPicks, unitsByPick, unit.key).map(({ label, name }) => ({ label, name })),
       enhancements: unit.enhancements,
       upgrades: unit.upgrades,
