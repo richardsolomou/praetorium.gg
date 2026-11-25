@@ -2,7 +2,7 @@ import { groupBy, RecentlyUsed, remember, uniqueBy } from './collections'
 import type { Datasheet, DatasheetCharacteristicKind } from './datasheet'
 import { datasheetCharacteristicKind, datasheetProfileKind, datasheetProfilesByKind } from './datasheetStructure'
 import { carrierModelProfiles, combatEquipmentMatches, type CombatCarrier } from './combatLoadout'
-import { wargearBaseName, wargearKey } from './wargearNames'
+import { hunterTargets, wargearBaseName, wargearKey } from './wargearNames'
 import { combatSchema, diceExpression, type CombatInput, type CombatWeapon, type CombatPhase } from './combat'
 import { combatKeyword, combatKeywordApplies, normalizeCombatKeyword as normalized } from './combatKeywords'
 import { splitWeaponKeywords } from './ruleReference'
@@ -254,6 +254,11 @@ type ShootingType = keyof typeof SHOOTING_TYPES
 
 const has = (profile: Profile, keyword: string) =>
   splitWeaponKeywords(value(profile, 'keywords')).some((written) => combatKeyword(written)?.kind === keyword)
+/** Whether a profile may target this defender: a Hunter profile only one with a keyword it names. */
+const huntsTarget = (name: string, targetKeywords: readonly string[]) => {
+  const hunted = hunterTargets(name)
+  return !hunted || hunted.some((keyword) => targetKeywords.some((target) => normalized(target) === normalized(keyword)))
+}
 const namesMonsterOrVehicle = (keywords: readonly string[]) =>
   keywords.some((keyword) => ['monster', 'vehicle'].includes(normalized(keyword)))
 
@@ -363,8 +368,9 @@ export function combatPlan(
   const idleModes = new Set<string>()
   for (const [at, carrier] of carriers.entries()) {
     const equipment = carrier.weapons.flatMap((piece) => {
-      const modes = profiles.filter(({ profile }) => combatEquipmentMatches(piece, profile))
-      for (const { profile } of modes) accounted.set(profile.id, (accounted.get(profile.id) ?? 0) + piece.count)
+      const carried = profiles.filter(({ profile }) => combatEquipmentMatches(piece, profile))
+      for (const { profile } of carried) accounted.set(profile.id, (accounted.get(profile.id) ?? 0) + piece.count)
+      const modes = carried.filter(({ profile }) => huntsTarget(profile.name, targetKeywords))
       if (!modes.length) return []
       const modeKey = `${phase}:${at}:${wargearBaseName(piece.name, true)}`
       const selected = choose(
