@@ -2,6 +2,8 @@ import { useQuery } from '@tanstack/react-query'
 import { createContext, useContext } from 'react'
 import type { RuleSummary, RuleSummaryBlock, RuleSummaryInline } from '../../contracts/rules'
 import { catalogueEditionId } from '../../core/catalogueEdition'
+import { canonicalDetachmentName } from '../../core/detachmentName'
+import { routeSlug } from '../../core/slug'
 import type { VsDataInvulnerableSave, VsDataUnit, VsDataUnits } from '../../shared/vsData'
 import { ruleUnitsQuery } from '../queries/references'
 import { abilitySummaryIn, datasheetAbilitySummary } from '../../shared/vsDataAbilities'
@@ -29,7 +31,8 @@ export const DatasheetUnit = createContext<string | null>(null)
 export const datasheetUnit = (catalogueId: string, entryId: string) => `${catalogueId}#${entryId}`
 /** A detachment as the owner of its rules, enhancements and upgrades: VS Data names them `<faction>.<detachment>.<name>`. */
 export const detachmentRulesOwner = (catalogueId: string, factionSlug: string, detachmentSlug: string) =>
-  `${catalogueId}#@${factionSlug}.${detachmentSlug}`
+  // By the name the rest give a detachment BSData spells otherwise, as its unfinished "Deathwatch Support (ITS NOT READY)".
+  `${catalogueId}#@${factionSlug}.${routeSlug(canonicalDetachmentName(detachmentSlug))}`
 /** A faction as the owner of its army rules: VS Data names them `<faction>.<name>`. */
 export const factionRulesOwner = (catalogueId: string, factionSlug: string) => `${catalogueId}#@${factionSlug}`
 

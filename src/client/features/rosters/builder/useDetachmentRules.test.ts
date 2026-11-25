@@ -19,3 +19,21 @@ it('reads a detachment rule a datasheet shows as the detachment’s, which anoth
     summary,
   ])
 })
+
+it('reads a detachment BSData marks unfinished by the name the rest give it, and no other detachment’s rule of that name', () => {
+  const support = { blocks: [{ paragraph: [{ text: 'Deathwatch Support' }] }], questions: [] }
+  const blackSpear = { blocks: [{ paragraph: [{ text: 'Black Spear' }] }], questions: [] }
+  const units: VsDataUnits = {
+    units: {},
+    aliases: {},
+    abilities: {
+      'space-marines.deathwatch-support.beacon-angelis': support,
+      'deathwatch.black-spear-task-force.beacon-angelis': blackSpear,
+    },
+  }
+  const owner = detachmentRuleOwners('marines', {
+    slug: 'space-marines',
+    detachments: [{ id: 'support', slug: 'deathwatch-support-its-not-ready' }],
+  }).support!
+  expect(abilitySummaryIn(units, owner.split('#')[1]!, 'Beacon Angelis')).toBe(support)
+})
