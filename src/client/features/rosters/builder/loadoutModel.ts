@@ -54,6 +54,8 @@ export type LoadoutChoice = {
     keywordRules?: Datasheet['keywordRules']
     combat?: CombatFacts | null
     reminder?: ReminderSuggestion
+    /** The id of the list's detachment an enhancement or upgrade belongs to, where the price could tell. */
+    detachment?: string
   }[]
 }
 

@@ -7,7 +7,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import type { RosterPick } from '../../../../core/roster'
 import { isUnitCompositionChoice } from '../../../../core/unitChoices'
 import { primaryUnitProfile, weaponProfileGroups } from '../../../datasheet'
-import { datasheetLoad, type Fielded, loadoutDatasheetsQuery } from '../../../queries'
+import { datasheetLoad, factionQuery, type Fielded, loadoutDatasheetsQuery } from '../../../queries'
 import { useSettled } from '../../../useSettled'
 import { UnitProfile, type WeaponMark, WeaponProfiles, WeaponSummary } from '../../../components/DatasheetProfiles'
 import {
@@ -25,6 +25,7 @@ import { EitherChoice, LoadoutLoading, type OptionNote, SpecialChoice, SpreadCho
 import { ModelCard } from './ModelCard'
 import { DatasheetUnit, datasheetUnit, useVsDataUnit } from '../../../components/UnitFromVsData'
 import { BattleChoices, useBattleChoices } from './BattleChoices'
+import { detachmentRuleOwners } from './useDetachmentRules'
 import type { ReminderControls } from '../ReminderButton'
 import { Problem } from '../../../components/Problem'
 
@@ -98,6 +99,8 @@ export function Loadout({
   const capturedAt = useRef(0)
   // Only once the player stops changing the list, so a held stepper asks once.
   const detachments = useSettled(detachmentIds)
+  const { data: faction } = useQuery({ ...factionQuery(catalogueId), enabled: Boolean(catalogueId) })
+  const ruleOwners = useMemo(() => detachmentRuleOwners(catalogueId, faction), [catalogueId, faction])
   const settledPicks = useSettled(picks)
 
   // A pane that swapped units keeps nothing from the last one; one that only had a
@@ -263,6 +266,7 @@ export function Loadout({
                         onChoose={onChoose}
                         showOptions={showOptions}
                         reminders={reminders}
+                        detachmentRuleOwners={ruleOwners}
                       />
                     ) : choice.room > 1 && !choice.uniform ? (
                       <SpreadChoice

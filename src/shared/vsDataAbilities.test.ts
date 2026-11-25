@@ -177,3 +177,37 @@ it('reads no other faction’s rule of another name that VS Data aliases a profi
   }
   expect(datasheetAbilitySummary(marines, 'assault', 'Hammer of Wrath', 'hammer-of-wrath-profile', null)).toBeNull()
 })
+
+it('reads the record of its own detachment its printed text names under another name, whatever catalogue owns the detachment', () => {
+  const champion = said('Venerable Champion')
+  expect(
+    datasheetAbilitySummary(daemons({}), '@marines-codex.ironclad-champions', 'Venerable Champion (Aura)', undefined, {
+      id: 'ability:space-marines.ironclad-champions.venerable-champion-aura-upgrade',
+      summary: champion,
+    }),
+  ).toBe(champion)
+})
+
+it('reads its owner’s record of a name the catalogue misspells', () => {
+  const camouflage = said('Naturalised Camouflage')
+  expect(
+    abilitySummaryIn(
+      { units: {}, aliases: {}, abilities: { 'tyranids.unending-swarm.naturalised-camouflage': camouflage } },
+      '@tyranids-catalogue.unending-swarm',
+      'Naturalised Camoflage',
+    ),
+  ).toBe(camouflage)
+})
+
+it('reads no record of its owner a short name differs from by a word', () =>
+  expect(
+    abilitySummaryIn(
+      {
+        units: { belakor: { id: 'chaos-daemons.belakor', sizes: [], models: [], options: [] } },
+        aliases: {},
+        abilities: { 'chaos-daemons.belakor.shadow-lord-aura-psychic': said('Shadow Lord') },
+      },
+      'belakor',
+      'Shadow Form',
+    ),
+  ).toBeNull())

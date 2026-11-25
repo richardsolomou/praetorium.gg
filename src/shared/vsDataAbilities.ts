@@ -50,19 +50,29 @@ function ownersAbility(units: VsDataUnits, subject: string, name: string, id?: s
   // A detachment another faction's page shows, as Dark Angels show the Space Marines' Stormlance Task Force, is the one
   // owner of that detachment's name.
   const detachment = subject.startsWith('@') && owner?.includes('.') ? owner.slice(owner.indexOf('.')) : null
-  const named = detachment ? [...byOwner].filter(([held, abilities]) => held.endsWith(detachment) && abilities.has(slug)) : []
+  const named = detachment
+    ? [...byOwner].flatMap(([held, abilities]) => (held.endsWith(detachment) ? [ownedNamed(abilities, slug, name)].filter(Boolean) : []))
+    : []
   return {
     own: [
-      owner ? byOwner.get(owner)?.get(slug) : undefined,
+      owner ? ownedNamed(byOwner.get(owner), slug, name) : undefined,
       shared ? units.abilities[shared] : undefined,
       aliased ? units.abilities[aliased] : undefined,
     ],
     faction: [
       owner ? byOwner.get(owner.split('.')[0]!)?.get(slug) : undefined,
-      named.length === 1 ? named[0]![1].get(slug) : undefined,
+      named.length === 1 ? named[0] : undefined,
       faction.length === 1 ? faction[0]![1].get(slug) : undefined,
     ],
   }
+}
+
+/** Its owner's record of this name, or else the one of its records a name the catalogue misspells stands for. */
+function ownedNamed(abilities: Map<string, RuleSummary> | undefined, slug: string, name: string) {
+  const exact = abilities?.get(slug)
+  if (exact || !abilities) return exact
+  const near = [...abilities].filter(([key]) => namesIt(key, name))
+  return near.length === 1 ? near[0]![1] : undefined
 }
 
 /** An ability's summary among VS Data's, by name, for the datasheet entry (or `@` and the VS Data owner) it is printed on. */
@@ -88,7 +98,9 @@ export function datasheetAbilitySummary(
   const ability = printed?.id.startsWith('ability:') ? printed : null
   const owner = subject.startsWith('@') ? subject.slice(1) : units?.units[subject]?.id
   const held = ability?.id.slice('ability:'.length, ability.id.lastIndexOf('.'))
-  const ownUnits = owner !== undefined && held === owner
+  // A detachment's own record is under its faction's VS Data id, which an edition's catalogue id stands in for.
+  const detachment = subject.startsWith('@') && owner?.includes('.') ? owner.slice(owner.indexOf('.')) : null
+  const ownUnits = owner !== undefined && (held === owner || (detachment !== null && Boolean(held?.endsWith(detachment))))
   // Another owner's record, a unit's, a Detachment's or another faction's, reaches it only by the same name.
   const reaches = ability && (!units || ownUnits || !held?.includes('.') || namesIt(ability.id, name))
   return (
@@ -110,20 +122,22 @@ function namesIt(record: string, name: string) {
   const key = letters(record.slice(Math.max(record.lastIndexOf('.'), record.indexOf(':')) + 1))
   return [abilityKey(name), ...abilityKeysNamed(name).map((named) => named.slice(named.indexOf(':') + 1))].some((named) => {
     const spelt = letters(named)
-    return spelt === key || (Math.min(spelt.length, key.length) >= 10 && misspelt(spelt, key))
+    // One letter in ten, two in fourteen: Shadow Form is not Be'lakor's Shadow Lord.
+    const shorter = Math.min(spelt.length, key.length)
+    return spelt === key || (shorter >= 10 && misspelt(spelt, key, shorter >= 14 ? 2 : 1))
   })
 }
 
 const letters = (slug: string) => abilityKey(slug).replaceAll('-', '')
 
-/** Whether two spellings are at most two insertions, deletions or substitutions apart. */
-function misspelt(left: string, right: string) {
-  if (Math.abs(left.length - right.length) > 2) return false
+/** Whether two spellings are at most `edits` insertions, deletions or substitutions apart. */
+function misspelt(left: string, right: string, edits: number) {
+  if (Math.abs(left.length - right.length) > edits) return false
   let row = Array.from({ length: right.length + 1 }, (_, at) => at)
   for (let i = 0; i < left.length; i++) {
     const next = [i + 1]
     for (let j = 0; j < right.length; j++) next.push(Math.min(row[j + 1]! + 1, next[j]! + 1, row[j]! + (left[i] === right[j] ? 0 : 1)))
     row = next
   }
-  return row[right.length]! <= 2
+  return row[right.length]! <= edits
 }

@@ -2,6 +2,8 @@ import { groupBy, RecentlyUsed, uniqueBy, remember } from '../core/collections'
 import { armyIds, attachmentErrors, attachmentPartyOf, inArmy } from '../core/attach'
 import { attachmentHost } from '../core/attachedUnits'
 import { routeSlug } from '../core/slug'
+import { joinKey } from '../core/text'
+import { canonicalDetachmentName } from '../core/detachmentName'
 import {
   borrowedDispositionError,
   detachmentPointBudget,
@@ -543,6 +545,23 @@ function calculateRoster(
     loaded.index.textFacts,
   )
   const enhancementDescriptions = new Map(detachmentSpecials.flatMap(({ described }) => [...described]))
+  // Whose an enhancement or upgrade is, so its summary reads as that detachment's: the one chosen detachment whose card
+  // prints its name; else the one BSData files its entry under, by name in the entry's comment; else the list's only one.
+  const enhancementDetachment = (optionId: string, name: string) => {
+    const printing = detachmentSpecials.filter(({ detail, catalogue }) =>
+      [...(detail?.enhancements ?? []), ...(detail?.upgrades ?? []), ...(catalogue?.forcedEnhancements ?? [])].some(
+        (enhancement) => cardName(enhancement.name) === cardName(name),
+      ),
+    )
+    if (printing.length === 1) return printing[0]!.option.id
+    const candidates = printing.length ? printing : detachmentSpecials
+    const definition = loaded.index.definitions.get(optionId)
+    const comment = definition && targetOf(definition, loaded.index.definitions).comment
+    const filed = comment
+      ? candidates.filter(({ option }) => joinKey(canonicalDetachmentName(option.name)) === joinKey(canonicalDetachmentName(comment)))
+      : candidates
+    return filed.length === 1 ? filed[0]!.option.id : undefined
+  }
   const budget = detachmentPointBudget(data.limit)
   const spent = purchased.reduce((total, option) => total + (option.points ?? 0), 0)
   const upgradeNames = new Set([
@@ -786,12 +805,14 @@ function calculateRoster(
           kind,
           options: choiceOptions.map((option) => {
             const description = findEnhancementDescription(enhancementDescriptions, chosen, option.name)
+            const detachment = enhancementDetachment(option.id, option.name)
             const combat = description === null ? undefined : combatFactsIn(description, loaded.index.textFacts)
             const reminder = description === null ? undefined : reminderIn(description, loaded.index.textFacts)
             return {
               ...option,
               description,
               keywordRules: rulesReferencedIn(loaded, [description]),
+              ...(detachment ? { detachment } : {}),
               // A device that holds no words judges the option in combat and suggests its reminder from these.
               ...(combat === undefined ? {} : { combat }),
               ...(reminder ? { reminder } : {}),

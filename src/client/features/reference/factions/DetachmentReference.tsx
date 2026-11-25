@@ -3,10 +3,10 @@ import { Link } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 import { routeSlug } from '../../../../core/slug'
 import { detachmentDetailQuery } from '../../../queries'
-import { RuleText } from '../../../components/RuleText'
+import { RuleText, SummaryByName } from '../../../components/RuleText'
 import { stratagemWindowsLabel } from '../../../../core/reminders'
-import { DatasheetUnit, detachmentRulesOwner, useReleaseAbilities, useUnitAbilitySummary } from '../../../components/UnitFromVsData'
-import { RuleSummarySkeleton, RuleSummaryText } from '../../../components/RuleSummaryText'
+import { DatasheetUnit, detachmentRulesOwner, useReleaseAbilities } from '../../../components/UnitFromVsData'
+import { RuleSummaryText } from '../../../components/RuleSummaryText'
 import { dispositionTone } from '../../../components/rosterSetup'
 import { FactionMark, factionColour, type FactionPresentation } from '../../../components/FactionMark'
 import { FavouriteDetachmentToggle } from './FavouriteDetachmentToggle'
@@ -127,7 +127,7 @@ export function DetachmentReference({
                     {enhancement.description ? (
                       <RuleText text={enhancement.description} rules={detachment.keywordRules} name={enhancement.name} />
                     ) : (
-                      <SummaryByName name={enhancement.name} />
+                      <SummaryByName name={enhancement.name} fallback={<Unavailable />} />
                     )}
                   </article>
                 ))}
@@ -203,8 +203,3 @@ function Unavailable() {
 }
 
 /** The VS Data summary of a card the build has only in its app, found by its name among the detachment's records. */
-function SummaryByName({ name }: { name: string }) {
-  const summary = useUnitAbilitySummary(name, true)
-  if (summary === undefined) return <RuleSummarySkeleton />
-  return summary ? <RuleSummaryText summary={summary} /> : <Unavailable />
-}
