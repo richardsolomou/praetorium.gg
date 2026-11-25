@@ -308,7 +308,7 @@ export const EFFECT_BLOCKS = [
 ] as const satisfies readonly (keyof VsDataEffectBlocks)[]
 
 /** The effect fields Praetorium cannot apply yet, which `effectOf` reads as its own reading always has. */
-export const UNAPPLIED_EFFECT_FIELDS = ['bearerOnly', 'modelKeywords', 'wounds', 'regainWounds'] as const
+export const UNAPPLIED_EFFECT_FIELDS = ['modelKeywords', 'wounds', 'regainWounds'] as const
 
 const TURN: Record<'own' | 'opponent' | 'any', ReminderTiming['turn']> = { own: 'your-turn', opponent: 'opponent-turn', any: 'either' }
 const PROFILE = { ranged: 'Ranged Weapons', melee: 'Melee Weapons' } as const
@@ -410,15 +410,15 @@ function conditionLabel(condition: VsDataCondition): string {
 }
 
 /**
- * An effect as Praetorium applies it. What VS Data limits to the bearer, or to models with some keywords, Praetorium still
- * gives the whole unit, and it changes no Wounds and calculates no mortal wounds outside the attacks, as its own reading of
- * the words always has: the simulator has no way to do either yet. An effect left with nothing Praetorium applies is none.
+ * An effect as Praetorium applies it. What VS Data limits to models with some keywords, Praetorium still gives the whole
+ * unit, and it changes no Wounds and calculates no mortal wounds outside the attacks, as its own reading of the words always
+ * has: the simulator has no way to do either yet. An effect left with nothing Praetorium applies is none.
  */
 function effectOf(effect: VsDataEffect): CombatRuleEffect | null {
   const { attacks, weaponAbility, weaponHas, rolls, characteristic, mortalWounds: mortals, ...rest } = effect
   const mortalWounds = mortals?.timing === 'outside-attacks' ? undefined : mortals
-  const { bearerOnly: _bearerOnly, modelKeywords: _modelKeywords, wounds: _wounds, regainWounds: _regainWounds, ...applied } = rest
-  const { role: _role, ...given } = applied
+  const { modelKeywords: _modelKeywords, wounds: _wounds, regainWounds: _regainWounds, ...applied } = rest
+  const { role: _role, bearerOnly: _bearerOnly, ...given } = applied
   // The simulator re-rolls one save of the defender's only through its Command Re-roll, so a rule's single save re-roll
   // is left out, as Praetorium's reading of the words always has.
   const { saveReroll: _saveReroll, singleRerolls, ...otherRolls } = rolls ?? {}

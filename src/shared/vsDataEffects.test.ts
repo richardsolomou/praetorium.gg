@@ -30,13 +30,6 @@ it('reads a Stratagem’s Fight phase placement', () => {
   expect(Object.keys(facts.combat!.readings)).toEqual(['stratagem:1:0:melee'])
 })
 
-it('gives the whole unit an effect VS Data limits to the bearer, as Praetorium always has', () => {
-  const facts = textFactsOfVsData(combat({ choices: [{ conditions: [], effects: [{ ...reroll, bearerOnly: true }] }], default: 1 }))
-  expect(facts.combat!.leaves[0]!.compiled!.choices[0]!.effects).toEqual([
-    { role: 'attacker', phases: ['melee'], options: { hitReroll: 'ones' } },
-  ])
-})
-
 it('names a choice by its conditions', () => {
   const facts = textFactsOfVsData(
     combat({ choices: [{ conditions: [{ kind: 'charged' }, { kind: 'within', inches: 6 }], effects: [reroll] }], default: 0 }),

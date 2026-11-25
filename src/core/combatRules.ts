@@ -121,6 +121,8 @@ export type CombatRuleEffect = {
   ability?: string
   /** Options of the unit's other rules this makes active together, as an enhancement that makes two Doctrina Imperatives active. */
   activates?: string[]
+  /** The effect is the bearer's alone: the attacks of the unit whose rule it is, or attacks on it, not those of a unit it leads. */
+  bearerOnly?: true
 }
 export type CombatRuleChoice = {
   label: string
@@ -830,6 +832,23 @@ export function combatRuleMortals(
       return [{ ...mortals, rolls: mortals.perToughness ? toughness! : mortals.perModel ? models : mortals.rolls }]
     }),
   )
+}
+
+type RuledMember = { sheet: Datasheet; rules?: readonly ActiveCombatRule[] }
+
+/** An attached unit whose members keep a rule's bearer-only effects to the member whose rule it is. */
+export function withBearerEffects<Unit extends RuledMember & { companions?: readonly RuledMember[] }>(unit: Unit): Unit {
+  if (!unit.companions?.length) return unit
+  const names = new Set([unit, ...unit.companions].map((member) => member.sheet.name))
+  const own = <Member extends RuledMember>(member: Member): Member => ({
+    ...member,
+    rules: member.rules?.map((rule) =>
+      rule.source && rule.source !== member.sheet.name && names.has(rule.source) && rule.effects.some((effect) => effect.bearerOnly)
+        ? { ...rule, effects: rule.effects.filter((effect) => !effect.bearerOnly) }
+        : rule,
+    ),
+  })
+  return { ...own(unit), companions: unit.companions.map(own) }
 }
 
 export function combatRuleWeapons(
