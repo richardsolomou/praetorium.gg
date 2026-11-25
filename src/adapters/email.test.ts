@@ -23,7 +23,7 @@ it('sends the template by its PostHog id with the idempotency key', async () => 
 
   const [url, init] = fetch.mock.calls[0]!
   expect([url, (init.headers as Record<string, string>)['Idempotency-Key'], JSON.parse(init.body as string)]).toEqual([
-    'https://us.posthog.com/api/projects/@current/messaging/send/email/',
+    'https://us.posthog.com/api/messaging/send/email/',
     'reset:1',
     expect.objectContaining({
       template_id: EMAIL_TEMPLATES.resetPassword,
