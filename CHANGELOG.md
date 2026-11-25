@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.277.4 (2026-11-25)
+
+### Patch Changes
+
+- ab3326c: [rosters] A detachment your army can never add alongside another now says so, rather than pointing at its detachment points.
+- 1473dc6: [rosters] An Onslaught list with more than one detachment can now spend at most 3 detachment points, as in the official app, unless you switch that restriction off.
+- ab3326c: [battles] A list whose detachment points restriction is switched off can now join a battle even when its detachments cost more than the battle size allows.
+
 ## 0.277.3 (2026-11-25)
 
 ### Patch Changes
