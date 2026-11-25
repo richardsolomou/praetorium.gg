@@ -20,8 +20,6 @@ import { type DefinitionTexts, type LoadedCatalogue, catalogueFromIndex } from '
 import { completeSteps, type Steps } from '../shared/steps'
 import { liveCatalogueRevision } from './liveCatalogue'
 import { readRevisions } from './catalogueSources'
-const NO_FACTS: TextFacts = { combat: null }
-
 /** What list building reads of a text, which is still read from the words until lists are built from VS Data alone. */
 const LEGALITY = ['attachment', 'substitutes', 'reserveSelectors', 'reserveExemption'] as const
 const withLegality = (facts: TextFacts, words: TextFacts | undefined): TextFacts => {
@@ -37,7 +35,7 @@ export function catalogueDirectory(dataDirectory = process.env.DATA_DIR ?? '/dat
 export function loadCatalogue(
   directory = catalogueDirectory(),
   edition?: CatalogueEdition,
-  options?: { vsDataDirectory?: string },
+  options?: { snapshotDirectory?: string },
 ): LoadedCatalogue | null {
   return completeSteps(loadCatalogueSteps(directory, edition, options))
 }
@@ -47,8 +45,8 @@ export function* loadCatalogueSteps(
   edition?: CatalogueEdition,
   {
     /** The snapshot holding every rules version's VS Data release, which a rules version's own folder does not. */
-    vsDataDirectory = directory,
-  }: { vsDataDirectory?: string } = {},
+    snapshotDirectory = directory,
+  }: { snapshotDirectory?: string } = {},
 ): Steps<LoadedCatalogue | null> {
   const definitions = path.join(directory, 'definitions')
   const revisionFile = path.join(directory, 'revision.json')
@@ -105,8 +103,8 @@ export function* loadCatalogueSteps(
   const shown = texts.withTwins(twins)
   const shownCards = withoutTwinSearch(datacards)
   // What every rule does is read from VS Data's effect blocks, where the snapshot keeps them; a text joining no record
-  // takes no part in anything the rules read.
-  const effects = vsDataTextFacts(vsDataDirectory, edition?.id, cardDirectory, shown, index.datasheets)
+  // VS Data has read yet keeps the reading of its words, so nothing calculated today stops being calculated.
+  const effects = vsDataTextFacts(snapshotDirectory, edition?.id, cardDirectory, shown, index.datasheets)
   const readFacts = new Map<string, TextFacts>()
   const loaded: LoadedCatalogue = {
     ...ownTexts,
@@ -116,7 +114,11 @@ export function* loadCatalogueSteps(
       effects
         ? {
             get: (key) =>
-              remember(readFacts, key, () => withLegality(effects.get(key) ?? NO_FACTS, shown.fact(key) ?? cardFacts?.get(key))),
+              remember(readFacts, key, () => {
+                const words = shown.fact(key) ?? cardFacts?.get(key)
+                const read = effects.get(key)
+                return read ? withLegality(read, words) : words
+              }),
           }
         : undefined,
     ),

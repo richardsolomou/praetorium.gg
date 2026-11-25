@@ -23,8 +23,8 @@ export type VsDataTextFacts = TextFactsByKey & { join: (key: string) => VsDataJo
  * What each text of a rules version states, by `factsKey`, read from the VS Data record it joins: a card's string joins
  * the record VS Data aliases its card to, as its summary does; a catalogue string joins the record VS Data aliases the
  * rule or profile holding it to, else the record of that rule's name, its own faction's where several factions' say
- * otherwise. A text that joins no record, or several that say different things, states nothing. Null where the
- * snapshot keeps no effect blocks for the rules version.
+ * otherwise. A text that joins no record VS Data has read, or several that say different things, has no facts here.
+ * Null where the snapshot keeps no effect blocks for the rules version.
  */
 export function vsDataTextFacts(
   /** The snapshot, which holds every rules version's release. */
@@ -117,7 +117,8 @@ export function vsDataTextFacts(
     join,
     get: (key) => {
       const { record } = join(key)
-      return record ? remember(facts, record, () => textFactsOfVsData(effects[record] ?? {})) : undefined
+      // A record without blocks is one VS Data has not read yet.
+      return record && effects[record] ? remember(facts, record, () => textFactsOfVsData(effects[record]!)) : undefined
     },
   }
 }

@@ -59,7 +59,7 @@ function loadEdition(id: string) {
     loadRules(target, {
       battlemasterDirectory: path.join(directory, 'battlemaster'),
       iconDirectory: path.join(directory, 'icons'),
-      vsDataDirectory: directory,
+      snapshotDirectory: directory,
       rulesVersion: id,
       catalogue: loaded,
     })
@@ -213,7 +213,13 @@ const effectsShape = (reading: CombatReading | null) =>
  * where only today's calculates an effect (refused), only VS Data's does (gained), both do but differently (changed), and
  * whether anything else differs, such as what a datasheet shows or the units a rule admits.
  */
-function combatParity(today: CombatFacts | null | undefined, vs: CombatFacts | null | undefined, name: string, stratagem: boolean) {
+function combatParity(
+  today: CombatFacts | null | undefined,
+  vs: CombatFacts | null | undefined,
+  name: string,
+  stratagem: boolean,
+  record: string | null = null,
+) {
   const result = {
     refused: [] as string[],
     gained: [] as string[],
@@ -236,7 +242,7 @@ function combatParity(today: CombatFacts | null | undefined, vs: CombatFacts | n
       const [l, r] = [effectsShape(left), effectsShape(right)]
       const list = l && !r ? result.refused : !l && r ? result.gained : l !== r ? result.changed : null
       if (values.detail && list === result.changed && !list.includes(placement))
-        details.push({ name, placement, today: JSON.parse(l!), vs: JSON.parse(r!) })
+        details.push({ record, name, placement, today: JSON.parse(l!), vs: JSON.parse(r!) })
       if (list === result.refused && result.today === undefined) result.today = l
       if (list && !list.includes(placement)) list.push(placement)
       if (shape(left && { ...left, legacy: [], compiled: null }) !== shape(right && { ...right, legacy: [], compiled: null }))
@@ -332,7 +338,7 @@ for (const text of texts.values()) {
     const right = of(vs)
     if (field === 'combat') {
       if (!left && !right) continue
-      const parity = combatParity(left as CombatFacts | null, right as CombatFacts | null, text.name, text.place === 'stratagem')
+      const parity = combatParity(left as CombatFacts | null, right as CombatFacts | null, text.name, text.place === 'stratagem', record)
       const statuses = [
         ...(parity.refused.length ? [record ? 'refuses' : 'refuses:no-record'] : []),
         ...(parity.changed.length ? ['changes'] : []),
