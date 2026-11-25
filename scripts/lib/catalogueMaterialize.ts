@@ -14,7 +14,7 @@ import {
 import { fetchBattlemasterInto, fetchInto, fetchReleaseInto } from '../../src/server/sync'
 import { applyPatches } from './cataloguePatches'
 import { type CatalogueComposition, readCatalogueComposition } from '../../src/server/catalogueComposition'
-import { checkVsDataRelease, compactVsDataRelease } from '../../src/server/vsDataRelease'
+import { checkVsDataRelease, compactVsDataRelease, writeVsDataConstruction } from '../../src/server/vsDataRelease'
 import { replaceDirectory } from '../../src/server/replaceDirectory'
 import { withholdCopiedSummaries } from '../../src/server/vsDataSummaries'
 import { composeCatalogue, validateCatalogueImports } from './catalogueComposition'
@@ -74,6 +74,7 @@ async function materializeSummaries(
     }
     const file = path.join(target, `${edition}.json`)
     if (fs.existsSync(file)) throw new Error(`${release.release} describes a rules version another pinned release already does`)
+    writeVsDataConstruction(unpacked, path.join(target, `${edition}.construction.json`))
     compactVsDataRelease(unpacked, file)
   }
 }

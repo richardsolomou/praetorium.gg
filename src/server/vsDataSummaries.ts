@@ -5,6 +5,7 @@ import { routeSlug } from '../core/slug'
 import { sourceStrings } from '../core/sourceText'
 import {
   MISSION_SUMMARIES,
+  RULE_SUMMARIES,
   type RuleDocument,
   type RuleSummaries,
   type RuleSummary,
@@ -36,7 +37,7 @@ export const NO_RULE_SUMMARIES: RuleSummaries = { records: {}, texts: {}, entrie
  * data update replaced it, as a token kept from before one names, so its strings are looked up where they live now.
  */
 export const summariesOfFile = (file: string, files: Readonly<Record<string, unknown>>, summaries: VsDataSummaries | null | undefined) =>
-  file in files || file === MISSION_SUMMARIES
+  file in files || file === MISSION_SUMMARIES || file === RULE_SUMMARIES
     ? (summaries?.summariesIn(file) ?? NO_RULE_SUMMARIES)
     : { ...NO_RULE_SUMMARIES, replaced: true as const }
 
@@ -48,7 +49,7 @@ export type VsDataSummaries = {
   editions: string[]
   /**
    * The summaries for the rules one Game Datacards file prints, by the file's token ID, read for its rules version;
-   * or, for `MISSION_SUMMARIES`, the current rules' mission records by `kind:id`.
+   * or, for `MISSION_SUMMARIES` and `RULE_SUMMARIES`, the current rules' mission or rules-document records by `kind:id`.
    */
   summariesIn: (file: string) => RuleSummaries
   /** Every Game Datacards record of one rules version, once each, for the coverage report. */
@@ -112,10 +113,7 @@ export function* vsDataSummariesSteps(directory: string, documents: readonly Rul
       const index = vsDataIndex(file.entries)
       // A weapon or core ability has no rules entry of its own, so it links to the core rule of its id that prints it.
       const link = (target: { kind: string; id: string }) =>
-        [target, ...(ABILITY_KINDS.includes(target.kind) ? [{ kind: 'core-rule', id: target.id }] : [])]
-          .flatMap((ref) => index.aliasesOf(ref))
-          .map((alias) => links.get(alias))
-          .find(Boolean)
+        target.kind === 'core-rule' || ABILITY_KINDS.includes(target.kind) ? links.get(target.id) : undefined
       const abilities = new Set(file.records.flatMap((record) => (ABILITY_KINDS.includes(record.kind) ? [vsDataKey(record)] : [])))
       const summaries = new Map(file.records.map((record) => [vsDataKey(record), summaryOf(record, link, abilities)]))
       const abilitySummaries = [...summaries].filter(([key]) => key.startsWith('ability:'))
@@ -230,9 +228,10 @@ export function* vsDataSummariesSteps(directory: string, documents: readonly Rul
       return (held.some((entry) => entry.edition.id === id) && versionOf(id)?.records) || null
     },
     summariesIn: (id) => {
-      if (id === MISSION_SUMMARIES) {
+      if (id === MISSION_SUMMARIES || id === RULE_SUMMARIES) {
         const version = versionOf(held[0]!.edition.id)
-        return version ? remember(answers, id, () => missionSummaries(version.summaries)) : NO_RULE_SUMMARIES
+        const kinds = id === MISSION_SUMMARIES ? MISSION_KINDS : ['core-rule:']
+        return version ? remember(answers, id, () => summariesOfKinds(version.summaries, kinds)) : NO_RULE_SUMMARIES
       }
       const card = cards.get(id)
       const version = card && versionOf(card.edition)
@@ -262,8 +261,8 @@ export function* vsDataSummariesSteps(directory: string, documents: readonly Rul
 
 const MISSION_KINDS = ['mission-card:', 'mission-award:', 'mission-action:', 'mission-twist:']
 
-function missionSummaries(summaries: ReadonlyMap<string, RuleSummary>): RuleSummaries {
-  const records = [...summaries].filter(([key]) => MISSION_KINDS.some((kind) => key.startsWith(kind)))
+function summariesOfKinds(summaries: ReadonlyMap<string, RuleSummary>, kinds: readonly string[]): RuleSummaries {
+  const records = [...summaries].filter(([key]) => kinds.some((kind) => key.startsWith(kind)))
   return { records: Object.fromEntries(records), texts: {}, entries: {} }
 }
 
@@ -364,13 +363,14 @@ function bracketedAbility(printed: string, abilities: ReadonlySet<string>) {
   return slugs.flatMap((slug) => ABILITY_KINDS.map((kind) => `${kind}:${slug}`)).find((key) => abilities.has(key))
 }
 
-/** Each rules-document entry's page and anchor, by the entry's id. */
+/** Each rules-document rule's and clarification's page and anchor, by its VS Data id. */
 function ruleLinks(documents: readonly RuleDocument[]) {
   const links = new Map<string, RuleSummaryLink>()
   for (const document of documents)
     for (const section of document.sections)
       for (const entry of section.entries)
-        if (!links.has(entry.id)) links.set(entry.id, { document: document.slug, section: section.slug, anchor: entry.anchor })
+        for (const { id, anchor } of [entry, ...entry.clarifications])
+          if (!links.has(id)) links.set(id, { document: document.slug, section: section.slug, anchor })
   return links
 }
 

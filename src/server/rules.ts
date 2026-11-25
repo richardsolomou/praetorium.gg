@@ -3,7 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { routeSlug } from '../core/slug'
 import { uniqueBy } from '../core/collections'
-import { keywordAbilityDescriptions, loadDatacardsSteps } from './datacards'
+import { loadDatacardsSteps } from './datacards'
 import { factionRestrictions } from '../shared/datacards'
 import { factionsFromDatacards } from './datacardFactions'
 import { missionTerrain } from './missionTerrain'
@@ -14,12 +14,12 @@ import { vsDataMissions } from './vsDataMissions'
 import { vsDataStratagems } from './vsDataStratagems'
 import { vsDataIndex } from '../shared/vsData'
 import { importNamesOf } from '../shared/importNames'
-import { loadRuleDocuments } from './rulesCore'
+import { vsDataRuleDocuments } from '../shared/ruleDocuments'
+import { formerRuleIds } from '../core/legacyRuleIds'
 import { catalogueDirectory } from './catalogueIndex'
 import { type LoadedCatalogue } from '../shared/catalogueIndex'
 import { missingArmyRulesFromCatalogueSteps } from './catalogueArmyRules'
-import { retainedSnapshots, upstreamUrl, withDefinitionTokens } from './sourceTexts'
-import { readCatalogueComposition } from './catalogueComposition'
+import { withDefinitionTokens } from './sourceTexts'
 import { joinKey } from '../core/text'
 import { type LoadedRules } from '../shared/rules'
 import { completeSteps, type Steps } from '../shared/steps'
@@ -144,15 +144,17 @@ export function* loadRulesSteps(
   )
   const missing = yield* missingArmyRulesFromCatalogueSteps(path.join(directory, 'definitions'), datacards)
   const catalogueRules = catalogue?.definitions ? withDefinitionTokens(missing, catalogue.definitions.token) : missing
-  const keywordRules = keywordAbilityDescriptions(datacardsDirectory)
+  // A core ability a faction lists among its army rules, as the Adeptus Titanicus list Super-heavy Walker, is VS Data's.
+  const coreAbilities = new Set(
+    Object.entries(releases[0]?.keywords ?? {}).flatMap(([key, name]) => (key.startsWith('core-ability:') ? [joinKey(name)] : [])),
+  )
   const supplementalArmyRules = new Map(catalogueRules)
   for (const content of new Set(datacards.factions.values())) {
     const faction = routeSlug(content.name)
     const sourceRules = catalogueRules.get(faction) ?? []
     const keywordMissing = [...content.factionAbilityNames].flatMap((name) => {
       if (content.armyRules.some((rule) => routeSlug(rule.name) === routeSlug(name))) return []
-      const description = keywordRules.get(joinKey(name))
-      return description ? [{ name, description }] : []
+      return coreAbilities.has(joinKey(name)) ? [{ name, description: '' }] : []
     })
     const preferred = new Set(keywordMissing.map((rule) => routeSlug(rule.name)))
     const selected = [...keywordMissing, ...sourceRules.filter((rule) => !preferred.has(routeSlug(rule.name)))]
@@ -199,12 +201,11 @@ export function* loadRulesSteps(
       const description = describe(card.key)
       return description ? [{ id: card.key, type: card.type, description }] : []
     }),
-    ruleDocuments: loadRuleDocuments(datacardsDirectory, (file) =>
-      upstreamUrl(
-        path.relative(snapshotDirectory, file),
-        readCatalogueComposition(snapshotDirectory),
-        retainedSnapshots(snapshotDirectory),
-      ),
+    ruleDocuments: vsDataRuleDocuments(
+      releases[0]?.coreRules ?? [],
+      // The rules version's own CP wins over the base release's, as later entries of the map do.
+      releases.toReversed().flatMap((release) => release.stratagems),
+      formerRuleIds,
     ),
     ...missions,
     deployments,

@@ -2,7 +2,6 @@ import { hash } from 'node:crypto'
 import { type Definition, profileDescription, targetOf } from '../core/catalogue'
 import { RecentlyUsed, cachedIn, groupBy, remember } from '../core/collections'
 import { combatFactsOf } from '../core/combatReading'
-import { normalizeRuleReference } from '../core/ruleReference'
 import { routeSlug } from '../core/slug'
 import { type TextToken, textKey, textToken, textTokensIn, withoutText } from '../core/sourceText'
 import type { TextFacts } from '../core/textFacts'
@@ -109,7 +108,6 @@ export function cardTwinCandidates(loaded: LoadedCatalogue) {
   }
   datasheetAbilities(loaded, pair)
   enhancements(loaded, pair)
-  keywordRules(loaded, pair)
   return { candidates, shownAlone }
 }
 
@@ -184,11 +182,4 @@ function enhancements(loaded: LoadedCatalogue, pair: Pair) {
       }
     }
   }
-}
-
-function keywordRules(loaded: LoadedCatalogue, pair: Pair) {
-  const cards = new Map((loaded.datacards.keywordRules ?? []).map((rule) => [normalizeRuleReference(rule.name), rule.description]))
-  for (const [id, rule] of loaded.index.rules)
-    if (rule.name && loaded.index.catalogues.get(loaded.index.ruleCatalogueOf.get(id) ?? '')?.gameSystem)
-      pair(rule.description, cards.get(normalizeRuleReference(rule.name)))
 }

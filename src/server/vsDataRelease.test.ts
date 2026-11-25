@@ -93,6 +93,79 @@ it('keeps each Stratagem’s typed facts, naming the Detachment it references', 
   expect([kept.detachment, kept.limit, kept.windows.length]).toEqual(['Shadowkeepers', 'battle', 2])
 })
 
+it('keeps the name of each weapon and core ability, the keywords datasheets print', () => {
+  fs.rmSync(directory, { recursive: true, force: true })
+  writeFiles(
+    directory,
+    vsDataReleaseFiles([record], 'MFM 1.6', [
+      { kind: 'weapon-ability', id: 'sustained-hits', name: 'Sustained Hits' },
+      { kind: 'core-ability', id: 'deep-strike', name: 'Deep Strike' },
+      { kind: 'detachment', id: 'space-marines.gladius', name: 'Gladius Task Force' },
+    ]),
+  )
+  const file = `${directory}.json`
+  compactVsDataRelease(directory, file)
+  expect(JSON.parse(fs.readFileSync(file, 'utf8')).keywords).toEqual({
+    'weapon-ability:sustained-hits': 'Sustained Hits',
+    'core-ability:deep-strike': 'Deep Strike',
+  })
+})
+
+it('keeps where each rule of the rules documents reads and how a page addresses it', () => {
+  fs.rmSync(directory, { recursive: true, force: true })
+  const coreRule = (id: string, name: string, data: Record<string, unknown>) => ({
+    kind: 'core-rule',
+    id,
+    name,
+    aliases: [],
+    summary: `${name} summary.`,
+    data: { document: 'Core Rules', section: '15. Stratagems', ...data },
+  })
+  writeFiles(
+    directory,
+    vsDataReleaseFiles([
+      coreRule('command-re-roll', 'Command Re-Roll', {
+        ruleNumber: '15.02',
+        order: 4,
+        anchor: '15.02',
+        stratagem: { kind: 'ability', id: 'core.command-re-roll' },
+      }),
+      coreRule('command-re-roll.once', 'Once Per Phase', {
+        ruleNumber: '15.02.01',
+        order: 5,
+        anchor: '15.02.01',
+        parent: { kind: 'core-rule', id: 'command-re-roll' },
+      }),
+    ]),
+  )
+  const file = `${directory}.json`
+  compactVsDataRelease(directory, file)
+  expect(JSON.parse(fs.readFileSync(file, 'utf8')).coreRules).toEqual([
+    {
+      id: 'command-re-roll',
+      name: 'Command Re-Roll',
+      document: 'Core Rules',
+      section: '15. Stratagems',
+      number: '15.02',
+      parent: null,
+      order: 4,
+      anchor: '15.02',
+      stratagem: 'core.command-re-roll',
+    },
+    {
+      id: 'command-re-roll.once',
+      name: 'Once Per Phase',
+      document: 'Core Rules',
+      section: '15. Stratagems',
+      number: '15.02.01',
+      parent: 'command-re-roll',
+      order: 5,
+      anchor: '15.02.01',
+      stratagem: null,
+    },
+  ])
+})
+
 it('keeps what each Detachment’s build prints, by the Detachment’s name', () => {
   fs.rmSync(directory, { recursive: true, force: true })
   const detachment = {

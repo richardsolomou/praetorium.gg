@@ -157,9 +157,11 @@ export type CanonicalCatalogue = {
     | 31
     | 32
     | 33
+    | 34
+    | 35
   revisions: Record<string, string>
   datasheets: CanonicalDatasheet[]
   detachments: CanonicalDetachment[]
-  ruleDocuments: (RuleDocument & { provenance: { datacards: { revision: string } } })[]
+  ruleDocuments: (RuleDocument & { provenance: { summaries: { revision: string } } })[]
   issues: CanonicalCatalogueIssue[]
 }

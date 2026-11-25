@@ -1,5 +1,11 @@
 import { hash } from 'node:crypto'
-import { absentAbilitiesFor, absentDetachmentRuleFor, withoutAbsentAbilities, withoutAbsentDetachmentRules } from './absentAbilities'
+import {
+  absentAbilitiesFor,
+  absentDetachmentRuleFor,
+  compactReleaseIn,
+  withoutAbsentAbilities,
+  withoutAbsentDetachmentRules,
+} from './absentAbilities'
 import { withDefinitionTokens, withDefinitionTokensIn } from './sourceTexts'
 import { definitionTexts } from './definitionTexts'
 import { cardTwins } from './cardTwins'
@@ -94,6 +100,7 @@ export function* loadCatalogueSteps(
   const ownTexts: LoadedCatalogue = {
     ...catalogueFromIndex(index, selected, datacards),
     definitions: texts,
+    keywords: Object.values(compactReleaseIn(directory, edition?.id)?.keywords ?? {}),
     ...(policy ? { datacardExcludedCatalogueIds: datacardExclusions(policy.datacardExcludedCatalogueIds, edition) } : {}),
     ...(edition ? { edition } : {}),
   }
