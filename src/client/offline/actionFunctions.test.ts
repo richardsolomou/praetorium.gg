@@ -11,6 +11,12 @@ const runtime = vi.hoisted(() => ({
   document: vi.fn(),
   construction: vi.fn(),
   client: undefined as { getQueryData: () => unknown } | undefined,
+  pending: false,
+  seal: vi.fn(),
+}))
+vi.mock('../../server/functions', async (original) => ({
+  ...(await original<typeof import('../../server/functions')>()),
+  submitSealedEventRoster: runtime.seal,
 }))
 vi.mock('./localRuntime', () => ({
   localOwner: () => ({ id: runtime.owner }),
@@ -20,6 +26,7 @@ vi.mock('./localRuntime', () => ({
   localClient: () => runtime.client,
   localDocument: runtime.document,
   hasLocalChanges: () => true,
+  hasSyncableChanges: async () => runtime.pending,
   rememberDocument: vi.fn(),
 }))
 vi.mock('./construction', () => ({ localConstruction: runtime.construction }))
@@ -30,6 +37,7 @@ beforeEach(() => {
   runtime.operations = [{ id: 'saved', status: 'pending' }]
   runtime.queue.mockResolvedValue({ id: 'saved' })
   runtime.sync.mockReset()
+  runtime.pending = false
 })
 afterEach(() => {
   vi.useRealTimers()
@@ -94,6 +102,15 @@ it.each(['preview', 'released', 'retired'] as const)('queues a saved %s sealed e
     'sealed-event:tournament',
     { dependencies: ['roster:roster'], owner: 'alice' },
   )
+})
+
+it('seals the server copy online, whatever army data this device holds', async () => {
+  const { saved, catalogue, rules } = sealedEventRosterFixture('released')
+  runtime.document.mockImplementation(async (resource: string) => (resource.startsWith('roster:') ? saved : { format: '1v1' }))
+  runtime.construction.mockReturnValue({ catalogue, rules })
+  runtime.queue.mockClear()
+  await submitSealedEventRoster({ data: { token: 'tournament', rosterId: saved.id } })
+  expect(runtime.queue).not.toHaveBeenCalled()
 })
 
 it('names the missing Warlord when a list without one is sealed on this device', async () => {
