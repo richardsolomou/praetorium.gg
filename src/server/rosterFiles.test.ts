@@ -786,6 +786,20 @@ const faction: CatalogueFile = {
           },
         ],
       },
+      {
+        id: 'phaeron',
+        name: 'Phaeron',
+        type: 'model',
+        entryLinks: [
+          {
+            id: 'phaeron-warlord',
+            name: 'Warlord',
+            targetId: 'warlord-ability',
+            type: 'selectionEntry',
+            constraints: [{ id: 'phaeron-warlord-min', type: 'min', value: 1, field: 'selections', scope: 'parent' }],
+          },
+        ],
+      },
     ],
     categoryEntries: [{ id: 'character', name: 'Character' }],
     sharedSelectionEntries: [
@@ -1081,6 +1095,7 @@ describe('roster export', () => {
             enhancements: ['Murdermind'],
             upgrades: [],
             wargear: [],
+            toggles: [],
           },
           {
             key: 1,
@@ -1092,6 +1107,7 @@ describe('roster export', () => {
             enhancements: [],
             upgrades: ['Deepening Madness'],
             wargear: [],
+            toggles: [],
           },
         ],
       },
@@ -2244,6 +2260,7 @@ describe('Praetorium roster import', () => {
             enhancements: ['Demanding Leader'],
             upgrades: [],
             wargear: [],
+            toggles: [],
           },
           {
             key: 1,
@@ -2255,6 +2272,7 @@ describe('Praetorium roster import', () => {
             enhancements: [],
             upgrades: [],
             wargear: [],
+            toggles: [],
           },
         ],
       },
@@ -2384,6 +2402,7 @@ describe('custom unit names in text', () => {
     enhancements: [],
     upgrades: [],
     wargear: [],
+    toggles: [],
   })
   const exported = exportRosterFile(
     {
@@ -2719,6 +2738,9 @@ describe('readable roster export', () => {
     const price = calculateRosterPrice(input, loaded, null)!
     return exportRosterFile(input, loaded, { ...price, disposition: price.disposition ?? null }, ['Disruption'])
   }
+  it('names a unit the data makes Warlord though its pick saves no crown', () => {
+    expect(exportOf({ units: [{ entryId: 'phaeron' }] }).text).toContain('• Warlord')
+  })
   it('counts a saved detachment the text leaves out', () => {
     expect(exportOf({ detachmentIds: ['pantheon', 'retired-detachment'] }).omittedSelectionCount).toBe(1)
   })
