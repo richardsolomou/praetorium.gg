@@ -7,6 +7,7 @@ import {
   pickedOptionalRules,
   isKotcLimit,
   detachmentLimit,
+  detachmentPointBudget,
   detachmentPointsError,
   formatDatasheetLimit,
   formatRules,
@@ -749,7 +750,7 @@ describe('setup', () => {
       'kotc-datasheet-copies',
     ])
     expect(formatRules(2000).map((rule) => rule.id)).toEqual(['points-limit', 'detachment-points', 'warlord'])
-    expect(formatRules(3000).map((rule) => rule.id)).toEqual(['points-limit', 'warlord'])
+    expect(formatRules(3000).map((rule) => rule.id)).toEqual(['points-limit', 'detachment-points', 'warlord'])
     expect(formatRules(null)).toEqual([])
   })
 
@@ -798,6 +799,10 @@ describe('setup', () => {
       'This combination costs 6 DP; multiple detachments at this battle size may cost at most 3 DP.',
     )
     expect(detachmentPointsError([{ points: 3 }, { points: 3 }], 3, ['detachment-points'])).toBeNull()
+  })
+
+  it('lets an Onslaught list spend 3 DP on its detachments, as the official app does', () => {
+    expect(detachmentPointBudget(3000)).toBe(3)
   })
 
   it('has no active player before the battle begins', () => {
