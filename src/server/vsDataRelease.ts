@@ -1,4 +1,5 @@
 import { summaryBlocks } from '../core/summaryMarkdown'
+import { type VsDataConstruction, vsDataConstructionSchema } from '../core/vsDataConstruction'
 import { abilityKey } from '../shared/vsDataAbilities'
 import { EFFECT_BLOCKS, type VsDataEffectsFile, vsDataEffectBlocksSchema, vsDataEffectsPath } from '../shared/vsDataEffects'
 import { hash } from 'node:crypto'
@@ -635,3 +636,35 @@ export function compactVsDataRelease(directory: string, file: string) {
   fs.writeFileSync(file, `${JSON.stringify(compact)}\n`)
   fs.writeFileSync(vsDataEffectsPath(file), `${JSON.stringify(effects)}\n`)
 }
+
+/** The categories list building reads, kept whole rather than compacted. */
+const CONSTRUCTION_CATEGORIES = new Set(['rosters', 'points'])
+
+/** Writes `file` with the roster definitions and points snapshots of a verified release's own rules version. */
+export function writeVsDataConstruction(directory: string, file: string) {
+  const manifest = readVsDataManifest(directory)!
+  const read = (name: string): unknown => JSON.parse(fs.readFileSync(path.join(directory, name), 'utf8'))
+  const names = new Map(
+    identitySchema.parse(read(manifest.identity.path)).entries.map((entry) => [`${entry.kind}:${entry.id}`, entry.name]),
+  )
+  const records = manifest.categories
+    .filter((category) => CONSTRUCTION_CATEGORIES.has(category.name))
+    .flatMap((category) => category.records)
+    .map((entry) => constructionRecordSchema.parse(read(entry.path)))
+    .filter((record) => record.rulesVersion.update === manifest.rulesVersion.update)
+  const definitions: VsDataConstruction['definitions'] = {}
+  for (const record of records.filter((candidate) => candidate.kind !== 'points-snapshot'))
+    (definitions[record.kind] ??= {})[record.id] = { name: names.get(`${record.kind}:${record.id}`) ?? record.id, data: record.data }
+  const construction: VsDataConstruction = {
+    release: manifest.release,
+    rulesVersion: manifest.rulesVersion,
+    definitions,
+    points: records.filter((record) => record.kind === 'points-snapshot').map((record) => record.data),
+  }
+  fs.writeFileSync(file, JSON.stringify(vsDataConstructionSchema.parse(construction)))
+}
+
+const constructionRecordSchema = refSchema.extend({
+  rulesVersion: z.object({ update: z.string() }),
+  data: z.record(z.string(), z.unknown()),
+})
