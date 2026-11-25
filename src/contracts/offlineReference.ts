@@ -15,6 +15,8 @@ export type OfflineConstructionSource = {
   datacards: RuntimeData
   /** The rules version's weapon and core abilities by name; a download saved before VS Data named them has none. */
   keywords?: string[]
+  /** Each datasheet's VS Data base size text by BSData entry id; a download saved before VS Data typed bases has none. */
+  baseSizes?: Record<string, string>
   mfm: RuntimeData
   rules: RuntimeData
 }
@@ -171,6 +173,8 @@ function isConstructionSource(data: OfflineConstructionSource) {
     data.mfm !== undefined &&
     data.rules !== undefined &&
     (data.keywords === undefined || (Array.isArray(data.keywords) && data.keywords.every((name) => typeof name === 'string'))) &&
+    (data.baseSizes === undefined ||
+      (typeof data.baseSizes === 'object' && Object.values(data.baseSizes).every((size) => typeof size === 'string'))) &&
     (data.datacardExcludedCatalogueIds === undefined || catalogueReferencePolicySchema.safeParse(data).success)
   )
 }

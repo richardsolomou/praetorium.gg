@@ -20,6 +20,7 @@ import { type FactionContent, type LoadedDatacards } from '../shared/datacards'
 import { remember } from '../core/collections'
 import { catalogueSections } from './catalogueSections'
 import { loadMfmSteps } from './mfm'
+import { baseSizesByEntry } from '../shared/vsDataBaseSizes'
 import { readSharedJson } from './sharedJson'
 import { type DefinitionTexts, type LoadedCatalogue, catalogueFromIndex } from '../shared/catalogueIndex'
 import { completeSteps, type Steps } from '../shared/steps'
@@ -74,10 +75,12 @@ export function* loadCatalogueSteps(directory = catalogueDirectory(), edition?: 
   const cards = yield* loadDatacardsSteps(path.join(directory, 'datacards', '11th', 'gdc'), catalogueSections(index, texts.words), strings)
   cardFacts = cards.textFacts
   const datacards = withoutAbsentDetachmentRules(publishedDatacards(cards, texts.token), absentDetachmentRuleFor(directory, edition?.id))
+  const release = compactReleaseIn(directory, edition?.id)
   const ownTexts: LoadedCatalogue = {
     ...catalogueFromIndex(index, selected, datacards),
     definitions: texts,
-    keywords: Object.values(compactReleaseIn(directory, edition?.id)?.keywords ?? {}),
+    keywords: Object.values(release?.keywords ?? {}),
+    ...(release?.units ? { baseSizes: baseSizesByEntry({ units: release.units, entries: release.entries }) } : {}),
     ...(policy ? { datacardExcludedCatalogueIds: datacardExclusions(policy.datacardExcludedCatalogueIds, edition) } : {}),
     ...(edition ? { edition } : {}),
   }

@@ -126,7 +126,6 @@ describe('canonical catalogue', () => {
   })
 
   it.each([
-    ['base size', { baseSize: '32mm' }],
     ['composition', { composition: ['1 Squad'] }],
     ['costs', { points: [{ models: '1', cost: '100', keyword: null, faction: null, detachment: null }] }],
     ['loadout', { loadout: 'This unit is equipped with one rifle.' }],

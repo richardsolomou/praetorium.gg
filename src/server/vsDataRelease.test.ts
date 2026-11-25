@@ -206,6 +206,49 @@ it('keeps a Detachment the identity marks absent from the build as absent', () =
   ])
 })
 
+it('keeps each stat line’s base, its models named, and a base no source prints as none', () => {
+  const roster = (kind: string, id: string, data: unknown, name = id) => ({ kind, id, name, aliases: [], category: 'rosters', data })
+  const profile = (id: string, data: unknown) => ({ kind: 'unit-profile', id, aliases: [], category: 'profiles', data })
+  fs.rmSync(directory, { recursive: true })
+  writeFiles(
+    directory,
+    vsDataReleaseFiles([
+      record,
+      roster('unit', 'tyranids.neurogaunts', { sizes: [11] }),
+      roster('model', 'tyranids.neurogaunts.nodebeast', { unit: 'tyranids.neurogaunts', min: 1, max: 1 }, 'Neurogaunt Nodebeast'),
+      roster('model', 'tyranids.neurogaunts.neurogaunt', { unit: 'tyranids.neurogaunts', min: 10, max: 10 }, 'Neurogaunt'),
+      profile('tyranids.neurogaunts', {
+        unit: 'tyranids.neurogaunts',
+        baseSize: {
+          byModel: [
+            { models: ['tyranids.neurogaunts.nodebeast'], size: { diameter: 28.5 } },
+            { models: ['tyranids.neurogaunts.neurogaunt'], size: { diameter: 25 } },
+          ],
+        },
+      }),
+      roster('unit', 'unaligned-forces.bastion', { sizes: [1] }),
+      profile('unaligned-forces.bastion', { unit: 'unaligned-forces.bastion', gaps: [{ field: 'baseSize', reason: 'no-source' }] }),
+    ]),
+  )
+  const file = `${directory}.json`
+  compactVsDataRelease(directory, file)
+  const { units } = JSON.parse(fs.readFileSync(file, 'utf8'))
+  fs.rmSync(file)
+  expect([units['tyranids.neurogaunts'].bases, units['unaligned-forces.bastion'].bases]).toEqual([
+    [
+      {
+        size: {
+          byModel: [
+            { models: ['Neurogaunt Nodebeast'], size: { diameter: 28.5 } },
+            { models: ['Neurogaunt'], size: { diameter: 25 } },
+          ],
+        },
+      },
+    ],
+    [{ size: null }],
+  ])
+})
+
 it('keeps what a datasheet shows of a unit, its models and wargear named, under its BSData alias', () => {
   const roster = (kind: string, id: string, data: unknown, name = id) => ({ kind, id, name, aliases: [], category: 'rosters', data })
   const files = vsDataReleaseFiles([
