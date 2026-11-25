@@ -71,7 +71,7 @@ function whenDrawnOf(rule: VsDataMissionPack['secondaries'][number]['whenDrawn']
   // An untyped rule is one the player judges from the card's summary.
   if (isUnresolved(rule)) return { operation: 'replace', roundMax: null, heldCards: [] }
   return {
-    operation: 'redraw',
+    operation: rule.action === 'discard' ? 'replace' : 'redraw',
     roundMax: rule.untilRound ?? null,
     required: rule.required,
     heldCards: rule.ifActive ? [rule.ifActive] : [],
