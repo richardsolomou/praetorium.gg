@@ -909,7 +909,7 @@ test('a player can enter through the roster library and browse the product', asy
   }).toPass()
   await chooseOption(page, 'Battle size', /^Onslaught/)
   await expect(dialog.getByText('3/3 DP used')).toBeVisible()
-  await expect(dialog.getByRole('button', { name: 'Select Cryptek Conclave, unavailable' })).toHaveAttribute('aria-disabled', 'true')
+  await expect(dialog.getByRole('button', { name: 'Select Cryptek Conclave', exact: true })).toBeHidden()
   await chooseOption(page, 'Battle size', /^Strike Force/)
   await dialog.getByRole('button', { name: 'Create roster' }).click()
   await expect(page).toHaveURL(/\/rosters\/[^/]+$/)
