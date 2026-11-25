@@ -98,7 +98,6 @@ type FactionRestriction = {
   excludedKeywords: readonly string[]
 }
 export type LoadedDatacards = {
-  keywordRules?: readonly RuleCard[]
   /** By the slug of every name a faction answers to. */
   factions: Map<string, FactionContent>
   /** By detachment slug. */

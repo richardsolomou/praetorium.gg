@@ -33,6 +33,7 @@ export function buildConstruction(saved: OfflineConstructionSource) {
   })
   const catalogue = {
     ...catalogueFromIndex(index, files, datacards),
+    ...(saved.keywords ? { keywords: saved.keywords } : {}),
     datacardExcludedCatalogueIds: datacardExclusions(saved.datacardExcludedCatalogueIds, saved.edition),
     mfm: unpackRuntimeData<LoadedCatalogue['mfm']>(saved.mfm),
     ...(saved.edition ? { edition: saved.edition } : {}),

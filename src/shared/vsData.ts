@@ -238,14 +238,16 @@ export const vsDataSummariesSchema = z.object({
   factions: z.record(z.string(), z.string()).default({}),
   /** Every spelling the official app gives each name in any language, which imports read lists by. */
   names: vsDataNamesSchema.optional(),
+  /** The name of each weapon and core ability, the keywords a datasheet prints, by `kind:id`. */
+  keywords: z.record(z.string(), z.string()).default({}),
   records: z.array(
-    refSchema.extend({
-      summary: z.string().min(1),
-      // Spans are VS Data's markup before its Markdown; a Markdown release has none.
-      spans: z.array(spanSchema).default([]),
-      questions: z.array(z.string()),
-    }),
-  ),
+  refSchema.extend({
+    summary: z.string().min(1),
+    // Spans are VS Data's markup before its Markdown; a Markdown release has none.
+    spans: z.array(spanSchema).default([]),
+    questions: z.array(z.string()),
+  }),
+),
 })
 export type VsDataSummariesFile = z.infer<typeof vsDataSummariesSchema>
 

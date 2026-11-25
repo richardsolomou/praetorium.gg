@@ -34,8 +34,9 @@ export function Keyword({
     .filter((candidate) => ruleReferenceMatches(reference, candidate.name))
     .toSorted((left, right) => right.name.length - left.name.length)[0]
   if (!rule && !note && !condition) return <span className={className}>{name}</span>
-  // An ability something else in the list grants prints no text of its own, so its tooltip finds the summary by name.
-  const explained = rule?.description ? rule : note ? { name: reference, description: '' } : null
+  // A keyword VS Data's ability answers to, or one something else in the list grants, has no text, so its tooltip finds
+  // the summary by name.
+  const explained = rule ?? (note ? { name: reference, description: '' } : null)
   const body = (
     <>
       {condition ? <p className="text-xs">* Only {condition}.</p> : null}
@@ -61,7 +62,7 @@ export function Keyword({
  * summarizes, such as a catalogue's own printing of a weapon ability, the summary of the weapon or core ability it names.
  */
 function KeywordRuleSummary({ rule, className }: { rule: KeywordRule; className: string }) {
-  const own = useDatasheetAbilitySummary(rule.description, rule.name)
+  const own = useDatasheetAbilitySummary(rule.description, rule.description ? rule.name : undefined)
   const named = useAbilitySummary(own === null ? { name: rule.name } : null)
   if (own === undefined || named === undefined) return <RuleSummarySkeleton className={className} />
   const shown = own ?? named
