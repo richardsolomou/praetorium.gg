@@ -40,7 +40,8 @@ import {
   type ReferenceQuery,
 } from '../../src/contracts/offlineReference'
 import { loadCatalogueTranslations } from '../../src/server/catalogueTranslations'
-import { vsDataSummariesSteps } from '../../src/server/vsDataSummaries'
+import { readVsDataRelease, vsDataSummariesSteps } from '../../src/server/vsDataSummaries'
+import { spellingGroups } from '../../src/shared/importNames'
 import { completeSteps } from '../../src/shared/steps'
 import type { CatalogueRuntime } from '../../src/server/catalogueRuntime'
 
@@ -185,6 +186,8 @@ export async function writeReferenceBundle(outDir: string, directory: string, ru
     ...catalogue.factions.map((faction) => faction.name.split(' - ').at(-1)!),
     ...[...catalogue.detachments.values()].flatMap((detachments) => detachments.options.map((option) => option.name)),
     ...(rules.dispositions?.values() ?? []),
+    // The official app's names are all names, but its English can differ from the catalogue's, as "Imperium’s Sword".
+    ...spellingGroups(readVsDataRelease(directory)?.names).flat(),
   ])
   put(
     ['import-translations'],

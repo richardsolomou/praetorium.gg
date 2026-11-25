@@ -16,6 +16,17 @@ export type ImportNames = {
 
 export const NO_IMPORT_NAMES: ImportNames = { datasheets: new Map(), pieces: new Map(), detachments: new Map() }
 
+/** Every group of spellings a release's names hold, each its English one first. */
+export const spellingGroups = (names: VsDataNames | undefined): readonly (readonly string[])[] =>
+  names
+    ? [
+        ...names.factions,
+        ...names.detachments,
+        ...names.enhancements,
+        ...Object.values(names.units).flatMap((unit) => [...(unit.name.length ? [unit.name] : []), ...unit.pieces]),
+      ]
+    : []
+
 /** A release's names, keyed by the BSData entry ids its units alias, as `entries` lists them under `unit:<id>`. */
 export function importNamesOf(names: VsDataNames | undefined, entries: Readonly<Record<string, readonly string[]>>): ImportNames {
   if (!names) return NO_IMPORT_NAMES

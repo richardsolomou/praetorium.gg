@@ -3,6 +3,7 @@ import path from 'node:path'
 import { z } from 'zod'
 import { NO_TRANSLATIONS, type CatalogueTranslations } from '../shared/catalogueTranslations'
 import { readVsDataRelease } from './vsDataSummaries'
+import { spellingGroups } from '../shared/importNames'
 
 const languageFile = z.record(z.string(), z.string())
 /** Longer strings are descriptions, which nothing matches a list against. */
@@ -20,13 +21,10 @@ export function loadCatalogueTranslations(directory: string): CatalogueTranslati
     translations.set(english, names)
   }
   const names = readVsDataRelease(directory)?.names
-  for (const [english, ...others] of [
-    ...(names?.factions ?? []),
-    ...(names?.detachments ?? []),
-    ...(names?.enhancements ?? []),
-    ...Object.values(names?.units ?? {}).flatMap((unit) => [unit.name, ...unit.pieces]),
-  ])
-    for (const other of others) add(english!, other)
+  for (const [english, ...others] of spellingGroups(names)) for (const other of others) add(english!, other)
+  // A faction's group holds its keyword and the name lists print it under, as "Adeptus Astartes" and "Space Marines",
+  // either of which a catalogue can be named.
+  for (const group of names?.factions ?? []) for (const name of group) for (const other of group) add(name, other)
   const folder = path.join(directory, 'translations', 'data')
   if (!fs.existsSync(folder)) return translations.size ? translations : NO_TRANSLATIONS
   for (const file of fs
