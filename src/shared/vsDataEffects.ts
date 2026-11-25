@@ -419,7 +419,11 @@ function effectOf(effect: VsDataEffect): CombatRuleEffect | null {
   const mortalWounds = mortals?.timing === 'outside-attacks' ? undefined : mortals
   const { bearerOnly: _bearerOnly, modelKeywords: _modelKeywords, wounds: _wounds, regainWounds: _regainWounds, ...applied } = rest
   const { role: _role, ...given } = applied
-  const { saveReroll: _saveReroll, ...options } = rolls ?? {}
+  // The simulator re-rolls one save of the defender's only through its Command Re-roll, so a rule's single save re-roll
+  // is left out, as Praetorium's reading of the words always has.
+  const { saveReroll: _saveReroll, singleRerolls, ...otherRolls } = rolls ?? {}
+  const attackerRerolls = singleRerolls?.filter((kind) => kind !== 'save')
+  const options = { ...otherRolls, ...(attackerRerolls?.length ? { singleRerolls: attackerRerolls } : {}) }
   if (!Object.keys(given).length && !weaponAbility && !Object.keys(options).length && !characteristic && !mortalWounds) return null
   return {
     ...applied,

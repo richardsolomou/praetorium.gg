@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { calculateCombat, calculateCombatSequence, diceExpression, woundTarget, type CombatInput } from './combat'
+import { calculateCombat, calculateCombatSequence, combatSchema, diceExpression, woundTarget, type CombatInput } from './combat'
 import { attackSequence, sampleCombat } from './combatReference.fixtures'
 
 const input = (): CombatInput => ({
@@ -1317,4 +1317,10 @@ describe('uncapped kills', () => {
   it('remains when the attacks cannot plausibly reach the model limit', () => {
     expect(calculateCombat(horde({ skill: 6 })).uncappedKills).toBeCloseTo(120 * (1 / 6) * (5 / 6))
   })
+})
+
+it('takes as many single re-rolls as a unit’s rules stack, as five from two rules', () => {
+  const scenario = input()
+  scenario.options.singleRerolls = ['hit', 'hit', 'wound', 'wound', 'damage']
+  expect(combatSchema.safeParse(scenario).success).toBe(true)
 })

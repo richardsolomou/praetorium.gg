@@ -85,3 +85,11 @@ it('rolls mortal wounds once per point of Toughness where VS Data says so', () =
   )
   expect(facts.combat!.leaves[0]!.compiled!.choices[0]!.effects[0]!.mortalWounds).toMatchObject({ perToughness: true, limit: 6 })
 })
+
+it('leaves out a single save re-roll the simulator cannot give a rule', () => {
+  const rolls = { singleRerolls: ['hit', 'save'] }
+  const facts = textFactsOfVsData(
+    combat({ choices: [{ conditions: [], effects: [{ role: 'attacker', attacks: ['ranged'], rolls }] }], default: 1 }),
+  )
+  expect(facts.combat!.leaves[0]!.compiled!.choices[0]!.effects[0]!.options).toEqual({ singleRerolls: ['hit'] })
+})
