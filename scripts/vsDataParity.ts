@@ -98,13 +98,14 @@ for (const book of catalogue.factions) {
   }
   for (const [id, unit] of mapped) {
     const size = vsUnits.get(id)?.sizes[0]
-    const points =
-      prices
-        .get(id)
-        ?.find((tier) => tier.copies.from === 1)
-        ?.costs.find((cost) => cost.models === size)?.points ?? null
+    // A unit can cost differently by composition (in its own army or as an ally, in a named Detachment): any row at
+    // the size that gives the listed price agrees.
+    const points = (prices.get(id)?.find((tier) => tier.copies.from === 1)?.costs ?? [])
+      .filter((cost) => cost.models === size)
+      .map((cost) => cost.points)
     totals.priced++
-    if (points !== unit.points) row.prices.push(`${unit.name}: ${unit.points} against ${points}`)
+    if (unit.points === null || !points.includes(unit.points))
+      row.prices.push(`${unit.name}: ${unit.points} against ${points.join(' or ') || 'none'}`)
   }
   // A Detachment's force disposition: BSData's category against the disposition VS Data gives it (a pack member ID).
   for (const option of catalogue.detachments.get(book.id)?.options ?? []) {
