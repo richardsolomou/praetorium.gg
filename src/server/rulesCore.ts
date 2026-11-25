@@ -7,13 +7,17 @@ import { coreRulesFirst, ruleDocumentFrom, ruleOutline } from '../shared/ruleDoc
 import { readSharedJson } from './sharedJson'
 import { remember } from '../core/collections'
 
-type TextOrigin = { repository: string; revision: string; path?: string | undefined }
+const pinnedUrl = (name: string) => {
+  const { repository, revision, path: prefix } = catalogueSources.datacards
+  return `https://raw.githubusercontent.com/${repository}/${revision}/${[prefix, 'core', name].filter(Boolean).join('/')}`
+}
 
 /**
- * Every declared rules document in outline, each pointing at the pinned upstream file
- * its text is read from: Praetorium publishes rule numbers and titles, not rules text.
+ * Every declared rules document in outline, each pointing at the upstream file its text is read from: Praetorium
+ * publishes rule numbers and titles, not rules text. `upstreamOf` must address a file exactly as the snapshot's text
+ * sources do, since a reader finds a document's summaries by that address.
  */
-export function loadRuleDocuments(datacardsDirectory: string, origin: TextOrigin = catalogueSources.datacards): RuleDocument[] {
+export function loadRuleDocuments(datacardsDirectory: string, upstreamOf: (file: string) => string | null = () => null): RuleDocument[] {
   const directory = path.join(datacardsDirectory, 'core')
   if (!fs.existsSync(directory)) return []
   const documents = fs
@@ -22,10 +26,7 @@ export function loadRuleDocuments(datacardsDirectory: string, origin: TextOrigin
     .toSorted()
     .flatMap((name) => {
       const file = path.join(directory, name)
-      const text = {
-        url: `https://raw.githubusercontent.com/${origin.repository}/${origin.revision}/${[origin.path, 'core', name].filter(Boolean).join('/')}`,
-        sha256: hash('sha256', fs.readFileSync(file)),
-      }
+      const text = { url: upstreamOf(file) ?? pinnedUrl(name), sha256: hash('sha256', fs.readFileSync(file)) }
       const document = ruleDocumentFrom(readSharedJson(file), text)
       return document ? [ruleOutline(document)] : []
     })
