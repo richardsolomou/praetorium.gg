@@ -1,8 +1,9 @@
+import type { ImportNames } from './importNames'
 import { canonicalDetachmentName } from '../core/detachmentName'
 import type { Stratagem } from '../core/battle'
 import { routeSlug } from '../core/slug'
 import { type ConstructionDetachment, datacardsFactionKeys, DATACARDS_ATTRIBUTION, type FactionRestrictions } from './datacards'
-import { type LoadedCards, type Mission, missionForIn, type MissionCard } from './rulesCards'
+import { type Mission, missionForIn, type MissionCard } from './rulesCards'
 import type { DetachmentReference, DetachmentRulesDetail } from '../contracts/factions'
 import type { MissionTwist } from '../contracts/missions'
 import type { RuleDocument } from '../contracts/rules'
@@ -31,7 +32,8 @@ export type LoadedRules = {
   core: Stratagem[]
   /** The rules documents the datacards source writes out, for the pages that read them. */
   ruleDocuments: RuleDocument[]
-  coreDetails: LoadedCards['coreDetails']
+  /** Each core Stratagem's type label and wording as tokens, by its key. */
+  coreDetails: { id: string; type: string | null; description: string }[]
   secondaries: MissionCard[]
   primaries: MissionCard[]
   /** Which mission a pair of force dispositions plays, with pack-qualified keys and an unqualified legacy fallback. */
@@ -48,6 +50,8 @@ export type LoadedRules = {
   terrainTemplates: TerrainTemplate[]
   /** Whatever the dataset says about how settled these numbers are. */
   dataslate: string | null
+  /** Every spelling the official app gives the names a list holds, which imports read lists written in its languages by. */
+  importNames?: ImportNames
 }
 export type BattleMissionRules = Pick<LoadedRules, 'missions' | 'fixedSecondaryCaps'>
 export type BattleReadRules = Pick<

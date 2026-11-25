@@ -2,7 +2,7 @@ import { useId, type ReactNode } from 'react'
 import type { AchievementMetric, AchievementTier } from '../../../core/achievements'
 
 /** Each tier's metal as light, middle and shadow stops. */
-const METALS: Record<AchievementTier, readonly [string, string, string]> = {
+export const METALS: Record<AchievementTier, readonly [string, string, string]> = {
   bronze: ['#e0a676', '#b07648', '#6e4428'],
   silver: ['#e9eff3', '#aab6bf', '#5f6b74'],
   gold: ['#f6dc8c', '#d4a940', '#7f5f1a'],

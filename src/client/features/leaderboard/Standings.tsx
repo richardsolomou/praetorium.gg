@@ -1,6 +1,6 @@
 import { Link, useNavigate } from '@tanstack/react-router'
 import type { Standing, StandingFaction } from '../../../core/standings'
-import { averagePoints, isProvisional, PROVISIONAL_BATTLES, winRate } from '../../../core/standings'
+import { averagePoints, winRate } from '../../../core/standings'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { SearchableSelect } from '../../components/SearchableSelect'
 import { percentLabel } from '../../text'
@@ -32,8 +32,6 @@ export function Standings({
   title?: string
   empty?: string
 }) {
-  const ranked = table.rows.filter((row) => !isProvisional(row))
-  const unranked = table.rows.filter(isProvisional)
   const player = (row: Standing) => (
     <td className="overflow-hidden px-2 py-2.5 sm:px-3">
       <Link to="/users/$userId" params={{ userId: row.id }} className="group flex min-w-0 items-center gap-2.5">
@@ -87,7 +85,7 @@ export function Standings({
               </tr>
             </thead>
             <tbody>
-              {ranked.map((row, place) => (
+              {table.rows.map((row, place) => (
                 <tr
                   key={row.id}
                   data-standing={row.id}
@@ -102,33 +100,6 @@ export function Standings({
                 </tr>
               ))}
             </tbody>
-            {unranked.length ? (
-              <tbody data-unranked>
-                <tr className="border-y-2 border-runner bg-sunken">
-                  <th
-                    scope="rowgroup"
-                    colSpan={6}
-                    className="px-3 py-2.5 text-left text-2xs font-semibold tracking-eyebrow text-dim uppercase"
-                  >
-                    Not yet ranked · fewer than {PROVISIONAL_BATTLES} battles
-                  </th>
-                </tr>
-                {unranked.map((row) => (
-                  <tr
-                    key={row.id}
-                    data-standing={row.id}
-                    className={`border-b border-edge last:border-0 ${row.id === viewerId ? 'bg-parchment/10' : ''}`}
-                  >
-                    <td className="py-2.5 pr-1 pl-3 sm:px-3">
-                      <span className="part-tag part-tag-ghost">—</span>
-                    </td>
-                    {player(row)}
-                    <td className="readout px-3 py-2.5 text-right text-faint">—</td>
-                    {record(row)}
-                  </tr>
-                ))}
-              </tbody>
-            ) : null}
           </table>
         </div>
       ) : (

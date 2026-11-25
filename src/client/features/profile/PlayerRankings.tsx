@@ -22,7 +22,7 @@ export type Rankings = {
  * meaningful next to the players it was measured against.
  *
  * Absent entirely when the player is ranked in none of the tables: a player whose games
- * are withheld from the leaderboard, or who is not yet ranked, has no place rather than last place.
+ * are withheld from the leaderboard has no place rather than last place.
  */
 export function PlayerRankings({ rankings }: { rankings: Rankings }) {
   const rows = [...(rankings.overall ? [rankings.overall] : []), ...rankings.factions]

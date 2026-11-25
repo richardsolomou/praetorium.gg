@@ -235,6 +235,11 @@ type Common = {
   infoLinks?: InfoLink[]
   associations?: Association[]
   rules?: Rule[]
+  /**
+   * The abilities a rules version marks absent from this datasheet, by profile id or `abilityKey`, which its walk leaves
+   * out even where they are an entry's another datasheet shares.
+   */
+  absentAbilities?: { profiles: string[]; keys: string[] }
 }
 
 export type SelectionEntry = Common & { type?: EntryType; collective?: boolean }

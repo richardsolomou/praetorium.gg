@@ -11,6 +11,7 @@ export function buildRosterPick(loaded: LoadedCatalogue, catalogueId: string, de
     roster: detachments,
     spreads: pick.spreads,
     toggles: pick.toggles,
+    floor: pick.floor,
   })
 }
 

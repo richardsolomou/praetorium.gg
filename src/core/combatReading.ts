@@ -9,7 +9,7 @@ import {
   combatRuleRoles,
   namesOptions,
 } from './combatRules'
-import { type AnsweredRule, compileCombatRule, type RuleQuestion, ruleAnswers } from './combatRuleCompiler'
+import { type AnsweredRule, compileCombatRule, normalizeCombatText, type RuleQuestion, ruleAnswers } from './combatRuleCompiler'
 
 /**
  * What a rule's words decide in combat wherever a roster can place it, recorded once from the words so a
@@ -18,8 +18,8 @@ import { type AnsweredRule, compileCombatRule, type RuleQuestion, ruleAnswers } 
  * A reading depends on the placement as well as the words: its scope, whether it is a lone model's, whether
  * its unit's keywords are known, and what the words ask of those keywords and of the rule's name. Each
  * placement keeps a tree of those questions with a reading at every leaf, so answering them from a unit's own
- * keywords finds the reading its words would give. Phases are never recorded: only stratagems carry them,
- * and those are cards, not catalogue texts.
+ * keywords finds the reading its words would give. Only stratagems carry phases, so a stratagem's placement is
+ * recorded for each set of phases the simulator gives one.
  */
 export type CombatFacts = {
   judging: CombatJudging
@@ -35,17 +35,14 @@ const SOURCE = '\u0000source\u0000'
 /** More questions than any rule's words ask; a placement asking more records nothing and reads as unrecorded. */
 const MOST_QUESTIONS = 8
 
-const placementKey = (rule: Pick<CombatRule, 'scope' | 'models' | 'keywords'>) =>
-  `${rule.scope}:${rule.models === 1 ? 1 : 0}:${rule.keywords ? 1 : 0}`
+/** The phases a stratagem's placement can be given: its Shooting, its Fight, or both from a Command phase. */
+const STRATAGEM_PHASES: CombatRule['phases'][] = [['ranged'], ['melee'], ['ranged', 'melee']]
 
-const comparable = (text: string) =>
-  text
-    .replaceAll(/\*\*|\^\^|<\/?[a-z]+>/gi, '')
-    .replaceAll(/[‘’]/g, "'")
-    .replaceAll(/[“”]/g, '"')
-    .replaceAll(/\s+/g, ' ')
-    .trim()
-    .toLowerCase()
+const placementKey = (rule: Pick<CombatRule, 'scope' | 'models' | 'keywords' | 'phases'>) =>
+  `${rule.scope}:${rule.models === 1 ? 1 : 0}:${rule.keywords ? 1 : 0}${rule.phases?.length ? `:${rule.phases.join('+')}` : ''}`
+
+/** Text as the compiler reads it, which is where a label's words come from, so it matches whatever printing it was read from. */
+const comparable = (text: string) => normalizeCombatText(text).toLowerCase()
 
 /** A choice's label with each part that repeats a clause of the rule's words replaced, for whoever gets no rules text. */
 export function unquotedLabel(label: string, words: string) {
@@ -71,8 +68,34 @@ export function combatReadingOf(rule: AnsweredRule): CombatReading {
   }
 }
 
-/** A text's combat facts, or null for words that take no part in combat wherever they are placed. */
-export function combatFactsOf(words: string): CombatFacts | null {
+// Every rules version prints most texts alike, so a text is read once while any version still holds its reading; held
+// weakly, so a server keeps no reading that no catalogue it holds refers to.
+const readTexts = { plain: new Map<string, WeakRef<CombatFacts>>(), phased: new Map<string, WeakRef<CombatFacts>>() }
+const inertTexts = { plain: new Set<string>(), phased: new Set<string>() }
+const released = new FinalizationRegistry<{ held: Map<string, WeakRef<CombatFacts>>; words: string }>(({ held, words }) => {
+  if (!held.get(words)?.deref()) held.delete(words)
+})
+
+/**
+ * A text's combat facts, or null for words that take no part in combat wherever they are placed. A stratagem's placement
+ * takes part only once given phases, which only a text a stratagem prints needs (`phased`): reading a placement for
+ * each set of phases is most of the cost of reading a text.
+ */
+export function combatFactsOf(words: string, phased = false): CombatFacts | null {
+  const kind = phased ? 'phased' : 'plain'
+  if (inertTexts[kind].has(words)) return null
+  const held = readTexts[kind].get(words)?.deref()
+  if (held) return held
+  const facts = readCombatFacts(words, phased)
+  if (!facts) inertTexts[kind].add(words)
+  else {
+    readTexts[kind].set(words, new WeakRef(facts))
+    released.register(facts, { held: readTexts[kind], words })
+  }
+  return facts
+}
+
+function readCombatFacts(words: string, phased: boolean): CombatFacts | null {
   const judging = combatJudgingOf(words)
   const leaves: CombatReading[] = []
   const leafAt = new Map<string, number>()
@@ -87,25 +110,27 @@ export function combatFactsOf(words: string): CombatFacts | null {
   }
   const readings: Record<string, ReadingNode[]> = {}
   for (const scope of SCOPES)
-    for (const models of [1, undefined])
-      for (const known of [true, false]) {
-        const tree = recordedTree((answers) =>
-          unquotedReading(
-            combatReadingOf({
-              id: '',
-              name: '',
-              source: SOURCE,
-              description: words,
-              scope,
-              models,
-              ...(known ? { keywords: [] } : {}),
-              answers,
-            }),
-            words,
-          ),
-        )
-        if (tree) readings[placementKey({ scope, models, keywords: known ? [] : undefined })] = flattened(tree, leaf)
-      }
+    for (const phases of scope !== 'stratagem' ? [undefined] : phased ? STRATAGEM_PHASES : [])
+      for (const models of [1, undefined])
+        for (const known of [true, false]) {
+          const tree = recordedTree((answers) =>
+            unquotedReading(
+              combatReadingOf({
+                id: '',
+                name: '',
+                source: SOURCE,
+                description: words,
+                scope,
+                models,
+                ...(phases ? { phases } : {}),
+                ...(known ? { keywords: [] } : {}),
+                answers,
+              }),
+              words,
+            ),
+          )
+          if (tree) readings[placementKey({ scope, models, phases, keywords: known ? [] : undefined })] = flattened(tree, leaf)
+        }
   if (!judging.orders && !leaves.some(takesPart)) return null
   return { judging, readings, leaves }
 }
@@ -171,7 +196,6 @@ export function recordedCombatText(facts: CombatFacts | null): CombatText {
 /** The reading recorded for a rule's placement, answered from its own keywords and name, or null where none was. */
 export function combatReadingFor(facts: CombatFacts | null, rule: CombatRule): CombatReading | null {
   if (!facts) return NO_PART
-  if (rule.phases?.length) return null
   const nodes = facts.readings[placementKey(rule)]
   if (!nodes) return null
   const answer = ruleAnswers(rule)

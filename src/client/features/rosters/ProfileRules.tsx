@@ -30,7 +30,7 @@ export function ProfileRules({ profiles, rules, compact = false }: Props) {
               {profile.values.map((value) => (
                 <div key={value.name}>
                   {profile.values.length > 1 && value.name !== profile.name ? <p className="eyebrow mt-1">{value.name}</p> : null}
-                  <RuleText text={value.value} rules={rules} />
+                  <RuleText text={value.value} rules={rules} name={profile.name} />
                 </div>
               ))}
             </article>

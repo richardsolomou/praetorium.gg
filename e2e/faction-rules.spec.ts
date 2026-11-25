@@ -64,11 +64,11 @@ test(
   async ({ page }, testInfo) => {
     await page.goto('/factions/space-marines/datasheets/land-raider-redeemer')
     const ability = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Wrath of the Machine Spirit', exact: true }) })
-    await expect(ability).toContainText('Devastating Wounds: non-Monster/vehicle')
+    await expect(ability.locator('[data-rule-summary]').first()).toBeVisible()
     for (const width of [1440, 390]) {
       await page.setViewportSize({ width, height: 900 })
       await page.reload()
-      await expect(ability).toContainText('Devastating Wounds: non-Monster/vehicle')
+      await expect(ability.locator('[data-rule-summary]').first()).toBeVisible()
       await page.getByRole('heading', { name: 'Wrath of the Machine Spirit', exact: true }).scrollIntoViewIfNeeded()
       await page.screenshot({ path: testInfo.outputPath(`redeemer-current-${width}.png`) })
     }

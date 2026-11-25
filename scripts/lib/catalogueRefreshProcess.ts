@@ -8,8 +8,17 @@ import { holdCatalogueCache, retainedCatalogueCache, pruneCatalogueCaches } from
 
 const execute = promisify(execFile)
 
-/** Resolves once a first catalogue is live, failing after `firstCatalogueMs`; later refreshes continue in the background. */
-export async function startCatalogueRefresh(buildDirectory: string, dataDirectory: string, signal: AbortSignal, firstCatalogueMs: number) {
+/**
+ * Resolves once a first catalogue is live, failing after `firstCatalogueMs`. With `followUpstream`, later refreshes follow
+ * the sources' upstream branches in the background; without it, the first catalogue, the checkout's pin, is the only one.
+ */
+export async function startCatalogueRefresh(
+  buildDirectory: string,
+  dataDirectory: string,
+  signal: AbortSignal,
+  firstCatalogueMs: number,
+  { followUpstream = true } = {},
+) {
   const { key, authoring } = JSON.parse(fs.readFileSync(path.join(buildDirectory, 'server/catalogue-compiler.json'), 'utf8')) as {
     key: string
     authoring: string
@@ -77,9 +86,11 @@ export async function startCatalogueRefresh(buildDirectory: string, dataDirector
   } finally {
     stopRetainedLease()
   }
-  const timer = setInterval(() => void refresh(), 60 * 60_000)
-  timer.unref()
-  signal.addEventListener('abort', () => clearInterval(timer), { once: true })
-  void refresh()
+  if (followUpstream) {
+    const timer = setInterval(() => void refresh(), 60 * 60_000)
+    timer.unref()
+    signal.addEventListener('abort', () => clearInterval(timer), { once: true })
+    void refresh()
+  }
   return root
 }

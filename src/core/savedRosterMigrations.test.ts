@@ -18,8 +18,18 @@ it('upgrades stored roster fields without changing selections, nicknames, privat
     automaticName: true,
     locked: false,
     detachmentId: '["awakened-dynasty"]',
+    printedDefaults: true,
+    picks: '[{"entryId":"overlord","nickname":"Leader","note":"Hold home","choices":{"weapon":"staff"},"floor":true}]',
     prep: '{"stratagems":[],"secondaries":[],"remindersEnabled":false}',
   })
+})
+
+it('marks every unit of a row saved before a printed default won to keep its cheapest choices', () => {
+  expect(JSON.parse(migrateStoredRoster(row).picks)[0].floor).toBe(true)
+})
+
+it('leaves the units of a row saved since a printed default won unmarked', () => {
+  expect(JSON.parse(migrateStoredRoster({ ...row, printedDefaults: true }).picks)[0].floor).toBeUndefined()
 })
 
 it('preserves current metadata and ordered detachments on repeated upgrades', () => {
@@ -37,7 +47,7 @@ it('moves a stored roster on a folded rules version, and its allied picks, to th
   const migrated = migrateStoredRoster(folded)
   expect({ catalogueId: migrated.catalogueId, picks: migrated.picks, again: migrateStoredRoster(migrated) }).toEqual({
     catalogueId: '470a-6daa-9014-12df',
-    picks: '[{"entryId":"captain","catalogueId":"e0af-67df-9d63-8fb7"}]',
+    picks: '[{"entryId":"captain","catalogueId":"e0af-67df-9d63-8fb7","floor":true}]',
     again: migrated,
   })
 })

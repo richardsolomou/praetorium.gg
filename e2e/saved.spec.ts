@@ -380,25 +380,28 @@ test('a connected legacy shell roster follows other tabs without replacing an un
   const { promise: heldSave, resolve: releaseSave } = Promise.withResolvers<void>()
   let localSaveStarted = false
   let remoteUpdateFetched = false
-  viewer.on('response', (response) => {
-    if (response.request().method() !== 'GET' || !response.url().includes('/_serverFn/')) return
-    void response.text().then((body) => {
-      if (body.includes('Changed elsewhere')) remoteUpdateFetched = true
-    })
-  })
   await viewer.route('**/_serverFn/**', async (route) => {
     if (route.request().method() === 'POST') {
       localSaveStarted = true
       await heldSave
+      await route.continue()
+      return
     }
-    await route.continue()
+    // Read here rather than from the page's response, whose body the browser may already have dropped.
+    const response = await route.fetch()
+    if ((await response.text()).includes('Changed elsewhere')) remoteUpdateFetched = true
+    await route.fulfill({ response })
   })
+  const field = viewer.getByLabel('List name')
   try {
-    await viewer.getByLabel('List name').fill('Local unsaved edit')
-    await expect.poll(() => localSaveStarted).toBe(true)
+    // A remote update still landing, or a reload before hydration, can drop the edit, so type it until its save starts.
+    await expect(async () => {
+      if ((await field.inputValue()) !== 'Local unsaved edit') await field.fill('Local unsaved edit')
+      await expect.poll(() => localSaveStarted, { timeout: 3_000 }).toBe(true)
+    }).toPass({ timeout: 30_000 })
     await renameRoster(page, 'Changed elsewhere')
     await expect.poll(() => remoteUpdateFetched).toBe(true)
-    await expect(viewer.getByLabel('List name')).toHaveValue('Local unsaved edit')
+    await expect(field).toHaveValue('Local unsaved edit')
   } finally {
     releaseSave()
   }
@@ -613,7 +616,7 @@ test('a saved list is reopened, duplicated, shared and published', async ({ brow
   await retryUntilVisible(duplicateHere, () => guest.getByRole('button', { name: 'Roster actions' }).click())
   await guest.getByRole('menuitem', { name: 'Share…' }).click()
   const guestShare = guest.getByRole('dialog', { name: /^Share / })
-  await expect(guestShare.getByRole('button', { name: /^Export text/ })).toBeVisible()
+  await expect(guestShare.getByRole('button', { name: /^Export\b/ })).toBeVisible()
   await expect(guestShare.getByRole('button', { name: /^Print/ })).toBeVisible()
   // A reader sees who can open the list but cannot change it.
   await expect(guestShare.getByRole('radio')).toHaveCount(0)

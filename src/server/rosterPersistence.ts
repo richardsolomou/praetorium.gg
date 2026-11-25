@@ -2,6 +2,7 @@ import { FORMAT_RULE_IDS, OPTIONAL_RULE_IDS, type FormatRuleId, type OptionalRul
 import { picksSchema, savedPrepSchema } from '../contracts/schemas'
 import type { SpacetimeOperator } from './spacetimeOperator'
 import { currentRosterIds } from '../core/retiredCatalogueIds'
+import { flooredPicks } from '../core/printedDefaults'
 import { withoutUnitNotes } from '../core/unitNotes'
 import { detachmentIds } from '../core/savedRoster'
 
@@ -16,6 +17,8 @@ type RosterColumns = {
   borrowedDetachmentId?: string | null
   baseRosterId?: string | null
   copiedFromRosterId?: string | null
+  /** Sent by code that starts a choice on its printed default; without it the module keeps each unit on its cheapest. */
+  printedDefaults?: true
 }
 
 /** Encodes a roster's columns for storage; `rosterFromRow` reads them back. */
@@ -31,6 +34,7 @@ export function rosterRow<R extends RosterColumns>(roster: R) {
     borrowedDetachmentId: roster.borrowedDetachmentId ?? null,
     baseRosterId: roster.baseRosterId ?? null,
     copiedFromRosterId: roster.copiedFromRosterId ?? null,
+    printedDefaults: roster.printedDefaults,
   }
 }
 
@@ -47,7 +51,8 @@ export function rosterFromRow(row: NonNullable<Awaited<ReturnType<SpacetimeOpera
     pointsBudget: row.pointsBudget ?? null,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
-    picks: picksSchema.parse(JSON.parse(row.picks)),
+    // A row the deploy's migration has not reached yet still keeps its units' cheapest choices.
+    picks: row.printedDefaults ? picksSchema.parse(JSON.parse(row.picks)) : flooredPicks(picksSchema.parse(JSON.parse(row.picks))),
     ...(includePrep
       ? {
           prep,

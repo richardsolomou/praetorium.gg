@@ -95,10 +95,10 @@ export function fromNewRecruitShare(
       for (const child of parent.options) {
         const amount = child.amount ?? (child.options.length ? undefined : 1)
         if (amount === 0) continue
-        if (!child.options.length) {
-          if (/^warlord$/i.test(label(child))) warlord = true
-          else selections.push({ name: label(child), count: amount! * multiplier, ...(model ? { model } : {}) })
-        } else if (amount === undefined || bundleSinceSplit(child) || holdsModels(child)) visit(child, model, (amount ?? 1) * multiplier)
+        // A Warlord can wrap the variant a detachment names, as a Tempestor Prime's "Militarum Tempestus Warlord".
+        if (/^warlord$/i.test(label(child))) warlord = true
+        else if (!child.options.length) selections.push({ name: label(child), count: amount! * multiplier, ...(model ? { model } : {}) })
+        else if (amount === undefined || bundleSinceSplit(child) || holdsModels(child)) visit(child, model, (amount ?? 1) * multiplier)
         else if (!model && !isBundle(child)) {
           models += amount * multiplier
           selections.push({ name: label(child), count: amount * multiplier })

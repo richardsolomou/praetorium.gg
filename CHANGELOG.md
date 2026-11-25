@@ -1,5 +1,179 @@
 # praetorium
 
+## 0.277.3 (2026-11-25)
+
+### Patch Changes
+
+- 3df1468: [rosters] Exported list text names your Warlord when it's a character that must lead the army.
+
+## 0.277.2 (2026-11-25)
+
+### Patch Changes
+
+- b53f74f: [reference] The core rules' Torrent clarification shows its printed number, 24.37.01, and has a link of its own.
+
+## 0.277.1 (2026-11-25)
+
+### Patch Changes
+
+- 7a1781d: [rosters] Importing a list the official app exported in another language now reads more of its units and wargear.
+- 7a1781d: [rosters] Enhancements and upgrades in a list exported in another language now come in by their translated names.
+- 7a1781d: [rosters] Squads in a list exported in another language now come in with the number of models the list gives.
+
+## 0.277.0 (2026-11-25)
+
+### Minor Changes
+
+- b333858: [rosters] Export a roster for Tabletop Simulator: download its file and load it there with Yellowscribe.
+
+## 0.276.3 (2026-11-25)
+
+### Patch Changes
+
+- f1c3972: [rosters] Import an official app list that is over its points without reporting the app's error lines.
+- f1c3972: [rosters] Import a Battle Sisters Squad with a Ministorum flamer beside its heavy weapon.
+- f1c3972: [rosters] Import a Militarum Tempestus Command Squad marked Warlord from a New Recruit share link.
+- 7dd5ca7: [reference] Show the rules summaries on the core rules, Chapter Approved, Combat Patrol and Event Companion pages again.
+
+## 0.276.2 (2026-11-25)
+
+### Patch Changes
+
+- 61b0701: [simulator] Calculate abilities that give ranged attacks a weapon ability against targets within a distance of the unit, as the Land Raider Redeemer's Wrath of the Machine Spirit.
+
+## 0.276.1 (2026-11-25)
+
+### Patch Changes
+
+- a6f08ad: [reference] Name the Sternguard Veteran Squad's hit re-roll ability Veteran Marksmen, as the codex does.
+
+## 0.276.0 (2026-11-25)
+
+### Minor Changes
+
+- 696a331: [simulator] Use Crushing Impact when a monster or vehicle charges, adding its mortal wounds before the fight.
+- 696a331: [simulator] Set how far away the target is, so weapons that can't reach it stay out and each weapon gets its half-range abilities by its own range.
+
+### Patch Changes
+
+- 696a331: [simulator] Offer stratagems for units named with a slash, such as Relics of the Dark Age for Infantry/Mounted units.
+
+## 0.275.0 (2026-11-25)
+
+### Minor Changes
+
+- c9ee2ff: [reference] Rules no longer offer to load their official wording from community sources; each one shows its plain-language summary, or its name and numbers where it has none.
+- c9ee2ff: [reference] Rosters and pages on an earlier rules version now show plain-language summaries written for that version.
+- 2d07da1: [reference] Stratagems, enhancements, abilities, core rules and mission cards now show a plain-language summary, online and offline.
+- a81c328: [reference] Datasheets show their composition, loadout, wargear options and transport again, from VS Data, and more abilities show a summary.
+
+### Patch Changes
+
+- 3cf0df3: [reference] Weapon and core abilities named in a rule's summary show their own summary on hover or tap.
+- 02dc2ba: [reference] An earlier rules version's datasheets no longer list abilities that version doesn't print.
+- cdabf44: [reference] A detachment rule an earlier rules version doesn't print no longer shows under that detachment, on its page or in the builder.
+- eddbbee: [rosters] New units of 18 datasheets, including the Captain, Redemptor Dreadnought and Lokhust Heavy Destroyers, start with the default wargear the official app gives them.
+- 2b215d9: [reference] Stratagems and Enhancements only the app printed show their summaries on the detachment page and in battle.
+- 3eb74c8: [reference] A weapon ability a summary names in brackets, such as [LANCE], opens its own summary from the whole bracketed name, bold where the summary bolds it.
+- 39f1537: [battles] Bring It Down and A Grievous Blow are now put back and redrawn, instead of discarded, when no enemy model or unit is big enough to score them.
+- a6abec5: [reference] Datasheet abilities whose only text is BSData's, fortifications' included, show a summary.
+- 90d61e1: [rosters] A detachment rule on a datasheet in the builder explains itself as the detachment's page does.
+- aa8d439: [rosters] An enhancement or upgrade in the list builder shows its detachment's summary, even where the catalogue prints no text for it or spells it differently.
+- 5e5523c: [reference] The Adeptus Custodes Venerable Contemptor Dreadnought's melee weapon is called the Contemptor Fist, as in the official app, and lists that name it either way still import.
+- 9552ef5: [reference] A core rules clarification shows its plain-language summary under its title where one exists.
+- 106ba46: [reference] A Crucible or Legends datasheet's army rule shows its summary.
+- 3dad17c: [reference] The Crusader Squad no longer lists Attached Unit, an ability its datasheet doesn't have.
+- a28f3ee: [reference] The retired Custodes codex rules version shows VS Data summaries again, from MFM 1.6's release that it was folded into.
+- bdf4bfb: [rosters] Fortis and Indomitor Kill Teams no longer give a bolt pistol to models whose card has none.
+- 07883ab: [reference] Deathwatch Support's rules, such as Beacon Angelis, show their summaries in rules versions that still name it "Deathwatch Support (ITS NOT READY)".
+- bdf4bfb: [rosters] A new Decimus Kill Team's Gravis Veteran starts with the Infernus heavy bolter, as on its card.
+- 145b07b: [rosters] A Decimus Kill Team's carbine Veteran no longer offers a combat knife its card doesn't list.
+- e6db69d: [battles] Defend Stronghold no longer asks for a score in the first battle round, since it only scores from round 2.
+- e9e1517: [rosters] A Desolation Sergeant can take, and starts with, a Superfrag Rocket Launcher.
+- 0fca35a: [reference] Detachment rules and enhancements that only the community catalogue prints, such as Shroud of Obfuscation, show their summaries on the detachment page.
+- 041e343: [rosters] An ability a list's detachment gives a unit, such as Possessed Slaughterband's Brazen Fury on Eightbound, shows the detachment rule's summary.
+- 12c7218: [reference] Faction ability chips such as Reanimation Protocols show the ability's summary when you hover or tap them.
+- d2b6f0d: [reference] A faction page's abilities, such as the Orks' Waaagh!, show their summaries.
+- 786c18b: [reference] Fulgrim no longer lists Serpentine, an ability his datasheet doesn't have.
+- 2bebbb1: [reference] An ability another wargear or unit grants, such as Benefit of Cover, explains itself on hover or tap.
+- cc648a0: [rosters] Where a wargear option's instruction disagrees with a model's own choices, the loadout says what that model can take instead.
+- e6db69d: [battles] Custodes armies using Might of the Moritoi can now play Honoured Interred in battles.
+- 77e6f92: [reference] Every ability of a Crucible or Legends datasheet that VS Data summarizes shows its summary, Proteus Kill Team's shields included.
+- f272c9e: [reference] A datasheet's invulnerable save says which attacks or model it is for, and summarizes its condition.
+- 2801afd: [rosters] The builder's datasheet panel and a printed roster show a unit's invulnerable save as its datasheet does, with the attacks, model and condition it is for.
+- 3f653bb: [reference] A datasheet, the builder and a printed roster no longer list a unit's invulnerable save a second time as an ability.
+- c1085ce: [reference] Lazarus no longer lists Keeper of the Unseen Ritual, an ability his datasheet doesn't have.
+- 6f91e6c: [reference] Thirteen Legends datasheets whose cards show their invulnerable save as a graphic now have it typed, on the models it belongs to.
+- 284bf92: [reference] The Manta's datasheet says what it can carry again.
+- 3ea1bb8: [reference] The Miasmic Malignifier no longer lists Deployment, an ability its datasheet doesn't have.
+- b0661d0: [reference] A mission card award scored at two moments now shows once, under both.
+- ab7a6cb: [reference] Mission awards, actions and twists now show a loading placeholder until their summary arrives, instead of a stand-in like "As the card describes."
+- c056efc: [reference] Nightforged Battery shows as a Darkflight Pursuit Upgrade on earlier rules versions, not as an Enhancement.
+- 145b07b: [rosters] Nobz take each special weapon once for every 5 models, as on their card.
+- c1f978c: [battles] Battles and ability alerts saved before a data update still show each rule's summary.
+- e9e1517: [rosters] New Death Guard Chaos Rhinos, Ynnari Wyches and Einhyr Hearthguard start with the combi-bolter, splinter pistol and concussion gauntlet their cards print.
+- d0c4ad1: [rosters] Units that can take more than one Order, such as Kasrkin, a unit led by Ursula Creed or a Tempestor Prime with a Command Rod, offer that many picks again.
+- 2f91d45: [reference] A datasheet ability shows its own summary, never another unit's ability that only shares its card's words, as Karanak's Pack Leader showed Warptime.
+- c66de55: [reference] On the 2 September rules, a Space Marines character's Support shows its own summary instead of the core rule's.
+- e9e1517: [rosters] A new unit starts with the wargear its card prints even where it costs points, such as a Leman Russ's lascannon or an Achilles Ridgerunner's heavy mining laser; saved units and battles keep their wargear and points, except three Desolation Squads whose sergeant now shows the Superfrag Rocket Launcher its card prints, at the same points.
+- 2629420: [reference] Psyker abilities such as Chief Librarian and core abilities that take a value such as Feel No Pain 5+ show their summaries on datasheets.
+- a868117: [simulator] A model VS Data names otherwise than its datasheet, as Kill Team Cassius's Terminator, keeps its invulnerable save.
+- a096200: [reference] Detachments the 2 September 2026 app didn't have no longer show on those rules.
+- 22e9461: [battles] On the 2 September 2026 rules, every Stratagem and Enhancement that version of the app printed can be played.
+- 62d8dfc: [battles] On the 2 September 2026 rules, Armour of Contempt plays as the Space Marines card, not the Ordo Xenos one.
+- 3f61213: [reference] Detachments on the 2 September 2026 rules now list the Stratagems and Enhancements that version of the app printed, naming the ones without a summary yet.
+- 9b66144: [battles] Ironstorm Spearhead on the 2 September 2026 rules now offers the Stratagems that version of the app did: Ancient Fury, Power of the Machine Spirit, Unbowed Conviction and Vengeful Animus.
+- e6db69d: [battles] Lists on the 2 September 2026 rules now pay 1 CP for From Beyond the Veil and 2 CP for Priority Strike and Only in Death Does Duty End, as the official app did then.
+- 9b66144: [battles] Stratagems on the 2 September 2026 rules now carry that version's names, such as Only in Death Does Duty End for A Worthy Death.
+- 39f1537: [battles] Lists on the 2 September 2026 rules now use Wind-Swift Evasion in your opponent's Movement phase, Augmented Targeting in your Shooting phase, Stand to the End in either Fight phase and Feint and Thrust in your Movement phase, as the official app did then.
+- 42bb43a: [reference] An ability printed in the same words as another unit's differently named ability, such as the Deathwing Strikemaster's Storm Shield on earlier rules versions, shows the summary of the ability of its own name.
+- 39f1537: [battles] Secure Positions can now also be used at the end of your turn.
+- 3cf0df3: [simulator] Stratagems and detachment rules such as Armour of Contempt apply in the simulator without loading rules text.
+- 2e54a92: [simulator] A unit whose invulnerable save holds only against ranged or melee attacks, only under a condition, or only for one of its models can be simulated as a defender.
+- e6db69d: [battles] Scriptural Prognosis and Rapturous Agony are now used in your opponent's Shooting phase or either player's Fight phase, as the official app shows.
+- e6db69d: [battles] In Auramite Clad, Vigil Unending, Selfless Bodyguard, Overwhelming Excess and Storm of Darkness can now be used in either player's Fight phase as well as your opponent's Shooting phase, as the official app allows.
+- 39f1537: [battles] Scouting Outriders, Move Out and The Realm of Chaos are now used at the end of your opponent's turn instead of in their Fight phase.
+- 39f1537: [battles] Stratagems used in the Shooting or Fight phase now offer the Shooting phase only on the turn their card names, as the official app shows.
+- 39f1537: [battles] Overloaded Safeguards and Trail of Destruction are now used in your Movement phase, and Built To Last in your opponent's Shooting phase, as the official app shows.
+- 39f1537: [battles] Stun Grenades can no longer be used in the Command phase, as the official app shows.
+- 5858438: [reference] A weapon ability a summary names inside a tooltip links to its core rule, and bold links in summaries look like links.
+- e717380: [reference] Rule summaries show their paragraphs and lists, and a rule shows a loading bar in place of its summary until it arrives.
+- 985dcd7: [reference] The Swarmlord no longer lists Lord of Deceit, an ability BSData links to it hidden.
+- 145b07b: [rosters] Tempestus Scions take no special weapon twice unless the unit has 10 models, as on their card.
+- 8638e36: [reference] A datasheet whose model lines don't add up to its unit's size, such as the Brotherhood Terminator Squad's, also gives that size.
+- 39f1537: [battles] Unstoppable can now also be used in your Charge phase on earlier rules versions.
+- 25dbf69: [reference] More abilities and detachment upgrades show their summaries, including Legends abilities VS Data knows by their catalogue entry.
+- 052d7f5: [reference] Rule summaries name units, keywords and rules exactly as the game does.
+- 778d782: [reference] A datasheet says which wargear its models start with where they differ, as on the Servitor Battleclade, Imperial Navy Breachers and Hyperadapted Raveners.
+- f71680b: [rosters] A limit on wargear across a unit counts it on every model carrying it, so Neophyte Hybrids take each heavy and special weapon once for every 10 models.
+- ed7c033: [rosters] Each wargear option in a unit's loadout says again what the option allows, above the model that can take it.
+- 6b32b83: [battles] Alerts and objectives sent to your watch, and a secondary you may swap when drawn, describe the rule in plain words again.
+- d689935: [reference] A Legends datasheet whose catalogue gives its invulnerable save only as an ability shows the save again, on the model that has it.
+- 9c5a282: [reference] An ability no longer shows the summary of another unit's or detachment's rule of a different name, such as a Legends Assault Squad's Hammer of Wrath.
+- bdf4bfb: [rosters] New Wulfen with Storm Shields start with Stormfrag Auto-launchers, as on their card.
+
+## 0.274.16 (2026-11-24)
+
+### Patch Changes
+
+- 9a7d595: [battles] Choose who concedes from one battle menu action, with yourself selected by default.
+- 9a7d595: [battles] Keep Shooting-phase mission reminders such as Cleanse in the phase where the action starts.
+- 9a7d595: [battles] Show embarked units under their transports in the deployment checklist.
+- 9a7d595: [rosters] Let Fireknife Battlesuits keep two weapons and up to two different drones per suit.
+
+## 0.274.15 (2026-11-24)
+
+### Patch Changes
+
+- e7e431b: [battles] Players appear on the leaderboard with a place from their first battle, instead of after five.
+- 9fe0e79: [rosters] The unit picker's top-four trophy is bronze, silver or gold by how many of the faction's top-four lists take the unit.
+
+## 0.274.14 (2026-11-23)
+
+### Patch Changes
+
+- a972d48: [reference] The four Pantheon of Woe stratagems no longer show a community summary.
+
 ## 0.274.13 (2026-11-22)
 
 ### Patch Changes
@@ -1258,477 +1432,3 @@
 ### Patch Changes
 
 - fd9eb60: [rosters] Anathema Psykana units can now embark in the Anathema Psykana Rhino.
-
-## 0.232.4 (2026-11-11)
-
-### Patch Changes
-
-- 75fb5d7: [simulator] Simulations you run from a roster, a battle or a roster comparison now appear in Recent simulations.
-- 75fb5d7: [simulator] The simulator page no longer lists your battles in progress; simulate from the battle itself instead.
-
-## 0.232.3 (2026-11-11)
-
-### Patch Changes
-
-- dcb3fe6: [assistant] When an assistant starts a tournament battle or reports a score for you, the approval now names your opponent and the round.
-- dcb3fe6: [assistant] Assistants now record the end-of-game scoring after the last turn, so the battle finishes.
-- dcb3fe6: [assistant] Assistants now refuse secondary missions that can't be taken fixed, instead of leaving the battle unable to start.
-- dcb3fe6: [assistant] Assistants setting up a battle now drop the old pack's twist when you change mission pack, and clear the pack and layout when you switch to manual tracking.
-
-## 0.232.2 (2026-11-11)
-
-### Patch Changes
-
-- e430dcd: [rosters] Each Templar Vow and Combat Doctrine now starts on its own line instead of running into the option before it.
-
-## 0.232.1 (2026-11-11)
-
-### Patch Changes
-
-- e20120a: [rosters] Roster grades count each model's wounds and objective control correctly in units with different model types.
-
-  Roster grades explain which damage gaps they check and which sources of protection they leave out.
-
-- e20120a: [rosters] Roster grades distinguish charge reach and deployment from general mobility, show normal and recognised conditional movement separately, and account for slower attached models.
-- 9630cfa: [reference] Weapon ability tooltips such as Indirect Fire, Assault and Stealth now show the core rule they point to, not just its number.
-- e20120a: [rosters] Attached units display weapon abilities granted by their leader's unit-wide rules, including Alpha Warrior's Sustained Hits 1.
-- e20120a: [rosters] Roster grades show recognised abilities that create extra units and their conditions separately from the score.
-
-## 0.232.0 (2026-11-11)
-
-### Minor Changes
-
-- 79c51a7: [assistant] Assistants can now search your battles by result, army, opponent, mission pack and date.
-- 79c51a7: [assistant] Assistants can now summarise a finished battle from its report, and delete a battle you created.
-- 79c51a7: [assistant] Assistants can now set up a battle from start to first turn, see who you can play, and know what the battle needs next.
-- 79c51a7: [assistant] Assistants connected to Praetorium can now check a list for problems without saving it.
-- 79c51a7: [assistant] Assistants can now read the models in your collection to build lists from what you own.
-- 79c51a7: [assistant] Assistants can now run every unit in your list against every unit in another, like the simulator's roster comparison.
-- 79c51a7: [assistant] Assistants can now tell you what changed in each points and datasheet update.
-- 79c51a7: [assistant] Connected AI assistants can now compare every detachment a faction can take before choosing one.
-- 79c51a7: [assistant] Assistants connected to Praetorium can now grade a list the same way the roster builder does.
-- 79c51a7: [assistant] Assistants can now bring in a list you paste from another app, and give you a list's text export or exchange code.
-- 79c51a7: [assistant] Connected AI assistants now follow Praetorium's guides for building, grading and tuning a list, comparing units, answering rules questions and tracking battles.
-- 79c51a7: [assistant] Assistants can now look up force dispositions and the missions, deployments and terrain for any pairing of them.
-- 79c51a7: [assistant] Assistants can now find the best wargear for a unit against a target, the same way Optimize does on the simulator.
-- 79c51a7: [assistant] Assistants can now read your groups, leagues, tournaments and hidden-list games, seal your list, check you in, start your table's battle and report its score.
-- 79c51a7: [assistant] Connected AI assistants can now plan how your list plays against an opponent's army and mission.
-- 79c51a7: [assistant] Assistants can now read your win rates and leaderboard places.
-- 79c51a7: [assistant] Assistants can now copy, archive or delete your rosters.
-- 79c51a7: [assistant] Assistants can now help you choose fixed or tactical secondary missions for a game.
-- 79c51a7: [assistant] Assistants can now simulate a unit that has already lost models or wounds.
-- 79c51a7: [assistant] Assistants can now simulate a unit with the wargear from your saved list, not just its default loadout.
-- 79c51a7: [assistant] Assistants connected to Praetorium can now choose your Warlord, enhancements and wargear when they build a list.
-
-### Patch Changes
-
-- 79c51a7: [assistant] The assistant consent page and Connected apps now list everything an assistant's access covers.
-- 2b6c0e5: [assistant] When an assistant copies a list or makes a variant of it, it now tells you whether the copy will be public.
-
-## 0.231.11 (2026-11-11)
-
-### Patch Changes
-
-- 74760cf: [battles] The battlefield name in a battle now opens the full map with its measurement toggles, the same view as setup and the mission pages.
-- 7bb067d: [simulator] After a battle ends, Simulate can pick destroyed units again, at full strength, to look back at a fight.
-- 5f94110: [simulator] The simulator's model limit note no longer overlaps the leader row under it.
-- ef22d33: [simulator] A roster unit's leaders and support units show as plain names in the simulator, since a saved roster fixes them.
-- 5f94110: [simulator] The simulator's roster unit list shows a leader together with the unit it leads, as one choice.
-
-## 0.231.10 (2026-11-11)
-
-### Patch Changes
-
-- 8b7cb6e: [rosters] New Recruit share links to Crusade lists import with their detachment and battle size, without flagging Order of Battle and Configuration as unknown units.
-
-## 0.231.9 (2026-11-11)
-
-### Patch Changes
-
-- 644b2b0: [battles] Drawing Beacon now asks which unit is your beacon.
-- 644b2b0: [battles] A Beacon card whose unit was destroyed now says so and is pre-selected for discard at the end of your turn.
-- 0c0fd90: [battles] Triangulation, Gather Intel, Vital Link and Death Trap now ask where you placed operation markers at the end of your turn and keep them on the card.
-- 0c0fd90: [battles] Surveil the Foe now asks which opposing operation markers you removed, and Sensor Sweep can remove a marker from any mission, not only Locate and Deny.
-- 0c0fd90: [battles] Smoke and Mirrors now asks which objectives you decoyed at the end of your turn and keeps them on the card for the rest of the battle.
-
-## 0.231.8 (2026-11-11)
-
-### Patch Changes
-
-- 0b1e6ad: [reference] Search shows the results named after what you typed first, so searching "cover" opens on the Benefit of Cover rule instead of datasheets that mention it.
-
-## 0.231.7 (2026-11-11)
-
-### Patch Changes
-
-- e170817: [battles] Battle reminders now wait until you finish scoring, drawing secondaries or another open prompt, instead of covering it.
-
-## 0.231.6 (2026-11-11)
-
-### Patch Changes
-
-- 02cd326: [battles] Clicking a folded battle setup step's answer opens that step to change it.
-- 02cd326: [battles] Battle setup shows a Choose army button under each player with no army yet, so the list chooser is in reach on a phone without scrolling.
-
-## 0.231.5 (2026-11-11)
-
-### Patch Changes
-
-- a19eb94: [rosters] The builder's Share menu item shows whether the roster is private, unlisted or public.
-- a19eb94: [app] Action and right-click menus use the same roomier, sentence-case rows everywhere.
-- a19eb94: [rosters] The roster menus group their actions under Play, Edit, Share and Copy, in the same order in the builder and on the Rosters page.
-
-## 0.231.4 (2026-11-11)
-
-### Patch Changes
-
-- 62a5b15: [assistant] Assistants comparing units can give a character an enhancement from its detachment, such as a Feel No Pain.
-- 62a5b15: [assistant] Assistants comparing units can name nearby units, such as a character, so their auras can apply to a unit they are not leading.
-- 62a5b15: [assistant] Assistants comparing units now fight with the stronger of a model's melee weapons or weapon profiles against the defender, instead of the first one listed.
-- 62a5b15: [rosters] Roster grades now count a unit's stronger weapon choice, so a Skorpekh Lord is graded with its hyperphase harvester rather than its flensing claw.
-- 62a5b15: [assistant] Searching an army's units from an assistant now finds a unit whose name is misspelt.
-- 62a5b15: [simulator] Comparing two rosters now scores each pairing with the weapon choice that does most against that target.
-- 62a5b15: [simulator] The simulator now starts a model on the weapon or weapon mode that does most against the defender, instead of the first one listed.
-
-## 0.231.3 (2026-11-11)
-
-### Patch Changes
-
-- cfa1278: [rosters] Roster grades colour each score by its grade, from green for an A to rust for a D, and mark each category with an icon.
-- 24b9858: [rosters] Roster grades show Damage in its own column on wider screens, so the two columns come out about the same height.
-
-## 0.231.2 (2026-11-11)
-
-### Patch Changes
-
-- 10eaf9f: [rosters] Damage grades count everything a unit can kill in a turn, so a unit that can take out several vehicles is no longer counted as one.
-- 408f868: [rosters] Cheap screens and support units no longer lower a roster's damage and durability grades.
-- 10eaf9f: [rosters] Roster grades follow a gentler curve: a typical tournament list scores about 70, and the strongest lists reach the 90s.
-- 0c8cfba: [rosters] Roster grades mark a unit whose weapons or profile the simulator cannot read as not calculated, instead of counting it as dealing no damage or taking none.
-- 408f868: [rosters] Roster grades compare a list with tournament lists of its own faction and battle size, so small lists and armies the simulator underrates are no longer marked down.
-
-## 0.231.1 (2026-11-11)
-
-### Patch Changes
-
-- a989d64: [reference] Detachment pages for Creations of Bile, Renegade Warband, Fist of the God-Emperor, Medusa's Wrath, Shadowmark Talon and Skitarii Hunter Cohort no longer list their detachment rule twice.
-- a989d64: [reference] Darkflight Pursuit no longer lists the Nightforged Battery upgrade twice.
-
-## 0.231.0 (2026-11-11)
-
-### Minor Changes
-
-- cb33027: [rosters] Roster grades score a list out of 100 on board control, mobility, damage and durability against lists that place at tournaments, and name the gaps worth knowing about; open them from **Grade this roster** in the roster menu or on its card in your rosters.
-
-## 0.230.3 (2026-11-11)
-
-### Patch Changes
-
-- b2843e3: [app] Battle and data update pages no longer download every faction's summary just to link to the armies already on screen.
-- b1c4b9a: [rosters] Saved lists price and check legality faster, so the roster library and shared lists load sooner.
-- 1cbf8ac: [events] A group's page opens faster when its battles have not changed since it was last read.
-- 868b4f3: [rosters] The roster library no longer reprices lists it already priced when you change the sort or filter by legality or points.
-- 3576c5c: [battles] Watched and finished battles open faster, since they no longer download the battlefield terrain until you open the map.
-
-## 0.230.2 (2026-11-11)
-
-### Patch Changes
-
-- fdb7166: [rosters] A unit you can't add yet now names what unlocks it, such as "Add a Khorne Battleline unit to the roster first." for allied Daemons.
-
-## 0.230.1 (2026-11-11)
-
-### Patch Changes
-
-- f92aa27: [reference] Detachment pages no longer list an enhancement or upgrade twice when sources print it with or without a qualifier such as (Psychic) or (one per army).
-- f92aa27: [reference] Detachment pages no longer list core rules such as Lethal Hits or a misspelt second copy of the detachment's own rule.
-
-## 0.230.0 (2026-11-11)
-
-### Minor Changes
-
-- f2d2833: [rosters] The filters on the Friends, Public and Played roster tabs now show how many lists each choice finds, including **0** for factions nobody has listed.
-
-### Patch Changes
-
-- f2d2833: [battles] Filtering played armies by **Against army** now also finds battles against that faction under an older rules version.
-
-## 0.229.5 (2026-11-11)
-
-### Patch Changes
-
-- eb95ac8: [battles] Watching a battle being set up no longer asks you to choose an army for a guest's seat; it says the seat is waiting.
-- a83c753: [reference] Rules, abilities, stratagems, enhancements and wargear options that the sources list with printed squares or dots now show those points as a bulleted list instead of one run-on paragraph.
-
-## 0.229.4 (2026-11-11)
-
-### Patch Changes
-
-- 6229356: [battles] Watching a battle you are not playing in now follows each move as it happens, without reloading.
-
-## 0.229.3 (2026-11-10)
-
-### Patch Changes
-
-- d5183ca: [battles] Battle setup's Format step now says the battle size comes after the armies, instead of "Determined by your rosters", until every list is in.
-- cdbe543: [battles] Public and friends' games now list the most recently played first, and a battle nobody has started leaves them two days after its last change, until it begins.
-- d5183ca: [battles] Watching a battle that has not started now shows its setup, with each side's choices so far, instead of an empty scoreboard.
-
-## 0.229.2 (2026-11-10)
-
-### Patch Changes
-
-- 484111e: [events] Groups have a Battles tab listing every game played for the group, with filters, and Recent games links to it.
-- 484111e: [battles] A player's Battles tab now lists every battle you may watch them in, with the same filters as the Battles page, and keeps the Record tab's filters when you switch to it.
-- 484111e: [rosters] A player's Rosters tab can be searched, filtered by faction, detachment, battle size and points, and sorted.
-- 484111e: [events] A tournament's battle list can be searched and filtered by status, army, player and more.
-
-## 0.229.1 (2026-11-10)
-
-### Patch Changes
-
-- fb035f5: [app] Battle lists, group and tournament pages, player records, the home page and played armies load faster, and stay fast as more battles are played.
-
-## 0.229.0 (2026-11-10)
-
-### Minor Changes
-
-- 0336f3a: [rosters] Your rosters can now be grouped by faction, detachment, or battle size, with the sort you chose kept inside each group, and each group can be folded away.
-
-### Patch Changes
-
-- 93cd269: [app] Changing a filter, the sort, or the search on the roster, battle and profile lists no longer jumps back to the top of the page.
-
-## 0.228.11 (2026-11-10)
-
-### Patch Changes
-
-- 9e9d613: [app] Changing a filter on the battle lists, the public, friends' and played rosters, or a player's record now keeps the page on screen and says it is updating, instead of blanking the page while it loads.
-
-## 0.228.10 (2026-11-10)
-
-### Patch Changes
-
-- 49f0b97: [app] Pages open faster on a first visit, because each page now downloads much less of the app before it starts.
-- addadcc: [rosters] Your roster list no longer jumps when it finishes loading.
-
-## 0.228.9 (2026-11-10)
-
-### Patch Changes
-
-- 193a637: [rosters] A leader now gets the defences of the bodyguards it leads, and the shooting + melee estimate ends them in melee when shooting destroys the bodyguards.
-
-## 0.228.8 (2026-11-10)
-
-### Patch Changes
-
-- 1562d55: [events] Changing only a tournament's Swiss rounds or a duel's points total now saves.
-- d71dc96: [events] The help pages now say exactly who can read a sealed roster and which battles count on the leaderboard.
-- 946352a: [app] Try again on the app's could not load screen reopens the page you were on.
-- a1d6e9e: [rosters] Fixed several cases where saving or using a roster could unexpectedly switch it to older rules.
-- 946352a: [simulator] The simulator says once, not twice, when a unit could not load.
-
-## 0.228.7 (2026-11-10)
-
-### Patch Changes
-
-- f038208: [simulator] The combat simulator now calculates Conversion weapons, such as the Brôkhyr Thunderkyn's SP conversion beamer, instead of refusing them.
-
-## 0.228.6 (2026-11-10)
-
-### Patch Changes
-
-- 5065332: [rosters] Importing a New Recruit link no longer flags a combined weapon that newer data splits up, such as a Bolt Rifle w/ Grenade Launcher, when its parts were imported.
-
-## 0.228.5 (2026-11-09)
-
-### Patch Changes
-
-- 438b328: [simulator] In the combat simulator, attack buffs written for a whole unit now reach every model in its attached unit, and a leader's unit-wide defences now protect its bodyguards.
-- 438b328: [simulator] In the combat simulator, Trajann Valoris's Captain-General aura now re-rolls the attacks of the unit he leads and of nearby Adeptus Custodes units, not only his own.
-
-## 0.228.4 (2026-11-09)
-
-### Patch Changes
-
-- bd45db6: [battles] Finished battles no longer show the Teams event scoring switch.
-
-## 0.228.3 (2026-11-09)
-
-### Patch Changes
-
-- 222cc29: [simulator] Weapon cards in the combat simulator show the hit roll a shooting type's -1 leaves them needing, instead of the printed BS.
-
-## 0.228.2 (2026-11-09)
-
-### Patch Changes
-
-- b3e2626: [rosters] Imported Sentinel Guard, Aquilon and Gyrfalcon Custodes squads no longer warn about their model names.
-- b3e2626: [rosters] A pasted list with the setup lines above its units cut off now imports, working out the army from its units.
-
-## 0.228.1 (2026-11-09)
-
-### Patch Changes
-
-- c6f7dcf: [events] Players are notified when an organizer sets or clears their battlefield, and organizers are prompted to set each round's.
-- c6f7dcf: [events] Group organizers now see Set battlefield on a revealed hidden-list game.
-- 385bda6: [rosters] Other sites can now send a list straight to Praetorium's import review.
-- d0f590f: [events] Ending a group's league keeps its final table under Past leagues, so a group can run one after another.
-- c6f7dcf: [events] Organizers can set the battlefield ahead of solo vs pair and doubles games, in groups and tournaments.
-- 52c0a35: [events] A Swiss tournament table can record its final score without tracking the game.
-- 42b95de: [events] Organizers can swap players between Swiss tables before their battles start.
-- 42b95de: [events] Organizers can run a shared round clock for a Swiss tournament.
-- 7dc3e04: [events] Swiss tournaments can check players in before round 1 and drop the no-shows.
-- a624046: [events] Tournament organizers can break ties on strength of schedule before victory points.
-
-## 0.228.0 (2026-11-09)
-
-### Minor Changes
-
-- fdf35f0: [simulator] Each unit in a battle has its own Simulate button, which starts the combat simulator with that unit.
-- fdf35f0: [simulator] The combat simulator lists your battles in progress, so you can start from your units' current models and wounds.
-
-### Patch Changes
-
-- fdf35f0: [simulator] A model's Damaged rule switches on by itself in the combat simulator when its wounds in the battle are in range.
-
-## 0.227.3 (2026-11-09)
-
-### Patch Changes
-
-- e943320: [simulator] Weapon odds beside loadout options follow the shooting type you've chosen in the combat simulator.
-- e943320: [simulator] The combat simulator can work out shooting at a Monster or Vehicle that's engaged with your other units.
-- e943320: [simulator] Weapons in the combat simulator show when a shooting type gives them -1 to hit.
-
-## 0.227.2 (2026-11-09)
-
-### Patch Changes
-
-- 0f502aa: [events] Organizers can set or roll a tournament table's battlefield ahead of the game, and players can't change it.
-
-## 0.227.1 (2026-11-09)
-
-### Patch Changes
-
-- deea622: [reference] Where rules text isn't loaded, the prompt now names the source to turn on, and the sources dialog marks it.
-
-## 0.227.0 (2026-11-09)
-
-### Minor Changes
-
-- c5e943c: [simulator] The combat simulator can now work out assault shooting after advancing and close-quarters shooting while engaged.
-
-## 0.226.8 (2026-11-09)
-
-### Patch Changes
-
-- e2fb05d: [rosters] Four-digit unit prices in the list builder stay on one line.
-
-## 0.226.7 (2026-11-09)
-
-### Patch Changes
-
-- 14b7ec3: [app] When the app falls back to its saved offline copy, it now offers to reload once you're back online.
-
-## 0.226.6 (2026-11-09)
-
-### Patch Changes
-
-- 09bbd77: [rosters] Allied units are sorted into their usual categories when you build a roster.
-- 74609bc: [rosters] Pasting a Warscribe share link now tells you to copy the list as text.
-- 09bbd77: [rosters] Chaos Questoris Knight Magaera is listed with the other Chaos Knights instead of as an ally.
-- 92e1a7c: [battles] When you play a guest, you can paste their list while setting up the battle.
-- 92e1a7c: [battles] A finished practice game now offers to start one against a real opponent.
-- 92e1a7c: [battles] A manual battle against a guest can start without entering their army.
-- 09bbd77: [simulator] The combat simulator no longer asks for a firing mode on a weapon the unit isn't shooting.
-
-## 0.226.5 (2026-11-09)
-
-### Patch Changes
-
-- 842987c: [rosters] Importing a tournament list keeps each leader attached when the list writes "Leading:" on its own line.
-- 842987c: [rosters] An imported list with an option left empty no longer asks you to reselect that unit's options.
-
-## 0.226.4 (2026-11-09)
-
-### Patch Changes
-
-- 9aede33: [rosters] Importing an Ork squad reads its "Boss Nob" as the squad's Nob.
-- 9aede33: [rosters] Importing a full squad that fields a second companion, such as twenty-two Neurogaunts, keeps every model.
-- 9aede33: [rosters] Importing a Soul Grinder with no stated god keeps the unit and says which god it came in as.
-- 9aede33: [rosters] Importing reads the official app's "Transdimensional isolator".
-
-## 0.226.3 (2026-11-09)
-
-### Patch Changes
-
-- 0120225: [rosters] Chaos Daemons units are sorted into their usual categories when you build a roster, instead of being listed as allies.
-- 0120225: [rosters] Imperial Knights and Chaos Knights units are sorted into their usual categories when you build a roster, instead of being listed as allies.
-
-## 0.226.2 (2026-11-09)
-
-### Patch Changes
-
-- c26d77e: [reference] Detachment pages end with an offer to build a list with that detachment.
-
-## 0.226.1 (2026-11-09)
-
-### Patch Changes
-
-- 22d224a: [app] Signing in with Google, Apple, Discord or GitHub in the app no longer sometimes fails and makes you start again.
-- 7848270: [events] Group pages load faster for groups with many played battles.
-- 05b968b: [rosters] Importing a Warscribe list keeps every weapon of a list of single models, and its squads' lone specialists.
-- 9d88b50: [battles] A battle action that fails because the connection dropped now says to check your connection, instead of asking you to review an old sync conflict.
-- 9d88b50: [battles] Drawing secondary missions at random no longer fails with "Your opponent got there first" when your opponent acts at the same moment.
-
-## 0.226.0 (2026-11-09)
-
-### Minor Changes
-
-- 55539e2: [battles] Sort any battle list oldest first.
-- 55539e2: [app] Saved filter views and pinned filters now follow your account across devices.
-- 55539e2: [rosters] Filter every roster list by legality and by points.
-
-### Patch Changes
-
-- d69716a: [rosters] Importing keeps a comma inside a bracketed weapon note as one piece of wargear.
-- d69716a: [rosters] Importing reads Warscribe's text exports.
-
-## 0.225.3 (2026-11-09)
-
-### Patch Changes
-
-- 2d28d6c: [battles] Start a battle straight from a roster with a button beside its menu.
-
-## 0.225.2 (2026-11-09)
-
-### Patch Changes
-
-- 9642b89: [events] Starting a battle no longer offers hidden-list games that are already over.
-
-## 0.225.1 (2026-11-09)
-
-### Patch Changes
-
-- 8e439a5: [battles] Battle lists and group standings update as soon as a battle ends.
-- 8e439a5: [rosters] Trying to add a unit to a full roster now tells you the roster is full.
-- 8e439a5: [rosters] When pasted text is not a list we can read, the import now shows which exports work.
-- 8e439a5: [rosters] The reason a plus button has stopped at its limit is now easier to see.
-- 8e439a5: [rosters] The add units list now shows what your next copy of a unit will cost when later copies are priced differently.
-- 8e439a5: [battles] Choosing a roster in battle setup now tells you when it did not save, at the top of the list where you can see it.
-- 8e439a5: [battles] Starting a battle keeps the dialog open until the battle appears, so it no longer looks as if nothing happened.
-
-## 0.225.0 (2026-11-09)
-
-### Minor Changes
-
-- d6d447f: [battles] Every Battles tab can now be searched and filtered by status, result, army matchup, opponent, battle size, game type, mission pack, deployment and date.
-- d6d447f: [rosters] Every Rosters tab now has a search box and filters you can combine, including choosing several values or ruling one out.
-- d6d447f: [battles] Save the filters you use most as a named view, and choose which filters stay in the bar on Battles and Rosters.
-
-## 0.224.7 (2026-11-09)
-
-### Patch Changes
-
-- 8fa96e1: [rosters] Export text is back in the roster menus, so you can copy a list without opening Share first.
-- 8fa96e1: [reference] Tapping anywhere on the "Rules text isn't loaded" line now opens the sources to choose from.

@@ -13,7 +13,6 @@ import { AppShell } from '../client/features/shell/AppShell'
 import { warnIfSlow } from '../client/features/shell/slowLoader'
 import { meQuery } from '../client/queries'
 import { notFoundPage } from '../client/routeErrors'
-import { TEXT_SOURCES_SCRIPT } from '../client/rulesText'
 import { RAIL_SCRIPT } from '../client/features/shell/railState'
 import { APP_STORE_ID } from '../client/projectLinks'
 import { APPS_SCRIPT } from '../client/features/home/appsBand'
@@ -34,7 +33,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient; orig
       { name: 'apple-itunes-app', content: `app-id=${APP_STORE_ID}` },
       ...siteMeta(match.context.origin),
     ],
-    scripts: [{ children: chunkRecoveryScript }, { children: TEXT_SOURCES_SCRIPT }, { children: RAIL_SCRIPT }, { children: APPS_SCRIPT }],
+    scripts: [{ children: chunkRecoveryScript }, { children: RAIL_SCRIPT }, { children: APPS_SCRIPT }],
     links: offlineData()
       ? []
       : [

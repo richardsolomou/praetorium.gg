@@ -16,6 +16,7 @@ import path from 'node:path'
 import { parse } from 'yaml'
 import { buildIndex, type CatalogueFile, type SelectionEntry, targetOf } from '../src/core/catalogue'
 import { evaluate, type Selection } from '../src/core/evaluate'
+import { fieldedCount } from '../src/core/collective'
 import { buildUnit } from '../src/core/roster'
 import { routeSlug } from '../src/core/slug'
 import { isResizable } from '../src/core/unitSize'
@@ -165,18 +166,21 @@ function hiddenOutsideCrusade(entry: SelectionEntry) {
 /** Separately priced wargear uses the quantities selected for the whole unit. */
 function pricedWargearOf(selection: Selection) {
   const found = new Map<string, number>()
-  const walk = (node: Selection) => {
+  // Each piece is counted for every model holding it, as the evaluator prices it.
+  const walk = (node: Selection, holders: number) => {
+    const holder = index.definitions.get(node.id)
     for (const child of node.selections ?? []) {
       const definition = index.definitions.get(child.id)
       const target = definition && 'targetId' in definition ? index.definitions.get(definition.targetId) : definition
+      const fielded = fieldedCount(definition, holder, index, child.count ?? 1, holders)
       const grandchildren = child.selections ?? []
       if (target?.type === 'upgrade' && !grandchildren.length && target.name) {
-        found.set(target.name, (found.get(target.name) ?? 0) + (child.count ?? 1))
+        found.set(target.name, (found.get(target.name) ?? 0) + fielded)
       }
-      walk(child)
+      walk(child, fielded)
     }
   }
-  walk(selection)
+  walk(selection, selection.count ?? 1)
   return found
 }
 

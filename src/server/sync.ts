@@ -212,20 +212,28 @@ export async function fetchReleaseInto(source: ReleaseSource, target: string) {
   replaceDirectory(staging, target)
 }
 
-const MAX_RELEASE_BYTES = 8 * 1024 * 1024
+// A VS Data release carries the datasheets and points it summarizes as well as the summaries, about 70 MB a rules version.
+const MAX_RELEASE_BYTES = 128 * 1024 * 1024
 
-/** The regular files of a plain ustar archive; any other entry, such as a link, is refused. */
+/**
+ * The regular files of a ustar archive; any other entry, such as a link, is refused. A PAX extended
+ * header gives the next entry the long path the ustar name field cannot hold, and nothing else is read from it.
+ */
 function* ustarFiles(archive: Uint8Array): Generator<[string, Uint8Array]> {
   const text = (start: number, length: number) => new TextDecoder().decode(archive.subarray(start, start + length)).replace(/\0.*$/s, '')
+  let longPath: string | undefined
   for (let at = 0; at + 512 <= archive.length;) {
     if (archive.subarray(at, at + 512).every((byte) => byte === 0)) return
     if (text(at + 257, 5) !== 'ustar') throw new Error('release archive is not ustar')
     const type = text(at + 156, 1)
     const prefix = text(at + 345, 155)
-    const name = `${prefix ? `${prefix}/` : ''}${text(at, 100)}`
+    const name = longPath ?? `${prefix ? `${prefix}/` : ''}${text(at, 100)}`
     const size = Number.parseInt(text(at + 124, 12).trim() || '0', 8)
     if (!Number.isSafeInteger(size) || at + 512 + size > archive.length) throw new Error(`release archive entry ${name} is truncated`)
-    if (type === '0' || type === '') yield [name, archive.slice(at + 512, at + 512 + size)]
+    const body = archive.slice(at + 512, at + 512 + size)
+    longPath = undefined
+    if (type === 'x') longPath = /(?:^|\n)\d+ path=([^\n]+)\n/.exec(new TextDecoder().decode(body))?.[1]
+    else if (type === '0' || type === '') yield [name, body]
     else if (type !== '5') throw new Error(`release archive entry ${name} is not a regular file`)
     at += 512 + Math.ceil(size / 512) * 512
   }

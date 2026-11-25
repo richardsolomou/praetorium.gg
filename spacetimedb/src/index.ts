@@ -98,7 +98,7 @@ import {
   squadRuleSchema,
   squadTables,
 } from '../../src/core/squad'
-import { standingsViewQuery, compareStandings, currentRating, isProvisional } from '../../src/core/standings'
+import { standingsViewQuery, compareStandings, currentRating } from '../../src/core/standings'
 import type { SyncProductActionName } from '../../src/core/syncProductActions'
 import {
   hiddenListGameOpen,
@@ -1991,13 +1991,12 @@ export const playerStandings = spacetime.procedure({ userId: t.string(), activeS
 function playerStandingsFor(tx: Context, input: { userId: string; activeSince: bigint }) {
   const now = safeNumber(nowMs(tx))
   const places = Array.from(tx.db.standings.playerId.filter(input.userId)).flatMap((own) => {
-    // A provisional player has no place of their own, and is no place's competition.
-    if (own.finishedAt < input.activeSince || isProvisional(own)) return []
+    if (own.finishedAt < input.activeSince) return []
     const standing = standingRow(own, now)
     let place = 1
     let of = 0
     for (const row of tx.db.standings.table.filter(own.table)) {
-      if (row.finishedAt < input.activeSince || isProvisional(row)) continue
+      if (row.finishedAt < input.activeSince) continue
       of += 1
       if (row.playerId !== own.playerId && compareStandings(standingRow(row, now), standing) < 0) place += 1
     }
@@ -2858,6 +2857,8 @@ const rosterInput = z
       .transform((value) => value ?? null),
     visibility: z.enum(ROSTER_VISIBILITIES),
     source: z.enum(ROSTER_SOURCES),
+    // Sent by servers that start a choice on its printed default; a save from an older one keeps its units' cheapest.
+    printedDefaults: z.literal(true).optional(),
     now: z.number().int().nonnegative(),
   })
   .refine(({ limit, pointsBudget }) => !pointsBudgetError(limit, pointsBudget))
@@ -3084,6 +3085,7 @@ function saveRosterIn(tx: Context, input: ReturnType<typeof parseRoster>) {
     borrowedDetachmentId: input.borrowedDetachmentId ?? undefined,
     visibility: input.visibility,
     source: input.source,
+    printedDefaults: input.printedDefaults,
     updatedAt: nextVersion(current, now),
   }
   if (current) {

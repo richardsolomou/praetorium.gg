@@ -18,7 +18,7 @@ it('accepts only the requested PR and a digest-pinned revision', () => {
 })
 
 const cacheMount = { volumeName: 'praetorium-preview-catalogues', mountPath: '/data' }
-const twoGibibytes = String(2 * 1024 ** 3)
+const threeGibibytes = String(3 * 1024 ** 3)
 
 function dokploy(existing: boolean, settings: { mounts?: (typeof cacheMount)[]; memoryLimit?: string | null } = {}) {
   const calls: string[] = []
@@ -48,7 +48,7 @@ it('caps the memory of an existing preview that has none', async () => {
 })
 
 it('leaves a prepared preview alone', async () => {
-  const { client, calls } = dokploy(true, { mounts: [cacheMount], memoryLimit: twoGibibytes })
+  const { client, calls } = dokploy(true, { mounts: [cacheMount], memoryLimit: threeGibibytes })
   await prepareApplication(client, 'praetorium-pr-624')
   expect(calls).toEqual(['application.one'])
 })
@@ -65,7 +65,7 @@ function previews(applications: { name: string; createdAt: string; applicationSt
   return { client: client as unknown as DokployClient, stopped }
 }
 
-it('stops the longest-standing running previews so the deploying one is the third', async () => {
+it('stops the longest-standing running previews so the deploying one is the second', async () => {
   const { client, stopped } = previews([
     { name: 'praetorium-pr-3', createdAt: '2026-11-03T00:00:00Z', applicationStatus: 'done' },
     { name: 'praetorium-pr-1', createdAt: '2026-11-01T00:00:00Z', applicationStatus: 'done' },
@@ -75,5 +75,5 @@ it('stops the longest-standing running previews so the deploying one is the thir
     { name: 'praetoriumgg-web', createdAt: '2026-10-01T00:00:00Z', applicationStatus: 'done' },
   ])
   await makeRoomForPreview(client, 'praetorium', 'praetorium-pr-5')
-  expect(stopped).toEqual(['praetorium-pr-1'])
+  expect(stopped).toEqual(['praetorium-pr-1', 'praetorium-pr-3'])
 })

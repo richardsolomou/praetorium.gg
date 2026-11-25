@@ -11,7 +11,9 @@ import {
   type LoadoutOption,
   loadoutRowCount,
   loadoutRowSources,
-  loadoutInstructions,
+  catalogueInstruction,
+  matchedInstructions,
+  optionContradictions,
   modelCount,
   orderedModelWargear,
   type PoolChange,
@@ -27,7 +29,9 @@ import {
 } from './loadoutModel'
 import type { WeaponProfileData } from './loadoutModel'
 import { type OptionNote, PickControl, PoolStepper, type StandingWargear, WargearRow } from './LoadoutControls'
-import { loadedWords, useSourceTexts } from '../../../sourceText'
+import { unitOption } from '../../../components/UnitFromVsData'
+import { blocksText } from '../../../components/RuleSummaryText'
+import type { VsDataUnit } from '../../../../shared/vsData'
 import { sameWargear } from '../../../../core/wargearNames'
 
 /**
@@ -45,7 +49,8 @@ export function ModelCard({
   weapons,
   abilities,
   rules,
-  wargearGroups,
+  unitOptions,
+  unitModels,
   models,
   onChoose,
   onSpread,
@@ -63,7 +68,10 @@ export function ModelCard({
   weapons: WeaponProfileData[]
   abilities: Datasheet['abilities']
   rules: Datasheet['keywordRules']
-  wargearGroups?: Datasheet['wargearGroups']
+  /** The unit's wargear options as VS Data writes them, whose wording each row they offer shows above it. */
+  unitOptions?: VsDataUnit['options']
+  /** How many models the unit holds, which an option's caps per so many models are read at. */
+  unitModels?: number
   models?: readonly LoadoutModel[]
   onChoose: (key: string, optionId: string) => void
   onSpread: (key: string, update: SpreadUpdate) => void
@@ -107,7 +115,6 @@ export function ModelCard({
       onRemove: taken && choice.optional ? () => onChoose(choice.key, '') : undefined,
     }
   }
-  const { choice: textChoice } = useSourceTexts((wargearGroups ?? []).map((group) => group.instruction))
   const counted = heading()
   if (!showOptions && !count) return null
   const statedInstructions = new Set<string>()
@@ -196,15 +203,19 @@ export function ModelCard({
                 onChoose(other.key, ordinary.id)
             }
           }
-          const instructions = showOptions
-            ? loadoutInstructions({ ...row, pieces }, model, models ?? [model], wargearGroups ?? [], (text) =>
-                loadedWords(text, textChoice),
-              ).filter((instruction) => {
-                if (statedInstructions.has(instruction)) return false
-                statedInstructions.add(instruction)
-                return true
-              })
-            : []
+          const matched = showOptions ? matchedInstructions({ ...row, pieces }, model, models ?? [model], unitOptions ?? []) : []
+          const consistent = matched.filter(
+            (offered) => !optionContradictions(offered, model, models ?? [model], choices, unitModels ?? count).length,
+          )
+          // Where the steppers contradict VS Data's wording, the row says what its own steppers offer instead.
+          const fallback = consistent.length || !matched.length ? null : catalogueInstruction(row, model, choices)
+          const instructions = [...consistent.map(unitOption), ...(fallback ? [[{ paragraph: [{ text: fallback }] }]] : [])].filter(
+            (instruction) => {
+              if (statedInstructions.has(blocksText(instruction))) return false
+              statedInstructions.add(blocksText(instruction))
+              return true
+            },
+          )
           return (
             <WargearRow
               key={`${row.choiceKey}/${row.optionId}/${entry.name}`}

@@ -66,6 +66,31 @@ describe('combat rule eligibility', () => {
   it.each(['Monster', 'Vehicle'])('excludes a %s by its printed plural restriction', (keyword) =>
     expect(combatRuleEligible(target, ['Army', keyword])).toBe(false),
   )
+  it.each([
+    [['Vehicle'], true],
+    [['Monster'], true],
+    [['Infantry'], false],
+  ])('reads a slash between keywords as either one (%s)', (keywords, eligible) =>
+    expect(combatRuleEligible('**Target:** That **MONSTER/VEHICLE** unit', keywords)).toBe(eligible),
+  )
+  it.each([
+    ['Faction: Adeptus Astartes', 'Mounted'],
+    ['Faction: Adeptus Astartes', 'Infantry'],
+  ])('shares the words before a slash with the keyword after it (%s)', (...keywords) =>
+    expect(combatRuleEligible('**Target:** That **Adeptus Astartes Infantry/Mounted** unit.', keywords)).toBe(true),
+  )
+  it.each(['Stormboyz', 'Kommandos', 'Boyz'])('reads every keyword in a slashed list, %s included', (keyword) =>
+    expect(combatRuleEligible('**Target:** One friendly **Boyz**/**Kommandos/Stormboyz** unit.', [keyword])).toBe(true),
+  )
+  it('keeps a whole keyword after a slash, as Tankbustas after Breaka Boyz', () =>
+    expect(combatRuleEligible('**Target:** That **Breaka Boyz/Flash Gitz/Tankbustas** unit.', ['Tankbustas'])).toBe(true))
+  it('excludes every keyword a slashed exclusion names', () =>
+    expect(
+      combatRuleEligible('**Target:** One friendly **Adeptus Astartes** unit (excluding **Monster/Vehicle** units).', [
+        'Faction: Adeptus Astartes',
+        'Vehicle',
+      ]),
+    ).toBe(false))
   it('excludes a different faction', () => expect(combatRuleEligible(target, ['Other', 'Infantry'])).toBe(false))
   it('accepts either compound keyword target', () =>
     expect(combatRuleEligible('**Target:** One **ARMY INFANTRY** or **ARMY MOUNTED** unit.', ['Army', 'Mounted'])).toBe(true))

@@ -1,0 +1,9 @@
+diff --git a/definitions/Chaos - Death Guard.json b/definitions/Chaos - Death Guard.json
+index 1851b67..74f4e4c 100644
+--- a/definitions/Chaos - Death Guard.json	
++++ b/definitions/Chaos - Death Guard.json	
+@@ -21194,3 +21194,3 @@
+             "id": "2e2d-33de-e666-96f9",
+-            "hidden": false,
++            "hidden": true,
+             "typeId": "9cc3-6d83-4dd3-9b64",

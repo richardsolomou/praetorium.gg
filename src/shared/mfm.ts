@@ -60,13 +60,13 @@ function mfmDetachment(index: MfmIndex | null | undefined, slugs: readonly strin
   }
   return null
 }
-const UPGRADE_MARK = /\s*\(upgrade\)\s*$/i
-/** Upgrades are listed among a detachment's enhancements, their names marked "(upgrade)". */
+const UPGRADE_MARK = /\s*\((?:upgrade|upgarde)\)\s*$/i
+/** Upgrades are listed among a detachment's enhancements, their names marked "(upgrade)", or "(Upgarde)" in older app data. */
 export const isUpgrade = (name: string) => UPGRADE_MARK.test(name)
 export const withoutUpgrade = (name: string) => name.replace(UPGRADE_MARK, '')
 
 /** Sources disagree on which printed qualifiers an enhancement's name carries, so names are joined without them. */
-export const enhancementKey = (name: string) => joinKey(name.replace(/\s*\((?:aura|upgrade|one per army|psychic)\)/gi, ''))
+export const enhancementKey = (name: string) => joinKey(name.replace(/\s*\((?:aura|upgrade|upgarde|one per army|psychic)\)/gi, ''))
 
 export function mfmEnhancementPoints(detachment: NonNullable<ReturnType<typeof mfmDetachment>>, name: string) {
   const matched = detachment.enhancements?.filter((enhancement) => enhancementKey(enhancement.name) === enhancementKey(name)) ?? []

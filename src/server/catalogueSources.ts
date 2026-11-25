@@ -28,11 +28,16 @@ const battlemasterSourceSchema = z.object({
   description: z.string().optional(),
 })
 
-const releaseSourceSchema = z.object({
-  repository: z.string().regex(/^[\w.-]+\/[\w.-]+$/, 'expected owner/name'),
-  release: z.string().regex(/^v\d+\.\d+\.\d+$/, 'expected a release tag'),
+const releasePinSchema = z.object({
+  release: z.string().regex(/^(?:[a-z0-9]+-)*v\d+\.\d+\.\d+$/, 'expected a release tag'),
   asset: z.string().regex(/^[\w.-]+\.tar$/, 'expected a tar asset name'),
   revision: z.string().regex(/^[0-9a-f]{64}$/, 'expected the archive SHA-256'),
+})
+
+const releaseSourceSchema = releasePinSchema.extend({
+  repository: z.string().regex(/^[\w.-]+\/[\w.-]+$/, 'expected owner/name'),
+  /** Releases of the same project for earlier rules versions, each read for the version its own manifest names. */
+  earlier: z.array(releasePinSchema).optional(),
   license: z.string().min(1).nullable(),
   licenseUrl: z.url().optional(),
   attribution: z.string().optional(),
@@ -86,6 +91,11 @@ export const readRevisions = (directory: string, historical = false) =>
 export type CatalogueSourceConfig = z.infer<typeof catalogueSourcesSchema>
 export type BattlemasterSource = CatalogueSourceConfig['battlemaster']
 export type ReleaseSource = z.infer<typeof releaseSourceSchema>
+/** Every release a release source pins: its own, then each earlier one under the same project. */
+export const releasesOf = ({ earlier = [], ...source }: ReleaseSource): ReleaseSource[] => [
+  source,
+  ...earlier.map((pin) => ({ ...source, ...pin })),
+]
 
 export const catalogueSources = catalogueSourcesSchema.parse(rawSources)
 

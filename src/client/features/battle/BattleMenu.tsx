@@ -4,11 +4,13 @@ import { posthog } from 'posthog-js'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { isPracticeSeat } from '../../../core/newBattle'
 import { DropdownMenuCheckboxItem, DropdownMenuItem } from '../../components/Menu'
 
-type Ending = { key: string; label: string; description: string; act: () => void }
+type Ending = 'finish-early' | 'concede' | 'delete'
 
 type Props = {
   canDelete: boolean
@@ -50,28 +52,28 @@ export function BattleMenu({
   onDelete,
 }: Props) {
   const [confirming, setConfirming] = useState<Ending | null>(null)
-  const concessions: Ending[] = players
-    .filter((player) => !isPracticeSeat(player))
-    .map((player) => ({
-      key: `concede:${player.id}`,
-      label: player.isViewer ? 'Concede battle' : `Concede for ${player.name}`,
-      description: player.isViewer
-        ? 'This records that you conceded and ends the battle for every player.'
-        : `This records that ${player.name} conceded and ends the battle for every player.`,
-      act: () => onConcede(player.id),
-    }))
-  // A practice opponent's result counts for nobody, so a practice battle may also just stop where it stands.
-  const endings: Ending[] = players.some(isPracticeSeat)
-    ? [
-        {
-          key: 'finish-early',
-          label: 'End practice battle',
-          description: 'This ends the battle at the current score. Practice battles never count for records or standings.',
-          act: onFinishEarly,
-        },
-        ...concessions,
-      ]
-    : concessions
+  const [concedingPlayerId, setConcedingPlayerId] = useState<string | null>(null)
+  const eligiblePlayers = players.filter((player) => !isPracticeSeat(player))
+  const selectedPlayer = eligiblePlayers.find((player) => player.id === concedingPlayerId)
+  const playerLabel = (player: Props['players'][number]) => (player.isViewer ? `${player.name} (you)` : player.name)
+  const endings = {
+    'finish-early': {
+      label: 'End practice battle',
+      description: 'This ends the battle at the current score. Practice battles never count for records or standings.',
+      act: onFinishEarly,
+    },
+    concede: {
+      label: 'Concede battle',
+      description: 'The selected player’s side loses and the battle ends for everyone.',
+      act: () => selectedPlayer && onConcede(selectedPlayer.id),
+    },
+    delete: {
+      label: 'Delete battle',
+      description: 'This permanently deletes the battle, including its scores and history.',
+      act: onDelete,
+    },
+  }
+  const ending = confirming ? endings[confirming] : null
 
   return (
     <>
@@ -92,41 +94,63 @@ export function BattleMenu({
             {timerPaused ? 'Resume timer' : 'Pause timer'}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => void copyOverlayLink(token)}>Copy stream overlay link</DropdownMenuItem>
-          {endings.map((ending) => (
-            <DropdownMenuItem key={ending.key} variant="destructive" onClick={() => setConfirming(ending)}>
-              {ending.label}
+          {players.some(isPracticeSeat) ? (
+            <DropdownMenuItem variant="destructive" onClick={() => setConfirming('finish-early')}>
+              {endings['finish-early'].label}
             </DropdownMenuItem>
-          ))}
-          {canDelete ? (
+          ) : null}
+          {eligiblePlayers.length ? (
             <DropdownMenuItem
               variant="destructive"
-              onClick={() =>
-                setConfirming({
-                  key: 'delete',
-                  label: 'Delete battle',
-                  description: 'This permanently deletes the battle, including its scores and history.',
-                  act: onDelete,
-                })
-              }
+              onClick={() => {
+                setConcedingPlayerId(eligiblePlayers.find((player) => player.isViewer)?.id ?? null)
+                setConfirming('concede')
+              }}
             >
-              Delete battle
+              {endings.concede.label}
+            </DropdownMenuItem>
+          ) : null}
+          {canDelete ? (
+            <DropdownMenuItem variant="destructive" onClick={() => setConfirming('delete')}>
+              {endings.delete.label}
             </DropdownMenuItem>
           ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
-      {confirming ? (
+      {ending ? (
         <ConfirmDialog
-          title={`${confirming.label}?`}
-          description={confirming.description}
+          title={`${ending.label}?`}
+          description={ending.description}
           cancel="Keep playing"
-          confirm={confirming.label}
+          confirm={ending.label}
           destructive
+          disabled={pending || (confirming === 'concede' && !selectedPlayer)}
           onClose={() => setConfirming(null)}
           onConfirm={() => {
-            confirming.act()
+            ending.act()
             setConfirming(null)
           }}
-        />
+        >
+          {confirming === 'concede' ? (
+            <div>
+              <Label className="eyebrow" htmlFor="conceding-player">
+                Who is conceding?
+              </Label>
+              <Select value={selectedPlayer?.id ?? null} onValueChange={setConcedingPlayerId}>
+                <SelectTrigger id="conceding-player" className="mt-1.5 w-full">
+                  <SelectValue>{selectedPlayer ? playerLabel(selectedPlayer) : 'Choose a player'}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {eligiblePlayers.map((player) => (
+                    <SelectItem key={player.id} value={player.id} label={playerLabel(player)}>
+                      {playerLabel(player)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : null}
+        </ConfirmDialog>
       ) : null}
     </>
   )

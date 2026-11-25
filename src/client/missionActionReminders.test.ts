@@ -2,15 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { MissionAction } from '../contracts/missions'
 import { missionActionReminderStorageKey, missionActionReminders, missionActionRemindersEnabled } from './missionActionReminders'
 
-const action = (name: string): MissionAction => ({
-  name,
-  starts: 'Your Shooting phase.',
-  completes: 'At the end of your turn.',
-  effect: null,
-  units: 'One unit from your army.',
-  useLimit: null,
-  restriction: null,
-})
+const action = (name: string): MissionAction => ({ id: name.toLowerCase(), name })
 
 const references = new Map([
   ['primary', { key: 'primary', name: 'Primary', actions: [action('Raise the Banner')] }],
@@ -60,11 +52,11 @@ describe('mission action reminders', () => {
     ).toBe('Cleanse')
   })
 
-  it('keeps the action instructions in the reminder', () => {
+  it('describes the action by its VS Data ID', () => {
     expect(
       missionActionReminders({ primaryCard: { key: 'primary', name: 'Primary' }, secondaries: [] }, (key) => references.get(key))[0]
         ?.description,
-    ).toBe('**Starts:** Your Shooting phase.\n\n**Completes:** At the end of your turn.\n\n**Units:** One unit from your army.')
+    ).toBe('raise the banner')
   })
 
   it('omits cards whose reference or actions are unavailable', () => {

@@ -107,7 +107,9 @@ it('reads compact roster summaries without requiring picks or preparation data',
   }
   const request = vi.fn(async () => Response.json(JSON.stringify([summary])))
   const operator = new SpacetimeOperator('https://spacetime.example/', 'preview-42', 'operator-secret', request)
-  expect(await operator.rosterSummariesByUser('user-1')).toEqual([{ ...summary, archived: false, sharingDeclined: false }])
+  expect(await operator.rosterSummariesByUser('user-1')).toEqual([
+    { ...summary, archived: false, sharingDeclined: false, printedDefaults: false },
+  ])
   const [url, init] = request.mock.calls[0] as unknown as [URL, RequestInit]
   expect([url.pathname, init.body]).toEqual(['/v1/database/preview-42/call/roster_summaries_by_user', '["user-1"]'])
 })
@@ -306,4 +308,28 @@ it('reads a roster discovery cursor carrying a field added after this build', as
       })
     ).nextCursor?.id,
   ).toBe('roster')
+})
+
+it.each([true, undefined])('passes on whether a save starts each choice on its printed default (%s)', async (printedDefaults) => {
+  const request = vi.fn(async () => Response.json('inserted'))
+  const operator = new SpacetimeOperator('https://spacetime.example/', 'preview-42', 'operator-secret', request)
+  await operator.saveRoster({
+    id: 'roster-1',
+    userId: 'user-1',
+    name: 'Army',
+    catalogueId: 'necrons',
+    detachmentId: null,
+    disposition: null,
+    limit: 2000,
+    picks: '[]',
+    prep: null,
+    tags: '[]',
+    waivedRules: '[]',
+    visibility: 'private',
+    source: 'editable',
+    now: 1,
+    printedDefaults,
+  })
+  const [, init] = request.mock.calls[0] as unknown as [URL, RequestInit]
+  expect(JSON.parse((JSON.parse(init.body as string) as string[])[0]!).printedDefaults).toBe(printedDefaults)
 })

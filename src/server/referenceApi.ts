@@ -3,7 +3,13 @@ import { withTextPointers, withoutText } from '../core/sourceText'
 import { publishedTextLocations } from './publishedTextFiles'
 import { REFERENCE_KINDS, type ReferenceDocument, type ReferenceKind } from '../contracts/reference'
 import { app } from './app'
-import { datasheetRoute, referenceCorpusCooperatively, referenceDocumentMarkdown, type ReferenceCorpus } from './referenceCorpus'
+import {
+  datasheetRoute,
+  referenceCorpusCooperatively,
+  referenceDocument,
+  referenceDocumentMarkdown,
+  type ReferenceCorpus,
+} from './referenceCorpus'
 import {
   REFERENCE_FILTER_MAX_LENGTH,
   REFERENCE_QUERY_MAX_LENGTH,
@@ -25,7 +31,8 @@ import {
   referenceUnits,
   type ReferenceUnitsQuery,
 } from './referenceService'
-import { DATACARDS_ATTRIBUTION } from '../shared/datacards'
+import { VS_DATA_ATTRIBUTION } from '../shared/vsData'
+import { currentRulePage } from '../core/legacyRuleIds'
 import { ifNoneMatch } from './ifNoneMatch'
 import { fixedWindowRateLimit } from './rateLimit'
 import { catalogueEditionId } from '../core/catalogueEdition'
@@ -118,7 +125,7 @@ export async function referenceMissionMatchupFor(query: MissionMatchupQuery) {
 /** The document a reference id names, with the corpus it came from; null while no snapshot can answer. */
 export async function referenceDocumentFor(id: string) {
   const corpus = await activeReferenceCorpus(referenceRecordCatalogueId(id))
-  return corpus && { corpus, document: corpus.byId.get(id) }
+  return corpus && { corpus, document: referenceDocument(corpus, id) }
 }
 
 export const referenceSearchResponse = rateLimited(async (request: Request) => {
@@ -263,16 +270,21 @@ export const referenceDetachmentResponse = rateLimited(async (request: Request, 
 export const referenceRuleSectionResponse = rateLimited(async (request: Request, documentId: string, sectionId: string) => {
   const corpus = await activeReferenceCorpus()
   if (!corpus) return referenceUnavailable()
-  const document = corpus.catalogue.ruleDocuments.find((entry) => entry.slug === documentId || entry.id === documentId)
-  const section = document?.sections.find((entry) => entry.slug === sectionId || entry.id === sectionId)
+  // A page linked by its Game Datacards ids answers to the slugs those ids now name; a section's names its document too.
+  const documentSlug = currentRulePage(documentId)
+  const [sectionDocument, sectionSlug] = currentRulePage(sectionId).includes('/')
+    ? currentRulePage(sectionId).split('/')
+    : [documentSlug, sectionId]
+  const document = corpus.catalogue.ruleDocuments.find((entry) => entry.slug === documentSlug)
+  const section = sectionDocument === documentSlug ? document?.sections.find((entry) => entry.slug === sectionSlug) : undefined
   if (!document || !section) return problem('rules section not found', 404)
   const canonicalUrl = `/rules/${document.slug}/${section.slug}`
   const record: ReferenceRecord = {
     kind: 'rule',
     canonicalUrl,
-    revisions: { datacards: document.provenance.datacards.revision },
-    attribution: [DATACARDS_ATTRIBUTION],
-    data: { document: { id: document.id, slug: document.slug, title: document.title, updated: document.updated }, section },
+    revisions: { summaries: document.provenance.summaries.revision },
+    attribution: [VS_DATA_ATTRIBUTION],
+    data: { document: { id: document.id, slug: document.slug, title: document.title }, section },
   }
   const markdown = section.entries
     .map((entry) => {

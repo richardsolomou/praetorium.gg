@@ -108,8 +108,11 @@ export type CombatRuleEffect = {
   feelNoPain?: number
   psychicFeelNoPain?: number
   mortalFeelNoPain?: number
-  /** Sacrifice is how many of the attacker's own models the ability destroys before it attacks. */
-  mortalWounds?: NonNullable<CombatInput['mortalWounds']>[number] & { perModel?: boolean; sacrifice?: number }
+  /**
+   * Rolls repeat for each attacking model, or once per point of the attacker's highest Toughness; sacrifice is how many
+   * of the attacker's own models the ability destroys before it attacks.
+   */
+  mortalWounds?: NonNullable<CombatInput['mortalWounds']>[number] & { perModel?: boolean; perToughness?: boolean; sacrifice?: number }
   damageReroll?: 'ones' | 'any'
   damageReduction?: number
   /** A unit characteristic no roll reads, as a Move bonus, which only a datasheet shows. */
@@ -230,18 +233,36 @@ export function combatRuleTarget(description: string, recipient?: string): Comba
   const target = recipient ?? ruleSection(description, 'Target') ?? combatRuleRecipient(description)
   if (!target) return null
   const terms = (value: string) => {
-    const bold = [...value.matchAll(/\*\*([^*]+)\*\*/g)].map((match) => match[1]!)
+    // Bold keywords either side of a slash, as **BOYZ**/**KOMMANDOS**, are one slashed list.
+    const bold = [...value.replaceAll('**/**', '/').matchAll(/\*\*([^*]+)\*\*/g)].map((match) => match[1]!)
     return bold.length ? bold : [...value.matchAll(/\b[A-Z][A-Z0-9'’-]+(?:[ -][A-Z][A-Z0-9'’-]+)*\b/g)].map((match) => match[0])
   }
   const excluded = /\(excluding ([^)]+)\)/i.exec(target)
   return {
-    excluded: excluded ? terms(excluded[1]!) : [],
+    excluded: excluded ? terms(excluded[1]!).flatMap(slashedKeywords) : [],
     allowed: target
       .replace(excluded?.[0] ?? '\0', '')
       .split(/\s+or\s+/i)
       .map(terms)
+      .flatMap((alternative) =>
+        alternative.reduce<string[][]>(
+          (chosen, term) => chosen.flatMap((before) => slashedKeywords(term).map((one) => [...before, one])),
+          [[]],
+        ),
+      )
       .filter((alternative) => alternative.length),
   }
+}
+
+/**
+ * Each keyword a slashed list names. Whether the first one's leading words, as ADEPTUS ASTARTES in ADEPTUS ASTARTES
+ * INFANTRY/MOUNTED, belong to the rest or end a keyword of their own, as BREAKA in BREAKA BOYZ/FLASH GITZ, the words
+ * cannot say, so the rest are read both ways.
+ */
+function slashedKeywords(term: string) {
+  const [first, ...rest] = term.split('/').map((part) => part.trim())
+  const leading = first!.includes(' ') ? first!.slice(0, first!.lastIndexOf(' ') + 1) : ''
+  return [first!, ...rest.flatMap((part) => (leading ? [part, leading + part] : [part]))]
 }
 
 export function combatTargetAdmits(target: CombatTarget | null, keywords: readonly string[]) {
@@ -792,17 +813,22 @@ export function combatRuleMortals(
   targetKeywords: readonly string[],
   weapons: readonly { profile: { name: string } }[],
   models: number,
+  toughness: number | null = null,
 ) {
   return [...new Map(rules.map((rule) => [rule.name, rule])).values()].flatMap((rule) =>
-    rule.effects.flatMap((effect) =>
-      effect.role === 'attacker' &&
-      effect.phases.includes(phase) &&
-      matchesEffectTarget(effect, targetKeywords) &&
-      (!effect.weapon || weapons.some(({ profile }) => weaponKey(profile.name) === weaponKey(effect.weapon!))) &&
-      effect.mortalWounds
-        ? [{ ...effect.mortalWounds, rolls: effect.mortalWounds.perModel ? models : effect.mortalWounds.rolls }]
-        : [],
-    ),
+    rule.effects.flatMap((effect) => {
+      const mortals = effect.mortalWounds
+      if (
+        effect.role !== 'attacker' ||
+        !effect.phases.includes(phase) ||
+        !matchesEffectTarget(effect, targetKeywords) ||
+        (effect.weapon && !weapons.some(({ profile }) => weaponKey(profile.name) === weaponKey(effect.weapon!))) ||
+        !mortals ||
+        (mortals.perToughness && !toughness)
+      )
+        return []
+      return [{ ...mortals, rolls: mortals.perToughness ? toughness! : mortals.perModel ? models : mortals.rolls }]
+    }),
   )
 }
 

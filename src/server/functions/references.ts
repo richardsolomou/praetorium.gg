@@ -14,13 +14,17 @@ import { type GlobalSearchResult, searchEverything } from '../globalSearch'
 import { mutationRpc, rpc } from '../rpc'
 import { OWN_SEARCH_BATTLES, ownSearchLists, type OwnSearchData } from '../../core/referenceSearch'
 import { rosterDatasheetContext } from '../../shared/rosterDatasheetContext'
-import { datasheetCombatant } from '../../shared/rosterCombatRules'
+import { serverWords } from '../publishedTextFiles'
+import { datasheetCombatant, withRecordedRules } from '../../shared/rosterCombatRules'
+import { servedVsDataSummaries, servedVsDataUnits } from '../servedVsData'
+import { withVsDataSaves } from '../../shared/vsDataSaves'
 import { combatLoadoutSpace } from '../../shared/combatLoadouts'
 import { currentUserId, forSignedIn } from '../playerSession'
 import { preparePicker } from '../rosterPicker'
 import { pickersOpened } from '../recentPickers'
 import { cacheUntilSnapshotChanges } from '../snapshotCache'
 import { memoUntilSnapshotChanges } from '../snapshotMemo'
+import { summariesOfFile } from '../vsDataSummaries'
 import { selectedBattleDetachmentData } from '../../shared/battleDetachmentData'
 import { detachmentReference } from '../../shared/detachmentReference'
 import { referenceDatasheetBySlug, referenceFactionDatasheets, referenceRuleIndex, referenceRuleSection } from '../referenceCatalogue'
@@ -39,6 +43,7 @@ import {
   terrainReferencesSchema,
   unitsSchema,
   unitWoundsSchema,
+  textFileSchema,
   textHomesSchema,
 } from '../../contracts/schemas'
 
@@ -183,7 +188,9 @@ export const combatantDatasheet = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const loaded = await app().catalogueFor(data.catalogueId)
-      return loaded ? datasheetCombatant(loaded, await app().rulesFor(data.catalogueId), data) : null
+      const combatant = loaded && datasheetCombatant(loaded, await app().rulesFor(data.catalogueId), data)
+      // The cards record no readings in a server, so their rules are judged from their words here, as a device cannot.
+      return combatant && withVsDataSaves(withRecordedRules(combatant, await serverWords()), await servedVsDataUnits(data.catalogueId))
     }),
   )
 
@@ -286,9 +293,7 @@ export const detachmentDetail = createServerFn({ method: 'GET' })
     snapshotRpc(async () => {
       const rules = await app().rulesFor(data.catalogueId)
       const catalogue = await app().catalogueFor(data.catalogueId)
-      return rules && catalogue
-        ? detachmentReference(catalogue, rules, data.catalogueId, data.slug, app().ruleSummaries()(data.catalogueId))
-        : null
+      return rules && catalogue ? detachmentReference(catalogue, rules, data.catalogueId, data.slug) : null
     }),
   )
 
@@ -320,10 +325,45 @@ export const gameReferences = createServerFn({ method: 'GET' }).handler(() =>
 /** Where each source file a rules-text token names lives upstream; Praetorium serves where the words are, never the words. */
 export const textSources = createServerFn({ method: 'GET' }).handler(() => snapshotRpc(async () => publishedTextFiles()))
 
-/** Where strings now live whose tokens name a file the active snapshot replaced, so a battle's older text still loads. */
+/** Where strings now live whose tokens name a file the active snapshot replaced, so a battle's older rules still find their summaries. */
 export const textHomesFor = createServerFn({ method: 'GET' })
   .validator(textHomesSchema)
   .handler(({ data }) => snapshotRpc(async () => textHomes(data.hashes)))
+
+/**
+ * The VS Data summaries of the rules one source file prints, by the hashes its tokens name: original wording
+ * everyone can read, which game calculations never receive.
+ */
+export const ruleSummaryRecords = createServerFn({ method: 'GET' })
+  .validator(textFileSchema)
+  .handler(({ data }) => snapshotRpc(async () => summariesOfFile(data.file, await publishedTextFiles(), await vsDataSummaries())))
+
+/** The current rules version's weapon and core ability summaries, by `kind:id`, which keyword tooltips show. */
+export const ruleAbilitySummaries = createServerFn({ method: 'GET' }).handler(() =>
+  snapshotRpc(async () => (await vsDataSummaries())?.abilities() ?? {}),
+)
+
+/** The summary of one whole core rule, by `core-rule:id`, which an ability chip names where no ability summary does, or null. */
+export const ruleCoreSummary = createServerFn({ method: 'GET' })
+  .validator(z.object({ key: z.string().regex(/^core-rule:[a-z0-9-]{1,120}$/) }))
+  .handler(({ data }) => snapshotRpc(async () => (await vsDataSummaries())?.coreRules()[data.key] ?? null))
+
+/**
+ * What a datasheet shows of each unit from VS Data's roster and transport data, by BSData entry id, for one rules version
+ * (the current one where null).
+ */
+export const ruleUnits = createServerFn({ method: 'GET' })
+  .validator(z.object({ edition: z.string().max(80).nullable() }))
+  .handler(({ data }) =>
+    snapshotRpc(async () => (await vsDataSummaries())?.unitsIn(data.edition) ?? { units: {}, abilities: {}, aliases: {} }),
+  )
+
+/** The upstream work the served summaries adapt, which the Sources page credits. */
+export const ruleSummaryCredits = createServerFn({ method: 'GET' }).handler(() =>
+  snapshotRpc(async () => (await vsDataSummaries())?.attributions() ?? []),
+)
+
+const vsDataSummaries = servedVsDataSummaries
 
 /** Every rules document and section by name, with the numbers their prose quotes. */
 export const ruleIndex = createServerFn({ method: 'GET' }).handler(() =>

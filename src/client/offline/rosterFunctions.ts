@@ -204,11 +204,14 @@ export async function sharedRoster(args: Parameters<typeof server.sharedRoster>[
 }
 
 export async function saveRoster(
-  args: Parameters<typeof server.saveRoster>[0],
+  save: Parameters<typeof server.saveRoster>[0],
   reviewed?: RosterInput,
   reviewedOwner?: string | null,
   serverReview?: ReviewedServerSave,
 ): ReturnType<typeof server.saveRoster> {
+  // Every save this code makes, sent now or queued for later, says it starts a choice on its printed default; one
+  // queued by an older version of the app says nothing, and the module keeps that list's units on their cheapest.
+  const args = { ...save, data: { ...save.data, printedDefaults: true as const } }
   const owner = localOwner()?.id
   if (reviewedOwner !== undefined && (owner ?? null) !== reviewedOwner) throw new Error(ACCOUNT_CHANGED_AFTER_REVIEW)
   if (!localEngine()) {

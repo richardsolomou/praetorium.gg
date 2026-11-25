@@ -11,6 +11,7 @@ import { deleteBattle } from '../../functions'
 import { deploymentFor } from '../../battleSummary'
 import { battleQuery, deploymentsQuery, detachmentRulesQuery, forgetBattle, gameReferencesQuery } from '../../queries'
 import { missionCardsByKey, primaryCards, secondaryCards } from './missionDeck'
+import { currentMissionId, sameMissionId } from '../../../core/legacyIds'
 import {
   MISSION_ACTION_REMINDER_PREFIX,
   missionActionReminderStorageKey,
@@ -163,7 +164,6 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
   const scoringDrafts = useScoringDrafts(view)
   const [drawDrafts, setDrawDrafts] = useState<ReadonlyMap<string, DrawSelection>>(new Map())
   const [discardDrafts, setDiscardDrafts] = useState<ReadonlyMap<string, string[]>>(new Map())
-  const reminderPrompt = reminderPrompts[0] ?? null
   // Refetches that change nothing keep their object identity through the query
   // cache's structural sharing, so these memos hold between commands too.
   const table = useMemo(() => sides(view, missions), [view, missions])
@@ -183,6 +183,18 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
     () => ({ round: view.round, activePlayerId: view.activePlayerId, phase: view.phase }),
     [view.activePlayerId, view.phase, view.round],
   )
+  const actionReminderWindow = view.phase === 'shooting' && !view.advanceRequested
+  const keepCurrentActionReminders = useCallback(
+    (prompts: readonly ReminderPrompt[]) =>
+      keepReminders(
+        prompts,
+        (reminder, prompt) =>
+          !reminder.key.startsWith(MISSION_ACTION_REMINDER_PREFIX) || (actionReminderWindow && sameMoment(prompt.context, reminderContext)),
+      ),
+    [reminderContext, actionReminderWindow],
+  )
+  const currentReminderPrompts = useMemo(() => keepCurrentActionReminders(reminderPrompts), [reminderPrompts, keepCurrentActionReminders])
+  const reminderPrompt = currentReminderPrompts[0] ?? null
   const dismissalStorageKey = reminderDismissalStorageKey(view.token)
   const actionReminderStorageKey = missionActionReminderStorageKey(view.token)
   const storedDismissals = useStoredValue(dismissalStorageKey)
@@ -237,7 +249,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
   const deckUnknown = referencesQuery.isPending || referencesQuery.isError
   const deployment = deploymentFor(view.deploymentId, deployments)
   const missionPack = references?.packs.find((entry) => entry.id === view.settings.missionPackId)
-  const twist = missionPack?.twists.find((entry) => entry.id === view.settings.twistId)
+  const twist = missionPack?.twists.find((entry) => sameMissionId(entry.id, view.settings.twistId))
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const remove = useMutation({
@@ -264,11 +276,27 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
   const cardsByKey = useMemo(() => missionCardsByKey(references), [references])
   const awardsFor = (key: string, mode?: string): MissionAward[] =>
     (cardsByKey.get(key)?.awards ?? []).filter((award) => appliesInMode(award, mode))
-  const referenceFor = useCallback((key: string): ReferenceCard | undefined => cardsByKey.get(key), [cardsByKey])
-  useWatchBattle(view, clock, missions, referenceFor, reminderPrompts)
-  const activeMissionActionReminders = active?.isViewer ? missionActionReminders(active, referenceFor) : EMPTY_REMINDERS
-  const writtenFor = useCallback((side: Side, key: string): StratagemText | undefined => writtenStratagem(rulesFor(side), key), [rulesFor])
-  const whenDrawnFor = (key: string): WhenDrawn | undefined => secondaryDeck.find((card) => card.key === key)?.whenDrawn ?? undefined
+  const referenceFor = useCallback((key: string): ReferenceCard | undefined => cardsByKey.get(currentMissionId(key)), [cardsByKey])
+  useWatchBattle(view, clock, missions, referenceFor, currentReminderPrompts)
+  const actionReminderPhase = actionRemindersEnabled && actionReminderWindow && active?.isViewer
+  const activeMissionActionReminders =
+    actionReminderPhase && active
+      ? missionActionReminders(active, referenceFor).filter((reminder) => !reminderDismissed(reminder.key, reminderContext))
+      : EMPTY_REMINDERS
+  const writtenFor = useCallback(
+    (side: Side, key: string): StratagemText | undefined => {
+      for (const [at, result] of ruleResults.entries()) {
+        const request = ruleRequests[at]
+        if (request?.side !== side.index || !result.data) continue
+        const written = writtenStratagem([result.data], key)
+        if (written) return { ...written, catalogueId: request.catalogueId }
+      }
+      return undefined
+    },
+    [ruleResults, ruleRequests],
+  )
+  const whenDrawnFor = (key: string): WhenDrawn | undefined =>
+    secondaryDeck.find((card) => sameMissionId(card.key, key))?.whenDrawn ?? undefined
   const coreKeysBySide = useMemo(
     () =>
       new Map(table.map((side) => [side.index, new Set(rulesFor(side).flatMap((rules) => rules.core.map((stratagem) => stratagem.key)))])),
@@ -359,6 +387,10 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
     }
   }
   const activeNeedsReferences = needsCardReferences(active)
+  const waitingForActionReferences =
+    actionReminderPhase &&
+    referencesQuery.isPending &&
+    (active?.primaryCard || active?.secondaries.some((card) => card.status === 'active'))
   const blockReason =
     settlementRound !== null
       ? 'Finish the previous turn’s scoring first.'
@@ -366,9 +398,11 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
         ? 'Draw the active side’s secondary missions first.'
         : needsDrawAcknowledgement
           ? 'Review the active side’s new secondary missions first.'
-          : activeNeedsReferences && deckUnknown
+          : (activeNeedsReferences && deckUnknown) || waitingForActionReferences
             ? 'Loading the active side’s mission cards…'
-            : null
+            : activeMissionActionReminders.length
+              ? 'Dismiss your mission action reminders to continue.'
+              : null
   const advanceBlocked = Boolean(blockReason)
   const discardable = active ? discardableSecondaries(active) : []
   const advanceNow = () => {
@@ -484,6 +518,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
       seenMoment?.battle === view.token ? seenMoment.moment : parseSeenMoment(readStoredValue(reminderMomentStorageKey(view.token)))
     if (seenMoment?.battle !== view.token || !previous || !sameSeenMoment(previous, currentMoment)) {
       setSeenMoment({ battle: view.token, moment: currentMoment })
+      if (previous && !sameSeenMoment(previous, currentMoment)) setReminderPrompts(keepCurrentActionReminders)
       for (const passed of previous ? passedMoments(previous, currentMoment) : []) {
         const started = previous && sameSeenMoment(passed, previous) ? null : startPrompt(passed, EMPTY_REMINDERS)
         if (started) enqueueReminderPrompt(started)
@@ -506,14 +541,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
   }, [dismissalStorageKey, dismissalsReady, reminderContext])
 
   // The reminders due at this moment of the turn join the queue once no prompt is showing; each is dismissed when shown.
-  const momentPrompt = reminderTurn
-    ? startPrompt(
-        { ...momentOf(view), turn: reminderTurn },
-        actionRemindersEnabled && view.phase === 'shooting' && reminderTurn === 'your-turn'
-          ? activeMissionActionReminders.filter((reminder) => !reminderDismissed(reminder.key, momentOf(view)))
-          : EMPTY_REMINDERS,
-      )
-    : null
+  const momentPrompt = reminderTurn ? startPrompt({ ...reminderContext, turn: reminderTurn }, activeMissionActionReminders) : null
   const momentSignature = momentPrompt && JSON.stringify([momentPrompt.context, momentPrompt.reminders.map((reminder) => reminder.key)])
   // Forgotten once a moment has nothing due, so undoing back into an alerted moment alerts again.
   const [queuedMoment, setQueuedMoment] = useState<string | null>(null)

@@ -41,6 +41,7 @@
           }
         ]
       },
+      "summaries": "mfm-1-6",
       "sources": {
         "definitions": {
           "repository": "richardsolomou/wh40k-11e",

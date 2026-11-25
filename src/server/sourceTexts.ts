@@ -32,7 +32,7 @@ export function sourceTexts(upstream: string): SourceTexts {
   return (raw, transform) => textToken({ file, transform, hash: textHash(raw) })
 }
 
-const textHash = (raw: string) => hash('sha256', raw).slice(0, TEXT_HASH_LENGTH)
+export const textHash = (raw: string) => hash('sha256', raw).slice(0, TEXT_HASH_LENGTH)
 
 /** Values read between pauses in a resumable scan of a source file. */
 const SCAN_STEP = 256
@@ -123,6 +123,30 @@ export const retainedSnapshots =
     }
   }
 
+/**
+ * Each JSON file of the text sources one rules version's copy holds, the root's when `edition` is null, with the
+ * token ID its strings are published under: a rules version kept whole from an older snapshot has files no upstream
+ * address names, which its tokens name by their place in the snapshot instead.
+ */
+export function editionTextFiles(root: string, edition: string | null) {
+  const found: { id: string; path: string; source: TextSource }[] = []
+  const prefix = edition ? `editions/${edition}/` : ''
+  const visit = (directory: string, source: TextSource) => {
+    for (const entry of fs.readdirSync(path.join(root, directory), { withFileTypes: true })) {
+      const file = `${directory}/${entry.name}`
+      if (entry.isDirectory()) visit(file, source)
+      else if (entry.name.endsWith('.json'))
+        found.push({ id: textFileId(upstreamOf(root)(file) ?? file), path: path.join(root, file), source })
+    }
+  }
+  for (const [directory, source] of [
+    ['definitions', 'bsdata'],
+    ['datacards', 'game-datacards'],
+  ] as const)
+    if (fs.existsSync(path.join(root, prefix, directory))) visit(`${prefix}${directory}`, source)
+  return found
+}
+
 /** Each JSON file of the text sources a snapshot holds, at the root and in every rules version, with where it lives upstream. */
 export function textSourcePaths(root: string, composition: CatalogueComposition | null) {
   const found: (TextSourceFile & { path: string })[] = []
@@ -162,7 +186,7 @@ export const textFilesFrom = (paths: readonly TextSourceFile[]): Record<string, 
 /**
  * Which of a snapshot's own files holds a string, by its hash: a token copied before a catalogue update names a file
  * the update replaced, and its string, where unchanged, lives on in that file's successor. Only the first 32 bits of
- * each hash are kept, so the index stays small; a reader's browser still matches the whole hash before showing words.
+ * each hash are kept, so the index stays small; a summary is still found only by the whole hash.
  */
 export function* textHomesSteps(root: string, composition: CatalogueComposition | null): Steps<(hash: string) => string | null> {
   const files = textSourcePaths(root, composition).filter((file) => !path.relative(root, file.path).startsWith('editions'))

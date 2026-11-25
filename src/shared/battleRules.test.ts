@@ -1,5 +1,6 @@
 import { expect, it } from 'vitest'
-import { type Command, reduceBattle } from '../core/battle'
+import { type Command, reduceBattle, sideDisposition } from '../core/battle'
+import { terrainMatchupIds } from '../contracts/terrainReference'
 import { ALICE, BOB, PLAYERS, builtRoster, log } from '../core/battle.fixtures'
 import type { MissionAward } from '../core/scoring'
 import {
@@ -17,7 +18,6 @@ const award: MissionAward = {
   max: null,
   mode: null,
   group: null,
-  cumulative: false,
   criteria: 'Final condition.',
   trigger: { timing: 'end-of-battle', phase: null, playerTurn: null, roundMin: null, roundMax: null },
 }
@@ -237,4 +237,34 @@ it('still asks a guided battle for its battlefield', () => {
   const loaded = { ...rules, deployments: [], terrainLayouts: [], primaries: [], secondaries: [] } as unknown as LoadedRules
   const guided = reduceBattle(PLAYERS, log([ALICE, builtRoster('First', [])], [BOB, builtRoster('Second', [])]))
   expect(setupReferenceError(guided, loaded)?.code).toBe('missing-deployment')
+})
+
+it('meets the current pack with the Game Datacards IDs a battle saved its battlefield by', () => {
+  const saved = reduceBattle(PLAYERS, log([ALICE, builtRoster('First', [])], [BOB, builtRoster('Second', [])]))
+  const dispositions = [0, 1].flatMap((side) => sideDisposition(saved, side) ?? [])
+  const loaded = {
+    ...rules,
+    deployments: [{ id: 'chapter-approved-2026-2027.tipping-point', name: 'Tipping Point' }],
+    terrainLayouts: [
+      {
+        id: 'chapter-approved-2026-2027.disruption-disruption-layout-b',
+        matchupId: terrainMatchupIds(dispositions)[0],
+        deploymentId: 'chapter-approved-2026-2027.tipping-point',
+        geometry: { board: { width: 60, height: 44 }, areas: [] },
+      },
+    ],
+    primaries: [],
+    secondaries: [],
+  } as unknown as LoadedRules
+  saved.deploymentId = 'd1c7a63c-ff7f-4fc3-a998-a4e4dca7ce5d'
+  saved.settings.terrainLayoutId = '95b63f18-2696-4d37-96a5-6ed2aedf3937'
+  expect(setupReferenceError(saved, loaded)).toBeNull()
+})
+
+it('hydrates a card a battle saved by its Game Datacards ID from the current pack', () => {
+  const battle = state()
+  battle.players[1]!.secondaries = [{ key: 'b50dc2df-5fc8-419d-a15a-449879497fc7', name: 'Cleanse' }]
+  const current = { ...selectionRules, secondaries: [{ key: 'chapter-approved-2026-2027.cleanse', name: 'Cleanse', awards: [award] }] }
+  hydrateAuthoritativeAwards(battle, current as unknown as LoadedRules)
+  expect(battle.players[1]!.secondaries[0]?.awards).toEqual([award])
 })

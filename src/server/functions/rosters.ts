@@ -439,7 +439,7 @@ export const copyPlayedArmy = createServerFn({ method: 'POST' })
       const userId = await requireUserId()
       const instance = app()
       const { rosterVisibility } = await instance.repository.playerDefaults(userId)
-      const roster = { ...(await playedArmyCopy(data)), visibility: rosterVisibility }
+      const roster = { ...(await playedArmyCopy(data)), visibility: rosterVisibility, printedDefaults: true as const }
       const saved = await saveOwnedRoster(userId, roster)
       await captureRosterCreated(instance, userId, roster, { played: true })
       return { id: saved.id }
@@ -628,6 +628,7 @@ export const exportRoster = createServerFn({ method: 'POST' })
         loaded,
         { ...priced, disposition: priced.disposition ?? null },
         pricedDispositionNames(priced, rules),
+        rules,
       )
       const userId = await currentUserId()
       if (userId)
@@ -636,6 +637,7 @@ export const exportRoster = createServerFn({ method: 'POST' })
           event: 'roster_exported',
           properties: {
             ...rosterTelemetryProperties(data, loaded, rules),
+            format: data.format ?? 'readable',
             unit_count: data.units.length,
           },
         })

@@ -10,7 +10,8 @@ import type { BuiltRoster } from '../../../core/battle'
 import type { BattleView } from '../../../core/battleView'
 import { fieldedRoster, fieldingPlayer } from '../rosters/fieldedRoster'
 
-type ProjectedCombatant = NonNullable<Awaited<ReturnType<typeof combatantDatasheet>>>
+// Combat reads no battle choices, so a combatant answered without their allowances serves too.
+type ProjectedCombatant = Omit<NonNullable<Awaited<ReturnType<typeof combatantDatasheet>>>, 'battleChoiceAllowances'>
 export type RosterCombatUnit = {
   rosterIndex: number
   pickIndex: number

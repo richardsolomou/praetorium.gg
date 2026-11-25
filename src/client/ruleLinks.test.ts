@@ -5,7 +5,7 @@ import { ruleLinks } from './ruleLinks'
 const reference = (document: string, code: string) => ({ code, document, section: 'moving', anchor: code, title: code })
 
 const index = {
-  documents: [{ id: 'core', slug: 'core-rules', title: 'Core Rules', updated: null, sections: [] }],
+  documents: [{ id: 'core', slug: 'core-rules', title: 'Core Rules', sections: [] }],
   references: [reference('core-rules', '03.01'), reference('core-rules', '10.05'), reference('combat-patrol', '03.01')],
 } satisfies RuleIndex
 

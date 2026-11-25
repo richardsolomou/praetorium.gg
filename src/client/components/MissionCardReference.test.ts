@@ -1,16 +1,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import type { MissionAward } from '../missionText'
 import { MissionCardReference } from './MissionCardReference'
-import { textToken } from '../../core/sourceText'
-
-// These render a reader who has chosen to load rules text; `RuleText.test.ts` covers one who has not.
-vi.mock('../rulesText', async (original) => {
-  const actual = await original<typeof import('../rulesText')>()
-  return { ...actual, useTextSourceChoice: vi.fn(() => actual.textSourceChoiceFrom('bsdata,game-datacards')) }
-})
+import { MISSION_SUMMARIES } from '../../contracts/rules'
+import { ruleSummariesQuery } from '../queries/references'
 
 const trigger = {
   timing: 'end-of-turn',
@@ -28,19 +23,20 @@ const award = (vp: number, criteria: string, group: string | null): MissionAward
   per: null,
   mode: null,
   max: null,
-  cumulative: false,
 })
 
 const render = (card: ReturnType<typeof createElement>) =>
   renderToStaticMarkup(createElement(QueryClientProvider, { client: new QueryClient() }, card))
 
+const summarised = { ...award(3, 'Hold an objective.', null), id: 'pack.card.o1-s1' }
+
 describe('mission card reference', () => {
-  it('shows the card instructions and labels alternative and additional objectives', () => {
+  it('labels alternative and additional objectives', () => {
     const markup = render(
       createElement(MissionCardReference, {
         card: {
+          key: 'reconnaissance-sweep',
           name: 'Reconnaissance Sweep',
-          text: '**WHEN DRAWN:** Select one friendly unit on the battlefield or embarked within a **TRANSPORT** on the battlefield to be your **beacon** unit.',
           awards: [
             award(3, 'Have a presence in three table quarters.', 'table-quarters'),
             award(6, 'Have a presence in four table quarters.', 'table-quarters'),
@@ -52,22 +48,18 @@ describe('mission card reference', () => {
     )
 
     expect(markup).toContain('aria-label="Alternative objective"')
-    expect(markup).toContain('WHEN DRAWN:')
-    expect(markup).toContain('Select one friendly unit on the battlefield or embarked within a')
-    expect(markup).toContain('TRANSPORT')
-    expect(markup).toContain('beacon')
     expect(markup).toContain('>or</span>')
     expect(markup).toContain('aria-label="Additional objective"')
     expect(markup).toContain('>plus</span>')
   })
 
   it('uses the relationship label instead of legacy plus marks on a cumulative payout', () => {
-    const cumulative = { ...award(2, 'For each of those objectives.', null), cumulative: true }
+    const cumulative = { ...award(2, 'For each of those objectives.', null) }
     const markup = render(
       createElement(MissionCardReference, {
         card: {
+          key: 'take-and-hold',
           name: 'Take and Hold',
-          text: null,
           awards: [award(3, 'For each objective you control.', null), cumulative],
         },
         type: 'Take and Hold',
@@ -84,8 +76,8 @@ describe('mission card reference', () => {
     const markup = render(
       createElement(MissionCardReference, {
         card: {
+          key: 'vanguard-operation',
           name: 'Vanguard Operation',
-          text: null,
           awards: [
             {
               ...award(10, 'You control your opponent’s home objective.', null),
@@ -102,49 +94,48 @@ describe('mission card reference', () => {
     expect(markup).not.toContain('Your turn')
   })
 
-  const action = {
-    name: 'SECURE ASSET',
-    starts: 'Your Shooting phase.',
-    completes: 'End of your turn, if your unit controls that **objective**.',
-    effect: 'Your unit **secures the asset**.',
-    units: 'One friendly unit within range of one **objective**.',
-    useLimit: 'Once per turn.',
-    restriction: null,
-  }
-  const withAction = () =>
-    render(createElement(MissionCardReference, { card: { name: 'Secure Asset', text: null, awards: [], actions: [action] } }))
-
-  it('prints every line the pack states for an action the card names', () => {
-    const markup = withAction()
-
-    expect(markup).toContain('SECURE ASSET')
-    expect(markup).toContain('Effect:')
-    expect(markup).toContain('secures the asset')
-    expect(markup).toContain('Once per turn.')
+  it('names an action the card names', () => {
+    const action = { id: 'secure-asset.secure-asset', name: 'SECURE ASSET' }
+    const card = { key: 'secure-asset', name: 'Secure Asset', awards: [], actions: [action] }
+    expect(render(createElement(MissionCardReference, { card }))).toContain('SECURE ASSET')
   })
 
-  it('leaves out an action line the pack does not state', () => {
-    expect(withAction()).not.toContain('Restriction:')
+  it('holds an award summary’s place while it loads', () => {
+    const markup = render(createElement(MissionCardReference, { card: { key: 'card', name: 'Card', awards: [summarised] } }))
+    expect(markup).toContain('data-rule-summary-loading')
   })
 
-  it('asks for unloaded rules text once and names each payout from its numbers', async () => {
-    const { useTextSourceChoice, textSourceChoiceFrom } = await import('../rulesText')
-    vi.mocked(useTextSourceChoice).mockReturnValue(textSourceChoiceFrom(''))
-    const words = (hash: string) => textToken({ file: '0123abcd', transform: 'prose', hash })
-    const markup = render(
-      createElement(MissionCardReference, {
-        card: {
-          name: 'Take and Hold',
-          text: null,
-          awards: [award(3, words('0'.repeat(16)), 'hold'), award(6, words('1'.repeat(16)), 'hold')],
-        },
-      }),
+  it('leaves an award without a summary blank once summaries load', () => {
+    const client = new QueryClient()
+    client.setQueryData(ruleSummariesQuery(MISSION_SUMMARIES).queryKey, { records: {}, texts: {}, entries: {} })
+    const markup = renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        { client },
+        createElement(MissionCardReference, { card: { key: 'card', name: 'Card', awards: [summarised] } }),
+      ),
     )
-    vi.mocked(useTextSourceChoice).mockReset()
-    expect([markup.match(/isn’t loaded/g)?.length, markup.includes('The lower payout.'), markup.includes('The higher payout.')]).toEqual([
-      1,
-      true,
-      true,
-    ])
+    expect(markup).not.toContain('data-rule-summary-loading')
   })
+})
+
+it('prints an award claimed at two moments once, under both', () => {
+  const held = { ...award(3, 'Hold an objective.', null), id: 'pack.card.o2-s1' }
+  const markup = render(
+    createElement(MissionCardReference, {
+      card: {
+        key: 'card',
+        name: 'Card',
+        awards: [
+          { ...held, trigger: { ...trigger, timing: 'end-of-phase', phase: 'command', roundMin: 2, roundMax: 4 } },
+          { ...held, trigger: { ...trigger, roundMin: 5, roundMax: 5 } },
+        ],
+      },
+    }),
+  )
+  expect([markup.split('>3<span').length - 1, markup.includes('Battle rounds 2–4'), markup.includes('Battle round 5')]).toEqual([
+    1,
+    true,
+    true,
+  ])
 })

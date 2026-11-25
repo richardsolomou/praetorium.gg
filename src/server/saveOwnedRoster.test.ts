@@ -74,6 +74,7 @@ it('duplicates every choice of a roster at the default visibility, outside its g
     picks,
     prep,
     visibility: 'private',
+    printedDefaults: true,
   })
 })
 

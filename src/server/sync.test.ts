@@ -202,3 +202,18 @@ it('refuses a link inside a release archive', async () => {
 
   await expect(fetchReleaseInto(summaries(revision), path.join(directory, 'target'))).rejects.toThrow('not a regular file')
 })
+
+it('lays out a release entry at the long path its PAX header gives', async () => {
+  const long = `records/rules-reference/ability/${'a'.repeat(120)}.json`
+  const { archive, revision } = ustar([
+    ['PaxHeader', `${long.length + 12} path=${long}\n`, 'x'],
+    [long.slice(0, 99), '{}'],
+  ])
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => new Response(archive)),
+  )
+  await fetchReleaseInto(summaries(revision), path.join(directory, 'target'))
+
+  expect(fs.readFileSync(path.join(directory, 'target', long), 'utf8')).toBe('{}')
+})

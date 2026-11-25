@@ -811,6 +811,80 @@ describe('enhancement descriptions', () => {
     },
   )
 
+  it('names the detachment BSData files an enhancement under when two of the list’s detachments print one of that name', () => {
+    const loaded = bookOf({
+      selectionEntries: [
+        {
+          id: 'detachment',
+          name: 'Detachment',
+          type: 'upgrade',
+          selectionEntryGroups: [
+            {
+              id: 'detachments',
+              name: 'Detachment',
+              selectionEntries: [
+                { id: 'support', name: 'Deathwatch Support', type: 'upgrade' },
+                { id: 'spear', name: 'Black Spear Task Force', type: 'upgrade' },
+              ],
+            },
+          ],
+        },
+        {
+          id: 'captain',
+          name: 'Captain',
+          type: 'unit',
+          selectionEntryGroups: [
+            {
+              id: 'enhancements',
+              name: 'Enhancements',
+              constraints: [{ id: 'enhancement-max', field: 'selections', scope: 'self', type: 'max', value: 1 }],
+              selectionEntries: [
+                { id: 'beacon', name: 'Beacon Angelis', type: 'upgrade', comment: 'Black Spear Task Force', costs: pointsCost(25) },
+              ],
+            },
+          ],
+        },
+      ],
+    })
+    const detail = (id: string, name: string) => ({
+      id,
+      name,
+      points: 1,
+      dispositions: [],
+      rules: [],
+      enhancements: [{ name: 'Beacon Angelis', points: 25, description: `${name}'s beacon.`, eligibility: { anyOf: [[]], excluded: [] } }],
+      upgrades: [],
+      stratagems: [],
+    })
+    const rules = {
+      factionKeys: new Map([['test-catalogue', 'test-catalogue']]),
+      factionRestrictions: new Map(),
+      detachmentReferences: new Map(),
+      detachmentDetails: new Map([
+        [
+          'test-catalogue',
+          new Map([
+            ['deathwatch-support', detail('deathwatch-support', 'Deathwatch Support')],
+            ['black-spear-task-force', detail('black-spear-task-force', 'Black Spear Task Force')],
+          ]),
+        ],
+      ]),
+    } as Partial<LoadedRules> as LoadedRules
+
+    const unit = calculateRosterPrice(
+      {
+        catalogueId: 'cat',
+        detachmentIds: ['support', 'spear'],
+        disposition: null,
+        limit: 2000,
+        units: [{ entryId: 'captain', choices: { enhancements: 'beacon' } }],
+      },
+      loaded,
+      rules,
+    )?.units[0]
+    expect(unit?.choices.find((candidate) => candidate.key === 'enhancements')?.options[0]).toMatchObject({ detachment: 'spear' })
+  })
+
   it('matches an aura suffix supplied by the rules source', () => {
     const descriptions = new Map([[descriptionKey('Awakened Dynasty', 'Phasal Subjugator (Aura)'), 'Improve nearby attacks.']])
 

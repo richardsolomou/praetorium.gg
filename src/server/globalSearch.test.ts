@@ -321,8 +321,7 @@ describe('global datasheet search', () => {
       datasheetDetails: new Map(),
       detachments: new Set(['Black Spear Task Force']),
       enhancements: new Map(),
-      stratagems: new Map(),
-      stratagemIssues: [],
+      stratagemTexts: new Map(),
       detachmentRules: new Map(),
       armyRules: [],
       factionAbilityNames: new Set(),
@@ -409,14 +408,14 @@ describe('global rules search', () => {
       id: 'core-rules-document',
       slug: 'core-rules',
       title: 'Core Rules',
-      updated: null,
-      text: null,
       sections: [
         {
           id: 'section-moving',
           slug: 'moving',
           title: '03. Moving',
-          entries: [{ id: 'entry', code: '03.01', anchor: '03.01', title: 'Moving Units', blocks: [], facts: [], cost: null, lore: null }],
+          entries: [
+            { id: 'entry', code: '03.01', anchor: '03.01', formerAnchors: [], title: 'Moving Units', clarifications: [], cost: null },
+          ],
         },
       ],
     },

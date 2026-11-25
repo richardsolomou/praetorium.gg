@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { FIXED_SECONDARIES, SECONDARIES_MAX, SETUP_STEP_MAX } from './battle'
-import { commandSchema, rosterPickSchema } from './commands'
+import { commandSchema, missionAwardSchema, rosterPickSchema } from './commands'
 import { UNIT_NICKNAME_MAX_LENGTH, UNIT_NOTE_MAX_LENGTH } from './unitNotes'
 
 describe('roster pick schema', () => {
@@ -305,4 +305,30 @@ describe('the round a settlement names', () => {
     expect(SECONDARIES_MAX).toBeGreaterThan(FIXED_SECONDARIES)
     expect(commandSchema.safeParse({ kind: 'set-prep', ...prep }).success).toBe(true)
   })
+})
+
+it('accepts the longest VS Data layout and Stratagem IDs a battle records', () => {
+  expect([
+    commandSchema.safeParse({
+      kind: 'set-battlefield',
+      patternId: 'chapter-approved-2026-2027.tipping-point',
+      terrainLayoutId: 'chapter-approved-2026-2027.priority-assets-priority-assets-layout-a',
+    }).success,
+    commandSchema.safeParse({ kind: 'use-stratagem', key: 'adeptus-custodes.shield-captain-in-allarus-terminator-armour.teleport-strike' })
+      .success,
+  ]).toEqual([true, true])
+})
+
+it('reads an award a battle logged with the cumulative flag it no longer keeps', () => {
+  const award = {
+    vp: 2,
+    per: null,
+    mode: null,
+    max: null,
+    group: null,
+    criteria: null,
+    cumulative: true,
+    trigger: { timing: 'end-of-turn', phase: null, playerTurn: 'your-turn', roundMin: null, roundMax: null },
+  }
+  expect(missionAwardSchema.safeParse(award).success).toBe(true)
 })

@@ -149,7 +149,7 @@ export function RosterAppImport({
               rows={3}
               maxLength={4_000}
               placeholder="https://www.newrecruit.eu/app/list/…"
-              className="font-mono text-xs"
+              className="bg-sunken px-4 py-3 font-mono leading-relaxed md:text-2xs dark:bg-sunken"
               onChange={(event) => {
                 setLinks(event.target.value)
                 restart()

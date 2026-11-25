@@ -2,7 +2,7 @@ import { leagueComplete, leagueDraw, leagueFixtureOverdue, leagueFixtureStatus, 
 import { hiddenFromViewer } from '../../core/group'
 import { groupSummary } from '../../core/groupSummary'
 import type { BattleFilter, BattleOrder } from '../../core/battleFilter'
-import { isProvisional, sideScore, standings } from '../../core/standings'
+import { sideScore, standings } from '../../core/standings'
 import { swissStandings } from '../../core/swiss'
 import { SEALED_EVENT_RESULTS_BATTLE_LIMIT } from '../../core/sealedEventResults'
 import type { BattlesCursor } from '../../contracts/battles'
@@ -53,8 +53,7 @@ export class GroupResultsService {
       if (!found || hiddenFromViewer(found.group, viewerId)) return null
       const { group, league, battlesRevision } = found
       const { table } = await this.standingsOf(token, group, battlesRevision, viewerId, [])
-      const ranked = table.rows.filter((row) => !isProvisional(row))
-      const place = ranked.findIndex((row) => row.id === viewerId)
+      const place = table.rows.findIndex((row) => row.id === viewerId)
       const playing = new Set(league?.players.filter((player) => !player.withdrawn).map((player) => player.userId))
       const next = league?.publishedAt
         ? league.fixtures
@@ -66,7 +65,7 @@ export class GroupResultsService {
       const deadline = next ? (league?.deadlines[next.round - 1] ?? null) : null
       return {
         token,
-        place: place === -1 ? null : { place: place + 1, of: ranked.length },
+        place: place === -1 ? null : { place: place + 1, of: table.rows.length },
         fixture: next
           ? {
               round: next.round,

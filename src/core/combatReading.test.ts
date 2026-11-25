@@ -28,7 +28,7 @@ const unquoted = (reading: CombatReading, words: string) => {
 
 describe('combat facts', () => {
   it.each(texts)('read every placement of %s as its words do', (description) => {
-    const facts = combatFactsOf(description)
+    const facts = combatFactsOf(description, true)
     for (const placement of placements) {
       const rule: CombatRule = { id: 'rule', name: 'Rule', source: 'Source', description, ...placement }
       expect(combatReadingFor(facts, rule)).toEqual(unquoted(combatReadingOf(rule), description))

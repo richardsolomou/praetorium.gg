@@ -46,6 +46,14 @@ export function fromBattleBaseText(input: string, { setupOptional = false } = {}
       const joined = line.match(/^(\s*)(•\s*\d+x?\s.*?\S)\s{2,}(•\s*.+)$/)
       return joined ? [`${joined[1]}${joined[2]}`, `${joined[1]}  ${joined[3]}`] : [line]
     })
+  // The app lists what keeps the list from being legal under "ERRORS" above the units, as points over the battle size,
+  // one bullet each, so a paste that lost its blank lines still keeps the units after them.
+  const errorsAt = raw.findIndex((line) => line.trim() === 'ERRORS')
+  if (errorsAt >= 0) {
+    let end = errorsAt + 1
+    while (end < raw.length && /^\s*•/.test(raw[end]!)) end++
+    raw.splice(errorsAt, end - errorsAt)
+  }
   // A long detachment name can wrap above the units, as the German "Eine Legende, / die der Skalden würdig ist und … (3 Kontingentspunkte)":
   // its second line opens in lower case under a line of its own that names no price.
   const firstBullet = raw.findIndex((line) => /^\s*[•◦]/.test(line))

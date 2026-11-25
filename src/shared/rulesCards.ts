@@ -1,4 +1,3 @@
-import type { Stratagem } from '../core/battle'
 import type { MissionSelectionKind } from '../core/missionSelections'
 import type { MissionAction, WhenDrawn } from '../contracts/missions'
 import type { MissionAward as Award } from '../core/scoring'
@@ -15,20 +14,14 @@ export type Mission = {
   packId: string | null
   deploymentIds: string[]
 }
+/** A mission card by its VS Data ID, whose summary players read. */
 export type MissionCard = {
   key: string
   name: string
-  text: string | null
   awards: Award[]
   actions: MissionAction[]
   whenDrawn: WhenDrawn | null
   selection?: MissionSelectionKind
-}
-export type LoadedCards = {
-  core: Stratagem[]
-  coreDetails: { id: string; type: string | null; description: string }[]
-  secondaries: MissionCard[]
-  primaries: MissionCard[]
 }
 export function missionForIn(
   missions: ReadonlyMap<string, Mission>,
