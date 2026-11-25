@@ -38,6 +38,7 @@ it('names a faction by every spelling the official app gives it, under each name
     units: {},
     factions: {},
     keywords: {},
+    coreRules: [],
     records: [],
     names: { factions: [['Adeptus Astartes', 'Space Marines', '阿斯塔特修会']], detachments: [], enhancements: [], units: {} },
   }

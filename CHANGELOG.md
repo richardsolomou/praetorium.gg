@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.277.2 (2026-11-25)
+
+### Patch Changes
+
+- b53f74f: [reference] The core rules' Torrent clarification shows its printed number, 24.37.01, and has a link of its own.
+
 ## 0.277.1 (2026-11-25)
 
 ### Patch Changes

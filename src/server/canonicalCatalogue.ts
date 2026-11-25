@@ -34,7 +34,7 @@ import { readRevisions } from './catalogueSources'
 import { mfmUnitFor } from '../shared/unitPoints'
 
 export const CANONICAL_CATALOGUE_FORMAT = 'praetorium.canonical-catalogue.v1' as const
-export const CANONICAL_CATALOGUE_COMPILER_VERSION = 34 as const
+export const CANONICAL_CATALOGUE_COMPILER_VERSION = 35 as const
 
 const characteristicSchema = z.object({
   name: z.string(),
@@ -197,24 +197,10 @@ const issueSchema = z.object({
   message: z.string(),
 })
 
-const ruleBlockSchema = z.discriminatedUnion('kind', [
-  z.object({ kind: z.literal('prose'), markup: z.string() }),
-  z.object({ kind: z.literal('heading'), text: z.string() }),
-  z.object({
-    kind: z.literal('clarification'),
-    code: z.string().nullable(),
-    anchor: z.string().nullable(),
-    title: z.string(),
-    markup: z.string().nullable(),
-  }),
-])
-
 const ruleDocumentSchema = z.object({
   id: z.string(),
   slug: z.string(),
   title: z.string(),
-  updated: z.string().nullable(),
-  text: z.object({ url: z.url(), sha256: z.string().regex(/^[0-9a-f]{64}$/) }).nullable(),
   sections: z.array(
     z.object({
       id: z.string(),
@@ -225,16 +211,15 @@ const ruleDocumentSchema = z.object({
           id: z.string(),
           code: z.string().nullable(),
           anchor: z.string(),
+          formerAnchors: z.array(z.string()),
           title: z.string(),
-          blocks: z.array(ruleBlockSchema),
-          facts: z.array(z.object({ label: z.string(), markup: z.string() })),
+          clarifications: z.array(z.object({ id: z.string(), code: z.string().nullable(), anchor: z.string(), title: z.string() })),
           cost: z.number().nullable(),
-          lore: z.string().nullable(),
         }),
       ),
     }),
   ),
-  provenance: z.object({ datacards: z.object({ revision: z.string() }) }),
+  provenance: z.object({ summaries: z.object({ revision: z.string() }) }),
 })
 
 const canonicalCatalogueSchema = z.object({
@@ -521,7 +506,7 @@ export function* canonicalCatalogueSteps(
       (left, right) => compareText(left.faction, right.faction) || compareText(left.name, right.name) || compareText(left.id, right.id),
     ),
     detachments: compileCanonicalDetachments(loaded, revisions, rules),
-    ruleDocuments: compileCanonicalRuleDocuments(rules?.ruleDocuments ?? [], revisions.datacards ?? 'unknown'),
+    ruleDocuments: compileCanonicalRuleDocuments(rules?.ruleDocuments ?? [], revisions.summaries ?? 'unknown'),
     issues: issues.toSorted(
       (left, right) =>
         compareText(left.catalogueId, right.catalogueId) || compareText(left.entryId, right.entryId) || compareText(left.path, right.path),
@@ -531,7 +516,7 @@ export function* canonicalCatalogueSteps(
 
 export function compileCanonicalRuleDocuments(documents: readonly RuleDocument[], revision: string) {
   return documents
-    .map((document) => ({ ...document, provenance: { datacards: { revision } } }))
+    .map((document) => ({ ...document, provenance: { summaries: { revision } } }))
     .toSorted((left, right) => compareText(left.title, right.title) || compareText(left.id, right.id))
 }
 

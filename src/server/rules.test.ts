@@ -10,9 +10,6 @@ import type { VsDataMissionPack, VsDataStratagem, VsDataSummariesFile } from '..
 import { missionPack } from './vsData.fixtures'
 import { bookOf } from './catalogue.fixtures'
 import { factionsFor } from '../shared/factionReferences'
-import { catalogueSources } from './catalogueSources'
-import { readCatalogueComposition } from './catalogueComposition'
-import { textSourcePaths } from './sourceTexts'
 
 let directory: string
 const write = (file: string, value: unknown) => {
@@ -127,6 +124,7 @@ function release({
     units: {},
     factions: {},
     keywords,
+    coreRules: [],
     records: [],
   }
   write(path.join(directory, 'summaries', `${base.edition.id}.json`), file)
@@ -326,6 +324,7 @@ it('takes a retained Detachment’s Stratagems from its listing, and names the p
     units: {},
     factions: {},
     keywords: {},
+    coreRules: [],
     records: [],
   }
   write(path.join(directory, 'summaries', 'earlier.json'), retained)
@@ -966,25 +965,4 @@ it('inherits generic Marine cards without leaking another chapter’s detachment
 it('offers no Stratagems from a snapshot that holds no VS Data release', () => {
   fs.rmSync(path.join(directory, 'summaries'), { recursive: true })
   expect(loadRules(directory)?.byDetachment.get('death-guard')?.get('flyblown-host') ?? []).toEqual([])
-})
-
-it('points a rules document at the upstream file its snapshot was built from', () => {
-  const datacards = { ...catalogueSources.datacards, revision: 'c'.repeat(40) }
-  write(path.join(directory, 'composition.json'), { ...composition, baseSources: { ...catalogueSources, datacards }, editions: [base] })
-  write(path.join(directory, 'datacards', '11th', 'gdc', 'core', 'core_rules.json'), {
-    id: 'core-rules',
-    name: { en: 'Core Rules' },
-    cardType: 'coreRules',
-    updated: '2026-09-02T09:15:45.184Z',
-    sections: [
-      {
-        id: 'moving',
-        name: { en: '03. Moving' },
-        order: 1,
-        containers: [{ id: 'units', type: 'standard', order: 1, title: { en: 'Moving Units' }, subTitle: { en: '03.01' }, components: [] }],
-      },
-    ],
-  })
-  const served = textSourcePaths(directory, readCatalogueComposition(directory)).find((file) => file.path.endsWith('core_rules.json'))
-  expect(rules().ruleDocuments[0]?.text?.url).toBe(served?.url)
 })

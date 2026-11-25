@@ -21,8 +21,6 @@ function canonical(revision: string, text: string): CanonicalCatalogue {
         id: 'core',
         slug: 'core',
         title: 'Core Rules',
-        updated: null,
-        text: null,
         sections: [
           {
             id: 'movement',
@@ -33,16 +31,15 @@ function canonical(revision: string, text: string): CanonicalCatalogue {
                 id: 'move',
                 code: '1.1',
                 anchor: '1.1',
-                title: 'Move',
-                blocks: [{ kind: 'prose', markup: text }],
-                facts: [],
+                formerAnchors: ['move-uuid'],
+                title: text,
+                clarifications: [],
                 cost: null,
-                lore: null,
               },
             ],
           },
         ],
-        provenance: { datacards: { revision } },
+        provenance: { summaries: { revision } },
       },
     ],
     issues: [],
@@ -94,9 +91,9 @@ it('rebuilds the corpus when the active snapshot is replaced', () => {
   active = canonical('two', 'Replacement snapshot.')
   const after = referenceCorpusFor(sources)!
 
-  expect({ changed: after.revision !== before.revision, text: after.documents[0]?.sections[0]?.text }).toEqual({
+  expect({ changed: after.revision !== before.revision, title: after.documents[0]?.title }).toEqual({
     changed: true,
-    text: '1.1\nReplacement snapshot.',
+    title: 'Replacement snapshot.',
   })
 })
 
@@ -109,15 +106,19 @@ it('changes the corpus identity when projected content changes at the same sourc
   )
 })
 
-it('includes rule costs and lore in searchable and retrievable text', () => {
-  const source = canonical('one', 'Rule text.')
-  const entry = source.ruleDocuments[0]!.sections[0]!.entries[0]!
-  entry.cost = 2
-  entry.lore = 'A remembered victory guides the commander.'
+it('includes a rule’s cost in its retrievable text', () => {
+  const source = canonical('one', 'Rule.')
+  source.ruleDocuments[0]!.sections[0]!.entries[0]!.cost = 2
 
   const document = referenceCorpusFor({ canonicalCatalogue: () => source, catalogue: () => null, rules: () => null })!.documents[0]!
 
-  expect(document.sections[0]?.text).toContain('2 CP\nA remembered victory guides the commander.')
+  expect(document.sections[0]?.text).toBe('1.1\n2 CP')
+})
+
+it('finds a rule by the id its former address gave it', () => {
+  const corpus = referenceCorpusFor({ canonicalCatalogue: () => canonical('one', 'Move'), catalogue: () => null, rules: () => null })!
+
+  expect(referenceDocument(corpus, 'rule:core:move-uuid')?.id).toBe('rule:core:1.1')
 })
 
 it('includes the force disposition matrix and primary mission scoring', () => {

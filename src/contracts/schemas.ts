@@ -1,4 +1,4 @@
-import { MISSION_SUMMARIES } from './rules'
+import { MISSION_SUMMARIES, RULE_SUMMARIES } from './rules'
 import { ADMIN_USER_ROLES, ADMIN_USER_SORTS } from '../admin'
 import { z } from 'zod'
 import { LIST_FILTER_SCOPES, listPreferencesSchema } from '../core/listFilter'
@@ -599,7 +599,9 @@ export const textHomesSchema = z.object({
     .min(1)
     .max(TEXT_HOMES_MAX),
 })
-export const textFileSchema = z.object({ file: z.union([z.string().regex(/^[0-9a-f]{8}$/), z.literal(MISSION_SUMMARIES)]) })
+export const textFileSchema = z.object({
+  file: z.union([z.string().regex(/^[0-9a-f]{8}$/), z.literal(MISSION_SUMMARIES), z.literal(RULE_SUMMARIES)]),
+})
 
 export const rosterIdSchema = z.object({ id })
 /** `setup` saves a reviewed rules-version conversion as a variant, leaving the original as it was. */
