@@ -671,6 +671,25 @@ Exported with App Version: v2.8.1 (1), Data Version: v995`
       ['1x multi-melta', '1x meltagun'],
     ],
     [
+      'a heavy bolter beside a Ministorum flamer, which either weapon Sister could take',
+      'Adepta Sororitas',
+      'Battle Sisters Squad',
+      `Battle Sisters Squad (100 points)
+  • 1x Sister Superior
+    • 1x Bolt pistol
+      1x Close combat weapon
+      1x Plasma pistol
+      1x Power weapon
+  • 9x Battle Sister
+    • 9x Bolt pistol
+      7x Boltgun
+      9x Close combat weapon
+      1x Heavy bolter
+      1x Ministorum flamer
+      1x Simulacrum Imperialis`,
+      ['1x heavy bolter', '1x ministorum flamer'],
+    ],
+    [
       'a Lieutenant power weapon in his bolter’s place, beside the fists his melee choice alone offers',
       'Black Templars',
       'Lieutenant',

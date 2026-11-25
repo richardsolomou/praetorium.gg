@@ -330,6 +330,19 @@ describe('fromNewRecruitShare', () => {
     })
   })
 
+  it('reads a Warlord wrapping the variant a detachment names', () => {
+    const share = shared()
+    const boss = share.army.options[0]!.options[0]!.options[1]!.options[0]!
+    boss.options[0] = { name: 'Warlord', amount: 1, options: [{ name: 'Militarum Tempestus Warlord', amount: 1, options: [] }] }
+    expect(fromNewRecruitShare(share)!.units[0]).toMatchObject({
+      warlord: true,
+      selections: [
+        { name: 'Big Choppa', count: 1 },
+        { name: 'Slugga', count: 1 },
+      ],
+    })
+  })
+
   it('leaves out the rules reminders in the reference category', () => {
     expect(fromNewRecruitShare(shared())!.units.map((unit) => unit.name)).toEqual(['Warboss', 'Boyz'])
   })
