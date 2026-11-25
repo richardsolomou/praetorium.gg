@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.277.3 (2026-11-25)
+
+### Patch Changes
+
+- 3df1468: [rosters] Exported list text names your Warlord when it's a character that must lead the army.
+
 ## 0.277.2 (2026-11-25)
 
 ### Patch Changes
