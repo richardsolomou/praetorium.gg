@@ -191,6 +191,11 @@ describe.skipIf(!fs.existsSync(directory))('simulator catalogue projections', ()
     expect(combatUnitTarget(side('Adeptus Custodes', ['Prosecutor Squad']).snapshot, 'ranged').target?.psychicFeelNoPain).toBe(3)
   })
 
+  it("keeps a Canoptek Reanimator's Feel No Pain 4+ among the defender's rules", () => {
+    const rule = side('Necrons', ['Canoptek Reanimator']).rules.find((candidate) => candidate.name === 'Feel No Pain 4+')
+    expect(rule && combatRuleAppliesTo(rule, 'defender')).toBe(true)
+  })
+
   it('Deathshroud Manreaper modes count every carrier', () => {
     const [champion, terminator] = ['Deathshroud Terminator Champion · Manreaper', 'Deathshroud Terminator · Manreaper']
     const plan = (models: number, sweeping: readonly string[]) => {

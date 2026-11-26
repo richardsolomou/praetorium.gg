@@ -144,9 +144,23 @@ export function vsDataTextFacts(
     get: (key) => {
       const { record } = join(key)
       // A record without blocks is one VS Data has not read yet.
-      return record && effects[record] ? remember(facts, record, () => textFactsOfVsData(effects[record]!)) : undefined
+      if (!record || !effects[record]) return undefined
+      const blocks = effects[record]!
+      return remember(facts, record, () =>
+        textFactsOfVsData(record === FEEL_NO_PAIN && blocks.combat ? { ...blocks, combat: asDefenders(blocks.combat) } : blocks),
+      )
     },
   }
+}
+
+/**
+ * Feel No Pain's core record reads no roll, which only the ability's name gives, as "Feel No Pain 4+", and the simulator
+ * applies from that name: the record stays a defender's rule it lists, as the ability is.
+ */
+const FEEL_NO_PAIN = 'core-ability:feel-no-pain'
+const asDefenders = (combat: unknown) => {
+  const block = combat as { readings: Record<string, unknown>[] }
+  return { ...block, readings: block.readings.map((reading) => ({ ...reading, roles: reading.roles ?? ['defender'] })) }
 }
 
 /** A block as it reads wherever a Leader can join its unit or not. */
