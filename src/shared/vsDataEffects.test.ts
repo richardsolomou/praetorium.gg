@@ -30,13 +30,6 @@ it('reads a Stratagem’s Fight phase placement', () => {
   expect(Object.keys(facts.combat!.readings)).toEqual(['stratagem:1:0:melee'])
 })
 
-it('gives the whole unit an effect VS Data limits to the bearer, as Praetorium always has', () => {
-  const facts = textFactsOfVsData(combat({ choices: [{ conditions: [], effects: [{ ...reroll, bearerOnly: true }] }], default: 1 }))
-  expect(facts.combat!.leaves[0]!.compiled!.choices[0]!.effects).toEqual([
-    { role: 'attacker', phases: ['melee'], options: { hitReroll: 'ones' } },
-  ])
-})
-
 it('names a choice by its conditions', () => {
   const facts = textFactsOfVsData(
     combat({ choices: [{ conditions: [{ kind: 'charged' }, { kind: 'within', inches: 6 }], effects: [reroll] }], default: 0 }),
@@ -65,4 +58,52 @@ it('calculates no mortal wounds VS Data places outside the attacks', () => {
     combat({ choices: [{ conditions: [], effects: [{ role: 'attacker', attacks: ['ranged'], mortalWounds: mortals }] }], default: 1 }),
   )
   expect(facts.combat!.leaves[0]!.compiled!.choices[0]!.effects).toEqual([])
+})
+
+it('reads an Order allowance that holds only while leading', () => {
+  const facts = textFactsOfVsData({ options: { allowances: [{ options: 'Orders', limit: 2, whileLeading: true }] } })
+  expect(facts.battleChoiceAllowances).toEqual([{ options: 'Orders', limit: 2, leading: true }])
+})
+
+it('rolls mortal wounds once per point of Toughness where VS Data says so', () => {
+  const mortals = {
+    timing: 'before',
+    rolls: 1,
+    perToughness: true,
+    max: 6,
+    outcomes: [{ min: 5, max: 6, damage: { dice: 0, sides: 6, bonus: 1 } }],
+  }
+  const facts = textFactsOfVsData(
+    combat({ choices: [{ conditions: [], effects: [{ role: 'attacker', attacks: ['melee'], mortalWounds: mortals }] }], default: 1 }),
+  )
+  expect(facts.combat!.leaves[0]!.compiled!.choices[0]!.effects[0]!.mortalWounds).toMatchObject({ perToughness: true, limit: 6 })
+})
+
+it('leaves out a single save re-roll the simulator cannot give a rule', () => {
+  const rolls = { singleRerolls: ['hit', 'save'] }
+  const facts = textFactsOfVsData(
+    combat({ choices: [{ conditions: [], effects: [{ role: 'attacker', attacks: ['ranged'], rolls }] }], default: 1 }),
+  )
+  expect(facts.combat!.leaves[0]!.compiled!.choices[0]!.effects[0]!.options).toEqual({ singleRerolls: ['hit'] })
+})
+
+it('gives a keyword a rule grants as an ability of that name', () => {
+  const facts = textFactsOfVsData({ grants: { keywords: [{ keyword: 'MOBILE', to: 'unit' }] } })
+  expect(facts.abilityGrants!.grants).toEqual([{ written: 'Mobile', recipient: 'unit' }])
+})
+
+it('leaves out a deployment ability VS Data grants conditionally, as after a return from Strategic Reserves', () => {
+  const facts = textFactsOfVsData({ grants: { abilities: [{ ability: 'Deep Strike', to: 'unit', conditional: true }] } })
+  expect(facts.abilityGrants!.grants).toEqual([])
+})
+
+it('keeps a conditional grant whose condition is the unit it attaches to', () => {
+  const grant = { ability: 'Deep Strike', to: 'bearer', conditional: true, counterpart: ['WORLD EATERS POSSESSED'] }
+  const facts = textFactsOfVsData({ grants: { abilities: [grant] } })
+  expect(facts.abilityGrants!.grants).toHaveLength(1)
+})
+
+it('keeps another ability VS Data grants conditionally, as Feel No Pain to the Officers a bodyguard shares a unit with', () => {
+  const grant = { ability: 'Feel No Pain 4+', to: 'models', models: 'OFFICER', conditional: true }
+  expect(textFactsOfVsData({ grants: { abilities: [grant] } }).abilityGrants!.grants).toHaveLength(1)
 })

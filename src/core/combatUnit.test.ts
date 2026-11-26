@@ -433,3 +433,32 @@ it('applies a leader’s reduction only after the bodyguard takes damage', () =>
   input.target.groups[1]!.feelNoPain = null
   expect(calculateCombat(input).meanDamage).toBeCloseTo(10 / 36 + (25 / 36) * 3, 12)
 })
+
+describe('a leader’s bearer-only effect', () => {
+  const attached = (rules: NonNullable<CombatMember['rules']>) => {
+    const squad = member('Squad', 5)
+    const leader = member('Leader')
+    leader.sheet.keywords.push('Character')
+    squad.rules = rules
+    leader.rules = rules
+    squad.companions = [leader]
+    return squad
+  }
+  it('improves only the leader’s own attacks', () => {
+    const squad = attached([
+      {
+        name: 'Aim',
+        source: 'Leader',
+        effects: [{ role: 'attacker', phases: ['ranged'], bearerOnly: true, characteristic: { kind: 'strength', add: 2 } }],
+      },
+    ])
+    const attacks = combatAttacks(squad, { keywords: [], rules: [] }, {}, { ranged: [], melee: [] })
+    expect(attacks.ranged.base?.weapons.map((weapon) => weapon.strength)).toEqual([4, 6])
+  })
+  it('protects only the leader', () => {
+    const squad = attached([
+      { name: 'Ward', source: 'Leader', effects: [{ role: 'defender', phases: ['ranged'], bearerOnly: true, damageReduction: 1 }] },
+    ])
+    expect(combatUnitTarget(squad, 'ranged').target?.groups.map((group) => group.damageReduction)).toEqual([0, 1])
+  })
+})

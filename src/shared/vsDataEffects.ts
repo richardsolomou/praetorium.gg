@@ -4,13 +4,14 @@ import type { CombatReading, CombatRuleChoice, CombatRuleEffect, CombatTarget } 
 import type { RuleQuestion } from '../core/combatRuleCompiler'
 import type { ReminderTiming } from '../core/reminders'
 import type { TextFacts, WrittenAbilityGrant } from '../core/textFacts'
+import { titleCaseAbility } from './catalogueAbilityGrants'
 
 /**
  * VS Data's typed effect blocks (`vs-data-facts` version 1, VS Data's `docs/rule-facts.md`), read into the facts
  * Praetorium's rules read of a text. Each schema is closed as VS Data's is, so a field Praetorium does not know fails the
- * block rather than being dropped. A few fields it knows have no place in `TextFacts` yet, and read as Praetorium's own
- * reading of the words always has: a grant's or invulnerable save's further condition and recipients, a target limited
- * to Attached units, and a weapon ability for the bearer's weapons alone.
+ * block rather than being dropped. A few fields it knows have no place in `TextFacts` yet and are left out: a grant's
+ * further condition and recipients, a target limited to Attached units, and a weapon ability for the bearer's weapons
+ * alone.
  */
 const keyword = z.string().min(1)
 const selectors = z.array(keyword).min(1)
@@ -76,6 +77,7 @@ const effectSchema = z.strictObject({
       rolls: z.int().min(1),
       psychic: z.boolean().optional(),
       perModel: z.literal(true).optional(),
+      perToughness: z.literal(true).optional(),
       sacrifice: z.int().min(1).optional(),
       outcomes: z.array(z.strictObject({ min: z.int().min(1).max(6), max: z.int().min(1).max(6), damage: diceSchema })).min(1),
       max: z.int().min(1).optional(),
@@ -197,8 +199,17 @@ const grantSchema = z.strictObject({
   recipientKeywords: selectors.optional(),
   conditional: z.literal(true).optional(),
 })
+const keywordGrantSchema = z.strictObject({
+  keyword,
+  to: z.enum(['bearer', 'leader', 'unit']),
+  whileAttached: z.literal(true).optional(),
+  counterpart: z.array(keyword).optional(),
+  recipientKeywords: selectors.optional(),
+  conditional: z.literal(true).optional(),
+})
 const grantsSchema = z.strictObject({
   abilities: z.array(grantSchema).optional(),
+  keywords: z.array(keywordGrantSchema).optional(),
   normalized: z
     .strictObject({ abilities: z.array(grantSchema) })
     .nullable()
@@ -241,6 +252,19 @@ const attachmentSchema = z.strictObject({
   requiresLeader: z.literal(true).optional(),
   substitutes: z.array(z.string().min(1)).min(1).optional(),
 })
+const allowanceSchema = z
+  .strictObject({
+    options: z.string().min(1),
+    limit: z.int().min(2).optional(),
+    extra: z.int().min(1).optional(),
+    also: z.string().min(1).optional(),
+    whileLeading: z.literal(true).optional(),
+  })
+  .refine((allowance) => [allowance.limit, allowance.extra, allowance.also].filter((given) => given !== undefined).length === 1)
+const optionsSchema = z.strictObject({
+  offered: z.array(z.string().min(1)).min(1).optional(),
+  allowances: z.array(allowanceSchema).min(1).optional(),
+})
 const orUnresolved = <T extends z.ZodType>(schema: T) => z.union([unresolvedSchema, schema])
 
 /**
@@ -258,6 +282,7 @@ export const vsDataEffectBlocksSchema = z.object({
   reminder: orUnresolved(reminderSchema).optional(),
   roster: orUnresolved(rosterSchema).optional(),
   attachment: orUnresolved(attachmentSchema).optional(),
+  options: orUnresolved(optionsSchema).optional(),
   references: z.array(z.string().min(1)).optional(),
   combat: orUnresolved(combatSchema).optional(),
 })
@@ -286,12 +311,13 @@ export const EFFECT_BLOCKS = [
   'reminder',
   'roster',
   'attachment',
+  'options',
   'references',
   'combat',
 ] as const satisfies readonly (keyof VsDataEffectBlocks)[]
 
-/** The effect fields Praetorium cannot apply yet, which `effectOf` reads as its own reading always has. */
-export const UNAPPLIED_EFFECT_FIELDS = ['bearerOnly', 'modelKeywords', 'wounds', 'regainWounds'] as const
+/** The effect fields the simulator cannot apply yet, which `effectOf` leaves out. */
+export const UNAPPLIED_EFFECT_FIELDS = ['modelKeywords', 'wounds', 'regainWounds'] as const
 
 const TURN: Record<'own' | 'opponent' | 'any', ReminderTiming['turn']> = { own: 'your-turn', opponent: 'opponent-turn', any: 'either' }
 const PROFILE = { ranged: 'Ranged Weapons', melee: 'Melee Weapons' } as const
@@ -386,29 +412,33 @@ function conditionLabel(condition: VsDataCondition): string {
     case 'enemy-status':
       return `Opponent ${condition.status.toLowerCase()}`
     case 'own-status':
-      return `Own ${condition.status.toLowerCase()}`
+      return `This unit is ${condition.status.toLowerCase()}`
     case 'option':
       return ''
   }
 }
 
 /**
- * An effect as Praetorium applies it. What VS Data limits to the bearer, or to models with some keywords, Praetorium still
- * gives the whole unit, and it changes no Wounds and calculates no mortal wounds outside the attacks, as its own reading of
- * the words always has: the simulator has no way to do either yet. An effect left with nothing Praetorium applies is none.
+ * An effect as Praetorium applies it. What VS Data limits to models with some keywords, Praetorium still gives the whole
+ * unit, and it changes no Wounds and calculates no mortal wounds outside the attacks: the simulator has no way to do
+ * either yet. An effect left with nothing Praetorium applies is none.
  */
 function effectOf(effect: VsDataEffect): CombatRuleEffect | null {
   const { attacks, weaponAbility, weaponHas, rolls, characteristic, mortalWounds: mortals, ...rest } = effect
   const mortalWounds = mortals?.timing === 'outside-attacks' ? undefined : mortals
-  const { bearerOnly: _bearerOnly, modelKeywords: _modelKeywords, wounds: _wounds, regainWounds: _regainWounds, ...applied } = rest
-  const { role: _role, ...given } = applied
-  const { saveReroll: _saveReroll, ...options } = rolls ?? {}
+  const { modelKeywords: _modelKeywords, wounds: _wounds, regainWounds: _regainWounds, ...applied } = rest
+  const { role: _role, bearerOnly: _bearerOnly, ...given } = applied
+  // The simulator re-rolls one save of the defender's only through its Command Re-roll, so a rule's single save re-roll
+  // is left out.
+  const { saveReroll: _saveReroll, singleRerolls, ...otherRolls } = rolls ?? {}
+  const attackerRerolls = singleRerolls?.filter((kind) => kind !== 'save')
+  const options = { ...otherRolls, ...(attackerRerolls?.length ? { singleRerolls: attackerRerolls } : {}) }
   if (!Object.keys(given).length && !weaponAbility && !Object.keys(options).length && !characteristic && !mortalWounds) return null
   return {
     ...applied,
     phases: attacks,
-    ...(weaponAbility ? { keyword: weaponAbility } : {}),
-    ...(weaponHas ? { requiresWeaponKeyword: weaponHas } : {}),
+    ...(weaponAbility ? { keyword: titleCaseAbility(weaponAbility) } : {}),
+    ...(weaponHas ? { requiresWeaponKeyword: titleCaseAbility(weaponHas) } : {}),
     ...(Object.keys(options).length ? { options } : {}),
     ...(characteristic
       ? {
@@ -428,7 +458,7 @@ function effectOf(effect: VsDataEffect): CombatRuleEffect | null {
           }))(mortalWounds),
         }
       : {}),
-  } as CombatRuleEffect
+  }
 }
 
 function choiceOf(choice: z.infer<typeof choiceSchema>): CombatRuleChoice {
@@ -543,8 +573,27 @@ function grantOf(grant: z.infer<typeof grantSchema>): WrittenAbilityGrant {
     ...condition,
   }
 }
-const statementOf = (abilities: readonly z.infer<typeof grantSchema>[] | null | undefined) =>
-  abilities ? { matched: true, grants: abilities.map(grantOf) } : { matched: false, grants: [] }
+/** A keyword a rule gives, shown as an ability of that name. */
+const keywordGrantOf = ({ keyword: given, ...grant }: z.infer<typeof keywordGrantSchema>) =>
+  grantOf({ ...grant, ability: titleCaseAbility(given) })
+/**
+ * A deployment ability a rule grants only once something happens, as a return from Strategic Reserves, or only to a unit
+ * the player picks before the battle, is left out: a list's deployment options would read it as always held. VS Data
+ * marks either conditional, and a grant on the unit a model attaches to is one Praetorium checks itself.
+ */
+const DEPLOYMENT = /^(?:deep strike|scouts\b|infiltrators)/i
+const held = (grant: { ability?: string; keyword?: string; conditional?: true; counterpart?: readonly string[]; whileAttached?: true }) =>
+  !grant.conditional || Boolean(grant.counterpart || grant.whileAttached) || !DEPLOYMENT.test(grant.ability ?? grant.keyword ?? '')
+const statementOf = (
+  abilities: readonly z.infer<typeof grantSchema>[] | null | undefined,
+  keywords: readonly z.infer<typeof keywordGrantSchema>[] = [],
+) =>
+  abilities || keywords.length
+    ? {
+        matched: true,
+        grants: [...(abilities ?? []).filter(held).map(grantOf), ...keywords.filter(held).map(keywordGrantOf)],
+      }
+    : { matched: false, grants: [] }
 
 /** One block as Praetorium reads it, or undefined where VS Data holds it back as unresolved or it does not read. */
 function blockOf<Block extends (typeof EFFECT_BLOCKS)[number]>(blocks: Readonly<Record<string, unknown>>, block: Block) {
@@ -567,14 +616,29 @@ export function textFactsOfVsData(blocks: Readonly<Record<string, unknown>>): Te
   const reminder = blockOf(blocks, 'reminder')
   const roster = blockOf(blocks, 'roster')
   const attachment = blockOf(blocks, 'attachment')
+  const options = blockOf(blocks, 'options')
   const combat = blockOf(blocks, 'combat')
+  // The ability a rule's own unit always gains by an effect, as Stealth, or the cover one gives it, as "counts as having
+  // the Benefit of Cover": a datasheet lists it beside what it changes, as a grant the grants block may leave out.
+  const ownTree = combat?.trees[combat.contexts['own.many.known'] ?? -1]
+  const ownNode = ownTree?.length === 1 ? ownTree[0] : undefined
+  const own = ownNode && 'reading' in ownNode ? combat?.readings[ownNode.reading] : undefined
+  const shown = [
+    ...new Set(
+      (own?.choices?.[0]?.conditions.length ? [] : (own?.choices?.[0]?.effects ?? [])).flatMap((effect) =>
+        effect.ability ? [effect.ability] : effect.role === 'defender' && effect.rolls?.cover && !effect.weapon ? ['Benefit of Cover'] : [],
+      ),
+    ),
+  ]
+    .filter((ability) => !grants?.abilities?.some((grant) => grant.ability.toLowerCase() === ability.toLowerCase()))
+    .map((ability) => ({ ability, to: 'unit' as const }))
   const unreadCombat = blocks.combat !== undefined && !combat
   const references = blockOf(blocks, 'references')
   const weaponGrants = weaponAbilities.flatMap((grant) =>
     grant.to === 'army'
       ? [
           {
-            keyword: grant.ability,
+            keyword: titleCaseAbility(grant.ability),
             recipients: grant.keywords!.join(', '),
             ...(grant.excludedKeywords ? { exclusions: grant.excludedKeywords.join(', ') } : {}),
             profileTypes: grant.attacks.map((attacks) => PROFILE[attacks]),
@@ -584,19 +648,24 @@ export function textFactsOfVsData(blocks: Readonly<Record<string, unknown>>): Te
   )
   const weaponGrantTo = (to: 'own-unit' | 'led-unit') => {
     const grant = weaponAbilities.find((candidate) => candidate.to === to)
-    return grant && { keyword: grant.ability, profileTypes: grant.attacks.map((attacks) => PROFILE[attacks]) }
+    return grant && { keyword: titleCaseAbility(grant.ability), profileTypes: grant.attacks.map((attacks) => PROFILE[attacks]) }
   }
   const ownWeaponGrant = weaponGrantTo('own-unit')
   const ledWeaponGrant = weaponGrantTo('led-unit')
   return {
-    ...(grants?.abilities ? { abilityGrants: statementOf(grants.abilities) } : {}),
+    ...(grants?.abilities || grants?.keywords || shown.length
+      ? { abilityGrants: statementOf([...(grants?.abilities ?? []), ...shown], grants?.keywords) }
+      : {}),
     ...(grants && grants.normalized !== undefined ? { normalizedAbilityGrants: statementOf(grants.normalized?.abilities) } : {}),
     ...(weaponGrants.length ? { weaponGrants } : {}),
     ...(ownWeaponGrant ? { ownWeaponGrant } : {}),
     ...(ledWeaponGrant ? { ledWeaponGrant } : {}),
     ...(reserves?.exemptUnits ? { reserveSelectors: reserves.exemptUnits } : {}),
     ...(reserves?.exempt ? { reserveExemption: true } : {}),
-    ...(invulnerableSave ? { invulnerableSave: `${invulnerableSave.roll}+` } : {}),
+    // A datasheet shows a save the unit always has; a conditional or some models' save is left to the simulator's reading.
+    ...(invulnerableSave && !invulnerableSave.conditional && !invulnerableSave.keywords
+      ? { invulnerableSave: `${invulnerableSave.roll}+` }
+      : {}),
     ...(blockOf(blocks, 'upgradesWeapon') ? { linkedWeapon: true } : {}),
     ...(reminder
       ? {
@@ -614,12 +683,23 @@ export function textFactsOfVsData(blocks: Readonly<Record<string, unknown>>): Te
           },
         }
       : {}),
-    ...(roster?.addsUnits ? { unitGeneration: roster.addsUnits } : {}),
+    // VS Data writes weapon abilities and the units a rule adds in capitals, as selectors; Praetorium names them as printed.
+    ...(roster?.addsUnits ? { unitGeneration: roster.addsUnits.map((added) => ({ ...added, unit: titleCaseAbility(added.unit) })) } : {}),
     ...(roster?.movement ? { movementTools: roster.movement.map((movement) => MOVEMENT[movement]) } : {}),
     ...(attachment?.units
       ? { attachment: { names: attachment.units, ...(attachment.requiresLeader ? { requiresLeader: true } : {}) } }
       : {}),
     ...(attachment?.substitutes ? { substitutes: attachment.substitutes } : {}),
+    ...(options?.offered ? { offeredOptions: options.offered } : {}),
+    ...(options?.allowances
+      ? {
+          battleChoiceAllowances: options.allowances.map(({ whileLeading, limit, extra, also, ...allowance }) => ({
+            ...allowance,
+            ...(limit !== undefined ? { limit } : extra !== undefined ? { extra } : { also: also! }),
+            ...(whileLeading ? { leading: true as const } : {}),
+          })),
+        }
+      : {}),
     ...(references ? { references } : {}),
     combat: combat ? combatOf(combat) : unreadCombat ? UNREAD : null,
   }

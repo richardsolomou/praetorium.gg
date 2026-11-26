@@ -10,7 +10,14 @@ import {
   shootingTypeChoice,
   weaponInShootingType,
 } from './combatProfiles'
-import { combatRuleMortals, combatRuleProfiles, combatRuleSacrifices, combatRuleWeapons, type ActiveCombatRule } from './combatRules'
+import {
+  combatRuleMortals,
+  combatRuleProfiles,
+  combatRuleSacrifices,
+  combatRuleWeapons,
+  withBearerEffects,
+  type ActiveCombatRule,
+} from './combatRules'
 import type { StructuredDatasheetProfile } from './datasheet'
 
 /** Keeps the profile ids of the unit at this position in an attached group apart from the others'. */
@@ -67,19 +74,21 @@ function ruledAttack(
 
 /** Which weapons attack in each phase once the attacker's and the defender's rules apply. */
 /** Each member's datasheet with its rules applied against the defender, which no weapon preference changes. */
-export function attackerRuleProfiles(attacker: CombatAttacker, defender: CombatOpponent) {
+export function attackerRuleProfiles(unit: CombatAttacker, defender: CombatOpponent) {
+  const attacker = withBearerEffects(unit)
   return [attacker, ...(attacker.companions ?? [])].map((member) =>
     combatRuleProfiles(member.sheet, member.rules ?? [], 'attacker', defender.keywords, defender.rules),
   )
 }
 
 export function combatAttacks(
-  attacker: CombatAttacker,
+  unit: CombatAttacker,
   defender: CombatOpponent,
   preferences: Readonly<Record<string, string>>,
   excluded: Readonly<Record<CombatPhase, readonly string[]>>,
-  sheets = attackerRuleProfiles(attacker, defender),
+  sheets = attackerRuleProfiles(unit, defender),
 ) {
+  const attacker = withBearerEffects(unit)
   const members = [attacker, ...(attacker.companions ?? [])]
   const { types: shootingTypes, chosen: shootingType } = resolveShootingType(
     members.map((member, index) => ({ sheet: sheets[index]!, carriers: member.carriers })),
@@ -171,7 +180,7 @@ export function combatAttackInput(
 
 /** Each weapon profile the attacker carries in a phase, resolved alone by every model carrying it. */
 export function combatWeaponInputs(
-  attacker: CombatAttacker,
+  member: CombatAttacker,
   defender: CombatOpponent,
   phase: CombatPhase,
   target: CombatInput['target'],
@@ -179,6 +188,7 @@ export function combatWeaponInputs(
   adjustment: WeaponAdjustment,
   preferences: Readonly<Record<string, string>> = {},
 ) {
+  const attacker = withBearerEffects(member)
   const sheet = combatRuleProfiles(attacker.sheet, attacker.rules ?? [], 'attacker', defender.keywords, defender.rules)
   const { chosen } = resolveShootingType(
     [{ sheet, carriers: attacker.carriers }, ...(attacker.companions ?? [])],

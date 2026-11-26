@@ -5,17 +5,15 @@ import type { CombatFacts } from '../src/core/combatReading'
 import { ruleAnswers, type RuleQuestion } from '../src/core/combatRuleCompiler'
 import { combatTargetAdmits, type CombatReading } from '../src/core/combatRules'
 import { routeSlug } from '../src/core/slug'
-import { factsKey, type TextFacts } from '../src/core/textFacts'
-import { textTokensIn } from '../src/core/sourceText'
+import { factsKey, type TextFacts, type TextFactsByKey } from '../src/core/textFacts'
 import { datasheetIn } from '../src/shared/catalogue'
 import { describeDatasheetAbilities } from '../src/shared/datasheetDescriptions'
-import { summaryNamedBy } from '../src/shared/ruleSummaries'
 import { gradeReadingsIn } from '../src/shared/textFacts'
 import { snapshotWords } from '../src/server/sourceTexts'
 import { completeSteps } from '../src/shared/steps'
-import { datasheetAbilitySummary } from '../src/shared/vsDataAbilities'
-import { textFactsOfVsData, UNAPPLIED_EFFECT_FIELDS, vsDataEffectsPath, type VsDataEffectsFile } from '../src/shared/vsDataEffects'
+import { UNAPPLIED_EFFECT_FIELDS, vsDataEffectsPath, type VsDataEffectsFile } from '../src/shared/vsDataEffects'
 import { vsDataSummariesSteps } from '../src/server/vsDataSummaries'
+import { type VsDataJoin, vsDataTextFacts } from '../src/server/vsDataEffects'
 import { editionDirectory, readCatalogueComposition } from '../src/server/catalogueComposition'
 import { loadCatalogue } from '../src/server/catalogueIndex'
 import { loadRules } from '../src/server/rules'
@@ -43,6 +41,12 @@ if (!summaries) throw new Error('the snapshot has no VS Data releases')
 const edition = values.edition ?? summaries.editions[0]!
 const { catalogue, rules } = loadEdition(edition)
 
+/** Where a rules version's own files are: the snapshot's for the base, its own folder for an earlier one. */
+function editionFolder(id: string) {
+  const entry = readCatalogueComposition(directory)?.editions.find((candidate) => candidate.edition.id === id)
+  return !entry || entry.base ? directory : editionDirectory(directory, entry)
+}
+
 /** A rules version's catalogue and rules, as a server loads them: the base from the snapshot, an earlier one from its folder. */
 function loadEdition(id: string) {
   const entry = readCatalogueComposition(directory)?.editions.find((candidate) => candidate.edition.id === id)
@@ -62,41 +66,32 @@ function loadEdition(id: string) {
   if (!loaded || !loadedRules) throw new Error(`rules version ${id} has no catalogue data`)
   return { catalogue: loaded, rules: loadedRules }
 }
-const records = summaries.recordsIn(edition)
 const words = snapshotWords(directory)
+// What the rules read from the words today, which the loaded catalogue keeps beside the facts it reads from VS Data.
+const wordFacts: TextFactsByKey = { get: (key) => catalogue.definitions!.fact(key) ?? catalogue.datacards.textFacts?.get(key) }
 // A rules version VS Data folds into another reads that one's release, as `vsDataSummariesSteps` does.
 const release = readCatalogueComposition(directory)?.editions.find((entry) => entry.edition.id === edition)?.summaries ?? edition
-const effectsFile = path.join(directory, 'summaries', `${release}.json`)
-if (!fs.existsSync(vsDataEffectsPath(effectsFile))) throw new Error(`the snapshot keeps no effect blocks for ${edition}`)
-const effects = (JSON.parse(fs.readFileSync(vsDataEffectsPath(effectsFile), 'utf8')) as VsDataEffectsFile).effects
+const effectsFile = vsDataEffectsPath(path.join(directory, 'summaries', `${release}.json`))
+const effects = fs.existsSync(effectsFile) ? (JSON.parse(fs.readFileSync(effectsFile, 'utf8')) as VsDataEffectsFile).effects : {}
+const overlay = vsDataTextFacts(
+  directory,
+  edition,
+  path.join(editionFolder(edition), 'datacards', '11th', 'gdc'),
+  catalogue.definitions!,
+  catalogue.index.datasheets,
+)
+if (!overlay) throw new Error(`the snapshot keeps no effect blocks for ${edition}`)
 
-/** One text a rule reads, where it is read, and the record it joins. */
-type Read = { place: string; subject: string; name: string; id?: string; description: string; record: string | null }
+/** One text a rule reads, where it is read, and how it joins its record. */
+type Read = { place: string; subject: string; name: string; description: string; join: VsDataJoin }
 const texts = new Map<string, Read & { places: number }>()
 
-/** The record a text joins: the one whose summary a datasheet shows, by `datasheetAbilitySummary`. */
-function recordOf(description: string, name: string, subject: string, id?: string, stratagem?: string) {
-  if (stratagem && effects[`ability:${stratagem}`]) return `ability:${stratagem}`
-  const tokens = textTokensIn(description)
-  const ofFile = new Map(tokens.map((token) => [token.file, summaries!.summariesIn(token.file)]))
-  const printed = summaryNamedBy(tokens, ofFile, name)
-  return datasheetAbilitySummary(records, subject, name, id, printed && { id: printed.id, summary: printed.id })
-}
-
-function read(place: string, subject: string, name: string, description: string | null | undefined, id?: string, stratagem?: string) {
+function read(place: string, subject: string, name: string, description: string | null | undefined) {
   if (!description) return
-  const key = `${factsKey(description)}|${place}|${subject}|${name}`
+  const key = factsKey(description)
   const found = texts.get(key)
   if (found) return void found.places++
-  texts.set(key, {
-    place,
-    subject,
-    name,
-    ...(id ? { id } : {}),
-    description,
-    record: recordOf(description, name, subject, id, stratagem),
-    places: 1,
-  })
+  texts.set(key, { place, subject, name, description, join: overlay!.join(key), places: 1 })
 }
 
 const keywordSets = new Map<string, { keywords: string[]; partial: string[] }>()
@@ -107,7 +102,7 @@ for (const faction of catalogue.factions)
     const partial = (sheet.modelKeywords ?? []).flatMap((group) => group.keywords)
     keywordSets.set(JSON.stringify([sheet.keywords, partial]), { keywords: sheet.keywords, partial })
     const described = describeDatasheetAbilities(catalogue, faction.id, sheet, rules)
-    for (const ability of described?.abilities ?? []) read('sheet', id, ability.name, ability.description, ability.id)
+    for (const ability of described?.abilities ?? []) read('sheet', id, ability.name, ability.description)
   }
 for (const [faction, army] of rules.factionRules) read('army', `@${faction}`, army.name, army.description)
 for (const [faction, detachments] of rules.detachmentDetails)
@@ -115,18 +110,24 @@ for (const [faction, detachments] of rules.detachmentDetails)
     const subject = `@${faction}.${routeSlug(detachment.name)}`
     for (const rule of [...detachment.rules, ...detachment.enhancements, ...detachment.upgrades])
       read('detachment', subject, rule.name, rule.description)
-    for (const stratagem of detachment.stratagems)
-      read('stratagem', subject, stratagem.name, stratagem.description, undefined, stratagem.id)
+    for (const stratagem of detachment.stratagems) read('stratagem', subject, stratagem.name, stratagem.description)
   }
 for (const stratagem of rules.core)
-  read(
-    'stratagem',
-    '',
-    stratagem.name,
-    rules.coreDetails.find((detail) => detail.id === stratagem.key)?.description,
-    undefined,
-    stratagem.key,
-  )
+  read('stratagem', '', stratagem.name, rules.coreDetails.find((detail) => detail.id === stratagem.key)?.description)
+
+// Every other text the catalogue records facts for, as wargear and Enhancements a roster takes, named by what holds it.
+for (const key of catalogue.definitions!.facts().keys())
+  if (!texts.has(key)) {
+    const holder = catalogue.definitions!.holders?.(key)[0]
+    texts.set(key, {
+      place: 'catalogue',
+      subject: holder?.id ?? '',
+      name: holder?.name ?? '',
+      description: `⟦00000000:${key}⟧`,
+      join: overlay.join(key),
+      places: 1,
+    })
+  }
 
 // --- comparison ------------------------------------------------------------------------------------------------------
 
@@ -212,7 +213,13 @@ const effectsShape = (reading: CombatReading | null) =>
  * where only today's calculates an effect (refused), only VS Data's does (gained), both do but differently (changed), and
  * whether anything else differs, such as what a datasheet shows or the units a rule admits.
  */
-function combatParity(today: CombatFacts | null | undefined, vs: CombatFacts | null | undefined, name: string, stratagem: boolean) {
+function combatParity(
+  today: CombatFacts | null | undefined,
+  vs: CombatFacts | null | undefined,
+  name: string,
+  stratagem: boolean,
+  record: string | null = null,
+) {
   const result = {
     refused: [] as string[],
     gained: [] as string[],
@@ -235,7 +242,7 @@ function combatParity(today: CombatFacts | null | undefined, vs: CombatFacts | n
       const [l, r] = [effectsShape(left), effectsShape(right)]
       const list = l && !r ? result.refused : !l && r ? result.gained : l !== r ? result.changed : null
       if (values.detail && list === result.changed && !list.includes(placement))
-        details.push({ name, placement, today: JSON.parse(l!), vs: JSON.parse(r!) })
+        details.push({ record, name, placement, today: JSON.parse(l!), vs: JSON.parse(r!) })
       if (list === result.refused && result.today === undefined) result.today = l
       if (list && !list.includes(placement)) list.push(placement)
       if (shape(left && { ...left, legacy: [], compiled: null }) !== shape(right && { ...right, legacy: [], compiled: null }))
@@ -309,28 +316,21 @@ const bump = (field: string, status: string) => ((counts[field] ??= {})[status] 
 const listed: (Omit<Read, 'description'> & { places: number; differences: Difference[] })[] = []
 const unapplied: Record<string, number> = {}
 const joins: Record<string, number> = {}
-const vsFactsOf = new Map<string, TextFacts>()
 
 for (const text of texts.values()) {
-  const recorded = catalogue.index.textFacts?.get(factsKey(text.description))
+  const recorded = wordFacts.get(factsKey(text.description))
+  const record = text.join.record
   // The roster grades read a text's words where its facts record no grade reading, as a card's do not.
-  const grades = gradeReadingsIn(text.description, catalogue.index.textFacts, words)
+  const grades = gradeReadingsIn(text.description, wordFacts, words)
   const today: TextFacts = {
     ...recorded,
     ...(grades.unitGeneration.length ? { unitGeneration: grades.unitGeneration } : { unitGeneration: undefined }),
     ...(grades.movementTools.length ? { movementTools: grades.movementTools } : { movementTools: undefined }),
     combat: recorded?.combat,
   }
-  const blocks = text.record ? effects[text.record] : undefined
-  bump('join', text.record ? (blocks ? 'record with effects' : 'record without effects') : 'no record')
-  joins[text.place] = (joins[text.place] ?? 0) + (text.record ? 0 : 1)
-  let vs: TextFacts | undefined
-  if (blocks) {
-    vs = vsFactsOf.get(text.record!) ?? textFactsOfVsData(blocks)
-    vsFactsOf.set(text.record!, vs)
-    const json = JSON.stringify(blocks)
-    for (const field of UNAPPLIED_EFFECT_FIELDS) if (json.includes(`"${field}"`)) unapplied[field] = (unapplied[field] ?? 0) + 1
-  }
+  const blocks = record ? effects[record] : undefined
+  bump('join', `${text.place}:${text.join.by}${record && !blocks ? ' without effects' : ''}`)
+  const vs = overlay.get(factsKey(text.description))
   const differences: Difference[] = []
   for (const [field, of] of Object.entries(FIELDS)) {
     if (values.only && field !== values.only) continue
@@ -338,9 +338,9 @@ for (const text of texts.values()) {
     const right = of(vs)
     if (field === 'combat') {
       if (!left && !right) continue
-      const parity = combatParity(left as CombatFacts | null, right as CombatFacts | null, text.name, text.place === 'stratagem')
+      const parity = combatParity(left as CombatFacts | null, right as CombatFacts | null, text.name, text.place === 'stratagem', record)
       const statuses = [
-        ...(parity.refused.length ? [text.record ? 'refuses' : 'refuses:no-record'] : []),
+        ...(parity.refused.length ? [record ? 'refuses' : 'refuses:no-record'] : []),
         ...(parity.changed.length ? ['changes'] : []),
         ...(parity.gained.length ? ['gains'] : []),
         ...(parity.judging ? ['judging'] : []),
@@ -359,7 +359,7 @@ for (const text of texts.values()) {
     if (left === undefined && right === undefined) continue
     const status = same(left, right)
       ? 'same'
-      : !text.record
+      : !record
         ? 'no-record'
         : left === undefined
           ? 'vs-adds'

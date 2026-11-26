@@ -17,8 +17,9 @@ describe.skipIf(!fs.existsSync(directory))('Marine detachment reference ownershi
       () => catalogue,
       () => rules,
     )
+    // Every rules version's catalogue loads here, not only the snapshot's own.
     versions.factions()
-  }, 60_000)
+  }, 120_000)
 
   const references = (faction: NonNullable<ReturnType<typeof versions.factionFor>>) =>
     faction.detachments.filter((detachment) => faction.referenceDetachmentIds.includes(detachment.id))

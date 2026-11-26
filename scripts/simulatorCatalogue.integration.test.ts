@@ -156,7 +156,7 @@ describe.skipIf(!fs.existsSync(directory))('simulator catalogue projections', ()
   it("Crushing Impact adds mortal wounds to a charging vehicle's fight", () => {
     const redeemer = (choice: string | false) =>
       side('Space Marines', ['Land Raider Redeemer'], { detachment: 'Gladius Task Force', rules: { 'Crushing Impact': choice } })
-    expect(fight(redeemer('Charged this turn · Target engaged'), marines()).melee()).toBeGreaterThan(
+    expect(fight(redeemer('Charged this turn · Selected target within Engagement Range'), marines()).melee()).toBeGreaterThan(
       fight(redeemer(false), marines()).melee(),
     )
   })
@@ -178,6 +178,22 @@ describe.skipIf(!fs.existsSync(directory))('simulator catalogue projections', ()
   it('a Waaagh! protects defending Boyz', () => {
     const boyz = (choice: string | false) => side('Orks', ['Boyz'], { rules: { 'Waaagh!': choice } })
     expect(fight(marines(), boyz('This unit is riled up')).ranged()).toBeLessThan(fight(marines(), boyz(false)).ranged())
+  })
+
+  it('a Redemptor Dreadnought’s Duty Eternal blunts stronger attacks, though other units’ rules print its words', () => {
+    const redemptor = (choice?: false) =>
+      side('Space Marines', ['Redemptor Dreadnought'], choice === false ? { rules: { 'Duty Eternal': false } } : {})
+    const landRaider = side('Space Marines', ['Land Raider'])
+    expect(fight(landRaider, redemptor()).ranged()).toBeLessThan(fight(landRaider, redemptor(false)).ranged())
+  })
+
+  it('Prosecutors shrug off psychic attacks as Daughters of the Abyss, not as Aleya’s Daughter of the Abyss', () => {
+    expect(combatUnitTarget(side('Adeptus Custodes', ['Prosecutor Squad']).snapshot, 'ranged').target?.psychicFeelNoPain).toBe(3)
+  })
+
+  it("keeps a Canoptek Reanimator's Feel No Pain 4+ among the defender's rules", () => {
+    const rule = side('Necrons', ['Canoptek Reanimator']).rules.find((candidate) => candidate.name === 'Feel No Pain 4+')
+    expect(rule && combatRuleAppliesTo(rule, 'defender')).toBe(true)
   })
 
   it('Deathshroud Manreaper modes count every carrier', () => {
@@ -247,7 +263,7 @@ describe.skipIf(!fs.existsSync(directory))('simulator catalogue projections', ()
 
   it.each([
     ['Skorpekh Lord', 'Crimson Harvest', 'Charged this turn · Target in Engagement Range', 'melee'],
-    ['Annihilation Barge', 'Malevolent Arcing', 'Against the selected target', 'ranged'],
+    ['Annihilation Barge', 'Malevolent Arcing', 'Active', 'ranged'],
   ] as const)('%s adds %s mortal wounds to its %s', (name, rule, label, phase) => {
     const attack = (choice: string | false) => fight(side('Necrons', [name], { rules: { [rule]: choice } }), marines())[phase]()
     expect(attack(label)).toBeGreaterThan(attack(false))
@@ -264,12 +280,14 @@ describe.skipIf(!fs.existsSync(directory))('simulator catalogue projections', ()
     }).toEqual({ infantry: ['Crushing Impact'], vehicle: ['Matter Absorption', 'Crushing Impact'], absorbs: true })
   })
 
-  it('offers Belial only the rules the simulator calculates', () => {
+  it('offers Belial only the rules the simulator calculates, Grand Master of the Deathwing only against a Character', () => {
     const belial = side('Dark Angels', ['Belial'])
-    expect({ attacker: offered(belial, marines(), 'attacker'), defender: offered(belial, marines(), 'defender') }).toEqual({
-      attacker: ['Grand Master of the Deathwing'],
-      defender: [],
-    })
+    const captain = side('Space Marines', ['Captain'])
+    expect({
+      attacker: offered(belial, marines(), 'attacker'),
+      defender: offered(belial, marines(), 'defender'),
+      character: offered(belial, captain, 'attacker'),
+    }).toEqual({ attacker: [], defender: [], character: ['Grand Master of the Deathwing'] })
   })
 
   it('Immortals led by an Overlord calculate every phase against Deathshroud led by Typhus', () => {
@@ -285,16 +303,14 @@ describe.skipIf(!fs.existsSync(directory))('simulator catalogue projections', ()
   })
 
   describe('roster rules', () => {
-    it('offers Invasion Fleet Hormagaunts only calculated rules, and Synapse adds to their melee', () => {
+    it('offers Invasion Fleet Hormagaunts only calculated rules, and Synapse adds to their melee within Synapse Range', () => {
       const gaunts = (choice?: string | false) =>
         side('Tyranids', ['Hormagaunts'], { detachment: 'Invasion Fleet', ...(choice === undefined ? {} : { rules: { Synapse: choice } }) })
       const warriors = side('Necrons', ['Necron Warriors'])
       expect({
         attacker: offered(gaunts(), warriors, 'attacker'),
         defender: offered(gaunts(), warriors, 'defender'),
-        synapse:
-          fight(gaunts('This unit is within 6" of one or more friendly SYNAPSE models'), warriors).melee() >
-          fight(gaunts(false), warriors).melee(),
+        synapse: fight(gaunts('Within Synapse Range'), warriors).melee() > fight(gaunts(false), warriors).melee(),
       }).toEqual({ attacker: ['Synapse', 'Adrenal Surge'], defender: ['Rapid Regeneration'], synapse: true })
     })
 
@@ -306,7 +322,10 @@ describe.skipIf(!fs.existsSync(directory))('simulator catalogue projections', ()
           pickIndex: 1,
           ...(choice === undefined ? {} : { rules: { 'Spirit Mark (Psychic)': choice } }),
         })
-      const [off, on] = [fight(wraithguard(false), raider), fight(wraithguard('Selected within 6" · Against the selected target'), raider)]
+      const [off, on] = [
+        fight(wraithguard(false), raider),
+        fight(wraithguard('Selected unit within 6" · Against the selected target'), raider),
+      ]
       const spiritseer = side('Aeldari', ['Spiritseer', 'Wraithguard'], { detachment: 'Warhost' })
       expect({
         default: wraithguard().snapshot.rules?.some((rule) => rule.name === 'Spirit Mark (Psychic)'),
@@ -352,7 +371,7 @@ describe.skipIf(!fs.existsSync(directory))('simulator catalogue projections', ()
         fight(immortals(['Immortals', 'Chronomancer'], { 'Solar Pulse': choice }), marines(), { ranged: { cover: true } }).ranged()
       expect({
         alone: immortals(['Immortals']).rules.some((rule) => rule.name === 'Solar Pulse'),
-        pulse: pulse('Selected objective within 18" of source · Condition the rule states') > pulse(false),
+        pulse: pulse('Condition the rule states') > pulse(false),
       }).toEqual({ alone: false, pulse: true })
     })
   })

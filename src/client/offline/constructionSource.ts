@@ -17,6 +17,8 @@ import {
   type OfflineConstructionRules,
   type OfflineConstructionSource,
   type OfflineReferenceVersion,
+  type DownloadedTextFacts,
+  textFactsByKey,
 } from '../../contracts/offlineReference'
 import { restoreRuntimeData } from '../../contracts/sharedRuntimeData'
 import type { RuntimeData } from '../../contracts/runtimeData'
@@ -27,7 +29,9 @@ const sharedSources = new WeakMap<OfflineConstructionBase | OfflineConstructionS
 export function buildConstruction(saved: OfflineConstructionSource) {
   const files = saved.edition ? editionCatalogueFiles(saved.files, saved.edition) : saved.files
   const datacards = unpackRuntimeData<LoadedCatalogue['datacards']>(saved.datacards)
-  const definitionFacts = saved.definitionFacts ? unpackRuntimeData<ReadonlyMap<string, TextFacts>>(saved.definitionFacts) : undefined
+  const definitionFacts = saved.definitionFacts
+    ? textFactsByKey(unpackRuntimeData<DownloadedTextFacts | ReadonlyMap<string, TextFacts>>(saved.definitionFacts))
+    : undefined
   const index = buildIndex(files, saved.revision, {
     get: (key) => definitionFacts?.get(key) ?? datacards.textFacts?.get(key),
   })
