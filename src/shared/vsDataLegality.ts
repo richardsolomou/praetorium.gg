@@ -1,6 +1,6 @@
 import { type VsDataConstruction, type VsDataDefinitions, vsDataDefinitions } from '../core/vsDataConstruction'
 import { nonMatchedPlayKind } from '../core/name'
-import { checkVsRoster, type VsProblem, type VsRosterUnit } from '../core/vsDataRoster'
+import { checkVsRoster, enhancementAdmits, unitKeywords, type VsProblem, type VsRosterUnit } from '../core/vsDataRoster'
 import { hasWarlordToggle, type UnitChoice, type UnitToggle } from '../core/unitChoices'
 import { remember } from '../core/collections'
 import { idsIn, type VsDataIds } from './vsDataPoints'
@@ -138,7 +138,16 @@ export function vsDataErrors(
   const unpriced = { units: [], points: 0, detachmentPoints: 0, unpriced: [] }
   return checkVsRoster(definitions, roster, unpriced)
     .filter((problem) => problem.code !== 'allegiance-missing' || checked[problem.unit ?? -1]?.offersAllegiance)
-    .filter((problem) => !(['enhancement-keywords', 'warlord-ineligible'].includes(problem.code) && character(problem.unit)))
+    .filter((problem) => {
+      if (!character(problem.unit)) return true
+      const { read } = checked[problem.unit!]!
+      if (problem.code === 'warlord-ineligible') return false
+      if (problem.code !== 'enhancement-keywords' || !read.enhancement) return true
+      // Refused only for what the missing keyword does not explain.
+      const enhancement = definitions.get('enhancement', read.enhancement)
+      const keywords = [...unitKeywords(definitions.get('unit', read.unit)!.data, roster, read.allegiance), 'CHARACTER']
+      return !enhancement || !enhancementAdmits(definitions, enhancement, read, keywords)
+    })
     .flatMap((problem) => described(problem, checked, definitions) ?? [])
 }
 

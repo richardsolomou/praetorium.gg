@@ -697,23 +697,35 @@ function calculateRoster(
     data,
     picked.map((unit) => ({ ...unit, keywords: keywordNamesOf(unit) })),
   )
-  const vsChecked = new Set(
-    picked.flatMap((unit) => {
-      if (!loaded.vsRoster?.units[unit.entryId]) return []
-      const definition = loaded.index.definitions.get(unit.entryId)
-      return [unit.entryId, ...(definition ? [targetOf(definition, loaded.index.definitions).id] : [])]
-    }),
-  )
   const leftToCatalogue = new Set(picked.filter((unit) => !loaded.vsRoster?.units[unit.entryId]).map((unit) => unit.name))
   const enhancementOptions = vsData ? vsDataEnhancementOptions(loaded.vsRoster, data.detachmentIds) : new Set<string>()
   // What VS Data's checker says instead: a datasheet's own copy limit, a keyword's roster limit (a limit on the category
   // itself, not one a unit puts on its models through it) other than one only datasheets left to the catalogue meet, and
   // an Enhancement's limits.
+  // VS Data's copy limit replaces the catalogue's where VS Data also finds one broken, so a disagreement stays visible.
+  const vsCopyLimits = new Set(vsData?.filter((error) => error.message.startsWith('is limited to')).map((error) => error.entryId))
+  const copyLimited = new Set(
+    picked.flatMap((unit) => {
+      if (!vsCopyLimits.has(unit.entryId)) return []
+      const definition = loaded.index.definitions.get(unit.entryId)
+      return [unit.entryId, ...(definition ? [targetOf(definition, loaded.index.definitions).id] : [])]
+    }),
+  )
+  const rosterScoped = (id: string) =>
+    Boolean(
+      loaded.index.categories
+        .get(id)
+        ?.constraints?.some((constraint) => constraint.type === 'max' && ['roster', 'force'].includes(constraint.scope)),
+    )
   const rosterLimitReplaced = (error: { entryId: string; entryName: string; limit?: unknown }) =>
     vsData !== null &&
-    ((error.limit !== undefined && vsChecked.has(error.entryId)) ||
-      (Boolean(loaded.index.categories.get(error.entryId)?.constraints?.length) && !leftToCatalogue.has(error.entryName)) ||
+    ((error.limit !== undefined && copyLimited.has(error.entryId)) ||
+      (rosterScoped(error.entryId) && !leftToCatalogue.has(error.entryName)) ||
       enhancementOptions.has(error.entryId))
+  // The catalogue keeps the Detachment a datasheet needs where VS Data does not record it yet (Deathwatch in a chapter),
+  // and says it once where both do.
+  const detachmentLocks = detachmentLockErrors(loaded, data, picked, roster)
+  const locked = new Set(detachmentLocks.map((error) => error.entryId))
   const reported = [
     ...savedSelectionErrors(data, picked, loaded),
     ...changedCountErrors(data, picked, loaded, roster, unitCache ?? sharedBuiltUnitsFor(loaded)),
@@ -729,10 +741,11 @@ function calculateRoster(
         return unit ? keywordNamesOf(unit) : undefined
       }),
     ),
-    ...(vsData ?? factionRestrictionViolations(restrictions, constructionUnits)),
+    ...(vsData?.filter((error) => !(error.message.startsWith('needs one of these Detachments') && locked.has(error.entryId))) ??
+      factionRestrictionViolations(restrictions, constructionUnits)),
     ...(isKotcLimit(data.limit) ? kotcViolations(chosen.length, constructionUnits, data.limit, data.waivedRules ?? []) : []),
     ...(!isKotcLimit(data.limit) && enforces(data.waivedRules, 'warlord') ? armyWarlordErrors(picked) : []),
-    ...(vsData ? [] : detachmentLockErrors(loaded, data, picked, roster)),
+    ...detachmentLocks,
     ...pointCaps.errors,
     ...enhancementsPerUnitErrors,
     ...(vsData === null && enhancementsAllowed !== null && enhancementsHeld > enhancementsAllowed
