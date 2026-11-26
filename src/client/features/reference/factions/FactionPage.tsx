@@ -105,7 +105,7 @@ export function FactionPage({ catalogueId }: { catalogueId: string }) {
       <PageContent className="space-y-6">
         <BackLink to="/factions">Factions</BackLink>
         <ContinueGuestDraft surface="faction" />
-        <section className="grid grid-cols-3 divide-x divide-edge border-y border-edge">
+        <section className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,5rem),1fr))] divide-x divide-edge border-y border-edge">
           <FactionReferenceLink to="/factions/$catalogueId/datasheets" params={{ catalogueId: faction.slug }} className={STAT_LINK}>
             <span className="eyebrow">Datasheets</span>
             <span className="flex items-center gap-2">

@@ -48,7 +48,7 @@ export function GroupAtAGlance({ token, table }: { token: string; table: GroupTa
     <section aria-labelledby="group-glance" data-group-glance>
       <SectionHeading id="group-glance" title="Group stats" />
       <div className="border-y border-edge">
-        <dl className="grid grid-cols-3 divide-x divide-edge">
+        <dl className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,5rem),1fr))] divide-x divide-edge">
           {figures.map(([label, value]) => (
             <div key={label} className="px-2 py-3 sm:px-4">
               <dt className="eyebrow">{label}</dt>

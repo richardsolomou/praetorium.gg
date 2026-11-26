@@ -148,7 +148,8 @@ export function CollectionPage() {
         <div className="space-y-4">
           {owned.size ? (
             <section aria-label="Your shelf" className="space-y-3 border-y border-edge pb-3">
-              <dl className="grid grid-cols-3 divide-x divide-edge">
+              {/* Columns sized by the text, so large text stacks the stages instead of pushing the page sideways. */}
+              <dl className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,5rem),1fr))] divide-x divide-edge">
                 <Stage
                   label="Owned"
                   value={pending ? null : shelf.owned}
