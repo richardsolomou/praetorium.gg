@@ -8,6 +8,8 @@ import { buildUnit, type BuiltUnit } from '../src/core/roster'
 import { isUnitCompositionChoice, type UnitChoice } from '../src/core/unitChoices'
 import { wargearOf } from '../src/core/wargear'
 import { legacyOptionsSchema } from '../src/core/legacyIds'
+import { vsDataDefinitions } from '../src/core/vsDataConstruction'
+import { checkVsUnit } from '../src/core/vsDataRoster'
 import { wargearKey } from '../src/core/wargearNames'
 import { editionDirectory, readCatalogueComposition } from '../src/server/catalogueComposition'
 import { loadCatalogue } from '../src/server/catalogueIndex'
@@ -70,6 +72,8 @@ const SPELLINGS: Record<string, string | string[]> = {
   'sporocyst-bio-weapon': 'sporocyst-bio-weapons',
   'squig-jaws': 'squigs-jaws',
   'steeds-savage-claws': 'savage-claws',
+  'superfrag-missile-launcher': 'superfrag-rocket-launcher',
+  'superkrak-missile-launcher': 'superkrak-rocket-launcher',
   'teeth-and-claws': ['crushing-teeth-and-claws', 'crushing-teeth-and-jaws'],
   'termagant-spinefist': 'termagant-spinefists',
   'termite-melta-cutter': 'terrax-melta-cutter',
@@ -120,6 +124,18 @@ function readRelease(directory: string) {
     byKind.set(record.kind, [...(byKind.get(record.kind) ?? []), record])
   }
   const includes = new Map((byKind.get('wargear') ?? []).map((record) => [record.id, (record.data.includes ?? {}) as Counts]))
+  const definitions = vsDataDefinitions({
+    release: directory,
+    rulesVersion: { edition: '', update: '' },
+    definitions: Object.fromEntries(
+      [...byKind].map(([kind, records]) => [
+        kind,
+        Object.fromEntries(records.map(({ id, data }) => [id, { name: names.get(id) ?? id, data }])),
+      ]),
+    ),
+    unavailable: [],
+    points: [],
+  })
   const units = new Map<string, VsUnit>()
   for (const { id, data } of byKind.get('unit') ?? [])
     units.set(id, {
@@ -170,7 +186,7 @@ function readRelease(directory: string) {
     if (inner && Object.keys(inner).length) for (const [part, m] of Object.entries(inner)) leaves(part, n * m, into)
     else add(into, wargearKey(names.get(id) ?? id).replace(ARTICLE, ''), n)
   }
-  return { units, leaves }
+  return { units, leaves, definitions }
 }
 
 /** Names compared by their letters and digits alone, without the "upgrade" BSData adds to some (Character upgrade). */
@@ -215,8 +231,8 @@ function vsKeysOf(release: Release, unit: VsUnit) {
   return new Set(into.keys())
 }
 
-/** What a VS Data unit of `total` models carries when first fielded, as named items, or null when it cannot field that many. */
-function vsBase(release: Release, unit: VsUnit, total: number) {
+/** A VS Data unit's model counts at `total` models as first fielded, or null when it cannot field that many. */
+function vsCounts(unit: VsUnit, total: number) {
   const counts = new Map(unit.models.map((model) => [model.id, unit.defaultModels[model.id] ?? model.min]))
   const variable = unit.models.filter((model) => model.min !== model.max)
   if (variable.length === 1) {
@@ -224,7 +240,13 @@ function vsBase(release: Release, unit: VsUnit, total: number) {
     counts.set(variable[0]!.id, total - others)
   }
   const fits = unit.models.every((model) => counts.get(model.id)! >= model.min && counts.get(model.id)! <= model.max)
-  if (!fits || [...counts.values()].reduce((sum, n) => sum + n, 0) !== total) return null
+  return fits && [...counts.values()].reduce((sum, n) => sum + n, 0) === total ? counts : null
+}
+
+/** What a VS Data unit of `total` models carries when first fielded, as named items, or null when it cannot field that many. */
+function vsBase(release: Release, unit: VsUnit, total: number) {
+  const counts = vsCounts(unit, total)
+  if (!counts) return null
   const bag: Bag = new Map()
   for (const model of unit.models) for (const [id, n] of Object.entries(model.wargear)) release.leaves(id, n * counts.get(model.id)!, bag)
   for (const [id, n] of Object.entries(unit.wargear)) release.leaves(id, n, bag)
@@ -267,10 +289,16 @@ function movesFor(release: Release, unit: VsUnit, carriers: readonly string[] | 
 }
 
 /**
- * The selections, as option → wargear → count, whose changes add up to `target`: the fewest moves, and of equally few
- * the first in move order. A move taking a selection back counts -1. Null when none add up.
+ * The selections, as option → wargear → count, whose changes add up to `target` and that `valid` accepts: the fewest
+ * moves, and of equally few the first in move order. A move taking a selection back counts -1. Null when none do, or,
+ * with `unique`, when another as few would do too.
  */
-function selectionsFor(all: readonly Move[], target: ReadonlyMap<string, number>) {
+function selectionsFor(
+  all: readonly Move[],
+  target: ReadonlyMap<string, number>,
+  valid: (selections: Record<string, Counts>) => boolean = () => true,
+  unique = false,
+) {
   let moves = all
   // A move that changes an item the target leaves alone, or the other way, needs another move to undo it.
   for (let before = -1; before !== moves.length;) {
@@ -291,28 +319,38 @@ function selectionsFor(all: readonly Move[], target: ReadonlyMap<string, number>
     moves.map(({ change }) => change),
     -1,
   )
-  const walk = (from: number, rest: Bag, left: number, taken: number[]): number[] | null => {
-    if (!rest.size) return taken
-    if (!left) return null
-    for (const [key, n] of rest) if (Math.abs(n) > left * ((n > 0 ? gains : losses).get(key) ?? 0)) return null
+  function* walk(from: number, rest: Bag, left: number, taken: number[]): Generator<number[]> {
+    if (!rest.size) {
+      yield taken
+      return
+    }
+    if (!left) return
+    for (const [key, n] of rest) if (Math.abs(n) > left * ((n > 0 ? gains : losses).get(key) ?? 0)) return
     for (let at = from; at < moves.length; at++) {
       if (taken.filter((held) => held === at).length >= moves[at]!.most) continue
       const next = new Map(rest)
       for (const [key, n] of moves[at]!.change) add(next, key, -n)
-      const found = walk(at, next, left - 1, [...taken, at])
-      if (found) return found
+      yield* walk(at, next, left - 1, [...taken, at])
     }
-    return null
   }
-  for (let size = 1; size <= MOST; size++) {
-    const found = walk(0, new Map(target), size, [])
-    if (!found) continue
+  const selectionsOf = (found: number[]) => {
     const selections: Record<string, Counts> = {}
     for (const at of found) {
       const { option, choice, sign } = moves[at]!
       ;(selections[option] ??= {})[choice] = (selections[option]?.[choice] ?? 0) + sign
     }
     return selections
+  }
+  for (let size = 1; size <= MOST; size++) {
+    let first: Record<string, Counts> | null = null
+    for (const found of walk(0, new Map(target), size, [])) {
+      const selections = selectionsOf(found)
+      if (!valid(selections)) continue
+      if (!first) first = selections
+      else if (JSON.stringify(sorted(selections)) !== JSON.stringify(sorted(first))) return null
+      if (!unique) break
+    }
+    if (first) return first
   }
   return null
 }
@@ -382,25 +420,27 @@ if (!composition) throw new Error(`${catalogueDirectory} has no catalogue compos
 
 /** A choice is VS Data option selections, as option → wargear → count, or the allegiance the unit takes. */
 type Translation = { options: Record<string, Counts> } | { allegiance: string }
-type UnitOptions = { unit: string; choices: Record<string, Translation>; unmatched: string[] }
+type UnitOptions = {
+  unit: string
+  base?: { options: Record<string, Counts> } | 'unmatched'
+  floor?: Record<string, string | Counts>
+  choices: Record<string, Translation>
+  unmatched: string[]
+}
 /** The choices and spreads a unit is built with. */
 type State = { choices: Readonly<Record<string, string>>; spreads: Readonly<Record<string, Readonly<Counts>>> }
-type Option = UnitChoice['options'][number]
+type Option = Pick<UnitChoice['options'][number], 'id' | 'name' | 'count' | 'min' | 'max' | 'default' | 'profile'>
 const out: Record<string, UnitOptions> = {}
 const uncovered: string[] = []
 const debug: string[] = []
-const tally = {
-  datasheets: 0,
-  mapped: 0,
-  noChange: 0,
-  allegiances: 0,
-  unmatched: 0,
-  defaultsDiffer: 0,
-  defaultsMapped: 0,
-  defaultsNoChoice: 0,
-}
+const tally = { datasheets: 0, mapped: 0, noChange: 0, allegiances: 0, unmatched: 0, unreached: 0, base: 0, baseUnmatched: 0, floors: 0 }
 /** How many choices a choice can be read beneath: a squad's loadout, then the weapons it opens. */
 const DEPTH = 2
+/** Every size BSData fields a unit at. */
+const sizesOf = (built: BuiltUnit) =>
+  built.size.options ?? Array.from({ length: built.size.max - built.size.min + 1 }, (_, at) => built.size.min + at)
+/** A choice taking nothing, as a floor pick leaves an optional pintle weapon off. */
+const NOTHING: Option = { id: '', name: '', count: 0, min: 0, max: 1 }
 
 for (const entry of composition.editions.filter((candidate) => candidate.base)) {
   const release = readRelease(path.join(releases, entry.edition.id))
@@ -424,19 +464,51 @@ for (const entry of composition.editions.filter((candidate) => candidate.base)) 
     }
     const build = (state: State, models?: number) =>
       buildUnit(entryId, index, models, state.choices, Object.keys(state.spreads).length ? { spreads: state.spreads } : undefined)
-    const vsDefault = vsBase(release, unit, base.size.models)
-    // What BSData's first fielding carries beyond VS Data's (negative where VS Data carries more), claimed by the choices
-    // whose defaults make it.
-    const unclaimed = vsDefault ? difference(bagOf(base), vsDefault) : new Map<string, number>()
-    if (unclaimed.size) tally.defaultsDiffer++
+    // The sizes BSData fields the unit at and VS Data can too, where every translation is checked.
+    const sizes = sizesOf(base).filter((total) => vsCounts(unit, total))
+    const problemsAt = (selections: Readonly<Record<string, Counts>>, total: number) => {
+      const found = new Set<string>()
+      checkVsUnit(
+        release.definitions,
+        { unit: unit.id, models: Object.fromEntries(vsCounts(unit, total)!), options: selections },
+        (code, message) => found.add(`${code}: ${message}`),
+      )
+      return found
+    }
+    /** Whether VS Data's checker accepts `selections` made on top of `made` at every size, raising nothing `made` does not. */
+    const madeProblems = new WeakMap<object, Map<number, Set<string>>>()
+    const validOn = (made: Readonly<Record<string, Counts>>, selections: Readonly<Record<string, Counts>>) =>
+      sizes.every((total) => {
+        const known = madeProblems.get(made) ?? new Map<number, Set<string>>()
+        madeProblems.set(made, known)
+        const before = known.get(total) ?? problemsAt(made, total)
+        known.set(total, before)
+        return [...problemsAt(joined(made, selections), total)].every((problem) => before.has(problem))
+      })
     const result: UnitOptions = { unit: unitId, choices: {}, unmatched: [] }
+    // BSData's first fielding as VS Data selections on VS Data's: the same at every size, and the only fewest that do.
+    const differences = [base.size.models, ...sizes].map((total) => {
+      const vs = vsBase(release, unit, total)
+      const bs = buildUnit(entryId, index, total)
+      return vs && bs ? JSON.stringify(sorted(Object.fromEntries(difference(bagOf(bs), vs)))) : null
+    })
+    const firstDifference = new Map(Object.entries(JSON.parse(differences[0] ?? '{}') as Counts))
+    if (differences[0] === null || differences.some((found) => found !== differences[0])) result.base = 'unmatched'
+    else if (firstDifference.size) {
+      const selections = selectionsFor(
+        movesFor(release, unit, undefined, unit.defaults),
+        firstDifference,
+        (found) => validOn(unit.defaults, found),
+        true,
+      )
+      result.base = selections ? { options: selections } : 'unmatched'
+    }
+    const made0 = joined(unit.defaults, typeof result.base === 'object' ? result.base.options : {})
     const unmatched = new Set<string>()
-    const deferred = new Set<string>()
-    const read = new Set<string>()
-    const defaults = new Set<string>()
+    const seen = new Set<string>()
     /** Whether a group the squad divides holds all it can when first fielded, so taking one more gives one up. */
     const full = (choice: UnitChoice) => choice.room > 1 && choice.options.reduce((sum, { count }) => sum + count, 0) >= choice.room
-    /** The option a choice holds when first fielded and that has no key of its own: a single pick's, or a full group's. */
+    /** The option a choice holds when first fielded, which changes nothing: a single pick's, or a full group's. */
     const ordinary = (choice: UnitChoice, option: Option) => option.id === choice.chosen && (choice.room === 1 || full(choice))
     /**
      * The unit with one more choice made: the option taken, or for a group the squad divides, one more of it, which in
@@ -475,58 +547,56 @@ for (const entry of composition.editions.filter((candidate) => candidate.base)) 
       return sharing.length ? sharing.filter((model) => score(model) === best).map(({ id }) => id) : modelsNamed(profile)
     }
     /**
-     * The selections for `target`, the same whichever of `carriers` makes the choice (all models where none is known),
-     * taking models named alike as one; null where they disagree.
+     * The selections for `target` that VS Data's checker accepts, the same whichever of `carriers` makes the choice
+     * (all models where none is known), taking models named alike as one; null where they disagree.
      */
     const translated = (
       carriers: readonly string[] | undefined,
       target: ReadonlyMap<string, number>,
       made: Readonly<Record<string, Counts>>,
     ) => {
+      const valid = (selections: Record<string, Counts>) => validOn(made, selections)
       const ids = carriers ?? unit.models.map(({ id }) => id)
-      if (!ids.length) return selectionsFor(movesFor(release, unit, undefined, made), target)
+      if (!ids.length) return selectionsFor(movesFor(release, unit, undefined, made), target, valid)
       const byName = new Map<string, string[]>()
       for (const id of ids) {
         const name = same(unit.models.find((model) => model.id === id)?.name ?? id)
         byName.set(name, [...(byName.get(name) ?? []), id])
       }
-      const each = [...byName.values()].map((models) => selectionsFor(movesFor(release, unit, models, made), target))
+      const each = [...byName.values()].map((models) => selectionsFor(movesFor(release, unit, models, made), target, valid))
       const first = JSON.stringify(sorted(each[0]))
       return each.every((selections) => selections && JSON.stringify(sorted(selections)) === first) ? each[0]! : null
     }
     /**
-     * The keys of a choice's translations that some pick of it would carry past what VS Data allows: a selection taken
-     * back that was never made, or an option taking more than it can. A pick applies each key once for each of its
-     * option the pick holds beyond the first fielding, fewer counting negative.
+     * The keys of a divided group that some pick of it, within its options' bounds, would make a unit VS Data's checker
+     * refuses. A pick applies each key once for each of its option the pick holds beyond the first fielding, fewer
+     * counting negative.
      */
-    const overflowing = (choice: UnitChoice, found: ReadonlyMap<string, Translation>, made: Readonly<Record<string, Counts>>) => {
+    const refused = (choice: UnitChoice, found: ReadonlyMap<string, Translation>, made: Readonly<Record<string, Counts>>) => {
       const bad = new Set<string>()
-      const check = (applied: [string, number][]) => {
-        const sum = joined(made)
-        const touched = new Set<string>()
-        for (const [key, times] of applied) {
-          const translation = found.get(key)
-          if (!translation || !('options' in translation)) continue
-          for (const [optionId, chosen] of Object.entries(translation.options)) {
-            touched.add(optionId)
-            for (const [wargear, n] of Object.entries(chosen)) (sum[optionId] ??= {})[wargear] = (sum[optionId]?.[wargear] ?? 0) + n * times
-          }
-        }
-        const over = [...touched].some((optionId) => {
-          const counts = Object.values(sum[optionId] ?? {})
-          const most = unit.options.find(({ id }) => id === optionId)?.most ?? 0
-          return counts.some((n) => n < 0) || counts.reduce((total, n) => total + n, 0) > most
-        })
-        if (over) for (const [key] of applied) bad.add(key)
-      }
-      if (choice.room === 1) {
-        for (const key of found.keys()) check([[key, 1]])
-        return bad
-      }
       const options = choice.options.filter((option) => !enhancementIds.has(option.id))
       const shape = (at: number, left: number, applied: [string, number][]) => {
         if (at === options.length) {
-          check(applied)
+          if (!applied.length) return
+          const selections: Record<string, Counts> = {}
+          for (const [key, times] of applied) {
+            const translation = found.get(key)
+            if (translation && 'options' in translation)
+              for (const [optionId, chosen] of Object.entries(translation.options))
+                for (const [wargear, n] of Object.entries(chosen))
+                  (selections[optionId] ??= {})[wargear] = (selections[optionId]?.[wargear] ?? 0) + n * times
+          }
+          if (!validOn(made, selections)) {
+            if (process.env.OPTIONS_DEBUG && applied.some(([key]) => !bad.has(key)))
+              debug.push(
+                `${unitId}\tshape\t${JSON.stringify(applied)}\t${sizes
+                  .map((total) =>
+                    [...problemsAt(joined(made, selections), total)].filter((problem) => !problemsAt(made, total).has(problem)).join('; '),
+                  )
+                  .find(Boolean)}`,
+              )
+            for (const [key] of applied) bad.add(key)
+          }
           return
         }
         const option = options[at]!
@@ -534,13 +604,25 @@ for (const entry of composition.editions.filter((candidate) => candidate.base)) 
         for (let n = option.min; n <= Math.min(option.max, left); n++) {
           const times = n - option.count
           // A pick changing an option no key reads cannot be translated, so it can break nothing.
-          if (times && !found.has(key) && !ordinary(choice, option)) continue
-          shape(at + 1, left - n, times && found.has(key) ? [...applied, [key, times]] : applied)
+          if (times && !found.has(key)) continue
+          shape(at + 1, left - n, times ? [...applied, [key, times]] : applied)
         }
       }
       shape(0, choice.room, [])
       return bad
     }
+    // The option a floor pick's unmade choice takes, where it is not the first fielding's.
+    const floorBuilt = buildUnit(entryId, index, undefined, {}, { floor: true })
+    const floor: Record<string, string | Counts> = {}
+    for (const choice of floorBuilt?.choices ?? []) {
+      if (isUnitCompositionChoice(choice)) continue
+      const printed = base.choices.find(({ key }) => key === choice.key)
+      if (choice.room === 1 && choice.chosen !== (printed?.chosen ?? '')) floor[choice.key] = choice.chosen
+      const counts = Object.fromEntries(choice.options.filter(({ count }) => count > 0).map(({ id, count }) => [id, count]))
+      const first = Object.fromEntries((printed?.options ?? []).filter(({ count }) => count > 0).map(({ id, count }) => [id, count]))
+      if (choice.room > 1 && JSON.stringify(sorted(counts)) !== JSON.stringify(sorted(first))) floor[choice.key] = counts
+    }
+    if (Object.keys(floor).length) result.floor = floor
     // A choice is read against the unit it is made on, at the size it is made at: the first fielding, or for a choice
     // another opens, the unit with that one taken, whose selections it may take back.
     const visit = (
@@ -551,167 +633,197 @@ for (const entry of composition.editions.filter((candidate) => candidate.base)) 
       beneath?: { path: string; known: ReadonlySet<string> },
     ) => {
       const fromBag = bagOf(from)
-      // A choice of one claims the defaults' difference before a squad's division does, which can only list it.
-      for (const choice of from.choices.toSorted((one, other) => Number(one.room > 1) - Number(other.room > 1))) {
-        if (isUnitCompositionChoice(choice) || choice.key in state.choices || choice.key in state.spreads) continue
+      const atFirstSize = from.size.models === base.size.models
+      /** Each key read here with its choice, for checking keys of different choices together. */
+      const together: { choice: string; key: string }[] = []
+      for (const choice of from.choices) {
+        if (choice.key in state.choices || choice.key in state.spreads) continue
+        const composing = isUnitCompositionChoice(choice)
         // Beneath a choice, what the unit offered before is read where it was offered.
-        const options = choice.options.filter(
-          (option) =>
-            !enhancementIds.has(option.id) &&
-            (!beneath || choice.key.startsWith(beneath.path) || !beneath.known.has(`${choice.key}|${option.id}`)),
-        )
+        const options = [
+          ...choice.options.filter(
+            (option) =>
+              !enhancementIds.has(option.id) &&
+              (!beneath || choice.key.startsWith(beneath.path) || !beneath.known.has(`${choice.key}|${option.id}`)),
+          ),
+          ...(floor[choice.key] === '' && choice.room === 1 ? [NOTHING] : []),
+        ]
+        for (const option of options) seen.add(`${choice.key}|${option.id}`)
         // A choice on a model the unit does not field yet is read once the choice above it adds one.
         if (
           from.choices.some((parent) =>
             parent.options.some((option) => !option.count && choice.key.startsWith(`${parent.key}/${option.id}/`)),
           )
-        ) {
-          for (const option of options) deferred.add(`${choice.key}|${option.id}`)
+        )
           continue
-        }
         const readings = options.flatMap((option) => {
           const key = `${choice.key}|${option.id}`
           if (key in result.choices || unmatched.has(key)) return []
           if (ordinary(choice, option)) return [{ key, option, state, built: from, delta: new Map<string, number>() }]
+          // The reader counts a divided group from its first fielding at the unit's first size, so one only other sizes
+          // field must start empty.
+          if (choice.room > 1 && !atFirstSize && choice.options.some(({ count }) => count > 0)) {
+            unmatched.add(key)
+            return []
+          }
           const next = taking(state, choice, option)
           const built = build(next)
           if (!built) {
             unmatched.add(key)
             return []
           }
-          // An option that brings a model is read against the unit grown by an ordinary model instead, the group held as it was.
+          // An option that brings a model is read against the unit grown by an ordinary model instead, the group held as
+          // it was; a unit composition against the unit resized as it is.
           const reference =
             built.size.models === from.size.models
               ? from
-              : build(
-                  {
-                    ...state,
-                    spreads: { ...state.spreads, [choice.key]: Object.fromEntries(choice.options.map(({ id, count }) => [id, count])) },
-                  },
-                  built.size.models,
-                )
+              : composing
+                ? build(state, built.size.models)
+                : build(
+                    {
+                      ...state,
+                      spreads: { ...state.spreads, [choice.key]: Object.fromEntries(choice.options.map(({ id, count }) => [id, count])) },
+                    },
+                    built.size.models,
+                  )
           return [{ key, option, state: next, built, delta: difference(bagOf(built), reference ? bagOf(reference) : fromBag) }]
         })
-        const owner = modelsNamed(choice.owner?.name, choice.owner?.profile)
-        // The part of the defaults' difference this choice's default makes: what its other options take away, then
-        // what VS Data's selections for its model take away.
-        const shift: Bag = new Map()
-        if (!depth && unclaimed.size) {
-          const removed = reach(
-            readings.map(({ delta }) => delta),
-            -1,
-          )
-          for (const [item, n] of unclaimed) if (n > 0) shift.set(item, Math.min(n, removed.get(item) ?? 0))
-          // What VS Data carries instead, as much as a selection for the same model takes away: beside what this default
-          // carries, or, where BSData carries nothing VS Data lacks, alone where another option adds it, as a Predator's
-          // sponsons that BSData leaves off.
-          const swapped = [...shift.values()].some(Boolean)
-          const extra = !swapped && ![...unclaimed.values()].some((n) => n > 0)
-          const added = reach(
-            readings.map(({ delta }) => delta),
-            1,
-          )
-          const losses = reach(
-            movesFor(release, unit, owner, made).map(({ change }) => change),
-            -1,
-          )
-          for (const [item, n] of unclaimed)
-            if (n < 0 && (swapped || (extra && added.has(item)))) shift.set(item, -Math.min(-n, losses.get(item) ?? 0))
-          for (const [item, n] of [...shift]) {
-            if (!n) shift.delete(item)
-            add(unclaimed, item, -n)
-          }
-        }
+        const owner = composing ? undefined : modelsNamed(choice.owner?.name, choice.owner?.profile)
         const found = new Map<string, Translation>()
         for (const { key, option, delta } of readings) {
-          const isDefault = ordinary(choice, option)
           const allegiance = unit.allegiances.get(same(option.name))
           if (allegiance) {
             found.set(key, { allegiance })
             continue
           }
-          if (isDefault && !shift.size) {
-            read.add(key)
-            continue
-          }
-          // A squad divides itself by counts, so a difference its first fielding makes rides on none of them, and every
-          // count would be read against the wrong first fielding.
-          if (choice.room > 1 && shift.size) {
-            unmatched.add(key)
-            continue
-          }
-          const target = new Map(delta)
-          for (const [item, n] of shift) add(target, item, n)
-          // Nothing changing is a reading only when the option names wargear the unit already carries, or brings BSData's
-          // unit to VS Data's default.
-          const selections = target.size
-            ? translated(owner ?? (isModel(option.id) ? modelsNamed(option.name) : undefined), target, made)
-            : delta.size || fromBag.has(keyOf(option.name, vsKeys))
+          // Nothing changing is a reading for the option first fielded, a unit composition, or an option naming wargear
+          // the unit already carries.
+          const selections = delta.size
+            ? translated(owner ?? (isModel(option.id) ? modelsNamed(option.name) : undefined), delta, made)
+            : ordinary(choice, option) || composing || fromBag.has(keyOf(option.name, vsKeys))
               ? {}
               : null
-          if (selections) {
-            found.set(key, { options: selections })
-            if (isDefault) defaults.add(key)
-          } else {
+          if (selections) found.set(key, { options: selections })
+          else {
             unmatched.add(key)
             if (process.env.OPTIONS_DEBUG)
-              debug.push(
-                `${unitId}\t${choice.name}: ${option.name}${isDefault ? ' (default)' : ''}\t${JSON.stringify(Object.fromEntries(target))}`,
-              )
+              debug.push(`${unitId}\t${choice.name}: ${option.name}\t${JSON.stringify(Object.fromEntries(delta))}`)
           }
         }
-        for (const key of overflowing(choice, found, made)) {
-          found.delete(key)
-          unmatched.add(key)
-          if (process.env.OPTIONS_DEBUG) debug.push(`${unitId}\t${choice.name}: overflows\t${key}`)
+        if (choice.room > 1)
+          for (const key of refused(choice, found, made)) {
+            found.delete(key)
+            unmatched.add(key)
+            if (process.env.OPTIONS_DEBUG) debug.push(`${unitId}\t${choice.name}: refused\t${key}`)
+          }
+        for (const [key, translation] of found) {
+          result.choices[key] = translation
+          if ('options' in translation && Object.keys(translation.options).length) together.push({ choice: choice.key, key })
         }
-        for (const [key, translation] of found) result.choices[key] = translation
-        for (const { key, option, state: next, built } of readings)
-          if (!ordinary(choice, option) && !unit.allegiances.has(same(option.name)) && depth < DEPTH) {
-            const translation = found.get(key)
-            visit(built, next, joined(made, translation && 'options' in translation ? translation.options : {}), depth + 1, {
+        for (const { key, option, state: next, built } of readings) {
+          const translation = found.get(key)
+          if (ordinary(choice, option) || (translation && 'allegiance' in translation) || (!composing && depth >= DEPTH)) continue
+          visit(
+            built,
+            next,
+            joined(made, translation && 'options' in translation ? translation.options : {}),
+            composing ? depth : depth + 1,
+            {
               path: `${choice.key}/${option.id}/`,
               known: new Set(from.choices.flatMap((offered) => offered.options.map(({ id }) => `${offered.key}|${id}`))),
-            })
-          }
+            },
+          )
+        }
+      }
+      // Two keys of different choices made together must still make a unit VS Data's checker accepts.
+      const refusedTogether = new Set<string>()
+      for (const [at, one] of together.entries())
+        for (const other of together.slice(at + 1)) {
+          if (one.choice === other.choice || refusedTogether.has(one.key) || refusedTogether.has(other.key)) continue
+          const selections = joined(
+            (result.choices[one.key] as { options: Record<string, Counts> }).options,
+            (result.choices[other.key] as { options: Record<string, Counts> }).options,
+          )
+          if (validOn(made, selections)) continue
+          refusedTogether.add(one.key)
+          refusedTogether.add(other.key)
+          if (process.env.OPTIONS_DEBUG) debug.push(`${unitId}\trefused together\t${one.key} ${other.key}`)
+        }
+      for (const key of refusedTogether) {
+        delete result.choices[key]
+        unmatched.add(key)
       }
     }
-    visit(base, { choices: {}, spreads: {} }, unit.defaults, 0)
-    for (const key of deferred) if (!(key in result.choices) && !read.has(key)) unmatched.add(key)
-    if (unclaimed.size) {
-      tally.defaultsNoChoice++
-      if (process.env.OPTIONS_DEBUG) debug.push(`${unitId}\tdefaults no choice changes\t${JSON.stringify(Object.fromEntries(unclaimed))}`)
+    visit(base, { choices: {}, spreads: {} }, made0, 0)
+    // Choices only other sizes field are read there.
+    for (const total of sizesOf(base)) {
+      const sized = total === base.size.models ? null : buildUnit(entryId, index, total)
+      if (sized) visit(sized, { choices: {}, spreads: {} }, made0, 0)
     }
+    // Every key a pick can hold is mapped or listed: those of each size, and of one choice made at each, however made.
+    const reached = (built: BuiltUnit | null) => {
+      for (const choice of built?.choices ?? [])
+        for (const option of choice.options) if (!enhancementIds.has(option.id) && option.max > 0) seen.add(`${choice.key}|${option.id}`)
+    }
+    for (const total of sizesOf(base)) {
+      const sized = buildUnit(entryId, index, total)
+      reached(sized)
+      for (const choice of sized?.choices ?? [])
+        for (const option of choice.options) {
+          if (enhancementIds.has(option.id) || option.id === choice.chosen) continue
+          const held = Object.fromEntries(choice.options.filter(({ count }) => count > 0).map(({ id, count }) => [id, count]))
+          reached(
+            choice.room === 1
+              ? buildUnit(entryId, index, total, { [choice.key]: option.id })
+              : buildUnit(entryId, index, total, {}, { spreads: { [choice.key]: { ...held, [option.id]: option.count + 1 } } }),
+          )
+        }
+    }
+    for (const key of seen)
+      if (!(key in result.choices) && !unmatched.has(key)) {
+        unmatched.add(key)
+        tally.unreached++
+      }
+    for (const key of Object.keys(result.choices)) unmatched.delete(key)
     result.unmatched = [...unmatched].toSorted(byId)
     tally.unmatched += result.unmatched.length
-    for (const [key, translation] of Object.entries(result.choices))
+    if (result.base === 'unmatched') tally.baseUnmatched++
+    else if (result.base) tally.base++
+    if (result.floor) tally.floors++
+    for (const translation of Object.values(result.choices))
       if ('allegiance' in translation) tally.allegiances++
-      else if (defaults.has(key)) tally.defaultsMapped++
       else if (Object.keys(translation.options).length) tally.mapped++
       else tally.noChange++
     out[entryId] = result
   }
 }
 
-console.log({ ...tally, choices: tally.mapped + tally.noChange + tally.allegiances + tally.defaultsMapped + tally.unmatched })
+console.log({ ...tally, choices: tally.mapped + tally.noChange + tally.allegiances + tally.unmatched })
 console.log(`Read for the current rules version only; not covered (${uncovered.length}):\n  ${uncovered.join('\n  ')}`)
 if (process.env.OPTIONS_DEBUG) fs.writeFileSync(process.env.OPTIONS_DEBUG, debug.join('\n'))
-// Frozen like the other maps: a choice keeps the selections it was first given, and this run only adds.
+// Frozen like the other maps: a choice keeps the selections it was first given, a unit its base and floor, and this run
+// only adds.
 const file = path.join(import.meta.dirname, '../catalogue/legacy-ids/options.json')
 const frozen = fs.existsSync(file) ? legacyOptionsSchema.parse(JSON.parse(fs.readFileSync(file, 'utf8'))).units : {}
+const differ = (one: unknown, other: unknown) => JSON.stringify(sorted(one)) !== JSON.stringify(sorted(other))
 for (const [entryId, held] of Object.entries(frozen)) {
   const found = out[entryId]
   if (found && found.unit !== held.unit) throw new Error(`options: ${entryId} is frozen for ${held.unit}; this run names ${found.unit}`)
+  for (const field of ['base', 'floor'] as const)
+    if (found && differ(held[field], found[field]))
+      throw new Error(
+        `options: ${entryId} ${field} is frozen as ${JSON.stringify(held[field])}; this run names ${JSON.stringify(found[field])}`,
+      )
   const choices = { ...held.choices }
   for (const [key, selections] of Object.entries(found?.choices ?? {})) {
-    if (key in choices && JSON.stringify(sorted(choices[key])) !== JSON.stringify(sorted(selections)))
+    if (key in choices && differ(choices[key], selections))
       throw new Error(
         `options: ${entryId} ${key} is frozen as ${JSON.stringify(choices[key])}; this run names ${JSON.stringify(selections)}`,
       )
     choices[key] = selections
   }
   const unmatched = [...new Set([...held.unmatched, ...(found?.unmatched ?? [])])].filter((key) => !(key in choices)).toSorted(byId)
-  out[entryId] = { unit: held.unit, choices, unmatched }
+  out[entryId] = { ...held, choices, unmatched }
 }
 fs.writeFileSync(file, `${JSON.stringify({ format: 'praetorium.legacy-options.v1', units: sorted(out) }, null, 2)}\n`)
 execFileSync('pnpm', ['exec', 'oxfmt', file], { stdio: 'inherit' })
