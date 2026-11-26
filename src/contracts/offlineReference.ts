@@ -1,4 +1,5 @@
 import type { RuntimeData } from './runtimeData'
+import type { TextFacts } from '../core/textFacts'
 import type { CatalogueFile } from '../core/catalogue'
 import { catalogueEditionSchema, type CatalogueEdition } from '../core/catalogueEdition'
 import { catalogueReferencePolicySchema } from '../core/catalogueReferencePolicy'
@@ -10,7 +11,10 @@ export type OfflineConstructionSource = {
   version: 1
   revision: string
   files: CatalogueFile[]
-  /** What the rules read from the texts `files` hold as tokens; a download saved before they were tokens has words instead. */
+  /**
+   * What the rules read from the texts `files` hold as tokens (`DownloadedTextFacts`, or a map of every key's facts in a
+   * download saved before keys shared them); a download saved before they were tokens has words instead.
+   */
   definitionFacts?: RuntimeData
   datacards: RuntimeData
   /** The rules version's weapon and core abilities by name; a download saved before VS Data named them has none. */
@@ -23,6 +27,25 @@ export type OfflineConstructionSource = {
   /** The rules version's VS Data roster definitions; a download saved before VS Data checked lists has none. */
   vsRoster?: RuntimeData
   rules: RuntimeData
+}
+
+/** Each distinct facts once, and every text key by the facts it reads, as many texts share one VS Data record's. */
+export type DownloadedTextFacts = { facts: TextFacts[]; keys: [string, number][] }
+
+export function downloadedTextFacts(facts: ReadonlyMap<string, TextFacts>): DownloadedTextFacts {
+  const at = new Map<string, number>()
+  const keys = [...facts].map(([key, value]): [string, number] => {
+    const json = JSON.stringify(value)
+    if (!at.has(json)) at.set(json, at.size)
+    return [key, at.get(json)!]
+  })
+  return { facts: [...at.keys()].map((json) => JSON.parse(json) as TextFacts), keys }
+}
+
+export function textFactsByKey(saved: DownloadedTextFacts | ReadonlyMap<string, TextFacts>): ReadonlyMap<string, TextFacts> {
+  return saved instanceof Map
+    ? saved
+    : new Map((saved as DownloadedTextFacts).keys.map(([key, at]) => [key, (saved as DownloadedTextFacts).facts[at]!]))
 }
 
 export type OfflineConstructionBase = { base: true; version: 1; revision: string; edition: CatalogueEdition }
