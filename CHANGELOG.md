@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.277.15 (2026-11-26)
+
+### Patch Changes
+
+- c318640: [reference] A detachment page shows each Enhancement and upgrade once, with its summary, where the sources spell its name differently, such as Deathwatch's The Thief of Secrets.
+
 ## 0.277.14 (2026-11-26)
 
 ### Patch Changes
