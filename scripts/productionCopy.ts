@@ -117,7 +117,7 @@ const record = z.union([
   z.strictObject({ end: z.string() }),
 ])
 
-async function download(host: string, webService: string, file: string) {
+export async function downloadProductionCopy(host: string, webService: string, file: string) {
   if (!/^[a-zA-Z0-9_.@-]+$/.test(host) || host.startsWith('-')) throw new Error('Invalid production SSH host')
   if (!/^[a-z][a-z0-9-]+$/.test(webService)) throw new Error('Invalid production web service')
   const child = spawn('ssh', ['-o', 'BatchMode=yes', '-o', 'ConnectTimeout=10', host, `python3 - ${webService}`], {
@@ -249,7 +249,7 @@ async function productionCopyMain() {
   const file = path.resolve('data-dev', `production-copy-${randomUUID()}.ndjson.gz`)
   await mkdir(path.dirname(file), { recursive: true })
   try {
-    await download(host, webService, file)
+    await downloadProductionCopy(host, webService, file)
     await loadProductionCopy(file)
   } finally {
     await rm(file, { force: true })

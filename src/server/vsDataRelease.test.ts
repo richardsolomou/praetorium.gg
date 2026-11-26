@@ -3,7 +3,8 @@ import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, expect, it } from 'vitest'
 import { vsDataReleaseFiles, writeFiles } from './vsData.fixtures'
-import { checkVsDataRelease, compactVsDataRelease, vsDataReleaseErrors } from './vsDataRelease'
+import { checkVsDataRelease, compactVsDataRelease, vsDataReleaseErrors, writeVsDataConstruction } from './vsDataRelease'
+import { vsDataConstructionSchema } from '../core/vsDataConstruction'
 import { vsDataEffectsPath } from '../shared/vsDataEffects'
 
 const record = { kind: 'ability', id: 'necrons.test.phase-shift', aliases: [], summary: 'Move one unit.' }
@@ -559,4 +560,39 @@ it('holds back an effect block Praetorium cannot read as unresolved', () => {
   expect(JSON.parse(fs.readFileSync(vsDataEffectsPath(file), 'utf8')).effects['ability:necrons.test.phase-shift'].reminder).toEqual({
     unresolved: 'Praetorium cannot read this reminder block',
   })
+})
+
+it('keeps each Enhancement’s eligibility from its rule facts, under its Detachment, with the roster definitions', () => {
+  const eligibility = { basis: 'app-eligibility-rows', anyOf: [{ keywords: ['CAPTAIN'] }] }
+  fs.rmSync(directory, { recursive: true })
+  writeFiles(
+    directory,
+    vsDataReleaseFiles([
+      {
+        kind: 'ability',
+        id: 'necrons.test.relic',
+        aliases: [],
+        name: 'Relic',
+        summary: 'Bearer may reroll.',
+        data: {
+          ruleType: 'enhancement',
+          detachment: { kind: 'detachment', id: 'necrons.test' },
+          facts: { format: 'vs-data-facts', version: '1', fields: { enhancement: { type: 'model', points: 10, eligibility } } },
+        },
+      },
+    ]),
+  )
+  const file = `${directory}.construction.json`
+  writeVsDataConstruction(directory, file)
+  expect(vsDataConstructionSchema.parse(JSON.parse(fs.readFileSync(file, 'utf8'))).definitions.enhancement).toEqual({
+    'necrons.test.relic': { name: 'Relic', data: { type: 'model', points: 10, eligibility, detachment: 'necrons.test' } },
+  })
+})
+
+it('names the units the identity marks absent from the rules version as unavailable', () => {
+  fs.rmSync(directory, { recursive: true })
+  writeFiles(directory, vsDataReleaseFiles([record], 'MFM 1.6', [{ kind: 'unit', id: 'necrons.dropped', name: 'Dropped', absent: true }]))
+  const file = `${directory}.construction.json`
+  writeVsDataConstruction(directory, file)
+  expect(vsDataConstructionSchema.parse(JSON.parse(fs.readFileSync(file, 'utf8'))).unavailable).toEqual(['necrons.dropped'])
 })
