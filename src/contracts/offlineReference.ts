@@ -18,6 +18,8 @@ export type OfflineConstructionSource = {
   /** Each datasheet's VS Data base size text by BSData entry id; a download saved before VS Data typed bases has none. */
   baseSizes?: Record<string, string>
   mfm: RuntimeData
+  /** The rules version's VS Data prices by BSData ID; a download saved before VS Data priced lists has none. */
+  vsPoints?: RuntimeData
   rules: RuntimeData
 }
 

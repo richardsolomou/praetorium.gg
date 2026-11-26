@@ -6,6 +6,7 @@ import { normalizedNameVariants } from '../core/name'
 import { factionDisplayName } from './factionNames'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { grantedWargear } from './heldWargear'
+import { vsMfmDetachment } from './vsDataPoints'
 const costSchema = z.object({ models: z.number().int().positive(), points: z.number().int().nonnegative(), addon: z.boolean().optional() })
 const tierSchema = z.object({ range: z.string(), label: z.string().optional(), costs: z.array(costSchema) })
 const unitSchema = z.object({
@@ -72,7 +73,7 @@ export function mfmEnhancementPoints(detachment: NonNullable<ReturnType<typeof m
   const matched = detachment.enhancements?.filter((enhancement) => enhancementKey(enhancement.name) === enhancementKey(name)) ?? []
   return matched.length === 1 ? matched[0]!.points : null
 }
-function mfmWargearPoints(unit: MfmUnit | null, name: string) {
+export function mfmWargearPoints(unit: MfmUnit | null, name: string) {
   const keys = new Set(normalizedNameVariants(name).map(joinKey))
   const matched = unit?.wargear?.filter((row) => normalizedNameVariants(row.item).some((variant) => keys.has(joinKey(variant)))) ?? []
   return matched.length === 1 ? matched[0]!.points : null
@@ -93,7 +94,15 @@ export function mfmWargearOptionPoints(
   const item = grantedWargear(name)
   return item ? mfmWargearPoints(unit, item) : null
 }
+/** A Detachment's points and Enhancement prices: VS Data's for a Detachment it records, else the field manual's by name. */
 export function mfmDetachmentFor(loaded: LoadedCatalogue, catalogueId: string, name: string) {
+  const option = loaded.detachments.get(catalogueId)?.options.filter((candidate) => candidate.name === name)
+  const vsData = option?.length === 1 ? vsMfmDetachment(loaded.vsPoints, option[0]!.id) : null
+  return vsData ?? fieldManualDetachment(loaded, catalogueId, name)
+}
+
+/** A Detachment as the field manual prints it, by name, whose spellings imports also read. */
+export function fieldManualDetachment(loaded: LoadedCatalogue, catalogueId: string, name: string) {
   const faction = loaded.index.catalogues.get(catalogueId)
   return faction ? mfmDetachment(loaded.mfm, mfmSlugs(faction.name), name) : null
 }

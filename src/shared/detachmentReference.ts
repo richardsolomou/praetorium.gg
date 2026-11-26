@@ -6,6 +6,7 @@ import { detachmentPoints } from './detachmentPoints'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { type LoadedRules, rulesFaction } from './rules'
 import { detachmentNamed } from './factionReferences'
+import { vsMfmDetachment } from './vsDataPoints'
 import { enhancementKey, isUpgrade, mfmAttribution, mfmDetachmentFor, mfmEnhancementPoints, withoutUpgrade } from './mfm'
 import { factionContentOf } from './factionNames'
 
@@ -18,7 +19,10 @@ export function detachmentReference(loaded: LoadedCatalogue, rules: LoadedRules,
   const detail = detachmentNamed(rules.detachmentDetails.get(rulesId), option.name)
   const mfm = mfmDetachmentFor(loaded, catalogueId, option.name)
   const attribution = factionContentOf(loaded, faction.name)?.attribution
-  const sourceAttribution = [attribution ? null : 'Catalogue data from BSData/wh40k-11e', mfm ? mfmAttribution(loaded.mfm) : null]
+  const sourceAttribution = [
+    attribution ? null : 'Catalogue data from BSData/wh40k-11e',
+    mfm && !vsMfmDetachment(loaded.vsPoints, option.id) ? mfmAttribution(loaded.mfm) : null,
+  ]
     .filter(Boolean)
     .join('. ')
   const reference = detachmentNamed(rules.detachmentReferences.get(rulesId), option.name)

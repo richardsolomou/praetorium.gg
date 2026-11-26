@@ -33,9 +33,14 @@ type RosterRow = {
   edition: string
   /** Why the roster or a unit of it reads as no VS Data roster, such as a datasheet still on BSData. */
   gaps: string[]
-  points: { today: number; vsData: number } | null
+  /** `fieldManual` is the price with every datasheet on the field manual, as before VS Data priced lists. */
+  points: { today: number; fieldManual: number; vsData: number } | null
   /** Units whose price differs, as `name: today against VS Data`. */
   units: string[]
+  /** Units VS Data prices differently from the field manual, as `name: field manual to today`. */
+  repriced?: string[]
+  /** Errors the list has under VS Data's prices and not the field manual's, or the reverse. */
+  errorsChanged?: string[]
   legal: { today: boolean; vsData: boolean }
   /** What VS Data's checker reports, by code, and in its words. */
   problems: VsProblemCode[]
@@ -118,6 +123,14 @@ export const keptCheck = (message: string) =>
     message,
   )
 
+const fieldManualCopies = new WeakMap<LoadedCatalogue, LoadedCatalogue>()
+/** The catalogue as it priced lists from the field manual alone. */
+const withoutVsPoints = (loaded: LoadedCatalogue) => {
+  const { vsPoints: _, ...rest } = loaded
+  if (!fieldManualCopies.has(loaded)) fieldManualCopies.set(loaded, rest)
+  return fieldManualCopies.get(loaded)!
+}
+
 /** Every saved list read as a VS Data roster on its own rules version, priced and checked both ways. */
 export async function rosterParity(
   directory: string,
@@ -151,6 +164,7 @@ export async function rosterParity(
     const loaded = editions.catalogueFor(saved.catalogueId)
     const input = { ...savedRosterPriceInput(saved), includeUnitLimits: false }
     const price = loaded && calculateRosterPrice(input, loaded, editions.rulesFor(saved.catalogueId))
+    const fieldManual = loaded && calculateRosterPrice(input, withoutVsPoints(loaded), editions.rulesFor(saved.catalogueId))
     const edition = loaded?.edition?.id ?? baseEdition
     const definitions = definitionsFor(edition)
     const base = { kind: saved.kind, id: saved.id, edition }
@@ -192,12 +206,26 @@ export async function rosterParity(
     rows.push({
       ...base,
       gaps: gaps.map((gap) => gap.reason),
-      points: { today: price.points, vsData: vsPrice.points },
+      points: { today: price.points, fieldManual: fieldManual?.points ?? price.points, vsData: vsPrice.points },
       units: price.units.flatMap((unit) => {
         const vs = vsUnitOf.get(unit.key)
         return !vs || unit.points === vs.points || gaps.some((gap) => gap.unit === unit.key)
           ? []
           : [`${unit.name}: ${unit.points} against ${vs.points}${vs.unpriced.length ? ` (${vs.unpriced.join(', ')})` : ''}`]
+      }),
+      errorsChanged: (() => {
+        const said = (reported: readonly { entryName: string; message: string }[] = []) =>
+          reported.map((error) => `${error.entryName} ${error.message}`)
+        const before = said(fieldManual?.errors)
+        const after = said(price.errors)
+        return [
+          ...after.filter((error) => !before.includes(error)).map((error) => `+ ${error}`),
+          ...before.filter((error) => !after.includes(error)).map((error) => `- ${error}`),
+        ]
+      })(),
+      repriced: price.units.flatMap((unit) => {
+        const before = fieldManual?.units.find((candidate) => candidate.key === unit.key)?.points
+        return before === undefined || before === unit.points ? [] : [`${unit.name}: ${before} to ${unit.points}`]
       }),
       legal: { today, vsData: !problems.length },
       problems: [...new Set(problems.map((problem) => problem.code))],
@@ -217,6 +245,8 @@ export async function rosterParity(
       wholeRead: whole.length,
       pointsSame: count((row) => row.points!.today === row.points!.vsData),
       pointsDiffer: count((row) => row.points!.today !== row.points!.vsData),
+      repricedByVsData: all.filter((row) => row.points && row.points.today !== row.points.fieldManual).length,
+      errorsChangedByVsData: all.filter((row) => row.errorsChanged?.length).length,
       legalBoth: count((row) => row.legal.today && row.legal.vsData),
       illegalBoth: count((row) => !row.legal.today && !row.legal.vsData),
       illegalOnlyVsData: count((row) => row.legal.today && !row.legal.vsData),
