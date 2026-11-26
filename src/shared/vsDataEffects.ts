@@ -437,8 +437,8 @@ function effectOf(effect: VsDataEffect): CombatRuleEffect | null {
   return {
     ...applied,
     phases: attacks,
-    ...(weaponAbility ? { keyword: titleCaseAbility(weaponAbility) } : {}),
-    ...(weaponHas ? { requiresWeaponKeyword: titleCaseAbility(weaponHas) } : {}),
+    ...(weaponAbility ? { keyword: weaponAbility } : {}),
+    ...(weaponHas ? { requiresWeaponKeyword: weaponHas } : {}),
     ...(Object.keys(options).length ? { options } : {}),
     ...(characteristic
       ? {
@@ -577,12 +577,13 @@ function grantOf(grant: z.infer<typeof grantSchema>): WrittenAbilityGrant {
 const keywordGrantOf = ({ keyword: given, ...grant }: z.infer<typeof keywordGrantSchema>) =>
   grantOf({ ...grant, ability: titleCaseAbility(given) })
 /**
- * The grants a rule always makes, or makes on a unit it is attached to, as Praetorium checks. One VS Data marks
- * conditional otherwise, whether a unit the player picks before the battle or a triggered return from Strategic Reserves,
- * is left out: nothing tells which units it reaches or for how long.
+ * A deployment ability a rule grants only once something happens, as a return from Strategic Reserves, or only to a unit
+ * the player picks before the battle, is left out: a list's deployment options would read it as always held. VS Data
+ * marks either conditional, and a grant on the unit a model attaches to is one Praetorium checks itself.
  */
-const held = (grant: { conditional?: true; counterpart?: readonly string[]; whileAttached?: true }) =>
-  !grant.conditional || Boolean(grant.counterpart || grant.whileAttached)
+const DEPLOYMENT = /^(?:deep strike|scouts\b|infiltrators)/i
+const held = (grant: { ability?: string; keyword?: string; conditional?: true; counterpart?: readonly string[]; whileAttached?: true }) =>
+  !grant.conditional || Boolean(grant.counterpart || grant.whileAttached) || !DEPLOYMENT.test(grant.ability ?? grant.keyword ?? '')
 const statementOf = (
   abilities: readonly z.infer<typeof grantSchema>[] | null | undefined,
   keywords: readonly z.infer<typeof keywordGrantSchema>[] = [],

@@ -92,7 +92,7 @@ it('gives a keyword a rule grants as an ability of that name', () => {
   expect(facts.abilityGrants!.grants).toEqual([{ written: 'Mobile', recipient: 'unit' }])
 })
 
-it('leaves out a grant VS Data marks conditional, as a triggered return from Strategic Reserves', () => {
+it('leaves out a deployment ability VS Data grants conditionally, as after a return from Strategic Reserves', () => {
   const facts = textFactsOfVsData({ grants: { abilities: [{ ability: 'Deep Strike', to: 'unit', conditional: true }] } })
   expect(facts.abilityGrants!.grants).toEqual([])
 })
@@ -101,4 +101,9 @@ it('keeps a conditional grant whose condition is the unit it attaches to', () =>
   const grant = { ability: 'Deep Strike', to: 'bearer', conditional: true, counterpart: ['WORLD EATERS POSSESSED'] }
   const facts = textFactsOfVsData({ grants: { abilities: [grant] } })
   expect(facts.abilityGrants!.grants).toHaveLength(1)
+})
+
+it('keeps another ability VS Data grants conditionally, as Feel No Pain to the Officers a bodyguard shares a unit with', () => {
+  const grant = { ability: 'Feel No Pain 4+', to: 'models', models: 'OFFICER', conditional: true }
+  expect(textFactsOfVsData({ grants: { abilities: [grant] } }).abilityGrants!.grants).toHaveLength(1)
 })
