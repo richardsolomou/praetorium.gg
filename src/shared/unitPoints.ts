@@ -14,7 +14,18 @@ import type { Selection } from '../core/evaluate'
 import type { ChoiceOptions, UnitChoice } from '../core/unitChoices'
 import { vsMfmUnit } from './vsDataPoints'
 import { rosterDetachments } from './rosterDetachments'
-import { type mfmDetachmentFor, mfmEnhancementPoints, mfmPrice, mfmSlugs, type MfmUnit, mfmWargearOptionPoints } from './mfm'
+import { wargearOf } from '../core/wargear'
+import { wargearKey } from '../core/wargearNames'
+import {
+  type mfmDetachmentFor,
+  mfmEnhancementPoints,
+  mfmWargearPoints,
+  withoutUpgrade,
+  mfmPrice,
+  mfmSlugs,
+  type MfmUnit,
+  mfmWargearOptionPoints,
+} from './mfm'
 
 const cache = new WeakMap<LoadedCatalogue, Map<string, number>>()
 
@@ -161,6 +172,37 @@ export function mfmOptionPoints(
     (/enhancement|upgrade/i.test(choiceName) ? specialPoints(detachments, optionName) : null) ??
     mfmWargearOptionPoints(unit, optionName, pieces, selectedCount || 1)
   )
+}
+
+/**
+ * A datasheet's price as VS Data gives it, for a datasheet VS Data prices: the cost row for its size and copy in the
+ * list, every priced item it carries, by default or by choice, and the Enhancements and upgrades it takes. Null for a
+ * datasheet or size VS Data does not price, which the field manual's adjustments price instead.
+ */
+export function vsDataUnitPoints(
+  loaded: LoadedCatalogue,
+  primaryCatalogueId: string,
+  entryId: string,
+  detachmentIds: readonly string[],
+  detachments: readonly MfmDetachment[],
+  unit: { choices: readonly UnitChoice[]; selection: Selection; size: { models: number } },
+  copy: number,
+) {
+  const priced = vsMfmUnit(loaded.vsPoints, primaryCatalogueId, entryId, detachmentIds)
+  const base = priced && mfmPrice(priced, unit.size.models, copy)
+  if (!priced || base === null) return null
+  const specials = unit.choices
+    .filter((choice) => /enhancement|upgrade/i.test(choice.name))
+    .flatMap((choice) =>
+      choiceOptionsForPricing(choice)
+        .filter((option) => option.count > 0)
+        .map((option) => ({ name: option.name, points: (specialPoints(detachments, option.name) ?? option.points) * option.count })),
+    )
+  const specialNames = new Set(specials.map((special) => wargearKey(withoutUpgrade(special.name))))
+  const items = wargearOf(unit.selection, loaded.index)
+    .filter((piece) => !specialNames.has(wargearKey(piece.name)))
+    .reduce((total, piece) => total + (mfmWargearPoints(priced, piece.name) ?? 0) * piece.count, 0)
+  return base + items + specials.reduce((total, special) => total + special.points, 0)
 }
 
 /** What the field manual's option prices add to or take off a built unit's catalogue ones. */

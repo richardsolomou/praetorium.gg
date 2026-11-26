@@ -42,7 +42,14 @@ import { detachmentNamed } from './factionReferences'
 import { contextualUnitLimit, detachmentsUnlocking, shelfIn, unitIdsIn } from './cataloguePicker'
 import { isDetachmentWrapperLimit, rosterDetachments } from './rosterDetachments'
 import { detachmentPoints } from './detachmentPoints'
-import { choiceOptionsForPricing, mfmOptionAdjustment, mfmOptionPoints, mfmUnitFor, unitPointAdjustment } from './unitPoints'
+import {
+  choiceOptionsForPricing,
+  mfmOptionAdjustment,
+  mfmOptionPoints,
+  mfmUnitFor,
+  unitPointAdjustment,
+  vsDataUnitPoints,
+} from './unitPoints'
 import { isUpgrade, mfmDetachmentFor, withoutUpgrade } from './mfm'
 import { deploymentRules } from './rosterDeployment'
 import { combatFactsIn, grantsReserveExemptionIn, reminderIn, reserveSelectorsIn } from './textFacts'
@@ -259,14 +266,13 @@ function adjustUnitPoints(
     const sheetId = definition ? targetOf(definition, loaded.index.definitions).id : unit.entryId
     const copy = (copies.get(sheetId) ?? 0) + 1
     copies.set(sheetId, copy)
+    const vsData = vsDataUnitPoints(loaded, data.catalogueId, unit.entryId, data.detachmentIds, detachments, unit, copy)
     const mfmUnit = pickedMfmUnit(loaded, data, unit)
-    const optionDifference = mfmOptionAdjustment(loaded.index, unit, mfmUnit, detachments, {
-      primaryCatalogueId: data.catalogueId,
-      mustering: true,
-    })
     const difference =
-      unitPointAdjustment(loaded, data.catalogueId, catalogueId, unit.entryId, unit.size.models, copy, data.detachmentIds) +
-      optionDifference
+      vsData !== null
+        ? vsData - (pointsBySelection.get(unit.selection) ?? 0)
+        : unitPointAdjustment(loaded, data.catalogueId, catalogueId, unit.entryId, unit.size.models, copy, data.detachmentIds) +
+          mfmOptionAdjustment(loaded.index, unit, mfmUnit, detachments, { primaryCatalogueId: data.catalogueId, mustering: true })
     pointsBySelection.set(unit.selection, (pointsBySelection.get(unit.selection) ?? 0) + difference)
     adjustment += difference
   }

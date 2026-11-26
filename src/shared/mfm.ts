@@ -73,7 +73,7 @@ export function mfmEnhancementPoints(detachment: NonNullable<ReturnType<typeof m
   const matched = detachment.enhancements?.filter((enhancement) => enhancementKey(enhancement.name) === enhancementKey(name)) ?? []
   return matched.length === 1 ? matched[0]!.points : null
 }
-function mfmWargearPoints(unit: MfmUnit | null, name: string) {
+export function mfmWargearPoints(unit: MfmUnit | null, name: string) {
   const keys = new Set(normalizedNameVariants(name).map(joinKey))
   const matched = unit?.wargear?.filter((row) => normalizedNameVariants(row.item).some((variant) => keys.has(joinKey(variant)))) ?? []
   return matched.length === 1 ? matched[0]!.points : null

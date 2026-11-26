@@ -1781,3 +1781,63 @@ describe('a saved loadout applied to another roster', () => {
     expect(into(loaded, 1_000, [{ entryId: 'lord' }, { entryId: 'lord' }], loadout)).toEqual(['allows at most 2, has 3'])
   })
 })
+
+describe('a datasheet VS Data prices', () => {
+  const walker = {
+    id: 'walker',
+    name: 'Walker',
+    type: 'model' as const,
+    costs: pointsCost(100),
+    selectionEntryGroups: [
+      {
+        id: 'arms',
+        name: 'Arms',
+        defaultSelectionEntryId: 'claw',
+        constraints: [
+          { id: 'arms-min', type: 'min' as const, value: 1, field: 'selections', scope: 'parent' },
+          { id: 'arms-max', type: 'max' as const, value: 1, field: 'selections', scope: 'parent' },
+        ],
+        selectionEntries: [
+          { id: 'claw', name: 'Claw', type: 'upgrade' as const },
+          { id: 'lance', name: 'Lance', type: 'upgrade' as const, costs: pointsCost(15) },
+        ],
+      },
+    ],
+  }
+  const loaded = {
+    ...bookOf({ selectionEntries: [walker] }),
+    vsPoints: {
+      books: { cat: 'host' },
+      factions: { host: { name: 'Host' } },
+      units: {
+        walker: {
+          faction: 'host',
+          tiers: [{ copies: { from: 1 }, costs: [{ models: 1, points: 80 }] }],
+          wargear: [{ item: 'Lance', points: 10 }],
+        },
+      },
+      detachments: {},
+    },
+  }
+  const price = (choices?: Record<string, string>) =>
+    calculateRosterPrice(
+      {
+        catalogueId: 'cat',
+        detachmentIds: [],
+        disposition: null,
+        waivedRules: ['warlord'],
+        limit: 2000,
+        units: [{ entryId: 'walker', choices }],
+      },
+      loaded,
+      rulesWithout,
+    )?.points
+
+  it('costs its VS Data row, whatever the catalogue charges', () => {
+    expect(price()).toBe(80)
+  })
+
+  it('adds the VS Data price of a priced item it takes, once', () => {
+    expect(price({ arms: 'lance' })).toBe(90)
+  })
+})
