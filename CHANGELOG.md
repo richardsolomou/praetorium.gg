@@ -1,5 +1,15 @@
 # praetorium
 
+## 0.279.1 (2026-11-26)
+
+### Patch Changes
+
+- 4fb62fc: [reference] Psychic powers now appear with the other abilities on a datasheet.
+- 4fb62fc: [simulator] Psychic powers printed on a Psyker's datasheet, such as the Librarian in Phobos Armour's Soul Sight, can now be chosen in the simulator.
+- 7eeeb88: [simulator] Favoured Ka’tah: Rendax in Emperor’s Chosen is listed as not calculated again, instead of quietly adding no mortal wounds.
+- 7eeeb88: [simulator] Other rules the simulator can't yet work out, such as a vehicle's damaged profile, are listed as not calculated again instead of being left out.
+- 7eeeb88: [simulator] Vanguard Assault on a Vanguard Veteran Squad with Jump Packs is listed as not calculated again, instead of quietly adding no attacks.
+
 ## 0.279.0 (2026-11-26)
 
 ### Minor Changes
