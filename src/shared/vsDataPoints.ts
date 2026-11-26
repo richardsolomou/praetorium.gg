@@ -20,6 +20,11 @@ export type VsPointsIndex = {
 /** The frozen maps from BSData IDs to VS Data's (`catalogue/legacy-ids/`). */
 export type VsDataIds = Record<'books' | 'detachments' | 'units' | 'enhancements', Readonly<Record<string, string>>>
 
+/** Whether a cost row names the army or Detachment it is for, rather than nothing or the models it holds. */
+const circumstance = (composition: string | undefined) =>
+  composition !== undefined &&
+  (composition.startsWith('in an army of ') || /^in the .+ Detachment$/.test(composition) || composition.startsWith('as '))
+
 const priced = (points: PointsCost['points']) => (typeof points === 'number' ? points : null)
 
 /** The IDs a rules version's saved lists hold, each with the VS Data ID it reads as there: its own key first, then the bare one. */
@@ -64,6 +69,19 @@ export function vsPointsIndex(
       const points = priced(item.points)
       return points === null ? [] : [{ item: definitions.get('wargear', item.item)?.name ?? item.item, points }]
     })
+    // A size priced by its mix of models, which the field manual's shape cannot say, leaves the datasheet to it.
+    if (
+      tiers.some((tier) =>
+        tier.costs.some(
+          (cost) =>
+            !circumstance(cost.composition) &&
+            tier.costs.some(
+              (other) => other !== cost && other.models === cost.models && !circumstance(other.composition) && other.points !== cost.points,
+            ),
+        ),
+      )
+    )
+      continue
     units[entryId] = { faction: unit.data.faction, tiers, wargear }
   }
   const enhancementIds = [...idsIn(ids.enhancements, edition)]
@@ -78,10 +96,23 @@ export function vsPointsIndex(
       const points = pointsAt(definitions.points, { kind: 'enhancement', faction: detachment.data.faction, detachment: id, enhancement })
       const name = nameOf(option)
       if (!points.ok || !name) return []
-      const upgrade = definitions.get('enhancement', enhancement)?.data.type === 'upgrade'
+      const upgrade = definitions.points.some((snapshot) =>
+        snapshot.factions.some((faction) =>
+          faction.detachments.some(
+            (candidate) => candidate.id === id && candidate.enhancements.some((entry) => entry.id === enhancement && entry.upgrade),
+          ),
+        ),
+      )
       return [{ name: upgrade && !/\(upgrade\)$/i.test(name) ? `${name} (Upgrade)` : name, points: points.points }]
     })
-    detachments[optionId] = { faction: detachment.data.faction, name: detachment.name, dp: found.ok ? found.points : null, enhancements }
+    // Several BSData options can name one Enhancement; the builder looks it up by name, once.
+    const named = [...new Map(enhancements.map((entry) => [entry.name, entry])).values()]
+    detachments[optionId] = {
+      faction: detachment.data.faction,
+      name: detachment.name,
+      dp: found.ok ? found.points : null,
+      enhancements: named,
+    }
   }
   const factions = Object.fromEntries(
     definitions
@@ -128,3 +159,11 @@ export const vsMfmDetachment = (index: VsPointsIndex | undefined, detachmentId: 
   const detachment = index?.detachments[detachmentId]
   return detachment && detachment.dp !== null ? { name: detachment.name, dp: detachment.dp, enhancements: detachment.enhancements } : null
 }
+
+/** Whether VS Data prices the datasheet differently in some Detachment, so a list price must be read in the list's. */
+export const vsDetachmentPriced = (index: VsPointsIndex | undefined, entryId: string) =>
+  Boolean(
+    index?.units[entryId]?.tiers.some((tier) =>
+      tier.costs.some((cost) => cost.composition && /^in the .+ Detachment$/.test(cost.composition)),
+    ),
+  )

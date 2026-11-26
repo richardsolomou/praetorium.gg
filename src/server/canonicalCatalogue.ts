@@ -407,7 +407,13 @@ export function* canonicalCatalogueSteps(
           ? []
           : [{ models: String(smallest), cost: String(described.points), keyword: null, faction: null, detachment: null }]
       const sourceCosts = mfmUnit ? mfmCostRows(mfmUnit) : cardsCosts.length ? cardsCosts : definitionCosts
-      const costSource: CanonicalSourceName = mfmUnit ? 'points' : cardsCosts.length ? 'datacards' : 'definitions'
+      const costSource: CanonicalSourceName = mfmUnit
+        ? vsDataPriced(loaded, entryId)
+          ? 'summaries'
+          : 'points'
+        : cardsCosts.length
+          ? 'datacards'
+          : 'definitions'
       const costPoint = singleUnqualifiedPoint(sourceCosts)
       const points = sourceCosts.length ? costPoint : described.points
       const usesDatacards = Boolean(

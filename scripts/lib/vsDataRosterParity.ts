@@ -39,6 +39,8 @@ type RosterRow = {
   units: string[]
   /** Units VS Data prices differently from the field manual, as `name: field manual to today`. */
   repriced?: string[]
+  /** Errors the list has under VS Data's prices and not the field manual's, or the reverse. */
+  errorsChanged?: string[]
   legal: { today: boolean; vsData: boolean }
   /** What VS Data's checker reports, by code, and in its words. */
   problems: VsProblemCode[]
@@ -211,6 +213,16 @@ export async function rosterParity(
           ? []
           : [`${unit.name}: ${unit.points} against ${vs.points}${vs.unpriced.length ? ` (${vs.unpriced.join(', ')})` : ''}`]
       }),
+      errorsChanged: (() => {
+        const said = (errors: readonly { entryName: string; message: string }[] = []) =>
+          errors.map((error) => `${error.entryName} ${error.message}`)
+        const before = said(fieldManual?.errors)
+        const after = said(price.errors)
+        return [
+          ...after.filter((error) => !before.includes(error)).map((error) => `+ ${error}`),
+          ...before.filter((error) => !after.includes(error)).map((error) => `- ${error}`),
+        ]
+      })(),
       repriced: price.units.flatMap((unit) => {
         const before = fieldManual?.units.find((candidate) => candidate.key === unit.key)?.points
         return before === undefined || before === unit.points ? [] : [`${unit.name}: ${before} to ${unit.points}`]
@@ -234,6 +246,7 @@ export async function rosterParity(
       pointsSame: count((row) => row.points!.today === row.points!.vsData),
       pointsDiffer: count((row) => row.points!.today !== row.points!.vsData),
       repricedByVsData: all.filter((row) => row.points && row.points.today !== row.points.fieldManual).length,
+      errorsChangedByVsData: all.filter((row) => row.errorsChanged?.length).length,
       legalBoth: count((row) => row.legal.today && row.legal.vsData),
       illegalBoth: count((row) => !row.legal.today && !row.legal.vsData),
       illegalOnlyVsData: count((row) => row.legal.today && !row.legal.vsData),

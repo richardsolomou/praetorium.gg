@@ -13,9 +13,7 @@ const definitions = vsDataDefinitions({
     unit: {
       'host.tank': record('Tank', { faction: 'host', keywords: [], sizes: [1] }),
       'host.relic-tank': record('Relic Tank', { faction: 'host', keywords: [], sizes: [1], legends: true }),
-    },
-    enhancement: {
-      'host.guard.banner': record('Banner', { detachment: 'host.guard', type: 'upgrade', eligibility: { anyOf: [] } }),
+      'host.pack': record('Pack', { faction: 'host', keywords: [], sizes: [3, 6] }),
     },
   },
   points: [
@@ -41,6 +39,20 @@ const definitions = vsDataDefinitions({
               ],
             },
             { id: 'host.relic-tank', name: 'Relic Tank', tiers: [{ copies: { from: 1 }, costs: [{ models: 1, points: 200 }] }] },
+            {
+              id: 'host.pack',
+              name: 'Pack',
+              tiers: [
+                {
+                  copies: { from: 1 },
+                  costs: [
+                    { models: 3, points: 60 },
+                    { composition: '3 Hunter, 3 Hound', models: 6, points: 115 },
+                    { composition: '6 Hunter, 0 Hound', models: 6, points: 170 },
+                  ],
+                },
+              ],
+            },
           ],
         },
       ],
@@ -52,13 +64,14 @@ const names: Record<string, string> = {
   'bs-relic': 'Relic Tank [Legends]',
   'bs-old': 'Old Tank [Legends]',
   'bs-banner': 'Banner',
+  'bs-pack': 'Pack',
 }
 const index = vsPointsIndex(
   definitions,
   {
     books: { 'bs-host': 'host', 'bs-other': 'other' },
     detachments: { 'bs-guard': 'host.guard' },
-    units: { 'bs-tank': 'host.tank', 'bs-relic': 'host.relic-tank', 'bs-old': 'host.tank' },
+    units: { 'bs-tank': 'host.tank', 'bs-relic': 'host.relic-tank', 'bs-old': 'host.tank', 'bs-pack': 'host.pack' },
     enhancements: { 'host.guard/bs-banner': 'host.guard.banner' },
   },
   null,
@@ -88,13 +101,17 @@ describe('vsMfmUnit', () => {
     expect(vsMfmUnit(index, 'bs-host', 'bs-old')).toBeNull()
   })
 
+  it('leaves a datasheet whose price at a size turns on its mix of models to the field manual', () => {
+    expect(vsMfmUnit(index, 'bs-host', 'bs-pack')).toBeNull()
+  })
+
   it('prices a Legends datasheet VS Data marks Legends', () => {
     expect(price('bs-host', 'bs-relic')).toBe(200)
   })
 })
 
 describe('vsMfmDetachment', () => {
-  it('names an upgrade as the field manual does, so the builder knows it for one', () => {
+  it('names an upgrade as the field manual does, from its points, so the builder knows it for one', () => {
     expect(vsMfmDetachment(index, 'bs-guard')).toEqual({ name: 'Guard', dp: 2, enhancements: [{ name: 'Banner (Upgrade)', points: 10 }] })
   })
 })

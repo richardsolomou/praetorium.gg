@@ -6,6 +6,7 @@ import { detachmentPoints } from './detachmentPoints'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { type LoadedRules, rulesFaction } from './rules'
 import { detachmentNamed } from './factionReferences'
+import { vsMfmDetachment } from './vsDataPoints'
 import { enhancementKey, isUpgrade, mfmAttribution, mfmDetachmentFor, mfmEnhancementPoints, withoutUpgrade } from './mfm'
 import { factionContentOf } from './factionNames'
 

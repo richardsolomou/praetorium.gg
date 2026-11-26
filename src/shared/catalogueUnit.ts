@@ -5,7 +5,8 @@ import { isNonMatchedPlayName } from '../core/name'
 import { buildUnit } from '../core/roster'
 import { unitReadsRoster } from '../core/unitRosterDependence'
 import type { LoadedCatalogue } from './catalogueIndex'
-import { mfmOptionAdjustment, mfmUnitFor, unitPointAdjustment } from './unitPoints'
+import { mfmOptionAdjustment, mfmUnitFor, unitPointAdjustment, vsDataUnitPoints } from './unitPoints'
+import { vsDetachmentPriced } from './vsDataPoints'
 
 export const isMatchedPlayDatasheet = (index: CatalogueIndex, entry: Definition) => isOfferedDatasheet(index, entry, false)
 
@@ -52,7 +53,7 @@ export function rosterPrices(
   const tiered = (mfmUnitFor(loaded, catalogueId, entryId)?.pricing.length ?? 0) >= 2
   const copies = tiered ? pricedCopies : [1]
   const size = battleSize ? [battleSize] : []
-  const changesWithDetachment = unitReadsRoster(entryId, loaded.index, detachments)
+  const changesWithDetachment = unitReadsRoster(entryId, loaded.index, detachments) || vsDetachmentPriced(loaded.vsPoints, entryId)
   const base = !changesWithDetachment && unitReadsRoster(entryId, loaded.index, size) ? size : []
   if (!changesWithDetachment && !base.length && !tiered)
     return { points: listPriceOf(loaded, catalogueId, entryId), laterCopyPoints: undefined }
@@ -76,6 +77,9 @@ function copyPrices(
   // A datasheet's listed price is the Munitorum's, for the unit at its floor; a default that costs more is charged once fielded.
   const built = buildUnit(entryId, loaded.index, undefined, undefined, { ...options, floor: true })
   if (!built) return null
+  const detachmentIds = detachmentIdsIn(loaded, catalogueId, roster)
+  const vsData = copies.map((copy) => vsDataUnitPoints(loaded, catalogueId, entryId, detachmentIds, [], built, copy))
+  if (vsData.every((points) => points !== null)) return vsData as number[]
   const mfmUnit = mfmUnitFor(loaded, catalogueId, entryId)
   const wargearAdjustment = mfmOptionAdjustment(loaded.index, built, mfmUnit, [], options)
   return copies.map((copy) => {
@@ -86,4 +90,16 @@ function copyPrices(
       wargearAdjustment
     )
   })
+}
+
+/** The Detachment options a list's roster selections hold. */
+function detachmentIdsIn(loaded: LoadedCatalogue, catalogueId: string, roster: readonly Selection[]) {
+  const options = new Set(loaded.detachments.get(catalogueId)?.options.map((option) => option.id))
+  const found: string[] = []
+  const walk = (selection: Selection) => {
+    if (options.has(selection.id)) found.push(selection.id)
+    selection.selections?.forEach(walk)
+  }
+  roster.forEach(walk)
+  return found
 }
