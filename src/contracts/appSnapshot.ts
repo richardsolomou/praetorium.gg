@@ -19,7 +19,6 @@ export const PUBLIC_REFERENCE_QUERIES = new Set([
   'deployments',
   'rule-index',
   'rule-section',
-  'text-sources',
   'rule-summary-records',
   'rule-summary-credits',
   'rule-ability-summaries',
@@ -27,6 +26,7 @@ export const PUBLIC_REFERENCE_QUERIES = new Set([
   'rule-units',
   'import-translations',
 ])
+const RETIRED_QUERIES = new Set(['battle-audience', 'text-sources'])
 export const APP_SNAPSHOT_QUERIES = new Set([
   ...PUBLIC_APP_QUERIES,
   'me',
@@ -96,9 +96,9 @@ export function parseAppSnapshot(value: unknown): AppSnapshot | null {
   const result = snapshotSchema.safeParse(value)
   if (!result.success) return null
   const snapshot = result.data
-  // Reference queries come from the download, and battle audience is retired; snapshots saved by earlier releases may still carry them.
+  // Reference queries come from the download, and the others are retired; snapshots saved by earlier releases may still carry them.
   snapshot.queries = snapshot.queries.filter(
-    (query) => !PUBLIC_REFERENCE_QUERIES.has(String(query.key[0])) && query.key[0] !== 'battle-audience',
+    (query) => !PUBLIC_REFERENCE_QUERIES.has(String(query.key[0])) && !RETIRED_QUERIES.has(String(query.key[0])),
   )
   const me = snapshot.queries.find((query) => query.key[0] === 'me')?.data as { id?: unknown; impersonatedBy?: unknown } | null | undefined
   if (snapshot.owner ? me?.id !== snapshot.owner || Boolean(me.impersonatedBy) : me != null) return null
