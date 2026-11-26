@@ -130,32 +130,38 @@ export function BattleShelf({
                       params={{ token: battle.token }}
                       data-battle-status={battle.status}
                       className={cn(
-                        'grid min-h-16 min-w-0 grid-cols-[4.75rem_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 py-3 pl-2 @2xl:grid-cols-[4.75rem_minmax(0,1fr)_auto_14rem] @2xl:gap-x-4',
+                        'grid min-h-16 min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 py-3 pl-2 @2xl:grid-cols-[4.75rem_minmax(0,1fr)_auto_14rem] @2xl:gap-x-4',
                         menus ? 'pr-9' : 'pr-2',
                       )}
                     >
-                      {/* Explicit grid lines throughout: a span utility at a breakpoint resets the start line it sat beside. */}
-                      <span className="col-[1] row-[1/4] @2xl:row-[1/3]">
+                      {/*
+                       * Explicit grid lines throughout: a span utility at a breakpoint resets the start line it sat beside.
+                       * A narrow row gives the names the width and says the outcome in its last line instead.
+                       */}
+                      <span className="hidden @2xl:col-[1] @2xl:row-[1/3] @2xl:block">
                         <StatusChip name={stage.name} className={stage.tint} />
                       </span>
-                      <span className="col-[2] row-[1] truncate text-[0.9375rem] leading-tight">
+                      <span className="col-[1] row-[1] truncate text-[0.9375rem] leading-tight @2xl:col-[2]">
                         <Names battle={battle} side={ours} ratings />
                         <span className="text-faint"> vs </span>
                         <Names battle={battle} side={theirs} ratings />
                       </span>
                       {battle.status === 'setup' ? null : (
-                        <span className="figure col-[3] row-[1] text-2xl leading-none whitespace-nowrap @2xl:row-[1/3] @2xl:text-3xl">
+                        <span className="figure col-[2] row-[1] text-xl leading-none whitespace-nowrap @2xl:col-[3] @2xl:row-[1/3] @2xl:text-3xl">
                           <Score side={ours} lost={lost(ours)} />
                           <span className="px-1 text-base text-faint @2xl:text-xl">–</span>
                           <Score side={theirs} lost={lost(theirs)} />
                         </span>
                       )}
-                      <span className="col-[2/4] row-[2] truncate text-2xs text-dim @2xl:col-[2]">
+                      <span className="col-[1/3] row-[2] truncate text-2xs text-dim @2xl:col-[2]">
                         <Armies side={ours} />
                         <span className="text-faint"> vs </span>
                         <Armies side={theirs} />
                       </span>
-                      <span className="col-[2/4] row-[3] flex min-w-0 text-2xs text-faint @2xl:hidden">
+                      <span className="col-[1/3] row-[3] flex min-w-0 text-2xs text-faint @2xl:hidden">
+                        <span className={cn("shrink-0 font-medium after:px-[0.25em] after:text-faint after:content-['·']", stage.tint)}>
+                          {stage.name}
+                        </span>
                         {detail ? <span className="truncate">{detail}</span> : null}
                         <span className={cn('flex shrink-0', detail && "before:px-[0.25em] before:content-['·']")}>{when}</span>
                       </span>
