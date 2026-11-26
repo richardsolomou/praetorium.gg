@@ -7,7 +7,7 @@ import { Keyword, type KeywordRule } from './Keyword'
 import { RuleMarkup } from './RuleMarkup'
 import { useAbilitySummary } from '../ruleSummaries'
 import { RuleSummarySkeleton, RuleSummaryText } from './RuleSummaryText'
-import { useDatasheetAbilitySummary, useUnitAbilitySummary } from './UnitFromVsData'
+import { useDatasheetAbilitySummary, useUnitAbilitySummary, useVsDataSummaries } from './UnitFromVsData'
 import { hasTextTokens } from '../../core/sourceText'
 
 const noRules: KeywordRule[] = []
@@ -114,6 +114,23 @@ export function RuleText({
   // A rule with no text of its own, such as a core ability a faction lists, is VS Data's rule of its name.
   if (hasTextTokens(text) || (!text && name)) return <SummarizedRule text={text} className={className} name={name} abilityId={abilityId} />
   return authored ? <RuleTextBody text={text} rules={rules} className={className} /> : null
+}
+
+/** A rule VS Data publishes, by its VS Data id in the rules version `catalogueId` is of. */
+export function SummaryById({
+  catalogueId,
+  id,
+  className,
+  fallback = null,
+}: {
+  catalogueId: string
+  id: string
+  className?: string
+  fallback?: ReactNode
+}) {
+  const summary = useVsDataSummaries(catalogueId, [id])(id)
+  if (summary === undefined) return <RuleSummarySkeleton className={className} />
+  return summary ? <RuleSummaryText summary={summary} className={className} /> : fallback
 }
 
 /** A rule the catalogue prints no text for, by its owner's VS Data record of that name inside `DatasheetUnit`. */

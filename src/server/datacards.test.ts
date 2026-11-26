@@ -542,7 +542,7 @@ it('reads army-construction numbers without trusting malformed alternatives', ()
     factionScopedEnhancement: [
       { name: 'Shared Relic', detachment: 'Shared Detachment', points: 10, description: 'One relic.', eligibility: null },
     ],
-    factionScopedRule: [{ name: 'Shared Rule', description: 'One rule.' }],
+    factionScopedRule: [{ name: 'Shared Rule', description: 'One rule.', aliases: ['gdc.detachment.rule.undefined.shared.rule'] }],
   })
 })
 

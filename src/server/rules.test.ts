@@ -966,3 +966,29 @@ it('offers no Stratagems from a snapshot that holds no VS Data release', () => {
   fs.rmSync(path.join(directory, 'summaries'), { recursive: true })
   expect(loadRules(directory)?.byDetachment.get('death-guard')?.get('flyblown-host') ?? []).toEqual([])
 })
+
+it('names a detachment rule by the VS Data id its card’s alias resolves to, whatever VS Data calls it', () => {
+  const datacards = path.join(directory, 'datacards', '11th', 'gdc')
+  const file = JSON.parse(fs.readFileSync(path.join(datacards, 'deathguard.json'), 'utf8'))
+  write(path.join(datacards, 'deathguard.json'), {
+    ...file,
+    rules: {
+      detachment: [
+        {
+          detachment: 'Flyblown Host',
+          detachment_id: 'a1b2-c3d4',
+          rules: [{ name: { en: 'Nurgle’s Gift' }, rules: [{ order: 1, type: 'text', text: { en: 'Spread the gift.' } }] }],
+        },
+      ],
+    },
+  })
+  const summaries = path.join(directory, 'summaries', `${base.edition.id}.json`)
+  const file2 = JSON.parse(fs.readFileSync(summaries, 'utf8'))
+  write(summaries, {
+    ...file2,
+    entries: { ...file2.entries, 'ability:death-guard.flyblown-host.the-gift-of-nurgle': ['gdc.detachment.rule.a1b2.c3d4.nurgle.s.gift'] },
+  })
+  expect(rules().detachmentDetails.get('death-guard')?.get('flyblown-host')?.rules[0]?.vsDataId).toBe(
+    'death-guard.flyblown-host.the-gift-of-nurgle',
+  )
+})

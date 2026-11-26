@@ -13,7 +13,8 @@ import { factionQuery, detachmentDetailQuery, detachmentRulesQuery, loadoutDatas
 import { ruleAbilitySummariesQuery, ruleUnitsQuery } from '../../queries/references'
 import { DatasheetUnit, datasheetUnit } from '../../components/UnitFromVsData'
 import type { priceRoster } from '../../functions'
-import { RuleText } from '../../components/RuleText'
+import { RuleText, SummaryById } from '../../components/RuleText'
+import { useVsDataSummaries } from '../../components/UnitFromVsData'
 import { useRuleSummariesSettled } from '../../ruleSummaries'
 import { ruleProfileSections, weaponShapedProfile } from '../../datasheet'
 import { PRINTED_RULE, RosterPrintDatasheet } from './RosterPrintDatasheet'
@@ -144,15 +145,26 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
       ]),
     ),
     ...pack.faction.armyRules.map((rule) => rule.description),
-    ...pack.detachments.flatMap((detachment) => detachment.rules.flatMap((rule) => (rule.description ? [rule.description] : []))),
-    ...pack.cards.written.flatMap((card) => (card.description ? [card.description] : [])),
+    ...pack.detachments.flatMap((detachment) =>
+      detachment.rules.flatMap((rule) => (rule.description && !rule.vsDataId ? [rule.description] : [])),
+    ),
     ...referencedRulesOf(pack).map((rule) => rule.description),
+  ]
+  // And every card it prints by VS Data id: its detachment rules and Stratagems.
+  const printedIds = (pack: Pack) => [
+    ...pack.detachments.flatMap((detachment) => detachment.rules.flatMap((rule) => (rule.vsDataId ? [rule.vsDataId] : []))),
+    ...[...pack.cards.core, ...pack.cards.stratagems].map((stratagem) => currentStratagemId(stratagem.key)),
   ]
 
   // A rule with no text of its own prints VS Data's ability of its name, so the pack waits for those too.
   const named = Boolean(data && [...data.faction.armyRules, ...referencedRulesOf(data)].some((rule) => !rule.description))
   const abilities = useQuery({ ...ruleAbilitySummariesQuery(), enabled: named })
-  const settled = useRuleSummariesSettled(data ? printedTexts(data) : []) && !(named && abilities.isPending)
+  const ids = data ? printedIds(data) : []
+  const summaryOf = useVsDataSummaries(input.catalogueId, ids)
+  const settled =
+    useRuleSummariesSettled(data ? printedTexts(data) : []) &&
+    !(named && abilities.isPending) &&
+    ids.every((id) => summaryOf(id) !== undefined)
   usePrintWhenReady(Boolean(data) && settled)
 
   if (!data)
@@ -286,8 +298,15 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
                   detachment.rules.map((rule) => (
                     <section className="pack-rule" key={rule.name}>
                       <h3>{rule.name}</h3>
-                      {rule.description ? (
-                        <RuleText text={rule.description} className={PRINTED_RULE} />
+                      {rule.vsDataId ? (
+                        <SummaryById
+                          catalogueId={input.catalogueId}
+                          id={rule.vsDataId}
+                          className={PRINTED_RULE}
+                          fallback={<p>No description is available.</p>}
+                        />
+                      ) : rule.description ? (
+                        <RuleText text={rule.description} name={rule.name} className={PRINTED_RULE} />
                       ) : (
                         <p>No description is available.</p>
                       )}
@@ -312,11 +331,12 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
                   <p className="pack-meta">
                     {[stratagem.detachment, written?.type, ...stratagemTiming(stratagem)].filter(Boolean).join(' · ')}
                   </p>
-                  {written?.description ? (
-                    <RuleText text={written.description} className={PRINTED_RULE} />
-                  ) : (
-                    <p>No description is available.</p>
-                  )}
+                  <SummaryById
+                    catalogueId={input.catalogueId}
+                    id={currentStratagemId(stratagem.key)}
+                    className={PRINTED_RULE}
+                    fallback={<p>No description is available.</p>}
+                  />
                 </section>
               )
             })}
