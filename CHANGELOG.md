@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.278.0 (2026-11-26)
+
+### Minor Changes
+
+- 5d7e405: [assistant] Assistants connected to Praetorium now read the same plain-language rule summaries its pages show for abilities, Stratagems, Enhancements, Detachment rules, mission cards and core rules, and answer rules questions from them.
+
 ## 0.277.18 (2026-11-26)
 
 ### Patch Changes
