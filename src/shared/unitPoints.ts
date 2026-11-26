@@ -131,11 +131,10 @@ function computeUnitPointAdjustment(
     : (cardPoints(loaded, catalogueId, entryId, models) ?? (fixed ? cardPoints(loaded, catalogueId, entryId, 1) : null))
   if (price === null) return 0
   const comparableCopies = Math.min(copy, 6)
-  const evaluated = evaluate(
-    [...roster, ...Array.from({ length: comparableCopies }, () => built.selection)],
-    loaded.index,
-    { primaryCatalogueId, mustering: true },
-  )
+  const evaluated = evaluate([...roster, ...Array.from({ length: comparableCopies }, () => built.selection)], loaded.index, {
+    primaryCatalogueId,
+    mustering: true,
+  })
   const cataloguePrice = evaluated.selectionPoints[0]?.[roster.length + comparableCopies - 1]
   return !evaluated.unhandled.length && cataloguePrice !== undefined ? price - cataloguePrice : 0
 }

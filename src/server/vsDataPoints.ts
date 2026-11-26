@@ -23,14 +23,16 @@ const ids: VsDataIds = {
  */
 export function vsPointsIn(directory: string, index: CatalogueIndex, editionId?: string): VsPointsIndex | null {
   const root = editionId && path.basename(path.dirname(directory)) === 'editions' ? path.resolve(directory, '..', '..') : directory
-  const entry = readCatalogueComposition(root)?.editions.find((candidate) => (editionId ? candidate.edition.id === editionId : candidate.base))
+  const entry = readCatalogueComposition(root)?.editions.find((candidate) =>
+    editionId ? candidate.edition.id === editionId : candidate.base,
+  )
   const id = entry?.summaries ?? entry?.edition.id ?? editionId
   const file = id ? path.join(root, 'summaries', `${id}.construction.json`) : null
   if (!file || !fs.existsSync(file)) return null
   const definitions = vsDataDefinitions(vsDataConstructionSchema.parse(JSON.parse(fs.readFileSync(file, 'utf8'))))
-  const optionName = (optionId: string) => {
-    const definition = index.definitions.get(optionId)
+  const name = (entryId: string) => {
+    const definition = index.definitions.get(entryId)
     return definition && nameOf(definition, index.definitions)
   }
-  return vsPointsIndex(definitions, ids, entry && !entry.base ? entry.edition.id : null, optionName)
+  return vsPointsIndex(definitions, ids, entry && !entry.base ? entry.edition.id : null, name)
 }

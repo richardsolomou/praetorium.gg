@@ -37,6 +37,8 @@ type RosterRow = {
   points: { today: number; fieldManual: number; vsData: number } | null
   /** Units whose price differs, as `name: today against VS Data`. */
   units: string[]
+  /** Units VS Data prices differently from the field manual, as `name: field manual to today`. */
+  repriced?: string[]
   legal: { today: boolean; vsData: boolean }
   /** What VS Data's checker reports, by code, and in its words. */
   problems: VsProblemCode[]
@@ -208,6 +210,10 @@ export async function rosterParity(
         return !vs || unit.points === vs.points || gaps.some((gap) => gap.unit === unit.key)
           ? []
           : [`${unit.name}: ${unit.points} against ${vs.points}${vs.unpriced.length ? ` (${vs.unpriced.join(', ')})` : ''}`]
+      }),
+      repriced: price.units.flatMap((unit) => {
+        const before = fieldManual?.units.find((candidate) => candidate.key === unit.key)?.points
+        return before === undefined || before === unit.points ? [] : [`${unit.name}: ${before} to ${unit.points}`]
       }),
       legal: { today, vsData: !problems.length },
       problems: [...new Set(problems.map((problem) => problem.code))],
