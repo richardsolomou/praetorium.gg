@@ -192,11 +192,17 @@ describe.skipIf(!fs.existsSync(directory))('simulator catalogue projections', ()
   })
 
   it("gives Imperial Navy Breachers' Endurant shield invulnerable save only to the model holding it", () => {
-    const groups = combatUnitTarget(side('Agents of the Imperium', ['Imperial Navy Breachers']).snapshot, 'ranged').target?.groups
-    expect(groups?.map((group) => [group.models, group.invulnerable])).toEqual([
-      [9, null],
+    const groups = fight(marines(), side('Agents of the Imperium', ['Imperial Navy Breachers'])).request.ranged?.target.groups
+    expect(groups?.map((group) => [group.models, group.invulnerable]).toSorted()).toEqual([
       [1, 4],
+      [9, null],
     ])
+  })
+
+  it("re-rolls only the Sisters Repentia's attacks for Overseer of Redemption, not the Repentia Superior's", () => {
+    const { request } = fight(side('Adepta Sororitas', ['Repentia Squad']), marines())
+    const rerolls = request.melee!.weapons.map((weapon) => weapon.hitReroll ?? request.melee!.options.hitReroll ?? 'none')
+    expect(rerolls.toSorted()).toEqual(['failed', 'none'])
   })
 
   it("keeps a Canoptek Reanimator's Feel No Pain 4+ among the defender's rules", () => {

@@ -94,13 +94,14 @@ export function combatUnitTarget(defender: CombatMember, phase?: CombatPhase, at
       bodyguard: members[index]!.bodyguard ?? index === 0,
       character: members[index]!.sheet.keywords.some((keyword) => keyword.toLowerCase() === 'character'),
       damage: at === 0 ? (members[index]!.damage ?? 0) : 0,
-      feelNoPain: part.target!.feelNoPain,
-      psychicFeelNoPain: part.target!.psychicFeelNoPain ?? null,
-      mortalFeelNoPain: part.target!.mortalFeelNoPain ?? null,
+      // A group's own defences, as those of the models an effect limited to some reaches, stand over its member's.
+      feelNoPain: group.feelNoPain !== undefined ? group.feelNoPain : part.target!.feelNoPain,
+      psychicFeelNoPain: (group.psychicFeelNoPain !== undefined ? group.psychicFeelNoPain : part.target!.psychicFeelNoPain) ?? null,
+      mortalFeelNoPain: (group.mortalFeelNoPain !== undefined ? group.mortalFeelNoPain : part.target!.mortalFeelNoPain) ?? null,
       unit: members[index]!.sheet.name,
       ...grantedFeelNoPain(part.grants, part.keywords[at] ?? []),
-      damageReduction: part.target!.damageReduction ?? 0,
-      damageDivisor: part.target!.damageDivisor ?? 1,
+      damageReduction: group.damageReduction ?? part.target!.damageReduction ?? 0,
+      damageDivisor: group.damageDivisor ?? part.target!.damageDivisor ?? 1,
     })),
   )
   const target: CombatInput['target'] = { groups, feelNoPain: null }
@@ -121,6 +122,19 @@ export function combatUnitTarget(defender: CombatMember, phase?: CombatPhase, at
  * each marks the carriers it reaches, a carrier only some of whose models hold it splits in two, an effect reaching every
  * model is one of the unit's and one reaching none is left out.
  */
+/** The defences an allocation group holds for itself; an effect limited to some models changing others stays the unit's. */
+const GROUP_DEFENCES = [
+  'invulnerable',
+  'save',
+  'improveSave',
+  'toughness',
+  'feelNoPain',
+  'psychicFeelNoPain',
+  'mortalFeelNoPain',
+  'damageReduction',
+  'damageDivisor',
+] as const satisfies readonly (keyof CombatRuleEffect)[]
+
 function limitedDefences(member: CombatMember) {
   const marks = new Map<string, string>()
   const effects = new Map<CombatRuleEffect, string>()
@@ -129,27 +143,40 @@ function limitedDefences(member: CombatMember) {
   const rules = (member.rules ?? []).map((rule) => ({
     ...rule,
     effects: rule.effects.flatMap((effect) => {
-      const models = effect.role === 'defender' ? effectModels(effect, rule, member) : undefined
+      const models =
+        effect.role === 'defender' && GROUP_DEFENCES.some((field) => effect[field] !== undefined)
+          ? effectModels(effect, rule, member)
+          : undefined
       if (!models) return [effect]
       const reached = fielded.length ? fielded.map(models) : [models({ name: member.sheet.name, models: 1, weapons: [] }) ? 1 : 0]
       if (reached.every((count) => !count)) return []
       if (!fielded.length || reached.every((count, at) => count === fielded[at]!.models)) return [effect]
       // Effects limited alike, as a wargear's invulnerable save and Feel No Pain, mark the same models once.
-      const mark = `\u0000${JSON.stringify([effect.modelKeywords, effect.excludedModelKeywords, effect.bearerOnly && rule.heldBy])}`
+      const bearer = effect.bearerOnly ? rule.heldBy : undefined
+      const mark = `\u0000${JSON.stringify([effect.modelKeywords, effect.excludedModelKeywords, bearer])}`
       effects.set(effect, mark)
       if (marks.has(mark)) return [effect]
       marks.set(mark, rule.name)
       carriers = carriers.flatMap((carrier) => {
         const count = carrier.models > 0 && !carrier.unitWide ? Math.min(carrier.models, models(carrier)) : 0
         const marked = { ...carrier, keywords: [...(carrier.keywords ?? []), mark] }
-        return !count
-          ? [carrier]
-          : count === carrier.models
-            ? [marked]
-            : [
-                { ...marked, models: count },
-                { ...carrier, models: carrier.models - count },
-              ]
+        if (!count) return [carrier]
+        if (count === carrier.models) return [marked]
+        // Which of the models hold another wargear is not known: the rest hold it first, so no model counts twice.
+        const rest = carrier.models - count
+        const holders = (part: number, start: number) =>
+          carrier.abilities && {
+            abilities: Object.fromEntries(
+              Object.entries(carrier.abilities).map(([id, held]) => [
+                id,
+                id === bearer ? (start ? part : 0) : Math.max(0, Math.min(part, held - start)),
+              ]),
+            ),
+          }
+        return [
+          { ...marked, models: count, ...holders(count, rest) },
+          { ...carrier, models: rest, ...holders(rest, 0) },
+        ]
       })
       return [effect]
     }),

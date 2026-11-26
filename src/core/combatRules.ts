@@ -924,7 +924,7 @@ export function effectModels(
     const held = own(carrier)
     if (effect.modelKeywords && !matches(effect.modelKeywords, held)) return 0
     if (matches(effect.excludedModelKeywords, held)) return 0
-    return bearers ? (carrier.abilities?.[bearers] ?? 0) : carrier.models
+    return bearers ? Math.min(carrier.models, carrier.abilities?.[bearers] ?? 0) : carrier.models
   }
 }
 
