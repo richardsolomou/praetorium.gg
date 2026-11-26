@@ -461,7 +461,11 @@ function setupSteps(
               })),
             },
           ),
-          step('Reserves', true, 'optional: pick-unit-grant for a unit a rule picks, then set-unit-formation for units not starting on the battlefield'),
+          step(
+            'Reserves',
+            true,
+            'optional: pick-unit-grant for a unit a rule picks, then set-unit-formation for units not starting on the battlefield',
+          ),
           step('Deploy', true, 'nothing to record: place the units at the table, defender first'),
         ]),
     step('First turn', Boolean(view.firstPlayerId), 'set-first-turn after the roll-off', {

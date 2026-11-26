@@ -1185,7 +1185,10 @@ describe('a unit picked for a rule as the battle begins', () => {
   }
   const pick = (unitKey: string, picked = true): Command => ({ kind: 'pick-unit-grant', unitKey, rule: 'Thunderhawk Insertion', picked })
   const after = (...commands: Command[]) =>
-    reduceBattle(PLAYERS, log([ALICE, army()], [BOB, roster('Death Guard')], ...commands.map((command): [string, Command] => [ALICE, command])))
+    reduceBattle(
+      PLAYERS,
+      log([ALICE, army()], [BOB, roster('Death Guard')], ...commands.map((command): [string, Command] => [ALICE, command])),
+    )
 
   it('can then deep strike', () => {
     expect(validate(after(pick('u0')), ALICE, { kind: 'set-unit-formation', unitKey: 'u0', formation: 'deep-strike' })).toBeNull()
