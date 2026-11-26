@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.277.17 (2026-11-26)
+
+### Patch Changes
+
+- 42a1f54: [battles] Ophydian and Skorpekh Destroyers with a Plasmacyte now track their casualties as one group of models, instead of treating the Plasmacyte as a separate model with its own wounds.
+
 ## 0.277.16 (2026-11-26)
 
 ### Patch Changes

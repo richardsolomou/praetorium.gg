@@ -2,6 +2,7 @@ import type { Datasheet } from './datasheet'
 import { weaponPhase } from './datasheetStructure'
 import { carriedCount, type CombatCarrier } from './combatLoadout'
 import { modelLineDrafts } from './modelLines'
+import { wargearKey } from './wargearNames'
 import { combatTarget } from './combatProfiles'
 import type { CombatMember } from './combatUnit'
 
@@ -57,9 +58,14 @@ export function lineSurvivors(
   wargear: readonly { name: string; count: number }[],
   lines: readonly { name: string; models: number; alive: number }[],
 ): CombatCarrier[] | undefined {
-  const drafts = modelLineDrafts(carriers, wargear)
-  if (drafts.length !== lines.length || drafts.some((draft, at) => draft.name !== lines[at]!.name || draft.models !== lines[at]!.models))
-    return undefined
+  const matches = (drafts: ReturnType<typeof modelLineDrafts>) =>
+    drafts.length === lines.length && drafts.every((draft, at) => draft.name === lines[at]!.name && draft.models === lines[at]!.models)
+  // The battle saved its lines already split or not for wargear its card says the unit holds, so they say which reading built them.
+  const drafts = [
+    modelLineDrafts(carriers, wargear),
+    modelLineDrafts(carriers, wargear, new Set(wargear.map((piece) => wargearKey(piece.name)))),
+  ].find(matches)
+  if (!drafts) return undefined
   const standing = carriers.map(() => 0)
   drafts.forEach((draft, at) => {
     let left = lines[at]!.alive

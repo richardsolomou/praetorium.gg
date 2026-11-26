@@ -24,6 +24,7 @@ import {
   type VsDataUnits,
   vsDataSummariesSchema,
 } from '../shared/vsData'
+import { bsdataRecordsIn } from './bsdataRecords'
 import { readCatalogueComposition } from './catalogueComposition'
 import { editionTextFiles, textHash } from './sourceTexts'
 
@@ -117,6 +118,7 @@ export function* vsDataSummariesSteps(directory: string, documents: readonly Rul
       const abilities = new Set(file.records.flatMap((record) => (ABILITY_KINDS.includes(record.kind) ? [vsDataKey(record)] : [])))
       const summaries = new Map(file.records.map((record) => [vsDataKey(record), summaryOf(record, link, abilities)]))
       const abilitySummaries = [...summaries].filter(([key]) => key.startsWith('ability:'))
+      const bsdata = bsdataRecordsIn(file.entries, held.find((candidate) => candidate.edition.id === edition)?.base ? null : edition)
       // Every ability by its VS Data id, which a unit's own abilities and its faction's start with, and by each former
       // VS Data id it is aliased under, as Cogbound Alliance is by the Mechanicus Allies the detachment prints.
       const abilitiesBy = <T>(value: (ability: (typeof abilitySummaries)[number]) => T) =>
@@ -155,14 +157,10 @@ export function* vsDataSummariesSteps(directory: string, documents: readonly Rul
           ),
         ),
         abilities: abilitiesBy(([, summary]) => summary),
-        // An ability VS Data aliases to a BSData profile, by that profile's id, as BSData ids are written with dashes.
+        // The ability each BSData profile is, by its id, or by `<datasheet>/<id>` where it is another on each datasheet.
         aliases: Object.fromEntries(
-          Object.entries(file.entries).flatMap(([key, aliases]) =>
-            key.startsWith('ability:') && summaries.has(key)
-              ? aliases
-                  .filter((alias) => alias.startsWith('bsdata.'))
-                  .map((alias) => [alias.slice('bsdata.'.length).replaceAll('.', '-'), key.slice('ability:'.length)] as const)
-              : [],
+          Object.entries({ ...bsdata.byId, ...bsdata.bySheet }).flatMap(([id, key]) =>
+            key.startsWith('ability:') && summaries.has(key) ? [[id, key.slice('ability:'.length)] as const] : [],
           ),
         ),
         // A faction a catalogue names as VS Data does but under another id, as its Adeptus Titanicus is `titan-legions`;
