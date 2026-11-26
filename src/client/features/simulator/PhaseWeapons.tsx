@@ -149,7 +149,7 @@ export const PhaseWeapons = memo(function PhaseWeapons({
             const included = !excluded.includes(key)
             const unreached = group.every((profile) => outOfRange(profile.id))
             return (
-              <div key={group[0]!.id} data-weapon-card className="relative min-w-0 rounded-lg border border-edge bg-sunken [&_h3]:pr-10">
+              <div key={group[0]!.id} data-weapon-card className="relative min-w-0 border-t border-edge [&_h3]:pr-10">
                 <Switch
                   className="absolute top-2 right-3 z-10 border-edge data-checked:border-primary data-checked:bg-primary data-unchecked:bg-zinc-600 [&_[data-slot=switch-thumb]]:bg-white"
                   aria-label={`Include ${group[0]!.name} in ${title.toLowerCase()} calculation`}

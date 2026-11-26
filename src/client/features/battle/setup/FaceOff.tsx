@@ -15,6 +15,7 @@ import { PlayerName } from '../PlayerName'
 import type { SendCommand } from '../useCommand'
 import type { BattleCombatSelection } from '../../simulator/BattleCombatDialog'
 import { CHOOSABLE, CHOSEN, DispositionChip, useDispositionNames } from './chrome'
+import { OUTLINE_TAG } from '../../../components/rosterSetup'
 import { canChooseFor, WarlordToggle } from './ArmiesStep'
 
 const ignoreCommand: SendCommand = () => {}
@@ -75,17 +76,17 @@ export function FaceOff({
         return (
           <Fragment key={index}>
             {index ? (
-              <span aria-hidden className="grid place-items-center font-display text-sm font-bold text-faint sm:text-lg">
-                VS
+              <span aria-hidden className="grid place-items-center text-sm text-faint">
+                vs
               </span>
             ) : null}
             <div
               data-face-off-side={index}
-              className={cn('part flex min-w-0 flex-col gap-1.5 border-t-2 p-3 sm:p-4', tint(index).edge, index && 'items-end text-right')}
+              className={cn('flex min-w-0 flex-col gap-1.5 border-t-2 pt-3', tint(index).edge, index && 'items-end text-right')}
             >
               <p
                 className={cn(
-                  'flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-bold uppercase',
+                  'flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-semibold',
                   tint(index).text,
                   index && 'justify-end',
                 )}
@@ -97,7 +98,7 @@ export function FaceOff({
                       army={army}
                       badge={
                         army.automated && controls ? (
-                          <span className="chip ml-1.5 align-middle whitespace-nowrap text-dim normal-case">Played by you</span>
+                          <span className={`${OUTLINE_TAG} ml-1.5 align-middle border-edge font-normal text-dim`}>Played by you</span>
                         ) : null
                       }
                     />
@@ -126,7 +127,7 @@ export function FaceOff({
               </p>
               <span
                 className={cn(
-                  'max-w-full font-display text-base leading-tight font-bold break-words uppercase sm:text-2xl',
+                  'max-w-full font-display text-lg leading-tight font-semibold break-words sm:text-2xl',
                   !chosen.length && 'text-dim',
                 )}
               >
@@ -155,13 +156,13 @@ export function FaceOff({
                 controls.shared ? (
                   <span className="text-xs text-dim">Link shared · waiting for them to join</span>
                 ) : (
-                  <Button size="sm" className="mt-1 self-stretch" disabled={controls.busy} onClick={controls.onShare}>
+                  <Button variant="outline" size="sm" className="mt-1 self-stretch" disabled={controls.busy} onClick={controls.onShare}>
                     <QrCode /> Share a link
                   </Button>
                 )
               ) : null}
               {unchosen ? (
-                <Button size="sm" className="mt-1 self-stretch" onClick={() => controls!.onChoose(unchosen)}>
+                <Button variant="outline" size="sm" className="mt-1 self-stretch" onClick={() => controls!.onChoose(unchosen)}>
                   {chosen.length ? `Choose ${unchosen.playerName}’s army` : 'Choose army'}
                 </Button>
               ) : null}
@@ -198,28 +199,21 @@ export function FaceOff({
                 </ArmyLine>
               ))}
               {shared !== null ? (
-                <span className={cn('figure text-xs', spent > shared ? 'text-discarded' : 'text-dim')}>
+                <span className={cn('readout text-xs', spent > shared ? 'text-discarded' : 'text-dim')}>
                   {points(spent)} of {points(shared)} pts shared{spent > shared ? ` · ${points(spent - shared)} over` : ''}
                 </span>
               ) : null}
               {problem ? <p className="text-xs text-discarded">{problem}</p> : null}
               {releases.map((release) => (
-                <Button
-                  key={release.label}
-                  variant="ghost"
-                  size="sm"
-                  className="-mx-2 text-dim"
-                  disabled={controls?.busy}
-                  onClick={release.run}
-                >
+                <Button key={release.label} variant="ghost" size="sm" className="text-dim" disabled={controls?.busy} onClick={release.run}>
                   {release.label}
                 </Button>
               ))}
               {addAlly ? (
                 <Button
-                  variant="outline"
+                  variant="ghost"
                   size="sm"
-                  className="mt-auto self-stretch border-dashed border-runner-hi text-dim hover:text-bone"
+                  className={cn('mt-auto text-dim hover:text-bone', index ? 'self-end' : '-ml-2 self-start')}
                   disabled={controls?.busy}
                   onClick={addAlly}
                 >
@@ -269,7 +263,7 @@ function ArmyLine({
     <div className={cn('flex flex-col gap-1.5', mirrored && 'items-end')}>
       {roster.built ? <ArmyIdentity army={army} className={cn('text-xs', mirrored && 'justify-end')} /> : null}
       {roster.lentBy ? <span className="text-xs text-dim">Lent by {roster.lentBy.name}</span> : null}
-      <span className="figure text-xs text-dim">
+      <span className="readout text-xs text-dim">
         {roster.built
           ? `${points(army.points ?? 0)}${limit === null ? '' : ` of ${points(limit)}`} pts · ${countLabel(army.unitCount, 'unit')}`
           : 'Imported army'}
@@ -277,7 +271,7 @@ function ArmyLine({
       <WaiverNote rules={rosterWaivers(roster.built)} />
       {/* Anyone at the table may set these, because one device often stands in for all of them. */}
       <div className={cn('flex flex-wrap items-center gap-1.5', mirrored && 'justify-end')}>
-        {view.sealedEventToken ? <span className="chip text-achieved">Sealed roster</span> : null}
+        {view.sealedEventToken ? <span className={`${OUTLINE_TAG} border-achieved/60 text-achieved`}>Sealed roster</span> : null}
         {side.armies.length === 1 || !side.disposition ? (
           <DispositionChip disposition={nameDisposition(roster.built?.disposition)} />
         ) : null}
@@ -298,7 +292,7 @@ function ArmyLine({
             Battle ready
           </Button>
         ) : army.painted ? (
-          <span className="chip text-achieved">Battle ready</span>
+          <span className={`${OUTLINE_TAG} border-achieved/60 text-achieved`}>Battle ready</span>
         ) : null}
         {mine ? (
           <>

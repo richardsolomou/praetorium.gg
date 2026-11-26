@@ -131,10 +131,10 @@ export function Spectator({
 
   return (
     <>
-      <main className="w-full space-y-2 px-3 pb-28">
+      <main className="w-full space-y-2 px-3 pb-28 sm:px-6">
         {/* On a phone the sticky scoreboard leads the page, so this row only shows there when it offers a sign-in. */}
         <div className={`mx-auto h-8 max-w-7xl items-center justify-between gap-3 ${me ? 'hidden lg:flex' : 'flex'}`}>
-          <p className="eyebrow hidden shrink-0 lg:block">
+          <p className="hidden shrink-0 text-sm font-medium text-dim lg:block">
             {currentView.status === 'finished' ? 'Battle replay' : view.status === 'playing' ? 'Watching live' : 'Battle setup'}
           </p>
           {!me ? (
@@ -154,11 +154,11 @@ export function Spectator({
         <Scoreboard view={view} clock={clock} sides={table} />
         {/* A finished game is when a reader is most likely to want their own, so it leads there and waits beside the facts while play goes on. */}
         {currentView.status === 'finished' ? (
-          <SpectatorInvite view={currentView} className="part mx-auto max-w-7xl border-primary/40 p-3" />
+          <SpectatorInvite view={currentView} className="mx-auto max-w-7xl border-y border-edge py-3" />
         ) : null}
         {currentView.status === 'finished' && lead ? <div className="mx-auto w-full max-w-7xl">{lead}</div> : null}
 
-        <div className="mx-auto grid max-w-7xl items-start gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(19rem,22rem)_minmax(0,1fr)]">
+        <div className="mx-auto grid max-w-7xl items-start gap-x-6 gap-y-8 pt-3 lg:grid-cols-[minmax(0,1fr)_minmax(19rem,22rem)_minmax(0,1fr)]">
           {table.map((side) => (
             <SpectatorSide
               key={side.index}
@@ -170,7 +170,7 @@ export function Spectator({
             />
           ))}
 
-          <section className="part min-w-0 space-y-3 p-3 lg:col-start-2 lg:row-start-1">
+          <section className="min-w-0 space-y-5 lg:col-start-2 lg:row-start-1 lg:border-x lg:border-edge lg:px-5">
             {view.sealedEventToken || view.groupId ? (
               <div className="flex min-w-0 items-center gap-3 text-xs">
                 {view.sealedEventToken ? (
@@ -202,12 +202,12 @@ export function Spectator({
             {currentView.status === 'finished' ? null : <SpectatorInvite view={currentView} className="border-t border-edge pt-3" />}
             {/* A review of the whole game, so it waits for the game to end rather than crowding a live one. */}
             {currentView.status === 'finished' ? (
-              <div className="border-t border-edge pt-3">
+              <div className="border-t border-edge pt-4">
                 <TurnTimes clock={clock} sides={table} />
               </div>
             ) : null}
-            <div className="border-t border-edge pt-3">
-              <p className="eyebrow">Battle events</p>
+            <div className="border-t border-edge pt-4">
+              <h3 className="text-base font-semibold text-bone">Battle events</h3>
               <Report token={view.token} players={reportPlayers(view.players)} sides={table} entries={report} />
             </div>
           </section>
@@ -262,7 +262,7 @@ function ReplayTimeline({
       <div className="mx-auto max-w-3xl space-y-1">
         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
           <div className="flex min-w-0 items-center gap-2">
-            <p className="eyebrow shrink-0">Battle timeline</p>
+            <p className="shrink-0 text-xs font-medium text-dim">Battle timeline</p>
             {loading ? <span className="truncate text-3xs text-dim">Loading…</span> : null}
             {error ? <span className="truncate text-3xs text-destructive">Could not load</span> : null}
           </div>
@@ -354,11 +354,11 @@ function SpectatorSide({
   }
 
   return (
-    <section className={cn('part min-w-0 space-y-3 border-t-2 p-3', colours.edge, className)}>
-      <div className="space-y-2">
+    <section className={cn('min-w-0 space-y-5 border-t-2 pt-3', colours.edge, className)}>
+      <div className="space-y-3">
         {side.armies.map((army) => (
           <div key={army.playerId} className="min-w-0">
-            <h2 className={`flex min-w-0 items-baseline gap-2 text-lg leading-tight font-bold uppercase ${colours.text}`}>
+            <h2 className={`flex min-w-0 items-baseline gap-2 text-xl leading-tight font-semibold ${colours.text}`}>
               <PlayerName army={army} />
               <PlayerRatingChange view={view} playerId={army.playerId} />
             </h2>
@@ -381,16 +381,16 @@ function SpectatorSide({
       ) : (
         <>
           {/* Drawn like the players' own panels, so the same numbers read the same to a spectator. */}
-          <dl className="grid grid-cols-2 gap-2 border-y border-edge py-2">
-            <div className="min-w-0">
-              <dt className="eyebrow">Victory points</dt>
-              <dd key={side.total} className="figure animate-figure text-4xl leading-none font-bold">
+          <dl className="grid grid-cols-2 divide-x divide-edge border-y border-edge">
+            <div className="min-w-0 py-2.5 pr-3">
+              <dt className="text-xs text-dim">Victory points</dt>
+              <dd key={side.total} className="figure animate-figure mt-1 text-4xl leading-none">
                 {side.total}
               </dd>
             </div>
-            <div className="min-w-0">
-              <dt className="eyebrow">Command points</dt>
-              <dd key={side.cp} className={`figure animate-figure text-4xl leading-none font-bold ${colours.score}`}>
+            <div className="min-w-0 py-2.5 pl-3">
+              <dt className="text-xs text-dim">Command points</dt>
+              <dd key={side.cp} className={`figure animate-figure mt-1 text-4xl leading-none ${colours.score}`}>
                 {side.cp}
               </dd>
             </div>
@@ -401,12 +401,12 @@ function SpectatorSide({
       )}
       {side.stratagems.some((stratagem) => stratagem.uses > 0) ? (
         <div>
-          <p className="eyebrow">Stratagems used</p>
-          <ul className="mt-1 space-y-1 text-xs text-dim">
+          <h3 className="text-base font-semibold text-bone">Stratagems used</h3>
+          <ul className="mt-1.5 divide-y divide-edge border-y border-edge text-sm text-dim">
             {side.stratagems
               .filter((stratagem) => stratagem.uses > 0)
               .map((stratagem) => (
-                <li key={stratagem.key} className="flex justify-between gap-2">
+                <li key={stratagem.key} className="flex justify-between gap-2 py-1.5">
                   <span className="text-bone">{stratagem.name}</span>
                   <span className="readout">{stratagem.uses}×</span>
                 </li>

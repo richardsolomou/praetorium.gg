@@ -348,7 +348,7 @@ it('preserves a bundled weapon’s group heading and mode labels', () => {
     { id: 'dispersed', name: '➤ Cannon - Dispersed', equipmentName: 'Cannon and Rifle', type: 'Ranged Weapons', values: [] },
   ]
   expect([weaponProfileGroupName(profiles), ...profiles.map((profile) => weaponProfileMode(profile, profiles))]).toEqual([
-    'cannon',
+    'Cannon',
     'Focused',
     'Dispersed',
   ])

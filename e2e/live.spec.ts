@@ -13,13 +13,15 @@ test('a battle stays in step across two devices', async ({ browser }) => {
   await expect(bob.getByRole('heading', { name: 'movement phase' })).toBeVisible()
   await expect(panel(bob, 'Necrons').locator('[data-stat="cp"]')).toHaveText('1')
 
-  await panel(bob, 'Necrons').getByRole('button', { name: '+1 CP' }).click()
-  await expect(panel(bob, 'Necrons').locator('[data-stat="cp"]')).toHaveText('2')
+  // Only the side's own players gain its command points; the table across reads the count.
+  await expect(panel(bob, 'Necrons').getByRole('button', { name: '+1 CP' })).toHaveCount(0)
+  await panel(alice, 'Necrons').getByRole('button', { name: '+1 CP' }).click()
   await expect(panel(alice, 'Necrons').locator('[data-stat="cp"]')).toHaveText('2')
-  await expect(panel(bob, 'Necrons').getByRole('button', { name: 'Additional CP already gained this round' })).toBeDisabled()
-  await bob.getByRole('button', { name: 'Undo latest action' }).click()
-  await expect(panel(alice, 'Necrons').locator('[data-stat="cp"]')).toHaveText('1')
-  await expect(panel(bob, 'Necrons').getByRole('button', { name: '+1 CP' })).toBeEnabled()
+  await expect(panel(bob, 'Necrons').locator('[data-stat="cp"]')).toHaveText('2')
+  await expect(panel(alice, 'Necrons').getByRole('button', { name: 'Additional CP already gained this round' })).toBeDisabled()
+  await alice.getByRole('button', { name: 'Undo latest action' }).click()
+  await expect(panel(bob, 'Necrons').locator('[data-stat="cp"]')).toHaveText('1')
+  await expect(panel(alice, 'Necrons').getByRole('button', { name: '+1 CP' })).toBeEnabled()
 
   await alice.screenshot({ path: test.info().outputPath('tracker-alice.png'), fullPage: true })
   await bob.screenshot({ path: test.info().outputPath('tracker-bob.png'), fullPage: true })

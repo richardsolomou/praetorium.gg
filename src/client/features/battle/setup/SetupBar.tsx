@@ -34,11 +34,11 @@ export function SetupBar({
             <p className="line-clamp-2 text-sm text-destructive">{problem}</p>
           ) : remaining.length ? (
             <a href={next ? `#setup-${next}` : undefined} className="block min-w-0 hover:text-bone">
-              <span className="figure block text-xs font-bold text-bone uppercase">{remaining.length} left</span>
+              <span className="block text-sm font-semibold text-bone">{remaining.length} left</span>
               <span className="block truncate text-xs text-dim">{remaining.join(' · ')}</span>
             </a>
           ) : (
-            <p className="text-xs font-bold text-achieved uppercase">Ready</p>
+            <p className="text-sm font-semibold text-achieved">Ready</p>
           )}
         </div>
         {watching ? (

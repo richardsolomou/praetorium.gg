@@ -245,8 +245,13 @@ export function ScoringDialog({
             const { claimed, scoring } = settledFor(card)
             const reference = referenceFor(card.key)
             return (
-              <section key={card.key} data-due={card.key} data-answered={answers[card.key] ? '' : undefined} className="border border-edge">
-                <div className="bg-sunken px-3 py-2">
+              <section
+                key={card.key}
+                data-due={card.key}
+                data-answered={answers[card.key] ? '' : undefined}
+                className="rounded-lg border border-edge"
+              >
+                <div className="border-b border-edge px-3 py-2.5">
                   <div className="flex items-baseline justify-between gap-2">
                     <MissionName
                       name={card.name}
@@ -300,7 +305,7 @@ export function ScoringDialog({
         <DialogFooter className="flex-row items-center gap-2">
           <UndoLatest compact undo={undo} send={send} pending={pending} />
           <output aria-label={`Scoring ${total} VP`} className="readout min-w-0 flex-1 text-center text-sm whitespace-nowrap text-dim">
-            <span className="font-bold text-bone">{total}</span> VP
+            <span className="figure text-xl text-bone">{total}</span> VP
           </output>
           {onCancel ? (
             <Button variant="outline" disabled={pending} onClick={onCancel}>
@@ -357,10 +362,7 @@ function AwardRow({
   return (
     <div className="flex items-center gap-3 px-3 py-2">
       {join ? (
-        <span
-          className="chip shrink-0 border-runner px-1 text-faint"
-          aria-label={join === 'or' ? 'Alternative objective' : 'Additional objective'}
-        >
+        <span className="shrink-0 text-2xs text-faint" aria-label={join === 'or' ? 'Alternative objective' : 'Additional objective'}>
           {join}
         </span>
       ) : null}
@@ -387,7 +389,7 @@ function AwardRow({
             onChoose={(chosen) => !pending && onAnswer(chosen)}
             touch
           />
-          <span className={`chip shrink-0 ${times > 0 ? tone.mark : 'border-runner'}`}>{awardTotal(award, times)} VP</span>
+          <span className={`${VP} min-h-8 ${times > 0 ? tone.mark : 'border-edge text-dim'}`}>{awardTotal(award, times)} VP</span>
         </>
       ) : (
         <Chip
@@ -402,6 +404,8 @@ function AwardRow({
     </div>
   )
 }
+
+const VP = 'inline-flex shrink-0 items-center justify-center rounded-md border px-2 text-sm font-medium tabular-nums'
 
 /** The payout itself is the control: pressing the number is how it is claimed. */
 function Chip({
@@ -426,7 +430,7 @@ function Chip({
       aria-label={ariaLabel}
       disabled={pending}
       onClick={onPress}
-      className={`chip min-h-11 min-w-14 shrink-0 justify-center px-2 ${chosen ? tone.mark : `border-runner ${tone.hint}`}`}
+      className={`${VP} min-h-11 min-w-14 ${chosen ? tone.mark : `border-edge text-dim ${tone.hint}`}`}
     >
       {label}
     </button>

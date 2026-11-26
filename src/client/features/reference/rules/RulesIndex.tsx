@@ -9,7 +9,6 @@ import { PageContent, PageHeader } from '../../../components/Page'
 import { FullPageState, PageState } from '../../../components/PageState'
 import { SearchField } from '../../../components/SearchField'
 import { matchesSearch } from '../../../text'
-import { RUNNER_COLUMNS } from '../runnerColumns'
 
 /**
  * Every rules document the community data carries, and a way into any one rule.
@@ -82,16 +81,16 @@ function FoundRules({ matches }: { matches: Found[] }) {
     )
   }
   return (
-    <div className="part">
+    <div className="divide-y divide-edge border-y border-edge">
       {matches.map((found) => (
         <Link
           key={found.key}
           to="/rules/$documentId/$sectionId"
           params={{ documentId: found.document.slug, sectionId: found.section.slug }}
           hash={found.anchor}
-          className="flex items-center gap-3 border-b border-edge px-3 py-2 last:border-b-0 hover:bg-raised"
+          className="flex min-h-11 items-center gap-3 px-2 py-2 hover:bg-raised"
         >
-          {found.code ? <span className="chip readout">{found.code}</span> : null}
+          {found.code ? <span className="readout w-16 shrink-0 text-xs text-faint">{found.code}</span> : null}
           <span className="min-w-0 flex-1 truncate text-sm text-bone">{found.title}</span>
           <span className="hidden truncate text-xs text-dim sm:block">
             {found.document.title} · {found.section.title}
@@ -106,22 +105,22 @@ function FoundRules({ matches }: { matches: Found[] }) {
 function DocumentShelf({ document }: { document: RuleDocumentSummary }) {
   const rules = document.sections.reduce((count, section) => count + section.entries.length, 0)
   return (
-    <section className="pt-2">
-      <h2 className="rubric flex items-baseline justify-between gap-3 border-b border-edge pb-2">
-        <Link to="/rules/$documentId" params={{ documentId: document.slug }} className="hover:text-bone">
+    <section>
+      <h2 className="rubric mb-3 flex min-h-8 items-center gap-3 text-bone">
+        <Link to="/rules/$documentId" params={{ documentId: document.slug }} className="hover:text-info">
           {document.title}
         </Link>
-        <span className="readout">{rules}</span>
+        <span className="readout font-sans text-sm font-semibold text-faint">{rules}</span>
       </h2>
-      <div className={`mt-3 ${RUNNER_COLUMNS} [--gate-y:1.3125rem] sm:columns-2 lg:columns-3`}>
+      <div className="grid border-t border-edge sm:grid-cols-2 sm:gap-x-6 lg:grid-cols-3">
         {document.sections.map((section) => (
           <Link
             key={section.id}
             to="/rules/$documentId/$sectionId"
             params={{ documentId: document.slug, sectionId: section.slug }}
-            className="flex min-h-11 items-center gap-2 part px-3 py-2 transition-colors hover:border-runner hover:bg-raised"
+            className="flex min-h-11 items-center gap-2 border-b border-edge px-2 py-2 transition-colors hover:bg-raised"
           >
-            <span className="min-w-0 flex-1 truncate text-sm font-semibold">{section.title}</span>
+            <span className="min-w-0 flex-1 truncate text-sm text-bone">{section.title}</span>
             <span className="readout text-xs text-faint">{section.entries.length}</span>
           </Link>
         ))}

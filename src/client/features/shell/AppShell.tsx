@@ -51,12 +51,13 @@ import { ShellLiveProduct, ShellDisplayNamePrompt, ShellSupportPanel, ShellAchie
 import { loadOfflineFallbacks } from '../../functions'
 import { warmOfflineFallbacks } from '../../offline/background'
 
-const PRIMARY_LINKS = [
+const ARMY_LINKS = [
   { to: '/rosters', label: 'Rosters', Icon: ScrollText },
-  { to: '/battles', label: 'Battles', Icon: Swords },
   { to: '/simulator', label: 'Simulator', Icon: Calculator },
   { to: '/collection', label: 'Collection', Icon: Boxes },
 ] as const
+
+const BATTLES_LINK = { to: '/battles', label: 'Battles', Icon: Swords } as const
 
 const REFERENCE_LINKS = [
   { to: '/factions', label: 'Factions', Icon: UsersRound },
@@ -68,7 +69,7 @@ type RailLink = { to: string; label: string; Icon: LucideIcon }
 type RailSiteLink = (typeof COMMUNITY_LINKS)[number]
 
 const RAIL_LINK_CLASS =
-  'group flex h-8 items-center gap-2.5 rounded-lg border border-transparent px-2.5 text-sm font-semibold text-dim transition-colors in-data-[rail=collapsed]:justify-center in-data-[rail=collapsed]:px-0 hover:bg-raised/60 hover:text-bone aria-[current=page]:border-edge aria-[current=page]:bg-panel aria-[current=page]:text-bone aria-[current=page]:shadow-part'
+  'group flex h-8 items-center gap-3 rounded-md px-3 text-sm font-medium text-dim transition-colors in-data-[rail=collapsed]:justify-center in-data-[rail=collapsed]:px-0 hover:bg-raised/60 hover:text-bone aria-[current=page]:bg-raised aria-[current=page]:text-bone'
 
 /** Names an icon beside the folded rail, where its label is hidden; the open rail shows the label instead. */
 function RailTooltip({ label, collapsed, children }: { label: string; collapsed: boolean; children: ReactElement }) {
@@ -95,10 +96,7 @@ function RailLinks({
 }) {
   const inDisposition = useLocation({ select: (location) => location.pathname.startsWith('/force-dispositions/') })
   return (
-    <nav
-      aria-label={name}
-      className="runner gap-0.5 [--gate-y:1rem] in-data-[rail=collapsed]:pl-0 in-data-[rail=collapsed]:before:hidden in-data-[rail=collapsed]:*:before:hidden in-data-[rail=collapsed]:*:after:hidden"
-    >
+    <nav aria-label={name} className="grid gap-0.5">
       {links.map(({ to, label, Icon }) => (
         <RailTooltip key={to} label={label} collapsed={collapsed}>
           <Link
@@ -107,7 +105,7 @@ function RailLinks({
             aria-current={to === '/missions' && inDisposition ? 'page' : undefined}
             className={RAIL_LINK_CLASS}
           >
-            <Icon aria-hidden className="size-4.5 shrink-0 text-faint group-aria-[current=page]:text-parchment" />
+            <Icon aria-hidden className="size-4.5 shrink-0 text-faint group-hover:text-dim group-aria-[current=page]:text-parchment" />
             <span className="truncate in-data-[rail=collapsed]:sr-only">{label}</span>
           </Link>
         </RailTooltip>
@@ -128,14 +126,15 @@ function RailLinks({
 function RailSection({ name, ...links }: Parameters<typeof RailLinks>[0]) {
   return (
     <div>
-      <p className="mb-1.5 ml-1 text-2xs font-semibold tracking-eyebrow text-faint uppercase in-data-[rail=collapsed]:sr-only">{name}</p>
+      <p className="eyebrow mx-3 mb-1.5 in-data-[rail=collapsed]:sr-only">{name}</p>
       <RailLinks name={name} {...links} />
     </div>
   )
 }
 
 /**
- * The desktop navigation is a sprue: a framed rail whose sections hang off a runner by gates, the open one gated in green.
+ * The desktop navigation is a sunken iron column in three groups, what you build, what you play and what you look up,
+ * with the outside links apart at its foot; the current page is a raised plate with a green icon.
  * It stays pinned beside the page at the window's full height, so nothing sits above the page and `--app-header` is zero.
  * Folded, it keeps only the icons; the document's `data-rail` carries that, so the head script can set it before paint.
  * The roster workspace keeps its own choice, folded until opened there.
@@ -149,17 +148,17 @@ function SiteRail({ workspace }: { workspace: boolean }) {
     <aside
       data-web-app-chrome
       data-print-hide
-      className="sticky top-0 z-30 flex h-dvh w-(--app-rail) shrink-0 flex-col p-3 pr-0 transition-[width] duration-200 ease-out"
+      className="sticky top-0 z-30 flex h-dvh w-(--app-rail) shrink-0 flex-col transition-[width] duration-200 ease-out"
     >
-      <div ref={frame} className="flex min-h-0 flex-1 overflow-hidden rounded-2xl border-2 border-runner bg-void">
+      <div ref={frame} className="flex min-h-0 flex-1 overflow-hidden border-r border-edge bg-sunken">
         {/*
-         * Laid out at the rail's target width at once, less the frame's padding and border,
+         * Laid out at the rail's target width at once, less the frame's border,
          * so the frame animates around contents that stay put instead of sliding with its edge.
          */}
-        <div className="flex min-h-0 w-[calc(var(--app-rail)-0.75rem-4px)] shrink-0 flex-col py-3">
+        <div className="flex min-h-0 w-[calc(var(--app-rail)-1px)] shrink-0 flex-col pt-5 pb-3">
           <Link
             to="/"
-            className="group mx-3 mb-3 flex items-center gap-2.5 font-display text-base leading-none font-bold tracking-label text-bone uppercase in-data-[rail=collapsed]:justify-center hover:text-parchment"
+            className="group mx-3 mb-3.5 flex items-center gap-2.5 border-b border-edge px-1 pb-4 font-display text-lg leading-none font-bold tracking-label text-bone uppercase in-data-[rail=collapsed]:justify-center in-data-[rail=collapsed]:px-0 hover:text-parchment"
           >
             <img src={offlineAssets()?.logo ?? '/logo.svg'} alt="" className="size-7 transition-transform group-hover:rotate-45" />
             <span className="in-data-[rail=collapsed]:sr-only">Praetorium</span>
@@ -172,21 +171,23 @@ function SiteRail({ workspace }: { workspace: boolean }) {
               <GlobalSearch compact />
             </RailTooltip>
           </div>
-          <div className="no-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto pr-2.5 pl-2 in-data-[rail=collapsed]:pr-2">
-            <RailLinks links={PRIMARY_LINKS} name="Primary" collapsed={collapsed} />
-            <RailSection links={REFERENCE_LINKS} name="Reference" collapsed={collapsed} />
+          <div className="no-scrollbar min-h-0 flex-1 divide-y divide-edge overflow-y-auto px-2.5 pt-0.5 in-data-[rail=collapsed]:px-2 [&>*]:py-3 [&>*:first-child]:pt-0">
+            <RailSection links={ARMY_LINKS} name="Army" collapsed={collapsed} />
             <RailSection
-              links={me ? [...COMMUNITY_PAGES, FRIENDS_PAGE] : COMMUNITY_PAGES}
-              sites={COMMUNITY_LINKS}
-              name="Community"
+              links={me ? [BATTLES_LINK, ...COMMUNITY_PAGES, FRIENDS_PAGE] : [BATTLES_LINK, ...COMMUNITY_PAGES]}
+              name="Play"
               collapsed={collapsed}
             />
+            <RailSection links={REFERENCE_LINKS} name="Reference" collapsed={collapsed} />
+          </div>
+          <div className="mt-2 px-2.5 in-data-[rail=collapsed]:px-2">
+            <RailLinks links={[]} sites={COMMUNITY_LINKS} name="Community" collapsed={collapsed} />
           </div>
           {/*
            * Folded, the column keeps the open row's order: the toggle keeps the bottom corner under the pointer
            * so the rail opens again without moving, with the account and bell above it.
            */}
-          <div className="mx-2.5 mt-2 flex items-center justify-between gap-1 border-t border-edge pt-2 in-data-[rail=collapsed]:flex-col">
+          <div className="mx-2.5 mt-2 flex items-center justify-between gap-1 border-t border-edge pt-3 in-data-[rail=collapsed]:flex-col">
             <div className="flex items-center gap-1 in-data-[rail=collapsed]:flex-col">
               <Account className="size-8" />
               {me ? <NotificationsButton beside={frame} className="size-8" /> : null}
@@ -225,7 +226,7 @@ function VisitorBar({ signingIn }: { signingIn: boolean }) {
       <div className="mx-auto flex h-full max-w-6xl items-center gap-6 px-5 sm:px-6">
         <Link
           to="/"
-          className="group flex shrink-0 items-center gap-2.5 font-display text-base leading-none font-bold tracking-label text-bone uppercase hover:text-parchment"
+          className="group flex shrink-0 items-center gap-2.5 font-display text-lg leading-none font-bold tracking-label text-bone uppercase hover:text-parchment"
         >
           <img src={offlineAssets()?.logo ?? '/logo.svg'} alt="" className="size-7 transition-transform group-hover:rotate-45" />
           Praetorium
@@ -382,12 +383,12 @@ function AppFrame() {
                     <header
                       data-mobile-app-header
                       data-print-hide
-                      className="fixed inset-x-0 top-0 z-30 hidden h-12 items-center border-b border-runner bg-sunken/95 px-2 backdrop-blur"
+                      className="fixed inset-x-0 top-0 z-30 hidden h-12 items-center border-b border-edge bg-sunken/95 px-2 backdrop-blur"
                     >
                       <Link
                         to="/"
                         aria-label="Praetorium home"
-                        className="group flex min-w-0 items-center gap-2 font-display text-[0.9375rem] font-bold tracking-label text-bone uppercase hover:text-parchment"
+                        className="group flex min-w-0 items-center gap-2 font-display text-base font-bold tracking-label text-bone uppercase hover:text-parchment"
                       >
                         <img
                           src={offlineAssets()?.logo ?? '/logo.svg'}

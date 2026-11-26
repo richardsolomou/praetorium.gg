@@ -6,10 +6,11 @@ import {
   DialogFooter as GeneratedDialogFooter,
   DialogContent as GeneratedDialogContent,
   DialogHeader as GeneratedDialogHeader,
+  DialogTitle as GeneratedDialogTitle,
 } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
 
-export { Dialog, DialogClose, DialogDescription, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+export { Dialog, DialogClose, DialogDescription, DialogTrigger } from '@/components/ui/dialog'
 
 const SIZES = {
   sm: 'sm:max-w-lg',
@@ -90,4 +91,8 @@ export function DialogBody({ className, ...props }: ComponentProps<'div'>) {
 
 export function DialogFooter({ className, ...props }: ComponentProps<typeof GeneratedDialogFooter>) {
   return <GeneratedDialogFooter className={cn('m-0 mt-auto shrink-0', className)} {...props} />
+}
+
+export function DialogTitle({ className, ...props }: ComponentProps<typeof GeneratedDialogTitle>) {
+  return <GeneratedDialogTitle className={cn('text-xl leading-tight', className)} {...props} />
 }

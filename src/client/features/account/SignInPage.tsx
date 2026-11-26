@@ -1,5 +1,5 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link, useNavigate } from '@tanstack/react-router'
+import { useQuery } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
 import { classifyAuthCallbackFailure } from '../../authFailures'
 import { useAuthAction } from '../../useAuthAction'
 import { posthog } from 'posthog-js'
@@ -55,8 +55,6 @@ export function SignInPage({ error, next, reset, join }: { error?: string; next?
   const [twoFactorPending, setTwoFactorPending] = useState(false)
   const [resetSent, setResetSent] = useState(false)
   const [resetNeedsEmail, setResetNeedsEmail] = useState(false)
-  const navigate = useNavigate()
-  const queryClient = useQueryClient()
   const submit = useAuthAction()
   const callbackError = socialAuthErrorMessage(error)
   // The callback does not say which provider failed, so it counts as social.
@@ -101,16 +99,9 @@ export function SignInPage({ error, next, reset, join }: { error?: string; next?
       return
     }
     if (!result.error) {
-      await queryClient.invalidateQueries()
-      const redirectUrl = authRedirectUrl('data' in result ? result.data : null)
-      if (redirectUrl) {
-        window.location.replace(redirectUrl)
-        return
-      }
-      // `next` is a pathname rather than a route, so this is a navigation by href
-      // rather than by route id.
-      if (next) window.location.replace(next)
-      else await navigate({ to: '/', replace: true })
+      // A fresh load rather than a route change: the visitor's cache is still being read as the page leaves, and
+      // refetching it under a route change cancels the reads the next page's loader waits on, looping its error boundary.
+      window.location.replace(authRedirectUrl('data' in result ? result.data : null) || next || '/')
     } else {
       captureAuthFailure(result.error, { method: 'email', action: joining ? 'create' : 'sign_in' })
     }
@@ -152,10 +143,7 @@ export function SignInPage({ error, next, reset, join }: { error?: string; next?
           {twoFactorPending ? (
             <TwoFactorSignIn
               onBack={() => setTwoFactorPending(false)}
-              onSuccess={(redirectUrl) => {
-                if (redirectUrl || next) window.location.replace(redirectUrl || next!)
-                else void navigate({ to: '/', replace: true })
-              }}
+              onSuccess={(redirectUrl) => window.location.replace(redirectUrl || next || '/')}
             />
           ) : (
             <>

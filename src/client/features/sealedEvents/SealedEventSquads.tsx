@@ -12,9 +12,11 @@ import {
   squadStepCount,
   type SquadPairingState,
 } from '../../../core/squad'
+import { ScoreFigure } from '../../components/ScoreFigure'
 import { Problem } from '../../components/Problem'
 import { pickSquad, setSquad } from '../../functions'
 import { countLabel } from '../../text'
+import { OUTLINE_TAG } from '../../components/rosterSetup'
 import { useSealedEventRefresh, type SealedEvent } from './sealedEvent'
 
 type SquadMatch = SealedEvent['squadMatches'][number]
@@ -33,7 +35,7 @@ export function StartSquad({ token, sealedEvent }: { token: string; sealedEvent:
   return (
     <section data-start-squad className="space-y-3 part p-4 sm:p-5">
       <div>
-        <h2 className="text-lg leading-tight font-bold uppercase">Start a team</h2>
+        <h2 className="text-xl leading-tight">Start a team</h2>
         <p className="mt-1 text-sm text-dim">Name it, then send your teammates the invite link so they can join it.</p>
       </div>
       <form
@@ -134,19 +136,17 @@ export function SquadMeeting({
   const side = viewerSquadId === match.aId ? 0 : viewerSquadId === match.bId && match.bId ? 1 : null
   return (
     <li data-meeting={match.table} className="min-w-0">
-      <div className="flex min-h-11 flex-wrap items-center gap-x-3 gap-y-1 border-b border-edge bg-sunken/20 px-3 py-2">
+      <div className="flex min-h-12 flex-wrap items-center gap-x-3 gap-y-1 border-b border-edge px-2 py-2 sm:px-3">
         <span className="part-tag">{match.table}</span>
-        <span className="min-w-0 flex-[1_1_10rem] font-bold break-words uppercase">
+        <span className="min-w-0 flex-[1_1_10rem] font-display text-base font-bold break-words">
           {squadName(match.aId)}
-          {match.bId ? <span className="font-normal text-dim normal-case"> vs </span> : null}
+          {match.bId ? <span className="font-sans font-normal text-dim"> vs </span> : null}
           {match.bId ? squadName(match.bId) : null}
         </span>
         {!match.bId ? (
-          <span className="chip shrink-0 text-dim">Bye</span>
+          <span className={`${OUTLINE_TAG} border-edge text-dim`}>Bye</span>
         ) : score ? (
-          <span className="readout shrink-0 text-sm font-semibold text-bone">
-            {score[0]} – {score[1]}
-          </span>
+          <ScoreFigure a={score[0]} b={score[1]} />
         ) : null}
       </div>
       {!match.bId ? null : state.step ? (

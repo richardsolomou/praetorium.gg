@@ -26,9 +26,9 @@ Ratings work as on the site-wide [leaderboard](/leaderboard): everyone starts at
 
 ## The group page
 
-**Up next for you**, beside the page on a computer and at its top on a phone, shows the one thing waiting on you: a battle you're playing, a list to seal, revealed lists to play, or your next league game. It's hidden when nothing is waiting.
+**Up next for you**, on the **Overview** tab beside the page on a computer and at its top on a phone, shows the one thing waiting on you: a battle you're playing, a list to seal, revealed lists to play, or your next league game. It's hidden when nothing is waiting.
 
-The **Overview** tab sums the group up. What's on now leads it: the current hidden-list games and your unfinished group battles, then a league that's forming or in progress, with its progress and table. Below that come how many games the group has played, who has played lately and which battles are in play this week, its most played armies, the top of the leaderboard with each player's latest results, a finished league's result, **Recent results**, **Head to head** records between members, and past hidden-list games. **Battles** lists every game played for the group, with [filters](/docs/filter-lists). **Leaderboard** rates every game played for the group. **League** has the round robin: its own table, then any sealed lists, then the fixtures.
+The **Overview** tab shows what's on now: the current hidden-list games and your unfinished group battles, the league's progress in one line, the top three of the leaderboard with each player's latest results, the last three **Recent results**, and the members. Each links to its tab for the rest. **Battles** lists every game played for the group, with [filters](/docs/filter-lists), then the past hidden-list games, each folding its lists until you open them. **Leaderboard** rates every game played for the group, then shows how much the group plays, its most played armies and **Head to head** records between members. **League** has the round robin: its own table, then any sealed lists and past leagues, folded until opened, then the fixtures. The current round and any round with a game of yours still to play are open; the others fold to their heading.
 
 ## Hidden-list games
 
@@ -60,7 +60,7 @@ When a game has exactly two sides, an organizer can press **Set battlefield** af
 
 ### When a game ends
 
-Starting a new hidden-list game moves the previous one to **Past hidden-list games**. A scheduled game also moves there after its scheduled day ends, and an undated game after the day its lists were revealed. Days end at midnight in the timezone of the organizer who created it. An undated game with unrevealed lists stays open until replaced.
+Starting a new hidden-list game moves the previous one to **Past hidden-list games** on the **Battles** tab. A scheduled game also moves there after its scheduled day ends, and an undated game after the day its lists were revealed. Days end at midnight in the timezone of the organizer who created it. An undated game with unrevealed lists stays open until replaced.
 
 A game with a battle still being played stays under **Up next** until that battle ends. Past games keep their results, and you can still resume battles already underway. View or simulate revealed armies under **Lists**. You can't start another battle or change lists in a past game.
 
@@ -77,9 +77,9 @@ A league is a round robin: everyone who joins plays every other player once, one
 
 Only organizers see the draft fixtures. **Draw again** shuffles them, and the same draw stays until someone joins, leaves or it's drawn again. With an odd number of players, each player has one bye, which scores nothing. Tracked fixture games also count on the group's leaderboard.
 
-An organizer can press **Set deadline** beside each round once the league is published. A game not finished by then shows as **Overdue**. Nothing is scored for it, and it stays open to play late. A league game counts when its battle is tracked here and finished, or when an organizer presses **Enter score** on it and types both scores for a game that wasn't tracked here. An entered score counts for the league table but not the leaderboard. About a day before a deadline, both players of each game in that round that isn't finished get a notification. A moved deadline sends a new one. To see the deadlines in your own calendar app, see [Add dates to your calendar](/docs/calendar).
+Once the league is published, an organizer can set each round's deadline from the **Fixtures** menu (**⋮**). A game not finished by then shows as **Overdue**. Nothing is scored for it, and it stays open to play late. A league game counts when its battle is tracked here and finished, or when an organizer presses **Enter score** on it and types both scores for a game that wasn't tracked here. An entered score counts for the league table but not the leaderboard. About a day before a deadline, both players of each game in that round that isn't finished get a notification. A moved deadline sends a new one. To see the deadlines in your own calendar app, see [Add dates to your calendar](/docs/calendar).
 
-An organizer can also press **Set chess clock** to give each side the same time in every fixture. Fixtures that haven't started play to it, and their players can't change it.
+An organizer can also choose **Set chess clock** in that menu to give each side the same time in every fixture. Fixtures that haven't started play to it, and their players can't change it.
 
 On the table, a win or a bye is worth 3 points and a draw 1. Ties are broken by victory points, then by the points of everyone you've played. Every bye counts from the start.
 

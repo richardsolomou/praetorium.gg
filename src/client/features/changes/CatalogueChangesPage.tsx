@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { ChevronDown, ChevronLeft, History } from 'lucide-react'
+import { History } from 'lucide-react'
+import { BackLink } from '../reference/BackLink'
 import { useState, type ReactNode } from 'react'
 import type { IndexedUpdate } from '../../../contracts/catalogueChanges'
 import { editionFamilyId } from '../../../core/catalogueEdition'
@@ -13,6 +14,7 @@ import { useOpenHashTarget } from '../../hashTarget'
 import { catalogueChangeLogQuery, factionIndexQuery } from '../../queries'
 import { UpdateChanges } from './UpdateChanges'
 import { UpdatesNavigation } from './UpdatesNavigation'
+import { DisclosureChevron } from '../../components/DisclosureChevron'
 
 const OUTCOME_VIEWS = [
   [null, 'Everything'],
@@ -72,9 +74,9 @@ export function CatalogueChangesPage({ before, faction }: { before?: string; fac
       </PageHeader>
       <PageContent className="sm:pt-6">
         {faction ? (
-          <Link to="/data-updates" className="mb-4 flex items-center gap-1 text-xs font-semibold text-info hover:text-bone">
-            <ChevronLeft className="size-3.5" /> All data updates
-          </Link>
+          <BackLink to="/data-updates" className="mb-4">
+            All data updates
+          </BackLink>
         ) : null}
         {data?.updates.length ? (
           <>
@@ -213,7 +215,8 @@ function Update({
         onToggle={(event) => onOpenChange(event.currentTarget.open)}
         className="group/update scroll-mt-header"
       >
-        <summary className="flex cursor-pointer list-none items-start justify-between gap-4 py-6 [&::-webkit-details-marker]:hidden">
+        <summary className="flex cursor-pointer list-none items-start gap-3 py-6 [&::-webkit-details-marker]:hidden">
+          <DisclosureChevron className="mt-1.5" />
           <div className="min-w-0">
             <h2 className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-2xl leading-none text-bone">
               <time dateTime={new Date(update.recordedAt).toISOString()}>{date(update.recordedAt)}</time>
@@ -229,10 +232,6 @@ function Update({
               ))}
             </p>
           </div>
-          <ChevronDown
-            className="mt-1 size-4 shrink-0 text-faint transition-transform duration-200 ease-settle group-open/update:rotate-180"
-            aria-hidden
-          />
         </summary>
         <div className="pb-10">
           <UpdateChanges groups={update.groups} named={named} omitted={update.omitted} marks={marks} />

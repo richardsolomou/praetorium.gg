@@ -3,7 +3,6 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { useQuery } from '@tanstack/react-query'
-import { ChevronDown } from 'lucide-react'
 import { useState } from 'react'
 import {
   isTeamFormat,
@@ -27,6 +26,7 @@ import { friendshipsQuery } from '../../queries'
 import { SealedEventRuleFields, GROUP_ROSTER_RULE, ROSTER_RULE } from './SealedEventRuleFields'
 import { sealedEventAllowances } from './sealedEvent'
 import type { SquadRule } from '../../../core/squad'
+import { DisclosureChevron } from '../../components/DisclosureChevron'
 
 export type SealedEventFormValue = {
   name: string
@@ -170,9 +170,9 @@ export function SealedEventFormFields({
           onToggle={(event) => setShowOptions(event.currentTarget.open)}
         >
           <summary className="flex cursor-pointer list-none items-baseline gap-3 py-1 pointer-coarse:min-h-11 pointer-coarse:items-center">
+            <DisclosureChevron className="self-center" />
             <span className="eyebrow text-bone">More options</span>
             <span className="min-w-0 flex-1 truncate text-xs text-dim group-open:hidden">{summary}</span>
-            <ChevronDown className="ml-auto size-4 shrink-0 self-center text-dim transition-transform group-open:rotate-180" aria-hidden />
           </summary>
           <div className="mt-3 space-y-4">
             <div className="space-y-1.5">

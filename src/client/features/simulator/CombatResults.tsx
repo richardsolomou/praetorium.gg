@@ -4,6 +4,7 @@ import type { CombatResult } from '../../../core/combat'
 import { HoverTooltip } from '../../components/HoverTooltip'
 import { CombatEstimate } from './CombatEstimate'
 import { CombatValue, formatCombatValue, UNCAPPED_DAMAGE_EXPLANATION, UNCAPPED_KILLS_EXPLANATION } from './CombatValue'
+import { DisclosureChevron } from '../../components/DisclosureChevron'
 
 export const CombatResults = memo(function CombatResults({
   ranged,
@@ -43,16 +44,17 @@ export const CombatResults = memo(function CombatResults({
   return (
     <>
       {inDialog ? <div data-results-space style={{ height }} aria-hidden /> : null}
+      {/* Pinned only once both units give it figures: an empty summary would sit over the pickers that fill it. */}
       <div
         ref={summary}
         aria-label="Results summary"
         data-onboarding="simulator-results"
         data-results-summary
-        className={`right-0 left-0 z-40 mx-auto rounded-xl border border-runner bg-sunken shadow-lifted ${inDialog ? 'absolute bottom-0' : 'sticky bottom-16 w-full min-[860px]:bottom-0'}`}
+        className={`right-0 left-0 z-40 mx-auto rounded-lg border border-edge bg-panel shadow-lifted ${inDialog ? 'absolute bottom-0' : selected ? 'sticky bottom-16 w-full min-[860px]:bottom-0' : 'relative w-full'}`}
       >
         <section aria-label="Combined estimate" aria-busy={updating && !failed} className="px-3 pt-2.5 sm:px-4">
           <div className="flex items-baseline justify-between gap-2">
-            <h2 className="rubric text-xs text-dim">Shooting + melee</h2>
+            <h2 className="eyebrow">Shooting + melee</h2>
             {selected && updating && !failed ? <output className="text-xs text-dim">Updating…</output> : null}
           </div>
           <div data-result-numbers className="mt-1.5 flex flex-wrap items-end gap-3">
@@ -68,7 +70,7 @@ export const CombatResults = memo(function CombatResults({
               <CombatValue
                 result={combined}
                 metric={uncapped ? 'uncappedDamage' : 'meanDamage'}
-                className={`figure block text-lg leading-none font-semibold ${muted ? 'text-dim' : 'text-bone'}`}
+                className={`figure block text-lg leading-none font-semibold sm:text-2xl ${muted ? 'text-dim' : 'text-bone'}`}
               />
               {uncapped ? (
                 <div className="mt-1 flex">
@@ -84,7 +86,7 @@ export const CombatResults = memo(function CombatResults({
               <CombatValue
                 result={combined}
                 metric={uncapped ? 'uncappedKills' : 'meanKills'}
-                className={`figure block text-lg leading-none font-semibold ${muted ? 'text-dim' : 'text-bone'}`}
+                className={`figure block text-lg leading-none font-semibold sm:text-2xl ${muted ? 'text-dim' : 'text-bone'}`}
               />
               {uncapped ? (
                 <div className="mt-1 flex">
@@ -109,7 +111,8 @@ export const CombatResults = memo(function CombatResults({
           />
         ) : null}
         <details className="group/breakdown">
-          <summary className="cursor-pointer px-3 py-1.5 text-xs text-info outline-none focus-visible:ring-2 focus-visible:ring-primary sm:px-4">
+          <summary className="flex cursor-pointer list-none items-center gap-1.5 px-3 py-1.5 text-xs text-dim outline-none hover:text-bone focus-visible:ring-2 focus-visible:ring-primary sm:px-4 [&::-webkit-details-marker]:hidden">
+            <DisclosureChevron className="size-3.5" />
             Breakdown
           </summary>
           <div className="@container max-h-[45dvh] overflow-y-auto overscroll-contain border-t border-edge p-3 sm:p-4">
@@ -136,9 +139,9 @@ export const CombatResults = memo(function CombatResults({
                   key={title}
                   aria-label={title === 'Combined' ? 'Combined distributions' : `${title} estimate`}
                   aria-busy={updating && !failed}
-                  className="grid min-w-0 grid-cols-[6.5rem_minmax(0,1fr)] items-center gap-2 rounded-lg border border-edge bg-panel px-2 py-1 @max-[17rem]:grid-cols-1"
+                  className="grid min-w-0 grid-cols-[6.5rem_minmax(0,1fr)] items-center gap-2 border-t border-edge px-2 py-1.5 @max-[17rem]:grid-cols-1"
                 >
-                  <h3 className="text-xs font-semibold">
+                  <h3 className="text-xs font-medium">
                     <span className="flex items-center gap-1">
                       {phase ? <PhaseIcon phase={phase} className="size-3" /> : null}
                       {title}

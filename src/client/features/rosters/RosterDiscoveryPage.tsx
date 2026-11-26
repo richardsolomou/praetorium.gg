@@ -1,6 +1,7 @@
 import { keepPreviousData, useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
 import { Copy, Eye, ScrollText, Swords, Users } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { posthog } from 'posthog-js'
 import { Button } from '@/components/ui/button'
 import { buttonClass } from '../../components/buttonClass'
@@ -42,7 +43,8 @@ import { NoFilterMatches } from '../../components/NoFilterMatches'
 import { facetsOf, periodSearch } from '../../searchParams'
 import { countLabel } from '../../text'
 import { RosterImport } from './RosterImport'
-import { RosterSummary, rosterTitle } from './RosterSummary'
+import { SectionHeading } from '../../components/SectionHeading'
+import { ROSTER_ROW, ROSTER_ROW_FOOT, ROSTER_ROW_LINK, ROSTER_ROWS, RosterSummary, rosterTitle } from './RosterSummary'
 import { RosterViews } from './RosterViews'
 import { useAccountPrompt } from './AccountPrompt'
 import { peekGuestDraft } from './guestDraft'
@@ -50,7 +52,7 @@ import { copyPlayedArmyToDevice, copyRosterToDevice, useNewRoster } from './newR
 import { useClientValue } from '../../useClientValue'
 import { Problem } from '../../components/Problem'
 import { FactionMark } from '../../components/FactionMark'
-import { BATTLE_ENDINGS, battleOutcomeStage } from '../../battleStage'
+import { battleOutcomeStage } from '../../battleStage'
 import { OwnerLink } from './OwnerLink'
 import { DISCOVERY_FACETS, type RosterDiscoverySearch } from './rosterSearch'
 import { discoveryFilter, playedFilter } from './discoveryFilters'
@@ -272,13 +274,17 @@ export function RosterDiscoveryPage({ view, search }: { view: RosterAudience | '
           />
         ) : (
           <section>
-            <h2 className="rubric border-b border-edge pb-2">{view === 'friends' ? "Friends' public rosters" : 'Public rosters'}</h2>
-            <p className="mt-2 text-xs text-dim">
+            <SectionHeading
+              title={view === 'friends' ? "Friends' public rosters" : 'Public rosters'}
+              count={total ?? undefined}
+              className="mb-1"
+            />
+            <p className="text-xs text-dim">
               {view === 'friends'
                 ? 'Rosters your friends made public, to open or duplicate as your own.'
                 : 'Rosters players made public, to open or duplicate as your own.'}
             </p>
-            <div className="mt-2 space-y-3">
+            <div className="mt-3 space-y-3">
               {signedOutFriends ? (
                 <PageState
                   headingLevel={2}
@@ -308,7 +314,7 @@ export function RosterDiscoveryPage({ view, search }: { view: RosterAudience | '
                   }
                 />
               ) : result.isPending ? (
-                <div aria-busy="true" className="space-y-3">
+                <div aria-busy="true" className={ROSTER_ROWS}>
                   <output className="sr-only">Loading {listed}…</output>
                   <DiscoveredRosterSkeleton />
                 </div>
@@ -316,7 +322,7 @@ export function RosterDiscoveryPage({ view, search }: { view: RosterAudience | '
                 <>
                   {shown.length ? null : <NoFilterMatches>None of the rosters searched so far match.</NoFilterMatches>}
                   {shown.length ? (
-                    <div className="runner gap-3 [--gate-x:1rem] [--gate-y:1.5rem] sm:[--gate-x:1.5rem]">
+                    <div className={ROSTER_ROWS}>
                       {shown.map((entry) => (
                         <DiscoveredRoster
                           key={entry.roster.id}
@@ -394,12 +400,12 @@ function PlayedArmies({
   const armies = result.data?.pages.flatMap((page) => page.armies) ?? []
   return (
     <section>
-      <h2 className="rubric border-b border-edge pb-2">Played armies</h2>
-      <p className="mt-2 text-xs text-dim">
+      <SectionHeading title="Played armies" className="mb-1" />
+      <p className="text-xs text-dim">
         Armies from finished battles every player keeps public, as they were fielded. Points and legality are checked against today’s data
         for the rules version each was played under.
       </p>
-      <div className="mt-2 space-y-3">
+      <div className="mt-3 space-y-3">
         {result.isError && !armies.length ? (
           <PageState
             headingLevel={2}
@@ -412,14 +418,14 @@ function PlayedArmies({
             }
           />
         ) : result.isPending ? (
-          <div aria-busy="true" className="space-y-3">
+          <div aria-busy="true" className={ROSTER_ROWS}>
             <output className="sr-only">Loading played armies…</output>
             <DiscoveredRosterSkeleton />
           </div>
         ) : armies.length || result.hasNextPage ? (
           <>
             {armies.length ? null : <NoFilterMatches>None of the battles searched so far match.</NoFilterMatches>}
-            <div className="runner gap-3 [--gate-x:1rem] [--gate-y:1.5rem] sm:[--gate-x:1.5rem] empty:hidden">
+            <div className={`${ROSTER_ROWS} empty:hidden`}>
               {armies.map((army) => {
                 const indexed = factions.find((faction) => faction.id === army.catalogueId)
                 // Frozen armies keep the status their rules version had when they were fielded.
@@ -432,8 +438,8 @@ function PlayedArmies({
                 }
                 const key = `${army.battle}:${army.player.id}`
                 return (
-                  <article key={key} data-played-army={army.name} className="part hover:border-runner-hi hover:bg-raised">
-                    <Link to="/rosters/$id" params={{ id: army.player.id }} search={{ battle: army.battle }} className="flex min-w-0 p-3">
+                  <article key={key} data-played-army={army.name} className={ROSTER_ROW}>
+                    <Link to="/rosters/$id" params={{ id: army.player.id }} search={{ battle: army.battle }} className={ROSTER_ROW_LINK}>
                       <RosterSummary
                         roster={{ ...army, updatedAt: army.playedAt }}
                         faction={faction}
@@ -444,13 +450,9 @@ function PlayedArmies({
                         dateLabel="played"
                       />
                     </Link>
-                    <PlayedOutcome outcome={army.outcome} token={army.battle} />
-                    <div className="flex flex-wrap items-center justify-between gap-2 border-t border-edge px-3 py-2">
-                      <span className="min-w-0 truncate text-xs text-dim">
-                        By <OwnerLink owner={army.player} />
-                      </span>
+                    <PlayedOutcome outcome={army.outcome} token={army.battle} owner={army.player}>
                       <Button
-                        variant="outline"
+                        variant="ghost"
                         size="sm"
                         disabled={copying !== null}
                         onClick={() => onCopy(army)}
@@ -458,7 +460,7 @@ function PlayedArmies({
                       >
                         <Copy /> {copying && `${copying.battle}:${copying.player.id}` === key ? 'Duplicating…' : 'Duplicate'}
                       </Button>
-                    </div>
+                    </PlayedOutcome>
                   </article>
                 )
               })}
@@ -484,18 +486,27 @@ function PlayedArmies({
   )
 }
 
-/** How the battle went for the army's side, drawn as its battle card draws it, with the way into the battle. */
-function PlayedOutcome({ outcome, token }: { outcome: PlayedArmy['outcome']; token: string }) {
+/** How the battle went for the army's side, drawn as its battle card draws it, with who played it, the way into the battle, and `children` beside it. */
+function PlayedOutcome({
+  outcome,
+  token,
+  owner,
+  children,
+}: {
+  outcome: PlayedArmy['outcome']
+  token: string
+  owner: PlayedArmy['player']
+  children: ReactNode
+}) {
   const stage = battleOutcomeStage(outcome.result)
   return (
-    <div data-played-outcome className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-edge px-3 py-2">
+    <div data-played-outcome className={ROSTER_ROW_FOOT}>
       <span className={`chip ${stage.tint}`}>{stage.name}</span>
       <span className="figure text-lg leading-none font-bold">
         <span className="text-side-a">{outcome.score}</span>
         <span className="px-1 text-sm text-faint">–</span>
         <span className="text-side-b">{outcome.opponentScore}</span>
       </span>
-      {outcome.conceded ? <span className="text-2xs text-faint">{BATTLE_ENDINGS.conceded}</span> : null}
       {outcome.opponents.length ? (
         <span className="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-dim">
           <span className="text-faint">vs</span>
@@ -507,9 +518,15 @@ function PlayedOutcome({ outcome, token }: { outcome: PlayedArmy['outcome']; tok
           ))}
         </span>
       ) : null}
-      <Link to="/battles/$token" params={{ token }} className={buttonClass({ variant: 'ghost', size: 'sm', className: 'ml-auto' })}>
-        <Eye /> Open battle
-      </Link>
+      <span className="min-w-0 truncate">
+        By <OwnerLink owner={owner} />
+      </span>
+      <span className="ml-auto flex items-center gap-1">
+        <Link to="/battles/$token" params={{ token }} className={buttonClass({ variant: 'ghost', size: 'sm' })}>
+          <Eye /> Open battle
+        </Link>
+        {children}
+      </span>
     </div>
   )
 }
@@ -530,15 +547,15 @@ function DiscoveredRoster({
   const { roster, owner } = entry
   const title = rosterTitle(roster, faction)
   return (
-    <article data-discovered-roster={title} className="part hover:border-runner-hi hover:bg-raised">
-      <Link to="/rosters/$id" params={{ id: roster.id }} className="flex min-w-0 p-3">
+    <article data-discovered-roster={title} className={ROSTER_ROW}>
+      <Link to="/rosters/$id" params={{ id: roster.id }} className={ROSTER_ROW_LINK}>
         <RosterSummary roster={roster} faction={faction} points={entry.points} problem={entry.problem} showLock={false} showLegality />
       </Link>
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-edge px-3 py-2">
-        <span className="min-w-0 truncate text-xs text-dim">
+      <div className={ROSTER_ROW_FOOT}>
+        <span className="min-w-0 truncate">
           By <OwnerLink owner={owner} />
         </span>
-        <Button variant="outline" size="sm" disabled={disabled} onClick={onDuplicate} aria-label={`Duplicate ${title}`}>
+        <Button variant="ghost" size="sm" className="ml-auto" disabled={disabled} onClick={onDuplicate} aria-label={`Duplicate ${title}`}>
           <Copy /> {duplicating ? 'Duplicating…' : 'Duplicate'}
         </Button>
       </div>
@@ -548,8 +565,8 @@ function DiscoveredRoster({
 
 function DiscoveredRosterSkeleton() {
   return Array.from({ length: 3 }, (_, index) => (
-    <div key={index} className="part" aria-hidden>
-      <div className="flex min-h-[5.25rem] items-center gap-3 p-3">
+    <div key={index} className={ROSTER_ROW} aria-hidden>
+      <div className="flex min-h-[5.25rem] items-center gap-3 p-1">
         <div className="min-w-0 flex-1 space-y-2">
           <Skeleton className="h-4 w-1/3" />
           <div className="flex gap-2">
@@ -560,9 +577,9 @@ function DiscoveredRosterSkeleton() {
         </div>
         <Skeleton className="h-5 w-20" />
       </div>
-      <div className="flex items-center justify-between gap-2 border-t border-edge px-3 py-2">
+      <div className={ROSTER_ROW_FOOT}>
         <Skeleton className="h-3 w-28" />
-        <Skeleton className="h-8 w-28" />
+        <Skeleton className="ml-auto h-8 w-28" />
       </div>
     </div>
   ))

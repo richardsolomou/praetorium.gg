@@ -409,7 +409,8 @@ export function FolderTiles({
     .filter(({ held }) => !matchesOnly || held.length)
   if (!tiles.length) return null
   return (
-    <div className="grid grid-cols-2 gap-x-3 gap-y-4 pt-1.5 sm:grid-cols-3">
+    // Hairline rows in up to three columns, so a few folders take a line or two above the rosters instead of a shelf of empty cards.
+    <div className="grid sm:grid-cols-2 sm:gap-x-6 lg:grid-cols-3">
       {tiles.map(({ folder, held }) => (
         <FolderTile
           key={folder.id}
@@ -455,7 +456,7 @@ function FolderTile({
   return (
     // The menu sits beside the link rather than inside it, since a link cannot hold a button.
     <ContextMenu>
-      <ContextMenuTrigger render={<div className="relative" />}>
+      <ContextMenuTrigger render={<div className="relative h-full border-t border-edge" />}>
         <Link
           from="/rosters/"
           to="/rosters"
@@ -468,38 +469,39 @@ function FolderTile({
           }}
           data-folder={folder.name}
           className={cn(
-            // The tab on its top edge is what makes the card read as a folder.
-            // Every tile is one height, so a row of folders reads as a grid whatever each holds.
-            'part relative flex h-28 flex-col gap-1 p-3 pt-3.5 pr-10 hover:border-runner-hi hover:bg-raised',
-            'before:absolute before:-top-1.5 before:left-3 before:h-1.5 before:w-10 before:rounded-t-md before:border before:border-b-0 before:border-edge before:bg-panel',
-            // The tab is part of the folder's shape, so it takes every state the body does.
-            'hover:before:border-runner-hi hover:before:bg-raised',
-            drop.over &&
-              'border-parchment bg-raised before:border-parchment before:bg-raised hover:border-parchment hover:before:border-parchment',
+            'flex h-full min-h-14 items-start gap-3 py-2.5 pr-10 pl-2 hover:bg-raised',
+            // A drop target says it will take the roster with a green outline, the mark of what is current.
+            drop.over && 'bg-raised inset-ring-1 inset-ring-parchment/70',
           )}
         >
-          <span className="line-clamp-2 leading-tight font-bold break-words uppercase">{folder.name}</span>
-          <span className="truncate text-xs text-dim">
-            {[
-              folders ? countLabel(folders, 'folder') : null,
-              countLabel(new Set(rosters.map((roster) => roster.baseRosterId ?? roster.id)).size, 'roster'),
-              span ? `${span} pts` : null,
-            ]
-              .filter(Boolean)
-              .join(' · ')}
-          </span>
-          {factions.length ? (
-            <span className="mt-auto flex items-center gap-1">
-              {factions.slice(0, 5).map((faction) => (
-                <FactionMark key={faction.slug} faction={faction} size="sm" />
-              ))}
-              {factions.length > 5 ? <span className="text-xs text-faint">+{factions.length - 5}</span> : null}
+          <Folder className="mt-0.5 size-5 shrink-0 text-parchment" aria-hidden />
+          <span className="min-w-0 flex-1">
+            <span className="line-clamp-2 leading-tight font-bold break-words text-bone">{folder.name}</span>
+            {/* The armies sit under the name with the counts, so a long name has the row's whole width before it wraps. */}
+            <span className="mt-1 flex min-w-0 items-center gap-2 text-2xs text-faint">
+              <span className="truncate">
+                {[
+                  folders ? countLabel(folders, 'folder') : null,
+                  countLabel(new Set(rosters.map((roster) => roster.baseRosterId ?? roster.id)).size, 'roster'),
+                  span ? `${span} pts` : null,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </span>
+              {factions.length ? (
+                <span className="flex shrink-0 items-center gap-1">
+                  {factions.slice(0, 3).map((faction) => (
+                    <FactionMark key={faction.slug} faction={faction} className="size-4" />
+                  ))}
+                  {factions.length > 3 ? <span>+{factions.length - 3}</span> : null}
+                </span>
+              ) : null}
             </span>
-          ) : null}
+          </span>
         </Link>
         <DropdownMenu>
           <DropdownMenuTrigger
-            render={<Button variant="ghost" size="icon-sm" className="absolute top-2 right-2" aria-label={`Actions for ${folder.name}`} />}
+            render={<Button variant="ghost" size="icon-sm" className="absolute top-2 right-1" aria-label={`Actions for ${folder.name}`} />}
           >
             <EllipsisVertical />
           </DropdownMenuTrigger>
@@ -555,7 +557,7 @@ export function FolderBreadcrumb({
       {folderPath(folders, folder.id).map((above) => (
         <Crumb key={above.id} folderId={above.id} label={above.name} onDrop={(item) => onDrop(item, above.id)} />
       ))}
-      <span className="flex min-w-0 items-center gap-2 px-1 font-bold text-bone uppercase">
+      <span className="flex min-w-0 items-center gap-2 px-1 font-bold text-bone">
         <FolderOpen className="size-4 shrink-0 text-dim" aria-hidden />
         <span className="truncate">{folder.name}</span>
       </span>

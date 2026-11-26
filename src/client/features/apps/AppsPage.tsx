@@ -7,16 +7,17 @@ import { PageContent, PageHeader } from '../../components/Page'
 import { SectionHeading } from '../../components/SectionHeading'
 import { ANDROID_BETA, MCP_SERVER } from '../../projectLinks'
 import { useCopyText } from '../../useCopyText'
+import { OUTLINE_TAG } from '../../components/rosterSetup'
 import { AndroidBeta, AppStoreBadge, ASSISTANTS, AssistantButton, HomeAppCredits } from '../home/HomeApps'
 
 const linkClass = 'text-sm text-info hover:text-parchment'
 
 function AppTile({ title, beta = false, children, help }: { title: string; beta?: boolean; children: ReactNode; help: ReactNode }) {
   return (
-    <article className="part flex flex-col gap-3 p-4">
-      <h3 className="flex items-center gap-2 text-lg leading-tight text-bone">
+    <article className="flex flex-col gap-3 border-b border-edge py-5">
+      <h3 className="flex items-center gap-2 text-lg leading-tight font-semibold text-bone">
         <span>{title}</span>
-        {beta ? <span className="chip text-parchment">Beta</span> : null}
+        {beta ? <span className={`${OUTLINE_TAG} border-parchment/50 text-sm font-normal text-parchment`}>Beta</span> : null}
       </h3>
       {children}
       <p className="mt-auto pt-1">{help}</p>
@@ -56,7 +57,7 @@ export function AppsPage() {
         {/* Inside the app there is nothing to install. */}
         <section data-store-link aria-labelledby="apps-phone">
           <SectionHeading id="apps-phone" title="On your phone" />
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid border-t border-edge sm:grid-cols-2 sm:gap-x-8">
             <AppTile
               title="iPhone, iPad and Apple Watch"
               help={
@@ -94,7 +95,7 @@ export function AppsPage() {
             Ask about units, points, detachments and missions, plan a list, or run the simulator. You sign in only when it needs your
             rosters or battles.
           </p>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid border-t border-edge sm:grid-cols-2 sm:gap-x-8">
             {[ASSISTANTS.chatgpt, ASSISTANTS.claude].map((assistant) => (
               <AppTile
                 key={assistant.name}

@@ -40,7 +40,7 @@ it('omits unchanged setup values instead of repeating before and after', () => {
 })
 
 it('collapses one unchanged unit by default', () => {
-  expect(render(65, 65)).toMatch(/<details[^>]*><summary[^>]*>1 unchanged unit<\/summary>/)
+  expect(render(65, 65)).toMatch(/<details[^>]*><summary[^>]*>(?:<svg[\s\S]*?<\/svg>)?1 unchanged unit<\/summary>/)
 })
 
 it('does not offer an unchanged unit disclosure for an empty roster', () => {

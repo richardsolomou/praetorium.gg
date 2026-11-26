@@ -19,6 +19,7 @@ import { refreshSupport, replyToConversation, useSupportAvailable } from './supp
 import { supportMessagesQuery } from '../../queries'
 import { StatusChip } from './YourFeedback'
 import { searchShortcutModifier } from '../shell/globalSearchShortcut'
+import { OUTLINE_TAG } from '../../components/rosterSetup'
 
 /** Messages by one author this close together read as one turn, under a single name. */
 const TURN_MS = 5 * 60_000
@@ -47,7 +48,7 @@ export function Conversation({ ticketId, notice, onBack }: { ticketId: string; n
             {data?.status && first ? (
               <>
                 <StatusChip status={data.status} />
-                {kind ? <span className="chip">{kind}</span> : null}
+                {kind ? <span className={`${OUTLINE_TAG} border-edge text-dim`}>{kind}</span> : null}
                 <span>Started {dates.date(first.created_at)}</span>
               </>
             ) : (
@@ -229,7 +230,7 @@ function Thread({ ticketId, messages, status, notice }: { ticketId: string; mess
 function DayDivider({ at }: { at: string }) {
   const dates = useDateFormatting()
   return (
-    <p className="flex items-center gap-3 py-3 text-2xs font-semibold tracking-eyebrow text-faint uppercase">
+    <p className="flex items-center gap-3 py-3 text-xs text-faint">
       <span className="h-px flex-1 bg-edge" aria-hidden />
       {dates.date(at)}
       <span className="h-px flex-1 bg-edge" aria-hidden />
@@ -278,10 +279,10 @@ function Bubble({
           {read ? read.body : mine ? message.content : <TeamMessage content={message.content} />}
           {read && (read.version || read.datasheet || read.screenshot) ? (
             <span className="mt-2 flex flex-wrap gap-1.5 border-t border-edge pt-2 whitespace-normal">
-              {read.version ? <span className="chip">Version {read.version}</span> : null}
-              {read.datasheet ? <span className="chip">{read.datasheet}</span> : null}
+              {read.version ? <span className={`${OUTLINE_TAG} border-edge text-dim`}>Version {read.version}</span> : null}
+              {read.datasheet ? <span className={`${OUTLINE_TAG} border-edge text-dim`}>{read.datasheet}</span> : null}
               {read.screenshot ? (
-                <span className="chip gap-1">
+                <span className={`${OUTLINE_TAG} inline-flex items-center gap-1 border-edge text-dim`}>
                   <ImageIcon className="size-3" aria-hidden /> Screenshot attached
                 </span>
               ) : null}

@@ -1,7 +1,7 @@
 import { WaiverChip } from '../../components/FormatWaivers'
 import type { FormatRule } from '../../../core/battle'
 import { type ReactNode, useEffect, useRef } from 'react'
-import { Check, TriangleAlert } from 'lucide-react'
+import { TriangleAlert } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { UnavailableSelection } from '../../../core/rosterSelections'
@@ -58,17 +58,19 @@ export function RosterBuilderFooter({
     if (over && wasOver.current === false) requestNativeHaptic('warning')
     wasOver.current = over
   }, [loading, over])
+  const status = over
+    ? { label: 'Over the limit', tone: 'text-destructive' }
+    : illegal
+      ? { label: 'Not legal', tone: 'text-destructive' }
+      : !hasUnits
+        ? { label: '', tone: 'text-dim' }
+        : points > limit
+          ? { label: 'Limit off', tone: 'text-dim' }
+          : { label: 'Legal', tone: 'text-achieved' }
   return (
-    <footer className="sticky bottom-0 z-20 border-t border-edge bg-void px-3 py-2">
-      <div className="flex flex-wrap items-center gap-2">
-        <span data-onboarding="roster-points" className="flex items-center gap-1.5 sm:gap-2">
-          {loading ? (
-            <Skeleton className="size-5" aria-hidden />
-          ) : over || illegal ? (
-            <TriangleAlert className="size-5 text-destructive" aria-hidden />
-          ) : (
-            <Check className={`size-5 ${hasUnits ? 'text-achieved' : 'text-faint'}`} aria-hidden />
-          )}
+    <footer className="sticky bottom-0 z-20 border-t border-edge bg-void px-4 py-2.5">
+      <div className="flex flex-wrap items-center gap-3">
+        <span data-onboarding="roster-points" className="block min-w-0 max-w-sm flex-1">
           {loading ? null : (
             <span className="sr-only">
               {over
@@ -80,40 +82,44 @@ export function RosterBuilderFooter({
                     : 'Within the points limit'}
             </span>
           )}
-          <span
-            data-stat="points"
-            className={`figure text-2xl leading-none font-bold sm:text-3xl ${over ? 'text-destructive' : 'text-bone'}`}
-          >
-            {loading ? (
-              <span aria-label="Loading roster points">…</span>
-            ) : (
-              // Keyed on the value, so each unit added or removed answers with the total rising into place.
-              <span key={points} className="inline-block animate-figure">
-                {points}
-              </span>
-            )}
-            <span className="text-base font-normal text-dim sm:text-lg">/{limit}</span>
+          <span className="flex flex-wrap items-baseline gap-x-3">
+            <span data-stat="points" className={`figure text-[2.125rem] leading-none ${over ? 'text-destructive' : 'text-bone'}`}>
+              {loading ? (
+                <span aria-label="Loading roster points">…</span>
+              ) : (
+                // Keyed on the value, so each unit added or removed answers with the total rising into place.
+                <span key={points} className="inline-block animate-figure">
+                  {points}
+                </span>
+              )}
+              <span className="text-xl text-faint">/{limit}</span>
+            </span>
+            <WaiverChip rules={waivers} />
+            {sealedEventWarning}
           </span>
-          <span className="flex flex-col leading-tight">
-            <span className="eyebrow">points</span>
-            {loading ? null : (
-              <span data-stat="points-left" className={`text-xs ${over ? 'text-destructive' : 'text-dim'}`}>
-                {points > limit ? `${points - limit} over` : `${limit - points} left`}
-              </span>
-            )}
+          {loading ? (
+            <Skeleton className="mt-1 h-4 w-32" aria-hidden />
+          ) : (
+            <span className={`mt-0.5 flex items-center gap-1 text-2xs ${status.tone}`}>
+              {over || illegal ? <TriangleAlert className="size-3.5" aria-hidden /> : null}
+              {status.label ? <span aria-hidden>{status.label} · </span> : null}
+              <span data-stat="points-left">{points > limit ? `${points - limit} over` : `${limit - points} left`}</span>
+            </span>
+          )}
+          <span className="mt-1 block h-1.5 bg-edge" aria-hidden>
+            <span
+              className={`block h-full transition-[width] ${over ? 'bg-destructive' : 'bg-parchment'}`}
+              style={{ width: `${limit > 0 ? Math.min(points / limit, 1) * 100 : 0}%` }}
+            />
           </span>
         </span>
 
-        <WaiverChip rules={waivers} />
-        {sealedEventWarning}
-
-        <span className="ml-auto flex items-center gap-2">
+        <span className="flex items-center gap-2">
           {editable ? (
             <Button
               data-onboarding="roster-picker"
-              variant="outline"
-              size="sm"
-              className="max-sm:min-h-11 roster-wide:hidden"
+              variant={onSave ? 'outline' : 'default'}
+              className="h-11 px-4.5 text-base roster-wide:hidden"
               onClick={() => {
                 advanceOnboarding('roster', 'roster-picker', 'roster-search')
                 onAddUnits()
@@ -123,7 +129,7 @@ export function RosterBuilderFooter({
             </Button>
           ) : null}
           {onSave ? (
-            <Button size="sm" className="max-sm:min-h-11" onClick={onSave} disabled={!hasUnits} aria-label="Save roster">
+            <Button className="h-11 px-4.5 text-base" onClick={onSave} disabled={!hasUnits} aria-label="Save roster">
               Save<span className="max-sm:hidden"> roster</span>
             </Button>
           ) : null}

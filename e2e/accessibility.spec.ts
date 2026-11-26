@@ -68,10 +68,12 @@ test('keeps the navigation rail controls on screen at double text size', async (
   await doubleText(page)
   const rail = page.locator('[data-web-app-chrome]')
   const outside = await rail.evaluate((element) =>
-    ['nav[aria-label="Primary"]', '[aria-label="Search Praetorium"]', '[aria-label="Account menu"]'].some((selector) => {
-      const bounds = element.querySelector(selector)!.getBoundingClientRect()
-      return bounds.width === 0 || bounds.right > innerWidth || bounds.bottom > innerHeight
-    }),
+    ['nav[aria-label="Army"]', 'nav[aria-label="Play"]', '[aria-label="Search Praetorium"]', '[aria-label="Account menu"]'].some(
+      (selector) => {
+        const bounds = element.querySelector(selector)!.getBoundingClientRect()
+        return bounds.width === 0 || bounds.right > innerWidth || bounds.bottom > innerHeight
+      },
+    ),
   )
   expect(outside).toBe(false)
   await rail.getByRole('navigation', { name: 'Reference' }).getByRole('link', { name: 'Missions' }).click()
@@ -107,7 +109,7 @@ test.describe('a touch device', () => {
       const bounds = (selector: string) => element.querySelector(selector)!.getBoundingClientRect()
       const edge = element.getBoundingClientRect().right
       const name = element.querySelector('button[aria-label$=" datasheet"]')!.getBoundingClientRect()
-      const actions = [bounds('[aria-label^="Add Immortals to"]'), bounds('.chip'), bounds('[data-onboarding="picker-add"]')]
+      const actions = [bounds('[aria-label^="Add Immortals to"]'), bounds('[data-points]'), bounds('[data-onboarding="picker-add"]')]
       return actions.some(
         (action) =>
           action.right > edge + 1 ||

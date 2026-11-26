@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { AppWindow, Calculator, ChevronDown, CircleHelp, Gavel, ScrollText, Sparkles, Swords, Users, type LucideIcon } from 'lucide-react'
+import { AppWindow, Calculator, CircleHelp, Gavel, ScrollText, Sparkles, Swords, Users, type LucideIcon } from 'lucide-react'
 import { createElement, useEffect, useState } from 'react'
 import Markdown, { type Components } from 'react-markdown'
 import { RELEASE_AREAS, type ReleaseArea, type ReleaseChange, type ReleaseNote } from '../../../core/releaseNotes'
@@ -11,7 +11,9 @@ import { releaseNotesQuery } from '../../queries'
 import { newerRelease } from '../../releaseUpdate'
 import { useHydrated } from '../../useClientValue'
 import { markReleaseSeen, seenRelease } from '../shell/seenRelease'
+import { OUTLINE_TAG } from '../../components/rosterSetup'
 import { UpdatesNavigation } from './UpdatesNavigation'
+import { DisclosureChevron } from '../../components/DisclosureChevron'
 
 /** Changesets are markdown, so an entry can carry emphasis or code; anything block-level reads as its text. */
 const inline: Components = {
@@ -221,17 +223,14 @@ function Day({
       <details open={open} onToggle={(event) => onOpenChange(event.currentTarget.open)} className="group/day">
         <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-x-4 gap-y-1 py-6 [&::-webkit-details-marker]:hidden">
           <h2 id={id} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-2xl leading-none text-bone">
+            <DisclosureChevron className="self-center" />
             {date ? <time dateTime={date}>{day(date)}</time> : 'Earlier'}
-            {isNew ? <span className="chip border-parchment/40 text-parchment">New to you</span> : null}
+            {isNew ? <span className={`${OUTLINE_TAG} border-parchment/40 text-parchment`}>New to you</span> : null}
           </h2>
           <span className="flex items-center gap-3">
             <span className="flex flex-wrap items-baseline gap-x-1.5 text-xs text-dim">
               <Tally features={featureCount(releases)} fixes={fixCount(releases)} />
             </span>
-            <ChevronDown
-              className="size-4 shrink-0 text-faint transition-transform duration-200 ease-settle group-open/day:rotate-180"
-              aria-hidden
-            />
           </span>
         </summary>
         <div className="space-y-6 pb-10">
@@ -281,7 +280,7 @@ function Changes({ entries, feature }: { entries: Entry[]; feature: boolean }) {
           className={`flex scroll-mt-header items-baseline gap-2.5 leading-snug ${feature ? 'py-1 text-base text-bone' : 'py-0.5 text-sm text-dim'}`}
         >
           {feature ? (
-            <span className="chip shrink-0 border-(--area)/50 bg-(--area)/10 text-(--area)">New</span>
+            <span className={`${OUTLINE_TAG} border-(--area)/50 bg-(--area)/10 text-(--area)`}>New</span>
           ) : (
             <span aria-hidden className="size-[0.3rem] shrink-0 -translate-y-[0.15rem] rotate-45 bg-(--area)/60" />
           )}

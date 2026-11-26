@@ -126,11 +126,10 @@ function SummaryScreen({ mark, view, sides: table, onClose }: Omit<Props, 'mark'
               'radial-gradient(ellipse 70% 90% at 0% 20%, color-mix(in srgb, var(--color-side-a) 20%, transparent), transparent 70%), radial-gradient(ellipse 70% 90% at 100% 20%, color-mix(in srgb, var(--color-side-b) 20%, transparent), transparent 70%)',
           }}
         />
-        <div aria-hidden className="construction-grid fixed" />
         <div className="relative mx-auto flex min-h-full w-full max-w-5xl flex-col transition-transform duration-320 ease-(--ease-settle) group-data-ending-style/summary:translate-y-2 group-data-ending-style/summary:duration-160 group-data-ending-style/summary:ease-in group-data-starting-style/summary:translate-y-4 motion-reduce:transition-none justify-center gap-6 px-4 pt-[calc(1.5rem+env(safe-area-inset-top))] pb-[calc(9rem+env(safe-area-inset-bottom))] min-[860px]:pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:gap-10 sm:px-8">
           <header className="text-center">
-            {finished ? <p className="eyebrow">Battle over</p> : null}
-            <DialogPrimitive.Title className="mt-1 text-3xl leading-none font-bold text-balance break-words uppercase sm:text-5xl">
+            {finished ? <p className="text-sm font-medium text-dim">Battle over</p> : null}
+            <DialogPrimitive.Title className="mt-1 text-3xl leading-none font-bold text-balance break-words sm:text-5xl">
               {title}
             </DialogPrimitive.Title>
             <DialogPrimitive.Description className="mt-2 text-sm text-dim sm:text-base">
@@ -151,12 +150,10 @@ function SummaryScreen({ mark, view, sides: table, onClose }: Omit<Props, 'mark'
             ))}
             {/* Between the sides from `sm`; a phone keeps the height for the scores, and the title already names the round. */}
             <div className="order-2 row-span-4 hidden justify-center self-center sm:flex">
-              <div className="part grid min-w-36 place-items-center border-runner-hi px-5 py-5 text-center transition-transform duration-320 ease-(--ease-settle) group-data-starting-style/summary:scale-90 motion-reduce:transition-none">
-                <span className="font-display text-2xs font-semibold tracking-label text-dim uppercase">
-                  {finished ? 'Final' : 'Round'}
-                </span>
+              <div className="grid min-w-36 place-items-center border-y border-edge px-5 py-5 text-center transition-transform duration-320 ease-(--ease-settle) group-data-starting-style/summary:scale-90 motion-reduce:transition-none">
+                <span className="text-xs font-medium text-dim">{finished ? 'Final' : 'Round'}</span>
                 <span className="font-display text-7xl leading-none font-bold tracking-[-0.04em] tabular-nums">{pad(mark.round)}</span>
-                <span className="mt-1 font-display text-2xs font-semibold tracking-label text-faint uppercase">of {pad(view.rounds)}</span>
+                <span className="mt-1 text-xs text-faint">of {pad(view.rounds)}</span>
               </div>
             </div>
           </div>
@@ -164,10 +161,7 @@ function SummaryScreen({ mark, view, sides: table, onClose }: Omit<Props, 'mark'
           <RoundByRound sides={table} round={mark.round} rounds={view.rounds} />
 
           <footer className="flex flex-col items-center gap-2">
-            <DialogPrimitive.Close
-              render={<Button className="min-h-11 min-w-56 rounded-xl font-display text-sm font-bold" />}
-              onClick={(event) => event.stopPropagation()}
-            >
+            <DialogPrimitive.Close render={<Button className="min-h-11 min-w-56" />} onClick={(event) => event.stopPropagation()}>
               {finished ? 'See the battle report' : `Continue to round ${mark.round + 1}`}
             </DialogPrimitive.Close>
             <p className="text-xs text-faint">or tap anywhere</p>
@@ -207,7 +201,7 @@ function SideTotals({ side, round, end, battleReady }: { side: Side; round: numb
           <li key={army.playerId} className="min-w-0">
             <p
               className={cn(
-                'font-display leading-tight font-bold [overflow-wrap:anywhere] uppercase',
+                'font-display leading-tight font-bold [overflow-wrap:anywhere]',
                 team ? 'text-sm sm:text-xl' : 'text-lg sm:text-3xl',
                 colours.text,
               )}
@@ -220,7 +214,7 @@ function SideTotals({ side, round, end, battleReady }: { side: Side; round: numb
       </ul>
       <p className={cn('mt-3 flex items-baseline gap-2 sm:mt-5', end && 'flex-row-reverse')}>
         <span className={cn('figure animate-figure text-7xl leading-[0.85] font-bold sm:text-9xl', colours.score)}>{side.total}</span>
-        <span className="font-display text-xs font-semibold tracking-label text-dim uppercase">VP</span>
+        <span className="text-sm text-dim">VP</span>
       </p>
       <p className={cn('mt-2 flex items-baseline gap-1.5 text-sm', end && 'flex-row-reverse')}>
         <span className={cn('figure rounded-md border px-1.5 font-bold', colours.mark)}>+{gained}</span>
@@ -229,10 +223,8 @@ function SideTotals({ side, round, end, battleReady }: { side: Side; round: numb
       <dl className={cn('mt-4 grid gap-y-1.5 border-t border-edge pt-3 sm:mt-6 sm:flex sm:gap-x-6', end && 'sm:justify-end')}>
         {parts.map((part) => (
           <div key={part.label} className={cn('flex items-baseline justify-between gap-2 sm:block', end && 'flex-row-reverse')}>
-            <dt className="font-display text-3xs font-semibold tracking-label whitespace-nowrap text-dim uppercase sm:text-2xs">
-              {part.label}
-            </dt>
-            <dd className="figure text-lg leading-tight font-bold sm:text-2xl">{part.value}</dd>
+            <dt className="text-xs whitespace-nowrap text-dim">{part.label}</dt>
+            <dd className="figure text-lg leading-tight font-semibold sm:text-2xl">{part.value}</dd>
           </div>
         ))}
       </dl>
@@ -273,23 +265,23 @@ function FactionWatermark({ army, side, end }: { army: Army | undefined; side: n
   )
 }
 
-/** Each round's points side by side: rounds played solid, the one just played doubled, the rest dashed. */
+/** Each round's points side by side: rounds played as full bars, the one just played in green, the rest as hairlines. */
 function RoundByRound({ sides: table, round, rounds }: { sides: Side[]; round: number; rounds: number }) {
   const columns = Array.from({ length: rounds }, (_, index) => index + 1)
   return (
-    <div className="part mx-auto w-full max-w-3xl p-3 sm:p-4">
+    <div className="mx-auto w-full max-w-3xl border-y border-edge py-3">
       <table className="w-full table-fixed text-center">
         <caption className="sr-only">Victory points by round</caption>
         <thead>
           <tr>
-            <th scope="col" className="w-[28%] text-left font-display text-3xs font-semibold tracking-label text-dim uppercase sm:text-2xs">
+            <th scope="col" className="w-[28%] pb-2 text-left align-bottom text-xs font-medium text-dim">
               Round
             </th>
             {columns.map((column) => (
               <th key={column} scope="col" className="px-0.5 pb-2 align-bottom">
                 <span
                   className={cn(
-                    'font-display text-2xs font-bold tabular-nums',
+                    'text-xs font-semibold tabular-nums',
                     column === round ? 'text-bone' : column < round ? 'text-dim' : 'text-faint',
                   )}
                 >
@@ -298,10 +290,7 @@ function RoundByRound({ sides: table, round, rounds }: { sides: Side[]; round: n
                 <span aria-hidden className="line-segment mt-1" data-line={column < round ? 'done' : column === round ? 'now' : 'todo'} />
               </th>
             ))}
-            <th
-              scope="col"
-              className="w-[16%] pb-2 align-bottom font-display text-3xs font-semibold tracking-label text-dim uppercase sm:text-2xs"
-            >
+            <th scope="col" className="w-[16%] pb-2 align-bottom text-xs font-medium text-dim">
               Total
             </th>
           </tr>
@@ -311,7 +300,7 @@ function RoundByRound({ sides: table, round, rounds }: { sides: Side[]; round: n
             const colours = tint(side.index)
             return (
               <tr key={side.index} className="border-t border-edge">
-                <th scope="row" className={cn('py-2 pr-1 text-left text-2xs leading-tight font-bold uppercase sm:text-sm', colours.text)}>
+                <th scope="row" className={cn('py-2 pr-1 text-left text-xs leading-tight font-semibold sm:text-sm', colours.text)}>
                   {side.armies.map((army) => (
                     <PlayerTint key={army.playerId} playerId={army.playerId} className="block [overflow-wrap:anywhere]">
                       {army.playerName}
@@ -323,7 +312,7 @@ function RoundByRound({ sides: table, round, rounds }: { sides: Side[]; round: n
                     {column <= round ? (side.rounds.find((entry) => entry.round === column)?.total ?? 0) : '–'}
                   </td>
                 ))}
-                <td className="figure py-2 text-base font-bold sm:text-lg">
+                <td className="figure py-2 text-base font-semibold sm:text-lg">
                   <span className={colours.score}>{side.total}</span>
                 </td>
               </tr>

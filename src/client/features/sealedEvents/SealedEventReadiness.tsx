@@ -116,10 +116,10 @@ export function SealedEventReadiness({
       data-onboarding="sealed-event-rosters"
       data-sealed-event-readiness
       aria-labelledby="sealed-event-readiness-heading"
-      className={`space-y-4 part p-4 sm:p-5 ${ready ? 'border-parchment/50' : ''}`}
+      className={`space-y-4 border-y py-4 ${ready ? 'border-parchment/50' : 'border-edge'}`}
     >
       <div>
-        <h2 id="sealed-event-readiness-heading" className="text-xl leading-tight font-bold uppercase">
+        <h2 id="sealed-event-readiness-heading" className="text-2xl leading-tight">
           {title}
         </h2>
         <p className="mt-1.5 text-sm text-dim">{detail || 'Rosters stay hidden, even from the organizer.'}</p>

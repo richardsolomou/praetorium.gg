@@ -55,7 +55,7 @@ export function CombatDialog({
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
-        <DialogBody data-simulator-scroll className="block p-0">
+        <DialogBody data-simulator-scroll className="block px-4 pt-4 pb-0">
           {children}
         </DialogBody>
       </Content>

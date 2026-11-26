@@ -276,7 +276,7 @@ export function AdminUserPanel({ user, current, onClose }: { user: AdminUser; cu
           <RecentBattles user={user} />
 
           {current ? null : (
-            <section className="border border-destructive/40 p-4">
+            <section className="rounded-lg border border-destructive/40 p-4">
               <SectionHeading title="Delete account" className="text-destructive" />
               <div className="mt-3 flex flex-col items-start gap-3">
                 <p className="text-sm text-dim">
@@ -296,7 +296,7 @@ export function AdminUserPanel({ user, current, onClose }: { user: AdminUser; cu
             <span className="readout truncate">{user.id}</span>
             <CopyButton value={user.id} label="Copy user ID" />
           </span>
-          <Link to="/users/$userId" params={{ userId: user.id }} className="text-sm text-bone hover:text-info">
+          <Link to="/users/$userId" params={{ userId: user.id }} className="text-sm text-info underline-offset-2 hover:underline">
             Public profile
           </Link>
         </footer>

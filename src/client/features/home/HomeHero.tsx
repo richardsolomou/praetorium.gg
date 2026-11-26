@@ -23,7 +23,6 @@ import { nameColour } from '../../playerName'
 export function HomeHero({ battle, guestDraft }: { battle?: Battle; guestDraft?: ReactNode }) {
   return (
     <section className="masthead-bleed relative overflow-hidden border-b border-edge bg-masthead">
-      <div className="construction-grid" />
       <div className="relative mx-auto grid w-full max-w-6xl gap-8 px-5 py-10 sm:px-6 md:py-16 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-center lg:gap-14">
         <div>
           <h1 className="text-[2.5rem] leading-[0.95] sm:text-6xl">
@@ -104,9 +103,9 @@ function HeroBattle({ battle }: { battle: Battle }) {
       </span>
       <HeroSide sideSummary={ours} score={a} side="a" />
       <span className="mx-5 flex items-center gap-3 text-2xs font-semibold tracking-eyebrow text-faint uppercase" aria-hidden>
-        <span className="h-0.5 flex-1 bg-[repeating-linear-gradient(90deg,var(--color-runner)_0_4px,transparent_4px_7px)]" />
+        <span className="h-px flex-1 bg-edge" />
         versus
-        <span className="h-0.5 flex-1 bg-[repeating-linear-gradient(90deg,var(--color-runner)_0_4px,transparent_4px_7px)]" />
+        <span className="h-px flex-1 bg-edge" />
       </span>
       <HeroSide sideSummary={theirs} score={b} side="b" />
       <span className="flex items-center justify-between border-t border-edge px-5 py-3 text-sm font-semibold text-bone/85 group-hover:text-parchment">

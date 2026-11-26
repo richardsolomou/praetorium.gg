@@ -27,7 +27,7 @@ export function RosterSharingCard({
     <section
       data-roster-sharing
       aria-label="Roster sharing"
-      className="flex flex-col gap-3 part border-info/40 p-4 md:flex-row md:items-center md:gap-6"
+      className="flex flex-col gap-3 border-y border-edge py-4 md:flex-row md:items-center md:gap-6"
     >
       <div className="flex min-w-0 flex-1 gap-3">
         <Globe className="mt-0.5 size-5 shrink-0 text-info" aria-hidden />

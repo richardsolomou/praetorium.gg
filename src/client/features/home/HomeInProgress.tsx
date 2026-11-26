@@ -6,6 +6,8 @@ import { useMoment } from '../../dates'
 import { countLabel } from '../../text'
 import type { Battle } from '../battles/battle'
 import { BattleShelf } from '../battles/BattleShelf'
+import { BattleLines } from '../battles/BattleLines'
+import { useBattleDetail } from './HomeFeed'
 import { eventFullName, eventLink } from '../sealedEvents/sealedEvent'
 
 /** An event that has accepted the player and is still waiting for their list. */
@@ -21,11 +23,11 @@ export type LeagueGameDue = {
   overdue: boolean
 }
 
-/** How many games in progress the section shows as cards before its link to the rest. */
+/** How many games in progress the section shows, the first as a plate and the rest as rows, before its link to the rest. */
 const GAMES_SHOWN = 2
 
 /**
- * Everything waiting on the player, most pressing first: games they are in the middle of, as full cards, then league
+ * Everything waiting on the player, most pressing first: games they are in the middle of, the latest as a plate, then league
  * games past their deadline, lists an event needs, league games still to play, games left untouched, lists a data update
  * changed, and friend requests.
  */
@@ -50,6 +52,10 @@ export function HomeInProgress({
   friendRequests: number
 }) {
   const moment = useMoment()
+  const detail = useBattleDetail()
+  // A game being played leads over one still being set up, whichever was touched last.
+  const lead = games.find((game) => game.status === 'playing') ?? games[0]
+  const others = games.filter((game) => game !== lead)
   const moreGames = Math.max(0, games.length - GAMES_SHOWN)
   const errands = rostersDue.length + leagueGames.length + (staleGames ? 1 : 0) + (changedRosters ? 1 : 0) + (friendRequests ? 1 : 0)
   if (!games.length && !errands) return null
@@ -75,68 +81,74 @@ export function HomeInProgress({
   return (
     <section data-home-in-progress>
       <SectionHeading title="In progress" count={games.length + errands} />
+      {/* The games after the first, then the tasks, run on as one list of hairline rows under the plate. */}
       <div className="space-y-3">
-        {games.length ? (
-          <div className="space-y-3">
-            <BattleShelf name="Your games" branched={false} battles={games.slice(0, GAMES_SHOWN)} viewerId={viewerId} onDelete={onDelete} />
-            {/* The games past the cards stand as one more, slimmer card, so they read with the games rather than the tasks. */}
-            {moreGames ? (
-              <Link to="/battles" className={`part ${ROW}`}>
-                <Row icon={<Layers className="size-4 text-parchment" aria-hidden />} detail="On your battles page">
-                  {countLabel(moreGames, 'more game')} in progress
-                </Row>
-              </Link>
-            ) : null}
-          </div>
-        ) : null}
-        {errands ? (
-          <ul className="part divide-y divide-edge overflow-hidden">
-            {leagueGames.filter((game) => game.overdue).map(league)}
-            {rostersDue.map((sealedEvent) => (
-              <li key={sealedEvent.token}>
-                <Link {...eventLink(sealedEvent)} className={ROW}>
-                  <Row icon={<ScrollText className="size-4 text-discarded" aria-hidden />}>
-                    <span className="font-bold text-bone">{eventFullName(sealedEvent)}</span> needs your roster
+        {lead ? <BattleShelf name="Your games" lead battles={[lead]} viewerId={viewerId} onDelete={onDelete} /> : null}
+        <div>
+          {others.length ? (
+            <div data-battle-shelf="Your other games">
+              <BattleLines battles={others.slice(0, GAMES_SHOWN - 1)} detail={detail} viewerId={viewerId} />
+              {moreGames ? (
+                <Link to="/battles" className={`border-b border-edge ${ROW}`}>
+                  <Row icon={<Layers className="size-4 text-parchment" aria-hidden />} detail="On your battles page">
+                    {countLabel(moreGames, 'more game')} in progress
                   </Row>
                 </Link>
-              </li>
-            ))}
-            {leagueGames.filter((game) => !game.overdue).map(league)}
-            {staleGames ? (
-              <li>
-                <Link to="/battles" className={ROW}>
-                  <Row icon={<Hourglass className="size-4 text-discarded" aria-hidden />} detail="Untouched for two weeks or more">
-                    {countLabel(staleGames, 'unfinished game')} waiting
-                  </Row>
-                </Link>
-              </li>
-            ) : null}
-            {changedRosters ? (
-              <li>
-                <Link to="/rosters" search={{ updates: 'changed' }} className={ROW}>
-                  <Row icon={<FileDiff className="size-4 text-discarded" aria-hidden />} detail="Check their points and options still hold">
-                    {countLabel(changedRosters, 'list')} changed in a data update
-                  </Row>
-                </Link>
-              </li>
-            ) : null}
-            {friendRequests ? (
-              <li>
-                <Link to="/friends" className={ROW}>
-                  <Row icon={<UserPlus className="size-4 text-parchment" aria-hidden />}>
-                    {friendRequests === 1 ? 'A player wants to be your friend' : `${friendRequests} players want to be your friend`}
-                  </Row>
-                </Link>
-              </li>
-            ) : null}
-          </ul>
-        ) : null}
+              ) : null}
+            </div>
+          ) : null}
+          {errands ? (
+            <ul className={`divide-y divide-edge border-b border-edge ${others.length ? '' : 'border-t'}`}>
+              {leagueGames.filter((game) => game.overdue).map(league)}
+              {rostersDue.map((sealedEvent) => (
+                <li key={sealedEvent.token}>
+                  <Link {...eventLink(sealedEvent)} className={ROW}>
+                    <Row icon={<ScrollText className="size-4 text-discarded" aria-hidden />}>
+                      <span className="font-bold text-bone">{eventFullName(sealedEvent)}</span> needs your roster
+                    </Row>
+                  </Link>
+                </li>
+              ))}
+              {leagueGames.filter((game) => !game.overdue).map(league)}
+              {staleGames ? (
+                <li>
+                  <Link to="/battles" className={ROW}>
+                    <Row icon={<Hourglass className="size-4 text-discarded" aria-hidden />} detail="Untouched for two weeks or more">
+                      {countLabel(staleGames, 'unfinished game')} waiting
+                    </Row>
+                  </Link>
+                </li>
+              ) : null}
+              {changedRosters ? (
+                <li>
+                  <Link to="/rosters" search={{ updates: 'changed' }} className={ROW}>
+                    <Row
+                      icon={<FileDiff className="size-4 text-discarded" aria-hidden />}
+                      detail="Check their points and options still hold"
+                    >
+                      {countLabel(changedRosters, 'list')} changed in a data update
+                    </Row>
+                  </Link>
+                </li>
+              ) : null}
+              {friendRequests ? (
+                <li>
+                  <Link to="/friends" className={ROW}>
+                    <Row icon={<UserPlus className="size-4 text-parchment" aria-hidden />}>
+                      {friendRequests === 1 ? 'A player wants to be your friend' : `${friendRequests} players want to be your friend`}
+                    </Row>
+                  </Link>
+                </li>
+              ) : null}
+            </ul>
+          ) : null}
+        </div>
       </div>
     </section>
   )
 }
 
-const ROW = 'group flex min-h-13 items-center gap-3 px-4 py-2.5 transition-colors hover:bg-raised'
+const ROW = 'group flex min-h-13 items-center gap-3 px-2 py-2.5 transition-colors hover:bg-raised'
 
 function Row({ icon, detail, children }: { icon: ReactNode; detail?: ReactNode; children: ReactNode }) {
   return (

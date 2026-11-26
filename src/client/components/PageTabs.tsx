@@ -1,13 +1,12 @@
 import { type ComponentProps, type ReactNode, useEffect, useRef } from 'react'
 import { TabsList, TabsTrigger } from '@/components/ui/tabs'
 
-// A scroller clips at its padding box, so the runner is painted inside it with room below for the gate's notch.
+// A scroller clips at its padding box, so the baseline is painted inside it with room below for the active underline.
 const RAIL =
-  'no-scrollbar -mb-[5px] flex gap-1 overflow-x-auto bg-[linear-gradient(var(--color-runner),var(--color-runner))] bg-size-[100%_2px] bg-position-[0_calc(100%-3px)] bg-no-repeat pb-[5px]'
+  'no-scrollbar -mb-[3px] flex gap-1 overflow-x-auto bg-[linear-gradient(var(--color-edge),var(--color-edge))] bg-size-[100%_1px] bg-position-[0_calc(100%-3px)] bg-no-repeat pb-[3px]'
 
-// The active tab is gated onto the runner baseline: a cement stretch of the rail with a notch below it.
-const GATE =
-  'after:absolute after:inset-x-2 after:-bottom-0.5 after:h-0.5 after:animate-draw after:bg-parchment before:absolute before:-bottom-[5px] before:left-1/2 before:-ml-1 before:h-1.5 before:w-2 before:rounded-[2px] before:bg-parchment'
+// The active tab is underlined in green on the baseline.
+const GATE = 'after:absolute after:inset-x-2 after:-bottom-0.5 after:h-[3px] after:animate-draw after:bg-parchment'
 
 /** Keeps the current tab of a scrolling rail in view, on arrival and whenever the current tab changes. */
 function useActiveTabInView<T extends HTMLElement>() {
@@ -43,7 +42,7 @@ export function PageTabsList({
         <TabsTrigger
           key={value}
           value={value}
-          className="h-11 flex-none gap-2 rounded-none px-3.5 text-[0.9375rem] font-semibold text-dim after:inset-x-2 after:-bottom-0.5 after:h-0.5 after:bg-parchment hover:text-bone data-active:text-bone data-active:after:animate-draw data-active:after:opacity-100 data-active:before:absolute data-active:before:-bottom-[5px] data-active:before:left-1/2 data-active:before:-ml-1 data-active:before:h-1.5 data-active:before:w-2 data-active:before:rounded-[2px] data-active:before:bg-parchment"
+          className="h-11 flex-none gap-2 rounded-none px-3.5 text-[0.9375rem] font-semibold text-dim after:inset-x-2 after:-bottom-0.5 after:h-[3px] after:bg-parchment hover:text-bone data-active:text-bone data-active:after:animate-draw data-active:after:opacity-100"
         >
           {label}
           {count === undefined ? null : <span className="readout text-xs font-bold text-faint">{count}</span>}

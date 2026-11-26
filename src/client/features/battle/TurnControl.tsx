@@ -65,14 +65,17 @@ export function TurnControl({ view, clock, send, pending, blockReason, onAdvance
 
   return (
     <section ref={section} data-onboarding="battle-live-turn" data-turn-control className={cn('space-y-2', className)}>
-      {/* Phases done solid, the one being played doubled, the rest dashed, in the colour of the side whose turn it is. */}
-      <ol className={cn('grid grid-cols-6 gap-1', tint(activeSide).line)} aria-label={`${view.phase} phase`}>
+      {/* Whose turn is ending, in their colour, so the green button below can stay the one primary action. */}
+      <span aria-hidden className={cn('absolute inset-x-0 top-0 h-0.5', tint(activeSide).rail)} />
+      {/* Phases done as full bars, the one being played in green, the rest as hairlines. */}
+      <ol className="grid grid-cols-6 gap-1" aria-label={`${view.phase} phase`}>
         {PHASES.map((phase, index) => (
           <li key={phase} className="min-w-0" aria-current={phase === view.phase ? 'step' : undefined}>
             <span className="line-segment" data-line={index < at ? 'done' : index === at ? 'now' : 'todo'} />
             <span
-              className={`mt-1 block text-center font-display text-3xs font-semibold tracking-label uppercase max-sm:sr-only ${
-                phase === view.phase ? 'text-bone' : 'text-faint'
+              // A phone reads the phase off the lit bar and the scoreboard, so the names give their height back to the page.
+              className={`mt-1 block text-center font-display text-3xs font-bold tracking-label uppercase max-sm:sr-only ${
+                phase === view.phase ? 'text-bone' : index < at ? 'text-dim' : 'text-faint'
               }`}
             >
               <span aria-hidden>{SHORT[phase]}</span>
@@ -91,16 +94,10 @@ export function TurnControl({ view, clock, send, pending, blockReason, onAdvance
       {/* Wraps the phase button onto its own row when large text leaves it too little width. */}
       <div className="flex flex-wrap items-stretch gap-2">
         {before}
-        <UndoLatest compact className="h-auto min-h-11 shrink-0 rounded-xl px-3.5" undo={view} send={send} pending={pending} />
-        {/*
-         * Tinted to whichever side is taking the turn, like the phase rail above it.
-         * This is the most-pressed control in the game and the one thing on the middle
-         * column that belongs to a side, and its tint answers whose turn is ending
-         * before the text is read.
-         */}
+        <UndoLatest compact className="h-auto min-h-11 shrink-0 px-3.5" undo={view} send={send} pending={pending} />
         <Button
           variant="default"
-          className={`h-auto min-h-11 min-w-40 flex-1 rounded-xl text-center font-display text-sm font-bold whitespace-normal ${tint(activeSide).fill}`}
+          className="h-auto min-h-11 min-w-32 flex-1 text-center text-sm font-semibold whitespace-normal sm:min-w-40 sm:text-base sm:font-bold"
           disabled={!hydrated || pending || Boolean(blockReason)}
           aria-busy={!hydrated || undefined}
           onClick={onAdvance}

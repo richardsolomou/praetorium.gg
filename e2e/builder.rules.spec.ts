@@ -36,7 +36,7 @@ test("Pantheon of Woe adds a C'tan shard's required enhancement", async ({ page 
   await expect(card).toContainText('375 pts')
   await expect(card).toContainText('Enhancement')
   await expect(card).toContainText('Singularity Matrix')
-  await expect(card.getByText('1x Singularity Matrix', { exact: true })).toHaveCount(0)
+  await expect(card.locator('li').filter({ hasText: 'Singularity Matrix' })).toHaveCount(0)
   await shot(card, test.info().outputPath('pantheon-forced-enhancement.png'))
 
   await page
@@ -61,7 +61,7 @@ test("Pantheon of Woe adds a C'tan shard's required enhancement", async ({ page 
   const canLead = datasheet.getByRole('heading', { name: 'Can lead' }).locator('..')
   await expect(canLead.getByRole('button', { name: 'Immortals', exact: true })).toBeVisible()
   await expect(datasheet.getByRole('button', { name: 'Add to list' })).toBeVisible()
-  await expect(datasheet.getByRole('button', { name: 'Ignores Cover', exact: true })).toHaveCSS('font-size', '13.5px')
+  await expect(datasheet.getByRole('button', { name: 'Ignores Cover', exact: true })).toHaveCSS('font-size', '14.625px')
   await shot(datasheet, test.info().outputPath('imotekh-datasheet-tags.png'))
   await page.setViewportSize(PHONE)
   await expect(noble).toBeVisible()
@@ -117,7 +117,7 @@ test('unit upgrades stay separate from character enhancements', async ({ page })
   const card = page.locator('[data-unit="Lokhust Destroyers"]')
   await expect(card).toContainText('Upgrade')
   await expect(card).toContainText('Deepening Madness')
-  await expect(card.getByText('1x Deepening Madness', { exact: true })).toHaveCount(0)
+  await expect(card.locator('li').filter({ hasText: 'Deepening Madness' })).toHaveCount(0)
   await upgrades.getByLabel('Set alert for Deepening Madness').click()
   const reminder = page.getByRole('dialog', { name: 'Deepening Madness' })
   await expect(reminder).toBeVisible()
@@ -460,7 +460,7 @@ test('a squad keeps the weapons it was given while a specialist is armed', async
   await expect(veterans.getByLabel('Artificer Firearm count')).toHaveText('7')
   await expect(veterans.getByLabel('Pyrecannon count')).toHaveText('1')
   await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
-  await expect(page.locator('[data-unit="Sternguard Veteran Squad"]')).toContainText('1x Pyrecannon')
+  await expect(page.locator('[data-unit="Sternguard Veteran Squad"]')).toContainText('Pyrecannon')
   await page.screenshot({ path: test.info().outputPath('sternguard-specialist-weapons.png'), fullPage: true })
 
   // Putting the pyrecannon down hands its body back rather than shrinking the squad.
@@ -490,8 +490,8 @@ test('a free swap shows on the roster card as well as the loadout', async ({ pag
 
   // A kill team joins at its smallest, one veteran of each kind.
   const card = page.locator('[data-unit="Decimus Kill Team"]')
-  await expect(card).toContainText('1x Heavy thunder hammer')
-  await expect(card).toContainText('1x Power weapon')
+  await expect(card).toContainText('Heavy thunder hammer')
+  await expect(card).toContainText('Power weapon')
   await expect(card).not.toContainText('Astartes shield')
 
   const loadout = page.locator('aside[aria-label="Loadout"]')
@@ -503,14 +503,14 @@ test('a free swap shows on the roster card as well as the loadout', async ({ pag
 
   // The hammer was the only one, so it goes: the shield and a second power weapon
   // are what that veteran holds now.
-  await expect(card).toContainText('1x Astartes shield')
+  await expect(card).toContainText('Astartes shield')
   await expect(card).toContainText('2x Power weapon')
   await expect(card).not.toContainText('Heavy thunder hammer')
   await page.screenshot({ path: test.info().outputPath('decimus-swap-on-card.png'), fullPage: true })
 
   await loadout.getByRole('button', { name: 'More Heavy thunder hammer' }).click()
   await expect(loadout.getByLabel(`${swap} count`)).toHaveText('0')
-  await expect(card).toContainText('1x Heavy thunder hammer')
+  await expect(card).toContainText('Heavy thunder hammer')
   await expect(card).not.toContainText('Astartes shield')
 })
 

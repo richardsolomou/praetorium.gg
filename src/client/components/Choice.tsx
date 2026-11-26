@@ -38,15 +38,13 @@ export function Choice<T extends string>({
           <button
             key={option.value}
             type="button"
-            className={`flex min-h-15 flex-col justify-start gap-0.5 rounded-lg border px-3.5 py-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${value === option.value ? 'border-parchment bg-parchment/10 inset-ring-1 inset-ring-parchment' : 'border-runner bg-panel hover:border-runner-hi'}`}
+            className={`flex min-h-14 flex-col justify-start gap-0.5 rounded-lg border px-3 py-2.5 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${value === option.value ? 'border-parchment/70 bg-parchment/5' : 'border-edge hover:bg-raised'}`}
             aria-pressed={value === option.value}
             onClick={() => onChange(option.value)}
           >
-            <span className="block text-[0.9375rem] font-bold text-balance text-bone">{option.name}</span>
+            <span className="block text-sm font-semibold text-balance text-bone">{option.name}</span>
             {option.count ? (
-              <span className={`readout block text-xs font-semibold ${value === option.value ? 'text-parchment' : 'text-dim'}`}>
-                {option.count}
-              </span>
+              <span className={`readout block text-xs ${value === option.value ? 'text-parchment' : 'text-dim'}`}>{option.count}</span>
             ) : null}
             {option.detail ? <span className="block text-xs text-dim">{option.detail}</span> : null}
           </button>

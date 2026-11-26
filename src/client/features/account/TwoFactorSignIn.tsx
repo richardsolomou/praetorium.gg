@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
 import { useAuthAction } from '../../useAuthAction'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,7 +13,6 @@ export function TwoFactorSignIn({
   onBack: () => void
   onSuccess: (redirectUrl: string | null) => void | Promise<void>
 }) {
-  const queryClient = useQueryClient()
   const [code, setCode] = useState('')
   const [recovery, setRecovery] = useState(false)
   const [trustDevice, setTrustDevice] = useState(false)
@@ -32,7 +30,6 @@ export function TwoFactorSignIn({
             ? await authClient.twoFactor.verifyBackupCode({ code, trustDevice })
             : await authClient.twoFactor.verifyTotp({ code: code.replaceAll(/\s/g, ''), trustDevice })
           if (result.error) return result
-          await queryClient.invalidateQueries()
           await onSuccess(authRedirectUrl(result.data))
           return result
         })

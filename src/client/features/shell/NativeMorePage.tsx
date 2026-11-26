@@ -27,6 +27,7 @@ import { useUnseenRelease } from './seenRelease'
 import { UnseenDot, unseenLabel } from './WhatsNew'
 import { COMMUNITY_LINKS, COMMUNITY_PAGES, FRIENDS_PAGE } from './CommunityLinks'
 import { useUnreadNotices } from '../notifications/Notifications'
+import { OUTLINE_TAG } from '../../components/rosterSetup'
 import { nameColour } from '../../playerName'
 
 type MoreLink = { Icon: LucideIcon; label: string; to: LinkProps['to'] }
@@ -48,7 +49,7 @@ const HELP: readonly MoreLink[] = [
   { Icon: Smartphone, label: 'Apps', to: '/apps' },
 ]
 
-const rowClass = 'flex min-h-12 w-full items-center gap-3 px-3.5 py-2 text-left text-bone transition-colors hover:bg-raised'
+const rowClass = 'flex min-h-12 w-full items-center gap-3 px-1 py-2 text-left text-bone transition-colors hover:bg-raised'
 
 function Row({
   icon: Icon,
@@ -65,7 +66,7 @@ function Row({
   return (
     <>
       <Icon className="size-4.5 shrink-0 text-dim" aria-hidden />
-      <span className="min-w-0 flex-1 truncate font-semibold">{label}</span>
+      <span className="min-w-0 flex-1 truncate font-medium">{label}</span>
       {status}
       <Trailing className="size-4 shrink-0 text-faint" aria-hidden />
     </>
@@ -75,10 +76,10 @@ function Row({
 function Group({ id, title, children }: { id: string; title: string; children: ReactNode }) {
   return (
     <section aria-labelledby={id}>
-      <h2 id={id} className="mb-2 px-1 text-2xs font-semibold tracking-label text-dim uppercase">
+      <h2 id={id} className="eyebrow mb-1 px-1">
         {title}
       </h2>
-      <div className="part divide-y divide-edge overflow-hidden">{children}</div>
+      <div className="divide-y divide-edge border-y border-edge">{children}</div>
     </section>
   )
 }
@@ -97,18 +98,18 @@ function Tools() {
       <h2 id="more-tools-heading" className="sr-only">
         Tools
       </h2>
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <div className="grid border-t border-edge sm:grid-cols-2 sm:gap-x-6">
         {TOOLS.map(({ to, Icon, label, description }) => (
           <Link
             key={to}
             to={to}
-            className="part flex flex-col gap-1 p-3 text-bone transition-colors hover:border-runner-hi hover:bg-raised"
+            className="flex flex-col gap-0.5 border-b border-edge px-1 py-3 text-bone transition-colors hover:bg-raised"
           >
             <span className="flex items-start gap-2">
               <Icon className="mt-px size-4.5 shrink-0 text-parchment" aria-hidden />
-              <h3 className="text-sm leading-tight text-balance">{label}</h3>
+              <h3 className="text-base leading-tight font-medium">{label}</h3>
             </span>
-            <span className="text-xs leading-snug text-dim">{description}</span>
+            <span className="pl-6.5 text-xs leading-snug text-dim">{description}</span>
           </Link>
         ))}
       </div>
@@ -130,11 +131,11 @@ export function NativeMorePage() {
         {me ? (
           <Link
             to="/profile"
-            className="part flex items-center gap-3 p-3 text-bone transition-colors hover:border-runner-hi hover:bg-raised"
+            className="flex items-center gap-3 border-y border-edge px-1 py-3 text-bone transition-colors hover:bg-raised"
           >
             <PlayerAvatar name={me.name} image={me.image} className="size-11 shrink-0 text-base" />
             <span className="min-w-0 flex-1">
-              <span className="block truncate font-semibold" style={nameColour(me)}>
+              <span className="block truncate font-medium" style={nameColour(me)}>
                 {me.name}
               </span>
               <span className="block text-xs text-dim">Profile and account</span>
@@ -158,7 +159,11 @@ export function NativeMorePage() {
                 <Row
                   icon={Bell}
                   label="Notifications"
-                  status={unreadNotices ? <span className="chip text-parchment">{unreadNotices} unread</span> : null}
+                  status={
+                    unreadNotices ? (
+                      <span className={`${OUTLINE_TAG} border-parchment/50 text-parchment`}>{unreadNotices} unread</span>
+                    ) : null
+                  }
                 />
               </Link>
               <Links links={ACCOUNT} />
@@ -178,7 +183,13 @@ export function NativeMorePage() {
               <Row
                 icon={MessageSquareWarning}
                 label="Feedback"
-                status={unread ? <span className="chip text-parchment">{countLabel(unread, 'new reply', 'new replies')}</span> : null}
+                status={
+                  unread ? (
+                    <span className={`${OUTLINE_TAG} border-parchment/50 text-parchment`}>
+                      {countLabel(unread, 'new reply', 'new replies')}
+                    </span>
+                  ) : null
+                }
               />
             </button>
             <Link to="/support" className={rowClass}>

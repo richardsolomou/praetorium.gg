@@ -22,6 +22,8 @@ type Props = {
   onActionRemindersChange?: (enabled: boolean) => void
   /** Absent when no earlier phase can take a missed action. */
   onRecordMissed?: () => void
+  /** Opens the box for a line of the table's own record. */
+  onWriteNote: () => void
   /** The battle whose stream overlay link the menu copies. */
   token: string
   /** Shared by the table, unlike the reminders, so it is a command rather than a preference. */
@@ -46,6 +48,7 @@ export function BattleMenu({
   onActionRemindersChange,
   token,
   onRecordMissed,
+  onWriteNote,
   onTimerPausedChange,
   onConcede,
   onFinishEarly,
@@ -84,6 +87,7 @@ export function BattleMenu({
           Battle options
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="min-w-44">
+          <DropdownMenuItem onClick={onWriteNote}>Write a note</DropdownMenuItem>
           {onActionRemindersChange ? (
             <DropdownMenuCheckboxItem checked={actionRemindersEnabled} onCheckedChange={onActionRemindersChange}>
               Action reminders

@@ -1,3 +1,4 @@
+import { withArticle } from '../../text'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { FileLock2, Pencil } from 'lucide-react'
@@ -130,7 +131,7 @@ export function RosterChooser({
             <div className="space-y-3">
               <p className="py-2 text-sm text-dim">{size === null ? 'No rosters to seal yet.' : `No ${size} rosters to seal yet.`}</p>
               <Link to="/rosters" search={requiredLimit === null ? {} : { limit: requiredLimit }} className={buttonClass()}>
-                {size === null ? 'Go to rosters' : `Build a ${size} roster`}
+                {size === null ? 'Go to rosters' : `Build ${withArticle(size)} roster`}
               </Link>
             </div>
           )}

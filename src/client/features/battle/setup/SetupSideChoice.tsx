@@ -51,9 +51,7 @@ export function SetupSideChoice({
             >
               {/* Unlinked throughout: the card itself is the control. */}
               <SidePlayers side={side} linked={false} />
-              {role ? (
-                <span className={`text-2xs font-bold tracking-label uppercase ${picked ? tint(side.index).text : 'text-dim'}`}>{role}</span>
-              ) : null}
+              {role ? <span className={`text-xs font-semibold ${picked ? tint(side.index).text : 'text-dim'}`}>{role}</span> : null}
             </Button>
           )
         })}

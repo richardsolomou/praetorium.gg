@@ -43,7 +43,7 @@ export function RuleSectionPage({ documentId, sectionId }: { documentId: string;
         <BackLink to="/rules/$documentId" params={{ documentId }}>
           {data.document.title}
         </BackLink>
-        <div className="runner gap-2.5 [--gate-y:1.5rem]">
+        <div className="divide-y divide-edge border-y border-edge">
           {shown.entries.map((entry) => (
             <Rule
               key={entry.anchor}
@@ -54,14 +54,14 @@ export function RuleSectionPage({ documentId, sectionId }: { documentId: string;
             />
           ))}
         </div>
-        <nav className="flex items-stretch justify-between gap-2">
+        <nav className="flex items-stretch justify-between gap-2 border-b border-edge pb-2">
           {[sections[at - 1], sections[at + 1]].map((section, side) =>
             section ? (
               <Link
                 key={section.id}
                 to="/rules/$documentId/$sectionId"
                 params={{ documentId, sectionId: section.slug }}
-                className={`flex min-h-11 min-w-0 items-center gap-1 part px-3 py-2 text-sm font-semibold transition-colors hover:border-runner hover:bg-raised ${side ? 'ml-auto text-right' : ''}`}
+                className={`flex min-h-11 min-w-0 items-center gap-1 rounded-md px-2 py-2 text-sm text-dim transition-colors hover:bg-raised hover:text-bone ${side ? 'ml-auto text-right' : ''}`}
               >
                 {side ? null : <ChevronLeft className="size-3.5 shrink-0 text-dim" aria-hidden />}
                 <span className="truncate">{section.title}</span>
@@ -98,29 +98,30 @@ function Rule({
     <article
       id={entry.anchor}
       data-gate={current ? 'current' : undefined}
-      className={`scroll-mt-header part p-3 sm:p-4 ${current ? 'border-parchment' : ''}`}
+      className={`scroll-mt-header px-2 py-5 ${current ? 'bg-parchment/5 shadow-[inset_2px_0_0_var(--color-parchment)]' : ''}`}
     >
       {/* A link made before VS Data outlined the documents names the rule by its former address. */}
       {entry.formerAnchors.map((anchor) => (
         <span key={anchor} id={anchor} className="block scroll-mt-header" />
       ))}
-      <div className="flex flex-wrap items-center gap-2">
-        {entry.code ? <span className={`part-tag ${current ? 'bg-parchment text-parchment-ink' : ''}`}>{entry.code}</span> : null}
-        <h2 className="text-lg sm:text-xl">{entry.title}</h2>
-        {entry.cost === null ? null : <span className="chip readout">{entry.cost} CP</span>}
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        {entry.code ? <span className={`readout text-sm ${current ? 'text-parchment' : 'text-faint'}`}>{entry.code}</span> : null}
+        <h2 className="min-w-0 flex-1 text-lg font-semibold sm:text-xl">{entry.title}</h2>
+        {entry.cost === null ? null : (
+          <span className="shrink-0 whitespace-nowrap">
+            <span className="figure text-xl leading-none text-bone">{entry.cost}</span>
+            <span className="ml-1 text-xs text-dim">CP</span>
+          </span>
+        )}
       </div>
       {summary ? <RuleSummaryText summary={summary} className="mt-3" /> : loading ? <RuleSummarySkeleton className="mt-3" /> : null}
       {entry.clarifications.map((clarification) => {
         const clarified = summaryOf(clarification.id)
         return (
-          <div
-            key={clarification.anchor}
-            id={clarification.anchor}
-            className="mt-3 scroll-mt-header rounded-lg border border-edge bg-sunken px-3 py-2"
-          >
+          <div key={clarification.anchor} id={clarification.anchor} className="mt-4 scroll-mt-header border-l-2 border-edge pl-3">
             <div className="flex items-center gap-2">
               {clarification.code ? <span className="readout shrink-0 text-xs text-faint">{clarification.code}</span> : null}
-              <span className="min-w-0 flex-1 text-sm font-semibold text-bone">{clarification.title}</span>
+              <span className="min-w-0 flex-1 text-sm font-medium text-bone">{clarification.title}</span>
             </div>
             {clarified ? <RuleSummaryText summary={clarified} /> : null}
           </div>

@@ -4,14 +4,14 @@
 
 Who plays decides the kind of thing; how they play is its format. A new feature fits as a format of one of the two kinds, or it is discussed before it gets a new noun.
 
-| Term             | Means                                                                                                                             | Code             |
-| ---------------- | --------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
-| group            | People who play together repeatedly, from a fixed set of friends to a shop's open night; admission settings tell those apart      | `group`          |
-| tournament       | An official one-off people sign up for, with an organizer, admission and a player limit                                           | `tournament`     |
-| league           | A group's round robin over weeks, with fixtures                                                                                   | `groupLeague`    |
-| hidden-list game | A group's one-off game where everyone seals a list in secret before the reveal; shown on the group's overview, not a tab          | `hiddenListGame` |
-| sealed event     | The engine a tournament and a hidden-list game share; never shown to players, whose copy names the tournament or hidden-list game | `sealedEvent`    |
-| battle           | One game played                                                                                                                   | `battle`         |
+| Term             | Means                                                                                                                                                                           | Code             |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
+| group            | People who play together repeatedly, from a fixed set of friends to a shop's open night; admission settings tell those apart                                                    | `group`          |
+| tournament       | An official one-off people sign up for, with an organizer, admission and a player limit                                                                                         | `tournament`     |
+| league           | A group's round robin over weeks, with fixtures                                                                                                                                 | `groupLeague`    |
+| hidden-list game | A group's one-off game where everyone seals a list in secret before the reveal; shown on the group's overview while current and under Battles once past, never a tab of its own | `hiddenListGame` |
+| sealed event     | The engine a tournament and a hidden-list game share; never shown to players, whose copy names the tournament or hidden-list game                                               | `sealedEvent`    |
+| battle           | One game played                                                                                                                                                                 | `battle`         |
 
 The navigation files groups and tournaments under "Events"; "community" already means the Discord and social links.
 

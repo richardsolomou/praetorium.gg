@@ -18,7 +18,7 @@ export function HobbyKitCard({
   className?: string
 }) {
   return (
-    <div className={`flex flex-col gap-4 part p-4 sm:flex-row sm:items-center ${className ?? ''}`}>
+    <div className={`flex flex-col gap-4 border-y border-edge py-4 sm:flex-row sm:items-center ${className ?? ''}`}>
       <img src="/hobbykit.svg" alt="" className="size-12 shrink-0" />
       <div className="min-w-0 flex-1">
         <p className="text-lg leading-tight text-bone">{title}</p>

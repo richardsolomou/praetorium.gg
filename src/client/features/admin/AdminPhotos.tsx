@@ -152,7 +152,12 @@ function PhotoCredit({ photo, stacked = false }: { photo: AdminPhoto; stacked?: 
   const moment = useMoment()
   return (
     <>
-      <Link to="/users/$userId" params={{ userId: photo.owner.id }} search={{ tab: 'collection' }} className="text-info underline">
+      <Link
+        to="/users/$userId"
+        params={{ userId: photo.owner.id }}
+        search={{ tab: 'collection' }}
+        className="text-info underline underline-offset-2"
+      >
         {photo.owner.name}
       </Link>
       {stacked ? <br /> : ' · '}
@@ -188,13 +193,20 @@ function PhotoActions({
   onRemove: () => void
 }) {
   return (
-    <span className={`grid gap-1.5 ${onKeep ? 'grid-cols-2' : 'grid-cols-1'}`}>
+    <span className="flex flex-wrap items-center gap-1">
       {onKeep ? (
-        <Button variant="outline" disabled={pending} onClick={onKeep} aria-label={`Keep ${photo.name} from ${photo.owner.name}`}>
+        <Button variant="outline" size="sm" disabled={pending} onClick={onKeep} aria-label={`Keep ${photo.name} from ${photo.owner.name}`}>
           <Check /> Keep
         </Button>
       ) : null}
-      <Button variant="destructive" disabled={pending} onClick={onRemove} aria-label={`Remove ${photo.name} from ${photo.owner.name}`}>
+      <Button
+        variant="ghost"
+        size="sm"
+        className="text-dim hover:text-destructive"
+        disabled={pending}
+        onClick={onRemove}
+        aria-label={`Remove ${photo.name} from ${photo.owner.name}`}
+      >
         <Trash2 /> Remove
       </Button>
     </span>
@@ -228,9 +240,9 @@ function PhotoSection({
     <section aria-labelledby={id}>
       <SectionHeading id={id} title={title} />
       <p className="text-sm text-dim">{photos?.length === 0 ? empty : description}</p>
-      <ul className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+      <ul className="mt-4 grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
         {photos?.map((photo) => (
-          <li key={photo.photoId} className="flex min-w-0 flex-col rounded-lg border border-edge bg-sunken">
+          <li key={photo.photoId} className="flex min-w-0 flex-col gap-2">
             <button
               type="button"
               className="group block"
@@ -241,16 +253,16 @@ function PhotoSection({
                 src={collectionPhotoPath(photo.photoId, 'thumbnail')}
                 alt=""
                 loading="lazy"
-                className="aspect-square w-full bg-panel object-contain group-hover:opacity-90"
+                className="aspect-square w-full rounded-lg border border-edge bg-panel object-contain group-hover:border-info"
               />
             </button>
-            <div className="flex flex-1 flex-col gap-2 border-t border-edge p-2">
+            <div className="flex flex-1 flex-col gap-2">
               <p className="min-w-0 text-sm">
                 {photo.sheet ? (
                   <FactionReferenceLink
                     to="/factions/$catalogueId/datasheets/$entryId"
                     params={{ catalogueId: photo.sheet.catalogueId, entryId: photo.sheet.slug }}
-                    className="block truncate font-semibold text-bone uppercase hover:text-info hover:underline"
+                    className="block truncate font-semibold text-bone hover:text-info hover:underline"
                   >
                     {photo.name}
                   </FactionReferenceLink>
@@ -263,7 +275,7 @@ function PhotoSection({
                 </span>
               </p>
               <PhotoFacts photo={photo} />
-              <span className="mt-auto">
+              <span className="-ml-2.5 mt-auto">
                 <PhotoActions
                   photo={photo}
                   pending={pending}

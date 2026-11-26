@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import type { PaginationState, SortingState } from '@tanstack/react-table'
-import { ShieldCheck } from 'lucide-react'
 import { Tabs, TabsContent } from '@/components/ui/tabs'
 import { type AdminUser, type AdminUserSort } from '../../../admin'
 import { adminUsersQuery, heldCollectionPhotosQuery } from '../../queries'
@@ -55,11 +54,6 @@ export function AdminUsers({
       <PageHeader
         title="Administration"
         description="Change a player’s access, help them sign in, delete their account, or review players’ photos."
-        media={
-          <span className="grid size-12 shrink-0 place-items-center rounded-lg border border-runner bg-sunken text-parchment">
-            <ShieldCheck className="size-5" aria-hidden />
-          </span>
-        }
       />
 
       <PageContent>
@@ -68,7 +62,8 @@ export function AdminUsers({
           <PageTabsList
             tabs={[
               { value: 'players', label: 'Players', count: usersResult.data?.total },
-              { value: 'photos', label: 'Photos', count: held.data?.length },
+              // The count is what waits for review, so none says nothing rather than reading as no photos at all.
+              { value: 'photos', label: 'Photos', count: held.data?.length || undefined },
             ]}
           />
           <TabsContent value="players" className="mt-4 space-y-2">

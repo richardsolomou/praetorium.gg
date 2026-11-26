@@ -62,7 +62,7 @@ it('labels a line from before the battle began as setup rather than a phase', ()
     createElement(QueryClientProvider, { client: new QueryClient() }, createElement(Report, { token: 'battle', entries: [entry] })),
   )
 
-  expect(markup.replaceAll(/<[^>]+>/g, ' ')).toMatch(/\bsetup\b.*Alice names Bob as the attacker/)
+  expect(markup.replaceAll(/<[^>]+>/g, ' ')).toMatch(/\bSetup\b.*Alice names Bob as the attacker/)
 })
 
 it('makes a used stratagem a way to read it, and leaves the rest of the line as written', () => {

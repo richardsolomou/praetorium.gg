@@ -37,7 +37,7 @@ export function ArmyIdentity({
         params={{ catalogueId: faction.slug }}
         aria-label={`${faction.displayName} faction`}
         title={faction.displayName}
-        className="inline-flex min-w-0 items-center gap-1 text-bone hover:text-parchment"
+        className="inline-flex min-w-0 items-center gap-1 text-info underline-offset-2 hover:underline"
       >
         <FactionMark faction={faction} size="sm" />
         <span aria-hidden className="truncate">
@@ -56,7 +56,7 @@ export function ArmyIdentity({
             detachmentId: detachment.referenceRoute?.slug ?? detachment.slug ?? routeSlug(detachment.name),
           }}
           title={name}
-          className="truncate text-bone hover:text-parchment"
+          className="truncate text-info underline-offset-2 hover:underline"
         >
           {name}
         </FactionReferenceLink>

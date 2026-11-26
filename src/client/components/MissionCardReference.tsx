@@ -11,6 +11,7 @@ import {
 } from '../missionText'
 import { RuleSummarySkeleton, RuleSummaryText } from './RuleSummaryText'
 import { useMissionSummary, useRuleSummary } from '../ruleSummaries'
+import { OUTLINE_TAG } from './rosterSetup'
 import { groupBy } from '../../core/collections'
 import { awardsOnce } from '../../core/scoring'
 
@@ -22,8 +23,8 @@ import { awardsOnce } from '../../core/scoring'
  * them is a rule that side can use — so a known mode shows that one alone rather
  * than making a player work out which half of the card is theirs.
  *
- * Each scoring window and each action is a part hung off one runner, in the order the
- * pack prints them, so a card reads the same in a dialog, a matchup column or its own page.
+ * Each scoring window and each action is a hairline row, in the order the pack prints
+ * them, so a card reads the same in a dialog, a matchup column or its own page.
  */
 export function MissionCardReference({
   card,
@@ -41,14 +42,14 @@ export function MissionCardReference({
   const { summary, pending } = useMissionSummary('mission-card', card.key)
   return (
     <article className="space-y-4">
-      {type ? <span className="chip">{type}</span> : null}
+      {type ? <span className={TAG}>{type}</span> : null}
       {summary ? (
         <RuleSummaryText summary={summary} className="mt-0 text-base text-bone" />
       ) : pending ? (
         <RuleSummarySkeleton className="mt-0" />
       ) : null}
       {groups.size || actions.length ? (
-        <ul className="runner gap-3 [--gate-x:1.125rem] [--gate-y:1.625rem]">
+        <ul className={V.list}>
           {[...groups].map(([key, awards]) => (
             <ScoringBlock key={key} entries={awards} />
           ))}
@@ -61,48 +62,62 @@ export function MissionCardReference({
   )
 }
 
+const TAG = `${OUTLINE_TAG} border-edge text-dim`
+
+/** Each condition and action is its own card on the page's background, so neighbouring blocks never read as one. */
+const V = {
+  list: 'space-y-3',
+  block: 'rounded-lg border border-edge px-4 pt-3 pb-1',
+  head: 'space-y-1.5',
+  body: 'mt-1',
+  timing: 'text-base leading-tight font-semibold text-bone',
+  label: 'mr-1.5 text-xs font-normal text-dim',
+}
+
 /** Payouts claimed at the same moments, each printed once under every moment it is claimed at. */
 function ScoringBlock({ entries }: { entries: ReturnType<typeof awardsOnce> }) {
   const first = entries[0]
   if (!first) return null
   const awards = entries.map((entry) => entry.award)
   return (
-    <li className="part p-4">
-      {first.triggers.map((trigger, at) => {
-        const round = roundLabel(trigger)
-        const timing = timingLabel(trigger)
-        const mode = at === 0 ? first.award.mode : null
-        return (
-          <div
-            key={`${trigger.timing}-${trigger.phase}-${trigger.roundMin}`}
-            className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2"
-          >
-            {timing ? (
-              <p className="font-display text-sm leading-tight font-bold tracking-heading text-bone uppercase">
-                <span className="mr-1.5 font-sans text-2xs font-semibold tracking-label text-dim">{at ? 'Or' : 'When'}</span>
-                {timing}
-              </p>
-            ) : null}
-            {mode || round ? (
-              <span className="flex flex-wrap gap-1">
-                {mode ? <span className="chip">{title(mode)}</span> : null}
-                {round ? <span className="chip">{round}</span> : null}
-              </span>
-            ) : null}
-          </div>
-        )
-      })}
-      <div className="mt-1.5 -mb-2.5">
+    <li className={V.block}>
+      <div className={V.head}>
+        {first.triggers.map((trigger, at) => {
+          const round = roundLabel(trigger)
+          const timing = timingLabel(trigger)
+          const mode = at === 0 ? first.award.mode : null
+          return (
+            <div
+              key={`${trigger.timing}-${trigger.phase}-${trigger.roundMin}`}
+              className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2"
+            >
+              {timing ? (
+                <p className={V.timing}>
+                  <span className={V.label}>{at ? 'Or' : 'When'}</span>
+                  {timing}
+                </p>
+              ) : null}
+              {mode || round ? (
+                <span className="flex flex-wrap gap-1">
+                  {mode ? <span className={TAG}>{title(mode)}</span> : null}
+                  {round ? <span className={TAG}>{round}</span> : null}
+                </span>
+              ) : null}
+            </div>
+          )
+        })}
+      </div>
+      <div className={V.body}>
         {awards.map((award, at) => {
           const join = payoutJoin(award, awards[at - 1])
           return (
             <div key={`${award.vp}-${award.criteria ?? at}`}>
               {join ? <AwardJoin join={join} /> : null}
-              <div className="flex items-baseline justify-between gap-6 py-2.5">
+              <div className="flex items-baseline justify-between gap-6 py-3">
                 <AwardCondition award={award} className="mt-0 min-w-0 text-base text-bone" />
-                <span className="figure shrink-0 text-xl leading-none font-semibold text-bone">
+                <span className="figure shrink-0 text-2xl leading-none text-bone">
                   {award.vp}
-                  <span className="font-sans text-2xs font-semibold tracking-label text-dim"> VP</span>
+                  <span className="font-sans text-xs font-normal text-dim"> VP</span>
                 </span>
               </div>
             </div>
@@ -128,9 +143,9 @@ export function AwardCondition({ award, className }: { award: Award; className: 
 function AwardJoin({ join }: { join: 'or' | 'plus' }) {
   return (
     <div className="flex items-center gap-2" aria-label={join === 'or' ? 'Alternative objective' : 'Additional objective'}>
-      <span className="h-px flex-1 bg-edge" />
-      <span className="text-3xs font-semibold tracking-label text-faint uppercase">{join}</span>
-      <span className="h-px flex-1 bg-edge" />
+      <span className="h-px flex-1 bg-edge/60" />
+      <span className="text-2xs text-faint">{join}</span>
+      <span className="h-px flex-1 bg-edge/60" />
     </div>
   )
 }
@@ -143,15 +158,15 @@ function AwardJoin({ join }: { join: 'or' | 'plus' }) {
 function ActionBlock({ action }: { action: MissionAction }) {
   const { summary, pending } = useMissionSummary('mission-action', action.id)
   return (
-    <li className="part p-4">
-      <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
-        <span className="chip">Action</span>
-        <span className="font-display text-sm leading-tight font-bold tracking-heading text-bone uppercase">{action.name}</span>
+    <li className={V.block}>
+      <p className={`flex flex-wrap items-baseline gap-x-2 gap-y-1 ${V.head}`}>
+        <span className={V.label}>Action</span>
+        <span className={V.timing}>{action.name}</span>
       </p>
       {summary ? (
-        <RuleSummaryText summary={summary} className="mt-3 space-y-3 text-base text-bone" />
+        <RuleSummaryText summary={summary} className={`${V.body} mt-3 space-y-3 pb-2 text-base text-bone`} />
       ) : pending ? (
-        <RuleSummarySkeleton className="mt-3" />
+        <RuleSummarySkeleton className={`${V.body} mt-3`} />
       ) : null}
     </li>
   )

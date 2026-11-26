@@ -103,8 +103,7 @@ test('a 2v1 draws the allied pair as one side with one pool, whichever side open
   await expect(playerPanel(host, 1).locator('[data-stat="cp"]')).toHaveText('2')
 
   // One army between the pair, so one bonus, paid to the side as the battle began.
-  await expect(playerPanel(host, 1)).toContainText('Battle ready included')
-  await expect(playerPanel(host, 1).locator('[data-stat="vp"]')).toHaveText('10')
+  await expect(host.locator('[data-side-score="1"] [data-stat="vp"]')).toHaveText('10')
 
   await ally.screenshot({ path: test.info().outputPath('team-battle-tracker.png'), fullPage: true })
 

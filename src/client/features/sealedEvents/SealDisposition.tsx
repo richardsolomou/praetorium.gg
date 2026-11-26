@@ -10,7 +10,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { dispositionsFor, dispositionTone } from '../../components/rosterSetup'
+import { dispositionsFor, dispositionTag } from '../../components/rosterSetup'
 import { factionQuery } from '../../queries'
 import { ChoiceMark } from '../rosters/RosterSetupDialog'
 import type { SavedRoster } from '../rosters/rosterLibrary'
@@ -58,7 +58,7 @@ export function useSealDisposition(playsAlone: boolean, seal: (rosterId: string,
                 className={`flex min-h-12 items-center gap-3 rounded-lg border px-3 text-left transition-colors ${chosen ? 'border-parchment bg-parchment/6 inset-ring-1 inset-ring-parchment' : 'border-edge bg-sunken hover:border-runner-hi'}`}
               >
                 <ChoiceMark chosen={chosen} />
-                <span className={`chip ${dispositionTone(card.id)}`}>{card.name}</span>
+                <span className={dispositionTag(card.id)}>{card.name}</span>
               </button>
             )
           })}
