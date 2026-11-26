@@ -33,7 +33,8 @@ type RosterRow = {
   edition: string
   /** Why the roster or a unit of it reads as no VS Data roster, such as a datasheet still on BSData. */
   gaps: string[]
-  points: { today: number; vsData: number } | null
+  /** `fieldManual` is the price with every datasheet on the field manual, as before VS Data priced lists. */
+  points: { today: number; fieldManual: number; vsData: number } | null
   /** Units whose price differs, as `name: today against VS Data`. */
   units: string[]
   legal: { today: boolean; vsData: boolean }
@@ -118,6 +119,14 @@ export const keptCheck = (message: string) =>
     message,
   )
 
+const fieldManualCopies = new WeakMap<LoadedCatalogue, LoadedCatalogue>()
+/** The catalogue as it priced lists from the field manual alone. */
+const withoutVsPoints = (loaded: LoadedCatalogue) => {
+  const { vsPoints: _, ...rest } = loaded
+  if (!fieldManualCopies.has(loaded)) fieldManualCopies.set(loaded, rest)
+  return fieldManualCopies.get(loaded)!
+}
+
 /** Every saved list read as a VS Data roster on its own rules version, priced and checked both ways. */
 export async function rosterParity(
   directory: string,
@@ -151,6 +160,7 @@ export async function rosterParity(
     const loaded = editions.catalogueFor(saved.catalogueId)
     const input = { ...savedRosterPriceInput(saved), includeUnitLimits: false }
     const price = loaded && calculateRosterPrice(input, loaded, editions.rulesFor(saved.catalogueId))
+    const fieldManual = loaded && calculateRosterPrice(input, withoutVsPoints(loaded), editions.rulesFor(saved.catalogueId))
     const edition = loaded?.edition?.id ?? baseEdition
     const definitions = definitionsFor(edition)
     const base = { kind: saved.kind, id: saved.id, edition }
@@ -192,7 +202,7 @@ export async function rosterParity(
     rows.push({
       ...base,
       gaps: gaps.map((gap) => gap.reason),
-      points: { today: price.points, vsData: vsPrice.points },
+      points: { today: price.points, fieldManual: fieldManual?.points ?? price.points, vsData: vsPrice.points },
       units: price.units.flatMap((unit) => {
         const vs = vsUnitOf.get(unit.key)
         return !vs || unit.points === vs.points || gaps.some((gap) => gap.unit === unit.key)
@@ -217,6 +227,7 @@ export async function rosterParity(
       wholeRead: whole.length,
       pointsSame: count((row) => row.points!.today === row.points!.vsData),
       pointsDiffer: count((row) => row.points!.today !== row.points!.vsData),
+      repricedByVsData: all.filter((row) => row.points && row.points.today !== row.points.fieldManual).length,
       legalBoth: count((row) => row.legal.today && row.legal.vsData),
       illegalBoth: count((row) => !row.legal.today && !row.legal.vsData),
       illegalOnlyVsData: count((row) => row.legal.today && !row.legal.vsData),

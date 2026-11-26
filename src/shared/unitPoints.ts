@@ -12,6 +12,8 @@ import { factionDisplayName } from './factionNames'
 import { ownChoiceOptionWargear } from '../core/modelKinds'
 import type { Selection } from '../core/evaluate'
 import type { ChoiceOptions, UnitChoice } from '../core/unitChoices'
+import { vsMfmUnit } from './vsDataPoints'
+import { rosterDetachments } from './rosterDetachments'
 import { type mfmDetachmentFor, mfmEnhancementPoints, mfmPrice, mfmSlugs, type MfmUnit, mfmWargearOptionPoints } from './mfm'
 
 const cache = new WeakMap<LoadedCatalogue, Map<string, number>>()
@@ -20,9 +22,25 @@ const comparable = (name: string) => normalizedName(plainQuotes(name.replaceAll(
 
 const mfmUnits = new WeakMap<LoadedCatalogue, Map<string, MfmUnit | null>>()
 
-/** The field manual row a datasheet is priced from, or null when none or several disagreeing rows match its name. */
-export const mfmUnitFor = (loaded: LoadedCatalogue, primaryCatalogueId: string, entryId: string): MfmUnit | null =>
-  cachedIn(mfmUnits, loaded, `${primaryCatalogueId}:${entryId}`, () => findMfmUnit(loaded, primaryCatalogueId, entryId))
+/**
+ * The price rows a datasheet is priced from in a list of `primaryCatalogueId` with `detachments`: VS Data's for a
+ * datasheet it defines, else the field manual row its name matches, or null when none or several disagreeing rows do.
+ */
+export const mfmUnitFor = (
+  loaded: LoadedCatalogue,
+  primaryCatalogueId: string,
+  entryId: string,
+  detachments: readonly string[] = [],
+): MfmUnit | null =>
+  cachedIn(
+    mfmUnits,
+    loaded,
+    `${primaryCatalogueId}:${entryId}:${detachments.join(',')}`,
+    () => vsMfmUnit(loaded.vsPoints, primaryCatalogueId, entryId, detachments) ?? findMfmUnit(loaded, primaryCatalogueId, entryId),
+  )
+
+/** Whether VS Data prices this datasheet, rather than the field manual. */
+export const vsDataPriced = (loaded: LoadedCatalogue, entryId: string) => Boolean(loaded.vsPoints?.units[entryId])
 
 function findMfmUnit(loaded: LoadedCatalogue, primaryCatalogueId: string, entryId: string): MfmUnit | null {
   const book = loaded.index.catalogues.get(primaryCatalogueId)
@@ -78,9 +96,10 @@ export function unitPointAdjustment(
   entryId: string,
   models?: number,
   copy = 1,
+  detachments: readonly string[] = [],
 ) {
-  return cachedIn(cache, loaded, JSON.stringify([primaryCatalogueId, catalogueId, entryId, models ?? null, copy]), () =>
-    computeUnitPointAdjustment(loaded, primaryCatalogueId, catalogueId, entryId, models, copy),
+  return cachedIn(cache, loaded, JSON.stringify([primaryCatalogueId, catalogueId, entryId, models ?? null, copy, detachments]), () =>
+    computeUnitPointAdjustment(loaded, primaryCatalogueId, catalogueId, entryId, models, copy, detachments),
   )
 }
 
@@ -91,13 +110,18 @@ function computeUnitPointAdjustment(
   entryId: string,
   requestedModels: number | undefined,
   copy: number,
+  detachments: readonly string[],
 ) {
-  const unit = mfmUnitFor(loaded, primaryCatalogueId, entryId)
+  const unit = mfmUnitFor(loaded, primaryCatalogueId, entryId, detachments)
+  // VS Data prices a unit in the list's Detachments, so its price replaces the catalogue's there, Detachment upgrades the
+  // catalogue adds to the unit included.
+  const roster = vsDataPriced(loaded, entryId) ? rosterDetachments(loaded, primaryCatalogueId, detachments).selections : []
   // The Munitorum's price is for the unit at its floor; a default that costs more is charged on top, as the app does.
   const built = buildUnit(entryId, loaded.index, requestedModels, undefined, {
     primaryCatalogueId,
     mustering: true,
     floor: true,
+    roster,
   })
   if (!built) return 0
   const models = requestedModels ?? built.size.models
@@ -108,11 +132,11 @@ function computeUnitPointAdjustment(
   if (price === null) return 0
   const comparableCopies = Math.min(copy, 6)
   const evaluated = evaluate(
-    Array.from({ length: comparableCopies }, () => built.selection),
+    [...roster, ...Array.from({ length: comparableCopies }, () => built.selection)],
     loaded.index,
     { primaryCatalogueId, mustering: true },
   )
-  const cataloguePrice = evaluated.selectionPoints[0]?.[comparableCopies - 1]
+  const cataloguePrice = evaluated.selectionPoints[0]?.[roster.length + comparableCopies - 1]
   return !evaluated.unhandled.length && cataloguePrice !== undefined ? price - cataloguePrice : 0
 }
 

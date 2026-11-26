@@ -234,7 +234,7 @@ type PickedUnit = { key: number; entryId: string }
 const unitCatalogueId = (data: PriceInput, unit: PickedUnit) => data.units[unit.key]?.catalogueId ?? data.catalogueId
 
 const pickedMfmUnit = (loaded: LoadedCatalogue, data: PriceInput, unit: PickedUnit) =>
-  mfmUnitFor(loaded, unitCatalogueId(data, unit), unit.entryId)
+  mfmUnitFor(loaded, unitCatalogueId(data, unit), unit.entryId, data.detachmentIds)
 
 function selectionPointsOf(forces: readonly (readonly Selection[])[], evaluated: { selectionPoints: readonly (readonly number[])[] }) {
   const points = new Map<Selection, number>()
@@ -264,7 +264,9 @@ function adjustUnitPoints(
       primaryCatalogueId: data.catalogueId,
       mustering: true,
     })
-    const difference = unitPointAdjustment(loaded, data.catalogueId, catalogueId, unit.entryId, unit.size.models, copy) + optionDifference
+    const difference =
+      unitPointAdjustment(loaded, data.catalogueId, catalogueId, unit.entryId, unit.size.models, copy, data.detachmentIds) +
+      optionDifference
     pointsBySelection.set(unit.selection, (pointsBySelection.get(unit.selection) ?? 0) + difference)
     adjustment += difference
   }

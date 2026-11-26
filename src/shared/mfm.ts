@@ -6,6 +6,7 @@ import { normalizedNameVariants } from '../core/name'
 import { factionDisplayName } from './factionNames'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { grantedWargear } from './heldWargear'
+import { vsMfmDetachment } from './vsDataPoints'
 const costSchema = z.object({ models: z.number().int().positive(), points: z.number().int().nonnegative(), addon: z.boolean().optional() })
 const tierSchema = z.object({ range: z.string(), label: z.string().optional(), costs: z.array(costSchema) })
 const unitSchema = z.object({
@@ -93,7 +94,11 @@ export function mfmWargearOptionPoints(
   const item = grantedWargear(name)
   return item ? mfmWargearPoints(unit, item) : null
 }
+/** A Detachment's points and Enhancement prices: VS Data's for a Detachment it records, else the field manual's by name. */
 export function mfmDetachmentFor(loaded: LoadedCatalogue, catalogueId: string, name: string) {
+  const option = loaded.detachments.get(catalogueId)?.options.filter((candidate) => candidate.name === name)
+  const vsData = option?.length === 1 ? vsMfmDetachment(loaded.vsPoints, option[0]!.id) : null
+  if (vsData) return vsData
   const faction = loaded.index.catalogues.get(catalogueId)
   return faction ? mfmDetachment(loaded.mfm, mfmSlugs(faction.name), name) : null
 }
