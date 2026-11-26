@@ -576,12 +576,22 @@ function grantOf(grant: z.infer<typeof grantSchema>): WrittenAbilityGrant {
 /** A keyword a rule gives, shown as an ability of that name. */
 const keywordGrantOf = ({ keyword: given, ...grant }: z.infer<typeof keywordGrantSchema>) =>
   grantOf({ ...grant, ability: titleCaseAbility(given) })
+/**
+ * The grants a rule always makes, or makes on a unit it is attached to, as Praetorium checks. One VS Data marks
+ * conditional otherwise, whether a unit the player picks before the battle or a triggered return from Strategic Reserves,
+ * is left out: nothing tells which units it reaches or for how long.
+ */
+const held = (grant: { conditional?: true; counterpart?: readonly string[]; whileAttached?: true }) =>
+  !grant.conditional || Boolean(grant.counterpart || grant.whileAttached)
 const statementOf = (
   abilities: readonly z.infer<typeof grantSchema>[] | null | undefined,
   keywords: readonly z.infer<typeof keywordGrantSchema>[] = [],
 ) =>
   abilities || keywords.length
-    ? { matched: true, grants: [...(abilities ?? []).map(grantOf), ...keywords.map(keywordGrantOf)] }
+    ? {
+        matched: true,
+        grants: [...(abilities ?? []).filter(held).map(grantOf), ...keywords.filter(held).map(keywordGrantOf)],
+      }
     : { matched: false, grants: [] }
 
 /** One block as Praetorium reads it, or undefined where VS Data holds it back as unresolved or it does not read. */

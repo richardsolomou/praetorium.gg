@@ -91,3 +91,14 @@ it('gives a keyword a rule grants as an ability of that name', () => {
   const facts = textFactsOfVsData({ grants: { keywords: [{ keyword: 'MOBILE', to: 'unit' }] } })
   expect(facts.abilityGrants!.grants).toEqual([{ written: 'Mobile', recipient: 'unit' }])
 })
+
+it('leaves out a grant VS Data marks conditional, as a triggered return from Strategic Reserves', () => {
+  const facts = textFactsOfVsData({ grants: { abilities: [{ ability: 'Deep Strike', to: 'unit', conditional: true }] } })
+  expect(facts.abilityGrants!.grants).toEqual([])
+})
+
+it('keeps a conditional grant whose condition is the unit it attaches to', () => {
+  const grant = { ability: 'Deep Strike', to: 'bearer', conditional: true, counterpart: ['WORLD EATERS POSSESSED'] }
+  const facts = textFactsOfVsData({ grants: { abilities: [grant] } })
+  expect(facts.abilityGrants!.grants).toHaveLength(1)
+})
