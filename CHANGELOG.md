@@ -1,5 +1,14 @@
 # praetorium
 
+## 0.277.12 (2026-11-26)
+
+### Patch Changes
+
+- 6746271: [rosters] An army holds at most the allied Characters and Retinue units the official app allows for its battle size.
+- 6746271: [rosters] Lists now follow the official app's army rules: Boyz and other squads field only the sizes the app allows, and two Detachments with the same tag cannot be taken together.
+- 6746271: [rosters] Epic Heroes cannot take upgrades, and units that are not Characters cannot take Enhancements meant for Characters, as in the official app.
+- 6746271: [rosters] A Daemon Prince, and any unit the official app requires to, must take a Mark of Chaos or allegiance.
+
 ## 0.277.11 (2026-11-26)
 
 ### Patch Changes
