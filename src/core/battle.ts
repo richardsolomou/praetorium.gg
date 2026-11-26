@@ -1277,7 +1277,7 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
       if ((state.status !== 'setup' || !state.settings.sizeFromRosters) && built && !fitsBattleSize(state.settings, built))
         return refuse('roster-size-mismatch', 'that roster does not match the battle size')
       if (built?.detachmentPointBudget !== undefined) {
-        const detachmentError = detachmentPointsError(built.detachments ?? [], built.detachmentPointBudget)
+        const detachmentError = detachmentPointsError(built.detachments ?? [], built.detachmentPointBudget, built.waivedRules)
         if (detachmentError) return refuse('invalid-detachments', 'invalid detachment combination')
       }
       if (command.prep) {

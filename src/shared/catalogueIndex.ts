@@ -25,6 +25,8 @@ export type LoadedCatalogue = {
   datacards: LoadedDatacards
   /** The rules version's weapon and core abilities by name, from its VS Data release: the keywords whose rule is VS Data's. */
   keywords?: readonly string[]
+  /** Each datasheet's base size text from the rules version's VS Data release, by BSData entry id (`baseSizeOf`). */
+  baseSizes?: Readonly<Record<string, string>>
   /** The catalogue's own texts as the server read them from its files; a device's catalogue has none. */
   definitions?: DefinitionTexts
 }

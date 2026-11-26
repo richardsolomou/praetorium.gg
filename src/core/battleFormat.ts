@@ -23,7 +23,7 @@ export const GAME_SIZES = [
   ...KOTC_LIMITS.map((limit) => ({ name: 'King of the Colosseum', limit, detachmentPoints: null })),
   { name: 'Incursion', limit: 1000, detachmentPoints: 2 },
   { name: 'Strike Force', limit: 2000, detachmentPoints: 3 },
-  { name: 'Onslaught', limit: 3000, detachmentPoints: null },
+  { name: 'Onslaught', limit: 3000, detachmentPoints: 3 },
 ] as const
 
 export const isGameSize = (limit: number | null) => GAME_SIZES.some((size) => size.limit === limit)

@@ -238,6 +238,7 @@ export async function writeReferenceBundle(outDir: string, directory: string, ru
     // The facts above hold every card text's too, so the cards' own facts would only repeat them.
     datacards: packRuntimeData({ ...selectedCatalogue.datacards, textFacts: undefined }),
     ...(selectedCatalogue.keywords ? { keywords: [...selectedCatalogue.keywords] } : {}),
+    ...(selectedCatalogue.baseSizes ? { baseSizes: { ...selectedCatalogue.baseSizes } } : {}),
     mfm: packRuntimeData(selectedCatalogue.mfm ?? null),
     rules: packRuntimeData({ ...selectedRules, terrainLayouts: [], terrainTemplates: [] }),
   })

@@ -19,6 +19,8 @@ import {
   vsDataEdition,
   vsDataKey,
   type VsDataRulesVersion,
+  type VsDataBaseSize,
+  vsDataBaseSizeSchema,
   vsDataUnitSchema,
 } from '../shared/vsData'
 
@@ -229,6 +231,9 @@ const invulnerableSaveSchema = z.object({
 // A profile can hold several saves, as Wyches' against ranged attacks and against melee ones.
 const unitProfileDataSchema = z.object({
   unit: z.string(),
+  models: z.array(z.string()).optional(),
+  baseSize: z.unknown().optional(),
+  gaps: z.array(z.object({ field: z.string(), reason: z.string() })).optional(),
   invulnerableSave: z.union([invulnerableSaveSchema, z.array(invulnerableSaveSchema)]).optional(),
 })
 const transportDataSchema = z.object({
@@ -296,7 +301,13 @@ function compactUnits(
   // A condition's summary is kept as the profile's own record, so it is served and withheld as any other summary is.
   const conditions: { kind: string; id: string; summary: string }[] = []
   for (const record of recordsOf('profiles', 'unit-profile')) {
-    const { unit, invulnerableSave } = unitProfileDataSchema.parse(record.data)
+    const { unit, models, baseSize, gaps, invulnerableSave } = unitProfileDataSchema.parse(record.data)
+    // A base no official source prints, or one in a form this reader does not know, is shown as none, which leaves the
+    // whole unit to its fallback; another gap leaves the stat line out.
+    const typed = baseSize === undefined ? null : vsDataBaseSizeSchema.safeParse(baseSize)
+    const size = typed?.success ? namedBase(typed.data, named) : null
+    if (typed || gaps?.some((gap) => gap.field === 'baseSize' && gap.reason === 'no-source'))
+      unitOf(unit).bases = [...(unitOf(unit).bases ?? []), { ...(models ? { models: models.map(named) } : {}), size }]
     const saves = invulnerableSave === undefined ? [] : [invulnerableSave].flat()
     for (const [at, save] of saves.entries()) {
       // Each condition is its own record, named by the profile and, where it holds several, the save's place.
@@ -366,6 +377,23 @@ function coreRulesOf(
           ]
         : []
     })
+}
+
+/** A typed base with the models and wargear it names by their names, as a datasheet prints them. */
+function namedBase<T extends VsDataBaseSize>(size: T, named: (id: string) => string): T {
+  if (typeof size !== 'object') return size
+  return Object.fromEntries(
+    Object.entries(size).map(([key, value]) => [
+      key,
+      key === 'models' || key === 'wargear'
+        ? (value as string[]).map(named)
+        : Array.isArray(value)
+          ? value.map((part) => namedBase(part, named))
+          : value && typeof value === 'object'
+            ? namedBase(value as VsDataBaseSize, named)
+            : value,
+    ]),
+  ) as T
 }
 
 const detachmentDataSchema = z.object({

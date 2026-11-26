@@ -4,6 +4,7 @@ import type { CatalogueFile } from '../core/catalogue'
 import { abilityKey } from '../shared/vsDataAbilities'
 import { routeSlug } from '../core/slug'
 import type { LoadedDatacards } from '../shared/datacards'
+import type { VsDataSummariesFile } from '../shared/vsData'
 import { readCatalogueComposition } from './catalogueComposition'
 
 /** A datasheet and an ability profile on it, by BSData ids, that a rules version does not print. */
@@ -42,6 +43,7 @@ export function compactReleaseIn(directory: string, editionId?: string) {
     absentAbilityNames?: AbsentAbilityName[]
     absentDetachmentRules?: [string, string][]
     keywords?: Record<string, string>
+    units?: VsDataSummariesFile['units']
   }
 }
 

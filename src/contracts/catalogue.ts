@@ -42,7 +42,7 @@ export type PickerUnit = UnitSummary & {
   unattachable?: true
 }
 
-export type CanonicalSourceName = 'definitions' | 'points' | 'rules' | 'datacards' | 'battlemaster'
+export type CanonicalSourceName = 'definitions' | 'points' | 'rules' | 'datacards' | 'battlemaster' | 'summaries'
 
 export type CanonicalFieldResolution = {
   sources: CanonicalSourceName[]
@@ -159,6 +159,7 @@ export type CanonicalCatalogue = {
     | 33
     | 34
     | 35
+    | 36
   revisions: Record<string, string>
   datasheets: CanonicalDatasheet[]
   detachments: CanonicalDetachment[]

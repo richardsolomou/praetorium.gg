@@ -1,5 +1,45 @@
 # praetorium
 
+## 0.277.9 (2026-11-26)
+
+### Patch Changes
+
+- bdc4819: [reference] 230 rule summaries that misstated their rule, such as Flip Belt giving its unit a benefit only its bearer gets and several aircraft errata leaving out the OC change, now say what the official text says.
+
+## 0.277.8 (2026-11-25)
+
+### Patch Changes
+
+- d3469f0: [battles] Bring It Down and A Grievous Blow are discarded again when no enemy model or unit is big enough to score them, as the cards say, instead of going back into the deck.
+- d3469f0: [reference] Soul Sight's summary now says every friendly unit shooting at the chosen enemy gets Ignores Cover, not just the Librarian's unit.
+- d3469f0: [reference] 37 Stratagem summaries that misstated their card, such as Vengeful Surge's re-roll and On My Position's 3D3 mortal wounds, now say what the card says.
+
+## 0.277.7 (2026-11-25)
+
+### Patch Changes
+
+- c1105c1: [simulator] A weapon with a Hunter profile, such as the Eradicators' melta rifle, now fires one profile per model: the Hunter profile against a MONSTER or VEHICLE, the standard one otherwise.
+
+## 0.277.6 (2026-11-25)
+
+### Patch Changes
+
+- d37e45f: [groups] Sealing a list for a league or tournament while online no longer fails with "This roster or its army data changed" when the device holds an older copy of the list or army data.
+
+## 0.277.5 (2026-11-25)
+
+### Patch Changes
+
+- 767c82e: [reference] Datasheets show each model's base size as the official app and Games Workshop's Base Size Guide print it, including flying bases and the bases some wargear changes.
+
+## 0.277.4 (2026-11-25)
+
+### Patch Changes
+
+- ab3326c: [rosters] A detachment your army can never add alongside another now says so, rather than pointing at its detachment points.
+- 1473dc6: [rosters] An Onslaught list with more than one detachment can now spend at most 3 detachment points, as in the official app, unless you switch that restriction off.
+- ab3326c: [battles] A list whose detachment points restriction is switched off can now join a battle even when its detachments cost more than the battle size allows.
+
 ## 0.277.3 (2026-11-25)
 
 ### Patch Changes
@@ -1420,15 +1460,3 @@
 ### Patch Changes
 
 - ae07278: [rosters] Ability, wargear, and enhancement text loads again for devices that had not loaded it before.
-
-## 0.232.6 (2026-11-12)
-
-### Patch Changes
-
-- b9af5c0: [simulator] The simulator's Cold Fervour adds +2 Strength to Destroyer Cult weapons once instead of twice, including a Cryptek with Murdermind.
-
-## 0.232.5 (2026-11-12)
-
-### Patch Changes
-
-- fd9eb60: [rosters] Anathema Psykana units can now embark in the Anathema Psykana Rhino.

@@ -23,7 +23,6 @@ export type DatasheetDetails = {
   loadout: string | null
   wargear: string[]
   wargearGroups?: { instruction: string; options: string[] }[]
-  baseSize: string | null
   transport: string | null
   /** How many models the composition prints, read before its lines are published only as tokens. */
   modelCount?: string
@@ -824,7 +823,6 @@ function datasheetDetails(value: unknown, texts: SourceTexts): DatasheetDetails 
     loadout: printedLoadout ? texts(printedLoadout, 'plain') : loadout,
     wargear: localizedList(value, 'wargear').map(labelOr(texts)),
     ...(wargearGroups.length ? { wargearGroups } : {}),
-    baseSize: displayBaseSize(localizedField(value, 'baseSize')),
     transport: transport ? texts(transport, 'prose') : null,
     ...(capacity ? { transportCapacity: capacity } : {}),
     points: records(value, 'points').flatMap((point) => {
@@ -851,12 +849,6 @@ function datasheetDetails(value: unknown, texts: SourceTexts): DatasheetDetails 
     supporters: [],
     ...(abilities.length ? { abilities } : {}),
   }
-}
-function displayBaseSize(baseSize: string | null): string | null {
-  if (baseSize === 'Large Flying Base') return 'Large Flying Base (Ø60mm)'
-  if (baseSize === 'Small Flying Base') return 'Small Flying Base (Ø32mm)'
-  if (baseSize === 'Aircraft Flying Base') return 'Aircraft Flying Base (120 × 92 mm oval)'
-  return baseSize
 }
 export function records(value: unknown, field: string): Record<string, unknown>[] {
   if (!value || typeof value !== 'object') return []

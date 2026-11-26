@@ -108,7 +108,7 @@ export const vsDataMissionPackSchema = z.object({
       awards: z.array(awardSchema),
       whenDrawn: orUnresolved(
         z.object({
-          action: z.literal('redraw'),
+          action: z.enum(['redraw', 'discard']),
           required: z.boolean(),
           untilRound: z.number().int().optional(),
           ifActive: z.string().optional(),
@@ -129,6 +129,29 @@ export const isUnresolved = (value: unknown): value is { unresolved: string } =>
   Boolean(value && typeof value === 'object' && 'unresolved' in value)
 const countedSchema = z.array(z.tuple([z.string(), z.number().int()]))
 const selectorsSchema = z.object({ selectors: z.array(z.string()) })
+
+const plainBaseSchema = z.union([
+  z.enum(['hull', 'unique']),
+  z.object({ diameter: z.number(), approximate: z.literal(true).optional(), flying: z.literal(true).optional() }),
+  z.object({ length: z.number(), width: z.number(), approximate: z.literal(true).optional(), flying: z.literal(true).optional() }),
+  z.object({ flyingBase: z.enum(['large', 'small']) }),
+])
+const singleBaseSchema = z.union([plainBaseSchema, z.object({ alternatives: z.array(plainBaseSchema).min(1) })])
+/**
+ * A base VS Data types, with models and wargear by name: one size, sizes it leaves to the player, a size for each of a
+ * profile's models, or a size the model takes with some wargear in place of its own.
+ */
+const equippedBaseSchema = z.union([
+  singleBaseSchema,
+  z.object({ size: singleBaseSchema, withWargear: z.array(z.object({ wargear: z.array(z.string()), size: singleBaseSchema })).min(1) }),
+])
+export const vsDataBaseSizeSchema = z.union([
+  equippedBaseSchema,
+  z.object({ byModel: z.array(z.object({ models: z.array(z.string()), size: equippedBaseSchema })).min(1) }),
+])
+export type VsDataBaseSize = z.infer<typeof vsDataBaseSizeSchema>
+export type VsDataSingleBase = z.infer<typeof singleBaseSchema>
+export type VsDataEquippedBase = z.infer<typeof equippedBaseSchema>
 
 /**
  * What a datasheet shows of a unit from VS Data's roster definitions and transport facts, with models and wargear
@@ -177,6 +200,11 @@ export const vsDataUnitSchema = z.object({
       }),
     )
     .optional(),
+  /**
+   * Each stat line's base, with the models it names where the unit has several, or null where no official source prints
+   * one, as for most Warhammer Legends datasheets.
+   */
+  bases: z.array(z.object({ models: z.array(z.string()).optional(), size: vsDataBaseSizeSchema.nullable() })).optional(),
   transport: z
     .object({
       loads: z.array(z.array(z.object({ count: z.string(), limit: z.number().int(), selectors: z.array(z.string()) }))).optional(),

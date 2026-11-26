@@ -28,10 +28,13 @@ describe('the join from a datasheet to its card', () => {
 
   it("reads the book's own file first, apostrophes folded", () => {
     const loaded = book()
-    loaded.factionContents.set('test-catalogue', withCards('Test catalogue', new Map([['Transcendent C’tan', card({ baseSize: '80mm' })]])))
-    loaded.factionContents.set('other', withCards('Other', new Map([['Transcendent C’tan', card({ baseSize: '60mm' })]])))
+    loaded.factionContents.set(
+      'test-catalogue',
+      withCards('Test catalogue', new Map([['Transcendent C’tan', card({ transport: 'Eighty.' })]])),
+    )
+    loaded.factionContents.set('other', withCards('Other', new Map([['Transcendent C’tan', card({ transport: 'Sixty.' })]])))
 
-    expect(datacardOf(loaded, 'cat', 'ctan')).toEqual({ details: card({ baseSize: '80mm' }), own: true })
+    expect(datacardOf(loaded, 'cat', 'ctan')).toEqual({ details: card({ transport: 'Eighty.' }), own: true })
   })
 
   it('takes another file’s card when every file that prints the name agrees', () => {
@@ -67,9 +70,9 @@ describe('the join from a datasheet to its card', () => {
 
   it('joins a datacard name that uses a nonbreaking hyphen', () => {
     const loaded = bookOf({ selectionEntries: [{ id: 'bommer', name: 'Blitza-bommer', type: 'model' }] })
-    loaded.factionContents.set('test-catalogue', withCards('Test catalogue', new Map([['Blitza‑bommer', card({ baseSize: '120mm' })]])))
+    loaded.factionContents.set('test-catalogue', withCards('Test catalogue', new Map([['Blitza‑bommer', card({ transport: 'Twelve.' })]])))
 
-    expect(datacardOf(loaded, 'cat', 'bommer')?.details.baseSize).toBe('120mm')
+    expect(datacardOf(loaded, 'cat', 'bommer')?.details.transport).toBe('Twelve.')
   })
 
   it('names every datasheet and card the join could not carry across', () => {

@@ -213,6 +213,17 @@ describe.skipIf(!fs.existsSync(directory))('simulator catalogue projections', ()
     ])
   })
 
+  it('Eradicators fire one melta rifle profile per model', () => {
+    const attacker = side('Space Marines', ['Eradicator Squad with Melta Rifles'])
+    expect(profiles(fight(attacker, marines()).matchup.plans.ranged)).toEqual([['➤ Melta Rifle', 3]])
+  })
+
+  it('Eradicators fire the Hunter profile at a vehicle', () => {
+    const attacker = side('Space Marines', ['Eradicator Squad with Melta Rifles'])
+    const rhino = side('Space Marines', ['Rhino'])
+    expect(profiles(fight(attacker, rhino).matchup.plans.ranged)).toEqual([['➤ Melta Rifle HUNTER:Monster/Vehicle', 3]])
+  })
+
   it('indirect fire costs less when spotted than when unobserved', () => {
     const crawler = side('Death Guard', ['Plagueburst Crawler'])
     const shot = (indirectFire: 'direct' | 'unobserved' | 'spotted') => fight(crawler, marines(), { ranged: { indirectFire } }).ranged()

@@ -18,7 +18,7 @@ You can also start with **Start a roster** on a faction or detachment page, or *
 
 ## Detachment points
 
-The counter shows **DP used** against your allowance: 2 DP at Incursion, 3 DP at Strike Force, no limit at Onslaught. It only applies once you take more than one detachment.
+The counter shows **DP used** against your allowance: 2 DP at Incursion and 3 DP at Strike Force and Onslaught. It only applies once you take more than one detachment.
 
 ## Your own points limit
 
