@@ -2,7 +2,8 @@ import type { CombatInput, CombatPhase } from './combat'
 import { combatSchema } from './combat'
 import type { CombatAttacker } from './combatScenario'
 import { combatTarget } from './combatProfiles'
-import { combatRuleDefences, withBearerEffects, type ActiveCombatRule } from './combatRules'
+import type { CombatCarrier } from './combatLoadout'
+import { combatRuleDefences, effectModels, withBearerEffects, type ActiveCombatRule, type CombatRuleEffect } from './combatRules'
 
 export type CombatMember = Omit<CombatAttacker, 'companions'> & {
   startingModels?: number
@@ -65,13 +66,23 @@ export function combatUnitTarget(defender: CombatMember, phase?: CombatPhase, at
     const sheet = grants.length
       ? { ...member.sheet, abilities: member.sheet.abilities.filter((ability) => !grants.some((grant) => grant.id === ability.id)) }
       : member.sheet
-    const splitKeywords = grants.flatMap((grant) => (grant.models ? [grant.models] : []))
-    const printed = combatTarget(sheet, member.models, member.startingModels, member.carriers, splitKeywords)
+    const limited = limitedDefences(member)
+    const splitKeywords = [...grants.flatMap((grant) => (grant.models ? [grant.models] : [])), ...limited.marks.keys()]
+    const printed = combatTarget(sheet, member.models, member.startingModels, limited.carriers, splitKeywords)
+    const reaches = (effect: CombatRuleEffect, group: number) => {
+      const mark = limited.effects.get(effect)
+      return !mark || Boolean(printed.keywords[group]?.includes(mark))
+    }
     return {
       ...printed,
+      // A profile whose models defend apart names the rules that set them apart.
+      labels: printed.labels.map((label, at) => {
+        const marks = printed.keywords[at]!.flatMap((keyword) => limited.marks.get(keyword) ?? [])
+        return marks.length && printed.labels.filter((other) => other === label).length > 1 ? `${label} · ${marks.join(' · ')}` : label
+      }),
       error: ambiguous ? 'The source of a shared Feel No Pain ability could not be identified.' : printed.error,
       grants,
-      target: printed.target && phase ? combatRuleDefences(printed.target, member.rules ?? [], phase, attackRules) : printed.target,
+      target: printed.target && phase ? combatRuleDefences(printed.target, limited.rules, phase, attackRules, reaches) : printed.target,
     }
   })
   const error = built.find((part) => part.error)?.error
@@ -103,4 +114,45 @@ export function combatUnitTarget(defender: CombatMember, phase?: CombatPhase, at
         error: null,
       }
     : { target: null, labels: [], error: 'This attached unit exceeds the supported model or defence-group limit.' }
+}
+
+/**
+ * A member's defending effects that reach only some of its models, as a wargear's bearer's or some models' by keyword:
+ * each marks the carriers it reaches, a carrier only some of whose models hold it splits in two, an effect reaching every
+ * model is one of the unit's and one reaching none is left out.
+ */
+function limitedDefences(member: CombatMember) {
+  const marks = new Map<string, string>()
+  const effects = new Map<CombatRuleEffect, string>()
+  let carriers: readonly CombatCarrier[] = member.carriers
+  const fielded = member.carriers.filter((carrier) => carrier.models > 0 && !carrier.unitWide)
+  const rules = (member.rules ?? []).map((rule) => ({
+    ...rule,
+    effects: rule.effects.flatMap((effect) => {
+      const models = effect.role === 'defender' ? effectModels(effect, rule, member) : undefined
+      if (!models) return [effect]
+      const reached = fielded.length ? fielded.map(models) : [models({ name: member.sheet.name, models: 1, weapons: [] }) ? 1 : 0]
+      if (reached.every((count) => !count)) return []
+      if (!fielded.length || reached.every((count, at) => count === fielded[at]!.models)) return [effect]
+      // Effects limited alike, as a wargear's invulnerable save and Feel No Pain, mark the same models once.
+      const mark = `\u0000${JSON.stringify([effect.modelKeywords, effect.excludedModelKeywords, effect.bearerOnly && rule.heldBy])}`
+      effects.set(effect, mark)
+      if (marks.has(mark)) return [effect]
+      marks.set(mark, rule.name)
+      carriers = carriers.flatMap((carrier) => {
+        const count = carrier.models > 0 && !carrier.unitWide ? Math.min(carrier.models, models(carrier)) : 0
+        const marked = { ...carrier, keywords: [...(carrier.keywords ?? []), mark] }
+        return !count
+          ? [carrier]
+          : count === carrier.models
+            ? [marked]
+            : [
+                { ...marked, models: count },
+                { ...carrier, models: carrier.models - count },
+              ]
+      })
+      return [effect]
+    }),
+  }))
+  return { rules, carriers, marks, effects }
 }

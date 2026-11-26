@@ -107,3 +107,9 @@ it('keeps another ability VS Data grants conditionally, as Feel No Pain to the O
   const grant = { ability: 'Feel No Pain 4+', to: 'models', models: 'OFFICER', conditional: true }
   expect(textFactsOfVsData({ grants: { abilities: [grant] } }).abilityGrants!.grants).toHaveLength(1)
 })
+
+it('shows an ability an effect gives some models as theirs alone', () => {
+  const stealth = { role: 'defender', attacks: ['ranged'], ability: 'Stealth', modelKeywords: ['INFANTRY'] }
+  const facts = textFactsOfVsData(combat({ choices: [{ conditions: [], effects: [stealth] }], default: 1 }))
+  expect(facts.abilityGrants!.grants).toEqual([{ name: 'Stealth', recipient: 'models', models: 'INFANTRY' }])
+})

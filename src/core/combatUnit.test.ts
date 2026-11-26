@@ -462,3 +462,56 @@ describe('a leader’s bearer-only effect', () => {
     expect(combatUnitTarget(squad, 'ranged').target?.groups.map((group) => group.damageReduction)).toEqual([0, 1])
   })
 })
+
+describe('an effect for some models in a unit', () => {
+  /** Nine troopers with rifles and a sergeant with a sword, who alone holds a shield. */
+  const squad = (rules: NonNullable<CombatMember['rules']>): CombatMember => {
+    const unit = member('Squad', 9)
+    unit.sheet.profiles.push({
+      id: 'Squad:sword',
+      name: 'Sword',
+      type: 'Melee Weapons',
+      count: 1,
+      values: Object.entries({ A: '2', WS: '3+', S: '4', AP: '0', D: '1' }).map(([name, value]) => ({ name, value })),
+    })
+    return {
+      ...unit,
+      models: 10,
+      rules,
+      carriers: [
+        {
+          name: 'Trooper',
+          models: 9,
+          modelProfileIds: ['Squad:model'],
+          weapons: [{ name: 'Rifle', count: 9, profileIds: ['Squad:weapon'] }],
+        },
+        {
+          name: 'Sergeant',
+          models: 1,
+          modelProfileIds: ['Squad:model'],
+          abilities: { shield: 1 },
+          weapons: [{ name: 'Sword', count: 1, profileIds: ['Squad:sword'] }],
+        },
+      ],
+    }
+  }
+
+  it('reaches only the weapons of the models it names', () => {
+    const unit = squad([
+      { name: 'Drill', effects: [{ role: 'attacker', phases: ['melee'], modelKeywords: ['SERGEANT'], options: { hitReroll: 'failed' } }] },
+    ])
+    expect(
+      combatAttacks(unit, { keywords: [], rules: [] }, {}, { ranged: [], melee: [] }).melee.base?.weapons.map((weapon) => weapon.hitReroll),
+    ).toEqual(['failed'])
+  })
+
+  it("protects only the models holding the wargear whose bearer's it is", () => {
+    const unit = squad([
+      { name: 'Shield', heldBy: 'shield', effects: [{ role: 'defender', phases: ['ranged'], bearerOnly: true, invulnerable: 4 }] },
+    ])
+    expect(combatUnitTarget(unit, 'ranged').target?.groups.map((group) => [group.models, group.invulnerable])).toEqual([
+      [9, null],
+      [1, 4],
+    ])
+  })
+})

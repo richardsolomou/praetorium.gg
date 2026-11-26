@@ -22,6 +22,7 @@ import {
   ruleSection,
 } from './combatRuleCompiler'
 import { datasheetCharacteristicKind, weaponPhase } from './datasheetStructure'
+import { carriedCount, type CombatCarrier } from './combatLoadout'
 import { combatKeyword, combatKeywordApplies, combatKeywordKind, combatKeywordPhraseMatches } from './combatKeywords'
 
 export type CombatRule = {
@@ -43,6 +44,8 @@ export type CombatRule = {
   judge?: CombatRuleJudge
   /** What the rule's words decide for this placement, recorded where a token stands for them. */
   reading?: CombatReading
+  /** The ability profile of the wargear whose holders the rule's bearer-only effects reach. */
+  heldBy?: string
 }
 /**
  * What a rule's words decide in combat for one placement: the compiled choices, or the choices
@@ -94,6 +97,8 @@ export type CombatRuleEffect = {
   allHitsCritical?: boolean
   /** Spends the phase's one change of a failed Hit or Wound roll to an unmodified 6. */
   unmodifiedSix?: 'hit' | 'wound'
+  /** Only models matching one of these selectors, keywords or a model's name, make their attacks with the effect, or are defended by it. */
+  modelKeywords?: string[]
   /** Models with any of these keywords make their attacks without the effect. */
   excludedModelKeywords?: string[]
   invulnerable?: number
@@ -135,7 +140,13 @@ export type CombatRuleChoice = {
   selected?: string
 }
 /** `source` names the unit whose ability it is, so a combined estimate can end it when that unit is destroyed (19.04). */
-export type ActiveCombatRule = { name: string; source?: string; appliedAs?: readonly string[]; effects: CombatRuleEffect[] }
+export type ActiveCombatRule = {
+  name: string
+  source?: string
+  appliedAs?: readonly string[]
+  heldBy?: string
+  effects: CombatRuleEffect[]
+}
 
 /** Whether the catalogue already counts this rule in a characteristic, under its own name or one it credits the rule to. */
 export const combatRuleProjected = (rule: Pick<ActiveCombatRule, 'name' | 'appliedAs'>, modifiers: readonly string[] | undefined) =>
@@ -158,7 +169,9 @@ export function activeCombatRules(rules: readonly CombatRule[], choices: Readonl
     ...new Map(
       chosen.flatMap(({ rule, options, at }) => {
         const effects = (together.length ? effectsTogether(options, at, together) : undefined) ?? options[at]?.effects
-        return effects ? [[rule.name, { name: rule.name, source: rule.source, appliedAs: rule.appliedAs, effects }] as const] : []
+        return effects
+          ? [[rule.name, { name: rule.name, source: rule.source, appliedAs: rule.appliedAs, heldBy: rule.heldBy, effects }] as const]
+          : []
       }),
     ).values(),
   ]
@@ -747,51 +760,78 @@ export function combatRuleDefences(
   rules: readonly ActiveCombatRule[],
   phase: CombatPhase,
   attackRules: readonly ActiveCombatRule[] = [],
+  /** Whether an effect limited to some models reaches a group, which every other effect does. */
+  reaches: (effect: CombatRuleEffect, group: number) => boolean = () => true,
 ): CombatInput['target'] {
-  const effects = rules.flatMap((rule) => rule.effects).filter((effect) => effect.role === 'defender' && effect.phases.includes(phase))
-  const bestRoll = <T extends number | null | undefined>(
-    field: 'invulnerable' | 'feelNoPain' | 'psychicFeelNoPain' | 'mortalFeelNoPain',
-    initial: T,
-  ) => effects.reduce<number | T>((roll, effect) => (effect[field] === undefined ? roll : Math.min(roll ?? 7, effect[field])), initial)
+  const defending = (effect: CombatRuleEffect) => effect.role === 'defender' && effect.phases.includes(phase)
+  const within = (where: (effect: CombatRuleEffect) => boolean) =>
+    rules.map((rule) => ({ ...rule, effects: rule.effects.filter((effect) => defending(effect) && where(effect)) }))
+  const everywhere = within((effect) => target.groups.every((_, at) => reaches(effect, at)))
   const attacks = [...new Map(attackRules.map((rule) => [combatTextKey(rule.name), rule])).values()]
     .flatMap((rule) => rule.effects)
     .filter((effect) => effect.role === 'attacker' && effect.phases.includes(phase))
+  const printed = Object.fromEntries(UNIT_DEFENCES.map((field) => [field, target[field]])) as UnitDefences
+  const unit = unitDefences(everywhere, printed)
   return {
     ...target,
-    groups: target.groups.map((group) => ({
-      ...group,
-      invulnerable: bestRoll('invulnerable', group.invulnerable),
-      save: Math.max(
-        2,
-        Math.min(
-          7,
-          effects.reduce(
-            (roll, effect) => (effect.improveSave ? Math.min(roll, Math.max(effect.improveSave.best, roll - effect.improveSave.by)) : roll),
-            effects.reduce((roll, effect) => (effect.save === undefined ? roll : Math.min(roll, effect.save)), group.save),
-          ) + attacks.reduce((total, effect) => total + (effect.targetSaveModifier ?? 0), 0),
+    groups: target.groups.map((group, at) => {
+      const own = within((effect) => reaches(effect, at))
+      const effects = own.flatMap((rule) => rule.effects)
+      const bestRoll = <T extends number | null | undefined>(initial: T) =>
+        effects.reduce<number | T>(
+          (roll, effect) => (effect.invulnerable === undefined ? roll : Math.min(roll ?? 7, effect.invulnerable)),
+          initial,
+        )
+      const limited = effects.length > everywhere.flatMap((rule) => rule.effects).length
+      return {
+        ...group,
+        ...(limited ? unitDefences(own, { ...printed, ...definedOf(group) }) : {}),
+        invulnerable: bestRoll(group.invulnerable),
+        save: Math.max(
+          2,
+          Math.min(
+            7,
+            effects.reduce(
+              (roll, effect) =>
+                effect.improveSave ? Math.min(roll, Math.max(effect.improveSave.best, roll - effect.improveSave.by)) : roll,
+              effects.reduce((roll, effect) => (effect.save === undefined ? roll : Math.min(roll, effect.save)), group.save),
+            ) + attacks.reduce((total, effect) => total + (effect.targetSaveModifier ?? 0), 0),
+          ),
         ),
-      ),
-      toughness: Math.max(
-        1,
-        group.toughness +
-          effects.reduce((total, effect) => total + (effect.toughness ?? 0), 0) +
-          attacks.reduce((total, effect) => total + (effect.targetToughness ?? 0), 0),
-      ),
-    })),
-    damageDivisor: effects.reduce((divisor, effect) => Math.max(divisor, effect.damageDivisor ?? 1), target.damageDivisor ?? 1),
-    feelNoPain: bestRoll('feelNoPain', target.feelNoPain),
-    psychicFeelNoPain: bestRoll('psychicFeelNoPain', target.psychicFeelNoPain),
-    mortalFeelNoPain: bestRoll('mortalFeelNoPain', target.mortalFeelNoPain),
+        toughness: Math.max(
+          1,
+          group.toughness +
+            effects.reduce((total, effect) => total + (effect.toughness ?? 0), 0) +
+            attacks.reduce((total, effect) => total + (effect.targetToughness ?? 0), 0),
+        ),
+      }
+    }),
+    ...unit,
+  }
+}
+
+type UnitDefences = Pick<
+  CombatInput['target'],
+  'feelNoPain' | 'psychicFeelNoPain' | 'mortalFeelNoPain' | 'damageReduction' | 'damageDivisor'
+>
+const UNIT_DEFENCES = ['feelNoPain', 'psychicFeelNoPain', 'mortalFeelNoPain', 'damageReduction', 'damageDivisor'] as const
+/** The defences a group sets for itself rather than taking the unit's. */
+const definedOf = (group: CombatInput['target']['groups'][number]) =>
+  Object.fromEntries(UNIT_DEFENCES.flatMap((field) => (group[field] === undefined ? [] : [[field, group[field]]]))) as UnitDefences
+
+/** The defences of a whole allocation group or unit that its rules' defending effects improve. */
+function unitDefences(rules: readonly ActiveCombatRule[], start: UnitDefences): UnitDefences {
+  const effects = rules.flatMap((rule) => rule.effects)
+  const bestRoll = <T extends number | null | undefined>(field: 'feelNoPain' | 'psychicFeelNoPain' | 'mortalFeelNoPain', initial: T) =>
+    effects.reduce<number | T>((roll, effect) => (effect[field] === undefined ? roll : Math.min(roll ?? 7, effect[field])), initial)
+  return {
+    damageDivisor: effects.reduce((divisor, effect) => Math.max(divisor, effect.damageDivisor ?? 1), start.damageDivisor ?? 1),
+    feelNoPain: bestRoll('feelNoPain', start.feelNoPain),
+    psychicFeelNoPain: bestRoll('psychicFeelNoPain', start.psychicFeelNoPain),
+    mortalFeelNoPain: bestRoll('mortalFeelNoPain', start.mortalFeelNoPain),
     damageReduction: [...new Map(rules.map((rule) => [rule.name, rule])).values()].reduce(
-      (amount, rule) =>
-        amount +
-        Math.max(
-          0,
-          ...rule.effects
-            .filter((effect) => effect.role === 'defender' && effect.phases.includes(phase))
-            .map((effect) => effect.damageReduction ?? 0),
-        ),
-      target.damageReduction ?? 0,
+      (amount, rule) => amount + Math.max(0, ...rule.effects.map((effect) => effect.damageReduction ?? 0)),
+      start.damageReduction ?? 0,
     ),
   }
 }
@@ -851,6 +891,91 @@ export function withBearerEffects<Unit extends RuledMember & { companions?: read
   return { ...own(unit), companions: unit.companions.map(own) }
 }
 
+type CarriedMember = RuledMember & { carriers: readonly CombatCarrier[] }
+
+/**
+ * How many of a carrier's models an effect reaches, or undefined where it reaches all of them: models matching one of its
+ * `modelKeywords` and none of its `excludedModelKeywords`, by the unit's keywords every model has, their own or their
+ * name, and for a bearer-only effect of a rule wargear gives some of the models, the models holding it.
+ */
+export function effectModels(
+  effect: CombatRuleEffect,
+  rule: Pick<ActiveCombatRule, 'heldBy'>,
+  member: CarriedMember,
+): ((carrier: CombatCarrier) => number) | undefined {
+  const { heldBy } = rule
+  const bearers = effect.bearerOnly && heldBy && member.carriers.some((carrier) => carrier.abilities?.[heldBy]) ? heldBy : undefined
+  if (!effect.modelKeywords && !effect.excludedModelKeywords && !bearers) return undefined
+  const partial = new Set((member.sheet.modelKeywords ?? []).flatMap((group) => group.keywords).map(combatTextKey))
+  const shared = member.sheet.keywords.map(combatTextKey).filter((keyword) => !partial.has(keyword))
+  const own = (carrier: CombatCarrier) => [
+    ...shared,
+    ...[
+      carrier.name,
+      ...(carrier.keywords ?? []),
+      ...(member.sheet.modelKeywords ?? []).flatMap((group) =>
+        group.models.some((model) => combatTextKey(model) === combatTextKey(carrier.name)) ? group.keywords : [],
+      ),
+    ].map(combatTextKey),
+  ]
+  const matches = (selectors: readonly string[] | undefined, held: readonly string[]) =>
+    selectors?.some((selector) => combatKeywordPhraseMatches(combatTextKey(selector), held))
+  return (carrier) => {
+    const held = own(carrier)
+    if (effect.modelKeywords && !matches(effect.modelKeywords, held)) return 0
+    if (matches(effect.excludedModelKeywords, held)) return 0
+    return bearers ? (carrier.abilities?.[bearers] ?? 0) : carrier.models
+  }
+}
+
+/** The carriers that field models, with none standing for the unit where it records no ownership. */
+const fielding = (member: CarriedMember) => {
+  const carriers = member.carriers.filter((carrier) => carrier.models > 0 && !carrier.unitWide)
+  return carriers.length ? carriers : [{ name: member.sheet.name, models: 1, weapons: [] }]
+}
+
+/**
+ * A member whose attacks keep each effect limited to some of its models to those models' weapons: a weapon only those
+ * models carry takes it, one others carry too goes without, and mortal wounds rolled per model count only those models.
+ */
+export function withModelAttacks<Member extends CarriedMember>(member: Member): Member {
+  const carriers = fielding(member)
+  const weapons = member.sheet.profiles.filter((profile) => weaponPhase(profile.type))
+  const scoped = (effect: CombatRuleEffect, rule: ActiveCombatRule): CombatRuleEffect[] => {
+    const models = effect.role === 'attacker' ? effectModels(effect, rule, member) : undefined
+    if (!models) return [effect]
+    const { modelKeywords: _modelKeywords, excludedModelKeywords: _excludedModelKeywords, ...free } = effect
+    const counts = carriers.map((carrier) => ({ carrier, reached: models(carrier) }))
+    const total = counts.reduce((sum, { reached }) => sum + reached, 0)
+    if (!total) return []
+    if (counts.every(({ carrier, reached }) => reached === carrier.models)) return [free]
+    if (free.mortalWounds && !free.weapon)
+      return [{ ...free, mortalWounds: { ...free.mortalWounds, ...(free.mortalWounds.perModel ? { rolls: total, perModel: false } : {}) } }]
+    const onlyReached = (name: string) => {
+      const same = weapons.filter((profile) => weaponKey(profile.name) === weaponKey(name))
+      const bearers = counts.filter(({ carrier }) => same.some((profile) => carriedCount(carrier, profile) > 0))
+      return bearers.length > 0 && bearers.every(({ carrier, reached }) => reached === carrier.models)
+    }
+    if (free.weapon) return onlyReached(free.weapon) ? [free] : []
+    return uniqueBy(weapons, (profile) => weaponKey(profile.name)).flatMap((profile) =>
+      onlyReached(profile.name) ? [{ ...free, weapon: profile.name }] : [],
+    )
+  }
+  return {
+    ...member,
+    rules: member.rules?.map((rule) => ({ ...rule, effects: rule.effects.flatMap((effect) => scoped(effect, rule)) })),
+  }
+}
+
+/** A unit whose members' attacks keep bearer-only effects and effects limited to some models to those models. */
+export function withMemberAttacks<Unit extends CarriedMember & { companions?: readonly CarriedMember[] }>(unit: Unit): Unit {
+  const bearing = withBearerEffects(unit)
+  return {
+    ...withModelAttacks(bearing),
+    ...(bearing.companions ? { companions: bearing.companions.map((member) => withModelAttacks(member)) } : {}),
+  }
+}
+
 export function combatRuleWeapons(
   source: Datasheet,
   used: readonly { weapon: CombatWeapon | null; count: number; profile: { id: string; name: string } }[],
@@ -900,13 +1025,7 @@ export function combatRuleWeapons(
         for (const field of ['ignoreHitModifiers', 'ignoreWoundModifiers', 'ignoreSkillModifiers'] as const)
           if (effect[field]) next[field] = true
         if (effect.allHitsCritical) next.allHitsCritical = true
-        if (
-          effect.unmodifiedSix &&
-          !effect.excludedModelKeywords?.some((excluded) =>
-            source.keywords.some((keyword) => combatTextKey(keyword) === combatTextKey(excluded)),
-          )
-        )
-          next.unmodifiedSix = effect.unmodifiedSix
+        if (effect.unmodifiedSix) next.unmodifiedSix = effect.unmodifiedSix
         if (effect.condition === 'critical-wound' && effect.characteristic?.kind === 'armour-penetration')
           next.criticalAp = (next.criticalAp ?? 0) + (effect.characteristic.add ?? 0)
         if (effect.condition === 'stronger')

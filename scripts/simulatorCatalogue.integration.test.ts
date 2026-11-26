@@ -191,6 +191,14 @@ describe.skipIf(!fs.existsSync(directory))('simulator catalogue projections', ()
     expect(combatUnitTarget(side('Adeptus Custodes', ['Prosecutor Squad']).snapshot, 'ranged').target?.psychicFeelNoPain).toBe(3)
   })
 
+  it("gives Imperial Navy Breachers' Endurant shield invulnerable save only to the model holding it", () => {
+    const groups = combatUnitTarget(side('Agents of the Imperium', ['Imperial Navy Breachers']).snapshot, 'ranged').target?.groups
+    expect(groups?.map((group) => [group.models, group.invulnerable])).toEqual([
+      [9, null],
+      [1, 4],
+    ])
+  })
+
   it("keeps a Canoptek Reanimator's Feel No Pain 4+ among the defender's rules", () => {
     const rule = side('Necrons', ['Canoptek Reanimator']).rules.find((candidate) => candidate.name === 'Feel No Pain 4+')
     expect(rule && combatRuleAppliesTo(rule, 'defender')).toBe(true)
