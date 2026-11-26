@@ -574,7 +574,7 @@ function calculateRoster(
   // The one chosen detachment the frozen maps file an enhancement or upgrade option under, and its VS Data record there.
   const vsDataEnhancement = (optionId: string) => {
     const filed = chosen.flatMap((option) => {
-      const vsDataId = loaded.vsPoints?.detachments[option.id]?.enhancementIds[optionId]
+      const vsDataId = loaded.vsPoints?.detachments[option.id]?.enhancementIds?.[optionId]
       return vsDataId ? [{ detachment: option.id, vsDataId }] : []
     })
     return filed.length === 1 ? filed[0] : undefined

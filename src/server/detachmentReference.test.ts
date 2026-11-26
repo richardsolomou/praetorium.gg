@@ -397,7 +397,7 @@ it('shows an enhancement VS Data prices under another name once, by its VS Data 
     points: 1,
     dispositions: [],
     rules: [],
-    enhancements: [{ name: 'The Thief of Secrets', points: 10, description: null, eligibility: null, vsDataId: thief }],
+    enhancements: [{ name: 'The Thief of Secrets', points: 15, description: null, eligibility: null, vsDataId: thief }],
     upgrades: [],
     stratagems: [],
   }

@@ -40,6 +40,11 @@ export function detachmentReference(loaded: LoadedCatalogue, rules: LoadedRules,
     points: entry.points,
     ...vsDataIdOf('id' in entry && typeof entry.id === 'string' ? entry.id : undefined),
   }))
+  // The price of the entry naming a card's VS Data id, else the field manual's of its name, else the card's own.
+  const pointsOf = (card: { name: string; points: number | null; vsDataId?: string }) =>
+    priced.find((entry) => card.vsDataId !== undefined && entry.vsDataId === card.vsDataId)?.points ??
+    (mfm ? mfmEnhancementPoints(mfm, card.name) : null) ??
+    card.points
   const enhancementsFromMfm = priced
     .filter((entry) => !isUpgrade(entry.name) && !carded(entry, cardEnhancements))
     .map((entry) => ({ ...entry, description: null, eligibility: null }))
@@ -56,7 +61,7 @@ export function detachmentReference(loaded: LoadedCatalogue, rules: LoadedRules,
   const enhancements = [
     ...allEnhancements.map((enhancement) => ({
       name: enhancement.name,
-      points: mfm ? (mfmEnhancementPoints(mfm, enhancement.name) ?? enhancement.points) : enhancement.points,
+      points: pointsOf(enhancement),
       description: described.get(descriptionKey(option.name, enhancement.name)) ?? null,
       ...vsDataIdOf(enhancement.vsDataId),
     })),
@@ -66,7 +71,7 @@ export function detachmentReference(loaded: LoadedCatalogue, rules: LoadedRules,
   ].toSorted((left, right) => left.name.localeCompare(right.name))
   const upgrades = allUpgrades.map((upgrade) => ({
     name: upgrade.name,
-    points: mfm ? (mfmEnhancementPoints(mfm, upgrade.name) ?? upgrade.points) : upgrade.points,
+    points: pointsOf(upgrade),
     description: upgradeDescription(described.get(descriptionKey(option.name, upgrade.name)) ?? null, upgrade.description),
     ...vsDataIdOf(upgrade.vsDataId),
   }))

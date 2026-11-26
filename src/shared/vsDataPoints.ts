@@ -21,8 +21,8 @@ export type VsPointsIndex = {
       name: string
       dp: number | null
       enhancements: { name: string; points: number; id: string }[]
-      /** The VS Data ID of each of its Enhancement options, by BSData option ID. */
-      enhancementIds: Record<string, string>
+      /** The VS Data ID of each of its Enhancement options, by BSData option ID; a download saved before them has none. */
+      enhancementIds?: Record<string, string>
     }
   >
 }
