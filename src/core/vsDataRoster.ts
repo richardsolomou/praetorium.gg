@@ -161,6 +161,8 @@ export function enhancementAdmits(
       holdsAll(held, upper(entry.factionKeywords ?? [])),
   )
   if (!matches) return false
+  // A unit read by its size alone has no wargear read, so what it carries is the catalogue's to check.
+  if (picked.size !== undefined && !picked.models) return true
   const carrying = carried(definitions, picked)
   const names = new Set([...carrying].filter(([, n]) => n > 0).map(([id]) => (definitions.get('wargear', id)?.name ?? id).toLowerCase()))
   return (eligibility.requiredWargear ?? []).every((name) => names.has(name.toLowerCase()))

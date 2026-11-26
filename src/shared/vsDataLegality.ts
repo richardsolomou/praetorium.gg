@@ -50,6 +50,8 @@ export type CheckedUnit = {
   name: string
   size: { models: number; min: number; max: number }
   toggles: readonly Pick<UnitToggle, 'name' | 'selected'>[]
+  /** The unit's keywords as the catalogue reads them in the list. */
+  keywords: readonly string[]
   choices: readonly Pick<UnitChoice, 'name' | 'options'>[]
 }
 
@@ -124,8 +126,19 @@ export function vsDataErrors(
     ...(battleSize ? { battleSize } : {}),
     units: checked.map(({ read }) => read),
   }
-  return checkVsRoster(definitions, roster)
+  // VS Data leaves CHARACTER off some units whose models the app makes Characters (Company Heroes, a Ravenwing Command
+  // Squad); where the catalogue says the unit is a Character, its Enhancements and Warlord are not refused for that.
+  const character = (at: number | undefined) => {
+    const found = checked[at ?? -1]
+    return (
+      Boolean(found?.unit.keywords.some((keyword) => keyword.toUpperCase() === 'CHARACTER')) &&
+      !definitions.get('unit', found!.read.unit)?.data.keywords.some((keyword) => keyword.toUpperCase() === 'CHARACTER')
+    )
+  }
+  const unpriced = { units: [], points: 0, detachmentPoints: 0, unpriced: [] }
+  return checkVsRoster(definitions, roster, unpriced)
     .filter((problem) => problem.code !== 'allegiance-missing' || checked[problem.unit ?? -1]?.offersAllegiance)
+    .filter((problem) => !(['enhancement-keywords', 'warlord-ineligible'].includes(problem.code) && character(problem.unit)))
     .flatMap((problem) => described(problem, checked, definitions) ?? [])
 }
 
@@ -153,12 +166,17 @@ function described(problem: VsProblem, checked: { unit: CheckedUnit }[], definit
     'not-current': 'is not in this rules version',
     'detachment-faction': named(problem.message.replace(/ is not a .* detachment$/, ' cannot be taken by this army')),
     'detachment-count': 'needs one to three Detachments',
-    'detachment-group': named(problem.message),
+    'detachment-group': named(problem.message.replace(/^(.*) shares (\S+) with (.*)$/, '$1 cannot be taken with $3, as both are $2')),
     'unit-faction': 'cannot be taken by this army',
     'unit-excluded': 'cannot be taken with this army or its Detachments',
     'ally-detachment': named(problem.message.replace(/^.*? needs one of/, 'needs one of these Detachments:')),
     'ally-points': named(problem.message),
-    'ally-limit': named(problem.message),
+    'ally-limit': named(
+      problem.message.replace(
+        /^a roster holds at most (\d+) allied (.+) units, has (\d+)$/,
+        'holds $3 allied $2 units, more than the $1 its battle size allows',
+      ),
+    ),
     'ally-enhancement': 'cannot take Enhancements as an allied unit',
     'unit-size': named(problem.message.replace(/^.*? fields/, 'fields')),
     'roster-limit': named(problem.message.replace(/^.*? is limited/, 'is limited')),

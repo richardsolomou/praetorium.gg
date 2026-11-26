@@ -692,12 +692,28 @@ function calculateRoster(
   const enhancementsHeld = whole.costs[ENHANCEMENT_COST] ?? 0
   // VS Data checks the army as a whole where it records the list's book and Detachments; the catalogue's own roster
   // limits then stand only for the datasheets VS Data leaves to it.
-  const vsData = vsDataErrors(loaded.vsRoster, data, picked)
+  const vsData = vsDataErrors(
+    loaded.vsRoster,
+    data,
+    picked.map((unit) => ({ ...unit, keywords: keywordNamesOf(unit) })),
+  )
+  const vsChecked = new Set(
+    picked.flatMap((unit) => {
+      if (!loaded.vsRoster?.units[unit.entryId]) return []
+      const definition = loaded.index.definitions.get(unit.entryId)
+      return [unit.entryId, ...(definition ? [targetOf(definition, loaded.index.definitions).id] : [])]
+    }),
+  )
   const leftToCatalogue = new Set(picked.filter((unit) => !loaded.vsRoster?.units[unit.entryId]).map((unit) => unit.name))
   const enhancementOptions = vsData ? vsDataEnhancementOptions(loaded.vsRoster, data.detachmentIds) : new Set<string>()
-  const rosterLimitReplaced = (error: { entryId: string; entryName: string }) =>
+  // What VS Data's checker says instead: a datasheet's own copy limit, a keyword's roster limit (a limit on the category
+  // itself, not one a unit puts on its models through it) other than one only datasheets left to the catalogue meet, and
+  // an Enhancement's limits.
+  const rosterLimitReplaced = (error: { entryId: string; entryName: string; limit?: unknown }) =>
     vsData !== null &&
-    ((loaded.index.categories.has(error.entryId) && !leftToCatalogue.has(error.entryName)) || enhancementOptions.has(error.entryId))
+    ((error.limit !== undefined && vsChecked.has(error.entryId)) ||
+      (Boolean(loaded.index.categories.get(error.entryId)?.constraints?.length) && !leftToCatalogue.has(error.entryName)) ||
+      enhancementOptions.has(error.entryId))
   const reported = [
     ...savedSelectionErrors(data, picked, loaded),
     ...changedCountErrors(data, picked, loaded, roster, unitCache ?? sharedBuiltUnitsFor(loaded)),

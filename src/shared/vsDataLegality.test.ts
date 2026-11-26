@@ -49,6 +49,7 @@ const unit = (over: Partial<CheckedUnit> & Pick<CheckedUnit, 'entryId'>): Checke
   name: over.entryId,
   size: { models: 1, min: 1, max: 1 },
   toggles: [],
+  keywords: [],
   choices: [],
   ...over,
 })
@@ -83,6 +84,19 @@ describe('vsDataErrors', () => {
     expect(errors([unit({ entryId: 'bs-mob', size: { models: 10, min: 10, max: 20 } })], [])).toEqual([
       { entryId: 'army', entryName: 'Army', message: 'needs one to three Detachments' },
     ])
+  })
+
+  it('gives a unit the catalogue reads as a Character the Enhancement VS Data keeps for Characters', () => {
+    expect(
+      errors([
+        unit({
+          entryId: 'bs-mob',
+          size: { models: 10, min: 10, max: 20 },
+          keywords: ['Character'],
+          choices: [option('bs-crown', 'Crown')],
+        }),
+      ]),
+    ).toEqual([])
   })
 
   it('leaves a list with another faction’s Detachment to the catalogue', () => {
