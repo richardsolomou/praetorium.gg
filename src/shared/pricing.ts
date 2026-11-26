@@ -919,6 +919,7 @@ function calculateRoster(
           held,
           unit.size.models,
           datasheetIn(loaded, catalogueId, unit.entryId),
+          loaded.index.textFacts,
         ),
       )
       const attachment = { ...built, attachment: inArmy(built.attachment, army) }

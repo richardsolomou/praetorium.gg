@@ -35,7 +35,7 @@ const NO_FACTS: TextFacts = { combat: null }
  * What list building reads of a text, and a datasheet characteristic a catalogue prints as an ability's bare value, as
  * an Invulnerable Save of "4+": read from the catalogue until lists and datasheets are built from VS Data (#2007).
  */
-const CATALOGUE_FIELDS = ['attachment', 'substitutes', 'reserveSelectors', 'reserveExemption', 'bareValue'] as const
+const CATALOGUE_FIELDS = ['attachment', 'substitutes', 'reserveSelectors', 'reserveExemption', 'bareValue', 'unitHeldWargear'] as const
 const withLegality = (facts: TextFacts, words: TextFacts | undefined): TextFacts => {
   const kept = Object.fromEntries(CATALOGUE_FIELDS.flatMap((field) => (words?.[field] === undefined ? [] : [[field, words[field]]])))
   const {
@@ -44,6 +44,7 @@ const withLegality = (facts: TextFacts, words: TextFacts | undefined): TextFacts
     reserveSelectors: _selectors,
     reserveExemption: _exemption,
     bareValue: _bareValue,
+    unitHeldWargear: _unitHeld,
     ...rest
   } = facts
   // The rules a text names, which a datasheet explains beside it, are VS Data's and the words' until VS Data names them all.
