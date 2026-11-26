@@ -40,11 +40,11 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          base="$(git rev-parse HEAD:catalogue)"
+          base="$(git rev-parse HEAD:catalogue) $(git hash-object catalogue.json)"
           moved="$(pnpm exec tsx scripts/updateVsDataPins.ts)"
           [ -n "$moved" ] || { echo "Every pin is VS Data's newest release"; exit 0; }
           pnpm exec oxfmt --write catalogue/sources.json
-          # Named by main's catalogue too, so once main's catalogue moves, a fresh PR replaces one that now conflicts.
+          # Named by main's catalogue and snapshot pin too, so once either moves, a fresh PR replaces one that now conflicts.
           name="$(printf '%s %s' "$base" "$(git hash-object catalogue/sources.json)" | sha256sum | cut -c1-8)"
           {
             echo "branch=chore/vs-data-$name"
