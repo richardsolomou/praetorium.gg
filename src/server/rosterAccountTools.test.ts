@@ -11,6 +11,7 @@ const { ownRoster, deleteRoster, copySavedRoster, capture, counts, countsAs } = 
 vi.mock('./saveOwnedRoster', () => ({ copySavedRoster, saveOwnedRoster: vi.fn() }))
 vi.mock('./publishedTextFiles', () => ({
   publishedTextLocations: async () => ({ files: {}, holds: () => false, recordsHolding: () => [] }),
+  textHomeOf: async () => () => null,
 }))
 vi.mock('./servedVsData', () => ({ servedVsDataSummaries: async () => null }))
 vi.mock('./app', () => ({

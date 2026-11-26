@@ -5,6 +5,7 @@ vi.mock('./catalogueChangePages', () => ({ changeLogPage }))
 vi.mock('./servedVsData', () => ({ servedVsDataSummaries: async () => null }))
 vi.mock('./publishedTextFiles', () => ({
   publishedTextLocations: async () => ({ files: {}, holds: () => false, recordsHolding: () => [] }),
+  textHomeOf: async () => () => null,
 }))
 
 import { AgentTools } from './agentTools'

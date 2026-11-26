@@ -456,12 +456,13 @@ function missionReferenceLines(mission: GameReferencePack['missions'][number]): 
  * A mission card's summary with each award's and action's beneath it, as the card's page shows them: an award under
  * what it pays, an action under its name.
  */
-function missionCardSummary(finder: RuleSummaryFinder, card: GameReferencePack['missions'][number]['card'] | null): RuleSummary | null {
+function missionCardSummary(finder: RuleSummaryFinder, card: GameReferencePack['missions'][number]['card'] | null): Summaries | null {
   if (!card) return null
   const own = finder.mission('mission-card', card.key)
   const awards = awardsOnce(card.awards).map(({ award }) => ({
     name: `${award.vp} VP${award.per ? ` per ${award.per}` : ''}`,
     summary: awardSummary(finder, award),
+    text: award.criteria,
   }))
   const actions = (card.actions ?? []).map((action) => ({
     name: `Action: ${action.name}`,
@@ -469,7 +470,7 @@ function missionCardSummary(finder: RuleSummaryFinder, card: GameReferencePack['
   }))
   const parts = summariesUnder([...awards, ...actions])
   if (!own) return parts
-  return parts ? { blocks: [...own.blocks, ...parts.blocks], questions: [...own.questions, ...parts.questions] } : own
+  return parts ? { ...parts, blocks: [...own.blocks, ...parts.blocks], questions: [...own.questions, ...parts.questions] } : own
 }
 
 const selectionTracking: Record<MissionSelectionKind, string> = {
@@ -534,28 +535,33 @@ const section = (
   title: string,
   lines: (string | null | undefined)[],
   record?: string,
-  summary?: RuleSummary | null,
+  summary?: Summaries | null,
 ): ReferenceSection | null => {
   const text = lines
     .map((line) => (line ? referenceText(line) : ''))
     .filter(Boolean)
     .join('\n')
   const url = `${baseUrl}#${id}`
-  if (summary) return { id, title, text, url, ruleSummary: servedRuleSummary(summary) }
   // A rule whose words are withheld is still a rule an agent can find by name and be told where its words are.
-  const textSources = textPointersIn(lines, files.locations, record)
+  const textSources = textPointersIn(summary ? (summary.unsummarized ?? []) : lines, files.locations, record)
+  const pointers = textSources.length ? { textSources } : {}
+  if (summary) return { id, title, text, url, ruleSummary: servedRuleSummary(summary), ...pointers }
   const withheld = !text && lines.some((line) => line && hasTextTokens(line))
   if (!text && !withheld) return null
-  return { id, title, text: text || TEXT_NOT_PUBLISHED, url, ...(textSources.length ? { textSources } : {}) }
+  return { id, title, text: text || TEXT_NOT_PUBLISHED, url, ...pointers }
 }
 
+/** Summaries a section shows, and the words of the rules it lists that have none, which it still points at. */
+type Summaries = RuleSummary & { unsummarized?: (string | null | undefined)[] }
+
 /** Several rules' summaries as one, each under its name, for a section that lists them. */
-function summariesUnder(named: readonly { name: string; summary: RuleSummary | null }[]): RuleSummary | null {
+function summariesUnder(named: readonly { name: string; summary: RuleSummary | null; text?: string | null }[]): Summaries | null {
   const found = named.filter((entry): entry is { name: string; summary: RuleSummary } => Boolean(entry.summary))
   if (!found.length) return null
   return {
     blocks: found.flatMap(({ name, summary }) => [{ paragraph: [{ text: name, bold: true as const }] }, ...summary.blocks]),
     questions: found.flatMap(({ summary }) => summary.questions),
+    unsummarized: named.filter((entry) => !entry.summary).map((entry) => entry.text),
   }
 }
 
@@ -733,7 +739,7 @@ function keywordRulesSection(
   rules: readonly { name: string; description: string }[],
   summaries: readonly (RuleSummary | null)[],
 ) {
-  const summary = summariesUnder(rules.map((rule, at) => ({ name: rule.name, summary: summaries[at] ?? null })))
+  const summary = summariesUnder(rules.map((rule, at) => ({ name: rule.name, summary: summaries[at] ?? null, text: rule.description })))
   return section(
     files,
     url,

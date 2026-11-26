@@ -16,6 +16,7 @@ const { ownRoster, saveOwnedRoster, setRosterVisibility, capture, shelf, battles
 vi.mock('./saveOwnedRoster', () => ({ saveOwnedRoster }))
 vi.mock('./publishedTextFiles', () => ({
   publishedTextLocations: async () => ({ files: {}, holds: () => false, recordsHolding: () => [] }),
+  textHomeOf: async () => () => null,
 }))
 vi.mock('./servedVsData', () => ({ servedVsDataSummaries: async () => null }))
 vi.mock('./app', () => ({

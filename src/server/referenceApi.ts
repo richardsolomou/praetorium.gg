@@ -1,6 +1,6 @@
 import { hash } from 'node:crypto'
 import { withTextPointers, withoutText } from '../core/sourceText'
-import { publishedTextLocations } from './publishedTextFiles'
+import { publishedTextLocations, textHomeOf } from './publishedTextFiles'
 import { REFERENCE_KINDS, type ReferenceDocument, type ReferenceKind } from '../contracts/reference'
 import { app } from './app'
 import {
@@ -39,7 +39,13 @@ import { catalogueEditionId } from '../core/catalogueEdition'
 import { datasheetPageBySlug } from '../core/datasheetSlug'
 import { currentFactionIdsOf } from '../shared/factionReferences'
 import { servedVsDataSummaries } from './servedVsData'
-import { datasheetWithSummaries, detachmentWithSummaries, printedRuleSummary, ruleSummaryFinder } from './referenceSummaries'
+import {
+  datasheetWithSummaries,
+  detachmentWithSummaries,
+  printedRuleSummary,
+  ruleSummaryFinder,
+  sectionWithSummaries,
+} from './referenceSummaries'
 
 export const referenceRateLimit = fixedWindowRateLimit('too many reference requests', 120)
 const unitsRateLimit = fixedWindowRateLimit('too many reference requests', 60)
@@ -291,7 +297,10 @@ export const referenceRuleSectionResponse = rateLimited(async (request: Request,
     canonicalUrl,
     revisions: { summaries: document.provenance.summaries.revision },
     attribution: [VS_DATA_ATTRIBUTION],
-    data: { document: { id: document.id, slug: document.slug, title: document.title }, section },
+    data: {
+      document: { id: document.id, slug: document.slug, title: document.title },
+      section: sectionWithSummaries(corpus.summaries, section),
+    },
   }
   const markdown = section.entries
     .map((entry) => {
@@ -347,8 +356,8 @@ export function parseReferenceSearch(url: URL): ReferenceSearchInput | { error: 
 
 async function referenceResponse(request: Request, revision: string, key: string, published: unknown, withTokens: string) {
   // Programs get facts and Praetorium's summaries, or where withheld rules text lives upstream, never the words.
-  const [locations, summaries] = await Promise.all([publishedTextLocations(), servedVsDataSummaries()])
-  const data = withTextPointers(published, locations, printedRuleSummary(ruleSummaryFinder(summaries)))
+  const [locations, summaries, homeOf] = await Promise.all([publishedTextLocations(), servedVsDataSummaries(), textHomeOf()])
+  const data = withTextPointers(published, locations, printedRuleSummary(ruleSummaryFinder(summaries, { homeOf, files: locations.files })))
   const markdown = withoutText(withTokens)
   // A query parameter as well as the header, so a plain link can name the Markdown representation.
   const asMarkdown =

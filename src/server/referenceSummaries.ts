@@ -1,6 +1,7 @@
 import {
   MISSION_SUMMARIES,
   RULE_SUMMARIES,
+  type RuleSection,
   type RuleSummaries,
   type RuleSummary,
   type RuleSummaryBlock,
@@ -40,7 +41,14 @@ export const detachmentOwner = (detachment: Pick<CanonicalDetachment, 'catalogue
  * by its owner's record of its name, or by VS Data id for missions, the rules documents and Stratagems only the app
  * prints. Each lookup mirrors one component, named beside it, so an agent reads what a player sees.
  */
-export function ruleSummaryFinder(summaries: VsDataSummaries | null) {
+export function ruleSummaryFinder(
+  summaries: VsDataSummaries | null,
+  /**
+   * The current file of each string by hash, and the files the snapshot holds: a token a battle or reminder saved before
+   * a data update names a file the update replaced, so its string is looked up where it lives now, as `tokensAtHome` does.
+   */
+  homes?: { homeOf: (hash: string) => string | null; files: Readonly<Record<string, unknown>> },
+) {
   let abilities: Record<string, RuleSummary> | undefined
   let coreRules: Record<string, RuleSummary> | undefined
   const unitsOf = (owner: SummaryOwner | undefined) =>
@@ -51,7 +59,10 @@ export function ruleSummaryFinder(summaries: VsDataSummaries | null) {
 
   /** `useRuleSummaries`' record of a printed text. */
   const printed = (text: string, name?: string) => {
-    const tokens = summaries ? wholeRuleTokens(text) : []
+    const tokens = (summaries ? wholeRuleTokens(text) : []).map((token) => {
+      const home = homes && !(token.file in homes.files) ? homes.homeOf(token.hash) : null
+      return home ? { ...token, file: home } : token
+    })
     if (!summaries || !tokens.length) return null
     return summaryNamedBy(tokens, new Map(tokens.map((token) => [token.file, summariesIn(token.file)])), name)
   }
@@ -164,8 +175,14 @@ export const missionCardSummaries = (finder: RuleSummaryFinder, card: MissionCar
 const withEach = <T extends object>(entries: readonly T[], found: readonly (RuleSummary | null)[]) =>
   entries.map((entry, at) => withSummary(entry, found[at] ?? null))
 
-export const withSummary = <T extends object>(entry: T, summary: RuleSummary | null): T =>
-  summary ? { ...entry, ruleSummary: servedRuleSummary(summary) } : entry
+/**
+ * An entry with its summary beside it, or marked as having none where its page shows none, so `withTextPointers` points
+ * at its words rather than finding it a summary by its text alone that its page refuses.
+ */
+export const withSummary = <T extends object>(entry: T, summary: RuleSummary | null): T => ({
+  ...entry,
+  ruleSummary: summary && servedRuleSummary(summary),
+})
 
 /** A detachment as agents read it: each of its rules with Praetorium's own wording of it. */
 export function detachmentWithSummaries(finder: RuleSummaryFinder, detachment: CanonicalDetachment): CanonicalDetachment {
@@ -196,6 +213,20 @@ export function missionCardWithSummaries<T extends MissionCard>(finder: RuleSumm
     found.card,
   )
 }
+
+/** A rules-document section with each rule's and clarification's summary, as its page shows them. */
+export const sectionWithSummaries = (finder: RuleSummaryFinder, section: RuleSection): RuleSection => ({
+  ...section,
+  entries: section.entries.map((entry) =>
+    withSummary(
+      {
+        ...entry,
+        clarifications: entry.clarifications.map((clarification) => withSummary(clarification, finder.coreRule(clarification.id))),
+      },
+      finder.coreRule(entry.id),
+    ),
+  ),
+})
 
 /** Labels a Stratagem's summary opens its paragraphs with, as its card prints its parts. */
 const STRATAGEM_PARTS = { 'When:': 'when', 'Target:': 'target', 'Effect:': 'effect', 'Restrictions:': 'restrictions' } as const
