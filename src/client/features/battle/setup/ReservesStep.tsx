@@ -3,6 +3,7 @@ import { useId, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverDescription, PopoverTitle, PopoverTrigger } from '@/components/ui/popover'
 import { attachedUnits, joinedWith, type AttachedUnit } from '../../../../core/attachedUnits'
+import { uniqueBy } from '../../../../core/collections'
 import {
   canTransport,
   type Command,
@@ -240,7 +241,10 @@ function UnitFormationRow({
 function GrantPicks({ army, unit, row, moves }: { army: Army; unit: AttachedUnit<Army['units'][number]>; row: string; moves: Moves }) {
   const reasonId = useId()
   const members = [unit.host, ...unit.joined]
-  const offers = [...new Map(members.flatMap((member) => member.grantPicks ?? []).map((offer) => [offer.rule, offer])).values()]
+  const offers = uniqueBy(
+    members.flatMap((member) => member.grantPicks ?? []),
+    (offer) => offer.rule,
+  )
   if (!offers.length || moves.view.firstPlayerId !== null) return null
   const player = moves.view.players.find((candidate) => candidate.id === army.playerId)
   return (

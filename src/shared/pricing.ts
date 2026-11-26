@@ -814,14 +814,18 @@ function calculateRoster(
     ],
     (offered) => JSON.stringify(offered),
   )
+  // One pick a rule for each unit, as a pick names its rule alone.
   const grantPicksFor = (keywords: readonly string[]): GrantPick[] =>
-    offeredPicks.flatMap(({ rule, grant }) => {
-      const { formationOptions, prebattleRules } = deploymentRules([grant.ability])
-      const ability = formationOptions[0] ?? prebattleRules[0]
-      if (!ability || (grant.recipients.length && !grant.recipients.some((selector) => matchesKeywordSelector(selector, keywords))))
-        return []
-      return [{ rule, ability, ...pickBounds(grant) }]
-    })
+    uniqueBy(
+      offeredPicks.flatMap(({ rule, grant }) => {
+        const { formationOptions, prebattleRules } = deploymentRules([grant.ability])
+        const ability = formationOptions[0] ?? prebattleRules[0]
+        if (!ability || (grant.recipients.length && !grant.recipients.some((selector) => matchesKeywordSelector(selector, keywords))))
+          return []
+        return [{ rule, ability, ...pickBounds(grant) }]
+      }),
+      (pick) => pick.rule,
+    )
   return {
     kind: 'full' as const,
     unitLimits: data.includeUnitLimits

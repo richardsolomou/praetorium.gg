@@ -9,7 +9,7 @@
  * No IO and no framework imports belong in this file.
  */
 
-import { attachedUnits } from './attachedUnits'
+import { attachedHost, attachedUnits } from './attachedUnits'
 import { refuse, sameSide, sidePlayers } from './battlePrimitives'
 import { isGuestSeat, isPracticeSeat } from './newBattle'
 import { finalAwardTotal, type MissionAward } from './scoring'
@@ -1924,8 +1924,12 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number, 
           if (added) giveDeployment(unit, ability, true)
           unit.picked = [...(unit.picked ?? []), { rule: command.rule, ability, added }]
         } else if (!command.picked && held) {
-          unit.picked = unit.picked!.filter((pick) => pick !== held)
-          if (held.added && !unit.picked.some((pick) => pick.ability === ability && pick.added)) giveDeployment(unit, ability, false)
+          // Another pick for the same ability keeps it, and now stands for having added it.
+          const other = unit.picked!.find((pick) => pick !== held && pick.ability === ability)
+          unit.picked = unit.picked!.flatMap((pick) =>
+            pick === held ? [] : pick === other && held.added ? [{ ...pick, added: true }] : [pick],
+          )
+          if (held.added && !other) giveDeployment(unit, ability, false)
         }
       }
       return
@@ -2480,13 +2484,20 @@ export function grantPickRefusal(
   if (command.picked) {
     if (pickedHere || offered.count === undefined) return null
     const hosts = new Set(
-      player.units.filter((unit) => unit.picked?.some((pick) => pick.rule === command.rule)).map((unit) => unit.attachedTo ?? unit.key),
+      player.units
+        .filter((unit) => unit.picked?.some((pick) => pick.rule === command.rule))
+        .map((unit) => attachedHost(player.units, unit).key),
     )
     return hosts.size >= offered.count ? refuse('grant-limit', `${command.rule} picks at most ${offered.count}`) : null
   }
   if (
     offered.ability === 'deep-strike' &&
-    attached.some((unit) => unit.formation === 'deep-strike' && unit.picked?.some((pick) => pick.rule === command.rule && pick.added))
+    attached.some(
+      (unit) =>
+        unit.formation === 'deep-strike' &&
+        unit.picked?.some((pick) => pick.rule === command.rule && pick.added) &&
+        !unit.picked.some((pick) => pick.rule !== command.rule && pick.ability === 'deep-strike'),
+    )
   )
     return refuse('formation-unsupported', 'set the unit up elsewhere before taking back the Deep Strike it was picked for')
   return null
