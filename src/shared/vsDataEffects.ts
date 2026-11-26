@@ -9,9 +9,9 @@ import { titleCaseAbility } from './catalogueAbilityGrants'
 /**
  * VS Data's typed effect blocks (`vs-data-facts` version 1, VS Data's `docs/rule-facts.md`), read into the facts
  * Praetorium's rules read of a text. Each schema is closed as VS Data's is, so a field Praetorium does not know fails the
- * block rather than being dropped. A few fields it knows have no place in `TextFacts` yet, and read as Praetorium's own
- * reading of the words always has: a grant's or invulnerable save's further condition and recipients, a target limited
- * to Attached units, and a weapon ability for the bearer's weapons alone.
+ * block rather than being dropped. A few fields it knows have no place in `TextFacts` yet and are left out: a grant's
+ * further condition and recipients, a target limited to Attached units, and a weapon ability for the bearer's weapons
+ * alone.
  */
 const keyword = z.string().min(1)
 const selectors = z.array(keyword).min(1)
@@ -316,7 +316,7 @@ export const EFFECT_BLOCKS = [
   'combat',
 ] as const satisfies readonly (keyof VsDataEffectBlocks)[]
 
-/** The effect fields Praetorium cannot apply yet, which `effectOf` reads as its own reading always has. */
+/** The effect fields the simulator cannot apply yet, which `effectOf` leaves out. */
 export const UNAPPLIED_EFFECT_FIELDS = ['modelKeywords', 'wounds', 'regainWounds'] as const
 
 const TURN: Record<'own' | 'opponent' | 'any', ReminderTiming['turn']> = { own: 'your-turn', opponent: 'opponent-turn', any: 'either' }
@@ -420,8 +420,8 @@ function conditionLabel(condition: VsDataCondition): string {
 
 /**
  * An effect as Praetorium applies it. What VS Data limits to models with some keywords, Praetorium still gives the whole
- * unit, and it changes no Wounds and calculates no mortal wounds outside the attacks, as its own reading of the words always
- * has: the simulator has no way to do either yet. An effect left with nothing Praetorium applies is none.
+ * unit, and it changes no Wounds and calculates no mortal wounds outside the attacks: the simulator has no way to do
+ * either yet. An effect left with nothing Praetorium applies is none.
  */
 function effectOf(effect: VsDataEffect): CombatRuleEffect | null {
   const { attacks, weaponAbility, weaponHas, rolls, characteristic, mortalWounds: mortals, ...rest } = effect
@@ -429,7 +429,7 @@ function effectOf(effect: VsDataEffect): CombatRuleEffect | null {
   const { modelKeywords: _modelKeywords, wounds: _wounds, regainWounds: _regainWounds, ...applied } = rest
   const { role: _role, bearerOnly: _bearerOnly, ...given } = applied
   // The simulator re-rolls one save of the defender's only through its Command Re-roll, so a rule's single save re-roll
-  // is left out, as Praetorium's reading of the words always has.
+  // is left out.
   const { saveReroll: _saveReroll, singleRerolls, ...otherRolls } = rolls ?? {}
   const attackerRerolls = singleRerolls?.filter((kind) => kind !== 'save')
   const options = { ...otherRolls, ...(attackerRerolls?.length ? { singleRerolls: attackerRerolls } : {}) }
@@ -573,7 +573,7 @@ function grantOf(grant: z.infer<typeof grantSchema>): WrittenAbilityGrant {
     ...condition,
   }
 }
-/** A keyword a rule gives, as Praetorium has always shown it: an ability of that name. */
+/** A keyword a rule gives, shown as an ability of that name. */
 const keywordGrantOf = ({ keyword: given, ...grant }: z.infer<typeof keywordGrantSchema>) =>
   grantOf({ ...grant, ability: titleCaseAbility(given) })
 const statementOf = (

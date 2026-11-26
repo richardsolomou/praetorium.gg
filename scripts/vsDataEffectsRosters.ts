@@ -1,8 +1,8 @@
 /**
- * What VS Data's effect blocks change for real lists, against what Praetorium reads from rule wording today: each
+ * What VS Data's effect blocks change for real lists, against what the catalogue's rule wording reads: each
  * tournament list `scripts/importCorpus.ts` fetches is measured as the roster grades measure it (every unit against the
  * reference targets and attackers, with its default buffs), and its reminders and Order allowances are read, once with
- * today's facts and once with VS Data's. Report only.
+ * the wording's facts and once with VS Data's. Report only.
  *
  *   pnpm exec tsx scripts/vsDataEffectsRosters.ts [--since 2026-10-15] [--limit 200] [--out <file>] [directory]
  */
@@ -41,7 +41,7 @@ const { catalogue, rules, lists } = importCorpusLists(corpus, { since: values.si
 process.env.CATALOGUE_DIR = directory
 process.env.CATALOGUE_SNAPSHOT_ID ??= catalogue.index.revision
 
-// The catalogue reads VS Data's facts; today's reading is the facts it keeps of the words beside them, which the server
+// The catalogue reads VS Data's facts; the wording's reading is the facts it keeps of the words beside them, which the server
 // may also read the words of.
 const vsCatalogue = catalogue
 const wordCatalogue: LoadedCatalogue = {
