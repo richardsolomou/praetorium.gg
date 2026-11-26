@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { z } from 'zod'
-import { type CatalogueIndex, nameOf } from '../src/core/catalogue'
+import { type CatalogueIndex, nameOf, resolve } from '../src/core/catalogue'
 import type { Selection } from '../src/core/evaluate'
 import { buildUnit, type BuiltUnit } from '../src/core/roster'
 import { isUnitCompositionChoice, type UnitChoice } from '../src/core/unitChoices'
@@ -69,7 +69,6 @@ const SPELLINGS: Record<string, string | string[]> = {
   spinemaw: 'spinemaws',
   'sporocyst-bio-weapon': 'sporocyst-bio-weapons',
   'squig-jaws': 'squigs-jaws',
-  'staff-of-ulthamar-and-witchblade': 'the-staff-of-ulthamar-and-witchblade',
   'steeds-savage-claws': 'savage-claws',
   'teeth-and-claws': ['crushing-teeth-and-claws', 'crushing-teeth-and-jaws'],
   'termagant-spinefist': 'termagant-spinefists',
@@ -91,6 +90,8 @@ type Counts = Record<string, number>
 type Bag = Map<string, number>
 type VsUnit = {
   id: string
+  /** Its name's words, which a model's name may repeat without saying which model it is. */
+  words: Set<string>
   models: { id: string; name: string; min: number; max: number; wargear: Counts }[]
   options: VsOption[]
   wargear: Counts
@@ -99,7 +100,8 @@ type VsUnit = {
   /** Each allegiance the unit may take, by its name as `same` reads it. */
   allegiances: Map<string, string>
 }
-type VsOption = { id: string; carrier: string | undefined; choices: string[]; replaces: Counts }
+/** `most` is the most selections the option takes in the unit at its largest. */
+type VsOption = { id: string; carrier: string | undefined; choices: string[]; replaces: Counts; most: number }
 
 function readRelease(directory: string) {
   const read = (file: string): unknown => JSON.parse(fs.readFileSync(path.join(directory, file), 'utf8'))
@@ -122,6 +124,7 @@ function readRelease(directory: string) {
   for (const { id, data } of byKind.get('unit') ?? [])
     units.set(id, {
       id,
+      words: words(names.get(id) ?? id),
       models: [],
       options: [],
       wargear: (data.wargear ?? {}) as Counts,
@@ -141,13 +144,26 @@ function readRelease(directory: string) {
       max: data.max as number,
       wargear: data.wargear as Counts,
     })
-  for (const { id, data } of byKind.get('roster-option') ?? [])
-    units.get(data.unit as string)?.options.push({
+  const largest = new Map((byKind.get('unit') ?? []).map(({ id, data }) => [id, Math.max(...((data.sizes ?? [1]) as number[]))]))
+  for (const { id, data } of byKind.get('roster-option') ?? []) {
+    const unit = units.get(data.unit as string)
+    if (!unit) continue
+    // As VS Data's `optionBounds` counts them, at the largest size with every carrier fielded.
+    const total = largest.get(unit.id) ?? 1
+    const carrier = data.carrier as string | undefined
+    const carriers = carrier ? (unit.models.find((model) => model.id === carrier)?.max ?? 0) : total
+    const per = data.per as 'carrier' | { models: number } | undefined
+    const blocks = carriers === 0 ? 0 : per === 'carrier' ? carriers : per ? Math.floor(total / per.models) : 1
+    const choose = data.choose as { max: number }
+    const bySize = (data.bySize ?? []) as { max: number }[]
+    unit.options.push({
       id,
-      carrier: data.carrier as string | undefined,
+      carrier,
       choices: data.choices as string[],
       replaces: (data.replaces ?? {}) as Counts,
+      most: Math.max(choose.max * blocks, ...bySize.map(({ max }) => max)),
     })
+  }
   /** A wargear ID as the named items it holds, keyed as `wargearKey` reads a name. */
   const leaves = (id: string, n: number, into: Bag) => {
     const inner = includes.get(id)
@@ -401,6 +417,11 @@ for (const entry of composition.editions.filter((candidate) => candidate.base)) 
     tally.datasheets++
     const vsKeys = vsKeysOf(release, unit)
     const bagOf = (built: BuiltUnit) => bsdataBag(built, index, vsKeys, enhancementIds)
+    /** Whether an option is a model, named for the loadout it carries, as Plague Marine w/ meltagun. */
+    const isModel = (id: string) => {
+      const definition = index.definitions.get(id)
+      return definition !== undefined && resolve(definition, index).type === 'model'
+    }
     const build = (state: State, models?: number) =>
       buildUnit(entryId, index, models, state.choices, Object.keys(state.spreads).length ? { spreads: state.spreads } : undefined)
     const vsDefault = vsBase(release, unit, base.size.models)
@@ -412,37 +433,113 @@ for (const entry of composition.editions.filter((candidate) => candidate.base)) 
     const unmatched = new Set<string>()
     const deferred = new Set<string>()
     const read = new Set<string>()
-    const held = (choice: UnitChoice) =>
-      Object.fromEntries(choice.options.filter(({ count }) => count > 0).map(({ id, count }) => [id, count]))
+    const defaults = new Set<string>()
+    /** Whether a group the squad divides holds all it can when first fielded, so taking one more gives one up. */
+    const full = (choice: UnitChoice) => choice.room > 1 && choice.options.reduce((sum, { count }) => sum + count, 0) >= choice.room
+    /** The option a choice holds when first fielded and that has no key of its own: a single pick's, or a full group's. */
+    const ordinary = (choice: UnitChoice, option: Option) => option.id === choice.chosen && (choice.room === 1 || full(choice))
     /**
-     * The unit with one more choice made: the option taken, or for a group the squad divides, one more of it and one
-     * fewer of the option it names as the ordinary one (else the first other held), or one more model when none is held.
+     * The unit with one more choice made: the option taken, or for a group the squad divides, one more of it, which in
+     * a full group takes one from the option the group names as ordinary, else from the first other held.
      */
     const taking = (state: State, choice: UnitChoice, option: Option): State => {
       if (choice.room === 1) return { ...state, choices: { ...state.choices, [choice.key]: option.id } }
-      const given =
-        choice.options.find((other) => other.default && other.id !== option.id && other.count > 0) ??
-        choice.options.find((other) => other.id !== option.id && other.count > 0)
+      const given = full(choice)
+        ? (choice.options.find((other) => other.default && other.id !== option.id && other.count > 0) ??
+          choice.options.find((other) => other.id !== option.id && other.count > 0))
+        : undefined
+      const held = Object.fromEntries(choice.options.filter(({ count }) => count > 0).map(({ id, count }) => [id, count]))
       return {
         ...state,
         spreads: {
           ...state.spreads,
-          [choice.key]: { ...held(choice), ...(given ? { [given.id]: given.count - 1 } : {}), [option.id]: option.count + 1 },
+          [choice.key]: { ...held, ...(given ? { [given.id]: given.count - 1 } : {}), [option.id]: option.count + 1 },
         },
       }
     }
     /**
-     * The VS Data models a BSData model name stands for: those named alike, else those sharing the most of its words, as
-     * Paladin with Ancient's Banner shares two with Paladin Ancient, else those its profile names.
+     * The VS Data models a BSData model name stands for: those named alike, else those scoring best on the words they
+     * share less the words only theirs (leaving out the unit's own name), as Paladin with Ancient's Banner is Paladin
+     * Ancient and Assault Terminator w/ claws is Terminator, not Terminator Sergeant; else those its profile names.
      */
     const modelsNamed = (name: string | null | undefined, profile?: string | null): string[] | undefined => {
       if (!name) return undefined
       const alike = unit.models.filter((model) => same(model.name) === same(name))
       if (alike.length) return alike.map(({ id }) => id)
       const named = words(name)
-      const overlap = (model: VsUnit['models'][number]) => [...words(model.name)].filter((word) => named.has(word)).length
-      const best = Math.max(...unit.models.map(overlap))
-      return best > 0 ? unit.models.filter((model) => overlap(model) === best).map(({ id }) => id) : modelsNamed(profile)
+      const shared = (model: VsUnit['models'][number]) => [...words(model.name)].filter((word) => named.has(word)).length
+      const score = (model: VsUnit['models'][number]) =>
+        shared(model) - [...words(model.name)].filter((word) => !named.has(word) && !unit.words.has(word)).length
+      const sharing = unit.models.filter((model) => shared(model) > 0)
+      const best = Math.max(...sharing.map(score))
+      return sharing.length ? sharing.filter((model) => score(model) === best).map(({ id }) => id) : modelsNamed(profile)
+    }
+    /**
+     * The selections for `target`, the same whichever of `carriers` makes the choice (all models where none is known),
+     * taking models named alike as one; null where they disagree.
+     */
+    const translated = (
+      carriers: readonly string[] | undefined,
+      target: ReadonlyMap<string, number>,
+      made: Readonly<Record<string, Counts>>,
+    ) => {
+      const ids = carriers ?? unit.models.map(({ id }) => id)
+      if (!ids.length) return selectionsFor(movesFor(release, unit, undefined, made), target)
+      const byName = new Map<string, string[]>()
+      for (const id of ids) {
+        const name = same(unit.models.find((model) => model.id === id)?.name ?? id)
+        byName.set(name, [...(byName.get(name) ?? []), id])
+      }
+      const each = [...byName.values()].map((models) => selectionsFor(movesFor(release, unit, models, made), target))
+      const first = JSON.stringify(sorted(each[0]))
+      return each.every((selections) => selections && JSON.stringify(sorted(selections)) === first) ? each[0]! : null
+    }
+    /**
+     * The keys of a choice's translations that some pick of it would carry past what VS Data allows: a selection taken
+     * back that was never made, or an option taking more than it can. A pick applies each key once for each of its
+     * option the pick holds beyond the first fielding, fewer counting negative.
+     */
+    const overflowing = (choice: UnitChoice, found: ReadonlyMap<string, Translation>, made: Readonly<Record<string, Counts>>) => {
+      const bad = new Set<string>()
+      const check = (applied: [string, number][]) => {
+        const sum = joined(made)
+        const touched = new Set<string>()
+        for (const [key, times] of applied) {
+          const translation = found.get(key)
+          if (!translation || !('options' in translation)) continue
+          for (const [optionId, chosen] of Object.entries(translation.options)) {
+            touched.add(optionId)
+            for (const [wargear, n] of Object.entries(chosen)) (sum[optionId] ??= {})[wargear] = (sum[optionId]?.[wargear] ?? 0) + n * times
+          }
+        }
+        const over = [...touched].some((optionId) => {
+          const counts = Object.values(sum[optionId] ?? {})
+          const most = unit.options.find(({ id }) => id === optionId)?.most ?? 0
+          return counts.some((n) => n < 0) || counts.reduce((total, n) => total + n, 0) > most
+        })
+        if (over) for (const [key] of applied) bad.add(key)
+      }
+      if (choice.room === 1) {
+        for (const key of found.keys()) check([[key, 1]])
+        return bad
+      }
+      const options = choice.options.filter((option) => !enhancementIds.has(option.id))
+      const shape = (at: number, left: number, applied: [string, number][]) => {
+        if (at === options.length) {
+          check(applied)
+          return
+        }
+        const option = options[at]!
+        const key = `${choice.key}|${option.id}`
+        for (let n = option.min; n <= Math.min(option.max, left); n++) {
+          const times = n - option.count
+          // A pick changing an option no key reads cannot be translated, so it can break nothing.
+          if (times && !found.has(key) && !ordinary(choice, option)) continue
+          shape(at + 1, left - n, times && found.has(key) ? [...applied, [key, times]] : applied)
+        }
+      }
+      shape(0, choice.room, [])
+      return bad
     }
     // A choice is read against the unit it is made on, at the size it is made at: the first fielding, or for a choice
     // another opens, the unit with that one taken, whose selections it may take back.
@@ -475,7 +572,7 @@ for (const entry of composition.editions.filter((candidate) => candidate.base)) 
         const readings = options.flatMap((option) => {
           const key = `${choice.key}|${option.id}`
           if (key in result.choices || unmatched.has(key)) return []
-          if (option.id === choice.chosen) return [{ key, option, state, built: from, delta: new Map<string, number>() }]
+          if (ordinary(choice, option)) return [{ key, option, state, built: from, delta: new Map<string, number>() }]
           const next = taking(state, choice, option)
           const built = build(next)
           if (!built) {
@@ -525,38 +622,36 @@ for (const entry of composition.editions.filter((candidate) => candidate.base)) 
             add(unclaimed, item, -n)
           }
         }
-        for (const { key, option, state: next, built, delta } of readings) {
-          const isDefault = option.id === choice.chosen
+        const found = new Map<string, Translation>()
+        for (const { key, option, delta } of readings) {
+          const isDefault = ordinary(choice, option)
           const allegiance = unit.allegiances.get(same(option.name))
           if (allegiance) {
-            tally.allegiances++
-            result.choices[key] = { allegiance }
+            found.set(key, { allegiance })
             continue
           }
           if (isDefault && !shift.size) {
             read.add(key)
             continue
           }
-          // A squad divides itself by counts, so a difference its first fielding makes cannot ride on one of them.
-          if (isDefault && choice.room > 1) {
+          // A squad divides itself by counts, so a difference its first fielding makes rides on none of them, and every
+          // count would be read against the wrong first fielding.
+          if (choice.room > 1 && shift.size) {
             unmatched.add(key)
             continue
           }
           const target = new Map(delta)
-          if (choice.room === 1) for (const [item, n] of shift) add(target, item, n)
-          const carrier = owner ?? (option.profile ? modelsNamed(option.name) : undefined)
+          for (const [item, n] of shift) add(target, item, n)
           // Nothing changing is a reading only when the option names wargear the unit already carries, or brings BSData's
           // unit to VS Data's default.
           const selections = target.size
-            ? selectionsFor(movesFor(release, unit, carrier, made), target)
+            ? translated(owner ?? (isModel(option.id) ? modelsNamed(option.name) : undefined), target, made)
             : delta.size || fromBag.has(keyOf(option.name, vsKeys))
               ? {}
               : null
           if (selections) {
-            if (isDefault) tally.defaultsMapped++
-            else if (target.size) tally.mapped++
-            else tally.noChange++
-            result.choices[key] = { options: selections }
+            found.set(key, { options: selections })
+            if (isDefault) defaults.add(key)
           } else {
             unmatched.add(key)
             if (process.env.OPTIONS_DEBUG)
@@ -564,12 +659,21 @@ for (const entry of composition.editions.filter((candidate) => candidate.base)) 
                 `${unitId}\t${choice.name}: ${option.name}${isDefault ? ' (default)' : ''}\t${JSON.stringify(Object.fromEntries(target))}`,
               )
           }
-          if (!isDefault && depth < DEPTH)
-            visit(built, next, joined(made, selections ?? {}), depth + 1, {
+        }
+        for (const key of overflowing(choice, found, made)) {
+          found.delete(key)
+          unmatched.add(key)
+          if (process.env.OPTIONS_DEBUG) debug.push(`${unitId}\t${choice.name}: overflows\t${key}`)
+        }
+        for (const [key, translation] of found) result.choices[key] = translation
+        for (const { key, option, state: next, built } of readings)
+          if (!ordinary(choice, option) && !unit.allegiances.has(same(option.name)) && depth < DEPTH) {
+            const translation = found.get(key)
+            visit(built, next, joined(made, translation && 'options' in translation ? translation.options : {}), depth + 1, {
               path: `${choice.key}/${option.id}/`,
               known: new Set(from.choices.flatMap((offered) => offered.options.map(({ id }) => `${offered.key}|${id}`))),
             })
-        }
+          }
       }
     }
     visit(base, { choices: {}, spreads: {} }, unit.defaults, 0)
@@ -580,6 +684,11 @@ for (const entry of composition.editions.filter((candidate) => candidate.base)) 
     }
     result.unmatched = [...unmatched].toSorted(byId)
     tally.unmatched += result.unmatched.length
+    for (const [key, translation] of Object.entries(result.choices))
+      if ('allegiance' in translation) tally.allegiances++
+      else if (defaults.has(key)) tally.defaultsMapped++
+      else if (Object.keys(translation.options).length) tally.mapped++
+      else tally.noChange++
     out[entryId] = result
   }
 }

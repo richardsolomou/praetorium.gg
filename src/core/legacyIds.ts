@@ -13,12 +13,15 @@ export const legacyIdsSchema = z.object({ format: z.literal('praetorium.legacy-i
  * a list of a retained rules version, whose choices can differ.
  *
  * Selections are option → wargear → count, added to VS Data's unit as first fielded at the pick's size; a negative count
- * takes back a selection that VS Data's defaults or the choice above made. A choice beneath another is read with that
- * one taken. In a group the squad divides (a pick's `spreads`), a key is one more of its option and one fewer of the
- * option the group names as ordinary, else of the first other held, or one more model when none is held: apply it once
- * for each the pick holds beyond the first fielding. A default option is listed only where BSData's default differs
- * from VS Data's; one left out changes nothing. A choice no selection reproduces is listed in `unmatched`. Choices are
- * only added; a mapped one never changes.
+ * takes back a selection that VS Data's defaults or the choice above made. A choice beneath another is read on the unit
+ * with that one taken, which is also its first fielding. A single pick (a pick's `choices`) applies its key once. In a
+ * group the squad divides (a pick's `spreads`), apply every option's key once for each of it the pick holds beyond the
+ * first fielding, fewer counting negative. If the group is full at first fielding, a key is one more of its option and
+ * one fewer of the option the group names as ordinary (else of the first other held), and that ordinary option has no
+ * key; otherwise a key is one more of its option alone. A single pick's first-fielded option has a key only where
+ * BSData's default differs from VS Data's; one without a key changes nothing. A choice without a translation, including
+ * one some pick would carry past what VS Data allows, is listed in `unmatched`. Choices are only added; a mapped one
+ * never changes.
  */
 export const legacyOptionsSchema = z.object({
   format: z.literal('praetorium.legacy-options.v1'),
