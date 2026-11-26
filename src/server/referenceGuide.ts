@@ -23,7 +23,7 @@ export const PRAETORIUM_GUIDE = {
   dataModel: [
     'Game data is fetched from verified community snapshots and does not live in the repository.',
     'Reference results carry canonical URLs, source revisions, and attribution.',
-    'Praetorium returns names, numbers, points, and computed results, never rules text. A record or section that withholds rules text lists textSources: the pinned upstream file, its source, and the record id to find in it. Fetch that file yourself if you need the wording.',
+    'Praetorium returns names, numbers, points, computed results, and a ruleSummary for each rule, ability, stratagem, enhancement, detachment rule, mission card and core rule it has one for: Praetorium’s own wording of that rule, written for Praetorium, never the official text. Answer rules questions from these summaries, and say when a rule has none. A rule with no summary lists textSources instead: the pinned upstream file, its source, and the record id that print its words.',
     'Missing, conflicting, or unavailable source facts remain explicit. They must not be repaired or guessed from model memory.',
     'Battle state is derived from an append-only command log rather than stored as a second mutable score or phase.',
   ],
@@ -35,7 +35,7 @@ export const PRAETORIUM_GUIDE = {
     'To compare two units in combat, call simulate_combat with unit ids from list_units instead of calculating odds yourself; report refused or notCalculated rules rather than estimating them. To field a unit from a saved roster, pass its pick’s models, choices and spreads. For the best wargear against a target, call optimize_loadout, and to choose an enhancement within the points a list has spare, compare_enhancements; to run every unit of one list against every unit of another, call compare_rosters.',
     'For a mission pairing, call get_mission_matchup with both force dispositions; it uses the current pack unless you name another. For what changed in a points or datasheet update, call list_data_updates.',
     'For a signed-in player’s history, filter list_my_battles; for their win rates and leaderboard places, call get_my_stats. To see what other players build and how their games go, list_public_rosters and list_public_battles read what players have made public, without an account; open one with get_public_roster or get_public_battle. To join a battle, read get_battle_invite and confirm the host and side before join_battle. Before recording anything in a battle, read get_my_battle: its next field says what the battle expects and which commands it accepts now. For groups, leagues, tournaments and hidden-list games, start from list_my_events, get_my_group or get_my_event. Read get_league_fixtures before reporting a league score. Ask the player before making a change, naming the roster, players or event and what will change.',
-    'Use search_reference to find a record by name or number, then get_reference or get_reference_record before answering. Fetch the textSources URLs when the answer depends on a rule’s exact wording.',
+    'Use search_reference to find a record by name or number, then get_reference or get_reference_record before answering, and answer from each rule’s ruleSummary. Say that it is Praetorium’s summary, not the official text, when the exact wording matters.',
     'Use faction, pack, and document filters when names or rule numbers are ambiguous.',
     'Cite the canonical URL and preserve the result attribution. Say when the source does not provide an answer.',
   ],

@@ -1,6 +1,7 @@
 import { expect, it } from 'vitest'
 import type { CanonicalCatalogue, CanonicalDatasheet } from '../contracts/catalogue'
 import { bookOf, points, shelfOf } from './catalogue.fixtures'
+import { ruleSummaryFinder } from './referenceSummaries'
 import type { ReferenceCorpus } from './referenceCorpus'
 import { missionMatchup, referenceRecord, referenceUnits, referenceFaction } from './referenceService'
 import type { LoadedRules } from '../shared/rules'
@@ -66,7 +67,13 @@ it('returns roster-planning facts for a whole detachment in one read', () => {
     revisions: {},
     attribution: [],
   }
-  const corpus: ReferenceCorpus = { catalogue, documents: [document], byId: new Map([[document.id, document]]), revision: 'snapshot' }
+  const corpus: ReferenceCorpus = {
+    catalogue,
+    documents: [document],
+    byId: new Map([[document.id, document]]),
+    revision: 'snapshot',
+    summaries: ruleSummaryFinder(null),
+  }
 
   expect(referenceUnits(corpus, loaded, null, 'test-faction', { battleSize: 1_000, detachment: 'vanguard' })).toMatchObject({
     faction: { id: 'cat', slug: 'test-faction', name: 'Test Faction' },
@@ -117,6 +124,7 @@ const lordsCorpus = (): ReferenceCorpus => ({
   documents: [],
   byId: new Map(),
   revision: 'snapshot',
+  summaries: ruleSummaryFinder(null),
 })
 
 const lords = bookOf({
@@ -158,7 +166,7 @@ it('rejects a detachment outside the requested faction', () => {
     ruleDocuments: [],
     issues: [],
   } as CanonicalCatalogue
-  const corpus: ReferenceCorpus = { catalogue, documents: [], byId: new Map(), revision: 'snapshot' }
+  const corpus: ReferenceCorpus = { catalogue, documents: [], byId: new Map(), revision: 'snapshot', summaries: ruleSummaryFinder(null) }
 
   expect(referenceUnits(corpus, loaded, null, 'cat', { detachment: 'missing' })).toBeNull()
 })
@@ -220,11 +228,14 @@ function chapterWithCodexDetachment() {
       dispositions: ['Take and Hold'],
       rules: [{ name: 'Combat Doctrines', description: null }],
       enhancements: [{ name: 'Artificer Armour', points: 10, description: null }],
+      upgrades: [],
+      stratagems: [],
+      keywordRules: [],
     })),
     ruleDocuments: [],
     issues: [],
   } as unknown as CanonicalCatalogue
-  const corpus: ReferenceCorpus = { catalogue, documents: [], byId: new Map(), revision: 'snapshot' }
+  const corpus: ReferenceCorpus = { catalogue, documents: [], byId: new Map(), revision: 'snapshot', summaries: ruleSummaryFinder(null) }
   return { corpus, loaded, current: new Set(['cat-1', 'current~cat']) }
 }
 
@@ -268,7 +279,7 @@ it("cites an allied unit's page under the faction that owns it, not another fact
     datasheets: [{ ...sheet('cat', 'army'), id: 'trooper' }, sheet('cat-1', 'agents'), sheet('mfm~cat-2', 'marines')],
     detachments: [],
   } as unknown as CanonicalCatalogue
-  const corpus: ReferenceCorpus = { catalogue, documents: [], byId: new Map(), revision: 'snapshot' }
+  const corpus: ReferenceCorpus = { catalogue, documents: [], byId: new Map(), revision: 'snapshot', summaries: ruleSummaryFinder(null) }
 
   expect(
     referenceUnits(corpus, loaded, null, 'army', {}, new Set(['cat', 'cat-1', 'mfm~cat-2']))?.units.find((unit) => unit.name === 'Assassin')
@@ -306,7 +317,7 @@ it.each([
     datasheets: [{ ...sheet('cat', 'army'), id: 'trooper' }, sheet('cat-1', 'knights'), sheet('cat-2', 'marines')],
     detachments: [],
   } as unknown as CanonicalCatalogue
-  const corpus: ReferenceCorpus = { catalogue, documents: [], byId: new Map(), revision: 'snapshot' }
+  const corpus: ReferenceCorpus = { catalogue, documents: [], byId: new Map(), revision: 'snapshot', summaries: ruleSummaryFinder(null) }
 
   expect(
     referenceUnits(corpus, loaded, null, 'cat', {}, new Set(['cat', 'cat-1', 'cat-2']))?.units.find((unit) => unit.name === 'Armiger')
@@ -360,6 +371,7 @@ const missionCorpus: ReferenceCorpus = {
   documents: missionDocuments,
   byId: new Map(missionDocuments.map((document) => [document.id, document])),
   revision: 'snapshot',
+  summaries: ruleSummaryFinder(null),
 }
 const missionRules = {
   attribution: 'Community data',
@@ -496,7 +508,14 @@ it.each(['Tau Empire', "T'au Empire"])('resolves %s to the faction however its a
 })
 
 it('reads a datasheet record from an id its slug has since moved from', () => {
-  const sheet = { id: 'd7e1-13bb-2177-b6bc', slug: 'watch-master', catalogueId: 'cat', name: 'Watch Master' } as CanonicalDatasheet
+  const sheet = {
+    id: 'd7e1-13bb-2177-b6bc',
+    slug: 'watch-master',
+    catalogueId: 'cat',
+    name: 'Watch Master',
+    abilities: [],
+    keywordRules: [],
+  } as unknown as CanonicalDatasheet
   const catalogue = { datasheets: [sheet], detachments: [] } as unknown as CanonicalCatalogue
   const document = {
     id: 'datasheet:cat:watch-master',
@@ -508,7 +527,13 @@ it('reads a datasheet record from an id its slug has since moved from', () => {
     revisions: {},
     attribution: [],
   }
-  const corpus: ReferenceCorpus = { catalogue, documents: [document], byId: new Map([[document.id, document]]), revision: 'snapshot' }
+  const corpus: ReferenceCorpus = {
+    catalogue,
+    documents: [document],
+    byId: new Map([[document.id, document]]),
+    revision: 'snapshot',
+    summaries: ruleSummaryFinder(null),
+  }
 
   expect(referenceRecord(corpus, null, 'datasheet:cat:watch-master-d7e1-13b')?.document.id).toBe('datasheet:cat:watch-master')
 })
@@ -520,7 +545,9 @@ it('reads a datasheet record by the page another faction files it under', () => 
     catalogueId: 'chapter',
     name: 'Captain',
     referenceRoute: { catalogueId: 'space-marines', slug: 'captain' },
-  } as CanonicalDatasheet
+    abilities: [],
+    keywordRules: [],
+  } as unknown as CanonicalDatasheet
   const catalogue = { datasheets: [sheet], detachments: [] } as unknown as CanonicalCatalogue
   const document = {
     id: 'datasheet:space-marines:captain',
@@ -532,7 +559,13 @@ it('reads a datasheet record by the page another faction files it under', () => 
     revisions: {},
     attribution: [],
   }
-  const corpus: ReferenceCorpus = { catalogue, documents: [document], byId: new Map([[document.id, document]]), revision: 'snapshot' }
+  const corpus: ReferenceCorpus = {
+    catalogue,
+    documents: [document],
+    byId: new Map([[document.id, document]]),
+    revision: 'snapshot',
+    summaries: ruleSummaryFinder(null),
+  }
 
   expect(referenceRecord(corpus, null, 'datasheet:space-marines:captain')?.document.id).toBe('datasheet:space-marines:captain')
 })

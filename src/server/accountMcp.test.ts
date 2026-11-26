@@ -17,6 +17,7 @@ vi.mock('./saveOwnedRoster', () => ({ saveOwnedRoster }))
 vi.mock('./publishedTextFiles', () => ({
   publishedTextLocations: async () => ({ files: {}, holds: () => false, recordsHolding: () => [] }),
 }))
+vi.mock('./servedVsData', () => ({ servedVsDataSummaries: async () => null }))
 vi.mock('./app', () => ({
   app: () => ({
     service: {

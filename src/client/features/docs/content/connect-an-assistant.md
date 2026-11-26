@@ -35,11 +35,11 @@ The first time the assistant needs your rosters or battles, it opens this page o
 
 ![The Connect to Praetorium page, where Claude asks to read and edit rosters and battles, the address allowing sends you on to, and Allow access and Cancel.](screenshot:assistant-consent 'Connect to Praetorium, the first time an assistant needs your account')
 
-## Why answers link instead of quoting rules
+## How assistants read rules
 
-Praetorium gives assistants names, numbers, points and calculated results, never rules text. When wording is left out, assistants are told to fetch it from the published source instead of guessing. If the data doesn't answer a question, the tools say so.
+Praetorium gives assistants names, numbers, points, calculated results and the same plain-language rule summaries its pages show, never the official rules text. Assistants are told to answer rules questions from those summaries and to say when a rule has none. If the data doesn't answer a question, the tools say so.
 
-So when an answer depends on how a rule is worded, follow the link and read it yourself. Links go to the matching page under [Factions](/factions), [Missions](/missions) or [Rules](/rules), which show the same numbers the assistant received. [Data updates](/data-updates) lists when the data last changed.
+So when an answer depends on a rule's exact wording, follow the link and check it yourself. Links go to the matching page under [Factions](/factions), [Missions](/missions) or [Rules](/rules), which show the same numbers the assistant received. [Data updates](/data-updates) lists when the data last changed.
 
 ## Connection details
 
