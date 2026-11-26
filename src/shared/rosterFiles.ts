@@ -65,7 +65,7 @@ import {
 import { DISPOSITIONS, type LoadedCatalogue } from './catalogueIndex'
 import { datacardOf } from './datasheetJoin'
 import { keywordsIn } from './catalogue'
-import { isUpgrade, mfmDetachmentFor } from './mfm'
+import { fieldManualDetachment, isUpgrade } from './mfm'
 import { rosterDetachments } from './rosterDetachments'
 import { importRosterSchema, type ExportRosterInput, type ImportRosterInput } from '../contracts/schemas'
 import { calculateRosterPrice, unavailablePriceSelections } from './pricing'
@@ -1937,7 +1937,8 @@ function enhancementRespellings(
   const names = new Map<string, string>()
   const detachments = loaded.detachments.get(catalogueId)?.options.filter((option) => detachmentIds.includes(option.id)) ?? []
   const manual = detachments.flatMap(
-    (detachment) => mfmDetachmentFor(loaded, catalogueId, detachment.name)?.enhancements?.filter((entry) => !isUpgrade(entry.name)) ?? [],
+    (detachment) =>
+      fieldManualDetachment(loaded, catalogueId, detachment.name)?.enhancements?.filter((entry) => !isUpgrade(entry.name)) ?? [],
   )
   const built = buildUnit(entryId, loaded.index, undefined, {}, context)
   if (!manual.length || !built) return names
