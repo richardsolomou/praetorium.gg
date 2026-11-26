@@ -4,9 +4,10 @@ name: VS Data live
 # and merges it once its snapshot is pinned, no VS Data coverage count falls and the required checks pass, which releases
 # it like any merge. A release the snapshot build refuses never gets a snapshot, so its PR stays open. Unset it to pin by hand.
 on:
+  # Every three hours, since each pin moves main and makes every open catalogue PR rebase and rebuild its snapshot.
   schedule:
-    - cron: '*/30 * * * *'
-  # Checks a pin PR as soon as its snapshot build finishes, rather than at the next half hour.
+    - cron: '0 */3 * * *'
+  # Checks a pin PR as soon as its snapshot build finishes, rather than at the next scheduled run.
   workflow_run:
     workflows: [Catalogue snapshot]
     types: [completed]
