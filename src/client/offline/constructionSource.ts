@@ -37,6 +37,7 @@ export function buildConstruction(saved: OfflineConstructionSource) {
     ...(saved.baseSizes ? { baseSizes: saved.baseSizes } : {}),
     datacardExcludedCatalogueIds: datacardExclusions(saved.datacardExcludedCatalogueIds, saved.edition),
     mfm: unpackRuntimeData<LoadedCatalogue['mfm']>(saved.mfm),
+    ...(saved.vsPoints ? { vsPoints: unpackRuntimeData<NonNullable<LoadedCatalogue['vsPoints']>>(saved.vsPoints) } : {}),
     ...(saved.edition ? { edition: saved.edition } : {}),
   }
   return { revision: saved.revision, catalogue, rules: unpackRuntimeData<LoadedRules>(saved.rules) }
@@ -67,6 +68,7 @@ export function constructionSource(source: OfflineConstructionData | undefined, 
           : {}),
         datacards: restoreRuntimeData(selected.datacards, source.datacards, budget),
         mfm: restoreRuntimeData(selected.mfm, source.mfm, budget),
+        ...(selected.vsPoints && source.vsPoints ? { vsPoints: restoreRuntimeData(selected.vsPoints, source.vsPoints, budget) } : {}),
         rules: restoreRuntimeData(selected.rules, source.rules, budget),
       }
     }

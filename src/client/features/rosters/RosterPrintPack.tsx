@@ -332,7 +332,7 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
           </section>
         </div>
         {/* A printed pack leaves the app and its sources page, so it names where its words and prices came from. */}
-        <p>Rules summaries from VS Data; prices from the BSData Munitorum Field Manual. Data sources: praetorium.gg/sources</p>
+        <p>Rules summaries from VS Data; prices from VS Data and the BSData Munitorum Field Manual. Data sources: praetorium.gg/sources</p>
       </div>
     </div>
   )

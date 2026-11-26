@@ -680,13 +680,15 @@ export function compactVsDataRelease(directory: string, file: string) {
 /** The categories list building reads, kept whole rather than compacted. */
 const CONSTRUCTION_CATEGORIES = new Set(['rosters', 'points'])
 
-/** Writes `file` with the roster definitions and points snapshots of a verified release's own rules version. */
+/**
+ * Writes `file` with the roster definitions, Enhancements and points snapshots of a verified release's own rules version,
+ * and the units its identity marks absent or retired there.
+ */
 export function writeVsDataConstruction(directory: string, file: string) {
   const manifest = readVsDataManifest(directory)!
   const read = (name: string): unknown => JSON.parse(fs.readFileSync(path.join(directory, name), 'utf8'))
-  const names = new Map(
-    identitySchema.parse(read(manifest.identity.path)).entries.map((entry) => [`${entry.kind}:${entry.id}`, entry.name]),
-  )
+  const identity = identitySchema.parse(read(manifest.identity.path))
+  const names = new Map(identity.entries.map((entry) => [`${entry.kind}:${entry.id}`, entry.name]))
   const records = manifest.categories
     .filter((category) => CONSTRUCTION_CATEGORIES.has(category.name))
     .flatMap((category) => category.records)
@@ -695,10 +697,25 @@ export function writeVsDataConstruction(directory: string, file: string) {
   const definitions: VsDataConstruction['definitions'] = {}
   for (const record of records.filter((candidate) => candidate.kind !== 'points-snapshot'))
     (definitions[record.kind] ??= {})[record.id] = { name: names.get(`${record.kind}:${record.id}`) ?? record.id, data: record.data }
+  // An Enhancement is a rule summary whose typed `enhancement` facts say who may take it.
+  for (const entry of manifest.categories.find((category) => category.name === 'rules-reference')?.records ?? []) {
+    if (entry.kind !== 'ability') continue
+    const record = enhancementRecordSchema.safeParse(read(entry.path))
+    if (!record.success || record.data.rulesVersion.update !== manifest.rulesVersion.update) continue
+    const { detachment, facts } = record.data.data
+    ;(definitions.enhancement ??= {})[record.data.id] = {
+      name: names.get(`ability:${record.data.id}`) ?? record.data.id,
+      data: { ...facts.fields.enhancement, detachment: detachment.id },
+    }
+  }
   const construction: VsDataConstruction = {
     release: manifest.release,
     rulesVersion: manifest.rulesVersion,
     definitions,
+    unavailable: identity.entries
+      .filter((entry) => entry.kind === 'unit' && (entry.absent || entry.retired !== undefined))
+      .map((entry) => entry.id)
+      .toSorted(),
     points: records.filter((record) => record.kind === 'points-snapshot').map((record) => record.data),
   }
   fs.writeFileSync(file, JSON.stringify(vsDataConstructionSchema.parse(construction)))
@@ -707,4 +724,11 @@ export function writeVsDataConstruction(directory: string, file: string) {
 const constructionRecordSchema = refSchema.extend({
   rulesVersion: z.object({ update: z.string() }),
   data: z.record(z.string(), z.unknown()),
+})
+const enhancementRecordSchema = refSchema.extend({
+  rulesVersion: z.object({ update: z.string() }),
+  data: z.object({
+    detachment: z.object({ id: z.string() }),
+    facts: z.object({ fields: z.object({ enhancement: z.record(z.string(), z.unknown()) }) }),
+  }),
 })

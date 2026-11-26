@@ -51,7 +51,7 @@ export function Sources() {
             .
           </li>
           <li>
-            Current unit, wargear, detachment, enhancement, and upgrade prices from{' '}
+            Prices for the Warhammer Legends and Crucible units VS Data does not yet price, from{' '}
             <a href="https://github.com/richardsolomou/wh40k-11e-mfm" className={linkClass}>
               BSData Munitorum Field Manual
             </a>
@@ -72,8 +72,9 @@ export function Sources() {
             , licensed under AGPL-3.0.
           </li>
           <li>
-            Plain-language rules summaries for each rules version, stratagem timings and mission scoring, and the names the official app
-            prints in each of its languages, used to read lists exported in another language, from{' '}
+            Plain-language rules summaries for each rules version, stratagem timings and mission scoring, unit, wargear, detachment,
+            enhancement and upgrade prices, and the names the official app prints in each of its languages, used to read lists exported in
+            another language, from{' '}
             <a href="https://github.com/richardsolomou/vs-data" className={linkClass}>
               VS Data
             </a>

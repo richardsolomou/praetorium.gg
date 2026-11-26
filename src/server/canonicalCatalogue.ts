@@ -31,10 +31,10 @@ import { type LoadedRules } from '../shared/rules'
 import { mfmAttribution, mfmCopyLabel, mfmCostRows } from '../shared/mfm'
 import { readSharedJson } from './sharedJson'
 import { readRevisions } from './catalogueSources'
-import { mfmUnitFor } from '../shared/unitPoints'
+import { mfmUnitFor, vsDataPriced } from '../shared/unitPoints'
 
 export const CANONICAL_CATALOGUE_FORMAT = 'praetorium.canonical-catalogue.v1' as const
-export const CANONICAL_CATALOGUE_COMPILER_VERSION = 36 as const
+export const CANONICAL_CATALOGUE_COMPILER_VERSION = 37 as const
 
 const characteristicSchema = z.object({
   name: z.string(),
@@ -407,7 +407,13 @@ export function* canonicalCatalogueSteps(
           ? []
           : [{ models: String(smallest), cost: String(described.points), keyword: null, faction: null, detachment: null }]
       const sourceCosts = mfmUnit ? mfmCostRows(mfmUnit) : cardsCosts.length ? cardsCosts : definitionCosts
-      const costSource: CanonicalSourceName = mfmUnit ? 'points' : cardsCosts.length ? 'datacards' : 'definitions'
+      const costSource: CanonicalSourceName = mfmUnit
+        ? vsDataPriced(loaded, entryId)
+          ? 'summaries'
+          : 'points'
+        : cardsCosts.length
+          ? 'datacards'
+          : 'definitions'
       const costPoint = singleUnqualifiedPoint(sourceCosts)
       const points = sourceCosts.length ? costPoint : described.points
       const usesDatacards = Boolean(
@@ -424,7 +430,7 @@ export function* canonicalCatalogueSteps(
           usesDatacards || abilityContributions.rules
             ? (factionContentOf(loaded, faction.name)?.attribution ?? DATACARDS_ATTRIBUTION)
             : null,
-          mfmUnit ? mfmAttribution(loaded.mfm) : null,
+          mfmUnit && !vsDataPriced(loaded, entryId) ? mfmAttribution(loaded.mfm) : null,
         ]
           .filter(Boolean)
           .join('. ') || null
