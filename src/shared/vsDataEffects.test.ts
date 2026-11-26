@@ -86,3 +86,8 @@ it('leaves out a single save re-roll the simulator cannot give a rule', () => {
   )
   expect(facts.combat!.leaves[0]!.compiled!.choices[0]!.effects[0]!.options).toEqual({ singleRerolls: ['hit'] })
 })
+
+it('gives a keyword a rule grants as an ability of that name', () => {
+  const facts = textFactsOfVsData({ grants: { keywords: [{ keyword: 'MOBILE', to: 'unit' }] } })
+  expect(facts.abilityGrants!.grants).toEqual([{ written: 'Mobile', recipient: 'unit' }])
+})

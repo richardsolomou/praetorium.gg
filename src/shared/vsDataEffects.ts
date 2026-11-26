@@ -199,8 +199,17 @@ const grantSchema = z.strictObject({
   recipientKeywords: selectors.optional(),
   conditional: z.literal(true).optional(),
 })
+const keywordGrantSchema = z.strictObject({
+  keyword,
+  to: z.enum(['bearer', 'leader', 'unit']),
+  whileAttached: z.literal(true).optional(),
+  counterpart: z.array(keyword).optional(),
+  recipientKeywords: selectors.optional(),
+  conditional: z.literal(true).optional(),
+})
 const grantsSchema = z.strictObject({
   abilities: z.array(grantSchema).optional(),
+  keywords: z.array(keywordGrantSchema).optional(),
   normalized: z
     .strictObject({ abilities: z.array(grantSchema) })
     .nullable()
@@ -564,8 +573,16 @@ function grantOf(grant: z.infer<typeof grantSchema>): WrittenAbilityGrant {
     ...condition,
   }
 }
-const statementOf = (abilities: readonly z.infer<typeof grantSchema>[] | null | undefined) =>
-  abilities ? { matched: true, grants: abilities.map(grantOf) } : { matched: false, grants: [] }
+/** A keyword a rule gives, as Praetorium has always shown it: an ability of that name. */
+const keywordGrantOf = ({ keyword: given, ...grant }: z.infer<typeof keywordGrantSchema>) =>
+  grantOf({ ...grant, ability: titleCaseAbility(given) })
+const statementOf = (
+  abilities: readonly z.infer<typeof grantSchema>[] | null | undefined,
+  keywords: readonly z.infer<typeof keywordGrantSchema>[] = [],
+) =>
+  abilities || keywords.length
+    ? { matched: true, grants: [...(abilities ?? []).map(grantOf), ...keywords.map(keywordGrantOf)] }
+    : { matched: false, grants: [] }
 
 /** One block as Praetorium reads it, or undefined where VS Data holds it back as unresolved or it does not read. */
 function blockOf<Block extends (typeof EFFECT_BLOCKS)[number]>(blocks: Readonly<Record<string, unknown>>, block: Block) {
@@ -611,7 +628,7 @@ export function textFactsOfVsData(blocks: Readonly<Record<string, unknown>>): Te
   const ownWeaponGrant = weaponGrantTo('own-unit')
   const ledWeaponGrant = weaponGrantTo('led-unit')
   return {
-    ...(grants?.abilities ? { abilityGrants: statementOf(grants.abilities) } : {}),
+    ...(grants?.abilities || grants?.keywords ? { abilityGrants: statementOf(grants.abilities, grants.keywords) } : {}),
     ...(grants && grants.normalized !== undefined ? { normalizedAbilityGrants: statementOf(grants.normalized?.abilities) } : {}),
     ...(weaponGrants.length ? { weaponGrants } : {}),
     ...(ownWeaponGrant ? { ownWeaponGrant } : {}),
