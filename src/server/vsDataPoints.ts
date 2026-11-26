@@ -35,10 +35,7 @@ export function vsPointsIn(directory: string, index: CatalogueIndex, editionId?:
     editionId ? candidate.edition.id === editionId : candidate.base,
   )
   if (!entry || !(entry.base || PRICED_EARLIER_VERSIONS.has(entry.edition.id))) return null
-  // A rules version that reads another's release, as the retired Custodes codex does, has no prices of its own there.
-  if (!entry.base && entry.summaries && entry.summaries !== entry.edition.id) return null
-  const id = entry.summaries ?? entry.edition.id
-  const file = path.join(root, 'summaries', `${id}.construction.json`)
+  const file = path.join(root, 'summaries', `${entry.base ? (entry.summaries ?? entry.edition.id) : entry.edition.id}.construction.json`)
   if (!fs.existsSync(file)) return null
   const definitions = vsDataDefinitions(vsDataConstructionSchema.parse(JSON.parse(fs.readFileSync(file, 'utf8'))))
   const name = (entryId: string) => {
