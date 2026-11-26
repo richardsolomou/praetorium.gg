@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.277.13 (2026-11-26)
+
+### Patch Changes
+
+- d04fbe0: [rosters] A list without a Detachment now says it needs one, as in the official app.
+
 ## 0.277.12 (2026-11-26)
 
 ### Patch Changes
