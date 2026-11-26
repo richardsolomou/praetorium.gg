@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.277.9 (2026-11-26)
+
+### Patch Changes
+
+- bdc4819: [reference] 230 rule summaries that misstated their rule, such as Flip Belt giving its unit a benefit only its bearer gets and several aircraft errata leaving out the OC change, now say what the official text says.
+
 ## 0.277.8 (2026-11-25)
 
 ### Patch Changes
@@ -1454,15 +1460,3 @@
 ### Patch Changes
 
 - ae07278: [rosters] Ability, wargear, and enhancement text loads again for devices that had not loaded it before.
-
-## 0.232.6 (2026-11-12)
-
-### Patch Changes
-
-- b9af5c0: [simulator] The simulator's Cold Fervour adds +2 Strength to Destroyer Cult weapons once instead of twice, including a Cryptek with Murdermind.
-
-## 0.232.5 (2026-11-12)
-
-### Patch Changes
-
-- fd9eb60: [rosters] Anathema Psykana units can now embark in the Anathema Psykana Rhino.
