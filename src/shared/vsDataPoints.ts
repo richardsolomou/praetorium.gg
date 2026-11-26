@@ -39,8 +39,8 @@ function idsIn(map: Readonly<Record<string, string>>, edition: string | null) {
 /**
  * The price index of one rules version. `nameOf` names a BSData entry: an Enhancement option, so a Detachment's
  * Enhancements are priced under the names the builder shows, with the "(Upgrade)" mark the field manual gives an
- * upgrade; and a datasheet, which VS Data prices only where both mark it Warhammer Legends alike, so a Legends
- * datasheet aliased to its current namesake keeps its own price.
+ * upgrade; and a datasheet. A Warhammer Legends datasheet keeps the field manual's price until VS Data's own Legends
+ * records are settled: one Legends unit can stand for two of them, the app's and the Legends field manual's, at two prices.
  */
 export function vsPointsIndex(
   definitions: VsDataDefinitions,
@@ -52,8 +52,7 @@ export function vsPointsIndex(
   for (const [entryId, id] of idsIn(ids.units, edition)) {
     const unit = definitions.get('unit', id)
     const name = nameOf(entryId)
-    if (!unit || !name || definitions.unavailable.has(id) || (nonMatchedPlayKind(name) === 'legends') !== Boolean(unit.data.legends))
-      continue
+    if (!unit || !name || definitions.unavailable.has(id) || unit.data.legends || nonMatchedPlayKind(name) === 'legends') continue
     const row = definitions.points
       .flatMap((snapshot) => snapshot.factions.find((faction) => faction.id === unit.data.faction)?.units ?? [])
       .find((candidate) => candidate.id === id)

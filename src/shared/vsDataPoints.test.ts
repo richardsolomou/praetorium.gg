@@ -97,7 +97,7 @@ describe('vsMfmUnit', () => {
     expect(price('legacy~bs-host', 'bs-tank')).toBe(100)
   })
 
-  it('leaves a Legends datasheet aliased to a current unit to the field manual', () => {
+  it('leaves a Legends datasheet aliased to a current unit to the field manual too', () => {
     expect(vsMfmUnit(index, 'bs-host', 'bs-old')).toBeNull()
   })
 
@@ -105,8 +105,8 @@ describe('vsMfmUnit', () => {
     expect(vsMfmUnit(index, 'bs-host', 'bs-pack')).toBeNull()
   })
 
-  it('prices a Legends datasheet VS Data marks Legends', () => {
-    expect(price('bs-host', 'bs-relic')).toBe(200)
+  it('leaves a Legends datasheet to the field manual', () => {
+    expect(vsMfmUnit(index, 'bs-host', 'bs-relic')).toBeNull()
   })
 })
 
