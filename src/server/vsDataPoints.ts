@@ -18,14 +18,16 @@ const ids: VsDataIds = {
 }
 
 /**
- * A rules version's VS Data prices, from the construction file its release keeps beside its summaries in the snapshot
- * `directory` is, or is under for a rules version; null where the snapshot has none.
+ * The current rules version's VS Data prices, from the construction file its release keeps beside its summaries in the
+ * snapshot `directory` is; null for an earlier rules version, which keeps its field manual until its own app build's
+ * prices are confirmed against it, and where the snapshot has none.
  */
 export function vsPointsIn(directory: string, index: CatalogueIndex, editionId?: string): VsPointsIndex | null {
   const root = editionId && path.basename(path.dirname(directory)) === 'editions' ? path.resolve(directory, '..', '..') : directory
   const entry = readCatalogueComposition(root)?.editions.find((candidate) =>
     editionId ? candidate.edition.id === editionId : candidate.base,
   )
+  if (!entry?.base) return null
   const id = entry?.summaries ?? entry?.edition.id ?? editionId
   const file = id ? path.join(root, 'summaries', `${id}.construction.json`) : null
   if (!file || !fs.existsSync(file)) return null
@@ -34,5 +36,5 @@ export function vsPointsIn(directory: string, index: CatalogueIndex, editionId?:
     const definition = index.definitions.get(entryId)
     return definition && nameOf(definition, index.definitions)
   }
-  return vsPointsIndex(definitions, ids, entry && !entry.base ? entry.edition.id : null, name)
+  return vsPointsIndex(definitions, ids, null, name)
 }

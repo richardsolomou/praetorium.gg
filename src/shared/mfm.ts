@@ -98,7 +98,11 @@ export function mfmWargearOptionPoints(
 export function mfmDetachmentFor(loaded: LoadedCatalogue, catalogueId: string, name: string) {
   const option = loaded.detachments.get(catalogueId)?.options.filter((candidate) => candidate.name === name)
   const vsData = option?.length === 1 ? vsMfmDetachment(loaded.vsPoints, option[0]!.id) : null
-  if (vsData) return vsData
+  return vsData ?? fieldManualDetachment(loaded, catalogueId, name)
+}
+
+/** A Detachment as the field manual prints it, by name, whose spellings imports also read. */
+export function fieldManualDetachment(loaded: LoadedCatalogue, catalogueId: string, name: string) {
   const faction = loaded.index.catalogues.get(catalogueId)
   return faction ? mfmDetachment(loaded.mfm, mfmSlugs(faction.name), name) : null
 }
