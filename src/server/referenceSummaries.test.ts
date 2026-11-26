@@ -65,7 +65,7 @@ function agentAnswer(summary: string) {
     upgrades: [],
     stratagems: [
       {
-        id: stratagem.id,
+        id: 'necrons.test.focused-fire',
         name: 'Focused Fire',
         cp: 1,
         type: 'Battle Tactic',

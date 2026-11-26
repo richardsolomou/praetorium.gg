@@ -15,7 +15,7 @@ import { canonicalDetachmentName } from '../core/detachmentName'
 import { hasTextTokens } from '../core/sourceText'
 import { routeSlug } from '../core/slug'
 import { abilityKeysNamed, summaryNamedBy, wholeRuleTokens } from '../shared/ruleSummaries'
-import { abilitySummaryIn, datasheetAbilitySummary } from '../shared/vsDataAbilities'
+import { datasheetAbilitySummary } from '../shared/vsDataAbilities'
 import { NO_RULE_SUMMARIES, type VsDataSummaries } from './vsDataSummaries'
 
 /** Whose rules a text prints, as the app's pages name the datasheet or detachment around it. */
@@ -105,13 +105,12 @@ export function ruleSummaryFinder(
         keyword(rule.name) ?? owned(rule.description ?? '', rule.description ? rule.name : undefined, undefined, owner) ?? named(rule.name)
       )
     },
-    /** `SummaryByName`: a rule the catalogue prints no text for, by its owner's record of that name. */
-    byName: (name: string, owner: SummaryOwner) => {
-      const units = unitsOf(owner)
-      return units ? abilitySummaryIn(units, owner.subject, name) : null
+    /** `useVsDataSummaries`: a rule by its VS Data id in the rules version of `catalogueId`, then in the current one. */
+    byId: (catalogueId: string, id: string) => {
+      const edition = catalogueEditionId(catalogueId)
+      const own = summaries?.unitsIn(edition).abilities[id]
+      return own ?? (edition === null ? null : (summaries?.unitsIn(null).abilities[id] ?? null))
     },
-    /** `useReleaseAbilities`: a Stratagem only the app prints, by its VS Data id. */
-    release: (catalogueId: string, id: string) => unitsOf({ catalogueId, subject: '' })?.abilities[id] ?? null,
     /** `useMissionSummary`. */
     mission: (kind: MissionKind, id: string) => summariesIn(MISSION_SUMMARIES).records[`${kind}:${id}`] ?? null,
     /** `useRuleEntrySummaries`: a rule or clarification of the rules documents, by VS Data id. */
@@ -137,18 +136,23 @@ export const printedRuleSummary = (finder: RuleSummaryFinder) => (record: Record
 export const awardSummary = (finder: RuleSummaryFinder, award: Award) =>
   (award.id ? finder.mission('mission-award', award.id) : null) ?? (award.criteria ? finder.printed(award.criteria) : null)
 
-/** A detachment's rules, enhancements, upgrades and Stratagems, each with the summary its page shows. */
+/**
+ * A detachment's rules, enhancements, upgrades and Stratagems, each with the summary its page shows (`CardSummary`,
+ * `SummaryById`): a card by its VS Data id, or else by the rule its text prints, and a Stratagem by its id.
+ */
 export function detachmentSummaries(finder: RuleSummaryFinder, detachment: CanonicalDetachment) {
   const owner = detachmentOwner(detachment)
-  const rule = (part: { name: string; description: string | null }) =>
-    part.description ? finder.rule(part.description, { name: part.name, owner }) : null
+  const card = (part: { name: string; description: string | null; vsDataId?: string }) =>
+    part.vsDataId
+      ? finder.byId(detachment.catalogueId, part.vsDataId)
+      : part.description
+        ? finder.rule(part.description, { name: part.name, owner })
+        : null
   return {
-    rules: detachment.rules.map(rule),
-    enhancements: detachment.enhancements.map((enhancement) => rule(enhancement) ?? finder.byName(enhancement.name, owner)),
-    upgrades: detachment.upgrades.map(rule),
-    stratagems: detachment.stratagems.map((stratagem) =>
-      stratagem.description ? finder.rule(stratagem.description) : finder.release(detachment.catalogueId, stratagem.id),
-    ),
+    rules: detachment.rules.map(card),
+    enhancements: detachment.enhancements.map(card),
+    upgrades: detachment.upgrades.map(card),
+    stratagems: detachment.stratagems.map((stratagem) => finder.byId(detachment.catalogueId, stratagem.id)),
     keywordRules: detachment.keywordRules.map((keywordRule) => finder.keywordRule(keywordRule, owner)),
   }
 }
