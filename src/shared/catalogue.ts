@@ -1004,7 +1004,7 @@ function grantedAbilitiesInAttachedUnit(
             )
             for (const grant of grants) {
               // A rule printed on the datasheet that grants itself, as a Detachment rule naming the units it is for, is shown already.
-              if (abilityKey(grant.name) === abilityKey(profile.name)) continue
+              if (origin === 'self' && abilityKey(grant.name) === abilityKey(profile.name)) continue
               if (grant.recipient === 'bearer' && origin !== 'self') continue
               if (grant.recipient === 'leader' && (origin !== 'companion' || !character)) continue
               if (grant.recipient === 'models' && (origin !== 'companion' || !selectedKeywords.has(grant.models!.toLowerCase()))) continue

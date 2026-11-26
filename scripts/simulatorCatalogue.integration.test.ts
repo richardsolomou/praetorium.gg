@@ -298,14 +298,14 @@ describe.skipIf(!fs.existsSync(directory))('simulator catalogue projections', ()
   })
 
   describe('roster rules', () => {
-    it('offers Invasion Fleet Hormagaunts only calculated rules, and Synapse adds to their melee', () => {
+    it('offers Invasion Fleet Hormagaunts only calculated rules, and Synapse adds to their melee within Synapse Range', () => {
       const gaunts = (choice?: string | false) =>
         side('Tyranids', ['Hormagaunts'], { detachment: 'Invasion Fleet', ...(choice === undefined ? {} : { rules: { Synapse: choice } }) })
       const warriors = side('Necrons', ['Necron Warriors'])
       expect({
         attacker: offered(gaunts(), warriors, 'attacker'),
         defender: offered(gaunts(), warriors, 'defender'),
-        synapse: fight(gaunts('Active'), warriors).melee() > fight(gaunts(false), warriors).melee(),
+        synapse: fight(gaunts('Within Synapse Range'), warriors).melee() > fight(gaunts(false), warriors).melee(),
       }).toEqual({ attacker: ['Synapse', 'Adrenal Surge'], defender: ['Rapid Regeneration'], synapse: true })
     })
 
