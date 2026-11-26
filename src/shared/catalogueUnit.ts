@@ -78,8 +78,8 @@ function copyPrices(
   const built = buildUnit(entryId, loaded.index, undefined, undefined, { ...options, floor: true })
   if (!built) return null
   const detachmentIds = detachmentIdsIn(loaded, catalogueId, roster)
-  const vsData = copies.map((copy) => vsDataUnitPoints(loaded, catalogueId, entryId, detachmentIds, [], built, copy))
-  if (vsData.every((points) => points !== null)) return vsData as number[]
+  const vsData = copies.flatMap((copy) => vsDataUnitPoints(loaded, catalogueId, entryId, detachmentIds, [], built, copy) ?? [])
+  if (vsData.length === copies.length) return vsData
   const mfmUnit = mfmUnitFor(loaded, catalogueId, entryId)
   const wargearAdjustment = mfmOptionAdjustment(loaded.index, built, mfmUnit, [], options)
   return copies.map((copy) => {

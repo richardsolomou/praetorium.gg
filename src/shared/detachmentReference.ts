@@ -21,7 +21,7 @@ export function detachmentReference(loaded: LoadedCatalogue, rules: LoadedRules,
   const attribution = factionContentOf(loaded, faction.name)?.attribution
   const sourceAttribution = [
     attribution ? null : 'Catalogue data from BSData/wh40k-11e',
-    mfm && !loaded.vsPoints?.detachments[option.id] ? mfmAttribution(loaded.mfm) : null,
+    mfm && !vsMfmDetachment(loaded.vsPoints, option.id) ? mfmAttribution(loaded.mfm) : null,
   ]
     .filter(Boolean)
     .join('. ')

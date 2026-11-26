@@ -214,8 +214,8 @@ export async function rosterParity(
           : [`${unit.name}: ${unit.points} against ${vs.points}${vs.unpriced.length ? ` (${vs.unpriced.join(', ')})` : ''}`]
       }),
       errorsChanged: (() => {
-        const said = (errors: readonly { entryName: string; message: string }[] = []) =>
-          errors.map((error) => `${error.entryName} ${error.message}`)
+        const said = (reported: readonly { entryName: string; message: string }[] = []) =>
+          reported.map((error) => `${error.entryName} ${error.message}`)
         const before = said(fieldManual?.errors)
         const after = said(price.errors)
         return [
