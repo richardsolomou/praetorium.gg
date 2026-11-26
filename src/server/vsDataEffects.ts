@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { remember } from '../core/collections'
+import { isWrittenInvulnerableSave } from '../core/datasheetStructure'
 import type { TextFacts, TextFactsByKey } from '../core/textFacts'
 import type { DefinitionTexts } from '../shared/catalogueIndex'
 import { gdcRuleRecords, vsDataIndex, vsDataKey } from '../shared/vsData'
@@ -113,6 +114,8 @@ export function vsDataTextFacts(
     // Each holder's record by its name, its own datasheet's first, then its own faction's, then any, and of those the one
     // it names exactly first, as Aleya's Daughter of the Abyss is not Daughters of the Abyss. Holders sharing the text
     // must agree, as the Shield Captain's Praesidium Shield and the Redemptor's Duty Eternal read one string otherwise.
+    // A characteristic a catalogue prints as an ability, as an Invulnerable Save of "4+", is no rule: its few words name none.
+    if (holders.some((holder) => isWrittenInvulnerableSave(holder.name))) return { record: null, by: 'none' }
     const byHolder = holders.map((holder) => {
       // A core or weapon ability is its own record, named with any value it takes, as "Firing Deck 10" is Firing Deck.
       const core = abilityKeysNamed(holder.name).filter((key) => !key.startsWith('core-rule:') && release.entries[key])
