@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { ruleSummaryFinder } from './referenceSummaries'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { PostHog } from 'posthog-node'
 import { exportJWK, generateKeyPair, SignJWT } from 'jose'
@@ -41,6 +42,7 @@ const corpus: ReferenceCorpus = {
   documents: [document],
   byId: new Map([[document.id, document]]),
   revision: 'snapshot',
+  summaries: ruleSummaryFinder(null),
 }
 
 const { hasMcpConsent, importCollection, rateLimit } = vi.hoisted(() => ({
@@ -61,6 +63,7 @@ vi.mock('./referenceApi', async () => {
 vi.mock('./publishedTextFiles', () => ({
   publishedTextLocations: async () => ({ files: {}, holds: () => false, recordsHolding: () => [] }),
 }))
+vi.mock('./servedVsData', () => ({ servedVsDataSummaries: async () => null, answerRuleSummary: async () => () => null }))
 vi.mock('./app', () => ({
   app: () => ({
     searchIndexFor: async () => null,

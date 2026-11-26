@@ -16,6 +16,7 @@ const { submit, seatedBattle, createBattle, capture, rules } = vi.hoisted(() => 
 vi.mock('./publishedTextFiles', () => ({
   publishedTextLocations: async () => ({ files: {}, holds: () => false, recordsHolding: () => [] }),
 }))
+vi.mock('./servedVsData', () => ({ servedVsDataSummaries: async () => null, answerRuleSummary: async () => () => null }))
 vi.mock('./app', () => ({
   app: () => ({
     service: { submit, seatedBattle, createBattle },
