@@ -1,5 +1,26 @@
 # praetorium
 
+## 0.279.0 (2026-11-26)
+
+### Minor Changes
+
+- ec72ba5: [app] A new look across the app: plain rows instead of boxed cards, sentence-case headings, every collapsible section marked with an arrow before its name, and links that look like links.
+- 86a472c: [assistant] A connected assistant can send feedback to the team as you, such as a rule the simulator doesn't calculate yet, and check your earlier conversations first; replies arrive on your Support page.
+- ec72ba5: [battles] The opponent's side of a battle shows what they can still play, without your controls for gaining their command points or their missions' round-by-round scores.
+- ec72ba5: [battles] The battle page puts what each phase needs first: stratagems lead outside the command phase with your command points beside them, and the battle details sit above an event log grouped by round and phase.
+- ec72ba5: [events] A group's overview shows what's next, the league standing, the latest results and its members, with the full leaderboard, battles and league on their own tabs.
+- ec72ba5: [events] A league table shows each player's sealed list under their name, with the organizer's Unseal button beside it, instead of a separate section to open.
+
+### Patch Changes
+
+- ec72ba5: [app] Signing in no longer gets stuck on an error page while the next page loads.
+- ec72ba5: [battles] On a phone, the battle log scrolls with the page and the turn bar no longer hides the end of the page or the shorter scoreboard above it.
+- ec72ba5: [events] A group's most played factions no longer list the same army twice.
+- 8e9c501: [rosters] Pasted lists now read a unit's labelled lines whose bullet was typed as a full stop or a middle dot, as ". Attached as: Leader (Character)".
+- ec72ba5: [reference] Weapons with several profiles show their name as the datasheet spells it, with its capital letters.
+- 1af53e1: [rosters] Giving a squad member special wargear, such as a Cthonian Beserk's twin concussion gauntlet or mole grenade launcher, no longer leaves one weapon too many on the rest of the squad.
+- 1af53e1: [rosters] Cthonian Beserks with mole grenade launchers now keep their heavy plasma axe or concussion maul, so the unit lists every model's melee weapon.
+
 ## 0.278.0 (2026-11-26)
 
 ### Minor Changes
