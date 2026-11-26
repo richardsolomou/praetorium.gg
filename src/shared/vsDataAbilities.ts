@@ -137,7 +137,8 @@ function namesIt(record: string, name: string) {
   })
 }
 
-const letters = (slug: string) => abilityKey(slug).replaceAll('-', '')
+// A leading article only one side prints, as VS Data's The Thief of Secrets, is no misspelling.
+const letters = (slug: string) => abilityKey(slug).replace(/^the-/, '').replaceAll('-', '')
 
 /** Whether two spellings are at most `edits` insertions, deletions or substitutions apart. */
 function misspelt(left: string, right: string, edits: number) {

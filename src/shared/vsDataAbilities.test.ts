@@ -210,6 +210,17 @@ it('reads its owner’s record of a name the catalogue misspells', () => {
   ).toBe(camouflage)
 })
 
+it('reads its owner’s record whose name VS Data starts with “The” and the catalogue does not', () => {
+  const thief = said('The Thief of Secrets')
+  expect(
+    abilitySummaryIn(
+      { units: {}, aliases: {}, abilities: { 'deathwatch.black-spear-task-force.the-thief-of-secrets': thief } },
+      '@deathwatch.black-spear-task-force',
+      'Thief of Secrets',
+    ),
+  ).toBe(thief)
+})
+
 it('reads no record of its owner a short name differs from by a word', () =>
   expect(
     abilitySummaryIn(
