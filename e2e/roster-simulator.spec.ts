@@ -29,7 +29,7 @@ test('selected friendly support names its source and stays chosen through a swap
   const buff = simulator.getByRole('switch', { name: 'Attacker Spirit Mark (Psychic)', exact: true })
   const rules = simulator.getByRole('region', { name: 'Attacker rules', exact: true })
   await expect(buff).not.toBeChecked()
-  await expect(rules).toContainText('Spiritseer · Selected within 6" · Against the selected target')
+  await expect(rules).toContainText('Spiritseer · Selected unit within 6" · Against the selected target')
   await expect(rules).not.toContainText('Not calculated')
   await buff.click()
   await expect(simulator.getByRole('region', { name: 'Shooting results' })).toContainText('Sustained Hits 1')

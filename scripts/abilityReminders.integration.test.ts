@@ -49,6 +49,13 @@ describe.skipIf(!fs.existsSync(directory))('ability reminders', () => {
     expect(taken.abilities.filter((ability) => ability.name === 'Protean Purpose')).toHaveLength(1)
   })
 
+  it("shows a core ability a rule also grants its own unit once, as the Judiciar's Fights First", () => {
+    const book = index.find((candidate) => candidate.name === 'Space Marines')!
+    const sheet = datasheetIn(snapshot.catalogue, book.catalogueId, book.units.find((candidate) => candidate.name === 'Judiciar')!.id)
+    const shown = describeDatasheetAbilities(snapshot.catalogue, book.catalogueId, sheet, snapshot.rules, { reference: true })
+    expect(shown?.abilities.filter((ability) => ability.name === 'Fights First')).toHaveLength(1)
+  })
+
   /** The invulnerable save a datasheet's model profile shows. */
   const invulnerable = (faction: string, unit: string, model: string) => {
     const book = index.find((candidate) => candidate.name === faction)!
