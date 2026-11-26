@@ -75,7 +75,7 @@ type Attack = { answer: CombatAnswer; refused: Record<'ranged' | 'melee', boolea
 const NO_CHOICES = { preferences: {}, excluded: { ranged: [], melee: [] }, allocation: [] }
 
 /** Each rule read from its words where they are held; a rule left as a token is reported as not calculated. */
-export const readRules = (unread: readonly CombatRule[], words: RuleWords) =>
+const readRules = (unread: readonly CombatRule[], words: RuleWords) =>
   unread.flatMap((rule) => {
     if (rule.reading || !hasTextTokens(rule.description)) return [rule]
     const description = words(rule.description)
@@ -186,7 +186,8 @@ export async function measureRosterUnits({
   loaded: LoadedCatalogue
   rules: LoadedRules | null
   data: PriceInput
-  words: RuleWords
+  /** The rules' words, which only scripts measuring a reading against them pass. */
+  words?: RuleWords
   references: GradeReferences
   calculate: (requests: ReturnType<ReturnType<typeof combatMatchup>['request']>[]) => Promise<CombatAnswer[]>
   /** Also measure each unit without each unit attached to it, which costs a set of target matchups per attachment. */
@@ -219,7 +220,7 @@ export async function measureRosterUnits({
       prepared,
       { attachmentChoices: false, cache },
     )
-    return unread && withReadRules(unread, words)
+    return unread && (words ? withReadRules(unread, words) : unread)
   }
   const prepared = rosterDatasheetSelections(loaded, { catalogueId: data.catalogueId, detachmentIds: data.detachmentIds, picks })
   const cache = rosterProjectionCache()

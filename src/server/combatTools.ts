@@ -37,7 +37,7 @@ import { hasTextTokens } from '../core/sourceText'
 import type { ToolErrorType } from '../contracts/agentTools'
 import { READ_ONLY_TOOL, structured, toolError, type AgentTools } from './agentTools'
 import { app, type App } from './app'
-import { combatantSnapshot, readRules, withReadRules } from '../shared/rosterGradeMeasures'
+import { combatantSnapshot } from '../shared/rosterGradeMeasures'
 import {
   applyOptimizedLoadout,
   compareLoadouts,
@@ -51,7 +51,6 @@ import {
 import { createCombatWorker, type OptimizeLoadoutMessage, type OptimizeLoadoutReply } from './combatCalculationPool'
 import { combatLoadoutCandidates } from '../shared/combatLoadouts'
 import { rosterCombatant } from '../shared/rosterCombatRules'
-import { serverWords } from './publishedTextFiles'
 import { activeReferenceCorpus, currentFactionIds } from './referenceApi'
 import type { ReferenceCorpus } from './referenceCorpus'
 import { datasheetCitation, factionDatasheets, factionUnits, referenceFaction } from './referenceService'
@@ -406,9 +405,9 @@ async function combatant(corpus: ReferenceCorpus, side: SideInput, role: Role, c
     detachmentIds,
     picks: withEnhancements(loaded, rules, named.catalogueId, detachmentIds, joined, named.enhancements),
   }
-  const unread = rosterCombatant(loaded, rules, { catalogueId: resolved.catalogueId, detachmentIds, picks: resolved.picks, pickIndex: 0 })
-  if (!unread) throw new CombatRefusal([`${side.unit} could not be loaded.`])
-  const projection = withVsDataSaves(withReadRules(unread, await serverWords()), await servedVsDataUnits(resolved.catalogueId))
+  const fielded = rosterCombatant(loaded, rules, { catalogueId: resolved.catalogueId, detachmentIds, picks: resolved.picks, pickIndex: 0 })
+  if (!fielded) throw new CombatRefusal([`${side.unit} could not be loaded.`])
+  const projection = withVsDataSaves(fielded, await servedVsDataUnits(resolved.catalogueId))
   const requested = [side, ...(side.attached ?? [])]
   const members = [{ ...projection, pickIndex: 0 }, ...projection.companions]
   const health = members.map((member) => {
@@ -534,7 +533,7 @@ function ruleSummary(side: Combatant, opponent: Combatant) {
           !rule.appliedDefences?.length &&
           !combatRuleChoices(rule).length &&
           (ruleRoles(rule).includes(side.role) ||
-            // The snapshot does not hold this card's words, so what the rule does is unknown; a stratagem stays off anyway.
+            // A token rule with no reading recorded does something unknown; a stratagem stays off anyway.
             (rule.scope !== 'stratagem' && !rule.reading && hasTextTokens(rule.description))),
       )
       .map((rule) => ({ id: rule.id, name: rule.name, source: rule.source, scope: rule.scope })),
@@ -738,11 +737,7 @@ export async function optimizeCombatLoadout(input: OptimizeLoadoutInput) {
   const [attacker, defender] = built.sides
   const { resolved } = attacker
   const instance = app()
-  const [loaded, rules, words] = await Promise.all([
-    instance.catalogueFor(resolved.catalogueId),
-    instance.rulesFor(resolved.catalogueId),
-    serverWords(),
-  ])
+  const [loaded, rules] = await Promise.all([instance.catalogueFor(resolved.catalogueId), instance.rulesFor(resolved.catalogueId)])
   if (!loaded) return refused([REFERENCE_UNAVAILABLE], 'unavailable')
   const adjustments = input.modifiers ?? {}
   const matchup = combatMatchup(attacker.snapshot, defender.snapshot, { preferences: {}, excluded: noExclusions(), allocation: [] })
@@ -801,14 +796,13 @@ export async function optimizeCombatLoadout(input: OptimizeLoadoutInput) {
       for await (const batch of combatLoadoutCandidates(loaded, request, signal, rules)) {
         local = batch.local
         done = batch.done
-        const read = batch.candidates.map((candidate) => ({
+        const changed = batch.candidates.map((candidate) => ({
           ...candidate,
           changes: loadoutChanges(candidate, (origin ??= candidate)),
-          members: candidate.members.map((member) => ({ ...member, rules: readRules(member.rules, words) })),
         }))
         // The unit's own loadout is scored alone so it can be reported as current.
-        const chunks = sentFirst ? [] : read.splice(0, 1).map((candidate) => [candidate])
-        for (let start = 0; start < read.length; start += SCORED_TOGETHER) chunks.push(read.slice(start, start + SCORED_TOGETHER))
+        const chunks = sentFirst ? [] : changed.splice(0, 1).map((candidate) => [candidate])
+        for (let start = 0; start < changed.length; start += SCORED_TOGETHER) chunks.push(changed.slice(start, start + SCORED_TOGETHER))
         for (const candidates of chunks) {
           if (signal.aborted) break
           if (inFlight.length >= SCORING_WORKERS) take(await inFlight.shift()!)

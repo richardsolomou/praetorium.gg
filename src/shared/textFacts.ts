@@ -78,11 +78,11 @@ export function definitionFactsOf(words: string): TextFacts {
 }
 
 /** The units a text adds to its army and the movement it allows, as its facts record them, or read from the words of any other text it holds. */
-export function gradeReadingsIn(text: string, facts: TextFactsByKey | undefined, words: (text: string) => string | null) {
+export function gradeReadingsIn(text: string, facts: TextFactsByKey | undefined, words?: (text: string) => string | null) {
   const [token, ...rest] = textTokensIn(text)
   const found = token && !rest.length && withoutText(text) === '' ? facts?.get(textKey(token)) : undefined
   if (found) return { unitGeneration: found.unitGeneration ?? [], movementTools: found.movementTools ?? [] }
-  const read = hasTextTokens(text) ? (words(text) ?? '') : text
+  const read = hasTextTokens(text) ? (words?.(text) ?? '') : text
   return { unitGeneration: unitGenerationFrom(read), movementTools: movementToolsFrom(read) }
 }
 
