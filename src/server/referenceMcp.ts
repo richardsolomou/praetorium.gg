@@ -54,8 +54,9 @@ export async function handleReferenceMcp(request: Request) {
       {
         resource,
         issuer: auth.issuer,
-        // The keys are this server's own; through the public address a rolling deploy can route the fetch to a container that is not serving.
-        jwksUrl: `http://127.0.0.1:${process.env.PORT ?? 3000}/api/auth/jwks`,
+        // The keys are this server's own; through the public address a rolling deploy can route the fetch to a container that
+        // is not serving. Vite dev has no PORT and sits behind the local proxy at the public address.
+        jwksUrl: process.env.PORT ? `http://127.0.0.1:${process.env.PORT}/api/auth/jwks` : new URL('/api/auth/jwks', auth.mcpResource).href,
         challengeScopes: [...MCP_ACCOUNT_SCOPES],
       },
     )
