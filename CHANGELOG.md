@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.277.11 (2026-11-26)
+
+### Patch Changes
+
+- 97b175c: [rosters] Lists on the Space Marines codex rules versions cost what the official app charged then, such as an Intercessor Squad at 85 points.
+
 ## 0.277.10 (2026-11-26)
 
 ### Patch Changes
