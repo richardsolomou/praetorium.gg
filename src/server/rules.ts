@@ -142,6 +142,8 @@ export function* loadRulesSteps(
       }
     },
     absentRules,
+    // The rules version's own release first, as for its Stratagems, then the base's.
+    (aliases) => indexes.flatMap((index) => index.entry(aliases) ?? []).find((ref) => ref.kind === 'ability')?.id,
   )
   const missing = yield* missingArmyRulesFromCatalogueSteps(path.join(directory, 'definitions'), datacards)
   const catalogueRules = catalogue?.definitions ? withDefinitionTokens(missing, catalogue.definitions.token) : missing

@@ -14,11 +14,18 @@ export type DetachmentRulesDetail = {
   name: string
   points: number | null
   dispositions: string[]
-  rules: { name: string; description: string }[]
+  /** Each card's `vsDataId` is the VS Data ability its summary is, where VS Data's aliases name the card. */
+  rules: { name: string; description: string; vsDataId?: string }[]
   /** The `abilityKey`s of the rules the rules version marks absent here, which the catalogue's own rules must not add back. */
   absentRules?: string[]
-  enhancements: { name: string; points: number | null; description: string | null; eligibility: EnhancementEligibility | null }[]
-  upgrades: { name: string; points: number | null; description: string | null }[]
+  enhancements: {
+    name: string
+    points: number | null
+    description: string | null
+    eligibility: EnhancementEligibility | null
+    vsDataId?: string
+  }[]
+  upgrades: { name: string; points: number | null; description: string | null; vsDataId?: string }[]
   stratagems: {
     id: string
     name: string

@@ -358,3 +358,58 @@ it('shows a faction-scoped shared card for an offered chapter copy', () => {
 
   expect(detachmentReference(loaded, rules, 'cat', 'gladius-task-force')?.rules).toEqual(detail.rules)
 })
+
+it('shows an enhancement VS Data prices under another name once, by its VS Data id', () => {
+  const loaded = bookOf({
+    sharedSelectionEntries: [
+      {
+        id: 'wrapper',
+        name: 'Detachment',
+        type: 'upgrade',
+        selectionEntryGroups: [
+          {
+            id: 'choices',
+            name: 'Detachment',
+            selectionEntries: [{ id: 'black-spear', name: 'Black Spear Task Force', type: 'upgrade' }],
+          },
+        ],
+      },
+    ],
+  })
+  const thief = 'deathwatch.black-spear-task-force.the-thief-of-secrets'
+  loaded.vsPoints = {
+    books: {},
+    factions: {},
+    units: {},
+    detachments: {
+      'black-spear': {
+        faction: 'deathwatch',
+        name: 'Black Spear Task Force',
+        dp: 1,
+        enhancements: [{ name: 'Thief of Secrets', points: 10, id: thief }],
+        enhancementIds: { 'thief-option': thief },
+      },
+    },
+  }
+  const detail = {
+    id: 'black-spear-task-force',
+    name: 'Black Spear Task Force',
+    points: 1,
+    dispositions: [],
+    rules: [],
+    enhancements: [{ name: 'The Thief of Secrets', points: 10, description: null, eligibility: null, vsDataId: thief }],
+    upgrades: [],
+    stratagems: [],
+  }
+  const rules = {
+    attribution: 'Community data',
+    factionKeys: new Map(),
+    detachmentReferences: new Map(),
+    detachmentDetails: new Map([['test-catalogue', new Map([['black-spear-task-force', detail]])]]),
+    dispositions: new Map(),
+  } as Partial<LoadedRules> as LoadedRules
+
+  expect(detachmentReference(loaded, rules, 'cat', 'black-spear-task-force')?.enhancements).toEqual([
+    { name: 'The Thief of Secrets', points: 10, description: null, vsDataId: thief },
+  ])
+})

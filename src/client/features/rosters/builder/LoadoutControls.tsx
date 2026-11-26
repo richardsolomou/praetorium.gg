@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { Datasheet } from '../../../../contracts/catalogue'
-import { RuleText, SummaryByName } from '../../../components/RuleText'
-import { DatasheetUnit } from '../../../components/UnitFromVsData'
+import { RuleText, SummaryById, SummaryByName } from '../../../components/RuleText'
+import { DatasheetUnit, ownerCatalogueId } from '../../../components/UnitFromVsData'
 import { Blocks, blocksText } from '../../../components/RuleSummaryText'
 import type { RuleSummaryBlock } from '../../../../contracts/rules'
 import { CountButton, Stepper } from '../../../components/Stepper'
@@ -356,13 +356,16 @@ export function SpecialChoice({
           />
         ) : null}
         {options.map((option) => {
-          // An enhancement reads as its detachment's, by name, as that detachment's page shows it; else by its text alone.
+          // An enhancement reads as its detachment's: by its VS Data id, as that detachment's page shows it; else by its text.
           const owner = option.detachment && detachmentRuleOwners?.[option.detachment]
-          const text = option.description ? (
-            <RuleText text={option.description} rules={option.keywordRules} className={PROSE} {...(owner ? { name: option.name } : {})} />
-          ) : owner ? (
-            <SummaryByName name={option.name} className={PROSE} />
-          ) : null
+          const text =
+            option.vsDataId && owner ? (
+              <SummaryById catalogueId={ownerCatalogueId(owner)} id={option.vsDataId} className={PROSE} />
+            ) : option.description ? (
+              <RuleText text={option.description} rules={option.keywordRules} className={PROSE} {...(owner ? { name: option.name } : {})} />
+            ) : owner ? (
+              <SummaryByName name={option.name} className={PROSE} />
+            ) : null
           return (
             <ChoiceOption
               key={option.id}

@@ -5,7 +5,13 @@ import { uniqueBy } from '../core/collections'
 import { routeSlug } from '../core/slug'
 import { abilityKey } from '../shared/vsDataAbilities'
 import { compareText } from '../core/text'
-import { constructionDetachment, datacardsFactionKeys, type FactionContent, type LoadedDatacards } from '../shared/datacards'
+import {
+  constructionDetachment,
+  datacardsFactionKeys,
+  type FactionContent,
+  gdcEnhancementAlias,
+  type LoadedDatacards,
+} from '../shared/datacards'
 import { SUPPLEMENTAL_FACTION_ICONS } from './factionIconSources'
 import { joinKey } from '../core/text'
 import type { DetachmentReference, DetachmentRulesDetail, LoadedFactions } from './rulesFactions'
@@ -32,6 +38,8 @@ export function factionsFromDatacards(
   detachmentCards: DetachmentCards,
   /** The `abilityKey`s of the rules the rules version marks absent under a Detachment, which every view of its rules leaves out. */
   absentRules: (faction: string, detachment: string) => ReadonlySet<string> = () => new Set(),
+  /** The VS Data ability the first of these aliases names, as a card's summary is found by its id. */
+  vsDataIdOf: (aliases: readonly string[]) => string | undefined = () => undefined,
 ): LoadedFactions {
   const factionNames = new Map<string, string>()
   const factionIcons = new Map<string, string>()
@@ -41,6 +49,10 @@ export function factionsFromDatacards(
   const detachmentReferences = new Map<string, Map<string, DetachmentReference>>()
   const detachmentDetails = new Map<string, Map<string, DetachmentRulesDetail>>()
   const byDetachment = new Map<string, Map<string, Stratagem[]>>()
+  const withVsDataId = (aliases: readonly string[]) => {
+    const vsDataId = vsDataIdOf(aliases)
+    return vsDataId ? { vsDataId } : {}
+  }
   const contents = [...new Set(datacards.factions.values())]
   for (const content of contents) {
     const faction = routeSlug(content.name)
@@ -92,18 +104,22 @@ export function factionsFromDatacards(
         name,
         points: construction?.points ?? null,
         dispositions: construction?.dispositions ?? [],
-        rules: (content.detachmentRules.get(joinKey(name)) ?? []).filter((rule) => !absent.has(abilityKey(rule.name))),
+        rules: (content.detachmentRules.get(joinKey(name)) ?? []).flatMap(({ aliases, ...rule }) =>
+          absent.has(abilityKey(rule.name)) ? [] : [{ ...rule, ...withVsDataId(aliases ?? []) }],
+        ),
         ...(absent.size ? { absentRules: [...absent] } : {}),
         enhancements: enhancements.map((card) => ({
           name: card.name,
           points: card.points,
           description: card.description,
           eligibility: card.eligibility,
+          ...withVsDataId((card.ids ?? []).map(gdcEnhancementAlias)),
         })),
         upgrades: upgrades.map((card) => ({
           name: withoutUpgrade(card.name),
           points: card.points,
           description: card.description,
+          ...withVsDataId((card.ids ?? []).map(gdcEnhancementAlias)),
         })),
         stratagems: [
           ...cards.map((card) => ({

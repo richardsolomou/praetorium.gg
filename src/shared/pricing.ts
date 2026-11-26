@@ -571,6 +571,14 @@ function calculateRoster(
       : candidates
     return filed.length === 1 ? filed[0]!.option.id : undefined
   }
+  // The one chosen detachment the frozen maps file an enhancement or upgrade option under, and its VS Data record there.
+  const vsDataEnhancement = (optionId: string) => {
+    const filed = chosen.flatMap((option) => {
+      const vsDataId = loaded.vsPoints?.detachments[option.id]?.enhancementIds[optionId]
+      return vsDataId ? [{ detachment: option.id, vsDataId }] : []
+    })
+    return filed.length === 1 ? filed[0] : undefined
+  }
   const budget = detachmentPointBudget(data.limit)
   const spent = purchased.reduce((total, option) => total + (option.points ?? 0), 0)
   const upgradeNames = new Set([
@@ -857,7 +865,8 @@ function calculateRoster(
           kind,
           options: choiceOptions.map((option) => {
             const description = findEnhancementDescription(enhancementDescriptions, chosen, option.name)
-            const detachment = enhancementDetachment(option.id, option.name)
+            const filed = vsDataEnhancement(option.id)
+            const detachment = filed?.detachment ?? enhancementDetachment(option.id, option.name)
             const combat = description === null ? undefined : combatFactsIn(description, loaded.index.textFacts)
             const reminder = description === null ? undefined : reminderIn(description, loaded.index.textFacts)
             return {
@@ -865,6 +874,7 @@ function calculateRoster(
               description,
               keywordRules: rulesReferencedIn(loaded, [description]),
               ...(detachment ? { detachment } : {}),
+              ...(filed ? { vsDataId: filed.vsDataId } : {}),
               // A device that holds no words judges the option in combat and suggests its reminder from these.
               ...(combat === undefined ? {} : { combat }),
               ...(reminder ? { reminder } : {}),
