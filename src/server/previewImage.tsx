@@ -155,9 +155,7 @@ function Frame({ card }: { card: PreviewCard }) {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
           <img src={LOGO} width={56} height={56} alt="" />
-          <span style={{ ...heading, fontSize: 30, letterSpacing: 6, textTransform: 'uppercase' }}>
-            {SITE.name}
-          </span>
+          <span style={{ ...heading, fontSize: 30, letterSpacing: 6, textTransform: 'uppercase' }}>{SITE.name}</span>
         </div>
         {label ? (
           <span
