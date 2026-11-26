@@ -2,12 +2,187 @@ import { z } from 'zod'
 
 /**
  * What list building reads from one rules version's VS Data release: every roster definition by kind and ID, with its
- * name, and the points snapshots. Kept beside the release's summaries as `summaries/<rules version>.construction.json`.
+ * name, the Enhancements by their rule facts, the units it marks absent or retired, and the points snapshots. Kept beside
+ * the release's summaries as `summaries/<rules version>.construction.json`.
  */
 export const vsDataConstructionSchema = z.object({
   release: z.string(),
   rulesVersion: z.object({ edition: z.string(), update: z.string() }),
   definitions: z.record(z.string(), z.record(z.string(), z.object({ name: z.string(), data: z.record(z.string(), z.unknown()) }))),
+  /** Units the rules version does not have, though other sources name them: no roster may hold them. */
+  unavailable: z.array(z.string()).default([]),
   points: z.array(z.record(z.string(), z.unknown())),
 })
 export type VsDataConstruction = z.infer<typeof vsDataConstructionSchema>
+
+// The shapes below mirror VS Data's definitions.v2.schema.json and points.v1.schema.json, which the release's own
+// verification has checked by the time a construction file is written.
+
+/** How many of each wargear ID. */
+export type Counts = Record<string, number>
+/** Holds for a roster of `faction`, with `detachment`, whose units name `warlord`; `allegiance` only for the unit that took it. */
+export type When = { faction?: string; detachment?: string; warlord?: string; allegiance?: string }
+type RosterBounds = { min?: number; max?: number }
+export type UnitLimit = RosterBounds & { keywords: string[]; detachments?: (RosterBounds & { detachment: string })[] }
+export type AllyLimit = { keywords: string[]; battleSize: string; max: number; free?: { keywords: string[]; per: string[] }[] }
+export type Ally = {
+  units: string[]
+  detachments?: string[]
+  points?: { battleSize: string; max: number }[]
+  limits?: AllyLimit[]
+  oneLimit?: true
+  enhancements?: true
+}
+export type FactionData = { unitLimits?: UnitLimit[]; parent?: string; excludedUnits?: string[]; allies?: Ally[] }
+export type BattleSizeData = { points: number; detachmentPoints?: number; enhancements?: number; duplicates?: number }
+export type DetachmentData = {
+  faction: string
+  enhancements?: string[]
+  dispositions?: string[]
+  excludedUnits?: string[]
+  warlords?: string[]
+  requiredWarlords?: string[]
+  group?: string
+  allegianceLimits?: (RosterBounds & { allegiances: string[] })[]
+}
+export type AllegianceOffer = { choices: string[]; required?: true; detachment?: string; requires?: Record<string, string> }
+export type Limit = { battleSize: string; perRoster: number; when?: When }
+export type Bounds = { min: number; max: number }
+type SizeBounds = Bounds & { size: number }
+type SizeMaximum = { size: number; max: number }
+type ModelCountBounds = Bounds & { bySize?: SizeBounds[] }
+/** Scales a bound by each carrier model, or by every `models` models in the unit; absent means once per unit. */
+export type Per = 'carrier' | { models: number }
+export type OptionGroup = {
+  options: { option: string; choices?: string[]; weight?: number }[]
+  min?: number
+  max: number
+  carrier?: string
+  per?: Per
+  bySize?: SizeMaximum[]
+}
+export type UnitData = {
+  faction: string
+  keywords: string[]
+  conditionalKeywords?: { keywords: string[]; when: When }[]
+  sizes: number[]
+  compositions?: Record<string, Bounds>[]
+  modelGroups?: (ModelCountBounds & { models: string[] })[]
+  optionGroups?: OptionGroup[]
+  perRoster?: number
+  limits?: Limit[]
+  legends?: true
+  enhancements?: false
+  allegiances?: AllegianceOffer[]
+  wargear?: Counts
+  defaults?: Record<string, Counts>
+  defaultModels?: Record<string, number>
+}
+export type ModelData = ModelCountBounds & { unit: string; wargear: Counts }
+export type Requirement = { option: string; choices: string[] }
+export type OptionData = {
+  unit: string
+  carrier?: string
+  choose: Bounds
+  per?: Per
+  bySize?: SizeBounds[]
+  uniform?: true
+  substitutes?: string[]
+  replaces?: Counts
+  choices: string[]
+  caps?: { choices: string[]; max: number; per?: Per; bySize?: SizeMaximum[] }[]
+  requires?: Requirement | Requirement[]
+}
+export type WargearData = { includes?: Counts }
+/**
+ * Who may take an Enhancement, from its rule facts (VS Data's `docs/rule-facts.md`): a bearer matching one of `anyOf`
+ * and none of `excludedKeywords`, carrying `requiredWargear`, a CHARACTER unless `nonCharacters`, not an EPIC HERO unless
+ * `epicHeroes`, and not the Warlord when `notWarlord`.
+ */
+export type EnhancementData = {
+  detachment: string
+  type: 'model' | 'unit' | 'upgrade'
+  perRoster?: number
+  outsideLimit?: true
+  eligibility: {
+    anyOf: { keywords?: string[]; factionKeywords?: string[]; unit?: { id: string } }[]
+    excludedKeywords?: string[]
+    requiredWargear?: string[]
+    epicHeroes?: true
+    nonCharacters?: true
+    notWarlord?: true
+  }
+}
+
+type DataOf = {
+  faction: FactionData
+  'battle-size': BattleSizeData
+  detachment: DetachmentData
+  enhancement: EnhancementData
+  unit: UnitData
+  model: ModelData
+  'roster-option': OptionData
+  wargear: WargearData
+  allegiance: Record<string, never>
+}
+export type DefinitionKind = keyof DataOf
+export type Definition<K extends DefinitionKind = DefinitionKind> = { id: string; name: string; data: DataOf[K] }
+
+type OrUnresolved<T> = T | { unresolved: string }
+export type PointsCost = { models: number; composition?: string; points: OrUnresolved<number> }
+export type PointsUnit = {
+  id: string
+  name: string
+  legends?: true
+  tiers: { copies: { from: number; to?: number }; costs: PointsCost[] }[]
+  wargear?: { item: string; points: OrUnresolved<number> }[]
+}
+export type PointsSnapshot = {
+  id: string
+  factions: {
+    id: string
+    detachments: { id: string; dp: OrUnresolved<number>; enhancements: { id: string; upgrade?: true; points: OrUnresolved<number> }[] }[]
+    units: PointsUnit[]
+  }[]
+}
+
+/** One rules version's roster definitions, by kind and ID, with every unit's models and options in ID order. */
+export type VsDataDefinitions = {
+  release: string
+  get<K extends DefinitionKind>(kind: K, id: string): Definition<K> | undefined
+  all<K extends DefinitionKind>(kind: K): Definition<K>[]
+  modelsOf(unit: string): Definition<'model'>[]
+  optionsOf(unit: string): Definition<'roster-option'>[]
+  /** Units the rules version does not have, though other sources name them. */
+  unavailable: ReadonlySet<string>
+  /** The points snapshots, the current update first and its Legends companion after it. */
+  points: PointsSnapshot[]
+}
+
+export function vsDataDefinitions(construction: VsDataConstruction): VsDataDefinitions {
+  const byKind = new Map(
+    Object.entries(construction.definitions).map(([kind, records]) => [
+      kind,
+      new Map(Object.entries(records).map(([id, record]) => [id, { id, name: record.name, data: record.data }])),
+    ]),
+  )
+  const ofUnit = (kind: 'model' | 'roster-option') => {
+    const found = new Map<string, Definition[]>()
+    for (const definition of [...(byKind.get(kind)?.values() ?? [])].toSorted((left, right) => (left.id < right.id ? -1 : 1))) {
+      const unit = definition.data.unit as string
+      found.set(unit, [...(found.get(unit) ?? []), definition])
+    }
+    return found
+  }
+  const models = ofUnit('model')
+  const options = ofUnit('roster-option')
+  return {
+    release: construction.release,
+    get: <K extends DefinitionKind>(kind: K, id: string) => byKind.get(kind)?.get(id) as Definition<K> | undefined,
+    all: <K extends DefinitionKind>(kind: K) => [...(byKind.get(kind)?.values() ?? [])] as Definition<K>[],
+    modelsOf: (unit) => (models.get(unit) ?? []) as Definition<'model'>[],
+    optionsOf: (unit) => (options.get(unit) ?? []) as Definition<'roster-option'>[],
+    unavailable: new Set(construction.unavailable),
+    points: construction.points as PointsSnapshot[],
+  }
+}

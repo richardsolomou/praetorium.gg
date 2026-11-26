@@ -207,7 +207,7 @@ export async function fetchProductionRosters(
 }
 
 /** A saved roster as it reads once the deploy's product data migration has rewritten its stored row. */
-function deployedRosterIds(stored: ProductionRosterSnapshot['rosters'][number]) {
+export function deployedRosterIds(stored: ProductionRosterSnapshot['rosters'][number]) {
   const row = migrateStoredRoster({
     name: '',
     catalogueId: stored.catalogueId,

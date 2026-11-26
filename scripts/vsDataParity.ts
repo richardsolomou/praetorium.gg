@@ -5,21 +5,35 @@ import { vsDataConstructionSchema } from '../src/core/vsDataConstruction'
 import { readCatalogueComposition } from '../src/server/catalogueComposition'
 import { loadSnapshot } from './lib/catalogueSnapshotLoad'
 import { unitSummaries } from '../src/shared/cataloguePicker'
+import { rosterParity } from './lib/vsDataRosterParity'
 
 /**
- * Report-only: how the current rules version's list building on BSData compares with what its VS Data release would
- * give. For each book, the datasheets the roster picker offers against the units VS Data admits to a roster of its
- * faction (own, parent's, allies'), each offered datasheet's listed price against VS Data's price for its smallest
- * size, and each Detachment's force disposition. Writes `data-dev/vs-data-parity.json` and prints counts.
+ * Report-only: how list building on BSData compares with what each rules version's VS Data release gives.
  *
- *   pnpm exec tsx scripts/vsDataParity.ts [catalogue directory] [construction file, for a release not yet pinned]
+ * For the current rules version, per book: the datasheets the roster picker offers against the units VS Data admits to
+ * a roster of its faction (own, parent's, allies'), each offered datasheet's listed price against VS Data's price for
+ * its smallest size, and each Detachment's force disposition.
+ *
+ * For every saved roster, list fielded into a battle and sealed-event entry in a local list copy (`scripts/fetchProductionCopy.ts`,
+ * or a `just rosters-fetch` snapshot), on its own rules version: the list read as a VS Data roster
+ * (`scripts/lib/vsDataRosters.ts`), its points and each unit's against VS Data's, and the verdict of the checks VS Data's
+ * checker replaces. Writes `data-dev/vs-data-parity.json`, which names lists by ID and their units by datasheet, so it
+ * stays in `data-dev`, and prints counts.
+ *
+ *   pnpm exec tsx scripts/vsDataParity.ts [catalogue directory] [construction directory] [list copy]
  */
 const directory = path.resolve(process.argv[2] ?? 'catalogue-data')
+const constructionDirectory = path.resolve(process.argv[3] ?? path.join(directory, 'summaries'))
+const rosterFile = path.resolve(
+  process.argv[4] ??
+    (fs.existsSync('data-dev/production-lists.ndjson.gz') ? 'data-dev/production-lists.ndjson.gz' : 'data-dev/production-rosters.json'),
+)
 const composition = readCatalogueComposition(directory)
 const base = composition?.editions.find((entry) => entry.base)
 if (!base) throw new Error(`${directory} has no base rules version`)
-const file = process.argv[3] ?? path.join(directory, 'summaries', `${base.edition.id}.construction.json`)
-const construction = vsDataConstructionSchema.parse(JSON.parse(fs.readFileSync(file, 'utf8')))
+const constructionOf = (edition: string) =>
+  vsDataConstructionSchema.parse(JSON.parse(fs.readFileSync(path.join(constructionDirectory, `${edition}.construction.json`), 'utf8')))
+const construction = constructionOf(base.edition.id)
 const ids = (name: string) =>
   z
     .object({ ids: z.record(z.string(), z.string()) })
@@ -62,7 +76,7 @@ function admitted(faction: string) {
   return new Set([...own.filter((id) => !data.excludedUnits.includes(id)), ...data.allies.flatMap((ally) => ally.units)])
 }
 
-const { catalogue } = loadSnapshot(directory)
+const { catalogue, rules } = loadSnapshot(directory)
 const report: Record<
   string,
   { faction: string; onlyBsdata: string[]; onlyVsData: string[]; unmapped: string[]; prices: string[]; dispositions: string[] }
@@ -124,6 +138,13 @@ for (const book of catalogue.factions) {
   totals.priceDiffers += row.prices.length
   report[book.name] = row
 }
-fs.mkdirSync('data-dev', { recursive: true })
-fs.writeFileSync('data-dev/vs-data-parity.json', `${JSON.stringify({ release: construction.release, totals, books: report }, null, 2)}\n`)
 console.log(construction.release, totals)
+const rosters = fs.existsSync(rosterFile)
+  ? await rosterParity(directory, catalogue, rules, constructionOf, rosterFile, base.edition.id)
+  : undefined
+fs.mkdirSync('data-dev', { recursive: true })
+fs.writeFileSync(
+  'data-dev/vs-data-parity.json',
+  `${JSON.stringify({ release: construction.release, totals, books: report, rosters }, null, 2)}\n`,
+  { mode: 0o600 },
+)
