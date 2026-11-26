@@ -203,7 +203,6 @@ for (const [index, { listing, imported }] of clean.entries()) {
     // What each pick's datasheet shows a reminder for, and the Order allowances its combatant reads.
     for (const [pickIndex, pick] of data.units.entries()) {
       const read = (loaded: LoadedCatalogue) => {
-        const sheet = describeDatasheetAbilities(loaded, data.catalogueId, datasheetIn(loaded, data.catalogueId, pick.entryId), rules)
         const combatant = datasheetCombatant(loaded, rules, {
           catalogueId: data.catalogueId,
           entryId: pick.entryId,
@@ -212,6 +211,14 @@ for (const [index, { listing, imported }] of clean.entries()) {
           pickIndex,
           everyWeapon: false,
         } as never)
+        // The datasheet as the pick takes it, with its wargear's and Enhancement's abilities, which a reminder may come from.
+        const taken = combatant?.selected ?? datasheetIn(loaded, data.catalogueId, pick.entryId)
+        const sheet = describeDatasheetAbilities(
+          loaded,
+          data.catalogueId,
+          taken && { ...taken, abilities: [...taken.abilities, ...(taken.enhancements ?? [])] },
+          rules,
+        )
         return {
           // A reminder with no timing and no destroyed trigger suggests nothing, as no reminder does.
           reminders: JSON.stringify(

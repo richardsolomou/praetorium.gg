@@ -3,6 +3,7 @@ import { beforeAll, describe, expect, it } from 'vitest'
 import { datasheetIn } from '../src/shared/catalogue'
 import { combatUnitsFor } from '../src/shared/combatUnits'
 import { describeDatasheetAbilities } from '../src/shared/datasheetDescriptions'
+import { datasheetCombatant } from '../src/shared/rosterCombatRules'
 import { loadSnapshotWithRules } from './lib/catalogueSnapshotLoad'
 
 const directory = process.env.CATALOGUE_DIR ?? 'catalogue-data'
@@ -30,5 +31,20 @@ describe.skipIf(!fs.existsSync(directory))('ability reminders', () => {
     ['Chaos Daemons', 'Contorted Epitome', 'Fights First', 'fight'],
   ] as const)('%s %s reminds of %s in the %s phase', (faction, unit, ability, phase) => {
     expect(phases(faction, unit, ability)).toContain(phase)
+  })
+
+  it('shows a Detachment rule a datasheet prints, which grants itself to its units, once', () => {
+    const book = index.find((candidate) => candidate.name === 'Tyranids')!
+    const entryId = book.units.find((candidate) => candidate.name === 'Norn Emissary')!.id
+    const detachmentIds = [
+      snapshot.catalogue.detachments.get(book.catalogueId)!.options.find((option) => option.name === 'Talons of the Norn Queen')!.id,
+    ]
+    const taken = datasheetCombatant(snapshot.catalogue, snapshot.rules, {
+      catalogueId: book.catalogueId,
+      detachmentIds,
+      picks: [{ entryId }],
+      pickIndex: 0,
+    })!.selected
+    expect(taken.abilities.filter((ability) => ability.name === 'Protean Purpose')).toHaveLength(1)
   })
 })
