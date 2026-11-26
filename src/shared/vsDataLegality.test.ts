@@ -80,8 +80,10 @@ describe('vsDataErrors', () => {
     expect(errors([unit({ entryId: 'bs-lord' })])).toEqual([])
   })
 
-  it('leaves a list with no Detachment to the catalogue', () => {
-    expect(errors([unit({ entryId: 'bs-mob', size: { models: 15, min: 10, max: 20 } })], [])).toBeNull()
+  it('refuses a list with no Detachment', () => {
+    expect(errors([unit({ entryId: 'bs-mob', size: { models: 10, min: 10, max: 20 } })], [])).toEqual([
+      { entryId: 'army', entryName: 'Army', message: 'needs one to three Detachments' },
+    ])
   })
 
   it('gives a unit the catalogue reads as a Character the Enhancement VS Data keeps for Characters', () => {

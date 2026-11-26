@@ -56,10 +56,18 @@ const snapshot = snapshotFactions.map((faction) => {
       }
     })
     .toSorted(byName)
+  // Each datasheet is probed as a list would field it: under a Detachment its faction can take, the first it lists.
+  const probeDetachment = loaded.detachments.get(faction.id)?.options[0]?.id
   const datasheets = [...datasheetsOf(loaded.index, faction.id)]
     .flatMap((entryId) => {
       const priced = calculateRosterPrice(
-        { catalogueId: faction.id, detachmentIds: [], disposition: null, limit: 2_000, units: [{ entryId }] },
+        {
+          catalogueId: faction.id,
+          detachmentIds: probeDetachment ? [probeDetachment] : [],
+          disposition: null,
+          limit: 2_000,
+          units: [{ entryId }],
+        },
         loaded,
         rules,
       )
