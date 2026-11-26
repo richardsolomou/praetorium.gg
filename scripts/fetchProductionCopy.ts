@@ -1,13 +1,36 @@
-import { mkdir } from 'node:fs/promises'
+import { createReadStream, createWriteStream } from 'node:fs'
+import { mkdir, rm } from 'node:fs/promises'
 import path from 'node:path'
+import { createInterface } from 'node:readline'
+import { pipeline } from 'node:stream/promises'
+import { createGunzip, createGzip } from 'node:zlib'
 import { downloadProductionCopy } from './productionCopy'
 
-/** Keeps a private copy of every product table, gzipped, for local reports such as `scripts/vsDataParity.ts`. */
-const file = path.resolve(process.argv[2] ?? 'data-dev/production-copy.ndjson.gz')
+/** The product tables that hold players' lists: saved rosters, battle commands (lists fielded into a battle) and sealed entries. */
+const KEPT = new Set(['rosters', 'commands', 'sealedEventEntries'])
+
+/**
+ * Keeps a private copy of every list players hold, gzipped, for local reports such as `scripts/vsDataParity.ts`. The
+ * production copy also carries accounts and every other table, so it is read once and deleted, whatever happens.
+ */
+const file = path.resolve(process.argv[2] ?? 'data-dev/production-lists.ndjson.gz')
+const full = `${file}.download`
 await mkdir(path.dirname(file), { recursive: true })
-await downloadProductionCopy(
-  process.env.PRODUCTION_SSH_HOST ?? 'hera',
-  process.env.PRODUCTION_WEB_SERVICE ?? 'praetoriumgg-web-ecmusg',
-  file,
-)
-console.log(file)
+try {
+  await downloadProductionCopy(
+    process.env.PRODUCTION_SSH_HOST ?? 'hera',
+    process.env.PRODUCTION_WEB_SERVICE ?? 'praetoriumgg-web-ecmusg',
+    full,
+  )
+  const lines = createInterface({ input: createReadStream(full).pipe(createGunzip()), crlfDelay: Infinity })
+  async function* kept() {
+    for await (const line of lines) {
+      const entry = line ? (JSON.parse(line) as { product?: string }) : {}
+      if (entry.product && KEPT.has(entry.product)) yield `${line}\n`
+    }
+  }
+  await pipeline(kept, createGzip(), createWriteStream(file, { mode: 0o600 }))
+  console.log(file)
+} finally {
+  await rm(full, { force: true })
+}

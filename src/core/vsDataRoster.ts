@@ -1,5 +1,5 @@
 import type { Definition, Per, Requirement, UnitData, VsDataDefinitions, When, OptionData, Bounds } from './vsDataConstruction'
-import { pointsAt, type PointsRef, unitCostRows } from './vsDataPoints'
+import { costRowFor, pointsAt, type PointsRef, unitCostRows } from './vsDataPoints'
 
 /**
  * A list in VS Data catalogue IDs (VS Data's `docs/roster-definitions.md`, "Saved rosters"): model counts by model ID,
@@ -16,6 +16,7 @@ export type VsRosterUnit = {
 export type VsRoster = { faction: string; detachments: string[]; battleSize?: string; units: VsRosterUnit[] }
 
 export type VsProblemCode =
+  | 'not-current'
   | 'missing-definition'
   | 'detachment-faction'
   | 'unit-faction'
@@ -160,37 +161,10 @@ export function enhancementAdmits(
   return (eligibility.requiredWargear ?? []).every((name) => names.has(name.toLowerCase()))
 }
 
-/**
- * Which of a unit's cost rows applies: the only one at its size, else the one naming one of the roster's Detachments,
- * then the army of the roster's faction, then the one for another army (`as …`), then the one naming its model counts.
- */
-function compositionFor(
-  definitions: VsDataDefinitions,
-  roster: VsRoster,
-  picked: VsRosterUnit,
-  faction: string,
-  total: number,
-  copy: number,
-): string | undefined {
-  const rows = (unitCostRows(definitions.points, faction, picked.unit, copy) ?? []).filter((row) => row.models === total)
-  if (rows.length < 2) return undefined
-  const detachmentNames = roster.detachments.map((id) => definitions.get('detachment', id)?.name)
-  const factionName = definitions.get('faction', roster.faction)?.name
-  const counts = modelCounts(definitions, picked)
-  const described = definitions
-    .modelsOf(picked.unit)
-    .map((model) => `${counts.get(model.id) ?? 0} ${model.name}`)
-    .join(', ')
-  const pick = (test: (composition: string) => boolean) => rows.find((row) => row.composition && test(row.composition))?.composition
-  return (
-    pick((composition) => detachmentNames.some((name) => composition === `in the ${name} Detachment`)) ??
-    (roster.faction === faction || definitions.get('faction', roster.faction)?.data.parent === faction
-      ? (pick((composition) => composition === `in an army of ${factionName}`) ??
-        pick((composition) => composition.startsWith('in an army of ')))
-      : undefined) ??
-    pick((composition) => composition.startsWith('as ')) ??
-    pick((composition) => composition === described)
-  )
+/** The names a cost row may give the roster's army by: its faction's and its parent's, as named and as their IDs read. */
+function armiesOf(definitions: VsDataDefinitions, faction: string) {
+  const parent = definitions.get('faction', faction)?.data.parent
+  return [faction, ...(parent ? [parent] : [])].flatMap((id) => [id.replaceAll('-', ' '), definitions.get('faction', id)?.name ?? id])
 }
 
 /** The price of every unit and the roster's Detachments under the rules version's points snapshots. */
@@ -210,14 +184,29 @@ export function priceVsRoster(definitions: VsDataDefinitions, roster: VsRoster):
     copies.set(unit.id, (copies.get(unit.id) ?? 0) + 1)
     const copy = copies.get(unit.id)!
     const total = [...modelCounts(definitions, picked).values()].reduce((sum, n) => sum + n, 0)
-    const composition = compositionFor(definitions, roster, picked, unit.data.faction, total, copy)
+    const counts = modelCounts(definitions, picked)
+    const rows = (unitCostRows(definitions.points, unit.data.faction, unit.id, copy) ?? []).filter((row) => row.models === total)
+    const row =
+      rows.length > 1
+        ? costRowFor(rows, {
+            detachments: roster.detachments.map((id) => definitions.get('detachment', id)?.name ?? id),
+            armies: armiesOf(definitions, roster.faction),
+            models: definitions
+              .modelsOf(unit.id)
+              .map((model) => `${counts.get(model.id) ?? 0} ${model.name}`)
+              .join(', '),
+          })
+        : undefined
+    const unitPoints =
+      rows.length > 1
+        ? typeof row?.points === 'number'
+          ? row.points
+          : (missing.push(`unit:${unit.id} at ${total} (ambiguous-size)`), 0)
+        : price({ kind: 'unit', faction: unit.data.faction, unit: unit.id, models: total, copy }, `unit:${unit.id} at ${total}`)
     const enhancement = picked.enhancement ? definitions.get('enhancement', picked.enhancement) : undefined
     const enhancementFaction = enhancement ? (definitions.get('detachment', enhancement.data.detachment)?.data.faction ?? '') : ''
     const points =
-      price(
-        { kind: 'unit', faction: unit.data.faction, unit: unit.id, models: total, copy, ...(composition ? { composition } : {}) },
-        `unit:${unit.id} at ${total}`,
-      ) +
+      unitPoints +
       (enhancement
         ? price(
             { kind: 'enhancement', faction: enhancementFaction, detachment: enhancement.data.detachment, enhancement: enhancement.id },
@@ -337,7 +326,12 @@ export function checkVsRoster(definitions: VsDataDefinitions, roster: VsRoster, 
   const problems: VsProblem[] = []
   const current = (kind: Parameters<VsDataDefinitions['get']>[0], id: string, unit?: number) => {
     if (definitions.get(kind, id)) return true
-    problems.push({ code: 'missing-definition', ...(unit === undefined ? {} : { unit }), message: `${kind}:${id} has no definition` })
+    const gone = kind === 'unit' && definitions.unavailable.has(id)
+    problems.push({
+      code: gone ? 'not-current' : 'missing-definition',
+      ...(unit === undefined ? {} : { unit }),
+      message: gone ? `${kind}:${id} is not in this rules version` : `${kind}:${id} has no definition`,
+    })
     return false
   }
   const rosterProblem = (code: VsProblemCode, message: string) => problems.push({ code, message })
