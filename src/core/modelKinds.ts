@@ -145,6 +145,36 @@ export function optionWargear(optionId: string, index: CatalogueIndex, options: 
   return [...found.values()]
 }
 
+/**
+ * What a model the unit holds carries outside any choice that its default alone lacks:
+ * wargear the rest of the squad decides, as a Beserk with a mole grenade launcher carries
+ * whichever melee weapon the squad took, which the model's own default cannot see.
+ */
+function forcedWargear(memberId: string, selection: Selection, choices: readonly UnitChoice[], index: CatalogueIndex): string[] {
+  const find = (node: Selection, path: readonly string[]): { held: Selection; path: readonly string[] } | null => {
+    for (const child of node.selections ?? []) {
+      const here = [...path, child.id]
+      if (child.id === memberId && (child.count ?? 1) > 0) return { held: child, path: here }
+      const deeper = find(child, here)
+      if (deeper) return deeper
+    }
+    return null
+  }
+  const found = find(selection, [])
+  if (!found) return []
+  const prefix = `${found.path.join('/')}/`
+  const free = choices
+    .filter((choice) => choice.key.startsWith(prefix))
+    .reduce((tree, choice) => {
+      const offered = new Set(choice.options.map((option) => option.id))
+      return updateSelection(tree, choice.key.slice(prefix.length).split('/'), (held) => ({
+        ...held,
+        selections: held.selections?.filter((child) => !offered.has(child.id)),
+      }))
+    }, found.held)
+  return wargearOf(free, index).map((piece) => piece.name)
+}
+
 type Member = { id: string; name: string; choiceKey: string | null; baseCount: number; within?: ModelRowSource }
 
 /** One entry the catalogue offers as a model, and the profile it names it by, if any. */
@@ -195,7 +225,11 @@ export function modelKindsOf(entryId: string, selection: Selection, index: Catal
             }))
           }, base)
         : null
-      return [member.id, outside ? wargearOf(outside, index) : []] as const
+      const pieces = outside ? wargearOf(outside, index) : []
+      const forced = forcedWargear(member.id, selection, choices, index).filter(
+        (name) => !pieces.some((piece) => sameWargear(piece.name, name)),
+      )
+      return [member.id, [...pieces, ...forced.map((name) => ({ name, count: 1 }))]] as const
     }),
   )
   const carriedNames = new Map([...carriedBy].map(([id, pieces]) => [id, pieces.map((piece) => piece.name)]))

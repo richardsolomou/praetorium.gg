@@ -615,6 +615,165 @@ describe('a required model replaced by an optional specialist', () => {
   })
 })
 
+describe('a specialist replacing a squadmate who holds a squad-wide weapon', () => {
+  const index = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'squad',
+        name: 'Squad',
+        type: 'unit',
+        selectionEntryGroups: [
+          {
+            id: 'models',
+            name: 'Models',
+            defaultSelectionEntryId: 'trooper',
+            constraints: [
+              { id: 'models-min', type: 'min', value: 5, field: 'selections', scope: 'parent' },
+              { id: 'models-max', type: 'max', value: 10, field: 'selections', scope: 'parent' },
+            ],
+            selectionEntries: [
+              {
+                id: 'trooper',
+                name: 'Trooper',
+                type: 'model',
+                constraints: [
+                  { id: 'trooper-min', type: 'min', value: 3, field: 'selections', scope: 'parent' },
+                  { id: 'trooper-max', type: 'max', value: 10, field: 'selections', scope: 'parent' },
+                ],
+                selectionEntryGroups: [
+                  {
+                    id: 'weapon',
+                    name: 'Weapon',
+                    defaultSelectionEntryId: 'axe',
+                    constraints: [
+                      { id: 'weapon-min', type: 'min', value: 1, field: 'selections', scope: 'parent' },
+                      { id: 'weapon-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+                    ],
+                    selectionEntries: [
+                      { id: 'axe', name: 'Axe', type: 'upgrade', collective: true },
+                      { id: 'maul', name: 'Maul', type: 'upgrade', collective: true },
+                    ],
+                  },
+                ],
+              },
+              {
+                id: 'specialist',
+                name: 'Specialist',
+                type: 'model',
+                constraints: [{ id: 'specialist-max', type: 'max', value: 2, field: 'selections', scope: 'parent' }],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+
+  it('takes the weapon away with the squadmate', () => {
+    const built = buildUnit('squad', index, 5, undefined, { spreads: { models: { specialist: 1 } } })!
+    expect(countAt(built.selection, ['models', 'trooper', 'weapon', 'axe'])).toBe(4)
+  })
+})
+
+describe("a model's weapon that follows the squad's", () => {
+  const mirrored = (id: string, squadOption: string) => ({
+    id: `leader-${id}`,
+    name: id,
+    type: 'upgrade' as const,
+    hidden: true,
+    constraints: [
+      { id: `leader-${id}-min`, type: 'min' as const, value: 0, field: 'selections', scope: 'parent' },
+      { id: `leader-${id}-max`, type: 'max' as const, value: 0, field: 'selections', scope: 'parent' },
+    ],
+    modifierGroups: [
+      {
+        conditions: [
+          {
+            type: 'greaterThan' as const,
+            value: 0,
+            field: 'selections',
+            scope: 'squad',
+            childId: squadOption,
+            includeChildSelections: true,
+          },
+        ],
+        modifiers: [
+          { type: 'set' as const, value: false, field: 'hidden' },
+          { type: 'set' as const, value: 1, field: `leader-${id}-min` },
+          { type: 'set' as const, value: 1, field: `leader-${id}-max` },
+        ],
+      },
+    ],
+  })
+  const index = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'squad',
+        name: 'Squad',
+        type: 'unit',
+        selectionEntries: [
+          {
+            id: 'leader',
+            name: 'Leader',
+            type: 'model',
+            constraints: mandatory('leader-min'),
+            selectionEntryGroups: [
+              {
+                id: 'leader-gun',
+                name: 'Ranged weapon',
+                constraints: mandatory('leader-gun-min'),
+                selectionEntries: [mirrored('Plasma gun', 'plasma'), mirrored('Disintegrator', 'disintegrator')],
+              },
+              {
+                id: 'crest',
+                name: 'Crest',
+                defaultSelectionEntryId: 'weavefield',
+                constraints: [...mandatory('crest-min'), { id: 'crest-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+                selectionEntries: [
+                  { id: 'weavefield', name: 'Weavefield crest', type: 'upgrade' },
+                  { id: 'teleport', name: 'Teleport crest', type: 'upgrade' },
+                ],
+              },
+            ],
+          },
+          {
+            id: 'trooper',
+            name: 'Trooper',
+            type: 'model',
+            constraints: [{ id: 'trooper-min', type: 'min', value: 4, field: 'selections', scope: 'parent' }],
+            selectionEntryGroups: [
+              {
+                id: 'gun',
+                name: 'Squad ranged weapon',
+                defaultSelectionEntryId: 'plasma',
+                constraints: [
+                  { id: 'gun-min', type: 'min', value: 1, field: 'selections', scope: 'parent' },
+                  { id: 'gun-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+                ],
+                selectionEntries: [
+                  { id: 'plasma', name: 'Plasma gun', type: 'upgrade', collective: true },
+                  { id: 'disintegrator', name: 'Disintegrator', type: 'upgrade', collective: true },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+
+  it('arms the model with the weapon the squad took', () => {
+    const built = buildUnit('squad', index, undefined, undefined, { spreads: { 'trooper/gun': { plasma: 0, disintegrator: 4 } } })!
+    expect(countAt(built.selection, ['leader', 'leader-gun', 'leader-Disintegrator'])).toBe(1)
+  })
+
+  it("lists that weapon in the model's loadout", () => {
+    const built = buildUnit('squad', index, undefined, undefined, { spreads: { 'trooper/gun': { plasma: 0, disintegrator: 4 } } })!
+    const leader = modelKindsOf('squad', built.selection, index).find((kind) => kind.members.some((member) => member.id === 'leader'))
+    expect(leader?.fixed.map((piece) => piece.name)).toContain('Disintegrator')
+  })
+})
+
 describe('specialists in a separately led squad', () => {
   const index = indexOf({
     sharedSelectionEntries: [
