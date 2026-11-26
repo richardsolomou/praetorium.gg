@@ -1,6 +1,7 @@
 import { bracketedRuleReferences } from '../core/ruleReference'
 import { attachmentClaim, substitutedUnits } from '../core/attach'
 import { combatFactsOf } from '../core/combatReading'
+import { unitHeldWargearIn } from '../core/modelLines'
 import { offeredOptionsIn, statedAllowances } from '../core/battleChoices'
 import { hasTextTokens, textKey, textTokensIn, withoutText } from '../core/sourceText'
 import { movementToolsFrom, unitGenerationFrom } from './rosterGradeUtility'
@@ -23,6 +24,7 @@ export function textFactsOf(words: string): TextFacts | null {
   const references = referencedRuleNames(words)
   const allowances = statedAllowances(words)
   const offered = offeredOptionsIn(words)
+  const unitHeld = unitHeldWargearIn(words)
   const facts: TextFacts = {
     ...(weaponGrants.length ? { weaponGrants } : {}),
     ...(reserveSelectors.length ? { reserveSelectors } : {}),
@@ -30,6 +32,7 @@ export function textFactsOf(words: string): TextFacts | null {
     ...(references.length ? { references } : {}),
     ...(allowances.length ? { battleChoiceAllowances: allowances } : {}),
     ...(offered.length ? { offeredOptions: offered } : {}),
+    ...(unitHeld.length ? { unitHeldWargear: unitHeld } : {}),
   }
   return Object.keys(facts).length ? facts : null
 }

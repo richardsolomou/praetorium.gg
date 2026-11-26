@@ -40,6 +40,8 @@ export type TextFacts = {
   /** What the text allows a unit's battle choices, as a second Order, and the options it offers by their plural, as Orders. */
   battleChoiceAllowances?: StatedAllowance[]
   offeredOptions?: string[]
+  /** Wargear the text says the unit has rather than one of its models, as a Plasmacyte, which marks out no model as its bearer. */
+  unitHeldWargear?: string[]
   /** Null where the words take no part in combat. */
   combat?: CombatFacts | null
 }
