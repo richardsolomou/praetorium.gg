@@ -84,9 +84,10 @@ export type CanonicalDetachment = {
   name: string
   points: number | null
   dispositions: string[]
-  rules: { name: string; description: string | null }[]
-  enhancements: { name: string; points: number | null; description: string | null }[]
-  upgrades: { name: string; points: number | null; description: string | null }[]
+  /** A card's `vsDataId` is the VS Data ability whose summary it shows, as a published Stratagem's `id` is. */
+  rules: { name: string; description: string | null; vsDataId?: string }[]
+  enhancements: { name: string; points: number | null; description: string | null; vsDataId?: string }[]
+  upgrades: { name: string; points: number | null; description: string | null; vsDataId?: string }[]
   stratagems: {
     id: string
     name: string
@@ -163,6 +164,7 @@ export type CanonicalCatalogue = {
     | 37
     | 38
     | 39
+    | 40
   revisions: Record<string, string>
   datasheets: CanonicalDatasheet[]
   detachments: CanonicalDetachment[]

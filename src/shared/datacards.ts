@@ -35,7 +35,12 @@ export type DatasheetDetails = {
   /** Each ability the card describes in words, by the name it prints, which the server matches to the catalogue's texts. */
   abilities?: RuleCard[]
 }
-export type RuleCard = { name: string; description: string }
+export type RuleCard = {
+  name: string
+  description: string
+  /** The VS Data aliases a detachment rule's card answers to, `gdcDetachmentRuleAlias`. */
+  aliases?: readonly string[]
+}
 /**
  * What a section the cards name and leave empty actually says, by title.
  *
@@ -70,8 +75,6 @@ export type FactionContent = {
   name: string
   attribution?: string
   parentName?: string | null
-  /** The official app's data version the file was written for, which its exports print as "Data Version: v995". */
-  dataVersion?: number
   datasheets: Set<string>
   datasheetDetails: Map<string, DatasheetDetails>
   detachments: Set<string>
@@ -237,11 +240,16 @@ export function factionContent(
     const stratagem = localizedField(entry, 'name')
     if (id && stratagem) stratagemCards.push({ id, name: stratagem, detachment: stringField(entry, 'detachment') ?? null })
   }
-  const detachmentRules = new Map<string, Map<string, Set<string>>>()
+  const detachmentRules = new Map<string, Map<string, { descriptions: Set<string>; aliases: Set<string> }>>()
   for (const entry of detachmentRuleCards(parsed.rules, name, sections, texts)) {
     const key = joinKey(entry.detachment)
-    const cards = detachmentRules.get(key) ?? new Map<string, Set<string>>()
-    for (const rule of entry.rules) cards.set(rule.name, new Set([...(cards.get(rule.name) ?? []), rule.description]))
+    const cards = detachmentRules.get(key) ?? new Map<string, { descriptions: Set<string>; aliases: Set<string> }>()
+    for (const rule of entry.rules) {
+      const card = cards.get(rule.name) ?? { descriptions: new Set<string>(), aliases: new Set<string>() }
+      card.descriptions.add(rule.description)
+      for (const alias of rule.aliases ?? []) card.aliases.add(alias)
+      cards.set(rule.name, card)
+    }
     detachmentRules.set(key, cards)
   }
   // Read from the words themselves: the published army rules carry tokens, and a refusal must not depend on them.
@@ -256,7 +264,6 @@ export function factionContent(
       ? { attribution: parsed.attribution.trim().slice(0, 500) }
       : {}),
     ...(typeof parsed.parent_name === 'string' ? { parentName: parsed.parent_name } : {}),
-    ...(Number.isInteger(parsed.compatibleDataVersion) ? { dataVersion: parsed.compatibleDataVersion as number } : {}),
     datasheets: new Set(datasheets.map(({ name: datasheetName }) => datasheetName)),
     datasheetDetails: datasheetDetailsByName,
     detachments: new Set(records(parsed, 'detachments').flatMap((entry) => localizedField(entry, 'name') ?? [])),
@@ -273,8 +280,10 @@ export function factionContent(
     detachmentRules: new Map(
       [...detachmentRules].map(([detachment, rules]) => [
         detachment,
-        [...rules].flatMap(([rule, descriptions]) =>
-          descriptions.size === 1 ? [{ name: rule, description: descriptions.values().next().value! }] : [],
+        [...rules].flatMap(([rule, { descriptions, aliases }]) =>
+          descriptions.size === 1
+            ? [{ name: rule, description: descriptions.values().next().value!, ...(aliases.size ? { aliases: [...aliases] } : {}) }]
+            : [],
         ),
       ]),
     ),
@@ -386,7 +395,8 @@ export function detachmentRuleCards(
     const cards = records(entry, 'rules').flatMap((card) => {
       const name = localizedField(card, 'name')
       const description = ruleText(card, faction, detachment, sections, texts)
-      return name && description ? [{ name, description }] : []
+      // As `gdcRuleRecords` writes it, a file without detachment ids included.
+      return name && description ? [{ name, description, aliases: [gdcDetachmentRuleAlias(entry.detachment_id, name)] }] : []
     })
     return cards.length ? [{ detachment, rules: cards }] : []
   })
@@ -700,6 +710,21 @@ export function english(value: unknown): string | null {
   const translated = (value as Record<string, unknown>).en
   return typeof translated === 'string' ? translated.trim() || null : null
 }
+
+/** A Game Datacards UUID as VS Data's aliases write it, with dots for dashes. */
+export const gdcAliasId = (id: unknown) => String(id).replaceAll('-', '.')
+/** A name a card prints as VS Data's aliases write it: in lower case, with dots between its words. */
+export const gdcAliasName = (name: unknown) =>
+  (english(name) ?? '')
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean)
+    .join('.')
+/** VS Data's alias of a Game Datacards enhancement or upgrade card. */
+export const gdcEnhancementAlias = (id: unknown) => `gdc.enhancement.${gdcAliasId(id)}`
+/** VS Data's alias of a Game Datacards detachment rule, by its detachment's UUID and its name. */
+export const gdcDetachmentRuleAlias = (detachmentId: unknown, name: unknown) =>
+  `gdc.detachment.rule.${gdcAliasId(detachmentId)}.${gdcAliasName(name)}`
 
 export function localizedField(value: unknown, field: string): string | null {
   if (!value || typeof value !== 'object') return null

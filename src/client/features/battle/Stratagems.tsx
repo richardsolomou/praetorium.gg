@@ -10,9 +10,7 @@ import { type BattleView } from '../../../core/battleView'
 import { stratagemTiming } from '../../../core/reminders'
 import type { Side } from '../../sides'
 import { hiddenNow, stratagemVisibleNow } from './stratagemVisibility'
-import { RuleText } from '../../components/RuleText'
-import { RuleSummaryText } from '../../components/RuleSummaryText'
-import { useReleaseAbilities } from '../../components/UnitFromVsData'
+import { SummaryById } from '../../components/RuleText'
 import { currentStratagemId } from '../../../core/legacyStratagemIds'
 import type { StratagemText } from './MissionCards'
 import { CARD, CARD_NAME, CARD_NAME_LINK, tint } from './battleTints'
@@ -260,8 +258,8 @@ export function StratagemDetails({
   refusal?: string | null
 }) {
   const timing = [written?.type, ...stratagemTiming(stratagem)].filter(Boolean).join(' · ')
-  const release = useReleaseAbilities(written?.catalogueId ?? '', Boolean(written?.catalogueId && !written.description))
-  const summary = release?.[currentStratagemId(stratagem.key)]
+  const unavailable = <p className="mt-2 text-sm text-dim">No description is available for this stratagem.</p>
+
   return (
     <BattleDialogContent size="md">
       <DialogHeader>
@@ -275,12 +273,10 @@ export function StratagemDetails({
         </p>
         {pending ? (
           <Skeleton className="mt-2 h-16 w-full" />
-        ) : written?.description ? (
-          <RuleText text={written.description} rules={written.keywordRules} />
-        ) : summary ? (
-          <RuleSummaryText summary={summary} />
+        ) : written?.catalogueId ? (
+          <SummaryById catalogueId={written.catalogueId} id={currentStratagemId(stratagem.key)} fallback={unavailable} />
         ) : (
-          <p className="mt-2 text-sm text-dim">No description is available for this stratagem.</p>
+          unavailable
         )}
         {refusal ? <p className="mt-2 text-sm text-discarded">{refusal}</p> : null}
       </DialogBody>

@@ -52,6 +52,8 @@ export type LoadedRules = {
   dataslate: string | null
   /** Every spelling the official app gives the names a list holds, which imports read lists written in its languages by. */
   importNames?: ImportNames
+  /** The official app's data build these rules come from, which an import names when a list was exported from older data. */
+  appDataBuild?: number
 }
 export type BattleMissionRules = Pick<LoadedRules, 'missions' | 'fixedSecondaryCaps'>
 export type BattleReadRules = Pick<

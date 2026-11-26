@@ -56,6 +56,8 @@ export type LoadoutChoice = {
     reminder?: ReminderSuggestion
     /** The id of the list's detachment an enhancement or upgrade belongs to, where the price could tell. */
     detachment?: string
+    /** The VS Data ability an enhancement or upgrade is, by the frozen maps, whose summary it shows. */
+    vsDataId?: string
   }[]
 }
 

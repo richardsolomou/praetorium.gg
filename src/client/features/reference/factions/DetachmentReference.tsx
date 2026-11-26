@@ -3,10 +3,10 @@ import { Link } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 import { routeSlug } from '../../../../core/slug'
 import { detachmentDetailQuery } from '../../../queries'
-import { RuleText, SummaryByName } from '../../../components/RuleText'
+import { RuleText, SummaryById } from '../../../components/RuleText'
+import type { KeywordRule } from '../../../components/Keyword'
 import { stratagemWindowsLabel } from '../../../../core/reminders'
-import { DatasheetUnit, detachmentRulesOwner, useReleaseAbilities } from '../../../components/UnitFromVsData'
-import { RuleSummaryText } from '../../../components/RuleSummaryText'
+import { DatasheetUnit, detachmentRulesOwner, useVsDataSummaries } from '../../../components/UnitFromVsData'
 import { dispositionTone } from '../../../components/rosterSetup'
 import { FactionMark, factionColour, type FactionPresentation } from '../../../components/FactionMark'
 import { FavouriteDetachmentToggle } from './FavouriteDetachmentToggle'
@@ -35,8 +35,7 @@ export function DetachmentReference({
   closing?: ReactNode
 }) {
   const { data: detachment, isPending, isError } = useQuery(detachmentDetailQuery(catalogueId, slug))
-  // A Stratagem the build has only in its app prints no text, so its summary is the release's record of its id.
-  const release = useReleaseAbilities(catalogueId, Boolean(detachment?.stratagems.some((stratagem) => !stratagem.description)))
+  const summaryOf = useVsDataSummaries(catalogueId, detachment?.stratagems.map((stratagem) => stratagem.id) ?? [])
   if (isPending)
     return (
       <PageState
@@ -103,11 +102,7 @@ export function DetachmentReference({
                   {detachment.rules.map((rule) => (
                     <article id={`rule-${routeSlug(rule.name)}`} key={rule.name} className="part p-4">
                       <h2 className="text-lg">{rule.name}</h2>
-                      {rule.description ? (
-                        <RuleText text={rule.description} rules={detachment.keywordRules} name={rule.name} />
-                      ) : (
-                        <Unavailable />
-                      )}
+                      <CardSummary card={rule} catalogueId={catalogueId} rules={detachment.keywordRules} />
                     </article>
                   ))}
                 </div>
@@ -124,11 +119,7 @@ export function DetachmentReference({
                       <h2 className="text-base">{enhancement.name}</h2>
                       {enhancement.points === null ? null : <span className="chip shrink-0 text-info">{enhancement.points} pts</span>}
                     </div>
-                    {enhancement.description ? (
-                      <RuleText text={enhancement.description} rules={detachment.keywordRules} name={enhancement.name} />
-                    ) : (
-                      <SummaryByName name={enhancement.name} fallback={<Unavailable />} />
-                    )}
+                    <CardSummary card={enhancement} catalogueId={catalogueId} rules={detachment.keywordRules} />
                   </article>
                 ))}
               </div>
@@ -144,11 +135,7 @@ export function DetachmentReference({
                         <h2 className="text-base">{upgrade.name}</h2>
                         {upgrade.points === null ? null : <span className="chip shrink-0 text-info">{upgrade.points} pts</span>}
                       </div>
-                      {upgrade.description ? (
-                        <RuleText text={upgrade.description} rules={detachment.keywordRules} name={upgrade.name} />
-                      ) : (
-                        <Unavailable />
-                      )}
+                      <CardSummary card={upgrade} catalogueId={catalogueId} rules={detachment.keywordRules} />
                     </article>
                   ))}
                 </div>
@@ -157,7 +144,7 @@ export function DetachmentReference({
 
             <section aria-label="Stratagems">
               <SectionHeading title="Stratagems" count={detachment.stratagems.length} />
-              {detachment.stratagems.some((stratagem) => !stratagem.description && !release?.[stratagem.id]) ? (
+              {detachment.stratagems.some((stratagem) => summaryOf(stratagem.id) === null) ? (
                 <p className="text-sm text-dim">Some stratagem descriptions are not available.</p>
               ) : null}
               <div className="mt-2 grid gap-2 md:grid-cols-2">
@@ -180,11 +167,7 @@ export function DetachmentReference({
                       </div>
                       {stratagem.cp === null ? null : <span className="chip shrink-0">{stratagem.cp} CP</span>}
                     </div>
-                    {stratagem.description ? (
-                      <RuleText text={stratagem.description} rules={detachment.keywordRules} />
-                    ) : release?.[stratagem.id] ? (
-                      <RuleSummaryText summary={release[stratagem.id]!} />
-                    ) : null}
+                    <SummaryById catalogueId={catalogueId} id={stratagem.id} />
                   </article>
                 ))}
               </div>
@@ -202,4 +185,19 @@ function Unavailable() {
   return <p className="mt-2 text-sm text-dim">No description is available.</p>
 }
 
-/** The VS Data summary of a card the build has only in its app, found by its name among the detachment's records. */
+/**
+ * A detachment card's VS Data summary, by its VS Data id; a rule only BSData prints has none, and shows the summary of
+ * the rule its text prints.
+ */
+function CardSummary({
+  card,
+  catalogueId,
+  rules,
+}: {
+  card: { name: string; description: string | null; vsDataId?: string }
+  catalogueId: string
+  rules: KeywordRule[]
+}) {
+  if (card.vsDataId) return <SummaryById catalogueId={catalogueId} id={card.vsDataId} fallback={<Unavailable />} />
+  return card.description ? <RuleText text={card.description} rules={rules} name={card.name} /> : <Unavailable />
+}

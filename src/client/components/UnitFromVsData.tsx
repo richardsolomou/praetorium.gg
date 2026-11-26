@@ -14,8 +14,11 @@ export function useVsDataUnit(catalogueId: string, entryId: string, enabled = tr
   return unitIn(useVsDataUnits(catalogueId, enabled), entryId)
 }
 
-function useVsDataUnits(catalogueId: string, enabled: boolean): VsDataUnits | null | undefined {
-  const { data, isPending } = useQuery({ ...ruleUnitsQuery(catalogueEditionId(catalogueId)), enabled })
+const useVsDataUnits = (catalogueId: string, enabled: boolean) => useEditionUnits(catalogueEditionId(catalogueId), enabled)
+
+/** A rules version's VS Data units and abilities, the current one's where `edition` is null. */
+function useEditionUnits(edition: string | null, enabled: boolean): VsDataUnits | null | undefined {
+  const { data, isPending } = useQuery({ ...ruleUnitsQuery(edition), enabled })
   if (!enabled) return null
   return data ?? (isPending ? undefined : null)
 }
@@ -33,6 +36,8 @@ export const datasheetUnit = (catalogueId: string, entryId: string) => `${catalo
 export const detachmentRulesOwner = (catalogueId: string, factionSlug: string, detachmentSlug: string) =>
   // By the name the rest give a detachment BSData spells otherwise, as its unfinished "Deathwatch Support (ITS NOT READY)".
   `${catalogueId}#@${factionSlug}.${routeSlug(canonicalDetachmentName(detachmentSlug))}`
+/** The catalogue a `DatasheetUnit` owner is in, whose rules version its records are read in. */
+export const ownerCatalogueId = (owner: string) => owner.slice(0, owner.indexOf('#'))
 /** A faction as the owner of its army rules: VS Data names them `<faction>.<name>`. */
 export const factionRulesOwner = (catalogueId: string, factionSlug: string) => `${catalogueId}#@${factionSlug}`
 
@@ -61,12 +66,22 @@ export function useDatasheetAbilitySummary(text: string, name: string | undefine
 }
 
 /**
- * Every ability summary of a rules version's release by VS Data id, as a card the build has only in its app is found by
- * its id, with no printed text to name it by. Undefined while asked for, null where there is none.
+ * The summaries of rules by VS Data id in the rules version `catalogueId` is of, then in the current one, as a rules
+ * version plays a card its own release does not publish as the current release does. Each is undefined while asked for,
+ * null where there is none.
  */
-export function useReleaseAbilities(catalogueId: string, enabled = true): VsDataUnits['abilities'] | null | undefined {
-  const units = useVsDataUnits(catalogueId, enabled)
-  return units === undefined ? undefined : (units?.abilities ?? null)
+export function useVsDataSummaries(catalogueId: string, ids: readonly (string | undefined)[]) {
+  const wanted = ids.filter((id): id is string => Boolean(id))
+  const edition = catalogueEditionId(catalogueId)
+  const own = useEditionUnits(edition, wanted.length > 0)
+  const unpublished = edition !== null && own !== undefined && wanted.some((id) => !own?.abilities[id])
+  const current = useEditionUnits(null, unpublished)
+  return (id: string): RuleSummary | null | undefined => {
+    if (own === undefined) return undefined
+    const summary = own?.abilities[id]
+    if (summary || !unpublished) return summary ?? null
+    return current === undefined ? undefined : (current?.abilities[id] ?? null)
+  }
 }
 
 /** What an invulnerable save applies to, as "Against ranged attacks", or nothing where it applies to every attack. */
