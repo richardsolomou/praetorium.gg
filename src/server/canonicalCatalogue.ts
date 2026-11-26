@@ -34,7 +34,7 @@ import { readRevisions } from './catalogueSources'
 import { mfmUnitFor, vsDataPriced } from '../shared/unitPoints'
 
 export const CANONICAL_CATALOGUE_FORMAT = 'praetorium.canonical-catalogue.v1' as const
-export const CANONICAL_CATALOGUE_COMPILER_VERSION = 37 as const
+export const CANONICAL_CATALOGUE_COMPILER_VERSION = 38 as const
 
 const characteristicSchema = z.object({
   name: z.string(),

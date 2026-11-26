@@ -18,23 +18,29 @@ const ids: VsDataIds = {
 }
 
 /**
- * The current rules version's VS Data prices, from the construction file its release keeps beside its summaries in the
- * snapshot `directory` is; null for an earlier rules version, which keeps its field manual until its own app build's
- * prices are confirmed against it, and where the snapshot has none.
+ * The earlier rules versions whose own VS Data release prices them as the app build in force did, checked unit by unit
+ * against it. `legacy-rosters` (MFM 1.4) and `legacy-profiles` (MFM 1.5 before the Space Marines codex) are not: their
+ * releases read the build after theirs, so they keep their field manual until VS Data reads the right one.
+ */
+const PRICED_EARLIER_VERSIONS = new Set(['legacy-marine-old', 'current-rosters', 'marine-main', 'marine-2026-10-13', 'marine-points-1013'])
+
+/**
+ * A rules version's VS Data prices, from the construction file its own release keeps beside its summaries in the
+ * snapshot `directory` is, or is under for a rules version; null for one that keeps its field manual, and where the
+ * snapshot has none.
  */
 export function vsPointsIn(directory: string, index: CatalogueIndex, editionId?: string): VsPointsIndex | null {
   const root = editionId && path.basename(path.dirname(directory)) === 'editions' ? path.resolve(directory, '..', '..') : directory
   const entry = readCatalogueComposition(root)?.editions.find((candidate) =>
     editionId ? candidate.edition.id === editionId : candidate.base,
   )
-  if (!entry?.base) return null
-  const id = entry?.summaries ?? entry?.edition.id ?? editionId
-  const file = id ? path.join(root, 'summaries', `${id}.construction.json`) : null
-  if (!file || !fs.existsSync(file)) return null
+  if (!entry || !(entry.base || PRICED_EARLIER_VERSIONS.has(entry.edition.id))) return null
+  const file = path.join(root, 'summaries', `${entry.base ? (entry.summaries ?? entry.edition.id) : entry.edition.id}.construction.json`)
+  if (!fs.existsSync(file)) return null
   const definitions = vsDataDefinitions(vsDataConstructionSchema.parse(JSON.parse(fs.readFileSync(file, 'utf8'))))
   const name = (entryId: string) => {
     const definition = index.definitions.get(entryId)
     return definition && nameOf(definition, index.definitions)
   }
-  return vsPointsIndex(definitions, ids, null, name)
+  return vsPointsIndex(definitions, ids, entry.base ? null : entry.edition.id, name)
 }
