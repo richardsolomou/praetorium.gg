@@ -1,5 +1,6 @@
 import { afterEach, expect, it, vi } from 'vitest'
-import { posthogSupportTickets } from './posthogSupport'
+import { createHmac } from 'node:crypto'
+import { posthogSupportInbox, posthogSupportTickets } from './posthogSupport'
 
 const environment = { POSTHOG_SUPPORT_API_KEY: 'phx_test', POSTHOG_HOST: 'https://us.posthog.com', POSTHOG_PROJECT_ID: '548119' }
 const message = (minute: number) => ({
@@ -26,4 +27,40 @@ it('reads every page of a conversation, as its newest messages decide whether to
 
 it('reads nothing where no ticket key is configured', () => {
   expect(posthogSupportTickets({ ...environment, POSTHOG_SUPPORT_API_KEY: '' })).toBeUndefined()
+})
+
+const widget = {
+  POSTHOG_SUPPORT_IDENTITY_SECRET: 'secret',
+  VITE_POSTHOG_PROJECT_TOKEN: 'phc_test',
+  VITE_POSTHOG_HOST: 'https://us.i.posthog.com',
+}
+
+it('opens a conversation as the account the browser proves, so it shows on the player’s Support page', async () => {
+  const sent: { url: string; token: string | null; body: unknown }[] = []
+  vi.stubGlobal('fetch', async (url: URL, init?: RequestInit) => {
+    if (url.href === 'https://us-assets.i.posthog.com/array/phc_test/config')
+      return Response.json({ conversations: { enabled: true, token: 'conversations-token' } })
+    sent.push({ url: url.href, token: new Headers(init?.headers).get('X-Conversations-Token'), body: JSON.parse(init?.body as string) })
+    return Response.json({ ticket_id: 't-1' })
+  })
+
+  await posthogSupportInbox(widget)!.start('user-1', 'Rule missing')
+
+  expect(sent).toEqual([
+    {
+      url: 'https://us.i.posthog.com/api/conversations/v1/widget/message',
+      token: 'conversations-token',
+      body: expect.objectContaining({
+        message: 'Rule missing',
+        ticket_id: null,
+        distinct_id: 'user-1',
+        identity_distinct_id: 'user-1',
+        identity_hash: createHmac('sha256', 'secret').update('user-1').digest('hex'),
+      }),
+    },
+  ])
+})
+
+it('reaches no Support inbox where this instance proves no identities', () => {
+  expect(posthogSupportInbox({ ...widget, POSTHOG_SUPPORT_IDENTITY_SECRET: '' })).toBeUndefined()
 })
