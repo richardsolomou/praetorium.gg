@@ -180,7 +180,7 @@ export function combatAttackInput(
 
 /** Each weapon profile the attacker carries in a phase, resolved alone by every model carrying it. */
 export function combatWeaponInputs(
-  attacker: CombatAttacker,
+  member: CombatAttacker,
   defender: CombatOpponent,
   phase: CombatPhase,
   target: CombatInput['target'],
@@ -188,6 +188,7 @@ export function combatWeaponInputs(
   adjustment: WeaponAdjustment,
   preferences: Readonly<Record<string, string>> = {},
 ) {
+  const attacker = withBearerEffects(member)
   const sheet = combatRuleProfiles(attacker.sheet, attacker.rules ?? [], 'attacker', defender.keywords, defender.rules)
   const { chosen } = resolveShootingType(
     [{ sheet, carriers: attacker.carriers }, ...(attacker.companions ?? [])],
