@@ -61,7 +61,10 @@ type Outcome = { outcome: 'translated' | 'ambiguous' | 'unmatched'; reason: stri
 /** The most selections one connected part of a unit's wargear may take, and the search steps it may spend finding them. */
 const MOST = 24
 const STEPS = 400_000
-/** How many equally few selections a part, and a whole unit, are told apart from before the pick counts as ambiguous. */
+/**
+ * How many equally few answers a part keeps, in option then wargear ID order, and a unit combines (squared): past either,
+ * the pick is ambiguous, since a dropped answer could be as good as a kept one.
+ */
 const KEPT = 64
 
 const add = (bag: Bag, key: string, n: number) => {
@@ -132,8 +135,8 @@ function movesOf(unit: string, defaults: Selections): Move[] {
 }
 
 /**
- * The fewest selections giving `target`, solved for each part of the wargear no selection connects to another, as every
- * equally few answer for each part, then a few more if those fail: null where the steps run out.
+ * The fewest selections giving `target`, solved for each part of the wargear no selection connects to another, as `solve`
+ * gives them for each part.
  */
 function partsOf(all: readonly Move[], target: ReadonlyMap<string, number>) {
   let moves = all
@@ -169,7 +172,11 @@ function partsOf(all: readonly Move[], target: ReadonlyMap<string, number>) {
   return parts.map(({ target: wanted, moves: own }) => solve(own, wanted))
 }
 
-/** Every equally few multiset of `moves` giving `target`, by size from the fewest, up to two sizes; null past the steps. */
+/**
+ * Every equally few multiset of `moves` giving `target`, by size from the fewest, up to two sizes, and whether `KEPT`
+ * cut a size short. No sizes where some item no move changes the way it needs, so none ever can; null where the steps
+ * or `MOST` run out first.
+ */
 function solve(moves: readonly Move[], target: ReadonlyMap<string, number>) {
   const reach = (from: number, sign: number) => {
     const most = new Map<string, number>()
@@ -179,12 +186,18 @@ function solve(moves: readonly Move[], target: ReadonlyMap<string, number>) {
   }
   const gains = moves.map((_, at) => reach(at, 1))
   const losses = moves.map((_, at) => reach(at, -1))
+  if ([...target].some(([key, n]) => !((n > 0 ? gains[0] : losses[0])?.has(key) ?? false))) return { levels: [], cut: false }
   let steps = STEPS
+  let cut = false
   const found: Selections[][] = []
   for (let size = 1; size <= MOST && found.length < 2; size++) {
     const level: Selections[] = []
     const walk = (at: number, rest: Bag, left: number, counts: number[]) => {
-      if (steps-- < 0 || level.length >= KEPT) return
+      if (steps-- < 0) return
+      if (level.length >= KEPT) {
+        cut = true
+        return
+      }
       if (!rest.size) {
         if (left) return
         const selections: Selections = {}
@@ -209,7 +222,7 @@ function solve(moves: readonly Move[], target: ReadonlyMap<string, number>) {
     if (steps < 0) return null
     if (level.length || found.length) found.push(level)
   }
-  return found
+  return found.length ? { levels: found, cut } : null
 }
 
 /** The pick read through the per-choice map, as the reader rule gives it: null where a key or the base is unmatched. */
@@ -392,49 +405,61 @@ for (const saved of await savedLists(listFile)) {
         return bag.size === target.size && [...bag].every(([item, n]) => target.get(item) === n)
       }
       const guess = !guessed ? 'map-unmatched' : !gives(guessed) ? 'map-differs' : !valid(guessed) ? 'map-refused' : 'map-equal'
+      // Wargear no VS Data selection of the unit adds, before any search.
+      if ([...delta].some(([item, n]) => n > 0 && !known.has(item))) return { outcome: 'unmatched', reason: 'wargear-vs-data-lacks', guess }
       const parts = delta.size ? partsOf(movesOf(unit, defaults), delta) : []
       if (parts.some((part) => part === null)) return { outcome: 'unmatched', reason: 'search-limit', guess }
-      if (parts.some((part) => !part!.length)) {
-        // Wargear no VS Data selection of the unit adds, against wargear its selections only fail to sum to.
-        const lacking = [...delta].some(([item, n]) => n > 0 && !known.has(item))
-        return { outcome: 'unmatched', reason: lacking ? 'wargear-vs-data-lacks' : 'no-equal-wargear', guess }
-      }
-      // The fewest selections in all, a part at a time a size larger where none of the fewest is valid.
-      const levels = [parts.map(() => 0), ...parts.map((_, at) => parts.map((__, other) => Number(other === at)))]
-      for (const level of levels) {
-        if (level.some((extra, at) => !parts[at]![extra])) continue
-        let combos: Selections[] = [{}]
-        for (const [at, part] of parts.entries())
-          combos = combos.flatMap((combo) => part![level[at]!]!.map((selections) => joined(combo, selections))).slice(0, KEPT * KEPT)
+      if (parts.some((part) => !part!.levels.length)) return { outcome: 'unmatched', reason: 'no-equal-wargear', guess }
+      // The fewest selections in all; where none is valid, every way of taking one part a size larger, together.
+      const tiers = [[parts.map(() => 0)], parts.map((_, at) => parts.map((__, other) => Number(other === at)))]
+      for (const [tier, levels] of tiers.entries()) {
         const accepted = new Map<string, Selections>()
-        for (const combo of combos) if (valid(combo)) accepted.set(sorted(combo), combo)
+        let cut = false
+        for (const level of levels) {
+          if (level.some((extra, at) => !parts[at]!.levels[extra])) continue
+          cut ||= parts.some((part) => part!.cut)
+          let combos: Selections[] = [{}]
+          for (const [at, part] of parts.entries()) {
+            combos = combos.flatMap((combo) => part!.levels[level[at]!]!.map((selections) => joined(combo, selections)))
+            if (combos.length > KEPT * KEPT) {
+              combos = combos.slice(0, KEPT * KEPT)
+              cut = true
+            }
+          }
+          for (const combo of combos) if (valid(combo)) accepted.set(sorted(combo), combo)
+        }
         if (!accepted.size) continue
-        let reason = level.some(Boolean) ? 'longer-valid' : 'fewest'
+        // A capped search may have left out an answer as good as the ones it kept.
+        if (cut) return { outcome: 'ambiguous', reason: 'search-cap', guess }
+        let reason = tier ? 'longer-valid' : 'fewest'
         let kept = [...accepted.values()]
+        // Each kind of model must hold at least the copies of an item BSData's models of that kind carry; copies no one
+        // kind holds may go anywhere.
+        const bs = bsByKind(built.selection, loaded.index, unit, (name) =>
+          specials.has(wargearKey(name)) ? null : vsSpelling(name, known),
+        )
+        const count = (kinds: Map<string, Bag>, kind: string, key: string) => kinds.get(kind)?.get(key) ?? 0
+        const placed = (kinds: Map<string, Bag>, entries: readonly [string, string][]) =>
+          entries.every(([kind, key]) => count(kinds, kind, key) >= count(bs, kind, key))
+        const each = kept.map((selections) => vsByKind(unit, models, joined(defaults, selections)))
         // Ties go to the selections that put each item they disagree on where the BSData unit's models carry it.
         if (kept.length > 1) {
-          const bs = bsByKind(built.selection, loaded.index, unit, (name) =>
-            specials.has(wargearKey(name)) ? null : vsSpelling(name, known),
-          )
-          const each = kept.map((selections) => vsByKind(unit, models, joined(defaults, selections)))
-          const count = (kinds: Map<string, Bag>, kind: string, key: string) => kinds.get(kind)?.get(key) ?? 0
           const entries = new Set(
             each.flatMap((kinds) => [...kinds].flatMap(([kind, bag]) => [...bag.keys()].map((key) => `${kind}\u0000${key}`))),
           )
-          // An item some BSData model holds without naming one VS Data kind tells nothing about where it goes.
-          const unplaced = new Set([...(bs.get('')?.keys() ?? [])])
           const disputed = [...entries]
             .map((entry) => entry.split('\u0000') as [string, string])
-            .filter(([kind, key]) => !unplaced.has(key) && new Set(each.map((kinds) => count(kinds, kind, key))).size > 1)
-          if (disputed.length)
-            kept = kept.filter((_, at) => disputed.every(([kind, key]) => count(each[at]!, kind, key) === count(bs, kind, key)))
+            .filter(([kind, key]) => kind && new Set(each.map((kinds) => count(kinds, kind, key))).size > 1)
+          kept = kept.filter((_, at) => placed(each[at]!, disputed))
           reason = kept.length === 1 ? 'tie-placed' : kept.length ? 'tie-placed-alike' : 'tie-placed-elsewhere'
         }
         const [only] = kept
-        const agrees = guessed && only && sorted(guessed) === sorted(only) ? ', agrees' : ''
-        return kept.length === 1
-          ? { outcome: 'translated', reason, selections: only!, guess: guess + agrees }
-          : { outcome: 'ambiguous', reason, guess }
+        if (kept.length !== 1) return { outcome: 'ambiguous', reason, guess }
+        const agrees = guessed && sorted(guessed) === sorted(only!) ? ', agrees' : ''
+        // Whether it also puts every item where BSData's models carry it, which the final freeze should look at where not.
+        const everywhere = [...bs].flatMap(([kind, bag]) => (kind ? [...bag.keys()].map((key) => [kind, key] as [string, string]) : []))
+        const where = placed(vsByKind(unit, models, joined(defaults, only!)), everywhere) ? '' : ', placed elsewhere'
+        return { outcome: 'translated', reason: reason + where, selections: only!, guess: guess + agrees }
       }
       return { outcome: 'unmatched', reason: 'refused-by-checker', guess }
     }
