@@ -7,6 +7,11 @@ import { costRowFor, pointsAt, type PointsRef, unitCostRows } from './vsDataPoin
  */
 export type VsRosterUnit = {
   unit: string
+  /**
+   * The unit's model count where its models and wargear are not read into VS Data's: only its size is checked then, as
+   * when the catalogue still builds the unit.
+   */
+  size?: number
   models?: Record<string, number>
   options?: Record<string, Record<string, number>>
   enhancement?: string
@@ -419,7 +424,9 @@ export function checkVsRoster(definitions: VsDataDefinitions, roster: VsRoster, 
           add('warlord-required', `${detachment.name} needs one of ${required.map((m) => `model:${m}`).join(', ')} as warlord`)
       }
     }
-    checkVsUnit(definitions, picked, add)
+    if (picked.size === undefined || picked.models) checkVsUnit(definitions, picked, add)
+    else if (!unit.data.sizes.includes(picked.size))
+      add('unit-size', `${unit.name} fields ${unit.data.sizes.join(' or ')} models, has ${picked.size}`)
 
     const offers = (unit.data.allegiances ?? []).filter((offer) => !offer.detachment || detachmentIds.includes(offer.detachment))
     if (picked.allegiance === undefined) {

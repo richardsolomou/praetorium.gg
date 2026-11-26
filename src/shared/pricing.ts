@@ -52,6 +52,7 @@ import {
 } from './unitPoints'
 import { isUpgrade, mfmDetachmentFor, withoutUpgrade } from './mfm'
 import { deploymentRules } from './rosterDeployment'
+import { vsDataEnhancementOptions, vsDataErrors } from './vsDataLegality'
 import { combatFactsIn, grantsReserveExemptionIn, reminderIn, reserveSelectorsIn } from './textFacts'
 import { heldWargear, replacementKey, type ReplacementSource } from './heldWargear'
 import { factionRestrictionViolations, isCatalogueSelfContradiction, kotcViolations, warlordCountProblem } from './formatRestrictions'
@@ -689,10 +690,20 @@ function calculateRoster(
    */
   const enhancementsAllowed = enhancementLimit(loaded.index, forces, options)
   const enhancementsHeld = whole.costs[ENHANCEMENT_COST] ?? 0
+  // VS Data checks the army as a whole where it records the list's book and Detachments; the catalogue's own roster
+  // limits then stand only for the datasheets VS Data leaves to it.
+  const vsData = vsDataErrors(loaded.vsRoster, data, picked)
+  const leftToCatalogue = new Set(picked.filter((unit) => !loaded.vsRoster?.units[unit.entryId]).map((unit) => unit.name))
+  const enhancementOptions = vsData ? vsDataEnhancementOptions(loaded.vsRoster, data.detachmentIds) : new Set<string>()
+  const rosterLimitReplaced = (error: { entryId: string; entryName: string }) =>
+    vsData !== null &&
+    ((loaded.index.categories.has(error.entryId) && !leftToCatalogue.has(error.entryName)) || enhancementOptions.has(error.entryId))
   const reported = [
     ...savedSelectionErrors(data, picked, loaded),
     ...changedCountErrors(data, picked, loaded, roster, unitCache ?? sharedBuiltUnitsFor(loaded)),
-    ...whole.errors.filter((error) => !isDetachmentWrapperLimit(error, chosen.length) && !selfContradictory.has(error)),
+    ...whole.errors.filter(
+      (error) => !isDetachmentWrapperLimit(error, chosen.length) && !selfContradictory.has(error) && !rosterLimitReplaced(error),
+    ),
     ...attachmentErrors(
       data.units,
       loaded.index,
@@ -702,13 +713,13 @@ function calculateRoster(
         return unit ? keywordNamesOf(unit) : undefined
       }),
     ),
-    ...factionRestrictionViolations(restrictions, constructionUnits),
+    ...(vsData ?? factionRestrictionViolations(restrictions, constructionUnits)),
     ...(isKotcLimit(data.limit) ? kotcViolations(chosen.length, constructionUnits, data.limit, data.waivedRules ?? []) : []),
     ...(!isKotcLimit(data.limit) && enforces(data.waivedRules, 'warlord') ? armyWarlordErrors(picked) : []),
-    ...detachmentLockErrors(loaded, data, picked, roster),
+    ...(vsData ? [] : detachmentLockErrors(loaded, data, picked, roster)),
     ...pointCaps.errors,
     ...enhancementsPerUnitErrors,
-    ...(enhancementsAllowed !== null && enhancementsHeld > enhancementsAllowed
+    ...(vsData === null && enhancementsAllowed !== null && enhancementsHeld > enhancementsAllowed
       ? [
           {
             entryId: 'enhancements',

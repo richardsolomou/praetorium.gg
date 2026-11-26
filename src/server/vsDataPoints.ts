@@ -6,8 +6,9 @@ import rawEnhancements from '../../catalogue/legacy-ids/enhancements.json' with 
 import rawUnits from '../../catalogue/legacy-ids/units.json' with { type: 'json' }
 import { type CatalogueIndex, nameOf } from '../core/catalogue'
 import { legacyIdsSchema } from '../core/legacyIds'
-import { vsDataConstructionSchema, vsDataDefinitions } from '../core/vsDataConstruction'
+import { type VsDataConstruction, vsDataConstructionSchema, vsDataDefinitions } from '../core/vsDataConstruction'
 import { type VsDataIds, type VsPointsIndex, vsPointsIndex } from '../shared/vsDataPoints'
+import { type VsRosterData, vsRosterData } from '../shared/vsDataLegality'
 import { readCatalogueComposition } from './catalogueComposition'
 
 const ids: VsDataIds = {
@@ -23,18 +24,71 @@ const ids: VsDataIds = {
  * prices are confirmed against it, and where the snapshot has none.
  */
 export function vsPointsIn(directory: string, index: CatalogueIndex, editionId?: string): VsPointsIndex | null {
-  const root = editionId && path.basename(path.dirname(directory)) === 'editions' ? path.resolve(directory, '..', '..') : directory
-  const entry = readCatalogueComposition(root)?.editions.find((candidate) =>
-    editionId ? candidate.edition.id === editionId : candidate.base,
-  )
-  if (!entry?.base) return null
-  const id = entry?.summaries ?? entry?.edition.id ?? editionId
-  const file = id ? path.join(root, 'summaries', `${id}.construction.json`) : null
-  if (!file || !fs.existsSync(file)) return null
-  const definitions = vsDataDefinitions(vsDataConstructionSchema.parse(JSON.parse(fs.readFileSync(file, 'utf8'))))
+  const construction = constructionIn(directory, editionId)
+  if (!construction) return null
+  const definitions = vsDataDefinitions(construction)
   const name = (entryId: string) => {
     const definition = index.definitions.get(entryId)
     return definition && nameOf(definition, index.definitions)
   }
   return vsPointsIndex(definitions, ids, null, name)
+}
+
+/**
+ * The current rules version's construction file, read from the snapshot `directory` is, or is under for a rules version;
+ * null for an earlier rules version, which keeps the catalogue's prices and checks until its own are confirmed against it.
+ */
+function constructionIn(directory: string, editionId?: string): VsDataConstruction | null {
+  const root = editionId && path.basename(path.dirname(directory)) === 'editions' ? path.resolve(directory, '..', '..') : directory
+  const entry = readCatalogueComposition(root)?.editions.find((candidate) =>
+    editionId ? candidate.edition.id === editionId : candidate.base,
+  )
+  if (!entry?.base) return null
+  const id = entry.summaries ?? entry.edition.id
+  const file = path.join(root, 'summaries', `${id}.construction.json`)
+  return fs.existsSync(file) ? vsDataConstructionSchema.parse(JSON.parse(fs.readFileSync(file, 'utf8'))) : null
+}
+
+/** What VS Data's checker reads of a roster beyond its units' wargear: everything but options, wargear and points. */
+const ROSTER_KINDS = ['faction', 'battle-size', 'detachment', 'enhancement', 'unit', 'model', 'allegiance']
+
+/** The current rules version's roster definitions, as VS Data's checker reads a list whose wargear the catalogue builds. */
+export function vsRosterDefinitionsIn(directory: string, index: CatalogueIndex, editionId?: string): VsRosterData | null {
+  const construction = constructionIn(directory, editionId)
+  if (!construction) return null
+  const strip = (kind: string, data: Record<string, unknown>) => {
+    if (kind === 'model')
+      return { unit: data.unit, min: data.min, max: data.max, ...(data.bySize ? { bySize: data.bySize } : {}), wargear: {} }
+    if (kind !== 'unit') return data
+    const {
+      wargear: _wargear,
+      defaults: _defaults,
+      optionGroups: _groups,
+      compositions: _compositions,
+      modelGroups: _modelGroups,
+      ...kept
+    } = data
+    return kept
+  }
+  const pruned: VsDataConstruction = {
+    release: construction.release,
+    rulesVersion: construction.rulesVersion,
+    unavailable: construction.unavailable,
+    points: [],
+    definitions: Object.fromEntries(
+      ROSTER_KINDS.map((kind) => [
+        kind,
+        Object.fromEntries(
+          Object.entries(construction.definitions[kind] ?? {}).map(([id, record]) => [
+            id,
+            { name: record.name, data: strip(kind, record.data) },
+          ]),
+        ),
+      ]),
+    ),
+  }
+  return vsRosterData(pruned, ids, null, (entryId) => {
+    const definition = index.definitions.get(entryId)
+    return definition && nameOf(definition, index.definitions)
+  })
 }
