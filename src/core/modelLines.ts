@@ -25,7 +25,12 @@ const perModel = (carrier: CombatCarrier) =>
  * (a Chaos icon, a Vexilla), splits its bearers off, as the data does itself for a vox-caster. Two such pieces
  * stay unsplit: nothing says whether one model carries both.
  */
-export function modelLineDrafts(carriers: readonly CombatCarrier[], wargear: readonly { name: string; count: number }[]): ModelLineDraft[] {
+export function modelLineDrafts(
+  carriers: readonly CombatCarrier[],
+  wargear: readonly { name: string; count: number }[],
+  /** The `wargearKey`s of what the card says the unit has rather than a model (`unitHeldWargearIn`), which split off no bearer. */
+  unitHeld: ReadonlySet<string> = new Set(),
+): ModelLineDraft[] {
   const drafts: (ModelLineDraft & { key: string })[] = []
   carriers.forEach((carrier, at) => {
     if (carrier.unitWide || carrier.models <= 0) return
@@ -50,12 +55,28 @@ export function modelLineDrafts(carriers: readonly CombatCarrier[], wargear: rea
     }
   })
   const lines = drafts.map(({ key: _key, ...draft }) => draft)
-  return named(lines.length === 1 ? bearersApart(lines[0]!, carriers, wargear) : lines, wargear)
+  return named(lines.length === 1 ? bearersApart(lines[0]!, carriers, wargear, unitHeld) : lines, wargear)
 }
 
-function bearersApart(only: ModelLineDraft, carriers: readonly CombatCarrier[], wargear: readonly { name: string; count: number }[]) {
+/**
+ * The wargear a card says the unit has, as "this unit can have 1 Plasmacyte", rather than a model it equips: no model is
+ * its bearer, unlike "1 model can be equipped with 1 Chaos icon".
+ */
+export function unitHeldWargearIn(words: string): string[] {
+  return [...words.matchAll(/\bthis unit can have (?:\d+|an?|one) ([^.,;]+?)\s*(?:[.,;]|$)/gi)].map((match) => match[1]!.trim())
+}
+
+function bearersApart(
+  only: ModelLineDraft,
+  carriers: readonly CombatCarrier[],
+  wargear: readonly { name: string; count: number }[],
+  unitHeld: ReadonlySet<string>,
+) {
   const carried = new Set(carriers.flatMap((carrier) => carrier.weapons.map((weapon) => wargearKey(weapon.name))))
-  const extras = wargear.filter((piece) => !carried.has(wargearKey(piece.name)) && piece.count > 0 && piece.count < only.models)
+  const extras = wargear.filter(
+    (piece) =>
+      !carried.has(wargearKey(piece.name)) && !unitHeld.has(wargearKey(piece.name)) && piece.count > 0 && piece.count < only.models,
+  )
   if (extras.length !== 1 || only.wargear.some((piece) => piece.count % only.models !== 0)) return [only]
   const [extra] = extras as [{ name: string; count: number }]
   const share = (models: number) => only.wargear.map((piece) => ({ name: piece.name, count: (piece.count / only.models) * models }))

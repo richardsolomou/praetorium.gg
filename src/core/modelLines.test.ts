@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { modelLineDrafts } from './modelLines'
+import { modelLineDrafts, unitHeldWargearIn } from './modelLines'
+import { wargearKey } from './wargearNames'
 import { lineSurvivors } from './combatSurvivors'
 
 const lines = (drafts: ReturnType<typeof modelLineDrafts>) => drafts.map((draft) => `${draft.name}×${draft.models}`)
@@ -84,6 +85,35 @@ describe('model lines', () => {
     ]
     const tether = modelLineDrafts(carriers, [{ name: 'Enhanced data-tether', count: 1 }])[1]
     expect(tether?.name).toBe('Enhanced data-tether')
+  })
+
+  it('keep wargear the unit holds with every model, splitting off no bearer', () => {
+    const carriers = [{ name: 'Ophydian Destroyer', models: 3, weapons: [{ name: 'Ophydian hyperphase weapons', count: 3 }] }]
+    const wargear = [
+      { name: 'Ophydian hyperphase weapons', count: 3 },
+      { name: 'Plasmacyte', count: 1 },
+    ]
+    expect(lines(modelLineDrafts(carriers, wargear, new Set([wargearKey('Plasmacyte')])))).toEqual(['Ophydian Destroyer×3'])
+  })
+
+  it('read the wargear a card says the unit has', () =>
+    expect(unitHeldWargearIn('For every 3 models in this unit, this unit can have 1 Plasmacyte.')).toEqual(['Plasmacyte']))
+
+  it('read no unit wargear from a piece a model carries', () =>
+    expect(unitHeldWargearIn('1 Legionary can be equipped with 1 Chaos icon.')).toEqual([]))
+
+  it('read no unit wargear from the Leader units a Bodyguard can have', () =>
+    expect(unitHeldWargearIn('This unit can have up to two Leader units attached to it.')).toEqual([]))
+
+  it('field survivors of a battle saved without a line for unit wargear', () => {
+    const carriers = [{ name: 'Ophydian Destroyer', models: 3, weapons: [{ name: 'Ophydian hyperphase weapons', count: 3 }] }]
+    const wargear = [
+      { name: 'Ophydian hyperphase weapons', count: 3 },
+      { name: 'Plasmacyte', count: 1 },
+    ]
+    expect(
+      lineSurvivors(carriers, wargear, [{ name: 'Ophydian Destroyer', models: 3, alive: 2 }])?.map((carrier) => carrier.models),
+    ).toEqual([2])
   })
 
   it('field survivors of a merged line from the carriers it spans', () => {

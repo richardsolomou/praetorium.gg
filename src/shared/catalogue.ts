@@ -32,7 +32,8 @@ import { wargearOf } from '../core/wargear'
 import { wargearKey } from '../core/wargearNames'
 import { carrierModelProfiles, type CombatCarrier, combatCarriers, referenceOnlyWeapon } from '../core/combatLoadout'
 import type { ModelLine } from '../core/battle'
-import { modelLineDrafts } from '../core/modelLines'
+import { modelLineDrafts, unitHeldWargearIn } from '../core/modelLines'
+import { readText, type TextFactsByKey } from '../core/textFacts'
 import { MODEL_LINES_MAX } from '../core/commands'
 import { ruleReferenceMatches, splitWeaponKeywords } from '../core/ruleReference'
 import { routeSlug } from '../core/slug'
@@ -88,6 +89,14 @@ export function woundsOf(profiles: readonly { type: string; values: readonly { n
   return values.size === 1 ? [...values][0]! : null
 }
 
+/** The wargear a datasheet's options say the unit has rather than a model, by `wargearKey`. */
+function unitHeldWargear(sheet: Datasheet | null, facts: TextFactsByKey | undefined) {
+  const named = (sheet?.wargearOptions ?? []).flatMap((option) =>
+    readText(option, facts, unitHeldWargearIn, (recorded) => recorded.unitHeldWargear ?? []),
+  )
+  return new Set(named.map((name) => wargearKey(name)))
+}
+
 /**
  * A unit's models by what they are and carry, which a battle names its casualties by.
  *
@@ -101,8 +110,9 @@ export function modelLinesOf(
   wargear: readonly { name: string; count: number }[],
   models: number,
   sheet: Datasheet | null,
+  facts?: TextFactsByKey,
 ): ModelLine[] | undefined {
-  const lines = modelLineDrafts(carriers, wargear)
+  const lines = modelLineDrafts(carriers, wargear, unitHeldWargear(sheet, facts))
   if (lines.length < 2 || lines.length > MODEL_LINES_MAX || lines.reduce((total, line) => total + line.models, 0) !== models)
     return undefined
   const profiles = sheet?.profiles.filter((profile) => profile.type.toLowerCase() === 'unit') ?? []
