@@ -41,7 +41,7 @@ vi.mock('./referenceCorpus', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./referenceCorpus')>()),
   referenceCorpusCooperatively: () => (state.available ? corpus : null),
 }))
-vi.mock('./servedVsData', () => ({ servedVsDataSummaries: async () => null }))
+vi.mock('./servedVsData', () => ({ servedVsDataSummaries: async () => null, answerRuleSummary: async () => () => null }))
 vi.mock('./app', () => ({
   app: () => ({
     searchIndexFor: async () => null,

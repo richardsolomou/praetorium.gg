@@ -1,6 +1,6 @@
 import { hash } from 'node:crypto'
 import { withTextPointers, withoutText } from '../core/sourceText'
-import { publishedTextLocations, textHomeOf } from './publishedTextFiles'
+import { publishedTextLocations } from './publishedTextFiles'
 import { REFERENCE_KINDS, type ReferenceDocument, type ReferenceKind } from '../contracts/reference'
 import { app } from './app'
 import {
@@ -38,14 +38,8 @@ import { fixedWindowRateLimit } from './rateLimit'
 import { catalogueEditionId } from '../core/catalogueEdition'
 import { datasheetPageBySlug } from '../core/datasheetSlug'
 import { currentFactionIdsOf } from '../shared/factionReferences'
-import { servedVsDataSummaries } from './servedVsData'
-import {
-  datasheetWithSummaries,
-  detachmentWithSummaries,
-  printedRuleSummary,
-  ruleSummaryFinder,
-  sectionWithSummaries,
-} from './referenceSummaries'
+import { answerRuleSummary, servedVsDataSummaries } from './servedVsData'
+import { datasheetWithSummaries, detachmentWithSummaries, sectionWithSummaries } from './referenceSummaries'
 
 export const referenceRateLimit = fixedWindowRateLimit('too many reference requests', 120)
 const unitsRateLimit = fixedWindowRateLimit('too many reference requests', 60)
@@ -356,8 +350,8 @@ export function parseReferenceSearch(url: URL): ReferenceSearchInput | { error: 
 
 async function referenceResponse(request: Request, revision: string, key: string, published: unknown, withTokens: string) {
   // Programs get facts and Praetorium's summaries, or where withheld rules text lives upstream, never the words.
-  const [locations, summaries, homeOf] = await Promise.all([publishedTextLocations(), servedVsDataSummaries(), textHomeOf()])
-  const data = withTextPointers(published, locations, printedRuleSummary(ruleSummaryFinder(summaries, { homeOf, files: locations.files })))
+  const locations = await publishedTextLocations()
+  const data = withTextPointers(published, locations, await answerRuleSummary(published, locations))
   const markdown = withoutText(withTokens)
   // A query parameter as well as the header, so a plain link can name the Markdown representation.
   const asMarkdown =

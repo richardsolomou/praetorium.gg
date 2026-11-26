@@ -1,8 +1,7 @@
 import { z } from 'zod'
 import { withTextPointers, withoutTexts } from '../core/sourceText'
-import { publishedTextLocations, textHomeOf } from './publishedTextFiles'
-import { printedRuleSummary, ruleSummaryFinder } from './referenceSummaries'
-import { servedVsDataSummaries } from './servedVsData'
+import { publishedTextLocations } from './publishedTextFiles'
+import { answerRuleSummary } from './servedVsData'
 import { absoluteAgentLinks, absoluteAgentText, rewriteJsonText } from './agentLinks'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import type { CallToolResult, ToolAnnotations } from '@modelcontextprotocol/sdk/types.js'
@@ -36,8 +35,8 @@ type RegisteredTool = {
  * JSON text mirrors the structured answer, so it gets the same; any other text only loses its tokens.
  */
 async function published(result: CallToolResult): Promise<CallToolResult> {
-  const [locations, summaries, homeOf] = await Promise.all([publishedTextLocations(), servedVsDataSummaries(), textHomeOf()])
-  const summaryOf = printedRuleSummary(ruleSummaryFinder(summaries, { homeOf, files: locations.files }))
+  const locations = await publishedTextLocations()
+  const summaryOf = await answerRuleSummary(result, locations)
   const publish = <T>(value: T) => withTextPointers(value, locations, summaryOf)
   return {
     ...result,
