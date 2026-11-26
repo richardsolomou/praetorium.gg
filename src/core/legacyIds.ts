@@ -7,6 +7,26 @@ import rawMissions from '../../catalogue/legacy-ids/missions.json' with { type: 
  */
 export const legacyIdsSchema = z.object({ format: z.literal('praetorium.legacy-ids.v1'), ids: z.record(z.string(), z.string()) })
 
+/**
+ * A frozen map from each choice a saved pick holds (`<choice key>|<option ID>` on a BSData datasheet entry) to the VS
+ * Data selections it stands for, or the allegiance it takes. A choice no selection reproduces is listed in `unmatched`.
+ * Choices are only added; a mapped one never changes.
+ */
+export const legacyOptionsSchema = z.object({
+  format: z.literal('praetorium.legacy-options.v1'),
+  units: z.record(
+    z.string(),
+    z.object({
+      unit: z.string(),
+      choices: z.record(
+        z.string(),
+        z.union([z.object({ options: z.record(z.string(), z.record(z.string(), z.number())) }), z.object({ allegiance: z.string() })]),
+      ),
+      unmatched: z.array(z.string()),
+    }),
+  ),
+})
+
 export const legacyIds = (raw: unknown) => {
   const ids = new Map(Object.entries(legacyIdsSchema.parse(raw).ids))
   return (id: string) => ids.get(id) ?? id

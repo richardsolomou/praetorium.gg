@@ -58,6 +58,8 @@ A release holds this bar, which only goes up:
 
 `catalogue/legacy-ids/{books,detachments,units,enhancements}.json` give the VS Data ID of each book, Detachment, datasheet and Enhancement ID a saved list can hold, and only grow: `scripts/freezeRosterIds.ts <catalogue directory> <unpacked releases, one directory per rules version>` adds what a new snapshot or release names and refuses to move a frozen ID. Read a list's IDs once its rules version is known (`currentRosterIds`): a key is `<rules version>~<ID>` where a retained rules version reads the ID otherwise, else the ID itself, and an Enhancement's key is `<VS Data Detachment>/<option ID>`, since one entry serves Detachments VS Data records apart. Books map by hand, Detachments and Enhancements by name within their faction with the script's reviewed spellings, datasheets by VS Data's `bsdata.*` aliases, else by exact name, and retired IDs through the retired-ID, migration and retained-version aliases.
 
+`catalogue/legacy-ids/options.json` gives, for each datasheet entry a saved list can hold, the VS Data selections each of its choices (`<choice key>|<option ID>`) stands for, or the `allegiance` it takes (`legacyOptionsSchema` in `src/core/legacyIds.ts`). `scripts/freezeRosterOptions.ts <catalogue directory> <unpacked releases>` derives them from the catalogue alone: a choice maps to the fewest VS Data selections whose wargear changes equal what the choice changes on the BSData-built unit. A choice none reproduces is listed under `unmatched`, never approximated. Like the other maps it only grows: a mapped choice never changes, and a run that would change one stops.
+
 ## Roster migration
 
 Before changing sources or saved-selection construction, baseline production rosters:
