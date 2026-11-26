@@ -16,7 +16,7 @@ import { uniqueBy } from './collections'
 import { adjustCombatTarget, combineAttackAdjustments, combineWeaponAdjustments, type CombatAdjustments } from './combatAdjustments'
 import { compareOutcomes } from './combatLoadouts'
 import { SHOOTING_TYPE_KEY } from './combatProfiles'
-import { combatRuleDefences, combatRuleOptions } from './combatRules'
+import { combatRuleOptions, withMemberAttacks } from './combatRules'
 import { combatAttackInput, combatAttacks } from './combatScenario'
 import { combatUnitKeywords, combatUnitSequenceError, combatUnitTarget, type CombatMember } from './combatUnit'
 
@@ -175,9 +175,10 @@ function phaseMatchup(
   const defenceRules = defender?.rules ?? []
   const unitDefences = (phase: CombatPhase) => {
     if (!target?.target || !defender) return null
-    if (!defender.companions?.length) return combatRuleDefences(target.target, defenceRules, phase, attackRules)
     const calculated = combatUnitTarget(defender, phase, attackRules)
-    return calculated.target ? { ...calculated.target, groups: order.map((index) => calculated.target!.groups[index]!) } : null
+    return calculated.target
+      ? { ...calculated.target, groups: order.map((index) => calculated.target!.groups[index]!), damage: target.target.damage }
+      : null
   }
   const ruleDefences = { ranged: unitDefences('ranged'), melee: unitDefences('melee') }
   const defencesIn = (phase: CombatPhase, adjustments: CombatAdjustments) =>
@@ -195,10 +196,12 @@ function phaseMatchup(
   }
   // Attached members scope their options to their own weapons, except single-die re-rolls, which the whole unit shares.
   const targetKeywords = defender ? combatUnitKeywords(defender) : []
+  // An effect only some models' weapons take is no option of the whole unit's.
+  const attacking = attacker && withMemberAttacks(attacker)
   const unitAttackOptions = (phase: CombatPhase): Partial<CombatOptions> => {
-    if (!attacker?.companions?.length) return combatRuleOptions(attackRules, 'attacker', phase, targetKeywords)
+    if (!attacking?.companions?.length) return combatRuleOptions(attacking?.rules ?? [], 'attacker', phase, targetKeywords)
     const memberRules = uniqueBy(
-      [attacker, ...attacker.companions].flatMap((member) => member.rules ?? []),
+      [attacking, ...attacking.companions].flatMap((member) => member.rules ?? []),
       (rule) => rule.name,
     )
     const { singleRerolls } = combatRuleOptions(memberRules, 'attacker', phase, targetKeywords)

@@ -45,11 +45,14 @@ export const publishedTextFiles = async () => (await publishedTextLocations()).f
  */
 export const serverWords = () => memoUntilSnapshotChanges('text-words', null, async () => snapshotWords(catalogueDirectory()))
 
-/** The current file holding each string, by hash, for tokens that name a file the active snapshot replaced; null where none does. */
-export async function textHomes(hashes: readonly string[]) {
-  const homeOf = await memoUntilSnapshotChanges('text-homes', null, async () => {
+/** The current file holding a string, by hash, for a token that names a file the active snapshot replaced; null where none does. */
+export const textHomeOf = () =>
+  memoUntilSnapshotChanges('text-homes', null, async () => {
     const directory = catalogueDirectory()
     return completeStepsCooperatively(textHomesSteps(directory, readCatalogueComposition(directory)))
   })
+
+export async function textHomes(hashes: readonly string[]) {
+  const homeOf = await textHomeOf()
   return Object.fromEntries(hashes.map((hash) => [hash, homeOf(hash)]))
 }

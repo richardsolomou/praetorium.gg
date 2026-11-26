@@ -1,4 +1,5 @@
 import { expect, it } from 'vitest'
+import { ruleSummaryFinder } from './referenceSummaries'
 import type { CanonicalCatalogue } from '../contracts/catalogue'
 import type { ReferenceDocument } from '../contracts/reference'
 import type { ReferenceCorpus } from './referenceCorpus'
@@ -28,6 +29,7 @@ const corpus: ReferenceCorpus = {
   documents: [document],
   byId: new Map([[document.id, document]]),
   revision: 'snapshot',
+  summaries: ruleSummaryFinder(null),
 }
 
 it('measures document, anchor, citation, response, and latency baselines', () => {

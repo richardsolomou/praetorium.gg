@@ -9,6 +9,7 @@ import {
   referenceSearchResponseSchema,
   referenceSearchResultSchema,
   referenceSectionSchema,
+  ruleSummarySchema,
   textSourcesSchema,
   unitSummarySchema,
 } from './referenceSchemas'
@@ -149,6 +150,7 @@ export function referenceOpenApi(request: Request) {
         FactionSummary: jsonSchema(factionSummarySchema),
         ReferenceIndex: jsonSchema(referenceIndexSchema),
         TextSources: jsonSchema(textSourcesSchema),
+        RuleSummary: jsonSchema(ruleSummarySchema),
         ReferenceSection: jsonSchema(referenceSectionSchema),
         ReferenceDocument: jsonSchema(referenceDocumentSchema),
         ReferenceSearchResult: jsonSchema(referenceSearchResultSchema),
@@ -231,6 +233,7 @@ export function referenceOpenApi(request: Request) {
                   source: { type: 'string' },
                   description: nullable({ type: 'string' }),
                   kind: { type: 'string', enum: ['core', 'faction', 'datasheet', 'rule', 'upgrade', 'wargear'] },
+                  ...ruleWords,
                 },
                 ['id', 'name', 'description', 'kind'],
               ),
@@ -300,7 +303,7 @@ export function referenceOpenApi(request: Request) {
           },
           ['name', 'entryId', 'route'],
         ),
-        KeywordRule: objectSchema({ name: { type: 'string' }, description: { type: 'string' } }, ['name', 'description']),
+        KeywordRule: objectSchema({ name: { type: 'string' }, description: { type: 'string' }, ...ruleWords }, ['name', 'description']),
         DatasheetProvenance: objectSchema(
           {
             definitions: objectSchema({ revision: { type: 'string' }, entryId: { type: 'string' } }, ['revision', 'entryId']),
@@ -370,9 +373,12 @@ export function referenceOpenApi(request: Request) {
             'provenance',
           ],
         ),
-        NamedRule: objectSchema({ name: { type: 'string' }, description: nullable({ type: 'string' }) }, ['name', 'description']),
+        NamedRule: objectSchema({ name: { type: 'string' }, description: nullable({ type: 'string' }), ...ruleWords }, [
+          'name',
+          'description',
+        ]),
         PointedRule: objectSchema(
-          { name: { type: 'string' }, points: nullable({ type: 'number' }), description: nullable({ type: 'string' }) },
+          { name: { type: 'string' }, points: nullable({ type: 'number' }), description: nullable({ type: 'string' }), ...ruleWords },
           ['name', 'points', 'description'],
         ),
         Stratagem: objectSchema(
@@ -384,6 +390,7 @@ export function referenceOpenApi(request: Request) {
             phases: stringArray(),
             turn: nullable({ type: 'string' }),
             description: nullable({ type: 'string' }),
+            ...ruleWords,
           },
           ['id', 'name', 'cp', 'type', 'phases', 'turn', 'description'],
         ),
@@ -416,11 +423,13 @@ export function referenceOpenApi(request: Request) {
                             code: nullable({ type: 'string' }),
                             anchor: { type: 'string' },
                             title: { type: 'string' },
+                            ruleSummary: schemaRef('RuleSummary'),
                           },
                           ['id', 'code', 'anchor', 'title'],
                         ),
                       },
                       cost: nullable({ type: 'number' }),
+                      ruleSummary: schemaRef('RuleSummary'),
                     },
                     ['id', 'code', 'anchor', 'formerAnchors', 'title', 'clarifications', 'cost'],
                   ),
@@ -464,6 +473,9 @@ const jsonSchema = (schema: z.ZodType) => {
 }
 
 const schemaRef = (name: string) => ({ $ref: `#/components/schemas/${name}` })
+
+/** What a rule an endpoint returns carries in place of its words: Praetorium's summary, or where the words live upstream. */
+const ruleWords = { ruleSummary: schemaRef('RuleSummary'), textSources: schemaRef('TextSources') }
 
 const objectSchema = (properties: Record<string, unknown>, required: string[]) => ({
   type: 'object',

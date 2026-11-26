@@ -10,6 +10,7 @@ vi.mock('./publishedTextFiles', () => ({
   publishedTextLocations: async () => ({ files: {}, holds: () => false, recordsHolding: () => [] }),
 }))
 vi.mock('./productActions', () => ({ productActions: { createSealedEventBattle } }))
+vi.mock('./servedVsData', () => ({ servedVsDataSummaries: async () => null, answerRuleSummary: async () => () => null }))
 vi.mock('./app', () => ({
   app: () => ({
     service: {

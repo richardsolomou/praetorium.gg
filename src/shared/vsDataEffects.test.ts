@@ -97,6 +97,18 @@ it('leaves out a deployment ability VS Data grants conditionally, as after a ret
   expect(facts.abilityGrants!.grants).toEqual([])
 })
 
+it('leaves out a grant only the units the player picks gain, and keeps the rest of the block', () => {
+  const picked = {
+    ability: 'Deep Strike',
+    to: 'unit',
+    picked: { count: 1, limited: true },
+    conditional: true,
+    recipientKeywords: ['GRAVIS'],
+  }
+  const facts = textFactsOfVsData({ grants: { abilities: [picked, { ability: 'Stealth', to: 'unit' }] } })
+  expect(facts.abilityGrants!.grants).toEqual([{ written: 'Stealth', recipient: 'unit' }])
+})
+
 it('keeps a conditional grant whose condition is the unit it attaches to', () => {
   const grant = { ability: 'Deep Strike', to: 'bearer', conditional: true, counterpart: ['WORLD EATERS POSSESSED'] }
   const facts = textFactsOfVsData({ grants: { abilities: [grant] } })
@@ -106,4 +118,10 @@ it('keeps a conditional grant whose condition is the unit it attaches to', () =>
 it('keeps another ability VS Data grants conditionally, as Feel No Pain to the Officers a bodyguard shares a unit with', () => {
   const grant = { ability: 'Feel No Pain 4+', to: 'models', models: 'OFFICER', conditional: true }
   expect(textFactsOfVsData({ grants: { abilities: [grant] } }).abilityGrants!.grants).toHaveLength(1)
+})
+
+it('shows an ability an effect gives some models as theirs alone', () => {
+  const stealth = { role: 'defender', attacks: ['ranged'], ability: 'Stealth', modelKeywords: ['INFANTRY'] }
+  const facts = textFactsOfVsData(combat({ choices: [{ conditions: [], effects: [stealth] }], default: 1 }))
+  expect(facts.abilityGrants!.grants).toEqual([{ name: 'Stealth', recipient: 'models', models: 'INFANTRY' }])
 })
