@@ -1,3 +1,4 @@
+import { withArticle } from '../../../text'
 import { RulesVersionLabel } from '../../../components/RulesVersionLabel'
 import { FactionReferenceLink } from '../../../components/FactionReferenceLink'
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
@@ -8,7 +9,7 @@ import { discoveredRostersQuery, factionIndexQuery, factionQuery } from '../../.
 import { FavouriteDetachmentToggle } from './FavouriteDetachmentToggle'
 import { FavouriteFactionToggle } from './FavouriteFactionToggle'
 import { FactionMark, factionColour } from '../../../components/FactionMark'
-import { dispositionTone } from '../../../components/rosterSetup'
+import { dispositionTag } from '../../../components/rosterSetup'
 import { RuleText } from '../../../components/RuleText'
 import { DatasheetUnit, factionRulesOwner } from '../../../components/UnitFromVsData'
 import { routeSlug } from '../../../../core/slug'
@@ -20,11 +21,15 @@ import { useDateFormatting } from '../../../dates'
 import { factionReferenceHref } from '../../../../core/factionReferenceRoute'
 import { StartRoster } from '../../rosters/ReferenceRosterActions'
 import { SectionHeading } from '../../../components/SectionHeading'
-import { RUNNER_COLUMNS } from '../runnerColumns'
 import { BackLink } from '../BackLink'
 import { FactionGames } from './FactionGames'
 import { NextStep } from '../NextStep'
 import { ContinueGuestDraft } from '../../rosters/ContinueGuestDraft'
+import { DisclosureChevron } from '../../../components/DisclosureChevron'
+
+/** One figure of the faction's reference, a cell of the ruled strip under the header. */
+const STAT_LINK =
+  'flex min-h-16 flex-col justify-between gap-1.5 px-2 py-2.5 transition-colors hover:bg-raised sm:flex-row sm:items-center sm:gap-3 sm:px-4 sm:py-3'
 
 export function FactionPage({ catalogueId }: { catalogueId: string }) {
   const { data: faction } = useQuery(factionQuery(catalogueId))
@@ -100,51 +105,38 @@ export function FactionPage({ catalogueId }: { catalogueId: string }) {
       <PageContent className="space-y-6">
         <BackLink to="/factions">Factions</BackLink>
         <ContinueGuestDraft surface="faction" />
-        <section className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-          <FactionReferenceLink
-            to="/factions/$catalogueId/datasheets"
-            params={{ catalogueId: faction.slug }}
-            className="flex min-h-14 items-center justify-between gap-3 part px-4 py-3 transition-colors hover:border-runner hover:bg-raised"
-          >
-            <span className="rubric text-xs text-bone">Datasheets</span>
-            <span className="flex items-center gap-3">
-              <span className="figure text-2xl leading-none font-semibold">{reference?.datasheets ?? 0}</span>
-              <ChevronRight className="size-4 text-dim" aria-hidden />
+        <section className="grid grid-cols-3 divide-x divide-edge border-y border-edge">
+          <FactionReferenceLink to="/factions/$catalogueId/datasheets" params={{ catalogueId: faction.slug }} className={STAT_LINK}>
+            <span className="eyebrow">Datasheets</span>
+            <span className="flex items-center gap-2">
+              <span className="figure text-2xl leading-none text-bone sm:text-3xl">{reference?.datasheets ?? 0}</span>
+              <ChevronRight className="size-4 text-faint" aria-hidden />
             </span>
           </FactionReferenceLink>
-          <Link
-            to="/rosters"
-            search={{ view: 'public', faction: faction.slug }}
-            className="flex min-h-14 items-center justify-between gap-3 part px-4 py-3 transition-colors hover:border-runner hover:bg-raised"
-          >
-            <span className="rubric text-xs text-bone">Public armies</span>
-            <span className="flex items-center gap-3">
-              {publicArmies === null ? null : <span className="figure text-2xl leading-none font-semibold">{publicArmies}</span>}
-              <ChevronRight className="size-4 text-dim" aria-hidden />
+          <Link to="/rosters" search={{ view: 'public', faction: faction.slug }} className={STAT_LINK}>
+            <span className="eyebrow">Public armies</span>
+            <span className="flex items-center gap-2">
+              {publicArmies === null ? null : <span className="figure text-2xl leading-none text-bone sm:text-3xl">{publicArmies}</span>}
+              <ChevronRight className="size-4 text-faint" aria-hidden />
             </span>
           </Link>
-          <Link
-            to="/data-updates/$catalogueId"
-            params={{ catalogueId: faction.slug }}
-            search={{}}
-            className="flex min-h-14 items-center justify-between gap-3 part px-4 py-3 transition-colors hover:border-runner hover:bg-raised"
-          >
-            <span className="rubric text-xs text-bone">Data updates</span>
-            <ChevronRight className="size-4 text-dim" aria-hidden />
+          <Link to="/data-updates/$catalogueId" params={{ catalogueId: faction.slug }} search={{}} className={STAT_LINK}>
+            <span className="eyebrow">Data updates</span>
+            <ChevronRight className="size-4 text-faint" aria-hidden />
           </Link>
         </section>
         {faction.armyRules.length ? <FactionAbilities faction={faction} rules={faction.armyRules} /> : null}
         <section aria-label="Detachments">
           <SectionHeading title="Detachments" count={detachments.length} />
           {!detachments.length ? <p className="py-2 text-sm text-dim">No detachment rules are available for this faction.</p> : null}
-          <div className={`${RUNNER_COLUMNS} [--gate-y:1.75rem] md:columns-2`}>
+          <div className="grid md:grid-cols-2 md:gap-x-6">
             {detachments.map((detachment) => {
               const content = (
                 <>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate font-bold">{detachment.name}</span>
+                    <span className="block truncate text-[0.9375rem] font-bold text-bone">{detachment.name}</span>
                     {detachment.reference ? (
-                      <span className="block text-xs text-dim">
+                      <span className="block text-2xs text-faint">
                         {[
                           [detachment.reference.stratagems, 'stratagems'],
                           [detachment.reference.enhancements, 'enhancements'],
@@ -154,35 +146,37 @@ export function FactionPage({ catalogueId }: { catalogueId: string }) {
                           .join(' · ')}
                       </span>
                     ) : (
-                      <span className="block text-xs text-dim">Reference details unavailable</span>
+                      <span className="block text-2xs text-faint">Reference details unavailable</span>
                     )}
                     {detachment.reference?.dispositions.length || detachment.points !== null ? (
-                      <span className="mt-2 flex flex-wrap gap-1">
+                      <span className="mt-1.5 flex flex-wrap items-center gap-1.5">
                         {detachment.reference?.dispositions.map((disposition) => (
-                          <span key={disposition} className={`chip ${dispositionTone(disposition)}`}>
+                          <span key={disposition} className={dispositionTag(disposition)}>
                             {disposition}
                           </span>
                         ))}
-                        {detachment.points == null ? null : <span className="chip text-info">{detachment.points} DP</span>}
+                        {detachment.points == null ? null : (
+                          <span className="readout text-2xs font-semibold text-dim">{detachment.points} DP</span>
+                        )}
                       </span>
                     ) : null}
                   </span>
-                  {detachment.reference ? <ChevronRight className="size-4 shrink-0 text-dim" aria-hidden /> : null}
+                  {detachment.reference ? <ChevronRight className="size-4 shrink-0 text-faint" aria-hidden /> : null}
                 </>
               )
               return detachment.reference ? (
-                <div key={detachment.id} className="flex items-center part pr-2 transition-colors hover:border-runner hover:bg-raised">
+                <div key={detachment.id} className="flex items-center border-t border-edge pr-1 transition-colors hover:bg-raised">
                   <FactionReferenceLink
                     to="/factions/$catalogueId/detachments/$detachmentId"
                     params={{ catalogueId: faction.slug, detachmentId: detachment.slug }}
-                    className="flex min-w-0 flex-1 items-center gap-3 self-stretch py-3 pr-1 pl-4"
+                    className="flex min-w-0 flex-1 items-center gap-3 self-stretch py-2.5 pr-1 pl-2"
                   >
                     {content}
                   </FactionReferenceLink>
                   <FavouriteDetachmentToggle catalogueId={faction.id} detachmentId={detachment.id} name={detachment.name} />
                 </div>
               ) : (
-                <div key={detachment.id} className="flex items-center gap-1 part py-3 pr-2 pl-4">
+                <div key={detachment.id} className="flex items-center gap-1 border-t border-edge py-2.5 pr-1 pl-2">
                   <div className="flex min-w-0 flex-1 items-center gap-3">{content}</div>
                   <FavouriteDetachmentToggle catalogueId={faction.id} detachmentId={detachment.id} name={detachment.name} />
                 </div>
@@ -192,15 +186,15 @@ export function FactionPage({ catalogueId }: { catalogueId: string }) {
         </section>
         <FactionGames faction={faction} />
         {faction.edition ? (
-          <details className="group part px-4 py-3">
+          <details className="group border-y border-edge px-2 py-3">
             <summary className="rubric flex cursor-pointer items-center gap-2 hover:text-bone">
-              <ChevronRight className="size-4 shrink-0 transition-transform group-open:rotate-90" aria-hidden />
+              <DisclosureChevron />
               Rules history
             </summary>
             <p className="mt-2 text-sm text-dim">
               These dates record status changes in Praetorium; publisher release and effective dates can differ.
             </p>
-            <ol className="mt-3 runner gap-1.5 text-sm text-dim [--gate-y:0.625rem]">
+            <ol className="mt-3 runner gap-1.5 text-sm text-dim">
               {faction.edition.releases.map((release) => (
                 <li key={release.at}>
                   <span className="readout font-semibold text-bone">{date(release.at)}</span> ·{' '}
@@ -216,7 +210,7 @@ export function FactionPage({ catalogueId }: { catalogueId: string }) {
         ) : null}
         {faction.detachments.length ? (
           <NextStep
-            title={`Build a ${faction.displayName} list`}
+            title={`Build ${withArticle(faction.displayName)} list`}
             description="Your faction is already filled in."
             action={<StartRoster faction={faction} closing />}
           />
@@ -239,14 +233,14 @@ export function FactionAbilities({
     <DatasheetUnit.Provider value={owner}>
       <section>
         <SectionHeading title="Faction abilities" />
-        <div className="grid gap-2">
+        <div className="divide-y divide-edge border-y border-edge">
           {rules.map((rule) => (
-            <details key={rule.name} className="group overflow-hidden part">
-              <summary className="flex cursor-pointer items-center gap-2 px-4 py-3 hover:bg-raised">
+            <details key={rule.name} className="group">
+              <summary className="flex min-h-12 cursor-pointer items-center gap-2 px-2 py-2.5 hover:bg-raised">
+                <DisclosureChevron />
                 <h3 className="min-w-0 flex-1 text-base">{rule.name}</h3>
-                <ChevronRight className="size-4 shrink-0 text-dim transition-transform group-open:rotate-90" aria-hidden />
               </summary>
-              <RuleText text={rule.description} name={rule.name} className="px-4 pb-3" />
+              <RuleText text={rule.description} name={rule.name} className="px-2 pb-3" />
             </details>
           ))}
         </div>

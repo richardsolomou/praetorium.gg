@@ -7,9 +7,9 @@ import { HeaderFact } from '../../components/HeaderFact'
 const FORM = 5
 
 const RESULT = {
-  won: { letter: 'W', tint: 'border-achieved/60 bg-achieved/15 text-achieved' },
-  lost: { letter: 'L', tint: 'border-rust/60 bg-rust/15 text-rust' },
-  drawn: { letter: 'D', tint: 'border-runner bg-raised text-dim' },
+  won: { letter: 'W', tint: 'bg-achieved/10 text-achieved' },
+  lost: { letter: 'L', tint: 'bg-rust/10 text-rust' },
+  drawn: { letter: 'D', tint: 'bg-raised text-dim' },
 } as const
 
 /**
@@ -47,7 +47,10 @@ export function ProfileForm({
   const main = played ?? lists.main
   if (!form.length && !main && !rank && !lists.count && !achievementPoints) return null
   return (
-    <div className="flex flex-wrap items-stretch gap-2" data-profile-form>
+    <div
+      className="grid grid-cols-2 border-y border-edge sm:flex sm:flex-wrap sm:items-stretch sm:divide-x sm:divide-edge"
+      data-profile-form
+    >
       {form.length ? (
         <HeaderFact label="Form">
           <span className="flex gap-1">
@@ -59,7 +62,7 @@ export function ProfileForm({
                   to="/battles/$token"
                   params={{ token: battle.token }}
                   aria-label={`${result.letter} against ${battle.players.filter((_, index) => index !== seat).join(' & ')}`}
-                  className={`figure grid size-6 place-items-center border text-xs font-bold ${result.tint} hover:brightness-125`}
+                  className={`figure grid size-6 place-items-center rounded-sm text-sm ${result.tint} hover:brightness-125`}
                 >
                   {result.letter}
                 </Link>
@@ -70,7 +73,7 @@ export function ProfileForm({
       ) : null}
       {main ? (
         <HeaderFact label={played ? 'Plays most' : 'Builds most'}>
-          <span className="flex items-center gap-1.5 text-sm font-bold text-bone uppercase">
+          <span className="flex items-center gap-1.5 text-base font-medium text-bone">
             <FactionMark faction={main} size="sm" />
             {main.displayName}
           </span>
@@ -78,34 +81,25 @@ export function ProfileForm({
       ) : null}
       {lists.count ? (
         <HeaderFact label="Lists">
-          <span className="figure text-sm font-bold text-bone">{lists.count}</span>
+          <span className="figure text-xl leading-none text-bone">{lists.count}</span>
         </HeaderFact>
       ) : null}
       {rank ? (
-        <Link
-          to="/leaderboard"
-          search={{ faction: undefined }}
-          className="flex [&>span]:transition-colors [&>span]:hover:border-runner [&>span]:hover:bg-raised"
-        >
+        <Link to="/leaderboard" search={{ faction: undefined }} className="flex transition-colors hover:bg-raised">
           <HeaderFact label="Leaderboard">
-            <span className="figure text-sm font-bold text-bone">
+            <span className="figure text-xl leading-none text-bone">
               #{rank.place}
-              <span className="font-normal text-faint"> of {rank.of}</span>
+              <span className="font-sans text-xs font-normal text-faint"> of {rank.of}</span>
             </span>
           </HeaderFact>
         </Link>
       ) : null}
       {achievementPoints ? (
-        <Link
-          to="/users/$userId"
-          params={{ userId }}
-          search={{ tab: 'achievements' }}
-          className="flex [&>span]:transition-colors [&>span]:hover:border-runner [&>span]:hover:bg-raised"
-        >
+        <Link to="/users/$userId" params={{ userId }} search={{ tab: 'achievements' }} className="flex transition-colors hover:bg-raised">
           <HeaderFact label="Achievements">
-            <span className="figure text-sm font-bold text-bone">
+            <span className="figure text-xl leading-none text-bone">
               {achievementPoints}
-              <span className="font-normal text-faint"> pts</span>
+              <span className="font-sans text-xs font-normal text-faint"> pts</span>
             </span>
           </HeaderFact>
         </Link>

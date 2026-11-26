@@ -106,7 +106,7 @@ export function FriendsPage() {
                 clearLabel="Empty the player search"
                 maxLength={PLAYER_SEARCH_MAX_LENGTH}
               />
-              <div className="mt-2 space-y-2">
+              <div className="mt-3 border-t border-edge empty:border-0">
                 {found.map((person) => (
                   <PersonRow
                     key={person.id}
@@ -136,7 +136,7 @@ export function FriendsPage() {
             <section data-onboarding="friend-list">
               <SectionHeading title="Friends" count={data.friends.length} />
               {data.friends.length ? (
-                <div className="mt-3 grid gap-2">
+                <div className="mt-1 border-t border-edge">
                   {data.friends.map((friend) => (
                     <FriendCard
                       key={friend.id}
@@ -224,7 +224,7 @@ function FriendCard({
   onRemove: () => void
 }) {
   return (
-    <article data-person={friend.name} className="flex items-center gap-3 part p-3">
+    <article data-person={friend.name} className="flex items-center gap-3 border-b border-edge px-1 py-2.5 hover:bg-raised">
       <Link to="/users/$userId" params={{ userId: friend.id }} className="shrink-0" tabIndex={-1} aria-hidden>
         <PlayerAvatar name={friend.name} image={friend.image} className="size-10 text-xs" />
       </Link>
@@ -232,7 +232,7 @@ function FriendCard({
         <Link
           to="/users/$userId"
           params={{ userId: friend.id }}
-          className="block truncate font-bold uppercase hover:underline"
+          className="block truncate font-semibold hover:underline"
           style={nameColour(friend)}
         >
           {friend.name}
@@ -337,7 +337,7 @@ function People({
   return (
     <section data-onboarding={onboarding}>
       <SectionHeading title={title} count={people.length} />
-      <div className="mt-3 grid gap-2">
+      <div className="mt-1 border-t border-edge">
         {people.map((person) => (
           <PersonRow
             key={person.id}
@@ -356,7 +356,7 @@ function People({
 
 function PersonRowSkeleton() {
   return (
-    <div className="flex items-center justify-between gap-3 part p-3">
+    <div className="flex items-center justify-between gap-3 border-b border-edge px-1 py-2.5">
       <div className="flex min-w-0 items-center gap-3">
         <Skeleton className="size-9 rounded-full" />
         <Skeleton className="h-4 w-32" />
@@ -382,10 +382,10 @@ function PersonRow({
   onSecondaryAction?: () => void
 }) {
   return (
-    <div data-person={person.name} className="flex items-center justify-between gap-3 part p-3">
+    <div data-person={person.name} className="flex items-center justify-between gap-3 border-b border-edge px-1 py-2.5">
       <Link to="/users/$userId" params={{ userId: person.id }} className="flex min-w-0 items-center gap-3 hover:text-info">
         <PlayerAvatar name={person.name} image={person.image} className="size-9 text-xs" />
-        <span className="truncate font-bold uppercase" style={nameColour(person)}>
+        <span className="truncate font-semibold" style={nameColour(person)}>
           {person.name}
         </span>
       </Link>

@@ -148,7 +148,7 @@ export function TerrainLayoutDialogContent({ title, description, layout, deploym
           ) : null}
           {placing ? (
             <span className="flex items-center gap-2">
-              <span className="flex size-3 items-center justify-center rounded-full border border-bone bg-void text-[0.5rem] font-extrabold text-bone">
+              <span className="flex size-3 items-center justify-center rounded-full border border-bone bg-void text-[0.5rem] font-bold text-bone">
                 1
               </span>
               Placement order · distance from the numbered corner, nearest ½″

@@ -16,6 +16,7 @@ import { SealedEventReadiness } from './SealedEventReadiness'
 import { SealedEventResults } from './SealedEventResults'
 import { SealedEventRounds, swissProgress } from './SealedEventRounds'
 import { eventName, sealedEventAllowances, sealedEventPhase, sealedEventPlayers } from './sealedEvent'
+import { OUTLINE_TAG } from '../../components/rosterSetup'
 import { SAMPLE_STAGES, SAMPLE_VIEWER, sampleBattles, sampleStandings, sampleTournament, type SampleStage } from './sampleTournament'
 
 const STAGES: Record<SampleStage, { label: string; explanation: string }> = {
@@ -97,8 +98,8 @@ export function TournamentSample({ stage }: { stage: SampleStage }) {
         }
       >
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          <span className="chip text-info">Sample</span>
-          <span className={`chip ${phase.tint}`}>{phase.label}</span>
+          <span className={`${OUTLINE_TAG} border-info/50 text-info`}>Sample</span>
+          <span className={`text-sm font-medium ${phase.tint}`}>{phase.label}</span>
           <span className="text-sm text-dim">
             {[
               sealedEventFormat(sealedEvent),
@@ -137,7 +138,7 @@ export function TournamentSample({ stage }: { stage: SampleStage }) {
             </Link>
           ))}
         </nav>
-        <p className="flex max-w-2xl gap-3 part border-info/40 p-4 text-sm text-dim">
+        <p className="flex max-w-2xl gap-3 border-l-2 border-info/60 py-1 pl-4 text-sm text-dim">
           <Info className="mt-0.5 size-5 shrink-0 text-info" aria-hidden />
           <span>{STAGES[stage].explanation}</span>
         </p>

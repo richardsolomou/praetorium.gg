@@ -7,7 +7,7 @@ import { battleOutcomeStage } from '../../battleStage'
 import { FactionMark, type FactionPresentation } from '../../components/FactionMark'
 import { countLabel } from '../../text'
 import { ResultLetter } from '../battles/BattleLines'
-import { HeaderFact } from '../../components/HeaderFact'
+import type { ReactNode } from 'react'
 
 /** The player's record as their profile counts it, and their overall leaderboard place if they have one. */
 export type HomeRecordData = {
@@ -41,7 +41,7 @@ export function HomeRecord({
   form: HomeForm
   className?: string
 }) {
-  if (!data) return <Skeleton className={cn('h-15 max-w-xl rounded-lg', className)} aria-label="Loading your record" />
+  if (!data) return <Skeleton className={cn('h-19 rounded-none', className)} aria-label="Loading your record" />
   const { record, rank } = data
   if (!record.battles) {
     return <p className={cn('text-sm text-dim', className)}>Your record starts with your first finished battle.</p>
@@ -50,61 +50,55 @@ export function HomeRecord({
   const profile = { to: '/users/$userId', params: { userId }, className: FACT } as const
   const leaderboard = { to: '/leaderboard', search: { faction: undefined }, className: FACT } as const
   return (
-    <section aria-label="Your record" data-home-record className={cn('flex flex-wrap items-stretch gap-2', className)}>
+    <section
+      aria-label="Your record"
+      data-home-record
+      className={cn('grid grid-cols-2 border-y border-edge sm:flex sm:flex-wrap sm:divide-x sm:divide-edge', className)}
+    >
       <Link {...profile}>
-        <HeaderFact label="Record">
-          <span className="figure text-sm font-bold">
-            <span className="text-achieved">{record.won}</span>
-            <span className="text-faint">–</span>
-            <span className="text-dim">{record.drawn}</span>
-            <span className="text-faint">–</span>
-            <span className="text-rust">{record.lost}</span>
-          </span>
-        </HeaderFact>
+        <Fact label="Record">
+          <span className="text-achieved">{record.won}</span>
+          <span className="text-faint">–</span>
+          <span className="text-dim">{record.drawn}</span>
+          <span className="text-faint">–</span>
+          <span className="text-rust">{record.lost}</span>
+        </Fact>
       </Link>
       <Link {...profile}>
-        <HeaderFact label="Won">
-          <span className="figure text-sm font-bold text-bone">{Math.round(record.rate * 100)}%</span>
-        </HeaderFact>
+        <Fact label="Won">{Math.round(record.rate * 100)}%</Fact>
       </Link>
       {rating ? (
         <Link {...leaderboard}>
-          <HeaderFact label="Rating">
-            <span className="figure text-sm font-bold">
-              <span className={rating.change > 0 ? 'text-achieved' : rating.change < 0 ? 'text-rust' : 'text-dim'}>
-                {rating.change > 0 ? '+' : ''}
-                {rating.change}
-              </span>
-              <span className="font-normal text-faint"> in {countLabel(rating.games, 'game')}</span>
+          <Fact label="Rating" after={`in ${countLabel(rating.games, 'game')}`}>
+            <span className={rating.change > 0 ? 'text-achieved' : rating.change < 0 ? 'text-rust' : 'text-dim'}>
+              {rating.change > 0 ? '+' : rating.change < 0 ? '−' : ''}
+              {Math.abs(rating.change)}
             </span>
-          </HeaderFact>
+          </Fact>
         </Link>
       ) : record.currentStreak ? (
         <Link {...profile}>
-          <HeaderFact label="Streak">
-            <span className="figure text-sm font-bold text-bone">
-              {record.currentStreak}
-              <span className="font-normal text-faint"> wins in a row</span>
-            </span>
-          </HeaderFact>
+          <Fact label="Streak" after="wins in a row">
+            {record.currentStreak}
+          </Fact>
         </Link>
       ) : null}
       <Link {...leaderboard}>
-        <HeaderFact label="Leaderboard">
-          {rank ? (
-            <span className="figure text-sm font-bold text-bone">
-              #{rank.place}
-              <span className="font-normal text-faint"> of {rank.of}</span>
-            </span>
-          ) : (
-            <span className="text-sm font-bold text-dim">Unranked</span>
-          )}
-        </HeaderFact>
+        {rank ? (
+          <Fact label="Leaderboard" after={`of ${rank.of}`}>
+            #{rank.place}
+          </Fact>
+        ) : (
+          <Fact label="Leaderboard">
+            <span className="text-dim">Unranked</span>
+          </Fact>
+        )}
       </Link>
       {form.outcomes.length ? (
-        <HeaderFact label="Form">
+        <span className={CELL}>
+          <span className="eyebrow">Form</span>
           <span
-            className="flex gap-1"
+            className="flex h-10 items-center gap-1"
             aria-label={`Latest results: ${form.outcomes.map((outcome) => battleOutcomeStage(outcome).name).join(', ')}`}
           >
             {form.outcomes.map((outcome, index) => (
@@ -112,19 +106,35 @@ export function HomeRecord({
               <ResultLetter key={index} outcome={outcome} />
             ))}
           </span>
-        </HeaderFact>
+        </span>
       ) : null}
       {main ? (
-        <HeaderFact label="Plays most">
-          <span className="flex items-center gap-1.5 text-sm font-bold text-bone uppercase">
+        <span className={CELL}>
+          <span className="eyebrow">Plays most</span>
+          <span className="flex h-10 min-w-0 items-center gap-2 font-display text-lg font-bold text-bone sm:text-xl">
             <FactionMark faction={main.faction} size="sm" />
-            {main.faction.displayName}
-            <span className="readout text-xs font-normal text-faint">{main.battles}</span>
+            <span className="truncate">{main.faction.displayName}</span>
+            <span className="text-sm font-semibold text-faint">{main.battles}</span>
           </span>
-        </HeaderFact>
+        </span>
       ) : null}
     </section>
   )
 }
 
-const FACT = 'flex [&>span]:transition-colors [&>span]:hover:border-runner [&>span]:hover:bg-raised'
+/** A strip cell: hairlines between cells on a wide screen, a two-column grid on a phone. */
+const CELL = 'flex min-w-0 flex-col gap-0.5 px-3 py-3 sm:px-5'
+const FACT = cn(CELL, 'transition-colors hover:bg-raised/60')
+
+/** One labelled figure in the strip, with a faint qualifier after it. */
+function Fact({ label, after, children }: { label: string; after?: string; children: ReactNode }) {
+  return (
+    <>
+      <span className="eyebrow">{label}</span>
+      <span className="flex h-10 items-baseline gap-1.5 whitespace-nowrap">
+        <span className="figure self-center text-[1.75rem] leading-none text-bone sm:text-[2rem]">{children}</span>
+        {after ? <span className="self-center text-sm text-faint">{after}</span> : null}
+      </span>
+    </>
+  )
+}

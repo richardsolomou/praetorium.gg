@@ -25,7 +25,7 @@ export function FieldedUnit({ unit, failed = false }: { unit: SubmittedUnit; fai
       )}
       <p className="flex flex-wrap items-center gap-1.5">
         <PointsChip points={unit.points} />
-        <span className="chip normal-case">{countLabel(unit.models, 'model')}</span>
+        <span className="chip">{countLabel(unit.models, 'model')}</span>
       </p>
       {taken.length ? (
         <ul className="space-y-0.5">

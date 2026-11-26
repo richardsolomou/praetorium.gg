@@ -94,7 +94,6 @@ export function CollectionWishlist({ datasheets }: { datasheets: ReadonlyMap<str
                     data-wish={name}
                     name={name}
                     sheet={sheet}
-                    className="border-dashed border-runner-hi"
                     action={
                       <span className="flex items-center">
                         <WishToCollection entryId={entryId} name={name} wanted={count} onShelf={shelfKnown ? onShelf : null} />
@@ -140,12 +139,10 @@ export function CollectionWishlist({ datasheets }: { datasheets: ReadonlyMap<str
       {suggestions.length ? (
         <section aria-labelledby="wish-suggestions-heading" className="space-y-3 pt-2">
           <div>
-            <h3 id="wish-suggestions-heading" className="rubric text-bone">
+            <h3 id="wish-suggestions-heading" className="rubric flex min-h-8 items-center text-bone">
               Popular in your armies
             </h3>
-            <p className="mt-1 text-xs text-dim">
-              What other players field in the armies you build most, and none of your rosters use yet.
-            </p>
+            <p className="text-xs text-dim">What other players field in the armies you build most, and none of your rosters use yet.</p>
           </div>
           <CollectionCardGrid>
             {suggestions.map(({ entryId, rosters, of, sheet }) => (
@@ -158,7 +155,7 @@ export function CollectionWishlist({ datasheets }: { datasheets: ReadonlyMap<str
                 action={
                   <Button
                     size="sm"
-                    variant="outline"
+                    variant="ghost"
                     aria-label={`Add ${sheet.name} to your wishlist`}
                     onClick={() => void set(entryId, 1).catch(() => undefined)}
                   >

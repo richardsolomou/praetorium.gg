@@ -486,7 +486,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
               }
               summary={
                 <>
-                  <span className="font-bold uppercase">{manual ? 'Manual' : 'Guided'}</span>
+                  <span className="font-semibold">{manual ? 'Manual' : 'Guided'}</span>
                   <span className="text-dim">
                     {' '}
                     · {sizeName}
@@ -520,11 +520,11 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
               }
               summary={
                 playingAll ? (
-                  <span className="font-bold uppercase">You play every side</span>
+                  <span className="font-semibold">You play every side</span>
                 ) : openCount ? (
                   <span className="text-dim">{openCount > 1 ? `${openCount} places open` : 'No opponent yet'}</span>
                 ) : (
-                  <span className="font-bold uppercase">
+                  <span className="font-semibold">
                     {formatList(view.players.filter((player) => !player.isViewer).map((player) => player.name))}
                   </span>
                 )
@@ -540,9 +540,9 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
               name="Mission"
               onboarding="battle-setup-mission"
               sides={table}
-              renderSide={(side) => {
+              renderSide={(side, inTab) => {
                 const primary = side.mission
-                const card = primary ? primaryCardFor(primary.id) : undefined
+                const card = primary && !inTab ? primaryCardFor(primary.id) : undefined
                 return (
                   <MissionAnswer
                     side={side}
@@ -619,7 +619,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
                 <>
                   {defender ? (
                     <>
-                      <span className={`font-bold uppercase ${tint(defender.index).text}`}>
+                      <span className={`font-semibold ${tint(defender.index).text}`}>
                         <SideNames side={defender} />
                       </span>
                       <span className="text-dim"> defends · deploys first</span>
@@ -698,7 +698,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
                 <>
                   {firstSide ? (
                     <>
-                      <span className={`font-bold uppercase ${tint(firstSide.index).text}`}>
+                      <span className={`font-semibold ${tint(firstSide.index).text}`}>
                         <SideNames side={firstSide} />
                       </span>
                       <span className="text-dim"> takes the first turn</span>

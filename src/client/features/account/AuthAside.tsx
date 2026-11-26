@@ -4,7 +4,6 @@ import type { ReactNode } from 'react'
 export function AuthAside({ heading, caption }: { heading: ReactNode; caption: ReactNode }) {
   return (
     <aside className="masthead-bleed relative hidden overflow-hidden border-r border-edge bg-sunken [--band-bottom:0px] [--band:var(--color-sunken)] md:block">
-      <div className="construction-grid" />
       <div className="relative ml-auto grid h-full w-full max-w-xl grid-rows-[auto_1fr_auto] gap-8 p-8 lg:p-12">
         <h2 className="max-w-md text-4xl leading-[0.95] text-balance lg:text-5xl">{heading}</h2>
         <SprueFrame />

@@ -55,7 +55,7 @@ export function DiscardSecondaryDialog({
           </DialogDescription>
         </DialogHeader>
         <DialogBody>
-          <div className="space-y-1.5">
+          <div className="divide-y divide-edge border-y border-edge">
             {cards.map((card) => {
               const chosen = selected.includes(card.key)
               return (
@@ -65,15 +65,20 @@ export function DiscardSecondaryDialog({
                   aria-pressed={chosen}
                   disabled={pending}
                   onClick={() => toggle(card.key)}
-                  className={`flex w-full items-center justify-between gap-2 border px-3 py-2 text-left text-sm font-semibold ${
-                    chosen ? colours.mark : `border-edge bg-card text-bone ${colours.hint}`
+                  className={`flex min-h-12 w-full items-center justify-between gap-3 px-2 py-2.5 text-left text-sm font-medium text-bone hover:bg-raised ${
+                    chosen ? 'bg-raised' : ''
                   }`}
                 >
                   <span>
                     {card.name}
                     {card.beaconLost ? <span className="block text-2xs font-normal text-discarded">Beacon unit destroyed</span> : null}
                   </span>
-                  {chosen ? <Check className="size-3.5 shrink-0" aria-hidden /> : null}
+                  <span
+                    aria-hidden
+                    className={`grid size-5 shrink-0 place-items-center rounded-full border ${chosen ? colours.mark : 'border-edge'}`}
+                  >
+                    {chosen ? <Check className="size-3" /> : null}
+                  </span>
                 </button>
               )
             })}

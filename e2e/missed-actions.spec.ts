@@ -45,7 +45,8 @@ test('missed stratagems and scores are recorded late, refused past their limit, 
   await show(page, 'Your side')
   await side.getByRole('button', { name: '+1 CP', exact: true }).click()
   await expect(side.locator('[data-stat="cp"]')).toHaveText('2')
-  const vp = Number(await side.locator('[data-stat="vp"]').textContent())
+  const victoryPoints = page.locator('[data-side-score="0"] [data-stat="vp"]')
+  const vp = Number(await victoryPoints.textContent())
   await advance(page)
   await expect(page.locator('[data-scoreboard] h1')).toContainText('movement phase')
 
@@ -115,7 +116,7 @@ test('missed stratagems and scores are recorded late, refused past their limit, 
   for (const viewport of [desktopContext.viewport, phone]) {
     await page.setViewportSize(viewport)
     await show(page, 'Your side')
-    await expect(side.locator('[data-stat="vp"]')).toHaveText(String(vp + 3))
+    await expect(victoryPoints).toHaveText(String(vp + 3))
   }
 
   const events = page.locator('[data-battle-report-scroll]')
@@ -126,7 +127,9 @@ test('missed stratagems and scores are recorded late, refused past their limit, 
     await show(page, 'Battle')
     await expect(lateStratagem).toBeVisible()
     await expect(lateScore).toBeVisible()
-    await expect(events.locator('li').filter({ hasText: 'settles 3 primary VP, recorded late' })).toContainText('R1 move')
+    await expect(events.locator('[data-report-group]').filter({ hasText: 'settles 3 primary VP, recorded late' })).toContainText(
+      'Round 1 · Movement',
+    )
     await lateScore.scrollIntoViewIfNeeded()
     await page.screenshot({ path: test.info().outputPath(`missed-action-events-${viewport.width}.png`) })
   }
@@ -137,7 +140,7 @@ test('missed stratagems and scores are recorded late, refused past their limit, 
   for (const viewport of [desktopContext.viewport, phone]) {
     await page.setViewportSize(viewport)
     await show(page, 'Your side')
-    await expect(side.locator('[data-stat="vp"]')).toHaveText(String(vp))
+    await expect(victoryPoints).toHaveText(String(vp))
     await expect(side.locator('[data-stat="cp"]')).toHaveText('1')
     await show(page, 'Battle')
     await expect(lateStratagem).toBeVisible()

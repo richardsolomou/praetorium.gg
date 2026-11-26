@@ -12,7 +12,7 @@ function Answer({ value, detail, tone }: { value: ReactNode; detail?: ReactNode;
     <>
       <span
         className={cn(
-          'block font-bold break-words uppercase',
+          'block font-semibold break-words',
           tone === 'needed' ? 'text-bone' : tone === 'quiet' ? 'font-normal text-dim normal-case' : undefined,
         )}
       >
@@ -39,7 +39,7 @@ export function MissionAnswer({
     <button
       type="button"
       aria-label={`Read card for ${side.mission.name}`}
-      className="cursor-pointer text-inherit uppercase underline decoration-dotted underline-offset-4 hover:text-bone"
+      className="cursor-pointer text-inherit underline decoration-dotted underline-offset-4 hover:text-bone"
       onClick={onRead}
     >
       {side.mission.name}

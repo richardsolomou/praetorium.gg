@@ -1,3 +1,4 @@
+import { withArticle } from '../../../text'
 import { type Dispatch, type SetStateAction, useCallback, useMemo, useRef, useState } from 'react'
 import { withoutUnit } from '../../../../core/attachedUnits'
 import type { RosterPick } from '../../../../core/roster'
@@ -126,7 +127,7 @@ export function unitLimitMessage(
   const unlockedBy = unlocks.get(entryId)
   if (limit === 0)
     return unlockedBy
-      ? `Add a ${unlockedBy} unit to the roster first.`
+      ? `Add ${withArticle(unlockedBy)} unit to the roster first.`
       : 'No copies available with the current detachments and prerequisite units.'
   const reached = `Limit reached: ${held} of ${limit} permitted copies in the roster.`
   return unlockedBy ? `${reached} More ${unlockedBy} units allow more.` : reached

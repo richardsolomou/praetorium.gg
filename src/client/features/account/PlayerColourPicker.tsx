@@ -26,12 +26,12 @@ export function PlayerColourPicker({
   return (
     <fieldset className="space-y-3">
       <legend className="text-sm leading-none font-medium">Player colour</legend>
-      <div className="flex items-center justify-between gap-3 rounded-lg border border-edge bg-sunken/60 px-3 py-2.5 contain-inline-size">
+      <div className="flex items-center justify-between gap-3 border-y border-edge px-1 py-2.5 contain-inline-size">
         <span className="flex min-w-0 items-center gap-2" style={{ color: shown.text }}>
           <PlayerAvatar name={name} image={image} className="size-7 text-xs" />
-          <span className="truncate text-base font-bold uppercase">{name}</span>
+          <span className="truncate text-base font-semibold">{name}</span>
         </span>
-        <span className="shrink-0 rounded-md px-2.5 py-1 text-xs font-bold" style={{ backgroundColor: shown.fill, color: shown.ink }}>
+        <span className="shrink-0 rounded-md px-2.5 py-1 text-xs font-medium" style={{ backgroundColor: shown.fill, color: shown.ink }}>
           {chosen.name}
         </span>
       </div>

@@ -29,7 +29,7 @@ export function GroupChoice({
   return (
     <div className={className}>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-        <Label htmlFor="battle-group" className="eyebrow shrink-0">
+        <Label htmlFor="battle-group" className="shrink-0 text-sm font-medium text-dim">
           Record for a group
         </Label>
         <SearchableSelect

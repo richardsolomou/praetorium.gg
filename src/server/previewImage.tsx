@@ -5,7 +5,8 @@ import display500 from '@fontsource/sofia-sans-semi-condensed/files/sofia-sans-s
 import display500Extended from '@fontsource/sofia-sans-semi-condensed/files/sofia-sans-semi-condensed-latin-ext-500-normal.woff?inline'
 import display700 from '@fontsource/sofia-sans-semi-condensed/files/sofia-sans-semi-condensed-latin-700-normal.woff?inline'
 import display700Extended from '@fontsource/sofia-sans-semi-condensed/files/sofia-sans-semi-condensed-latin-ext-700-normal.woff?inline'
-import wordmark700 from '@fontsource/chakra-petch/files/chakra-petch-latin-700-normal.woff?inline'
+import heading700 from '@fontsource/barlow/files/barlow-latin-700-normal.woff?inline'
+import heading700Extended from '@fontsource/barlow/files/barlow-latin-ext-700-normal.woff?inline'
 import logo from '../../public/logo.svg?raw'
 import { PREVIEW_SIZE, type PreviewCard, SITE } from '../contracts/linkPreview'
 import { notFound } from './notFound'
@@ -28,32 +29,15 @@ const COLOR = {
 } as const
 
 /**
- * The interface's construction grid at its 64px majors, drawn as plain 1px rules: as background gradients the
- * rasteriser tiles them and a card takes several times longer.
- */
-const GRID_LINE = 'rgba(231,236,233,0.06)'
-const GRID_LINES = [
-  ...Array.from({ length: Math.floor(PREVIEW_SIZE.width / 64) }, (_, at) => ({
-    left: (at + 1) * 64,
-    top: 0,
-    width: 1,
-    height: PREVIEW_SIZE.height,
-  })),
-  ...Array.from({ length: Math.floor(PREVIEW_SIZE.height / 64) }, (_, at) => ({
-    left: 0,
-    top: (at + 1) * 64,
-    width: PREVIEW_SIZE.width,
-    height: 1,
-  })),
-]
-
-/**
  * Satori draws only static faces, so the card uses the interface fonts' static instances. Fontsource splits a
  * face by script, and satori falls back between families rather than within one.
  */
 const FAMILY = 'Sofia Sans Semi Condensed'
 const EXTENDED = 'Sofia Sans Semi Condensed Extended'
-const WORDMARK = 'Chakra Petch'
+const HEADING = 'Barlow'
+const HEADING_EXTENDED = 'Barlow Extended'
+/** Headings, figures and the wordmark, as the interface sets them. */
+const heading = { fontFamily: `${HEADING}, ${HEADING_EXTENDED}`, fontWeight: 700 } as const
 
 const bytes = (dataUrl: string) => Buffer.from(dataUrl.slice(dataUrl.indexOf(',') + 1), 'base64')
 
@@ -72,7 +56,8 @@ function prepare() {
       { data: display500Extended, weight: 500 as const, name: EXTENDED },
       { data: display700, weight: 700 as const, name: FAMILY },
       { data: display700Extended, weight: 700 as const, name: EXTENDED },
-      { data: wordmark700, weight: 700 as const, name: WORDMARK },
+      { data: heading700, weight: 700 as const, name: HEADING },
+      { data: heading700Extended, weight: 700 as const, name: HEADING_EXTENDED },
     ].map(({ data, ...font }) => ({ ...font, data: bytes(data), style: 'normal' as const }))
   })()
   return ready
@@ -167,13 +152,10 @@ function Frame({ card }: { card: PreviewCard }) {
         fontFamily: `${FAMILY}, ${EXTENDED}`,
       }}
     >
-      {GRID_LINES.map((line) => (
-        <div key={`${line.left}-${line.top}`} style={{ position: 'absolute', ...line, backgroundColor: GRID_LINE }} />
-      ))}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
           <img src={LOGO} width={56} height={56} alt="" />
-          <span style={{ fontFamily: WORDMARK, fontSize: 30, fontWeight: 700, letterSpacing: 6, textTransform: 'uppercase' }}>
+          <span style={{ ...heading, fontSize: 30, letterSpacing: 6, textTransform: 'uppercase' }}>
             {SITE.name}
           </span>
         </div>
@@ -221,7 +203,7 @@ function Body({ card }: { card: PreviewCard }) {
     <div style={{ display: 'flex', alignItems: 'center', gap: 56 }}>
       <img src={LOGO} width={168} height={168} alt="" />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 20, width: 760 }}>
-        <span style={{ display: 'block', lineClamp: 3, fontSize: 64, fontWeight: 700, lineHeight: 1.05 }}>{card.title}</span>
+        <span style={{ ...heading, display: 'block', lineClamp: 3, fontSize: 64, lineHeight: 1.05 }}>{card.title}</span>
         <span style={{ display: 'block', lineClamp: 3, fontSize: 36, fontWeight: 500, color: COLOR.dim }}>{card.description}</span>
       </div>
     </div>
@@ -231,10 +213,10 @@ function Body({ card }: { card: PreviewCard }) {
 function Headline({ title, lead, detail, figure }: { title: string; lead: string | null; detail: string | null; figure: string | null }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <span style={{ display: 'block', lineClamp: 2, fontSize: 84, fontWeight: 700, lineHeight: 1.05 }}>{title}</span>
+      <span style={{ ...heading, display: 'block', lineClamp: 2, fontSize: 84, lineHeight: 1.05 }}>{title}</span>
       {lead ? <span style={{ ...clip, fontSize: 38, fontWeight: 500 }}>{lead}</span> : null}
       {detail ? <span style={{ ...clip, fontSize: 38, fontWeight: 500, color: COLOR.dim }}>{detail}</span> : null}
-      {figure ? <span style={{ fontSize: 56, fontWeight: 700, color: COLOR.parchment, marginTop: 10 }}>{figure}</span> : null}
+      {figure ? <span style={{ ...heading, fontSize: 56, color: COLOR.parchment, marginTop: 10 }}>{figure}</span> : null}
     </div>
   )
 }
@@ -251,9 +233,9 @@ function Battle({ card }: { card: BattleCard }) {
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'baseline', width: 236 }}>
           {scored ? (
             <>
-              <span style={{ fontSize: 88, fontWeight: 700, lineHeight: 1, color: COLOR.sides[0] }}>{left?.score ?? 0}</span>
+              <span style={{ ...heading, fontSize: 88, lineHeight: 1, color: COLOR.sides[0] }}>{left?.score ?? 0}</span>
               <span style={{ fontSize: 60, fontWeight: 700, lineHeight: 1, color: COLOR.faint, padding: '0 10px' }}>–</span>
-              <span style={{ fontSize: 88, fontWeight: 700, lineHeight: 1, color: COLOR.sides[1] }}>{right?.score ?? 0}</span>
+              <span style={{ ...heading, fontSize: 88, lineHeight: 1, color: COLOR.sides[1] }}>{right?.score ?? 0}</span>
             </>
           ) : (
             <span style={{ fontSize: 60, fontWeight: 700, lineHeight: 1, color: COLOR.faint }}>vs</span>
@@ -308,9 +290,8 @@ function Side({ side, index }: { side: BattleCard['sides'][number] | undefined; 
           borderRadius: 20,
           backgroundColor: COLOR.sides[index],
           color: COLOR.sideInks[index],
-          fontFamily: WORDMARK,
+          ...heading,
           fontSize: 24,
-          fontWeight: 700,
         }}
       >
         {index === 0 ? 'A' : 'B'}

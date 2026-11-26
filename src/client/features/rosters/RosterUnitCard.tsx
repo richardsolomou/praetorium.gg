@@ -13,6 +13,8 @@ export type AttachDirection = 'join' | 'host'
 
 type BuilderUnitCardProps = {
   unit: ComponentProps<typeof UnitCard>['unit']
+  /** How many models the unit fields, beside its name. */
+  models: number
   warlord?: boolean
   nickname?: string
   note?: string
@@ -43,6 +45,7 @@ type BuilderUnitCardProps = {
 
 export const BuilderUnitCard = memo(function BuilderUnitCard({
   unit,
+  models,
   warlord,
   nickname,
   note,
@@ -71,7 +74,7 @@ export const BuilderUnitCard = memo(function BuilderUnitCard({
   const embark = cardEmbark(unitEmbark, inAttachedUnit)
   return (
     <UnitCard
-      unit={unit}
+      unit={{ ...unit, modelCount: models }}
       warlord={warlord}
       nickname={nickname}
       note={note}

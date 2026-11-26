@@ -20,6 +20,7 @@ import type { BattleCombatSelection } from '../simulator/BattleCombatDialog'
 import { tint } from './battleTints'
 import { ArmyLoadout, standingWargearCounts } from './ArmyLoadout'
 import { ArmyThreats } from './ArmyThreats'
+import { OUTLINE_TAG } from '../../components/rosterSetup'
 
 type Props = {
   army: Army
@@ -164,7 +165,7 @@ export function ArmyRoster({ army, side, finished, actionable, pending, blocked 
 
   return (
     <>
-      <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+      <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
         {/* Units is the army as it stands on the table; Roster is the list as it was fielded, with its points and wargear. */}
         <Button variant="secondary" size="xs" onClick={() => setOpen(true)} aria-label={`Units: ${roster.name}`}>
           <Shield aria-hidden /> Units
@@ -185,20 +186,20 @@ export function ArmyRoster({ army, side, finished, actionable, pending, blocked 
             <Calculator aria-hidden /> Simulate
           </Button>
         ) : null}
-        {/* What is left of it, so the number worth glancing at needs no dialog to read. */}
-        {army.units.length ? (
-          <span className="readout text-3xs text-faint">
-            <span data-army-units>
-              {standing}/{army.unitCount}
-            </span>{' '}
-            units ·{' '}
-            <span data-army-models>
-              {models.standing}/{models.total}
-            </span>{' '}
-            models
-          </span>
-        ) : null}
       </div>
+      {/* What is left of it, so the number worth glancing at needs no dialog to read. */}
+      {army.units.length ? (
+        <p className="readout mt-1 text-2xs text-dim">
+          <span data-army-units>
+            {standing}/{army.unitCount}
+          </span>{' '}
+          units ·{' '}
+          <span data-army-models>
+            {models.standing}/{models.total}
+          </span>{' '}
+          models
+        </p>
+      ) : null}
 
       <BattlePromptDialog
         open={open}
@@ -305,20 +306,22 @@ function BattleUnit({
       onSelect={onSelect}
       joined={inUnit ? unitRoleRows(unit.joined ?? []) : (unit.joined ?? [])}
       editable={false}
-      status={
-        worthSaying || onSimulate ? (
-          <>
-            {onSimulate ? (
-              <ControlTooltip label={`Simulate ${unit.name}`}>
-                <Button variant="outline" size="icon-xs" aria-label={`Simulate ${unit.name}`} onClick={onSimulate}>
-                  <Calculator aria-hidden />
-                </Button>
-              </ControlTooltip>
-            ) : null}
-            {worthSaying ? <UnitStatus {...controls} unit={unit} onSeek={onSeek} /> : null}
-          </>
+      tools={
+        onSimulate ? (
+          <ControlTooltip label={`Simulate ${unit.name}`}>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="-my-1 text-faint hover:text-bone"
+              aria-label={`Simulate ${unit.name}`}
+              onClick={onSimulate}
+            >
+              <Calculator aria-hidden />
+            </Button>
+          </ControlTooltip>
         ) : undefined
       }
+      status={worthSaying ? <UnitStatus {...controls} unit={unit} onSeek={onSeek} /> : undefined}
     />
   )
 }
@@ -342,7 +345,7 @@ function UnitStatus({
   if (unit.destroyed) {
     return (
       <>
-        <span className="chip shrink-0 border-destructive/60 text-destructive">Destroyed</span>
+        <span className={`${OUTLINE_TAG} shrink-0 border-destructive/50 text-destructive`}>Destroyed</span>
         {actionable ? (
           <Button
             variant="secondary"
@@ -363,7 +366,7 @@ function UnitStatus({
     <>
       {/* Where a unit is, when it is anywhere but on the table. */}
       {unit.formation === 'battlefield' ? null : (
-        <span className="chip shrink-0">
+        <span className={`${OUTLINE_TAG} shrink-0 border-edge text-dim`}>
           {formationLabel(unit.formation)}
           {unit.embarkedIn ? ` in ${transportLabel(units, unit.embarkedIn) ?? 'transport'}` : ''}
         </span>

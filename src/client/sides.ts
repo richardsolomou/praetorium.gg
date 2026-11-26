@@ -79,8 +79,6 @@ export type Side = {
   played: boolean
   isActive: boolean
   cp: number
-  cpGained: number
-  cpSpent: number
   canGainCp: boolean
   primary: number
   finalPrimary: number
@@ -137,8 +135,6 @@ export function sides(view: BattleView, missions: readonly { side: number; missi
         played: seated.some((player) => player.isViewer) || seated.every((player) => player.automated),
         isActive: captain.isActive,
         cp: captain.cp,
-        cpGained: captain.cpGained,
-        cpSpent: captain.cpSpent,
         canGainCp: captain.canGainCp,
         primary: captain.primary,
         finalPrimary: captain.finalPrimary ?? 0,

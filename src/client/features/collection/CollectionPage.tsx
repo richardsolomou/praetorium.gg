@@ -121,7 +121,7 @@ export function CollectionPage() {
             sheet={sheet}
             description={countLabel(sheet.battles, 'battle')}
             action={
-              <Button size="sm" variant="outline" aria-label={`Add ${sheet.name} to your collection`} onClick={() => add(sheet.id)}>
+              <Button size="sm" variant="ghost" aria-label={`Add ${sheet.name} to your collection`} onClick={() => add(sheet.id)}>
                 <Plus /> Add
               </Button>
             }
@@ -147,8 +147,8 @@ export function CollectionPage() {
       <PageContent className="space-y-8">
         <div className="space-y-4">
           {owned.size ? (
-            <section aria-label="Your shelf" className="part space-y-3 p-3 sm:p-4">
-              <dl className="grid grid-cols-3 gap-3">
+            <section aria-label="Your shelf" className="space-y-3 border-y border-edge pb-3">
+              <dl className="grid grid-cols-3 divide-x divide-edge">
                 <Stage
                   label="Owned"
                   value={pending ? null : shelf.owned}
@@ -162,7 +162,7 @@ export function CollectionPage() {
                   detail={share(shelf.painted, shelf.owned)}
                 />
               </dl>
-              {pending || progress.isPending ? <Skeleton className="h-1.5" /> : <ShelfLine {...shelf} />}
+              <div className="px-1">{pending || progress.isPending ? <Skeleton className="h-1.5" /> : <ShelfLine {...shelf} />}</div>
             </section>
           ) : null}
           <div data-onboarding="collection-add" className="w-full sm:w-80">
@@ -208,7 +208,7 @@ export function CollectionPage() {
                   totals={shelved(sheets.map((sheet) => sheet.id))}
                   pending={counts.isPending || progress.isPending}
                 />
-                <CollectionCardGrid>
+                <CollectionCardGrid className="border-t-0">
                   {sheets.map((sheet) => (
                     <CollectionCard
                       key={sheet.id}
@@ -229,13 +229,11 @@ export function CollectionPage() {
               </section>
             ))}
             {retired.length ? (
-              <section aria-label="Retired datasheets" className="part">
-                <header className="border-b border-edge px-3 py-2.5">
-                  <h2 className="rubric">No longer in the rules</h2>
-                </header>
-                <ul className="divide-y divide-edge">
+              <section aria-label="Retired datasheets">
+                <SectionHeading title="No longer in the rules" count={retired.length} />
+                <ul className="divide-y divide-edge border-y border-edge">
                   {retired.map((entryId) => (
-                    <li key={entryId} className="flex min-h-12 items-center gap-2 py-1.5 pr-1.5 pl-3 text-sm text-dim">
+                    <li key={entryId} className="flex min-h-12 items-center gap-2 py-1.5 pr-1 pl-1 text-sm text-dim">
                       <span className="min-w-0 flex-1">A datasheet from earlier rules</span>
                       <Button
                         variant="ghost"
@@ -280,8 +278,8 @@ const share = (part: number, whole: number) => (whole ? percentLabel(part / whol
 /** One stage of the shelf, from sprue to painted, with its figure rising into place as it changes. */
 function Stage({ label, value, detail, tally }: { label: string; value: number | null; detail: string | null; tally?: string }) {
   return (
-    <div className="min-w-0">
-      <dt className="text-2xs font-semibold tracking-label text-dim uppercase">{label}</dt>
+    <div className="min-w-0 px-3 pt-3 first:pl-1">
+      <dt className="eyebrow">{label}</dt>
       <dd className="mt-1 flex flex-wrap items-baseline gap-x-2">
         {value === null ? (
           <Skeleton className="h-8 w-10" aria-label={`Loading ${label.toLowerCase()}`} />

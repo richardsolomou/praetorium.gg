@@ -9,7 +9,7 @@ import { redrawOffer } from './drawOffer'
 import { RuleSummaryText } from '../../components/RuleSummaryText'
 import { summaryBlocks } from '../../../core/summaryMarkdown'
 import { MissionDetailsDialog, MissionName, type MissionDetails, type ReferenceCard } from './MissionCards'
-import { CARD, tint } from './battleTints'
+import { tint } from './battleTints'
 import { UndoLatest, type UndoTarget } from './UndoLatest'
 import { BattleDialogContent, BattlePromptDialog } from './BattlePromptDialog'
 import { countLabel } from '../../text'
@@ -27,6 +27,9 @@ type Props = {
   initialSelection?: DrawSelection
   onSelectionChange: (selection: DrawSelection) => void
 }
+
+/** A drawn or held card, one hairline row each. */
+const ROW = 'border-b border-edge py-2.5 first-of-type:border-t'
 
 export type DrawSelection = { selecting: boolean; selected: string[] }
 
@@ -182,13 +185,13 @@ export function DrawDialog({
                 <p className="eyebrow">
                   Select {countLabel(owed, 'mission')} · {selected.length}/{owed}
                 </p>
-                <ul className="space-y-1.5">
+                <ul className="divide-y divide-edge border-y border-edge">
                   {side.remainingSecondaries.map((card) => {
                     const chosen = selected.includes(card.key)
                     return (
                       <li
                         key={card.key}
-                        className={`flex items-center justify-between gap-2 rounded-md px-2.5 py-1.5 ${chosen ? colours.mark : 'bg-sunken'}`}
+                        className={`flex min-h-12 items-center justify-between gap-2 px-1 py-1.5 ${chosen ? 'bg-raised' : ''}`}
                       >
                         {cardName(card)}
                         <Button
@@ -215,7 +218,7 @@ export function DrawDialog({
                 const rule = whenDrawnFor(card.key)
                 const offer = redrawOffer(rule, round, held)
                 return (
-                  <div key={card.key} data-drawn={card.key} className={`${CARD} space-y-1.5`}>
+                  <div key={card.key} data-drawn={card.key} className={`${ROW} space-y-1.5`}>
                     {cardName(card)}
                     {offer ? (
                       <>
@@ -248,7 +251,7 @@ export function DrawDialog({
               <>
                 <p className="eyebrow pt-1">Still in hand</p>
                 {carried.map((card) => (
-                  <div key={card.key} data-held={card.key} className={`${CARD} space-y-1.5`}>
+                  <div key={card.key} data-held={card.key} className={ROW}>
                     {cardName(card)}
                   </div>
                 ))}

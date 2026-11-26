@@ -61,7 +61,6 @@ export function JoinBattle({ invite, side: returning }: { invite: string; side?:
     <main className="flex w-full flex-col">
       <div className="mx-auto w-full max-w-5xl px-3 pt-4 pb-10 sm:px-4 sm:pt-6">
         <header className="relative space-y-4 pb-2 sm:space-y-5">
-          <div aria-hidden className="construction-grid -inset-x-3 -top-6 sm:-inset-x-4" />
           <div className="relative space-y-1.5">
             <h1 className="text-2xl text-balance sm:text-3xl">Join the battle</h1>
             <p className="max-w-prose text-sm text-dim sm:text-base">

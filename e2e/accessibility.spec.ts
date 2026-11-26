@@ -107,7 +107,7 @@ test.describe('a touch device', () => {
       const bounds = (selector: string) => element.querySelector(selector)!.getBoundingClientRect()
       const edge = element.getBoundingClientRect().right
       const name = element.querySelector('button[aria-label$=" datasheet"]')!.getBoundingClientRect()
-      const actions = [bounds('[aria-label^="Add Immortals to"]'), bounds('.chip'), bounds('[data-onboarding="picker-add"]')]
+      const actions = [bounds('[aria-label^="Add Immortals to"]'), bounds('[data-points]'), bounds('[data-onboarding="picker-add"]')]
       return actions.some(
         (action) =>
           action.right > edge + 1 ||

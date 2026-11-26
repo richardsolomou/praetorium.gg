@@ -54,6 +54,8 @@ type Props = {
   joined?: Joined[]
   /** A last row of the card's own: what a battle has done to this unit, and what can be done about it. */
   status?: ReactNode
+  /** Quiet icon actions of the card's own, beside its points. */
+  tools?: ReactNode
   alertCount?: number
   editable?: boolean
 } & Partial<Editing>
@@ -117,41 +119,115 @@ export function UnitCard({
   canCarry = NONE,
   onCarry = noop,
   status,
+  tools,
   alertCount = 0,
   editable = true,
 }: Props) {
-  // Not overflow-hidden: a runner's gate is drawn outside the card, so the last row rounds its own corners instead.
-  const cardClassName = `relative min-w-0 max-w-full rounded-xl border *:last:rounded-b-[inherit] bg-panel shadow-part print:shadow-none transition-colors [contain:layout_style] ${
-    selected ? 'border-parchment inset-ring-1 inset-ring-parchment' : 'border-edge hover:border-runner-hi'
+  const rowClassName = `relative min-w-0 max-w-full border-b border-edge px-2 transition-colors [contain:layout_style] ${
+    selected ? 'bg-raised' : 'hover:bg-panel/60'
   }`
   const gate = selected ? 'current' : undefined
   const actions = { editable, onDuplicate, canDuplicate, duplicateLimit, onSaveLoadout, onSaveAttachedUnit, onDetach, onReport, onRemove }
   // A reader keeps what only touches their own library or a report: saving the loadout and saying something is wrong.
   const hasActions = editable || Boolean(onSaveLoadout || onSaveAttachedUnit || onReport)
+  // A row naming no unit only says the role this datasheet plays in the unit drawn around it, so it is set as a tag
+  // before the name; its undoing is the menu's Detach from unit whenever the menu offers that.
+  const roles = joined.filter((row) => !row.name)
+  const rows = joined.filter((row) => row.name)
+  const looseRoleActions = roles.filter((row) => editable && row.action && !onDetach)
+  const models = unit.modelCount !== undefined && unit.modelCount > 1 ? unit.modelCount : null
 
-  // One target over the whole card, under everything on it. An enhancement, an
+  // One target over the whole row, under everything on it. An enhancement, an
   // upgrade and who a unit is standing with are all things a player reads on the
-  // card and then wants to open, so the rows saying so open it too — and the
+  // row and then wants to open, so the lines saying so open it too — and the
   // buttons that do something else take their clicks back.
   const card = (
     <>
       {onSelect ? (
         <Button
           variant="ghost"
-          className="absolute inset-0 h-full w-full hover:bg-transparent dark:hover:bg-transparent"
+          className="absolute inset-0 h-full w-full rounded-none hover:bg-transparent dark:hover:bg-transparent"
           data-print-hide
           onClick={onSelect}
           aria-pressed={selected}
           aria-label={nicknamedUnit(unit.name, nickname)}
         />
       ) : null}
-      <div className="flow-root px-2.5 py-2">
-        <span className="pointer-events-none relative z-10 float-right ml-2 flex shrink-0 items-center gap-1.5 [&_button]:pointer-events-auto">
-          {unit.points === undefined ? null : <span className="chip">{unit.points} pts</span>}
+      <div className="flex items-start gap-2.5 py-2.5">
+        <div className="pointer-events-none min-w-0 flex-1 text-left">
+          <span className="block text-[1.0625rem] leading-snug font-semibold text-bone">
+            {roles.map((row) => (
+              <span key={row.label} className={`${TAG} mr-1.5 align-[0.1em]`}>
+                {row.label}
+              </span>
+            ))}
+            <span>{nickname ?? unit.name}</span>
+            {models === null ? null : (
+              <span className="ml-1.5 font-medium text-faint">
+                <span aria-hidden>×</span>
+                <span className="sr-only">, </span>
+                {models}
+                <span className="sr-only"> models</span>
+              </span>
+            )}
+            {alertCount ? <UnitAlertMarker count={alertCount} unitName={unit.name} /> : null}
+          </span>
+          {nickname ? <span className="mt-0.5 block text-xs text-dim">{unit.name}</span> : null}
+          {alliedFaction ? (
+            <span className="eyebrow mt-1 flex items-center gap-1 text-info">
+              Allied unit · <FactionLabel faction={alliedFaction} />
+            </span>
+          ) : null}
+          {warlord || unit.wargear.length ? (
+            // One run of wargear rather than a line each; a separator is held to the piece before it, so no line starts with a dot.
+            <ul className="mt-0.5 w-full min-w-0 text-xs text-dim">
+              {warlord ? (
+                <li className="inline">
+                  <span className="font-semibold text-parchment" title="Warlord">
+                    <Crown className="mr-1 inline size-3.5 fill-current align-[-0.15em]" aria-hidden />
+                    Warlord
+                  </span>
+                  {unit.wargear.length ? <span aria-hidden>{'\u00a0· '}</span> : null}
+                </li>
+              ) : null}
+              {unit.wargear.map((piece, at) => (
+                <li key={piece.name} className="inline">
+                  {piece.count === 1 ? null : <span className="readout">{piece.count}x </span>}
+                  {piece.name}
+                  {at < unit.wargear.length - 1 ? <span aria-hidden>{'\u00a0· '}</span> : null}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {unit.enhancements.map((enhancement) => (
+            <span key={enhancement} className="mt-0.5 block text-xs font-semibold text-achieved">
+              <span className="sr-only">Enhancement: </span>
+              <span>{enhancement}</span>
+            </span>
+          ))}
+          {unit.upgrades.map((upgrade) => (
+            <span key={upgrade} className="mt-0.5 block text-xs font-semibold text-achieved">
+              <span className="sr-only">Upgrade: </span>
+              <span>{upgrade}</span>
+            </span>
+          ))}
+        </div>
+        <span className="pointer-events-none relative z-10 flex shrink-0 items-center gap-0.5 [&_button]:pointer-events-auto">
+          {tools}
+          {unit.points === undefined ? null : <PointsChip points={unit.points} />}
           {hasActions ? (
             <span data-print-hide>
               <DropdownMenu>
-                <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label={`Unit actions for ${unit.name}`} />}>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      className="-my-1 text-faint hover:text-bone"
+                      aria-label={`Unit actions for ${unit.name}`}
+                    />
+                  }
+                >
                   <EllipsisVertical />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className={MENU}>
@@ -161,88 +237,48 @@ export function UnitCard({
             </span>
           ) : null}
         </span>
-        <div className="pointer-events-none text-left">
-          <span className="w-full min-w-0">
-            <span className="rubric block leading-tight text-bone">
-              {warlord ? (
-                <span className="mr-1 inline-flex align-middle text-info" title="Warlord">
-                  <Crown className="size-3.5 fill-current" aria-label="Warlord" />
-                </span>
-              ) : null}
-              <span>{nickname ?? unit.name}</span>
-              {alertCount ? <UnitAlertMarker count={alertCount} unitName={unit.name} /> : null}
-            </span>
-            {nickname ? <span className="mt-0.5 block text-xs text-dim">{unit.name}</span> : null}
-            {alliedFaction ? (
-              <span className="eyebrow mt-1 flex items-center gap-1 text-info">
-                Allied unit · <FactionLabel faction={alliedFaction} />
-              </span>
-            ) : null}
-            {unit.modelCount !== undefined ? (
-              <span className="mt-1 block text-xs text-dim">{countLabel(unit.modelCount, 'model')}</span>
-            ) : null}
-          </span>
-          {unit.wargear.length ? (
-            // One run of wargear rather than a line each; a separator is held to the piece before it, so no line starts with a dot.
-            <ul className="mt-1 w-full min-w-0 text-xs text-dim">
-              {unit.wargear.map((piece, at) => (
-                <li key={piece.name} className="inline">
-                  <span className="readout">{piece.count}x</span> {piece.name}
-                  {at < unit.wargear.length - 1 ? <span aria-hidden>{'\u00a0· '}</span> : null}
-                </li>
-              ))}
-            </ul>
-          ) : null}
-        </div>
       </div>
 
       {note ? (
         <div className={`${ROW} ph-no-capture pointer-events-none items-start gap-2`} data-unit-note>
-          <span className="chip shrink-0">Note</span>
+          <span className="eyebrow shrink-0 text-dim">Note</span>
           <span className="min-w-0 flex-1 text-xs break-words whitespace-pre-line line-clamp-3 print:line-clamp-none">{note}</span>
         </div>
       ) : null}
 
-      {unit.enhancements.map((enhancement) => (
-        <div key={enhancement} className={`${ROW} pointer-events-none gap-2`}>
-          <span className="chip text-achieved">Enhancement</span>
-          <span className="text-xs font-semibold">{enhancement}</span>
+      {looseRoleActions.map((row) => (
+        <div key={row.label} className={`${ROW} pointer-events-none relative z-10 justify-end [&_button]:pointer-events-auto`}>
+          <QuietAction onClick={row.onAct}>{row.action}</QuietAction>
         </div>
       ))}
 
-      {unit.upgrades.map((upgrade) => (
-        <div key={upgrade} className={`${ROW} pointer-events-none gap-2`}>
-          <span className="chip text-achieved">Upgrade</span>
-          <span className="text-xs font-semibold">{upgrade}</span>
-        </div>
-      ))}
-
-      {joined.map((row) => (
+      {rows.map((row) => (
         <JoinedRow key={`${row.label}-${row.name}`} row={row} editable={editable} />
       ))}
 
-      {editable && canJoin.length ? <AttachMenu label="Attach to unit" unit={unit.name} choices={canJoin} onChoose={onJoin} /> : null}
-
-      {editable && canHost.length ? <AttachMenu label="Attach unit" unit={unit.name} choices={canHost} onChoose={onHost} /> : null}
-
-      {editable && canBoard.length ? (
-        <EmbarkMenu
-          label="Embark in transport"
-          unit={unit.name}
-          choiceLabel={(choice) => `Embark ${unit.name} in ${choice.name}`}
-          choices={canBoard}
-          onChoose={onBoard}
-        />
-      ) : null}
-
-      {editable && canCarry.length ? (
-        <EmbarkMenu
-          label="Embark unit"
-          unit={unit.name}
-          choiceLabel={(choice) => `Embark ${choice.name} in ${unit.name}`}
-          choices={canCarry}
-          onChoose={onCarry}
-        />
+      {editable && (canJoin.length || canHost.length || canBoard.length || canCarry.length) ? (
+        <div data-print-hide className={`${ROW} pointer-events-none relative z-10 flex-wrap gap-x-3 [&_button]:pointer-events-auto`}>
+          {canJoin.length ? <AttachMenu label="Attach to unit" unit={unit.name} choices={canJoin} onChoose={onJoin} /> : null}
+          {canHost.length ? <AttachMenu label="Attach unit" unit={unit.name} choices={canHost} onChoose={onHost} /> : null}
+          {canBoard.length ? (
+            <EmbarkMenu
+              label="Embark in transport"
+              unit={unit.name}
+              choiceLabel={(choice) => `Embark ${unit.name} in ${choice.name}`}
+              choices={canBoard}
+              onChoose={onBoard}
+            />
+          ) : null}
+          {canCarry.length ? (
+            <EmbarkMenu
+              label="Embark unit"
+              unit={unit.name}
+              choiceLabel={(choice) => `Embark ${choice.name} in ${unit.name}`}
+              choices={canCarry}
+              onChoose={onCarry}
+            />
+          ) : null}
+        </div>
       ) : null}
 
       {/* A wider gap than the rows above it: two counters side by side put one's `+` next to the other's `-`. */}
@@ -260,7 +296,7 @@ export function UnitCard({
 
   if (!hasActions) {
     return (
-      <div data-unit={unit.name} data-gate={gate} className={cardClassName}>
+      <div data-unit={unit.name} data-gate={gate} className={rowClassName}>
         {card}
       </div>
     )
@@ -268,7 +304,7 @@ export function UnitCard({
 
   return (
     <ContextMenu>
-      <ContextMenuTrigger render={<div data-unit={unit.name} data-gate={gate} className={cardClassName} />}>{card}</ContextMenuTrigger>
+      <ContextMenuTrigger render={<div data-unit={unit.name} data-gate={gate} className={rowClassName} />}>{card}</ContextMenuTrigger>
       <ContextMenuContent className={MENU}>
         <UnitActions parts={CONTEXT_PARTS} {...actions} />
       </ContextMenuContent>
@@ -279,27 +315,34 @@ export function UnitCard({
 const noop = () => undefined
 const NONE: never[] = []
 
-/** A line under the unit's name: an enhancement, an upgrade, or who it is standing with. */
-const ROW = 'flex items-center border-t border-edge px-2.5 py-1'
+/** A line under the unit's name: who it is standing with, or what can be done with it. */
+const ROW = 'flex items-center -mt-1.5 pb-1.5'
 const MENU = 'w-44'
+/** A small outlined caps label naming the part a datasheet plays. */
+const TAG = 'inline-block rounded-sm border border-edge px-1.5 text-xs leading-5 font-medium text-dim'
+
+/** A text button that stays out of the way of the row it acts on. */
+function QuietAction({ onClick, children }: { onClick?: () => void; children: ReactNode }) {
+  return (
+    <Button
+      data-print-hide
+      variant="ghost"
+      size="xs"
+      className="!px-1 text-xs text-dim hover:bg-transparent hover:text-bone"
+      onClick={onClick}
+    >
+      {children}
+    </Button>
+  )
+}
 
 /** A row naming who a unit is joined to or riding with, and the button undoing it while the roster can be edited. */
 export function JoinedRow({ row, editable }: { row: Joined; editable: boolean }) {
   return (
-    <div className={`${ROW} pointer-events-none relative z-10 flex-wrap gap-2 [&_button]:pointer-events-auto`}>
-      <span className="chip shrink-0">{row.label}</span>
-      <span className="min-w-24 flex-1 text-xs break-words">{row.name}</span>
-      {editable && row.action ? (
-        <Button
-          data-print-hide
-          variant="ghost"
-          size="xs"
-          className="shrink-0 text-2xs tracking-label text-dim uppercase hover:text-bone"
-          onClick={row.onAct}
-        >
-          {row.action}
-        </Button>
-      ) : null}
+    <div className={`${ROW} pointer-events-none relative z-10 flex-wrap gap-x-2 [&_button]:pointer-events-auto`}>
+      <span className={`${TAG} shrink-0`}>{row.label}</span>
+      <span className="min-w-24 flex-1 text-xs break-words text-dim">{row.name}</span>
+      {editable && row.action ? <QuietAction onClick={row.onAct}>{row.action}</QuietAction> : null}
     </div>
   )
 }
@@ -401,28 +444,28 @@ export function EmbarkMenu({
   )
 }
 
-/** A card row opening a menu of what the unit can be paired with, named by its visible label first so speech input can reach it. */
+/** A quiet text action opening a menu of what the unit can be paired with, named by its visible label first so speech input can reach it. */
 function CardMenu({ label, unit, children }: { label: string; unit: string; children: ReactNode }) {
   return (
-    <div data-print-hide className={`${ROW} pointer-events-none relative z-10 [&_button]:pointer-events-auto`}>
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          render={
-            <Button
-              variant="ghost"
-              size="xs"
-              className="!px-1 text-2xs tracking-label text-dim uppercase hover:bg-transparent hover:text-bone aria-expanded:text-bone"
-              aria-label={`${label}: ${unit}`}
-            />
-          }
-        >
-          {label}
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-72 max-w-[calc(100vw-1rem)]">
-          {children}
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            data-print-hide
+            variant="ghost"
+            size="xs"
+            className="-ml-1 !px-1 text-2xs text-faint hover:bg-transparent hover:text-bone aria-expanded:text-bone"
+            aria-label={`${label}: ${unit}`}
+          />
+        }
+      >
+        <Plus className="size-3.5" aria-hidden />
+        {label}
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-72 max-w-[calc(100vw-1rem)]">
+        {children}
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }
 

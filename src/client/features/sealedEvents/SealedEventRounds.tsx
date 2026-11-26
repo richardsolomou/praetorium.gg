@@ -9,6 +9,7 @@ import { rematches, type SwissMatch } from '../../../core/swiss'
 import { squadMeetingChoosing, squadTables } from '../../../core/squad'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { Problem } from '../../components/Problem'
+import { ScoreFigure } from '../../components/ScoreFigure'
 import { pairSealedEventRound, reopenSwissTable, setTableBattlefield } from '../../functions'
 import { useStartBattle } from '../battles/useStartBattle'
 import type { Battle } from '../battles/battle'
@@ -20,6 +21,7 @@ import { ReportTableResult } from './ReportTableResult'
 import { RoundClock, SwapSeats } from './RoundTools'
 import { CheckIn, TiebreakChoice } from './CheckIn'
 import { nameColour } from '../../playerName'
+import { OUTLINE_TAG } from '../../components/rosterSetup'
 import { SquadMeeting } from './SealedEventSquads'
 
 type Pairing = SealedEvent['pairings'][number]
@@ -115,7 +117,7 @@ export function SealedEventRounds({
     return (
       <>
         {entry ? <span style={nameColour({ id: entry.userId, colour: entry.colour })}>{label(entry)}</span> : 'A player'}
-        {entry?.dropped ? <span className="chip ml-1.5 align-middle text-dim">Dropped</span> : null}
+        {entry?.dropped ? <span className={`${OUTLINE_TAG} ml-1.5 align-middle border-edge text-dim`}>Dropped</span> : null}
       </>
     )
   }
@@ -207,9 +209,9 @@ export function SealedEventRounds({
               <li key={round} className="min-w-0 flex-1">
                 <span data-line={line} className="line-segment" />
                 <span
-                  className={`mt-1 block text-2xs font-semibold tracking-label uppercase ${line === 'now' ? 'text-parchment' : line === 'done' ? 'text-dim' : 'text-faint'}`}
+                  className={`mt-1.5 block text-2xs font-semibold ${line === 'now' ? 'text-parchment' : line === 'done' ? 'text-dim' : 'text-faint'}`}
                 >
-                  R{round}
+                  Round {round}
                 </span>
               </li>
             )
@@ -246,53 +248,55 @@ export function SealedEventRounds({
           {rounds.length > 1 && next <= progress.rounds ? (
             <p className="text-sm text-dim">Results from earlier rounds are locked once the next round is paired.</p>
           ) : null}
-          <div className="runner gap-3 [--gate-y:1.375rem]">
-            {rounds.map((round) => (
-              <div key={round} data-gate={round === progress.round && !progress.complete ? 'current' : undefined} className="part">
-                {rounds.length > 1 ? (
-                  <p className="flex min-h-11 items-center gap-2 rounded-t-xl border-b border-edge bg-sunken/40 px-3 text-xs font-semibold tracking-label uppercase">
-                    <span className="part-tag part-tag-ghost">R{round}</span>
-                    <span>Round {round}</span>
-                    {round < progress.round ? (
-                      <span className="ml-auto flex items-center gap-1 text-faint">
-                        <Lock className="size-3" aria-hidden /> <span>Results locked</span>
-                      </span>
-                    ) : null}
-                  </p>
-                ) : null}
-                {teams ? (
-                  <ol className="divide-y divide-edge">
-                    {sealedEvent.squadMatches
-                      .filter((match) => match.round === round)
-                      .map((match) => {
-                        const { first, last } = squadTables(match.table, teams.size)
-                        const tables = sealedEvent.pairings.filter(
-                          (pairing) => pairing.round === round && pairing.table >= first && pairing.table <= last,
-                        )
-                        const result = meetings.find((meeting) => meeting.round === round && meeting.a === match.aId)
-                        return (
-                          <SquadMeeting
-                            key={match.table}
-                            token={token}
-                            sealedEvent={sealedEvent}
-                            match={match}
-                            viewerSquadId={viewerSquadId}
-                            score={tables.length && result ? result.vp : null}
-                            name={name}
-                            label={(userId) => seatLabel(userId).label}
-                          >
-                            {tables.map((pairing) => tableRow(pairing, round))}
-                          </SquadMeeting>
-                        )
-                      })}
-                  </ol>
-                ) : (
-                  <ol className="divide-y divide-edge">
-                    {sealedEvent.pairings.filter((pairing) => pairing.round === round).map((pairing) => tableRow(pairing, round))}
-                  </ol>
-                )}
-              </div>
-            ))}
+          <div className="runner gap-5">
+            {rounds.map((round) => {
+              const live = round === progress.round && !progress.complete
+              return (
+                <div key={round} data-gate={live ? 'current' : undefined} className={live ? 'part' : undefined}>
+                  {rounds.length > 1 ? (
+                    <p className={`flex min-h-10 items-center gap-2 border-b border-edge ${live ? 'px-3' : 'px-2'}`}>
+                      <span className="eyebrow">Round {round}</span>
+                      {round < progress.round ? (
+                        <span className="ml-auto flex items-center gap-1 text-2xs text-faint">
+                          <Lock className="size-3" aria-hidden /> <span>Results locked</span>
+                        </span>
+                      ) : null}
+                    </p>
+                  ) : null}
+                  {teams ? (
+                    <ol className="divide-y divide-edge">
+                      {sealedEvent.squadMatches
+                        .filter((match) => match.round === round)
+                        .map((match) => {
+                          const { first, last } = squadTables(match.table, teams.size)
+                          const tables = sealedEvent.pairings.filter(
+                            (pairing) => pairing.round === round && pairing.table >= first && pairing.table <= last,
+                          )
+                          const result = meetings.find((meeting) => meeting.round === round && meeting.a === match.aId)
+                          return (
+                            <SquadMeeting
+                              key={match.table}
+                              token={token}
+                              sealedEvent={sealedEvent}
+                              match={match}
+                              viewerSquadId={viewerSquadId}
+                              score={tables.length && result ? result.vp : null}
+                              name={name}
+                              label={(userId) => seatLabel(userId).label}
+                            >
+                              {tables.map((pairing) => tableRow(pairing, round))}
+                            </SquadMeeting>
+                          )
+                        })}
+                    </ol>
+                  ) : (
+                    <ol className={`divide-y divide-edge ${live ? '' : 'border-b border-edge'}`}>
+                      {sealedEvent.pairings.filter((pairing) => pairing.round === round).map((pairing) => tableRow(pairing, round))}
+                    </ol>
+                  )}
+                </div>
+              )
+            })}
           </div>
         </div>
       )}
@@ -338,26 +342,22 @@ function TableRow({
   return (
     <li
       data-table={pairing.table}
-      className={`flex min-h-12 min-w-0 flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2 last:rounded-b-xl ${own ? 'bg-parchment/5' : ''}`}
+      className={`flex min-h-13 min-w-0 flex-wrap items-center gap-x-2 gap-y-2 px-2 py-2 sm:gap-x-3 sm:px-3 ${own ? 'bg-parchment/5' : ''}`}
     >
-      <span className="part-tag part-tag-ghost">{pairing.table}</span>
-      <span className="min-w-0 flex-[1_1_10rem] font-semibold break-words">
+      <span className="part-tag">{pairing.table}</span>
+      <span className="min-w-0 flex-[1_1_8rem] text-[0.9375rem] font-bold break-words">
         {name(pairing.aId)}
         {pairing.bId ? <span className="font-normal text-dim"> vs </span> : null}
         {pairing.bId ? name(pairing.bId) : null}
       </span>
-      {rematch ? <span className="chip shrink-0 text-dim">Rematch</span> : null}
+      {rematch ? <span className={`${OUTLINE_TAG} border-edge text-dim`}>Rematch</span> : null}
       {!pairing.bId || forfeit ? (
-        <span className="chip shrink-0 text-dim">Bye</span>
+        <span className={`${OUTLINE_TAG} border-edge text-dim`}>Bye</span>
       ) : pairing.battleToken && sample ? (
-        <span className="readout shrink-0 text-sm font-semibold text-bone">{battleState(battle, pairing.aId, pairing.bId)}</span>
+        <BattleState battle={battle} aId={pairing.aId} bId={pairing.bId} />
       ) : pairing.battleToken ? (
-        <Link
-          to="/battles/$token"
-          params={{ token: pairing.battleToken }}
-          className="readout shrink-0 text-sm font-semibold text-bone hover:text-parchment"
-        >
-          {battleState(battle, pairing.aId, pairing.bId)}
+        <Link to="/battles/$token" params={{ token: pairing.battleToken }} className="shrink-0 hover:text-parchment">
+          <BattleState battle={battle} aId={pairing.aId} bId={pairing.bId} />
         </Link>
       ) : own && current && opponent ? (
         <Button size="sm" disabled={playing} onClick={() => onPlay(opponent)}>
@@ -441,8 +441,12 @@ function ReopenTable({ token, eventToken, battleToken, table }: { token: string;
   )
 }
 
-const battleState = (battle: TableBattle | undefined, aId: string, bId: string) =>
-  battle?.status === 'finished' ? `${score(battle, aId)} – ${score(battle, bId)}` : battle?.status === 'playing' ? 'Playing' : 'Setting up'
+/** A finished table's score as a figure, the losing side faded; otherwise how far its battle has got. */
+function BattleState({ battle, aId, bId }: { battle: TableBattle | undefined; aId: string; bId: string }) {
+  if (battle?.status !== 'finished')
+    return <span className="shrink-0 text-sm font-semibold text-bone">{battle?.status === 'playing' ? 'Playing' : 'Setting up'}</span>
+  return <ScoreFigure a={score(battle, aId)} b={score(battle, bId)} />
+}
 
 /** The victory points a player's side finished on, read in the table's order rather than the battle's seats. */
 const score = (battle: TableBattle, userId: string) => battle.scores[battle.playerIds.indexOf(userId)] ?? 0

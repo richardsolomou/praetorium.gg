@@ -454,7 +454,7 @@ function PickerSkeleton() {
     <div className="space-y-2 py-2" aria-label="Loading units">
       <Skeleton className="h-3 w-20" />
       {Array.from({ length: 6 }, (_, index) => (
-        <div key={index} className="flex h-[3.25rem] items-center gap-2 part px-2.5" aria-hidden>
+        <div key={index} className="flex h-[3.25rem] items-center gap-2 border-b border-edge px-2.5" aria-hidden>
           <div className="min-w-0 flex-1 space-y-2">
             <Skeleton className="h-4 w-2/3" />
             <Skeleton className="h-3 w-1/3" />
@@ -506,10 +506,11 @@ const PickerRow = memo(function PickerRow({
   return (
     <div
       data-picker-unit={unit.name}
-      className="flex flex-wrap items-center gap-1.5 part px-2.5 py-1.5 [contain:layout_style] [contain-intrinsic-size:auto_3.25rem] [content-visibility:auto]"
+      className="relative flex min-h-[3.1rem] flex-wrap items-center gap-1.5 border-b border-edge px-2.5 py-1.5 hover:bg-raised [contain:layout_style] [contain-intrinsic-size:auto_3.25rem] [content-visibility:auto]"
     >
-      {/* Only the name is the button's text, so its name holds what it shows; its hit area still covers the row's details. */}
-      <div className="relative min-w-12 flex-1">
+      {/* The row's minimum height fits the name and its roster count, so adding a unit's first copy, or removing its last, moves no row under the pointer. */}
+      {/* Only the name is the button's text, so its name holds what it shows; its hit area covers the whole row, under the row's own controls. */}
+      <div className="min-w-12 flex-1">
         <button
           type="button"
           className="block text-left text-sm leading-tight font-semibold wrap-break-word after:absolute after:inset-0 hover:text-info"
@@ -529,14 +530,9 @@ const PickerRow = memo(function PickerRow({
             {held}
             {limit === null ? '' : `/${limit}`} in roster
           </span>
-        ) : (
-          // Held open so adding a unit's first copy, or removing its last, moves no row under the pointer.
-          <span aria-hidden className="readout invisible block text-2xs">
-            0 in roster
-          </span>
-        )}
+        ) : null}
       </div>
-      <span className="ml-auto flex max-w-full shrink-0 flex-wrap items-center justify-end gap-1.5">
+      <span className="pointer-events-none relative ml-auto flex max-w-full shrink-0 flex-wrap items-center justify-end gap-1.5 *:pointer-events-auto">
         {topFour ? (
           <HoverTooltip
             title={`In ${topFour.lists} of ${topFour.of} top-four lists`}

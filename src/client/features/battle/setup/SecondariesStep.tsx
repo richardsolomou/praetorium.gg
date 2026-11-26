@@ -31,7 +31,7 @@ export function SecondariesStep({ view, sides, send, pending }: Props) {
             <SetupSidePanel key={side.index} side={side} className="space-y-3">
               {/* Said where the choice is made, because a hand short of its two stops the battle starting. */}
               {short ? (
-                <p className="text-xs font-bold text-discarded uppercase">
+                <p className="text-xs font-medium text-discarded">
                   Need {FIXED_SECONDARIES}, selected {side.secondaries.length}
                 </p>
               ) : null}

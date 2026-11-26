@@ -188,7 +188,9 @@ function Relationship({
   relationship: DatasheetRelationship
   onSelect?: (entryId: string, name: string) => void
 }) {
-  const className = `${KEYWORD_TAG_CLASS} min-w-0 max-w-full whitespace-normal break-words text-left`
+  // Another datasheet, not this unit's keyword, so it stays neutral beside the green keywords.
+  const className =
+    'chip inline-flex min-h-6 min-w-0 max-w-full items-center border-edge py-0.5 text-left leading-none whitespace-normal break-words text-dim'
   if (!relationship.entryId || !onSelect) return <span className={className}>{relationship.name}</span>
   return (
     <button type="button" className={`${className} hover:text-bone`} onClick={() => onSelect(relationship.entryId!, relationship.name)}>
@@ -274,7 +276,7 @@ export function AbilitySummary({
         <h2 className="rubric">
           {title} <span className="readout text-faint">{found.length}</span>
         </h2>
-        <div className="mt-2 space-y-1.5">
+        <div className="mt-2 border-t border-edge">
           {found.map((ability) => {
             const text = ability.description ? (
               <RuleText text={ability.description} rules={rules} name={ability.name} abilityId={ability.id} />
@@ -283,7 +285,7 @@ export function AbilitySummary({
             const granted = detachmentRules?.find((rule) => rule.name === ability.name)
             const owner = granted?.id && detachmentRuleOwners?.[granted.id.split('/')[0]!]
             return (
-              <article key={ability.id} className="relative part px-2 py-1.5">
+              <article key={ability.id} className="relative border-b border-edge px-2 py-2.5">
                 <div className="flex items-start justify-between gap-2">
                   <h3 className="text-xs">{ability.source ?? ability.name}</h3>
                   {reminders ? <ReminderButton subject={ability} controls={reminders} /> : null}
@@ -343,7 +345,7 @@ function TransportRule({
   return (
     <section>
       <h2 className="rubric">Transport</h2>
-      <div className="mt-2 space-y-1 part px-2 py-1.5">
+      <div className="mt-2 space-y-1 border-y border-edge px-2 py-2.5">
         {facts.map((line) => (
           <p key={textOf(line)} className="text-sm text-dim">
             <Runs runs={line} />

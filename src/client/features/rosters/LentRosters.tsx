@@ -22,7 +22,7 @@ export function LentRosterList({
 }) {
   const { data: factions } = useQuery(factionIndexQuery())
   return (
-    <ul className="runner gap-3 [--gate-x:1rem] [--gate-y:1.5rem] sm:[--gate-x:1.5rem]" data-lent-rosters>
+    <ul className="runner gap-3" data-lent-rosters>
       {rosters.map(({ summary, owner, points, problem }) => {
         const content = (
           <RosterSummary

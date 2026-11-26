@@ -14,7 +14,7 @@ import { type RosterProblem, RosterSummary, RosterVariantSummary, rosterTitle } 
 
 /**
  * Saved lists to choose one of, drawn the way the library draws them: each base on a
- * card with its variants and what they change, and each list's points and legality,
+ * hairline row with its variants and what they change, and each list's points and legality,
  * because two variants of one list are otherwise easy to mistake for each other.
  */
 export function RosterChoices({
@@ -65,7 +65,7 @@ export function RosterChoices({
         disabled={disabled}
         onClick={() => onSelect(roster, summary.problem)}
         className={`flex w-full items-center gap-2 p-2 text-left disabled:cursor-wait disabled:opacity-70 ${rosterRowFrame[layout]} ${
-          selected ? 'bg-raised ring-1 ring-parchment ring-inset' : ''
+          selected ? 'bg-parchment/5' : ''
         }`}
       >
         <span className="flex min-w-0 flex-1 items-center gap-2 p-1">
@@ -81,10 +81,10 @@ export function RosterChoices({
   }
 
   return (
-    <div className="space-y-2">
+    <div className="divide-y divide-edge border-y border-edge">
       {variantCards(shown).map(({ head, variants }) =>
         variants.length ? (
-          <div key={head.roster.id} data-roster-group className="part">
+          <div key={head.roster.id} data-roster-group>
             {choice(head, 'base', head.roster.visibility)}
             {variants.map((variant) => choice(variant, 'variant', head.roster.visibility))}
           </div>
@@ -95,6 +95,7 @@ export function RosterChoices({
       {shown.length < rosters.length ? (
         <Button
           variant="outline"
+          className="my-3"
           disabled={pages.results.some((result) => !result.isSuccess)}
           onClick={() => setShownCount((count) => count + ROSTER_LIBRARY_BATCH_SIZE)}
         >

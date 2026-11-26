@@ -12,7 +12,7 @@ import { facetsOf } from '../../searchParams'
 import { PLAYER_ROSTER_FACETS, type PlayerRosterSearch } from './profileSearch'
 import { countLabel, matchesSearch } from '../../text'
 import { RosterSortMenu, ROSTER_POINTS_DIMENSION, rosterDetachmentDimension, rosterFactionDimension } from '../rosters/RosterFilters'
-import { RosterSummary, rosterTitle } from '../rosters/RosterSummary'
+import { ROSTER_ROW, ROSTER_ROW_LINK, ROSTER_ROWS, RosterSummary, rosterTitle } from '../rosters/RosterSummary'
 import type { SavedRoster } from '../rosters/rosterLibrary'
 
 type IndexedFaction = NonNullable<QueryData<typeof factionIndexQuery>>['factions'][number]
@@ -99,16 +99,13 @@ export function PlayerRosters({
         />
       ) : null}
       {shown.length ? (
-        <div className="space-y-2">
+        <div className={ROSTER_ROWS}>
           {shown.map((roster) => (
-            <article
-              key={roster.id}
-              data-roster={roster.name}
-              className="flex items-center gap-2 part p-2 transition-colors hover:border-info hover:bg-raised"
-            >
-              <Link to="/rosters/$id" params={{ id: roster.id }} className="flex min-w-0 flex-1 flex-wrap items-center gap-2 p-1">
+            <article key={roster.id} data-roster={roster.name} className={ROSTER_ROW}>
+              <Link to="/rosters/$id" params={{ id: roster.id }} className={ROSTER_ROW_LINK}>
                 <RosterSummary
-                  roster={roster}
+                  // Every list here is public, so saying so on each row tells the reader nothing.
+                  roster={{ ...roster, visibility: undefined }}
                   faction={factionOf(roster)}
                   points={totals.get(roster.id)?.points}
                   label={totals.get(roster.id)?.label}

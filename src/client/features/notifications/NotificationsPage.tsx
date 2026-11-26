@@ -19,7 +19,7 @@ export function NotificationsPage() {
       />
       <PageContent>
         <NoticeList
-          className="part overflow-hidden"
+          className="border-y border-edge"
           empty={
             <PageState
               headingLevel={2}

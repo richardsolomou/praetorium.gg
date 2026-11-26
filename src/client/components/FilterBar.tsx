@@ -39,6 +39,7 @@ import { SearchField } from './SearchField'
 import type { SearchableGroup, SearchableOption } from './SearchableSelect'
 import { filterPreferencesKey } from './filterPreferences'
 import { DropdownMenuCheckboxItem, DropdownMenuItem, DropdownMenuLabel } from './Menu'
+import { DisclosureChevron } from './DisclosureChevron'
 
 export type FilterDimension = {
   key: string
@@ -409,9 +410,9 @@ function SheetSection({ label, chosen, children }: { label: string; chosen: Reac
   return (
     <Collapsible>
       <CollapsibleTrigger className="group flex min-h-11 w-full items-center gap-2 text-left text-sm font-semibold text-bone">
+        <DisclosureChevron />
         <span className="shrink-0">{label}</span>
         <span className="min-w-0 flex-1 truncate text-right text-xs font-normal">{chosen}</span>
-        <ChevronDown className="size-4 shrink-0 text-faint transition-transform group-data-panel-open:rotate-180" aria-hidden />
       </CollapsibleTrigger>
       <CollapsibleContent className="grid gap-2 pb-3">{children}</CollapsibleContent>
     </Collapsible>

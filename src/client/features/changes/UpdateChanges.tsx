@@ -4,6 +4,7 @@ import { FactionMark, type FactionPresentation } from '../../components/FactionM
 import type { LinkedChange, LinkedChangeGroup } from '../../../contracts/catalogueChanges'
 import { editionFamilyId } from '../../../core/catalogueEdition'
 import { countLabel } from '../../../core/text'
+import { OUTLINE_TAG } from '../../components/rosterSetup'
 import {
   CHANGE_SECTIONS,
   type ChangeOutcome,
@@ -121,7 +122,9 @@ function Change({ change }: { change: LinkedChange }) {
   const outcome = changeOutcome(change)
   return (
     <li className="flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5 py-1 text-sm leading-snug">
-      <span className={`chip w-[4.75rem] shrink-0 justify-center ${OUTCOME_CHIP[outcome].className}`}>{OUTCOME_CHIP[outcome].label}</span>
+      <span className={`${OUTLINE_TAG} inline-flex w-[4.75rem] justify-center ${OUTCOME_CHIP[outcome].className}`}>
+        {OUTCOME_CHIP[outcome].label}
+      </span>
       <span className="min-w-0 break-words">
         <ChangeName change={change} />
         {'detachment' in change ? <span className="text-xs text-dim"> in {change.detachment}</span> : null}

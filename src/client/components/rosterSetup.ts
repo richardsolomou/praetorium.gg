@@ -18,14 +18,20 @@ const dispositionTones: Record<string, { quiet: string; strong: string }> = {
     strong: 'border-side-b bg-side-b/25 text-bone',
   },
   reconnaissance: {
-    quiet: 'border-parchment/60 bg-parchment/10 text-parchment',
-    strong: 'border-parchment bg-parchment/25 text-bone',
+    quiet: 'border-admin/60 bg-admin/10 text-admin',
+    strong: 'border-admin bg-admin/25 text-bone',
   },
   'priority-assets': {
     quiet: 'border-discarded/60 bg-discarded/10 text-discarded',
     strong: 'border-discarded bg-discarded/25 text-bone',
   },
 }
+
+/** A small outlined tag for a state or rule a list carries; the caller adds its border and text colour. */
+export const OUTLINE_TAG = 'shrink-0 rounded-sm border px-1.5 text-2xs leading-5 font-medium whitespace-nowrap'
+
+/** A force disposition as a small caps tag in its own colour, the same colour it wears wherever it is chosen. */
+export const dispositionTag = (id: string) => `${OUTLINE_TAG} ${dispositionTone(id)}`
 
 export function dispositionTone(id: string, selected = false) {
   const key = routeSlug(id)

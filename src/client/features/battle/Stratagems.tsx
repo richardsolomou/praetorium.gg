@@ -13,7 +13,7 @@ import { hiddenNow, stratagemVisibleNow } from './stratagemVisibility'
 import { SummaryById } from '../../components/RuleText'
 import { currentStratagemId } from '../../../core/legacyStratagemIds'
 import type { StratagemText } from './MissionCards'
-import { CARD, CARD_NAME, CARD_NAME_LINK, tint } from './battleTints'
+import { CARD_NAME, CARD_NAME_LINK, tint } from './battleTints'
 import { asSentence } from '../../text'
 import { DropdownMenuItem } from '../../components/Menu'
 
@@ -28,10 +28,12 @@ type Props = {
   writtenFor: (key: string) => StratagemText | undefined
   /** Absent when no earlier moment can take a missed action. */
   onRecordMissed?: (key: string) => void
+  /** Whether the reader may ask for the ones not playable now; across the table only what could answer them matters. */
+  showUnplayable?: boolean
 }
 
 /** Only what can be played right now, unless the player asks for the rest; the rest show why they cannot be played. */
-export function Stratagems({ side, phase, coreKeys, pending, send, writtenFor, onRecordMissed }: Props) {
+export function Stratagems({ side, phase, coreKeys, pending, send, writtenFor, onRecordMissed, showUnplayable = true }: Props) {
   const [showAll, setShowAll] = useState(false)
   const hidden = hiddenNow(side.stratagems, phase, side.isActive)
 
@@ -45,7 +47,7 @@ export function Stratagems({ side, phase, coreKeys, pending, send, writtenFor, o
        * army that brought them.
        */}
       {pooledDetachments(side.stratagems, coreKeys) > 1 ? (
-        <p className="rounded-md border border-edge bg-sunken px-2.5 py-1.5 text-2xs text-dim">
+        <p className="border-l-2 border-edge pl-2.5 text-2xs text-dim">
           Each detachment’s rules affect the army that brought it and the enemy — not your ally’s units.
         </p>
       ) : null}
@@ -54,39 +56,45 @@ export function Stratagems({ side, phase, coreKeys, pending, send, writtenFor, o
         if (!shown.length) return null
         return (
           <div key={group.label} className="space-y-1.5">
-            <p className="eyebrow">{group.label}</p>
-            {shown.map((stratagem) => (
-              <StratagemCard
-                key={stratagem.key}
-                stratagem={stratagem}
-                written={writtenFor(stratagem.key)}
-                pending={pending}
-                available={side.cp}
-                side={side}
-                onRecordMissed={onRecordMissed && !isNewOrders(stratagem) ? () => onRecordMissed(stratagem.key) : undefined}
-                onUse={(cp) =>
-                  send({ kind: 'use-stratagem', key: stratagem.key, playerId: side.captain.id, ...(cp === undefined ? {} : { cp }) })
-                }
-                onUseNewOrders={(secondaryKey, secondary, cp) =>
-                  send({
-                    kind: 'use-new-orders',
-                    stratagemKey: stratagem.key,
-                    secondaryKey,
-                    secondary,
-                    playerId: side.captain.id,
-                    ...(cp === stratagem.cp ? {} : { cp }),
-                  })
-                }
-              />
-            ))}
+            <h3 className="flex items-baseline gap-1.5 text-sm font-medium text-dim">
+              {group.label}
+              <span className="readout text-xs text-faint">{shown.length}</span>
+            </h3>
+            {/* Set in under its label, so the label reads as a heading over the rows rather than one more row. */}
+            <div className="ml-3 divide-y divide-edge border-y border-edge">
+              {shown.map((stratagem) => (
+                <StratagemCard
+                  key={stratagem.key}
+                  stratagem={stratagem}
+                  written={writtenFor(stratagem.key)}
+                  pending={pending}
+                  available={side.cp}
+                  side={side}
+                  onRecordMissed={onRecordMissed && !isNewOrders(stratagem) ? () => onRecordMissed(stratagem.key) : undefined}
+                  onUse={(cp) =>
+                    send({ kind: 'use-stratagem', key: stratagem.key, playerId: side.captain.id, ...(cp === undefined ? {} : { cp }) })
+                  }
+                  onUseNewOrders={(secondaryKey, secondary, cp) =>
+                    send({
+                      kind: 'use-new-orders',
+                      stratagemKey: stratagem.key,
+                      secondaryKey,
+                      secondary,
+                      playerId: side.captain.id,
+                      ...(cp === stratagem.cp ? {} : { cp }),
+                    })
+                  }
+                />
+              ))}
+            </div>
           </div>
         )
       })}
-      {hidden && !showAll ? (
+      {showUnplayable && hidden && !showAll ? (
         <Button
           variant="ghost"
           size="xs"
-          className="h-auto min-h-6 max-w-full py-1 text-left whitespace-normal text-parchment"
+          className="ml-3 h-auto min-h-6 max-w-full py-1 text-left whitespace-normal text-parchment"
           onClick={() => setShowAll(true)}
         >
           Show {hidden} not playable now
@@ -96,7 +104,7 @@ export function Stratagems({ side, phase, coreKeys, pending, send, writtenFor, o
         <Button
           variant="ghost"
           size="xs"
-          className="h-auto min-h-6 max-w-full py-1 text-left whitespace-normal text-parchment"
+          className="ml-3 h-auto min-h-6 max-w-full py-1 text-left whitespace-normal text-parchment"
           onClick={() => setShowAll(false)}
         >
           Only playable now
@@ -145,7 +153,7 @@ function StratagemCard({
     else onUse(cp === stratagem.cp ? undefined : cp)
   }
   return (
-    <div className={`${CARD} flex items-center gap-1.5`}>
+    <div className="flex min-h-10 items-center gap-1 px-1 py-1">
       <BattlePromptDialog minimizedLabel={stratagem.name} resumeLabel="Return to stratagem">
         <DialogTrigger
           render={
@@ -164,7 +172,13 @@ function StratagemCard({
       <DropdownMenu>
         <DropdownMenuTrigger
           render={
-            <Button variant="ghost" size="icon-xs" className="max-lg:size-11" disabled={pending} aria-label={`${stratagem.name} options`} />
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              className="text-dim pointer-coarse:size-11"
+              disabled={pending}
+              aria-label={`${stratagem.name} options`}
+            />
           }
         >
           <EllipsisVertical />
@@ -191,7 +205,9 @@ function StratagemCard({
         </DropdownMenuContent>
       </DropdownMenu>
       <Button
-        className={`readout font-bold uppercase max-lg:h-11 max-lg:min-w-14 ${refusal ? 'bg-edge text-dim' : 'bg-parchment text-void hover:bg-parchment/80'}`}
+        variant="outline"
+        size="sm"
+        className={`readout h-7 min-w-12 px-2 text-xs font-medium pointer-coarse:h-11 pointer-coarse:min-w-14 ${refusal ? 'text-dim' : 'border-parchment/40 text-parchment hover:bg-parchment/10'}`}
         disabled={pending || refusal !== null}
         title={refusal ?? undefined}
         aria-label={`Use ${stratagem.name} for ${stratagem.cp} CP`}
@@ -209,35 +225,37 @@ function StratagemCard({
           <DialogHeader>
             <div className="flex items-center justify-between gap-3">
               <DialogTitle className={tint(side.index).text}>New Orders</DialogTitle>
-              <span className="chip shrink-0">{newOrdersCost ?? stratagem.cp} CP</span>
+              <CpCost cp={newOrdersCost ?? stratagem.cp} />
             </div>
             <DialogDescription>Pick an active secondary mission to discard. Its replacement will be drawn at random.</DialogDescription>
           </DialogHeader>
           <DialogBody className="gap-2">
             <p className="eyebrow">Choose a mission to replace</p>
-            {replaceable.map((secondary) => (
-              <Button
-                key={secondary.key}
-                variant="outline"
-                aria-label={`Discard ${secondary.name} and draw a replacement`}
-                className="group h-auto w-full justify-between border-edge bg-sunken px-3 py-3 text-left hover:border-parchment hover:bg-raised"
-                disabled={pending || !replacement || newOrdersCost === null}
-                onClick={() => {
-                  if (!replacement || newOrdersCost === null) return
-                  onUseNewOrders(secondary.key, replacement, newOrdersCost)
-                  setNewOrdersCost(null)
-                }}
-              >
-                <span className="min-w-0 whitespace-normal">
-                  <span className="block text-2xs leading-none font-bold tracking-widest text-discarded uppercase">Discard</span>
-                  <span className="mt-1 block text-sm leading-tight font-bold text-bone uppercase">{secondary.name}</span>
-                </span>
-                <span className="flex shrink-0 items-center gap-1 text-xs font-bold text-parchment uppercase">
-                  <RefreshCw aria-hidden className="size-3.5 transition-transform group-hover:rotate-45" />
-                  Replace
-                </span>
-              </Button>
-            ))}
+            <div className="divide-y divide-edge border-y border-edge">
+              {replaceable.map((secondary) => (
+                <Button
+                  key={secondary.key}
+                  variant="ghost"
+                  aria-label={`Discard ${secondary.name} and draw a replacement`}
+                  className="group h-auto min-h-14 w-full justify-between rounded-none px-2 py-2.5 text-left hover:bg-raised"
+                  disabled={pending || !replacement || newOrdersCost === null}
+                  onClick={() => {
+                    if (!replacement || newOrdersCost === null) return
+                    onUseNewOrders(secondary.key, replacement, newOrdersCost)
+                    setNewOrdersCost(null)
+                  }}
+                >
+                  <span className="min-w-0 whitespace-normal">
+                    <span className="block text-2xs leading-none text-discarded">Discard</span>
+                    <span className="mt-1 block text-sm leading-tight font-semibold text-bone">{secondary.name}</span>
+                  </span>
+                  <span className="flex shrink-0 items-center gap-1 text-xs font-medium text-parchment">
+                    <RefreshCw aria-hidden className="size-3.5 transition-transform group-hover:rotate-45" />
+                    Replace
+                  </span>
+                </Button>
+              ))}
+            </div>
           </DialogBody>
         </BattleDialogContent>
       </BattlePromptDialog>
@@ -264,11 +282,11 @@ export function StratagemDetails({
     <BattleDialogContent size="md">
       <DialogHeader>
         <DialogTitle>{stratagem.name}</DialogTitle>
-        <DialogDescription className="eyebrow">{timing}</DialogDescription>
+        <DialogDescription>{timing}</DialogDescription>
       </DialogHeader>
       <DialogBody>
         <p className="flex items-baseline justify-between gap-3">
-          <span className="chip">{stratagem.cp} CP</span>
+          <CpCost cp={stratagem.cp} />
           <span className="readout text-xs text-dim">used {stratagem.uses}x this battle</span>
         </p>
         {pending ? (
@@ -281,6 +299,16 @@ export function StratagemDetails({
         {refusal ? <p className="mt-2 text-sm text-discarded">{refusal}</p> : null}
       </DialogBody>
     </BattleDialogContent>
+  )
+}
+
+/** A stratagem's price, read as a figure. */
+function CpCost({ cp }: { cp: number }) {
+  return (
+    <span className="shrink-0 whitespace-nowrap">
+      <span className="figure text-2xl leading-none text-bone">{cp}</span>
+      <span className="ml-1 text-xs text-dim">CP</span>
+    </span>
   )
 }
 

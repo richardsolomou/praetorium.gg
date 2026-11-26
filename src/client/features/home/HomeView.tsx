@@ -107,8 +107,7 @@ export function HomeView({
     // A player who only builds lists has no record to show, and a strip of dashes would say they are losing.
     const battled = onboarding?.completedTasks.includes('battle') ?? false
     const opponents = <HomeRivals userId={me.id} rivals={rivals} />
-    const stats =
-      battled && record !== null ? <HomeRecord userId={me.id} data={record} form={homeForm(finished, me.id)} className="mt-5" /> : null
+    const stats = battled && record !== null ? <HomeRecord userId={me.id} data={record} form={homeForm(finished, me.id)} /> : null
     return (
       <main className="w-full">
         {/* Setup asks for an army first, so a player with neither a list nor a game is offered the list. */}
@@ -116,29 +115,26 @@ export function HomeView({
           name={me.name}
           returning={mine.length > 0 || rosterCount > 0}
           newBattle={rosterCount > 0 || mine.length > 0 ? newBattle : null}
-          stats={stats}
         />
         {notifications}
-        <div className="mx-auto w-full max-w-6xl space-y-10 px-5 py-8 sm:px-6">
+        <div className="mx-auto w-full max-w-6xl space-y-8 px-5 py-6 sm:px-6 sm:py-8">
+          {/* The game being played leads the page across both columns, with the player's standing under it. */}
+          <HomeInProgress
+            games={going}
+            staleGames={stale}
+            viewerId={me.id}
+            onDelete={onDelete}
+            rostersDue={rostersDue}
+            leagueGames={leagueGames}
+            changedRosters={changedRosters.size}
+            friendRequests={friendRequests}
+          />
+          {stats}
           <Columns
             lead={
-              !battled || going.length || stale || rostersDue.length || leagueGames.length || changedRosters.size || friendRequests ? (
-                <>
-                  {battled ? null : (
-                    <HomeGetStarted hasRoster={rosterCount > 0} inGroup={groups.some((group) => !group.pending)} newBattle={firstGame} />
-                  )}
-                  <HomeInProgress
-                    games={going}
-                    staleGames={stale}
-                    viewerId={me.id}
-                    onDelete={onDelete}
-                    rostersDue={rostersDue}
-                    leagueGames={leagueGames}
-                    changedRosters={changedRosters.size}
-                    friendRequests={friendRequests}
-                  />
-                </>
-              ) : null
+              battled ? null : (
+                <HomeGetStarted hasRoster={rosterCount > 0} inGroup={groups.some((group) => !group.pending)} newBattle={firstGame} />
+              )
             }
             aside={
               <>
@@ -228,15 +224,13 @@ function AllMyBattles() {
 }
 
 /**
- * The signed-in greeting on the masthead band, sized like a page title: the first thing a player who already has games
- * needs is the games, so the record under it is one line rather than a panel.
+ * The signed-in greeting on the masthead band, sized like a page title, with the two ways to start something.
  */
-function Welcome({ name, returning, newBattle, stats }: { name: string; returning: boolean; newBattle?: ReactNode; stats: ReactNode }) {
+function Welcome({ name, returning, newBattle }: { name: string; returning: boolean; newBattle?: ReactNode }) {
   const firstName = name.trim().split(/\s+/)[0]
   const greeting = returning ? 'Welcome back' : 'Welcome'
   return (
     <section className="masthead-bleed relative overflow-hidden border-b border-edge bg-masthead">
-      <div className="construction-grid" />
       <div className="relative mx-auto max-w-6xl px-5 py-6 sm:px-6 sm:py-8">
         <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-4">
           {/* Each half stays whole, so a narrow screen breaks after the comma rather than inside the greeting. */}
@@ -256,7 +250,6 @@ function Welcome({ name, returning, newBattle, stats }: { name: string; returnin
             {newBattle}
           </div>
         </div>
-        {stats}
       </div>
     </section>
   )

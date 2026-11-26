@@ -22,15 +22,17 @@ type ReportPlayer = { id: string; name: string; className: string }
 export const reportPlayers = (players: readonly { id: string; name: string; side: number }[]): ReportPlayer[] =>
   players.map((player) => ({ id: player.id, name: player.name, className: tint(player.side).text }))
 
-/** Short enough for the gutter, and still distinct from every other phase. */
 const PHASE_LABELS: Record<string, string> = {
-  command: 'cmd',
-  movement: 'move',
-  shooting: 'shoot',
-  charge: 'chrg',
-  fight: 'fight',
-  end: 'end',
+  command: 'Command',
+  movement: 'Movement',
+  shooting: 'Shooting',
+  charge: 'Charge',
+  fight: 'Fight',
+  end: 'End',
 }
+
+/** The moment a run of lines belongs to, said once above them rather than beside every line. */
+const momentOf = (entry: ReportEntry) => (entry.round ? `Round ${entry.round} · ${PHASE_LABELS[entry.phase] ?? entry.phase}` : 'Setup')
 
 const NO_PLAYERS: readonly ReportPlayer[] = []
 const NO_SIDES: readonly Side[] = []
@@ -104,38 +106,40 @@ export function Report({
         tabIndex={0}
         ref={scroll}
         onScroll={(event) => (scrollTop.current = event.currentTarget.scrollTop)}
-        className="mt-3 h-72 overflow-x-hidden overflow-y-auto pr-1 focus-visible:outline-2 focus-visible:outline-primary"
+        // A phone scrolls the log with the page: a second scroller inside it traps the thumb and hides the end of the page.
+        className="mt-3 overflow-x-clip focus-visible:outline-2 focus-visible:outline-primary lg:h-72 lg:overflow-y-auto lg:pr-1"
         style={{ contain: 'layout' }}
       >
         {visible.length ? (
-          <ol className="w-full space-y-1">
-            {visible.map((entry, index) => (
-              <Fragment key={entry.seq}>
-                {index === 0 || date(visible[index - 1]!.at) !== date(entry.at) ? (
-                  <li className="eyebrow border-b border-edge pb-1 text-faint">{date(entry.at)}</li>
-                ) : null}
-                <li
-                  className={cn(
-                    'grid w-full grid-cols-[3.5rem_minmax(0,1fr)] gap-2 text-sm sm:grid-cols-[5rem_minmax(0,1fr)] sm:gap-3',
-                    openedAt !== null && entry.seq > openedAt && 'animate-in duration-300 ease-settle fade-in-0 slide-in-from-top-2',
-                  )}
-                >
-                  <span className="readout text-right text-xs text-dim">
-                    {time(entry.at)}
-                    <span className="block text-3xs text-faint">
-                      {entry.round ? `R${entry.round} ${PHASE_LABELS[entry.phase] ?? entry.phase}` : 'setup'}
-                    </span>
-                  </span>
-                  <span className="min-w-0 break-words text-bone">
-                    <EntryText
-                      text={entry.missed ? entry.text.slice(0, -entry.missed.length) : entry.text}
-                      stratagem={entry.stratagem && sideHolding(sides, entry.stratagem) ? entry.stratagem : undefined}
-                      players={players}
-                      onRead={setReading}
-                    />
-                    {entry.missed ? <span className="text-discarded">{colourNames(entry.missed, players)}</span> : null}
-                    {entry.elapsed ? <TimeTaken elapsed={entry.elapsed} /> : null}
-                  </span>
+          <ol className="w-full space-y-3">
+            {groupsOf(visible, date).map((group, index, groups) => (
+              <Fragment key={group.entries[0]!.seq}>
+                {index === 0 || groups[index - 1]!.day !== group.day ? <li className="text-xs text-faint">{group.day}</li> : null}
+                <li data-report-group>
+                  <p className="border-b border-edge pb-1 text-xs font-medium text-dim">{group.moment}</p>
+                  <ol className="mt-1.5 space-y-1">
+                    {group.entries.map((entry) => (
+                      <li
+                        key={entry.seq}
+                        className={cn(
+                          'grid w-full grid-cols-[4.25rem_minmax(0,1fr)] gap-2 text-sm sm:gap-3',
+                          openedAt !== null && entry.seq > openedAt && 'animate-in duration-300 ease-settle fade-in-0 slide-in-from-top-2',
+                        )}
+                      >
+                        <span className="readout pt-0.5 text-right text-xs whitespace-nowrap text-faint">{time(entry.at)}</span>
+                        <span className="min-w-0 break-words text-bone">
+                          <EntryText
+                            text={entry.missed ? entry.text.slice(0, -entry.missed.length) : entry.text}
+                            stratagem={entry.stratagem && sideHolding(sides, entry.stratagem) ? entry.stratagem : undefined}
+                            players={players}
+                            onRead={setReading}
+                          />
+                          {entry.missed ? <span className="text-discarded">{colourNames(entry.missed, players)}</span> : null}
+                          {entry.elapsed ? <TimeTaken elapsed={entry.elapsed} /> : null}
+                        </span>
+                      </li>
+                    ))}
+                  </ol>
                 </li>
               </Fragment>
             ))}
@@ -159,6 +163,19 @@ export function Report({
       {reading && readingSide ? <StratagemDialog side={readingSide} used={reading} onClose={() => setReading(null)} /> : null}
     </>
   )
+}
+
+/** Neighbouring lines from the same day, round and phase, which share one heading. */
+function groupsOf(entries: readonly ReportEntry[], date: (at: number) => string) {
+  const groups: { day: string; moment: string; entries: ReportEntry[] }[] = []
+  for (const entry of entries) {
+    const day = date(entry.at)
+    const moment = momentOf(entry)
+    const last = groups.at(-1)
+    if (last && last.day === day && last.moment === moment) last.entries.push(entry)
+    else groups.push({ day, moment, entries: [entry] })
+  }
+  return groups
 }
 
 function sideHolding(sides: readonly Side[], used: UsedStratagem) {
@@ -243,8 +260,8 @@ function ReportSkeleton() {
       <Skeleton className="h-7 w-28" />
       <div className="mt-3 space-y-2">
         {Array.from({ length: 6 }, (_, index) => (
-          <div key={index} className="grid grid-cols-[3.5rem_minmax(0,1fr)] gap-2 sm:grid-cols-[5rem_minmax(0,1fr)] sm:gap-3" aria-hidden>
-            <Skeleton className="ml-auto h-7 w-10" />
+          <div key={index} className="grid grid-cols-[4.25rem_minmax(0,1fr)] gap-2 sm:gap-3" aria-hidden>
+            <Skeleton className="ml-auto h-4 w-10" />
             <Skeleton className={`h-4 ${index % 3 === 0 ? 'w-3/4' : 'w-full'}`} />
           </div>
         ))}

@@ -52,7 +52,7 @@ import { leagueOutcome, memberNameOf, useGroupRefresh, usePlayGroupGame, type Gr
 import { GroupSettingsDialog } from './GroupSettingsDialog'
 import { GroupHiddenListGame, unplayedOpponents } from './GroupHiddenListGame'
 import { GroupLeague } from './GroupLeague'
-import { GroupAtAGlance, HeadToHead, LeagueOverview, RecentResults, StandingsSnapshot } from './GroupOverview'
+import { GroupAtAGlance, HeadToHead, LeagueStatus, RecentResults, StandingsSnapshot } from './GroupOverview'
 import { hiddenListGameOpen } from '../../../core/group'
 import { leagueFixtureOverdue } from '../../../core/groupLeague'
 import { sealedEventSealingClosed } from '../../../core/sealedEvent'
@@ -143,9 +143,10 @@ function GroupScreen({
     return round === undefined ? 'Friendly game' : `League · Round ${round}`
   }
   const label = labelWith(table?.games)
-  // A league still forming or being played is on now, so it sits above the summary; a finished one sits with the group's history.
-  const leagueOn = Boolean(league && !league.complete)
-  const leagueOverview = <LeagueOverview token={group.token} league={league} members={group.members} now={now} onShow={showTab} />
+  // A link to a past game opens it on the overview, so the game it names is there to read.
+  const highlightedPast = past.filter((game) => game.token === highlight)
+  // The overview is what's on now, so only it carries what's waiting on the reader and who is in the group.
+  const overview = current === 'overview'
   const remove = useMutation({
     mutationFn: () => deleteGroup({ data: { token: group.token } }),
     onSettled: refresh,
@@ -223,9 +224,11 @@ function GroupScreen({
 
       <PageContent>
         {/* On a phone what's waiting on the reader leads and the members close the page; on a desktop both sit beside it. */}
-        <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_18rem] lg:grid-rows-[auto_1fr]">
-          <div className="min-w-0 empty:hidden lg:col-start-2 lg:row-start-1">
-            {member && viewerId ? (
+        <div
+          className={`grid grid-cols-1 items-start gap-6 ${overview ? 'lg:grid-cols-[minmax(0,1fr)_18rem] lg:grid-rows-[auto_1fr]' : ''}`}
+        >
+          <div className={`min-w-0 empty:hidden lg:col-start-2 lg:row-start-1 ${overview ? '' : 'hidden'}`}>
+            {!overview ? null : member && viewerId ? (
               <GroupNext
                 group={group}
                 table={table}
@@ -240,17 +243,15 @@ function GroupScreen({
               <JoinGroup group={group} viewerId={viewerId} own={own} onWithdraw={() => (leave.reset(), setLeaving(true))} />
             )}
           </div>
-          <div className="min-w-0 space-y-8 lg:col-start-1 lg:row-span-2 lg:row-start-1">
+          <div className={`min-w-0 space-y-8 ${overview ? 'lg:col-start-1 lg:row-span-2 lg:row-start-1' : ''}`}>
             <JoinRequests group={group} />
             {/* The primitive's root is a flex row by default, which would sit the panel beside the tab bar. */}
             <Tabs value={current} className="flex-col gap-0" onValueChange={(value) => showTab(value as GroupTab)}>
               <PageTabsList data-onboarding="group-tabs" tabs={tabs} />
               <TabsContent value="overview" className="mt-6 space-y-8">
                 <UpNext group={group} open={open} live={live} table={table} viewerId={viewerId} highlight={highlight} label={label} />
-                {leagueOn ? leagueOverview : null}
-                {table ? <GroupAtAGlance token={group.token} table={table} /> : null}
+                <LeagueStatus league={league} now={now} onShow={showTab} />
                 {table ? <StandingsSnapshot table={table} viewerId={viewerId} onAll={() => showTab('leaderboard')} /> : null}
-                {leagueOn ? null : leagueOverview}
                 {table ? (
                   <RecentResults
                     table={table}
@@ -260,10 +261,15 @@ function GroupScreen({
                     onAll={() => showTab('battles')}
                   />
                 ) : null}
-                {table ? <HeadToHead summary={table.summary} members={group.members} /> : null}
-                <PastHiddenListGames group={group} games={past} viewerId={viewerId} highlight={highlight} />
+                <PastHiddenListGames
+                  group={group}
+                  games={highlightedPast}
+                  viewerId={viewerId}
+                  highlight={highlight}
+                  onAll={past.length > highlightedPast.length ? () => showTab('battles') : undefined}
+                />
               </TabsContent>
-              <TabsContent value="battles" className="mt-6">
+              <TabsContent value="battles" className="mt-6 space-y-8">
                 {current === 'battles' ? (
                   <GroupBattles
                     group={group}
@@ -282,24 +288,24 @@ function GroupScreen({
                     }
                   />
                 ) : null}
+                <PastHiddenListGames group={group} games={past} viewerId={viewerId} highlight={highlight} />
               </TabsContent>
-              <TabsContent value="leaderboard" className="mt-6">
+              <TabsContent value="leaderboard" className="mt-6 space-y-8">
                 <GroupLeaderboard table={table} viewerId={viewerId} />
+                {table ? <GroupAtAGlance token={group.token} table={table} /> : null}
+                {table ? <HeadToHead summary={table.summary} members={group.members} /> : null}
               </TabsContent>
               <TabsContent value="league" className="mt-6 space-y-4">
-                {league ? (
-                  <Intro>
-                    A round robin: everyone who joins plays every other player once. It keeps its own table, and its tracked games count on
-                    the leaderboard too.
-                  </Intro>
-                ) : null}
+                {league ? <Intro>Everyone plays everyone once. Tracked league games count on the leaderboard too.</Intro> : null}
                 <GroupLeague group={group} viewerId={viewerId} member={member} />
               </TabsContent>
             </Tabs>
           </div>
-          <aside className="min-w-0 lg:col-start-2">
-            <Members group={group} viewerId={viewerId} isOwner={isOwner} />
-          </aside>
+          {overview ? (
+            <aside className="min-w-0 lg:col-start-2">
+              <Members group={group} viewerId={viewerId} isOwner={isOwner} />
+            </aside>
+          ) : null}
         </div>
       </PageContent>
 
@@ -470,8 +476,8 @@ function JoinGroup({
       ? 'An organizer accepts each request. Once you’re in, your games against members go on the leaderboard.'
       : 'Once you’re in, your games against members go on the leaderboard.'
   return (
-    <section data-group-status aria-labelledby="group-status" className="part p-4 sm:p-5">
-      <h2 id="group-status" className="text-xl leading-tight font-bold uppercase">
+    <section data-group-status aria-labelledby="group-status" className="border-y border-edge py-4">
+      <h2 id="group-status" className="text-2xl leading-tight">
         {own ? 'Request sent' : 'Join this group'}
       </h2>
       <p className="mt-1.5 text-sm text-dim">{detail}</p>
@@ -680,17 +686,17 @@ function GroupNext({
     }
   } else return null
   return (
-    <section data-group-next aria-labelledby="group-next" className="part">
-      <div className="space-y-3 p-4 sm:p-5">
+    <section data-group-next aria-labelledby="group-next" className="border-y border-edge">
+      <div className="space-y-3 py-4">
         <div className="min-w-0">
-          <h2 id="group-next" className="text-xl leading-tight font-bold break-words uppercase">
+          <p className="eyebrow flex flex-wrap gap-x-1.5">
+            <span>Up next for you</span>
+            {next.context ? <span className="text-dim">· {next.context}</span> : null}
+          </p>
+          <h2 id="group-next" className="mt-1.5 text-2xl leading-tight break-words">
             {next.title}
           </h2>
-          <p className="mt-2 flex flex-wrap gap-1.5">
-            <span className="chip">Up next for you</span>
-            {next.context ? <span className="chip">{next.context}</span> : null}
-          </p>
-          <p className="mt-2 text-sm text-dim">{next.detail}</p>
+          <p className="mt-1.5 text-sm text-dim">{next.detail}</p>
         </div>
         {next.action}
         {play.error ? <Problem error={play.error} /> : null}
@@ -716,19 +722,22 @@ function GroupLeaderboard({ table, viewerId }: { table: GroupTable | null | unde
   )
 }
 
-const PAST_GAMES_SHOWN = 3
+const PAST_GAMES_SHOWN = 5
 
-/** Past game nights, newest first, with their battles and frozen lists. */
+/** Past game nights, newest first, each one row with its battles, its lists folded beneath it. */
 function PastHiddenListGames({
   group,
   games: past,
   viewerId,
   highlight,
+  onAll,
 }: {
   group: Group
   games: Game[]
   viewerId: string | null
   highlight: string | undefined
+  /** Where the rest of the past games are, when this shows only some of them. */
+  onAll?: () => void
 }) {
   const [all, setAll] = useState(false)
   if (!past.length) return null
@@ -736,11 +745,21 @@ function PastHiddenListGames({
   const shown = all || past.findIndex((game) => game.token === highlight) >= PAST_GAMES_SHOWN ? past : past.slice(0, PAST_GAMES_SHOWN)
   return (
     <section>
-      <SectionHeading title="Past hidden-list games" count={past.length} />
-      <ul className="space-y-3">
+      <SectionHeading
+        title="Past hidden-list games"
+        count={onAll ? undefined : past.length}
+        action={
+          onAll ? (
+            <Button variant="ghost" size="sm" onClick={onAll}>
+              All games <ArrowRight />
+            </Button>
+          ) : undefined
+        }
+      />
+      <ul className="border-t border-edge">
         {shown.map((game) => (
           <li key={game.token}>
-            <GroupHiddenListGame group={group} game={game} viewerId={viewerId} embedded />
+            <GroupHiddenListGame group={group} game={game} viewerId={viewerId} highlighted={game.token === highlight} embedded folded />
           </li>
         ))}
       </ul>
@@ -767,15 +786,16 @@ function JoinRequests({ group }: { group: Group }) {
   return (
     <section>
       <SectionHeading title="Asking to join" count={pending.length} />
-      <ul className="divide-y divide-edge part">
+      <ul className="divide-y divide-edge border-y border-edge">
         {pending.map((member) => (
-          <li key={member.userId} data-person={member.name} className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 p-3">
+          <li
+            key={member.userId}
+            data-person={member.name}
+            className="flex min-h-14 min-w-0 flex-wrap items-center gap-x-3 gap-y-2 px-2 py-2"
+          >
             <Link to="/users/$userId" params={{ userId: member.userId }} className="group flex min-w-0 flex-1 items-center gap-2.5">
               <PlayerAvatar name={member.name} image={member.image} className="size-8 text-xs" />
-              <span
-                className="truncate font-semibold group-hover:underline"
-                style={nameColour({ id: member.userId, colour: member.colour })}
-              >
+              <span className="truncate font-bold group-hover:underline" style={nameColour({ id: member.userId, colour: member.colour })}>
                 {member.name}
               </span>
             </Link>
@@ -833,24 +853,21 @@ function Members({ group, viewerId, isOwner }: { group: Group; viewerId: string 
   return (
     <section>
       <SectionHeading title="Members" count={accepted.length} />
-      <ul className="divide-y divide-edge part">
+      <ul className="divide-y divide-edge border-y border-edge">
         {accepted.map((member) => {
           const role = member.userId === group.ownerId ? 'Owner' : member.role === 'admin' ? 'Admin' : null
           const removable =
             group.organizer && member.userId !== group.ownerId && member.userId !== viewerId && (member.role !== 'admin' || isOwner)
           return (
-            <li key={member.userId} data-person={member.name} className="flex min-h-12 min-w-0 items-center gap-2 py-1.5 pr-1.5 pl-3">
+            <li key={member.userId} data-person={member.name} className="flex min-h-12 min-w-0 items-center gap-2 py-1.5 pr-1 pl-2">
               <Link to="/users/$userId" params={{ userId: member.userId }} className="group flex min-w-0 flex-1 items-center gap-2.5">
                 <PlayerAvatar name={member.name} image={member.image} className="size-8 text-xs" />
-                <span
-                  className="truncate font-semibold group-hover:underline"
-                  style={nameColour({ id: member.userId, colour: member.colour })}
-                >
+                <span className="truncate font-bold group-hover:underline" style={nameColour({ id: member.userId, colour: member.colour })}>
                   {member.name}
                 </span>
-                {member.userId === viewerId ? <span className="shrink-0 text-xs text-dim">you</span> : null}
+                {member.userId === viewerId ? <span className="eyebrow shrink-0">You</span> : null}
               </Link>
-              {role ? <span className="chip shrink-0">{role}</span> : null}
+              {role ? <span className="shrink-0 text-2xs font-semibold text-dim">{role}</span> : null}
               {removable ? (
                 <Button
                   size="icon-sm"

@@ -2,7 +2,7 @@ import { useReferenceFaction } from './useReferenceFaction'
 import { FactionReferenceLink } from '../../../components/FactionReferenceLink'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { FactionBreadcrumb } from './FactionBreadcrumb'
-import { ChevronRight, FileSearch } from 'lucide-react'
+import { FileSearch } from 'lucide-react'
 import { memo, useDeferredValue, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
@@ -143,7 +143,7 @@ export function FactionDatasheets() {
                 )
                 return rows.length ? (
                   <Section key={group.id} title={group.plural} count={rows.length}>
-                    <div className="grid gap-2 sm:grid-cols-2">
+                    <div className="grid sm:grid-cols-2 sm:gap-x-6">
                       {rows.map((unit) => (
                         <FactionDatasheetRow key={unit.id} catalogueId={faction.slug} unit={unit} query={listQuery} />
                       ))}
@@ -187,19 +187,23 @@ const FactionDatasheetRow = memo(function FactionDatasheetRow({
   return (
     <div
       data-datasheet={unit.name}
-      className="flex w-full min-w-0 items-center part pr-1 transition-colors [contain:layout_style] hover:border-runner hover:bg-raised"
+      className="flex w-full min-w-0 items-center border-b border-edge pr-1 transition-colors [contain:layout_style] hover:bg-raised"
     >
       <FactionReferenceLink
         to="/factions/$catalogueId/datasheets/$entryId"
         params={{ catalogueId, entryId: unit.slug }}
-        className="flex min-h-12 min-w-0 flex-1 items-center py-2.5 pr-1 pl-4"
+        className="flex min-h-12 min-w-0 flex-1 items-center py-2.5 pr-1 pl-2"
       >
         <span className="min-w-0 flex-1">
-          <span className="block truncate font-bold">{unit.name}</span>
+          <span className="block truncate font-semibold">{unit.name}</span>
           <DatasheetMatchReasons query={query} reasons={unit.matchReasons} fuzzy={unit.fuzzy} />
         </span>
-        {unit.points === null ? null : <span className="chip ml-2 shrink-0 text-bone">{unit.points} pts</span>}
-        <ChevronRight className="ml-2 size-4 shrink-0 text-faint" aria-hidden />
+        {unit.points === null ? null : (
+          <span className="figure ml-3 shrink-0 text-xl leading-none text-bone">
+            {unit.points}
+            <span className="sr-only"> pts</span>
+          </span>
+        )}
       </FactionReferenceLink>
       <FavouriteDatasheetToggle entryId={unit.id} name={unit.name} />
     </div>
@@ -230,7 +234,7 @@ function KeywordFilter({
     >
       <ComboboxTrigger
         aria-label="Keywords"
-        className={`inline-flex h-7 items-center gap-1 rounded-sm border px-1.5 text-2xs font-semibold tracking-label uppercase transition-colors ${
+        className={`inline-flex h-7 items-center gap-1 rounded-md border px-2 text-xs font-medium transition-colors ${
           chosen.size ? 'border-parchment bg-parchment/15 text-parchment' : 'border-runner text-dim hover:border-dim hover:text-bone'
         }`}
       >

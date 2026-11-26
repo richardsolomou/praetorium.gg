@@ -185,7 +185,7 @@ export function NotificationsButton({
         className="w-[min(24rem,calc(100vw-1.5rem))] gap-0 overflow-hidden p-0"
       >
         <div className="flex items-center justify-between gap-2 border-b border-edge py-2 pr-2 pl-3">
-          <PopoverTitle className="font-display text-sm font-bold tracking-tight text-bone uppercase">Notifications</PopoverTitle>
+          <PopoverTitle className="text-sm font-semibold text-bone">Notifications</PopoverTitle>
           <MarkAllRead />
         </div>
         <div className="max-h-[min(28rem,65dvh)] overflow-y-auto overscroll-contain">
