@@ -145,9 +145,9 @@ export function vsDataTextFacts(
       const { record } = join(key)
       // A record without blocks is one VS Data has not read yet.
       if (!record || !effects[record]) return undefined
-      const blocks = effects[record]!
+      const read = effects[record]
       return remember(facts, record, () =>
-        textFactsOfVsData(record === FEEL_NO_PAIN && blocks.combat ? { ...blocks, combat: asDefenders(blocks.combat) } : blocks),
+        textFactsOfVsData(record === FEEL_NO_PAIN && read.combat ? { ...read, combat: asDefenders(read.combat) } : read),
       )
     },
   }

@@ -170,7 +170,7 @@ test('roster buffs apply conditional shooting bonuses and defensive stratagems',
   await expect.poll(async () => Number(await damage.textContent())).toBeLessThan(2.22)
   const covered = Number(await damage.textContent())
   await stormChoice.click()
-  await expect(shooting).toContainText('IGNORES COVER')
+  await expect(shooting).toContainText('IGNORES COVER', { ignoreCase: true })
   await expect.poll(async () => Number(await damage.textContent())).toBeGreaterThan(covered)
   await stormChoice.click()
   await cover.click()

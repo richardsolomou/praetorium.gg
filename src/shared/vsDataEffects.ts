@@ -437,8 +437,8 @@ function effectOf(effect: VsDataEffect): CombatRuleEffect | null {
   return {
     ...applied,
     phases: attacks,
-    ...(weaponAbility ? { keyword: weaponAbility } : {}),
-    ...(weaponHas ? { requiresWeaponKeyword: weaponHas } : {}),
+    ...(weaponAbility ? { keyword: titleCaseAbility(weaponAbility) } : {}),
+    ...(weaponHas ? { requiresWeaponKeyword: titleCaseAbility(weaponHas) } : {}),
     ...(Object.keys(options).length ? { options } : {}),
     ...(characteristic
       ? {
@@ -618,6 +618,20 @@ export function textFactsOfVsData(blocks: Readonly<Record<string, unknown>>): Te
   const attachment = blockOf(blocks, 'attachment')
   const options = blockOf(blocks, 'options')
   const combat = blockOf(blocks, 'combat')
+  // The ability a rule's own unit always gains by an effect, as Stealth, or the cover one gives it, as "counts as having
+  // the Benefit of Cover": a datasheet lists it beside what it changes, as a grant the grants block may leave out.
+  const ownTree = combat?.trees[combat.contexts['own.many.known'] ?? -1]
+  const ownNode = ownTree?.length === 1 ? ownTree[0] : undefined
+  const own = ownNode && 'reading' in ownNode ? combat?.readings[ownNode.reading] : undefined
+  const shown = [
+    ...new Set(
+      (own?.choices?.[0]?.conditions.length ? [] : (own?.choices?.[0]?.effects ?? [])).flatMap((effect) =>
+        effect.ability ? [effect.ability] : effect.role === 'defender' && effect.rolls?.cover && !effect.weapon ? ['Benefit of Cover'] : [],
+      ),
+    ),
+  ]
+    .filter((ability) => !grants?.abilities?.some((grant) => grant.ability.toLowerCase() === ability.toLowerCase()))
+    .map((ability) => ({ ability, to: 'unit' as const }))
   const unreadCombat = blocks.combat !== undefined && !combat
   const references = blockOf(blocks, 'references')
   const weaponGrants = weaponAbilities.flatMap((grant) =>
@@ -639,7 +653,9 @@ export function textFactsOfVsData(blocks: Readonly<Record<string, unknown>>): Te
   const ownWeaponGrant = weaponGrantTo('own-unit')
   const ledWeaponGrant = weaponGrantTo('led-unit')
   return {
-    ...(grants?.abilities || grants?.keywords ? { abilityGrants: statementOf(grants.abilities, grants.keywords) } : {}),
+    ...(grants?.abilities || grants?.keywords || shown.length
+      ? { abilityGrants: statementOf([...(grants?.abilities ?? []), ...shown], grants?.keywords) }
+      : {}),
     ...(grants && grants.normalized !== undefined ? { normalizedAbilityGrants: statementOf(grants.normalized?.abilities) } : {}),
     ...(weaponGrants.length ? { weaponGrants } : {}),
     ...(ownWeaponGrant ? { ownWeaponGrant } : {}),

@@ -45,7 +45,9 @@ const withLegality = (facts: TextFacts, words: TextFacts | undefined): TextFacts
     bareValue: _bareValue,
     ...rest
   } = facts
-  return { ...rest, ...kept }
+  // The rules a text names, which a datasheet explains beside it, are VS Data's and the words' until VS Data names them all.
+  const references = [...new Set([...(facts.references ?? []), ...(words?.references ?? [])])]
+  return { ...rest, ...kept, ...(references.length ? { references } : {}) }
 }
 
 export function catalogueDirectory(dataDirectory = process.env.DATA_DIR ?? '/data') {
