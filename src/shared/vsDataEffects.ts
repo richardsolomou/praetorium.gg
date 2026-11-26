@@ -198,7 +198,9 @@ const grantSchema = z.strictObject({
     .optional(),
   recipientKeywords: selectors.optional(),
   /** Only the units the player picks as the battle begins gain it, up to `count`, within `withinInches` of the bearer. */
-  picked: z.strictObject({ count: z.int().min(1).optional(), withinInches: z.int().min(1).optional() }).optional(),
+  picked: z
+    .strictObject({ count: z.int().min(1).optional(), withinInches: z.int().min(1).optional(), limited: z.literal(true).optional() })
+    .optional(),
   conditional: z.literal(true).optional(),
 })
 const keywordGrantSchema = z.strictObject({
@@ -208,7 +210,9 @@ const keywordGrantSchema = z.strictObject({
   counterpart: z.array(keyword).optional(),
   recipientKeywords: selectors.optional(),
   /** Only the units the player picks as the battle begins gain it, up to `count`, within `withinInches` of the bearer. */
-  picked: z.strictObject({ count: z.int().min(1).optional(), withinInches: z.int().min(1).optional() }).optional(),
+  picked: z
+    .strictObject({ count: z.int().min(1).optional(), withinInches: z.int().min(1).optional(), limited: z.literal(true).optional() })
+    .optional(),
   conditional: z.literal(true).optional(),
 })
 const grantsSchema = z.strictObject({
