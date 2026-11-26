@@ -11,6 +11,7 @@ import { legacyOptionsSchema } from '../src/core/legacyIds'
 import { vsDataDefinitions } from '../src/core/vsDataConstruction'
 import { checkVsUnit } from '../src/core/vsDataRoster'
 import { wargearKey } from '../src/core/wargearNames'
+import { ARTICLE, vsSpelling } from './lib/wargearSpellings'
 import { editionDirectory, readCatalogueComposition } from '../src/server/catalogueComposition'
 import { loadCatalogue } from '../src/server/catalogueIndex'
 
@@ -25,68 +26,6 @@ import { loadCatalogue } from '../src/server/catalogueIndex'
 const [catalogueDirectory, releases] = process.argv.slice(2)
 if (!catalogueDirectory || !releases)
   throw new Error('Usage: tsx scripts/freezeRosterOptions.ts <catalogue directory> <releases directory>')
-
-/** Reviewed spellings: wargear as VS Data names it, by BSData's name, both as `wargearKey`s, read where the unit's VS Data wargear holds VS Data's and not BSData's. */
-const SPELLINGS: Record<string, string | string[]> = {
-  'absolver-bolt-pistol': 'absolvor-bolt-pistol',
-  'adrathic-combi-destructors': 'adrathic-combi-destructor',
-  agonizer: 'agoniser',
-  'astartes-chainsword': 'chainsword',
-  'astraeus-las-ripper': 'astareus-las-ripper',
-  'axe-morkai': 'axe-of-morkai',
-  'befouled-fangs-and-claws': 'befouled-claws-and-fangs',
-  'bladed-horn': 'juggernauts-bladed-horn',
-  'cavalry-sabre-clawed-limbs': 'cavalry-sabre-and-clawed-limbs',
-  chainsword: 'astartes-chainsword',
-  'channeler-stones': 'channeller-stones',
-  'chirugeons-tools': 'chirurgeons-tools',
-  'close-combat-weapons': 'close-combat-weapon',
-  'combi-bolter': 'plague-combi-bolter',
-  'commisars-pistol': 'commissars-pistol',
-  'death-korps-of-krieg-medi-pack': 'death-korps-medi-pack',
-  'distendible-jaw': 'distensible-jaw',
-  'exo-armour-grenade-launcher': 'exoarmour-grenade-launcher',
-  'fires-of-tzeentch': 'fire-of-tzeentch',
-  'godhammer-lascannon': 'godhammer-lascannons',
-  'grav-chute': 'grav-chutes',
-  hellspear: 'helspear',
-  'hellstrike-missiles': 'hellstrike-missile',
-  'improvised-weapons': 'improvised-weapon',
-  'kratos-battlecannon': 'kratos-battle-cannon',
-  'lancer-laser-destroyer': 'laser-destroyer',
-  'laservolley-cannon': 'laser-volley-cannon',
-  'lashing-tongues': 'lashing-tongue',
-  'lastrum-storm-bolters': 'lastrum-storm-bolter',
-  'macharius-twin-battlecannon': 'macharius-twin-battle-cannon',
-  'magma-cutter': 'magma-cutters',
-  'master-crafted-power-weapon': 'master-crafted-power-sword',
-  'multiple-rocket-pods': 'multiple-rocket-pod',
-  'novitiate-autogun': 'autogun',
-  'nuncio-aquila': 'nuncio-acquila',
-  'pan-spectral-scanner': 'panspectral-scanner',
-  'relic-great-axe': 'relic-greataxe',
-  'scout-sniper-rifle': 'sniper-rifle',
-  'seeker-tongues': 'exalted-seeker-tongues',
-  'servo-arm': 'servitors-servo-arm',
-  spinemaw: 'spinemaws',
-  'sporocyst-bio-weapon': 'sporocyst-bio-weapons',
-  'squig-jaws': 'squigs-jaws',
-  'steeds-savage-claws': 'savage-claws',
-  'superfrag-missile-launcher': 'superfrag-rocket-launcher',
-  'superkrak-missile-launcher': 'superkrak-rocket-launcher',
-  'teeth-and-claws': ['crushing-teeth-and-claws', 'crushing-teeth-and-jaws'],
-  'termagant-spinefist': 'termagant-spinefists',
-  'termite-melta-cutter': 'terrax-melta-cutter',
-  'toxinjecter-harpoon': 'toxinjector-harpoon',
-  'transonic-razor-chordclaw': 'transonic-razor-and-chordclaw',
-  'twin-concussion-gauntlets': 'twin-concussion-gauntlet',
-  'twin-infernus-incinerators': 'twin-infernus-incinerator',
-  'twin-killsaw': 'twin-killsaws',
-  'twin-power-fist': 'twin-power-fists',
-  'zealots-vindicator': 'zealots-vindictor',
-}
-/** A leading article BSData prints on a named weapon and VS Data does not, as in The Emperor's Sword. */
-const ARTICLE = /^the-/
 
 const entrySchema = z.object({ id: z.string(), kind: z.string(), name: z.string().optional(), retired: z.unknown().optional() })
 const recordSchema = z.object({ kind: z.string(), id: z.string(), data: z.record(z.string(), z.unknown()) })
@@ -363,24 +302,18 @@ const reach = (changes: readonly ReadonlyMap<string, number>[], sign: number) =>
   return most
 }
 
-/** A BSData name as VS Data spells it, where the unit's VS Data wargear lacks BSData's spelling. */
-const keyOf = (name: string, vsKeys: ReadonlySet<string>) => {
-  const key = wargearKey(name).replace(ARTICLE, '')
-  return vsKeys.has(key) ? key : ([SPELLINGS[key] ?? []].flat().find((spelling) => vsKeys.has(spelling)) ?? key)
-}
-
 /** What a BSData-built unit carries, as named items in VS Data's spelling, leaving out Enhancements it holds. */
 function bsdataBag(built: BuiltUnit, index: CatalogueIndex, vsKeys: ReadonlySet<string>, enhancementIds: ReadonlySet<string>) {
   const enhancement = (id: string) => {
     const definition = enhancementIds.has(id) ? index.definitions.get(id) : undefined
-    return Boolean(definition) && !vsKeys.has(keyOf(nameOf(definition!, index.definitions), vsKeys))
+    return Boolean(definition) && !vsKeys.has(vsSpelling(nameOf(definition!, index.definitions), vsKeys))
   }
   const kept = (node: Selection): Selection => ({
     ...node,
     selections: node.selections?.filter((child) => !enhancement(child.id)).map(kept),
   })
   const bag: Bag = new Map()
-  for (const { name, count } of wargearOf(kept(built.selection), index)) add(bag, keyOf(name, vsKeys), count)
+  for (const { name, count } of wargearOf(kept(built.selection), index)) add(bag, vsSpelling(name, vsKeys), count)
   return bag
 }
 
@@ -700,7 +633,7 @@ for (const entry of composition.editions.filter((candidate) => candidate.base)) 
           // the unit already carries.
           const selections = delta.size
             ? translated(owner ?? (isModel(option.id) ? modelsNamed(option.name) : undefined), delta, made)
-            : ordinary(choice, option) || composing || fromBag.has(keyOf(option.name, vsKeys))
+            : ordinary(choice, option) || composing || fromBag.has(vsSpelling(option.name, vsKeys))
               ? {}
               : null
           if (selections) found.set(key, { options: selections })

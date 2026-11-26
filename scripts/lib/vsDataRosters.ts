@@ -7,6 +7,7 @@ import { buildUnit } from '../../src/core/roster'
 import { hasWarlordToggle } from '../../src/core/unitChoices'
 import { wargearOf } from '../../src/core/wargear'
 import { wargearKey } from '../../src/core/wargearNames'
+import { ARTICLE, vsSpelling } from './wargearSpellings'
 import type { Counts, VsDataDefinitions } from '../../src/core/vsDataConstruction'
 import { checkVsUnit, type VsRoster, type VsRosterUnit } from '../../src/core/vsDataRoster'
 import type { LoadedCatalogue } from '../../src/shared/catalogueIndex'
@@ -28,44 +29,6 @@ export const legacyIds = () => ({
 })
 export type LegacyIds = ReturnType<typeof legacyIds>
 
-/** Reviewed spellings: wargear as VS Data names it, by BSData's name, both as `wargearKey`s. */
-const SPELLINGS: Record<string, string> = {
-  'absolver-bolt-pistol': 'absolvor-bolt-pistol',
-  'adrathic-combi-destructors': 'adrathic-combi-destructor',
-  agonizer: 'agoniser',
-  'astartes-chainsword': 'chainsword',
-  'cavalry-sabre-clawed-limbs': 'cavalry-sabre-and-clawed-limbs',
-  'channeler-stones': 'channeller-stones',
-  'chirugeons-tools': 'chirurgeons-tools',
-  'death-korps-of-krieg-medi-pack': 'death-korps-medi-pack',
-  'distendible-jaw': 'distensible-jaw',
-  'exo-armour-grenade-launcher': 'exoarmour-grenade-launcher',
-  'grav-chute': 'grav-chutes',
-  'improvised-weapons': 'improvised-weapon',
-  'kratos-battlecannon': 'kratos-battle-cannon',
-  'lancer-laser-destroyer': 'laser-destroyer',
-  'lashing-tongues': 'lashing-tongue',
-  'lastrum-storm-bolters': 'lastrum-storm-bolter',
-  'magma-cutter': 'magma-cutters',
-  'nuncio-aquila': 'nuncio-acquila',
-  'pan-spectral-scanner': 'panspectral-scanner',
-  'relic-great-axe': 'relic-greataxe',
-  spinemaw: 'spinemaws',
-  'sporocyst-bio-weapon': 'sporocyst-bio-weapons',
-  'squig-jaws': 'squigs-jaws',
-  'staff-of-ulthamar-and-witchblade': 'the-staff-of-ulthamar-and-witchblade',
-  'steeds-savage-claws': 'savage-claws',
-  'termagant-spinefist': 'termagant-spinefists',
-  'toxinjecter-harpoon': 'toxinjector-harpoon',
-  'transonic-razor-chordclaw': 'transonic-razor-and-chordclaw',
-  'twin-concussion-gauntlets': 'twin-concussion-gauntlet',
-  'twin-infernus-incinerators': 'twin-infernus-incinerator',
-  'twin-killsaw': 'twin-killsaws',
-  'twin-power-fist': 'twin-power-fists',
-  'zealots-vindicator': 'zealots-vindictor',
-}
-const ARTICLE = /^the-/
-
 /** Names compared by their letters and digits alone, without the "upgrade" BSData adds to some. */
 export const same = (name: string) =>
   name
@@ -81,7 +44,7 @@ const add = (bag: Map<string, number>, key: string, n: number) => {
 }
 
 /** A wargear ID as the named items it holds. */
-function leaves(definitions: VsDataDefinitions, id: string, n: number, into: Map<string, number>) {
+export function leaves(definitions: VsDataDefinitions, id: string, n: number, into: Map<string, number>) {
   const inner = definitions.get('wargear', id)?.data.includes
   if (inner && Object.keys(inner).length) for (const [part, m] of Object.entries(inner)) leaves(definitions, part, n * m, into)
   else add(into, wargearKey(definitions.get('wargear', id)?.name ?? id).replace(ARTICLE, ''), n)
@@ -142,7 +105,7 @@ function selectionsFor(
 }
 
 /** How many models of each name the built unit fields. */
-function modelsByName(selection: Selection, index: CatalogueIndex) {
+export function modelsByName(selection: Selection, index: CatalogueIndex) {
   const found = new Map<string, number>()
   const walk = (node: Selection, carried: number) => {
     for (const child of node.selections ?? []) {
@@ -161,7 +124,7 @@ function modelsByName(selection: Selection, index: CatalogueIndex) {
 }
 
 /** The VS Data model counts for a built unit of `total` models: by name where they tell, else fixed models and one variable. */
-function vsModels(definitions: VsDataDefinitions, unit: string, named: ReadonlyMap<string, number>, total: number) {
+export function vsModels(definitions: VsDataDefinitions, unit: string, named: ReadonlyMap<string, number>, total: number) {
   const models = definitions.modelsOf(unit)
   const byName = new Map(models.map((model) => [same(model.name), model]))
   const counts: Record<string, number> = Object.fromEntries(models.map((model) => [model.id, 0]))
@@ -268,7 +231,7 @@ export function vsRosterOf(
 }
 
 /** The unit's Enhancement as VS Data names it, and the names of every special it holds, which are not wargear. */
-function specialOf(
+export function specialOf(
   priced: PricedUnit,
   detachments: readonly string[],
   ids: LegacyIds,
@@ -311,10 +274,8 @@ function wargearSelections(
     }
   const bag = new Map<string, number>()
   for (const { name, count } of wargearOf(selection, index)) {
-    let name_ = wargearKey(name).replace(ARTICLE, '')
     if (specials.has(wargearKey(name))) continue
-    if (!known.has(name_)) name_ = SPELLINGS[name_] ?? name_
-    add(bag, name_, count)
+    add(bag, vsSpelling(name, known), count)
   }
   const delta = new Map(bag)
   for (const [name, n] of base) add(delta, name, -n)
