@@ -1825,6 +1825,36 @@ Exported with App Version: v2.4.0 (139), Data Version: v925`,
     expect(imported.units.map((unit) => unit.entryId)).toEqual(['tomb-blades'])
   })
 
+  it('says a list was exported from app data older than the data the rules come from', () => {
+    const imported = importRosterFile(
+      {
+        file: `Blades (70 Points)
+
+Necrons
+Strike Force (2,000 Points)
+
+OTHER DATASHEETS
+
+Tomb Blades (70 Points)
+  • 3x Tomb Blade
+
+Exported with App Version: v2.6.0 (3), Data Version: v963`,
+      },
+      loaded,
+      undefined,
+      {
+        factionNames: new Map(),
+        factionKeys: new Map(),
+        detachmentReferences: new Map(),
+        detachmentDetails: new Map(),
+        factionRestrictions: new Map(),
+        appDataBuild: 981,
+      } as Partial<LoadedRules> as LoadedRules,
+    )
+
+    expect('olderData' in imported && imported.olderData).toEqual({ exported: 963, current: 981 })
+  })
+
   it('reads the faction from its datasheets where the official app translated its name', () => {
     const imported = importRosterFile(
       {

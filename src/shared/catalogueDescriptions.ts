@@ -22,11 +22,11 @@ export function sameRuleName(left: string, right: string) {
 }
 
 /** The cards' rules of a Detachment, then those only the catalogue prints, but for the ones the rules version marks absent there. */
-export function mergeDetachmentRules(
+export function mergeDetachmentRules<Card extends { name: string; description: string }>(
   catalogueRules: readonly { name: string; description: string | null }[],
-  cardRules: readonly { name: string; description: string }[],
+  cardRules: readonly Card[],
   absent: readonly string[] = [],
-) {
+): (Card | { name: string; description: string | null; vsDataId?: undefined })[] {
   const supplied: string[] = cardRules.map((rule) => rule.name)
   const missing = catalogueRules.filter((rule) => {
     if (absent.includes(abilityKey(rule.name))) return false

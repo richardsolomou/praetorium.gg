@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import type { RuleSummary } from '../contracts/rules'
-import { english } from './datacards'
+import { english, gdcAliasName as named, gdcAliasId as dotted, gdcDetachmentRuleAlias, gdcEnhancementAlias } from './datacards'
 
 /** The credit a record Praetorium serves from VS Data alone carries. */
 export const VS_DATA_ATTRIBUTION = 'Rules data from VS Data'
@@ -268,6 +268,8 @@ export type VsDataCoreRule = z.infer<typeof vsDataCoreRuleSchema>
 export const vsDataSummariesSchema = z.object({
   release: z.string(),
   rulesVersion: rulesVersionSchema,
+  /** The official app's data build the release was converted from, which its exports print as "Data Version: v981". */
+  dataBuild: z.number().int().optional(),
   entries: z.record(z.string(), z.array(z.string())),
   attributions: z.array(vsDataAttributionSchema).default([]),
   stratagems: z.array(vsDataStratagemSchema).default([]),
@@ -380,14 +382,13 @@ export function gdcRuleRecords(file: unknown): GdcRuleRecord[] {
     const texts = ['when', 'target', 'effect', 'restrictions'].map((field) => raw(stratagem[field]))
     add(core ? 'core stratagem' : 'stratagem', `gdc.${core ? 'core.stratagem' : 'stratagem'}.${dotted(stratagem.id)}`, texts)
   }
-  for (const enhancement of list(root.enhancements))
-    add('enhancement', `gdc.enhancement.${dotted(enhancement.id)}`, [raw(enhancement.description)])
+  for (const enhancement of list(root.enhancements)) add('enhancement', gdcEnhancementAlias(enhancement.id), [raw(enhancement.description)])
   for (const faq of list(root.faqs)) add('FAQ', `gdc.faq.${dotted(faq.id)}`, [raw(faq.errataText)])
   const rules = fieldsOf(root.rules)
   for (const rule of list(rules?.army)) add('army rule', `gdc.army.rule.army.${named(rule.name)}`, blockTexts(rule.rules))
   for (const detachment of list(rules?.detachment))
     for (const rule of list(detachment.rules))
-      add('detachment rule', `gdc.detachment.rule.${dotted(detachment.detachment_id)}.${named(rule.name)}`, blockTexts(rule.rules))
+      add('detachment rule', gdcDetachmentRuleAlias(detachment.detachment_id, rule.name), blockTexts(rule.rules))
   for (const datasheet of list(root.datasheets)) {
     const abilities = fieldsOf(datasheet.abilities)
     const faction = datasheet.faction_id ? `.faction.${dotted(datasheet.faction_id)}` : ''
@@ -447,13 +448,6 @@ export function clarificationTitle(title: string) {
 /** How a core rule clarification is named among a rules document's entries: its rule's id and its own number. */
 export const clarificationEntry = (rule: string, code: string) => `${rule}#${code}`
 
-const dotted = (id: unknown) => String(id).replaceAll('-', '.')
-const named = (name: unknown) =>
-  (english(name) ?? '')
-    .toLowerCase()
-    .split(/[^a-z0-9]+/)
-    .filter(Boolean)
-    .join('.')
 /** A printed string exactly as the file holds it, which is what a token's hash is taken of. */
 const raw = (value: unknown) => {
   const text = typeof value === 'string' ? value : fieldsOf(value)?.en

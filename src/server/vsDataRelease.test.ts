@@ -345,6 +345,18 @@ it('keeps every spelling the localisation gives a unit, its pieces, a Detachment
   })
 })
 
+it('keeps the app data build the release names, which an import compares an export’s data version with', () => {
+  const manifest = path.join(directory, 'manifest.json')
+  const parsed = JSON.parse(fs.readFileSync(manifest, 'utf8'))
+  parsed.categories[0].sources = [{ revision: 'data build 981' }]
+  fs.writeFileSync(manifest, JSON.stringify(parsed))
+  const file = `${directory}.json`
+  compactVsDataRelease(directory, file)
+  const compact = JSON.parse(fs.readFileSync(file, 'utf8'))
+  fs.rmSync(file)
+  expect(compact.dataBuild).toBe(981)
+})
+
 it('keeps a unit the identity aliases to a BSData entry, with no roster record, as a unit with nothing to show', () => {
   fs.rmSync(directory, { recursive: true })
   const devotee = { kind: 'unit', id: 'adepta-sororitas.inspiring-devotee', name: 'Inspiring Devotee', aliases: ['bsdata.68a5.7e40'] }

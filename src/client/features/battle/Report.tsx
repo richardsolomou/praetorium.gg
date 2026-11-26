@@ -200,24 +200,21 @@ function EntryText({
 
 /** Fetches the card only when asked, since a spectator's screen has no other use for the side's rules. */
 function StratagemDialog({ side, used, onClose }: { side: Side; used: UsedStratagem; onClose: () => void }) {
+  const requests = side.armies.map((army) => armyRulesRequest(army.roster))
   const results = useQueries({
-    queries: side.armies.map((army) => {
-      const request = armyRulesRequest(army.roster)
-      return detachmentRulesQuery(request.catalogueId, request.detachmentNames)
-    }),
+    queries: requests.map((request) => detachmentRulesQuery(request.catalogueId, request.detachmentNames)),
   })
   const stratagem = side.stratagems.find((candidate) => candidate.key === used.key)
   if (!stratagem) return null
+  const written = results
+    .map((result, at) => {
+      const found = result.data ? writtenStratagem([result.data], used.key) : undefined
+      return found && { ...found, catalogueId: requests[at]!.catalogueId }
+    })
+    .find(Boolean)
   return (
     <BattlePromptDialog open onOpenChange={(open) => !open && onClose()} minimizedLabel={used.name} resumeLabel="Return to stratagem">
-      <StratagemDetails
-        stratagem={stratagem}
-        written={writtenStratagem(
-          results.flatMap((result) => (result.data ? [result.data] : [])),
-          used.key,
-        )}
-        pending={results.some((result) => result.isLoading)}
-      />
+      <StratagemDetails stratagem={stratagem} written={written} pending={results.some((result) => result.isLoading)} />
     </BattlePromptDialog>
   )
 }

@@ -112,6 +112,10 @@ describe('vsMfmUnit', () => {
 
 describe('vsMfmDetachment', () => {
   it('names an upgrade as the field manual does, from its points, so the builder knows it for one', () => {
-    expect(vsMfmDetachment(index, 'bs-guard')).toEqual({ name: 'Guard', dp: 2, enhancements: [{ name: 'Banner (Upgrade)', points: 10 }] })
+    expect(vsMfmDetachment(index, 'bs-guard')).toEqual({
+      name: 'Guard',
+      dp: 2,
+      enhancements: [{ name: 'Banner (Upgrade)', points: 10, id: 'host.guard.banner' }],
+    })
   })
 })

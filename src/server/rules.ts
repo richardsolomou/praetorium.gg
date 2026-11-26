@@ -142,6 +142,8 @@ export function* loadRulesSteps(
       }
     },
     absentRules,
+    // The rules version's own release first, as for its Stratagems, then the base's.
+    (aliases) => indexes.flatMap((index) => index.entry(aliases) ?? []).find((ref) => ref.kind === 'ability')?.id,
   )
   const missing = yield* missingArmyRulesFromCatalogueSteps(path.join(directory, 'definitions'), datacards)
   const catalogueRules = catalogue?.definitions ? withDefinitionTokens(missing, catalogue.definitions.token) : missing
@@ -215,5 +217,6 @@ export function* loadRulesSteps(
     dataslate: null,
     // A list is read in the rules version it is imported into, which the release beside the base one describes.
     importNames: importNamesOf(releases[0]?.names, releases[0]?.entries ?? {}, legacyImportIds, rulesVersion),
+    ...(releases[0]?.dataBuild ? { appDataBuild: releases[0].dataBuild } : {}),
   }
 }

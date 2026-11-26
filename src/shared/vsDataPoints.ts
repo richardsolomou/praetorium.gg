@@ -14,7 +14,17 @@ export type VsPointsIndex = {
   books: Record<string, string>
   factions: Record<string, { name: string; parent?: string }>
   units: Record<string, { faction: string; tiers: Tier[]; wargear: { item: string; points: number }[] }>
-  detachments: Record<string, { faction: string; name: string; dp: number | null; enhancements: { name: string; points: number }[] }>
+  detachments: Record<
+    string,
+    {
+      faction: string
+      name: string
+      dp: number | null
+      enhancements: { name: string; points: number; id: string }[]
+      /** The VS Data ID of each of its Enhancement options, by BSData option ID; a download saved before them has none. */
+      enhancementIds?: Record<string, string>
+    }
+  >
 }
 
 /** The frozen maps from BSData IDs to VS Data's (`catalogue/legacy-ids/`). */
@@ -84,9 +94,11 @@ export function vsPointsIndex(
     const detachment = definitions.get('detachment', id)
     if (!detachment) continue
     const found = pointsAt(definitions.points, { kind: 'detachment', faction: detachment.data.faction, detachment: id })
-    const enhancements = enhancementIds.flatMap(([key, enhancement]) => {
+    const owned = enhancementIds.flatMap(([key, enhancement]) => {
       const [owner, option] = key.split('/') as [string, string]
-      if (owner !== id) return []
+      return owner === id ? [[option, enhancement] as const] : []
+    })
+    const enhancements = owned.flatMap(([option, enhancement]) => {
       const points = pointsAt(definitions.points, { kind: 'enhancement', faction: detachment.data.faction, detachment: id, enhancement })
       const name = nameOf(option)
       if (!points.ok || !name) return []
@@ -97,7 +109,7 @@ export function vsPointsIndex(
           ),
         ),
       )
-      return [{ name: upgrade && !/\(upgrade\)$/i.test(name) ? `${name} (Upgrade)` : name, points: points.points }]
+      return [{ name: upgrade && !/\(upgrade\)$/i.test(name) ? `${name} (Upgrade)` : name, points: points.points, id: enhancement }]
     })
     // Several BSData options can name one Enhancement; the builder looks it up by name, once.
     const named = [...new Map(enhancements.map((entry) => [entry.name, entry])).values()]
@@ -106,6 +118,7 @@ export function vsPointsIndex(
       name: detachment.name,
       dp: found.ok ? found.points : null,
       enhancements: named,
+      enhancementIds: Object.fromEntries(owned),
     }
   }
   const factions = Object.fromEntries(
