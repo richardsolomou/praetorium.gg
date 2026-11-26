@@ -1755,13 +1755,15 @@ Exportada con la versión de la app: v2.4.0 (139), versión de los datos v925`,
     const importNames = importNamesOf(
       {
         factions: [],
-        detachments: [],
+        detachments: {},
         enhancements: [],
+        dispositions: [],
         units: {
           'necrons.tomb-blades': { name: ['Tomb Blades', 'Cuchillas sepulcrales'], pieces: [['Particle Beamer', 'Haz de partículas']] },
         },
       },
       { 'unit:necrons.tomb-blades': ['bsdata.tomb-blades'] },
+      { units: {}, detachments: {}, datasheetNames: new Map(), detachmentNames: new Map() },
     )
     const imported = importRosterFile(
       {

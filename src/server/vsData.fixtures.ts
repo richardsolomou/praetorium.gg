@@ -76,18 +76,20 @@ export function vsDataReleaseFiles(
       sha256: sha256(text),
     })),
     schemas: [],
-    categories: [...new Set(['rules-reference', ...records.map((record) => record.category ?? 'rules-reference')])].map((name) => ({
-      name,
-      status: 'partial',
-      sources: [],
-      records: recordFiles
-        .flatMap(([file, text], at) =>
-          (records[at]!.category ?? 'rules-reference') === name
-            ? [{ kind: records[at]!.kind, id: records[at]!.id, path: file, sha256: sha256(text) }]
-            : [],
-        )
-        .toSorted((left, right) => (`${left.kind}:${left.id}` < `${right.kind}:${right.id}` ? -1 : 1)),
-    })),
+    categories: [...new Set(['rules-reference', ...records.map((record) => record.category ?? 'rules-reference')])]
+      .toSorted()
+      .map((name) => ({
+        name,
+        status: 'partial',
+        sources: [],
+        records: recordFiles
+          .flatMap(([file, text], at) =>
+            (records[at]!.category ?? 'rules-reference') === name
+              ? [{ kind: records[at]!.kind, id: records[at]!.id, path: file, sha256: sha256(text) }]
+              : [],
+          )
+          .toSorted((left, right) => (`${left.kind}:${left.id}` < `${right.kind}:${right.id}` ? -1 : 1)),
+      })),
   })
   return [['manifest.json', manifest], ['identity.json', identity], ...recordFiles, ...localisationFiles]
 }

@@ -480,7 +480,12 @@ const localisationSchema = z.object({
  * Every spelling the release's localisation gives each faction, Detachment, Enhancement and unit, and each model and
  * piece of wargear of a unit, the identity's English name first; an entity no language spells otherwise is left out.
  */
-function namesOf(manifest: VsDataManifest, read: (name: string) => unknown, identity: readonly IdentityEntry[]): VsDataNames {
+function namesOf(
+  manifest: VsDataManifest,
+  read: (name: string) => unknown,
+  identity: readonly IdentityEntry[],
+  dispositions: readonly { id: string; name: string }[],
+): VsDataNames {
   const spellings = new Map<string, string[]>()
   for (const { path: file } of manifest.localisation)
     for (const entry of localisationSchema.parse(read(file)).entries) {
@@ -493,9 +498,11 @@ function namesOf(manifest: VsDataManifest, read: (name: string) => unknown, iden
       )
       spellings.set(vsDataKey(entry), names)
     }
-  const spelled = (entry: IdentityEntry) => {
-    const names = [...new Set([entry.name!, ...(spellings.get(vsDataKey(entry)) ?? [])])]
-    return entry.name && names.length > 1 ? [names] : []
+  const named = (entry: { kind: string; id: string; name?: string }) =>
+    entry.name ? [...new Set([entry.name, ...(spellings.get(vsDataKey(entry)) ?? [])])] : []
+  const spelled = (entry: { kind: string; id: string; name?: string }) => {
+    const names = named(entry)
+    return names.length > 1 ? [names] : []
   }
   const current = identity.filter((entry) => !entry.retired && !entry.absent)
   const refers = (entry: IdentityEntry, kind: string) => (entry.references ?? []).filter((reference) => reference.kind === kind)
@@ -521,17 +528,16 @@ function namesOf(manifest: VsDataManifest, read: (name: string) => unknown, iden
   )
   const ofKind = (kind: string, wanted: (entry: IdentityEntry) => boolean = () => true) =>
     current.filter((entry) => entry.kind === kind && wanted(entry)).flatMap(spelled)
+  // Every unit and Detachment keeps its English name, which reads a list by its ID where BSData spells it otherwise.
+  const byId = (kind: string) =>
+    Object.fromEntries(current.flatMap((entry) => (entry.kind === kind && entry.name ? [[entry.id, named(entry)] as const] : [])))
   return {
     factions: ofKind('faction'),
-    detachments: ofKind('detachment'),
+    detachments: byId('detachment'),
     enhancements: ofKind('ability', (entry) => enhancements.has(entry.id)),
+    dispositions: dispositions.flatMap(({ id, name }) => spelled({ kind: 'disposition', id, name })),
     units: Object.fromEntries(
-      current.flatMap((entry) => {
-        if (entry.kind !== 'unit') return []
-        const [name] = spelled(entry)
-        const held = (pieces.get(entry.id) ?? []).flatMap(spelled)
-        return name || held.length ? [[entry.id, { name: name ?? [], pieces: held }] as const] : []
-      }),
+      Object.entries(byId('unit')).map(([id, name]) => [id, { name, pieces: (pieces.get(id) ?? []).flatMap(spelled) }] as const),
     ),
   }
 }
@@ -603,7 +609,18 @@ export function compactVsDataRelease(directory: string, file: string) {
       for (const reference of entry.references ?? [])
         if (reference.kind === 'unit' && units[reference.id])
           units[reference.id]!.shared = [...(units[reference.id]!.shared ?? []), entry.id]
-  const names = namesOf(manifest, read, identity)
+  const missionPacks = manifest.categories
+    .filter((category) => category.name === MISSION_PACKS)
+    .flatMap((category) => category.records)
+    .map((entry) => packRecordSchema.parse(read(entry.path)))
+    .filter((record) => record.rulesVersion.update === manifest.rulesVersion.update)
+    .map((record) => record.data)
+  const names = namesOf(
+    manifest,
+    read,
+    identity,
+    missionPacks.flatMap((pack) => pack.dispositions),
+  )
   for (const id of new Set([...Object.keys(units), ...Object.keys(names.units)])) wanted.add(vsDataKey({ kind: 'unit', id }))
   const current = identity.filter((entry) => !entry.retired)
   const entries = current.filter((entry) => wanted.has(vsDataKey(entry)))
@@ -613,12 +630,7 @@ export function compactVsDataRelease(directory: string, file: string) {
     rulesVersion: manifest.rulesVersion,
     entries: Object.fromEntries(entries.map((entry) => [vsDataKey(entry), entry.aliases ?? []])),
     stratagems: records.flatMap((record) => stratagemOf(record, current)),
-    missionPacks: manifest.categories
-      .filter((category) => category.name === MISSION_PACKS)
-      .flatMap((category) => category.records)
-      .map((entry) => packRecordSchema.parse(read(entry.path)))
-      .filter((record) => record.rulesVersion.update === manifest.rulesVersion.update)
-      .map((record) => record.data),
+    missionPacks,
     missionActions: current.flatMap((entry) => (entry.kind === 'mission-action' && entry.name ? [{ id: entry.id, name: entry.name }] : [])),
     detachments: detachmentsOf(manifest, read, current),
     ...(absent.profiles.length ? { absentAbilities: absent.profiles } : {}),

@@ -1,0 +1,1830 @@
+{
+  "format": "praetorium.legacy-names.v1",
+  "names": {
+    "0017-3a94-11f8-7fca": [
+      "Sacred Champions"
+    ],
+    "0039-32e7-d0ff-adc4": [
+      "Medusa's Wrath"
+    ],
+    "01b8-fa17-620e-8e79": [
+      "Needgaârd Oathband"
+    ],
+    "0256-e74f-0e54-3e45": [
+      "Spearpoint Task Force"
+    ],
+    "02e5-7fe0-d054-0209": [
+      "Cohort Acquisitus"
+    ],
+    "03a7-d965-5d2c-e346": [
+      "Interrogation Conclave"
+    ],
+    "05ed-772d-bd3a-a790": [
+      "Mechanised Assault"
+    ],
+    "0888-6943-a4db-4826": [
+      "Fulguris Task Force"
+    ],
+    "0985-28ae-cf24-2fba": [
+      "Butchers of Khorne"
+    ],
+    "09b2-b286-7608-d613": [
+      "Brute Bosses"
+    ],
+    "0a59-1d64-257c-04fb": [
+      "Brood Brother Auxilia"
+    ],
+    "0a79-5968-68f0-56b5": [
+      "Host of Ascension"
+    ],
+    "0b59-ad5c-a30b-75ba": [
+      "Gravis Linebreaker Force"
+    ],
+    "0b71-29ad-7485-83bd": [
+      "Reclamation Force"
+    ],
+    "0dd1-86f6-d2a0-3aba": [
+      "Cavalcade of Chaos"
+    ],
+    "1077-70a1-0570-5685": [
+      "Hearthband"
+    ],
+    "1242-7b3f-a47e-503a": [
+      "Wrathful Procession"
+    ],
+    "12b9-2601-5150-66f4": [
+      "Court of the Phoenician"
+    ],
+    "1520-c344-f4fe-b414": [
+      "Experimental Prototype Cadre"
+    ],
+    "1558-660f-466b-a087": [
+      "Khorne Daemonkin"
+    ],
+    "163f-63bd-f2e1-5e7": [
+      "Obeisance Phalanx"
+    ],
+    "1653-ad59-40e0-a08f": [
+      "Tools of Torment"
+    ],
+    "16ff-a068-4c31-285a": [
+      "Synaptic Nexus"
+    ],
+    "1707-57c5-676e-90d9": [
+      "Pantheon of Woe"
+    ],
+    "18b0-2d87-798f-ef1c": [
+      "Mortarion's Hammer"
+    ],
+    "1aca-af79-006f-bf56": [
+      "Designation Force"
+    ],
+    "1b34-af6b-8900-61b5": [
+      "Wurrband"
+    ],
+    "1bb5-5aba-6c8f-7afc": [
+      "Might of the Moritoi"
+    ],
+    "1c30-e099-1aca-8708": [
+      "Creations of Bile"
+    ],
+    "1dc3-0d2d-7cb8-b84b": [
+      "Terminator Storm Force"
+    ],
+    "1de5-2462-f59c-db94": [
+      "Cryptek Conclave"
+    ],
+    "1dea-4c70-8d4d-3415": [
+      "Emperor's Shield"
+    ],
+    "1eb7-d49c-5fd4-9906": [
+      "Banishers"
+    ],
+    "21b4-7a36-fec6-b7ea": [
+      "Blood Legion"
+    ],
+    "2496-d271-a92f-d1c0": [
+      "Hammer of Avernii"
+    ],
+    "24e2-b690-37b5-de9e": [
+      "Lords of the Forge"
+    ],
+    "24f0-3c89-41be-0675": [
+      "Legion of Excess"
+    ],
+    "26ff-306a-fca9-ebfd": [
+      "Rapid Evisceration"
+    ],
+    "273e-953c-a337-ec5d": [
+      "Farseekers"
+    ],
+    "2cf4-ac9c-5417-10ac": [
+      "Renegade Warband"
+    ],
+    "3000-9a97-6f30-5a00": [
+      "Ceramite Sentinels"
+    ],
+    "31c2-3bbc-d0b2-ba92": [
+      "Saga of the Hunter"
+    ],
+    "3490-ec82-70b3-c5cf": [
+      "Berzerker Warband"
+    ],
+    "357d-d51b-f001-a33d": [
+      "Warptide"
+    ],
+    "395a-ed00-a55f-49da": [
+      "Phobos Shadow Force"
+    ],
+    "39c2-616a-92c8-ad9d": [
+      "Armoured Trailblazers"
+    ],
+    "3b75-a700-050c-06f5": [
+      "Lions of the Emperor"
+    ],
+    "3bae-cf7-b9e3-4f00": [
+      "Retaliation Cadre"
+    ],
+    "3bb2-fd56-d456-de75": [
+      "Devastator Brethren"
+    ],
+    "3c31-6fac-9914-827a": [
+      "Warhost"
+    ],
+    "3c9e-2156-254e-66e8": [
+      "Carnival of Excess"
+    ],
+    "3caf-c168-c372-51b1": [
+      "Unforgiven Task Force"
+    ],
+    "3d9f-5d9a-4a18-21aa": [
+      "Recon Element"
+    ],
+    "3ee6-23e1-8bc0-90f7": [
+      "Chorus of Condemnation"
+    ],
+    "3f06-4e57-edb4-28e5": [
+      "Brotherhood Strike"
+    ],
+    "419a-c366-aa63-ebb5": [
+      "Steel Hammer"
+    ],
+    "41dc-6769-c30c-b96c": [
+      "Saga of the Bold"
+    ],
+    "41e6-d47c-5e68-e066": [
+      "Company of Hunters"
+    ],
+    "437f-0cb8-194f-a716": [
+      "Brandfast Oathband"
+    ],
+    "4417-6fdc-a5d9-cdf7": [
+      "Advanced Acquisition Cadre"
+    ],
+    "4459-12f0-bc-142b": [
+      "Black Spear Task Force"
+    ],
+    "44d2-04f0-309d-575e": [
+      "Huron's Marauders"
+    ],
+    "452e-5b5b-cdbc-c94a": [
+      "Kroot Hunting Pack"
+    ],
+    "45aa-c450-8fb0-92c2": [
+      "Argent Assault"
+    ],
+    "47c7-52f9-c23d-1e4e": [
+      "Covenite Coterie"
+    ],
+    "48bd-eeae-171d-a10a": [
+      "Skitarii Hunter Cohort"
+    ],
+    "496c-ddb9-3e71-e0b3": [
+      "War Horde"
+    ],
+    "4972-a08d-9d88-5f7a": [
+      "Deceptors"
+    ],
+    "4b17-a73a-7a0a-a265": [
+      "Bully Boyz"
+    ],
+    "4b8b-16b7-091d-7b6f": [
+      "Ritual of Regeneration"
+    ],
+    "4cd9-313f-cd9b-c85a": [
+      "Unending Swarm"
+    ],
+    "4e8e-50db-0d32-423c": [
+      "Freeblade Company"
+    ],
+    "5063-25bd-d22e-665b": [
+      "Shadow Legion"
+    ],
+    "50ed-e07c-8f6b-b035": [
+      "Stormlance Task Force"
+    ],
+    "5139-a5ca-8533-7e09": [
+      "Tacticus Attack Force"
+    ],
+    "51c2-e233-ea51-14df": [
+      "Skyshroud Spearhead"
+    ],
+    "5347-93e5-b3f2-366d": [
+      "Imperialis Fleet"
+    ],
+    "536a-b3ea-7597-81bb": [
+      "Xenocreed Congregation"
+    ],
+    "53dd-68f7-7c1f-3e5d": [
+      "Pactbound Zealots"
+    ],
+    "549e-86b2-b786-c802": [
+      "Assault Brethren"
+    ],
+    "575d-76f6-2edb-22c1": [
+      "Bringers of Flame"
+    ],
+    "57a9-88a1-84c1-e421": [
+      "Abhuman Auxiliaries"
+    ],
+    "59e2-4fec-2b00-b1e8": [
+      "Outlander Claw"
+    ],
+    "5ad5-9b0d-a70e-b9ec": [
+      "Serpent's Brood"
+    ],
+    "5be7-3aa8-5d64-cbaf": [
+      "Warpmeld Pact"
+    ],
+    "5c81-a47b-d3a0-31e8": [
+      "Champions of Faith"
+    ],
+    "5d30-981f-43b8-81be": [
+      "Hunting Warpack"
+    ],
+    "5d64-4100-80e-c8f3": [
+      "1st Company Task Force"
+    ],
+    "5eb6-4ed2-6aca-c7f1": [
+      "Deathwatch Support (ITS NOT READY)",
+      "Deathwatch Support"
+    ],
+    "5f38-038e-a1e9-a457": [
+      "Cult of the Arkifane"
+    ],
+    "5ff-1ac3-bc73-8273": [
+      "Liberator Assault Group"
+    ],
+    "603e-6bcd-927f-cb70": [
+      "Traitoris Lance"
+    ],
+    "60e4-3c48-7e50-4d37": [
+      "Silent Hunters"
+    ],
+    "6357-b8d4-0b19-41a8": [
+      "Dark Age Arsenal"
+    ],
+    "63cc-721f-b263-9d4a": [
+      "Blitz Brigade"
+    ],
+    "6493-9079-727d-d95f": [
+      "Annihilation Legion"
+    ],
+    "64a6-9332-de28-21a9": [
+      "Darkflight Pursuit"
+    ],
+    "657c-469d-679e-f3aa": [
+      "The Angelic Host"
+    ],
+    "65e6-9ab1-6a2c-5410": [
+      "Luminen Auto-choir"
+    ],
+    "6619-187e-e309-3313": [
+      "Vengeful Hosts"
+    ],
+    "67ce-ebd5-b428-e4f7": [
+      "Combined Arms"
+    ],
+    "68d6-d094-a5d3-9bb5": [
+      "Spectacle of Slaughter"
+    ],
+    "69e5-13c7-06bf-d454": [
+      "Tallyband Summoners"
+    ],
+    "6acc-9928-2b67-73c3": [
+      "Changehost of Deceit"
+    ],
+    "6ad0-c6f6-b9e8-bae2": [
+      "Gravis Siege Force"
+    ],
+    "6aea-8ba5-978e-8def": [
+      "Mont'ka"
+    ],
+    "6cb5-45cf-c626-fa86": [
+      "Houndpack Lance"
+    ],
+    "6cec-4da4-a89d-fb98": [
+      "Chaos Cult"
+    ],
+    "6d06-9e26-0d3c-5317": [
+      "Eradication Cohort"
+    ],
+    "6d62-2c41-fb3f-7d00": [
+      "Lords of the Warp"
+    ],
+    "6d9d-6462-1738-6bb3": [
+      "Blade of Ultramar"
+    ],
+    "6e10-ae52-9955-07fb": [
+      "Brazen Engines"
+    ],
+    "6f81-1a3e-c84e-0954": [
+      "Army of Faith"
+    ],
+    "7008-2116-f479-a791": [
+      "Spectacle of Spite"
+    ],
+    "70d9-0c7a-6b46-65fa": [
+      "Vessels of Wrath"
+    ],
+    "70eb-2978-3ad5-5901": [
+      "Shield Host"
+    ],
+    "7224-4f3e-c557-115d": [
+      "Corsair Coterie"
+    ],
+    "72a9-ef68-b384-1421": [
+      "Orbital Assault Force"
+    ],
+    "731f-1524-da02-945b": [
+      "Subterranean Assault"
+    ],
+    "7416-b7cc-fdbf-5bf0": [
+      "Warrior Bioform Onslaught"
+    ],
+    "7510-5cb8-60fe-61a0": [
+      "Rubricae Phalanx"
+    ],
+    "757a-b5ed-a43f-3cdd": [
+      "Talons of the Emperor"
+    ],
+    "7596-e2c8-71fb-1b4f": [
+      "Skysplinter Assault"
+    ],
+    "768a-d0b6-e9a1-c221": [
+      "Hearthfyre Arsenal"
+    ],
+    "795f-b961-9504-bd08": [
+      "Green Tide"
+    ],
+    "7a84-2212-be14-a713": [
+      "Shamblerot Vectorium"
+    ],
+    "7aa5-4c0c-40c3-e2a": [
+      "Rad-zone Corps"
+    ],
+    "7acd-d099-e648-0838": [
+      "Purestrain Broodswarm"
+    ],
+    "7afb-a0f6-b95d-e791": [
+      "Bridgehead Strike"
+    ],
+    "7b06-be3a-9754-1bd4": [
+      "Runt Swarm"
+    ],
+    "7b92-cca6-0617-1b6d": [
+      "Hexwarp Thrallband"
+    ],
+    "7bd3-602e-280c-ecad": [
+      "The Living Miracle"
+    ],
+    "7c3c-fb9c-8689-8c7a": [
+      "Flyboyz"
+    ],
+    "7d47-b713-955c-1bf0": [
+      "Exhibition of Slaughter"
+    ],
+    "7e16-552d-f3a9-035f": [
+      "The Phaeron's Armoury"
+    ],
+    "7fd4-36f8-12c0-311b": [
+      "Tacticus Firestorm Force"
+    ],
+    "7fe8-de91-8976-e705": [
+      "Iconoclast Fiefdom"
+    ],
+    "807c-9732-5465-5ca5": [
+      "Dread Mob"
+    ],
+    "80e6-2190-9767-a7ed": [
+      "Da Big Hunt"
+    ],
+    "812b-f056-ec50-2c3c": [
+      "Infernal Lance"
+    ],
+    "850e-bee1-4845-820d": [
+      "Crusher Stampede"
+    ],
+    "8635-b1cc-e7bb-e8a1": [
+      "Slaanesh's Chosen"
+    ],
+    "86b1-dc36-0d18-477a": [
+      "Legends of Saga and Song"
+    ],
+    "87b5-6072-b2c5-0cdc": [
+      "Siege Regiment"
+    ],
+    "8839-1789-36e7-b66a": [
+      "Warpforged Cabal"
+    ],
+    "884c-fbb7-9f22-1297": [
+      "Gate Warden Lance"
+    ],
+    "8861-5385-8fd1-dfee": [
+      "Hypercrypt Legion"
+    ],
+    "8884-ddf9-a44a-ec7a": [
+      "Bastion Task Force"
+    ],
+    "89a5-170b-1bf3-7016": [
+      "Fellhammer Siege-host"
+    ],
+    "8a29-5bbd-3ee6-b64a": [
+      "Goretrack Onslaught"
+    ],
+    "8a80-e529-a86f-84b5": [
+      "Bastions of Tyranny"
+    ],
+    "8aff-09e5-5ff7-e9f2": [
+      "Elegant Brutes"
+    ],
+    "8b57-c6f6-c651-65bf": [
+      "Path of the Outcast"
+    ],
+    "8d8b-a030-83d5-f4e6": [
+      "Talons of the Norn Queen"
+    ],
+    "8e26-78e2-10bd-6982": [
+      "Hallowed Martyrs"
+    ],
+    "8e89-2c14-6bf5-87bf": [
+      "Aspect Host"
+    ],
+    "8fed-3d66-8a76-5cb7": [
+      "Vow-Sworn Crusaders"
+    ],
+    "915c-3949-0da6-83c5": [
+      "Helhunt Lance"
+    ],
+    "925e-85fb-b477-70be": [
+      "Devoted of Ynnead"
+    ],
+    "9671-eaea-ccf2-c122": [
+      "Throne-bonded Outriders"
+    ],
+    "97bc-1349-fb9d-c04f": [
+      "Auxiliary Cadre"
+    ],
+    "97fc-2d9c-9008-f363": [
+      "Hammer of the Emperor"
+    ],
+    "9805-eaee-0a84-f86f": [
+      "Guardian Battlehost"
+    ],
+    "98ed-f58a-3e6e-63a6": [
+      "Saga of the Beastslayer"
+    ],
+    "9a0b-73fb-c56f-babc": [
+      "Frenzied Host"
+    ],
+    "9a4a-a4c8-a16a-c969": [
+      "Questor Forgepact"
+    ],
+    "9aba-cb08-cd38-9e01": [
+      "Grand Coven"
+    ],
+    "9ad0-91ee-ae18-b5aa": [
+      "Plague Legion"
+    ],
+    "9ae4-56d1-1fd8-adcf": [
+      "Madcap Meks"
+    ],
+    "9c45-483a-44b9-536c": [
+      "Cult of Blood"
+    ],
+    "9d23-833a-17cb-2d7d": [
+      "Wrath of the Rock"
+    ],
+    "9d32-d514-00a8-6423": [
+      "The Lost Brethren"
+    ],
+    "9d80-7508-5cd0-2f9e": [
+      "Companions of Vehemence"
+    ],
+    "9db8-cf55-983f-9671": [
+      "Coterie of the Conceited"
+    ],
+    "9e8b-efe2-7ff2-6b36": [
+      "Cabal of Chaos"
+    ],
+    "9ebf-2bbd-6059-1d40": [
+      "Awakened Dynasty"
+    ],
+    "9ed8-0b64-4e6a-5733": [
+      "Augurium Task Force"
+    ],
+    "a060-3a8d-670c-25f0": [
+      "Solar Spearhead"
+    ],
+    "a141-49c8-fd84-4c6d": [
+      "Inner Circle Task Force"
+    ],
+    "a27b-ac32-f0fd-8111": [
+      "Armoured Warhost"
+    ],
+    "a2b8-4100-0c51-29af": [
+      "Veterans of the Fang"
+    ],
+    "a2f5-a466-96b6-d389": [
+      "Penitent Host"
+    ],
+    "a36b-bb22-1a15-2a48": [
+      "Auric Champions"
+    ],
+    "a37c-40dc-1ecb-12f7": [
+      "Wrath of the Doomed"
+    ],
+    "a523-e0fe-4e1c-bc70": [
+      "Soulforged Warpack"
+    ],
+    "a5ea-d708-db75-226c": [
+      "Veterans of the Long War"
+    ],
+    "a692-b024-09d9-b79f": [
+      "Questoris Companions"
+    ],
+    "a7cf-90fa-4093-6047": [
+      "Daemonic Incursion"
+    ],
+    "a8c0-4163-5195-a680": [
+      "Subversion Assets"
+    ],
+    "a914-9458-c5f8-0bbc": [
+      "Murdertalon Raiders"
+    ],
+    "aa86-1617-4029-fcd7": [
+      "Ironstorm Spearhead"
+    ],
+    "aabf-4988-4054-bed2": [
+      "Ordo Xenos Alien Hunters"
+    ],
+    "abb4-dc89-4e0-9150": [
+      "Firestorm Assault Force"
+    ],
+    "ae45-3e0d-eac7-7edb": [
+      "Mercurial Host"
+    ],
+    "aed9-cb3b-1d0c-f87d": [
+      "Canoptek Court"
+    ],
+    "afb4-59c7-fa93-55f6": [
+      "Champions of Fenris"
+    ],
+    "b033-0c01-012e-fcca": [
+      "Kabalite Cartel"
+    ],
+    "b36b-1a84-3f57-2063": [
+      "Mercenary Oathband"
+    ],
+    "b404-44f-e9b4-7fe2": [
+      "Kult of Speed"
+    ],
+    "b525-57b6-8a78-ed75": [
+      "Seer Council"
+    ],
+    "b5a7-4856-7c39-0c86": [
+      "Sekhetar Cohort"
+    ],
+    "b611-6312-f2d4-5e13": [
+      "Encarmine Speartip"
+    ],
+    "b6cd-9baf-8351-8dec": [
+      "Godhammer Assault Force"
+    ],
+    "b7d2-99c0-a2ed-3dce": [
+      "Anvil Siege Force"
+    ],
+    "b906-aa42-9cd9-c6f2": [
+      "Renegade Raiders"
+    ],
+    "b96b-6cb7-211b-e744": [
+      "Immaterial Interdiction"
+    ],
+    "bba-65f6-a4d1-66ae": [
+      "Assimilation Swarm"
+    ],
+    "bc26-5cb8-f5fb-2760": [
+      "Saga of the Great Wolf"
+    ],
+    "bcb7-c2a7-e7fb-3aae": [
+      "Hallowed Conclave"
+    ],
+    "bd6f-97c7-6ac4-8320": [
+      "Ordo Malleus Daemon Hunters"
+    ],
+    "be59-ec7d-2f02-b6ec": [
+      "Ghosts of the Webway"
+    ],
+    "bef5-925f-b143-d219": [
+      "Lion's Blade Task Force"
+    ],
+    "c2fe-bf23-bf24-aa43": [
+      "Invasion Fleet"
+    ],
+    "c40e-26bd-7e76-0815": [
+      "Fateful Performance"
+    ],
+    "c437-a67d-c0cd-11ab": [
+      "Paragons of Putrescence"
+    ],
+    "c4ee-83c7-812c-5ff0": [
+      "Cursed Legion"
+    ],
+    "c649-7147-7e69-5db6": [
+      "Kabalite Agonysts"
+    ],
+    "c6ca-bde2-8304-c97c": [
+      "Devotees of Destruction"
+    ],
+    "c8a3-920b-166b-30d9": [
+      "Windrider Host"
+    ],
+    "cb2f-554e-1162-75d5": [
+      "Final Day"
+    ],
+    "cbc5-234b-edae-3784": [
+      "Armoured Speartip"
+    ],
+    "cc43-5f22-04f2-5c31": [
+      "Fires of Purgation"
+    ],
+    "cc4e-a30b-f987-c984": [
+      "Grizzled Company"
+    ],
+    "ccdf-f7f2-2317-a51f": [
+      "Legacy of Grace"
+    ],
+    "ccdf-fb88-9ae3-aa6c": [
+      "Hearthguard Covenant"
+    ],
+    "cd09-8410-f1a0-c9af": [
+      "Gauntlet Task Force"
+    ],
+    "cdda-2bc8-a746-80f": [
+      "Vanguard Spearhead"
+    ],
+    "ce38-6b78-df65-e298": [
+      "Phobos Shock Force"
+    ],
+    "ce39-a420-4206-827c": [
+      "Librarius Conclave"
+    ],
+    "ce65-6b89-4a0e-4f3b": [
+      "Haloscreed Battleclade"
+    ],
+    "ce9d-e896-d9bc-767c": [
+      "Warpbane Task Force"
+    ],
+    "cec5-f3d2-05cb-212b": [
+      "Servants of Change"
+    ],
+    "cf1b-eb18-c465-27a5": [
+      "Ambush Predators"
+    ],
+    "cf4f-5c50-4a22-6960": [
+      "Headhunter Task Force"
+    ],
+    "cfc6-5531-53cb-1964": [
+      "Ordo Hereticus Purgation Force"
+    ],
+    "d071-6e6b-dde6-dcf4": [
+      "Armoured Infantry"
+    ],
+    "d11c-e4a9-32c7-b761": [
+      "Dread Talons"
+    ],
+    "d2dc-693e-b491-b16d": [
+      "Gladius Task Force"
+    ],
+    "d3a1-4b10-4d2c-d44f": [
+      "Dominus Foebreakers"
+    ],
+    "d3ee-47e1-4540-dfe5": [
+      "Null Maiden Vigil"
+    ],
+    "d469-239c-7e4c-4210": [
+      "Spearhead-at-Arms"
+    ],
+    "d519-c125-30b5-9c55": [
+      "Eldritch Raiders"
+    ],
+    "d545-85a4-65d6-2f59": [
+      "Warpstrike Champions"
+    ],
+    "d8e6-a4b2-c15f-49e2": [
+      "Rage-Cursed Onslaught"
+    ],
+    "dcc7-f9de-d4f2-69d0": [
+      "Angelic Inheritors"
+    ],
+    "dcf3-cecd-ca37-4193": [
+      "Twilight Flickers"
+    ],
+    "dd81-2af4-e7d9-bd07": [
+      "Shadowmark Talon"
+    ],
+    "dda8-a874-feac-1f81": [
+      "Possessed Slaughterband"
+    ],
+    "dec0-c9cb-c265-cae0": [
+      "Scintillating Legion"
+    ],
+    "deed-cbf8-1ac5-0294": [
+      "Xenocult Masses"
+    ],
+    "df4a-2ead-43d5-ea61": [
+      "Flyblown Host"
+    ],
+    "e01f-8783-4769-2eb6": [
+      "Explorator Maniple"
+    ],
+    "e073-8fe8-5b59-48f0": [
+      "Forgefather's Seekers"
+    ],
+    "e0fd-c955-4822-6dba": [
+      "Starshatter Arsenal"
+    ],
+    "e203-73dc-18d9-f390": [
+      "Veiled Blade Elimination Force"
+    ],
+    "e282-2b49-bd6a-679c": [
+      "Data-psalm Conclave"
+    ],
+    "e299-e560-ccec-eeb3": [
+      "Realspace Raiders"
+    ],
+    "e2ff-ece0-6cbb-be05": [
+      "Virulent Vectorium"
+    ],
+    "e366-3583-f47a-986e": [
+      "Kauyon"
+    ],
+    "e424-58f3-8e79-19a6": [
+      "Valourstrike Lance"
+    ],
+    "e533-c51a-5949-a579": [
+      "Marshal's Household"
+    ],
+    "e55b-f279-9315-70f0": [
+      "Fist of the God-Emperor"
+    ],
+    "e58e-f981-24ed-6cd4": [
+      "Contagion Engines"
+    ],
+    "e5ab-9622-8b2a-84d0": [
+      "Lords of Dread"
+    ],
+    "e5e4-56a3-ca06-fecf": [
+      "Ironclad Champions"
+    ],
+    "e688-8140-bc36-3cee": [
+      "Reaper's Wager"
+    ],
+    "e73f-ac86-44b1-c3f2": [
+      "Persecution Prospect"
+    ],
+    "ebc1-90da-ce89-ee5b": [
+      "Tharanatoi Hammerblow"
+    ],
+    "ec2e-3289-5a4a-d5a6": [
+      "Hand of the Dynasty"
+    ],
+    "ec44-c977-f09b-3f28": [
+      "Tactical Brethren"
+    ],
+    "f038-29f5-5625-6cc1": [
+      "Death Lord's Chosen"
+    ],
+    "f148-3273-e98f-427a": [
+      "Vindication Task Force"
+    ],
+    "f67d-6f59-21b8-e1f9": [
+      "Cohort Cybernetica"
+    ],
+    "f773-f91c-2999-c7e1": [
+      "Vanguard Onslaught"
+    ],
+    "f782-e3f1-c132-fe52": [
+      "Wreckas"
+    ],
+    "f96f-5896-93c2-fc05": [
+      "Nightmare Hunt"
+    ],
+    "f9b6-3e44-772b-8eb1": [
+      "Sanctified Orators"
+    ],
+    "faf3-053d-d290-a3d9": [
+      "Peerless Bladesmen"
+    ],
+    "faf5-7477-8cdc-679f": [
+      "Dêlve Assault Shift"
+    ],
+    "fb9d-20f7-3a78-22a3": [
+      "Sanctic Spearhead"
+    ],
+    "fc4a-2c42-6f33-0347": [
+      "Heroes of the Uprising"
+    ],
+    "fc94-43bf-5247-8e7c": [
+      "Spirit Conclave"
+    ],
+    "fca1-ecdf-4e4a-df41": [
+      "Shoota Boyz"
+    ],
+    "fd92-8b6d-0ef2-e14d": [
+      "Champions of Contagion"
+    ],
+    "fdd5-9868-a9ee-e9f1": [
+      "Taktikal Brigade"
+    ],
+    "ff11-0fa4-2950-380e": [
+      "Biosanctic Broodsurge"
+    ],
+    "pc-02b5634944a66425ab397470": [
+      "Honoured Companions"
+    ],
+    "pc-31d7cd24c363c1708944daa9": [
+      "Dread Host"
+    ],
+    "pc-31e0c05a11c82fd853fe9942": [
+      "Grav-Assault Force"
+    ],
+    "pc-55e89e8f9b77a1c7575d28b0": [
+      "Emperor’s Chosen"
+    ],
+    "pc-5633e072023ae8496610ef29": [
+      "Shadowkeepers"
+    ],
+    "pc-870f28ca922de55519877f46": [
+      "Solar Watch"
+    ],
+    "pc-9bcff4c68ac7011ece0b6e33": [
+      "Emissaries Imperatus"
+    ],
+    "pc-a9d7919f28ff8531bbfa48e0": [
+      "Aquilan Shield"
+    ],
+    "pc-ac7ed2bed64ba499e2eabb5f": [
+      "Guardians of the Throne"
+    ],
+    "profile-detachment-option-14f0-2e5f-1ef8-7d6a-0a98-b66e-13b6-13d4": [
+      "Gravis Linebreaker Force"
+    ],
+    "profile-detachment-option-14f0-2e5f-1ef8-7d6a-0fa7-f692-c564-45b9": [
+      "Gravis Siege Force"
+    ],
+    "profile-detachment-option-14f0-2e5f-1ef8-7d6a-1074-ee64-b992-ce44": [
+      "Ironstorm Spearhead"
+    ],
+    "profile-detachment-option-14f0-2e5f-1ef8-7d6a-1123-8770-3b67-9745": [
+      "Phobos Shadow Force"
+    ],
+    "profile-detachment-option-14f0-2e5f-1ef8-7d6a-1f61-2b65-e778-d7ac": [
+      "Phobos Shock Force"
+    ],
+    "profile-detachment-option-14f0-2e5f-1ef8-7d6a-3036-76af-eec4-77c4": [
+      "Medusa's Wrath"
+    ],
+    "profile-detachment-option-14f0-2e5f-1ef8-7d6a-79a8-da59-2007-87b0": [
+      "Gauntlet Task Force"
+    ],
+    "profile-detachment-option-14f0-2e5f-1ef8-7d6a-9a90-8bc5-27d1-4d66": [
+      "Tactical Brethren"
+    ],
+    "profile-detachment-option-14f0-2e5f-1ef8-7d6a-aa9e-3e30-26a9-2302": [
+      "Terminator Storm Force"
+    ],
+    "profile-detachment-option-14f0-2e5f-1ef8-7d6a-c5db-4b91-a749-bbdb": [
+      "Tacticus Firestorm Force"
+    ],
+    "profile-detachment-option-14f0-2e5f-1ef8-7d6a-ceec-b79b-0b83-92b6": [
+      "Ironclad Champions"
+    ],
+    "profile-detachment-option-14f0-2e5f-1ef8-7d6a-d4d1-aae4-327e-1a9f": [
+      "Tacticus Attack Force"
+    ],
+    "profile-detachment-option-14f0-2e5f-1ef8-7d6a-f261-3980-2765-e3be": [
+      "Assault Brethren"
+    ],
+    "profile-detachment-option-14f0-2e5f-1ef8-7d6a-f367-3240-47c1-7e1a": [
+      "Gladius Task Force"
+    ],
+    "profile-detachment-option-14f0-2e5f-1ef8-7d6a-f854-d78c-feef-7d1e": [
+      "Devastator Brethren"
+    ],
+    "profile-detachment-option-14f0-2e5f-1ef8-7d6a-fb20-be3c-55aa-0512": [
+      "Stormlance Task Force"
+    ],
+    "profile-detachment-option-2261-79a5-19d9-1668-0a98-b66e-13b6-13d4": [
+      "Gravis Linebreaker Force"
+    ],
+    "profile-detachment-option-2261-79a5-19d9-1668-0fa7-f692-c564-45b9": [
+      "Gravis Siege Force"
+    ],
+    "profile-detachment-option-2261-79a5-19d9-1668-1074-ee64-b992-ce44": [
+      "Ironstorm Spearhead"
+    ],
+    "profile-detachment-option-2261-79a5-19d9-1668-1123-8770-3b67-9745": [
+      "Phobos Shadow Force"
+    ],
+    "profile-detachment-option-2261-79a5-19d9-1668-1f61-2b65-e778-d7ac": [
+      "Phobos Shock Force"
+    ],
+    "profile-detachment-option-2261-79a5-19d9-1668-79a8-da59-2007-87b0": [
+      "Gauntlet Task Force"
+    ],
+    "profile-detachment-option-2261-79a5-19d9-1668-9a90-8bc5-27d1-4d66": [
+      "Tactical Brethren"
+    ],
+    "profile-detachment-option-2261-79a5-19d9-1668-aa9e-3e30-26a9-2302": [
+      "Terminator Storm Force"
+    ],
+    "profile-detachment-option-2261-79a5-19d9-1668-c5db-4b91-a749-bbdb": [
+      "Tacticus Firestorm Force"
+    ],
+    "profile-detachment-option-2261-79a5-19d9-1668-ceec-b79b-0b83-92b6": [
+      "Ironclad Champions"
+    ],
+    "profile-detachment-option-2261-79a5-19d9-1668-d4d1-aae4-327e-1a9f": [
+      "Tacticus Attack Force"
+    ],
+    "profile-detachment-option-2261-79a5-19d9-1668-e073-8fe8-5b59-48f0": [
+      "Forgefather's Seekers"
+    ],
+    "profile-detachment-option-2261-79a5-19d9-1668-f261-3980-2765-e3be": [
+      "Assault Brethren"
+    ],
+    "profile-detachment-option-2261-79a5-19d9-1668-f367-3240-47c1-7e1a": [
+      "Gladius Task Force"
+    ],
+    "profile-detachment-option-2261-79a5-19d9-1668-f854-d78c-feef-7d1e": [
+      "Devastator Brethren"
+    ],
+    "profile-detachment-option-2261-79a5-19d9-1668-fb20-be3c-55aa-0512": [
+      "Stormlance Task Force"
+    ],
+    "profile-detachment-option-23d7-91c9-24dc-263a-0a98-b66e-13b6-13d4": [
+      "Gravis Linebreaker Force"
+    ],
+    "profile-detachment-option-23d7-91c9-24dc-263a-0fa7-f692-c564-45b9": [
+      "Gravis Siege Force"
+    ],
+    "profile-detachment-option-23d7-91c9-24dc-263a-1074-ee64-b992-ce44": [
+      "Ironstorm Spearhead"
+    ],
+    "profile-detachment-option-23d7-91c9-24dc-263a-1123-8770-3b67-9745": [
+      "Phobos Shadow Force"
+    ],
+    "profile-detachment-option-23d7-91c9-24dc-263a-1f61-2b65-e778-d7ac": [
+      "Phobos Shock Force"
+    ],
+    "profile-detachment-option-23d7-91c9-24dc-263a-79a8-da59-2007-87b0": [
+      "Gauntlet Task Force"
+    ],
+    "profile-detachment-option-23d7-91c9-24dc-263a-9a90-8bc5-27d1-4d66": [
+      "Tactical Brethren"
+    ],
+    "profile-detachment-option-23d7-91c9-24dc-263a-aa9e-3e30-26a9-2302": [
+      "Terminator Storm Force"
+    ],
+    "profile-detachment-option-23d7-91c9-24dc-263a-c5db-4b91-a749-bbdb": [
+      "Tacticus Firestorm Force"
+    ],
+    "profile-detachment-option-23d7-91c9-24dc-263a-c728-701a-0091-f9c3": [
+      "Ceramite Sentinels"
+    ],
+    "profile-detachment-option-23d7-91c9-24dc-263a-ceec-b79b-0b83-92b6": [
+      "Ironclad Champions"
+    ],
+    "profile-detachment-option-23d7-91c9-24dc-263a-d4d1-aae4-327e-1a9f": [
+      "Tacticus Attack Force"
+    ],
+    "profile-detachment-option-23d7-91c9-24dc-263a-f261-3980-2765-e3be": [
+      "Assault Brethren"
+    ],
+    "profile-detachment-option-23d7-91c9-24dc-263a-f367-3240-47c1-7e1a": [
+      "Gladius Task Force"
+    ],
+    "profile-detachment-option-23d7-91c9-24dc-263a-f854-d78c-feef-7d1e": [
+      "Devastator Brethren"
+    ],
+    "profile-detachment-option-23d7-91c9-24dc-263a-fb20-be3c-55aa-0512": [
+      "Stormlance Task Force"
+    ],
+    "profile-detachment-option-2f78-9f73-b44f-3807-0a98-b66e-13b6-13d4": [
+      "Gravis Linebreaker Force"
+    ],
+    "profile-detachment-option-2f78-9f73-b44f-3807-0fa7-f692-c564-45b9": [
+      "Gravis Siege Force"
+    ],
+    "profile-detachment-option-2f78-9f73-b44f-3807-1074-ee64-b992-ce44": [
+      "Ironstorm Spearhead"
+    ],
+    "profile-detachment-option-2f78-9f73-b44f-3807-1123-8770-3b67-9745": [
+      "Phobos Shadow Force"
+    ],
+    "profile-detachment-option-2f78-9f73-b44f-3807-1f61-2b65-e778-d7ac": [
+      "Phobos Shock Force"
+    ],
+    "profile-detachment-option-2f78-9f73-b44f-3807-50b8-f377-c1b9-5b9c": [
+      "Spearpoint Task Force"
+    ],
+    "profile-detachment-option-2f78-9f73-b44f-3807-79a8-da59-2007-87b0": [
+      "Gauntlet Task Force"
+    ],
+    "profile-detachment-option-2f78-9f73-b44f-3807-9a90-8bc5-27d1-4d66": [
+      "Tactical Brethren"
+    ],
+    "profile-detachment-option-2f78-9f73-b44f-3807-aa9e-3e30-26a9-2302": [
+      "Terminator Storm Force"
+    ],
+    "profile-detachment-option-2f78-9f73-b44f-3807-c5db-4b91-a749-bbdb": [
+      "Tacticus Firestorm Force"
+    ],
+    "profile-detachment-option-2f78-9f73-b44f-3807-ceec-b79b-0b83-92b6": [
+      "Ironclad Champions"
+    ],
+    "profile-detachment-option-2f78-9f73-b44f-3807-d4d1-aae4-327e-1a9f": [
+      "Tacticus Attack Force"
+    ],
+    "profile-detachment-option-2f78-9f73-b44f-3807-f261-3980-2765-e3be": [
+      "Assault Brethren"
+    ],
+    "profile-detachment-option-2f78-9f73-b44f-3807-f367-3240-47c1-7e1a": [
+      "Gladius Task Force"
+    ],
+    "profile-detachment-option-2f78-9f73-b44f-3807-f854-d78c-feef-7d1e": [
+      "Devastator Brethren"
+    ],
+    "profile-detachment-option-2f78-9f73-b44f-3807-fb20-be3c-55aa-0512": [
+      "Stormlance Task Force"
+    ],
+    "profile-detachment-option-323f-498b-f3a0-377f-0a98-b66e-13b6-13d4": [
+      "Gravis Linebreaker Force"
+    ],
+    "profile-detachment-option-323f-498b-f3a0-377f-0fa7-f692-c564-45b9": [
+      "Gravis Siege Force"
+    ],
+    "profile-detachment-option-323f-498b-f3a0-377f-1074-ee64-b992-ce44": [
+      "Ironstorm Spearhead"
+    ],
+    "profile-detachment-option-323f-498b-f3a0-377f-1123-8770-3b67-9745": [
+      "Phobos Shadow Force"
+    ],
+    "profile-detachment-option-323f-498b-f3a0-377f-1f61-2b65-e778-d7ac": [
+      "Phobos Shock Force"
+    ],
+    "profile-detachment-option-323f-498b-f3a0-377f-79a8-da59-2007-87b0": [
+      "Gauntlet Task Force"
+    ],
+    "profile-detachment-option-323f-498b-f3a0-377f-87dd-927c-9474-ec1f": [
+      "Shadowmark Talon"
+    ],
+    "profile-detachment-option-323f-498b-f3a0-377f-9a90-8bc5-27d1-4d66": [
+      "Tactical Brethren"
+    ],
+    "profile-detachment-option-323f-498b-f3a0-377f-aa9e-3e30-26a9-2302": [
+      "Terminator Storm Force"
+    ],
+    "profile-detachment-option-323f-498b-f3a0-377f-c5db-4b91-a749-bbdb": [
+      "Tacticus Firestorm Force"
+    ],
+    "profile-detachment-option-323f-498b-f3a0-377f-ceec-b79b-0b83-92b6": [
+      "Ironclad Champions"
+    ],
+    "profile-detachment-option-323f-498b-f3a0-377f-d4d1-aae4-327e-1a9f": [
+      "Tacticus Attack Force"
+    ],
+    "profile-detachment-option-323f-498b-f3a0-377f-f261-3980-2765-e3be": [
+      "Assault Brethren"
+    ],
+    "profile-detachment-option-323f-498b-f3a0-377f-f367-3240-47c1-7e1a": [
+      "Gladius Task Force"
+    ],
+    "profile-detachment-option-323f-498b-f3a0-377f-f854-d78c-feef-7d1e": [
+      "Devastator Brethren"
+    ],
+    "profile-detachment-option-323f-498b-f3a0-377f-fb20-be3c-55aa-0512": [
+      "Stormlance Task Force"
+    ],
+    "profile-detachment-option-36d3-36bc-68dd-40ac-0a98-b66e-13b6-13d4": [
+      "Gravis Linebreaker Force"
+    ],
+    "profile-detachment-option-36d3-36bc-68dd-40ac-0fa7-f692-c564-45b9": [
+      "Gravis Siege Force"
+    ],
+    "profile-detachment-option-36d3-36bc-68dd-40ac-1074-ee64-b992-ce44": [
+      "Ironstorm Spearhead"
+    ],
+    "profile-detachment-option-36d3-36bc-68dd-40ac-1123-8770-3b67-9745": [
+      "Phobos Shadow Force"
+    ],
+    "profile-detachment-option-36d3-36bc-68dd-40ac-1242-7b3f-a47e-503a": [
+      "Wrathful Procession"
+    ],
+    "profile-detachment-option-36d3-36bc-68dd-40ac-1f61-2b65-e778-d7ac": [
+      "Phobos Shock Force"
+    ],
+    "profile-detachment-option-36d3-36bc-68dd-40ac-79a8-da59-2007-87b0": [
+      "Gauntlet Task Force"
+    ],
+    "profile-detachment-option-36d3-36bc-68dd-40ac-7bd3-602e-280c-ecad": [
+      "The Living Miracle"
+    ],
+    "profile-detachment-option-36d3-36bc-68dd-40ac-9a90-8bc5-27d1-4d66": [
+      "Tactical Brethren"
+    ],
+    "profile-detachment-option-36d3-36bc-68dd-40ac-9d80-7508-5cd0-2f9e": [
+      "Companions of Vehemence"
+    ],
+    "profile-detachment-option-36d3-36bc-68dd-40ac-aa9e-3e30-26a9-2302": [
+      "Terminator Storm Force"
+    ],
+    "profile-detachment-option-36d3-36bc-68dd-40ac-b6cd-9baf-8351-8dec": [
+      "Godhammer Assault Force"
+    ],
+    "profile-detachment-option-36d3-36bc-68dd-40ac-c5db-4b91-a749-bbdb": [
+      "Tacticus Firestorm Force"
+    ],
+    "profile-detachment-option-36d3-36bc-68dd-40ac-ceec-b79b-0b83-92b6": [
+      "Ironclad Champions"
+    ],
+    "profile-detachment-option-36d3-36bc-68dd-40ac-d4d1-aae4-327e-1a9f": [
+      "Tacticus Attack Force"
+    ],
+    "profile-detachment-option-36d3-36bc-68dd-40ac-e533-c51a-5949-a579": [
+      "Marshal's Household"
+    ],
+    "profile-detachment-option-36d3-36bc-68dd-40ac-f148-3273-e98f-427a": [
+      "Vindication Task Force"
+    ],
+    "profile-detachment-option-36d3-36bc-68dd-40ac-f261-3980-2765-e3be": [
+      "Assault Brethren"
+    ],
+    "profile-detachment-option-36d3-36bc-68dd-40ac-f367-3240-47c1-7e1a": [
+      "Gladius Task Force"
+    ],
+    "profile-detachment-option-36d3-36bc-68dd-40ac-f854-d78c-feef-7d1e": [
+      "Devastator Brethren"
+    ],
+    "profile-detachment-option-36d3-36bc-68dd-40ac-fb20-be3c-55aa-0512": [
+      "Stormlance Task Force"
+    ],
+    "profile-detachment-option-4029-9237-e8db-af55-0a98-b66e-13b6-13d4": [
+      "Gravis Linebreaker Force"
+    ],
+    "profile-detachment-option-4029-9237-e8db-af55-0b71-29ad-7485-83bd": [
+      "Reclamation Force"
+    ],
+    "profile-detachment-option-4029-9237-e8db-af55-0fa7-f692-c564-45b9": [
+      "Gravis Siege Force"
+    ],
+    "profile-detachment-option-4029-9237-e8db-af55-1074-ee64-b992-ce44": [
+      "Ironstorm Spearhead"
+    ],
+    "profile-detachment-option-4029-9237-e8db-af55-1123-8770-3b67-9745": [
+      "Phobos Shadow Force"
+    ],
+    "profile-detachment-option-4029-9237-e8db-af55-1f61-2b65-e778-d7ac": [
+      "Phobos Shock Force"
+    ],
+    "profile-detachment-option-4029-9237-e8db-af55-6d9d-6462-1738-6bb3": [
+      "Blade of Ultramar"
+    ],
+    "profile-detachment-option-4029-9237-e8db-af55-79a8-da59-2007-87b0": [
+      "Gauntlet Task Force"
+    ],
+    "profile-detachment-option-4029-9237-e8db-af55-9a90-8bc5-27d1-4d66": [
+      "Tactical Brethren"
+    ],
+    "profile-detachment-option-4029-9237-e8db-af55-aa9e-3e30-26a9-2302": [
+      "Terminator Storm Force"
+    ],
+    "profile-detachment-option-4029-9237-e8db-af55-c5db-4b91-a749-bbdb": [
+      "Tacticus Firestorm Force"
+    ],
+    "profile-detachment-option-4029-9237-e8db-af55-ceec-b79b-0b83-92b6": [
+      "Ironclad Champions"
+    ],
+    "profile-detachment-option-4029-9237-e8db-af55-d4d1-aae4-327e-1a9f": [
+      "Tacticus Attack Force"
+    ],
+    "profile-detachment-option-4029-9237-e8db-af55-f261-3980-2765-e3be": [
+      "Assault Brethren"
+    ],
+    "profile-detachment-option-4029-9237-e8db-af55-f367-3240-47c1-7e1a": [
+      "Gladius Task Force"
+    ],
+    "profile-detachment-option-4029-9237-e8db-af55-f854-d78c-feef-7d1e": [
+      "Devastator Brethren"
+    ],
+    "profile-detachment-option-4029-9237-e8db-af55-fb20-be3c-55aa-0512": [
+      "Stormlance Task Force"
+    ],
+    "profile-detachment-option-470a-6daa-9014-12df-03a7-d965-5d2c-e346": [
+      "Interrogation Conclave"
+    ],
+    "profile-detachment-option-470a-6daa-9014-12df-0a98-b66e-13b6-13d4": [
+      "Gravis Linebreaker Force"
+    ],
+    "profile-detachment-option-470a-6daa-9014-12df-0fa7-f692-c564-45b9": [
+      "Gravis Siege Force"
+    ],
+    "profile-detachment-option-470a-6daa-9014-12df-1074-ee64-b992-ce44": [
+      "Ironstorm Spearhead"
+    ],
+    "profile-detachment-option-470a-6daa-9014-12df-1123-8770-3b67-9745": [
+      "Phobos Shadow Force"
+    ],
+    "profile-detachment-option-470a-6daa-9014-12df-1f61-2b65-e778-d7ac": [
+      "Phobos Shock Force"
+    ],
+    "profile-detachment-option-470a-6daa-9014-12df-3caf-c168-c372-51b1": [
+      "Unforgiven Task Force"
+    ],
+    "profile-detachment-option-470a-6daa-9014-12df-41e6-d47c-5e68-e066": [
+      "Company of Hunters"
+    ],
+    "profile-detachment-option-470a-6daa-9014-12df-6357-b8d4-0b19-41a8": [
+      "Dark Age Arsenal"
+    ],
+    "profile-detachment-option-470a-6daa-9014-12df-64a6-9332-de28-21a9": [
+      "Darkflight Pursuit"
+    ],
+    "profile-detachment-option-470a-6daa-9014-12df-79a8-da59-2007-87b0": [
+      "Gauntlet Task Force"
+    ],
+    "profile-detachment-option-470a-6daa-9014-12df-9a90-8bc5-27d1-4d66": [
+      "Tactical Brethren"
+    ],
+    "profile-detachment-option-470a-6daa-9014-12df-9d23-833a-17cb-2d7d": [
+      "Wrath of the Rock"
+    ],
+    "profile-detachment-option-470a-6daa-9014-12df-a141-49c8-fd84-4c6d": [
+      "Inner Circle Task Force"
+    ],
+    "profile-detachment-option-470a-6daa-9014-12df-aa9e-3e30-26a9-2302": [
+      "Terminator Storm Force"
+    ],
+    "profile-detachment-option-470a-6daa-9014-12df-bef5-925f-b143-d219": [
+      "Lion's Blade Task Force"
+    ],
+    "profile-detachment-option-470a-6daa-9014-12df-c5db-4b91-a749-bbdb": [
+      "Tacticus Firestorm Force"
+    ],
+    "profile-detachment-option-470a-6daa-9014-12df-ceec-b79b-0b83-92b6": [
+      "Ironclad Champions"
+    ],
+    "profile-detachment-option-470a-6daa-9014-12df-d4d1-aae4-327e-1a9f": [
+      "Tacticus Attack Force"
+    ],
+    "profile-detachment-option-470a-6daa-9014-12df-f261-3980-2765-e3be": [
+      "Assault Brethren"
+    ],
+    "profile-detachment-option-470a-6daa-9014-12df-f367-3240-47c1-7e1a": [
+      "Gladius Task Force"
+    ],
+    "profile-detachment-option-470a-6daa-9014-12df-f854-d78c-feef-7d1e": [
+      "Devastator Brethren"
+    ],
+    "profile-detachment-option-470a-6daa-9014-12df-fb20-be3c-55aa-0512": [
+      "Stormlance Task Force"
+    ],
+    "profile-detachment-option-4eef-e313-1eea-94a6-0a98-b66e-13b6-13d4": [
+      "Gravis Linebreaker Force"
+    ],
+    "profile-detachment-option-4eef-e313-1eea-94a6-0fa7-f692-c564-45b9": [
+      "Gravis Siege Force"
+    ],
+    "profile-detachment-option-4eef-e313-1eea-94a6-1074-ee64-b992-ce44": [
+      "Ironstorm Spearhead"
+    ],
+    "profile-detachment-option-4eef-e313-1eea-94a6-1123-8770-3b67-9745": [
+      "Phobos Shadow Force"
+    ],
+    "profile-detachment-option-4eef-e313-1eea-94a6-15c3-f96a-d1a3-ce8f": [
+      "Forgefather's Seekers"
+    ],
+    "profile-detachment-option-4eef-e313-1eea-94a6-1f61-2b65-e778-d7ac": [
+      "Phobos Shock Force"
+    ],
+    "profile-detachment-option-4eef-e313-1eea-94a6-79a8-da59-2007-87b0": [
+      "Gauntlet Task Force"
+    ],
+    "profile-detachment-option-4eef-e313-1eea-94a6-9a90-8bc5-27d1-4d66": [
+      "Tactical Brethren"
+    ],
+    "profile-detachment-option-4eef-e313-1eea-94a6-aa9e-3e30-26a9-2302": [
+      "Terminator Storm Force"
+    ],
+    "profile-detachment-option-4eef-e313-1eea-94a6-c5db-4b91-a749-bbdb": [
+      "Tacticus Firestorm Force"
+    ],
+    "profile-detachment-option-4eef-e313-1eea-94a6-ceec-b79b-0b83-92b6": [
+      "Ironclad Champions"
+    ],
+    "profile-detachment-option-4eef-e313-1eea-94a6-d4d1-aae4-327e-1a9f": [
+      "Tacticus Attack Force"
+    ],
+    "profile-detachment-option-4eef-e313-1eea-94a6-f261-3980-2765-e3be": [
+      "Assault Brethren"
+    ],
+    "profile-detachment-option-4eef-e313-1eea-94a6-f367-3240-47c1-7e1a": [
+      "Gladius Task Force"
+    ],
+    "profile-detachment-option-4eef-e313-1eea-94a6-f854-d78c-feef-7d1e": [
+      "Devastator Brethren"
+    ],
+    "profile-detachment-option-4eef-e313-1eea-94a6-fb20-be3c-55aa-0512": [
+      "Stormlance Task Force"
+    ],
+    "profile-detachment-option-4ef9-15ce-e3e6-36de-0a98-b66e-13b6-13d4": [
+      "Gravis Linebreaker Force"
+    ],
+    "profile-detachment-option-4ef9-15ce-e3e6-36de-0fa7-f692-c564-45b9": [
+      "Gravis Siege Force"
+    ],
+    "profile-detachment-option-4ef9-15ce-e3e6-36de-1074-ee64-b992-ce44": [
+      "Ironstorm Spearhead"
+    ],
+    "profile-detachment-option-4ef9-15ce-e3e6-36de-1123-8770-3b67-9745": [
+      "Phobos Shadow Force"
+    ],
+    "profile-detachment-option-4ef9-15ce-e3e6-36de-1f61-2b65-e778-d7ac": [
+      "Phobos Shock Force"
+    ],
+    "profile-detachment-option-4ef9-15ce-e3e6-36de-5ff-1ac3-bc73-8273": [
+      "Liberator Assault Group"
+    ],
+    "profile-detachment-option-4ef9-15ce-e3e6-36de-657c-469d-679e-f3aa": [
+      "The Angelic Host"
+    ],
+    "profile-detachment-option-4ef9-15ce-e3e6-36de-79a8-da59-2007-87b0": [
+      "Gauntlet Task Force"
+    ],
+    "profile-detachment-option-4ef9-15ce-e3e6-36de-9a90-8bc5-27d1-4d66": [
+      "Tactical Brethren"
+    ],
+    "profile-detachment-option-4ef9-15ce-e3e6-36de-9d32-d514-00a8-6423": [
+      "The Lost Brethren"
+    ],
+    "profile-detachment-option-4ef9-15ce-e3e6-36de-a37c-40dc-1ecb-12f7": [
+      "Wrath of the Doomed"
+    ],
+    "profile-detachment-option-4ef9-15ce-e3e6-36de-aa9e-3e30-26a9-2302": [
+      "Terminator Storm Force"
+    ],
+    "profile-detachment-option-4ef9-15ce-e3e6-36de-b611-6312-f2d4-5e13": [
+      "Encarmine Speartip"
+    ],
+    "profile-detachment-option-4ef9-15ce-e3e6-36de-c5db-4b91-a749-bbdb": [
+      "Tacticus Firestorm Force"
+    ],
+    "profile-detachment-option-4ef9-15ce-e3e6-36de-ccdf-f7f2-2317-a51f": [
+      "Legacy of Grace"
+    ],
+    "profile-detachment-option-4ef9-15ce-e3e6-36de-ceec-b79b-0b83-92b6": [
+      "Ironclad Champions"
+    ],
+    "profile-detachment-option-4ef9-15ce-e3e6-36de-d4d1-aae4-327e-1a9f": [
+      "Tacticus Attack Force"
+    ],
+    "profile-detachment-option-4ef9-15ce-e3e6-36de-d8e6-a4b2-c15f-49e2": [
+      "Rage-Cursed Onslaught"
+    ],
+    "profile-detachment-option-4ef9-15ce-e3e6-36de-dcc7-f9de-d4f2-69d0": [
+      "Angelic Inheritors"
+    ],
+    "profile-detachment-option-4ef9-15ce-e3e6-36de-f261-3980-2765-e3be": [
+      "Assault Brethren"
+    ],
+    "profile-detachment-option-4ef9-15ce-e3e6-36de-f367-3240-47c1-7e1a": [
+      "Gladius Task Force"
+    ],
+    "profile-detachment-option-4ef9-15ce-e3e6-36de-f854-d78c-feef-7d1e": [
+      "Devastator Brethren"
+    ],
+    "profile-detachment-option-4ef9-15ce-e3e6-36de-fb20-be3c-55aa-0512": [
+      "Stormlance Task Force"
+    ],
+    "profile-detachment-option-5d6e-fd3-330a-11dd-0a98-b66e-13b6-13d4": [
+      "Gravis Linebreaker Force"
+    ],
+    "profile-detachment-option-5d6e-fd3-330a-11dd-0fa7-f692-c564-45b9": [
+      "Gravis Siege Force"
+    ],
+    "profile-detachment-option-5d6e-fd3-330a-11dd-1074-ee64-b992-ce44": [
+      "Ironstorm Spearhead"
+    ],
+    "profile-detachment-option-5d6e-fd3-330a-11dd-1123-8770-3b67-9745": [
+      "Phobos Shadow Force"
+    ],
+    "profile-detachment-option-5d6e-fd3-330a-11dd-1dea-4c70-8d4d-3415": [
+      "Emperor's Shield"
+    ],
+    "profile-detachment-option-5d6e-fd3-330a-11dd-1f61-2b65-e778-d7ac": [
+      "Phobos Shock Force"
+    ],
+    "profile-detachment-option-5d6e-fd3-330a-11dd-79a8-da59-2007-87b0": [
+      "Gauntlet Task Force"
+    ],
+    "profile-detachment-option-5d6e-fd3-330a-11dd-9a90-8bc5-27d1-4d66": [
+      "Tactical Brethren"
+    ],
+    "profile-detachment-option-5d6e-fd3-330a-11dd-aa9e-3e30-26a9-2302": [
+      "Terminator Storm Force"
+    ],
+    "profile-detachment-option-5d6e-fd3-330a-11dd-c5db-4b91-a749-bbdb": [
+      "Tacticus Firestorm Force"
+    ],
+    "profile-detachment-option-5d6e-fd3-330a-11dd-ceec-b79b-0b83-92b6": [
+      "Ironclad Champions"
+    ],
+    "profile-detachment-option-5d6e-fd3-330a-11dd-d4d1-aae4-327e-1a9f": [
+      "Tacticus Attack Force"
+    ],
+    "profile-detachment-option-5d6e-fd3-330a-11dd-f261-3980-2765-e3be": [
+      "Assault Brethren"
+    ],
+    "profile-detachment-option-5d6e-fd3-330a-11dd-f367-3240-47c1-7e1a": [
+      "Gladius Task Force"
+    ],
+    "profile-detachment-option-5d6e-fd3-330a-11dd-f854-d78c-feef-7d1e": [
+      "Devastator Brethren"
+    ],
+    "profile-detachment-option-5d6e-fd3-330a-11dd-fb20-be3c-55aa-0512": [
+      "Stormlance Task Force"
+    ],
+    "profile-detachment-option-67c1-fc13-f9a1-cbbf-0256-e74f-0e54-3e45": [
+      "Spearpoint Task Force"
+    ],
+    "profile-detachment-option-67c1-fc13-f9a1-cbbf-0a98-b66e-13b6-13d4": [
+      "Gravis Linebreaker Force"
+    ],
+    "profile-detachment-option-67c1-fc13-f9a1-cbbf-0fa7-f692-c564-45b9": [
+      "Gravis Siege Force"
+    ],
+    "profile-detachment-option-67c1-fc13-f9a1-cbbf-1074-ee64-b992-ce44": [
+      "Ironstorm Spearhead"
+    ],
+    "profile-detachment-option-67c1-fc13-f9a1-cbbf-1123-8770-3b67-9745": [
+      "Phobos Shadow Force"
+    ],
+    "profile-detachment-option-67c1-fc13-f9a1-cbbf-1f61-2b65-e778-d7ac": [
+      "Phobos Shock Force"
+    ],
+    "profile-detachment-option-67c1-fc13-f9a1-cbbf-79a8-da59-2007-87b0": [
+      "Gauntlet Task Force"
+    ],
+    "profile-detachment-option-67c1-fc13-f9a1-cbbf-9a90-8bc5-27d1-4d66": [
+      "Tactical Brethren"
+    ],
+    "profile-detachment-option-67c1-fc13-f9a1-cbbf-aa9e-3e30-26a9-2302": [
+      "Terminator Storm Force"
+    ],
+    "profile-detachment-option-67c1-fc13-f9a1-cbbf-c5db-4b91-a749-bbdb": [
+      "Tacticus Firestorm Force"
+    ],
+    "profile-detachment-option-67c1-fc13-f9a1-cbbf-ceec-b79b-0b83-92b6": [
+      "Ironclad Champions"
+    ],
+    "profile-detachment-option-67c1-fc13-f9a1-cbbf-d4d1-aae4-327e-1a9f": [
+      "Tacticus Attack Force"
+    ],
+    "profile-detachment-option-67c1-fc13-f9a1-cbbf-f261-3980-2765-e3be": [
+      "Assault Brethren"
+    ],
+    "profile-detachment-option-67c1-fc13-f9a1-cbbf-f367-3240-47c1-7e1a": [
+      "Gladius Task Force"
+    ],
+    "profile-detachment-option-67c1-fc13-f9a1-cbbf-f854-d78c-feef-7d1e": [
+      "Devastator Brethren"
+    ],
+    "profile-detachment-option-67c1-fc13-f9a1-cbbf-fb20-be3c-55aa-0512": [
+      "Stormlance Task Force"
+    ],
+    "profile-detachment-option-6e59-e1ee-47ad-6ce5-0a98-b66e-13b6-13d4": [
+      "Gravis Linebreaker Force"
+    ],
+    "profile-detachment-option-6e59-e1ee-47ad-6ce5-0fa7-f692-c564-45b9": [
+      "Gravis Siege Force"
+    ],
+    "profile-detachment-option-6e59-e1ee-47ad-6ce5-1074-ee64-b992-ce44": [
+      "Ironstorm Spearhead"
+    ],
+    "profile-detachment-option-6e59-e1ee-47ad-6ce5-1123-8770-3b67-9745": [
+      "Phobos Shadow Force"
+    ],
+    "profile-detachment-option-6e59-e1ee-47ad-6ce5-1f61-2b65-e778-d7ac": [
+      "Phobos Shock Force"
+    ],
+    "profile-detachment-option-6e59-e1ee-47ad-6ce5-79a8-da59-2007-87b0": [
+      "Gauntlet Task Force"
+    ],
+    "profile-detachment-option-6e59-e1ee-47ad-6ce5-9a90-8bc5-27d1-4d66": [
+      "Tactical Brethren"
+    ],
+    "profile-detachment-option-6e59-e1ee-47ad-6ce5-aa9e-3e30-26a9-2302": [
+      "Terminator Storm Force"
+    ],
+    "profile-detachment-option-6e59-e1ee-47ad-6ce5-c5db-4b91-a749-bbdb": [
+      "Tacticus Firestorm Force"
+    ],
+    "profile-detachment-option-6e59-e1ee-47ad-6ce5-ceec-b79b-0b83-92b6": [
+      "Ironclad Champions"
+    ],
+    "profile-detachment-option-6e59-e1ee-47ad-6ce5-d4d1-aae4-327e-1a9f": [
+      "Tacticus Attack Force"
+    ],
+    "profile-detachment-option-6e59-e1ee-47ad-6ce5-dd81-2af4-e7d9-bd07": [
+      "Shadowmark Talon"
+    ],
+    "profile-detachment-option-6e59-e1ee-47ad-6ce5-f261-3980-2765-e3be": [
+      "Assault Brethren"
+    ],
+    "profile-detachment-option-6e59-e1ee-47ad-6ce5-f367-3240-47c1-7e1a": [
+      "Gladius Task Force"
+    ],
+    "profile-detachment-option-6e59-e1ee-47ad-6ce5-f854-d78c-feef-7d1e": [
+      "Devastator Brethren"
+    ],
+    "profile-detachment-option-6e59-e1ee-47ad-6ce5-fb20-be3c-55aa-0512": [
+      "Stormlance Task Force"
+    ],
+    "profile-detachment-option-94bb-3284-ee14-57a1-0a98-b66e-13b6-13d4": [
+      "Gravis Linebreaker Force"
+    ],
+    "profile-detachment-option-94bb-3284-ee14-57a1-0fa7-f692-c564-45b9": [
+      "Gravis Siege Force"
+    ],
+    "profile-detachment-option-94bb-3284-ee14-57a1-1074-ee64-b992-ce44": [
+      "Ironstorm Spearhead"
+    ],
+    "profile-detachment-option-94bb-3284-ee14-57a1-1123-8770-3b67-9745": [
+      "Phobos Shadow Force"
+    ],
+    "profile-detachment-option-94bb-3284-ee14-57a1-1f61-2b65-e778-d7ac": [
+      "Phobos Shock Force"
+    ],
+    "profile-detachment-option-94bb-3284-ee14-57a1-31c2-3bbc-d0b2-ba92": [
+      "Saga of the Hunter"
+    ],
+    "profile-detachment-option-94bb-3284-ee14-57a1-41dc-6769-c30c-b96c": [
+      "Saga of the Bold"
+    ],
+    "profile-detachment-option-94bb-3284-ee14-57a1-79a8-da59-2007-87b0": [
+      "Gauntlet Task Force"
+    ],
+    "profile-detachment-option-94bb-3284-ee14-57a1-86b1-dc36-0d18-477a": [
+      "Legends of Saga and Song"
+    ],
+    "profile-detachment-option-94bb-3284-ee14-57a1-98ed-f58a-3e6e-63a6": [
+      "Saga of the Beastslayer"
+    ],
+    "profile-detachment-option-94bb-3284-ee14-57a1-9a90-8bc5-27d1-4d66": [
+      "Tactical Brethren"
+    ],
+    "profile-detachment-option-94bb-3284-ee14-57a1-a2b8-4100-0c51-29af": [
+      "Veterans of the Fang"
+    ],
+    "profile-detachment-option-94bb-3284-ee14-57a1-aa9e-3e30-26a9-2302": [
+      "Terminator Storm Force"
+    ],
+    "profile-detachment-option-94bb-3284-ee14-57a1-afb4-59c7-fa93-55f6": [
+      "Champions of Fenris"
+    ],
+    "profile-detachment-option-94bb-3284-ee14-57a1-bc26-5cb8-f5fb-2760": [
+      "Saga of the Great Wolf"
+    ],
+    "profile-detachment-option-94bb-3284-ee14-57a1-c5db-4b91-a749-bbdb": [
+      "Tacticus Firestorm Force"
+    ],
+    "profile-detachment-option-94bb-3284-ee14-57a1-ceec-b79b-0b83-92b6": [
+      "Ironclad Champions"
+    ],
+    "profile-detachment-option-94bb-3284-ee14-57a1-d4d1-aae4-327e-1a9f": [
+      "Tacticus Attack Force"
+    ],
+    "profile-detachment-option-94bb-3284-ee14-57a1-f261-3980-2765-e3be": [
+      "Assault Brethren"
+    ],
+    "profile-detachment-option-94bb-3284-ee14-57a1-f367-3240-47c1-7e1a": [
+      "Gladius Task Force"
+    ],
+    "profile-detachment-option-94bb-3284-ee14-57a1-f854-d78c-feef-7d1e": [
+      "Devastator Brethren"
+    ],
+    "profile-detachment-option-94bb-3284-ee14-57a1-fb20-be3c-55aa-0512": [
+      "Stormlance Task Force"
+    ],
+    "profile-detachment-option-a603-5039-f08d-e841-0a98-b66e-13b6-13d4": [
+      "Gravis Linebreaker Force"
+    ],
+    "profile-detachment-option-a603-5039-f08d-e841-0fa7-f692-c564-45b9": [
+      "Gravis Siege Force"
+    ],
+    "profile-detachment-option-a603-5039-f08d-e841-1074-ee64-b992-ce44": [
+      "Ironstorm Spearhead"
+    ],
+    "profile-detachment-option-a603-5039-f08d-e841-1123-8770-3b67-9745": [
+      "Phobos Shadow Force"
+    ],
+    "profile-detachment-option-a603-5039-f08d-e841-1f61-2b65-e778-d7ac": [
+      "Phobos Shock Force"
+    ],
+    "profile-detachment-option-a603-5039-f08d-e841-4699-0367-67ff-7a60": [
+      "Blade of Ultramar"
+    ],
+    "profile-detachment-option-a603-5039-f08d-e841-79a8-da59-2007-87b0": [
+      "Gauntlet Task Force"
+    ],
+    "profile-detachment-option-a603-5039-f08d-e841-9a90-8bc5-27d1-4d66": [
+      "Tactical Brethren"
+    ],
+    "profile-detachment-option-a603-5039-f08d-e841-aa9e-3e30-26a9-2302": [
+      "Terminator Storm Force"
+    ],
+    "profile-detachment-option-a603-5039-f08d-e841-c5db-4b91-a749-bbdb": [
+      "Tacticus Firestorm Force"
+    ],
+    "profile-detachment-option-a603-5039-f08d-e841-ceec-b79b-0b83-92b6": [
+      "Ironclad Champions"
+    ],
+    "profile-detachment-option-a603-5039-f08d-e841-d4d1-aae4-327e-1a9f": [
+      "Tacticus Attack Force"
+    ],
+    "profile-detachment-option-a603-5039-f08d-e841-f261-3980-2765-e3be": [
+      "Assault Brethren"
+    ],
+    "profile-detachment-option-a603-5039-f08d-e841-f367-3240-47c1-7e1a": [
+      "Gladius Task Force"
+    ],
+    "profile-detachment-option-a603-5039-f08d-e841-f854-d78c-feef-7d1e": [
+      "Devastator Brethren"
+    ],
+    "profile-detachment-option-a603-5039-f08d-e841-fb20-be3c-55aa-0512": [
+      "Stormlance Task Force"
+    ],
+    "profile-detachment-option-e0af-67df-9d63-8fb8-0a98-b66e-13b6-13d4": [
+      "Gravis Linebreaker Force"
+    ],
+    "profile-detachment-option-e0af-67df-9d63-8fb8-0fa7-f692-c564-45b9": [
+      "Gravis Siege Force"
+    ],
+    "profile-detachment-option-e0af-67df-9d63-8fb8-1074-ee64-b992-ce44": [
+      "Ironstorm Spearhead"
+    ],
+    "profile-detachment-option-e0af-67df-9d63-8fb8-1123-8770-3b67-9745": [
+      "Phobos Shadow Force"
+    ],
+    "profile-detachment-option-e0af-67df-9d63-8fb8-1f61-2b65-e778-d7ac": [
+      "Phobos Shock Force"
+    ],
+    "profile-detachment-option-e0af-67df-9d63-8fb8-79a8-da59-2007-87b0": [
+      "Gauntlet Task Force"
+    ],
+    "profile-detachment-option-e0af-67df-9d63-8fb8-9a90-8bc5-27d1-4d66": [
+      "Tactical Brethren"
+    ],
+    "profile-detachment-option-e0af-67df-9d63-8fb8-aa9e-3e30-26a9-2302": [
+      "Terminator Storm Force"
+    ],
+    "profile-detachment-option-e0af-67df-9d63-8fb8-c5db-4b91-a749-bbdb": [
+      "Tacticus Firestorm Force"
+    ],
+    "profile-detachment-option-e0af-67df-9d63-8fb8-ceec-b79b-0b83-92b6": [
+      "Ironclad Champions"
+    ],
+    "profile-detachment-option-e0af-67df-9d63-8fb8-d4d1-aae4-327e-1a9f": [
+      "Tacticus Attack Force"
+    ],
+    "profile-detachment-option-e0af-67df-9d63-8fb8-f261-3980-2765-e3be": [
+      "Assault Brethren"
+    ],
+    "profile-detachment-option-e0af-67df-9d63-8fb8-f367-3240-47c1-7e1a": [
+      "Gladius Task Force"
+    ],
+    "profile-detachment-option-e0af-67df-9d63-8fb8-f854-d78c-feef-7d1e": [
+      "Devastator Brethren"
+    ],
+    "profile-detachment-option-e0af-67df-9d63-8fb8-fb20-be3c-55aa-0512": [
+      "Stormlance Task Force"
+    ],
+    "profile-detachment-option-f27e-18c0-b73e-748e-0a98-b66e-13b6-13d4": [
+      "Gravis Linebreaker Force"
+    ],
+    "profile-detachment-option-f27e-18c0-b73e-748e-0fa7-f692-c564-45b9": [
+      "Gravis Siege Force"
+    ],
+    "profile-detachment-option-f27e-18c0-b73e-748e-1074-ee64-b992-ce44": [
+      "Ironstorm Spearhead"
+    ],
+    "profile-detachment-option-f27e-18c0-b73e-748e-1123-8770-3b67-9745": [
+      "Phobos Shadow Force"
+    ],
+    "profile-detachment-option-f27e-18c0-b73e-748e-1f61-2b65-e778-d7ac": [
+      "Phobos Shock Force"
+    ],
+    "profile-detachment-option-f27e-18c0-b73e-748e-2496-d271-a92f-d1c0": [
+      "Hammer of Avernii"
+    ],
+    "profile-detachment-option-f27e-18c0-b73e-748e-79a8-da59-2007-87b0": [
+      "Gauntlet Task Force"
+    ],
+    "profile-detachment-option-f27e-18c0-b73e-748e-9a90-8bc5-27d1-4d66": [
+      "Tactical Brethren"
+    ],
+    "profile-detachment-option-f27e-18c0-b73e-748e-aa9e-3e30-26a9-2302": [
+      "Terminator Storm Force"
+    ],
+    "profile-detachment-option-f27e-18c0-b73e-748e-c5db-4b91-a749-bbdb": [
+      "Tacticus Firestorm Force"
+    ],
+    "profile-detachment-option-f27e-18c0-b73e-748e-ceec-b79b-0b83-92b6": [
+      "Ironclad Champions"
+    ],
+    "profile-detachment-option-f27e-18c0-b73e-748e-d4d1-aae4-327e-1a9f": [
+      "Tacticus Attack Force"
+    ],
+    "profile-detachment-option-f27e-18c0-b73e-748e-f261-3980-2765-e3be": [
+      "Assault Brethren"
+    ],
+    "profile-detachment-option-f27e-18c0-b73e-748e-f367-3240-47c1-7e1a": [
+      "Gladius Task Force"
+    ],
+    "profile-detachment-option-f27e-18c0-b73e-748e-f854-d78c-feef-7d1e": [
+      "Devastator Brethren"
+    ],
+    "profile-detachment-option-f27e-18c0-b73e-748e-fb20-be3c-55aa-0512": [
+      "Stormlance Task Force"
+    ],
+    "profile-detachment-option-f89b-84e0-6e3b-f1e2-0a98-b66e-13b6-13d4": [
+      "Gravis Linebreaker Force"
+    ],
+    "profile-detachment-option-f89b-84e0-6e3b-f1e2-0fa7-f692-c564-45b9": [
+      "Gravis Siege Force"
+    ],
+    "profile-detachment-option-f89b-84e0-6e3b-f1e2-1074-ee64-b992-ce44": [
+      "Ironstorm Spearhead"
+    ],
+    "profile-detachment-option-f89b-84e0-6e3b-f1e2-1123-8770-3b67-9745": [
+      "Phobos Shadow Force"
+    ],
+    "profile-detachment-option-f89b-84e0-6e3b-f1e2-1f61-2b65-e778-d7ac": [
+      "Phobos Shock Force"
+    ],
+    "profile-detachment-option-f89b-84e0-6e3b-f1e2-4459-12f0-bc-142b": [
+      "Black Spear Task Force"
+    ],
+    "profile-detachment-option-f89b-84e0-6e3b-f1e2-79a8-da59-2007-87b0": [
+      "Gauntlet Task Force"
+    ],
+    "profile-detachment-option-f89b-84e0-6e3b-f1e2-9a90-8bc5-27d1-4d66": [
+      "Tactical Brethren"
+    ],
+    "profile-detachment-option-f89b-84e0-6e3b-f1e2-aa9e-3e30-26a9-2302": [
+      "Terminator Storm Force"
+    ],
+    "profile-detachment-option-f89b-84e0-6e3b-f1e2-c5db-4b91-a749-bbdb": [
+      "Tacticus Firestorm Force"
+    ],
+    "profile-detachment-option-f89b-84e0-6e3b-f1e2-ceec-b79b-0b83-92b6": [
+      "Ironclad Champions"
+    ],
+    "profile-detachment-option-f89b-84e0-6e3b-f1e2-d4d1-aae4-327e-1a9f": [
+      "Tacticus Attack Force"
+    ],
+    "profile-detachment-option-f89b-84e0-6e3b-f1e2-f261-3980-2765-e3be": [
+      "Assault Brethren"
+    ],
+    "profile-detachment-option-f89b-84e0-6e3b-f1e2-f367-3240-47c1-7e1a": [
+      "Gladius Task Force"
+    ],
+    "profile-detachment-option-f89b-84e0-6e3b-f1e2-f854-d78c-feef-7d1e": [
+      "Devastator Brethren"
+    ],
+    "profile-detachment-option-f89b-84e0-6e3b-f1e2-fb20-be3c-55aa-0512": [
+      "Stormlance Task Force"
+    ]
+  }
+}

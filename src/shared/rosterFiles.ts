@@ -409,18 +409,17 @@ function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue | null, fa
   }
 
   const offered = loaded.detachments.get(faction.id)?.options ?? []
-  const printed = appNames.detachments
   // A list cut down to its units can keep its detachment's name on a line of its own above them.
   const unread = parsed.unread ?? []
   const namedDetachment = parsed.detachment
     ? undefined
-    : unread.find((line) => detachmentsNamed(line, offered, translations, printed).length)
+    : unread.find((line) => detachmentsNamed(line, offered, translations, appNames).length)
   const detachmentName = parsed.detachment ?? namedDetachment
-  const whole = detachmentName ? detachmentsNamed(detachmentName, offered, translations, printed) : []
+  const whole = detachmentName ? detachmentsNamed(detachmentName, offered, translations, appNames) : []
   // Where one of several detachments is unknown, the others still count, so their enhancements stay. The last two are
   // joined by a word, "and" or a translation of it, that a detachment's own name can also hold, so a part splits at the
   // word only where one side is a known detachment.
-  const known = (name: string) => detachmentsNamed(name, offered, translations, printed).length > 0
+  const known = (name: string) => detachmentsNamed(name, offered, translations, appNames).length > 0
   const joined = (part: string) => {
     const words = part.split(' ')
     for (let at = 1; at < words.length - 1; at++) {
@@ -444,7 +443,7 @@ function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue | null, fa
   const detachments = whole.length
     ? whole
     : detachmentName
-      ? parts.flatMap((part) => detachmentsNamed(part, offered, translations, printed))
+      ? parts.flatMap((part) => detachmentsNamed(part, offered, translations, appNames))
       : enhancementDetachments()
   const unknown: UnmatchedName[] = parts
     .filter((part) => !known(part))
@@ -459,9 +458,12 @@ function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue | null, fa
     parsed.units.filter((other) => normalized(other.name) === normalized(unit.name)).length > 1
       ? `${unit.name} (entry ${at + 1})`
       : unit.name
+  // A datasheet answers to every name BSData gave it, which New Recruit prints, as frozen; the official app's names are read
+  // through VS Data below.
   const datasheets = [...(loaded.index.datasheets.get(faction.id) ?? [])].flatMap((id) => {
     const definition = loaded.index.definitions.get(id)
-    return definition ? [{ id, name: normalized(nameOf(definition, loaded.index.definitions)) }] : []
+    const own = appNames.datasheetNames.get(id) ?? (definition ? [nameOf(definition, loaded.index.definitions)] : [])
+    return own.map((name) => ({ id, name: normalized(name) }))
   })
   // A datasheet another app names in the plural, as BattleBase's "Myphitic Blight-haulers", is still the one datasheet it can be;
   // one it names without the catalogue's "[Legends]" mark, as 40k.app's "Whirlwind", is the Legends datasheet.
@@ -777,15 +779,16 @@ function detachmentsNamed<T extends { id: string; name: string }>(
   combined: string,
   options: readonly T[],
   translations: CatalogueTranslations,
-  printed: ReadonlyMap<string, readonly string[]>,
+  appNames: ImportNames,
 ): T[] {
   const names = new Map(
     options.map((option) => [
       option,
       [
         ...new Set(
-          detachmentNameVariants(option.name)
-            .flatMap((name) => [...translationsOf(name, translations), ...(printed.get(normalized(name)) ?? [])])
+          (appNames.detachmentNames.get(option.id) ?? [option.name])
+            .flatMap(detachmentNameVariants)
+            .flatMap((name) => [...translationsOf(name, translations), ...(appNames.detachments.get(normalized(name)) ?? [])])
             .map(normalized),
         ),
       ],

@@ -1,0 +1,5623 @@
+{
+  "format": "praetorium.legacy-names.v1",
+  "names": {
+    "004b-58d3-10ef-f969": [
+      "Indomitor Kill Team [Legends]"
+    ],
+    "0115-ce35-cc23-35fc": [
+      "Prime Organism [Crucible]"
+    ],
+    "031c-5afa-268d-9b47": [
+      "Land Speeder"
+    ],
+    "03bb-410c-ef25-4bd8": [
+      "Corsair Cloud Dancer Band [Legends]"
+    ],
+    "0488-7b45-6b67-5d97": [
+      "Memnyr Strategist"
+    ],
+    "048d-f3fd-c642-e828": [
+      "Skarbrand"
+    ],
+    "0498-bbf7-e836-168e": [
+      "Hand of the Archon"
+    ],
+    "0575-9800-5371-800c": [
+      "Bloodletters"
+    ],
+    "05d7-76a6-c285-af97": [
+      "Renegade Ogryn Brutes [Legends]"
+    ],
+    "06b7-a4b1-ab30-7dd9": [
+      "Ripper Swarms (Parasite of Mortrex)"
+    ],
+    "072c-80c6-b7a3-f0e7": [
+      "Accursed Cultists"
+    ],
+    "0819-deca-adfc-8dbf": [
+      "Cult Insurrectionist [Crucible]"
+    ],
+    "08d6-68c2-1e1d-0c12": [
+      "The Twin Lance"
+    ],
+    "0a80-1375-0b9a-98f4": [
+      "Champion of the Chapter [Crucible]"
+    ],
+    "0a84-b5f4-bc9e-6779": [
+      "Great Unclean One"
+    ],
+    "0b05-8696-2b92-85a5": [
+      "Chaos Predator Destructor"
+    ],
+    "0b5a-3d67-3e9f-d066": [
+      "Flawless Champion [Crucible]"
+    ],
+    "0cd5-244a-7f7c-54d2": [
+      "Hernkyn Yaegirs"
+    ],
+    "0cfa-3fc7-6548-dbb3": [
+      "Lieutenant Titus"
+    ],
+    "0d29-c01f-5213-7f96": [
+      "Mutoid Vermin [Legends]"
+    ],
+    "0d44-a7e3-517e-cc85": [
+      "Mutalith Vortex Beast"
+    ],
+    "0e64-a79a-af7c-5b5f": [
+      "Chaos Land Raider"
+    ],
+    "1032-6744-7fe5-1975": [
+      "Astorath"
+    ],
+    "1058-f2e6-8f32-7483": [
+      "Wolf Scouts"
+    ],
+    "1087-e992-6b82-3b8": [
+      "Heretic Astartes Daemon Prince with wings"
+    ],
+    "109d-48c6-54ac-eb81": [
+      "Tor Garadon"
+    ],
+    "109f-4d4b-a689-43e": [
+      "Sokar-pattern Stormbird [Legends]"
+    ],
+    "10a1-5896-98da-8c7c": [
+      "Lord of Contagion"
+    ],
+    "10b3-2b43-9984-b652": [
+      "Helbrute"
+    ],
+    "10d-3ef0-803-a47a": [
+      "Minotaur [Legends]"
+    ],
+    "111d-1e2e-2cad-bc8c": [
+      "Servitor Battleclade"
+    ],
+    "112-17a-6fa1-d1c3": [
+      "Terrax-pattern Termite [Legends]"
+    ],
+    "1129-d5b7-45c3-e80a": [
+      "Griffon Mortar Carrier [Legends]"
+    ],
+    "1135-ac85-67e9-25aa": [
+      "Ancient on Bike [Legends]"
+    ],
+    "115d-8239-dc6c-9e5d": [
+      "Avatar of Khaine"
+    ],
+    "1167-1f78-feed-c6ca": [
+      "Infractors"
+    ],
+    "11bc-7659-448b-ee77": [
+      "Knight Despoiler"
+    ],
+    "1210-041d-8576-2808": [
+      "Butcherlord [Crucible]"
+    ],
+    "1255-9ad2-1468-40f4": [
+      "Jain Zar"
+    ],
+    "1258-53bd-b170-2509": [
+      "Warbringer Nemesis Titan"
+    ],
+    "1269-0678-4365-6471": [
+      "Plaguebearers"
+    ],
+    "12a0-afe9-21a-c983": [
+      "Chaos Lord on Palanquin of Nurgle [Legends]"
+    ],
+    "12a5-37d7-300e-2173": [
+      "War Walkers"
+    ],
+    "12bb-705b-ca74-329a": [
+      "Exaction Squad"
+    ],
+    "12e6-3029-26ea-30a8": [
+      "Lord [Legends]"
+    ],
+    "1317-b13f-7d9e-578a": [
+      "Typhon [Legends]"
+    ],
+    "1356-8664-65d6-7600": [
+      "Razorwing Jetfighter"
+    ],
+    "138c-e220-9e95-f8a3": [
+      "Wall of Martyrs Defence Line [Legends]"
+    ],
+    "13b9-6251-7254-4b83": [
+      "Ancient in Terminator Armour"
+    ],
+    "13d8-1933-472c-80ed": [
+      "Terminator Squad"
+    ],
+    "13f1-69b9-ca69-5b33": [
+      "Grimnyr"
+    ],
+    "13f9-f658-59aa-1a0f": [
+      "Knight Preceptor"
+    ],
+    "1437-b611-8119-c56c": [
+      "Heldrake"
+    ],
+    "1439-16ea-58ca-27e9": [
+      "Overlord with Translocation Shroud"
+    ],
+    "1450-9fae-5e76-1f91": [
+      "Kataphraktoi Exemplar [Crucible]"
+    ],
+    "1462-a777-45ab-a8b5": [
+      "Brotherhood Terminator Squad"
+    ],
+    "146f-3560-9929-1ed4": [
+      "Macro Organism [Crucible]"
+    ],
+    "1478-2392-ea1-45cd": [
+      "Neurotyrant"
+    ],
+    "148e-92af-5705-bcea": [
+      "Sokar-pattern Stormbird [Legends]"
+    ],
+    "1497-1ab9-c084-36cc": [
+      "Malcador Annihilator [Legends]"
+    ],
+    "14ab-9043-9077-770a": [
+      "Huron Blackheart"
+    ],
+    "1524-f7fd-4838-ffd7": [
+      "Death Guard Chaos Lord in Terminator Armour [Legends]"
+    ],
+    "152d-fdb1-dfcd-2251": [
+      "Captain in Gravis Armour"
+    ],
+    "153c-aeaf-664f-2c67": [
+      "Miasmic Malignifier"
+    ],
+    "155b-1e42-3f86-598c": [
+      "Watch Master"
+    ],
+    "155b-e47a-255b-2877": [
+      "Sydonian Dragoons with radium jezzails"
+    ],
+    "1564-6ed2-e6d4-4dbe": [
+      "Warbringer Nemesis Titan"
+    ],
+    "156f-73c-f98a-58c5": [
+      "Canoptek Tomb Stalker [Legends]"
+    ],
+    "1588-c304-7a3e-e4df": [
+      "Storm Eagle Gunship [Legends]"
+    ],
+    "1595-515d-799-c539": [
+      "Lord Discordant on Helstalker"
+    ],
+    "15b0-9b2a-5ec6-93f8": [
+      "Salamander Command Vehicle [Legends]"
+    ],
+    "15e2-1903-8d94-f574": [
+      "Venatari Custodians"
+    ],
+    "15ed-2cca-b373-a0a9": [
+      "Death Company Marines with Bolt Rifles [Legends]",
+      "Death Company Marines with Bolt Rifles"
+    ],
+    "166f-78e9-3ef-63a0": [
+      "Doomsday Ark"
+    ],
+    "169-6293-f763-76d8": [
+      "Tesseract Vault"
+    ],
+    "1695-8d01-1159-9a13": [
+      "Dominion Squad"
+    ],
+    "16f-1b8-d251-4b6a": [
+      "Haemonculus"
+    ],
+    "16f3-7b41-33dc-02c3": [
+      "Breaka Boyz"
+    ],
+    "16f9-9c76-2e0e-dc49": [
+      "Termagants"
+    ],
+    "170-14ae-5346-c8b": [
+      "War Dog Executioner"
+    ],
+    "1712-989f-bbec-8109": [
+      "Brother-Captain Stern [Legends]"
+    ],
+    "1736-9d5e-5276-f27": [
+      "Nightwing [Legends]"
+    ],
+    "17ec-2b07-8c4c-cf1": [
+      "Typhus"
+    ],
+    "1806-237a-9809-eebe": [
+      "Vargard Obyron [Legends]"
+    ],
+    "1837-8c0d-0123-817d": [
+      "Maulerfiend"
+    ],
+    "184-14ca-5d75-388f": [
+      "Trojan Support Vehicle [Legends]"
+    ],
+    "187-93d6-1ac7-dbde": [
+      "Boyz"
+    ],
+    "1893-956f-b717-6cc8": [
+      "Mawloc"
+    ],
+    "189e-becb-ef7b-1233": [
+      "Shadow Spectres [Legends]"
+    ],
+    "1913-3800-bc84-cbff": [
+      "Malanthrope [Legends]"
+    ],
+    "1915-5cea-2b22-8805": [
+      "Chaos Cerastus Knight Atrapos"
+    ],
+    "191e-4a0d-e197-6404": [
+      "Night Shroud [Legends]"
+    ],
+    "1938-7714-7c82-4fe0": [
+      "Burning Chariot"
+    ],
+    "194a-c758-e8ac-7602": [
+      "Deathwatch Veterans"
+    ],
+    "1957-3e4e-c38b-9c31": [
+      "Chaos Rhino"
+    ],
+    "19bb-564d-866d-ff13": [
+      "Brotherhood Techmarine"
+    ],
+    "19cc-ae92-3df3-2530": [
+      "Heavy Quad Launcher Team [Legends]"
+    ],
+    "19df-5f17-d083-304c": [
+      "Wolf Guard Pack Leader with Jump Pack [Legends]"
+    ],
+    "19ec-f615-a22c-431": [
+      "Incursor Squad"
+    ],
+    "1a39-2529-3722-60d3": [
+      "Ministorum Priest"
+    ],
+    "1a6b-3ca9-141c-a248": [
+      "Deathwing Strikemaster [Legends]"
+    ],
+    "1a82-f502-3d69-09da": [
+      "Lady Malys"
+    ],
+    "1a8a-e245-87c8-e38a": [
+      "Wolf Priest"
+    ],
+    "1a9d-4e67-9d1f-cb91": [
+      "Traitor Enforcer"
+    ],
+    "1ac7-5d1f-dc18-6e7c": [
+      "Vindicator Laser Destroyer [Legends]"
+    ],
+    "1ad4-c21c-1bea-1028": [
+      "Acolyte Hybrids with Autopistols"
+    ],
+    "1afd-1eb5-9b4f-4f80": [
+      "Death Korps Grenadier Squad [Legends]"
+    ],
+    "1b28-6192-7cfa-3019": [
+      "Rotigus"
+    ],
+    "1b37-d674-f2ef-6d3b": [
+      "Eradicator Squad with Melta Rifles",
+      "Eradicator Squad"
+    ],
+    "1b63-3fa8-5941-52ae": [
+      "Ezekiel"
+    ],
+    "1b6d-54f5-244e-38a0": [
+      "Hastarii Exterminators"
+    ],
+    "1b9c-5fc3-d8c7-46fa": [
+      "Darnath Lysander"
+    ],
+    "1ba0-1223-9d11-a596": [
+      "Tzaangors"
+    ],
+    "1bac-1b5f-4a26-9c02": [
+      "Kroot War Shaper"
+    ],
+    "1bb6-f47f-34a2-7796": [
+      "Battle Sanctum [Legends]"
+    ],
+    "1bf4-a1c-67e5-9b0a": [
+      "Scourges with Heavy Weapons"
+    ],
+    "1c41-ff61-cecb-fce2": [
+      "Attilan Rough Riders"
+    ],
+    "1c68-23d0-67e4-6c86": [
+      "Rotigus"
+    ],
+    "1cfc-2dc0-2a7a-28fe": [
+      "Khârn the Betrayer"
+    ],
+    "1cfc-355a-ccc1-176b": [
+      "Court of the Archon [Legends]"
+    ],
+    "1d0-8beb-4f5-e1b": [
+      "R'varna Battlesuit [Legends]"
+    ],
+    "1d2d-84be-9efc-b2f7": [
+      "Monolith"
+    ],
+    "1da8-2a1c-0ecf-5e56": [
+      "Node Organism [Crucible]"
+    ],
+    "1dec-e057-8cae-c9ae": [
+      "Heretic Astartes Daemon Prince"
+    ],
+    "1df5-80f8-ca82-262f": [
+      "Amallyn Shadowguide [Legends]"
+    ],
+    "1e2d-1a05-ec5-9cbd": [
+      "Land Raider Achilles [Legends]"
+    ],
+    "1e45-5d8-83d3-c2d1": [
+      "Earthshaker Carriage Battery [Legends]"
+    ],
+    "1e67-5742-99cf-aed4": [
+      "Chaos Acastus Knight Porphyrion"
+    ],
+    "1e9b-5681-eaf7-5e08": [
+      "Paladin Squad"
+    ],
+    "1ebe-3538-a79c-513e": [
+      "Grot Mega-Tank [Legends]"
+    ],
+    "1ee4-62ac-f8e3-cf62": [
+      "Scout Sentinels"
+    ],
+    "1f33-61d2-bb9b-86a7": [
+      "Commissar Yarrick"
+    ],
+    "1f53-51d7-bb92-5d25": [
+      "Celestian Insidiants"
+    ],
+    "1f7-65fd-f2a0-e824": [
+      "Sorcerer on Palanquin of Nurgle [Legends]"
+    ],
+    "1fd5-8cf0-bef3-3970": [
+      "Valerian",
+      "Valerian [Legends]"
+    ],
+    "2003-f869-c470-db22": [
+      "Atlas Recovery Vehicle [Legends]"
+    ],
+    "2022-800a-5f81-59c3": [
+      "Barbgaunts"
+    ],
+    "2023-f77b-89b1-b6a2": [
+      "Vendetta Gunship [Legends]"
+    ],
+    "2036-652e-faf4-0d0e": [
+      "Chaos Predator Annihilator"
+    ],
+    "2045-f1d0-2d5c-1c83": [
+      "Psychomancer"
+    ],
+    "2053-6887-5344-5a84": [
+      "Daemonic Charioteer [Crucible]"
+    ],
+    "206e-3133-dac8-8d40": [
+      "Deathwatch Terminator Squad"
+    ],
+    "2080-b768-3cd5-7665": [
+      "Ophydian Destroyers"
+    ],
+    "208b-348-8114-b506": [
+      "Bloodletters"
+    ],
+    "20a4-a9b7-26ae-9291": [
+      "Shadow Weaver Platform"
+    ],
+    "20a6-a58b-37a3-6db7": [
+      "Kratos [Legends]"
+    ],
+    "20b3-f504-9c79-bc74": [
+      "Infernus Squad"
+    ],
+    "20c5-c1e3-ebe4-8fcc": [
+      "Wracks"
+    ],
+    "20ee-2cf8-78b6-58df": [
+      "Thunderwolf Cavalry"
+    ],
+    "20fc-1b98-dfba-d58c": [
+      "Trygon"
+    ],
+    "2102-8784-0978-f366": [
+      "Plague Lord [Crucible]"
+    ],
+    "210a-cb5f-b323-6cbb": [
+      "Hormagaunts"
+    ],
+    "212c-8052-8e6b-f33f": [
+      "Lord of Poxes"
+    ],
+    "2139-e547-edf5-74ce": [
+      "Anathema Psykana Rhino"
+    ],
+    "2152-f3be-348-180e": [
+      "Earthshaker Platform [Legends]"
+    ],
+    "2158-afb6-f9e2-3337": [
+      "Lucius the Eternal"
+    ],
+    "2159-7f28-5654-c367": [
+      "Acastus Knight Asterius"
+    ],
+    "219b-58dd-df81-b99e": [
+      "Judiciar"
+    ],
+    "21d2-2e3d-5d22-ee9a": [
+      "Red Corsairs Raiders"
+    ],
+    "222c-8db7-5b68-a060": [
+      "Lord on Juggernaut"
+    ],
+    "2265-a0d2-432c-ca41": [
+      "Ogryn Bodyguard"
+    ],
+    "2266-31ab-d8cc-b280": [
+      "Land Raider Prometheus [Legends]"
+    ],
+    "2282-00e8-c005-21a3": [
+      "Imperial Rhino"
+    ],
+    "2285-b17c-53bb-2cb6": [
+      "Cultist Firebrand"
+    ],
+    "22a0-b94-dd32-bcd3": [
+      "Captain Tycho [Legends]"
+    ],
+    "22c4-3e9d-987f-d338": [
+      "Uriel Ventris"
+    ],
+    "22cd-3878-ad7c-6b6c": [
+      "Death Cult Assassins [Legends]"
+    ],
+    "22f1-dafb-b795-a09c": [
+      "Terrax-pattern Termite [Legends]"
+    ],
+    "235d-274d-1944-b1dd": [
+      "Rapier Carrier [Legends]"
+    ],
+    "2365-c045-7cef-722d": [
+      "Flayed Ones"
+    ],
+    "238e-70a6-3a74-e595": [
+      "C'tan Shard of the Void Dragon"
+    ],
+    "23b8-e2eb-6e9a-a87f": [
+      "Hell Talon [Legends]"
+    ],
+    "23db-7ff7-d74a-75e7": [
+      "Sentinel Commander [Crucible]"
+    ],
+    "23ec-128a-efbe-797f": [
+      "Witchseeker Squad",
+      "Witchseekers"
+    ],
+    "23f-47a2-1700-86cd": [
+      "Logan Grimnar"
+    ],
+    "23f1-3baa-fdfd-9ddd": [
+      "Spectrus Kill Team"
+    ],
+    "2405-fb8f-dc3d-fd67": [
+      "Talonstrike Kill Team"
+    ],
+    "2416-5a2b-18b-1764": [
+      "Cerastus Knight Lancer"
+    ],
+    "24e5-68d6-6823-a46f": [
+      "Commander in Crisis Battlesuit [Legends]"
+    ],
+    "24f-c20d-7833-92c1": [
+      "Vortex Missile Strongpoint [Legends]"
+    ],
+    "2500-71db-2a11-1c05": [
+      "Archaeopter Transvector"
+    ],
+    "2567-b3bf-f1b-26d5": [
+      "Company Champion on Bike [Legends]"
+    ],
+    "257a-e93f-b9f1-989a": [
+      "Long Fangs [Legends]"
+    ],
+    "2590-e50e-c89f-9fcf": [
+      "Rogue Psyker [Legends]"
+    ],
+    "2593-8c2-e010-3f23": [
+      "Illuminor Szeras"
+    ],
+    "2595-e963-de21-8d75": [
+      "Castigator"
+    ],
+    "25ba-6e30-d587-a57e": [
+      "Von Ryan's Leapers"
+    ],
+    "25d1-b7e6-3f69-f764": [
+      "Rubric Marines"
+    ],
+    "25e-d95c-bda5-3f4f": [
+      "Noise Marines"
+    ],
+    "2610-a708-7a64-1129": [
+      "Seekers"
+    ],
+    "2624-cc0e-10af-ae30": [
+      "Kataphron Breachers"
+    ],
+    "2630-b379-5c32-df8d": [
+      "Winged Hive Tyrant"
+    ],
+    "2631-870c-c553-fe0f": [
+      "Hades Breaching Drill [Legends]"
+    ],
+    "2632-9483-b17f-ff52": [
+      "Captain in Phobos Armour"
+    ],
+    "266a-70d9-cc0d-b7c": [
+      "Deathstorm Drop Pod [Legends]"
+    ],
+    "2684-7f5b-aa65-923e": [
+      "Hellhound"
+    ],
+    "26af-cfb8-dc7b-acce": [
+      "Keeper of Secrets"
+    ],
+    "26bd-56be-f5be-19f7": [
+      "Kairos Fateweaver"
+    ],
+    "26c2-72ff-ff15-cd": [
+      "Rapier Carrier [Legends]"
+    ],
+    "26dc-dc50-58e8-ad2c": [
+      "Tauros Venator [Legends]"
+    ],
+    "26dd-509a-d3f4-758c": [
+      "Warlord Titan"
+    ],
+    "26f9-f5fb-b25f-64e5": [
+      "Vengeance Weapon Battery [Legends]"
+    ],
+    "2703-84c8-ac20-8fe2": [
+      "Brôkhyr Thunderkyn"
+    ],
+    "273-d9f3-a459-c5a3": [
+      "Librarian Dreadnought [Legends]"
+    ],
+    "2733-fc54-d8dc-75c7": [
+      "Phoenix [Legends]"
+    ],
+    "2744-e5a2-79e2-2b4f": [
+      "Venerable Contemptor Dreadnought",
+      "Venerable Contemptor Dreadnought [Legends]"
+    ],
+    "274b-2834-a2ee-e578": [
+      "Sun Shark Bomber"
+    ],
+    "2760-2254-881f-bf94": [
+      "Corsair Cloud Dancer Band [Legends]"
+    ],
+    "2763-bfec-e510-6469": [
+      "Canoptek Doomstalker"
+    ],
+    "278d-4db2-eee-9cfc": [
+      "Abominant"
+    ],
+    "2797-16d2-806b-6cc7": [
+      "Venerable Dreadnought"
+    ],
+    "279b-d60e-bd75-9856": [
+      "Mukaali Riders [Legends]"
+    ],
+    "27d8-acc9-f3a6-1b6": [
+      "Chaos Lord on Bike [Legends]"
+    ],
+    "281d-42e5-46cc-73fa": [
+      "Skyweavers"
+    ],
+    "2866-52c3-4aa9-4bbf": [
+      "Exorcist"
+    ],
+    "2867-ec92-b424-76b9": [
+      "Ynnari Succubus"
+    ],
+    "287a-5c60-5a7e-80a8": [
+      "Adrax Agatone"
+    ],
+    "287e-ac22-3dc3-fac0": [
+      "Hydra"
+    ],
+    "28a-e2b8-c42e-3dea": [
+      "Norn Assimilator"
+    ],
+    "28a9-923b-c230-bc66": [
+      "Agamatus Custodians"
+    ],
+    "28b2-3bcc-3381-aa08": [
+      "Kataphron Destroyers"
+    ],
+    "28e2-fc6e-3f4d-ecd2": [
+      "Sicaran Punisher [Legends]"
+    ],
+    "28f3-a24d-0739-681c": [
+      "Wolf Guard Headtakers"
+    ],
+    "28ff-a147-b488-2411": [
+      "Inceptor Squad"
+    ],
+    "2938-71f7-c690-ba65": [
+      "Tarantula Battery [Legends]"
+    ],
+    "293f-42d1-5fce-3720": [
+      "Judiciar Xacharus [Legends]"
+    ],
+    "2974-41f7-e1cf-2483": [
+      "Salamander Scout Vehicle [Legends]"
+    ],
+    "2980-bea4-d87e-cad0": [
+      "Cerberus [Legends]"
+    ],
+    "29aa-34ba-8b9f-b6a6": [
+      "Armoured Sentinels"
+    ],
+    "29b2-5ee-95ac-8fe9": [
+      "Aestred Thurga and Agathae Dolan"
+    ],
+    "29c4-72a5-fb49-f292": [
+      "Corvus Blackstar"
+    ],
+    "29d2-ab15-e518-2503": [
+      "Relic Contemptor Dreadnought [Legends]"
+    ],
+    "29d9-6934-367c-d2de": [
+      "Inquisitor Karamazov [Legends]"
+    ],
+    "29df-3b97-03bf-0275": [
+      "Commissar Graves"
+    ],
+    "29e4-80d1-2f8c-75db": [
+      "Rukkatrukk Squigbuggies"
+    ],
+    "29f8-1df0-6e9c-27fe": [
+      "Vampire Hunter [Legends]"
+    ],
+    "29fb-f6b4-4070-8e20": [
+      "Sicaran Punisher [Legends]"
+    ],
+    "2a4e-4dd1-6579-cd": [
+      "Reductus Saboteur"
+    ],
+    "2a52-f6b1-586a-a4b6": [
+      "Harpy"
+    ],
+    "2a64-2866-b350-a61b": [
+      "Transcendent C'tan"
+    ],
+    "2a66-a8a1-e783-8e59": [
+      "Hell Talon [Legends]"
+    ],
+    "2a6f-19be-ccbc-1fa3": [
+      "Locus"
+    ],
+    "2a7d-902-33d3-f639": [
+      "Spiritseer"
+    ],
+    "2a8d-61a2-7b7b-9da8": [
+      "Land Raider Proteus [Legends]"
+    ],
+    "2a95-aeda-e244-35f4": [
+      "Defiler"
+    ],
+    "2ac0-a864-7232-daa1": [
+      "Lemartes"
+    ],
+    "2ad9-d9cb-8d57-59b6": [
+      "Kravek Morne"
+    ],
+    "2ae1-6c0d-8333-e82a": [
+      "Knight Errant"
+    ],
+    "2af4-a52f-0074-3350": [
+      "Deathwatch Agent [Crucible]"
+    ],
+    "2b53-7c80-fe3-ebe3": [
+      "TX42 Piranha [Legends]"
+    ],
+    "2b90-3730-69d-d0c0": [
+      "Caestus Assault Ram [Legends]"
+    ],
+    "2b97-4d0b-44dd-ad6b": [
+      "Night Scythe"
+    ],
+    "2b9a-3499-e48d-d7bd": [
+      "Celestian Sacresant Aveline [Legends]"
+    ],
+    "2b9d-9c13-9277-d157": [
+      "Land Raider Redeemer"
+    ],
+    "2ba-6922-1007-6f70": [
+      "Renegade Heavy Weapons Squad [Legends]"
+    ],
+    "2ba-c206-8528-f2cd": [
+      "Chaos Lord with Jump Pack"
+    ],
+    "2bb2-839a-20cc-1531": [
+      "Burna Boyz [Legends]"
+    ],
+    "2bb8-bcbf-ca09-57ae": [
+      "Heldrake"
+    ],
+    "2bbd-2d61-e435-d902": [
+      "Custodian Wardens"
+    ],
+    "2bf6-b47f-ed31-3280": [
+      "Canoptek Reanimator"
+    ],
+    "2bfd-af9d-237-fccd": [
+      "Xiphon Interceptor [Legends]"
+    ],
+    "2c07-dc65-676c-5fdf": [
+      "Proteus Kill Team [Legends]"
+    ],
+    "2c2f-442e-aaac-eea5": [
+      "Warlord Titan"
+    ],
+    "2c38-c9f2-c944-27c1": [
+      "Poxbringer"
+    ],
+    "2c3f-91a9-1972-01ef": [
+      "Tri-lobe Vectors [Crucible]"
+    ],
+    "2c5d-9f8f-b19d-53be": [
+      "Aegis Defence Line"
+    ],
+    "2c75-8088-5885-e44": [
+      "Kastelan Robots"
+    ],
+    "2c93-c337-c4f0-e3c6": [
+      "Relic Contemptor Dreadnought [Legends]"
+    ],
+    "2c9c-869f-d3a9-a264": [
+      "Kâhl"
+    ],
+    "2cf5-6167-32d7-23df": [
+      "Gargantuan Squiggoth"
+    ],
+    "2cfb-f8e0-576b-db68": [
+      "Havocs"
+    ],
+    "2d06-a7ed-1a18-6735": [
+      "Celestian Sacresants"
+    ],
+    "2d11-749e-9510-6657": [
+      "Dreadnought [Legends]",
+      "Dreadnought"
+    ],
+    "2d20-4f52-c14d-a532": [
+      "Xiphon Interceptor [Legends]"
+    ],
+    "2d33-5fbe-226-ff5b": [
+      "Ethereal"
+    ],
+    "2d53-9be6-18e0-6340": [
+      "Kroot Flesh Shaper"
+    ],
+    "2d6b-f5cf-6f01-9475": [
+      "Daemon Prince of Tzeentch with wings"
+    ],
+    "2d8d-94ae-de2-19fe": [
+      "Kill Rig"
+    ],
+    "2d9f-9bff-13a0-a4ec": [
+      "Shroud Runners"
+    ],
+    "2da7-241c-8df1-8a08": [
+      "Avenger Strike Fighter"
+    ],
+    "2de5-fe7f-6b98-5156": [
+      "Neurolictor"
+    ],
+    "2de8-7eee-8607-a56a": [
+      "Carnodon [Legends]"
+    ],
+    "2e24-116d-87cb-1d8d": [
+      "Grey Hunters"
+    ],
+    "2e42-8d21-37fe-1de9": [
+      "Abaddon the Despoiler"
+    ],
+    "2e5c-7c80-a45d-3bcb": [
+      "Corsair Voidreavers"
+    ],
+    "2e74-fb9d-aa52-729a": [
+      "Impulsor"
+    ],
+    "2f29-64be-785c-4eda": [
+      "Mawloc"
+    ],
+    "2f30-49cf-84dc-4b84": [
+      "Gorgon Heavy Transport [Legends]"
+    ],
+    "2f4d-a03c-622b-d553": [
+      "Blood Angels Captain"
+    ],
+    "2f5a-1d78-1c4e-6138": [
+      "Stonesinger"
+    ],
+    "2f74-b5a1-d291-5623": [
+      "Hornet [Legends]"
+    ],
+    "2f80-26a6-9486-b348": [
+      "Beastboss"
+    ],
+    "3049-3ebe-9129-ff02": [
+      "Warphead [Crucible]"
+    ],
+    "306-db45-d47c-f0e9": [
+      "Fire Raptor Gunship [Legends]"
+    ],
+    "3066-9274-c887-86b": [
+      "Grand Master in Nemesis Dreadknight"
+    ],
+    "3082-c9fe-b2b6-2594": [
+      "Fire Raptor Gunship [Legends]"
+    ],
+    "3084-9a99-bf3a-b663": [
+      "Inquisitor Ostromandeus [Legends]"
+    ],
+    "30d4-0211-af8c-9b5b": [
+      "Daemonhost [Legends]"
+    ],
+    "30ef-6edf-f9be-6b3b": [
+      "Militarum Tempestus Command Squad"
+    ],
+    "30f1-5a2a-9f88-d26c": [
+      "Cadian Heavy Weapons Squad"
+    ],
+    "30f6-f452-8564-c6d5": [
+      "Infernal Enrapturess"
+    ],
+    "312a-7de8-16f7-1b1": [
+      "Munitorum Servitors [Legends]"
+    ],
+    "3143-8abd-418b-8863": [
+      "Mastodon [Legends]"
+    ],
+    "3144-df82-3e22-2ab1": [
+      "Lord Kakophonist"
+    ],
+    "319e-5b9d-5c49-4e57": [
+      "Corvus Blackstar"
+    ],
+    "31bf-3409-ac97-54ca": [
+      "Quartermaster Cadre Squad [Legends]"
+    ],
+    "325b-b542-b53f-2298": [
+      "Sicaran Battle Tank [Legends]"
+    ],
+    "32de-a3b5-56f5-60b6": [
+      "Astraeus"
+    ],
+    "331d-9059-d87-480": [
+      "Kill Tank [Legends]"
+    ],
+    "33b3-aedd-9cc0-f799": [
+      "Aegis Defence Line with Weapon Emplacement [Legends]"
+    ],
+    "33d5-e15f-2823-41ae": [
+      "Land Raider Proteus [Legends]"
+    ],
+    "3413-f351-cfb0-d33b": [
+      "Company Veterans on Bikes [Legends]"
+    ],
+    "3440-3278-5d39-b10f": [
+      "Tyranid Prime with Lash Whip"
+    ],
+    "346a-db55-bd65-60ce": [
+      "Hybrid Metamorphs"
+    ],
+    "347f-4f23-b259-450f": [
+      "Renegade Ogryn Brutes [Legends]"
+    ],
+    "348-4a28-2b9-aca": [
+      "Manticore Platform [Legends]"
+    ],
+    "3497-256c-f286-a424": [
+      "Captain on Bike [Legends]"
+    ],
+    "34a3-1b3f-4c56-c27a": [
+      "Hearthkyn Warriors"
+    ],
+    "34a6-be21-d115-fe06": [
+      "Catachan Jungle Fighters"
+    ],
+    "34a9-4d2-e07e-2f0f": [
+      "Malcador Infernus [Legends]"
+    ],
+    "34c9-f560-d79e-d7a": [
+      "Kroot Lone-spear"
+    ],
+    "3549-ed9e-6768-b32b": [
+      "Warp Hunter [Legends]"
+    ],
+    "35a3-f267-c6cf-7272": [
+      "Horticulous Slimux"
+    ],
+    "35ab-1fd5-81ad-5e33": [
+      "Dogmata"
+    ],
+    "35b8-60b6-a5ab-9318": [
+      "Ultramarines Honour Guard [Legends]"
+    ],
+    "35c-409a-cf8e-870a": [
+      "Devastator Squad"
+    ],
+    "35fd-6169-2183-5edf": [
+      "Catachan Command Squad"
+    ],
+    "3628-3edf-659e-6405": [
+      "Kasrkin"
+    ],
+    "3641-6309-27f0-6e1b": [
+      "Mastodon [Legends]"
+    ],
+    "365f-464c-a35d-4136": [
+      "Bloodthirster"
+    ],
+    "366-4207-f5fe-a98d": [
+      "Macharius Vanquisher [Legends]"
+    ],
+    "367c-9e45-a324-7bed": [
+      "Venerable Daemon Slayer [Crucible]"
+    ],
+    "3699-199d-4c96-62f3": [
+      "Aun'shi [Legends]"
+    ],
+    "369b-465f-84ca-a1ad": [
+      "Sanctus"
+    ],
+    "369c-b9c1-931-60ee": [
+      "Leman Russ Eradicator"
+    ],
+    "36ac-880c-7435-e5ed": [
+      "Sentinel Commander [Crucible]"
+    ],
+    "36d9-1098-3c84-47d0": [
+      "Gladiator Reaper"
+    ],
+    "36e-e56f-90cc-8981": [
+      "Gabriel Seth [Legends]"
+    ],
+    "36e4-5064-b0f1-564a": [
+      "Flamers"
+    ],
+    "36e5-70be-fee9-569e": [
+      "Renegade Enforcer [Legends]"
+    ],
+    "374a-2fd5-4034-4991": [
+      "Tesseract Ark [Legends]"
+    ],
+    "374a-c2f0-2a2c-4d63": [
+      "Thunderhawk Gunship"
+    ],
+    "374b-6125-4118-0b19": [
+      "Slaughterbound"
+    ],
+    "378a-7609-1281-280e": [
+      "Gellerpox Infected [Legends]"
+    ],
+    "37b9-de40-4ee8-7fdb": [
+      "Battlesuit Veteran [Crucible]"
+    ],
+    "37e4-799e-798f-19a8": [
+      "Angron"
+    ],
+    "37ec-de9e-1d3b-a4ae": [
+      "Warlord Titan"
+    ],
+    "380f-9b52-6d93-eb4b": [
+      "Von Ryan's Leapers"
+    ],
+    "382e-7f67-4810-beef": [
+      "Noise Marines"
+    ],
+    "3836-92b1-8cba-d685": [
+      "Craftworld Warleader [Crucible]"
+    ],
+    "3881-b2ca-8cd4-6477": [
+      "Fateskimmer"
+    ],
+    "388d-198a-29f-d03e": [
+      "Marneus Calgar"
+    ],
+    "38ae-1eb3-c1f3-eaec": [
+      "Terminus Ultra [Legends]"
+    ],
+    "38df-3060-0bb2-8096": [
+      "Triarchal Overseer [Crucible]"
+    ],
+    "390c-50ca-b035-6ef8": [
+      "Chaos Predator Destructor"
+    ],
+    "3934-2cb0-2ee-1807": [
+      "Royal Warden"
+    ],
+    "3970-ef6f-c6d4-06cc": [
+      "Fortis Kill Team [Legends]"
+    ],
+    "3977-a2b8-ae57-1b48": [
+      "Scorpion [Legends]"
+    ],
+    "3988-1455-febb-f046": [
+      "Land Raider Excelsior [Legends]"
+    ],
+    "39a7-1ea5-9552-d4ba": [
+      "Cadian Recon Squad"
+    ],
+    "3a0b-a1e5-8fed-038f": [
+      "Sorcerous Champion [Crucible]"
+    ],
+    "3a44-9eb0-d51d-6b46": [
+      "Centaur RSV"
+    ],
+    "3ab2-181b-28a4-6978": [
+      "Shield-Captain"
+    ],
+    "3aea-b57b-7630-6561": [
+      "Questoris Knight Magaera"
+    ],
+    "3b18-6ba8-ae5-513e": [
+      "Krootox Riders"
+    ],
+    "3b29-5bda-15bf-2669": [
+      "Imagifier"
+    ],
+    "3b3f-35dc-d185-e4bc": [
+      "Sentinel Powerlifter [Legends]"
+    ],
+    "3b6e-1591-a9ca-f737": [
+      "Spartan [Legends]"
+    ],
+    "3b7d-b60f-4c12-3ab0": [
+      "Leman Russ Commander"
+    ],
+    "3ba8-9a15-694b-7bdd": [
+      "Master of Possession"
+    ],
+    "3bac-3a12-8a6e-eaa5": [
+      "Noxious Blightbringer"
+    ],
+    "3bf4-89cc-17ce-960e": [
+      "Macro-cannon Aquila Strongpoint [Legends]"
+    ],
+    "3c0a-10a9-8f84-26a3": [
+      "Scout Squad"
+    ],
+    "3c10-800d-fffd-baa6": [
+      "Tyrannocyte"
+    ],
+    "3c36-4b1e-3485-5336": [
+      "Brayherd Chieftain [Crucible]"
+    ],
+    "3c47-204a-f390-3dcb": [
+      "Death Riders"
+    ],
+    "3c72-d61f-c51-9116": [
+      "Master of Executions"
+    ],
+    "3cd7-040b-5cb0-7bdb": [
+      "Crusade Ancient"
+    ],
+    "3cf-6042-5a03-a295": [
+      "Tranceweaver"
+    ],
+    "3d26-f5b0-de7-57c6": [
+      "Canoptek Wraiths"
+    ],
+    "3d4a-e34b-8d44-16de": [
+      "Sisters of Battle Immolator"
+    ],
+    "3d73-b555-e3e8-8100": [
+      "Whirlwind Scorpius [Legends]"
+    ],
+    "3d78-1ebc-6db0-5092": [
+      "Blood Slaughterer [Legends]"
+    ],
+    "3d92-c50-b2c2-1635": [
+      "Reaver Titan"
+    ],
+    "3e0e-a813-a6ff-e8e9": [
+      "Wolf Guard Headtakers"
+    ],
+    "3e50-11c7-9a5e-4a38": [
+      "Renegade Plague Ogryns [Legends]"
+    ],
+    "3e54-7923-06fa-ea76": [
+      "Scourges with Shardcarbines"
+    ],
+    "3e5d-2c07-bac4-395": [
+      "Sicaran Punisher [Legends]"
+    ],
+    "3e7b-8a2e-faea-6dff": [
+      "Lictor"
+    ],
+    "3e83-39d9-ee6a-7157": [
+      "Apothecary on Bike [Legends]"
+    ],
+    "3e9a-3a17-9d18-fa99": [
+      "Fiends"
+    ],
+    "3ea1-4365-6d97-1b59": [
+      "Nork Deddog"
+    ],
+    "3eb-afd2-e2a5-fa07": [
+      "Griffon Mortar Carrier [Legends]"
+    ],
+    "3ec3-1ac7-2064-9783": [
+      "Bullgryn Squad"
+    ],
+    "3ec6-40d0-f2d2-814b": [
+      "Mek"
+    ],
+    "3ec7-cb34-a128-da74": [
+      "Chaos Spawn"
+    ],
+    "3f15-36d4-1194-be99": [
+      "Cyberwolf [Legends]"
+    ],
+    "3f15-c0c4-5df4-fed9": [
+      "Kroot Farstalkers"
+    ],
+    "3f2-2c6d-8edd-e659": [
+      "Clamavus"
+    ],
+    "3f5a-9872-f34d-05e3": [
+      "Tyrant Guard"
+    ],
+    "3f7-9ca6-48fe-fb11": [
+      "Vigilator Squad",
+      "Vigilators"
+    ],
+    "3f75-2c71-6fdb-6fc3": [
+      "Vanguard Veteran Squad with Jump Packs"
+    ],
+    "3fa3-123a-8f1a-52b9": [
+      "Land Raider Achilles [Legends]"
+    ],
+    "3fa3-3764-1622-6b9d": [
+      "Leman Russ Exterminator"
+    ],
+    "3fb5-3c6b-ec33-8a14": [
+      "Mutilators"
+    ],
+    "3fda-b554-1ac7-a635": [
+      "Talonstrike Kill Team"
+    ],
+    "3fe5-fdf6-5abc-c60f": [
+      "Impulsor"
+    ],
+    "3ffb-3c2c-e402-eefd": [
+      "Terrax-pattern Termite [Legends]"
+    ],
+    "4023-8c9b-fc41-ad46": [
+      "Drone Sentry Turret [Legends]"
+    ],
+    "4033-b330-c232-b0c7": [
+      "Great Unclean One"
+    ],
+    "4034-1ba6-4214-7211": [
+      "Chaos Thunderhawk [Legends]"
+    ],
+    "4071-d276-4b66-b186": [
+      "Leman Russ Battle Tank"
+    ],
+    "407b-59cb-a040-856e": [
+      "Forgefiend"
+    ],
+    "40b5-1872-0f11-5f6b": [
+      "Chaos Spawn (Flesh Change)"
+    ],
+    "4109-85ad-cf45-d294": [
+      "Mortarion"
+    ],
+    "413f-75fa-a18a-4863": [
+      "Maulerfiend"
+    ],
+    "41a5-b3ea-bad2-8fbb": [
+      "Dark Apostle"
+    ],
+    "41df-f0bf-c93b-7985": [
+      "Sagitaur"
+    ],
+    "41e6-9a15-f40e-149f": [
+      "Rhino"
+    ],
+    "41f7-b695-3a58-7617": [
+      "Rapier Carrier [Legends]"
+    ],
+    "420f-595f-eecb-8ab3": [
+      "Fellblade [Legends]"
+    ],
+    "4247-49bc-8f4c-889f": [
+      "Broadside Battlesuits"
+    ],
+    "429b-856c-7cb8-f6a2": [
+      "Defiler"
+    ],
+    "42ef-1197-f9dd-799c": [
+      "Wraithseer [Legends]"
+    ],
+    "4346-ce92-fe15-867a": [
+      "Sicaran Venator [Legends]"
+    ],
+    "4369-60d9-853-801": [
+      "Death Company Dreadnought with Magna-Grapple [Legends]"
+    ],
+    "4420-1dd1-1f30-4c7": [
+      "Tetras [Legends]"
+    ],
+    "4425-da07-5180-9b30": [
+      "Deathstrike"
+    ],
+    "4436-ca5-9f90-df10": [
+      "Leviathan Dreadnought [Legends]"
+    ],
+    "444b-3641-9364-81bd": [
+      "Goliath Truck"
+    ],
+    "44a8-9703-5aed-64f": [
+      "Heavy Intercessor Squad"
+    ],
+    "44fa-abe-61ee-c8ab": [
+      "Storm Speeder Hammerstrike"
+    ],
+    "44fc-a77d-c0ae-1baf": [
+      "Sorcerer on Bike [Legends]"
+    ],
+    "451-4875-c7fa-f2bf": [
+      "Chaos Lord on Disc of Tzeentch [Legends]"
+    ],
+    "453-8d3-1fbd-293e": [
+      "Tactical Squad"
+    ],
+    "4539-59d1-cda4-1b06": [
+      "Gladiator Valiant"
+    ],
+    "45c4-a19b-b0ce-128a": [
+      "Immolator"
+    ],
+    "45d5-2e84-1f02-4fd4": [
+      "Daemon Prince of Nurgle with wings"
+    ],
+    "45e7-e24d-c9d6-660a": [
+      "Penitent Engines"
+    ],
+    "45ef-125c-ae4f-394d": [
+      "Strike Squad"
+    ],
+    "45f-d20b-3b71-e29d": [
+      "Wall of Martyrs Bunker [Legends]"
+    ],
+    "45f4-8ccb-37b8-1b93": [
+      "Macharius [Legends]"
+    ],
+    "4610-a6b4-41ea-d2a9": [
+      "Guardian of the Throne [Crucible]"
+    ],
+    "4667-2ce6-8da2-6931": [
+      "Fellgor Beastmen"
+    ],
+    "46d0-40d6-adfb-db29": [
+      "Fellgor Beastmen"
+    ],
+    "46f-4b79-2b39-41ac": [
+      "Fellblade [Legends]"
+    ],
+    "4725-7d2-e8e7-25ea": [
+      "Cypher"
+    ],
+    "473-b72d-a70b-e3aa": [
+      "Blade Champion"
+    ],
+    "473e-73f9-493d-6a0a": [
+      "Ghazghkull Thraka"
+    ],
+    "4796-e4e0-774f-6785": [
+      "Cato Sicarius"
+    ],
+    "47c3-1852-53c-f5bf": [
+      "Sentry Pylon [Legends]"
+    ],
+    "47d-dadf-863b-e8da": [
+      "Exalted Flamer"
+    ],
+    "47d8-1a0a-e584-991": [
+      "Brotherhood Chaplain"
+    ],
+    "4805-4ca0-4e1-db82": [
+      "Voidsmen-at-Arms"
+    ],
+    "482e-2586-c4e4-37f7": [
+      "Chaos Predator Destructor"
+    ],
+    "4847-772c-f3e0-917b": [
+      "Typhon [Legends]"
+    ],
+    "4877-5e0e-e27c-75d3": [
+      "Death Company Marines with Boltguns [Legends]"
+    ],
+    "487c-5155-cdaf-2353": [
+      "Chaos Questoris Knight Styrix"
+    ],
+    "48a4-e1b7-a453-7705": [
+      "Magus"
+    ],
+    "48b-3ef7-99c4-720f": [
+      "Hospitaller"
+    ],
+    "48dd-35ab-40a0-5613": [
+      "Cultist Firebrand"
+    ],
+    "4946-825d-357-d831": [
+      "Catacomb Command Barge"
+    ],
+    "498-8bb5-1f55-65c2": [
+      "Blood Claws"
+    ],
+    "49a7-35fe-b205-afe6": [
+      "Dimachaeron [Legends]"
+    ],
+    "49b7-74d4-7e28-33ee": [
+      "Canoness"
+    ],
+    "49ea-3a6b-20d2-7901": [
+      "Vindicare Assassin"
+    ],
+    "49fb-cb39-f830-9ee": [
+      "Roboute Guilliman"
+    ],
+    "4a16-d194-8210-b98c": [
+      "Rapier Laser Destroyer Battery [Legends]"
+    ],
+    "4a5a-4791-6b79-1492": [
+      "Shining Spears"
+    ],
+    "4a7d-9d6d-4e47-e990": [
+      "Cerberus [Legends]"
+    ],
+    "4abd-de59-2daa-fe2e": [
+      "Brother Corbulo [Legends]"
+    ],
+    "4ad3-7c1d-33a0-9852": [
+      "Spindle Drones [Legends]"
+    ],
+    "4adc-5ffa-3df4-b20f": [
+      "Armageddon-pattern Medusa [Legends]"
+    ],
+    "4b-186d-15aa-8749": [
+      "Rubric Marines"
+    ],
+    "4b14-165e-b687-1078": [
+      "Hellhammer"
+    ],
+    "4b64-6e46-f990-e5df": [
+      "Trukk"
+    ],
+    "4b75-80fc-e858-ff91": [
+      "Centurion Devastator Squad [Legends]",
+      "Centurion Devastator Squad"
+    ],
+    "4bae-848c-a666-2b2c": [
+      "Ravenwing Talonmaster [Legends]"
+    ],
+    "4bb5-c50e-a835-38d1": [
+      "Grey Knights Dreadnought [Legends]"
+    ],
+    "4bc4-284d-9598-a9ec": [
+      "Hellblade [Legends]"
+    ],
+    "4bc4-95ae-422d-1469": [
+      "Watch Captain Artemis"
+    ],
+    "4bde-dc8a-4a53-6924": [
+      "Krieg Heavy Weapons Squad"
+    ],
+    "4bec-dc7d-f031-4d01": [
+      "Murderfang"
+    ],
+    "4c3f-2336-80a2-0c2b": [
+      "Raveners"
+    ],
+    "4c4e-f077-670e-1de9": [
+      "Overlord"
+    ],
+    "4c50-4f0e-eddf-e5aa": [
+      "Xiphon Interceptor [Legends]"
+    ],
+    "4c8-e877-566b-a1ee": [
+      "Hellblaster Squad"
+    ],
+    "4c9f-3441-edd3-c4e5": [
+      "Banehammer"
+    ],
+    "4cb1-ad14-dc73-de3c": [
+      "Starfangs"
+    ],
+    "4d07-d613-ee8a-1a27": [
+      "Chaos Spawn"
+    ],
+    "4d31-2ca3-4691-6396": [
+      "Mad Dok Grotsnik [Legends]"
+    ],
+    "4d65-b3c0-b075-e79e": [
+      "Mucolid Spores (Sporocyst)"
+    ],
+    "4da1-42fd-ba30-5808": [
+      "Aquila Lander [Legends]"
+    ],
+    "4da3-ccfe-41e9-86bd": [
+      "Daemon Prince of Chaos with wings"
+    ],
+    "4dc0-5822-5cfb-6a02": [
+      "Stompa"
+    ],
+    "4df1-2aa5-8f96-50d3": [
+      "Storm Chimera [Legends]"
+    ],
+    "4df5-ce6b-4d7a-49b2": [
+      "Deathwatch Terminator Squad [Legends]"
+    ],
+    "4e46-82c5-d3b3-c27d": [
+      "Banesword"
+    ],
+    "4e6e-8389-352e-65e3": [
+      "Hell Blade [Legends]"
+    ],
+    "4e9a-b459-0e51-a548": [
+      "Brôkhyr Iron-master"
+    ],
+    "4edd-c031-f40-60cb": [
+      "Deredeo Dreadnought [Legends]"
+    ],
+    "4ee3-6d48-2502-12ba": [
+      "Land Raider Proteus [Legends]"
+    ],
+    "4ef1-a5e1-ce64-d13": [
+      "Greater Brass Scorpion [Legends]"
+    ],
+    "4f23-20ad-7b6a-ce4a": [
+      "Chaos Vindicator"
+    ],
+    "4f43-1544-c098-861e": [
+      "Skull Cannon"
+    ],
+    "4f50-ac01-7a79-3362": [
+      "Assault Squad with Jump Packs [Legends]"
+    ],
+    "4fb3-5033-9135-e605": [
+      "Death Korps of Krieg"
+    ],
+    "500c-9394-3b51-735a": [
+      "Terrax-Pattern Termite [Legends]"
+    ],
+    "5039-6bdc-7bf3-b658": [
+      "Sentinel Powerlifter [Legends]"
+    ],
+    "503c-fe73-760b-2405": [
+      "Ynnari Incubi"
+    ],
+    "504c-5d1a-b205-c53b": [
+      "Hyperadapted Raveners"
+    ],
+    "505f-957b-6b38-abb3": [
+      "Marauder Bomber [Legends]"
+    ],
+    "506c-80e8-14a1-616f": [
+      "Fire Raptor Gunship [Legends]"
+    ],
+    "509d-294b-4915-2e91": [
+      "Krieg Heavy Weapons Squad"
+    ],
+    "50be-fcba-8fb6-5e13": [
+      "Trygon"
+    ],
+    "50e6-c58f-f4b1-bbae": [
+      "Screamers"
+    ],
+    "50ef-9c08-eac2-26c7": [
+      "Soul Forge Tyrant [Crucible]"
+    ],
+    "50f3-35a7-322d-94cd": [
+      "Plague Surgeon"
+    ],
+    "511f-9b96-1078-becb": [
+      "Dark Apostle"
+    ],
+    "5125-f3c1-9827-a516": [
+      "Great Knarloc [Legends]"
+    ],
+    "5167-2675-f8da-b1d7": [
+      "Wolf Guard Terminators"
+    ],
+    "5177-1de8-ebd5-e09d": [
+      "Painboy"
+    ],
+    "518c-6b44-f47b-225": [
+      "Sanguinary Priest with Jump Pack [Legends]"
+    ],
+    "51fd-73c3-d503-6045": [
+      "Arkanyst Evaluator"
+    ],
+    "5238-a2cd-8def-931d": [
+      "Illic Nightspear [Legends]"
+    ],
+    "524-c0e0-88a9-bc11": [
+      "Chaplain Grimaldus"
+    ],
+    "5258-8dfe-c45b-f4f1": [
+      "Sicarian Infiltrators"
+    ],
+    "5267-f96c-4491-eebe": [
+      "Morkanaut"
+    ],
+    "5292-3dad-c3d9-75e5": [
+      "Tech-Priest Manipulus"
+    ],
+    "529d-1b31-3fd7-697a": [
+      "Sicaran Battle Tank [Legends]"
+    ],
+    "52a0-2f07-647b-30d0": [
+      "Imperial Fortress Walls [Legends]"
+    ],
+    "52b1-79b1-5bc6-575e": [
+      "Servitors [Legends]"
+    ],
+    "52c4-64d7-5103-b34c": [
+      "Eight-blessed Lord [Crucible]"
+    ],
+    "52e0-b396-70fa-e952": [
+      "Centaur Light Carrier [Legends]"
+    ],
+    "52ff-2d98-cbb6-a38f": [
+      "Deredeo Dreadnought [Legends]"
+    ],
+    "5303-3b14-f6dd-81f9": [
+      "Command Squad [Legends]"
+    ],
+    "5341-6534-45db-30df": [
+      "Vulture Gunship [Legends]"
+    ],
+    "534f-6767-d9c1-e65a": [
+      "Neyam Shai Murad [Legends]"
+    ],
+    "537f-5a96-5985-700b": [
+      "Lieutenant in Reiver Armour"
+    ],
+    "538e-c4c6-370d-6bb4": [
+      "Seraptek Heavy Construct"
+    ],
+    "53a9-7a08-b3dd-1547": [
+      "Exocrine"
+    ],
+    "5436-293d-d31b-4f00": [
+      "Burna-bommer"
+    ],
+    "545-17a0-487d-d535": [
+      "Iron Father Feirros"
+    ],
+    "5460-7bbe-b13a-a403": [
+      "Macharius Vulcan [Legends]"
+    ],
+    "5486-5420-cc3b-1090": [
+      "Chaos Deimos Predator [Legends]"
+    ],
+    "548a-b4ab-4889-cde2": [
+      "Lynx [Legends]"
+    ],
+    "54da-81b9-c12d-83e8": [
+      "Patriarch"
+    ],
+    "54dc-d372-1974-2384": [
+      "Crimson Hunter"
+    ],
+    "54eb-c0ac-f8df-31dd": [
+      "Nemesor Zahndrekh [Legends]"
+    ],
+    "5504-a332-cd26-a84b": [
+      "Hell Talon [Legends]"
+    ],
+    "5519-9de6-e650-d2c7": [
+      "Aethon Shaan"
+    ],
+    "5523-0393-d3af-bfac": [
+      "Librarius Adept [Crucible]"
+    ],
+    "552e-4779-7146-f972": [
+      "Subductor Squad"
+    ],
+    "553b-5ef1-36bc-6842": [
+      "Exalted Champion [Crucible]"
+    ],
+    "5545-5dde-9f02-201b": [
+      "Darkstrider"
+    ],
+    "5575-621b-c6ca-75d5": [
+      "Anrakyr the Traveller [Legends]"
+    ],
+    "5582-6675-c288-e3a7": [
+      "Tarantula Air Defense Battery [Legends]"
+    ],
+    "55e9-8263-501f-4eda": [
+      "Provisionally Prepared [Legends]"
+    ],
+    "5601-231f-41e1-fd7f": [
+      "Sororitas Rhino"
+    ],
+    "5605-f75f-cbda-75f4": [
+      "Inquisitor"
+    ],
+    "5626-cdae-c820-6293": [
+      "Greater Blight Drone [Legends]"
+    ],
+    "564c-f5b6-f456-c7c2": [
+      "Voidweaver"
+    ],
+    "566c-4189-2980-5264": [
+      "Haarken Worldclaimer"
+    ],
+    "5682-1c45-cb8d-eae2": [
+      "Lhykhis"
+    ],
+    "5699-9996-d84e-77ab": [
+      "Marauder Destroyer [Legends]"
+    ],
+    "569d-5147-44f-b8a5": [
+      "Skitarii Marshal"
+    ],
+    "569e-478f-3778-555b": [
+      "Deimos Predator [Legends]"
+    ],
+    "56ad-b86c-3c6a-ff59": [
+      "Helbrute"
+    ],
+    "56c1-9bf9-11a1-be0a": [
+      "Seraphim Squad"
+    ],
+    "56cf-ad9f-8a14-d354": [
+      "Land Speeder Vengeance"
+    ],
+    "56d-75fd-cbd1-88a5": [
+      "Zodgrod Wortsnagga"
+    ],
+    "57-6f18-e0cd-8dae": [
+      "Feculent Gnarlmaw"
+    ],
+    "5716-86b8-dbda-f28a": [
+      "The Archivist [Legends]"
+    ],
+    "5727-4dd2-5ff4-abd0": [
+      "Catachan Heavy Weapons Squad"
+    ],
+    "572d-e094-2f28-92df": [
+      "Imotekh the Stormlord"
+    ],
+    "5758-4d10-96fb-0e51": [
+      "Living Ancestor [Crucible]"
+    ],
+    "5772-efa1-a8a2-a2e4": [
+      "Tycho the Lost [Legends]"
+    ],
+    "5782-6a99-6e19-1424": [
+      "Barracuda [Legends]"
+    ],
+    "578b-5072-a0d5-ba2": [
+      "Firestorm Redoubt [Legends]"
+    ],
+    "57a1-1350-9b3c-9452": [
+      "Predator Annihilator [Legends]",
+      "Predator Annihilator"
+    ],
+    "57d9-2dc6-7efe-d739": [
+      "Plague Drones"
+    ],
+    "584-40de-76ef-b9c7": [
+      "Hellblade [Legends]"
+    ],
+    "5847-34cb-f4d4-f5f0": [
+      "Ahriman"
+    ],
+    "584a-3716-67bf-fb8f": [
+      "Berehk Stornbröw"
+    ],
+    "5850-54e1-e687-b1cc": [
+      "Mutoid Vermin [Legends]"
+    ],
+    "585b-5a33-1b48-f990": [
+      "Flash Gitz"
+    ],
+    "585d-874f-7f12-77a4": [
+      "Death Company Marines"
+    ],
+    "5874-5546-e4b2-4724": [
+      "Aquilon Custodians"
+    ],
+    "58a6-2a19-49cd-d87": [
+      "Tiger Shark"
+    ],
+    "58b4-e505-ee90-87f0": [
+      "Crassus [Legends]"
+    ],
+    "58c8-c109-b7d6-62c5": [
+      "Acolyte Iconward"
+    ],
+    "58cd-44ed-d3fb-3cf9": [
+      "Bloodcrushers"
+    ],
+    "58d8-21cb-ed36-94b6": [
+      "Winged Tyranid Prime"
+    ],
+    "5900-ac22-4595-69be": [
+      "Mozrog Skragbad"
+    ],
+    "5909-4c97-aba1-e481": [
+      "Chief Librarian Tigurius"
+    ],
+    "594b-cc26-3a06-41e4": [
+      "Relic Contemptor Dreadnought [Legends]"
+    ],
+    "597b-83ac-60d8-5889": [
+      "Sorcerer"
+    ],
+    "5985-315c-0a44-b5ce": [
+      "Magos [Crucible]"
+    ],
+    "5996-535f-507b-3177": [
+      "Wazbom Blastajet"
+    ],
+    "59f4-c2c8-1623-bf18": [
+      "Warbuggies"
+    ],
+    "59f4-f4db-60d4-dfec": [
+      "Triumph of Saint Katherine"
+    ],
+    "5a0a-1194-3fed-a785": [
+      "Big Mek with Shokk Attack Gun"
+    ],
+    "5a1f-b53-3b2a-2591": [
+      "Wolf Lord on Thunderwolf [Legends]"
+    ],
+    "5a24-5d3b-949f-984c": [
+      "Fire Raptor Gunship [Legends]"
+    ],
+    "5a25-df80-8da1-cad9": [
+      "Sisters Novitiate Squad"
+    ],
+    "5a2c-b554-1672-2893": [
+      "Chaos Questoris Knight Magaera"
+    ],
+    "5a2f-e143-7d36-67b2": [
+      "Dreadknight Champion [Crucible]"
+    ],
+    "5a7d-3c49-87f-7a49": [
+      "Storm Eagle Gunship [Legends]"
+    ],
+    "5aa0-78d6-5aa4-15de": [
+      "Sentry Gun"
+    ],
+    "5ac0-062e-cca4-558b": [
+      "Ynnari Wyches"
+    ],
+    "5af5-73d8-393b-4c0f": [
+      "Renegade Plague Ogryns [Legends]"
+    ],
+    "5b4b-4683-2ae9-abce": [
+      "Knight Castellan"
+    ],
+    "5b55-e060-64e9-1db5": [
+      "Knight Desecrator"
+    ],
+    "5b7a-8a8-3d7a-ee2f": [
+      "Paragon Warsuits"
+    ],
+    "5bcc-1e27-3c9f-ed14": [
+      "Gunwagon"
+    ],
+    "5bd6-7d06-3210-f614": [
+      "Canis Wolfborn [Legends]"
+    ],
+    "5bf9-5a2d-cfa5-f117": [
+      "Sicaran Venator [Legends]"
+    ],
+    "5c0d-9412-2c43-1069": [
+      "Plasma Obliterator [Legends]"
+    ],
+    "5c25-2188-d5fe-ef0d": [
+      "Necron Warriors"
+    ],
+    "5c31-c468-f354-c0a6": [
+      "Infiltrator Squad"
+    ],
+    "5c34-a534-2c39-a073": [
+      "Warboss in Mega Armour"
+    ],
+    "5c4-93b0-7d7d-6681": [
+      "Falchion [Legends]"
+    ],
+    "5c5e-e5c9-70b-69df": [
+      "Rhino Primaris [Legends]"
+    ],
+    "5c7b-487d-a534-77bd": [
+      "Castellan Crowe"
+    ],
+    "5c91-dc66-485c-cb7b": [
+      "Triarch Stalker"
+    ],
+    "5cba-2616-bbb4-771d": [
+      "Storm Speeder Hailstrike"
+    ],
+    "5d5e-cd7a-4443-abfb": [
+      "Wolf Guard Battle Leader"
+    ],
+    "5d80-6ec1-93d4-b2fc": [
+      "Pyrovores"
+    ],
+    "5e35-ae82-23e4-bcef": [
+      "Captain in Terminator Armour"
+    ],
+    "5e5d-9cdb-a861-66db": [
+      "Deathwing Command Squad [Legends]"
+    ],
+    "5e6c-178c-92b1-2de6": [
+      "Traitor Guardsmen Squad"
+    ],
+    "5e87-dba1-7036-de2a": [
+      "Fire Dragons"
+    ],
+    "5eb6-cbab-41cd-6509": [
+      "Plague Sorcerer [Crucible]"
+    ],
+    "5ee-f1ee-d24d-13ad": [
+      "Hounds of Morkai [Legends]"
+    ],
+    "5ee3-7288-a8da-204e": [
+      "Chronomancer"
+    ],
+    "5f-e59d-3d17-8cc5": [
+      "Hammerhead Gunship"
+    ],
+    "5f20-f7c6-ac3b-189d": [
+      "Logan Grimnar on Stormrider [Legends]"
+    ],
+    "5f55-69a5-636c-c8c1": [
+      "Maleceptor"
+    ],
+    "5f58-28f8-190d-b04b": [
+      "Orikan the Diviner"
+    ],
+    "5f7f-5d6b-5e4-74c1": [
+      "Tectonic Fragdrill [Legends]"
+    ],
+    "5f93-aebf-dd87-1aac": [
+      "Ynnari Archon"
+    ],
+    "5fb0-7aa1-e011-6869": [
+      "Kharseth"
+    ],
+    "5fb4-b471-2e6f-ed40": [
+      "Ravenwing Dark Talon"
+    ],
+    "5fc6-c343-113c-db46": [
+      "Mekboy Workshop [Legends]"
+    ],
+    "5fdd-aa39-ff88-1e6c": [
+      "Iron Priest on Thunderwolf [Legends]"
+    ],
+    "5fe4-d1c1-1d88-9328": [
+      "Medusa Carriage Battery [Legends]"
+    ],
+    "6026-02a5-3a68-b768": [
+      "Emperor's Champion (Anointed)"
+    ],
+    "6039-56fa-5ac7-9083": [
+      "Beasts of Nurgle"
+    ],
+    "6063-ed18-4e9c-a40d": [
+      "War Dog Huntsman"
+    ],
+    "6080-9e99-1811-9186": [
+      "Rangers"
+    ],
+    "60a7-f8f9-1a93-41f0": [
+      "Sanguinary Guard"
+    ],
+    "60d8-7d2-71d-6e4a": [
+      "Ambull [Legends]"
+    ],
+    "6145-8b13-c9cf-a009": [
+      "Inquisitorial Chimera"
+    ],
+    "6175-44bb-ff39-6469": [
+      "Chaos Predator Annihilator"
+    ],
+    "618c-29ed-bec5-bd81": [
+      "Chaplain on Bike"
+    ],
+    "61b1-a4bf-899e-9f2c": [
+      "Sloppity Bilepiper"
+    ],
+    "61b4-2eed-923d-90b1": [
+      "Centurion Assault Squad [Legends]",
+      "Centurion Assault Squad"
+    ],
+    "61c4-ce6e-1bc5-5abb": [
+      "Corsair Reaver Band [Legends]"
+    ],
+    "61ef-c110-75c-e71f": [
+      "Chaos Lord on Juggernaut [Legends]"
+    ],
+    "623a-7117-a6cf-b8b0": [
+      "Lord of Change"
+    ],
+    "6253-e786-e83e-23e9": [
+      "Sicaran Battle Tank [Legends]"
+    ],
+    "62cb-bc5a-138f-a480": [
+      "Cerberus [Legends]"
+    ],
+    "634d-dab3-fa1a-958c": [
+      "Librarian in Terminator Armour"
+    ],
+    "636a-d16c-b2f0-20ec": [
+      "Terrax-pattern Termite [Legends]"
+    ],
+    "63a6-8395-a213-e948": [
+      "Chaos Lord on Palanquin of Nurgle [Legends]"
+    ],
+    "63c3-df64-ac9f-cae": [
+      "Apothecary Biologis"
+    ],
+    "6453-197e-7b32-a58b": [
+      "Fuegan"
+    ],
+    "6482-591d-fe98-7961": [
+      "Spectrus Kill Team"
+    ],
+    "64bc-5065-4f9e-4564": [
+      "Heldrake"
+    ],
+    "64be-7146-5008-3e1d": [
+      "Sergeant Chronus [Legends]"
+    ],
+    "64c2-9759-7dd3-89dc": [
+      "Carab Culln the Risen [Legends]"
+    ],
+    "64cb-bc69-eed-3989": [
+      "Raven Strike Fighter [Legends]"
+    ],
+    "64d4-a8cd-f722-b4ba": [
+      "Wasp Assault Walker [Legends]"
+    ],
+    "64ef-9075-f9c7-ff3f": [
+      "Aquila Kill Team"
+    ],
+    "651c-b742-247a-2f02": [
+      "Rogue Psyker [Legends]"
+    ],
+    "654e-3175-0294-7507": [
+      "Da Red Gobbo's Tinboy [Legends]"
+    ],
+    "654f-6cb0-c27a-2e73": [
+      "Lokhust Heavy Destroyers"
+    ],
+    "6587-d4be-c1ff-6ad7": [
+      "Renegade Ogryn Beast Handler [Legends]"
+    ],
+    "65b1-0764-a678-d9c7": [
+      "Cthonian Earthshakers"
+    ],
+    "65e1-b02a-90a8-6ff2": [
+      "Macharius Omega [Legends]"
+    ],
+    "6667-cf05-f004-e71c": [
+      "Augmented Bone 'Ead [Crucible]"
+    ],
+    "66b6-7717-a858-40a4": [
+      "Deathwatch Kill Team"
+    ],
+    "66d7-24ac-9496-23be": [
+      "Stalker [Legends]"
+    ],
+    "66da-5cd6-ac97-cdb7": [
+      "Reaper [Legends]"
+    ],
+    "66ee-5e78-d834-ce31": [
+      "Morvenn Vahl"
+    ],
+    "67-74d9-ceab-69ee": [
+      "Flesh Hounds"
+    ],
+    "6709-2ef7-6205-9dcb": [
+      "Warhound Titan"
+    ],
+    "6733-60f-2fbe-e3bd": [
+      "Skorpekh Lord"
+    ],
+    "6738-f64a-bbeb-f2da": [
+      "Tervigon"
+    ],
+    "673b-c008-9da7-4704": [
+      "Voidraven Bomber"
+    ],
+    "674f-31c8-6604-450": [
+      "Khorne Berzerkers"
+    ],
+    "677d-06a1-c112-c044": [
+      "Daemonettes"
+    ],
+    "67b0-bbc-b17-24f4": [
+      "Gladiator Reaper"
+    ],
+    "67b4-7b11-a48e-1791": [
+      "Wardens of Ultramar"
+    ],
+    "67e8-1fd4-ceff-2375": [
+      "Krom Dragongaze [Legends]"
+    ],
+    "67f2-f447-b47a-5357": [
+      "Knight Rampager"
+    ],
+    "680e-2d0-a218-c077": [
+      "Knight Gallant"
+    ],
+    "686b-31f0-c201-76d4": [
+      "Praetor [Legends]"
+    ],
+    "687c-e5c-da99-96d8": [
+      "Warp Talons"
+    ],
+    "6884-a812-e5ca-5a8d": [
+      "War Dog Karnivore"
+    ],
+    "68a5-7e40-af6c-7f71": [
+      "Inspiring Devotee [Crucible]"
+    ],
+    "68a9-43c4-8a95-281": [
+      "Sabre Weapons Battery [Legends]"
+    ],
+    "68b3-c113-ba10-e744": [
+      "Sicarian Ruststalkers"
+    ],
+    "68b7-8b20-f52a-e8a0": [
+      "Javelin Attack Speeder [Legends]"
+    ],
+    "68f6-5d83-54cf-d216": [
+      "Epidemius"
+    ],
+    "6906-148b-2d4a-f6cd": [
+      "Stormhawk Interceptor"
+    ],
+    "6924-e9e8-f6e2-278b": [
+      "Tactical Drones [Legends]"
+    ],
+    "6942-fa3c-d518-295f": [
+      "Indomitor Kill Team"
+    ],
+    "6974-5c30-1291-f54d": [
+      "War Dog Stalker"
+    ],
+    "6977-dedc-7051-b76d": [
+      "Flesh Hounds"
+    ],
+    "6981-8904-488b-309b": [
+      "Ferren Areios [Legends]"
+    ],
+    "69bd-aee7-d0fc-e9ec": [
+      "Thulia Ghuld"
+    ],
+    "69d0-e48-1c2d-e62f": [
+      "Knarloc Riders [Legends]"
+    ],
+    "69f6-bff7-d28a-e0c3": [
+      "Captain Titus"
+    ],
+    "6a15-d9f3-9016-4c3b": [
+      "Stealth Battlesuits"
+    ],
+    "6a36-465-ee24-331b": [
+      "Stormraven Gunship [Legends]",
+      "Stormraven Gunship"
+    ],
+    "6a6e-7e3d-2721-35bc": [
+      "Relic Contemptor Dreadnought [Legends]"
+    ],
+    "6a6e-8288-4a70-3633": [
+      "Atalan Jackals"
+    ],
+    "6aa4-98ad-9598-ef49": [
+      "AX-1-0 Tiger Shark"
+    ],
+    "6aaa-b67c-6608-41cc": [
+      "Ravenwing Darkshroud"
+    ],
+    "6acb-7f6e-e81b-6b4e": [
+      "Commander Shadowsun"
+    ],
+    "6aec-7889-8ba1-78c1": [
+      "Daemonettes"
+    ],
+    "6afa-65ac-21df-090d": [
+      "Maulerfiend"
+    ],
+    "6b65-2af1-d055-eb4d": [
+      "Chaplain with Jump Pack"
+    ],
+    "6b90-1de8-ccbd-7e23": [
+      "Kill Team Cassius [Legends]"
+    ],
+    "6bc9-c38b-40fa-49de": [
+      "Chaos Land Raider"
+    ],
+    "6bf3-dd34-975d-d8f1": [
+      "Tech-Priest Manipulus"
+    ],
+    "6c12-6df4-9d3a-2cc": [
+      "Squighog Boyz"
+    ],
+    "6c2c-c843-40c-eb60": [
+      "Ragnar Blackmane"
+    ],
+    "6c2c-f5a3-41d6-3b93": [
+      "Harald Deathwolf [Legends]"
+    ],
+    "6c3-44bd-6ba4-5348": [
+      "Hunta Rig"
+    ],
+    "6c3c-2a51-45a8-7dbf": [
+      "Ghost Warrior [Crucible]"
+    ],
+    "6c5f-aa9c-9734-2ee4": [
+      "Canoptek Spyders"
+    ],
+    "6c75-afbb-c482-7e3e": [
+      "Vertus Praetors"
+    ],
+    "6c92-db55-3bde-cfbf": [
+      "Arjac Rockfist"
+    ],
+    "6ccf-b8b-fa83-8476": [
+      "Plagueburst Crawler"
+    ],
+    "6cd-6624-587-13dd": [
+      "Astartes Servitors [Legends]"
+    ],
+    "6ce9-94b5-94c8-82f": [
+      "Cronos"
+    ],
+    "6d21-f616-901f-6546": [
+      "Grey Knights Terminator Squad"
+    ],
+    "6d49-e23e-978b-7160": [
+      "Repulsor Executioner"
+    ],
+    "6d9b-82d6-be21-f3b3": [
+      "Chaos Land Raider"
+    ],
+    "6d9c-5405-809c-696a": [
+      "Chaos Spawn"
+    ],
+    "6da9-8ef0-6f41-b7a8": [
+      "Convergence of Dominion"
+    ],
+    "6dbf-1aab-83b3-2ad6": [
+      "Autarch Wayleaper"
+    ],
+    "6dd1-5717-67ef-5c43": [
+      "Nurgle Soul Grinder"
+    ],
+    "6def-e315-3442-ca06": [
+      "Wolf Guard Pack Leader [Legends]"
+    ],
+    "6e10-c7d2-905f-1f99": [
+      "Wraithlord"
+    ],
+    "6e82-1caa-3a56-afab": [
+      "Contorted Epitome"
+    ],
+    "6ea3-4899-60a0-3f65": [
+      "Mukaali Riders [Legends]"
+    ],
+    "6fc2-9ba5-cf7a-6afc": [
+      "Tauros Venator [Legends]"
+    ],
+    "6fd0-a0ae-a673-1b14": [
+      "Krieg Combat Engineers"
+    ],
+    "706e-86ff-ae9f-c65f": [
+      "Winged Hive Tyrant"
+    ],
+    "70ac-ee9a-7ee4-b58a": [
+      "Einhyr Hearthguard"
+    ],
+    "70b6-9051-a20e-365f": [
+      "Succubus"
+    ],
+    "70e3-266d-822c-677c": [
+      "Chaos Predator Annihilator"
+    ],
+    "70fb-892c-2465-de9d": [
+      "C'tan Shard of the Deceiver"
+    ],
+    "7101-e092-02da-6476": [
+      "Vibro Cannon Platform"
+    ],
+    "7109-8a5b-463b-43af": [
+      "Krieg Command Squad"
+    ],
+    "7156-2132-a326-b724": [
+      "Ironstrider Ballistarii"
+    ],
+    "7157-dbf9-a840-7dcb": [
+      "Skyrunner [Crucible]"
+    ],
+    "718c-e2b1-4ba5-28a7": [
+      "Aleya",
+      "Aleya [Legends]"
+    ],
+    "71c0-19d8-f88b-c89": [
+      "Prosecutor Squad",
+      "Prosecutors"
+    ],
+    "71c3-4281-83fc-fc74": [
+      "Bloodthirster"
+    ],
+    "71cb-df20-abc6-3871": [
+      "XV9 Hazard Battlesuits [Legends]"
+    ],
+    "71e5-42c0-9a4a-f97c": [
+      "Sydonian Skatros"
+    ],
+    "71ea-8f89-1aca-c31c": [
+      "Neurolictor"
+    ],
+    "71f9-d22e-3dad-08f0": [
+      "Skitarii Vanguard"
+    ],
+    "7211-5200-e107-dcac": [
+      "Kill Team Cassius [Legends]"
+    ],
+    "7268-70dc-2cff-6626": [
+      "Dominus Armoured Siege Bombard [Legends]"
+    ],
+    "7273-3725-1bd8-b1df": [
+      "Relic Razorback [Legends]"
+    ],
+    "728f-eb25-ba3d-e39": [
+      "Corsair Voidscarred"
+    ],
+    "729a-c007-5f89-c2f6": [
+      "Orion Assault Dropship"
+    ],
+    "72c7-e95f-cade-27d7": [
+      "Reiver Squad"
+    ],
+    "72d2-001f-d6c9-bd61": [
+      "Champion of Excess [Crucible]"
+    ],
+    "72fe-9ba3-3d41-f632": [
+      "Dark Commune"
+    ],
+    "7300-2798-b3a1-cc45": [
+      "Elysian Sniper Squad [Legends]"
+    ],
+    "7321-8cfe-3494-49e8": [
+      "Ironstrider Alpha [Crucible]"
+    ],
+    "736-9c33-ae59-e8aa": [
+      "Nexos"
+    ],
+    "736e-8d31-9f86-88b3": [
+      "Daemonic Charioteer [Crucible]"
+    ],
+    "73ac-1752-3efd-100a": [
+      "Tzeentch Soul Grinder"
+    ],
+    "73cf-dea3-8634-6e15": [
+      "Bigboss"
+    ],
+    "73f3-843d-674f-7f77": [
+      "Tarantula Battery [Legends]"
+    ],
+    "73f7-4630-43be-e095": [
+      "Stormtalon Gunship [Legends]",
+      "Stormtalon Gunship"
+    ],
+    "741b-1e69-dc1f-1691": [
+      "Crusader Squad"
+    ],
+    "7465-ac9-b438-7b03": [
+      "Warhound Titan"
+    ],
+    "7541-4d29-df98-afc4": [
+      "Daemon Prince of Khorne with wings"
+    ],
+    "7548-d2b3-b0e0-595b": [
+      "Tyrannofex"
+    ],
+    "75b2-b57e-309b-cc4": [
+      "Krootox Rampagers"
+    ],
+    "75b8-dcf1-59bf-9de4": [
+      "Mastodon [Legends]"
+    ],
+    "75d6-a5e8-b8f8-9091": [
+      "Ratlings"
+    ],
+    "75dd-d7a5-f45c-f90c": [
+      "Hammerfall Bunker [Legends]",
+      "Hammerfall Bunker"
+    ],
+    "75e4-9d70-b16f-ec0": [
+      "Fellgor Beastmen"
+    ],
+    "7613-f941-5829-876a": [
+      "Cultist Mob with Firearms [Legends]"
+    ],
+    "764f-d36d-0d22-b79c": [
+      "Hastarii Fusiliers"
+    ],
+    "7669-5b4f-29dc-73f5": [
+      "Death Guard Cultists [Legends]"
+    ],
+    "76ab-697e-17ea-5edf": [
+      "Deathshroud Terminators"
+    ],
+    "7722-62ae-8437-9d3e": [
+      "Chaos Lord with Jump Pack"
+    ],
+    "7740-af66-ac4f-68b6": [
+      "Captain Sicarius"
+    ],
+    "774e-1b48-d9b4-84b8": [
+      "Gladiator Lancer"
+    ],
+    "775d-c8f4-8d6a-e768": [
+      "Cadian Command Squad"
+    ],
+    "7761-8028-1bf8-3dd7": [
+      "Troupe Master"
+    ],
+    "776a-7bf7-2b4c-3211": [
+      "Pedro Kantor"
+    ],
+    "7795-911d-2974-74e7": [
+      "Whirlwind Scorpius [Legends]"
+    ],
+    "77a1-a36b-5192-b450": [
+      "Tech-Priest Enginseer"
+    ],
+    "77b-3115-cf3b-5acc": [
+      "Reavers"
+    ],
+    "77bd-ada2-f0c9-5aaf": [
+      "Leman Russ Executioner"
+    ],
+    "77cf-f4ac-7e36-6464": [
+      "Tomb Blades"
+    ],
+    "781f-35ac-fefa-878a": [
+      "Inquisitor Greyfax"
+    ],
+    "7832-9d18-8dd-757b": [
+      "Hydra Platform [Legends]"
+    ],
+    "789a-21b9-cc87-01dc": [
+      "Centaur RSV"
+    ],
+    "7907-f011-d28f-ec0f": [
+      "Hive Crone"
+    ],
+    "7916-7982-2101-bc03": [
+      "Lieutenant in Phobos Armour"
+    ],
+    "792-4a0b-303c-bf6c": [
+      "Valkyrie"
+    ],
+    "799a-1c90-f232-68d0": [
+      "Archtormentor [Crucible]"
+    ],
+    "79cc-9f2f-20fa-21ec": [
+      "Cohort Commander [Crucible]"
+    ],
+    "79da-4515-ca6e-ce6c": [
+      "Chaos Land Raider"
+    ],
+    "79f0-a61f-cec5-0530": [
+      "Daemon Prince of Slaanesh with Wings"
+    ],
+    "7a39-89ff-6e36-f03c": [
+      "Hippogriff AFV"
+    ],
+    "7a3e-319d-faa3-e341": [
+      "Vulture Gunship [Legends]"
+    ],
+    "7a4f-4a45-c8ff-71fe": [
+      "Aberrants"
+    ],
+    "7aa2-bcb-e603-c285": [
+      "Crusader Squad [Legends]"
+    ],
+    "7ac1-4d10-e8b4-bdc5": [
+      "Hellflayers"
+    ],
+    "7ac3-8373-f035-14b9": [
+      "Asmodai"
+    ],
+    "7ac3-d9ed-f091-4a28": [
+      "Malcador Defender [Legends]"
+    ],
+    "7ae6-5074-5aed-9b38": [
+      "Cthonian Beserks"
+    ],
+    "7b13-004f-1fb5-97f8": [
+      "Pallas Grav-attack"
+    ],
+    "7b49-f741-1011-5f29": [
+      "Sanguinary Priest on Bike [Legends]"
+    ],
+    "7b5-9080-f871-aff9": [
+      "Cadian Shock Troops"
+    ],
+    "7c8c-7a4-9827-8ada": [
+      "Cryptothralls"
+    ],
+    "7c95-8abd-2a3c-c26e": [
+      "Corpuscarii Electro-Priests"
+    ],
+    "7cb7-dde0-5165-f974": [
+      "Stygies Destroyer Tank Hunter [Legends]"
+    ],
+    "7d12-6c42-770a-fd71": [
+      "Daemonic Herald [Crucible]"
+    ],
+    "7d1f-8b11-13e0-1216": [
+      "Culexus Assassin"
+    ],
+    "7d2-9663-8ccc-8595": [
+      "Firestrike Servo-Turrets"
+    ],
+    "7d2b-6f03-2ad2-b868": [
+      "Janus Draik [Legends]"
+    ],
+    "7d32-1dff-55a0-7457": [
+      "Hexmark Destroyer"
+    ],
+    "7d5f-6213-5a7f-e27b": [
+      "UR-025 [Legends]"
+    ],
+    "7d6e-b355-910c-aec4": [
+      "Armiger Warglaive"
+    ],
+    "7dda-eae9-2653-e091": [
+      "Cultist Mob"
+    ],
+    "7df5-0ddc-5a83-0252": [
+      "Rogue Psyker [Legends]"
+    ],
+    "7dff-dd08-e80c-9117": [
+      "Sammael"
+    ],
+    "7e0e-317a-ac55-3a79": [
+      "Killa Kans"
+    ],
+    "7e3b-af-1914-e1e5": [
+      "Spartan [Legends]"
+    ],
+    "7e4e-a930-4283-1d1d": [
+      "Shalaxi Helbane"
+    ],
+    "7e97-7f05-236f-44c2": [
+      "Sorcerer on Palanquin of Nurgle [Legends]"
+    ],
+    "7eb0-df19-2d2b-0c9b": [
+      "Hippogriff AFV"
+    ],
+    "7f21-2e51-4d2a-91d6": [
+      "Land Raider Crusader"
+    ],
+    "7f3d-fae8-b542-56d2": [
+      "Wolf Guard Pack Leader in Terminator Armour [Legends]"
+    ],
+    "7f3f-35da-b7ac-a188": [
+      "Warbringer Nemesis Titan"
+    ],
+    "7f4b-9c76-78fe-6dc0": [
+      "Norn Emissary"
+    ],
+    "7f70-8a46-23f7-226": [
+      "Atlas Recovery Vehicle [Legends]"
+    ],
+    "7f8a-fc51-11c1-b45e": [
+      "Leviathan Dreadnought [Legends]"
+    ],
+    "7f97-8d4d-477d-3b35": [
+      "Victrix Honour Guard"
+    ],
+    "7fe1-5b20-b119-a9f": [
+      "Warlock Skyrunners"
+    ],
+    "7ff5-9b50-8c58-b32e": [
+      "Plague Marines"
+    ],
+    "803c-86c5-c47c-9172": [
+      "Secutarii Peltasts [Legends]"
+    ],
+    "8041-c072-2179-b50": [
+      "Malcador [Legends]"
+    ],
+    "805a-7234-cf45-24fb": [
+      "Leman Russ Demolisher"
+    ],
+    "80e0-6782-c260-779a": [
+      "Legionaries"
+    ],
+    "80eb-f424-6a35-c0c9": [
+      "Drazhar"
+    ],
+    "8103-abc5-bcb6-39cb": [
+      "Kroot Trail Shaper"
+    ],
+    "8106-c7cc-f5d1-57a5": [
+      "Spore Mines (Biovore)"
+    ],
+    "8124-7324-b211-3269": [
+      "Crusaders [Legends]"
+    ],
+    "8134-e206-584a-127b": [
+      "Onager Dunecrawler"
+    ],
+    "8170-f4b5-e0e2-e3b7": [
+      "Corsair Skyreavers"
+    ],
+    "8177-fd99-1158-6ba0": [
+      "Watch Captain Artemis"
+    ],
+    "8194-228c-4a39-6599": [
+      "Kinband Champion [Crucible]"
+    ],
+    "81ed-a3bd-ed7d-8371": [
+      "Exalted Champion [Legends]"
+    ],
+    "81f7-f8b0-3d4d-5cd4": [
+      "Iron Priest"
+    ],
+    "821d-665-499f-e895": [
+      "Immortals"
+    ],
+    "826f-b283-53aa-d5e6": [
+      "Dragon Knights"
+    ],
+    "82b2-5ba2-1f8e-2ed3": [
+      "Tauros Assault Vehicle [Legends]"
+    ],
+    "8304-2a4b-1d7c-ddd3": [
+      "Fellblade [Legends]"
+    ],
+    "8359-7588-cbb4-d9fb": [
+      "Chaos Rhino"
+    ],
+    "83ad-afe0-9ee9-d7e5": [
+      "Malignant Plaguecaster"
+    ],
+    "8421-ca98-c324-ec3a": [
+      "Brother-Captain"
+    ],
+    "842c-ed3-a7f2-d1e0": [
+      "Negavolt Cultists [Legends]"
+    ],
+    "8440-8405-d8ce-1592": [
+      "Purgation Squad"
+    ],
+    "8468-f7fa-78b-466e": [
+      "Land Raider Achilles [Legends]"
+    ],
+    "847f-5171-f508-4397": [
+      "Renegade Heavy Weapons Squad [Legends]"
+    ],
+    "84b7-2141-3e2-66cc": [
+      "Technomancer"
+    ],
+    "8556-de80-33bc-d2a9": [
+      "Typhon [Legends]"
+    ],
+    "8560-45df-99ff-57d4": [
+      "Skorpius Disintegrator"
+    ],
+    "8561-6da9-fb56-15f": [
+      "Tyrannic War Veterans [Legends]"
+    ],
+    "8568-71db-b833-93d5": [
+      "Jakhals"
+    ],
+    "8584-5fcd-53bf-7cc5": [
+      "Chaos Terminators"
+    ],
+    "85b1-eb9a-17a6-e5be": [
+      "Intercessor Squad"
+    ],
+    "85bc-9887-389b-64b8": [
+      "Spoilpox Scrivener"
+    ],
+    "85dd-dbb2-891c-15d3": [
+      "Retributor Squad"
+    ],
+    "85f1-9376-99ae-7570": [
+      "Kinhost Commander [Crucible]"
+    ],
+    "85f5-bfd1-2923-c3bf": [
+      "Death Guard Possessed [Legends]"
+    ],
+    "860c-99de-5711-8c0": [
+      "Vypers"
+    ],
+    "8614-9de5-6f94-9ebf": [
+      "Indomitor Kill Team"
+    ],
+    "8621-8c62-2041-9bb5": [
+      "Stormlord"
+    ],
+    "8634-48cc-9feb-c7af": [
+      "Valkyrie Sky Talon [Legends]"
+    ],
+    "8650-9036-5842-d423": [
+      "Scout Bike Squad [Legends]"
+    ],
+    "868c-850d-ca57-b4b7": [
+      "Invictor Tactical Warsuit"
+    ],
+    "868e-caf1-64c3-35ee": [
+      "Orca Dropship [Legends]"
+    ],
+    "8692-5bf6-68fc-e426": [
+      "High Marshal Helbrecht"
+    ],
+    "86aa-d4e6-fbbd-db05": [
+      "Death Company Marines with Boltguns and Jump Packs [Legends]"
+    ],
+    "86ef-6d98-914b-5015": [
+      "Chaplain in Terminator Armour"
+    ],
+    "870f-4677-0995-a399": [
+      "Sekhetar Robots"
+    ],
+    "874-93d4-cf01-d8c2": [
+      "Deredeo Dreadnought [Legends]"
+    ],
+    "875c-2e6-3e7d-76dd": [
+      "Tech-Priest Enginseer"
+    ],
+    "87a0-216e-215b-d3c8": [
+      "Poxwalkers"
+    ],
+    "87bf-6c85-abde-c4c1": [
+      "Cultist Mob"
+    ],
+    "87d1-3564-c23-7818": [
+      "Baharroth"
+    ],
+    "87de-05b8-39a6-bdd2": [
+      "Ynnari Raider"
+    ],
+    "87e5-234f-587c-b917": [
+      "Magnus the Red"
+    ],
+    "87ec-de53-6df9-9c22": [
+      "Trajann Valoris"
+    ],
+    "87f9-4a5d-2bda-51a4": [
+      "Plasmancer"
+    ],
+    "880d-2585-e32c-69c9": [
+      "Land Raider Proteus [Legends]"
+    ],
+    "8816-46a6-6b0f-833d": [
+      "Deffkilla Wartrike"
+    ],
+    "883a-c454-765-a743": [
+      "Falcon"
+    ],
+    "886b-df8b-1e8b-e17b": [
+      "Death Rider Commissar [Legends]"
+    ],
+    "8888-1a56-fafc-d4db": [
+      "Sicaran Omega [Legends]"
+    ],
+    "88f4-168f-b314-478": [
+      "Spined Chaos Beast [Legends]"
+    ],
+    "8913-1061-dda9-5c2": [
+      "Mastodon [Legends]"
+    ],
+    "891a-8f91-4e3-ceff": [
+      "Stormwolf [Legends]"
+    ],
+    "891d-f175-70de-994e": [
+      "Chaos Rhino"
+    ],
+    "893b-fe01-6569-9fcb": [
+      "Chaos Thunderhawk [Legends]"
+    ],
+    "8948-9f32-ab71-f41e": [
+      "Doom Scythe"
+    ],
+    "8960-af71-0dcb-747e": [
+      "Suboden Khan"
+    ],
+    "8996-bc14-504-f902": [
+      "Chaos Cerastus Knight Castigator"
+    ],
+    "89b5-60c6-7bb6-d021": [
+      "Chaos Acastus Knight Asterius"
+    ],
+    "89d8-6eb-bd0a-6fd6": [
+      "Remora Stealth Drones [Legends]"
+    ],
+    "89e0-1207-94f7-9fd1": [
+      "Renegade Heavy Weapons Squad [Legends]"
+    ],
+    "89e7-84a2-bf27-fa56": [
+      "Knight Ruinator"
+    ],
+    "89f2-5111-a9c4-6016": [
+      "Bastion [Legends]"
+    ],
+    "8a00-f93a-cb2f-60e8": [
+      "Remote Sensor Tower [Legends]"
+    ],
+    "8a18-8e2f-6a15-5a49": [
+      "Sicaran Battle Tank [Legends]",
+      "Sicaran [Legends]"
+    ],
+    "8a1e-45c9-7719-b8c3": [
+      "Company Heroes"
+    ],
+    "8a3b-d391-efcc-6322": [
+      "Big Trakk [Legends]"
+    ],
+    "8a76-5b36-455d-2c49": [
+      "Kommandos"
+    ],
+    "8ae-eb96-e978-195a": [
+      "Inquisitor Coteaz"
+    ],
+    "8b44-2197-db9f-2af4": [
+      "Dominus Armoured Siege Bombard [Legends]"
+    ],
+    "8b60-d2f3-62a3-e41f": [
+      "Decimus Kill Team"
+    ],
+    "8b6a-3050-501a-db63": [
+      "Deathleaper"
+    ],
+    "8b71-580f-ad19-83d7": [
+      "Invader ATVs",
+      "Invader ATV"
+    ],
+    "8b7c-94a7-c872-438d": [
+      "Daemon Prince of Tzeentch"
+    ],
+    "8c0d-1834-34a2-59aa": [
+      "Skitarii Vanguard"
+    ],
+    "8c17-3f10-3376-363f": [
+      "Firesight Team"
+    ],
+    "8c31-ea58-28e3-d4dd": [
+      "Tempestus Aquilons"
+    ],
+    "8c3b-516e-40e1-7339": [
+      "Sorcerer in Terminator Armour"
+    ],
+    "8c40-7f05-28ff-5e1a": [
+      "Land Raider"
+    ],
+    "8c41-ccbc-66dc-44bc": [
+      "Ravenwing Black Knights"
+    ],
+    "8c6e-1ee5-2c50-d61d": [
+      "Cultist Firebrand"
+    ],
+    "8cb-f672-a815-49ef": [
+      "Wraithblades"
+    ],
+    "8d21-12d5-3726-38c8": [
+      "Callidus Assassin"
+    ],
+    "8d22-6401-74fb-c577": [
+      "Sly Marbo"
+    ],
+    "8d40-2f83-62b8-2ecb": [
+      "Ironkin Steeljacks with Heavy Volkanite Disintegrators"
+    ],
+    "8d8b-5cae-1e6a-1ddb": [
+      "Death Guard Chaos Lord [Legends]"
+    ],
+    "8d8e-d2f6-678c-6e73": [
+      "The Red Terror"
+    ],
+    "8d8f-b8f9-8344-ef40": [
+      "Land Raider Redeemer"
+    ],
+    "8d93-37e8-abb3-927e": [
+      "Thunderhawk Transporter [Legends]"
+    ],
+    "8d96-ce07-a948-add2": [
+      "Zarakynel [Legends]"
+    ],
+    "8db7-36e1-49aa-c471": [
+      "Kytan Ravager [Legends]"
+    ],
+    "8dc8-dc9b-f696-2f61": [
+      "Ynnari Reavers"
+    ],
+    "8e01-6763-69a8-a25a": [
+      "Gretchin"
+    ],
+    "8e04-4d58-493e-e8ba": [
+      "Librarian with Jump Pack [Legends]"
+    ],
+    "8e5b-4b8e-a9cc-9dfd": [
+      "Death Company Marines with Jump Packs"
+    ],
+    "8e78-56d6-5326-066b": [
+      "Artillery Team"
+    ],
+    "8e9d-dd85-2d32-3496": [
+      "Chaos Terminator Squad"
+    ],
+    "8ea0-48a3-68f8-ee6a": [
+      "Daemon Prince of Nurgle"
+    ],
+    "8ec7-1c8b-5540-5f14": [
+      "Kayvaan Shrike"
+    ],
+    "8f04-7fb2-9d7-13ae": [
+      "Boss Zagstruk [Legends]"
+    ],
+    "8f3d-8b4b-eac0-f1e1": [
+      "Stormblade [Legends]"
+    ],
+    "8f52-7888-656e-133a": [
+      "The Sanguinor"
+    ],
+    "8f5a-fde2-3ab4-85c2": [
+      "Fulgurite Electro-Priests"
+    ],
+    "8f86-8797-420a-dfa1": [
+      "Obelisk"
+    ],
+    "8fb2-80a9-b1ae-29db": [
+      "Arkurian Stormhammer [Legends]"
+    ],
+    "8fd2-c73a-3682-c230": [
+      "Sorcerer"
+    ],
+    "8fe6-8fee-a58c-2ed": [
+      "Tankbustas"
+    ],
+    "9004-87fb-677b-6859": [
+      "Ghostkeel Battlesuit"
+    ],
+    "9027-13fe-73de-3c82": [
+      "Technoarcheologist"
+    ],
+    "902b-16a7-8dcf-af6c": [
+      "Lychguard"
+    ],
+    "903d-bf87-3869-2de1": [
+      "Kapricus Carrier"
+    ],
+    "9049-3d27-e0d4-924b": [
+      "Wraithknight"
+    ],
+    "9052-88c1-4514-4f52": [
+      "Navigator"
+    ],
+    "9080-347f-a193-a87e": [
+      "Kroot Hounds"
+    ],
+    "908f-17f2-34bf-89b4": [
+      "Raveners"
+    ],
+    "90c2-1ed5-bebf-73e8": [
+      "Predator Destructor [Legends]",
+      "Predator Destructor"
+    ],
+    "90c7-ee07-eb33-7df4": [
+      "Chaos Bikers"
+    ],
+    "90de-b0ab-de85-e40b": [
+      "Fire Prism"
+    ],
+    "90fb-ea69-d860-7dfd": [
+      "C'tan Shard of the Nightbringer"
+    ],
+    "9119-5e77-3f9c-d4a1": [
+      "Warp Talons"
+    ],
+    "913e-d233-117e-9512": [
+      "Nephilim Jetfighter"
+    ],
+    "915f-cecb-b52e-5fdb": [
+      "Skyclaws [Legends]"
+    ],
+    "9189-6889-492c-a43e": [
+      "Warboss"
+    ],
+    "91b4-c703-ce24-8cfc": [
+      "Minotaur [Legends]"
+    ],
+    "91b4-e4b0-3b25-efe0": [
+      "Firestorm [Legends]"
+    ],
+    "91d8-e4b4-36db-2a90": [
+      "Hekaton Land Fortress"
+    ],
+    "91e0-4a0d-e473-991d": [
+      "Knight Defender"
+    ],
+    "91e3-a419-8c58-98f5": [
+      "Captain"
+    ],
+    "9204-3e94-d0f2-74d": [
+      "Chosen"
+    ],
+    "921c-0798-f8ec-2975": [
+      "Daemonic Charioteer [Crucible]"
+    ],
+    "9239-111e-4ef4-b40f": [
+      "Heavy Mortar Team [Legends]"
+    ],
+    "9248-ff76-9f06-d737": [
+      "Gellerpox Infected [Legends]"
+    ],
+    "9292-8071-b7b4-249d": [
+      "Exalted Seeker Chariot [Legends]"
+    ],
+    "92a-6ded-87e3-96ca": [
+      "Sicaran Venator [Legends]"
+    ],
+    "92f2-c2b5-a0c8-6e19": [
+      "Khorne Lord of Skulls"
+    ],
+    "9312-4758-44e9-9402": [
+      "Bloodmaster"
+    ],
+    "932c-12b7-e16e-d9a0": [
+      "Starfangs"
+    ],
+    "9333-2a35-2297-6df": [
+      "Crassus [Legends]"
+    ],
+    "9334-3f3a-e21f-de4c": [
+      "The Yncarne"
+    ],
+    "9342-1cf-b2ab-b143": [
+      "Nemesis Dreadknight"
+    ],
+    "9347-1652-94d9-7cda": [
+      "Catachan Heavy Weapons Squad"
+    ],
+    "934e-83e6-cde0-4895": [
+      "Gellerpox Infected [Legends]"
+    ],
+    "9357-7f3f-56be-3129": [
+      "Chimera"
+    ],
+    "9392-ba80-6ec0-fba0": [
+      "Dark Reapers"
+    ],
+    "93a2-d839-e7b3-3860": [
+      "Accursed Cultists"
+    ],
+    "93c-8711-b0ef-d490": [
+      "Canoptek Acanthrites [Legends]"
+    ],
+    "93c4-12f7-c81e-6f93": [
+      "Fabius Bile"
+    ],
+    "93f6-358f-c8d-7d4d": [
+      "Primaris Company Champion [Legends]"
+    ],
+    "9414-da22-4118-5ac3": [
+      "Death Guard Sorcerer in Terminator Armour [Legends]"
+    ],
+    "9445-8040-98c9-6400": [
+      "Malcador Infernus [Legends]"
+    ],
+    "9477-fc22-9705-df3c": [
+      "Watch Captain Artemis"
+    ],
+    "947a-3d8f-6b20-547e": [
+      "Front-line Commander [Crucible]"
+    ],
+    "94b7-fa73-a8cd-5b9d": [
+      "Chaos Terminators"
+    ],
+    "94d7-39fb-35da-3a39": [
+      "Corsair Voidreavers"
+    ],
+    "94f8-bd2f-ec61-610d": [
+      "Palatine"
+    ],
+    "9537-27cc-2058-3ccc": [
+      "Daemon Prince of Khorne"
+    ],
+    "959a-a3bc-4814-fa9a": [
+      "Captain with Jump Pack"
+    ],
+    "95cc-3f6-f56b-3638": [
+      "Warlock Conclave"
+    ],
+    "95d-ae5a-5668-b5b": [
+      "Howling Banshees"
+    ],
+    "95dc-990b-2a93-5e83": [
+      "Ûthar the Destined"
+    ],
+    "960a-a2d8-2c96-5c24": [
+      "Ulrik the Slayer"
+    ],
+    "9656-70ca-43b4-bc9d": [
+      "Tzaangor Enlightened with Fatecaster greatbows"
+    ],
+    "9683-3b69-ae2f-d527": [
+      "Land Speeder Tempest [Legends]"
+    ],
+    "968d-6764-71d1-55d": [
+      "Tyrannocyte"
+    ],
+    "96aa-4baa-2cb2-da3d": [
+      "Eightbound"
+    ],
+    "96fb-ed0a-fb7c-c801": [
+      "Execrator"
+    ],
+    "9759-acbf-5109-75a0": [
+      "Chaos Spawn"
+    ],
+    "9770-3a56-619e-f390": [
+      "Lieutenant"
+    ],
+    "977c-a27d-7164-02f2": [
+      "Searchlight"
+    ],
+    "977e-7c17-5a03-746b": [
+      "Achilles Ridgerunners"
+    ],
+    "97e5-742b-fa8f-ae08": [
+      "Troupe Master"
+    ],
+    "9812-7717-4e8a-c269": [
+      "Dark Commune"
+    ],
+    "982a-35c7-5d8-1a97": [
+      "Sicaran Venator [Legends]"
+    ],
+    "9832-ba87-ef18-e34": [
+      "Death Jester"
+    ],
+    "983f-e99b-41e0-856d": [
+      "Malcador Defender [Legends]"
+    ],
+    "984d-c25b-86dd-9970": [
+      "Marneus Calgar",
+      "Marneus Calgar in Armour of Antilochus"
+    ],
+    "984f-d7af-c493-9c5a": [
+      "Primaris Redoubt [Legends]"
+    ],
+    "9866-16e8-9085-4b18": [
+      "Voss-pattern Lightning [Legends]"
+    ],
+    "9893-e746-2796-740": [
+      "Purifier Squad"
+    ],
+    "98a2-a561-b183-56a": [
+      "Stormtalon Gunship"
+    ],
+    "98ae-55e8-483-c3b9": [
+      "Sorcerer on Disc of Tzeentch [Legends]"
+    ],
+    "98bd-6217-a3ac-b86a": [
+      "Khorne Soul Grinder"
+    ],
+    "98e0-bfa4-7061-f9ea": [
+      "Slaanesh Soul Grinder"
+    ],
+    "98e6-9432-712c-d0b1": [
+      "Venerable Dreadnought [Legends]"
+    ],
+    "995-6e4c-ec61-ec2c": [
+      "Death Company Intercessors"
+    ],
+    "9966-9844-fc59-3434": [
+      "Heavy Gun Drones [Legends]"
+    ],
+    "998c-ff18-9548-783b": [
+      "Negavolt Cultists [Legends]"
+    ],
+    "99b2-4eb8-9183-d1f1": [
+      "Big Mek"
+    ],
+    "99b4-6a62-b540-e864": [
+      "Land Raider"
+    ],
+    "9a-d0b0-480d-21cd": [
+      "Deathwatch Terminator Squad"
+    ],
+    "9a1f-43c9-6220-94b0": [
+      "Knight Valiant"
+    ],
+    "9a97-a630-1fc6-bccd": [
+      "Stormfang Gunship [Legends]"
+    ],
+    "9aa0-90d-d98-328e": [
+      "Inquisitor in Terminator Armour [Legends]"
+    ],
+    "9ab-3dd9-480d-5435": [
+      "Venom"
+    ],
+    "9ad4-5c9e-4d7d-8ffd": [
+      "Stormraven Gunship"
+    ],
+    "9ad5-50be-135c-abbf": [
+      "Cyclops Demolition Vehicle"
+    ],
+    "9af5-6820-1ff2-6c01": [
+      "Battlewagon"
+    ],
+    "9b2d-ab6f-1d24-dc86": [
+      "Parasite of Mortrex"
+    ],
+    "9b39-b485-dbc8-fcf9": [
+      "Defiler"
+    ],
+    "9bc2-4d5f-5d27-ce7a": [
+      "Archaeopter Fusilave"
+    ],
+    "9bf2-9132-e24a-20cb": [
+      "The Silent King"
+    ],
+    "9bfc-c4ed-8483-113e": [
+      "Pteraxii Skystalkers"
+    ],
+    "9c05-a229-ecb9-5e12": [
+      "Heavy Quad Launcher Team [Legends]"
+    ],
+    "9c08-238c-554d-1719": [
+      "Nobz"
+    ],
+    "9c29-9181-6f36-18ea": [
+      "Sanctifiers"
+    ],
+    "9cba-46ed-63b8-ecad": [
+      "Renegade Ogryn Brutes [Legends]"
+    ],
+    "9d11-211d-1d25-1c24": [
+      "Wall of Martyrs Defence Emplacement [Legends]"
+    ],
+    "9d1b-953c-c336-5823": [
+      "Cadian Recon Squad"
+    ],
+    "9d47-bd25-e45c-18c1": [
+      "Screamers"
+    ],
+    "9d60-2b6f-4b65-7d62": [
+      "Icon Bearer"
+    ],
+    "9d6b-4332-27c3-c669": [
+      "Razorback"
+    ],
+    "9d8d-6ee4-6cc6-9728": [
+      "Aquila Lander [Legends]"
+    ],
+    "9d91-f172-1888-50fe": [
+      "Breacher Team"
+    ],
+    "9d98-ef75-6e9a-0616": [
+      "Chaos Spawn"
+    ],
+    "9db9-324e-f496-9723": [
+      "Seekers"
+    ],
+    "9dd6-bcba-6ec8-330f": [
+      "Martial Agent [Crucible]"
+    ],
+    "9df0-1906-bdae-18b4": [
+      "Crisis Battlesuits [Legends]"
+    ],
+    "9e26-3203-75f8-541": [
+      "Dreadclaw Drop Pod [Legends]"
+    ],
+    "9e71-1043-e2b3-edf9": [
+      "Old One Eye"
+    ],
+    "9ead-c374-2f0a-ab36": [
+      "Falchion [Legends]"
+    ],
+    "9efe-c8e5-7da-3ae0": [
+      "Venerable Land Raider",
+      "Venerable Land Raider [Legends]"
+    ],
+    "9f03-ced1-9af-3f2d": [
+      "Regimental Attachés [Legends]"
+    ],
+    "9f04-d6da-3dff-4d23": [
+      "Flawless Blades"
+    ],
+    "9f08-f0fd-cfdd-57b1": [
+      "Relic Terminator Squad [Legends]"
+    ],
+    "9f10-d8db-a7b3-5784": [
+      "Allarus Custodians"
+    ],
+    "9f1a-3683-293c-18d9": [
+      "Tarantula Sentry Battery [Legends]"
+    ],
+    "9f8f-c27c-3e49-4213": [
+      "Inquisitor Kroyle"
+    ],
+    "9f96-0177-abbe-926e": [
+      "Wazdakka Gutsmek"
+    ],
+    "a04e-a182-f224-cc6d": [
+      "Leviathan Dreadnought [Legends]"
+    ],
+    "a05a-33d3-6d3d-c133": [
+      "Terminator Squad"
+    ],
+    "a0ec-633-123f-32d2": [
+      "Chaos Cerastus Knight Acheron"
+    ],
+    "a0fc-8a48-f51e-f81b": [
+      "Chaos Rhino"
+    ],
+    "a11c-fd5a-5d19-d5ae": [
+      "Chaos Predator Destructor"
+    ],
+    "a128-870b-3f8b-59e0": [
+      "Mandrakes"
+    ],
+    "a136-47dc-3d7b-f9fe": [
+      "Jackal Alphus"
+    ],
+    "a152-1c96-4c6a-df06": [
+      "Y'vahra Battlesuit [Legends]"
+    ],
+    "a187-8fd-2a3f-684b": [
+      "Warbikers"
+    ],
+    "a198-c51c-c245-aebe": [
+      "Storm Eagle Gunship [Legends]"
+    ],
+    "a1db-c39f-ce22-5ec3": [
+      "Deffkoptas"
+    ],
+    "a1f-8e28-eb5d-7cd1": [
+      "Kratos [Legends]"
+    ],
+    "a203-f251-2149-a253": [
+      "Storm Guardians"
+    ],
+    "a304-8dfa-851c-b53d": [
+      "Grand Master"
+    ],
+    "a308-d6b5-4187-d7b7": [
+      "Falchion [Legends]"
+    ],
+    "a322-e294-14f2-227c": [
+      "Kratos [Legends]"
+    ],
+    "a365-c488-23d5-a5e3": [
+      "Tyranid Warriors with Melee Bio-Weapons"
+    ],
+    "a377-2016-c674-bbf": [
+      "Fluxmaster"
+    ],
+    "a387-bbe1-7b73-2dd9": [
+      "Wyches"
+    ],
+    "a388-53ee-bb25-8639": [
+      "Captain on Bike"
+    ],
+    "a389-35ee-3abb-338": [
+      "Death Jester"
+    ],
+    "a3d1-ab0d-346a-ae9b": [
+      "Rendmaster on Blood Throne"
+    ],
+    "a43c-e47f-edce-d746": [
+      "Rogal Dorn Commander"
+    ],
+    "a480-ceb0-7eb5-45d2": [
+      "Canoness with Jump Pack"
+    ],
+    "a482-c98a-21ce-b96e": [
+      "Knight Destrier"
+    ],
+    "a496-7c35-f648-d819": [
+      "Sergeant Harker [Legends]"
+    ],
+    "a4df-efb2-5bfa-cff6": [
+      "Doomhammer"
+    ],
+    "a5-22c1-1cfa-4992": [
+      "Troupe"
+    ],
+    "a502-4dbe-d0c6-69fd": [
+      "Warlock"
+    ],
+    "a53-5d6c-8148-4393": [
+      "Interceptor Squad"
+    ],
+    "a548-ba7d-175a-e8b2": [
+      "Tech-Priest Dominus"
+    ],
+    "a56-be88-fa2f-8d2a": [
+      "Repentia Squad"
+    ],
+    "a573-d275-227d-d26e": [
+      "Carnodon [Legends]"
+    ],
+    "a59-50b-2a6b-98ee": [
+      "Whirlwind Scorpius [Legends]"
+    ],
+    "a5ae-26d2-12a0-13d7": [
+      "Fortis Kill Team"
+    ],
+    "a5ca-1425-805a-360d": [
+      "Eradicator Squad with Heavy Bolters"
+    ],
+    "a5e0-9c61-f07d-467b": [
+      "Dire Avengers"
+    ],
+    "a606-abf1-4103-623": [
+      "Chaos Cerastus Knight Lancer"
+    ],
+    "a62d-3859-516c-cf9": [
+      "Dakkajet"
+    ],
+    "a640-2d2e-e97d-4e47": [
+      "Bannernob"
+    ],
+    "a643-a68c-d58b-56f0": [
+      "Sky Ray Gunship"
+    ],
+    "a658-2f16-a5ad-f228": [
+      "Incubi"
+    ],
+    "a6ca-d00b-58df-0aed": [
+      "Militant Commander [Crucible]"
+    ],
+    "a6f7-e352-b6b3-dfe8": [
+      "Sagittarum Custodians"
+    ],
+    "a714-99f7-a2da-2362": [
+      "Tzaangor Enlightened"
+    ],
+    "a72a-b541-0ed2-39e9": [
+      "Nazdreg"
+    ],
+    "a73a-a9dc-15ab-d9a2": [
+      "Crisis Sunforge Battlesuits"
+    ],
+    "a74c-27a6-a054-e13c": [
+      "Apothecary"
+    ],
+    "a772-f94f-b612-8976": [
+      "Caladius Grav-tank"
+    ],
+    "a7b1-e21b-e5ce-104f": [
+      "Nurglings"
+    ],
+    "a7bd-fd4-f3c0-4f8a": [
+      "Archaeopter Stratoraptor"
+    ],
+    "a7ea-bb1-3c4b-6a92": [
+      "Shadowseer"
+    ],
+    "a7f0-ce36-c2d5-4dc1": [
+      "Raptors"
+    ],
+    "a84-c96a-1763-fc13": [
+      "Questoris Knight Styrix"
+    ],
+    "a8b0-fc91-17d5-5963": [
+      "Librarian in Phobos Armour"
+    ],
+    "a8c7-bbea-e81d-f2db": [
+      "Exalted Sorcerer on Disc of Tzeentch"
+    ],
+    "a917-fc12-41a-8cb1": [
+      "Painboss"
+    ],
+    "a91d-8c80-74fa-102": [
+      "Vigilant Squad"
+    ],
+    "a936-cfdb-f498-8a5c": [
+      "Defiler"
+    ],
+    "a947-7113-3284-4248": [
+      "Wulfen with Storm Shields"
+    ],
+    "a99b-7a34-a186-8320": [
+      "Wolf Guard Battle Leader in Terminator Armour [Legends]"
+    ],
+    "a9ac-5207-f20-6dcc": [
+      "Chaos Thunderhawk [Legends]"
+    ],
+    "a9c7-8fc5-a504-15ba": [
+      "Daemon Prince of Slaanesh"
+    ],
+    "a9f8-8f6a-73e0-d4ca": [
+      "Attack Bike Squad [Legends]"
+    ],
+    "aa33-6170-7f3a-e9a4": [
+      "Buri Aegnirssen"
+    ],
+    "aa47-f82b-0940-adc0": [
+      "Voice of the Patriarch [Crucible]"
+    ],
+    "aa6a-a87a-8ec3-6aa5": [
+      "Vanguard Veteran Squad [Legends]"
+    ],
+    "aa89-8d18-ab88-85ef": [
+      "Basilisk"
+    ],
+    "aaa7-639e-d102-71fe": [
+      "Ynnari Venom"
+    ],
+    "aab4-eaf1-5213-21ee": [
+      "Prince Yriel"
+    ],
+    "aaed-c3ab-4aeb-e7cd": [
+      "Macharius Vanquisher [Legends]"
+    ],
+    "ab45-1b93-3f22-12e8": [
+      "Typhon [Legends]"
+    ],
+    "ab79-1972-8d44-553f": [
+      "Njal Stormcaller"
+    ],
+    "ab8-5df0-71b-e93d": [
+      "Bjorn the Fell-Handed"
+    ],
+    "abb6-cf38-a3f1-7e95": [
+      "Baneblade"
+    ],
+    "abb7-f523-2b5a-b634": [
+      "Chaos Lord"
+    ],
+    "abfa-6d02-8cf0-0e7e": [
+      "Toxicrene"
+    ],
+    "ac28-f8a6-1d06-6f5e": [
+      "Knight-Centura"
+    ],
+    "ac36-7939-4242-de37": [
+      "Spore Mines (Harpy)"
+    ],
+    "ac38-15df-80ac-563f": [
+      "Mastodon [Legends]"
+    ],
+    "ac91-fe54-bd09-4145": [
+      "War Dog Moirax"
+    ],
+    "ac92-1f43-46e4-bfa7": [
+      "Vindicator [Legends]",
+      "Vindicator"
+    ],
+    "acc4-30c4-39c0-71e": [
+      "Autarch"
+    ],
+    "ad0-9341-6146-3751": [
+      "Scarab Occult Terminators"
+    ],
+    "ad06-9aca-1787-d1c9": [
+      "Biologus Putrifier"
+    ],
+    "ad15-ddf2-9dd4-71a": [
+      "Shield-Captain on Dawneagle Jetbike"
+    ],
+    "ad2e-a4f4-6664-945e": [
+      "Ciaphas Cain [Legends]"
+    ],
+    "ad62-c34f-470f-a75b": [
+      "Spore Mines"
+    ],
+    "ad75-33ce-c532-c4b9": [
+      "Daemonic Charioteer [Crucible]"
+    ],
+    "ad91-10ab-6d45-ae4e": [
+      "Lukas the Trickster [Legends]"
+    ],
+    "adb5-432-b3e1-6952": [
+      "Meganobz"
+    ],
+    "adb8-1b04-9c1b-84e4": [
+      "Neurogaunts"
+    ],
+    "adb8-cae3-4bd2-e08e": [
+      "Terminator Assault Squad"
+    ],
+    "add-bf9a-723c-95ce": [
+      "Noctilith Crown"
+    ],
+    "ae18-a032-75f6-f1f7": [
+      "Cobra [Legends]"
+    ],
+    "ae3c-cb36-e40b-ae15": [
+      "Whirlwind Scorpius [Legends]"
+    ],
+    "ae7e-80a8-3a65-9fd6": [
+      "Longstrike [Legends]"
+    ],
+    "ae81-eb8-844-95e7": [
+      "Ogryn Squad"
+    ],
+    "ae88-5451-bffd-d597": [
+      "Eversor Assassin"
+    ],
+    "aea6-e9e8-178f-7ec3": [
+      "Trojan Support Vehicle [Legends]"
+    ],
+    "af26-0d4c-e9c1-22ed": [
+      "Einhyr Champion"
+    ],
+    "af3-b43-7cc8-c165": [
+      "Lord of Virulence"
+    ],
+    "af30-8cda-c8d2-4ac3": [
+      "Gladiator Valiant"
+    ],
+    "af4f-95a4-dbfc-3987": [
+      "Chief Librarian Mephiston"
+    ],
+    "afa2-9ab7-5385-547d": [
+      "Shield-Captain in Allarus Terminator Armour"
+    ],
+    "afcb-b401-34f3-80fa": [
+      "Blitza-bommer"
+    ],
+    "afeb-5494-5df4-8892": [
+      "Champion of Titan [Crucible]"
+    ],
+    "affe-d1e3-0377-f6f5": [
+      "Cultist Mob"
+    ],
+    "b027-cb31-1000-7231": [
+      "Parasite of Mortrex"
+    ],
+    "b032-4a6a-3900-8dcf": [
+      "Skulltaker"
+    ],
+    "b03b-7117-bbc3-dcbc": [
+      "Valdor [Legends]"
+    ],
+    "b069-cadc-4a08-a736": [
+      "Daemonic Herald [Crucible]"
+    ],
+    "b0ad-ecab-6292-ab67": [
+      "Broodlord"
+    ],
+    "b0b0-e68a-cf7a-20f8": [
+      "Lifta Wagon [Legends]"
+    ],
+    "b0be-a5af-5462-fb7": [
+      "Tallyman"
+    ],
+    "b0dc-2f9b-cb5a-d394": [
+      "Centaur Light Carrier [Legends]"
+    ],
+    "b0ed-64b4-497e-559d": [
+      "Canoptek Scarab Swarms"
+    ],
+    "b0f2-86e1-24d3-bd1e": [
+      "Sporocyst"
+    ],
+    "b113-c019-887d-37f0": [
+      "Keeper of Secrets"
+    ],
+    "b12e-420e-73a8-6121": [
+      "Warhound Titan"
+    ],
+    "b14b-a1bf-b27f-5c18": [
+      "Skorpius Dunerider"
+    ],
+    "b1ba-c9c4-557b-4a47": [
+      "Mortis Dreadnought [Legends]"
+    ],
+    "b1de-655c-c138-d5b9": [
+      "Purestrain Genestealers"
+    ],
+    "b1f2-2c43-bcbe-3f60": [
+      "Acastus Knight Porphyrion"
+    ],
+    "b223-75bb-8a23-9a32": [
+      "Junith Eruita"
+    ],
+    "b234-2a9e-174d-90b3": [
+      "Grey Knights Relic Razorback [Legends]"
+    ],
+    "b24d-be83-c5fe-d3fc": [
+      "Venerable Dreadnought"
+    ],
+    "b250-a2f9-7098-353d": [
+      "Khorne Berzerkers"
+    ],
+    "b257-3749-9bb2-4d4d": [
+      "Grey Knights Thunderhawk Gunship"
+    ],
+    "b25f-20ce-a25a-1642": [
+      "Venomthropes"
+    ],
+    "b288-a935-3f85-4891": [
+      "Plague Drones"
+    ],
+    "b2aa-5043-ce3c-4804": [
+      "Castellan"
+    ],
+    "b2e5-ab2-6c3a-10b1": [
+      "Lazarus"
+    ],
+    "b2fd-5fa7-ea48-c851": [
+      "Genestealers"
+    ],
+    "b34c-aebf-a559-1ddb": [
+      "Piranhas"
+    ],
+    "b355-7b37-327a-27f4": [
+      "Nurglings"
+    ],
+    "b37e-5968-5448-53e9": [
+      "Valdor [Legends]"
+    ],
+    "b391-1ca8-ca39-ece7": [
+      "Brotherhood Champion"
+    ],
+    "b3a8-4106-40fb-3b68": [
+      "Commander Farsight"
+    ],
+    "b3d0-f6cd-c898-bfa4": [
+      "Deff Dread"
+    ],
+    "b3d8-740b-9c4a-c031": [
+      "Forgefiend"
+    ],
+    "b3df-ce28-be51-ed5f": [
+      "Masters of the Maelstrom"
+    ],
+    "b425-6079-7cf8-c3fd": [
+      "Asurmen"
+    ],
+    "b429-8c1b-614c-7e94": [
+      "Fenrisian Wolves"
+    ],
+    "b43a-ca3d-61c-b0e5": [
+      "Typhon [Legends]"
+    ],
+    "b455-c6f1-b37e-c3b7": [
+      "Ursula Creed"
+    ],
+    "b47b-dec2-17a8-fc18": [
+      "Foul Blightspawn"
+    ],
+    "b487-74b8-50ee-9e85": [
+      "Clanblade"
+    ],
+    "b4ef-752c-df61-fac6": [
+      "Kaptin Badrukk [Legends]"
+    ],
+    "b50d-3a18-7e4d-9444": [
+      "Gargoyles"
+    ],
+    "b512-1095-3869-db85": [
+      "Skull Altar"
+    ],
+    "b518-8863-60bc-5294": [
+      "Chaos Lord on Steed of Slaanesh [Legends]"
+    ],
+    "b529-f3bd-bd79-e40a": [
+      "Sicaran Punisher [Legends]"
+    ],
+    "b53e-0e3f-6a64-f19b": [
+      "Fortis Kill Team"
+    ],
+    "b55a-14dc-71ca-8e55": [
+      "Wulfen"
+    ],
+    "b596-18b1-d905-fd1d": [
+      "Bladeguard Ancient"
+    ],
+    "b5ad-dbe6-36c2-3b22": [
+      "Daemonic Herald [Crucible]"
+    ],
+    "b5b9-5b32-98ad-3feb": [
+      "Elysian Drop Sentinel [Legends]"
+    ],
+    "b5c8-8283-a1da-d5a1": [
+      "Sanctifiers"
+    ],
+    "b5d3-ef49-da86-62ab": [
+      "Shadowsword"
+    ],
+    "b5e5-b8cd-dc7c-5b2b": [
+      "Obliterators"
+    ],
+    "b5f6-f34-9fa-eeba": [
+      "Greater Blight Drone [Legends]"
+    ],
+    "b621-3305-cb6d-b777": [
+      "Krieg Command Squad"
+    ],
+    "b62e-cd23-d338-8142": [
+      "Librarian"
+    ],
+    "b65-c988-9c88-4d4a": [
+      "Whirlwind Scorpius [Legends]"
+    ],
+    "b66b-33d2-80fe-567e": [
+      "Hellblade [Legends]"
+    ],
+    "b691-ac32-3768-769d": [
+      "Gorgon Heavy Transport [Legends]"
+    ],
+    "b695-9234-c39e-83bd": [
+      "Land Raider Achilles [Legends]"
+    ],
+    "b6b0-9449-1f70-6cfe": [
+      "Bike Squad [Legends]"
+    ],
+    "b6b2-af4a-8770-8626": [
+      "Goliath Rockgrinder"
+    ],
+    "b6c0-cad8-a5a-e095": [
+      "Hemlock Wraithfighter"
+    ],
+    "b6d5-1658-b3f7-84fd": [
+      "Deathleaper"
+    ],
+    "b6e8-a3d7-e4e4-ffc2": [
+      "Sorcerer"
+    ],
+    "b6ef-5582-5c2c-c917": [
+      "Biovores"
+    ],
+    "b6f0-9fc2-ce6c-debb": [
+      "Commissar Graves on Foot"
+    ],
+    "b6f6-3b6d-2508-7c12": [
+      "Repulsor"
+    ],
+    "b733-bbb9-7d4e-ee8f": [
+      "Xiphon Interceptor [Legends]"
+    ],
+    "b74b-59ba-5719-319d": [
+      "Lion El'Jonson"
+    ],
+    "b75d-f257-dbe-e1f2": [
+      "Knight Abominant"
+    ],
+    "b7bb-3da3-d2f2-ed0f": [
+      "Da Red Gobbo's A-bomb-inable Snowman [Legends]"
+    ],
+    "b838-70c8-756e-dc55": [
+      "Hell Talon [Legends]"
+    ],
+    "b8ac-a1b4-9950-8d39": [
+      "Grot Tanks [Legends]"
+    ],
+    "b8c3-9cfe-3ebe-6474": [
+      "Saint Celestine"
+    ],
+    "b8d1-94bf-bbad-c41e": [
+      "Stormhawk Interceptor [Legends]",
+      "Stormhawk Interceptor"
+    ],
+    "b90d-26e-4e1e-73ab": [
+      "Scout Sniper Squad [Legends]"
+    ],
+    "b93d-b9db-120f-5c9e": [
+      "Serberys Raiders"
+    ],
+    "b949-6fcd-2205-945b": [
+      "Catachan Command Squad"
+    ],
+    "b981-a2ac-86d0-1cbe": [
+      "Dark Commune"
+    ],
+    "b9d-75b3-db8d-8cee": [
+      "Sokar-pattern Stormbird [Legends]"
+    ],
+    "b9e6-c04b-8799-1c79": [
+      "Solitaire"
+    ],
+    "ba07-5f80-6b06-292c": [
+      "Immortal Champion [Crucible]"
+    ],
+    "ba2d-0015-b7d1-2f60": [
+      "Kaius Konorius"
+    ],
+    "ba5e-da5f-c28a-e649": [
+      "Malcador Annihilator [Legends]"
+    ],
+    "ba69-aed3-fafe-b9d5": [
+      "Warpsmith"
+    ],
+    "bae0-e71d-e269-e7af": [
+      "Ministorum Priest"
+    ],
+    "bb17-5e67-f80d-1479": [
+      "Psychophage"
+    ],
+    "bb34-d2c-2f8e-4c73": [
+      "Chaos Predator Annihilator"
+    ],
+    "bb3e-c770-b77f-a8a1": [
+      "Ministorum Priest"
+    ],
+    "bb46-bb88-654c-faa7": [
+      "Skarbrand"
+    ],
+    "bb72-b9ec-9abf-a651": [
+      "Rapier Carrier [Legends]"
+    ],
+    "bb85-e22e-6497-1054": [
+      "Secutarii Hoplites [Legends]"
+    ],
+    "bb86-bce3-6729-371a": [
+      "Inner Circle Companions"
+    ],
+    "bbe2-28dd-1a9a-2506": [
+      "Inquisitor Draxus"
+    ],
+    "bbe4-98a0-4512-2454": [
+      "Khorne Lord of Skulls"
+    ],
+    "bc16-e600-5fe4-92e8": [
+      "Farseer"
+    ],
+    "bc4e-8331-8179-255b": [
+      "Sternguard Veteran Squad"
+    ],
+    "bc65-1734-335d-a810": [
+      "Pink Horrors"
+    ],
+    "bcb4-5b55-e4f1-1257": [
+      "Falchion [Legends]"
+    ],
+    "bccb-bed8-e98d-c278": [
+      "Exalted Sorcerer"
+    ],
+    "bd1-b506-69be-d983": [
+      "Chaos Rhino"
+    ],
+    "bd22-9def-df57-baad": [
+      "Kairos Fateweaver"
+    ],
+    "bd6d-a10d-0bd7-5f0d": [
+      "Goremongers"
+    ],
+    "bd70-e819-4f8d-f85a": [
+      "Spartan [Legends]"
+    ],
+    "bd8-4180-6880-1f45": [
+      "Beastboss on Squigosaur"
+    ],
+    "bdb1-c3b2-7bcf-1b17": [
+      "Fellblade [Legends]"
+    ],
+    "bde7-6727-bb4b-b56f": [
+      "Ta'unar Supremacy Armour"
+    ],
+    "bdf4-db32-430e-c4b5": [
+      "Node Organism [Crucible]"
+    ],
+    "bdf5-36f4-8fc-1358": [
+      "Webway Gate [Legends]"
+    ],
+    "be1a-7188-94e5-3cfe": [
+      "Bladeguard Veteran Squad"
+    ],
+    "be32-1b9e-6b1b-e508": [
+      "Death Company Dreadnought"
+    ],
+    "be4b-3825-50f7-3407": [
+      "Mek Gunz"
+    ],
+    "be63-b837-d723-d3c6": [
+      "Eliminator Squad"
+    ],
+    "be63-e831-bd3f-8209": [
+      "Telemon Heavy Dreadnought"
+    ],
+    "be67-b7de-dc1-4899": [
+      "Falchion [Legends]"
+    ],
+    "be77-fd68-1840-a285": [
+      "The Changeling"
+    ],
+    "bea0-eae7-2100-53a7": [
+      "Caanok Var"
+    ],
+    "bf05-937d-b75b-a65e": [
+      "Cultist Mob with Firearms [Legends]"
+    ],
+    "bf1b-fbd4-f85a-eb40": [
+      "Tzaangor Shaman"
+    ],
+    "bf30-1e72-7097-5cc3": [
+      "Ares Gunship"
+    ],
+    "bf31-6313-ef6f-92a2": [
+      "Kratos [Legends]"
+    ],
+    "bf6c-669e-7c86-b731": [
+      "Tidewall Gunrig"
+    ],
+    "bfbd-40ed-e9db-b4ac": [
+      "Triarch Praetorians"
+    ],
+    "c00a-db7e-48c3-db7f": [
+      "Venerable Battle-Brother [Crucible]"
+    ],
+    "c04b-351c-91b6-250f": [
+      "Land Raider Achilles [Legends]"
+    ],
+    "c08c-3f82-eca5-bc5b": [
+      "Barbed Hierodule [Legends]"
+    ],
+    "c0c8-ed41-35d7-d004": [
+      "Thunderfire Cannon [Legends]"
+    ],
+    "c0cc-2928-64fe-4730": [
+      "Ynnari Kabalite Warriors"
+    ],
+    "c0d0-119d-f647-49dc": [
+      "Sydonian Dragoons with taser lances"
+    ],
+    "c0d7-3b1b-480a-3692": [
+      "Leviathan Dreadnought [Legends]"
+    ],
+    "c17e-9345-c79b-ce1": [
+      "Mortifiers"
+    ],
+    "c19c-2ff4-3765-b37f": [
+      "Inquisitor Eisenhorn [Legends]"
+    ],
+    "c1af-2aec-777b-da40": [
+      "Karandras [Legends]"
+    ],
+    "c1ef-1cb7-aae0-8f22": [
+      "Traitor Enforcer"
+    ],
+    "c21e-f204-8a12-f1ff": [
+      "Razorshark Strike Fighter"
+    ],
+    "c236-ccd1-b830-169c": [
+      "Land Speeder Typhoon [Legends]"
+    ],
+    "c243-8748-8fbc-91c8": [
+      "Seeker Chariot [Legends]"
+    ],
+    "c2ab-c8e2-8c88-17ac": [
+      "Raptors"
+    ],
+    "c2cc-c272-6138-673b": [
+      "Lord Exultant"
+    ],
+    "c2f2-66e8-63ea-9670": [
+      "Watch Master"
+    ],
+    "c302-5769-871e-853b": [
+      "Wave Serpent"
+    ],
+    "c387-32f8-8aa0-4b34": [
+      "Phantom Titan"
+    ],
+    "c3a7-19a8-4735-3eeb": [
+      "Crisis Starscythe Battlesuits"
+    ],
+    "c3b2-b8eb-da6b-b5ce": [
+      "Relic Contemptor Dreadnought [Legends]"
+    ],
+    "c3c8-5dc4-bb03-3687": [
+      "Stormboyz"
+    ],
+    "c3d1-a63d-b122-55a2": [
+      "Hyperscientist [Crucible]"
+    ],
+    "c42c-948-4693-e4d4": [
+      "The Visarch"
+    ],
+    "c432-5254-8a25-6c8a": [
+      "Assault Intercessor Squad"
+    ],
+    "c43b-26b5-4c4-521c": [
+      "Cadian Castellan"
+    ],
+    "c446-72c9-4147-8fcb": [
+      "Artillery Team"
+    ],
+    "c447-a6f6-2245-f7da": [
+      "Rogal Dorn Commander"
+    ],
+    "c44d-b187-3736-c3b8": [
+      "Prince Yriel"
+    ],
+    "c454-7590-c271-5827": [
+      "Sokar-pattern Stormbird [Legends]"
+    ],
+    "c45b-6878-7800-1b84": [
+      "Deredeo Dreadnought [Legends]"
+    ],
+    "c45d-8c86-3405-8215": [
+      "Kabalite Warriors"
+    ],
+    "c46d-1057-94aa-9df8": [
+      "Sabre Weapons Battery [Legends]"
+    ],
+    "c47c-1579-9a09-1eda": [
+      "Renegade Ogryn Beast Handler [Legends]"
+    ],
+    "c4bf-74c9-87a2-f609": [
+      "Grotesques [Legends]"
+    ],
+    "c4d5-4a1b-2b29-d473": [
+      "Drop Pod"
+    ],
+    "c4d5-e085-5a5d-7439": [
+      "Herald of Slaanesh on Steed of Slaanesh [Legends]"
+    ],
+    "c4dc-200b-0ee5-4a8e": [
+      "Canoptek Macrocytes"
+    ],
+    "c503-8a89-4788-6c55": [
+      "Lokhust Lord"
+    ],
+    "c50e-74b9-bf5c-432c": [
+      "Hyperadapted Raveners"
+    ],
+    "c516-efa3-180-9f0b": [
+      "Kelermorph"
+    ],
+    "c5a3-4245-9b6a-fb8": [
+      "Gorkanaut"
+    ],
+    "c5ce-7c31-b5a6-1bd": [
+      "Blightlord Terminators"
+    ],
+    "c5f9-b0ad-28ca-c6be": [
+      "Big Mek Dakkarig"
+    ],
+    "c609-c26d-1002-540d": [
+      "Jokaero Weaponsmith [Legends]"
+    ],
+    "c62a-bda5-844c-e8c6": [
+      "Pathfinder Team"
+    ],
+    "c62b-1220-a7b0-5917": [
+      "Wolf Guard [Legends]"
+    ],
+    "c632-fc76-34bd-989f": [
+      "Tantalus [Legends]"
+    ],
+    "c6bf-2379-d8c9-2ddf": [
+      "Hierophant"
+    ],
+    "c73d-867-173b-8d9a": [
+      "Gladiator Lancer"
+    ],
+    "c755-0afd-5fca-c92c": [
+      "Contemptor-Achillus Dreadnought"
+    ],
+    "c756-c2b4-569b-1c8f": [
+      "Commander in Coldstar Battlesuit"
+    ],
+    "c7ae-a16f-ed19-c25a": [
+      "Dynastic Conqueror [Crucible]"
+    ],
+    "c7c7-adcf-d20e-5634": [
+      "Magister [Crucible]"
+    ],
+    "c7e0-68a4-64af-88e4": [
+      "Rogal Dorn Battle Tank"
+    ],
+    "c7ef-84b1-fdf5-c5a8": [
+      "Techmarine"
+    ],
+    "c7ff-da7e-9c97-d6dd": [
+      "Tauros Assault Vehicle [Legends]"
+    ],
+    "c812-edb-a62f-c4fc": [
+      "Furies [Legends]"
+    ],
+    "c849-ed0f-bc51-c66a": [
+      "Harridan"
+    ],
+    "c877-cf82-26d2-cfd8": [
+      "Skitarii Marshal"
+    ],
+    "c88c-5a05-c07f-bfc1": [
+      "Leviathan Dreadnought [Legends]"
+    ],
+    "c8a4-91de-cd54-31cd": [
+      "Fellblade [Legends]"
+    ],
+    "c8ab-c6c8-45f5-d557": [
+      "Aetaos'rau'keres [Legends]"
+    ],
+    "c8f-979d-913b-2bad": [
+      "Land Raider Helios [Legends]"
+    ],
+    "c90d-57dd-0316-ce67": [
+      "Front-line Commander [Crucible]"
+    ],
+    "c935-4db0-a2f-1bd8": [
+      "Foetid Bloat-drone"
+    ],
+    "c945-9a85-5ea3-2142": [
+      "Kaldor Draigo [Legends]"
+    ],
+    "c979-fd0f-d753-fb9a": [
+      "Plague Toads [Legends]"
+    ],
+    "c9a8-cccd-ac84-240b": [
+      "Acolyte Hybrids with Hand Flamers"
+    ],
+    "c9df-a9e7-5a33-a30f": [
+      "Changecaster"
+    ],
+    "c9e5-9d87-3e4b-6b69": [
+      "Valkyrie Sky Talon [Legends]"
+    ],
+    "ca37-6c54-394c-2803": [
+      "Scythed Hierodule [Legends]"
+    ],
+    "ca3f-6404-8f96-c869": [
+      "Land Raider Proteus [Legends]"
+    ],
+    "ca7d-c77a-28e2-7b6b": [
+      "Master of Executions"
+    ],
+    "cab8-7238-2445-067b": [
+      "Hordeboss [Crucible]"
+    ],
+    "cb05-4e43-6776-3c51": [
+      "Belisarius Cawl"
+    ],
+    "cb22-9657-9cc4-c4be": [
+      "Cult Guerrilla [Crucible]"
+    ],
+    "cb23-5079-6be1-c843": [
+      "Xiphon Interceptor [Legends]"
+    ],
+    "cb4c-b9a7-a9fd-b2de": [
+      "Skitarii Rangers"
+    ],
+    "cbe1-73ce-de38-219e": [
+      "Ripper Swarms"
+    ],
+    "cbe6-7a9c-1bd9-d9c": [
+      "Mutoid Vermin [Legends]"
+    ],
+    "cc1a-c4b-4647-965a": [
+      "Stormsurge"
+    ],
+    "cc21-45f0-ea98-6a21": [
+      "Traitor Enforcer"
+    ],
+    "cc59-8f57-3730-c65": [
+      "Sokar-pattern Stormbird [Legends]"
+    ],
+    "cc76-2cd4-e612-d34f": [
+      "Forgefiend"
+    ],
+    "cc83-cafa-d2cc-c9cf": [
+      "Traitor Guardsmen Squad"
+    ],
+    "cca2-5a13-02ce-2bdc": [
+      "Spectrus Kill Team [Legends]"
+    ],
+    "ccdd-dd99-2db3-bcad": [
+      "Tidewall Shieldline"
+    ],
+    "cd07-156e-de4e-d99d": [
+      "Kratos [Legends]"
+    ],
+    "cd0e-9f43-0d24-02ab": [
+      "Prime Organism [Crucible]"
+    ],
+    "cd23-530a-922c-5821": [
+      "Spartan [Legends]"
+    ],
+    "cd69-af58-774-d387": [
+      "Ancient"
+    ],
+    "cdc0-f214-d91d-a0fa": [
+      "Chaos Terminator Squad"
+    ],
+    "cdf2-7ed0-8296-d356": [
+      "Canoptek Tomb Sentinel [Legends]"
+    ],
+    "ce09-1a61-819d-2cf6": [
+      "Earthshaker Carriage Battery [Legends]"
+    ],
+    "ce09-811-8db4-e32c": [
+      "Cerastus Knight Acheron"
+    ],
+    "ce18-4cb9-c844-c869": [
+      "Emperor's Champion"
+    ],
+    "ce7d-96da-55fa-0e0e": [
+      "Death Company Captain"
+    ],
+    "ce90-be8f-9f47-6641": [
+      "Assault Intercessors with Jump Packs"
+    ],
+    "cf37-5524-8172-85c8": [
+      "Defiler"
+    ],
+    "cf42-04fb-1da4-ce7c": [
+      "Fiends"
+    ],
+    "cf5a-fc4b-fbff-51d": [
+      "Storm Chimera [Legends]"
+    ],
+    "cfa8-5c37-c140-915": [
+      "Syll'esske"
+    ],
+    "cfaa-5d07-b905-1eeb": [
+      "Stormsword"
+    ],
+    "cfdd-bee8-69e6-33f9": [
+      "Colossus [Legends]"
+    ],
+    "d00d-4cfb-7136-ea46": [
+      "Veteran Bike Squad [Legends]"
+    ],
+    "d052-16a7-4ac4-bb36": [
+      "An'ggrath the Unbound [Legends]"
+    ],
+    "d0a2-dd28-e7db-8508": [
+      "Colossus [Legends]"
+    ],
+    "d0ce-f2d3-358f-4530": [
+      "Custodian Guard Sodality",
+      "Custodian Guard"
+    ],
+    "d0d4-cb65-1f61-62f6": [
+      "Marshal"
+    ],
+    "d0e-d643-2621-7cc9": [
+      "Aggressor Squad"
+    ],
+    "d0e7-c332-619f-3a3d": [
+      "Daemonic Herald [Crucible]"
+    ],
+    "d11b-9325-16dc-3aaf": [
+      "Cyclops Demolition Vehicle"
+    ],
+    "d13d-e898-e857-1d02": [
+      "Storm Eagle Gunship [Legends]"
+    ],
+    "d156-7d9b-583f-129e": [
+      "Enthroned Agent [Crucible]"
+    ],
+    "d15e-ed71-a47f-87c": [
+      "Macharius [Legends]"
+    ],
+    "d160-2a74-7d96-5e9f": [
+      "Hive Tyrant"
+    ],
+    "d1a5-352d-83ad-9b58": [
+      "The Red Terror"
+    ],
+    "d1dd-44e7-b654-7bc3": [
+      "Quartermaster Cadre Squad [Legends]"
+    ],
+    "d204-437b-1d35-4d61": [
+      "Renegade Enforcer [Legends]"
+    ],
+    "d206-2f04-665a-eb01": [
+      "Sisters of Battle Squad"
+    ],
+    "d218-e450-350e-fa87": [
+      "Rogue Trader Entourage"
+    ],
+    "d25b-ed9c-7b3c-bc4b": [
+      "Intranzia Fraye"
+    ],
+    "d25f-d8ae-15b3-a01a": [
+      "Renegade Ogryn Beast Handler [Legends]"
+    ],
+    "d2dd-cc52-0ced-3b78": [
+      "Winged Tyranid Prime"
+    ],
+    "d2de-6903-46a-f02c": [
+      "Lord Solar Leontus"
+    ],
+    "d2e9-d222-dc23-1b6e": [
+      "Sicaran Battle Tank [Legends]",
+      "Sicaran [Legends]"
+    ],
+    "d30b-7a78-62e8-3ba5": [
+      "Death Riders"
+    ],
+    "d30b-ba-a081-2947": [
+      "Manticore Platform [Legends]"
+    ],
+    "d316-91f3-9934-ed3e": [
+      "Solitaire"
+    ],
+    "d318-96c5-d134-fa02": [
+      "Hunter [Legends]"
+    ],
+    "d353-6bfd-a702-7457": [
+      "Skorpekh Destroyers"
+    ],
+    "d383-2000-2743-285f": [
+      "War Dog Brigand"
+    ],
+    "d3b9-1474-30d5-dfc1": [
+      "Elysian Drop Sentinel [Legends]"
+    ],
+    "d3c1-31e0-6df4-72b0": [
+      "Ripper Swarms (Parasite of Mortrex)"
+    ],
+    "d3e4-7a08-d18b-1c7e": [
+      "Spartan [Legends]"
+    ],
+    "d3fe-e9f2-d76b-a67": [
+      "Stormsword"
+    ],
+    "d41f-7e7c-18f1-4b98": [
+      "Decimus Kill Team"
+    ],
+    "d49b-c44e-3421-4d3f": [
+      "Myphitic Blight-hauler"
+    ],
+    "d4d2-fedf-140e-3f76": [
+      "Striking Scorpions"
+    ],
+    "d4fc-8d99-6848-79c3": [
+      "Shalaxi Helbane"
+    ],
+    "d54c-41ba-2f37-22a4": [
+      "Lord of Change"
+    ],
+    "d55a-594a-2f89-f511": [
+      "Cerberus [Legends]"
+    ],
+    "d5ad-77b7-25ef-2a85": [
+      "Storm Eagle Gunship [Legends]"
+    ],
+    "d5c7-8476-f068-925d": [
+      "Daemonic Charioteer [Crucible]"
+    ],
+    "d5e4-a883-4a7d-c82d": [
+      "Giant Chaos Spawn [Legends]"
+    ],
+    "d623-66dc-f6a7-7b9e": [
+      "Geomancer"
+    ],
+    "d641-aa45-acbb-beff": [
+      "Commander Dante"
+    ],
+    "d704-18a-96da-ec8a": [
+      "Knight Crusader"
+    ],
+    "d70b-5d37-70d9-a69e": [
+      "Biophagus"
+    ],
+    "d717-5be0-9461-2123": [
+      "Knight Paladin"
+    ],
+    "d733-321e-9ebc-19e0": [
+      "Medusa Carriage Battery [Legends]"
+    ],
+    "d792-2425-8c4f-5b24": [
+      "Runtherd"
+    ],
+    "d7a2-5312-2091-050c": [
+      "Bloodcult Champion [Crucible]"
+    ],
+    "d7b0-a290-4f8d-f338": [
+      "Maulerfiend"
+    ],
+    "d7cd-4833-9dc7-6857": [
+      "Desolation Squad"
+    ],
+    "d7e1-13bb-2177-b6bc": [
+      "Watch Master"
+    ],
+    "d7fd-0cd9-53ee-97b1": [
+      "Corvus Blackstar"
+    ],
+    "d809-c5ea-553a-b5c3": [
+      "Hernkyn Pioneers"
+    ],
+    "d85e-9d2a-4cc6-6392": [
+      "Shas'nel [Crucible]"
+    ],
+    "d8b6-17d1-7472-3a70": [
+      "Nekrosor Ammentar"
+    ],
+    "d8bb-bc8d-b3c8-a33b": [
+      "Hades Breaching Drill [Legends]"
+    ],
+    "d8c8-3031-2faa-22a6": [
+      "Chaplain Venerable Dreadnought [Legends]"
+    ],
+    "d8c9-1f70-4deb-5557": [
+      "Leystalker"
+    ],
+    "d8d3-d93e-4ead-3e95": [
+      "Wolf Scouts [Legends]"
+    ],
+    "d8f0-1727-fcdd-7ee9": [
+      "Lokhust Destroyers"
+    ],
+    "d8f6-58e4-bac7-6a12": [
+      "Renegade Plague Ogryns [Legends]"
+    ],
+    "d91c-7d02-673a-97ed": [
+      "D-Cannon Platform"
+    ],
+    "d93a-c6f0-ada5-484f": [
+      "Cadre Fireblade"
+    ],
+    "d950-10bf-1754-d11e": [
+      "Tyranid Warriors with Ranged Bio-Weapons"
+    ],
+    "d959-561c-6561-a9f3": [
+      "Crisis Fireknife Battlesuits"
+    ],
+    "d9ac-54cb-cdb9-6d4c": [
+      "Leman Russ Vanquisher"
+    ],
+    "d9b9-5a27-3836-1125": [
+      "Deathwing Terminator Squad"
+    ],
+    "da31-c890-10dd-2e14": [
+      "Flamers"
+    ],
+    "da3c-7385-5909-abd5": [
+      "Guardian Drone [Legends]"
+    ],
+    "da66-4d12-2b43-4360": [
+      "Outrider Squad"
+    ],
+    "da6d-fc9f-7e1b-c4f8": [
+      "Serberys Sulphurhounds"
+    ],
+    "daa8-7027-bced-98ed": [
+      "Repressor [Legends]"
+    ],
+    "dabe-b258-691d-9855": [
+      "Benefictus"
+    ],
+    "daec-96aa-c905-f9b0": [
+      "Immortal Champion [Crucible]"
+    ],
+    "db0d-2274-9fd1-e3aa": [
+      "Flesh Crafter [Crucible]"
+    ],
+    "db2e-5ab8-3a0a-462a": [
+      "Earthshaker Platform [Legends]"
+    ],
+    "db43-37b0-37fe-7921": [
+      "Reliquant Knight [Crucible]"
+    ],
+    "db5-450b-5c4b-5743": [
+      "Assault Squad [Legends]"
+    ],
+    "db59-6442-eafa-f8db": [
+      "Death Company Captain with Jump Pack"
+    ],
+    "db79-79bd-c239-b84f": [
+      "Chaos Lord in Terminator Armour"
+    ],
+    "db8-7a89-3b82-c492": [
+      "Ravager"
+    ],
+    "db9e-df49-2d53-3dca": [
+      "Guardian Defenders"
+    ],
+    "db9f-5b64-ba4-dcd7": [
+      "Legionaries"
+    ],
+    "dbc7-8a96-dbbc-7e29": [
+      "Be'lakor"
+    ],
+    "dc2d-a349-be04-8647": [
+      "Salamander Command Vehicle [Legends]"
+    ],
+    "dccc-c115-75ce-2805": [
+      "Blue Horrors"
+    ],
+    "dcce-1991-7e0f-e98c": [
+      "Chaos Lord in Terminator Armour"
+    ],
+    "dcce-7138-db27-ba2": [
+      "Dreadnought Drop Pod [Legends]"
+    ],
+    "dd1b-428a-9463-f1ee": [
+      "Suppressor Squad"
+    ],
+    "dd4b-d758-5063-9b16": [
+      "Skyweavers"
+    ],
+    "dd6d-ee77-b9ea-d2e5": [
+      "Wulfen Dreadnought"
+    ],
+    "dd89-82d3-6866-78d3": [
+      "Foetid Bloat-drone with heavy blight launcher"
+    ],
+    "dd89-8c13-78ce-c058": [
+      "Macharius Omega [Legends]"
+    ],
+    "ddab-1df8-7c4e-8768": [
+      "Irillyth [Legends]"
+    ],
+    "de04-7058-de9d-d8b8": [
+      "Damned Legionnaires [Legends]"
+    ],
+    "de34-bdb3-28fa-532a": [
+      "Stygies Destroyer Tank Hunter [Legends]"
+    ],
+    "de48-1fed-57fe-c097": [
+      "Windriders"
+    ],
+    "de50-b47d-9b47-196e": [
+      "Imperial Navy Breachers"
+    ],
+    "de65-a660-340f-96e8": [
+      "Ironclad Dreadnought [Legends]"
+    ],
+    "deb6-2fc2-a1ad-cde1": [
+      "Lictor"
+    ],
+    "dee1-2f23-d810-23dd": [
+      "Custodian Guard with Adrasite and Pyrithite spears"
+    ],
+    "def6-449b-7b0d-da25": [
+      "Possessed"
+    ],
+    "df20-b677-3f45-9482": [
+      "Decimator [Legends]"
+    ],
+    "df5d-5a8e-adb0-a94b": [
+      "Brayherd Shaman [Crucible]"
+    ],
+    "df92-e0be-df8f-73fc": [
+      "Manticore"
+    ],
+    "dfb5-f763-308d-e0d9": [
+      "Chaplain"
+    ],
+    "dfe-4279-be61-2c72": [
+      "Devilfish"
+    ],
+    "e001-5012-2907-2830": [
+      "Aun'va [Legends]"
+    ],
+    "e137-53d3-833-4389": [
+      "Castellum Stronghold [Legends]"
+    ],
+    "e13c-bf6c-87b2-30f8": [
+      "Battle Sisters Squad"
+    ],
+    "e14a-7f59-59a2-80fd": [
+      "Annihilation Barge"
+    ],
+    "e167-d0dc-42aa-8494": [
+      "Red Corsairs Reave-captain"
+    ],
+    "e16d-0390-e80b-618c": [
+      "Heldrake"
+    ],
+    "e17b-05e3-61c0-2ad9": [
+      "Deathwatch Veterans"
+    ],
+    "e1ac-1406-1081-8ea3": [
+      "Ravenwing Command Squad"
+    ],
+    "e1c7-4bd8-ebad-6154": [
+      "Storm Speeder Thunderstrike"
+    ],
+    "e1ce-8c52-b40a-7868": [
+      "The Blue Scribes"
+    ],
+    "e1d6-3316-2209-dc77": [
+      "Vulkan He'stan"
+    ],
+    "e1e-1c6b-bb62-f9c8": [
+      "Chaplain Cassius [Legends]"
+    ],
+    "e20a-8101-443d-6ae8": [
+      "Reaver Titan"
+    ],
+    "e213-0676-347e-9292": [
+      "Exalted Eightbound"
+    ],
+    "e247-5e94-9767-87b": [
+      "Servitors [Legends]"
+    ],
+    "e27e-ffc-cb61-740": [
+      "Arvus Lighter [Legends]"
+    ],
+    "e2a-75fd-5a20-fffc": [
+      "Blood Slaughterer [Legends]"
+    ],
+    "e2d-60fc-decf-8062": [
+      "Boss Snikrot"
+    ],
+    "e2d6-f4d8-8388-2312": [
+      "Furioso Dreadnought [Legends]"
+    ],
+    "e309-2952-cbea-9b73": [
+      "Lootas [Legends]"
+    ],
+    "e32b-d49a-e848-2274": [
+      "Hellions"
+    ],
+    "e343-a706-337b-ed54": [
+      "Immortal Champion [Crucible]"
+    ],
+    "e36b-df22-5735-59df": [
+      "Primus"
+    ],
+    "e38-2e97-b43b-387c": [
+      "Warboss on Warbike [Legends]"
+    ],
+    "e3ba-ed19-bc91-81ee": [
+      "Grand Master Voldus"
+    ],
+    "e415-ca97-489b-5923": [
+      "Land Speeder Storm [Legends]"
+    ],
+    "e426-84a4-a7da-e154": [
+      "Eldrad Ulthran"
+    ],
+    "e42e-790e-c6e6-3a43": [
+      "Void Shield Generator [Legends]"
+    ],
+    "e436-7775-f313-80ac": [
+      "Valkyrie"
+    ],
+    "e43e-9113-736d-cdf6": [
+      "Warp Spiders"
+    ],
+    "e44f-a5c6-e78-cce4": [
+      "Beastmaster [Legends]"
+    ],
+    "e472-f78e-1f6-b4f": [
+      "Possessed"
+    ],
+    "e49d-ee2d-8886-071d": [
+      "Kapricus Defenders"
+    ],
+    "e4aa-9ec5-74f9-b301": [
+      "Greater Brass Scorpion [Legends]"
+    ],
+    "e4c-8564-83e-a0f3": [
+      "Elysian Sniper Squad [Legends]"
+    ],
+    "e5cf-11b9-6cff-b4ad": [
+      "Negavolt Cultists [Legends]"
+    ],
+    "e5e2-6505-3bb5-5296": [
+      "Daemonic Herald [Crucible]"
+    ],
+    "e61a-e92c-74ec-5f31": [
+      "Wraithknight with Ghostglaive"
+    ],
+    "e659-f4ce-f63-e8ca": [
+      "Rapier Laser Destroyer Battery [Legends]"
+    ],
+    "e698-f6c0-b884-c180": [
+      "Kharybdis Assault Claw [Legends]"
+    ],
+    "e6a1-7ae6-b759-9a96": [
+      "Lord Invocatus"
+    ],
+    "e6a1-e532-1801-ceb1": [
+      "Plague Marines"
+    ],
+    "e6cb-b968-94b0-1964": [
+      "Swooping Hawks"
+    ],
+    "e6fe-b5bd-d1b6-cff0": [
+      "Pink Horrors"
+    ],
+    "e760-b949-e4ca-ef85": [
+      "Grotmas Gitz [Legends]"
+    ],
+    "e76e-bdee-a328-890d": [
+      "Bloodcrushers"
+    ],
+    "e77f-29fb-5f25-9bed": [
+      "Sergeant Telion [Legends]"
+    ],
+    "e79a-edbe-d153-83fb": [
+      "Krieg Combat Engineers"
+    ],
+    "e7d6-b926-8592-d625": [
+      "Land Raider Crusader"
+    ],
+    "e7dc-9c6e-e267-c3de": [
+      "Hive Guard"
+    ],
+    "e85f-821f-e245-1bc1": [
+      "Tomb Citadel Walls [Legends]"
+    ],
+    "e86a-63b2-d572-270b": [
+      "Deredeo Dreadnought [Legends]"
+    ],
+    "e87c-7137-de65-faeb": [
+      "Immortal Champion [Crucible]"
+    ],
+    "e89-fc3-6209-473f": [
+      "Sorcerer"
+    ],
+    "e8a9-2c26-4e69-98dd": [
+      "Immortal Champion [Crucible]"
+    ],
+    "e8d2-106a-e195-ae23": [
+      "Gellerpox Infected [Legends]"
+    ],
+    "e98c-b305-1b4b-f54": [
+      "Night Spinner"
+    ],
+    "e9a-9fe4-d8b6-e59d": [
+      "Starweaver"
+    ],
+    "e9a0-f638-7793-94c8": [
+      "Gargoyles"
+    ],
+    "e9e4-d332-9c57-f71b": [
+      "Upstart Gretchin [Crucible]"
+    ],
+    "e9f3-6605-87c9-89c6": [
+      "Knight Warden"
+    ],
+    "ea25-2609-22d8-7463": [
+      "Urien Rakarth [Legends]"
+    ],
+    "ea4b-d075-c59f-248f": [
+      "Excruciator [Crucible]"
+    ],
+    "ea8a-172d-13aa-9e91": [
+      "Plaguebearers"
+    ],
+    "eacb-5067-279-84c4": [
+      "Baal Predator"
+    ],
+    "ead3-cdad-4f60-e095": [
+      "Raider"
+    ],
+    "eae1-89c6-5754-9ac4": [
+      "Talos"
+    ],
+    "eae9-d607-c016-2cad": [
+      "Repulsor"
+    ],
+    "eaf6-1117-17df-7fbf": [
+      "Corsair Voidscarred"
+    ],
+    "eb42-25e1-cb7-81e0": [
+      "Brotherhood Librarian"
+    ],
+    "eb5c-2b78-d795-d078": [
+      "Praetor [Legends]"
+    ],
+    "eba3-150e-fb19-2ad7": [
+      "Vashtorr the Arkifane"
+    ],
+    "ebdf-c9f8-b845-6b8c": [
+      "Rapier Carrier [Legends]"
+    ],
+    "ebdf-f4d8-e8bd-2bb7": [
+      "Whirlwind [Legends]",
+      "Whirlwind"
+    ],
+    "ec05-3b74-7fd8-343": [
+      "Lieutenant with Combi-weapon"
+    ],
+    "ec2c-94ac-9338-ce57": [
+      "Skitarii Rangers"
+    ],
+    "ec2e-941e-4c80-ab09": [
+      "Cybernetica Datasmith"
+    ],
+    "ec3e-6dbf-944c-b1d7": [
+      "Gauss Pylon [Legends]"
+    ],
+    "ec95-a3ef-cf96-89c1": [
+      "Accursed Cultists"
+    ],
+    "eca2-920e-37ba-f02b": [
+      "Pox Riders [Legends]"
+    ],
+    "ecd1-ec07-60b7-cec3": [
+      "Ironkin Steeljacks with Melee Weapons"
+    ],
+    "ece1-a5ff-7a82-4d4c": [
+      "Breaching Robot"
+    ],
+    "ecf0-2626-e0a3-aaa": [
+      "Farseer Skyrunner"
+    ],
+    "ecf3-eb15-5d42-173d": [
+      "Wartrakks"
+    ],
+    "ecf6-b23e-96d9-2d16": [
+      "Fortress of Redemption [Legends]"
+    ],
+    "ed2d-a39d-c9e1-7e2e": [
+      "Land Raider Crusader"
+    ],
+    "ed6a-ff9f-28a3-1716": [
+      "Revenant Titan"
+    ],
+    "ed84-3c2a-5346-ca97": [
+      "Kor'sarro Khan"
+    ],
+    "eda3-cf8a-c3ed-f64f": [
+      "Inquisitorial Agents"
+    ],
+    "ee25-9289-f244-059b": [
+      "Lord Marshal Dreir"
+    ],
+    "ee4d-47d6-bd79-e4ff": [
+      "Daemon Prince of Chaos"
+    ],
+    "ee6b-e1a3-5bb0-61c7": [
+      "Daemonifuge"
+    ],
+    "eea1-54d-9cb-4857": [
+      "Sanguinary Priest"
+    ],
+    "ef2-a2c9-729b-61b9": [
+      "Strike Team"
+    ],
+    "ef2c-2932-39f4-7228": [
+      "Canis Rex"
+    ],
+    "ef4d-241e-a2cc-f1ad": [
+      "Starweaver"
+    ],
+    "ef4f-7a5e-9eb2-66c7": [
+      "Kharseth"
+    ],
+    "ef51-8c81-8a60-a930": [
+      "Chaplain Kastiel [Legends]"
+    ],
+    "ef71-b4d8-a9e-6e18": [
+      "Vendetta Gunship [Legends]"
+    ],
+    "efab-05f1-5cf4-6116": [
+      "Arvus Lighter [Legends]"
+    ],
+    "efc9-2aff-c5b-6790": [
+      "Rhino"
+    ],
+    "f00d-f15e-4e0a-f982": [
+      "Salamander Scout Vehicle [Legends]"
+    ],
+    "f018-ea7f-b4a1-cf2f": [
+      "Mutoid Vermin [Legends]"
+    ],
+    "f024-18c1-b49-9677": [
+      "Armiger Moirax"
+    ],
+    "f044-7d53-b48f-f6b5": [
+      "Techmarine on Bike [Legends]"
+    ],
+    "f090-7a8a-8552-3b4d": [
+      "Augmented Bone 'Ead [Crucible]"
+    ],
+    "f0b7-283f-7d6e-6812": [
+      "Skyshield Landing Pad [Legends]"
+    ],
+    "f0d0-a7df-4002-70bf": [
+      "Macro Organism [Crucible]"
+    ],
+    "f0e2-1aec-9f03-cd0a": [
+      "Cultist Mob with Firearms [Legends]"
+    ],
+    "f0fe-79fd-b14c-4c2b": [
+      "Repulsor Executioner"
+    ],
+    "f127-548b-3a56-284f": [
+      "Macharius Vulcan [Legends]"
+    ],
+    "f135-a27-d47-d791": [
+      "The Masque of Slaanesh"
+    ],
+    "f195-2bd2-677f-c701": [
+      "Malcador [Legends]"
+    ],
+    "f1bb-5b7e-c4a5-4040": [
+      "Yvraine"
+    ],
+    "f1c3-d5f3-322d-cd45": [
+      "Terrax-pattern Termite [Legends]"
+    ],
+    "f1e5-9e28-9096-27be": [
+      "Reaver Titan"
+    ],
+    "f1f4-72d3-d4f4-97de": [
+      "Primaris Psyker"
+    ],
+    "f200-6a81-b355-eeff": [
+      "Renegade Enforcer [Legends]"
+    ],
+    "f207-382f-bf76-960a": [
+      "Bonesinger [Legends]"
+    ],
+    "f21a-cd8a-ab17-5ecd": [
+      "Troupe"
+    ],
+    "f23c-da85-28c7-1776": [
+      "Rein and Raus [Legends]"
+    ],
+    "f24f-e542-0dc3-0f35": [
+      "Chaos Vindicator"
+    ],
+    "f262-e6fd-26d-9fee": [
+      "Pteraxii Sterylizors"
+    ],
+    "f270-114d-f09d-62f6": [
+      "Scabeiathrax the Bloated [Legends]"
+    ],
+    "f28d-8724-b42c-cf62": [
+      "Kroot Carnivores"
+    ],
+    "f2b0-99f4-4213-fdd": [
+      "Sicaran Arcus [Legends]"
+    ],
+    "f2b9-cd8a-1e39-4cad": [
+      "Zephyrim Squad"
+    ],
+    "f2cf-3e7d-30e6-4020": [
+      "Sorcerer on Steed of Slaanesh [Legends]"
+    ],
+    "f2f0-6213-2417-57dc": [
+      "Karanak"
+    ],
+    "f300-69a7-d144-4c88": [
+      "Ghost Ark"
+    ],
+    "f317-6c72-c211-30bf": [
+      "Stormblade [Legends]"
+    ],
+    "f36e-db42-6153-920a": [
+      "Armiger Helverin"
+    ],
+    "f38c-6b5-d8d3-32db": [
+      "‘Iron Hand’ Straken [Legends]"
+    ],
+    "f3a8-f595-44c5-e019": [
+      "Chaos Lord on Disc of Tzeentch [Legends]"
+    ],
+    "f3c2-5612-d827-c8ba": [
+      "Arco-Flagellants"
+    ],
+    "f3ea-ade3-be6-a95": [
+      "Wraithguard"
+    ],
+    "f44-cd5f-4a3-f6b7": [
+      "Neophyte Hybrids"
+    ],
+    "f447-d30c-2276-1762": [
+      "Knight Tyrant"
+    ],
+    "f474-4b0b-6292-38aa": [
+      "Deathwing Knights"
+    ],
+    "f519-711b-d7ad-6126": [
+      "Dialogus"
+    ],
+    "f552-367d-f8b5-d220": [
+      "Big Mek in Mega Armour"
+    ],
+    "f573-4f05-ece9-479f": [
+      "Cerastus Knight Castigator"
+    ],
+    "f575-6924-86cd-8634": [
+      "Fire Raptor Gunship [Legends]"
+    ],
+    "f5ac-46c9-972f-c0c3": [
+      "Big'ed Bossbunka"
+    ],
+    "f5c8-476c-06ad-22c7": [
+      "Coronus Grav-carrier"
+    ],
+    "f630-edc9-339d-a309": [
+      "Kytan Ravager [Legends]"
+    ],
+    "f634-f0c8-a020-420f": [
+      "Leman Russ Executioner"
+    ],
+    "f642-9374-0f45-2991": [
+      "Canoptek Tomb Crawlers"
+    ],
+    "f664-67d5-9014-79b7": [
+      "Screamer-killer"
+    ],
+    "f673-43ae-9348-61fd": [
+      "Wolf Guard Battle Leader on Thunderwolf [Legends]"
+    ],
+    "f69c-857b-d6c5-6ad1": [
+      "Heavy Mortar Team [Legends]"
+    ],
+    "f6b9-71b1-297a-c13a": [
+      "Brutalis Dreadnought"
+    ],
+    "f6b9-ebd3-b25d-5ea8": [
+      "Azrael"
+    ],
+    "f6e3-745b-88cf-c04a": [
+      "Sicaran Venator [Legends]"
+    ],
+    "f6f4-dd0a-a388-a9fe": [
+      "Taurox Prime"
+    ],
+    "f743-9af9-c9e5-876d": [
+      "Arkurian Stormhammer [Legends]"
+    ],
+    "f765-5592-1494-7b5c": [
+      "Autarch Skyrunner [Legends]"
+    ],
+    "f76f-4387-e879-d0a6": [
+      "Beasts of Nurgle"
+    ],
+    "f78-481-9450-b631": [
+      "Armageddon-pattern Medusa [Legends]"
+    ],
+    "f780-34e2-b8f7-eeee": [
+      "Corsair Skyreavers"
+    ],
+    "f790-9b08-1134-58b3": [
+      "Field Ordnance Battery"
+    ],
+    "f797-682a-ac64-c6fd": [
+      "Riptide Battlesuit"
+    ],
+    "f798-9d17-25ab-65af": [
+      "Death Korps Grenadier Squad [Legends]"
+    ],
+    "f7d0-f6ee-1fd5-b4da": [
+      "Sorcerer in Terminator Armour"
+    ],
+    "f7dd-51f2-3195-dca4": [
+      "Chaos Thunderhawk [Legends]"
+    ],
+    "f809-4387-ed6f-16ef": [
+      "Tidewall Droneport"
+    ],
+    "f826-b031-f76c-751f": [
+      "Shadowseer"
+    ],
+    "f843-63ab-9fd1-7bc7": [
+      "Belial"
+    ],
+    "f84a-1ab0-e1be-d16e": [
+      "Catachan Jungle Fighters"
+    ],
+    "f867-cbc9-d166-18eb": [
+      "Helbrute"
+    ],
+    "f86e-edef-7ce6-6ded": [
+      "Commissar"
+    ],
+    "f89d-80b7-730f-0d1b": [
+      "Nemesis Claw"
+    ],
+    "f8ae-e6a1-48f0-56f8": [
+      "Null Maiden [Crucible]"
+    ],
+    "f8e7-72ea-b430-918a": [
+      "Venomcrawler"
+    ],
+    "f8f7-4a6f-8bf2-50c0": [
+      "Helbrute"
+    ],
+    "f91-2bd6-3077-9b69": [
+      "Razorback [Legends]",
+      "Razorback"
+    ],
+    "f91f-6730-445a-22b0": [
+      "Blue Horrors"
+    ],
+    "f924-6fa9-cee4-b6ee": [
+      "Cerberus [Legends]"
+    ],
+    "f925-323-cb9f-9de6": [
+      "Carnifexes"
+    ],
+    "f926-58fc-de94-89c2": [
+      "Imperial Space Marine [Legends]"
+    ],
+    "f96f-85f3-fda6-40d9": [
+      "Archon"
+    ],
+    "f993-54e9-8aad-1ef3": [
+      "Sword Brethren Squad"
+    ],
+    "f9a6-cebc-48db-8236": [
+      "Wyvern"
+    ],
+    "f9b5-4b0d-9643-6547": [
+      "Master of Possession"
+    ],
+    "f9d6-8548-3291-8c60": [
+      "Leman Russ Punisher"
+    ],
+    "f9f-2100-687b-69bd": [
+      "Skullmaster"
+    ],
+    "fa0-1546-d06a-dc29": [
+      "Manta"
+    ],
+    "fa01-afbc-eb36-3fcf": [
+      "Infernal Master"
+    ],
+    "fa07-2fe1-8621-b69d": [
+      "Tormentbringer"
+    ],
+    "fa28-2905-8989-8a2b": [
+      "Tormentors"
+    ],
+    "fa46-ac52-94d4-f73c": [
+      "Sicaran Punisher [Legends]"
+    ],
+    "fa4f-2feb-923-666a": [
+      "Maugan Ra"
+    ],
+    "fa62-6321-b557-7cc1": [
+      "Vampire Raider [Legends]"
+    ],
+    "fa66-cda4-10fa-4c69": [
+      "Ballistus Dreadnought"
+    ],
+    "faa3-fd3b-f418-b986": [
+      "Hydra Platform [Legends]"
+    ],
+    "faf9-d221-4c79-88cf": [
+      "Librarian on Bike [Legends]"
+    ],
+    "fafa-8442-d6ef-4788": [
+      "Havocs"
+    ],
+    "fb3e-8f1b-63d7-f761": [
+      "Lelith Hesperax"
+    ],
+    "fb73-22fb-c51c-16ca": [
+      "Land Speeder Tornado [Legends]"
+    ],
+    "fb91-c605-9c59-19f4": [
+      "Commander in Enforcer Battlesuit"
+    ],
+    "fb98-f509-dbe3-8a3b": [
+      "Cerastus Knight Atrapos"
+    ],
+    "fbb7-854d-ce69-e961": [
+      "Skathach Wraithknight [Legends]"
+    ],
+    "fbd6-8200-928b-b1df": [
+      "Steeljack Elder [Crucible]"
+    ],
+    "fbfe-7348-5b36-ac1e": [
+      "Tech-Priest Dominus"
+    ],
+    "fc02-c2df-a3fd-a869": [
+      "Sky-slasher Swarms [Legends]"
+    ],
+    "fc1e-71f4-4ffa-6469": [
+      "Chosen"
+    ],
+    "fca2-3a2e-b479-d0fc": [
+      "Shas'o R'alai [Legends]"
+    ],
+    "fcb2-53e8-1360-acf7": [
+      "Traitor Guardsmen Squad"
+    ],
+    "fcb6-80ca-22a-4771": [
+      "Redemptor Dreadnought"
+    ],
+    "fccb-aa74-dcb9-5209": [
+      "Contemptor-Galatus Dreadnought"
+    ],
+    "fd0b-aee0-3632-f3c6": [
+      "Voidweaver"
+    ],
+    "fd1-a697-de5-e1f9": [
+      "Haruspex"
+    ],
+    "fd16-3705-d392-a163": [
+      "Vespid Stingwings"
+    ],
+    "fd2e-272b-759a-2841": [
+      "Corsair Reaver Band [Legends]"
+    ],
+    "fd7f-1538-e1dc-b5ef": [
+      "Sorcerer in Terminator Armour"
+    ],
+    "fd9d-7a51-43be-16d1": [
+      "Taurox"
+    ],
+    "fd9d-87f3-1895-3470": [
+      "Beast Snagga Boyz"
+    ],
+    "fdd6-9c02-ae6b-32c1": [
+      "Mucolid Spores"
+    ],
+    "fdfc-1d52-ab77-2605": [
+      "Fulgrim"
+    ],
+    "fe4d-4c95-5b84-2670": [
+      "Tempestus Scions"
+    ],
+    "fe7f-7bff-cc64-ef7": [
+      "Zoanthropes"
+    ],
+    "fe9e-86a2-ca17-27f1": [
+      "Weirdboy"
+    ],
+    "fece-50fa-e019-b6c2": [
+      "The Swarmlord"
+    ],
+    "ff0e-62a0-48a8-f438": [
+      "Trazyn the Infinite"
+    ],
+    "ff16-9d2c-44ac-0b02": [
+      "Sternguard Veteran Squad"
+    ],
+    "ff2b-ce68-c268-8720": [
+      "Deathmarks"
+    ],
+    "ff50-aaa8-e1f0-0dbc": [
+      "Chaos Land Raider"
+    ],
+    "ff82-62db-35d1-414a": [
+      "Chaos Lord"
+    ],
+    "ff83-3a46-581b-5372": [
+      "Hell's Last [Legends]"
+    ],
+    "ffd3-a6da-a79e-bb34": [
+      "Gaunt’s Ghosts"
+    ],
+    "pc-046443eb5fa21e7b09334972": [
+      "Aquilon Terminators with Solarite Power Gauntlets"
+    ],
+    "pc-18056970215522df4b9c8900": [
+      "Caladius Grav-Tank"
+    ],
+    "pc-20dc4a9509f2a9ac45daed31": [
+      "Pallas Grav-Attack"
+    ],
+    "pc-312dec2428fb16de3cf10023": [
+      "Venatari with Verutum Lances"
+    ],
+    "pc-33aea43b1e1a6a2212e93ac2": [
+      "Coronus Grav-Carrier"
+    ],
+    "pc-9a47df15bb43432c149ea626": [
+      "Aquilon Terminators with Solarite Power Talons"
+    ],
+    "pc-9d2efb88504315c54ff6d340": [
+      "Venatari with Kinetic Destroyers"
+    ],
+    "pc-a964693fde263e2e10b3432c": [
+      "Caladius Annihilator Grav-Tank"
+    ],
+    "pc-bebd62fd76161919923a01f6": [
+      "Gyrfalcon Jetbike Sodality"
+    ],
+    "pc-e4798506f470edaeb9b98248": [
+      "Sentinel Guard Sodality"
+    ],
+    "profile-unit-14f0-2e5f-1ef8-7d6a-130b-10a7-d149-0992": [
+      "Iron Father Feirros"
+    ],
+    "profile-unit-14f0-2e5f-1ef8-7d6a-c724-761a-086d-7373": [
+      "Caanok Var"
+    ],
+    "profile-unit-23d7-91c9-24dc-263a-75de-8824-bd0a-ec77": [
+      "Darnath Lysander"
+    ],
+    "profile-unit-23d7-91c9-24dc-263a-8a31-e7b2-2494-43c2": [
+      "Tor Garadon"
+    ],
+    "profile-unit-2f78-9f73-b44f-3807-7029-01d6-4d91-e148": [
+      "Suboden Khan"
+    ],
+    "profile-unit-2f78-9f73-b44f-3807-7f1b-638d-ac3b-f280": [
+      "Kor'sarro Khan"
+    ],
+    "profile-unit-323f-498b-f3a0-377f-a63c-0a29-c07e-f0a2": [
+      "Kayvaan Shrike"
+    ],
+    "profile-unit-323f-498b-f3a0-377f-c26a-e8e6-13e4-4a1e": [
+      "Aethon Shaan"
+    ],
+    "profile-unit-4eef-e313-1eea-94a6-1a71-5719-73c5-aab1": [
+      "Vulkan He'stan"
+    ],
+    "profile-unit-4eef-e313-1eea-94a6-d358-df4a-1c2f-4bff": [
+      "Adrax Agatone"
+    ],
+    "profile-unit-a603-5039-f08d-e841-0217-bbe5-6876-d2d8": [
+      "Captain Titus"
+    ],
+    "profile-unit-a603-5039-f08d-e841-23e0-c507-13d9-a29b": [
+      "Wardens of Ultramar"
+    ],
+    "profile-unit-a603-5039-f08d-e841-2431-2bbc-2e5f-577f": [
+      "Kaius Konorius"
+    ],
+    "profile-unit-a603-5039-f08d-e841-5302-e1f9-0338-76f9": [
+      "Marneus Calgar"
+    ],
+    "profile-unit-a603-5039-f08d-e841-8407-dd1b-58f2-5426": [
+      "Roboute Guilliman"
+    ],
+    "profile-unit-a603-5039-f08d-e841-89ea-904e-e75d-ae54": [
+      "Victrix Honour Guard"
+    ],
+    "profile-unit-a603-5039-f08d-e841-9540-c267-2f48-7b7b": [
+      "Cato Sicarius"
+    ],
+    "profile-unit-a603-5039-f08d-e841-e56e-3398-3e8a-9a00": [
+      "Chief Librarian Tigurius"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-024a-3fea-7765-4e82": [
+      "Captain"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-0324-331c-c2b1-a68d": [
+      "Bladeguard Veteran Squad"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-09af-bb0d-dc83-59f7": [
+      "Librarian"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-0b27-7a0f-d7e9-1d38": [
+      "Sternguard Veteran Squad"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-0ece-26db-64d5-6a9b": [
+      "Librarian in Terminator Armour"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-0fa9-7d66-9c28-632c": [
+      "Aggressor Squad"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-0fe1-f0f4-010d-8104": [
+      "Eliminator Squad"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-10ea-b970-b376-4ab2": [
+      "Outrider Squad"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-1965-9ab1-a8f1-ab75": [
+      "Land Raider Crusader"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-1baa-567f-fcb6-cae0": [
+      "Incursor Squad"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-1cfc-d693-eac1-1c99": [
+      "Ancient in Terminator Armour"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-1e33-7b3b-016c-afea": [
+      "Lieutenant with Combi-weapon"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-1f47-6549-ea96-fba0": [
+      "Captain in Gravis Armour"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-2187-ce0d-9264-eddc": [
+      "Captain in Terminator Armour"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-34c7-75dd-fcff-ec94": [
+      "Intercessor Squad"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-3542-4062-da8c-5f42": [
+      "Scout Squad"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-3f19-f63a-0c0b-0817": [
+      "Gladiator Valiant"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-42d3-08a5-f800-6ed7": [
+      "Terminator Assault Squad"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-4795-7030-3b2a-c77b": [
+      "Terminator Squad"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-4c95-c977-744b-a692": [
+      "Land Raider"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-527e-3fe7-a2d9-b064": [
+      "Invictor Tactical Warsuit"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-55fe-55b2-1b15-0bc6": [
+      "Desolation Squad"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-5d60-adc0-d447-305f": [
+      "Judiciar"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-5e6c-e2c7-32b9-c862": [
+      "Vanguard Veteran Squad with Jump Packs"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-5fc3-3634-4474-ba64": [
+      "Infiltrator Squad"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-662d-d4b4-cacb-bf92": [
+      "Inceptor Squad"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-694f-e06e-063d-45b3": [
+      "Apothecary"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-6ebd-eb7f-4bcd-8fba": [
+      "Storm Speeder Hammerstrike"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-71f5-e3d3-9805-87c4": [
+      "Eradicator Squad with Melta Rifles"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-7648-0a7c-895d-1d9a": [
+      "Assault Intercessors with Jump Packs"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-7a1d-9822-8027-43d4": [
+      "Chaplain"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-8044-bed5-56ca-7d30": [
+      "Storm Speeder Thunderstrike"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-83c8-5e8e-088f-9244": [
+      "Repulsor Executioner"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-8758-0628-4020-ed35": [
+      "Captain in Phobos Armour"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-8796-469b-4d8c-f1bf": [
+      "Chaplain with Jump Pack"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-9217-5b4c-f073-c93c": [
+      "Reiver Squad"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-94eb-0c72-b021-85fd": [
+      "Storm Speeder Hailstrike"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-95e9-933c-b9d7-ecab": [
+      "Lieutenant in Phobos Armour"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-97b4-225c-2df8-39a5": [
+      "Techmarine"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-9b37-5504-5e86-3307": [
+      "Heavy Intercessor Squad"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-9e2f-b411-4b73-257f": [
+      "Chaplain in Terminator Armour"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-a2f3-1f23-3908-8dc5": [
+      "Repulsor"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-a4b6-30a3-4226-3792": [
+      "Infernus Squad"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-ac99-397f-b79e-fb2a": [
+      "Impulsor"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-aec6-0bec-09a4-69a9": [
+      "Eradicator Squad with Heavy Bolters"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-af06-c419-96da-a136": [
+      "Redemptor Dreadnought"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-afd9-0b42-47ba-c215": [
+      "Rhino"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-b93a-cb63-2932-decc": [
+      "Bladeguard Ancient"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-ba75-8b35-9fd1-9508": [
+      "Librarian in Phobos Armour"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-bc06-2cb9-4ec5-4e64": [
+      "Gladiator Reaper"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-bd0a-325a-8e1b-1ddf": [
+      "Gladiator Lancer"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-c56a-52ea-0da0-4bb5": [
+      "Invader ATVs"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-ca61-48f8-4e14-232d": [
+      "Ballistus Dreadnought"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-d173-3469-c40d-fd2f": [
+      "Ancient"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-dbdb-105f-012d-1a65": [
+      "Firestrike Servo-turrets"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-dd93-e56f-754e-f256": [
+      "Hellblaster Squad"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-df9f-c030-c2e8-46ae": [
+      "Land Speeder"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-e125-3e2b-4348-d58b": [
+      "Land Raider Redeemer"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-e181-0a30-f8f9-ba0a": [
+      "Lieutenant"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-e240-cd4a-f11c-5ceb": [
+      "Assault Intercessor Squad"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-e3bb-4830-d4fb-1484": [
+      "Captain on Bike"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-e720-099f-afe5-4d9d": [
+      "Apothecary Biologis"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-ea87-dfb6-9f4f-56f9": [
+      "Company Heroes"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-ec2d-903c-395e-9dd0": [
+      "Chaplain on Bike"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-edfc-ce7c-8666-cb86": [
+      "Brutalis Dreadnought"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-f60c-f331-24f3-1f9a": [
+      "Drop Pod"
+    ],
+    "profile-unit-e0af-67df-9d63-8fb8-f970-d8cc-1421-7fba": [
+      "Captain with Jump Pack"
+    ]
+  }
+}

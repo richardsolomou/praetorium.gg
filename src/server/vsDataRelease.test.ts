@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, expect, it } from 'vitest'
-import { vsDataReleaseFiles, writeFiles } from './vsData.fixtures'
+import { missionPack, vsDataReleaseFiles, writeFiles } from './vsData.fixtures'
 import { checkVsDataRelease, compactVsDataRelease, vsDataReleaseErrors } from './vsDataRelease'
 import { vsDataEffectsPath } from '../shared/vsDataEffects'
 
@@ -289,7 +289,7 @@ it('keeps what a datasheet shows of a unit, its models and wargear named, under 
   ])
 })
 
-it('keeps every spelling the localisation gives a unit, its pieces and a Detachment, English first', () => {
+it('keeps every spelling the localisation gives a unit, its pieces, a Detachment and a force disposition, English first', () => {
   fs.rmSync(directory, { recursive: true })
   const entries = [
     { kind: 'unit', id: 'necrons.tomb-blades', name: 'Tomb Blades', aliases: ['bsdata.aa11.bb22'] },
@@ -300,15 +300,30 @@ it('keeps every spelling the localisation gives a unit, its pieces and a Detachm
   ]
   writeFiles(
     directory,
-    vsDataReleaseFiles([record], 'MFM 1.6', entries, {
-      es: [
-        { kind: 'unit', id: 'necrons.tomb-blades', display: 'Cuchillas sepulcrales' },
-        { kind: 'wargear', id: 'necrons.tomb-blades.particle-beamer', display: 'Haz de partículas' },
-        { kind: 'detachment', id: 'necrons.pantheon-of-woe', display: 'Panteón de la Aflicción' },
+    vsDataReleaseFiles(
+      [
+        record,
+        {
+          kind: 'mission-pack',
+          id: 'test-pack',
+          aliases: [],
+          category: 'mission-packs',
+          data: missionPack({ dispositions: [{ id: 'test-pack.take-and-hold', name: 'Take and Hold', aliases: [] }] }),
+        },
       ],
-      fr: [{ kind: 'unit', id: 'necrons.tomb-blades', display: 'Lames Tombales', aliases: [{ name: 'Lame-tombeaux' }] }],
-      it: [{ kind: 'model', id: 'necrons.tomb-blades.tomb-blade', display: 'Lama Tombale con raggio a particelle.' }],
-    }),
+      'MFM 1.6',
+      entries,
+      {
+        es: [
+          { kind: 'disposition', id: 'test-pack.take-and-hold', display: 'Ocupar y mantener' },
+          { kind: 'unit', id: 'necrons.tomb-blades', display: 'Cuchillas sepulcrales' },
+          { kind: 'wargear', id: 'necrons.tomb-blades.particle-beamer', display: 'Haz de partículas' },
+          { kind: 'detachment', id: 'necrons.pantheon-of-woe', display: 'Panteón de la Aflicción' },
+        ],
+        fr: [{ kind: 'unit', id: 'necrons.tomb-blades', display: 'Lames Tombales', aliases: [{ name: 'Lame-tombeaux' }] }],
+        it: [{ kind: 'model', id: 'necrons.tomb-blades.tomb-blade', display: 'Lama Tombale con raggio a particelle.' }],
+      },
+    ),
   )
   expect(vsDataReleaseErrors(directory)).toEqual([])
   const file = `${directory}.json`
@@ -317,8 +332,9 @@ it('keeps every spelling the localisation gives a unit, its pieces and a Detachm
   fs.rmSync(file)
   expect(compact.names).toEqual({
     factions: [],
-    detachments: [['Pantheon of Woe', 'Panteón de la Aflicción']],
+    detachments: { 'necrons.pantheon-of-woe': ['Pantheon of Woe', 'Panteón de la Aflicción'] },
     enhancements: [],
+    dispositions: [['Take and Hold', 'Ocupar y mantener']],
     units: {
       'necrons.tomb-blades': {
         name: ['Tomb Blades', 'Cuchillas sepulcrales', 'Lames Tombales', 'Lame-tombeaux'],
