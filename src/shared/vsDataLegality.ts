@@ -72,9 +72,9 @@ export function vsDataErrors(
   const faction = data.books[list.catalogueId.slice(list.catalogueId.indexOf('~') + 1)]
   const detachments = list.detachmentIds.map((id) => data.detachments[id])
   const own = new Set([faction, definitions.get('faction', faction ?? '')?.data.parent])
-  // A list VS Data cannot place stays with the catalogue's checks: one of a faction with no Detachments of its own, as a
-  // Titan army is, which takes none, or with a Detachment VS Data files under another faction, as a chapter's Deathwatch
-  // Support is, until VS Data records them. Any other list needs a Detachment, as the app's does.
+  // A list VS Data cannot place stays with the catalogue's checks until VS Data records it: one of a faction VS Data gives
+  // no Detachments, as a Titan army is, or with a Detachment VS Data files under another faction, as a chapter's
+  // Deathwatch Support is. Any other list needs a Detachment, as the app's does.
   const ownsDetachments = definitions.all('detachment').some((detachment) => own.has(detachment.data.faction))
   if (!faction || !ownsDetachments || detachments.some((id) => !id || !own.has(definitions.get('detachment', id)?.data.faction)))
     return null
