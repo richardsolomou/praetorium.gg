@@ -301,6 +301,8 @@ export type SubmittedUnit = {
   attachedTo?: string
   formationOptions?: UnitFormation[]
   prebattleRules?: ('infiltrators' | 'scouts')[]
+  /** The rules that let the player pick this unit as the battle begins for a deployment ability it lacks, as Thunderhawk Insertion. */
+  grantPicks?: GrantPick[]
   /** A selected rule says this unit's points do not count towards the starting reserve limit. */
   strategicReserveExempt?: boolean
   /** Whether the frozen datasheet can carry other units. */
@@ -317,6 +319,18 @@ export type SubmittedUnit = {
   embarksWithBodyguard?: boolean
   /** The space each model takes in a transport it rides by `embarksWithBodyguard`, when its ability fixes one. */
   embarkedSpace?: number
+}
+
+/**
+ * A deployment ability a rule gives up to `count` units the player picks as the battle begins, by the rule's name; one an
+ * attached unit takes reaches every unit in it. `withinInches` of the rule's bearer and `limited` are for the player to check.
+ */
+export type GrantPick = {
+  rule: string
+  ability: 'deep-strike' | 'infiltrators' | 'scouts'
+  count?: number
+  withinInches?: number
+  limited?: true
 }
 
 export type ModelLine = {
@@ -340,6 +354,8 @@ export type UnitState = SubmittedUnit & {
   deployedAtRollOff?: boolean
   /** The unit entered reserves after deployment, when the mission rules exempt it from the starting cap. */
   postDeploymentReserve?: boolean
+  /** The rules the player picked this unit for as the battle began, and whether the pick added the ability it gives. */
+  picked?: { rule: string; ability: GrantPick['ability']; added: boolean }[]
   /**
    * Models still standing in the unit. A unit is destroyed when this reaches zero,
    * so losing the last model and losing the unit are the same event rather than two
@@ -565,6 +581,8 @@ export type Command =
   | ({ kind: 'damage-unit'; unitKey: string; delta: number; line?: number } & OnBehalfOf)
   | ({ kind: 'deploy-unit'; unitKey: string; deployed: boolean } & OnBehalfOf)
   | ({ kind: 'set-unit-formation'; unitKey: string; formation: UnitFormation; transportKey?: string } & OnBehalfOf)
+  /** Picks a unit, and every unit attached to it, for a rule's deployment ability as the battle begins, or takes the pick back. */
+  | ({ kind: 'pick-unit-grant'; unitKey: string; rule: string; picked: boolean } & OnBehalfOf)
   | ({ kind: 'set-painted'; painted: boolean } & OnBehalfOf)
   | { kind: 'set-deployment'; patternId: string | null }
   | { kind: 'set-battlefield'; patternId: string; terrainLayoutId: string }
@@ -686,6 +704,8 @@ export type RefusalCode =
   | 'draw-limit'
   | 'draw-unreviewed'
   | 'formation-unsupported'
+  | 'grant-unavailable'
+  | 'grant-limit'
   | 'mission-selection-invalid'
   | 'mission-selection-timing'
   | 'mission-selection-owner'
@@ -1493,6 +1513,13 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
       return unitFormationRefusal(state, player, command)
     }
     // The bonus is for a painted army, settled before the battle and paid as it begins.
+    case 'pick-unit-grant': {
+      if (state.status === 'finished') return refuse('battle-over', 'the battle is over')
+      const attached = attachedUnits(player.units, command.unitKey)
+      if (!attached.length) return refuse('unknown-unit', 'that is not one of your units')
+      if (state.status !== 'setup') return refuse('battle-started', 'units are picked for a rule as the battle begins')
+      return grantPickRefusal(player, attached, command)
+    }
     case 'set-painted':
       return state.status === 'setup' ? null : refuse('battle-started', 'the battle ready bonus is set before the battle begins')
     case 'wound-unit':
@@ -1883,6 +1910,23 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number, 
       const redeployed = redeploysToReserves(state, attached, command.formation)
       for (const unit of attached) {
         Object.assign(unit, changedFormation(unit, command.formation, redeployed, command.transportKey))
+      }
+      return
+    }
+    case 'pick-unit-grant': {
+      const attached = attachedUnits(player.units, command.unitKey)
+      const ability = attached.flatMap((unit) => unit.grantPicks ?? []).find((pick) => pick.rule === command.rule)?.ability
+      if (!ability) return
+      for (const unit of attached) {
+        const held = unit.picked?.find((pick) => pick.rule === command.rule)
+        if (command.picked && !held) {
+          const added = !holdsDeployment(unit, ability)
+          if (added) giveDeployment(unit, ability, true)
+          unit.picked = [...(unit.picked ?? []), { rule: command.rule, ability, added }]
+        } else if (!command.picked && held) {
+          unit.picked = unit.picked!.filter((pick) => pick !== held)
+          if (held.added && !unit.picked.some((pick) => pick.ability === ability && pick.added)) giveDeployment(unit, ability, false)
+        }
       }
       return
     }
@@ -2419,4 +2463,41 @@ function validatePrep(prep: BattlePrep): Refusal | null {
   }
   if (prep.primary && !prep.primary.name.trim()) return refuse('invalid-prep', 'name the primary mission')
   return null
+}
+
+/**
+ * Why a rule cannot pick this attached unit: no unit in it is one the rule names, the rule has picked as many as it may,
+ * or taking the pick back would leave the unit in a formation only the pick allowed.
+ */
+export function grantPickRefusal(
+  player: Pick<PlayerState, 'units'>,
+  attached: readonly UnitState[],
+  command: Extract<Command, { kind: 'pick-unit-grant' }>,
+) {
+  const offered = attached.flatMap((unit) => unit.grantPicks ?? []).find((pick) => pick.rule === command.rule)
+  if (!offered) return refuse('grant-unavailable', `${command.rule} cannot pick that unit`)
+  const pickedHere = attached.some((unit) => unit.picked?.some((pick) => pick.rule === command.rule))
+  if (command.picked) {
+    if (pickedHere || offered.count === undefined) return null
+    const hosts = new Set(
+      player.units.filter((unit) => unit.picked?.some((pick) => pick.rule === command.rule)).map((unit) => unit.attachedTo ?? unit.key),
+    )
+    return hosts.size >= offered.count ? refuse('grant-limit', `${command.rule} picks at most ${offered.count}`) : null
+  }
+  if (
+    offered.ability === 'deep-strike' &&
+    attached.some((unit) => unit.formation === 'deep-strike' && unit.picked?.some((pick) => pick.rule === command.rule && pick.added))
+  )
+    return refuse('formation-unsupported', 'set the unit up elsewhere before taking back the Deep Strike it was picked for')
+  return null
+}
+
+const holdsDeployment = (unit: UnitState, ability: GrantPick['ability']) =>
+  ability === 'deep-strike' ? Boolean(unit.formationOptions?.includes(ability)) : Boolean(unit.prebattleRules?.includes(ability))
+
+/** Gives a unit a deployment ability a pick brings, or takes it away, without touching the arrays its roster froze. */
+function giveDeployment(unit: UnitState, ability: GrantPick['ability'], on: boolean) {
+  if (ability === 'deep-strike')
+    unit.formationOptions = on ? [...(unit.formationOptions ?? []), ability] : unit.formationOptions?.filter((option) => option !== ability)
+  else unit.prebattleRules = on ? [...(unit.prebattleRules ?? []), ability] : unit.prebattleRules?.filter((rule) => rule !== ability)
 }

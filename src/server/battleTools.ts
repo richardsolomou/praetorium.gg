@@ -156,6 +156,16 @@ export const agentCommandSchema = z.discriminatedUnion('kind', [
       ...PLAYER_FIELD,
     },
   ),
+  command(
+    'pick-unit-grant',
+    'Reserves step: picks a unit for a rule that gives the units the player picks as the battle begins a deployment ability, as Thunderhawk Insertion’s Deep Strike, up to the rule’s count; picked: false takes it back. A unit with the pick in players[].units[].grantPicks can be picked; its formation options then include the ability.',
+    {
+      unitKey: 'A unit key from players[].units[].key.',
+      rule: 'The rule’s name from that unit’s grantPicks.',
+      picked: 'true to pick the unit, false to take the pick back.',
+      ...PLAYER_FIELD,
+    },
+  ),
   command('set-first-turn', 'First turn step: who won the roll-off to go first.', { firstPlayerId: 'That side’s player id.' }),
   command('begin-battle', 'Starts the first Command phase once next.begin.refusal is null.', {
     firstPlayerId: 'Who takes the first turn, as set-first-turn recorded it.',
@@ -451,7 +461,7 @@ function setupSteps(
               })),
             },
           ),
-          step('Reserves', true, 'optional: set-unit-formation for units not starting on the battlefield'),
+          step('Reserves', true, 'optional: pick-unit-grant for a unit a rule picks, then set-unit-formation for units not starting on the battlefield'),
           step('Deploy', true, 'nothing to record: place the units at the table, defender first'),
         ]),
     step('First turn', Boolean(view.firstPlayerId), 'set-first-turn after the roll-off', {

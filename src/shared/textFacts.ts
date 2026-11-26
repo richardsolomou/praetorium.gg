@@ -95,6 +95,15 @@ export const normalizedAbilityGrantsIn = (text: string, facts: TextFactsByKey | 
     (found) => found.normalizedAbilityGrants ?? found.abilityGrants ?? { matched: false, grants: [] },
   )
 
+/** The abilities a text gives the units the player picks as the battle begins, which only its recorded facts state. */
+export const pickedGrantsOf = (text: string, facts: TextFactsByKey | undefined) =>
+  readText(
+    text,
+    facts,
+    () => [],
+    (found) => found.pickedGrants ?? [],
+  )
+
 export const ownWeaponGrantOf = (text: string, facts: TextFactsByKey | undefined) =>
   readText(text, facts, ownWeaponGrantIn, (found) => found.ownWeaponGrant ?? null)
 

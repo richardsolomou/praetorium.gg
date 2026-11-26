@@ -25,6 +25,8 @@ export type TextFacts = {
   /** The ability grants the text's words state, and those its normalised words state where they read differently. */
   abilityGrants?: AbilityGrantStatement
   normalizedAbilityGrants?: AbilityGrantStatement
+  /** The abilities the units the player picks as the battle begins gain, which no unit holds until picked. */
+  pickedGrants?: PickedGrant[]
   /** A weapon ability the bearer's own unit gains, and one a leader hands the unit it leads. */
   ownWeaponGrant?: GrantedWeaponKeyword
   ledWeaponGrant?: GrantedWeaponKeyword
@@ -65,6 +67,12 @@ export type WrittenAbilityGrant =
     }
   | { name: string; recipient: 'models'; models: string }
 export type AbilityGrantStatement = { matched: boolean; grants: WrittenAbilityGrant[] }
+/**
+ * An ability a rule gives up to `count` units the player picks as the battle begins, each matching one of `recipients`
+ * (any unit where it names none), within `withinInches` of the bearer where the rule says so; `limited` where the rule
+ * limits the units further in a way only its text gives.
+ */
+export type PickedGrant = { ability: string; recipients: string[]; count?: number; withinInches?: number; limited?: true }
 
 /** Lookup by `textKey`; a server may read facts only when asked. */
 export type TextFactsByKey = Pick<ReadonlyMap<string, TextFacts>, 'get'>

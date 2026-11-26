@@ -109,6 +109,13 @@ it('leaves out a grant only the units the player picks gain, and keeps the rest 
   expect(facts.abilityGrants!.grants).toEqual([{ written: 'Stealth', recipient: 'unit' }])
 })
 
+it('offers a grant only the units the player picks gain, for the units it names', () => {
+  const picked = { ability: 'Deep Strike', to: 'unit', picked: { count: 1 }, conditional: true, recipientKeywords: ['GRAVIS', 'PHOBOS'] }
+  expect(textFactsOfVsData({ grants: { abilities: [picked] } }).pickedGrants).toEqual([
+    { ability: 'Deep Strike', recipients: ['GRAVIS', 'PHOBOS'], count: 1 },
+  ])
+})
+
 it('keeps a conditional grant whose condition is the unit it attaches to', () => {
   const grant = { ability: 'Deep Strike', to: 'bearer', conditional: true, counterpart: ['WORLD EATERS POSSESSED'] }
   const facts = textFactsOfVsData({ grants: { abilities: [grant] } })
