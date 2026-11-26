@@ -28,7 +28,7 @@ export function Scoreboard({ view, clock, sides }: Props) {
       data-onboarding="battle-live-score"
       data-scoreboard
       aria-label="Battle scoreboard"
-      className="@container sticky top-(--app-header) z-20 -mx-3 border-b border-edge bg-void/95 px-3 py-2 backdrop-blur"
+      className="@container sticky top-(--app-header) z-20 -mx-3 border-b border-edge bg-sunken/95 px-3 py-2 backdrop-blur"
     >
       {/*
        * A finished battle gives the whole strip to its result on a phone. Each side's
@@ -38,7 +38,7 @@ export function Scoreboard({ view, clock, sides }: Props) {
        * scrubbing from a round to the result does not move the strip.
        */}
       <div
-        className={`mx-auto grid w-full items-center gap-x-3 gap-y-2 sm:min-h-14 sm:gap-x-6 max-sm:min-h-24 ${finished ? 'max-sm:grid-cols-1' : ''} ${
+        className={`mx-auto grid w-full items-center gap-x-3 gap-y-2 sm:min-h-14 sm:gap-x-6 max-sm:min-h-[4.5rem] ${finished ? 'max-sm:grid-cols-1' : ''} ${
           sides.length > 1
             ? 'max-w-7xl grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] @max-[16rem]:grid-cols-2'
             : 'max-w-3xl grid-cols-[minmax(0,1fr)_auto] @max-[16rem]:grid-cols-1'
@@ -69,17 +69,17 @@ export function Scoreboard({ view, clock, sides }: Props) {
             <Result view={view} sides={sides} />
           ) : (
             <>
-              <p className="shrink-0 font-display text-2xs font-semibold tracking-label text-dim uppercase">
-                Round{' '}
-                <span data-stat="round" className="figure text-sm font-bold text-bone">
-                  {view.round}
-                </span>{' '}
-                of {view.rounds}
+              <p className="eyebrow shrink-0">
+                Round <span data-stat="round">{view.round}</span> of {view.rounds}
               </p>
-              <h1 className="shrink-0 text-sm leading-tight font-bold uppercase sm:text-base">{view.phase} phase</h1>
+              {/* Sentence case on screen, and still "command phase" to a screen reader. */}
+              <h1 className="shrink-0 font-display text-lg leading-tight font-bold sm:text-xl">
+                <span className="inline-block first-letter:uppercase">{view.phase}</span>
+                <span className="sr-only"> phase</span>
+              </h1>
               <p
                 className={cn(
-                  'min-w-0 text-2xs leading-tight font-semibold text-balance sm:font-normal',
+                  'mt-0.5 min-w-0 text-2xs leading-tight font-semibold text-balance',
                   active ? tint(active.side).text : 'text-dim',
                 )}
               >
@@ -101,17 +101,17 @@ export function Scoreboard({ view, clock, sides }: Props) {
  */
 function Result({ view, sides }: Omit<Props, 'clock'>) {
   const result = battleResult(sides, view)
-  if (result.kind !== 'win') return <h1 className="text-sm leading-tight font-bold text-balance uppercase">{result.detail}</h1>
+  if (result.kind !== 'win') return <h1 className="font-display text-lg leading-tight font-bold text-balance">{result.detail}</h1>
   const winner = result.side
   const colours = tint(winner.index)
   return (
-    <h1 className="text-base leading-tight font-bold text-balance uppercase sm:text-lg">
+    <h1 className="font-display text-lg leading-tight font-bold text-balance sm:text-xl">
       <span className={colours.text}>
         <SideNames side={winner} />
       </span>{' '}
       <span className="text-dim">{result.verb}</span>{' '}
       {result.score ? (
-        <span className="figure block text-2xl leading-none">{result.score}</span>
+        <span className="figure block text-3xl leading-none">{result.score}</span>
       ) : (
         <span className="text-dim">{result.detail}</span>
       )}
@@ -146,13 +146,11 @@ function SideScore({
         {/*
          * Who is on each side, until the panels that say it better are on screen.
          * From `lg` up both panels sit under this strip with their players pictured
-         * and named at the top of each, so this strip leaves them out there.
-         *
-         * A phone reads them to a screen reader without drawing them, so the strip stays one row;
-         * the tabs beneath it name each side.
+         * and named at the top of each, so this strip leaves them out there. A phone has no room for them beside the
+         * scores, so there they are only read aloud and the tabs beneath name each side.
          */}
         <p
-          className={`flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-sm leading-tight font-bold max-sm:sr-only lg:hidden ${end ? 'justify-end' : ''} ${colours.text}`}
+          className={`flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 font-display text-lg leading-tight font-bold max-sm:sr-only lg:hidden ${end ? 'justify-end' : ''} ${colours.text}`}
         >
           {side.armies.map((army) => {
             const name = (
@@ -180,42 +178,26 @@ function SideScore({
             )
           })}
         </p>
-        <p className={`readout flex flex-wrap items-baseline gap-x-2.5 sm:mt-1 ${end ? 'flex-row-reverse' : ''}`}>
-          {/* Whose score this is without its colour, on a phone where the names above are only read aloud. */}
-          <span aria-hidden className="flex -space-x-1 self-center sm:hidden">
-            {side.armies.map((army) => (
-              <PlayerAvatar
-                key={army.playerId}
-                name={army.playerName}
-                image={army.playerImage}
-                className="size-6 text-2xs ring-2 ring-void"
-              />
-            ))}
-          </span>
-          {/* Whose turn it is, at a glance: the side taking it has its score underlined in the current form. */}
+        {/* Whose turn it is, at a glance: the side taking it has its score underlined in green. */}
+        <p className={`flex items-end gap-1.5 ${end ? 'flex-row-reverse' : ''}`}>
+          {/* Keyed on the value, so a new score rises into place and draws the eye across the table. */}
           <span
+            key={side.total}
+            data-stat="vp"
             className={cn(
-              'flex items-baseline gap-1 border-b-[6px] border-double pb-0.5 transition-colors duration-300',
+              'figure animate-figure border-b-[3px] pb-0.5 text-3xl leading-none font-bold transition-colors duration-300 sm:text-5xl lg:text-4xl',
+              colours.score,
               playing && side.isActive ? 'border-parchment' : 'border-transparent',
             )}
           >
-            {/* Keyed on the value, so a new score rises into place and draws the eye across the table. */}
-            <span
-              key={side.total}
-              className={`figure animate-figure text-3xl leading-none font-bold sm:text-5xl lg:text-4xl ${colours.score}`}
-            >
-              {side.total}
-            </span>
-            <span className="font-display text-2xs font-semibold text-dim uppercase">vp</span>
+            {side.total}
           </span>
-          <span className="flex items-baseline gap-1">
-            <span key={side.cp} className={`figure animate-figure text-lg leading-none font-bold ${colours.score}`}>
-              {side.cp}
-            </span>
-            <span className="font-display text-2xs font-semibold text-dim uppercase">cp</span>
+          <span className="sr-only"> victory points</span>
+          <span key={side.cp} className="readout animate-figure pb-1.5 text-2xs text-dim">
+            {side.cp} CP
           </span>
         </p>
-        {/* Rounds this side has played solid, the one being played doubled, the rest dashed. */}
+        {/* Rounds this side has played as full bars, the one being played in green, the rest as hairlines. */}
         <div
           className={cn('mt-1.5 grid auto-cols-fr grid-flow-col gap-1 max-sm:hidden', colours.line, end && '[direction:rtl]')}
           aria-hidden
@@ -232,7 +214,7 @@ function SideScore({
         {clock ? (
           <p
             data-turn-time
-            className={`mt-1 flex items-center gap-1 text-2xs ${end ? 'justify-end' : ''} ${holds ? 'text-bone' : 'text-dim'}`}
+            className={`readout mt-1 flex flex-wrap items-center gap-x-1 text-2xs ${end ? 'justify-end' : ''} ${holds ? 'text-bone' : 'text-dim'}`}
           >
             {paused ? <Pause aria-hidden className="size-3" /> : <Timer aria-hidden className="size-3" />}
             <span className="sr-only">{side.isActive ? (paused ? 'This turn, paused:' : 'This turn:') : 'Last turn:'}</span>

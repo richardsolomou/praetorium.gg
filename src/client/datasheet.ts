@@ -115,15 +115,21 @@ export function weaponProfileGroups(weapons: readonly Profile[]) {
   return [...groups.values()]
 }
 
+/** The weapon a group of profiles shares, as the catalogue spells it rather than the lowercased key it is matched by. */
 export function weaponProfileGroupName(profiles: readonly Profile[]) {
   const first = profiles[0]!
   const owner = first.equipmentName
-  return wargearBaseName(owner && profiles.some((profile) => sameWargear(owner, profile.name)) ? owner : first.name)
+  const source = owner && profiles.some((profile) => sameWargear(owner, profile.name)) ? owner : first.name
+  // The base name only strips marks before it and a mode after it, so it is the start of the unmarked name.
+  return source
+    .trim()
+    .replace(/^[^\p{L}\p{N}]+/u, '')
+    .slice(0, wargearBaseName(source).length)
 }
 
 export function weaponProfileMode(profile: Profile, profiles: readonly Profile[] = [profile]) {
   const name = profile.name.replace(/^[^\p{L}\p{N}]+/u, '')
-  const base = weaponProfileGroupName(profiles)
+  const base = weaponProfileGroupName(profiles).toLocaleLowerCase()
   const rest = (name.toLocaleLowerCase().startsWith(base) ? name.slice(base.length) : name).trim().replace(/^[-–—]\s*/, '')
   // Only a mode wrapped whole in brackets loses them; an annotation such as "(Tempestor Prime)" keeps its closing one.
   const mode = (/^\(.*\)$/.test(rest) ? rest.slice(1, -1) : rest).trim() || profile.name

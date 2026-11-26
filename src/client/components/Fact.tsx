@@ -2,7 +2,7 @@
 export function Fact({ label, value }: { label: string; value: string }) {
   return (
     <div className="min-w-0">
-      <dt className="eyebrow">{label}</dt>
+      <dt className="text-xs text-dim">{label}</dt>
       <dd className="truncate text-bone" title={value}>
         {value}
       </dd>

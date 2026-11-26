@@ -19,7 +19,7 @@ export type HomeRoster = {
 /**
  * The lists the player touched last, because between games the list is what they came back for.
  *
- * A row is a line — the army, the name and the points — rather than the library's
+ * A row is the name over the army, with the points, rather than the library's
  * summary: the library is where a list is read in full, printed, shared or deleted,
  * and this is only the way back into the one being worked on.
  */
@@ -28,24 +28,30 @@ export function HomeRosters({ rosters, count, changed }: { rosters: readonly Hom
     <section data-home-rosters>
       <SectionHeading title="Your rosters" count={count} />
       {rosters.length ? (
-        <ul className="part divide-y divide-edge overflow-hidden">
+        <ul className="divide-y divide-edge border-y border-edge">
           {rosters.map(({ roster, faction, points, label, problem }) => (
             <li key={roster.id}>
               <Link
                 to="/rosters/$id"
                 params={{ id: roster.id }}
-                className="flex min-h-13 min-w-0 items-center gap-2.5 px-4 py-3 transition-colors hover:bg-raised"
+                className="flex min-h-14 min-w-0 items-center gap-3 px-2 py-2.5 transition-colors hover:bg-raised"
               >
-                {faction ? <FactionMark faction={faction} size="sm" /> : null}
-                <span className="min-w-0 flex-1 truncate text-[0.9375rem] font-bold">{rosterTitle(roster, faction, label)}</span>
-                {changed.has(roster.id) ? <span className="eyebrow shrink-0 text-discarded">Changed</span> : null}
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[0.9375rem] leading-tight font-bold">{rosterTitle(roster, faction, label)}</span>
+                  <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-2xs text-faint">
+                    {faction ? <FactionMark faction={faction} size="sm" /> : null}
+                    <span className="truncate">{faction?.displayName}</span>
+                    {changed.has(roster.id) ? <span className="eyebrow shrink-0 text-discarded">Changed</span> : null}
+                  </span>
+                </span>
                 {problem ? (
                   <span className="shrink-0 rounded-md border border-destructive/60 px-1.5 py-px text-xs font-semibold text-destructive">
                     {PROBLEM_LABEL[problem]}
                   </span>
                 ) : (
-                  <span className="readout shrink-0 text-sm font-semibold text-bone">
-                    {points ?? '—'}/{pointsBudgetOf(roster)}
+                  <span className="figure shrink-0 text-2xl leading-none text-bone">
+                    {points ?? '—'}
+                    <span className="text-base font-bold text-faint">/{pointsBudgetOf(roster)}</span>
                   </span>
                 )}
               </Link>
@@ -53,7 +59,7 @@ export function HomeRosters({ rosters, count, changed }: { rosters: readonly Hom
           ))}
         </ul>
       ) : (
-        <p className="part flex items-start gap-3 px-4 py-4 font-rules text-sm text-dim">
+        <p className="flex items-start gap-3 border-y border-edge px-2 py-4 font-rules text-sm text-dim">
           <ScrollText className="size-5 shrink-0 text-parchment" aria-hidden />
           Build a list from the army data, or import one from another app.
         </p>

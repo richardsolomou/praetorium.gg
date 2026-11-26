@@ -9,7 +9,7 @@ import { gameReferencesQuery } from '../../../queries'
 import { sideName, type Side } from '../../../sides'
 import { tint } from '../battleTints'
 import { SidePlayers } from '../PlayerName'
-import { dispositionTone } from '../../../components/rosterSetup'
+import { dispositionTag } from '../../../components/rosterSetup'
 import { capitalised } from '../../../../core/text'
 
 /**
@@ -45,7 +45,7 @@ function useSideSwitch(sides: Side[]) {
  * The two sides as tabs, each carrying the step's answer for it so the hidden one is still
  * read. The one not shown says it can be opened and points the way it sits.
  */
-export function SideSwitch({ sides, renderSide }: { sides: Side[]; renderSide: (side: Side) => ReactNode }) {
+export function SideSwitch({ sides, renderSide }: { sides: Side[]; renderSide: (side: Side, inTab?: boolean) => ReactNode }) {
   const focus = useSideSwitch(sides)
   if (!focus) return null
   return (
@@ -60,22 +60,22 @@ export function SideSwitch({ sides, renderSide }: { sides: Side[]; renderSide: (
             type="button"
             aria-pressed={shown}
             className={cn(
-              'min-h-12 min-w-0 border-t-[3px] bg-panel px-3 py-2 transition-opacity',
+              'min-h-12 min-w-0 border-t-[3px] px-3 py-2 transition-opacity',
               tint(side.index).edge,
-              position ? 'rounded-tr-xl text-right' : 'rounded-tl-xl text-left',
+              position ? 'text-right' : 'text-left',
               // Faded rather than darkened, since a darker tab reads as the pressed one.
               !shown && 'border-b border-b-edge opacity-50 hover:opacity-80',
             )}
             onClick={() => focus.show(side.index)}
           >
-            <span className={cn('block truncate text-xs font-bold tracking-label uppercase', tint(side.index).text)}>
+            <span className={cn('block truncate text-sm font-semibold', tint(side.index).text)}>
               <SideNames side={side} />
             </span>
-            <span className="block truncate text-xs">{renderSide(side)}</span>
+            <span className="block truncate text-xs">{renderSide(side, true)}</span>
             {shown ? null : (
               <span
                 className={cn(
-                  'mt-1 flex items-center gap-1 text-xs font-semibold text-bone',
+                  'mt-1 flex items-center gap-1 text-xs font-medium text-bone',
                   position ? 'justify-end' : 'flex-row-reverse justify-end',
                 )}
               >
@@ -125,7 +125,7 @@ export function landOn(step: Element | null) {
 
 /** Something the step says in passing: what a rule implies, or who may do this. */
 export function SetupNote({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return <p className={cn('rounded-md border border-edge bg-sunken px-3 py-2 text-xs text-dim', className)}>{children}</p>
+  return <p className={cn('border-l-2 border-edge pl-3 text-xs text-dim', className)}>{children}</p>
 }
 
 /**
@@ -169,7 +169,7 @@ export function SetupSidePanel({
  * A side, a battlefield layout and a mission pack are the same question three times,
  * so they share one ring, one tint and one weight.
  */
-export const CHOSEN = 'border-parchment bg-parchment/10 ring-1 ring-parchment'
+export const CHOSEN = 'border-parchment/70 bg-parchment/5'
 export const CHOOSABLE = 'border-edge hover:border-runner'
 
 /** The battle size control, which the roster chooser hands focus to when no list fits the size. */
@@ -197,7 +197,7 @@ export const dispositionIn = <T extends { id: string }>(
 export function DispositionChip({ disposition, className = '' }: { disposition: { id: string; name: string } | null; className?: string }) {
   if (!disposition) return null
   return (
-    <span data-disposition={disposition.id} className={cn('chip', dispositionTone(disposition.id), className)}>
+    <span data-disposition={disposition.id} className={cn(dispositionTag(disposition.id), className)}>
       {disposition.name}
     </span>
   )

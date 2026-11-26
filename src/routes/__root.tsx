@@ -4,8 +4,7 @@ import type { QueryClient } from '@tanstack/react-query'
 import { createRootRouteWithContext, useLocation, useRouter } from '@tanstack/react-router'
 import { useEffect } from 'react'
 import sofiaSans from '@fontsource-variable/sofia-sans-semi-condensed/files/sofia-sans-semi-condensed-latin-wght-normal.woff2?url'
-import chakraPetch from '@fontsource/chakra-petch/files/chakra-petch-latin-700-normal.woff2?url'
-import martianMono from '@fontsource-variable/martian-mono/files/martian-mono-latin-wdth-normal.woff2?url'
+import barlow from '@fontsource/barlow/files/barlow-latin-700-normal.woff2?url'
 import { pageSection, SectionLink } from '../client/components/pageSections'
 import { FullPageState } from '../client/components/PageState'
 import { siteMeta } from '../client/linkPreview'
@@ -39,7 +38,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient; orig
       : [
           { rel: 'icon', href: '/favicon.svg', type: 'image/svg+xml' },
           { rel: 'stylesheet', href: appCss },
-          ...[sofiaSans, chakraPetch, martianMono].map((href) => ({
+          ...[sofiaSans, barlow].map((href) => ({
             rel: 'preload' as const,
             href,
             as: 'font' as const,

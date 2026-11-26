@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { ruleSummaryFinder } from './referenceSummaries'
 import type { CanonicalCatalogue } from '../contracts/catalogue'
 import { decodeSimulatorState } from '../contracts/simulatorState'
 import { categories, shelfOf } from './catalogue.fixtures'
@@ -264,6 +265,7 @@ const corpus: ReferenceCorpus = {
   documents,
   byId: new Map(documents.map((entry) => [entry.id, entry])),
   revision: 'snapshot',
+  summaries: ruleSummaryFinder(null),
 }
 
 const { reference } = vi.hoisted(() => ({ reference: { corpus: null as ReferenceCorpus | null } }))

@@ -2,8 +2,7 @@ import type { ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 
 /**
- * The band every top-level page opens with, drawn on the booklet's construction
- * grid: the page's own name and a line on what it is for, with the page's primary
+ * The band every top-level page opens with: the page's own name and a line on what it is for, with the page's primary
  * actions beside them and a mark such as an avatar before them.
  */
 export function PageHeader({
@@ -31,18 +30,19 @@ export function PageHeader({
 }) {
   return (
     <header
-      className={cn('masthead-bleed relative overflow-hidden border-b border-edge bg-masthead', tint && 'border-t-[3px] [--band-top:3px]')}
+      className={cn('relative overflow-hidden border-b border-edge bg-masthead', tint && 'border-t-[3px]')}
       style={tint ? { borderTopColor: tint } : undefined}
     >
-      <div className="construction-grid" />
-      <div className="relative mx-auto max-w-5xl px-3 pt-7 pb-5 sm:px-4 sm:pt-10 sm:pb-7">
+      <div className="relative mx-auto max-w-5xl px-3 pt-6 pb-5 sm:px-4 sm:pt-8 sm:pb-6">
         {help ? <div className="absolute top-1 right-1.5 sm:top-2.5 sm:right-2.5">{help}</div> : null}
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="flex min-w-0 flex-wrap items-center gap-4">
             {media}
             <div className="min-w-0">
-              <h1 className="text-3xl break-words sm:text-4xl">{title}</h1>
-              {description ? <p className={cn('mt-2 max-w-2xl text-sm text-dim', introduction && 'max-sm:hidden')}>{description}</p> : null}
+              <h1 className="font-display text-3xl leading-tight font-bold break-words normal-case sm:text-4xl">{title}</h1>
+              {description ? (
+                <p className={cn('mt-1.5 max-w-2xl text-base text-dim', introduction && 'max-sm:hidden')}>{description}</p>
+              ) : null}
             </div>
           </div>
           {actions ? <div className="flex flex-wrap gap-2">{actions}</div> : null}

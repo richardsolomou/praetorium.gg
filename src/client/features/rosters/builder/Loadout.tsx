@@ -383,7 +383,7 @@ function MeleeByModel({
                   <span className="readout normal-case text-dim">{group.count}</span>
                 </p>
               ) : null}
-              <div className="space-y-1.5">
+              <div className="border-t border-edge">
                 <WeaponProfiles weapons={group.weapons} rules={rules} mark={mark} />
               </div>
             </div>

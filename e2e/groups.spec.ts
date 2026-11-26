@@ -319,13 +319,17 @@ test('group team rows keep their actions inside the card at narrow widths', asyn
   ] as const)
     for (const player of players) await expect(simulator.getByRole('group', { name: side, exact: true })).toContainText(player)
   await simulator.getByRole('button', { name: 'Close', exact: true }).click()
+  // Past games sit under Battles, each folding its lists until opened.
+  await page.goto('/groups/preview-group?tab=battles')
   const past = page.locator('[data-hidden-list-game="preview-group-game-duel-past"]')
+  await past.locator('summary').click()
   await expect(past.getByRole('button', { name: `Simulate against ${PREVIEW_OPPONENT_NAME}`, exact: true })).toBeVisible()
   await expect(past.getByRole('button', { name: /^Play / })).toHaveCount(0)
   await past.getByRole('button', { name: `Simulate against ${PREVIEW_OPPONENT_NAME}`, exact: true }).click()
   await expect(simulator.getByRole('group', { name: 'Attacking with', exact: true })).toContainText(PREVIEW_PLAYER_NAME)
   await expect(simulator.getByRole('group', { name: 'Defending with', exact: true })).toContainText(PREVIEW_OPPONENT_NAME)
   await simulator.getByRole('button', { name: 'Close', exact: true }).click()
+  await page.goto('/groups/preview-group')
   await page.setViewportSize(PHONE)
   await game.scrollIntoViewIfNeeded()
   await page.screenshot({ path: testInfo.outputPath('group-doubles-mobile.png') })
@@ -412,6 +416,7 @@ test('an ended league stays readable under past leagues and another can start', 
   await owner.getByRole('button', { name: 'Publish' }).click()
   await owner.getByRole('alertdialog').getByRole('button', { name: 'Publish' }).click()
   // An organizer outside a fixture records the score of a game that wasn't tracked here.
+  await openRounds(owner)
   const fixture = owner.locator('[data-fixture]').filter({ hasText: names[1] }).filter({ hasText: names[2] })
   await fixture.getByRole('button', { name: /^Enter score for round/ }).click()
   const score = owner.getByRole('dialog', { name: /score$/ })
@@ -426,6 +431,8 @@ test('an ended league stays readable under past leagues and another can start', 
   await owner.getByRole('menuitem', { name: 'End league' }).click()
   await owner.getByRole('alertdialog').getByRole('button', { name: 'End league' }).click()
   const past = owner.locator('[data-past-leagues]')
+  // Past leagues fold under their heading until opened.
+  await past.locator('summary').click()
   await past.getByRole('button', { name: /\bended /i }).click()
   await expect(past.getByRole('table').getByText(names[2])).toBeVisible()
   await expect(owner.getByRole('button', { name: 'Start a league' })).toBeVisible()
@@ -471,11 +478,13 @@ test('a league seals every list before it starts and plays its fixtures with the
   await league(owner).getByRole('button', { name: 'Publish' }).click()
   await owner.getByRole('alertdialog').getByRole('button', { name: 'Publish' }).click()
   const lists = owner.locator('[data-league-lists]')
+  // A running league's table names each player's sealed list.
   await expect(lists.getByText('League army 1', { exact: false })).toBeVisible()
   // An organizer sends a list back while the league runs, and its player seals a replacement.
   await lists.getByRole('button', { name: `Unseal ${names[2]}’s roster` }).click()
   await owner.getByRole('alertdialog').getByRole('button', { name: 'Unseal roster' }).click()
   await expect(lists.getByText('No roster yet. The organizer unsealed it for a replacement.')).toBeVisible()
+  await openRounds(owner)
   await expect(owner.locator('[data-fixture]').filter({ hasText: names[2] }).getByText('Waiting for a list').first()).toBeVisible()
   await third.goto(`${url}?tab=league`)
   const replacement = third.getByRole('dialog', { name: 'Seal a roster' })
@@ -492,6 +501,8 @@ test('a league seals every list before it starts and plays its fixtures with the
   await score.getByRole('button', { name: 'Save score' }).click()
   await expect(score).toBeHidden()
   await expect(untracked.getByRole('link')).toHaveText('64 – 40')
+  // What's waiting on the reader shows on the overview only.
+  await owner.goto(url)
   await owner.locator('[data-group-next]').getByRole('button', { name: 'Start battle' }).click()
   await owner.waitForURL(/\/battles\/[^/]+$/)
   const uiBattleId = await battleIdFor(lastPathSegment(owner.url()))
@@ -520,6 +531,14 @@ test('a league seals every list before it starts and plays its fixtures with the
 })
 
 /** Starts a league from the League tab, sealing lists before it starts when asked. */
+/** Rounds without a game of the reader's still to play fold, so an organizer opens them to reach every fixture. */
+async function openRounds(page: Page) {
+  // Only a published league has this menu, and publishing redraws the rounds, so wait for them first.
+  await expect(page.getByRole('button', { name: 'More for the league' })).toBeVisible()
+  for (const round of await page.locator('[data-league-round]').all())
+    await round.evaluate((element) => ((element as HTMLDetailsElement).open = true))
+}
+
 async function startLeague(page: Page, { sealed = false } = {}) {
   const dialog = page.getByRole('dialog', { name: 'Start a league' })
   await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'Start a league' }).click({ timeout: 1_000 }))

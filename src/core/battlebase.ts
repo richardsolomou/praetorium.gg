@@ -1,5 +1,5 @@
 import { countBy } from './collections'
-import { attachGroups, bodyguardLast, starredLabel, textNickname, WTC_SECTION, type TextRoster, type TextRosterUnit } from './textRoster'
+import { attachGroups, bodyguardLast, strayBullet, textNickname, WTC_SECTION, type TextRoster, type TextRosterUnit } from './textRoster'
 
 /**
  * A points figure grouped in any locale's style, read as "(1 995 Punkte)", "(1'995 Punkte)" or "(2 Detachment Points)":
@@ -41,7 +41,7 @@ export function fromBattleBaseText(input: string, { setupOptional = false } = {}
   const raw = input
     .replaceAll('\r', '')
     .split('\n')
-    .map(starredLabel)
+    .map(strayBullet)
     .flatMap((line) => {
       const joined = line.match(/^(\s*)(•\s*\d+x?\s.*?\S)\s{2,}(•\s*.+)$/)
       return joined ? [`${joined[1]}${joined[2]}`, `${joined[1]}  ${joined[3]}`] : [line]

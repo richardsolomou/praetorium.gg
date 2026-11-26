@@ -3,7 +3,7 @@ import { Link } from '@tanstack/react-router'
 import type { rostersLentToMe } from '../../functions'
 import { factionIndexQuery } from '../../queries'
 import type { SavedRoster } from './rosterLibrary'
-import { RosterSummary } from './RosterSummary'
+import { ROSTER_ROW, ROSTER_ROW_FOOT, ROSTER_ROW_LINK, ROSTER_ROWS, RosterSummary } from './RosterSummary'
 import { OwnerLink } from './OwnerLink'
 
 export type LentRoster = Awaited<ReturnType<typeof rostersLentToMe>>[number]
@@ -22,7 +22,7 @@ export function LentRosterList({
 }) {
   const { data: factions } = useQuery(factionIndexQuery())
   return (
-    <ul className="runner gap-3 [--gate-x:1rem] [--gate-y:1.5rem] sm:[--gate-x:1.5rem]" data-lent-rosters>
+    <ul className={ROSTER_ROWS} data-lent-rosters>
       {rosters.map(({ summary, owner, points, problem }) => {
         const content = (
           <RosterSummary
@@ -34,14 +34,10 @@ export function LentRosterList({
             showLegality
           />
         )
-        const className = 'flex w-full min-w-0 p-3 text-left'
+        const className = `${ROSTER_ROW_LINK} w-full text-left`
         const selected = summary.id === selectedId
         return (
-          <li
-            key={summary.id}
-            data-gate={selected ? 'current' : undefined}
-            className={`part hover:bg-raised ${selected ? 'border-parchment inset-ring-1 inset-ring-parchment' : 'hover:border-runner-hi'}`}
-          >
+          <li key={summary.id} data-gate={selected ? 'current' : undefined} className={`${ROSTER_ROW} ${selected ? 'bg-parchment/5' : ''}`}>
             {onChoose ? (
               <button
                 type="button"
@@ -57,7 +53,7 @@ export function LentRosterList({
                 {content}
               </Link>
             )}
-            <p className="truncate border-t border-edge px-3 py-2 text-xs text-dim">
+            <p className={`${ROSTER_ROW_FOOT} truncate`}>
               Lent by <OwnerLink owner={owner} />
             </p>
           </li>

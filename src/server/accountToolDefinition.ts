@@ -47,11 +47,11 @@ export function write<Shape extends z.ZodRawShape>(
   description: string,
   schema: z.ZodObject<Shape>,
   run: (owner: string, input: z.output<z.ZodObject<Shape>>) => Promise<Record<string, unknown> | void | null>,
-  effects: { destructive: boolean; public: boolean },
+  effects: { destructive: boolean; public: boolean; scope?: 'mcp:write' },
   approval?: Approval,
 ) {
   return accountTool(
-    'mcp:manage',
+    effects.scope ?? 'mcp:manage',
     title,
     description,
     schema,

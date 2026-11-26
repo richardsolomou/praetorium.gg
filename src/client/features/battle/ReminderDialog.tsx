@@ -35,23 +35,25 @@ export function ReminderDialog({
           <DialogDescription>{moment}</DialogDescription>
         </DialogHeader>
 
-        <DialogBody className="gap-2">
-          {groups.map(({ reminder, members, units }) => (
-            <article key={reminder.key} className="part p-3">
-              <div className="flex items-start justify-between gap-3">
-                <h3 className="text-sm font-semibold text-bone">{reminder.ability}</h3>
-                {groups.length > 1 ? <HideFor ability={reminder.ability} onHide={(scope) => onDismiss(members, scope)} /> : null}
-              </div>
-              {units ? <p className="eyebrow mt-1">{units}</p> : null}
-              {reminder.key.startsWith(MISSION_ACTION_REMINDER_PREFIX) ? (
-                <MissionActionText id={reminder.description} />
-              ) : reminder.description ? (
-                <div className="mt-2 text-xs">
-                  <RuleText text={reminder.description} rules={[]} />
+        <DialogBody>
+          <div className="divide-y divide-edge border-y border-edge">
+            {groups.map(({ reminder, members, units }) => (
+              <article key={reminder.key} className="py-3">
+                <div className="flex items-start justify-between gap-3">
+                  <h3 className="text-sm font-semibold text-bone">{reminder.ability}</h3>
+                  {groups.length > 1 ? <HideFor ability={reminder.ability} onHide={(scope) => onDismiss(members, scope)} /> : null}
                 </div>
-              ) : null}
-            </article>
-          ))}
+                {units ? <p className="mt-0.5 text-xs text-dim">{units}</p> : null}
+                {reminder.key.startsWith(MISSION_ACTION_REMINDER_PREFIX) ? (
+                  <MissionActionText id={reminder.description} />
+                ) : reminder.description ? (
+                  <div className="mt-2 text-xs">
+                    <RuleText text={reminder.description} rules={[]} />
+                  </div>
+                ) : null}
+              </article>
+            ))}
+          </div>
         </DialogBody>
 
         {/* One reminder's Hide for… sits beside the button that closes it, both under the thumb. */}
@@ -87,7 +89,7 @@ function HideFor({
       <DropdownMenuTrigger
         render={
           <Button
-            variant="outline"
+            variant={footer ? 'outline' : 'ghost'}
             size={footer ? 'default' : 'sm'}
             className={footer ? undefined : 'h-7 shrink-0 px-2 text-xs'}
             aria-label={`Hide ${ability} for a period`}

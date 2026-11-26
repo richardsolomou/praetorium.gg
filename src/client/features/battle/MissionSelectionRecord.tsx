@@ -3,6 +3,7 @@ import { isMarkerPlacement } from '../../../core/missionSelections'
 import { countLabel } from '../../text'
 import { MARKER_PLACEMENT_COPY } from './markerPlacementCopy'
 import { attachedUnitName } from '../../../core/attachedUnits'
+import { DisclosureChevron } from '../../components/DisclosureChevron'
 
 function RecordedUnit({ unit }: { unit: MissionSelectionView['units'][number] | undefined }) {
   return (
@@ -18,7 +19,10 @@ export function MissionSelectionRecords({ records, cardKey }: { records: Mission
   if (!saved.length) return null
   return (
     <details className="text-xs">
-      <summary className="cursor-pointer text-info">Choices</summary>
+      <summary className="flex cursor-pointer list-none items-center gap-1.5 [&::-webkit-details-marker]:hidden text-info">
+        <DisclosureChevron className="size-3.5" />
+        Choices
+      </summary>
       <ul className="mt-1 space-y-1.5">
         {saved.map((record) => (
           <li key={`${record.selection.kind}:${record.occurrence}`} className="space-y-0.5">

@@ -8,7 +8,20 @@ import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { IconAction } from './SealedEventEntrants'
 
 /** An organizer's way to send one revealed roster back to its player, behind a confirmation that says what it costs. */
-export function UnsealRoster({ token, eventToken, userId, label }: { token: string; eventToken: string; userId: string; label: string }) {
+export function UnsealRoster({
+  token,
+  eventToken,
+  userId,
+  label,
+  labelled = false,
+}: {
+  token: string
+  eventToken: string
+  userId: string
+  label: string
+  /** Says what it does beside the icon, for a row with room to. */
+  labelled?: boolean
+}) {
   const refresh = useSealedEventRefresh(token)
   const [confirming, setConfirming] = useState(false)
   const unseal = useMutation({
@@ -20,24 +33,40 @@ export function UnsealRoster({ token, eventToken, userId, label }: { token: stri
   })
   return (
     <>
-      <IconAction
-        tooltip="Unseal roster"
-        trigger={
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            className="text-dim hover:text-discarded pointer-coarse:size-11"
-            aria-label={`Unseal ${label}’s roster`}
-            disabled={unseal.isPending}
-            onClick={() => {
-              unseal.reset()
-              setConfirming(true)
-            }}
-          />
-        }
-      >
-        <LockKeyholeOpen aria-hidden />
-      </IconAction>
+      {labelled ? (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-dim hover:text-discarded"
+          aria-label={`Unseal ${label}’s roster`}
+          disabled={unseal.isPending}
+          onClick={() => {
+            unseal.reset()
+            setConfirming(true)
+          }}
+        >
+          <LockKeyholeOpen aria-hidden /> Unseal
+        </Button>
+      ) : (
+        <IconAction
+          tooltip="Unseal roster"
+          trigger={
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="text-dim hover:text-discarded pointer-coarse:size-11"
+              aria-label={`Unseal ${label}’s roster`}
+              disabled={unseal.isPending}
+              onClick={() => {
+                unseal.reset()
+                setConfirming(true)
+              }}
+            />
+          }
+        >
+          <LockKeyholeOpen aria-hidden />
+        </IconAction>
+      )}
       <ConfirmDialog
         open={confirming}
         title={`Unseal ${label}’s roster?`}

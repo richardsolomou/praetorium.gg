@@ -161,3 +161,9 @@ it('lists a rule VS Data keeps no combat block for as not calculated', () => {
     new Set([JSON.stringify({ compiled: null, legacy: [], legacyDefault: 0, roles: ['attacker'] })]),
   )
 })
+
+it('shows an ability an effect gives some models as theirs alone', () => {
+  const stealth = { role: 'defender', attacks: ['ranged'], ability: 'Stealth', modelKeywords: ['INFANTRY'] }
+  const facts = textFactsOfVsData(combat({ choices: [{ conditions: [], effects: [stealth] }], default: 1 }))
+  expect(facts.abilityGrants!.grants).toEqual([{ name: 'Stealth', recipient: 'models', models: 'INFANTRY' }])
+})

@@ -100,6 +100,11 @@ describe.skipIf(!exists)('what agents get from Praetorium', () => {
     answers.push({ name: 'api search', value: await search.json() })
   }, 600_000)
 
+  it('answers rules with Praetorium’s own summaries', () => {
+    const detachment = answers.find(({ name }) => name.startsWith('get_reference {') && name.includes('detachment:'))
+    expect(JSON.stringify(detachment?.value)).toContain('"ruleSummary"')
+  })
+
   it('carries no rules text and no token', { timeout: 120_000 }, () => {
     const names = new Set(answers.flatMap(({ value }) => [...namesIn(value)]))
     const leaks = answers.flatMap(({ name, value }) =>

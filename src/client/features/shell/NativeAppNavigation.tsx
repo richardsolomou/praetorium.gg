@@ -213,11 +213,11 @@ export function NativeAppNavigation({ accountBridge }: { accountBridge: ReactNod
     void openTab(event, '/more', remembered, memory?.href === remembered ? memory : null)
   }
 
-  // The open tab is marked by a doubled cement segment on the bar's top edge.
+  // The open tab is marked by a green bar along the bar's top edge and a green icon.
   const tabClass = (selected: boolean) =>
-    `relative min-w-0 flex-1 flex-col items-center justify-center gap-1 text-3xs font-semibold tracking-label uppercase transition-colors ${
+    `relative min-w-0 flex-1 flex-col items-center justify-center gap-1 text-2xs font-semibold transition-colors ${
       selected
-        ? 'text-bone before:absolute before:inset-x-3 before:-top-px before:h-1 before:animate-draw before:border-y before:border-parchment [&>svg]:text-parchment'
+        ? 'text-bone before:absolute before:inset-x-3 before:-top-px before:h-[3px] before:animate-draw before:bg-parchment [&_svg]:text-parchment'
         : 'text-dim hover:text-bone'
     }`
 
@@ -231,7 +231,7 @@ export function NativeAppNavigation({ accountBridge }: { accountBridge: ReactNod
         data-native-app-tabs
         data-print-hide
         aria-label="Application sections"
-        className="fixed right-0 bottom-0 left-0 z-50 hidden h-16 items-stretch border-t border-runner bg-sunken px-1"
+        className="fixed right-0 bottom-0 left-0 z-50 hidden h-16 items-stretch border-t border-edge bg-sunken px-1"
       >
         {PRIMARY_TABS.map(({ icon: Icon, label, section, to }) => (
           <Link

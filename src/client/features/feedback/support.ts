@@ -4,7 +4,7 @@ import { posthog } from 'posthog-js'
 import { useEffect, useSyncExternalStore } from 'react'
 import { supportIdentity } from '../../functions'
 import { meQuery, supportIdentityKey, supportKey, supportMessagesKey, supportTicketsKey, supportTicketsQuery } from '../../queries'
-import type { ReportedRecord } from './feedback'
+import type { ReportedRecord } from '../../../contracts/feedback'
 
 // A local dev server never loads PostHog, so it gets a stand-in with conversations to read; builds drop this.
 if (import.meta.env.MODE === 'development' && typeof window !== 'undefined') {

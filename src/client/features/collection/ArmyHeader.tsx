@@ -5,7 +5,7 @@ import { ShelfLine } from './ShelfLine'
 
 type Totals = { owned: number; built: number; painted: number }
 
-/** An army's heading on a shelf; owned models get their shelf line as the heading's rule, wanted ones a dashed line, as models not yet on it. */
+/** An army's heading on a shelf; owned models get their shelf line as the heading’s rule; wanted ones take the hairline of the list beneath. */
 export function ArmyHeader({
   name,
   faction,
@@ -22,7 +22,7 @@ export function ArmyHeader({
   return (
     <header className="space-y-2.5">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-        <div className="flex min-w-0 flex-1 items-center gap-3">
+        <div className="flex min-w-0 flex-[1_1_12rem] items-center gap-3">
           {faction ? <FactionMark faction={faction} size="md" /> : null}
           <div className="min-w-0">
             <h2 className="rubric break-words text-bone">{name}</h2>
@@ -40,15 +40,7 @@ export function ArmyHeader({
           ))}
         </dl>
       </div>
-      {'owned' in totals ? (
-        pending ? (
-          <div className="h-px bg-edge" />
-        ) : (
-          <ShelfLine {...totals} />
-        )
-      ) : (
-        <span data-line="todo" className="line-segment" />
-      )}
+      {'owned' in totals ? pending ? <div className="h-px bg-edge" /> : <ShelfLine {...totals} /> : null}
     </header>
   )
 }

@@ -6,7 +6,7 @@ import { useNewBattle } from '../battles/NewBattle'
 export function PracticeNextGame() {
   const start = useNewBattle()
   return (
-    <aside data-practice-next className="flex flex-wrap items-center gap-3 part p-4">
+    <aside data-practice-next className="flex flex-wrap items-center gap-3 border-y border-edge py-3">
       <div className="min-w-0 flex-1 basis-60">
         <p className="text-sm font-semibold text-bone">Playing someone next?</p>
         <p className="text-xs text-dim">

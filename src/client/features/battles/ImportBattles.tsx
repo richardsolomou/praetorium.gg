@@ -21,7 +21,7 @@ import {
 import { Problem } from '../../components/Problem'
 import { NEW_ISSUE } from '../../projectLinks'
 import { errorMessage } from '../../queryClient'
-import { FEEDBACK_MESSAGE_MAX_LENGTH, feedbackTicketMessage } from '../feedback/feedback'
+import { FEEDBACK_MESSAGE_MAX_LENGTH, feedbackTicketMessage } from '../../../contracts/feedback'
 import { openConversation, refreshSupport, startConversation } from '../feedback/support'
 import { BattlebaseImport } from './BattlebaseImport'
 

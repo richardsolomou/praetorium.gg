@@ -35,7 +35,6 @@ import {
   rosterTitle,
 } from './RosterSummary'
 import { ContextMenuItem, DropdownMenuItem, MenuSection } from '../../components/Menu'
-import type { RosterPlayHistory } from '../../../core/rosterPlays'
 import { ROSTER_DRAG_TYPE, VARIANT_DRAG_TYPE } from './RosterFolders'
 
 export type RosterRowLayout = 'card' | 'base' | 'variant'
@@ -45,9 +44,16 @@ type RosterRowSelection = { checked: boolean; disabled: boolean; onCheckedChange
 
 /** A list on its own is a card; a base shares its card with its variants, which are the slim rows beneath it. */
 export const rosterRowFrame: Record<RosterRowLayout, string> = {
-  card: 'part hover:border-runner-hi hover:bg-raised',
+  card: 'hover:bg-raised',
   base: 'hover:bg-raised',
   variant: 'border-t border-edge py-1.5 pl-3 hover:bg-raised',
+}
+
+/** The library rules its lists apart with hairlines, so a row is only its hover, and a variant sits indented under its base's name. */
+const libraryRowFrame: Record<RosterRowLayout, string> = {
+  card: 'py-1.5 hover:bg-raised',
+  base: 'py-1.5 hover:bg-raised',
+  variant: 'py-0.5 pl-12 hover:bg-raised',
 }
 
 /**
@@ -78,7 +84,6 @@ export function RosterRow({
   showVisibility = true,
   onNeedsAccount,
   selection,
-  plays,
   onMove,
   dragId,
   variantOf,
@@ -110,7 +115,6 @@ export function RosterRow({
   /** A visitor's list on this device, whose account-only actions ask them to sign up instead. */
   onNeedsAccount?: (reason: AccountReason) => void
   selection?: RosterRowSelection
-  plays?: RosterPlayHistory
   /** Files the list, with its variants, in a folder; absent for a visitor's list on this device. */
   onMove?: () => void
   /** The roster a drag files: the list itself, or the base its variants follow. */
@@ -144,7 +148,7 @@ export function RosterRow({
             data-roster={title}
             data-variant={layout === 'variant' || undefined}
             data-selected={selection?.checked || undefined}
-            className={`relative flex items-center gap-2 p-2 ${rosterRowFrame[layout]} data-selected:bg-raised`}
+            className={`relative flex items-center gap-1 px-1 ${libraryRowFrame[layout]} data-selected:bg-raised`}
           />
         }
       >
@@ -173,7 +177,6 @@ export function RosterRow({
               differences={differences}
               showVisibility={showVisibility}
               updates={updates}
-              plays={plays}
             />
           ) : (
             <RosterSummary
@@ -187,7 +190,6 @@ export function RosterRow({
               problem={problem}
               differences={differences}
               updates={updates}
-              plays={plays}
             />
           )}
         </Link>

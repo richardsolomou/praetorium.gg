@@ -20,6 +20,7 @@ import { matchupModifiers, phases, withoutCommandReroll } from './matchupModifie
 import { PhaseWeapons } from './PhaseWeapons'
 import { useCombatOutcome, type CombatEntryPoint } from './useCombatOutcome'
 import { useStrongestPreferences } from './useStrongestPreferences'
+import { DisclosureChevron } from '../../components/DisclosureChevron'
 
 let roomyAtLoad: boolean | undefined
 // Read once a page load, so turning a tablet or resizing a window never closes a section someone is using.
@@ -266,20 +267,20 @@ export function CombatMatchup({
   return (
     <>
       <div className="@container min-w-0 space-y-3" aria-label="Combat matchup">
-        <div className="grid gap-3 @xl:grid-cols-2">
-          <section data-onboarding="simulator-attacker" aria-label="Attacker" className="min-w-0 part">
+        <div className="grid border-t border-edge @xl:grid-cols-2 @xl:gap-x-6">
+          <section data-onboarding="simulator-attacker" aria-label="Attacker" className="min-w-0">
             <LoadoutOddsContext.Provider value={loadoutOdds}>
               <LoadoutOptimizationContext.Provider value={optimizationContext}>{attackerControl}</LoadoutOptimizationContext.Provider>
             </LoadoutOddsContext.Provider>
             <CombatDefences unit={attacker} />
           </section>
-          <section data-onboarding="simulator-defender" aria-label="Defender" className="min-w-0 part">
+          <section data-onboarding="simulator-defender" aria-label="Defender" className="min-w-0 border-t border-edge @xl:border-t-0">
             {defenderControl}
             <CombatDefences unit={defender} feelNoPain={feelNoPain} configured={configuredDefences} onAllocateEarlier={allocateEarlier} />
           </section>
         </div>
 
-        <div className="part p-3 sm:p-4">
+        <div className="border-t border-edge pt-4">
           {!pending && !failed && (invalidatedPreferences || invalidatedChoice) ? (
             <output className="mb-3 block text-xs text-dim">
               Some previous weapon choices no longer apply to this equipment. Current profiles are used.
@@ -318,11 +319,12 @@ export function CombatMatchup({
           </div>
           <details
             data-combat-buffs
-            className="mt-3 border-t border-edge"
+            className="group/buffs mt-3 border-t border-edge"
             open={buffsOpen ?? startOpen}
             onToggle={(event) => event.currentTarget.open !== (buffsOpen ?? startOpen) && setBuffsOpen(event.currentTarget.open)}
           >
-            <summary className="rubric scroll-mt-header cursor-pointer py-3 text-info outline-none focus-visible:ring-2 focus-visible:ring-primary">
+            <summary className="flex scroll-mt-header cursor-pointer list-none items-center gap-2 py-3 font-display text-lg font-semibold text-bone outline-none hover:text-bone focus-visible:ring-2 focus-visible:ring-primary [&::-webkit-details-marker]:hidden">
+              <DisclosureChevron />
               Rules & buffs
             </summary>
             <div className="grid gap-4 pb-3 @xl:grid-cols-2">

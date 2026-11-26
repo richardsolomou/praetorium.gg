@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { ruleSummaryFinder } from './referenceSummaries'
 import type { CanonicalCatalogue } from '../contracts/catalogue'
 import type { ReferenceDocument } from '../contracts/reference'
 import type { ReferenceCorpus } from './referenceCorpus'
@@ -65,6 +66,7 @@ const corpus: ReferenceCorpus = {
   documents,
   byId: new Map(documents.map((document) => [document.id, document])),
   revision: 'snapshot',
+  summaries: ruleSummaryFinder(null),
 }
 
 it('finds prose and returns its addressable source excerpt', () => {

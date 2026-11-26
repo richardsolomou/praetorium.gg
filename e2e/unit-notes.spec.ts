@@ -28,6 +28,8 @@ async function addSquads(page: Page, count: number) {
   await expect(page.locator(`[data-unit="${SQUAD}"]`)).toHaveCount(count)
 }
 
+/** A unit's custom name with its datasheet name after it, whatever the card sets between them, such as its model count. */
+const named = (name: string) => new RegExp(`${name}.*${SQUAD}`)
 const squadButton = (card: Locator) => card.getByRole('button', { name: new RegExp(`^(?:.+ · )?${SQUAD}$`) })
 
 /** Fills one card's custom name or note from its loadout pane, leaving the roster showing again. */
@@ -57,9 +59,9 @@ test(`repeated units keep their own custom names and private notes from the buil
   await annotate(owner, cards.nth(1), 'Note', BRAVO_NOTE)
 
   await owner.reload()
-  await expect(cards.nth(0)).toContainText(`Rot Alpha${SQUAD}`)
+  await expect(cards.nth(0)).toContainText(named('Rot Alpha'))
   await expect(cards.nth(0)).toContainText(ALPHA_NOTE)
-  await expect(cards.nth(1)).toContainText(`Rot Bravo${SQUAD}`)
+  await expect(cards.nth(1)).toContainText(named('Rot Bravo'))
   await expect(cards.nth(1)).toContainText(BRAVO_NOTE)
   await shot(owner.locator('[data-roster-builder]'), test.info().outputPath(`unit-annotation-cards.png`))
 
@@ -92,8 +94,8 @@ test(`repeated units keep their own custom names and private notes from the buil
 
   await opponent.goto(fielded)
   const frozen = opponent.locator(`[data-unit="${SQUAD}"]`)
-  await expect(frozen.nth(0)).toContainText(`Rot Alpha${SQUAD}`)
-  await expect(frozen.nth(1)).toContainText(`Rot Bravo${SQUAD}`)
+  await expect(frozen.nth(0)).toContainText(named('Rot Alpha'))
+  await expect(frozen.nth(1)).toContainText(named('Rot Bravo'))
   await expect(opponent.locator('body')).not.toContainText(ALPHA_NOTE)
   await expect(opponent.locator('body')).not.toContainText(BRAVO_NOTE)
 
@@ -109,7 +111,7 @@ test(`repeated units keep their own custom names and private notes from the buil
   await owner.goto(`/rosters/${original}`)
   await chooseRosterAction(owner, 'Create variant')
   await owner.waitForURL((url) => !url.pathname.endsWith(original))
-  await expect(cards.nth(0)).toContainText(`Rot Prime${SQUAD}`)
+  await expect(cards.nth(0)).toContainText(named('Rot Prime'))
   await expect(cards.nth(0)).toContainText('Rush the centre')
   await expect(cards.nth(1)).toContainText(BRAVO_NOTE)
 })
@@ -130,7 +132,7 @@ test(`the battle army window names units by their custom name and shows notes on
   await playerPanel(page, 0)
     .getByRole('button', { name: `Units: ${roster}` })
     .click()
-  await expect(squad).toContainText(`Rot Alpha${SQUAD}`)
+  await expect(squad).toContainText(named('Rot Alpha'))
   await expect(squad).toContainText(ALPHA_NOTE)
   await shot(army, test.info().outputPath(`unit-annotation-army.png`))
   await army.getByRole('button', { name: 'Close' }).click()
@@ -140,6 +142,6 @@ test(`the battle army window names units by their custom name and shows notes on
   await playerPanel(page, 1)
     .getByRole('button', { name: `Units: ${roster}` })
     .click()
-  await expect(squad).toContainText(`Rot Alpha${SQUAD}`)
+  await expect(squad).toContainText(named('Rot Alpha'))
   await expect(squad).not.toContainText(ALPHA_NOTE)
 })

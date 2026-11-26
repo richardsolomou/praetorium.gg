@@ -51,7 +51,10 @@ export function McpConsentPage({
               <li>Read your saved rosters, collection, battles and record, and the groups and tournaments you play in.</li>
             )}
             {scopes.includes('mcp:write') && (
-              <li>Edit your rosters, set up and record battles, and seal lists and report results in groups and tournaments.</li>
+              <li>
+                Edit your rosters, set up and record battles, seal lists and report results in groups and tournaments, and send feedback as
+                you.
+              </li>
             )}
             {scopes.includes('mcp:manage') && (
               <>

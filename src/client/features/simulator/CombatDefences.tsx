@@ -34,13 +34,13 @@ export const CombatDefences = memo(function CombatDefences({
   }
   if (groups.length < 2)
     return (
-      <div className="px-3 pb-3 sm:px-4 sm:pb-4 [&_[data-characteristic]]:rounded-none [&_[data-characteristic]]:border-0 [&_[data-characteristic]]:bg-transparent [&_[data-characteristic]]:shadow-none [&_[data-characteristic]>p:last-child]:text-xl [&_[data-characteristic]>p:last-child]:font-semibold [&_[data-slot=profile-grid]]:gap-0 [&_[data-slot=profile-grid]]:divide-x [&_[data-slot=profile-grid]]:divide-edge [&_[data-slot=profile-grid]]:rounded-lg [&_[data-slot=profile-grid]]:border [&_[data-slot=profile-grid]]:border-edge [&_[data-slot=profile-grid]]:bg-sunken">
+      <div className="pb-3 [&_[data-characteristic]]:rounded-none [&_[data-characteristic]]:border-0 [&_[data-characteristic]]:bg-transparent [&_[data-characteristic]]:shadow-none [&_[data-characteristic]>p:last-child]:text-xl [&_[data-characteristic]>p:last-child]:font-semibold [&_[data-slot=profile-grid]]:gap-0 [&_[data-slot=profile-grid]]:divide-x [&_[data-slot=profile-grid]]:divide-edge [&_[data-slot=profile-grid]]:rounded-lg [&_[data-slot=profile-grid]]:border [&_[data-slot=profile-grid]]:border-edge [&_[data-slot=profile-grid]]:bg-sunken">
         <ProfileGrid values={values(groups[0])} columns={5} />
       </div>
     )
   return (
-    <div className="px-3 pb-3 sm:px-4 sm:pb-4">
-      <table className="w-full table-fixed rounded-lg border border-edge bg-sunken text-center">
+    <div className="pb-3">
+      <table className="w-full table-fixed border-y border-edge text-center">
         <thead>
           <tr className="eyebrow">
             <th className="w-1/3 px-2 py-1.5 text-left font-normal">{onAllocateEarlier ? 'Order' : 'Models'}</th>

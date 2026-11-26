@@ -11,8 +11,9 @@ export const contentSecurityPolicy: Record<string, string[]> = {
   // the chunk import map. A hash or nonce would switch 'unsafe-inline' off for Start's scripts, which carry neither.
   'script-src': ["'self'", "'unsafe-inline'"],
   'style-src': ["'self'", "'unsafe-inline'"],
-  // Faction icons, and images in support replies.
-  'img-src': ["'self'", 'data:', 'https://cdn.jsdelivr.net', 'https://us-media.posthog.com'],
+  // Faction icons, images in support replies, and the hosted service's avatars, which a production copy carries into a
+  // development stack that serves its own uploads from elsewhere.
+  'img-src': ["'self'", 'data:', 'https://cdn.jsdelivr.net', 'https://us-media.posthog.com', 'https://s3.praetorium.gg'],
   'font-src': ["'self'", 'data:'],
   // Rules text loads from its pinned upstream files.
   'connect-src': ["'self'", 'https://raw.githubusercontent.com'],

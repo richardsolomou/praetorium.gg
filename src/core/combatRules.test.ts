@@ -13,6 +13,7 @@ import {
   combatRuleProfiles,
   combatRuleRoles,
   combatRuleWeapons,
+  withModelAttacks,
   type CombatRule,
   type CombatRuleJudge,
   judgedCombatRule,
@@ -824,9 +825,9 @@ describe('Aspect Shrine tokens', () => {
     { models: 5 },
   )
   const spent = (sheet: Datasheet, choice: number, phase: 'ranged' | 'melee' = 'ranged') => {
-    const active = [{ name: 'Buff', effects: combatRuleChoices(tokens)[choice]!.effects }]
+    const active = withModelAttacks({ sheet, carriers: [], rules: [{ name: 'Buff', effects: combatRuleChoices(tokens)[choice]!.effects }] })
     const used = combatWeapons(sheet, [], phase).map((entry) => ({ ...entry, count: 1 }))
-    return combatRuleWeapons(sheet, used, active, 'attacker', phase, [])[0]?.unmodifiedSix
+    return combatRuleWeapons(sheet, used, active.rules, 'attacker', phase, [])[0]?.unmodifiedSix
   }
 
   it('offers a hit or wound roll in each phase', () => {

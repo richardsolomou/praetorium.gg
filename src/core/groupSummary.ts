@@ -1,5 +1,5 @@
 import { DAY_MS } from './listFilter'
-import { battleOutcome, counted, type BattleOutcome, type StandingBattle, type StandingFaction } from './standings'
+import { armyOf, battleOutcome, counted, type BattleOutcome, type StandingBattle, type StandingFaction } from './standings'
 
 const FORM_LENGTH = 5
 const FACTIONS_SHOWN = 5
@@ -34,9 +34,9 @@ export function groupSummary(
   const factions = new Map<string, { faction: StandingFaction; seats: number }>()
   for (const faction of finished.flatMap((battle) => battle.factions)) {
     if (!faction) continue
-    const known = factions.get(faction.slug) ?? { faction, seats: 0 }
+    const known = factions.get(armyOf(faction)) ?? { faction, seats: 0 }
     known.seats += 1
-    factions.set(faction.slug, known)
+    factions.set(armyOf(faction), known)
   }
   const form: Record<string, BattleOutcome[]> = {}
   const rivalries = new Map<string, Rivalry>()

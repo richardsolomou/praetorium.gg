@@ -191,6 +191,20 @@ describe.skipIf(!fs.existsSync(directory))('simulator catalogue projections', ()
     expect(combatUnitTarget(side('Adeptus Custodes', ['Prosecutor Squad']).snapshot, 'ranged').target?.psychicFeelNoPain).toBe(3)
   })
 
+  it("gives Imperial Navy Breachers' Endurant shield invulnerable save only to the model holding it", () => {
+    const groups = fight(marines(), side('Agents of the Imperium', ['Imperial Navy Breachers'])).request.ranged?.target.groups
+    expect(groups?.map((group) => [group.models, group.invulnerable]).toSorted()).toEqual([
+      [1, 4],
+      [9, null],
+    ])
+  })
+
+  it("re-rolls only the Sisters Repentia's attacks for Overseer of Redemption, not the Repentia Superior's", () => {
+    const { request } = fight(side('Adepta Sororitas', ['Repentia Squad']), marines())
+    const rerolls = request.melee!.weapons.map((weapon) => weapon.hitReroll ?? request.melee!.options.hitReroll ?? 'none')
+    expect(rerolls.toSorted()).toEqual(['failed', 'none'])
+  })
+
   it("keeps a Canoptek Reanimator's Feel No Pain 4+ among the defender's rules", () => {
     const rule = side('Necrons', ['Canoptek Reanimator']).rules.find((candidate) => candidate.name === 'Feel No Pain 4+')
     expect(rule && combatRuleAppliesTo(rule, 'defender')).toBe(true)

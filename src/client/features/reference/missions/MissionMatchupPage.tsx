@@ -9,7 +9,7 @@ import { TerrainBoard } from './TerrainBoard'
 import { TerrainLayoutDialogContent } from './TerrainLayoutDialogContent'
 import { PageState } from '../../../components/PageState'
 import { type TerrainGeometry, type TerrainPiece, type TerrainTemplate } from './terrainGeometry'
-import { DispositionChip } from '../../battle/setup/chrome'
+import { dispositionTag } from '../../../components/rosterSetup'
 import { gameReferencesQuery, terrainMatchupIds, terrainReferencesQuery } from '../../../queries'
 import { PageContent, PageHeader } from '../../../components/Page'
 import { buttonClass } from '../../../components/buttonClass'
@@ -42,18 +42,16 @@ export function MissionMatchupPage({ packId, you, opponent }: { packId: string; 
           </Link>
         }
       >
-        <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-stretch gap-2">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-stretch divide-x divide-edge border-y border-edge">
           {sides.map((side, at) => (
             <Fragment key={side.seat}>
-              {at ? <span className="grid place-items-center font-display text-sm font-bold text-faint">VS</span> : null}
+              {at ? <span className="grid place-items-center px-3 text-sm text-faint">vs</span> : null}
               <a
                 href={`#mission-${side.mission.id}`}
-                className={`flex min-h-16 min-w-0 flex-col justify-center gap-1.5 part px-3 py-2 transition-colors hover:border-runner-hi hover:bg-raised sm:px-4 ${at ? 'items-end text-right' : 'items-start text-left'}`}
+                className={`flex min-h-16 min-w-0 flex-col justify-center gap-1.5 px-3 py-2 transition-colors hover:bg-raised sm:px-4 ${at ? 'items-end text-right' : 'items-start text-left'}`}
               >
-                <DispositionChip disposition={side.disposition} />
-                <span className="font-display leading-tight font-bold tracking-heading break-words uppercase sm:text-lg">
-                  {side.mission.name}
-                </span>
+                <DispositionBadge disposition={side.disposition} />
+                <span className="leading-tight font-semibold break-words text-bone sm:text-lg">{side.mission.name}</span>
               </a>
             </Fragment>
           ))}
@@ -71,8 +69,9 @@ export function MissionMatchupPage({ packId, you, opponent }: { packId: string; 
         <div className="grid items-start gap-6 md:grid-cols-2">
           {sides.map((side) => (
             <section key={side.seat} id={`mission-${side.mission.id}`} className="scroll-mt-header space-y-3">
-              <DispositionChip disposition={side.disposition} />
-              <h2 className="text-xl sm:text-2xl">{side.mission.name}</h2>
+              {/* The heading stays a direct child, so the section that holds its id is its parent. */}
+              <DispositionBadge disposition={side.disposition} />
+              <h2 className="rubric">{side.mission.name}</h2>
               {side.mission.card ? <MissionCardReference card={side.mission.card} /> : null}
             </section>
           ))}
@@ -105,7 +104,7 @@ export function MissionMatchupPage({ packId, you, opponent }: { packId: string; 
               icon={MapPinned}
             />
           ) : layouts.length ? (
-            <div className="mt-3 grid gap-3 sm:grid-cols-3">
+            <div className="grid gap-x-6 border-t border-edge sm:grid-cols-3">
               {layouts.map((layout, index) => (
                 <TerrainLayout
                   key={layout.id}
@@ -128,6 +127,14 @@ export function MissionMatchupPage({ packId, you, opponent }: { packId: string; 
         </section>
       </PageContent>
     </main>
+  )
+}
+
+function DispositionBadge({ disposition }: { disposition: { id: string; name: string } }) {
+  return (
+    <span data-disposition={disposition.id} className={dispositionTag(disposition.id)}>
+      {disposition.name}
+    </span>
   )
 }
 
@@ -163,13 +170,13 @@ function TerrainLayout({
           render={
             <button
               type="button"
-              className="group flex h-full w-full flex-col part p-3 text-left transition-colors hover:border-info focus-visible:ring-2 focus-visible:ring-info focus-visible:outline-none"
+              className="group flex h-full w-full flex-col border-b border-edge py-3 text-left focus-visible:ring-2 focus-visible:ring-info focus-visible:outline-none"
               aria-label={`Enlarge terrain layout ${label}: ${description}`}
             />
           }
         >
           <span className="flex items-center gap-2">
-            <span className="text-lg font-bold">{label} </span>
+            <span className="figure text-lg">{label} </span>
             <span className="min-w-0 flex-1 truncate text-sm text-dim transition-colors group-hover:text-bone">{description}</span>
             <Maximize2 className="size-4 shrink-0 text-dim transition-colors group-hover:text-info" aria-hidden />
           </span>

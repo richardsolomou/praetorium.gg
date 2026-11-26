@@ -1,5 +1,24 @@
 # praetorium
 
+## 0.278.0 (2026-11-26)
+
+### Minor Changes
+
+- 5d7e405: [assistant] Assistants connected to Praetorium now read the same plain-language rule summaries its pages show for abilities, Stratagems, Enhancements, Detachment rules, mission cards and core rules, and answer rules questions from them.
+
+## 0.277.18 (2026-11-26)
+
+### Patch Changes
+
+- 1235c3f: [simulator] An ability that helps only some models in a unit, such as Overseer of Redemption for a Repentia Squad's Sisters Repentia, now improves only those models' attacks or saves in the simulator, and a datasheet shows such an ability as only those models'.
+- 1235c3f: [simulator] The simulator gives a piece of wargear's protection only to the models carrying it, so an Imperial Navy Breachers squad with one Endurant shield no longer gets a 4+ invulnerable save for every model.
+
+## 0.277.17 (2026-11-26)
+
+### Patch Changes
+
+- 42a1f54: [battles] Ophydian and Skorpekh Destroyers with a Plasmacyte now track their casualties as one group of models, instead of treating the Plasmacyte as a separate model with its own wounds.
+
 ## 0.277.16 (2026-11-26)
 
 ### Patch Changes

@@ -160,7 +160,7 @@ export const RosterUnitShelves = memo(function RosterUnitShelves({
       onSelect={loadoutAvailable ? onSelect : undefined}
     />
   )
-  const renderCard = ({ unit, index, joined, warlord }: RosterCard, inUnit = false) => {
+  const renderCard = ({ unit, index, joined, warlord, models }: RosterCard, inUnit = false) => {
     if (frozen)
       return (
         <UnitCard
@@ -186,6 +186,7 @@ export const RosterUnitShelves = memo(function RosterUnitShelves({
       <BuilderUnitCard
         key={picks[index]?.key ?? unit.entryId}
         unit={unit}
+        models={models}
         warlord={warlord}
         nickname={picks[index]?.nickname}
         note={picks[index]?.note}
@@ -230,7 +231,6 @@ export const RosterUnitShelves = memo(function RosterUnitShelves({
               title={plural}
               count={count}
               points={entries.flat().reduce((total, card) => total + card.unit.points, 0)}
-              runner={layout === 'cards'}
               list={layout === 'list'}
             >
               {entries.map((members) => {

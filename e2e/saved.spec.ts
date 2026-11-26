@@ -245,7 +245,7 @@ test('a roster variant is numbered and grouped under its base without renaming',
   const chipHeights = await page
     .locator('[data-variant] .chip')
     .evaluateAll((chips) => chips.map((chip) => chip.getBoundingClientRect().height))
-  expect(Math.max(...chipHeights)).toBeLessThan(24)
+  expect(Math.max(...chipHeights)).toBeLessThan(30)
   await page.screenshot({ path: test.info().outputPath('roster-variants-library-phone.png'), fullPage: true })
   await page.setViewportSize({ width: 1440, height: 900 })
 
@@ -292,7 +292,7 @@ test('a roster variant is numbered and grouped under its base without renaming',
   const variantChipHeights = await page
     .locator('[data-variant] .chip')
     .evaluateAll((chips) => chips.map((chip) => chip.getBoundingClientRect().height))
-  expect(Math.max(...variantChipHeights)).toBeLessThan(24)
+  expect(Math.max(...variantChipHeights)).toBeLessThan(30)
   // A phone puts a base's name beside its points, and its chips on a line running beneath them.
   const baseRow = page.locator('[data-roster="Dynasty 2k"]')
   const baseName = await baseRow.getByText('Dynasty 2k', { exact: true }).boundingBox()

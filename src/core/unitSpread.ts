@@ -672,6 +672,19 @@ function spendBodies(
   })
 }
 
+/** The model at `path` set to `count` copies; copies given up take their share of its squad-wide weapons with them. */
+export function withModelCount(selection: Selection, path: readonly string[], count: number, index: CatalogueIndex): Selection {
+  const held = at(selection, path)
+  if (!held || count >= (held.count ?? 1)) return withCounts(selection, [{ path, count }])
+  return updateSelection(selection, path.slice(0, -1), (group) => {
+    const first = group.selections?.indexOf(held) ?? -1
+    return {
+      ...group,
+      selections: group.selections?.map((child, position) => (position === first ? withFewerModels(child, count, index) : child)),
+    }
+  })
+}
+
 /**
  * Copies of a model given up, with the shared weapon groups they hold given up alongside them.
  *

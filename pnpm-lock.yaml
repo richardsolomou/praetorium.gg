@@ -189,7 +189,7 @@ importers:
       '@fontsource-variable/sofia-sans-semi-condensed':
         specifier: 5.3.0
         version: 5.3.0
-      '@fontsource/chakra-petch':
+      '@fontsource/barlow':
         specifier: 5.3.0
         version: 5.3.0
       '@fontsource/sofia-sans-semi-condensed':
@@ -1769,8 +1769,8 @@ packages:
   '@fontsource-variable/sofia-sans-semi-condensed@5.3.0':
     resolution: {integrity: sha512-qeDC2S6tUo5QLFmgxN3XWwQZaIyM6eN11rZWXR2J4KjXMw+0PaWUXNObgt85yEThwb7P76xAzgDkWXOIkrzyHw==}
 
-  '@fontsource/chakra-petch@5.3.0':
-    resolution: {integrity: sha512-QZvbM/q2R6n1pg2x+TJPftZmBNS+ADU37L4Z4L/6UJIz+JZ/SRaEf8usPFRiP7Ht28sIideMu/Bm1SnGlSrwNw==}
+  '@fontsource/barlow@5.3.0':
+    resolution: {integrity: sha512-tGR0y6QObRtKv71MOth44222+mdNFM/ZWFWDV1VLzNbG4oK9PNRlyJzmkck4vHAi9ibHBXgt4SlY51amFP55CA==}
 
   '@fontsource/sofia-sans-semi-condensed@5.3.0':
     resolution: {integrity: sha512-zqubLbT0ruDFqn0cVp1/19jBxEYrZdiNX5ZWLfmGsMLYgj9jK5O9Td9nLyV+AD8kMurWoBJn1vEgYRoTNZ9pkA==}
@@ -8699,7 +8699,7 @@ snapshots:
 
   '@fontsource-variable/sofia-sans-semi-condensed@5.3.0': {}
 
-  '@fontsource/chakra-petch@5.3.0': {}
+  '@fontsource/barlow@5.3.0': {}
 
   '@fontsource/sofia-sans-semi-condensed@5.3.0': {}
 

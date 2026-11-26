@@ -39,11 +39,13 @@ import { sideLost, viewerStage } from '../../battleStage'
 import { summarySides } from '../../battleSummary'
 import type { Battle } from '../battles/battle'
 import { memberNameOf, useGroupRefresh, type Group } from './group'
+import { StatusChip } from '../battles/BattleLines'
 import { useStartBattle } from '../battles/useStartBattle'
 import { warmLocalRules } from '../../offline/construction'
 import { DropdownMenuItem } from '../../components/Menu'
 import { nameColour } from '../../playerName'
 import { SealingPlayer } from './SealingPlayer'
+import { DisclosureChevron } from '../../components/DisclosureChevron'
 
 type Game = Group['games'][number]
 type Player = Game['players'][number]
@@ -80,6 +82,7 @@ export function GroupHiddenListGame({
   viewerId,
   highlighted = false,
   embedded = false,
+  folded = false,
 }: {
   group: Group
   game: Game
@@ -87,6 +90,8 @@ export function GroupHiddenListGame({
   highlighted?: boolean
   /** A past game's row in a list, read for the battles it produced. */
   embedded?: boolean
+  /** Set as a hairline row among other past games, with its lists folded until asked for. */
+  folded?: boolean
 }) {
   const { defaultMissionPackId, openBattle } = useStartBattle()
   // Sealing a roster and starting a battle price lists with the rules on this device, which take a moment to prepare.
@@ -295,7 +300,7 @@ export function GroupHiddenListGame({
                 {!revealed && entry.side
                   ? Array.from({ length: Math.max(0, entry.places - entry.players.length) }, (_, index) => (
                       <li key={`open-${index}`} className="flex min-w-0 items-center gap-3 px-4 py-1.5">
-                        <span aria-hidden className="size-8 shrink-0 rounded-full border border-dashed border-runner" />
+                        <span aria-hidden className="size-8 shrink-0 rounded-full border border-runner" />
                         <span className="min-w-0 flex-1 text-sm text-faint">Open seat</span>
                         {index === 0 && mayTakeSeat && !seated ? (
                           <Button
@@ -344,11 +349,11 @@ export function GroupHiddenListGame({
       id={`game-${game.token}`}
       data-hidden-list-game={game.token}
       aria-label={`Hidden-list game: ${gameName}`}
-      className={`overflow-hidden part ${highlighted ? 'border-parchment' : ''}`}
+      className={folded ? 'border-b border-edge' : `part overflow-hidden ${highlighted ? 'border-parchment/60' : ''}`}
     >
       {embedded ? (
         <>
-          <div className="flex min-w-0 items-center gap-3 border-b border-edge py-2 pr-2 pl-4">
+          <div className={`flex min-w-0 items-center gap-3 py-2 pr-2 pl-4 ${folded ? '' : 'border-b border-edge'}`}>
             <span className="flex min-w-0 flex-1 flex-col sm:flex-row sm:items-baseline sm:gap-3">
               <span className="min-w-0 truncate font-semibold sm:flex-1">{gameName}</span>
               <span className="text-sm text-dim sm:shrink-0">
@@ -362,7 +367,16 @@ export function GroupHiddenListGame({
             {menu}
           </div>
           {gameBattles}
-          {sealed.length ? (
+          {sealed.length && folded ? (
+            <details className="group/lists" open={highlighted}>
+              <summary className="flex min-h-10 cursor-pointer items-center gap-1.5 px-4 py-1.5 text-xs text-dim hover:bg-raised">
+                <DisclosureChevron />
+                Lists · {countLabel(sealed.length, 'player')}
+              </summary>
+              {sharing}
+              {revealedLists}
+            </details>
+          ) : sealed.length ? (
             <div className="border-t border-edge">
               <p className="px-4 py-2 text-sm text-dim">Lists · {countLabel(sealed.length, 'player')}</p>
               {sharing}
@@ -374,11 +388,9 @@ export function GroupHiddenListGame({
         <>
           <div className="flex min-w-0 items-start gap-3 p-4 pb-3">
             <div className="min-w-0 flex-1">
-              <h3 className="font-bold break-words uppercase">{gameName}</h3>
-              <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-dim">
-                <span className="chip border-discarded/60 text-discarded">Hidden-list game</span>
-                {when ? <span>{when}</span> : null}
-              </p>
+              <p className="eyebrow">Hidden-list game</p>
+              <h3 className="mt-1 text-xl leading-tight break-words">{gameName}</h3>
+              {when ? <p className="mt-1 text-sm text-dim">{when}</p> : null}
             </div>
             {menu}
           </div>
@@ -525,27 +537,27 @@ function BattleResult({ battle, viewerId }: { battle: Battle; viewerId: string |
         to="/battles/$token"
         params={{ token: battle.token }}
         aria-label={`${seat === -1 ? 'Watch' : 'Open'} ${label}`}
-        className="group flex min-h-12 min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 px-4 py-2 hover:bg-raised"
+        className="group flex min-h-13 min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 px-4 py-2 transition-colors hover:bg-raised"
       >
-        <span data-battle-status={battle.status} className={`chip w-20 shrink-0 justify-center text-center max-sm:mr-auto ${stage.tint}`}>
-          {stage.name}
+        <span data-battle-status={battle.status} className="w-20 shrink-0 max-sm:mr-auto">
+          <StatusChip name={stage.name} className={stage.tint} />
         </span>
         <span className="min-w-0 flex-1 text-sm wrap-break-word max-sm:order-last max-sm:basis-full">
           {sides.map((side, at) => (
-            <span key={side.index} className={`uppercase ${sideLost(battle, side.index) ? 'text-faint' : 'font-bold'}`}>
-              {at ? <span className="px-1.5 font-normal text-faint normal-case">vs</span> : null}
+            <span key={side.index} className={sideLost(battle, side.index) ? 'font-medium text-faint' : 'font-semibold'}>
+              {at ? <span className="px-1.5 font-normal text-faint">vs</span> : null}
               {side.seats.map(({ player }, index) => (
                 <span key={player.id || player.name}>
                   {index ? <span className="font-normal text-faint"> &amp; </span> : null}
                   <span style={player.id && !sideLost(battle, side.index) ? nameColour(player) : undefined}>{player.name}</span>
-                  {player.id === viewerId ? <span className="eyebrow ml-1.5 text-parchment">You</span> : null}
+                  {player.id === viewerId ? <span className="ml-1.5 text-xs font-medium text-parchment">You</span> : null}
                 </span>
               ))}
             </span>
           ))}
         </span>
         {battle.status === 'setup' ? null : (
-          <span className="figure shrink-0 text-base font-bold">
+          <span className="figure shrink-0 text-xl leading-none">
             {sides.map((side, at) => (
               <span key={side.index}>
                 {at ? <span className="px-1 text-faint">–</span> : null}

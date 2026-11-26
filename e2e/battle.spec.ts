@@ -530,13 +530,11 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
   await expect(alice.getByText(`${aliceName} reviews the drawn missions for ${bobName}`, { exact: true })).toBeVisible()
   await expect(alice.getByText(new RegExp(`${bobName} marks `))).toHaveCount(0)
   // Both armies arrive battle ready, so every score carries the bonus the battle paid at the start.
-  await expect(ownPanel.locator('[data-stat="vp"]')).toHaveText(String(scored + 10))
+  await expect(alice.locator('[data-side-score="0"] [data-stat="vp"]')).toHaveText(String(scored + 10))
   await expect(ownPanel.locator('[data-stat="cp"]')).toHaveText('2')
   // Nothing is ticked to finish a card: no control for it exists.
   await expect(alice.getByText('take it out of the hand')).toHaveCount(0)
-  await expect(bob.locator('[data-panel="player"]').filter({ hasText: 'Death Guard' }).locator('[data-stat="vp"]')).toHaveText(
-    String(scored + 10),
-  )
+  await expect(bob.locator('[data-side-score="0"] [data-stat="vp"]')).toHaveText(String(scored + 10))
 
   await expect(alice.getByText(/The battlefield is /)).toBeVisible()
   await alice.setViewportSize({ width: 1100, height: 900 })
@@ -705,6 +703,8 @@ test('a pass answered slowly leaves settling the empty turn to the device that g
     return route.fallback()
   })
   const note = alice.getByRole('button', { name: 'Add note' })
+  await alice.getByRole('button', { name: 'Battle options' }).click()
+  await alice.getByRole('menuitem', { name: 'Write a note' }).click()
   await alice.getByLabel('Battle note').fill('Held')
   await alice.getByRole('button', { name: 'Pass the turn' }).click()
   await confirmScoring(alice.getByRole('dialog', { name: /^Scoring end of turn points/ }), 'Pass the turn')

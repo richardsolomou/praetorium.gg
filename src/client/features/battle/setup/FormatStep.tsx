@@ -77,7 +77,7 @@ export function FormatStep({
       )}
       {sizeFixed ? null : (
         <div>
-          <Label htmlFor={BATTLE_SIZE_CONTROL} className="eyebrow">
+          <Label htmlFor={BATTLE_SIZE_CONTROL} className="text-sm font-medium text-dim">
             Battle size
           </Label>
           <SearchableSelect
@@ -94,14 +94,14 @@ export function FormatStep({
       )}
       {references && references.packs.length > 1 && !manual ? (
         <fieldset>
-          <legend className="eyebrow">Mission pack</legend>
+          <legend className="text-sm font-medium text-dim">Mission pack</legend>
           <div className="mt-1 grid gap-2">
             {references.packs.map((pack) => (
               <Button
                 key={pack.id}
                 variant="outline"
                 aria-pressed={view.settings.missionPackId === pack.id}
-                className={`h-auto min-h-11 justify-start px-3 py-2 text-left text-sm font-bold uppercase ${
+                className={`h-auto min-h-11 justify-start px-3 py-2 text-left text-sm font-medium ${
                   view.settings.missionPackId === pack.id ? CHOSEN : CHOOSABLE
                 }`}
                 onClick={() => configure({ missionPackId: pack.id, twistId: null })}
@@ -115,7 +115,7 @@ export function FormatStep({
       <div className="sm:col-span-2">
         {view.clockFixed && view.settings.clockLimitMinutes ? (
           <div data-clock-fixed>
-            <p className="eyebrow">Chess clock</p>
+            <p className="text-sm font-medium text-dim">Chess clock</p>
             <p className="mt-1 font-semibold text-bone">{clockLimitLabel(view.settings.clockLimitMinutes)}</p>
             <p className="text-sm text-dim">The organizer set this chess clock.</p>
           </div>

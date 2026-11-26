@@ -236,7 +236,7 @@ export function MissedActionDialog({
             {stratagem ? <p className="text-xs text-dim">Only the phases {stratagem.name} can be used in are open.</p> : null}
             {turns.map((turn) => (
               <div key={`${turn.round}-${turn.turn}`} className="space-y-1">
-                <p className="text-2xs font-bold tracking-widest text-dim uppercase">
+                <p className="eyebrow">
                   Round {turn.round} · {turnName(turn)}
                 </p>
                 <div className="grid grid-cols-6 gap-1">
@@ -245,7 +245,7 @@ export function MissedActionDialog({
                       (candidate) => candidate.round === turn.round && candidate.turn === turn.turn && candidate.phase === phase,
                     )
                     const candidate = moments[index]
-                    if (!candidate) return <span key={phase} aria-hidden className="h-8 rounded-md border border-dashed border-edge/60" />
+                    if (!candidate) return <span key={phase} aria-hidden className="h-8 rounded-md bg-sunken/40" />
                     const chosen = index === momentAt
                     return (
                       <button
@@ -255,10 +255,8 @@ export function MissedActionDialog({
                         aria-pressed={chosen}
                         disabled={!fits(stratagem, candidate)}
                         onClick={() => setChosenMoment(index)}
-                        className={`h-8 rounded-md border text-2xs font-bold tracking-wide uppercase transition-colors disabled:cursor-not-allowed disabled:border-edge/60 disabled:bg-transparent disabled:text-dim/50 ${
-                          chosen
-                            ? 'border-parchment bg-raised text-bone'
-                            : 'border-edge bg-sunken text-dim hover:border-info hover:text-bone'
+                        className={`h-8 rounded-md border text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:border-edge/60 disabled:bg-transparent disabled:text-dim/50 ${
+                          chosen ? 'border-parchment/70 bg-parchment/10 text-parchment' : 'border-edge text-dim hover:text-bone'
                         }`}
                       >
                         {PHASE_SHORT[phase]}
@@ -270,8 +268,8 @@ export function MissedActionDialog({
             ))}
           </fieldset>
           {summary && moment ? (
-            <p className="rounded-md border border-edge bg-sunken px-3 py-2 text-sm">
-              <span className="font-bold text-bone">{summary}</span>
+            <p className="border-l-2 border-parchment/60 pl-3 text-sm">
+              <span className="font-semibold text-bone">{summary}</span>
               <span className="text-dim"> · {label(moment)} phase</span>
             </p>
           ) : null}

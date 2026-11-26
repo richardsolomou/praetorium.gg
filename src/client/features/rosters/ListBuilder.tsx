@@ -63,7 +63,7 @@ import { useRosterEdits } from './useRosterEdits'
 import { RosterActionsMenu } from './RosterActionsMenu'
 import { RosterHeaderNotices } from './RosterHeaderNotices'
 import { rosterCards, RosterUnitShelves } from './RosterUnitShelves'
-import { LoadoutPaneActions } from './LoadoutPaneActions'
+import { LoadoutPaneActions, LoadoutPaneTools } from './LoadoutPaneActions'
 import { FieldedUnit } from './FieldedUnit'
 import { useRosterSetupEditor } from './useRosterSetupEditor'
 import { useReminderEditor } from './useReminderEditor'
@@ -877,7 +877,6 @@ export function ListBuilder({
               <LoadoutPaneActions
                 preview={preview}
                 building={building}
-                frozen={Boolean(frozen)}
                 canAdd={preview !== null && canAddCopy(preview.entryId, held[preview.entryId] ?? 0, unitLimits)}
                 limitMessageId={previewLimitMessage ? previewLimitId : undefined}
                 onAdd={add}
@@ -886,6 +885,13 @@ export function ListBuilder({
                 selected={selected}
                 requiredWarlord={requiredWarlord}
                 edit={edit}
+              />
+            }
+            tools={
+              <LoadoutPaneTools
+                frozen={Boolean(frozen)}
+                preview={preview}
+                selected={selected}
                 combatDisabled={!selectedUnit || pricePending || priceLoading}
                 onCombat={(pickIndex) => openCombat(pickIndex, false)}
                 showReference={Boolean(inspectedEntryId)}

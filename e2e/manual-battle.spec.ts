@@ -64,6 +64,8 @@ test('a table keeps score by hand in a manually tracked battle', async ({ page }
   await expect(playerPanel(page, 1).locator('[data-stat="vp"]')).toHaveText('1')
 
   const note = 'Objective three contested by both sides'
+  await page.getByRole('button', { name: 'Battle options' }).click()
+  await page.getByRole('menuitem', { name: 'Write a note' }).click()
   await page.getByLabel('Battle note').fill(note)
   await page.getByRole('button', { name: 'Add note' }).click()
   await expect(page.locator('[data-battle-report-scroll]')).toContainText(`notes: ${note}`)

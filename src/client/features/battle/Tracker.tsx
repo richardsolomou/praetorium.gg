@@ -140,6 +140,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
   }, [view.viewerId])
   const [combatSelection, setCombatSelection] = useState<BattleCombatSelection | null>(null)
   const [missedDraft, setMissedDraft] = useState<MissedActionDraft | null>(null)
+  const [noteOpen, setNoteOpen] = useState(false)
   const [reminderPrompts, setReminderPrompts] = useState<ReminderPrompt[]>([])
   // Dismissals and preferences live in browser storage, so reminders wait for the browser's first render.
   const dismissalsReady = useHydrated()
@@ -668,47 +669,54 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
                * a margin on a fixed box sits between it and the edge it is pinned to.
                * At `lg` it is an ordinary box in the column again and takes the gap back.
                */
-              className="fixed right-0 bottom-0 left-(--app-chrome-left) z-40 mb-0 border-t border-edge bg-panel/98 px-3 py-2 backdrop-blur lg:static lg:mb-3 lg:rounded-xl lg:border lg:bg-panel lg:p-3 lg:shadow-part lg:backdrop-filter-none"
+              className="fixed right-0 bottom-0 left-(--app-chrome-left) z-40 mb-0 border-t border-edge bg-sunken/98 px-4 pt-2.5 pb-2 backdrop-blur lg:relative lg:inset-auto lg:z-auto lg:mb-3 lg:overflow-hidden lg:rounded-xl lg:border lg:bg-panel lg:p-3 lg:shadow-part lg:backdrop-filter-none"
             />
 
-            <section className={`part space-y-3 p-3 ${focus === 'battle' ? '' : 'hidden lg:block'}`}>
-              <div className="flex items-start gap-2">
-                <dl className="grid flex-1 grid-cols-2 gap-x-3 gap-y-2 text-xs">
-                  {view.settings.manual ? (
-                    <Fact label="Tracking" value="Manual" />
-                  ) : (
-                    <>
-                      <Fact label="Mission" value={yours?.mission?.name ?? 'Matched play'} />
-                      <Fact label="Mission pack" value={missionPack?.name ?? 'Not chosen'} />
-                      <BattlefieldFact view={view} deployment={deployment} objectives />
-                      <Fact label="Attacker" value={view.players.find((player) => player.id === view.attackerId)?.name ?? 'Not chosen'} />
-                    </>
-                  )}
-                  <Fact label="Battle size" value={battleSizeText(view) ?? 'Not set'} />
-                  <Fact label="Format" value={formatName(table)} />
-                  {/*
-                   * A twist changes one rule for the whole battle, so it is not enough to
-                   * name it: the sentence it changes has to be readable from the table
-                   * without leaving the game to go and find the pack.
-                   */}
-                  {twist ? (
-                    <div className="min-w-0">
-                      <dt className="eyebrow">Twist</dt>
-                      <dd>
-                        <TwistName twist={twist} />
-                      </dd>
-                    </div>
-                  ) : null}
-                </dl>
-                <GuideHelp task="battle" step="battle-live-score">
-                  Playing guide
-                </GuideHelp>
+            <section className={`space-y-5 ${focus === 'battle' ? '' : 'hidden lg:block'}`}>
+              <div className="space-y-3">
+                <h2 className="text-base font-semibold text-bone">Battle details</h2>
+                <div className="space-y-3">
+                  <div className="flex items-start gap-2">
+                    <dl className="grid flex-1 grid-cols-2 gap-x-3 gap-y-2 text-xs">
+                      {view.settings.manual ? (
+                        <Fact label="Tracking" value="Manual" />
+                      ) : (
+                        <>
+                          <Fact label="Mission" value={yours?.mission?.name ?? 'Matched play'} />
+                          <Fact label="Mission pack" value={missionPack?.name ?? 'Not chosen'} />
+                          <BattlefieldFact view={view} deployment={deployment} objectives />
+                          <Fact
+                            label="Attacker"
+                            value={view.players.find((player) => player.id === view.attackerId)?.name ?? 'Not chosen'}
+                          />
+                        </>
+                      )}
+                      <Fact label="Battle size" value={battleSizeText(view) ?? 'Not set'} />
+                      <Fact label="Format" value={formatName(table)} />
+                      {/*
+                       * A twist changes one rule for the whole battle, so it is not enough to
+                       * name it: the sentence it changes has to be readable from the table
+                       * without leaving the game to go and find the pack.
+                       */}
+                      {twist ? (
+                        <div className="min-w-0">
+                          <dt className="text-xs text-dim">Twist</dt>
+                          <dd>
+                            <TwistName twist={twist} />
+                          </dd>
+                        </div>
+                      ) : null}
+                    </dl>
+                    <GuideHelp task="battle" step="battle-live-score">
+                      Playing guide
+                    </GuideHelp>
+                  </div>
+                  {view.settings.manual ? <p className="text-xs text-dim">{MANUAL_TRACKING_LIMITS}</p> : null}
+                </div>
               </div>
-              {view.settings.manual ? <p className="text-xs text-dim">{MANUAL_TRACKING_LIMITS}</p> : null}
-
-              <div data-onboarding="battle-live-report" className="border-t border-edge pt-3">
+              <div data-onboarding="battle-live-report">
                 <div className="flex flex-wrap items-center justify-end gap-2">
-                  <p className="eyebrow mr-auto shrink-0">Battle events</p>
+                  <p className="mr-auto shrink-0 text-base font-semibold text-bone">Battle events</p>
                   <BattleMenu
                     canDelete={view.creatorId === view.viewerId}
                     pending={pending || promptMinimized || remove.isPending}
@@ -719,6 +727,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
                     players={view.players}
                     onActionRemindersChange={view.settings.manual ? undefined : updateActionReminders}
                     onRecordMissed={missedMoments.length ? () => setMissedDraft({}) : undefined}
+                    onWriteNote={() => setNoteOpen(true)}
                     onConcede={(playerId) => sendAction({ kind: 'end-battle', reason: 'conceded', concededBy: playerId })}
                     onFinishEarly={() => sendAction({ kind: 'end-battle', reason: 'finished-early' })}
                     onDelete={() => {
@@ -726,9 +735,11 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
                     }}
                   />
                 </div>
-                <div className="mt-3">
-                  <BattleNote pending={pending || promptMinimized} send={sendAction} />
-                </div>
+                {noteOpen ? (
+                  <div className="mt-3">
+                    <BattleNote onClose={() => setNoteOpen(false)} pending={pending || promptMinimized} send={sendAction} />
+                  </div>
+                ) : null}
                 <Report token={view.token} players={reportPlayers(view.players)} sides={table} />
               </div>
 

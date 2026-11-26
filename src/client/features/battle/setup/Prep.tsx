@@ -162,7 +162,7 @@ export function Prep({ view, side, send, pending }: Props) {
     return (
       <div data-secondary-deck-ready={deckReady} className="flex flex-wrap items-center justify-between gap-2">
         <p className="min-w-0 text-sm">
-          <span className="font-bold uppercase">{mode === 'fixed' ? 'Fixed' : 'Tactical'}</span>
+          <span className="font-semibold">{mode === 'fixed' ? 'Fixed' : 'Tactical'}</span>
           <span className="text-dim">
             {' · '}
             {mode === 'fixed'
@@ -218,7 +218,7 @@ export function Prep({ view, side, send, pending }: Props) {
               className={`h-auto flex-col items-start gap-0.5 px-3 py-2 text-left ${mode === entry ? CHOSEN : CHOOSABLE}`}
               onClick={() => entry !== mode && save({ mode: entry })}
             >
-              <span className="text-sm font-bold uppercase">{entry === 'fixed' ? 'Fixed' : 'Tactical'}</span>
+              <span className="text-sm font-semibold">{entry === 'fixed' ? 'Fixed' : 'Tactical'}</span>
               <span className="text-2xs leading-tight font-normal whitespace-normal text-dim">
                 {entry === 'fixed'
                   ? `Select ${FIXED_SECONDARIES} secondary missions for the battle now`
@@ -272,16 +272,15 @@ function SecondaryPicker({
   onToggle: (card: { key: string; name: string }) => void
 }) {
   return (
-    // A taken card hangs off the runner by a doubled gate and one still open by a dashed one,
-    // so the hand reads by line form before any button does.
-    <ul className="runner gap-1.5 [--gate-x:1.125rem] [--gate-y:1.3125rem]">
+    // A taken card is framed in green, so the hand reads before any button does.
+    <ul className="runner gap-1.5">
       {cards.map((card) => {
         const held = chosen.some((entry) => sameMissionId(entry.key, card.key))
         return (
           <li
             key={card.key}
             data-gate={held ? 'current' : 'pending'}
-            className="flex min-h-11 items-center justify-between gap-2 part px-3 py-1.5"
+            className="flex min-h-11 items-center justify-between gap-2 border-b border-edge px-1 py-1.5"
           >
             <MissionName name={card.name} card={card} type="Secondary mission" mode="fixed" />
             <Button

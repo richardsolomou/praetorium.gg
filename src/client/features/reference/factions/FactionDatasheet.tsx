@@ -144,8 +144,6 @@ export function FactionDatasheet() {
           <Abilities abilities={abilities} rules={sheet.keywordRules} />
           <ProfileRules profiles={sheet.profiles} rules={sheet.keywordRules} />
           <UnitConfiguration sheet={sheet} catalogueId={faction.id} />
-          <TopFourLists faction={faction} entryId={sheet.id} name={sheet.name} />
-          <PointsChanges faction={faction} slug={sheet.slug} />
           <TransportReference
             transport={sheet.transport}
             profiles={structured.transport}
@@ -155,6 +153,8 @@ export function FactionDatasheet() {
             entryId={sheet.id}
           />
           <Relationships sheet={sheet} abilityIds={relationshipAbilityIds} />
+          <TopFourLists faction={faction} entryId={sheet.id} name={sheet.name} />
+          <PointsChanges faction={faction} slug={sheet.slug} />
           <DatasheetPhotos entryId={sheet.id} name={sheet.name} />
           <FactionGames faction={faction} />
           <DatasheetNextStep faction={faction} sheet={sheet} />
@@ -172,9 +172,9 @@ export function Abilities({ abilities, rules }: { abilities: DisplayAbility[]; r
     const found = abilities.filter((ability) => ability.kind === kind)
     if (!found.length) return null
     const cards = (
-      <div className="grid gap-2 md:grid-cols-2">
+      <div className="grid border-t border-edge md:grid-cols-2 md:gap-x-6">
         {found.map((ability) => (
-          <article id={`ability-${ability.id}`} key={ability.id} className="part p-3">
+          <article id={`ability-${ability.id}`} key={ability.id} className="border-b border-edge py-3">
             <h3 className="text-sm">{ability.source ?? ability.name}</h3>
             {ability.source ? <p className="eyebrow mt-1">{ability.name}</p> : null}
             {ability.description ? <RuleText text={ability.description} rules={rules} name={ability.name} abilityId={ability.id} /> : null}
@@ -287,7 +287,7 @@ function TopFourLists({
           </>
         ) : null}
       </dl>
-      <ul className="mt-3 runner gap-1.5 [--gate-y:1.25rem]">
+      <ul className="mt-3 border-t border-edge">
         {lists.slice(0, SHOWN_LISTS).map((list) => (
           <li key={list.id}>
             {/* Opening a list imports it on the server, so passing a pointer or a finger over links must not ask for each. */}
@@ -295,7 +295,7 @@ function TopFourLists({
               to="/rosters/winning/$listId"
               params={{ listId: list.id }}
               preload={false}
-              className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 part px-4 py-2 text-sm hover:border-runner-hi hover:bg-raised"
+              className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 border-b border-edge px-2 py-2.5 text-sm transition-colors hover:bg-raised"
             >
               <span className="chip shrink-0">{placingLabel(list.placing)}</span>
               <span className="min-w-0 flex-1 truncate font-semibold">{list.event.name}</span>
@@ -326,7 +326,7 @@ function UnitConfiguration({ sheet, catalogueId }: { sheet: Datasheet; catalogue
   return (
     <section>
       <SectionHeading title="Unit configuration" />
-      <div className="overflow-hidden part">
+      <div className="overflow-hidden border-y border-edge">
         <div className="grid md:grid-cols-2 md:divide-x md:divide-edge">
           <div className="space-y-2 p-3">
             <h3 className="eyebrow">Composition</h3>
@@ -411,11 +411,11 @@ function PointsChanges({ faction, slug }: { faction: { slug: string; displayName
   return (
     <section id="points-changes">
       <SectionHeading title="Points changes" />
-      <ul className="runner gap-1.5 [--gate-y:1.25rem]">
+      <ul className="border-t border-edge">
         {changes.map(({ recordedAt, change }) => (
           <li
             key={`${recordedAt}${JSON.stringify(change)}`}
-            className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 part px-4 py-2 text-sm"
+            className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 border-b border-edge px-2 py-2.5 text-sm"
           >
             <span className="readout font-semibold">{date(recordedAt)}</span>
             <span className="readout text-xs text-bone">{changeDetail(change)}</span>
@@ -433,6 +433,9 @@ function PointsChanges({ faction, slug }: { faction: { slug: string; displayName
   )
 }
 
+/** Another datasheet, not this unit's keyword, so it stays neutral beside the green keywords. */
+const RELATIONSHIP_TAG = 'chip inline-flex min-h-6 items-center border-edge py-0.5 leading-none text-dim hover:text-bone'
+
 export function Relationships({
   sheet,
   abilityIds = noAnchorIds,
@@ -446,9 +449,9 @@ export function Relationships({
     <section id="relationships">
       <ReferenceAnchors prefix="ability" ids={abilityIds} />
       <SectionHeading title="Attachments" />
-      <div className="grid gap-2 md:grid-cols-2">
+      <div className="grid gap-y-4 md:grid-cols-2 md:gap-x-6">
         {groups.map(({ title, relationships }) => (
-          <div key={title} className="part p-3">
+          <div key={title}>
             <h3 className="eyebrow mb-2">{title}</h3>
             <div className="flex flex-wrap gap-1">
               {relationships.map(({ name, route }) =>
@@ -457,12 +460,12 @@ export function Relationships({
                     key={name}
                     to="/factions/$catalogueId/datasheets/$entryId"
                     params={{ catalogueId: route.catalogueId, entryId: route.slug }}
-                    className={KEYWORD_TAG_CLASS}
+                    className={RELATIONSHIP_TAG}
                   >
                     {name}
                   </FactionReferenceLink>
                 ) : (
-                  <span key={name} className={KEYWORD_TAG_CLASS}>
+                  <span key={name} className={RELATIONSHIP_TAG}>
                     {name}
                   </span>
                 ),
@@ -482,9 +485,9 @@ function UnitCharacteristics({ profile, anchorIds = noAnchorIds }: { profile: Di
   return (
     <section id={`profile-${profile.id}`}>
       <ReferenceAnchors prefix="profile" ids={anchorIds.filter((id) => id !== profile.id)} />
-      <div className="grid grid-cols-6 gap-1.5 sm:gap-2">
+      <div className="grid grid-cols-6 divide-x divide-edge border-y border-edge">
         {values.map((value) => (
-          <div key={value.name} className="min-w-0 part px-1 pt-2 pb-2.5 text-center">
+          <div key={value.name} className="min-w-0 px-1 pt-2.5 pb-3 text-center">
             <p className="eyebrow">{value.name}</p>
             <p className="figure mt-1 text-2xl leading-none font-semibold sm:text-3xl">{value.value}</p>
           </div>
@@ -530,7 +533,7 @@ export function ProfileTable({
   return (
     <section>
       <SectionHeading title={title} count={groups.length} />
-      <div className="overflow-x-auto part">
+      <div className="overflow-x-auto border-y border-edge">
         <table className="w-full min-w-max text-left text-sm">
           <thead className="eyebrow border-b border-edge">
             <tr>
@@ -551,7 +554,7 @@ export function ProfileTable({
               {group.length > 1 ? (
                 <tr>
                   <th colSpan={columns.length + 1} className="px-3 py-2">
-                    <span className="font-semibold uppercase">{weaponProfileGroupName(group)}</span>
+                    <span className="font-semibold">{weaponProfileGroupName(group)}</span>
                     <span className="ml-3 text-xs font-normal text-faint">{group.length} profiles</span>
                   </th>
                 </tr>
@@ -615,7 +618,7 @@ export function TransportReference({
     <section>
       {anchors}
       <SectionHeading title="Transport" />
-      <div className="part space-y-1 p-3">
+      <div className="space-y-1 border-y border-edge py-3">
         {facts.map((line) => (
           <p key={textOf(line)} className="text-sm text-dim">
             <Runs runs={line} />

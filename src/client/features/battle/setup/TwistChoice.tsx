@@ -19,7 +19,7 @@ export function TwistChoice({
 
   return (
     <fieldset>
-      <legend className="eyebrow">
+      <legend className="text-sm font-medium text-dim">
         Mission twist <span className="text-faint">· optional</span>
       </legend>
       <div className="mt-1 grid gap-2 sm:grid-cols-3">
@@ -27,7 +27,7 @@ export function TwistChoice({
           variant="outline"
           aria-pressed={chosenId === null}
           disabled={disabled}
-          className={`h-auto justify-start px-3 py-2 text-left text-sm font-bold whitespace-normal uppercase ${
+          className={`h-auto justify-start px-3 py-2 text-left text-sm font-medium whitespace-normal ${
             chosenId === null ? CHOSEN : CHOOSABLE
           }`}
           onClick={() => onChoose(null)}
@@ -42,7 +42,7 @@ export function TwistChoice({
               variant="outline"
               aria-pressed={sameMissionId(chosenId, twist.id)}
               disabled={disabled}
-              className={`h-auto w-full justify-start py-2 pr-9 pl-3 text-left text-sm font-bold whitespace-normal uppercase ${
+              className={`h-auto w-full justify-start py-2 pr-9 pl-3 text-left text-sm font-medium whitespace-normal ${
                 sameMissionId(chosenId, twist.id) ? CHOSEN : CHOOSABLE
               }`}
               onClick={() => onChoose(twist.id)}

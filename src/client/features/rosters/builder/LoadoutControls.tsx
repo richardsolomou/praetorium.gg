@@ -47,8 +47,9 @@ const PROSE = 'text-xs'
 type Described = { abilities: Datasheet['abilities']; rules: Datasheet['keywordRules']; weapons: readonly WeaponProfileData[] }
 
 /** A loadout answer is a moulded well; the one taken carries a cement hairline. */
-const OPTION = 'overflow-hidden rounded-lg border bg-card'
-const PICKED = 'border-parchment inset-ring-1 inset-ring-parchment'
+/** A choice the player can change is the only thing in the loadout drawn as a card; what it only reads sits on hairlines. */
+const OPTION = 'overflow-hidden rounded-lg border'
+const PICKED = 'border-parchment/70 bg-parchment/5'
 
 /**
  * A row's share of the bodies its kind of model has, given and taken one at a time.

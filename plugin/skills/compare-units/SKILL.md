@@ -9,7 +9,7 @@ description: Compare two Warhammer 40,000 units with Praetorium's combat simulat
 2. To use a unit from one of the player's saved rosters, read it with `get_my_roster` and pass its pick's `entryId` as `unit`, with the pick's `models`, `choices` and `spreads` unchanged, for the unit and each attached unit. That fields the wargear they actually took.
 3. Call `simulate_combat` with the attacker and defender. Add leaders or attached units, model counts, a side's detachment, enhancements, nearby units whose auras reach a side, or modifiers such as cover only when the player gives them. A modifier such as `charged` never switches on a rule: when the player says the unit charged or remained stationary, also choose the rules whose options need it.
 4. Report expected models destroyed for shooting, melee, and shooting followed by melee, plus the chance to destroy the target. Use the numbers the tool returns; don't compute odds yourself.
-5. List every rule the result marks `notCalculated`, and any refusal, in plain words. Don't estimate what they would change.
+5. List every rule the result marks `notCalculated`, and any refusal, in plain words. Don't estimate what they would change. If the player wants one calculated, check `list_my_feedback` for an earlier report, then offer to send one with `send_feedback`, passing the rule id and the simulator link.
 6. Share the returned simulator link so the player can change loadouts, rules and modifiers in Praetorium.
 
 ## Best loadout

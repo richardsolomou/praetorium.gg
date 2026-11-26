@@ -28,7 +28,7 @@ async function addNotedUnit(page: Page) {
 }
 
 async function filterTo(page: Page, choices: { faction: string; detachment: string; rules: string }) {
-  await expect(page.getByRole('heading', { name: 'Public rosters', exact: true })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /^Public rosters\b/ })).toBeVisible()
   for (const [filter, label, option] of [
     ['faction', 'Faction', choices.faction],
     ['detachment', 'Detachment', choices.detachment],
@@ -74,7 +74,9 @@ test('a published army is found, duplicated and edited without changing it, and 
   // Other tests publish Necrons armies meanwhile, and only these filters keep this one on the first page.
   const filtered = reader.url()
   const card = reader.locator(`[data-discovered-roster="${armyName}"]`)
-  await expect(card).toContainText(`By ${ownerName}`)
+  // The owner is named by a link behind their avatar, whose initial would otherwise run into the name.
+  await expect(card).toContainText('By')
+  await expect(card.getByRole('link', { name: ownerName, exact: true })).toBeVisible()
   await expect(card).toContainText('Awakened Dynasty')
   await expect(card).toContainText('Legal')
   await expect(reader.locator('main')).not.toContainText(NOTE)
@@ -105,7 +107,7 @@ test('a published army is found, duplicated and edited without changing it, and 
   await setRosterAccess(owner, 'Private', 'private')
   await expect(card).toHaveCount(0)
   await reader.reload()
-  await expect(reader.getByRole('heading', { name: 'Public rosters', exact: true })).toBeVisible()
+  await expect(reader.getByRole('heading', { name: /^Public rosters\b/ })).toBeVisible()
   await expect(card).toHaveCount(0)
   await reader.goto(`/rosters/${copyId}`)
   await expect(reader.getByLabel('List name')).toHaveValue('Edited copy')

@@ -1,4 +1,4 @@
-import type { BattleStatus } from '../core/battle'
+import type { BattleEndReason, BattleStatus } from '../core/battle'
 import { battleOutcome, type BattleOutcome, playerOutcome, type StandingBattle } from '../core/standings'
 
 /** Share stage labels and colors across battle lists, with setup amber, live green, and finished grey. */
@@ -33,4 +33,7 @@ export const sideLost = (battle: StandingBattle, side: number) => battle.status 
 /** Whether a side won a finished battle, which lists mark by name since a concession can hand it to the lower score. */
 export const sideWon = (battle: StandingBattle, side: number) => battle.status === 'finished' && battleOutcome(battle, side) === 'won'
 
-export const BATTLE_ENDINGS = { 'finished-early': 'Finished early', conceded: 'Conceded', reported: 'Score reported' } as const
+/** How a game ended, as a battle card notes it; a concession goes unsaid there, since the result already names the winner. */
+const BATTLE_ENDINGS: Partial<Record<BattleEndReason, string>> = { 'finished-early': 'Finished early', reported: 'Score reported' }
+
+export const battleEnding = (reason?: BattleEndReason | null) => (reason ? BATTLE_ENDINGS[reason] : undefined)

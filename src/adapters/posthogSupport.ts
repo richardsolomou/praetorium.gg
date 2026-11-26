@@ -1,4 +1,6 @@
+import { createHmac } from 'node:crypto'
 import { z } from 'zod'
+import { hostVariable, postHogEnvironment, projectTokenVariable } from '../contracts/posthog'
 
 const ticketSchema = z.object({
   distinct_id: z.string().nullish(),
@@ -49,3 +51,100 @@ export function posthogSupportTickets(environment: NodeJS.ProcessEnv = process.e
     return { ticket: ticketSchema.parse(ticket), messages }
   }
 }
+
+/** What proves to PostHog Support that a distinct id is the signed-in account, so its conversations follow the player. */
+export const supportIdentityHash = (secret: string, userId: string) => createHmac('sha256', secret).update(userId).digest('hex')
+
+const widgetConfigSchema = z.object({
+  conversations: z.union([z.boolean(), z.object({ enabled: z.boolean(), token: z.string().min(1).optional() })]).nullish(),
+})
+const sentSchema = z.object({ ticket_id: z.string() })
+const widgetTicketSchema = z.object({
+  id: z.string(),
+  status: z.enum(['new', 'open', 'pending', 'on_hold', 'resolved']),
+  last_message: z.string().nullish(),
+  last_message_at: z.string().nullish(),
+  created_at: z.string(),
+  message_count: z.number(),
+  unread_count: z.number().nullish(),
+})
+const widgetTicketPageSchema = z.object({ count: z.number(), results: z.array(widgetTicketSchema) })
+const widgetMessagesSchema = z.object({ messages: z.array(z.object({ content: z.string().nullish() })) })
+
+export type SupportConversation = z.infer<typeof widgetTicketSchema>
+
+/**
+ * Starts and lists a signed-in player's Support conversations from the server, through the same widget API and identity
+ * proof the browser SDK uses, so they appear beside the ones sent from the form; undefined where this instance proves no
+ * identities to Support.
+ */
+export function posthogSupportInbox(environment: NodeJS.ProcessEnv = process.env) {
+  const secret = environment.POSTHOG_SUPPORT_IDENTITY_SECRET
+  const posthog = postHogEnvironment({ projectToken: environment[projectTokenVariable], host: environment[hostVariable] })
+  if (!secret || !posthog) return undefined
+  const { projectToken, assetsHost, host } = posthog
+
+  // The widget token is public: every page that loads the SDK reads it from the project's remote config.
+  let widgetToken: Promise<string> | undefined
+  const token = () =>
+    (widgetToken ??= (async () => {
+      const response = await fetch(new URL(`/array/${projectToken}/config`, assetsHost), {
+        signal: AbortSignal.timeout(10_000),
+      })
+      if (!response.ok) throw new Error(`PostHog remote config answered ${response.status}`)
+      const { conversations } = widgetConfigSchema.parse(await response.json())
+      if (typeof conversations !== 'object' || !conversations?.enabled || !conversations.token)
+        throw new Error('PostHog Support is not enabled for this project')
+      return conversations.token
+    })().catch((error: unknown) => {
+      widgetToken = undefined
+      throw error
+    }))
+
+  const identity = (userId: string) => ({ identity_distinct_id: userId, identity_hash: supportIdentityHash(secret, userId) })
+  async function call(path: string, init: { method: 'GET' | 'POST'; query?: Record<string, string>; body?: unknown }) {
+    const url = new URL(`/api/conversations/v1/widget/${path}`, host)
+    for (const [name, value] of Object.entries(init.query ?? {})) url.searchParams.set(name, value)
+    const response = await fetch(url, {
+      method: init.method,
+      headers: { 'X-Conversations-Token': await token(), ...(init.body ? { 'Content-Type': 'application/json' } : {}) },
+      ...(init.body ? { body: JSON.stringify(init.body) } : {}),
+      signal: AbortSignal.timeout(10_000),
+    })
+    // A token regenerated in PostHog's settings is fetched again on the next call.
+    if (response.status === 401 || response.status === 403) widgetToken = undefined
+    if (!response.ok) throw new Error(`PostHog Support answered ${response.status}`)
+    return response.json() as Promise<unknown>
+  }
+
+  return {
+    /** Opens a new conversation as the player, with the page it is about when there is one. */
+    async start(userId: string, message: string, pageUrl?: string) {
+      const body = {
+        message,
+        traits: { name: null, email: null },
+        ticket_id: null,
+        ...identity(userId),
+        distinct_id: userId,
+        ...(pageUrl ? { session_context: { current_url: pageUrl } } : {}),
+      }
+      return sentSchema.parse(await call('message', { method: 'POST', body })).ticket_id
+    },
+    /** The player's conversations, newest activity first, with each one's opening message. */
+    async conversations(userId: string, page: { limit: number; offset: number }) {
+      const query = { ...identity(userId), limit: String(page.limit), offset: String(page.offset) }
+      const { count, results } = widgetTicketPageSchema.parse(await call('tickets', { method: 'GET', query }))
+      const openings = await Promise.all(
+        results.map(async (ticket) => {
+          const { messages } = widgetMessagesSchema.parse(
+            await call(`messages/${encodeURIComponent(ticket.id)}`, { method: 'GET', query: { ...identity(userId), limit: '1' } }),
+          )
+          return messages[0]?.content ?? null
+        }),
+      )
+      return { count, conversations: results.map((ticket, at) => ({ ...ticket, opening: openings[at]! })) }
+    },
+  }
+}
+
+export type SupportInbox = NonNullable<ReturnType<typeof posthogSupportInbox>>

@@ -15,6 +15,8 @@ type Props = {
   backLabel?: string
   onClose: () => void
   actions?: ReactNode
+  /** Icon buttons about the subject rather than its settings, kept beside the title so they hold one place. */
+  tools?: ReactNode
   children: ReactNode
   drawer?: boolean
   threeColumn?: boolean
@@ -71,6 +73,7 @@ export function Pane({
   backLabel,
   onClose,
   actions,
+  tools,
   children,
   drawer = false,
   threeColumn = true,
@@ -143,8 +146,12 @@ export function Pane({
         ) : (
           <h2 className="min-w-[min(100%,12rem)] flex-1 text-base wrap-anywhere">{title}</h2>
         )}
+        {tools ? <div className="flex shrink-0 items-center gap-1">{tools}</div> : null}
         {actions ? (
-          <div data-pane-actions className="flex min-w-0 max-w-full flex-wrap items-center justify-start gap-1">
+          <div
+            data-pane-actions
+            className={`flex min-w-0 max-w-full flex-wrap items-center justify-start gap-1 ${variant === 'loadout' ? 'flex-1 basis-full' : ''}`}
+          >
             {actions}
           </div>
         ) : null}

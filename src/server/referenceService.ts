@@ -1,4 +1,5 @@
 import type { CanonicalDatasheet, CanonicalDetachment, UnitSummary } from '../contracts/catalogue'
+import { datasheetWithSummaries, detachmentWithSummaries, missionCardWithSummaries, withSummary } from './referenceSummaries'
 import type { ReferenceDocument } from '../contracts/reference'
 import type { DatasheetRelationship } from '../core/datasheet'
 import { routeSlug } from '../core/slug'
@@ -89,7 +90,7 @@ export function referenceUnits(
     battleSize: battleSize ?? null,
     nonMatchedPlay,
     query: wanted || null,
-    detachment: selectedDetachment,
+    detachment: selectedDetachment ? detachmentWithSummaries(corpus.summaries, selectedDetachment) : null,
     detachments: selectedDetachment
       ? null
       : factionDetachments(corpus, loaded, foundFaction.id, currentCatalogueIds).map(detachmentOverview),
@@ -286,20 +287,31 @@ export function referenceRecord(
   const document = referenceDocument(corpus, id)
   if (!document) return null
   const references = rules ? gameReferencesFor(rules) : null
+  const finder = corpus.summaries
   let data: unknown = document
   if (id.startsWith('detachment:')) {
     const [, factionSlug, slug] = id.split(':')
-    data = corpus.catalogue.detachments.find((candidate) => candidate.factionSlug === factionSlug && candidate.slug === slug)
+    const detachment = corpus.catalogue.detachments.find((candidate) => candidate.factionSlug === factionSlug && candidate.slug === slug)
+    data = detachment && detachmentWithSummaries(finder, detachment)
   } else if (id.startsWith('mission-pack:') && references) {
     const packId = id.slice('mission-pack:'.length)
     const pack = references.packs.find((candidate) => candidate.id === packId)
-    data = pack ? { ...pack, dispositions: references.dispositions, secondaries: references.secondaries.map(cardSummary) } : null
+    data = pack
+      ? {
+          ...pack,
+          missions: pack.missions.map((mission) => missionWithSummaries(finder, mission)),
+          twists: pack.twists.map((twist) => withSummary(twist, finder.mission('mission-twist', twist.id))),
+          dispositions: references.dispositions,
+          secondaries: references.secondaries.map(cardSummary),
+        }
+      : null
   } else if (id.startsWith('mission:secondary:') && references) {
-    data = references.secondaries.find((candidate) => candidate.key === id.slice('mission:secondary:'.length))
+    const card = references.secondaries.find((candidate) => candidate.key === id.slice('mission:secondary:'.length))
+    data = card && missionCardWithSummaries(finder, card)
   } else if (id.startsWith('mission:') && references) {
     const [, packId, missionId] = id.split(':')
     const mission = references.packs.find((candidate) => candidate.id === packId)?.missions.find((candidate) => candidate.id === missionId)
-    data = mission ? { ...mission, setups: missionSetups(corpus, rules, mission.matchups) } : null
+    data = mission ? { ...missionWithSummaries(finder, mission), setups: missionSetups(corpus, rules, mission.matchups) } : null
   } else if (id.startsWith('disposition:') && references) {
     const disposition = references.dispositions.find((candidate) => candidate.id === id.slice('disposition:'.length))
     data = disposition ? dispositionRecord(corpus, references, disposition, factions) : null
@@ -320,8 +332,14 @@ function datasheetRecord(corpus: ReferenceCorpus, id: string) {
   })
   const page = datasheetPageBySlug(pages, slug)
   const document = page && corpus.byId.get(`datasheet:${catalogueId}:${page.slug}`)
-  return document ? { document, data: page.sheet } : null
+  return document ? { document, data: datasheetWithSummaries(corpus.summaries, page.sheet) } : null
 }
+
+/** A primary mission with its card's summaries, as the matchup page shows them. */
+const missionWithSummaries = <T extends { card: Parameters<typeof missionCardWithSummaries>[1] | null }>(
+  finder: ReferenceCorpus['summaries'],
+  mission: T,
+): T => (mission.card ? { ...mission, card: missionCardWithSummaries(finder, mission.card) } : mission)
 
 const cardSummary = (card: GameReferences['secondaries'][number]) => ({ id: card.key, name: card.name })
 type GameReferences = ReturnType<typeof gameReferencesFor>
@@ -451,7 +469,7 @@ export function missionMatchup(corpus: ReferenceCorpus, rules: LoadedRules, quer
         referenceId: `disposition:${disposition.id}`,
         url: `/force-dispositions/${disposition.id}`,
       },
-      mission: { ...card, ...missionCitation(...ids, mission) },
+      mission: { ...missionWithSummaries(corpus.summaries, card), ...missionCitation(...ids, mission) },
     }
   }
   return {

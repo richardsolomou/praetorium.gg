@@ -19,6 +19,7 @@ Read access lets the assistant:
 - read your record as your profile shows it, such as win rates by detachment and mission pack, and your leaderboard places
 - read a battle invite, find a draft to resume, read a finished battle's report, and see who you can start a battle with
 - read the models in your collection and wishlist, and see your saved folders and unit loadouts
+- list your [feedback conversations](/support) and their replies, so it can check whether you've already reported something
 - read your groups, leagues, tournaments and hidden-list games: what's due, your table and opponent, standings and results. The same rules as the site decide which sealed lists you can open. It can also see who holds a loan of your roster and which lists friends lent you.
 
 Change access also lets it:
@@ -27,6 +28,7 @@ Change access also lets it:
 - change a roster's visibility to private, unlisted or public, copy a roster, archive one, or delete one you own
 - create a battle with named player seats, set it up, record actions in it, or delete a battle you created
 - join a group, league, tournament or hidden-list game, seal a list for it, check in, start the battle for your table, report your table's score, and start a league fixture with its sealed rosters
+- send feedback to the Praetorium team as you, such as a rule the simulator doesn't calculate yet. It starts a conversation on your [Support](/support) page, marked as sent by an assistant, and the team's replies arrive there. It can send three a minute at most
 
 Management access also lets it:
 

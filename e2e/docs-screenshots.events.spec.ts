@@ -24,6 +24,8 @@ test('group screenshots', async ({ page }) => {
     .locator('[data-group-league]')
     .getByText('Round 2', { exact: true })
     .locator(`xpath=ancestor::*[.//button[normalize-space()='Start battle']][1]`)
+  // A round with nothing of the reader's to play folds, so the screenshot opens it.
+  await round.evaluate((element) => ((element as HTMLDetailsElement).open = true))
   await capture('groups-league', round, round.getByRole('button', { name: 'Start battle', exact: true }).first(), { padded: true })
 })
 
