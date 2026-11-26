@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { textFactsOfVsData } from './vsDataEffects'
+import { combatOfVsDataOrWords, textFactsOfVsData } from './vsDataEffects'
 
 const reroll = { role: 'attacker', attacks: ['melee'], rolls: { hitReroll: 'ones' } }
 /** A combat block whose one reading holds in an own and an aura context. */
@@ -106,4 +106,19 @@ it('keeps a conditional grant whose condition is the unit it attaches to', () =>
 it('keeps another ability VS Data grants conditionally, as Feel No Pain to the Officers a bodyguard shares a unit with', () => {
   const grant = { ability: 'Feel No Pain 4+', to: 'models', models: 'OFFICER', conditional: true }
   expect(textFactsOfVsData({ grants: { abilities: [grant] } }).abilityGrants!.grants).toHaveLength(1)
+})
+
+/** What the words say of a rule VS Data calculates nothing of: a reroll for the attacker, which only its roles may come from. */
+const words = () => textFactsOfVsData(combat({ choices: [{ conditions: [], effects: [reroll] }], default: 1, roles: ['attacker'] })).combat
+
+it('lists a rule as not calculated where VS Data reads no choices for it', () => {
+  const read = combatOfVsDataOrWords(textFactsOfVsData(combat({})).combat, words)!
+  expect(new Set(read.leaves.map((leaf) => leaf.roles.join()))).toEqual(new Set(['attacker']))
+})
+
+it('lists a rule VS Data keeps no combat block for as not calculated', () => {
+  const leaves = combatOfVsDataOrWords(null, words)!.leaves
+  expect(new Set(leaves.map((leaf) => JSON.stringify(leaf)))).toEqual(
+    new Set([JSON.stringify({ compiled: null, legacy: [], legacyDefault: 0, roles: ['attacker'] })]),
+  )
 })

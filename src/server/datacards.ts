@@ -21,7 +21,7 @@ import {
   transformed,
 } from '../shared/datacards'
 import { completeSteps, type Steps } from '../shared/steps'
-import { type SourceTexts, comparableText, resolvedText, textKey, textTokensIn } from '../core/sourceText'
+import { type SourceTexts, comparableText, resolvedText, textKey, textToken, textTokensIn } from '../core/sourceText'
 import { combatFactsOf } from '../core/combatReading'
 import { textFactsOf } from '../shared/textFacts'
 import { factsKey, type TextFacts } from '../core/textFacts'
@@ -51,6 +51,7 @@ function recording(
   readings: Map<string, string>,
   file: string,
   files: Map<string, string>,
+  tokens: Map<string, string>,
 ): SourceTexts {
   return (raw, transform) => {
     const published = texts(raw, transform)
@@ -60,6 +61,7 @@ function recording(
       if (readings.has(key)) continue
       const said = transformed(raw, transform)
       readings.set(key, hash('sha256', said))
+      tokens.set(key, textToken(token))
       const found = textFactsOf(said)
       if (found) facts.set(key, found)
     }
@@ -137,7 +139,8 @@ export function* loadDatacardsSteps(
   const textFacts = new Map<string, TextFacts>()
   const textReadings = new Map<string, string>()
   const textFiles = new Map<string, string>()
-  const textsOf = (file: string) => recording(textsFor(file), textFacts, textReadings, file, textFiles)
+  const textTokens = new Map<string, string>()
+  const textsOf = (file: string) => recording(textsFor(file), textFacts, textReadings, file, textFiles, textTokens)
   const factions = new Map<string, FactionContent>()
   const detachmentRules = new Map<string, Map<string, Map<string, string>>>()
   const enhancements = new Map<string, Map<string, string>>()
@@ -264,6 +267,10 @@ export function* loadDatacardsSteps(
     constructionDetachments,
     textFacts,
     textReadings,
+    textWords: (key: string) => {
+      const token = textTokens.get(key)
+      return token === undefined ? undefined : wordsOf(token, textFiles)
+    },
   }
   if (cardReadings) {
     const stratagems = [...stratagemTexts.values()]
