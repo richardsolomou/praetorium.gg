@@ -4,6 +4,7 @@ import { textSourceFiles } from '../../src/server/sourceTexts'
 import { MISSION_SUMMARIES, RULE_OUTLINE, RULE_SUMMARIES } from '../../src/contracts/rules'
 import { publishedSearchIndex } from '../../src/server/globalSearch'
 import { downloadedDefinitionFacts } from '../../src/server/definitionTexts'
+import { downloadedTextFacts } from '../../src/contracts/offlineReference'
 import { hash } from 'node:crypto'
 import { gzipSync } from 'node:zlib'
 import { writeFile } from 'node:fs/promises'
@@ -236,8 +237,9 @@ export async function writeReferenceBundle(outDir: string, directory: string, ru
         .map(({ file }) => file),
       selectedCatalogue.edition,
     ),
-    definitionFacts: packRuntimeData(downloadedDefinitionFacts(selectedCatalogue)),
-    datacards: packRuntimeData(selectedCatalogue.datacards),
+    definitionFacts: packRuntimeData(downloadedTextFacts(downloadedDefinitionFacts(selectedCatalogue))),
+    // The facts above hold every card text's too, so the cards' own facts would only repeat them.
+    datacards: packRuntimeData({ ...selectedCatalogue.datacards, textFacts: undefined }),
     ...(selectedCatalogue.keywords ? { keywords: [...selectedCatalogue.keywords] } : {}),
     ...(selectedCatalogue.baseSizes ? { baseSizes: { ...selectedCatalogue.baseSizes } } : {}),
     mfm: packRuntimeData(selectedCatalogue.mfm ?? null),

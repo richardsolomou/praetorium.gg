@@ -144,7 +144,7 @@ export const combatSchema = z.object({
     /** One hit, wound or damage roll each that the attacker's rules let it re-roll this phase, spent like the Command Re-roll. */
     singleRerolls: z
       .array(z.enum(['hit', 'wound', 'damage']))
-      .max(4)
+      .max(12)
       .optional(),
   }),
 })

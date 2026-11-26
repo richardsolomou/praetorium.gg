@@ -741,8 +741,12 @@ function calculateRoster(
         return unit ? keywordNamesOf(unit) : undefined
       }),
     ),
-    ...(vsData?.filter((error) => !(error.message.startsWith('needs one of these Detachments') && locked.has(error.entryId))) ??
-      factionRestrictionViolations(restrictions, constructionUnits)),
+    // King of the Colosseum's own Detachment count, which the player can waive, stands for VS Data's.
+    ...(vsData?.filter(
+      (error) =>
+        !(error.message.startsWith('needs one of these Detachments') && locked.has(error.entryId)) &&
+        !(isKotcLimit(data.limit) && error.message === 'needs one to three Detachments'),
+    ) ?? factionRestrictionViolations(restrictions, constructionUnits)),
     ...(isKotcLimit(data.limit) ? kotcViolations(chosen.length, constructionUnits, data.limit, data.waivedRules ?? []) : []),
     ...(!isKotcLimit(data.limit) && enforces(data.waivedRules, 'warlord') ? armyWarlordErrors(picked) : []),
     ...detachmentLocks,

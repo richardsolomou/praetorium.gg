@@ -1,5 +1,19 @@
 # praetorium
 
+## 0.277.14 (2026-11-26)
+
+### Patch Changes
+
+- 4545ddb: [simulator] Keep a leader's abilities that only improve its own weapons or reduce the damage it takes, as Siege Captain or Refuse to Yield, to the leader instead of the whole unit it leads.
+- 4545ddb: [rosters] Recalibrate roster grades against recent tournament lists, measured with the abilities the simulator now calculates.
+- 700e3c6: [simulator] Work out what each ability, Stratagem and Enhancement does from the official app's rules, so many abilities the simulator couldn't calculate before now count, and some that read wrongly now follow the rules as printed.
+
+## 0.277.13 (2026-11-26)
+
+### Patch Changes
+
+- d04fbe0: [rosters] A list without a Detachment now says it needs one, as in the official app.
+
 ## 0.277.12 (2026-11-26)
 
 ### Patch Changes

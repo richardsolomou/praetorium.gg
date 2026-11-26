@@ -15,5 +15,7 @@ export default defineConfig({
       'spacetimedb/src/**/*.integration.test.ts',
     ],
     pool: 'forks',
+    // Most suites load a whole catalogue snapshot before their tests, which takes longer than the default on a busy runner.
+    hookTimeout: 60_000,
   },
 })

@@ -1003,6 +1003,8 @@ function grantedAbilitiesInAttachedUnit(
               origin === 'self' ? companionReferences : selectedReferences,
             )
             for (const grant of grants) {
+              // A rule printed on the datasheet that grants itself, as a Detachment rule naming the units it is for, is shown already.
+              if (origin === 'self' && abilityKey(grant.name) === abilityKey(profile.name)) continue
               if (grant.recipient === 'bearer' && origin !== 'self') continue
               if (grant.recipient === 'leader' && (origin !== 'companion' || !character)) continue
               if (grant.recipient === 'models' && (origin !== 'companion' || !selectedKeywords.has(grant.models!.toLowerCase()))) continue
@@ -1257,9 +1259,11 @@ function withGrantsOverLinks(own: Datasheet['abilities'], granted: Datasheet['ab
   const replaced = new Set(granted.flatMap((ability) => (ability.condition && linked.has(name(ability)) ? [name(ability)] : [])))
   return [
     ...own.filter((ability) => ability.kind !== 'core' || ability.source || !replaced.has(name(ability))),
-    ...granted.map((ability) =>
-      replaced.has(name(ability)) ? { ...ability, description: ability.description ?? linked.get(name(ability))!.description } : ability,
-    ),
+    ...granted.flatMap((ability) => {
+      if (replaced.has(name(ability))) return [{ ...ability, description: ability.description ?? linked.get(name(ability))!.description }]
+      // A grant of a core ability every model links already, as Tempormortis's Fights First to a Judiciar, adds nothing.
+      return linked.has(name(ability)) && !ability.models ? [] : [ability]
+    }),
   ]
 }
 

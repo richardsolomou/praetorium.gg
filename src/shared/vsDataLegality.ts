@@ -72,10 +72,11 @@ export function vsDataErrors(
   const faction = data.books[list.catalogueId.slice(list.catalogueId.indexOf('~') + 1)]
   const detachments = list.detachmentIds.map((id) => data.detachments[id])
   const own = new Set([faction, definitions.get('faction', faction ?? '')?.data.parent])
-  // A list VS Data cannot place stays with the catalogue's checks: one with no Detachment, as a battle imported from
-  // another app is, or with a Detachment VS Data files under another faction, as a chapter's Deathwatch Support is, until
-  // VS Data records it.
-  if (!faction || !detachments.length || detachments.some((id) => !id || !own.has(definitions.get('detachment', id)?.data.faction)))
+  // A list VS Data cannot place stays with the catalogue's checks until VS Data records it: one of a faction VS Data gives
+  // no Detachments, as a Titan army is, or with a Detachment VS Data files under another faction, as a chapter's
+  // Deathwatch Support is. Any other list needs a Detachment, as the app's does.
+  const ownsDetachments = definitions.all('detachment').some((detachment) => own.has(detachment.data.faction))
+  if (!faction || !ownsDetachments || detachments.some((id) => !id || !own.has(definitions.get('detachment', id)?.data.faction)))
     return null
   const battleSize = definitions.all('battle-size').find((size) => size.data.points === list.limit)?.id
   const taken = new Set<string>()
