@@ -16,7 +16,7 @@ import {
 } from '../shared/rosterFiles'
 import type { LoadedCatalogue } from '../shared/catalogueIndex'
 import type { LoadedRules } from '../shared/rules'
-import { importNamesOf } from '../shared/importNames'
+import { importNamesOf, type ImportNames } from '../shared/importNames'
 import { calculateRosterPrice } from '../shared/pricing'
 
 const system: CatalogueFile = { gameSystem: { id: 'gs', name: 'Test', costTypes: [{ id: 'pts', name: 'pts' }] } }
@@ -1755,13 +1755,15 @@ Exportada con la versión de la app: v2.4.0 (139), versión de los datos v925`,
     const importNames = importNamesOf(
       {
         factions: [],
-        detachments: [],
+        detachments: {},
         enhancements: [],
+        dispositions: [],
         units: {
           'necrons.tomb-blades': { name: ['Tomb Blades', 'Cuchillas sepulcrales'], pieces: [['Particle Beamer', 'Haz de partículas']] },
         },
       },
       { 'unit:necrons.tomb-blades': ['bsdata.tomb-blades'] },
+      { units: {}, detachments: {}, datasheetNames: new Map(), detachmentNames: new Map() },
     )
     const imported = importRosterFile(
       {
@@ -1791,6 +1793,36 @@ Exportada con la versión de la app: v2.4.0 (139), versión de los datos v925`,
     )
 
     expect([imported.units.map((unit) => unit.entryId), imported.unknown, imported.unplaced]).toEqual([['tomb-blades'], [], []])
+  })
+
+  it('reads a list with names a download from an earlier release carries, which lack the frozen ones', () => {
+    const imported = importRosterFile(
+      {
+        file: `Blades (70 Points)
+
+Necrons
+Strike Force (2,000 Points)
+
+OTHER DATASHEETS
+
+Tomb Blades (70 Points)
+  • 3x Tomb Blade
+
+Exported with App Version: v2.4.0 (139), Data Version: v925`,
+      },
+      loaded,
+      undefined,
+      {
+        factionNames: new Map(),
+        factionKeys: new Map(),
+        detachmentReferences: new Map(),
+        detachmentDetails: new Map(),
+        factionRestrictions: new Map(),
+        importNames: { datasheets: new Map(), pieces: new Map(), detachments: new Map() } as unknown as ImportNames,
+      } as Partial<LoadedRules> as LoadedRules,
+    )
+
+    expect(imported.units.map((unit) => unit.entryId)).toEqual(['tomb-blades'])
   })
 
   it('reads the faction from its datasheets where the official app translated its name', () => {
