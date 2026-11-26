@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.279.2 (2026-11-26)
+
+### Patch Changes
+
+- 4a7436d: [battles] On a phone, each battle in the list gives the players' names the full width and says whether you won or lost beside the mission and date.
+
 ## 0.279.1 (2026-11-26)
 
 ### Patch Changes
