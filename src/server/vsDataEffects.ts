@@ -123,9 +123,10 @@ export function vsDataTextFacts(
       const ownFaction = byName.filter((key) => factionsOf.get(holder.catalogue ?? '')?.has(factionOf(key)))
       for (const pool of [ownSheet, ownFaction, byName].flatMap((candidates) => [exact(candidates), candidates])) {
         const found = agreed(pool)
-        if (found) return { byName, found }
+        // A record VS Data has not read stands only where no pool holds one it has.
+        if (found && effects[found]) return { byName, found }
       }
-      return { byName, found: null }
+      return { byName, found: agreed(byName) }
     })
     const found = agreed([...new Set(byHolder.flatMap((holder) => holder.found ?? []))])
     if (found) return { record: found, by: 'name' }
