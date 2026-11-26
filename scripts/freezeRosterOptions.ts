@@ -12,6 +12,7 @@ import { vsDataDefinitions } from '../src/core/vsDataConstruction'
 import { checkVsUnit } from '../src/core/vsDataRoster'
 import { wargearKey } from '../src/core/wargearNames'
 import { ARTICLE, vsSpelling } from './lib/wargearSpellings'
+import { modelsNamed as modelsNamedIn, same, words } from './lib/vsDataModelNames'
 import { editionDirectory, readCatalogueComposition } from '../src/server/catalogueComposition'
 import { loadCatalogue } from '../src/server/catalogueIndex'
 
@@ -127,25 +128,6 @@ function readRelease(directory: string) {
   }
   return { units, leaves, definitions }
 }
-
-/** Names compared by their letters and digits alone, without the "upgrade" BSData adds to some (Character upgrade). */
-const same = (name: string) =>
-  name
-    .normalize('NFKD')
-    .toLowerCase()
-    .replace(/\bupgrade$/, '')
-    .replace(/[^a-z0-9]/g, '')
-
-/** A name's words, each without a closing s, so Relic Terminators reads as Relic Terminator. */
-const words = (name: string) =>
-  new Set(
-    name
-      .normalize('NFKD')
-      .toLowerCase()
-      .split(/[^a-z0-9]+/)
-      .map((word) => word.replace(/s$/, ''))
-      .filter(Boolean),
-  )
 
 const add = (bag: Bag, key: string, n: number) => {
   const next = (bag.get(key) ?? 0) + n
@@ -462,23 +444,7 @@ for (const entry of composition.editions.filter((candidate) => candidate.base)) 
         },
       }
     }
-    /**
-     * The VS Data models a BSData model name stands for: those named alike, else those scoring best on the words they
-     * share less the words only theirs (leaving out the unit's own name), as Paladin with Ancient's Banner is Paladin
-     * Ancient and Assault Terminator w/ claws is Terminator, not Terminator Sergeant; else those its profile names.
-     */
-    const modelsNamed = (name: string | null | undefined, profile?: string | null): string[] | undefined => {
-      if (!name) return undefined
-      const alike = unit.models.filter((model) => same(model.name) === same(name))
-      if (alike.length) return alike.map(({ id }) => id)
-      const named = words(name)
-      const shared = (model: VsUnit['models'][number]) => [...words(model.name)].filter((word) => named.has(word)).length
-      const score = (model: VsUnit['models'][number]) =>
-        shared(model) - [...words(model.name)].filter((word) => !named.has(word) && !unit.words.has(word)).length
-      const sharing = unit.models.filter((model) => shared(model) > 0)
-      const best = Math.max(...sharing.map(score))
-      return sharing.length ? sharing.filter((model) => score(model) === best).map(({ id }) => id) : modelsNamed(profile)
-    }
+    const modelsNamed = (name: string | null | undefined, profile?: string | null) => modelsNamedIn(unit.models, unit.words, name, profile)
     /**
      * The selections for `target` that VS Data's checker accepts, the same whichever of `carriers` makes the choice
      * (all models where none is known), taking models named alike as one; null where they disagree.

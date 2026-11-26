@@ -8,6 +8,7 @@ import { hasWarlordToggle } from '../../src/core/unitChoices'
 import { wargearOf } from '../../src/core/wargear'
 import { wargearKey } from '../../src/core/wargearNames'
 import { ARTICLE, vsSpelling } from './wargearSpellings'
+import { same } from './vsDataModelNames'
 import type { Counts, VsDataDefinitions } from '../../src/core/vsDataConstruction'
 import { checkVsUnit, type VsRoster, type VsRosterUnit } from '../../src/core/vsDataRoster'
 import type { LoadedCatalogue } from '../../src/shared/catalogueIndex'
@@ -28,14 +29,6 @@ export const legacyIds = () => ({
   enhancements: legacy('enhancements'),
 })
 export type LegacyIds = ReturnType<typeof legacyIds>
-
-/** Names compared by their letters and digits alone, without the "upgrade" BSData adds to some. */
-export const same = (name: string) =>
-  name
-    .normalize('NFKD')
-    .toLowerCase()
-    .replace(/\bupgrade$/, '')
-    .replace(/[^a-z0-9]/g, '')
 
 const add = (bag: Map<string, number>, key: string, n: number) => {
   const next = (bag.get(key) ?? 0) + n

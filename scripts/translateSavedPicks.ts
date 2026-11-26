@@ -1,6 +1,8 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { battleSizeSelection } from '../src/core/evaluate'
+import { type CatalogueIndex, resolve } from '../src/core/catalogue'
+import { modelProfileOf } from '../src/core/definitions'
+import { battleSizeSelection, type Selection } from '../src/core/evaluate'
 import { buildUnit } from '../src/core/roster'
 import { legacyOptionsSchema } from '../src/core/legacyIds'
 import { wargearOf } from '../src/core/wargear'
@@ -13,7 +15,8 @@ import { calculateRosterPrice, savedRosterPriceInput } from '../src/shared/prici
 import { rosterDetachments } from '../src/shared/rosterDetachments'
 import { loadSnapshot } from './lib/catalogueSnapshotLoad'
 import { savedLists } from './lib/vsDataRosterParity'
-import { leaves, legacyIds, modelsByName, same, specialOf, vsModels } from './lib/vsDataRosters'
+import { leaves, legacyIds, modelsByName, specialOf, vsModels } from './lib/vsDataRosters'
+import { modelsNamed, same, words } from './lib/vsDataModelNames'
 import { vsSpelling } from './lib/wargearSpellings'
 
 /**
@@ -248,6 +251,68 @@ function guessOf(entryId: string, pick: { choices?: Record<string, string>; spre
   return joined(...parts)
 }
 
+/** Each item a VS Data unit carries by the kind of model carrying it, models named alike as one kind, `''` for the unit. */
+function vsByKind(unit: string, models: Counts, selections: Selections) {
+  const kinds = new Map<string, Bag>()
+  const into = (kind: string) => kinds.get(kind) ?? kinds.set(kind, new Map()).get(kind)!
+  const kindOf = (model: string | undefined) => (model ? same(definitions.get('model', model)?.name ?? model) : '')
+  for (const model of definitions.modelsOf(unit))
+    for (const [id, n] of Object.entries(model.data.wargear)) leaves(definitions, id, n * (models[model.id] ?? 0), into(kindOf(model.id)))
+  for (const [id, n] of Object.entries(definitions.get('unit', unit)?.data.wargear ?? {})) leaves(definitions, id, n, into(''))
+  for (const [optionId, chosen] of Object.entries(selections)) {
+    const option = definitions.get('roster-option', optionId)
+    const bag = into(kindOf(option?.data.carrier))
+    for (const [choice, n] of Object.entries(chosen)) {
+      leaves(definitions, choice, n, bag)
+      for (const [id, m] of Object.entries(option?.data.replaces ?? {})) leaves(definitions, id, -m * n, bag)
+    }
+  }
+  return kinds
+}
+
+/**
+ * Each item a BSData unit carries by the VS Data kind of model carrying it, by the carrier rule the per-choice map uses
+ * (`modelsNamed`), `''` where no one kind is named and for what no model holds.
+ */
+function bsByKind(selection: Selection, index: CatalogueIndex, unit: string, item: (name: string) => string | null) {
+  const kinds = new Map<string, Bag>()
+  const into = (kind: string) => kinds.get(kind) ?? kinds.set(kind, new Map()).get(kind)!
+  const vsModelsOf = definitions.modelsOf(unit).map(({ id, name }) => ({ id, name }))
+  const unitWords = words(definitions.get('unit', unit)?.name ?? unit)
+  const held = (node: Selection, carriers: number, bag: Bag) => {
+    for (const { name, count } of wargearOf(node, index, carriers)) {
+      const key = item(name)
+      if (key) add(bag, key, count)
+    }
+  }
+  const whole: Bag = new Map()
+  held(selection, 1, whole)
+  const placed: Bag = new Map()
+  const walk = (node: Selection) => {
+    for (const child of node.selections ?? []) {
+      const definition = index.definitions.get(child.id)
+      if (!definition || resolve(definition, index).type !== 'model') {
+        walk(child)
+        continue
+      }
+      const target = resolve(definition, index)
+      const named = modelsNamed(vsModelsOf, unitWords, definition.name ?? target.name, modelProfileOf(definition, index))
+      const carriers = new Set((named ?? []).map((id) => same(vsModelsOf.find((model) => model.id === id)!.name)))
+      const bag: Bag = new Map()
+      held(child, child.count ?? 1, bag)
+      for (const [key, n] of bag) {
+        add(into(carriers.size === 1 ? [...carriers][0]! : ''), key, n)
+        add(placed, key, n)
+      }
+    }
+  }
+  const root = index.definitions.get(selection.id)
+  if (root && resolve(root, index).type === 'model') walk({ id: '', selections: [selection] })
+  else walk(selection)
+  for (const [key, n] of whole) add(into(''), key, n - (placed.get(key) ?? 0))
+  return kinds
+}
+
 const problemsOf = (read: VsRosterUnit) => {
   const found: string[] = []
   checkVsUnit(definitions, read, (code) => found.push(code))
@@ -344,11 +409,32 @@ for (const saved of await savedLists(listFile)) {
         const accepted = new Map<string, Selections>()
         for (const combo of combos) if (valid(combo)) accepted.set(sorted(combo), combo)
         if (!accepted.size) continue
-        const [only] = accepted.values()
-        const agrees = guessed && sorted(guessed) === sorted(only!) ? ', agrees' : ''
-        return accepted.size === 1
-          ? { outcome: 'translated', reason: level.some(Boolean) ? 'longer-valid' : 'fewest', selections: only!, guess: guess + agrees }
-          : { outcome: 'ambiguous', reason: 'equally-few-disagree', guess }
+        let reason = level.some(Boolean) ? 'longer-valid' : 'fewest'
+        let kept = [...accepted.values()]
+        // Ties go to the selections that put each item they disagree on where the BSData unit's models carry it.
+        if (kept.length > 1) {
+          const bs = bsByKind(built.selection, loaded.index, unit, (name) =>
+            specials.has(wargearKey(name)) ? null : vsSpelling(name, known),
+          )
+          const each = kept.map((selections) => vsByKind(unit, models, joined(defaults, selections)))
+          const count = (kinds: Map<string, Bag>, kind: string, key: string) => kinds.get(kind)?.get(key) ?? 0
+          const entries = new Set(
+            each.flatMap((kinds) => [...kinds].flatMap(([kind, bag]) => [...bag.keys()].map((key) => `${kind}\u0000${key}`))),
+          )
+          // An item some BSData model holds without naming one VS Data kind tells nothing about where it goes.
+          const unplaced = new Set([...(bs.get('')?.keys() ?? [])])
+          const disputed = [...entries]
+            .map((entry) => entry.split('\u0000') as [string, string])
+            .filter(([kind, key]) => !unplaced.has(key) && new Set(each.map((kinds) => count(kinds, kind, key))).size > 1)
+          if (disputed.length)
+            kept = kept.filter((_, at) => disputed.every(([kind, key]) => count(each[at]!, kind, key) === count(bs, kind, key)))
+          reason = kept.length === 1 ? 'tie-placed' : kept.length ? 'tie-placed-alike' : 'tie-placed-elsewhere'
+        }
+        const [only] = kept
+        const agrees = guessed && only && sorted(guessed) === sorted(only) ? ', agrees' : ''
+        return kept.length === 1
+          ? { outcome: 'translated', reason, selections: only!, guess: guess + agrees }
+          : { outcome: 'ambiguous', reason, guess }
       }
       return { outcome: 'unmatched', reason: 'refused-by-checker', guess }
     }
