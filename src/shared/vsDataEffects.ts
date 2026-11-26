@@ -521,6 +521,23 @@ const UNREAD: CombatFacts = {
   leaves: [{ compiled: null, legacy: [], legacyDefault: 0, roles: ['attacker', 'defender'] }],
 }
 
+const uncalculated = (reading: CombatReading) => !reading.compiled && !reading.legacy.length && !reading.roles.length && !reading.shown
+
+/**
+ * VS Data's combat facts, with the roles the words take wherever VS Data keeps no block or reads no choices for a rule:
+ * VS Data has such a rule reported as not calculated, which the simulator does only for a rule with roles. Nothing the
+ * rule does is read from the words.
+ */
+export function combatOfVsDataOrWords(facts: CombatFacts | null | undefined, words: () => CombatFacts | null | undefined) {
+  if (facts && !facts.leaves.some(uncalculated)) return facts
+  const read = words()
+  const roles = [...new Set(read?.leaves.flatMap((leaf) => leaf.roles) ?? [])]
+  if (!roles.length) return facts ?? null
+  const unread: CombatReading = { compiled: null, legacy: [], legacyDefault: 0, roles }
+  if (!facts) return { judging: read!.judging, readings: read!.readings, leaves: read!.leaves.map(() => unread) }
+  return { ...facts, leaves: facts.leaves.map((leaf) => (uncalculated(leaf) ? unread : leaf)) }
+}
+
 /** Placements where a rule applies unless a condition says otherwise: its own unit's, its leader's and a Detachment's. */
 const APPLIES = new Set(['unit', 'attached', 'detachment'])
 
