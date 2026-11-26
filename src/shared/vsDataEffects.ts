@@ -197,6 +197,10 @@ const grantSchema = z.strictObject({
     .min(1)
     .optional(),
   recipientKeywords: selectors.optional(),
+  /** Only the units the player picks as the battle begins gain it, up to `count`, within `withinInches` of the bearer. */
+  picked: z
+    .strictObject({ count: z.int().min(1).optional(), withinInches: z.int().min(1).optional(), limited: z.literal(true).optional() })
+    .optional(),
   conditional: z.literal(true).optional(),
 })
 const keywordGrantSchema = z.strictObject({
@@ -205,6 +209,10 @@ const keywordGrantSchema = z.strictObject({
   whileAttached: z.literal(true).optional(),
   counterpart: z.array(keyword).optional(),
   recipientKeywords: selectors.optional(),
+  /** Only the units the player picks as the battle begins gain it, up to `count`, within `withinInches` of the bearer. */
+  picked: z
+    .strictObject({ count: z.int().min(1).optional(), withinInches: z.int().min(1).optional(), limited: z.literal(true).optional() })
+    .optional(),
   conditional: z.literal(true).optional(),
 })
 const grantsSchema = z.strictObject({
@@ -577,13 +585,21 @@ function grantOf(grant: z.infer<typeof grantSchema>): WrittenAbilityGrant {
 const keywordGrantOf = ({ keyword: given, ...grant }: z.infer<typeof keywordGrantSchema>) =>
   grantOf({ ...grant, ability: titleCaseAbility(given) })
 /**
- * A deployment ability a rule grants only once something happens, as a return from Strategic Reserves, or only to a unit
- * the player picks before the battle, is left out: a list's deployment options would read it as always held. VS Data
- * marks either conditional, and a grant on the unit a model attaches to is one Praetorium checks itself.
+ * A grant only to the units the player picks as the battle begins is left out, as is a deployment ability a rule grants
+ * only once something happens, as a return from Strategic Reserves: a list's deployment options would read either as
+ * always held. A grant on the unit a model attaches to is one Praetorium checks itself.
  */
 const DEPLOYMENT = /^(?:deep strike|scouts\b|infiltrators)/i
-const held = (grant: { ability?: string; keyword?: string; conditional?: true; counterpart?: readonly string[]; whileAttached?: true }) =>
-  !grant.conditional || Boolean(grant.counterpart || grant.whileAttached) || !DEPLOYMENT.test(grant.ability ?? grant.keyword ?? '')
+const held = (grant: {
+  ability?: string
+  keyword?: string
+  picked?: object
+  conditional?: true
+  counterpart?: readonly string[]
+  whileAttached?: true
+}) =>
+  !grant.picked &&
+  (!grant.conditional || Boolean(grant.counterpart || grant.whileAttached) || !DEPLOYMENT.test(grant.ability ?? grant.keyword ?? ''))
 const statementOf = (
   abilities: readonly z.infer<typeof grantSchema>[] | null | undefined,
   keywords: readonly z.infer<typeof keywordGrantSchema>[] = [],

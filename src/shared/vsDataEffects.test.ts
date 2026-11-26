@@ -97,6 +97,18 @@ it('leaves out a deployment ability VS Data grants conditionally, as after a ret
   expect(facts.abilityGrants!.grants).toEqual([])
 })
 
+it('leaves out a grant only the units the player picks gain, and keeps the rest of the block', () => {
+  const picked = {
+    ability: 'Deep Strike',
+    to: 'unit',
+    picked: { count: 1, limited: true },
+    conditional: true,
+    recipientKeywords: ['GRAVIS'],
+  }
+  const facts = textFactsOfVsData({ grants: { abilities: [picked, { ability: 'Stealth', to: 'unit' }] } })
+  expect(facts.abilityGrants!.grants).toEqual([{ written: 'Stealth', recipient: 'unit' }])
+})
+
 it('keeps a conditional grant whose condition is the unit it attaches to', () => {
   const grant = { ability: 'Deep Strike', to: 'bearer', conditional: true, counterpart: ['WORLD EATERS POSSESSED'] }
   const facts = textFactsOfVsData({ grants: { abilities: [grant] } })
