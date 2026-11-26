@@ -7,6 +7,7 @@ import { captureMutation, joinInvitedBattle, removePlayerFromBattle, shareBattle
 import { productActions, publishGroupLeague } from './productActions'
 import { leagueFixtureUnfinished } from '../core/groupLeague'
 import { battleInvitePath } from '../core/notifications'
+import { feedbackAccountTools } from './feedbackTools'
 import { workflowAccountTools } from './workflowAccountTools'
 
 const battlePath = (token: string) => `/battles/${encodeURIComponent(token)}`
@@ -36,6 +37,7 @@ function entrantName(event: Awaited<ReturnType<typeof eventForApproval>>, id: st
 
 const tools = {
   ...workflowAccountTools,
+  ...feedbackAccountTools,
   get_battle_invite: read(
     'Read a battle invite',
     'Shows who is at the table, the open places on each side and whether the battle has begun. Side indexes start at 0. Use before join_battle.',

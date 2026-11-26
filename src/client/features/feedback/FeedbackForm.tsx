@@ -8,11 +8,17 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Choice } from '../../components/Choice'
 import { DialogBody, DialogFooter } from '../../components/Dialog'
-import { feedbackScreenshotPath, FEEDBACK_KINDS, type FeedbackKind } from '../../../contracts/feedback'
+import {
+  feedbackScreenshotPath,
+  FEEDBACK_KINDS,
+  FEEDBACK_MESSAGE_MAX_LENGTH,
+  feedbackTicketMessage,
+  type FeedbackKind,
+  type ReportedRecord,
+} from '../../../contracts/feedback'
 import { uploadFeedbackScreenshot } from '../../functions'
 import { NEW_ISSUE } from '../../projectLinks'
 import { meQuery } from '../../queries'
-import { FEEDBACK_MESSAGE_MAX_LENGTH, feedbackTicketMessage, type ReportedRecord } from './feedback'
 import { prepareFeedbackScreenshot } from './screenshot'
 import { refreshSupport, startConversation } from './support'
 import { Problem } from '../../components/Problem'

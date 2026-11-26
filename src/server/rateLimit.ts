@@ -6,13 +6,18 @@ const RATE_BUCKET_MAX = 10_000
 
 /** A per-address limit of `limit` requests a minute; each limiter counts only its own requests. */
 export function fixedWindowRateLimit(error: string, limit: number) {
+  const limited = fixedWindowLimit(error, limit)
+  return (request: Request) => limited(clientAddress(request) || 'unknown')
+}
+
+/** A limit of `limit` requests a minute for each key, such as an account. */
+export function fixedWindowLimit(error: string, limit: number) {
   const rateWindows = new Map<string, RateWindow>()
   const rateLimitResponse = (retryAfter: number) =>
     Response.json({ error }, { status: 429, headers: { 'Cache-Control': 'no-store', 'Retry-After': String(retryAfter) } })
 
-  return (request: Request) => {
+  return (key: string) => {
     const now = Date.now()
-    const key = clientAddress(request) || 'unknown'
     const current = rateWindows.get(key)
     if (current && now - current.startedAt < RATE_WINDOW_MS) {
       current.requests += 1

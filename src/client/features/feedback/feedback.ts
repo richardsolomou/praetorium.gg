@@ -1,5 +1,4 @@
 import { SurveyEventName, SurveyEventProperties } from 'posthog-js'
-import { version } from '../../../../package.json'
 import { IMPORT_REPORT_MAX_LENGTH, type FeedbackKind } from '../../../contracts/feedback'
 
 /** The launched API survey “App feedback” in PostHog, which keeps automatic import reports; question ids key its stored responses. */
@@ -11,44 +10,6 @@ export const FEEDBACK_SURVEY = {
     message: { id: '1e9261de-1a9e-4465-b2a6-cc43acd873f4', question: 'Message' },
   },
 } as const
-
-export const FEEDBACK_MESSAGE_MAX_LENGTH = 2000
-
-/**
- * The datasheet a data problem report is about, from its reference page or a roster's unit. Only the record's
- * identity: nothing the player chose for it in their roster.
- */
-export type ReportedRecord = {
-  from: 'datasheet' | 'roster'
-  name: string
-  faction: string
-  rulesVersion: string
-  catalogueId: string
-  entryId: string
-}
-
-/** The opening message of a feedback conversation; Support records the page and replay itself. */
-export function feedbackTicketMessage({
-  kind,
-  message,
-  screenshotUrl,
-  record,
-}: {
-  kind: FeedbackKind
-  message: string
-  screenshotUrl?: string
-  record?: ReportedRecord
-}) {
-  return [
-    message.trim(),
-    '',
-    `${kind} · Praetorium ${version}`,
-    ...(record
-      ? [`Datasheet: ${record.name} · ${record.faction} · ${record.rulesVersion}`, `Record: ${record.catalogueId} / ${record.entryId}`]
-      : []),
-    ...(screenshotUrl ? [`Screenshot: ${screenshotUrl}`] : []),
-  ].join('\n')
-}
 
 export function feedbackSurveyEvent({ kind, message }: { kind: FeedbackKind; message: string }) {
   const answers = { kind, message: message.trim() }
