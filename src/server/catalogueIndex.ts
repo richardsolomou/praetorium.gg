@@ -12,7 +12,6 @@ import { cardTwins } from './cardTwins'
 import type { TextFacts, TextFactsByKey } from '../core/textFacts'
 import { vsDataTextFacts } from './vsDataEffects'
 import { combatOfVsDataOrWords } from '../shared/vsDataEffects'
-import { combatFactsOf } from '../core/combatReading'
 import fs from 'node:fs'
 import path from 'node:path'
 import { buildIndex, type CatalogueFile } from '../core/catalogue'
@@ -138,11 +137,7 @@ export function* loadCatalogueSteps(
     const facts = withLegality(effects!.get(key) ?? NO_FACTS, words)
     const vsData = facts.combat
     // A server records no card's combat reading, so a card is read from its words here.
-    const ownReading = () => {
-      if (words?.combat !== undefined) return words.combat
-      const said = cards.textWords?.(key)
-      return said === undefined ? null : combatFactsOf(said)
-    }
+    const ownReading = () => (words?.combat !== undefined ? words.combat : cards.textCombat?.(key))
     let combat: TextFacts['combat']
     // The words' combat is read only when asked, as reading it is most of the cost of a text's facts.
     return Object.defineProperty(facts, 'combat', {
@@ -174,7 +169,7 @@ export function* loadCatalogueSteps(
 /** Cards with the catalogue's words they quote swapped for the catalogue's tokens. */
 function publishedDatacards(cards: LoadedDatacards, token: (raw: string) => string | null): LoadedDatacards {
   // The facts hold no text, and walking them would read every combat reading they hold only when asked.
-  const { textFacts, textWords: _words, ...rest } = cards
+  const { textFacts, textCombat: _combat, ...rest } = cards
   const published = { ...withDefinitionTokens(rest, token), ...(textFacts ? { textFacts } : {}) }
   const texts = (descriptions: ReadonlyMap<string, string>) =>
     new Map([...descriptions].map(([key, text]) => [key, withDefinitionTokensIn(text, token)]))

@@ -118,8 +118,8 @@ export type LoadedDatacards = {
   textFacts?: ReadonlyMap<string, TextFacts>
   /** A digest of the words each published text shows, by `textKey`, so texts that read alike are one; the server's alone. */
   textReadings?: ReadonlyMap<string, string>
-  /** The words of a published text that is one whole token, by `textKey`, read back from its file; the server's alone. */
-  textWords?: (key: string) => string | undefined
+  /** What a card rule's words decide in combat, by `factsKey`, read from its file when asked; the server's alone. */
+  textCombat?: (key: string) => TextFacts['combat']
 }
 export type FactionRestrictions = {
   /** Lowercased datasheet names, each with the lowercased keyword that exempts a unit from it, if any. */
