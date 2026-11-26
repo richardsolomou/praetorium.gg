@@ -5,7 +5,7 @@ import {
   attachGroups,
   defaultListName,
   listedPieces,
-  starredLabel,
+  strayBullet,
   type AttachedGroup,
   type TextRoster,
   type TextRosterUnit,
@@ -94,7 +94,7 @@ function officialUnits(lines: readonly string[]) {
   }
 
   for (const line of lines) {
-    const trimmed = starredLabel(line.trim())
+    const trimmed = strayBullet(line.trim())
     if (!trimmed || /^(?:Created with|Exported (?:with|from)) /i.test(trimmed)) continue
     if (attachedHeading.test(trimmed) || WTC_SECTION.test(trimmed)) {
       close()
