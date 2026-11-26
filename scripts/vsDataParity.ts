@@ -26,7 +26,7 @@ const directory = path.resolve(process.argv[2] ?? 'catalogue-data')
 const constructionDirectory = path.resolve(process.argv[3] ?? path.join(directory, 'summaries'))
 const rosterFile = path.resolve(
   process.argv[4] ??
-    (fs.existsSync('data-dev/production-copy.ndjson.gz') ? 'data-dev/production-copy.ndjson.gz' : 'data-dev/production-rosters.json'),
+    (fs.existsSync('data-dev/production-lists.ndjson.gz') ? 'data-dev/production-lists.ndjson.gz' : 'data-dev/production-rosters.json'),
 )
 const composition = readCatalogueComposition(directory)
 const base = composition?.editions.find((entry) => entry.base)
@@ -146,4 +146,5 @@ fs.mkdirSync('data-dev', { recursive: true })
 fs.writeFileSync(
   'data-dev/vs-data-parity.json',
   `${JSON.stringify({ release: construction.release, totals, books: report, rosters }, null, 2)}\n`,
+  { mode: 0o600 },
 )

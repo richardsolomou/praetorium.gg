@@ -16,6 +16,7 @@ const construction: VsDataConstruction = {
       'host.captain': record('Captain', { faction: 'host', keywords: ['CHARACTER', 'INFANTRY'], sizes: [1] }),
       'host.hero': record('Hero', { faction: 'host', keywords: ['CHARACTER', 'EPIC HERO', 'INFANTRY'], sizes: [1] }),
       'host.agent': record('Agent', { faction: 'host', keywords: ['INFANTRY'], sizes: [1] }),
+      'host.envoy': record('Envoy', { faction: 'host', keywords: ['INFANTRY'], sizes: [1] }),
     },
     model: {
       'host.walker.walker': record('Walker', {
@@ -27,6 +28,7 @@ const construction: VsDataConstruction = {
       'host.captain.captain': record('Captain', { unit: 'host.captain', min: 1, max: 1, wargear: { 'host.captain.shield': 1 } }),
       'host.hero.hero': record('Hero', { unit: 'host.hero', min: 1, max: 1, wargear: {} }),
       'host.agent.agent': record('Agent', { unit: 'host.agent', min: 1, max: 1, wargear: {} }),
+      'host.envoy.envoy': record('Envoy', { unit: 'host.envoy', min: 1, max: 1, wargear: {} }),
     },
     'roster-option': {
       'host.walker.cannons': record('Cannons', {
@@ -108,6 +110,19 @@ const construction: VsDataConstruction = {
                 },
               ],
             },
+            {
+              id: 'host.envoy',
+              name: 'Envoy',
+              tiers: [
+                {
+                  copies: { from: 1 },
+                  costs: [
+                    { composition: 'in an army of Other', models: 1, points: 20 },
+                    { composition: '1 Envoy', models: 1, points: 25 },
+                  ],
+                },
+              ],
+            },
           ],
         },
       ],
@@ -138,6 +153,10 @@ describe('priceVsRoster', () => {
 
   it('prices a unit at its own army’s row without that Detachment', () => {
     expect(priceVsRoster(definitions, roster([{ unit: 'host.agent' }], 'host', [])).points).toBe(40)
+  })
+
+  it('never prices a unit at a row naming another army', () => {
+    expect(priceVsRoster(definitions, roster([{ unit: 'host.envoy' }])).points).toBe(25)
   })
 
   it('prices a unit in another faction’s army at the row for other armies', () => {

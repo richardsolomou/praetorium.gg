@@ -84,3 +84,31 @@ function betweenRows(costs: readonly PointsCost[], models: number): PointsCost |
   const [lower, upper] = costs.toSorted((left, right) => left.models - right.models)
   return models > lower!.models && models < upper!.models ? upper : undefined
 }
+
+/** Whether a cost row names the army, Detachment or other army it is for, rather than the models it holds. */
+const circumstance = (composition: string) =>
+  composition.startsWith('in an army of ') || /^in the .+ Detachment$/.test(composition) || composition.startsWith('as ')
+const sameName = (left: string, right: string) =>
+  left.toLowerCase().replace(/[^a-z0-9]/g, '') === right.toLowerCase().replace(/[^a-z0-9]/g, '')
+
+/**
+ * Which of a unit's cost rows at one size applies in a list with `detachments`, of an army that `armies` names: the row
+ * naming one of those Detachments, else the one naming that army, else the one for another army (`as …`), else the one
+ * naming the unit's `models`, else the one row naming none of these. Rows that leave it open, such as two model mixes
+ * at a size priced differently, give none.
+ */
+export function costRowFor(
+  rows: readonly PointsCost[],
+  context: { detachments: readonly string[]; armies: readonly string[]; models?: string },
+): PointsCost | undefined {
+  const named = (test: (composition: string) => boolean) => rows.filter((row) => row.composition !== undefined && test(row.composition))
+  const army = 'in an army of '
+  const found = [
+    named((composition) => context.detachments.some((name) => composition === `in the ${name} Detachment`)),
+    named((composition) => composition.startsWith(army) && context.armies.some((name) => sameName(composition.slice(army.length), name))),
+    named((composition) => composition.startsWith('as ')),
+    context.models ? named((composition) => composition === context.models) : [],
+    rows.filter((row) => row.composition === undefined || !circumstance(row.composition)),
+  ].find((candidates) => candidates.length)
+  return found && new Set(found.map((row) => JSON.stringify(row.points))).size === 1 ? found[0] : undefined
+}
