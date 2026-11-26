@@ -279,6 +279,11 @@ describe('BattleBase text import', () => {
     expect([parsed?.units.flatMap((unit) => unit.unread ?? []), parsed?.units[0]?.attachedToEntry]).toEqual([[], 1])
   })
 
+  it('reads an attachment whose bullet was typed as a full stop', () => {
+    const parsed = fromBattleBaseText(necronsOfficial.replace('• Attached as: Leader', '. Attached as: Leader'))
+    expect(parsed?.units.flatMap((unit) => unit.unread ?? [])).toEqual([])
+  })
+
   it('reads a group the player named under the attached units heading', () => {
     const parsed = fromBattleBaseText(necronsOfficial.replace('Attached Unit 2', 'Destroyer cult'))
     expect(parsed?.units.find((unit) => unit.name === 'Lokhust Lord')?.attachedToEntry).toBe(2)

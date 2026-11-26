@@ -85,10 +85,12 @@ export const WTC_SECTION =
   /^(?:ATTACHED UNITS?|CHARACTERS?|EPIC HER(?:O|OES)|BATTLELINE|DEDICATED TRANSPORTS?|OTHER DATASHEETS|ALLIED UNITS)$/i
 
 /**
- * A labelled line the official app marks with an asterisk, as "* Attached as: Leader (Character)", as the bullet it stands for.
- * The app's footnotes, as "* This Datasheet also has the Battleline keyword", carry no label.
+ * A labelled line whose bullet is written as another mark, as the official app's "* Attached as: Leader (Character)" or
+ * a hand edit's ". Attached as: Leader (Character)", as the bullet it stands for. Only labelled lines are read this way:
+ * the app's footnotes, as "* This Datasheet also has the Battleline keyword", carry no label, and a marked counted line
+ * can be a unit, as ". 10x Necron Warriors (110 pts)".
  */
-export const starredLabel = (line: string) => line.replace(/^(\s*)\*\s*(?=[^:*]+:\s*\S)/, '$1• ')
+export const strayBullet = (line: string) => line.replace(/^(\s*)(?:\*\s*|[.·]\s+)(?=[^:*]+:\s*\S)/, '$1• ')
 
 /**
  * The pieces a model's wargear line lists, split at each comma and at each "and" that starts a new, capitalised piece,
