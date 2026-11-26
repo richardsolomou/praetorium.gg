@@ -18,12 +18,12 @@ it('reads a profile several datasheets share as the record its own datasheet has
   expect(vsDataRecordOfBsdata(records, '6b1e-4f2-9c0d-a11', 'grinder')).toBe('ability:chaos-daemons.soul-grinder.scuttling-walker')
 })
 
-it('reads a rules version’s own frozen entry only in that version', () => {
+it('reads a rules version’s own frozen entry over the one every version shares', () => {
   const frozen = {
     'grinder/6b1e-4f2-9c0d-a11': 'ability:chaos-daemons.soul-grinder.scuttling-walker',
     'legacy-rosters~grinder/6b1e-4f2-9c0d-a11': 'ability:adeptus-mechanicus.onager-dunecrawler.scuttling-walker',
   }
-  expect(vsDataRecordOfBsdata(bsdataRecords(entries, frozen, null), '6b1e-4f2-9c0d-a11', 'grinder')).toBe(
-    'ability:chaos-daemons.soul-grinder.scuttling-walker',
+  expect(vsDataRecordOfBsdata(bsdataRecords(entries, frozen, 'legacy-rosters'), '6b1e-4f2-9c0d-a11', 'grinder')).toBe(
+    'ability:adeptus-mechanicus.onager-dunecrawler.scuttling-walker',
   )
 })
