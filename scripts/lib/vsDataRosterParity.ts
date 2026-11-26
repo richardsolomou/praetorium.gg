@@ -124,9 +124,9 @@ export const keptCheck = (message: string) =>
   )
 
 const fieldManualCopies = new WeakMap<LoadedCatalogue, LoadedCatalogue>()
-/** The catalogue as it priced lists from the field manual alone. */
+/** The catalogue as it priced and checked lists before VS Data did: the field manual's prices and the catalogue's checks. */
 const withoutVsPoints = (loaded: LoadedCatalogue) => {
-  const { vsPoints: _, ...rest } = loaded
+  const { vsPoints: _points, vsRoster: _roster, ...rest } = loaded
   if (!fieldManualCopies.has(loaded)) fieldManualCopies.set(loaded, rest)
   return fieldManualCopies.get(loaded)!
 }

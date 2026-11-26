@@ -40,7 +40,13 @@ it('names a faction by every spelling the official app gives it, under each name
     keywords: {},
     coreRules: [],
     records: [],
-    names: { factions: [['Adeptus Astartes', 'Space Marines', '阿斯塔特修会']], detachments: [], enhancements: [], units: {} },
+    names: {
+      factions: [['Adeptus Astartes', 'Space Marines', '阿斯塔特修会']],
+      detachments: {},
+      enhancements: [],
+      dispositions: [],
+      units: {},
+    },
   }
   fs.mkdirSync(path.join(directory, 'summaries'))
   fs.writeFileSync(path.join(directory, 'summaries', `${base.edition.id}.json`), JSON.stringify(release))

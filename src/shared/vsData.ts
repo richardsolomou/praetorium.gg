@@ -233,9 +233,11 @@ export type VsDataUnits = {
 const spellingsSchema = z.array(z.array(z.string()))
 export const vsDataNamesSchema = z.object({
   factions: spellingsSchema,
-  detachments: spellingsSchema,
+  /** Every Detachment's spellings by VS Data id, its English name alone where no language spells it otherwise. */
+  detachments: z.record(z.string(), z.array(z.string())),
   enhancements: spellingsSchema,
-  /** Each unit's own spellings, and those of each model and piece of wargear it holds, by VS Data id. */
+  dispositions: spellingsSchema.default([]),
+  /** Every unit's spellings, and those of each model and piece of wargear it holds, by VS Data id. */
   units: z.record(z.string(), z.object({ name: z.array(z.string()), pieces: spellingsSchema })),
 })
 export type VsDataNames = z.infer<typeof vsDataNamesSchema>
@@ -286,7 +288,8 @@ export const vsDataSummariesSchema = z.object({
   /** Each faction's VS Data id by its name. */
   factions: z.record(z.string(), z.string()).default({}),
   /** Every spelling the official app gives each name in any language, which imports read lists by. */
-  names: vsDataNamesSchema.optional(),
+  // A snapshot compacted in an earlier shape reads as having no names rather than no release.
+  names: vsDataNamesSchema.optional().catch(undefined),
   /** The name of each weapon and core ability, the keywords a datasheet prints, by `kind:id`. */
   keywords: z.record(z.string(), z.string()).default({}),
   /** Every rule of the rules documents, in no particular order. */

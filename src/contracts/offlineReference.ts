@@ -20,6 +20,8 @@ export type OfflineConstructionSource = {
   mfm: RuntimeData
   /** The rules version's VS Data prices by BSData ID; a download saved before VS Data priced lists has none. */
   vsPoints?: RuntimeData
+  /** The rules version's VS Data roster definitions; a download saved before VS Data checked lists has none. */
+  vsRoster?: RuntimeData
   rules: RuntimeData
 }
 

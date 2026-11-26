@@ -83,6 +83,7 @@ export function sharedEdition(source: OfflineConstructionSource, base: OfflineCo
     datacards: shareRuntimeData(source.datacards, base.datacards),
     mfm: shareRuntimeData(source.mfm, base.mfm),
     ...(source.vsPoints && base.vsPoints ? { vsPoints: shareRuntimeData(source.vsPoints, base.vsPoints) } : {}),
+    ...(source.vsRoster && base.vsRoster ? { vsRoster: shareRuntimeData(source.vsRoster, base.vsRoster) } : {}),
     rules: shareRuntimeData(source.rules, base.rules),
   }
 }
@@ -242,6 +243,7 @@ export async function writeReferenceBundle(outDir: string, directory: string, ru
     ...(selectedCatalogue.baseSizes ? { baseSizes: { ...selectedCatalogue.baseSizes } } : {}),
     mfm: packRuntimeData(selectedCatalogue.mfm ?? null),
     ...(selectedCatalogue.vsPoints ? { vsPoints: packRuntimeData(selectedCatalogue.vsPoints) } : {}),
+    ...(selectedCatalogue.vsRoster ? { vsRoster: packRuntimeData(selectedCatalogue.vsRoster) } : {}),
     rules: packRuntimeData({ ...selectedRules, terrainLayouts: [], terrainTemplates: [] }),
   })
   const write = async (kind: 'reference' | 'construction', value: unknown, limit?: number) => {

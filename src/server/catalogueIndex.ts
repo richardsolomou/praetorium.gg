@@ -21,7 +21,7 @@ import { type FactionContent, type LoadedDatacards } from '../shared/datacards'
 import { remember } from '../core/collections'
 import { catalogueSections } from './catalogueSections'
 import { loadMfmSteps } from './mfm'
-import { vsPointsIn } from './vsDataPoints'
+import { vsPointsIn, vsRosterDefinitionsIn } from './vsDataPoints'
 import { baseSizesByEntry } from '../shared/vsDataBaseSizes'
 import { readSharedJson } from './sharedJson'
 import { type DefinitionTexts, type LoadedCatalogue, catalogueFromIndex } from '../shared/catalogueIndex'
@@ -147,7 +147,8 @@ export function* loadCatalogueSteps(
   }
   yield
   const vsPoints = vsPointsIn(directory, loaded.index, edition?.id)
-  return { ...loaded, mfm: yield* loadMfmSteps(directory), ...(vsPoints ? { vsPoints } : {}) }
+  const vsRoster = vsRosterDefinitionsIn(directory, loaded.index, edition?.id)
+  return { ...loaded, mfm: yield* loadMfmSteps(directory), ...(vsPoints ? { vsPoints } : {}), ...(vsRoster ? { vsRoster } : {}) }
 }
 
 /** Cards with the catalogue's words they quote swapped for the catalogue's tokens. */

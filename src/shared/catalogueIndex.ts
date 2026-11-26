@@ -8,6 +8,7 @@ import type { FactionContent, LoadedDatacards } from './datacards'
 import { catalogueFactionName, factionDisplayName } from './factionNames'
 import type { MfmIndex } from './mfm'
 import type { VsPointsIndex } from './vsDataPoints'
+import type { VsRosterData } from './vsDataLegality'
 import type { CatalogueEdition } from '../core/catalogueEdition'
 import type { TextFacts } from '../core/textFacts'
 type CatalogueReference = { id: string; name: string; datasheets: number; detachments: number }
@@ -24,6 +25,8 @@ export type LoadedCatalogue = {
   mfm?: MfmIndex | null
   /** The rules version's VS Data prices, by the BSData IDs saved lists hold; the field manual prices what they leave out. */
   vsPoints?: VsPointsIndex
+  /** The rules version's VS Data roster definitions, without wargear, which check the lists the catalogue builds. */
+  vsRoster?: VsRosterData
   /** Game Datacards, read once here and handed to the rules loader. */
   datacards: LoadedDatacards
   /** The rules version's weapon and core abilities by name, from its VS Data release: the keywords whose rule is VS Data's. */
