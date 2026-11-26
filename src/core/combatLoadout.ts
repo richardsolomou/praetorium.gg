@@ -19,6 +19,8 @@ export type CombatCarrier = {
   modelProfileStats?: string[]
   /** The model's own keywords, which an ability limited to some models in the unit is checked against. */
   keywords?: string[]
+  /** How many of these models hold each ability profile their wargear gives, which a rule's bearer-only effects reach. */
+  abilities?: Record<string, number>
   unitWide?: boolean
 }
 
@@ -83,6 +85,20 @@ function profileEquipment(profiles: readonly Profile[], count: number, name?: st
     count,
     profileIds: group.map((profile) => profile.id),
   }))
+}
+
+/** How many of a carrier's models hold each ability profile of the wargear selections they take. */
+function heldAbilities(nodes: readonly Selection[], index: CatalogueIndex, models: number): Pick<CombatCarrier, 'abilities'> {
+  const found: Record<string, number> = {}
+  const walk = (node: Selection, count: number) => {
+    const definition = index.definitions.get(node.id)
+    if (!definition || count <= 0) return
+    for (const profile of definitionProfiles(definition, index))
+      if (datasheetProfileKind(profile.typeName ?? '') === 'rule') found[profile.id] = Math.min(models, (found[profile.id] ?? 0) + count)
+    node.selections?.forEach((child) => walk(child, Math.min(count, child.count ?? 1)))
+  }
+  for (const node of nodes) walk(node, Math.min(models, node.count ?? 1))
+  return Object.keys(found).length ? { abilities: found } : {}
 }
 
 function equippedWeapons(selection: Selection, index: CatalogueIndex, models: number, skipModels = false): CombatEquipment[] {
@@ -162,6 +178,7 @@ export function combatCarriers(selection: Selection, index: CatalogueIndex, opti
           found.push({
             name: target.name ?? node.id,
             ...identity,
+            ...heldAbilities([...(shared.selections ?? []), { ...entry, count }], index, count),
             models: count,
             weapons: [
               ...sharedWeapons.map((weapon) => ({ ...weapon, count: (weapon.count / models) * count })),
@@ -169,7 +186,14 @@ export function combatCarriers(selection: Selection, index: CatalogueIndex, opti
             ],
           })
         }
-      else found.push({ name: target.name ?? node.id, ...identity, models, weapons: equippedWeapons(node, index, models) })
+      else
+        found.push({
+          name: target.name ?? node.id,
+          ...identity,
+          ...heldAbilities(node.selections ?? [], index, models),
+          models,
+          weapons: equippedWeapons(node, index, models),
+        })
       return
     }
     node.selections?.forEach((child) => visit(child, [...path, child.id]))
