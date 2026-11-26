@@ -44,12 +44,13 @@ export const CombatResults = memo(function CombatResults({
   return (
     <>
       {inDialog ? <div data-results-space style={{ height }} aria-hidden /> : null}
+      {/* Pinned only once both units give it figures: an empty summary would sit over the pickers that fill it. */}
       <div
         ref={summary}
         aria-label="Results summary"
         data-onboarding="simulator-results"
         data-results-summary
-        className={`right-0 left-0 z-40 mx-auto rounded-lg border border-edge bg-panel shadow-lifted ${inDialog ? 'absolute bottom-0' : 'sticky bottom-16 w-full min-[860px]:bottom-0'}`}
+        className={`right-0 left-0 z-40 mx-auto rounded-lg border border-edge bg-panel shadow-lifted ${inDialog ? 'absolute bottom-0' : selected ? 'sticky bottom-16 w-full min-[860px]:bottom-0' : 'relative w-full'}`}
       >
         <section aria-label="Combined estimate" aria-busy={updating && !failed} className="px-3 pt-2.5 sm:px-4">
           <div className="flex items-baseline justify-between gap-2">

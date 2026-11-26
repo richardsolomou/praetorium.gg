@@ -205,14 +205,7 @@ export function FaceOff({
               ) : null}
               {problem ? <p className="text-xs text-discarded">{problem}</p> : null}
               {releases.map((release) => (
-                <Button
-                  key={release.label}
-                  variant="ghost"
-                  size="sm"
-                  className="-mx-2 text-dim"
-                  disabled={controls?.busy}
-                  onClick={release.run}
-                >
+                <Button key={release.label} variant="ghost" size="sm" className="text-dim" disabled={controls?.busy} onClick={release.run}>
                   {release.label}
                 </Button>
               ))}
@@ -220,7 +213,7 @@ export function FaceOff({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className={cn('-mx-2 mt-auto text-dim hover:text-bone', index ? 'self-end' : 'self-start')}
+                  className={cn('mt-auto text-dim hover:text-bone', index ? 'self-end' : '-ml-2 self-start')}
                   disabled={controls?.busy}
                   onClick={addAlly}
                 >

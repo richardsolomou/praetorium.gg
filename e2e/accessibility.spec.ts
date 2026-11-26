@@ -68,10 +68,12 @@ test('keeps the navigation rail controls on screen at double text size', async (
   await doubleText(page)
   const rail = page.locator('[data-web-app-chrome]')
   const outside = await rail.evaluate((element) =>
-    ['nav[aria-label="Primary"]', '[aria-label="Search Praetorium"]', '[aria-label="Account menu"]'].some((selector) => {
-      const bounds = element.querySelector(selector)!.getBoundingClientRect()
-      return bounds.width === 0 || bounds.right > innerWidth || bounds.bottom > innerHeight
-    }),
+    ['nav[aria-label="Army"]', 'nav[aria-label="Play"]', '[aria-label="Search Praetorium"]', '[aria-label="Account menu"]'].some(
+      (selector) => {
+        const bounds = element.querySelector(selector)!.getBoundingClientRect()
+        return bounds.width === 0 || bounds.right > innerWidth || bounds.bottom > innerHeight
+      },
+    ),
   )
   expect(outside).toBe(false)
   await rail.getByRole('navigation', { name: 'Reference' }).getByRole('link', { name: 'Missions' }).click()

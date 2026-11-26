@@ -52,6 +52,6 @@ test('a datasheet keeps its layout on a phone', async ({ page }) => {
   await page.setViewportSize(PHONE)
   await page.goto('/factions/space-marines/datasheets/eradicator-squad-with-melta-rifles')
   await page.waitForLoadState('networkidle')
-  await expect(page.locator('tbody[aria-label="melta rifle profiles"]')).toBeVisible()
+  await expect(page.locator('tbody[aria-label="melta rifle profiles" i]')).toBeVisible()
   await expectPhoneScreen(page, 'datasheet.png')
 })
