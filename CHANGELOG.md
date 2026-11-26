@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.277.10 (2026-11-26)
+
+### Patch Changes
+
+- cd5a904: [rosters] An Ironstrider Ballistarius with a twin cognis lascannon costs 10 points more, not 20.
+
 ## 0.277.9 (2026-11-26)
 
 ### Patch Changes
