@@ -100,7 +100,7 @@ export function vsDataErrors(
         // One catalogue option can stand for a same-named Enhancement of each of the list's Detachments; each copy taken
         // is a different Detachment's while one is left.
         const offered = detachments.flatMap((detachment) => data.enhancements[`${detachment}/${option.id}`] ?? [])
-        const enhancement = offered.find((id) => !taken.has(id)) ?? offered[0]
+        const enhancement = offered.find((candidate) => !taken.has(candidate)) ?? offered[0]
         if (enhancement && !read.enhancement) {
           read.enhancement = enhancement
           taken.add(enhancement)
