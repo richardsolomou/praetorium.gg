@@ -85,9 +85,10 @@ function betweenRows(costs: readonly PointsCost[], models: number): PointsCost |
   return models > lower!.models && models < upper!.models ? upper : undefined
 }
 
-/** Whether a cost row names the army, Detachment or other army it is for, rather than the models it holds. */
-const circumstance = (composition: string) =>
-  composition.startsWith('in an army of ') || /^in the .+ Detachment$/.test(composition) || composition.startsWith('as ')
+/** Whether a cost row names the army, Detachment or other army it is for, rather than nothing or the models it holds. */
+export const circumstance = (composition: string | undefined) =>
+  composition !== undefined &&
+  (composition.startsWith('in an army of ') || /^in the .+ Detachment$/.test(composition) || composition.startsWith('as '))
 const sameName = (left: string, right: string) =>
   left.toLowerCase().replace(/[^a-z0-9]/g, '') === right.toLowerCase().replace(/[^a-z0-9]/g, '')
 
@@ -108,7 +109,7 @@ export function costRowFor(
     named((composition) => composition.startsWith(army) && context.armies.some((name) => sameName(composition.slice(army.length), name))),
     named((composition) => composition.startsWith('as ')),
     context.models ? named((composition) => composition === context.models) : [],
-    rows.filter((row) => row.composition === undefined || !circumstance(row.composition)),
+    rows.filter((row) => !circumstance(row.composition)),
   ].find((candidates) => candidates.length)
   return found && new Set(found.map((row) => JSON.stringify(row.points))).size === 1 ? found[0] : undefined
 }

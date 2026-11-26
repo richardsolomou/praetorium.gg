@@ -1,5 +1,5 @@
 import type { PointsCost, VsDataDefinitions } from '../core/vsDataConstruction'
-import { costRowFor, pointsAt } from '../core/vsDataPoints'
+import { circumstance, costRowFor, pointsAt } from '../core/vsDataPoints'
 import { nonMatchedPlayKind } from '../core/name'
 import type { MfmUnit } from './mfm'
 
@@ -19,11 +19,6 @@ export type VsPointsIndex = {
 
 /** The frozen maps from BSData IDs to VS Data's (`catalogue/legacy-ids/`). */
 export type VsDataIds = Record<'books' | 'detachments' | 'units' | 'enhancements', Readonly<Record<string, string>>>
-
-/** Whether a cost row names the army or Detachment it is for, rather than nothing or the models it holds. */
-const circumstance = (composition: string | undefined) =>
-  composition !== undefined &&
-  (composition.startsWith('in an army of ') || /^in the .+ Detachment$/.test(composition) || composition.startsWith('as '))
 
 const priced = (points: PointsCost['points']) => (typeof points === 'number' ? points : null)
 
