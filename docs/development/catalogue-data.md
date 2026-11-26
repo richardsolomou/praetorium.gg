@@ -58,6 +58,8 @@ A release holds this bar, which only goes up:
 
 `catalogue/legacy-ids/{books,detachments,units,enhancements}.json` give the VS Data ID of each book, Detachment, datasheet and Enhancement ID a saved list can hold, and only grow: `scripts/freezeRosterIds.ts <catalogue directory> <unpacked releases, one directory per rules version>` adds what a new snapshot or release names and refuses to move a frozen ID. Read a list's IDs once its rules version is known (`currentRosterIds`): a key is `<rules version>~<ID>` where a retained rules version reads the ID otherwise, else the ID itself, and an Enhancement's key is `<VS Data Detachment>/<option ID>`, since one entry serves Detachments VS Data records apart. Books map by hand, Detachments and Enhancements by name within their faction with the script's reviewed spellings, datasheets by VS Data's `bsdata.*` aliases, else by exact name, and retired IDs through the retired-ID, migration and retained-version aliases.
 
+A BSData rule, profile or entry finds its VS Data record by id, never by name, through `vsDataRecordOfBsdata` (`src/shared/vsData.ts`, read per rules version by `bsdataRecordsIn`): VS Data's `bsdata.*` alias of it, or, for a profile several datasheets carry that is a different record on each, its entry in `catalogue/legacy-ids/bsdata-records.json`, keyed `<datasheet>/<id>` (`<rules version>~` first where a version reads it otherwise). The map holds only what an alias can't say, and only grows.
+
 ## Roster migration
 
 Before changing sources or saved-selection construction, baseline production rosters:

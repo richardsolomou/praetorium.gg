@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import type { RuleSummary } from '../contracts/rules'
 import { english, gdcAliasName as named, gdcAliasId as dotted, gdcDetachmentRuleAlias, gdcEnhancementAlias } from './datacards'
+import { idsIn } from './vsDataPoints'
 
 /** The credit a record Praetorium serves from VS Data alone carries. */
 export const VS_DATA_ATTRIBUTION = 'Rules data from VS Data'
@@ -330,6 +331,29 @@ export function vsDataIndex(entries: Readonly<Record<string, readonly string[]>>
     aliasesOf: (ref: VsDataRef) => entries[vsDataKey(ref)] ?? [],
   }
 }
+
+/**
+ * The record, by `kind:id`, each BSData rule, profile or entry is in a rules version: by `<datasheet>/<id>` where one
+ * profile several datasheets carry is a different record on each, from the frozen map, else by VS Data's `bsdata.*`
+ * alias of it, whose dots stand for the id's dashes.
+ */
+export type BsdataRecords = { byId: Readonly<Record<string, string>>; bySheet: Readonly<Record<string, string>> }
+
+/** A rules version's `BsdataRecords`: its release's identity entries and the frozen map, read as `idsIn` reads one. */
+export function bsdataRecords(
+  entries: Readonly<Record<string, readonly string[]>>,
+  frozen: Readonly<Record<string, string>>,
+  edition: string | null,
+): BsdataRecords {
+  const byId: Record<string, string> = {}
+  for (const [key, aliases] of Object.entries(entries))
+    for (const alias of aliases) if (alias.startsWith('bsdata.')) byId[alias.slice('bsdata.'.length).replaceAll('.', '-')] = key
+  return { byId, bySheet: Object.fromEntries(idsIn(frozen, edition)) }
+}
+
+/** The record a BSData id is, on the datasheet `sheet` where it is one. */
+export const vsDataRecordOfBsdata = (records: BsdataRecords, id: string, sheet?: string): string | undefined =>
+  (sheet ? records.bySheet[`${sheet}/${id}`] : undefined) ?? records.byId[id]
 
 /** The kinds of Game Datacards record VS Data summarizes, as the coverage report counts them. */
 export type GdcRuleKind =
