@@ -118,7 +118,7 @@ export function vsDataTextFacts(
       const core = abilityKeysNamed(holder.name).filter((key) => !key.startsWith('core-rule:') && release.entries[key])
       const byName = within([...new Set([...nameKeys(holder.name).flatMap((name) => named.get(name) ?? []), ...core])])
       const owners = holder.within.flatMap((id) => aliased.get(id) ?? []).filter((key) => key.startsWith('unit:'))
-      const exact = (keys: readonly string[]) => keys.filter((key) => key.endsWith(`.${unitAbilitySlug(holder.name)}`))
+      const exact = (candidates: readonly string[]) => candidates.filter((key) => key.endsWith(`.${unitAbilitySlug(holder.name)}`))
       const ownSheet = byName.filter((key) => owners.some((owner) => key.startsWith(`ability:${owner.slice('unit:'.length)}.`)))
       const ownFaction = byName.filter((key) => factionsOf.get(holder.catalogue ?? '')?.has(factionOf(key)))
       for (const pool of [ownSheet, ownFaction, byName].flatMap((candidates) => [exact(candidates), candidates])) {
