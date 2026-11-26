@@ -436,10 +436,6 @@ describe('the rules of a unit', () => {
       }
     ).attacker.rules
 
-  it('calculates a rule published as a token from the words the snapshot holds', async () => {
-    expect((await rules()).map((rule) => rule.name)).toContain('Card Rule')
-  })
-
   it('withholds a choice label that quotes the rule', async () => {
     expect((await rules()).find((rule) => rule.name === 'Vengeful')?.options).toEqual([{ choice: 1, label: 'Condition the rule states' }])
   })

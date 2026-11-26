@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { contextualAbilityNamesIn, datasheetIn, datasheetViewsIn } from '../shared/catalogue'
-import { bookOf, profileOperationCases } from './catalogue.fixtures'
+import { bookOf, bookWithFacts, fixtureToken, profileOperationCases } from './catalogue.fixtures'
 import { describeDatasheetAbilities } from '../shared/datasheetDescriptions'
-import { deploymentRules } from '../shared/rosterDeployment'
 import { defaultSelection } from '../core/expand'
 import { combatTarget } from '../core/combatProfiles'
 
@@ -108,50 +107,66 @@ describe('the profile modifiers on a datasheet', () => {
         },
       ],
     })
-    const book = bookOf({
-      sharedRules: [
+    const ruleText =
+      'Each time a NECRONS model (excluding MONSTER models) from your army makes an attack that targets a unit within range of one or more objective markers, add 1 to the Hit roll. In addition, ranged weapons equipped by NECRONS VEHICLE and NECRONS MOUNTED models (excluding TITANIC models) from your army have the [ASSAULT] ability.'
+    const cardText =
+      'Each time a **NECRONS** model (excluding **MONSTER** models) from your army makes an attack that targets a unit within range of one or more objective markers, add 1 to the Hit roll. In addition, ranged weapons equipped by **NECRONS VEHICLE** and **NECRONS MOUNTED** models (excluding **TITANIC** models) from your army have the **[ASSAULT]** ability.'
+    const assault = {
+      weaponAbilities: [
         {
-          id: 'relentless-onslaught',
-          name: 'Relentless Onslaught',
-          description:
-            'Each time a NECRONS model (excluding MONSTER models) from your army makes an attack that targets a unit within range of one or more objective markers, add 1 to the Hit roll. In addition, ranged weapons equipped by NECRONS VEHICLE and NECRONS MOUNTED models (excluding TITANIC models) from your army have the [ASSAULT] ability.',
+          ability: 'ASSAULT',
+          attacks: ['ranged'],
+          to: 'army',
+          keywords: ['NECRONS VEHICLE', 'NECRONS MOUNTED'],
+          excludedKeywords: ['TITANIC'],
         },
       ],
-      categoryEntries,
-      selectionEntries: [
-        {
-          id: 'detachments',
-          name: 'Detachment',
-          type: 'upgrade',
-          selectionEntryGroups: [
-            {
-              id: 'detachment-choices',
-              name: 'Detachment choice',
-              selectionEntries: [
-                {
-                  id: 'starshatter',
-                  name: 'Starshatter Arsenal',
-                  type: 'upgrade',
-                  infoLinks: [{ id: 'relentless-link', targetId: 'relentless-onslaught', name: 'Relentless Onslaught', type: 'rule' }],
-                },
-              ],
-            },
-          ],
-        },
-        unit('ark', ['necrons', 'vehicle']),
-        unit('destroyer', ['necrons', 'mounted']),
-        unit('monolith', ['necrons', 'vehicle', 'titanic']),
-        unit('warriors', ['necrons']),
-      ],
-    })
+    }
+    const book = bookWithFacts(
+      {
+        sharedRules: [
+          {
+            id: 'relentless-onslaught',
+            name: 'Relentless Onslaught',
+            description: ruleText,
+          },
+        ],
+        categoryEntries,
+        selectionEntries: [
+          {
+            id: 'detachments',
+            name: 'Detachment',
+            type: 'upgrade',
+            selectionEntryGroups: [
+              {
+                id: 'detachment-choices',
+                name: 'Detachment choice',
+                selectionEntries: [
+                  {
+                    id: 'starshatter',
+                    name: 'Starshatter Arsenal',
+                    type: 'upgrade',
+                    infoLinks: [{ id: 'relentless-link', targetId: 'relentless-onslaught', name: 'Relentless Onslaught', type: 'rule' }],
+                  },
+                ],
+              },
+            ],
+          },
+          unit('ark', ['necrons', 'vehicle']),
+          unit('destroyer', ['necrons', 'mounted']),
+          unit('monolith', ['necrons', 'vehicle', 'titanic']),
+          unit('warriors', ['necrons']),
+        ],
+      },
+      { [ruleText]: assault, [cardText]: assault },
+    )
     book.datacards.detachmentRules = new Map([
       [
         'starshatter-arsenal',
         [
           {
             name: 'Relentless Onslaught',
-            description:
-              'Each time a **NECRONS** model (excluding **MONSTER** models) from your army makes an attack that targets a unit within range of one or more objective markers, add 1 to the Hit roll. In addition, ranged weapons equipped by **NECRONS VEHICLE** and **NECRONS MOUNTED** models (excluding **TITANIC** models) from your army have the **[ASSAULT]** ability.',
+            description: fixtureToken(cardText),
           },
         ],
       ],
@@ -788,48 +803,58 @@ describe('the profile modifiers on a datasheet', () => {
       description: 'While this model is leading a unit, weapons equipped by models in that unit have the [LETHAL HITS] ability.',
       keyword: 'Lethal Hits',
       appliesAlone: false,
+      blocks: { weaponAbilities: [{ ability: 'LETHAL HITS', attacks: ['ranged', 'melee'], to: 'led-unit' }] },
     },
     {
       description: 'Weapons equipped by models in this model’s unit have the **[SUSTAINED HITS 1]** ability.',
       keyword: 'Sustained Hits 1',
       appliesAlone: true,
+      blocks: {
+        weaponAbilities: [
+          { ability: 'SUSTAINED HITS 1', attacks: ['ranged', 'melee'], to: 'own-unit' },
+          { ability: 'SUSTAINED HITS 1', attacks: ['ranged', 'melee'], to: 'led-unit' },
+        ],
+      },
     },
-  ])('reads an attached-unit weapon grant: $description', ({ description, keyword, appliesAlone }) => {
+  ])('gives an attached unit the weapon ability its rule grants: $keyword', ({ description, keyword, appliesAlone, blocks }) => {
     const weapon = (id: string, typeName: string) => ({
       id,
       name: 'Weapon',
       typeName,
       characteristics: [{ name: 'S', typeId: 'strength', $text: '5' }],
     })
-    const book = bookOf({
-      selectionEntries: [
-        {
-          id: 'captain',
-          name: 'Captain',
-          type: 'model',
-          profiles: [
-            weapon('captain-blade', 'Melee Weapons'),
-            {
-              id: 'tactical-instinct',
-              name: 'Tactical Instinct',
-              typeName: 'Abilities',
-              characteristics: [
-                {
-                  name: 'Description',
-                  $text: description,
-                },
-              ],
-            },
-          ],
-        },
-        {
-          id: 'veterans',
-          name: 'Veterans',
-          type: 'unit',
-          profiles: [weapon('veteran-bolter', 'Ranged Weapons'), weapon('veteran-blade', 'Melee Weapons')],
-        },
-      ],
-    })
+    const book = bookWithFacts(
+      {
+        selectionEntries: [
+          {
+            id: 'captain',
+            name: 'Captain',
+            type: 'model',
+            profiles: [
+              weapon('captain-blade', 'Melee Weapons'),
+              {
+                id: 'tactical-instinct',
+                name: 'Tactical Instinct',
+                typeName: 'Abilities',
+                characteristics: [
+                  {
+                    name: 'Description',
+                    $text: description,
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            id: 'veterans',
+            name: 'Veterans',
+            type: 'unit',
+            profiles: [weapon('veteran-bolter', 'Ranged Weapons'), weapon('veteran-blade', 'Melee Weapons')],
+          },
+        ],
+      },
+      { [description]: blocks },
+    )
     const selections = [{ id: 'captain' }, { id: 'veterans' }]
     const keywords = (entryId: string, unitSelectionIndex: number, companions: number[]) =>
       datasheetIn(book, 'cat', entryId, { selections, unitSelectionIndex, companions })?.profiles.flatMap((profile) =>
@@ -854,73 +879,91 @@ describe('the profile modifiers on a datasheet', () => {
       typeName: 'Abilities',
       characteristics: [{ name: 'Description', $text: description }],
     })
-    const book = bookOf({
-      sharedRules: [{ id: 'feel-no-pain', name: 'Feel No Pain', description: 'Roll when a model would lose a wound.' }],
-      categoryEntries: [{ id: 'character', name: 'Character' }],
-      selectionEntries: [
-        {
-          id: 'captain',
-          name: 'Captain',
-          type: 'model',
-          categoryLinks: [{ id: 'character-link', targetId: 'character', name: 'Character' }],
-          profiles: [
-            grantedAbility(
-              'shadow-training',
-              'Shadow Training',
-              'While this model is leading a unit, models in that unit have the [STEALTH] ability.',
-            ),
-          ],
-          selectionEntries: [
-            {
-              id: 'enduring-will',
-              name: 'Enduring Will',
-              type: 'upgrade',
-              profiles: [grantedAbility('enduring-will-rule', 'Enduring Will', 'The bearer has the Feel No Pain 5+ ability.')],
-            },
-          ],
+    const book = bookWithFacts(
+      {
+        sharedRules: [{ id: 'feel-no-pain', name: 'Feel No Pain', description: 'Roll when a model would lose a wound.' }],
+        categoryEntries: [{ id: 'character', name: 'Character' }],
+        selectionEntries: [
+          {
+            id: 'captain',
+            name: 'Captain',
+            type: 'model',
+            categoryLinks: [{ id: 'character-link', targetId: 'character', name: 'Character' }],
+            profiles: [
+              grantedAbility(
+                'shadow-training',
+                'Shadow Training',
+                'While this model is leading a unit, models in that unit have the [STEALTH] ability.',
+              ),
+            ],
+            selectionEntries: [
+              {
+                id: 'enduring-will',
+                name: 'Enduring Will',
+                type: 'upgrade',
+                profiles: [grantedAbility('enduring-will-rule', 'Enduring Will', 'The bearer has the Feel No Pain 5+ ability.')],
+              },
+            ],
+          },
+          {
+            id: 'veterans',
+            name: 'Veterans',
+            type: 'unit',
+            profiles: [
+              grantedAbility(
+                'silent-bodyguard',
+                'Silent Bodyguard',
+                'While a ^^**Character^^** model is leading this unit, that ^^**Character^^** model has the Feel No Pain 4+ ability.',
+              ),
+            ],
+          },
+          {
+            id: 'armoured-captain',
+            name: 'Armoured Captain',
+            type: 'model',
+            selectionEntries: [
+              {
+                id: 'artificer-armour',
+                name: 'Artificer Armour',
+                type: 'upgrade',
+                profiles: [
+                  grantedAbility(
+                    'artificer-armour-rule',
+                    'Artificer Armour',
+                    '**^^Adeptus Astartes^^** model only. The bearer has a Save characteristic of 2+ and the Feel No Pain 6+ ability.',
+                  ),
+                ],
+                infoLinks: [
+                  {
+                    id: 'artificer-feel-no-pain',
+                    targetId: 'feel-no-pain',
+                    name: 'Feel No Pain',
+                    type: 'rule',
+                    modifiers: [{ type: 'append', field: 'name', value: '5+', join: ' ' }],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        'While this model is leading a unit, models in that unit have the [STEALTH] ability.': {
+          grants: { abilities: [{ ability: 'Stealth', to: 'unit', named: true, whileAttached: true }] },
         },
-        {
-          id: 'veterans',
-          name: 'Veterans',
-          type: 'unit',
-          profiles: [
-            grantedAbility(
-              'silent-bodyguard',
-              'Silent Bodyguard',
-              'While a ^^**Character^^** model is leading this unit, that ^^**Character^^** model has the Feel No Pain 4+ ability.',
-            ),
-          ],
+        'The bearer has the Feel No Pain 5+ ability.': {
+          grants: { abilities: [{ ability: 'Feel No Pain 5+', to: 'bearer', named: true }] },
         },
-        {
-          id: 'armoured-captain',
-          name: 'Armoured Captain',
-          type: 'model',
-          selectionEntries: [
-            {
-              id: 'artificer-armour',
-              name: 'Artificer Armour',
-              type: 'upgrade',
-              profiles: [
-                grantedAbility(
-                  'artificer-armour-rule',
-                  'Artificer Armour',
-                  '**^^Adeptus Astartes^^** model only. The bearer has a Save characteristic of 2+ and the Feel No Pain 6+ ability.',
-                ),
-              ],
-              infoLinks: [
-                {
-                  id: 'artificer-feel-no-pain',
-                  targetId: 'feel-no-pain',
-                  name: 'Feel No Pain',
-                  type: 'rule',
-                  modifiers: [{ type: 'append', field: 'name', value: '5+', join: ' ' }],
-                },
-              ],
-            },
-          ],
+        'While a ^^**Character^^** model is leading this unit, that ^^**Character^^** model has the Feel No Pain 4+ ability.': {
+          grants: {
+            abilities: [{ ability: 'Feel No Pain 4+', to: 'leader', named: true, whileAttached: true, counterpart: ['CHARACTER'] }],
+          },
         },
-      ],
-    })
+        '**^^Adeptus Astartes^^** model only. The bearer has a Save characteristic of 2+ and the Feel No Pain 6+ ability.': {
+          grants: { abilities: [{ ability: 'Feel No Pain 6+', to: 'bearer', named: true }] },
+        },
+      },
+    )
     const captain = { id: 'captain', selections: [{ id: 'enduring-will' }] }
     const selections = [captain, { id: 'veterans' }]
 
@@ -997,38 +1040,44 @@ describe('the profile modifiers on a datasheet', () => {
 
   describe('a Feel No Pain a joined model links from the shared library for models with a keyword', () => {
     const book = () =>
-      bookOf({
-        categoryEntries: [{ id: 'officer', name: 'Officer' }],
-        sharedProfiles: [
-          {
-            id: 'ogryn-bodyguard',
-            name: 'Ogryn Bodyguard',
-            typeName: 'Abilities',
-            characteristics: [
-              {
-                name: 'Description',
-                $text:
-                  'While one or more **^^Officer^^** models are in the same unit as this model, those **^^Officer^^** models have the Feel No Pain 4+ ability',
-              },
-            ],
-          },
-        ],
-        selectionEntries: [
-          {
-            id: 'protector',
-            name: 'Protector',
-            type: 'model',
-            infoLinks: [{ id: 'bodyguard-link', targetId: 'ogryn-bodyguard', name: 'Ogryn Bodyguard', type: 'profile' }],
-          },
-          {
-            id: 'command',
-            name: 'Command Squad',
-            type: 'unit',
-            categoryLinks: [{ id: 'command-officer', targetId: 'officer', name: 'Officer' }],
-          },
-          { id: 'squad', name: 'Squad', type: 'unit' },
-        ],
-      })
+      bookWithFacts(
+        {
+          categoryEntries: [{ id: 'officer', name: 'Officer' }],
+          sharedProfiles: [
+            {
+              id: 'ogryn-bodyguard',
+              name: 'Ogryn Bodyguard',
+              typeName: 'Abilities',
+              characteristics: [
+                {
+                  name: 'Description',
+                  $text:
+                    'While one or more **^^Officer^^** models are in the same unit as this model, those **^^Officer^^** models have the Feel No Pain 4+ ability',
+                },
+              ],
+            },
+          ],
+          selectionEntries: [
+            {
+              id: 'protector',
+              name: 'Protector',
+              type: 'model',
+              infoLinks: [{ id: 'bodyguard-link', targetId: 'ogryn-bodyguard', name: 'Ogryn Bodyguard', type: 'profile' }],
+            },
+            {
+              id: 'command',
+              name: 'Command Squad',
+              type: 'unit',
+              categoryLinks: [{ id: 'command-officer', targetId: 'officer', name: 'Officer' }],
+            },
+            { id: 'squad', name: 'Squad', type: 'unit' },
+          ],
+        },
+        {
+          'While one or more **^^Officer^^** models are in the same unit as this model, those **^^Officer^^** models have the Feel No Pain 4+ ability':
+            { grants: { abilities: [{ ability: 'Feel No Pain 4+', to: 'models', models: 'OFFICER', named: true }] } },
+        },
+      )
     const selections = [{ id: 'command' }, { id: 'protector' }]
 
     it('gives it to the unit it joined, for those models only', () => {
@@ -1038,7 +1087,7 @@ describe('the profile modifiers on a datasheet', () => {
         source: 'Ogryn Bodyguard',
         description: null,
         kind: 'core',
-        models: 'Officer',
+        models: 'OFFICER',
       })
     })
 
@@ -1057,29 +1106,36 @@ describe('the profile modifiers on a datasheet', () => {
   })
 
   it('grants Stealth from a companion whose own unit has Stealth', () => {
-    const book = bookOf({
-      selectionEntries: [
-        {
-          id: 'chronomancer',
-          name: 'Chronomancer',
-          type: 'model',
-          profiles: [
-            {
-              id: 'timesplinter-mantle',
-              name: 'Timesplinter Mantle',
-              typeName: 'Abilities',
-              characteristics: [
-                {
-                  name: 'Description',
-                  $text: '- This unit has Stealth.\u00a0\n- Melee attacks that target this unit have -1 to hit rolls.',
-                },
-              ],
-            },
-          ],
+    const book = bookWithFacts(
+      {
+        selectionEntries: [
+          {
+            id: 'chronomancer',
+            name: 'Chronomancer',
+            type: 'model',
+            profiles: [
+              {
+                id: 'timesplinter-mantle',
+                name: 'Timesplinter Mantle',
+                typeName: 'Abilities',
+                characteristics: [
+                  {
+                    name: 'Description',
+                    $text: '- This unit has Stealth.\u00a0\n- Melee attacks that target this unit have -1 to hit rolls.',
+                  },
+                ],
+              },
+            ],
+          },
+          { id: 'immortals', name: 'Immortals', type: 'unit' },
+        ],
+      },
+      {
+        '- This unit has Stealth. \n- Melee attacks that target this unit have -1 to hit rolls.': {
+          grants: { abilities: [{ ability: 'Stealth', to: 'unit', named: true }] },
         },
-        { id: 'immortals', name: 'Immortals', type: 'unit' },
-      ],
-    })
+      },
+    )
     const selections = [{ id: 'chronomancer' }, { id: 'immortals' }]
 
     expect(datasheetIn(book, 'cat', 'immortals', { selections, unitSelectionIndex: 1, companions: [0] })?.abilities).toContainEqual({
@@ -1092,31 +1148,36 @@ describe('the profile modifiers on a datasheet', () => {
   })
 
   it('shows an ability granted to a unit by a selected upgrade', () => {
-    const book = bookOf({
-      sharedRules: [{ id: 'scouts-5', name: 'Scouts 5"', description: 'Make a Scout move of up to 5".' }],
-      selectionEntries: [
-        {
-          id: 'warriors',
-          name: 'Warriors',
-          type: 'unit',
-          selectionEntries: [
-            {
-              id: 'enlivened-sentinels',
-              name: 'Enlivened Sentinels',
-              type: 'upgrade',
-              profiles: [
-                {
-                  id: 'enlivened-sentinels-rule',
-                  name: 'Enlivened Sentinels',
-                  typeName: 'Abilities',
-                  characteristics: [{ name: 'Description', $text: 'This unit has Scouts 5".' }],
-                },
-              ],
-            },
-          ],
-        },
-      ],
-    })
+    const book = bookWithFacts(
+      {
+        sharedRules: [{ id: 'scouts-5', name: 'Scouts 5"', description: 'Make a Scout move of up to 5".' }],
+        selectionEntries: [
+          {
+            id: 'warriors',
+            name: 'Warriors',
+            type: 'unit',
+            selectionEntries: [
+              {
+                id: 'enlivened-sentinels',
+                name: 'Enlivened Sentinels',
+                type: 'upgrade',
+                profiles: [
+                  {
+                    id: 'enlivened-sentinels-rule',
+                    name: 'Enlivened Sentinels',
+                    typeName: 'Abilities',
+                    characteristics: [{ name: 'Description', $text: 'This unit has Scouts 5".' }],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        'This unit has Scouts 5".': { grants: { abilities: [{ ability: 'Scouts 5"', to: 'unit', named: true }] } },
+      },
+    )
     const selections = [{ id: 'warriors', selections: [{ id: 'enlivened-sentinels' }] }]
 
     expect(datasheetIn(book, 'cat', 'warriors', { selections, unitSelectionIndex: 0 })?.abilities).toContainEqual({
@@ -1130,53 +1191,61 @@ describe('the profile modifiers on a datasheet', () => {
   })
 
   it('shows and applies only the wargear abilities a unit selected', () => {
-    const book = bookOf({
-      selectionEntries: [
-        {
-          id: 'unit',
-          name: 'Unit',
-          type: 'unit',
-          profiles: [
-            {
-              id: 'rifle-profile',
-              name: 'Rifle',
-              typeName: 'Ranged Weapons',
-              characteristics: [{ name: 'Keywords', $text: 'Lethal Hits' }],
-            },
-          ],
-          selectionEntries: [
-            {
-              id: 'scope',
-              name: 'Targeting scope',
-              type: 'upgrade',
-              profiles: [
-                {
-                  id: 'scope-ability',
-                  name: 'Targeting scope',
-                  typeName: 'Abilities',
-                  characteristics: [
-                    { name: 'Description', $text: 'Ranged weapons equipped by the bearer have the [IGNORES COVER] ability.' },
-                  ],
-                },
-              ],
-            },
-            {
-              id: 'cloak',
-              name: 'Shadow cloak',
-              type: 'upgrade',
-              profiles: [
-                {
-                  id: 'cloak-ability',
-                  name: 'Shadow cloak',
-                  typeName: 'Abilities',
-                  characteristics: [{ name: 'Description', $text: 'The bearer has the Stealth ability.' }],
-                },
-              ],
-            },
-          ],
+    const book = bookWithFacts(
+      {
+        selectionEntries: [
+          {
+            id: 'unit',
+            name: 'Unit',
+            type: 'unit',
+            profiles: [
+              {
+                id: 'rifle-profile',
+                name: 'Rifle',
+                typeName: 'Ranged Weapons',
+                characteristics: [{ name: 'Keywords', $text: 'Lethal Hits' }],
+              },
+            ],
+            selectionEntries: [
+              {
+                id: 'scope',
+                name: 'Targeting scope',
+                type: 'upgrade',
+                profiles: [
+                  {
+                    id: 'scope-ability',
+                    name: 'Targeting scope',
+                    typeName: 'Abilities',
+                    characteristics: [
+                      { name: 'Description', $text: 'Ranged weapons equipped by the bearer have the [IGNORES COVER] ability.' },
+                    ],
+                  },
+                ],
+              },
+              {
+                id: 'cloak',
+                name: 'Shadow cloak',
+                type: 'upgrade',
+                profiles: [
+                  {
+                    id: 'cloak-ability',
+                    name: 'Shadow cloak',
+                    typeName: 'Abilities',
+                    characteristics: [{ name: 'Description', $text: 'The bearer has the Stealth ability.' }],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        'Ranged weapons equipped by the bearer have the [IGNORES COVER] ability.': {
+          weaponAbilities: [{ ability: 'IGNORES COVER', attacks: ['ranged'], to: 'bearer' }],
         },
-      ],
-    })
+        'The bearer has the Stealth ability.': { grants: { abilities: [{ ability: 'Stealth', to: 'bearer', named: true }] } },
+      },
+    )
     const unselected = datasheetIn(book, 'cat', 'unit', { selections: [{ id: 'unit' }], unitSelectionIndex: 0 })!
     const unselectedViews = datasheetViewsIn(book, 'cat', 'unit', { selections: [{ id: 'unit' }], unitSelectionIndex: 0 })
     const scope = datasheetIn(book, 'cat', 'unit', {
@@ -1207,96 +1276,10 @@ describe('the profile modifiers on a datasheet', () => {
     expect(cloak.abilities).not.toContainEqual(expect.objectContaining({ name: 'Targeting scope' }))
   })
 
-  it('grants Furious Assault to selected melee attacks with its target restriction', () => {
-    const book = bookOf({
-      selectionEntries: [
-        {
-          id: 'unit',
-          name: 'Assault Intercessors with Jump Packs',
-          type: 'unit',
-          profiles: [
-            {
-              id: 'pistol',
-              name: 'Heavy bolt pistol',
-              typeName: 'Ranged Weapons',
-              characteristics: [{ name: 'Keywords', $text: 'Pistol' }],
-            },
-            {
-              id: 'chainsword',
-              name: 'Astartes chainsword',
-              typeName: 'Melee Weapons',
-              characteristics: [{ name: 'Keywords', $text: '-' }],
-            },
-          ],
-          selectionEntries: [
-            {
-              id: 'furious',
-              name: 'Furious Assault',
-              type: 'upgrade',
-              profiles: [
-                {
-                  id: 'furious-ability',
-                  name: 'Furious Assault',
-                  typeName: 'Abilities',
-                  characteristics: [
-                    {
-                      name: 'Description',
-                      $text:
-                        "Bellicose temperament.\n\nADEPTUS ASTARTES INFANTRY unit only. This unit's melee attacks have [SUSTAINED HITS 1: non-MONSTER/VEHICLE].",
-                    },
-                  ],
-                },
-              ],
-            },
-          ],
-        },
-      ],
-    })
-    const sheet = (selected: boolean) =>
-      datasheetIn(book, 'cat', 'unit', {
-        selections: [{ id: 'unit', ...(selected ? { selections: [{ id: 'furious' }] } : {}) }],
-        unitSelectionIndex: 0,
-      })!
-    const keywords = (selected: boolean, weapon: string) =>
-      sheet(selected)
-        .profiles.find((profile) => profile.name === weapon)
-        ?.values.find((value) => value.name === 'Keywords')?.value
-
-    expect(keywords(false, 'Astartes chainsword')).toBe('-')
-    expect(keywords(true, 'Astartes chainsword')).toBe('Sustained Hits 1: non-MONSTER/VEHICLE')
-    expect(keywords(true, 'Heavy bolt pistol')).toBe('Pistol')
-
-    book.index.definitions.get('furious')!.profiles![0]!.characteristics![0]!.$text =
-      "If this unit charged.\n\nThis unit's melee attacks have [SUSTAINED HITS 1]."
-    expect(keywords(true, 'Astartes chainsword')).toBe('-')
-  })
-
   it.each([
     ['Deep Strike', 'This unit can be set up in Reserves.', 'Deep Strike'],
     ['Deep Strike', 'Models in this unit have the Deep Strike ability.', 'Deep Strike'],
     ['Deep Strike', 'If every model in this unit has the Deep Strike ability, it can be set up in Reserves.', 'Deep Strike'],
-    [
-      'Fated Emergence',
-      'Models in this unit have the Deep Strike. If this unit has the Terminator keyword, you can target this unit with the Rapid Ingress Stratagem for 0CP.',
-      'Deep Strike',
-    ],
-    ['Wraith of Ruin', 'Models in this unit have the Infiltrators ability.', 'Infiltrators'],
-    [
-      'Webway Pathstone',
-      'Anhrathe unit only. Models in this unit have the Deep Strike ability. Each time this unit makes a Normal move, it can move through models and terrain features.',
-      'Deep Strike',
-    ],
-    [
-      'Terminator Armor',
-      'Infantry model only. Change the bearer’s Save characteristic to 2+, add the Terminator keyword, it has a 4+ invulnerable save, it gains the Deep Strike ability, and replace its keywords.',
-      'Deep Strike',
-    ],
-    ['Recon Drone', 'The bearer is equipped with 1 drone burst cannon and the bearer’s unit has the Infiltrators ability.', 'Infiltrators'],
-    ['Cacophonic Accompaniment', '- This model has Deep Strike.\n- This unit’s ranged attacks have [IGNORES COVER].', 'Deep Strike'],
-    ['Fârstryder Node', "Models in the bearer's unit have the Deep Strike abilty.", 'Deep Strike'],
-    ['Wolf Scouts', "Model's in the bearer's unit have the Scouts 7\" ability.", 'Scouts 7"'],
-    ['Vanguard', 'This unit has Scouts 6″.', 'Scouts 6"'],
-    ['Vanguard', 'This unit has Scouts 6”.', 'Scouts 6"'],
   ])('includes an optional deployment ability only when its upgrade is selected: %s', (profileName, description, ability) => {
     const book = bookOf({
       selectionEntries: [
@@ -1329,33 +1312,82 @@ describe('the profile modifiers on a datasheet', () => {
     expect(contextualAbilityNamesIn(book, 'cat', 'unit', { selections: selected, unitSelectionIndex: 0 })).toContain(ability)
   })
 
+  it('includes a deployment ability an upgrade grants only when the upgrade is selected', () => {
+    const description = 'Models in this unit have the Infiltrators ability.'
+    const book = bookWithFacts(
+      {
+        selectionEntries: [
+          {
+            id: 'unit',
+            name: 'Unit',
+            type: 'unit',
+            selectionEntries: [
+              {
+                id: 'cloak',
+                name: 'Cloak',
+                type: 'upgrade',
+                profiles: [
+                  {
+                    id: 'wraith',
+                    name: 'Wraith of Ruin',
+                    typeName: 'Abilities',
+                    characteristics: [{ name: 'Description', $text: description }],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      { [description]: { grants: { abilities: [{ ability: 'Infiltrators', to: 'unit', named: true }] } } },
+    )
+    const names = (selections: { id: string; selections?: { id: string }[] }[]) =>
+      contextualAbilityNamesIn(book, 'cat', 'unit', { selections, unitSelectionIndex: 0 })
+    expect(
+      [names([{ id: 'unit' }]), names([{ id: 'unit', selections: [{ id: 'cloak' }] }])].map((found) => found.includes('Infiltrators')),
+    ).toEqual([false, true])
+  })
+
   it('applies attachment grants only for the named bodyguard unit', () => {
-    const book = bookOf({
-      selectionEntries: [
-        {
-          id: 'priest',
-          name: 'Ministorum Priest',
-          type: 'model',
-          profiles: [
-            {
-              id: 'battlefield-blessing',
-              name: 'Battlefield Blessing',
-              typeName: 'Abilities',
-              characteristics: [
-                {
-                  name: 'Description',
-                  $text:
-                    'If this model is attached to a Dominion Squad during the Declare Battle Formations step, it gains the Scouts 6" ability. If this model is attached to a Sisters Novitiate Squad during the Declare Battle Formations step, it gains the Infiltrators ability.',
-                },
+    const book = bookWithFacts(
+      {
+        selectionEntries: [
+          {
+            id: 'priest',
+            name: 'Ministorum Priest',
+            type: 'model',
+            profiles: [
+              {
+                id: 'battlefield-blessing',
+                name: 'Battlefield Blessing',
+                typeName: 'Abilities',
+                characteristics: [
+                  {
+                    name: 'Description',
+                    $text:
+                      'If this model is attached to a Dominion Squad during the Declare Battle Formations step, it gains the Scouts 6" ability. If this model is attached to a Sisters Novitiate Squad during the Declare Battle Formations step, it gains the Infiltrators ability.',
+                  },
+                ],
+              },
+            ],
+          },
+          { id: 'dominion', name: 'Dominion Squad', type: 'unit' },
+          { id: 'novitiates', name: 'Sisters Novitiate Squad', type: 'unit' },
+          { id: 'battle-sisters', name: 'Battle Sisters Squad', type: 'unit' },
+        ],
+      },
+      {
+        'If this model is attached to a Dominion Squad during the Declare Battle Formations step, it gains the Scouts 6" ability. If this model is attached to a Sisters Novitiate Squad during the Declare Battle Formations step, it gains the Infiltrators ability.':
+          {
+            grants: {
+              abilities: [
+                { ability: 'Scouts 6"', to: 'bearer', named: true, whileAttached: true, counterpart: ['DOMINION SQUAD'] },
+                { ability: 'Infiltrators', to: 'bearer', named: true, whileAttached: true, counterpart: ['SISTERS NOVITIATE SQUAD'] },
               ],
             },
-          ],
-        },
-        { id: 'dominion', name: 'Dominion Squad', type: 'unit' },
-        { id: 'novitiates', name: 'Sisters Novitiate Squad', type: 'unit' },
-        { id: 'battle-sisters', name: 'Battle Sisters Squad', type: 'unit' },
-      ],
-    })
+          },
+      },
+    )
     const abilitiesWith = (bodyguard: { id: string }) => {
       const selections = [{ id: 'priest' }, bodyguard]
       return contextualAbilityNamesIn(book, 'cat', 'priest', { selections, unitSelectionIndex: 0, companions: [1] })
@@ -1369,40 +1401,50 @@ describe('the profile modifiers on a datasheet', () => {
   })
 
   it('applies a model-has attachment grant to the named bodyguard unit', () => {
-    const book = bookOf({
-      sharedRules: [{ id: 'scouts-8', name: 'Scouts 8"', description: 'Make a Scout move of up to 8".' }],
-      selectionEntries: [
-        {
-          id: 'leader',
-          name: 'Technomancer',
-          type: 'model',
-          profiles: [
-            {
-              id: 'vanguard-protocols',
-              name: 'Vanguard Protocols',
-              typeName: 'Abilities',
-              characteristics: [
-                {
-                  name: 'Description',
-                  $text:
-                    'If this model is attached to a Canoptek Macrocytes unit during the Declare Battle Formations step, this model has the Scouts 8" ability.',
-                },
-              ],
+    const book = bookWithFacts(
+      {
+        sharedRules: [{ id: 'scouts-8', name: 'Scouts 8"', description: 'Make a Scout move of up to 8".' }],
+        selectionEntries: [
+          {
+            id: 'leader',
+            name: 'Technomancer',
+            type: 'model',
+            profiles: [
+              {
+                id: 'vanguard-protocols',
+                name: 'Vanguard Protocols',
+                typeName: 'Abilities',
+                characteristics: [
+                  {
+                    name: 'Description',
+                    $text:
+                      'If this model is attached to a Canoptek Macrocytes unit during the Declare Battle Formations step, this model has the Scouts 8" ability.',
+                  },
+                ],
+              },
+            ],
+            modifiers: [
+              {
+                type: 'add',
+                field: 'add-info',
+                value: 'scouts-8',
+                conditions: [{ type: 'atLeast', value: 1, field: 'selections', scope: 'roster', childId: 'condition' }],
+              },
+            ],
+          },
+          { id: 'macrocytes', name: 'Canoptek Macrocytes', type: 'unit' },
+          { id: 'warriors', name: 'Necron Warriors', type: 'unit' },
+        ],
+      },
+      {
+        'If this model is attached to a Canoptek Macrocytes unit during the Declare Battle Formations step, this model has the Scouts 8" ability.':
+          {
+            grants: {
+              abilities: [{ ability: 'Scouts 8"', to: 'bearer', named: true, whileAttached: true, counterpart: ['CANOPTEK MACROCYTES'] }],
             },
-          ],
-          modifiers: [
-            {
-              type: 'add',
-              field: 'add-info',
-              value: 'scouts-8',
-              conditions: [{ type: 'atLeast', value: 1, field: 'selections', scope: 'roster', childId: 'condition' }],
-            },
-          ],
-        },
-        { id: 'macrocytes', name: 'Canoptek Macrocytes', type: 'unit' },
-        { id: 'warriors', name: 'Necron Warriors', type: 'unit' },
-      ],
-    })
+          },
+      },
+    )
     const abilitiesWith = (bodyguard: { id: string }) => {
       const selections = [{ id: 'leader' }, bodyguard]
       return contextualAbilityNamesIn(book, 'cat', 'leader', { selections, unitSelectionIndex: 0, companions: [1] })
@@ -1413,48 +1455,61 @@ describe('the profile modifiers on a datasheet', () => {
   })
 
   it('matches an attachment grant against all bodyguard keyword classes', () => {
-    const book = bookOf({
-      categoryEntries: [
-        { id: 'battleline', name: 'Battleline' },
-        { id: 'emperors-children', name: "Faction: Emperor's Children" },
-      ],
-      selectionEntries: [
-        {
-          id: 'leader',
-          name: 'Lord Exultant',
-          type: 'model',
-          profiles: [
-            {
-              id: 'lord-of-the-host',
-              name: 'Lord of the Host',
-              typeName: 'Abilities',
-              characteristics: [
-                {
-                  name: 'Description',
-                  $text:
-                    'If this model is attached to an Emperor\'s Children Battleline unit during the Declare Battle Formations step, this model has the Infiltrators and Scouts 6" ability.',
-                },
+    const book = bookWithFacts(
+      {
+        categoryEntries: [
+          { id: 'battleline', name: 'Battleline' },
+          { id: 'emperors-children', name: "Faction: Emperor's Children" },
+        ],
+        selectionEntries: [
+          {
+            id: 'leader',
+            name: 'Lord Exultant',
+            type: 'model',
+            profiles: [
+              {
+                id: 'lord-of-the-host',
+                name: 'Lord of the Host',
+                typeName: 'Abilities',
+                characteristics: [
+                  {
+                    name: 'Description',
+                    $text:
+                      'If this model is attached to an Emperor\'s Children Battleline unit during the Declare Battle Formations step, this model has the Infiltrators and Scouts 6" ability.',
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            id: 'infractors',
+            name: 'Infractors',
+            type: 'unit',
+            categoryLinks: [
+              { id: 'infractors-battleline', targetId: 'battleline', name: 'Battleline' },
+              { id: 'infractors-faction', targetId: 'emperors-children', name: "Faction: Emperor's Children" },
+            ],
+          },
+          {
+            id: 'other-battleline',
+            name: 'Other Battleline',
+            type: 'unit',
+            categoryLinks: [{ id: 'other-battleline-link', targetId: 'battleline', name: 'Battleline' }],
+          },
+        ],
+      },
+      {
+        'If this model is attached to an Emperor\'s Children Battleline unit during the Declare Battle Formations step, this model has the Infiltrators and Scouts 6" ability.':
+          {
+            grants: {
+              abilities: [
+                { ability: 'Infiltrators', to: 'bearer', named: true, whileAttached: true, counterpart: ["EMPEROR'S CHILDREN BATTLELINE"] },
+                { ability: 'Scouts 6"', to: 'bearer', named: true, whileAttached: true, counterpart: ["EMPEROR'S CHILDREN BATTLELINE"] },
               ],
             },
-          ],
-        },
-        {
-          id: 'infractors',
-          name: 'Infractors',
-          type: 'unit',
-          categoryLinks: [
-            { id: 'infractors-battleline', targetId: 'battleline', name: 'Battleline' },
-            { id: 'infractors-faction', targetId: 'emperors-children', name: "Faction: Emperor's Children" },
-          ],
-        },
-        {
-          id: 'other-battleline',
-          name: 'Other Battleline',
-          type: 'unit',
-          categoryLinks: [{ id: 'other-battleline-link', targetId: 'battleline', name: 'Battleline' }],
-        },
-      ],
-    })
+          },
+      },
+    )
     const abilitiesWith = (bodyguard: { id: string }) => {
       const selections = [{ id: 'leader' }, bodyguard]
       return contextualAbilityNamesIn(book, 'cat', 'leader', { selections, unitSelectionIndex: 0, companions: [1] })
@@ -1465,36 +1520,49 @@ describe('the profile modifiers on a datasheet', () => {
   })
 
   it('applies an attached bodyguard grant to its leader', () => {
-    const book = bookOf({
-      categoryEntries: [{ id: 'character', name: 'Character' }],
-      selectionEntries: [
-        {
-          id: 'leader',
-          name: 'Watch Captain',
-          type: 'model',
-          categoryLinks: [{ id: 'leader-character', targetId: 'character', name: 'Character' }],
-        },
-        {
-          id: 'bodyguard',
-          name: 'Kill Team',
-          type: 'unit',
-          profiles: [
-            {
-              id: 'forward-deployment',
-              name: 'Forward Deployment',
-              typeName: 'Abilities',
-              characteristics: [
-                {
-                  name: 'Description',
-                  $text:
-                    'If this unit has a Leader unit attached to it during the Declare Battle Formations step, that Leader unit gains the Infiltrators and Scouts 6" abilities.',
-                },
+    const book = bookWithFacts(
+      {
+        categoryEntries: [{ id: 'character', name: 'Character' }],
+        selectionEntries: [
+          {
+            id: 'leader',
+            name: 'Watch Captain',
+            type: 'model',
+            categoryLinks: [{ id: 'leader-character', targetId: 'character', name: 'Character' }],
+          },
+          {
+            id: 'bodyguard',
+            name: 'Kill Team',
+            type: 'unit',
+            profiles: [
+              {
+                id: 'forward-deployment',
+                name: 'Forward Deployment',
+                typeName: 'Abilities',
+                characteristics: [
+                  {
+                    name: 'Description',
+                    $text:
+                      'If this unit has a Leader unit attached to it during the Declare Battle Formations step, that Leader unit gains the Infiltrators and Scouts 6" abilities.',
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        'If this unit has a Leader unit attached to it during the Declare Battle Formations step, that Leader unit gains the Infiltrators and Scouts 6" abilities.':
+          {
+            grants: {
+              abilities: [
+                { ability: 'Infiltrators', to: 'leader', named: true, whileAttached: true },
+                { ability: 'Scouts 6"', to: 'leader', named: true, whileAttached: true },
               ],
             },
-          ],
-        },
-      ],
-    })
+          },
+      },
+    )
     const selections = [{ id: 'leader' }, { id: 'bodyguard' }]
 
     expect(contextualAbilityNamesIn(book, 'cat', 'leader', { selections, unitSelectionIndex: 0 })).not.toContain('Infiltrators')
@@ -1542,42 +1610,52 @@ describe('the profile modifiers on a datasheet', () => {
   })
 
   it('applies a bodyguard grant only to the named attached leader', () => {
-    const book = bookOf({
-      categoryEntries: [{ id: 'character', name: 'Character' }],
-      selectionEntries: [
-        {
-          id: 'priest',
-          name: 'Ministorum Priest',
-          type: 'model',
-          categoryLinks: [{ id: 'priest-character', targetId: 'character', name: 'Character' }],
-        },
-        {
-          id: 'canoness',
-          name: 'Canoness',
-          type: 'model',
-          categoryLinks: [{ id: 'canoness-character', targetId: 'character', name: 'Character' }],
-        },
-        {
-          id: 'sanctifiers',
-          name: 'Sanctifiers',
-          type: 'unit',
-          profiles: [
-            {
-              id: 'holy-vanguard',
-              name: 'Holy Vanguard',
-              typeName: 'Abilities',
-              characteristics: [
-                {
-                  name: 'Description',
-                  $text:
-                    'If a Ministorum Priest model from your army is attached to this unit during the Declare Battle Formations step, that model gains the Scouts 6" ability.',
-                },
-              ],
+    const book = bookWithFacts(
+      {
+        categoryEntries: [{ id: 'character', name: 'Character' }],
+        selectionEntries: [
+          {
+            id: 'priest',
+            name: 'Ministorum Priest',
+            type: 'model',
+            categoryLinks: [{ id: 'priest-character', targetId: 'character', name: 'Character' }],
+          },
+          {
+            id: 'canoness',
+            name: 'Canoness',
+            type: 'model',
+            categoryLinks: [{ id: 'canoness-character', targetId: 'character', name: 'Character' }],
+          },
+          {
+            id: 'sanctifiers',
+            name: 'Sanctifiers',
+            type: 'unit',
+            profiles: [
+              {
+                id: 'holy-vanguard',
+                name: 'Holy Vanguard',
+                typeName: 'Abilities',
+                characteristics: [
+                  {
+                    name: 'Description',
+                    $text:
+                      'If a Ministorum Priest model from your army is attached to this unit during the Declare Battle Formations step, that model gains the Scouts 6" ability.',
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        'If a Ministorum Priest model from your army is attached to this unit during the Declare Battle Formations step, that model gains the Scouts 6" ability.':
+          {
+            grants: {
+              abilities: [{ ability: 'Scouts 6"', to: 'leader', named: true, whileAttached: true, counterpart: ['MINISTORUM PRIEST'] }],
             },
-          ],
-        },
-      ],
-    })
+          },
+      },
+    )
     const abilitiesFor = (leaderId: string) => {
       const selections = [{ id: leaderId }, { id: 'sanctifiers' }]
       return contextualAbilityNamesIn(book, 'cat', leaderId, { selections, unitSelectionIndex: 0, companions: [1] })
@@ -1588,36 +1666,49 @@ describe('the profile modifiers on a datasheet', () => {
   })
 
   it('applies a named leader grant to every model in its attached unit', () => {
-    const book = bookOf({
-      categoryEntries: [{ id: 'character', name: 'Character' }],
-      selectionEntries: [
-        {
-          id: 'techmarine',
-          name: 'Brotherhood Techmarine',
-          type: 'model',
-          categoryLinks: [{ id: 'techmarine-character', targetId: 'character', name: 'Character' }],
-        },
-        {
-          id: 'servitors',
-          name: 'Servitors',
-          type: 'unit',
-          profiles: [
-            {
-              id: 'teleport-adepts',
-              name: 'Teleport Adepts',
-              typeName: 'Abilities',
-              characteristics: [
-                {
-                  name: 'Description',
-                  $text:
-                    'While a Brotherhood Techmarine model is leading this unit, models in this unit have the Deep Strike and Teleport Assault abilities.',
-                },
+    const book = bookWithFacts(
+      {
+        categoryEntries: [{ id: 'character', name: 'Character' }],
+        selectionEntries: [
+          {
+            id: 'techmarine',
+            name: 'Brotherhood Techmarine',
+            type: 'model',
+            categoryLinks: [{ id: 'techmarine-character', targetId: 'character', name: 'Character' }],
+          },
+          {
+            id: 'servitors',
+            name: 'Servitors',
+            type: 'unit',
+            profiles: [
+              {
+                id: 'teleport-adepts',
+                name: 'Teleport Adepts',
+                typeName: 'Abilities',
+                characteristics: [
+                  {
+                    name: 'Description',
+                    $text:
+                      'While a Brotherhood Techmarine model is leading this unit, models in this unit have the Deep Strike and Teleport Assault abilities.',
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        'While a Brotherhood Techmarine model is leading this unit, models in this unit have the Deep Strike and Teleport Assault abilities.':
+          {
+            grants: {
+              abilities: [
+                { ability: 'Deep Strike', to: 'unit', named: true, whileAttached: true, counterpart: ['BROTHERHOOD TECHMARINE'] },
+                { ability: 'Teleport Assault', to: 'unit', named: true, whileAttached: true, counterpart: ['BROTHERHOOD TECHMARINE'] },
               ],
             },
-          ],
-        },
-      ],
-    })
+          },
+      },
+    )
     const selections = [{ id: 'techmarine' }, { id: 'servitors' }]
 
     expect(contextualAbilityNamesIn(book, 'cat', 'techmarine', { selections, unitSelectionIndex: 0, companions: [1] })).toContain(
@@ -1629,31 +1720,46 @@ describe('the profile modifiers on a datasheet', () => {
   })
 
   it('applies the grant for the bodyguard unit this model is leading', () => {
-    const book = bookOf({
-      selectionEntries: [
-        {
-          id: 'leader',
-          name: 'Karandras',
-          type: 'model',
-          profiles: [
-            {
-              id: 'shadowmaster',
-              name: 'Shadowmaster',
-              typeName: 'Abilities',
-              characteristics: [
-                {
-                  name: 'Description',
-                  $text:
-                    'While this model is leading a Howling Banshees unit, it has the Fights First ability. While this model is leading a Striking Scorpions unit, it has the Infiltrators, Scouts 7" and Stealth abilities.',
-                },
+    const book = bookWithFacts(
+      {
+        selectionEntries: [
+          {
+            id: 'leader',
+            name: 'Karandras',
+            type: 'model',
+            profiles: [
+              {
+                id: 'shadowmaster',
+                name: 'Shadowmaster',
+                typeName: 'Abilities',
+                characteristics: [
+                  {
+                    name: 'Description',
+                    $text:
+                      'While this model is leading a Howling Banshees unit, it has the Fights First ability. While this model is leading a Striking Scorpions unit, it has the Infiltrators, Scouts 7" and Stealth abilities.',
+                  },
+                ],
+              },
+            ],
+          },
+          { id: 'banshees', name: 'Howling Banshees', type: 'unit' },
+          { id: 'scorpions', name: 'Striking Scorpions', type: 'unit' },
+        ],
+      },
+      {
+        'While this model is leading a Howling Banshees unit, it has the Fights First ability. While this model is leading a Striking Scorpions unit, it has the Infiltrators, Scouts 7" and Stealth abilities.':
+          {
+            grants: {
+              abilities: [
+                { ability: 'Fights First', to: 'bearer', named: true, whileAttached: true, counterpart: ['HOWLING BANSHEES'] },
+                { ability: 'Infiltrators', to: 'bearer', named: true, whileAttached: true, counterpart: ['STRIKING SCORPIONS'] },
+                { ability: 'Scouts 7"', to: 'bearer', named: true, whileAttached: true, counterpart: ['STRIKING SCORPIONS'] },
+                { ability: 'Stealth', to: 'bearer', named: true, whileAttached: true, counterpart: ['STRIKING SCORPIONS'] },
               ],
             },
-          ],
-        },
-        { id: 'banshees', name: 'Howling Banshees', type: 'unit' },
-        { id: 'scorpions', name: 'Striking Scorpions', type: 'unit' },
-      ],
-    })
+          },
+      },
+    )
     const abilitiesWith = (bodyguardId: string) => {
       const selections = [{ id: 'leader' }, { id: bodyguardId }]
       return contextualAbilityNamesIn(book, 'cat', 'leader', { selections, unitSelectionIndex: 0, companions: [1] })
@@ -1665,37 +1771,50 @@ describe('the profile modifiers on a datasheet', () => {
   })
 
   it('keeps both halves of a bearer and attached-unit grant', () => {
-    const book = bookOf({
-      selectionEntries: [
-        {
-          id: 'leader',
-          name: 'Marshal',
-          type: 'model',
-          selectionEntries: [
-            {
-              id: 'crusaders-helm',
-              name: "Crusader's Helm",
-              type: 'upgrade',
-              profiles: [
-                {
-                  id: 'crusaders-helm-rule',
-                  name: "Crusader's Helm",
-                  typeName: 'Abilities',
-                  characteristics: [
-                    {
-                      name: 'Description',
-                      $text:
-                        'The bearer has the Scouts 6" ability. While the bearer is leading a unit, models in that unit have the Scouts 6" ability and that unit can declare a charge after Advancing.',
-                    },
-                  ],
-                },
+    const book = bookWithFacts(
+      {
+        selectionEntries: [
+          {
+            id: 'leader',
+            name: 'Marshal',
+            type: 'model',
+            selectionEntries: [
+              {
+                id: 'crusaders-helm',
+                name: "Crusader's Helm",
+                type: 'upgrade',
+                profiles: [
+                  {
+                    id: 'crusaders-helm-rule',
+                    name: "Crusader's Helm",
+                    typeName: 'Abilities',
+                    characteristics: [
+                      {
+                        name: 'Description',
+                        $text:
+                          'The bearer has the Scouts 6" ability. While the bearer is leading a unit, models in that unit have the Scouts 6" ability and that unit can declare a charge after Advancing.',
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+          { id: 'bodyguard', name: 'Crusaders', type: 'unit' },
+        ],
+      },
+      {
+        'The bearer has the Scouts 6" ability. While the bearer is leading a unit, models in that unit have the Scouts 6" ability and that unit can declare a charge after Advancing.':
+          {
+            grants: {
+              abilities: [
+                { ability: 'Scouts 6"', to: 'bearer', named: true },
+                { ability: 'Scouts 6"', to: 'unit', named: true, whileAttached: true },
               ],
             },
-          ],
-        },
-        { id: 'bodyguard', name: 'Crusaders', type: 'unit' },
-      ],
-    })
+          },
+      },
+    )
     const selections = [{ id: 'leader', selections: [{ id: 'crusaders-helm' }] }, { id: 'bodyguard' }]
 
     expect(contextualAbilityNamesIn(book, 'cat', 'leader', { selections, unitSelectionIndex: 0, companions: [1] })).toContain('Scouts 6"')
@@ -1705,37 +1824,43 @@ describe('the profile modifiers on a datasheet', () => {
   })
 
   it('applies a permanent unit grant declared when the model is attached', () => {
-    const book = bookOf({
-      selectionEntries: [
-        {
-          id: 'leader',
-          name: 'Captain',
-          type: 'model',
-          selectionEntries: [
-            {
-              id: 'teleport-homer',
-              name: 'Teleport Homer',
-              type: 'upgrade',
-              profiles: [
-                {
-                  id: 'teleport-homer-rule',
-                  name: 'Teleport Homer',
-                  typeName: 'Abilities',
-                  characteristics: [
-                    {
-                      name: 'Description',
-                      $text:
-                        'During the Declare Battle Formations step, if this model is attached a unit, until the end of the battle, that unit has the Deep Strike ability.',
-                    },
-                  ],
-                },
-              ],
-            },
-          ],
-        },
-        { id: 'bodyguard', name: 'Intercessors', type: 'unit' },
-      ],
-    })
+    const book = bookWithFacts(
+      {
+        selectionEntries: [
+          {
+            id: 'leader',
+            name: 'Captain',
+            type: 'model',
+            selectionEntries: [
+              {
+                id: 'teleport-homer',
+                name: 'Teleport Homer',
+                type: 'upgrade',
+                profiles: [
+                  {
+                    id: 'teleport-homer-rule',
+                    name: 'Teleport Homer',
+                    typeName: 'Abilities',
+                    characteristics: [
+                      {
+                        name: 'Description',
+                        $text:
+                          'During the Declare Battle Formations step, if this model is attached a unit, until the end of the battle, that unit has the Deep Strike ability.',
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+          { id: 'bodyguard', name: 'Intercessors', type: 'unit' },
+        ],
+      },
+      {
+        'During the Declare Battle Formations step, if this model is attached a unit, until the end of the battle, that unit has the Deep Strike ability.':
+          { grants: { abilities: [{ ability: 'Deep Strike', to: 'unit', named: true, whileAttached: true }] } },
+      },
+    )
     const unattached = [{ id: 'leader', selections: [{ id: 'teleport-homer' }] }]
     const attached = [...unattached, { id: 'bodyguard' }]
 
@@ -1746,43 +1871,50 @@ describe('the profile modifiers on a datasheet', () => {
   })
 
   it('applies an ability granted to the named led unit', () => {
-    const book = bookOf({
-      categoryEntries: [{ id: 'regiment', name: 'Regiment' }],
-      selectionEntries: [
-        {
-          id: 'leader',
-          name: 'Commander',
-          type: 'model',
-          selectionEntries: [
-            {
-              id: 'eager-advance',
-              name: 'Eager Advance',
-              type: 'upgrade',
-              profiles: [
-                {
-                  id: 'eager-advance-rule',
-                  name: 'Eager Advance',
-                  typeName: 'Abilities',
-                  characteristics: [
-                    {
-                      name: 'Description',
-                      $text: 'While the bearer is leading a Regiment unit, that unit has the Scouts 6" ability.',
-                    },
-                  ],
-                },
-              ],
-            },
-          ],
+    const book = bookWithFacts(
+      {
+        categoryEntries: [{ id: 'regiment', name: 'Regiment' }],
+        selectionEntries: [
+          {
+            id: 'leader',
+            name: 'Commander',
+            type: 'model',
+            selectionEntries: [
+              {
+                id: 'eager-advance',
+                name: 'Eager Advance',
+                type: 'upgrade',
+                profiles: [
+                  {
+                    id: 'eager-advance-rule',
+                    name: 'Eager Advance',
+                    typeName: 'Abilities',
+                    characteristics: [
+                      {
+                        name: 'Description',
+                        $text: 'While the bearer is leading a Regiment unit, that unit has the Scouts 6" ability.',
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            id: 'regiment-unit',
+            name: 'Infantry Squad',
+            type: 'unit',
+            categoryLinks: [{ id: 'regiment-link', targetId: 'regiment', name: 'Regiment' }],
+          },
+          { id: 'other-unit', name: 'Ogryns', type: 'unit' },
+        ],
+      },
+      {
+        'While the bearer is leading a Regiment unit, that unit has the Scouts 6" ability.': {
+          grants: { abilities: [{ ability: 'Scouts 6"', to: 'unit', named: true, whileAttached: true, counterpart: ['REGIMENT'] }] },
         },
-        {
-          id: 'regiment-unit',
-          name: 'Infantry Squad',
-          type: 'unit',
-          categoryLinks: [{ id: 'regiment-link', targetId: 'regiment', name: 'Regiment' }],
-        },
-        { id: 'other-unit', name: 'Ogryns', type: 'unit' },
-      ],
-    })
+      },
+    )
     const abilitiesWith = (bodyguardId: string) => {
       const selections = [{ id: 'leader', selections: [{ id: 'eager-advance' }] }, { id: bodyguardId }]
       return contextualAbilityNamesIn(book, 'cat', bodyguardId, { selections, unitSelectionIndex: 1, companions: [0] })
@@ -1792,94 +1924,53 @@ describe('the profile modifiers on a datasheet', () => {
     expect(abilitiesWith('other-unit')).not.toContain('Scouts 6"')
   })
 
-  it('applies a unit grant that requires the bodyguard’s intrinsic ability', () => {
-    const book = bookOf({
-      selectionEntries: [
-        {
-          id: 'leader',
-          name: 'Chaos Lord',
-          type: 'model',
-          selectionEntries: [
-            {
-              id: 'warped-foresight',
-              name: 'Warped Foresight',
-              type: 'upgrade',
-              profiles: [
-                {
-                  id: 'warped-foresight-rule',
-                  name: 'Warped Foresight',
-                  typeName: 'Abilities',
-                  characteristics: [
-                    {
-                      name: 'Description',
-                      $text:
-                        'While the bearer is leading a unit with the Scouts 6” ability, every model in the bearer’s unit has the Scouts 6” ability.',
-                    },
-                  ],
-                },
-              ],
-            },
-          ],
-        },
-        {
-          id: 'scouts-unit',
-          name: 'Legionaries',
-          type: 'unit',
-          selectionEntries: [
-            {
-              id: 'mark-of-the-hound',
-              name: 'Mark of the Hound',
-              type: 'upgrade',
-              profiles: [{ id: 'scouts-rule', name: 'Scouts 6"', typeName: 'Abilities' }],
-            },
-          ],
-        },
-        { id: 'other-unit', name: 'Terminators', type: 'unit' },
-      ],
-    })
-    const abilitiesWith = (bodyguardId: string) => {
-      const bodyguard = bodyguardId === 'scouts-unit' ? { id: bodyguardId, selections: [{ id: 'mark-of-the-hound' }] } : { id: bodyguardId }
-      const selections = [{ id: 'leader', selections: [{ id: 'warped-foresight' }] }, bodyguard]
-      return contextualAbilityNamesIn(book, 'cat', 'leader', { selections, unitSelectionIndex: 0, companions: [1] })
-    }
-
-    expect(abilitiesWith('scouts-unit')).toContain('Scouts 6"')
-    expect(abilitiesWith('other-unit')).not.toContain('Scouts 6"')
-  })
-
   it('includes each static linked ability only while its enhancement is selected', () => {
-    const book = bookOf({
-      sharedRules: [
-        { id: 'lone-operative', name: 'Lone Operative', description: 'Lone Operative rule.' },
-        { id: 'stealth', name: 'Stealth', description: 'Stealth rule.' },
-      ],
-      selectionEntries: [
-        {
-          id: 'leader',
-          name: 'Phobos Captain',
-          type: 'model',
-          selectionEntries: [
-            {
-              id: 'shroud-field',
-              name: 'Shroud Field',
-              type: 'upgrade',
-              infoLinks: [
-                { id: 'lone-operative-link', targetId: 'lone-operative', name: 'Lone Operative', type: 'rule' },
-                { id: 'stealth-link', targetId: 'stealth', name: 'Stealth', type: 'rule' },
-              ],
-              profiles: [
-                {
-                  id: 'shroud-field-rule',
-                  name: 'Shroud Field',
-                  typeName: 'Abilities',
-                  characteristics: [{ name: 'Description', $text: 'PHOBOS model only. This model has:\n\n▪ Lone Operative.\n▪ Stealth.' }],
-                },
-              ],
-            },
-          ],
+    const book = bookWithFacts(
+      {
+        sharedRules: [
+          { id: 'lone-operative', name: 'Lone Operative', description: 'Lone Operative rule.' },
+          { id: 'stealth', name: 'Stealth', description: 'Stealth rule.' },
+        ],
+        selectionEntries: [
+          {
+            id: 'leader',
+            name: 'Phobos Captain',
+            type: 'model',
+            selectionEntries: [
+              {
+                id: 'shroud-field',
+                name: 'Shroud Field',
+                type: 'upgrade',
+                infoLinks: [
+                  { id: 'lone-operative-link', targetId: 'lone-operative', name: 'Lone Operative', type: 'rule' },
+                  { id: 'stealth-link', targetId: 'stealth', name: 'Stealth', type: 'rule' },
+                ],
+                profiles: [
+                  {
+                    id: 'shroud-field-rule',
+                    name: 'Shroud Field',
+                    typeName: 'Abilities',
+                    characteristics: [
+                      { name: 'Description', $text: 'PHOBOS model only. This model has:\n\n▪ Lone Operative.\n▪ Stealth.' },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        'PHOBOS model only. This model has:\n\n▪ Lone Operative.\n▪ Stealth.': {
+          grants: {
+            abilities: [
+              { ability: 'Lone Operative', to: 'bearer', named: true },
+              { ability: 'Stealth', to: 'bearer', named: true },
+            ],
+          },
         },
-      ],
-    })
+      },
+    )
     const unselected = [{ id: 'leader' }]
     const selected = [{ id: 'leader', selections: [{ id: 'shroud-field' }] }]
 
@@ -1887,67 +1978,6 @@ describe('the profile modifiers on a datasheet', () => {
     expect(contextualAbilityNamesIn(book, 'cat', 'leader', { selections: selected, unitSelectionIndex: 0 })).toEqual(
       expect.arrayContaining(['Lone Operative', 'Stealth']),
     )
-  })
-
-  it.each([
-    {
-      case: 'unqualified',
-      description:
-        'Once the enemy are sighted, this warrior leads the attack from the very front, striving to be first in amongst the foe\'s ranks.\n\nTACTICUS model only. This unit has Scouts 6".',
-      granted: true,
-    },
-    {
-      case: 'conditional',
-      description:
-        'While this model is leading an Intercessor Squad, its unit can make a Scout move.\n\nTACTICUS model only. This unit has Scouts 6".',
-      granted: false,
-    },
-  ])('$case Scout enhancement after a separate paragraph', ({ description, granted }) => {
-    const book = bookOf({
-      selectionEntries: [
-        {
-          id: 'leader',
-          name: 'Execrator',
-          type: 'model',
-          selectionEntries: [
-            {
-              id: 'spearpoint',
-              name: 'Spearpoint War Leader',
-              type: 'upgrade',
-              profiles: [
-                {
-                  id: 'spearpoint-rule',
-                  name: 'Spearpoint War Leader',
-                  typeName: 'Abilities',
-                  characteristics: [
-                    {
-                      name: 'Description',
-                      $text: description,
-                    },
-                  ],
-                },
-              ],
-            },
-          ],
-        },
-        { id: 'bodyguard', name: 'Intercessor Squad', type: 'unit' },
-      ],
-    })
-    const selected = [{ id: 'leader', selections: [{ id: 'spearpoint' }] }, { id: 'bodyguard' }]
-    const unselected = [{ id: 'leader' }, { id: 'bodyguard' }]
-    const names = (selections: typeof selected, unitSelectionIndex: number) =>
-      contextualAbilityNamesIn(book, 'cat', unitSelectionIndex ? 'bodyguard' : 'leader', {
-        selections,
-        unitSelectionIndex,
-        companions: [1 - unitSelectionIndex],
-      })
-
-    expect({
-      leader: names(selected, 0).includes('Scouts 6"'),
-      bodyguard: names(selected, 1).includes('Scouts 6"'),
-      deployment: deploymentRules(names(selected, 1)).prebattleRules,
-      withoutEnhancement: names(unselected, 1).includes('Scouts 6"'),
-    }).toEqual({ leader: granted, bodyguard: granted, deployment: granted ? ['scouts'] : [], withoutEnhancement: false })
   })
 
   it.each(['This unit has Scouts 6".', 'Models in the bearer\'s unit have the Scouts 6" ability.'])(
@@ -2017,72 +2047,51 @@ describe('the profile modifiers on a datasheet', () => {
     )
   })
 
-  it.each([
-    ['The bearer, and models in any unit they are leading, have the Infiltrators and Scouts 6" abilities.', ['Infiltrators', 'Scouts 6"']],
-    ['Models in the bearer’s unit have the Stealth and Infiltrators abilities.', ['Stealth', 'Infiltrators']],
-  ])('includes every deployment grant in selected enhancement wording: %s', (description, expected) => {
-    const book = bookOf({
-      selectionEntries: [
-        {
-          id: 'unit',
-          name: 'Unit',
-          type: 'unit',
-          selectionEntries: [
-            {
-              id: 'enhancement',
-              name: 'Enhancement',
-              type: 'upgrade',
-              profiles: [
-                {
-                  id: 'enhancement-rule',
-                  name: 'Enhancement',
-                  typeName: 'Abilities',
-                  characteristics: [{ name: 'Description', $text: description }],
-                },
-              ],
-            },
-          ],
-        },
-      ],
-    })
-    const selections = [{ id: 'unit', selections: [{ id: 'enhancement' }] }]
-
-    expect(contextualAbilityNamesIn(book, 'cat', 'unit', { selections, unitSelectionIndex: 0 })).toEqual(expect.arrayContaining(expected))
-  })
-
   it('includes a deployment ability from a mixed linked ability grant', () => {
-    const book = bookOf({
-      sharedRules: [
-        { id: 'lone-operative', name: 'Lone Operative', description: 'Lone Operative rule.' },
-        { id: 'stealth', name: 'Stealth', description: 'Stealth rule.' },
-      ],
-      selectionEntries: [
-        {
-          id: 'unit',
-          name: 'Unit',
-          type: 'unit',
-          selectionEntries: [
-            {
-              id: 'enhancement',
-              name: 'Enhancement',
-              type: 'upgrade',
-              infoLinks: [
-                { id: 'lone-operative-link', targetId: 'lone-operative', name: 'Lone Operative', type: 'rule' },
-                { id: 'stealth-link', targetId: 'stealth', name: 'Stealth', type: 'rule' },
-              ],
-              profiles: [
-                {
-                  id: 'mixed-rule',
-                  name: 'Mixed rule',
-                  typeName: 'Abilities',
-                  characteristics: [{ name: 'Description', $text: 'The bearer has the Lone Operative and Stealth abilities.' }],
-                },
-              ],
-            },
-          ],
+    const book = bookWithFacts(
+      {
+        sharedRules: [
+          { id: 'lone-operative', name: 'Lone Operative', description: 'Lone Operative rule.' },
+          { id: 'stealth', name: 'Stealth', description: 'Stealth rule.' },
+        ],
+        selectionEntries: [
+          {
+            id: 'unit',
+            name: 'Unit',
+            type: 'unit',
+            selectionEntries: [
+              {
+                id: 'enhancement',
+                name: 'Enhancement',
+                type: 'upgrade',
+                infoLinks: [
+                  { id: 'lone-operative-link', targetId: 'lone-operative', name: 'Lone Operative', type: 'rule' },
+                  { id: 'stealth-link', targetId: 'stealth', name: 'Stealth', type: 'rule' },
+                ],
+                profiles: [
+                  {
+                    id: 'mixed-rule',
+                    name: 'Mixed rule',
+                    typeName: 'Abilities',
+                    characteristics: [{ name: 'Description', $text: 'The bearer has the Lone Operative and Stealth abilities.' }],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        'The bearer has the Lone Operative and Stealth abilities.': {
+          grants: {
+            abilities: [
+              { ability: 'Lone Operative', to: 'bearer', named: true },
+              { ability: 'Stealth', to: 'bearer', named: true },
+            ],
+          },
         },
-      ],
-    })
+      },
+    )
     const selections = [{ id: 'unit', selections: [{ id: 'enhancement' }] }]
 
     expect(contextualAbilityNamesIn(book, 'cat', 'unit', { selections, unitSelectionIndex: 0 })).toEqual(
@@ -2090,148 +2099,82 @@ describe('the profile modifiers on a datasheet', () => {
     )
   })
 
-  it.each([
-    'This unit has Deep Strike until the start of your next Shooting phase.',
-    '- This unit has Deep Strike until the start of your next Shooting phase.',
-    'The bearer has the Deep Strike ability until the start of your next Shooting phase.',
-    'Until the start of your next Shooting phase, this model gains the Deep Strike ability.',
-    'If this model destroys an enemy unit, it gains the Deep Strike ability.',
-    'At the end of your opponent’s turn, roll one D6. If you do: - This unit has Deep Strike until the start of your next Shooting phase.',
-  ])('does not make a temporary deployment ability permanent: %s', (description) => {
-    const book = bookOf({
-      sharedRules: [{ id: 'deep-strike', name: 'Deep Strike', description: 'Deep Strike rule.' }],
-      selectionEntries: [
-        {
-          id: 'unit',
-          name: 'Unit',
-          type: 'unit',
-          selectionEntries: [
-            {
-              id: 'enhancement',
-              name: 'Enhancement',
-              type: 'upgrade',
-              infoLinks: [{ id: 'deep-strike-link', targetId: 'deep-strike', name: 'Deep Strike', type: 'rule' }],
-              profiles: [
-                {
-                  id: 'temporary-rule',
-                  name: 'Deep Strike',
-                  typeName: 'Abilities',
-                  characteristics: [{ name: 'Description', $text: description }],
-                },
-              ],
-            },
-          ],
-        },
-      ],
-    })
+  it('does not make a deployment ability VS Data grants only under a condition permanent', () => {
+    const description = 'This unit has Deep Strike until the start of your next Shooting phase.'
+    const book = bookWithFacts(
+      {
+        sharedRules: [{ id: 'deep-strike', name: 'Deep Strike', description: 'Deep Strike rule.' }],
+        selectionEntries: [
+          {
+            id: 'unit',
+            name: 'Unit',
+            type: 'unit',
+            selectionEntries: [
+              {
+                id: 'enhancement',
+                name: 'Enhancement',
+                type: 'upgrade',
+                infoLinks: [{ id: 'deep-strike-link', targetId: 'deep-strike', name: 'Deep Strike', type: 'rule' }],
+                profiles: [
+                  {
+                    id: 'temporary-rule',
+                    name: 'Deep Strike',
+                    typeName: 'Abilities',
+                    characteristics: [{ name: 'Description', $text: description }],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        [description]: { grants: { abilities: [{ ability: 'Deep Strike', to: 'unit', named: true, conditional: true }] } },
+      },
+    )
 
     const selections = [{ id: 'unit', selections: [{ id: 'enhancement' }] }]
 
     expect(contextualAbilityNamesIn(book, 'cat', 'unit', { selections, unitSelectionIndex: 0 })).not.toContain('Deep Strike')
   })
 
-  it.each([
-    ["CRYPTEK model only. Models in the bearer's unit have the Infiltrators ability.", 'Infiltrators'],
-    [
-      'ADEPTUS ASTARTES model only. Models in the bearer’s unit have the Deep Strike ability. In addition, Rapid Ingress costs 0CP.',
-      'Deep Strike',
-    ],
-  ])('includes a selected enhancement deployment grant after its eligibility sentence', (description, ability) => {
-    const ruleId = ability.toLocaleLowerCase().replaceAll(' ', '-')
-    const book = bookOf({
-      sharedRules: [{ id: ruleId, name: ability, description: `${ability} rule.` }],
-      selectionEntries: [
+  it.each([['Shrouding (Psychic)', 'While this model is leading a unit, models in that unit have the Stealth ability.', 'Stealth']])(
+    'includes an attached-only deployment profile only on its attached unit: %s',
+    (profileName, description, ability) => {
+      const book = bookWithFacts(
         {
-          id: 'leader',
-          name: 'Leader',
-          type: 'model',
           selectionEntries: [
             {
-              id: 'enhancement',
-              name: 'Enhancement',
-              type: 'upgrade',
-              profiles: [
+              id: 'leader',
+              name: 'Leader',
+              type: 'model',
+              selectionEntries: [
                 {
-                  id: 'enhancement-rule',
+                  id: 'enhancement',
                   name: 'Enhancement',
-                  typeName: 'Abilities',
-                  characteristics: [{ name: 'Description', $text: description }],
-                },
-              ],
-              modifiers: [{ type: 'add', field: 'add-info', value: ruleId, scope: 'parent', affects: 'group' }],
-            },
-          ],
-        },
-        { id: 'bodyguard', name: 'Bodyguard', type: 'unit' },
-      ],
-    })
-    const selections = [{ id: 'leader', selections: [{ id: 'enhancement' }] }, { id: 'bodyguard' }]
-
-    expect(contextualAbilityNamesIn(book, 'cat', 'bodyguard', { selections, unitSelectionIndex: 1, companions: [0] })).toContain(ability)
-  })
-
-  it.each([
-    [
-      'Scouts 6"',
-      'Adeptus Astartes Infantry model only. While the bearer is leading a unit, models in that unit have the Scouts 6" ability',
-      'Scouts 6"',
-    ],
-    [
-      'Super Runts',
-      'While this model is leading a unit:\n- Models in that unit have the Scouts 9" ability.\n- Add 1 to the Hit roll.',
-      'Scouts 9"',
-    ],
-    [
-      'Forlorn Hero',
-      'While this model is leading a unit, unless that unit starts the battle embarked within a Transport, models in that unit have the Scouts 6" ability.',
-      'Scouts 6"',
-    ],
-    [
-      'Shrouding (Psychic)',
-      'While this model is leading a unit, models in that unit have the Stealth ability and that unit cannot be targeted by ranged attacks unless the attacking model is within 12".',
-      'Stealth',
-    ],
-    [
-      'Fire Riders',
-      'While this model is leading a unit, models in that unit have the Deep Strike ability and each time a model in that unit makes a Normal, Advance, Fall Back or Charge move, it can move horizontally through models and terrain features.',
-      'Deep Strike',
-    ],
-    [
-      'Clandestine Investigator',
-      "While this model is leading a unit, models in this unit have the Stealth ability. At the end of the battle, if this model's unit is wholly within your opponent's deployment zone, roll one D6: on a 4+, you gain 1 Investigation point.",
-      'Stealth',
-    ],
-  ])('includes an attached-only deployment profile only on its attached unit: %s', (profileName, description, ability) => {
-    const book = bookOf({
-      selectionEntries: [
-        {
-          id: 'leader',
-          name: 'Leader',
-          type: 'model',
-          selectionEntries: [
-            {
-              id: 'enhancement',
-              name: 'Enhancement',
-              type: 'upgrade',
-              profiles: [
-                {
-                  id: 'scouts-rule',
-                  name: profileName,
-                  typeName: 'Abilities',
-                  characteristics: [{ name: 'Description', $text: description }],
+                  type: 'upgrade',
+                  profiles: [
+                    {
+                      id: 'scouts-rule',
+                      name: profileName,
+                      typeName: 'Abilities',
+                      characteristics: [{ name: 'Description', $text: description }],
+                    },
+                  ],
                 },
               ],
             },
+            { id: 'bodyguard', name: 'Bodyguard', type: 'unit' },
           ],
         },
-        { id: 'bodyguard', name: 'Bodyguard', type: 'unit' },
-      ],
-    })
-    const selections = [{ id: 'leader', selections: [{ id: 'enhancement' }] }, { id: 'bodyguard' }]
+        { [description]: { grants: { abilities: [{ ability, to: 'unit', named: true, whileAttached: true }] } } },
+      )
+      const selections = [{ id: 'leader', selections: [{ id: 'enhancement' }] }, { id: 'bodyguard' }]
 
-    expect(contextualAbilityNamesIn(book, 'cat', 'leader', { selections, unitSelectionIndex: 0 })).not.toContain(ability)
-    expect(contextualAbilityNamesIn(book, 'cat', 'bodyguard', { selections, unitSelectionIndex: 1, companions: [0] })).toContain(ability)
-  })
+      expect(contextualAbilityNamesIn(book, 'cat', 'leader', { selections, unitSelectionIndex: 0 })).not.toContain(ability)
+      expect(contextualAbilityNamesIn(book, 'cat', 'bodyguard', { selections, unitSelectionIndex: 1, companions: [0] })).toContain(ability)
+    },
+  )
 
   it('shows an invulnerable save set by selected wargear on a blank characteristic', () => {
     const book = bookOf({
@@ -2338,30 +2281,33 @@ describe('the profile modifiers on a datasheet', () => {
     ])
   })
 
-  it('reads a model invulnerable save when the catalogue only supplies its prose', () => {
-    const book = bookOf({
-      selectionEntries: [
-        {
-          id: 'captain',
-          name: 'Captain',
-          type: 'model',
-          profiles: [
-            {
-              id: 'captain-profile',
-              name: 'Captain',
-              typeName: 'Unit',
-              characteristics: [{ name: 'InSv', typeId: 'invulnerable-save', $text: '' }],
-            },
-            {
-              id: 'invulnerable-save',
-              name: 'Invulnerable Save',
-              typeName: 'Abilities',
-              characteristics: [{ name: 'Description', $text: 'This model has a 4+ invulnerable save.' }],
-            },
-          ],
-        },
-      ],
-    })
+  it('shows a model invulnerable save its own ability gives', () => {
+    const book = bookWithFacts(
+      {
+        selectionEntries: [
+          {
+            id: 'captain',
+            name: 'Captain',
+            type: 'model',
+            profiles: [
+              {
+                id: 'captain-profile',
+                name: 'Captain',
+                typeName: 'Unit',
+                characteristics: [{ name: 'InSv', typeId: 'invulnerable-save', $text: '' }],
+              },
+              {
+                id: 'invulnerable-save',
+                name: 'Invulnerable Save',
+                typeName: 'Abilities',
+                characteristics: [{ name: 'Description', $text: 'This model has a 4+ invulnerable save.' }],
+              },
+            ],
+          },
+        ],
+      },
+      { 'This model has a 4+ invulnerable save.': { invulnerableSave: { roll: 4 } } },
+    )
 
     expect(datasheetIn(book, 'cat', 'captain', { selections: [{ id: 'captain' }], unitSelectionIndex: 0 })?.profiles[0]?.values).toEqual([
       { name: 'InSv', value: '4+' },

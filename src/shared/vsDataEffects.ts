@@ -662,8 +662,9 @@ export function textFactsOfVsData(blocks: Readonly<Record<string, unknown>>): Te
         ]
       : [],
   )
+  // A bearer's weapons are among its own unit's, which a datasheet shows them with.
   const weaponGrantTo = (to: 'own-unit' | 'led-unit') => {
-    const grant = weaponAbilities.find((candidate) => candidate.to === to)
+    const grant = weaponAbilities.find((candidate) => candidate.to === to || (to === 'own-unit' && candidate.to === 'bearer'))
     return grant && { keyword: titleCaseAbility(grant.ability), profileTypes: grant.attacks.map((attacks) => PROFILE[attacks]) }
   }
   const ownWeaponGrant = weaponGrantTo('own-unit')
