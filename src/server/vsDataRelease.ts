@@ -625,9 +625,14 @@ export function compactVsDataRelease(directory: string, file: string) {
   const current = identity.filter((entry) => !entry.retired)
   const entries = current.filter((entry) => wanted.has(vsDataKey(entry)))
   const absent = absentAbilitiesOf(current)
+  // Every category names the app data build it was converted from; a release built from several names the latest.
+  const builds = manifest.categories.flatMap((category) =>
+    category.sources.flatMap(({ revision }) => Number(/^data build (\d+)$/.exec(revision ?? '')?.[1]) || []),
+  )
   const compact: VsDataSummariesFile = {
     release: manifest.release,
     rulesVersion: manifest.rulesVersion,
+    ...(builds.length ? { dataBuild: Math.max(...builds) } : {}),
     entries: Object.fromEntries(entries.map((entry) => [vsDataKey(entry), entry.aliases ?? []])),
     stratagems: records.flatMap((record) => stratagemOf(record, current)),
     missionPacks,

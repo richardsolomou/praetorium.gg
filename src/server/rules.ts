@@ -217,5 +217,6 @@ export function* loadRulesSteps(
     dataslate: null,
     // A list is read in the rules version it is imported into, which the release beside the base one describes.
     importNames: importNamesOf(releases[0]?.names, releases[0]?.entries ?? {}, legacyImportIds, rulesVersion),
+    ...(releases[0]?.dataBuild ? { appDataBuild: releases[0].dataBuild } : {}),
   }
 }

@@ -75,8 +75,6 @@ export type FactionContent = {
   name: string
   attribution?: string
   parentName?: string | null
-  /** The official app's data version the file was written for, which its exports print as "Data Version: v995". */
-  dataVersion?: number
   datasheets: Set<string>
   datasheetDetails: Map<string, DatasheetDetails>
   detachments: Set<string>
@@ -266,7 +264,6 @@ export function factionContent(
       ? { attribution: parsed.attribution.trim().slice(0, 500) }
       : {}),
     ...(typeof parsed.parent_name === 'string' ? { parentName: parsed.parent_name } : {}),
-    ...(Number.isInteger(parsed.compatibleDataVersion) ? { dataVersion: parsed.compatibleDataVersion as number } : {}),
     datasheets: new Set(datasheets.map(({ name: datasheetName }) => datasheetName)),
     datasheetDetails: datasheetDetailsByName,
     detachments: new Set(records(parsed, 'detachments').flatMap((entry) => localizedField(entry, 'name') ?? [])),

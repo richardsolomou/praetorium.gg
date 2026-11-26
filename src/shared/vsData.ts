@@ -268,6 +268,8 @@ export type VsDataCoreRule = z.infer<typeof vsDataCoreRuleSchema>
 export const vsDataSummariesSchema = z.object({
   release: z.string(),
   rulesVersion: rulesVersionSchema,
+  /** The official app's data build the release was converted from, which its exports print as "Data Version: v981". */
+  dataBuild: z.number().int().optional(),
   entries: z.record(z.string(), z.array(z.string())),
   attributions: z.array(vsDataAttributionSchema).default([]),
   stratagems: z.array(vsDataStratagemSchema).default([]),
