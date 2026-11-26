@@ -227,11 +227,18 @@ export function matchParsedRoster(
     translations = NO_TRANSLATIONS,
     removed = NO_REMOVALS,
     names = NO_IMPORT_NAMES,
-  }: { factionNames?: readonly string[]; translations?: CatalogueTranslations; removed?: RemovedNames; names?: ImportNames } = {},
+    dataBuild,
+  }: {
+    factionNames?: readonly string[]
+    translations?: CatalogueTranslations
+    removed?: RemovedNames
+    names?: ImportNames
+    dataBuild?: number
+  } = {},
 ) {
   if (parsed.units.length > 100) throw new Error('An imported roster can contain at most 100 entries.')
   // A device's download from an earlier release can carry fewer of the names.
-  return importTextRoster(parsed, loaded, factionNames, { translations, removed, names: { ...NO_IMPORT_NAMES, ...names } })
+  return importTextRoster(parsed, loaded, factionNames, { translations, removed, names: { ...NO_IMPORT_NAMES, ...names }, dataBuild })
 }
 
 /** A list already read into army text, from a pasted export or another app's own format, matched and priced. */
@@ -244,7 +251,13 @@ export function importParsedRoster(
   translations: CatalogueTranslations = NO_TRANSLATIONS,
   removed: RemovedNames = NO_REMOVALS,
 ) {
-  const result = matchParsedRoster(parsed, loaded, { factionNames, translations, removed, names: rules?.importNames })
+  const result = matchParsedRoster(parsed, loaded, {
+    factionNames,
+    translations,
+    removed,
+    names: rules?.importNames,
+    dataBuild: rules?.appDataBuild,
+  })
   const price = (units: readonly RosterPick[]) =>
     result.catalogueId
       ? calculateRosterPrice(
@@ -386,7 +399,7 @@ const slug = (value: string) =>
     .replaceAll(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '')
 
-type Spellings = { translations: CatalogueTranslations; removed: RemovedNames; names: ImportNames }
+type Spellings = { translations: CatalogueTranslations; removed: RemovedNames; names: ImportNames; dataBuild?: number }
 
 function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue | null, factionNames: readonly string[], spellings: Spellings) {
   const { translations, removed, names: appNames } = spellings
@@ -589,9 +602,8 @@ function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue | null, fa
   const { limit, pointsBudget } = importedBattleSize(parsed, unknown)
   const disposition = importedDisposition(parsed.disposition, detachments, unknown, translations)
   // An export from older app data can name what a later update renamed or removed, which explains what did not match.
-  // The app has one data version for every army, and not every faction's file says which it was written for.
-  const current = Math.max(0, ...[...loaded.factionContents.values()].flatMap((content) => content.dataVersion ?? []))
-  const olderData = parsed.dataVersion && parsed.dataVersion < current ? { exported: parsed.dataVersion, current } : null
+  const current = spellings.dataBuild
+  const olderData = parsed.dataVersion && current && parsed.dataVersion < current ? { exported: parsed.dataVersion, current } : null
 
   return {
     name: title,
