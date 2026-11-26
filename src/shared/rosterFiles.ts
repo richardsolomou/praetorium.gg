@@ -43,7 +43,7 @@ import {
 } from '../core/battle'
 import { catalogueFactionName, factionDisplayName } from './factionNames'
 import { englishNames, NO_TRANSLATIONS, translationsOf, type CatalogueTranslations } from './catalogueTranslations'
-import { NO_IMPORT_NAMES, type ImportNames } from './importNames'
+import { NO_IMPORT_NAMES, storedNames, type ImportNames } from './importNames'
 import {
   attachmentReason,
   normalized,
@@ -230,7 +230,8 @@ export function matchParsedRoster(
   }: { factionNames?: readonly string[]; translations?: CatalogueTranslations; removed?: RemovedNames; names?: ImportNames } = {},
 ) {
   if (parsed.units.length > 100) throw new Error('An imported roster can contain at most 100 entries.')
-  return importTextRoster(parsed, loaded, factionNames, { translations, removed, names })
+  // A device's download from an earlier release can carry fewer of the names.
+  return importTextRoster(parsed, loaded, factionNames, { translations, removed, names: { ...NO_IMPORT_NAMES, ...names } })
 }
 
 /** A list already read into army text, from a pasted export or another app's own format, matched and priced. */
@@ -413,13 +414,13 @@ function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue | null, fa
   const unread = parsed.unread ?? []
   const namedDetachment = parsed.detachment
     ? undefined
-    : unread.find((line) => detachmentsNamed(line, offered, translations, appNames).length)
+    : unread.find((line) => detachmentsNamed(line, offered, translations, appNames, loaded).length)
   const detachmentName = parsed.detachment ?? namedDetachment
-  const whole = detachmentName ? detachmentsNamed(detachmentName, offered, translations, appNames) : []
+  const whole = detachmentName ? detachmentsNamed(detachmentName, offered, translations, appNames, loaded) : []
   // Where one of several detachments is unknown, the others still count, so their enhancements stay. The last two are
   // joined by a word, "and" or a translation of it, that a detachment's own name can also hold, so a part splits at the
   // word only where one side is a known detachment.
-  const known = (name: string) => detachmentsNamed(name, offered, translations, appNames).length > 0
+  const known = (name: string) => detachmentsNamed(name, offered, translations, appNames, loaded).length > 0
   const joined = (part: string) => {
     const words = part.split(' ')
     for (let at = 1; at < words.length - 1; at++) {
@@ -443,7 +444,7 @@ function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue | null, fa
   const detachments = whole.length
     ? whole
     : detachmentName
-      ? parts.flatMap((part) => detachmentsNamed(part, offered, translations, appNames))
+      ? parts.flatMap((part) => detachmentsNamed(part, offered, translations, appNames, loaded))
       : enhancementDetachments()
   const unknown: UnmatchedName[] = parts
     .filter((part) => !known(part))
@@ -462,7 +463,7 @@ function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue | null, fa
   // through VS Data below.
   const datasheets = [...(loaded.index.datasheets.get(faction.id) ?? [])].flatMap((id) => {
     const definition = loaded.index.definitions.get(id)
-    const own = appNames.datasheetNames.get(id) ?? (definition ? [nameOf(definition, loaded.index.definitions)] : [])
+    const own = storedNames(appNames.datasheetNames, loaded, id) ?? (definition ? [nameOf(definition, loaded.index.definitions)] : [])
     return own.map((name) => ({ id, name: normalized(name) }))
   })
   // A datasheet another app names in the plural, as BattleBase's "Myphitic Blight-haulers", is still the one datasheet it can be;
@@ -780,13 +781,14 @@ function detachmentsNamed<T extends { id: string; name: string }>(
   options: readonly T[],
   translations: CatalogueTranslations,
   appNames: ImportNames,
+  loaded: LoadedCatalogue,
 ): T[] {
   const names = new Map(
     options.map((option) => [
       option,
       [
         ...new Set(
-          (appNames.detachmentNames.get(option.id) ?? [option.name])
+          (storedNames(appNames.detachmentNames, loaded, option.id) ?? [option.name])
             .flatMap(detachmentNameVariants)
             .flatMap((name) => [...translationsOf(name, translations), ...(appNames.detachments.get(normalized(name)) ?? [])])
             .map(normalized),

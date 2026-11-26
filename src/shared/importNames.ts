@@ -26,6 +26,10 @@ export const NO_IMPORT_NAMES: ImportNames = {
   detachmentNames: new Map(),
 }
 
+/** The names BSData gave a stored ID in the loaded rules version, which an earlier version keeps under its own key. */
+export const storedNames = (names: ReadonlyMap<string, readonly string[]>, loaded: { edition?: { id: string } }, id: string) =>
+  names.get(`${loaded.edition?.id}~${id}`) ?? names.get(id)
+
 /** Every group of spellings a release's names hold, each its English one first. */
 export const spellingGroups = (names: VsDataNames | undefined): readonly (readonly string[])[] =>
   names

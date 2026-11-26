@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { nameOf } from '../src/core/catalogue'
@@ -17,17 +18,28 @@ if (!directory) throw new Error('Usage: tsx scripts/freezeImportNames.ts <catalo
 const composition = readCatalogueComposition(directory)
 if (!composition) throw new Error(`${directory} has no catalogue composition`)
 
+// The base rules version's names are under the stored ID; an earlier version's, where they differ, under
+// `<rules version>~<ID>`, as `units.json` keys them, since a list exported from that version names them so.
 const found = { datasheets: new Map<string, Set<string>>(), detachments: new Map<string, Set<string>>() }
 const add = (section: Map<string, Set<string>>, id: string, name: string) => section.set(id, (section.get(id) ?? new Set()).add(name))
-for (const entry of composition.editions) {
+const editions = composition.editions.toSorted((left, right) => Number(right.base === true) - Number(left.base === true))
+for (const entry of editions) {
   const loaded = entry.base ? loadCatalogue(directory) : loadCatalogue(editionDirectory(directory, entry), entry.edition)
   if (!loaded) throw new Error(`${entry.edition.id} has no catalogue`)
+  const named = { datasheets: new Map<string, Set<string>>(), detachments: new Map<string, Set<string>>() }
   for (const faction of loaded.factions)
     for (const id of loaded.index.datasheets.get(faction.id) ?? []) {
       const definition = loaded.index.definitions.get(id)
-      if (definition) add(found.datasheets, id, nameOf(definition, loaded.index.definitions))
+      if (definition) add(named.datasheets, id, nameOf(definition, loaded.index.definitions))
     }
-  for (const { options } of loaded.detachments.values()) for (const option of options) add(found.detachments, option.id, option.name)
+  for (const { options } of loaded.detachments.values()) for (const option of options) add(named.detachments, option.id, option.name)
+  for (const section of ['datasheets', 'detachments'] as const)
+    for (const [id, names] of named[section]) {
+      const base = found[section].get(id)
+      const same = base && base.size === names.size && [...names].every((name) => base.has(name))
+      if (entry.base) for (const name of names) add(found[section], id, name)
+      else if (!same) for (const name of names) add(found[section], `${entry.edition.id}~${id}`, name)
+    }
 }
 
 const folder = path.join(import.meta.dirname, '../catalogue/legacy-ids')
@@ -39,5 +51,6 @@ for (const section of ['datasheets', 'detachments'] as const) {
   for (const [id, names] of found[section]) frozen.names[id] = [...new Set([...(frozen.names[id] ?? []), ...names])]
   const names = Object.fromEntries(Object.entries(frozen.names).toSorted(([left], [right]) => (left < right ? -1 : 1)))
   fs.writeFileSync(file, `${JSON.stringify({ ...frozen, names }, null, 2)}\n`)
+  execFileSync('pnpm', ['exec', 'oxfmt', file], { stdio: 'inherit' })
   console.log(`${Object.keys(names).length} ${section} named`)
 }
