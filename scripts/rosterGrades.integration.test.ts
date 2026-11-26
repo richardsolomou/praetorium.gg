@@ -1,7 +1,6 @@
 import fs from 'node:fs'
 import { beforeAll, describe, expect, it } from 'vitest'
 import { nameOf } from '../src/core/catalogue'
-import { snapshotWords } from '../src/server/sourceTexts'
 import { rosterCombatant } from '../src/shared/rosterCombatRules'
 import { measureRosterUnits } from '../src/shared/rosterGradeMeasures'
 import { loadSnapshotWithRules } from './lib/catalogueSnapshotLoad'
@@ -12,12 +11,10 @@ type Pick = { entryId: string; attachedTo?: number }
 
 describe.skipIf(!fs.existsSync(directory))('roster grade facts read from the catalogue', () => {
   let snapshot: ReturnType<typeof loadSnapshotWithRules>
-  let words: ReturnType<typeof snapshotWords>
   let catalogueId: string
 
   beforeAll(() => {
     snapshot = loadSnapshotWithRules(directory)
-    words = snapshotWords(directory)
     catalogueId = snapshot.catalogue.factions.find((faction) => faction.name.endsWith('Tyranids'))!.id
   }, 180_000)
 
@@ -30,7 +27,6 @@ describe.skipIf(!fs.existsSync(directory))('roster grade facts read from the cat
     measureRosterUnits({
       loaded: snapshot.catalogue,
       rules: snapshot.rules,
-      words,
       data: { catalogueId, detachmentIds: [], disposition: null, limit: 500, units },
       references: { targets: {}, attackers: [] },
       calculate: async () => [],

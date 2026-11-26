@@ -1,111 +1,92 @@
 import { bracketedRuleReferences } from '../core/ruleReference'
 import { attachmentClaim, substitutedUnits } from '../core/attach'
-import { combatFactsOf } from '../core/combatReading'
 import { unitHeldWargearIn } from '../core/modelLines'
-import { offeredOptionsIn, statedAllowances } from '../core/battleChoices'
-import { hasTextTokens, textKey, textTokensIn, withoutText } from '../core/sourceText'
-import { movementToolsFrom, unitGenerationFrom } from './rosterGradeUtility'
-import { suggestReminderTimings, suggestReminderWhileDestroyed } from '../core/reminders'
-import { readText, statedIn, type TextFacts, type TextFactsByKey, type WeaponAbilityGrant } from '../core/textFacts'
-import {
-  abilityGrantStatement,
-  invulnerableSaveIn,
-  ledWeaponGrantIn,
-  normalizedAbilityText,
-  ownWeaponGrantIn,
-  titleCaseAbility,
-  weaponProfileTypes,
-} from './catalogueAbilityGrants'
+import { readText, statedIn, type TextFacts, type TextFactsByKey } from '../core/textFacts'
 
-/** The facts one source text states, with nothing kept for a text that states none. */
+/**
+ * The facts a card text states that VS Data does not state yet: the units its Strategic Reserves exemption names, the
+ * wargear it says the unit holds, and the rules it marks out, which a datasheet lists beside it (#2007). Everything else a
+ * text does is VS Data's (`vsDataEffects`).
+ */
 export function textFactsOf(words: string): TextFacts | null {
-  const weaponGrants = unconditionalWeaponAbilityGrants(words)
   const reserveSelectors = strategicReserveExemptionSelectors(words)
   const references = referencedRuleNames(words)
-  const allowances = statedAllowances(words)
-  const offered = offeredOptionsIn(words)
   const unitHeld = unitHeldWargearIn(words)
   const facts: TextFacts = {
-    ...(weaponGrants.length ? { weaponGrants } : {}),
     ...(reserveSelectors.length ? { reserveSelectors } : {}),
     ...(grantsStrategicReserveExemption(words) ? { reserveExemption: true as const } : {}),
     ...(references.length ? { references } : {}),
-    ...(allowances.length ? { battleChoiceAllowances: allowances } : {}),
-    ...(offered.length ? { offeredOptions: offered } : {}),
     ...(unitHeld.length ? { unitHeldWargear: unitHeld } : {}),
   }
   return Object.keys(facts).length ? facts : null
 }
 
-/**
- * The facts a catalogue text states: those every text records, and what the catalogue's own readers take
- * from its abilities and rules. `combat` is read only when asked, as it reads the words for every placement.
- */
+/** A catalogue text's facts VS Data does not state yet: those every text records, its Leader claims, and a bare save. */
 export function definitionFactsOf(words: string): TextFacts {
-  const grants = abilityGrantStatement(words)
-  const normalizedGrants = abilityGrantStatement(normalizedAbilityText(words))
   const attachment = attachmentClaim(words)
   const substitutes = substitutedUnits(words)
-  const ownWeaponGrant = ownWeaponGrantIn(words)
-  const ledWeaponGrant = ledWeaponGrantIn(words)
-  const invulnerableSave = invulnerableSaveIn(words)
   const bareValue = /^\s*(\d+\+)\s*$/.exec(words)?.[1]
-  const timings = suggestReminderTimings(words)
-  const whileDestroyed = suggestReminderWhileDestroyed(words)
-  const unitGeneration = unitGenerationFrom(words)
-  const movementTools = movementToolsFrom(words)
-  const stated = (statement: typeof grants) => statement.matched || statement.grants.length > 0
-  const facts: TextFacts = {
+  return {
     ...textFactsOf(words),
     ...(attachment ? { attachment } : {}),
     ...(substitutes.length ? { substitutes } : {}),
-    ...(stated(grants) ? { abilityGrants: grants } : {}),
-    ...(JSON.stringify(normalizedGrants) !== JSON.stringify(grants) ? { normalizedAbilityGrants: normalizedGrants } : {}),
-    ...(ownWeaponGrant ? { ownWeaponGrant } : {}),
-    ...(ledWeaponGrant ? { ledWeaponGrant } : {}),
-    ...(invulnerableSave ? { invulnerableSave } : {}),
     ...(bareValue ? { bareValue } : {}),
-    ...(/following weapon:\s*$/i.test(words) ? { linkedWeapon: true as const } : {}),
-    ...(timings.length || whileDestroyed ? { reminder: { timings, ...(whileDestroyed ? { whileDestroyed: true as const } : {}) } } : {}),
-    ...(unitGeneration.length ? { unitGeneration } : {}),
-    ...(movementTools.length ? { movementTools } : {}),
   }
-  let combat: TextFacts['combat']
-  return Object.defineProperty(facts, 'combat', {
-    enumerable: true,
-    get: () => (combat === undefined ? (combat = combatFactsOf(words)) : combat),
-  })
 }
 
-/** The units a text adds to its army and the movement it allows, as its facts record them, or read from the words of any other text it holds. */
-export function gradeReadingsIn(text: string, facts: TextFactsByKey | undefined, words: (text: string) => string | null) {
-  const [token, ...rest] = textTokensIn(text)
-  const found = token && !rest.length && withoutText(text) === '' ? facts?.get(textKey(token)) : undefined
-  if (found) return { unitGeneration: found.unitGeneration ?? [], movementTools: found.movementTools ?? [] }
-  const read = hasTextTokens(text) ? (words(text) ?? '') : text
-  return { unitGeneration: unitGenerationFrom(read), movementTools: movementToolsFrom(read) }
+/** The units a text adds to its army and the movement it allows, as its recorded facts state them. */
+export function gradeReadingsIn(text: string, facts: TextFactsByKey | undefined) {
+  const found = readText(
+    text,
+    facts,
+    () => undefined,
+    (recorded) => recorded,
+  )
+  return { unitGeneration: found?.unitGeneration ?? [], movementTools: found?.movementTools ?? [] }
 }
+
+const NO_GRANTS = { matched: false, grants: [] }
 
 export const abilityGrantsIn = (text: string, facts: TextFactsByKey | undefined) =>
-  readText(text, facts, abilityGrantStatement, (found) => found.abilityGrants ?? { matched: false, grants: [] })
+  readText(
+    text,
+    facts,
+    () => NO_GRANTS,
+    (found) => found.abilityGrants ?? NO_GRANTS,
+  )
 
 /** The grants an ability's words state once normalised, as deployment abilities are compared. */
 export const normalizedAbilityGrantsIn = (text: string, facts: TextFactsByKey | undefined) =>
   readText(
     text,
     facts,
-    (words) => abilityGrantStatement(normalizedAbilityText(words)),
-    (found) => found.normalizedAbilityGrants ?? found.abilityGrants ?? { matched: false, grants: [] },
+    () => NO_GRANTS,
+    (found) => found.normalizedAbilityGrants ?? found.abilityGrants ?? NO_GRANTS,
   )
 
 export const ownWeaponGrantOf = (text: string, facts: TextFactsByKey | undefined) =>
-  readText(text, facts, ownWeaponGrantIn, (found) => found.ownWeaponGrant ?? null)
+  readText(
+    text,
+    facts,
+    () => null,
+    (found) => found.ownWeaponGrant ?? null,
+  )
 
 export const ledWeaponGrantOf = (text: string, facts: TextFactsByKey | undefined) =>
-  readText(text, facts, ledWeaponGrantIn, (found) => found.ledWeaponGrant ?? null)
+  readText(
+    text,
+    facts,
+    () => null,
+    (found) => found.ledWeaponGrant ?? null,
+  )
 
 export const invulnerableSaveOf = (text: string, facts: TextFactsByKey | undefined) =>
-  readText(text, facts, invulnerableSaveIn, (found) => found.invulnerableSave ?? null)
+  readText(
+    text,
+    facts,
+    () => null,
+    (found) => found.invulnerableSave ?? null,
+  )
 
 export const bareValueOf = (text: string, facts: TextFactsByKey | undefined) =>
   readText(
@@ -137,14 +118,13 @@ export const linksWeapon = (text: string, facts: TextFactsByKey | undefined) =>
   readText(
     text,
     facts,
-    (words) => /following weapon:\s*$/i.test(words),
+    () => false,
     (found) => Boolean(found.linkedWeapon),
   )
 
 export function weaponGrantsIn(text: string | null, facts?: TextFactsByKey) {
   if (!text) return []
-  const { words, recorded } = statedIn(text, facts)
-  return [...recorded.flatMap((fact) => fact.weaponGrants ?? []), ...unconditionalWeaponAbilityGrants(words)]
+  return statedIn(text, facts).recorded.flatMap((fact) => fact.weaponGrants ?? [])
 }
 
 export function reserveSelectorsIn(texts: readonly (string | null)[], facts?: TextFactsByKey) {
@@ -167,22 +147,6 @@ export function referencesIn(texts: readonly (string | null)[], facts?: TextFact
     const { words, recorded } = statedIn(text, facts)
     return [...recorded.flatMap((fact) => fact.references ?? []), ...referencedRuleNames(words)]
   })
-}
-
-function unconditionalWeaponAbilityGrants(description: string): WeaponAbilityGrant[] {
-  const grants: WeaponAbilityGrant[] = []
-  const pattern =
-    /(?:^|[.!?]\s+)(?:[-■]\s*)?(?:In addition,\s+)?(?:(ranged|melee)\s+)?weapons equipped by (.+?) models(?: \((?:excluding|except) (.+?) models\))? from your army have the \[([^\]]+)\] ability(?=[.,]|$)/giu
-  const normalized = description.normalize('NFKC').replaceAll(/\^\^|\*\*/g, '')
-  for (const match of normalized.matchAll(pattern)) {
-    grants.push({
-      keyword: titleCaseAbility(match[4]!),
-      recipients: match[2]!,
-      ...(match[3] ? { exclusions: match[3] } : {}),
-      profileTypes: weaponProfileTypes(match[1]),
-    })
-  }
-  return grants
 }
 
 const normalizedRuleText = (description: string) =>
@@ -216,14 +180,10 @@ function referencedRuleNames(text: string): string[] {
   ]
 }
 
-/** What a text allows a unit's battle choices: from its own words, and recorded for each token it holds. */
-export function allowancesIn(text: string, facts?: TextFactsByKey) {
-  const { words, recorded } = statedIn(text, facts)
-  return [...recorded.flatMap((fact) => fact.battleChoiceAllowances ?? []), ...statedAllowances(words)]
-}
+/** What a text allows a unit's battle choices, recorded for each token it holds. */
+export const allowancesIn = (text: string, facts?: TextFactsByKey) =>
+  statedIn(text, facts).recorded.flatMap((fact) => fact.battleChoiceAllowances ?? [])
 
-/** The options a rule's text offers by their plural: from its own words, and recorded for each token it holds. */
-export function offeredOptionsOf(text: string, facts?: TextFactsByKey) {
-  const { words, recorded } = statedIn(text, facts)
-  return [...recorded.flatMap((fact) => fact.offeredOptions ?? []), ...offeredOptionsIn(words)]
-}
+/** The options a rule's text offers by their plural, recorded for each token it holds. */
+export const offeredOptionsOf = (text: string, facts?: TextFactsByKey) =>
+  statedIn(text, facts).recorded.flatMap((fact) => fact.offeredOptions ?? [])

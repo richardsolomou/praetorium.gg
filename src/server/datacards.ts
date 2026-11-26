@@ -21,12 +21,10 @@ import {
   transformed,
 } from '../shared/datacards'
 import { completeSteps, type Steps } from '../shared/steps'
-import { type SourceTexts, comparableText, resolvedText, textKey, textTokensIn } from '../core/sourceText'
-import { combatFactsOf } from '../core/combatReading'
+import { type SourceTexts, comparableText, textKey, textTokensIn } from '../core/sourceText'
 import { textFactsOf } from '../shared/textFacts'
-import { factsKey, type TextFacts } from '../core/textFacts'
-import { RecentlyUsed, remember as rememberIn } from '../core/collections'
-import { publishedTexts, stringsByHash } from './sourceTexts'
+import type { TextFacts } from '../core/textFacts'
+import { publishedTexts } from './sourceTexts'
 const NO_SECTIONS: SectionProse = () => new Map()
 
 /** How each file's strings are published: tokens, except for checks that read the source's words directly. */
@@ -65,67 +63,6 @@ function recording(
     }
     return published
   }
-}
-
-/**
- * What every rule the cards describe decides in combat, recorded beside its tokens so a device that never holds the
- * words plays it as the server would: a lone token's facts gain it, and a rule of several, such as a stratagem's
- * sections, is recorded under all its tokens. Each reads its words only when asked, as the reading covers every placement.
- */
-function recordCombat(
-  descriptions: Iterable<string>,
-  facts: Map<string, TextFacts>,
-  files: ReadonlyMap<string, string>,
-  stratagems: ReadonlySet<string>,
-) {
-  for (const text of descriptions) {
-    const tokens = textTokensIn(text)
-    if (!tokens.length || tokens.some((token) => !files.has(token.file))) continue
-    const key = factsKey(text)
-    const found = facts.get(key)
-    if (found && 'combat' in found) continue
-    let combat: TextFacts['combat']
-    facts.set(
-      key,
-      Object.defineProperty({ ...found }, 'combat', {
-        enumerable: true,
-        get: () => (combat === undefined ? (combat = combatFactsOf(wordsOf(text, files), stratagems.has(text))) : combat),
-      }),
-    )
-  }
-}
-
-// Read back from its file when a reading is asked for, as a server holding every rules version's card words for the
-// few it reads would hold far more than the readings.
-const heldStrings = new RecentlyUsed<string, ReadonlyMap<string, string>>(4)
-const wordsOf = (text: string, files: ReadonlyMap<string, string>) =>
-  resolvedText(
-    text,
-    (token) => {
-      const raw = rememberIn(heldStrings, files.get(token.file)!, () => stringsByHash(files.get(token.file)!)).get(token.hash)
-      return raw === undefined ? null : transformed(raw, token.transform)
-    },
-    () => '',
-  )
-
-// A server reads a card's words itself, so only a process building the device download records the cards' readings: a
-// server holding them for every rules version it loads would spend its heap on them.
-let cardReadings = false
-
-/** Records each card rule's combat reading in the cards loaded from now on, for the device download. */
-export function recordCardReadings() {
-  cardReadings = true
-}
-
-/** Every rules text a value holds under a `description` field, which is where the cards keep a rule's text. */
-function* descriptionsIn(value: unknown): Generator<string> {
-  if (value instanceof Map || value instanceof Set) for (const entry of value.values()) yield* descriptionsIn(entry)
-  else if (Array.isArray(value)) for (const entry of value) yield* descriptionsIn(entry)
-  else if (value && typeof value === 'object')
-    for (const [field, entry] of Object.entries(value)) {
-      if (field === 'description' && typeof entry === 'string') yield entry
-      else yield* descriptionsIn(entry)
-    }
 }
 
 export function* loadDatacardsSteps(
@@ -264,19 +201,6 @@ export function* loadDatacardsSteps(
     constructionDetachments,
     textFacts,
     textReadings,
-  }
-  if (cardReadings) {
-    const stratagems = [...stratagemTexts.values()]
-    recordCombat(
-      [
-        ...stratagems,
-        ...[...enhancements.values(), ...armyRules.values()].flatMap((texts) => [...texts.values()]),
-        ...descriptionsIn([loaded.factions, loaded.detachmentRules]),
-      ],
-      textFacts,
-      textFiles,
-      new Set(stratagems),
-    )
   }
   return loaded
 }

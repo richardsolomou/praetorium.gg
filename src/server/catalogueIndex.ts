@@ -121,16 +121,19 @@ export function* loadCatalogueSteps(
     ...(policy ? { datacardExcludedCatalogueIds: datacardExclusions(policy.datacardExcludedCatalogueIds, edition) } : {}),
     ...(edition ? { edition } : {}),
   }
-  const twins = cardTwins(ownTexts)
+  // What every rule does is read from VS Data's effect blocks, where the snapshot keeps them; a text joining no record
+  // VS Data has read takes no part in anything the rules read. A text's holders are those of the texts shown once the
+  // cards stand in for the catalogue's, which a card text's record is chosen by.
+  let holding: Pick<DefinitionTexts, 'holders'> = texts
+  const effects = vsDataTextFacts(snapshotDirectory, edition?.id, cardDirectory, { holders: (key) => holding.holders?.(key) ?? [] })
+  const twins = cardTwins(ownTexts, effects)
   yield
   // Readers load a rule's words from the cards wherever they print it, and from the catalogue only where they do not.
   // The swap is made in the files already built, as renaming a rules version's books again would cost as much as the
   // first time, and what the catalogue derives from them besides the index reads no text.
   const shown = texts.withTwins(twins)
+  holding = shown
   const shownCards = withoutTwinSearch(datacards)
-  // What every rule does is read from VS Data's effect blocks, where the snapshot keeps them; a text joining no record
-  // VS Data has read takes no part in anything the rules read.
-  const effects = vsDataTextFacts(snapshotDirectory, edition?.id, cardDirectory, shown, index.datasheets)
   const readFacts = new Map<string, TextFacts>()
   const loaded: LoadedCatalogue = {
     ...ownTexts,

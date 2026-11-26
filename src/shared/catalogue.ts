@@ -1006,7 +1006,7 @@ function grantedAbilitiesInAttachedUnit(
           for (const profile of abilityProfilesOf(source, index, absent)) {
             const description = profileDescription(profile)
             const grants = parsedAbilityGrants(
-              description && abilityGrantsIn(description, index.textFacts),
+              description ? abilityGrantsIn(description, index.textFacts) : null,
               companionIndexes.length > 0,
               linkedAbilities,
               !hasConditionalAbilityLink,

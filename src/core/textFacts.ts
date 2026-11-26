@@ -9,10 +9,10 @@ import { hasTextTokens, textKey, textTokensIn, withoutText } from './sourceText'
  * What the roster rules read from a rules text, kept beside its token.
  *
  * The server and a reader's device both price and judge rosters, and neither holds a
- * source's words once they are published as tokens. So whatever the rules read from
- * a text is read once, from the words, as the token is made, and travels with the
- * data: both sides then answer from the same facts, text loaded or not. Every text
- * records what any rule reads of it; the catalogue's own texts record the rest too.
+ * source's words once they are published as tokens. What a rule does comes from the VS
+ * Data record its text joins (`vsDataEffects`); the few facts VS Data does not state yet,
+ * as a Leader's claims, are read from the words as the token is made (`definitionFactsOf`).
+ * Both travel with the data, so both sides answer from the same facts.
  */
 export type TextFacts = {
   weaponGrants?: WeaponAbilityGrant[]

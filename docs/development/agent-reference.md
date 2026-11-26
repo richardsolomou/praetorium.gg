@@ -4,7 +4,7 @@
 
 ## Reference corpus
 
-- Agents get names, numbers, points, and computed results, never rules text; only `textSources` pointers. The server never fetches or relays the words. `simulate_combat` calculates from the words in its own snapshot (`serverWords`), and replaces any choice label that quotes a rule.
+- Agents get names, numbers, points, and computed results, never rules text; only `textSources` pointers. The server never fetches or relays the words. `simulate_combat` calculates from VS Data's effect blocks, as every simulator does, and replaces any choice label that quotes a rule.
 - MCP account tools (`src/server/referenceMcp.ts`) accept only OAuth bearer tokens, never cookies, and reuse the site's ownership and legality checks. WebMCP approval is not authorization.
 - An account tool called without a token answers with a tool error carrying `_meta["mcp/www_authenticate"]`, and every tool declares `securitySchemes`. Never a transport 401 there: clients such as Claude Code then drop the whole server, public tools included. Only a token that fails verification gets the 401.
 - `plugin/skills` is the one copy of the agent skills: the plugin ships them, and the MCP server serves them as prompts and through `get_skill`. Skill text teaches workflow and construction rules the builder enforces, never rules prose.
