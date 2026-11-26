@@ -31,7 +31,7 @@ const PRICED_EARLIER_VERSIONS = new Set(['legacy-marine-old', 'current-rosters',
  * snapshot has none.
  */
 export function vsPointsIn(directory: string, index: CatalogueIndex, editionId?: string): VsPointsIndex | null {
-  const found = constructionIn(directory, editionId, (entry) => entry.base || PRICED_EARLIER_VERSIONS.has(entry.edition.id))
+  const found = constructionIn(directory, editionId, (entry) => Boolean(entry.base) || PRICED_EARLIER_VERSIONS.has(entry.edition.id))
   if (!found) return null
   const name = (entryId: string) => {
     const definition = index.definitions.get(entryId)
@@ -65,7 +65,7 @@ const ROSTER_KINDS = ['faction', 'battle-size', 'detachment', 'enhancement', 'un
 /** The current rules version's roster definitions, as VS Data's checker reads a list whose wargear the catalogue builds. */
 export function vsRosterDefinitionsIn(directory: string, index: CatalogueIndex, editionId?: string): VsRosterData | null {
   // Only the current rules version's lists are checked by VS Data so far.
-  const construction = constructionIn(directory, editionId, (entry) => entry.base)?.construction
+  const construction = constructionIn(directory, editionId, (entry) => Boolean(entry.base))?.construction
   if (!construction) return null
   const strip = (kind: string, data: Record<string, unknown>) => {
     if (kind === 'model')
