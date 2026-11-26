@@ -327,6 +327,7 @@ function rosterCombatRules(
         description: ability.description,
         scope: 'unit',
         ...(ability.kind === 'upgrade' && ability.source ? { appliedAs: [ability.source] } : {}),
+        ...(ability.kind === 'wargear' ? { heldBy: ability.id } : {}),
         // Projection applies a Feel No Pain as a core ability, and one limited to models with a keyword, or to the leader, to those models alone.
         included:
           (ability.kind === 'core' && /^Feel No Pain [2-6]\+$/.test(ability.name)) ||

@@ -45,19 +45,25 @@ export function combatTarget(
     return refuse('This unit has an unsupported invulnerable save.')
   if (!profiles.length) return refuse('This unit has no model profiles.')
   const carried = carriers.map((carrier) => carrierModelProfiles(carrier, profiles))
-  const defences = profiles.map((profile, index) => ({
-    name: profile.name,
-    toughness: integer(value(profile, 'toughness')),
-    save: integer(value(profile, 'save')),
-    wounds: integer(value(profile, 'wounds')),
-    invulnerable: integer(value(profile, 'invulnerable-save')),
-    keywords: splitKeywords.filter((keyword) =>
-      carriers.some(
-        (carrier, at) => carried[at]!.includes(index) && carrier.keywords?.some((held) => normalized(held) === normalized(keyword)),
-      ),
-    ),
-  }))
-  const key = ({ name: _name, ...stats }: (typeof defences)[number]) => JSON.stringify(stats)
+  const held = (carrier: CombatCarrier) =>
+    splitKeywords.filter((keyword) => carrier.keywords?.some((own) => normalized(own) === normalized(keyword)))
+  // A profile's models holding different split keywords defend apart.
+  const defences = profiles.flatMap((profile, index) => {
+    const sets = uniqueBy(
+      carriers.flatMap((carrier, at) => (!carrier.unitWide && carried[at]!.includes(index) ? [held(carrier)] : [])),
+      (keywords) => keywords.join('\n'),
+    )
+    return (sets.length ? sets : [[]]).map((keywords) => ({
+      index,
+      name: profile.name,
+      toughness: integer(value(profile, 'toughness')),
+      save: integer(value(profile, 'save')),
+      wounds: integer(value(profile, 'wounds')),
+      invulnerable: integer(value(profile, 'invulnerable-save')),
+      keywords,
+    }))
+  })
+  const key = ({ name: _name, index: _index, ...stats }: (typeof defences)[number]) => JSON.stringify(stats)
   let counted: { defence: (typeof defences)[number]; models: number }[]
   if (defences.every((defence) => key(defence) === key(defences[0]!))) counted = [{ defence: defences[0]!, models }]
   else {
@@ -66,7 +72,8 @@ export function combatTarget(
       if (carrier.unitWide) continue
       const matching = carried[at]!
       if (matching.length !== 1) return refuse(`${carrier.name} could not be matched to a model profile.`)
-      counts[matching[0]!]! += carrier.models
+      const keywords = held(carrier).join('\n')
+      counts[defences.findIndex((defence) => defence.index === matching[0] && defence.keywords.join('\n') === keywords)]! += carrier.models
     }
     if (counts.reduce((total, count) => total + count, 0) !== models) return refuse("Choose the defender's surviving models.")
     counted = defences.map((defence, index) => ({ defence, models: counts[index]! }))
@@ -79,7 +86,7 @@ export function combatTarget(
       existing.labels.push(defence.name)
       existing.group.models = (existing.group.models ?? 0) + count
     } else {
-      const { name, keywords, ...stats } = defence
+      const { name, keywords, index: _index, ...stats } = defence
       groups.set(key(defence), { labels: [name], keywords, group: { ...stats, models: count } })
     }
   }

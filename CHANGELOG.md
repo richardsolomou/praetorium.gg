@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.277.18 (2026-11-26)
+
+### Patch Changes
+
+- 1235c3f: [simulator] An ability that helps only some models in a unit, such as Overseer of Redemption for a Repentia Squad's Sisters Repentia, now improves only those models' attacks or saves in the simulator, and a datasheet shows such an ability as only those models'.
+- 1235c3f: [simulator] The simulator gives a piece of wargear's protection only to the models carrying it, so an Imperial Navy Breachers squad with one Endurant shield no longer gets a 4+ invulnerable save for every model.
+
 ## 0.277.17 (2026-11-26)
 
 ### Patch Changes
