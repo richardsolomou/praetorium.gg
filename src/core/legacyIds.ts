@@ -9,8 +9,16 @@ export const legacyIdsSchema = z.object({ format: z.literal('praetorium.legacy-i
 
 /**
  * A frozen map from each choice a saved pick holds (`<choice key>|<option ID>` on a BSData datasheet entry) to the VS
- * Data selections it stands for, or the allegiance it takes. A choice no selection reproduces is listed in `unmatched`.
- * Choices are only added; a mapped one never changes.
+ * Data selections it stands for, or the allegiance it takes. It reads the current rules version only: never read it for
+ * a list of a retained rules version, whose choices can differ.
+ *
+ * Selections are option → wargear → count, added to VS Data's unit as first fielded at the pick's size; a negative count
+ * takes back a selection that VS Data's defaults or the choice above made. A choice beneath another is read with that
+ * one taken. In a group the squad divides (a pick's `spreads`), a key is one more of its option and one fewer of the
+ * option the group names as ordinary, else of the first other held, or one more model when none is held: apply it once
+ * for each the pick holds beyond the first fielding. A default option is listed only where BSData's default differs
+ * from VS Data's; one left out changes nothing. A choice no selection reproduces is listed in `unmatched`. Choices are
+ * only added; a mapped one never changes.
  */
 export const legacyOptionsSchema = z.object({
   format: z.literal('praetorium.legacy-options.v1'),
