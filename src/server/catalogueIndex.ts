@@ -30,11 +30,21 @@ import { liveCatalogueRevision } from './liveCatalogue'
 import { readRevisions } from './catalogueSources'
 const NO_FACTS: TextFacts = { combat: null }
 
-/** What list building reads of a text, which is still read from the words until lists are built from VS Data alone. */
-const LEGALITY = ['attachment', 'substitutes', 'reserveSelectors', 'reserveExemption'] as const
+/**
+ * What list building reads of a text, and a datasheet characteristic a catalogue prints as an ability's bare value, as
+ * an Invulnerable Save of "4+": read from the catalogue until lists and datasheets are built from VS Data (#2007).
+ */
+const CATALOGUE_FIELDS = ['attachment', 'substitutes', 'reserveSelectors', 'reserveExemption', 'bareValue'] as const
 const withLegality = (facts: TextFacts, words: TextFacts | undefined): TextFacts => {
-  const kept = Object.fromEntries(LEGALITY.flatMap((field) => (words?.[field] === undefined ? [] : [[field, words[field]]])))
-  const { attachment: _attachment, substitutes: _substitutes, reserveSelectors: _selectors, reserveExemption: _exemption, ...rest } = facts
+  const kept = Object.fromEntries(CATALOGUE_FIELDS.flatMap((field) => (words?.[field] === undefined ? [] : [[field, words[field]]])))
+  const {
+    attachment: _attachment,
+    substitutes: _substitutes,
+    reserveSelectors: _selectors,
+    reserveExemption: _exemption,
+    bareValue: _bareValue,
+    ...rest
+  } = facts
   return { ...rest, ...kept }
 }
 

@@ -1,5 +1,6 @@
 import fs from 'node:fs'
 import { beforeAll, describe, expect, it } from 'vitest'
+import { datasheetProfilesByKind } from '../src/core/datasheetStructure'
 import { datasheetIn } from '../src/shared/catalogue'
 import { combatUnitsFor } from '../src/shared/combatUnits'
 import { describeDatasheetAbilities } from '../src/shared/datasheetDescriptions'
@@ -46,5 +47,21 @@ describe.skipIf(!fs.existsSync(directory))('ability reminders', () => {
       pickIndex: 0,
     })!.selected
     expect(taken.abilities.filter((ability) => ability.name === 'Protean Purpose')).toHaveLength(1)
+  })
+
+  /** The invulnerable save a datasheet's model profile shows. */
+  const invulnerable = (faction: string, unit: string, model: string) => {
+    const book = index.find((candidate) => candidate.name === faction)!
+    const sheet = datasheetIn(snapshot.catalogue, book.catalogueId, book.units.find((candidate) => candidate.name === unit)!.id)!
+    const profile = datasheetProfilesByKind(sheet).unit.find((candidate) => candidate.name === model)
+    return profile?.values.find((value) => value.kind === 'invulnerable-save')?.value ?? '-'
+  }
+
+  // A save printed as an ability's bare value is the model's own; a save the rule makes conditional is the simulator's to apply.
+  it.each([
+    ['Agents of the Imperium', 'Proteus Kill Team [Legends]', 'Kill Team Terminator', '4+'],
+    ['Astra Militarum', 'Primaris Psyker', 'Primaris Psyker', '-'],
+  ] as const)('%s %s shows %s an invulnerable save of %s', (faction, unit, model, save) => {
+    expect(invulnerable(faction, unit, model)).toBe(save)
   })
 })

@@ -635,7 +635,10 @@ export function textFactsOfVsData(blocks: Readonly<Record<string, unknown>>): Te
     ...(ledWeaponGrant ? { ledWeaponGrant } : {}),
     ...(reserves?.exemptUnits ? { reserveSelectors: reserves.exemptUnits } : {}),
     ...(reserves?.exempt ? { reserveExemption: true } : {}),
-    ...(invulnerableSave ? { invulnerableSave: `${invulnerableSave.roll}+` } : {}),
+    // A datasheet shows a save the unit always has; a conditional or some models' save is left to the simulator's reading.
+    ...(invulnerableSave && !invulnerableSave.conditional && !invulnerableSave.keywords
+      ? { invulnerableSave: `${invulnerableSave.roll}+` }
+      : {}),
     ...(blockOf(blocks, 'upgradesWeapon') ? { linkedWeapon: true } : {}),
     ...(reminder
       ? {
