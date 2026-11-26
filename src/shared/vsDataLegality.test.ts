@@ -9,7 +9,7 @@ const data = vsRosterData(
     unavailable: [],
     points: [],
     definitions: {
-      faction: { host: record('Host', {}), other: record('Other', {}) },
+      faction: { host: record('Host', {}), other: record('Other', {}), titan: record('Titan', {}) },
       'battle-size': { small: record('Small', { points: 1000, enhancements: 1 }) },
       detachment: { 'host.guard': record('Guard', { faction: 'host' }), 'other.raid': record('Raid', { faction: 'other' }) },
       allegiance: { 'host.mark.fire': record('Fire', {}) },
@@ -36,7 +36,7 @@ const data = vsRosterData(
     },
   },
   {
-    books: { 'bs-host': 'host' },
+    books: { 'bs-host': 'host', 'bs-titan': 'titan' },
     detachments: { 'bs-guard': 'host.guard', 'bs-raid': 'other.raid' },
     units: { 'bs-mob': 'host.mob', 'bs-lord': 'host.lord' },
     enhancements: { 'host.guard/bs-crown': 'host.guard.crown', 'host.guard/bs-fire': 'host.guard.crown' },
@@ -80,8 +80,14 @@ describe('vsDataErrors', () => {
     expect(errors([unit({ entryId: 'bs-lord' })])).toEqual([])
   })
 
-  it('leaves a list with no Detachment to the catalogue', () => {
-    expect(errors([unit({ entryId: 'bs-mob', size: { models: 15, min: 10, max: 20 } })], [])).toBeNull()
+  it('refuses a list with no Detachment', () => {
+    expect(errors([unit({ entryId: 'bs-mob', size: { models: 10, min: 10, max: 20 } })], [])).toEqual([
+      { entryId: 'army', entryName: 'Army', message: 'needs one to three Detachments' },
+    ])
+  })
+
+  it('leaves a list of a faction VS Data gives no Detachments to the catalogue', () => {
+    expect(vsDataErrors(data, { catalogueId: 'bs-titan', detachmentIds: [], limit: 1000 }, [])).toBeNull()
   })
 
   it('gives a unit the catalogue reads as a Character the Enhancement VS Data keeps for Characters', () => {
