@@ -41,6 +41,19 @@ describe('the abilities and wargear a datasheet lists', () => {
     expect(datasheetIn(book, 'cat', 'swarmlord')?.abilities).toEqual([])
   })
 
+  it('lists a psychic power BSData types as a Psychic Abilities profile', () => {
+    const power = {
+      id: 'soul-sight',
+      name: 'Soul Sight',
+      typeName: 'Psychic Abilities',
+      characteristics: [{ name: 'Descriptions', $text: 'Sight.' }],
+    }
+    const book = bookOf({ selectionEntries: [{ id: 'librarian', name: 'Librarian', type: 'model', profiles: [power] }] })
+    expect(datasheetIn(book, 'cat', 'librarian')?.abilities).toEqual([
+      { id: 'soul-sight', name: 'Soul Sight', kind: 'datasheet', description: 'Sight.' },
+    ])
+  })
+
   it('separates faction, core, datasheet, rule and wargear abilities', () => {
     const book = bookOf({
       sharedProfiles: [ability('shared-ability', 'My Will Be Done')],

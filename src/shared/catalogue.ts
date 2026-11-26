@@ -6,6 +6,7 @@ import { cachedIn, remember, uniqueBy } from '../core/collections'
 import {
   type Definition,
   definitionAndTarget,
+  isAbilityProfile,
   profileDescription,
   type InfoGroup,
   type InfoLink,
@@ -252,7 +253,7 @@ function abilityProfilesOf(
 ): (Profile & { name: string })[] {
   const found: (Profile & { name: string })[] = []
   const add = (profile: Profile, lineage: readonly string[] = []) => {
-    if (profile.typeName === 'Abilities' && profile.name && !profile.hidden && !markedAbsent(absent, profile, [...lineage, profile.id]))
+    if (isAbilityProfile(profile) && profile.name && !profile.hidden && !markedAbsent(absent, profile, [...lineage, profile.id]))
       found.push({ ...profile, name: profile.name })
   }
   definition.profiles?.forEach((profile) => add(profile))
@@ -456,7 +457,7 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
   const keywordRules = new Map<string, Datasheet['keywordRules'][number]>()
   const visited = new Set<string>()
   const addProfile = (profile: Profile, kind: AbilityKind, lineage: string[], owner: string[], source?: string, into = abilities) => {
-    if (profile.typeName === 'Abilities' && profile.name) {
+    if (isAbilityProfile(profile) && profile.name) {
       const profileLineage = [...lineage, profile.id]
       if (markedAbsent(root.absentAbilities, profile, profileLineage)) return
       const hidden = modifiedProfileField(
@@ -498,7 +499,7 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
   ) => {
     const owner = definitionTokens(definition)
     definition.profiles?.forEach((profile) => {
-      if (weaponsOnly && profile.typeName === 'Abilities') return
+      if (weaponsOnly && isAbilityProfile(profile)) return
       addProfile(
         profile,
         kind,
@@ -518,7 +519,7 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
       if (!shared) continue
       if (
         'characteristics' in shared &&
-        (!weaponsOnly || shared.typeName !== 'Abilities') &&
+        (!weaponsOnly || !isAbilityProfile(shared)) &&
         // A link hidden outright is never shown; one a roster condition hides stays, as a Weirdboy's Wurrband powers do.
         !(link.hidden && !flattenedModifiers([link]).some((modifier) => modifier.field === 'hidden'))
       ) {

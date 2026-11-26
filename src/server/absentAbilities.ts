@@ -1,6 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import type { CatalogueFile } from '../core/catalogue'
+import { type CatalogueFile, isAbilityProfile } from '../core/catalogue'
 import { abilityKey } from '../shared/vsDataAbilities'
 import { routeSlug } from '../core/slug'
 import type { LoadedDatacards } from '../shared/datacards'
@@ -113,9 +113,7 @@ export function withoutAbsentAbilities(
     const absentHere =
       active &&
       !fields.hidden &&
-      (('typeName' in fields &&
-        typeof fields.id === 'string' &&
-        (active.ids.has(fields.id) || (fields.typeName === 'Abilities' && byName))) ||
+      (('typeName' in fields && typeof fields.id === 'string' && (active.ids.has(fields.id) || (isAbilityProfile(fields) && byName))) ||
         (fields.type === 'profile' && ((typeof fields.targetId === 'string' && active.ids.has(fields.targetId)) || byName)))
     const marked = typeof fields.id === 'string' ? datasheets.get(fields.id) : undefined
     if (marked) (changed ??= { ...fields }).absentAbilities = { profiles: [...marked.ids], keys: [...marked.keys] }

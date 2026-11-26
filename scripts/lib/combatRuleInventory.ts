@@ -1,4 +1,4 @@
-import { profileDescription } from '../../src/core/catalogue'
+import { isAbilityProfile, profileDescription } from '../../src/core/catalogue'
 import type { InfoGroup, InfoLink, Profile } from '../../src/core/catalogue'
 import type { LoadedCatalogue } from '../../src/shared/catalogueIndex'
 import { combatKeyword, normalizeCombatKeyword } from '../../src/core/combatKeywords'
@@ -38,7 +38,7 @@ export function unselectedCombatRules(loaded: LoadedCatalogue) {
   const rows: { name: string; description: string; source: string }[] = []
   const profile = (value: Profile, source: string) => {
     const description = profileDescription(value)
-    if (value.typeName === 'Abilities' && value.name && description) rows.push({ name: value.name, description, source })
+    if (isAbilityProfile(value) && value.name && description) rows.push({ name: value.name, description, source })
   }
   visitCatalogueProfiles(loaded, profile)
   for (const rule of loaded.index.rules.values()) {

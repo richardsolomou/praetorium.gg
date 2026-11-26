@@ -1,7 +1,16 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { parseArgs } from 'node:util'
-import type { Catalogue, Condition, ConditionGroup, Definition, LocalConditionGroup, Modifier } from '../src/core/catalogue'
+import {
+  type Catalogue,
+  type Condition,
+  type ConditionGroup,
+  type Definition,
+  type LocalConditionGroup,
+  type Modifier,
+  isAbilityProfile,
+} from '../src/core/catalogue'
+import { weaponPhase } from '../src/core/datasheetStructure'
 import { remember } from '../src/core/collections'
 import { flattenedModifiers } from '../src/core/evaluate'
 import { readCatalogueComposition } from '../src/server/catalogueComposition'
@@ -187,7 +196,7 @@ const enhancementCost = [...index.costTypes.values()].find((type) => type.name =
 /** Crusade and Boarding Actions content, which VS Data does not cover, by the names of its groups or entries. */
 const CRUSADE =
   /crusade|battle traits?|battle scars?|relics|battle honours?|requisition|specialisms|boons|aeldari paths|-level assets|strains|burdens|bossloot|archeotech|idolator|pacts of damnation|masteries|district abilities|commendations|tours of duty|elixirs|dark destiny|boarding act/i
-const PROFILE_TYPES = new Set(['Ranged Weapons', 'Melee Weapons', 'Abilities'])
+const wargearProfile = (typeName = '') => weaponPhase(typeName) !== null || isAbilityProfile({ typeName })
 
 function resolve(id: string) {
   const definition = index.definitions.get(id)
@@ -214,10 +223,10 @@ function classify(id: string): SourceClass | null {
   if (!owners.has(id) && !(target && owners.has(target.id))) return 'other'
   const profiled = both.some(
     (entry) =>
-      entry.profiles?.some((profile) => PROFILE_TYPES.has(profile.typeName ?? '')) ||
+      entry.profiles?.some((profile) => wargearProfile(profile.typeName)) ||
       entry.infoLinks?.some((link) => {
         const shared = index.shared.get(link.targetId)
-        return link.type === 'profile' && shared && 'typeName' in shared && PROFILE_TYPES.has(shared.typeName ?? '')
+        return link.type === 'profile' && shared && 'typeName' in shared && wargearProfile(shared.typeName)
       }),
   )
   return profiled ? 'wargear' : 'unit'

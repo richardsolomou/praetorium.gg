@@ -450,8 +450,12 @@ export function targetOf(definition: Definition, definitions: ReadonlyMap<string
 
 export const resolve = (definition: Definition, index: CatalogueIndex) => targetOf(definition, index.definitions)
 
+/** An ability's profile, including a psychic power, which BSData prints under its own type with its text under "Descriptions". */
+export const isAbilityProfile = <T extends Pick<Profile, 'typeName'>>(profile: T): profile is T & { typeName: string } =>
+  datasheetProfileKind(profile.typeName ?? '') === 'rule'
+
 export const profileDescription = (profile: Profile) =>
-  profile.characteristics?.find((characteristic) => characteristic.name === 'Description')?.$text ?? null
+  profile.characteristics?.find(({ name }) => name === 'Description' || name === 'Descriptions')?.$text ?? null
 
 /** An entry, and its target when it is a link: the two places its own data can be written. */
 export function definitionAndTarget(definition: Definition, index: CatalogueIndex): Definition[] {

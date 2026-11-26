@@ -1,5 +1,5 @@
 import { hash } from 'node:crypto'
-import { type Definition, profileDescription, targetOf } from '../core/catalogue'
+import { type Definition, isAbilityProfile, profileDescription, targetOf } from '../core/catalogue'
 import { RecentlyUsed, cachedIn, groupBy, remember } from '../core/collections'
 import { combatFactsOf } from '../core/combatReading'
 import { routeSlug } from '../core/slug'
@@ -127,10 +127,10 @@ function datasheetAbilities(loaded: LoadedCatalogue, pair: Pair) {
       const found: (readonly [string | undefined, string | null | undefined])[] = []
       const own = (definition: Definition) => {
         for (const profile of [...(definition.profiles ?? []), ...(definition.infoGroups ?? []).flatMap((group) => group.profiles ?? [])])
-          if (profile.typeName === 'Abilities') found.push([profile.name, profileDescription(profile)])
+          if (isAbilityProfile(profile)) found.push([profile.name, profileDescription(profile)])
         for (const link of definition.infoLinks ?? []) {
           const shared = index.shared.get(link.targetId)
-          if (shared && 'characteristics' in shared && shared.typeName === 'Abilities')
+          if (shared && 'characteristics' in shared && isAbilityProfile(shared))
             found.push([link.name ?? shared.name, profileDescription(shared)])
           const rule = index.rules.get(link.targetId)
           if (rule && !core(link.targetId)) found.push([link.name ?? rule.name, rule.description])
