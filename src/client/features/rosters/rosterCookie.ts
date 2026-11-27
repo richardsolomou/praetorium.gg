@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { ROSTER_LIBRARY_BATCH_SIZE } from '../../../core/rosterLibrary'
+import { useClientValue } from '../../useClientValue'
 
 const KEPT_FOR = 60 * 60 * 24 * 365
 
@@ -21,16 +22,17 @@ export function setRosterCookie(name: string, value: string | null) {
 }
 
 /**
- * A choice kept in a `/rosters` cookie: the loader's while rendering on the server, so hydration matches, then the
+ * A choice kept in a `/rosters` cookie: the loader's on the server and during hydration, then the
  * browser's own, which a cached loader result can predate. Reading it here spares invalidating the route, which scrolls to the top.
  */
-export function useRosterCookieChoice<T>(loaded: T, name: string, read: (value: string | undefined) => T) {
-  return useState(() => {
-    if (typeof document === 'undefined') return loaded
+export function useRosterCookieChoice<T extends string>(loaded: T, name: string, read: (value: string | undefined) => T) {
+  const stored = useClientValue(() => {
     const cookie = document.cookie
       .split('; ')
       .find((entry) => entry.startsWith(`${name}=`))
       ?.slice(name.length + 1)
     return read(cookie)
-  })
+  }, loaded)
+  const [chosen, choose] = useState<T>()
+  return [chosen ?? stored, choose] as const
 }
