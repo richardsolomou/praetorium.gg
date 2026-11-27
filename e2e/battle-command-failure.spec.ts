@@ -1,11 +1,11 @@
-import { createRoster, signUp, startBattle, uniqueName, practiceBattle, PHONE } from './account'
+import { seededRoster, signUp, startBattle, uniqueName, practiceBattle, PHONE } from './account'
 import { expect, test } from './test'
 import { screenshot } from './screenshots'
 
 test('a failed mission draw can be retried after the connection returns', async ({ page, context }) => {
   await context.route('**/offline-reference*', (route) => route.abort('internetdisconnected'))
   await signUp(page, uniqueName('Disconnected draw'))
-  const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/ })
+  const roster = await seededRoster(page, { faction: 'Necrons', detachment: 'Awakened Dynasty' })
   await practiceBattle(page, roster)
   await startBattle(page, undefined, false)
   const prompt = page.getByRole('dialog', { name: /secondary missions$/ })

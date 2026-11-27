@@ -1,7 +1,7 @@
 import { expect, test, type Page } from './test'
 import {
   chooseRosterDefault,
-  createRoster,
+  seededRoster,
   signUp,
   uniqueName,
   expectNoPageOverflow,
@@ -45,7 +45,7 @@ test('a private roster can be shared, indexed only while public, and made privat
   await expect(creation.locator('#setup-visibility-reach')).toBeInViewport()
   await creation.getByRole('button', { name: 'Cancel', exact: true }).click()
   await page.setViewportSize({ width: 1440, height: 900 })
-  await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Shareable roster' })
+  await seededRoster(page, { faction: 'Necrons', detachment: 'Awakened Dynasty', name: 'Shareable roster' })
   const privateSetup = await openRosterSetup(page)
   await expect(privateSetup.getByRole('combobox', { name: 'Access' }).locator('[data-slot="select-value"]')).toHaveText('Private')
   await expect(privateSetup).toContainText('You and friends you lend it to. A battle still shows the list as it was fielded')
@@ -151,7 +151,7 @@ test('editable detail waits for public access to save before sharing, then copie
   const page = await context.newPage()
   await signUp(page, uniqueName('Detail sharer'))
   await chooseRosterDefault(page, 'Private')
-  await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Detail share' })
+  await seededRoster(page, { faction: 'Necrons', detachment: 'Awakened Dynasty', name: 'Detail share' })
   const sharedUrl = page.url()
   const anonymous = await (await browser.newContext()).newPage()
   const previewPath = `/api/previews${new URL(sharedUrl).pathname}`

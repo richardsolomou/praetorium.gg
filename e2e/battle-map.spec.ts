@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './test'
-import { createRoster, retryUntilVisible, signUp, startBattle, practiceBattle, concede, PHONE } from './account'
+import { seededRoster, retryUntilVisible, signUp, startBattle, practiceBattle, concede, PHONE } from './account'
 import { screenshot } from './screenshots'
 
 async function inspectMap(page: Page) {
@@ -27,7 +27,7 @@ async function inspectMap(page: Page) {
 
 test('players and spectators open the saved battlefield with its measurements', async ({ page, browser }) => {
   await signUp(page, 'Battlefield viewer')
-  const roster = await createRoster(page, { faction: 'Space Marines', detachment: /Gladius Task Force/, name: 'Map army' })
+  const roster = await seededRoster(page, { faction: 'Space Marines', detachment: 'Gladius Task Force', name: 'Map army' })
   await practiceBattle(page, roster)
   await startBattle(page)
   await inspectMap(page)

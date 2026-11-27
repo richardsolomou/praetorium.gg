@@ -1,6 +1,6 @@
 import { AxeBuilder } from '@axe-core/playwright'
 import { expect, test, type Page } from './test'
-import { addUnit, createRoster, practiceBattle, signUp, startBattle, uniqueName } from './account'
+import { addUnit, seededRoster, practiceBattle, signUp, startBattle, uniqueName } from './account'
 
 /**
  * Fails on the serious and critical WCAG A and AA violations axe finds on the page as it stands.
@@ -29,14 +29,14 @@ test('home has no serious accessibility violations', async ({ page }) => {
 
 test('the roster builder has no serious accessibility violations', async ({ page }) => {
   await signUp(page, 'Alice')
-  await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/ })
+  await seededRoster(page, { faction: 'Necrons', detachment: 'Awakened Dynasty' })
   await addUnit(page, 'Necron Warriors')
   await expectNoSeriousViolations(page)
 })
 
 test('a practice battle has no serious accessibility violations', async ({ page }) => {
   await signUp(page, 'Alice')
-  const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/ })
+  const roster = await seededRoster(page, { faction: 'Necrons', detachment: 'Awakened Dynasty' })
   await practiceBattle(page, roster)
   // With both lists in, the table writes their mission cards and fades its choices until they land.
   await expect(page.getByRole('button', { name: /^No limit/ })).toBeEnabled()
