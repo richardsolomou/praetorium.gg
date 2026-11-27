@@ -210,7 +210,8 @@ function described(problem: VsProblem, checked: { unit: CheckedUnit }[], definit
     'allegiance-requires': named(problem.message),
     'allegiance-limit': named(problem.message),
   }
-  const text = unit ? (message[problem.code] ?? unitWords(problem, named)) : message[problem.code]
+  // Only a unit VS Data fields by its IDs has its own models and wargear read; another's are the catalogue's to say.
+  const text = message[problem.code] ?? (unit?.vs ? unitWords(problem, named) : undefined)
   return text ? { ...owner, message: text } : null
 }
 

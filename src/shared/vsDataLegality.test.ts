@@ -71,7 +71,11 @@ const data = vsRosterData(
     books: { 'bs-host': 'host', 'bs-titan': 'titan', 'bs-engines': 'engines', 'bs-relics': 'relics' },
     detachments: { 'bs-guard': 'host.guard', 'bs-raid': 'other.raid' },
     units: { 'bs-mob': 'host.mob', 'bs-lord': 'host.lord', 'bs-fort': 'other.fort', 'bs-walker': 'engines.walker', 'bs-squad': 'host.squad' },
-    enhancements: { 'host.guard/bs-crown': 'host.guard.crown', 'host.guard/bs-fire': 'host.guard.crown' },
+    enhancements: {
+      'host.guard/bs-crown': 'host.guard.crown',
+      'host.guard/bs-fire': 'host.guard.crown',
+      'host.guard/bs-gone': 'host.guard.gone',
+    },
   },
   null,
   (id) => ({ 'bs-mob': 'Mob', 'bs-lord': 'Lord', 'bs-fort': 'Fort [Legends]', 'bs-walker': 'Walker', 'bs-squad': 'Squad' })[id],
@@ -185,6 +189,10 @@ describe('vsDataErrors', () => {
           }),
         ]),
       ).toEqual([{ entryId: 'bs-mob', entryName: 'bs-mob', message: 'cannot take Crown' }])
+    })
+
+    it('leaves an Enhancement VS Data does not define on a unit it reads by size to the catalogue', () => {
+      expect(errors([unit({ entryId: 'bs-lord', choices: [option('bs-gone', 'Gone')] })])).toEqual([])
     })
 
     it('is checked on its wargear in a list VS Data cannot place', () => {
