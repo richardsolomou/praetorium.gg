@@ -20,6 +20,7 @@ import {
   startVisitorRoster,
 } from './account'
 import { productOperator, productSql, userIdFor, lastPathSegment } from './storage'
+import { screenshot } from './screenshots'
 
 test('the roster library reserves its rows while the first page loads', async ({ browser, page: savedPage }) => {
   await signUp(savedPage, 'Loading')
@@ -33,10 +34,10 @@ test('the roster library reserves its rows while the first page loads', async ({
   await expect(firstFrameRubric.getByLabel('Loading roster count')).toBeVisible()
   await expect(firstFrame.getByRole('button', { name: 'New roster', exact: true })).toBeVisible()
   await expect(firstFrame.getByLabel('Loading roster creation options')).toHaveCount(0)
-  await firstFrame.screenshot({ path: test.info().outputPath('loading-roster-library-no-js.png'), fullPage: true })
+  await screenshot(firstFrame, 'loading-roster-library-no-js.png', { fullPage: true })
   await firstFrame.setViewportSize(PHONE)
   await expectNoPageOverflow(firstFrame)
-  await firstFrame.screenshot({ path: test.info().outputPath('loading-roster-library-no-js-phone.png'), fullPage: true })
+  await screenshot(firstFrame, 'loading-roster-library-no-js-phone.png', { fullPage: true })
   await firstFrameContext.close()
 
   const coldContext = await browser.newContext({ storageState: await savedPage.context().storageState() })
@@ -64,16 +65,16 @@ test('the roster library reserves its rows while the first page loads', async ({
     await createRosterButton.click()
     await expect(page.getByRole('heading', { name: 'Create roster' })).toBeVisible()
     await page.keyboard.press('Escape')
-    await page.screenshot({ path: test.info().outputPath('loading-roster-library.png'), fullPage: true })
+    await screenshot(page, 'loading-roster-library.png', { fullPage: true })
     await page.setViewportSize(PHONE)
     await expectNoPageOverflow(page)
-    await page.screenshot({ path: test.info().outputPath('loading-roster-library-phone.png'), fullPage: true })
+    await screenshot(page, 'loading-roster-library-phone.png', { fullPage: true })
     release()
     const row = page.locator(`[data-roster="${rosterName}"]`)
     await expect(row).toBeVisible()
     await expect(row).toContainText('Take and Hold')
     await expectNoPageOverflow(page)
-    await page.screenshot({ path: test.info().outputPath('roster-library-disposition-phone.png'), fullPage: true })
+    await screenshot(page, 'roster-library-disposition-phone.png', { fullPage: true })
     await page.unroute('**/_serverFn/**')
   } finally {
     await coldContext.close()
@@ -123,7 +124,7 @@ test('the roster library counts every saved list and prices more rows on demand'
   await expect(page.getByRole('button', { name: 'Show more rosters' })).toBeVisible()
   await page.setViewportSize(PHONE)
   await expectNoPageOverflow(page)
-  await page.screenshot({ path: test.info().outputPath('roster-library-paged-phone.png') })
+  await screenshot(page, 'roster-library-paged-phone.png')
 })
 
 test('opening an unchanged list saves nothing, and an edit still saves', async ({ page }) => {
@@ -169,7 +170,7 @@ test('automatic roster names are saved with edits and a player can override or r
   await page.reload()
   await expect(name).toHaveValue('')
   await expect(name).toHaveAttribute('placeholder', "AD 2K - C'tan")
-  await page.screenshot({ path: test.info().outputPath('automatic-roster-reloaded.png') })
+  await screenshot(page, 'automatic-roster-reloaded.png')
 })
 
 test('a search from the top level finds a roster in its folder and keeps it there', async ({ page }) => {
@@ -234,7 +235,7 @@ test('a roster variant is numbered and grouped under its base without renaming',
   await expect
     .poll(() => page.locator('[data-roster]').evaluateAll((rows) => rows.map((row) => row.getAttribute('data-roster'))))
     .toEqual(['Dynasty 2k', 'Dynasty 2k · 2', 'Another list'])
-  await page.screenshot({ path: test.info().outputPath('roster-variants-library.png'), fullPage: true })
+  await screenshot(page, 'roster-variants-library.png', { fullPage: true })
   const baseVisibility = page.locator('[data-roster="Dynasty 2k"]').getByText('Public', { exact: true })
   await expect(baseVisibility).toBeVisible()
   const baseDetails = page.locator('[data-roster="Dynasty 2k"] [data-slot="roster-details"]')
@@ -246,7 +247,7 @@ test('a roster variant is numbered and grouped under its base without renaming',
     .locator('[data-variant] .chip')
     .evaluateAll((chips) => chips.map((chip) => chip.getBoundingClientRect().height))
   expect(Math.max(...chipHeights)).toBeLessThan(30)
-  await page.screenshot({ path: test.info().outputPath('roster-variants-library-phone.png'), fullPage: true })
+  await screenshot(page, 'roster-variants-library-phone.png', { fullPage: true })
   await page.setViewportSize({ width: 1440, height: 900 })
 
   await page.getByRole('link', { name: /Dynasty 2k · 2/ }).click()
@@ -269,7 +270,7 @@ test('a roster variant is numbered and grouped under its base without renaming',
   await page.setViewportSize(PHONE)
   await expect(page.getByRole('button', { name: 'Variant 3 of 3' })).toBeVisible()
   await expectNoPageOverflow(page)
-  await page.screenshot({ path: test.info().outputPath('roster-variants-switcher-phone.png') })
+  await screenshot(page, 'roster-variants-switcher-phone.png')
   await page.setViewportSize({ width: 1440, height: 900 })
 
   const header = page.getByLabel('List name').locator('xpath=ancestor::header[1]')
@@ -278,11 +279,11 @@ test('a roster variant is numbered and grouped under its base without renaming',
   const lists = page.getByRole('navigation', { name: 'Variants' }).getByRole('link')
   await expect(lists).toHaveText([/^Dynasty 2k\s*Base$/, 'Dynasty 2k · 2', 'Dynasty 2k · 3'])
   await expect(lists.nth(2)).toHaveAttribute('aria-current', 'page')
-  await page.screenshot({ path: test.info().outputPath('roster-variants-switcher.png') })
+  await screenshot(page, 'roster-variants-switcher.png')
   await lists.first().click()
   await expect(page.getByLabel('List name')).toHaveValue('Dynasty 2k')
   await expect(page.getByRole('button', { name: 'Variant 1 of 3' })).toBeVisible()
-  await page.screenshot({ path: test.info().outputPath('roster-base-refreshed.png') })
+  await screenshot(page, 'roster-base-refreshed.png')
 
   await page.goto('/rosters')
   const third = page.locator('[data-roster="Dynasty 2k · 3"]')
@@ -307,7 +308,7 @@ test('a roster variant is numbered and grouped under its base without renaming',
   const chipLine = await third.locator('[data-slot="roster-differences"]').boundingBox()
   const thirdPoints = await third.getByText(/^\d+\/2000$/).boundingBox()
   expect(chipLine!.x + chipLine!.width).toBeGreaterThan(thirdPoints!.x)
-  await page.screenshot({ path: test.info().outputPath('roster-variants-library-detachments-phone.png'), fullPage: true })
+  await screenshot(page, 'roster-variants-library-detachments-phone.png', { fullPage: true })
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.getByRole('link', { name: /Another list/ }).click()
   await expect(page.getByLabel('List name')).toHaveValue('Another list')
@@ -342,10 +343,10 @@ test('a battle’s roster chooser tells a variant apart from its base', async ({
   await expect(variant.locator('[data-slot="roster-differences"]')).toHaveText(/^\+\s*1 unit: Lychguard$/)
   const points = async (roster: typeof variant) => Number((await roster.getByText(/^\d+\/2000$/).innerText()).split('/')[0])
   expect(await points(variant)).toBeGreaterThan(await points(base))
-  await page.screenshot({ path: test.info().outputPath('roster-chooser-variants.png') })
+  await screenshot(page, 'roster-chooser-variants.png')
   await page.setViewportSize(PHONE)
   await expectNoPageOverflow(page)
-  await page.screenshot({ path: test.info().outputPath('roster-chooser-variants-phone.png') })
+  await screenshot(page, 'roster-chooser-variants-phone.png')
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.keyboard.press('Escape')
   await expect(chooser).toBeHidden()
@@ -519,7 +520,7 @@ test('a saved list is reopened, duplicated, shared and published', async ({ brow
   await expect(loadout.getByText('Gauss blaster', { exact: true }).first()).toBeVisible()
   await expect(page.getByLabel('List name')).toHaveValue('Nurgle 2k')
   await expect(page.getByLabel('Immortals models')).toHaveText('6')
-  await page.screenshot({ path: test.info().outputPath('saved-roster-edge-to-edge.png'), fullPage: true })
+  await screenshot(page, 'saved-roster-edge-to-edge.png', { fullPage: true })
 
   // A second visit, in the same browser, starts from the saved list.
   await page.goto('/rosters')
@@ -547,7 +548,7 @@ test('a saved list is reopened, duplicated, shared and published', async ({ brow
   await expect(roster.getByLabel('List name')).toHaveValue('Copy of Nurgle 2k')
   await expect(roster.getByRole('button', { name: 'Immortals', exact: true })).toBeVisible()
   await roster.emulateMedia({ media: 'print' })
-  await roster.screenshot({ path: test.info().outputPath('shared-roster-print.png'), fullPage: true })
+  await screenshot(roster, 'shared-roster-print.png', { fullPage: true })
   const sharedUrl = roster.url()
   await roster.close()
 
@@ -620,7 +621,7 @@ test('a saved list is reopened, duplicated, shared and published', async ({ brow
   await expect(guestShare.getByRole('button', { name: /^Print/ })).toBeVisible()
   // A reader sees who can open the list but cannot change it.
   await expect(guestShare.getByRole('radio')).toHaveCount(0)
-  await guest.screenshot({ path: test.info().outputPath('shared-roster-actions.png'), fullPage: true })
+  await screenshot(guest, 'shared-roster-actions.png', { fullPage: true })
   await guest.keyboard.press('Escape')
   await expect(guest.getByLabel('Add units')).toHaveCount(0)
   const guestUnits = guest.locator('[data-slot="roster-units"]')
@@ -648,17 +649,17 @@ test('a saved list is reopened, duplicated, shared and published', async ({ brow
   await expect(guestLoadout.getByRole('button', { name: /^Select / })).toHaveCount(0)
   await expect(guestLoadout.getByRole('button', { name: 'More models in Immortals' })).toHaveCount(0)
   await expect(guestLoadout.getByText('Implacable Eradication')).toBeVisible()
-  await guest.screenshot({ path: test.info().outputPath('shared-roster-read-only.png'), fullPage: true })
+  await screenshot(guest, 'shared-roster-read-only.png', { fullPage: true })
   await guest.setViewportSize(PHONE)
   await expect(guestLoadout).toBeVisible()
   await expectNoPageOverflow(guest)
   await expectNoHorizontalOverflow(guestLoadout)
-  await guest.screenshot({ path: test.info().outputPath('shared-roster-read-only-phone.png'), fullPage: true })
+  await screenshot(guest, 'shared-roster-read-only-phone.png', { fullPage: true })
   await guestLoadout.getByRole('button', { name: 'Back to roster' }).click()
   await guest.getByRole('button', { name: 'Roster actions' }).click()
   await expect(guest.getByRole('menuitem', { name: 'Duplicate to this device' })).toBeVisible()
   await expectNoPageOverflow(guest)
-  await guest.screenshot({ path: test.info().outputPath('shared-roster-actions-phone.png'), fullPage: true })
+  await screenshot(guest, 'shared-roster-actions-phone.png', { fullPage: true })
   await guest.keyboard.press('Escape')
 
   await signUp(guest, uniqueName('Reader'))

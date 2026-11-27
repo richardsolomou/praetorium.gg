@@ -3,11 +3,12 @@ import { addUnit, createRoster, PHONE, signUp, uniqueName } from './account'
 import { productOperator, lastPathSegment } from './storage'
 import type { RosterPick } from '../src/core/roster'
 import { closePicker } from './builder.harness'
+import { screenshot } from './screenshots'
 
 /** A unit card's wargear line; the separator drawn after all but the last is not read aloud. */
 const wargear = (count: number, weapon: string) => new RegExp(`^${count}x ${weapon}(?:\u00a0· )?$`)
 
-test('Fireknife suits keep both weapons and up to two different drones per model', async ({ page }, testInfo) => {
+test('Fireknife suits keep both weapons and up to two different drones per model', async ({ page }) => {
   await page.setViewportSize(PHONE)
   await signUp(page, uniqueName('Fireknife loadout'))
   await createRoster(page, { faction: "T'au Empire", detachment: /Retaliation Cadre/ })
@@ -41,7 +42,7 @@ test('Fireknife suits keep both weapons and up to two different drones per model
   await expect(count('Gun Drone')).toHaveText('1')
   await expect(count('Marker Drone')).toHaveText('1')
   await count('Gun Drone').scrollIntoViewIfNeeded()
-  await page.screenshot({ path: testInfo.outputPath('fireknife-phone.png') })
+  await screenshot(page, 'fireknife-phone.png')
 
   for (const [drone, amount] of [
     ['Gun Drone', 1],
@@ -56,7 +57,7 @@ test('Fireknife suits keep both weapons and up to two different drones per model
   await expect(squad.getByLabel('Shield Drone count', { exact: true })).toHaveText('2')
 })
 
-test(`saved Tankbustas count doubled fixed weapons through reload and view at 390px`, async ({ page }, testInfo) => {
+test(`saved Tankbustas count doubled fixed weapons through reload and view at 390px`, async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 900 })
   await signUp(page, uniqueName('Doubled Tankbustas'))
   await createRoster(page, { faction: 'Orks', detachment: /War Horde/ })
@@ -80,7 +81,7 @@ test(`saved Tankbustas count doubled fixed weapons through reload and view at 39
   const loadout = page.getByRole('complementary', { name: 'Loadout', exact: true })
   await expect(loadout.getByLabel('Busta Rokkit Launcha count', { exact: true }).last()).toHaveText('2')
   await loadout.getByLabel('Busta Rokkit Launcha count', { exact: true }).last().scrollIntoViewIfNeeded()
-  await page.screenshot({ path: testInfo.outputPath('doubled-editor.png') })
+  await screenshot(page, 'doubled-editor.png')
   await page.getByRole('button', { name: 'Back to roster', exact: true }).click()
   await page.getByRole('button', { name: 'View', exact: true }).click()
   await expect(card.getByRole('listitem').filter({ hasText: 'Busta Rokkit Launcha' })).toHaveText(wargear(6, 'Busta Rokkit Launcha'))
@@ -90,5 +91,5 @@ test(`saved Tankbustas count doubled fixed weapons through reload and view at 39
     .getByRole('heading', { name: /^6× busta rokkit launcha/i })
   await expect(launchas).toBeVisible()
   await launchas.scrollIntoViewIfNeeded()
-  await page.screenshot({ path: testInfo.outputPath('doubled-view.png') })
+  await screenshot(page, 'doubled-view.png')
 })

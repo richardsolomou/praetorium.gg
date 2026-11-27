@@ -17,6 +17,7 @@ import {
   scoreboard,
 } from './account'
 import { battleCommands, productOperator, productSql, savedWork, withAuthSql, userIdNamed, lastPathSegment, battleIdFor } from './storage'
+import { screenshot } from './screenshots'
 
 test.setTimeout(300_000)
 
@@ -179,7 +180,7 @@ test('saved roster deletion preserves its actual sealed and fielded copies until
     await expect(page.locator('[data-unit="Skorpekh Lord"]')).toBeVisible()
     for (const width of [390, 1440]) {
       await page.setViewportSize({ width, height: 900 })
-      await page.screenshot({ path: test.info().outputPath(`retained-${kind}-${width}.png`) })
+      await screenshot(page, `retained-${kind}-${width}.png`)
     }
   }
   await page.goto(`/tournaments/${sealedEvent.token}`)
@@ -213,12 +214,12 @@ test('saved roster deletion preserves its actual sealed and fielded copies until
     await page.goto('/terms')
     const content = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Your content', exact: true }) })
     const ending = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Ending', exact: true }) })
-    await content.screenshot({ path: test.info().outputPath(`retention-terms-${width}.png`) })
-    await ending.screenshot({ path: test.info().outputPath(`deletion-terms-${width}.png`) })
+    await screenshot(content, `retention-terms-${width}.png`)
+    await screenshot(ending, `deletion-terms-${width}.png`)
     await content.getByRole('link', { name: 'privacy policy', exact: true }).click()
     await expect(page).toHaveURL('/privacy')
     const audiences = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Who can see your content', exact: true }) })
-    await audiences.screenshot({ path: test.info().outputPath(`sealed-privacy-${width}.png`) })
+    await screenshot(audiences, `sealed-privacy-${width}.png`)
   }
 })
 

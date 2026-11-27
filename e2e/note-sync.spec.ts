@@ -4,6 +4,7 @@ import { createRoster, signUp, uniqueName, addUnit } from './account'
 import { NATIVE_LOCAL_STATE_SCRIPT } from './native.harness'
 import { productOperator, savedWork, lastPathSegment, expectWorkSynced } from './storage'
 import { closePicker } from './builder.harness'
+import { screenshot } from './screenshots'
 
 const UNIT = 'Immortals'
 const NOTE = 'Hold the home objective'
@@ -128,6 +129,6 @@ test('a note edit waiting while another screen syncs can be discarded (390)', as
   expect((await savedWork(page))?.operations).toEqual([])
   await expect(page.locator(`[data-unit="${UNIT}"]`)).not.toContainText(NOTE)
   expect(await savedNote(id)).toBeUndefined()
-  await page.screenshot({ path: test.info().outputPath(`discarded-note-390.png`) })
+  await screenshot(page, `discarded-note-390.png`)
   await context.close()
 })

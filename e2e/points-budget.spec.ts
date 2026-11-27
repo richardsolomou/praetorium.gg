@@ -1,6 +1,7 @@
 import { expect, test, type Page } from './test'
 import { savedArmy, waitForRosterSave, openRosterSetup, practiceBattle, desktopContext } from './account'
 import { expectNoHorizontalOverflow } from './builder.harness'
+import { screenshot } from './screenshots'
 
 async function openArmy(page: Page, name: string) {
   const army = await savedArmy(page, 'Points budget', { name })
@@ -53,7 +54,7 @@ test('a custom points budget is validated, enforced, saved and fielded', async (
     }
     await budget.fill('1000')
     await expect(setup.getByRole('alert')).toHaveCount(0)
-    await setup.screenshot({ path: test.info().outputPath(`budget-setup-${width}.png`) })
+    await screenshot(setup, `budget-setup-${width}.png`)
   })
   await setup.getByRole('button', { name: 'Cancel', exact: true }).click()
 
@@ -65,14 +66,14 @@ test('a custom points budget is validated, enforced, saved and fielded', async (
     await expect(review).not.toContainText('Removed:')
     await expect(review).not.toContainText('may cost at most')
     await expectNoHorizontalOverflow(review)
-    await review.screenshot({ path: test.info().outputPath(`budget-review-${width}.png`) })
+    await screenshot(review, `budget-review-${width}.png`)
   })
   await waitForRosterSave(page, () => review.getByRole('button', { name: 'Confirm changes' }).click())
   await atEachWidth(page, async (width) => {
     await expect(points).toContainText('/1000')
     await expect(page.getByText('Over the points limit', { exact: true })).toBeAttached()
     await expect(page.locator('[data-slot="roster-meta"]')).toContainText('Strike Force · 1,000-point budget')
-    await page.screenshot({ path: test.info().outputPath(`budget-over-${width}.png`) })
+    await screenshot(page, `budget-over-${width}.png`)
   })
 
   await page.reload()
@@ -101,7 +102,7 @@ test('a custom points budget is validated, enforced, saved and fielded', async (
   await page.goto('/rosters')
   await atEachWidth(page, async (width) => {
     await expect(page.locator(`[data-roster="${name} renamed"]`)).toContainText('Strike Force · 2,500-point budget')
-    await page.screenshot({ path: test.info().outputPath(`budget-library-${width}.png`) })
+    await screenshot(page, `budget-library-${width}.png`)
   })
 
   await practiceBattle(page, `${name} renamed`)
@@ -110,6 +111,6 @@ test('a custom points budget is validated, enforced, saved and fielded', async (
     await expect(armies.getByText(/^[\d,]+ of 2,500 pts · /).first()).toBeVisible()
     await expect(page.locator('#setup-mission')).toHaveAttribute('data-locked', 'false')
     await expectNoHorizontalOverflow(armies)
-    await armies.screenshot({ path: test.info().outputPath(`budget-battle-${width}.png`) })
+    await screenshot(armies, `budget-battle-${width}.png`)
   })
 })
