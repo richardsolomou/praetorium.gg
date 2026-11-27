@@ -1,4 +1,6 @@
 import { expect, it } from 'vitest'
+import type { CombatRule } from '../core/combatRules'
+import { combatReadingFor } from '../core/combatReading'
 import { combatOfVsDataOrWords, textFactsOfVsData } from './vsDataEffects'
 
 const reroll = { role: 'attacker', attacks: ['melee'], rolls: { hitReroll: 'ones' } }
@@ -173,4 +175,23 @@ it('shows an ability an effect gives some models as theirs alone', () => {
   const stealth = { role: 'defender', attacks: ['ranged'], ability: 'Stealth', modelKeywords: ['INFANTRY'] }
   const facts = textFactsOfVsData(combat({ choices: [{ conditions: [], effects: [stealth] }], default: 1 }))
   expect(facts.abilityGrants!.grants).toEqual([{ name: 'Stealth', recipient: 'models', models: 'INFANTRY' }])
+})
+
+it('answers a keyword question VS Data spells with a typographic apostrophe', () => {
+  const facts = textFactsOfVsData({
+    combat: {
+      readings: [{ choices: [{ conditions: [], effects: [reroll] }], default: 1 }, {}],
+      trees: [[{ ask: { unitHas: 'T’AU EMPIRE' }, yes: 1, no: 2 }, { reading: 0 }, { reading: 1 }]],
+      contexts: { 'own.many.known': 0 },
+    },
+  }).combat!
+  const rule = {
+    id: 'rule',
+    name: 'Rule',
+    source: 'Unit',
+    description: '',
+    scope: 'unit',
+    keywords: ["T'au Empire", 'Infantry'],
+  } as CombatRule
+  expect(combatReadingFor(facts, rule)!.compiled).not.toBeNull()
 })
