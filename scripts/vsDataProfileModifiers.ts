@@ -378,8 +378,9 @@ function blocksOf(key: string): Blocks {
             for (const effect of choice.effects) {
               if (effect.characteristic) {
                 const { name, add, set } = effect.characteristic
-                if (add !== undefined) atom(VS_STATS[name]!, 'add', add, effect.attacks)
-                if (set !== undefined) atom(VS_STATS[name]!, 'set', set, effect.attacks)
+                const stat = VS_STATS[name]
+                if (stat && typeof add === 'number') atom(stat, 'add', add, effect.attacks)
+                if (stat && typeof set === 'number') atom(stat, 'set', set, effect.attacks)
               }
               if (effect.weaponAbility) atom('Keywords', 'keyword', normalKeyword(effect.weaponAbility), effect.attacks)
               if (effect.invulnerable !== undefined) atom('InSv', 'set', effect.invulnerable)
@@ -387,7 +388,9 @@ function blocksOf(key: string): Blocks {
               if (effect.improveSave) atom('Sv', 'add', -effect.improveSave.by)
               if (effect.toughness !== undefined) atom('T', 'add', effect.toughness)
               if (effect.wounds !== undefined) atom('W', 'add', effect.wounds)
-              if (effect.unitStat) atom(VS_STATS[effect.unitStat.kind]!, 'add', effect.unitStat.add)
+              const unitStat = effect.unitStat && VS_STATS[effect.unitStat.kind]
+              if (unitStat && effect.unitStat!.set !== undefined) atom(unitStat, 'set', effect.unitStat!.set)
+              if (unitStat && effect.unitStat!.add !== undefined) atom(unitStat, 'add', effect.unitStat!.add)
             }
           }
     // A reading without choices is one VS Data says cannot be calculated.
