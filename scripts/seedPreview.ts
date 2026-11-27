@@ -92,9 +92,10 @@ const PREVIEW_PLAYER_ROSTERS: readonly PreviewRoster[] = [
   },
   {
     id: 'preview-space-marines-gladius',
-    name: 'Gladius Spearhead 1K',
+    name: 'Tactical Brethren 1K',
     catalogueId: 'e0af-67df-9d63-8fb7',
-    detachmentIds: ['d2dc-693e-b491-b16d'],
+    // Gladius Task Force costs 3 DP, more than Incursion allows.
+    detachmentIds: ['ec44-c977-f09b-3f28'],
     disposition: 'priority-assets',
     limit: 1000,
     picks: [
