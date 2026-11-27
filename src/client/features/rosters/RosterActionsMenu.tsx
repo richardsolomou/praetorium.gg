@@ -200,21 +200,15 @@ export function RosterActionsMenu({
                 onValueChange={(value) => {
                   if (value[0] === 'view' || value[0] === 'build') onReadOnlyMode(value[0] === 'view')
                 }}
-                variant="outline"
                 size="sm"
                 spacing={0}
                 aria-label="Roster mode"
+                className="shadow-[inset_0_0_0_1px_var(--color-edge)]"
               >
-                <ToggleGroupItem
-                  value="build"
-                  className="border-primary/60 text-primary first:rounded-l-md last:rounded-r-md aria-pressed:bg-primary aria-pressed:text-primary-foreground"
-                >
+                <ToggleGroupItem value="build" className={SEGMENT}>
                   Build
                 </ToggleGroupItem>
-                <ToggleGroupItem
-                  value="view"
-                  className="border-primary/60 text-primary first:rounded-l-md last:rounded-r-md aria-pressed:bg-primary aria-pressed:text-primary-foreground"
-                >
+                <ToggleGroupItem value="view" className={SEGMENT}>
                   View
                 </ToggleGroupItem>
               </ToggleGroup>
@@ -351,3 +345,7 @@ const chosen = (event: string, action: () => void) => () => {
   posthog.capture(event)
   action()
 }
+
+/** A Build or View segment: the current one raised and underlined in green. */
+const SEGMENT =
+  'rounded-none px-3 font-semibold text-dim hover:bg-transparent hover:text-bone aria-pressed:bg-raised aria-pressed:text-bone aria-pressed:shadow-[inset_0_-2px_0_var(--color-parchment)]'

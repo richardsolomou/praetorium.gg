@@ -1,5 +1,5 @@
 import { posthog, type GetMessagesResponse, type GetTicketsOptions, type Message, type TicketStatus } from 'posthog-js'
-import { feedbackTicketMessage } from './feedback'
+import { feedbackTicketMessage } from '../../../contracts/feedback'
 
 type Ticket = { id: string; status: TicketStatus; unread: number; messages: Message[] }
 

@@ -1,12 +1,56 @@
 import { z } from 'zod'
+import { version } from '../../package.json'
 import { imageDataUrlMaxLength } from '../core/base64'
 
 /** What a player says their feedback is, in the order the dialog offers. */
 export const FEEDBACK_KINDS = ['Problem', 'Idea', 'Other'] as const
 export type FeedbackKind = (typeof FEEDBACK_KINDS)[number]
 
+export const FEEDBACK_MESSAGE_MAX_LENGTH = 2000
+
+const ASSISTANT_MARK = ' · via assistant'
+
+/**
+ * The datasheet a data problem report is about, from its reference page or a roster's unit. Only the record's
+ * identity: nothing the player chose for it in their roster.
+ */
+export type ReportedRecord = {
+  from: 'datasheet' | 'roster'
+  name: string
+  faction: string
+  rulesVersion: string
+  catalogueId: string
+  entryId: string
+}
+
+/** The opening message of a feedback conversation; Support records the page and replay itself for one sent from a browser. */
+export function feedbackTicketMessage({
+  kind,
+  message,
+  screenshotUrl,
+  record,
+  assistant,
+}: {
+  kind: FeedbackKind
+  message: string
+  screenshotUrl?: string
+  record?: ReportedRecord
+  /** Whether an assistant sent it through an account tool rather than the player through the form. */
+  assistant?: boolean
+}) {
+  return [
+    message.trim(),
+    '',
+    `${kind} · Praetorium ${version}${assistant ? ASSISTANT_MARK : ''}`,
+    ...(record
+      ? [`Datasheet: ${record.name} · ${record.faction} · ${record.rulesVersion}`, `Record: ${record.catalogueId} / ${record.entryId}`]
+      : []),
+    ...(screenshotUrl ? [`Screenshot: ${screenshotUrl}`] : []),
+  ].join('\n')
+}
+
 const DETAILS = new RegExp(
-  `\\n\\n(${FEEDBACK_KINDS.join('|')}) · Praetorium (\\S+)(?:\\nDatasheet: (.+)\\nRecord: \\S+ / \\S+)?(\\nScreenshot: \\S+)?$`,
+  `\\n\\n(${FEEDBACK_KINDS.join('|')}) · Praetorium (\\S+)(?:${ASSISTANT_MARK})?(?:\\nDatasheet: (.+)\\nRecord: \\S+ / \\S+)?(\\nScreenshot: \\S+)?$`,
 )
 
 /** What the player wrote in an opening message, apart from the details `feedbackTicketMessage` appended. */

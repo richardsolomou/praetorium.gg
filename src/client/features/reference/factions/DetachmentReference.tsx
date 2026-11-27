@@ -7,7 +7,7 @@ import { RuleText, SummaryById } from '../../../components/RuleText'
 import type { KeywordRule } from '../../../components/Keyword'
 import { stratagemWindowsLabel } from '../../../../core/reminders'
 import { DatasheetUnit, detachmentRulesOwner, useVsDataSummaries } from '../../../components/UnitFromVsData'
-import { dispositionTone } from '../../../components/rosterSetup'
+import { dispositionTag } from '../../../components/rosterSetup'
 import { FactionMark, factionColour, type FactionPresentation } from '../../../components/FactionMark'
 import { FavouriteDetachmentToggle } from './FavouriteDetachmentToggle'
 import { PageState } from '../../../components/PageState'
@@ -76,18 +76,18 @@ export function DetachmentReference({
           }
         >
           {detachment.dispositions.length || detachment.points !== null ? (
-            <div className="flex flex-wrap gap-1">
+            <div className="flex flex-wrap items-center gap-1.5">
               {detachment.dispositions.map((disposition) => (
                 <Link
                   key={disposition}
                   to="/force-dispositions/$dispositionId"
                   params={{ dispositionId: routeSlug(disposition) }}
-                  className={`chip hover:text-bone ${dispositionTone(disposition)}`}
+                  className={`${dispositionTag(disposition)} hover:text-bone`}
                 >
                   {disposition}
                 </Link>
               ))}
-              {detachment.points === null ? null : <span className="chip text-info">{detachment.points} DP</span>}
+              {detachment.points === null ? null : <span className="text-sm text-dim">{detachment.points} DP</span>}
             </div>
           ) : null}
         </PageHeader>
@@ -98,9 +98,9 @@ export function DetachmentReference({
             {detachment.rules.length ? (
               <section>
                 <SectionHeading title="Detachment rules" count={detachment.rules.length} />
-                <div className="grid gap-2">
+                <div className="border-t border-edge">
                   {detachment.rules.map((rule) => (
-                    <article id={`rule-${routeSlug(rule.name)}`} key={rule.name} className="part p-4">
+                    <article id={`rule-${routeSlug(rule.name)}`} key={rule.name} className={ENTRY}>
                       <h2 className="text-lg">{rule.name}</h2>
                       <CardSummary card={rule} catalogueId={catalogueId} rules={detachment.keywordRules} />
                     </article>
@@ -111,13 +111,13 @@ export function DetachmentReference({
 
             <section>
               <SectionHeading title="Enhancements" count={detachment.enhancements.length} />
-              <div className="grid gap-2 md:grid-cols-2">
+              <div className={ENTRIES}>
                 {!detachment.enhancements.length ? <p className="py-2 text-sm text-dim">No enhancement details are available.</p> : null}
                 {detachment.enhancements.map((enhancement) => (
-                  <article id={`enhancement-${routeSlug(enhancement.name)}`} key={enhancement.name} className="part p-4">
+                  <article id={`enhancement-${routeSlug(enhancement.name)}`} key={enhancement.name} className={ENTRY}>
                     <div className="flex items-start justify-between gap-3">
                       <h2 className="text-base">{enhancement.name}</h2>
-                      {enhancement.points === null ? null : <span className="chip shrink-0 text-info">{enhancement.points} pts</span>}
+                      {enhancement.points === null ? null : <Cost value={enhancement.points} unit="pts" />}
                     </div>
                     <CardSummary card={enhancement} catalogueId={catalogueId} rules={detachment.keywordRules} />
                   </article>
@@ -128,12 +128,12 @@ export function DetachmentReference({
             {detachment.upgrades.length ? (
               <section>
                 <SectionHeading title="Unit upgrades" count={detachment.upgrades.length} />
-                <div className="grid gap-2 md:grid-cols-2">
+                <div className={ENTRIES}>
                   {detachment.upgrades.map((upgrade) => (
-                    <article id={`upgrade-${routeSlug(upgrade.name)}`} key={upgrade.name} className="part p-4">
+                    <article id={`upgrade-${routeSlug(upgrade.name)}`} key={upgrade.name} className={ENTRY}>
                       <div className="flex items-start justify-between gap-3">
                         <h2 className="text-base">{upgrade.name}</h2>
-                        {upgrade.points === null ? null : <span className="chip shrink-0 text-info">{upgrade.points} pts</span>}
+                        {upgrade.points === null ? null : <Cost value={upgrade.points} unit="pts" />}
                       </div>
                       <CardSummary card={upgrade} catalogueId={catalogueId} rules={detachment.keywordRules} />
                     </article>
@@ -147,10 +147,10 @@ export function DetachmentReference({
               {detachment.stratagems.some((stratagem) => summaryOf(stratagem.id) === null) ? (
                 <p className="text-sm text-dim">Some stratagem descriptions are not available.</p>
               ) : null}
-              <div className="mt-2 grid gap-2 md:grid-cols-2">
+              <div className={`mt-2 ${ENTRIES}`}>
                 {!detachment.stratagems.length ? <p className="py-2 text-sm text-dim">No stratagem details are available.</p> : null}
                 {detachment.stratagems.map((stratagem) => (
-                  <article id={`stratagem-${routeSlug(stratagem.name)}`} key={stratagem.id} className="part p-4">
+                  <article id={`stratagem-${routeSlug(stratagem.name)}`} key={stratagem.id} className={ENTRY}>
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <h2 className="text-base">{stratagem.name}</h2>
@@ -165,7 +165,7 @@ export function DetachmentReference({
                             .join(' · ')}
                         </p>
                       </div>
-                      {stratagem.cp === null ? null : <span className="chip shrink-0">{stratagem.cp} CP</span>}
+                      {stratagem.cp === null ? null : <Cost value={stratagem.cp} unit="CP" />}
                     </div>
                     <SummaryById catalogueId={catalogueId} id={stratagem.id} />
                   </article>
@@ -178,6 +178,20 @@ export function DetachmentReference({
         </div>
       </div>
     </DatasheetUnit.Provider>
+  )
+}
+
+/** Rules, enhancements and stratagems are read, not chosen here, so each sits on a hairline rather than in a card. */
+const ENTRIES = 'grid border-t border-edge md:grid-cols-2 md:gap-x-6'
+const ENTRY = 'border-b border-edge py-4'
+
+/** What a card costs, as the figure a roster prices it with and its unit beside it. */
+function Cost({ value, unit }: { value: number; unit: string }) {
+  return (
+    <span className="shrink-0 whitespace-nowrap">
+      <span className="figure text-xl leading-none text-bone">{value}</span>
+      <span className="ml-1 text-xs text-dim">{unit}</span>
+    </span>
   )
 }
 

@@ -1,6 +1,6 @@
 import { toggled } from '../../../core/collections'
 import { Fragment, useMemo, useState } from 'react'
-import { ChevronDown, RotateCcw, X } from 'lucide-react'
+import { RotateCcw, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Choice, PHASE_TITLES, PhaseIcon } from './CombatControls'
 import { OwnerName, type RosterOwner } from './rosterOwners'
@@ -10,6 +10,7 @@ import type { RosterCombatUnit } from './rosterCombat'
 import { bestRosterMatches, type CombatMetric, type RosterCombatSummary } from '../../../core/rosterCombatTable'
 import { combatUnitTarget } from '../../../core/combatUnit'
 import { countLabel } from '../../text'
+import { DisclosureChevron } from '../../components/DisclosureChevron'
 
 const metrics = [
   ['meanDamage', 'Wounds lost'],
@@ -121,10 +122,10 @@ export function RosterCombatTable({
           aria-label="View options"
           aria-expanded={optionsOpen}
           onClick={() => setOptionsOpen(!optionsOpen)}
-          className="flex w-full items-center justify-between gap-2 border border-edge px-3 py-2 text-left text-xs focus-visible:ring-2 focus-visible:ring-primary sm:hidden"
+          className="flex w-full items-center gap-2 rounded-lg border border-edge px-3 py-2 text-left text-xs focus-visible:ring-2 focus-visible:ring-primary sm:hidden"
         >
+          <DisclosureChevron open={optionsOpen} />
           {heading} · {highlight === 'targets' ? 'Best targets' : 'Best attackers'}
-          <ChevronDown className={`size-4 shrink-0 ${optionsOpen ? 'rotate-180' : ''}`} aria-hidden />
         </button>
         <div className={`${optionsOpen ? 'grid' : 'hidden sm:grid'} w-full grid-cols-2 gap-2 sm:ml-auto sm:w-[30rem]`}>
           <Choice label="Show" ariaLabel="Comparison metric" choices={metrics} value={metric} onChange={setMetric} />

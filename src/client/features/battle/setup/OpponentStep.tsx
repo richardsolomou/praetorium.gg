@@ -31,6 +31,7 @@ import { useOrigin } from '../../../useOrigin'
 import { shareButtonLabel, useShareLink } from '../../../useShareLink'
 import { cn } from '@/lib/utils'
 import { tint } from '../battleTints'
+import { OUTLINE_TAG } from '../../../components/rosterSetup'
 
 type Way = 'link' | 'friend' | 'both'
 type Draft = NonNullable<ReturnType<typeof useDraft>['data']>
@@ -151,7 +152,7 @@ export function OpponentStep({
           ) : invite ? (
             <SharedLink invite={invite.invite} open={open} stopping={stop.isPending} onStop={() => stop.mutate()} />
           ) : (
-            <Button className="h-11 w-full sm:w-auto" disabled={share.isPending} onClick={() => share.mutate()}>
+            <Button variant="outline" className="h-11 w-full sm:w-auto" disabled={share.isPending} onClick={() => share.mutate()}>
               <QrCode /> Show the QR code and link
             </Button>
           )}
@@ -199,12 +200,14 @@ function Joined({ view, removable, onRemoved }: { view: BattleView; removable: b
         .filter((player) => !player.isViewer)
         .map((player) => (
           <li key={player.id} className="flex flex-wrap items-center justify-between gap-3">
-            <span className={cn('inline-flex min-w-0 items-center gap-1.5 text-sm font-bold uppercase', tint(player.side).text)}>
+            <span className={cn('inline-flex min-w-0 items-center gap-1.5 text-sm font-semibold', tint(player.side).text)}>
               <PlayerAvatar name={player.name} image={player.image ?? null} className="size-6 text-xs" />
               <PlayerTint playerId={player.id} className="break-words">
                 {player.name}
               </PlayerTint>
-              {player.automated ? <span className="chip ml-1 align-middle text-dim normal-case">Played by you</span> : null}
+              {player.automated ? (
+                <span className={`${OUTLINE_TAG} ml-1 align-middle border-edge font-normal text-dim`}>Played by you</span>
+              ) : null}
             </span>
             {removable ? (
               <Button variant="outline" size="sm" onClick={() => setRemoving({ id: player.id, name: player.name })}>
@@ -329,7 +332,7 @@ function InviteFriend({
   return (
     <div className="space-y-3">
       <div className="space-y-1.5">
-        <Label htmlFor="battle-friend" className="eyebrow">
+        <Label htmlFor="battle-friend" className="text-sm font-medium text-dim">
           Friend
         </Label>
         <div className="flex flex-col gap-2 sm:flex-row">
@@ -360,10 +363,10 @@ function InviteFriend({
           to="/tournaments/$token"
           params={{ token: match.token }}
           search={{ event: match.eventToken, start: true }}
-          className="flex items-center gap-3 rounded-lg border border-edge bg-sunken p-3 hover:border-runner-hi hover:bg-raised"
+          className="flex items-center gap-3 border-y border-edge px-1 py-3 hover:bg-raised"
         >
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-sm font-bold uppercase">{match.name}</span>
+            <span className="block truncate text-sm font-semibold">{match.name}</span>
             <span className="block text-xs text-dim">You are both in this tournament. Play your game there instead.</span>
           </span>
           <ChevronRight className="size-4 shrink-0 text-parchment" aria-hidden />

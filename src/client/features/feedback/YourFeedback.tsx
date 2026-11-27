@@ -10,6 +10,7 @@ import { messagePreview, ticketSubject } from '../../../contracts/feedback'
 import { openConversation, TICKET_STATUS, unreadReplies, useSupportTickets } from './support'
 import { openingMessageQuery } from '../../queries'
 import { countLabel } from '../../text'
+import { OUTLINE_TAG } from '../../components/rosterSetup'
 
 /** The player's feedback conversations, newest activity first; hidden until they have one. */
 export function YourFeedback() {
@@ -100,7 +101,7 @@ function TicketRow({ ticket, onOpen }: { ticket: Ticket; onOpen: (ticketId: stri
       <span aria-hidden className={cn('mt-1.5 size-2 shrink-0 rounded-full', unread ? 'bg-discarded' : 'bg-transparent')} />
       <span className="min-w-0 flex-1">
         <span className="flex items-baseline gap-3">
-          <span className={cn('min-w-0 flex-1 line-clamp-2 text-sm', unread ? 'font-bold text-bone' : 'font-semibold text-bone/85')}>
+          <span className={cn('min-w-0 flex-1 line-clamp-2 text-sm', unread ? 'font-semibold text-bone' : 'font-medium text-bone/85')}>
             {subject ??
               (opening === undefined ? <span className="inline-block h-3.5 w-48 animate-pulse bg-raised align-middle" /> : latest)}
           </span>
@@ -110,9 +111,7 @@ function TicketRow({ ticket, onOpen }: { ticket: Ticket; onOpen: (ticketId: stri
         <span className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-faint">
           <StatusChip status={ticket.status} />
           {unread ? (
-            <span className="chip border-discarded/60 bg-discarded/10 text-discarded">
-              {countLabel(unread, 'new reply', 'new replies')}
-            </span>
+            <span className={`${OUTLINE_TAG} border-discarded/60 text-discarded`}>{countLabel(unread, 'new reply', 'new replies')}</span>
           ) : null}
           <span className="readout">{countLabel(ticket.message_count, 'message')}</span>
         </span>
@@ -127,7 +126,8 @@ export function StatusChip({ status }: { status: Ticket['status'] }) {
   return (
     <span
       className={cn(
-        'chip',
+        OUTLINE_TAG,
+        'border-edge text-dim',
         status === 'resolved' && 'border-achieved/60 text-achieved',
         status === 'pending' && 'border-info/60 text-info',
       )}

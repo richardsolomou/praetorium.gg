@@ -10,6 +10,7 @@ import { GROUP_LEAGUE_PLAYERS_MIN, leagueFixtureOverdue } from '../../../core/gr
 import { ClockLimitChoice, clockLimitLabel } from '../../components/ClockLimitChoice'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { Problem } from '../../components/Problem'
+import { ScoreFigure } from '../../components/ScoreFigure'
 import { SectionHeading } from '../../components/SectionHeading'
 import {
   deleteGroupLeague,
@@ -30,10 +31,12 @@ import { useNow } from '../../useNow'
 import { EnterScore } from '../sealedEvents/ReportTableResult'
 import { SealedEventResults } from '../sealedEvents/SealedEventResults'
 import { leagueOutcome, useGroupRefresh, usePlayGroupGame, type Group } from './group'
-import { LeagueLists, LeagueSealing, leaguePoints, SealLeagueList, StartLeagueDialog } from './GroupLeagueLists'
+import { LeagueSealing, useLeagueLists, leaguePoints, SealLeagueList, StartLeagueDialog } from './GroupLeagueLists'
 import { useMoment, inputMoment, momentFromInput } from '../../dates'
 import { DropdownMenuItem } from '../../components/Menu'
 import { nameColour } from '../../playerName'
+import { OUTLINE_TAG } from '../../components/rosterSetup'
+import { DisclosureChevron } from '../../components/DisclosureChevron'
 
 type League = NonNullable<Awaited<ReturnType<typeof groupLeague>>>
 type Fixture = League['fixtures'][number]
@@ -70,9 +73,13 @@ function PastLeagues({ group }: { group: Group }) {
   const moment = useMoment()
   if (!leagues?.length) return null
   return (
-    <section data-past-leagues className="mt-6">
-      <SectionHeading title="Past leagues" count={leagues.length} />
-      <ul className="space-y-1">
+    <details data-past-leagues className="group/past mt-6 border-y border-edge">
+      <summary className={FOLD}>
+        <DisclosureChevron />
+        <span className="rubric">Past leagues</span>
+        <span className="readout text-sm text-faint">{leagues.length}</span>
+      </summary>
+      <ul className="space-y-1 pb-2">
         {leagues.map((past) => (
           <li key={past.id}>
             <Button
@@ -82,6 +89,7 @@ function PastLeagues({ group }: { group: Group }) {
               aria-expanded={opened === past.id}
               onClick={() => setOpened(opened === past.id ? null : past.id)}
             >
+              <DisclosureChevron open={opened === past.id} />
               {past.winners.length ? <Trophy aria-hidden className="text-parchment" /> : null}
               <span>
                 {past.winners.length
@@ -90,24 +98,52 @@ function PastLeagues({ group }: { group: Group }) {
                 {` · ${countLabel(past.players, 'player')}`}
               </span>
             </Button>
-            {opened === past.id && table ? (
-              <SealedEventResults
-                event={`${group.name} league`}
-                title="Final table"
-                rows={table.table}
-                format="league"
-                partial={false}
-                entries={table.players}
-                label={(player) => (player.withdrawn ? `${player.name} (withdrawn)` : player.name)}
-              />
-            ) : null}
-            {opened === past.id && table?.game ? <LeagueLists group={group} game={table.game} viewerId={null} /> : null}
+            {opened === past.id && table ? <LeagueTable group={group} league={table} title="Final table" viewerId={null} /> : null}
           </li>
         ))}
       </ul>
-    </section>
+    </details>
   )
 }
+
+/** A league's table, each player's sealed list under their name, so who plays what reads beside how they are doing. */
+function LeagueTable({
+  group,
+  league,
+  title,
+  viewerId,
+  playerIds,
+}: {
+  group: Group
+  league: Pick<League, 'table' | 'players' | 'game'>
+  title: string
+  viewerId: string | null
+  playerIds?: readonly string[]
+}) {
+  const lists = useLeagueLists({ group, game: league.game, viewerId, playerIds })
+  return (
+    <div data-league-lists className="space-y-3">
+      {lists?.own}
+      <SealedEventResults
+        event={`${group.name} league`}
+        title={title}
+        rows={league.table}
+        format="league"
+        partial={false}
+        entries={league.players}
+        label={(player) => (player.withdrawn ? `${player.name} (withdrawn)` : player.name)}
+        detail={lists?.detail}
+        actions={lists?.actions}
+      />
+      {league.game ? (
+        <p className="text-xs text-dim">Every game is played with these lists, sealed to {leaguePoints(league.game)}.</p>
+      ) : null}
+    </div>
+  )
+}
+
+/** A folded section's heading row, opened with the same chevron as every other disclosure. */
+const FOLD = 'flex min-h-12 cursor-pointer items-center gap-2 px-2 py-2 hover:bg-raised'
 
 function NoLeague({ group }: { group: Group }) {
   const [starting, setStarting] = useState(false)
@@ -146,7 +182,7 @@ function DraftLeague({ group, league, viewerId, member }: { group: Group; league
   const error = join.error ?? leave.error ?? draw.error
   return (
     <section data-group-league>
-      <SectionHeading title="League" action={<span className="chip">Draft</span>} />
+      <SectionHeading title="League" action={<span className={`${OUTLINE_TAG} border-edge text-dim`}>Draft</span>} />
       <p className="text-sm text-dim">
         {league.game
           ? `Lists are sealed to ${leaguePoints(league.game)} and revealed when the league is published. ${count ? '' : 'Nobody has sealed a list yet. '}`
@@ -223,6 +259,9 @@ function PublishedLeague({ group, league, viewerId }: { group: Group; league: Le
   const refresh = useGroupRefresh(group.token)
   const now = useNow(league.deadlines)
   const [confirming, setConfirming] = useState<'withdraw' | 'end' | null>(null)
+  const [deadlineRound, setDeadlineRound] = useState<number | null>(null)
+  const [clocking, setClocking] = useState(false)
+  const rounds = [...new Set(league.fixtures.map((fixture) => fixture.round))].toSorted((a, b) => a - b)
   const done = { onSettled: refresh, onSuccess: () => setConfirming(null) }
   const withdraw = useMutation({ mutationFn: () => leaveGroupLeague({ data: { token: group.token } }), ...done })
   const end = useMutation({ mutationFn: () => deleteGroupLeague({ data: { token: group.token } }), ...done })
@@ -237,6 +276,18 @@ function PublishedLeague({ group, league, viewerId }: { group: Group; league: Le
           <EllipsisVertical />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
+          {league.organizer && !league.complete ? (
+            <>
+              <DropdownMenuItem onClick={() => setClocking(true)}>
+                <Timer /> {league.clockLimitMinutes ? 'Change chess clock' : 'Set chess clock'}
+              </DropdownMenuItem>
+              {rounds.map((round) => (
+                <DropdownMenuItem key={round} onClick={() => setDeadlineRound(round)}>
+                  <CalendarClock /> {league.deadlines[round - 1] == null ? `Set round ${round} deadline` : `Change round ${round} deadline`}
+                </DropdownMenuItem>
+              ))}
+            </>
+          ) : null}
           {playing ? (
             <DropdownMenuItem variant="destructive" onClick={() => (withdraw.reset(), setConfirming('withdraw'))}>
               <LogOut /> Withdraw from league
@@ -253,27 +304,13 @@ function PublishedLeague({ group, league, viewerId }: { group: Group; league: Le
   return (
     <section data-group-league className="space-y-6">
       {league.complete ? <LeagueComplete group={group} league={league} /> : null}
-      <SealedEventResults
-        event={`${group.name} league`}
+      <LeagueTable
+        group={group}
+        league={league}
         title={league.complete ? 'Final table' : 'League table'}
-        rows={league.table}
-        format="league"
-        partial={false}
-        entries={league.players}
-        label={(player) => (player.withdrawn ? `${player.name} (withdrawn)` : player.name)}
+        viewerId={viewerId}
+        playerIds={league.complete ? undefined : league.players.map((player) => player.userId)}
       />
-      {league.game ? (
-        <div data-league-lists>
-          <SectionHeading title="Lists" />
-          <p className="text-sm text-dim">Sealed to {leaguePoints(league.game)}. Every game is played with these.</p>
-          <LeagueLists
-            group={group}
-            game={league.game}
-            viewerId={viewerId}
-            playerIds={league.complete ? undefined : league.players.map((player) => player.userId)}
-          />
-        </div>
-      ) : null}
       <div>
         <SectionHeading title="Fixtures" action={menu} />
         <p className="text-sm text-dim">
@@ -286,8 +323,17 @@ function PublishedLeague({ group, league, viewerId }: { group: Group; league: Le
           ) : null}
           {league.complete ? '.' : '. Play rounds in any order.'}
         </p>
-        <LeagueClock group={group} league={league} />
+        <LeagueClock group={group} league={league} editable={false} />
         <Rounds group={group} league={league} viewerId={viewerId} now={now} />
+        {deadlineRound !== null ? (
+          <DeadlineDialog
+            group={group}
+            round={deadlineRound}
+            deadline={league.deadlines[deadlineRound - 1] ?? null}
+            onClose={() => setDeadlineRound(null)}
+          />
+        ) : null}
+        {clocking ? <ClockDialog group={group} minutes={league.clockLimitMinutes} onClose={() => setClocking(false)} /> : null}
       </div>
       <ConfirmDialog
         open={confirming === 'withdraw'}
@@ -334,10 +380,10 @@ function LeagueComplete({ group, league }: { group: Group; league: League }) {
   const members = new Set(group.members.filter((member) => member.status === 'accepted').map((member) => member.userId))
   const staying = league.players.filter((player) => !player.withdrawn && members.has(player.userId))
   return (
-    <div data-league-complete className="part flex flex-wrap items-center gap-x-4 gap-y-3 p-4 sm:p-5">
+    <div data-league-complete className="flex flex-wrap items-center gap-x-4 gap-y-3 border-y border-edge px-2 py-4">
       <Trophy aria-hidden className="size-6 shrink-0 text-parchment" />
       <div className="min-w-0 flex-1 basis-56">
-        <h2 className="text-lg leading-tight font-bold break-words uppercase">{leagueOutcome(league)}</h2>
+        <h2 className="text-2xl leading-tight break-words">{leagueOutcome(league)}</h2>
         <p className="mt-1 text-sm text-dim">
           Every game is played, so the table below is final.
           {league.organizer ? ' Start the next league to run it again with the same players.' : null}
@@ -368,12 +414,14 @@ function LeagueComplete({ group, league }: { group: Group; league: League }) {
   )
 }
 
-/** Every round's fixtures with its deadline; a draft's are the organizer's preview. */
+/**
+ * Every round's fixtures with its deadline; a draft's are the organizer's preview. The current round and any round with
+ * a game of the reader's still to play are open; the rest fold to their heading.
+ */
 function Rounds({ group, league, viewerId, now }: { group: Group; league: League; viewerId: string | null; now: number }) {
   const play = usePlayGroupGame(group.token, league.game?.token)
   const refresh = useGroupRefresh(group.token)
   const moment = useMoment()
-  const [editing, setEditing] = useState<number | null>(null)
   const names = new Map(league.players.map((player) => [player.userId, player]))
   const playerName = (userId: string) => {
     const player = names.get(userId)
@@ -384,31 +432,40 @@ function Rounds({ group, league, viewerId, now }: { group: Group; league: League
   const unsettled = (round: number) =>
     league.fixtures.some((fixture) => fixture.round === round && (fixture.status === 'open' || fixture.status === 'playing'))
   // Rounds play in any order, so the earliest with a game still to finish is current and later unfinished ones wait.
-  const current = league.published ? rounds.find(unsettled) : undefined
+  const current = league.published ? rounds.find(unsettled) : rounds[0]
   const gate = (round: number) => (!league.published ? 'pending' : round === current ? 'current' : unsettled(round) ? 'pending' : undefined)
+  const yours = (round: number) =>
+    league.fixtures.some(
+      (fixture) =>
+        fixture.round === round &&
+        (fixture.status === 'open' || fixture.status === 'playing') &&
+        (fixture.aId === viewerId || fixture.bId === viewerId),
+    )
+  // Which rounds open is settled on arrival; a round finishing while it is read stays open rather than folding under the reader.
+  const [opened] = useState(() => new Set(rounds.filter((round) => round === current || yours(round))))
   return (
     <div className="mt-4 space-y-3">
       {play.error ? <Problem error={play.error} /> : null}
-      <div className="runner gap-3 [--gate-y:1.375rem]">
+      <div className="border-t border-edge">
         {rounds.map((round) => {
           const deadline = league.deadlines[round - 1] ?? null
+          const live = gate(round) === 'current'
           return (
-            <div key={round} data-league-round={round} data-gate={gate(round)} className="part">
-              <div className="flex min-h-11 flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-t-xl border-b border-edge bg-sunken/40 px-3 py-1.5">
-                <p className="flex items-center gap-2 text-xs font-semibold tracking-label uppercase">
-                  <span className="part-tag part-tag-ghost">R{round}</span>
-                  <span>Round {round}</span>
-                </p>
-                <div className="flex items-center gap-1 text-xs text-dim">
-                  {deadline !== null ? <span>Due {moment(deadline)}</span> : null}
-                  {league.organizer && league.published ? (
-                    <Button variant="ghost" size="xs" onClick={() => setEditing(round)} aria-label={`Deadline for round ${round}`}>
-                      <CalendarClock /> {deadline === null ? 'Set deadline' : 'Change'}
-                    </Button>
-                  ) : null}
-                </div>
-              </div>
-              <ol className="divide-y divide-edge">
+            <details
+              key={round}
+              data-league-round={round}
+              data-gate={gate(round)}
+              className="group/round border-b border-edge"
+              open={opened.has(round)}
+            >
+              <summary className={`${FOLD} justify-between`}>
+                <span className="flex items-center gap-2">
+                  <DisclosureChevron />
+                  <span className={`text-sm font-semibold ${live ? 'text-parchment' : 'text-bone'}`}>Round {round}</span>
+                </span>
+                {deadline !== null ? <span className="text-xs text-dim">Due {moment(deadline)}</span> : null}
+              </summary>
+              <ol className="divide-y divide-edge border-t border-edge">
                 {league.fixtures
                   .filter((fixture) => fixture.round === round)
                   .map((fixture) => (
@@ -418,6 +475,7 @@ function Rounds({ group, league, viewerId, now }: { group: Group; league: League
                       name={playerName}
                       viewerId={viewerId}
                       waiting={unsealed(fixture.aId) || unsealed(fixture.bId)}
+                      live={live}
                       overdue={leagueFixtureOverdue(fixture.status, deadline, now)}
                       pending={play.isPending}
                       onPlay={(opponentId) => fixture.key && play.mutate({ opponentIds: [opponentId], fixture: fixture.key })}
@@ -432,13 +490,10 @@ function Rounds({ group, league, viewerId, now }: { group: Group; league: League
                     />
                   ))}
               </ol>
-            </div>
+            </details>
           )
         })}
       </div>
-      {editing !== null ? (
-        <DeadlineDialog group={group} round={editing} deadline={league.deadlines[editing - 1] ?? null} onClose={() => setEditing(null)} />
-      ) : null}
     </div>
   )
 }
@@ -448,6 +503,7 @@ function FixtureRow({
   name,
   viewerId,
   waiting,
+  live,
   overdue,
   pending,
   onPlay,
@@ -458,6 +514,8 @@ function FixtureRow({
   viewerId: string | null
   /** Whether a player's sealed list was unsealed, so the game waits for its replacement. */
   waiting: boolean
+  /** Whether the fixture is in the current round, whose start is the one green action. */
+  live: boolean
   overdue: boolean
   pending: boolean
   onPlay: (opponentId: string) => void
@@ -470,30 +528,38 @@ function FixtureRow({
   return (
     <li
       data-fixture={fixture.table}
-      className={`flex min-h-12 min-w-0 flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2 last:rounded-b-xl ${own ? 'bg-parchment/5' : ''} ${status === 'void' ? 'text-faint' : ''}`}
+      className={`flex min-h-13 min-w-0 flex-wrap items-center gap-x-2 gap-y-2 px-2 py-2 sm:gap-x-3 sm:px-3 ${own ? 'bg-parchment/5' : ''} ${status === 'void' ? 'text-faint' : ''}`}
     >
-      <span className="min-w-0 flex-[1_1_10rem] font-semibold break-words">
+      <span
+        className={`min-w-0 flex-[1_1_8rem] text-[0.9375rem] font-semibold break-words ${status === 'void' ? 'line-through decoration-discarded' : ''}`}
+      >
         {name(fixture.aId)}
         {fixture.bId ? <span className="font-normal text-dim"> vs </span> : null}
         {fixture.bId ? name(fixture.bId) : null}
       </span>
-      {overdue ? <span className="chip shrink-0 border-discarded/60 text-discarded">Overdue</span> : null}
+      {overdue ? <span className={`${OUTLINE_TAG} border-discarded/60 text-discarded`}>Overdue</span> : null}
       {status === 'bye' ? (
-        <span className="chip shrink-0 text-dim">Bye</span>
+        <span className={`${OUTLINE_TAG} border-edge text-dim`}>Bye</span>
       ) : status === 'void' ? (
-        <span className="chip shrink-0 text-faint">Void</span>
+        <span className={`${OUTLINE_TAG} border-edge text-faint`}>Void</span>
       ) : battle ? (
         <Link
           to="/battles/$token"
           params={{ token: battle.token }}
-          className="readout shrink-0 text-sm font-semibold text-bone hover:text-parchment"
+          className="shrink-0 text-sm font-semibold text-bone hover:text-parchment"
         >
-          {status === 'finished' ? `${battle.scores[0]} – ${battle.scores[1]}` : battle.status === 'playing' ? 'Playing' : 'Setting up'}
+          {status === 'finished' ? (
+            <ScoreFigure a={battle.scores[0] ?? 0} b={battle.scores[1] ?? 0} />
+          ) : battle.status === 'playing' ? (
+            'Playing'
+          ) : (
+            'Setting up'
+          )}
         </Link>
       ) : fixture.key && waiting ? (
         <span className="shrink-0 text-sm text-faint">Waiting for a list</span>
       ) : own && opponent && fixture.key ? (
-        <Button size="sm" disabled={pending} onClick={() => onPlay(opponent)}>
+        <Button size="sm" variant={live ? 'default' : 'outline'} disabled={pending} onClick={() => onPlay(opponent)}>
           <Swords /> Start battle
         </Button>
       ) : fixture.key ? (
@@ -513,14 +579,15 @@ function FixtureRow({
 }
 
 /** The chess clock every fixture plays to, which only organizers set; a league without one leaves it to each table. */
-function LeagueClock({ group, league }: { group: Group; league: League }) {
+function LeagueClock({ group, league, editable = true }: { group: Group; league: League; editable?: boolean }) {
   const [editing, setEditing] = useState(false)
   const minutes = league.clockLimitMinutes
-  if (!minutes && !league.organizer) return null
+  // A running league's organizer sets it from the fixtures' menu, so the line only reports a clock that's set.
+  if (!minutes && (!league.organizer || !editable)) return null
   return (
     <div data-league-clock className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-dim">
       <span>{minutes ? `Chess clock: ${clockLimitLabel(minutes)}.` : 'Each table sets its own chess clock.'}</span>
-      {league.organizer ? (
+      {league.organizer && editable ? (
         <Button variant="ghost" size="xs" onClick={() => setEditing(true)}>
           <Timer /> {minutes ? 'Change' : 'Set chess clock'}
         </Button>

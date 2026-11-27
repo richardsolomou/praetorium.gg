@@ -396,7 +396,8 @@ test('a signed-out visitor opens a player profile from the leaderboard', async (
   const name = ((await first.locator('.truncate').first().textContent()) ?? '').trim()
   await first.click()
 
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText(name, { ignoreCase: true })
+  // The leader may be an administrator or supporter, whose badge follows the name inside the heading.
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(new RegExp(`^${RegExp.escape(name)}`, 'i'))
   // The record is the tab a profile opens on, so it is on screen without a click.
   await expect(page.getByRole('tab', { selected: true })).toHaveText('Record')
   await expect(page.locator('[data-service-record]')).toContainText('Service record')

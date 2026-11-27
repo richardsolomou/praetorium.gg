@@ -5,7 +5,6 @@ import { gradeReferences, measureRosterUnits, referenceUnit } from '../shared/ro
 import { app } from './app'
 import { combatCalculationPool } from './combatCalculationPool'
 import { namedCombatant } from './combatTools'
-import { serverWords } from './publishedTextFiles'
 import { memoUntilSnapshotChanges } from './snapshotMemo'
 import { withServerSpan } from './serverTelemetry'
 
@@ -21,14 +20,13 @@ export async function calculateRosterGrades(data: PriceInput, signal: AbortSigna
   const instance = app()
   const [loaded, rules] = await Promise.all([instance.catalogueFor(data.catalogueId), instance.rulesFor(data.catalogueId)])
   if (!loaded) throw new Error('This roster’s army data is unavailable.')
-  const [words, referenceUnits] = await Promise.all([serverWords(), references(data.limit)])
+  const referenceUnits = await references(data.limit)
   const price = calculateRosterPrice(data, loaded, rules)
   const units = await withServerSpan('roster_grades.measure', () =>
     measureRosterUnits({
       loaded,
       rules,
       data,
-      words,
       references: referenceUnits,
       price,
       attachedShares,

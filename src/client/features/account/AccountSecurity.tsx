@@ -34,6 +34,7 @@ import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { useCopyText } from '../../useCopyText'
 import { useQrCode } from '../../components/useQrCode'
 import { SectionHeading } from '../../components/SectionHeading'
+import { DisclosureChevron } from '../../components/DisclosureChevron'
 
 type AccountIdentity = {
   email: string
@@ -89,14 +90,14 @@ export function AccountSecurity({ me, preferences }: { me: AccountIdentity; pref
   }
 
   return (
-    <div className="ph-no-capture grid gap-6">
-      <section id="sign-in-methods" className="part p-5 md:p-7">
+    <div className="ph-no-capture grid gap-10">
+      <section id="sign-in-methods">
         <SectionHeading title="Sign-in and security" />
         {methodsPending ? <AccountMethodsSkeleton /> : null}
         {methods ? (
-          <div className="mt-4 grid items-start gap-3 lg:grid-cols-2">
+          <div className="grid items-start border-t border-edge lg:grid-cols-2 lg:gap-x-6">
             {methods.emailDelivery && !methods.emailVerified ? (
-              <div className="rounded-lg border border-edge bg-sunken p-3 lg:col-span-2">
+              <div className="border-b border-edge px-1 py-3 lg:col-span-2">
                 <div className="flex items-start gap-3">
                   <span className="grid size-8 shrink-0 place-items-center bg-raised text-parchment">
                     <MailCheck className="size-4" aria-hidden />
@@ -227,7 +228,7 @@ export function AccountSecurity({ me, preferences }: { me: AccountIdentity; pref
 
       {preferences}
 
-      <section className="part p-5 md:p-7">
+      <section>
         <SectionHeading title="Connected apps" />
         <p className="text-sm text-dim">
           AI assistants and other apps you have allowed to read or change your rosters, battles and events.{' '}
@@ -243,7 +244,7 @@ export function AccountSecurity({ me, preferences }: { me: AccountIdentity; pref
         ) : null}
         {connectionsResult.data?.length === 0 ? <p className="mt-4 text-sm text-dim">No apps connected.</p> : null}
         {connectionsResult.data?.length ? (
-          <div className="mt-4 space-y-3">
+          <div className="mt-4 border-t border-edge">
             {connectionsResult.data.map((connection) => (
               <SettingRow
                 key={connection.id}
@@ -267,7 +268,7 @@ export function AccountSecurity({ me, preferences }: { me: AccountIdentity; pref
         ) : null}
       </section>
 
-      <section className="border border-destructive/40 bg-panel p-5 md:p-7">
+      <section className="border-t border-destructive/40 pt-4">
         <SectionHeading title="Delete account" className="text-destructive" />
         <div className="mt-4 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-dim">
@@ -369,9 +370,9 @@ function PasswordField({
 
 function AccountMethodsSkeleton() {
   return (
-    <div className="mt-4 grid gap-3 lg:grid-cols-2" aria-label="Loading sign-in methods">
+    <div className="grid border-t border-edge lg:grid-cols-2 lg:gap-x-6" aria-label="Loading sign-in methods">
       {Array.from({ length: 4 }, (_, index) => (
-        <div key={index} className="flex items-center gap-3 rounded-lg border border-edge bg-sunken p-3" aria-hidden>
+        <div key={index} className="flex items-center gap-3 border-b border-edge px-1 py-3" aria-hidden>
           <Skeleton className="size-8 shrink-0" />
           <div className="min-w-0 flex-1 space-y-2">
             <Skeleton className="h-4 w-24" />
@@ -735,7 +736,10 @@ function TwoFactorSetupForm({ onDone }: { onDone: () => void | Promise<void> }) 
         <p className="text-sm text-dim">Scan this QR code in your authenticator app, then enter its current code.</p>
         {qrCode ? <img src={qrCode} alt="Authenticator setup QR code" className="mx-auto size-60 border border-edge bg-white p-2" /> : null}
         <details className="text-sm text-dim">
-          <summary className="cursor-pointer">Cannot scan the QR code?</summary>
+          <summary className="flex cursor-pointer list-none items-center gap-1.5 [&::-webkit-details-marker]:hidden">
+            <DisclosureChevron />
+            Cannot scan the QR code?
+          </summary>
           <code className="mt-2 block break-all bg-sunken p-2 text-xs">{totpURI}</code>
         </details>
         <div className="space-y-2">

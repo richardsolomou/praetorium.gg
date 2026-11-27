@@ -16,6 +16,7 @@ import {
   type MatchupModifiers,
   type PhaseScope,
 } from './matchupModifiers'
+import { DisclosureChevron } from '../../components/DisclosureChevron'
 
 const sustainedAmounts: Record<string, WeaponAdjustment['sustained']> = {
   '1': 1,
@@ -95,24 +96,26 @@ export const ManualModifiers = memo(function ManualModifiers({
   return (
     <details
       data-manual-modifiers
+      className="group/modifiers"
       open={modifiersOpen ?? startOpen}
       onToggle={(event) => event.currentTarget.open !== (modifiersOpen ?? startOpen) && setModifiersOpen(event.currentTarget.open)}
     >
-      <summary className="rubric scroll-mt-header cursor-pointer py-3 text-info outline-none focus-visible:ring-2 focus-visible:ring-primary">
+      <summary className="flex scroll-mt-header cursor-pointer list-none items-center gap-2 py-3 font-display text-lg font-semibold text-bone outline-none hover:text-bone focus-visible:ring-2 focus-visible:ring-primary [&::-webkit-details-marker]:hidden">
+        <DisclosureChevron />
         Manual modifiers
       </summary>
       <div className="pb-3">
         <Tabs defaultValue={(['all', ...COMBAT_PHASES] as const).find(activeCount) ?? 'all'} className="flex-col gap-3">
           <div className="flex flex-wrap items-center justify-end gap-2">
             <h2 className="sr-only">Modifiers</h2>
-            <TabsList aria-label="Attack modifiers" className="h-11! min-w-[min(100%,24rem)] flex-1 border border-edge bg-raised p-1">
+            <TabsList aria-label="Attack modifiers" className="h-11! min-w-[min(100%,24rem)] flex-1 border border-edge bg-sunken p-1">
               {([['all', 'All'], ...phases] as const).map(([scope, title]) => {
                 const active = activeCount(scope)
                 return (
                   <TabsTrigger
                     key={scope}
                     value={scope}
-                    className="min-w-0 px-2 text-sm font-semibold data-active:bg-panel data-active:text-primary"
+                    className="min-w-0 px-2 text-sm font-medium data-active:bg-raised data-active:text-bone"
                   >
                     {scope === 'all' ? null : <PhaseIcon phase={scope} />}
                     {title}
@@ -376,8 +379,8 @@ function rangeSteps(used: readonly { weapon: { range?: number } | null }[], chos
 
 function ChipRow({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="grid gap-1.5 @md:grid-cols-[7rem_minmax(0,1fr)] @md:items-start">
-      <span className="eyebrow text-faint @md:pt-2">{label}</span>
+    <div className="grid gap-1.5 @md:grid-cols-[9rem_minmax(0,1fr)] @md:items-start">
+      <span className="eyebrow text-faint @md:pt-2 @md:whitespace-nowrap">{label}</span>
       <div className="flex flex-wrap gap-1.5">{children}</div>
     </div>
   )
@@ -445,7 +448,7 @@ function StepModifier<T>({
           aria-label={`Reset ${label}`}
           disabled={!changed}
           onClick={() => set(neutral)}
-          className={`h-full rounded-l-md pr-0.5 pl-2.5 text-sm font-semibold whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-primary ${changed ? 'text-primary hover:text-bone' : 'text-dim'}`}
+          className={`h-full rounded-l-md pr-0.5 pl-2.5 text-sm font-medium whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-primary ${changed ? 'text-primary hover:text-bone' : 'text-dim'}`}
         >
           {name}
         </button>

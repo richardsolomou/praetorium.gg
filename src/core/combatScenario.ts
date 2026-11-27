@@ -15,7 +15,7 @@ import {
   combatRuleProfiles,
   combatRuleSacrifices,
   combatRuleWeapons,
-  withBearerEffects,
+  withMemberAttacks,
   type ActiveCombatRule,
 } from './combatRules'
 import type { StructuredDatasheetProfile } from './datasheet'
@@ -75,7 +75,7 @@ function ruledAttack(
 /** Which weapons attack in each phase once the attacker's and the defender's rules apply. */
 /** Each member's datasheet with its rules applied against the defender, which no weapon preference changes. */
 export function attackerRuleProfiles(unit: CombatAttacker, defender: CombatOpponent) {
-  const attacker = withBearerEffects(unit)
+  const attacker = withMemberAttacks(unit)
   return [attacker, ...(attacker.companions ?? [])].map((member) =>
     combatRuleProfiles(member.sheet, member.rules ?? [], 'attacker', defender.keywords, defender.rules),
   )
@@ -88,7 +88,7 @@ export function combatAttacks(
   excluded: Readonly<Record<CombatPhase, readonly string[]>>,
   sheets = attackerRuleProfiles(unit, defender),
 ) {
-  const attacker = withBearerEffects(unit)
+  const attacker = withMemberAttacks(unit)
   const members = [attacker, ...(attacker.companions ?? [])]
   const { types: shootingTypes, chosen: shootingType } = resolveShootingType(
     members.map((member, index) => ({ sheet: sheets[index]!, carriers: member.carriers })),
@@ -188,7 +188,7 @@ export function combatWeaponInputs(
   adjustment: WeaponAdjustment,
   preferences: Readonly<Record<string, string>> = {},
 ) {
-  const attacker = withBearerEffects(member)
+  const attacker = withMemberAttacks(member)
   const sheet = combatRuleProfiles(attacker.sheet, attacker.rules ?? [], 'attacker', defender.keywords, defender.rules)
   const { chosen } = resolveShootingType(
     [{ sheet, carriers: attacker.carriers }, ...(attacker.companions ?? [])],

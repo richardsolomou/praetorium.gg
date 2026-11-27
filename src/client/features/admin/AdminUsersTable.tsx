@@ -58,10 +58,10 @@ const columns: (ColumnDef<typeof features, AdminUser> & { meta: AdminColumnMeta 
           type="button"
           aria-haspopup="dialog"
           aria-expanded={table.options.meta?.openedUserId === user.id}
-          className="flex max-w-64 min-w-0 items-center gap-2.5 text-left"
+          className="flex max-w-48 min-w-0 items-center gap-2.5 text-left"
         >
           <PlayerAvatar name={user.name} image={user.image} className="size-7 shrink-0 text-[0.625rem]" />
-          <span className="truncate font-bold" style={nameColour(user)}>
+          <span className="truncate font-semibold" style={nameColour(user)}>
             {user.name}
           </span>
         </button>
@@ -74,7 +74,7 @@ const columns: (ColumnDef<typeof features, AdminUser> & { meta: AdminColumnMeta 
     accessorFn: (user) => user.email,
     meta: { label: 'Email' },
     sortDescFirst: false,
-    cell: ({ row }) => <span className="block max-w-64 truncate text-dim">{row.original.email}</span>,
+    cell: ({ row }) => <span className="block max-w-44 truncate text-dim">{row.original.email}</span>,
   },
   {
     id: 'role',
@@ -206,7 +206,7 @@ export function AdminUsersTable({
         </DropdownMenu>
       </div>
 
-      <div className="min-w-0 part">
+      <div className="min-w-0 border-y border-edge">
         <Table aria-label="Players" aria-busy={pending}>
           <TableHeader>
             {table.getHeaderGroups().map((group) => (
@@ -259,7 +259,7 @@ export function AdminUsersTable({
               : table.getRowModel().rows.map((row) => (
                   <TableRow
                     key={row.id}
-                    className="cursor-pointer border-edge focus-within:bg-muted/50"
+                    className="cursor-pointer border-edge hover:bg-raised focus-within:bg-raised data-[state=selected]:bg-raised"
                     data-state={row.id === openedUserId ? 'selected' : undefined}
                     onClick={() => onOpen(row.original)}
                   >

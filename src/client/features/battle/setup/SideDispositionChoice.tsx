@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils'
 import type { Command } from '../../../../core/battle'
-import { dispositionTone } from '../../../components/rosterSetup'
+import { dispositionTone, OUTLINE_TAG } from '../../../components/rosterSetup'
 import { formatList } from '../../../text'
 import { type Side, sideName } from '../../../sides'
 import { DispositionChip } from './chrome'
@@ -24,7 +24,7 @@ export function SideDispositionChoice({
     const played = nameDisposition(side.disposition)
     return played ? (
       <p className="flex flex-wrap items-center gap-2">
-        <span className="eyebrow">Force Disposition</span>
+        <span className="text-sm font-medium text-dim">Force Disposition</span>
         <DispositionChip disposition={played} />
       </p>
     ) : null
@@ -32,7 +32,7 @@ export function SideDispositionChoice({
 
   return (
     <fieldset className="flex flex-wrap items-center gap-2">
-      <legend className="eyebrow float-left mr-2">
+      <legend className="float-left mr-2 text-sm font-medium text-dim">
         Force Disposition<span className="sr-only"> for {sideName(side)}</span>
       </legend>
       {side.dispositionChoices.map((id) => {
@@ -47,7 +47,12 @@ export function SideDispositionChoice({
             aria-pressed={chosen}
             aria-label={`Play ${named} for ${sideName(side)}`}
             title={broughtBy.length ? `Brought by ${formatList(broughtBy)}` : undefined}
-            className={cn('chip cursor-pointer transition-colors', dispositionTone(id, chosen), !chosen && 'opacity-70 hover:opacity-100')}
+            className={cn(
+              OUTLINE_TAG,
+              'cursor-pointer transition-colors',
+              dispositionTone(id, chosen),
+              !chosen && 'opacity-70 hover:opacity-100',
+            )}
             onClick={() => send({ kind: 'set-side-disposition', side: side.index, disposition: id })}
           >
             {named}

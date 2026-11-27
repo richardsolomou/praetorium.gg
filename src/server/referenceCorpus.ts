@@ -19,6 +19,16 @@ import { RULES_DATA_ATTRIBUTION, type LoadedRules } from '../shared/rules'
 import { referenceText } from './referenceText'
 import { factionReferenceHref, type ReferenceFaction } from '../core/factionReferenceRoute'
 import { completeSteps, type Steps } from '../shared/steps'
+import type { RuleSummary } from '../contracts/rules'
+import type { VsDataSummaries } from './vsDataSummaries'
+import {
+  awardSummary,
+  datasheetSummaries,
+  detachmentSummaries,
+  type RuleSummaryFinder,
+  ruleSummaryFinder,
+  servedRuleSummary,
+} from './referenceSummaries'
 
 /** Text locations that can read the files some values name without holding the event loop. */
 export type ScannableTextLocations = TextLocations & { scanFilesNamedIn: (values: readonly unknown[]) => Promise<void> }
@@ -31,6 +41,8 @@ export type ReferenceSources = {
   textLocations?: TextLocations | ScannableTextLocations
   /** Each faction's route and detachments, which file detachments under their pages and say which offer a force disposition. */
   factions?: readonly (ReferenceFaction & DispositionFaction)[]
+  /** The VS Data summaries the pages show, which stand in for the words they withhold. */
+  summaries?: VsDataSummaries | null
 }
 
 /** A reference document by its id, or by the id it had when it named a mission, deployment or layout by its Game Datacards ID. */
@@ -44,14 +56,19 @@ export type ReferenceCorpus = {
   documents: ReferenceDocument[]
   byId: ReadonlyMap<string, ReferenceDocument>
   revision: string
+  /** The summaries its sections show, which its records' data shows the same way. */
+  summaries: RuleSummaryFinder
 }
 
 const NO_LOCATIONS: TextLocations = { files: {}, holds: () => false, recordsHolding: () => [] }
+/** Where a corpus's withheld words live upstream, and the summaries that stand in for them. */
+type CorpusFiles = { locations: TextLocations; summaries: RuleSummaryFinder }
 type CachedCorpus = {
   catalogue: LoadedCatalogue | null
   rules: LoadedRules | null
   files: TextLocations
   factions: ReferenceSources['factions']
+  summaries: ReferenceSources['summaries']
   corpus: ReferenceCorpus
 }
 const corpora = new WeakMap<CanonicalCatalogue, CachedCorpus>()
@@ -60,7 +77,8 @@ const isCurrent = (cached: CachedCorpus, sources: ReferenceSources, loaded: Load
   cached.catalogue === loaded &&
   cached.rules === rules &&
   cached.files === (sources.textLocations ?? NO_LOCATIONS) &&
-  cached.factions === sources.factions
+  cached.factions === sources.factions &&
+  cached.summaries === sources.summaries
 
 export const referenceCorpusFor = (sources: ReferenceSources) => completeSteps(referenceCorpusSteps(sources))
 
@@ -91,7 +109,7 @@ function* referenceCorpusSteps(sources: ReferenceSources): Steps<ReferenceCorpus
   if (!canonical) return null
   const loaded = sources.catalogue()
   const rules = sources.rules()
-  const files = sources.textLocations ?? NO_LOCATIONS
+  const files: CorpusFiles = { locations: sources.textLocations ?? NO_LOCATIONS, summaries: ruleSummaryFinder(sources.summaries ?? null) }
   const cached = corpora.get(canonical)
   if (cached && isCurrent(cached, sources, loaded, rules)) return cached.corpus
   const factionPaths = new Map<string, string>()
@@ -138,8 +156,15 @@ function* referenceCorpusSteps(sources: ReferenceSources): Steps<ReferenceCorpus
         const found = ids.get(`rule:${document.slug}:${entry.anchor}`)
         if (found && !ids.has(`rule:${document.slug}:${former}`)) ids.set(`rule:${document.slug}:${former}`, found)
       }
-  const corpus = { catalogue, documents, byId: ids as ReadonlyMap<string, ReferenceDocument>, revision }
-  corpora.set(canonical, { catalogue: loaded, rules, files, factions: sources.factions, corpus })
+  const corpus = { catalogue, documents, byId: ids as ReadonlyMap<string, ReferenceDocument>, revision, summaries: files.summaries }
+  corpora.set(canonical, {
+    catalogue: loaded,
+    rules,
+    files: sources.textLocations ?? NO_LOCATIONS,
+    factions: sources.factions,
+    summaries: sources.summaries,
+    corpus,
+  })
   return corpus
 }
 
@@ -147,7 +172,7 @@ type GameReferences = ReturnType<typeof gameReferencesFor>
 type GameReferencePack = GameReferences['packs'][number]
 
 function gameReferenceDocuments(
-  files: TextLocations,
+  files: CorpusFiles,
   references: GameReferences,
   rules: LoadedRules,
   revisions: CanonicalCatalogue['revisions'],
@@ -161,7 +186,7 @@ function gameReferenceDocuments(
 }
 
 function missionDocuments(
-  files: TextLocations,
+  files: CorpusFiles,
   pack: GameReferencePack,
   references: GameReferences,
   revisions: CanonicalCatalogue['revisions'],
@@ -206,6 +231,7 @@ function missionDocuments(
       twist.name,
       [`A mission twist${twist.changesPrimary ? ' that changes the primary missions' : ''}.`],
       twist.id,
+      files.summaries.mission('mission-twist', twist.id),
     ),
   )
   return [
@@ -224,14 +250,24 @@ function missionDocuments(
         id: `mission:${pack.id}:${mission.id}`,
         title: mission.name,
         url: `${missionUrl}#mission-${mission.id}`,
-        sections: present([section(files, missionUrl, `mission-${mission.id}`, mission.name, missionReferenceLines(mission), mission.id)]),
+        sections: present([
+          section(
+            files,
+            missionUrl,
+            `mission-${mission.id}`,
+            mission.name,
+            missionReferenceLines(mission),
+            mission.id,
+            missionCardSummary(files.summaries, mission.card),
+          ),
+        ]),
       }
     }),
   ]
 }
 
 function secondaryDocuments(
-  files: TextLocations,
+  files: CorpusFiles,
   references: GameReferences,
   revisions: CanonicalCatalogue['revisions'],
 ): ReferenceDocument[] {
@@ -247,13 +283,23 @@ function secondaryDocuments(
       url,
       revisions: missionRevisions(revisions),
       attribution: [RULES_DATA_ATTRIBUTION, DATACARDS_ATTRIBUTION],
-      sections: present([section(files, url, `secondary-${card.key}`, card.name, missionCardLines(card), card.key)]),
+      sections: present([
+        section(
+          files,
+          url,
+          `secondary-${card.key}`,
+          card.name,
+          missionCardLines(card),
+          card.key,
+          missionCardSummary(files.summaries, card),
+        ),
+      ]),
     }
   })
 }
 
 function deploymentDocuments(
-  files: TextLocations,
+  files: CorpusFiles,
   references: GameReferences,
   rules: LoadedRules,
   revisions: CanonicalCatalogue['revisions'],
@@ -289,7 +335,7 @@ function deploymentDocuments(
 }
 
 function terrainDocuments(
-  files: TextLocations,
+  files: CorpusFiles,
   references: GameReferences,
   rules: LoadedRules,
   revisions: CanonicalCatalogue['revisions'],
@@ -323,7 +369,7 @@ function terrainDocuments(
 }
 
 function dispositionDocument(
-  files: TextLocations,
+  files: CorpusFiles,
   references: GameReferences,
   disposition: GameReferences['dispositions'][number],
   factions: readonly DispositionFaction[],
@@ -406,6 +452,27 @@ function missionReferenceLines(mission: GameReferencePack['missions'][number]): 
   ]
 }
 
+/**
+ * A mission card's summary with each award's and action's beneath it, as the card's page shows them: an award under
+ * what it pays, an action under its name.
+ */
+function missionCardSummary(finder: RuleSummaryFinder, card: GameReferencePack['missions'][number]['card'] | null): Summaries | null {
+  if (!card) return null
+  const own = finder.mission('mission-card', card.key)
+  const awards = awardsOnce(card.awards).map(({ award }) => ({
+    name: `${award.vp} VP${award.per ? ` per ${award.per}` : ''}`,
+    summary: awardSummary(finder, award),
+    text: award.criteria,
+  }))
+  const actions = (card.actions ?? []).map((action) => ({
+    name: `Action: ${action.name}`,
+    summary: finder.mission('mission-action', action.id),
+  }))
+  const parts = summariesUnder([...awards, ...actions])
+  if (!own) return parts
+  return parts ? { ...parts, blocks: [...own.blocks, ...parts.blocks], questions: [...own.questions, ...parts.questions] } : own
+}
+
 const selectionTracking: Record<MissionSelectionKind, string> = {
   punishment: 'punishment nominations with recorded table confirmations',
   guards: 'guards nominations with recorded table confirmations',
@@ -458,26 +525,44 @@ function missionTiming(trigger: NonNullable<GameReferencePack['missions'][number
 export const TEXT_NOT_PUBLISHED = 'Rules text not published here; read it upstream at this section’s textSources.'
 
 /**
- * A section, where any withheld words say where to read them upstream, located by `record`:
- * the id the record holding them carries in its source file.
+ * A section, with Praetorium's own wording of the rule it names where VS Data summarizes it; else any withheld words
+ * say where to read them upstream, located by `record`: the id the record holding them carries in its source file.
  */
 const section = (
-  files: TextLocations,
+  files: CorpusFiles,
   baseUrl: string,
   id: string,
   title: string,
   lines: (string | null | undefined)[],
   record?: string,
+  summary?: Summaries | null,
 ): ReferenceSection | null => {
   const text = lines
     .map((line) => (line ? referenceText(line) : ''))
     .filter(Boolean)
     .join('\n')
+  const url = `${baseUrl}#${id}`
   // A rule whose words are withheld is still a rule an agent can find by name and be told where its words are.
-  const textSources = textPointersIn(lines, files, record)
+  const textSources = textPointersIn(summary ? (summary.unsummarized ?? []) : lines, files.locations, record)
+  const pointers = textSources.length ? { textSources } : {}
+  if (summary) return { id, title, text, url, ruleSummary: servedRuleSummary(summary), ...pointers }
   const withheld = !text && lines.some((line) => line && hasTextTokens(line))
   if (!text && !withheld) return null
-  return { id, title, text: text || TEXT_NOT_PUBLISHED, url: `${baseUrl}#${id}`, ...(textSources.length ? { textSources } : {}) }
+  return { id, title, text: text || TEXT_NOT_PUBLISHED, url, ...pointers }
+}
+
+/** Summaries a section shows, and the words of the rules it lists that have none, which it still points at. */
+type Summaries = RuleSummary & { unsummarized?: (string | null | undefined)[] }
+
+/** Several rules' summaries as one, each under its name, for a section that lists them. */
+function summariesUnder(named: readonly { name: string; summary: RuleSummary | null; text?: string | null }[]): Summaries | null {
+  const found = named.filter((entry): entry is { name: string; summary: RuleSummary } => Boolean(entry.summary))
+  if (!found.length) return null
+  return {
+    blocks: found.flatMap(({ name, summary }) => [{ paragraph: [{ text: name, bold: true as const }] }, ...summary.blocks]),
+    questions: found.flatMap(({ summary }) => summary.questions),
+    unsummarized: named.filter((entry) => !entry.summary).map((entry) => entry.text),
+  }
 }
 
 const present = (sections: (ReferenceSection | null)[]) => sections.filter((entry): entry is ReferenceSection => Boolean(entry))
@@ -486,11 +571,12 @@ const attribution = (value: string | null) => (value ? [value] : [])
 /** The page a datasheet is read on, which also keys its reference record. */
 export const datasheetRoute = (sheet: CanonicalDatasheet) => sheet.referenceRoute ?? { catalogueId: sheet.catalogueId, slug: sheet.slug }
 
-function datasheetDocument(files: TextLocations, sheet: CanonicalDatasheet, factionPaths: ReadonlyMap<string, string>): ReferenceDocument {
+function datasheetDocument(files: CorpusFiles, sheet: CanonicalDatasheet, factionPaths: ReadonlyMap<string, string>): ReferenceDocument {
   const route = datasheetRoute(sheet)
   const url = `${factionPaths.get(route.catalogueId) ?? `/factions/${route.catalogueId}`}/datasheets/${route.slug}`
   const relationships = [...sheet.attachments, ...sheet.leaders, ...sheet.supporters].map((entry) => entry.name)
   const { entryId } = sheet.provenance.definitions
+  const summaries = datasheetSummaries(files.summaries, sheet)
   return {
     id: `datasheet:${route.catalogueId}:${route.slug}`,
     kind: 'datasheet',
@@ -526,7 +612,7 @@ function datasheetDocument(files: TextLocations, sheet: CanonicalDatasheet, fact
           ),
         ),
       ),
-      ...sheet.abilities.map((ability) =>
+      ...sheet.abilities.map((ability, at) =>
         section(
           files,
           url,
@@ -534,15 +620,10 @@ function datasheetDocument(files: TextLocations, sheet: CanonicalDatasheet, fact
           ability.name,
           [ability.source, ability.description ?? 'Description unavailable.'],
           ability.id,
+          summaries.abilities[at],
         ),
       ),
-      section(
-        files,
-        url,
-        'keyword-rules',
-        'Keyword rules',
-        sheet.keywordRules.flatMap((rule) => [rule.name, rule.description]),
-      ),
+      keywordRulesSection(files, url, sheet.keywordRules, summaries.keywordRules),
       section(files, url, 'loadout', 'Loadout', [sheet.loadout], entryId),
       section(
         files,
@@ -575,11 +656,12 @@ function revisionsForDatasheet(sheet: CanonicalDatasheet) {
 }
 
 function detachmentDocument(
-  files: TextLocations,
+  files: CorpusFiles,
   detachment: CanonicalDetachment,
   factionPaths: ReadonlyMap<string, string>,
 ): ReferenceDocument {
   const url = `${factionPaths.get(detachment.factionSlug) ?? `/factions/${detachment.factionSlug}`}/detachments/${detachment.slug}`
+  const summaries = detachmentSummaries(files.summaries, detachment)
   return {
     id: `detachment:${detachment.factionSlug}:${detachment.slug}`,
     kind: 'detachment',
@@ -605,6 +687,7 @@ function detachmentDocument(
           rule.name,
           [rule.description ?? 'Description unavailable.'],
           detachment.id,
+          summaries.rules[index],
         ),
       ),
       ...detachment.enhancements.map((enhancement, index) =>
@@ -615,6 +698,7 @@ function detachmentDocument(
           enhancement.name,
           [enhancement.points === null ? null : `${enhancement.points} points`, enhancement.description ?? 'Description unavailable.'],
           detachment.id,
+          summaries.enhancements[index],
         ),
       ),
       ...detachment.upgrades.map((upgrade, index) =>
@@ -625,6 +709,7 @@ function detachmentDocument(
           upgrade.name,
           [upgrade.points === null ? null : `${upgrade.points} points`, upgrade.description ?? 'Description unavailable.'],
           detachment.id,
+          summaries.upgrades[index],
         ),
       ),
       ...detachment.stratagems.map((stratagem, index) =>
@@ -640,27 +725,40 @@ function detachmentDocument(
             stratagem.description ?? 'Description unavailable.',
           ],
           stratagem.id,
+          summaries.stratagems[index],
         ),
       ),
-      section(
-        files,
-        url,
-        'keyword-rules',
-        'Keyword rules',
-        detachment.keywordRules.flatMap((rule) => [rule.name, rule.description]),
-      ),
+      keywordRulesSection(files, url, detachment.keywordRules, summaries.keywordRules),
     ]),
   }
 }
 
-function ruleDocuments(files: TextLocations, document: CanonicalCatalogue['ruleDocuments'][number]): ReferenceDocument[] {
+function keywordRulesSection(
+  files: CorpusFiles,
+  url: string,
+  rules: readonly { name: string; description: string }[],
+  summaries: readonly (RuleSummary | null)[],
+) {
+  const summary = summariesUnder(rules.map((rule, at) => ({ name: rule.name, summary: summaries[at] ?? null, text: rule.description })))
+  return section(
+    files,
+    url,
+    'keyword-rules',
+    'Keyword rules',
+    rules.flatMap((rule) => [rule.name, rule.description]),
+    undefined,
+    summary,
+  )
+}
+
+function ruleDocuments(files: CorpusFiles, document: CanonicalCatalogue['ruleDocuments'][number]): ReferenceDocument[] {
   return document.sections.flatMap((ruleSection) =>
     ruleSection.entries.map((entry) => ruleDocument(files, document, ruleSection.slug, ruleSection.title, entry)),
   )
 }
 
 function ruleDocument(
-  files: TextLocations,
+  files: CorpusFiles,
   document: CanonicalCatalogue['ruleDocuments'][number],
   sectionSlug: string,
   sectionTitle: string,
@@ -676,9 +774,25 @@ function ruleDocument(
     revisions: { summaries: document.provenance.summaries.revision },
     attribution: [VS_DATA_ATTRIBUTION],
     sections: present([
-      section(files, baseUrl, entry.anchor, entry.title, [entry.code, entry.cost === null ? null : `${entry.cost} CP`]),
+      section(
+        files,
+        baseUrl,
+        entry.anchor,
+        entry.title,
+        [entry.code, entry.cost === null ? null : `${entry.cost} CP`],
+        undefined,
+        files.summaries.coreRule(entry.id),
+      ),
       ...entry.clarifications.map((clarification) =>
-        section(files, baseUrl, clarification.anchor, clarification.title, [clarification.code]),
+        section(
+          files,
+          baseUrl,
+          clarification.anchor,
+          clarification.title,
+          [clarification.code],
+          undefined,
+          files.summaries.coreRule(clarification.id),
+        ),
       ),
       section(files, baseUrl, `context-${entry.anchor}`, 'Context', [document.title, sectionTitle]),
     ]),
@@ -690,7 +804,12 @@ export function referenceDocumentMarkdown(document: ReferenceDocument): string {
   const sections = document.sections
     .map((entry) => {
       const upstream = (entry.textSources ?? []).map((pointer) => `- ${pointer.url}${pointer.id ? ` (id ${pointer.id})` : ''}`)
-      return `## ${entry.title}\n\n${entry.text}${upstream.length ? `\n\nRules text upstream:\n${upstream.join('\n')}` : ''}`
+      const body = [
+        entry.text,
+        entry.ruleSummary ? `Summary in Praetorium’s own words:\n\n${entry.ruleSummary.text}` : null,
+        upstream.length ? `Rules text upstream:\n${upstream.join('\n')}` : null,
+      ]
+      return `## ${entry.title}\n\n${body.filter(Boolean).join('\n\n')}`
     })
     .join('\n\n')
   const sources = document.attribution.length ? `\n\nSources: ${document.attribution.join('; ')}` : ''

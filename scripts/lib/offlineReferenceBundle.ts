@@ -169,7 +169,6 @@ export async function writeReferenceBundle(outDir: string, directory: string, ru
     }
   }
   const textFiles = textSourceFiles(directory, readCatalogueComposition(directory))
-  put(['text-sources'], textFiles)
   const summaries = completeSteps(vsDataSummariesSteps(directory, canonical.ruleDocuments))
   put(['rule-summary-credits'], summaries?.attributions() ?? [])
   put(['rule-ability-summaries'], summaries?.abilities() ?? {})

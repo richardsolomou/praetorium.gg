@@ -4,7 +4,7 @@ import { attackSequence, sampleCombat } from './combatReference.fixtures'
 import { combatUnitTarget, combatUnitSequenceError, type CombatMember } from './combatUnit'
 import { combatAttacks } from './combatScenario'
 import { combatMatchup, noExclusions } from './combatMatchup'
-import { combatRuleChoices, combatRuleHasAppliedSharedDefence, type CombatRule } from './combatRules'
+import { combatRuleChoices, combatRuleHasAppliedSharedDefence, withModelAttacks, type CombatRule } from './combatRules'
 import type { Datasheet } from './datasheet'
 import { datasheetFixture } from './datasheet.fixtures'
 
@@ -460,5 +460,98 @@ describe('a leader’s bearer-only effect', () => {
       { name: 'Ward', source: 'Leader', effects: [{ role: 'defender', phases: ['ranged'], bearerOnly: true, damageReduction: 1 }] },
     ])
     expect(combatUnitTarget(squad, 'ranged').target?.groups.map((group) => group.damageReduction)).toEqual([0, 1])
+  })
+})
+
+describe('an effect for some models in a unit', () => {
+  /** Nine troopers with rifles and a sergeant with a sword, who alone holds a shield. */
+  const squad = (rules: NonNullable<CombatMember['rules']>): CombatMember => {
+    const unit = member('Squad', 9)
+    unit.sheet.profiles.push({
+      id: 'Squad:sword',
+      name: 'Sword',
+      type: 'Melee Weapons',
+      count: 1,
+      values: Object.entries({ A: '2', WS: '3+', S: '4', AP: '0', D: '1' }).map(([name, value]) => ({ name, value })),
+    })
+    return {
+      ...unit,
+      models: 10,
+      rules,
+      carriers: [
+        {
+          name: 'Trooper',
+          models: 9,
+          modelProfileIds: ['Squad:model'],
+          weapons: [{ name: 'Rifle', count: 9, profileIds: ['Squad:weapon'] }],
+        },
+        {
+          name: 'Sergeant',
+          models: 1,
+          modelProfileIds: ['Squad:model'],
+          abilities: { shield: 1 },
+          weapons: [{ name: 'Sword', count: 1, profileIds: ['Squad:sword'] }],
+        },
+      ],
+    }
+  }
+
+  it('reaches only the weapons of the models it names', () => {
+    const unit = squad([
+      { name: 'Drill', effects: [{ role: 'attacker', phases: ['melee'], modelKeywords: ['SERGEANT'], options: { hitReroll: 'failed' } }] },
+    ])
+    expect(
+      combatAttacks(unit, { keywords: [], rules: [] }, {}, { ranged: [], melee: [] }).melee.base?.weapons.map((weapon) => weapon.hitReroll),
+    ).toEqual(['failed'])
+  })
+
+  it("protects only the models holding the wargear whose bearer's it is", () => {
+    const unit = squad([
+      { name: 'Shield', heldBy: 'shield', effects: [{ role: 'defender', phases: ['ranged'], bearerOnly: true, invulnerable: 4 }] },
+    ])
+    expect(combatUnitTarget(unit, 'ranged').target?.groups.map((group) => [group.models, group.invulnerable])).toEqual([
+      [9, null],
+      [1, 4],
+    ])
+  })
+
+  it('keeps the Feel No Pain of the models holding the wargear in an attached unit', () => {
+    const unit = squad([
+      { name: 'Charm', heldBy: 'shield', effects: [{ role: 'defender', phases: ['ranged'], bearerOnly: true, feelNoPain: 5 }] },
+    ])
+    unit.companions = [member('Leader')]
+    expect(combatUnitTarget(unit, 'ranged').target?.groups.map((group) => [group.models, group.feelNoPain])).toEqual([
+      [9, null],
+      [1, 5],
+      [1, null],
+    ])
+  })
+
+  it('counts no more holders of a wargear than the models still in the unit', () => {
+    const unit = squad([
+      {
+        name: 'Banner',
+        heldBy: 'banner',
+        effects: [{ role: 'attacker', phases: ['ranged'], bearerOnly: true, options: { hitReroll: 'failed' } }],
+      },
+    ])
+    const survivor = {
+      ...unit.carriers[0]!,
+      models: 4,
+      abilities: { banner: 9 },
+      weapons: [{ name: 'Rifle', count: 4, profileIds: ['Squad:weapon'] }],
+    }
+    // Every model left holds the banner, so its re-roll is the whole unit's.
+    expect(withModelAttacks({ ...unit, models: 4, carriers: [survivor] }).rules?.[0]?.effects).toHaveLength(1)
+  })
+
+  it('gives each of two wargear only as many models as hold it', () => {
+    const unit = squad([
+      { name: 'Shield', heldBy: 'shield', effects: [{ role: 'defender', phases: ['ranged'], bearerOnly: true, invulnerable: 4 }] },
+      { name: 'Charm', heldBy: 'charm', effects: [{ role: 'defender', phases: ['ranged'], bearerOnly: true, feelNoPain: 5 }] },
+    ])
+    const carrier = { ...unit.carriers[0]!, models: 10, abilities: { shield: 1, charm: 2 } }
+    const groups = combatUnitTarget({ ...unit, models: 10, carriers: [carrier] }, 'ranged').target?.groups
+    expect(groups?.reduce((total, group) => total + (group.feelNoPain === 5 ? group.models : 0), 0)).toBe(2)
   })
 })

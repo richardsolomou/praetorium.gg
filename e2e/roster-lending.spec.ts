@@ -14,7 +14,11 @@ import {
   PHONE,
   sealableRoster,
 } from './account'
-import type { Page } from '@playwright/test'
+import type { Locator, Page } from '@playwright/test'
+
+/** A lent roster's line naming its owner, whose name is a link behind their avatar. */
+const lentBy = (rosters: Locator, owner: string) =>
+  rosters.locator('p', { hasText: 'Lent by' }).getByRole('link', { name: owner, exact: true })
 
 async function setLoan(owner: Page, rosterUrl: string, borrowerName: string, lent: boolean) {
   await owner.goto(rosterUrl)
@@ -45,7 +49,7 @@ test('a friend fields a lent roster, and the battle keeps it after the loan ends
 
   await setLoan(owner, rosterUrl, borrowerName, true)
   await borrower.goto('/rosters')
-  await expect(borrower.locator('[data-lent-rosters]').getByText(`Lent by ${ownerName}`)).toBeVisible()
+  await expect(lentBy(borrower.locator('[data-lent-rosters]'), ownerName)).toBeVisible()
   await borrower.locator('[data-lent-rosters]').getByRole('link').first().click()
   await expect(borrower.locator('[data-roster-lent-by]')).toContainText(`Lent to you by ${ownerName}`)
   await expect(borrower.getByLabel('Add a unit')).toHaveCount(0)
@@ -123,7 +127,7 @@ test('a borrower seals and simulates a lent roster', async ({ browser }) => {
   const chooser = borrower.getByRole('dialog', { name: 'Seal a roster' })
   await retryUntilVisible(chooser, () => borrower.getByRole('button', { name: 'Choose a roster' }).click({ timeout: 1_000 }))
   const lent = chooser.locator('[data-lent-rosters]')
-  await expect(lent.getByText(`Lent by ${ownerName}`)).toBeVisible()
+  await expect(lentBy(lent, ownerName)).toBeVisible()
   await lent.getByRole('button').first().click()
   await chooser.screenshot({ path: test.info().outputPath('roster-lending-seal-chooser.png') })
   await chooser.getByRole('button', { name: 'Seal Sealed loan' }).click()

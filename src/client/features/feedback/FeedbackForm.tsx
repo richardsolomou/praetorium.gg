@@ -8,11 +8,17 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Choice } from '../../components/Choice'
 import { DialogBody, DialogFooter } from '../../components/Dialog'
-import { feedbackScreenshotPath, FEEDBACK_KINDS, type FeedbackKind } from '../../../contracts/feedback'
+import {
+  feedbackScreenshotPath,
+  FEEDBACK_KINDS,
+  FEEDBACK_MESSAGE_MAX_LENGTH,
+  feedbackTicketMessage,
+  type FeedbackKind,
+  type ReportedRecord,
+} from '../../../contracts/feedback'
 import { uploadFeedbackScreenshot } from '../../functions'
 import { NEW_ISSUE } from '../../projectLinks'
 import { meQuery } from '../../queries'
-import { FEEDBACK_MESSAGE_MAX_LENGTH, feedbackTicketMessage, type ReportedRecord } from './feedback'
 import { prepareFeedbackScreenshot } from './screenshot'
 import { refreshSupport, startConversation } from './support'
 import { Problem } from '../../components/Problem'
@@ -112,8 +118,8 @@ export function FeedbackForm({
       <DialogBody>
         {record ? (
           <div className="space-y-1.5">
-            <span className="eyebrow block">About</span>
-            <p className="part px-3 py-2 text-sm">
+            <span className="block text-sm font-medium text-dim">About</span>
+            <p className="rounded-md border border-edge px-3 py-2 text-sm">
               <span className="block text-bone">{record.name}</span>
               <span className="block text-xs text-dim">
                 {record.faction} · {record.rulesVersion}
@@ -130,7 +136,7 @@ export function FeedbackForm({
           onChange={setKind}
         />
         <div className="space-y-1.5">
-          <Label className="eyebrow block" htmlFor="feedback-message">
+          <Label className="block text-sm font-medium text-dim" htmlFor="feedback-message">
             Message
           </Label>
           <Textarea
@@ -144,7 +150,7 @@ export function FeedbackForm({
         </div>
         {me ? null : (
           <div className="space-y-1.5">
-            <Label className="eyebrow block" htmlFor="feedback-email">
+            <Label className="block text-sm font-medium text-dim" htmlFor="feedback-email">
               Email for a reply (optional)
             </Label>
             <Input
@@ -158,7 +164,7 @@ export function FeedbackForm({
           </div>
         )}
         <div className="space-y-1.5">
-          <span className="eyebrow block">Screenshot (optional)</span>
+          <span className="block text-sm font-medium text-dim">Screenshot (optional)</span>
           {screenshot ? (
             <div className="flex items-start gap-2">
               <img
@@ -178,7 +184,7 @@ export function FeedbackForm({
             </div>
           ) : (
             <>
-              <Label className="relative flex min-h-11 cursor-pointer items-center gap-2 border border-dashed border-edge px-3 text-sm text-dim hover:border-info hover:text-info sm:min-h-9 has-focus-visible:border-info">
+              <Label className="relative flex min-h-11 cursor-pointer items-center gap-2 rounded-md border border-edge px-3 text-sm text-dim hover:border-info hover:text-info sm:min-h-9 has-focus-visible:border-info">
                 <ImagePlus aria-hidden className="size-4 shrink-0" />
                 <span>Attach screenshot</span>
                 <input

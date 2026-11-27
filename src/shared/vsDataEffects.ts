@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { uniqueBy } from '../core/collections'
 import type { CombatFacts } from '../core/combatReading'
 import type { CombatReading, CombatRuleChoice, CombatRuleEffect, CombatTarget } from '../core/combatRules'
 import type { RuleQuestion } from '../core/combatRuleCompiler'
@@ -325,7 +326,7 @@ export const EFFECT_BLOCKS = [
 ] as const satisfies readonly (keyof VsDataEffectBlocks)[]
 
 /** The effect fields the simulator cannot apply yet, which `effectOf` leaves out. */
-export const UNAPPLIED_EFFECT_FIELDS = ['modelKeywords', 'wounds', 'regainWounds'] as const
+export const UNAPPLIED_EFFECT_FIELDS = ['wounds', 'regainWounds'] as const
 
 const TURN: Record<'own' | 'opponent' | 'any', ReminderTiming['turn']> = { own: 'your-turn', opponent: 'opponent-turn', any: 'either' }
 const PROFILE = { ranged: 'Ranged Weapons', melee: 'Melee Weapons' } as const
@@ -427,14 +428,13 @@ function conditionLabel(condition: VsDataCondition): string {
 }
 
 /**
- * An effect as Praetorium applies it. What VS Data limits to models with some keywords, Praetorium still gives the whole
- * unit, and it changes no Wounds and calculates no mortal wounds outside the attacks: the simulator has no way to do
- * either yet. An effect left with nothing Praetorium applies is none.
+ * An effect as Praetorium applies it, which changes no Wounds and calculates no mortal wounds outside the attacks: the
+ * simulator has no way to do either yet. An effect left with nothing Praetorium applies is none.
  */
 function effectOf(effect: VsDataEffect): CombatRuleEffect | null {
   const { attacks, weaponAbility, weaponHas, rolls, characteristic, mortalWounds: mortals, ...rest } = effect
   const mortalWounds = mortals?.timing === 'outside-attacks' ? undefined : mortals
-  const { modelKeywords: _modelKeywords, wounds: _wounds, regainWounds: _regainWounds, ...applied } = rest
+  const { wounds: _wounds, regainWounds: _regainWounds, ...applied } = rest
   const { role: _role, bearerOnly: _bearerOnly, ...given } = applied
   // The simulator re-rolls one save of the defender's only through its Command Re-roll, so a rule's single save re-roll
   // is left out.
@@ -519,6 +519,23 @@ const UNREAD: CombatFacts = {
     ),
   ),
   leaves: [{ compiled: null, legacy: [], legacyDefault: 0, roles: ['attacker', 'defender'] }],
+}
+
+const uncalculated = (reading: CombatReading) => !reading.compiled && !reading.legacy.length && !reading.roles.length && !reading.shown
+
+/**
+ * VS Data's combat facts, with the roles the words take wherever VS Data keeps no block or reads no choices for a rule:
+ * VS Data has such a rule reported as not calculated, which the simulator does only for a rule with roles. Nothing the
+ * rule does is read from the words.
+ */
+export function combatOfVsDataOrWords(facts: CombatFacts | null | undefined, words: () => CombatFacts | null | undefined) {
+  if (facts && !facts.leaves.some(uncalculated)) return facts
+  const read = words()
+  const roles = [...new Set(read?.leaves.flatMap((leaf) => leaf.roles) ?? [])]
+  if (!roles.length) return facts ?? null
+  const unread: CombatReading = { compiled: null, legacy: [], legacyDefault: 0, roles }
+  if (!facts) return { judging: read!.judging, readings: read!.readings, leaves: read!.leaves.map(() => unread) }
+  return { ...facts, leaves: facts.leaves.map((leaf) => (uncalculated(leaf) ? unread : leaf)) }
 }
 
 /** Placements where a rule applies unless a condition says otherwise: its own unit's, its leader's and a Detachment's. */
@@ -639,15 +656,18 @@ export function textFactsOfVsData(blocks: Readonly<Record<string, unknown>>): Te
   const ownTree = combat?.trees[combat.contexts['own.many.known'] ?? -1]
   const ownNode = ownTree?.length === 1 ? ownTree[0] : undefined
   const own = ownNode && 'reading' in ownNode ? combat?.readings[ownNode.reading] : undefined
-  const shown = [
-    ...new Set(
-      (own?.choices?.[0]?.conditions.length ? [] : (own?.choices?.[0]?.effects ?? [])).flatMap((effect) =>
-        effect.ability ? [effect.ability] : effect.role === 'defender' && effect.rolls?.cover && !effect.weapon ? ['Benefit of Cover'] : [],
-      ),
-    ),
-  ]
-    .filter((ability) => !grants?.abilities?.some((grant) => grant.ability.toLowerCase() === ability.toLowerCase()))
-    .map((ability) => ({ ability, to: 'unit' as const }))
+  // One some models gain is theirs alone, by the one keyword or name they match.
+  const shown = uniqueBy(
+    (own?.choices?.[0]?.conditions.length ? [] : (own?.choices?.[0]?.effects ?? [])).flatMap((effect) => {
+      const ability =
+        effect.ability ?? (effect.role === 'defender' && effect.rolls?.cover && !effect.weapon ? 'Benefit of Cover' : undefined)
+      if (!ability || effect.excludedModelKeywords || (effect.modelKeywords?.length ?? 1) > 1) return []
+      return [
+        effect.modelKeywords ? { ability, to: 'models' as const, models: effect.modelKeywords[0]! } : { ability, to: 'unit' as const },
+      ]
+    }),
+    (grant) => JSON.stringify(grant),
+  ).filter((shownGrant) => !grants?.abilities?.some((grant) => grant.ability.toLowerCase() === shownGrant.ability.toLowerCase()))
   const unreadCombat = blocks.combat !== undefined && !combat
   const references = blockOf(blocks, 'references')
   const weaponGrants = weaponAbilities.flatMap((grant) =>

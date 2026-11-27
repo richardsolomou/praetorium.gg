@@ -41,7 +41,7 @@ test('Eradicator Hunter profiles explain their Melta ability', async ({ page }, 
     await page.setViewportSize({ width, height: 900 })
     await page.goto('/factions/space-marines/datasheets/eradicator-squad-with-melta-rifles')
     await page.waitForLoadState('networkidle')
-    const weapon = page.locator('tbody[aria-label="melta rifle profiles"]').getByRole('row').filter({ hasText: 'HUNTER:Monster/Vehicle' })
+    const weapon = page.locator('tbody[aria-label="melta rifle profiles" i]').getByRole('row').filter({ hasText: 'HUNTER:Monster/Vehicle' })
     await weapon.getByRole('button', { name: 'Melta 2', exact: true }).click()
     await expect(page.getByRole('tooltip').locator('[data-rule-summary]')).toBeVisible()
     await page.screenshot({ path: testInfo.outputPath(`tooltip-${width}.png`) })

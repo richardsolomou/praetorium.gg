@@ -11,6 +11,7 @@ import { definitionTexts } from './definitionTexts'
 import { cardTwins } from './cardTwins'
 import type { TextFacts, TextFactsByKey } from '../core/textFacts'
 import { vsDataTextFacts } from './vsDataEffects'
+import { combatOfVsDataOrWords } from '../shared/vsDataEffects'
 import fs from 'node:fs'
 import path from 'node:path'
 import { buildIndex, type CatalogueFile } from '../core/catalogue'
@@ -34,7 +35,7 @@ const NO_FACTS: TextFacts = { combat: null }
  * What list building reads of a text, and a datasheet characteristic a catalogue prints as an ability's bare value, as
  * an Invulnerable Save of "4+": read from the catalogue until lists and datasheets are built from VS Data (#2007).
  */
-const CATALOGUE_FIELDS = ['attachment', 'substitutes', 'reserveSelectors', 'reserveExemption', 'bareValue'] as const
+const CATALOGUE_FIELDS = ['attachment', 'substitutes', 'reserveSelectors', 'reserveExemption', 'bareValue', 'unitHeldWargear'] as const
 const withLegality = (facts: TextFacts, words: TextFacts | undefined): TextFacts => {
   const kept = Object.fromEntries(CATALOGUE_FIELDS.flatMap((field) => (words?.[field] === undefined ? [] : [[field, words[field]]])))
   const {
@@ -43,6 +44,7 @@ const withLegality = (facts: TextFacts, words: TextFacts | undefined): TextFacts
     reserveSelectors: _selectors,
     reserveExemption: _exemption,
     bareValue: _bareValue,
+    unitHeldWargear: _unitHeld,
     ...rest
   } = facts
   // The rules a text names, which a datasheet explains beside it, are VS Data's and the words' until VS Data names them all.
@@ -127,10 +129,23 @@ export function* loadCatalogueSteps(
   // first time, and what the catalogue derives from them besides the index reads no text.
   const shown = texts.withTwins(twins)
   const shownCards = withoutTwinSearch(datacards)
-  // What every rule does is read from VS Data's effect blocks, where the snapshot keeps them; a text joining no record
-  // VS Data has read takes no part in anything the rules read.
+  // What every rule does is read from VS Data's effect blocks, where the snapshot keeps them; a rule VS Data calculates
+  // nothing of takes the roles its words do, so the simulator lists it as not calculated.
   const effects = vsDataTextFacts(snapshotDirectory, edition?.id, cardDirectory, shown, index.datasheets)
   const readFacts = new Map<string, TextFacts>()
+  const factsOf = (key: string) => {
+    const words = shown.fact(key) ?? cardFacts?.get(key)
+    const facts = withLegality(effects!.get(key) ?? NO_FACTS, words)
+    const vsData = facts.combat
+    // A server records no card's combat reading, so a card is read from its words here.
+    const ownReading = () => (words?.combat !== undefined ? words.combat : cards.textCombat?.(key))
+    let combat: TextFacts['combat']
+    // The words' combat is read only when asked, as reading it is most of the cost of a text's facts.
+    return Object.defineProperty(facts, 'combat', {
+      enumerable: true,
+      get: () => (combat === undefined ? (combat = combatOfVsDataOrWords(vsData, ownReading)) : combat),
+    })
+  }
   const loaded: LoadedCatalogue = {
     ...ownTexts,
     index: indexOf(
@@ -138,8 +153,7 @@ export function* loadCatalogueSteps(
       shown.shown(selected),
       effects
         ? {
-            get: (key) =>
-              remember(readFacts, key, () => withLegality(effects.get(key) ?? NO_FACTS, shown.fact(key) ?? cardFacts?.get(key))),
+            get: (key) => remember(readFacts, key, () => factsOf(key)),
           }
         : undefined,
     ),
@@ -156,7 +170,7 @@ export function* loadCatalogueSteps(
 /** Cards with the catalogue's words they quote swapped for the catalogue's tokens. */
 function publishedDatacards(cards: LoadedDatacards, token: (raw: string) => string | null): LoadedDatacards {
   // The facts hold no text, and walking them would read every combat reading they hold only when asked.
-  const { textFacts, ...rest } = cards
+  const { textFacts, textCombat: _combat, ...rest } = cards
   const published = { ...withDefinitionTokens(rest, token), ...(textFacts ? { textFacts } : {}) }
   const texts = (descriptions: ReadonlyMap<string, string>) =>
     new Map([...descriptions].map(([key, text]) => [key, withDefinitionTokensIn(text, token)]))

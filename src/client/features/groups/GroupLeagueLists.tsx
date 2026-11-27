@@ -10,7 +10,8 @@ import { Problem } from '../../components/Problem'
 import { drawGroupLeague, startSealedGroupLeague, type groupLeague } from '../../functions'
 import { sealedEventQuery } from '../../queries'
 import { useEntrantGroups } from '../sealedEvents/SealedEventEntrants'
-import { RevealedLists } from '../sealedEvents/SealedEventArmies'
+import { SealedListLine, useRevealedFaction } from '../sealedEvents/SealedEventArmies'
+import { UnsealRoster } from '../sealedEvents/SealedEventUnseal'
 import { useSealList } from '../sealedEvents/SealList'
 import { SealedEventRuleFields } from '../sealedEvents/SealedEventRuleFields'
 import { useSealedEventRefresh } from '../sealedEvents/sealedEvent'
@@ -170,43 +171,55 @@ export function LeagueSealing({
   )
 }
 
-/** Every player's list, revealed when the league was published; while it runs, organizers can send one back to be resealed. */
-export function LeagueLists({
+/**
+ * Every player's list, revealed when the league was published, for the league table to show under each name; while it
+ * runs, organizers can send one back to be resealed, and a player whose list was sent back reseals it from `own`.
+ */
+export function useLeagueLists({
   group,
   game,
   viewerId,
   playerIds,
 }: {
   group: Group
-  game: LeagueGame
+  game: LeagueGame | null
   viewerId: string | null
   /** A running league's players, whose lists stay listed while unsealed. */
   playerIds?: readonly string[]
 }) {
-  const { data: record } = useQuery(sealedEventQuery(game.token))
+  const { data: record } = useQuery({ ...sealedEventQuery(game?.token ?? ''), enabled: game !== null })
   const nameOf = memberNameOf(group)
+  const factionOf = useRevealedFaction()
   const running = playerIds !== undefined
-  const entries = record?.entries.filter((entry) => (playerIds ?? game.sealedIds).includes(entry.userId)) ?? []
+  const entries = record?.entries.filter((entry) => (playerIds ?? game?.sealedIds ?? []).includes(entry.userId)) ?? []
   const groups = useEntrantGroups(record ?? undefined, entries, (entry) => nameOf(entry.userId))
-  if (!record) return null
+  if (!game || !record) return null
+  const revealed = new Map(groups.flatMap((side) => side.entries).map((entry) => [entry.userId, entry]))
   const own = entries.find((entry) => entry.userId === viewerId)
-  return (
-    <>
-      {own?.submitted ? <SealedEventRosterSharing className="mb-3" token={game.token} eventToken={game.token} userId={own.userId} /> : null}
-      {running && own && !own.submitted ? (
-        <div className="mb-3">
-          <SealLeagueList group={group} game={game} sealed={false} primary />
-        </div>
-      ) : null}
-      <RevealedLists
-        token={game.token}
-        eventToken={game.token}
-        groups={groups}
-        viewerId={viewerId}
-        label={(entry) => nameOf(entry.userId)}
-        onSimulate={null}
-        canUnseal={running && group.organizer}
-      />
-    </>
-  )
+  return {
+    own: own?.submitted ? (
+      <SealedEventRosterSharing token={game.token} eventToken={game.token} userId={own.userId} />
+    ) : running && own ? (
+      <SealLeagueList group={group} game={game} sealed={false} primary />
+    ) : null,
+    detail: (userId: string) => {
+      const entry = revealed.get(userId)
+      return entry ? (
+        <SealedListLine
+          entry={entry}
+          faction={factionOf(entry)}
+          className="text-xs"
+          view={{ token: game.token, eventToken: game.token, label: nameOf(userId) }}
+        />
+      ) : null
+    },
+    actions: (userId: string) => {
+      const entry = revealed.get(userId)
+      if (!entry?.army) return null
+      const named = nameOf(userId)
+      return running && group.organizer ? (
+        <UnsealRoster token={game.token} eventToken={game.token} userId={userId} label={named} labelled />
+      ) : null
+    },
+  }
 }

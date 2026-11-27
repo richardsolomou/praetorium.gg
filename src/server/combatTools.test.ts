@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { ruleSummaryFinder } from './referenceSummaries'
 import type { CanonicalCatalogue } from '../contracts/catalogue'
 import { decodeSimulatorState } from '../contracts/simulatorState'
 import { categories, shelfOf } from './catalogue.fixtures'
@@ -264,6 +265,7 @@ const corpus: ReferenceCorpus = {
   documents,
   byId: new Map(documents.map((entry) => [entry.id, entry])),
   revision: 'snapshot',
+  summaries: ruleSummaryFinder(null),
 }
 
 const { reference } = vi.hoisted(() => ({ reference: { corpus: null as ReferenceCorpus | null } }))
@@ -281,11 +283,6 @@ vi.mock('./app', () => ({
 
 // Their invulnerable saves are the catalogue's, as these units have no VS Data unit.
 vi.mock('./servedVsData', () => ({ servedVsDataUnits: async () => null }))
-
-vi.mock('./publishedTextFiles', () => ({
-  serverWords: async () => (text: string) =>
-    text === CARD_TOKEN ? 'Each time a model in this unit makes an attack, add 1 to the Hit roll.' : null,
-}))
 
 import { compareEnhancements, optimizeCombatLoadout, simulateCombat } from './combatTools'
 import { unitOptionsFor } from './rosterTools'
@@ -429,15 +426,16 @@ it('refuses an attachment the datasheets do not allow', async () => {
 })
 
 describe('the rules of a unit', () => {
-  const rules = async () =>
+  const sentinel = async () =>
     (
       (await simulateCombat({ attacker: { faction: 'test', unit: 'Sentinel' }, defender: beast })).structuredContent as {
-        attacker: { rules: { name: string; options: { label: string }[] }[] }
+        attacker: { rules: { name: string; options: { label: string }[] }[]; notCalculated: { name: string }[] }
       }
-    ).attacker.rules
+    ).attacker
+  const rules = async () => (await sentinel()).rules
 
-  it('calculates a rule published as a token from the words the snapshot holds', async () => {
-    expect((await rules()).map((rule) => rule.name)).toContain('Card Rule')
+  it('reports a rule published as a token with no effect recorded as not calculated', async () => {
+    expect((await sentinel()).notCalculated.map((rule) => rule.name)).toContain('Card Rule')
   })
 
   it('withholds a choice label that quotes the rule', async () => {

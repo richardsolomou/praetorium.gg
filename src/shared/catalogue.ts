@@ -7,6 +7,7 @@ import { cachedIn, remember, uniqueBy } from '../core/collections'
 import {
   type Definition,
   definitionAndTarget,
+  isAbilityProfile,
   profileDescription,
   type InfoGroup,
   type InfoLink,
@@ -33,7 +34,8 @@ import { wargearOf } from '../core/wargear'
 import { wargearKey } from '../core/wargearNames'
 import { carrierModelProfiles, type CombatCarrier, combatCarriers, referenceOnlyWeapon } from '../core/combatLoadout'
 import type { ModelLine } from '../core/battle'
-import { modelLineDrafts } from '../core/modelLines'
+import { modelLineDrafts, unitHeldWargearIn } from '../core/modelLines'
+import { readText, type TextFactsByKey } from '../core/textFacts'
 import { MODEL_LINES_MAX } from '../core/commands'
 import { ruleReferenceMatches, splitWeaponKeywords } from '../core/ruleReference'
 import { routeSlug } from '../core/slug'
@@ -90,6 +92,14 @@ export function woundsOf(profiles: readonly { type: string; values: readonly { n
   return values.size === 1 ? [...values][0]! : null
 }
 
+/** The wargear a datasheet's options say the unit has rather than a model, by `wargearKey`. */
+function unitHeldWargear(sheet: Datasheet | null, facts: TextFactsByKey | undefined) {
+  const named = (sheet?.wargearOptions ?? []).flatMap((option) =>
+    readText(option, facts, unitHeldWargearIn, (recorded) => recorded.unitHeldWargear ?? []),
+  )
+  return new Set(named.map((name) => wargearKey(name)))
+}
+
 /**
  * A unit's models by what they are and carry, which a battle names its casualties by.
  *
@@ -103,8 +113,9 @@ export function modelLinesOf(
   wargear: readonly { name: string; count: number }[],
   models: number,
   sheet: Datasheet | null,
+  facts?: TextFactsByKey,
 ): ModelLine[] | undefined {
-  const lines = modelLineDrafts(carriers, wargear)
+  const lines = modelLineDrafts(carriers, wargear, unitHeldWargear(sheet, facts))
   if (lines.length < 2 || lines.length > MODEL_LINES_MAX || lines.reduce((total, line) => total + line.models, 0) !== models)
     return undefined
   const profiles = sheet?.profiles.filter((profile) => profile.type.toLowerCase() === 'unit') ?? []
@@ -272,7 +283,7 @@ function abilityProfilesOf(
 ): (Profile & { name: string })[] {
   const found: (Profile & { name: string })[] = []
   const add = (profile: Profile, lineage: readonly string[] = []) => {
-    if (profile.typeName === 'Abilities' && profile.name && !profile.hidden && !markedAbsent(absent, profile, [...lineage, profile.id]))
+    if (isAbilityProfile(profile) && profile.name && !profile.hidden && !markedAbsent(absent, profile, [...lineage, profile.id]))
       found.push({ ...profile, name: profile.name })
   }
   definition.profiles?.forEach((profile) => add(profile))
@@ -476,7 +487,7 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
   const keywordRules = new Map<string, Datasheet['keywordRules'][number]>()
   const visited = new Set<string>()
   const addProfile = (profile: Profile, kind: AbilityKind, lineage: string[], owner: string[], source?: string, into = abilities) => {
-    if (profile.typeName === 'Abilities' && profile.name) {
+    if (isAbilityProfile(profile) && profile.name) {
       const profileLineage = [...lineage, profile.id]
       if (markedAbsent(root.absentAbilities, profile, profileLineage)) return
       const hidden = modifiedProfileField(
@@ -518,7 +529,7 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
   ) => {
     const owner = definitionTokens(definition)
     definition.profiles?.forEach((profile) => {
-      if (weaponsOnly && profile.typeName === 'Abilities') return
+      if (weaponsOnly && isAbilityProfile(profile)) return
       addProfile(
         profile,
         kind,
@@ -538,7 +549,7 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
       if (!shared) continue
       if (
         'characteristics' in shared &&
-        (!weaponsOnly || shared.typeName !== 'Abilities') &&
+        (!weaponsOnly || !isAbilityProfile(shared)) &&
         // A link hidden outright is never shown; one a roster condition hides stays, as a Weirdboy's Wurrband powers do.
         !(link.hidden && !flattenedModifiers([link]).some((modifier) => modifier.field === 'hidden'))
       ) {

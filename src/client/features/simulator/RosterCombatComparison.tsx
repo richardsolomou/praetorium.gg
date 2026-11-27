@@ -493,14 +493,14 @@ export function RosterCombatComparison({
     return (
       // Siblings with no spacing of their own: a wrapper or margin here lifts a dialog's results summary off its bottom edge.
       <>
-        <section aria-label="Matchup sides" className="part p-3 sm:p-4">
+        <section aria-label="Matchup sides" className="pb-3">
           {sides}
         </section>
         {units.matchup}
       </>
     )
   return (
-    <section aria-label="Roster comparison" className={cn('min-w-0 space-y-3 p-3 sm:p-4', units && 'part')}>
+    <section aria-label="Roster comparison" className={cn('min-w-0 space-y-3', units ? 'border-y border-edge py-3' : 'p-3 sm:p-4')}>
       <div className="space-y-2 border-b border-edge pb-3">
         {sides}
         {!sources && usingBenchmarks ? (

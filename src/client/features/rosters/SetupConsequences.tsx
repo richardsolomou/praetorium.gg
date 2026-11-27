@@ -13,9 +13,10 @@ import {
 } from '../../../core/battle'
 import { countLabel, signedLabel } from '../../text'
 import { factionDisposition } from '../../components/rosterSetup'
+import { DisclosureChevron } from '../../components/DisclosureChevron'
 
 /** Each unit's change hangs off a runner; a removed unit's gate is cut. */
-const UNIT_RUNNER = 'runner gap-3 [--gate-x:1.25rem] [--gate-y:0.625rem]'
+const UNIT_RUNNER = 'runner gap-3'
 
 export function SetupConsequences({ review, guest }: { review: Review; guest: boolean }) {
   const { source, candidate, before, after } = review
@@ -198,7 +199,8 @@ export function SetupConsequences({ review, guest }: { review: Review; guest: bo
       ) : null}
       {unchangedUnits.length ? (
         <details className="border-t border-edge pt-2">
-          <summary className="min-h-11 cursor-pointer content-center text-dim hover:text-bone">
+          <summary className="flex cursor-pointer list-none items-center gap-1.5 [&::-webkit-details-marker]:hidden min-h-11 text-dim hover:text-bone">
+            <DisclosureChevron />
             {countLabel(unchangedUnits.length, 'unchanged unit')}
           </summary>
           <ul className={`mt-2 ${UNIT_RUNNER}`}>{unchangedUnits.map((unit) => unit.row)}</ul>

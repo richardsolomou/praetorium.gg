@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { ruleSummaryFinder } from './referenceSummaries'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { PostHog } from 'posthog-node'
 import { exportJWK, generateKeyPair, SignJWT } from 'jose'
@@ -41,6 +42,7 @@ const corpus: ReferenceCorpus = {
   documents: [document],
   byId: new Map([[document.id, document]]),
   revision: 'snapshot',
+  summaries: ruleSummaryFinder(null),
 }
 
 const { hasMcpConsent, importCollection, rateLimit } = vi.hoisted(() => ({
@@ -61,6 +63,7 @@ vi.mock('./referenceApi', async () => {
 vi.mock('./publishedTextFiles', () => ({
   publishedTextLocations: async () => ({ files: {}, holds: () => false, recordsHolding: () => [] }),
 }))
+vi.mock('./servedVsData', () => ({ servedVsDataSummaries: async () => null, answerRuleSummary: async () => () => null }))
 vi.mock('./app', () => ({
   app: () => ({
     searchIndexFor: async () => null,
@@ -177,7 +180,10 @@ describe('a signed-in call while the signing keys cannot be read', () => {
     throw new TypeError('fetch failed')
   })
   beforeEach(() => vi.stubGlobal('fetch', unreachable))
-  afterEach(() => vi.unstubAllGlobals())
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.unstubAllEnvs()
+  })
 
   it('asks the client to retry', async () => {
     const response = await handleReferenceMcp(signedIn())
@@ -185,8 +191,15 @@ describe('a signed-in call while the signing keys cannot be read', () => {
   })
 
   it('reads the keys from this server rather than its public address', async () => {
+    vi.stubEnv('PORT', '8123')
     await handleReferenceMcp(signedIn())
-    expect(String((unreachable.mock.calls[0] as unknown[])[0])).toBe('http://127.0.0.1:3000/api/auth/jwks')
+    expect(String((unreachable.mock.calls[0] as unknown[])[0])).toBe('http://127.0.0.1:8123/api/auth/jwks')
+  })
+
+  it('reads the keys through the public address under Vite dev, which has no PORT', async () => {
+    vi.stubEnv('PORT', undefined)
+    await handleReferenceMcp(signedIn())
+    expect(String((unreachable.mock.calls[0] as unknown[])[0])).toBe('https://praetorium.gg/api/auth/jwks')
   })
 })
 

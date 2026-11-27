@@ -76,7 +76,7 @@ function ReserveSide({ side, moves }: { side: Side; moves: Moves }) {
   return (
     <SetupSidePanel side={side} className="space-y-3">
       {totals ? (
-        <span className="chip w-fit">
+        <span className="block text-xs text-dim">
           {totals.points}/{totals.limit} reserve points shared
         </span>
       ) : null}
@@ -97,13 +97,13 @@ function ArmySetup({ army, multiple, moves }: { army: Army; multiple: boolean; m
     <article className="space-y-2">
       <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-edge pb-1">
         <span className="min-w-0">
-          <span className="block break-words text-xs font-bold uppercase">{army.roster?.name ?? 'No army chosen'}</span>
+          <span className="block break-words text-sm font-semibold">{army.roster?.name ?? 'No army chosen'}</span>
           {multiple ? <span className="block text-3xs text-dim">{army.playerName}</span> : null}
         </span>
-        <span className="flex max-w-full shrink-0 flex-wrap justify-end gap-1">
-          <span className="chip">{countLabel(units.length, 'unit')}</span>
+        <span className="flex max-w-full shrink-0 flex-wrap justify-end gap-x-3 text-xs text-dim">
+          <span>{countLabel(units.length, 'unit')}</span>
           {multiple || reserveLimit === undefined ? null : (
-            <span className="chip">
+            <span className="readout">
               {reservePoints}/{reserveLimit} reserve points
             </span>
           )}
@@ -112,7 +112,7 @@ function ArmySetup({ army, multiple, moves }: { army: Army; multiple: boolean; m
       <DroppedEmbarks army={army} units={units} />
       {sections.map((section) => (
         <section key={section.label} className="space-y-1">
-          <p className="eyebrow">{section.label}</p>
+          <p className="text-sm font-medium text-dim">{section.label}</p>
           {section.units.map((unit) => (
             <UnitFormationRow key={unit.host.key} army={army} unit={unit} units={units} moves={moves} />
           ))}
@@ -175,7 +175,7 @@ function UnitFormationRow({
   const refused = moves.refusalFor(row)
 
   return (
-    <div className="rounded-md bg-sunken p-2">
+    <div className="border-b border-edge pb-2">
       <div className="flex flex-wrap items-baseline justify-between gap-x-2 px-0.5">
         <span className="min-w-0">
           <span className="block text-sm font-semibold">{host.name}</span>
@@ -183,7 +183,7 @@ function UnitFormationRow({
           {joined.length ? <span className="block text-3xs text-dim">{joinedWith(joined.map((character) => character.name))}</span> : null}
         </span>
         {unit.prebattleRules.length ? (
-          <span className="text-3xs text-discarded uppercase">{unit.prebattleRules.map(formationLabel).join(' · ')}</span>
+          <span className="text-xs text-discarded">{unit.prebattleRules.map(formationLabel).join(' · ')}</span>
         ) : null}
       </div>
       {/*
@@ -194,7 +194,7 @@ function UnitFormationRow({
         <div className="flex flex-wrap items-center justify-between gap-2 px-0.5">
           <span className="inline-flex min-w-0 items-center gap-1.5">
             <MapPin className="size-3.5 shrink-0 text-dim" />
-            <span className="text-xs font-bold text-bone uppercase">
+            <span className="text-sm text-bone">
               {formationLabel(host.formation)}
               {host.formation === 'embarked' && transportName ? ` in ${transportName}` : ''}
             </span>
@@ -323,7 +323,7 @@ function TransportBoarding({
   return (
     <div className="mt-2 border-t border-edge px-0.5 pt-2">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-3xs font-bold text-dim uppercase">Transport</span>
+        <span className="text-sm font-medium text-dim">Transport</span>
         {candidates.length && canBoard ? (
           <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger render={<Button variant="outline" size="xs" aria-label={`Embark units in ${name}`} />}>
@@ -348,7 +348,7 @@ function TransportBoarding({
                   }
                   const refusal = formationRefusal(moves.view, command)
                   return (
-                    <div key={unit.host.key} className="flex items-center justify-between gap-2 rounded-md bg-sunken px-2 py-1.5">
+                    <div key={unit.host.key} className="flex items-center justify-between gap-2 border-b border-edge py-1.5">
                       <div className="min-w-0">
                         <p className="text-xs font-semibold text-bone">{reserveUnitLabel(units, unit)}</p>
                         <p className="text-3xs text-dim">{countLabel(models, 'model')}</p>

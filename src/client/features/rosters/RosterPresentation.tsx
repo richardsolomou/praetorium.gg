@@ -8,7 +8,7 @@ import { battleSizeLabel, type FormatRule } from '../../../core/battle'
 import type { OnboardingTarget } from '../../onboardingTargets'
 import { FactionLabel, type FactionPresentation } from '../../components/FactionMark'
 import { WaiverChip } from '../../components/FormatWaivers'
-import { dispositionTone, factionDisposition } from '../../components/rosterSetup'
+import { dispositionTag, factionDisposition } from '../../components/rosterSetup'
 import type { CatalogueEdition } from '../../../core/catalogueEdition'
 import { countLabel } from '../../text'
 
@@ -132,7 +132,7 @@ export function RosterHeader({
   const shownDispositions = disposition ? [disposition] : dispositions
 
   return (
-    <header className="masthead-bleed relative border-b border-edge bg-void px-3 py-2 [--band:var(--color-void)]">
+    <header className="masthead-bleed relative border-b border-edge bg-void px-4 pt-3 pb-2.5 [--band:var(--color-void)]">
       {/* The actions sit beside the name at every width, and the facts take the next line. */}
       <div className="flex min-w-0 flex-wrap items-center gap-x-2">
         {/*
@@ -149,7 +149,7 @@ export function RosterHeader({
           aria-label="List name"
           readOnly={!onNameChange}
           data-print-hide={onNameChange && !name ? '' : undefined}
-          className="h-9 min-w-0 flex-1 basis-0 rounded-none border-0 bg-[transparent] px-0 font-display text-xl font-bold tracking-heading uppercase focus-visible:border-b focus-visible:border-parchment focus-visible:ring-0 md:text-2xl"
+          className="h-9 min-w-0 flex-1 basis-0 rounded-none border-0 bg-[transparent] px-0 font-display text-[1.4375rem] font-bold tracking-heading focus-visible:border-b focus-visible:border-parchment focus-visible:ring-0 md:text-2xl"
         />
         {actions ? (
           <span className="flex shrink-0 items-center gap-1" data-print-hide>
@@ -157,13 +157,11 @@ export function RosterHeader({
           </span>
         ) : null}
         {onNameChange && !name && placeholder ? (
-          <p className="hidden h-9 basis-full items-center font-display text-xl font-bold tracking-heading uppercase print:flex">
-            {placeholder}
-          </p>
+          <p className="hidden h-9 basis-full items-center font-display text-xl font-bold tracking-heading print:flex">{placeholder}</p>
         ) : null}
 
         {faction || factionLoading || limit !== undefined ? (
-          <div className="mt-0.5 flex min-w-0 basis-full items-center gap-2 text-xs text-dim">
+          <div className="mt-1 flex min-w-0 basis-full items-center gap-2 text-xs text-dim">
             <span
               ref={metaRef}
               style={metaStyle}
@@ -177,7 +175,7 @@ export function RosterHeader({
                     key="faction"
                     to="/factions/$catalogueId"
                     params={{ catalogueId: faction.slug }}
-                    className="flex shrink-0 items-center self-stretch text-info hover:text-bone"
+                    className="flex shrink-0 items-center self-stretch text-info underline-offset-2 hover:underline"
                   >
                     <FactionLabel faction={faction} edition={edition} />
                   </FactionReferenceLink>
@@ -196,7 +194,7 @@ export function RosterHeader({
                         catalogueId: reference.referenceRoute?.catalogueId ?? faction.slug,
                         detachmentId: reference.referenceRoute?.slug ?? reference.slug,
                       }}
-                      className="shrink-0 text-info hover:text-bone"
+                      className="shrink-0 text-info underline-offset-2 hover:underline"
                     >
                       {label}
                     </FactionReferenceLink>
@@ -215,12 +213,12 @@ export function RosterHeader({
                           key={id}
                           to="/force-dispositions/$dispositionId"
                           params={{ dispositionId: known.id }}
-                          className={`chip shrink-0 hover:text-bone ${dispositionTone(known.id)}`}
+                          className={`${dispositionTag(known.id)} hover:text-bone`}
                         >
                           {known.name}
                         </Link>
                       ) : (
-                        <span key={id} className={`chip shrink-0 ${dispositionTone(id)}`}>
+                        <span key={id} className={dispositionTag(id)}>
                           {id}
                         </span>
                       )
@@ -228,7 +226,7 @@ export function RosterHeader({
                   </span>
                 ) : null,
                 hasPoints ? (
-                  <span key="points" className="chip text-info">
+                  <span key="points" className="shrink-0">
                     {points} pts
                   </span>
                 ) : null,

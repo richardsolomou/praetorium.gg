@@ -21,12 +21,15 @@ export function SetupHeader({
   const { data: me } = useQuery(meQuery())
   return (
     <header className="relative space-y-5 pb-2">
-      <div aria-hidden className="construction-grid -inset-x-3 -top-6 sm:-inset-x-4" />
       <div className="relative space-y-1.5">
         <div className="flex items-start justify-between gap-2">
           <h1 className="flex flex-wrap items-center gap-x-3 gap-y-1 text-2xl text-balance sm:text-3xl">
             {watching ? 'Battle setup' : 'Set up the battle'}
-            {draft ? <span className="chip align-middle font-sans text-xs text-dim">Draft</span> : null}
+            {draft ? (
+              <span className="rounded-sm border border-edge px-1.5 align-middle font-sans text-xs leading-5 font-normal text-dim">
+                Draft
+              </span>
+            ) : null}
           </h1>
           {watching ? (
             me ? null : (

@@ -2,6 +2,7 @@ import { Link, useNavigate } from '@tanstack/react-router'
 import type { Standing, StandingFaction } from '../../../core/standings'
 import { averagePoints, winRate } from '../../../core/standings'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
+import { RankFigure } from '../../components/RankFigure'
 import { SearchableSelect } from '../../components/SearchableSelect'
 import { percentLabel } from '../../text'
 import { SectionHeading } from '../../components/SectionHeading'
@@ -40,11 +41,7 @@ export function Standings({
           <span className="truncate text-[0.9375rem] font-bold" style={nameColour(row)}>
             {row.name}
           </span>
-          {row.id === viewerId ? (
-            <span className="shrink-0 rounded-md bg-parchment px-1.5 py-px text-2xs font-bold tracking-label text-parchment-ink uppercase">
-              You
-            </span>
-          ) : null}
+          {row.id === viewerId ? <span className="shrink-0 text-xs font-medium text-parchment">You</span> : null}
         </span>
       </Link>
     </td>
@@ -60,26 +57,26 @@ export function Standings({
     <section data-standings>
       <SectionHeading title={title} count={table.players} />
       {table.rows.length ? (
-        <div className="part overflow-x-auto">
+        <div className="overflow-x-auto border-y border-edge">
           <table className="w-full table-fixed border-collapse text-sm min-w-lg">
             <thead>
-              <tr className="border-b-2 border-runner text-left text-2xs tracking-eyebrow text-dim uppercase">
-                <th scope="col" className="w-11 py-3 pr-1 pl-3 font-semibold sm:w-14 sm:px-3">
+              <tr className="eyebrow border-b border-edge text-left text-dim">
+                <th scope="col" className="w-12 py-2.5 pr-1 pl-2 font-bold sm:w-14 sm:px-3">
                   #
                 </th>
-                <th scope="col" className="px-2 py-3 font-semibold sm:px-3">
+                <th scope="col" className="px-2 py-2.5 font-bold sm:px-3">
                   Player
                 </th>
-                <th scope="col" className="w-20 px-3 py-3 text-right font-semibold">
+                <th scope="col" className="w-20 px-3 py-2.5 text-right font-bold">
                   Rating
                 </th>
-                <th scope="col" className="w-20 px-3 py-3 text-right font-semibold">
+                <th scope="col" className="w-20 px-3 py-2.5 text-right font-bold">
                   Battles
                 </th>
-                <th scope="col" className="w-16 px-3 py-3 text-right font-semibold">
+                <th scope="col" className="w-16 px-3 py-2.5 text-right font-bold">
                   Rate
                 </th>
-                <th scope="col" className="w-20 px-3 py-3 text-right font-semibold">
+                <th scope="col" className="w-20 px-3 py-2.5 text-right font-bold">
                   Avg VP
                 </th>
               </tr>
@@ -89,13 +86,13 @@ export function Standings({
                 <tr
                   key={row.id}
                   data-standing={row.id}
-                  className={`border-b border-edge transition-colors last:border-0 hover:bg-raised/60 ${row.id === viewerId ? 'bg-parchment/10' : ''}`}
+                  className={`border-b border-edge transition-colors last:border-0 hover:bg-raised ${row.id === viewerId ? 'bg-parchment/8' : ''}`}
                 >
-                  <td className="py-2.5 pr-1 pl-3 sm:px-3">
-                    <span className={`part-tag ${place === 0 ? 'bg-parchment text-parchment-ink' : ''}`}>{place + 1}</span>
+                  <td className="py-2.5 pr-1 pl-2 sm:px-3">
+                    <RankFigure place={place + 1} />
                   </td>
                   {player(row)}
-                  <td className="readout px-3 py-2.5 text-right font-bold text-bone">{row.rating}</td>
+                  <td className="figure px-3 py-2.5 text-right text-xl leading-none text-bone">{row.rating}</td>
                   {record(row)}
                 </tr>
               ))}
@@ -103,7 +100,7 @@ export function Standings({
           </table>
         </div>
       ) : (
-        <p className="part px-4 py-6 text-sm text-dim">{empty}</p>
+        <p className="border-y border-edge px-2 py-6 text-sm text-dim">{empty}</p>
       )}
     </section>
   )

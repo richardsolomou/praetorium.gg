@@ -72,16 +72,8 @@ function recording(
  * words plays it as the server would: a lone token's facts gain it, and a rule of several, such as a stratagem's
  * sections, is recorded under all its tokens. Each reads its words only when asked, as the reading covers every placement.
  */
-function recordCombat(
-  descriptions: Iterable<string>,
-  facts: Map<string, TextFacts>,
-  files: ReadonlyMap<string, string>,
-  stratagems: ReadonlySet<string>,
-) {
-  for (const text of descriptions) {
-    const tokens = textTokensIn(text)
-    if (!tokens.length || tokens.some((token) => !files.has(token.file))) continue
-    const key = factsKey(text)
+function recordCombat(texts: ReadonlyMap<string, string>, facts: Map<string, TextFacts>, read: (key: string) => TextFacts['combat']) {
+  for (const key of texts.keys()) {
     const found = facts.get(key)
     if (found && 'combat' in found) continue
     let combat: TextFacts['combat']
@@ -89,10 +81,22 @@ function recordCombat(
       key,
       Object.defineProperty({ ...found }, 'combat', {
         enumerable: true,
-        get: () => (combat === undefined ? (combat = combatFactsOf(wordsOf(text, files), stratagems.has(text))) : combat),
+        get: () => (combat === undefined ? (combat = read(key)) : combat),
       }),
     )
   }
+}
+
+/** Each card rule's text by `factsKey`, the first where several print alike, for those whose words its files hold. */
+function cardRuleTexts(descriptions: Iterable<string>, files: ReadonlyMap<string, string>) {
+  const texts = new Map<string, string>()
+  for (const text of descriptions) {
+    const tokens = textTokensIn(text)
+    if (!tokens.length || tokens.some((token) => !files.has(token.file))) continue
+    const key = factsKey(text)
+    if (!texts.has(key)) texts.set(key, text)
+  }
+  return texts
 }
 
 // Read back from its file when a reading is asked for, as a server holding every rules version's card words for the
@@ -250,33 +254,36 @@ export function* loadDatacardsSteps(
     }
     for (const [id, description] of content.stratagemTexts) stratagemTexts.set(id, description)
   }
+  const rulesByDetachment = new Map(
+    [...detachmentRules].map(([detachment, rules]) => [
+      detachment,
+      [...agreed(rules)].map(([name, description]) => ({ name, description })),
+    ]),
+  )
+  const stratagems = new Set(stratagemTexts.values())
+  const ruleTexts = cardRuleTexts(
+    [
+      ...stratagems,
+      ...[...enhancements.values(), ...armyRules.values()].flatMap((texts) => [...texts.values()]),
+      ...descriptionsIn([factions, rulesByDetachment]),
+    ],
+    textFiles,
+  )
+  const combatOf = (key: string) => {
+    const text = ruleTexts.get(key)
+    return text === undefined ? undefined : combatFactsOf(wordsOf(text, textFiles), stratagems.has(text))
+  }
   const loaded = {
     factions,
-    detachmentRules: new Map(
-      [...detachmentRules].map(([detachment, rules]) => [
-        detachment,
-        [...agreed(rules)].map(([name, description]) => ({ name, description })),
-      ]),
-    ),
+    detachmentRules: rulesByDetachment,
     enhancements: agreed(enhancements),
     stratagemTexts,
     armyRules: agreed(armyRules),
     constructionDetachments,
     textFacts,
     textReadings,
+    textCombat: combatOf,
   }
-  if (cardReadings) {
-    const stratagems = [...stratagemTexts.values()]
-    recordCombat(
-      [
-        ...stratagems,
-        ...[...enhancements.values(), ...armyRules.values()].flatMap((texts) => [...texts.values()]),
-        ...descriptionsIn([loaded.factions, loaded.detachmentRules]),
-      ],
-      textFacts,
-      textFiles,
-      new Set(stratagems),
-    )
-  }
+  if (cardReadings) recordCombat(ruleTexts, textFacts, (key) => combatOf(key) ?? null)
   return loaded
 }

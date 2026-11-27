@@ -37,7 +37,7 @@ import { hasTextTokens } from '../core/sourceText'
 import type { ToolErrorType } from '../contracts/agentTools'
 import { READ_ONLY_TOOL, structured, toolError, type AgentTools } from './agentTools'
 import { app, type App } from './app'
-import { combatantSnapshot, readRules, withReadRules } from '../shared/rosterGradeMeasures'
+import { combatantSnapshot } from '../shared/rosterGradeMeasures'
 import {
   applyOptimizedLoadout,
   compareLoadouts,
@@ -51,7 +51,6 @@ import {
 import { createCombatWorker, type OptimizeLoadoutMessage, type OptimizeLoadoutReply } from './combatCalculationPool'
 import { combatLoadoutCandidates } from '../shared/combatLoadouts'
 import { rosterCombatant } from '../shared/rosterCombatRules'
-import { serverWords } from './publishedTextFiles'
 import { activeReferenceCorpus, currentFactionIds } from './referenceApi'
 import type { ReferenceCorpus } from './referenceCorpus'
 import { datasheetCitation, factionDatasheets, factionUnits, referenceFaction } from './referenceService'
@@ -406,9 +405,9 @@ async function combatant(corpus: ReferenceCorpus, side: SideInput, role: Role, c
     detachmentIds,
     picks: withEnhancements(loaded, rules, named.catalogueId, detachmentIds, joined, named.enhancements),
   }
-  const unread = rosterCombatant(loaded, rules, { catalogueId: resolved.catalogueId, detachmentIds, picks: resolved.picks, pickIndex: 0 })
-  if (!unread) throw new CombatRefusal([`${side.unit} could not be loaded.`])
-  const projection = withVsDataSaves(withReadRules(unread, await serverWords()), await servedVsDataUnits(resolved.catalogueId))
+  const fielded = rosterCombatant(loaded, rules, { catalogueId: resolved.catalogueId, detachmentIds, picks: resolved.picks, pickIndex: 0 })
+  if (!fielded) throw new CombatRefusal([`${side.unit} could not be loaded.`])
+  const projection = withVsDataSaves(fielded, await servedVsDataUnits(resolved.catalogueId))
   const requested = [side, ...(side.attached ?? [])]
   const members = [{ ...projection, pickIndex: 0 }, ...projection.companions]
   const health = members.map((member) => {
@@ -534,7 +533,7 @@ function ruleSummary(side: Combatant, opponent: Combatant) {
           !rule.appliedDefences?.length &&
           !combatRuleChoices(rule).length &&
           (ruleRoles(rule).includes(side.role) ||
-            // The snapshot does not hold this card's words, so what the rule does is unknown; a stratagem stays off anyway.
+            // A token rule with no reading recorded does something unknown; a stratagem stays off anyway.
             (rule.scope !== 'stratagem' && !rule.reading && hasTextTokens(rule.description))),
       )
       .map((rule) => ({ id: rule.id, name: rule.name, source: rule.source, scope: rule.scope })),
@@ -738,11 +737,7 @@ export async function optimizeCombatLoadout(input: OptimizeLoadoutInput) {
   const [attacker, defender] = built.sides
   const { resolved } = attacker
   const instance = app()
-  const [loaded, rules, words] = await Promise.all([
-    instance.catalogueFor(resolved.catalogueId),
-    instance.rulesFor(resolved.catalogueId),
-    serverWords(),
-  ])
+  const [loaded, rules] = await Promise.all([instance.catalogueFor(resolved.catalogueId), instance.rulesFor(resolved.catalogueId)])
   if (!loaded) return refused([REFERENCE_UNAVAILABLE], 'unavailable')
   const adjustments = input.modifiers ?? {}
   const matchup = combatMatchup(attacker.snapshot, defender.snapshot, { preferences: {}, excluded: noExclusions(), allocation: [] })
@@ -801,14 +796,13 @@ export async function optimizeCombatLoadout(input: OptimizeLoadoutInput) {
       for await (const batch of combatLoadoutCandidates(loaded, request, signal, rules)) {
         local = batch.local
         done = batch.done
-        const read = batch.candidates.map((candidate) => ({
+        const changed = batch.candidates.map((candidate) => ({
           ...candidate,
           changes: loadoutChanges(candidate, (origin ??= candidate)),
-          members: candidate.members.map((member) => ({ ...member, rules: readRules(member.rules, words) })),
         }))
         // The unit's own loadout is scored alone so it can be reported as current.
-        const chunks = sentFirst ? [] : read.splice(0, 1).map((candidate) => [candidate])
-        for (let start = 0; start < read.length; start += SCORED_TOGETHER) chunks.push(read.slice(start, start + SCORED_TOGETHER))
+        const chunks = sentFirst ? [] : changed.splice(0, 1).map((candidate) => [candidate])
+        for (let start = 0; start < changed.length; start += SCORED_TOGETHER) chunks.push(changed.slice(start, start + SCORED_TOGETHER))
         for (const candidates of chunks) {
           if (signal.aborted) break
           if (inFlight.length >= SCORING_WORKERS) take(await inFlight.shift()!)
@@ -1023,7 +1017,7 @@ export function registerCombatTools(tools: AgentTools) {
     {
       title: 'Estimate combat between two units',
       description:
-        "Runs Praetorium's exact combat simulator for one attacking unit, with any attached leaders, against one defending unit: shooting, melee, and shooting followed by melee. Returns expected models destroyed, expected wounds lost, the chance to destroy the unit, cumulative odds, weapons used, the wargear each unit fielded, the rule and weapon-mode choices each side can change, datasheet citations, and a simulator link. Each unit takes its default loadout unless given choices and spreads; to field a unit from get_my_roster, pass its pick's entryId as unit with the pick's models, choices and spreads, its attached picks under attached, and the roster's detachment. Units start at full strength unless modelsLost or woundsLost say otherwise. Passive datasheet rules apply by default; stratagems and conditional rules, including below-strength ones, stay off until chosen in rules. A modifier never chooses a rule: charged and heavy change only weapon abilities such as [LANCE] and [HEAVY], so a rule whose option needs the unit to have charged or remained stationary must also be chosen. Rules the simulator cannot calculate are never approximated: a phase it cannot estimate has status refused with its reasons, and recognised rules it leaves out are listed under notCalculated, so explain those gaps rather than retrying. Errors are reserved for unknown factions or units, illegal unit sizes, wargear, attachments, enhancements, or losses, and unavailable reference data. A weapon choice left out of weaponModes takes the option that does most against this defender. A side fields a detachment's rules and offers its stratagems only when its detachment is named, an enhancement applies only when named for its unit or among its choices, and another unit's aura applies only when that unit is listed in nearby and its rule chosen. The simulator link keeps loadouts but opens every unit at full strength.",
+        "Runs Praetorium's exact combat simulator for one attacking unit, with any attached leaders, against one defending unit: shooting, melee, and shooting followed by melee. Returns expected models destroyed, expected wounds lost, the chance to destroy the unit, cumulative odds, weapons used, the wargear each unit fielded, the rule and weapon-mode choices each side can change, datasheet citations, and a simulator link. Each unit takes its default loadout unless given choices and spreads; to field a unit from get_my_roster, pass its pick's entryId as unit with the pick's models, choices and spreads, its attached picks under attached, and the roster's detachment. Units start at full strength unless modelsLost or woundsLost say otherwise. Passive datasheet rules apply by default; stratagems and conditional rules, including below-strength ones, stay off until chosen in rules. A modifier never chooses a rule: charged and heavy change only weapon abilities such as [LANCE] and [HEAVY], so a rule whose option needs the unit to have charged or remained stationary must also be chosen. Rules the simulator cannot calculate are never approximated: a phase it cannot estimate has status refused with its reasons, and recognised rules it leaves out are listed under notCalculated, so explain those gaps rather than retrying; when the player wants one calculated, offer to report it with send_feedback, passing its id. Errors are reserved for unknown factions or units, illegal unit sizes, wargear, attachments, enhancements, or losses, and unavailable reference data. A weapon choice left out of weaponModes takes the option that does most against this defender. A side fields a detachment's rules and offers its stratagems only when its detachment is named, an enhancement applies only when named for its unit or among its choices, and another unit's aura applies only when that unit is listed in nearby and its rule chosen. The simulator link keeps loadouts but opens every unit at full strength.",
       inputSchema: simulateCombatInputSchema,
       annotations: READ_ONLY_TOOL,
     },

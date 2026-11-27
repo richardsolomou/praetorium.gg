@@ -13,6 +13,7 @@ import { browserModelContext, failure, installWebMcp, type ToolResult } from './
 import { WriteApproval, type WriteProposal } from './WriteApproval'
 import { withTimeout } from '../../abortSignals'
 import { Problem } from '../../components/Problem'
+import { DisclosureChevron } from '../../components/DisclosureChevron'
 
 export function WebMcp() {
   const client = useQueryClient()
@@ -134,7 +135,10 @@ function ProposedArguments({ input }: Pick<WriteProposal, 'input'>) {
   const [open, setOpen] = useState(false)
   return (
     <details onToggle={(event) => setOpen(event.currentTarget.open)}>
-      <summary className="cursor-pointer text-dim">All proposed changes</summary>
+      <summary className="flex cursor-pointer list-none items-center gap-1.5 [&::-webkit-details-marker]:hidden text-dim">
+        <DisclosureChevron />
+        All proposed changes
+      </summary>
       {open ? (
         <dl className="grid min-w-0 gap-3">
           {Object.entries(input).map(([key, value]) => (

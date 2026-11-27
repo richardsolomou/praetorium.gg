@@ -34,7 +34,7 @@ export function BattlefieldFact({
   const value = objectives && count !== null ? `${deployment.name} · ${countLabel(count, 'objective')}` : deployment.name
   return (
     <div className="min-w-0">
-      <dt className="eyebrow">Battlefield</dt>
+      <dt className="text-xs text-dim">Battlefield</dt>
       <dd>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger

@@ -17,7 +17,7 @@ export function SectionHeading({
   id?: string
   className?: string
 }) {
-  const tally = detail || count === undefined ? null : <span className="readout text-sm text-dim">{count}</span>
+  const tally = detail || count === undefined ? null : <span className="readout font-sans text-sm font-semibold text-faint">{count}</span>
   if (!action)
     return (
       <h2 id={id} className={cn('rubric mb-3 flex min-h-8 items-center gap-3 text-bone', className)}>

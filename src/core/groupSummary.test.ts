@@ -20,6 +20,19 @@ const summary = (battles: StandingBattle[], members = ['alice', 'bob', 'cara']) 
   groupSummary(battles, { members: new Set(members), exclude: [], now: 0 })
 
 describe('groupSummary', () => {
+  it('counts one army once whichever rules version each game used', () => {
+    const versioned = { slug: 'legacy~adeptus-custodes', displayName: 'Adeptus Custodes', icon: null }
+    const current = { slug: 'adeptus-custodes', displayName: 'Adeptus Custodes', icon: null }
+    const factions = summary([
+      duel('alice', 'bob', 1, { factions: [versioned, army('necrons')] }),
+      duel('alice', 'bob', 2, { factions: [current, army('necrons')] }),
+    ]).factions.map(({ faction, seats }) => [faction.displayName, seats])
+    expect(factions).toEqual([
+      ['Adeptus Custodes', 2],
+      ['necrons', 2],
+    ])
+  })
+
   it('scores a head-to-head from each pair’s own side, whoever sat first', () => {
     const [rivalry] = summary([duel('alice', 'bob', 1), duel('bob', 'alice', 2), duel('bob', 'alice', 3)]).rivalries
     expect(rivalry).toMatchObject({ a: 'alice', b: 'bob', battles: 3, aWon: 1, bWon: 2 })

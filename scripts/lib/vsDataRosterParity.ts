@@ -14,7 +14,7 @@ import { deployedRosterIds, productionRosterSnapshotSchema } from './productionR
 import { legacyIds, vsRosterOf } from './vsDataRosters'
 
 /** A list as Praetorium keeps it: a saved roster, or one fielded into a battle or a sealed event. */
-type SavedList = {
+export type SavedList = {
   kind: 'roster' | 'battle' | 'sealed'
   id: string
   catalogueId: string
@@ -50,7 +50,7 @@ type RosterRow = {
 }
 
 /** Every list in a local production copy (`scripts/fetchProductionCopy.ts`), or the saved rosters of a roster snapshot. */
-async function savedLists(file: string): Promise<SavedList[]> {
+export async function savedLists(file: string): Promise<SavedList[]> {
   if (!file.endsWith('.gz')) {
     const snapshot = productionRosterSnapshotSchema.parse(JSON.parse(fs.readFileSync(file, 'utf8')))
     return snapshot.rosters.map((stored) => ({ kind: 'roster', ...deployedRosterIds(stored) }))

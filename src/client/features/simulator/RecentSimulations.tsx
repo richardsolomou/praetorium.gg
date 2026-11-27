@@ -29,13 +29,13 @@ export function RecentSimulations({ onOpen }: { onOpen?: (shared: string) => voi
     <section aria-label="Recent simulations" className="min-w-0">
       <SectionHeading title="Recent simulations" count={recent.length} />
       {/* A row bleeds to the window on a phone, so the cut-off card reads as a scroller. */}
-      <ul className="-mx-3 mt-3 flex snap-x gap-2 overflow-x-auto px-3 pb-2 sm:mx-0 sm:px-0">
+      <ul className="-mx-3 flex snap-x overflow-x-auto border-y border-edge px-3 sm:mx-0 sm:px-0">
         {recent.map((entry) => {
           const [attacker, defender] = decodeSimulatorState(entry.shared)?.sides ?? []
           return (
             <li
               key={entry.shared}
-              className="group relative w-64 shrink-0 snap-start part transition-colors hover:border-info hover:bg-raised"
+              className="group relative w-64 shrink-0 snap-start border-edge transition-colors not-last:border-r hover:bg-raised"
             >
               <Link
                 to="/simulator"
@@ -53,7 +53,7 @@ export function RecentSimulations({ onOpen }: { onOpen?: (shared: string) => voi
                 }}
               >
                 {[
-                  { role: 'attacker', side: attacker, name: entry.attacker, tone: 'font-bold text-bone' },
+                  { role: 'attacker', side: attacker, name: entry.attacker, tone: 'font-medium text-bone' },
                   { role: 'defender', side: defender, name: entry.defender, tone: 'text-dim' },
                 ].map(({ role, side, name, tone }) => {
                   const owner = ownerOf(side?.roster)

@@ -66,7 +66,7 @@ function Channel({ icon: Icon, href, label, children }: { icon: LucideIcon; href
       <span className="min-w-0">
         <a
           href={href}
-          className="font-semibold break-words text-bone hover:text-parchment"
+          className="font-medium break-words text-info hover:underline"
           {...(external ? { target: '_blank', rel: 'noreferrer noopener' } : {})}
         >
           {label}

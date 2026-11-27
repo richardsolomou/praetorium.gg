@@ -88,7 +88,7 @@ export function HomeFeatures() {
         {COLUMNS.map(({ heading, features }) => (
           <div key={heading} className="min-w-0">
             <h3 className="eyebrow text-faint">{heading}</h3>
-            <ul className="runner mt-2 [--gate-y:1.5rem]">
+            <ul className="runner mt-2">
               {features.map(({ icon: Icon, title, text }) => (
                 <li key={title} className="min-w-0 border-b border-edge py-3.5 pl-2 last:border-0">
                   <h4 className="flex items-center gap-2 font-sans text-base leading-tight font-bold normal-case">
@@ -145,7 +145,6 @@ export function HomeIncluded() {
 export function HomeClosing() {
   return (
     <section className="masthead-bleed relative overflow-hidden border-t border-edge bg-masthead [--band-bottom:0px] [--band-top:1px]">
-      <div className="construction-grid" />
       <div className="relative mx-auto flex w-full max-w-6xl flex-col gap-6 px-5 py-10 sm:px-6 md:flex-row md:items-end md:justify-between md:py-16">
         <div>
           <h2 className="text-4xl leading-[0.9] sm:text-6xl">

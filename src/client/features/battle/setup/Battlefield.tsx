@@ -71,7 +71,7 @@ export function Battlefield({ view, send, pending, allowedIds, matchup }: Props)
       <div className="flex flex-wrap items-start justify-between gap-3">
         {/* Named like the panel above it, so the two questions the step asks look alike. */}
         <div className="min-w-0">
-          <p className="eyebrow">
+          <p className="text-sm font-medium text-dim">
             {kotc ? 'King of the Colosseum battlefields' : matchup ? `Layouts for ${matchup}` : 'Deployment and terrain layout'}
           </p>
           {singleColosseum ? (
@@ -141,7 +141,7 @@ export function Battlefield({ view, send, pending, allowedIds, matchup }: Props)
                     onClick={() => setInspecting(terrain.id)}
                   >
                     <span className="flex items-center gap-2">
-                      {label ? <span className="text-lg font-bold">{label} </span> : null}
+                      {label ? <span className="figure text-lg">{label} </span> : null}
                       <span className="min-w-0 flex-1 truncate text-sm text-dim transition-colors group-hover:text-bone">
                         {singleColosseum ? 'View setup measurements' : deployment.name}
                       </span>
@@ -231,13 +231,13 @@ export function ChosenBattlefield({ view }: { view: BattleView }) {
   const deployment = deployments?.find((pattern) => sameMissionId(pattern.id, view.deploymentId))
   const terrain = references?.layouts.find((layout) => sameMissionId(layout.id, view.settings.terrainLayoutId))
   if (!deployment) return <span className="text-dim">No layout yet</span>
-  if (!terrain?.geometry) return <span className="font-bold uppercase">{deployment.name}</span>
+  if (!terrain?.geometry) return <span className="font-semibold">{deployment.name}</span>
   return (
     <>
       <button
         type="button"
         aria-label={`Enlarge ${deployment.name} battlefield`}
-        className="inline-flex cursor-pointer items-center gap-1.5 font-bold uppercase underline decoration-dotted underline-offset-4 hover:text-bone"
+        className="inline-flex cursor-pointer items-center gap-1.5 font-semibold underline decoration-dotted underline-offset-4 hover:text-bone"
         onClick={() => setOpen(true)}
       >
         {deployment.name}
@@ -259,7 +259,7 @@ function LayoutsLoading() {
   return (
     <div className="mt-3 grid gap-3 sm:grid-cols-3" aria-label="Loading battlefield layouts">
       {Array.from({ length: 3 }, (_, index) => (
-        <div key={index} className="flex flex-col part p-3" aria-hidden>
+        <div key={index} className="flex flex-col rounded-lg border border-edge p-3" aria-hidden>
           <Skeleton className="h-7 w-2/3" />
           <Skeleton className="mt-2 aspect-[44/60] w-full" />
           <Skeleton className="mt-3 h-9 w-full" />

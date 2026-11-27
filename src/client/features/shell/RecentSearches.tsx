@@ -48,14 +48,14 @@ export function RecentSearches({ onOpen, onEmptied }: { onOpen?: (result: Global
           const content = (
             <>
               <span className="min-w-0 flex-1">
-                <span className="block text-sm font-semibold text-bone">{result.label}</span>
+                <span className="block text-sm font-medium text-bone">{result.label}</span>
                 <SearchResultDetail result={result} />
               </span>
               <ChevronRight className="size-4 shrink-0 text-dim" aria-hidden />
             </>
           )
           return (
-            <li key={result.id} className="flex items-center gap-1 pb-1">
+            <li key={result.id} className={`flex items-center gap-1 ${onOpen ? 'pb-1' : 'border-b border-edge'}`}>
               {onOpen ? (
                 <button
                   ref={row(result.id)}
@@ -69,7 +69,7 @@ export function RecentSearches({ onOpen, onEmptied }: { onOpen?: (result: Global
                 <Link
                   ref={row(result.id)}
                   to={result.href}
-                  className="flex min-w-0 flex-1 items-center gap-2 part px-3 py-3 hover:border-info"
+                  className="flex min-w-0 flex-1 items-center gap-2 px-3 py-3 hover:bg-raised"
                   onClick={() => rememberSearch(result)}
                 >
                   {content}

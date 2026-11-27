@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { ArrowDown, ArrowRight } from 'lucide-react'
 import { buttonClass } from '../../../components/buttonClass'
-import { DispositionChip } from '../../battle/setup/chrome'
+import { dispositionTag, OUTLINE_TAG } from '../../../components/rosterSetup'
 import { gameReferencesQuery } from '../../../queries'
 import { PageContent, PageHeader } from '../../../components/Page'
 import { RuleSummarySkeleton, RuleSummaryText } from '../../../components/RuleSummaryText'
@@ -10,7 +10,6 @@ import { useMissionSummary } from '../../../ruleSummaries'
 import type { MissionTwist } from '../../../../contracts/missions'
 import { matchupMission } from '../../../../shared/gameReferences'
 import { SectionHeading } from '../../../components/SectionHeading'
-import { RUNNER_COLUMNS } from '../runnerColumns'
 import { GuideHelp } from '../../onboarding/GuideHelp'
 
 export function MissionPackPage({ packId }: { packId: string }) {
@@ -56,11 +55,12 @@ export function MissionPackPage({ packId }: { packId: string }) {
           <p className="text-sm text-dim">Your disposition down the left, your opponent’s across the top.</p>
           {/* Bleeds to the window on a phone, so the cut-off column reads as a scroller. */}
           <div className="-mx-3 mt-3 overflow-x-auto px-3 pb-2 sm:mx-0 sm:px-0">
+            {/* The hairlines are the edge colour showing through one-pixel gaps between cells that paint the page's own background. */}
             <div
-              className="grid min-w-[760px] gap-1.5"
+              className="grid min-w-[760px] gap-px border-y border-edge bg-edge"
               style={{ gridTemplateColumns: `9rem repeat(${data.dispositions.length}, minmax(7rem, 1fr))` }}
             >
-              <div className="grid min-h-12 content-end gap-0.5 px-1 pb-1.5 text-2xs font-semibold tracking-label text-faint uppercase">
+              <div className="eyebrow grid min-h-12 content-end gap-0.5 bg-void px-2 pb-2">
                 <span className="flex items-center gap-1">
                   Opponent <ArrowRight className="size-3" aria-hidden />
                 </span>
@@ -69,8 +69,10 @@ export function MissionPackPage({ packId }: { packId: string }) {
                 </span>
               </div>
               {data.dispositions.map((entry) => (
-                <div key={entry.id} className="grid min-h-12 place-items-end justify-items-center pb-1.5">
-                  <DispositionChip disposition={entry} />
+                <div key={entry.id} className="grid min-h-12 place-items-end justify-items-center bg-void pb-2">
+                  <span data-disposition={entry.id} className={dispositionTag(entry.id)}>
+                    {entry.name}
+                  </span>
                 </div>
               ))}
               {data.dispositions.map((you) => (
@@ -78,9 +80,11 @@ export function MissionPackPage({ packId }: { packId: string }) {
                   <Link
                     to="/force-dispositions/$dispositionId"
                     params={{ dispositionId: you.id }}
-                    className="flex min-h-16 items-center justify-start px-1"
+                    className="flex min-h-16 items-center justify-start bg-void px-2 hover:bg-raised"
                   >
-                    <DispositionChip disposition={you} className="transition-colors hover:border-runner-hi" />
+                    <span data-disposition={you.id} className={dispositionTag(you.id)}>
+                      {you.name}
+                    </span>
                   </Link>
                   {data.dispositions.map((opponent) => {
                     const found = matchupMission(pack, you.id, opponent.id)
@@ -89,15 +93,12 @@ export function MissionPackPage({ packId }: { packId: string }) {
                         key={opponent.id}
                         to="/missions/$packId/matchups/$you/$opponent"
                         params={{ packId, you: you.id, opponent: opponent.id }}
-                        className="grid min-h-16 place-items-center part px-2 text-center text-sm font-semibold text-balance transition-colors hover:border-runner-hi hover:bg-raised"
+                        className="grid min-h-16 place-items-center bg-void px-2 text-center text-sm font-medium text-balance text-bone transition-colors hover:bg-raised hover:text-info"
                       >
                         {found.name}
                       </Link>
                     ) : (
-                      <div
-                        key={opponent.id}
-                        className="grid min-h-16 place-items-center rounded-xl border border-dashed border-runner text-2xs font-semibold tracking-label text-faint uppercase"
-                      >
+                      <div key={opponent.id} className="grid min-h-16 place-items-center bg-void text-xs text-faint">
                         Unavailable
                       </div>
                     )
@@ -110,16 +111,18 @@ export function MissionPackPage({ packId }: { packId: string }) {
 
         <section>
           <SectionHeading title="Secondary missions" count={data.secondaries.length} />
-          <div className={`${RUNNER_COLUMNS} [--gate-y:1.375rem] sm:columns-2`}>
+          <div className="border-t border-edge sm:columns-2 sm:gap-x-6">
             {data.secondaries.map((card) => (
               <Link
                 key={card.key}
                 to="/missions/$packId/secondaries/$cardId"
                 params={{ packId, cardId: card.slug }}
-                className="flex min-h-11 w-full items-center justify-between gap-2 part px-3 py-2 text-left transition-colors hover:border-runner hover:bg-raised"
+                className="flex min-h-11 w-full break-inside-avoid items-center justify-between gap-2 border-b border-edge px-2 py-2 text-left transition-colors hover:bg-raised"
               >
-                <span className="font-semibold">{card.name}</span>
-                {card.awards.some((award) => award.mode === 'fixed') ? <span className="chip shrink-0">Fixed</span> : null}
+                <span className="font-medium text-bone">{card.name}</span>
+                {card.awards.some((award) => award.mode === 'fixed') ? (
+                  <span className={`${OUTLINE_TAG} border-edge text-dim`}>Fixed</span>
+                ) : null}
               </Link>
             ))}
           </div>
@@ -128,7 +131,7 @@ export function MissionPackPage({ packId }: { packId: string }) {
         {pack.twists.length ? (
           <section>
             <SectionHeading title="Mission twists" count={pack.twists.length} />
-            <div className="mt-3 grid gap-3 md:grid-cols-2">
+            <div className="grid border-t border-edge md:grid-cols-2 md:gap-x-6">
               {pack.twists.map((twist) => (
                 <TwistReference key={twist.id} twist={twist} />
               ))}
@@ -143,12 +146,12 @@ export function MissionPackPage({ packId }: { packId: string }) {
 function TwistReference({ twist }: { twist: MissionTwist }) {
   const { summary, pending } = useMissionSummary('mission-twist', twist.id)
   return (
-    <article id={`twist-${twist.id}`} className="scroll-mt-header part p-4">
+    <article id={`twist-${twist.id}`} className="scroll-mt-header border-b border-edge py-4">
       <h3 className="text-lg">{twist.name}</h3>
       {summary ? (
-        <RuleSummaryText summary={summary} className="mt-3 text-base text-bone" />
+        <RuleSummaryText summary={summary} className="mt-2 text-base text-dim" />
       ) : pending ? (
-        <RuleSummarySkeleton className="mt-3" />
+        <RuleSummarySkeleton className="mt-2" />
       ) : null}
     </article>
   )

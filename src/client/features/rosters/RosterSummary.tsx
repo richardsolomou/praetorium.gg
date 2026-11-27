@@ -3,16 +3,15 @@ import { rosterLabel } from '../../../core/rosterLabel'
 import { useDateFormatting } from '../../dates'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
-import { FactionLabel, type FactionPresentation } from '../../components/FactionMark'
+import { FactionMark, type FactionPresentation } from '../../components/FactionMark'
 import { rosterWaivers, WaiverChip } from '../../components/FormatWaivers'
-import { dispositionTone } from '../../components/rosterSetup'
+import { dispositionTag, OUTLINE_TAG } from '../../components/rosterSetup'
 import type { NamedRosterDifferences } from '../../../core/rosterDifferences'
 import { CornerDownRight, Lock } from 'lucide-react'
 import { RosterDifferenceChips, type VariantSetup } from './RosterDifferences'
 import type { SavedRoster } from './rosterLibrary'
 import { VISIBILITY_NAME } from './visibility'
 import type { CatalogueEdition } from '../../../core/catalogueEdition'
-import type { RosterPlayHistory } from '../../../core/rosterPlays'
 import { countLabel } from '../../text'
 
 /**
@@ -27,6 +26,13 @@ type RosterCardFacts = Pick<
 
 export type RosterSummaryFaction = FactionPresentation & { edition?: CatalogueEdition | null; detachments: { id: string; name: string }[] }
 export type RosterProblem = 'over-limit' | 'not-legal'
+
+/** Someone else's rosters, listed as the library lists the player's own: hairline rows, with a line of who made it and what to do under the summary. */
+export const ROSTER_ROWS = 'divide-y divide-edge border-y border-edge'
+export const ROSTER_ROW = 'px-1 py-1.5 hover:bg-raised'
+export const ROSTER_ROW_LINK = 'flex min-w-0 p-1'
+/** Starts under the summary's name, past its faction mark. */
+export const ROSTER_ROW_FOOT = 'flex flex-wrap items-center gap-x-3 gap-y-1 pr-1 pb-1 pl-11 text-xs text-dim sm:pl-13'
 
 export const PROBLEM_LABEL: Record<RosterProblem, string> = { 'over-limit': 'Over limit', 'not-legal': 'Not legal' }
 
@@ -72,7 +78,6 @@ export function RosterSummary({
   showLegality = false,
   updates,
   dateLabel = 'updated',
-  plays,
 }: {
   roster: RosterCardFacts
   faction?: RosterSummaryFaction
@@ -93,16 +98,26 @@ export function RosterSummary({
   /** What the date in the details line marks; a sealed copy names when it was sealed. */
   dateLabel?: string
   /** The owner's own battles with this list; absent where only the owner could know them. */
-  plays?: RosterPlayHistory
 }) {
   const { date } = useDateFormatting()
   const detachments = detachmentNames(roster, faction)
   const waivers = rosterWaivers(roster)
 
   return (
-    // A phone puts the name beside the points and gives the chips and details full lines beneath; a wider screen keeps the points in a column of their own.
-    <span className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1 text-left">
-      <span className="min-w-0 leading-snug font-bold break-words uppercase sm:truncate">{rosterTitle(roster, faction, label)}</span>
+    // A phone puts the name beside the points and gives the army and details lines the full width beneath; a wider screen keeps the points in a column of their own.
+    <span className="grid min-w-0 flex-1 grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-x-3 gap-y-1 text-left">
+      <span
+        className={`row-span-2 flex size-7 items-center justify-center sm:size-9 ${differences ? 'sm:row-span-4' : 'sm:row-span-3'} sm:self-center`}
+      >
+        {faction ? (
+          <FactionMark faction={faction} className="size-7 sm:size-9" />
+        ) : factionLoading ? (
+          <Skeleton className="size-7 sm:size-8" />
+        ) : null}
+      </span>
+      <span className="min-w-0 self-center text-base leading-tight font-bold break-words text-bone sm:truncate">
+        {rosterTitle(roster, faction, label)}
+      </span>
       <RosterStanding
         roster={roster}
         points={points}
@@ -111,37 +126,27 @@ export function RosterSummary({
         visibilityInDetails
         showVisibility={!showLegality}
         legal={showLegality && points != null && !problem}
-        className={`col-start-2 row-start-1 sm:self-center ${differences ? 'sm:row-span-4' : 'sm:row-span-3'}`}
+        className={`col-start-3 row-start-1 sm:self-center ${differences ? 'sm:row-span-4' : 'sm:row-span-3'}`}
       />
-      <span data-slot="roster-chips" className="col-span-2 flex flex-wrap gap-1 *:whitespace-nowrap sm:col-span-1">
-        {/* The skeleton is a faction chip's height (its size-5 mark, padding and border), so the row keeps its height when the chip lands. */}
-        {faction ? <FactionLabel faction={faction} chip /> : factionLoading ? <Skeleton className="h-[calc(1.25rem+4px)] w-24" /> : null}
-        {detachments.map((name) => (
-          <span key={name} className="chip">
-            {name}
-          </span>
-        ))}
-        {roster.disposition && dispositionName ? (
-          <span className={`chip ${dispositionTone(roster.disposition)}`}>{dispositionName}</span>
+      <span
+        data-slot="roster-chips"
+        className="col-span-2 col-start-2 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-dim sm:col-span-1"
+      >
+        {faction || detachments.length ? (
+          <span className="min-w-0">{[faction?.displayName, ...detachments].filter(Boolean).join(' · ')}</span>
         ) : null}
+        {roster.disposition && dispositionName ? <span className={dispositionTag(roster.disposition)}>{dispositionName}</span> : null}
         <WaiverChip rules={waivers} />
         {showLock && roster.locked ? <LockedChip /> : null}
         <RosterUpdateChips updates={updates} />
       </span>
-      {/* How the list has gone at the table leads the details, so it is read before the facts that never change. */}
-      <span data-slot="roster-details" className="col-span-2 block text-xs text-dim sm:col-span-1">
-        {plays ? (
-          <>
-            <PlayedLead plays={plays} />
-            {' · '}
-          </>
-        ) : null}
-        11th edition · {battleSizeLabel(roster.limit, roster.pointsBudget)} · {countLabel(roster.unitCount, 'unit')} ·{' '}
+      <span data-slot="roster-details" className="col-span-2 col-start-2 block text-2xs text-faint sm:col-span-1">
+        {battleSizeLabel(roster.limit, roster.pointsBudget)} · {countLabel(roster.unitCount, 'unit')} ·{' '}
         {showLegality || !roster.visibility ? null : <span className="sm:hidden">{VISIBILITY_NAME[roster.visibility]} · </span>}
         {dateLabel} {date(roster.updatedAt)}
       </span>
       {differences ? (
-        <span className="col-span-2 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-dim sm:col-span-1">
+        <span className="col-span-2 col-start-2 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-dim sm:col-span-1">
           <span className="flex shrink-0 items-center gap-1">
             <CornerDownRight className="size-3.5 text-faint" aria-hidden />
             Variant of {differences.baseName}
@@ -153,34 +158,21 @@ export function RosterSummary({
   )
 }
 
-/** How the list has gone at the table: its record and when it was last played. */
-function PlayedLead({ plays }: { plays: RosterPlayHistory }) {
-  const { date } = useDateFormatting()
-  if (!plays.plays) return <span>Not played yet</span>
-  const { played, won, lost, drawn, lastPlayedAt } = plays.plays
-  return (
-    <span className="text-bone">
-      Played {played}× · {won}–{lost}
-      {drawn ? `–${drawn}` : ''} · last {date(lastPlayedAt)}
-    </span>
-  )
-}
-
 /** Whether newer rules or a data update since the last save affect this list; the builder explains both. */
 export type RosterUpdates = { olderRules: boolean; changes: number }
 
 function RosterUpdateChips({ updates }: { updates?: RosterUpdates }) {
   return (
     <>
-      {updates?.olderRules ? <span className="chip shrink-0 text-discarded">Older rules</span> : null}
-      {updates?.changes ? <span className="chip shrink-0 text-discarded">Changed by update</span> : null}
+      {updates?.olderRules ? <span className={`${OUTLINE_TAG} border-discarded/70 text-discarded`}>Older rules</span> : null}
+      {updates?.changes ? <span className={`${OUTLINE_TAG} border-discarded/70 text-discarded`}>Changed by update</span> : null}
     </>
   )
 }
 
 function LockedChip() {
   return (
-    <span className="chip shrink-0 gap-1">
+    <span className={`${OUTLINE_TAG} inline-flex items-center gap-1 border-runner-hi text-dim`}>
       <Lock className="size-3" aria-hidden />
       Locked
     </span>
@@ -213,21 +205,21 @@ function RosterStanding({
   const wideOnly = visibilityInDetails ? 'hidden sm:inline' : ''
   const visibility = showVisibility ? roster.visibility : undefined
   return (
-    // Wide enough for a warning beside the visibility, so one arriving late moves nothing; a phone's variant row cannot spare it.
-    <span className={cn('ml-auto shrink-0 text-right', compact ? 'sm:min-w-28' : 'min-w-28', className)}>
+    // Wide enough for a warning beside the visibility, so one arriving late moves nothing; a phone's row cannot spare it.
+    <span className={cn('ml-auto shrink-0 text-right sm:min-w-28', className)}>
       {pointsLoading ? (
-        <Skeleton className={`ml-auto w-20 ${compact ? 'h-4' : 'h-5'}`} />
+        <Skeleton className={`ml-auto w-20 ${compact ? 'h-4' : 'h-6'}`} />
       ) : (
         <span
-          className={`figure block leading-tight font-bold ${compact ? 'text-sm' : 'text-xl'} ${problem === 'over-limit' ? 'text-destructive' : ''}`}
+          className={`figure block leading-none ${compact ? 'text-lg' : 'text-xl sm:text-2xl'} ${problem === 'over-limit' ? 'text-destructive' : 'text-bone'}`}
         >
           {points ?? '—'}
-          <span className={`font-normal text-dim ${compact ? 'text-xs' : 'text-sm'}`}>/{pointsBudgetOf(roster)}</span>
+          <span className={`font-bold text-faint ${compact ? 'text-xs' : 'text-base'}`}>/{pointsBudgetOf(roster)}</span>
         </span>
       )}
-      {legal ? <span className="block text-xs whitespace-nowrap text-dim">Legal</span> : null}
+      {legal ? <span className="mt-1 block text-2xs whitespace-nowrap text-faint">Legal</span> : null}
       {problem || visibility ? (
-        <span className={`text-xs whitespace-nowrap text-dim ${problem || !visibilityInDetails ? 'block' : 'hidden sm:block'}`}>
+        <span className={`mt-1 text-2xs whitespace-nowrap text-faint ${problem || !visibilityInDetails ? 'block' : 'hidden sm:block'}`}>
           {problem ? <span className="font-semibold text-destructive">{PROBLEM_LABEL[problem]}</span> : null}
           {problem && visibility ? <span className={wideOnly}> · </span> : null}
           {visibility ? <span className={wideOnly}>{VISIBILITY_NAME[visibility]}</span> : null}
@@ -252,7 +244,6 @@ export function RosterVariantSummary({
   differences,
   showVisibility,
   updates,
-  plays,
 }: {
   roster: RosterCardFacts
   faction?: RosterSummaryFaction
@@ -265,19 +256,13 @@ export function RosterVariantSummary({
   /** Only when it differs from the base's, which the card already shows. */
   showVisibility: boolean
   updates?: RosterUpdates
-  plays?: RosterPlayHistory
 }) {
   return (
     // A phone gives the chips their own line beneath the name and points; a wider screen keeps the row to one.
     <span className="grid min-w-0 flex-1 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1.5 text-left sm:grid-cols-[auto_auto_minmax(0,1fr)_auto]">
       <CornerDownRight className="size-4 text-faint" aria-hidden />
-      <span className="min-w-0 truncate text-sm font-bold uppercase sm:max-w-64">{rosterTitle(roster, faction, label)}</span>
+      <span className="min-w-0 truncate text-[0.9375rem] font-bold text-bone sm:max-w-64">{rosterTitle(roster, faction, label)}</span>
       <span className="col-span-2 col-start-2 row-start-2 flex min-h-[1.125rem] min-w-0 items-center gap-1.5 sm:col-span-1 sm:col-start-3 sm:row-start-1">
-        {plays ? (
-          <span className="text-xs whitespace-nowrap text-dim">
-            <PlayedLead plays={plays} />
-          </span>
-        ) : null}
         {roster.locked ? <LockedChip /> : null}
         <RosterUpdateChips updates={updates} />
         {differences ? (

@@ -9,7 +9,7 @@ import { defaultSelection, expand, withChoice } from './expand'
 import { allAt, at as selectionAt, countAt, updateSelection, withCounts } from './selection'
 import { type ChoiceOptions, isUnitCompositionChoice, type UnitChoice, unitChoices, type UnitToggle, unitToggles } from './unitChoices'
 import { boundedGroups, modelCountOf, sizeOf, type UnitSize } from './unitSize'
-import { withUnitChoice, withUnitSpread } from './unitSpread'
+import { withModelCount, withUnitChoice, withUnitSpread } from './unitSpread'
 
 /**
  * What a player picked, in the form a saved list keeps.
@@ -189,7 +189,7 @@ function assemble(
 
   const wanted = Math.min(Math.max(requestedModels, size.min), size.max)
   const current = countAt(toggled, size.path)
-  const squadSized = withCounts(toggled, [{ path: size.path, count: Math.max(0, current + (wanted - size.models)) }])
+  const squadSized = withModelCount(toggled, size.path, Math.max(0, current + (wanted - size.models)), index)
   const resized = grownCompanions(squadSized, size.path, requestedModels - wanted, index, context)
   const resizedModel = `${size.path.join('/')}/`
   // A spread the smaller squad could not hold is asked again at the size requested, since a limit can depend on it,
@@ -448,8 +448,9 @@ function finishUnit(entryId: string, selection: Selection, size: UnitSize, index
       context,
     )
   }, completed)
+  const armed = withUnitRequiredWargear(settled, index, context)
 
-  const settledChoices = settled === completed ? completedChoices : unitChoices(entryId, settled, index, context)
+  const settledChoices = armed === completed ? completedChoices : unitChoices(entryId, armed, index, context)
   const bundleBySize = (choice: UnitChoice) => {
     const sizes = new Map<number, string>()
     for (const option of nearestBundlesFirst(choice, index)) {
@@ -462,11 +463,11 @@ function finishUnit(entryId: string, selection: Selection, size: UnitSize, index
 
   let toggles: UnitToggle[] | undefined
   return {
-    selection: settled,
+    selection: armed,
     size,
     choices: settledChoices.map((choice) => (choice.bundlesModels ? { ...choice, bundleBySize: bundleBySize(choice) } : choice)),
     get toggles() {
-      return (toggles ??= unitToggles(entryId, settled, index, context))
+      return (toggles ??= unitToggles(entryId, armed, index, context))
     },
   }
 }
@@ -581,6 +582,29 @@ function optionalModelSlots(selection: Selection, index: CatalogueIndex): ModelS
   }
   walk(selection, [], MAX_DEPTH, new Set())
   return found
+}
+
+/**
+ * A model's group the unit's own wargear makes it fill, as a Hesyr carries whichever ranged
+ * weapon the rest of the squad took: expanding the model alone cannot see the squad, so it starts empty.
+ */
+function withUnitRequiredWargear(selection: Selection, index: CatalogueIndex, options: EvaluateOptions = {}): Selection {
+  let tree = selection
+  const visit = (node: Selection, path: readonly string[]) => {
+    const definition = index.definitions.get(node.id)
+    if (definition && resolve(definition, index).type === 'model' && (node.count ?? 1) > 0) {
+      for (const group of childrenOf(definition, index)) {
+        if (resolve(group.definition, index).type !== undefined || node.selections?.some((held) => held.id === group.id)) continue
+        const required = childrenOf(group.definition, index).find(
+          (option) => (selectionCountBoundsAt(tree, [...path, group.id, option.id], index, options)?.minimum ?? 0) > 0,
+        )
+        if (required) tree = withUnitChoice(tree, [...path, group.id].join('/'), required.id, index, options)
+      }
+    }
+    for (const child of node.selections ?? []) visit(child, [...path, child.id])
+  }
+  visit(selection, [])
+  return tree === selection ? selection : refit(tree, index, 1, options)
 }
 
 /**

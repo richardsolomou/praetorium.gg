@@ -8,7 +8,7 @@
  * wargear when the model has one.
  */
 
-import { type CatalogueIndex, resolve } from './catalogue'
+import { type CatalogueIndex, isAbilityProfile, resolve } from './catalogue'
 import { fieldedCount } from './collective'
 import { childrenOf, isRosterToggle } from './definitions'
 import type { Selection } from './evaluate'
@@ -34,7 +34,7 @@ export function wargearOf(selection: Selection, index: CatalogueIndex, carriers 
       const described = Boolean(target?.profiles?.length || target?.infoLinks?.some((link) => link.type === 'profile'))
       const name = target?.name ?? definition?.name
       const weaponChild =
-        target?.profiles?.every((profile) => profile.typeName === 'Abilities') &&
+        target?.profiles?.every(isAbilityProfile) &&
         child.selections?.some((held) => {
           const nested = index.definitions.get(held.id)
           const weapon = nested && resolve(nested, index)

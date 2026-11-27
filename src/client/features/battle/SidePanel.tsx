@@ -63,16 +63,47 @@ export const SidePanel = memo(function SidePanel({
     send,
     referenceFor,
     guides,
+    // The other side's cards are read, not played, so they keep to names and totals.
+    compact: !side.played,
   }
-  // One army between them, so the side either has the bonus or it does not.
-  const bonus = side.paintedPoints > 0
+  // The side's command points head what they are spent on, so the count sits beside the stratagems rather than on a row of its own.
+  const commandPoints = (
+    <div className="flex min-h-9 items-center gap-2">
+      <h3 className="text-base font-semibold text-bone">{side.stratagems.length ? 'Stratagems' : 'Command points'}</h3>
+      <p className="flex items-baseline gap-1 text-dim">
+        <span key={side.cp} data-stat="cp" className={`figure animate-figure text-xl leading-none ${colours.score}`}>
+          {side.cp}
+        </span>
+        <span className="text-xs">CP</span>
+      </p>
+      {/* Only the people playing a side gain its command points, so the other side's panel just shows the count. */}
+      {side.played ? <GainCp side={side} pending={pending} send={send} className="ml-auto h-8 px-2.5 text-xs" /> : null}
+    </div>
+  )
+  const stratagems = side.stratagems.length ? (
+    <div data-stratagems className="min-w-0 space-y-2">
+      {commandPoints}
+      <Stratagems
+        side={side}
+        phase={view.phase}
+        coreKeys={coreKeys}
+        pending={pending}
+        send={send}
+        showUnplayable={side.played}
+        writtenFor={(key) => writtenFor(side, key)}
+        onRecordMissed={onRecordMissed && ((key) => onRecordMissed(side, key))}
+      />
+    </div>
+  ) : null
+  // Missions score in the command phase; every other phase is played with stratagems, so they lead the panel there.
+  const stratagemsFirst = Boolean(stratagems) && view.status === 'playing' && view.phase !== 'command'
 
   return (
     <section
       data-onboarding={side.isViewer ? 'battle-live-side' : undefined}
       data-panel="player"
       data-side={side.index}
-      className={cn('part min-w-0 space-y-3 border-t-2 p-3', colours.edge, side.isActive ? `ring-1 ${colours.glow}` : '', className)}
+      className={cn('min-w-0 space-y-5 border-t-2 pt-3', colours.edge, className)}
     >
       {/*
        * Who is on this side: each player pictured and named, with the army they
@@ -86,7 +117,7 @@ export const SidePanel = memo(function SidePanel({
       <div className="space-y-2">
         {side.armies.map((army) => (
           <div key={army.playerId} className="min-w-0">
-            <h2 className={`flex min-w-0 items-baseline gap-2 text-lg leading-tight font-bold uppercase ${colours.text}`}>
+            <h2 className={`flex min-w-0 items-baseline gap-2 font-display text-xl leading-tight font-bold ${colours.text}`}>
               <PlayerName army={army} />
               <PlayerRatingChange view={view} playerId={army.playerId} />
             </h2>
@@ -115,50 +146,17 @@ export const SidePanel = memo(function SidePanel({
         <ManualScore side={side} actionable pending={pending} send={send} />
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-2 border-y border-edge py-2">
-            <div className="min-w-0">
-              <p className="eyebrow">Victory points</p>
-              <p key={side.total} data-stat="vp" className="figure animate-figure text-4xl leading-none font-bold">
-                {side.total}
-              </p>
-              {/* Chosen before the battle and paid as it begins, so the score above already holds it. */}
-              {bonus ? <p className="mt-1 text-3xs text-achieved">Battle ready included</p> : null}
-            </div>
-            <div className="min-w-0">
-              <p className="eyebrow">Command points</p>
-              <p key={side.cp} data-stat="cp" className={`figure animate-figure text-4xl leading-none font-bold ${colours.score}`}>
-                {side.cp}
-              </p>
-              <div className="mt-1 flex flex-wrap items-center gap-2">
-                <span className="readout text-3xs text-faint">
-                  {side.cpGained} gained · {side.cpSpent} used
-                </span>
-                <GainCp side={side} pending={pending} send={send} />
-              </div>
-            </div>
-          </div>
-
+          {stratagems ? null : commandPoints}
+          {stratagemsFirst ? stratagems : null}
           {/* Across the whole panel, or its five round columns get squeezed into half of it. */}
           <PrimaryMission {...cards} />
           {/* Split by the panel's own width: beside two other columns a wide window still leaves it too narrow for two. */}
           <div className="@container">
-            <div className={cn('grid gap-x-4 gap-y-3', side.stratagems.length > 0 && '@xl:grid-cols-2 @xl:items-start')}>
+            <div className={cn('grid gap-x-6 gap-y-5', !stratagemsFirst && stratagems && '@xl:grid-cols-2 @xl:items-start')}>
               <div data-missions className="min-w-0 space-y-3">
                 <SecondaryMissions {...cards} />
               </div>
-              {side.stratagems.length ? (
-                <div data-stratagems className="min-w-0 border-t border-edge pt-2.5 @xl:border-0 @xl:pt-0">
-                  <Stratagems
-                    side={side}
-                    phase={view.phase}
-                    coreKeys={coreKeys}
-                    pending={pending}
-                    send={send}
-                    writtenFor={(key) => writtenFor(side, key)}
-                    onRecordMissed={onRecordMissed && ((key) => onRecordMissed(side, key))}
-                  />
-                </div>
-              ) : null}
+              {stratagemsFirst ? null : stratagems}
             </div>
           </div>
         </>

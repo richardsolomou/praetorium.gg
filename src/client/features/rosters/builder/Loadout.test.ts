@@ -230,7 +230,7 @@ it('groups firing profiles under one weapon within a paired loadout', () => {
       })),
     }),
   )
-  expect(markup).toContain('aria-label="blaster profiles"')
+  expect(markup).toContain('aria-label="Blaster profiles"')
   expect(markup).toContain('2 profiles')
   expect(markup).toContain('Focused')
   expect(markup).toContain('Dispersed')

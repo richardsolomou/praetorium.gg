@@ -47,7 +47,7 @@ import { SearchableSelect, type SearchableGroup } from '../../components/Searcha
 import { PointsTotalError, PointsTotalInput } from '../../components/PointsTotalInput'
 import { factionSelectGroups } from './builder/factions'
 import { OptionalRulesDialog } from './OptionalRulesDialog'
-import { detachmentRefusal, dispositionsFor, dispositionTone } from '../../components/rosterSetup'
+import { detachmentRefusal, dispositionsFor, dispositionTag } from '../../components/rosterSetup'
 import { useFavouriteFactions } from '../../favouriteFactions'
 import { favouriteDetachmentsFirst, useFavouriteDetachments } from '../../favouriteDetachments'
 import { FavouriteDetachmentToggle } from '../reference/factions/FavouriteDetachmentToggle'
@@ -499,20 +499,20 @@ export function RosterSetupDialog({
             inputClassName="h-11"
           />
         ) : null}
-        <div className="mt-2 grid max-h-72 gap-2 overflow-y-auto sm:grid-cols-2">
+        <div className="mt-2 grid max-h-72 overflow-y-auto border-t border-edge sm:grid-cols-2 sm:gap-x-4">
           {availableDetachments.map((detachment) => {
             const chosen = draft.detachmentIds.includes(detachment.id)
             const conflict = refusals.get(detachment.id)?.reason ?? null
             return (
               <div
                 key={detachment.id}
-                className={`flex items-center gap-1 rounded-lg border pr-1 transition-colors ${chosen ? 'border-parchment bg-parchment/6 inset-ring-1 inset-ring-parchment' : 'border-edge bg-sunken hover:border-runner-hi'}`}
+                className={`flex items-center gap-1 border-b border-edge pr-1 transition-colors ${chosen ? 'bg-parchment/6' : 'hover:bg-raised'}`}
               >
                 {conflict ? (
                   <UnavailableDetachment name={detachment.name} reason={conflict}>
                     <ChoiceMark chosen={false} />
                     <DetachmentSummary detachment={detachment} />
-                    <span className="chip shrink-0 text-faint">{detachment.points ?? '—'} DP</span>
+                    <span className="readout shrink-0 text-xs text-faint">{detachment.points ?? '—'} DP</span>
                   </UnavailableDetachment>
                 ) : (
                   <button
@@ -520,11 +520,11 @@ export function RosterSetupDialog({
                     aria-label={`Select ${detachment.name}`}
                     aria-pressed={chosen}
                     onClick={() => toggleDetachment(detachment.id)}
-                    className="flex min-w-0 flex-1 items-center gap-3 py-2.5 pl-3 text-left"
+                    className="flex min-w-0 flex-1 items-center gap-3 py-2.5 pl-2 text-left"
                   >
                     <ChoiceMark chosen={chosen} />
                     <DetachmentSummary detachment={detachment} />
-                    <span className={`chip shrink-0 ${chosen ? 'border-parchment/60 text-parchment' : ''}`}>
+                    <span className={`readout shrink-0 text-xs ${chosen ? 'text-parchment' : 'text-dim'}`}>
                       {detachment.points ?? '—'} DP
                     </span>
                   </button>
@@ -563,19 +563,19 @@ export function RosterSetupDialog({
 
       {offeredOptionalRules.length ? (
         <div>
-          <Label className="rubric block">Optional rules</Label>
+          <h3 className="rubric">Optional rules</h3>
           <button
             type="button"
             onClick={() => setEditingOptionalRules(true)}
-            className="mt-2 flex min-h-12 w-full items-center justify-between gap-3 rounded-lg border border-edge px-3 py-2 text-left hover:border-runner-hi"
+            className="mt-2 flex min-h-12 w-full items-center justify-between gap-3 border-y border-edge px-2 py-2 text-left hover:bg-raised"
           >
             <span className="min-w-0">
-              <span className="block font-bold uppercase">
+              <span className="block text-sm font-medium text-bone">
                 {pickedRules.length ? pickedRules.map((rule) => rule.label).join(', ') : 'None'}
               </span>
               <span className="mt-0.5 block text-xs text-dim">{offeredOptionalRules.length} available at this battle size</span>
             </span>
-            <span className="chip shrink-0">Choose</span>
+            <span className="shrink-0 text-xs text-info">Choose</span>
           </button>
           {borrowedError ? <Problem className="mt-2">{borrowedError}</Problem> : null}
         </div>
@@ -589,7 +589,7 @@ export function RosterSetupDialog({
               ? 'Your detachments offer these. You choose one before each battle, or when you seal the list for an event. Pick one now to have it chosen already.'
               : 'Your Force disposition helps decide your primary mission in battle.'}
           </p>
-          <div className="mt-2 grid gap-2 sm:grid-cols-2">
+          <div className="mt-2 grid border-t border-edge sm:grid-cols-2 sm:gap-x-4">
             {dispositions.map((entry) => {
               const chosen = selectedDisposition === entry.id
               return (
@@ -600,10 +600,10 @@ export function RosterSetupDialog({
                     if (dispositions.length > 1) changeDraft({ ...draft, disposition: chosen ? null : entry.id })
                   }}
                   aria-pressed={chosen}
-                  className={`flex min-h-12 items-center gap-3 rounded-lg border px-3 text-left transition-colors ${chosen ? 'border-parchment bg-parchment/6 inset-ring-1 inset-ring-parchment' : 'border-edge bg-sunken hover:border-runner-hi'}`}
+                  className={`flex min-h-12 items-center gap-3 border-b border-edge px-2 text-left transition-colors ${chosen ? 'bg-parchment/6' : 'hover:bg-raised'}`}
                 >
                   <ChoiceMark chosen={chosen} />
-                  <span className={`chip ${dispositionTone(entry.id)}`}>{entry.name}</span>
+                  <span className={dispositionTag(entry.id)}>{entry.name}</span>
                 </button>
               )
             })}
@@ -814,10 +814,10 @@ export function ChoiceMark({ chosen }: { chosen: boolean }) {
 function DetachmentSummary({ detachment }: { detachment: Detachment }) {
   return (
     <span className="min-w-0 flex-1">
-      <span className="block text-sm leading-tight font-semibold text-bone">{detachment.name}</span>
-      <span className="mt-1.5 flex flex-wrap gap-1">
+      <span className="block text-sm leading-tight font-medium text-bone">{detachment.name}</span>
+      <span className="mt-1 flex flex-wrap gap-1 empty:hidden">
         {detachment.dispositions.map((entry) => (
-          <span key={entry.id} className={`chip ${dispositionTone(entry.id)}`}>
+          <span key={entry.id} className={dispositionTag(entry.id)}>
             {entry.name}
           </span>
         ))}
@@ -839,7 +839,7 @@ function UnavailableDetachment({ name, reason, children }: { name: string; reaso
             aria-disabled="true"
             aria-label={`Select ${name}, unavailable`}
             onClick={() => setOpen(true)}
-            className="flex min-w-0 flex-1 cursor-not-allowed items-center gap-3 py-2.5 pl-3 text-left opacity-60"
+            className="flex min-w-0 flex-1 cursor-not-allowed items-center gap-3 py-2.5 pl-2 text-left opacity-60"
           />
         }
       >

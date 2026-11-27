@@ -132,7 +132,7 @@ function ProfileForm({
         ) : null}
 
         <form
-          className="grid gap-8 part p-5 md:grid-cols-2 md:p-7"
+          className="grid gap-8 md:grid-cols-2"
           onSubmit={(event) => {
             event.preventDefault()
             void save()
@@ -225,7 +225,7 @@ function ProfileForm({
         <AccountSecurity
           me={me}
           preferences={
-            <div className="part p-5 md:p-7">
+            <div>
               <SectionHeading title="Preferences" />
               <div className="mt-4 space-y-6">
                 <PlayerDefaultsSettings />

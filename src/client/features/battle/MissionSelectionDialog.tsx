@@ -22,6 +22,7 @@ import { UndoLatest } from './UndoLatest'
 import { withMember } from '../../../core/collections'
 import { MARKER_PLACEMENT_COPY } from './markerPlacementCopy'
 import { tint } from './battleTints'
+import { DisclosureChevron } from '../../components/DisclosureChevron'
 
 const markerValue = (marker: OperationMarker) => JSON.stringify([marker.playerId, marker.seq, marker.key])
 
@@ -223,9 +224,14 @@ export function MissionSelectionDialog({
             </div>
           ) : null}
           {reference ? (
-            <details>
-              <summary className="cursor-pointer text-info">Read the mission card</summary>
-              <MissionCardReference card={reference} type="Mission" />
+            <details className="group">
+              <summary className="flex cursor-pointer list-none items-center gap-1.5 text-sm text-dim hover:text-bone [&::-webkit-details-marker]:hidden">
+                <DisclosureChevron />
+                Read the mission card
+              </summary>
+              <div className="mt-3">
+                <MissionCardReference card={reference} type="Mission" />
+              </div>
             </details>
           ) : null}
           {choice.kind === 'punishment' ? (
@@ -251,9 +257,9 @@ export function MissionSelectionDialog({
                   {unitOptions.map((unit) => (
                     <Button
                       key={unit.value}
-                      variant={selected.includes(unit.value) ? 'default' : 'outline'}
+                      variant="outline"
                       aria-pressed={selected.includes(unit.value)}
-                      className="h-auto min-h-10 justify-start py-2 whitespace-normal"
+                      className="aria-pressed:border-parchment/70 aria-pressed:bg-parchment/10 aria-pressed:text-parchment h-auto min-h-10 justify-start py-2 whitespace-normal"
                       disabled={pending || (!selected.includes(unit.value) && selected.length >= (fallback ? 1 : 3))}
                       onClick={() => {
                         setQualified(false)
@@ -301,8 +307,8 @@ export function MissionSelectionDialog({
                     {nonHomeObjectives.map((candidate) => (
                       <Button
                         key={candidate.key}
-                        variant={objective === candidate.key ? 'default' : 'outline'}
-                        className="h-auto min-h-8 py-1.5 whitespace-normal"
+                        variant="outline"
+                        className="aria-pressed:border-parchment/70 aria-pressed:bg-parchment/10 aria-pressed:text-parchment h-auto min-h-8 py-1.5 whitespace-normal"
                         aria-pressed={objective === candidate.key}
                         disabled={pending}
                         onClick={() => setObjective(candidate.key)}
@@ -415,8 +421,8 @@ export function MissionSelectionDialog({
                 {(choice.markers ?? []).map((marker) => (
                   <Button
                     key={markerValue(marker)}
-                    variant={surveilled.includes(markerValue(marker)) ? 'default' : 'outline'}
-                    className="h-auto min-h-8 py-1.5 whitespace-normal"
+                    variant="outline"
+                    className="aria-pressed:border-parchment/70 aria-pressed:bg-parchment/10 aria-pressed:text-parchment h-auto min-h-8 py-1.5 whitespace-normal"
                     aria-pressed={surveilled.includes(markerValue(marker))}
                     disabled={pending}
                     onClick={() => setSurveilled((current) => withMember(current, markerValue(marker)))}
@@ -642,8 +648,8 @@ function MarkerPlacement({
           {places.map((place) => (
             <Button
               key={place.key}
-              variant={picked.includes(place.key) ? 'default' : 'outline'}
-              className="h-auto min-h-8 py-1.5 whitespace-normal"
+              variant="outline"
+              className="aria-pressed:border-parchment/70 aria-pressed:bg-parchment/10 aria-pressed:text-parchment h-auto min-h-8 py-1.5 whitespace-normal"
               aria-pressed={picked.includes(place.key)}
               disabled={pending}
               onClick={() => onToggle(place.key)}

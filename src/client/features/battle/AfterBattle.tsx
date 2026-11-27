@@ -35,7 +35,7 @@ export function AfterBattle({ view }: { view: BattleView }) {
   if (!recording && !strangers.length) return null
 
   return (
-    <aside data-after-battle aria-label="After the battle" className="flex flex-wrap items-center gap-3 part p-4">
+    <aside data-after-battle aria-label="After the battle" className="flex flex-wrap items-center gap-3 border-b border-edge pb-3">
       <div className="min-w-0 flex-1 basis-60 space-y-0.5">
         {recording && !against ? (
           <Skeleton className="h-5 w-56" />

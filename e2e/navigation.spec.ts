@@ -33,7 +33,7 @@ test('the mobile website uses application navigation below 860 pixels', async ({
   await page.goto('/')
 
   await expect(page.locator('head link[rel="icon"]')).toHaveAttribute('href', '/favicon.svg')
-  await expect(page.locator('head link[rel="preload"][as="font"]')).toHaveCount(3)
+  await expect(page.locator('head link[rel="preload"][as="font"]')).toHaveCount(2)
   expect(await page.evaluate(() => document.fonts.check('400 16px "Sofia Sans Semi Condensed Variable"'))).toBe(true)
   const primary = page.getByRole('navigation', { name: 'Primary' })
   const webRail = page.locator('[data-web-app-chrome]')
@@ -105,17 +105,17 @@ test('the mobile website uses application navigation below 860 pixels', async ({
   await page.setViewportSize({ width: 860, height: 844 })
   const reference = page.getByRole('navigation', { name: 'Reference' })
   await expect(reference.getByRole('link')).toHaveText(['Factions', 'Missions', 'Rules'])
-  await expect(primary.getByRole('link')).toHaveText(['Rosters', 'Battles', 'Simulator', 'Collection'])
-  await expect(page.getByRole('navigation', { name: 'Community' }).getByRole('link')).toHaveText([
+  await expect(page.getByRole('navigation', { name: 'Army' }).getByRole('link')).toHaveText(['Rosters', 'Simulator', 'Collection'])
+  await expect(page.getByRole('navigation', { name: 'Play' }).getByRole('link')).toHaveText([
+    'Battles',
     'Groups',
     'Tournaments',
     'Leaderboard',
-    'Discord',
-    'GitHub',
   ])
+  await expect(page.getByRole('navigation', { name: 'Community' }).getByRole('link')).toHaveText(['Discord', 'GitHub'])
   await expect(webRail).toHaveJSProperty('scrollWidth', await webRail.evaluate((rail) => rail.clientWidth))
   await page.setViewportSize({ width: 910, height: 844 })
-  await expect(primary.getByRole('link', { name: 'Rosters' }).locator('svg')).toHaveCount(1)
+  await expect(page.getByRole('navigation', { name: 'Army' }).getByRole('link', { name: 'Rosters' }).locator('svg')).toHaveCount(1)
   await expect(reference.getByRole('link', { name: 'Missions' }).locator('svg')).toHaveCount(1)
   await page.screenshot({ path: test.info().outputPath('navigation-desktop-910.png') })
   await reference.getByRole('link', { name: 'Missions' }).click()

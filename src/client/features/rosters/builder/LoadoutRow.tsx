@@ -49,7 +49,10 @@ export const LoadoutRow = memo(function LoadoutRow({
     </span>
   )
   const row = (
-    <div data-saved-loadout={loadout.name} className="flex flex-wrap items-center gap-1.5 part px-2.5 py-1.5">
+    <div
+      data-saved-loadout={loadout.name}
+      className="flex flex-wrap items-center gap-1.5 border-b border-edge px-2.5 py-1.5 hover:bg-raised"
+    >
       {datasheet ? (
         <button
           type="button"
@@ -100,5 +103,5 @@ export const LoadoutRow = memo(function LoadoutRow({
     </div>
   )
   // A unit's own loadout hangs off its datasheet row; an attached unit's stands on its own.
-  return members ? row : <div className="runner ml-1 [--gate-x:1.125rem] [--gate-y:1rem]">{row}</div>
+  return members ? row : <div className="runner ml-1">{row}</div>
 })

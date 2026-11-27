@@ -152,7 +152,7 @@ export function CombatantCard({
         .catch(() => undefined)
   }
   return (
-    <div className="min-w-0 p-3 sm:p-4">
+    <div className="min-w-0 py-3">
       <div className="mb-3 flex min-h-8 flex-wrap items-center gap-x-3 gap-y-1" aria-label={`${side} unit actions`}>
         <div className="flex shrink-0 items-center gap-2">
           <h2 className="rubric">{side}</h2>
@@ -194,7 +194,7 @@ export function CombatantCard({
           {unit ? (
             <span className="flex min-h-5 items-center gap-2 whitespace-nowrap text-xs text-dim">
               <span>{countLabel(totalModels, 'model')}</span>
-              <span className="readout text-sm font-semibold text-bone">
+              <span className="readout text-sm font-medium text-bone">
                 {unit.points +
                   (combatant.sheets.data?.companions ?? []).reduce(
                     (total, member) => total + (combatant.price.data?.units[member.pickIndex]?.points ?? 0),

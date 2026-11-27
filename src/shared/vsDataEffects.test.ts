@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { textFactsOfVsData } from './vsDataEffects'
+import { combatOfVsDataOrWords, textFactsOfVsData } from './vsDataEffects'
 
 const reroll = { role: 'attacker', attacks: ['melee'], rolls: { hitReroll: 'ones' } }
 /** A combat block whose one reading holds in an own and an aura context. */
@@ -125,4 +125,52 @@ it('keeps a conditional grant whose condition is the unit it attaches to', () =>
 it('keeps another ability VS Data grants conditionally, as Feel No Pain to the Officers a bodyguard shares a unit with', () => {
   const grant = { ability: 'Feel No Pain 4+', to: 'models', models: 'OFFICER', conditional: true }
   expect(textFactsOfVsData({ grants: { abilities: [grant] } }).abilityGrants!.grants).toHaveLength(1)
+})
+
+/** What the words say of a rule VS Data calculates nothing of: a reroll for the attacker, which only its roles may come from. */
+const words = () => textFactsOfVsData(combat({ choices: [{ conditions: [], effects: [reroll] }], default: 1, roles: ['attacker'] })).combat
+/** A rule VS Data calculates as a unit's own ability but reads no choices for as an aura. */
+const partly = () =>
+  textFactsOfVsData({
+    combat: {
+      readings: [{ choices: [{ conditions: [], effects: [reroll] }], default: 1 }, {}],
+      trees: [[{ reading: 0 }], [{ reading: 1 }]],
+      contexts: { 'own.many.known': 0, 'aura.many.known': 1 },
+    },
+  }).combat!
+const leafAt = (facts: ReturnType<typeof partly>, placement: string) => facts.leaves[facts.readings[placement]![0] as number]
+
+it('lists a rule as not calculated where VS Data reads no choices for it', () => {
+  expect(leafAt(combatOfVsDataOrWords(partly(), words)!, 'nearby:0:1')).toEqual({
+    compiled: null,
+    legacy: [],
+    legacyDefault: 0,
+    roles: ['attacker'],
+  })
+})
+
+it('keeps what VS Data calculates beside a placement it reads no choices for', () => {
+  expect(leafAt(combatOfVsDataOrWords(partly(), words)!, 'unit:0:1')).toEqual(leafAt(partly(), 'unit:0:1'))
+})
+
+it('reads no words for a rule VS Data calculates', () => {
+  const calculated = textFactsOfVsData(combat({ choices: [{ conditions: [], effects: [reroll] }], default: 1 })).combat
+  expect(
+    combatOfVsDataOrWords(calculated, () => {
+      throw new Error('read the words')
+    }),
+  ).toBe(calculated)
+})
+
+it('lists a rule VS Data keeps no combat block for as not calculated', () => {
+  const leaves = combatOfVsDataOrWords(null, words)!.leaves
+  expect(new Set(leaves.map((leaf) => JSON.stringify(leaf)))).toEqual(
+    new Set([JSON.stringify({ compiled: null, legacy: [], legacyDefault: 0, roles: ['attacker'] })]),
+  )
+})
+
+it('shows an ability an effect gives some models as theirs alone', () => {
+  const stealth = { role: 'defender', attacks: ['ranged'], ability: 'Stealth', modelKeywords: ['INFANTRY'] }
+  const facts = textFactsOfVsData(combat({ choices: [{ conditions: [], effects: [stealth] }], default: 1 }))
+  expect(facts.abilityGrants!.grants).toEqual([{ name: 'Stealth', recipient: 'models', models: 'INFANTRY' }])
 })

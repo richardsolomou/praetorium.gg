@@ -15,7 +15,7 @@ export function UnitProfile({ profile, invulnerable: showInvulnerable = true }: 
     <section data-slot="unit-profile">
       <ProfileGrid values={values} />
       {invulnerable ? (
-        <div className="mt-1.5 flex items-center justify-between part px-2 py-1.5">
+        <div className="flex items-center justify-between border-b border-edge px-2 py-2">
           <span className="text-xs font-bold uppercase">Invulnerable save</span>
           <span className="readout text-base">
             <ProfileValue value={invulnerable} />
@@ -28,9 +28,12 @@ export function UnitProfile({ profile, invulnerable: showInvulnerable = true }: 
 
 export function ProfileGrid({ values, columns = 6 }: { values: readonly DisplayValue[]; columns?: 5 | 6 }) {
   return (
-    <div data-slot="profile-grid" className={`grid ${columns === 5 ? 'grid-cols-5' : 'grid-cols-6'} gap-1`}>
+    <div
+      data-slot="profile-grid"
+      className={`grid ${columns === 5 ? 'grid-cols-5' : 'grid-cols-6'} divide-x divide-edge border-y border-edge`}
+    >
       {values.map((value) => (
-        <div key={value.name} data-characteristic={value.name} className="min-w-0 part px-2 py-1.5 text-center">
+        <div key={value.name} data-characteristic={value.name} className="min-w-0 px-1 py-2 text-center">
           <p className="eyebrow">{value.name}</p>
           <p className="readout mt-0.5 text-base">
             <ProfileValue value={value} />
@@ -62,7 +65,7 @@ export function WeaponSummary({
         <span>{title}</span>
         <span className="readout text-faint">{count}</span>
       </h2>
-      <div className="mt-2 space-y-1.5">
+      <div className="mt-2 border-t border-edge">
         <WeaponProfiles weapons={weapons} rules={rules} mark={mark} />
       </div>
     </section>
@@ -106,7 +109,7 @@ export function WeaponProfiles({
         key={first.id}
         aria-label={`${name} profiles`}
         {...marked(state)}
-        className={`${embedded ? 'mx-2 my-1.5' : 'part p-2'} scroll-mt-2.5 ${state?.fallen ? 'opacity-50' : ''}`}
+        className={`${embedded ? 'mx-2 my-1.5' : 'border-b border-edge px-2 py-2.5'} scroll-mt-2.5 ${state?.fallen ? 'opacity-50' : ''}`}
       >
         <h3 className="flex items-baseline justify-between gap-2 text-xs">
           {showName ? (
@@ -165,7 +168,10 @@ function WeaponProfile({
   const keywordText = keywords?.value.trim()
   const note = useContext(WeaponProfileNote)?.(weapon)
   return (
-    <div {...marked(state)} className={`${embedded ? '' : 'part '}scroll-mt-2.5 px-2 py-1.5 ${state?.fallen ? 'opacity-50' : ''}`}>
+    <div
+      {...marked(state)}
+      className={`${embedded ? 'py-1.5' : 'border-b border-edge py-2.5'} scroll-mt-2.5 px-2 ${state?.fallen ? 'opacity-50' : ''}`}
+    >
       {showName ? (
         <h3
           className={`${label ? 'font-rules text-xs font-medium normal-case text-dim' : 'text-xs'} ${state?.fallen ? 'line-through' : ''}`}

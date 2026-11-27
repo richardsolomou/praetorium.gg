@@ -6,7 +6,8 @@ import { productOperator, userIdFor, guestDraft } from './storage'
 /** The seeded finished battle's Aeldari army, which this test fields again under its own players. */
 const ARMY = 'Warhost 2K'
 
-const playedArmy = (page: Page, player: string) => page.locator(`[data-played-army="${ARMY}"]`).filter({ hasText: `By ${player}` })
+const playedArmy = (page: Page, player: string) =>
+  page.locator(`[data-played-army="${ARMY}"]`).filter({ has: page.getByRole('link', { name: player, exact: true }) })
 
 test('a played army is found, copied, edited and simulated without changing its battle', async ({ browser }) => {
   test.setTimeout(180_000)
@@ -43,7 +44,7 @@ test('a played army is found, copied, edited and simulated without changing its 
     await expect(card).toContainText('played')
     const outcome = card.locator('[data-played-outcome]')
     await expect(outcome.locator('.chip')).toHaveText('Won')
-    await expect(outcome).toContainText('Conceded')
+    await expect(outcome).not.toContainText('Conceded')
     await expect(outcome).toContainText('Orks')
     await expectNoHorizontalOverflow(reader.locator('main'))
     await shot(card, test.info().outputPath('played-army.png'))

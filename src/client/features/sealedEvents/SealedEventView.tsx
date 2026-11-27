@@ -738,13 +738,13 @@ export function EntryStatusCard({ status, problem, token }: { status: Status; pr
         data-onboarding="sealed-event-status"
         data-entry-status
         aria-labelledby="sealed-event-entry-status"
-        className={`part ${status.sealed ? 'border-parchment/50' : ''}`}
+        className="border-y border-edge"
       >
-        <div className="space-y-3 p-4 sm:p-5">
+        <div className="space-y-3 py-4">
           <div className="min-w-0">
             <h2
               id="sealed-event-entry-status"
-              className={`flex items-center gap-2 text-xl leading-tight font-bold uppercase ${status.sealed ? 'text-parchment' : ''}`}
+              className={`flex items-center gap-2 text-2xl leading-tight ${status.sealed ? 'text-parchment' : ''}`}
             >
               {status.sealed ? <ShieldCheck className="size-5 shrink-0" aria-hidden /> : null}
               <span className="min-w-0 break-words">{status.title}</span>
@@ -802,19 +802,12 @@ export function EntryStatusCard({ status, problem, token }: { status: Status; pr
   )
 }
 
-/** Where a step's runner leads to the next: solid once done, doubled from the current step, dashed ahead. */
-const STEP_RUNNER: Record<EntryStep['state'], string> = {
-  done: 'w-0.5 bg-runner-hi',
-  current: 'w-1.5 border-x-2 border-parchment',
-  upcoming: 'w-0 border-l-2 border-dashed border-runner',
-}
-
-/** The path through an event as numbered assembly steps: what is done, what is now, and what is left. */
+/** The path through an event as numbered steps: what is done, what is now, and what is left. */
 function EntryProgress({ steps }: { steps: EntryStep[] }) {
   const current = steps.findIndex((step) => step.state === 'current')
   return (
-    <div className="px-1">
-      <p className="mb-3 flex items-baseline justify-between gap-3">
+    <div>
+      <p className="mb-2 flex items-baseline justify-between gap-3">
         <span className="eyebrow">Your progress</span>
         {current >= 0 ? (
           <span className="text-xs text-dim">
@@ -822,33 +815,25 @@ function EntryProgress({ steps }: { steps: EntryStep[] }) {
           </span>
         ) : null}
       </p>
-      <ol aria-label="Your progress">
+      <ol aria-label="Your progress" className="divide-y divide-edge border-y border-edge">
         {steps.map((step, index) => (
           <li
             key={step.label}
             aria-current={step.state === 'current' ? 'step' : undefined}
-            className="relative grid grid-cols-[2.5rem_minmax(0,1fr)] gap-x-3 pb-4 last:pb-0"
+            className={`flex min-h-10 items-center gap-3 px-1 py-2 text-sm ${step.state === 'current' ? 'bg-parchment/5' : ''}`}
           >
-            {index < steps.length - 1 ? (
-              <span aria-hidden className={`absolute top-9 bottom-1 left-[1.125rem] -translate-x-1/2 ${STEP_RUNNER[step.state]}`} />
-            ) : null}
             <span
               aria-hidden
-              className={`step-number relative flex h-8 items-center justify-center text-3xl ${step.state === 'current' ? 'text-parchment' : step.state === 'done' ? 'text-dim' : ''}`}
+              className={`grid w-5 shrink-0 place-items-center tabular-nums ${step.state === 'current' ? 'font-semibold text-parchment' : 'text-faint'}`}
             >
-              {index + 1}
-              {step.state === 'done' ? (
-                <span className="absolute -top-1 -right-1 grid size-4 place-items-center rounded-full bg-parchment text-parchment-ink">
-                  <Check className="size-3" strokeWidth={3} />
-                </span>
-              ) : null}
+              {step.state === 'done' ? <Check className="size-4 text-parchment" /> : index + 1}
             </span>
             <span
-              className={`flex min-h-8 min-w-0 flex-wrap items-center gap-2 text-sm font-bold ${step.state === 'upcoming' ? 'text-dim' : 'text-bone'}`}
+              className={`flex min-w-0 flex-1 flex-wrap items-center gap-2 font-medium ${step.state === 'upcoming' ? 'text-dim' : 'text-bone'}`}
             >
               {step.label}
               {step.state === 'done' ? <span className="sr-only"> (done)</span> : null}
-              {step.state === 'current' ? <span className="chip border-parchment text-parchment">Now</span> : null}
+              {step.state === 'current' ? <span className="text-xs font-normal text-parchment">Now</span> : null}
             </span>
           </li>
         ))}

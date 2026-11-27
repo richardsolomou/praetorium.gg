@@ -101,7 +101,7 @@ function ResultList({
             row.kind === 'result' ? (
               <>
                 <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-semibold text-bone">{row.result.label}</span>
+                  <span className="block text-sm font-medium text-bone">{row.result.label}</span>
                   <SearchResultDetail result={row.result} />
                   <DatasheetMatchReasons query={query} reasons={row.result.matchReasons} />
                 </span>
@@ -113,7 +113,7 @@ function ResultList({
               key={item.key}
               data-index={item.index}
               ref={virtualizer.measureElement}
-              className="absolute left-0 top-0 w-full px-1 pb-1"
+              className={`absolute left-0 top-0 w-full ${onSelect ? 'px-1 pb-1' : ''}`}
               style={{ transform: `translateY(${item.start - leadHeight}px)` }}
             >
               {row.kind === 'heading' ? (
@@ -136,7 +136,7 @@ function ResultList({
                 <Link
                   to={row.result.href}
                   onClick={() => rememberSearch(row.result)}
-                  className="flex min-w-0 items-center gap-2 part px-3 py-3 hover:border-info"
+                  className="flex min-w-0 items-center gap-2 border-b border-edge px-3 py-3 hover:bg-raised"
                 >
                   {content}
                 </Link>
