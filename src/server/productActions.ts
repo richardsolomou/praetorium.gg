@@ -28,12 +28,12 @@ const submitRosterSchema = schemas.submitSealedEventRoster.partial({ capturedRos
 export async function submitSealedEventRoster(owner: string, data: z.output<typeof submitRosterSchema>) {
   const { saved, snapshot } = await rosterForUse(owner, data.rosterId, { lent: true, sealing: true })
   // The device read the list with its frozen translations, if it was served any; the seal itself keeps the saved list.
-  const stored = [saved, servedRoster(saved)].map((roster) => sealedContent(rosterContentSchema.parse(roster)))
+  const stored = new Set([saved, servedRoster(saved)].map((roster) => sealedContent(rosterContentSchema.parse(roster))))
   if (
     data.capturedRoster !== undefined &&
     (![data.capturedRoster, currentRosterIds(data.capturedRoster)].some(
       // A capture is either the device's resolved copy, or older input the server's copy has since been resolved from.
-      (captured) => stored.includes(sealedContent(captured)),
+      (captured) => stored.has(sealedContent(captured)),
     ) ||
       (await app().catalogueFor(saved.catalogueId))?.index.revision !== data.catalogueRevision)
   )

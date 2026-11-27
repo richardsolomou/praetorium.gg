@@ -4,6 +4,7 @@ import path from 'node:path'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 import { rosterContentSchema } from '../contracts/schemas'
 import type { Roster } from '../core/battle'
+import type { RosterPick } from '../core/roster'
 import { app } from './app'
 import { submitSealedEventRoster } from './productActions'
 import { rosterFromRow } from './rosterPersistence'
@@ -15,7 +16,7 @@ import type { RepositoryPort } from './spacetimeRepository'
 const fixture = vi.hoisted(() => ({
   catalogueId: 'mfm-1-6~book',
   copiedAt: '2026-11-20T00:00:00.000Z',
-  pick: { entryId: 'intercessors', models: 10 },
+  pick: { entryId: 'intercessors', models: 10 } as RosterPick,
   vs: { models: { 'space-marines.intercessor': 10 }, options: {} },
   text: '',
 }))
@@ -94,7 +95,9 @@ beforeAll(async () => {
   const { savedPicksPin } = await import('./savedPicks')
   fs.writeFileSync(path.join(directory, 'saved-picks', `${savedPicksPin.sha256}.json`), fixture.text)
   vi.stubEnv('DATA_DIR', directory)
-  await vi.waitFor(() => expect(savedPicks()).toBeDefined())
+  await vi.waitFor(() => {
+    if (!savedPicks()) throw new Error('the translations are still loading')
+  })
 })
 
 describe('served saved records', () => {
@@ -133,13 +136,13 @@ describe('served saved records', () => {
 
 it('seals a list the device read with its translation', async () => {
   const saved = rosterFromRow(row(before))
-  vi.mocked(rosterForUse).mockResolvedValue({ saved, snapshot: sealed } as never)
+  vi.mocked(rosterForUse).mockResolvedValue({ saved, snapshot: sealed })
   vi.mocked(app).mockReturnValue({
     catalogueFor: async () => ({ index: { revision: 'r' } }),
     service: { sealedEventService: { submitSealedEventRoster: async () => ({ format: 'tournament', requiredLimit: 2000 }) } },
   } as never)
   const captured = rosterContentSchema.parse(servedRoster(saved))
   await expect(
-    submitSealedEventRoster('user-1', { token: 't', rosterId: 'roster-1', capturedRoster: captured, catalogueRevision: 'r' } as never),
+    submitSealedEventRoster('user-1', { token: 't', rosterId: 'roster-1', capturedRoster: captured, catalogueRevision: 'r' }),
   ).resolves.toBeNull()
 })
