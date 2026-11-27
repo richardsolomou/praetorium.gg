@@ -21,8 +21,8 @@ import { rosterDetachments } from '../src/shared/rosterDetachments'
 import { calculateRosterPrice, savedRosterPriceInput } from '../src/shared/pricing'
 import { loadSnapshot } from './lib/catalogueSnapshotLoad'
 import { leaves, legacyIds } from './lib/vsDataRosters'
-import { same } from './lib/vsDataModelNames'
-import { vsSpelling } from './lib/wargearSpellings'
+import { same } from '../src/shared/vsDataModelNames'
+import { vsSpelling } from '../src/shared/wargearSpellings'
 
 const { values, positionals } = parseArgs({ allowPositionals: true, options: { list: { type: 'boolean', default: false } } })
 const directory = path.resolve(positionals[0] ?? 'catalogue-data')

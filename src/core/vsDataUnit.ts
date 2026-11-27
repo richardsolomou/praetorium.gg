@@ -244,6 +244,9 @@ export function vsUnitDefinitions(records: VsUnitRecords): VsDataDefinitions {
     all: (kind) => [...(byKind[kind]?.values() ?? [])] as never,
     modelsOf: (unit) => ofUnit(unit, records.models),
     optionsOf: (unit) => ofUnit(unit, records.options),
+    // Editing a unit reads none of its profiles.
+    unitProfilesOf: () => [],
+    weaponProfilesOf: () => [],
     unavailable: new Set(),
     current: (unit) => unit,
     points: [],
