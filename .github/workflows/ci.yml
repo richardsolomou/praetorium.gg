@@ -2,6 +2,7 @@ name: CI
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
     inputs:
       e2e-runners:
@@ -20,6 +21,7 @@ permissions:
 # `just check` runs these lanes in sequence locally; CI runs them side by side so the fast ones answer first.
 # Each lane's steps live in its own `ci-<lane>.yml`, and main requires its checks as `<lane> / <job>`. A lane always
 # runs and skips its own jobs for a change without runtime code, because a skipped check passes and a missing one blocks.
+# A draft PR runs only the quick lanes (static, unit, build); marking it ready for review starts a run with every lane.
 jobs:
   changes:
     uses: ./.github/workflows/ci-scope.yml
@@ -42,7 +44,7 @@ jobs:
     needs: changes
     uses: ./.github/workflows/ci-integration.yml
     with:
-      runtime: ${{ needs.changes.outputs.runtime == 'true' }}
+      runtime: ${{ needs.changes.outputs.runtime == 'true' && !github.event.pull_request.draft }}
     secrets: inherit
 
   build-lane:
@@ -73,7 +75,7 @@ jobs:
 
   browser-build:
     needs: changes
-    if: needs.changes.outputs.runtime == 'true'
+    if: needs.changes.outputs.runtime == 'true' && !github.event.pull_request.draft
     uses: ./.github/workflows/ci-browser-build.yml
     with:
       e2e-runners: ${{ inputs.e2e-runners }}
@@ -88,35 +90,34 @@ jobs:
       runners: ${{ needs.browser-build.outputs.runners }}
     secrets: inherit
 
-  e2e:
-    if: always()
-    needs: [changes, browser-build, e2e-lane]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Require every E2E runner
-        if: needs.changes.outputs.runtime != 'false'
-        run: |
-          test '${{ needs.changes.result }}' = success
-          test '${{ needs.browser-build.result }}' = success
-          test '${{ needs.e2e-lane.result }}' = success
-
   points-lane:
     needs: changes
     uses: ./.github/workflows/ci-points.yml
     with:
-      runtime: ${{ needs.changes.outputs.runtime == 'true' }}
+      runtime: ${{ needs.changes.outputs.runtime == 'true' && !github.event.pull_request.draft }}
     secrets: inherit
 
   coverage-lane:
     needs: changes
-    if: needs.changes.outputs.runtime == 'true'
+    if: needs.changes.outputs.runtime == 'true' && !github.event.pull_request.draft
     uses: ./.github/workflows/ci-coverage.yml
     secrets: inherit
 
-  coverage:
-    # A failed scope decision still fails here, because no snapshot ran.
-    if: always() && needs.changes.outputs.runtime != 'false' && needs.coverage-lane.outputs.needed != 'false'
-    needs: [changes, coverage-lane]
+  ready:
+    # A skipped job passes a required check, so this one needs every lane and fails on a draft: whatever a draft's run
+    # skipped, the PR can't merge until the run that marking it ready starts has passed.
+    if: always()
+    needs: [changes, static-lane, unit-lane, integration-lane, build-lane, browser-build, e2e-lane, points-lane, coverage-lane]
     runs-on: ubuntu-latest
     steps:
-      - run: test '${{ needs.coverage-lane.result }}' = success
+      - name: Require a PR that is ready for review
+        if: github.event.pull_request.draft
+        run: |
+          echo '::error::A draft runs only the quick checks. Mark the PR ready for review to run the browser tests, integration, points and coverage.'
+          exit 1
+      - name: Require every lane
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          failed="$(jq -r '[to_entries[] | select(.value.result == "failure" or .value.result == "cancelled" or (.key == "changes" and .value.result != "success")) | .key] | join(", ")' <<< "$NEEDS")"
+          test -z "$failed" || { echo "::error::Failed: $failed"; exit 1; }
