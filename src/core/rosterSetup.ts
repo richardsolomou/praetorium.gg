@@ -1,5 +1,7 @@
-import type { RosterPick } from './roster'
+import type { RosterPick, VsPick } from './roster'
 import { currentCatalogueFamilyId, picksForRulesVersion } from './retiredCatalogueIds'
+
+const withoutEnhancement = ({ enhancement: _enhancement, ...vs }: VsPick): VsPick => vs
 
 type PricedChoice = { key: string; kind?: 'enhancement' | 'upgrade' }
 type PricedUnit = { choices: readonly PricedChoice[] }
@@ -18,9 +20,11 @@ export function picksAfterDetachmentChange<T extends RosterPick>(
 
   return picks.map((pick, index) => {
     const special = new Set(units[index]?.choices.filter((choice) => choice.kind).map((choice) => choice.key) ?? [])
-    if (!pick.choices || !special.size) return pick
-    const choices = Object.fromEntries(Object.entries(pick.choices).filter(([key]) => !special.has(key)))
-    return { ...pick, choices }
+    // A VS Data pick's Enhancement came from the Detachments it was built under.
+    const kept = pick.vs?.enhancement ? { ...pick, vs: withoutEnhancement(pick.vs) } : pick
+    if (!kept.choices || !special.size) return kept
+    const choices = Object.fromEntries(Object.entries(kept.choices).filter(([key]) => !special.has(key)))
+    return { ...kept, choices }
   })
 }
 
@@ -31,7 +35,7 @@ export function picksAfterSetupChange<T extends RosterPick>(
   next: { catalogueId: string; detachmentIds: readonly string[] },
 ): T[] {
   if (currentCatalogueFamilyId(source.catalogueId) !== currentCatalogueFamilyId(next.catalogueId)) return []
-  if (source.catalogueId !== next.catalogueId) return picksForRulesVersion(picks, next.catalogueId)
+  if (source.catalogueId !== next.catalogueId) return picksForRulesVersion(picks, next.catalogueId, source.catalogueId)
   return picksAfterDetachmentChange(picks, units, source.detachmentIds, next.detachmentIds)
 }
 

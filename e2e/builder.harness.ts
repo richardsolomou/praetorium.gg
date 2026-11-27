@@ -1,5 +1,5 @@
 import { expect, type Locator, type Page } from '@playwright/test'
-import { createRoster, signUp } from './account'
+import { seededRoster, signUp, type Army } from './account'
 import { screenshot } from './screenshots'
 import { baseURL } from './stackEnv'
 
@@ -52,9 +52,9 @@ export async function expectVerticalPanOnly(element: Locator) {
 }
 
 /** Signs up and opens a new roster in the builder. */
-export async function openBuilder(page: Page, faction = 'Necrons', detachment = /Awakened Dynasty/) {
+export async function openBuilder(page: Page, faction: Army = 'Necrons', detachment = 'Awakened Dynasty') {
   await signUp(page, 'Richard')
-  await createRoster(page, { faction, detachment })
+  await seededRoster(page, { faction, detachment })
 }
 
 export async function add(page: Page, name: string) {

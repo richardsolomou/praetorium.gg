@@ -1,11 +1,11 @@
 import { expect, test, type Page } from './test'
-import { addUnit, createRoster, signUp, expectNoPageOverflow, chooseOption, chooseRosterAction, PHONE } from './account'
+import { addUnit, seededRoster, signUp, expectNoPageOverflow, chooseOption, chooseRosterAction, PHONE } from './account'
 import { holdCombatCalculations, openCombatBreakdown } from './combat'
 import { screenshot } from './screenshots'
 
 test('new rosters compare customizable mixed-faction benchmarks and retain the target set', async ({ page }) => {
   await signUp(page, 'Benchmark builder')
-  await createRoster(page, { faction: 'Space Marines', detachment: /Gladius Task Force/, name: 'Benchmark Marines' })
+  await seededRoster(page, { faction: 'Space Marines', detachment: 'Gladius Task Force', name: 'Benchmark Marines' })
   await addUnit(page, 'Intercessor Squad')
   await addUnit(page, 'Terminator Squad')
   await chooseRosterAction(page, 'Test targets')
@@ -155,11 +155,11 @@ test('new rosters compare customizable mixed-faction benchmarks and retain the t
 
 test('saved rosters compare every pairing, reverse direction, and open isolated adjustments', async ({ page }) => {
   await signUp(page, 'Roster comparison')
-  await createRoster(page, { faction: 'Necrons', detachment: /Cursed Legion/, name: 'Attacking Necrons' })
+  await seededRoster(page, { faction: 'Necrons', detachment: 'Cursed Legion', name: 'Attacking Necrons' })
   await addUnit(page, 'Immortals')
   await addUnit(page, 'Skorpekh Destroyers')
   const attackerUrl = page.url()
-  await createRoster(page, { faction: 'Space Marines', detachment: /Gladius Task Force/, name: 'Defending Marines' })
+  await seededRoster(page, { faction: 'Space Marines', detachment: 'Gladius Task Force', name: 'Defending Marines' })
   await addUnit(page, 'Intercessor Squad')
   await addUnit(page, 'Terminator Squad')
   const defenderUrl = page.url()
@@ -223,7 +223,7 @@ test('saved rosters compare every pairing, reverse direction, and open isolated 
 
 test(`roster actions group editing, tools and exports`, async ({ page }) => {
   await signUp(page, 'Roster menus')
-  await createRoster(page, { faction: 'Necrons', detachment: /Cursed Legion/, name: 'Menu roster' })
+  await seededRoster(page, { faction: 'Necrons', detachment: 'Cursed Legion', name: 'Menu roster' })
   await expect(page.getByRole('button', { name: 'Test targets', exact: true })).toHaveCount(0)
   await page.getByRole('button', { name: 'Roster actions', exact: true }).click()
   const menu = page.getByRole('menu')

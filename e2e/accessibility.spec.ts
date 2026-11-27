@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './test'
-import { createRoster, setupStep, signUp, startBattle, expectNoPageOverflow, practiceBattle, PHONE } from './account'
+import { seededRoster, setupStep, signUp, startBattle, expectNoPageOverflow, practiceBattle, PHONE } from './account'
 import { chooseCombatUnit, openCombatBreakdown } from './combat'
 import { screenshot } from './screenshots'
 
@@ -102,7 +102,7 @@ test.describe('a touch device', () => {
 
   test('keeps unit picker rows, loadout controls and application tabs inside their bounds at double text size', async ({ page }) => {
     await signUp(page, 'Large text')
-    await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/ })
+    await seededRoster(page, { faction: 'Necrons', detachment: 'Awakened Dynasty' })
     await doubleText(page)
     await page.getByLabel('Add a unit').fill('Immortals')
     const row = page.locator('[data-picker-unit="Immortals"]')
@@ -145,7 +145,7 @@ test.describe('a touch device', () => {
 
   test('keeps reserve counts, the battle scoreboard and phase control readable at double text size', async ({ page }) => {
     await signUp(page, 'Large text battle')
-    const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/ })
+    const roster = await seededRoster(page, { faction: 'Necrons', detachment: 'Awakened Dynasty' })
     await practiceBattle(page, roster)
     await doubleText(page)
     await setupStep(page, 'Reserves')

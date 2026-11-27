@@ -4,6 +4,7 @@ import { nonMatchedPlayKind } from '../core/name'
 import { modelsNamed, same, words } from './vsDataModelNames'
 import { SPELLINGS } from './wargearSpellings'
 import { datasheetOf, idsIn, inBook } from './vsDataPoints'
+import type { VsLinksIndex } from './vsDataAttachments'
 
 /** A stat line's values as a datasheet prints them, by characteristic; a characteristic VS Data leaves out is absent. */
 export type VsStatValues = Partial<Record<DatasheetCharacteristicKind, string>>
@@ -17,7 +18,7 @@ export type VsProfilesIndex = {
   /** Each datasheet's VS Data unit, keyed as `idsIn` keys units; a book key VS Data prints no lines for is null. */
   units: Record<string, string | null>
   lines: Record<string, { models: string[]; unit: UnitLine[]; weapons: WeaponLine[] }>
-}
+} & Partial<VsLinksIndex>
 
 const UNIT_FIELDS = {
   movement: 'movement',

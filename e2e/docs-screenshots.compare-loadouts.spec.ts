@@ -1,5 +1,5 @@
 import { expect, test } from './test'
-import { addUnit, createRoster, signUp, chooseOption } from './account'
+import { addUnit, seededRoster, signUp, chooseOption } from './account'
 import { closeCombatBreakdown, openCombatBreakdown, openCombatControls, combatSettled } from './combat'
 import { capture, docsScreenshots } from './docsScreenshots'
 
@@ -68,7 +68,7 @@ test('compare loadouts in the unit simulator', async ({ page }) => {
 
 test('compare a roster against benchmark targets', async ({ page }) => {
   await signUp(page, 'Docs player')
-  await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Necron strike force' })
+  await seededRoster(page, { faction: 'Necrons', detachment: 'Awakened Dynasty', name: 'Necron strike force' })
   await addUnit(page, 'Immortals')
   await addUnit(page, 'Skorpekh Destroyers')
   await page.goto('/simulator')

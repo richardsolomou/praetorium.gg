@@ -4,6 +4,7 @@ import { withoutFactionPrefix } from './name'
 import { refuse } from './battlePrimitives'
 import { z } from 'zod'
 import { matchesKeywordSelector } from './keywords'
+import type { TransportCapacity, TransportPool } from './vsDataConstruction'
 
 /**
  * One allowance a transport prints: how many models it holds, of which keywords, and up to what Wounds. `units`
@@ -159,6 +160,38 @@ export function printedTransport(printed: string | undefined): PrintedTransport 
     }
   }
   return main ? { main, instead, conditions, pools, alternatives, excluded, space } : null
+}
+
+/**
+ * VS Data's typed transport capacity in the shape a printed rule is read into, so a battle log carries either alike;
+ * null where it has no such shape: more than one alternative load of several allowances, or allowances wargear replaces.
+ */
+export function vsTransport(capacity: TransportCapacity): PrintedTransport | null {
+  const [first, second, ...more] = capacity.loads
+  const [main, ...pools] = first ?? []
+  if (!main || more.length || (second && second.length !== 1) || capacity.whenEquipped?.length) return null
+  const pool = ({ limit, count, selectors, maxWounds }: TransportPool): Pool => ({
+    capacity: limit,
+    carries: selectors.join(', '),
+    ...(maxWounds === undefined ? {} : { maxWounds }),
+    ...(count === 'units' ? { units: true as const } : {}),
+  })
+  return {
+    main: pool(main),
+    instead: second ? pool(second[0]!) : null,
+    conditions: [],
+    pools: pools.map(pool),
+    alternatives: [],
+    excluded: (capacity.excluded ?? []).map(({ selectors, except }) => ({
+      keywords: selectors.join(', '),
+      ...(except?.length ? { except: except.join(', ') } : {}),
+    })),
+    space: (capacity.space ?? []).map(({ selectors, moreWoundsThan, size }) => ({
+      ...(selectors?.length ? { keywords: selectors.join(', ') } : {}),
+      ...(moreWoundsThan === undefined ? {} : { moreWoundsThan }),
+      size,
+    })),
+  }
 }
 
 /**

@@ -5,6 +5,7 @@ import { nameOf } from '../src/core/catalogue'
 import { legacyOptionsSchema } from '../src/core/legacyIds'
 import { isNonMatchedPlayName } from '../src/core/name'
 import { buildUnit, type RosterPick } from '../src/core/roster'
+import { hasWarlordToggle, vsWarlordModel } from '../src/core/unitChoices'
 import type { Counts } from '../src/core/vsDataConstruction'
 import { modelBounds } from '../src/core/vsDataRoster'
 import { readCatalogueComposition } from '../src/server/catalogueComposition'
@@ -76,7 +77,10 @@ function errorsOf(book: string, detachment: string | undefined, pick: RosterPick
     picks: [pick],
   })
   const price = calculateRosterPrice(input, loaded, editions.rulesFor(book))
-  return price && new Set(price.errors.map((error) => `${error.entryName}: ${error.message}`))
+  if (!price) return null
+  // Whether the list's own build makes the unit its Warlord, as an Epic Hero who must be.
+  const warlord = Boolean(price.units[0] && hasWarlordToggle(price.units[0].toggles))
+  return Object.assign(new Set(price.errors.map((error) => `${error.entryName}: ${error.message}`)), { warlord })
 }
 
 const UNAVAILABLE = 'a saved choice is no longer available'
@@ -180,7 +184,9 @@ for (const [entryId, entry] of Object.entries(map)) {
       unbuilt++
       continue
     }
-    const vsErrors = errorsOf(book, detachment, { entryId, vs: { models, ...read } })!
+    // A unit BSData's build makes the Warlord names its Warlord model as a VS pick too.
+    const warlord = bsErrors!.warlord ? vsWarlordModel(definitions, unit.id, { faction: unit.data.faction, detachments: [] }) : undefined
+    const vsErrors = errorsOf(book, detachment, { entryId, vs: { models, ...read, ...(warlord ? { warlord } : {}) } })!
     const bsOnly = [...bsErrors!].filter((error) => !vsErrors.has(error))
     const vsOnly = [...vsErrors].filter((error) => !bsErrors!.has(error))
     const verdict: Verdict =

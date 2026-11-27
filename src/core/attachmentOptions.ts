@@ -1,4 +1,4 @@
-import { type Attachment, type AttachmentParty, type AttachmentRefusal, attachmentRefusals } from './attach'
+import { type Attachment, type AttachmentParty, type AttachmentRefusal, attachmentRefusals, beforeHostChoices } from './attach'
 
 type AttachmentPick = { key: number; attachedTo?: number }
 type Units = readonly (AttachmentParty | undefined)[]
@@ -101,8 +101,9 @@ export function newHosts<T extends Candidate>(
   index: number,
 ): T[] {
   const pick = picks[index]
-  const joiner = asJoiner(units[index])
-  if (!pick || !joiner || pick.attachedTo !== undefined) return []
+  const fielded = asJoiner(units[index])
+  if (!pick || !fielded || pick.attachedTo !== undefined) return []
+  const joiner = { ...fielded, attachment: beforeHostChoices(fielded.attachment) }
   return candidates.filter((candidate) => joinReason(pick, joiner, asParty(candidate), []) === null)
 }
 

@@ -238,10 +238,12 @@ export function compareCatalogueCoverage(
         compareDescribed(`${where} / ${name} detachment abilities`, earlier?.abilities ?? [], later?.abilities ?? [])
       }
       compareLists(`${where} keyword rules`, sheet.keywordRules, current.keywordRules)
-      compareLists(`${where} attachments`, sheet.attachments, current.attachments)
+      // A host a Leader ability prints in capitals is the same datasheet as one named as the datasheet spells it.
+      const host = (name: string) => name.toLowerCase()
+      compareLists(`${where} attachments`, sheet.attachments, current.attachments, host)
       compareLists(`${where} ability names`, sheet.abilityNames ?? [], current.abilityNames ?? [])
       compareLists(`${where} search`, sheet.search ?? [], current.search ?? [])
-      compareLists(`${where} leaders`, sheet.leaders, current.leaders)
+      compareLists(`${where} leaders`, sheet.leaders, current.leaders, host)
       for (const field of ['composition', 'wargearOptions', 'keywords'] as const) {
         if (sheet[field] > current[field]) lost.push(`${where}: ${field} ${sheet[field]} → ${current[field]}`)
       }
@@ -267,8 +269,9 @@ export function compareCatalogueCoverage(
   /*
    * A choice this change withdrew on purpose reads the same as a field it dropped by
    * accident, and only the person making the change can tell them apart. Each accepted
-   * line is stated whole and with its reason, and a line that has stopped being lost
-   * fails the run, so the list empties itself rather than growing quietly.
+   * line is stated whole and with its reason, and a claimed line that isn't lost fails
+   * the run. CI passes only the lines a change adds to the list, so lines an earlier
+   * change accepted can neither fail a later one nor hide a loss it causes.
    */
   const claimed = new Set(accepted.flatMap((group) => group.entries))
   const withdrawn = lost.filter((line) => claimed.has(line))

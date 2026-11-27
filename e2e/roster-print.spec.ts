@@ -1,6 +1,6 @@
 import { expect, test } from './test'
 import {
-  createRoster,
+  seededRoster,
   signInAsPreview,
   signUp,
   startBattle,
@@ -104,7 +104,7 @@ test('attached datasheets stay grouped and a missing reference never prints a pa
     }
   })
   await signUp(page, uniqueName('Print attachments'))
-  await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Attached army' })
+  await seededRoster(page, { faction: 'Necrons', detachment: 'Awakened Dynasty', name: 'Attached army' })
   await chooseRosterAction(page, 'Print')
   const pack = page.locator('[data-battle-reference-pack]')
   await expect(pack).toContainText('0 units · 0 models')
@@ -139,7 +139,7 @@ test('attached datasheets stay grouped and a missing reference never prints a pa
 test('a saved mixed-equipment pack agrees with export and the fielded army', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1600, height: 900 })
   await signUp(page, uniqueName('Print mixed equipment'))
-  const name = await createRoster(page, { faction: 'Death Guard', detachment: /Champions of Contagion/, name: 'Mixed equipment' })
+  const name = await seededRoster(page, { faction: 'Death Guard', detachment: 'Champions of Contagion', name: 'Mixed equipment' })
   await addUnit(page, 'Plague Marines')
   const rosterId = lastPathSegment(page.url())
   const card = page.locator('[data-unit="Plague Marines"]')

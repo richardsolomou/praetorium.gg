@@ -6,8 +6,8 @@ import { pipeline } from 'node:stream/promises'
 import { createGunzip, createGzip } from 'node:zlib'
 import { downloadProductionCopy } from './productionCopy'
 
-/** The product tables that hold players' lists: saved rosters, battle commands (lists fielded into a battle) and sealed entries. */
-const KEPT = new Set(['rosters', 'commands', 'sealedEventEntries'])
+/** The product tables that hold players' lists and units: saved rosters, battle commands (lists fielded into a battle), sealed entries and saved unit loadouts. */
+const KEPT = new Set(['rosters', 'commands', 'sealedEventEntries', 'unitLoadouts'])
 
 /**
  * Keeps a private copy of every list players hold, gzipped, for local reports such as `scripts/vsDataParity.ts`. The
