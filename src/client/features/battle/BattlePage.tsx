@@ -1,12 +1,13 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Navigate } from '@tanstack/react-router'
-import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { FullPageState, PageLoading } from '../../components/PageState'
 import { Setup } from './setup/Setup'
 import { Spectator } from './Spectator'
 import { Tracker } from './Tracker'
 import { AfterBattle, AfterBattleSharing } from './AfterBattle'
 import { PracticeNextGame } from './PracticeNextGame'
+import { BattleFeedbackAsk } from '../feedback/BattleFeedbackAsk'
 import { isPracticeSeat } from '../../../core/newBattle'
 import { celebrateVictory } from './victory'
 import { battleResult } from '../../battleOutcome'
@@ -66,12 +67,15 @@ function SeatedBattle({ token, screen }: { token: string; screen: Extract<Awaite
   const { send, attachRoster, problem, pending } = useCommand(token, confirmedSeq(screen))
   const status = screen.view.status
   const previousStatus = useRef(status)
+  // Only a battle that ends while the player watches asks how tracking went; reopening an old one does not.
+  const [sawEnd, setSawEnd] = useState(false)
   // Setup and the tracker share a URL, so the scroll that reached Start battle would carry into the first turn.
   useLayoutEffect(() => {
     if (previousStatus.current === 'setup' && status !== 'setup') window.scrollTo(0, 0)
+    if (previousStatus.current !== 'finished' && status === 'finished') setSawEnd(true)
     previousStatus.current = status
   }, [status])
-  if (screen.view.status === 'finished') return <FinishedBattle screen={screen} />
+  if (screen.view.status === 'finished') return <FinishedBattle screen={screen} sawEnd={sawEnd} />
   if (screen.view.status === 'setup')
     return (
       <Setup
@@ -91,7 +95,13 @@ function SeatedBattle({ token, screen }: { token: string; screen: Extract<Awaite
 const practicedAlone = ({ players, viewerId }: { players: readonly { id: string; automated: boolean }[]; viewerId: string | null }) =>
   players.some(({ id }) => id === viewerId) && players.filter(({ id }) => id !== viewerId).every(isPracticeSeat)
 
-function FinishedBattle({ screen }: { screen: Extract<Awaited<ReturnType<typeof openBattle>>, { kind: 'battle' }> }) {
+function FinishedBattle({
+  screen,
+  sawEnd,
+}: {
+  screen: Extract<Awaited<ReturnType<typeof openBattle>>, { kind: 'battle' }>
+  sawEnd: boolean
+}) {
   const { view, clock, missions } = screen
   const won = useMemo(() => {
     const table = sides(view, missions)
@@ -108,14 +118,17 @@ function FinishedBattle({ screen }: { screen: Extract<Awaited<ReturnType<typeof 
       missions={missions}
       timeline={screen.timeline}
       lead={
-        practicedAlone(view) ? (
-          <PracticeNextGame />
-        ) : (
-          <div className="space-y-3">
-            <AfterBattle view={view} />
-            <AfterBattleSharing view={view} />
-          </div>
-        )
+        <div className="space-y-3">
+          {sawEnd ? <BattleFeedbackAsk token={view.token} /> : null}
+          {practicedAlone(view) ? (
+            <PracticeNextGame />
+          ) : (
+            <>
+              <AfterBattle view={view} />
+              <AfterBattleSharing view={view} />
+            </>
+          )}
+        </div>
       }
     />
   )

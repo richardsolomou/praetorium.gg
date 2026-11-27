@@ -1,55 +1,53 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ImagePlus, X } from 'lucide-react'
 import { posthog } from 'posthog-js'
-import { useCallback, useEffect, useState } from 'react'
+import { type Ref, useCallback, useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Choice } from '../../components/Choice'
 import { DialogBody, DialogFooter } from '../../components/Dialog'
-import {
-  feedbackScreenshotPath,
-  FEEDBACK_KINDS,
-  FEEDBACK_MESSAGE_MAX_LENGTH,
-  feedbackTicketMessage,
-  type FeedbackKind,
-  type ReportedRecord,
-} from '../../../contracts/feedback'
+import { feedbackScreenshotPath, FEEDBACK_MESSAGE_MAX_LENGTH, feedbackTicketMessage, type FeedbackKind } from '../../../contracts/feedback'
 import { uploadFeedbackScreenshot } from '../../functions'
 import { NEW_ISSUE } from '../../projectLinks'
 import { meQuery } from '../../queries'
 import { prepareFeedbackScreenshot } from './screenshot'
-import { refreshSupport, startConversation } from './support'
+import { type FeedbackDraft, refreshSupport, startConversation } from './support'
 import { Problem } from '../../components/Problem'
 import { errorMessage } from '../../queryClient'
 
+const KINDS: { kind: FeedbackKind; label: string; placeholder: string }[] = [
+  { kind: 'Problem', label: 'Something’s wrong', placeholder: 'What happened, and what did you expect?' },
+  { kind: 'Idea', label: 'An idea', placeholder: 'What would you like Praetorium to do?' },
+  { kind: 'Other', label: 'Something else', placeholder: 'Anything at all: praise, a question, a rule you miss…' },
+]
+
 /** A new conversation, sent from the page the player is on so its session replay shows what they were looking at. */
 export function FeedbackForm({
-  record,
-  onStarted,
+  draft,
+  messageRef,
   onSent,
   onCancel,
+  shown,
 }: {
-  record?: ReportedRecord
-  /** Called once the player has entered anything, so the panel keeps this form in place. */
-  onStarted: () => void
-  onSent: (ticketId: string, screenshotLost: boolean) => void
+  draft?: FeedbackDraft
+  /** The message box, which the panel focuses as it opens. */
+  messageRef?: Ref<HTMLTextAreaElement>
+  onSent: (sent: { ticketId: string; screenshotLost: boolean; signedOutEmail: boolean }) => void
   onCancel: () => void
+  /** Whether the form is on screen, so a pasted or dropped image elsewhere in the dialog is not taken for it. */
+  shown: boolean
 }) {
   const { data: me } = useQuery(meQuery())
   const queryClient = useQueryClient()
-  const [kind, setKind] = useState<FeedbackKind>('Problem')
+  const [kind, setKind] = useState<FeedbackKind | undefined>(draft?.kind)
   const [message, setMessage] = useState('')
   const [email, setEmail] = useState('')
   const [screenshot, setScreenshot] = useState<string>()
   const [screenshotError, setScreenshotError] = useState<string>()
   const [sending, setSending] = useState(false)
   const [failure, setFailure] = useState<'unavailable' | { error: string }>()
-  const started = kind !== 'Problem' || message !== '' || email !== '' || screenshot !== undefined
-  useEffect(() => {
-    if (started) onStarted()
-  }, [started, onStarted])
 
   const attach = useCallback((file: File | null | undefined) => {
     if (!file) return
@@ -59,6 +57,7 @@ export function FeedbackForm({
     )
   }, [])
   useEffect(() => {
+    if (!shown) return
     const pasted = (event: ClipboardEvent) => {
       const image = [...(event.clipboardData?.files ?? [])].find((file) => file.type.startsWith('image/'))
       if (!image) return
@@ -79,27 +78,31 @@ export function FeedbackForm({
       window.removeEventListener('dragover', dragged)
       window.removeEventListener('drop', dropped)
     }
-  }, [attach])
+  }, [attach, shown])
 
   const send = async () => {
+    if (sending || !message.trim()) return
     setSending(true)
     setFailure(undefined)
     try {
       // The text matters more than the picture, so a failed upload still sends the feedback.
       const file = screenshot ? await uploadFeedbackScreenshot({ data: { image: screenshot } }).catch(() => undefined) : undefined
+      const replyTo = me ? undefined : email.trim() || undefined
       const sent = await startConversation(
         feedbackTicketMessage({
-          kind,
+          kind: kind ?? 'Other',
           message,
           screenshotUrl: file ? new URL(feedbackScreenshotPath(file), window.location.origin).href : undefined,
-          record,
+          record: draft?.record,
+          about: draft?.about,
         }),
-        me ? undefined : email.trim() || undefined,
+        replyTo,
       )
       if (!sent) return setFailure('unavailable')
-      if (record) posthog.capture('data_problem_reported', { from: record.from })
+      posthog.capture('feedback_sent', { from: draft?.from ?? null, kind: kind ?? null, screenshot: Boolean(file) })
+      if (draft?.record) posthog.capture('data_problem_reported', { from: draft.record.from })
       void refreshSupport(queryClient)
-      onSent(sent.ticket_id, Boolean(screenshot && !file))
+      onSent({ ticketId: sent.ticket_id, screenshotLost: Boolean(screenshot && !file), signedOutEmail: Boolean(replyTo) })
     } catch (error) {
       setFailure({ error: errorMessage(error, 'Your feedback could not be sent. Try again.') })
     } finally {
@@ -107,6 +110,7 @@ export function FeedbackForm({
     }
   }
 
+  const context = draft?.record ? `${draft.record.name} · ${draft.record.faction} · ${draft.record.rulesVersion}` : draft?.about
   return (
     <form
       className="flex min-h-0 flex-1 flex-col"
@@ -116,43 +120,44 @@ export function FeedbackForm({
       }}
     >
       <DialogBody>
-        {record ? (
+        {context ? (
           <div className="space-y-1.5">
             <span className="block text-sm font-medium text-dim">About</span>
-            <p className="rounded-md border border-edge px-3 py-2 text-sm">
-              <span className="block text-bone">{record.name}</span>
-              <span className="block text-xs text-dim">
-                {record.faction} · {record.rulesVersion}
-              </span>
-            </p>
-            <p className="text-xs text-dim">We send this with your message so we can find the datasheet.</p>
+            <p className="rounded-md border border-edge px-3 py-2 text-sm text-bone">{context}</p>
+            <p className="text-xs text-dim">We send this with your message.</p>
           </div>
         ) : null}
         <Choice
           label="What kind of feedback?"
-          value={kind}
+          value={kind ?? null}
           columns={3}
-          options={FEEDBACK_KINDS.map((value) => ({ value, name: value }))}
+          options={KINDS.map((option) => ({ value: option.kind, name: option.label }))}
           onChange={setKind}
         />
         <div className="space-y-1.5">
-          <Label className="block text-sm font-medium text-dim" htmlFor="feedback-message">
-            Message
-          </Label>
+          <Label htmlFor="feedback-message">{draft?.question ?? 'Message'}</Label>
           <Textarea
             id="feedback-message"
+            ref={messageRef}
             required
             rows={5}
             maxLength={FEEDBACK_MESSAGE_MAX_LENGTH}
+            placeholder={KINDS.find((option) => option.kind === kind)?.placeholder ?? 'A problem, an idea, a rule you miss, anything…'}
             value={message}
             onChange={(event) => setMessage(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) {
+                event.preventDefault()
+                void send()
+              }
+            }}
+            className="min-h-32"
           />
+          <p className="text-xs text-dim">We send this page, your device and Praetorium’s version with it.</p>
         </div>
         {me ? null : (
           <div className="space-y-1.5">
-            <Label className="block text-sm font-medium text-dim" htmlFor="feedback-email">
-              Email for a reply (optional)
-            </Label>
+            <Label htmlFor="feedback-email">Email for a reply (optional)</Label>
             <Input
               id="feedback-email"
               type="email"
@@ -164,7 +169,7 @@ export function FeedbackForm({
           </div>
         )}
         <div className="space-y-1.5">
-          <span className="block text-sm font-medium text-dim">Screenshot (optional)</span>
+          <span className="block text-sm font-medium">Screenshot (optional)</span>
           {screenshot ? (
             <div className="flex items-start gap-2">
               <img
@@ -184,7 +189,7 @@ export function FeedbackForm({
             </div>
           ) : (
             <>
-              <Label className="relative flex min-h-11 cursor-pointer items-center gap-2 rounded-md border border-edge px-3 text-sm text-dim hover:border-info hover:text-info sm:min-h-9 has-focus-visible:border-info">
+              <Label className="relative flex min-h-11 cursor-pointer items-center gap-2 rounded-md border border-edge px-3 text-sm font-normal text-dim hover:border-info hover:text-info sm:min-h-9 has-focus-visible:border-info">
                 <ImagePlus aria-hidden className="size-4 shrink-0" />
                 <span>Attach screenshot</span>
                 <input

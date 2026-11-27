@@ -21,7 +21,7 @@ import type { ComponentType, ReactNode } from 'react'
 import { meQuery } from '../../queries'
 import { PageContent } from '../../components/Page'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
-import { openConversations, unreadReplies, useSupportTickets } from '../feedback/support'
+import { openFeedback, unreadReplies, useSupportTickets } from '../feedback/support'
 import { countLabel } from '../../text'
 import { useUnseenRelease } from './seenRelease'
 import { UnseenDot, unseenLabel } from './WhatsNew'
@@ -179,7 +179,7 @@ export function NativeMorePage() {
               <Row icon={WHATS_NEW.Icon} label={WHATS_NEW.label} status={unseenRelease ? <UnseenDot /> : null} />
             </Link>
             <Links links={HELP} />
-            <button type="button" onClick={openConversations} className={rowClass}>
+            <button type="button" onClick={() => openFeedback({ from: 'menu' })} className={rowClass}>
               <Row
                 icon={MessageSquareWarning}
                 label="Feedback"

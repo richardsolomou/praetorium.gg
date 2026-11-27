@@ -1,6 +1,7 @@
 import { createElement, useEffect, useState } from 'react'
 import { useLoadedComponent } from '../../useLoadedComponent'
-import { onOpenSupport, type SupportView } from '../feedback/support'
+import { REPORT_PROBLEM_EVENT } from '../../components/RouteError'
+import { onOpenSupport, reportProblem, type SupportView } from '../feedback/support'
 
 const loadLiveProduct = () => import('../../spacetimeLive').then((module) => module.LiveProduct)
 const loadDisplayNamePrompt = () => import('../account/DisplayNamePrompt').then((module) => module.DisplayNamePrompt)
@@ -20,6 +21,11 @@ export function ShellDisplayNamePrompt() {
 export function ShellSupportPanel() {
   const [request, setRequest] = useState<{ view: SupportView } | null>(null)
   useEffect(() => onOpenSupport((view) => setRequest({ view })), [])
+  useEffect(() => {
+    const report = (event: Event) => reportProblem(String((event as CustomEvent<unknown>).detail))
+    window.addEventListener(REPORT_PROBLEM_EVENT, report)
+    return () => window.removeEventListener(REPORT_PROBLEM_EVENT, report)
+  }, [])
   const SupportPanel = useLoadedComponent(loadSupportPanel, request !== null)
   return request && SupportPanel && createElement(SupportPanel, { request })
 }

@@ -105,6 +105,20 @@ describe('readTicketMessage', () => {
     })
   })
 
+  it('reads what the feedback was about on one line, beside the datasheet', () => {
+    const content = feedbackTicketMessage({
+      kind: 'Problem',
+      message: 'Lost my score',
+      about: 'The error “Save failed.\nTry again.” on /battles/x',
+      record: { from: 'datasheet', name: 'Boyz', faction: 'Orks', rulesVersion: 'v1', catalogueId: 'c', entryId: 'e' },
+    })
+    expect(readTicketMessage(content)).toMatchObject({
+      body: 'Lost my score',
+      about: 'The error “Save failed. Try again.” on /battles/x',
+      datasheet: 'Boyz · Orks · v1',
+    })
+  })
+
   it('leaves a message the app did not compose as it is', () => {
     expect(readTicketMessage('Thanks!\n\nIdea · elsewhere')).toEqual({ body: 'Thanks!\n\nIdea · elsewhere', screenshot: false })
   })

@@ -29,12 +29,15 @@ export function feedbackTicketMessage({
   message,
   screenshotUrl,
   record,
+  about,
   assistant,
 }: {
   kind: FeedbackKind
   message: string
   screenshotUrl?: string
   record?: ReportedRecord
+  /** What the player was doing when Praetorium asked, such as the error they saw, on one line. */
+  about?: string
   /** Whether an assistant sent it through an account tool rather than the player through the form. */
   assistant?: boolean
 }) {
@@ -42,6 +45,7 @@ export function feedbackTicketMessage({
     message.trim(),
     '',
     `${kind} · Praetorium ${version}${assistant ? ASSISTANT_MARK : ''}`,
+    ...(about ? [`About: ${about.replace(/\s+/g, ' ').trim()}`] : []),
     ...(record
       ? [`Datasheet: ${record.name} · ${record.faction} · ${record.rulesVersion}`, `Record: ${record.catalogueId} / ${record.entryId}`]
       : []),
@@ -50,7 +54,7 @@ export function feedbackTicketMessage({
 }
 
 const DETAILS = new RegExp(
-  `\\n\\n(${FEEDBACK_KINDS.join('|')}) · Praetorium (\\S+)(?:${ASSISTANT_MARK})?(?:\\nDatasheet: (.+)\\nRecord: \\S+ / \\S+)?(\\nScreenshot: \\S+)?$`,
+  `\\n\\n(${FEEDBACK_KINDS.join('|')}) · Praetorium (\\S+)(?:${ASSISTANT_MARK})?(?:\\nAbout: (.+))?(?:\\nDatasheet: (.+)\\nRecord: \\S+ / \\S+)?(\\nScreenshot: \\S+)?$`,
 )
 
 /** What the player wrote in an opening message, apart from the details `feedbackTicketMessage` appended. */
@@ -58,6 +62,7 @@ export function readTicketMessage(content: string): {
   body: string
   kind?: FeedbackKind
   version?: string
+  about?: string
   datasheet?: string
   screenshot: boolean
 } {
@@ -67,8 +72,9 @@ export function readTicketMessage(content: string): {
     body: content.slice(0, details.index),
     kind: details[1] as FeedbackKind,
     version: details[2],
-    datasheet: details[3],
-    screenshot: Boolean(details[4]),
+    about: details[3],
+    datasheet: details[4],
+    screenshot: Boolean(details[5]),
   }
 }
 
