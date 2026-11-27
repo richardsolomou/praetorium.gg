@@ -13,7 +13,7 @@ import { unitsIn } from '../shared/cataloguePicker'
 import { entryFactions, type LoadedCatalogue } from '../shared/catalogueIndex'
 import { factionDisplayName } from '../shared/factionNames'
 import { dispositionMatchups, gameReferencesFor, matchupMission } from '../shared/gameReferences'
-import { detachmentsOffering, type DispositionFaction } from '../shared/factionReferences'
+import { detachmentOptionsOf, detachmentsOffering, type DispositionFaction } from '../shared/factionReferences'
 import { terrainMatchupIds } from '../contracts/terrainReference'
 import { datasheetRoute, referenceDocument, type ReferenceCorpus } from './referenceCorpus'
 import type { LoadedRules } from '../shared/rules'
@@ -127,7 +127,7 @@ export function factionUnits(
 
 /** The names of the detachments a faction's lists can take, including any its codex holds. */
 export const factionDetachmentNames = (loaded: LoadedCatalogue, factionId: string) =>
-  (loaded.detachments.get(factionId)?.options ?? []).map((option) => option.name)
+  detachmentOptionsOf(loaded, factionId).map((option) => option.name)
 
 /**
  * The datasheet behind each unit a faction offers: its own, or else the copy filed under the
@@ -206,7 +206,7 @@ function referenceDetachment(
   currentCatalogueIds: ReadonlySet<string>,
 ) {
   const wanted = detachment.trim().toLocaleLowerCase()
-  const offered = new Set((loaded.detachments.get(factionId)?.options ?? []).map((option) => option.id))
+  const offered = new Set(detachmentOptionsOf(loaded, factionId).map((option) => option.id))
   const named = corpus.catalogue.detachments.filter((candidate) =>
     [candidate.id, candidate.slug, candidate.name].some((value) => value.toLocaleLowerCase() === wanted),
   )
@@ -220,7 +220,7 @@ function referenceDetachment(
 /** Every detachment a faction's lists can take, each in the rules version referenceDetachment would read. */
 function factionDetachments(corpus: ReferenceCorpus, loaded: LoadedCatalogue, factionId: string, currentCatalogueIds: ReadonlySet<string>) {
   const sameVersion = sameRulesVersion(factionId, currentCatalogueIds)
-  return (loaded.detachments.get(factionId)?.options ?? []).flatMap((option) => {
+  return detachmentOptionsOf(loaded, factionId).flatMap((option) => {
     const copies = corpus.catalogue.detachments.filter((candidate) => candidate.id === option.id)
     const found =
       copies.find((candidate) => candidate.catalogueId === factionId) ?? copies.find((candidate) => sameVersion(candidate.catalogueId))
