@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.280.1 (2026-11-27)
+
+### Patch Changes
+
+- 163c8c7: [battles] Closing or reloading a battle in your browser while your last actions are still sending now asks first, so they aren't lost.
+
 ## 0.280.0 (2026-11-27)
 
 ### Minor Changes
