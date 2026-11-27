@@ -96,7 +96,8 @@ function factionSummary(loaded: LoadedCatalogue, rules: LoadedRules | null | und
     .find(Boolean)
   const versions = mfmVersions(loaded.mfm)
   const version = points?.attribution ? null : (points?.version ?? (versions.size === 1 ? versions.values().next().value : null))
-  const detachments = loaded.detachments.get(faction.id)?.options ?? []
+  // A faction whose own rules replace Detachment selection, as a Titan army's do, offers none.
+  const detachments = vsDataWithoutDetachments(loaded.vsRoster, faction.id) ? [] : (loaded.detachments.get(faction.id)?.options ?? [])
   const referenceDetachments = detachments.filter((detachment) => isReferenceDetachment(loaded, rules, faction, detachment))
   const datasheets = listedDatasheets(loaded, faction.id, { factionCards: true, nonMatchedPlay: true }).filter(({ id }) =>
     isReferenceDatasheet(loaded, faction.id, id),
@@ -185,7 +186,7 @@ function buildFactions(loaded: LoadedCatalogue, rules: LoadedRules | null | unde
         const content = factionContentOf(loaded, faction.name)
         const rulesId = rulesFaction(rules, routeSlug(faction.name))
         const exclusive = exclusiveDetachments(loaded, faction.id)
-        // A faction whose own rules replace Detachment selection, as a Titan army's do, offers none and its own dispositions.
+        // A faction that takes no Detachment plays its own dispositions.
         const without = vsDataWithoutDetachments(loaded.vsRoster, faction.id)
         return {
           ...summary,
@@ -197,11 +198,11 @@ function buildFactions(loaded: LoadedCatalogue, rules: LoadedRules | null | unde
                 : []),
             ...(rules?.supplementalArmyRules?.get(rulesId) ?? []),
           ],
-          referenceDetachmentIds: without ? [] : referenceDetachments.map((detachment) => detachment.id),
+          referenceDetachmentIds: referenceDetachments.map((detachment) => detachment.id),
           ...(without
             ? { withoutDetachments: { dispositions: without.map((id) => ({ id, name: rules?.dispositions?.get(id) ?? id })) } }
             : {}),
-          detachments: (without ? [] : detachments).map((detachment) => {
+          detachments: detachments.map((detachment) => {
             const reference = detachmentNamed(rules?.detachmentReferences?.get(rulesId), detachment.name)
             const detail = detachmentNamed(rules?.detachmentDetails?.get(rulesId), detachment.name)
             const forced = detachmentCatalogueDetail(loaded, faction.id, detachment.id, [])?.forcedEnhancements ?? []

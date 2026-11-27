@@ -10,8 +10,8 @@ it.skipIf(!fs.existsSync(path.join(directory, 'definitions')))(
   'links a detachment defined in a library to the faction that publishes its page',
   () => {
     const loaded = loadCatalogue(directory)!
-    const titanicus = factionsFor(loaded, null).factions.find((faction) => faction.name.includes('Titanicus Traitoris'))
-    expect(titanicus?.detachments.find((detachment) => detachment.name === 'Blood Legion')?.referenceRoute).toEqual({
+    const daemons = factionsFor(loaded, null).factions.find((faction) => faction.name === 'Chaos - Chaos Daemons')
+    expect(daemons?.detachments.find((detachment) => detachment.name === 'Blood Legion')?.referenceRoute).toEqual({
       catalogueId: 'chaos-daemons',
       slug: 'blood-legion',
     })
