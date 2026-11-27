@@ -74,6 +74,13 @@ export function vsDataTextFacts(
     if (!read.length) return keys[0] ?? null
     return read.find((key) => read.every((other) => [...blocks(other)].every(([block, value]) => blocks(key).get(block) === value))) ?? null
   }
+  // Datasheets that print one text alike, as a Damaged bracket, can each be a unit's own record of a core keyword rule,
+  // named for it: the text, read once for all of them, is that core rule.
+  const standingIn = (keys: readonly string[]) => {
+    const cores = new Set(keys.map((key) => (key.startsWith(CORE) ? key : CORE + key.slice(key.lastIndexOf('.') + 1))))
+    const [core] = cores
+    return cores.size === 1 && core && effects[core] ? core : null
+  }
   const joinOf = (factsKey: string): VsDataJoin => {
     const keys = factsKey.startsWith('+') ? factsKey.slice(1).split('+') : [factsKey]
     const tokens = keys.map((key) => ({ transform: key.slice(0, key.indexOf(':')), hash: key.slice(key.indexOf(':') + 1) }))
@@ -97,7 +104,7 @@ export function vsDataTextFacts(
         ),
       ),
     ])
-    const found = agreed(byId)
+    const found = agreed(byId) ?? standingIn(byId)
     if (found) return { record: found, by: 'id' }
     return { record: null, by: byId.length || held.length ? 'ambiguous' : 'none' }
   }
@@ -111,12 +118,31 @@ export function vsDataTextFacts(
       const { record } = join(key)
       // A record without blocks is one VS Data has not read yet.
       if (!record || !effects[record]) return undefined
-      const read = effects[record]
+      const read = named(record, effects[record])
       return remember(facts, record, () =>
         textFactsOfVsData(record === FEEL_NO_PAIN && read.combat ? { ...read, combat: asDefenders(read.combat) } : read),
       )
     },
   }
+}
+
+const CORE = 'core-ability:'
+const referenceNames = (blocks: Record<string, unknown> | undefined) =>
+  Array.isArray(blocks?.references) ? (blocks.references as string[]) : []
+const ruleId = (name: string) =>
+  name
+    .toLowerCase()
+    .replaceAll(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
+
+/** A core keyword rule's record names that rule, as the text it joins is the rule, so its datasheet lists it. */
+function named(record: string, blocks: VsDataEffectsFile['effects'][string]) {
+  if (!record.startsWith(CORE)) return blocks
+  const name = record.slice(CORE.length).replaceAll('-', ' ')
+  const references = referenceNames(blocks)
+  return references.some((reference) => ruleId(reference) === record.slice(CORE.length))
+    ? blocks
+    : { ...blocks, references: [...references, name.replace(/^./, (first) => first.toUpperCase())] }
 }
 
 /**
