@@ -573,11 +573,11 @@ function heldBy(member: Node, grants: Map<Node, Map<string, boolean>>): Set<stri
 }
 
 /**
- * Picks VS Data checks and prices: their selections stay in the tree, so every other pick's conditions still count them,
- * but none of their nodes reports a limit or costs points. With `ownLimits`, each pick's own entry still reports its roster
- * limits and errors, for a list VS Data cannot place.
+ * Picks VS Data checks, and those of them it prices: their selections stay in the tree, so every other pick's conditions
+ * still count them, but none of their nodes reports a limit, nor costs points where VS Data prices the pick. With
+ * `ownLimits`, each pick's own entry still reports its roster limits and errors, for a list VS Data cannot place.
  */
-export type VsPicks = { selections: ReadonlySet<Selection>; ownLimits?: boolean }
+export type VsPicks = { checked: ReadonlySet<Selection>; priced: ReadonlySet<Selection>; ownLimits?: boolean }
 
 /** Evaluate each force independently while retaining roster-scoped conditions across all of them. */
 export function evaluateForces(
@@ -591,10 +591,12 @@ export function evaluateForces(
   const unpriced = new Set<Node>()
   const unchecked = new Set<Node>()
   for (const unit of builtForces.flatMap((force) => force.children)) {
-    if (!unit.selection || !vsPicks?.selections.has(unit.selection)) continue
-    for (const node of descendants(unit)) {
-      unpriced.add(node)
-      if (node !== unit || !vsPicks.ownLimits) unchecked.add(node)
+    if (!unit.selection || !vsPicks) continue
+    const priced = vsPicks.priced.has(unit.selection)
+    const checked = vsPicks.checked.has(unit.selection)
+    for (const node of priced || checked ? descendants(unit) : []) {
+      if (priced) unpriced.add(node)
+      if (checked && (node !== unit || !vsPicks.ownLimits)) unchecked.add(node)
     }
   }
   // Read up front rather than on the first question about a keyword, so a list that

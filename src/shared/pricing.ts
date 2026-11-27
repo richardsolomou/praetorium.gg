@@ -434,7 +434,12 @@ export function calculateRosterTotals(
   if (savedSelectionErrors(data, picked, loaded).length) return null
   const forces = [...forceSelections.values()]
   const vsSelections = new Set(picked.flatMap((unit) => (data.units[unit.key]?.vs ? [unit.selection] : [])))
-  const evaluated = evaluateForces(forces, loaded.index, { primaryCatalogueId: data.catalogueId }, { selections: vsSelections })
+  const evaluated = evaluateForces(
+    forces,
+    loaded.index,
+    { primaryCatalogueId: data.catalogueId },
+    { checked: vsSelections, priced: vsSelections },
+  )
   const pointsBySelection = selectionPointsOf(forces, evaluated)
   const adjustment = adjustUnitPoints(loaded, data, picked, vsPrices, pointsBySelection)
   return {
@@ -667,10 +672,8 @@ function calculateRoster(
   const checkedUnits = picked.map((unit) => ({ ...unit, keywords: keywordNamesOf(unit), vs: data.units[unit.key]?.vs }))
   const vsData = vsDataErrors(loaded.vsRoster, data, checkedUnits)
   // A pick fielded by VS Data IDs is VS Data's to check and price; its catalogue build only lets the other picks count it.
-  const vsPicks = {
-    selections: new Set(checkedUnits.flatMap((unit) => (unit.vs ? [unit.selection] : []))),
-    ownLimits: vsData === null,
-  }
+  const vsSelections = new Set(checkedUnits.flatMap((unit) => (unit.vs ? [unit.selection] : [])))
+  const vsPicks = { checked: vsSelections, priced: vsSelections, ownLimits: vsData === null }
   const whole = evaluateForces(forces, loaded.index, options, vsPicks)
   const selectionPoints = selectionPointsOf(forces, whole)
   const points = whole.points + adjustUnitPoints(loaded, data, picked, vsPrices, selectionPoints)

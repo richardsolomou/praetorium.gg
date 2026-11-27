@@ -8,7 +8,7 @@ import rawOptions from '../catalogue/legacy-ids/options.json' with { type: 'json
 import rawUnits from '../catalogue/legacy-ids/units.json' with { type: 'json' }
 import { nameOf } from '../src/core/catalogue'
 import { legacyIdsSchema, legacyOptionsSchema } from '../src/core/legacyIds'
-import { buildUnit, type RosterPick, type VsPick } from '../src/core/roster'
+import { buildUnit, type RosterPick } from '../src/core/roster'
 import { type Counts, vsDataConstructionSchema, vsDataDefinitions } from '../src/core/vsDataConstruction'
 import { modelBounds } from '../src/core/vsDataRoster'
 import { readCatalogueComposition } from '../src/server/catalogueComposition'
@@ -54,9 +54,8 @@ const vsRoster = vsRosterData(
 )
 const map = legacyOptionsSchema.parse(rawOptions).units
 
-type Case = { entryId: string; unit: string; key: string; book: string; bs: RosterPick; vs: VsPick }
-type Verdict = 'both legal' | 'both refuse' | 'BSData alone refuses' | 'VS Data alone refuses' | 'not built'
-const verdicts = new Map<Verdict, Case[]>()
+type Verdict = 'same' | 'both refuse, differently' | 'BSData alone refuses' | 'VS Data alone refuses'
+const verdicts = new Map<Verdict, number>()
 const details: string[] = []
 
 const sum = (counts: Counts) => Object.values(counts).reduce((total, n) => total + n, 0)
@@ -79,10 +78,9 @@ function bookOf(entryId: string, unit: string) {
   return offering.find((book) => vsRoster.books[book] === faction) ?? offering[0]
 }
 
-function errorsOf(book: string, pick: RosterPick) {
+function errorsOf(book: string, detachment: string | undefined, pick: RosterPick) {
   const loaded = editions.catalogueFor(book)
   if (!loaded) return null
-  const detachment = loaded.detachments.get(book)?.options[0]?.id
   const input = savedRosterPriceInput({
     catalogueId: book,
     detachmentIds: detachment ? [detachment] : [],
@@ -91,10 +89,33 @@ function errorsOf(book: string, pick: RosterPick) {
     picks: [pick],
   })
   const price = calculateRosterPrice(input, { ...loaded, vsRoster }, editions.rulesFor(book))
-  return price && price.errors.map((error) => `${error.entryName}: ${error.message}`).toSorted()
+  return price && new Set(price.errors.map((error) => `${error.entryName}: ${error.message}`))
 }
 
+const UNAVAILABLE = 'a saved choice is no longer available'
+const unavailable = (errors: Set<string> | null) => !errors || [...errors].some((error) => error.includes(UNAVAILABLE))
+
+/**
+ * A pick's VS Data translation as the frozen map's reader makes it: VS Data's first fielding, `base`, then each key the
+ * pick holds (one for a divided group's one extra), with any allegiance the default build holds kept. Null where the map
+ * has no entry for one of them.
+ */
+function translated(entry: (typeof map)[string], first: Record<string, Counts>, allegiance: string | undefined, keys: readonly string[]) {
+  let options = first
+  let taken = allegiance
+  for (const key of keys) {
+    const choice = entry.choices[key]
+    if (!choice) return null
+    if ('allegiance' in choice) taken = choice.allegiance
+    else options = added(options, choice.options)
+  }
+  return { options, ...(taken ? { allegiance: taken } : {}) }
+}
+
+const keysOf = (choices: Record<string, string>) => Object.entries(choices).map(([key, option]) => `${key}|${option}`)
+const differences = new Map<string, number>()
 let datasheets = 0
+let unbuilt = 0
 for (const [entryId, entry] of Object.entries(map)) {
   const unit = definitions.get('unit', entry.unit)
   if (!unit || entry.base === 'unmatched' || vsRoster.units[entryId] !== unit.id) continue
@@ -107,14 +128,25 @@ for (const [entryId, entry] of Object.entries(map)) {
   )
   const first = added(structuredClone(unit.data.defaults ?? {}), entry.base?.options ?? {})
   const built = buildUnit(entryId, catalogue.index)
-  const cases: Case[] = [{ entryId, unit: unit.id, key: 'default', book, bs: { entryId }, vs: { models, options: first } }]
-  for (const [key, choice] of Object.entries(entry.choices)) {
+  const allegiance = built?.choices.flatMap((choice) => {
+    const mapped = choice.chosen ? entry.choices[`${choice.key}|${choice.chosen}`] : undefined
+    return mapped && 'allegiance' in mapped ? [mapped.allegiance] : []
+  })[0]
+  const picks: { key: string; bs: RosterPick; keys: string[] }[] = [{ key: 'default', bs: { entryId }, keys: [] }]
+  for (const key of Object.keys(entry.choices)) {
     const [choiceKey, optionId = ''] = key.split('|') as [string, string?]
     const held = built?.choices.find((candidate) => candidate.key === choiceKey)
     if (!held || !optionId) continue
-    const vs: VsPick =
-      'allegiance' in choice ? { models, options: first, allegiance: choice.allegiance } : { models, options: added(first, choice.options) }
-    let bs: RosterPick = { entryId, choices: { [choiceKey]: optionId } }
+    // A choice beneath another is made with that one taken: the option each step of its key names.
+    const parents = Object.fromEntries(
+      choiceKey
+        .split('/')
+        .slice(0, -1)
+        .flatMap((step) => {
+          const parent = built?.choices.find((candidate) => candidate.options.some((option) => option.id === step))
+          return parent ? [[parent.key, step]] : []
+        }),
+    )
     if (held.room > 1) {
       // A divided group takes one more of the option, and one fewer of the most held other where it is full.
       const counts = Object.fromEntries(held.options.map((option) => [option.id, option.count]))
@@ -124,32 +156,53 @@ for (const [entryId, entry] of Object.entries(map)) {
         if (!donor) continue
         counts[donor.id]! -= 1
       }
-      bs = { entryId, spreads: { [choiceKey]: counts } }
-    }
-    cases.push({ entryId, unit: unit.id, key, book, bs, vs })
+      picks.push({ key, bs: { entryId, choices: parents, spreads: { [choiceKey]: counts } }, keys: [...keysOf(parents), key] })
+    } else picks.push({ key, bs: { entryId, choices: { ...parents, [choiceKey]: optionId } }, keys: [...keysOf(parents), key] })
   }
-  for (const found of cases) {
-    const bsErrors = errorsOf(found.book, found.bs)
-    const vsErrors = errorsOf(found.book, { entryId, vs: found.vs })
+  const detachments =
+    editions
+      .catalogueFor(book)
+      ?.detachments.get(book)
+      ?.options.map((option) => option.id) ?? []
+  for (const { key, bs, keys } of picks) {
+    const read = translated(entry, first, allegiance, keys)
+    // The first of the book's Detachments that offers what the pick holds.
+    let detachment = detachments[0]
+    let bsErrors = errorsOf(book, detachment, bs)
+    for (const other of detachments.slice(1)) {
+      if (!unavailable(bsErrors)) break
+      const retried = errorsOf(book, other, bs)
+      if (!unavailable(retried)) [detachment, bsErrors] = [other, retried]
+    }
+    if (!read || unavailable(bsErrors)) {
+      unbuilt++
+      continue
+    }
+    const vsErrors = errorsOf(book, detachment, { entryId, vs: { models, ...read } })!
+    const bsOnly = [...bsErrors!].filter((error) => !vsErrors.has(error))
+    const vsOnly = [...vsErrors].filter((error) => !bsErrors!.has(error))
     const verdict: Verdict =
-      !bsErrors || !vsErrors
-        ? 'not built'
-        : bsErrors.length && vsErrors.length
-          ? 'both refuse'
-          : bsErrors.length
+      !bsOnly.length && !vsOnly.length
+        ? 'same'
+        : bsErrors!.size && vsErrors.size
+          ? 'both refuse, differently'
+          : bsErrors!.size
             ? 'BSData alone refuses'
-            : vsErrors.length
-              ? 'VS Data alone refuses'
-              : 'both legal'
-    verdicts.set(verdict, [...(verdicts.get(verdict) ?? []), found])
-    const differ = JSON.stringify(bsErrors) !== JSON.stringify(vsErrors)
-    if (values.list && differ && verdict !== 'both legal')
+            : 'VS Data alone refuses'
+    verdicts.set(verdict, (verdicts.get(verdict) ?? 0) + 1)
+    const general = (error: string) => error.replace(/^[^:]*: /, '').replaceAll(/\d+/g, 'N')
+    for (const error of bsOnly) differences.set(`BSData: ${general(error)}`, (differences.get(`BSData: ${general(error)}`) ?? 0) + 1)
+    for (const error of vsOnly) differences.set(`VS Data: ${general(error)}`, (differences.get(`VS Data: ${general(error)}`) ?? 0) + 1)
+    if (values.list && verdict !== 'same')
       details.push(
-        `${verdict} · ${found.unit} ${found.key}\n    BSData: ${bsErrors?.join(' | ') || '-'}\n    VS Data: ${vsErrors?.join(' | ') || '-'}`,
+        `${verdict} · ${unit.id} ${key}\n    BSData only: ${bsOnly.join(' | ') || '-'}\n    VS Data only: ${vsOnly.join(' | ') || '-'}`,
       )
   }
 }
 
-console.log(`${base.edition.id}: ${datasheets} datasheets, ${[...verdicts.values()].reduce((total, list) => total + list.length, 0)} units`)
-for (const [verdict, list] of verdicts) console.log(`  ${verdict}: ${list.length}`)
+const compared = [...verdicts.values()].reduce((total, n) => total + n, 0)
+console.log(`${base.edition.id}: ${datasheets} datasheets, ${compared} units compared, ${unbuilt} the catalogue or the map cannot build`)
+for (const [verdict, n] of verdicts) console.log(`  ${verdict}: ${n}`)
+console.log('errors one side alone raises:')
+for (const [error, n] of [...differences].toSorted((a, b) => b[1] - a[1])) console.log(`  ${n} ${error}`)
 for (const line of details) console.log(line)
