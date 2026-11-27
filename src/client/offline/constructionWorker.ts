@@ -43,7 +43,7 @@ const preparation = (catalogueId: string | undefined, units: boolean) =>
 /** Whether the server can answer instead; otherwise the device is all there is, so a read waits for it to prepare. */
 const connected = () => navigator.onLine && !offlineData()
 
-/** Stops device construction once a newer release is published: this page's rules code may no longer match the server's. */
+/** Stops device construction once a release changes its code: this page's rules code would no longer match the server's. */
 export function retireDeviceConstruction() {
   outdated = true
   wanted.clear()
