@@ -1,4 +1,3 @@
-import { detachmentOptionsOf } from '../shared/factionReferences'
 import type { Worker } from 'node:worker_threads'
 import { servedVsDataUnits } from './servedVsData'
 import { withVsDataSaves } from '../shared/vsDataSaves'
@@ -381,7 +380,7 @@ function withEnhancements(
 
 /** The detachment a side names, by id, slug, or name among those its faction's lists can take. */
 export function detachmentId(loaded: LoadedCatalogue, catalogueId: string, detachment: string) {
-  const options = detachmentOptionsOf(loaded, catalogueId)
+  const options = loaded.detachments.get(catalogueId)?.options ?? []
   const key = joinKey(detachment)
   const found = options.find((option) => option.id === detachment || joinKey(option.name) === key)
   if (found) return found.id
