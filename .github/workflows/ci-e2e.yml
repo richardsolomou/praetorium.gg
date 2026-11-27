@@ -23,8 +23,8 @@ jobs:
       fail-fast: false
       matrix:
         runner: ${{ fromJSON(inputs.runners) }}
-    # The owner's own pull requests run the last two runners on the desktop runner (docs/deployment.md#ci-runners).
-    runs-on: ${{ vars.DESKTOP_RUNNER == 'on' && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.user.login == 'richardsolomou' && matrix.runner > 12 && fromJSON('["self-hosted","linux","desktop"]') || 'ubuntu-latest' }}
+    # The owner's own pull requests run runners 2 and 3 on the desktop runner, which exist whatever the runner count (docs/deployment.md#ci-runners).
+    runs-on: ${{ vars.DESKTOP_RUNNER == 'on' && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.user.login == 'richardsolomou' && (matrix.runner == 2 || matrix.runner == 3) && fromJSON('["self-hosted","linux","desktop"]') || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v7
       # The browser-test build saved the dependency cache this restores, so the pnpm store `setup-js` restores goes unused.
