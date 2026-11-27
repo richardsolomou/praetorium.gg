@@ -2,6 +2,7 @@ import type { Page } from '@playwright/test'
 import { expect, test } from './test'
 import { createBattle, retryUntilVisible, setupStep, signUp, uniqueName } from './account'
 import manifest from '../package.json' with { type: 'json' }
+import { screenshot } from './screenshots'
 const { version } = manifest
 
 /** Answers the release check with whatever version `served` reads at the time of the request. */
@@ -26,7 +27,7 @@ test('a connected launch loads the current application instead of the saved appl
   await page.reload()
   await expect(page.getByRole('link', { name: 'Army builder', exact: true })).toBeVisible()
   await expect(page.getByRole('complementary', { name: 'Release update' })).toHaveCount(0)
-  await page.screenshot({ path: test.info().outputPath('current-release-launch.png') })
+  await screenshot(page, 'current-release-launch.png')
 })
 
 test('the release check names the device engine file the page runs', async ({ page }) => {
@@ -62,7 +63,7 @@ test('release notice waits for a new version and refreshes only on request', asy
       const tabs = await page.locator('[data-native-app-tabs]').boundingBox()
       expect(bounds!.y + bounds!.height).toBeLessThan(tabs!.y)
     }
-    await page.screenshot({ path: test.info().outputPath(`release-update-${width}.png`) })
+    await screenshot(page, `release-update-${width}.png`)
   }
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.clock.runFor(60_000)
@@ -167,7 +168,7 @@ test('a stale page reopens a tab where the reader left it', async ({ page }) => 
   await expect(page).toHaveURL(staleBuildMarker)
   expect(await page.evaluate(() => 'previousDocument' in window)).toBe(false)
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(1200)
-  await page.screenshot({ path: test.info().outputPath('stale-tab-reopened.png') })
+  await screenshot(page, 'stale-tab-reopened.png')
   await page.goBack()
   await expect.poll(() => new URL(page.url()).pathname).toBe('/rosters')
 })
@@ -189,14 +190,14 @@ test('a route error in a page built before the deployed release reloads into the
   await expect(page).toHaveURL(staleBuildMarker)
 })
 
-test('try again reloads a stale page that has stopped reloading itself', async ({ page }, testInfo) => {
+test('try again reloads a stale page that has stopped reloading itself', async ({ page }) => {
   let recovering = false
   await serveRelease(page, () => '99.0.0')
   await failFactionsModule(page, () => !recovering)
   await page.goto('/factions?__build_retry=1234.3.99.0.0')
   const tryAgain = page.getByRole('button', { name: 'Try again', exact: true })
   await expect(tryAgain).toBeVisible()
-  await page.screenshot({ path: testInfo.outputPath('stale-build-error.png') })
+  await screenshot(page, 'stale-build-error.png')
   recovering = true
   await tryAgain.click()
   await expect(page.getByRole('heading', { name: 'Factions', exact: true })).toBeVisible()

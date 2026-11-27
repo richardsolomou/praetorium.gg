@@ -23,57 +23,6 @@ import {
   attach,
 } from './builder.harness'
 
-test('a squad grows from its unit editor', async ({ page }) => {
-  await page.setViewportSize({ width: 1600, height: 900 })
-  await openBuilder(page)
-  await add(page, 'Immortals')
-
-  const card = page.locator('[data-unit="Immortals"]')
-  await add(page, 'Flayed Ones')
-  await card.click({ position: { x: 4, y: 4 } })
-  await expect(page.locator('aside[aria-label="Loadout"]').getByRole('heading', { name: 'Immortals' })).toBeVisible()
-  const loadout = page.locator('aside[aria-label="Loadout"]')
-  await expect(loadout.getByText('Battleline', { exact: true })).toBeVisible()
-  const profile = loadout.locator('[data-slot="unit-profile"]')
-  await expect(profile).toBeVisible()
-  await loadout.evaluate((pane) => {
-    new MutationObserver(() => {
-      if (pane.querySelector('[aria-label="Loading datasheet"]')) document.documentElement.dataset.datasheetReloaded = 'true'
-    }).observe(pane, { childList: true, subtree: true })
-  })
-
-  const total = page.locator('[data-stat="points"]')
-  await expect(total).toHaveText(/^\d+\/2000$/)
-  const startingPoints = Number((await total.innerText()).split('/')[0])
-  // The stepper lives with the rest of the selected unit's configuration.
-  await page.getByRole('button', { name: 'More models in Immortals' }).click()
-  await expect(page.getByLabel('Immortals models')).toHaveText('6')
-  await expect.poll(async () => Number((await total.innerText()).split('/')[0])).toBeGreaterThan(startingPoints)
-  await expect(page.locator('html')).not.toHaveAttribute('data-datasheet-reloaded', 'true')
-  // And the wargear lines follow the models carrying it.
-  await expect(page.getByText('6x Gauss blaster')).toBeVisible()
-  await expect(loadout.getByRole('heading', { name: 'Tools of Dominion' })).toHaveCount(0)
-})
-
-test('a squad jumps straight to a chosen size', async ({ page }) => {
-  await openBuilder(page)
-  await add(page, 'Immortals')
-  await page.locator('[data-unit="Immortals"]').click({ position: { x: 4, y: 4 } })
-  const total = page.locator('[data-stat="points"]')
-  await expect(total).toHaveText(/^\d+\/2000$/)
-  const startingPoints = Number((await total.innerText()).split('/')[0])
-
-  await chooseOption(page, 'Immortals models', '10')
-  await expect(page.getByLabel('Immortals models')).toHaveText('10')
-  await expect(page.getByRole('button', { name: 'More models in Immortals' })).toBeDisabled()
-  await expect(page.getByRole('button', { name: 'More models in Immortals' })).toHaveAccessibleDescription('Max 10 models')
-  await expect.poll(async () => Number((await total.innerText()).split('/')[0])).toBeGreaterThan(startingPoints)
-
-  await page.getByRole('combobox', { name: 'Immortals models' }).press('Enter')
-  await page.getByRole('option', { name: '7', exact: true }).press('Enter')
-  await expect(page.getByLabel('Immortals models')).toHaveText('7')
-})
-
 test('loadout controls keep their shape while resized constraints load', async ({ page }) => {
   await openBuilder(page)
   await add(page, 'Immortals')
@@ -268,29 +217,6 @@ test('a character joins the unit it leads, and both cards say so', async ({ page
   await expect(page.locator('[data-unit="Overlord"]')).toBeVisible()
 })
 
-test('a leader detaches from its unit through its own menus', async ({ page }) => {
-  await openBuilder(page)
-  await add(page, 'Overlord')
-  await add(page, 'Plasmancer')
-  await add(page, 'Immortals')
-  await attach(page, 'Overlord', 'Immortals')
-  await attach(page, 'Plasmancer', 'Immortals')
-  const block = page.getByRole('region', { name: 'Immortals', exact: true })
-  // The unit the others joined has nothing to detach from.
-  await block.getByRole('button', { name: 'Unit actions for Immortals' }).click()
-  await expect(page.getByRole('menuitem', { name: 'Delete unit' })).toBeVisible()
-  await expect(page.getByRole('menuitem', { name: 'Detach from unit' })).toHaveCount(0)
-  await page.keyboard.press('Escape')
-
-  await block.getByRole('button', { name: 'Unit actions for Overlord' }).click()
-  await page.getByRole('menuitem', { name: 'Detach from unit' }).click()
-  await expect(block.locator('[data-unit="Overlord"]')).toHaveCount(0)
-
-  await block.locator('[data-unit="Plasmancer"]').click({ button: 'right' })
-  await page.getByRole('menuitem', { name: 'Detach from unit' }).click()
-  await expect(block).toBeHidden()
-})
-
 test("attached units are drawn together on their bodyguard's shelf by default", async ({ page }) => {
   await openBuilder(page)
   await add(page, 'Overlord')
@@ -344,7 +270,20 @@ test("attached units are drawn together on their bodyguard's shelf by default", 
   await page.reload()
   await expect(characters).toBeVisible()
   await toggleTogether(true)
-  await expect(page.getByRole('region', { name: 'Tomb Guard' })).toBeVisible()
+  const guarded = page.getByRole('region', { name: 'Tomb Guard' })
+  await expect(guarded).toBeVisible()
+
+  // A leader detaches through its own menus; the unit the others joined has nothing to detach from.
+  await guarded.getByRole('button', { name: 'Unit actions for Immortals' }).click()
+  await expect(page.getByRole('menuitem', { name: 'Delete unit' })).toBeVisible()
+  await expect(page.getByRole('menuitem', { name: 'Detach from unit' })).toHaveCount(0)
+  await page.keyboard.press('Escape')
+  await guarded.getByRole('button', { name: 'Unit actions for Overlord' }).click()
+  await page.getByRole('menuitem', { name: 'Detach from unit' }).click()
+  await expect(guarded.locator('[data-unit="Overlord"]')).toHaveCount(0)
+  await guarded.locator('[data-unit="Plasmancer"]').click({ button: 'right' })
+  await page.getByRole('menuitem', { name: 'Detach from unit' }).click()
+  await expect(guarded).toBeHidden()
 })
 
 test('Murdermind lets a Chronomancer support Destroyer Cult units', async ({ page }) => {
@@ -405,6 +344,32 @@ test('a tank is armed but not crowned', async ({ page }) => {
     'true',
   )
   await expect(melee.getByRole('button', { name: 'Select Power fist', exact: true })).toHaveAttribute('aria-pressed', 'false')
+
+  // A selected multi-weapon option is not repeated in the equipped summary.
+  await add(page, 'Impulsor')
+  await page
+    .locator('[data-unit="Impulsor"]')
+    .getByRole('button', { name: /^Impulsor/ })
+    .click()
+  await waitForRosterSave(page, () =>
+    loadout.getByRole('group', { name: 'Impulsor Sponsons' }).getByRole('button', { name: 'Select Storm Bolters', exact: true }).click(),
+  )
+  const equipped = loadout.locator('section').filter({ hasText: 'Equipped ranged weapons' })
+  await expect(equipped.getByText('2× Storm bolter', { exact: true })).toHaveCount(0)
+
+  // A mixed-model squad shows its own profile instead of an optional model.
+  const outriderProfile = /M\s*12"\s*T\s*6\s*Sv\s*3\+\s*W\s*4\s*LD\s*6\+\s*OC\s*2/
+  await page.getByLabel('Add a unit').fill('Outrider Squad')
+  await page.getByRole('button', { name: 'View Outrider Squad datasheet' }).click()
+  await expect(page.locator('aside[aria-label="Datasheet"]').locator('[data-slot="unit-profile"]')).toContainText(outriderProfile)
+  await add(page, 'Outrider Squad')
+  await page.locator('[data-unit="Outrider Squad"]').getByRole('button', { name: 'Outrider Squad', exact: true }).click()
+  const profile = loadout.locator('[data-slot="unit-profile"]')
+  await expect(profile).toContainText(outriderProfile)
+  await page.setViewportSize(PHONE)
+  await expect(profile).toBeVisible()
+  await expectNoPageOverflow(page)
+  await expectNoHorizontalOverflow(loadout)
 })
 
 test('the first character added is the warlord, which its unit editor can hand on', async ({ page }) => {
@@ -610,15 +575,37 @@ test('a squad the datasheet keeps identical is asked once, not counted', async (
   await page.setViewportSize({ width: 1600, height: 900 })
   await openBuilder(page)
   await add(page, 'Immortals')
-  await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Immortals', exact: true }).click()
+  await add(page, 'Flayed Ones')
+  await page.locator('[data-unit="Immortals"]').click({ position: { x: 4, y: 4 } })
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  await expect(loadout.getByRole('heading', { name: 'Immortals' })).toBeVisible()
+  await expect(loadout.getByText('Battleline', { exact: true })).toBeVisible()
+  await expect(loadout.locator('[data-slot="unit-profile"]')).toBeVisible()
+  await loadout.evaluate((pane) => {
+    new MutationObserver(() => {
+      if (pane.querySelector('[aria-label="Loading datasheet"]')) document.documentElement.dataset.datasheetReloaded = 'true'
+    }).observe(pane, { childList: true, subtree: true })
+  })
 
-  for (let models = 6; models <= 10; models++) {
-    await page.getByRole('button', { name: 'More models in Immortals' }).click()
-    await expect(page.getByLabel('Immortals models')).toHaveText(String(models))
-  }
+  const total = page.locator('[data-stat="points"]')
+  await expect(total).toHaveText(/^\d+\/2000$/)
+  const startingPoints = Number((await total.innerText()).split('/')[0])
+  // The stepper lives with the rest of the selected unit's configuration.
+  await page.getByRole('button', { name: 'More models in Immortals' }).click()
+  await expect(page.getByLabel('Immortals models')).toHaveText('6')
+  await expect.poll(async () => Number((await total.innerText()).split('/')[0])).toBeGreaterThan(startingPoints)
+  await expect(page.locator('html')).not.toHaveAttribute('data-datasheet-reloaded', 'true')
+  // And the wargear lines follow the models carrying it.
+  await expect(page.getByText('6x Gauss blaster')).toBeVisible()
+  await expect(loadout.getByRole('heading', { name: 'Tools of Dominion' })).toHaveCount(0)
+
+  // A squad jumps straight to a chosen size.
+  await chooseOption(page, 'Immortals models', '10')
+  await expect(page.getByLabel('Immortals models')).toHaveText('10')
+  await expect(page.getByRole('button', { name: 'More models in Immortals' })).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'More models in Immortals' })).toHaveAccessibleDescription('Max 10 models')
   await expect(page.getByText('10x Gauss blaster')).toBeVisible()
 
-  const loadout = page.locator('aside[aria-label="Loadout"]')
   await expect(loadout.getByText('Wargear options')).toBeVisible()
   await expect(loadout.getByText('Weapons').first()).toBeVisible()
   await expect(loadout.getByText('BS').first()).toBeVisible()
@@ -631,6 +618,10 @@ test('a squad the datasheet keeps identical is asked once, not counted', async (
   await expect(page.getByText('10x Gauss blaster')).toBeHidden()
   await expect(page.getByText('must be equipped identically')).toHaveCount(0)
   await expect(page.getByText('Within the points limit')).toBeAttached()
+
+  await page.getByRole('combobox', { name: 'Immortals models' }).press('Enter')
+  await page.getByRole('option', { name: '7', exact: true }).press('Enter')
+  await expect(page.getByLabel('Immortals models')).toHaveText('7')
 })
 
 test('a model-specific weapon has the same count on its roster card and loadout', async ({ page }) => {
@@ -719,30 +710,6 @@ test('a kind of model filed under two groups is still one card', async ({ page }
   await expect(warriors.getByLabel('Autoch-pattern bolter count')).toHaveText('8')
   await expect(warriors.getByLabel('Hearthkyn Warrior models')).toHaveText('9')
   await expect(page.getByText('Within the points limit')).toBeAttached()
-})
-
-test('a squad with chosen loadouts is priced at the size it shrinks to', async ({ page }) => {
-  await page.setViewportSize({ width: 1600, height: 900 })
-  await openBuilder(page, 'Death Guard', /Champions of Contagion/)
-  await add(page, 'Plague Marines')
-  const card = page.locator('[data-unit="Plague Marines"]')
-  await card.getByRole('button', { name: /^Plague Marines/ }).click()
-  const loadout = page.locator('aside[aria-label="Loadout"]')
-  const marines = loadout.locator('section').filter({ has: page.getByLabel('Plague Marine models', { exact: true }) })
-  const total = page.locator('[data-stat="points"]')
-  await expect(total).toHaveText(/^\d+\/2000$/)
-  const fivePoints = await total.innerText()
-
-  for (let model = 5; model < 10; model++)
-    await waitForRosterSave(page, () => page.getByRole('button', { name: 'More models in Plague Marines' }).click())
-  await expect(marines.getByLabel('Plague Marine models', { exact: true })).toHaveText('9')
-  await waitForRosterSave(page, () => marines.getByRole('button', { name: 'More Plague spewer', exact: true }).click())
-  for (let model = 10; model > 5; model--)
-    await waitForRosterSave(page, () => page.getByRole('button', { name: 'Fewer models in Plague Marines' }).click())
-
-  await expect(marines.getByLabel('Plague Marine models', { exact: true })).toHaveText('4')
-  await expect(marines.getByLabel('Plague spewer count', { exact: true })).toHaveText('1')
-  await expect(total).toHaveText(fivePoints)
 })
 
 test('a composite heavy weapon keeps the model armed and can be put back', async ({ page }) => {
@@ -835,23 +802,6 @@ test('a long unit name wraps inside the loadout pane on a small phone', async ({
   const name = loadout.getByRole('heading', { name: 'Militarum Tempestus Command Squad' })
   await expect(name).toBeVisible()
   await expectInsideHorizontalBounds(loadout, name)
-})
-
-test('a selected multi-weapon option is not repeated in the equipped summary', async ({ page }) => {
-  await page.setViewportSize({ width: 1600, height: 900 })
-  await openBuilder(page, 'Space Marines', /Gladius Task Force/)
-  await add(page, 'Impulsor')
-  await page
-    .locator('[data-unit="Impulsor"]')
-    .getByRole('button', { name: /^Impulsor/ })
-    .click()
-
-  const loadout = page.locator('aside[aria-label="Loadout"]')
-  await waitForRosterSave(page, () =>
-    loadout.getByRole('group', { name: 'Impulsor Sponsons' }).getByRole('button', { name: 'Select Storm Bolters', exact: true }).click(),
-  )
-  const equipped = loadout.locator('section').filter({ hasText: 'Equipped ranged weapons' })
-  await expect(equipped.getByText('2× Storm bolter', { exact: true })).toHaveCount(0)
 })
 
 async function plagueMarineVariants(page: Page) {
@@ -1027,9 +977,25 @@ async function orkLoadoutVariants(page: Page) {
 test('Plague Marine variants share a model card', async ({ page }) => {
   await signUp(page, 'Richard')
   await plagueMarineVariants(page)
+
+  // A squad with chosen loadouts is priced at the size it shrinks to.
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  const marines = loadout.locator('section').filter({ has: page.getByLabel('Plague Marine models', { exact: true }) })
+  const total = page.locator('[data-stat="points"]')
+  await expect(total).toHaveText(/^\d+\/2000$/)
+  const fivePoints = await total.innerText()
+  for (let model = 5; model < 10; model++)
+    await waitForRosterSave(page, () => page.getByRole('button', { name: 'More models in Plague Marines' }).click())
+  await expect(marines.getByLabel('Plague Marine models', { exact: true })).toHaveText('9')
+  await waitForRosterSave(page, () => marines.getByRole('button', { name: 'More Plague spewer', exact: true }).click())
+  for (let model = 10; model > 5; model--)
+    await waitForRosterSave(page, () => page.getByRole('button', { name: 'Fewer models in Plague Marines' }).click())
+  await expect(marines.getByLabel('Plague Marine models', { exact: true })).toHaveText('4')
+  await expect(marines.getByLabel('Plague spewer count', { exact: true })).toHaveText('1')
+  await expect(total).toHaveText(fivePoints)
+
   // A phone shows the open loadout as a sheet over the roster.
   await page.setViewportSize(PHONE)
-  const loadout = page.locator('aside[aria-label="Loadout"]')
   await expect(loadout.getByLabel('Plague Marine models', { exact: true })).toHaveText('4')
   await expectNoPageOverflow(page)
   await expectNoHorizontalOverflow(loadout)
@@ -1151,4 +1117,12 @@ test('removing one loadout does not choose another piece of the same model as it
   await loadout.getByRole('button', { name: 'Fewer Bolt Rifle', exact: true }).click()
   await expect(loadout.getByLabel('Bolt Rifle count', { exact: true })).toHaveText('4')
   await expect(page.getByLabel('Crusader Squad models')).toHaveText('10')
+
+  // A supplement imports shared Space Marine units and its detachment group.
+  await add(page, 'Intercessor Squad')
+  await expect(page.locator('[data-unit="Intercessor Squad"]')).toBeVisible()
+  const setup = await openRosterSetup(page)
+  await chooseOption(page, 'Faction', 'Imperial Fists')
+  await expect(setup.getByRole('button', { name: 'Select Ceramite Sentinels' })).toBeVisible()
+  await expect(setup.getByRole('button', { name: /Select Imperialis Fleet/ })).toHaveCount(0)
 })
