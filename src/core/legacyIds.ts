@@ -4,8 +4,9 @@ import rawMissions from '../../catalogue/legacy-ids/missions.json' with { type: 
 /**
  * A frozen map from the Game Datacards IDs battle logs, saved rosters and links hold to the VS Data IDs that replaced
  * them. Stored IDs are never rewritten, so every read of one meets the rules through these maps. Entries are only added.
- * `units.json` also gives, under the same key, the VS Data allegiance a datasheet implies where VS Data's unit stands
- * for several of BSData's, as Khorne Soul Grinder is the Soul Grinder taking Khorne; an ID only ever gains one.
+ * `units.json` also gives, under the same key, the VS Data allegiance a datasheet implies for a pick that holds no
+ * allegiance choice of its own: the one its name spells, as Khorne Soul Grinder is the Soul Grinder taking Khorne, else
+ * the one it is built on before any choice is made, as Daemon Prince of Chaos starts on Khorne. An ID only ever gains one.
  */
 export const legacyIdsSchema = z.object({
   format: z.literal('praetorium.legacy-ids.v1'),

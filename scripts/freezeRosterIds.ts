@@ -6,6 +6,7 @@ import { readCatalogueComposition, editionDirectory } from '../src/server/catalo
 import { groupBy } from '../src/core/collections'
 import { loadCatalogue } from '../src/server/catalogueIndex'
 import { retainedRules } from '../src/core/retainedRosterRules'
+import { buildUnit } from '../src/core/roster'
 import { currentCatalogueId, currentDetachmentId, currentEntryId, migratedCatalogueIds } from '../src/core/retiredCatalogueIds'
 import { freezeLegacyIds } from './lib/legacyIdFiles'
 
@@ -124,11 +125,8 @@ const SPELLINGS: Record<string, string> = {
 /** Reviewed spellings: a Detachment's name as VS Data prints it, by the name BSData gives it. */
 const DETACHMENT_SPELLINGS: Record<string, string> = { 'Brood Brother Auxilia': 'Brood Brothers Auxilia' }
 
-/**
- * The allegiance a datasheet's own name gives the unit it maps to, as BSData's Khorne Soul Grinder takes Khorne of the
- * Soul Grinder's four: the one of the unit's allegiance choices its name spells as whole words.
- */
-function impliedAllegiance(name: string, choices: readonly string[], names: ReadonlyMap<string, string>) {
+/** The one of a unit's allegiance choices a name spells as whole words, as Khorne Soul Grinder spells Khorne. */
+function spelledAllegiance(name: string, choices: readonly string[], names: ReadonlyMap<string, string>) {
   const words = ` ${name.toLowerCase().replace(/[^a-z0-9]+/g, ' ')} `
   const named = choices.filter((choice) => {
     const spelled = (names.get(choice) ?? '')
@@ -243,6 +241,24 @@ for (const entry of composition.editions.toSorted((left, right) => Number(Boolea
   }
   const read = Object.fromEntries(SECTIONS.map((section) => [section, new Map<string, string>()])) as Record<Section, Map<string, string>>
   const allegiances = new Map<string, string>()
+  /**
+   * The allegiance a datasheet gives the unit it maps to: the one its name spells, as BSData's Khorne Soul Grinder is the
+   * Soul Grinder taking Khorne, else the one its first fielding takes, as BSData's Daemon Prince of Chaos starts on Khorne.
+   */
+  const impliedAllegiance = (datasheet: string, unit: string) => {
+    const choices = vs.allegiances.get(unit) ?? []
+    if (!choices.length) return undefined
+    const named = spelledAllegiance(nameOf(index.definitions.get(datasheet)!, index.definitions), choices, vs.names)
+    if (named) return named
+    const fielded = new Set(
+      (buildUnit(datasheet, index)?.choices ?? []).flatMap((choice) => {
+        const option = choice.options.find(({ id }) => id === choice.chosen)
+        const spelled = option && spelledAllegiance(option.name, choices, vs.names)
+        return spelled ? [spelled] : []
+      }),
+    )
+    return fielded.size === 1 ? [...fielded][0] : undefined
+  }
   const add = (section: Section, id: string, current: string) => {
     const held = read[section].get(id)
     if (held !== undefined && held !== current)
@@ -297,7 +313,7 @@ for (const entry of composition.editions.toSorted((left, right) => Number(Boolea
       const unit = vs.units.get(datasheet) ?? vs.units.get(target.id) ?? unitNamed(nameOf(definition, index.definitions), target.id)
       if (unit) {
         add('units', datasheet, unit)
-        const implied = impliedAllegiance(nameOf(definition, index.definitions), vs.allegiances.get(unit) ?? [], vs.names)
+        const implied = impliedAllegiance(datasheet, unit)
         if (implied) allegiances.set(datasheet, implied)
       } else missing.add(`${entry.edition.id} unit ${datasheet} ${nameOf(definition, index.definitions)}`)
     }

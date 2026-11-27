@@ -2212,9 +2212,11 @@
     "profile-unit-e0af-67df-9d63-8fb8-f970-d8cc-1421-7fba": "space-marines.captain-with-jump-pack"
   },
   "allegiances": {
+    "4da3-ccfe-41e9-86bd": "chaos-daemons.daemonic-allegiance.khorne",
     "6dd1-5717-67ef-5c43": "chaos-daemons.daemonic-allegiance.nurgle",
     "73ac-1752-3efd-100a": "chaos-daemons.daemonic-allegiance.tzeentch",
     "98bd-6217-a3ac-b86a": "chaos-daemons.daemonic-allegiance.khorne",
-    "98e0-bfa4-7061-f9ea": "chaos-daemons.daemonic-allegiance.slaanesh"
+    "98e0-bfa4-7061-f9ea": "chaos-daemons.daemonic-allegiance.slaanesh",
+    "ee4d-47d6-bd79-e4ff": "chaos-daemons.daemonic-allegiance.khorne"
   }
 }
