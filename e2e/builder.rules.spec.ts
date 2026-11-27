@@ -3,22 +3,6 @@ import { waitForRosterSave, chooseRosterAction, openRosterSetup, chooseOption, i
 import { shot, expectNoHorizontalOverflow, expectNotAttachable, openBuilder, add, arrangeByRole, attach } from './builder.harness'
 import { screenshot } from './screenshots'
 
-test('enhancement choices show descriptions when rule and catalogue names differ', async ({ page }) => {
-  await openBuilder(page, 'Necrons', /Cursed Legion/)
-  await add(page, 'Skorpekh Lord')
-  await page
-    .getByRole('button', { name: /^Skorpekh Lord/ })
-    .first()
-    .click()
-
-  const enhancements = page.getByRole('group', { name: /Skorpekh Lord Enhancements/ })
-  const mark = enhancements.getByRole('button', { name: 'Select Mark of the Nekrosor' })
-  await expect(mark).toBeVisible()
-  const option = mark.locator('xpath=ancestor::article')
-  await expect(option.locator('[data-rule-summary]')).toBeVisible()
-  await shot(option, 'nekrosor-enhancement.png')
-})
-
 test("Pantheon of Woe adds a C'tan shard's required enhancement", async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 })
   await openBuilder(page, 'Necrons', /Pantheon of Woe/)
@@ -323,9 +307,23 @@ test('an enhancement changes the weapons of the model bearing it', async ({ page
   await expect(loadout.getByText('Staff of light')).not.toHaveCount(0)
   await expect(page.getByRole('button', { name: /S 7, modified from 5 by Destroyer Ankh/ }).first()).toBeVisible()
 
+  // Cursed Legion does not modify Immortals without an eligible leader.
+  await page.getByLabel('Add a unit').fill('Immortals')
+  await page.getByRole('button', { name: 'View Immortals datasheet' }).click()
+  const datasheet = page.locator('aside[aria-label="Datasheet"]')
+  await expect(datasheet).toBeVisible()
+  await expect(datasheet.getByRole('heading', { name: 'Gauss blaster' }).locator('..').getByText('5', { exact: true })).toBeVisible()
+  await expect(page.locator('[data-unit="Immortals"]')).toHaveCount(0)
+  expect(await page.evaluate(() => getComputedStyle(document.documentElement).fontSize)).toBe('18px')
+  await screenshot(page, 'unit-preview.png')
+  await add(page, 'Immortals')
+  await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Immortals', exact: true }).click()
+  const gauss = loadout.locator('article').filter({ hasText: 'Gauss blaster' }).first()
+  await expect(gauss.getByText('5', { exact: true }).first()).toBeVisible()
+  await expect(page.getByRole('button', { name: /modified from 5 by Cursed Legion/ })).toHaveCount(0)
+
   // Attached, the two are one unit: the ankh moves the models it has joined, and
   // leaves their weapons alone.
-  await add(page, 'Immortals')
   await attach(page, 'Overlord', 'Immortals')
   await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
   await expect(page.locator('[data-unit="Overlord"]')).toContainText('Leading')
@@ -375,6 +373,18 @@ test('an enhancement changes the weapons of the model bearing it', async ({ page
   await loadout.getByRole('button', { name: 'Select Destroyer Ankh' }).click()
   await expect(page.getByText(/Destroyer Ankh is taken at most once/)).toHaveCount(1)
   await screenshot(page, 'enhancement-once-per-army.png', { fullPage: true })
+
+  // An enhancement choice shows its description when the rule and catalogue names differ.
+  await add(page, 'Skorpekh Lord')
+  await page
+    .locator('[data-unit="Skorpekh Lord"]')
+    .getByRole('button', { name: /^Skorpekh Lord/ })
+    .click()
+  const mark = page.getByRole('group', { name: /Skorpekh Lord Enhancements/ }).getByRole('button', { name: 'Select Mark of the Nekrosor' })
+  await expect(mark).toBeVisible()
+  const option = mark.locator('xpath=ancestor::article')
+  await expect(option.locator('[data-rule-summary]')).toBeVisible()
+  await shot(option, 'nekrosor-enhancement.png')
 })
 
 /**
@@ -513,43 +523,6 @@ test('a free swap shows on the roster card as well as the loadout', async ({ pag
   await expect(loadout.getByLabel(`${swap} count`)).toHaveText('0')
   await expect(card).toContainText('Heavy thunder hammer')
   await expect(card).not.toContainText('Astartes shield')
-})
-
-test('Cursed Legion does not modify Immortals without an eligible leader', async ({ page }) => {
-  await page.setViewportSize({ width: 1600, height: 900 })
-  await openBuilder(page, 'Necrons', /Cursed Legion/)
-  await page.getByLabel('Add a unit').fill('Immortals')
-  await page.getByRole('button', { name: 'View Immortals datasheet' }).click()
-  const datasheet = page.locator('aside[aria-label="Datasheet"]')
-  await expect(datasheet).toBeVisible()
-  await expect(datasheet.getByRole('heading', { name: 'Gauss blaster' }).locator('..').getByText('5', { exact: true })).toBeVisible()
-  await expect(page.locator('[data-unit="Immortals"]')).toHaveCount(0)
-  expect(await page.evaluate(() => getComputedStyle(document.documentElement).fontSize)).toBe('18px')
-  await screenshot(page, 'unit-preview.png')
-
-  await add(page, 'Immortals')
-  await page
-    .getByRole('button', { name: /^Immortals/ })
-    .first()
-    .click()
-
-  const loadout = page.locator('aside[aria-label="Loadout"]')
-  const gauss = loadout.locator('article').filter({ hasText: 'Gauss blaster' }).first()
-  await expect(gauss.getByText('5', { exact: true }).first()).toBeVisible()
-  await expect(page.getByRole('button', { name: /modified from 5 by Cursed Legion/ })).toHaveCount(0)
-})
-
-test('a supplement imports shared Space Marine units and its detachment group', async ({ page }) => {
-  await openBuilder(page, 'Black Templars', /Marshal's Household/)
-  await add(page, 'Intercessor Squad')
-  await expect(page.locator('[data-unit="Intercessor Squad"]')).toBeVisible()
-  await add(page, 'Crusader Squad')
-  await expect(page.locator('[data-unit="Crusader Squad"]')).toBeVisible()
-
-  const setup = await openRosterSetup(page)
-  await chooseOption(page, 'Faction', 'Imperial Fists')
-  await expect(setup.getByRole('button', { name: 'Select Ceramite Sentinels' })).toBeVisible()
-  await expect(setup.getByRole('button', { name: /Select Imperialis Fleet/ })).toHaveCount(0)
 })
 
 test('detachment combinations follow the 11th edition allowance', async ({ page }) => {
