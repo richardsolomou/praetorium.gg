@@ -427,14 +427,12 @@ function translate({
   if (loadout && taken.length) return { outcome: 'unmatched', reason: 'loadout-allegiance' }
   // A datasheet that stands for one of the unit's allegiances (one Soul Grinder datasheet per god) takes it.
   const allegiance = (taken[0] && allegianceOf(taken[0].name)) || key(ids.unitAllegiances, pick.entryId)
-  // Any other allegiance the unit needs and no choice of the pick gives stays unread.
-  if (
+  // An allegiance the unit needs that BSData left as an unmade choice stays unmade, so the builder asks for one.
+  const unset =
     !allegiance &&
     definitions
       .get('unit', unit)!
       .data.allegiances?.some((offer) => offer.required && (!offer.detachment || detachments.includes(offer.detachment)))
-  )
-    return { outcome: 'unmatched', reason: 'allegiance-unread' }
   let warlord: string | undefined
   if (hasWarlordToggle(priced.toggles)) {
     // The Warlord is the unit's Character model, else its one model of a kind, as `vsDataErrors` reads it.
@@ -551,7 +549,13 @@ function translate({
       )
     const bare = said({ unit, models, options })
     if ([...said({ unit, ...vs })].some((message) => !bare.has(message))) return { outcome: 'unmatched', reason: 'specials-refused', guess }
-    return { outcome: 'translated', reason: reason + where, selections: only!, vs, ...(guess ? { guess: guess + agrees } : {}) }
+    return {
+      outcome: 'translated',
+      reason: reason + where + (unset ? ', allegiance unset' : ''),
+      selections: only!,
+      vs,
+      ...(guess ? { guess: guess + agrees } : {}),
+    }
   }
   return { outcome: 'unmatched', reason: 'refused-by-checker', guess }
 }
@@ -561,6 +565,8 @@ const tally: Record<string, number> = {}
 const note = (key: string) => (tally[key] = (tally[key] ?? 0) + 1)
 const byKind: Record<string, Record<string, number>> = {}
 const frozen = new Map<string, VsPick>()
+/** Lists, by kind, holding a translated unit that needs an allegiance it never chose. */
+const askedForAllegiance = new Map<string, Set<string>>()
 const disputed = new Set<string>()
 /** Every pick of one list or loadout, translated and counted, and frozen by key where it is translated. */
 function translateAll(
@@ -611,6 +617,8 @@ function translateAll(
     })
     count(result.outcome)
     note(`${result.outcome}: ${result.reason}`)
+    if (result.reason.endsWith('allegiance unset'))
+      (askedForAllegiance.get(kind) ?? askedForAllegiance.set(kind, new Set()).get(kind)!).add(id)
     if (result.guess) note(`guess ${result.guess}: ${result.outcome}`)
     const key = savedPickKey({ rulesVersion: edition, catalogueId: list.catalogueId, detachmentIds: list.detachmentIds }, pick)
     // The key leaves out the battle size and whether the pick is a loadout's, so a key read any other way anywhere is not frozen.
@@ -648,3 +656,4 @@ fs.writeFileSync('data-dev/saved-picks.json', `${JSON.stringify(savedPicksSchema
 console.log(Object.fromEntries(Object.entries(tally).toSorted(([a], [b]) => byId(a, b))))
 console.log(Object.fromEntries(Object.entries(byKind).toSorted(([a], [b]) => byId(a, b))))
 console.log({ frozen: frozen.size, keysLeftOnBsData: disputed.size })
+console.log({ listsAskedForAllegiance: Object.fromEntries([...askedForAllegiance].map(([kind, lists]) => [kind, lists.size])) })
