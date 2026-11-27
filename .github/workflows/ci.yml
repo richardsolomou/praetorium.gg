@@ -8,7 +8,7 @@ on:
       e2e-runners:
         description: Most browser runners, for a timing comparison
         type: choice
-        options: ['14', '16', '8']
+        options: ['14', '8']
         default: '14'
 
 concurrency:
