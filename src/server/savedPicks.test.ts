@@ -8,7 +8,7 @@ import type { RosterPick } from '../core/roster'
 import { lockedRosterRefusal, storedRosterContent } from '../core/rosterLock'
 import { app } from './app'
 import { sealedEventRosterFixture } from './sealedEventRoster.fixtures'
-import { rosterRow } from './rosterPersistence'
+import { rosterFromRow, rosterRow } from './rosterPersistence'
 import { rosterForUse } from './rosterUsage'
 import { savedPicks, servedLoadout, servedRoster, servedSealedRoster } from './savedPicks'
 import { RosterService } from './services/rosterService'
@@ -178,4 +178,71 @@ it('seals a saved roster as it is stored', async () => {
   fielding()
   const { snapshot } = await rosterForUse('user-1', 'roster-1', { sealing: true })
   expect(snapshot.built?.picks?.map((pick) => pick.translatedVs ?? pick.vs)).toEqual([undefined])
+})
+
+describe('a write to a list saved before the copy', () => {
+  const writer = () => {
+    const keepRosterTranslations = vi.fn().mockResolvedValue(true)
+    const saveRoster = vi.fn().mockResolvedValue('updated')
+    const repository = {
+      roster: vi.fn().mockResolvedValue(row(before)),
+      keepRosterTranslations,
+      saveRoster,
+      setRosterLocked: vi.fn().mockResolvedValue(true),
+      setRosterVisibility: vi.fn().mockResolvedValue(true),
+      setRosterArchived: vi.fn().mockResolvedValue(true),
+      splitRosterVariant: vi.fn().mockResolvedValue(true),
+      rosterGroupByUser: vi.fn().mockResolvedValue([{ id: 'roster-1' }, { id: 'roster-2' }]),
+    }
+    const kept = () => keepRosterTranslations.mock.calls[0]?.[2]?.[0]?.vs
+    return { rosters: new RosterService(repository as unknown as RepositoryPort, () => after), kept, saveRoster, keepRosterTranslations }
+  }
+
+  it('keeps its translations as its own when it is locked', async () => {
+    const { rosters, kept } = writer()
+    await rosters.setRosterLocked('user-1', 'roster-1', true)
+    expect(kept()).toEqual(fixture.vs)
+  })
+
+  it('keeps its translations as its own when its visibility changes', async () => {
+    const { rosters, kept } = writer()
+    await rosters.setRosterVisibility('user-1', 'roster-1', 'public')
+    expect(kept()).toEqual(fixture.vs)
+  })
+
+  it('keeps its translations as its own when it is archived', async () => {
+    const { rosters, kept } = writer()
+    await rosters.setRosterArchived('user-1', 'roster-1', true)
+    expect(kept()).toEqual(fixture.vs)
+  })
+
+  it('keeps every variant a split moves on its translations', async () => {
+    const { rosters, keepRosterTranslations } = writer()
+    await rosters.splitRosterVariant('user-1', 'roster-1')
+    expect(keepRosterTranslations.mock.calls.map(([id]) => id)).toEqual(['roster-1', 'roster-2'])
+  })
+
+  it('lets a locked list saved back as stored through the lock with them', async () => {
+    const { rosters, saveRoster } = writer()
+    const stored = rosterFromRow(row(before), true)
+    await rosters.saveRoster('user-1', {
+      ...saveRosterSchema.parse(stored),
+      id: 'roster-1',
+      automaticName: stored.automaticName,
+      visibility: stored.visibility,
+      source: stored.source,
+    })
+    const written = { ...row(before), picks: JSON.stringify([{ ...fixture.pick, vs: fixture.vs }]) }
+    const saved = { ...saveRoster.mock.calls[0]![0], automaticName: stored.automaticName }
+    expect(lockedRosterRefusal({ ...storedRosterContent(written), locked: true }, storedRosterContent(saved))).toBeNull()
+  })
+})
+
+it('waits for translations still loading before a write moves a list past them', async () => {
+  vi.resetModules()
+  const { keepServedTranslations } = await import('./services/rosterService')
+  const keepRosterTranslations = vi.fn().mockResolvedValue(true)
+  const repository = { roster: vi.fn().mockResolvedValue(row(before)), keepRosterTranslations }
+  await keepServedTranslations(repository as unknown as RepositoryPort, 'roster-1', 'user-1')
+  expect(keepRosterTranslations.mock.calls[0]?.[2]?.[0]?.vs).toEqual(fixture.vs)
 })

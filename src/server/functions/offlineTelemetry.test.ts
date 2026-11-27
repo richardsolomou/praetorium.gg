@@ -2,7 +2,12 @@ import { beforeEach, expect, it, vi } from 'vitest'
 import { saveRosterSchema } from '../../contracts/schemas'
 import { syncRoster } from './offline'
 
-const mocks = vi.hoisted(() => ({ capture: vi.fn(), syncRoster: vi.fn(), player: { id: 'actor', impersonatedBy: null as string | null } }))
+const mocks = vi.hoisted(() => ({
+  capture: vi.fn(),
+  syncRoster: vi.fn(),
+  roster: vi.fn(),
+  player: { id: 'actor', impersonatedBy: null as string | null },
+}))
 
 vi.mock('@tanstack/react-start', () => {
   const builder = () => ({ validator: () => builder(), handler: (handler: unknown) => handler })
