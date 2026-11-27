@@ -23,6 +23,7 @@ import { loadSnapshot } from './lib/catalogueSnapshotLoad'
 import { leaves, legacyIds } from './lib/vsDataRosters'
 import { same } from '../src/shared/vsDataModelNames'
 import { vsSpelling } from '../src/shared/wargearSpellings'
+import { inBook } from '../src/shared/vsDataPoints'
 
 const { values, positionals } = parseArgs({ allowPositionals: true, options: { list: { type: 'boolean', default: false } } })
 const directory = path.resolve(positionals[0] ?? 'catalogue-data')
@@ -150,7 +151,7 @@ for (const faction of loaded.factions) {
   const book = bookOf(faction.id)
   if (!book) continue
   for (const entryId of unitIdsIn(loaded, faction.id, { nonMatchedPlay: true })) {
-    const unitId = exact.get(entryId)
+    const unitId = inBook(exact, faction.id, entryId)
     if (!unitId) continue
     const own = definitions.get('unit', unitId)!.data.faction === book
     if (!listing.has(entryId) || own) listing.set(entryId, faction.id)
@@ -162,7 +163,7 @@ for (const [entryId, catalogueId] of listing) {
   {
     const faction = { id: catalogueId }
     const book = bookOf(catalogueId)!
-    const unitId = exact.get(entryId)!
+    const unitId = inBook(exact, catalogueId, entryId)!
     const name = definitions.get('unit', unitId)!.name
     const first = vsFirstFielding(definitions, unitId)
     const sizes = definitions.get('unit', unitId)!.data.sizes
