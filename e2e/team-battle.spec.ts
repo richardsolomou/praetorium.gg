@@ -36,7 +36,7 @@ test('a 2v1 draws the allied pair as one side with one pool, whichever side open
   await signUp(ally, allyName)
   const allyRoster = await createRoster(ally, {
     faction: 'Necrons',
-    detachment: /Canoptek Court/,
+    detachment: /Obeisance Phalanx/,
     name: 'Ally army',
     size: /Incursion/,
   })
@@ -132,11 +132,11 @@ test('a 2v1 draws the allied pair as one side with one pool, whichever side open
   await expect(ours.getByRole('link', { name: allyName })).toBeVisible()
   await expect(ours.getByRole('link', { name: partnerName })).toBeVisible()
   // Each ally's army reads as its own line, not as one sentence holding both of them.
-  await expect(ours.getByRole('link', { name: /^Canoptek Court$/ })).toBeVisible()
+  await expect(ours.getByRole('link', { name: /^Obeisance Phalanx$/ })).toBeVisible()
   await expect(ours.getByRole('link', { name: /^Hypercrypt Legion$/ })).toBeVisible()
   // The format is the shape of the table rather than who is in it.
   await expect(ally.getByRole('main')).toContainText('2v1')
-  await expect(ours.getByRole('button', { name: /^About Solar Pulse$/i })).toBeVisible()
+  await expect(ours.getByRole('button', { name: /^About Territorial Obsession$/i })).toBeVisible()
   await expect(ours.getByRole('button', { name: /^About Reanimation Crypts$/i })).toBeVisible()
   // The side across the table keeps its own, which is what says the pool is per side.
   await expect(playerPanel(ally, 1).getByRole('button', { name: /^About Reanimation Crypts$/i })).toHaveCount(0)
