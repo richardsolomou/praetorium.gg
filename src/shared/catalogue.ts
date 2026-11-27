@@ -60,7 +60,8 @@ import {
 } from './textFacts'
 import type { AbilityKind, Datasheet } from '../contracts/catalogue'
 import { baseSizeOf } from './vsDataBaseSizes'
-import { vsStatLinesOf } from './vsDataProfiles'
+import { type VsStatValues, vsStatLinesOf } from './vsDataProfiles'
+import { rulesNamed } from './catalogueRules'
 
 export function toughnessOf(profiles: readonly { type: string; values: readonly { name: string; value: string }[] }[]): number | null {
   const values = profiles
@@ -783,8 +784,20 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
     profiles: uniqueProfiles(displayProfiles),
     abilities: uniqueAbilities(withGrantsOverLinks([...abilities.values()], grantedAbilities)),
     enhancements: [...enhancements.values()],
-    keywordRules: [...keywordRules.values()],
+    keywordRules: [...keywordRules.values(), ...vsKeywordRules(loaded, vsLines, [...keywordRules.values()])],
   }
+}
+
+/** The rule of each weapon keyword a VS Data stat line prints that none of the catalogue's linked rules explains. */
+function vsKeywordRules(
+  loaded: LoadedCatalogue,
+  lines: readonly (VsStatValues | null)[],
+  linked: readonly Datasheet['keywordRules'][number][],
+): Datasheet['keywordRules'] {
+  const unexplained = [...new Set(lines.flatMap((line) => splitWeaponKeywords(line?.keywords)))].filter(
+    (keyword) => !linked.some((rule) => ruleReferenceMatches(keyword, rule.name)),
+  )
+  return unexplained.length ? rulesNamed(loaded, unexplained) : []
 }
 
 type Keywords = { keywords: string[]; modelKeywords: NonNullable<Datasheet['modelKeywords']> }

@@ -103,3 +103,25 @@ it('prints VS Data’s values on the datasheet in place of the catalogue’s', (
     { name: 'S', value: '5' },
   ])
 })
+
+it('explains a keyword VS Data prints on a weapon by its ability, where the catalogue links it no rule', () => {
+  const book = bookOf({
+    selectionEntries: [
+      {
+        id: 'entry',
+        name: 'Squad',
+        type: 'unit',
+        profiles: [
+          { id: 'rifle-profile', name: 'Rifle', typeName: 'Ranged Weapons', characteristics: [{ name: 'Keywords', $text: 'Pistol' }] },
+        ],
+      },
+    ],
+  })
+  const vsProfiles = indexOf({
+    'weapon-profile': {
+      [`${unit}.rifle`]: record('Rifle', { unit, wargear: `${unit}.rifle`, ...RIFLE, keywords: ['CLOSE-QUARTERS'] }),
+    },
+  })
+  const sheet = datasheetIn({ ...book, vsProfiles, keywords: ['CLOSE-QUARTERS'] }, 'cat', 'entry')!
+  expect(sheet.keywordRules).toEqual([{ name: 'CLOSE-QUARTERS', description: '' }])
+})
