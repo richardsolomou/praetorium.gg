@@ -34,6 +34,7 @@ beforeEach(() => {
 })
 afterEach(() => {
   vi.unstubAllGlobals()
+  vi.unstubAllEnvs()
   fs.rmSync(root, { recursive: true, force: true })
 })
 
@@ -154,6 +155,20 @@ it('writes an archive once and leaves an existing key alone', async () => {
       ifNoneMatch: '*',
     })),
   })
+})
+
+// Production downloads from the public bucket, so a pull request's code must never write it.
+it('shares through the CI bucket in a job that holds its key', async () => {
+  vi.stubEnv('R2_ACCOUNT_ID', 'a'.repeat(32))
+  vi.stubEnv('CI_OUTPUTS_R2_ACCESS_KEY_ID', 'key')
+  vi.stubEnv('CI_OUTPUTS_R2_SECRET_ACCESS_KEY', 'secret')
+  const urls: string[] = []
+  vi.stubGlobal('fetch', async (input: Request) => {
+    urls.push(input.url)
+    return new Response('', { status: 200 })
+  })
+  await uploadRuntime('key', fs.readFileSync(archive))
+  expect(urls).toEqual([`https://${'a'.repeat(32)}.r2.cloudflarestorage.com/praetorium-ci/catalogue/runtime/by-key/key.zip`])
 })
 
 it('skips sharing without write access', async () => {

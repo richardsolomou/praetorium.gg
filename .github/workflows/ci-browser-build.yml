@@ -15,8 +15,6 @@ on:
         value: ${{ jobs.browser-build.outputs.node-version }}
       runner-count:
         value: ${{ jobs.browser-build.outputs.runner-count }}
-      runtime-shared:
-        value: ${{ jobs.browser-build.outputs.runtime-shared }}
       runners:
         value: ${{ jobs.browser-build.outputs.runners }}
 
@@ -29,13 +27,12 @@ jobs:
     runs-on: ubuntu-latest
     env:
       R2_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-      ASSETS_R2_ACCESS_KEY_ID: ${{ secrets.CATALOGUE_R2_ACCESS_KEY_ID }}
-      ASSETS_R2_SECRET_ACCESS_KEY: ${{ secrets.CATALOGUE_R2_SECRET_ACCESS_KEY }}
+      CI_OUTPUTS_R2_ACCESS_KEY_ID: ${{ secrets.R2_CI_OUTPUTS_ACCESS_KEY_ID }}
+      CI_OUTPUTS_R2_SECRET_ACCESS_KEY: ${{ secrets.R2_CI_OUTPUTS_SECRET_ACCESS_KEY }}
     outputs:
       needed: ${{ steps.scope.outputs.needed }}
       node-version: ${{ steps.node.outputs.version }}
       runner-count: ${{ steps.runners.outputs.count }}
-      runtime-shared: ${{ steps.runtime.outputs.shared }}
       runners: ${{ steps.runners.outputs.runners }}
     steps:
       - uses: actions/checkout@v7
@@ -54,13 +51,6 @@ jobs:
           r2-account-id: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           r2-access-key-id: ${{ secrets.R2_CATALOGUE_READ_ACCESS_KEY_ID }}
           r2-secret-access-key: ${{ secrets.R2_CATALOGUE_READ_SECRET_ACCESS_KEY }}
-      # A runtime the shared store already holds was compiled by an earlier build, so its compiler's live catalogue is prepared too.
-      - name: Check the shared store for this catalogue runtime
-        id: runtime
-        run: |
-          key="$(pnpm exec tsx scripts/catalogueRuntimeKey.ts)"
-          status="$(curl --silent --output /dev/null --write-out '%{http_code}' --head --retry 3 "https://s3.praetorium.gg/catalogue/runtime/by-key/$key.zip?uncached=$(date +%s)")"
-          echo "shared=$([ "$status" = 200 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
       - name: Decide which browser specs the change can affect
         id: scope
         env:
