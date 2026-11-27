@@ -21,6 +21,7 @@ const data = vsRosterData(
           sizes: [1],
           allegiances: [{ choices: ['host.mark.fire'], required: true }],
         }),
+        'other.fort': record('Fort', { faction: 'other', keywords: ['FORTIFICATION'], sizes: [1], legends: true }),
       },
       model: {
         'host.mob.grunt': record('Grunt', { unit: 'host.mob', min: 10, max: 20, wargear: {} }),
@@ -38,11 +39,11 @@ const data = vsRosterData(
   {
     books: { 'bs-host': 'host', 'bs-titan': 'titan' },
     detachments: { 'bs-guard': 'host.guard', 'bs-raid': 'other.raid' },
-    units: { 'bs-mob': 'host.mob', 'bs-lord': 'host.lord' },
+    units: { 'bs-mob': 'host.mob', 'bs-lord': 'host.lord', 'bs-fort': 'other.fort' },
     enhancements: { 'host.guard/bs-crown': 'host.guard.crown', 'host.guard/bs-fire': 'host.guard.crown' },
   },
   null,
-  (id) => ({ 'bs-mob': 'Mob', 'bs-lord': 'Lord' })[id],
+  (id) => ({ 'bs-mob': 'Mob', 'bs-lord': 'Lord', 'bs-fort': 'Fort [Legends]' })[id],
 )
 const unit = (over: Partial<CheckedUnit> & Pick<CheckedUnit, 'entryId'>): CheckedUnit => ({
   key: 0,
@@ -88,6 +89,10 @@ describe('vsDataErrors', () => {
 
   it('leaves a list of a faction VS Data gives no Detachments to the catalogue', () => {
     expect(vsDataErrors(data, { catalogueId: 'bs-titan', detachmentIds: [], limit: 1000 }, [])).toBeNull()
+  })
+
+  it('leaves a Legends datasheet VS Data files under a faction the army does not ally with to the catalogue', () => {
+    expect(errors([unit({ entryId: 'bs-fort' })])).toEqual([])
   })
 
   it('leaves a list with another faction’s Detachment to the catalogue', () => {

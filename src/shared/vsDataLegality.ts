@@ -2,6 +2,7 @@ import { type VsDataConstruction, type VsDataDefinitions, vsDataDefinitions } fr
 import { checkVsRoster, type VsProblem, type VsRosterUnit } from '../core/vsDataRoster'
 import { hasWarlordToggle, type UnitChoice, type UnitToggle } from '../core/unitChoices'
 import { remember } from '../core/collections'
+import { nonMatchedPlayKind } from '../core/name'
 import { idsIn, type VsDataIds } from './vsDataPoints'
 
 /**
@@ -78,7 +79,7 @@ export function vsDataErrors(
   const battleSize = definitions.all('battle-size').find((size) => size.data.points === list.limit)?.id
   const taken = new Set<string>()
   const checked = units.flatMap((unit): { unit: CheckedUnit; read: VsRosterUnit; offersAllegiance: boolean }[] => {
-    const id = data.units[unit.entryId]
+    const id = vsDataChecks(data, list.catalogueId, unit)
     if (!id) return []
     // A unit whose size the player cannot change is fielded as the catalogue models it, which can count a model VS Data
     // folds into another, so only a size the player chose is checked.
@@ -197,4 +198,26 @@ export function vsDataEnhancementOptions(data: VsRosterData | undefined, detachm
       return detachments.has(detachment) ? [option] : []
     }),
   )
+}
+
+/**
+ * The VS Data unit a list's datasheet is checked as, or undefined where the catalogue checks it: a datasheet VS Data
+ * defines no unit for, or a Warhammer Legends one it files under a faction the army neither is nor allies with, as it
+ * does a fortification or an Aeldari Legends hero, until VS Data offers it there.
+ */
+export function vsDataChecks(
+  data: VsRosterData | undefined,
+  catalogueId: string,
+  unit: Pick<CheckedUnit, 'entryId' | 'name'>,
+): string | undefined {
+  const id = data?.units[unit.entryId]
+  if (!data || !id) return undefined
+  const definitions = remember(definitionsOf, data, () => vsDataDefinitions(data.construction))
+  const filed = definitions.get('unit', id)?.data
+  const faction = data.books[catalogueId.slice(catalogueId.indexOf('~') + 1)]
+  const army = faction ? definitions.get('faction', faction)?.data : undefined
+  const own = new Set([faction, army?.parent])
+  const legends = Boolean(filed?.legends) || nonMatchedPlayKind(unit.name) === 'legends'
+  const offered = own.has(filed?.faction) || (army?.allies ?? []).some((ally) => ally.units.includes(id))
+  return filed && legends && !offered ? undefined : id
 }

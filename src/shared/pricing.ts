@@ -54,7 +54,7 @@ import {
 } from './unitPoints'
 import { isUpgrade, mfmDetachmentFor, withoutUpgrade } from './mfm'
 import { deploymentRules } from './rosterDeployment'
-import { vsDataEnhancementOptions, vsDataErrors } from './vsDataLegality'
+import { vsDataChecks, vsDataEnhancementOptions, vsDataErrors } from './vsDataLegality'
 import { combatFactsIn, grantsReserveExemptionIn, pickedGrantsOf, reminderIn, reserveSelectorsIn } from './textFacts'
 import { heldWargear, replacementKey, type ReplacementSource } from './heldWargear'
 import { factionRestrictionViolations, isCatalogueSelfContradiction, kotcViolations, warlordCountProblem } from './formatRestrictions'
@@ -707,7 +707,7 @@ function calculateRoster(
     data,
     picked.map((unit) => ({ ...unit, keywords: keywordNamesOf(unit) })),
   )
-  const leftToCatalogue = new Set(picked.filter((unit) => !loaded.vsRoster?.units[unit.entryId]).map((unit) => unit.name))
+  const leftToCatalogue = new Set(picked.filter((unit) => !vsDataChecks(loaded.vsRoster, data.catalogueId, unit)).map((unit) => unit.name))
   const enhancementOptions = vsData ? vsDataEnhancementOptions(loaded.vsRoster, data.detachmentIds) : new Set<string>()
   // What VS Data's checker says instead: a datasheet's own copy limit, a keyword's roster limit (a limit on the category
   // itself, not one a unit puts on its models through it) other than one only datasheets left to the catalogue meet, and
