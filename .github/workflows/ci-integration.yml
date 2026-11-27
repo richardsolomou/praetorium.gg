@@ -28,8 +28,8 @@ jobs:
       - uses: ./.github/actions/catalogue-sync
         with:
           r2-account-id: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-          r2-access-key-id: ${{ secrets.SNAPSHOT_R2_ACCESS_KEY_ID }}
-          r2-secret-access-key: ${{ secrets.SNAPSHOT_R2_SECRET_ACCESS_KEY }}
+          r2-access-key-id: ${{ secrets.R2_CATALOGUE_READ_ACCESS_KEY_ID }}
+          r2-secret-access-key: ${{ secrets.R2_CATALOGUE_READ_SECRET_ACCESS_KEY }}
       - uses: ./.github/actions/setup-spacetime
         id: spacetime
       - run: pnpm test:integration --project '!client-text' ${{ env.CHANGED }}
@@ -58,6 +58,6 @@ jobs:
       - uses: ./.github/actions/catalogue-sync
         with:
           r2-account-id: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-          r2-access-key-id: ${{ secrets.SNAPSHOT_R2_ACCESS_KEY_ID }}
-          r2-secret-access-key: ${{ secrets.SNAPSHOT_R2_SECRET_ACCESS_KEY }}
+          r2-access-key-id: ${{ secrets.R2_CATALOGUE_READ_ACCESS_KEY_ID }}
+          r2-secret-access-key: ${{ secrets.R2_CATALOGUE_READ_SECRET_ACCESS_KEY }}
       - run: pnpm test:integration --project client-text ${{ env.CHANGED }}
