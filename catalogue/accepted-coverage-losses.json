@@ -1,1 +1,6 @@
-[]
+[
+  {
+    "reason": "A new Victrix Honour Guard starts at 3 models, the smallest size VS Data fields, so the probe no longer finds the 1-model unit it built before illegal.",
+    "entries": ["ultramarines / Victrix Honour Guard roster errors: fields 3 or 6 models, has 1"]
+  }
+]
