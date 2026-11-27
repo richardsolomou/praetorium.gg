@@ -8,6 +8,7 @@ import { buildUnit, type BuiltUnit } from '../src/core/roster'
 import { isUnitCompositionChoice, type UnitChoice } from '../src/core/unitChoices'
 import { wargearOf } from '../src/core/wargear'
 import { legacyOptionsSchema } from '../src/core/legacyIds'
+import { correctedOptions, legacyIdCorrections, legacyRosterIds } from '../src/core/legacyRosterIds'
 import { vsDataDefinitions } from '../src/core/vsDataConstruction'
 import { checkVsUnit } from '../src/core/vsDataRoster'
 import { wargearKey } from '../src/core/wargearNames'
@@ -324,12 +325,8 @@ const sorted = (value: unknown): unknown =>
       )
     : value
 
-const readIds = (file: string) =>
-  z
-    .object({ ids: z.record(z.string(), z.string()) })
-    .parse(JSON.parse(fs.readFileSync(path.join(import.meta.dirname, '../catalogue/legacy-ids', file), 'utf8'))).ids
-const unitsMap = readIds('units.json')
-const enhancementIds = new Set(Object.keys(readIds('enhancements.json')).map((key) => key.slice(key.lastIndexOf('/') + 1)))
+const unitsMap = legacyRosterIds.units
+const enhancementIds = new Set(Object.keys(legacyRosterIds.enhancements).map((key) => key.slice(key.lastIndexOf('/') + 1)))
 const composition = readCatalogueComposition(catalogueDirectory)
 if (!composition) throw new Error(`${catalogueDirectory} has no catalogue composition`)
 
@@ -701,9 +698,10 @@ console.log({ ...tally, choices: tally.mapped + tally.noChange + tally.allegianc
 console.log(`Read for the current rules version only; not covered (${uncovered.length}):\n  ${uncovered.join('\n  ')}`)
 if (process.env.OPTIONS_DEBUG) fs.writeFileSync(process.env.OPTIONS_DEBUG, debug.join('\n'))
 // Frozen like the other maps: a choice keeps the selections it was first given, a unit its base and floor, and this run
-// only adds.
+// only adds. A corrected entry is checked as its correction gives it and written as first frozen.
 const file = path.join(import.meta.dirname, '../catalogue/legacy-ids/options.json')
-const frozen = fs.existsSync(file) ? legacyOptionsSchema.parse(JSON.parse(fs.readFileSync(file, 'utf8'))).units : {}
+const raw = fs.existsSync(file) ? legacyOptionsSchema.parse(JSON.parse(fs.readFileSync(file, 'utf8'))).units : {}
+const frozen = correctedOptions(raw, legacyIdCorrections)
 const differ = (one: unknown, other: unknown) => JSON.stringify(sorted(one)) !== JSON.stringify(sorted(other))
 for (const [entryId, held] of Object.entries(frozen)) {
   const found = out[entryId]
@@ -723,6 +721,12 @@ for (const [entryId, held] of Object.entries(frozen)) {
   }
   const unmatched = [...new Set([...held.unmatched, ...(found?.unmatched ?? [])])].filter((key) => !(key in choices)).toSorted(byId)
   out[entryId] = { ...held, choices, unmatched }
+}
+for (const correction of legacyIdCorrections) {
+  if (correction.section !== 'options') continue
+  if (differ(out[correction.key], correction.entry))
+    throw new Error(`options: this run adds to corrected ${correction.key}; extend its correction instead`)
+  out[correction.key] = raw[correction.key]!
 }
 fs.writeFileSync(file, `${JSON.stringify({ format: 'praetorium.legacy-options.v1', units: sorted(out) }, null, 2)}\n`)
 execFileSync('pnpm', ['exec', 'oxfmt', file], { stdio: 'inherit' })

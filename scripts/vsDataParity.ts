@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { z } from 'zod'
+import { legacyRosterIds } from '../src/core/legacyRosterIds'
 import { vsDataConstructionSchema } from '../src/core/vsDataConstruction'
 import { readCatalogueComposition } from '../src/server/catalogueComposition'
 import { loadSnapshot } from './lib/catalogueSnapshotLoad'
@@ -34,11 +35,7 @@ if (!base) throw new Error(`${directory} has no base rules version`)
 const constructionOf = (edition: string) =>
   vsDataConstructionSchema.parse(JSON.parse(fs.readFileSync(path.join(constructionDirectory, `${edition}.construction.json`), 'utf8')))
 const construction = constructionOf(base.edition.id)
-const ids = (name: string) =>
-  z
-    .object({ ids: z.record(z.string(), z.string()) })
-    .parse(JSON.parse(fs.readFileSync(path.join(import.meta.dirname, `../catalogue/legacy-ids/${name}.json`), 'utf8'))).ids
-const [books, units, detachments] = [ids('books'), ids('units'), ids('detachments')]
+const { books, units, detachments } = legacyRosterIds
 
 const factionSchema = z.object({
   parent: z.string().optional(),

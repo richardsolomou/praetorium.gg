@@ -24300,6 +24300,13 @@
         "6eb4-83c6-3025-a19c/87b1-0d4c-e5ea-a5bd/34e2-9d32-58ea-3d85|0e8e-5168-13f2-1dba": {
           "options": {}
         },
+        "6eb4-83c6-3025-a19c|2de1-61b9-615d-4056": {
+          "options": {
+            "leagues-of-votann.cthonian-beserks.cthonian-beserk-wargear": {
+              "leagues-of-votann.cthonian-beserks.mole-grenade-launcher": 1
+            }
+          }
+        },
         "6eb4-83c6-3025-a19c|4894-87e8-1f3a-a7d9": {
           "options": {
             "leagues-of-votann.cthonian-beserks.cthonian-beserk-heavy-plasma-axe": {
@@ -24312,8 +24319,7 @@
       "unmatched": [
         "6eb4-83c6-3025-a19c/2de1-61b9-615d-4056/2d71-3e85-019a-2556|697f-710e-738d-4ee3",
         "6eb4-83c6-3025-a19c/2de1-61b9-615d-4056/2d71-3e85-019a-2556|7719-aa64-5e16-9a9d",
-        "6eb4-83c6-3025-a19c/87b1-0d4c-e5ea-a5bd/34e2-9d32-58ea-3d85|e010-924b-804d-026f",
-        "6eb4-83c6-3025-a19c|2de1-61b9-615d-4056"
+        "6eb4-83c6-3025-a19c/87b1-0d4c-e5ea-a5bd/34e2-9d32-58ea-3d85|e010-924b-804d-026f"
       ]
     },
     "7b5-9080-f871-aff9": {

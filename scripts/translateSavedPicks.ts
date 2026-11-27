@@ -5,6 +5,7 @@ import { modelProfileOf } from '../src/core/definitions'
 import { battleSizeSelection, type Selection } from '../src/core/evaluate'
 import { buildUnit } from '../src/core/roster'
 import { legacyOptionsSchema } from '../src/core/legacyIds'
+import { correctedOptions, legacyIdCorrections } from '../src/core/legacyRosterIds'
 import { wargearOf } from '../src/core/wargear'
 import { wargearKey } from '../src/core/wargearNames'
 import { type Counts, vsDataConstructionSchema, vsDataDefinitions } from '../src/core/vsDataConstruction'
@@ -49,9 +50,11 @@ const editions = catalogueEditionLoaders(
   () => rules,
 )
 const ids = legacyIds()
-const map = legacyOptionsSchema.parse(
-  JSON.parse(fs.readFileSync(path.join(import.meta.dirname, '../catalogue/legacy-ids/options.json'), 'utf8')),
-).units
+const map = correctedOptions(
+  legacyOptionsSchema.parse(JSON.parse(fs.readFileSync(path.join(import.meta.dirname, '../catalogue/legacy-ids/options.json'), 'utf8')))
+    .units,
+  legacyIdCorrections,
+)
 
 type Bag = Map<string, number>
 type Selections = Record<string, Counts>
