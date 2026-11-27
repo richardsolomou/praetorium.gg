@@ -40,6 +40,33 @@ for (const unit of definitions.all('unit')) {
     if (problems.length) fail('resized', unit.id, `${size}: ${problems.join(' ')}`)
   }
   if (firstProblems.length) continue
+  // From its largest size with every option full and spread over its choices, a resize to the smallest cuts no
+  // selection it could keep: none it cut can be taken back.
+  let full = vsResized(definitions, first, Math.max(...unit.data.sizes))
+  for (const option of vsUnitOptions(definitions, full)) {
+    if (!option.open || option.uniform) continue
+    const counts: Record<string, number> = Object.fromEntries(option.choices.map((choice) => [choice.id, choice.count]))
+    for (let left = option.bounds.max - option.taken, at = 0; left > 0 && option.choices.length; at++) {
+      const choice = option.choices[at % option.choices.length]!
+      const next = vsWithChoice(definitions, full, option.id, { ...counts, [choice.id]: (counts[choice.id] ?? 0) + 1 })
+      if (at >= option.choices.length * option.bounds.max) break
+      if (codes(next).length) continue
+      counts[choice.id] = (counts[choice.id] ?? 0) + 1
+      left--
+    }
+    full = vsWithChoice(definitions, full, option.id, counts)
+  }
+  const small = vsResized(definitions, full, Math.min(...unit.data.sizes))
+  for (const option of vsUnitOptions(definitions, small))
+    for (const choice of option.choices) {
+      const before = full.options?.[option.id]?.[choice.id] ?? 0
+      if (option.uniform || choice.count >= before) continue
+      const back = vsWithChoice(definitions, small, option.id, {
+        ...Object.fromEntries(option.choices.map((other) => [other.id, other.count])),
+        [choice.id]: choice.count + 1,
+      })
+      if (!codes(back).length) fail('resize cut', unit.id, `${option.id} ${choice.id}: ${choice.count} of ${before} kept`)
+    }
   for (const option of vsUnitOptions(definitions, first)) {
     if (!option.open) continue
     for (const choice of option.choices) {
@@ -49,14 +76,14 @@ for (const unit of definitions.all('unit')) {
         // All of one choice, beside whatever substitutes are taken.
         for (const other of option.choices) if (!option.substitutes.includes(other.id)) counts[other.id] = 0
         counts[choice.id] = option.bounds.max - option.substitutes.reduce((sum, id) => sum + (counts[id] ?? 0), 0)
+      } else if (option.taken >= option.bounds.max) {
+        // At its maximum, the option gives up one of its most-taken other choice, as the builder swaps it.
+        const donor = option.choices.filter((other) => other.id !== choice.id && other.count > 0).toSorted((a, b) => b.count - a.count)[0]
+        if (!donor) continue
+        counts[donor.id] = donor.count - 1
+        counts[choice.id] = choice.count + 1
       } else {
         if (choice.most <= choice.count) continue
-        // At its maximum, the option gives up one of its most-taken other choice, as the builder swaps it.
-        if (option.taken >= option.bounds.max) {
-          const donor = option.choices.filter((other) => other.id !== choice.id && other.count > 0).toSorted((a, b) => b.count - a.count)[0]
-          if (!donor) continue
-          counts[donor.id] = donor.count - 1
-        }
         counts[choice.id] = choice.count + 1
       }
       const problems = codes(vsWithChoice(definitions, first, option.id, counts))

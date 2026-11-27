@@ -35,7 +35,7 @@ const definitions = vsDataDefinitions({
         per: { models: 5 },
         choose: { min: 0, max: 1 },
         replaces: { 'host.squad.rifle': 1 },
-        choices: ['host.squad.cannon'],
+        choices: ['host.squad.cannon', 'host.squad.laser'],
       }),
       'host.squad.blade': record('Blade', {
         unit: 'host.squad',
@@ -64,6 +64,7 @@ const definitions = vsDataDefinitions({
     wargear: {
       'host.squad.rifle': record('Rifle', {}),
       'host.squad.cannon': record('Cannon', {}),
+      'host.squad.laser': record('Laser', {}),
       'host.squad.sword': record('Sword', {}),
       'host.squad.crown': record('Crown', {}),
       'host.pack.fangs': record('Fangs', {}),
@@ -104,5 +105,11 @@ describe('vsResized', () => {
     const squad = vsResized(definitions, vsFirstFielding(definitions, 'host.squad'), 10)
     const heavy = vsWithChoice(definitions, squad, 'host.squad.heavy', { 'host.squad.cannon': 2 })
     expect(vsUnitProblems(definitions, vsResized(definitions, heavy, 5))).toEqual([])
+  })
+
+  it('cuts a shared limit only by what it overflows', () => {
+    const squad = vsResized(definitions, vsFirstFielding(definitions, 'host.squad'), 10)
+    const heavy = vsWithChoice(definitions, squad, 'host.squad.heavy', { 'host.squad.cannon': 1, 'host.squad.laser': 1 })
+    expect(vsResized(definitions, heavy, 5).options).toEqual({ 'host.squad.heavy': { 'host.squad.cannon': 1 } })
   })
 })

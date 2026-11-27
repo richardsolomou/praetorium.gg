@@ -138,23 +138,38 @@ export const vsUnitSize = sizeOf
 
 const clamp = (n: number, { min, max }: Bounds) => Math.min(Math.max(n, min), max)
 
-/** Each option's choices cut, last first, to its maximum and its caps at the unit's size. */
+/**
+ * The unit cut, one selection at a time, to what its options, caps and option groups allow at its size: each cut takes
+ * the last choice still past its room, so a shared limit loses only its overflow. A uniform option then holds all of
+ * its one choice again.
+ */
 function trimmed(definitions: VsDataDefinitions, picked: VsRosterUnit): VsRosterUnit {
   let unit = picked
+  for (;;) {
+    const over = vsUnitOptions(definitions, unit)
+      .flatMap((option) => option.choices.map((choice) => ({ option, choice })))
+      .findLast(({ choice }) => choice.count > Math.max(choice.most, 0))
+    if (!over) break
+    const counts = Object.fromEntries(over.option.choices.map((choice) => [choice.id, choice.count]))
+    counts[over.choice.id] = over.choice.count - 1
+    unit = vsWithChoice(definitions, unit, over.option.id, counts)
+  }
+  // A cut that met one limit can leave room another cut made, so each choice takes back what it still fits.
+  for (const option of vsUnitOptions(definitions, unit))
+    for (const choice of option.choices) {
+      const before = picked.options?.[option.id]?.[choice.id] ?? 0
+      for (let count = choice.count + 1; count <= before; count++) {
+        const held = unit.options?.[option.id] ?? {}
+        const next = vsWithChoice(definitions, unit, option.id, { ...held, [choice.id]: count })
+        if (vsUnitProblems(definitions, next).length > vsUnitProblems(definitions, unit).length) break
+        unit = next
+      }
+    }
   for (const option of vsUnitOptions(definitions, unit)) {
-    let over = option.taken - option.bounds.max
+    const held = option.uniform && option.choices.find((choice) => choice.count > 0 && !option.substitutes.includes(choice.id))
+    if (!held) continue
     const counts = Object.fromEntries(option.choices.map((choice) => [choice.id, choice.count]))
-    for (const choice of option.choices.toReversed()) {
-      const cut = Math.max(over, choice.count - Math.max(choice.most, 0), 0)
-      const taken = Math.min(cut, counts[choice.id]!)
-      counts[choice.id] = counts[choice.id]! - taken
-      over -= taken
-    }
-    if (option.uniform && option.taken > 0) {
-      // A uniform option is all of one choice or nothing; a new size makes it all of that choice again.
-      const held = option.choices.find((choice) => choice.count > 0 && !option.substitutes.includes(choice.id))
-      if (held) counts[held.id] = option.bounds.max - sum(option.substitutes.map((id) => counts[id] ?? 0))
-    }
+    counts[held.id] = option.bounds.max - sum(option.substitutes.map((id) => counts[id] ?? 0))
     unit = vsWithChoice(definitions, unit, option.id, counts)
   }
   return unit
