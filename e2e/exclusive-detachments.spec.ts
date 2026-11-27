@@ -1,5 +1,6 @@
 import { expect, test } from './test'
 import { chooseBattleSize, chooseFaction, retryUntilVisible, signUp } from './account'
+import { screenshot } from './screenshots'
 
 test(`roster setup explains a detachment that shares a one-per-army limit`, async ({ page }) => {
   await signUp(page, 'Dynasty')
@@ -17,7 +18,7 @@ test(`roster setup explains a detachment that shares a one-per-army limit`, asyn
     'An army can include only one Dynasty detachment, and this army already has Awakened Dynasty.',
   )
   await expect(dialog.getByRole('button', { name: 'Select Hand of the Dynasty', exact: true })).toHaveCount(0)
-  await page.screenshot({ path: test.info().outputPath(`exclusive-detachments.png`) })
+  await screenshot(page, `exclusive-detachments.png`)
 
   await dialog.getByRole('button', { name: 'Select Awakened Dynasty', pressed: true }).click()
   await expect(dialog.getByRole('button', { name: 'Select Hand of the Dynasty', exact: true })).toBeEnabled()

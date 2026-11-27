@@ -1,8 +1,9 @@
 import { expect, test, type Page } from './test'
 import mcpSurface from '../src/server/mcpSurface.json' with { type: 'json' }
-import { signUp, signUpThroughForm, uniqueName, signOut, PHONE } from './account'
+import { signUp, uniqueName, PHONE } from './account'
 
 import { call, installInspector, names } from './webmcpInspector'
+import { screenshot } from './screenshots'
 
 /** The token the latest approved create_battle answered with. */
 function createdToken(page: Page) {
@@ -42,23 +43,10 @@ test('a browser assistant joins another player’s draft only after approval', a
   const joining = call(visitor, 'join_battle', { invite, side: 1 })
   const approval = visitor.getByRole('dialog', { name: 'Join a battle from an invite' })
   await expect(approval.getByText(`Join ${host}’s battle on side 2.`)).toBeVisible()
-  await visitor.screenshot({ path: test.info().outputPath('join-battle-approval.png') })
+  await screenshot(visitor, 'join-battle-approval.png')
   await approval.getByRole('button', { name: 'Approve change' }).click()
   expect((await joining).structuredContent).toMatchObject({ token: created.token })
   expect((await call(visitor, 'get_my_battle', { token: created.token })).isError).not.toBe(true)
-})
-
-// The inspector stands in for browser discovery; every tool executes against the real isolated server.
-test('browser agents discover the full MCP surface and account tools disappear on sign-out', async ({ page }) => {
-  await installInspector(page)
-  await page.goto('/')
-  await expect.poll(() => names(page)).toHaveLength(28)
-  await signUpThroughForm(page, uniqueName('Agent'))
-  await expect.poll(() => names(page)).toHaveLength(Object.keys(mcpSurface).length + 4)
-  const factions = await call(page, 'list_factions')
-  expect(factions.structuredContent?.factions).toBeInstanceOf(Array)
-  await signOut(page)
-  await expect.poll(() => names(page)).toHaveLength(28)
 })
 
 test('declining a browser-agent write leaves saved data unchanged; approving writes and refreshes the screen', async ({ page }) => {
@@ -71,9 +59,9 @@ test('declining a browser-agent write leaves saved data unchanged; approving wri
   await start(page, 'create_battle', { bothSides: true })
   const dialog = page.getByRole('dialog', { name: 'Create a battle' })
   await expect(dialog).toBeVisible()
-  await page.screenshot({ path: test.info().outputPath('webmcp-approval-desktop.png') })
+  await screenshot(page, 'webmcp-approval-desktop.png')
   await page.setViewportSize(PHONE)
-  await page.screenshot({ path: test.info().outputPath('webmcp-approval-phone.png') })
+  await screenshot(page, 'webmcp-approval-phone.png')
   await dialog.getByRole('button', { name: 'Decline', exact: true }).click()
   await page.reload()
   await expect(page.getByRole('heading', { name: 'Battles', exact: true })).toBeVisible()

@@ -20,6 +20,7 @@ import { privateObjects } from '../src/server/privateImages'
 import { root } from './stackEnv'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { screenshot } from './screenshots'
 
 /** Picks a datasheet from one of the shelf's catalogue searches. */
 async function pickDatasheet(page: Page, list: 'collection' | 'wishlist', name: string, faction: string) {
@@ -118,7 +119,7 @@ test('rapid collection steps keep the latest count while earlier saves finish', 
     await operator.setCollectionModels({ userId: owner, entryId: entry.entryId, models, now: Date.now() })
     await expect(owned(page, 'Necron Warriors')).toHaveValue(String(models))
   }
-  await page.screenshot({ path: test.info().outputPath('rapid-collection-counts.png'), fullPage: true })
+  await screenshot(page, 'rapid-collection-counts.png', { fullPage: true })
   await page.reload()
   await expect(owned(page, 'Necron Warriors')).toHaveValue('9')
   await expect(progress(page, 'Necron Warriors', 'built')).toHaveValue('2')
@@ -543,7 +544,7 @@ test('max built and painted match their preceding collection counts', async ({ p
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 })
     await expectNoHorizontalOverflow(page.locator('main'))
-    await page.screenshot({ path: test.info().outputPath(`collection-max-${width}.png`), fullPage: true })
+    await screenshot(page, `collection-max-${width}.png`, { fullPage: true })
   }
   await page.getByRole('button', { name: 'More built Necron Warriors models', exact: true }).click()
   await maxBuilt.click()
@@ -577,7 +578,7 @@ test('faction collection rows keep every counter reachable across screen and tex
     await expectNoHorizontalOverflow(page.locator('main'))
     for (const row of await necrons.locator('[data-unit]').all()) await expectNoHorizontalOverflow(row)
     await necrons.scrollIntoViewIfNeeded()
-    await page.screenshot({ path: test.info().outputPath(`faction-collection-${width}.png`), fullPage: true })
+    await screenshot(page, `faction-collection-${width}.png`, { fullPage: true })
   }
   await page.addStyleTag({ content: 'html { font-size: 200% }' })
   await expectNoHorizontalOverflow(page.locator('main'))
@@ -667,7 +668,7 @@ test('wishlist models move onto the shelf', async ({ page }) => {
   await page.getByRole('button', { name: 'Move Canoptek Reanimator to your collection', exact: true }).click()
   await expect(page.locator('[data-wish="Canoptek Reanimator"]')).toHaveCount(0)
   await expectWorkSynced(page)
-  await page.screenshot({ path: test.info().outputPath('wishlist-move.png'), fullPage: true })
+  await screenshot(page, 'wishlist-move.png', { fullPage: true })
   await page.reload()
   await expect(owned(page, 'Immortals')).toHaveValue('7')
   await expect(owned(page, 'Canoptek Reanimator')).toHaveValue('1')
@@ -683,12 +684,12 @@ test('models that can also be another datasheet fill it in a roster and show as 
   const card = page.locator('[data-unit="Necron Warriors"]')
   await expect(card.locator('[data-counts-as]')).toHaveCount(0)
   await card.getByRole('button', { name: 'Actions for Necron Warriors', exact: true }).click()
-  await page.screenshot({ path: test.info().outputPath('counts-as-menu.png') })
+  await screenshot(page, 'counts-as-menu.png')
   await page.getByRole('menuitem', { name: 'Can also be…', exact: true }).click()
   const dialog = page.getByRole('dialog', { name: 'What else can these Necron Warriors models be?' })
   await dialog.getByLabel('Search this army’s datasheets').fill('immortals')
   await dialog.getByRole('checkbox', { name: 'Immortals', exact: true }).check()
-  await page.screenshot({ path: test.info().outputPath('counts-as-dialog.png') })
+  await screenshot(page, 'counts-as-dialog.png')
   await dialog.getByRole('button', { name: 'Save', exact: true }).click()
   await expect(dialog).toBeHidden()
   await expect(card.locator('[data-counts-as]')).toContainText('Can also be Immortals')
@@ -697,7 +698,7 @@ test('models that can also be another datasheet fill it in a roster and show as 
   await expect(card.locator('[data-counts-as]')).toContainText('Can also be Immortals')
   await page.setViewportSize(PHONE)
   await expectNoHorizontalOverflow(page.locator('main'))
-  await card.screenshot({ path: test.info().outputPath('counts-as-card-phone.png') })
+  await screenshot(card, 'counts-as-card-phone.png')
   await page.setViewportSize({ width: 1440, height: 900 })
   const exported = await exportCsv(page)
   expect(exported).toMatch(/Necrons,Necron Warriors,[^,]+,20,0,0,0,[^,\r\n]+/)
@@ -711,7 +712,7 @@ test('models that can also be another datasheet fill it in a roster and show as 
   await expect(panel.locator('[data-readiness-unit="Immortals"] [data-readiness-from]')).toHaveText(/^\d+ from your Necron Warriors$/)
   await page.setViewportSize(PHONE)
   await expectNoHorizontalOverflow(page.locator('main'))
-  await page.screenshot({ path: test.info().outputPath('counts-as-readiness-phone.png'), fullPage: true })
+  await screenshot(page, 'counts-as-readiness-phone.png', { fullPage: true })
 })
 
 test('photos of another build stay with the models they show and appear on that build’s datasheet', async ({ page }) => {
@@ -736,7 +737,7 @@ test('photos of another build stay with the models they show and appear on that 
   await expect(
     dialog.getByRole('region', { name: 'Necron Warriors', exact: true }).getByRole('button', { name: /^Your photo/ }),
   ).toHaveCount(0)
-  await page.screenshot({ path: test.info().outputPath('build-photos-dialog.png') })
+  await screenshot(page, 'build-photos-dialog.png')
   await page.keyboard.press('Escape')
 
   await page.goto('/factions/necrons/datasheets/immortals')
@@ -776,11 +777,11 @@ test('the wishlist suggests unowned datasheets other players field that none of 
   await page.reload()
   await expect(page.locator('[data-unit="Immortals"]')).toBeVisible()
   await expect(suggestion).toBeHidden()
-  await page.screenshot({ path: test.info().outputPath('owned-wishlist-desktop.png'), fullPage: true })
+  await screenshot(page, 'owned-wishlist-desktop.png', { fullPage: true })
   await page.setViewportSize(PHONE)
   await expect(suggestion).toBeHidden()
   await expectNoHorizontalOverflow(page.locator('main'))
-  await page.screenshot({ path: test.info().outputPath('owned-wishlist-phone.png'), fullPage: true })
+  await screenshot(page, 'owned-wishlist-phone.png', { fullPage: true })
   await removeFromCollection(page, 'Immortals')
   await page.getByRole('alertdialog').getByRole('button', { name: 'Remove', exact: true }).click()
   await expect(suggestion).toBeVisible()
@@ -793,7 +794,7 @@ test('the wishlist suggests unowned datasheets other players field that none of 
     await page.setViewportSize({ width, height: 900 })
     await expectNoHorizontalOverflow(page.locator('main'))
     await page.locator('[aria-labelledby="wishlist-heading"]').scrollIntoViewIfNeeded()
-    await page.screenshot({ path: test.info().outputPath(`wishlist-${width}.png`), fullPage: true })
+    await screenshot(page, `wishlist-${width}.png`, { fullPage: true })
   }
   await page.addStyleTag({ content: 'html { font-size: 200% }' })
   await expectNoHorizontalOverflow(page.locator('main'))

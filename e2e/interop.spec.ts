@@ -18,6 +18,7 @@ import {
   openLibraryShare,
   openImport,
 } from './account'
+import { screenshot } from './screenshots'
 
 test('a list can be copied as Games Workshop text', async ({ browser }) => {
   const page = await (await browser.newContext({ ...desktopContext, permissions: ['clipboard-read', 'clipboard-write'] })).newPage()
@@ -64,14 +65,14 @@ test('a list can be copied as Games Workshop text', async ({ browser }) => {
   await expect(dialog.getByRole('button', { name: 'Copied' })).toBeVisible()
   const readable = await page.evaluate(() => navigator.clipboard.readText())
   expect(readable).toContain('• Models: 10')
-  await dialog.screenshot({ path: test.info().outputPath('gw-text-export-phone.png') })
+  await screenshot(dialog, 'gw-text-export-phone.png')
   await page.setViewportSize({ width: 1440, height: 500 })
   await expect.poll(() => dialog.evaluate((element) => element.scrollHeight - element.clientHeight)).toBe(0)
   await expect(dialog.getByRole('button', { name: 'Copied' })).toBeInViewport()
-  await dialog.screenshot({ path: test.info().outputPath('gw-text-export-desktop.png') })
+  await screenshot(dialog, 'gw-text-export-desktop.png')
   await page.setViewportSize({ width: 390, height: 500 })
   await body.evaluate((element) => element.scrollTo({ top: element.scrollHeight }))
-  await dialog.screenshot({ path: test.info().outputPath('gw-text-export-footer-phone.png') })
+  await screenshot(dialog, 'gw-text-export-footer-phone.png')
   await body.evaluate((element) => element.scrollTo({ top: 0 }))
   await expect(dialog.getByRole('group', { name: 'Text layout' })).toHaveCount(0)
   await expect(dialog.getByRole('button', { name: /^(Readable|Compact|ListForge|Warmind|WTC-style)$/ })).toHaveCount(0)
@@ -179,7 +180,7 @@ test('official and New Recruit rosters keep their units, choices and attachments
     await expect(page.locator(`[data-unit="${leader}"]`)).toContainText(bodyguard)
 })
 
-test('a visitor imports the reported Salamanders detachments and keeps them after reload', async ({ page }, testInfo) => {
+test('a visitor imports the reported Salamanders detachments and keeps them after reload', async ({ page }) => {
   await arrangeByRole(page)
   const review = await openImport(page)
   await review.getByLabel('Roster text').fill(salamandersOfficial)
@@ -188,9 +189,9 @@ test('a visitor imports the reported Salamanders detachments and keeps them afte
   await expect(review.locator('[data-import-figure="reported"]')).toHaveText('1435 points')
   await expect(review.locator('[data-import-figure="current"]')).toHaveText('1435 points')
   await expect(review.getByRole('alert')).toHaveCount(0)
-  await review.screenshot({ path: testInfo.outputPath('salamanders-import-review-desktop.png') })
+  await screenshot(review, 'salamanders-import-review-desktop.png')
   await page.setViewportSize({ width: 390, height: 700 })
-  await review.screenshot({ path: testInfo.outputPath('salamanders-import-review-phone.png') })
+  await screenshot(review, 'salamanders-import-review-phone.png')
   await review.getByRole('button', { name: 'Open imported draft', exact: true }).click()
   await page.waitForURL(/\/rosters\/[^/]+$/)
   await expect(page.locator('[data-unit]')).toHaveCount(12)
@@ -209,7 +210,7 @@ test('a visitor imports the reported Salamanders detachments and keeps them afte
   const exported = page.getByRole('dialog', { name: 'Export roster' })
   for (const line of ['Dudes (1,435 Points)', 'Salamanders', 'Deathwatch Support', "Forgefather's Seekers", '3 Detachment Points'])
     await expect(exported.locator('pre')).toContainText(line)
-  await exported.screenshot({ path: testInfo.outputPath('salamanders-import-export-phone.png') })
+  await screenshot(exported, 'salamanders-import-export-phone.png')
 })
 
 test('an imported roster that offers several dispositions plays the one its battle picks', async ({ page }) => {
@@ -250,7 +251,7 @@ Exported with BattleBase, Data Version: v20260812`)
     const exported = page.getByRole('dialog', { name: 'Export roster' })
     await expect(exported.locator('pre')).toContainText(`Force Disposition: ${disposition}\n`)
     await expect(exported.locator('pre')).not.toContainText('Force Dispositions:')
-    await exported.screenshot({ path: test.info().outputPath(`selected-disposition-export-${disposition.toLowerCase()}.png`) })
+    await screenshot(exported, `selected-disposition-export-${disposition.toLowerCase()}.png`)
     await exported.getByRole('button', { name: 'Close' }).click()
   }
 })

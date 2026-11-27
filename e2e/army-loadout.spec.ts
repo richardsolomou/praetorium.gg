@@ -1,5 +1,6 @@
 import { expect, test } from './test'
 import { retryUntilVisible } from './account'
+import { screenshot } from './screenshots'
 
 for (const token of ['preview-casual-strike-force', 'preview-tournament-battle-duel']) {
   test(`spectators inspect army loadouts in ${token}`, async ({ page }) => {
@@ -38,7 +39,7 @@ for (const token of ['preview-casual-strike-force', 'preview-tournament-battle-d
         ),
       )
       expect(overflowing).toBe(false)
-      await page.screenshot({ path: test.info().outputPath(`army-loadout-${token}-${width}.png`) })
+      await screenshot(page, `army-loadout-${token}-${width}.png`)
       const list = army.locator('[data-army-list]')
       const second = list.locator('[data-unit]').nth(1).locator('button[aria-pressed]')
       if (width >= 860) {

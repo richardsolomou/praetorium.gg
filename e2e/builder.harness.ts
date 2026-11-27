@@ -1,5 +1,6 @@
 import { expect, type Locator, type Page } from '@playwright/test'
 import { createRoster, signUp } from './account'
+import { screenshot } from './screenshots'
 import { baseURL } from './stackEnv'
 
 /** The narrowest window that opens a unit beside the roster rather than over it: `roster-split` in styles.css. */
@@ -14,9 +15,9 @@ export const ROSTER_WIDE = 1172
  * locator resolved to a moment before — so on a cold first run the element a passing
  * assertion just read could be gone by the time it is photographed.
  */
-export async function shot(element: Locator, path: string) {
+export async function shot(element: Locator, name: string) {
   await expect(async () => {
-    await element.screenshot({ path })
+    await screenshot(element, name)
   }).toPass({ timeout: 10_000 })
 }
 

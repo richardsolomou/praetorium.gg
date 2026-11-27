@@ -1,6 +1,7 @@
 import type { WebSocketRoute } from '@playwright/test'
 import { expect, test, type Page } from './test'
 import { takeTheTurn, PHONE, twoPlayerBattle } from './account'
+import { screenshot } from './screenshots'
 
 test('a battle stays in step across two devices', async ({ browser }) => {
   const alice = await (await browser.newContext()).newPage()
@@ -23,8 +24,8 @@ test('a battle stays in step across two devices', async ({ browser }) => {
   await expect(panel(bob, 'Necrons').locator('[data-stat="cp"]')).toHaveText('1')
   await expect(panel(alice, 'Necrons').getByRole('button', { name: '+1 CP' })).toBeEnabled()
 
-  await alice.screenshot({ path: test.info().outputPath('tracker-alice.png'), fullPage: true })
-  await bob.screenshot({ path: test.info().outputPath('tracker-bob.png'), fullPage: true })
+  await screenshot(alice, 'tracker-alice.png', { fullPage: true })
+  await screenshot(bob, 'tracker-bob.png', { fullPage: true })
   await alice.setViewportSize(PHONE)
   // The same scoreboard as the desktop one, so a phone and a laptop cannot disagree
   // about the score. What each army is stays in its own panel rather than being said
@@ -34,10 +35,10 @@ test('a battle stays in step across two devices', async ({ browser }) => {
   await expect(scoreboard).toContainText(bobName)
   await expect(scoreboard).not.toContainText('Awakened Dynasty')
   await expect(panel(alice, 'Necrons')).toContainText('Awakened Dynasty')
-  await alice.screenshot({ path: test.info().outputPath('tracker-phone.png'), fullPage: true })
+  await screenshot(alice, 'tracker-phone.png', { fullPage: true })
   await alice.getByRole('tab', { name: 'Battle' }).click()
   await expect(alice.getByText(new RegExp(`${bobName} ends the command phase for ${aliceName}`))).toBeVisible()
-  await alice.screenshot({ path: test.info().outputPath('tracker-events.png'), fullPage: true })
+  await screenshot(alice, 'tracker-events.png', { fullPage: true })
 
   // Pinned flush to the application tabs on mobile and the viewport otherwise. A
   // margin between fixed controls is invisible in the markup and obvious on a phone.
@@ -67,7 +68,7 @@ test('a battle stays in step across two devices', async ({ browser }) => {
   await players.click()
   await alice.getByRole('option', { name: bobName, exact: true }).click()
   await expect(players.getByText(bobName, { exact: true })).toBeVisible()
-  await concession.screenshot({ path: test.info().outputPath('concede-phone.png') })
+  await screenshot(concession, 'concede-phone.png')
   await concession.getByRole('button', { name: 'Concede battle', exact: true }).click()
   await expect(alice.getByRole('heading', { name: `${aliceName} wins by concession` })).toBeVisible()
   // The confetti is the winner's, on the winner's device: the player who conceded gets the result and nothing else.

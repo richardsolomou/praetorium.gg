@@ -13,6 +13,7 @@ import {
   PHONE,
   playerPanel,
 } from './account'
+import { screenshot } from './screenshots'
 
 // Three accounts and three devices, so it needs more room than a duel. Every army comes
 // from one catalogue on purpose: the shared container prices each faction it is shown.
@@ -105,7 +106,7 @@ test('a 2v1 draws the allied pair as one side with one pool, whichever side open
   // One army between the pair, so one bonus, paid to the side as the battle began.
   await expect(host.locator('[data-side-score="1"] [data-stat="vp"]')).toHaveText('10')
 
-  await ally.screenshot({ path: test.info().outputPath('team-battle-tracker.png'), fullPage: true })
+  await screenshot(ally, 'team-battle-tracker.png', { fullPage: true })
 
   // An ally opens the next battle beside their partner, against the same player: the opener keeps the first seat — deleting
   // the battle is theirs — and the side plays both allies' detachments out of one pool.
@@ -142,12 +143,12 @@ test('a 2v1 draws the allied pair as one side with one pool, whichever side open
   await expect(playerPanel(ally, 1).getByRole('button', { name: /^About Reanimation Crypts$/i })).toHaveCount(0)
   await expect(sidePanels(ally)).toHaveCount(2)
 
-  await ally.screenshot({ path: test.info().outputPath('team-battle-allied-opener.png'), fullPage: true })
+  await screenshot(ally, 'team-battle-allied-opener.png', { fullPage: true })
   // A phone holds one column, which is where a pair of players had least room.
   await ally.setViewportSize(PHONE)
   await expect(ours.getByRole('link', { name: allyName })).toBeVisible()
   await expect(ours.getByRole('link', { name: partnerName })).toBeVisible()
-  await ally.screenshot({ path: test.info().outputPath('team-battle-allied-opener-phone.png'), fullPage: true })
+  await screenshot(ally, 'team-battle-allied-opener-phone.png', { fullPage: true })
 })
 
 const sidePanels = (page: Page) => page.locator('[data-panel="player"]')
