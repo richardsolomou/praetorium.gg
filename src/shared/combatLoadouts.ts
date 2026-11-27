@@ -28,41 +28,41 @@ type LoadoutRequest = {
 
 /** Enhancements and detachment upgrades are army decisions, not a unit's weapon choice. */
 const ARMY_CHOICE = /enhancement|upgrade/i
-// A VS pick's model counts set its size, which a loadout keeps, and its allegiance is no option of its wargear.
-const weaponChoices = (choices: UnitChoice[]) =>
+// A VS pick's model counts set its size, which a loadout keeps, and its allegiance is no option of its wargear; a
+// catalogue unit's own `models` choice is its loadout's spread of models.
+const weaponChoices = (choices: UnitChoice[], vs = false) =>
   choices.filter(
     (choice) =>
       choice.options.length &&
       !isUnitCompositionChoice(choice) &&
       !ARMY_CHOICE.test(choice.name) &&
-      choice.key !== VS_MODELS &&
-      choice.key !== VS_ALLEGIANCE,
+      !(vs && (choice.key === VS_MODELS || choice.key === VS_ALLEGIANCE)),
   )
 /**
  * Wargear taken from an optional group that offers only it at no cost, such as a free icon: the group starts empty, so
  * it displaces nothing. A group of alternatives, such as a Mark of Chaos, is a decision the ranking alone settles.
  */
-export const freeWargear = (choices: UnitChoice[], replaces: (choice: UnitChoice) => boolean = () => false) =>
-  weaponChoices(choices).flatMap((choice) =>
+export const freeWargear = (choices: UnitChoice[], vs?: { replaces: (choice: UnitChoice) => boolean }) =>
+  weaponChoices(choices, Boolean(vs)).flatMap((choice) =>
     choice.optional &&
     choice.options.length === 1 &&
     choice.options[0]!.points === 0 &&
     choice.options[0]!.profile === undefined &&
-    !replaces(choice)
+    !vs?.replaces(choice)
       ? choice.options
       : [],
   )
 /** Each weapon choice's taken options and counts, so loadouts compare by what is taken rather than how picks spell it. */
-const takenWargear = (choices: UnitChoice[]) =>
-  weaponChoices(choices).map((choice): [string, string] => [
+const takenWargear = (choices: UnitChoice[], vs: boolean) =>
+  weaponChoices(choices, vs).map((choice): [string, string] => [
     choice.key,
     choice.options
       .filter((option) => option.count)
       .map((option) => `${option.id}x${option.count}`)
       .join(','),
   ])
-const wargearPoints = (choices: UnitChoice[]) =>
-  weaponChoices(choices)
+const wargearPoints = (choices: UnitChoice[], vs: boolean) =>
+  weaponChoices(choices, vs)
     .flatMap((choice) => choice.options)
     .reduce((total, option) => total + option.points * option.count, 0)
 
@@ -227,7 +227,7 @@ export async function* combatLoadoutCandidates(
   // A VS Data option offering one choice is optional wargear, but one that replaces wargear is a swap, not a free addition.
   const vsReplaces = (choice: UnitChoice) => Object.keys(definitions?.get('roster-option', choice.key)?.data.replaces ?? {}).length > 0
   const freeAdditionsOf = (unit: BuiltUnit) =>
-    freeWargear(unit.choices, unit.vs ? vsReplaces : undefined).reduce((total, option) => total + option.count, 0)
+    freeWargear(unit.choices, unit.vs ? { replaces: vsReplaces } : undefined).reduce((total, option) => total + option.count, 0)
   const editsOf = function* (at: number, resolved: RosterPick, built: BuiltUnit) {
     const unit = vsUnits[at]
     for (const edit of choiceEdits(built.choices, units[at]!.size.models, Boolean(resolved.vs && unit)))
@@ -235,7 +235,7 @@ export async function* combatLoadoutCandidates(
         ? withVsEdit(definitions, unit, { ...resolved, vs: resolved.vs }, edit)
         : withCatalogueEdit(resolved, edit, units[at]!.size.models)
   }
-  const estimated = units.reduce((states, unit) => states * loadoutStates(unit.choices), 1)
+  const estimated = units.reduce((states, unit) => states * loadoutStates(unit.choices, Boolean(unit.vs)), 1)
   const local = estimated > EXHAUSTIVE_STATES || data.walk !== undefined
   const start = data.walk ? walked(data.walk) : { picks, units }
   const memberSelections = indexes.map((pickIndex) => context.unitSelections.find((unit) => unit.pickIndex === pickIndex))
@@ -328,9 +328,11 @@ export async function* combatLoadoutCandidates(
         ),
       ],
       freeAdditions: built.reduce((total, unit) => total + freeAdditionsOf(unit), 0),
-      wargearPoints: built.reduce((total, unit) => total + wargearPoints(unit.choices), 0),
+      wargearPoints: built.reduce((total, unit) => total + wargearPoints(unit.choices, Boolean(unit.vs)), 0),
       wargear: Object.fromEntries(
-        built.flatMap((unit, at) => takenWargear(unit.choices).map(([choice, taken]) => [`${indexes[at]}:${choice}`, taken])),
+        built.flatMap((unit, at) =>
+          takenWargear(unit.choices, Boolean(unit.vs)).map(([choice, taken]) => [`${indexes[at]}:${choice}`, taken]),
+        ),
       ),
     }
     // Wargear the simulator cannot see leaves the equipment alike, so what it adds and costs keeps both loadouts.
@@ -436,8 +438,8 @@ function resolvedPick(candidate: RosterPick, built: BuiltUnit): RosterPick {
  * How many loadouts a unit's weapon choices allow, counted from each choice's options, their bounds and its room. The
  * choices on offer change as weapons are swapped, so this estimates the search's size rather than bounding it.
  */
-export function loadoutStates(choices: UnitChoice[]) {
-  return weaponChoices(choices).reduce((states, choice) => {
+export function loadoutStates(choices: UnitChoice[], vs = false) {
+  return weaponChoices(choices, vs).reduce((states, choice) => {
     if (choice.room <= 1) return states * (choice.options.length + (choice.optional ? 1 : 0))
     if (choice.uniform) return states * choice.options.length
     const used = choice.options.reduce((sum, option) => sum + option.count, 0)
@@ -482,7 +484,7 @@ type ChoiceEdit = { choice: UnitChoice; counts: Record<string, number> }
 
 /** Each single step from a unit's current weapon choices, as what each changed choice then holds. */
 function* choiceEdits(availableChoices: UnitChoice[], models: number, vs: boolean): Generator<ChoiceEdit> {
-  for (const choice of weaponChoices(availableChoices)) {
+  for (const choice of weaponChoices(availableChoices, vs)) {
     if (choice.room <= 1) {
       for (const id of [...choice.options.map((option) => option.id), ...(choice.optional ? [''] : [])]) {
         if (id === choice.chosen) continue
