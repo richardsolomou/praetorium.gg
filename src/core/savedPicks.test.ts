@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { RosterPick, VsPick } from './roster'
-import { savedPickKey, withVsPicks } from './savedPicks'
+import { appendSavedPicks, savedPickKey, withVsPicks } from './savedPicks'
 
 const context = { rulesVersion: 'mfm-1-6', catalogueId: 'book', detachmentIds: ['gladius'] }
 const pick: RosterPick = { entryId: 'intercessors', models: 10, choices: { 'squad/sergeant': 'plasma-pistol' } }
@@ -46,5 +46,24 @@ describe('withVsPicks', () => {
   it('keeps a pick saved by VS Data IDs as it is', () => {
     const own: VsPick = { models: { 'space-marines.intercessor': 5 }, options: {} }
     expect(translated([{ ...pick, vs: own }])[0]?.vs).toBe(own)
+  })
+})
+
+describe('appendSavedPicks', () => {
+  const published = { format: 'praetorium.saved-picks.v1' as const, picks: { '0123456789abcdef': vs } }
+
+  it('keeps every published translation beside the ones a run adds', () => {
+    expect(Object.keys(JSON.parse(appendSavedPicks(published, { fedcba9876543210: vs })).picks)).toEqual([
+      '0123456789abcdef',
+      'fedcba9876543210',
+    ])
+  })
+
+  it('stops a run that would change what a published key means', () => {
+    expect(() => appendSavedPicks(published, { '0123456789abcdef': { ...vs, models: { 'space-marines.intercessor': 5 } } })).toThrow()
+  })
+
+  it('refuses anything beside a pick’s content key and its VS Data IDs', () => {
+    expect(() => appendSavedPicks(null, { '0123456789abcdef': { ...vs, list: 'r-1' } as VsPick })).toThrow()
   })
 })

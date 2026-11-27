@@ -1,3 +1,4 @@
+import { catalogueEditionId } from '../core/catalogueEdition'
 import type { VsPick } from '../core/roster'
 import { vsFirstPick } from '../core/unitChoices'
 import type { LoadedCatalogue } from './catalogueIndex'
@@ -9,13 +10,15 @@ const NATIVE: ReadonlySet<string> = new Set(native)
 
 /**
  * The pick a newly added unit starts as, by VS Data IDs, for a datasheet the builder fields by VS Data: as its datasheet
- * first fields it in the list's book and Detachments. Any other datasheet starts as the catalogue builds it.
+ * first fields it in the list's book and Detachments, on the current rules version. Any other starts as the catalogue builds it.
  */
 export function vsFirstPickOf(
   loaded: LoadedCatalogue,
   list: { catalogueId: string; detachmentIds: readonly string[] },
   entryId: string,
 ): VsPick | undefined {
+  // The list measures the current rules version's datasheets; an earlier rules version's lists stay on the catalogue.
+  if (catalogueEditionId(list.catalogueId)) return undefined
   const definitions = vsDefinitionsOf(loaded)
   const unit = vsUnitIdOf(loaded, list.catalogueId, entryId)
   if (!definitions || !unit || !NATIVE.has(unit)) return undefined
