@@ -3,7 +3,7 @@ import { hasLocalChanges, stopLocalRuntime } from '../../offline/localRuntime'
 import { clearLocalState } from '../../offline/localStorage'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useLocation, useNavigate } from '@tanstack/react-router'
-import { GraduationCap, CircleUserRound, LogIn, LogOut, MessageSquareWarning, ShieldCheck, Sparkles, UserRoundPen } from 'lucide-react'
+import { GraduationCap, CircleUserRound, LogIn, LogOut, ShieldCheck, Sparkles, UserRoundPen } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
@@ -24,10 +24,8 @@ import { forgetThisBrowser } from '../../webPush'
 import { clearWatchBattle } from '../battle/watchFollowing'
 import { meQuery } from '../../queries'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
-import { openFeedback, unreadReplies, useSupportTickets } from '../feedback/support'
 import { errorMessage } from '../../queryClient'
 import { OPEN_SYNC_EVENT } from '../../offline/SyncStatus'
-import { countLabel } from '../../text'
 import { useUnseenRelease } from './seenRelease'
 import { DropdownMenuItem, MenuSection } from '../../components/Menu'
 import { nameColour } from '../../playerName'
@@ -71,8 +69,6 @@ function AccountMenuItems() {
   const path = useLocation({ select: (location) => location.pathname })
   const href = useLocation({ select: (location) => location.href })
   const { me, signOut } = useAccountControls()
-  const { tickets } = useSupportTickets()
-  const unread = unreadReplies(tickets)
   const unseenRelease = useUnseenRelease()
   const help = (
     <MenuSection label="Praetorium">
@@ -83,11 +79,6 @@ function AccountMenuItems() {
         <Sparkles />
         <span>What's new</span>
         {unseenRelease ? <span className="chip ml-auto border-parchment/30 text-parchment">New</span> : null}
-      </DropdownMenuItem>
-      <DropdownMenuItem onClick={() => openFeedback({ from: 'menu' })}>
-        <MessageSquareWarning />
-        <span>Feedback</span>
-        {unread ? <span className="chip ml-auto border-discarded/50 bg-discarded/10 text-discarded">{unread} new</span> : null}
       </DropdownMenuItem>
     </MenuSection>
   )
@@ -153,8 +144,6 @@ function AccountMenuItems() {
 export function Account({ native = false, className = '' }: { native?: boolean; className?: string }) {
   const { me } = useAccountControls()
   const [nativeOpen, setNativeOpen] = useState(false)
-  const { tickets } = useSupportTickets()
-  const unread = unreadReplies(tickets)
 
   useEffect(() => {
     if (!native) return
@@ -181,20 +170,11 @@ export function Account({ native = false, className = '' }: { native?: boolean; 
             variant="ghost"
             size={native ? 'icon' : 'icon-sm'}
             className={`${native ? 'size-12' : ''} shrink-0 text-dim hover:bg-raised hover:text-info ${className}`}
-            aria-label={`${me ? `Account menu for ${me.name}` : 'Account menu'}${unread ? `, ${countLabel(unread, 'unread feedback reply', 'unread feedback replies')}` : ''}`}
+            aria-label={me ? `Account menu for ${me.name}` : 'Account menu'}
           />
         }
       >
-        <span className="relative flex">
-          {me ? <PlayerAvatar name={me.name} image={me.image} className="size-7 text-xs" /> : <CircleUserRound className="size-5" />}
-          {unread ? (
-            <span
-              data-feedback-unread
-              aria-hidden
-              className="absolute -top-0.5 -right-0.5 size-2.5 rounded-full border-2 border-panel bg-discarded"
-            />
-          ) : null}
-        </span>
+        {me ? <PlayerAvatar name={me.name} image={me.image} className="size-7 text-xs" /> : <CircleUserRound className="size-5" />}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-52">
         <AccountMenuItems />

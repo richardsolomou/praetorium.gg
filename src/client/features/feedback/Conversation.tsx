@@ -38,7 +38,7 @@ export function Conversation({ ticketId, onBack }: { ticketId: string; onBack: (
   return (
     <>
       <DialogHeader className="flex flex-row items-start gap-2 pl-2">
-        <Button variant="ghost" size="icon-sm" className="mt-0.5 shrink-0" aria-label="Back to feedback" onClick={onBack}>
+        <Button variant="ghost" size="icon-sm" className="mt-0.5 shrink-0" aria-label="All conversations" onClick={onBack}>
           <ArrowLeft />
         </Button>
         <div className="min-w-0 space-y-1.5">
@@ -57,7 +57,7 @@ export function Conversation({ ticketId, onBack }: { ticketId: string; onBack: (
         </div>
       </DialogHeader>
       {available === false ? (
-        <DialogBody>
+        <DialogBody className="content-center">
           <PageState
             headingLevel={2}
             title="Feedback is unavailable here"
@@ -78,7 +78,7 @@ export function Conversation({ ticketId, onBack }: { ticketId: string; onBack: (
           <ThreadSkeleton />
         </DialogBody>
       ) : !data.messages.length ? (
-        <DialogBody>
+        <DialogBody className="content-center">
           <PageState
             headingLevel={2}
             icon={MessageSquareOff}
@@ -172,7 +172,8 @@ function Thread({ ticketId, messages, status }: { ticketId: string; messages: Me
       <div className="shrink-0 space-y-2 border-t border-edge bg-sunken px-4 py-3">
         {status === 'resolved' ? (
           <p className="flex items-center gap-2 text-xs text-dim">
-            <CheckCircle2 className="size-3.5 text-achieved" aria-hidden /> We marked this resolved. Reply to reopen it.
+            <CheckCircle2 className="size-3.5 text-achieved" aria-hidden /> This is resolved. If something still isn’t right, reply and
+            we’ll pick it up again.
           </p>
         ) : null}
         {send.error ? <Problem error={send.error} /> : null}
@@ -184,13 +185,13 @@ function Thread({ ticketId, messages, status }: { ticketId: string; messages: Me
           }}
         >
           <label htmlFor="feedback-reply" className="sr-only">
-            {status === 'resolved' ? 'Reply to reopen' : 'Reply'}
+            Reply
           </label>
           <Textarea
             id="feedback-reply"
             required
             rows={1}
-            placeholder={status === 'resolved' ? 'Reply to reopen…' : 'Write a reply…'}
+            placeholder="Write a reply…"
             maxLength={FEEDBACK_MESSAGE_MAX_LENGTH}
             value={reply}
             onChange={(event) => setReply(event.target.value)}

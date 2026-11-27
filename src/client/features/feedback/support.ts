@@ -173,6 +173,14 @@ export const reportProblem = (message: string) =>
   })
 export const openConversation = (ticketId: string) => openSupport({ kind: 'thread', ticketId })
 
+/** Where a reply waits: the one conversation with replies the player has not read, or all of them when several do. */
+export function openReplies(tickets: readonly { id: string; unread_count?: number }[] | undefined) {
+  const unread = tickets?.filter((ticket) => ticket.unread_count) ?? []
+  if (unread.length === 1) openConversation(unread[0]!.id)
+  else if (unread.length) openSupport({ kind: 'inbox' })
+  return unread.length > 0
+}
+
 export function onOpenSupport(listener: (view: SupportView) => void) {
   listeners.add(listener)
   if (waiting) listener(waiting)
