@@ -33,16 +33,16 @@ const construction = ({ entryId, catalogueId, models, choices, spreads, toggles,
 export const normalisePicks = (picks: readonly RosterPick[]): RosterPick[] => picks.map((pick) => construction(withHeldVs(pick)))
 
 /**
- * The construction shape with the player's nickname, note and starting embark, as a saved row keeps it, and the
- * translation a pick was served, which the builder keeps reading and no save stores.
+ * The construction shape with the player's nickname, note and starting embark, as a saved row keeps it. A save of the
+ * list's content keeps a translation each pick was served as its own `vs`: it is the owner's own list, as they were
+ * served it, so the list reads the same once the save dates it past the copy the translations read.
  */
 export const annotatedPicks = (picks: readonly RosterPick[]): RosterPick[] =>
-  picks.map((pick) => ({
-    ...construction(pick),
-    translatedVs: pick.translatedVs,
-    embarkedIn: pick.embarkedIn,
-    nickname: pick.nickname,
-    note: pick.note,
+  normalisePicks(picks).map((pick, at) => ({
+    ...pick,
+    embarkedIn: picks[at]?.embarkedIn,
+    nickname: picks[at]?.nickname,
+    note: picks[at]?.note,
   }))
 
 /** Session keys resolved to the positions a saved list counts in. */

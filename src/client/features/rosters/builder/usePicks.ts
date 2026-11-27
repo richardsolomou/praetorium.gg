@@ -111,10 +111,10 @@ function editedPick<T extends RosterPick>(pick: T, unit: Pick<SizedUnit, 'vs'> |
 
 /** A pick holding its Warlord toggle, keyed `key`, or giving it up; a VS pick names the model the toggle is keyed by. */
 export function withWarlord<T extends RosterPick>(pick: T, unit: Pick<SizedUnit, 'vs'> | undefined, key: string, held: boolean): T {
-  return editedPick(pick, unit, (pick) => {
-    if (!editsVs(pick, unit)) return { ...pick, toggles: { ...pick.toggles, [key]: held ? 1 : 0 } }
-    const { warlord: _previous, ...rest } = pick.vs
-    return { ...pick, vs: held ? { ...rest, warlord: key } : rest }
+  return editedPick(pick, unit, (own) => {
+    if (!editsVs(own, unit)) return { ...own, toggles: { ...own.toggles, [key]: held ? 1 : 0 } }
+    const { warlord: _previous, ...rest } = own.vs
+    return { ...own, vs: held ? { ...rest, warlord: key } : rest }
   })
 }
 
@@ -348,7 +348,7 @@ export function pickEditor(
         const { limits } = context
         if (!limits) return current
         const added = loadout.map((pick, at) => ({
-          ...pick,
+          ...withHeldVs(pick),
           key: keys[at] as number,
           attachedTo: at === 0 || pick.attachedTo === undefined ? undefined : keys[pick.attachedTo],
         }))
@@ -366,7 +366,7 @@ export function pickEditor(
           !canAddCopy(pick.entryId, current.filter((unit) => unit.entryId === pick.entryId).length, context.limits)
         )
           return null
-        const { nickname: _nickname, note: _note, embarkedIn: _embarkedIn, ...copy } = pick
+        const { nickname: _nickname, note: _note, embarkedIn: _embarkedIn, ...copy } = withHeldVs(pick)
         return { pick: copy, after: index }
       }),
 

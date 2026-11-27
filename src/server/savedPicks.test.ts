@@ -8,6 +8,7 @@ import type { RosterPick } from '../core/roster'
 import { lockedRosterRefusal, storedRosterContent } from '../core/rosterLock'
 import { app } from './app'
 import { sealedEventRosterFixture } from './sealedEventRoster.fixtures'
+import { rosterRow } from './rosterPersistence'
 import { rosterForUse } from './rosterUsage'
 import { savedPicks, servedLoadout, servedRoster, servedSealedRoster } from './savedPicks'
 import { RosterService } from './services/rosterService'
@@ -142,7 +143,8 @@ describe('served saved records', () => {
   })
 
   it('give the owner’s roster its translation', async () => {
-    expect((await service(before).rosterAccess('roster-1', 'user-1'))?.roster.picks[0]?.translatedVs).toEqual(fixture.vs)
+    const served = await service(before).rosterAccess('roster-1', 'user-1')
+    expect((served?.roster.picks as RosterPick[] | undefined)?.[0]?.translatedVs).toEqual(fixture.vs)
   })
 })
 
@@ -161,7 +163,9 @@ it('serves no unrevealed sealed list to a reader who may not see it', async () =
 
 it('lets a locked roster saved back as it was served through the lock', async () => {
   const served = (await service(before).rosterAccess('roster-1', 'user-1'))!.roster
-  expect(lockedRosterRefusal({ ...storedRosterContent(row(before)), locked: true }, saveRosterSchema.parse(served))).toBeNull()
+  // As a sync stores it: parsed as a save, then written as a row.
+  const saved = storedRosterContent({ ...rosterRow(saveRosterSchema.parse(served)), automaticName: served.automaticName })
+  expect(lockedRosterRefusal({ ...storedRosterContent(row(before)), locked: true }, saved)).toBeNull()
 })
 
 it('fields a saved roster in battle as it is stored', async () => {
