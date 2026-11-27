@@ -2,6 +2,7 @@ import { remember } from '../core/collections'
 import { buildUnit, type BuiltUnit, buildVsUnit, type RosterPick } from '../core/roster'
 import { type ChoiceOptions, vsUnitChoices, vsUnitToggles } from '../core/unitChoices'
 import { type VsDataDefinitions, vsDataDefinitions } from '../core/vsDataConstruction'
+import { steppedSizes } from '../core/vsDataBuild'
 import { priceVsRoster, unitKeywords, type VsRoster } from '../core/vsDataRoster'
 import type { LoadedCatalogue } from './catalogueIndex'
 
@@ -65,12 +66,27 @@ export function buildPick(
       toggles: vsUnitToggles(definitions, built.vs.unit, roster).map((toggle) => (required ? { ...toggle, required } : toggle)),
     }
   }
-  return buildUnit(pick.entryId, loaded.index, pick.models, pick.choices, {
-    ...context,
-    spreads: pick.spreads,
-    toggles: pick.toggles,
-    floor: pick.floor,
-  })
+  const build = (models: number | undefined) =>
+    buildUnit(pick.entryId, loaded.index, models, pick.choices, {
+      ...context,
+      spreads: pick.spreads,
+      toggles: pick.toggles,
+      floor: pick.floor,
+    })
+  const plain = build(pick.models)
+  // BSData can size a unit by ranges whose sum spans sizes VS Data never fields, as 1-2 Nobz and 9-18 Boyz reach 15.
+  const sizes = vsSizesOf(loaded, pick.entryId)
+  if (!plain || !sizes || plain.size.options || plain.size.min > sizes[0]! || plain.size.max < sizes.at(-1)!) return plain
+  const wanted = plain.size.models
+  const nearest = sizes.reduce((best, size) => (Math.abs(size - wanted) < Math.abs(best - wanted) ? size : best))
+  const built = nearest === wanted ? plain : (build(nearest) ?? plain)
+  return { ...built, size: { ...built.size, min: sizes[0]!, max: sizes.at(-1)!, options: sizes } }
+}
+
+/** The sizes VS Data steps a datasheet's unit between, where it fields some but not all between its smallest and largest. */
+function vsSizesOf(loaded: LoadedCatalogue, entryId: string): number[] | undefined {
+  const unit = vsUnitIdOf(loaded, entryId)
+  return unit ? steppedSizes(vsDefinitionsOf(loaded)!.get('unit', unit)!.data.sizes) : undefined
 }
 
 /** The list as VS Data's roster reads it, its VS picks fielded by their own selections and every other unit by its ID. */
