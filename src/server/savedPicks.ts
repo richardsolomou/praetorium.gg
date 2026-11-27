@@ -70,6 +70,20 @@ export function savedPicks(): SavedPickTranslations | undefined {
 /** The translations a record saved (or last changed) at `savedAt` may take: none for one saved after the copy they read. */
 const savedPicksFor = (savedAt: number) => (translatesSavedAt(savedPicksPin.copiedAt, savedAt) ? savedPicks() : undefined)
 
+/**
+ * The translations a write to a record saved at `savedAt` may keep, waiting up to `waitMs` for a load in progress, as after
+ * every start, since the write takes the record past them; none once that passes, so the player's action never waits on
+ * the bucket.
+ */
+async function savedPicksForWrite(savedAt: number, waitMs: number) {
+  if (!translatesSavedAt(savedPicksPin.copiedAt, savedAt)) return undefined
+  if (savedPicks() || !loading) return savedPicks()
+  let timer: ReturnType<typeof setTimeout> | undefined
+  await Promise.race([loading, new Promise((resolve) => (timer = setTimeout(resolve, waitMs)))])
+  clearTimeout(timer)
+  return savedPicks()
+}
+
 const baseRulesVersions = new Map<string, string | undefined>()
 /** The rules version a list's picks are keyed in, as the translator read it: its own, else the snapshot's base one. */
 function rulesVersionOf(catalogueId: string) {
@@ -108,7 +122,8 @@ export function servedRoster<T extends Parameters<typeof withVsPicks>[0] & { upd
  * A stored roster's picks, as stored and with the translations its owner is served kept as their own `vs`, for a write
  * that would move its version past the copy they read; null when it is served none.
  */
-export function storedWithTranslations(row: Parameters<typeof rosterFromRow>[0]) {
+export async function storedWithTranslations(row: Parameters<typeof rosterFromRow>[0], waitMs = 3_000) {
+  if (!(await savedPicksForWrite(row.updatedAt, waitMs))) return null
   const roster = rosterFromRow(row)
   const served = servedRoster(roster)
   if (served === roster) return null
@@ -121,7 +136,7 @@ export function storedWithTranslations(row: Parameters<typeof rosterFromRow>[0])
 }
 
 /** A save's picks, each one it leaves as stored taking the translation kept beside it. */
-export const withKeptTranslations = <T extends RosterPick>(picks: readonly T[], held: ReturnType<typeof storedWithTranslations>) =>
+export const withKeptTranslations = <T extends RosterPick>(picks: readonly T[], held: Awaited<ReturnType<typeof storedWithTranslations>>) =>
   held ? picks.map((pick, at) => (canonicalJson(pick) === canonicalJson(held.stored[at]) ? (held.kept[at] as T) : pick)) : [...picks]
 
 /** A saved unit loadout, as stored, with its units' frozen models and wargear, read as one saved when it was created. */

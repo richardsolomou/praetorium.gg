@@ -9,6 +9,7 @@ export const params = {
   id: __t.string(),
   userId: __t.string(),
   picks: __t.string(),
+  read: __t.string(),
   updatedAt: __t.u64(),
 }
 export const returnType = __t.bool()

@@ -237,3 +237,12 @@ describe('a write to a list saved before the copy', () => {
     expect(lockedRosterRefusal({ ...storedRosterContent(written), locked: true }, storedRosterContent(saved))).toBeNull()
   })
 })
+
+it('waits for translations still loading before a write moves a list past them', async () => {
+  vi.resetModules()
+  const { keepServedTranslations } = await import('./services/rosterService')
+  const keepRosterTranslations = vi.fn().mockResolvedValue(true)
+  const repository = { roster: vi.fn().mockResolvedValue(row(before)), keepRosterTranslations }
+  await keepServedTranslations(repository as unknown as RepositoryPort, 'roster-1', 'user-1')
+  expect(keepRosterTranslations.mock.calls[0]?.[2]?.[0]?.vs).toEqual(fixture.vs)
+})

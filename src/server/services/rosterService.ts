@@ -69,14 +69,14 @@ const readerSummaries = (rows: readonly FullRow[]) =>
 /**
  * Before a write moves a roster's version past the copy its translations read, the translations its owner is served
  * become its picks' own `vs`, so it keeps reading them: its own list and the same loadout, so the write needs no unlock.
- * Gives back the picks as stored beside the ones kept, for a save that leaves some as they were.
+ * Gives back the picks as stored beside the ones kept, for a save that leaves some as they were, or null when nothing was
+ * kept. A write while the translations are still loading waits a few seconds for them, then goes ahead without.
  */
 export async function keepServedTranslations(repository: RepositoryPort, id: string, userId: string) {
   const row = await repository.roster(id)
-  const held = row?.userId === userId ? storedWithTranslations(row) : null
+  const held = row?.userId === userId ? await storedWithTranslations(row) : null
   if (!row || !held) return null
-  await repository.keepRosterTranslations(id, userId, held.kept, row.updatedAt)
-  return held
+  return (await repository.keepRosterTranslations(id, userId, held.kept, row)) ? held : null
 }
 
 export class RosterService {

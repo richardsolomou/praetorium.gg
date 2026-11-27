@@ -324,14 +324,16 @@ it.skipIf(!url || !database || !token)('saves edits again once unlocked and star
 
 describe('kept translations', () => {
   const kept = [{ entryId: 'unit-proof', vs: { models: { 'host.unit-proof': 1 }, options: {} } }]
-  /** Runs against a fresh locked list, so a write that skipped the lock shows, given the list's version as read. */
-  async function held(run: (store: SpacetimeOperator, input: ReturnType<typeof lockedInput>, read: number) => Promise<unknown>) {
+  /** Runs against a fresh locked list, so a write that skipped the lock shows, given the list as read. */
+  async function held(
+    run: (store: SpacetimeOperator, input: ReturnType<typeof lockedInput>, read: { picks: string; updatedAt: number }) => Promise<unknown>,
+  ) {
     const store = new SpacetimeOperator(url!, database!, token!)
     const input = lockedInput(randomUUID())
     try {
       await store.saveRoster(input)
       await store.setRosterLocked(input.id, input.userId, true, input.now + 1)
-      return await run(store, input, (await store.roster(input.id))!.updatedAt)
+      return await run(store, input, (await store.roster(input.id))!)
     } finally {
       await store.deleteRoster(input.id, input.userId)
     }
@@ -361,9 +363,17 @@ describe('kept translations', () => {
   it.skipIf(!url || !database || !token)('keep the version they were stored at', async () => {
     const outcome = await held(async (store, input, read) => {
       await store.keepRosterTranslations(input.id, input.userId, kept, read)
-      return (await store.roster(input.id))?.updatedAt === read
+      return (await store.roster(input.id))?.updatedAt === read.updatedAt
     })
     expect(outcome).toBe(true)
+  })
+
+  it.skipIf(!url || !database || !token)('are not stored once the picks changed since they were read', async () => {
+    const outcome = await held(async (store, input, read) => {
+      await store.keepRosterTranslations(input.id, input.userId, kept, read)
+      return store.keepRosterTranslations(input.id, input.userId, [], read)
+    })
+    expect(outcome).toBe(false)
   })
 
   it.skipIf(!url || !database || !token)('are not stored once the list moved on since it was read', async () => {
