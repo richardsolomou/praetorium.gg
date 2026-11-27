@@ -81,7 +81,7 @@ export function vsDataErrors(
   const ownsDetachments = definitions.all('detachment').some((detachment) => own.has(detachment.data.faction))
   // Nor can it place one of a faction none of whose datasheets reads as its own, as Titanicus Traitoris's read as the
   // Imperial Titans they share BSData IDs with.
-  if (!readsAsOwn(data, definitions, own)) return null
+  if (!readsAsOwn(data, definitions, list.catalogueId, own)) return null
   if (!without && (!ownsDetachments || detachments.some((id) => !id || !own.has(definitions.get('detachment', id)?.data.faction))))
     return null
   const battleSize = definitions.all('battle-size').find((size) => size.data.points === list.limit)?.id
@@ -151,13 +151,19 @@ export function vsDataErrors(
   )
 }
 
-const ownedFactions = new WeakMap<VsRosterData, Set<string>>()
-const readsAsOwn = (data: VsRosterData, definitions: VsDataDefinitions, own: ReadonlySet<string | undefined>) => {
-  const factions = remember(
-    ownedFactions,
-    data,
-    () => new Set(Object.values(data.units).flatMap((id) => (id && definitions.get('unit', id)?.data.faction) || [])),
-  )
+const ownedFactions = new WeakMap<VsRosterData, Map<string, Set<string>>>()
+/** Whether a datasheet reads as one of `own`'s units in the book `catalogueId`, whose book keys count only there. */
+const readsAsOwn = (data: VsRosterData, definitions: VsDataDefinitions, catalogueId: string, own: ReadonlySet<string | undefined>) => {
+  const book = catalogueId.slice(catalogueId.indexOf('~') + 1)
+  const byBook = remember(ownedFactions, data, () => new Map<string, Set<string>>())
+  const factions =
+    byBook.get(book) ??
+    new Set(
+      Object.entries(data.units).flatMap(([key, id]) =>
+        id && (!key.includes('/') || key.startsWith(`${book}/`)) ? (definitions.get('unit', id)?.data.faction ?? []) : [],
+      ),
+    )
+  byBook.set(book, factions)
   return [...own].some((faction) => faction !== undefined && factions.has(faction))
 }
 
