@@ -30,7 +30,7 @@ export function vsFirstFielding(definitions: VsDataDefinitions, unitId: string):
   const models = Object.fromEntries(
     definitions.modelsOf(unitId).map((model) => [model.id, unit.data.defaultModels?.[model.id] ?? modelBounds(model.data, smallest).min]),
   )
-  const options = unit.data.defaults ? structuredClone(unit.data.defaults) : {}
+  const options = Object.fromEntries(Object.entries(unit.data.defaults ?? {}).map(([id, counts]) => [id, { ...counts }]))
   return withMinima(definitions, { unit: unitId, models, options })
 }
 
