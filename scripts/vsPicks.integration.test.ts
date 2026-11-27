@@ -20,8 +20,7 @@ describe.skipIf(!fs.existsSync(path.join(directory, 'definitions')))('a pick fie
   let loaded: LoadedCatalogue
   let rules: LoadedRules | null
   let list: { catalogueId: string; detachmentIds: string[] }
-  const priced = (...units: RosterPick[]) =>
-    calculateRosterPrice({ ...list, disposition: null, limit: 2000, units }, loaded, rules)!.units
+  const priced = (...units: RosterPick[]) => calculateRosterPrice({ ...list, disposition: null, limit: 2000, units }, loaded, rules)!.units
   const heavyFlamer = {
     models: { [`${squad}.terminator`]: 9, [`${squad}.terminator-sergeant`]: 1 },
     options: { [`${squad}.terminator-loadout`]: { [`${squad}.heavy-flamer`]: 1 } },
@@ -47,7 +46,7 @@ describe.skipIf(!fs.existsSync(path.join(directory, 'definitions')))('a pick fie
   })
 
   it('carries the wargear its selections give', () => {
-    expect(priced({ entryId: terminators, vs: heavyFlamer })[0]!.wargear).toContainEqual({ name: 'Heavy flamer', count: 1 })
+    expect(priced({ entryId: terminators, vs: heavyFlamer })[0]!.wargear).toContainEqual({ name: 'Heavy Flamer', count: 1 })
   })
 
   it('lines up the model that took the swap apart from the rest', () => {

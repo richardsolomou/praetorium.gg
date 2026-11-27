@@ -113,7 +113,8 @@ function rosterForces(
     force.push(unit.selection)
     forceSelections.set(owner, force)
   }
-  return { picked, forceSelections, roster }
+  // A VS pick's price is VS Data's for the whole list, copies counted across it; one VS Data leaves unpriced has none.
+  return { picked, forceSelections, roster, vsPrices: vsPickPrices(loaded, data, vsUnitsOf(data, picked)) }
 }
 
 type ReplacementChoice = {
@@ -250,6 +251,7 @@ function adjustUnitPoints(
   loaded: LoadedCatalogue,
   data: PriceInput,
   picked: ReturnType<typeof rosterForces>['picked'],
+  vsPrices: ReadonlyMap<number, number>,
   pointsBySelection: Map<Selection, number>,
 ) {
   let adjustment = 0
@@ -257,7 +259,6 @@ function adjustUnitPoints(
   const detachments = rosterDetachments(loaded, data.catalogueId, data.detachmentIds).chosen.flatMap(
     (option) => mfmDetachmentFor(loaded, data.catalogueId, option.name) ?? [],
   )
-  const vsPrices = vsPickPrices(loaded, data, vsUnitsOf(data, picked))
   for (const unit of picked) {
     const catalogueId = unitCatalogueId(data, unit)
     const definition = loaded.index.definitions.get(unit.entryId)
@@ -279,7 +280,7 @@ function adjustUnitPoints(
 }
 
 /** Each saved pick's datasheet and, for a VS pick, the unit VS Data built, by its place in the list. */
-const vsUnitsOf = (data: PriceInput, picked: ReturnType<typeof rosterForces>['picked']) => {
+const vsUnitsOf = (data: PriceInput, picked: readonly { key: number; vs?: BuiltUnit['vs'] }[]) => {
   const byKey = new Map(picked.map((unit) => [unit.key, unit]))
   return data.units.map((pick, key) => ({ entryId: pick.entryId, vs: byKey.get(key)?.vs }))
 }
@@ -405,12 +406,12 @@ export function calculateRosterTotals(
 ) {
   if (!loaded) return null
   const { chosen, selections: detachmentSelection } = rosterDetachments(loaded, data.catalogueId, data.detachmentIds)
-  const { picked, forceSelections } = rosterForces(loaded, data, detachmentSelection, sharedBuiltUnitsFor(loaded))
+  const { picked, forceSelections, vsPrices } = rosterForces(loaded, data, detachmentSelection, sharedBuiltUnitsFor(loaded))
   if (savedSelectionErrors(data, picked, loaded).length) return null
   const forces = [...forceSelections.values()]
   const evaluated = evaluateForces(forces, loaded.index, { primaryCatalogueId: data.catalogueId })
   const pointsBySelection = selectionPointsOf(forces, evaluated)
-  const adjustment = adjustUnitPoints(loaded, data, picked, pointsBySelection)
+  const adjustment = adjustUnitPoints(loaded, data, picked, vsPrices, pointsBySelection)
   return {
     points: evaluated.points + adjustment,
     label:
@@ -609,7 +610,12 @@ function calculateRoster(
       ? 'This roster has a detachment that is no longer available. Choose a current detachment.'
       : detachmentPointsError(purchased, budget, data.waivedRules)
 
-  const { picked, forceSelections, roster } = rosterForces(loaded, data, detachmentSelection, unitCache ?? sharedBuiltUnitsFor(loaded))
+  const { picked, forceSelections, roster, vsPrices } = rosterForces(
+    loaded,
+    data,
+    detachmentSelection,
+    unitCache ?? sharedBuiltUnitsFor(loaded),
+  )
   // Pricing is a roster being mustered, which is what a datasheet's force-scoped rules ask about.
   const options = { primaryCatalogueId: data.catalogueId, mustering: true }
   const forces = [...forceSelections.values()]
@@ -632,7 +638,7 @@ function calculateRoster(
     unit.vs?.models ?? remember(builtModelKinds, unit.source, () => modelKindsOf(unit.entryId, unit.selection, loaded.index, options))
   const whole = evaluateForces(forces, loaded.index, options)
   const selectionPoints = selectionPointsOf(forces, whole)
-  const points = whole.points + adjustUnitPoints(loaded, data, picked, selectionPoints)
+  const points = whole.points + adjustUnitPoints(loaded, data, picked, vsPrices, selectionPoints)
   const pointCaps = pointCapErrors(forces, loaded.index, options, (selection) => selectionPoints.get(selection) ?? 0)
   const restrictions = rules?.factionRestrictions.get(factionSlug)
   // Keywords and Toughness are only inputs to these two construction rule sets.

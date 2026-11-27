@@ -11,7 +11,6 @@ import path from 'node:path'
 import { parseArgs } from 'node:util'
 import rawOptions from '../catalogue/legacy-ids/options.json' with { type: 'json' }
 import { legacyOptionsSchema } from '../src/core/legacyIds'
-import { modelFixedCount } from '../src/core/modelKinds'
 import type { RosterPick, VsPick } from '../src/core/roster'
 import { buildUnit } from '../src/core/roster'
 import type { Counts } from '../src/core/vsDataConstruction'
@@ -30,8 +29,9 @@ const { values, positionals } = parseArgs({
 })
 const directory = path.resolve(positionals[0] ?? 'catalogue-data')
 const { catalogue: loaded, rules } = loadSnapshot(directory)
-const definitions = vsDefinitionsOf(loaded)
-if (!definitions || !loaded.vsRoster) throw new Error(`${directory} has no VS Data roster definitions`)
+const found = vsDefinitionsOf(loaded)
+if (!found || !loaded.vsRoster) throw new Error(`${directory} has no VS Data roster definitions`)
+const definitions = found
 const map = legacyOptionsSchema.parse(rawOptions).units
 
 type Priced = NonNullable<ReturnType<typeof calculateRosterPrice>>['units'][number]
@@ -48,7 +48,7 @@ const differ = (check: string, unit: string, detail: string) => {
 
 /** A catalogue whose army is the unit's faction or its parent's, and its first Detachment, to field the unit in. */
 function listFor(faction: string) {
-  const parent = definitions!.get('faction', faction)?.data.parent
+  const parent = definitions.get('faction', faction)?.data.parent
   const books = Object.entries(loaded.vsRoster!.books)
   for (const wanted of [faction, parent]) {
     const book = books.find(([, id]) => id === wanted)?.[0]
@@ -114,7 +114,7 @@ const addCounts = (held: Readonly<Counts>, change: Readonly<Counts>) => {
 }
 const taking = (start: VsRosterUnit, selections: Record<string, Counts>) =>
   Object.entries(selections).reduce(
-    (unit, [option, counts]) => vsWithChoice(definitions!, unit, option, addCounts(unit.options?.[option] ?? {}, counts)),
+    (unit, [option, counts]) => vsWithChoice(definitions, unit, option, addCounts(unit.options?.[option] ?? {}, counts)),
     start,
   )
 const vsPick = (unit: VsRosterUnit): VsPick => ({ models: unit.models ?? {}, options: unit.options ?? {} })
@@ -174,11 +174,12 @@ for (const [entryId, entry] of Object.entries(map).slice(0, values.limit ? Numbe
   for (const [key, choice] of Object.entries(entry.choices)) {
     if (!('options' in choice) || !Object.keys(choice.options).length) continue
     const [choiceKey, optionId] = key.split('|') as [string, string]
-    // A choice beneath another is read with that one taken: each group/option pair its key passes through.
-    const path = choiceKey.split('/')
-    const parents = path.flatMap((_, at) =>
-      at % 2 === 0 && at + 1 < path.length ? [[path.slice(0, at + 1).join('/'), path[at + 1]!] as const] : [],
-    )
+    // A choice beneath another is read with that one taken: each prefix of its key the map lists as a choice of its own.
+    const segments = choiceKey.split('/')
+    const parents = segments.flatMap((_, at) => {
+      const parent = [segments.slice(0, at + 1).join('/'), segments[at + 1]!] as const
+      return at + 1 < segments.length && entry.choices[parent.join('|')] ? [parent] : []
+    })
     const parentSelections = parents.map(([group, option]) => {
       const mapped = entry.choices[`${group}|${option}`]
       return mapped && 'options' in mapped ? mapped.options : {}
