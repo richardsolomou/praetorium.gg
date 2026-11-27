@@ -10,7 +10,9 @@ import { carried, modelCounts, type VsRosterUnit } from './vsDataRoster'
  * simulator read; `unitWide` holds what the unit has rather than a model.
  */
 export type VsBuiltUnit = {
+  /** The unit as VS Data's checker reads it, without its Enhancements, which `enhancements` holds since a unit can take several. */
   unit: VsRosterUnit
+  enhancements: string[]
   size: { min: number; max: number; models: number; options?: number[] }
   carriers: CombatCarrier[]
   models: ModelKind[]
@@ -53,7 +55,6 @@ export function vsBuiltUnit(definitions: VsDataDefinitions, unitId: string, pick
     unit: unitId,
     models: pick.models,
     options: pick.options,
-    ...(pick.enhancement ? { enhancement: pick.enhancement } : {}),
     ...(pick.allegiance ? { allegiance: pick.allegiance } : {}),
     ...(pick.warlord ? { warlord: pick.warlord } : {}),
   }
@@ -133,6 +134,7 @@ export function vsBuiltUnit(definitions: VsDataDefinitions, unitId: string, pick
   const total = [...counts.values()].reduce((sum, n) => sum + n, 0)
   return {
     unit: picked,
+    enhancements: pick.enhancements ?? [],
     size: {
       min: sizes[0] ?? total,
       max: sizes.at(-1) ?? total,

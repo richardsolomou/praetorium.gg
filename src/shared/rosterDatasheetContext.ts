@@ -1,18 +1,23 @@
 import { attachedUnit } from '../core/attachedUnits'
 import type { Selection } from '../core/evaluate'
-import { buildUnit, type RosterPick } from '../core/roster'
+import type { RosterPick } from '../core/roster'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { rosterDetachments } from './rosterDetachments'
+import { buildPick } from './vsDataBuild'
 
-/** One pick built the way the roster around it builds it. */
-export function buildRosterPick(loaded: LoadedCatalogue, catalogueId: string, detachments: readonly Selection[], pick: RosterPick) {
-  return buildUnit(pick.entryId, loaded.index, pick.models, pick.choices, {
-    primaryCatalogueId: catalogueId,
-    roster: detachments,
-    spreads: pick.spreads,
-    toggles: pick.toggles,
-    floor: pick.floor,
-  })
+/**
+ * One pick built the way the roster around it builds it. A VS pick's tree here is the catalogue's build of it
+ * (`buildVsUnit`), so what reads the tree, as the simulator, the loadout search and the BattleScribe export do, reads its
+ * catalogue choices and its size until each reads VS Data's.
+ */
+export function buildRosterPick(
+  loaded: LoadedCatalogue,
+  catalogueId: string,
+  detachments: readonly Selection[],
+  pick: RosterPick,
+  detachmentIds: readonly string[] = [],
+) {
+  return buildPick(loaded, pick, { catalogueId, detachmentIds }, { primaryCatalogueId: catalogueId, roster: detachments })
 }
 
 export function rosterDatasheetSelections(
@@ -25,7 +30,7 @@ export function rosterDatasheetSelections(
 ) {
   const detachments = rosterDetachments(loaded, data.catalogueId, data.detachmentIds).selections
   const builtUnits = data.picks.flatMap((pick, index) => {
-    const unit = buildRosterPick(loaded, data.catalogueId, detachments, pick)
+    const unit = buildRosterPick(loaded, data.catalogueId, detachments, pick, data.detachmentIds)
     return unit ? [{ index, selection: unit.selection, models: unit.size.models }] : []
   })
   return {

@@ -87,16 +87,16 @@ const sameName = (name: string) =>
     .replace(/[^a-z0-9]/g, '')
 
 /**
- * A VS pick built: VS Data's unit, beside the datasheet's own build at its size with its Warlord, Enhancement and
+ * A VS pick built: VS Data's unit, beside the datasheet's own build at its size with its Warlord, Enhancements and
  * allegiance, which whatever still reads the catalogue's selection tree (keywords, abilities, attachments, the simulator,
  * the BattleScribe export) reads in its place. The pick's own `choices`, `spreads` and `toggles`, where a translated pick
- * keeps them, arm that tree; `vs` overrules them on its size, Warlord, Enhancement and allegiance.
- * `enhancementOption` is the catalogue option the frozen maps file `vs.enhancement` under in the list's Detachments.
+ * keeps them, arm that tree; `vs` overrules them on its size, Warlord, Enhancements and allegiance.
+ * `enhancementOptions` are the catalogue options the frozen maps file `vs.enhancements` under in the list's Detachments.
  */
 export function buildVsUnit(
   pick: RosterPick & { vs: VsPick },
   index: CatalogueIndex,
-  vs: { definitions: VsDataDefinitions; unit: string; enhancementOption?: string },
+  vs: { definitions: VsDataDefinitions; unit: string; enhancementOptions?: readonly string[] },
   context?: ChoiceOptions,
 ): BuiltUnit | null {
   const built = vsBuiltUnit(vs.definitions, vs.unit, pick.vs)
@@ -107,8 +107,10 @@ export function buildVsUnit(
   const choices = Object.fromEntries(
     Object.entries(pick.choices ?? {}).filter(([key]) => !plain.choices.some((choice) => choice.key === key && special(choice))),
   )
-  const enhancement = plain.choices.find((choice) => special(choice) && choice.options.some((option) => option.id === vs.enhancementOption))
-  if (enhancement && vs.enhancementOption) choices[enhancement.key] = vs.enhancementOption
+  for (const optionId of vs.enhancementOptions ?? []) {
+    const holder = plain.choices.find((choice) => special(choice) && choice.options.some((option) => option.id === optionId))
+    if (holder) choices[holder.key] = optionId
+  }
   const allegiance = pick.vs.allegiance && sameName(vs.definitions.get('allegiance', pick.vs.allegiance)?.name ?? pick.vs.allegiance)
   const sworn =
     allegiance &&

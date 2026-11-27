@@ -2,6 +2,7 @@ import { remember } from '../core/collections'
 import { buildUnit, type BuiltUnit, buildVsUnit, type RosterPick } from '../core/roster'
 import type { ChoiceOptions } from '../core/unitChoices'
 import { type VsDataDefinitions, vsDataDefinitions } from '../core/vsDataConstruction'
+import { pointsAt } from '../core/vsDataPoints'
 import { priceVsRoster, unitKeywords, type VsRoster } from '../core/vsDataRoster'
 import type { LoadedCatalogue } from './catalogueIndex'
 
@@ -41,16 +42,20 @@ export function buildPick(
   const unit = pick.vs && vsUnitIdOf(loaded, pick.entryId)
   if (pick.vs && definitions && unit) {
     const { detachments } = vsListOf(loaded, list.catalogueId, list.detachmentIds)
-    const filed = Object.entries(loaded.vsRoster?.enhancements ?? {}).find(
-      ([key, id]) => id === pick.vs!.enhancement && detachments.includes(key.slice(0, key.indexOf('/'))),
-    )
+    const wanted = new Set(pick.vs.enhancements ?? [])
+    const filed = Object.entries(loaded.vsRoster?.enhancements ?? {}).flatMap(([key, id]) => {
+      const [detachment, option] = [key.slice(0, key.indexOf('/')), key.slice(key.indexOf('/') + 1)]
+      if (!wanted.has(id) || !detachments.includes(detachment)) return []
+      wanted.delete(id)
+      return [option]
+    })
     return buildVsUnit(
       { ...pick, vs: pick.vs },
       loaded.index,
       {
         definitions,
         unit,
-        ...(filed ? { enhancementOption: filed[0].slice(filed[0].indexOf('/') + 1) } : {}),
+        enhancementOptions: filed,
       },
       context,
     )
@@ -98,11 +103,23 @@ export function vsPickPrices(
   if (!definitions || !units.some((unit) => unit.vs)) return new Map()
   const { roster, at } = vsRosterOf(loaded, definitions, list, units)
   const price = priceVsRoster(definitions, roster)
+  // A unit can hold an Enhancement and Detachment upgrades together, which the roster's one Enhancement a unit cannot say.
+  const enhancementPoints = (ids: readonly string[]) =>
+    ids.reduce<number | null>((total, id) => {
+      const enhancement = definitions.get('enhancement', id)
+      const faction = enhancement && definitions.get('detachment', enhancement.data.detachment)?.data.faction
+      const found =
+        enhancement && faction
+          ? pointsAt(definitions.points, { kind: 'enhancement', faction, detachment: enhancement.data.detachment, enhancement: id })
+          : null
+      return total === null || !found?.ok ? null : total + found.points
+    }, 0)
   return new Map(
     units.flatMap((unit, position) => {
       const place = at.get(position)
       const priced = place === undefined ? undefined : price.units[place]
-      return unit.vs && priced && !priced.unpriced.length ? [[position, priced.points] as const] : []
+      const extra = unit.vs ? enhancementPoints(unit.vs.enhancements) : null
+      return priced && !priced.unpriced.length && extra !== null ? [[position, priced.points + extra] as const] : []
     }),
   )
 }
