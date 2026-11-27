@@ -5,7 +5,7 @@ import { hasTextTokens, withoutText } from '../core/sourceText'
 import type { TextFactsByKey } from '../core/textFacts'
 import { titleCaseAbility } from './catalogueAbilityGrants'
 import { abilityGrantsIn, allowancesIn, combatFactsIn, offeredOptionsOf } from './textFacts'
-import { combatFactsOf, recordedCombatText } from '../core/combatReading'
+import { recordedCombatText } from '../core/combatReading'
 import { type CombatRule, type CombatRuleJudge, combatRuleProjected, judgedCombatRule } from '../core/combatRules'
 import { allowancesWhile, type BattleChoiceAllowance, namesAllowedOptions } from '../core/battleChoices'
 import { datasheetCharacteristicKind, datasheetProfileKind } from '../core/datasheetStructure'
@@ -57,28 +57,6 @@ export function datasheetCombatant(...[loaded, ...rest]: Parameters<typeof roste
       battleChoiceAllowances: battleChoiceAllowancesFor(combatant, loaded.index.textFacts),
     }
   )
-}
-
-/**
- * A combatant whose rules a device can play without their words: each rule still left as a token is judged from the
- * combat facts its words give, as a device judges a rule whose facts the cards recorded.
- */
-export function withRecordedRules<T extends { rules: CombatRule[]; companions: { rules: CombatRule[] }[] }>(
-  combatant: T,
-  words: (text: string) => string | null,
-): T {
-  const recorded = (rules: readonly CombatRule[]) =>
-    rules.flatMap((rule) => {
-      const said = rule.judge && hasTextTokens(rule.description) ? words(rule.description) : null
-      if (said === null) return [rule]
-      const { judge, ...placed } = rule
-      return judgedCombatRule(placed, judge!, recordedCombatText(combatFactsOf(said, rule.scope === 'stratagem'))) ?? []
-    })
-  return {
-    ...combatant,
-    rules: recorded(combatant.rules),
-    companions: combatant.companions.map((member) => ({ ...member, rules: recorded(member.rules) })),
-  }
 }
 
 /**
@@ -345,13 +323,13 @@ function rosterCombatRules(
     // Every unit's keywords are known only once the roster is read; `supportKeywords` fills as it is.
     const placement: CombatRuleJudge = { ...judge, keywords: sheet.keywords, unitKeywords, supportKeywords }
     const recorded = recordedCombat(rule.description)
-    // A token without combat facts is judged where its words load (`readableRules`), against the same placement.
-    if (recorded === undefined && hasTextTokens(rule.description))
-      candidates.push({ ...placed, keywords: sheet.keywords, judge: placement })
-    else {
-      const judged = judgedCombatRule(placed, placement, recorded === undefined ? undefined : recordedCombatText(recorded))
-      if (judged) candidates.push(judged)
+    // A token without combat facts does something unknown, which the simulator lists as not calculated.
+    if (recorded === undefined && hasTextTokens(rule.description)) {
+      candidates.push({ ...placed, keywords: sheet.keywords })
+      return
     }
+    const judged = judgedCombatRule(placed, placement, recorded === undefined ? undefined : recordedCombatText(recorded))
+    if (judged) candidates.push(judged)
   }
   for (const ability of [...sheet.abilities, ...(sheet.enhancements ?? [])]) {
     if (!ability.description) continue

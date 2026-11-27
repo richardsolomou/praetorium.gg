@@ -12,6 +12,7 @@ import { cardTwins } from './cardTwins'
 import type { TextFacts, TextFactsByKey } from '../core/textFacts'
 import { vsDataTextFacts } from './vsDataEffects'
 import { combatOfVsDataOrWords } from '../shared/vsDataEffects'
+import { combatRuleRoles } from '../core/combatRules'
 import fs from 'node:fs'
 import path from 'node:path'
 import { buildIndex, type CatalogueFile } from '../core/catalogue'
@@ -123,28 +124,32 @@ export function* loadCatalogueSteps(
     ...(policy ? { datacardExcludedCatalogueIds: datacardExclusions(policy.datacardExcludedCatalogueIds, edition) } : {}),
     ...(edition ? { edition } : {}),
   }
-  const twins = cardTwins(ownTexts)
+  // What every rule does is read from VS Data's effect blocks, where the snapshot keeps them; a text joining no record
+  // VS Data has read takes no part in anything the rules read. A text's holders are those of the texts shown once the
+  // cards stand in for the catalogue's, which a card text's record is chosen by.
+  let holding: Pick<DefinitionTexts, 'holders'> = texts
+  const effects = vsDataTextFacts(snapshotDirectory, edition?.id, cardDirectory, { holders: (key) => holding.holders?.(key) ?? [] })
+  const twins = cardTwins(ownTexts, effects)
   yield
   // Readers load a rule's words from the cards wherever they print it, and from the catalogue only where they do not.
   // The swap is made in the files already built, as renaming a rules version's books again would cost as much as the
   // first time, and what the catalogue derives from them besides the index reads no text.
   const shown = texts.withTwins(twins)
+  holding = shown
   const shownCards = withoutTwinSearch(datacards)
-  // What every rule does is read from VS Data's effect blocks, where the snapshot keeps them; a rule VS Data calculates
-  // nothing of takes the roles its words do, so the simulator lists it as not calculated.
-  const effects = vsDataTextFacts(snapshotDirectory, edition?.id, cardDirectory, shown, index.datasheets)
   const readFacts = new Map<string, TextFacts>()
   const factsOf = (key: string) => {
-    const words = shown.fact(key) ?? cardFacts?.get(key)
-    const facts = withLegality(effects!.get(key) ?? NO_FACTS, words)
+    const facts = withLegality(effects!.get(key) ?? NO_FACTS, shown.fact(key) ?? cardFacts?.get(key))
     const vsData = facts.combat
-    // A server records no card's combat reading, so a card is read from its words here.
-    const ownReading = () => (words?.combat !== undefined ? words.combat : cards.textCombat?.(key))
+    const roles = () => {
+      const said = shown.said(key) ?? cards.textWords?.(key)
+      return said === undefined ? [] : combatRuleRoles(said)
+    }
     let combat: TextFacts['combat']
-    // The words' combat is read only when asked, as reading it is most of the cost of a text's facts.
+    // The words are read only when asked, as most texts' facts are never asked for their combat.
     return Object.defineProperty(facts, 'combat', {
       enumerable: true,
-      get: () => (combat === undefined ? (combat = combatOfVsDataOrWords(vsData, ownReading)) : combat),
+      get: () => (combat === undefined ? (combat = combatOfVsDataOrWords(vsData, roles)) : combat),
     })
   }
   const vsProfiles = vsProfilesIn(directory, index, ownTexts.keywords ?? [], edition?.id)
@@ -179,7 +184,7 @@ export function* loadCatalogueSteps(
 /** Cards with the catalogue's words they quote swapped for the catalogue's tokens. */
 function publishedDatacards(cards: LoadedDatacards, token: (raw: string) => string | null): LoadedDatacards {
   // The facts hold no text, and walking them would read every combat reading they hold only when asked.
-  const { textFacts, textCombat: _combat, ...rest } = cards
+  const { textFacts, textWords: _words, ...rest } = cards
   const published = { ...withDefinitionTokens(rest, token), ...(textFacts ? { textFacts } : {}) }
   const texts = (descriptions: ReadonlyMap<string, string>) =>
     new Map([...descriptions].map(([key, text]) => [key, withDefinitionTokensIn(text, token)]))
