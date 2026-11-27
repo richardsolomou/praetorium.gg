@@ -56,7 +56,7 @@ export function nodeEnvironment(environment: NodeJS.ProcessEnv, target: 'staging
     entries.R2_ACCESS_KEY_ID = requiredEnv('R2_ACCESS_KEY_ID', environment)
     entries.R2_SECRET_ACCESS_KEY = requiredEnv('R2_SECRET_ACCESS_KEY', environment)
     // The private bucket's key reaches nothing else, so snapshots and the live archive it publishes need their own.
-    entries.SNAPSHOT_R2_ACCOUNT_ID = entries.R2_ACCOUNT_ID
+    entries.SNAPSHOT_R2_ACCOUNT_ID = requiredEnv('R2_ACCOUNT_ID', environment)
     entries.SNAPSHOT_R2_ACCESS_KEY_ID = requiredEnv('SNAPSHOT_R2_ACCESS_KEY_ID', environment)
     entries.SNAPSHOT_R2_SECRET_ACCESS_KEY = requiredEnv('SNAPSHOT_R2_SECRET_ACCESS_KEY', environment)
     // Releases prepare this catalogue for their compiler before replicas change.
