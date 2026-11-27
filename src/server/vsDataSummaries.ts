@@ -18,6 +18,7 @@ import {
 import { spannedParagraph, type SummaryBlock, type SummaryInline, summaryBlocks, summaryText } from '../core/summaryMarkdown'
 import type { Steps } from '../shared/steps'
 import {
+  type BsdataRecords,
   type GdcRuleKind,
   gdcRuleRecords,
   vsDataIndex,
@@ -35,6 +36,18 @@ import { editionTextFiles, textHash } from './sourceTexts'
 const isVsDataId = (alias: string) => !/^(bsdata|gdc)\./.test(alias)
 
 export const NO_RULE_SUMMARIES: RuleSummaries = { records: {}, texts: {}, entries: {} }
+
+/**
+ * The ability each BSData profile is, by its id, or by `<datasheet>/<id>` where it is another on each datasheet; a
+ * datasheet whose own record is no ability with a summary, as a core keyword, keeps an empty one, never the id's.
+ */
+export function abilityAliases(records: BsdataRecords, summarized: (key: string) => boolean): Record<string, string> {
+  const ability = (key: string) => (key.startsWith('ability:') && summarized(key) ? key.slice('ability:'.length) : undefined)
+  return {
+    ...Object.fromEntries(Object.entries(records.byId).flatMap(([id, key]) => (ability(key) ? [[id, ability(key)!] as const] : []))),
+    ...Object.fromEntries(Object.entries(records.bySheet).map(([sheet, key]) => [sheet, ability(key) ?? ''] as const)),
+  }
+}
 
 /**
  * One source file's summaries, by its token ID, or the mission pack's; for an ID no file of the snapshot has, word that a
@@ -160,12 +173,7 @@ export function* vsDataSummariesSteps(directory: string, documents: readonly Rul
           ),
         ),
         abilities: abilitiesBy(([, summary]) => summary),
-        // The ability each BSData profile is, by its id, or by `<datasheet>/<id>` where it is another on each datasheet.
-        aliases: Object.fromEntries(
-          Object.entries({ ...bsdata.byId, ...bsdata.bySheet }).flatMap(([id, key]) =>
-            key.startsWith('ability:') && summaries.has(key) ? [[id, key.slice('ability:'.length)] as const] : [],
-          ),
-        ),
+        aliases: abilityAliases(bsdata, (key) => summaries.has(key)),
         // A faction a catalogue names as VS Data does but under another id, as its Adeptus Titanicus is `titan-legions`;
         // a name that is itself an id, as Aeldari is, stays that faction's.
         factions: Object.fromEntries(

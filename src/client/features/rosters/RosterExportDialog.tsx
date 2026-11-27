@@ -188,7 +188,7 @@ function TabletopExport({
   const ready = Boolean(parsed) && !printed.pending && !(catalogueId && units.isPending) && !core.isPending
   // As a datasheet shows them: the unit's own record or the one its printed text names, else the core ability so named.
   const summaryOf = ({ owner, name: ability, id, text }: (typeof abilities)[number]) =>
-    datasheetAbilitySummary(units.data ?? null, owner, ability, id, printed.recordOf(text, ability)) ??
+    datasheetAbilitySummary(units.data ?? null, owner, id, printed.recordsOf(text)) ??
     abilityKeysNamed(ability)
       .map((key) => core.data?.[key])
       .find(Boolean) ??

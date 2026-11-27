@@ -1,9 +1,9 @@
 import { expect, it } from 'vitest'
 import type { RuleSummary } from '../contracts/rules'
-import { abilityKeysNamed, summaryNamedBy, summaryPlainText } from './ruleSummaries'
+import { abilityKeysNamed, recordsPrinting, summaryPlainText } from './ruleSummaries'
 
 const summary = (text: string): RuleSummary => ({ blocks: [{ paragraph: [{ text }] }], questions: [] })
-const textOf = (found: { summary: RuleSummary } | null) =>
+const textOf = ([found]: readonly { summary: RuleSummary }[]) =>
   found?.summary.blocks[0] && 'paragraph' in found.summary.blocks[0] ? found.summary.blocks[0].paragraph[0]?.text : null
 const answer = {
   records: { 'ability:a': summary('First stratagem.'), 'ability:b': summary('Second stratagem.') },
@@ -13,24 +13,19 @@ const answer = {
 const token = (hash: string) => ({ file: 'file', transform: 'prose' as const, hash })
 
 it('finds a stratagem by its own lines when another shares its timing', () => {
-  expect(textOf(summaryNamedBy([token('shared'), token('own')], new Map([['file', answer]])))).toBe('Second stratagem.')
+  expect(textOf(recordsPrinting([token('shared'), token('own')], new Map([['file', answer]])))).toBe('Second stratagem.')
 })
 
 it('reads words several rules print alike as the first one’s summary', () => {
-  expect(textOf(summaryNamedBy([token('shared')], new Map([['file', answer]])))).toBe('First stratagem.')
+  expect(textOf(recordsPrinting([token('shared')], new Map([['file', answer]])))).toBe('First stratagem.')
 })
 
-it('reads words several abilities print alike as the one of the ability’s own name', () => {
-  const alike = {
-    records: { 'ability:sm.captain.relic-shield': summary('Relic shield.'), 'ability:sm.squad.storm-shield': summary('Storm shield.') },
-    texts: { shield: ['ability:sm.captain.relic-shield', 'ability:sm.squad.storm-shield'] },
-    entries: {},
-  }
-  expect(textOf(summaryNamedBy([token('shield')], new Map([['file', alike]]), 'Storm Shield'))).toBe('Storm shield.')
+it('lists every record printing the words alike', () => {
+  expect(recordsPrinting([token('shared')], new Map([['file', answer]])).map(({ id }) => id)).toEqual(['ability:a', 'ability:b'])
 })
 
 it('names no summary where no rule prints every line', () => {
-  expect(summaryNamedBy([token('shared'), token('unknown')], new Map([['file', answer]]))).toBeNull()
+  expect(recordsPrinting([token('shared'), token('unknown')], new Map([['file', answer]]))).toEqual([])
 })
 
 it('reads a summary as plain text, its bold as plain and each list item on a line', () => {

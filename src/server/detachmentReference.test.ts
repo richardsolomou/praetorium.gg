@@ -56,7 +56,7 @@ it('appends catalogue-only keyword definitions to detachment rule cards', () => 
   expect(detachmentReference(loaded, rules, 'cat', 'armoured-infantry')?.rules).toEqual([
     { name: 'Squadron Command', description: 'Card command.' },
     { name: 'Order', description: 'On My Signal.' },
-    { name: 'Keywords', description: 'Units gain the Armoured Skirmisher keyword.' },
+    { bsdataId: 'keywords', name: 'Keywords', description: 'Units gain the Armoured Skirmisher keyword.' },
   ])
 })
 

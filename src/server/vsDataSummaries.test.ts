@@ -11,7 +11,14 @@ import { checkVsDataRelease, compactVsDataRelease } from './vsDataRelease'
 import { MISSION_SUMMARIES, RULE_SUMMARIES, type RuleDocument } from '../contracts/rules'
 import { abilitySummaryIn } from '../shared/vsDataAbilities'
 import { summaryPlainText } from '../shared/ruleSummaries'
-import { NO_RULE_SUMMARIES, summariesOfFile, type VsDataSummaries, vsDataSummariesSteps, withholdCopiedSummaries } from './vsDataSummaries'
+import {
+  NO_RULE_SUMMARIES,
+  abilityAliases,
+  summariesOfFile,
+  type VsDataSummaries,
+  vsDataSummariesSteps,
+  withholdCopiedSummaries,
+} from './vsDataSummaries'
 
 const effect = 'Until the end of the phase, each time a model in your unit makes an attack, add 1 to the Hit roll.'
 const stratagem = { id: 'f06fa0ef-917a-57c2-955d-325a082d942c', when: { en: 'Your Shooting phase.' }, effect: { en: effect } }
@@ -250,18 +257,20 @@ it('serves the rules documents’ summaries by their own ids, apart from every o
   expect(Object.keys(summaries!.summariesIn(RULE_SUMMARIES).records)).toEqual(['core-rule:moving'])
 })
 
-it('reads a detachment rule under the id VS Data aliases it by, for its own faction and another fielding the detachment', () => {
+it('reads a detachment rule only BSData prints by its BSData id, for its own faction and another fielding the detachment', () => {
   const bloodtainted = {
     kind: 'ability',
     id: 'chaos-daemons.blood-legion.blood-tainted',
-    aliases: ['chaos-daemons.blood-legion.bloodtainted'],
+    aliases: ['bsdata.1a2b.3c4d.5e6f.7a8b'],
     summary: 'Fight with renewed fury.',
   }
   const { summaries } = snapshot([{ update: 'MFM 1.6', summary: 'Pick one of your units to hit more often.' }], [bloodtainted])
   const units = summaries!.unitsIn(null)
   const summary = units.abilities['chaos-daemons.blood-legion.blood-tainted']
   expect(
-    ['@titanicus-traitoris.blood-legion', '@chaos-daemons.blood-legion'].map((owner) => abilitySummaryIn(units, owner, 'Bloodtainted')),
+    ['@titanicus-traitoris.blood-legion', '@chaos-daemons.blood-legion'].map((owner) =>
+      abilitySummaryIn(units, owner, 'Bloodtainted', '1a2b-3c4d-5e6f-7a8b'),
+    ),
   ).toEqual([summary, summary])
 })
 
@@ -272,3 +281,11 @@ it('serves the mission pack’s summaries, which no source file holds', () => {
   } as unknown as VsDataSummaries
   expect(summariesOfFile(MISSION_SUMMARIES, {}, summaries)).toBe(missions)
 })
+
+it('keeps a datasheet whose frozen record is no ability off the record its BSData id is', () =>
+  expect(
+    abilityAliases(
+      { byId: { profile: 'ability:astra-militarum.valkyrie.damaged' }, bySheet: { 'sheet/profile': 'core-ability:damaged' } },
+      () => true,
+    )['sheet/profile'],
+  ).toBe(''))

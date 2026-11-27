@@ -14,7 +14,7 @@ import { remember } from '../core/collections'
 import { canonicalDetachmentName } from '../core/detachmentName'
 import { hasTextTokens } from '../core/sourceText'
 import { routeSlug } from '../core/slug'
-import { abilityKeysNamed, summaryNamedBy, wholeRuleTokens } from '../shared/ruleSummaries'
+import { abilityKeysNamed, recordsPrinting, wholeRuleTokens } from '../shared/ruleSummaries'
 import { datasheetAbilitySummary } from '../shared/vsDataAbilities'
 import { NO_RULE_SUMMARIES, type VsDataSummaries } from './vsDataSummaries'
 
@@ -57,14 +57,14 @@ export function ruleSummaryFinder(
   const files = new Map<string, RuleSummaries>()
   const summariesIn = (file: string) => (summaries ? remember(files, file, () => summaries.summariesIn(file)) : NO_RULE_SUMMARIES)
 
-  /** `useRuleSummaries`' record of a printed text. */
-  const printed = (text: string, name?: string) => {
+  /** `useRuleSummaries`' records of a printed text. */
+  const printed = (text: string) => {
     const tokens = (summaries ? wholeRuleTokens(text) : []).map((token) => {
       const home = homes && !(token.file in homes.files) ? homes.homeOf(token.hash) : null
       return home ? { ...token, file: home } : token
     })
-    if (!summaries || !tokens.length) return null
-    return summaryNamedBy(tokens, new Map(tokens.map((token) => [token.file, summariesIn(token.file)])), name)
+    if (!summaries || !tokens.length) return []
+    return recordsPrinting(tokens, new Map(tokens.map((token) => [token.file, summariesIn(token.file)])))
   }
   /** `useKeywordSummary`: the weapon or core ability of a name. */
   const keyword = (name: string) => {
@@ -87,23 +87,19 @@ export function ruleSummaryFinder(
     )
   }
   /** `useDatasheetAbilitySummary`. */
-  const owned = (text: string, name: string | undefined, id: string | undefined, owner: SummaryOwner | undefined) => {
-    const found = text ? printed(text, name) : null
-    return name ? datasheetAbilitySummary(unitsOf(owner), owner?.subject ?? '', name, id, found) : (found?.summary ?? null)
-  }
+  const owned = (text: string, id: string | undefined, owner: SummaryOwner | undefined) =>
+    datasheetAbilitySummary(unitsOf(owner), owner?.subject ?? '', id, text ? printed(text) : [])
 
   return {
-    printed: (text: string, name?: string) => printed(text, name)?.summary ?? null,
+    printed: (text: string) => printed(text)[0]?.summary ?? null,
     /** `RuleText`: a rule printed by token, or one a name alone stands for. */
     rule(text: string | null | undefined, { name, id, owner }: { name?: string; id?: string; owner?: SummaryOwner } = {}) {
       if (text ? !hasTextTokens(text) : !name) return null
-      return owned(text ?? '', name, id, owner) ?? (name ? named(name) : null)
+      return owned(text ?? '', id, owner) ?? (name ? named(name) : null)
     },
     /** `KeywordRuleSummary`. */
     keywordRule(rule: { name: string; description: string | null }, owner?: SummaryOwner) {
-      return (
-        keyword(rule.name) ?? owned(rule.description ?? '', rule.description ? rule.name : undefined, undefined, owner) ?? named(rule.name)
-      )
+      return keyword(rule.name) ?? owned(rule.description ?? '', undefined, owner) ?? named(rule.name)
     },
     /** `useVsDataSummaries`: a rule by its VS Data id in the rules version of `catalogueId`, then in the current one. */
     byId: (catalogueId: string, id: string) => {
@@ -125,10 +121,7 @@ export type RuleSummaryFinder = ReturnType<typeof ruleSummaryFinder>
  * it, served for `withTextPointers`; any other record is no rule this can tell.
  */
 export const printedRuleSummary = (finder: RuleSummaryFinder) => (record: Record<string, unknown>) => {
-  const summary =
-    typeof record.description === 'string'
-      ? finder.printed(record.description, typeof record.name === 'string' ? record.name : undefined)
-      : null
+  const summary = typeof record.description === 'string' ? finder.printed(record.description) : null
   return summary && servedRuleSummary(summary)
 }
 

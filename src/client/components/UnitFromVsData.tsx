@@ -53,16 +53,15 @@ export function useUnitAbilitySummary(name: string | undefined, enabled: boolean
 }
 
 /**
- * The summary of a rule a datasheet or detachment around it prints, by `datasheetAbilitySummary`: its owner's own record
- * first, then the record its printed text names. Undefined while asked for, null where there is none.
+ * The summary of a rule a datasheet or detachment around it prints, by `datasheetAbilitySummary`: the record its BSData
+ * id is, then the record its printed text names. Undefined while asked for, null where there is none.
  */
 export function useDatasheetAbilitySummary(text: string, name: string | undefined, id?: string): RuleSummary | null | undefined {
-  const { pending, recordOf } = useRuleSummaries([text])
+  const { pending, recordsOf } = useRuleSummaries([text])
   const [catalogueId = '', subject = ''] = useContext(DatasheetUnit)?.split('#') ?? []
   const units = useVsDataUnits(catalogueId, Boolean(subject && name))
   if (pending || units === undefined) return undefined
-  const printed = recordOf(text, name)
-  return name ? datasheetAbilitySummary(units, subject, name, id, printed) : (printed?.summary ?? null)
+  return datasheetAbilitySummary(units, subject, id, recordsOf(text))
 }
 
 /**
