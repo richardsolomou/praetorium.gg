@@ -42,13 +42,16 @@ const weaponChoices = (choices: UnitChoice[]) =>
  * Wargear taken from an optional group that offers only it at no cost, such as a free icon: the group starts empty, so
  * it displaces nothing. A group of alternatives, such as a Mark of Chaos, is a decision the ranking alone settles.
  */
-export const freeWargear = (choices: UnitChoice[]) =>
+export const freeWargear = (choices: UnitChoice[], replaces: (choice: UnitChoice) => boolean = () => false) =>
   weaponChoices(choices).flatMap((choice) =>
-    choice.optional && choice.options.length === 1 && choice.options[0]!.points === 0 && choice.options[0]!.profile === undefined
+    choice.optional &&
+    choice.options.length === 1 &&
+    choice.options[0]!.points === 0 &&
+    choice.options[0]!.profile === undefined &&
+    !replaces(choice)
       ? choice.options
       : [],
   )
-const freeAdditions = (choices: UnitChoice[]) => freeWargear(choices).reduce((total, option) => total + option.count, 0)
 /** Each weapon choice's taken options and counts, so loadouts compare by what is taken rather than how picks spell it. */
 const takenWargear = (choices: UnitChoice[]) =>
   weaponChoices(choices).map((choice): [string, string] => [
@@ -221,9 +224,13 @@ export async function* combatLoadoutCandidates(
   const legal = (built: BuiltUnit[]) =>
     errors(built).every((error) => known.has(error)) &&
     built.every((unit, at) => vsProblems(unit).every((problem) => knownVs[at]!.has(problem)))
+  // A VS Data option offering one choice is optional wargear, but one that replaces wargear is a swap, not a free addition.
+  const vsReplaces = (choice: UnitChoice) => Object.keys(definitions?.get('roster-option', choice.key)?.data.replaces ?? {}).length > 0
+  const freeAdditionsOf = (unit: BuiltUnit) =>
+    freeWargear(unit.choices, unit.vs ? vsReplaces : undefined).reduce((total, option) => total + option.count, 0)
   const editsOf = function* (at: number, resolved: RosterPick, built: BuiltUnit) {
     const unit = vsUnits[at]
-    for (const edit of choiceEdits(built.choices, units[at]!.size.models))
+    for (const edit of choiceEdits(built.choices, units[at]!.size.models, Boolean(resolved.vs && unit)))
       yield resolved.vs && unit && definitions
         ? withVsEdit(definitions, unit, { ...resolved, vs: resolved.vs }, edit)
         : withCatalogueEdit(resolved, edit, units[at]!.size.models)
@@ -320,7 +327,7 @@ export async function* combatLoadoutCandidates(
           member(companion.pickIndex, companion.selected, companion.carriers, companion.rules, companion.models),
         ),
       ],
-      freeAdditions: built.reduce((total, unit) => total + freeAdditions(unit.choices), 0),
+      freeAdditions: built.reduce((total, unit) => total + freeAdditionsOf(unit), 0),
       wargearPoints: built.reduce((total, unit) => total + wargearPoints(unit.choices), 0),
       wargear: Object.fromEntries(
         built.flatMap((unit, at) => takenWargear(unit.choices).map(([choice, taken]) => [`${indexes[at]}:${choice}`, taken])),
@@ -474,7 +481,7 @@ function loadoutRequestKey(pick: RosterPick) {
 type ChoiceEdit = { choice: UnitChoice; counts: Record<string, number> }
 
 /** Each single step from a unit's current weapon choices, as what each changed choice then holds. */
-function* choiceEdits(availableChoices: UnitChoice[], models: number): Generator<ChoiceEdit> {
+function* choiceEdits(availableChoices: UnitChoice[], models: number, vs: boolean): Generator<ChoiceEdit> {
   for (const choice of weaponChoices(availableChoices)) {
     if (choice.room <= 1) {
       for (const id of [...choice.options.map((option) => option.id), ...(choice.optional ? [''] : [])]) {
@@ -496,6 +503,8 @@ function* choiceEdits(availableChoices: UnitChoice[], models: number): Generator
           if (option.count === count || option.max < count) continue
           yield { choice, counts: Object.fromEntries(choice.options.map((entry) => [entry.id, entry === option ? count : 0])) }
         }
+        // A VS Data option left untaken is its default, which a catalogue group lists as an option of its own.
+        if (vs && choice.optional && used > 0) yield { choice, counts: Object.fromEntries(choice.options.map((entry) => [entry.id, 0])) }
       } else {
         for (const option of choice.options) {
           if (option.count < option.max) {

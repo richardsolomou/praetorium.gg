@@ -346,9 +346,34 @@ it('keys a trimmed request’s loadout as the same state as one requested exactl
 })
 
 const vsRecord = (name: string, data: Record<string, unknown>) => ({ name, data: { formatVersion: 2, ...data } })
-// The squad as VS Data fields it: its one model carries the weak weapon, and an option swaps it for the strong one.
+// The squad as VS Data fields it: its one model carries the weak weapon, and an option swaps it for the strong one. The
+// pair's two models may each swap a blade for an axe, all of them or none.
+const pair: SelectionEntry = {
+  id: 'pair',
+  name: 'Pair',
+  type: 'unit',
+  profiles: [
+    {
+      id: 'pair-stats',
+      name: 'Pair',
+      typeName: 'Unit',
+      characteristics: Object.entries({ T: '4', Sv: '3+', W: '2' }).map(([stat, $text]) => ({ name: stat, $text })),
+    },
+  ],
+  selectionEntries: [
+    {
+      id: 'pair-model',
+      name: 'Pair',
+      type: 'model',
+      constraints: [
+        { id: 'pair-min', type: 'min', field: 'selections', scope: 'parent', value: 2 },
+        { id: 'pair-max', type: 'max', field: 'selections', scope: 'parent', value: 2 },
+      ],
+    },
+  ],
+}
 const vsBook = {
-  ...book,
+  ...bookOf({ selectionEntries: [unit('squad', 'Squad'), pair] }),
   vsRoster: vsRosterData(
     {
       release: 'test',
@@ -358,8 +383,14 @@ const vsBook = {
       definitions: {
         faction: { host: vsRecord('Host', {}) },
         detachment: { 'host.guard': vsRecord('Guard', { faction: 'host' }) },
-        unit: { 'host.squad': vsRecord('Squad', { faction: 'host', keywords: [], sizes: [1] }) },
-        model: { 'host.squad.model': vsRecord('Squad', { unit: 'host.squad', min: 1, max: 1, wargear: { 'host.squad.weak': 1 } }) },
+        unit: {
+          'host.squad': vsRecord('Squad', { faction: 'host', keywords: [], sizes: [1] }),
+          'host.pair': vsRecord('Pair', { faction: 'host', keywords: [], sizes: [2] }),
+        },
+        model: {
+          'host.squad.model': vsRecord('Squad', { unit: 'host.squad', min: 1, max: 1, wargear: { 'host.squad.weak': 1 } }),
+          'host.pair.model': vsRecord('Pair', { unit: 'host.pair', min: 2, max: 2, wargear: { 'host.pair.blade': 1 } }),
+        },
         'roster-option': {
           'host.squad.weapon': vsRecord('Weapon', {
             unit: 'host.squad',
@@ -369,13 +400,27 @@ const vsBook = {
             replaces: { 'host.squad.weak': 1 },
             choices: ['host.squad.strong'],
           }),
+          'host.pair.weapon': vsRecord('Weapon', {
+            unit: 'host.pair',
+            carrier: 'host.pair.model',
+            per: 'carrier',
+            choose: { min: 0, max: 1 },
+            uniform: true,
+            replaces: { 'host.pair.blade': 1 },
+            choices: ['host.pair.axe'],
+          }),
         },
-        wargear: { 'host.squad.weak': vsRecord('Squad weak', {}), 'host.squad.strong': vsRecord('Squad strong', {}) },
+        wargear: {
+          'host.squad.weak': vsRecord('Squad weak', {}),
+          'host.squad.strong': vsRecord('Squad strong', {}),
+          'host.pair.blade': vsRecord('Pair blade', {}),
+          'host.pair.axe': vsRecord('Pair axe', {}),
+        },
       },
     },
-    { books: { cat: 'host' }, detachments: {}, units: { squad: 'host.squad' }, enhancements: {} },
+    { books: { cat: 'host' }, detachments: {}, units: { squad: 'host.squad', pair: 'host.pair' }, enhancements: {} },
     null,
-    () => 'Squad',
+    (id) => ({ squad: 'Squad', pair: 'Pair' })[id],
   ),
 }
 const vsRequest = { catalogueId: 'cat', detachmentIds: [], pickIndex: 0, picks: [{ entryId: 'squad', vs: { models: {}, options: {} } }] }
@@ -399,4 +444,20 @@ it('fights each VS candidate with what VS Data fields for it', async () => {
   for await (const batch of combatLoadoutCandidates(vsBook, vsRequest, new AbortController().signal)) found.push(...batch.candidates)
   const strong = found.find((candidate) => candidate.members[0]!.pick.vs?.options['host.squad.weapon'])
   expect(strong?.members[0]!.carriers.flatMap((carrier) => carrier.weapons.map((weapon) => weapon.name))).toEqual(['Squad strong'])
+})
+
+it('counts a VS option that swaps wargear as a change, not free wargear', async () => {
+  const found = []
+  for await (const batch of combatLoadoutCandidates(vsBook, vsRequest, new AbortController().signal)) found.push(...batch.candidates)
+  expect(found.find((candidate) => candidate.members[0]!.pick.vs?.options['host.squad.weapon'])?.freeAdditions).toBe(0)
+})
+
+it('steps a uniform VS option back to untaken', async () => {
+  const taken = { ...vsRequest, picks: [{ entryId: 'pair', vs: { models: {}, options: { 'host.pair.weapon': { 'host.pair.axe': 2 } } } }] }
+  const found = []
+  for await (const batch of combatLoadoutCandidates(vsBook, taken, new AbortController().signal)) found.push(...batch.candidates)
+  expect(found.map((candidate) => JSON.stringify(candidate.members[0]!.pick.vs?.options)).toSorted()).toEqual([
+    '{"host.pair.weapon":{"host.pair.axe":2}}',
+    '{}',
+  ])
 })
