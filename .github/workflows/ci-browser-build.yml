@@ -8,8 +8,14 @@ on:
         type: string
         required: false
     outputs:
+      needed:
+        description: Whether the change can affect any browser spec
+        value: ${{ jobs.browser-build.outputs.needed }}
       node-version:
         value: ${{ jobs.browser-build.outputs.node-version }}
+      desktop-runners:
+        description: The browser runners the desktop takes, as a JSON list
+        value: ${{ jobs.browser-build.outputs.desktop-runners }}
       runner-count:
         value: ${{ jobs.browser-build.outputs.runner-count }}
       runtime-shared:
@@ -29,12 +35,17 @@ jobs:
       ASSETS_R2_ACCESS_KEY_ID: ${{ secrets.CATALOGUE_R2_ACCESS_KEY_ID }}
       ASSETS_R2_SECRET_ACCESS_KEY: ${{ secrets.CATALOGUE_R2_SECRET_ACCESS_KEY }}
     outputs:
+      needed: ${{ steps.scope.outputs.needed }}
       node-version: ${{ steps.node.outputs.version }}
+      desktop-runners: ${{ steps.desktop.outputs.runners }}
       runner-count: ${{ steps.runners.outputs.count }}
       runtime-shared: ${{ steps.runtime.outputs.shared }}
       runners: ${{ steps.runners.outputs.runners }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          # The scope compares the merge commit with its first parent.
+          fetch-depth: 2
       - uses: richardsolomou/ras-stack/actions/setup-js@v1
         with:
           install: 'false'
@@ -47,16 +58,6 @@ jobs:
           r2-account-id: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           r2-access-key-id: ${{ secrets.SNAPSHOT_R2_ACCESS_KEY_ID }}
           r2-secret-access-key: ${{ secrets.SNAPSHOT_R2_SECRET_ACCESS_KEY }}
-      - name: Require the terrain geometry
-        run: pnpm catalogue:terrain
-      - name: Fingerprint the browser-test build
-        id: browser-build
-        run: echo "key=$(pnpm exec tsx scripts/browserTestBuildKey.ts)" >> "$GITHUB_OUTPUT"
-      - name: Restore the browser-test build
-        uses: actions/cache@v6
-        with:
-          path: data-dev/e2e-build
-          key: ${{ runner.os }}-${{ runner.arch }}-browser-build-${{ steps.browser-build.outputs.key }}
       # A runtime the shared store already holds was compiled by an earlier build, so its compiler's live catalogue is prepared too.
       - name: Check the shared store for this catalogue runtime
         id: runtime
@@ -64,29 +65,71 @@ jobs:
           key="$(pnpm exec tsx scripts/catalogueRuntimeKey.ts)"
           status="$(curl --silent --output /dev/null --write-out '%{http_code}' --head --retry 3 "https://s3.praetorium.gg/catalogue/runtime/by-key/$key.zip?uncached=$(date +%s)")"
           echo "shared=$([ "$status" = 200 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+      - name: Decide which browser specs the change can affect
+        id: scope
+        env:
+          HEAD_SHA: ${{ github.sha }}
+        run: BASE_SHA="$(git rev-parse "$HEAD_SHA^1")" node scripts/laneScope.ts e2e
+      - name: Require the terrain geometry
+        if: steps.scope.outputs.needed == 'true'
+        run: pnpm catalogue:terrain
+      - name: Fingerprint the browser-test build
+        if: steps.scope.outputs.needed == 'true'
+        id: browser-build
+        run: echo "key=$(pnpm exec tsx scripts/browserTestBuildKey.ts)" >> "$GITHUB_OUTPUT"
+      - name: Restore the browser-test build
+        if: steps.scope.outputs.needed == 'true'
+        uses: actions/cache@v6
+        with:
+          path: data-dev/e2e-build
+          key: ${{ runner.os }}-${{ runner.arch }}-browser-build-${{ steps.browser-build.outputs.key }}
       - name: Build or restore the browser-test build
+        if: steps.scope.outputs.needed == 'true'
         run: pnpm exec tsx scripts/browserTestBuild.ts
       - uses: ./.github/actions/verify-browser-build
+        if: steps.scope.outputs.needed == 'true'
       # Listing loads every spec, so it runs here once rather than on every runner.
       - name: Plan the browser runners
+        if: steps.scope.outputs.needed == 'true'
         id: runners
         env:
           # The account runs 20 jobs at once, and the other lanes hold about six while the runners start.
           MOST_RUNNERS: ${{ inputs.e2e-runners || '14' }}
+          SPECS: ${{ steps.scope.outputs.specs }}
         run: |
           set -euo pipefail
-          PLAYWRIGHT_JSON_OUTPUT_NAME="$RUNNER_TEMP/e2e-tests.json" pnpm exec playwright test --list --reporter=json > /dev/null
+          specs=()
+          [ "$SPECS" = all ] || read -ra specs <<< "$SPECS"
+          PLAYWRIGHT_JSON_OUTPUT_NAME="$RUNNER_TEMP/e2e-tests.json" pnpm exec playwright test --list --reporter=json "${specs[@]}" > /dev/null
           count="$(node --import tsx scripts/e2eShard.ts --plan "$RUNNER_TEMP/e2e-tests.json" "$RUNNER_TEMP/e2e-shards" "$MOST_RUNNERS")"
           {
             echo "runners=$(node -p 'JSON.stringify(Array.from({ length: Number(process.argv[1]) }, (_, index) => index + 1))' "$count")"
             echo "count=$count"
           } >> "$GITHUB_OUTPUT"
+      # The desktop stamps the heartbeat every two minutes while its runners are up and it has room for them. While it is fresh,
+      # runners 2 onwards take its DESKTOP_RUNNER_SLOTS (default 2) and runner 1 stays hosted; a stale or missing one keeps all hosted.
+      - name: Choose the desktop's runners
+        id: desktop
+        if: steps.scope.outputs.needed == 'true'
+        env:
+          HEARTBEAT: ${{ vars.DESKTOP_RUNNER_HEARTBEAT }}
+          SLOTS: ${{ vars.DESKTOP_RUNNER_SLOTS || '2' }}
+          COUNT: ${{ steps.runners.outputs.count }}
+        run: |
+          runners='[]'
+          # A minute of clock skew either way is allowed; a stamp further ahead is as untrustworthy as a stale one.
+          if [[ "$HEARTBEAT" =~ ^[0-9]{1,12}$ && "$SLOTS" =~ ^[0-9]{1,2}$ ]] && age=$(( $(date +%s) - 10#$HEARTBEAT )) && (( age > -60 && age < 300 )); then
+            runners="$(node -p 'JSON.stringify(Array.from({ length: Math.max(0, Math.min(Number(process.argv[1]), Number(process.argv[2]) - 1)) }, (_, index) => index + 2))' "$SLOTS" "$COUNT")"
+          fi
+          echo "runners=$runners" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v7
+        if: steps.scope.outputs.needed == 'true'
         with:
           name: e2e-shards
           path: ${{ runner.temp }}/e2e-shards
           retention-days: 7
       - uses: actions/upload-artifact@v7
+        if: steps.scope.outputs.needed == 'true'
         with:
           name: browser-test-build
           path: data-dev/e2e-build

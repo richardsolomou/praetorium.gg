@@ -11,12 +11,19 @@ on:
 permissions:
   contents: read
 
+# A pull request runs only the suites its changes reach through imports; vitest.integration.config.ts lists what reruns them all.
+env:
+  CHANGED: ${{ github.event_name == 'pull_request' && '--changed HEAD^1 --passWithNoTests' || '' }}
+
 jobs:
   integration:
     if: inputs.runtime
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          # `--changed` compares the merge commit with its first parent.
+          fetch-depth: 2
       - uses: richardsolomou/ras-stack/actions/setup-js@v1
       - uses: ./.github/actions/catalogue-sync
         with:
@@ -25,7 +32,7 @@ jobs:
           r2-secret-access-key: ${{ secrets.SNAPSHOT_R2_SECRET_ACCESS_KEY }}
       - uses: ./.github/actions/setup-spacetime
         id: spacetime
-      - run: pnpm test:integration --exclude scripts/clientText.integration.test.ts
+      - run: pnpm test:integration --exclude scripts/clientText.integration.test.ts ${{ env.CHANGED }}
         env:
           SPACETIME_BIN: ${{ steps.spacetime.outputs.cli-path }}
       - run: pnpm test:spacetime
@@ -44,10 +51,13 @@ jobs:
       ASSETS_R2_SECRET_ACCESS_KEY: ${{ secrets.CATALOGUE_R2_SECRET_ACCESS_KEY }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          # `--changed` compares the merge commit with its first parent.
+          fetch-depth: 2
       - uses: richardsolomou/ras-stack/actions/setup-js@v1
       - uses: ./.github/actions/catalogue-sync
         with:
           r2-account-id: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           r2-access-key-id: ${{ secrets.SNAPSHOT_R2_ACCESS_KEY_ID }}
           r2-secret-access-key: ${{ secrets.SNAPSHOT_R2_SECRET_ACCESS_KEY }}
-      - run: pnpm exec vitest run --config vitest.integration.config.ts scripts/clientText.integration.test.ts
+      - run: pnpm exec vitest run --config vitest.integration.config.ts scripts/clientText.integration.test.ts ${{ env.CHANGED }}

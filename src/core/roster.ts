@@ -8,7 +8,7 @@ import { evaluate, type EvaluateOptions, type Selection, selectionCountBoundsAt 
 import { defaultSelection, expand, withChoice } from './expand'
 import { allAt, at as selectionAt, countAt, updateSelection, withCounts } from './selection'
 import { type ChoiceOptions, isUnitCompositionChoice, type UnitChoice, unitChoices, type UnitToggle, unitToggles } from './unitChoices'
-import { boundedGroups, modelCountOf, sizeOf, type UnitSize } from './unitSize'
+import { boundedGroups, companionGroups, modelCountOf, sizeOf, type UnitSize } from './unitSize'
 import { withModelCount, withUnitChoice, withUnitSpread } from './unitSpread'
 import { type VsBuiltUnit, vsBuiltUnit } from './vsDataBuild'
 import type { VsDataDefinitions } from './vsDataConstruction'
@@ -261,8 +261,7 @@ function assemble(
   }
 
   const wanted = Math.min(Math.max(requestedModels, size.min), size.max)
-  const current = countAt(toggled, size.path)
-  const squadSized = withModelCount(toggled, size.path, Math.max(0, current + (wanted - size.models)), index)
+  const squadSized = withSquadResized(toggled, size.path, wanted - size.models, index)
   const resized = grownCompanions(squadSized, size.path, requestedModels - wanted, index, context)
   const resizedModel = `${size.path.join('/')}/`
   // A spread the smaller squad could not hold is asked again at the size requested, since a limit can depend on it,
@@ -285,6 +284,27 @@ function assemble(
     { ...size, models: wanted + modelCountOf(resized, index) - modelCountOf(squadSized, index) },
     index,
     fittedContext,
+  )
+}
+
+/** Resizes the squad, passing what its own group cannot take to the unit's other required model groups, as twenty Boyz take a second Nob. */
+function withSquadResized(selection: Selection, squad: readonly string[], change: number, index: CatalogueIndex): Selection {
+  const groups = boundedGroups(selection, index)
+  const own = groups.find((group) => group.adjust.join('/') === squad.join('/'))
+  const companions = own ? companionGroups(groups, own) : []
+  const clamped = (group: { min: number; max: number; total: number }, wanted: number) =>
+    Math.min(group.max, Math.max(group.min, group.total + wanted)) - group.total
+  const resize = (tree: Selection, path: readonly string[], by: number) =>
+    withModelCount(tree, path, Math.max(0, countAt(tree, path) + by), index)
+  const taken = own && companions.length ? clamped(own, change) : change
+  let left = change - taken
+  return companions.reduce(
+    (tree, group) => {
+      const by = clamped(group, left)
+      left -= by
+      return by ? resize(tree, group.adjust, by) : tree
+    },
+    resize(selection, squad, taken),
   )
 }
 

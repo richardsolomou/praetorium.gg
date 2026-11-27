@@ -73,12 +73,14 @@ export type RosterSetupFaction = {
   displayName: string
   icon: string | null
   detachments: Detachment[]
+  /** Set for a faction whose own rules replace Detachment selection, as a Titan army's do: it takes no Detachment. */
+  withoutDetachments?: { dispositions: readonly { id: string; name: string }[] }
   edition?: CatalogueEdition | null
   rulesName?: string
   isDefault?: boolean
 }
 
-export type RosterSetupFactionOption = Omit<RosterSetupFaction, 'detachments'>
+export type RosterSetupFactionOption = Omit<RosterSetupFaction, 'detachments' | 'withoutDetachments'>
 
 export type RosterSetup = {
   name: string
@@ -232,7 +234,10 @@ export function RosterSetupDialog({
     { points: ownPoints },
     draft.borrowedDetachmentId ? { points: borrowed?.points ?? null } : null,
   )
-  const dispositions = dispositionsFor(faction?.detachments ?? [], borrowed ? [...draft.detachmentIds, borrowed.id] : draft.detachmentIds)
+  const takesNone = faction?.withoutDetachments
+  const dispositions =
+    takesNone?.dispositions ??
+    dispositionsFor(faction?.detachments ?? [], borrowed ? [...draft.detachmentIds, borrowed.id] : draft.detachmentIds)
   const selectedDisposition = dispositions.length === 1 ? (dispositions[0]?.id ?? null) : draft.disposition
   const allowance = detachmentPointBudget(draft.limit)
   const pointsError = detachmentPointsError(
@@ -339,10 +344,12 @@ export function RosterSetupDialog({
         ? 'Choose a different rules version.'
         : budgetError
           ? 'Fix the points limit.'
-          : !draft.detachmentIds.length
+          : !draft.detachmentIds.length && !takesNone
             ? 'Choose a detachment.'
             : unavailableDetachmentIds.length
-              ? 'Replace the unavailable detachment.'
+              ? takesNone
+                ? 'Remove the detachment.'
+                : 'Replace the unavailable detachment.'
               : pointsError
   const description = (
     <>
@@ -464,14 +471,19 @@ export function RosterSetupDialog({
       <fieldset data-onboarding="setup-detachments">
         <div className="flex items-end justify-between gap-3">
           <legend className="rubric">Detachments</legend>
-          <span className={`readout text-xs ${pointsError ? 'text-destructive' : 'text-dim'}`}>
-            {spent}
-            {allowance === null ? '' : `/${allowance}`} DP used
-          </span>
+          {takesNone ? null : (
+            <span className={`readout text-xs ${pointsError ? 'text-destructive' : 'text-dim'}`}>
+              {spent}
+              {allowance === null ? '' : `/${allowance}`} DP used
+            </span>
+          )}
         </div>
+        {takesNone ? <p className="mt-2 text-sm text-dim">{faction.displayName} armies take no detachment.</p> : null}
         {unavailableDetachmentIds.length ? (
           <Problem className="mt-2 rounded-lg border border-destructive/60 bg-destructive/10 p-3">
-            This roster has {unavailableDetachmentIds.length === 1 ? 'a detachment' : 'detachments'} that this faction no longer offers.
+            {takesNone
+              ? `This roster has ${unavailableDetachmentIds.length === 1 ? 'a detachment' : 'detachments'}, which this army cannot take.`
+              : `This roster has ${unavailableDetachmentIds.length === 1 ? 'a detachment' : 'detachments'} that this faction no longer offers.`}
             <Button
               variant="ghost"
               size="xs"
