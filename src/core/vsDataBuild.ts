@@ -1,5 +1,6 @@
 import type { CombatCarrier } from './combatLoadout'
 import type { ModelKind } from './modelKinds'
+import { vsModelKinds } from './unitChoices'
 import type { VsPick } from './roster'
 import type { Counts, VsDataDefinitions } from './vsDataConstruction'
 import { carried, modelCounts, type VsRosterUnit } from './vsDataRoster'
@@ -114,20 +115,6 @@ export function vsBuiltUnit(definitions: VsDataDefinitions, unitId: string, pick
     ...lines.map((line) => ({ name: nameOf(line.model), models: line.models, weapons: named(totalOf(line)) })),
     ...(unitWide.size ? [{ name: unit?.name ?? unitId, models: 1, weapons: named(unitWide), unitWide: true }] : []),
   ]
-  const kinds = models.flatMap((model): ModelKind[] => {
-    const own = lines.filter((line) => line.model === model.id)
-    if (!own.length) return []
-    const total = new Map<string, number>()
-    for (const line of own) for (const [id, n] of totalOf(line)) add(total, id, n)
-    return [
-      {
-        name: model.name,
-        fixed: named(total),
-        members: [{ id: model.id, choiceKey: null, baseCount: counts.get(model.id)! }],
-        rows: [],
-      },
-    ]
-  })
   const held = new Map([...carried(definitions, picked)].filter(([id]) => !bundled(definitions, id)))
   const sizes = [...(unit?.data.sizes ?? [])].toSorted((left, right) => left - right)
   const total = [...counts.values()].reduce((sum, n) => sum + n, 0)
@@ -141,7 +128,7 @@ export function vsBuiltUnit(definitions: VsDataDefinitions, unitId: string, pick
       ...(sizes.length > 1 && sizes.at(-1)! - sizes[0]! + 1 !== sizes.length ? { options: sizes } : {}),
     },
     carriers,
-    models: kinds,
+    models: vsModelKinds(definitions, picked),
     wargear: named(held),
   }
 }

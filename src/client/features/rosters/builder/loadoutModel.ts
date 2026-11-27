@@ -33,6 +33,7 @@ export type LoadoutChoice = {
   room: number
   least?: number
   multiplePerModel?: true
+  ownSlot?: true
   /** The squad answers this once for all of it, however many models carry it. */
   uniform: boolean
   owner: { id: string; name: string; profile: string | null } | null
@@ -770,7 +771,23 @@ export function poolHandlers(model: LoadoutModel, choices: readonly LoadoutChoic
   }
   const sameSource = (one: Entry, other: Entry) => one.choice.key === other.choice.key && one.option.id === other.option.id
 
+  /** Another of the same choice's options to trade with, by `donorPriority`. */
+  const sibling = (entry: Entry, adding: boolean) =>
+    shared
+      .filter(
+        (other) =>
+          other.choice === entry.choice &&
+          !sameSource(other, entry) &&
+          (adding ? other.option.count > other.option.min : canAddPooledOption(other.option)),
+      )
+      .toSorted((one, other) => donorPriority(one.option, other.option))[0]
+
   const spend = (taker: Entry): PoolChange | null => {
+    if (taker.choice.ownSlot) {
+      if (takenIn(taker.choice) < taker.choice.room) return canAddPooledOption(taker.option) ? move([], [taker]) : null
+      const donor = sibling(taker, true)
+      return donor && canAddPooledOption(taker.option, donor) ? move([donor], [taker]) : null
+    }
     // A group with no room left gives up one of its own: the veteran holding the
     // pyrecannon is the one who puts it down for a heavy bolter, and asking a
     // squadmate with a bolt rifle instead would put a second special weapon in a
@@ -817,6 +834,11 @@ export function poolHandlers(model: LoadoutModel, choices: readonly LoadoutChoic
 
   const free = (giver: Entry) => {
     if (giver.option.count <= 0 || giver.option.count <= giver.option.min) return null
+    if (giver.choice.ownSlot) {
+      if (takenIn(giver.choice) > (giver.choice.least ?? 0)) return move([giver], [])
+      const taker = sibling(giver, false)
+      return taker ? move([giver], [taker]) : null
+    }
     if (giver.choice.multiplePerModel) {
       if (takenIn(giver.choice) > (giver.choice.least ?? 0)) return move([giver], [])
       const taker = shared
