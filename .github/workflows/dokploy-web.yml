@@ -64,6 +64,8 @@ jobs:
           SOURCE: ${{ matrix.catalogue == 'pinned' && '--pinned' || format('{0} --publish', inputs.environment) }}
 
   deploy:
+    # PRIVATE_R2_* lives only in this environment, which only main can deploy to, so a branch's own workflows cannot name it.
+    environment: players-storage
     runs-on: ubuntu-latest
     permissions:
       actions: read

@@ -56,6 +56,8 @@ jobs:
   announce-discord:
     needs: [release, dokploy-production]
     if: needs.release.outputs.created == 'true'
+    # PRIVATE_R2_* lives only in this environment, which only main can deploy to, so a branch's own workflows cannot name it.
+    environment: players-storage
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

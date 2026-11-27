@@ -7,14 +7,14 @@
 
 ## Storage keys
 
-Each R2 key reaches only the buckets its jobs need, because a pull request from a branch of this repository runs its own code, dependencies included, with the secrets its workflow names. A job that runs on `pull_request` never receives `PRIVATE_R2_*`.
+Each R2 key reaches only the buckets its jobs need, because a pull request from a branch of this repository runs its own code, dependencies and workflow files included, with every repository secret its workflows name. `PRIVATE_R2_*` is therefore a secret of the `players-storage` environment alone, which only `main` can deploy to, never a repository secret, and only the jobs below name that environment.
 
-| Secrets | Cloudflare token | Used by |
-| --- | --- | --- |
-| `SNAPSHOT_R2_*` | Object Read, `praetorium-catalogue` | CI lanes through `catalogue-sync`, `ci.yml`'s live catalogue job, `catalogue.yml`'s build, `vs-data-live.yml`, `combat-rule-audit.yml`'s catalogue read, `coverage-baseline.yml`, previews |
-| `SNAPSHOT_PUBLISH_R2_*` | Object Read & Write, `praetorium-catalogue` | `catalogue.yml`'s publish step alone, `catalogue-history.yml`, `dokploy-web.yml`'s catalogue preparation and activation |
-| `CATALOGUE_R2_*`, read as `ASSETS_R2_*` | Object Read & Write, `praetorium` (public) | compiled runtimes and offline bundles from CI's build lanes and the live catalogue job, web assets from `dokploy-web.yml`, production |
-| `PRIVATE_R2_*` | Object Read & Write, `praetorium-private` and `praetorium-catalogue` | production's server, which also reads snapshots with it, set by `dokploy-web.yml`'s deploy; `release.yml`'s Discord receipts; `combat-rule-audit.yml`'s judgments, on schedule |
+| Secrets                                 | Cloudflare token                                                     | Used by                                                                                                                                                                                    |
+| --------------------------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `SNAPSHOT_R2_*`                         | Object Read, `praetorium-catalogue`                                  | CI lanes through `catalogue-sync`, `ci.yml`'s live catalogue job, `catalogue.yml`'s build, `vs-data-live.yml`, `combat-rule-audit.yml`'s catalogue read, `coverage-baseline.yml`, previews |
+| `SNAPSHOT_PUBLISH_R2_*`                 | Object Read & Write, `praetorium-catalogue`                          | `catalogue.yml`'s publish step alone, `catalogue-history.yml`, `dokploy-web.yml`'s catalogue preparation and activation                                                                    |
+| `CATALOGUE_R2_*`, read as `ASSETS_R2_*` | Object Read & Write, `praetorium` (public)                           | compiled runtimes and offline bundles from CI's build, browser-build and integration lanes and the live catalogue job, web assets from `dokploy-web.yml`, production                       |
+| `PRIVATE_R2_*`                          | Object Read & Write, `praetorium-private` and `praetorium-catalogue` | production's server, which also reads snapshots with it, set by `dokploy-web.yml`'s deploy; `release.yml`'s Discord receipts; `combat-rule-audit.yml`'s judgments                          |
 
 `praetorium-private` holds backups, players' photos and screenshots, announcement receipts and audit caches. Backup readback reads it with the Dokploy backup destination's own key, not a repository secret.
 
