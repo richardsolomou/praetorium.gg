@@ -616,7 +616,7 @@ export function withSealedEvents<B extends RepositoryBase>(Base: B) {
       const { event, entry, reader } = row
       return {
         snapshot: entry.rosterSnapshot!,
-        submittedAt: entry.submittedAt ?? entry.joinedAt,
+        submittedAt: entry.submittedAt,
         format: event.format,
         revealedAt: event.revealedAt,
         sealed: { userId, status: 'accepted' as const, teamId: entry.teamId },
@@ -632,7 +632,7 @@ export function withSealedEvents<B extends RepositoryBase>(Base: B) {
         revealedAt: record.event.revealedAt,
         rosters: record.entries.flatMap((entry) =>
           entry.status === 'accepted' && entry.rosterSnapshot !== null
-            ? [{ userId: entry.userId, snapshot: entry.rosterSnapshot, submittedAt: entry.submittedAt ?? entry.joinedAt }]
+            ? [{ userId: entry.userId, snapshot: entry.rosterSnapshot, submittedAt: entry.submittedAt }]
             : [],
         ),
       }

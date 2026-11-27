@@ -110,8 +110,16 @@ describe('served saved records', () => {
     expect(servedLoadout({ catalogueId: fixture.catalogueId, pick: fixture.pick, createdAt: after }).pick.vs).toBeUndefined()
   })
 
+  it('give a list sealed before the copy its translation', () => {
+    expect(servedSealedRoster(sealed, before).built?.picks?.[0]?.vs).toEqual(fixture.vs)
+  })
+
   it('give a list sealed since the copy none', () => {
     expect(servedSealedRoster(sealed, after).built?.picks?.[0]?.vs).toBeUndefined()
+  })
+
+  it('give a list with no submission time none', () => {
+    expect(servedSealedRoster(sealed, null).built?.picks?.[0]?.vs).toBeUndefined()
   })
 
   it('give the owner’s roster its translation', async () => {

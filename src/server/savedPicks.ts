@@ -115,10 +115,13 @@ export function servedLoadout<T extends { catalogueId: string; pick: RosterPick;
   return { ...loadout, pick: own!, ...(loadout.joined ? { joined: rest } : {}) }
 }
 
-/** A sealed list, as its entry stores it, with its picks' frozen translations, read as fielded when it was submitted. */
-export function servedSealedRoster(roster: Roster, submittedAt: number): Roster {
+/**
+ * A sealed list, as its entry stores it, with its picks' frozen translations, read as fielded when it was submitted. An
+ * entry with no submission time has no time it last changed, so it takes none.
+ */
+export function servedSealedRoster(roster: Roster, submittedAt: number | null): Roster {
   const built = roster.built
-  const translations = built?.picks && savedPicksFor(submittedAt)
+  const translations = built?.picks && submittedAt !== null && savedPicksFor(submittedAt)
   if (!built?.picks || !translations) return roster
   const read = fieldedRosterIds(
     { catalogueId: built.catalogueId, detachmentIds: built.detachmentIds ?? [], picks: built.picks },
