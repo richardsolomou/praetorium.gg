@@ -1,5 +1,14 @@
 # praetorium
 
+## 0.280.4 (2026-11-27)
+
+### Patch Changes
+
+- 1d58eb2: [rosters] A Heretic Astartes Daemon Prince or Master of Possession saved without a Mark of Chaos now asks for one, as the official app does.
+- d83f4a4: [simulator] A unit built from the official app's data fights with the wargear you gave it, not its default loadout.
+- d83f4a4: [rosters] Units you add now take their sizes, wargear options and points from the official app's data, with each option worded as the app words it.
+- d97bd07: [simulator] Optimizing a unit built from the official app's data searches the wargear the app offers it, and keeps the loadout it finds.
+
 ## 0.280.3 (2026-11-27)
 
 ### Patch Changes
