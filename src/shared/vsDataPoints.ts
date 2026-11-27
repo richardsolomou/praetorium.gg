@@ -52,7 +52,8 @@ export function vsPointsIndex(
   nameOf: (id: string) => string | undefined,
 ): VsPointsIndex {
   const units: VsPointsIndex['units'] = {}
-  for (const [entryId, id] of idsIn(ids.units, edition)) {
+  for (const [entryId, saved] of idsIn(ids.units, edition)) {
+    const id = definitions.current(saved)
     const unit = definitions.get('unit', id)
     const name = nameOf(entryId)
     if (!unit || !name || definitions.unavailable.has(id)) continue

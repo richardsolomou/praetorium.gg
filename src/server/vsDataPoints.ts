@@ -83,6 +83,7 @@ export function vsRosterDefinitionsIn(directory: string, index: CatalogueIndex, 
     release: construction.release,
     rulesVersion: construction.rulesVersion,
     unavailable: construction.unavailable,
+    ...(construction.replacements ? { replacements: construction.replacements } : {}),
     points: [],
     definitions: Object.fromEntries(
       ROSTER_KINDS.map((kind) => [

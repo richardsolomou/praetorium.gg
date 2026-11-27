@@ -25,7 +25,8 @@ export function vsRosterData(
 ): VsRosterData {
   const definitions = vsDataDefinitions(construction)
   const units: Record<string, string> = {}
-  for (const [entryId, id] of idsIn(ids.units, edition)) {
+  for (const [entryId, saved] of idsIn(ids.units, edition)) {
+    const id = definitions.current(saved)
     if (nameOf(entryId) && (definitions.get('unit', id) || definitions.unavailable.has(id))) units[entryId] = id
   }
   return {
