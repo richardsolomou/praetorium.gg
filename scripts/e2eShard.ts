@@ -85,7 +85,7 @@ export function planShards(titles: readonly string[], durations: Durations, most
     loads[runner]! += seconds
     runnerOf[index] = runner
   }
-  return loads.map((_, runner) => titles.filter((_, index) => runnerOf[index] === runner))
+  return loads.map((_, runner) => titles.filter((_title, index) => runnerOf[index] === runner))
 }
 
 const readJson = <T>(file: string): T => JSON.parse(fs.readFileSync(file, 'utf8')) as T
