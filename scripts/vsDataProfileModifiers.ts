@@ -326,6 +326,7 @@ type Atom = {
   via: string
 }
 const VS_STATS: Record<string, Stat> = {
+  range: 'Range',
   attacks: 'A',
   'ballistic-skill': 'Skill',
   'weapon-skill': 'Skill',
@@ -333,6 +334,8 @@ const VS_STATS: Record<string, Stat> = {
   'armour-penetration': 'AP',
   damage: 'D',
   movement: 'M',
+  toughness: 'T',
+  wounds: 'W',
   leadership: 'Ld',
   'objective-control': 'OC',
 }
@@ -351,8 +354,8 @@ function blocksOf(key: string): Blocks {
       .filter(([, block]) => block && typeof block === 'object' && 'unresolved' in block)
       .map(([name]) => name)
     if (blocks.invulnerableSave && !('unresolved' in blocks.invulnerableSave)) {
-      const { roll: value, conditional, keywords } = blocks.invulnerableSave
-      atoms.push({ stat: 'InSv', op: 'set', value, conditional: Boolean(conditional || keywords), via: 'invulnerableSave' })
+      const { roll: value, conditional, keywords, against } = blocks.invulnerableSave
+      atoms.push({ stat: 'InSv', op: 'set', value, conditional: Boolean(conditional || keywords || against), via: 'invulnerableSave' })
     }
     if (blocks.weaponAbilities && !('unresolved' in blocks.weaponAbilities))
       for (const ability of blocks.weaponAbilities)
