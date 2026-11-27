@@ -482,7 +482,7 @@ test('simulator setup checkpoints carry no unit contents', { tag: '@catalogue' }
       { name: 'combat_simulator_setup_progressed', properties: { source: 'standalone', step: 'ready' } },
     ])
   await page.getByRole('button', { name: 'More attacker models', exact: true }).click()
-  await expect(page.getByLabel('Attacker models', { exact: true })).toHaveText('6')
+  await expect(page.getByLabel('Attacker models', { exact: true })).toHaveText('10')
   expect(events.filter((event) => event.name === 'combat_simulator_setup_progressed')).toHaveLength(3)
   expect(JSON.stringify(events)).not.toMatch(/Intercessor|Warrior|catalogueId|entryId/)
 })

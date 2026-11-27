@@ -641,8 +641,8 @@ test('a model-specific weapon has the same count on its roster card and loadout'
   await waitForRosterSave(page, () =>
     loadout.getByRole('button', { name: 'More models in Vanguard Veteran Squad with Jump Packs' }).click(),
   )
-  await expect(loadout.getByLabel('Master-crafted Power Weapon count')).toHaveText('5')
-  await expect(card).toContainText('5x Master-crafted Power Weapon')
+  await expect(loadout.getByLabel('Master-crafted Power Weapon count')).toHaveText('9')
+  await expect(card).toContainText('9x Master-crafted Power Weapon')
 
   await loadout.getByRole('button', { name: 'Back to roster' }).click()
   await expectNoPageOverflow(page)
