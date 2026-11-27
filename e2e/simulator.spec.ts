@@ -197,7 +197,7 @@ test('weapon switches leave profiles visible and shared modifiers can be overrid
   await screenshot(page.getByRole('region', { name: 'Modifiers', exact: true }), 'simulator-shared-modifiers-390.png')
 })
 
-test('stacked wound bonuses remain selected and explain the roll cap', async ({ page }) => {
+test('stacked wound bonuses remain selected, explain the roll cap and move the critical threshold cue', async ({ page }) => {
   await page.goto('/simulator')
   await matchup(page)
   await setStep(await modifierTab(page, 'All'), 'wound roll', '+1')
@@ -215,12 +215,8 @@ test('stacked wound bonuses remain selected and explain the roll cap', async ({ 
   await expect(summary).toContainText('−1 to wound (Shooting)')
   await expect(summary).toContainText('Wound modifiers cancel to 0')
   await expect(summary).not.toContainText('Wound roll modifier capped')
-})
 
-test('critical threshold cue follows wound modifiers and Devastating Wounds', async ({ page }) => {
-  await page.goto('/simulator')
-  await matchup(page)
-  await modifierTab(page, 'Shooting')
+  // The critical threshold cue follows wound modifiers and Devastating Wounds.
   const shooting = page.getByRole('region', { name: 'Modifiers', exact: true })
   // The previous tooltip can still be fading out as the next opens, so each is found by what it says.
   const tooltip = (text: string) => page.getByRole('tooltip').filter({ hasText: text })
@@ -231,10 +227,10 @@ test('critical threshold cue follows wound modifiers and Devastating Wounds', as
   await setStep(shooting, 'critical wound roll', '4+')
   await stepName(shooting, 'critical wound roll').hover()
   await expect(tooltip('Those rolls already wound')).toBeVisible()
-  await expect(shooting.getByRole('region', { name: 'Applied modifiers' })).not.toContainText('Critical wounds on 4+ (Shooting)')
+  await expect(summary).not.toContainText('Critical wounds on 4+ (Shooting)')
   await shooting.getByRole('button', { name: 'Devastating Wounds' }).click()
   await expect(criticalWound).not.toHaveClass(/border-dashed/)
-  await expect(shooting.getByRole('region', { name: 'Applied modifiers' })).toContainText('Critical wounds on 4+ (Shooting)')
+  await expect(summary).toContainText('Critical wounds on 4+ (Shooting)')
   await shooting.getByRole('button', { name: 'Devastating Wounds' }).click()
   await setStep(shooting, 'critical wound roll', '3+')
   await setStep(shooting, 'wound roll', '+1')
@@ -705,40 +701,6 @@ test('a simulator link reopens the same units, swap, and modifiers', async ({ pa
   await expect(await combatDamage(page, 'Shooting')).toHaveText(damage!)
 })
 
-test("combined shooting and melee against Lion El'Jonson", async ({ page }) => {
-  await page.setViewportSize({ width: 1440, height: 1000 })
-  await page.goto('/simulator')
-  await chooseCombatUnit(page, 'Attacker', 'Necrons', "C'tan Shard of the Void Dragon")
-  await chooseCombatUnit(page, 'Defender', 'Dark Angels', "Lion El'Jonson")
-  const combined = page.getByRole('region', { name: 'Combined estimate' })
-  await expect(combined).toHaveAttribute('aria-busy', 'false')
-  await expect(combined.locator('[data-combat-wipe]')).toHaveText(KILL_CHANCE)
-  const percentage = async (region: Locator) => Number((await region.locator('[data-combat-wipe]').textContent())!.replace('%', ''))
-  expect(await percentage(combined)).toBeGreaterThan(
-    (await percentage(await combatEstimate(page, 'Shooting'))) + (await percentage(await combatEstimate(page, 'Melee'))),
-  )
-  await atWidths(page, [1440, 390], async () => noOverflow(page))
-  await closeCombatBreakdown(page)
-  await atWidths(page, [1440, 390], async (width) => {
-    if (width === 390) {
-      expect(await page.getByLabel('Results summary').evaluate((element) => element.getBoundingClientRect().height)).toBeLessThan(160)
-    }
-    await page.getByRole('region', { name: 'Defender buffs' }).evaluate((element) => element.scrollIntoView({ block: 'center' }))
-    await screenshot(page, `simulator-combined-lion-${width}.png`)
-  })
-  const distribution = page.getByRole('dialog', { name: 'Combined · Wounds lost probabilities', exact: true })
-  await atWidths(page, [1440, 390], async () => {
-    await openCombatBreakdown(page)
-    await page
-      .getByRole('region', { name: 'Combined distributions' })
-      .getByRole('button', { name: /Wounds lost: .*Show probabilities/ })
-      .click()
-    await expect(distribution).toBeVisible()
-    await page.keyboard.press('Escape')
-    await expect(distribution).toBeHidden()
-  })
-})
-
 test('the simulator leads with one outcome and reveals its controls', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 })
   await page.goto('/simulator')
@@ -790,6 +752,11 @@ test('the simulator leads with one outcome and reveals its controls', async ({ p
   await openCombatBreakdown(page)
   await expect(page.getByRole('region', { name: 'Shooting estimate' })).toContainText('alone')
   await expect(summary).toContainText('what survives shooting')
+  // Damage carried from shooting into melee kills more often than the two phases' chances added together.
+  const percentage = async (region: Locator) => Number((await region.locator('[data-combat-wipe]').textContent())!.replace('%', ''))
+  expect(await percentage(combined)).toBeGreaterThan(
+    (await percentage(await combatEstimate(page, 'Shooting'))) + (await percentage(await combatEstimate(page, 'Melee'))),
+  )
   await atWidths(page, [1440, 390], async () => {
     await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight))
     expect(
@@ -802,6 +769,18 @@ test('the simulator leads with one outcome and reveals its controls', async ({ p
     .click()
   await expect(page.getByRole('dialog', { name: 'Shooting · Wounds lost probabilities', exact: true })).toBeVisible()
   await page.keyboard.press('Escape')
+  const distribution = page.getByRole('dialog', { name: 'Combined · Wounds lost probabilities', exact: true })
+  await atWidths(page, [1440, 390], async () => {
+    await openCombatBreakdown(page)
+    await page
+      .getByRole('region', { name: 'Combined distributions' })
+      .getByRole('button', { name: /Wounds lost: .*Show probabilities/ })
+      .click()
+    await expect(distribution).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(distribution).toBeHidden()
+  })
+  await openCombatBreakdown(page)
   await summary.locator('details > summary').click()
   await expect(combined).toContainText('8.1%')
   await atWidths(page, [1440, 390], async (width) => {

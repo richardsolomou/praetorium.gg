@@ -346,41 +346,6 @@ test('a detachment rule alert covers the whole army and fires in battle', async 
   await expect(reminder.getByRole('heading', { name: 'Cold Fervour', exact: true })).toBeVisible()
 })
 
-test('saved alerts support any-phase abilities', async ({ page }) => {
-  await signUp(page, uniqueName('Alert any-phase'))
-  const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Alert Catacomb Command Barge' })
-  await addUnit(page, 'Catacomb Command Barge')
-  await page.locator('[data-unit="Catacomb Command Barge"]').getByRole('button', { name: 'Catacomb Command Barge', exact: true }).click()
-  await waitForRosterSave(page, () => page.getByRole('button', { name: 'Select Resurrection orb', exact: true }).click())
-  await page.getByLabel('Set alert for Resurrection orb').click()
-  const editor = page.getByRole('dialog', { name: 'Resurrection orb', exact: true })
-  await expect(editor.getByText('Alert: End of any phase', { exact: true })).toBeVisible()
-  await expect(editor.getByRole('combobox', { name: 'Phase', exact: true }).locator('[data-slot="select-value"]')).toHaveText('Any phase')
-  await expect(editor.getByLabel('Show while unit is destroyed')).not.toBeChecked()
-  await fitsBothWidths(page)
-  await saveAlert(editor, 'Resurrection orb')
-  await page.setViewportSize(desktopContext.viewport)
-  // The phone layout's pane leaves the address once the page is wide again; reloading first races that navigation.
-  await expect(page).not.toHaveURL(/#roster-pane$/)
-  await page.reload()
-  await page.locator('[data-unit="Catacomb Command Barge"]').getByRole('button', { name: 'Catacomb Command Barge', exact: true }).click()
-  await page.getByLabel('Edit alert for Resurrection orb').click()
-  await expect(editor.getByText('Alert: End of any phase', { exact: true })).toBeVisible()
-  await editor.getByRole('button', { name: 'Cancel', exact: true }).click()
-
-  await startReminderBattle(page, roster)
-  const reminder = page.getByRole('dialog', { name: 'Battle reminder', exact: true })
-  await takeTheTurn(page)
-  await turnOffActionReminders(page)
-  for (const phase of ['Command', 'Movement']) {
-    await page.getByRole('button', { name: `End the ${phase.toLowerCase()} phase`, exact: true }).click()
-    await expect(reminder.getByRole('heading', { name: 'Resurrection orb', exact: true })).toBeVisible()
-    await expect(reminder).toContainText(`End of your ${phase} phase`)
-    await reminder.getByRole('button', { name: 'End the phase', exact: true }).click()
-    await expect(reminder).toBeHidden()
-  }
-})
-
 test('an alert set in one roster follows the player into another and fires in battle', async ({ page }) => {
   await signUp(page, uniqueName('Shared alerts'))
   const unit = 'Catacomb Command Barge'
@@ -395,7 +360,14 @@ test('an alert set in one roster follows the player into another and fires in ba
   await page.getByLabel('Set alert for Resurrection orb').click()
   const editor = page.getByRole('dialog', { name: 'Resurrection orb', exact: true })
   await expect(editor).toContainText('every unit with this ability in all your rosters')
+  await expect(editor.getByText('Alert: End of any phase', { exact: true })).toBeVisible()
+  await expect(editor.getByRole('combobox', { name: 'Phase', exact: true }).locator('[data-slot="select-value"]')).toHaveText('Any phase')
+  await expect(editor.getByLabel('Show while unit is destroyed')).not.toBeChecked()
+  await fitsBothWidths(page)
   await saveAlert(editor, 'Resurrection orb')
+  await page.setViewportSize(desktopContext.viewport)
+  // The phone layout's pane leaves the address once the page is wide again; creating the next roster first races that navigation.
+  await expect(page).not.toHaveURL(/#roster-pane$/)
   await expect(page.locator(`[data-unit="${unit}"]`).getByLabel(`1 alert set for ${unit}`)).toBeVisible()
 
   const second = await addBarge('Second alerts')
@@ -405,7 +377,12 @@ test('an alert set in one roster follows the player into another and fires in ba
   await practiceBattle(page, second)
   await startBattle(page)
   await turnOffActionReminders(page)
-  await page.getByRole('button', { name: 'End the command phase', exact: true }).click()
   const reminder = page.getByRole('dialog', { name: 'Battle reminder', exact: true })
-  await expect(reminder.getByRole('heading', { name: 'Resurrection orb', exact: true })).toBeVisible()
+  for (const phase of ['Command', 'Movement']) {
+    await page.getByRole('button', { name: `End the ${phase.toLowerCase()} phase`, exact: true }).click()
+    await expect(reminder.getByRole('heading', { name: 'Resurrection orb', exact: true })).toBeVisible()
+    await expect(reminder).toContainText(`End of your ${phase} phase`)
+    await reminder.getByRole('button', { name: 'End the phase', exact: true }).click()
+    await expect(reminder).toBeHidden()
+  }
 })

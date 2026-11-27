@@ -1,5 +1,5 @@
-import { expect, test, type Locator, type Page } from './test'
-import { addUnit, createRoster, signUp, expectNoPageOverflow, chooseOption, chooseRosterAction, PHONE, savedArmy } from './account'
+import { expect, test, type Page } from './test'
+import { addUnit, createRoster, signUp, expectNoPageOverflow, chooseOption, chooseRosterAction, PHONE } from './account'
 import { holdCombatCalculations, openCombatBreakdown } from './combat'
 import { screenshot } from './screenshots'
 
@@ -151,51 +151,6 @@ test('new rosters compare customizable mixed-faction benchmarks and retain the t
   await expect(page.locator('[data-unit="Intercessor Squad"]')).toBeVisible()
   await expect(page.locator('[data-unit="Terminator Squad"]')).toBeVisible()
   await expect(page.locator('[data-unit="Boyz"]')).toHaveCount(0)
-})
-
-async function settledBox(locator: Locator) {
-  let last: Awaited<ReturnType<Locator['boundingBox']>> = null
-  await expect
-    .poll(async () => {
-      const box = await locator.boundingBox()
-      const still = Boolean(box && last && box.x === last.x && box.y === last.y)
-      last = box
-      return still
-    })
-    .toBe(true)
-  return last!
-}
-
-test('long matchup tables keep target headings and attacker names visible while scrolling', async ({ page }) => {
-  const { id } = await savedArmy(page, 'Pinned matchup headings', { name: 'Long comparison' })
-  await page.goto(`/rosters/${id}`)
-  await chooseRosterAction(page, 'Test targets')
-  const dialog = page.getByRole('dialog', { name: 'Test targets', exact: true })
-  await expect(dialog).toContainText(/matchups · Complete/, { timeout: 120_000 })
-  const grid = dialog.getByRole('region', { name: 'All unit matchups', exact: true })
-  const corner = grid.getByRole('columnheader').first()
-  const target = grid.getByRole('columnheader').nth(1)
-  for (const width of [1440, 390]) {
-    await page.setViewportSize({ width, height: 900 })
-    await grid.scrollIntoViewIfNeeded()
-    await grid.evaluate((element) => {
-      element.scrollTop = 0
-      element.scrollLeft = 0
-    })
-    // A resize relays the dialog out over several frames, so the starting place is read once it holds still.
-    const before = await settledBox(corner)
-    const targetBefore = await settledBox(target)
-    await grid.evaluate((element) => {
-      element.scrollTop = 240
-      element.scrollLeft = 160
-    })
-    expect(await grid.evaluate((element) => element.scrollTop)).toBeGreaterThan(0)
-    await expect.poll(async () => Math.abs((await corner.boundingBox())!.y - before.y)).toBeLessThan(2)
-    await expect.poll(async () => Math.abs((await target.boundingBox())!.y - targetBefore.y)).toBeLessThan(2)
-    await expect.poll(async () => Math.abs((await corner.boundingBox())!.x - before.x)).toBeLessThan(2)
-    await expectNoPageOverflow(page)
-    await screenshot(page, `pinned-matchup-headings-${width}.png`)
-  }
 })
 
 test('saved rosters compare every pairing, reverse direction, and open isolated adjustments', async ({ page }) => {

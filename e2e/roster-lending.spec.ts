@@ -32,7 +32,7 @@ async function setLoan(owner: Page, rosterUrl: string, borrowerName: string, len
   await owner.keyboard.press('Escape')
 }
 
-test('a friend fields a lent roster, and the battle keeps it after the loan ends', async ({ browser }) => {
+test('a friend fields a lent roster, the battle keeps it after the loan ends, and a borrower hands it back', async ({ browser }) => {
   const owner = await (await browser.newContext()).newPage()
   const borrower = await (await browser.newContext()).newPage()
   const ownerName = uniqueName('Lender')
@@ -72,22 +72,9 @@ test('a friend fields a lent roster, and the battle keeps it after the loan ends
   await expect(borrower.locator('[data-lent-rosters]')).toHaveCount(0)
   await borrower.goto(battle)
   await expect(borrower.locator('[data-face-off-side="0"]').getByText(`Lent by ${ownerName}`)).toBeVisible()
-})
 
-test('a borrower hands a lent roster back', async ({ browser }) => {
-  const owner = await (await browser.newContext()).newPage()
-  const borrower = await (await browser.newContext()).newPage()
-  const ownerName = uniqueName('Lender')
-  const borrowerName = uniqueName('Borrower')
-
-  await signUp(owner, ownerName)
-  await chooseRosterDefault(owner, 'Private')
-  await createRoster(owner, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Returned army' })
-  const rosterUrl = owner.url()
-  await signUp(borrower, borrowerName)
-  await befriend(owner, borrower)
+  // Lent again, the borrower hands it back.
   await setLoan(owner, rosterUrl, borrowerName, true)
-
   await borrower.goto(rosterUrl)
   const confirmReturn = borrower.getByRole('alertdialog', { name: /^Return / })
   await retryUntilVisible(confirmReturn, () =>
