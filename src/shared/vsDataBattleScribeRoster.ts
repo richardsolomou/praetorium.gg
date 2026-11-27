@@ -25,7 +25,10 @@ export function vsDataUnitXml(
   if (!unit) return null
   const counts = modelCounts(definitions, picked)
   const models = definitions.modelsOf(picked.unit).filter((model) => (counts.get(model.id) ?? 0) > 0)
-  const held = heldBy(definitions, picked, models.length === 1 ? models[0]!.id : '')
+  // Yellowscribe hands a weapon left on the unit to every model, so what no carrier holds goes on the one kind of model,
+  // else the kind fielded alone, as a Strike Team's turret is its Shas'ui's.
+  const sole = models.length === 1 ? models[0]!.id : (models.find((model) => counts.get(model.id) === 1)?.id ?? '')
+  const held = heldBy(definitions, picked, sole)
   // A weapon profile naming no wargear (a `no-target` gap) has nothing in the unit to hang off.
   const weapons = new Map<string, Definition<'weapon-profile'>[]>()
   for (const profile of definitions.weaponProfilesOf(picked.unit))
@@ -78,7 +81,8 @@ export function vsDataUnitXml(
 
 /**
  * What each fielded model carries in all and what the unit holds apart from its models (`''`): a model's own wargear,
- * and an option's choices on its carrier, else on `sole`, the unit's one kind of model, else the unit's. What a choice replaces comes off the same holder first, then any other holding it.
+ * an option's choices on its carrier, and the unit's own wargear and any other choice on `sole`, else on the unit. What
+ * a choice replaces comes off the same holder first, then any other holding it.
  */
 function heldBy(definitions: VsDataDefinitions, picked: VsRosterUnit, sole: string) {
   const held = new Map<string, Map<string, number>>()

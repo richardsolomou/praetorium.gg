@@ -13,7 +13,15 @@ const construction: VsDataConstruction = {
   points: [],
   definitions: {
     faction: { host: record('Host', {}) },
-    unit: { 'host.squad': record('Squad', { faction: 'host', keywords: ['INFANTRY', 'HOST'], factionKeywords: ['HOST'], sizes: [5] }) },
+    unit: {
+      'host.squad': record('Squad', {
+        faction: 'host',
+        keywords: ['INFANTRY', 'HOST'],
+        factionKeywords: ['HOST'],
+        sizes: [5],
+        wargear: { 'host.squad.turret': 1 },
+      }),
+    },
     model: {
       'host.squad.sergeant': record('Sergeant', { unit: 'host.squad', min: 1, max: 1, wargear: { 'host.squad.rifle': 1 } }),
       'host.squad.trooper': record('Trooper', { unit: 'host.squad', min: 4, max: 4, wargear: { 'host.squad.rifle': 1 } }),
@@ -27,10 +35,15 @@ const construction: VsDataConstruction = {
         choices: ['host.squad.flamer'],
       }),
     },
-    wargear: { 'host.squad.rifle': record('Rifle', {}), 'host.squad.flamer': record('Flamer', {}) },
+    wargear: {
+      'host.squad.rifle': record('Rifle', {}),
+      'host.squad.flamer': record('Flamer', {}),
+      'host.squad.turret': record('Turret', {}),
+    },
     'weapon-profile': {
       'host.squad.rifle': weapon('Rifle', 'host.squad.rifle'),
       'host.squad.flamer': weapon('Flamer', 'host.squad.flamer'),
+      'host.squad.turret': weapon('Turret', 'host.squad.turret'),
     },
   },
 }
@@ -54,4 +67,9 @@ it('numbers what a stack of models carries by the stack, a replaced weapon taken
 
 it('marks a faction keyword as BattleScribe does, which Yellowscribe sorts keywords by', () => {
   expect(xml).toContain('name="Faction: HOST"')
+})
+
+// Yellowscribe hands a weapon left on the unit to every model, so the unit's own wargear goes on its one-model stack.
+it('gives what the unit carries apart from its models to the model fielded alone', () => {
+  expect(xml).toMatch(/name="Sergeant" [^>]*type="model">(?:(?!type="model").)*name="Turret"/)
 })
