@@ -1,20 +1,29 @@
 name: Dokploy preview image
 
+# A maintainer asks for a preview by adding the `preview` label, since only they can label a pull request; pushes build none.
 on:
   pull_request:
-    types: [opened, reopened, synchronize, ready_for_review]
+    types: [labeled]
 
 permissions:
   contents: read
 
 jobs:
-  changes:
-    uses: ./.github/workflows/ci-scope.yml
+  # Taking the label off at once lets adding it again deploy the newest commit. A fork's token can't, so a maintainer removes it there.
+  take-label:
+    if: github.event.label.name == 'preview' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: gh pr edit "$PR_NUMBER" --remove-label preview
 
   build:
-    needs: changes
-    # Previews are for review, so a draft builds none.
-    if: needs.changes.outputs.runtime == 'true' && !github.event.pull_request.draft
+    if: github.event.label.name == 'preview'
     permissions:
       contents: read
       packages: write

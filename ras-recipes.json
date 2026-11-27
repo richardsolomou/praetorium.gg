@@ -88,7 +88,8 @@
         "dokploy-web.yml replaces deploy.yml: it deploys a released revision through the release workflow, refreshes and publishes live catalogue assets, publishes the SpacetimeDB module, sets the health check, and deploys the image digest with `deploy-dokploy-image`; Dokploy's environment comes from scripts/configureDokployNode.ts.",
         "The preview workflows are dokploy-preview-image.yml, dokploy-preview-deploy.yml and dokploy-preview-prune.yml, with scripts/dokployPreview.ts as the custom deploy script (per-preview SpacetimeDB database, seeded accounts, random AUTH_SECRET), at `pr-<number>.praetorium.gg`.",
         "Docker images build for linux/arm64 under QEMU from Dockerfile.node, whose BuildKit secret is `posthog_api_key`.",
-        "No HEALTHCHECK in the image: dokploy-web.yml applies the Swarm health check before each deploy, tolerating about three minutes of missed probes for the single replica (docs/deployment.md)."
+        "No HEALTHCHECK in the image: dokploy-web.yml applies the Swarm health check before each deploy, tolerating about three minutes of missed probes for the single replica (docs/deployment.md).",
+        "Previews build only when a maintainer adds the `preview` label, not on every push; the build removes the label for this repository's branches so adding it again redeploys, and only fork previews wait in the `pr-preview` environment."
       ]
     },
     "email-posthog": {
