@@ -9,8 +9,11 @@ import {
   type RuleDocument,
   type RuleSummaries,
   type RuleSummary,
+  type RuleSummaryBlock,
   type RuleSummaryInline,
   type RuleSummaryLink,
+  type RuleSummaryParts,
+  STRATAGEM_PARTS,
 } from '../contracts/rules'
 import { spannedParagraph, type SummaryBlock, type SummaryInline, summaryBlocks, summaryText } from '../core/summaryMarkdown'
 import type { Steps } from '../shared/steps'
@@ -313,20 +316,29 @@ function summaryOf(
     blocks.map((block) =>
       'paragraph' in block ? { paragraph: runs(block.paragraph) } : { list: block.list, items: block.items.map(runs) },
     )
-  return {
-    blocks: shown(spans.length ? [spannedParagraph(summary, spans)] : summaryBlocks(summary)),
-    questions,
-    ...(parts
-      ? {
-          parts: {
-            when: shown(summaryBlocks(parts.when)),
-            target: shown(summaryBlocks(parts.target)),
-            effect: shown(summaryBlocks(parts.effect)),
-            ...(parts.restrictions ? { restrictions: shown(summaryBlocks(parts.restrictions)) } : {}),
-          },
-        }
-      : {}),
+  if (!parts) return { blocks: shown(spans.length ? [spannedParagraph(summary, spans)] : summaryBlocks(summary)), questions }
+  const shownParts: RuleSummaryParts = {
+    when: shown(summaryBlocks(parts.when)),
+    target: shown(summaryBlocks(parts.target)),
+    effect: shown(summaryBlocks(parts.effect)),
+    ...(parts.restrictions ? { restrictions: shown(summaryBlocks(parts.restrictions)) } : {}),
   }
+  return { blocks: labelledBlocks(shownParts), questions, parts: shownParts }
+}
+
+/**
+ * A Stratagem's summary as VS Data joins its parts, each opening with its bold label, built from the parts' own runs
+ * rather than read again from the summary, so a server holds the words once.
+ */
+function labelledBlocks(parts: RuleSummaryParts): RuleSummaryBlock[] {
+  return Object.entries(STRATAGEM_PARTS).flatMap(([part, label]) => {
+    const [first, ...rest] = parts[part as keyof RuleSummaryParts] ?? []
+    if (!first) return []
+    const labelled = [{ text: `${label}:`, bold: true as const }, { text: ' ' }]
+    return 'paragraph' in first
+      ? [{ paragraph: [...labelled, ...first.paragraph] }, ...rest]
+      : [{ paragraph: labelled.slice(0, 1) }, first, ...rest]
+  })
 }
 
 /**
