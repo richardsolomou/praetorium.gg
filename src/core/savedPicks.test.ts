@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { RosterPick, VsPick } from './roster'
-import { nextSavedPicks, savedPickKey, savedPicksPinSchema, withVsPicks } from './savedPicks'
+import { nextSavedPicks, savedPickKey, savedPicksPinSchema, translatesSavedAt, withVsPicks } from './savedPicks'
 
 const context = { rulesVersion: 'mfm-1-6', catalogueId: 'book', detachmentIds: ['gladius'] }
 const pick: RosterPick = { entryId: 'intercessors', models: 10, choices: { 'squad/sergeant': 'plasma-pistol' } }
@@ -79,5 +79,15 @@ describe('nextSavedPicks', () => {
 describe('savedPicksPinSchema', () => {
   it('refuses a pin that does not say when its copy’s backup was taken', () => {
     expect(() => savedPicksPinSchema.parse({ format: 'praetorium.saved-picks-pin.v1', sha256: '0'.repeat(64) })).toThrow()
+  })
+})
+
+describe('translatesSavedAt', () => {
+  it('lends a record saved before the copy its translations', () => {
+    expect(translatesSavedAt('2026-11-20T00:00:00Z', Date.parse('2026-11-19T23:59:59Z'))).toBe(true)
+  })
+
+  it('keeps them from a record saved after the copy', () => {
+    expect(translatesSavedAt('2026-11-20T00:00:00Z', Date.parse('2026-11-20T00:00:01Z'))).toBe(false)
   })
 })

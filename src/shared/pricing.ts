@@ -33,6 +33,7 @@ import { withUnitSpread } from '../core/unitSpread'
 import { wargearOf } from '../core/wargear'
 import { rulesReferencedIn } from './catalogueRules'
 import { vsUnitRecords } from '../core/vsDataUnit'
+import { vsFirstPickOf } from './vsDataPicks'
 import { buildPick, vsDefinitionsOf, vsPickKeywords, vsPickPrices } from './vsDataBuild'
 import { contextualAbilityNamesIn, datasheetIn, modelLinesOf, offeredPicksIn, toughnessOf } from './catalogue'
 import { combatCarriers } from '../core/combatLoadout'
@@ -890,6 +891,7 @@ function calculateRoster(
       ? unitIdsIn(loaded, data.catalogueId, { battleSize: data.limit, waivedRules: data.waivedRules, nonMatchedPlay: true }).map((id) => ({
           id,
           ...contextualUnitLimit(loaded, data.catalogueId, id, data.limit, data.waivedRules ?? [], selections),
+          vs: vsFirstPickOf(loaded, data, id),
         }))
       : undefined,
     revision: loaded.index.revision,

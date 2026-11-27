@@ -1,4 +1,5 @@
 import type { RosterPick } from '../../../core/roster'
+import { withHeldVs } from '../../../core/savedPicks'
 
 /**
  * A pick while a list is being edited.
@@ -16,20 +17,26 @@ export type KeyedPick = RosterPick & { key: number }
  * have to produce the same object or the page refetches what it was just given.
  * Nicknames, notes and starting embarks change nothing a price reads, so editing one must not reprice.
  */
-export const normalisePicks = (picks: readonly RosterPick[]): RosterPick[] =>
-  picks.map(({ entryId, catalogueId, models, choices, spreads, toggles, attachedTo, floor, vs }) => ({
-    entryId,
-    catalogueId,
-    models,
-    choices,
-    spreads,
-    toggles,
-    attachedTo,
-    floor,
-    vs,
-  }))
+const construction = ({ entryId, catalogueId, models, choices, spreads, toggles, attachedTo, floor, vs }: RosterPick): RosterPick => ({
+  entryId,
+  catalogueId,
+  models,
+  choices,
+  spreads,
+  toggles,
+  attachedTo,
+  floor,
+  vs,
+})
 
-/** The construction shape with the player's nickname, note and starting embark, as a saved row keeps it. */
+/** Each pick as it is priced and shown: a translation it was served stands in for the `vs` it lacks. */
+export const normalisePicks = (picks: readonly RosterPick[]): RosterPick[] => picks.map((pick) => construction(withHeldVs(pick)))
+
+/**
+ * The construction shape with the player's nickname, note and starting embark, as a saved row keeps it. A save of the
+ * list's content keeps a translation each pick was served as its own `vs`: it is the owner's own list, as they were
+ * served it, so the list reads the same once the save dates it past the copy the translations read.
+ */
 export const annotatedPicks = (picks: readonly RosterPick[]): RosterPick[] =>
   normalisePicks(picks).map((pick, at) => ({
     ...pick,

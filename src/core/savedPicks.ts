@@ -32,6 +32,12 @@ export const savedPicksPinSchema = z.strictObject({
 const sameMeaning = (left: VsPick, right: VsPick) => JSON.stringify(sortedKeys(left)) === JSON.stringify(sortedKeys(right))
 
 /**
+ * Whether a record saved (or last changed) at `savedAt` may take the translations of a copy taken at `copiedAt`. A record
+ * saved later never does, so saving a guessed pick can't reveal whether some private list held it.
+ */
+export const translatesSavedAt = (copiedAt: string, savedAt: number) => savedAt <= Date.parse(copiedAt)
+
+/**
  * One copy's translations as the bytes to publish in place of `published`, holding that copy's keys alone, so each key
  * is dated by the copy it came from. A run stops if a key both hold would change meaning, or if a key some live record
  * of the copy still hashes to (`live`) would leave, since that record would fall back to its BSData choices, unless the
@@ -108,6 +114,14 @@ export function savedPickKey(context: PickContext, pick: RosterPick) {
 }
 
 const bookOf = (catalogueId: string) => catalogueId.slice(catalogueId.indexOf('~') + 1)
+
+/** The pick as the builder prices and edits it: its own `vs`, else the translation it was served. */
+export function withHeldVs<T extends RosterPick>({ translatedVs, ...pick }: T): Omit<T, 'translatedVs'> {
+  return translatedVs && !pick.vs ? { ...pick, vs: translatedVs } : pick
+}
+
+/** The pick as it is stored, without a translation it was served. */
+export const withoutTranslation = <T extends RosterPick>({ translatedVs: _translatedVs, ...pick }: T): Omit<T, 'translatedVs'> => pick
 
 export function savedPickTranslations(raw: unknown): SavedPickTranslations {
   const picks = new Map(Object.entries(savedPicksSchema.parse(raw).picks))

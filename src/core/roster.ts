@@ -48,6 +48,12 @@ export type RosterPick = {
    * it instead, and keeps every other field.
    */
   vs?: VsPick
+  /**
+   * The frozen translation of a pick saved before VS Data, as the server attached it on a read: the builder prices, shows
+   * and edits the pick from it until the player edits the pick, which saves it as `vs`. It is never stored (the pick
+   * schema drops it), so every save, comparison and battle reads the pick as it is stored.
+   */
+  translatedVs?: VsPick
 }
 
 /**

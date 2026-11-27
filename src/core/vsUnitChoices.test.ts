@@ -68,6 +68,10 @@ describe('vsUnitToggles', () => {
 })
 
 describe('vsModelKinds', () => {
+  it('draws no card for a unit with nothing to choose', () => {
+    expect(vsModelKinds(definitions, vsFirstFielding(definitions, 'titans.walker'))).toEqual([])
+  })
+
   it('takes what an option replaces off the model’s own wargear', () => {
     const armed = vsWithChoice(definitions, squad, 'host.squad.trooper-rifle', { 'host.cannon': 1 })
     const trooper = vsModelKinds(definitions, armed).find((kind) => kind.name === 'Trooper')

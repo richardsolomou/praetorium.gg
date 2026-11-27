@@ -83,3 +83,8 @@ it('sends a VS Data pick its loadout', () => {
   const vs = { models: { 'host.squad.trooper': 4 }, options: {} }
   expect(normalisePicks([{ entryId: 'squad', vs }])[0]?.vs).toBe(vs)
 })
+
+it('saves a translation a pick was served as its own with the list’s content', () => {
+  const translatedVs = { models: { 'host.squad.trooper': 4 }, options: {} }
+  expect(annotatedPicks([{ entryId: 'squad', translatedVs }])[0]?.vs).toBe(translatedVs)
+})

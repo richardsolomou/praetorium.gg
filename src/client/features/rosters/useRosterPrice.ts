@@ -94,5 +94,22 @@ export function useRosterPrice({
   )
   const units = priced?.units ?? NO_UNITS
 
-  return { priceRequest, priced, units, pricePending, priceLoading, priceFailed, retryPrice, unitLimits, limitUnlocks, evaluatedPicks }
+  // What each datasheet the builder fields by VS Data starts as when added.
+  const firstPicks = useMemo(
+    () => new Map(!priceFailed ? priced?.unitLimits?.flatMap((unit) => (unit.vs ? [[unit.id, unit.vs] as const] : [])) : []),
+    [priceFailed, priced?.unitLimits],
+  )
+  return {
+    priceRequest,
+    priced,
+    units,
+    pricePending,
+    priceLoading,
+    priceFailed,
+    retryPrice,
+    unitLimits,
+    limitUnlocks,
+    firstPicks,
+    evaluatedPicks,
+  }
 }

@@ -47,13 +47,14 @@ type GroupPick = RosterPick & { key: number }
 function savedPick(pick: RosterPick, unit: PricedUnit): UnitLoadoutPick {
   const special = new Set(unit.choices.filter((choice) => choice.kind).map((choice) => choice.key))
   const choices = pick.choices && Object.fromEntries(Object.entries(pick.choices).filter(([key]) => !special.has(key)))
+  const vs = pick.vs ?? pick.translatedVs
   return {
     entryId: pick.entryId,
     ...(pick.models === undefined ? {} : { models: pick.models }),
     ...(choices && Object.keys(choices).length ? { choices } : {}),
     ...(pick.spreads ? { spreads: pick.spreads } : {}),
     // A loadout keeps a unit's models and wargear, never its Enhancement, allegiance or Warlord.
-    ...(pick.vs ? { vs: { models: pick.vs.models, options: pick.vs.options } } : {}),
+    ...(vs ? { vs: { models: vs.models, options: vs.options } } : {}),
     ...(pick.nickname ? { nickname: pick.nickname } : {}),
   }
 }

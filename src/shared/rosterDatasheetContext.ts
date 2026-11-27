@@ -31,7 +31,7 @@ export function rosterDatasheetSelections(
   const detachments = rosterDetachments(loaded, data.catalogueId, data.detachmentIds).selections
   const builtUnits = data.picks.flatMap((pick, index) => {
     const unit = buildRosterPick(loaded, data.catalogueId, detachments, pick, data.detachmentIds)
-    return unit ? [{ index, selection: unit.selection, models: unit.size.models }] : []
+    return unit ? [{ index, selection: unit.selection, models: unit.size.models, carriers: unit.vs?.carriers }] : []
   })
   return {
     selections: [...detachments, ...builtUnits.map((unit) => unit.selection)],
@@ -39,6 +39,8 @@ export function rosterDatasheetSelections(
       pickIndex: unit.index,
       selectionIndex: detachments.length + at,
       models: unit.models,
+      // A VS pick's models carry what VS Data fields, which its catalogue tree, built at its default loadout, does not.
+      ...(unit.carriers ? { carriers: unit.carriers } : {}),
     })),
   }
 }
