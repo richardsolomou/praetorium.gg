@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.280.5 (2026-11-27)
+
+### Patch Changes
+
+- 967efc9: [rosters] Unit datasheets open in large rosters.
+- 967efc9: [rosters] Loading the roster library keeps the page in place when another tab changes the sort or grouping.
+
 ## 0.280.4 (2026-11-27)
 
 ### Patch Changes
