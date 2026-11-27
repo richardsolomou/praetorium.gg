@@ -23,12 +23,14 @@ jobs:
       fail-fast: false
       matrix:
         runner: ${{ fromJSON(inputs.runners) }}
-    runs-on: ubuntu-latest
+    # The owner's own pull requests run runners 2 and 3 on the desktop runner, which exist whatever the runner count (docs/deployment.md#ci-runners).
+    runs-on: ${{ vars.DESKTOP_RUNNER == 'on' && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.user.login == 'richardsolomou' && (matrix.runner == 2 || matrix.runner == 3) && fromJSON('["self-hosted","linux","desktop"]') || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v7
-      - uses: richardsolomou/ras-stack/actions/setup-js@v1
+      # The browser-test build saved the dependency cache this restores, so the pnpm store `setup-js` restores goes unused.
+      - uses: pnpm/action-setup@v6
         with:
-          install: 'false'
+          run_install: false
       - uses: actions/setup-node@v7
         with:
           node-version: ${{ inputs.node-version }}
@@ -43,23 +45,22 @@ jobs:
         with:
           name: browser-test-build
           path: data-dev/e2e-build
+      - uses: actions/download-artifact@v8
+        with:
+          name: e2e-shards
+          path: ${{ runner.temp }}/e2e-shards
       - uses: ./.github/actions/verify-browser-build
       - uses: ./.github/actions/setup-spacetime
         id: spacetime
       - name: Run the E2E shard
         env:
           E2E_SHARD: ${{ matrix.runner }}
-          E2E_RUNNERS: ${{ inputs.runner-count }}
           SPACETIME_BIN: ${{ steps.spacetime.outputs.cli-path }}
           PLAYWRIGHT_STARTUP_REPORT: e2e-startup-${{ matrix.runner }}.json
         run: |
-          set -euo pipefail
-          PLAYWRIGHT_JSON_OUTPUT_NAME="$RUNNER_TEMP/e2e-tests.json" pnpm exec playwright test --list --reporter=json > /dev/null
-          node --import tsx scripts/e2eShard.ts "$RUNNER_TEMP/e2e-tests.json" "$E2E_SHARD" "$E2E_RUNNERS" > "$RUNNER_TEMP/e2e-shard.txt"
-          PLAYWRIGHT_PORT="$((4170 + E2E_SHARD))" \
-            PLAYWRIGHT_OUTPUT_DIR="test-results-$E2E_SHARD" \
+          PLAYWRIGHT_OUTPUT_DIR="test-results-$E2E_SHARD" \
             PLAYWRIGHT_JSON_OUTPUT_NAME="e2e-report-$E2E_SHARD.json" \
-            pnpm exec playwright test --test-list="$RUNNER_TEMP/e2e-shard.txt" --reporter=github,json
+            pnpm exec playwright test --test-list="$RUNNER_TEMP/e2e-shards/$E2E_SHARD.txt" --reporter=github,json
       - name: Report browser-test startup
         if: success() || failure()
         run: |

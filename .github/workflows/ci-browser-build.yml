@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       e2e-runners:
-        description: Browser runners for a timing comparison
+        description: Most browser runners, for a timing comparison
         type: string
         required: false
     outputs:
@@ -67,16 +67,25 @@ jobs:
       - name: Build or restore the browser-test build
         run: pnpm exec tsx scripts/browserTestBuild.ts
       - uses: ./.github/actions/verify-browser-build
-      - name: Choose the browser runners
+      # Listing loads every spec, so it runs here once rather than on every runner.
+      - name: Plan the browser runners
         id: runners
         env:
-          # The account runs 20 jobs at once and the other lanes hold about six while the runners start.
-          RUNNERS: ${{ inputs.e2e-runners || '14' }}
+          # The account runs 20 jobs at once, and the other lanes hold about six while the runners start.
+          MOST_RUNNERS: ${{ inputs.e2e-runners || '14' }}
         run: |
+          set -euo pipefail
+          PLAYWRIGHT_JSON_OUTPUT_NAME="$RUNNER_TEMP/e2e-tests.json" pnpm exec playwright test --list --reporter=json > /dev/null
+          count="$(node --import tsx scripts/e2eShard.ts --plan "$RUNNER_TEMP/e2e-tests.json" "$RUNNER_TEMP/e2e-shards" "$MOST_RUNNERS")"
           {
-            echo "runners=$(node -p 'JSON.stringify(Array.from({ length: Number(process.argv[1]) }, (_, index) => index + 1))' "$RUNNERS")"
-            echo "count=$RUNNERS"
+            echo "runners=$(node -p 'JSON.stringify(Array.from({ length: Number(process.argv[1]) }, (_, index) => index + 1))' "$count")"
+            echo "count=$count"
           } >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: e2e-shards
+          path: ${{ runner.temp }}/e2e-shards
+          retention-days: 7
       - uses: actions/upload-artifact@v7
         with:
           name: browser-test-build
