@@ -11,7 +11,7 @@ import { unitBattleDetailsIn } from '../src/shared/catalogue'
 import { calculateRosterPrice } from '../src/shared/pricing'
 import { rosterCombatant } from '../src/shared/rosterCombatRules'
 import type { LoadedRules } from '../src/shared/rules'
-import { loadSnapshot } from './lib/catalogueSnapshotLoad'
+import { sharedSnapshot } from './lib/catalogueSnapshotLoad'
 
 const directory = process.env.CATALOGUE_DIR ?? 'catalogue-data'
 const scionWarlord = '13ae-9951-4da9-9837/1999-fec0-869b-8e2/264d-bd86-d12-3bf1'
@@ -45,7 +45,7 @@ describe.skipIf(!fs.existsSync(path.join(directory, 'definitions')))('Bridgehead
   }
 
   beforeAll(() => {
-    ;({ catalogue: loaded, rules } = loadSnapshot(directory))
+    ;({ catalogue: loaded, rules } = sharedSnapshot(directory))
     militarum = loaded.factions.find((faction) => faction.name === 'Imperium - Astra Militarum')!.id
   })
 

@@ -8,7 +8,7 @@ import type { LoadedCatalogue } from '../src/shared/catalogueIndex'
 import { pickerUnitsFor } from '../src/shared/pickerUnits'
 import { calculateRosterPrice } from '../src/shared/pricing'
 import type { LoadedRules } from '../src/shared/rules'
-import { loadSnapshot } from './lib/catalogueSnapshotLoad'
+import { sharedSnapshot } from './lib/catalogueSnapshotLoad'
 
 const directory = process.env.CATALOGUE_DIR ?? 'catalogue-data'
 const KOTC = 600
@@ -38,7 +38,7 @@ describe.skipIf(!fs.existsSync(path.join(directory, 'definitions')))('keywords a
   }
 
   beforeAll(() => {
-    ;({ catalogue: loaded, rules } = loadSnapshot(directory))
+    ;({ catalogue: loaded, rules } = sharedSnapshot(directory))
   })
 
   it('lets the picker find the units Abhuman Auxiliaries makes Abhuman by that keyword', () => {

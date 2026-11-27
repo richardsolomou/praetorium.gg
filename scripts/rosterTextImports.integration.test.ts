@@ -1,5 +1,4 @@
 import fs from 'node:fs'
-import path from 'node:path'
 import { beforeAll, describe, expect, it } from 'vitest'
 import {
   listForgeDetailed,
@@ -28,7 +27,7 @@ import { nameOf, resolve } from '../src/core/catalogue'
 import type { LoadedRules } from '../src/shared/rules'
 import { calculateRosterPrice } from '../src/shared/pricing'
 import { importRosterFile } from '../src/shared/rosterFiles'
-import { loadSnapshot } from './lib/catalogueSnapshotLoad'
+import { sharedSnapshot } from './lib/catalogueSnapshotLoad'
 
 const source = process.env.CATALOGUE_DIR ?? 'catalogue-data'
 
@@ -36,7 +35,7 @@ describe.skipIf(!fs.existsSync(source))('genuine exports from other army builder
   let catalogue: LoadedCatalogue
   let rules: LoadedRules | null
   beforeAll(() => {
-    ;({ catalogue, rules } = loadSnapshot(path.resolve(source)))
+    ;({ catalogue, rules } = sharedSnapshot(source))
   })
   const imported = (file: string) => importRosterFile({ file }, catalogue, undefined, rules)
   const summary = (file: string) => {
