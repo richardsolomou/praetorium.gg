@@ -33,7 +33,7 @@ export function publicAssetsR2Client(environment: NodeJS.ProcessEnv = process.en
 }
 
 /** `praetorium-ci`'s public address. Objects there expire after 14 days, and nothing production runs reads them. */
-export const CI_OUTPUTS_BASE_URL = 'https://pub-2c84f498125e4c63a22295c48e68918a.r2.dev'
+export const CI_OUTPUTS_BASE_URL = 'https://ci-assets.praetorium.gg'
 
 /** The bucket where CI shares a pull request's build outputs, so no pull request's code holds a key to what production serves. */
 export function ciOutputsR2Client(environment: NodeJS.ProcessEnv = process.env) {
