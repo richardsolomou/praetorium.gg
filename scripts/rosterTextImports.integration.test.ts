@@ -1049,9 +1049,9 @@ Exported with App Version: v2.8.1 (1), Data Version: v995`
   })
 
   it.each([
-    ['an export from older app data', whiteScarsOfficialFlattened, { exported: 972, current: 981 }],
-    ['an export from the app data the rules come from', custodesOfficial, null],
-    ['an export from later app data', necronsOfficial, null],
+    ["an export from an older field manual's app data", whiteScarsOfficialFlattened, { exported: 972, current: 995 }],
+    ['an export from an earlier build of the same field manual', custodesOfficial, { exported: 981, current: 995 }],
+    ['an export from the app data the rules come from', necronsOfficial, null],
   ])('compares %s with the data the rules come from', (_case, file, olderData) => {
     const result = imported(file)
     expect('olderData' in result ? result.olderData : undefined).toEqual(olderData)
