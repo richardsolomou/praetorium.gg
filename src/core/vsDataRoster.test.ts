@@ -68,6 +68,11 @@ const construction: VsDataConstruction = {
         type: 'model',
         eligibility: { anyOf: [{ keywords: ['INFANTRY'] }], epicHeroes: true },
       }),
+      'host.guard.banner': record('Banner', {
+        detachment: 'host.guard',
+        type: 'upgrade',
+        eligibility: { anyOf: [{ keywords: ['INFANTRY'] }], nonCharacters: true },
+      }),
       'host.guard.drill': record('Drill', {
         detachment: 'host.guard',
         type: 'upgrade',
@@ -189,14 +194,23 @@ describe('checkVsRoster', () => {
     expect(codes([{ unit: 'host.hero', enhancement: 'host.guard.crown' }])).toEqual([])
   })
 
-  it('lets an upgrade go to as many units as it allows, outside the Enhancement limit', () => {
+  it('counts an upgrade’s first copy towards the Enhancement limit', () => {
     expect(
       codes([
         { unit: 'host.captain', enhancement: 'host.guard.relic' },
         { unit: 'host.agent', enhancement: 'host.guard.drill' },
-        { unit: 'host.agent', enhancement: 'host.guard.drill' },
       ]),
-    ).toEqual([])
+    ).toEqual(['enhancement-limit'])
+  })
+
+  it('leaves an upgrade’s further copies outside the Enhancement limit', () => {
+    const drilled = { unit: 'host.agent', enhancement: 'host.guard.drill' }
+    expect(codes([drilled, drilled])).toEqual([])
+  })
+
+  it('refuses a fourth copy of an upgrade', () => {
+    const bannered = { unit: 'host.agent', enhancement: 'host.guard.banner' }
+    expect(codes([bannered, bannered, bannered, bannered])).toEqual(['enhancement-repeated'])
   })
 
   it('refuses an upgrade beyond the copies it allows', () => {
