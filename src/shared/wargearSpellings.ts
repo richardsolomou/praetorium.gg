@@ -1,4 +1,4 @@
-import { wargearKey } from '../../src/core/wargearNames'
+import { wargearKey } from '../core/wargearNames'
 
 /** Reviewed spellings: wargear as VS Data names it, by BSData's name, both as `wargearKey`s, read where the unit's VS Data wargear holds VS Data's and not BSData's. */
 export const SPELLINGS: Record<string, string | string[]> = {
