@@ -30,6 +30,12 @@ export async function importClosures(directory: string, entries: readonly string
         load: (id) => (/\.css(?:$|\?)/.test(id) ? '' : undefined),
       },
       {
+        // `routeTree.gen` exists only once the router plugin has run, and imports only the route files it lists.
+        name: 'generated-modules',
+        resolveId: (source) => (source.endsWith('.gen') ? '\0generated' : undefined),
+        load: (id) => (id === '\0generated' ? '' : undefined),
+      },
+      {
         name: 'import-closures',
         moduleParsed(info) {
           if (!info.id.startsWith(root)) return
