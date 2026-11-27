@@ -219,7 +219,7 @@ export function Abilities({ abilities, rules }: { abilities: DisplayAbility[]; r
 /** The end of a datasheet: this unit in a new or existing list, or the simulator and the tournament lists that take it. */
 function DatasheetNextStep({ faction, sheet }: { faction: NonNullable<ReturnType<typeof useReferenceFaction>>; sheet: Datasheet }) {
   const { data: winning } = useQuery(topFourUnitListsQuery(faction.id, sheet.id))
-  if (!faction.detachments.length) return null
+  if (!faction.detachments.length && !faction.withoutDetachments) return null
   const linkClass = 'text-sm text-dim underline decoration-runner-hi underline-offset-4 hover:text-bone'
   return (
     <NextStep

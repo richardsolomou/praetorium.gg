@@ -17,8 +17,8 @@ import { inBook } from '../src/shared/vsDataPoints'
 import { loadSnapshot } from './lib/catalogueSnapshotLoad'
 import { savedLists } from './lib/vsDataRosterParity'
 import { leaves, legacyIds, modelsByName, specialOf, vsModels } from './lib/vsDataRosters'
-import { modelsNamed, same, words } from './lib/vsDataModelNames'
-import { vsSpelling } from './lib/wargearSpellings'
+import { modelsNamed, same, words } from '../src/shared/vsDataModelNames'
+import { vsSpelling } from '../src/shared/wargearSpellings'
 
 /**
  * Report-only: every pick of every list in a local production copy (`scripts/fetchProductionCopy.ts`, or a

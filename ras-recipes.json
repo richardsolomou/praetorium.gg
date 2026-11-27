@@ -45,7 +45,8 @@
         ".github/workflows/ci.yml": ".github/workflows/ci.yml"
       },
       "notes": [
-        "ci.yml runs `pnpm check`'s lanes side by side (static, build, unit, integration, points, and browser builds), each in its own ci-<lane>.yml and reported under the job names main requires, and its e2e lane runs every browser spec across the browser runner shards; it does not call check-js.yml.",
+        "ci.yml runs `pnpm check`'s lanes side by side (static, build, unit, integration, points, and browser builds), each in its own ci-<lane>.yml and reported under the job names main requires, and its e2e lane plans browser runners by recorded test weight; it does not call check-js.yml.",
+        "Draft pull requests run only the static, unit and build lanes, and a required `ready` job needs every lane and fails on a draft; ready pull requests run only the lanes and browser specs scripts/laneScope.ts says their change can affect, and pushes to main run everything.",
         "The application releases with Changesets (release.yml calls release-changesets.yml@v1) and deploys released revisions, so `changesets:check` is part of `pnpm check`.",
         "Dependabot keeps the recipe's grouping and cooldown; better-auth and its @better-auth plugins are no longer ignored and move together in the same grouped pull request.",
         "Dependabot groups `better-auth` with `@better-auth/*`, because Better Auth's plugins pin its core version and a lone bump splits the types."
@@ -88,7 +89,8 @@
         "dokploy-web.yml replaces deploy.yml: it deploys a released revision through the release workflow, refreshes and publishes live catalogue assets, publishes the SpacetimeDB module, sets the health check, and deploys the image digest with `deploy-dokploy-image`; Dokploy's environment comes from scripts/configureDokployNode.ts.",
         "The preview workflows are dokploy-preview-image.yml, dokploy-preview-deploy.yml and dokploy-preview-prune.yml, with scripts/dokployPreview.ts as the custom deploy script (per-preview SpacetimeDB database, seeded accounts, random AUTH_SECRET), at `pr-<number>.praetorium.gg`.",
         "Docker images build for linux/arm64 under QEMU from Dockerfile.node, whose BuildKit secret is `posthog_api_key`.",
-        "No HEALTHCHECK in the image: dokploy-web.yml applies the Swarm health check before each deploy, tolerating about three minutes of missed probes for the single replica (docs/deployment.md)."
+        "No HEALTHCHECK in the image: dokploy-web.yml applies the Swarm health check before each deploy, tolerating about three minutes of missed probes for the single replica (docs/deployment.md).",
+        "Previews build only when a maintainer adds the `preview` label, not on every push; the build removes the label for this repository's branches so adding it again redeploys, and only fork previews wait in the `pr-preview` environment."
       ]
     },
     "email-posthog": {
