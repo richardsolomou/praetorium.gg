@@ -22,6 +22,7 @@ import {
   type VsDataBaseSize,
   vsDataBaseSizeSchema,
   vsDataUnitSchema,
+  stratagemPartsSchema,
 } from '../shared/vsData'
 
 const fileSchema = z.object({ path: z.string().min(1), sha256: z.string().regex(/^[0-9a-f]{64}$/) })
@@ -65,6 +66,7 @@ const recordSchema = refSchema.extend({
       .array(z.object({ start: z.number().int(), end: z.number().int(), bold: z.literal(true).optional(), target: refSchema.optional() }))
       .optional(),
     interpretation: z.array(z.object({ question: z.string() })).optional(),
+    parts: stratagemPartsSchema.optional(),
     ruleType: z.string().optional(),
     detachment: z.object({ id: z.string() }).optional(),
     cp: z.number().int().optional(),
@@ -670,6 +672,7 @@ export function compactVsDataRelease(directory: string, file: string) {
       summary: data.summary,
       spans: data.summarySpans ?? [],
       questions: (data.interpretation ?? []).map(({ question }) => question),
+      ...(data.parts ? { parts: data.parts } : {}),
     })),
   }
   const effects: VsDataEffectsFile = {

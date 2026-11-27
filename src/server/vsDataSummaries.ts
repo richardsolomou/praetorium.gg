@@ -12,7 +12,7 @@ import {
   type RuleSummaryInline,
   type RuleSummaryLink,
 } from '../contracts/rules'
-import { spannedParagraph, type SummaryInline, summaryBlocks, summaryText } from '../core/summaryMarkdown'
+import { spannedParagraph, type SummaryBlock, type SummaryInline, summaryBlocks, summaryText } from '../core/summaryMarkdown'
 import type { Steps } from '../shared/steps'
 import {
   type GdcRuleKind,
@@ -304,17 +304,28 @@ function summariesFor(
 const ABILITY_KINDS = ['weapon-ability', 'core-ability']
 
 function summaryOf(
-  { summary, spans, questions }: VsDataSummariesFile['records'][number],
+  { summary, spans, questions, parts }: VsDataSummariesFile['records'][number],
   link: (target: { kind: string; id: string }) => RuleSummaryLink | undefined,
   abilities: ReadonlySet<string>,
 ): RuleSummary {
-  const blocks = spans.length ? [spannedParagraph(summary, spans)] : summaryBlocks(summary)
   const runs = (inlines: SummaryInline[]) => inlines.flatMap((inline) => served(inline, link, abilities))
-  return {
-    blocks: blocks.map((block) =>
+  const shown = (blocks: SummaryBlock[]) =>
+    blocks.map((block) =>
       'paragraph' in block ? { paragraph: runs(block.paragraph) } : { list: block.list, items: block.items.map(runs) },
-    ),
+    )
+  return {
+    blocks: shown(spans.length ? [spannedParagraph(summary, spans)] : summaryBlocks(summary)),
     questions,
+    ...(parts
+      ? {
+          parts: {
+            when: shown(summaryBlocks(parts.when)),
+            target: shown(summaryBlocks(parts.target)),
+            effect: shown(summaryBlocks(parts.effect)),
+            ...(parts.restrictions ? { restrictions: shown(summaryBlocks(parts.restrictions)) } : {}),
+          },
+        }
+      : {}),
   }
 }
 

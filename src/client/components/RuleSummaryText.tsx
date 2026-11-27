@@ -2,7 +2,13 @@ import { Link } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
-import type { RuleSummary, RuleSummaryBlock, RuleSummaryInline } from '../../contracts/rules'
+import {
+  type RuleSummary,
+  type RuleSummaryBlock,
+  type RuleSummaryInline,
+  type RuleSummaryParts,
+  STRATAGEM_PARTS,
+} from '../../contracts/rules'
 import { titleCaseAbility } from '../../shared/catalogueAbilityGrants'
 import { useAbilitySummary } from '../ruleSummaries'
 import { HoverTooltip } from './HoverTooltip'
@@ -23,13 +29,35 @@ export function RuleSummaryText({
 }) {
   return (
     <div data-rule-summary className={cn('mt-2 space-y-1.5 font-rules text-sm text-dim', className)}>
-      <Blocks blocks={summary.blocks} abilities={abilities} />
+      {summary.parts ? <Parts parts={summary.parts} abilities={abilities} /> : <Blocks blocks={summary.blocks} abilities={abilities} />}
       {summary.questions.map((question) => (
         <p key={question} className="font-sans text-xs text-faint italic">
           The official text leaves this open: {question}
         </p>
       ))}
     </div>
+  )
+}
+
+/**
+ * A Stratagem's parts, each beside its label, as its card lays them out. The label column keeps the widest label's
+ * width, so the parts line up across every Stratagem on a page whether or not it has Restrictions.
+ */
+function Parts({ parts, abilities }: { parts: RuleSummaryParts; abilities: boolean }) {
+  return (
+    <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-[0.75em] gap-y-[0.4em]">
+      {Object.entries(STRATAGEM_PARTS).map(([part, label]) => {
+        const blocks = parts[part as keyof RuleSummaryParts]
+        return blocks ? (
+          <div key={part} className="col-span-2 grid grid-cols-subgrid items-baseline">
+            <dt className="min-w-[5.6em] font-sans text-[0.9em] text-faint">{label}</dt>
+            <dd className="space-y-1.5">
+              <Blocks blocks={blocks} abilities={abilities} />
+            </dd>
+          </div>
+        ) : null
+      })}
+    </dl>
   )
 }
 

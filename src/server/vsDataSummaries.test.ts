@@ -132,6 +132,22 @@ it('opens the weapon ability a run names where its link names the ability’s co
   })
 })
 
+it('serves a Stratagem’s parts apart, each read as its summary is', () => {
+  const parts = {
+    when: 'Your Shooting phase.',
+    target: 'One **INFANTRY** unit.',
+    effect: 'Its weapons gain [LETHAL HITS](vsdata:weapon-ability/lethal-hits).',
+  }
+  const summary = `**When:** ${parts.when}\n\n**Target:** ${parts.target}\n\n**Effect:** ${parts.effect}`
+  const lethalHits = { kind: 'weapon-ability', id: 'lethal-hits', aliases: [], summary: 'A Critical Hit wounds automatically.' }
+  const { summaries, base } = snapshot([{ update: 'MFM 1.6', summary, data: { parts } }], [lethalHits])
+  expect(summaries!.summariesIn(base).records['ability:necrons.test.focused-fire']?.parts).toEqual({
+    when: [{ paragraph: [{ text: 'Your Shooting phase.' }] }],
+    target: [{ paragraph: [{ text: 'One ' }, { text: 'INFANTRY', bold: true }, { text: ' unit.' }] }],
+    effect: [{ paragraph: [{ text: 'Its weapons gain ' }, { text: 'LETHAL HITS', ability: 'weapon-ability:lethal-hits' }, { text: '.' }] }],
+  })
+})
+
 it('serves a Markdown summary as its paragraphs and lists, its links landing on the rules they name', () => {
   const summary = 'Pick one:\n\n- [Lethal Hits](vsdata:weapon-ability/lethal-hits)\n- **Re-roll** a Hit roll of 1.'
   const lethalHits = { kind: 'weapon-ability', id: 'lethal-hits', aliases: [], summary: 'A Critical Hit wounds automatically.' }
