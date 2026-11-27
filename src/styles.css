@@ -309,6 +309,17 @@ html[data-native-app='true'] [data-native-app-content][data-immersive='true'] {
   }
 }
 
+/* The website's feedback panel stands beside the page rather than over it, so a player can point at what they are reporting. */
+@media (min-width: 860px) {
+  html:not([data-native-app='true']):has([data-support-panel]:not([data-closed])) [data-native-app-content] {
+    margin-right: 28rem;
+  }
+
+  html:not([data-native-app='true']) [data-slot='dialog-overlay']:has(~ [data-support-panel]) {
+    display: none;
+  }
+}
+
 @media (max-width: 859px) {
   html [data-listed-in-more] {
     display: none;

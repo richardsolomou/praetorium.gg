@@ -36,7 +36,7 @@ test('support sends feedback in place and keeps the public issue tracker', async
       'https://discord.gg/RFUMZNFwMu',
     )
     await page.getByRole('main').getByRole('button', { name: 'Send feedback' }).click()
-    await expect(page.getByRole('dialog', { name: 'Send feedback' })).toBeVisible()
+    await expect(page.getByRole('dialog', { name: 'Feedback' })).toBeVisible()
     await page.keyboard.press('Escape')
     await expect(page).toHaveURL(/\/support$/)
     await expect(page.getByRole('heading', { name: 'Report a problem' })).toHaveCount(0)

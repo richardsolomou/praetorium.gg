@@ -24,7 +24,7 @@ import { forgetThisBrowser } from '../../webPush'
 import { clearWatchBattle } from '../battle/watchFollowing'
 import { meQuery } from '../../queries'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
-import { openConversations, unreadReplies, useSupportTickets } from '../feedback/support'
+import { openFeedback, unreadReplies, useSupportTickets } from '../feedback/support'
 import { errorMessage } from '../../queryClient'
 import { OPEN_SYNC_EVENT } from '../../offline/SyncStatus'
 import { countLabel } from '../../text'
@@ -84,7 +84,7 @@ function AccountMenuItems() {
         <span>What's new</span>
         {unseenRelease ? <span className="chip ml-auto border-parchment/30 text-parchment">New</span> : null}
       </DropdownMenuItem>
-      <DropdownMenuItem onClick={openConversations}>
+      <DropdownMenuItem onClick={() => openFeedback({ from: 'menu' })}>
         <MessageSquareWarning />
         <span>Feedback</span>
         {unread ? <span className="chip ml-auto border-discarded/50 bg-discarded/10 text-discarded">{unread} new</span> : null}

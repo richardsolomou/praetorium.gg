@@ -1,4 +1,4 @@
-import { expect, test, type Page } from './test'
+import { expect, test, type Locator, type Page } from './test'
 import { recordEvents, stubSupport } from './telemetry.harness'
 import {
   addUnit,
@@ -527,27 +527,32 @@ async function supportOnFactions(page: Page, earlier = 0) {
 }
 
 async function openFeedback(page: Page) {
-  const dialog = page.getByRole('dialog', { name: 'Send feedback' })
-  await retryUntilVisible(dialog, async () => {
-    await page.getByRole('button', { name: 'Account menu' }).filter({ visible: true }).click()
-    await page.getByRole('menuitem', { name: 'Feedback' }).click()
-  })
+  const dialog = page.getByRole('dialog', { name: 'Feedback' })
+  await retryUntilVisible(dialog, () =>
+    page
+      .getByRole('button', { name: /^Send feedback/ })
+      .filter({ visible: true })
+      .click(),
+  )
   return dialog
 }
+
+const messageBox = (dialog: Locator) => dialog.getByLabel('What’s on your mind?')
 
 test('a guest sends feedback, reads the reply and answers it', async ({ page }) => {
   const support = await supportOnFactions(page)
   const dialog = await openFeedback(page)
-  await dialog.getByRole('button', { name: 'Idea' }).click()
-  await dialog.getByLabel('Message').fill('  Group factions by alliance  ')
-  await dialog.getByLabel('Email for a reply (optional)').fill('guest@example.com')
-  await dialog.getByLabel('Attach screenshot').setInputFiles(SCREENSHOT)
+  await dialog.getByRole('button', { name: 'An idea' }).click()
+  await messageBox(dialog).fill('  Group factions by alliance  ')
+  await dialog.getByLabel('Your email, if you’d like a reply').fill('guest@example.com')
+  await dialog.getByLabel('Add screenshot').setInputFiles(SCREENSHOT)
   await expect(dialog.getByRole('img', { name: 'Attached screenshot' })).toBeVisible()
-  await dialog.getByRole('button', { name: 'Send feedback' }).click()
+  await dialog.getByRole('button', { name: 'Send', exact: true }).click()
 
-  // Sending opens the new conversation in the same panel, over the page the player was on.
+  // Sending confirms in the same panel, over the page the player was on.
   const panel = page.getByRole('dialog')
-  await expect(panel.getByRole('status')).toHaveText('Thanks, your feedback was sent. Our reply will appear here.')
+  await expect(panel.getByRole('heading', { name: 'Thanks, it’s sent' })).toBeVisible()
+  await expect(panel).toContainText('and we will email you')
   await expect(page).toHaveURL(/\/factions$/)
   const [ticket] = await support.tickets()
   const opening = ticket.messages[0].content
@@ -556,11 +561,7 @@ test('a guest sends feedback, reads the reply and answers it', async ({ page }) 
   expect(screenshot.status()).toBe(401)
 
   await support.reply(ticket.id, 'Done in the next release')
-  await panel.getByRole('button', { name: 'All conversations' }).click()
-  await panel
-    .getByRole('navigation', { name: 'Conversations' })
-    .getByRole('button', { name: /Group factions by alliance/ })
-    .click()
+  await panel.getByRole('button', { name: 'View conversation' }).click()
   const conversation = panel.getByRole('region', { name: 'Conversation' })
   await expect(conversation.getByText('Done in the next release')).toBeVisible()
   await expect(conversation.getByText('Internal note')).toHaveCount(0)
@@ -575,22 +576,21 @@ test('a guest sends feedback, reads the reply and answers it', async ({ page }) 
 test('a message being written stays when earlier conversations load behind it', async ({ page }) => {
   await page.goto('/factions')
   await page.getByRole('button', { name: 'Search Praetorium' }).waitFor()
-  // Support has not answered yet, so the panel opens straight to a new message.
+  // Support has not answered yet, so there are no conversations to show beneath the message.
   const dialog = await openFeedback(page)
-  await dialog.getByLabel('Message').fill('The picker will not scroll')
+  await messageBox(dialog).fill('The picker will not scroll')
   await stubSupport(page, 1)
 
-  await expect(dialog.getByRole('button', { name: 'All conversations' })).toBeVisible()
-  await expect(dialog.getByLabel('Message')).toHaveValue('The picker will not scroll')
+  await expect(dialog.getByRole('navigation', { name: 'Conversations' })).toBeVisible()
+  await expect(messageBox(dialog)).toHaveValue('The picker will not scroll')
 })
 
 test('an unread reply marks the account menu until the player reads it', async ({ page }) => {
   const support = await supportOnFactions(page)
   const dialog = await openFeedback(page)
-  await dialog.getByLabel('Message').fill('The picker will not scroll')
-  await dialog.getByRole('button', { name: 'Send feedback' }).click()
-  await expect(page.getByRole('region', { name: 'Conversation' })).toBeVisible()
-  await page.keyboard.press('Escape')
+  await messageBox(dialog).fill('The picker will not scroll')
+  await dialog.getByRole('button', { name: 'Send', exact: true }).click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Done' }).click()
   await expect(page.getByRole('dialog')).toHaveCount(0)
   const [ticket] = await support.tickets()
   await support.reply(ticket.id, 'Fixed, thanks')
@@ -621,6 +621,7 @@ test('a long feedback history loads page by page as the player scrolls it', asyn
     await page.getByRole('button', { name: 'Account menu' }).filter({ visible: true }).click()
   })
   await yours.click()
+  await page.getByRole('dialog').getByRole('button', { name: 'All 45 conversations' }).click()
 
   const list = page.getByRole('dialog').getByRole('navigation', { name: 'Conversations' })
   const conversation = (subject: string) => list.getByRole('button').filter({ has: page.getByText(subject, { exact: true }) })
@@ -639,8 +640,9 @@ test('a long feedback history loads page by page as the player scrolls it', asyn
 test('a reply appears in an open conversation without reloading it', async ({ page }) => {
   const support = await supportOnFactions(page)
   const dialog = await openFeedback(page)
-  await dialog.getByLabel('Message').fill('Missions page is slow')
-  await dialog.getByRole('button', { name: 'Send feedback' }).click()
+  await messageBox(dialog).fill('Missions page is slow')
+  await dialog.getByRole('button', { name: 'Send', exact: true }).click()
+  await page.getByRole('dialog').getByRole('button', { name: 'View conversation' }).click()
   const conversation = page.getByRole('region', { name: 'Conversation' })
   await expect(conversation.getByText('Missions page is slow')).toBeVisible()
 
@@ -669,13 +671,13 @@ test('an administrator opens the screenshot attached to feedback', async ({ page
   await signInAsPreview(page)
   const support = await supportOnFactions(page)
   const dialog = await openFeedback(page)
-  await expect(dialog.getByLabel('Email for a reply (optional)')).toHaveCount(0)
-  await dialog.getByLabel('Message').fill('Attached the broken layout')
-  await dialog.getByLabel('Attach screenshot').setInputFiles(SCREENSHOT)
+  await expect(dialog.getByLabel('Your email, if you’d like a reply')).toHaveCount(0)
+  await messageBox(dialog).fill('Attached the broken layout')
+  await dialog.getByLabel('Add screenshot').setInputFiles(SCREENSHOT)
   await expect(dialog.getByRole('img', { name: 'Attached screenshot' })).toBeVisible()
-  await dialog.getByRole('button', { name: 'Send feedback' }).click()
+  await dialog.getByRole('button', { name: 'Send', exact: true }).click()
 
-  await expect(page.getByRole('dialog').getByRole('status')).toHaveText('Thanks, your feedback was sent. Our reply will appear here.')
+  await expect(page.getByRole('dialog').getByRole('heading', { name: 'Thanks, it’s sent' })).toBeVisible()
   const [ticket] = await support.tickets()
   const screenshot = await page.request.get(SCREENSHOT_LINE.exec(ticket.messages[0].content)![1])
   expect([screenshot.status(), screenshot.headers()['content-type'], screenshot.headers()['cache-control']]).toEqual([
@@ -688,20 +690,15 @@ test('an administrator opens the screenshot attached to feedback', async ({ page
 test('feedback that cannot be sent keeps the message and offers the issue tracker', async ({ page }) => {
   await page.setViewportSize(PHONE)
   await page.goto('/factions')
-  const dialog = page.getByRole('dialog', { name: 'Send feedback' })
-  const feedback = page.getByRole('menuitem', { name: 'Feedback' })
-  await retryUntilVisible(dialog, async () => {
-    if (!(await feedback.isVisible())) await page.locator('[data-mobile-app-header]').getByRole('button', { name: 'Account menu' }).click()
-    await feedback.click({ timeout: 1_000 })
-  })
-  await dialog.getByLabel('Message').fill('The list will not scroll')
-  await dialog.getByRole('button', { name: 'Send feedback' }).click()
+  const dialog = await openFeedback(page)
+  await messageBox(dialog).fill('The list will not scroll')
+  await dialog.getByRole('button', { name: 'Send', exact: true }).click()
 
   await expect(dialog.getByRole('alert').getByRole('link', { name: 'report it on GitHub' })).toHaveAttribute(
     'href',
     'https://github.com/richardsolomou/praetorium.gg/issues/new',
   )
-  await expect(dialog.getByLabel('Message')).toHaveValue('The list will not scroll')
+  await expect(messageBox(dialog)).toHaveValue('The list will not scroll')
   await expect(page).toHaveURL(/\/factions$/)
   await expectNoHorizontalOverflow(dialog)
 })

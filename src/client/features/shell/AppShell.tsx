@@ -11,6 +11,7 @@ import {
   BookOpen,
   Calculator,
   Gavel,
+  MessageSquareWarning,
   ScrollText,
   Swords,
   UsersRound,
@@ -37,8 +38,9 @@ import { useMediaQuery } from '../../useMediaQuery'
 import { PHONE } from './useCompactChrome'
 import { ImpersonationBanner } from './ImpersonationBanner'
 import { NativeAppNavigation } from './NativeAppNavigation'
-import { SupportIdentity } from '../feedback/support'
+import { openFeedback, SupportIdentity, unreadReplies, useSupportTickets } from '../feedback/support'
 import { meQuery } from '../../queries'
+import { countLabel } from '../../text'
 import { meKey } from '../../queries/queryKeys'
 import { COMMUNITY_LINKS, COMMUNITY_PAGES, FRIENDS_PAGE } from './CommunityLinks'
 import { forgetRulesTextSources } from '../../forgetRulesText'
@@ -123,6 +125,45 @@ function RailLinks({
   )
 }
 
+/** Feedback at the rail's foot, where it stays in sight on every page; a dot says the team has replied. */
+function RailFeedback({ collapsed }: { collapsed: boolean }) {
+  const unread = unreadReplies(useSupportTickets().tickets)
+  const label = unread ? `Send feedback, ${countLabel(unread, 'new reply', 'new replies')}` : 'Send feedback'
+  return (
+    <RailTooltip label={label} collapsed={collapsed}>
+      <button type="button" aria-label={label} onClick={() => openFeedback({ from: 'rail' })} className={`${RAIL_LINK_CLASS} w-full`}>
+        <span className="relative flex shrink-0">
+          <MessageSquareWarning aria-hidden className="size-4.5 text-faint group-hover:text-dim" />
+          {unread ? <UnreadDot /> : null}
+        </span>
+        <span className="truncate in-data-[rail=collapsed]:sr-only">Send feedback</span>
+      </button>
+    </RailTooltip>
+  )
+}
+
+function HeaderFeedback() {
+  const unread = unreadReplies(useSupportTickets().tickets)
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      className="size-[44px] shrink-0 text-dim hover:bg-raised hover:text-bone"
+      aria-label={unread ? `Send feedback, ${countLabel(unread, 'new reply', 'new replies')}` : 'Send feedback'}
+      onClick={() => openFeedback({ from: 'header' })}
+    >
+      <span className="relative flex">
+        <MessageSquareWarning aria-hidden className="size-4.5" />
+        {unread ? <UnreadDot /> : null}
+      </span>
+    </Button>
+  )
+}
+
+const UnreadDot = () => (
+  <span aria-hidden className="absolute -top-1 -right-1 size-2 rounded-full border border-void bg-discarded box-content" />
+)
+
 function RailSection({ name, ...links }: Parameters<typeof RailLinks>[0]) {
   return (
     <div>
@@ -181,6 +222,7 @@ function SiteRail({ workspace }: { workspace: boolean }) {
             <RailSection links={REFERENCE_LINKS} name="Reference" collapsed={collapsed} />
           </div>
           <div className="mt-2 px-2.5 in-data-[rail=collapsed]:px-2">
+            <RailFeedback collapsed={collapsed} />
             <RailLinks links={[]} sites={COMMUNITY_LINKS} name="Community" collapsed={collapsed} />
           </div>
           {/*
@@ -399,6 +441,7 @@ function AppFrame() {
                       </Link>
                       <div className="ml-auto flex shrink-0 items-center gap-1">
                         <GlobalSearch compact />
+                        <HeaderFeedback />
                         {me ? <NotificationsButton className="size-[44px]" /> : null}
                         <Account className="size-[44px]" />
                       </div>
