@@ -1,7 +1,13 @@
-// @vitest-environment happy-dom
 import { QueryClient } from '@tanstack/react-query'
 import { expect, it } from 'vitest'
-import { battleCommandsSettled, holdingReload, pendingWriteMiddleware, sendingBattleCommands, writesPending } from './pendingWrites'
+import {
+  battleCommandsPending,
+  battleCommandsSettled,
+  holdingReload,
+  pendingWriteMiddleware,
+  sendingBattleCommands,
+  writesPending,
+} from './pendingWrites'
 
 function deferred() {
   let resolve!: () => void
@@ -61,32 +67,26 @@ it('leaves a server function read out of pending writes', async () => {
   await reading
 })
 
-const leave = () => {
-  const event = new Event('beforeunload', { cancelable: true })
-  window.dispatchEvent(event)
-  return event
-}
-
-it('asks before leaving while a battle command is still sending', async () => {
+it('counts a battle command still sending as pending', async () => {
   const write = deferred()
   const sending = sendingBattleCommands('battle', write.promise)
-  expect(leave().defaultPrevented).toBe(true)
+  expect(battleCommandsPending()).toBe(true)
   write.resolve()
   await sending
 })
 
-it('leaves without asking once battle commands have sent', async () => {
+it('stops counting battle commands once they have sent', async () => {
   void sendingBattleCommands('battle', Promise.resolve())
   await battleCommandsSettled('battle')
-  expect(leave().defaultPrevented).toBe(false)
+  expect(battleCommandsPending()).toBe(false)
 })
 
-it('asks before leaving while an earlier send from a page left in the app is still going', async () => {
+it('keeps counting an earlier send for a battle while a later one has finished', async () => {
   const earlier = deferred()
   const sending = sendingBattleCommands('battle', earlier.promise)
   await sendingBattleCommands('battle', Promise.resolve())
   await new Promise((resolve) => setTimeout(resolve))
-  expect(leave().defaultPrevented).toBe(true)
+  expect(battleCommandsPending()).toBe(true)
   earlier.resolve()
   await sending
 })
