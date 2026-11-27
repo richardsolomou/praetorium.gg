@@ -24,8 +24,8 @@ export const legacyIdsSchema = z.object({ format: z.literal('praetorium.legacy-i
  * Selections are option → wargear → count; a negative count takes back a selection that VS Data's defaults, `base` or
  * the choice above made. A choice beneath another is read on the unit with that one taken. Every key a pick can hold is
  * in `choices`, where an option first fielded or a unit composition maps to no selections, or in `unmatched`. Choices,
- * `base` and `floor` are only added, and a `base` of `'unmatched'` may later map; a mapped one never changes. An entry
- * whose datasheet `units.json` moves to another unit is derived afresh for that unit.
+ * `base` and `floor` are only added, and a `base` of `'unmatched'` may later map; a mapped one never changes. The one
+ * exception is an entry whose datasheet `units.json` moves to another unit: it is derived afresh for that unit.
  */
 export const legacyOptionsSchema = z.object({
   format: z.literal('praetorium.legacy-options.v1'),
