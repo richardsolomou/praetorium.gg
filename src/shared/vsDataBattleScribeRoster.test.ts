@@ -10,7 +10,7 @@ const construction: VsDataConstruction = {
   points: [],
   definitions: {
     faction: { host: record('Host', {}) },
-    unit: { 'host.squad': record('Squad', { faction: 'host', keywords: ['INFANTRY'], sizes: [5] }) },
+    unit: { 'host.squad': record('Squad', { faction: 'host', keywords: ['INFANTRY', 'HOST'], factionKeywords: ['HOST'], sizes: [5] }) },
     model: {
       'host.squad.sergeant': record('Sergeant', { unit: 'host.squad', min: 1, max: 1, wargear: { 'host.squad.rifle': 1 } }),
       'host.squad.trooper': record('Trooper', { unit: 'host.squad', min: 4, max: 4, wargear: { 'host.squad.rifle': 1 } }),
@@ -68,4 +68,8 @@ it('numbers what a stack of models carries by the stack, a replaced weapon taken
 
 it('writes a choice under the BSData option entry the frozen map gives it', () => {
   expect(xml).toMatch(/name="Flamer" entryId="bs-flamer"/)
+})
+
+it('marks a faction keyword as BattleScribe does, which Yellowscribe sorts keywords by', () => {
+  expect(xml).toContain('name="Faction: HOST"')
 })

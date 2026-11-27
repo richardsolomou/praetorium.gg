@@ -85,6 +85,8 @@ export type UnitData = {
   /** Its datasheet's own unit abilities, by VS Data id, where the release links them. */
   abilities?: string[]
   keywords: string[]
+  /** Those of `keywords` the datasheet prints as faction keywords. */
+  factionKeywords?: string[]
   /** Keywords the unit holds where `when` holds, in place of those of its own `keywords` named in `replaces`. */
   conditionalKeywords?: { keywords: string[]; replaces?: string[]; when: When }[]
   sizes: number[]

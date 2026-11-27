@@ -144,7 +144,12 @@ function unitXml(
     profile.models ? (profile.models.find((model) => (counts.get(model) ?? 0) > 0) ?? null) : undefined
   const statlinesOf = (holder: string | undefined) => statlines.filter((profile) => placedOn(profile) === holder).map(statlineXml)
   const { profiles: described, rules } = abilitiesXml(abilities)
-  const details = [rules, categoriesXml(unitKeywords(unit.data, roster, picked.allegiance)), costXml(points)]
+  // Yellowscribe tells a faction keyword by BattleScribe's `Faction: ` prefix.
+  const factionKeywords = new Set(unit.data.factionKeywords)
+  const keywords = unitKeywords(unit.data, roster, picked.allegiance).map((keyword) =>
+    factionKeywords.has(keyword) ? `Faction: ${keyword}` : keyword,
+  )
+  const details = [rules, categoriesXml(keywords), costXml(points)]
   const own = { entryId: entryId ?? entryIds.units.get(unit.id) ?? unit.id, name: unit.name, customName: nickname }
   // BattleScribe writes a unit only ever one model as that model, and a unit that could field more as a unit.
   const single = models.length === 1 && unit.data.sizes.every((size) => size === 1)
