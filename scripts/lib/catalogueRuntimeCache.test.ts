@@ -139,3 +139,24 @@ it('compiles without storing when the cache is off', async () => {
   const result = await prepareCatalogueRuntime(directory, output, null, key(), compile, offline)
   expect({ result, cache: fs.existsSync(cacheRoot) }).toEqual({ result: 'compiled', cache: false })
 })
+
+const age = (location: string, days: number) => {
+  const then = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
+  fs.utimesSync(location, then, then)
+}
+
+it('removes cached runtimes nobody has used for three days', async () => {
+  const stale = path.join(cacheRoot, 'stale')
+  fs.mkdirSync(stale, { recursive: true })
+  age(stale, 4)
+  await prepareCatalogueRuntime(directory, output, cacheRoot, key(), compile, offline)
+  expect(fs.existsSync(stale)).toBe(false)
+})
+
+it('keeps a cached runtime that is still being restored', async () => {
+  await prepareCatalogueRuntime(directory, output, cacheRoot, key(), compile, offline)
+  age(path.join(cacheRoot, key()), 4)
+  await prepareCatalogueRuntime(directory, output, cacheRoot, key(), compile, offline)
+  await prepareCatalogueRuntime(directory, output, cacheRoot, 'other', compile, offline)
+  expect(fs.existsSync(path.join(cacheRoot, key()))).toBe(true)
+})

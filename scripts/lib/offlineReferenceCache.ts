@@ -4,7 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { unzipSync, zipSync } from 'fflate'
 import { CATALOGUE_HISTORY_FILE } from '../../src/server/catalogueHistory'
-import { catalogueCacheRoot } from './catalogueCache'
+import { catalogueCacheRoot, pruneUnusedEntries, touchEntry } from './catalogueCache'
 import { downloadArchive, storeHasArchive, storeUrl, uploadArchive } from './catalogueRuntimeDistribution'
 import { writeReferenceBundle } from './offlineReferenceBundle'
 import { errorText } from './errorText'
@@ -91,7 +91,10 @@ export async function prepareReferenceBundle(
   store: ReferenceStore = sharedStore,
 ): Promise<'cached' | 'downloaded' | 'built'> {
   const cached = cacheRoot ? path.join(cacheRoot, `${key}.zip`) : null
-  if (cached && fs.existsSync(cached) && tryInstall(outDir, fs.readFileSync(cached), 'this machine')) {
+  const restored = cached !== null && fs.existsSync(cached) && tryInstall(outDir, fs.readFileSync(cached), 'this machine')
+  if (restored) touchEntry(cached)
+  if (cacheRoot) pruneUnusedEntries(cacheRoot)
+  if (restored) {
     if (!(await store.has(key))) await share(key, fs.readFileSync(cached), store)
     return 'cached'
   }
