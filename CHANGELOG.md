@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.279.9 (2026-11-27)
+
+### Patch Changes
+
+- 498b42d: [rosters] Boyz, Beast Snagga Boyz, Squighog Boyz, Accursed Cultists and Inquisitorial Agents grow to their largest size, taking their second Nob, Servitor or Torment, instead of stopping one model short.
+- 1515d4e: [rosters] Titan Legions and Chaos Titan Legions armies take no detachment and play Take and Hold, as the official app has it.
+
 ## 0.279.8 (2026-11-27)
 
 ### Patch Changes
