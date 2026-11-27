@@ -176,36 +176,6 @@ e2e-install:
 e2e *args:
     pnpm exec playwright test {{ args }}
 
-# Browser tests on up to E2E_STACKS (default 4) side-by-side stacks, split as CI splits its runners; for the desktop
-e2e-parallel *args:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    stacks="${E2E_STACKS:-4}"
-    work="$(mktemp -d "${TMPDIR:-/tmp}/praetorium-e2e-parallel.XXXXXX")"
-    PLAYWRIGHT_JSON_OUTPUT_NAME="$work/tests.json" pnpm exec playwright test --list --reporter=json {{ args }} > /dev/null
-    pnpm exec tsx scripts/browserTestBuild.ts
-    stacks="$(node --import tsx scripts/e2eShard.ts --plan "$work/tests.json" "$work/stacks" "$stacks")"
-    pids=()
-    for stack in $(seq "$stacks"); do
-      PLAYWRIGHT_OUTPUT_DIR="test-results/stack-$stack" pnpm exec playwright test --test-list="$work/stacks/$stack.txt" > "$work/$stack.log" 2>&1 &
-      pids[$stack]=$!
-    done
-    status=0
-    for stack in "${!pids[@]}"; do
-      if wait "${pids[$stack]}"; then tail -n 3 "$work/$stack.log"; else status=1; echo "Stack $stack failed:"; cat "$work/$stack.log"; fi
-    done
-    rm -rf "$work"
-    exit "$status"
-
-# The browser specs CI selects for this branch's commits against origin/main, on side-by-side stacks
-e2e-affected:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    scope="$(GITHUB_EVENT_NAME=pull_request GITHUB_OUTPUT='' BASE_SHA="$(git merge-base HEAD origin/main)" HEAD_SHA=HEAD node scripts/laneScope.ts e2e)"
-    grep -qx 'needed=true' <<< "$scope" || { echo 'No browser spec covers these changes.'; exit 0; }
-    specs="$(sed -n 's/^specs=//p' <<< "$scope")"
-    if [ "$specs" = all ]; then just e2e-parallel; else read -ra list <<< "$specs"; just e2e-parallel "${list[@]}"; fi
-
 # Rerun test edits against one isolated production stack; restart after application edits
 e2e-ui *args:
     pnpm exec playwright test --ui {{ args }}

@@ -16,7 +16,7 @@ Run the checks covering your change: `just test-unit <file>`, `just test-integra
 
 ## Pull requests and releases
 
-Open every pull request as a draft (`gh pr create --draft`): a draft's CI runs only the static, unit and build checks. Before marking it ready (`gh pr ready`), commit and run the heavier checks your change can affect: `just e2e-affected` runs the browser specs CI will select, on up to `E2E_STACKS` side-by-side stacks (default 4; `just e2e-parallel <specs>` runs others), plus `just test-integration <files>`, and `just points` after points or legality changes. Marking it ready runs the rest, as does each later push, and the required `ready` check fails until that run passes.
+Open every pull request as a draft (`gh pr create --draft`): a draft's CI runs only the static, unit and build checks. Mark it ready (`gh pr ready`) when the work is done; that runs the browser tests, integration, points and coverage, as does each later push, and the required `ready` check fails until that run passes.
 
 A ready pull request runs only the lanes and browser specs its change can affect (`scripts/laneScope.ts`): a lane runs when a changed file is in the import graph of its entry points or among the files it reads from disk, and browser specs narrow to the specs a change edits, the client features it reaches (`e2e/selection.json`; list a new feature there) or the catalogue specs for catalogue data. Shared code, dependencies, CI and the catalogue engine run everything. Main runs every lane after each merge and opens a `CI fails on main` issue when it fails.
 
