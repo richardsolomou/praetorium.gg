@@ -32,6 +32,7 @@ import { type ChoiceOptions, hasWarlordToggle, type UnitChoice, unitChoices } fr
 import { withUnitSpread } from '../core/unitSpread'
 import { wargearOf } from '../core/wargear'
 import { rulesReferencedIn } from './catalogueRules'
+import { buildPick, vsPickKeywords, vsPickPrices } from './vsDataBuild'
 import { contextualAbilityNamesIn, datasheetIn, modelLinesOf, offeredPicksIn, toughnessOf } from './catalogue'
 import { combatCarriers } from '../core/combatLoadout'
 import { matchesKeywordSelector } from '../core/keywords'
@@ -95,14 +96,7 @@ function rosterForces(
     const cacheKey = rosterKey && `${rosterKey}${JSON.stringify(wanted)}`
     let built = cacheKey ? unitCache?.get(cacheKey) : undefined
     if (built === undefined) {
-      built = buildUnit(wanted.entryId, loaded.index, wanted.models, wanted.choices, {
-        primaryCatalogueId: data.catalogueId,
-        mustering: true,
-        roster,
-        spreads: wanted.spreads,
-        toggles: wanted.toggles,
-        floor: wanted.floor,
-      })
+      built = buildPick(loaded, wanted, data, { primaryCatalogueId: data.catalogueId, mustering: true, roster })
       if (cacheKey) unitCache?.set(cacheKey, built)
     }
     if (!built) return []
@@ -263,13 +257,15 @@ function adjustUnitPoints(
   const detachments = rosterDetachments(loaded, data.catalogueId, data.detachmentIds).chosen.flatMap(
     (option) => mfmDetachmentFor(loaded, data.catalogueId, option.name) ?? [],
   )
+  const vsPrices = vsPickPrices(loaded, data, vsUnitsOf(data, picked))
   for (const unit of picked) {
     const catalogueId = unitCatalogueId(data, unit)
     const definition = loaded.index.definitions.get(unit.entryId)
     const sheetId = definition ? targetOf(definition, loaded.index.definitions).id : unit.entryId
     const copy = (copies.get(sheetId) ?? 0) + 1
     copies.set(sheetId, copy)
-    const vsData = vsDataUnitPoints(loaded, data.catalogueId, unit.entryId, data.detachmentIds, detachments, unit, copy)
+    const vsData =
+      vsPrices.get(unit.key) ?? vsDataUnitPoints(loaded, data.catalogueId, unit.entryId, data.detachmentIds, detachments, unit, copy)
     const mfmUnit = pickedMfmUnit(loaded, data, unit)
     const difference =
       vsData !== null
@@ -280,6 +276,12 @@ function adjustUnitPoints(
     adjustment += difference
   }
   return adjustment
+}
+
+/** Each saved pick's datasheet and, for a VS pick, the unit VS Data built, by its place in the list. */
+const vsUnitsOf = (data: PriceInput, picked: ReturnType<typeof rosterForces>['picked']) => {
+  const byKey = new Map(picked.map((unit) => [unit.key, unit]))
+  return data.units.map((pick, key) => ({ entryId: pick.entryId, vs: byKey.get(key)?.vs }))
 }
 
 function savedSelectionErrors(data: PriceInput, picked: ReturnType<typeof rosterForces>['picked'], loaded: LoadedCatalogue) {
@@ -324,6 +326,8 @@ function changedCountErrors(
 ) {
   const rosterKey = JSON.stringify([loaded.index.revision, data.catalogueId, roster])
   return picked.flatMap((unit) => {
+    // A VS pick's own selections are checked by VS Data; the catalogue's choices it keeps are not what it fields.
+    if (unit.vs) return []
     const saved = data.units[unit.key]!
     const short = (built: BuiltUnit) =>
       Object.entries(saved.spreads ?? {}).flatMap(([key, counts]) =>
@@ -373,7 +377,8 @@ function changedCountErrors(
 
 function selectionProblems(data: PriceInput, picked: ReturnType<typeof rosterForces>['picked'], loaded: LoadedCatalogue) {
   const byKey = new Map(picked.map((unit) => [unit.key, unit]))
-  return unavailableRosterSelections(data.units, picked, (key, choiceKey, optionId) => {
+  const saved = data.units.map((pick, key) => (byKey.get(key)?.vs ? { entryId: pick.entryId } : pick))
+  return unavailableRosterSelections(saved, picked, (key, choiceKey, optionId) => {
     const unit = byKey.get(key)
     return unit?.size.options?.length ? resolveUnitChoice(unit.selection, choiceKey, optionId, loaded.index) : null
   })
@@ -624,7 +629,7 @@ function calculateRoster(
   // twice: once to find units the catalogue composes itself, and once to draw each
   // unit's card. Project each built unit once and keep the result with it.
   const modelKindsFor = (unit: (typeof picked)[number]) =>
-    remember(builtModelKinds, unit.source, () => modelKindsOf(unit.entryId, unit.selection, loaded.index, options))
+    unit.vs?.models ?? remember(builtModelKinds, unit.source, () => modelKindsOf(unit.entryId, unit.selection, loaded.index, options))
   const whole = evaluateForces(forces, loaded.index, options)
   const selectionPoints = selectionPointsOf(forces, whole)
   const points = whole.points + adjustUnitPoints(loaded, data, picked, selectionPoints)
@@ -794,6 +799,7 @@ function calculateRoster(
 
   // The units a rule lets the player pick as the battle begins for its deployment ability, which battle setup offers: a
   // chosen detachment's rule, or one of a unit's own abilities, wargear or Enhancements.
+  const vsUnits = vsUnitsOf(data, picked)
   const offeredPicks = uniqueBy(
     [
       ...detachmentSpecials.flatMap(({ detail }) =>
@@ -868,7 +874,7 @@ function calculateRoster(
       const mfmUnit = pickedMfmUnit(loaded, data, unit)
       const definition = loaded.index.definitions.get(unit.entryId) ?? { id: unit.entryId }
       const unitSelectionIndex = selectionIndex.get(unit.selection)
-      const unitKeywords = keywordNamesOf(unit)
+      const unitKeywords = (unit.vs && vsPickKeywords(loaded, data, vsUnits, unit.key)) || keywordNamesOf(unit)
       const host = attachmentHost(data.units, unit.key)
       const companions = (attachedByHost.get(host) ?? []).flatMap((key) => {
         const companion = pickedByKey.get(key)
@@ -892,7 +898,9 @@ function calculateRoster(
       )
       const catalogued = wargearOf(unit.selection, loaded.index)
       const { enhancements: selectedEnhancements, upgrades, specialSelections } = specialsByKey.get(unit.key)!
-      const describedChoices: ((typeof unit.choices)[number] & { kind?: 'enhancement' | 'upgrade' })[] = unit.choices.map((choice) => {
+      // A VS pick's loadout is VS Data's; of the catalogue's choices it keeps only its Enhancement and upgrades.
+      const shown = unit.vs ? unit.choices.filter((choice) => specialKind(choice, upgradeNames)) : unit.choices
+      const describedChoices: ((typeof unit.choices)[number] & { kind?: 'enhancement' | 'upgrade' })[] = shown.map((choice) => {
         const choiceOptions = choiceOptionsForPricing(choice).map((option) => {
           const pieceCounts = choiceOptionWargear(choice.key, option.id, unit.selection, loaded.index, options)
           const ownPieces = ownChoiceOptionWargear(unit.choices, choice.key, option.id, unit.selection, loaded.index, options)
@@ -925,10 +933,9 @@ function calculateRoster(
         }
       })
       const models = modelKindsFor(unit)
-      const replacementPairs = legalReplacementPairs(unit.entryId, unit.selection, describedChoices, models, loaded.index, {
-        ...options,
-        roster,
-      })
+      const replacementPairs = unit.vs
+        ? new Map<string, ReplacementSource[]>()
+        : legalReplacementPairs(unit.entryId, unit.selection, describedChoices, models, loaded.index, { ...options, roster })
       const choices = describedChoices.map((choice) => ({
         ...choice,
         options: choice.options.map((option) => {
@@ -941,7 +948,7 @@ function calculateRoster(
         selectedEnhancements.some((enhancement) =>
           grantsReserveExemptionIn(findEnhancementDescription(enhancementDescriptions, chosen, enhancement), loaded.index.textFacts),
         )
-      const wargear = heldWargear(models, choices, catalogued)
+      const wargear = unit.vs?.wargear ?? heldWargear(models, choices, catalogued)
       const specialWargear = new Set(
         unit.choices.flatMap((choice) =>
           specialKind(choice, upgradeNames)
@@ -954,10 +961,12 @@ function calculateRoster(
         ),
       )
       const built = remember(builtAttachments, unit.source, () => attachmentPartyOf(definition, loaded.index, unit.selection))
-      const held = wargear.filter((piece) => !specialSelections.has(routeSlug(piece.name)) || specialWargear.has(routeSlug(piece.name)))
+      const held = unit.vs
+        ? wargear
+        : wargear.filter((piece) => !specialSelections.has(routeSlug(piece.name)) || specialWargear.has(routeSlug(piece.name)))
       const modelLines = remember(builtModelLines, unit.source, () =>
         modelLinesOf(
-          combatCarriers(unit.selection, loaded.index, options),
+          unit.vs?.carriers ?? combatCarriers(unit.selection, loaded.index, options),
           held,
           unit.size.models,
           datasheetIn(loaded, catalogueId, unit.entryId),

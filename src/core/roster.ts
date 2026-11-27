@@ -10,6 +10,8 @@ import { allAt, at as selectionAt, countAt, updateSelection, withCounts } from '
 import { type ChoiceOptions, isUnitCompositionChoice, type UnitChoice, unitChoices, type UnitToggle, unitToggles } from './unitChoices'
 import { boundedGroups, modelCountOf, sizeOf, type UnitSize } from './unitSize'
 import { withModelCount, withUnitChoice, withUnitSpread } from './unitSpread'
+import { type VsBuiltUnit, vsBuiltUnit } from './vsDataBuild'
+import type { VsDataDefinitions } from './vsDataConstruction'
 
 /**
  * What a player picked, in the form a saved list keeps.
@@ -67,7 +69,59 @@ type BuildContext = ChoiceOptions & {
   toggles?: Readonly<Record<string, number>>
 }
 
-export type BuiltUnit = { selection: Selection; size: UnitSize; choices: UnitChoice[]; toggles: UnitToggle[] }
+export type BuiltUnit = {
+  selection: Selection
+  size: UnitSize
+  choices: UnitChoice[]
+  toggles: UnitToggle[]
+  /** A VS pick's unit as VS Data fields it, which its size, models, wargear and points are read from. */
+  vs?: VsBuiltUnit
+}
+
+/** Names compared by their letters and digits alone, without the "upgrade" BSData adds to some. */
+const sameName = (name: string) =>
+  name
+    .normalize('NFKD')
+    .toLowerCase()
+    .replace(/\bupgrade$/, '')
+    .replace(/[^a-z0-9]/g, '')
+
+/**
+ * A VS pick built: VS Data's unit, beside the datasheet's own build at its size with its Warlord, Enhancement and
+ * allegiance, which whatever still reads the catalogue's selection tree (keywords, abilities, attachments, the simulator,
+ * the BattleScribe export) reads in its place. The pick's own `choices`, `spreads` and `toggles`, where a translated pick
+ * keeps them, arm that tree; `vs` overrules them on its size, Warlord, Enhancement and allegiance.
+ * `enhancementOption` is the catalogue option the frozen maps file `vs.enhancement` under in the list's Detachments.
+ */
+export function buildVsUnit(
+  pick: RosterPick & { vs: VsPick },
+  index: CatalogueIndex,
+  vs: { definitions: VsDataDefinitions; unit: string; enhancementOption?: string },
+  context?: ChoiceOptions,
+): BuiltUnit | null {
+  const built = vsBuiltUnit(vs.definitions, vs.unit, pick.vs)
+  const own = { ...context, spreads: pick.spreads, toggles: pick.toggles, floor: pick.floor }
+  const plain = buildUnit(pick.entryId, index, built.size.models, pick.choices, own)
+  if (!plain) return null
+  const special = (choice: UnitChoice) => /enhancement|upgrade/i.test(choice.name)
+  const choices = Object.fromEntries(
+    Object.entries(pick.choices ?? {}).filter(([key]) => !plain.choices.some((choice) => choice.key === key && special(choice))),
+  )
+  const enhancement = plain.choices.find((choice) => special(choice) && choice.options.some((option) => option.id === vs.enhancementOption))
+  if (enhancement && vs.enhancementOption) choices[enhancement.key] = vs.enhancementOption
+  const allegiance = pick.vs.allegiance && sameName(vs.definitions.get('allegiance', pick.vs.allegiance)?.name ?? pick.vs.allegiance)
+  const sworn =
+    allegiance &&
+    plain.choices
+      .flatMap((choice) => choice.options.map((option) => ({ key: choice.key, option })))
+      .find(({ option }) => sameName(option.name) === allegiance || sameName(option.name).endsWith(allegiance))
+  if (sworn) choices[sworn.key] = sworn.option.id
+  const warlord = plain.toggles.find((toggle) => toggle.name === 'Warlord')
+  const toggles = warlord ? { ...pick.toggles, [warlord.key]: pick.vs.warlord ? 1 : 0 } : pick.toggles
+  const shell = buildUnit(pick.entryId, index, built.size.models, choices, { ...own, toggles })
+  if (!shell) return null
+  return { ...shell, size: { ...shell.size, ...built.size, options: built.size.options }, vs: built }
+}
 
 /**
  * The unit as the data hands it over, with the player's choices taken and resized to
