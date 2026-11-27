@@ -42,7 +42,7 @@ import { allAt, at, countAt, replaceAt, withCounts, withSpread } from './selecti
 import { isResizable, modelCountOf, sizeOf } from './unitSize'
 import type { VsDataDefinitions } from './vsDataConstruction'
 import { pointsAt } from './vsDataPoints'
-import { enhancementAdmits, modelBounds, modelCounts, unitKeywords, type VsRoster, type VsRosterUnit } from './vsDataRoster'
+import { enhancementAdmits, keywordsOf, modelBounds, modelCounts, type VsRoster, type VsRosterUnit } from './vsDataRoster'
 import { vsFirstFielding, vsUnitOptions, vsUnitSize, vsWithChoice } from './vsDataUnit'
 
 /** A decision the data leaves to the player: one of these, in this slot. */
@@ -871,7 +871,7 @@ export function vsUnitChoices(definitions: VsDataDefinitions, picked: VsRosterUn
     })
   }
   const roster = rosterOf(context)
-  const keywords = unitKeywords(unit.data, roster, picked.allegiance)
+  const keywords = keywordsOf(definitions, roster, picked)
   const held = new Set(picked.enhancement ? [picked.enhancement] : [])
   const admitted = definitions
     .all('enhancement')
@@ -1022,7 +1022,7 @@ export function vsUnitToggles(definitions: VsDataDefinitions, picked: VsRosterUn
   // A model VS Data keeps from the role holds it only where the roster grants it.
   const able = definitions.modelsOf(unit.id).some((model) => model.data.warlord !== false)
   const own = [roster.faction, definitions.get('faction', roster.faction)?.data.parent]
-  const character = unitKeywords(unit.data, roster, picked.allegiance).some((keyword) => keyword.toUpperCase() === 'CHARACTER')
+  const character = keywordsOf(definitions, roster, picked).some((keyword) => keyword.toUpperCase() === 'CHARACTER')
   const allied = definitions.get('faction', roster.faction)?.data.allies?.some((ally) => ally.units.includes(unit.id))
   const { granted, required } = warlordModels(definitions, roster)
   if (!models.some((id) => granted.has(id)) && (!able || !character || allied || !own.includes(unit.data.faction))) return []
