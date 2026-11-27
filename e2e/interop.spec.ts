@@ -8,7 +8,7 @@ import { salamandersOfficial } from '../src/core/rosterText.salamanders.fixture'
 import {
   confirmRosterSetup,
   chooseBattlefield,
-  createRoster,
+  seededRoster,
   retryUntilVisible,
   signUp,
   waitForRosterSave,
@@ -25,7 +25,7 @@ test('a list can be copied as Games Workshop text', async ({ browser }) => {
 
   await signUp(page, 'Alice')
 
-  await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/ })
+  await seededRoster(page, { faction: 'Necrons', detachment: 'Awakened Dynasty' })
   await add(page, 'Immortals')
   await add(page, 'Overlord')
   await page.locator('[data-unit="Overlord"]').getByRole('button', { name: 'Attach to unit: Overlord' }).click()

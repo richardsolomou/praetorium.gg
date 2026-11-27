@@ -58,7 +58,7 @@ export const datasheetOfferedBy = async (args: Parameters<typeof server.datashee
       ),
     )
   ).flat()
-export const datasheet = read('datasheet', (args) => server.datasheet(args))
+export const datasheet = read('datasheet', (args) => (args.data.picks?.length ? server.rosterUnitDatasheet(args) : server.datasheet(args)))
 export const loadoutDatasheets = read('loadoutDatasheets', (args) => server.loadoutDatasheets(args))
 // A combatant's invulnerable saves are VS Data's, whichever answers the read, so each rules version's units are fetched once.
 const vsDataUnits = new Map<string, Promise<VsDataUnits | null>>()

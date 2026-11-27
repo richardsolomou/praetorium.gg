@@ -6,8 +6,8 @@ import { pipeline } from 'node:stream/promises'
 import { createGunzip, createGzip } from 'node:zlib'
 import { downloadProductionCopy } from './productionCopy'
 
-/** The product tables that hold players' lists: saved rosters, battle commands (lists fielded into a battle) and sealed entries. */
-const KEPT = new Set(['rosters', 'commands', 'sealedEventEntries'])
+/** The product tables that hold players' lists and units: saved rosters, battle commands (lists fielded into a battle), sealed entries and saved unit loadouts. */
+const KEPT = new Set(['rosters', 'commands', 'sealedEventEntries', 'unitLoadouts'])
 
 /**
  * Keeps a private copy of every list players hold, gzipped, for local reports such as `scripts/vsDataParity.ts`. The
@@ -25,8 +25,9 @@ try {
   const lines = createInterface({ input: createReadStream(full).pipe(createGunzip()), crlfDelay: Infinity })
   async function* kept() {
     for await (const line of lines) {
-      const entry = line ? (JSON.parse(line) as { product?: string }) : {}
-      if (entry.product && KEPT.has(entry.product)) yield `${line}\n`
+      const entry = line ? (JSON.parse(line) as { product?: string; end?: string }) : {}
+      // The last record names when the backup was taken, which anything frozen from the copy is dated by.
+      if ((entry.product && KEPT.has(entry.product)) || entry.end) yield `${line}\n`
     }
   }
   await pipeline(kept, createGzip(), createWriteStream(file, { mode: 0o600 }))

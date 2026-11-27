@@ -2,7 +2,7 @@ import type { PriceInput } from '../contracts/schemas'
 import { attachedUnitList, attachmentHost } from '../core/attachedUnits'
 import { remember } from '../core/collections'
 import { combatMatchup, strongestWeaponPreferences, type CombatAnswer, type CombatantSnapshot } from '../core/combatMatchup'
-import { combatRuleSelections, readCombatRule, type CombatRule } from '../core/combatRules'
+import { combatRuleSelections } from '../core/combatRules'
 import { datasheetProfilesByKind } from '../core/datasheetStructure'
 import { carrierModelProfiles } from '../core/combatLoadout'
 import { REFERENCE_ATTACKERS, gradedTargets, type GradedUnit, type ReferenceTargetKey } from '../core/rosterGrades'
@@ -11,13 +11,10 @@ import { calculateRosterPrice } from './pricing'
 import { rosterCombatant, rosterProjectionCache } from './rosterCombatRules'
 import { rosterDatasheetSelections } from './rosterDatasheetContext'
 import type { LoadedRules } from './rules'
-import { hasTextTokens } from '../core/sourceText'
 import { gradeReadingsIn } from './textFacts'
 import { unitMove } from '../core/unitReach'
 
 export type CombatProjection = NonNullable<ReturnType<typeof rosterCombatant>>
-/** The words behind a rule's text tokens, or null when the snapshot does not hold them. */
-export type RuleWords = (text: string) => string | null
 /** A reference unit every list is measured against, with its total wounds. */
 export type ReferenceUnit = { snapshot: CombatantSnapshot; wounds: number }
 export type GradeReferences = {
@@ -73,23 +70,6 @@ export async function referenceUnit(
 type Attack = { answer: CombatAnswer; refused: Record<'ranged' | 'melee', boolean> }
 
 const NO_CHOICES = { preferences: {}, excluded: { ranged: [], melee: [] }, allocation: [] }
-
-/** Each rule read from its words where they are held; a rule left as a token is reported as not calculated. */
-const readRules = (unread: readonly CombatRule[], words: RuleWords) =>
-  unread.flatMap((rule) => {
-    if (rule.reading || !hasTextTokens(rule.description)) return [rule]
-    const description = words(rule.description)
-    return description === null ? [rule] : (readCombatRule(rule, description) ?? [])
-  })
-
-export function withReadRules(projection: CombatProjection, words: RuleWords): CombatProjection {
-  const read = (unread: readonly CombatRule[]) => readRules(unread, words)
-  return {
-    ...projection,
-    rules: read(projection.rules),
-    companions: projection.companions.map((member) => ({ ...member, rules: read(member.rules) })),
-  }
-}
 
 /** The unit at full strength with the selected rules active, as the simulator fields it. */
 export function combatantSnapshot(projection: CombatProjection, selection: ReturnType<typeof combatRuleSelections>): CombatantSnapshot {
@@ -177,7 +157,6 @@ export async function measureRosterUnits({
   loaded,
   rules,
   data,
-  words,
   references,
   calculate,
   attachedShares = false,
@@ -186,8 +165,6 @@ export async function measureRosterUnits({
   loaded: LoadedCatalogue
   rules: LoadedRules | null
   data: PriceInput
-  /** The rules' words, which only scripts measuring a reading against them pass. */
-  words?: RuleWords
   references: GradeReferences
   calculate: (requests: ReturnType<ReturnType<typeof combatMatchup>['request']>[]) => Promise<CombatAnswer[]>
   /** Also measure each unit without each unit attached to it, which costs a set of target matchups per attachment. */
@@ -213,14 +190,13 @@ export async function measureRosterUnits({
     prepared = rosterDatasheetSelections(loaded, { catalogueId: data.catalogueId, detachmentIds: data.detachmentIds, picks: fielded }),
     cache = rosterProjectionCache(),
   ) => {
-    const unread = rosterCombatant(
+    return rosterCombatant(
       loaded,
       rules,
       { catalogueId: data.catalogueId, detachmentIds: data.detachmentIds, picks: fielded, pickIndex },
       prepared,
       { attachmentChoices: false, cache },
     )
-    return unread && (words ? withReadRules(unread, words) : unread)
   }
   const prepared = rosterDatasheetSelections(loaded, { catalogueId: data.catalogueId, detachmentIds: data.detachmentIds, picks })
   const cache = rosterProjectionCache()
@@ -308,7 +284,7 @@ export async function measureRosterUnits({
       ? Math.min(...abilities.map((names) => numberIn(names, /^Scouts (\d+)/i)).filter(Boolean))
       : 0
     const readings = [host.projection.selected, ...host.projection.companions.map((member) => member.selected)].flatMap((sheet) =>
-      sheet.abilities.map((ability) => gradeReadingsIn(ability.description ?? '', loaded.index.textFacts, words)),
+      sheet.abilities.map((ability) => gradeReadingsIn(ability.description ?? '', loaded.index.textFacts)),
     )
     return {
       name: [host.projection.selected.name, ...host.projection.companions.map((member) => member.selected.name)].join(' + '),

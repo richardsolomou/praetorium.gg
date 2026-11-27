@@ -59,8 +59,13 @@ export type DefinitionTexts = {
 }
 export const DISPOSITIONS = new Set(['take-and-hold', 'disruption', 'purge-the-foe', 'priority-assets', 'reconnaissance'])
 const DETACHMENT_ENTRY = 'detachment'
-export function catalogueFromIndex(index: CatalogueIndex, files: readonly CatalogueFile[], datacards: LoadedDatacards): LoadedCatalogue {
-  const detachments = detachmentsOf(files, index)
+export function catalogueFromIndex(
+  index: CatalogueIndex,
+  files: readonly CatalogueFile[],
+  datacards: LoadedDatacards,
+  vsRoster?: VsRosterData,
+): LoadedCatalogue {
+  const detachments = detachmentsOf(files, index, vsRoster)
   return {
     index,
     characteristicNames: characteristicNamesOf(files),
@@ -68,6 +73,7 @@ export function catalogueFromIndex(index: CatalogueIndex, files: readonly Catalo
     detachments,
     factionContents: datacards.factions,
     datacards,
+    ...(vsRoster ? { vsRoster } : {}),
   }
 }
 /** Characteristic type ids are defined inline throughout the source files. */
@@ -102,7 +108,15 @@ export function factionsIn(index: CatalogueIndex, detachments: Map<string, Detac
     }))
     .toSorted((left, right) => compareText(left.name, right.name))
 }
-export function detachmentsOf(files: readonly CatalogueFile[], index: CatalogueIndex): Map<string, DetachmentOptions> {
+/**
+ * Each book's Detachments, in the catalogue's wrapper that a list selects them through, each with the force disposition
+ * its rules version's VS Data release gives it, where VS Data has the Detachment.
+ */
+export function detachmentsOf(
+  files: readonly CatalogueFile[],
+  index: CatalogueIndex,
+  vsRoster?: VsRosterData,
+): Map<string, DetachmentOptions> {
   const books = new Map<string, Catalogue>()
   for (const file of files) if (file.catalogue) books.set(file.catalogue.id, file.catalogue)
 
@@ -117,7 +131,7 @@ export function detachmentsOf(files: readonly CatalogueFile[], index: CatalogueI
         .map((option) => ({
           id: option.id,
           name: nameOf(option, index.definitions),
-          disposition: dispositionOf(option, index),
+          disposition: vsDisposition(vsRoster, option.id, dispositionOf(option, index)),
         }))
         .toSorted((left, right) => compareText(left.name, right.name))
       if (!options.length) continue
@@ -149,6 +163,19 @@ const dispositionOf = (option: Definition, index: CatalogueIndex) =>
   [...(option.categoryLinks ?? []), ...(targetOf(option, index.definitions).categoryLinks ?? [])]
     .map((link) => routeSlug(link.name ?? ''))
     .find((slug) => DISPOSITIONS.has(slug)) ?? null
+/**
+ * A Detachment's force disposition by its slug: one VS Data gives it, the catalogue's where it is among them, as a
+ * Detachment can have several; the catalogue's where VS Data has not the Detachment.
+ */
+function vsDisposition(vsRoster: VsRosterData | undefined, optionId: string, catalogue: string | null) {
+  const id = vsRoster?.detachments[optionId]
+  const record = id ? vsRoster.construction.definitions.detachment?.[id] : undefined
+  if (!record) return catalogue
+  const given = ((record.data as { dispositions?: readonly string[] }).dispositions ?? []).map((pack) =>
+    pack.slice(pack.lastIndexOf('.') + 1),
+  )
+  return catalogue && given.includes(catalogue) ? catalogue : (given[0] ?? null)
+}
 const unitCount = (index: CatalogueIndex, catalogueId: string) => index.datasheets.get(catalogueId)?.size ?? 0
 export const datasheetsOf = (index: CatalogueIndex, catalogueId: string) => index.datasheets.get(catalogueId) ?? new Set<string>()
 /**

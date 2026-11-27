@@ -1,10 +1,7 @@
-import { hash } from 'node:crypto'
 import { type Definition, isAbilityProfile, profileDescription, targetOf } from '../core/catalogue'
-import { RecentlyUsed, cachedIn, groupBy, remember } from '../core/collections'
-import { combatFactsOf } from '../core/combatReading'
+import { cachedIn, groupBy, remember } from '../core/collections'
 import { routeSlug } from '../core/slug'
 import { type TextToken, textKey, textToken, textTokensIn, withoutText } from '../core/sourceText'
-import type { TextFacts } from '../core/textFacts'
 import { compareText, joinKey } from '../core/text'
 import { type LoadedCatalogue, datasheetsOf } from '../shared/catalogueIndex'
 import { catalogueEnhancement, enhancementTextOf, sameRuleName } from '../shared/catalogueDescriptions'
@@ -12,7 +9,7 @@ import { detachmentNamed } from '../shared/factionReferences'
 import type { RuleCard } from '../shared/datacards'
 import { datacardOf } from '../shared/datasheetJoin'
 import { factionContentsOf } from '../shared/factionNames'
-import { textFactsOf } from '../shared/textFacts'
+import type { VsDataTextFacts } from './vsDataEffects'
 
 /** The card printing a catalogue text's rule, by the catalogue text's `textKey`: the token each shows, and the rule names to list beside it. */
 export type CardTwin = { own: string; token: string; references: string[] }
@@ -33,41 +30,35 @@ function cardNamedIn(cards: readonly RuleCard[], name: string) {
   return texts.size === 1 ? found[0]!.description : null
 }
 
-/** What the rules read from each catalogue text, by its `textKey`: every rules version a server loads holds most of the same. */
-const readings = new RecentlyUsed<string, string>(8192)
-
 /**
  * Every catalogue rules text Game Datacards prints too, with the card's token to show in its place. The card token
- * answers with its catalogue twin's facts wherever it is read, so a catalogue text two cards print differently has
- * no twin; of the catalogue texts sharing a card text, only the most that the rules read alike have one; and none
- * has one whose card text readers already saw alone, or the cards read other grants or reserve exemptions from.
+ * answers with the VS Data record its card is, so a catalogue text two cards print differently has no twin; of the
+ * catalogue texts sharing a card text, only those the most datasheets print that are one record have one; and none has
+ * one whose card text readers already saw alone, or whose card is another record than the catalogue text's.
  */
-export function cardTwins(loaded: LoadedCatalogue): Map<string, CardTwin> {
+export function cardTwins(loaded: LoadedCatalogue, records: Pick<VsDataTextFacts, 'join' | 'printed'> | null): Map<string, CardTwin> {
   const { candidates, shownAlone } = cardTwinCandidates(loaded)
   const sole = [...candidates].flatMap(([key, { own, cards, printed }]) => {
     const [only, ...others] = cards.values()
     return only && !others.length ? [{ key, own, printed, ...only }] : []
   })
-  const facts = (key: string) => loaded.definitions?.fact(key)
-  const stated = (own: string) => textFactsOf(loaded.definitions?.words(own) ?? '')
-  // Combat facts are read only for texts that share a card text: reading them is the slow part.
-  const reading = (key: string, own: string) =>
-    remember(readings, key, () => hash('sha256', JSON.stringify([ruled(facts(key)), combatFactsOf(loaded.definitions?.words(own) ?? '')])))
+  const recordOf = (key: string) => records?.join(key).record ?? null
   return new Map(
     [...groupBy(sole, (twin) => twin.card).values()].flatMap((group) => {
-      // Where catalogue texts sharing a card text read differently, the wording most datasheets print takes it.
+      // Where catalogue texts sharing a card text are different records, the wording most datasheets print takes it.
       const printed = (twins: typeof group) => twins.reduce((total, twin) => total + twin.printed, 0)
       const [most, next] =
         group.length === 1
           ? [group]
-          : [...groupBy(group, (twin) => reading(twin.key, twin.own)).values()].toSorted((left, right) => printed(right) - printed(left))
+          : [...groupBy(group, (twin) => recordOf(twin.key) ?? twin.key).values()].toSorted((left, right) => printed(right) - printed(left))
       if (next && printed(next) === printed(most!)) return []
-      const { card: cardKey, own, token } = most![0]!
-      // A card readers already saw alone keeps answering with its own facts there.
+      const { card: cardKey, key, token } = most![0]!
+      // A card readers already saw alone keeps answering with its own record there.
       if (shownAlone.has(cardKey)) return []
-      const card = loaded.datacards.textFacts?.get(cardKey)
-      if (card && JSON.stringify(ruled(card)) !== JSON.stringify(ruled(stated(own) ?? {}))) return []
-      const references = [...new Set(most!.flatMap((twin) => stated(twin.own)?.references ?? []))]
+      const own = recordOf(key)
+      const card = records?.printed(cardKey) ?? []
+      if (own && card.length && !card.includes(own)) return []
+      const references = [...new Set(most!.flatMap((twin) => loaded.definitions?.fact(twin.key)?.references ?? []))]
       return most!.map((twin) => [twin.key, { own: twin.own, token, references }] as const)
     }),
   )
@@ -77,13 +68,6 @@ function soleToken(text: string) {
   const tokens = textTokensIn(text)
   return tokens.length === 1 && withoutText(text) === '' ? tokens[0]! : null
 }
-
-/** What the rules read from a text, without the rule names it marks out, which only list rules beside it, or its combat facts. */
-const ruled = (facts: TextFacts | undefined) =>
-  facts &&
-  Object.fromEntries(
-    Object.keys(facts).flatMap((key) => (key === 'combat' || key === 'references' ? [] : [[key, facts[key as keyof TextFacts]]])),
-  )
 
 /**
  * Each catalogue text, by `textKey`, with how many times it was found and every card text found printing the same

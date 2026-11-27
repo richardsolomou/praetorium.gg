@@ -40,6 +40,10 @@ Read the message under it. It's usually unfinished scoring from the previous tur
 
 Your action didn't go through. Check your connection, then try it again. If drawing secondary missions failed, choose **Draw at random** again.
 
+### Your browser asks whether to leave a battle
+
+Your last actions in the battle haven't finished sending. Stay, wait a moment, then leave. If you leave anyway, whatever hadn't sent is lost. The Praetorium app doesn't ask, so wait a moment before closing it.
+
 ### A finished battle still shows as in progress in Battles
 
 Praetorium could not refresh the list, so it shows the copy saved on this device. A note above the list says so, and Praetorium tries again after a short time. Choose **Try again** to refresh it now. The result of the battle is already saved.

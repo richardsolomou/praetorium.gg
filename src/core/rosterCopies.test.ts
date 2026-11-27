@@ -43,6 +43,11 @@ describe('loadoutPicks', () => {
   it('moves joined units into the destination rules version', () => {
     expect(loadoutPicks(group, 'preview-x~sm')?.[1]?.catalogueId).toBe('preview-x~sm')
   })
+
+  const vs = { models: { 'sm.captain.captain': 1 }, options: {} }
+  it('carries VS Data IDs into another rules version, for its reader to check there', () => {
+    expect(loadoutPicks({ ...loadout, pick: { ...loadout.pick, vs } }, 'preview-x~sm')?.[0]?.vs).toEqual(vs)
+  })
 })
 
 describe('copiedPicks', () => {

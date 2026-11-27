@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './test'
-import { PHONE, addUnit, advanceButton, createRoster, playerPanel, practiceBattle, signUp, startBattle } from './account'
+import { PHONE, addUnit, advanceButton, seededRoster, playerPanel, practiceBattle, signUp, startBattle } from './account'
 import { closePicker, openBuilder } from './builder.harness'
 
 /**
@@ -26,7 +26,7 @@ test('a battle in progress keeps its layout on a phone', async ({ page }) => {
   await page.getByTitle('Crimson', { exact: true }).click()
   await page.getByRole('button', { name: 'Save profile' }).click()
   await expect(page.getByText('Profile saved.')).toBeVisible()
-  const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Phone roster' })
+  const roster = await seededRoster(page, { faction: 'Necrons', detachment: 'Awakened Dynasty', name: 'Phone roster' })
   await practiceBattle(page, roster)
   await startBattle(page, undefined, true, ['Cleanse', 'Centre Ground'])
   await page.setViewportSize(PHONE)

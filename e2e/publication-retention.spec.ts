@@ -3,7 +3,7 @@ import { z } from 'zod'
 import {
   attachRoster,
   createBattle,
-  createRoster,
+  seededRoster,
   retryUntilVisible,
   setupBattle,
   signUp,
@@ -242,9 +242,9 @@ test('self-account deletion removes populated shared history and sealed entries 
     await signUp(opponent, opponentName)
     const opponentId = await userIdNamed(opponentName)
     // Take and Hold against the sealed list's Purge the Foe draws primaries that need no nominations.
-    const opponentRoster = await createRoster(opponent, {
+    const opponentRoster = await seededRoster(opponent, {
       faction: 'Necrons',
-      detachment: /Awakened Dynasty/,
+      detachment: 'Awakened Dynasty',
       name: uniqueName('Surviving roster'),
     })
     const opponentRosterId = lastPathSegment(opponent.url())
@@ -342,15 +342,15 @@ test('saved public results leave cached rankings and viewer records after battle
     const opponentName = uniqueName('Record opponent')
     await signUp(owner, ownerName)
     const ownerId = await userIdNamed(ownerName)
-    const hostRoster = await createRoster(owner, {
+    const hostRoster = await seededRoster(owner, {
       faction: 'Necrons',
-      detachment: /Awakened Dynasty/,
+      detachment: 'Awakened Dynasty',
       name: uniqueName('Record host list'),
     })
     await signUp(opponent, opponentName)
-    const guestRoster = await createRoster(opponent, {
+    const guestRoster = await seededRoster(opponent, {
       faction: 'Death Guard',
-      detachment: /Shamblerot Vectorium/,
+      detachment: 'Shamblerot Vectorium',
       name: uniqueName('Record guest list'),
     })
     const battle = await setupBattle(owner, opponent, { hostRoster, guestRoster })

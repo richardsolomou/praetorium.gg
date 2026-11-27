@@ -1007,7 +1007,11 @@ export function vsWarlordModel(
   const { granted, required } = warlordModels(definitions, roster)
   const able = models.filter((model) => model.data.warlord !== false)
   const leaders = able.filter((model) => model.data.max === 1)
-  return (models.find((model) => granted.has(model.id) || required.has(model.id)) ?? (leaders.length === 1 ? leaders[0] : able[0]))?.id
+  return (
+    models.find((model) => granted.has(model.id) || required.has(model.id)) ??
+    able.find((model) => model.data.keywords?.some((keyword) => keyword.toUpperCase() === 'CHARACTER')) ??
+    (leaders.length === 1 ? leaders[0] : able[0])
+  )?.id
 }
 
 /**
@@ -1022,12 +1026,14 @@ export function vsUnitToggles(definitions: VsDataDefinitions, picked: VsRosterUn
   // A model VS Data keeps from the role holds it only where the roster grants it.
   const able = definitions.modelsOf(unit.id).some((model) => model.data.warlord !== false)
   const own = [roster.faction, definitions.get('faction', roster.faction)?.data.parent]
-  const character = keywordsOf(definitions, roster, picked).some((keyword) => keyword.toUpperCase() === 'CHARACTER')
+  const warlord = picked.warlord ?? vsWarlordModel(definitions, unit.id, roster)
+  if (!warlord) return []
+  // The Warlord's model holds the unit's keywords and its own, as a Command Squad's Commander is its one CHARACTER.
+  const held = [...keywordsOf(definitions, roster, picked), ...(definitions.get('model', warlord)?.data.keywords ?? [])]
+  const character = held.some((keyword) => keyword.toUpperCase() === 'CHARACTER')
   const allied = definitions.get('faction', roster.faction)?.data.allies?.some((ally) => ally.units.includes(unit.id))
   const { granted, required } = warlordModels(definitions, roster)
   if (!models.some((id) => granted.has(id)) && (!able || !character || allied || !own.includes(unit.data.faction))) return []
-  const warlord = picked.warlord ?? vsWarlordModel(definitions, unit.id, roster)
-  if (!warlord) return []
   const must = models.some((id) => required.has(id))
   return [{ key: warlord, name: 'Warlord', selected: picked.warlord !== undefined, ...(must ? { required: true as const } : {}) }]
 }
@@ -1045,6 +1051,8 @@ export function vsModelKinds(definitions: VsDataDefinitions, picked: VsRosterUni
   const models = definitions.modelsOf(unit.id).filter((model) => counts.get(model.id)! > 0 || countable.has(model.id))
   const lone = models.length === 1 ? models[0]!.id : undefined
   const open = vsUnitOptions(definitions, picked).filter((option) => option.open && (option.bounds.max > 0 || option.taken > 0))
+  // A unit with nothing to choose shows its wargear as one summary, as the pane shows a catalogue unit's.
+  if (!open.length && !countable.size) return []
   const held = new Map(models.map((model) => [model.id, new Map<string, number>()]))
   const carry = (bag: Map<string, number>, id: string, n: number) => {
     const inside = definitions.get('wargear', id)?.data.includes

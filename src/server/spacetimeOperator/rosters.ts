@@ -200,6 +200,11 @@ export function withRosters<B extends SpacetimeBase>(Base: B) {
       return this.reply('set_roster_archived', [id, userId, archived, now], z.boolean())
     }
 
+    /** Stores `picks` over the roster's picks while they are still `read` at version `updatedAt`; false when they moved on. */
+    async keepRosterTranslations(id: string, userId: string, picks: readonly unknown[], read: { picks: string; updatedAt: number }) {
+      return this.reply('keep_roster_translations', [id, userId, JSON.stringify(picks), read.picks, read.updatedAt], z.boolean())
+    }
+
     async declineRosterSharing(id: string, userId: string) {
       return this.reply('decline_roster_sharing', [id, userId], z.boolean())
     }

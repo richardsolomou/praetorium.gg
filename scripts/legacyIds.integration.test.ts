@@ -5,6 +5,7 @@ import bsdataRecords from '../catalogue/legacy-ids/bsdata-records.json' with { t
 import missions from '../catalogue/legacy-ids/missions.json' with { type: 'json' }
 import stratagems from '../catalogue/legacy-ids/stratagems.json' with { type: 'json' }
 import { readCatalogueComposition } from '../src/server/catalogueComposition'
+import books from '../catalogue/legacy-ids/books.json' with { type: 'json' }
 import units from '../catalogue/legacy-ids/units.json' with { type: 'json' }
 import { vsDataConstructionSchema, vsDataDefinitions } from '../src/core/vsDataConstruction'
 import { idsIn } from '../src/shared/vsDataPoints'
@@ -97,6 +98,29 @@ describe.skipIf(!fs.existsSync(path.join(source, 'summaries')))('frozen BSData d
           return offers.some((offer) => offer.required && !offer.detachment && offer.choices.includes(allegiance))
             ? []
             : [`${edition} ${entry}: ${allegiance}`]
+        })
+      })
+    expect(wrong).toEqual([])
+  })
+
+  it('read a datasheet under a book only as a unit an ally entry offers that book’s faction, or as its own unit', () => {
+    const base = readCatalogueComposition(source)!.editions.find((entry) => entry.base)!.edition.id
+    const wrong = fs
+      .readdirSync(path.join(source, 'summaries'))
+      .filter((file) => file.endsWith('.construction.json'))
+      .flatMap((file) => {
+        const edition = path.basename(file, '.construction.json')
+        const definitions = vsDataDefinitions(
+          vsDataConstructionSchema.parse(JSON.parse(fs.readFileSync(path.join(source, 'summaries', file), 'utf8'))),
+        )
+        const read = edition === base ? null : edition
+        const factionOf = idsIn(books.ids, read)
+        const unitOf = idsIn(units.ids, read)
+        return [...unitOf].flatMap(([key, unit]) => {
+          // A rules version that reads the datasheet as its own unit in the book says so under its own book key.
+          if (!key.includes('/') || unitOf.get(key.slice(key.indexOf('/') + 1)) === unit) return []
+          const faction = definitions.get('faction', factionOf.get(key.slice(0, key.indexOf('/'))) ?? '')
+          return faction?.data.allies?.some((ally) => ally.units.includes(unit)) ? [] : [`${edition} ${key}: ${unit}`]
         })
       })
     expect(wrong).toEqual([])

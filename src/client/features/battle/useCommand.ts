@@ -12,7 +12,7 @@ import { requestNativeHaptic } from '../../nativeBridge'
 import { captureAppSnapshot } from '../../offline/appSnapshot'
 import { writeAppSnapshot } from '../../offline/appStorage'
 import { isFetchNetworkFailure } from '../../networkErrors'
-import { sendingBattleCommands } from '../../pendingWrites'
+import { battleCommandsPending, sendingBattleCommands } from '../../pendingWrites'
 import { predictedBattle, savedBattleAt } from '../../offline/battleFunctions'
 import { asSentence } from '../../text'
 
@@ -83,7 +83,8 @@ export function afterFailedCommand<T extends Pick<QueuedCommand, 'basedOn' | 'ba
 
 /**
  * Sends queued commands one at a time, each against the newest history this device has seen. Queued commands live only
- * in this page, so automatic reloads wait until the queue is empty, including between sends.
+ * in this page, so automatic reloads wait until the queue is empty, including between sends, and the browser asks before
+ * the player closes or reloads it. Leaving the battle inside the app keeps sending them.
  */
 export function drainCommands(args: Parameters<typeof sendQueued>[0]) {
   if (args.draining.current) return Promise.resolve()
@@ -229,7 +230,16 @@ export async function showPrediction(
 
 /** The latest click, which tells a new tap from another command sent by the same press. */
 let lastClick: Event | undefined
-if (typeof window !== 'undefined') window.addEventListener('click', (event) => (lastClick = event), { capture: true })
+if (typeof window !== 'undefined') {
+  window.addEventListener('click', (event) => (lastClick = event), { capture: true })
+  // Queued commands live only in this page, so closing or reloading it before they send drops them.
+  window.addEventListener('beforeunload', (event) => {
+    if (!battleCommandsPending()) return
+    event.preventDefault()
+    // oxlint-disable-next-line typescript/no-deprecated -- Chrome before 119, inside the build target, asks only when this is set.
+    event.returnValue = true
+  })
+}
 
 /** How long the controls stay disabled after a press's result shows, so the second tap of a double tap lands on nothing. */
 const DOUBLE_TAP_MS = 300

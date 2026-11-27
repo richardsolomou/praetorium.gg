@@ -25,6 +25,8 @@ const rosterSchema = z.strictObject({
   waivedRules: z.array(z.enum(FORMAT_RULE_IDS)),
   optionalRules: z.array(z.enum(OPTIONAL_RULE_IDS)),
   borrowedDetachmentId: z.string().nullable(),
+  /** Absent from snapshots, which read every roster as saved before choices started on their printed default. */
+  printedDefaults: z.boolean().optional(),
   baseRosterId: z.string().nullable(),
   source: z.enum(ROSTER_SOURCES),
   createdAt: z.number().int().nonnegative(),
@@ -214,6 +216,7 @@ export function deployedRosterIds(stored: ProductionRosterSnapshot['rosters'][nu
     detachmentId: JSON.stringify(stored.detachmentIds),
     borrowedDetachmentId: stored.borrowedDetachmentId,
     picks: JSON.stringify(stored.picks),
+    printedDefaults: stored.printedDefaults ?? null,
     updatedAt: stored.updatedAt,
   })
   return currentRosterIds({ ...stored, catalogueId: row.catalogueId, picks: JSON.parse(row.picks) as typeof stored.picks })

@@ -62,6 +62,10 @@ export const currentCatalogueId = (id: string) =>
   migrationCatalogues.reduce((current, map) => map.get(current)?.id ?? current, catalogues.get(id)?.id ?? id)
 export const currentCatalogueFamilyId = (id: string) => currentCatalogueId(editionFamilyId(id))
 
+/**
+ * Picks moved to the rules version of `catalogueId`. A pick's `vs` moves with it: whoever reads the list checks it
+ * against that version's VS Data (`vsPickIn`), and a pick it no longer holds reads as its catalogue choices.
+ */
 export function picksForRulesVersion<T extends RosterPick>(picks: readonly T[], catalogueId: string): T[] {
   if (retainedFor(catalogueId)) return picksForCatalogueEdition(picks, catalogueId)
   const current = picks.map((pick) => ({

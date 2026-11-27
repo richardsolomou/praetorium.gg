@@ -43,34 +43,9 @@ export type StatedAllowance = BattleChoiceAllowance & { leading?: true }
 export const namesAllowedOptions = (allowance: BattleChoiceAllowance, words: string) =>
   new RegExp(`\\b${allowance.options}\\b`, 'i').test(normalizeCombatText(words))
 
-/** The options a rule's words offer by the plural they go by, as "select one of the Orders below" offers Orders. */
-export const offeredOptionsIn = (words: string) =>
-  [...normalizeCombatText(words).matchAll(/\bselect (?:one|two|three|[1-9]) of the (\w+) below\b/gi)].map((match) => match[1]!)
-
-const NUMBERS: Record<string, number> = { one: 1, two: 2, three: 3 }
-const count = (written: string) => NUMBERS[written.toLowerCase()] ?? Number(written)
-
-/** What one rule text allows the unit's choices, as being affected by two Orders at once. */
-export function statedAllowances(text: string): StatedAllowance[] {
-  const written = normalizeCombatText(text)
-  const leading = /\bis leading a unit\b/i.test(written) ? { leading: true as const } : {}
-  const limit = /can be affected by up to (two|three|[2-9]) different (\w+) at the same time/i.exec(written)
-  const extra = /select (one|two|three|[1-9]) (\w+) to affect this unit\b.*?\bin addition to any other \2s\b/i.exec(written)
-  const also = /when that unit is issued an? (\w+), it is also affected by the (.+?) \1\b/i.exec(written)
-  return [
-    ...(limit ? [{ options: limit[2]!, limit: count(limit[1]!), ...leading }] : []),
-    ...(extra ? [{ options: `${extra[2]}s`, extra: count(extra[1]!), ...leading }] : []),
-    ...(also ? [{ options: `${also[1]}s`, also: also[2]!, ...leading }] : []),
-  ]
-}
-
 /** The allowances these texts state for the unit's choices; a leader's only while `attached`. */
 export const allowancesWhile = (stated: readonly StatedAllowance[], attached: boolean): BattleChoiceAllowance[] =>
   stated.flatMap(({ leading, ...allowance }) => (leading && !attached ? [] : [allowance]))
-
-/** What these rule texts allow the unit's choices, as being affected by two Orders at once; a leader's only while `attached`. */
-export const battleChoiceAllowances = (texts: readonly string[], attached: boolean) =>
-  allowancesWhile(texts.flatMap(statedAllowances), attached)
 
 type Effect = ActiveCombatRule['effects'][number]
 const unconditional = (effect: Effect) => !effect.condition && !effect.targetKeywords && !effect.excludedTargetKeywords

@@ -45,6 +45,11 @@ describe('retired catalogue ids', () => {
     ])
   })
 
+  it('carries VS Data IDs with a retired datasheet to its replacement, for the reader to check there', () => {
+    const vs = { models: { 'space-marines.marneus-calgar.marneus-calgar': 1 }, options: {} }
+    expect(picksForRulesVersion([{ entryId: calgar.retired, vs }], ultramarines.current)[0]?.vs).toEqual(vs)
+  })
+
   it('preserves original identities when selecting a retained version', () => {
     expect(picksForRulesVersion([{ entryId: calgar.retired }], `legacy-profiles~${ultramarines.retired}`)).toEqual([
       { entryId: calgar.retired },

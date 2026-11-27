@@ -1088,3 +1088,102 @@ describe('the unit an attachment makes', () => {
     expect(attachedUnit(protected_, 0)).toEqual([1, 2])
   })
 })
+
+describe('a datasheet VS Data records the hosts of', () => {
+  const lord = ability('Leader', 'This model can be attached to the following units:\n■ CHOSEN\n■ CULTIST MOB')
+  const index = {
+    ...indexOf({
+      sharedSelectionEntries: [
+        { id: 'lord', name: 'Chaos Lord', type: 'model', infoGroups: [{ id: 'g', name: 'Leader', profiles: [lord] }] },
+        { id: 'chosen', name: 'Chosen', type: 'unit' },
+        { id: 'cultists', name: 'Cultist Mob', type: 'unit' },
+        { id: 'terminators', name: 'Chaos Terminator Squad', type: 'unit' },
+      ],
+    }),
+    attachments: {
+      lord: {
+        kind: 'leader' as const,
+        targets: ['Chaos Terminator Squad'],
+        conditional: [
+          { kind: 'leader' as const, targets: ['Chosen'], excludes: ['pactbound'] },
+          { kind: 'leader' as const, targets: ['Chosen'], requires: [['pactbound']], shared: 'KHORNE' },
+        ],
+        named: ['Chaos Terminator Squad', 'Chosen'],
+      },
+    },
+  }
+  const leading = (host: string) => [{ entryId: 'lord', attachedTo: 1 }, { entryId: host }]
+  const messages = (host: string, keywords: (string[] | undefined)[] = [], detachments: string[] = []) =>
+    attachmentErrors(leading(host), index, [], keywords, detachments).map((error) => error.message)
+
+  it('joins a host VS Data adds', () => {
+    expect(messages('terminators')).toEqual([])
+  })
+
+  it('joins a host only the catalogue names', () => {
+    expect(messages('cultists')).toEqual([])
+  })
+
+  it('joins a host outside the Detachment that limits it', () => {
+    expect(messages('chosen', [[], []])).toEqual([])
+  })
+
+  it('refuses a host in the Detachment without the keyword both must hold', () => {
+    expect(messages('chosen', [['Khorne'], ['Nurgle']], ['pactbound'])).toEqual(['cannot be attached to Chosen'])
+  })
+
+  it('joins a host in the Detachment that holds the keyword it holds', () => {
+    expect(messages('chosen', [['Khorne'], ['Khorne']], ['pactbound'])).toEqual([])
+  })
+
+  it('does not refuse a host for keywords no one knows', () => {
+    expect(messages('chosen', [], ['pactbound'])).toEqual([])
+  })
+
+  it('shows every host some army lets it join', () => {
+    expect(referenceAttachmentOf(index.definitions.get('lord')!, index)?.targets).toEqual([
+      'CULTIST MOB',
+      'Chaos Terminator Squad',
+      'Chosen',
+    ])
+  })
+})
+
+describe('a datasheet VS Data gives a role only in some armies', () => {
+  const index = {
+    ...indexOf({
+      sharedSelectionEntries: [
+        { id: 'cato', name: 'Cato Sicarius', type: 'model' },
+        { id: 'calgar', name: 'Marneus Calgar', type: 'model' },
+        { id: 'victrix', name: 'Victrix Honour Guard', type: 'unit' },
+        {
+          id: 'lieutenant',
+          name: 'Lieutenant',
+          type: 'model',
+          profiles: [ability('Leader', 'This model can be attached to the following units: VICTRIX HONOUR GUARD')],
+        },
+      ],
+    }),
+    attachments: {
+      cato: {
+        targets: [],
+        conditional: [
+          { kind: 'support' as const, targets: ['Victrix Honour Guard'], requires: [['calgar']] },
+          { kind: 'leader' as const, targets: ['Victrix Honour Guard'], excludes: ['calgar'] },
+        ],
+        named: ['Victrix Honour Guard'],
+      },
+    },
+  }
+  const beside = [{ entryId: 'cato', attachedTo: 1 }, { entryId: 'victrix' }, { entryId: 'lieutenant', attachedTo: 1 }]
+
+  it('supports beside the unit its support waits on', () => {
+    expect(attachmentErrors([...beside, { entryId: 'calgar' }], index)).toEqual([])
+  })
+
+  it('leads without it', () => {
+    expect(attachmentErrors(beside, index).map((error) => error.message)).toEqual([
+      'cannot lead Victrix Honour Guard, which is already led by Cato Sicarius',
+    ])
+  })
+})

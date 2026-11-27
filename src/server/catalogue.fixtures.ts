@@ -6,7 +6,11 @@
  * nothing here ships.
  */
 
+import { createHash } from 'node:crypto'
 import { buildIndex, type Catalogue, type CatalogueFile, type Modifier } from '../core/catalogue'
+import { textToken } from '../core/sourceText'
+import { factsKey, type TextFacts } from '../core/textFacts'
+import { textFactsOfVsData } from '../shared/vsDataEffects'
 import { characteristicNamesOf, detachmentsOf, factionsIn, type LoadedCatalogue } from '../shared/catalogueIndex'
 import { unitsIn } from '../shared/cataloguePicker'
 import type { DatasheetDetails, FactionContent, LoadedDatacards } from '../shared/datacards'
@@ -79,10 +83,14 @@ export const points = (value: number) => [{ name: 'pts', typeId: PTS, value }]
 
 /** A shelf of books, as the picker sees them. The first is the one being picked from. */
 export function shelfOf(...catalogues: Partial<Catalogue>[]): LoadedCatalogue {
+  return shelfWithFacts(new Map(), ...catalogues)
+}
+
+function shelfWithFacts(facts: ReadonlyMap<string, TextFacts>, ...catalogues: Partial<Catalogue>[]): LoadedCatalogue {
   const files = catalogues.map((catalogue, at): CatalogueFile => ({
     catalogue: { id: at ? `cat-${at}` : 'cat', name: at ? `Book ${at}` : 'Test catalogue', ...catalogue },
   }))
-  const index = buildIndex([system, ...files], 'test-revision')
+  const index = buildIndex([system, ...files], 'test-revision', facts.size ? facts : undefined)
   const datacards: LoadedDatacards = {
     factions: new Map(),
     detachmentRules: new Map(),
@@ -103,6 +111,29 @@ export function shelfOf(...catalogues: Partial<Catalogue>[]): LoadedCatalogue {
 
 /** A book of datasheets, as the picker sees one. */
 export const bookOf = (catalogue: Partial<Catalogue>) => shelfOf(catalogue)
+
+/** The token a fixture publishes a rules text as, as a snapshot publishes the catalogue's and the cards' texts. */
+export const fixtureToken = (text: string) =>
+  textToken({ file: '0000f17e', transform: 'plain', hash: createHash('sha256').update(text).digest('hex').slice(0, 16) })
+
+/**
+ * A book whose rules texts named in `blocks` are published as tokens (`fixtureToken`), as a snapshot publishes them,
+ * with the facts VS Data's effect blocks give each (`textFactsOfVsData`); every other text keeps its words.
+ */
+export function bookWithFacts(catalogue: Partial<Catalogue>, blocks: Readonly<Record<string, Readonly<Record<string, unknown>>>>) {
+  const facts = new Map(Object.entries(blocks).map(([text, given]) => [factsKey(fixtureToken(text)), textFactsOfVsData(given)]))
+  const published = (value: unknown): unknown =>
+    typeof value === 'string'
+      ? value in blocks
+        ? fixtureToken(value)
+        : value
+      : Array.isArray(value)
+        ? value.map(published)
+        : value && typeof value === 'object'
+          ? Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, published(entry)]))
+          : value
+  return shelfWithFacts(facts, published(catalogue) as Partial<Catalogue>)
+}
 
 export const offered = (loaded: LoadedCatalogue) => unitsIn(loaded, 'cat', '').map((unit) => unit.name)
 

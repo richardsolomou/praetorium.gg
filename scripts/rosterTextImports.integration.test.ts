@@ -227,7 +227,7 @@ describe.skipIf(!fs.existsSync(source))('genuine exports from other army builder
   it('arms each heavy-weapon Terminator with one melee weapon', () => {
     const file = official(
       'Space Marines',
-      'Gladius Task Force',
+      'Deathwatch Support',
       'Deathwatch Terminator Squad (200 points)\n  • 1x Deathwatch Terminator Sergeant\n    • 1x Storm Shield\n      1x Thunder Hammer\n  • 4x Deathwatch Terminator\n    • 3x Chainfist\n      3x Plasma Cannon\n      1x Storm Shield\n      1x Thunder Hammer',
     )
     expect(priced(file)?.errors).toEqual([])

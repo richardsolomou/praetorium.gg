@@ -7,7 +7,7 @@ import { boundedBytes } from '../../src/server/boundedBody'
 import { fetchWithRetry } from '../../src/server/fetch'
 import { DEFAULT_PUBLIC_ASSETS_BASE_URL } from '../../src/server/objectStorage'
 import { replaceDirectory } from '../../src/server/replaceDirectory'
-import { publicAssetsR2Client } from '../../src/server/r2Client'
+import { CI_OUTPUTS_BASE_URL, ciOutputsR2Client, publicAssetsR2Client } from '../../src/server/r2Client'
 import { errorText } from './errorText'
 
 const MAX_BYTES = 128 * 1024 * 1024
@@ -31,7 +31,9 @@ export function packCatalogueRuntime(directory: string, output: string, archive:
 export function storeUrl(storePath: string, environment: NodeJS.ProcessEnv = process.env) {
   const value = environment.CATALOGUE_RUNTIME_STORE?.trim()
   if (value === 'off') return null
-  return `${(value || DEFAULT_PUBLIC_ASSETS_BASE_URL).replace(/\/$/, '')}/${storePath}`
+  // A job that shares through the CI bucket reads it too, so it finds what earlier runs shared.
+  const base = value || (environment.CI_OUTPUTS_R2_ACCESS_KEY_ID ? CI_OUTPUTS_BASE_URL : DEFAULT_PUBLIC_ASSETS_BASE_URL)
+  return `${base.replace(/\/$/, '')}/${storePath}`
 }
 
 export const runtimeStoreUrl = (environment: NodeJS.ProcessEnv = process.env) => storeUrl(RUNTIME_STORE_PATH, environment)
@@ -122,7 +124,8 @@ type Uploader = { fetch: (url: string, init: RequestInit) => Promise<Response>; 
 
 function configuredUploader(): Uploader | null {
   try {
-    const client = publicAssetsR2Client()
+    // Chosen as `storeUrl` chooses: each client throws on a shared `R2_ACCOUNT_ID` without its own key.
+    const client = process.env.CI_OUTPUTS_R2_ACCESS_KEY_ID ? ciOutputsR2Client() : publicAssetsR2Client()
     return client ? { fetch: (url, init) => client.client.fetch(url, init), base: client.base } : null
   } catch (error) {
     console.error('The build output store is not writable here:', errorText(error))

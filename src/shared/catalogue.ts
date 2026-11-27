@@ -18,6 +18,7 @@ import {
 } from '../core/catalogue'
 import { comparableText, withoutText } from '../core/sourceText'
 import { attachmentRoles, referenceAttachmentOf } from '../core/attach'
+import type { PrintedTransport } from '../core/transport'
 import {
   flattenedModifiers,
   infoLinkHiddenByRules,
@@ -362,6 +363,12 @@ export function datasheetAbilitiesIn(loaded: LoadedCatalogue, catalogueId: strin
   return walked ? { name: walked.name, abilities: walked.abilities, enhancements: walked.enhancements, keywords: walked.keywords } : null
 }
 
+/** What the datasheet's transport carries: VS Data's typed capacity, or failing that what its printed rule reads as. */
+function transportCapacityOf(loaded: LoadedCatalogue, entryId: string, details: { transportCapacity?: PrintedTransport } | null) {
+  const capacity = loaded.vsProfiles?.transports?.[entryId] ?? details?.transportCapacity
+  return capacity ? { transportCapacity: capacity } : {}
+}
+
 function assemble(loaded: LoadedCatalogue, catalogueId: string, entryId: string, walked: Walked | null): Datasheet | null {
   if (!walked) return null
   const { root, name, catalogueOptions } = walked
@@ -388,7 +395,7 @@ function assemble(loaded: LoadedCatalogue, catalogueId: string, entryId: string,
     ...(details?.wargearGroups?.length ? { wargearGroups: details.wargearGroups } : {}),
     baseSize: baseSizeOf(loaded, entryId),
     transport: details?.transport ?? null,
-    ...(details?.transportCapacity ? { transportCapacity: details.transportCapacity } : {}),
+    ...transportCapacityOf(loaded, entryId, details),
     costs: details?.points ?? [],
     attachments: attachment
       ? attachmentRoles(attachment).flatMap((kind) =>
@@ -675,6 +682,7 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
   // A stat line VS Data prints for the datasheet replaces the catalogue's, which a roster's modifiers then change.
   const vsLines = vsStatLinesOf(
     loaded.vsProfiles,
+    catalogueId,
     entryId,
     name,
     walkedProfiles.map(({ profile }) => ({
@@ -1068,7 +1076,7 @@ function grantedAbilitiesInAttachedUnit(
           for (const profile of abilityProfilesOf(source, index, absent)) {
             const description = profileDescription(profile)
             const grants = parsedAbilityGrants(
-              description && abilityGrantsIn(description, index.textFacts),
+              description ? abilityGrantsIn(description, index.textFacts) : null,
               companionIndexes.length > 0,
               linkedAbilities,
               !hasConditionalAbilityLink,

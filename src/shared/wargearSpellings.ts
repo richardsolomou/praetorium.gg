@@ -2,6 +2,7 @@ import { wargearKey } from '../core/wargearNames'
 
 /** Reviewed spellings: wargear as VS Data names it, by BSData's name, both as `wargearKey`s, read where the unit's VS Data wargear holds VS Data's and not BSData's. */
 export const SPELLINGS: Record<string, string | string[]> = {
+  '1-powerblade-array': 'powerblade-array',
   'absolver-bolt-pistol': 'absolvor-bolt-pistol',
   'adrathic-combi-destructors': 'adrathic-combi-destructor',
   agonizer: 'agoniser',
@@ -16,6 +17,7 @@ export const SPELLINGS: Record<string, string | string[]> = {
   'chirugeons-tools': 'chirurgeons-tools',
   'close-combat-weapons': 'close-combat-weapon',
   'combi-bolter': 'plague-combi-bolter',
+  'corsair-blaster': 'blaster',
   'commisars-pistol': 'commissars-pistol',
   'death-korps-of-krieg-medi-pack': 'death-korps-medi-pack',
   'distendible-jaw': 'distensible-jaw',
@@ -38,6 +40,7 @@ export const SPELLINGS: Record<string, string | string[]> = {
   'novitiate-autogun': 'autogun',
   'nuncio-aquila': 'nuncio-acquila',
   'pan-spectral-scanner': 'panspectral-scanner',
+  'preceptor-multi-laser': 'questoris-multi-laser',
   'relic-great-axe': 'relic-greataxe',
   'scout-sniper-rifle': 'sniper-rifle',
   'seeker-tongues': 'exalted-seeker-tongues',

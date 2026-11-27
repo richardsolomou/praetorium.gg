@@ -33,6 +33,7 @@ import { withUnitSpread } from '../core/unitSpread'
 import { wargearOf } from '../core/wargear'
 import { rulesReferencedIn } from './catalogueRules'
 import { vsUnitRecords } from '../core/vsDataUnit'
+import { vsFirstPickOf } from './vsDataPicks'
 import { buildPick, vsDefinitionsOf, vsPickKeywords, vsPickPrices } from './vsDataBuild'
 import { contextualAbilityNamesIn, datasheetIn, modelLinesOf, offeredPicksIn, toughnessOf } from './catalogue'
 import { combatCarriers } from '../core/combatLoadout'
@@ -804,6 +805,7 @@ function calculateRoster(
         const unit = pickedByKey.get(key)
         return unit ? keywordNamesOf(unit) : undefined
       }),
+      data.detachmentIds,
     ),
     // King of the Colosseum's own Detachment count, which the player can waive, stands for VS Data's.
     ...(vsData?.filter(
@@ -833,6 +835,7 @@ function calculateRoster(
   const army = armyIds(
     picked.map((unit) => unit.entryId),
     loaded.index,
+    data.detachmentIds,
   )
 
   if (mode === 'assessment')
@@ -888,6 +891,7 @@ function calculateRoster(
       ? unitIdsIn(loaded, data.catalogueId, { battleSize: data.limit, waivedRules: data.waivedRules, nonMatchedPlay: true }).map((id) => ({
           id,
           ...contextualUnitLimit(loaded, data.catalogueId, id, data.limit, data.waivedRules ?? [], selections),
+          vs: vsFirstPickOf(loaded, data, id),
         }))
       : undefined,
     revision: loaded.index.revision,
@@ -1040,7 +1044,7 @@ function calculateRoster(
           loaded.index.textFacts,
         ),
       )
-      const attachment = { ...built, attachment: inArmy(built.attachment, army) }
+      const attachment = { ...built, attachment: inArmy(built.attachment, army, unitKeywords) }
       return {
         key: unit.key,
         entryId: unit.entryId,

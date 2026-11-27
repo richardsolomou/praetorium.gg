@@ -243,11 +243,12 @@ test('the roster builder prices units and opens datasheets on the device once it
   await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/ })
   await waitForOfflineApp(page)
   await page.reload()
-  // Server function ids hash their file and export: `datasheet` in references.ts and `priceRoster` in rosters.ts.
+  // Server function ids hash their file and export: the two datasheet reads in references.ts and `priceRoster` in rosters.ts.
   const DATASHEET = '50de9b8fbcf16262f1323f158c2bd2a5e6d32b2eb6e5a6ebd58064efaadf69b8'
+  const ROSTER_DATASHEET = '2f319fb6f0bf0f3568b46609de887095fccbb584eef2642e97c4e620fab6f4df'
   const PRICE = '2305a40a0317ee9af2a331b9753b8bc50d8b6fea03575e255596193749f7ac88'
   // The ids must name real functions for the checks below to mean anything; the server fails an unknown id.
-  for (const id of [DATASHEET, PRICE]) expect((await page.request.get(`/_serverFn/${id}`)).status()).not.toBe(500)
+  for (const id of [DATASHEET, ROSTER_DATASHEET, PRICE]) expect((await page.request.get(`/_serverFn/${id}`)).status()).not.toBe(500)
   const asked: string[] = []
   page.on('request', (request) => asked.push(request.url().split('/_serverFn/')[1]?.slice(0, 64) ?? ''))
   const picker = page.getByLabel('Add a unit')
@@ -260,7 +261,7 @@ test('the roster builder prices units and opens datasheets on the device once it
     await picker.fill(unit)
     await page.getByRole('button', { name: `View ${unit} datasheet` }).click()
     await expect(page.locator('aside[aria-label="Datasheet"]')).toContainText(unit)
-    expect(asked).not.toContain(DATASHEET)
+    expect(asked.filter((id) => id === DATASHEET || id === ROSTER_DATASHEET)).toEqual([])
   }).toPass({ timeout: 60_000 })
   asked.length = 0
   await add(page, 'Immortals')

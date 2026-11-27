@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { DbConnection, tables } from '../spacetime/generated'
 import { SpacetimeOperator } from './spacetimeOperator'
 import { LOCKED_ROSTER_MESSAGE } from '../core/rosterLock'
@@ -320,6 +320,72 @@ it.skipIf(!url || !database || !token)('saves edits again once unlocked and star
   } finally {
     for (const id of [input.id, copy]) await store.deleteRoster(id, userId)
   }
+})
+
+describe('kept translations', () => {
+  const kept = [{ entryId: 'unit-proof', vs: { models: { 'host.unit-proof': 1 }, options: {} } }]
+  /** Runs against a fresh locked list, so a write that skipped the lock shows, given the list as read. */
+  async function held(
+    run: (store: SpacetimeOperator, input: ReturnType<typeof lockedInput>, read: { picks: string; updatedAt: number }) => Promise<unknown>,
+  ) {
+    const store = new SpacetimeOperator(url!, database!, token!)
+    const input = lockedInput(randomUUID())
+    try {
+      await store.saveRoster(input)
+      await store.setRosterLocked(input.id, input.userId, true, input.now + 1)
+      return await run(store, input, (await store.roster(input.id))!)
+    } finally {
+      await store.deleteRoster(input.id, input.userId)
+    }
+  }
+
+  it.skipIf(!url || !database || !token)('are stored only by the app server', async () => {
+    const guest = (await (await fetch(new URL('/v1/identity', url), { method: 'POST' })).json()) as { token: string }
+    const outsider = new SpacetimeOperator(url!, database!, guest.token)
+    const outcome = await held(async (store, input, read) => ({
+      call: await outsider.keepRosterTranslations(input.id, input.userId, kept, read).then(
+        () => 'stored',
+        () => 'refused',
+      ),
+      picks: (await store.roster(input.id))?.picks,
+    }))
+    expect(outcome).toEqual({ call: 'refused', picks: lockedInput('').picks })
+  })
+
+  it.skipIf(!url || !database || !token)('are stored past the lock', async () => {
+    const outcome = await held(async (store, input, read) => {
+      await store.keepRosterTranslations(input.id, input.userId, kept, read)
+      return store.roster(input.id).then((row) => row && { picks: row.picks, locked: row.locked })
+    })
+    expect(outcome).toEqual({ picks: JSON.stringify(kept), locked: true })
+  })
+
+  it.skipIf(!url || !database || !token)('keep the version they were stored at', async () => {
+    const outcome = await held(async (store, input, read) => {
+      await store.keepRosterTranslations(input.id, input.userId, kept, read)
+      return (await store.roster(input.id))?.updatedAt === read.updatedAt
+    })
+    expect(outcome).toBe(true)
+  })
+
+  it.skipIf(!url || !database || !token)('are not stored once the picks changed since they were read', async () => {
+    const outcome = await held(async (store, input, read) => {
+      await store.keepRosterTranslations(input.id, input.userId, kept, read)
+      return store.keepRosterTranslations(input.id, input.userId, [], read)
+    })
+    expect(outcome).toBe(false)
+  })
+
+  it.skipIf(!url || !database || !token)('are not stored once the list moved on since it was read', async () => {
+    const outcome = await held(async (store, input, read) => {
+      await store.setRosterVisibility(input.id, input.userId, 'unlisted', input.now + 2)
+      return {
+        call: await store.keepRosterTranslations(input.id, input.userId, kept, read),
+        picks: (await store.roster(input.id))?.picks,
+      }
+    })
+    expect(outcome).toEqual({ call: false, picks: lockedInput('').picks })
+  })
 })
 
 it.skipIf(!url || !database || !token)('streams public roster changes to an anonymous reader without private signals', async () => {

@@ -1,5 +1,56 @@
 # praetorium
 
+## 0.280.6 (2026-11-27)
+
+### Patch Changes
+
+- 2a8c901: [rosters] A Titanicus Traitoris army's Titans are checked as the Chaos Titans they are, so a list still holding a Detachment is told the army takes none.
+- c47ae77: [rosters] A generic Space Marines roster can no longer take a unit that belongs to one chapter, such as Marneus Calgar or Kor'sarro Khan, as the official app does.
+- c47ae77: [rosters] Warhammer Legends and Crucible units can be taken as allies wherever the official app allows that faction as an ally.
+
+## 0.280.5 (2026-11-27)
+
+### Patch Changes
+
+- 967efc9: [rosters] Unit datasheets open in large rosters.
+- 967efc9: [rosters] Loading the roster library keeps the page in place when another tab changes the sort or grouping.
+
+## 0.280.4 (2026-11-27)
+
+### Patch Changes
+
+- 1d58eb2: [rosters] A Heretic Astartes Daemon Prince or Master of Possession saved without a Mark of Chaos now asks for one, as the official app does.
+- d83f4a4: [simulator] A unit built from the official app's data fights with the wargear you gave it, not its default loadout.
+- d83f4a4: [rosters] Units you add now take their sizes, wargear options and points from the official app's data, with each option worded as the app words it.
+- d97bd07: [simulator] Optimizing a unit built from the official app's data searches the wargear the app offers it, and keeps the loadout it finds.
+
+## 0.280.3 (2026-11-27)
+
+### Patch Changes
+
+- e3538b5: [app] The privacy policy now says that the table translating saved unit setups into the current army data, which holds no account, list or game, is kept when an account is deleted.
+
+## 0.280.2 (2026-11-27)
+
+### Patch Changes
+
+- 80c311e: [rosters] A Warhound, Reaver, Warbringer Nemesis or Warlord Titan in a Chaos army is checked and priced as the Chaos Titan, not refused as an Imperial one.
+- 5624b2a: [rosters] The unit picker groups allied units as the official app does, so Deathwatch units in a Space Marines chapter show as allies and a Death Guard army's daemons as its own.
+- 5624b2a: [rosters] The unit picker no longer offers units the official app doesn't let an army take, such as Librarians to Black Templars, Apothecaries to Space Wolves or a Taurox Prime to Genestealer Cults.
+- f3350e7: [rosters] Lists with a Titan allied to a chaos army, or an allied Crucible unit such as a Deathwatch Agent, are no longer refused.
+- 8602541: [rosters] A unit's size buttons step between the sizes its datasheet fields, as Boyz go straight from 10 to 20, instead of passing through sizes it can't take.
+- 8602541: [rosters] A newly added Victrix Honour Guard starts at 3 models instead of an illegal 1.
+- 3465014: [rosters] Marneus Calgar can lead Terminator Squads, Terminator Assault Squads, both Eradicator Squads, Vanguard Veteran Squads and Victrix Honour Guard, and a Captain on Bike can lead Ravenwing Black Knights, as the official app allows.
+- 3465014: [rosters] In Pactbound Zealots, a Character can only join a unit that has the same Mark of Chaos, as the official app says.
+- 3465014: [battles] Units can now embark in a Corvus Blackstar and in Legends transports whose capacity Praetorium couldn't read before, such as the Terrax-pattern Termite, Razorback and Stormraven Gunship.
+- 3465014: [battles] A Space Marines Repulsor or Repulsor Executioner that a saved Black Templars list still holds no longer carries Jump Pack models, as the official app says; the Black Templars' own Repulsor still seats them at 2 spaces.
+
+## 0.280.1 (2026-11-27)
+
+### Patch Changes
+
+- 163c8c7: [battles] Closing or reloading a battle in your browser while your last actions are still sending now asks first, so they aren't lost.
+
 ## 0.280.0 (2026-11-27)
 
 ### Minor Changes

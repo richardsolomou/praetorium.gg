@@ -2,7 +2,7 @@ import { expect, test } from './test'
 import {
   attachRoster,
   chooseTracking,
-  createRoster,
+  seededRoster,
   followLink,
   joinBattle,
   newBattle,
@@ -18,9 +18,9 @@ test('a draft battle fills through its link and leaves the drafts once every arm
   const opponent = await (await browser.newContext()).newPage()
   const opponentName = uniqueName('Draft opponent')
   await signUp(opponent, opponentName)
-  const opponentRoster = await createRoster(opponent, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Joining army' })
+  const opponentRoster = await seededRoster(opponent, { faction: 'Death Guard', detachment: 'Shamblerot Vectorium', name: 'Joining army' })
   await signUp(host, uniqueName('Draft host'))
-  const hostRoster = await createRoster(host, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Drafting army' })
+  const hostRoster = await seededRoster(host, { faction: 'Necrons', detachment: 'Awakened Dynasty', name: 'Drafting army' })
 
   const url = await newBattle(host)
   const path = new URL(url).pathname
@@ -62,7 +62,7 @@ test('a draft battle fills through its link and leaves the drafts once every arm
 test('a place you play goes back to the link after its army is chosen, and a draft is deleted from its row', async ({ browser }) => {
   const host = await (await browser.newContext()).newPage()
   await signUp(host, uniqueName('Played host'))
-  const roster = await createRoster(host, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Both armies' })
+  const roster = await seededRoster(host, { faction: 'Necrons', detachment: 'Awakened Dynasty', name: 'Both armies' })
   await newBattle(host)
   const draft = host.getByRole('heading', { name: /^Set up the battle/ }).getByText('Draft', { exact: true })
   await chooseTracking(host)

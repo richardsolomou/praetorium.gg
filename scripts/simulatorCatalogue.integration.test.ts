@@ -8,8 +8,7 @@ import { combatRuleAppliesTo, combatRuleChoices, combatRuleSelections, type Comb
 import { combatAttacks } from '../src/core/combatScenario'
 import { combatUnitKeywords, combatUnitTarget } from '../src/core/combatUnit'
 import { buildUnit, type RosterPick } from '../src/core/roster'
-import { snapshotWords } from '../src/server/sourceTexts'
-import { combatantSnapshot, withReadRules } from '../src/shared/rosterGradeMeasures'
+import { combatantSnapshot } from '../src/shared/rosterGradeMeasures'
 import { combatUnitsFor } from '../src/shared/combatUnits'
 import { combatLoadoutCandidates, EXHAUSTIVE_STATES } from '../src/shared/combatLoadouts'
 import { rosterCombatant } from '../src/shared/rosterCombatRules'
@@ -20,13 +19,11 @@ const directory = process.env.CATALOGUE_DIR ?? 'catalogue-data'
 describe.skipIf(!fs.existsSync(directory))('simulator catalogue projections', () => {
   let snapshot: ReturnType<typeof sharedSnapshot>
   let index: ReturnType<typeof combatUnitsFor>
-  let words: ReturnType<typeof snapshotWords>
 
   // About 15 seconds alone, but CI runs it beside every other integration suite on a shared runner.
   beforeAll(() => {
     snapshot = sharedSnapshot(directory)
     index = combatUnitsFor(snapshot.catalogue, snapshot.rules)
-    words = snapshotWords(directory)
   }, 180_000)
 
   const unit = (faction: string, name: string) => {
@@ -59,7 +56,7 @@ describe.skipIf(!fs.existsSync(directory))('simulator catalogue projections', ()
   }
   type Side = { snapshot: CombatantSnapshot; rules: CombatRule[] }
   /**
-   * A roster's unit as the simulator fields it, with rules read from the snapshot's words. `rules` picks a rule's
+   * A roster's unit as the simulator fields it, with rules read from VS Data's facts. `rules` picks a rule's
    * option by its label, or `false` to turn it off; `spreads` name a choice and its options.
    */
   const side = (
@@ -90,10 +87,12 @@ describe.skipIf(!fs.existsSync(directory))('simulator catalogue projections', ()
     const detachmentIds = detachment
       ? [snapshot.catalogue.detachments.get(book.catalogueId)!.options.find((option) => option.name === detachment)!.id]
       : []
-    const projection = withReadRules(
-      rosterCombatant(snapshot.catalogue, snapshot.rules, { catalogueId: book.catalogueId, detachmentIds, picks, pickIndex })!,
-      words,
-    )
+    const projection = rosterCombatant(snapshot.catalogue, snapshot.rules, {
+      catalogueId: book.catalogueId,
+      detachmentIds,
+      picks,
+      pickIndex,
+    })!
     const all = [...projection.rules, ...projection.companions.flatMap((member) => member.rules)]
     const selections = Object.fromEntries(
       Object.entries(rules).map(([name, label]) => {

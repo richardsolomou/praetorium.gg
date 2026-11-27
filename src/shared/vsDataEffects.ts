@@ -570,13 +570,12 @@ const uncalculated = (reading: CombatReading) => !reading.compiled && !reading.l
  * VS Data has such a rule reported as not calculated, which the simulator does only for a rule with roles. Nothing the
  * rule does is read from the words.
  */
-export function combatOfVsDataOrWords(facts: CombatFacts | null | undefined, words: () => CombatFacts | null | undefined) {
+export function combatOfVsDataOrWords(facts: CombatFacts | null | undefined, roles: () => CombatReading['roles']): CombatFacts | null {
   if (facts && !facts.leaves.some(uncalculated)) return facts
-  const read = words()
-  const roles = [...new Set(read?.leaves.flatMap((leaf) => leaf.roles) ?? [])]
-  if (!roles.length) return facts ?? null
-  const unread: CombatReading = { compiled: null, legacy: [], legacyDefault: 0, roles }
-  if (!facts) return { judging: read!.judging, readings: read!.readings, leaves: read!.leaves.map(() => unread) }
+  const read = roles()
+  if (!read.length) return facts ?? null
+  const unread: CombatReading = { compiled: null, legacy: [], legacyDefault: 0, roles: read }
+  if (!facts) return { ...UNREAD, leaves: [unread] }
   return { ...facts, leaves: facts.leaves.map((leaf) => (uncalculated(leaf) ? unread : leaf)) }
 }
 
@@ -729,8 +728,9 @@ export function textFactsOfVsData(blocks: Readonly<Record<string, unknown>>): Te
         ]
       : [],
   )
+  // A bearer's weapons are among its own unit's, which a datasheet shows them with.
   const weaponGrantTo = (to: 'own-unit' | 'led-unit') => {
-    const grant = weaponAbilities.find((candidate) => candidate.to === to)
+    const grant = weaponAbilities.find((candidate) => candidate.to === to || (to === 'own-unit' && candidate.to === 'bearer'))
     return grant && { keyword: titleCaseAbility(grant.ability), profileTypes: grant.attacks.map((attacks) => PROFILE[attacks]) }
   }
   const picked: PickedGrant[] = [

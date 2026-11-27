@@ -8,7 +8,8 @@ import { lockedRosterRefusal } from '../../core/rosterLock'
 import { ROSTER_BATCH_CHANGES } from '../../core/rosterLibrary'
 import { rosterDifferences } from '../../core/rosterDifferences'
 import { convertedSetup } from '../../core/rosterSetup'
-import { datasheetSchema, saveRosterSchema, type PriceInput } from '../../contracts/schemas'
+import { datasheetSchema, picksSchema, saveRosterSchema, type PriceInput } from '../../contracts/schemas'
+import { withHeldVs } from '../../core/savedPicks'
 import * as server from '../../server/functions'
 import { syncRoster } from '../../server/functions/offline'
 import { builtConstruction, hasLocalConstruction, localConstruction } from './construction'
@@ -269,7 +270,8 @@ export async function saveRoster(
     locked: previous?.locked ?? false,
     archived: previous?.archived ?? false,
   }
-  const refusal = lockedRosterRefusal(previous, roster)
+  // The device's copy can hold translations it was served, which a save never sends, so both sides compare as stored.
+  const refusal = lockedRosterRefusal(previous && { ...previous, picks: picksSchema.parse(previous.picks) }, roster)
   if (refusal) throw new Error(refusal)
   if (roster.automaticName && !navigator.onLine) await localConstruction(roster.catalogueId)
   const price = roster.automaticName ? pricedRoster(roster) : null
@@ -322,6 +324,8 @@ export async function copyRoster(args: Parameters<typeof server.copyRoster>[0]):
   const { rosterVisibility } = await playerDefaults()
   const input = {
     ...draftFor(roster),
+    // A copy keeps, as its own, the translations its reader was served.
+    picks: roster.picks.map(withHeldVs),
     ...(args.data.setup ? convertedSetup(args.data.setup) : {}),
     id: undefined,
     name,
