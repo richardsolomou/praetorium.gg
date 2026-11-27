@@ -494,7 +494,14 @@ it('reads army-construction numbers without trusting malformed alternatives', ()
       JSON.stringify({
         name: faction,
         datasheets: [],
-        detachments: [{ name: { en: 'Shared Detachment' }, detachmentPoints: points, forceDisposition: { name: { en: 'Disruption' } } }],
+        detachments: [
+          {
+            id: 'a1b2-c3d4',
+            name: { en: 'Shared Detachment' },
+            detachmentPoints: points,
+            forceDisposition: { name: { en: 'Disruption' } },
+          },
+        ],
         enhancements: [{ name: { en: 'Shared Relic' }, detachment: 'Shared Detachment', cost, description: { en: `${faction} relic.` } }],
         rules: {
           detachment: [
@@ -542,7 +549,7 @@ it('reads army-construction numbers without trusting malformed alternatives', ()
     factionScopedEnhancement: [
       { name: 'Shared Relic', detachment: 'Shared Detachment', points: 10, description: 'One relic.', eligibility: null },
     ],
-    factionScopedRule: [{ name: 'Shared Rule', description: 'One rule.', aliases: ['gdc.detachment.rule.undefined.shared.rule'] }],
+    factionScopedRule: [{ name: 'Shared Rule', description: 'One rule.', aliases: ['gdc.detachment.rule.a1b2.c3d4.shared.rule'] }],
   })
 })
 
