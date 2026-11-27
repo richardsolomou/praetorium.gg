@@ -240,10 +240,10 @@ export function detachmentPointsError(
   allowance: number | null,
   waived: readonly string[] = [],
 ): string | null {
-  if (detachments.length <= 1 || allowance === null || !enforces(waived, 'detachment-points')) return null
+  if (allowance === null || !enforces(waived, 'detachment-points')) return null
   const spent = detachments.reduce((total, detachment) => total + (detachment.points ?? 0), 0)
   return spent > allowance
-    ? `This combination costs ${spent} DP; multiple detachments at this battle size may cost at most ${allowance} DP.`
+    ? `${detachments.length === 1 ? 'This detachment costs' : 'This combination costs'} ${spent} DP; detachments at this battle size may cost at most ${allowance} DP.`
     : null
 }
 

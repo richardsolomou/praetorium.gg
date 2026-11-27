@@ -1,11 +1,12 @@
-import { QueryClient } from '@tanstack/react-query'
+import { QueryClient, QueryObserver } from '@tanstack/react-query'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  batchedInvalidation,
   coalescedBy,
   invalidateAdminProductQueries,
-  invalidateProductQueries,
-  invalidatePublicProductQueries,
   invalidateSyncedQueries,
+  productFamilies,
+  publicProductFamilies,
 } from './productSignals'
 
 it('refreshes the home roster shelf and saved lists after a roster signal without reloading catalogue data', async () => {
@@ -15,7 +16,7 @@ it('refreshes the home roster shelf and saved lists after a roster signal withou
   }
   client.setQueryData(['saved-roster-page', 'roster-1'], {})
 
-  await invalidateProductQueries(client, 'rosters')
+  await batchedInvalidation(client)(productFamilies('rosters'))
 
   expect([
     client.getQueryState(['home-rosters'])?.isInvalidated,
@@ -30,7 +31,7 @@ it('refreshes both sides of a friendship without reloading saved rosters', async
   const client = new QueryClient()
   for (const key of ['friendships', 'friend-battles', 'opponents', 'player-search', 'home-rosters']) client.setQueryData([key], {})
 
-  await invalidateProductQueries(client, 'friends')
+  await batchedInvalidation(client)(productFamilies('friends'))
 
   expect(
     ['friendships', 'friend-battles', 'opponents', 'player-search', 'home-rosters'].map(
@@ -43,8 +44,8 @@ it('refreshes battle feeds and standings after a shared battle changes without r
   const client = new QueryClient()
   for (const key of ['public-battles', 'battle', 'report', 'standings', 'home-rosters']) client.setQueryData([key], {})
 
-  await invalidatePublicProductQueries(client, 'battles')
-  await invalidatePublicProductQueries(client, 'standings')
+  await batchedInvalidation(client)(publicProductFamilies('battles'))
+  await batchedInvalidation(client)(publicProductFamilies('standings'))
 
   expect(
     ['public-battles', 'battle', 'report', 'standings', 'home-rosters'].map((key) => client.getQueryState([key])?.isInvalidated),
@@ -55,8 +56,8 @@ it('refreshes public roster and sealed event readers without touching catalogue 
   const client = new QueryClient()
   for (const key of ['player-rosters', 'shared-roster', 'sealed-events', 'sealed-event', 'faction-index']) client.setQueryData([key], {})
 
-  await invalidatePublicProductQueries(client, 'rosters')
-  await invalidatePublicProductQueries(client, 'sealed-events')
+  await batchedInvalidation(client)(publicProductFamilies('rosters'))
+  await batchedInvalidation(client)(publicProductFamilies('sealed-events'))
 
   expect(
     ['player-rosters', 'shared-roster', 'sealed-events', 'sealed-event', 'faction-index'].map(
@@ -69,7 +70,7 @@ it('takes a roster out of public army discovery when its owner changes who can r
   const client = new QueryClient()
   client.setQueryData(['discovered-rosters', {}], {})
 
-  await invalidatePublicProductQueries(client, 'rosters')
+  await batchedInvalidation(client)(publicProductFamilies('rosters'))
 
   expect(client.getQueryState(['discovered-rosters', {}])?.isInvalidated).toBe(true)
 })
@@ -78,7 +79,7 @@ it.each(['rosters', 'sealed-events'] as const)('refreshes sealed event roster sh
   const client = new QueryClient()
   const key = ['sealed-event-roster-sharing', 'tournament', 'event', 'owner']
   client.setQueryData(key, {})
-  await invalidateProductQueries(client, scope)
+  await batchedInvalidation(client)(productFamilies(scope))
   expect(client.getQueryState(key)?.isInvalidated).toBe(true)
 })
 
@@ -88,7 +89,7 @@ it('refreshes opponent choices when a practice account is removed', async () => 
   client.setQueryData(['player-search', 'practice'], [])
   client.setQueryData(['faction-index'], {})
 
-  await invalidatePublicProductQueries(client, 'opponents')
+  await batchedInvalidation(client)(publicProductFamilies('opponents'))
 
   expect([
     client.getQueryState(['opponents'])?.isInvalidated,
@@ -114,9 +115,24 @@ it('leaves standings to the standings signal when a seated player’s battle cha
   const client = new QueryClient()
   for (const key of ['battles', 'standings', 'player-rankings']) client.setQueryData([key], {})
 
-  await invalidateProductQueries(client, 'battles')
+  await batchedInvalidation(client)(productFamilies('battles'))
 
   expect(['battles', 'standings', 'player-rankings'].map((key) => client.getQueryState([key])?.isInvalidated)).toEqual([true, false, false])
+})
+
+it('fetches an open query once when one write signals it through several scopes', async () => {
+  const client = new QueryClient()
+  const queryFn = vi.fn(async () => ({}))
+  const unsubscribe = new QueryObserver(client, { queryKey: ['group', 'token'], queryFn, staleTime: Infinity }).subscribe(() => {})
+  await vi.waitFor(() => expect(queryFn).toHaveBeenCalledTimes(1))
+  const invalidate = batchedInvalidation(client)
+
+  void invalidate(productFamilies('sealed-events'))
+  void invalidate(productFamilies('groups'))
+  await invalidate(publicProductFamilies('groups'))
+  unsubscribe()
+
+  expect(queryFn).toHaveBeenCalledTimes(2)
 })
 
 describe('refreshes after local work syncs', () => {

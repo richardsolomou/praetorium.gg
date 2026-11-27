@@ -49,7 +49,7 @@ export function TeamWarlordPanel({
               onClick={() => {
                 if (!chosen) choose.mutate(userId)
               }}
-              className={`flex min-h-12 items-center justify-between border px-3 text-left font-bold uppercase disabled:cursor-wait ${
+              className={`flex min-h-12 items-center justify-between border px-3 text-left font-semibold disabled:cursor-wait ${
                 chosen ? 'border-info text-info' : 'border-edge hover:border-info hover:text-bone'
               }`}
             >

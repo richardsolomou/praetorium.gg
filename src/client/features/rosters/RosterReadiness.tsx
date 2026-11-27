@@ -90,7 +90,7 @@ function ReadinessRow({ row, nameOf }: { row: Readiness['datasheets'][number]; n
   ].filter(Boolean)
   return (
     <li data-readiness-unit={row.name} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 text-sm">
-      <span className="min-w-0 flex-1 font-semibold break-words text-bone uppercase">
+      <span className="min-w-0 flex-1 font-semibold break-words text-bone">
         {row.name}
         {row.units > 1 ? <span className="ml-1 text-xs font-normal text-dim normal-case">× {row.units} units</span> : null}
       </span>

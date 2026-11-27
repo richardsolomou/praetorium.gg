@@ -1,4 +1,6 @@
 import { expect, it } from 'vitest'
+import type { CombatRule } from '../core/combatRules'
+import { combatReadingFor } from '../core/combatReading'
 import { combatOfVsDataOrWords, textFactsOfVsData } from './vsDataEffects'
 
 const reroll = { role: 'attacker', attacks: ['melee'], rolls: { hitReroll: 'ones' } }
@@ -109,6 +111,13 @@ it('leaves out a grant only the units the player picks gain, and keeps the rest 
   expect(facts.abilityGrants!.grants).toEqual([{ written: 'Stealth', recipient: 'unit' }])
 })
 
+it('offers a grant only the units the player picks gain, for the units it names', () => {
+  const picked = { ability: 'Deep Strike', to: 'unit', picked: { count: 1 }, conditional: true, recipientKeywords: ['GRAVIS', 'PHOBOS'] }
+  expect(textFactsOfVsData({ grants: { abilities: [picked] } }).pickedGrants).toEqual([
+    { ability: 'Deep Strike', recipients: ['GRAVIS', 'PHOBOS'], count: 1 },
+  ])
+})
+
 it('keeps a conditional grant whose condition is the unit it attaches to', () => {
   const grant = { ability: 'Deep Strike', to: 'bearer', conditional: true, counterpart: ['WORLD EATERS POSSESSED'] }
   const facts = textFactsOfVsData({ grants: { abilities: [grant] } })
@@ -166,4 +175,23 @@ it('shows an ability an effect gives some models as theirs alone', () => {
   const stealth = { role: 'defender', attacks: ['ranged'], ability: 'Stealth', modelKeywords: ['INFANTRY'] }
   const facts = textFactsOfVsData(combat({ choices: [{ conditions: [], effects: [stealth] }], default: 1 }))
   expect(facts.abilityGrants!.grants).toEqual([{ name: 'Stealth', recipient: 'models', models: 'INFANTRY' }])
+})
+
+it('answers a keyword question VS Data spells with a typographic apostrophe', () => {
+  const facts = textFactsOfVsData({
+    combat: {
+      readings: [{ choices: [{ conditions: [], effects: [reroll] }], default: 1 }, {}],
+      trees: [[{ ask: { unitHas: 'T’AU EMPIRE' }, yes: 1, no: 2 }, { reading: 0 }, { reading: 1 }]],
+      contexts: { 'own.many.known': 0 },
+    },
+  }).combat!
+  const rule = {
+    id: 'rule',
+    name: 'Rule',
+    source: 'Unit',
+    description: '',
+    scope: 'unit',
+    keywords: ["T'au Empire", 'Infantry'],
+  } as CombatRule
+  expect(combatReadingFor(facts, rule)!.compiled).not.toBeNull()
 })

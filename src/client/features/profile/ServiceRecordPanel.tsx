@@ -446,7 +446,7 @@ function RecordTable<T>({
       <div className="mt-1 border-t border-edge">
         <table className="w-full table-fixed border-collapse text-sm">
           <thead>
-            <tr className="border-b border-edge text-left text-2xs tracking-eyebrow text-faint uppercase">
+            <tr className="border-b border-edge text-left text-xs font-medium text-faint">
               <th scope="col" className="px-2 py-1.5 font-normal">
                 Name
               </th>

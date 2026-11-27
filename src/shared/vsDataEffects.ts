@@ -2,9 +2,9 @@ import { z } from 'zod'
 import { uniqueBy } from '../core/collections'
 import type { CombatFacts } from '../core/combatReading'
 import type { CombatReading, CombatRuleChoice, CombatRuleEffect, CombatTarget } from '../core/combatRules'
-import type { RuleQuestion } from '../core/combatRuleCompiler'
+import { combatTextKey, type RuleQuestion } from '../core/combatRuleCompiler'
 import type { ReminderTiming } from '../core/reminders'
-import type { TextFacts, WrittenAbilityGrant } from '../core/textFacts'
+import type { PickedGrant, TextFacts, WrittenAbilityGrant } from '../core/textFacts'
 import { titleCaseAbility } from './catalogueAbilityGrants'
 
 /**
@@ -346,11 +346,12 @@ function placementOf(context: string) {
 
 const lower = (text: string) => text.toLocaleLowerCase('en-GB')
 
+/** A question keyed as the rule's own keywords are (`ruleAnswers`), so either apostrophe and a faction prefix match. */
 function questionOf(question: z.infer<typeof questionSchema>): RuleQuestion {
   if ('psychic' in question) return 'psychic'
-  if ('unitHas' in question) return `covers:${lower(question.unitHas)}`
-  if ('everyModelHas' in question) return `every:${lower(question.everyModelHas)}`
-  return `is:${lower(question.keyword)}`
+  if ('unitHas' in question) return `covers:${combatTextKey(question.unitHas)}`
+  if ('everyModelHas' in question) return `every:${combatTextKey(question.everyModelHas)}`
+  return `is:${combatTextKey(question.keyword)}`
 }
 
 /** Stands for the rule's source in a label, as `combatReading.ts` records it. */
@@ -686,6 +687,12 @@ export function textFactsOfVsData(blocks: Readonly<Record<string, unknown>>): Te
     const grant = weaponAbilities.find((candidate) => candidate.to === to || (to === 'own-unit' && candidate.to === 'bearer'))
     return grant && { keyword: titleCaseAbility(grant.ability), profileTypes: grant.attacks.map((attacks) => PROFILE[attacks]) }
   }
+  const picked: PickedGrant[] = [
+    ...(grants?.abilities ?? []).map((grant) => ({ ...grant, given: grant.ability })),
+    ...(grants?.keywords ?? []).map((grant) => ({ ...grant, given: titleCaseAbility(grant.keyword) })),
+  ].flatMap(({ given, to, picked: pick, recipientKeywords }) =>
+    pick && to === 'unit' ? [{ ability: given, recipients: recipientKeywords ?? [], ...pick }] : [],
+  )
   const ownWeaponGrant = weaponGrantTo('own-unit')
   const ledWeaponGrant = weaponGrantTo('led-unit')
   return {
@@ -693,6 +700,7 @@ export function textFactsOfVsData(blocks: Readonly<Record<string, unknown>>): Te
       ? { abilityGrants: statementOf([...(grants?.abilities ?? []), ...shown], grants?.keywords) }
       : {}),
     ...(grants && grants.normalized !== undefined ? { normalizedAbilityGrants: statementOf(grants.normalized?.abilities) } : {}),
+    ...(picked.length ? { pickedGrants: picked } : {}),
     ...(weaponGrants.length ? { weaponGrants } : {}),
     ...(ownWeaponGrant ? { ownWeaponGrant } : {}),
     ...(ledWeaponGrant ? { ledWeaponGrant } : {}),

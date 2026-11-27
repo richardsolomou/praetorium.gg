@@ -1,4 +1,5 @@
-import { isWrittenInvulnerableSave } from '../core/datasheetStructure'
+import type { PickedGrant } from '../core/textFacts'
+import { datasheetCharacteristicKind, isWrittenInvulnerableSave } from '../core/datasheetStructure'
 import { abilityKey } from './vsDataAbilities'
 import { withoutFactionPrefix } from '../core/name'
 import { canonicalDetachmentName } from '../core/detachmentName'
@@ -53,11 +54,14 @@ import {
   invulnerableSaveOf,
   ledWeaponGrantOf,
   normalizedAbilityGrantsIn,
+  pickedGrantsOf,
   ownWeaponGrantOf,
   weaponGrantsIn,
 } from './textFacts'
 import type { AbilityKind, Datasheet } from '../contracts/catalogue'
 import { baseSizeOf } from './vsDataBaseSizes'
+import { type VsStatValues, vsStatLinesOf } from './vsDataProfiles'
+import { rulesNamed } from './catalogueRules'
 
 export function toughnessOf(profiles: readonly { type: string; values: readonly { name: string; value: string }[] }[]): number | null {
   const values = profiles
@@ -204,6 +208,34 @@ export function contextualAbilityNamesIn(
       ).map((ability) => ability.name),
     ]),
   ]
+}
+
+/**
+ * The pre-battle picks a unit offers its army through its own abilities, wargear and Enhancements, each with the rule
+ * that offers it, as Thunderhawk Insertion's Deep Strike for one GRAVIS, PHOBOS or TACTICUS unit.
+ */
+export function offeredPicksIn(
+  loaded: LoadedCatalogue,
+  catalogueId: string,
+  entryId: string,
+  context: Pick<DatasheetContext, 'selections' | 'unitSelectionIndex'>,
+): { rule: string; grant: PickedGrant }[] {
+  const root = loaded.index.definitions.get(entryId)
+  if (!root) return []
+  const selected =
+    context.unitSelectionIndex === undefined
+      ? defaultSelection(entryId, loaded.index, { primaryCatalogueId: catalogueId })
+      : context.selections[context.unitSelectionIndex]
+  const definitions = [root, ...(selected ? definitionsInSelections([selected], [0], loaded.index) : [])]
+  const found = new Map<string, { rule: string; grant: PickedGrant }>()
+  for (const definition of definitions)
+    for (const source of definitionAndTarget(definition, loaded.index))
+      for (const profile of abilityProfilesOf(source, loaded.index, root.absentAbilities)) {
+        const description = profileDescription(profile)
+        for (const grant of description ? pickedGrantsOf(description, loaded.index.textFacts) : [])
+          found.set(JSON.stringify([profile.name, grant]), { rule: profile.name, grant })
+      }
+  return [...found.values()]
 }
 
 function abilityProfileNames(definition: Definition, index: LoadedCatalogue['index'], absent: AbsentAbilities): string[] {
@@ -639,7 +671,23 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
     options: choice.options.map((option) => option.name).join('; '),
   }))
 
-  const displayProfiles = [...profiles.values()].flatMap(({ profile, lineage, owner }) => {
+  const walkedProfiles = [...profiles.values()]
+  // A stat line VS Data prints for the datasheet replaces the catalogue's, which a roster's modifiers then change.
+  const vsLines = vsStatLinesOf(
+    loaded.vsProfiles,
+    entryId,
+    name,
+    walkedProfiles.map(({ profile }) => ({
+      name: profile.name ?? '',
+      type: profile.typeName ?? '',
+      values: Object.fromEntries(
+        (profile.characteristics ?? []).flatMap((value) =>
+          value.name ? [[datasheetCharacteristicKind(value.name), value.$text ?? '']] : [],
+        ),
+      ),
+    })),
+  )
+  const displayProfiles = walkedProfiles.flatMap(({ profile, lineage, owner }, at) => {
     if (!profile.name || !profile.typeName) return []
     const profileType = profile.typeName
     const weapon = profileType === 'Ranged Weapons' || profileType === 'Melee Weapons'
@@ -667,10 +715,11 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
     if (hidden === 'true') return []
     const changedName = modifiedProfileField(profile.name, 'name', profileType, profileLineage, owner, modifiers)
     const annotation = modifiedProfileField('', 'annotation', profileType, profileLineage, owner, modifiers).value
+    const vsData = vsLines[at]
     const values = (profile.characteristics ?? []).flatMap((value) => {
       if (!value.name) return []
       const changed = modifiedProfileField(
-        value.$text ?? '',
+        vsData?.[datasheetCharacteristicKind(value.name)] ?? value.$text ?? '',
         value.typeId,
         profileType,
         profileLineage,
@@ -735,8 +784,20 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
     profiles: uniqueProfiles(displayProfiles),
     abilities: uniqueAbilities(withGrantsOverLinks([...abilities.values()], grantedAbilities)),
     enhancements: [...enhancements.values()],
-    keywordRules: [...keywordRules.values()],
+    keywordRules: [...keywordRules.values(), ...vsKeywordRules(loaded, vsLines, [...keywordRules.values()])],
   }
+}
+
+/** The rule of each weapon keyword a VS Data stat line prints that none of the catalogue's linked rules explains. */
+function vsKeywordRules(
+  loaded: LoadedCatalogue,
+  lines: readonly (VsStatValues | null)[],
+  linked: readonly Datasheet['keywordRules'][number][],
+): Datasheet['keywordRules'] {
+  const unexplained = [...new Set(lines.flatMap((line) => splitWeaponKeywords(line?.keywords)))].filter(
+    (keyword) => !linked.some((rule) => ruleReferenceMatches(keyword, rule.name)),
+  )
+  return unexplained.length ? rulesNamed(loaded, unexplained) : []
 }
 
 type Keywords = { keywords: string[]; modelKeywords: NonNullable<Datasheet['modelKeywords']> }

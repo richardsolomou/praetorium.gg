@@ -202,7 +202,7 @@ function Gauge({ score, grade, large = false }: { score: number | null; grade: G
       </svg>
       <span className={`relative grid justify-items-center leading-none ${tone?.text ?? 'text-faint'}`}>
         <span className={`figure font-semibold ${large ? 'text-3xl' : 'text-lg'}`}>{score ?? '–'}</span>
-        {large && grade ? <span className="mt-1 text-2xs font-semibold tracking-eyebrow uppercase">Grade {grade}</span> : null}
+        {large && grade ? <span className="mt-1 text-xs font-medium">Grade {grade}</span> : null}
       </span>
       <span className="sr-only">{score === null ? 'Not scored' : `${score} out of 100, grade ${grade}`}</span>
     </span>

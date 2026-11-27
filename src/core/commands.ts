@@ -47,7 +47,22 @@ const modelLine = z
   .optional()
 export { id as idSchema, name as nameSchema, rosterLimit as rosterLimitSchema, ruleId as ruleIdSchema }
 export const detachmentIdSchema = z.string().min(1).max(128)
+const vsId = z.string().min(1).max(256)
+export const vsPickSchema = z.object({
+  models: z.record(vsId, z.number().int().min(0).max(60)),
+  options: z.record(vsId, z.record(vsId, z.number().int().min(0).max(60))),
+  enhancement: vsId.optional(),
+  allegiance: vsId.optional(),
+  warlord: vsId.optional(),
+})
 // Descriptions are for agents, who build picks from get_unit_options without seeing the builder.
+const grantPickSchema = z.object({
+  rule: name,
+  ability: z.enum(['deep-strike', 'infiltrators', 'scouts']),
+  count: z.number().int().min(1).max(20).optional(),
+  withinInches: z.number().int().min(1).max(48).optional(),
+  limited: z.literal(true).optional(),
+})
 export const rosterPickSchema = z.object({
   entryId: id.describe('Unit id from list_units or get_unit_options.'),
   catalogueId: id.optional().describe("The unit's own catalogue when it differs from the roster's; usually omitted."),
@@ -88,6 +103,7 @@ export const rosterPickSchema = z.object({
     .literal(true)
     .optional()
     .describe('Set on a unit saved before choices started on the printed default; keep it as read, never set it.'),
+  vs: vsPickSchema.optional().describe('Reserved: not read yet. Leave it as read and never set it.'),
 })
 const phase = z.enum(PHASES)
 const missed = z.object({ round: z.number().int().min(1).max(BATTLE_ROUNDS), phase, turn: id }).optional()
@@ -301,6 +317,7 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
                   .array(z.enum(['infiltrators', 'scouts']))
                   .max(2)
                   .optional(),
+                grantPicks: z.array(grantPickSchema).max(10).optional(),
                 strategicReserveExempt: z.boolean().optional(),
                 embarksWithBodyguard: z.boolean().optional(),
                 embarkedSpace: z.number().int().positive().max(1_000).optional(),
@@ -330,6 +347,7 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
     transportKey: id.optional(),
     playerId: id.optional(),
   }),
+  z.object({ kind: z.literal('pick-unit-grant'), unitKey: id, rule: name, picked: z.boolean(), playerId: id.optional() }),
   z.object({ kind: z.literal('set-painted'), painted: z.boolean(), playerId: id.optional() }),
   z.object({ kind: z.literal('wound-unit'), unitKey: id, delta: z.number().int(), line: modelLine, playerId: id.optional() }),
   z.object({ kind: z.literal('damage-unit'), unitKey: id, delta: z.number().int(), line: modelLine, playerId: id.optional() }),

@@ -141,7 +141,7 @@ export function BattleShelf({
                       <span className="hidden @2xl:col-[1] @2xl:row-[1/3] @2xl:block">
                         <StatusChip name={stage.name} className={stage.tint} />
                       </span>
-                      <span className="col-[1] row-[1] truncate text-[0.9375rem] leading-tight @2xl:col-[2]">
+                      <span className="col-[1] row-[1] text-[0.9375rem] leading-snug [overflow-wrap:anywhere] @2xl:col-[2] @2xl:truncate @2xl:leading-tight">
                         <Names battle={battle} side={ours} ratings />
                         <span className="text-faint"> vs </span>
                         <Names battle={battle} side={theirs} ratings />

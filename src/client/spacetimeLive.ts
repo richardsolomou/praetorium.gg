@@ -7,11 +7,12 @@ import { DbConnection, tables } from '../spacetime/generated'
 import { battleQuery, battlesQuery } from './queries'
 import { maintainSpacetimeConnection, type SpacetimeLink } from './spacetimeConnection'
 import {
+  batchedInvalidation,
   coalescedBy,
   invalidateAdminProductQueries,
   invalidateEveryProductQuery,
-  invalidateProductQueries,
-  invalidatePublicProductQueries,
+  productFamilies,
+  publicProductFamilies,
 } from './productSignals'
 import { setLiveProductRefresh } from './liveProductRefresh'
 import { isExpectedRealtimeDisconnect, RealtimeHttpError } from './realtimeErrors'
@@ -225,14 +226,13 @@ export function useSpacetimeLiveProduct(config: RealtimeConfig | null, signedIn:
   const queryClient = useQueryClient()
   const [subscribed, setSubscribed] = useState(false)
   const enabled = Boolean(config)
-  const refresh = useMemo(
-    () => coalescedBy(SIGNAL_WINDOW_MS, (scope?: string) => void invalidateProductQueries(queryClient, scope)),
-    [queryClient],
-  )
-  const refreshPublic = useMemo(
-    () => coalescedBy(SIGNAL_WINDOW_MS, (scope?: string) => void invalidatePublicProductQueries(queryClient, scope)),
-    [queryClient],
-  )
+  const { refresh, refreshPublic } = useMemo(() => {
+    const invalidate = batchedInvalidation(queryClient)
+    return {
+      refresh: coalescedBy(SIGNAL_WINDOW_MS, (scope?: string) => void invalidate(productFamilies(scope))),
+      refreshPublic: coalescedBy(SIGNAL_WINDOW_MS, (scope?: string) => void invalidate(publicProductFamilies(scope))),
+    }
+  }, [queryClient])
   useEffect(
     () => () => {
       refresh.cancel()

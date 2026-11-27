@@ -1539,17 +1539,27 @@
       "unmatched": []
     },
     "112-17a-6fa1-d1c3": {
-      "base": "unmatched",
       "choices": {
         "f74f-f978-58c8-11cd/15a0-1756-765a-3c26|5904-26c3-d1e5-db10": {
           "options": {}
+        },
+        "f74f-f978-58c8-11cd/15a0-1756-765a-3c26|e42e-2d16-71a4-42bb": {
+          "options": {
+            "death-guard.terrax-pattern-termite.weapons-two-storm-bolters": {
+              "death-guard.terrax-pattern-termite.2-heavy-flamer": 1
+            }
+          }
+        },
+        "f74f-f978-58c8-11cd/15a0-1756-765a-3c26|fd6a-d7ac-c3f5-7765": {
+          "options": {
+            "death-guard.terrax-pattern-termite.weapons-two-storm-bolters": {
+              "death-guard.terrax-pattern-termite.twin-volkite-charger": 1
+            }
+          }
         }
       },
-      "unit": "space-marines.terrax-pattern-termite",
-      "unmatched": [
-        "f74f-f978-58c8-11cd/15a0-1756-765a-3c26|e42e-2d16-71a4-42bb",
-        "f74f-f978-58c8-11cd/15a0-1756-765a-3c26|fd6a-d7ac-c3f5-7765"
-      ]
+      "unit": "death-guard.terrax-pattern-termite",
+      "unmatched": []
     },
     "1129-d5b7-45c3-e80a": {
       "choices": {
@@ -2195,48 +2205,48 @@
       "choices": {
         "6567-44a3-c2cf-9e5b/dd27-89ca-48c9-fb9d|14fe-cbe2-7ce2-297": {
           "options": {
-            "space-marines.typhon.typhon-wargear": {
-              "space-marines.typhon.storm-bolter": 1
+            "death-guard.typhon.pintle-weapon": {
+              "death-guard.typhon.storm-bolter": 1
             }
           }
         },
         "6567-44a3-c2cf-9e5b/dd27-89ca-48c9-fb9d|3906-bb1c-9fea-9ed2": {
           "options": {
-            "space-marines.typhon.typhon-wargear": {
-              "space-marines.typhon.heavy-flamer": 1
+            "death-guard.typhon.pintle-weapon": {
+              "death-guard.typhon.heavy-flamer": 1
             }
           }
         },
         "6567-44a3-c2cf-9e5b/dd27-89ca-48c9-fb9d|9b87-837b-d060-c12b": {
           "options": {
-            "space-marines.typhon.typhon-wargear": {
-              "space-marines.typhon.multi-melta": 1
+            "death-guard.typhon.pintle-weapon": {
+              "death-guard.typhon.multi-melta": 1
             }
           }
         },
         "6567-44a3-c2cf-9e5b/dd27-89ca-48c9-fb9d|e51c-6d70-adfd-1ee9": {
           "options": {
-            "space-marines.typhon.typhon-wargear": {
-              "space-marines.typhon.heavy-bolter": 1
+            "death-guard.typhon.pintle-weapon": {
+              "death-guard.typhon.heavy-bolter": 1
             }
           }
         },
         "6567-44a3-c2cf-9e5b/ede8-7239-7141-c52c|bff6-4ea3-f21b-7d20": {
           "options": {
-            "space-marines.typhon.typhon-wargear-2": {
-              "space-marines.typhon.2-heavy-bolter": 1
+            "death-guard.typhon.sponsons": {
+              "death-guard.typhon.2-heavy-bolter": 1
             }
           }
         },
         "6567-44a3-c2cf-9e5b/ede8-7239-7141-c52c|e6e4-347-fe2e-c1fd": {
           "options": {
-            "space-marines.typhon.typhon-wargear-2": {
-              "space-marines.typhon.2-lascannon": 1
+            "death-guard.typhon.sponsons": {
+              "death-guard.typhon.2-lascannon": 1
             }
           }
         }
       },
-      "unit": "space-marines.typhon",
+      "unit": "death-guard.typhon",
       "unmatched": []
     },
     "1356-8664-65d6-7600": {
@@ -4334,8 +4344,8 @@
       "choices": {
         "ec32-0973-fb6b-ca35/139c-4129-5ae3-3dbc|4e56-4399-ef28-e5f": {
           "options": {
-            "space-marines.kratos.kratos-kratos-battle-cannon": {
-              "space-marines.kratos.melta-blast-gun": 1
+            "world-eaters.kratos.main-weapon-kratos-battlecannon": {
+              "world-eaters.kratos.melta-blast-gun": 1
             }
           }
         },
@@ -4344,75 +4354,99 @@
         },
         "ec32-0973-fb6b-ca35/139c-4129-5ae3-3dbc|dfb3-a109-27d6-3c0f": {
           "options": {
-            "space-marines.kratos.kratos-kratos-battle-cannon": {
-              "space-marines.kratos.volkite-cardanelle": 1
+            "world-eaters.kratos.main-weapon-kratos-battlecannon": {
+              "world-eaters.kratos.volkite-cardanelle": 1
             }
           }
         },
         "ec32-0973-fb6b-ca35/2667-d8cf-962d-6990|1514-c24f-d6fd-c0ab": {
           "options": {
-            "space-marines.kratos.kratos-wargear-2": {
-              "space-marines.kratos.combi-weapon": 1
+            "world-eaters.kratos.pintle-weapon": {
+              "world-eaters.kratos.combi-weapon": 1
             }
           }
         },
         "ec32-0973-fb6b-ca35/2667-d8cf-962d-6990|32b0-fc75-8b2e-7a25": {
           "options": {
-            "space-marines.kratos.kratos-wargear-2": {
-              "space-marines.kratos.multi-melta": 1
+            "world-eaters.kratos.pintle-weapon": {
+              "world-eaters.kratos.multi-melta": 1
             }
           }
         },
         "ec32-0973-fb6b-ca35/2667-d8cf-962d-6990|4670-1449-7ee5-7d90": {
           "options": {
-            "space-marines.kratos.kratos-wargear-2": {
-              "space-marines.kratos.heavy-flamer": 1
+            "world-eaters.kratos.pintle-weapon": {
+              "world-eaters.kratos.heavy-flamer": 1
             }
           }
         },
         "ec32-0973-fb6b-ca35/2667-d8cf-962d-6990|5d5d-19c8-65c7-03c2": {
           "options": {
-            "space-marines.kratos.kratos-wargear-2": {
-              "space-marines.kratos.havoc-launcher": 1
+            "world-eaters.kratos.pintle-weapon": {
+              "world-eaters.kratos.havoc-launcher": 1
             }
           }
         },
         "ec32-0973-fb6b-ca35/2667-d8cf-962d-6990|6edb-6f3-dbd3-b36b": {
           "options": {
-            "space-marines.kratos.kratos-wargear-2": {
-              "space-marines.kratos.twin-boltgun": 1
+            "world-eaters.kratos.pintle-weapon": {
+              "world-eaters.kratos.twin-boltgun": 1
             }
           }
         },
         "ec32-0973-fb6b-ca35/2667-d8cf-962d-6990|c6d9-e55-c30e-35de": {
           "options": {
-            "space-marines.kratos.kratos-wargear-2": {
-              "space-marines.kratos.heavy-bolter": 1
+            "world-eaters.kratos.pintle-weapon": {
+              "world-eaters.kratos.heavy-bolter": 1
             }
           }
         },
         "ec32-0973-fb6b-ca35/c69e-57e0-90cc-b94d|374d-b89b-6a26-46e4": {
           "options": {}
         },
+        "ec32-0973-fb6b-ca35/c69e-57e0-90cc-b94d|a7f1-94af-bf64-a0e1": {
+          "options": {
+            "world-eaters.kratos.sponsons-two-heavy-bolters": {
+              "world-eaters.kratos.2-volkite-culverin": 1
+            }
+          }
+        },
+        "ec32-0973-fb6b-ca35/c69e-57e0-90cc-b94d|dd0-912b-332b-7ce7": {
+          "options": {
+            "world-eaters.kratos.sponsons-two-heavy-bolters": {
+              "world-eaters.kratos.2-heavy-flamer": 1
+            }
+          }
+        },
         "ec32-0973-fb6b-ca35/f69c-a953-7d55-9d15|6211-a2c4-7e3d-a946": {
           "options": {}
         },
+        "ec32-0973-fb6b-ca35/f69c-a953-7d55-9d15|6c7d-c96a-7c25-d7f9": {
+          "options": {
+            "world-eaters.kratos.hull-guns-two-heavy-bolters": {
+              "world-eaters.kratos.2-lascannon": 1
+            }
+          }
+        },
+        "ec32-0973-fb6b-ca35/f69c-a953-7d55-9d15|a65a-9c08-158a-3b47": {
+          "options": {
+            "world-eaters.kratos.hull-guns-two-heavy-bolters": {
+              "world-eaters.kratos.2-autocannon": 1
+            }
+          }
+        },
         "ec32-0973-fb6b-ca35|2703-14fd-761b-d9f2": {
           "options": {
-            "space-marines.kratos.kratos-wargear": {
-              "space-marines.kratos.hunter-killer-missile": 1
+            "world-eaters.kratos.wargear": {
+              "world-eaters.kratos.hunter-killer-missile": 1
             }
           }
         }
       },
-      "unit": "space-marines.kratos",
+      "unit": "world-eaters.kratos",
       "unmatched": [
-        "ec32-0973-fb6b-ca35/c69e-57e0-90cc-b94d|a7f1-94af-bf64-a0e1",
         "ec32-0973-fb6b-ca35/c69e-57e0-90cc-b94d|cdd-2ca7-be0d-1cd4",
-        "ec32-0973-fb6b-ca35/c69e-57e0-90cc-b94d|dd0-912b-332b-7ce7",
-        "ec32-0973-fb6b-ca35/f69c-a953-7d55-9d15|124f-5c13-e31a-8e55",
-        "ec32-0973-fb6b-ca35/f69c-a953-7d55-9d15|6c7d-c96a-7c25-d7f9",
-        "ec32-0973-fb6b-ca35/f69c-a953-7d55-9d15|a65a-9c08-158a-3b47"
+        "ec32-0973-fb6b-ca35/f69c-a953-7d55-9d15|124f-5c13-e31a-8e55"
       ]
     },
     "20b3-f504-9c79-bc74": {
@@ -4944,21 +4978,32 @@
       "unmatched": []
     },
     "22f1-dafb-b795-a09c": {
-      "base": "unmatched",
       "choices": {
         "f74f-f978-58c8-11cd/15a0-1756-765a-3c26|5904-26c3-d1e5-db10": {
           "options": {}
+        },
+        "f74f-f978-58c8-11cd/15a0-1756-765a-3c26|e42e-2d16-71a4-42bb": {
+          "options": {
+            "chaos-space-marines.terrax-pattern-termite.weapons-two-storm-bolters": {
+              "chaos-space-marines.terrax-pattern-termite.2-heavy-flamer": 1
+            }
+          }
+        },
+        "f74f-f978-58c8-11cd/15a0-1756-765a-3c26|fd6a-d7ac-c3f5-7765": {
+          "options": {
+            "chaos-space-marines.terrax-pattern-termite.weapons-two-storm-bolters": {
+              "chaos-space-marines.terrax-pattern-termite.twin-volkite-charger": 1
+            }
+          }
         }
       },
-      "unit": "space-marines.terrax-pattern-termite",
+      "unit": "chaos-space-marines.terrax-pattern-termite",
       "unmatched": [
         "9b52-c0c7-d2c6-f812|3bb3-78e-db85-353b",
         "9b52-c0c7-d2c6-f812|a689-a7b8-9b47-1362",
         "9b52-c0c7-d2c6-f812|cb13-6792-cb2e-4702",
         "9b52-c0c7-d2c6-f812|e9bb-ae3a-eba6-cbd8",
-        "9b52-c0c7-d2c6-f812|f764-31bd-419d-576c",
-        "f74f-f978-58c8-11cd/15a0-1756-765a-3c26|e42e-2d16-71a4-42bb",
-        "f74f-f978-58c8-11cd/15a0-1756-765a-3c26|fd6a-d7ac-c3f5-7765"
+        "9b52-c0c7-d2c6-f812|f764-31bd-419d-576c"
       ]
     },
     "235d-274d-1944-b1dd": {
@@ -5702,22 +5747,22 @@
       "choices": {
         "dceb-5fe7-50b5-f582/77e0-a80e-ee61-6df9|2096-1d75-f788-326": {
           "options": {
-            "space-marines.rapier-carrier.rapier-carrier-quad-heavy-bolter": {
-              "space-marines.rapier-carrier.laser-destroyer": 1
+            "thousand-sons.rapier-carrier.weapon-quad-heavy-bolter": {
+              "thousand-sons.rapier-carrier.laser-destroyer": 1
             }
           }
         },
         "dceb-5fe7-50b5-f582/77e0-a80e-ee61-6df9|7ae5-6407-4e90-6568": {
           "options": {
-            "space-marines.rapier-carrier.rapier-carrier-quad-heavy-bolter": {
-              "space-marines.rapier-carrier.graviton-cannon": 1
+            "thousand-sons.rapier-carrier.weapon-quad-heavy-bolter": {
+              "thousand-sons.rapier-carrier.graviton-cannon": 1
             }
           }
         },
         "dceb-5fe7-50b5-f582/77e0-a80e-ee61-6df9|7ff0-2c58-398d-41e": {
           "options": {
-            "space-marines.rapier-carrier.rapier-carrier-quad-heavy-bolter": {
-              "space-marines.rapier-carrier.quad-launcher": 1
+            "thousand-sons.rapier-carrier.weapon-quad-heavy-bolter": {
+              "thousand-sons.rapier-carrier.quad-launcher": 1
             }
           }
         },
@@ -5725,7 +5770,7 @@
           "options": {}
         }
       },
-      "unit": "space-marines.rapier-carrier",
+      "unit": "thousand-sons.rapier-carrier",
       "unmatched": []
     },
     "26dc-dc50-58e8-ad2c": {
@@ -6370,48 +6415,48 @@
       "choices": {
         "7ca8-38f2-5c81-7a2d/ad1c-bbeb-9394-9104|29ce-b9ad-b0cd-9378": {
           "options": {
-            "space-marines.cerberus.cerberus-wargear-2": {
-              "space-marines.cerberus.multi-melta": 1
+            "chaos-space-marines.cerberus.pintle-weapon": {
+              "chaos-space-marines.cerberus.multi-melta": 1
             }
           }
         },
         "7ca8-38f2-5c81-7a2d/ad1c-bbeb-9394-9104|3cbe-4600-e9ea-f69": {
           "options": {
-            "space-marines.cerberus.cerberus-wargear-2": {
-              "space-marines.cerberus.heavy-flamer": 1
+            "chaos-space-marines.cerberus.pintle-weapon": {
+              "chaos-space-marines.cerberus.heavy-flamer": 1
             }
           }
         },
         "7ca8-38f2-5c81-7a2d/ad1c-bbeb-9394-9104|afd6-627b-6b5e-b35d": {
           "options": {
-            "space-marines.cerberus.cerberus-wargear-2": {
-              "space-marines.cerberus.heavy-bolter": 1
+            "chaos-space-marines.cerberus.pintle-weapon": {
+              "chaos-space-marines.cerberus.heavy-bolter": 1
             }
           }
         },
         "7ca8-38f2-5c81-7a2d/ad1c-bbeb-9394-9104|c17e-79b-3a2b-12": {
           "options": {
-            "space-marines.cerberus.cerberus-wargear-2": {
-              "space-marines.cerberus.storm-bolter": 1
+            "chaos-space-marines.cerberus.pintle-weapon": {
+              "chaos-space-marines.cerberus.storm-bolter": 1
             }
           }
         },
         "7ca8-38f2-5c81-7a2d/e7ab-b81c-e038-83bd|4e96-d389-85b6-b104": {
           "options": {
-            "space-marines.cerberus.cerberus-wargear": {
-              "space-marines.cerberus.2-heavy-bolter": 1
+            "chaos-space-marines.cerberus.sponsons": {
+              "chaos-space-marines.cerberus.2-heavy-bolter": 1
             }
           }
         },
         "7ca8-38f2-5c81-7a2d/e7ab-b81c-e038-83bd|8058-42ea-8332-ee32": {
           "options": {
-            "space-marines.cerberus.cerberus-wargear": {
-              "space-marines.cerberus.2-lascannon": 1
+            "chaos-space-marines.cerberus.sponsons": {
+              "chaos-space-marines.cerberus.2-lascannon": 1
             }
           }
         }
       },
-      "unit": "space-marines.cerberus",
+      "unit": "chaos-space-marines.cerberus",
       "unmatched": [
         "109f-b718-5907-2c46|3bb3-78e-db85-353b",
         "109f-b718-5907-2c46|a689-a7b8-9b47-1362",
@@ -8863,22 +8908,22 @@
       "choices": {
         "add2-9d27-f808-dcc2/48fe-b3fc-b252-1c06|12cf-6807-175d-9d19": {
           "options": {
-            "space-marines.mastodon.mastodon-lascannon": {
-              "space-marines.mastodon.2-heavy-flamer": 1
+            "world-eaters.mastodon.rear-sponsons-two-lascannons": {
+              "world-eaters.mastodon.2-heavy-flamer": 1
             }
           }
         },
         "add2-9d27-f808-dcc2/48fe-b3fc-b252-1c06|6c2e-cb35-e6e3-b633": {
           "options": {
-            "space-marines.mastodon.mastodon-lascannon": {
-              "space-marines.mastodon.2-volkite-culverin": 1
+            "world-eaters.mastodon.rear-sponsons-two-lascannons": {
+              "world-eaters.mastodon.2-volkite-culverin": 1
             }
           }
         },
         "add2-9d27-f808-dcc2/48fe-b3fc-b252-1c06|8837-1038-5f95-14b6": {
           "options": {
-            "space-marines.mastodon.mastodon-lascannon": {
-              "space-marines.mastodon.2-heavy-bolter": 1
+            "world-eaters.mastodon.rear-sponsons-two-lascannons": {
+              "world-eaters.mastodon.2-heavy-bolter": 1
             }
           }
         },
@@ -8890,27 +8935,27 @@
         },
         "add2-9d27-f808-dcc2/e367-9c3c-2de2-a727|962a-9b21-e68e-6b75": {
           "options": {
-            "space-marines.mastodon.mastodon-heavy-flamer": {
-              "space-marines.mastodon.2-heavy-bolter": 1
+            "world-eaters.mastodon.front-sponsons-two-heavy-flamers": {
+              "world-eaters.mastodon.2-heavy-bolter": 1
             }
           }
         },
         "add2-9d27-f808-dcc2/e367-9c3c-2de2-a727|de39-9151-7dee-ff9": {
           "options": {
-            "space-marines.mastodon.mastodon-heavy-flamer": {
-              "space-marines.mastodon.2-lascannon": 1
+            "world-eaters.mastodon.front-sponsons-two-heavy-flamers": {
+              "world-eaters.mastodon.2-lascannon": 1
             }
           }
         },
         "add2-9d27-f808-dcc2/e367-9c3c-2de2-a727|f8cd-614f-4146-a7a1": {
           "options": {
-            "space-marines.mastodon.mastodon-heavy-flamer": {
-              "space-marines.mastodon.2-volkite-culverin": 1
+            "world-eaters.mastodon.front-sponsons-two-heavy-flamers": {
+              "world-eaters.mastodon.2-volkite-culverin": 1
             }
           }
         }
       },
-      "unit": "space-marines.mastodon",
+      "unit": "world-eaters.mastodon",
       "unmatched": []
     },
     "3144-df82-3e22-2ab1": {
@@ -8938,43 +8983,66 @@
       "choices": {
         "4be6-a7f7-b99d-7c9f/2ef7-c711-185c-4b7b|23b4-d4f8-4af3-670": {
           "options": {
-            "space-marines.sicaran-battle-tank.sicaran-battle-tank-wargear": {
-              "space-marines.sicaran-battle-tank.2-heavy-bolter": 1
+            "death-guard.sicaran.sponsons": {
+              "death-guard.sicaran.2-heavy-bolter": 1
             }
           }
         },
         "4be6-a7f7-b99d-7c9f/2ef7-c711-185c-4b7b|ad1f-3a75-6cd9-d065": {
           "options": {
-            "space-marines.sicaran-battle-tank.sicaran-battle-tank-wargear": {
-              "space-marines.sicaran-battle-tank.2-lascannon": 1
+            "death-guard.sicaran.sponsons": {
+              "death-guard.sicaran.2-lascannon": 1
+            }
+          }
+        },
+        "4be6-a7f7-b99d-7c9f/b18e-33a0-d430-6562|5caa-9bd0-133a-0012": {
+          "options": {
+            "death-guard.sicaran.main-weapon-herakles-pattern-autocannon": {
+              "death-guard.sicaran.arcus-multi-launcher": 1
             }
           }
         },
         "4be6-a7f7-b99d-7c9f/b18e-33a0-d430-6562|6c5b-521e-2870-42de": {
           "options": {}
         },
+        "4be6-a7f7-b99d-7c9f/b18e-33a0-d430-6562|6cea-473d-af71-2372": {
+          "options": {
+            "death-guard.sicaran.main-weapon-herakles-pattern-autocannon": {
+              "death-guard.sicaran.punisher-rotary-cannon": 1
+            }
+          }
+        },
+        "4be6-a7f7-b99d-7c9f/b18e-33a0-d430-6562|993e-29d4-1aa0-5ace": {
+          "options": {
+            "death-guard.sicaran.main-weapon-herakles-pattern-autocannon": {
+              "death-guard.sicaran.venator-neutron-laser": 1
+            }
+          }
+        },
+        "4be6-a7f7-b99d-7c9f/b18e-33a0-d430-6562|a0fc-71c1-27b4-9580": {
+          "options": {
+            "death-guard.sicaran.main-weapon-herakles-pattern-autocannon": {
+              "death-guard.sicaran.omega-plasma-array": 1
+            }
+          }
+        },
         "4be6-a7f7-b99d-7c9f|3e1c-d033-7360-7217": {
           "options": {
-            "space-marines.sicaran-battle-tank.sicaran-battle-tank-wargear-3": {
-              "space-marines.sicaran-battle-tank.storm-bolter": 1
+            "death-guard.sicaran.wargear": {
+              "death-guard.sicaran.storm-bolter": 1
             }
           }
         },
         "4be6-a7f7-b99d-7c9f|e98-7362-c489-e09e": {
           "options": {
-            "space-marines.sicaran-battle-tank.sicaran-battle-tank-wargear-2": {
-              "space-marines.sicaran-battle-tank.hunter-killer-missile": 1
+            "death-guard.sicaran.wargear": {
+              "death-guard.sicaran.hunter-killer-missile": 1
             }
           }
         }
       },
-      "unit": "space-marines.sicaran-battle-tank",
-      "unmatched": [
-        "4be6-a7f7-b99d-7c9f/b18e-33a0-d430-6562|5caa-9bd0-133a-0012",
-        "4be6-a7f7-b99d-7c9f/b18e-33a0-d430-6562|6cea-473d-af71-2372",
-        "4be6-a7f7-b99d-7c9f/b18e-33a0-d430-6562|993e-29d4-1aa0-5ace",
-        "4be6-a7f7-b99d-7c9f/b18e-33a0-d430-6562|a0fc-71c1-27b4-9580"
-      ]
+      "unit": "death-guard.sicaran",
+      "unmatched": []
     },
     "32de-a3b5-56f5-60b6": {
       "choices": {
@@ -9688,22 +9756,22 @@
       "choices": {
         "add2-9d27-f808-dcc2/48fe-b3fc-b252-1c06|12cf-6807-175d-9d19": {
           "options": {
-            "space-marines.mastodon.mastodon-lascannon": {
-              "space-marines.mastodon.2-heavy-flamer": 1
+            "death-guard.mastodon.rear-sponsons-two-lascannons": {
+              "death-guard.mastodon.2-heavy-flamer": 1
             }
           }
         },
         "add2-9d27-f808-dcc2/48fe-b3fc-b252-1c06|6c2e-cb35-e6e3-b633": {
           "options": {
-            "space-marines.mastodon.mastodon-lascannon": {
-              "space-marines.mastodon.2-volkite-culverin": 1
+            "death-guard.mastodon.rear-sponsons-two-lascannons": {
+              "death-guard.mastodon.2-volkite-culverin": 1
             }
           }
         },
         "add2-9d27-f808-dcc2/48fe-b3fc-b252-1c06|8837-1038-5f95-14b6": {
           "options": {
-            "space-marines.mastodon.mastodon-lascannon": {
-              "space-marines.mastodon.2-heavy-bolter": 1
+            "death-guard.mastodon.rear-sponsons-two-lascannons": {
+              "death-guard.mastodon.2-heavy-bolter": 1
             }
           }
         },
@@ -9715,27 +9783,27 @@
         },
         "add2-9d27-f808-dcc2/e367-9c3c-2de2-a727|962a-9b21-e68e-6b75": {
           "options": {
-            "space-marines.mastodon.mastodon-heavy-flamer": {
-              "space-marines.mastodon.2-heavy-bolter": 1
+            "death-guard.mastodon.front-sponsons-two-heavy-flamers": {
+              "death-guard.mastodon.2-heavy-bolter": 1
             }
           }
         },
         "add2-9d27-f808-dcc2/e367-9c3c-2de2-a727|de39-9151-7dee-ff9": {
           "options": {
-            "space-marines.mastodon.mastodon-heavy-flamer": {
-              "space-marines.mastodon.2-lascannon": 1
+            "death-guard.mastodon.front-sponsons-two-heavy-flamers": {
+              "death-guard.mastodon.2-lascannon": 1
             }
           }
         },
         "add2-9d27-f808-dcc2/e367-9c3c-2de2-a727|f8cd-614f-4146-a7a1": {
           "options": {
-            "space-marines.mastodon.mastodon-heavy-flamer": {
-              "space-marines.mastodon.2-volkite-culverin": 1
+            "death-guard.mastodon.front-sponsons-two-heavy-flamers": {
+              "death-guard.mastodon.2-volkite-culverin": 1
             }
           }
         }
       },
-      "unit": "space-marines.mastodon",
+      "unit": "death-guard.mastodon",
       "unmatched": []
     },
     "365f-464c-a35d-4136": {
@@ -12472,17 +12540,27 @@
       "unmatched": []
     },
     "3ffb-3c2c-e402-eefd": {
-      "base": "unmatched",
       "choices": {
         "f74f-f978-58c8-11cd/15a0-1756-765a-3c26|5904-26c3-d1e5-db10": {
           "options": {}
+        },
+        "f74f-f978-58c8-11cd/15a0-1756-765a-3c26|e42e-2d16-71a4-42bb": {
+          "options": {
+            "thousand-sons.terrax-pattern-termite.weapons-two-storm-bolters": {
+              "thousand-sons.terrax-pattern-termite.2-heavy-flamer": 1
+            }
+          }
+        },
+        "f74f-f978-58c8-11cd/15a0-1756-765a-3c26|fd6a-d7ac-c3f5-7765": {
+          "options": {
+            "thousand-sons.terrax-pattern-termite.weapons-two-storm-bolters": {
+              "thousand-sons.terrax-pattern-termite.twin-volkite-charger": 1
+            }
+          }
         }
       },
-      "unit": "space-marines.terrax-pattern-termite",
-      "unmatched": [
-        "f74f-f978-58c8-11cd/15a0-1756-765a-3c26|e42e-2d16-71a4-42bb",
-        "f74f-f978-58c8-11cd/15a0-1756-765a-3c26|fd6a-d7ac-c3f5-7765"
-      ]
+      "unit": "thousand-sons.terrax-pattern-termite",
+      "unmatched": []
     },
     "4023-8c9b-fc41-ad46": {
       "choices": {
@@ -12770,22 +12848,22 @@
       "choices": {
         "dceb-5fe7-50b5-f582/77e0-a80e-ee61-6df9|2096-1d75-f788-326": {
           "options": {
-            "space-marines.rapier-carrier.rapier-carrier-quad-heavy-bolter": {
-              "space-marines.rapier-carrier.laser-destroyer": 1
+            "chaos-space-marines.rapier-carrier.weapon-quad-heavy-bolter": {
+              "chaos-space-marines.rapier-carrier.laser-destroyer": 1
             }
           }
         },
         "dceb-5fe7-50b5-f582/77e0-a80e-ee61-6df9|7ae5-6407-4e90-6568": {
           "options": {
-            "space-marines.rapier-carrier.rapier-carrier-quad-heavy-bolter": {
-              "space-marines.rapier-carrier.graviton-cannon": 1
+            "chaos-space-marines.rapier-carrier.weapon-quad-heavy-bolter": {
+              "chaos-space-marines.rapier-carrier.graviton-cannon": 1
             }
           }
         },
         "dceb-5fe7-50b5-f582/77e0-a80e-ee61-6df9|7ff0-2c58-398d-41e": {
           "options": {
-            "space-marines.rapier-carrier.rapier-carrier-quad-heavy-bolter": {
-              "space-marines.rapier-carrier.quad-launcher": 1
+            "chaos-space-marines.rapier-carrier.weapon-quad-heavy-bolter": {
+              "chaos-space-marines.rapier-carrier.quad-launcher": 1
             }
           }
         },
@@ -12793,7 +12871,7 @@
           "options": {}
         }
       },
-      "unit": "space-marines.rapier-carrier",
+      "unit": "chaos-space-marines.rapier-carrier",
       "unmatched": [
         "5432-155b-45c-8760|3bb3-78e-db85-353b",
         "5432-155b-45c-8760|a689-a7b8-9b47-1362",
@@ -13772,48 +13850,48 @@
       "choices": {
         "6567-44a3-c2cf-9e5b/dd27-89ca-48c9-fb9d|14fe-cbe2-7ce2-297": {
           "options": {
-            "space-marines.typhon.typhon-wargear": {
-              "space-marines.typhon.storm-bolter": 1
+            "world-eaters.typhon.pintle-weapon": {
+              "world-eaters.typhon.storm-bolter": 1
             }
           }
         },
         "6567-44a3-c2cf-9e5b/dd27-89ca-48c9-fb9d|3906-bb1c-9fea-9ed2": {
           "options": {
-            "space-marines.typhon.typhon-wargear": {
-              "space-marines.typhon.heavy-flamer": 1
+            "world-eaters.typhon.pintle-weapon": {
+              "world-eaters.typhon.heavy-flamer": 1
             }
           }
         },
         "6567-44a3-c2cf-9e5b/dd27-89ca-48c9-fb9d|9b87-837b-d060-c12b": {
           "options": {
-            "space-marines.typhon.typhon-wargear": {
-              "space-marines.typhon.multi-melta": 1
+            "world-eaters.typhon.pintle-weapon": {
+              "world-eaters.typhon.multi-melta": 1
             }
           }
         },
         "6567-44a3-c2cf-9e5b/dd27-89ca-48c9-fb9d|e51c-6d70-adfd-1ee9": {
           "options": {
-            "space-marines.typhon.typhon-wargear": {
-              "space-marines.typhon.heavy-bolter": 1
+            "world-eaters.typhon.pintle-weapon": {
+              "world-eaters.typhon.heavy-bolter": 1
             }
           }
         },
         "6567-44a3-c2cf-9e5b/ede8-7239-7141-c52c|bff6-4ea3-f21b-7d20": {
           "options": {
-            "space-marines.typhon.typhon-wargear-2": {
-              "space-marines.typhon.2-heavy-bolter": 1
+            "world-eaters.typhon.sponsons": {
+              "world-eaters.typhon.2-heavy-bolter": 1
             }
           }
         },
         "6567-44a3-c2cf-9e5b/ede8-7239-7141-c52c|e6e4-347-fe2e-c1fd": {
           "options": {
-            "space-marines.typhon.typhon-wargear-2": {
-              "space-marines.typhon.2-lascannon": 1
+            "world-eaters.typhon.sponsons": {
+              "world-eaters.typhon.2-lascannon": 1
             }
           }
         }
       },
-      "unit": "space-marines.typhon",
+      "unit": "world-eaters.typhon",
       "unmatched": []
     },
     "4877-5e0e-e27c-75d3": {
@@ -14012,48 +14090,48 @@
       "choices": {
         "7ca8-38f2-5c81-7a2d/ad1c-bbeb-9394-9104|29ce-b9ad-b0cd-9378": {
           "options": {
-            "space-marines.cerberus.cerberus-wargear-2": {
-              "space-marines.cerberus.multi-melta": 1
+            "thousand-sons.cerberus.pintle-weapon": {
+              "thousand-sons.cerberus.multi-melta": 1
             }
           }
         },
         "7ca8-38f2-5c81-7a2d/ad1c-bbeb-9394-9104|3cbe-4600-e9ea-f69": {
           "options": {
-            "space-marines.cerberus.cerberus-wargear-2": {
-              "space-marines.cerberus.heavy-flamer": 1
+            "thousand-sons.cerberus.pintle-weapon": {
+              "thousand-sons.cerberus.heavy-flamer": 1
             }
           }
         },
         "7ca8-38f2-5c81-7a2d/ad1c-bbeb-9394-9104|afd6-627b-6b5e-b35d": {
           "options": {
-            "space-marines.cerberus.cerberus-wargear-2": {
-              "space-marines.cerberus.heavy-bolter": 1
+            "thousand-sons.cerberus.pintle-weapon": {
+              "thousand-sons.cerberus.heavy-bolter": 1
             }
           }
         },
         "7ca8-38f2-5c81-7a2d/ad1c-bbeb-9394-9104|c17e-79b-3a2b-12": {
           "options": {
-            "space-marines.cerberus.cerberus-wargear-2": {
-              "space-marines.cerberus.storm-bolter": 1
+            "thousand-sons.cerberus.pintle-weapon": {
+              "thousand-sons.cerberus.storm-bolter": 1
             }
           }
         },
         "7ca8-38f2-5c81-7a2d/e7ab-b81c-e038-83bd|4e96-d389-85b6-b104": {
           "options": {
-            "space-marines.cerberus.cerberus-wargear": {
-              "space-marines.cerberus.2-heavy-bolter": 1
+            "thousand-sons.cerberus.sponsons": {
+              "thousand-sons.cerberus.2-heavy-bolter": 1
             }
           }
         },
         "7ca8-38f2-5c81-7a2d/e7ab-b81c-e038-83bd|8058-42ea-8332-ee32": {
           "options": {
-            "space-marines.cerberus.cerberus-wargear": {
-              "space-marines.cerberus.2-lascannon": 1
+            "thousand-sons.cerberus.sponsons": {
+              "thousand-sons.cerberus.2-lascannon": 1
             }
           }
         }
       },
-      "unit": "space-marines.cerberus",
+      "unit": "thousand-sons.cerberus",
       "unmatched": []
     },
     "4abd-de59-2daa-fe2e": {
@@ -15019,17 +15097,27 @@
       ]
     },
     "500c-9394-3b51-735a": {
-      "base": "unmatched",
       "choices": {
         "bb65-070f-7f5b-67ee/adc9-18ec-c9d6-1541|47cb-5267-800e-5f32": {
           "options": {}
+        },
+        "bb65-070f-7f5b-67ee/adc9-18ec-c9d6-1541|4ba0-35c2-c936-eaf3": {
+          "options": {
+            "adeptus-mechanicus.terrax-pattern-termite.equipped-with-combi-bolters": {
+              "adeptus-mechanicus.terrax-pattern-termite.2-heavy-flamer": 1
+            }
+          }
+        },
+        "bb65-070f-7f5b-67ee/adc9-18ec-c9d6-1541|9efa-de62-28d6-a1d1": {
+          "options": {
+            "adeptus-mechanicus.terrax-pattern-termite.equipped-with-combi-bolters": {
+              "adeptus-mechanicus.terrax-pattern-termite.2-twin-volkite-charger": 1
+            }
+          }
         }
       },
-      "unit": "space-marines.terrax-pattern-termite",
-      "unmatched": [
-        "bb65-070f-7f5b-67ee/adc9-18ec-c9d6-1541|4ba0-35c2-c936-eaf3",
-        "bb65-070f-7f5b-67ee/adc9-18ec-c9d6-1541|9efa-de62-28d6-a1d1"
-      ]
+      "unit": "adeptus-mechanicus.terrax-pattern-termite",
+      "unmatched": []
     },
     "5039-6bdc-7bf3-b658": {
       "choices": {},
@@ -15473,42 +15561,66 @@
       "choices": {
         "4be6-a7f7-b99d-7c9f/2ef7-c711-185c-4b7b|23b4-d4f8-4af3-670": {
           "options": {
-            "space-marines.sicaran-battle-tank.sicaran-battle-tank-wargear": {
-              "space-marines.sicaran-battle-tank.2-heavy-bolter": 1
+            "chaos-space-marines.sicaran.sponsons": {
+              "chaos-space-marines.sicaran.2-heavy-bolter": 1
             }
           }
         },
         "4be6-a7f7-b99d-7c9f/2ef7-c711-185c-4b7b|ad1f-3a75-6cd9-d065": {
           "options": {
-            "space-marines.sicaran-battle-tank.sicaran-battle-tank-wargear": {
-              "space-marines.sicaran-battle-tank.2-lascannon": 1
+            "chaos-space-marines.sicaran.sponsons": {
+              "chaos-space-marines.sicaran.2-lascannon": 1
+            }
+          }
+        },
+        "4be6-a7f7-b99d-7c9f/b18e-33a0-d430-6562|5caa-9bd0-133a-0012": {
+          "options": {
+            "chaos-space-marines.sicaran.main-weapon-herakles-pattern-autocannon": {
+              "chaos-space-marines.sicaran.arcus-multi-launcher": 1
             }
           }
         },
         "4be6-a7f7-b99d-7c9f/b18e-33a0-d430-6562|6c5b-521e-2870-42de": {
           "options": {}
         },
+        "4be6-a7f7-b99d-7c9f/b18e-33a0-d430-6562|6cea-473d-af71-2372": {
+          "options": {
+            "chaos-space-marines.sicaran.main-weapon-herakles-pattern-autocannon": {
+              "chaos-space-marines.sicaran.punisher-rotary-cannon": 1
+            }
+          }
+        },
+        "4be6-a7f7-b99d-7c9f/b18e-33a0-d430-6562|993e-29d4-1aa0-5ace": {
+          "options": {
+            "chaos-space-marines.sicaran.main-weapon-herakles-pattern-autocannon": {
+              "chaos-space-marines.sicaran.venator-neutron-laser": 1
+            }
+          }
+        },
+        "4be6-a7f7-b99d-7c9f/b18e-33a0-d430-6562|a0fc-71c1-27b4-9580": {
+          "options": {
+            "chaos-space-marines.sicaran.main-weapon-herakles-pattern-autocannon": {
+              "chaos-space-marines.sicaran.omega-plasma-array": 1
+            }
+          }
+        },
         "4be6-a7f7-b99d-7c9f|3e1c-d033-7360-7217": {
           "options": {
-            "space-marines.sicaran-battle-tank.sicaran-battle-tank-wargear-3": {
-              "space-marines.sicaran-battle-tank.storm-bolter": 1
+            "chaos-space-marines.sicaran.wargear": {
+              "chaos-space-marines.sicaran.storm-bolter": 1
             }
           }
         },
         "4be6-a7f7-b99d-7c9f|e98-7362-c489-e09e": {
           "options": {
-            "space-marines.sicaran-battle-tank.sicaran-battle-tank-wargear-2": {
-              "space-marines.sicaran-battle-tank.hunter-killer-missile": 1
+            "chaos-space-marines.sicaran.wargear": {
+              "chaos-space-marines.sicaran.hunter-killer-missile": 1
             }
           }
         }
       },
-      "unit": "space-marines.sicaran-battle-tank",
+      "unit": "chaos-space-marines.sicaran",
       "unmatched": [
-        "4be6-a7f7-b99d-7c9f/b18e-33a0-d430-6562|5caa-9bd0-133a-0012",
-        "4be6-a7f7-b99d-7c9f/b18e-33a0-d430-6562|6cea-473d-af71-2372",
-        "4be6-a7f7-b99d-7c9f/b18e-33a0-d430-6562|993e-29d4-1aa0-5ace",
-        "4be6-a7f7-b99d-7c9f/b18e-33a0-d430-6562|a0fc-71c1-27b4-9580",
         "5848-724a-d677-8fb5|3bb3-78e-db85-353b",
         "5848-724a-d677-8fb5|a689-a7b8-9b47-1362",
         "5848-724a-d677-8fb5|cb13-6792-cb2e-4702",
@@ -18629,36 +18741,36 @@
       "choices": {
         "5876-2a74-17b5-19a8/2521-769-48ed-820e|4a2b-5c1d-ea3c-644f": {
           "options": {
-            "space-marines.falchion.falchion-wargear": {
-              "space-marines.falchion.storm-bolter": 1
+            "death-guard.falchion.pintle-weapon": {
+              "death-guard.falchion.storm-bolter": 1
             }
           }
         },
         "5876-2a74-17b5-19a8/2521-769-48ed-820e|4eee-cfd5-27a4-bca9": {
           "options": {
-            "space-marines.falchion.falchion-wargear": {
-              "space-marines.falchion.heavy-flamer": 1
+            "death-guard.falchion.pintle-weapon": {
+              "death-guard.falchion.heavy-flamer": 1
             }
           }
         },
         "5876-2a74-17b5-19a8/2521-769-48ed-820e|c581-e0f4-1bf7-81d6": {
           "options": {
-            "space-marines.falchion.falchion-wargear": {
-              "space-marines.falchion.heavy-bolter": 1
+            "death-guard.falchion.pintle-weapon": {
+              "death-guard.falchion.heavy-bolter": 1
             }
           }
         },
         "5876-2a74-17b5-19a8/2521-769-48ed-820e|ded8-5815-407f-cc31": {
           "options": {
-            "space-marines.falchion.falchion-wargear": {
-              "space-marines.falchion.multi-melta": 1
+            "death-guard.falchion.pintle-weapon": {
+              "death-guard.falchion.multi-melta": 1
             }
           }
         },
         "5876-2a74-17b5-19a8/63e9-c140-7edc-4266|5798-110c-77e-4cc7": {
           "options": {
-            "space-marines.falchion.falchion-quad-lascannon": {
-              "space-marines.falchion.2-laser-destroyer": 1
+            "death-guard.falchion.sponsons-two-quad-lascannons": {
+              "death-guard.falchion.2-laser-destroyer": 1
             }
           }
         },
@@ -18667,8 +18779,8 @@
         },
         "5876-2a74-17b5-19a8/f7ef-21a2-edb4-e1fc|11fe-6e60-2cd2-71e0": {
           "options": {
-            "space-marines.falchion.falchion-twin-heavy-bolter": {
-              "space-marines.falchion.twin-heavy-flamer": 1
+            "death-guard.falchion.frontal-weapon-twin-heavy-bolter": {
+              "death-guard.falchion.twin-heavy-flamer": 1
             }
           }
         },
@@ -18676,7 +18788,7 @@
           "options": {}
         }
       },
-      "unit": "space-marines.falchion",
+      "unit": "death-guard.falchion",
       "unmatched": []
     },
     "5c5e-e5c9-70b-69df": {
@@ -19647,43 +19759,66 @@
       "choices": {
         "4be6-a7f7-b99d-7c9f/2ef7-c711-185c-4b7b|23b4-d4f8-4af3-670": {
           "options": {
-            "space-marines.sicaran-battle-tank.sicaran-battle-tank-wargear": {
-              "space-marines.sicaran-battle-tank.2-heavy-bolter": 1
+            "world-eaters.sicaran.sponsons": {
+              "world-eaters.sicaran.2-heavy-bolter": 1
             }
           }
         },
         "4be6-a7f7-b99d-7c9f/2ef7-c711-185c-4b7b|ad1f-3a75-6cd9-d065": {
           "options": {
-            "space-marines.sicaran-battle-tank.sicaran-battle-tank-wargear": {
-              "space-marines.sicaran-battle-tank.2-lascannon": 1
+            "world-eaters.sicaran.sponsons": {
+              "world-eaters.sicaran.2-lascannon": 1
+            }
+          }
+        },
+        "4be6-a7f7-b99d-7c9f/b18e-33a0-d430-6562|5caa-9bd0-133a-0012": {
+          "options": {
+            "world-eaters.sicaran.main-weapon-herakles-pattern-autocannon": {
+              "world-eaters.sicaran.arcus-multi-launcher": 1
             }
           }
         },
         "4be6-a7f7-b99d-7c9f/b18e-33a0-d430-6562|6c5b-521e-2870-42de": {
           "options": {}
         },
+        "4be6-a7f7-b99d-7c9f/b18e-33a0-d430-6562|6cea-473d-af71-2372": {
+          "options": {
+            "world-eaters.sicaran.main-weapon-herakles-pattern-autocannon": {
+              "world-eaters.sicaran.punisher-rotary-cannon": 1
+            }
+          }
+        },
+        "4be6-a7f7-b99d-7c9f/b18e-33a0-d430-6562|993e-29d4-1aa0-5ace": {
+          "options": {
+            "world-eaters.sicaran.main-weapon-herakles-pattern-autocannon": {
+              "world-eaters.sicaran.venator-neutron-laser": 1
+            }
+          }
+        },
+        "4be6-a7f7-b99d-7c9f/b18e-33a0-d430-6562|a0fc-71c1-27b4-9580": {
+          "options": {
+            "world-eaters.sicaran.main-weapon-herakles-pattern-autocannon": {
+              "world-eaters.sicaran.omega-plasma-array": 1
+            }
+          }
+        },
         "4be6-a7f7-b99d-7c9f|3e1c-d033-7360-7217": {
           "options": {
-            "space-marines.sicaran-battle-tank.sicaran-battle-tank-wargear-3": {
-              "space-marines.sicaran-battle-tank.storm-bolter": 1
+            "world-eaters.sicaran.wargear": {
+              "world-eaters.sicaran.storm-bolter": 1
             }
           }
         },
         "4be6-a7f7-b99d-7c9f|e98-7362-c489-e09e": {
           "options": {
-            "space-marines.sicaran-battle-tank.sicaran-battle-tank-wargear-2": {
-              "space-marines.sicaran-battle-tank.hunter-killer-missile": 1
+            "world-eaters.sicaran.wargear": {
+              "world-eaters.sicaran.hunter-killer-missile": 1
             }
           }
         }
       },
-      "unit": "space-marines.sicaran-battle-tank",
-      "unmatched": [
-        "4be6-a7f7-b99d-7c9f/b18e-33a0-d430-6562|5caa-9bd0-133a-0012",
-        "4be6-a7f7-b99d-7c9f/b18e-33a0-d430-6562|6cea-473d-af71-2372",
-        "4be6-a7f7-b99d-7c9f/b18e-33a0-d430-6562|993e-29d4-1aa0-5ace",
-        "4be6-a7f7-b99d-7c9f/b18e-33a0-d430-6562|a0fc-71c1-27b4-9580"
-      ]
+      "unit": "world-eaters.sicaran",
+      "unmatched": []
     },
     "62cb-bc5a-138f-a480": {
       "choices": {
@@ -19739,17 +19874,27 @@
       "unmatched": []
     },
     "636a-d16c-b2f0-20ec": {
-      "base": "unmatched",
       "choices": {
         "f74f-f978-58c8-11cd/15a0-1756-765a-3c26|5904-26c3-d1e5-db10": {
           "options": {}
+        },
+        "f74f-f978-58c8-11cd/15a0-1756-765a-3c26|e42e-2d16-71a4-42bb": {
+          "options": {
+            "world-eaters.terrax-pattern-termite.weapons-two-storm-bolters": {
+              "world-eaters.terrax-pattern-termite.2-heavy-flamer": 1
+            }
+          }
+        },
+        "f74f-f978-58c8-11cd/15a0-1756-765a-3c26|fd6a-d7ac-c3f5-7765": {
+          "options": {
+            "world-eaters.terrax-pattern-termite.weapons-two-storm-bolters": {
+              "world-eaters.terrax-pattern-termite.twin-volkite-charger": 1
+            }
+          }
         }
       },
-      "unit": "space-marines.terrax-pattern-termite",
-      "unmatched": [
-        "f74f-f978-58c8-11cd/15a0-1756-765a-3c26|e42e-2d16-71a4-42bb",
-        "f74f-f978-58c8-11cd/15a0-1756-765a-3c26|fd6a-d7ac-c3f5-7765"
-      ]
+      "unit": "world-eaters.terrax-pattern-termite",
+      "unmatched": []
     },
     "63a6-8395-a213-e948": {
       "choices": {
@@ -21748,7 +21893,6 @@
       "unmatched": []
     },
     "70ac-ee9a-7ee4-b58a": {
-      "base": "unmatched",
       "choices": {
         "131f-c2ab-895d-c54b/ea2c-e140-de98-d555/ccb3-8ee6-568d-eee9|0263-c056-d80a-2192": {
           "options": {
@@ -21780,6 +21924,16 @@
             }
           }
         },
+        "35b8-185c-c7f5-78ad/2d48-f92f-50fa-df9f|8619-9766-108e-f579": {
+          "options": {}
+        },
+        "35b8-185c-c7f5-78ad/2d48-f92f-50fa-df9f|ee96-471c-ef12-d689": {
+          "options": {
+            "leagues-of-votann.einhyr-hearthguard.hesyr-etacarn-plasma-gun": {
+              "leagues-of-votann.einhyr-hearthguard.volkanite-disintegrator": 1
+            }
+          }
+        },
         "35b8-185c-c7f5-78ad/6be0-87e2-a6a6-4d89|4af9-1fdc-54b3-617a": {
           "options": {}
         },
@@ -21802,11 +21956,7 @@
         "35b8-185c-c7f5-78ad/6be0-87e2-a6a6-4d89": ""
       },
       "unit": "leagues-of-votann.einhyr-hearthguard",
-      "unmatched": [
-        "35b8-185c-c7f5-78ad/2d48-f92f-50fa-df9f|8619-9766-108e-f579",
-        "35b8-185c-c7f5-78ad/2d48-f92f-50fa-df9f|ee96-471c-ef12-d689",
-        "35b8-185c-c7f5-78ad/6be0-87e2-a6a6-4d89|"
-      ]
+      "unmatched": ["35b8-185c-c7f5-78ad/6be0-87e2-a6a6-4d89|"]
     },
     "70b6-9051-a20e-365f": {
       "choices": {},
@@ -23095,22 +23245,22 @@
       "choices": {
         "add2-9d27-f808-dcc2/48fe-b3fc-b252-1c06|12cf-6807-175d-9d19": {
           "options": {
-            "space-marines.mastodon.mastodon-lascannon": {
-              "space-marines.mastodon.2-heavy-flamer": 1
+            "chaos-space-marines.mastodon.rear-sponsons-two-lascannons": {
+              "chaos-space-marines.mastodon.2-heavy-flamer": 1
             }
           }
         },
         "add2-9d27-f808-dcc2/48fe-b3fc-b252-1c06|6c2e-cb35-e6e3-b633": {
           "options": {
-            "space-marines.mastodon.mastodon-lascannon": {
-              "space-marines.mastodon.2-volkite-culverin": 1
+            "chaos-space-marines.mastodon.rear-sponsons-two-lascannons": {
+              "chaos-space-marines.mastodon.2-volkite-culverin": 1
             }
           }
         },
         "add2-9d27-f808-dcc2/48fe-b3fc-b252-1c06|8837-1038-5f95-14b6": {
           "options": {
-            "space-marines.mastodon.mastodon-lascannon": {
-              "space-marines.mastodon.2-heavy-bolter": 1
+            "chaos-space-marines.mastodon.rear-sponsons-two-lascannons": {
+              "chaos-space-marines.mastodon.2-heavy-bolter": 1
             }
           }
         },
@@ -23122,27 +23272,27 @@
         },
         "add2-9d27-f808-dcc2/e367-9c3c-2de2-a727|962a-9b21-e68e-6b75": {
           "options": {
-            "space-marines.mastodon.mastodon-heavy-flamer": {
-              "space-marines.mastodon.2-heavy-bolter": 1
+            "chaos-space-marines.mastodon.front-sponsons-two-heavy-flamers": {
+              "chaos-space-marines.mastodon.2-heavy-bolter": 1
             }
           }
         },
         "add2-9d27-f808-dcc2/e367-9c3c-2de2-a727|de39-9151-7dee-ff9": {
           "options": {
-            "space-marines.mastodon.mastodon-heavy-flamer": {
-              "space-marines.mastodon.2-lascannon": 1
+            "chaos-space-marines.mastodon.front-sponsons-two-heavy-flamers": {
+              "chaos-space-marines.mastodon.2-lascannon": 1
             }
           }
         },
         "add2-9d27-f808-dcc2/e367-9c3c-2de2-a727|f8cd-614f-4146-a7a1": {
           "options": {
-            "space-marines.mastodon.mastodon-heavy-flamer": {
-              "space-marines.mastodon.2-volkite-culverin": 1
+            "chaos-space-marines.mastodon.front-sponsons-two-heavy-flamers": {
+              "chaos-space-marines.mastodon.2-volkite-culverin": 1
             }
           }
         }
       },
-      "unit": "space-marines.mastodon",
+      "unit": "chaos-space-marines.mastodon",
       "unmatched": [
         "940b-4313-b2a0-5018|3bb3-78e-db85-353b",
         "940b-4313-b2a0-5018|a689-a7b8-9b47-1362",
@@ -24300,6 +24450,13 @@
         "6eb4-83c6-3025-a19c/87b1-0d4c-e5ea-a5bd/34e2-9d32-58ea-3d85|0e8e-5168-13f2-1dba": {
           "options": {}
         },
+        "6eb4-83c6-3025-a19c|2de1-61b9-615d-4056": {
+          "options": {
+            "leagues-of-votann.cthonian-beserks.cthonian-beserk-wargear": {
+              "leagues-of-votann.cthonian-beserks.mole-grenade-launcher": 1
+            }
+          }
+        },
         "6eb4-83c6-3025-a19c|4894-87e8-1f3a-a7d9": {
           "options": {
             "leagues-of-votann.cthonian-beserks.cthonian-beserk-heavy-plasma-axe": {
@@ -24312,8 +24469,7 @@
       "unmatched": [
         "6eb4-83c6-3025-a19c/2de1-61b9-615d-4056/2d71-3e85-019a-2556|697f-710e-738d-4ee3",
         "6eb4-83c6-3025-a19c/2de1-61b9-615d-4056/2d71-3e85-019a-2556|7719-aa64-5e16-9a9d",
-        "6eb4-83c6-3025-a19c/87b1-0d4c-e5ea-a5bd/34e2-9d32-58ea-3d85|e010-924b-804d-026f",
-        "6eb4-83c6-3025-a19c|2de1-61b9-615d-4056"
+        "6eb4-83c6-3025-a19c/87b1-0d4c-e5ea-a5bd/34e2-9d32-58ea-3d85|e010-924b-804d-026f"
       ]
     },
     "7b5-9080-f871-aff9": {
@@ -26981,22 +27137,22 @@
       "choices": {
         "add2-9d27-f808-dcc2/48fe-b3fc-b252-1c06|12cf-6807-175d-9d19": {
           "options": {
-            "space-marines.mastodon.mastodon-lascannon": {
-              "space-marines.mastodon.2-heavy-flamer": 1
+            "thousand-sons.mastodon.rear-sponsons-two-lascannons": {
+              "thousand-sons.mastodon.2-heavy-flamer": 1
             }
           }
         },
         "add2-9d27-f808-dcc2/48fe-b3fc-b252-1c06|6c2e-cb35-e6e3-b633": {
           "options": {
-            "space-marines.mastodon.mastodon-lascannon": {
-              "space-marines.mastodon.2-volkite-culverin": 1
+            "thousand-sons.mastodon.rear-sponsons-two-lascannons": {
+              "thousand-sons.mastodon.2-volkite-culverin": 1
             }
           }
         },
         "add2-9d27-f808-dcc2/48fe-b3fc-b252-1c06|8837-1038-5f95-14b6": {
           "options": {
-            "space-marines.mastodon.mastodon-lascannon": {
-              "space-marines.mastodon.2-heavy-bolter": 1
+            "thousand-sons.mastodon.rear-sponsons-two-lascannons": {
+              "thousand-sons.mastodon.2-heavy-bolter": 1
             }
           }
         },
@@ -27008,27 +27164,27 @@
         },
         "add2-9d27-f808-dcc2/e367-9c3c-2de2-a727|962a-9b21-e68e-6b75": {
           "options": {
-            "space-marines.mastodon.mastodon-heavy-flamer": {
-              "space-marines.mastodon.2-heavy-bolter": 1
+            "thousand-sons.mastodon.front-sponsons-two-heavy-flamers": {
+              "thousand-sons.mastodon.2-heavy-bolter": 1
             }
           }
         },
         "add2-9d27-f808-dcc2/e367-9c3c-2de2-a727|de39-9151-7dee-ff9": {
           "options": {
-            "space-marines.mastodon.mastodon-heavy-flamer": {
-              "space-marines.mastodon.2-lascannon": 1
+            "thousand-sons.mastodon.front-sponsons-two-heavy-flamers": {
+              "thousand-sons.mastodon.2-lascannon": 1
             }
           }
         },
         "add2-9d27-f808-dcc2/e367-9c3c-2de2-a727|f8cd-614f-4146-a7a1": {
           "options": {
-            "space-marines.mastodon.mastodon-heavy-flamer": {
-              "space-marines.mastodon.2-volkite-culverin": 1
+            "thousand-sons.mastodon.front-sponsons-two-heavy-flamers": {
+              "thousand-sons.mastodon.2-volkite-culverin": 1
             }
           }
         }
       },
-      "unit": "space-marines.mastodon",
+      "unit": "thousand-sons.mastodon",
       "unmatched": []
     },
     "891a-8f91-4e3-ceff": {
@@ -27171,22 +27327,22 @@
       "choices": {
         "4be6-a7f7-b99d-7c9f/2ef7-c711-185c-4b7b|23b4-d4f8-4af3-670": {
           "options": {
-            "space-marines.sicaran.sicaran-wargear": {
-              "space-marines.sicaran.2-heavy-bolter": 1
+            "thousand-sons.sicaran.sponsons": {
+              "thousand-sons.sicaran.2-heavy-bolter": 1
             }
           }
         },
         "4be6-a7f7-b99d-7c9f/2ef7-c711-185c-4b7b|ad1f-3a75-6cd9-d065": {
           "options": {
-            "space-marines.sicaran.sicaran-wargear": {
-              "space-marines.sicaran.2-lascannon": 1
+            "thousand-sons.sicaran.sponsons": {
+              "thousand-sons.sicaran.2-lascannon": 1
             }
           }
         },
         "4be6-a7f7-b99d-7c9f/b18e-33a0-d430-6562|5caa-9bd0-133a-0012": {
           "options": {
-            "space-marines.sicaran.sicaran-herakles-pattern-autocannon": {
-              "space-marines.sicaran.arcus-multi-launcher": 1
+            "thousand-sons.sicaran.main-weapon-herakles-pattern-autocannon": {
+              "thousand-sons.sicaran.arcus-multi-launcher": 1
             }
           }
         },
@@ -27195,41 +27351,41 @@
         },
         "4be6-a7f7-b99d-7c9f/b18e-33a0-d430-6562|6cea-473d-af71-2372": {
           "options": {
-            "space-marines.sicaran.sicaran-herakles-pattern-autocannon": {
-              "space-marines.sicaran.punisher-rotary-cannon": 1
+            "thousand-sons.sicaran.main-weapon-herakles-pattern-autocannon": {
+              "thousand-sons.sicaran.punisher-rotary-cannon": 1
             }
           }
         },
         "4be6-a7f7-b99d-7c9f/b18e-33a0-d430-6562|993e-29d4-1aa0-5ace": {
           "options": {
-            "space-marines.sicaran.sicaran-herakles-pattern-autocannon": {
-              "space-marines.sicaran.venator-neutron-laser": 1
+            "thousand-sons.sicaran.main-weapon-herakles-pattern-autocannon": {
+              "thousand-sons.sicaran.venator-neutron-laser": 1
             }
           }
         },
         "4be6-a7f7-b99d-7c9f/b18e-33a0-d430-6562|a0fc-71c1-27b4-9580": {
           "options": {
-            "space-marines.sicaran.sicaran-herakles-pattern-autocannon": {
-              "space-marines.sicaran.omega-plasma-array": 1
+            "thousand-sons.sicaran.main-weapon-herakles-pattern-autocannon": {
+              "thousand-sons.sicaran.omega-plasma-array": 1
             }
           }
         },
         "4be6-a7f7-b99d-7c9f|3e1c-d033-7360-7217": {
           "options": {
-            "space-marines.sicaran.sicaran-wargear-2": {
-              "space-marines.sicaran.storm-bolter": 1
+            "thousand-sons.sicaran.wargear": {
+              "thousand-sons.sicaran.storm-bolter": 1
             }
           }
         },
         "4be6-a7f7-b99d-7c9f|e98-7362-c489-e09e": {
           "options": {
-            "space-marines.sicaran.sicaran-wargear-3": {
-              "space-marines.sicaran.hunter-killer-missile": 1
+            "thousand-sons.sicaran.wargear": {
+              "thousand-sons.sicaran.hunter-killer-missile": 1
             }
           }
         }
       },
-      "unit": "space-marines.sicaran",
+      "unit": "thousand-sons.sicaran",
       "unmatched": []
     },
     "8a1e-45c9-7719-b8c3": {
@@ -31439,36 +31595,36 @@
       "choices": {
         "5876-2a74-17b5-19a8/2521-769-48ed-820e|4a2b-5c1d-ea3c-644f": {
           "options": {
-            "space-marines.falchion.falchion-wargear": {
-              "space-marines.falchion.storm-bolter": 1
+            "thousand-sons.falchion.pintle-weapon": {
+              "thousand-sons.falchion.storm-bolter": 1
             }
           }
         },
         "5876-2a74-17b5-19a8/2521-769-48ed-820e|4eee-cfd5-27a4-bca9": {
           "options": {
-            "space-marines.falchion.falchion-wargear": {
-              "space-marines.falchion.heavy-flamer": 1
+            "thousand-sons.falchion.pintle-weapon": {
+              "thousand-sons.falchion.heavy-flamer": 1
             }
           }
         },
         "5876-2a74-17b5-19a8/2521-769-48ed-820e|c581-e0f4-1bf7-81d6": {
           "options": {
-            "space-marines.falchion.falchion-wargear": {
-              "space-marines.falchion.heavy-bolter": 1
+            "thousand-sons.falchion.pintle-weapon": {
+              "thousand-sons.falchion.heavy-bolter": 1
             }
           }
         },
         "5876-2a74-17b5-19a8/2521-769-48ed-820e|ded8-5815-407f-cc31": {
           "options": {
-            "space-marines.falchion.falchion-wargear": {
-              "space-marines.falchion.multi-melta": 1
+            "thousand-sons.falchion.pintle-weapon": {
+              "thousand-sons.falchion.multi-melta": 1
             }
           }
         },
         "5876-2a74-17b5-19a8/63e9-c140-7edc-4266|5798-110c-77e-4cc7": {
           "options": {
-            "space-marines.falchion.falchion-quad-lascannon": {
-              "space-marines.falchion.2-laser-destroyer": 1
+            "thousand-sons.falchion.sponsons-two-quad-lascannons": {
+              "thousand-sons.falchion.2-laser-destroyer": 1
             }
           }
         },
@@ -31477,8 +31633,8 @@
         },
         "5876-2a74-17b5-19a8/f7ef-21a2-edb4-e1fc|11fe-6e60-2cd2-71e0": {
           "options": {
-            "space-marines.falchion.falchion-twin-heavy-bolter": {
-              "space-marines.falchion.twin-heavy-flamer": 1
+            "thousand-sons.falchion.frontal-weapon-twin-heavy-bolter": {
+              "thousand-sons.falchion.twin-heavy-flamer": 1
             }
           }
         },
@@ -31486,15 +31642,15 @@
           "options": {}
         }
       },
-      "unit": "space-marines.falchion",
+      "unit": "thousand-sons.falchion",
       "unmatched": []
     },
     "a322-e294-14f2-227c": {
       "choices": {
         "ec32-0973-fb6b-ca35/139c-4129-5ae3-3dbc|4e56-4399-ef28-e5f": {
           "options": {
-            "space-marines.kratos.kratos-kratos-battle-cannon": {
-              "space-marines.kratos.melta-blast-gun": 1
+            "chaos-space-marines.kratos.main-weapon-kratos-battlecannon": {
+              "chaos-space-marines.kratos.melta-blast-gun": 1
             }
           }
         },
@@ -31503,80 +31659,104 @@
         },
         "ec32-0973-fb6b-ca35/139c-4129-5ae3-3dbc|dfb3-a109-27d6-3c0f": {
           "options": {
-            "space-marines.kratos.kratos-kratos-battle-cannon": {
-              "space-marines.kratos.volkite-cardanelle": 1
+            "chaos-space-marines.kratos.main-weapon-kratos-battlecannon": {
+              "chaos-space-marines.kratos.volkite-cardanelle": 1
             }
           }
         },
         "ec32-0973-fb6b-ca35/2667-d8cf-962d-6990|1514-c24f-d6fd-c0ab": {
           "options": {
-            "space-marines.kratos.kratos-wargear-2": {
-              "space-marines.kratos.combi-weapon": 1
+            "chaos-space-marines.kratos.pintle-weapon": {
+              "chaos-space-marines.kratos.combi-weapon": 1
             }
           }
         },
         "ec32-0973-fb6b-ca35/2667-d8cf-962d-6990|32b0-fc75-8b2e-7a25": {
           "options": {
-            "space-marines.kratos.kratos-wargear-2": {
-              "space-marines.kratos.multi-melta": 1
+            "chaos-space-marines.kratos.pintle-weapon": {
+              "chaos-space-marines.kratos.multi-melta": 1
             }
           }
         },
         "ec32-0973-fb6b-ca35/2667-d8cf-962d-6990|4670-1449-7ee5-7d90": {
           "options": {
-            "space-marines.kratos.kratos-wargear-2": {
-              "space-marines.kratos.heavy-flamer": 1
+            "chaos-space-marines.kratos.pintle-weapon": {
+              "chaos-space-marines.kratos.heavy-flamer": 1
             }
           }
         },
         "ec32-0973-fb6b-ca35/2667-d8cf-962d-6990|5d5d-19c8-65c7-03c2": {
           "options": {
-            "space-marines.kratos.kratos-wargear-2": {
-              "space-marines.kratos.havoc-launcher": 1
+            "chaos-space-marines.kratos.pintle-weapon": {
+              "chaos-space-marines.kratos.havoc-launcher": 1
             }
           }
         },
         "ec32-0973-fb6b-ca35/2667-d8cf-962d-6990|6edb-6f3-dbd3-b36b": {
           "options": {
-            "space-marines.kratos.kratos-wargear-2": {
-              "space-marines.kratos.twin-boltgun": 1
+            "chaos-space-marines.kratos.pintle-weapon": {
+              "chaos-space-marines.kratos.twin-boltgun": 1
             }
           }
         },
         "ec32-0973-fb6b-ca35/2667-d8cf-962d-6990|c6d9-e55-c30e-35de": {
           "options": {
-            "space-marines.kratos.kratos-wargear-2": {
-              "space-marines.kratos.heavy-bolter": 1
+            "chaos-space-marines.kratos.pintle-weapon": {
+              "chaos-space-marines.kratos.heavy-bolter": 1
             }
           }
         },
         "ec32-0973-fb6b-ca35/c69e-57e0-90cc-b94d|374d-b89b-6a26-46e4": {
           "options": {}
         },
+        "ec32-0973-fb6b-ca35/c69e-57e0-90cc-b94d|a7f1-94af-bf64-a0e1": {
+          "options": {
+            "chaos-space-marines.kratos.sponsons-two-heavy-bolters": {
+              "chaos-space-marines.kratos.2-volkite-culverin": 1
+            }
+          }
+        },
+        "ec32-0973-fb6b-ca35/c69e-57e0-90cc-b94d|dd0-912b-332b-7ce7": {
+          "options": {
+            "chaos-space-marines.kratos.sponsons-two-heavy-bolters": {
+              "chaos-space-marines.kratos.2-heavy-flamer": 1
+            }
+          }
+        },
         "ec32-0973-fb6b-ca35/f69c-a953-7d55-9d15|6211-a2c4-7e3d-a946": {
           "options": {}
         },
+        "ec32-0973-fb6b-ca35/f69c-a953-7d55-9d15|6c7d-c96a-7c25-d7f9": {
+          "options": {
+            "chaos-space-marines.kratos.hull-guns-two-heavy-bolters": {
+              "chaos-space-marines.kratos.2-lascannon": 1
+            }
+          }
+        },
+        "ec32-0973-fb6b-ca35/f69c-a953-7d55-9d15|a65a-9c08-158a-3b47": {
+          "options": {
+            "chaos-space-marines.kratos.hull-guns-two-heavy-bolters": {
+              "chaos-space-marines.kratos.2-autocannon": 1
+            }
+          }
+        },
         "ec32-0973-fb6b-ca35|2703-14fd-761b-d9f2": {
           "options": {
-            "space-marines.kratos.kratos-wargear": {
-              "space-marines.kratos.hunter-killer-missile": 1
+            "chaos-space-marines.kratos.wargear": {
+              "chaos-space-marines.kratos.hunter-killer-missile": 1
             }
           }
         }
       },
-      "unit": "space-marines.kratos",
+      "unit": "chaos-space-marines.kratos",
       "unmatched": [
         "b1b7-aa81-a254-dc55|3bb3-78e-db85-353b",
         "b1b7-aa81-a254-dc55|a689-a7b8-9b47-1362",
         "b1b7-aa81-a254-dc55|cb13-6792-cb2e-4702",
         "b1b7-aa81-a254-dc55|e9bb-ae3a-eba6-cbd8",
         "b1b7-aa81-a254-dc55|f764-31bd-419d-576c",
-        "ec32-0973-fb6b-ca35/c69e-57e0-90cc-b94d|a7f1-94af-bf64-a0e1",
         "ec32-0973-fb6b-ca35/c69e-57e0-90cc-b94d|cdd-2ca7-be0d-1cd4",
-        "ec32-0973-fb6b-ca35/c69e-57e0-90cc-b94d|dd0-912b-332b-7ce7",
-        "ec32-0973-fb6b-ca35/f69c-a953-7d55-9d15|124f-5c13-e31a-8e55",
-        "ec32-0973-fb6b-ca35/f69c-a953-7d55-9d15|6c7d-c96a-7c25-d7f9",
-        "ec32-0973-fb6b-ca35/f69c-a953-7d55-9d15|a65a-9c08-158a-3b47"
+        "ec32-0973-fb6b-ca35/f69c-a953-7d55-9d15|124f-5c13-e31a-8e55"
       ]
     },
     "a365-c488-23d5-a5e3": {
@@ -33230,48 +33410,48 @@
       "choices": {
         "6567-44a3-c2cf-9e5b/dd27-89ca-48c9-fb9d|14fe-cbe2-7ce2-297": {
           "options": {
-            "space-marines.typhon.typhon-wargear": {
-              "space-marines.typhon.storm-bolter": 1
+            "thousand-sons.typhon.pintle-weapon": {
+              "thousand-sons.typhon.storm-bolter": 1
             }
           }
         },
         "6567-44a3-c2cf-9e5b/dd27-89ca-48c9-fb9d|3906-bb1c-9fea-9ed2": {
           "options": {
-            "space-marines.typhon.typhon-wargear": {
-              "space-marines.typhon.heavy-flamer": 1
+            "thousand-sons.typhon.pintle-weapon": {
+              "thousand-sons.typhon.heavy-flamer": 1
             }
           }
         },
         "6567-44a3-c2cf-9e5b/dd27-89ca-48c9-fb9d|9b87-837b-d060-c12b": {
           "options": {
-            "space-marines.typhon.typhon-wargear": {
-              "space-marines.typhon.multi-melta": 1
+            "thousand-sons.typhon.pintle-weapon": {
+              "thousand-sons.typhon.multi-melta": 1
             }
           }
         },
         "6567-44a3-c2cf-9e5b/dd27-89ca-48c9-fb9d|e51c-6d70-adfd-1ee9": {
           "options": {
-            "space-marines.typhon.typhon-wargear": {
-              "space-marines.typhon.heavy-bolter": 1
+            "thousand-sons.typhon.pintle-weapon": {
+              "thousand-sons.typhon.heavy-bolter": 1
             }
           }
         },
         "6567-44a3-c2cf-9e5b/ede8-7239-7141-c52c|bff6-4ea3-f21b-7d20": {
           "options": {
-            "space-marines.typhon.typhon-wargear-2": {
-              "space-marines.typhon.2-heavy-bolter": 1
+            "thousand-sons.typhon.sponsons": {
+              "thousand-sons.typhon.2-heavy-bolter": 1
             }
           }
         },
         "6567-44a3-c2cf-9e5b/ede8-7239-7141-c52c|e6e4-347-fe2e-c1fd": {
           "options": {
-            "space-marines.typhon.typhon-wargear-2": {
-              "space-marines.typhon.2-lascannon": 1
+            "thousand-sons.typhon.sponsons": {
+              "thousand-sons.typhon.2-lascannon": 1
             }
           }
         }
       },
-      "unit": "space-marines.typhon",
+      "unit": "thousand-sons.typhon",
       "unmatched": []
     },
     "ab79-1972-8d44-553f": {
@@ -34777,48 +34957,48 @@
       "choices": {
         "6567-44a3-c2cf-9e5b/dd27-89ca-48c9-fb9d|14fe-cbe2-7ce2-297": {
           "options": {
-            "space-marines.typhon.typhon-wargear": {
-              "space-marines.typhon.storm-bolter": 1
+            "chaos-space-marines.typhon.pintle-weapon": {
+              "chaos-space-marines.typhon.storm-bolter": 1
             }
           }
         },
         "6567-44a3-c2cf-9e5b/dd27-89ca-48c9-fb9d|3906-bb1c-9fea-9ed2": {
           "options": {
-            "space-marines.typhon.typhon-wargear": {
-              "space-marines.typhon.heavy-flamer": 1
+            "chaos-space-marines.typhon.pintle-weapon": {
+              "chaos-space-marines.typhon.heavy-flamer": 1
             }
           }
         },
         "6567-44a3-c2cf-9e5b/dd27-89ca-48c9-fb9d|9b87-837b-d060-c12b": {
           "options": {
-            "space-marines.typhon.typhon-wargear": {
-              "space-marines.typhon.multi-melta": 1
+            "chaos-space-marines.typhon.pintle-weapon": {
+              "chaos-space-marines.typhon.multi-melta": 1
             }
           }
         },
         "6567-44a3-c2cf-9e5b/dd27-89ca-48c9-fb9d|e51c-6d70-adfd-1ee9": {
           "options": {
-            "space-marines.typhon.typhon-wargear": {
-              "space-marines.typhon.heavy-bolter": 1
+            "chaos-space-marines.typhon.pintle-weapon": {
+              "chaos-space-marines.typhon.heavy-bolter": 1
             }
           }
         },
         "6567-44a3-c2cf-9e5b/ede8-7239-7141-c52c|bff6-4ea3-f21b-7d20": {
           "options": {
-            "space-marines.typhon.typhon-wargear-2": {
-              "space-marines.typhon.2-heavy-bolter": 1
+            "chaos-space-marines.typhon.sponsons": {
+              "chaos-space-marines.typhon.2-heavy-bolter": 1
             }
           }
         },
         "6567-44a3-c2cf-9e5b/ede8-7239-7141-c52c|e6e4-347-fe2e-c1fd": {
           "options": {
-            "space-marines.typhon.typhon-wargear-2": {
-              "space-marines.typhon.2-lascannon": 1
+            "chaos-space-marines.typhon.sponsons": {
+              "chaos-space-marines.typhon.2-lascannon": 1
             }
           }
         }
       },
-      "unit": "space-marines.typhon",
+      "unit": "chaos-space-marines.typhon",
       "unmatched": [
         "4750-29c0-879a-a950|3bb3-78e-db85-353b",
         "4750-29c0-879a-a950|a689-a7b8-9b47-1362",
@@ -35858,22 +36038,22 @@
       "choices": {
         "dceb-5fe7-50b5-f582/77e0-a80e-ee61-6df9|2096-1d75-f788-326": {
           "options": {
-            "space-marines.rapier-carrier.rapier-carrier-quad-heavy-bolter": {
-              "space-marines.rapier-carrier.laser-destroyer": 1
+            "death-guard.rapier-carrier.weapon-quad-heavy-bolter": {
+              "death-guard.rapier-carrier.laser-destroyer": 1
             }
           }
         },
         "dceb-5fe7-50b5-f582/77e0-a80e-ee61-6df9|7ae5-6407-4e90-6568": {
           "options": {
-            "space-marines.rapier-carrier.rapier-carrier-quad-heavy-bolter": {
-              "space-marines.rapier-carrier.graviton-cannon": 1
+            "death-guard.rapier-carrier.weapon-quad-heavy-bolter": {
+              "death-guard.rapier-carrier.graviton-cannon": 1
             }
           }
         },
         "dceb-5fe7-50b5-f582/77e0-a80e-ee61-6df9|7ff0-2c58-398d-41e": {
           "options": {
-            "space-marines.rapier-carrier.rapier-carrier-quad-heavy-bolter": {
-              "space-marines.rapier-carrier.quad-launcher": 1
+            "death-guard.rapier-carrier.weapon-quad-heavy-bolter": {
+              "death-guard.rapier-carrier.quad-launcher": 1
             }
           }
         },
@@ -35881,7 +36061,7 @@
           "options": {}
         }
       },
-      "unit": "space-marines.rapier-carrier",
+      "unit": "death-guard.rapier-carrier",
       "unmatched": []
     },
     "bb85-e22e-6497-1054": {
@@ -36026,36 +36206,36 @@
       "choices": {
         "5876-2a74-17b5-19a8/2521-769-48ed-820e|4a2b-5c1d-ea3c-644f": {
           "options": {
-            "space-marines.falchion.falchion-wargear": {
-              "space-marines.falchion.storm-bolter": 1
+            "world-eaters.falchion.pintle-weapon": {
+              "world-eaters.falchion.storm-bolter": 1
             }
           }
         },
         "5876-2a74-17b5-19a8/2521-769-48ed-820e|4eee-cfd5-27a4-bca9": {
           "options": {
-            "space-marines.falchion.falchion-wargear": {
-              "space-marines.falchion.heavy-flamer": 1
+            "world-eaters.falchion.pintle-weapon": {
+              "world-eaters.falchion.heavy-flamer": 1
             }
           }
         },
         "5876-2a74-17b5-19a8/2521-769-48ed-820e|c581-e0f4-1bf7-81d6": {
           "options": {
-            "space-marines.falchion.falchion-wargear": {
-              "space-marines.falchion.heavy-bolter": 1
+            "world-eaters.falchion.pintle-weapon": {
+              "world-eaters.falchion.heavy-bolter": 1
             }
           }
         },
         "5876-2a74-17b5-19a8/2521-769-48ed-820e|ded8-5815-407f-cc31": {
           "options": {
-            "space-marines.falchion.falchion-wargear": {
-              "space-marines.falchion.multi-melta": 1
+            "world-eaters.falchion.pintle-weapon": {
+              "world-eaters.falchion.multi-melta": 1
             }
           }
         },
         "5876-2a74-17b5-19a8/63e9-c140-7edc-4266|5798-110c-77e-4cc7": {
           "options": {
-            "space-marines.falchion.falchion-quad-lascannon": {
-              "space-marines.falchion.2-laser-destroyer": 1
+            "world-eaters.falchion.sponsons-two-quad-lascannons": {
+              "world-eaters.falchion.2-laser-destroyer": 1
             }
           }
         },
@@ -36064,8 +36244,8 @@
         },
         "5876-2a74-17b5-19a8/f7ef-21a2-edb4-e1fc|11fe-6e60-2cd2-71e0": {
           "options": {
-            "space-marines.falchion.falchion-twin-heavy-bolter": {
-              "space-marines.falchion.twin-heavy-flamer": 1
+            "world-eaters.falchion.frontal-weapon-twin-heavy-bolter": {
+              "world-eaters.falchion.twin-heavy-flamer": 1
             }
           }
         },
@@ -36073,7 +36253,7 @@
           "options": {}
         }
       },
-      "unit": "space-marines.falchion",
+      "unit": "world-eaters.falchion",
       "unmatched": []
     },
     "bccb-bed8-e98d-c278": {
@@ -36607,36 +36787,36 @@
       "choices": {
         "5876-2a74-17b5-19a8/2521-769-48ed-820e|4a2b-5c1d-ea3c-644f": {
           "options": {
-            "space-marines.falchion.falchion-wargear": {
-              "space-marines.falchion.storm-bolter": 1
+            "chaos-space-marines.falchion.pintle-weapon": {
+              "chaos-space-marines.falchion.storm-bolter": 1
             }
           }
         },
         "5876-2a74-17b5-19a8/2521-769-48ed-820e|4eee-cfd5-27a4-bca9": {
           "options": {
-            "space-marines.falchion.falchion-wargear": {
-              "space-marines.falchion.heavy-flamer": 1
+            "chaos-space-marines.falchion.pintle-weapon": {
+              "chaos-space-marines.falchion.heavy-flamer": 1
             }
           }
         },
         "5876-2a74-17b5-19a8/2521-769-48ed-820e|c581-e0f4-1bf7-81d6": {
           "options": {
-            "space-marines.falchion.falchion-wargear": {
-              "space-marines.falchion.heavy-bolter": 1
+            "chaos-space-marines.falchion.pintle-weapon": {
+              "chaos-space-marines.falchion.heavy-bolter": 1
             }
           }
         },
         "5876-2a74-17b5-19a8/2521-769-48ed-820e|ded8-5815-407f-cc31": {
           "options": {
-            "space-marines.falchion.falchion-wargear": {
-              "space-marines.falchion.multi-melta": 1
+            "chaos-space-marines.falchion.pintle-weapon": {
+              "chaos-space-marines.falchion.multi-melta": 1
             }
           }
         },
         "5876-2a74-17b5-19a8/63e9-c140-7edc-4266|5798-110c-77e-4cc7": {
           "options": {
-            "space-marines.falchion.falchion-quad-lascannon": {
-              "space-marines.falchion.2-laser-destroyer": 1
+            "chaos-space-marines.falchion.sponsons-two-quad-lascannons": {
+              "chaos-space-marines.falchion.2-laser-destroyer": 1
             }
           }
         },
@@ -36645,8 +36825,8 @@
         },
         "5876-2a74-17b5-19a8/f7ef-21a2-edb4-e1fc|11fe-6e60-2cd2-71e0": {
           "options": {
-            "space-marines.falchion.falchion-twin-heavy-bolter": {
-              "space-marines.falchion.twin-heavy-flamer": 1
+            "chaos-space-marines.falchion.frontal-weapon-twin-heavy-bolter": {
+              "chaos-space-marines.falchion.twin-heavy-flamer": 1
             }
           }
         },
@@ -36654,7 +36834,7 @@
           "options": {}
         }
       },
-      "unit": "space-marines.falchion",
+      "unit": "chaos-space-marines.falchion",
       "unmatched": [
         "6cd8-cf1d-9edc-f002|3bb3-78e-db85-353b",
         "6cd8-cf1d-9edc-f002|a689-a7b8-9b47-1362",
@@ -36724,8 +36904,8 @@
       "choices": {
         "ec32-0973-fb6b-ca35/139c-4129-5ae3-3dbc|4e56-4399-ef28-e5f": {
           "options": {
-            "space-marines.kratos.kratos-kratos-battle-cannon": {
-              "space-marines.kratos.melta-blast-gun": 1
+            "thousand-sons.kratos.main-weapon-kratos-battlecannon": {
+              "thousand-sons.kratos.melta-blast-gun": 1
             }
           }
         },
@@ -36734,75 +36914,99 @@
         },
         "ec32-0973-fb6b-ca35/139c-4129-5ae3-3dbc|dfb3-a109-27d6-3c0f": {
           "options": {
-            "space-marines.kratos.kratos-kratos-battle-cannon": {
-              "space-marines.kratos.volkite-cardanelle": 1
+            "thousand-sons.kratos.main-weapon-kratos-battlecannon": {
+              "thousand-sons.kratos.volkite-cardanelle": 1
             }
           }
         },
         "ec32-0973-fb6b-ca35/2667-d8cf-962d-6990|1514-c24f-d6fd-c0ab": {
           "options": {
-            "space-marines.kratos.kratos-wargear-2": {
-              "space-marines.kratos.combi-weapon": 1
+            "thousand-sons.kratos.pintle-weapon": {
+              "thousand-sons.kratos.combi-weapon": 1
             }
           }
         },
         "ec32-0973-fb6b-ca35/2667-d8cf-962d-6990|32b0-fc75-8b2e-7a25": {
           "options": {
-            "space-marines.kratos.kratos-wargear-2": {
-              "space-marines.kratos.multi-melta": 1
+            "thousand-sons.kratos.pintle-weapon": {
+              "thousand-sons.kratos.multi-melta": 1
             }
           }
         },
         "ec32-0973-fb6b-ca35/2667-d8cf-962d-6990|4670-1449-7ee5-7d90": {
           "options": {
-            "space-marines.kratos.kratos-wargear-2": {
-              "space-marines.kratos.heavy-flamer": 1
+            "thousand-sons.kratos.pintle-weapon": {
+              "thousand-sons.kratos.heavy-flamer": 1
             }
           }
         },
         "ec32-0973-fb6b-ca35/2667-d8cf-962d-6990|5d5d-19c8-65c7-03c2": {
           "options": {
-            "space-marines.kratos.kratos-wargear-2": {
-              "space-marines.kratos.havoc-launcher": 1
+            "thousand-sons.kratos.pintle-weapon": {
+              "thousand-sons.kratos.havoc-launcher": 1
             }
           }
         },
         "ec32-0973-fb6b-ca35/2667-d8cf-962d-6990|6edb-6f3-dbd3-b36b": {
           "options": {
-            "space-marines.kratos.kratos-wargear-2": {
-              "space-marines.kratos.twin-boltgun": 1
+            "thousand-sons.kratos.pintle-weapon": {
+              "thousand-sons.kratos.twin-boltgun": 1
             }
           }
         },
         "ec32-0973-fb6b-ca35/2667-d8cf-962d-6990|c6d9-e55-c30e-35de": {
           "options": {
-            "space-marines.kratos.kratos-wargear-2": {
-              "space-marines.kratos.heavy-bolter": 1
+            "thousand-sons.kratos.pintle-weapon": {
+              "thousand-sons.kratos.heavy-bolter": 1
             }
           }
         },
         "ec32-0973-fb6b-ca35/c69e-57e0-90cc-b94d|374d-b89b-6a26-46e4": {
           "options": {}
         },
+        "ec32-0973-fb6b-ca35/c69e-57e0-90cc-b94d|a7f1-94af-bf64-a0e1": {
+          "options": {
+            "thousand-sons.kratos.sponsons-two-heavy-bolters": {
+              "thousand-sons.kratos.2-volkite-culverin": 1
+            }
+          }
+        },
+        "ec32-0973-fb6b-ca35/c69e-57e0-90cc-b94d|dd0-912b-332b-7ce7": {
+          "options": {
+            "thousand-sons.kratos.sponsons-two-heavy-bolters": {
+              "thousand-sons.kratos.2-heavy-flamer": 1
+            }
+          }
+        },
         "ec32-0973-fb6b-ca35/f69c-a953-7d55-9d15|6211-a2c4-7e3d-a946": {
           "options": {}
         },
+        "ec32-0973-fb6b-ca35/f69c-a953-7d55-9d15|6c7d-c96a-7c25-d7f9": {
+          "options": {
+            "thousand-sons.kratos.hull-guns-two-heavy-bolters": {
+              "thousand-sons.kratos.2-lascannon": 1
+            }
+          }
+        },
+        "ec32-0973-fb6b-ca35/f69c-a953-7d55-9d15|a65a-9c08-158a-3b47": {
+          "options": {
+            "thousand-sons.kratos.hull-guns-two-heavy-bolters": {
+              "thousand-sons.kratos.2-autocannon": 1
+            }
+          }
+        },
         "ec32-0973-fb6b-ca35|2703-14fd-761b-d9f2": {
           "options": {
-            "space-marines.kratos.kratos-wargear": {
-              "space-marines.kratos.hunter-killer-missile": 1
+            "thousand-sons.kratos.wargear": {
+              "thousand-sons.kratos.hunter-killer-missile": 1
             }
           }
         }
       },
-      "unit": "space-marines.kratos",
+      "unit": "thousand-sons.kratos",
       "unmatched": [
-        "ec32-0973-fb6b-ca35/c69e-57e0-90cc-b94d|a7f1-94af-bf64-a0e1",
         "ec32-0973-fb6b-ca35/c69e-57e0-90cc-b94d|cdd-2ca7-be0d-1cd4",
-        "ec32-0973-fb6b-ca35/c69e-57e0-90cc-b94d|dd0-912b-332b-7ce7",
-        "ec32-0973-fb6b-ca35/f69c-a953-7d55-9d15|124f-5c13-e31a-8e55",
-        "ec32-0973-fb6b-ca35/f69c-a953-7d55-9d15|6c7d-c96a-7c25-d7f9",
-        "ec32-0973-fb6b-ca35/f69c-a953-7d55-9d15|a65a-9c08-158a-3b47"
+        "ec32-0973-fb6b-ca35/f69c-a953-7d55-9d15|124f-5c13-e31a-8e55"
       ]
     },
     "bf6c-669e-7c86-b731": {
@@ -39887,8 +40091,8 @@
       "choices": {
         "ec32-0973-fb6b-ca35/139c-4129-5ae3-3dbc|4e56-4399-ef28-e5f": {
           "options": {
-            "space-marines.kratos.kratos-kratos-battle-cannon": {
-              "space-marines.kratos.melta-blast-gun": 1
+            "death-guard.kratos.main-weapon-kratos-battlecannon": {
+              "death-guard.kratos.melta-blast-gun": 1
             }
           }
         },
@@ -39897,75 +40101,99 @@
         },
         "ec32-0973-fb6b-ca35/139c-4129-5ae3-3dbc|dfb3-a109-27d6-3c0f": {
           "options": {
-            "space-marines.kratos.kratos-kratos-battle-cannon": {
-              "space-marines.kratos.volkite-cardanelle": 1
+            "death-guard.kratos.main-weapon-kratos-battlecannon": {
+              "death-guard.kratos.volkite-cardanelle": 1
             }
           }
         },
         "ec32-0973-fb6b-ca35/2667-d8cf-962d-6990|1514-c24f-d6fd-c0ab": {
           "options": {
-            "space-marines.kratos.kratos-wargear-2": {
-              "space-marines.kratos.combi-weapon": 1
+            "death-guard.kratos.pintle-weapon": {
+              "death-guard.kratos.combi-weapon": 1
             }
           }
         },
         "ec32-0973-fb6b-ca35/2667-d8cf-962d-6990|32b0-fc75-8b2e-7a25": {
           "options": {
-            "space-marines.kratos.kratos-wargear-2": {
-              "space-marines.kratos.multi-melta": 1
+            "death-guard.kratos.pintle-weapon": {
+              "death-guard.kratos.multi-melta": 1
             }
           }
         },
         "ec32-0973-fb6b-ca35/2667-d8cf-962d-6990|4670-1449-7ee5-7d90": {
           "options": {
-            "space-marines.kratos.kratos-wargear-2": {
-              "space-marines.kratos.heavy-flamer": 1
+            "death-guard.kratos.pintle-weapon": {
+              "death-guard.kratos.heavy-flamer": 1
             }
           }
         },
         "ec32-0973-fb6b-ca35/2667-d8cf-962d-6990|5d5d-19c8-65c7-03c2": {
           "options": {
-            "space-marines.kratos.kratos-wargear-2": {
-              "space-marines.kratos.havoc-launcher": 1
+            "death-guard.kratos.pintle-weapon": {
+              "death-guard.kratos.havoc-launcher": 1
             }
           }
         },
         "ec32-0973-fb6b-ca35/2667-d8cf-962d-6990|6edb-6f3-dbd3-b36b": {
           "options": {
-            "space-marines.kratos.kratos-wargear-2": {
-              "space-marines.kratos.twin-boltgun": 1
+            "death-guard.kratos.pintle-weapon": {
+              "death-guard.kratos.twin-boltgun": 1
             }
           }
         },
         "ec32-0973-fb6b-ca35/2667-d8cf-962d-6990|c6d9-e55-c30e-35de": {
           "options": {
-            "space-marines.kratos.kratos-wargear-2": {
-              "space-marines.kratos.heavy-bolter": 1
+            "death-guard.kratos.pintle-weapon": {
+              "death-guard.kratos.heavy-bolter": 1
             }
           }
         },
         "ec32-0973-fb6b-ca35/c69e-57e0-90cc-b94d|374d-b89b-6a26-46e4": {
           "options": {}
         },
+        "ec32-0973-fb6b-ca35/c69e-57e0-90cc-b94d|a7f1-94af-bf64-a0e1": {
+          "options": {
+            "death-guard.kratos.sponsons-two-heavy-bolters": {
+              "death-guard.kratos.2-volkite-culverin": 1
+            }
+          }
+        },
+        "ec32-0973-fb6b-ca35/c69e-57e0-90cc-b94d|dd0-912b-332b-7ce7": {
+          "options": {
+            "death-guard.kratos.sponsons-two-heavy-bolters": {
+              "death-guard.kratos.2-heavy-flamer": 1
+            }
+          }
+        },
         "ec32-0973-fb6b-ca35/f69c-a953-7d55-9d15|6211-a2c4-7e3d-a946": {
           "options": {}
         },
+        "ec32-0973-fb6b-ca35/f69c-a953-7d55-9d15|6c7d-c96a-7c25-d7f9": {
+          "options": {
+            "death-guard.kratos.hull-guns-two-heavy-bolters": {
+              "death-guard.kratos.2-lascannon": 1
+            }
+          }
+        },
+        "ec32-0973-fb6b-ca35/f69c-a953-7d55-9d15|a65a-9c08-158a-3b47": {
+          "options": {
+            "death-guard.kratos.hull-guns-two-heavy-bolters": {
+              "death-guard.kratos.2-autocannon": 1
+            }
+          }
+        },
         "ec32-0973-fb6b-ca35|2703-14fd-761b-d9f2": {
           "options": {
-            "space-marines.kratos.kratos-wargear": {
-              "space-marines.kratos.hunter-killer-missile": 1
+            "death-guard.kratos.wargear": {
+              "death-guard.kratos.hunter-killer-missile": 1
             }
           }
         }
       },
-      "unit": "space-marines.kratos",
+      "unit": "death-guard.kratos",
       "unmatched": [
-        "ec32-0973-fb6b-ca35/c69e-57e0-90cc-b94d|a7f1-94af-bf64-a0e1",
         "ec32-0973-fb6b-ca35/c69e-57e0-90cc-b94d|cdd-2ca7-be0d-1cd4",
-        "ec32-0973-fb6b-ca35/c69e-57e0-90cc-b94d|dd0-912b-332b-7ce7",
-        "ec32-0973-fb6b-ca35/f69c-a953-7d55-9d15|124f-5c13-e31a-8e55",
-        "ec32-0973-fb6b-ca35/f69c-a953-7d55-9d15|6c7d-c96a-7c25-d7f9",
-        "ec32-0973-fb6b-ca35/f69c-a953-7d55-9d15|a65a-9c08-158a-3b47"
+        "ec32-0973-fb6b-ca35/f69c-a953-7d55-9d15|124f-5c13-e31a-8e55"
       ]
     },
     "cd0e-9f43-0d24-02ab": {
@@ -41421,48 +41649,48 @@
       "choices": {
         "7ca8-38f2-5c81-7a2d/ad1c-bbeb-9394-9104|29ce-b9ad-b0cd-9378": {
           "options": {
-            "space-marines.cerberus.cerberus-wargear-2": {
-              "space-marines.cerberus.multi-melta": 1
+            "death-guard.cerberus.pintle-weapon": {
+              "death-guard.cerberus.multi-melta": 1
             }
           }
         },
         "7ca8-38f2-5c81-7a2d/ad1c-bbeb-9394-9104|3cbe-4600-e9ea-f69": {
           "options": {
-            "space-marines.cerberus.cerberus-wargear-2": {
-              "space-marines.cerberus.heavy-flamer": 1
+            "death-guard.cerberus.pintle-weapon": {
+              "death-guard.cerberus.heavy-flamer": 1
             }
           }
         },
         "7ca8-38f2-5c81-7a2d/ad1c-bbeb-9394-9104|afd6-627b-6b5e-b35d": {
           "options": {
-            "space-marines.cerberus.cerberus-wargear-2": {
-              "space-marines.cerberus.heavy-bolter": 1
+            "death-guard.cerberus.pintle-weapon": {
+              "death-guard.cerberus.heavy-bolter": 1
             }
           }
         },
         "7ca8-38f2-5c81-7a2d/ad1c-bbeb-9394-9104|c17e-79b-3a2b-12": {
           "options": {
-            "space-marines.cerberus.cerberus-wargear-2": {
-              "space-marines.cerberus.storm-bolter": 1
+            "death-guard.cerberus.pintle-weapon": {
+              "death-guard.cerberus.storm-bolter": 1
             }
           }
         },
         "7ca8-38f2-5c81-7a2d/e7ab-b81c-e038-83bd|4e96-d389-85b6-b104": {
           "options": {
-            "space-marines.cerberus.cerberus-wargear": {
-              "space-marines.cerberus.2-heavy-bolter": 1
+            "death-guard.cerberus.sponsons": {
+              "death-guard.cerberus.2-heavy-bolter": 1
             }
           }
         },
         "7ca8-38f2-5c81-7a2d/e7ab-b81c-e038-83bd|8058-42ea-8332-ee32": {
           "options": {
-            "space-marines.cerberus.cerberus-wargear": {
-              "space-marines.cerberus.2-lascannon": 1
+            "death-guard.cerberus.sponsons": {
+              "death-guard.cerberus.2-lascannon": 1
             }
           }
         }
       },
-      "unit": "space-marines.cerberus",
+      "unit": "death-guard.cerberus",
       "unmatched": []
     },
     "d5ad-77b7-25ef-2a85": {
@@ -45371,22 +45599,22 @@
       "choices": {
         "dceb-5fe7-50b5-f582/77e0-a80e-ee61-6df9|2096-1d75-f788-326": {
           "options": {
-            "space-marines.rapier-carrier.rapier-carrier-quad-heavy-bolter": {
-              "space-marines.rapier-carrier.laser-destroyer": 1
+            "world-eaters.rapier-carrier.weapon-quad-heavy-bolter": {
+              "world-eaters.rapier-carrier.laser-destroyer": 1
             }
           }
         },
         "dceb-5fe7-50b5-f582/77e0-a80e-ee61-6df9|7ae5-6407-4e90-6568": {
           "options": {
-            "space-marines.rapier-carrier.rapier-carrier-quad-heavy-bolter": {
-              "space-marines.rapier-carrier.graviton-cannon": 1
+            "world-eaters.rapier-carrier.weapon-quad-heavy-bolter": {
+              "world-eaters.rapier-carrier.graviton-cannon": 1
             }
           }
         },
         "dceb-5fe7-50b5-f582/77e0-a80e-ee61-6df9|7ff0-2c58-398d-41e": {
           "options": {
-            "space-marines.rapier-carrier.rapier-carrier-quad-heavy-bolter": {
-              "space-marines.rapier-carrier.quad-launcher": 1
+            "world-eaters.rapier-carrier.weapon-quad-heavy-bolter": {
+              "world-eaters.rapier-carrier.quad-launcher": 1
             }
           }
         },
@@ -45394,7 +45622,7 @@
           "options": {}
         }
       },
-      "unit": "space-marines.rapier-carrier",
+      "unit": "world-eaters.rapier-carrier",
       "unmatched": []
     },
     "ebdf-f4d8-e8bd-2bb7": {
@@ -48109,48 +48337,48 @@
       "choices": {
         "7ca8-38f2-5c81-7a2d/ad1c-bbeb-9394-9104|29ce-b9ad-b0cd-9378": {
           "options": {
-            "space-marines.cerberus.cerberus-wargear-2": {
-              "space-marines.cerberus.multi-melta": 1
+            "world-eaters.cerberus.pintle-weapon": {
+              "world-eaters.cerberus.multi-melta": 1
             }
           }
         },
         "7ca8-38f2-5c81-7a2d/ad1c-bbeb-9394-9104|3cbe-4600-e9ea-f69": {
           "options": {
-            "space-marines.cerberus.cerberus-wargear-2": {
-              "space-marines.cerberus.heavy-flamer": 1
+            "world-eaters.cerberus.pintle-weapon": {
+              "world-eaters.cerberus.heavy-flamer": 1
             }
           }
         },
         "7ca8-38f2-5c81-7a2d/ad1c-bbeb-9394-9104|afd6-627b-6b5e-b35d": {
           "options": {
-            "space-marines.cerberus.cerberus-wargear-2": {
-              "space-marines.cerberus.heavy-bolter": 1
+            "world-eaters.cerberus.pintle-weapon": {
+              "world-eaters.cerberus.heavy-bolter": 1
             }
           }
         },
         "7ca8-38f2-5c81-7a2d/ad1c-bbeb-9394-9104|c17e-79b-3a2b-12": {
           "options": {
-            "space-marines.cerberus.cerberus-wargear-2": {
-              "space-marines.cerberus.storm-bolter": 1
+            "world-eaters.cerberus.pintle-weapon": {
+              "world-eaters.cerberus.storm-bolter": 1
             }
           }
         },
         "7ca8-38f2-5c81-7a2d/e7ab-b81c-e038-83bd|4e96-d389-85b6-b104": {
           "options": {
-            "space-marines.cerberus.cerberus-wargear": {
-              "space-marines.cerberus.2-heavy-bolter": 1
+            "world-eaters.cerberus.sponsons": {
+              "world-eaters.cerberus.2-heavy-bolter": 1
             }
           }
         },
         "7ca8-38f2-5c81-7a2d/e7ab-b81c-e038-83bd|8058-42ea-8332-ee32": {
           "options": {
-            "space-marines.cerberus.cerberus-wargear": {
-              "space-marines.cerberus.2-lascannon": 1
+            "world-eaters.cerberus.sponsons": {
+              "world-eaters.cerberus.2-lascannon": 1
             }
           }
         }
       },
-      "unit": "space-marines.cerberus",
+      "unit": "world-eaters.cerberus",
       "unmatched": []
     },
     "f925-323-cb9f-9de6": {

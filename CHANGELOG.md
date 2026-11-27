@@ -1,5 +1,60 @@
 # praetorium
 
+## 0.279.9 (2026-11-27)
+
+### Patch Changes
+
+- 498b42d: [rosters] Boyz, Beast Snagga Boyz, Squighog Boyz, Accursed Cultists and Inquisitorial Agents grow to their largest size, taking their second Nob, Servitor or Torment, instead of stopping one model short.
+- 1515d4e: [rosters] Titan Legions and Chaos Titan Legions armies take no detachment and play Take and Hold, as the official app has it.
+
+## 0.279.8 (2026-11-27)
+
+### Patch Changes
+
+- 9362259: [simulator] The simulator uses those corrected characteristics, so a unit whose weapons the official app has changed now deals the damage it does in the app.
+- 9362259: [reference] Datasheets show each unit's and weapon's characteristics as the official app prints them, which corrects about a hundred lines, such as the Objective Control of Daemonettes and Bloodletters in Emperor's Children and World Eaters armies and the range of the Sagitaur's L7 missile launcher.
+
+## 0.279.7 (2026-11-27)
+
+### Patch Changes
+
+- 91d6620: [rosters] Lists in the MFM 1.4 and MFM 1.5 rules versions are priced as the official app priced them then.
+- 91d6620: [rosters] Lists in earlier rules versions are checked against that version's own army rules, so an Epic Hero taken twice is flagged there too.
+- 91d6620: [rosters] Warhammer Legends units are priced and checked the same way as every other unit.
+- 91d6620: [rosters] A single detachment now counts towards the battle size's detachment points, so a 3 DP detachment is too much for Incursion, as the official app has it.
+- 91d6620: [rosters] In earlier rules versions too, two detachments that share a Unique tag can no longer be taken together.
+
+## 0.279.6 (2026-11-27)
+
+### Patch Changes
+
+- 24a2796: [battles] On a phone, long player names in battle lists wrap onto another line instead of being cut off.
+- 24a2796: [app] Achievement, collection, readiness and loan names read in their own case instead of capitals.
+
+## 0.279.5 (2026-11-27)
+
+### Patch Changes
+
+- 5ccc5df: [reference] Stratagems show their When, Target, Effect and Restrictions as labelled parts wherever their rules appear.
+
+## 0.279.4 (2026-11-27)
+
+### Patch Changes
+
+- dbc93ae: [battles] Battle setup's reserves step lets you pick the units a rule such as Thunderhawk Insertion, Cerebrex Logic Engine or Verminous Haze gives Deep Strike, Scouts or Infiltrators as the battle begins, up to as many as the rule allows.
+- 56bb635: [app] An open page keeps working out armies on your device through an update, unless the update changed how it does that.
+- 0da2504: [events] Sealing a list for a league or hidden-list game confirms as soon as everyone else sees it, instead of after the page reloads its group data three times.
+
+## 0.279.3 (2026-11-27)
+
+### Patch Changes
+
+- 8b59bac: [events] On a phone, recent results on a group's overview and the home page give the players' names the full width and say whether a game was won or lost beside its details.
+- 586e85a: [reference] Saving the rules for offline use works again.
+- 8b59bac: [app] Small labels across the app read in sentence case instead of spaced capitals.
+- babf6ad: [simulator] On a phone, the lists for choosing what attacks and what defends open across the screen, so roster names are no longer cut short.
+- 311697e: [rosters] The tournament lists page stays quick to scroll however many lists it shows.
+
 ## 0.279.2 (2026-11-26)
 
 ### Patch Changes
@@ -1406,160 +1461,3 @@
 ### Patch Changes
 
 - 1e72e53: [events] A group page no longer shows an empty "Nothing waiting on you" card when there's nothing for you to do.
-
-## 0.241.1 (2026-11-13)
-
-### Patch Changes
-
-- eef8e24: [reference] Missing rules text now offers to turn on external sources, and the source list shows which one it needs.
-
-## 0.241.0 (2026-11-13)
-
-### Minor Changes
-
-- 62dfe24: [battles] At the end of each battle round, and when the battle ends, the battle shows both sides' scores, how they were made and what the round added.
-
-## 0.240.3 (2026-11-13)
-
-### Patch Changes
-
-- e87b6b8: [reference] Datasheet abilities, wargear abilities, enhancements and core rules now load their words from Game Datacards wherever it prints them, and from BSData only where it does not.
-
-## 0.240.2 (2026-11-13)
-
-### Patch Changes
-
-- 84c7132: [battles] The record line after a battle names your opponent in their colour.
-
-## 0.240.1 (2026-11-13)
-
-### Patch Changes
-
-- 2cdfbb0: [battles] Playing both sides now makes every place yours, named after the army you choose, including any ally you add, instead of seating a practice opponent.
-- 2cdfbb0: [battles] Add ally is now a dashed place under each side in battle setup, so it is easy to find.
-- 2cdfbb0: [battles] An empty ally place in battle setup now offers the battle link, so the ally can join it.
-
-## 0.240.0 (2026-11-13)
-
-### Minor Changes
-
-- a84d4ba: [battles] Every player now has their own colour, shown on their name everywhere and on their side in battles instead of red and blue. Choose yours under Player colour in account settings.
-
-## 0.239.1 (2026-11-13)
-
-### Patch Changes
-
-- 43dc21b: [battles] Drawing secondaries, discarding a tactical hand, New Orders, Secret Mission handoffs and mission card choices now show in the colour of the player making the decision, like scoring does.
-
-## 0.239.0 (2026-11-13)
-
-### Minor Changes
-
-- f439108: [app] A finished battle against someone who isn't your friend yet offers to add them, or to accept their request.
-- f439108: [battles] A finished battle shows your record against your opponent, with a link to the full record against them.
-
-## 0.238.3 (2026-11-13)
-
-### Patch Changes
-
-- 6072f76: [simulator] Optimizing a led unit inside a full army, such as Sternguard with a Lieutenant, finishes instead of stopping with "The full search could not finish."
-- 6072f76: [simulator] The optimizer's progress bar moves steadily instead of sitting near 0% for most of the search.
-- 6072f76: [simulator] The simulator no longer asks you to choose between two copies of a weapon ability that do the same against the target, such as Lethal Hits and Lethal Hits: Non-Monster/Vehicle against Infantry.
-
-## 0.238.2 (2026-11-13)
-
-### Patch Changes
-
-- aafacb5: [simulator] Swapping attacker and defender in the simulator and back again now restores the modifiers you had set.
-
-## 0.238.1 (2026-11-13)
-
-### Patch Changes
-
-- 3bfd526: [rosters] Importing a New Recruit share link now counts the models New Recruit groups under a loadout, such as Jakhals taken as "8 chainblades".
-
-## 0.238.0 (2026-11-13)
-
-### Minor Changes
-
-- 3a56c18: [simulator] Rules & buffs in the simulator now groups each side's rules under Abilities, Detachment, Stratagems and Stats applied, and it opens with Manual modifiers on a tablet or computer.
-- 3a56c18: [simulator] Weapon cards in the simulator now show the BS, WS, S, A, AP and D your manual modifiers give them.
-- 3a56c18: [simulator] Manual modifiers in the simulator now stay on when you change the attacking or defending unit, so you can test the same situation against several targets.
-- 3a56c18: [simulator] The simulator's example now shows Intercessors led by a Captain and supported by a Lieutenant against Lychguard and their Overlord, with a stratagem, an enhancement and half range in play.
-- 3a56c18: [simulator] Hit, wound, critical, stat, Sustained Hits, invulnerable save and Feel No Pain modifiers in the simulator are now steppers: press − or +, pick a value, or tap the name to clear it.
-
-### Patch Changes
-
-- dd9252f: [app] Pages and docs about assistants now say they mean AI assistants such as Claude or ChatGPT.
-
-## 0.237.0 (2026-11-13)
-
-### Minor Changes
-
-- 4fdda58: [app] A bell right of your account picture now lists your friend requests, new battles and group and tournament news on the website, and **More** › **Notifications** shows the same list in the app, read or unread on every device.
-
-### Patch Changes
-
-- d4abb97: [app] Answering a friend request, joining a battle you were invited to, sealing a list, or accepting or declining an entry or group request marks its notification read on every device.
-- d4abb97: [app] The app clears notifications you've read elsewhere from your phone and keeps the number on its icon to your unread ones.
-- d4abb97: [app] Tapping a push notification marks that notification read.
-
-## 0.236.0 (2026-11-13)
-
-### Minor Changes
-
-- 2ba7867: [battles] Add an ally to either side of a battle from setup, rather than choosing one against two or doubles before it opens.
-- 2ba7867: [battles] Battles offers to continue a draft you've started.
-- 6a512cb: [assistant] Agents can start a battle with only you at the table and give you a link your opponent opens to join it with their account.
-- 2ba7867: [battles] The battle link shows who invited you and the battle size, and joins you on the side you chose as soon as you're signed in.
-- 2ba7867: [battles] New battle opens setup straight away, with just you at the table, and stays a draft out of your battles until everyone has joined with an army.
-- 2ba7867: [battles] Choose, change and remove armies, and set Battle ready, on the cards at the top of battle setup instead of a separate Armies step.
-- 2ba7867: [battles] Bring your opponent into a battle from setup by sharing a link or QR code, inviting a friend, or playing both sides yourself.
-
-### Patch Changes
-
-- 2ba7867: [battles] Whoever started a draft battle can remove a player who joined it, until everyone's army is in.
-- 2ba7867: [battles] Battle setup keeps every step open, fading the ones you haven't reached yet.
-- 2ba7867: [battles] Battle setup asks how you track the battle first, and says what Guided gives you.
-- 2ba7867: [battles] Battle setup no longer sets points per army by hand: a pair facing one player shares its side's points, and doubles armies bring half each.
-
-## 0.235.1 (2026-11-13)
-
-### Patch Changes
-
-- cefccee: [reference] Search reads what units' abilities do only while online, and the roster builder's unit picker no longer matches it.
-
-## 0.235.0 (2026-11-13)
-
-### Minor Changes
-
-- 6d5131c: [battles] A battle's size now follows the lists from the first one chosen, with each side playing to its lists added together, so two 1,000-point allies make a 2,000-point side.
-- 6d5131c: [battles] In a 2v1 battle the pair now always shares its side's points, so it plays 2,000 against 2,000 and the allies split their 2,000 however they agree.
-- 6d5131c: [events] Solo vs pair tournaments and hidden-list games now always let the pair share its points, including games already set up.
-- 6d5131c: [battles] A duel between lists built for different sizes is no longer blocked: the bigger list sets the size and setup says which side plays short.
-
-## 0.234.0 (2026-11-13)
-
-### Minor Changes
-
-- a73bbd0: [events] Choosing or sealing a roster can now be searched, filtered by faction, detachment, battle size, legality and points, and sorted, as in your roster library.
-
-### Patch Changes
-
-- a73bbd0: [app] Pressing Escape in a search box inside a dialog clears the search instead of closing the dialog.
-
-## 0.233.0 (2026-11-13)
-
-### Minor Changes
-
-- 6c0ab1c: [battles] Every seat in a new battle now belongs to an account, so each game counts for everyone who plays it; play both sides against a practice opponent to track a game on your own.
-
-### Patch Changes
-
-- 6c0ab1c: [battles] Battles you started against a guest before this change still open, replay and can be finished from your account.
-
-## 0.232.7 (2026-11-13)
-
-### Patch Changes
-
-- ae07278: [rosters] Ability, wargear, and enhancement text loads again for devices that had not loaded it before.

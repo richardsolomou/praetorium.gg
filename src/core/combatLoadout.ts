@@ -40,7 +40,7 @@ export function carrierModelProfiles(carrier: CombatCarrier, profiles: readonly 
   const byId = where((profile) => carrier.modelProfileIds!.includes(profile.id))
   if (byId.length) return byId
   // A datasheet shows equal profiles once, keeping only one of their ids.
-  return where((profile) =>
+  const byStats = where((profile) =>
     Boolean(
       carrier.modelProfileStats?.includes(
         profileStats(
@@ -51,6 +51,11 @@ export function carrierModelProfiles(carrier: CombatCarrier, profiles: readonly 
       ),
     ),
   )
+  if (byStats.length) return byStats
+  // Where the datasheet prints VS Data's values in place of the raw profile's, the one profile of the model's name is its.
+  const names = new Set((carrier.modelProfileStats ?? []).map((stats) => (JSON.parse(stats) as string[])[0]))
+  const named = where((profile) => names.has(normalizeCombatKeyword(profile.name)))
+  return named.length === 1 ? named : byStats
 }
 
 /** How many of a weapon profile one carrier holds. */

@@ -4,6 +4,7 @@ import { attachmentRows } from './attachmentRows'
 import {
   customPointsBudget,
   type FormatRuleId,
+  type GrantPick,
   type ModelLine,
   pointsBudgetOf,
   type Roster,
@@ -60,6 +61,7 @@ type PricedRoster = {
     upgrades: readonly string[]
     formationOptions: readonly ('battlefield' | 'strategic-reserves' | 'deep-strike' | 'embarked')[]
     prebattleRules: readonly ('infiltrators' | 'scouts')[]
+    grantPicks?: readonly GrantPick[]
     strategicReserveExempt?: boolean
     embarksWithBodyguard?: boolean
     embarkedSpace?: number
@@ -193,6 +195,7 @@ export function frozenUnits(picks: readonly RosterPick[], units: PricedRoster['u
       ...(hostsByPick.has(unit.key) ? { attachedTo: hostsByPick.get(unit.key) } : {}),
       formationOptions: [...unit.formationOptions],
       prebattleRules: [...unit.prebattleRules],
+      ...(unit.grantPicks?.length ? { grantPicks: unit.grantPicks.map((pick) => ({ ...pick })) } : {}),
       ...(unit.strategicReserveExempt ? { strategicReserveExempt: true } : {}),
       ...(unit.embarksWithBodyguard ? { embarksWithBodyguard: true } : {}),
       ...(unit.embarkedSpace ? { embarkedSpace: unit.embarkedSpace } : {}),

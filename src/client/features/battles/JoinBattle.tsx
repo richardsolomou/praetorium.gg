@@ -87,13 +87,13 @@ export function JoinBattle({ invite, side: returning }: { invite: string; side?:
                 >
                   {invitation.sides[index]!.map((player) => (
                     <Fragment key={player.name}>
-                      <p className={cn('inline-flex min-w-0 items-center gap-1.5 text-sm font-bold uppercase', tint(index).text)}>
+                      <p className={cn('inline-flex min-w-0 items-center gap-1.5 text-sm font-semibold', tint(index).text)}>
                         <PlayerAvatar name={player.name} image={player.image} className="size-6 text-xs" />
                         <span className="break-words">{player.name}</span>
                       </p>
                       <span
                         className={cn(
-                          'max-w-full font-display text-base leading-tight font-bold break-words uppercase sm:text-2xl',
+                          'max-w-full font-display text-base leading-tight font-bold break-words sm:text-2xl',
                           !player.army && 'text-dim',
                         )}
                       >
@@ -115,7 +115,7 @@ export function JoinBattle({ invite, side: returning }: { invite: string; side?:
                         aria-pressed={yours}
                         disabled={sides.length === 1}
                         className={cn(
-                          'flex min-h-11 w-full min-w-0 items-center gap-1.5 rounded-lg border px-2.5 py-2 text-sm font-bold uppercase transition-colors',
+                          'flex min-h-11 w-full min-w-0 items-center gap-1.5 rounded-lg border px-2.5 py-2 text-sm font-semibold transition-colors',
                           index && 'flex-row-reverse text-right',
                           yours
                             ? cn(CHOSEN, tint(index).text)

@@ -25,15 +25,16 @@ async function fixture() {
   fixtures.push({ root: directory, server })
   const publish = (id: string) =>
     refreshLiveCatalogue(root, async (staging) => {
-      for (const file of [
-        'catalogue/revision.json',
-        'runtime/manifest.json',
-        'public/offline-reference-version.json',
-        `public/assets/reference-${id}.bin`,
-      ]) {
+      const part = `reference-${id}.bin`
+      for (const [file, content] of [
+        ['catalogue/revision.json', { id }],
+        ['runtime/manifest.json', { id }],
+        ['public/offline-reference-version.json', { id, part }],
+        [`public/assets/${part}`, { id }],
+      ] as const) {
         const target = path.join(staging, file)
         fs.mkdirSync(path.dirname(target), { recursive: true })
-        fs.writeFileSync(target, JSON.stringify({ id }))
+        fs.writeFileSync(target, JSON.stringify(content))
       }
       return id
     })
@@ -58,8 +59,8 @@ it('serves the new manifest and retains old assets across a runtime update witho
     old: await oldAsset.json(),
     latest: await newAsset.json(),
   }).toEqual({
-    before: { id: first },
-    after: { id: second },
+    before: { id: first, part: `reference-${first}.bin` },
+    after: { id: second, part: `reference-${second}.bin` },
     cache: 'no-store',
     old: { id: first },
     latest: { id: second },

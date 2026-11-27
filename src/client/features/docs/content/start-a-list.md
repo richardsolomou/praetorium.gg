@@ -4,7 +4,7 @@ Choose **Build an army** on the home page, or **New roster** on [Rosters](/roste
 
 1. Pick your **Faction**, and its **Rules version** if it has more than one.
 2. Pick a **Battle size**: **King of the Colosseum · 600 points**, **Incursion · 1,000 points**, **Strike Force · 2,000 points** or **Onslaught · 3,000 points**.
-3. Pick up to three **Detachments**, or one at King of the Colosseum. **Find a detachment** filters by name or Force disposition.
+3. Pick up to three **Detachments**, or one at King of the Colosseum. **Find a detachment** filters by name or Force disposition. Titan Legions and Chaos Titan Legions armies take no detachment, and their Force disposition is Take and Hold.
 4. Your detachments offer one or more **Force dispositions**, and the card you play decides your primary mission. You choose one before each battle, or when you seal the list for a tournament. Pick one here if you want it chosen already.
 5. With an account, set **Access**: **Private**, **Unlisted** (anyone with the link) or **Public** (listed on your profile and for anyone to find).
 
@@ -18,7 +18,7 @@ You can also start with **Start a roster** on a faction or detachment page, or *
 
 ## Detachment points
 
-The counter shows **DP used** against your allowance: 2 DP at Incursion and 3 DP at Strike Force and Onslaught. It only applies once you take more than one detachment.
+The counter shows **DP used** against your allowance: 2 DP at Incursion and 3 DP at Strike Force and Onslaught. It covers every list, a single detachment included, so a 3 DP detachment is too much for Incursion.
 
 ## Your own points limit
 

@@ -2,17 +2,22 @@ name: CI
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  # A pull request runs only what its change can affect, so main runs everything after each merge.
+  push:
+    branches: [main]
   workflow_dispatch:
     inputs:
       e2e-runners:
-        description: Browser runners for a timing comparison
+        description: Most browser runners, for a timing comparison
         type: choice
-        options: ['14', '16', '8']
+        options: ['14', '8']
         default: '14'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  # Main finishes the run it started and keeps only the newest merge waiting, so the latest main always gets the full suite.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -20,6 +25,7 @@ permissions:
 # `just check` runs these lanes in sequence locally; CI runs them side by side so the fast ones answer first.
 # Each lane's steps live in its own `ci-<lane>.yml`, and main requires its checks as `<lane> / <job>`. A lane always
 # runs and skips its own jobs for a change without runtime code, because a skipped check passes and a missing one blocks.
+# A draft PR runs only the quick lanes (static, unit, build); marking it ready for review starts a run with every lane.
 jobs:
   changes:
     uses: ./.github/workflows/ci-scope.yml
@@ -42,7 +48,7 @@ jobs:
     needs: changes
     uses: ./.github/workflows/ci-integration.yml
     with:
-      runtime: ${{ needs.changes.outputs.runtime == 'true' }}
+      runtime: ${{ needs.changes.outputs.runtime == 'true' && !github.event.pull_request.draft }}
     secrets: inherit
 
   build-lane:
@@ -73,7 +79,7 @@ jobs:
 
   browser-build:
     needs: changes
-    if: needs.changes.outputs.runtime == 'true'
+    if: needs.changes.outputs.runtime == 'true' && !github.event.pull_request.draft
     uses: ./.github/workflows/ci-browser-build.yml
     with:
       e2e-runners: ${{ inputs.e2e-runners }}
@@ -81,42 +87,68 @@ jobs:
 
   e2e-lane:
     needs: browser-build
+    if: needs.browser-build.outputs.needed == 'true'
     uses: ./.github/workflows/ci-e2e.yml
     with:
+      desktop-runners: ${{ needs.browser-build.outputs.desktop-runners }}
       node-version: ${{ needs.browser-build.outputs.node-version }}
       runner-count: ${{ needs.browser-build.outputs.runner-count }}
       runners: ${{ needs.browser-build.outputs.runners }}
     secrets: inherit
 
-  e2e:
-    if: always()
-    needs: [changes, browser-build, e2e-lane]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Require every E2E runner
-        if: needs.changes.outputs.runtime != 'false'
-        run: |
-          test '${{ needs.changes.result }}' = success
-          test '${{ needs.browser-build.result }}' = success
-          test '${{ needs.e2e-lane.result }}' = success
-
   points-lane:
     needs: changes
     uses: ./.github/workflows/ci-points.yml
     with:
-      runtime: ${{ needs.changes.outputs.runtime == 'true' }}
+      runtime: ${{ needs.changes.outputs.runtime == 'true' && !github.event.pull_request.draft }}
     secrets: inherit
 
   coverage-lane:
     needs: changes
-    if: needs.changes.outputs.runtime == 'true'
+    if: needs.changes.outputs.runtime == 'true' && !github.event.pull_request.draft
     uses: ./.github/workflows/ci-coverage.yml
     secrets: inherit
 
-  coverage:
-    # A failed scope decision still fails here, because no snapshot ran.
-    if: always() && needs.changes.outputs.runtime != 'false' && needs.coverage-lane.outputs.needed != 'false'
-    needs: [changes, coverage-lane]
+  ready:
+    # A skipped job passes a required check, so this one needs every lane and fails on a draft: whatever a draft's run
+    # skipped, the PR can't merge until the run that marking it ready starts has passed.
+    if: always()
+    needs: [changes, static-lane, unit-lane, integration-lane, build-lane, browser-build, e2e-lane, points-lane, coverage-lane]
     runs-on: ubuntu-latest
     steps:
-      - run: test '${{ needs.coverage-lane.result }}' = success
+      - name: Require a PR that is ready for review
+        if: github.event.pull_request.draft
+        run: |
+          echo '::error::A draft runs only the quick checks. Mark the PR ready for review to run the browser tests, integration, points and coverage.'
+          exit 1
+      - name: Require every lane
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          failed="$(jq -r '[to_entries[] | select(.value.result == "failure" or .value.result == "cancelled" or (.key == "changes" and .value.result != "success")) | .key] | join(", ")' <<< "$NEEDS")"
+          test -z "$failed" || { echo "::error::Failed: $failed"; exit 1; }
+
+  main-failure:
+    # One open issue says main is red, so a failure the merged pull request's selection missed is seen; the next green run closes it.
+    if: always() && github.event_name == 'push'
+    needs: ready
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      TITLE: CI fails on main
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - name: Open or update the issue
+        if: needs.ready.result == 'failure'
+        run: |
+          issue="$(gh issue list --state open --search "in:title \"$TITLE\"" --json number,title --jq "map(select(.title == \"$TITLE\"))[0].number // empty")"
+          body="The full suite failed on ${GITHUB_SHA::9}: $RUN_URL"
+          if [ -n "$issue" ]; then gh issue comment "$issue" --body "$body"; else gh issue create --title "$TITLE" --body "$body"; fi
+      - name: Close the issue
+        if: needs.ready.result == 'success'
+        run: |
+          issue="$(gh issue list --state open --search "in:title \"$TITLE\"" --json number,title --jq "map(select(.title == \"$TITLE\"))[0].number // empty")"
+          if [ -n "$issue" ]; then gh issue close "$issue" --comment "Passing again on ${GITHUB_SHA::9}: $RUN_URL"; fi

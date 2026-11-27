@@ -11,16 +11,16 @@ import { legacyOptionsSchema } from '../src/core/legacyIds'
 import { vsDataDefinitions } from '../src/core/vsDataConstruction'
 import { checkVsUnit } from '../src/core/vsDataRoster'
 import { wargearKey } from '../src/core/wargearNames'
-import { ARTICLE, vsSpelling } from './lib/wargearSpellings'
-import { modelsNamed as modelsNamedIn, same, words } from './lib/vsDataModelNames'
+import { ARTICLE, vsSpelling } from '../src/shared/wargearSpellings'
+import { modelsNamed as modelsNamedIn, same, words } from '../src/shared/vsDataModelNames'
 import { editionDirectory, readCatalogueComposition } from '../src/server/catalogueComposition'
 import { loadCatalogue } from '../src/server/catalogueIndex'
 
 /**
  * Writes `catalogue/legacy-ids/options.json`: for each datasheet of the current rules version, the VS Data selections
  * each of its BSData choices stands for. `docs/development/catalogue-data.md` ("Saved IDs in VS Data") describes the
- * reading and `legacyOptionsSchema` how to apply it. Fails rather than change a frozen choice, and lists the entries it
- * leaves out: retained rules versions' `~` IDs and IDs the current catalogue no longer holds.
+ * reading and `legacyOptionsSchema` how to apply it. Fails rather than change a frozen choice, base or floor, except
+ * where `legacyOptionsSchema` lets an entry be derived afresh, and lists the entries it leaves out: retained rules versions' `~` IDs and IDs the current catalogue no longer holds.
  *
  *   pnpm exec tsx scripts/freezeRosterOptions.ts <catalogue directory> <directory of unpacked releases, one per rules version>
  */
@@ -701,18 +701,36 @@ console.log({ ...tally, choices: tally.mapped + tally.noChange + tally.allegianc
 console.log(`Read for the current rules version only; not covered (${uncovered.length}):\n  ${uncovered.join('\n  ')}`)
 if (process.env.OPTIONS_DEBUG) fs.writeFileSync(process.env.OPTIONS_DEBUG, debug.join('\n'))
 // Frozen like the other maps: a choice keeps the selections it was first given, a unit its base and floor, and this run
-// only adds.
+// only adds. An entry is derived afresh, keeping every key it held, when `units.json` moves its datasheet to another unit,
+// or when a base frozen as unmatched now maps, since no pick translated before; where a moved datasheet's new unit cannot
+// be read, none of its picks translate.
 const file = path.join(import.meta.dirname, '../catalogue/legacy-ids/options.json')
 const frozen = fs.existsSync(file) ? legacyOptionsSchema.parse(JSON.parse(fs.readFileSync(file, 'utf8'))).units : {}
 const differ = (one: unknown, other: unknown) => JSON.stringify(sorted(one)) !== JSON.stringify(sorted(other))
 for (const [entryId, held] of Object.entries(frozen)) {
   const found = out[entryId]
-  if (found && found.unit !== held.unit) throw new Error(`options: ${entryId} is frozen for ${held.unit}; this run names ${found.unit}`)
-  for (const field of ['base', 'floor'] as const)
-    if (found && differ(held[field], found[field]))
-      throw new Error(
-        `options: ${entryId} ${field} is frozen as ${JSON.stringify(held[field])}; this run names ${JSON.stringify(found[field])}`,
-      )
+  const keys = [...Object.keys(held.choices), ...held.unmatched]
+  const unit = unitsMap[entryId]
+  const opened = found && held.base === 'unmatched' && found.base !== 'unmatched'
+  // The floor is BSData's alone, so a moved or opened entry keeps it.
+  if (found && differ(held.floor, found.floor))
+    throw new Error(`options: ${entryId} floor is frozen as ${JSON.stringify(held.floor)}; this run names ${JSON.stringify(found.floor)}`)
+  if ((unit && unit !== held.unit) || opened) {
+    const fresh = found ?? {
+      unit: unit!,
+      base: 'unmatched' as const,
+      ...(held.floor ? { floor: held.floor } : {}),
+      choices: {},
+      unmatched: [],
+    }
+    out[entryId] = {
+      ...fresh,
+      unmatched: [...new Set([...fresh.unmatched, ...keys])].filter((key) => !(key in fresh.choices)).toSorted(byId),
+    }
+    continue
+  }
+  if (found && differ(held.base, found.base))
+    throw new Error(`options: ${entryId} base is frozen as ${JSON.stringify(held.base)}; this run names ${JSON.stringify(found.base)}`)
   const choices = { ...held.choices }
   for (const [key, selections] of Object.entries(found?.choices ?? {})) {
     if (key in choices && differ(choices[key], selections))

@@ -8,8 +8,10 @@ import { evaluate, type EvaluateOptions, type Selection, selectionCountBoundsAt 
 import { defaultSelection, expand, withChoice } from './expand'
 import { allAt, at as selectionAt, countAt, updateSelection, withCounts } from './selection'
 import { type ChoiceOptions, isUnitCompositionChoice, type UnitChoice, unitChoices, type UnitToggle, unitToggles } from './unitChoices'
-import { boundedGroups, modelCountOf, sizeOf, type UnitSize } from './unitSize'
+import { boundedGroups, companionGroups, modelCountOf, sizeOf, type UnitSize } from './unitSize'
 import { withModelCount, withUnitChoice, withUnitSpread } from './unitSpread'
+import { type VsBuiltUnit, vsBuiltUnit } from './vsDataBuild'
+import type { VsDataDefinitions } from './vsDataConstruction'
 
 /**
  * What a player picked, in the form a saved list keeps.
@@ -39,6 +41,25 @@ export type RosterPick = {
   note?: string
   /** Saved before a choice started on the option its card prints: a choice it never made stays on the cheapest, as it was. */
   floor?: true
+  /**
+   * The unit as VS Data's definitions field it, for a datasheet VS Data defines exactly: its model counts, its taken
+   * selections, and its Enhancement, allegiance and Warlord model by VS Data ID, read against the VS Data unit `entryId`
+   * names through `catalogue/legacy-ids/units.json`. A pick with it reads `models`, `choices`, `spreads` and `toggles` from
+   * it instead, and keeps every other field.
+   */
+  vs?: VsPick
+}
+
+/**
+ * VS Data's saved roster unit (`VsRosterUnit`) without the unit, which the pick's datasheet names, or its size, which its
+ * models give. A unit holds one Enhancement at most, an upgrade counting as one, as the core rules say.
+ */
+export type VsPick = {
+  models: Record<string, number>
+  options: Record<string, Record<string, number>>
+  enhancement?: string
+  allegiance?: string
+  warlord?: string
 }
 
 type BuildContext = ChoiceOptions & {
@@ -48,7 +69,59 @@ type BuildContext = ChoiceOptions & {
   toggles?: Readonly<Record<string, number>>
 }
 
-export type BuiltUnit = { selection: Selection; size: UnitSize; choices: UnitChoice[]; toggles: UnitToggle[] }
+export type BuiltUnit = {
+  selection: Selection
+  size: UnitSize
+  choices: UnitChoice[]
+  toggles: UnitToggle[]
+  /** A VS pick's unit as VS Data fields it, which its size, models, wargear and points are read from. */
+  vs?: VsBuiltUnit
+}
+
+/** Names compared by their letters and digits alone, without the "upgrade" BSData adds to some. */
+const sameName = (name: string) =>
+  name
+    .normalize('NFKD')
+    .toLowerCase()
+    .replace(/\bupgrade$/, '')
+    .replace(/[^a-z0-9]/g, '')
+
+/**
+ * A VS pick built: VS Data's unit, beside the datasheet's own build at its size with its Warlord, Enhancement and
+ * allegiance, which whatever still reads the catalogue's selection tree (keywords, abilities, attachments, the simulator,
+ * the BattleScribe export) reads in its place. The pick's own `choices`, `spreads` and `toggles`, where a translated pick
+ * keeps them, arm that tree; `vs` overrules them on its size, Warlord, Enhancement and allegiance.
+ * `enhancementOption` is the catalogue option the frozen maps file `vs.enhancement` under in the list's Detachments.
+ */
+export function buildVsUnit(
+  pick: RosterPick & { vs: VsPick },
+  index: CatalogueIndex,
+  vs: { definitions: VsDataDefinitions; unit: string; enhancementOption?: string },
+  context?: ChoiceOptions,
+): BuiltUnit | null {
+  const built = vsBuiltUnit(vs.definitions, vs.unit, pick.vs)
+  const own = { ...context, spreads: pick.spreads, toggles: pick.toggles, floor: pick.floor }
+  const plain = buildUnit(pick.entryId, index, built.size.models, pick.choices, own)
+  if (!plain) return null
+  const special = (choice: UnitChoice) => /enhancement|upgrade/i.test(choice.name)
+  const choices = Object.fromEntries(
+    Object.entries(pick.choices ?? {}).filter(([key]) => !plain.choices.some((choice) => choice.key === key && special(choice))),
+  )
+  const holder = plain.choices.find((choice) => special(choice) && choice.options.some((option) => option.id === vs.enhancementOption))
+  if (holder && vs.enhancementOption) choices[holder.key] = vs.enhancementOption
+  const allegiance = pick.vs.allegiance && sameName(vs.definitions.get('allegiance', pick.vs.allegiance)?.name ?? pick.vs.allegiance)
+  const sworn =
+    allegiance &&
+    plain.choices
+      .flatMap((choice) => choice.options.map((option) => ({ key: choice.key, option })))
+      .find(({ option }) => sameName(option.name) === allegiance || sameName(option.name).endsWith(allegiance))
+  if (sworn) choices[sworn.key] = sworn.option.id
+  const warlord = plain.toggles.find((toggle) => toggle.name === 'Warlord')
+  const toggles = warlord ? { ...pick.toggles, [warlord.key]: pick.vs.warlord ? 1 : 0 } : pick.toggles
+  const shell = buildUnit(pick.entryId, index, built.size.models, choices, { ...own, toggles })
+  if (!shell) return null
+  return { ...shell, size: { ...shell.size, ...built.size, options: built.size.options }, vs: built }
+}
 
 /**
  * The unit as the data hands it over, with the player's choices taken and resized to
@@ -188,8 +261,7 @@ function assemble(
   }
 
   const wanted = Math.min(Math.max(requestedModels, size.min), size.max)
-  const current = countAt(toggled, size.path)
-  const squadSized = withModelCount(toggled, size.path, Math.max(0, current + (wanted - size.models)), index)
+  const squadSized = withSquadResized(toggled, size.path, wanted - size.models, index)
   const resized = grownCompanions(squadSized, size.path, requestedModels - wanted, index, context)
   const resizedModel = `${size.path.join('/')}/`
   // A spread the smaller squad could not hold is asked again at the size requested, since a limit can depend on it,
@@ -212,6 +284,27 @@ function assemble(
     { ...size, models: wanted + modelCountOf(resized, index) - modelCountOf(squadSized, index) },
     index,
     fittedContext,
+  )
+}
+
+/** Resizes the squad, passing what its own group cannot take to the unit's other required model groups, as twenty Boyz take a second Nob. */
+function withSquadResized(selection: Selection, squad: readonly string[], change: number, index: CatalogueIndex): Selection {
+  const groups = boundedGroups(selection, index)
+  const own = groups.find((group) => group.adjust.join('/') === squad.join('/'))
+  const companions = own ? companionGroups(groups, own) : []
+  const clamped = (group: { min: number; max: number; total: number }, wanted: number) =>
+    Math.min(group.max, Math.max(group.min, group.total + wanted)) - group.total
+  const resize = (tree: Selection, path: readonly string[], by: number) =>
+    withModelCount(tree, path, Math.max(0, countAt(tree, path) + by), index)
+  const taken = own && companions.length ? clamped(own, change) : change
+  let left = change - taken
+  return companions.reduce(
+    (tree, group) => {
+      const by = clamped(group, left)
+      left -= by
+      return by ? resize(tree, group.adjust, by) : tree
+    },
+    resize(selection, squad, taken),
   )
 }
 

@@ -28,7 +28,7 @@ test('battle setup stays shared and does not wait for the other device', async (
   await addUnit(alice, 'Immortals')
   const incursionRoster = await createRoster(alice, {
     faction: 'Necrons',
-    detachment: /Awakened Dynasty/,
+    detachment: /Canoptek Court/,
     name: 'Alice Incursion army',
     size: /Incursion/,
   })
