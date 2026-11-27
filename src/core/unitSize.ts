@@ -58,7 +58,11 @@ export function sizeOf(base: Selection, index: CatalogueIndex): UnitSize {
   if (!flexible) return { min: total, max: total, models: total, path: [] }
 
   const others = total - flexible.total
-  return { min: others + flexible.min, max: others + flexible.max, models: total, path: flexible.adjust }
+  // A required group below its cap, as a mob's second Nob, still grows the unit once the squad is full.
+  const companionRoom = groups
+    .filter((group) => group !== flexible && group.min > 0 && group.max < UNBOUNDED)
+    .reduce((sum, group) => sum + Math.max(0, group.max - group.total), 0)
+  return { min: others + flexible.min, max: others + flexible.max + companionRoom, models: total, path: flexible.adjust }
 }
 
 /** Models that cannot vary, and the groups that can. */

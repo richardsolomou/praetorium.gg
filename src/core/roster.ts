@@ -208,8 +208,10 @@ function assemble(
 
   const wanted = Math.min(Math.max(requestedModels, size.min), size.max)
   const current = countAt(toggled, size.path)
-  const squadSized = withModelCount(toggled, size.path, Math.max(0, current + (wanted - size.models)), index)
-  const resized = grownCompanions(squadSized, size.path, requestedModels - wanted, index, context)
+  const squad = boundedGroups(toggled, index).find((group) => group.adjust.join('/') === size.path.join('/'))
+  const squadGrowth = Math.min(wanted - size.models, squad ? squad.max - squad.total : wanted - size.models)
+  const squadSized = withModelCount(toggled, size.path, Math.max(0, current + squadGrowth), index)
+  const resized = grownCompanions(squadSized, size.path, requestedModels - size.models - squadGrowth, index, context)
   const resizedModel = `${size.path.join('/')}/`
   // A spread the smaller squad could not hold is asked again at the size requested, since a limit can depend on it,
   // as a Neophyte squad arms its second pair of heavy weapons only at twenty models and ten Purifiers field four specialists.
@@ -228,13 +230,16 @@ function assemble(
   return finishUnit(
     entryId,
     settleProfileWeaponSwaps(selection, index, context),
-    { ...size, models: wanted + modelCountOf(resized, index) - modelCountOf(squadSized, index) },
+    { ...size, models: size.models + squadGrowth + modelCountOf(resized, index) - modelCountOf(squadSized, index) },
     index,
     fittedContext,
   )
 }
 
-/** A full squad can open another of its fixed companions, as twenty Neurogaunts field a second Nodebeast, for a list asking for more than the squad holds. */
+/**
+ * A full squad grows through its companions for a list asking for more than the squad holds: a required one
+ * below its cap, as a mob's second Nob, or one the full squad opens, as twenty Neurogaunts field a second Nodebeast.
+ */
 function grownCompanions(selection: Selection, squad: readonly string[], spare: number, index: CatalogueIndex, context?: BuildContext) {
   const modelPaths = (node: Selection, trail: string[]): string[][] =>
     (node.selections ?? []).flatMap((child) => {
@@ -247,7 +252,8 @@ function grownCompanions(selection: Selection, squad: readonly string[], spare: 
   for (const path of modelPaths(selection, [])) {
     const definition = index.definitions.get(path.at(-1)!)!
     const count = countAt(grown, path)
-    if (left <= 0 || path.join('/') === squad.join('/') || maximumCount(definition, index) !== count) continue
+    if (left <= 0 || path.join('/') === squad.join('/')) continue
+    if (maximumCount(definition, index) !== count && requiredCount(definition, index) === 0) continue
     const opened = Math.min(left, Math.max(0, (maximumCountAt(grown, path, definition, index, context) ?? count) - count))
     if (!opened) continue
     grown = withCounts(grown, [{ path, count: count + opened }])

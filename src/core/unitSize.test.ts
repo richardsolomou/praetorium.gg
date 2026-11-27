@@ -70,8 +70,23 @@ const openingSquad = (): Partial<Catalogue> => {
   return squad
 }
 
+/** A squad whose leaders number one or two at any size, as a mob of Boyz takes a second Nob. */
+const pairedLeaders = (): Partial<Catalogue> => {
+  const squad = sizedSquad()
+  squad.sharedSelectionEntries![0]!.selectionEntries![0]!.constraints![1]!.value = 2
+  return squad
+}
+
 describe('how many models a unit may field', () => {
   const squad = sizedSquad
+
+  it('reaches its full size through a second leader', () => {
+    expect(unitSize('squad', indexOf(pairedLeaders()))?.max).toBe(11)
+  })
+
+  it('fields a full squad and both leaders at its largest size', () => {
+    expect(modelCountOf(buildUnit('squad', indexOf(pairedLeaders()), 11)!.selection, indexOf(pairedLeaders()))).toBe(11)
+  })
 
   it('fields a second companion a full squad opens when a list asks for more', () => {
     expect(buildUnit('squad', indexOf(openingSquad()), 11)?.size.models).toBe(11)
