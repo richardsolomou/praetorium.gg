@@ -27,6 +27,12 @@ export function sendingBattleCommands<T>(token: string, write: Promise<T>): Prom
 
 export const battleCommandsSettled = (token: string) => battleCommands.get(token)
 
+// A connected battle's queued commands live only in this page, so closing or reloading it before they send drops them.
+if (typeof window !== 'undefined')
+  window.addEventListener('beforeunload', (event) => {
+    if (battleCommands.size) event.preventDefault()
+  })
+
 /** Whether a reload now could drop a change this page has not finished sending or saving. */
 export const writesPending = (client: QueryClient) => held > 0 || client.isMutating() > 0
 

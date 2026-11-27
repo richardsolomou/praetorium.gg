@@ -1,6 +1,7 @@
+// @vitest-environment happy-dom
 import { QueryClient } from '@tanstack/react-query'
 import { expect, it } from 'vitest'
-import { holdingReload, pendingWriteMiddleware, writesPending } from './pendingWrites'
+import { battleCommandsSettled, holdingReload, pendingWriteMiddleware, sendingBattleCommands, writesPending } from './pendingWrites'
 
 function deferred() {
   let resolve!: () => void
@@ -58,4 +59,24 @@ it('leaves a server function read out of pending writes', async () => {
   expect(writesPending(new QueryClient())).toBe(false)
   read.resolve()
   await reading
+})
+
+const leave = () => {
+  const event = new Event('beforeunload', { cancelable: true })
+  window.dispatchEvent(event)
+  return event
+}
+
+it('asks before leaving while a battle command is still sending', async () => {
+  const write = deferred()
+  const sending = sendingBattleCommands('battle', write.promise)
+  expect(leave().defaultPrevented).toBe(true)
+  write.resolve()
+  await sending
+})
+
+it('leaves without asking once battle commands have sent', async () => {
+  void sendingBattleCommands('battle', Promise.resolve())
+  await battleCommandsSettled('battle')
+  expect(leave().defaultPrevented).toBe(false)
 })

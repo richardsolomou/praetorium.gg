@@ -83,7 +83,8 @@ export function afterFailedCommand<T extends Pick<QueuedCommand, 'basedOn' | 'ba
 
 /**
  * Sends queued commands one at a time, each against the newest history this device has seen. Queued commands live only
- * in this page, so automatic reloads wait until the queue is empty, including between sends.
+ * in this page, so automatic reloads wait until the queue is empty, including between sends, and the browser asks before
+ * the player closes or reloads it. Leaving the battle inside the app keeps sending them.
  */
 export function drainCommands(args: Parameters<typeof sendQueued>[0]) {
   if (args.draining.current) return Promise.resolve()
