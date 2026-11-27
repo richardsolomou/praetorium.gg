@@ -40,8 +40,8 @@ export function RuleSummaryText({
 }
 
 /**
- * A Stratagem's parts, each beside its label, as its card lays them out. The label column keeps the widest label's
- * width, so the parts line up across every Stratagem on a page whether or not it has Restrictions.
+ * A Stratagem's parts, each beside its label, as its card lays them out. From where Stratagems stand side by side, the
+ * label column keeps the widest label's width, so their parts line up whether or not each has Restrictions.
  */
 function Parts({ parts, abilities }: { parts: RuleSummaryParts; abilities: boolean }) {
   return (
@@ -50,7 +50,7 @@ function Parts({ parts, abilities }: { parts: RuleSummaryParts; abilities: boole
         const blocks = parts[part as keyof RuleSummaryParts]
         return blocks ? (
           <div key={part} className="col-span-2 grid grid-cols-subgrid items-baseline">
-            <dt className="min-w-[6em] font-sans text-xs text-dim">{label}</dt>
+            <dt className="font-sans text-xs text-dim md:min-w-[5.75em]">{label}</dt>
             <dd className="space-y-1.5">
               <Blocks blocks={blocks} abilities={abilities} />
             </dd>
