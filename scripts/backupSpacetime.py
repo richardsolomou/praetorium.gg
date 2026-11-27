@@ -182,6 +182,9 @@ def archive(config, work):
             container,
         ]
     )
+    # Taken before the pause, so nothing written after it is in the archive; a copy's readers date its records by this.
+    captured = utc_stamp()
+    print(f"SpacetimeDB backup capture: {captured}", flush=True)
     started = time.monotonic()
     try:
         run_command(["docker", "pause", container], timeout=2)
@@ -238,6 +241,7 @@ def archive(config, work):
             ],
             timeout=180,
         )
+    return captured
 
 
 def digest(path):
@@ -320,13 +324,13 @@ def prunable_archives(keys, config, now):
     return prunable
 
 
-def publish(config, work):
-    stamp = (
-        datetime.datetime.now(datetime.timezone.utc)
-        .isoformat(timespec="milliseconds")
-        .replace("+00:00", "Z")
-    )
-    manifest = {"format": "praetorium.spacetime-backup.v1", "createdAt": stamp}
+def utc_stamp():
+    return datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+
+
+def publish(config, work, captured):
+    stamp = utc_stamp()
+    manifest = {"format": "praetorium.spacetime-backup.v1", "createdAt": stamp, "capturedAt": captured}
     base = f"{config.endpoint}/{config.bucket}"
     for kind, volume in (
         ("identity", config.identity_volume),
@@ -378,8 +382,7 @@ def main():
             prefix="work-", dir=workspace, ignore_cleanup_errors=True
         ) as directory:
             work = Path(directory)
-            archive(config, work)
-            publish(config, work)
+            publish(config, work, archive(config, work))
 
 
 def cancelled(_signal, _frame):

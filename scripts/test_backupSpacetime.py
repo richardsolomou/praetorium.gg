@@ -1,5 +1,6 @@
 import dataclasses
 import datetime
+import json
 import os
 import subprocess
 import tarfile
@@ -21,6 +22,9 @@ CONFIG = BackupConfig(
     "access",
     "secret",
 )
+
+
+CAPTURED = "2026-11-28T00:00:00.000Z"
 
 
 class ArchiveTest(unittest.TestCase):
@@ -144,7 +148,7 @@ class PublishTest(unittest.TestCase):
         self, corrupt=None, upload_failure=None, truncated=False, listing_keys=()
     ):
         events = []
-        objects = {}
+        objects = self.objects = {}
 
         def request(_config, url, *, upload=None, download=None, method=None):
             key = url.split("private-backups/", 1)[-1]
@@ -182,10 +186,15 @@ class PublishTest(unittest.TestCase):
             (work / "data.tar.gz").write_bytes(b"data archive")
             (work / "identity.tar.gz").write_bytes(b"identity archive")
             try:
-                publish(CONFIG, work)
+                publish(CONFIG, work, CAPTURED)
             except Exception as caught:
                 error = type(caught)
         return error, events
+
+    def test_manifest_dates_the_copy_by_its_capture_before_the_pause(self):
+        self.exercise()
+        manifest = json.loads(self.objects["spacetime-production/backups/latest.json"])
+        self.assertEqual(manifest["capturedAt"], CAPTURED)
 
     def test_publishes_pair_only_after_both_archives_pass_readback(self):
         self.assertEqual(

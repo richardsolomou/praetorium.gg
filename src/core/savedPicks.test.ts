@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { RosterPick, VsPick } from './roster'
-import { appendSavedPicks, savedPickKey, savedPicksPinSchema, withVsPicks } from './savedPicks'
+import { nextSavedPicks, savedPickKey, savedPicksPinSchema, withVsPicks } from './savedPicks'
 
 const context = { rulesVersion: 'mfm-1-6', catalogueId: 'book', detachmentIds: ['gladius'] }
 const pick: RosterPick = { entryId: 'intercessors', models: 10, choices: { 'squad/sergeant': 'plasma-pistol' } }
@@ -49,22 +49,25 @@ describe('withVsPicks', () => {
   })
 })
 
-describe('appendSavedPicks', () => {
+describe('nextSavedPicks', () => {
   const published = { format: 'praetorium.saved-picks.v1' as const, picks: { '0123456789abcdef': vs } }
+  const none = new Set<string>()
 
-  it('keeps every published translation beside the ones a run adds', () => {
-    expect(Object.keys(JSON.parse(appendSavedPicks(published, { fedcba9876543210: vs })).picks)).toEqual([
-      '0123456789abcdef',
-      'fedcba9876543210',
-    ])
+  it('holds only the keys of the copy it publishes', () => {
+    expect(Object.keys(JSON.parse(nextSavedPicks(published, { fedcba9876543210: vs }, none)).picks)).toEqual(['fedcba9876543210'])
   })
 
   it('stops a run that would change what a published key means', () => {
-    expect(() => appendSavedPicks(published, { '0123456789abcdef': { ...vs, models: { 'space-marines.intercessor': 5 } } })).toThrow()
+    const changed = { '0123456789abcdef': { ...vs, models: { 'space-marines.intercessor': 5 } } }
+    expect(() => nextSavedPicks(published, changed, none)).toThrow()
+  })
+
+  it('stops a run that leaves out a published key a live record still holds', () => {
+    expect(() => nextSavedPicks(published, {}, new Set(['0123456789abcdef']))).toThrow()
   })
 
   it('refuses anything beside a pick’s content key and its VS Data IDs', () => {
-    expect(() => appendSavedPicks(null, { '0123456789abcdef': { ...vs, list: 'r-1' } as VsPick })).toThrow()
+    expect(() => nextSavedPicks(null, { '0123456789abcdef': { ...vs, list: 'r-1' } as VsPick }, none)).toThrow()
   })
 })
 

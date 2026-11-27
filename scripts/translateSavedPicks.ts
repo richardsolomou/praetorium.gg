@@ -8,7 +8,7 @@ import { legacyOptionsSchema } from '../src/core/legacyIds'
 import { wargearOf } from '../src/core/wargear'
 import { wargearKey } from '../src/core/wargearNames'
 import { type Counts, vsDataConstructionSchema, vsDataDefinitions, type VsDataDefinitions } from '../src/core/vsDataConstruction'
-import { type SavedPicks, savedPickKey, savedPicksSchema } from '../src/core/savedPicks'
+import { type SavedPicks, savedPickKey } from '../src/core/savedPicks'
 import { hasWarlordToggle } from '../src/core/unitChoices'
 import type { LoadedCatalogue } from '../src/shared/catalogueIndex'
 import { checkVsRoster, checkVsUnit, type VsRosterUnit } from '../src/core/vsDataRoster'
@@ -21,12 +21,14 @@ import { rosterDetachments } from '../src/shared/rosterDetachments'
 import { inBook } from '../src/shared/vsDataPoints'
 import { loadSnapshot } from './lib/catalogueSnapshotLoad'
 import { copiedAtOf, savedLists, savedLoadouts } from './lib/vsDataRosterParity'
+import { SAVED_PICKS_RUN, savedPicksRunSchema } from './lib/savedPicksRun'
 import { catalogueUnitErrors, leaves, legacyIds, modelsByName, specialOf, vsModels } from './lib/vsDataRosters'
 import { modelsNamed, same, words } from '../src/shared/vsDataModelNames'
 import { vsSpelling } from '../src/shared/wargearSpellings'
 
 /**
- * Every saved pick in a local production copy (`scripts/fetchProductionCopy.ts`, or a `just rosters-fetch` snapshot),
+ * Every saved pick in a local production copy (`scripts/fetchProductionCopy.ts`) of a backup that records when it captured
+ * the database,
  * translated whole into VS Data in its own rules version: saved rosters, lists fielded into a battle or a sealed event,
  * and saved unit loadouts. The unit Praetorium builds today is matched by the fewest VS Data option selections, in a
  * fixed tie order, whose unit has the same models and the same wargear (through the reviewed spellings) and that VS
@@ -36,18 +38,17 @@ import { vsSpelling } from '../src/shared/wargearSpellings'
  *
  * Writes `data-dev/saved-pick-translations.ndjson`, which names lists by ID; `data-dev/saved-pick-gaps.json`, the picks left
  * on BSData for what VS Data or the reviewed spellings lack, counted by datasheet, option paths and cause, with no list
- * named; and the frozen translations
- * (`savedPicksSchema`) to `data-dev/saved-picks.json`: every translated pick by `savedPickKey`, less any key another
- * pick reads differently or not at all, with `data-dev/saved-picks-copy.json`, when the copy's backup was taken. All are
- * derived from players' lists, so they stay in `data-dev`. Prints counts by kind and rules version.
+ * named; and `data-dev/saved-picks.json` (`savedPicksRunSchema`), written once it reads whole: the copy's capture time,
+ * the key of every pick its live records hold, and the frozen translations, every translated pick by `savedPickKey`
+ * less any key another pick reads differently or not at all. All are derived from players' lists, so they stay in
+ * `data-dev`. Prints counts by kind and rules version.
  *
  *   pnpm exec tsx scripts/translateSavedPicks.ts [catalogue directory] [list copy]
  */
 const directory = path.resolve(process.argv[2] ?? 'catalogue-data')
-const listFile = path.resolve(
-  process.argv[3] ??
-    (fs.existsSync('data-dev/production-lists.ndjson.gz') ? 'data-dev/production-lists.ndjson.gz' : 'data-dev/production-rosters.json'),
-)
+const listFile = path.resolve(process.argv[3] ?? 'data-dev/production-lists.ndjson.gz')
+// Read first, so a copy that cannot date its records stops the run before any translation.
+const copiedAt = await copiedAtOf(listFile)
 const base = readCatalogueComposition(directory)?.editions.find((entry) => entry.base)
 if (!base) throw new Error(`${directory} has no base rules version`)
 const definitionsByEdition = new Map<string, VsDataDefinitions | null>()
@@ -624,6 +625,7 @@ function translate({
 }
 
 const results: object[] = []
+const live = new Set<string>()
 const tally: Record<string, number> = {}
 const note = (key: string) => (tally[key] = (tally[key] ?? 0) + 1)
 const byKind: Record<string, Record<string, number>> = {}
@@ -652,6 +654,9 @@ function translateAll(
 ) {
   const loaded = editions.catalogueFor(list.catalogueId)
   const edition = loaded?.edition?.id ?? base!.edition.id
+  // Every pick's key, translated or not: a publication may not drop one a live record still holds.
+  for (const pick of list.picks)
+    live.add(savedPickKey({ rulesVersion: edition, catalogueId: list.catalogueId, detachmentIds: list.detachmentIds }, pick))
   const counts = (byKind[`${kind} ${edition}`] ??= {})
   const count = (outcome: string, n = 1) => (counts[outcome] = (counts[outcome] ?? 0) + n)
   const definitions = loaded && definitionsOf(edition)
@@ -757,10 +762,9 @@ fs.writeFileSync(
   )}\n`,
   { mode: 0o600 },
 )
-// The backup's time goes beside the translations, so their publication is dated by the copy they came from.
-if (listFile.endsWith('.gz'))
-  fs.writeFileSync('data-dev/saved-picks-copy.json', `${JSON.stringify({ copiedAt: await copiedAtOf(listFile) })}\n`, { mode: 0o600 })
-fs.writeFileSync('data-dev/saved-picks.json', `${JSON.stringify(savedPicksSchema.parse(translations))}\n`, { mode: 0o600 })
+// One output, written only once it reads whole, so the translations are always dated by the copy they came from.
+const run = savedPicksRunSchema.parse({ copiedAt, live: [...live].toSorted(byId), translations })
+fs.writeFileSync(SAVED_PICKS_RUN, `${JSON.stringify(run)}\n`, { mode: 0o600 })
 console.log(Object.fromEntries(Object.entries(tally).toSorted(([a], [b]) => byId(a, b))))
 console.log(Object.fromEntries(Object.entries(byKind).toSorted(([a], [b]) => byId(a, b))))
 console.log({ frozen: frozen.size, keysLeftOnBsData: disputed.size })

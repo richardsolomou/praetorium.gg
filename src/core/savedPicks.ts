@@ -4,9 +4,10 @@ import type { RosterPick, VsPick } from './roster'
 
 /**
  * Frozen whole-pick translations: each saved BSData pick of a datasheet VS Data defines exactly, by `savedPickKey`, to
- * the `VsPick` it stands for, checked by VS Data's own checker when frozen (`scripts/translateSavedPicks.ts`). Entries
- * are only added (`appendSavedPicks`), so a stored pick means the same forever; a pick with none stays on BSData. Strict,
- * so it can hold nothing but a pick's content key and its VS Data IDs.
+ * the `VsPick` it stands for, checked by VS Data's own checker when frozen (`scripts/translateSavedPicks.ts`). Each
+ * publication holds the keys of one production copy, and no key ever changes meaning across publications
+ * (`nextSavedPicks`); a pick with none stays on BSData. Strict, so it can hold nothing but a pick's content key and its
+ * VS Data IDs.
  */
 export const savedPicksSchema = z.strictObject({
   format: z.literal('praetorium.saved-picks.v1'),
@@ -21,23 +22,28 @@ export const savedPicksKey = (sha256: string) => `saved-picks/${sha256}.json`
 export const savedPicksPinSchema = z.strictObject({
   format: z.literal('praetorium.saved-picks-pin.v1'),
   sha256: z.string().regex(/^[0-9a-f]{64}$/),
-  /** When the backup the translations were made from was taken: a translation attaches only to a record saved before it and unchanged since. */
+  /**
+   * When the backup the translations were made from captured the database, before its freeze: nothing saved after it is
+   * in that copy, so a translation attaches only to a record saved before it and unchanged since.
+   */
   copiedAt: z.iso.datetime(),
 })
 
+const sameMeaning = (left: VsPick, right: VsPick) => JSON.stringify(sortedKeys(left)) === JSON.stringify(sortedKeys(right))
+
 /**
- * The published translations with `found` added, as the bytes to publish: every key published keeps its translation,
- * and a run that would change one stops, so a key never changes meaning once published.
+ * One copy's translations as the bytes to publish in place of `published`, holding that copy's keys alone, so each key
+ * is dated by the copy it came from. A run stops if a key both hold would change meaning, or if a key some live record
+ * of the copy still hashes to (`live`) would leave, since that record would fall back to its BSData choices.
  */
-export function appendSavedPicks(published: SavedPicks | null, found: SavedPicks['picks']): string {
-  const picks = { ...published?.picks }
-  for (const [key, vs] of Object.entries(found)) {
-    const held = picks[key]
-    if (held && JSON.stringify(sortedKeys(held)) !== JSON.stringify(sortedKeys(vs)))
-      throw new Error(`saved pick ${key} is published as ${JSON.stringify(held)}; this run reads it as ${JSON.stringify(vs)}`)
-    picks[key] = held ?? vs
+export function nextSavedPicks(published: SavedPicks | null, found: SavedPicks['picks'], live: ReadonlySet<string>): string {
+  for (const [key, held] of Object.entries(published?.picks ?? {})) {
+    const next = found[key]
+    if (next && !sameMeaning(held, next))
+      throw new Error(`saved pick ${key} is published as ${JSON.stringify(held)}; this run reads it as ${JSON.stringify(next)}`)
+    if (!next && live.has(key)) throw new Error(`saved pick ${key} is published and a live record still holds it; this run leaves it out`)
   }
-  return `${JSON.stringify(sortedKeys(savedPicksSchema.parse({ format: 'praetorium.saved-picks.v1', picks })))}\n`
+  return `${JSON.stringify(sortedKeys(savedPicksSchema.parse({ format: 'praetorium.saved-picks.v1', picks: found })))}\n`
 }
 
 /** Where a pick stands: its rules version, its list's (or loadout's) book, and the list's Detachments. */
