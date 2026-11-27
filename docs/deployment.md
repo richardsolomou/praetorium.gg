@@ -26,10 +26,10 @@ Register and verify the operator account, then confirm its player ID from that a
 
 ## CI runners
 
-- Every job runs on GitHub-hosted runners except the last four browser-test runners of the owner's own pull requests, which run on the owner's desktop: repository runners labelled `self-hosted`, `linux`, `desktop`, that only connect out to GitHub. The account runs 20 hosted jobs at once, so this keeps a pull request's other jobs from queueing.
+- Every job runs on GitHub-hosted runners except the last two browser-test runners of the owner's own pull requests, which run on the owner's desktop: repository runners labelled `self-hosted`, `linux`, `desktop`, that only connect out to GitHub. The account runs 20 hosted jobs at once, so this keeps a pull request's other jobs from queueing.
 - The `runs-on` expression in `ci-e2e.yml` is the safety gate: only a `pull_request` event from a branch of this repository, opened by `richardsolomou`, reaches the desktop, since those jobs hold the R2 read keys. Dependabot, forks, other authors, and every release, deploy, scheduled or dispatched job stay hosted, so production never waits on the desktop.
 - The repository variable `DESKTOP_RUNNER` switches it: `on` routes those jobs to the desktop, anything else keeps them hosted. Nothing falls back on its own, so before the desktop goes off for long, run `gh variable set DESKTOP_RUNNER --body off` and re-run the queued jobs of open pull requests.
-- The runners run as a dedicated user in systemd services below interactive work in CPU and memory, with the owner's files and the Windows host out of reach, and each job starts with an empty `/tmp`. Browser-test ports are chosen free per stack, so two pull requests' runners can share the machine.
+- The runners run as a dedicated user in systemd services with a capped memory share and a CPU share no larger than interactive work, with the owner's files and the Windows host out of reach, and each job starts with an empty `/tmp`. Browser-test ports are chosen free per stack, so two pull requests' runners can share the machine.
 
 ## Pull request previews
 
