@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       e2e-runners:
-        description: Browser runners for a timing comparison
+        description: Most browser runners, for a timing comparison
         type: choice
         options: ['14', '16', '8']
         default: '14'
