@@ -52,9 +52,27 @@ export type CheckedUnit = {
   choices: readonly Pick<UnitChoice, 'name' | 'options'>[]
   /** The unit as VS Data fields it, for a pick by VS Data IDs: VS Data checks it whole, models and wargear included. */
   vs?: VsRosterUnit
+  /** What the unit costs the list, which VS Data's ally points limits count. */
+  points?: number
 }
 
 export type VsDataError = { entryId: string; entryName: string; message: string }
+
+/** The list as VS Data reads it, or null where VS Data cannot place it and leaves it to the catalogue's checks. */
+function vsDataPlacement(data: VsRosterData | undefined, list: { catalogueId: string; detachmentIds: readonly string[] }) {
+  const placed = vsDataBook(data, list.catalogueId)
+  if (!data || !placed) return null
+  const { own, without, definitions } = placed
+  // A faction that takes no Detachment, as a Titan army does, refuses any it holds, VS Data's or not.
+  const detachments = list.detachmentIds.map((id) => data.detachments[id] ?? (without ? `unknown:${id}` : undefined))
+  // A list with a Detachment VS Data does not file under its faction stays with the catalogue's checks.
+  if (!without && detachments.some((id) => !id || !own.has(definitions.get('detachment', id)?.data.faction))) return null
+  return { ...placed, detachments }
+}
+
+/** Whether VS Data's checker reads the list as a whole, as `vsDataErrors` does wherever it is not null. */
+export const vsDataPlaces = (data: VsRosterData | undefined, list: { catalogueId: string; detachmentIds: readonly string[] }) =>
+  vsDataPlacement(data, list) !== null
 
 /**
  * What VS Data's checker finds wrong with a list beyond its units' wargear, which the catalogue still builds: allies,
@@ -66,13 +84,9 @@ export function vsDataErrors(
   list: { catalogueId: string; detachmentIds: readonly string[]; borrowedDetachmentId?: string | null; limit: number },
   units: readonly CheckedUnit[],
 ): VsDataError[] | null {
-  const placed = vsDataBook(data, list.catalogueId)
+  const placed = vsDataPlacement(data, list)
   if (!data || !placed) return null
-  const { definitions, faction, own, without } = placed
-  // A faction that takes no Detachment, as a Titan army does, refuses any it holds, VS Data's or not.
-  const detachments = list.detachmentIds.map((id) => data.detachments[id] ?? (without ? `unknown:${id}` : undefined))
-  // A list with a Detachment VS Data does not file under its faction stays with the catalogue's checks.
-  if (!without && detachments.some((id) => !id || !own.has(definitions.get('detachment', id)?.data.faction))) return null
+  const { definitions, faction, without, detachments } = placed
   const battleSize = definitions.all('battle-size').find((size) => size.data.points === list.limit)?.id
   const taken = new Set<string>()
   const checked = units.flatMap((unit): { unit: CheckedUnit; read: VsRosterUnit; offersAllegiance: boolean }[] => {
@@ -130,8 +144,9 @@ export function vsDataErrors(
     ...(battleSize ? { battleSize } : {}),
     units: checked.map(({ read }) => read),
   }
-  const unpriced = { units: [], points: 0, detachmentPoints: 0, unpriced: [] }
-  const errors = checkVsRoster(definitions, roster, unpriced)
+  const priced = checked.map(({ unit }) => ({ points: unit.points ?? 0, unpriced: [] }))
+  const price = { units: priced, points: priced.reduce((sum, { points }) => sum + points, 0), detachmentPoints: 0, unpriced: [] }
+  const errors = checkVsRoster(definitions, roster, price)
     .filter((problem) => problem.code !== 'allegiance-missing' || checked[problem.unit ?? -1]?.offersAllegiance)
     // Saying it takes no Detachment says each one it holds is not its own.
     .filter((problem) => !without || problem.code !== 'detachment-faction')

@@ -10,7 +10,7 @@ const data = vsRosterData(
     points: [],
     definitions: {
       faction: {
-        host: record('Host', {}),
+        host: record('Host', { allies: [{ units: ['other.scout'], points: [{ battleSize: 'small', max: 100 }] }] }),
         other: record('Other', {}),
         titan: record('Titan', {}),
         engines: record('Engines', { withoutDetachments: { warlords: [], dispositions: ['pack.take-and-hold'] } }),
@@ -37,6 +37,7 @@ const data = vsRosterData(
           uniformOptions: [['host.squad.trooper-carbines', 'host.squad.sergeant-carbine']],
         }),
         'other.agent': record('Agent', { faction: 'other', keywords: ['INFANTRY'], sizes: [1] }),
+        'other.scout': record('Scout', { faction: 'other', keywords: ['INFANTRY'], sizes: [1] }),
       },
       'roster-option': {
         'host.squad.guns': record('Trooper guns', {
@@ -112,6 +113,7 @@ const data = vsRosterData(
       'bs-walker': 'engines.walker',
       'bs-squad': 'host.squad',
       'bs-agent': 'other.agent',
+      'bs-scout': 'other.scout',
     },
     enhancements: {
       'host.guard/bs-crown': 'host.guard.crown',
@@ -128,6 +130,7 @@ const data = vsRosterData(
       'bs-walker': 'Walker',
       'bs-squad': 'Squad',
       'bs-agent': 'Agent [Crucible]',
+      'bs-scout': 'Scout',
     })[id],
 )
 const unit = (over: Partial<CheckedUnit> & Pick<CheckedUnit, 'entryId'>): CheckedUnit => ({
@@ -169,6 +172,14 @@ describe('vsDataErrors', () => {
     expect(errors([unit({ entryId: 'bs-mob', size: { models: 10, min: 10, max: 20 } })], [])).toEqual([
       { entryId: 'army', entryName: 'Army', message: 'needs one to three Detachments' },
     ])
+  })
+
+  it('refuses allies costing more than their points limit, at what each costs the list', () => {
+    expect(errors([unit({ entryId: 'bs-scout', points: 60 }), unit({ entryId: 'bs-scout', points: 60 })])).toContainEqual({
+      entryId: 'army',
+      entryName: 'Army',
+      message: 'allied units cost at most 100 points, cost 120',
+    })
   })
 
   it('refuses a Detachment to a faction that takes none', () => {
