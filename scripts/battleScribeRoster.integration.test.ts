@@ -6,7 +6,7 @@ import { battleScribeRoster } from '../src/shared/battleScribeRoster'
 import type { LoadedCatalogue } from '../src/shared/catalogueIndex'
 import { calculateRosterPrice } from '../src/shared/pricing'
 import type { LoadedRules } from '../src/shared/rules'
-import { loadSnapshotWithRules } from './lib/catalogueSnapshotLoad'
+import { sharedSnapshot } from './lib/catalogueSnapshotLoad'
 
 const directory = process.env.CATALOGUE_DIR ?? 'catalogue-data'
 
@@ -36,7 +36,7 @@ describe.skipIf(!fs.existsSync(path.join(directory, 'definitions')))('a list as 
     )
 
   beforeAll(() => {
-    ;({ catalogue: loaded, rules } = loadSnapshotWithRules(directory))
+    ;({ catalogue: loaded, rules } = sharedSnapshot(directory))
     marines = rosterOf('Imperium - Adeptus Astartes - Space Marines', ['Intercessor Squad@10', 'Devastator Squad'])
   })
 

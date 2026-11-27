@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import { beforeAll, describe, expect, it } from 'vitest'
 import { nameOf } from '../src/core/catalogue'
-import { loadCatalogue } from '../src/server/catalogueIndex'
+import { sharedSnapshot } from './lib/catalogueSnapshotLoad'
 import { datasheetIn } from '../src/shared/catalogue'
 import { rosterCombatant } from '../src/shared/rosterCombatRules'
 import type { LoadedCatalogue } from '../src/shared/catalogueIndex'
@@ -18,7 +18,7 @@ describe.skipIf(!fs.existsSync(source))('a character whose role depends on the a
   const sheet = (name: string) => datasheetIn(loaded, ultramarines, entryOf(name))!
 
   beforeAll(() => {
-    loaded = loadCatalogue(source)!
+    loaded = sharedSnapshot(source).catalogue
   })
 
   it('names both roles Cato Sicarius can join Victrix Honour Guard in', () => {

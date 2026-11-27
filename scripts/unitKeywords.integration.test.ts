@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import { beforeAll, describe, expect, it } from 'vitest'
 import { nameOf } from '../src/core/catalogue'
-import { loadCatalogue } from '../src/server/catalogueIndex'
+import { sharedSnapshot } from './lib/catalogueSnapshotLoad'
 import { datasheetsOf, type LoadedCatalogue } from '../src/shared/catalogueIndex'
 import { keywordsIn } from '../src/shared/catalogue'
 
@@ -20,7 +20,7 @@ describe.skipIf(!fs.existsSync(source))('unit keywords from their models', () =>
   }
 
   beforeAll(() => {
-    loaded = loadCatalogue(source)!
+    loaded = sharedSnapshot(source).catalogue
   })
 
   it('makes Chaplain Grimaldus a Character unit', () => {

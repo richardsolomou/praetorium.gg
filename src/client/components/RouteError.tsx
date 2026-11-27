@@ -2,12 +2,15 @@ import { CancelledError } from '@tanstack/react-query'
 import { type ErrorComponentProps, useRouter } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { isModuleLoadFailure } from '../networkErrors'
+import { isFetchNetworkFailure, isModuleLoadFailure } from '../networkErrors'
 import { writesPending } from '../pendingWrites'
 import { checkedStaleBuildRelease } from '../releaseUpdate'
 import { mayReloadCancelledLoad, reloadModuleRoute, reloadStaleBuild, routeErrorExplanation, routerReloading } from '../routeErrors'
 import { FullPageState } from './PageState'
 import { pageSection, SectionLink } from './pageSections'
+
+/** Asks whoever handles feedback to report a failure, with what the player saw as the event's detail. */
+export const REPORT_PROBLEM_EVENT = 'praetorium:report-problem'
 
 /**
  * A loader that joined a read whose last viewer unmounted mid-flight sees it cancelled, not failed, so the route loads
@@ -65,6 +68,20 @@ export function RouteError({ error }: ErrorComponentProps) {
               }
             >
               Try again
+            </Button>
+          )}
+          {isFetchNetworkFailure(error) || isModuleLoadFailure(error) ? null : (
+            <Button
+              variant="outline"
+              onClick={() =>
+                window.dispatchEvent(
+                  new CustomEvent(REPORT_PROBLEM_EVENT, {
+                    detail: error instanceof Error && error.message ? error.message : String(error),
+                  }),
+                )
+              }
+            >
+              Report this
             </Button>
           )}
           <SectionLink section={section} />

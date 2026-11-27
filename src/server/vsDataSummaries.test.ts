@@ -124,7 +124,7 @@ it('opens the weapon ability a run names where its link names the ability’s co
   const summary = 'Its weapons gain [DEVASTATING WOUNDS].'
   const data = { summarySpans: [{ start: 17, end: 37, bold: true, target: { kind: 'core-rule', id: 'devastating-wounds' } }] }
   const { summaries, base } = snapshot([{ update: 'MFM 1.6', summary, data }], [devastatingWounds])
-  expect(summaries!.summariesIn(base).records['ability:necrons.test.focused-fire']?.blocks[0]).toEqual({
+  expect(summaries!.summariesIn(base).records['ability:necrons.test.focused-fire']?.blocks?.[0]).toEqual({
     paragraph: [
       { text: 'Its weapons gain ' },
       { text: '[DEVASTATING WOUNDS]', bold: true, ability: 'weapon-ability:devastating-wounds' },
@@ -231,7 +231,7 @@ it('links a bracketed weapon ability to the core rule that prints it', () => {
     [],
     [document as unknown as RuleDocument],
   )
-  expect(summaries!.summariesIn(base).records['ability:necrons.test.focused-fire']?.blocks[0]).toEqual({
+  expect(summaries!.summariesIn(base).records['ability:necrons.test.focused-fire']?.blocks?.[0]).toEqual({
     paragraph: [
       { text: 'Its weapons gain ' },
       {

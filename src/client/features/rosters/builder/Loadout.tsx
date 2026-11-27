@@ -5,7 +5,7 @@ import { cloneElement, type ReactElement, type ReactNode, useEffect, useMemo, us
 import type { Datasheet } from '../../../../contracts/catalogue'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import type { RosterPick } from '../../../../core/roster'
-import { isUnitCompositionChoice } from '../../../../core/unitChoices'
+import { isUnitCompositionChoice, VS_MODELS } from '../../../../core/unitChoices'
 import { primaryUnitProfile, weaponProfileGroups } from '../../../datasheet'
 import { datasheetLoad, factionQuery, type Fielded, loadoutDatasheetsQuery } from '../../../queries'
 import { useSettled } from '../../../useSettled'
@@ -182,7 +182,9 @@ export function Loadout({
       }
     : undefined
   const { models, loose } = divide(unit)
-  const saved = pickIndex === null ? undefined : picks[pickIndex]?.spreads
+  const pick = pickIndex === null ? undefined : picks[pickIndex]
+  // A VS Data pick saves every option's counts, and its models', as a BSData pick saves a group's spread.
+  const saved = pick?.vs ? { ...pick.vs.options, [VS_MODELS]: pick.vs.models } : pick?.spreads
   // Read-only views list the unit's weapons by type, so only choices that are not wargear stay below them.
   const visibleLoose = showOptions
     ? loose

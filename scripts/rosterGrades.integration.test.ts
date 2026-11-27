@@ -3,18 +3,18 @@ import { beforeAll, describe, expect, it } from 'vitest'
 import { nameOf } from '../src/core/catalogue'
 import { rosterCombatant } from '../src/shared/rosterCombatRules'
 import { measureRosterUnits } from '../src/shared/rosterGradeMeasures'
-import { loadSnapshotWithRules } from './lib/catalogueSnapshotLoad'
+import { sharedSnapshot } from './lib/catalogueSnapshotLoad'
 
 const directory = process.env.CATALOGUE_DIR ?? 'catalogue-data'
 
 type Pick = { entryId: string; attachedTo?: number }
 
 describe.skipIf(!fs.existsSync(directory))('roster grade facts read from the catalogue', () => {
-  let snapshot: ReturnType<typeof loadSnapshotWithRules>
+  let snapshot: ReturnType<typeof sharedSnapshot>
   let catalogueId: string
 
   beforeAll(() => {
-    snapshot = loadSnapshotWithRules(directory)
+    snapshot = sharedSnapshot(directory)
     catalogueId = snapshot.catalogue.factions.find((faction) => faction.name.endsWith('Tyranids'))!.id
   }, 180_000)
 

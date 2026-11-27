@@ -90,17 +90,8 @@ describe('a VS pick built by VS Data', () => {
     expect(pair.carriers.at(-1)).toMatchObject({ unitWide: true, weapons: [{ name: 'Token', count: 1 }] })
   })
 
-  it('names each kind of model with what all of them carry', () => {
-    expect(squad({ 'squad.special': { plasma: 2 } }).models[1]).toEqual({
-      name: 'Trooper',
-      fixed: [
-        { name: 'Pistol', count: 9 },
-        { name: 'Rifle', count: 7 },
-        { name: 'Plasma gun', count: 2 },
-      ],
-      members: [{ id: 'squad.trooper', choiceKey: null, baseCount: 9 }],
-      rows: [],
-    })
+  it('gives each kind of model a row for each choice its options offer', () => {
+    expect(squad({ 'squad.special': { plasma: 2 } }).models[1]?.rows.map((row) => row.name)).toContain('Plasma gun')
   })
 
   it('steps between sizes it cannot field every one of', () => {

@@ -1,5 +1,4 @@
 import fs from 'node:fs'
-import path from 'node:path'
 import { beforeAll, describe, expect, it } from 'vitest'
 import {
   listForgeDetailed,
@@ -28,7 +27,7 @@ import { nameOf, resolve } from '../src/core/catalogue'
 import type { LoadedRules } from '../src/shared/rules'
 import { calculateRosterPrice } from '../src/shared/pricing'
 import { importRosterFile } from '../src/shared/rosterFiles'
-import { loadSnapshot } from './lib/catalogueSnapshotLoad'
+import { sharedSnapshot } from './lib/catalogueSnapshotLoad'
 
 const source = process.env.CATALOGUE_DIR ?? 'catalogue-data'
 
@@ -36,7 +35,7 @@ describe.skipIf(!fs.existsSync(source))('genuine exports from other army builder
   let catalogue: LoadedCatalogue
   let rules: LoadedRules | null
   beforeAll(() => {
-    ;({ catalogue, rules } = loadSnapshot(path.resolve(source)))
+    ;({ catalogue, rules } = sharedSnapshot(source))
   })
   const imported = (file: string) => importRosterFile({ file }, catalogue, undefined, rules)
   const summary = (file: string) => {
@@ -180,7 +179,7 @@ describe.skipIf(!fs.existsSync(source))('genuine exports from other army builder
 
   it('leaves a second copy of an enhancement where the list takes only one detachment offering it', () => {
     const file = `List (2000 points)\n\nDrukhari\nSpectacle of Spite (2 Detachment Points)\nPurge the Foe\nStrike Force (2000 points)\n\nCHARACTERS\n\nSuccubus (75 points)\n  • Warlord\n  • 1x Archite glaive and agoniser\n  • Enhancement: Periapt of Torments\n\nSuccubus (75 points)\n  • 1x Archite glaive and agoniser\n  • Enhancement: Periapt of Torments\n`
-    expect(priced(file)?.errors.map((error) => error.message)).toEqual(['Periapt of Torments is already taken'])
+    expect(priced(file)?.errors.map((error) => error.message)).toEqual(['Periapt of Torments is taken at most once'])
   })
 
   it('makes the one character that can be Warlord the Warlord of a list naming none', () => {

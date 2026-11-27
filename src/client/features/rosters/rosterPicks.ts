@@ -17,7 +17,7 @@ export type KeyedPick = RosterPick & { key: number }
  * Nicknames, notes and starting embarks change nothing a price reads, so editing one must not reprice.
  */
 export const normalisePicks = (picks: readonly RosterPick[]): RosterPick[] =>
-  picks.map(({ entryId, catalogueId, models, choices, spreads, toggles, attachedTo, floor }) => ({
+  picks.map(({ entryId, catalogueId, models, choices, spreads, toggles, attachedTo, floor, vs }) => ({
     entryId,
     catalogueId,
     models,
@@ -26,6 +26,7 @@ export const normalisePicks = (picks: readonly RosterPick[]): RosterPick[] =>
     toggles,
     attachedTo,
     floor,
+    vs,
   }))
 
 /** The construction shape with the player's nickname, note and starting embark, as a saved row keeps it. */

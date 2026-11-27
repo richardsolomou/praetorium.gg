@@ -195,3 +195,13 @@ it('answers a keyword question VS Data spells with a typographic apostrophe', ()
   } as CombatRule
   expect(combatReadingFor(facts, rule)!.compiled).not.toBeNull()
 })
+
+it('reads a rule whose effect makes the attacks lose a weapon ability as not calculated', () => {
+  const lost = { role: 'attacker', attacks: ['ranged'], lostWeaponAbility: 'BLAST' }
+  const facts = textFactsOfVsData(combat({ choices: [{ conditions: [], effects: [lost] }], default: 1, roles: ['attacker'] })).combat!
+  expect(facts.leaves[facts.readings['unit:0:1']![0] as number]!.compiled).toBeNull()
+})
+
+it('shows no invulnerable save on the datasheet when it holds against ranged attacks alone', () => {
+  expect(textFactsOfVsData({ invulnerableSave: { roll: 4, against: 'ranged' } }).invulnerableSave).toBeUndefined()
+})
