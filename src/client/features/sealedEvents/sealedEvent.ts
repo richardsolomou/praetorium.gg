@@ -17,6 +17,7 @@ import { pointsLabel } from '../../../core/battle'
 import { TABLE_SHAPE_LABELS, type TableShape } from '../../../core/tableShape'
 import type { openSealedEvent } from '../../functions'
 import { sealedEventReadsKey, sealedEventsKey, outdatedSealedEventEntriesKey } from '../../queries'
+import { AFTER_WRITE } from '../../productSignals'
 import { formatList } from '../../text'
 import { groupBy } from '../../../core/collections'
 
@@ -26,9 +27,9 @@ export function useSealedEventRefresh(token: string) {
   const queryClient = useQueryClient()
   return async () => {
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: sealedEventReadsKey(token) }),
-      queryClient.invalidateQueries({ queryKey: sealedEventsKey() }),
-      queryClient.invalidateQueries({ queryKey: outdatedSealedEventEntriesKey() }),
+      queryClient.invalidateQueries({ queryKey: sealedEventReadsKey(token) }, AFTER_WRITE),
+      queryClient.invalidateQueries({ queryKey: sealedEventsKey() }, AFTER_WRITE),
+      queryClient.invalidateQueries({ queryKey: outdatedSealedEventEntriesKey() }, AFTER_WRITE),
     ])
   }
 }
