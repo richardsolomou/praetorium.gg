@@ -1,6 +1,7 @@
 import { expect, test, type Page } from './test'
 import { createRoster, setupStep, signUp, startBattle, expectNoPageOverflow, practiceBattle, PHONE } from './account'
 import { chooseCombatUnit, openCombatBreakdown } from './combat'
+import { screenshot } from './screenshots'
 
 // Controls transition their font size, so measuring before the transitions finish reads the old layout.
 async function doubleText(page: Page) {
@@ -194,7 +195,7 @@ test.describe('a touch device', () => {
     )
     expect(headingsOverlap).toBe(false)
     await chooseCombatUnit(page, 'Defender', 'Space Marines', 'Intercessor Squad')
-    await page.screenshot({ path: test.info().outputPath('simulator-large-text-controls.png') })
+    await screenshot(page, 'simulator-large-text-controls.png')
     await expect.poll(() => new URL(page.url()).searchParams.get('s')).not.toBeNull()
     const summary = page.locator('[data-results-summary]')
     await expect(summary.locator('[data-combat-wipe]').first()).toContainText('%')

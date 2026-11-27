@@ -15,6 +15,7 @@ import {
   sealableRoster,
 } from './account'
 import type { Locator, Page } from '@playwright/test'
+import { screenshot } from './screenshots'
 
 /** A lent roster's line naming its owner, whose name is a link behind their avatar. */
 const lentBy = (rosters: Locator, owner: string) =>
@@ -27,11 +28,11 @@ async function setLoan(owner: Page, rosterUrl: string, borrowerName: string, len
   const loan = dialog.getByRole('switch', { name: `Lend to ${borrowerName}` })
   await loan.click()
   await expect(loan).toBeChecked({ checked: lent })
-  if (lent) await dialog.screenshot({ path: test.info().outputPath('roster-lending-dialog.png') })
+  if (lent) await screenshot(dialog, 'roster-lending-dialog.png')
   await owner.keyboard.press('Escape')
 }
 
-test('a friend fields a lent roster, and the battle keeps it after the loan ends', async ({ browser }) => {
+test('a friend fields a lent roster, the battle keeps it after the loan ends, and a borrower hands it back', async ({ browser }) => {
   const owner = await (await browser.newContext()).newPage()
   const borrower = await (await browser.newContext()).newPage()
   const ownerName = uniqueName('Lender')
@@ -55,12 +56,12 @@ test('a friend fields a lent roster, and the battle keeps it after the loan ends
   await expect(borrower.getByLabel('Add a unit')).toHaveCount(0)
   await borrower.setViewportSize(PHONE)
   await expectNoPageOverflow(borrower)
-  await borrower.screenshot({ path: test.info().outputPath('roster-lending-borrower-phone.png') })
+  await screenshot(borrower, 'roster-lending-borrower-phone.png')
   await borrower.setViewportSize({ width: 1440, height: 900 })
 
   const battle = await createBattle(borrower, { practice: true })
   await borrower.locator('[data-face-off-side="0"]').getByRole('button', { name: 'Choose army', exact: true }).click()
-  await borrower.getByRole('dialog', { name: /roster$/ }).screenshot({ path: test.info().outputPath('roster-lending-chooser.png') })
+  await screenshot(borrower.getByRole('dialog', { name: /roster$/ }), 'roster-lending-chooser.png')
   await borrower.keyboard.press('Escape')
   await attachRoster(borrower, rosterName)
   await expect(borrower.locator('[data-face-off-side="0"]').getByText(`Lent by ${ownerName}`)).toBeVisible()
@@ -71,22 +72,9 @@ test('a friend fields a lent roster, and the battle keeps it after the loan ends
   await expect(borrower.locator('[data-lent-rosters]')).toHaveCount(0)
   await borrower.goto(battle)
   await expect(borrower.locator('[data-face-off-side="0"]').getByText(`Lent by ${ownerName}`)).toBeVisible()
-})
 
-test('a borrower hands a lent roster back', async ({ browser }) => {
-  const owner = await (await browser.newContext()).newPage()
-  const borrower = await (await browser.newContext()).newPage()
-  const ownerName = uniqueName('Lender')
-  const borrowerName = uniqueName('Borrower')
-
-  await signUp(owner, ownerName)
-  await chooseRosterDefault(owner, 'Private')
-  await createRoster(owner, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Returned army' })
-  const rosterUrl = owner.url()
-  await signUp(borrower, borrowerName)
-  await befriend(owner, borrower)
+  // Lent again, the borrower hands it back.
   await setLoan(owner, rosterUrl, borrowerName, true)
-
   await borrower.goto(rosterUrl)
   const confirmReturn = borrower.getByRole('alertdialog', { name: /^Return / })
   await retryUntilVisible(confirmReturn, () =>
@@ -129,7 +117,7 @@ test('a borrower seals and simulates a lent roster', async ({ browser }) => {
   const lent = chooser.locator('[data-lent-rosters]')
   await expect(lentBy(lent, ownerName)).toBeVisible()
   await lent.getByRole('button').first().click()
-  await chooser.screenshot({ path: test.info().outputPath('roster-lending-seal-chooser.png') })
+  await screenshot(chooser, 'roster-lending-seal-chooser.png')
   await chooser.getByRole('button', { name: 'Seal Sealed loan' }).click()
   await expect(chooser).toBeHidden()
   await expect(borrower.getByRole('button', { name: 'Swap roster' })).toBeVisible()
@@ -138,7 +126,7 @@ test('a borrower seals and simulates a lent roster', async ({ browser }) => {
   await borrower.waitForLoadState('networkidle')
   const lentChoice = borrower.getByRole('option', { name: new RegExp(`^Sealed loan · ${ownerName}$`) })
   await retryUntilVisible(lentChoice, () => borrower.getByRole('combobox', { name: 'Attacking with', exact: true }).click())
-  await borrower.screenshot({ path: test.info().outputPath('roster-lending-simulator.png') })
+  await screenshot(borrower, 'roster-lending-simulator.png')
   await lentChoice.click()
   await borrower.getByRole('option', { name: 'The whole roster', exact: true }).click()
   await expect(

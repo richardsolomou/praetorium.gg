@@ -10,6 +10,7 @@ import {
   desktopContext,
 } from './account'
 import { expectNoHorizontalOverflow } from './builder.harness'
+import { screenshot } from './screenshots'
 
 async function reviewedArmy(page: Page) {
   const { id, operator } = await savedArmy(page, 'Setup review', { name: 'Reviewed army' })
@@ -89,9 +90,9 @@ test('setup preview cancellation and exact saved result', async ({ page }) => {
       'rgb(245, 122, 122)',
     )
     await attention.scrollIntoViewIfNeeded()
-    await review.screenshot({ path: test.info().outputPath(`setup-review-top-${viewport.width}.png`) })
+    await screenshot(review, `setup-review-top-${viewport.width}.png`)
     await review.getByText('Removed choices: Mark of the Nekrosor', { exact: true }).scrollIntoViewIfNeeded()
-    await review.screenshot({ path: test.info().outputPath(`setup-review-${viewport.width}.png`) })
+    await screenshot(review, `setup-review-${viewport.width}.png`)
   }
   await page.setViewportSize(desktopContext.viewport)
   await review.getByRole('button', { name: 'Cancel', exact: true }).click()
@@ -109,7 +110,7 @@ test('setup preview cancellation and exact saved result', async ({ page }) => {
   for (const viewport of [desktopContext.viewport, phone]) {
     await page.setViewportSize(viewport)
     await expect(page.locator('[data-unit="Skorpekh Lord"]')).not.toContainText('Mark of the Nekrosor')
-    await page.screenshot({ path: test.info().outputPath(`setup-saved-${viewport.width}.png`) })
+    await screenshot(page, `setup-saved-${viewport.width}.png`)
   }
 })
 

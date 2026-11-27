@@ -1,5 +1,6 @@
 import { expect, test, type Page } from './test'
 import { createRoster, retryUntilVisible, signUp, startBattle, practiceBattle, concede, PHONE } from './account'
+import { screenshot } from './screenshots'
 
 async function inspectMap(page: Page) {
   const trigger = page.locator('dt:text-is("Battlefield") + dd').getByRole('button')
@@ -18,7 +19,7 @@ async function inspectMap(page: Page) {
       return panel.top >= 0 && panel.bottom <= innerHeight
     }),
   ).toBe(true)
-  await page.screenshot({ path: test.info().outputPath(`battle-map-${page.viewportSize()?.width}.png`) })
+  await screenshot(page, `battle-map-${page.viewportSize()?.width}.png`)
   await dialog.getByRole('button', { name: 'Close', exact: true }).click()
   await expect(dialog).toBeHidden()
   await expect(trigger).toBeFocused()

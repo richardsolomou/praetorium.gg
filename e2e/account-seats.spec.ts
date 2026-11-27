@@ -18,6 +18,7 @@ import {
 } from './account'
 import { lastPathSegment, productOperator, userIdNamed } from './storage'
 import type { Command } from '../src/core/battle'
+import { screenshot } from './screenshots'
 
 const GUEST = 'Alex the Guest'
 
@@ -33,7 +34,7 @@ test('New battle seats only accounts', async ({ page }) => {
       /^Play both sides/,
     ])
     await expect(page.locator('main')).not.toContainText('Guest')
-    await page.screenshot({ path: test.info().outputPath(`new-battle-${viewport.width}.png`) })
+    await screenshot(page, `new-battle-${viewport.width}.png`)
   }
 })
 
@@ -70,10 +71,10 @@ test('a battle that seated a guest before every seat needed an account still ope
   await expect(page.getByRole('dialog', { name: `${GUEST}’s secondary missions` })).toBeVisible()
   await takeTheTurn(page)
   await expect(scoreboard(page).getByText(`${GUEST}’s turn`, { exact: true })).toBeVisible()
-  await page.screenshot({ path: test.info().outputPath('guest-battle-desktop.png') })
+  await screenshot(page, 'guest-battle-desktop.png')
   await page.setViewportSize(PHONE)
   await expectNoPageOverflow(page)
-  await page.screenshot({ path: test.info().outputPath('guest-battle-phone.png'), fullPage: true })
+  await screenshot(page, 'guest-battle-phone.png', { fullPage: true })
   await page.setViewportSize({ width: 1440, height: 900 })
 
   const concede = page.getByRole('menuitem', { name: 'Concede battle', exact: true })
