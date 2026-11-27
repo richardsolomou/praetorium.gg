@@ -18,6 +18,7 @@ import { calculateRosterPrice, savedRosterPriceInput } from '../src/shared/prici
 
 type PricedUnit = NonNullable<ReturnType<typeof calculateRosterPrice>>['units'][number]
 import { rosterDetachments } from '../src/shared/rosterDetachments'
+import { inBook } from '../src/shared/vsDataPoints'
 import { loadSnapshot } from './lib/catalogueSnapshotLoad'
 import { savedLists, savedLoadouts } from './lib/vsDataRosterParity'
 import { catalogueUnitErrors, leaves, legacyIds, modelsByName, specialOf, vsModels } from './lib/vsDataRosters'
@@ -253,8 +254,12 @@ function solve(moves: readonly Move[], target: ReadonlyMap<string, number>) {
 }
 
 /** The pick read through the per-choice map, as the reader rule gives it: null where a key or the base is unmatched. */
-function guessOf(entryId: string, pick: { choices?: Record<string, string>; spreads?: Record<string, Counts>; floor?: boolean }) {
-  const entry = map[entryId]
+function guessOf(
+  catalogueId: string,
+  entryId: string,
+  pick: { choices?: Record<string, string>; spreads?: Record<string, Counts>; floor?: boolean },
+) {
+  const entry = inBook(map, catalogueId, entryId)
   if (!entry || entry.base === 'unmatched') return null
   const parts: Selections[] = [entry.base?.options ?? {}]
   const keyed = (key: string, times: number) => {
@@ -397,7 +402,8 @@ function translate({
 }: Unit): Outcome {
   const retained = catalogueId.includes('~')
   const key = (keys: Record<string, string>, id: string) => (retained ? keys[`${edition}~${id}`] : undefined) ?? keys[id]
-  const unit = key(ids.units, pick.entryId)
+  const book = catalogueId.slice(catalogueId.indexOf('~') + 1)
+  const unit = key(ids.units, `${book}/${pick.entryId}`) ?? key(ids.units, pick.entryId)
   if (!unit || !definitions.get('unit', unit)) return { outcome: 'unmatched', reason: 'no-unit' }
   // A unit the pick's book cannot field, through its faction, parent or allies, is a datasheet ID the map reads as another
   // faction's (a shared library entry), so its translation would stand for the wrong unit.
@@ -493,7 +499,7 @@ function translate({
   for (const item of keptDefaults) delta.delete(item)
   const valid = (selections: Selections) => !problemsOf(definitions, { ...read, options: joined(defaults, selections) }).length
   // How the per-choice map reads a pick of the current rules version, to compare against: equal and valid, or not.
-  const guessed = edition === base!.edition.id && !loadout ? guessOf(pick.entryId, pick) : null
+  const guessed = edition === base!.edition.id && !loadout ? guessOf(catalogueId, pick.entryId, pick) : null
   const gives = (selections: Selections) => {
     const bag = vsBag(definitions, unit, models, joined(defaults, selections))
     return bag.size === target.size && [...bag].every(([item, n]) => target.get(item) === n)
@@ -704,7 +710,8 @@ function translateAll(
           Object.entries(held).map(([option, n]) => `${choice}|${option} x${n}`),
         ),
       ].toSorted(byId)
-      const unit = (retained ? ids.units[`${edition}~${pick.entryId}`] : undefined) ?? ids.units[pick.entryId]
+      const frozenUnit = (held: string) => (retained ? ids.units[`${edition}~${held}`] : undefined) ?? ids.units[held]
+      const unit = frozenUnit(`${book}/${pick.entryId}`) ?? frozenUnit(pick.entryId)
       const gap = JSON.stringify({
         rulesVersion: edition,
         datasheet: priced.name,

@@ -12,7 +12,7 @@ import { factionDisplayName } from './factionNames'
 import { ownChoiceOptionWargear } from '../core/modelKinds'
 import type { Selection } from '../core/evaluate'
 import type { ChoiceOptions, UnitChoice } from '../core/unitChoices'
-import { vsMfmUnit } from './vsDataPoints'
+import { inBook, vsMfmUnit } from './vsDataPoints'
 import { rosterDetachments } from './rosterDetachments'
 import { wargearOf } from '../core/wargear'
 import { wargearKey } from '../core/wargearNames'
@@ -51,7 +51,8 @@ export const mfmUnitFor = (
   )
 
 /** Whether VS Data prices this datasheet, rather than the field manual. */
-export const vsDataPriced = (loaded: LoadedCatalogue, entryId: string) => Boolean(loaded.vsPoints?.units[entryId])
+export const vsDataPriced = (loaded: LoadedCatalogue, catalogueId: string, entryId: string) =>
+  Boolean(inBook(loaded.vsPoints?.units, catalogueId, entryId))
 
 function findMfmUnit(loaded: LoadedCatalogue, primaryCatalogueId: string, entryId: string): MfmUnit | null {
   const book = loaded.index.catalogues.get(primaryCatalogueId)
@@ -126,7 +127,9 @@ function computeUnitPointAdjustment(
   const unit = mfmUnitFor(loaded, primaryCatalogueId, entryId, detachments)
   // VS Data prices a unit in the list's Detachments, so its price replaces the catalogue's there, Detachment upgrades the
   // catalogue adds to the unit included.
-  const roster = vsDataPriced(loaded, entryId) ? rosterDetachments(loaded, primaryCatalogueId, detachments).selections : []
+  const roster = vsDataPriced(loaded, primaryCatalogueId, entryId)
+    ? rosterDetachments(loaded, primaryCatalogueId, detachments).selections
+    : []
   // The Munitorum's price is for the unit at its floor; a default that costs more is charged on top, as the app does.
   const built = buildUnit(entryId, loaded.index, requestedModels, undefined, {
     primaryCatalogueId,

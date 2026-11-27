@@ -155,7 +155,16 @@ export type ConditionalAttachment = {
 }
 /** The units `unit` may join as a Leader or a support attachment, in any roster or only under `conditional`. */
 export type AttachmentData = { unit: string; leads?: string[]; supports?: string[]; conditional?: ConditionalAttachment[]; gaps?: Gap[] }
-export type TransportProfileData = { unit: string; capacity?: Record<string, unknown>; firingDeck?: number; gaps?: Gap[] }
+/** One allowance of a load: up to `limit` models or units matching any of `selectors`, each a keyword or a run of them. */
+export type TransportPool = { limit: number; count: 'models' | 'units'; selectors: string[]; maxWounds?: number }
+/** The transport's alternative loads, refusals, places a model takes, and pools that replace the first with some wargear. */
+export type TransportCapacity = {
+  loads: TransportPool[][]
+  whenEquipped?: { wargear: string; pool: TransportPool }[]
+  excluded?: { selectors: string[]; except?: string[] }[]
+  space?: { selectors?: string[]; moreWoundsThan?: number; size: number }[]
+}
+export type TransportProfileData = { unit: string; capacity?: TransportCapacity; firingDeck?: number; gaps?: Gap[] }
 /**
  * Who may take an Enhancement, from its rule facts (VS Data's `docs/rule-facts.md`): a bearer matching one of `anyOf`
  * and none of `excludedKeywords`, carrying `requiredWargear`, a CHARACTER unless `nonCharacters`, not an EPIC HERO unless

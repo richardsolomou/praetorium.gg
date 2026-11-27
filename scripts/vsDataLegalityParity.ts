@@ -108,8 +108,10 @@ const differences = new Map<string, number>()
 let datasheets = 0
 let unbuilt = 0
 for (const [entryId, entry] of Object.entries(map)) {
+  // A book key's unit is read in that book's lists, never the list of the unit's own faction this builds.
+  if (entryId.includes('/')) continue
   const unit = definitions.get('unit', entry.unit)
-  if (!unit || entry.base === 'unmatched' || vsUnitIdOf(catalogue, entryId) !== unit.id) continue
+  if (!unit || entry.base === 'unmatched' || vsUnitIdOf(catalogue, '', entryId) !== unit.id) continue
   // Only a datasheet VS Data defines exactly is fielded by its IDs, so Legends and Crucible copies stay out.
   const name = nameOf(catalogue.index.definitions.get(entryId)!, catalogue.index.definitions)
   if (unit.data.legends || isNonMatchedPlayName(name)) continue

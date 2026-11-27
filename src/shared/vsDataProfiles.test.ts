@@ -42,12 +42,12 @@ it('reads each mode of a weapon by its wargear and mode, as a datasheet prints t
       [`${unit}.overcharge`]: record('Overcharge', { unit, wargear: `${unit}.rifle`, ...RIFLE, strength: 7 }),
     },
   })
-  expect(vsStatLinesOf(index, 'entry', 'Squad', [printed('➤ Rifle - overcharge', 'Ranged Weapons')])[0]?.strength).toBe('7')
+  expect(vsStatLinesOf(index, 'book', 'entry', 'Squad', [printed('➤ Rifle - overcharge', 'Ranged Weapons')])[0]?.strength).toBe('7')
 })
 
 it('keeps the catalogue’s lines where it prints two models apart that one VS Data line describes', () => {
   const index = indexOf({ 'unit-profile': { [unit]: record('Squad', { unit, ...STATS }) } })
-  const lines = vsStatLinesOf(index, 'entry', 'Squad', [
+  const lines = vsStatLinesOf(index, 'book', 'entry', 'Squad', [
     printed('Trooper', 'Unit', { wounds: '2' }),
     printed('Trooper w/ storm shield', 'Unit', { wounds: '3' }),
   ])
@@ -56,21 +56,21 @@ it('keeps the catalogue’s lines where it prints two models apart that one VS D
 
 it('leaves a profile naming none of the unit’s models to the catalogue', () => {
   const index = indexOf({ 'unit-profile': { [unit]: record('Squad', { unit, ...STATS }) } })
-  expect(vsStatLinesOf(index, 'entry', 'Squad', [printed('Pilot', 'Unit')])).toEqual([null])
+  expect(vsStatLinesOf(index, 'book', 'entry', 'Squad', [printed('Pilot', 'Unit')])).toEqual([null])
 })
 
 it('spells a weapon keyword as the rules version’s glossary names its ability', () => {
   const index = indexOf({
     'weapon-profile': { [`${unit}.rifle`]: record('Rifle', { unit, wargear: `${unit}.rifle`, ...RIFLE, keywords: ['RAPID FIRE 1'] }) },
   })
-  expect(vsStatLinesOf(index, 'entry', 'Squad', [printed('Rifle', 'Ranged Weapons')])[0]?.keywords).toBe('Rapid Fire 1')
+  expect(vsStatLinesOf(index, 'book', 'entry', 'Squad', [printed('Rifle', 'Ranged Weapons')])[0]?.keywords).toBe('Rapid Fire 1')
 })
 
 it('reads no skill from a 7, which no hit roll makes', () => {
   const index = indexOf({
     'weapon-profile': { [`${unit}.rifle`]: record('Rifle', { unit, wargear: `${unit}.rifle`, ...RIFLE, skill: 7 }) },
   })
-  expect(vsStatLinesOf(index, 'entry', 'Squad', [printed('Rifle', 'Ranged Weapons')])[0]?.['ballistic-skill']).toBeUndefined()
+  expect(vsStatLinesOf(index, 'book', 'entry', 'Squad', [printed('Rifle', 'Ranged Weapons')])[0]?.['ballistic-skill']).toBeUndefined()
 })
 
 it('prints VS Data’s values on the datasheet in place of the catalogue’s', () => {

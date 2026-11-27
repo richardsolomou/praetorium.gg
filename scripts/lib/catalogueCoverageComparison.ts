@@ -238,10 +238,12 @@ export function compareCatalogueCoverage(
         compareDescribed(`${where} / ${name} detachment abilities`, earlier?.abilities ?? [], later?.abilities ?? [])
       }
       compareLists(`${where} keyword rules`, sheet.keywordRules, current.keywordRules)
-      compareLists(`${where} attachments`, sheet.attachments, current.attachments)
+      // A host a Leader ability prints in capitals is the same datasheet as one named as the datasheet spells it.
+      const host = (name: string) => name.toLowerCase()
+      compareLists(`${where} attachments`, sheet.attachments, current.attachments, host)
       compareLists(`${where} ability names`, sheet.abilityNames ?? [], current.abilityNames ?? [])
       compareLists(`${where} search`, sheet.search ?? [], current.search ?? [])
-      compareLists(`${where} leaders`, sheet.leaders, current.leaders)
+      compareLists(`${where} leaders`, sheet.leaders, current.leaders, host)
       for (const field of ['composition', 'wargearOptions', 'keywords'] as const) {
         if (sheet[field] > current[field]) lost.push(`${where}: ${field} ${sheet[field]} → ${current[field]}`)
       }
