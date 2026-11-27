@@ -11,6 +11,7 @@ import {
   loadPreviewAppSecrets,
   pullRequestNumber,
 } from 'ras-stack/preview/dokploy'
+import { CI_OUTPUTS_BASE_URL } from '../src/server/r2Client.ts'
 import { callSpacetime, deleteSpacetimeDatabase, publishSpacetimeModule, type SpacetimeConnection } from '../src/server/spacetime.ts'
 import { moduleEnvironment } from './lib/spacetimeEnvironment.ts'
 import { isEntryPoint } from './lib/entryPoint.ts'
@@ -193,6 +194,8 @@ async function deploy() {
     `SPACETIME_AUDIENCE=${name}`,
     `SPACETIME_ISSUER=${issuer}`,
     `SPACETIME_OPERATOR_TOKEN=${identity.token}`,
+    // Where its pull request's CI shared the server projections and browser downloads for this snapshot and compiler.
+    `CATALOGUE_RUNTIME_STORE=${CI_OUTPUTS_BASE_URL}`,
     ...snapshot,
   ].join('\n')
   try {
