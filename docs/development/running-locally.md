@@ -5,6 +5,7 @@
 - `just dev` builds a missing catalogue from public sources; never ask for credentials or a rules-version choice.
 - `just catalogue-sync` needs `R2_*` credentials in the main checkout's ignored `.env.local` for an uncached snapshot.
 - Never edit the shared snapshot cache in place; `CATALOGUE_CACHE_DIR=off` gives worktree-local copies.
+- Builds delete compiled runtimes and offline references in the shared cache that no build has written or restored for three days.
 
 ## Development lifecycle
 
