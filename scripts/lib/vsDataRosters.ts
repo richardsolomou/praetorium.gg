@@ -169,7 +169,7 @@ export function vsRosterOf(
   const keys: number[] = []
   const units = price.units.flatMap((priced): VsRosterUnit[] => {
     const pick = input.units[priced.key]!
-    const unit = key(ids.units, pick.entryId)
+    const unit = key(ids.units, `${book}/${pick.entryId}`) ?? key(ids.units, pick.entryId)
     const at = priced.key
     if (!unit || !definitions.get('unit', unit)) {
       gaps.push({

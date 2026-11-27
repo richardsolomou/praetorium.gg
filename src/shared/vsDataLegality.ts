@@ -3,12 +3,12 @@ import { checkVsRoster, type VsProblem, type VsRosterUnit } from '../core/vsData
 import { hasWarlordToggle, type UnitChoice, type UnitToggle } from '../core/unitChoices'
 import { remember } from '../core/collections'
 import { nonMatchedPlayKind } from '../core/name'
-import { idsIn, type VsDataIds } from './vsDataPoints'
+import { datasheetOf, idsIn, inBook, type VsDataIds } from './vsDataPoints'
 
 /**
  * A rules version's VS Data roster definitions without wargear, and the IDs its saved lists hold read as VS Data's: each
  * book's faction, each Detachment, each Enhancement option under its VS Data Detachment, and each datasheet VS Data
- * checks.
+ * checks, under its book where it is another unit there (`inBook`).
  */
 export type VsRosterData = {
   construction: VsDataConstruction
@@ -28,7 +28,7 @@ export function vsRosterData(
   const units: Record<string, string> = {}
   for (const [entryId, saved] of idsIn(ids.units, edition)) {
     const id = definitions.current(saved)
-    if (nameOf(entryId) && (definitions.get('unit', id) || definitions.unavailable.has(id))) units[entryId] = id
+    if (nameOf(datasheetOf(entryId)) && (definitions.get('unit', id) || definitions.unavailable.has(id))) units[entryId] = id
   }
   return {
     construction,
@@ -210,7 +210,7 @@ export function vsDataChecks(
   catalogueId: string,
   unit: Pick<CheckedUnit, 'entryId' | 'name'>,
 ): string | undefined {
-  const id = data?.units[unit.entryId]
+  const id = inBook(data?.units, catalogueId, unit.entryId)
   if (!data || !id) return undefined
   const definitions = remember(definitionsOf, data, () => vsDataDefinitions(data.construction))
   const filed = definitions.get('unit', id)?.data

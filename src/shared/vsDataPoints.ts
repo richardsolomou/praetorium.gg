@@ -6,8 +6,9 @@ type Tier = { copies: { from: number; to?: number }; costs: { models: number; po
 
 /**
  * A rules version's VS Data prices, by the BSData IDs its saved lists hold: each datasheet VS Data defines with the
- * cost rows of the unit it is, each Detachment with its Detachment points and its Enhancements under their BSData
- * names, and each book's faction, which decides the cost row a unit fielded in another faction's army takes.
+ * cost rows of the unit it is (by `<book>/<ID>` where it is another unit in that book, read through `inBook`), each
+ * Detachment with its Detachment points and its Enhancements under their BSData names, and each book's faction, which
+ * decides the cost row a unit fielded in another faction's army takes.
  */
 export type VsPointsIndex = {
   books: Record<string, string>
@@ -31,7 +32,10 @@ export type VsDataIds = Record<'books' | 'detachments' | 'units' | 'enhancements
 
 const priced = (points: PointsCost['points']) => (typeof points === 'number' ? points : null)
 
-/** The IDs a rules version's saved lists hold, each with the VS Data ID it reads as there: its own key first, then the bare one. */
+/**
+ * The IDs a rules version's saved lists hold, each with the VS Data ID it reads as there: its own key first, then the
+ * bare one. A datasheet one ID stands for in several factions is also held as `<book>/<ID>`, read through `inBook`.
+ */
 export function idsIn(map: Readonly<Record<string, string>>, edition: string | null) {
   const read = new Map<string, string>()
   for (const [key, id] of Object.entries(map)) if (!key.includes('~')) read.set(key, id)
@@ -39,6 +43,19 @@ export function idsIn(map: Readonly<Record<string, string>>, edition: string | n
   if (prefix) for (const [key, id] of Object.entries(map)) if (key.startsWith(prefix)) read.set(key.slice(prefix.length), id)
   return read
 }
+
+/** A datasheet's entry in what is keyed as `idsIn` keys units, for a list of the book `catalogueId`: the book's own key first. */
+export function inBook<T>(
+  held: ReadonlyMap<string, T> | Readonly<Record<string, T>> | undefined,
+  catalogueId: string,
+  entryId: string,
+): T | undefined {
+  const get = (key: string) => (held instanceof Map ? held.get(key) : (held as Readonly<Record<string, T>> | undefined)?.[key])
+  return get(`${catalogueId.slice(catalogueId.indexOf('~') + 1)}/${entryId}`) ?? get(entryId)
+}
+
+/** The datasheet ID a key of `idsIn`'s units names, without its book. */
+export const datasheetOf = (key: string) => key.slice(key.indexOf('/') + 1)
 
 /**
  * The price index of one rules version. `nameOf` names a BSData entry: an Enhancement option, so a Detachment's
@@ -55,7 +72,7 @@ export function vsPointsIndex(
   for (const [entryId, saved] of idsIn(ids.units, edition)) {
     const id = definitions.current(saved)
     const unit = definitions.get('unit', id)
-    const name = nameOf(entryId)
+    const name = nameOf(datasheetOf(entryId))
     if (!unit || !name || definitions.unavailable.has(id)) continue
     const row = definitions.points
       .flatMap((snapshot) => snapshot.factions.find((faction) => faction.id === unit.data.faction)?.units ?? [])
@@ -140,7 +157,7 @@ export function vsMfmUnit(
   entryId: string,
   detachments: readonly string[] = [],
 ): MfmUnit | null {
-  const unit = index?.units[entryId]
+  const unit = inBook(index?.units, catalogueId, entryId)
   if (!index || !unit) return null
   const faction = index.books[catalogueId.slice(catalogueId.indexOf('~') + 1)]
   const parent = faction ? index.factions[faction]?.parent : undefined
@@ -167,9 +184,9 @@ export const vsMfmDetachment = (index: VsPointsIndex | undefined, detachmentId: 
 }
 
 /** Whether VS Data prices the datasheet differently in some Detachment, so a list price must be read in the list's. */
-export const vsDetachmentPriced = (index: VsPointsIndex | undefined, entryId: string) =>
+export const vsDetachmentPriced = (index: VsPointsIndex | undefined, catalogueId: string, entryId: string) =>
   Boolean(
-    index?.units[entryId]?.tiers.some((tier) =>
+    inBook(index?.units, catalogueId, entryId)?.tiers.some((tier) =>
       tier.costs.some((cost) => cost.composition && /^in the .+ Detachment$/.test(cost.composition)),
     ),
   )

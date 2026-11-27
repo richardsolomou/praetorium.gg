@@ -8,6 +8,7 @@ import { buildUnit, type BuiltUnit } from '../src/core/roster'
 import { isUnitCompositionChoice, type UnitChoice } from '../src/core/unitChoices'
 import { wargearOf } from '../src/core/wargear'
 import { legacyOptionsSchema } from '../src/core/legacyIds'
+import { datasheetOf } from '../src/shared/vsDataPoints'
 import { vsDataDefinitions } from '../src/core/vsDataConstruction'
 import { checkVsUnit } from '../src/core/vsDataRoster'
 import { wargearKey } from '../src/core/wargearNames'
@@ -362,11 +363,13 @@ for (const entry of composition.editions.filter((candidate) => candidate.base)) 
   const loaded = loadCatalogue(editionDirectory(catalogueDirectory, entry), entry.edition)
   if (!loaded) throw new Error(`${entry.edition.id} has no catalogue`)
   const { index } = loaded
-  for (const [entryId, unitId] of Object.entries(unitsMap)) {
+  // A datasheet `units.json` reads as another unit in a book is read under that book's key too.
+  for (const [mapKey, unitId] of Object.entries(unitsMap)) {
+    const entryId = datasheetOf(mapKey)
     const unit = release.units.get(unitId)
-    const base = !entryId.includes('~') && unit && index.definitions.has(entryId) ? buildUnit(entryId, index) : null
+    const base = !mapKey.includes('~') && unit && index.definitions.has(entryId) ? buildUnit(entryId, index) : null
     if (!unit || !base) {
-      uncovered.push(`${entryId} → ${unitId}`)
+      uncovered.push(`${mapKey} → ${unitId}`)
       continue
     }
     tally.datasheets++
@@ -693,7 +696,7 @@ for (const entry of composition.editions.filter((candidate) => candidate.base)) 
       if ('allegiance' in translation) tally.allegiances++
       else if (Object.keys(translation.options).length) tally.mapped++
       else tally.noChange++
-    out[entryId] = result
+    out[mapKey] = result
   }
 }
 

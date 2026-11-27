@@ -96,6 +96,9 @@ const unitSchema = z.object({
       .optional(),
   }),
 })
+const factionSchema = z.object({
+  data: z.object({ parent: z.string().optional(), allies: z.array(z.object({ units: z.array(z.string()).optional() })).optional() }),
+})
 const manifestSchema = z.object({
   categories: z.array(z.object({ name: z.string(), records: z.array(z.object({ id: z.string(), kind: z.string(), path: z.string() })) })),
 })
@@ -182,6 +185,14 @@ function readRelease(directory: string) {
           ] as const,
       ),
   )
+  const armies = new Map(
+    manifest
+      .filter((record) => record.kind === 'faction')
+      .map((record) => {
+        const { parent, allies } = factionSchema.parse(read(record.path)).data
+        return [record.id, { parent, allied: (allies ?? []).flatMap((ally) => ally.units ?? []) }] as const
+      }),
+  )
   const current = entries.filter((entry) => !entry.retired)
   const currentIds = new Set(current.map((entry) => entry.id))
   // A retired unit with one current successor, such as a datasheet a release revives under a new ID, reads as it.
@@ -218,6 +229,7 @@ function readRelease(directory: string) {
     units,
     unitNames,
     allegiances,
+    armies,
   }
 }
 
@@ -310,6 +322,19 @@ for (const entry of composition.editions.toSorted((left, right) => Number(Boolea
     if (unit) byName.add(`${entry.edition.id} ${name} -> ${unit}`)
     return unit
   }
+  /**
+   * The unit a Library datasheet is in a book of `faction` that is offered neither its unit nor that unit's faction: the
+   * one unit an ally entry of the faction offers whose name ends with the unit's, as a chaos book's Warhound Titan is the
+   * Chaos Warhound Titan where an Imperial book's is the Warhound Titan. VS Data aliases one BSData ID to one unit, so
+   * the book keys it.
+   */
+  const bookUnit = (faction: string, unit: string) => {
+    const army = vs.armies.get(faction)
+    const name = same(vs.names.get(unit) ?? '')
+    if (!army || !name || [faction, army.parent].includes(unit.split('.')[0]) || army.allied.includes(unit)) return undefined
+    const named = army.allied.filter((candidate) => same(vs.names.get(candidate) ?? '').endsWith(name))
+    return named.length === 1 ? named[0] : undefined
+  }
   for (const book of index.catalogues.values()) {
     if (book.library || book.gameSystem) continue
     // A retained rules version's books carry its ID as a prefix, which a saved roster keeps too.
@@ -328,6 +353,12 @@ for (const entry of composition.editions.toSorted((left, right) => Number(Boolea
         add('units', datasheet, unit)
         const implied = impliedAllegiance(datasheet, unit)
         if (implied) allegiances.set(datasheet, implied)
+        const scoped = index.catalogues.get(index.catalogueOf.get(datasheet) ?? '')?.library ? bookUnit(faction, unit) : undefined
+        if (scoped) {
+          add('units', `${bookId}/${datasheet}`, scoped)
+          const impliedHere = impliedAllegiance(datasheet, scoped)
+          if (impliedHere) allegiances.set(`${bookId}/${datasheet}`, impliedHere)
+        }
       } else missing.add(`${entry.edition.id} unit ${datasheet} ${nameOf(definition, index.definitions)}`)
     }
     // Only a book a list can be saved for in this rules version holds Detachments and Enhancements a list can name.
@@ -415,10 +446,27 @@ for (const entry of composition.editions.toSorted((left, right) => Number(Boolea
         if (allegiance) allegiances.set(id, allegiance)
       }
     }
+  // A retired datasheet reads in each book as its replacement does there.
+  for (const id of saved.units) {
+    const replacement = replaced('units', id)?.split('~').at(-1)
+    if (!replacement || replacement === id) continue
+    for (const [key, current] of [...read.units])
+      if (key.endsWith(`/${replacement}`) && !read.units.has(key.replace(/[^/]+$/, id))) {
+        read.units.set(key.replace(/[^/]+$/, id), current)
+        const allegiance = allegiances.get(key)
+        if (allegiance) allegiances.set(key.replace(/[^/]+$/, id), allegiance)
+      }
+  }
   for (const section of SECTIONS)
     for (const [id, current] of read[section])
       if (!base) found[section].push([id, current])
       else if (base[section].get(id) !== current) found[section].push([`${entry.edition.id}~${id}`, current])
+  // A book's key reads before a rules version's own bare one, so a version that reads the datasheet otherwise there says so.
+  for (const [id, scoped] of base?.units ?? [])
+    if (id.includes('/') && !read.units.has(id)) {
+      const current = read.units.get(id.slice(id.indexOf('/') + 1))
+      if (current && current !== scoped) found.units.push([`${entry.edition.id}~${id}`, current])
+    }
   for (const [id, allegiance] of allegiances)
     if (!base) foundAllegiances.push([id, allegiance])
     else if (base.units.get(id) !== read.units.get(id) || baseAllegiances.get(id) !== allegiance)

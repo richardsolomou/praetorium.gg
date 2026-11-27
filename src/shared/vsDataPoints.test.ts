@@ -64,13 +64,20 @@ const names: Record<string, string> = {
   'bs-relic': 'Relic Tank [Legends]',
   'bs-banner': 'Banner',
   'bs-pack': 'Pack',
+  'bs-shared': 'Shared Tank',
 }
 const index = vsPointsIndex(
   definitions,
   {
     books: { 'bs-host': 'host', 'bs-other': 'other' },
     detachments: { 'bs-guard': 'host.guard' },
-    units: { 'bs-tank': 'host.tank', 'bs-relic': 'host.relic-tank', 'bs-pack': 'host.pack' },
+    units: {
+      'bs-tank': 'host.tank',
+      'bs-relic': 'host.relic-tank',
+      'bs-pack': 'host.pack',
+      'bs-shared': 'host.tank',
+      'bs-other/bs-shared': 'host.relic-tank',
+    },
     enhancements: { 'host.guard/bs-banner': 'host.guard.banner' },
   },
   null,
@@ -90,6 +97,10 @@ describe('vsMfmUnit', () => {
 
   it('prices a unit in another faction’s army at the row for other armies', () => {
     expect(price('bs-other', 'bs-tank')).toBe(120)
+  })
+
+  it('prices a datasheet as the unit its list’s book reads it as', () => {
+    expect(price('legacy~bs-other', 'bs-shared')).toBe(200)
   })
 
   it('reads a retained rules version’s book by its bare ID', () => {

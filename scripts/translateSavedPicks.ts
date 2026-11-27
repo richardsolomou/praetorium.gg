@@ -13,6 +13,7 @@ import { readCatalogueComposition } from '../src/server/catalogueComposition'
 import { catalogueEditionLoaders } from '../src/server/catalogueEditions'
 import { calculateRosterPrice, savedRosterPriceInput } from '../src/shared/pricing'
 import { rosterDetachments } from '../src/shared/rosterDetachments'
+import { inBook } from '../src/shared/vsDataPoints'
 import { loadSnapshot } from './lib/catalogueSnapshotLoad'
 import { savedLists } from './lib/vsDataRosterParity'
 import { leaves, legacyIds, modelsByName, specialOf, vsModels } from './lib/vsDataRosters'
@@ -226,8 +227,12 @@ function solve(moves: readonly Move[], target: ReadonlyMap<string, number>) {
 }
 
 /** The pick read through the per-choice map, as the reader rule gives it: null where a key or the base is unmatched. */
-function guessOf(entryId: string, pick: { choices?: Record<string, string>; spreads?: Record<string, Counts>; floor?: boolean }) {
-  const entry = map[entryId]
+function guessOf(
+  catalogueId: string,
+  entryId: string,
+  pick: { choices?: Record<string, string>; spreads?: Record<string, Counts>; floor?: boolean },
+) {
+  const entry = inBook(map, catalogueId, entryId)
   if (!entry || entry.base === 'unmatched') return null
   const parts: Selections[] = [entry.base?.options ?? {}]
   const keyed = (key: string, times: number) => {
@@ -354,7 +359,7 @@ for (const saved of await savedLists(listFile)) {
   const detachments = input.detachmentIds.flatMap((id) => (ids.detachments[id] ? [ids.detachments[id]] : []))
   for (const priced of price.units) {
     const pick = input.units[priced.key]!
-    const unit = ids.units[pick.entryId]
+    const unit = inBook(ids.units, input.catalogueId, pick.entryId)
     const translate = (): Outcome & { guess?: string } => {
       if (!unit || !definitions.get('unit', unit)) return { outcome: 'unmatched', reason: 'no-unit' }
       const built = buildUnit(pick.entryId, loaded.index, pick.models, pick.choices, {
@@ -399,7 +404,7 @@ for (const saved of await savedLists(listFile)) {
       for (const [item, n] of vsBag(unit, models, defaults)) add(delta, item, -n)
       const valid = (selections: Selections) => !problemsOf({ ...read, options: joined(defaults, selections) }).length
       // How the per-choice map reads the pick, to compare against: equal and valid, or not.
-      const guessed = guessOf(pick.entryId, pick)
+      const guessed = guessOf(input.catalogueId, pick.entryId, pick)
       const gives = (selections: Selections) => {
         const bag = vsBag(unit, models, joined(defaults, selections))
         return bag.size === target.size && [...bag].every(([item, n]) => target.get(item) === n)

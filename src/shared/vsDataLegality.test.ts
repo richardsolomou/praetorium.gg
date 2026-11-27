@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { vsRosterData, vsDataErrors, type CheckedUnit } from './vsDataLegality'
+import { vsDataChecks, vsRosterData, vsDataErrors, type CheckedUnit } from './vsDataLegality'
 
 const record = (name: string, data: Record<string, unknown>) => ({ name, data: { formatVersion: 2, ...data } })
 const data = vsRosterData(
@@ -22,6 +22,7 @@ const data = vsRosterData(
           allegiances: [{ choices: ['host.mark.fire'], required: true }],
         }),
         'other.fort': record('Fort', { faction: 'other', keywords: ['FORTIFICATION'], sizes: [1], legends: true }),
+        'titan.walker': record('Walker', { faction: 'titan', keywords: ['TITANIC'], sizes: [1] }),
       },
       model: {
         'host.mob.grunt': record('Grunt', { unit: 'host.mob', min: 10, max: 20, wargear: {} }),
@@ -39,7 +40,7 @@ const data = vsRosterData(
   {
     books: { 'bs-host': 'host', 'bs-titan': 'titan' },
     detachments: { 'bs-guard': 'host.guard', 'bs-raid': 'other.raid' },
-    units: { 'bs-mob': 'host.mob', 'bs-lord': 'host.lord', 'bs-fort': 'other.fort' },
+    units: { 'bs-mob': 'host.mob', 'bs-lord': 'host.lord', 'bs-fort': 'other.fort', 'bs-titan/bs-mob': 'titan.walker' },
     enhancements: { 'host.guard/bs-crown': 'host.guard.crown', 'host.guard/bs-fire': 'host.guard.crown' },
   },
   null,
@@ -97,5 +98,14 @@ describe('vsDataErrors', () => {
 
   it('leaves a list with another faction’s Detachment to the catalogue', () => {
     expect(errors([unit({ entryId: 'bs-mob', size: { models: 15, min: 10, max: 20 } })], ['bs-raid'])).toBeNull()
+  })
+})
+
+describe('vsDataChecks', () => {
+  it('checks a datasheet as the unit its list’s book reads it as', () => {
+    expect([
+      vsDataChecks(data, 'bs-titan', { entryId: 'bs-mob', name: 'Mob' }),
+      vsDataChecks(data, 'bs-host', { entryId: 'bs-mob', name: 'Mob' }),
+    ]).toEqual(['titan.walker', 'host.mob'])
   })
 })

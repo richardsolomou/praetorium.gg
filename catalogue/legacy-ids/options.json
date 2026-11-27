@@ -300,6 +300,98 @@
         "e9c7-4566-9043-345a/79ba-9cef-ac09-f121|cd65-2e31-a32c-3b3"
       ]
     },
+    "03fe-a162-4c02-f07b/1564-6ed2-e6d4-4dbe": {
+      "base": {
+        "options": {
+          "chaos-titan-legions.chaos-warbringer-nemesis-titan.chaos-warbringer-nemesis-titan-reaver-laser-blaster": {
+            "chaos-titan-legions.chaos-warbringer-nemesis-titan.reaver-gatling-blaster": 1
+          }
+        }
+      },
+      "choices": {
+        "30eb-02c8-78f2-8361/8273-ddc7-1bea-6028|63ef-9709-7202-59a2": {
+          "options": {}
+        },
+        "30eb-02c8-78f2-8361/8273-ddc7-1bea-6028|ef9a-353f-e5d7-9b42": {
+          "options": {
+            "chaos-titan-legions.chaos-warbringer-nemesis-titan.chaos-warbringer-nemesis-titan-nemesis-quake-cannon": {
+              "chaos-titan-legions.chaos-warbringer-nemesis-titan.nemesis-volcano-cannon": 1
+            }
+          }
+        }
+      },
+      "unit": "chaos-titan-legions.chaos-warbringer-nemesis-titan",
+      "unmatched": [
+        "30eb-02c8-78f2-8361/b8fa-acab-2bbd-df6d|4e4a-a537-9256-1fce",
+        "30eb-02c8-78f2-8361/b8fa-acab-2bbd-df6d|5543-60ce-38f2-fd21",
+        "30eb-02c8-78f2-8361/b8fa-acab-2bbd-df6d|beb7-2dd8-7fe5-aef4",
+        "30eb-02c8-78f2-8361/b8fa-acab-2bbd-df6d|dfbf-f81d-55a4-58d6"
+      ]
+    },
+    "03fe-a162-4c02-f07b/2c2f-442e-aaac-eea5": {
+      "base": {
+        "options": {
+          "chaos-titan-legions.chaos-warlord-titan.chaos-warlord-titan-macro-gatling-blaster": {
+            "chaos-titan-legions.chaos-warlord-titan.arioch-power-claw": 1
+          }
+        }
+      },
+      "choices": {
+        "b4b1-10b8-0941-97d0/9428-40c9-d286-72ea|e409-db1a-6a8-8b52": {
+          "options": {}
+        },
+        "b4b1-10b8-0941-97d0/9428-40c9-d286-72ea|e628-d98c-6924-a2f3": {
+          "options": {
+            "chaos-titan-legions.chaos-warlord-titan.chaos-warlord-titan-apocalypse-launcher": {
+              "chaos-titan-legions.chaos-warlord-titan.2-laser-blaster": 1
+            }
+          }
+        }
+      },
+      "unit": "chaos-titan-legions.chaos-warlord-titan",
+      "unmatched": [
+        "b4b1-10b8-0941-97d0/bebc-1c05-79ee-864|3fdd-684e-3fd3-f143",
+        "b4b1-10b8-0941-97d0/bebc-1c05-79ee-864|403d-7cf-5147-cdb2",
+        "b4b1-10b8-0941-97d0/bebc-1c05-79ee-864|49e4-a425-ec23-ec3d",
+        "b4b1-10b8-0941-97d0/bebc-1c05-79ee-864|8844-c4a-80cc-2acc",
+        "b4b1-10b8-0941-97d0/bebc-1c05-79ee-864|ab37-e894-cd2c-7c7e"
+      ]
+    },
+    "03fe-a162-4c02-f07b/3d92-c50-b2c2-1635": {
+      "base": {
+        "options": {
+          "chaos-titan-legions.chaos-reaver-titan.chaos-reaver-titan-reaver-laser-blaster": {
+            "chaos-titan-legions.chaos-reaver-titan.reaver-gatling-blaster": 1
+          }
+        }
+      },
+      "choices": {},
+      "unit": "chaos-titan-legions.chaos-reaver-titan",
+      "unmatched": [
+        "9bab-d72b-c7bd-96c0/c009-c6dd-bfe2-f61f|1f9c-1176-b34c-540e",
+        "9bab-d72b-c7bd-96c0/c009-c6dd-bfe2-f61f|2017-e76f-d8fe-434e",
+        "9bab-d72b-c7bd-96c0/c009-c6dd-bfe2-f61f|2545-b5ae-cee8-9563",
+        "9bab-d72b-c7bd-96c0/c009-c6dd-bfe2-f61f|8cec-19a1-6e8d-90d2",
+        "9bab-d72b-c7bd-96c0/c009-c6dd-bfe2-f61f|fce9-1859-d02-e0b6"
+      ]
+    },
+    "03fe-a162-4c02-f07b/b12e-420e-73a8-6121": {
+      "base": {
+        "options": {
+          "chaos-titan-legions.chaos-warhound-titan.chaos-warhound-titan-warhound-plasma-blastgun": {
+            "chaos-titan-legions.chaos-warhound-titan.warhound-vulcan-mega-bolter": 1
+          }
+        }
+      },
+      "choices": {},
+      "unit": "chaos-titan-legions.chaos-warhound-titan",
+      "unmatched": [
+        "073f-b834-4bb7-983c/67aa-cbe0-95c0-673f|5f9e-bc47-6590-f83a",
+        "073f-b834-4bb7-983c/67aa-cbe0-95c0-673f|6b81-c1fe-9fec-803f",
+        "073f-b834-4bb7-983c/67aa-cbe0-95c0-673f|ad16-60c0-a420-4295",
+        "073f-b834-4bb7-983c/67aa-cbe0-95c0-673f|edca-c231-b8ed-93ff"
+      ]
+    },
     "0488-7b45-6b67-5d97": {
       "choices": {},
       "unit": "leagues-of-votann.memnyr-strategist",
@@ -1391,6 +1483,98 @@
       },
       "unit": "space-wolves.wolf-scouts",
       "unmatched": ["e969-2f08-ee27-fe1c/56e0-a9ea-52fd-7270/a7f4-14af-04d4-eced|a7f4-14af-04d4-eced"]
+    },
+    "1069-10ff-3ba9-873b/1564-6ed2-e6d4-4dbe": {
+      "base": {
+        "options": {
+          "chaos-titan-legions.chaos-warbringer-nemesis-titan.chaos-warbringer-nemesis-titan-reaver-laser-blaster": {
+            "chaos-titan-legions.chaos-warbringer-nemesis-titan.reaver-gatling-blaster": 1
+          }
+        }
+      },
+      "choices": {
+        "30eb-02c8-78f2-8361/8273-ddc7-1bea-6028|63ef-9709-7202-59a2": {
+          "options": {}
+        },
+        "30eb-02c8-78f2-8361/8273-ddc7-1bea-6028|ef9a-353f-e5d7-9b42": {
+          "options": {
+            "chaos-titan-legions.chaos-warbringer-nemesis-titan.chaos-warbringer-nemesis-titan-nemesis-quake-cannon": {
+              "chaos-titan-legions.chaos-warbringer-nemesis-titan.nemesis-volcano-cannon": 1
+            }
+          }
+        }
+      },
+      "unit": "chaos-titan-legions.chaos-warbringer-nemesis-titan",
+      "unmatched": [
+        "30eb-02c8-78f2-8361/b8fa-acab-2bbd-df6d|4e4a-a537-9256-1fce",
+        "30eb-02c8-78f2-8361/b8fa-acab-2bbd-df6d|5543-60ce-38f2-fd21",
+        "30eb-02c8-78f2-8361/b8fa-acab-2bbd-df6d|beb7-2dd8-7fe5-aef4",
+        "30eb-02c8-78f2-8361/b8fa-acab-2bbd-df6d|dfbf-f81d-55a4-58d6"
+      ]
+    },
+    "1069-10ff-3ba9-873b/2c2f-442e-aaac-eea5": {
+      "base": {
+        "options": {
+          "chaos-titan-legions.chaos-warlord-titan.chaos-warlord-titan-macro-gatling-blaster": {
+            "chaos-titan-legions.chaos-warlord-titan.arioch-power-claw": 1
+          }
+        }
+      },
+      "choices": {
+        "b4b1-10b8-0941-97d0/9428-40c9-d286-72ea|e409-db1a-6a8-8b52": {
+          "options": {}
+        },
+        "b4b1-10b8-0941-97d0/9428-40c9-d286-72ea|e628-d98c-6924-a2f3": {
+          "options": {
+            "chaos-titan-legions.chaos-warlord-titan.chaos-warlord-titan-apocalypse-launcher": {
+              "chaos-titan-legions.chaos-warlord-titan.2-laser-blaster": 1
+            }
+          }
+        }
+      },
+      "unit": "chaos-titan-legions.chaos-warlord-titan",
+      "unmatched": [
+        "b4b1-10b8-0941-97d0/bebc-1c05-79ee-864|3fdd-684e-3fd3-f143",
+        "b4b1-10b8-0941-97d0/bebc-1c05-79ee-864|403d-7cf-5147-cdb2",
+        "b4b1-10b8-0941-97d0/bebc-1c05-79ee-864|49e4-a425-ec23-ec3d",
+        "b4b1-10b8-0941-97d0/bebc-1c05-79ee-864|8844-c4a-80cc-2acc",
+        "b4b1-10b8-0941-97d0/bebc-1c05-79ee-864|ab37-e894-cd2c-7c7e"
+      ]
+    },
+    "1069-10ff-3ba9-873b/3d92-c50-b2c2-1635": {
+      "base": {
+        "options": {
+          "chaos-titan-legions.chaos-reaver-titan.chaos-reaver-titan-reaver-laser-blaster": {
+            "chaos-titan-legions.chaos-reaver-titan.reaver-gatling-blaster": 1
+          }
+        }
+      },
+      "choices": {},
+      "unit": "chaos-titan-legions.chaos-reaver-titan",
+      "unmatched": [
+        "9bab-d72b-c7bd-96c0/c009-c6dd-bfe2-f61f|1f9c-1176-b34c-540e",
+        "9bab-d72b-c7bd-96c0/c009-c6dd-bfe2-f61f|2017-e76f-d8fe-434e",
+        "9bab-d72b-c7bd-96c0/c009-c6dd-bfe2-f61f|2545-b5ae-cee8-9563",
+        "9bab-d72b-c7bd-96c0/c009-c6dd-bfe2-f61f|8cec-19a1-6e8d-90d2",
+        "9bab-d72b-c7bd-96c0/c009-c6dd-bfe2-f61f|fce9-1859-d02-e0b6"
+      ]
+    },
+    "1069-10ff-3ba9-873b/b12e-420e-73a8-6121": {
+      "base": {
+        "options": {
+          "chaos-titan-legions.chaos-warhound-titan.chaos-warhound-titan-warhound-plasma-blastgun": {
+            "chaos-titan-legions.chaos-warhound-titan.warhound-vulcan-mega-bolter": 1
+          }
+        }
+      },
+      "choices": {},
+      "unit": "chaos-titan-legions.chaos-warhound-titan",
+      "unmatched": [
+        "073f-b834-4bb7-983c/67aa-cbe0-95c0-673f|5f9e-bc47-6590-f83a",
+        "073f-b834-4bb7-983c/67aa-cbe0-95c0-673f|6b81-c1fe-9fec-803f",
+        "073f-b834-4bb7-983c/67aa-cbe0-95c0-673f|ad16-60c0-a420-4295",
+        "073f-b834-4bb7-983c/67aa-cbe0-95c0-673f|edca-c231-b8ed-93ff"
+      ]
     },
     "1087-e992-6b82-3b8": {
       "choices": {
@@ -13671,6 +13855,98 @@
       "unit": "chaos-space-marines.fellgor-beastmen",
       "unmatched": ["ed6c-21b8-8674-16b5|4fe4-1124-aa74-ac7b", "ed6c-21b8-8674-16b5|a10a-fd2-6305-a365"]
     },
+    "46d8-abc8-ef3a-9f85/1564-6ed2-e6d4-4dbe": {
+      "base": {
+        "options": {
+          "chaos-titan-legions.chaos-warbringer-nemesis-titan.chaos-warbringer-nemesis-titan-reaver-laser-blaster": {
+            "chaos-titan-legions.chaos-warbringer-nemesis-titan.reaver-gatling-blaster": 1
+          }
+        }
+      },
+      "choices": {
+        "30eb-02c8-78f2-8361/8273-ddc7-1bea-6028|63ef-9709-7202-59a2": {
+          "options": {}
+        },
+        "30eb-02c8-78f2-8361/8273-ddc7-1bea-6028|ef9a-353f-e5d7-9b42": {
+          "options": {
+            "chaos-titan-legions.chaos-warbringer-nemesis-titan.chaos-warbringer-nemesis-titan-nemesis-quake-cannon": {
+              "chaos-titan-legions.chaos-warbringer-nemesis-titan.nemesis-volcano-cannon": 1
+            }
+          }
+        }
+      },
+      "unit": "chaos-titan-legions.chaos-warbringer-nemesis-titan",
+      "unmatched": [
+        "30eb-02c8-78f2-8361/b8fa-acab-2bbd-df6d|4e4a-a537-9256-1fce",
+        "30eb-02c8-78f2-8361/b8fa-acab-2bbd-df6d|5543-60ce-38f2-fd21",
+        "30eb-02c8-78f2-8361/b8fa-acab-2bbd-df6d|beb7-2dd8-7fe5-aef4",
+        "30eb-02c8-78f2-8361/b8fa-acab-2bbd-df6d|dfbf-f81d-55a4-58d6"
+      ]
+    },
+    "46d8-abc8-ef3a-9f85/2c2f-442e-aaac-eea5": {
+      "base": {
+        "options": {
+          "chaos-titan-legions.chaos-warlord-titan.chaos-warlord-titan-macro-gatling-blaster": {
+            "chaos-titan-legions.chaos-warlord-titan.arioch-power-claw": 1
+          }
+        }
+      },
+      "choices": {
+        "b4b1-10b8-0941-97d0/9428-40c9-d286-72ea|e409-db1a-6a8-8b52": {
+          "options": {}
+        },
+        "b4b1-10b8-0941-97d0/9428-40c9-d286-72ea|e628-d98c-6924-a2f3": {
+          "options": {
+            "chaos-titan-legions.chaos-warlord-titan.chaos-warlord-titan-apocalypse-launcher": {
+              "chaos-titan-legions.chaos-warlord-titan.2-laser-blaster": 1
+            }
+          }
+        }
+      },
+      "unit": "chaos-titan-legions.chaos-warlord-titan",
+      "unmatched": [
+        "b4b1-10b8-0941-97d0/bebc-1c05-79ee-864|3fdd-684e-3fd3-f143",
+        "b4b1-10b8-0941-97d0/bebc-1c05-79ee-864|403d-7cf-5147-cdb2",
+        "b4b1-10b8-0941-97d0/bebc-1c05-79ee-864|49e4-a425-ec23-ec3d",
+        "b4b1-10b8-0941-97d0/bebc-1c05-79ee-864|8844-c4a-80cc-2acc",
+        "b4b1-10b8-0941-97d0/bebc-1c05-79ee-864|ab37-e894-cd2c-7c7e"
+      ]
+    },
+    "46d8-abc8-ef3a-9f85/3d92-c50-b2c2-1635": {
+      "base": {
+        "options": {
+          "chaos-titan-legions.chaos-reaver-titan.chaos-reaver-titan-reaver-laser-blaster": {
+            "chaos-titan-legions.chaos-reaver-titan.reaver-gatling-blaster": 1
+          }
+        }
+      },
+      "choices": {},
+      "unit": "chaos-titan-legions.chaos-reaver-titan",
+      "unmatched": [
+        "9bab-d72b-c7bd-96c0/c009-c6dd-bfe2-f61f|1f9c-1176-b34c-540e",
+        "9bab-d72b-c7bd-96c0/c009-c6dd-bfe2-f61f|2017-e76f-d8fe-434e",
+        "9bab-d72b-c7bd-96c0/c009-c6dd-bfe2-f61f|2545-b5ae-cee8-9563",
+        "9bab-d72b-c7bd-96c0/c009-c6dd-bfe2-f61f|8cec-19a1-6e8d-90d2",
+        "9bab-d72b-c7bd-96c0/c009-c6dd-bfe2-f61f|fce9-1859-d02-e0b6"
+      ]
+    },
+    "46d8-abc8-ef3a-9f85/b12e-420e-73a8-6121": {
+      "base": {
+        "options": {
+          "chaos-titan-legions.chaos-warhound-titan.chaos-warhound-titan-warhound-plasma-blastgun": {
+            "chaos-titan-legions.chaos-warhound-titan.warhound-vulcan-mega-bolter": 1
+          }
+        }
+      },
+      "choices": {},
+      "unit": "chaos-titan-legions.chaos-warhound-titan",
+      "unmatched": [
+        "073f-b834-4bb7-983c/67aa-cbe0-95c0-673f|5f9e-bc47-6590-f83a",
+        "073f-b834-4bb7-983c/67aa-cbe0-95c0-673f|6b81-c1fe-9fec-803f",
+        "073f-b834-4bb7-983c/67aa-cbe0-95c0-673f|ad16-60c0-a420-4295",
+        "073f-b834-4bb7-983c/67aa-cbe0-95c0-673f|edca-c231-b8ed-93ff"
+      ]
+    },
     "46f-4b79-2b39-41ac": {
       "choices": {
         "071e-5f60-b67e-2d99/55b9-3d79-4a5c-537f|bcaa-cb58-34e1-3e9": {
@@ -15396,6 +15672,98 @@
       "choices": {},
       "unit": "death-guard.plague-surgeon",
       "unmatched": []
+    },
+    "5108-f98-63c2-53cb/1564-6ed2-e6d4-4dbe": {
+      "base": {
+        "options": {
+          "chaos-titan-legions.chaos-warbringer-nemesis-titan.chaos-warbringer-nemesis-titan-reaver-laser-blaster": {
+            "chaos-titan-legions.chaos-warbringer-nemesis-titan.reaver-gatling-blaster": 1
+          }
+        }
+      },
+      "choices": {
+        "30eb-02c8-78f2-8361/8273-ddc7-1bea-6028|63ef-9709-7202-59a2": {
+          "options": {}
+        },
+        "30eb-02c8-78f2-8361/8273-ddc7-1bea-6028|ef9a-353f-e5d7-9b42": {
+          "options": {
+            "chaos-titan-legions.chaos-warbringer-nemesis-titan.chaos-warbringer-nemesis-titan-nemesis-quake-cannon": {
+              "chaos-titan-legions.chaos-warbringer-nemesis-titan.nemesis-volcano-cannon": 1
+            }
+          }
+        }
+      },
+      "unit": "chaos-titan-legions.chaos-warbringer-nemesis-titan",
+      "unmatched": [
+        "30eb-02c8-78f2-8361/b8fa-acab-2bbd-df6d|4e4a-a537-9256-1fce",
+        "30eb-02c8-78f2-8361/b8fa-acab-2bbd-df6d|5543-60ce-38f2-fd21",
+        "30eb-02c8-78f2-8361/b8fa-acab-2bbd-df6d|beb7-2dd8-7fe5-aef4",
+        "30eb-02c8-78f2-8361/b8fa-acab-2bbd-df6d|dfbf-f81d-55a4-58d6"
+      ]
+    },
+    "5108-f98-63c2-53cb/2c2f-442e-aaac-eea5": {
+      "base": {
+        "options": {
+          "chaos-titan-legions.chaos-warlord-titan.chaos-warlord-titan-macro-gatling-blaster": {
+            "chaos-titan-legions.chaos-warlord-titan.arioch-power-claw": 1
+          }
+        }
+      },
+      "choices": {
+        "b4b1-10b8-0941-97d0/9428-40c9-d286-72ea|e409-db1a-6a8-8b52": {
+          "options": {}
+        },
+        "b4b1-10b8-0941-97d0/9428-40c9-d286-72ea|e628-d98c-6924-a2f3": {
+          "options": {
+            "chaos-titan-legions.chaos-warlord-titan.chaos-warlord-titan-apocalypse-launcher": {
+              "chaos-titan-legions.chaos-warlord-titan.2-laser-blaster": 1
+            }
+          }
+        }
+      },
+      "unit": "chaos-titan-legions.chaos-warlord-titan",
+      "unmatched": [
+        "b4b1-10b8-0941-97d0/bebc-1c05-79ee-864|3fdd-684e-3fd3-f143",
+        "b4b1-10b8-0941-97d0/bebc-1c05-79ee-864|403d-7cf-5147-cdb2",
+        "b4b1-10b8-0941-97d0/bebc-1c05-79ee-864|49e4-a425-ec23-ec3d",
+        "b4b1-10b8-0941-97d0/bebc-1c05-79ee-864|8844-c4a-80cc-2acc",
+        "b4b1-10b8-0941-97d0/bebc-1c05-79ee-864|ab37-e894-cd2c-7c7e"
+      ]
+    },
+    "5108-f98-63c2-53cb/3d92-c50-b2c2-1635": {
+      "base": {
+        "options": {
+          "chaos-titan-legions.chaos-reaver-titan.chaos-reaver-titan-reaver-laser-blaster": {
+            "chaos-titan-legions.chaos-reaver-titan.reaver-gatling-blaster": 1
+          }
+        }
+      },
+      "choices": {},
+      "unit": "chaos-titan-legions.chaos-reaver-titan",
+      "unmatched": [
+        "9bab-d72b-c7bd-96c0/c009-c6dd-bfe2-f61f|1f9c-1176-b34c-540e",
+        "9bab-d72b-c7bd-96c0/c009-c6dd-bfe2-f61f|2017-e76f-d8fe-434e",
+        "9bab-d72b-c7bd-96c0/c009-c6dd-bfe2-f61f|2545-b5ae-cee8-9563",
+        "9bab-d72b-c7bd-96c0/c009-c6dd-bfe2-f61f|8cec-19a1-6e8d-90d2",
+        "9bab-d72b-c7bd-96c0/c009-c6dd-bfe2-f61f|fce9-1859-d02-e0b6"
+      ]
+    },
+    "5108-f98-63c2-53cb/b12e-420e-73a8-6121": {
+      "base": {
+        "options": {
+          "chaos-titan-legions.chaos-warhound-titan.chaos-warhound-titan-warhound-plasma-blastgun": {
+            "chaos-titan-legions.chaos-warhound-titan.warhound-vulcan-mega-bolter": 1
+          }
+        }
+      },
+      "choices": {},
+      "unit": "chaos-titan-legions.chaos-warhound-titan",
+      "unmatched": [
+        "073f-b834-4bb7-983c/67aa-cbe0-95c0-673f|5f9e-bc47-6590-f83a",
+        "073f-b834-4bb7-983c/67aa-cbe0-95c0-673f|6b81-c1fe-9fec-803f",
+        "073f-b834-4bb7-983c/67aa-cbe0-95c0-673f|ad16-60c0-a420-4295",
+        "073f-b834-4bb7-983c/67aa-cbe0-95c0-673f|edca-c231-b8ed-93ff"
+      ]
     },
     "511f-9b96-1078-becb": {
       "choices": {
@@ -39017,6 +39385,98 @@
       "unit": "chaos-daemons.aetaosraukeres",
       "unmatched": []
     },
+    "c8da-e875-58f7-f6d6/1564-6ed2-e6d4-4dbe": {
+      "base": {
+        "options": {
+          "chaos-titan-legions.chaos-warbringer-nemesis-titan.chaos-warbringer-nemesis-titan-reaver-laser-blaster": {
+            "chaos-titan-legions.chaos-warbringer-nemesis-titan.reaver-gatling-blaster": 1
+          }
+        }
+      },
+      "choices": {
+        "30eb-02c8-78f2-8361/8273-ddc7-1bea-6028|63ef-9709-7202-59a2": {
+          "options": {}
+        },
+        "30eb-02c8-78f2-8361/8273-ddc7-1bea-6028|ef9a-353f-e5d7-9b42": {
+          "options": {
+            "chaos-titan-legions.chaos-warbringer-nemesis-titan.chaos-warbringer-nemesis-titan-nemesis-quake-cannon": {
+              "chaos-titan-legions.chaos-warbringer-nemesis-titan.nemesis-volcano-cannon": 1
+            }
+          }
+        }
+      },
+      "unit": "chaos-titan-legions.chaos-warbringer-nemesis-titan",
+      "unmatched": [
+        "30eb-02c8-78f2-8361/b8fa-acab-2bbd-df6d|4e4a-a537-9256-1fce",
+        "30eb-02c8-78f2-8361/b8fa-acab-2bbd-df6d|5543-60ce-38f2-fd21",
+        "30eb-02c8-78f2-8361/b8fa-acab-2bbd-df6d|beb7-2dd8-7fe5-aef4",
+        "30eb-02c8-78f2-8361/b8fa-acab-2bbd-df6d|dfbf-f81d-55a4-58d6"
+      ]
+    },
+    "c8da-e875-58f7-f6d6/2c2f-442e-aaac-eea5": {
+      "base": {
+        "options": {
+          "chaos-titan-legions.chaos-warlord-titan.chaos-warlord-titan-macro-gatling-blaster": {
+            "chaos-titan-legions.chaos-warlord-titan.arioch-power-claw": 1
+          }
+        }
+      },
+      "choices": {
+        "b4b1-10b8-0941-97d0/9428-40c9-d286-72ea|e409-db1a-6a8-8b52": {
+          "options": {}
+        },
+        "b4b1-10b8-0941-97d0/9428-40c9-d286-72ea|e628-d98c-6924-a2f3": {
+          "options": {
+            "chaos-titan-legions.chaos-warlord-titan.chaos-warlord-titan-apocalypse-launcher": {
+              "chaos-titan-legions.chaos-warlord-titan.2-laser-blaster": 1
+            }
+          }
+        }
+      },
+      "unit": "chaos-titan-legions.chaos-warlord-titan",
+      "unmatched": [
+        "b4b1-10b8-0941-97d0/bebc-1c05-79ee-864|3fdd-684e-3fd3-f143",
+        "b4b1-10b8-0941-97d0/bebc-1c05-79ee-864|403d-7cf-5147-cdb2",
+        "b4b1-10b8-0941-97d0/bebc-1c05-79ee-864|49e4-a425-ec23-ec3d",
+        "b4b1-10b8-0941-97d0/bebc-1c05-79ee-864|8844-c4a-80cc-2acc",
+        "b4b1-10b8-0941-97d0/bebc-1c05-79ee-864|ab37-e894-cd2c-7c7e"
+      ]
+    },
+    "c8da-e875-58f7-f6d6/3d92-c50-b2c2-1635": {
+      "base": {
+        "options": {
+          "chaos-titan-legions.chaos-reaver-titan.chaos-reaver-titan-reaver-laser-blaster": {
+            "chaos-titan-legions.chaos-reaver-titan.reaver-gatling-blaster": 1
+          }
+        }
+      },
+      "choices": {},
+      "unit": "chaos-titan-legions.chaos-reaver-titan",
+      "unmatched": [
+        "9bab-d72b-c7bd-96c0/c009-c6dd-bfe2-f61f|1f9c-1176-b34c-540e",
+        "9bab-d72b-c7bd-96c0/c009-c6dd-bfe2-f61f|2017-e76f-d8fe-434e",
+        "9bab-d72b-c7bd-96c0/c009-c6dd-bfe2-f61f|2545-b5ae-cee8-9563",
+        "9bab-d72b-c7bd-96c0/c009-c6dd-bfe2-f61f|8cec-19a1-6e8d-90d2",
+        "9bab-d72b-c7bd-96c0/c009-c6dd-bfe2-f61f|fce9-1859-d02-e0b6"
+      ]
+    },
+    "c8da-e875-58f7-f6d6/b12e-420e-73a8-6121": {
+      "base": {
+        "options": {
+          "chaos-titan-legions.chaos-warhound-titan.chaos-warhound-titan-warhound-plasma-blastgun": {
+            "chaos-titan-legions.chaos-warhound-titan.warhound-vulcan-mega-bolter": 1
+          }
+        }
+      },
+      "choices": {},
+      "unit": "chaos-titan-legions.chaos-warhound-titan",
+      "unmatched": [
+        "073f-b834-4bb7-983c/67aa-cbe0-95c0-673f|5f9e-bc47-6590-f83a",
+        "073f-b834-4bb7-983c/67aa-cbe0-95c0-673f|6b81-c1fe-9fec-803f",
+        "073f-b834-4bb7-983c/67aa-cbe0-95c0-673f|ad16-60c0-a420-4295",
+        "073f-b834-4bb7-983c/67aa-cbe0-95c0-673f|edca-c231-b8ed-93ff"
+      ]
+    },
     "c8f-979d-913b-2bad": {
       "choices": {
         "ebb2-4c9e-e53f-3aa6|afb2-b152-6ff1-6d85": {
@@ -41289,6 +41749,98 @@
         "58bb-99c0-5f2c-94dd|cb13-6792-cb2e-4702",
         "58bb-99c0-5f2c-94dd|e9bb-ae3a-eba6-cbd8",
         "58bb-99c0-5f2c-94dd|f764-31bd-419d-576c"
+      ]
+    },
+    "d265-877b-e03d-30ca/1564-6ed2-e6d4-4dbe": {
+      "base": {
+        "options": {
+          "chaos-titan-legions.chaos-warbringer-nemesis-titan.chaos-warbringer-nemesis-titan-reaver-laser-blaster": {
+            "chaos-titan-legions.chaos-warbringer-nemesis-titan.reaver-gatling-blaster": 1
+          }
+        }
+      },
+      "choices": {
+        "30eb-02c8-78f2-8361/8273-ddc7-1bea-6028|63ef-9709-7202-59a2": {
+          "options": {}
+        },
+        "30eb-02c8-78f2-8361/8273-ddc7-1bea-6028|ef9a-353f-e5d7-9b42": {
+          "options": {
+            "chaos-titan-legions.chaos-warbringer-nemesis-titan.chaos-warbringer-nemesis-titan-nemesis-quake-cannon": {
+              "chaos-titan-legions.chaos-warbringer-nemesis-titan.nemesis-volcano-cannon": 1
+            }
+          }
+        }
+      },
+      "unit": "chaos-titan-legions.chaos-warbringer-nemesis-titan",
+      "unmatched": [
+        "30eb-02c8-78f2-8361/b8fa-acab-2bbd-df6d|4e4a-a537-9256-1fce",
+        "30eb-02c8-78f2-8361/b8fa-acab-2bbd-df6d|5543-60ce-38f2-fd21",
+        "30eb-02c8-78f2-8361/b8fa-acab-2bbd-df6d|beb7-2dd8-7fe5-aef4",
+        "30eb-02c8-78f2-8361/b8fa-acab-2bbd-df6d|dfbf-f81d-55a4-58d6"
+      ]
+    },
+    "d265-877b-e03d-30ca/2c2f-442e-aaac-eea5": {
+      "base": {
+        "options": {
+          "chaos-titan-legions.chaos-warlord-titan.chaos-warlord-titan-macro-gatling-blaster": {
+            "chaos-titan-legions.chaos-warlord-titan.arioch-power-claw": 1
+          }
+        }
+      },
+      "choices": {
+        "b4b1-10b8-0941-97d0/9428-40c9-d286-72ea|e409-db1a-6a8-8b52": {
+          "options": {}
+        },
+        "b4b1-10b8-0941-97d0/9428-40c9-d286-72ea|e628-d98c-6924-a2f3": {
+          "options": {
+            "chaos-titan-legions.chaos-warlord-titan.chaos-warlord-titan-apocalypse-launcher": {
+              "chaos-titan-legions.chaos-warlord-titan.2-laser-blaster": 1
+            }
+          }
+        }
+      },
+      "unit": "chaos-titan-legions.chaos-warlord-titan",
+      "unmatched": [
+        "b4b1-10b8-0941-97d0/bebc-1c05-79ee-864|3fdd-684e-3fd3-f143",
+        "b4b1-10b8-0941-97d0/bebc-1c05-79ee-864|403d-7cf-5147-cdb2",
+        "b4b1-10b8-0941-97d0/bebc-1c05-79ee-864|49e4-a425-ec23-ec3d",
+        "b4b1-10b8-0941-97d0/bebc-1c05-79ee-864|8844-c4a-80cc-2acc",
+        "b4b1-10b8-0941-97d0/bebc-1c05-79ee-864|ab37-e894-cd2c-7c7e"
+      ]
+    },
+    "d265-877b-e03d-30ca/3d92-c50-b2c2-1635": {
+      "base": {
+        "options": {
+          "chaos-titan-legions.chaos-reaver-titan.chaos-reaver-titan-reaver-laser-blaster": {
+            "chaos-titan-legions.chaos-reaver-titan.reaver-gatling-blaster": 1
+          }
+        }
+      },
+      "choices": {},
+      "unit": "chaos-titan-legions.chaos-reaver-titan",
+      "unmatched": [
+        "9bab-d72b-c7bd-96c0/c009-c6dd-bfe2-f61f|1f9c-1176-b34c-540e",
+        "9bab-d72b-c7bd-96c0/c009-c6dd-bfe2-f61f|2017-e76f-d8fe-434e",
+        "9bab-d72b-c7bd-96c0/c009-c6dd-bfe2-f61f|2545-b5ae-cee8-9563",
+        "9bab-d72b-c7bd-96c0/c009-c6dd-bfe2-f61f|8cec-19a1-6e8d-90d2",
+        "9bab-d72b-c7bd-96c0/c009-c6dd-bfe2-f61f|fce9-1859-d02-e0b6"
+      ]
+    },
+    "d265-877b-e03d-30ca/b12e-420e-73a8-6121": {
+      "base": {
+        "options": {
+          "chaos-titan-legions.chaos-warhound-titan.chaos-warhound-titan-warhound-plasma-blastgun": {
+            "chaos-titan-legions.chaos-warhound-titan.warhound-vulcan-mega-bolter": 1
+          }
+        }
+      },
+      "choices": {},
+      "unit": "chaos-titan-legions.chaos-warhound-titan",
+      "unmatched": [
+        "073f-b834-4bb7-983c/67aa-cbe0-95c0-673f|5f9e-bc47-6590-f83a",
+        "073f-b834-4bb7-983c/67aa-cbe0-95c0-673f|6b81-c1fe-9fec-803f",
+        "073f-b834-4bb7-983c/67aa-cbe0-95c0-673f|ad16-60c0-a420-4295",
+        "073f-b834-4bb7-983c/67aa-cbe0-95c0-673f|edca-c231-b8ed-93ff"
       ]
     },
     "d2dd-cc52-0ced-3b78": {
@@ -43961,6 +44513,98 @@
       },
       "unit": "astra-militarum.manticore",
       "unmatched": []
+    },
+    "df9a-59b2-f464-59ad/1564-6ed2-e6d4-4dbe": {
+      "base": {
+        "options": {
+          "chaos-titan-legions.chaos-warbringer-nemesis-titan.chaos-warbringer-nemesis-titan-reaver-laser-blaster": {
+            "chaos-titan-legions.chaos-warbringer-nemesis-titan.reaver-gatling-blaster": 1
+          }
+        }
+      },
+      "choices": {
+        "30eb-02c8-78f2-8361/8273-ddc7-1bea-6028|63ef-9709-7202-59a2": {
+          "options": {}
+        },
+        "30eb-02c8-78f2-8361/8273-ddc7-1bea-6028|ef9a-353f-e5d7-9b42": {
+          "options": {
+            "chaos-titan-legions.chaos-warbringer-nemesis-titan.chaos-warbringer-nemesis-titan-nemesis-quake-cannon": {
+              "chaos-titan-legions.chaos-warbringer-nemesis-titan.nemesis-volcano-cannon": 1
+            }
+          }
+        }
+      },
+      "unit": "chaos-titan-legions.chaos-warbringer-nemesis-titan",
+      "unmatched": [
+        "30eb-02c8-78f2-8361/b8fa-acab-2bbd-df6d|4e4a-a537-9256-1fce",
+        "30eb-02c8-78f2-8361/b8fa-acab-2bbd-df6d|5543-60ce-38f2-fd21",
+        "30eb-02c8-78f2-8361/b8fa-acab-2bbd-df6d|beb7-2dd8-7fe5-aef4",
+        "30eb-02c8-78f2-8361/b8fa-acab-2bbd-df6d|dfbf-f81d-55a4-58d6"
+      ]
+    },
+    "df9a-59b2-f464-59ad/2c2f-442e-aaac-eea5": {
+      "base": {
+        "options": {
+          "chaos-titan-legions.chaos-warlord-titan.chaos-warlord-titan-macro-gatling-blaster": {
+            "chaos-titan-legions.chaos-warlord-titan.arioch-power-claw": 1
+          }
+        }
+      },
+      "choices": {
+        "b4b1-10b8-0941-97d0/9428-40c9-d286-72ea|e409-db1a-6a8-8b52": {
+          "options": {}
+        },
+        "b4b1-10b8-0941-97d0/9428-40c9-d286-72ea|e628-d98c-6924-a2f3": {
+          "options": {
+            "chaos-titan-legions.chaos-warlord-titan.chaos-warlord-titan-apocalypse-launcher": {
+              "chaos-titan-legions.chaos-warlord-titan.2-laser-blaster": 1
+            }
+          }
+        }
+      },
+      "unit": "chaos-titan-legions.chaos-warlord-titan",
+      "unmatched": [
+        "b4b1-10b8-0941-97d0/bebc-1c05-79ee-864|3fdd-684e-3fd3-f143",
+        "b4b1-10b8-0941-97d0/bebc-1c05-79ee-864|403d-7cf-5147-cdb2",
+        "b4b1-10b8-0941-97d0/bebc-1c05-79ee-864|49e4-a425-ec23-ec3d",
+        "b4b1-10b8-0941-97d0/bebc-1c05-79ee-864|8844-c4a-80cc-2acc",
+        "b4b1-10b8-0941-97d0/bebc-1c05-79ee-864|ab37-e894-cd2c-7c7e"
+      ]
+    },
+    "df9a-59b2-f464-59ad/3d92-c50-b2c2-1635": {
+      "base": {
+        "options": {
+          "chaos-titan-legions.chaos-reaver-titan.chaos-reaver-titan-reaver-laser-blaster": {
+            "chaos-titan-legions.chaos-reaver-titan.reaver-gatling-blaster": 1
+          }
+        }
+      },
+      "choices": {},
+      "unit": "chaos-titan-legions.chaos-reaver-titan",
+      "unmatched": [
+        "9bab-d72b-c7bd-96c0/c009-c6dd-bfe2-f61f|1f9c-1176-b34c-540e",
+        "9bab-d72b-c7bd-96c0/c009-c6dd-bfe2-f61f|2017-e76f-d8fe-434e",
+        "9bab-d72b-c7bd-96c0/c009-c6dd-bfe2-f61f|2545-b5ae-cee8-9563",
+        "9bab-d72b-c7bd-96c0/c009-c6dd-bfe2-f61f|8cec-19a1-6e8d-90d2",
+        "9bab-d72b-c7bd-96c0/c009-c6dd-bfe2-f61f|fce9-1859-d02-e0b6"
+      ]
+    },
+    "df9a-59b2-f464-59ad/b12e-420e-73a8-6121": {
+      "base": {
+        "options": {
+          "chaos-titan-legions.chaos-warhound-titan.chaos-warhound-titan-warhound-plasma-blastgun": {
+            "chaos-titan-legions.chaos-warhound-titan.warhound-vulcan-mega-bolter": 1
+          }
+        }
+      },
+      "choices": {},
+      "unit": "chaos-titan-legions.chaos-warhound-titan",
+      "unmatched": [
+        "073f-b834-4bb7-983c/67aa-cbe0-95c0-673f|5f9e-bc47-6590-f83a",
+        "073f-b834-4bb7-983c/67aa-cbe0-95c0-673f|6b81-c1fe-9fec-803f",
+        "073f-b834-4bb7-983c/67aa-cbe0-95c0-673f|ad16-60c0-a420-4295",
+        "073f-b834-4bb7-983c/67aa-cbe0-95c0-673f|edca-c231-b8ed-93ff"
+      ]
     },
     "dfb5-f763-308d-e0d9": {
       "choices": {},

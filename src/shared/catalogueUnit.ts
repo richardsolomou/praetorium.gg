@@ -53,7 +53,8 @@ export function rosterPrices(
   const tiered = (mfmUnitFor(loaded, catalogueId, entryId)?.pricing.length ?? 0) >= 2
   const copies = tiered ? pricedCopies : [1]
   const size = battleSize ? [battleSize] : []
-  const changesWithDetachment = unitReadsRoster(entryId, loaded.index, detachments) || vsDetachmentPriced(loaded.vsPoints, entryId)
+  const changesWithDetachment =
+    unitReadsRoster(entryId, loaded.index, detachments) || vsDetachmentPriced(loaded.vsPoints, catalogueId, entryId)
   const base = !changesWithDetachment && unitReadsRoster(entryId, loaded.index, size) ? size : []
   if (!changesWithDetachment && !base.length && !tiered)
     return { points: listPriceOf(loaded, catalogueId, entryId), laterCopyPoints: undefined }
