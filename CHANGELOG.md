@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.280.6 (2026-11-27)
+
+### Patch Changes
+
+- 2a8c901: [rosters] A Titanicus Traitoris army's Titans are checked as the Chaos Titans they are, so a list still holding a Detachment is told the army takes none.
+- c47ae77: [rosters] A generic Space Marines roster can no longer take a unit that belongs to one chapter, such as Marneus Calgar or Kor'sarro Khan, as the official app does.
+- c47ae77: [rosters] Warhammer Legends and Crucible units can be taken as allies wherever the official app allows that faction as an ally.
+
 ## 0.280.5 (2026-11-27)
 
 ### Patch Changes
