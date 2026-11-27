@@ -1,19 +1,19 @@
 import { remember } from '../core/collections'
 import { nameOf } from '../core/catalogue'
 import type { LoadedCatalogue } from './catalogueIndex'
-import { vsDataBook, vsDataChecks } from './vsDataLegality'
+import { vsDataBook, vsDataChecks, vsDataWithoutDetachments } from './vsDataLegality'
 
 /**
  * What a book's lists may take under its rules version's VS Data release, as the app has it. The catalogue still
  * decides every datasheet and Detachment VS Data cannot place, and holds what a saved or imported list names, so a list
- * keeps a unit or Detachment VS Data refuses and is told why.
+ * keeps a unit or Detachment VS Data refuses.
  */
 type VsDataOffer = {
   /** The book's datasheets VS Data refuses its lists: another faction's that no ally entry offers, or one it excludes. */
   refused: ReadonlySet<string>
   /** Each datasheet VS Data places, with the book an allied one is borrowed from, or null for the army's own. */
   allies: ReadonlyMap<string, string | null>
-  /** The book's Detachments VS Data refuses its lists: another faction's, one it excludes, or any for a Titan army. */
+  /** The book's Detachments VS Data refuses its lists: another faction's, or one it excludes. */
   refusedDetachments: ReadonlySet<string>
 }
 
@@ -30,7 +30,7 @@ function offerOf(loaded: LoadedCatalogue, catalogueId: string): VsDataOffer | nu
   const data = loaded.vsRoster
   const placed = vsDataBook(data, catalogueId)
   if (!data || !placed) return null
-  const { definitions, record, own, without } = placed
+  const { definitions, record, own } = placed
   const excluded = new Set(record.excludedUnits ?? [])
   const allied = new Set((record.allies ?? []).flatMap((ally) => ally.units))
   const refused = new Set<string>()
@@ -49,9 +49,9 @@ function offerOf(loaded: LoadedCatalogue, catalogueId: string): VsDataOffer | nu
     (loaded.detachments.get(catalogueId)?.options ?? []).flatMap((option) => {
       const id = data.detachments[option.id]
       const faction = id && definitions.get('detachment', id)?.data.faction
-      // A Titan army refuses any Detachment, VS Data's or not; one VS Data has no record of stays the catalogue's.
-      if (!id || !faction) return without ? [option.id] : []
-      return without || excludedDetachments.has(id) || !own.has(faction) ? [option.id] : []
+      // One VS Data has no record of stays the catalogue's.
+      if (!id || !faction) return []
+      return excludedDetachments.has(id) || !own.has(faction) ? [option.id] : []
     }),
   )
   return { refused, allies, refusedDetachments }
@@ -76,8 +76,12 @@ export function alliedSource(loaded: LoadedCatalogue, catalogueId: string, entry
   return source === null ? undefined : (catalogue ?? source)
 }
 
-/** The Detachments a book's lists may take: the catalogue's, but those VS Data refuses them. */
+/**
+ * The Detachments a book's lists may take: the catalogue's, but those VS Data refuses them, and none for a Titan army,
+ * even one whose book VS Data cannot otherwise place, as Titanicus Traitoris's.
+ */
 export function offeredDetachments(loaded: LoadedCatalogue, catalogueId: string) {
+  if (vsDataWithoutDetachments(loaded.vsRoster, catalogueId)) return []
   const refused = vsDataOffer(loaded, catalogueId)?.refusedDetachments
   return (loaded.detachments.get(catalogueId)?.options ?? []).filter((option) => !refused?.has(option.id))
 }

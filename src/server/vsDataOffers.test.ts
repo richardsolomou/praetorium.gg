@@ -4,7 +4,7 @@ import { unitsIn } from '../shared/cataloguePicker'
 import { detachmentsOf } from '../shared/catalogueIndex'
 import { vsRosterData } from '../shared/vsDataLegality'
 import { offeredDetachments } from '../shared/vsDataOffers'
-import { bookOf, points, system } from './catalogue.fixtures'
+import { points, shelfOf, system } from './catalogue.fixtures'
 
 const record = (name: string, data: Record<string, unknown>) => ({ name, data: { formatVersion: 2, ...data } })
 const unitIn = (faction: string) => ({ faction, keywords: ['INFANTRY'], sizes: [1] })
@@ -18,6 +18,7 @@ const vsRoster = vsRosterData(
       faction: {
         host: record('Host', { excludedUnits: ['host.banned'], allies: [{ units: ['other.friend'] }] }),
         other: record('Other', {}),
+        engines: record('Engines', { withoutDetachments: { warlords: [], dispositions: [] } }),
       },
       detachment: {
         'host.guard': record('Guard', { faction: 'host', dispositions: ['pack.take-and-hold'] }),
@@ -32,7 +33,7 @@ const vsRoster = vsRosterData(
     },
   },
   {
-    books: { cat: 'host', 'cat-1': 'other' },
+    books: { cat: 'host', 'cat-1': 'engines' },
     detachments: { guard: 'host.guard', raid: 'other.raid', lost: 'host.lost' },
     units: { mob: 'host.mob', banned: 'host.banned', friend: 'other.friend', stranger: 'other.stranger' },
     enhancements: {},
@@ -67,7 +68,20 @@ const book: Partial<Catalogue> = {
     },
   ],
 }
-const loaded = { ...bookOf(book), vsRoster }
+// A Titan book none of whose datasheets VS Data reads as its own, as Titanicus Traitoris's, holding another army's Detachment.
+const titans: Partial<Catalogue> = {
+  sharedSelectionEntries: [
+    {
+      id: 'titan-wrapper',
+      name: 'Detachment',
+      type: 'upgrade',
+      selectionEntryGroups: [
+        { id: 'titan-choices', name: 'Detachment', selectionEntries: [{ id: 'tide', name: 'Tide', type: 'upgrade' }] },
+      ],
+    },
+  ],
+}
+const loaded = { ...shelfOf(book, titans), vsRoster }
 const offered = unitsIn(loaded, 'cat', '')
 
 describe('the units a book offers under VS Data', () => {
@@ -87,6 +101,10 @@ describe('the units a book offers under VS Data', () => {
 describe('the Detachments a book offers under VS Data', () => {
   it('leaves out another faction’s Detachment', () => {
     expect(offeredDetachments(loaded, 'cat').map((option) => option.name)).not.toContain('Raid')
+  })
+
+  it('offers a Titan army no Detachment even where VS Data cannot place its book', () => {
+    expect(offeredDetachments(loaded, 'cat-1')).toEqual([])
   })
 
   it('offers a Detachment VS Data has no record of, as the catalogue does', () => {
