@@ -1,7 +1,7 @@
 import { QueryClient } from '@tanstack/react-query'
 import { expect, it } from 'vitest'
 import { releaseQuery } from './queries'
-import { newerRelease, staleBuildRelease } from './releaseUpdate'
+import { deviceEngineRetired, newerRelease, staleBuildRelease } from './releaseUpdate'
 it.each([
   ['0.101.1', '0.101.2', true],
   ['0.101.1', '0.102.0', true],
@@ -16,9 +16,9 @@ it.each([
   expect(newerRelease(current, latest)).toBe(expected)
 })
 
-function servedRelease(version: string) {
+function servedRelease(version: string, deviceEngine?: string | null) {
   const client = new QueryClient()
-  client.setQueryData(releaseQuery().queryKey, { version })
+  client.setQueryData(releaseQuery().queryKey, { version, deviceEngine })
   return client
 }
 
@@ -45,4 +45,24 @@ it('ignores an earlier answer once the latest release check has failed', async (
     })
     .catch(() => {})
   expect(staleBuildRelease(client, '0.176.0')).toBeNull()
+})
+
+it('keeps the device engine through a release that left its code alone', () => {
+  expect(deviceEngineRetired(servedRelease('0.177.0', '/assets/engine-a.js'), '0.176.0', '/assets/engine-a.js')).toBe(false)
+})
+
+it('retires the device engine once a release changes its code', () => {
+  expect(deviceEngineRetired(servedRelease('0.177.0', '/assets/engine-b.js'), '0.176.0', '/assets/engine-a.js')).toBe(true)
+})
+
+it('retires the device engine when the release does not name its code', () => {
+  expect(deviceEngineRetired(servedRelease('0.177.0'), '0.176.0', '/assets/engine-a.js')).toBe(true)
+})
+
+it('retires the device engine when the page cannot name its own code', () => {
+  expect(deviceEngineRetired(servedRelease('0.177.0', '/assets/engine-a.js'), '0.176.0', null)).toBe(true)
+})
+
+it('keeps the device engine while the page is the deployed release', () => {
+  expect(deviceEngineRetired(servedRelease('0.177.0', '/assets/engine-b.js'), '0.177.0', '/assets/engine-a.js')).toBe(false)
 })

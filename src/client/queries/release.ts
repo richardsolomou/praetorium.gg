@@ -11,7 +11,7 @@ export const releaseQuery = () =>
     queryFn: async ({ signal }) => {
       const response = await fetch('/api/release', { cache: 'no-store', signal: withTimeout(signal, 10_000) })
       if (!response.ok) throw new HttpStatusError('Release check failed', response.status)
-      return z.object({ version: z.string().regex(/^\d+\.\d+\.\d+$/) }).parse(await response.json())
+      return z.object({ version: z.string().regex(/^\d+\.\d+\.\d+$/), deviceEngine: z.string().nullish() }).parse(await response.json())
     },
     refetchInterval: 60_000,
     staleTime: 30_000,
