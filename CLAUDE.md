@@ -28,6 +28,7 @@ The application is built from RAS recipes. `ras-recipes.json` records each recip
 - `src/components/ui` is vendored shadcn: generate via the CLI and wrap, never edit.
 - Redesigning a screen, however freely worded, means rearranging it with the components and page patterns the other screens use so it shows the player's state at a glance; ask before inventing a new interaction or visual concept, and never steer players towards one action.
 - Say group, league, hidden-list game, tournament and sealed event as `groups-and-tournaments` defines them; `scripts/checkVocabulary.ts` fails CI on the old words outside stored names.
+- Open PRs as drafts and mark one ready only after running the heavy checks it can affect yourself ([CONTRIBUTING.md](CONTRIBUTING.md#pull-requests-and-releases)); a draft's CI skips them.
 - A change players can notice needs a changeset: one plain sentence per fix ([CONTRIBUTING.md](CONTRIBUTING.md#pull-requests-and-releases)).
 - No outreach, acquisition, personal, or private analytics material in the repo. Docs cover the hosted service and local contribution only.
 
