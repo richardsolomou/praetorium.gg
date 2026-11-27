@@ -391,7 +391,57 @@ test('a group plays doubles with open lists from New game', async ({ page }) => 
   expect(await productSql`SELECT user_id FROM battle_users WHERE battle_id = ${battleId}`).toHaveLength(4)
 })
 
-test('a league seals every list before it starts, plays its fixtures with them and stays readable once ended', async ({ browser }) => {
+test('an ended league stays readable under past leagues and another can start', async ({ browser }) => {
+  const contexts = await Promise.all([
+    browser.newContext({ viewport: { width: 1440, height: 1000 } }),
+    browser.newContext(),
+    browser.newContext(),
+  ])
+  const [owner, second, third] = await Promise.all(contexts.map((context) => context.newPage()))
+  const names = ['League host', 'League second', 'League third'].map(uniqueName)
+  await signUp(owner, names[0])
+  await signUp(second, names[1])
+  await signUp(third, names[2])
+  await createGroup(owner, uniqueName('League group'))
+  const url = owner.url().split('?')[0]
+  await joinGroup(second, url, names[1])
+  await joinGroup(third, url, names[2])
+  await owner.goto(`${url}?tab=league`)
+  await startLeague(owner)
+  for (const page of [owner, second, third]) {
+    await page.goto(`${url}?tab=league`)
+    await page.getByRole('button', { name: 'Join league' }).click()
+    await expect(page.getByRole('button', { name: 'Join league' })).toBeHidden()
+  }
+  await owner.reload()
+  await owner.getByRole('button', { name: 'Publish' }).click()
+  await owner.getByRole('alertdialog').getByRole('button', { name: 'Publish' }).click()
+  // An organizer outside a fixture records the score of a game that wasn't tracked here.
+  await openRounds(owner)
+  const fixture = owner.locator('[data-fixture]').filter({ hasText: names[1] }).filter({ hasText: names[2] })
+  await fixture.getByRole('button', { name: /^Enter score for round/ }).click()
+  const score = owner.getByRole('dialog', { name: /score$/ })
+  await score.getByRole('textbox').first().fill('70')
+  await score.getByRole('textbox').last().fill('55')
+  await screenshot(owner, 'league-enter-score.png')
+  await score.getByRole('button', { name: 'Save score' }).click()
+  await expect(score).toBeHidden()
+  await expect(fixture.getByRole('link')).toHaveText('70 – 55')
+  await screenshot(owner, 'league-entered-score.png', { fullPage: true })
+  await owner.getByRole('button', { name: 'More for the league' }).click()
+  await owner.getByRole('menuitem', { name: 'End league' }).click()
+  await owner.getByRole('alertdialog').getByRole('button', { name: 'End league' }).click()
+  const past = owner.locator('[data-past-leagues]')
+  // Past leagues fold under their heading until opened.
+  await past.locator('summary').click()
+  await past.getByRole('button', { name: /\bended /i }).click()
+  await expect(past.getByRole('table').getByText(names[2])).toBeVisible()
+  await expect(owner.getByRole('button', { name: 'Start a league' })).toBeVisible()
+  await screenshot(owner, 'past-leagues.png', { fullPage: true })
+  await Promise.all(contexts.map((context) => context.close()))
+})
+
+test('a league seals every list before it starts and plays its fixtures with them', async ({ browser }) => {
   test.setTimeout(240_000)
   const contexts = await Promise.all([
     browser.newContext({ viewport: { width: 1440, height: 1000 } }),
@@ -479,18 +529,6 @@ test('a league seals every list before it starts, plays its fixtures with them a
     expect(kinds).toContain('lock-sealed-event-rosters')
   }
 
-  // An ended league stays readable under past leagues, and another can start.
-  await owner.goto(`${url}?tab=league`)
-  await owner.getByRole('button', { name: 'More for the league' }).click()
-  await owner.getByRole('menuitem', { name: 'End league' }).click()
-  await owner.getByRole('alertdialog').getByRole('button', { name: 'End league' }).click()
-  const past = owner.locator('[data-past-leagues]')
-  // Past leagues fold under their heading until opened.
-  await past.locator('summary').click()
-  await past.getByRole('button', { name: /\bended /i }).click()
-  await expect(past.getByRole('table').getByText(names[2])).toBeVisible()
-  await expect(owner.getByRole('button', { name: 'Start a league' })).toBeVisible()
-  await screenshot(owner, 'past-leagues.png', { fullPage: true })
   await Promise.all(contexts.map((context) => context.close()))
 })
 

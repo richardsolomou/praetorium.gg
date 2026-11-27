@@ -1092,7 +1092,13 @@ test('the organizer unseals a revealed roster so its entrant can seal a correcte
   await owner.reload()
   await expect(entrantCard).toContainText('Corrected list')
   await viewRoster(owner, entrantName).click()
+  await expect(owner).toHaveURL(/\/rosters\/[^?]+\?sealedEvent=/)
   await expect(owner.locator('[data-unit="Lokhust Destroyers"]')).toBeVisible()
+  // A sealed roster on the current rules carries no rules-version badge, before or after a reload.
+  await expect(owner.locator('main header [data-rules-version]')).toHaveCount(0)
+  await owner.reload()
+  await expect(owner.locator('[data-unit="Lokhust Destroyers"]')).toBeVisible()
+  await expect(owner.locator('main header [data-rules-version]')).toHaveCount(0)
   await ownerContext.close()
   await entrantContext.close()
 })

@@ -600,10 +600,12 @@ test('a squad the datasheet keeps identical is asked once, not counted', async (
   await expect(loadout.getByRole('heading', { name: 'Tools of Dominion' })).toHaveCount(0)
 
   // A squad jumps straight to a chosen size.
+  const sixPoints = Number((await total.innerText()).split('/')[0])
   await chooseOption(page, 'Immortals models', '10')
   await expect(page.getByLabel('Immortals models')).toHaveText('10')
   await expect(page.getByRole('button', { name: 'More models in Immortals' })).toBeDisabled()
   await expect(page.getByRole('button', { name: 'More models in Immortals' })).toHaveAccessibleDescription('Max 10 models')
+  await expect.poll(async () => Number((await total.innerText()).split('/')[0])).toBeGreaterThan(sixPoints)
   await expect(page.getByText('10x Gauss blaster')).toBeVisible()
 
   await expect(loadout.getByText('Wargear options')).toBeVisible()
