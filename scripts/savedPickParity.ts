@@ -124,17 +124,16 @@ function compare(saved: Listed, loadout: boolean) {
       floor: pick.floor,
     })
     const specials = specialOf(priced, detachments, ids, key).names
-    // The marks a unit holds are its allegiance, never wargear.
-    const marks = new Set(
-      (definitions.get('unit', vsUnit.unit)!.data.allegiances ?? []).flatMap((offer) =>
-        offer.choices.map((id) => same(definitions.get('allegiance', id)?.name ?? id)),
-      ),
+    // The marks a unit holds are its allegiance, never wargear: an option named as one, or ending with one (Mark of Khorne).
+    const marks = (definitions.get('unit', vsUnit.unit)!.data.allegiances ?? []).flatMap((offer) =>
+      offer.choices.map((id) => same(definitions.get('allegiance', id)?.name ?? id)),
     )
+    const isMark = (name: string) => marks.some((mark) => same(name) === mark || same(name).endsWith(mark))
     const vsBag = vsWargear(definitions, vsUnit)
     const known = vsKnownWargear(definitions, vsUnit.unit)
     const bsBag = new Map<string, number>()
     for (const { name, count: n } of built ? wargearOf(built.selection, loaded.index) : [])
-      if (!specials.has(wargearKey(name)) && !marks.has(same(name))) {
+      if (!specials.has(wargearKey(name)) && !isMark(name)) {
         const item = vsSpelling(name, known)
         bsBag.set(item, (bsBag.get(item) ?? 0) + n)
       }
