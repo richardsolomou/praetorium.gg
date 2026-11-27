@@ -40,6 +40,14 @@ const data = vsRosterData(
           choices: ['host.squad.plasma', 'host.squad.melta'],
           caps: [{ choices: ['host.squad.plasma'], max: 1 }],
         }),
+        'host.squad.rokkits': record('Rokkits', {
+          unit: 'host.squad',
+          carrier: 'host.squad.trooper',
+          per: 'carrier',
+          choose: { min: 0, max: 1 },
+          choices: ['host.squad.pulsa', 'host.squad.melta'],
+          caps: [{ choices: ['host.squad.pulsa', 'host.squad.melta'], max: 1 }],
+        }),
         'host.squad.scope': record('Scope', {
           unit: 'host.squad',
           choose: { min: 0, max: 1 },
@@ -51,6 +59,7 @@ const data = vsRosterData(
         'host.squad.plasma': record('Plasma gun', {}),
         'host.squad.melta': record('Meltagun', {}),
         'host.squad.sight': record('Sight', {}),
+        'host.squad.pulsa': record('Pulsa Rokkit (Once per battle, per unit)', {}),
       },
       model: {
         'host.mob.grunt': record('Grunt', { unit: 'host.mob', min: 10, max: 20, wargear: {} }),
@@ -165,6 +174,12 @@ describe('vsDataErrors', () => {
     it('is checked on a cap its wargear breaks', () => {
       expect(errors([squad({ options: { 'host.squad.guns': { 'host.squad.plasma': 2 } } })])).toEqual([
         { entryId: 'bs-squad', entryName: 'Squad', message: 'takes at most 1 Plasma gun, has 2' },
+      ])
+    })
+
+    it('names each capped wargear whole, commas and all', () => {
+      expect(errors([squad({ options: { 'host.squad.rokkits': { 'host.squad.pulsa': 1, 'host.squad.melta': 1 } } })])).toEqual([
+        { entryId: 'bs-squad', entryName: 'Squad', message: 'takes at most 1 Pulsa Rokkit (Once per battle, per unit) or Meltagun, has 2' },
       ])
     })
 

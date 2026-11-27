@@ -219,16 +219,20 @@ function described(problem: VsProblem, checked: { unit: CheckedUnit }[], definit
 const bound = (min: string, max: string, has: string) =>
   min === max ? min : Number(has) > Number(max) ? `at most ${max}` : `at least ${min}`
 /** A list of names, the last joined by `word`. */
-const joined = (names: string, word: string) => names.replace(/, (?=[^,]*$)/, ` ${word} `)
+const joined = (names: readonly string[], word: string) =>
+  names.length > 1 ? `${names.slice(0, -1).join(', ')} ${word} ${names.at(-1)}` : (names[0] ?? '')
 const plural = (count: string, noun: string) => `${noun}${/(^| )1$/.test(count) ? '' : 's'}`
 
 /** A problem with a unit's own models or wargear, which VS Data checks for a unit fielded by its IDs. */
 function unitWords(problem: VsProblem, named: (text: string) => string): string | undefined {
   const text = named(problem.message)
-  const words = (pattern: RegExp, say: (...parts: string[]) => string) => {
-    const parts = pattern.exec(text)
+  const words = (pattern: RegExp, say: (...parts: string[]) => string, from = text) => {
+    const parts = pattern.exec(from)
     return parts ? say(...parts.slice(1)) : undefined
   }
+  // A list of IDs, each named apart, since a name may hold a comma itself (Pulsa Rokkit (Once per battle, per unit)).
+  const names = (ids: string) => ids.split(', ').map(named)
+  const ids = (kind: string) => `((?:${kind}:[\\w.-]+, )*${kind}:[\\w.-]+)`
   switch (problem.code) {
     case 'model-count':
       return words(/^(.+) needs (\d+)-(\d+) models, has (-?\d+)$/, (model, min, max, has) => {
@@ -238,7 +242,7 @@ function unitWords(problem: VsProblem, named: (text: string) => string): string 
     case 'model-group-count':
       return words(/^(.+) together need (\d+)-(\d+) models, have (\d+)$/, (models, min, max, has) => {
         const allowed = bound(min, max, has)
-        return `fields ${allowed} ${joined(models, 'and')} ${plural(allowed, 'model')} together, has ${has}`
+        return `fields ${allowed} ${joined(models.split(', '), 'and')} ${plural(allowed, 'model')} together, has ${has}`
       })
     case 'unit-composition':
       return 'fields its models in a mix its datasheet does not allow'
@@ -251,15 +255,21 @@ function unitWords(problem: VsProblem, named: (text: string) => string): string 
       return words(/^(.+) is taken (\d+) times .*$/, (option, max) => `takes ${option} ${max} times with one choice, or not at all`)
     case 'option-cap':
       return words(
-        /^.+ takes at most (\d+) of (.+), has (\d+)$/,
-        (max, wargear, has) => `takes at most ${max} ${joined(wargear, 'or')}, has ${has}`,
+        new RegExp(`^.+ takes at most (\\d+) of ${ids('wargear')}, has (\\d+)$`),
+        (max, wargear, has) => `takes at most ${max} ${joined(names(wargear), 'or')}, has ${has}`,
+        problem.message,
       )
     case 'option-unavailable':
-      return words(/^(.+) needs one of (.+) from .+$/, (option, wargear) => `needs ${joined(wargear, 'or')} to take ${option}`)
+      return words(
+        new RegExp(`^(.+) needs one of ${ids('wargear')} from roster-option:[\\w.-]+$`),
+        (option, wargear) => `needs ${joined(names(wargear), 'or')} to take ${option}`,
+        problem.message,
+      )
     case 'option-group-count':
       return words(
-        /^(.+) together take (at most|at least) (\d+), have (\d+)$/,
-        (options, side, n, has) => `takes ${side} ${n} from ${joined(options, 'and')} together, has ${has}`,
+        new RegExp(`^${ids('roster-option')} together take (at most|at least) (\\d+), have (\\d+)$`),
+        (options, side, n, has) => `takes ${side} ${n} from ${joined(names(options), 'and')} together, has ${has}`,
+        problem.message,
       )
     // IDs the unit's datasheet no longer holds, as a saved choice the builder can no longer offer.
     case 'missing-definition':
