@@ -19,8 +19,8 @@ import { loadCatalogue } from '../src/server/catalogueIndex'
 /**
  * Writes `catalogue/legacy-ids/options.json`: for each datasheet of the current rules version, the VS Data selections
  * each of its BSData choices stands for. `docs/development/catalogue-data.md` ("Saved IDs in VS Data") describes the
- * reading and `legacyOptionsSchema` how to apply it. Fails rather than change a frozen choice, and lists the entries it
- * leaves out: retained rules versions' `~` IDs and IDs the current catalogue no longer holds.
+ * reading and `legacyOptionsSchema` how to apply it. Fails rather than change a frozen choice, base or floor, except
+ * where `legacyOptionsSchema` lets an entry be derived afresh, and lists the entries it leaves out: retained rules versions' `~` IDs and IDs the current catalogue no longer holds.
  *
  *   pnpm exec tsx scripts/freezeRosterOptions.ts <catalogue directory> <directory of unpacked releases, one per rules version>
  */
@@ -712,8 +712,10 @@ for (const [entryId, held] of Object.entries(frozen)) {
   const keys = [...Object.keys(held.choices), ...held.unmatched]
   const unit = unitsMap[entryId]
   const opened = found && held.base === 'unmatched' && found.base !== 'unmatched'
+  // The floor is BSData's alone, so a moved or opened entry keeps it.
+  if (found && differ(held.floor, found.floor))
+    throw new Error(`options: ${entryId} floor is frozen as ${JSON.stringify(held.floor)}; this run names ${JSON.stringify(found.floor)}`)
   if ((unit && unit !== held.unit) || opened) {
-    // The floor is BSData's alone, so it carries over to the new unit.
     const fresh = found ?? {
       unit: unit!,
       base: 'unmatched' as const,
@@ -727,11 +729,8 @@ for (const [entryId, held] of Object.entries(frozen)) {
     }
     continue
   }
-  for (const field of ['base', 'floor'] as const)
-    if (found && differ(held[field], found[field]))
-      throw new Error(
-        `options: ${entryId} ${field} is frozen as ${JSON.stringify(held[field])}; this run names ${JSON.stringify(found[field])}`,
-      )
+  if (found && differ(held.base, found.base))
+    throw new Error(`options: ${entryId} base is frozen as ${JSON.stringify(held.base)}; this run names ${JSON.stringify(found.base)}`)
   const choices = { ...held.choices }
   for (const [key, selections] of Object.entries(found?.choices ?? {})) {
     if (key in choices && differ(choices[key], selections))
