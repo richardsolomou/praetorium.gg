@@ -15,7 +15,9 @@ import {
   withVsLoadout,
   withVsPicks,
 } from '../core/savedPicks'
+import { canonicalJson } from '../core/text'
 import { readCatalogueComposition } from './catalogueComposition'
+import { rosterFromRow } from './rosterPersistence'
 import { catalogueDirectory } from './catalogueIndex'
 import { privateR2Client, r2Objects } from './r2Client'
 
@@ -101,6 +103,26 @@ export function servedRoster<T extends Parameters<typeof withVsPicks>[0] & { upd
   const translated = withVsPicks(roster, rulesVersion, translations)
   return translated === roster ? roster : { ...roster, picks: withTranslationsFrom(roster.picks, translated.picks) }
 }
+
+/**
+ * A stored roster's picks, as stored and with the translations its owner is served kept as their own `vs`, for a write
+ * that would move its version past the copy they read; null when it is served none.
+ */
+export function storedWithTranslations(row: Parameters<typeof rosterFromRow>[0]) {
+  const roster = rosterFromRow(row)
+  const served = servedRoster(roster)
+  if (served === roster) return null
+  const stored = JSON.parse(row.picks) as RosterPick[]
+  const kept = stored.map((pick, at) => {
+    const vs = served.picks[at]?.translatedVs
+    return vs && !pick.vs ? { ...pick, vs } : pick
+  })
+  return { stored, kept }
+}
+
+/** A save's picks, each one it leaves as stored taking the translation kept beside it. */
+export const withKeptTranslations = <T extends RosterPick>(picks: readonly T[], held: ReturnType<typeof storedWithTranslations>) =>
+  held ? picks.map((pick, at) => (canonicalJson(pick) === canonicalJson(held.stored[at]) ? (held.kept[at] as T) : pick)) : [...picks]
 
 /** A saved unit loadout, as stored, with its units' frozen models and wargear, read as one saved when it was created. */
 export function servedLoadout<T extends { catalogueId: string; pick: RosterPick; joined?: readonly RosterPick[]; createdAt: number }>(

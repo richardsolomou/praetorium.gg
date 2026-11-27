@@ -38,6 +38,7 @@ import { battleFactionOf, type BattleFaction } from '../../shared/battleSummary'
 import type { Notifier } from '../pushNotifier'
 import { rosterFromRow } from '../rosterPersistence'
 import { servedRoster, servedSealedRoster } from '../savedPicks'
+import { keepServedTranslations } from './rosterService'
 import { rosterWithoutUnitNotes } from '../../core/unitNotes'
 
 export class SealedEventService {
@@ -493,6 +494,7 @@ export class SealedEventService {
   }
 
   async shareRoster(token: string, eventToken: string | undefined, userId: string, submittedAt: number, rosterId: string) {
+    await keepServedTranslations(this.repository, rosterId, userId)
     const result = await this.repository.updateSealedEventRosterSharing({
       op: 'share-roster',
       token,

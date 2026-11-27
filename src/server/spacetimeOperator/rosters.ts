@@ -200,6 +200,10 @@ export function withRosters<B extends SpacetimeBase>(Base: B) {
       return this.reply('set_roster_archived', [id, userId, archived, now], z.boolean())
     }
 
+    async keepRosterTranslations(id: string, userId: string, picks: readonly unknown[], updatedAt: number) {
+      return this.reply('keep_roster_translations', [id, userId, JSON.stringify(picks), updatedAt], z.boolean())
+    }
+
     async declineRosterSharing(id: string, userId: string) {
       return this.reply('decline_roster_sharing', [id, userId], z.boolean())
     }
