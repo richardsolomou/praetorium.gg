@@ -89,7 +89,13 @@ const entrySchema = z.object({
   retired: z.object({ replacedBy: z.array(z.string()).optional() }).nullish(),
 })
 const detachmentSchema = z.object({ data: z.object({ faction: z.string(), enhancements: z.array(z.string()).optional() }) })
-const unitSchema = z.object({ data: z.object({ allegiances: z.array(z.object({ choices: z.array(z.string()) })).optional() }) })
+const unitSchema = z.object({
+  data: z.object({
+    allegiances: z
+      .array(z.object({ choices: z.array(z.string()), required: z.boolean().optional(), detachment: z.string().optional() }))
+      .optional(),
+  }),
+})
 const manifestSchema = z.object({
   categories: z.array(z.object({ name: z.string(), records: z.array(z.object({ id: z.string(), kind: z.string(), path: z.string() })) })),
 })
@@ -165,8 +171,15 @@ function readRelease(directory: string) {
   const allegiances = new Map(
     manifest
       .filter((record) => record.kind === 'unit')
+      // Only an allegiance the unit must take in every Detachment is one a datasheet can imply.
       .map(
-        (record) => [record.id, (unitSchema.parse(read(record.path)).data.allegiances ?? []).flatMap(({ choices }) => choices)] as const,
+        (record) =>
+          [
+            record.id,
+            (unitSchema.parse(read(record.path)).data.allegiances ?? [])
+              .filter((offer) => offer.required && !offer.detachment)
+              .flatMap(({ choices }) => choices),
+          ] as const,
       ),
   )
   const current = entries.filter((entry) => !entry.retired)
@@ -410,6 +423,10 @@ for (const entry of composition.editions.toSorted((left, right) => Number(Boolea
     if (!base) foundAllegiances.push([id, allegiance])
     else if (base.units.get(id) !== read.units.get(id) || baseAllegiances.get(id) !== allegiance)
       foundAllegiances.push([`${entry.edition.id}~${id}`, allegiance])
+  // A rules version's key falls back to the bare allegiance, so the map cannot say that one version implies none.
+  for (const [id, allegiance] of base ? baseAllegiances : [])
+    if (read.units.has(id) && !allegiances.has(id))
+      throw new Error(`${entry.edition.id}: ${id} implies no allegiance, but the current rules version's ${allegiance} would read for it`)
   if (!base) baseAllegiances = allegiances
   base ??= read
   console.log(`${entry.edition.id}: read`)

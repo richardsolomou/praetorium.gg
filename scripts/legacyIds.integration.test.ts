@@ -67,16 +67,26 @@ describe.skipIf(!fs.existsSync(path.join(source, 'summaries')))('frozen BSData d
     expect(disagreements).toEqual([])
   })
 
-  it('give every implied allegiance as one its unit can take', () => {
+  it('give every implied allegiance as one its unit must take in each rules version', () => {
     const base = readCatalogueComposition(source)!.editions.find((entry) => entry.base)!.edition.id
-    const offered = (key: string, allegiance: string) => {
-      const [edition, entry] = key.includes('~') ? key.split('~') : [base, key]
-      const file = path.join(source, 'summaries', `${edition}.construction.json`)
-      const definitions = vsDataDefinitions(vsDataConstructionSchema.parse(JSON.parse(fs.readFileSync(file, 'utf8'))))
-      const unit = idsIn(units.ids, edition === base ? null : edition!).get(entry!)
-      const offers = unit ? (definitions.get('unit', unit)?.data.allegiances ?? []) : []
-      return offers.some(({ choices }) => choices.includes(allegiance))
-    }
-    expect(Object.entries(units.allegiances).filter(([key, allegiance]) => !offered(key, allegiance))).toEqual([])
+    const wrong = fs
+      .readdirSync(path.join(source, 'summaries'))
+      .filter((file) => file.endsWith('.construction.json'))
+      .flatMap((file) => {
+        const edition = path.basename(file, '.construction.json')
+        const definitions = vsDataDefinitions(
+          vsDataConstructionSchema.parse(JSON.parse(fs.readFileSync(path.join(source, 'summaries', file), 'utf8'))),
+        )
+        // A version's own key reads first, then the bare one, as its lists do.
+        const read = edition === base ? null : edition
+        const unitOf = idsIn(units.ids, read)
+        return [...idsIn(units.allegiances, read)].flatMap(([entry, allegiance]) => {
+          const offers = definitions.get('unit', unitOf.get(entry) ?? '')?.data.allegiances ?? []
+          return offers.some((offer) => offer.required && !offer.detachment && offer.choices.includes(allegiance))
+            ? []
+            : [`${edition} ${entry}: ${allegiance}`]
+        })
+      })
+    expect(wrong).toEqual([])
   })
 })
