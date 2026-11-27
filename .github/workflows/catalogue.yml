@@ -31,10 +31,10 @@ jobs:
       CATALOGUE_SNAPSHOT_FILE: ${{ github.workspace }}/build/release/snapshot.zip
       CATALOGUE_SNAPSHOT_POINTER_FILE: ${{ github.workspace }}/build/release/release.json
       CATALOGUE_OBJECTS_DIR: ${{ github.workspace }}/build/objects
-      # Catalogue snapshots are private: the scripts read them with these.
+      # Catalogue snapshots are private: the scripts read them with this read-only key, and only the publish step can write.
       R2_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-      R2_ACCESS_KEY_ID: ${{ secrets.PRIVATE_R2_ACCESS_KEY_ID }}
-      R2_SECRET_ACCESS_KEY: ${{ secrets.PRIVATE_R2_SECRET_ACCESS_KEY }}
+      R2_ACCESS_KEY_ID: ${{ secrets.SNAPSHOT_R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.SNAPSHOT_R2_SECRET_ACCESS_KEY }}
     steps:
       # The token that pushes the pin stays out of the checkout, where every script below could read it.
       - uses: actions/checkout@v7
@@ -108,8 +108,8 @@ jobs:
       - name: Publish the candidate to the private store
         if: steps.pinned.outputs.current != 'true'
         env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.PRIVATE_R2_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.PRIVATE_R2_SECRET_ACCESS_KEY }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.SNAPSHOT_PUBLISH_R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.SNAPSHOT_PUBLISH_R2_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: us-east-1
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
         run: |

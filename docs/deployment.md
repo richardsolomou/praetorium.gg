@@ -5,6 +5,19 @@
 - Origin traffic must stay restricted to Cloudflare; the server trusts its visitor header for rate limits.
 - Two rules live in the Cloudflare dashboard, not the repository. The HTML Cache Rule skips `better-auth.` cookies, `/_serverFn/`, and `/api/`, and its browser TTL must respect the origin. "Cache public reference API and images" lists public paths explicitly; never replace it with a blanket `/api/` rule, because photos, screenshots, private previews, and server functions must stay uncached.
 
+## Storage keys
+
+Each R2 key reaches only the buckets its jobs need, because a pull request from a branch of this repository runs its own code, dependencies included, with the secrets its workflow names. A job that runs on `pull_request` never receives `PRIVATE_R2_*`.
+
+| Secrets | Cloudflare token | Used by |
+| --- | --- | --- |
+| `SNAPSHOT_R2_*` | Object Read, `praetorium-catalogue` | CI lanes through `catalogue-sync`, `ci.yml`'s live catalogue job, `catalogue.yml`'s build, `vs-data-live.yml`, `combat-rule-audit.yml`'s catalogue read, `coverage-baseline.yml`, previews |
+| `SNAPSHOT_PUBLISH_R2_*` | Object Read & Write, `praetorium-catalogue` | `catalogue.yml`'s publish step alone, `catalogue-history.yml`, `dokploy-web.yml`'s catalogue preparation and activation |
+| `CATALOGUE_R2_*`, read as `ASSETS_R2_*` | Object Read & Write, `praetorium` (public) | compiled runtimes and offline bundles from CI's build lanes and the live catalogue job, web assets from `dokploy-web.yml`, production |
+| `PRIVATE_R2_*` | Object Read & Write, `praetorium-private` and `praetorium-catalogue` | production's server, which also reads snapshots with it, set by `dokploy-web.yml`'s deploy; `release.yml`'s Discord receipts; `combat-rule-audit.yml`'s judgments, on schedule |
+
+`praetorium-private` holds backups, players' photos and screenshots, announcement receipts and audit caches. Backup readback reads it with the Dokploy backup destination's own key, not a repository secret.
+
 ## First administrator
 
 Register and verify the operator account, then confirm its player ID from that account’s profile. From an operator connection to the auth SQLite database, bind that ID to `?1` in `UPDATE user SET role = 'admin' WHERE id = ?1 AND emailVerified = 1 AND NOT EXISTS (SELECT 1 FROM user WHERE role = 'admin') RETURNING id`. Verify that it returns the intended ID and sign in again. On an installation without mail delivery or a social sign-in provider, confirm control of the intended player account out of band and use the same query with the ID and empty-admin checks alone. An existing administrator can manage subsequent role changes in the app.
