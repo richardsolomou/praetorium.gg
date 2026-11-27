@@ -71,7 +71,7 @@ export function Conversation({ ticketId, onBack }: { ticketId: string; onBack: (
         </DialogBody>
       ) : error ? (
         <DialogBody>
-          <Problem error={error} reportable={false} />
+          <Problem error={error} />
         </DialogBody>
       ) : available === undefined || isPending ? (
         <DialogBody>
@@ -175,7 +175,7 @@ function Thread({ ticketId, messages, status }: { ticketId: string; messages: Me
             <CheckCircle2 className="size-3.5 text-achieved" aria-hidden /> We marked this resolved. Reply to reopen it.
           </p>
         ) : null}
-        {send.error ? <Problem error={send.error} reportable={false} /> : null}
+        {send.error ? <Problem error={send.error} /> : null}
         <form
           className="flex items-end gap-2"
           onSubmit={(event) => {

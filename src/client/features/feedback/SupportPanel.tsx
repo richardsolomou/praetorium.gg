@@ -171,7 +171,7 @@ function AllConversations({ onBack, onOpen }: { onBack: () => void; onOpen: (tic
       </DialogHeader>
       {error ? (
         <DialogBody>
-          <Problem error={error} reportable={false} />
+          <Problem error={error} />
         </DialogBody>
       ) : (
         <TicketList

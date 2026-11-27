@@ -25,7 +25,7 @@ export function YourFeedback() {
         {unread ? <span className="text-discarded">{unread} new</span> : null}
         <span className="readout ml-auto">{count ?? tickets.length}</span>
       </h2>
-      {error ? <Problem error={error} reportable={false} /> : null}
+      {error ? <Problem error={error} /> : null}
       <TicketList
         tickets={tickets}
         loadMore={hasNextPage && !isFetchingNextPage ? () => void fetchNextPage() : undefined}

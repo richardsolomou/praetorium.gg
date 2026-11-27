@@ -1,6 +1,6 @@
 import { createElement, useEffect, useState } from 'react'
 import { useLoadedComponent } from '../../useLoadedComponent'
-import { REPORT_PROBLEM_EVENT } from '../../components/Problem'
+import { REPORT_PROBLEM_EVENT } from '../../components/RouteError'
 import { onOpenSupport, reportProblem, type SupportView } from '../feedback/support'
 
 const loadLiveProduct = () => import('../../spacetimeLive').then((module) => module.LiveProduct)
