@@ -117,6 +117,18 @@ export async function savedLists(file: string): Promise<SavedList[]> {
   return lists
 }
 
+/**
+ * When the backup a local production copy was restored from captured the database, before its freeze, from the copy's
+ * closing record: everything saved before it is in the copy.
+ */
+export async function copiedAtOf(file: string): Promise<string> {
+  let copiedAt: string | undefined
+  const lines = createInterface({ input: fs.createReadStream(file).pipe(createGunzip()), crlfDelay: Infinity })
+  for await (const line of lines) if (line.startsWith('{"end"')) copiedAt = (JSON.parse(line) as { capturedAt?: string }).capturedAt
+  if (!copiedAt) throw new Error(`${file} does not say when its backup captured the database; fetch a copy of a newer backup`)
+  return copiedAt
+}
+
 /** A saved unit loadout as a pick list: its own unit first, then the units joined with it. */
 export type SavedLoadout = { id: string; catalogueId: string; picks: RosterPick[] }
 
