@@ -62,22 +62,20 @@ export const currentCatalogueId = (id: string) =>
   migrationCatalogues.reduce((current, map) => map.get(current)?.id ?? current, catalogues.get(id)?.id ?? id)
 export const currentCatalogueFamilyId = (id: string) => currentCatalogueId(editionFamilyId(id))
 
-/** Picks of a list of `from` moved to the rules version of `catalogueId`. */
-export function picksForRulesVersion<T extends RosterPick>(saved: readonly T[], catalogueId: string, from: string): T[] {
-  // `vs` names VS Data records of the rules version it was made in; the reader attaches the new version's frozen one.
-  const picks = catalogueEditionId(from) === catalogueEditionId(catalogueId) ? saved : saved.map(withoutVs)
+/**
+ * Picks moved to the rules version of `catalogueId`. A pick's `vs` moves with it: whoever reads the list checks it
+ * against that version's VS Data (`vsPickIn`), and a pick it no longer holds reads as its catalogue choices.
+ */
+export function picksForRulesVersion<T extends RosterPick>(picks: readonly T[], catalogueId: string): T[] {
   if (retainedFor(catalogueId)) return picksForCatalogueEdition(picks, catalogueId)
   const current = picks.map((pick) => ({
-    ...withoutVs(pick),
+    ...pick,
     ...currentPick({
       ...pick,
       ...(pick.catalogueId ? { catalogueId: currentCatalogueFamilyId(pick.catalogueId) } : {}),
     }),
   }))
   return picksForCatalogueEdition(current, catalogueId)
-}
-function withoutVs<T extends RosterPick>({ vs: _vs, ...pick }: T) {
-  return pick as T
 }
 export const currentDetachmentId = (id: string, catalogueId = '') =>
   catalogueEditionId(catalogueId)
@@ -124,11 +122,6 @@ function mappedPick(pick: RosterPick, sheets: typeof datasheets): RosterPick {
   const allied = pick.catalogueId ? { catalogueId: currentCatalogueId(pick.catalogueId) } : {}
   const sheet = sheets.get(pick.entryId)
   if (!sheet) return { ...pick, ...allied }
-  if (pick.vs && sheet.id !== pick.entryId) {
-    // `vs` names the datasheet's own VS Data models and options, so it does not move to another datasheet.
-    const { vs: _vs, ...read } = pick
-    return mappedPick(read, sheets)
-  }
   const option = (key: string, id: string) => sheet.choices?.[key]?.[id] ?? { key, id }
   const spreads: NonNullable<RosterPick['spreads']> = {}
   const spread = (key: string, id: string, count: number) => {

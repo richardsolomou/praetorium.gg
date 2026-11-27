@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { buildIndex } from '../core/catalogue'
 import type { LoadedCatalogue } from './catalogueIndex'
+import type { RosterPick } from '../core/roster'
 import { buildPick } from './vsDataBuild'
 import { vsRosterData } from './vsDataLegality'
 
@@ -45,8 +46,13 @@ const vsRoster = vsRosterData(
   null,
   () => 'Mob',
 )
-const built = (models?: number) =>
-  buildPick({ index, vsRoster } as LoadedCatalogue, { entryId: 'bs-mob', models }, { catalogueId: 'bs-host', detachmentIds: [] }, {})
+const built = (models?: number, vs?: RosterPick['vs']) =>
+  buildPick(
+    { index, vsRoster } as LoadedCatalogue,
+    { entryId: 'bs-mob', models, ...(vs ? { vs } : {}) },
+    { catalogueId: 'bs-host', detachmentIds: [] },
+    {},
+  )
 
 describe('a catalogue pick of a datasheet VS Data sizes', () => {
   it('steps between the sizes VS Data fields', () => expect(built(10)!.size.options).toEqual([10, 20]))
@@ -54,4 +60,12 @@ describe('a catalogue pick of a datasheet VS Data sizes', () => {
   it('fields the nearest of them for a size between', () => expect(built(14)!.size.models).toBe(10))
 
   it('starts at the smallest of them', () => expect(built()!.size.models).toBe(10))
+})
+
+describe('a VS pick moved into this rules version', () => {
+  it('builds by VS Data where the version holds its models', () =>
+    expect(built(undefined, { models: { 'host.mob.grunt': 10 }, options: {} })!.vs).toBeDefined())
+
+  it('builds by its catalogue choices where the version no longer holds them', () =>
+    expect(built(undefined, { models: { 'host.mob.ghost': 10 }, options: {} })!.vs).toBeUndefined())
 })
