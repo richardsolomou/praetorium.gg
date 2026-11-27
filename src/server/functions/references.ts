@@ -14,8 +14,7 @@ import { type GlobalSearchResult, searchEverything } from '../globalSearch'
 import { mutationRpc, rpc } from '../rpc'
 import { OWN_SEARCH_BATTLES, ownSearchLists, type OwnSearchData } from '../../core/referenceSearch'
 import { rosterDatasheetContext } from '../../shared/rosterDatasheetContext'
-import { serverWords } from '../publishedTextFiles'
-import { datasheetCombatant, withRecordedRules } from '../../shared/rosterCombatRules'
+import { datasheetCombatant } from '../../shared/rosterCombatRules'
 import { servedVsDataSummaries, servedVsDataUnits } from '../servedVsData'
 import { withVsDataSaves } from '../../shared/vsDataSaves'
 import { combatLoadoutSpace } from '../../shared/combatLoadouts'
@@ -189,8 +188,7 @@ export const combatantDatasheet = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const loaded = await app().catalogueFor(data.catalogueId)
       const combatant = loaded && datasheetCombatant(loaded, await app().rulesFor(data.catalogueId), data)
-      // The cards record no readings in a server, so their rules are judged from their words here, as a device cannot.
-      return combatant && withVsDataSaves(withRecordedRules(combatant, await serverWords()), await servedVsDataUnits(data.catalogueId))
+      return combatant && withVsDataSaves(combatant, await servedVsDataUnits(data.catalogueId))
     }),
   )
 
@@ -321,9 +319,6 @@ export const gameReferences = createServerFn({ method: 'GET' }).handler(() =>
     return gameReferencesFor(rules)
   }),
 )
-
-/** Where each source file a rules-text token names lives upstream; Praetorium serves where the words are, never the words. */
-export const textSources = createServerFn({ method: 'GET' }).handler(() => snapshotRpc(async () => publishedTextFiles()))
 
 /** Where strings now live whose tokens name a file the active snapshot replaced, so a battle's older rules still find their summaries. */
 export const textHomesFor = createServerFn({ method: 'GET' })

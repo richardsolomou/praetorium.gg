@@ -15,8 +15,7 @@ export const contentSecurityPolicy: Record<string, string[]> = {
   // development stack that serves its own uploads from elsewhere.
   'img-src': ["'self'", 'data:', 'https://cdn.jsdelivr.net', 'https://us-media.posthog.com', 'https://s3.praetorium.gg'],
   'font-src': ["'self'", 'data:'],
-  // Rules text loads from its pinned upstream files.
-  'connect-src': ["'self'", 'https://raw.githubusercontent.com'],
+  'connect-src': ["'self'"],
   // Combat calculations run in bundled workers.
   'worker-src': ["'self'", 'blob:'],
   'object-src': ["'none'"],

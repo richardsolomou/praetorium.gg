@@ -134,7 +134,6 @@ export type DatacardsFaction = {
   rules?: unknown
   enhancements?: unknown
   stratagems?: unknown
-  compatibleDataVersion?: unknown
 }
 /** A card's name as every source spells it: `(Aura)` and `(Upgrade)` are printed by some and not others. */
 export const cardName = (name: string) => routeSlug(name).replaceAll(/-(?:aura|upgrade)(?=-|$)/g, '')

@@ -29,7 +29,6 @@ vi.mock('./app', () => ({
     factionFor: async () => null,
   }),
 }))
-vi.mock('./publishedTextFiles', () => ({ serverWords: async () => () => null }))
 // Calculations against the beast never finish, as a slow pairing would not before the table's time limit.
 vi.mock('./combatCalculationPool', () => ({
   combatCalculationPool: {

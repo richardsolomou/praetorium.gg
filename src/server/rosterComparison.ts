@@ -13,13 +13,12 @@ import {
   type RosterCombatSummary,
 } from '../core/rosterCombatTable'
 import { forEachConcurrently } from '../shared/forEachConcurrently'
-import { defaultSnapshot, unitTotal, withReadRules } from '../shared/rosterGradeMeasures'
+import { defaultSnapshot, unitTotal } from '../shared/rosterGradeMeasures'
 import { rosterCombatants } from '../shared/rosterCombatants'
 import { READ_ONLY_TOOL, structured, toolError, type AgentTools } from './agentTools'
 import { app } from './app'
 import { agentPoolWork } from './agentPoolWork'
 import { combatCalculationPool } from './combatCalculationPool'
-import { serverWords } from './publishedTextFiles'
 
 // The table holds the shared workers simulate_combat and grading use, so one request may not hold them for long.
 const COMPARISON_TIMEOUT_MS = 30_000
@@ -66,7 +65,6 @@ async function tableUnits(roster: Roster): Promise<TableUnit[] | 'unknown' | nul
   const instance = app()
   const [loaded, rules] = await Promise.all([instance.catalogueFor(roster.catalogueId), instance.rulesFor(roster.catalogueId)])
   if (!loaded) return (await instance.factionsFor()) && !(await instance.factionFor(roster.catalogueId)) ? 'unknown' : null
-  const words = await serverWords()
   const units = await servedVsDataUnits(roster.catalogueId)
   const pickIndices = rosterCombatIndices(roster.picks)
   const projections = rosterCombatants(loaded, rules, {
@@ -77,9 +75,9 @@ async function tableUnits(roster: Roster): Promise<TableUnit[] | 'unknown' | nul
     inactivePicks: [],
   })
   return pickIndices.map((pickIndex, at) => {
-    const unread = projections[at]
+    const fielded = projections[at]
     const pick = roster.picks[pickIndex]!
-    if (!unread)
+    if (!fielded)
       return {
         name: loaded.index.definitions.get(pick.entryId)?.name ?? `Entry ${pickIndex + 1}`,
         entries: [pickIndex + 1],
@@ -87,7 +85,7 @@ async function tableUnits(roster: Roster): Promise<TableUnit[] | 'unknown' | nul
         snapshot: null,
         error: 'This unit is missing from the current army data.',
       }
-    const projection = withVsDataSaves(withReadRules(unread, words), units)
+    const projection = withVsDataSaves(fielded, units)
     const members = [projection, ...projection.companions]
     const unit = {
       name: members.map((member) => member.selected.name).join(' + '),

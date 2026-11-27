@@ -3,10 +3,8 @@ import { getRequest } from '@tanstack/react-start/server'
 import { rosterCombatantsSchema, combatRequestsSchema } from '../../contracts/combatCalculation'
 import { forgetMatchupSchema, priceSchema, rememberMatchupSchema } from '../../contracts/schemas'
 import { rosterCombatants } from '../../shared/rosterCombatants'
-import { withRecordedRules } from '../../shared/rosterCombatRules'
 import { servedVsDataUnits } from '../servedVsData'
 import { withVsDataSaves } from '../../shared/vsDataSaves'
-import { serverWords } from '../publishedTextFiles'
 import { app } from '../app'
 import { forSignedIn } from '../playerSession'
 import { productActions, signedInAction } from '../productActions'
@@ -20,11 +18,9 @@ export const combatantDatasheets = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const loaded = await app().catalogueFor(data.catalogueId)
       if (!loaded) return data.pickIndices.map(() => null)
-      // The cards record no readings in a server, so their rules are judged from their words here, as a device cannot.
-      const words = await serverWords()
       const units = await servedVsDataUnits(data.catalogueId)
       return rosterCombatants(loaded, await app().rulesFor(data.catalogueId), data).map(
-        (combatant) => combatant && withVsDataSaves(withRecordedRules(combatant, words), units),
+        (combatant) => combatant && withVsDataSaves(combatant, units),
       )
     }),
   )
@@ -57,7 +53,7 @@ export const forgetMatchup = createServerFn({ method: 'POST' })
   .validator(forgetMatchupSchema)
   .handler(({ data }) => signedInAction(productActions.forgetMatchup, data))
 
-/** The roster grades for the picks on screen; it reads rule words, so it is calculated here rather than on the device. */
+/** The roster grades for the picks on screen, calculated on the shared combat workers. */
 export const rosterGrades = createServerFn({ method: 'POST' })
   .validator(priceSchema)
   .handler(({ data }) => mutationRpc(() => calculateRosterGrades(data, getRequest().signal)))

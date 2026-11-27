@@ -61,7 +61,7 @@ export function datasheetCombatant(...[loaded, ...rest]: Parameters<typeof roste
 
 /**
  * A combatant whose rules a device can play without their words: each rule still left as a token is judged from the
- * combat facts its words give, which the server reads here, as a device judges a rule whose facts the cards recorded.
+ * combat facts its words give, as a device judges a rule whose facts the cards recorded.
  */
 export function withRecordedRules<T extends { rules: CombatRule[]; companions: { rules: CombatRule[] }[] }>(
   combatant: T,
