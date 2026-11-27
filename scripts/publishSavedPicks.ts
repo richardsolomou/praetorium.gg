@@ -8,12 +8,12 @@ import { catalogueR2Client, r2Objects } from '../src/server/r2Client'
 /**
  * Publishes the frozen saved-pick translations a translator run found (`scripts/translateSavedPicks.ts`) beside the ones
  * already published: their union, every published key kept as it reads, goes to the private catalogue bucket as
- * `saved-picks/<sha256>.json`, and `catalogue/legacy-ids/saved-picks.json` pins it. A run that would change what a
+ * `saved-picks/<sha256>.json`, and `src/shared/savedPicks.pin.json` pins it. A run that would change what a
  * published key means stops before anything is written. Needs the catalogue bucket's credentials.
  *
  *   pnpm exec tsx scripts/publishSavedPicks.ts [translations]
  */
-const pinFile = path.join(import.meta.dirname, '../catalogue/legacy-ids/saved-picks.json')
+const pinFile = path.join(import.meta.dirname, '../src/shared/savedPicks.pin.json')
 const found = savedPicksSchema.parse(JSON.parse(fs.readFileSync(path.resolve(process.argv[2] ?? 'data-dev/saved-picks.json'), 'utf8')))
 const sha256 = (bytes: Uint8Array | string) => hash('sha256', bytes)
 const keyOf = (digest: string) => `saved-picks/${digest}.json`

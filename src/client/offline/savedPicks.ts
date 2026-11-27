@@ -1,4 +1,4 @@
-import rawPin from '../../../catalogue/legacy-ids/saved-picks.json' with { type: 'json' }
+import rawPin from '../../shared/savedPicks.pin.json' with { type: 'json' }
 import { type SavedPickTranslations, savedPickTranslations, savedPicksPinSchema } from '../../core/savedPicks'
 
 /** Where the device keeps the pinned translations, by the address that names their content. */

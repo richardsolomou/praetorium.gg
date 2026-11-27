@@ -1,7 +1,7 @@
 import { hash } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
-import rawPin from '../../catalogue/legacy-ids/saved-picks.json' with { type: 'json' }
+import rawPin from '../shared/savedPicks.pin.json' with { type: 'json' }
 import { type SavedPickTranslations, savedPickTranslations, savedPicksPinSchema } from '../core/savedPicks'
 import { fetchCatalogueObject } from './catalogueStore'
 
