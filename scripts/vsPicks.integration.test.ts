@@ -15,6 +15,7 @@ const terminators = '13d8-1933-472c-80ed'
 const captain = '91e3-a419-8c58-98f5'
 const legends = '1bb6-f47f-34a2-7796'
 const guilliman = '49fb-cb39-f830-9ee'
+const legionaries = 'db9f-5b64-ba4-dcd7'
 const squad = 'space-marines.terminator-squad'
 
 describe.skipIf(!fs.existsSync(path.join(directory, 'definitions')))('a pick fielded by VS Data IDs', () => {
@@ -83,6 +84,22 @@ describe.skipIf(!fs.existsSync(path.join(directory, 'definitions')))('a pick fie
 
   it('hands the device the records its edits are made against', () => {
     expect(priced({ entryId: terminators, vs: heavyFlamer })[0]!.vs?.unit.id).toBe(squad)
+  })
+
+  it('names its allegiance beside its wargear', () => {
+    const catalogueId = loaded.factions.find((faction) => faction.name.endsWith('Chaos Space Marines'))!.id
+    const pactbound = loaded.detachments.get(catalogueId)!.options.find((option) => option.name === 'Pactbound Zealots')!
+    const vs = {
+      models: { 'chaos-space-marines.legionaries.aspiring-champion': 1, 'chaos-space-marines.legionaries.legionary': 4 },
+      options: {},
+      allegiance: 'chaos-space-marines.pactbound-zealots.nurgle',
+    }
+    const units = calculateRosterPrice(
+      { catalogueId, detachmentIds: [pactbound.id], disposition: null, limit: 2000, units: [{ entryId: legionaries, vs }] },
+      loaded,
+      rules,
+    )!.units
+    expect(units[0]!.wargear).toContainEqual({ name: 'Nurgle', count: 1 })
   })
 
   it('must be the Warlord where its datasheet says so', () => {

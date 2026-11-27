@@ -1011,7 +1011,11 @@ function calculateRoster(
         selectedEnhancements.some((enhancement) =>
           grantsReserveExemptionIn(findEnhancementDescription(enhancementDescriptions, chosen, enhancement), loaded.index.textFacts),
         )
-      const wargear = unit.vs?.wargear ?? heldWargear(models, choices, catalogued)
+      // A VS pick's allegiance is no wargear, but the roster names it beside its wargear as it names a catalogue mark.
+      const allegiance = unit.vs?.unit.allegiance && vsDefinitions?.get('allegiance', unit.vs.unit.allegiance)?.name
+      const wargear = unit.vs
+        ? [...unit.vs.wargear, ...(allegiance ? [{ name: allegiance, count: 1 }] : [])]
+        : heldWargear(models, choices, catalogued)
       const specialWargear = new Set(
         unit.choices.flatMap((choice) =>
           specialKind(choice, upgradeNames)
