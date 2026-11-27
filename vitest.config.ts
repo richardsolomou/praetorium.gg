@@ -13,6 +13,8 @@ export default defineConfig({
   test: {
     environment: 'node',
     pool: 'forks',
+    // `spacetimedbModuleTestPlugin` sets this from a `config` hook, which a project sharing this file's Vite server skips.
+    server: { deps: { inline: ['spacetimedb'] } },
     // Inline projects extend this file, and Vite concatenates their arrays with its own, so `include` lives only here.
     projects: [
       {
