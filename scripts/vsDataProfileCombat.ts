@@ -16,6 +16,9 @@ import { referenceCatalogue } from '../src/server/canonicalCatalogue'
 import { catalogueEditionLoaders } from '../src/server/catalogueEditions'
 import { namedCombatant, type CombatCatalogues } from '../src/server/combatTools'
 import { referenceCorpusFor } from '../src/server/referenceCorpus'
+import { memoUntilSnapshotChanges } from '../src/server/snapshotMemo'
+import { vsDataSummariesSteps } from '../src/server/vsDataSummaries'
+import { completeSteps } from '../src/shared/steps'
 import type { LoadedCatalogue } from '../src/shared/catalogueIndex'
 import { datasheetsOf } from '../src/shared/catalogueIndex'
 import { CombatAnswerCache } from '../src/shared/combatAnswerCache'
@@ -62,6 +65,10 @@ const referenceCorpus = referenceCorpusFor({
   factions: editions.factions()?.factions,
 })
 if (!referenceCorpus) throw new Error(`No reference corpus could be built from ${directory}`)
+// The summaries combatants read are served by the app, which a script does not start, so they are read here first.
+await memoUntilSnapshotChanges('vs-data-summaries', null, async () =>
+  completeSteps(vsDataSummariesSteps(directory, canonical?.ruleDocuments ?? rules?.ruleDocuments ?? [])),
+)
 // Both readings measure against the same reference units, so a difference is the measured unit's own.
 const references = await gradeReferences(2000, (_, unit) =>
   referenceUnit(unit, (faction, name, models) => namedCombatant(faction, name, models, { corpus: referenceCorpus, catalogues })),
