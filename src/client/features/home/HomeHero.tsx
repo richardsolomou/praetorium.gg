@@ -102,7 +102,7 @@ function HeroBattle({ battle }: { battle: Battle }) {
         </span>
       </span>
       <HeroSide sideSummary={ours} score={a} side="a" />
-      <span className="mx-5 flex items-center gap-3 text-2xs font-semibold tracking-eyebrow text-faint uppercase" aria-hidden>
+      <span className="mx-5 flex items-center gap-3 text-xs font-medium text-faint" aria-hidden>
         <span className="h-px flex-1 bg-edge" />
         versus
         <span className="h-px flex-1 bg-edge" />

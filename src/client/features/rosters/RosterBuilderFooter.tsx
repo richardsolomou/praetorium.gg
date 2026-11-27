@@ -170,7 +170,7 @@ export function RosterBuilderFooter({
       ) : null}
       {!frozen && unhandled.length ? (
         <div className="mt-2 rounded-lg border border-discarded/40 bg-discarded/5 p-2.5 text-xs text-discarded">
-          <p className="font-semibold uppercase">Could not check every rule</p>
+          <p className="font-semibold">Could not check every rule</p>
           <p className="mt-1">
             Check these restrictions in the source rules before playing. A points total does not confirm every choice is legal.
           </p>

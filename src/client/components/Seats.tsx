@@ -81,12 +81,12 @@ export function SeatMatchup({ seats, labelFor }: { seats: readonly Seat[]; label
       <p className="eyebrow mb-2">Matchup</p>
       <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start gap-2 text-sm">
         <div className="min-w-0">
-          <span className="block text-3xs font-bold text-dim uppercase">Your side</span>
+          <span className="block text-2xs font-medium text-dim">Your side</span>
           <span className="block text-balance">{yours.join(' + ')}</span>
         </div>
-        <span className="pt-3 text-3xs font-bold text-dim uppercase">vs</span>
+        <span className="pt-3 text-2xs font-medium text-dim">vs</span>
         <div className="min-w-0 text-right">
-          <span className="block text-3xs font-bold text-dim uppercase">Opposing side</span>
+          <span className="block text-2xs font-medium text-dim">Opposing side</span>
           <span className="block text-balance">{theirs.join(' + ')}</span>
         </div>
       </div>

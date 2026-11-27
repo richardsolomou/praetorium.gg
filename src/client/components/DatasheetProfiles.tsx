@@ -16,7 +16,7 @@ export function UnitProfile({ profile, invulnerable: showInvulnerable = true }: 
       <ProfileGrid values={values} />
       {invulnerable ? (
         <div className="flex items-center justify-between border-b border-edge px-2 py-2">
-          <span className="text-xs font-bold uppercase">Invulnerable save</span>
+          <span className="text-xs font-semibold">Invulnerable save</span>
           <span className="readout text-base">
             <ProfileValue value={invulnerable} />
           </span>

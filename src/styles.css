@@ -1258,7 +1258,7 @@ html:active-view-transition-type(page) {
 
 /** A small tracked label above the thing it names. */
 @utility eyebrow {
-  @apply text-2xs font-semibold tracking-eyebrow text-dim uppercase;
+  @apply text-xs font-medium text-dim;
 }
 
 /** A link set in quiet text, such as a breadcrumb or a way back up, marked as one by a faint rule beneath it rather than a full underline. */
