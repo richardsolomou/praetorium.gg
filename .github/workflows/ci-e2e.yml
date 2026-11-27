@@ -3,9 +3,9 @@ name: CI e2e
 on:
   workflow_call:
     inputs:
-      desktop:
-        description: Whether the desktop runner's heartbeat was fresh when the runners were planned
-        type: boolean
+      desktop-runners:
+        description: The runners the desktop takes, as a JSON list; empty while its heartbeat is stale
+        type: string
         required: true
       node-version:
         type: string
@@ -27,8 +27,8 @@ jobs:
       fail-fast: false
       matrix:
         runner: ${{ fromJSON(inputs.runners) }}
-    # The owner's own pull requests run runners 2 and 3 on the desktop runner, which exist whatever the runner count (docs/deployment.md#ci-runners).
-    runs-on: ${{ inputs.desktop && vars.DESKTOP_RUNNER == 'on' && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.user.login == 'richardsolomou' && (matrix.runner == 2 || matrix.runner == 3) && fromJSON('["self-hosted","linux","desktop"]') || 'ubuntu-latest' }}
+    # The owner's own pull requests run the runners the browser-test build hands the desktop there (docs/deployment.md#ci-runners).
+    runs-on: ${{ vars.DESKTOP_RUNNER == 'on' && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.user.login == 'richardsolomou' && contains(fromJSON(inputs.desktop-runners), matrix.runner) && fromJSON('["self-hosted","linux","desktop"]') || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v7
       # The browser-test build saved the dependency cache this restores, so the pnpm store `setup-js` restores goes unused.

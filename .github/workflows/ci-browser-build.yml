@@ -13,9 +13,9 @@ on:
         value: ${{ jobs.browser-build.outputs.needed }}
       node-version:
         value: ${{ jobs.browser-build.outputs.node-version }}
-      desktop:
-        description: Whether the desktop runner reported in recently enough to take browser runners
-        value: ${{ jobs.browser-build.outputs.desktop }}
+      desktop-runners:
+        description: The browser runners the desktop takes, as a JSON list
+        value: ${{ jobs.browser-build.outputs.desktop-runners }}
       runner-count:
         value: ${{ jobs.browser-build.outputs.runner-count }}
       runtime-shared:
@@ -37,7 +37,7 @@ jobs:
     outputs:
       needed: ${{ steps.scope.outputs.needed }}
       node-version: ${{ steps.node.outputs.version }}
-      desktop: ${{ steps.desktop.outputs.fresh }}
+      desktop-runners: ${{ steps.desktop.outputs.runners }}
       runner-count: ${{ steps.runners.outputs.count }}
       runtime-shared: ${{ steps.runtime.outputs.shared }}
       runners: ${{ steps.runners.outputs.runners }}
@@ -106,16 +106,21 @@ jobs:
             echo "runners=$(node -p 'JSON.stringify(Array.from({ length: Number(process.argv[1]) }, (_, index) => index + 1))' "$count")"
             echo "count=$count"
           } >> "$GITHUB_OUTPUT"
-      # The desktop stamps the heartbeat every two minutes while its runners are up and it has room for them; a stale or missing one keeps every runner hosted.
-      - name: Check the desktop runner's heartbeat
+      # The desktop stamps the heartbeat every two minutes while its runners are up and it has room for them. While it is fresh,
+      # runners 2 onwards take its DESKTOP_RUNNER_SLOTS (default 2) and runner 1 stays hosted; a stale or missing one keeps all hosted.
+      - name: Choose the desktop's runners
         id: desktop
         if: steps.scope.outputs.needed == 'true'
         env:
           HEARTBEAT: ${{ vars.DESKTOP_RUNNER_HEARTBEAT }}
+          SLOTS: ${{ vars.DESKTOP_RUNNER_SLOTS || '2' }}
+          COUNT: ${{ steps.runners.outputs.count }}
         run: |
-          fresh=false
-          if [[ "$HEARTBEAT" =~ ^[0-9]+$ ]] && (( $(date +%s) - HEARTBEAT < 300 )); then fresh=true; fi
-          echo "fresh=$fresh" >> "$GITHUB_OUTPUT"
+          runners='[]'
+          if [[ "$HEARTBEAT" =~ ^[0-9]+$ && "$SLOTS" =~ ^[0-9]+$ ]] && (( $(date +%s) - HEARTBEAT < 300 )); then
+            runners="$(node -p 'JSON.stringify(Array.from({ length: Math.max(0, Math.min(Number(process.argv[1]), Number(process.argv[2]) - 1)) }, (_, index) => index + 2))' "$SLOTS" "$COUNT")"
+          fi
+          echo "runners=$runners" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v7
         if: steps.scope.outputs.needed == 'true'
         with:
