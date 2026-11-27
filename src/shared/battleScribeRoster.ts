@@ -13,7 +13,7 @@ import { rosterDetachments } from './rosterDetachments'
 import { vsDataUnitXml } from './vsDataBattleScribeRoster'
 import { vsDefinitionsOf, vsListOf } from './vsDataBuild'
 import type { LoadedRules } from './rules'
-import { abilitiesXml, categoriesXml, costXml, escape, profileXml, rosterXml, selectionXml } from './battleScribeXml'
+import { abilitiesXml, categoriesXml, costXml, profileXml, rosterXml, selectionXml } from './battleScribeXml'
 
 /**
  * A list as the BattleScribe `.ros` XML that New Recruit writes and Yellowscribe reads into Tabletop Simulator: each
