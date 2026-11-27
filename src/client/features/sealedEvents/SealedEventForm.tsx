@@ -156,7 +156,7 @@ export function SealedEventFormFields({
       {ownerPlays === undefined ? null : (
         <div className="flex items-center gap-3">
           <Switch id={`${idPrefix}-owner-plays`} checked={ownerPlays} disabled={disabled} onCheckedChange={onOwnerPlaysChange} />
-          <Label htmlFor={`${idPrefix}-owner-plays`} className="cursor-pointer text-sm font-bold uppercase">
+          <Label htmlFor={`${idPrefix}-owner-plays`} className="cursor-pointer text-sm font-semibold">
             I’m playing too
           </Label>
         </div>

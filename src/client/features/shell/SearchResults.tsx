@@ -117,7 +117,7 @@ function ResultList({
               style={{ transform: `translateY(${item.start - leadHeight}px)` }}
             >
               {row.kind === 'heading' ? (
-                <h2 className="px-3 pt-3 pb-1 text-2xs font-semibold tracking-eyebrow text-faint uppercase">{row.label}</h2>
+                <h2 className="px-3 pt-3 pb-1 text-xs font-medium text-faint">{row.label}</h2>
               ) : onSelect ? (
                 <button
                   type="button"

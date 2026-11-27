@@ -42,7 +42,7 @@ export const LoadoutRow = memo(function LoadoutRow({
     <span className="flex min-w-0 flex-1 items-center gap-1.5">
       <Icon className="size-3.5 shrink-0 text-faint" aria-hidden />
       <span className="min-w-0 flex-1">
-        <span className="block text-xs leading-tight font-semibold tracking-wide uppercase">{loadout.name}</span>
+        <span className="block text-xs leading-tight font-semibold">{loadout.name}</span>
         {members ? <span className="mt-0.5 block text-2xs text-dim">{members.join(' · ')}</span> : null}
         {unavailableReason ? <span className="mt-1 block text-2xs font-normal normal-case text-discarded">{unavailableReason}</span> : null}
       </span>
