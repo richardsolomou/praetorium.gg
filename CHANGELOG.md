@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.279.5 (2026-11-27)
+
+### Patch Changes
+
+- 5ccc5df: [reference] Stratagems show their When, Target, Effect and Restrictions as labelled parts wherever their rules appear.
+
 ## 0.279.4 (2026-11-27)
 
 ### Patch Changes
