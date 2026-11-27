@@ -3,11 +3,14 @@ import fs from 'node:fs'
 import path from 'node:path'
 import rawPin from '../shared/savedPicks.pin.json' with { type: 'json' }
 import { type SavedPickTranslations, savedPickTranslations, savedPicksPinSchema } from '../core/savedPicks'
-import { fetchCatalogueObject } from './catalogueStore'
+import { privateR2Client, r2Objects } from './r2Client'
 
-/** The pinned translations: their SHA-256 names their object in the private catalogue bucket and the bytes it must hold. */
+/**
+ * The pinned translations: their SHA-256 names their object in the players' private bucket, which previews and CI hold
+ * no key to, and the bytes it must hold.
+ */
 export const savedPicksPin = savedPicksPinSchema.parse(rawPin)
-export const savedPicksObject = (sha256 = savedPicksPin.sha256) => `r2://praetorium-catalogue/saved-picks/${sha256}.json`
+export const savedPicksKey = (sha256 = savedPicksPin.sha256) => `saved-picks/${sha256}.json`
 
 /** The pinned translations' bytes, verified against the pin: from this server's copy, else the bucket, then kept. */
 export async function savedPicksBytes(dataDirectory = process.env.DATA_DIR ?? '/data'): Promise<Uint8Array> {
@@ -18,12 +21,13 @@ export async function savedPicksBytes(dataDirectory = process.env.DATA_DIR ?? '/
     if (verified(bytes)) return bytes
     fs.rmSync(file)
   }
-  const response = await fetchCatalogueObject(savedPicksObject())
-  if (!response.ok) throw new Error(`saved-pick translations are unavailable: HTTP ${response.status}`)
-  const bytes = new Uint8Array(await response.arrayBuffer())
+  const store = privateR2Client()
+  if (!store) throw new Error('saved-pick translations are unavailable without the private bucket')
+  const bytes = await r2Objects(store).get(savedPicksKey())
+  if (!bytes) throw new Error('saved-pick translations are missing from the private bucket')
   if (!verified(bytes)) throw new Error('saved-pick translations do not match their pin')
-  fs.mkdirSync(path.dirname(file), { recursive: true })
-  fs.writeFileSync(file, bytes)
+  fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 })
+  fs.writeFileSync(file, bytes, { mode: 0o600 })
   return bytes
 }
 
