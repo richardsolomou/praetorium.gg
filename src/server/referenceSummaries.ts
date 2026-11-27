@@ -93,19 +93,19 @@ export function ruleSummaryFinder(
     )
   }
   /** `useDatasheetAbilitySummary`. */
-  const owned = (text: string, id: string | undefined, owner: SummaryOwner | undefined) =>
-    datasheetAbilitySummary(unitsOf(owner), owner?.subject ?? '', id, text ? printed(text) : [])
+  const owned = (text: string, name: string | undefined, id: string | undefined, owner: SummaryOwner | undefined) =>
+    datasheetAbilitySummary(unitsOf(owner), owner?.subject ?? '', id, text ? printed(text) : [], name)
 
   return {
     printed: (text: string) => printed(text)[0]?.summary ?? null,
     /** `RuleText`: a rule printed by token, or one a name alone stands for. */
     rule(text: string | null | undefined, { name, id, owner }: { name?: string; id?: string; owner?: SummaryOwner } = {}) {
       if (text ? !hasTextTokens(text) : !name) return null
-      return owned(text ?? '', id, owner) ?? (name ? named(name) : null)
+      return owned(text ?? '', name, id, owner) ?? (name ? named(name) : null)
     },
     /** `KeywordRuleSummary`. */
     keywordRule(rule: { name: string; description: string | null }, owner?: SummaryOwner) {
-      return keyword(rule.name) ?? owned(rule.description ?? '', undefined, owner) ?? named(rule.name)
+      return keyword(rule.name) ?? owned(rule.description ?? '', rule.description ? rule.name : undefined, undefined, owner) ?? named(rule.name)
     },
     /** `useVsDataSummaries`: a rule by its VS Data id in the rules version of `catalogueId`, then in the current one. */
     byId: (catalogueId: string, id: string) => {

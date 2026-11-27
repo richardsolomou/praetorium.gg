@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { Datasheet } from '../../../../contracts/catalogue'
-import { RuleText, SummaryById } from '../../../components/RuleText'
+import { RuleText, SummaryById, SummaryByName } from '../../../components/RuleText'
 import { DatasheetUnit, ownerCatalogueId } from '../../../components/UnitFromVsData'
 import { Blocks, blocksText } from '../../../components/RuleSummaryText'
 import type { RuleSummaryBlock } from '../../../../contracts/rules'
@@ -362,6 +362,8 @@ export function SpecialChoice({
               <SummaryById catalogueId={ownerCatalogueId(owner)} id={option.vsDataId} className={PROSE} />
             ) : option.description ? (
               <RuleText text={option.description} rules={option.keywordRules} className={PROSE} {...(owner ? { name: option.name } : {})} />
+            ) : owner ? (
+              <SummaryByName name={option.name} className={PROSE} />
             ) : null
           return (
             <ChoiceOption

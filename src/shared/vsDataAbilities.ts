@@ -43,13 +43,15 @@ export function abilitySummaryIn<T = RuleSummary>(units: UnitsOf<T>, subject: st
 
 /**
  * A datasheet ability's summary: the record its BSData id is, else the first of the records its printed text names that is
- * its own owner's, a faction's or detachment's rule, or no ability at all, as a core rule.
+ * its own owner's, a faction's or detachment's rule, or no ability at all, as a core rule, else its owner's or its owner's
+ * faction's own record of its exact `name`, as a detachment's Enhancement or an army rule whose text names none.
  */
 export function datasheetAbilitySummary<T = RuleSummary>(
   units: UnitsOf<T> | null,
   subject: string,
   id: string | undefined,
   printed: readonly { id: string; summary: T }[],
+  name?: string,
 ): T | null {
   const own = units ? aliased(units, subject, id) : undefined
   if (own) return own
@@ -62,5 +64,8 @@ export function datasheetAbilitySummary<T = RuleSummary>(
     const held = record.slice('ability:'.length, record.lastIndexOf('.'))
     return !held.includes('.') || held === owner || (detachment !== null && held.endsWith(detachment))
   }
-  return printed.find(reaches)?.summary ?? null
+  const found = printed.find(reaches)?.summary
+  if (found || !name || !owner) return found ?? null
+  const rule = unitAbilitySlug(name)
+  return units.abilities[`${owner}.${rule}`] ?? units.abilities[`${owner.split('.')[0]}.${rule}`] ?? null
 }
