@@ -21,7 +21,7 @@ import { rosterDetachments } from '../src/shared/rosterDetachments'
 import { inBook } from '../src/shared/vsDataPoints'
 import { loadSnapshot } from './lib/catalogueSnapshotLoad'
 import { copiedAtOf, savedLists, savedLoadouts } from './lib/vsDataRosterParity'
-import { SAVED_PICKS_RUN, savedPicksRunSchema } from './lib/savedPicksRun'
+import { rulesVersionOf, SAVED_PICKS_RUN, savedPicksRunSchema } from './lib/savedPicksRun'
 import { catalogueUnitErrors, leaves, legacyIds, modelsByName, specialOf, vsModels } from './lib/vsDataRosters'
 import { modelsNamed, same, words } from '../src/shared/vsDataModelNames'
 import { vsSpelling } from '../src/shared/wargearSpellings'
@@ -653,14 +653,14 @@ function translateAll(
   loadout: boolean,
 ) {
   const loaded = editions.catalogueFor(list.catalogueId)
-  const edition = loaded?.edition?.id ?? base!.edition.id
+  const edition = rulesVersionOf(list.catalogueId, loaded, base!.edition.id)
   // Every pick's key, translated or not: a publication may not drop one a live record still holds.
   for (const pick of list.picks)
     live.add(savedPickKey({ rulesVersion: edition, catalogueId: list.catalogueId, detachmentIds: list.detachmentIds }, pick))
   const counts = (byKind[`${kind} ${edition}`] ??= {})
   const count = (outcome: string, n = 1) => (counts[outcome] = (counts[outcome] ?? 0) + n)
   const definitions = loaded && definitionsOf(edition)
-  if (!loaded || !definitions) return count(loaded ? 'no VS Data release' : 'no catalogue', list.picks.length)
+  if (!loaded || !definitions) return count('no VS Data release', list.picks.length)
   const input = { ...savedRosterPriceInput({ ...list, disposition: null, limit }), includeUnitLimits: false }
   const price = calculateRosterPrice(input, loaded, editions.rulesFor(list.catalogueId))
   if (!price) return count('does not price', list.picks.length)
@@ -763,7 +763,7 @@ fs.writeFileSync(
   { mode: 0o600 },
 )
 // One output, written only once it reads whole, so the translations are always dated by the copy they came from.
-const run = savedPicksRunSchema.parse({ copiedAt, live: [...live].toSorted(byId), translations })
+const run = savedPicksRunSchema.parse({ copiedAt, live: [...live].toSorted(byId), disputed: [...disputed].toSorted(byId), translations })
 fs.writeFileSync(SAVED_PICKS_RUN, `${JSON.stringify(run)}\n`, { mode: 0o600 })
 console.log(Object.fromEntries(Object.entries(tally).toSorted(([a], [b]) => byId(a, b))))
 console.log(Object.fromEntries(Object.entries(byKind).toSorted(([a], [b]) => byId(a, b))))

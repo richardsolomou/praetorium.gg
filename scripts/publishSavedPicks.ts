@@ -29,7 +29,7 @@ const published = savedPicksSchema.parse(JSON.parse(new TextDecoder().decode(byt
 if (run.copiedAt < pinned.copiedAt)
   throw new Error(`this run's copy (${run.copiedAt}) is older than the published one (${pinned.copiedAt})`)
 
-const text = nextSavedPicks(published, run.translations.picks, new Set(run.live))
+const text = nextSavedPicks(published, run.translations.picks, new Set(run.live), new Set(run.disputed))
 const digest = sha256(text)
 if (!(await objects.head(savedPicksKey(digest))))
   await objects.put(savedPicksKey(digest), new TextEncoder().encode(text), { 'Content-Type': 'application/json' })
@@ -38,4 +38,6 @@ fs.writeFileSync(
   `${JSON.stringify(savedPicksPinSchema.parse({ format: 'praetorium.saved-picks-pin.v1', sha256: digest, copiedAt: run.copiedAt }), null, 2)}\n`,
 )
 const kept = Object.keys(run.translations.picks).filter((key) => published.picks[key]).length
-console.log(`published ${Object.keys(run.translations.picks).length} translations (${kept} also in the last) as ${savedPicksKey(digest)}`)
+console.log(
+  `published ${Object.keys(run.translations.picks).length} translations (${kept} also in the last, ${run.disputed.length} keys read two ways left out) as ${savedPicksKey(digest)}`,
+)

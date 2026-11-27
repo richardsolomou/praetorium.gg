@@ -119,7 +119,7 @@ export async function savedLists(file: string): Promise<SavedList[]> {
 
 /**
  * When the backup a local production copy was restored from captured the database, before its freeze, from the copy's
- * closing record: nothing saved after it is in the copy.
+ * closing record: everything saved before it is in the copy.
  */
 export async function copiedAtOf(file: string): Promise<string> {
   let copiedAt: string | undefined

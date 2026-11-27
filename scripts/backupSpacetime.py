@@ -182,7 +182,7 @@ def archive(config, work):
             container,
         ]
     )
-    # Taken before the pause, so nothing written after it is in the archive; a copy's readers date its records by this.
+    # Taken before the pause, so everything saved before it is in the archive; a copy's readers date its records by this.
     captured = utc_stamp()
     print(f"SpacetimeDB backup capture: {captured}", flush=True)
     started = time.monotonic()

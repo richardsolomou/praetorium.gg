@@ -34,14 +34,21 @@ const sameMeaning = (left: VsPick, right: VsPick) => JSON.stringify(sortedKeys(l
 /**
  * One copy's translations as the bytes to publish in place of `published`, holding that copy's keys alone, so each key
  * is dated by the copy it came from. A run stops if a key both hold would change meaning, or if a key some live record
- * of the copy still hashes to (`live`) would leave, since that record would fall back to its BSData choices.
+ * of the copy still hashes to (`live`) would leave, since that record would fall back to its BSData choices, unless the
+ * copy's picks read it two ways (`disputed`), which only the final publication before BSData goes must settle.
  */
-export function nextSavedPicks(published: SavedPicks | null, found: SavedPicks['picks'], live: ReadonlySet<string>): string {
+export function nextSavedPicks(
+  published: SavedPicks | null,
+  found: SavedPicks['picks'],
+  live: ReadonlySet<string>,
+  disputed: ReadonlySet<string>,
+): string {
   for (const [key, held] of Object.entries(published?.picks ?? {})) {
     const next = found[key]
     if (next && !sameMeaning(held, next))
       throw new Error(`saved pick ${key} is published as ${JSON.stringify(held)}; this run reads it as ${JSON.stringify(next)}`)
-    if (!next && live.has(key)) throw new Error(`saved pick ${key} is published and a live record still holds it; this run leaves it out`)
+    if (!next && live.has(key) && !disputed.has(key))
+      throw new Error(`saved pick ${key} is published and a live record still holds it; this run leaves it out`)
   }
   return `${JSON.stringify(sortedKeys(savedPicksSchema.parse({ format: 'praetorium.saved-picks.v1', picks: found })))}\n`
 }

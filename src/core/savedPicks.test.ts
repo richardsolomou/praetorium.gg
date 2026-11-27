@@ -54,20 +54,25 @@ describe('nextSavedPicks', () => {
   const none = new Set<string>()
 
   it('holds only the keys of the copy it publishes', () => {
-    expect(Object.keys(JSON.parse(nextSavedPicks(published, { fedcba9876543210: vs }, none)).picks)).toEqual(['fedcba9876543210'])
+    expect(Object.keys(JSON.parse(nextSavedPicks(published, { fedcba9876543210: vs }, none, none)).picks)).toEqual(['fedcba9876543210'])
   })
 
   it('stops a run that would change what a published key means', () => {
     const changed = { '0123456789abcdef': { ...vs, models: { 'space-marines.intercessor': 5 } } }
-    expect(() => nextSavedPicks(published, changed, none)).toThrow()
+    expect(() => nextSavedPicks(published, changed, none, none)).toThrow()
   })
 
   it('stops a run that leaves out a published key a live record still holds', () => {
-    expect(() => nextSavedPicks(published, {}, new Set(['0123456789abcdef']))).toThrow()
+    expect(() => nextSavedPicks(published, {}, new Set(['0123456789abcdef']), none)).toThrow()
+  })
+
+  it('lets a run leave out a key its copy reads two ways', () => {
+    const disputed = new Set(['0123456789abcdef'])
+    expect(JSON.parse(nextSavedPicks(published, {}, disputed, disputed)).picks).toEqual({})
   })
 
   it('refuses anything beside a pick’s content key and its VS Data IDs', () => {
-    expect(() => nextSavedPicks(null, { '0123456789abcdef': { ...vs, list: 'r-1' } as VsPick }, none)).toThrow()
+    expect(() => nextSavedPicks(null, { '0123456789abcdef': { ...vs, list: 'r-1' } as VsPick }, none, none)).toThrow()
   })
 })
 
