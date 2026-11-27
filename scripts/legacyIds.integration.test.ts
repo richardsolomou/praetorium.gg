@@ -33,7 +33,6 @@ describe.skipIf(!fs.existsSync(path.join(source, 'summaries')))('frozen Game Dat
   it('lead every per-datasheet BSData entry to a record its rules version summarizes', () => {
     const summarized = new Map<string, Set<string>>()
     const missing = Object.entries(bsdataRecords.ids).filter(([key, record]) => {
-      if (record === null) return false
       const edition = key.includes('~') ? key.slice(0, key.indexOf('~')) : ''
       if (!summarized.has(edition))
         summarized.set(edition, new Set(readVsDataRelease(source, edition || undefined)!.records.map((held) => `${held.kind}:${held.id}`)))

@@ -341,21 +341,16 @@ export function vsDataIndex(entries: Readonly<Record<string, readonly string[]>>
  */
 export type BsdataRecords = { byId: Readonly<Record<string, string>>; bySheet: Readonly<Record<string, string>> }
 
-/**
- * A rules version's `BsdataRecords`: its release's identity entries and the frozen map, read as `idsIn` reads one. A
- * null entry leaves its datasheet to the id's alias there, over a bare key whose record no review judged in that version.
- */
+/** A rules version's `BsdataRecords`: its release's identity entries and the frozen map, read as `idsIn` reads one. */
 export function bsdataRecords(
   entries: Readonly<Record<string, readonly string[]>>,
-  frozen: Readonly<Record<string, string | null>>,
+  frozen: Readonly<Record<string, string>>,
   edition: string | null,
 ): BsdataRecords {
   const byId: Record<string, string> = {}
   for (const [key, aliases] of Object.entries(entries))
     for (const alias of aliases) if (alias.startsWith('bsdata.')) byId[alias.slice('bsdata.'.length).replaceAll('.', '-')] = key
-  const bySheet: Record<string, string> = {}
-  for (const [key, record] of idsIn(frozen, edition)) if (record) bySheet[key] = record
-  return { byId, bySheet }
+  return { byId, bySheet: Object.fromEntries(idsIn(frozen, edition)) }
 }
 
 /** The record a BSData id is, on the datasheet `sheet` where it is one. */

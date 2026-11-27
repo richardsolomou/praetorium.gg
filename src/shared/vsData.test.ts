@@ -27,11 +27,3 @@ it('reads a rules version’s own frozen entry over the one every version shares
     'ability:adeptus-mechanicus.onager-dunecrawler.scuttling-walker',
   )
 })
-
-it('leaves a datasheet to the alias where its rules version’s entry is null', () => {
-  const frozen = {
-    'onager/6b1e-4f2-9c0d-a11': 'ability:chaos-daemons.soul-grinder.scuttling-walker',
-    'legacy-rosters~onager/6b1e-4f2-9c0d-a11': null,
-  }
-  expect(bsdataRecords(entries, frozen, 'legacy-rosters').bySheet).toEqual({})
-})
