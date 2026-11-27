@@ -10,13 +10,14 @@ import {
 } from '../contracts/rules'
 import type { CanonicalDatasheet, CanonicalDetachment } from '../contracts/catalogue'
 import type { ServedRuleSummary } from '../contracts/reference'
+import type { VsDataUnits } from '../shared/vsData'
 import { catalogueEditionId } from '../core/catalogueEdition'
 import { remember } from '../core/collections'
 import { canonicalDetachmentName } from '../core/detachmentName'
 import { hasTextTokens } from '../core/sourceText'
 import { routeSlug } from '../core/slug'
 import { abilityKeysNamed, recordsPrinting, wholeRuleTokens } from '../shared/ruleSummaries'
-import { datasheetAbilitySummary } from '../shared/vsDataAbilities'
+import { datasheetAbilitySummary, unitsInBook } from '../shared/vsDataAbilities'
 import { NO_RULE_SUMMARIES, type VsDataSummaries } from './vsDataSummaries'
 
 /** Whose rules a text prints, as the app's pages name the datasheet or detachment around it. */
@@ -52,8 +53,12 @@ export function ruleSummaryFinder(
 ) {
   let abilities: Record<string, RuleSummary> | undefined
   let coreRules: Record<string, RuleSummary> | undefined
+  // Each book's view of its rules version's units (`unitsInBook`), kept for the corpus that reads every book in turn.
+  const books = new Map<string, VsDataUnits>()
   const unitsOf = (owner: SummaryOwner | undefined) =>
-    summaries && owner ? summaries.unitsIn(catalogueEditionId(owner.catalogueId)) : null
+    summaries && owner
+      ? remember(books, owner.catalogueId, () => unitsInBook(summaries.unitsIn(catalogueEditionId(owner.catalogueId)), owner.catalogueId))
+      : null
   // A corpus reads every faction's file in turn, more than the summaries keep recently used.
   const files = new Map<string, RuleSummaries>()
   const summariesIn = (file: string) => (summaries ? remember(files, file, () => summaries.summariesIn(file)) : NO_RULE_SUMMARIES)

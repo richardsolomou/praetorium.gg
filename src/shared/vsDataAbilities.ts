@@ -8,6 +8,16 @@ type UnitsOf<T> = Omit<VsDataUnits, 'abilities'> & { abilities: Record<string, T
 /** `unitAbilitySlug` without each word's trailing "s", as a datasheet's "Bomb Squig" is VS Data's "Bomb Squigs". */
 export const abilityKey = (name: string) => unitAbilitySlug(name).replaceAll(/(?<=[a-z0-9]{2}[a-rt-z0-9])s(?=-|$)/g, '')
 
+/**
+ * `units` as the book `catalogueId` reads them: a datasheet its book's own `<book>/<datasheet>` key names another unit
+ * for, as a chaos book's Library Titan is a Chaos Titan, is that unit, as `inBook` reads the frozen units map.
+ */
+export function unitsInBook<T extends Pick<VsDataUnits, 'units'>>(units: T, catalogueId: string): T {
+  const book = `${catalogueId.slice(catalogueId.indexOf('~') + 1)}/`
+  const own = Object.entries(units.units).filter(([key]) => key.startsWith(book))
+  return own.length ? { ...units, units: { ...units.units, ...Object.fromEntries(own.map(([key, unit]) => [key.slice(book.length), unit])) } } : units
+}
+
 /** An `@` owner as VS Data names it: a faction, or a faction's detachment, by the faction's VS Data id. */
 function vsDataOwner(units: Pick<VsDataUnits, 'factions'> | null, subject: string) {
   const [faction = '', ...rest] = subject.slice(1).split('.')

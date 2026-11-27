@@ -1,12 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
-import { createContext, useContext } from 'react'
+import { createContext, useContext, useMemo } from 'react'
 import type { RuleSummary, RuleSummaryBlock, RuleSummaryInline } from '../../contracts/rules'
 import { catalogueEditionId } from '../../core/catalogueEdition'
 import { canonicalDetachmentName } from '../../core/detachmentName'
 import { routeSlug } from '../../core/slug'
 import type { VsDataInvulnerableSave, VsDataUnit, VsDataUnits } from '../../shared/vsData'
 import { ruleUnitsQuery } from '../queries/references'
-import { abilitySummaryIn, datasheetAbilitySummary } from '../../shared/vsDataAbilities'
+import { abilitySummaryIn, datasheetAbilitySummary, unitsInBook } from '../../shared/vsDataAbilities'
 import { useRuleSummaries } from '../ruleSummaries'
 
 /** What VS Data's roster and transport data say of one datasheet's unit: undefined while asked for, null where it has none. */
@@ -14,7 +14,11 @@ export function useVsDataUnit(catalogueId: string, entryId: string, enabled = tr
   return unitIn(useVsDataUnits(catalogueId, enabled), entryId)
 }
 
-const useVsDataUnits = (catalogueId: string, enabled: boolean) => useEditionUnits(catalogueEditionId(catalogueId), enabled)
+/** The VS Data units of the rules version `catalogueId` is of, as its book reads them (`unitsInBook`). */
+function useVsDataUnits(catalogueId: string, enabled: boolean): VsDataUnits | null | undefined {
+  const units = useEditionUnits(catalogueEditionId(catalogueId), enabled)
+  return useMemo(() => (units ? unitsInBook(units, catalogueId) : units), [units, catalogueId])
+}
 
 /** A rules version's VS Data units and abilities, the current one's where `edition` is null. */
 function useEditionUnits(edition: string | null, enabled: boolean): VsDataUnits | null | undefined {

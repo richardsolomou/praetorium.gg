@@ -11,7 +11,7 @@ import { exportRoster } from '../../functions'
 import { Problem } from '../../components/Problem'
 import { useRuleSummaries } from '../../ruleSummaries'
 import { abilityKeysNamed, summaryPlainText } from '../../../shared/ruleSummaries'
-import { datasheetAbilitySummary } from '../../../shared/vsDataAbilities'
+import { datasheetAbilitySummary, unitsInBook } from '../../../shared/vsDataAbilities'
 import { catalogueEditionId } from '../../../core/catalogueEdition'
 import { ruleAbilitySummariesQuery, ruleUnitsQuery } from '../../queries/references'
 import { useCopyText } from '../../useCopyText'
@@ -184,11 +184,12 @@ function TabletopExport({
   const catalogueId = parsed?.querySelector('force')?.getAttribute('catalogueId') ?? ''
   const printed = useRuleSummaries(abilities.map((ability) => ability.text))
   const units = useQuery({ ...ruleUnitsQuery(catalogueEditionId(catalogueId)), enabled: Boolean(catalogueId) })
+  const bookUnits = useMemo(() => (units.data ? unitsInBook(units.data, catalogueId) : null), [units.data, catalogueId])
   const core = useQuery(ruleAbilitySummariesQuery())
   const ready = Boolean(parsed) && !printed.pending && !(catalogueId && units.isPending) && !core.isPending
   // As a datasheet shows them: the unit's own record or the one its printed text names, else the core ability so named.
   const summaryOf = ({ owner, name: ability, id, text }: (typeof abilities)[number]) =>
-    datasheetAbilitySummary(units.data ?? null, owner, id, printed.recordsOf(text)) ??
+    datasheetAbilitySummary(bookUnits, owner, id, printed.recordsOf(text)) ??
     abilityKeysNamed(ability)
       .map((key) => core.data?.[key])
       .find(Boolean) ??

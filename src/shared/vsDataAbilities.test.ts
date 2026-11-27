@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest'
 import type { VsDataUnits } from './vsData'
-import { abilitySummaryIn, datasheetAbilitySummary } from './vsDataAbilities'
+import { abilitySummaryIn, datasheetAbilitySummary, unitsInBook } from './vsDataAbilities'
 
 const said = (text: string) => ({ blocks: [{ paragraph: [{ text }] }], questions: [] })
 const grinder = said('Soul Grinder Scuttling Walker')
@@ -62,3 +62,17 @@ it('reads words several units print alike as its own unit’s record', () =>
 
 it('finds a unit’s own record of a name, as its Transport', () =>
   expect(abilitySummaryIn(units, 'grinder-entry', 'Transport')).toBe(units.abilities['chaos-daemons.soul-grinder.transport']))
+
+it('reads a datasheet as the unit its book’s own key names, as a chaos book’s Titan', () =>
+  expect(
+    unitsInBook(
+      {
+        ...units,
+        units: {
+          titan: { id: 'titan-legions.warlord-titan', sizes: [], models: [], options: [] },
+          'chaos-book/titan': { id: 'chaos-titan-legions.chaos-warlord-titan', sizes: [], models: [], options: [] },
+        },
+      },
+      'legacy-rosters~chaos-book',
+    ).units.titan?.id,
+  ).toBe('chaos-titan-legions.chaos-warlord-titan'))
