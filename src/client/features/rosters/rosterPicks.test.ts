@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { RosterPick } from '../../../core/roster'
-import { picksAfterDetachmentChange } from '../../../core/rosterSetup'
+import { picksAfterDetachmentChange, picksAfterSetupChange } from '../../../core/rosterSetup'
 import { annotatedPicks, normalisePicks } from './rosterPicks'
 
 describe('changing roster detachments', () => {
@@ -35,6 +35,17 @@ describe('changing roster detachments', () => {
       models: vs.models,
       options: {},
     })
+  })
+
+  it("clears a VS Data pick's Enhancement when a rules version and its detachment change together", () => {
+    const vs = { models: { 'sm.captain.captain': 1 }, options: {}, enhancement: 'sm.gladius.artificer-armour' }
+    const moved = picksAfterSetupChange(
+      [{ entryId: 'captain', vs }],
+      [undefined],
+      { catalogueId: 'sm', detachmentIds: ['gladius'] },
+      { catalogueId: 'preview-x~sm', detachmentIds: ['firestorm'] },
+    )
+    expect(moved[0]?.vs).toEqual({ models: vs.models, options: {} })
   })
 
   it('keeps enhancements and upgrades when another detachment is added', () => {

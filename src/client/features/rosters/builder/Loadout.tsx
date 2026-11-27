@@ -184,7 +184,7 @@ export function Loadout({
   const { models, loose } = divide(unit)
   const pick = pickIndex === null ? undefined : picks[pickIndex]
   // A VS Data pick saves every option's counts, and its models', as a BSData pick saves a group's spread.
-  const saved = pick?.vs ? { ...pick.vs.options, [VS_MODELS]: pick.vs.models } : pick?.spreads
+  const saved = pick?.vs && unit && 'vs' in unit ? { ...pick.vs.options, [VS_MODELS]: pick.vs.models } : pick?.spreads
   // Read-only views list the unit's weapons by type, so only choices that are not wargear stay below them.
   const visibleLoose = showOptions
     ? loose

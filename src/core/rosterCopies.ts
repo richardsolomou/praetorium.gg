@@ -3,9 +3,9 @@ import { currentCatalogueFamilyId, currentRosterIds, picksForRulesVersion } from
 import type { UnitLoadout } from './unitLoadouts'
 import { withoutUnitNotes } from './unitNotes'
 
-/** Units of a list of `from` copied into a roster of `catalogueId`, without their owner's notes and moved to its rules version as a conversion moves them. */
-export const copiedPicks = (picks: readonly RosterPick[], catalogueId: string, from: string): RosterPick[] =>
-  picksForRulesVersion(withoutUnitNotes(picks), catalogueId, from)
+/** Units copied into a roster of `catalogueId`, without their owner's notes and moved to its rules version as a conversion moves them. */
+export const copiedPicks = (picks: readonly RosterPick[], catalogueId: string): RosterPick[] =>
+  picksForRulesVersion(withoutUnitNotes(picks), catalogueId)
 
 /**
  * A loadout as new units of a roster, its own unit first, or nothing when the roster is another army's.
@@ -17,7 +17,7 @@ export const copiedPicks = (picks: readonly RosterPick[], catalogueId: string, f
 export function loadoutPicks(loadout: Pick<UnitLoadout, 'catalogueId' | 'pick' | 'joined'>, catalogueId: string): RosterPick[] | null {
   if (currentCatalogueFamilyId(loadout.catalogueId) !== currentCatalogueFamilyId(catalogueId)) return null
   const saved = [loadout.pick, ...(loadout.joined ?? [])].map((pick) => ({ ...pick, catalogueId: loadout.catalogueId }))
-  return copiedPicks(saved, catalogueId, loadout.catalogueId).map((copy) => ({ ...copy, catalogueId }))
+  return copiedPicks(saved, catalogueId).map((copy) => ({ ...copy, catalogueId }))
 }
 
 /**

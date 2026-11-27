@@ -45,24 +45,17 @@ describe('loadoutPicks', () => {
   })
 
   const vs = { models: { 'sm.captain.captain': 1 }, options: {} }
-  it("leaves another rules version's VS Data IDs behind", () => {
-    expect(loadoutPicks({ ...loadout, pick: { ...loadout.pick, vs } }, 'preview-x~sm')?.[0]?.vs).toBeUndefined()
-  })
-
-  it('keeps VS Data IDs within their rules version', () => {
-    expect(loadoutPicks({ ...loadout, pick: { ...loadout.pick, vs } }, 'sm')?.[0]?.vs).toEqual(vs)
+  it('carries VS Data IDs into another rules version, for its reader to check there', () => {
+    expect(loadoutPicks({ ...loadout, pick: { ...loadout.pick, vs } }, 'preview-x~sm')?.[0]?.vs).toEqual(vs)
   })
 })
 
 describe('copiedPicks', () => {
   it('takes out every note', () => {
-    expect(copiedPicks([pick, { entryId: 'scouts', note: 'Infiltrate' }], 'sm', 'sm').map((copy) => copy.note)).toEqual([
-      undefined,
-      undefined,
-    ])
+    expect(copiedPicks([pick, { entryId: 'scouts', note: 'Infiltrate' }], 'sm').map((copy) => copy.note)).toEqual([undefined, undefined])
   })
 
   it('keeps attachments, which still point inside the copied army', () => {
-    expect(copiedPicks([pick], 'sm', 'sm')[0]?.attachedTo).toBe(2)
+    expect(copiedPicks([pick], 'sm')[0]?.attachedTo).toBe(2)
   })
 })

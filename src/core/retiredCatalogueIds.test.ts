@@ -38,7 +38,6 @@ describe('retired catalogue ids', () => {
           { entryId: intercessors.retired, catalogueId: `legacy-profiles~${spaceMarines.retired}`, models: 10, attachedTo: 0 },
         ],
         ultramarines.current,
-        `legacy-profiles~${ultramarines.retired}`,
       ),
     ).toEqual([
       { entryId: calgar.current },
@@ -46,23 +45,13 @@ describe('retired catalogue ids', () => {
     ])
   })
 
-  it('leaves VS Data IDs behind when a retired datasheet moves to its replacement', () => {
+  it('carries VS Data IDs with a retired datasheet to its replacement, for the reader to check there', () => {
     const vs = { models: { 'space-marines.marneus-calgar.marneus-calgar': 1 }, options: {} }
-    expect(picksForRulesVersion([{ entryId: calgar.retired, vs }], ultramarines.current, ultramarines.current)[0]?.vs).toBeUndefined()
-  })
-
-  it('leaves VS Data IDs behind when their rules version folds into another', () => {
-    const vs = { models: { 'space-marines.intercessor': 5 }, options: {} }
-    const folded = currentRosterIds({
-      catalogueId: 'current-rosters~e0af-67df-9d63-8fb7',
-      detachmentIds: [],
-      picks: [{ entryId: 'x', vs }],
-    })
-    expect(folded.picks[0]?.vs).toBeUndefined()
+    expect(picksForRulesVersion([{ entryId: calgar.retired, vs }], ultramarines.current)[0]?.vs).toEqual(vs)
   })
 
   it('preserves original identities when selecting a retained version', () => {
-    expect(picksForRulesVersion([{ entryId: calgar.retired }], `legacy-profiles~${ultramarines.retired}`, ultramarines.current)).toEqual([
+    expect(picksForRulesVersion([{ entryId: calgar.retired }], `legacy-profiles~${ultramarines.retired}`)).toEqual([
       { entryId: calgar.retired },
     ])
   })

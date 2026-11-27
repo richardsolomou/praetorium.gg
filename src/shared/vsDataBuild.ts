@@ -4,6 +4,7 @@ import { type ChoiceOptions, vsUnitChoices, vsUnitToggles } from '../core/unitCh
 import { type VsDataDefinitions, vsDataDefinitions } from '../core/vsDataConstruction'
 import { steppedSizes } from '../core/vsDataBuild'
 import { priceVsRoster, unitKeywords, type VsRoster } from '../core/vsDataRoster'
+import { vsPickIn } from '../core/vsPickUpgrade'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { inBook } from './vsDataPoints'
 
@@ -41,13 +42,15 @@ export function buildPick(
 ): BuiltUnit | null {
   const unit = pick.vs && vsUnitIdOf(loaded, list.catalogueId, pick.entryId)
   const definitions = unit ? vsDefinitionsOf(loaded) : null
-  if (pick.vs && definitions && unit) {
+  // A pick moved from another rules version or datasheet keeps its `vs` only where this version still holds it.
+  const vs = pick.vs && definitions && unit ? vsPickIn(definitions, unit, pick.vs) : undefined
+  if (vs && definitions && unit) {
     const { faction, detachments } = vsListOf(loaded, list.catalogueId, list.detachmentIds)
     const filed = Object.entries(loaded.vsRoster?.enhancements ?? {}).find(
-      ([key, id]) => id === pick.vs!.enhancement && detachments.includes(key.slice(0, key.indexOf('/'))),
+      ([key, id]) => id === vs.enhancement && detachments.includes(key.slice(0, key.indexOf('/'))),
     )
     const built = buildVsUnit(
-      { ...pick, vs: pick.vs },
+      { ...pick, vs },
       loaded.index,
       {
         definitions,
