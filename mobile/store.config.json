@@ -5,8 +5,23 @@
       "en-GB": {
         "title": "Praetorium.gg",
         "subtitle": "Army lists and battle tracker",
-        "description": "Build Warhammer 40,000 armies and track games from setup to final score.\n\nChoose your faction, units and loadouts, check points as you build, and save or share your lists. When you play, Praetorium adds your CP each turn, checks which stratagems you can use, asks what each card scored and keeps a replay. Play 1v1, 2v1 or 2v2 with friends, or practise on your own.\n\nUse Praetorium on the web, phone or tablet. Share battle and roster links, print lists, get battle-action haptics and keep the screen awake while you play.\n\nPraetorium is an unofficial product and is not affiliated with or endorsed by Games Workshop. Warhammer 40,000 and related marks belong to Games Workshop.",
-        "keywords": ["army", "list", "battle", "tracker", "tabletop", "roster", "miniatures", "strategy", "companion"],
+        "description": "Build Warhammer 40,000 armies and track games from setup to final score.\n\nChoose your faction, units and loadouts, check points as you build, and save or share your lists. When you play, Praetorium adds your CP each turn, checks which stratagems you can use, asks what each card scored and keeps a replay. Play 1v1, 2v1 or 2v2 with friends, or practise on your own.\n\nCompare any two units in the combat simulator, and run groups, leagues and tournaments with your club.\n\nUse Praetorium on the web, phone or tablet. Share battle and roster links, print lists, get battle-action haptics and keep the screen awake while you play.\n\nPraetorium is an unofficial product and is not affiliated with or endorsed by Games Workshop. Warhammer 40,000 and related marks belong to Games Workshop.",
+        "keywords": [
+          "army",
+          "list",
+          "battle",
+          "tracker",
+          "tabletop",
+          "roster",
+          "miniatures",
+          "strategy",
+          "companion",
+          "wargame",
+          "simulator",
+          "league"
+        ],
+        "releaseNotes": "Improvements and fixes to make building armies and tracking battles smoother.",
+        "promoText": "Build your army, check points as you go and track every battle from setup to the final score.",
         "marketingUrl": "https://praetorium.gg",
         "supportUrl": "https://praetorium.gg/support",
         "privacyPolicyUrl": "https://praetorium.gg/privacy"
