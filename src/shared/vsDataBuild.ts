@@ -76,7 +76,7 @@ export function buildPick(
     })
   const plain = build(pick.models)
   // BSData can size a unit by ranges whose sum spans sizes VS Data never fields, as 1-2 Nobz and 9-18 Boyz reach 15.
-  const sizes = vsSizesOf(loaded, pick.entryId)
+  const sizes = vsSizesOf(loaded, list.catalogueId, pick.entryId)
   if (!plain || !sizes || plain.size.options || plain.size.min > sizes[0]! || plain.size.max < sizes.at(-1)!) return plain
   const wanted = plain.size.models
   const nearest = sizes.reduce((best, size) => (Math.abs(size - wanted) < Math.abs(best - wanted) ? size : best))
@@ -85,8 +85,8 @@ export function buildPick(
 }
 
 /** The sizes VS Data steps a datasheet's unit between, where it fields some but not all between its smallest and largest. */
-function vsSizesOf(loaded: LoadedCatalogue, entryId: string): number[] | undefined {
-  const unit = vsUnitIdOf(loaded, entryId)
+function vsSizesOf(loaded: LoadedCatalogue, catalogueId: string, entryId: string): number[] | undefined {
+  const unit = vsUnitIdOf(loaded, catalogueId, entryId)
   return unit ? steppedSizes(vsDefinitionsOf(loaded)!.get('unit', unit)!.data.sizes) : undefined
 }
 
