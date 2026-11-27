@@ -142,8 +142,6 @@ test('source matchup nominations survive undo and reload', async ({ page, browse
   await expect(hostSide.getByRole('button', { name: 'Record guards', exact: true })).toHaveCount(0)
   await expect(advanceButton(page)).toBeEnabled()
   await page.getByRole('button', { name: 'Undo latest action', exact: true }).click()
-  // A skipped choice stays skipped on this page, so once undone it is reopened from its card.
-  await hostSide.getByRole('button', { name: 'Record guards', exact: true }).click()
   await expect(guards).toBeVisible()
   const firstGuard = guards.getByRole('combobox', { name: /^Guard for / }).first()
   await firstGuard.click()
