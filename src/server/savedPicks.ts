@@ -2,7 +2,7 @@ import { hash } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import rawPin from '../shared/savedPicks.pin.json' with { type: 'json' }
-import { type SavedPickTranslations, savedPickTranslations, savedPicksPinSchema } from '../core/savedPicks'
+import { type SavedPickTranslations, savedPickTranslations, savedPicksKey, savedPicksPinSchema } from '../core/savedPicks'
 import { privateR2Client, r2Objects } from './r2Client'
 
 /**
@@ -10,7 +10,6 @@ import { privateR2Client, r2Objects } from './r2Client'
  * no key to, and the bytes it must hold.
  */
 export const savedPicksPin = savedPicksPinSchema.parse(rawPin)
-export const savedPicksKey = (sha256 = savedPicksPin.sha256) => `saved-picks/${sha256}.json`
 
 /** The pinned translations' bytes, verified against the pin: from this server's copy, else the bucket, then kept. */
 export async function savedPicksBytes(dataDirectory = process.env.DATA_DIR ?? '/data'): Promise<Uint8Array> {
@@ -23,7 +22,7 @@ export async function savedPicksBytes(dataDirectory = process.env.DATA_DIR ?? '/
   }
   const store = privateR2Client()
   if (!store) throw new Error('saved-pick translations are unavailable without the private bucket')
-  const bytes = await r2Objects(store).get(savedPicksKey())
+  const bytes = await r2Objects(store).get(savedPicksKey(savedPicksPin.sha256))
   if (!bytes) throw new Error('saved-pick translations are missing from the private bucket')
   if (!verified(bytes)) throw new Error('saved-pick translations do not match their pin')
   fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 })

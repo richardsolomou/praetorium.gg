@@ -14,10 +14,15 @@ export const savedPicksSchema = z.strictObject({
 })
 export type SavedPicks = z.infer<typeof savedPicksSchema>
 
+/** The published translations' object in the players' private bucket, by their SHA-256. */
+export const savedPicksKey = (sha256: string) => `saved-picks/${sha256}.json`
+
 /** The published translations' address: the object `saved-picks/<sha256>.json` in the players' private bucket. */
 export const savedPicksPinSchema = z.strictObject({
   format: z.literal('praetorium.saved-picks-pin.v1'),
   sha256: z.string().regex(/^[0-9a-f]{64}$/),
+  /** When the backup the translations were made from was taken: a translation attaches only to a record saved before it and unchanged since. */
+  copiedAt: z.iso.datetime(),
 })
 
 /**

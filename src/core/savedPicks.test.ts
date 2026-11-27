@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { RosterPick, VsPick } from './roster'
-import { appendSavedPicks, savedPickKey, withVsPicks } from './savedPicks'
+import { appendSavedPicks, savedPickKey, savedPicksPinSchema, withVsPicks } from './savedPicks'
 
 const context = { rulesVersion: 'mfm-1-6', catalogueId: 'book', detachmentIds: ['gladius'] }
 const pick: RosterPick = { entryId: 'intercessors', models: 10, choices: { 'squad/sergeant': 'plasma-pistol' } }
@@ -65,5 +65,11 @@ describe('appendSavedPicks', () => {
 
   it('refuses anything beside a pick’s content key and its VS Data IDs', () => {
     expect(() => appendSavedPicks(null, { '0123456789abcdef': { ...vs, list: 'r-1' } as VsPick })).toThrow()
+  })
+})
+
+describe('savedPicksPinSchema', () => {
+  it('refuses a pin that does not say when its copy’s backup was taken', () => {
+    expect(() => savedPicksPinSchema.parse({ format: 'praetorium.saved-picks-pin.v1', sha256: '0'.repeat(64) })).toThrow()
   })
 })

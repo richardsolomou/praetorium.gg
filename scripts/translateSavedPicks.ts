@@ -20,7 +20,7 @@ type PricedUnit = NonNullable<ReturnType<typeof calculateRosterPrice>>['units'][
 import { rosterDetachments } from '../src/shared/rosterDetachments'
 import { inBook } from '../src/shared/vsDataPoints'
 import { loadSnapshot } from './lib/catalogueSnapshotLoad'
-import { savedLists, savedLoadouts } from './lib/vsDataRosterParity'
+import { copiedAtOf, savedLists, savedLoadouts } from './lib/vsDataRosterParity'
 import { catalogueUnitErrors, leaves, legacyIds, modelsByName, specialOf, vsModels } from './lib/vsDataRosters'
 import { modelsNamed, same, words } from '../src/shared/vsDataModelNames'
 import { vsSpelling } from '../src/shared/wargearSpellings'
@@ -38,8 +38,8 @@ import { vsSpelling } from '../src/shared/wargearSpellings'
  * on BSData for what VS Data or the reviewed spellings lack, counted by datasheet, option paths and cause, with no list
  * named; and the frozen translations
  * (`savedPicksSchema`) to `data-dev/saved-picks.json`: every translated pick by `savedPickKey`, less any key another
- * pick reads differently or not at all. Both are derived from players' lists, so they stay in `data-dev`. Prints counts by
- * kind and rules version.
+ * pick reads differently or not at all, with `data-dev/saved-picks-copy.json`, when the copy's backup was taken. All are
+ * derived from players' lists, so they stay in `data-dev`. Prints counts by kind and rules version.
  *
  *   pnpm exec tsx scripts/translateSavedPicks.ts [catalogue directory] [list copy]
  */
@@ -757,6 +757,9 @@ fs.writeFileSync(
   )}\n`,
   { mode: 0o600 },
 )
+// The backup's time goes beside the translations, so their publication is dated by the copy they came from.
+if (listFile.endsWith('.gz'))
+  fs.writeFileSync('data-dev/saved-picks-copy.json', `${JSON.stringify({ copiedAt: await copiedAtOf(listFile) })}\n`, { mode: 0o600 })
 fs.writeFileSync('data-dev/saved-picks.json', `${JSON.stringify(savedPicksSchema.parse(translations))}\n`, { mode: 0o600 })
 console.log(Object.fromEntries(Object.entries(tally).toSorted(([a], [b]) => byId(a, b))))
 console.log(Object.fromEntries(Object.entries(byKind).toSorted(([a], [b]) => byId(a, b))))
