@@ -1,7 +1,9 @@
 import path from 'node:path'
 import { parseArgs } from 'node:util'
 import rawOptions from '../catalogue/legacy-ids/options.json' with { type: 'json' }
+import { nameOf } from '../src/core/catalogue'
 import { legacyOptionsSchema } from '../src/core/legacyIds'
+import { isNonMatchedPlayName } from '../src/core/name'
 import { buildUnit, type RosterPick } from '../src/core/roster'
 import type { Counts } from '../src/core/vsDataConstruction'
 import { modelBounds } from '../src/core/vsDataRoster'
@@ -104,6 +106,9 @@ let unbuilt = 0
 for (const [entryId, entry] of Object.entries(map)) {
   const unit = definitions.get('unit', entry.unit)
   if (!unit || entry.base === 'unmatched' || vsUnitIdOf(catalogue, entryId) !== unit.id) continue
+  // Only a datasheet VS Data defines exactly is fielded by its IDs, so Legends and Crucible copies stay out.
+  const name = nameOf(catalogue.index.definitions.get(entryId)!, catalogue.index.definitions)
+  if (unit.data.legends || isNonMatchedPlayName(name)) continue
   const book = bookOf(entryId, unit.id)
   if (!book) continue
   datasheets++
@@ -113,10 +118,20 @@ for (const [entryId, entry] of Object.entries(map)) {
   )
   const first = added(structuredClone(unit.data.defaults ?? {}), entry.base?.options ?? {})
   const built = buildUnit(entryId, catalogue.index)
-  const allegiance = built?.choices.flatMap((choice) => {
-    const mapped = choice.chosen ? entry.choices[`${choice.key}|${choice.chosen}`] : undefined
-    return mapped && 'allegiance' in mapped ? [mapped.allegiance] : []
-  })[0]
+  // The allegiance the default build holds, or the one its datasheet's name gives, as a Nurgle Soul Grinder's.
+  const allegiance =
+    built?.choices.flatMap((choice) => {
+      const mapped = choice.chosen ? entry.choices[`${choice.key}|${choice.chosen}`] : undefined
+      return mapped && 'allegiance' in mapped ? [mapped.allegiance] : []
+    })[0] ??
+    (unit.data.allegiances ?? [])
+      .flatMap((offer) => offer.choices)
+      .find((id) =>
+        name
+          .toLowerCase()
+          .split(/\s+/)
+          .includes((definitions.get('allegiance', id)?.name ?? '').toLowerCase()),
+      )
   const picks: { key: string; bs: RosterPick; keys: string[] }[] = [{ key: 'default', bs: { entryId }, keys: [] }]
   for (const key of Object.keys(entry.choices)) {
     const [choiceKey, optionId = ''] = key.split('|') as [string, string?]
