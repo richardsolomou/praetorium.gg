@@ -6,14 +6,15 @@ type Tier = { copies: { from: number; to?: number }; costs: { models: number; po
 
 /**
  * A rules version's VS Data prices, by the BSData IDs its saved lists hold: each datasheet VS Data defines with the
- * cost rows of the unit it is (by `<book>/<ID>` where it is another unit in that book, read through `inBook`), each
+ * cost rows of the unit it is (by `<book>/<ID>` where it is another unit in that book, null where VS Data cannot price
+ * that unit, read through `inBook`), each
  * Detachment with its Detachment points and its Enhancements under their BSData names, and each book's faction, which
  * decides the cost row a unit fielded in another faction's army takes.
  */
 export type VsPointsIndex = {
   books: Record<string, string>
   factions: Record<string, { name: string; parent?: string }>
-  units: Record<string, { faction: string; tiers: Tier[]; wargear: { item: string; points: number }[] }>
+  units: Record<string, { faction: string; tiers: Tier[]; wargear: { item: string; points: number }[] } | null>
   detachments: Record<
     string,
     {
@@ -44,14 +45,18 @@ export function idsIn(map: Readonly<Record<string, string>>, edition: string | n
   return read
 }
 
-/** A datasheet's entry in what is keyed as `idsIn` keys units, for a list of the book `catalogueId`: the book's own key first. */
+/**
+ * A datasheet's entry in what is keyed as `idsIn` keys units, for a list of the book `catalogueId`: the book's own key
+ * first. A book key held as null reads as none, never as the datasheet's unit in other books.
+ */
 export function inBook<T>(
-  held: ReadonlyMap<string, T> | Readonly<Record<string, T>> | undefined,
+  held: ReadonlyMap<string, T | null> | Readonly<Record<string, T | null>> | undefined,
   catalogueId: string,
   entryId: string,
 ): T | undefined {
-  const get = (key: string) => (held instanceof Map ? held.get(key) : (held as Readonly<Record<string, T>> | undefined)?.[key])
-  return get(`${catalogueId.slice(catalogueId.indexOf('~') + 1)}/${entryId}`) ?? get(entryId)
+  const get = (key: string) => (held instanceof Map ? held.get(key) : (held as Readonly<Record<string, T | null>> | undefined)?.[key])
+  const scoped = get(`${catalogueId.slice(catalogueId.indexOf('~') + 1)}/${entryId}`)
+  return (scoped === undefined ? get(entryId) : scoped) ?? undefined
 }
 
 /** The datasheet ID a key of `idsIn`'s units names, without its book. */
@@ -69,15 +74,15 @@ export function vsPointsIndex(
   nameOf: (id: string) => string | undefined,
 ): VsPointsIndex {
   const units: VsPointsIndex['units'] = {}
-  for (const [entryId, saved] of idsIn(ids.units, edition)) {
+  const unitPrice = (entryId: string, saved: string): VsPointsIndex['units'][string] => {
     const id = definitions.current(saved)
     const unit = definitions.get('unit', id)
     const name = nameOf(datasheetOf(entryId))
-    if (!unit || !name || definitions.unavailable.has(id)) continue
+    if (!unit || !name || definitions.unavailable.has(id)) return null
     const row = definitions.points
       .flatMap((snapshot) => snapshot.factions.find((faction) => faction.id === unit.data.faction)?.units ?? [])
       .find((candidate) => candidate.id === id)
-    if (!row) continue
+    if (!row) return null
     const tiers = row.tiers.map((tier) => ({
       copies: tier.copies,
       costs: tier.costs.flatMap((cost) => {
@@ -101,8 +106,12 @@ export function vsPointsIndex(
         ),
       )
     )
-      continue
-    units[entryId] = { faction: unit.data.faction, tiers, wargear }
+      return null
+    return { faction: unit.data.faction, tiers, wargear }
+  }
+  for (const [entryId, saved] of idsIn(ids.units, edition)) {
+    const found = unitPrice(entryId, saved)
+    if (found || entryId.includes('/')) units[entryId] = found
   }
   const enhancementIds = [...idsIn(ids.enhancements, edition)]
   const detachments: VsPointsIndex['detachments'] = {}

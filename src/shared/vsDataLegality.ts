@@ -8,13 +8,13 @@ import { datasheetOf, idsIn, inBook, type VsDataIds } from './vsDataPoints'
 /**
  * A rules version's VS Data roster definitions without wargear, and the IDs its saved lists hold read as VS Data's: each
  * book's faction, each Detachment, each Enhancement option under its VS Data Detachment, and each datasheet VS Data
- * checks, under its book where it is another unit there (`inBook`).
+ * checks, under its book where it is another unit there (`inBook`), null where VS Data defines no such unit.
  */
 export type VsRosterData = {
   construction: VsDataConstruction
   books: Record<string, string>
   detachments: Record<string, string>
-  units: Record<string, string>
+  units: Record<string, string | null>
   enhancements: Record<string, string>
 }
 
@@ -25,10 +25,11 @@ export function vsRosterData(
   nameOf: (id: string) => string | undefined,
 ): VsRosterData {
   const definitions = vsDataDefinitions(construction)
-  const units: Record<string, string> = {}
+  const units: VsRosterData['units'] = {}
   for (const [entryId, saved] of idsIn(ids.units, edition)) {
     const id = definitions.current(saved)
     if (nameOf(datasheetOf(entryId)) && (definitions.get('unit', id) || definitions.unavailable.has(id))) units[entryId] = id
+    else if (entryId.includes('/')) units[entryId] = null
   }
   return {
     construction,

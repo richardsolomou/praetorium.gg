@@ -464,8 +464,14 @@ for (const entry of composition.editions.toSorted((left, right) => Number(Boolea
   // A book's key reads before a rules version's own bare one, so a version that reads the datasheet otherwise there says so.
   for (const [id, scoped] of base?.units ?? [])
     if (id.includes('/') && !read.units.has(id)) {
-      const current = read.units.get(id.slice(id.indexOf('/') + 1))
-      if (current && current !== scoped) found.units.push([`${entry.edition.id}~${id}`, current])
+      const datasheet = id.slice(id.indexOf('/') + 1)
+      const current = read.units.get(datasheet)
+      if (!current || current === scoped) continue
+      found.units.push([`${entry.edition.id}~${id}`, current])
+      const allegiance = allegiances.get(datasheet)
+      if (allegiance) foundAllegiances.push([`${entry.edition.id}~${id}`, allegiance])
+      else if (baseAllegiances.has(id))
+        throw new Error(`${entry.edition.id}: ${id} implies no allegiance, but the current rules version's book key would read one`)
     }
   for (const [id, allegiance] of allegiances)
     if (!base) foundAllegiances.push([id, allegiance])
