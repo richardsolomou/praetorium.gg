@@ -5,6 +5,7 @@ import { app } from './app'
 import { calculateRosterTotals } from '../shared/pricing'
 import type { saveRosterSchema } from '../contracts/schemas'
 import { convertedSetup } from '../core/rosterSetup'
+import { withHeldVs } from '../core/savedPicks'
 
 export async function saveOwnedRoster(
   userId: string,
@@ -55,7 +56,8 @@ export async function copySavedRoster(userId: string, id: string, variant: boole
     borrowedDetachmentId: roster.borrowedDetachmentId,
     limit: roster.limit,
     pointsBudget: roster.pointsBudget,
-    picks: roster.picks,
+    // A copy keeps, as its own, the translations its reader was served.
+    picks: roster.picks.map(withHeldVs),
     waivedRules: roster.waivedRules,
     optionalRules: roster.optionalRules,
     prep: roster.prep,

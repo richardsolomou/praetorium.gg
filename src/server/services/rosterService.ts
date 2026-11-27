@@ -9,6 +9,7 @@ import type { RosterSource, RosterVisibility } from '../../core/savedRoster'
 import type { RepositoryPort } from '../spacetimeRepository'
 import { picksSchema } from '../../contracts/schemas'
 import { optionalRulesFrom, readerRosterFromRow, rosterFromRow, rosterRow, waivedRulesFrom } from '../rosterPersistence'
+import { servedLoadout, servedRoster } from '../savedPicks'
 import { detachmentIds } from '../../core/savedRoster'
 import { LOCKED_ROSTER_MESSAGE } from '../../core/rosterLock'
 import { currentRosterIds } from '../../core/retiredCatalogueIds'
@@ -183,12 +184,13 @@ export class RosterService {
   }
 
   private async accessToRow(row: NonNullable<Awaited<ReturnType<RepositoryPort['roster']>>>, userId: string | null) {
-    if (row.userId === userId) return { roster: rosterFromRow(row, true), editable: true }
+    if (row.userId === userId) return { roster: servedRoster(rosterFromRow(row, true)), editable: true }
     // Named rather than "anything but private", so a value added later is refused
     // until somebody decides it should not be.
-    if (row.visibility === 'unlisted' || row.visibility === 'public') return { roster: readerRosterFromRow(row), editable: false }
+    if (row.visibility === 'unlisted' || row.visibility === 'public')
+      return { roster: servedRoster(readerRosterFromRow(row)), editable: false }
     const lender = userId ? await this.lender(row.id, userId) : null
-    return lender ? { roster: readerRosterFromRow(row), editable: false, lentBy: lender } : null
+    return lender ? { roster: servedRoster(readerRosterFromRow(row)), editable: false, lentBy: lender } : null
   }
 
   /** A reader's access to a roster, with the roster it was copied from when this reader may be told. */
@@ -386,8 +388,8 @@ export class RosterService {
     else await this.repository.removeFavouriteFaction(userId, catalogueId)
   }
 
-  unitLoadouts(userId: string) {
-    return this.repository.unitLoadoutsByUser(userId)
+  async unitLoadouts(userId: string) {
+    return (await this.repository.unitLoadoutsByUser(userId)).map(servedLoadout)
   }
 
   async saveUnitLoadout(userId: string, { id, ...loadout }: UnitLoadout & { id: string }) {

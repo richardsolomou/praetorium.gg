@@ -2,7 +2,21 @@ import { hash } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import rawPin from '../shared/savedPicks.pin.json' with { type: 'json' }
-import { type SavedPickTranslations, savedPickTranslations, savedPicksPinSchema } from '../core/savedPicks'
+import type { Roster } from '../core/battle'
+import { catalogueEditionId } from '../core/catalogueEdition'
+import { currentRosterIds, fieldedRosterIds } from '../core/retiredCatalogueIds'
+import type { RosterPick } from '../core/roster'
+import {
+  type SavedPickTranslations,
+  savedPickTranslations,
+  savedPicksKey,
+  savedPicksPinSchema,
+  translatesSavedAt,
+  withVsLoadout,
+  withVsPicks,
+} from '../core/savedPicks'
+import { readCatalogueComposition } from './catalogueComposition'
+import { catalogueDirectory } from './catalogueIndex'
 import { privateR2Client, r2Objects } from './r2Client'
 
 /**
@@ -10,7 +24,6 @@ import { privateR2Client, r2Objects } from './r2Client'
  * no key to, and the bytes it must hold.
  */
 export const savedPicksPin = savedPicksPinSchema.parse(rawPin)
-export const savedPicksKey = (sha256 = savedPicksPin.sha256) => `saved-picks/${sha256}.json`
 
 /** The pinned translations' bytes, verified against the pin: from this server's copy, else the bucket, then kept. */
 export async function savedPicksBytes(dataDirectory = process.env.DATA_DIR ?? '/data'): Promise<Uint8Array> {
@@ -23,7 +36,7 @@ export async function savedPicksBytes(dataDirectory = process.env.DATA_DIR ?? '/
   }
   const store = privateR2Client()
   if (!store) throw new Error('saved-pick translations are unavailable without the private bucket')
-  const bytes = await r2Objects(store).get(savedPicksKey())
+  const bytes = await r2Objects(store).get(savedPicksKey(savedPicksPin.sha256))
   if (!bytes) throw new Error('saved-pick translations are missing from the private bucket')
   if (!verified(bytes)) throw new Error('saved-pick translations do not match their pin')
   fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 })
@@ -50,4 +63,74 @@ export function savedPicks(): SavedPickTranslations | undefined {
       })
       .finally(() => (loading = undefined))
   return loaded
+}
+
+/** The translations a record saved (or last changed) at `savedAt` may take: none for one saved after the copy they read. */
+const savedPicksFor = (savedAt: number) => (translatesSavedAt(savedPicksPin.copiedAt, savedAt) ? savedPicks() : undefined)
+
+const baseRulesVersions = new Map<string, string | undefined>()
+/** The rules version a list's picks are keyed in, as the translator read it: its own, else the snapshot's base one. */
+function rulesVersionOf(catalogueId: string) {
+  const own = catalogueEditionId(catalogueId)
+  if (own) return own
+  const directory = catalogueDirectory()
+  if (!baseRulesVersions.has(directory))
+    baseRulesVersions.set(directory, readCatalogueComposition(directory)?.editions.find((entry) => entry.base)?.edition.id)
+  return baseRulesVersions.get(directory)
+}
+
+/** `picks` with, as `translatedVs`, the `vs` each of `translated` was given where the pick holds none of its own. */
+const withTranslationsFrom = <T extends RosterPick>(picks: readonly T[], translated: readonly RosterPick[]) =>
+  picks.map((pick, at) => {
+    const vs = translated[at]?.vs
+    return pick.vs || !vs ? pick : { ...pick, translatedVs: vs }
+  })
+
+/*
+ * The served readers below attach a frozen translation, as a pick's `translatedVs`, which no save keeps, only inside a
+ * read the caller is already allowed, to the record it returns, and only where that record was last saved before the
+ * copy the translations read: a record saved later never takes one, so saving a guessed pick can't reveal whether some
+ * list held it. Battle reads never call them.
+ */
+
+/** A saved roster, as `rosterFromRow` reads it, with its picks' frozen translations. */
+export function servedRoster<T extends Parameters<typeof withVsPicks>[0] & { updatedAt: number }>(roster: T): T {
+  const translations = savedPicksFor(roster.updatedAt)
+  const rulesVersion = translations && rulesVersionOf(roster.catalogueId)
+  if (!translations || !rulesVersion) return roster
+  const translated = withVsPicks(roster, rulesVersion, translations)
+  return translated === roster ? roster : { ...roster, picks: withTranslationsFrom(roster.picks, translated.picks) }
+}
+
+/** A saved unit loadout, as stored, with its units' frozen models and wargear, read as one saved when it was created. */
+export function servedLoadout<T extends { catalogueId: string; pick: RosterPick; joined?: readonly RosterPick[]; createdAt: number }>(
+  loadout: T,
+): T {
+  const translations = savedPicksFor(loadout.createdAt)
+  if (!translations) return loadout
+  const stored = [loadout.pick, ...(loadout.joined ?? [])]
+  const read = currentRosterIds({ catalogueId: loadout.catalogueId, detachmentIds: [], picks: stored, updatedAt: loadout.createdAt })
+  const rulesVersion = rulesVersionOf(read.catalogueId)
+  if (!rulesVersion) return loadout
+  const [pick, ...joined] = read.picks
+  const kept = withVsLoadout({ catalogueId: read.catalogueId, pick: pick!, joined }, rulesVersion, translations)
+  const [own, ...rest] = withTranslationsFrom(stored, [kept.pick, ...(kept.joined ?? [])])
+  return { ...loadout, pick: own!, ...(loadout.joined ? { joined: rest } : {}) }
+}
+
+/**
+ * A sealed list, as its entry stores it, with its picks' frozen translations, read as fielded when it was submitted. An
+ * entry with no submission time has no time it last changed, so it takes none.
+ */
+export function servedSealedRoster(roster: Roster, submittedAt: number | null): Roster {
+  const built = roster.built
+  const translations = built?.picks && submittedAt !== null && savedPicksFor(submittedAt)
+  if (!built?.picks || !translations) return roster
+  const read = fieldedRosterIds(
+    { catalogueId: built.catalogueId, detachmentIds: built.detachmentIds ?? [], picks: built.picks },
+    submittedAt,
+  )
+  const rulesVersion = rulesVersionOf(read.catalogueId)
+  const translated = rulesVersion ? withVsPicks(read, rulesVersion, translations) : read
+  return translated === read ? roster : { ...roster, built: { ...built, picks: withTranslationsFrom(built.picks, translated.picks) } }
 }

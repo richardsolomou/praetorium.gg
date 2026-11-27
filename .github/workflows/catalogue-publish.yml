@@ -1,0 +1,116 @@
+name: Catalogue publish
+
+# Publishes the snapshot catalogue.yml built as an inactive candidate and pins it on the branch it was built for.
+# A workflow_run job runs main's copy of this file on main's ref, so it alone holds the main-only key that writes the
+# catalogue bucket, and none of the branch's code runs here. Publication only adds objects named by their own hashes.
+on:
+  workflow_run:
+    workflows: [Catalogue snapshot]
+    types: [completed]
+
+concurrency:
+  group: catalogue-publish-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_repository.full_name == github.repository
+    environment: main-only
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      actions: write
+      contents: read
+    env:
+      BRANCH: ${{ github.event.workflow_run.head_branch }}
+      RUN_ID: ${{ github.event.workflow_run.id }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      # A build whose branch already pins its catalogue uploads nothing.
+      - name: Find the built snapshot
+        id: built
+        run: |
+          set -euo pipefail
+          count="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID/artifacts?name=catalogue-release" --jq .total_count)"
+          if [[ "$count" != 0 ]]; then echo "found=true" >> "$GITHUB_OUTPUT"; fi
+      - uses: actions/checkout@v7
+        if: steps.built.outputs.found
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v8
+        if: steps.built.outputs.found
+        with:
+          name: catalogue-release
+          path: build
+          run-id: ${{ env.RUN_ID }}
+          github-token: ${{ github.token }}
+      - uses: actions/setup-python@v7
+        if: steps.built.outputs.found
+        with:
+          python-version: '3.13'
+      # Main's revocations, not the branch's, decide what may be published.
+      - name: Publish the candidate to the private store
+        if: steps.built.outputs.found
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_CATALOGUE_PUBLISH_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_CATALOGUE_PUBLISH_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: us-east-1
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          cp catalogue/revocations.json build/release/revocations.json
+          python3 -m pip install --quiet boto3==1.43.113
+          python3 scripts/publishCatalogue.py publish
+      # A newer push to catalogue/ starts a newer build, which pins its own snapshot.
+      - name: Check the branch still holds the built catalogue
+        id: branch
+        if: steps.built.outputs.found
+        run: |
+          set -euo pipefail
+          git fetch --quiet origin "refs/heads/$BRANCH"
+          if [[ "$(git rev-parse FETCH_HEAD:catalogue)" == "$(jq -r .authoringRevision build/release/release.json)" ]]; then
+            echo "current=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::$BRANCH has moved its catalogue since this build, so the newer build pins instead"
+          fi
+      - uses: richardsolomou/ras-stack/actions/setup-js@v1
+        if: steps.branch.outputs.current
+      # catalogue.json holds only its format, the pointer and the snapshot's revisions, so main's script writes the branch's.
+      - name: Pin the candidate
+        if: steps.branch.outputs.current
+        env:
+          R2_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_CATALOGUE_READ_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_CATALOGUE_READ_SECRET_ACCESS_KEY }}
+        run: pnpm catalogue:snapshot lock "$(jq -r .id build/release/release.json)"
+      - name: Push the pin to the branch
+        if: steps.branch.outputs.current
+        env:
+          # A personal token, so the pointer commit runs the required checks. Only git runs in this step.
+          PUSH_TOKEN: ${{ secrets.CHANGESETS_TOKEN }}
+        run: |
+          set -euo pipefail
+          id="$(jq -r .id build/release/release.json)"
+          git worktree add --quiet --detach "$RUNNER_TEMP/branch" FETCH_HEAD
+          cp catalogue.json "$RUNNER_TEMP/branch/catalogue.json"
+          cd "$RUNNER_TEMP/branch"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add catalogue.json
+          git commit --message "chore(catalogue): pin snapshot ${id:0:12}"
+          # A release or merge can land on the branch while the snapshot publishes; the pin
+          # touches only catalogue.json, so it replays onto the new tip, and a conflict there fails.
+          for attempt in 1 2 3; do
+            git push "https://x-access-token:$PUSH_TOKEN@github.com/$GITHUB_REPOSITORY" "HEAD:refs/heads/$BRANCH" && exit 0
+            [ "$attempt" = 3 ] && break
+            git fetch --quiet origin "refs/heads/$BRANCH"
+            git rebase FETCH_HEAD
+          done
+          echo "::error::could not pin the snapshot on $BRANCH after 3 attempts" >&2
+          exit 1
+      # vs-data-live.yml merges a pin PR once its snapshot is pinned, so it looks again now rather than at its next run.
+      - name: Check the VS Data pin PR
+        if: steps.branch.outputs.current && startsWith(env.BRANCH, 'chore/vs-data-')
+        run: gh workflow run vs-data-live.yml --repo "$GITHUB_REPOSITORY" --ref main

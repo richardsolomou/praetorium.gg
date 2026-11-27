@@ -7,11 +7,7 @@ on:
   # Every three hours, since each pin moves main and makes every open catalogue PR rebase and rebuild its snapshot.
   schedule:
     - cron: '0 */3 * * *'
-  # Checks a pin PR as soon as its snapshot build finishes, rather than at the next scheduled run.
-  workflow_run:
-    workflows: [Catalogue snapshot]
-    types: [completed]
-    branches: ['chore/vs-data-*']
+  # catalogue-publish.yml also dispatches it once it pins a pin PR's snapshot, rather than leaving it to the next scheduled run.
   workflow_dispatch:
 
 concurrency:
@@ -103,8 +99,8 @@ jobs:
         if: steps.snapshot.outputs.pinned
         with:
           r2-account-id: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-          r2-access-key-id: ${{ secrets.SNAPSHOT_R2_ACCESS_KEY_ID }}
-          r2-secret-access-key: ${{ secrets.SNAPSHOT_R2_SECRET_ACCESS_KEY }}
+          r2-access-key-id: ${{ secrets.R2_CATALOGUE_READ_ACCESS_KEY_ID }}
+          r2-secret-access-key: ${{ secrets.R2_CATALOGUE_READ_SECRET_ACCESS_KEY }}
       - name: Merge the pin once its checks pass
         if: steps.snapshot.outputs.pinned
         env:

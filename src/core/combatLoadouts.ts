@@ -85,7 +85,7 @@ export function applyOptimizedLoadout<T extends RosterPick>(picks: readonly T[],
   const updates = new Map(optimized.map((member) => [member.pickIndex, member.pick]))
   return picks.map((pick, index) => {
     const update = updates.get(index)
-    return update ? { ...pick, choices: update.choices, spreads: update.spreads } : pick
+    return update ? { ...pick, choices: update.choices, spreads: update.spreads, ...(update.vs ? { vs: update.vs } : {}) } : pick
   })
 }
 export type LoadoutScore = Record<CombatPhase, CombatResult | null>

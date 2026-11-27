@@ -102,7 +102,7 @@ try:
             page = call("export_product_rows", [table, offset])
             emit({"product": table, "rows": page["rows"]})
             offset = page["next"]
-    emit({"end": manifest["createdAt"]})
+    emit({"end": manifest["createdAt"], **({"capturedAt": manifest["capturedAt"]} if "capturedAt" in manifest else {})})
 finally:
     subprocess.run(["docker", "rm", "--force", name], capture_output=True)
     shutil.rmtree(work, ignore_errors=True)
@@ -114,7 +114,8 @@ const IMPORT_BATCH_CHARACTERS = 1_000_000
 const record = z.union([
   z.strictObject({ auth: z.enum(['user', 'account']), rows: z.array(z.record(z.string(), z.unknown())) }),
   z.strictObject({ product: z.string(), rows: z.array(z.unknown()) }),
-  z.strictObject({ end: z.string() }),
+  // `capturedAt` is the backup's time before its freeze, absent from backups made before it was recorded.
+  z.strictObject({ end: z.string(), capturedAt: z.iso.datetime().optional() }),
 ])
 
 export async function downloadProductionCopy(host: string, webService: string, file: string) {

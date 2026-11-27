@@ -14,6 +14,8 @@ const environment = {
   R2_ACCOUNT_ID: 'b'.repeat(32),
   R2_ACCESS_KEY_ID: 'r2-id',
   R2_SECRET_ACCESS_KEY: 'r2-secret',
+  SNAPSHOT_R2_ACCESS_KEY_ID: 'snapshot-id',
+  SNAPSHOT_R2_SECRET_ACCESS_KEY: 'snapshot-secret',
   ASSETS_R2_ACCESS_KEY_ID: 'assets-id',
   ASSETS_R2_SECRET_ACCESS_KEY: 'assets-secret',
 }
@@ -67,6 +69,11 @@ it('keeps private backup credentials only in production', () => {
     'production',
   )
   expect(config).toContain('R2_ACCESS_KEY_ID=r2-id')
+})
+
+it('gives production its own key to the catalogue bucket', () => {
+  const config = nodeEnvironment({ ...environment, ...apple }, 'production')
+  expect(config).toContain('SNAPSHOT_R2_ACCESS_KEY_ID=snapshot-id')
 })
 
 const github = { GITHUB_CLIENT_ID: 'github-id', GITHUB_CLIENT_SECRET: 'github-secret', GITHUB_SPONSORS_TOKEN: 'sponsors-token' }

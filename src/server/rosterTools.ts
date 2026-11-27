@@ -1,6 +1,10 @@
 import { z } from 'zod'
 import { saveRosterSchema } from '../contracts/schemas'
-import { isUnitCompositionChoice } from '../core/unitChoices'
+import type { RosterPick, VsPick } from '../core/roster'
+import { isUnitCompositionChoice, VS_ALLEGIANCE, VS_ENHANCEMENT, VS_MODELS, VS_UPGRADE } from '../core/unitChoices'
+import { vsResized } from '../core/vsDataUnit'
+import { vsDefinitionsOf, vsUnitIdOf } from '../shared/vsDataBuild'
+import { vsFirstPickOf } from '../shared/vsDataPicks'
 import { rosterProblems } from '../core/rosterLegality'
 import { freeWargear } from '../shared/combatLoadouts'
 import { calculateRosterPrice, savedRosterPriceInput } from '../shared/pricing'
@@ -40,7 +44,7 @@ export async function rosterSummary(roster: SummarisedRoster) {
     // What the builder warns under "Could not check every rule": not proven illegal, so not a problem.
     unchecked: priced.unhandled,
     freeWargearLeftOut: priced.units.flatMap((unit) =>
-      freeWargear(unit.choices)
+      freeWargear(unit, vsDefinitionsOf(loaded))
         .filter((option) => !option.count)
         .map((option) => ({ unit: unit.name, entry: unit.key + 1, wargear: option.name })),
     ),
@@ -84,8 +88,54 @@ const unitOptionsInput = {
 
 type PricedUnit = NonNullable<ReturnType<typeof calculateRosterPrice>>['units'][number]
 
+/** Where a VS pick saves each of its choices, by the choice's key. */
+const vsField = (key: string) =>
+  key === VS_MODELS
+    ? 'vs.models'
+    : key === VS_ENHANCEMENT || key === VS_UPGRADE
+      ? 'vs.enhancement'
+      : key === VS_ALLEGIANCE
+        ? 'vs.allegiance'
+        : 'vs.options'
+
 /** A priced unit's decisions as a pick sets them: names first, the ids a pick takes beside them, and nothing a rules text says. */
-function unitOptions(unit: PricedUnit) {
+function unitOptions(unit: PricedUnit, vs?: VsPick) {
+  if (vs)
+    return {
+      name: unit.name,
+      entryId: unit.entryId,
+      points: unit.points,
+      models: {
+        count: unit.size.models,
+        min: unit.size.min,
+        max: unit.size.max,
+        ...(unit.size.options ? { sizes: unit.size.options } : {}),
+      },
+      vs,
+      toggles: unit.toggles.map((toggle) => ({
+        name: toggle.name,
+        key: toggle.key,
+        set: 'vs.warlord',
+        ...(toggle.required ? { required: true } : {}),
+      })),
+      choices: unit.choices.map((choice) => ({
+        name: choice.name,
+        key: choice.key,
+        set: vsField(choice.key),
+        optional: choice.optional,
+        room: choice.room,
+        ...(choice.least ? { least: choice.least } : {}),
+        ...(choice.uniform ? { uniform: true } : {}),
+        options: choice.options.map((option) => ({
+          name: option.name,
+          id: option.id,
+          ...(option.points ? { points: option.points } : {}),
+          taken: option.count,
+          min: option.min,
+          max: option.max,
+        })),
+      })),
+    }
   return {
     name: unit.name,
     entryId: unit.entryId,
@@ -124,10 +174,17 @@ export async function unitOptionsFor({ faction, units, battleSize, detachment }:
     const named = await Promise.all(units.map((wanted) => namedUnit(corpus, faction, wanted.unit)))
     const { faction: found, loaded, rules } = named[0]!
     const detachmentIds = detachment ? [detachmentId(loaded, found.id, detachment)] : []
-    const picks = named.map((entry, index) => ({
-      entryId: entry.unit.id,
-      ...(units[index]!.models ? { models: units[index]!.models } : {}),
-    }))
+    const list = { catalogueId: found.id, detachmentIds }
+    const definitions = vsDefinitionsOf(loaded)
+    const picks = named.map((entry, index): RosterPick => {
+      const models = units[index]!.models
+      const first = vsFirstPickOf(loaded, list, entry.unit.id)
+      const unit = vsUnitIdOf(loaded, found.id, entry.unit.id)
+      if (!first || !definitions || !unit) return { entryId: entry.unit.id, ...(models ? { models } : {}) }
+      if (!models) return { entryId: entry.unit.id, vs: first }
+      const sized = vsResized(definitions, { unit, models: first.models, options: first.options }, models)
+      return { entryId: entry.unit.id, vs: { ...first, models: sized.models ?? first.models, options: sized.options ?? {} } }
+    })
     const priced = calculateRosterPrice(
       savedRosterPriceInput({ catalogueId: found.id, detachmentIds, disposition: null, limit: battleSize, picks }),
       loaded,
@@ -143,7 +200,7 @@ export async function unitOptionsFor({ faction, units, battleSize, detachment }:
       },
       units: picks.map((pick, index) => {
         const unit = priced.units.find((candidate) => candidate.key === index)
-        return unit ? unitOptions(unit) : { name: named[index]!.unit.name, entryId: pick.entryId, unavailable: true }
+        return unit ? unitOptions(unit, pick.vs) : { name: named[index]!.unit.name, entryId: pick.entryId, unavailable: true }
       }),
     })
   } catch (error) {
@@ -199,7 +256,7 @@ export function registerRosterTools(server: AgentTools) {
     {
       title: 'Read unit options for a roster',
       description:
-        "Lists what each named unit lets a roster pick set, with names first and the ids a pick takes beside them: its sizes, its toggles (key of the Warlord toggle: set toggles {key: 1} on exactly one CHARACTER), and every choice group (wargear, enhancement, detachment upgrade, unit composition) with its options' ids, points, how many the default loadout takes (taken), and per-option min and max. A choice whose set is choices takes {key: optionId}; omit an optional one to decline it. One whose set is spreads takes {key: {optionId: count}}, counts within each option's min and max, totalling no more than room and at least least; for 'every model one option' give the whole room to one option. A group whose key extends another's key and option id applies only while that option is taken. Enhancements and detachment upgrades appear only with a detachment, at their cost; a list takes each enhancement once, on a CHARACTER that is not an Epic Hero, and a unit holds at most one, counting the leaders and support units attached to it, which these options can't see; check_roster flags a second. roster gives the catalogueId, detachmentIds and dispositions a save_roster or check_roster roster takes. Leave out a choice to keep the default; check the finished list with check_roster.",
+        "Lists what each named unit lets a roster pick set, with names first and the ids a pick takes beside them: its sizes, its toggles (key of the Warlord toggle: set toggles {key: 1} on exactly one CHARACTER), and every choice group (wargear, enhancement, detachment upgrade, unit composition) with its options' ids, points, how many the default loadout takes (taken), and per-option min and max. A choice whose set is choices takes {key: optionId}; omit an optional one to decline it. One whose set is spreads takes {key: {optionId: count}}, counts within each option's min and max, totalling no more than room and at least least; for 'every model one option' give the whole room to one option. A group whose key extends another's key and option id applies only while that option is taken. Enhancements and detachment upgrades appear only with a detachment, at their cost; a list takes each enhancement once, on a CHARACTER that is not an Epic Hero, and a unit holds at most one, counting the leaders and support units attached to it, which these options can't see; check_roster flags a second. roster gives the catalogueId, detachmentIds and dispositions a save_roster or check_roster roster takes. Leave out a choice to keep the default; check the finished list with check_roster. A unit returned with vs is fielded by VS Data IDs: save its pick as {entryId, vs} with vs as returned and no models, choices, spreads or toggles, and change vs instead. Each choice's set names where: vs.options takes {choice key: {option id: count}}, counts within each option's max and totalling no more than room; uniform gives the whole room to one option; vs.models takes {option id: count} totalling room; vs.enhancement takes one option id from the enhancement or upgrade choice, since a unit holds one; vs.allegiance takes one option id; vs.warlord takes the Warlord toggle's key on exactly one unit.",
       inputSchema: unitOptionsInput,
       annotations: READ_ONLY_TOOL,
     },

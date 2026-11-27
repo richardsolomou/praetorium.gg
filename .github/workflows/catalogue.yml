@@ -1,7 +1,7 @@
 name: Catalogue snapshot
 
-# Builds catalogue/ into a verified snapshot, publishes it as an inactive candidate, and pins it on the branch.
-# Production deploys activate the pinned snapshot; nothing here changes what live servers or current.json use.
+# Builds catalogue/ into a verified snapshot with the read-only catalogue key; catalogue-publish.yml publishes it as an
+# inactive candidate and pins it on the branch. Production deploys activate the pinned snapshot.
 on:
   pull_request:
     paths: [catalogue/**]
@@ -17,7 +17,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   snapshot:
@@ -31,12 +31,12 @@ jobs:
       CATALOGUE_SNAPSHOT_FILE: ${{ github.workspace }}/build/release/snapshot.zip
       CATALOGUE_SNAPSHOT_POINTER_FILE: ${{ github.workspace }}/build/release/release.json
       CATALOGUE_OBJECTS_DIR: ${{ github.workspace }}/build/objects
-      # Catalogue snapshots are private: the scripts read them with these.
+      # Catalogue snapshots are private: the scripts read them with this read-only key.
       R2_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-      R2_ACCESS_KEY_ID: ${{ secrets.PRIVATE_R2_ACCESS_KEY_ID }}
-      R2_SECRET_ACCESS_KEY: ${{ secrets.PRIVATE_R2_SECRET_ACCESS_KEY }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_CATALOGUE_READ_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_CATALOGUE_READ_SECRET_ACCESS_KEY }}
     steps:
-      # The token that pushes the pin stays out of the checkout, where every script below could read it.
+      # The checkout keeps no token, where every script below could read it.
       - uses: actions/checkout@v7
         with:
           ref: ${{ env.BRANCH }}
@@ -95,48 +95,13 @@ jobs:
           wait "$offline_bundle"
           wait "$runtime_projections"
           pnpm exec tsx scripts/verifyCatalogueProjections.ts build/source-projections.jsonl build/runtime-projections.jsonl
+      # catalogue-publish.yml publishes exactly these files, so the build never holds a key that writes the bucket.
       - uses: actions/upload-artifact@v7
         if: steps.pinned.outputs.current != 'true'
         with:
           name: catalogue-release
-          path: build/release/*.json
-          retention-days: 14
-      - uses: actions/setup-python@v7
-        if: steps.pinned.outputs.current != 'true'
-        with:
-          python-version: '3.13'
-      - name: Publish the candidate to the private store
-        if: steps.pinned.outputs.current != 'true'
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.PRIVATE_R2_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.PRIVATE_R2_SECRET_ACCESS_KEY }}
-          AWS_DEFAULT_REGION: us-east-1
-          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-        run: |
-          python3 -m pip install --quiet boto3==1.43.113
-          python3 scripts/publishCatalogue.py publish
-      - name: Pin the candidate
-        if: steps.pinned.outputs.current != 'true'
-        run: pnpm catalogue:snapshot lock "$(jq -r .id build/release/release.json)"
-      - name: Push the pin to the branch
-        if: steps.pinned.outputs.current != 'true'
-        env:
-          # A personal token, so the pointer commit runs the required checks. Only git runs in this step.
-          PUSH_TOKEN: ${{ secrets.CHANGESETS_TOKEN }}
-        run: |
-          set -euo pipefail
-          id="$(jq -r .id build/release/release.json)"
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add catalogue.json
-          git commit --message "chore(catalogue): pin snapshot ${id:0:12}"
-          # A release or merge can land on the branch while the snapshot builds; the pin
-          # touches only catalogue.json, so it replays onto the new tip, and a conflict there fails.
-          for attempt in 1 2 3; do
-            git push "https://x-access-token:$PUSH_TOKEN@github.com/$GITHUB_REPOSITORY" "HEAD:$BRANCH" && exit 0
-            [ "$attempt" = 3 ] && break
-            git fetch origin "$BRANCH"
-            git rebase "origin/$BRANCH"
-          done
-          echo "::error::could not pin the snapshot on $BRANCH after 3 attempts" >&2
-          exit 1
+          path: |
+            build/release/snapshot.zip
+            build/release/*.json
+            build/objects/*.gz
+          retention-days: 3

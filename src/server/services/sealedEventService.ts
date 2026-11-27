@@ -37,6 +37,7 @@ import type { SealedEventSchedule, RepositoryPort } from '../spacetimeRepository
 import { battleFactionOf, type BattleFaction } from '../../shared/battleSummary'
 import type { Notifier } from '../pushNotifier'
 import { rosterFromRow } from '../rosterPersistence'
+import { servedRoster, servedSealedRoster } from '../savedPicks'
 import { rosterWithoutUnitNotes } from '../../core/unitNotes'
 
 export class SealedEventService {
@@ -321,7 +322,7 @@ export class SealedEventService {
   async ownRoster(userId: string, rosterId: string) {
     const row = await this.repository.roster(rosterId)
     if (!row || row.userId !== userId) return null
-    return rosterFromRow(row, true)
+    return servedRoster(rosterFromRow(row, true))
   }
 
   async submitSealedEventRoster(
@@ -469,7 +470,7 @@ export class SealedEventService {
   async sealedEventRoster(token: string, userId: string, eventToken?: string, readerId?: string | null) {
     const sealed = await this.repository.sealedEventRoster(token, userId, eventToken, readerId)
     if (!sealed || (sealed.revealedAt === null && !readsSealedRoster(sealed.format, sealed.reader, sealed.sealed))) return null
-    return readableSealedRoster(parseRosterSnapshot(sealed.snapshot))
+    return readableSealedRoster(servedSealedRoster(parseRosterSnapshot(sealed.snapshot), sealed.submittedAt))
   }
 
   /** Every revealed list as `sealedEventRoster` gives one to any reader of the event; nothing before the reveal, whoever asks. */
@@ -477,9 +478,9 @@ export class SealedEventService {
     const sealed = await this.repository.sealedRosters(token, eventToken, viewerId)
     if (!sealed || sealed.revealedAt === null) return []
     // An unreadable list stays in as null, so the bundle says so rather than leaving its player out.
-    return sealed.rosters.map(({ userId, snapshot }) => {
+    return sealed.rosters.map(({ userId, snapshot, submittedAt }) => {
       const roster = rosterSnapshotOrNull(snapshot)
-      return { userId, roster: roster && readableSealedRoster(roster) }
+      return { userId, roster: roster && readableSealedRoster(servedSealedRoster(roster, submittedAt)) }
     })
   }
 

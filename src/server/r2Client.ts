@@ -32,6 +32,14 @@ export function publicAssetsR2Client(environment: NodeJS.ProcessEnv = process.en
   return configuredClient(environment, 'ASSETS_R2', 'praetorium')
 }
 
+/** `praetorium-ci`'s public address. Objects there expire after 14 days, and nothing production runs reads them. */
+export const CI_OUTPUTS_BASE_URL = 'https://pub-2c84f498125e4c63a22295c48e68918a.r2.dev'
+
+/** The bucket where CI shares a pull request's build outputs, so no pull request's code holds a key to what production serves. */
+export function ciOutputsR2Client(environment: NodeJS.ProcessEnv = process.env) {
+  return configuredClient(environment, 'CI_OUTPUTS_R2', 'praetorium-ci')
+}
+
 export function r2Objects({ client, base }: NonNullable<ReturnType<typeof configuredClient>>) {
   async function request(operation: 'head' | 'get' | 'put' | 'delete', key: string, init: RequestInit = {}) {
     const response = await client.fetch(`${base}${key}`, { ...init, signal: AbortSignal.timeout(operation === 'head' ? 10_000 : 30_000) })
