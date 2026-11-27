@@ -57,10 +57,12 @@ export function buildPick(
     if (!built?.vs) return built
     // The player edits what VS Data offers the pick, so its choices and Warlord are VS Data's, not the catalogue tree's.
     const roster = { roster: { faction: faction ?? '', detachments } }
+    // VS Data has no fact yet for a datasheet that must be the Warlord, as Angron must; the catalogue's tree does.
+    const required = built.toggles.some((toggle) => toggle.name === 'Warlord' && toggle.required)
     return {
       ...built,
       choices: vsUnitChoices(definitions, built.vs.unit, roster),
-      toggles: vsUnitToggles(definitions, built.vs.unit, roster),
+      toggles: vsUnitToggles(definitions, built.vs.unit, roster).map((toggle) => (required ? { ...toggle, required } : toggle)),
     }
   }
   return buildUnit(pick.entryId, loaded.index, pick.models, pick.choices, {
