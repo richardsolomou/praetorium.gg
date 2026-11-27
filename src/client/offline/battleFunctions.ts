@@ -50,6 +50,7 @@ import { cachedRead, cachedPage, filteredPage } from './reads'
 import { isFetchNetworkFailure } from '../networkErrors'
 import { battleKey, battlesKey, meKey, opponentsKey, reportKey } from '../queries/queryKeys'
 import { battleFilterActive, matchesBattle, type BattleFilter } from '../../core/battleFilter'
+import { withoutTranslation } from '../../core/savedPicks'
 
 const workspaceReport = ({ players, log }: BattleWorkspace, rules: LoadedRules | undefined) =>
   foldReport(
@@ -189,7 +190,9 @@ export async function submit(args: Parameters<typeof server.submit>[0]): ReturnT
   let capturedRoster: LocalRoster | undefined
   if (command.kind === 'attach-saved-roster' || (command.kind === 'attach-roster' && command.roster.built)) {
     const id = command.kind === 'attach-saved-roster' ? command.rosterId : command.roster.id
-    capturedRoster = id ? await localDocument<LocalRoster>(`roster:${id}`) : undefined
+    const kept = id ? await localDocument<LocalRoster>(`roster:${id}`) : undefined
+    // A battle fields the list as it is stored, as one fielded online does, never a translation it was served.
+    capturedRoster = kept && { ...kept, picks: kept.picks.map(withoutTranslation) }
     if (!capturedRoster) throw new OfflineRefusal('Save this roster on the device before attaching it offline.')
     const selected = await localConstruction(capturedRoster.catalogueId)
     if (!selected) throw new OfflineRefusal('Download this army’s rules before attaching it offline.')

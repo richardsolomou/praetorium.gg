@@ -3,6 +3,7 @@ import { type Dispatch, type SetStateAction, useCallback, useMemo, useRef, useSt
 import { withoutUnit } from '../../../../core/attachedUnits'
 import { remember } from '../../../../core/collections'
 import type { RosterPick, VsPick } from '../../../../core/roster'
+import { withHeldVs, withoutTranslation } from '../../../../core/savedPicks'
 import { type UnavailableSelection, withoutUnavailableSelections } from '../../../../core/rosterSelections'
 import { isUnitCompositionChoice, VS_ALLEGIANCE, VS_ENHANCEMENT, VS_MODELS, VS_UPGRADE, vsWithSpread } from '../../../../core/unitChoices'
 import type { VsDataDefinitions } from '../../../../core/vsDataConstruction'
@@ -96,11 +97,25 @@ function vsSize(sizes: readonly number[], current: number, wanted: number) {
 const editsVs = (pick: RosterPick, unit: Pick<SizedUnit, 'vs'> | undefined): pick is RosterPick & { vs: VsPick } =>
   Boolean(pick.vs && unit?.vs)
 
+/**
+ * A pick after one edit. One still read from a translation it was served is edited as that translation where its unit
+ * is priced by VS Data, else as its catalogue choices, and the edit saves the result as the pick's own; a pick the edit
+ * leaves alone keeps reading its translation.
+ */
+function editedPick<T extends RosterPick>(pick: T, unit: Pick<SizedUnit, 'vs'> | undefined, edit: (pick: T) => T): T {
+  if (!pick.translatedVs || pick.vs) return edit(pick)
+  const held = (unit?.vs ? withHeldVs(pick) : withoutTranslation(pick)) as T
+  const next = edit(held)
+  return next === held ? pick : next
+}
+
 /** A pick holding its Warlord toggle, keyed `key`, or giving it up; a VS pick names the model the toggle is keyed by. */
 export function withWarlord<T extends RosterPick>(pick: T, unit: Pick<SizedUnit, 'vs'> | undefined, key: string, held: boolean): T {
-  if (!editsVs(pick, unit)) return { ...pick, toggles: { ...pick.toggles, [key]: held ? 1 : 0 } }
-  const { warlord: _previous, ...rest } = pick.vs
-  return { ...pick, vs: held ? { ...rest, warlord: key } : rest }
+  return editedPick(pick, unit, (pick) => {
+    if (!editsVs(pick, unit)) return { ...pick, toggles: { ...pick.toggles, [key]: held ? 1 : 0 } }
+    const { warlord: _previous, ...rest } = pick.vs
+    return { ...pick, vs: held ? { ...rest, warlord: key } : rest }
+  })
 }
 
 /** A VS Data pick's one Enhancement or upgrade, set from either choice; clearing one choice leaves the other's. */
@@ -287,7 +302,7 @@ export function pickEditor(
   allocateKey: () => number,
 ) {
   const editAt = (index: number, edit: (pick: KeyedPick) => KeyedPick) =>
-    setPicks((current) => current.map((pick, at) => (at === index ? edit(pick) : pick)))
+    setPicks((current) => current.map((pick, at) => (at === index ? editedPick(pick, context.units[at], edit) : pick)))
 
   /** Keys only move forward, so history cannot mistake a replacement for a deleted unit. */
   const insert = (choose: (picks: readonly KeyedPick[]) => { pick: RosterPick; after?: number } | null) => {
@@ -472,17 +487,19 @@ export function pickEditor(
      */
     toggle: (index: number, key: string, name: string, enabled: boolean) =>
       setPicks((current) =>
-        current.map((pick, at) => {
+        current.map((held, at) => {
           const unit = context.units[at]
-          if (editsVs(pick, unit)) {
-            if (at === index) return withWarlord(pick, unit, key, enabled)
-            return name === 'Warlord' && enabled && pick.vs.warlord ? withWarlord(pick, unit, pick.vs.warlord, false) : pick
-          }
-          const toggles = { ...pick.toggles }
-          if (name === 'Warlord' && enabled) {
-            for (const candidate of context.units[at]?.toggles ?? []) if (candidate.name === name) toggles[candidate.key] = 0
-          }
-          return at === index ? { ...pick, toggles: { ...toggles, [key]: enabled ? 1 : 0 } } : { ...pick, toggles }
+          return editedPick(held, unit, (pick) => {
+            if (editsVs(pick, unit)) {
+              if (at === index) return withWarlord(pick, unit, key, enabled)
+              return name === 'Warlord' && enabled && pick.vs.warlord ? withWarlord(pick, unit, pick.vs.warlord, false) : pick
+            }
+            const toggles = { ...pick.toggles }
+            if (name === 'Warlord' && enabled) {
+              for (const candidate of context.units[at]?.toggles ?? []) if (candidate.name === name) toggles[candidate.key] = 0
+            }
+            return at === index ? { ...pick, toggles: { ...toggles, [key]: enabled ? 1 : 0 } } : { ...pick, toggles }
+          })
         }),
       ),
 

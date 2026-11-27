@@ -642,6 +642,27 @@ describe('a VS Data pick', () => {
     expect(picks()[0]?.choices).toEqual({ weapons: 'carbine' })
   })
 
+  it('saves a served translation as its own once edited', () => {
+    const { edit, picks } = editor([{ key: 0, entryId: 'squad', catalogueId: 'host', translatedVs: squad }], {
+      catalogueId: 'host',
+      units: [unit],
+    })
+    edit.resize(0, (models) => models + 1)
+    expect(picks()[0]?.vs?.models['host.squad.trooper']).toBe(9)
+  })
+
+  it('keeps reading a served translation while another pick is edited', () => {
+    const { edit, picks } = editor(
+      [
+        { key: 0, entryId: 'squad', catalogueId: 'host', translatedVs: squad },
+        { key: 1, entryId: 'squad', catalogueId: 'host', vs: squad },
+      ],
+      { catalogueId: 'host', units: [unit, unit] },
+    )
+    edit.resize(1, (models) => models + 1)
+    expect(picks()[0]).toEqual({ key: 0, entryId: 'squad', catalogueId: 'host', translatedVs: squad })
+  })
+
   it('takes the Warlord from every other pick', () => {
     const { edit, picks } = editor(
       [

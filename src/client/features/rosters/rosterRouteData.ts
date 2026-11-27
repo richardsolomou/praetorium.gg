@@ -50,8 +50,10 @@ export async function loadRoster(
     seed(rosterAccessQuery(id).queryKey, { roster, editable, variants, differences, copiedFrom, lentBy, faction })
     seed(rosterChangesQuery(id).queryKey, changes)
     // Keyed as the builder asks, so the editor opens on this answer; an owner's needs unit limits, which a price
-    // worked out on this device for unsynced edits can lack.
-    if (price && (!editable || price.unitLimits)) seed(setupPriceQuery(roster, normalisePicks(roster.picks), editable).queryKey, price)
+    // worked out on this device for unsynced edits can lack. The server prices the list as stored, so a list served
+    // translations is priced again with them.
+    if (price && (!editable || price.unitLimits) && !roster.picks.some((pick) => pick.translatedVs))
+      seed(setupPriceQuery(roster, normalisePicks(roster.picks), editable).queryKey, price)
   }
   if (cachedBootstrap !== undefined)
     void queryClient

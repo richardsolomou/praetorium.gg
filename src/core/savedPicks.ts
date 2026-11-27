@@ -115,6 +115,14 @@ export function savedPickKey(context: PickContext, pick: RosterPick) {
 
 const bookOf = (catalogueId: string) => catalogueId.slice(catalogueId.indexOf('~') + 1)
 
+/** The pick as the builder prices and edits it: its own `vs`, else the translation it was served. */
+export function withHeldVs<T extends RosterPick>({ translatedVs, ...pick }: T): Omit<T, 'translatedVs'> {
+  return translatedVs && !pick.vs ? { ...pick, vs: translatedVs } : pick
+}
+
+/** The pick as it is stored, without a translation it was served. */
+export const withoutTranslation = <T extends RosterPick>({ translatedVs: _translatedVs, ...pick }: T): Omit<T, 'translatedVs'> => pick
+
 export function savedPickTranslations(raw: unknown): SavedPickTranslations {
   const picks = new Map(Object.entries(savedPicksSchema.parse(raw).picks))
   return (key) => picks.get(key)

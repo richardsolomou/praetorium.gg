@@ -79,24 +79,27 @@ function rulesVersionOf(catalogueId: string) {
   return baseRulesVersions.get(directory)
 }
 
-/** `picks` with the `vs` each of `read`, the same picks with their IDs resolved, was given, where it holds none of its own. */
-const withVsFrom = <T extends RosterPick>(picks: readonly T[], read: readonly RosterPick[]) =>
+/** `picks` with, as `translatedVs`, the `vs` each of `translated` was given where the pick holds none of its own. */
+const withTranslationsFrom = <T extends RosterPick>(picks: readonly T[], translated: readonly RosterPick[]) =>
   picks.map((pick, at) => {
-    const vs = read[at]?.vs
-    return pick.vs || !vs ? pick : { ...pick, vs }
+    const vs = translated[at]?.vs
+    return pick.vs || !vs ? pick : { ...pick, translatedVs: vs }
   })
 
 /*
- * The served readers below attach a frozen translation only inside a read the caller is already allowed, to the record
- * it returns, and only where that record was last saved before the copy the translations read: a record saved later
- * never takes one, so saving a guessed pick can't reveal whether some list held it. Battle reads never call them.
+ * The served readers below attach a frozen translation, as a pick's `translatedVs`, which no save keeps, only inside a
+ * read the caller is already allowed, to the record it returns, and only where that record was last saved before the
+ * copy the translations read: a record saved later never takes one, so saving a guessed pick can't reveal whether some
+ * list held it. Battle reads never call them.
  */
 
 /** A saved roster, as `rosterFromRow` reads it, with its picks' frozen translations. */
 export function servedRoster<T extends Parameters<typeof withVsPicks>[0] & { updatedAt: number }>(roster: T): T {
   const translations = savedPicksFor(roster.updatedAt)
   const rulesVersion = translations && rulesVersionOf(roster.catalogueId)
-  return translations && rulesVersion ? withVsPicks(roster, rulesVersion, translations) : roster
+  if (!translations || !rulesVersion) return roster
+  const translated = withVsPicks(roster, rulesVersion, translations)
+  return translated === roster ? roster : { ...roster, picks: withTranslationsFrom(roster.picks, translated.picks) }
 }
 
 /** A saved unit loadout, as stored, with its units' frozen models and wargear, read as one saved when it was created. */
@@ -111,7 +114,7 @@ export function servedLoadout<T extends { catalogueId: string; pick: RosterPick;
   if (!rulesVersion) return loadout
   const [pick, ...joined] = read.picks
   const kept = withVsLoadout({ catalogueId: read.catalogueId, pick: pick!, joined }, rulesVersion, translations)
-  const [own, ...rest] = withVsFrom(stored, [kept.pick, ...(kept.joined ?? [])])
+  const [own, ...rest] = withTranslationsFrom(stored, [kept.pick, ...(kept.joined ?? [])])
   return { ...loadout, pick: own!, ...(loadout.joined ? { joined: rest } : {}) }
 }
 
@@ -129,5 +132,5 @@ export function servedSealedRoster(roster: Roster, submittedAt: number | null): 
   )
   const rulesVersion = rulesVersionOf(read.catalogueId)
   const translated = rulesVersion ? withVsPicks(read, rulesVersion, translations) : read
-  return translated === read ? roster : { ...roster, built: { ...built, picks: withVsFrom(built.picks, translated.picks) } }
+  return translated === read ? roster : { ...roster, built: { ...built, picks: withTranslationsFrom(built.picks, translated.picks) } }
 }

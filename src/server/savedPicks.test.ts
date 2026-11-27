@@ -2,52 +2,47 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
-import { rosterContentSchema } from '../contracts/schemas'
+import { saveRosterSchema } from '../contracts/schemas'
 import type { Roster } from '../core/battle'
 import type { RosterPick } from '../core/roster'
+import { lockedRosterRefusal, storedRosterContent } from '../core/rosterLock'
 import { app } from './app'
-import { submitSealedEventRoster } from './productActions'
-import { rosterFromRow } from './rosterPersistence'
+import { sealedEventRosterFixture } from './sealedEventRoster.fixtures'
 import { rosterForUse } from './rosterUsage'
 import { savedPicks, servedLoadout, servedRoster, servedSealedRoster } from './savedPicks'
 import { RosterService } from './services/rosterService'
+import { SealedEventService } from './services/sealedEventService'
 import type { RepositoryPort } from './spacetimeRepository'
 
 const fixture = vi.hoisted(() => ({
-  catalogueId: 'mfm-1-6~book',
+  catalogueId: 'codex~cat',
   copiedAt: '2026-11-20T00:00:00.000Z',
-  pick: { entryId: 'intercessors', models: 10 } as RosterPick,
-  vs: { models: { 'space-marines.intercessor': 10 }, options: {} },
+  pick: { entryId: 'captain', toggles: { warlord: 1 } } as RosterPick,
+  vs: { models: { 'host.captain': 1 }, options: {} },
   text: '',
 }))
 
 vi.mock('../shared/savedPicks.pin.json', async () => {
   const { hash } = await import('node:crypto')
   const { savedPickKey } = await import('../core/savedPicks')
-  const listKey = savedPickKey({ rulesVersion: 'mfm-1-6', catalogueId: fixture.catalogueId, detachmentIds: [] }, fixture.pick)
-  fixture.text = JSON.stringify({ format: 'praetorium.saved-picks.v1', picks: { [listKey]: fixture.vs } })
+  const key = savedPickKey({ rulesVersion: 'codex', catalogueId: fixture.catalogueId, detachmentIds: [] }, fixture.pick)
+  fixture.text = JSON.stringify({ format: 'praetorium.saved-picks.v1', picks: { [key]: fixture.vs } })
   return { default: { format: 'praetorium.saved-picks-pin.v1', sha256: hash('sha256', fixture.text), copiedAt: fixture.copiedAt } }
 })
 vi.mock('./app', () => ({ app: vi.fn() }))
-vi.mock('./rosterUsage', () => ({ rosterForUse: vi.fn(), fieldedSealedList: vi.fn() }))
-vi.mock('./mutationTelemetry', () => ({
-  captureMutation: vi.fn(),
-  captureBattleCreated: vi.fn(),
-  captureSealedEventCreated: vi.fn(),
-  captureSealedEventBattleCreated: vi.fn(),
-}))
 
-const before = Date.parse(fixture.copiedAt) - 1
-const after = Date.parse(fixture.copiedAt) + 1
+const copiedAt = Date.parse(fixture.copiedAt)
+const before = copiedAt - 1
+const after = copiedAt + 1
 const row = (updatedAt: number) => ({
   id: 'roster-1',
   userId: 'user-1',
   name: 'Army',
-  automaticName: true,
+  automaticName: false,
   catalogueId: fixture.catalogueId,
   detachmentId: '[]',
   disposition: null,
-  limit: 2000,
+  limit: 1000,
   pointsBudget: null,
   picks: JSON.stringify([fixture.pick]),
   prep: null,
@@ -56,7 +51,7 @@ const row = (updatedAt: number) => ({
   optionalRules: '[]',
   borrowedDetachmentId: null,
   baseRosterId: null,
-  locked: false,
+  locked: true,
   archived: false,
   sharingDeclined: false,
   printedDefaults: true,
@@ -73,7 +68,7 @@ const sealed = {
   built: {
     catalogueId: fixture.catalogueId,
     revision: 'r',
-    limit: 2000,
+    limit: 1000,
     detachment: null,
     disposition: null,
     picks: [fixture.pick],
@@ -88,6 +83,15 @@ const service = (updatedAt: number) =>
     } as unknown as RepositoryPort,
     () => 0,
   )
+const fielding = () => {
+  const { catalogue, rules } = sealedEventRosterFixture('released')
+  vi.mocked(app).mockReturnValue({
+    repository: { abilityRemindersByUser: async () => [] },
+    service: { rosterService: service(before) },
+    catalogueFor: async () => catalogue,
+    rulesFor: async () => rules,
+  } as never)
+}
 
 beforeAll(async () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'saved-picks-'))
@@ -102,47 +106,72 @@ beforeAll(async () => {
 
 describe('served saved records', () => {
   it('give a roster last saved before the copy its translation', () => {
-    expect(servedRoster(roster(before)).picks[0]?.vs).toEqual(fixture.vs)
+    expect(servedRoster(roster(before)).picks[0]?.translatedVs).toEqual(fixture.vs)
+  })
+
+  it('give a roster last saved as the copy was taken its translation', () => {
+    expect(servedRoster(roster(copiedAt)).picks[0]?.translatedVs).toEqual(fixture.vs)
   })
 
   it('give a roster saved since the copy none', () => {
-    expect(servedRoster(roster(after)).picks[0]?.vs).toBeUndefined()
+    expect(servedRoster(roster(after)).picks[0]?.translatedVs).toBeUndefined()
+  })
+
+  it('keep a translation out of the pick’s own vs', () => {
+    expect(servedRoster(roster(before)).picks[0]?.vs).toBeUndefined()
+  })
+
+  it('give a loadout created before the copy its translation', () => {
+    expect(servedLoadout({ catalogueId: fixture.catalogueId, pick: fixture.pick, createdAt: before }).pick.translatedVs).toEqual(fixture.vs)
   })
 
   it('give a loadout created since the copy none', () => {
-    expect(servedLoadout({ catalogueId: fixture.catalogueId, pick: fixture.pick, createdAt: after }).pick.vs).toBeUndefined()
+    expect(servedLoadout({ catalogueId: fixture.catalogueId, pick: fixture.pick, createdAt: after }).pick.translatedVs).toBeUndefined()
   })
 
   it('give a list sealed before the copy its translation', () => {
-    expect(servedSealedRoster(sealed, before).built?.picks?.[0]?.vs).toEqual(fixture.vs)
+    expect(servedSealedRoster(sealed, before).built?.picks?.[0]?.translatedVs).toEqual(fixture.vs)
   })
 
   it('give a list sealed since the copy none', () => {
-    expect(servedSealedRoster(sealed, after).built?.picks?.[0]?.vs).toBeUndefined()
+    expect(servedSealedRoster(sealed, after).built?.picks?.[0]?.translatedVs).toBeUndefined()
   })
 
   it('give a list with no submission time none', () => {
-    expect(servedSealedRoster(sealed, null).built?.picks?.[0]?.vs).toBeUndefined()
+    expect(servedSealedRoster(sealed, null).built?.picks?.[0]?.translatedVs).toBeUndefined()
   })
 
   it('give the owner’s roster its translation', async () => {
-    expect((await service(before).rosterAccess('roster-1', 'user-1'))?.roster.picks[0]?.vs).toEqual(fixture.vs)
-  })
-
-  it('leave a battle fielding a saved roster without one', async () => {
-    expect((await service(before).usableRoster('user-1', 'roster-1'))?.roster.picks[0]?.vs).toBeUndefined()
+    expect((await service(before).rosterAccess('roster-1', 'user-1'))?.roster.picks[0]?.translatedVs).toEqual(fixture.vs)
   })
 })
 
-it('seals a list the device read with its translation', async () => {
-  const saved = rosterFromRow(row(before))
-  vi.mocked(rosterForUse).mockResolvedValue({ saved, snapshot: sealed })
-  vi.mocked(app).mockReturnValue({
-    catalogueFor: async () => ({ index: { revision: 'r' } }),
-    service: { sealedEventService: { submitSealedEventRoster: async () => ({ format: 'tournament', requiredLimit: 2000 }) } },
-  } as never)
-  const captured = rosterContentSchema.parse(servedRoster(saved))
-  await expect(
-    submitSealedEventRoster('user-1', { token: 't', rosterId: 'roster-1', capturedRoster: captured, catalogueRevision: 'r' }),
-  ).resolves.toBeNull()
+it('serves no unrevealed sealed list to a reader who may not see it', async () => {
+  const sealedEventRoster = vi.fn().mockResolvedValue({
+    snapshot: JSON.stringify(sealed),
+    submittedAt: before,
+    format: 'tournament',
+    revealedAt: null,
+    sealed: { userId: 'ada', status: 'accepted', teamId: null },
+    reader: null,
+  })
+  const events = new SealedEventService({ sealedEventRoster } as Partial<RepositoryPort> as RepositoryPort, () => 0, { notify: vi.fn() })
+  expect(await events.sealedEventRoster('tournament', 'ada', undefined, 'grace')).toBeNull()
+})
+
+it('lets a locked roster saved back as it was served through the lock', async () => {
+  const served = (await service(before).rosterAccess('roster-1', 'user-1'))!.roster
+  expect(lockedRosterRefusal({ ...storedRosterContent(row(before)), locked: true }, saveRosterSchema.parse(served))).toBeNull()
+})
+
+it('fields a saved roster in battle as it is stored', async () => {
+  fielding()
+  const { snapshot } = await rosterForUse('user-1', 'roster-1')
+  expect(snapshot.built?.picks?.map((pick) => pick.translatedVs ?? pick.vs)).toEqual([undefined])
+})
+
+it('seals a saved roster as it is stored', async () => {
+  fielding()
+  const { snapshot } = await rosterForUse('user-1', 'roster-1', { sealing: true })
+  expect(snapshot.built?.picks?.map((pick) => pick.translatedVs ?? pick.vs)).toEqual([undefined])
 })
