@@ -38,9 +38,10 @@ import { useMediaQuery } from '../../useMediaQuery'
 import { PHONE } from './useCompactChrome'
 import { ImpersonationBanner } from './ImpersonationBanner'
 import { NativeAppNavigation } from './NativeAppNavigation'
-import { openFeedback, SupportIdentity, unreadReplies, useSupportTickets } from '../feedback/support'
+import { openFeedback, openReplies, SupportIdentity, unreadReplies, useSupportTickets } from '../feedback/support'
 import { meQuery } from '../../queries'
 import { countLabel } from '../../text'
+import { OUTLINE_TAG } from '../../components/rosterSetup'
 import { meKey } from '../../queries/queryKeys'
 import { COMMUNITY_LINKS, COMMUNITY_PAGES, FRIENDS_PAGE } from './CommunityLinks'
 import { forgetRulesTextSources } from '../../forgetRulesText'
@@ -125,32 +126,44 @@ function RailLinks({
   )
 }
 
-/** Feedback at the rail's foot, where it stays in sight on every page; a dot says the team has replied. */
+/** Feedback at the rail's foot, where it stays in sight on every page; while a reply waits, it opens the reply instead. */
 function RailFeedback({ collapsed }: { collapsed: boolean }) {
-  const unread = unreadReplies(useSupportTickets().tickets)
+  const { tickets } = useSupportTickets()
+  const unread = unreadReplies(tickets)
   const label = unread ? `Send feedback, ${countLabel(unread, 'new reply', 'new replies')}` : 'Send feedback'
   return (
     <RailTooltip label={label} collapsed={collapsed}>
-      <button type="button" aria-label={label} onClick={() => openFeedback({ from: 'rail' })} className={`${RAIL_LINK_CLASS} w-full`}>
+      <button
+        type="button"
+        aria-label={label}
+        onClick={() => openReplies(tickets) || openFeedback({ from: 'rail' })}
+        className={`${RAIL_LINK_CLASS} w-full`}
+      >
         <span className="relative flex shrink-0">
           <MessageSquareWarning aria-hidden className="size-4.5 text-faint group-hover:text-dim" />
           {unread ? <UnreadDot /> : null}
         </span>
         <span className="truncate in-data-[rail=collapsed]:sr-only">Send feedback</span>
+        {unread ? (
+          <span aria-hidden className={`${OUTLINE_TAG} ml-auto border-discarded/60 text-discarded in-data-[rail=collapsed]:hidden`}>
+            {unread > 9 ? '9+' : unread}
+          </span>
+        ) : null}
       </button>
     </RailTooltip>
   )
 }
 
 function HeaderFeedback() {
-  const unread = unreadReplies(useSupportTickets().tickets)
+  const { tickets } = useSupportTickets()
+  const unread = unreadReplies(tickets)
   return (
     <Button
       variant="ghost"
       size="icon"
       className="size-[44px] shrink-0 text-dim hover:bg-raised hover:text-bone"
       aria-label={unread ? `Send feedback, ${countLabel(unread, 'new reply', 'new replies')}` : 'Send feedback'}
-      onClick={() => openFeedback({ from: 'header' })}
+      onClick={() => openReplies(tickets) || openFeedback({ from: 'header' })}
     >
       <span className="relative flex">
         <MessageSquareWarning aria-hidden className="size-4.5" />
@@ -226,14 +239,10 @@ function SiteRail({ workspace }: { workspace: boolean }) {
             <RailLinks links={[]} sites={COMMUNITY_LINKS} name="Community" collapsed={collapsed} />
           </div>
           {/*
-           * Folded, the column keeps the open row's order: the toggle keeps the bottom corner under the pointer
-           * so the rail opens again without moving, with the account and bell above it.
+           * Folded, the column reverses the open row: the toggle keeps the bottom corner under the pointer so the rail
+           * opens again without moving, with the bell and account above it.
            */}
-          <div className="mx-2.5 mt-2 flex items-center justify-between gap-1 border-t border-edge pt-3 in-data-[rail=collapsed]:flex-col">
-            <div className="flex items-center gap-1 in-data-[rail=collapsed]:flex-col">
-              <Account className="size-8" />
-              {me ? <NotificationsButton beside={frame} className="size-8" /> : null}
-            </div>
+          <div className="mx-2.5 mt-2 flex items-center justify-between gap-1 border-t border-edge pt-3 in-data-[rail=collapsed]:flex-col-reverse">
             <RailTooltip label="Expand navigation" collapsed={collapsed}>
               <Button
                 variant="ghost"
@@ -246,6 +255,10 @@ function SiteRail({ workspace }: { workspace: boolean }) {
                 <Toggle aria-hidden className="size-4.5" />
               </Button>
             </RailTooltip>
+            <div className="flex items-center gap-1 in-data-[rail=collapsed]:flex-col-reverse">
+              {me ? <NotificationsButton beside={frame} className="size-8" /> : null}
+              <Account className="size-8" />
+            </div>
           </div>
         </div>
       </div>
