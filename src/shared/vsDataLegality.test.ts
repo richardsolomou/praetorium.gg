@@ -109,7 +109,7 @@ const data = vsRosterData(
       'bs-fort': 'other.fort',
       'bs-walker': 'engines.walker',
       'bs-squad': 'host.squad',
-    'bs-agent': 'other.agent',
+      'bs-agent': 'other.agent',
     },
     enhancements: {
       'host.guard/bs-crown': 'host.guard.crown',
@@ -118,7 +118,15 @@ const data = vsRosterData(
     },
   },
   null,
-  (id) => ({ 'bs-mob': 'Mob', 'bs-lord': 'Lord', 'bs-fort': 'Fort [Legends]', 'bs-walker': 'Walker', 'bs-squad': 'Squad', 'bs-agent': 'Agent [Crucible]' })[id],
+  (id) =>
+    ({
+      'bs-mob': 'Mob',
+      'bs-lord': 'Lord',
+      'bs-fort': 'Fort [Legends]',
+      'bs-walker': 'Walker',
+      'bs-squad': 'Squad',
+      'bs-agent': 'Agent [Crucible]',
+    })[id],
 )
 const unit = (over: Partial<CheckedUnit> & Pick<CheckedUnit, 'entryId'>): CheckedUnit => ({
   key: 0,
