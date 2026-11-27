@@ -117,7 +117,8 @@ jobs:
           COUNT: ${{ steps.runners.outputs.count }}
         run: |
           runners='[]'
-          if [[ "$HEARTBEAT" =~ ^[0-9]+$ && "$SLOTS" =~ ^[0-9]+$ ]] && (( $(date +%s) - HEARTBEAT < 300 )); then
+          # A minute of clock skew either way is allowed; a stamp further ahead is as untrustworthy as a stale one.
+          if [[ "$HEARTBEAT" =~ ^[0-9]{1,12}$ && "$SLOTS" =~ ^[0-9]{1,2}$ ]] && age=$(( $(date +%s) - 10#$HEARTBEAT )) && (( age > -60 && age < 300 )); then
             runners="$(node -p 'JSON.stringify(Array.from({ length: Math.max(0, Math.min(Number(process.argv[1]), Number(process.argv[2]) - 1)) }, (_, index) => index + 2))' "$SLOTS" "$COUNT")"
           fi
           echo "runners=$runners" >> "$GITHUB_OUTPUT"
