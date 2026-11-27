@@ -42,7 +42,7 @@ Your action didn't go through. Check your connection, then try it again. If draw
 
 ### Your browser asks whether to leave a battle
 
-Your last presses haven't finished sending. Choose to stay, wait a moment, then leave. Leaving anyway loses what hadn't sent.
+Your last actions in the battle haven't finished sending. Stay, wait a moment, then leave. If you leave anyway, whatever hadn't sent is lost. The Praetorium app doesn't ask, so wait a moment before closing it.
 
 ### A finished battle still shows as in progress in Battles
 

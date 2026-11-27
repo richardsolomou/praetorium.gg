@@ -80,3 +80,13 @@ it('leaves without asking once battle commands have sent', async () => {
   await battleCommandsSettled('battle')
   expect(leave().defaultPrevented).toBe(false)
 })
+
+it('asks before leaving while an earlier send from a page left in the app is still going', async () => {
+  const earlier = deferred()
+  const sending = sendingBattleCommands('battle', earlier.promise)
+  await sendingBattleCommands('battle', Promise.resolve())
+  await new Promise((resolve) => setTimeout(resolve))
+  expect(leave().defaultPrevented).toBe(true)
+  earlier.resolve()
+  await sending
+})
