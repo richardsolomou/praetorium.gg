@@ -35,14 +35,14 @@ export function buildConstruction(saved: OfflineConstructionSource) {
   const index = buildIndex(files, saved.revision, {
     get: (key) => definitionFacts?.get(key) ?? datacards.textFacts?.get(key),
   })
+  const vsRoster = saved.vsRoster ? unpackRuntimeData<NonNullable<LoadedCatalogue['vsRoster']>>(saved.vsRoster) : undefined
   const catalogue = {
-    ...catalogueFromIndex(index, files, datacards),
+    ...catalogueFromIndex(index, files, datacards, vsRoster),
     ...(saved.keywords ? { keywords: saved.keywords } : {}),
     ...(saved.baseSizes ? { baseSizes: saved.baseSizes } : {}),
     datacardExcludedCatalogueIds: datacardExclusions(saved.datacardExcludedCatalogueIds, saved.edition),
     mfm: unpackRuntimeData<LoadedCatalogue['mfm']>(saved.mfm),
     ...(saved.vsPoints ? { vsPoints: unpackRuntimeData<NonNullable<LoadedCatalogue['vsPoints']>>(saved.vsPoints) } : {}),
-    ...(saved.vsRoster ? { vsRoster: unpackRuntimeData<NonNullable<LoadedCatalogue['vsRoster']>>(saved.vsRoster) } : {}),
     ...(saved.vsProfiles ? { vsProfiles: unpackRuntimeData<NonNullable<LoadedCatalogue['vsProfiles']>>(saved.vsProfiles) } : {}),
     ...(saved.edition ? { edition: saved.edition } : {}),
   }
