@@ -272,6 +272,7 @@ it('refreshes only the scopes that changed while a product connection was renewe
       { scope: 'friends', revision: 4n },
     ],
   })
+  await vi.advanceTimersByTimeAsync(0)
   const filters = mocks.invalidateQueries.mock.calls as unknown as [{ predicate?: (query: unknown) => boolean }][]
   const refreshed = new Set(
     filters.flatMap(([filter]) => ['roster-bootstrap', 'friendships'].filter((key) => filter.predicate?.({ queryKey: [key] }))),
@@ -311,6 +312,7 @@ it('ignores a signal row the first catch-up already read', async () => {
   mocks.invalidateQueries.mockClear()
   const inserted = db.myProductSignals.onInsert.mock.calls[0]![0] as (context: unknown, row: unknown) => void
   inserted({}, { scope: 'collection', revision: 3n })
+  await vi.advanceTimersByTimeAsync(0)
   expect(refreshesOf('collection')).toBe(0)
 })
 
@@ -323,6 +325,7 @@ it('refreshes a scope whose signal moves after the catch-up', async () => {
   mocks.invalidateQueries.mockClear()
   const updated = db.myProductSignals.onUpdate.mock.calls[0]![0] as (context: unknown, old: unknown, row: unknown) => void
   updated({}, {}, { scope: 'collection', revision: 4n })
+  await vi.advanceTimersByTimeAsync(0)
   expect(refreshesOf('collection')).toBe(1)
 })
 
