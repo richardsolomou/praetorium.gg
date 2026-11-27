@@ -77,7 +77,10 @@ function errorsOf(book: string, detachment: string | undefined, pick: RosterPick
     picks: [pick],
   })
   const price = calculateRosterPrice(input, loaded, editions.rulesFor(book))
-  return price && new Set(price.errors.map((error) => `${error.entryName}: ${error.message}`))
+  if (!price) return null
+  // Whether the list's own build makes the unit its Warlord, as an Epic Hero who must be.
+  const warlord = Boolean(price.units[0] && hasWarlordToggle(price.units[0].toggles))
+  return Object.assign(new Set(price.errors.map((error) => `${error.entryName}: ${error.message}`)), { warlord })
 }
 
 const UNAVAILABLE = 'a saved choice is no longer available'
@@ -119,11 +122,6 @@ for (const [entryId, entry] of Object.entries(map)) {
   )
   const first = added(structuredClone(unit.data.defaults ?? {}), entry.base?.options ?? {})
   const built = buildUnit(entryId, catalogue.index)
-  // A unit BSData's default build makes the Warlord, as an Epic Hero who must be, names its Warlord model as a VS pick too.
-  const warlord =
-    built && hasWarlordToggle(built.toggles)
-      ? vsWarlordModel(definitions, unit.id, { faction: unit.data.faction, detachments: [] })
-      : undefined
   // The allegiance the default build holds, or the one its datasheet's name gives, as a Nurgle Soul Grinder's.
   const allegiance =
     built?.choices.flatMap((choice) => {
@@ -184,6 +182,8 @@ for (const [entryId, entry] of Object.entries(map)) {
       unbuilt++
       continue
     }
+    // A unit BSData's build makes the Warlord names its Warlord model as a VS pick too.
+    const warlord = bsErrors!.warlord ? vsWarlordModel(definitions, unit.id, { faction: unit.data.faction, detachments: [] }) : undefined
     const vsErrors = errorsOf(book, detachment, { entryId, vs: { models, ...read, ...(warlord ? { warlord } : {}) } })!
     const bsOnly = [...bsErrors!].filter((error) => !vsErrors.has(error))
     const vsOnly = [...vsErrors].filter((error) => !bsErrors!.has(error))
