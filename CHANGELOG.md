@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.279.10 (2026-11-27)
+
+### Patch Changes
+
+- 962618f: [assistant] Assistants no longer offer a Titan army Detachments it cannot take.
+
 ## 0.279.9 (2026-11-27)
 
 ### Patch Changes
