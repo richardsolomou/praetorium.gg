@@ -8,6 +8,7 @@ import type { LoadedCatalogue } from '../src/shared/catalogueIndex'
 import { calculateRosterPrice } from '../src/shared/pricing'
 import type { LoadedRules } from '../src/shared/rules'
 import { vsDefinitionsOf } from '../src/shared/vsDataBuild'
+import { rosterCombatant } from '../src/shared/rosterCombatRules'
 import { loadSnapshot } from './lib/catalogueSnapshotLoad'
 
 const directory = process.env.CATALOGUE_DIR ?? 'catalogue-data'
@@ -16,6 +17,7 @@ const captain = '91e3-a419-8c58-98f5'
 const legends = '1bb6-f47f-34a2-7796'
 const guilliman = '49fb-cb39-f830-9ee'
 const legionaries = 'db9f-5b64-ba4-dcd7'
+const immortals = '821d-665-499f-e895'
 const squad = 'space-marines.terminator-squad'
 
 describe.skipIf(!fs.existsSync(path.join(directory, 'definitions')))('a pick fielded by VS Data IDs', () => {
@@ -104,6 +106,16 @@ describe.skipIf(!fs.existsSync(path.join(directory, 'definitions')))('a pick fie
 
   it('must be the Warlord where its datasheet says so', () => {
     expect(priced({ entryId: guilliman, vs: { models: {}, options: {} } })[0]!.toggles[0]?.required).toBe(true)
+  })
+
+  it('simulates the wargear its selections give', () => {
+    const catalogueId = loaded.factions.find((faction) => faction.name.endsWith('Necrons'))!.id
+    const vs = {
+      models: { 'necrons.immortals.immortal': 5 },
+      options: { 'necrons.immortals.immortal-gauss-blaster': { 'necrons.immortals.tesla-carbine': 5 } },
+    }
+    const unit = rosterCombatant(loaded, rules, { catalogueId, detachmentIds: [], picks: [{ entryId: immortals, vs }], pickIndex: 0 })!
+    expect(unit.selected.profiles.some((profile) => profile.name === 'Tesla carbine')).toBe(true)
   })
 
   it('builds from the catalogue where VS Data does not field the datasheet', () => {

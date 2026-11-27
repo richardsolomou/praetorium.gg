@@ -106,6 +106,29 @@ function battleChoiceAllowancesFor(
   }))
 }
 
+/**
+ * A VS pick's datasheet with every weapon profile the datasheet holds, as its catalogue tree is built at the default loadout
+ * and lists only the weapons that carries; the simulator finds each weapon VS Data's carriers hold among them by name.
+ */
+function withEveryWeapon(
+  loaded: LoadedCatalogue,
+  catalogueId: string,
+  entryId: string,
+  sheet: Datasheet | null,
+  carriers: readonly unknown[] | undefined,
+) {
+  if (!sheet || !carriers) return sheet
+  const held = new Set(sheet.profiles.map((profile) => profile.id))
+  const every = datasheetIn(loaded, catalogueId, entryId)?.profiles ?? []
+  return {
+    ...sheet,
+    profiles: [
+      ...sheet.profiles,
+      ...every.filter((profile) => !held.has(profile.id) && (profile.type === 'Ranged Weapons' || profile.type === 'Melee Weapons')),
+    ],
+  }
+}
+
 export function rosterCombatant(
   loaded: LoadedCatalogue,
   rules: LoadedRules | null,
@@ -135,10 +158,17 @@ export function rosterCombatant(
   if (!context || data.pickIndex === null) return null
   const selectedPick = data.picks[data.pickIndex]
   if (!selectedPick) return null
+  const selectedUnit = context.unitSelections.find((unit) => unit.pickIndex === data.pickIndex)
   const sheet = describeDatasheetAbilities(
     loaded,
     selectedPick.catalogueId ?? data.catalogueId,
-    datasheetIn(loaded, data.catalogueId, selectedPick.entryId, context),
+    withEveryWeapon(
+      loaded,
+      data.catalogueId,
+      selectedPick.entryId,
+      datasheetIn(loaded, data.catalogueId, selectedPick.entryId, context),
+      selectedUnit?.carriers,
+    ),
     rules,
   )
   if (!sheet) return null
@@ -164,15 +194,23 @@ export function rosterCombatant(
       const selected = describeDatasheetAbilities(
         loaded,
         pick.catalogueId ?? data.catalogueId,
-        datasheetIn(loaded, data.catalogueId, pick.entryId, memberContext),
+        withEveryWeapon(
+          loaded,
+          data.catalogueId,
+          pick.entryId,
+          datasheetIn(loaded, data.catalogueId, pick.entryId, memberContext),
+          unit.carriers,
+        ),
         rules,
       )
       if (!selected) return unavailable()
       const prefix = attachedProfilePrefix(pickIndex)
-      const carriers = combatCarriers(context.selections[unit.selectionIndex]!, loaded.index, {
-        primaryCatalogueId: data.catalogueId,
-        roster: context.selections.filter((_, at) => at !== unit.selectionIndex),
-      })
+      const carriers =
+        unit.carriers ??
+        combatCarriers(context.selections[unit.selectionIndex]!, loaded.index, {
+          primaryCatalogueId: data.catalogueId,
+          roster: context.selections.filter((_, at) => at !== unit.selectionIndex),
+        })
       return [
         {
           pickIndex,
@@ -270,10 +308,12 @@ export function rosterCombatant(
   return {
     selected: sheet,
     models: context.unitSelections.find((unit) => unit.pickIndex === data.pickIndex)!.models,
-    carriers: combatCarriers(context.selections[context.unitSelectionIndex]!, loaded.index, {
-      primaryCatalogueId: data.catalogueId,
-      roster: context.selections.filter((_, index) => index !== context.unitSelectionIndex),
-    }),
+    carriers:
+      selectedUnit?.carriers ??
+      combatCarriers(context.selections[context.unitSelectionIndex]!, loaded.index, {
+        primaryCatalogueId: data.catalogueId,
+        roster: context.selections.filter((_, index) => index !== context.unitSelectionIndex),
+      }),
     rules: rosterCombatRules(loaded, rules, data, context, sheet),
     companions,
     attachmentOptions,

@@ -26,7 +26,9 @@ import { admitsHost, attachmentOf } from '../core/attach'
 import { unquotedLabel } from '../core/combatReading'
 import { combatUnitKeywords, type CombatMember } from '../core/combatUnit'
 import type { RosterPick } from '../core/roster'
-import { rosterPickSchema } from '../core/commands'
+import { rosterPickSchema, vsPickSchema } from '../core/commands'
+import { vsUnitProblems } from '../core/vsDataUnit'
+import { vsDefinitionsOf, vsUnitIdOf } from '../shared/vsDataBuild'
 import type { UnavailableSelection } from '../core/rosterSelections'
 import { combatAtHealth } from '../core/combatSurvivors'
 import { combatTarget } from '../core/combatProfiles'
@@ -84,6 +86,11 @@ const memberShape = {
   choices: rosterPickSchema.shape.choices.describe(
     "Wargear choices, choice key to option id from get_unit_options or a get_my_roster pick: pass that pick's entryId as unit with its models, choices and spreads unchanged. An enhancement among them needs the side's detachment named. Omitted, the unit takes its default loadout.",
   ),
+  vs: vsPickSchema
+    .optional()
+    .describe(
+      "A get_my_roster pick's vs, unchanged, for a unit saved by VS Data IDs: it stands for the unit's models, choices and spreads, so pass it with the pick's entryId as unit and leave those out.",
+    ),
   spreads: rosterPickSchema.shape.spreads.describe(
     'How many models take each option of a choice group, choice key to {option id: count}, for groups get_unit_options sets with spreads.',
   ),
@@ -272,10 +279,11 @@ async function sidePicks(corpus: ReferenceCorpus, side: SideInput, catalogues: C
   const attached = side.attached ?? []
   const others = [...attached, ...(side.nearby ?? [])]
   const found = await Promise.all(others.map((member) => resolve(member.faction ?? side.faction, member.unit)))
-  const fielded = (member: Partial<Pick<SideInput, 'models' | 'choices' | 'spreads'>> = {}) => ({
+  const fielded = (member: Partial<Pick<SideInput, 'models' | 'choices' | 'spreads' | 'vs'>> = {}) => ({
     ...(member.models ? { models: member.models } : {}),
     ...(member.choices ? { choices: member.choices } : {}),
     ...(member.spreads ? { spreads: member.spreads } : {}),
+    ...(member.vs ? { vs: member.vs } : {}),
   })
   const picks: RosterPick[] = [
     { entryId: host.unit.id, catalogueId: host.faction.id, ...fielded(side) },
@@ -326,6 +334,16 @@ function refuseIllegalLoadouts(
   detachmentIds: string[],
   picks: readonly RosterPick[],
 ) {
+  // A VS pick's loadout is VS Data's to check, unit by unit.
+  const definitions = vsDefinitionsOf(loaded)
+  const vsReasons = picks.flatMap((pick) => {
+    const unit = pick.vs && definitions ? vsUnitIdOf(loaded, pick.entryId) : undefined
+    if (!pick.vs || !definitions || !unit) return []
+    const problems = vsUnitProblems(definitions, { unit, models: pick.vs.models, options: pick.vs.options })
+    const unitName = definitions.get('unit', unit)!.name
+    return problems.length ? [`${unitName} cannot take this loadout: ${problems.map((problem) => problem.message).join('; ')}.`] : []
+  })
+  if (vsReasons.length) throw new CombatRefusal(vsReasons)
   if (!picks.some((pick) => pick.choices || pick.spreads)) return
   const defaults = picks.map(({ choices: _choices, spreads: _spreads, ...pick }) => pick)
   const errors = (units: RosterPick[]) => sidePrice(loaded, rules, catalogueId, detachmentIds, units)?.errors ?? []
