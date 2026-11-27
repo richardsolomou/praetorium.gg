@@ -3,6 +3,9 @@ name: CI
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
+  # A pull request runs only what its change can affect, so main runs everything after each merge.
+  push:
+    branches: [main]
   workflow_dispatch:
     inputs:
       e2e-runners:
@@ -13,7 +16,8 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  # Main finishes the run it started and keeps only the newest merge waiting, so the latest main always gets the full suite.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -83,6 +87,7 @@ jobs:
 
   e2e-lane:
     needs: browser-build
+    if: needs.browser-build.outputs.needed == 'true'
     uses: ./.github/workflows/ci-e2e.yml
     with:
       node-version: ${{ needs.browser-build.outputs.node-version }}
@@ -121,3 +126,28 @@ jobs:
         run: |
           failed="$(jq -r '[to_entries[] | select(.value.result == "failure" or .value.result == "cancelled" or (.key == "changes" and .value.result != "success")) | .key] | join(", ")' <<< "$NEEDS")"
           test -z "$failed" || { echo "::error::Failed: $failed"; exit 1; }
+
+  main-failure:
+    # One open issue says main is red, so a failure the merged pull request's selection missed is seen; the next green run closes it.
+    if: always() && github.event_name == 'push'
+    needs: ready
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      TITLE: CI fails on main
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - name: Open or update the issue
+        if: needs.ready.result == 'failure'
+        run: |
+          issue="$(gh issue list --state open --search "in:title \"$TITLE\"" --json number,title --jq "map(select(.title == \"$TITLE\"))[0].number // empty")"
+          body="The full suite failed on ${GITHUB_SHA::9}: $RUN_URL"
+          if [ -n "$issue" ]; then gh issue comment "$issue" --body "$body"; else gh issue create --title "$TITLE" --body "$body"; fi
+      - name: Close the issue
+        if: needs.ready.result == 'success'
+        run: |
+          issue="$(gh issue list --state open --search "in:title \"$TITLE\"" --json number,title --jq "map(select(.title == \"$TITLE\"))[0].number // empty")"
+          if [ -n "$issue" ]; then gh issue close "$issue" --comment "Passing again on ${GITHUB_SHA::9}: $RUN_URL"; fi
