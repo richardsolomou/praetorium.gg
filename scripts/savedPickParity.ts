@@ -13,7 +13,7 @@ import { calculateRosterPrice, savedRosterPriceInput } from '../src/shared/prici
 import { rosterDetachments } from '../src/shared/rosterDetachments'
 import { loadSnapshot } from './lib/catalogueSnapshotLoad'
 import { type SavedList, savedLists, savedLoadouts } from './lib/vsDataRosterParity'
-import { catalogueUnitErrors, legacyIds, specialOf, vsKnownWargear, vsWargear } from './lib/vsDataRosters'
+import { catalogueUnitErrors, leaves, legacyIds, specialOf, vsKnownWargear, vsWargear } from './lib/vsDataRosters'
 import { same } from '../src/shared/vsDataModelNames'
 import { vsSpelling } from '../src/shared/wargearSpellings'
 
@@ -142,6 +142,19 @@ function compare(saved: Listed, loadout: boolean) {
     checkVsUnit(definitions, vsUnit, (code) => problems.push(code))
     const refused = built ? catalogueUnitErrors(loaded.index, roster, input.catalogueId, built.selection) : ['does not build']
     const models = Object.values(pick.vs!.models).reduce((sum, n) => sum + n, 0)
+    // Equipment the VS Data unit carries beyond BSData's that no option of it takes or gives is the app's printed default,
+    // which BSData's built unit leaves out, as the translator keeps it.
+    const optional = new Set(
+      definitions.optionsOf(vsUnit.unit).flatMap((option) => {
+        const touched = new Map<string, number>()
+        for (const choice of option.data.choices) leaves(definitions, choice, 1, touched)
+        for (const [replaced, n] of Object.entries(option.data.replaces ?? {})) leaves(definitions, replaced, n, touched)
+        return [...touched.keys()]
+      }),
+    )
+    const kept = [...vsBag].filter(([item, n]) => n > (bsBag.get(item) ?? 0) && !optional.has(item))
+    for (const [item, n] of kept) bsBag.set(item, n)
+    if (kept.length) count('units with printed defaults kept')
     const checks = {
       points: points === priced.points,
       models: models === priced.size.models,

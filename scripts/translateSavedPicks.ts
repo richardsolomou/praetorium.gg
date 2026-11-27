@@ -399,6 +399,16 @@ function translate({
   const key = (keys: Record<string, string>, id: string) => (retained ? keys[`${edition}~${id}`] : undefined) ?? keys[id]
   const unit = key(ids.units, pick.entryId)
   if (!unit || !definitions.get('unit', unit)) return { outcome: 'unmatched', reason: 'no-unit' }
+  // A unit the pick's book cannot field, through its faction, parent or allies, is a datasheet ID the map reads as another
+  // faction's (a shared library entry), so its translation would stand for the wrong unit.
+  const bookFaction = pick.catalogueId ? key(ids.books, pick.catalogueId.slice(pick.catalogueId.indexOf('~') + 1)) : faction
+  const own = definitions.get('faction', bookFaction ?? '')
+  const unitFaction = definitions.get('unit', unit)!.data.faction
+  if (
+    !own ||
+    (unitFaction !== own.id && unitFaction !== own.data.parent && !(own.data.allies ?? []).some((ally) => ally.units.includes(unit)))
+  )
+    return { outcome: 'unmatched', reason: 'not-in-book', detail: { book: bookFaction, unitFaction } }
   const special = specialOf(priced, detachments, ids, key)
   // A unit takes one Enhancement, an upgrade counting as one; a pick holding more is refused today as well.
   if (special.enhancements.length + special.missing.length > 1) return { outcome: 'unmatched', reason: 'several-enhancements' }
@@ -474,6 +484,13 @@ function translate({
     if (!specials.has(wargearKey(name))) add(target, vsSpelling(name, known), count)
   const delta = new Map(target)
   for (const [item, n] of vsBag(definitions, unit, models, defaults)) add(delta, item, -n)
+  // Equipment VS Data's unit carries that no option of it takes away is what the app prints, where BSData's built unit
+  // leaves it out (Azrael's Lion Helm), so the unit keeps it.
+  const removable = new Set(
+    movesOf(definitions, unit, defaults).flatMap(({ change }) => [...change].flatMap(([item, n]) => (n < 0 ? [item] : []))),
+  )
+  const keptDefaults = [...delta].flatMap(([item, n]) => (n < 0 && !removable.has(item) ? [item] : []))
+  for (const item of keptDefaults) delta.delete(item)
   const valid = (selections: Selections) => !problemsOf(definitions, { ...read, options: joined(defaults, selections) }).length
   // How the per-choice map reads a pick of the current rules version, to compare against: equal and valid, or not.
   const guessed = edition === base!.edition.id && !loadout ? guessOf(pick.entryId, pick) : null
@@ -591,7 +608,7 @@ function translate({
     if ([...said({ unit, ...vs })].some((message) => !bare.has(message))) return { outcome: 'unmatched', reason: 'specials-refused', guess }
     return {
       outcome: 'translated',
-      reason: reason + where + (unset ? ', allegiance unset' : ''),
+      reason: reason + where + (keptDefaults.length ? ', defaults kept' : '') + (unset ? ', allegiance unset' : ''),
       selections: only!,
       vs,
       ...(guess ? { guess: guess + agrees } : {}),
@@ -607,6 +624,7 @@ const byKind: Record<string, Record<string, number>> = {}
 const frozen = new Map<string, VsPick>()
 /** Picks left on BSData for what VS Data or the reviewed spellings lack, alike ones counted together. */
 const GAPS = new Set([
+  'not-in-book',
   'wargear-vs-data-lacks',
   'no-equal-wargear',
   'refused-by-checker',
