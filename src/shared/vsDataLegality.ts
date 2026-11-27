@@ -215,7 +215,11 @@ function described(problem: VsProblem, checked: { unit: CheckedUnit }[], definit
     'detachment-group': named(problem.message.replace(/^(.*) shares (\S+) with (.*)$/, '$1 cannot be taken with $3, as both are $2')),
     'unit-faction': 'cannot be taken by this army',
     'unit-excluded': 'cannot be taken with this army or its Detachments',
-    'ally-detachment': named(problem.message.replace(/^.*? needs one of/, 'needs one of these Detachments:')),
+    // As the catalogue words a Detachment lock: needs the Deathwatch Support detachment.
+    'ally-detachment': `needs the ${joined(
+      (/ needs one of (.+)$/.exec(problem.message)?.[1] ?? '').split(', ').map(named),
+      'or',
+    )} detachment`,
     'ally-points': named(problem.message),
     'ally-limit': named(
       problem.message.replace(

@@ -706,7 +706,7 @@ function calculateRoster(
   const pointCaps = pointCapResult.errors.filter(
     (error) =>
       !error.limit ||
-      !vsData?.some((said) => said.message === `allied units cost at most ${error.limit!.max} points, cost ${error.limit!.measured}`),
+      !vsData?.some((said) => said.message.endsWith(`units cost at most ${error.limit!.max} points, cost ${error.limit!.measured}`)),
   )
   const restrictions = rules?.factionRestrictions.get(factionSlug)
   // Keywords and Toughness are only inputs to these two construction rule sets.

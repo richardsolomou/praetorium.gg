@@ -178,7 +178,7 @@ describe('vsDataErrors', () => {
     expect(errors([unit({ entryId: 'bs-scout', points: 60 }), unit({ entryId: 'bs-scout', points: 60 })])).toContainEqual({
       entryId: 'army',
       entryName: 'Army',
-      message: 'allied units cost at most 100 points, cost 120',
+      message: 'allied Other units cost at most 100 points, cost 120',
     })
   })
 
