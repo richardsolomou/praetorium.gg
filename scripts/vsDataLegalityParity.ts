@@ -5,6 +5,7 @@ import { nameOf } from '../src/core/catalogue'
 import { legacyOptionsSchema } from '../src/core/legacyIds'
 import { isNonMatchedPlayName } from '../src/core/name'
 import { buildUnit, type RosterPick } from '../src/core/roster'
+import { hasWarlordToggle, vsWarlordModel } from '../src/core/unitChoices'
 import type { Counts } from '../src/core/vsDataConstruction'
 import { modelBounds } from '../src/core/vsDataRoster'
 import { readCatalogueComposition } from '../src/server/catalogueComposition'
@@ -118,6 +119,11 @@ for (const [entryId, entry] of Object.entries(map)) {
   )
   const first = added(structuredClone(unit.data.defaults ?? {}), entry.base?.options ?? {})
   const built = buildUnit(entryId, catalogue.index)
+  // A unit BSData's default build makes the Warlord, as an Epic Hero who must be, names its Warlord model as a VS pick too.
+  const warlord =
+    built && hasWarlordToggle(built.toggles)
+      ? vsWarlordModel(definitions, unit.id, { faction: unit.data.faction, detachments: [] })
+      : undefined
   // The allegiance the default build holds, or the one its datasheet's name gives, as a Nurgle Soul Grinder's.
   const allegiance =
     built?.choices.flatMap((choice) => {
@@ -178,7 +184,7 @@ for (const [entryId, entry] of Object.entries(map)) {
       unbuilt++
       continue
     }
-    const vsErrors = errorsOf(book, detachment, { entryId, vs: { models, ...read } })!
+    const vsErrors = errorsOf(book, detachment, { entryId, vs: { models, ...read, ...(warlord ? { warlord } : {}) } })!
     const bsOnly = [...bsErrors!].filter((error) => !vsErrors.has(error))
     const vsOnly = [...vsErrors].filter((error) => !bsErrors!.has(error))
     const verdict: Verdict =
