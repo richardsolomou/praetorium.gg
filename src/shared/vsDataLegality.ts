@@ -76,6 +76,9 @@ export function vsDataErrors(
   // A list VS Data cannot place stays with the catalogue's checks: one of a faction with neither Detachments of its own
   // nor `withoutDetachments`, or with a Detachment VS Data does not file under its faction. Any other list needs one.
   const ownsDetachments = definitions.all('detachment').some((detachment) => own.has(detachment.data.faction))
+  // Nor can it place one of a faction none of whose datasheets reads as its own, as Titanicus Traitoris's read as the
+  // Imperial Titans they share BSData IDs with.
+  if (!readsAsOwn(data, definitions, own)) return null
   if (!without && (!ownsDetachments || detachments.some((id) => !id || !own.has(definitions.get('detachment', id)?.data.faction))))
     return null
   const battleSize = definitions.all('battle-size').find((size) => size.data.points === list.limit)?.id
@@ -139,6 +142,16 @@ export function vsDataErrors(
       .filter((problem) => !without || problem.code !== 'detachment-faction')
       .flatMap((problem) => described(problem, checked, definitions) ?? [])
   )
+}
+
+const ownedFactions = new WeakMap<VsRosterData, Set<string>>()
+const readsAsOwn = (data: VsRosterData, definitions: VsDataDefinitions, own: ReadonlySet<string | undefined>) => {
+  const factions = remember(
+    ownedFactions,
+    data,
+    () => new Set(Object.values(data.units).flatMap((id) => definitions.get('unit', id)?.data.faction ?? [])),
+  )
+  return [...own].some((faction) => faction !== undefined && factions.has(faction))
 }
 
 /** Names compared by their letters and digits alone, without the "upgrade" BSData adds to some (Character upgrade). */
