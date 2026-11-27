@@ -58,8 +58,7 @@ jobs:
           SPACETIME_BIN: ${{ steps.spacetime.outputs.cli-path }}
           PLAYWRIGHT_STARTUP_REPORT: e2e-startup-${{ matrix.runner }}.json
         run: |
-          PLAYWRIGHT_PORT="$((4170 + E2E_SHARD))" \
-            PLAYWRIGHT_OUTPUT_DIR="test-results-$E2E_SHARD" \
+          PLAYWRIGHT_OUTPUT_DIR="test-results-$E2E_SHARD" \
             PLAYWRIGHT_JSON_OUTPUT_NAME="e2e-report-$E2E_SHARD.json" \
             pnpm exec playwright test --test-list="$RUNNER_TEMP/e2e-shards/$E2E_SHARD.txt" --reporter=github,json
       - name: Report browser-test startup
