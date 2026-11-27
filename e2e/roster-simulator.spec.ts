@@ -211,7 +211,8 @@ test('roster buffs apply conditional shooting bonuses and defensive stratagems',
   const modifiersBottom = await simulator
     .getByRole('region', { name: 'Applied modifiers' })
     .evaluate((element) => element.getBoundingClientRect().bottom)
-  expect(modifiersBottom).toBeLessThanOrEqual(footerTop)
+  // A scroll stops on whole pixels, so a dialog body starting partway through one can end a fraction of a pixel short.
+  expect(modifiersBottom).toBeLessThanOrEqual(footerTop + 1)
   await simulator.getByRole('button', { name: 'Close', exact: true }).click()
   await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
 })

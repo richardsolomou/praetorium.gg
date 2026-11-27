@@ -188,11 +188,17 @@ test('weapon switches leave profiles visible and shared modifiers can be overrid
   await expect(resultsSummary).toBeVisible()
   await page.setViewportSize({ width: 390, height: 900 })
   await noOverflow(page)
+  // Read with its breakdown folded, as it sits while a player works through the modifiers.
+  await closeCombatBreakdown(page)
   await page.evaluate(() => window.scrollTo(0, 0))
-  const top = await resultsSummary.evaluate((element) => element.getBoundingClientRect().top)
+  // Pinned on the tab bar wherever the page is scrolled.
+  const tabs = page.getByRole('navigation', { name: 'Application sections' })
+  const pinned = async () =>
+    Math.round((await resultsSummary.boundingBox())!.y + (await resultsSummary.boundingBox())!.height - (await tabs.boundingBox())!.y)
+  await expect.poll(pinned).toBe(0)
   await page.getByRole('region', { name: 'Modifiers', exact: true }).evaluate((element) => element.scrollIntoView({ block: 'start' }))
   await expect(resultsSummary).toBeVisible()
-  expect(await resultsSummary.evaluate((element) => element.getBoundingClientRect().top)).toBe(top)
+  await expect.poll(pinned).toBe(0)
   await page
     .getByRole('region', { name: 'Modifiers', exact: true })
     .screenshot({ path: test.info().outputPath('simulator-shared-modifiers-390.png') })

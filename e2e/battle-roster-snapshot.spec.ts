@@ -23,7 +23,13 @@ test('a fielded roster opens as the frozen read-only roster view', async ({ page
   await expect(page.getByLabel('List name')).toHaveValue(rosterName)
   await expect(page.getByLabel('List name')).toHaveAttribute('readonly', '')
   await expect(page.getByText('Characters', { exact: true })).toBeVisible()
-  await expect(page.getByText('1 unit', { exact: true })).toBeVisible()
+  // The shelf's own count, which the list header's unit total repeats for a one-unit list.
+  await expect(
+    page
+      .locator('section')
+      .filter({ has: page.getByText('Characters', { exact: true }) })
+      .getByText('1 unit', { exact: true }),
+  ).toBeVisible()
   await expect(page.locator('[data-stat="points"]')).toContainText('/2000')
   await expect(page.locator('[data-unit="Lord of Virulence"]')).toContainText('Lord of Virulence')
   const unit = page.locator('[data-unit="Lord of Virulence"]')

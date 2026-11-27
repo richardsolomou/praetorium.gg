@@ -127,18 +127,22 @@ export function textPointersIn(texts: readonly (string | null | undefined)[], lo
 }
 
 /**
- * A value with every token removed, where each record that lost text says where to read it:
- * `textSources` beside its fields, located by the record's own `id`. Agents and other
- * programs get names, numbers and these pointers, never the words.
+ * A value with every token removed, where each record that lost text carries `ruleSummary`, Praetorium's own wording
+ * of the rule, as it does already or `summaryOf` finds; or else says where to read the words: `textSources` beside its
+ * fields, located by the record's own `id`. Agents and other programs never get the words.
  */
-export function withTextPointers<T>(value: T, locations: TextLocations): T {
+export function withTextPointers<T>(value: T, locations: TextLocations, summaryOf?: (record: Record<string, unknown>) => unknown): T {
   if (typeof value === 'string') return withoutTexts(value)
-  if (Array.isArray(value)) return value.map((entry) => withTextPointers(entry, locations)) as T
+  if (Array.isArray(value)) return value.map((entry) => withTextPointers(entry, locations, summaryOf)) as T
   if (!value || typeof value !== 'object' || Object.getPrototypeOf(value) !== Object.prototype) return value
-  const record = value as Record<string, unknown>
+  // A null `ruleSummary` marks a record whose summary was looked for and none applies, so none is found for it here.
+  const { ruleSummary: given, ...record } = value as Record<string, unknown>
+  const published = Object.fromEntries(Object.entries(record).map(([key, entry]) => [key, withTextPointers(entry, locations, summaryOf)]))
   const strings = Object.values(record).filter((entry): entry is string => typeof entry === 'string' && hasTextTokens(entry))
+  const ruleSummary = given ?? (given === undefined && strings.length ? summaryOf?.(record) : null)
+  if (ruleSummary) return { ...published, ruleSummary } as T
+  if (!strings.length) return published as T
   const pointers = textPointersIn(strings, locations, typeof record.id === 'string' ? record.id : undefined)
-  const published = Object.fromEntries(Object.entries(record).map(([key, entry]) => [key, withTextPointers(entry, locations)]))
   return (pointers.length ? { ...published, textSources: pointers } : published) as T
 }
 

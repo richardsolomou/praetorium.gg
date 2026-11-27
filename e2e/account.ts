@@ -82,7 +82,7 @@ export async function chooseRosterDefault(page: Page, name: 'Private' | 'Unliste
   await choosePlayerDefault(page, 'Roster visibility', name)
 }
 
-/** Presses a profile default on the open profile page until it reads as pressed, and waits until it leaves the device. */
+/** Presses a profile default on the open profile page until it reads as pressed, and waits until the account holds it. */
 export async function choosePlayerDefault(page: Page, setting: 'Roster visibility' | 'Battle size', name: string) {
   const group = page.getByRole('group', { name: setting })
   const choice = new RegExp(`^${name}`)
@@ -90,6 +90,15 @@ export async function choosePlayerDefault(page: Page, setting: 'Roster visibilit
     group.getByRole('button', { name: choice }).click(),
   )
   await expect.poll(async () => (await savedWork(page))?.operations.length ?? 0).toBe(0)
+  // A choice reads as pressed while it is still saving, so only a reload proves the account holds it.
+  await expect(async () => {
+    await page.reload()
+    await group.getByRole('button', { name: choice }).waitFor()
+    if (await group.getByRole('button', { name: choice, pressed: true }).isVisible()) return
+    // The reload cut the save short, so press it again and check once more.
+    await group.getByRole('button', { name: choice }).click()
+    throw new Error(`${setting} is not saved as ${name} yet`)
+  }).toPass()
 }
 
 /** Saves a small picture as the signed-in player's avatar. */
@@ -727,11 +736,17 @@ export async function takeTheTurn(page: Page) {
       drawPrompt(page)
         .waitFor({ state: 'visible', timeout: 8_000 })
         .then(() => 'drawn'),
-      // A reminder or mission choice is modal, hiding the board's buttons until the caller answers it.
-      advanceButton(page)
-        .or(page.getByRole('dialog', { name: /^Battle reminders?$| · choices$/ }))
-        .first()
+      // A reminder or mission choice is modal, hiding the board's buttons until the caller answers it. A page that has
+      // not yet heard the other side pass still shows their end phase, whose button would pass a turn already passed.
+      page
+        .locator('[data-scoreboard] h1', { hasNotText: /^end/ })
         .waitFor({ state: 'visible', timeout: 8_000 })
+        .then(() =>
+          advanceButton(page)
+            .or(page.getByRole('dialog', { name: /^Battle reminders?$| · choices$/ }))
+            .first()
+            .waitFor({ state: 'visible', timeout: 8_000 }),
+        )
         .then(() => 'board'),
     ]).catch(() => 'board')
     if (seen === 'board') return skipMissionChoices(page)

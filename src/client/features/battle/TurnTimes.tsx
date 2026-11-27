@@ -20,16 +20,16 @@ export function TurnTimes({ clock, sides }: Props) {
   ]
 
   return (
-    <section data-turn-times className="space-y-1">
-      <p className="eyebrow">Turn times</p>
-      <table className="w-full table-fixed border-collapse rounded-lg border border-edge bg-sunken text-xs">
+    <section data-turn-times className="space-y-1.5">
+      <h3 className="text-base font-semibold text-bone">Turn times</h3>
+      <table className="w-full table-fixed border-collapse text-sm">
         <thead>
-          <tr className="border-b border-edge text-left text-2xs tracking-wide text-faint uppercase">
-            <th scope="col" className="w-24 px-2 py-1.5 font-normal">
+          <tr className="border-b border-edge text-left text-xs">
+            <th scope="col" className="w-24 py-1.5 pr-2 font-normal">
               <span className="sr-only">Stretch</span>
             </th>
             {sides.map((side) => (
-              <th key={side.index} scope="col" className={`truncate px-2 py-1.5 text-right font-semibold ${tint(side.index).text}`}>
+              <th key={side.index} scope="col" className={`truncate py-1.5 pl-2 text-right font-semibold ${tint(side.index).text}`}>
                 <SideNames side={side} />
               </th>
             ))}
@@ -37,16 +37,19 @@ export function TurnTimes({ clock, sides }: Props) {
         </thead>
         <tbody>
           {rows.map((row) => (
-            <tr key={row.key} className={`border-b border-edge last:border-0 ${row.divided ? 'border-t border-t-runner' : ''}`}>
-              <th scope="row" className={`px-2 py-1 text-left capitalize ${row.key === 'total' ? 'font-bold' : 'font-normal text-dim'}`}>
+            <tr key={row.key} className={`border-b border-edge ${row.divided ? 'border-t-2 border-t-edge' : ''}`}>
+              <th
+                scope="row"
+                className={`py-1.5 pr-2 text-left capitalize ${row.key === 'total' ? 'font-semibold text-bone' : 'font-normal text-dim'}`}
+              >
                 {row.label}
               </th>
               {sides.map((side) => (
-                <td key={side.index} className="px-2 py-1 text-right">
+                <td key={side.index} className="py-1.5 pl-2 text-right">
                   <Elapsed
                     clock={clock}
                     match={{ ...row.match, side: side.index }}
-                    className={row.key === 'total' ? 'font-bold' : 'text-dim'}
+                    className={row.key === 'total' ? 'font-semibold text-bone' : 'text-dim'}
                   />
                 </td>
               ))}

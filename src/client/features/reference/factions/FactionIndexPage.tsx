@@ -2,14 +2,13 @@ import { GuideHelp } from '../../onboarding/GuideHelp'
 import { FactionReferenceLink } from '../../../components/FactionReferenceLink'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { ChevronRight, Heart } from 'lucide-react'
+import { Heart } from 'lucide-react'
 import { useState } from 'react'
 import { Toggle } from '@/components/ui/toggle'
 import { currentCatalogueFamilyId } from '../../../../core/retiredCatalogueIds'
 import { factionIndexQuery, meQuery } from '../../../queries'
 import { useFavouriteFactions } from '../../../favouriteFactions'
 import { FactionMark, type FactionPresentation } from '../../../components/FactionMark'
-import { RUNNER_COLUMNS } from '../runnerColumns'
 import { SearchField } from '../../../components/SearchField'
 import { FullPageState, PageState } from '../../../components/PageState'
 import { PageContent, PageHeader } from '../../../components/Page'
@@ -53,6 +52,7 @@ export function FactionIndexPage() {
         {favouriteFactions.length ? (
           <FactionShelf
             title="Favourites"
+            featured
             entries={favouriteFactions}
             versions={data.factions}
             favourites={favourites}
@@ -97,47 +97,63 @@ type Faction = {
   references: { id: string; name: string; datasheets: number; detachments: number }[]
 }
 
+/**
+ * One grand alliance as ruled rows, or the favourites as larger tiles above them, since those are what the player opens most.
+ */
 function FactionShelf({
   title,
   entries,
   versions,
   favourites,
   onFavourite,
+  featured = false,
 }: {
   title: string
   entries: Faction[]
   versions: Faction[]
   favourites: Set<string>
   onFavourite?: (id: string) => void
+  featured?: boolean
 }) {
   return (
     <section data-shelf={title} className="mt-8">
       <SectionHeading title={title} count={entries.length} />
-      <div className={`${RUNNER_COLUMNS} [--gate-y:1.875rem] md:columns-2 xl:columns-3`}>
+      <div
+        className={
+          featured ? 'grid gap-2 sm:grid-cols-2 sm:gap-3 lg:grid-cols-3 xl:grid-cols-4' : 'grid sm:grid-cols-2 sm:gap-x-6 xl:grid-cols-3'
+        }
+      >
         {entries.map((entry) => {
           const editions = versions.filter((version) => currentCatalogueFamilyId(version.id) === currentCatalogueFamilyId(entry.id)).length
           return (
             <div
               key={entry.id}
               data-faction={entry.displayName}
-              className="flex min-h-15 items-center part pr-2 transition-colors hover:border-runner hover:bg-raised"
+              className={
+                featured
+                  ? 'flex min-h-17 items-center part pr-1.5 transition-colors hover:border-runner-hi hover:bg-raised'
+                  : 'flex min-h-14 items-center border-t border-edge pr-1 transition-colors hover:bg-raised'
+              }
             >
               <FactionReferenceLink
                 to="/factions/$catalogueId"
                 params={{ catalogueId: entry.slug }}
-                className="flex min-w-0 flex-1 items-center gap-3 self-stretch py-2.5 pr-1 pl-3"
+                className={`flex min-w-0 flex-1 items-center gap-3 self-stretch pr-1 ${featured ? 'py-2.5 pl-3' : 'py-2 pl-2'}`}
               >
-                <FactionMark faction={entry} />
+                <FactionMark faction={entry} className={featured ? 'size-11' : 'size-8'} />
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[0.9375rem] font-bold">{entry.displayName}</span>
-                  <span className="block text-xs text-dim">
+                  <span
+                    className={`block font-bold text-balance break-words text-bone ${featured ? 'font-display text-lg leading-tight' : 'text-[0.9375rem] leading-snug'}`}
+                  >
+                    {entry.displayName}
+                  </span>
+                  <span className="block truncate text-2xs text-faint">
                     {[
                       countLabel(entry.references[0]?.detachments ?? 0, 'detachment'),
                       ...(editions > 1 ? [`${editions} rules versions`] : []),
                     ].join(' · ')}
                   </span>
                 </span>
-                <ChevronRight className="size-4 shrink-0 text-dim" aria-hidden />
               </FactionReferenceLink>
               {onFavourite ? (
                 <Toggle
@@ -148,7 +164,7 @@ function FactionShelf({
                   pressed={favourites.has(entry.id)}
                   onPressedChange={() => onFavourite(entry.id)}
                 >
-                  <Heart className={`size-4 ${favourites.has(entry.id) ? 'fill-rust text-rust' : 'text-dim'}`} />
+                  <Heart className={`size-4 ${favourites.has(entry.id) ? 'fill-rust text-rust' : 'text-faint hover:text-dim'}`} />
                 </Toggle>
               ) : (
                 <Link
@@ -157,7 +173,7 @@ function FactionShelf({
                   className="grid size-9 place-items-center"
                   aria-label={`Sign in to add ${entry.displayName} to favourites`}
                 >
-                  <Heart className="size-4 text-dim" />
+                  <Heart className="size-4 text-faint hover:text-dim" />
                 </Link>
               )}
             </div>

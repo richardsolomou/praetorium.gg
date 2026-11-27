@@ -37,7 +37,7 @@ const battle: Battle = {
   organised: false,
 }
 
-function render(overrides: Partial<Battle> = {}, loaded = true) {
+function render(overrides: Partial<Battle> = {}, loaded = true, lead = false) {
   const client = new QueryClient()
   if (loaded)
     client.setQueryData(deploymentsQuery().queryKey, [
@@ -45,17 +45,21 @@ function render(overrides: Partial<Battle> = {}, loaded = true) {
       { id: 'current-search-id', name: 'Search And Destroy', description: null, zones: [], attackerTerritory: null, objectives: [] },
     ])
   return renderToStaticMarkup(
-    createElement(QueryClientProvider, { client }, createElement(BattleShelf, { battles: [{ ...battle, ...overrides }] })),
+    createElement(QueryClientProvider, { client }, createElement(BattleShelf, { battles: [{ ...battle, ...overrides }], lead })),
   ).replaceAll(/<[^>]+>/g, '')
 }
 
-describe('battle row battlefield label', () => {
+// The lead plate carries the game's full setting; a row keeps to where the game is.
+const mission = { name: 'Take and Hold' } as Battle['mission']
+const plate = (overrides: Partial<Battle> = {}, loaded = true) => render({ mission, ...overrides }, loaded, true)
+
+describe('lead plate battlefield label', () => {
   it('shows the published name for a UUID', () => {
-    expect(render()).toContain('1,000 points · Dawn Of War')
+    expect(plate()).toContain('1,000 points · Dawn Of War')
   })
 
   it('shows the published name for an older slug', () => {
-    expect(render({ deploymentId: 'search-and-destroy' })).toContain('1,000 points · Search And Destroy')
+    expect(plate({ deploymentId: 'search-and-destroy' })).toContain('1,000 points · Search And Destroy')
   })
 
   it.each([
@@ -63,14 +67,20 @@ describe('battle row battlefield label', () => {
     ['an unknown deployment', 'missing-deployment', true],
     ['no deployment', null, true],
   ])('omits the battlefield when there is %s', (_, deploymentId, loaded) => {
-    expect(render({ deploymentId }, loaded)).toContain('1,000 points1 Jan 1970')
+    expect(plate({ deploymentId }, loaded)).not.toContain('Dawn Of War')
+  })
+})
+
+describe('battle row', () => {
+  it('names a live game in words', () => {
+    expect(render()).toMatch(/^Live/)
   })
 
-  it('keeps a concession visible', () => {
-    expect(render({ status: 'finished', result: { concededBy: 'bob', reason: 'conceded' } })).toContain(' · Conceded')
+  it('leaves a concession to the result', () => {
+    expect(render({ status: 'finished', result: { concededBy: 'bob', reason: 'conceded' } })).not.toContain('Conceded')
   })
 
   it('labels a battle finished early', () => {
-    expect(render({ status: 'finished', result: { concededBy: null, reason: 'finished-early' } })).toContain(' · Finished early')
+    expect(render({ status: 'finished', result: { concededBy: null, reason: 'finished-early' } })).toContain('Finished early')
   })
 })

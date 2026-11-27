@@ -53,7 +53,7 @@ export const forgetMatchup = createServerFn({ method: 'POST' })
   .validator(forgetMatchupSchema)
   .handler(({ data }) => signedInAction(productActions.forgetMatchup, data))
 
-/** The roster grades for the picks on screen; it reads rule words, so it is calculated here rather than on the device. */
+/** The roster grades for the picks on screen, calculated on the shared combat workers. */
 export const rosterGrades = createServerFn({ method: 'POST' })
   .validator(priceSchema)
   .handler(({ data }) => mutationRpc(() => calculateRosterGrades(data, getRequest().signal)))

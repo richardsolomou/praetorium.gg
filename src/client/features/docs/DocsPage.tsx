@@ -143,7 +143,7 @@ const components: Components = {
     </pre>
   ),
   code: ({ children }) => <code className="rounded-sm bg-raised px-1 py-px text-[0.9em] text-bone">{children}</code>,
-  blockquote: ({ children }) => <blockquote className="my-5 part px-4 py-1 [&_p]:text-bone">{children}</blockquote>,
+  blockquote: ({ children }) => <blockquote className="my-5 border-l-2 border-edge pl-4 [&_p]:text-bone">{children}</blockquote>,
 }
 
 /** Each symptom under Common problems reads as an entry in a list of fixes rather than another topic. */
@@ -178,7 +178,7 @@ export function DocsPage() {
         {query.trim() ? (
           <DocsSearchResults query={query} />
         ) : (
-          <ul aria-label="Docs" className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+          <ul aria-label="Docs" className="grid gap-x-8 gap-y-10 md:grid-cols-2 lg:grid-cols-3">
             {bySection().map(({ section, docs }) => (
               <AreaTile key={section} section={section} docs={docs} />
             ))}
@@ -201,9 +201,9 @@ function AreaTile({ section, docs }: { section: (typeof DOC_SECTIONS)[number]; d
   const topics = docs.filter((doc) => !troubleshooting(doc))
   const fixes = docs.find(troubleshooting)
   return (
-    <li className="part flex flex-col overflow-hidden">
-      <div className="flex flex-1 flex-col px-4 pt-4">
-        <h2 className="flex items-center gap-2.5 text-xl">
+    <li className="flex flex-col">
+      <div className="flex flex-1 flex-col">
+        <h2 className="flex items-center gap-2.5 text-xl font-semibold">
           <Icon className="size-5 shrink-0 text-parchment" aria-hidden />
           {section}
         </h2>
@@ -214,19 +214,19 @@ function AreaTile({ section, docs }: { section: (typeof DOC_SECTIONS)[number]; d
               <Link
                 to="/docs/$docId"
                 params={{ docId: doc.slug }}
-                className="group flex min-h-10 items-center gap-3 py-2 text-bone transition-colors hover:text-parchment"
+                className="group flex min-h-10 items-center gap-3 px-1 py-2 text-bone transition-colors hover:bg-raised"
               >
-                <span className="part-tag part-tag-ghost" aria-hidden>
+                <span className="w-4 shrink-0 text-right text-xs text-faint tabular-nums" aria-hidden>
                   {at + 1}
                 </span>
                 <span className="min-w-0 flex-1">{doc.title}</span>
-                <ChevronRight className="size-4 shrink-0 text-faint transition-colors group-hover:text-parchment" aria-hidden />
+                <ChevronRight className="size-4 shrink-0 text-faint" aria-hidden />
               </Link>
             </li>
           ))}
         </ol>
       </div>
-      <div className="flex min-h-12 flex-wrap items-center justify-between gap-x-4 gap-y-2 border-t border-edge bg-sunken/40 px-4 py-2.5">
+      <div className="flex min-h-11 flex-wrap items-center justify-between gap-x-4 gap-y-2 border-y border-edge px-1 py-2">
         {fixes ? (
           <Link
             to="/docs/$docId"
@@ -238,7 +238,7 @@ function AreaTile({ section, docs }: { section: (typeof DOC_SECTIONS)[number]; d
           </Link>
         ) : null}
         {action ? (
-          <Link to={action.to} className="ml-auto inline-flex items-center gap-1.5 text-sm font-semibold text-bone hover:text-parchment">
+          <Link to={action.to} className="ml-auto inline-flex items-center gap-1.5 text-sm font-medium text-info hover:underline">
             {action.label}
             <ArrowRight className="size-3.5" aria-hidden />
           </Link>
@@ -309,7 +309,7 @@ export function DocPage({ doc }: { doc: ProductDoc }) {
               </Markdown>
             ))}
           </article>
-          <nav aria-label="More docs" className="mt-14 grid max-w-[42rem] gap-3 border-t border-edge pt-6 sm:grid-cols-2">
+          <nav aria-label="More docs" className="mt-14 grid max-w-[42rem] border-t border-edge sm:grid-cols-2 sm:gap-x-6">
             {previous ? (
               <Pager doc={previous} label="Previous">
                 <ArrowLeft className="size-3.5" aria-hidden />
@@ -341,14 +341,14 @@ function Pager({ doc, label, alignEnd, children }: { doc: ProductDoc; label: str
     <Link
       to="/docs/$docId"
       params={{ docId: doc.slug }}
-      className={`group block part px-4 py-3 transition-colors hover:border-runner-hi ${alignEnd ? 'sm:text-right' : ''}`}
+      className={`group block border-b border-edge px-1 py-3 transition-colors hover:bg-raised ${alignEnd ? 'sm:text-right' : ''}`}
     >
       <span className={`eyebrow flex items-center gap-1.5 text-faint ${alignEnd ? 'sm:justify-end' : ''}`}>
         {alignEnd ? null : children}
         {label} · {doc.section}
         {alignEnd ? children : null}
       </span>
-      <span className="mt-1 block font-display uppercase group-hover:text-parchment">{doc.title}</span>
+      <span className="mt-1 block font-medium text-bone">{doc.title}</span>
     </Link>
   )
 }

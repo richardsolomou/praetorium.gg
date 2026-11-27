@@ -52,3 +52,11 @@ it('drops the labels and headings that framed withheld words', () => {
 it('keeps the facts a withheld text leaves', () => {
   expect(publishedFacts(`**When:** ${token}\n\n1 CP`)).toBe('**When:** \n\n1 CP')
 })
+
+it('finds no summary by its text for a rule whose owner has none', () => {
+  expect(withTextPointers({ id: 'ability-1', description: token, ruleSummary: null }, locations(['ability-1']), () => 'by text')).toEqual({
+    id: 'ability-1',
+    description: '',
+    textSources: [{ source: 'bsdata', url, id: 'ability-1' }],
+  })
+})

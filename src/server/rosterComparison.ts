@@ -75,9 +75,9 @@ async function tableUnits(roster: Roster): Promise<TableUnit[] | 'unknown' | nul
     inactivePicks: [],
   })
   return pickIndices.map((pickIndex, at) => {
-    const unread = projections[at]
+    const fielded = projections[at]
     const pick = roster.picks[pickIndex]!
-    if (!unread)
+    if (!fielded)
       return {
         name: loaded.index.definitions.get(pick.entryId)?.name ?? `Entry ${pickIndex + 1}`,
         entries: [pickIndex + 1],
@@ -85,7 +85,7 @@ async function tableUnits(roster: Roster): Promise<TableUnit[] | 'unknown' | nul
         snapshot: null,
         error: 'This unit is missing from the current army data.',
       }
-    const projection = withVsDataSaves(unread, units)
+    const projection = withVsDataSaves(fielded, units)
     const members = [projection, ...projection.companions]
     const unit = {
       name: members.map((member) => member.selected.name).join(' + '),

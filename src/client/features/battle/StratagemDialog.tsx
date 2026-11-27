@@ -47,17 +47,15 @@ export function StratagemDialog({
           />
         }
       >
-        <span className={`figure text-lg leading-none font-bold ${tint(opened.index).score}`}>{opened.cp}</span>
-        <span className="font-display text-2xs font-semibold text-dim uppercase">CP</span>
+        <span className={`figure text-lg leading-none ${tint(opened.index).score}`}>{opened.cp}</span>
+        <span className="text-2xs text-dim">CP</span>
       </DialogTrigger>
       <DialogContent className={colours.border}>
         <DialogHeader>
           <DialogTitle className={colours.text}>Stratagems · {sideName(side)}</DialogTitle>
           {/* Beside the count it changes, not in the footer, where it reads as a way back and has no undo. */}
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <DialogDescription>
-              {side.cp} CP · {side.cpGained} gained, {side.cpSpent} used
-            </DialogDescription>
+            <DialogDescription>{side.cp} CP</DialogDescription>
             <GainCp side={side} pending={pending} send={send} />
           </div>
         </DialogHeader>

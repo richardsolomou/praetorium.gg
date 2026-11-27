@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test'
 import { expect, test } from './test'
-import { advance, createRoster, openImport, renameRoster, setupBattle, signUp } from './account'
+import { advance, advanceButton, createRoster, openImport, renameRoster, setupBattle, signUp } from './account'
 import { custodesOfficial } from '../src/core/rosterText.custodes.fixture'
 import { docsScreenshots } from './docsScreenshots'
 
@@ -29,6 +29,8 @@ test('readme battle screenshot', async ({ page, browser }) => {
 
   await page.setViewportSize({ width: 1440, height: 900 })
   await expect(page.getByRole('region', { name: 'Battle scoreboard' })).toBeVisible()
+  // The controls wait for the last command to land, and a picture of them greyed out reads as a broken page.
+  await expect(advanceButton(page)).toBeEnabled()
   await page.screenshot({
     path: 'docs/images/readme-battle.png',
     animations: 'disabled',

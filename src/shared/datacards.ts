@@ -116,6 +116,8 @@ export type LoadedDatacards = {
   textFacts?: ReadonlyMap<string, TextFacts>
   /** A digest of the words each published text shows, by `textKey`, so texts that read alike are one; the server's alone. */
   textReadings?: ReadonlyMap<string, string>
+  /** A card rule's words by `factsKey`, read from its file when asked; the server's alone. */
+  textWords?: (key: string) => string | undefined
 }
 export type FactionRestrictions = {
   /** Lowercased datasheet names, each with the lowercased keyword that exempts a unit from it, if any. */
@@ -132,7 +134,6 @@ export type DatacardsFaction = {
   rules?: unknown
   enhancements?: unknown
   stratagems?: unknown
-  compatibleDataVersion?: unknown
 }
 /** A card's name as every source spells it: `(Aura)` and `(Upgrade)` are printed by some and not others. */
 export const cardName = (name: string) => routeSlug(name).replaceAll(/-(?:aura|upgrade)(?=-|$)/g, '')

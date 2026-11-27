@@ -11,6 +11,8 @@ import { definitionTexts } from './definitionTexts'
 import { cardTwins } from './cardTwins'
 import type { TextFacts, TextFactsByKey } from '../core/textFacts'
 import { vsDataTextFacts } from './vsDataEffects'
+import { combatOfVsDataOrWords } from '../shared/vsDataEffects'
+import { combatRuleRoles } from '../core/combatRules'
 import fs from 'node:fs'
 import path from 'node:path'
 import { buildIndex, type CatalogueFile } from '../core/catalogue'
@@ -135,6 +137,20 @@ export function* loadCatalogueSteps(
   holding = shown
   const shownCards = withoutTwinSearch(datacards)
   const readFacts = new Map<string, TextFacts>()
+  const factsOf = (key: string) => {
+    const facts = withLegality(effects!.get(key) ?? NO_FACTS, shown.fact(key) ?? cardFacts?.get(key))
+    const vsData = facts.combat
+    const roles = () => {
+      const said = shown.said(key) ?? cards.textWords?.(key)
+      return said === undefined ? [] : combatRuleRoles(said)
+    }
+    let combat: TextFacts['combat']
+    // The words are read only when asked, as most texts' facts are never asked for their combat.
+    return Object.defineProperty(facts, 'combat', {
+      enumerable: true,
+      get: () => (combat === undefined ? (combat = combatOfVsDataOrWords(vsData, roles)) : combat),
+    })
+  }
   const loaded: LoadedCatalogue = {
     ...ownTexts,
     index: indexOf(
@@ -142,8 +158,7 @@ export function* loadCatalogueSteps(
       shown.shown(selected),
       effects
         ? {
-            get: (key) =>
-              remember(readFacts, key, () => withLegality(effects.get(key) ?? NO_FACTS, shown.fact(key) ?? cardFacts?.get(key))),
+            get: (key) => remember(readFacts, key, () => factsOf(key)),
           }
         : undefined,
     ),
@@ -160,7 +175,7 @@ export function* loadCatalogueSteps(
 /** Cards with the catalogue's words they quote swapped for the catalogue's tokens. */
 function publishedDatacards(cards: LoadedDatacards, token: (raw: string) => string | null): LoadedDatacards {
   // The facts hold no text, and walking them would read every combat reading they hold only when asked.
-  const { textFacts, ...rest } = cards
+  const { textFacts, textWords: _words, ...rest } = cards
   const published = { ...withDefinitionTokens(rest, token), ...(textFacts ? { textFacts } : {}) }
   const texts = (descriptions: ReadonlyMap<string, string>) =>
     new Map([...descriptions].map(([key, text]) => [key, withDefinitionTokensIn(text, token)]))

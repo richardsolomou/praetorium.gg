@@ -50,11 +50,11 @@ test('a guest reviews, imports and saves their first list', async ({ page }, tes
   const save = page.getByRole('button', { name: 'Save roster', exact: true })
   for (const width of [1440, 1100, 390]) {
     await page.setViewportSize({ width, height: 900 })
+    await expect(save).toBeVisible()
+    // Below the wide layout the footer also offers Add units, and the two read as one pair of buttons.
     if (width < ROSTER_WIDE) {
       const add = page.getByRole('button', { name: 'Add units', exact: true })
       expect((await save.boundingBox())!.height).toBe((await add.boundingBox())!.height)
-    } else {
-      expect((await save.boundingBox())!.height).toBeLessThan(44)
     }
     await page.screenshot({ path: testInfo.outputPath(`guest-import-builder-${width}.png`) })
   }

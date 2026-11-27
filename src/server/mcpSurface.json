@@ -105,6 +105,7 @@
   "list_my_battle_drafts": [],
   "list_my_battles": ["before", "filter", "order"],
   "list_my_events": ["includeOpen"],
+  "list_my_feedback": ["offset"],
   "list_my_opponents": [],
   "list_my_rosters": [],
   "list_public_battles": ["before", "filter", "order"],
@@ -144,10 +145,12 @@
     "optionalRules",
     "prep",
     "visibility",
-    "source"
+    "source",
+    "printedDefaults"
   ],
   "save_unit_loadout": ["name", "catalogueId", "pick", "joined", "id"],
   "search_reference": ["query", "kinds", "faction", "pack", "document", "limit", "cursor"],
+  "send_feedback": ["kind", "message", "about"],
   "set_collection_counts_as": ["entryId", "countsAs"],
   "set_collection_models": ["entryId", "models"],
   "set_collection_progress": ["entryId", "built", "painted"],

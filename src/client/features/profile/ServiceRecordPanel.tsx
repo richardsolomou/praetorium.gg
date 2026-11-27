@@ -201,11 +201,11 @@ function Tallies({ items }: { items: readonly TallyItem[] }) {
   return (
     <div>
       <p className="eyebrow">Per battle</p>
-      <dl className="part mt-1 flex flex-wrap gap-px overflow-hidden bg-edge">
+      <dl className="mt-1 flex flex-wrap gap-px overflow-hidden border-y border-edge bg-edge">
         {items.map((item) => (
-          <div key={item.label} className="min-w-0 grow basis-[calc(50%-1px)] bg-panel px-3 py-2.5 sm:basis-[calc(25%-1px)]">
+          <div key={item.label} className="min-w-0 grow basis-[calc(50%-1px)] bg-void px-3 py-2.5 sm:basis-[calc(25%-1px)]">
             <dt className="eyebrow truncate text-faint">{item.label}</dt>
-            <dd className={`figure mt-1 text-xl leading-none font-bold text-bone`}>{item.value}</dd>
+            <dd className="figure mt-1 text-xl leading-none text-bone">{item.value}</dd>
           </div>
         ))}
       </dl>
@@ -220,10 +220,10 @@ function Tallies({ items }: { items: readonly TallyItem[] }) {
 function Results({ record }: { record: ServiceRecord }) {
   const share = (count: number) => `${(count / record.battles) * 100}%`
   return (
-    <div data-record-battles={record.battles} className="grid part md:grid-cols-[1.4fr_1fr_1fr] md:divide-x md:divide-edge">
+    <div data-record-battles={record.battles} className="grid border-y border-edge md:grid-cols-[1.4fr_1fr_1fr] md:divide-x md:divide-edge">
       <div className="p-4">
         <p className="eyebrow text-faint">Results · {countLabel(record.battles, 'battle')}</p>
-        <p className="figure mt-2 text-4xl leading-none font-bold">
+        <p className="figure mt-2 text-4xl leading-none">
           <span className="text-achieved">{record.won}</span>
           <span className="px-1 text-2xl text-faint">–</span>
           <span className="text-dim">{record.drawn}</span>
@@ -246,7 +246,7 @@ function Results({ record }: { record: ServiceRecord }) {
       </div>
       <div className="border-t border-edge p-4 md:border-t-0">
         <p className="eyebrow text-faint">Win rate</p>
-        <p className="figure mt-2 text-4xl leading-none font-bold text-bone">{percentLabel(record.rate)}</p>
+        <p className="figure mt-2 text-4xl leading-none text-bone">{percentLabel(record.rate)}</p>
         <div className="mt-3 space-y-1.5">
           <TurnSplit label="Going first" split={record.goingFirst} />
           <TurnSplit label="Going second" split={record.goingSecond} />
@@ -254,7 +254,7 @@ function Results({ record }: { record: ServiceRecord }) {
       </div>
       <div className="border-t border-edge p-4 md:border-t-0">
         <p className="eyebrow text-faint">Win streak</p>
-        <p className="figure mt-2 text-4xl leading-none font-bold text-bone">{record.currentStreak}</p>
+        <p className="figure mt-2 text-4xl leading-none text-bone">{record.currentStreak}</p>
         <p className="mt-2 text-xs text-dim">
           Longest <span className="readout text-bone">{record.longestStreak}</span>
         </p>
@@ -281,7 +281,7 @@ function TurnSplit({ label, split }: { label: string; split: Split }) {
   )
 }
 
-const NAME_LINK = 'font-bold break-words uppercase hover:text-info'
+const NAME_LINK = 'break-words text-bone hover:text-info'
 
 /**
  * What the side did with its resources, and how it fared by mission and by army faced.
@@ -369,7 +369,7 @@ function CareerTables({ record }: { record: ServiceRecord }) {
                 {row.name}
               </Link>
             ) : (
-              <span className="font-bold break-words uppercase">{row.name}</span>
+              <span className="break-words text-bone">{row.name}</span>
             )
           }
           columns={[...results, { label: 'Avg VP', cell: (row) => oneDecimal(row.averagePoints), tint: 'text-info' }]}
@@ -385,7 +385,7 @@ function CareerTables({ record }: { record: ServiceRecord }) {
               className="flex min-w-0 items-center gap-2 hover:text-info"
             >
               <FactionMark faction={row.faction} size="sm" />
-              <span className="font-bold break-words uppercase">{row.faction.displayName}</span>
+              <span className="break-words text-bone">{row.faction.displayName}</span>
             </FactionReferenceLink>
           )}
           columns={[...results, { label: 'Rate', cell: (row) => percentLabel(row.rate) }]}
@@ -398,7 +398,7 @@ function CareerTables({ record }: { record: ServiceRecord }) {
             renderName={(row) => (
               <Link to="/users/$userId" params={{ userId: row.id }} className="flex min-w-0 items-center gap-2 hover:text-info">
                 <PlayerAvatar name={row.name} image={row.image} className="size-6 text-3xs" />
-                <span className="font-bold break-words uppercase" style={nameColour(row)}>
+                <span className="break-words text-bone" style={nameColour(row)}>
                   {row.name}
                 </span>
               </Link>
@@ -443,10 +443,10 @@ function RecordTable<T>({
   return (
     <section data-record-table={label}>
       <p className="eyebrow">{label}</p>
-      <div className="part mt-1 overflow-hidden">
+      <div className="mt-1 border-t border-edge">
         <table className="w-full table-fixed border-collapse text-sm">
           <thead>
-            <tr className="border-b-2 border-runner text-left text-2xs tracking-eyebrow text-dim uppercase">
+            <tr className="border-b border-edge text-left text-2xs tracking-eyebrow text-faint uppercase">
               <th scope="col" className="px-2 py-1.5 font-normal">
                 Name
               </th>
@@ -463,7 +463,7 @@ function RecordTable<T>({
           </thead>
           <tbody>
             {shown.map((row) => (
-              <tr key={rowKey(row)} className="border-b border-edge last:border-0">
+              <tr key={rowKey(row)} className="border-b border-edge">
                 <td className="px-2 py-1.5">{renderName(row)}</td>
                 {columns.map((column) => (
                   <td key={column.label} className={`readout px-1.5 py-1.5 text-right ${column.tint ?? 'text-dim'}`}>
@@ -490,7 +490,7 @@ function CardName({ card }: { card: CardRecord }) {
       {card.name}
     </Link>
   ) : (
-    <span className="font-bold break-words uppercase">{card.name}</span>
+    <span className="break-words text-bone">{card.name}</span>
   )
 }
 
@@ -505,14 +505,14 @@ function StratagemName({ stratagem }: { stratagem: StratagemRecord }) {
       {stratagem.name}
     </FactionReferenceLink>
   ) : (
-    <span className="font-bold break-words uppercase">{stratagem.name}</span>
+    <span className="break-words text-bone">{stratagem.name}</span>
   )
 }
 
 /** The best or worst card or stratagem, which only exist once enough of them have been seen often enough to compare. */
 function Highlight({ label, name, detail }: { label: string; name: ReactNode; detail: string }) {
   return (
-    <div className="min-w-40 flex-1 part p-3">
+    <div className="min-w-40 flex-1 border-t border-edge pt-2">
       <p className="eyebrow">{label}</p>
       <p className="mt-1 text-sm">{name}</p>
       <p className="readout mt-1 text-xs text-dim">{detail}</p>

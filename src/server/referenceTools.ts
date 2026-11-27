@@ -34,7 +34,7 @@ export function registerReferenceTools(server: AgentTools) {
     {
       title: 'Search the Praetorium game reference',
       description:
-        'Searches Praetorium’s missions, force dispositions, deployments, terrain, rules, detachments, and datasheets by name, number, keyword, and value, then datasheets and detachments whose abilities, stratagems or enhancements say the words searched for, such as objective control remains for an ability that keeps an objective. Returns bounded excerpts with canonical URLs, source revisions, and attribution; a match found by what an ability says names that ability and points at its section. Rules text is not included; records point to it upstream.',
+        'Searches Praetorium’s missions, force dispositions, deployments, terrain, rules, detachments, and datasheets by name, number, keyword, and value, then datasheets and detachments whose abilities, stratagems or enhancements say the words searched for, such as objective control remains for an ability that keeps an objective. Returns bounded excerpts with canonical URLs, source revisions, and attribution; a match found by what an ability says names that ability and points at its section. A result whose section is a rule carries its ruleSummary: Praetorium’s own wording of the rule, never the official text.',
       inputSchema: {
         query: z
           .string()
@@ -68,7 +68,7 @@ export function registerReferenceTools(server: AgentTools) {
     {
       title: 'Read one Praetorium reference result',
       description:
-        'Reads the complete bounded document returned by search_reference, with its revisions and attribution. A section that withholds rules text lists textSources: the pinned upstream file and record id to fetch if you need the wording.',
+        'Reads the complete bounded document returned by search_reference, with its revisions and attribution. Each section that is a rule, ability, stratagem, enhancement, detachment rule, mission card or core rule carries its ruleSummary: Praetorium’s own wording of the rule, never the official text, with a stratagem’s when, target, effect and restrictions apart where its summary is written in parts. Answer rules questions from it. A section with no summary lists textSources instead: the pinned upstream file and record id that print its words.',
       inputSchema: { id: referenceIdSchema },
       outputSchema: referenceDocumentSchema.shape,
       annotations: READ_ONLY_TOOL,
@@ -86,7 +86,7 @@ export function registerReferenceTools(server: AgentTools) {
     {
       title: 'Read structured Praetorium reference data',
       description:
-        'Returns the structured record behind a search result, including mission cards, force dispositions (missions by opposing disposition, detachments that offer them), deployments, terrain geometry, detachments, and datasheets. Records that withhold rules text carry textSources pointing at the pinned upstream file and record id.',
+        'Returns the structured record behind a search result, including mission cards, force dispositions (missions by opposing disposition, detachments that offer them), deployments, terrain geometry, detachments, and datasheets. Each rule in it, such as an ability, stratagem, enhancement, detachment rule, mission card, award or action, carries its ruleSummary: Praetorium’s own wording of the rule, never the official text. A rule with no summary carries textSources instead, pointing at the pinned upstream file and record id.',
       inputSchema: { id: referenceIdSchema },
       outputSchema: { document: referenceDocumentSchema, data: z.unknown() },
       annotations: READ_ONLY_TOOL,
@@ -134,7 +134,7 @@ export function registerReferenceTools(server: AgentTools) {
     {
       title: 'List compact faction units for roster planning',
       description:
-        'Returns every pickable unit in one bounded response with unit-size costs, composition, attachment relationships, roster limits, roles, keywords, and links. Without a detachment it also lists every detachment the faction can take, with its detachment points, Force dispositions, rule names and enhancement costs, so you can compare them before choosing. Include a detachment, including one a chapter takes from its codex, to list only the units it allows and receive its rules, enhancements, upgrades, and stratagems by name, cost, and timing without opening every unit page. Their rules text is at each record’s textSources. A unit’s points is what its smallest size costs in this battle size and detachment, including any wargear or enhancement the detachment makes it take; costs is the official points table for every size. Legends and Crucible datasheets are left out unless nonMatchedPlay is true. A large faction such as a Space Marine chapter can exceed what an assistant reads at once, so pass query to list only the units whose name or keywords contain it; a query nothing contains lists the units whose names are close to it, so a misspelt name still finds its unit. To see which units and detachments the faction’s top-four tournament lists take, call list_winning_lists rather than relying on memory.',
+        'Returns every pickable unit in one bounded response with unit-size costs, composition, attachment relationships, roster limits, roles, keywords, and links. Without a detachment it also lists every detachment the faction can take, with its detachment points, Force dispositions, rule names and enhancement costs, so you can compare them before choosing. Include a detachment, including one a chapter takes from its codex, to list only the units it allows and receive its rules, enhancements, upgrades, and stratagems by name, cost, and timing without opening every unit page. Each carries its ruleSummary, Praetorium’s own wording of the rule, or else textSources where it has none. A unit’s points is what its smallest size costs in this battle size and detachment, including any wargear or enhancement the detachment makes it take; costs is the official points table for every size. Legends and Crucible datasheets are left out unless nonMatchedPlay is true. A large faction such as a Space Marine chapter can exceed what an assistant reads at once, so pass query to list only the units whose name or keywords contain it; a query nothing contains lists the units whose names are close to it, so a misspelt name still finds its unit. To see which units and detachments the faction’s top-four tournament lists take, call list_winning_lists rather than relying on memory.',
       inputSchema: {
         faction: z
           .string()
@@ -206,7 +206,7 @@ export function registerReferenceTools(server: AgentTools) {
     {
       title: 'Resolve a mission matchup',
       description:
-        'Resolves two force dispositions, in the current mission pack or a named one, to the primary mission each side plays (its card: scoring awards, caps, actions, timing), the terrain layouts and deployments for the pairing, and canonical URLs and reference ids for each. Pass each value by id, slug, or name; an unknown or ambiguous value is refused with the valid options. Rules text is withheld: award criteria and card text come back empty, and the textSources of each award names the upstream file and the record id holding its scoring condition, so fetch that file to say what an award scores.',
+        'Resolves two force dispositions, in the current mission pack or a named one, to the primary mission each side plays (its card: scoring awards, caps, actions, timing), the terrain layouts and deployments for the pairing, and canonical URLs and reference ids for each. Pass each value by id, slug, or name; an unknown or ambiguous value is refused with the valid options. Each card, award and action carries its ruleSummary, Praetorium’s own wording of what it asks for and scores, never the official text; one with no summary names the upstream file and record id holding its words in textSources instead.',
       inputSchema: {
         pack: z
           .string()

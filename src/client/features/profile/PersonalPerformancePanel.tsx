@@ -1,6 +1,7 @@
 import type { PerformanceRow, PersonalPerformance } from '../../../core/serviceRecord'
 import { percentLabel } from '../../text'
 import { SectionHeading } from '../../components/SectionHeading'
+import { DisclosureChevron } from '../../components/DisclosureChevron'
 
 export function PersonalPerformancePanel({ performance }: { performance: PersonalPerformance }) {
   const groups: { label: string; rows: PerformanceRow[] }[] = [
@@ -19,16 +20,17 @@ export function PersonalPerformancePanel({ performance }: { performance: Persona
           <section key={label} className="min-w-0">
             <h3 className="eyebrow mb-1">By {label.toLowerCase()}</h3>
             {rows.length ? (
-              <div className="space-y-1">
+              <div className="divide-y divide-edge border-y border-edge">
                 {rows.map((row) => (
-                  <details key={row.key} className="part p-2 text-sm">
-                    <summary className="flex cursor-pointer items-center justify-between gap-2 text-bone">
-                      <span className="min-w-0 break-words font-semibold">{row.label}</span>
+                  <details key={row.key} className="px-1 py-2 text-sm">
+                    <summary className="flex cursor-pointer list-none items-center gap-2 text-bone [&::-webkit-details-marker]:hidden">
+                      <DisclosureChevron />
+                      <span className="min-w-0 flex-1 break-words">{row.label}</span>
                       <span className="readout shrink-0">
                         {percentLabel(row.total.rate)} · {row.total.battles} played
                       </span>
                     </summary>
-                    <ul className="mt-2 space-y-1 border-t border-edge pt-2 text-xs text-dim">
+                    <ul className="mt-2 space-y-1 pl-3 text-xs text-dim">
                       {row.months.map(({ month, split }) => (
                         <li key={month} className="flex justify-between gap-2">
                           <span>{month}</span>

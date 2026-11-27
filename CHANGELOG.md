@@ -1,5 +1,48 @@
 # praetorium
 
+## 0.279.2 (2026-11-26)
+
+### Patch Changes
+
+- 4a7436d: [battles] On a phone, each battle in the list gives the players' names the full width and says whether you won or lost beside the mission and date.
+
+## 0.279.1 (2026-11-26)
+
+### Patch Changes
+
+- 4fb62fc: [reference] Psychic powers now appear with the other abilities on a datasheet.
+- 4fb62fc: [simulator] Psychic powers printed on a Psyker's datasheet, such as the Librarian in Phobos Armour's Soul Sight, can now be chosen in the simulator.
+- 7eeeb88: [simulator] Favoured Ka’tah: Rendax in Emperor’s Chosen is listed as not calculated again, instead of quietly adding no mortal wounds.
+- 7eeeb88: [simulator] Other rules the simulator can't yet work out, such as a vehicle's damaged profile, are listed as not calculated again instead of being left out.
+- 7eeeb88: [simulator] Vanguard Assault on a Vanguard Veteran Squad with Jump Packs is listed as not calculated again, instead of quietly adding no attacks.
+
+## 0.279.0 (2026-11-26)
+
+### Minor Changes
+
+- ec72ba5: [app] A new look across the app: plain rows instead of boxed cards, sentence-case headings, every collapsible section marked with an arrow before its name, and links that look like links.
+- 86a472c: [assistant] A connected assistant can send feedback to the team as you, such as a rule the simulator doesn't calculate yet, and check your earlier conversations first; replies arrive on your Support page.
+- ec72ba5: [battles] The opponent's side of a battle shows what they can still play, without your controls for gaining their command points or their missions' round-by-round scores.
+- ec72ba5: [battles] The battle page puts what each phase needs first: stratagems lead outside the command phase with your command points beside them, and the battle details sit above an event log grouped by round and phase.
+- ec72ba5: [events] A group's overview shows what's next, the league standing, the latest results and its members, with the full leaderboard, battles and league on their own tabs.
+- ec72ba5: [events] A league table shows each player's sealed list under their name, with the organizer's Unseal button beside it, instead of a separate section to open.
+
+### Patch Changes
+
+- ec72ba5: [app] Signing in no longer gets stuck on an error page while the next page loads.
+- ec72ba5: [battles] On a phone, the battle log scrolls with the page and the turn bar no longer hides the end of the page or the shorter scoreboard above it.
+- ec72ba5: [events] A group's most played factions no longer list the same army twice.
+- 8e9c501: [rosters] Pasted lists now read a unit's labelled lines whose bullet was typed as a full stop or a middle dot, as ". Attached as: Leader (Character)".
+- ec72ba5: [reference] Weapons with several profiles show their name as the datasheet spells it, with its capital letters.
+- 1af53e1: [rosters] Giving a squad member special wargear, such as a Cthonian Beserk's twin concussion gauntlet or mole grenade launcher, no longer leaves one weapon too many on the rest of the squad.
+- 1af53e1: [rosters] Cthonian Beserks with mole grenade launchers now keep their heavy plasma axe or concussion maul, so the unit lists every model's melee weapon.
+
+## 0.278.0 (2026-11-26)
+
+### Minor Changes
+
+- 5d7e405: [assistant] Assistants connected to Praetorium now read the same plain-language rule summaries its pages show for abilities, Stratagems, Enhancements, Detachment rules, mission cards and core rules, and answer rules questions from them.
+
 ## 0.277.18 (2026-11-26)
 
 ### Patch Changes

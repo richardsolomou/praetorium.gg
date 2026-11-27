@@ -11,6 +11,7 @@ vi.mock('./playerSession', () => ({ currentUser: user }))
 vi.mock('./publishedTextFiles', () => ({
   publishedTextLocations: async () => ({ files: {}, holds: () => false, recordsHolding: () => [] }),
 }))
+vi.mock('./servedVsData', () => ({ servedVsDataSummaries: async () => null, answerRuleSummary: async () => () => null }))
 vi.mock('./app', () => ({
   app: () => ({
     service: {
@@ -140,6 +141,7 @@ it('requires approval for each account write', async () => {
       'join_league',
       'report_table_result',
       'save_roster',
+      'send_feedback',
       'set_roster_archived',
       'set_roster_visibility',
       'start_event_battle',

@@ -110,7 +110,7 @@ describe('mission scorecards', () => {
       fixedSecondaryCap: 20,
     }
     const markup = secondaryMarkup(input)
-    expect(markup).toContain('</span>/20</span>')
+    expect(markup).toContain('>/20<')
   })
 
   it('keeps returned cards out of the scorecards', () => {
@@ -149,9 +149,8 @@ describe('mission scorecards', () => {
     expect(markup).not.toContain('aria-current="step"')
   })
 
-  it('shares secondary round labels across the summary and active cards', () => {
-    const markup = secondaryMarkup()
-    expect(markup.match(/>R1</g)).toHaveLength(1)
+  it('leaves round labels to the primary mission and scoreboard', () => {
+    expect(secondaryMarkup()).not.toMatch(/>R1</)
   })
 
   it('does not repeat empty round tracks on active tactical missions', () => {

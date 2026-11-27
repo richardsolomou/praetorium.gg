@@ -36,6 +36,7 @@ import { formatList, countLabel } from '../../text'
 import { useNativeShare } from '../../nativeBridge'
 import { shareButtonLabel } from '../../useShareLink'
 import { nameColour } from '../../playerName'
+import { DisclosureChevron } from '../../components/DisclosureChevron'
 
 /** Draws one entrant with whatever the reader may do about them; the organizer's controls ride in `controls`, and `last` closes the row. */
 type EntrantRowRenderer = (entry: SealedEventEntryView, detail: ReactNode, controls?: ReactNode, last?: ReactNode) => ReactNode
@@ -304,9 +305,8 @@ export function OrganizerEntrants({
       {rejected.length ? (
         <details className="group">
           <summary className="rubric flex cursor-pointer list-none items-baseline gap-2 border-b border-edge pb-2 hover:text-bone">
+            <DisclosureChevron className="self-center" />
             Turned away <span className="readout text-faint">{rejected.length}</span>
-            <span className="ml-auto text-xs font-normal tracking-normal normal-case group-open:hidden">Show</span>
-            <span className="ml-auto hidden text-xs font-normal tracking-normal normal-case group-open:inline">Hide</span>
           </summary>
           <div className="mt-2">
             <EntrantList>
@@ -576,7 +576,7 @@ function AddPlayers({ sealedEvent, token }: { sealedEvent: SealedEvent; token: s
                           onChange={() => setPicked(withMember(picked, person.id))}
                         />
                         <PlayerAvatar name={person.name} image={person.image} className="size-8 text-3xs" />
-                        <span className="min-w-0 truncate font-bold uppercase" style={nameColour(person)}>
+                        <span className="min-w-0 truncate font-bold" style={nameColour(person)}>
                           {person.name}
                         </span>
                       </label>

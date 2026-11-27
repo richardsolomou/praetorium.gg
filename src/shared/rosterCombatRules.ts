@@ -312,8 +312,11 @@ function rosterCombatRules(
     // Every unit's keywords are known only once the roster is read; `supportKeywords` fills as it is.
     const placement: CombatRuleJudge = { ...judge, keywords: sheet.keywords, unitKeywords, supportKeywords }
     const recorded = recordedCombat(rule.description)
-    // A token without combat facts is not calculated.
-    if (recorded === undefined && hasTextTokens(rule.description)) return
+    // A token without combat facts does something unknown, which the simulator lists as not calculated.
+    if (recorded === undefined && hasTextTokens(rule.description)) {
+      candidates.push({ ...placed, keywords: sheet.keywords })
+      return
+    }
     const judged = judgedCombatRule(placed, placement, recorded === undefined ? undefined : recordedCombatText(recorded))
     if (judged) candidates.push(judged)
   }

@@ -1,6 +1,6 @@
 {
   "name": "praetorium.gg",
-  "version": "0.277.18",
+  "version": "0.279.2",
   "private": true,
   "description": "Build Warhammer 40,000 armies and track games from setup to final score.",
   "license": "AGPL-3.0-only",
@@ -54,7 +54,7 @@
     "@better-auth/oauth-provider": "1.7.25",
     "@fontsource-variable/martian-mono": "5.3.0",
     "@fontsource-variable/sofia-sans-semi-condensed": "5.3.0",
-    "@fontsource/chakra-petch": "5.3.0",
+    "@fontsource/barlow": "5.3.0",
     "@fontsource/sofia-sans-semi-condensed": "5.3.0",
     "@libsql/client": "0.18.0",
     "@modelcontextprotocol/sdk": "1.32.2",

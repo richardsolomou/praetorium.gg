@@ -10,6 +10,7 @@ import { parseStored, useStoredValue, writeStoredValue } from '../../../storedVa
 import { shelvesOf } from '../../../unitGroups'
 import { formationLabel, SetupSidePanel } from './chrome'
 import { reserveUnitLabel } from './reservesModel'
+import { OUTLINE_TAG } from '../../../components/rosterSetup'
 
 type Rule = 'infiltrators' | 'scouts'
 
@@ -81,7 +82,7 @@ export function DeployUnits({ sides, storageKey }: { sides: Side[]; storageKey: 
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-1.5">
-        <span className="eyebrow">Show only</span>
+        <span className="text-sm font-medium text-dim">Show only</span>
         <FilterChip label="To place" hint="Show only units not yet set up" pressed={shown === 'waiting'} onToggle={() => show('waiting')} />
         <FilterChip label="Placed" hint="Show only units already set up" pressed={shown === 'placed'} onToggle={() => show('placed')} />
       </div>
@@ -134,10 +135,10 @@ function ArmyUnits({ army, chip, multiple, children }: { army: Army; chip: strin
     <article className="space-y-2">
       <div className="flex items-baseline justify-between gap-2 border-b border-edge pb-1">
         <span className="min-w-0">
-          <span className="block break-words text-xs font-bold uppercase">{army.roster?.name ?? 'No army chosen'}</span>
+          <span className="block break-words text-sm font-semibold">{army.roster?.name ?? 'No army chosen'}</span>
           {multiple ? <span className="block text-3xs text-dim">{army.playerName}</span> : null}
         </span>
-        <span className="chip shrink-0">{chip}</span>
+        <span className="shrink-0 text-xs text-dim">{chip}</span>
       </div>
       {children}
     </article>
@@ -161,7 +162,7 @@ function Shelves({
 }) {
   return shelvesOf(listed, (unit) => unit.host.group).map((shelf) => (
     <section key={shelf.id} className="space-y-1">
-      <p className="eyebrow">{shelf.plural}</p>
+      <p className="text-sm font-medium text-dim">{shelf.plural}</p>
       {shelf.units.map((unit) => (
         <UnitRow
           key={unit.host.key}
@@ -205,17 +206,17 @@ function UnitRow({
           </span>
         ) : null}
         <span className="min-w-0">
-          <span className="block wrap-break-word text-sm font-semibold">{name}</span>
+          <span className="block wrap-break-word text-sm font-medium">{name}</span>
           {joined.length ? <span className="block text-3xs text-dim">{joinedWith(joined.map((character) => character.name))}</span> : null}
           {passengers.length ? <span className="block wrap-break-word text-3xs text-dim">Embarked: {formatList(passengers)}</span> : null}
         </span>
       </span>
       {unit.prebattleRules.includes(rule) ? (
-        <span className="chip shrink-0 border-discarded/60 text-discarded">{formationLabel(rule)}</span>
+        <span className={`${OUTLINE_TAG} border-discarded/60 text-discarded`}>{formationLabel(rule)}</span>
       ) : null}
     </>
   )
-  const row = 'flex w-full flex-wrap items-center justify-between gap-2 rounded-md bg-sunken px-2.5 py-1.5 text-left'
+  const row = 'flex w-full flex-wrap items-center justify-between gap-2 border-b border-edge px-1 py-1.5 text-left'
   return onToggle ? (
     <button type="button" aria-pressed={placed} className={`${row} hover:bg-raised ${placed ? 'opacity-70' : ''}`} onClick={onToggle}>
       {body}

@@ -2,6 +2,7 @@ import { expect, it, vi } from 'vitest'
 
 const { changeLogPage } = vi.hoisted(() => ({ changeLogPage: vi.fn() }))
 vi.mock('./catalogueChangePages', () => ({ changeLogPage }))
+vi.mock('./servedVsData', () => ({ servedVsDataSummaries: async () => null, answerRuleSummary: async () => () => null }))
 vi.mock('./publishedTextFiles', () => ({
   publishedTextLocations: async () => ({ files: {}, holds: () => false, recordsHolding: () => [] }),
 }))

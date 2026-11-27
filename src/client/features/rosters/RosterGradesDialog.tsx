@@ -143,7 +143,7 @@ function Scores({ grades }: { grades: RosterGrades }) {
   const lowest = rows.reduce<Grade | null>((worst, row) => (row.grade && (!worst || row.grade > worst) ? row.grade : worst), null)
   const thinnest = lowest === 'C' || lowest === 'D' ? rows.filter((row) => row.grade === lowest).map((row) => row.label.toLowerCase()) : []
   return (
-    <section aria-label="Scores" className="part grid gap-4 p-4">
+    <section aria-label="Scores" className="grid gap-4 border-b border-edge pb-4">
       <div className="grid items-center gap-4 sm:grid-cols-[auto_1fr] sm:gap-6">
         <div className="grid justify-items-center gap-1.5">
           <Gauge score={grades.score} grade={grades.grade} large />
@@ -158,7 +158,7 @@ function Scores({ grades }: { grades: RosterGrades }) {
           {grades.categories.map((category) => (
             <li key={category.key} className="grid content-start justify-items-center gap-1.5 text-center">
               <Gauge score={category.score} grade={category.grade} />
-              <CategoryLabel category={category} className="text-xs leading-tight text-dim" icon="hidden sm:block" />
+              <CategoryLabel category={category} className="text-xs leading-tight text-dim" icon="hidden" />
             </li>
           ))}
         </ol>
@@ -202,7 +202,7 @@ function Gauge({ score, grade, large = false }: { score: number | null; grade: G
       </svg>
       <span className={`relative grid justify-items-center leading-none ${tone?.text ?? 'text-faint'}`}>
         <span className={`figure font-semibold ${large ? 'text-3xl' : 'text-lg'}`}>{score ?? '–'}</span>
-        {large && grade ? <span className="mt-1 font-display text-2xs font-bold tracking-label uppercase">Grade {grade}</span> : null}
+        {large && grade ? <span className="mt-1 text-2xs font-semibold tracking-eyebrow uppercase">Grade {grade}</span> : null}
       </span>
       <span className="sr-only">{score === null ? 'Not scored' : `${score} out of 100, grade ${grade}`}</span>
     </span>
@@ -239,7 +239,7 @@ function Gaps({ grades }: { grades: RosterGrades }) {
 /** The list beside its faction's winning lists: how much of it is in their staples, and the staples it leaves out. */
 function Tournament({ comparison }: { comparison: TournamentComparison }) {
   return (
-    <section aria-label="Winning lists" className="part grid gap-1.5 px-3 py-2.5">
+    <section aria-label="Winning lists" className="grid gap-1.5 border-y border-edge py-3">
       <h3 className="rubric">Beside winning lists</h3>
       <p className="text-sm text-dim">
         <span className="figure text-bone">{percentLabel(comparison.stapleShare)}</span> of your points are in units that at least 3 in 10
@@ -271,7 +271,7 @@ function Category({ category }: { category: GradeCategory }) {
           <span className="text-faint">/100</span>
         </span>
       </h3>
-      <ul className="part divide-y divide-edge">
+      <ul className="divide-y divide-edge border-y border-edge">
         {category.rows.map((row) => (
           <Measure key={row.key} row={row} />
         ))}
@@ -282,10 +282,10 @@ function Category({ category }: { category: GradeCategory }) {
 
 function Measure({ row }: { row: GradeRow }) {
   return (
-    <li data-grade-row={row.key} className="flex items-start gap-3 px-3 py-2.5">
+    <li data-grade-row={row.key} className="flex items-start gap-3 px-1 py-2.5">
       <span
         aria-hidden
-        className={`grid size-9 shrink-0 place-items-center rounded-lg border-[1.5px] font-display text-lg leading-none font-bold ${
+        className={`grid size-9 shrink-0 place-items-center rounded-lg border-[1.5px] font-display text-lg leading-none font-semibold ${
           row.grade ? `${GRADE_TONE[row.grade].border} ${GRADE_TONE[row.grade].text}` : 'border-dotted border-runner text-faint'
         }`}
       >
@@ -303,7 +303,7 @@ function Measure({ row }: { row: GradeRow }) {
         {row.units?.length ? (
           <span className="flex flex-wrap gap-1 pt-1">
             {[...countBy(row.units, (unit) => unit)].map(([unit, copies]) => (
-              <span key={unit} className="chip tracking-normal normal-case">
+              <span key={unit} className="rounded-sm border border-edge px-1.5 text-xs leading-5 text-dim">
                 {copies > 1 ? `${unit} ×${copies}` : unit}
               </span>
             ))}

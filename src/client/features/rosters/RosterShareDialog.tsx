@@ -74,7 +74,7 @@ export function RosterShareDialog({ open, onClose, ...share }: RosterShareChoice
                   return (
                     <label
                       key={visibility}
-                      className="group grid cursor-pointer content-start gap-1.5 rounded-xl border border-edge bg-sunken p-3 transition-[border-color,background-color,box-shadow] duration-150 hover:border-runner-hi hover:bg-raised has-checked:border-parchment/70 has-checked:bg-raised has-checked:shadow-part has-disabled:cursor-wait has-focus-visible:outline-2 has-focus-visible:outline-info"
+                      className="group grid cursor-pointer content-start gap-1.5 rounded-lg border border-edge p-3 transition-colors duration-150 hover:bg-raised has-checked:border-parchment/70 has-checked:bg-parchment/5 has-disabled:cursor-wait has-focus-visible:outline-2 has-focus-visible:outline-info"
                     >
                       <input
                         type="radio"
@@ -149,7 +149,7 @@ export function RosterShareDialog({ open, onClose, ...share }: RosterShareChoice
             <h3 id="share-copy" className="eyebrow">
               Take a copy
             </h3>
-            <div className="grid gap-2 sm:grid-cols-3">
+            <div className="divide-y divide-edge border-y border-edge">
               <CopyTile
                 icon={Download}
                 label="Export"
@@ -202,13 +202,13 @@ function CopyTile({
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className="group grid content-start gap-1 rounded-xl border border-edge bg-panel p-3 text-left transition-colors duration-150 hover:border-info/60 hover:bg-raised disabled:opacity-60"
+      className="group flex w-full items-center gap-3 px-1 py-2.5 text-left transition-colors duration-150 hover:bg-raised disabled:opacity-60"
     >
-      <span className="flex items-center gap-2 text-sm font-semibold text-bone">
-        <Icon aria-hidden className="size-4 text-faint transition-colors group-hover:text-info" />
-        {label}
+      <Icon aria-hidden className="size-4 shrink-0 text-faint transition-colors group-hover:text-info" />
+      <span className="grid min-w-0 gap-0.5">
+        <span className="text-sm font-semibold text-bone">{label}</span>
+        <span className="text-xs leading-snug text-dim">{detail}</span>
       </span>
-      <span className="text-xs leading-snug text-dim">{detail}</span>
     </button>
   )
 }

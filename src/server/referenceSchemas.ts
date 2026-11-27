@@ -31,7 +31,19 @@ export const referenceIndexSchema = z.object({
 export const textSourcesSchema = z
   .array(z.object({ source: z.enum(TEXT_SOURCES), url: z.url(), id: z.string().optional() }))
   .describe(
-    'Where withheld rules text lives upstream: the pinned file, its source, and the id of the record holding it there when the file has one. Fetch it there if you need the wording.',
+    'Where withheld rules text lives upstream, given only where Praetorium has no summary of the rule: the pinned file, its source, and the id of the record holding it there when the file has one.',
+  )
+
+export const ruleSummarySchema = z
+  .object({
+    text: z.string(),
+    when: z.string().optional(),
+    target: z.string().optional(),
+    effect: z.string().optional(),
+    restrictions: z.string().optional(),
+  })
+  .describe(
+    'Praetorium’s own wording of the rule, in Markdown: a summary written for Praetorium, not the official text. A Stratagem’s summary written in parts also gives its when, target, effect and restrictions apart.',
   )
 
 export const referenceSectionSchema = z.object({
@@ -39,6 +51,7 @@ export const referenceSectionSchema = z.object({
   title: z.string(),
   text: z.string(),
   url: z.string(),
+  ruleSummary: ruleSummarySchema.optional(),
   textSources: textSourcesSchema.optional(),
 })
 
@@ -59,7 +72,13 @@ export const referenceSearchResultSchema = z.object({
   title: z.string(),
   faction: z.string().nullable(),
   url: z.string(),
-  section: z.object({ id: z.string(), title: z.string(), url: z.string(), textSources: textSourcesSchema.optional() }),
+  section: z.object({
+    id: z.string(),
+    title: z.string(),
+    url: z.string(),
+    ruleSummary: ruleSummarySchema.optional(),
+    textSources: textSourcesSchema.optional(),
+  }),
   excerpt: z.string().max(REFERENCE_EXCERPT_MAX_LENGTH),
   revisions: revisionsSchema,
   attribution: attributionSchema,

@@ -154,9 +154,8 @@ export function CountButton({
         return true
       })
   }
-  const color = decrease
-    ? 'border-destructive/60 bg-destructive/15 text-destructive hover:bg-destructive/25 hover:text-destructive dark:border-destructive/60 dark:bg-destructive/15 dark:hover:bg-destructive/25'
-    : 'border-primary/60 bg-primary/15 text-primary hover:bg-primary/25 hover:text-primary dark:border-primary/60 dark:bg-primary/15 dark:hover:bg-primary/25'
+  // Neutral either way: the sign says which way it steps, and colour stays for what a count means.
+  const color = 'text-bone hover:bg-raised'
   return (
     <Button
       variant="outline"

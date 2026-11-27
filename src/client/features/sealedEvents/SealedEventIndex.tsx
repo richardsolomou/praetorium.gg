@@ -12,7 +12,7 @@ import { PageState } from '../../components/PageState'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { CreateSealedEvent } from './CreateSealedEvent'
 import { EventSchedule } from './EventSchedule'
-import { SEALED_EVENT_CARD, SealedEventCardActions } from './SealedEventActions'
+import { SEALED_EVENT_CARD, SEALED_EVENT_ROWS, SealedEventCardActions } from './SealedEventActions'
 import { ownEntryStatus, sealedEventPhase, sealedEventPlayers } from './sealedEvent'
 import { sealedEventFormat } from '../../../core/sealedEvent'
 import { nameColour } from '../../playerName'
@@ -79,7 +79,7 @@ function SealedEventShelf({
   return (
     <section>
       <SectionHeading title={title} count={sealedEvents.length} />
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className={SEALED_EVENT_ROWS}>
         {sealedEvents.map((sealedEvent) => {
           const { tournament } = sealedEvent
           const organizer = isSealedEventOrganizer(tournament, tournament.adminIds, viewerId)
@@ -89,18 +89,22 @@ function SealedEventShelf({
             : sealedEventPhase(sealedEvent, sealedEvent.entrantCount, sealedEvent.occupiedCount)
           const format = sealedEventFormat(sealedEvent)
           const card = (
-            <Link to="/tournaments/$token" params={{ token: sealedEvent.token }} className="flex min-w-0 flex-1 flex-col">
-              <div className={`flex-1 p-4 ${organizer ? 'pr-12' : ''}`}>
-                <h3 className="truncate text-lg leading-tight font-bold uppercase">{tournament.name}</h3>
-                <p className="mt-1 flex items-center gap-2 text-xs text-dim">
+            <Link
+              to="/tournaments/$token"
+              params={{ token: sealedEvent.token }}
+              className={`group flex min-w-0 flex-1 flex-wrap items-center gap-x-6 gap-y-1.5 py-3 pl-2 ${organizer ? 'pr-12' : 'pr-2'}`}
+            >
+              <div className="min-w-0 flex-[1_1_18rem]">
+                <h3 className="truncate text-lg leading-tight group-hover:underline">{tournament.name}</h3>
+                <p className="mt-1 flex items-center gap-2 text-2xs text-dim">
                   <VisibilityIcon visibility={tournament.visibility} labelled />
-                  <span className="truncate tracking-label uppercase">{format ?? 'Any format'}</span>
+                  <span className="truncate">{format ?? 'Any format'}</span>
                 </p>
-                <EventSchedule event={sealedEvent} className="mt-1 text-xs" />
+                <EventSchedule event={sealedEvent} className="mt-0.5 text-2xs" />
                 {tournament.description ? (
-                  <p className="mt-1 line-clamp-2 text-sm text-dim">{tournament.description}</p>
+                  <p className="mt-1 line-clamp-1 text-sm text-dim">{tournament.description}</p>
                 ) : (
-                  <p className="mt-1.5 flex min-w-0 items-center gap-1.5 text-sm text-dim">
+                  <p className="mt-1 flex min-w-0 items-center gap-1.5 text-sm text-dim">
                     <PlayerAvatar name={tournament.ownerName} image={tournament.ownerImage} className="size-5 text-3xs" />
                     <span className="truncate">
                       Organized by{' '}
@@ -109,12 +113,14 @@ function SealedEventShelf({
                   </p>
                 )}
               </div>
-              <div className="flex min-w-0 items-center gap-3 border-t border-edge bg-sunken/60 px-4 py-2.5 text-sm">
-                <span className={`flex min-w-0 items-center gap-2 font-semibold ${status.tint}`}>
+              <div className="flex min-w-0 shrink-0 items-center gap-3 text-sm sm:flex-col sm:items-end sm:gap-0.5 sm:text-right">
+                <span className={`flex min-w-0 items-center gap-2 font-medium ${status.tint}`}>
                   <span aria-hidden className="h-0.5 w-4 shrink-0 rounded-full bg-current" />
                   <span className="truncate">{status.label}</span>
                 </span>
-                <span className="ml-auto shrink-0 text-xs text-dim">{sealedEventPlayers(sealedEvent, sealedEvent.entrantCount)}</span>
+                <span className="shrink-0 text-2xs text-faint max-sm:ml-auto">
+                  {sealedEventPlayers(sealedEvent, sealedEvent.entrantCount)}
+                </span>
               </div>
             </Link>
           )
@@ -130,7 +136,7 @@ function SealedEventShelf({
               {(menu) => (
                 <>
                   {card}
-                  <div className="absolute top-2 right-2">{menu}</div>
+                  <div className="absolute top-3 right-1">{menu}</div>
                 </>
               )}
             </SealedEventCardActions>

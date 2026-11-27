@@ -2,7 +2,7 @@ import { GuideHelp } from '../onboarding/GuideHelp'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from 'react'
-import { ChevronDown, FileUp, FolderPlus, ListChecks, Plus, ScrollText } from 'lucide-react'
+import { FileUp, FolderPlus, ListChecks, Plus, ScrollText } from 'lucide-react'
 import {
   type DroppedItem,
   FolderBreadcrumb,
@@ -76,6 +76,7 @@ import { type RosterSort, sortRosters } from '../../../core/rosterSort'
 import { groupedEntries, groupsPage, type RosterGroup, type RosterGrouping } from '../../../core/rosterGrouping'
 import { SETUP_STATE, useWorkspaceState } from './workspaceState'
 import { useFavouriteFactions } from '../../favouriteFactions'
+import { DisclosureChevron } from '../../components/DisclosureChevron'
 import {
   factionIndexQuery,
   gameReferencesQuery,
@@ -459,14 +460,13 @@ export function RosterLibraryPage({
         onMove={guest ? undefined : () => setMoving([roster.baseRosterId ?? roster.id])}
         dragId={guest ? undefined : (roster.baseRosterId ?? roster.id)}
         variantOf={layout === 'variant' ? head.roster.id : undefined}
-        plays={playsById.get(roster.id)}
       />
     )
     return variants.length ? (
       <div
         key={head.roster.id}
         data-roster-group={head.roster.id}
-        className={cn('part', detachingFrom === head.roster.id && 'outline-2 outline-offset-2 outline-runner-hi outline-dashed')}
+        className={cn(detachingFrom === head.roster.id && 'outline-2 -outline-offset-2 outline-parchment')}
       >
         {row(head, 'base')}
         {variants.map((variant) => row(variant, 'variant'))}
@@ -567,12 +567,12 @@ export function RosterLibraryPage({
         {actions.exchange.isError ? <Problem>Could not make an exchange code: {errorMessage(actions.exchange.error)}</Problem> : null}
 
         <section>
-          <div className="rubric flex items-baseline gap-3 border-b border-edge pb-2">
+          <div className="rubric flex min-h-8 items-center gap-3 pb-1">
             <h2>Rosters</h2>
             {libraryPending ? (
               <Skeleton className="mr-auto h-4 w-5" aria-label="Loading roster count" />
             ) : (
-              <span className="readout mr-auto">{libraryError ? '—' : listCount}</span>
+              <span className="readout mr-auto font-sans text-sm font-semibold text-faint">{libraryError ? '—' : listCount}</span>
             )}
             {me && !libraryPending && !libraryError && shown.length && !selecting ? (
               // The negative margin keeps the header its text's height, so the button arriving with the rosters moves nothing below it.
@@ -658,7 +658,7 @@ export function RosterLibraryPage({
                   }
                 />
               ) : libraryPending ? (
-                <div className="grid grid-cols-[minmax(0,1fr)] gap-3">
+                <div className="divide-y divide-edge border-y border-edge">
                   <output className="sr-only">Loading your rosters…</output>
                   <RosterLibrarySkeleton rows={unfiltered ? rows : DEFAULT_ROSTER_ROWS} />
                 </div>
@@ -674,17 +674,14 @@ export function RosterLibraryPage({
                           onOpenChange={(open) => setCollapsed((current) => toggled(current, `${selectedGrouping} ${group.key}`, !open))}
                         >
                           <h3>
-                            <CollapsibleTrigger className="group eyebrow flex w-full items-baseline gap-3 pb-2 text-left hover:text-bone">
+                            <CollapsibleTrigger className="group eyebrow flex w-full items-baseline gap-2 pb-2 text-left hover:text-bone">
+                              <DisclosureChevron className="self-center" />
                               <span className="mr-auto">{group.label}</span>
-                              <span className="readout">{total}</span>
-                              <ChevronDown
-                                className="size-4 self-center transition-transform group-data-panel-open:rotate-180"
-                                aria-hidden
-                              />
+                              <span className="readout font-sans text-sm font-semibold text-faint">{total}</span>
                             </CollapsibleTrigger>
                           </h3>
                           <CollapsibleContent>
-                            <div className="grid grid-cols-[minmax(0,1fr)] gap-3">
+                            <div className="divide-y divide-edge border-y border-edge">
                               {groups.filter((card) => runOf.get(card.head.roster) === group.key).map(renderCard)}
                             </div>
                           </CollapsibleContent>
@@ -692,7 +689,7 @@ export function RosterLibraryPage({
                       ))}
                     </div>
                   ) : (
-                    <div className="grid grid-cols-[minmax(0,1fr)] gap-3">{groups.map(renderCard)}</div>
+                    <div className="divide-y divide-edge border-y border-edge">{groups.map(renderCard)}</div>
                   )}
                   {pageResults.some((result) => result.isError) || guestRow.failed ? (
                     <Button
@@ -716,7 +713,7 @@ export function RosterLibraryPage({
                   ) : null}
                 </>
               ) : !filtering && folder && subfolders.length ? null : saved.length && !filtering && (folder || folders.folders.length) ? (
-                <p className="rounded-xl border border-dashed border-edge px-4 py-6 text-center text-sm text-dim">
+                <p className="border-y border-edge px-4 py-6 text-center text-sm text-dim">
                   {folder
                     ? archived.length
                       ? 'Every roster in this folder is archived. Archived rosters are listed below.'
@@ -756,8 +753,8 @@ export function RosterLibraryPage({
         </section>
         {lent.length ? (
           <section>
-            <h2 className="rubric flex items-baseline justify-between border-b border-edge pb-2">
-              Lent to you <span className="readout">{lent.length}</span>
+            <h2 className="rubric flex items-baseline gap-3 pb-1">
+              Lent to you <span className="readout font-sans text-sm font-semibold text-faint">{lent.length}</span>
             </h2>
             <div className="mt-2">
               <LentRosterList rosters={lent} />
@@ -766,13 +763,13 @@ export function RosterLibraryPage({
         ) : null}
         {!libraryPending && !libraryError && archived.length ? (
           <Collapsible render={<section />} open={archivedOpen} onOpenChange={setArchivedOpen}>
-            <CollapsibleTrigger className="group rubric flex w-full items-baseline gap-3 border-b border-edge pb-2 text-left hover:text-bone">
+            <CollapsibleTrigger className="group rubric flex w-full items-baseline gap-2 pb-1 text-left hover:text-bone">
+              <DisclosureChevron className="self-center" />
               <span className="mr-auto">Archived</span>
-              <span className="readout">{archived.length}</span>
-              <ChevronDown className="size-4 self-center transition-transform group-data-panel-open:rotate-180" aria-hidden />
+              <span className="readout font-sans text-sm font-semibold text-faint">{archived.length}</span>
             </CollapsibleTrigger>
             <CollapsibleContent>
-              <div className="mt-2 grid grid-cols-[minmax(0,1fr)] gap-3">{archivedGroups.map(renderCard)}</div>
+              <div className="mt-2 divide-y divide-edge border-y border-edge">{archivedGroups.map(renderCard)}</div>
             </CollapsibleContent>
           </Collapsible>
         ) : null}
@@ -918,20 +915,18 @@ export function RosterLibraryPage({
   )
 }
 
-/** Cards the height of a loaded roster's, enough to reach past most desktop screens so the rows arriving do not push the footer away. */
+/** Rows the height of a loaded roster's, enough to reach past most desktop screens so the rows arriving do not push the footer away. */
 function RosterLibrarySkeleton({ rows }: { rows: number }) {
   return Array.from({ length: rows }, (_, index) => (
-    <div key={index} className="flex min-h-[6rem] items-center gap-3 part p-3" aria-hidden>
+    <div key={index} className="flex min-h-[5.25rem] items-center gap-3 px-2 py-3" aria-hidden>
+      <Skeleton className="size-9" />
       <div className="min-w-0 flex-1 space-y-2">
         <Skeleton className="h-4 w-1/3" />
-        <div className="flex gap-2">
-          <Skeleton className="h-5 w-24" />
-          <Skeleton className="h-5 w-32" />
-        </div>
+        <Skeleton className="h-3.5 w-1/2" />
         <Skeleton className="h-3 w-2/3" />
       </div>
       <div className="space-y-2">
-        <Skeleton className="h-5 w-20" />
+        <Skeleton className="h-6 w-24" />
         <Skeleton className="ml-auto h-3 w-12" />
       </div>
       <Skeleton className="size-8" />

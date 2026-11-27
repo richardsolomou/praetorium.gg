@@ -20,6 +20,6 @@ Reference lookups, winning tournament lists, list imports, checks and grades, an
 
 ## What it sends
 
-The plugin runs no local code. Your assistant sends tool requests to `https://praetorium.gg/mcp`, and nowhere else. Praetorium returns names, numbers, points and calculated results with links to its pages, never rules text. See the [privacy policy](https://praetorium.gg/privacy) for what Praetorium stores.
+The plugin runs no local code. Your assistant sends tool requests to `https://praetorium.gg/mcp`, and nowhere else. Praetorium returns names, numbers, points, calculated results and its own summaries of the rules, with links to its pages, never the official rules text. See the [privacy policy](https://praetorium.gg/privacy) for what Praetorium stores.
 
 Praetorium is unofficial and not affiliated with or endorsed by Games Workshop. [Setup and help](https://praetorium.gg/docs/connect-an-assistant).

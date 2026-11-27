@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Download } from 'lucide-react'
 import type { ReactNode } from 'react'
@@ -19,6 +20,7 @@ import { dispositionIn } from '../battle/setup/chrome'
 import { SimulateButton, ViewRosterButton } from './SealedEventEntrants'
 import { DropEntrant } from './SealedEventDrop'
 import { UnsealRoster } from './SealedEventUnseal'
+import { OUTLINE_TAG } from '../../components/rosterSetup'
 import { nameColour } from '../../playerName'
 
 /** One titled side or team of rosters, or a duel's single untitled run. */
@@ -146,6 +148,63 @@ export function SealedEventArmies({
  * as a whole from its heading; a duel's untitled run leaves simulating to each row. `bare` drops the outer frame for a
  * list that sits inside a card, and `actions` adds anything a row offers first, such as playing that opponent.
  */
+/** What a revealed entry plays: its faction's mark, the list and its points, or why there is none to show. */
+export function SealedListLine({
+  entry,
+  faction,
+  className,
+  view,
+}: {
+  entry: RevealedEntry
+  faction: FactionPresentation | undefined
+  className?: string
+  /** Makes the list's name the way into the roster, where a row has no room for a separate button. */
+  view?: { token: string; eventToken: string; label: string }
+}) {
+  const army = entry.army
+  return (
+    <span className={`flex min-w-0 items-center gap-1.5 text-dim ${className ?? ''}`}>
+      {army ? (
+        <>
+          {/* The mark stands in for the faction's name, so the line keeps room for the list and its points. */}
+          {faction ? (
+            <span title={faction.displayName} className="inline-flex shrink-0">
+              <FactionMark faction={faction} size="sm" />
+              <span className="sr-only">{faction.displayName}</span>
+            </span>
+          ) : null}
+          <span className="min-w-0 break-words">
+            {view ? (
+              <Link
+                to="/rosters/$id"
+                params={{ id: entry.userId }}
+                search={{ sealedEvent: view.token, event: view.eventToken }}
+                aria-label={`View ${view.label}’s roster, ${army.name}`}
+                className="text-info underline underline-offset-2 hover:text-bone"
+              >
+                {army.name}
+              </Link>
+            ) : (
+              <span className="text-bone/85">{army.name}</span>
+            )}
+            {army.limit == null ? null : ` · ${army.points}/${army.limit}`}
+          </span>
+        </>
+      ) : entry.submitted ? (
+        'This roster can’t be shown.'
+      ) : (
+        'No roster yet. The organizer unsealed it for a replacement.'
+      )}
+    </span>
+  )
+}
+
+/** The faction a revealed entry plays; the server names a sealed army even when today's catalogue index no longer lists its catalogue. */
+export function useRevealedFaction() {
+  const { data: factions } = useQuery(factionIndexQuery())
+  return (entry: RevealedEntry) => entry.armyFaction ?? (entry.army?.catalogueId ? factionFor(factions, entry.army.catalogueId) : undefined)
+}
+
 export function RevealedLists({
   token,
   eventToken,
@@ -173,48 +232,27 @@ export function RevealedLists({
   bare?: boolean
   actions?: (entry: RevealedEntry) => ReactNode
 }) {
-  const { data: factions } = useQuery(factionIndexQuery())
+  const factionOf = useRevealedFaction()
   const row = (entry: RevealedEntry, alone: boolean) => {
     const army = entry.army
     const named = label(entry)
-    // The server names a sealed army even when today's catalogue index no longer lists its catalogue.
-    const faction = entry.armyFaction ?? (army?.catalogueId ? factionFor(factions, army.catalogueId) : undefined)
+    const faction = factionOf(entry)
     const droppable = !sample && !entry.dropped && (dropBy === 'organizer' || (dropBy === 'player' && entry.userId === viewerId))
     return (
-      <li key={entry.userId} data-army={entry.name} className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 px-4 py-2">
+      <li key={entry.userId} data-army={entry.name} className="flex min-h-14 min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 px-3 py-2">
         <PlayerAvatar name={entry.name} image={entry.image} className="size-8 text-2xs" />
         <span className="min-w-0 flex-1 basis-24">
           <span className="flex min-w-0 items-baseline gap-1.5">
             <span
-              className="truncate text-sm leading-tight font-bold uppercase"
+              className="truncate text-[0.9375rem] leading-tight font-bold"
               style={nameColour({ id: entry.userId, colour: entry.colour })}
             >
               {named}
             </span>
             {entry.userId === viewerId ? <span className="eyebrow shrink-0 text-parchment">You</span> : null}
-            {entry.dropped ? <span className="chip shrink-0 text-dim">Dropped</span> : null}
+            {entry.dropped ? <span className={`${OUTLINE_TAG} border-edge text-dim`}>Dropped</span> : null}
           </span>
-          <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-dim">
-            {army ? (
-              <>
-                {/* The mark stands in for the faction's name, so the line keeps room for the list and its points. */}
-                {faction ? (
-                  <span title={faction.displayName} className="inline-flex shrink-0">
-                    <FactionMark faction={faction} size="sm" />
-                    <span className="sr-only">{faction.displayName}</span>
-                  </span>
-                ) : null}
-                <span className="min-w-0 break-words">
-                  <span className="uppercase">{army.name}</span>
-                  {army.limit == null ? null : ` · ${army.points}/${army.limit}`}
-                </span>
-              </>
-            ) : entry.submitted ? (
-              'This roster can’t be shown.'
-            ) : (
-              'No roster yet. The organizer unsealed it for a replacement.'
-            )}
-          </span>
+          <SealedListLine entry={entry} faction={faction} className="mt-0.5 text-2xs" />
         </span>
         <span className="ml-auto flex shrink-0 flex-wrap items-center justify-end gap-1">
           {actions?.(entry)}
@@ -232,14 +270,14 @@ export function RevealedLists({
   }
   return (
     <div
-      className={`grid grid-cols-1 gap-px bg-edge ${groups.length > 1 ? 'sm:grid-cols-2' : ''} ${bare ? 'border-t border-edge' : 'overflow-hidden rounded-xl border border-edge shadow-part'}`}
+      className={`grid grid-cols-1 gap-px bg-edge ${groups.length > 1 ? 'sm:grid-cols-2' : ''} ${bare ? 'border-t border-edge' : 'border-y border-edge'}`}
     >
       {groups.map((group) => {
         const opponent = group.entries.find((entry) => entry.army)
         return (
-          <section key={group.key} data-group={group.key} aria-label={group.title} className="min-w-0 bg-panel">
+          <section key={group.key} data-group={group.key} aria-label={group.title} className={`min-w-0 ${bare ? 'bg-panel' : 'bg-void'}`}>
             {group.title ? (
-              <div className="flex min-h-8 items-center gap-2 pt-2 pr-2 pl-4">
+              <div className="flex min-h-8 items-center gap-2 pt-2 pr-2 pl-3">
                 <div className="min-w-0 flex-1">
                   <h3 className="eyebrow text-dim">{group.title}</h3>
                   {group.detail ? <p className="text-xs text-faint">{group.detail}</p> : null}

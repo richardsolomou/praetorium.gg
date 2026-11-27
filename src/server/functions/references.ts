@@ -320,9 +320,6 @@ export const gameReferences = createServerFn({ method: 'GET' }).handler(() =>
   }),
 )
 
-/** Where each source file a rules-text token names lives upstream; Praetorium serves where the words are, never the words. */
-export const textSources = createServerFn({ method: 'GET' }).handler(() => snapshotRpc(async () => publishedTextFiles()))
-
 /** Where strings now live whose tokens name a file the active snapshot replaced, so a battle's older rules still find their summaries. */
 export const textHomesFor = createServerFn({ method: 'GET' })
   .validator(textHomesSchema)

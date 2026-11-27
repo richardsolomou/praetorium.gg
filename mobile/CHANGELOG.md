@@ -1,5 +1,11 @@
 # @praetorium/mobile
 
+## 1.4.4
+
+### Patch Changes
+
+- 4a7436d: The app's opening screen matches the new look: plain text and a single progress line.
+
 ## 1.4.3
 
 ### Patch Changes

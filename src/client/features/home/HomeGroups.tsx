@@ -34,7 +34,7 @@ export function HomeGroups({ groups, tournaments }: { groups: readonly HomeGroup
   return (
     <section data-home-groups>
       <SectionHeading title="Your events" />
-      <ul className="part divide-y divide-edge overflow-hidden">
+      <ul className="divide-y divide-edge border-y border-edge">
         {shownTournaments.map((tournament) => (
           <li key={tournament.token}>
             <Link to="/tournaments/$token" params={{ token: tournament.token }} className={ROW}>
@@ -77,15 +77,15 @@ export function HomeGroups({ groups, tournaments }: { groups: readonly HomeGroup
   )
 }
 
-const ROW = 'group flex min-h-14 items-center gap-3 px-4 py-2.5 transition-colors hover:bg-raised'
+const ROW = 'group flex min-h-14 items-center gap-3 px-2 py-2.5 transition-colors hover:bg-raised'
 
 function Row({ icon, name, children }: { icon: ReactNode; name: string; children: ReactNode }) {
   return (
     <>
       {icon}
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[0.9375rem] font-bold">{name}</span>
-        <span className="block truncate text-xs text-dim">{children}</span>
+        <span className="block truncate text-[0.9375rem] leading-tight font-bold">{name}</span>
+        <span className="mt-0.5 block truncate text-2xs text-faint">{children}</span>
       </span>
       <ChevronRight className="size-4 shrink-0 text-dim group-hover:text-parchment" aria-hidden />
     </>

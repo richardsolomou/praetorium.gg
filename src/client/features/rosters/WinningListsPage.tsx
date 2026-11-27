@@ -27,7 +27,16 @@ import { factionFamilies } from './factionFamilies'
 import { peekGuestDraft } from './guestDraft'
 import { useNewRoster } from './newRoster'
 import { RosterImport } from './RosterImport'
-import { RosterSummary, rosterTitle, type RosterSummaryFaction } from './RosterSummary'
+import {
+  ROSTER_ROW,
+  ROSTER_ROW_FOOT,
+  ROSTER_ROW_LINK,
+  ROSTER_ROWS,
+  RosterSummary,
+  rosterTitle,
+  type RosterSummaryFaction,
+} from './RosterSummary'
+import { SectionHeading } from '../../components/SectionHeading'
 import { RosterViews } from './RosterViews'
 import { TopFourSources } from './TopFourSources'
 import { openWinningImport } from './winningListImport'
@@ -229,12 +238,12 @@ export function WinningListsPage({ search }: { search: WinningSearch }) {
         {open.isError ? <Problem>Could not open that list: {errorMessage(open.error)}</Problem> : null}
         {create.saveError ? <Problem>{create.saveError}</Problem> : null}
         <section>
-          <h2 className="rubric border-b border-edge pb-2">Top-four tournament lists</h2>
-          <p className="mt-2 text-xs text-dim">
+          <SectionHeading title="Top-four tournament lists" count={lists ? shown.length : undefined} className="mb-1" />
+          <p className="text-xs text-dim">
             Lists that finished top four at Warhammer 40,000 tournaments outside Praetorium, as published by <TopFourSources />. Lists a
             points or rules change has since made illegal are marked rather than hidden, since they still show what was winning.
           </p>
-          <div className="mt-2 space-y-3">
+          <div className="mt-3 space-y-3">
             {result.isError ? (
               <PageState
                 headingLevel={2}
@@ -260,7 +269,7 @@ export function WinningListsPage({ search }: { search: WinningSearch }) {
                     Showing the lists checked so far. More appear as the rest are checked against today’s data.
                   </p>
                 ) : null}
-                <div className="runner gap-3 [--gate-x:1rem] [--gate-y:1.5rem] sm:[--gate-x:1.5rem]">
+                <div className={ROSTER_ROWS}>
                   {shown.map(({ list, faction }) => (
                     <WinningListCard
                       key={list.id}
@@ -310,14 +319,14 @@ function WinningListCard({
   const roster = { ...list, pointsBudget: null, waivedRules: [], updatedAt: Date.parse(list.event.date) }
   const title = rosterTitle(roster, faction)
   return (
-    <article data-winning-list={title} className="part hover:border-runner-hi hover:bg-raised">
+    <article data-winning-list={title} className={ROSTER_ROW}>
       {/* Opening a list imports it on the server, so passing a pointer or a finger over cards must not ask for each. */}
       <Link
         to="/rosters/winning/$listId"
         params={{ listId: list.id }}
         preload={false}
         state={(state) => ({ ...state, fromWinningLists: true })}
-        className="flex min-w-0 p-3"
+        className={ROSTER_ROW_LINK}
       >
         <RosterSummary
           roster={roster}
@@ -330,7 +339,7 @@ function WinningListCard({
           dateLabel="played"
         />
       </Link>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-edge px-3 py-2 text-xs text-dim">
+      <div className={ROSTER_ROW_FOOT}>
         <span className="chip shrink-0">{placingLabel(list.placing)}</span>
         <span className="shrink-0">{list.record}</span>
         {list.event.url ? (
@@ -345,7 +354,7 @@ function WinningListCard({
         {list.reportedPoints !== null && list.reportedPoints !== list.points ? (
           <span className="shrink-0">was {list.reportedPoints} points</span>
         ) : null}
-        <Button variant="outline" size="sm" className="ml-auto" disabled={disabled} onClick={onImport} aria-label={`Import ${title}`}>
+        <Button variant="ghost" size="sm" className="ml-auto" disabled={disabled} onClick={onImport} aria-label={`Import ${title}`}>
           <Download /> {opening ? 'Opening…' : 'Import'}
         </Button>
       </div>

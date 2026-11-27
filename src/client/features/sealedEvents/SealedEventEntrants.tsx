@@ -23,7 +23,7 @@ export function EntrantRow({
   entry: SealedEventEntryView
   label: string
   detail: ReactNode
-  /** Before the reveal: a sealed roster shows as a sealed part, and a player still owing one hangs off a dashed gate. */
+  /** Before the reveal: a sealed roster shows its seal, and a player still owing one says so in faint type. */
   sealing?: boolean
   /** A made-up player in the sample tournament, who has no profile to open. */
   sample?: boolean
@@ -34,15 +34,15 @@ export function EntrantRow({
   const basis = sealing ? 'basis-28' : 'basis-44'
   const person = (
     <>
-      <PlayerAvatar name={entry.name} image={entry.image} className="size-9 text-xs" />
+      <PlayerAvatar name={entry.name} image={entry.image} className="size-8 text-xs" />
       <span className="min-w-0">
         <span
-          className="block truncate font-bold uppercase group-hover:underline"
+          className="block truncate text-[0.9375rem] leading-tight font-semibold group-hover:underline"
           style={nameColour({ id: entry.userId, colour: entry.colour })}
         >
           {label}
         </span>
-        {sealing ? null : <span className="block text-xs text-dim">{detail}</span>}
+        {sealing ? null : <span className="mt-0.5 block text-2xs text-dim">{detail}</span>}
       </span>
     </>
   )
@@ -57,16 +57,12 @@ export function EntrantRow({
     <div
       data-person={entry.name}
       data-gate={entry.status === 'rejected' ? 'cut' : sealing && !entry.submitted ? 'pending' : undefined}
-      className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 part p-3"
+      className="flex min-h-14 min-w-0 flex-wrap items-center gap-x-3 gap-y-2 px-2 py-2.5"
     >
       {sample ? (
         <div className={`flex min-w-0 flex-1 items-center gap-3 ${basis}`}>{person}</div>
       ) : (
-        <Link
-          to="/users/$userId"
-          params={{ userId: entry.userId }}
-          className={`group flex min-w-0 flex-1 items-center gap-3 hover:text-info ${basis}`}
-        >
+        <Link to="/users/$userId" params={{ userId: entry.userId }} className={`group flex min-w-0 flex-1 items-center gap-3 ${basis}`}>
           {person}
         </Link>
       )}
@@ -83,14 +79,14 @@ export function EntrantRow({
 /** A sealed list's mark, the same wherever players seal. */
 export function SealedChip({ children = 'Sealed' }: { children?: ReactNode }) {
   return (
-    <span className="inline-flex shrink-0 items-center gap-1 rounded-md border border-dashed border-parchment/60 px-1.5 py-px text-xs font-semibold text-parchment">
+    <span className="inline-flex shrink-0 items-center gap-1 rounded-md border border-parchment/60 px-1.5 py-px text-xs font-semibold text-parchment">
       <Lock className="size-3" aria-hidden /> {children}
     </span>
   )
 }
 
 export function EntrantList({ children }: { children: ReactNode }) {
-  return <div className="runner gap-2 [--gate-y:1.875rem]">{children}</div>
+  return <div className="runner divide-y divide-edge border-y border-edge">{children}</div>
 }
 
 /** A labelled run of entrants inside a section, such as one side of a 2v1 or one doubles team. */

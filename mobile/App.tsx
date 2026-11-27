@@ -159,12 +159,12 @@ function LoadingView() {
       <View>
         <Image source={require('./assets/splash-icon.png')} style={styles.mark} />
         <View style={styles.progressBlock}>
-          {/* The web's line form: a runner the doubled "current" segment travels along. */}
+          {/* The web's line form: a full green segment travelling along a hairline. */}
           <View style={styles.progressTrack}>
             <View style={styles.progressRunner} />
             <Animated.View style={[styles.progressBar, { transform: [{ translateX }] }]} />
           </View>
-          <Text style={styles.loading}>OPENING PRAETORIUM</Text>
+          <Text style={styles.loading}>Opening Praetorium</Text>
         </View>
       </View>
     </View>
@@ -835,31 +835,28 @@ const styles = StyleSheet.create({
   },
   progressTrack: {
     width: PROGRESS_WIDTH,
-    height: 6,
+    height: 3,
+    borderRadius: 1.5,
     overflow: 'hidden',
   },
   progressRunner: {
     position: 'absolute',
-    top: 2,
+    top: 1,
     left: 0,
     right: 0,
-    height: 2,
-    borderRadius: 1,
-    backgroundColor: '#3a4650',
+    height: 1,
+    backgroundColor: '#28323a',
   },
   progressBar: {
     width: PROGRESS_WIDTH / 3,
-    height: 6,
-    borderTopWidth: 2,
-    borderBottomWidth: 2,
-    borderColor: '#9bd0a9',
-    backgroundColor: BARS,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: '#9bd0a9',
   },
   loading: {
     color: '#a6b0ae',
-    fontSize: 11,
-    fontWeight: '600',
-    letterSpacing: 1.6,
+    fontSize: 14,
+    fontWeight: '500',
   },
   button: {
     minHeight: 44,

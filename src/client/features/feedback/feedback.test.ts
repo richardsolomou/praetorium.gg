@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { IMPORT_REPORT_MAX_LENGTH, messagePreview, readTicketMessage, ticketSubject } from '../../../contracts/feedback'
+import {
+  feedbackTicketMessage,
+  IMPORT_REPORT_MAX_LENGTH,
+  messagePreview,
+  readTicketMessage,
+  ticketSubject,
+} from '../../../contracts/feedback'
 import { version } from '../../../../package.json'
-import { FEEDBACK_SURVEY, feedbackSurveyEvent, feedbackTicketMessage, importFailureReport } from './feedback'
+import { FEEDBACK_SURVEY, feedbackSurveyEvent, importFailureReport } from './feedback'
 
 const { kind, message } = FEEDBACK_SURVEY.questions
 
@@ -52,6 +58,15 @@ describe('readTicketMessage', () => {
     expect(readTicketMessage(feedbackTicketMessage({ kind: 'Idea', message: 'Group factions\n\nby alliance' }))).toEqual({
       body: 'Group factions\n\nby alliance',
       kind: 'Idea',
+      version,
+      screenshot: false,
+    })
+  })
+
+  it('reads a message an assistant sent like one from the form', () => {
+    expect(readTicketMessage(feedbackTicketMessage({ kind: 'Problem', message: 'Rule missing', assistant: true }))).toEqual({
+      body: 'Rule missing',
+      kind: 'Problem',
       version,
       screenshot: false,
     })

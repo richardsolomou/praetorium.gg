@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { BackLink } from '../BackLink'
 import { Skeleton } from '@/components/ui/skeleton'
-import { dispositionTone } from '../../../components/rosterSetup'
+import { dispositionTag } from '../../../components/rosterSetup'
 import { dispositionDetachmentsQuery, gameReferencesQuery } from '../../../queries'
 import { FactionMark } from '../../../components/FactionMark'
 import { PageContent, PageHeader } from '../../../components/Page'
@@ -32,22 +32,22 @@ export function ForceDispositionPage({ dispositionId }: { dispositionId: string 
                 <Link
                   to="/missions/$packId"
                   params={{ packId: pack.id }}
-                  className="text-xs font-normal tracking-normal text-dim normal-case underline decoration-runner-hi underline-offset-4 hover:text-bone"
+                  className="font-sans text-sm font-normal text-info underline-offset-2 hover:underline"
                 >
                   {pack.name}
                 </Link>
               }
             />
-            <div className="mt-3 runner gap-1.5 [--gate-y:1.375rem]">
+            <div className="divide-y divide-edge border-y border-edge">
               {matchups.map(({ opponent, mission }) => (
                 <Link
                   key={opponent.id}
                   to="/missions/$packId/matchups/$you/$opponent"
                   params={{ packId: pack.id, you: dispositionId, opponent: opponent.id }}
-                  className="grid min-h-11 grid-cols-[minmax(0,10rem)_minmax(0,1fr)] items-center gap-3 part px-3 py-2 transition-colors hover:border-runner hover:bg-raised sm:grid-cols-[12rem_minmax(0,1fr)]"
+                  className="grid min-h-11 grid-cols-[minmax(0,10rem)_minmax(0,1fr)] items-center gap-3 px-2 py-2 transition-colors hover:bg-raised sm:grid-cols-[12rem_minmax(0,1fr)]"
                 >
-                  <span className={`chip justify-self-start ${dispositionTone(opponent.id)}`}>vs {opponent.name}</span>
-                  <span className="min-w-0 font-semibold break-words">{mission.name}</span>
+                  <span className={`justify-self-start ${dispositionTag(opponent.id)}`}>vs {opponent.name}</span>
+                  <span className="min-w-0 font-medium break-words text-bone">{mission.name}</span>
                 </Link>
               ))}
             </div>
@@ -57,32 +57,32 @@ export function ForceDispositionPage({ dispositionId }: { dispositionId: string 
         <section id="detachments" className="scroll-mt-header">
           <SectionHeading title="Detachments" count={factions ? detachmentCount : undefined} />
           {!factions ? (
-            <div aria-busy className="mt-3 grid gap-3 md:grid-cols-2">
+            <div aria-busy className="grid gap-6 md:grid-cols-2">
               <Skeleton className="h-32" />
               <Skeleton className="h-32" />
             </div>
           ) : factions.length ? (
-            <div className="mt-3 grid gap-3 md:grid-cols-2">
+            <div className="grid gap-x-6 gap-y-4 md:grid-cols-2">
               {factions.map((faction) => (
-                <article key={faction.slug} className="part">
+                <article key={faction.slug} className="border-y border-edge">
                   <FactionReferenceLink
                     to="/factions/$catalogueId"
                     params={{ catalogueId: faction.slug }}
-                    className="flex min-h-11 items-center gap-2 border-b border-edge px-3 py-2 font-bold hover:bg-raised"
+                    className="flex min-h-11 items-center gap-2 border-b border-edge px-2 py-2 font-semibold text-bone hover:bg-raised"
                   >
                     <FactionMark faction={faction} size="sm" />
                     <span className="min-w-0 truncate">{faction.displayName}</span>
                   </FactionReferenceLink>
-                  <ul className="py-1">
+                  <ul className="divide-y divide-edge/60">
                     {faction.detachments.map((detachment) => (
                       <li key={detachment.slug}>
                         <FactionReferenceLink
                           to="/factions/$catalogueId/detachments/$detachmentId"
                           params={{ catalogueId: faction.slug, detachmentId: detachment.slug }}
-                          className="flex min-h-9 items-center justify-between gap-3 px-3 py-1.5 text-sm hover:bg-raised"
+                          className="flex min-h-9 items-center justify-between gap-3 px-2 py-1.5 text-sm hover:bg-raised"
                         >
                           <span className="min-w-0 truncate">{detachment.name}</span>
-                          {detachment.points === null ? null : <span className="chip shrink-0">{detachment.points} DP</span>}
+                          {detachment.points === null ? null : <span className="shrink-0 text-xs text-dim">{detachment.points} DP</span>}
                         </FactionReferenceLink>
                       </li>
                     ))}

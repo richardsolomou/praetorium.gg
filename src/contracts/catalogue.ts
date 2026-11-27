@@ -165,6 +165,7 @@ export type CanonicalCatalogue = {
     | 38
     | 39
     | 40
+    | 41
   revisions: Record<string, string>
   datasheets: CanonicalDatasheet[]
   detachments: CanonicalDetachment[]

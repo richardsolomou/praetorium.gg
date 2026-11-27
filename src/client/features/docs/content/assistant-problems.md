@@ -45,7 +45,7 @@ The public server allows about 120 requests a minute from one internet address. 
 ## Limits
 
 - Praetorium doesn't check the assistant's reasoning. Anything it concludes from the data is the assistant's own.
-- There's no rules wording. You'll need the linked source for exact text.
+- Rules come as Praetorium's summaries, never the official wording. You'll need the official source for exact text.
 - The simulator matches one attacking unit, with up to two attached units, against one defender. You can name a saved loadout or existing damage. Name any detachment rule, enhancement or nearby unit aura that applies.
 - An unsaved roster open in your browser stays on that device. To edit it with an assistant, save it first or paste a list into the conversation. Assistants can also read public rosters and watchable battles.
 - An assistant's own provider sees what Praetorium returns to it, including your roster and battle details when you've connected your account.

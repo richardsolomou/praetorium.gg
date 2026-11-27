@@ -12,7 +12,7 @@ type Feed = { hasNextPage: boolean; isFetchingNextPage: boolean; isPending: bool
 export function MoreBattles({ feed, filtered, order }: { feed: Feed; filtered: boolean; order?: BattleOrder }) {
   if (!feed.hasNextPage) return null
   return (
-    <Button variant="outline" size="sm" className="mt-2" disabled={feed.isFetchingNextPage} onClick={() => void feed.fetchNextPage()}>
+    <Button variant="outline" size="sm" className="mt-3" disabled={feed.isFetchingNextPage} onClick={() => void feed.fetchNextPage()}>
       {feed.isFetchingNextPage ? 'Loading…' : filtered ? (order ? 'Search newer battles' : 'Search older battles') : 'Show more battles'}
     </Button>
   )
@@ -62,18 +62,20 @@ export function BattleFeedList({
 
 function BattlesSkeleton() {
   return (
-    <div className="space-y-2" aria-label="Loading battles">
-      <Skeleton className="h-4 w-20" />
-      {Array.from({ length: 2 }, (_, index) => (
-        <div key={index} className="flex min-h-20 items-center gap-3 part p-3" aria-hidden>
-          <Skeleton className="size-10 shrink-0 rounded-full" />
-          <div className="flex-1 space-y-2">
-            <Skeleton className="h-4 w-1/2" />
-            <Skeleton className="h-3 w-2/3" />
+    <div aria-label="Loading battles">
+      <Skeleton className="mb-3 h-5 w-24" />
+      <div className="divide-y divide-edge border-y border-edge">
+        {Array.from({ length: 2 }, (_, index) => (
+          <div key={index} className="flex min-h-16 items-center gap-3 px-2 py-3" aria-hidden>
+            <Skeleton className="h-6 w-5.5 shrink-0" />
+            <div className="flex-1 space-y-2">
+              <Skeleton className="h-4 w-1/2" />
+              <Skeleton className="h-3 w-2/3" />
+            </div>
+            <Skeleton className="h-7 w-16" />
           </div>
-          <Skeleton className="h-8 w-20" />
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   )
 }

@@ -21,10 +21,11 @@ import {
   transformed,
 } from '../shared/datacards'
 import { completeSteps, type Steps } from '../shared/steps'
-import { type SourceTexts, comparableText, textKey, textTokensIn } from '../core/sourceText'
+import { type SourceTexts, comparableText, resolvedText, textKey, textTokensIn } from '../core/sourceText'
 import { textFactsOf } from '../shared/textFacts'
-import type { TextFacts } from '../core/textFacts'
-import { publishedTexts } from './sourceTexts'
+import { factsKey, type TextFacts } from '../core/textFacts'
+import { RecentlyUsed, remember as rememberIn } from '../core/collections'
+import { publishedTexts, stringsByHash } from './sourceTexts'
 const NO_SECTIONS: SectionProse = () => new Map()
 
 /** How each file's strings are published: tokens, except for checks that read the source's words directly. */
@@ -63,6 +64,42 @@ function recording(
     }
     return published
   }
+}
+
+/** Each card rule's text by `factsKey`, the first where several print alike, for those whose words its files hold. */
+function cardRuleTexts(descriptions: Iterable<string>, files: ReadonlyMap<string, string>) {
+  const texts = new Map<string, string>()
+  for (const text of descriptions) {
+    const tokens = textTokensIn(text)
+    if (!tokens.length || tokens.some((token) => !files.has(token.file))) continue
+    const key = factsKey(text)
+    if (!texts.has(key)) texts.set(key, text)
+  }
+  return texts
+}
+
+// Read back from its file when asked, as a server holding every rules version's card words for the few it reads would
+// hold far more than it reads.
+const heldStrings = new RecentlyUsed<string, ReadonlyMap<string, string>>(4)
+const wordsOf = (text: string, files: ReadonlyMap<string, string>) =>
+  resolvedText(
+    text,
+    (token) => {
+      const raw = rememberIn(heldStrings, files.get(token.file)!, () => stringsByHash(files.get(token.file)!)).get(token.hash)
+      return raw === undefined ? null : transformed(raw, token.transform)
+    },
+    () => '',
+  )
+
+/** Every rules text a value holds under a `description` field, which is where the cards keep a rule's text. */
+function* descriptionsIn(value: unknown): Generator<string> {
+  if (value instanceof Map || value instanceof Set) for (const entry of value.values()) yield* descriptionsIn(entry)
+  else if (Array.isArray(value)) for (const entry of value) yield* descriptionsIn(entry)
+  else if (value && typeof value === 'object')
+    for (const [field, entry] of Object.entries(value)) {
+      if (field === 'description' && typeof entry === 'string') yield entry
+      else yield* descriptionsIn(entry)
+    }
 }
 
 export function* loadDatacardsSteps(
@@ -187,20 +224,34 @@ export function* loadDatacardsSteps(
     }
     for (const [id, description] of content.stratagemTexts) stratagemTexts.set(id, description)
   }
+  const rulesByDetachment = new Map(
+    [...detachmentRules].map(([detachment, rules]) => [
+      detachment,
+      [...agreed(rules)].map(([name, description]) => ({ name, description })),
+    ]),
+  )
+  const stratagems = new Set(stratagemTexts.values())
+  const ruleTexts = cardRuleTexts(
+    [
+      ...stratagems,
+      ...[...enhancements.values(), ...armyRules.values()].flatMap((texts) => [...texts.values()]),
+      ...descriptionsIn([factions, rulesByDetachment]),
+    ],
+    textFiles,
+  )
   const loaded = {
     factions,
-    detachmentRules: new Map(
-      [...detachmentRules].map(([detachment, rules]) => [
-        detachment,
-        [...agreed(rules)].map(([name, description]) => ({ name, description })),
-      ]),
-    ),
+    detachmentRules: rulesByDetachment,
     enhancements: agreed(enhancements),
     stratagemTexts,
     armyRules: agreed(armyRules),
     constructionDetachments,
     textFacts,
     textReadings,
+    textWords: (key: string) => {
+      const text = ruleTexts.get(key)
+      return text === undefined ? undefined : wordsOf(text, textFiles)
+    },
   }
   return loaded
 }

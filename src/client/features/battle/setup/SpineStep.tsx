@@ -1,4 +1,4 @@
-import { Check, ChevronDown } from 'lucide-react'
+import { Check } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -7,6 +7,7 @@ import type { OnboardingTarget } from '../../../onboardingTargets'
 import { tint } from '../battleTints'
 import { SideSwitch, SideSwitchNext } from './chrome'
 import type { SectionId } from './sections'
+import { DisclosureChevron } from '../../../components/DisclosureChevron'
 
 /**
  * One step of setup, hung from the spine.
@@ -64,7 +65,8 @@ export function SpineStep({
   onboarding?: OnboardingTarget
   /** A step each side answers for itself: both sides, and how to read one side's answer. */
   sides?: Side[]
-  renderSide?: (side: Side) => ReactNode
+  /** `inTab` when drawn inside a side's tab button, where the answer can hold nothing else to press. */
+  renderSide?: (side: Side, inTab?: boolean) => ReactNode
   /** The table's one answer, for a step the sides share. */
   summary?: ReactNode
   /** The tick the table gives a step whose default is a valid answer, drawn on its number. */
@@ -75,7 +77,7 @@ export function SpineStep({
   const body = watching || collapsed ? null : children
   const reopens = collapsed && !watching && !locked
   const tick = watching ? undefined : check
-  // The runner down from the step's number says where the table is: settled solid, the step owed now doubled, the rest dashed.
+  // The line down from the step's number says where the table is: settled solid, the step owed now a green bar, the rest a hairline.
   const line = settled ? 'done' : current ? 'now' : locked ? 'locked' : 'todo'
   return (
     <li className="list-none">
@@ -94,9 +96,9 @@ export function SpineStep({
             // A phone gives the step's body the full width, so the runner only hangs beside it from `sm` up.
             'absolute top-15 bottom-1 left-[2.375rem] -translate-x-1/2 max-sm:hidden',
             line === 'done' && 'w-0.5 rounded-full bg-parchment/45',
-            line === 'now' && 'w-1.5 origin-top animate-draw-down border-x-2 border-parchment',
-            line === 'todo' && 'w-0.5 bg-[repeating-linear-gradient(180deg,var(--color-runner-hi)_0_5px,transparent_5px_10px)]',
-            line === 'locked' && 'w-0.5 bg-[repeating-linear-gradient(180deg,var(--color-runner)_0_5px,transparent_5px_10px)]',
+            line === 'now' && 'w-1 origin-top animate-draw-down rounded-full bg-parchment',
+            line === 'todo' && 'w-px bg-runner-hi',
+            line === 'locked' && 'w-px bg-runner',
           )}
         />
         {/* Held under the app header while the step's body scrolls past, so its tick stays in reach. */}
@@ -135,7 +137,7 @@ export function SpineStep({
               aria-label={collapsed ? `Expand ${name}` : `Collapse ${name}`}
               onClick={() => onCollapsedChange(!collapsed)}
             >
-              <ChevronDown aria-hidden className={cn('size-5 transition-transform', collapsed && '-rotate-90')} />
+              <DisclosureChevron open={!collapsed} className="size-5" />
             </Button>
           )}
         </div>
@@ -157,22 +159,9 @@ export function SpineStep({
               onClick={reopens ? (event) => !(event.target as Element).closest('button') && onCollapsedChange(false) : undefined}
             >
               {body ? (
-                <div className={cn('relative', current ? 'rounded-2xl border-2 border-runner bg-panel shadow-lifted' : 'part')}>
-                  {/* The step being answered is drawn out of the frame, joined back to the runner by its own sprue. */}
-                  {current ? (
-                    <>
-                      <span
-                        aria-hidden
-                        className="absolute -top-5 -left-[3.75rem] h-9 w-[3.625rem] rounded-bl-xl border-b-2 border-l-2 border-runner max-sm:hidden"
-                      />
-                      <span
-                        aria-hidden
-                        className="absolute top-2.5 -left-1.5 size-2.5 rounded-full bg-parchment ring-3 ring-void max-sm:hidden"
-                      />
-                    </>
-                  ) : null}
+                <div className="relative">
                   {sides && renderSide ? <SideSwitch sides={sides} renderSide={renderSide} /> : null}
-                  <div className="space-y-4 p-3 sm:p-4">
+                  <div className="space-y-4 max-md:pt-3">
                     {body}
                     {sides ? <SideSwitchNext sides={sides} /> : null}
                   </div>
@@ -182,20 +171,14 @@ export function SpineStep({
                   {sides.map((side, position) => (
                     <div
                       key={side.index}
-                      className={cn(
-                        'min-w-0 rounded-lg border border-t-2 border-edge bg-sunken px-3 py-2 text-sm',
-                        tint(side.index).edge,
-                        position ? 'text-right' : 'text-left',
-                      )}
+                      className={cn('min-w-0 border-t-2 pt-2 text-sm', tint(side.index).edge, position ? 'text-right' : 'text-left')}
                     >
                       {renderSide(side)}
                     </div>
                   ))}
                 </div>
               ) : summary ? (
-                <div className="w-fit max-w-full rounded-lg border border-edge bg-sunken px-3 py-2 text-left text-sm text-balance">
-                  {summary}
-                </div>
+                <div className="max-w-full text-left text-sm text-balance">{summary}</div>
               ) : null}
             </div>
           )}
@@ -222,16 +205,7 @@ function StepMark({
   return (
     <>
       <span
-        className={cn(
-          'step-number transition-colors',
-          settled
-            ? 'text-dim'
-            : current
-              ? 'text-bone'
-              : locked
-                ? 'text-transparent [-webkit-text-stroke:1.2px_var(--color-runner-hi)]'
-                : undefined,
-        )}
+        className={cn('step-number transition-colors', settled ? 'text-dim' : current ? 'text-bone' : locked ? 'text-runner' : undefined)}
       >
         {number}
       </span>

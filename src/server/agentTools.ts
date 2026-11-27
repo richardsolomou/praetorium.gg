@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { withTextPointers, withoutTexts } from '../core/sourceText'
 import { publishedTextLocations } from './publishedTextFiles'
+import { answerRuleSummary } from './servedVsData'
 import { absoluteAgentLinks, absoluteAgentText, rewriteJsonText } from './agentLinks'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import type { CallToolResult, ToolAnnotations } from '@modelcontextprotocol/sdk/types.js'
@@ -29,20 +30,20 @@ type RegisteredTool = {
 }
 
 /**
- * A tool's answer as agents get it: facts and pointers to where withheld rules text lives
- * upstream, never the words. JSON text mirrors the structured answer, so it gets the same
- * pointers; any other text only loses its tokens.
+ * A tool's answer as agents get it: facts, Praetorium's own summaries of the rules it names, and
+ * pointers to where withheld rules text lives upstream where none is summarized, never the words.
+ * JSON text mirrors the structured answer, so it gets the same; any other text only loses its tokens.
  */
 async function published(result: CallToolResult): Promise<CallToolResult> {
   const locations = await publishedTextLocations()
+  const summaryOf = await answerRuleSummary(result, locations)
+  const publish = <T>(value: T) => withTextPointers(value, locations, summaryOf)
   return {
     ...result,
     content: result.content.map((item) =>
-      item.type === 'text'
-        ? { ...item, text: rewriteJsonText(item.text, (value) => withTextPointers(value, locations), withoutTexts) }
-        : withoutTexts(item),
+      item.type === 'text' ? { ...item, text: rewriteJsonText(item.text, publish, withoutTexts) } : withoutTexts(item),
     ),
-    ...(result.structuredContent ? { structuredContent: withTextPointers(result.structuredContent, locations) } : {}),
+    ...(result.structuredContent ? { structuredContent: publish(result.structuredContent) } : {}),
   }
 }
 

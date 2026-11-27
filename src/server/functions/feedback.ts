@@ -1,6 +1,6 @@
-import { createHmac } from 'node:crypto'
 import { createServerFn } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
+import { supportIdentityHash } from '../../adapters/posthogSupport'
 import { feedbackEmailSchema, feedbackScreenshotSchema } from '../../contracts/feedback'
 import { app } from '../app'
 import { feedbackEmail } from '../feedbackEmail'
@@ -46,7 +46,7 @@ export const supportIdentity = createServerFn({ method: 'GET' }).handler(() =>
   rpc(() =>
     forSignedIn(null, (id) => {
       const secret = process.env.POSTHOG_SUPPORT_IDENTITY_SECRET
-      return secret ? { distinctId: id, hash: createHmac('sha256', secret).update(id).digest('hex') } : null
+      return secret ? { distinctId: id, hash: supportIdentityHash(secret, id) } : null
     }),
   ),
 )

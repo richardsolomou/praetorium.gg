@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { ChevronDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { collectionDatasheets } from '../../../core/collection'
@@ -15,6 +14,7 @@ import {
 import { useCollectionWantedMutation } from '../../useCollection'
 import { useHydrated } from '../../useClientValue'
 import { countLabel } from '../../text'
+import { DisclosureChevron } from '../../components/DisclosureChevron'
 
 /** The reader's own collection against this roster, closed until asked for; it never changes points or legality. */
 export function RosterReadiness({
@@ -40,16 +40,18 @@ export function RosterReadiness({
   return (
     <Collapsible render={<section aria-label="Your collection" data-roster-readiness />} className="border-t border-edge pt-1.5">
       <div className={`flex w-full items-center justify-between gap-3 ${list ? 'py-0.5' : 'py-1.5'}`}>
-        <h2 className={list ? 'eyebrow text-dim' : 'rubric'}>Your collection</h2>
+        <span className="flex items-center gap-1">
+          <CollapsibleTrigger
+            render={<Button variant="ghost" size="icon-xs" aria-label="Toggle Your collection" className="group -ml-1.5" />}
+          >
+            <DisclosureChevron />
+          </CollapsibleTrigger>
+          <h2 className={list ? 'eyebrow text-dim' : 'rubric'}>Your collection</h2>
+        </span>
         <span className="flex items-center gap-1.5">
           <span className="text-xs text-dim" data-readiness-summary>
             {empty ? 'Not counted yet' : summary(readiness)}
           </span>
-          <CollapsibleTrigger
-            render={<Button variant="ghost" size="icon-xs" aria-label="Toggle Your collection" className="group text-faint" />}
-          >
-            <ChevronDown className="size-4 transition-transform group-data-panel-open:rotate-180" aria-hidden />
-          </CollapsibleTrigger>
         </span>
       </div>
       <CollapsibleContent>

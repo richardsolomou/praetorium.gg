@@ -26,6 +26,7 @@ function profileKindOf(type: string): DatasheetProfileKind {
     case 'transport':
       return 'transport'
     case 'abilities':
+    case 'psychicabilities':
       return 'rule'
     default:
       return 'other'

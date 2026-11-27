@@ -51,7 +51,7 @@ test('Custodes codex presentation', async ({ page, context }) => {
   await page.getByRole('button', { name: 'Fewer models in Allarus Custodians', exact: true }).click()
   await expect(page.locator('[data-unit="Allarus Custodians"]')).toContainText('2x Castellan Axe')
   await page.getByRole('button', { name: 'Select Vexilla', exact: true }).click()
-  await expect(page.locator('[data-unit="Allarus Custodians"]')).toContainText('1x Vexilla')
+  await expect(page.locator('[data-unit="Allarus Custodians"]')).toContainText('Vexilla')
   await expect(page.locator('[data-characteristic="OC"] .readout')).toHaveText('3')
   await expectNoHorizontalOverflow(page.locator('body'))
   await page.locator('[data-slot="unit-profile"]').scrollIntoViewIfNeeded()
@@ -65,7 +65,7 @@ test('Custodes codex presentation', async ({ page, context }) => {
   await page.getByRole('button', { name: 'Allarus Custodians', exact: true }).click()
   await expectLoadout(page)
   await expect(page.locator('[data-unit="Allarus Custodians"]')).toContainText('2x Castellan Axe')
-  await expect(page.locator('[data-unit="Allarus Custodians"]')).toContainText('1x Vexilla')
+  await expect(page.locator('[data-unit="Allarus Custodians"]')).toContainText('Vexilla')
   await page.getByRole('button', { name: 'More models in Allarus Custodians', exact: true }).click()
   await expect(page.locator('[data-unit="Allarus Custodians"]')).toContainText('3x Castellan Axe')
   await page.getByRole('button', { name: 'Fewer models in Allarus Custodians', exact: true }).click()
@@ -82,7 +82,7 @@ test('Custodes codex presentation', async ({ page, context }) => {
 
   await page.reload()
   await expect(page.locator('[data-rules-version]')).toHaveCount(0)
-  await expect(page.locator('[data-unit="Allarus Custodians"]')).toContainText('1x Vexilla')
+  await expect(page.locator('[data-unit="Allarus Custodians"]')).toContainText('Vexilla')
   await page.goto('/factions/adeptus-custodes')
   await expect(page).toHaveURL(/\/factions\/adeptus-custodes\/rules\/mfm-1-6$/)
   for (const viewport of [desktopContext.viewport, phone]) {

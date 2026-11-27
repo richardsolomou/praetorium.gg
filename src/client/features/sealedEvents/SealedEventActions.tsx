@@ -26,8 +26,11 @@ type ManageableSealedEvent = {
   pointsBudget?: number | null
 }
 
-/** One frame for every sealed event card, so a card with organizer actions looks like one without. */
-export const SEALED_EVENT_CARD = 'relative flex min-w-0 flex-col part transition-colors hover:border-info hover:bg-raised'
+/** One frame for every event row in a list, so a row with organizer actions looks like one without. */
+export const SEALED_EVENT_CARD = 'relative flex min-w-0 flex-col transition-colors hover:bg-raised'
+
+/** The hairline list those rows sit in. */
+export const SEALED_EVENT_ROWS = 'divide-y divide-edge border-y border-edge'
 
 /** `canDelete` is a tournament owner's alone; an admin runs the tournament but cannot remove it. */
 export function SealedEventCardActions({

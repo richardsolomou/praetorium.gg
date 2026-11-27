@@ -106,6 +106,7 @@ export function definitionTexts(
       words: (text) => resolvedText(text, (found) => words.get(ownKey(textKey(found))) ?? null, textToken),
       facts: () => new Map([...words.keys(), ...twinOf.keys()].map((key) => [key, factOf(key)!])),
       fact: factOf,
+      said: (key) => words.get(ownKey(key)),
       holders: (key) => holders.get(ownKey(key)) ?? [],
       shown,
     }
@@ -115,7 +116,11 @@ export function definitionTexts(
 }
 
 /** Definitions that show card twins' tokens, and the same swap for files already built from the definitions. */
-type TwinnedTexts = DefinitionTexts & { shown: <T>(value: T) => T }
+type TwinnedTexts = DefinitionTexts & {
+  shown: <T>(value: T) => T
+  /** A text's words by `textKey`, the catalogue's where a card twin stands in for it. */
+  said: (key: string) => string | undefined
+}
 
 /** A value with every string `swaps` names replaced, sharing every part that holds none. */
 function withTokensSwapped<T>(value: T, swaps: ReadonlyMap<string, string>): T {

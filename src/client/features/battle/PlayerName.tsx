@@ -64,7 +64,7 @@ export function SidePlayers({ side, linked = true, className = '' }: { side: Sid
   return (
     <p
       data-players={side.index}
-      className={cn('flex flex-wrap items-center gap-x-2 text-sm font-bold uppercase', tint(side.index).text, className)}
+      className={cn('flex flex-wrap items-center gap-x-2 text-sm font-semibold', tint(side.index).text, className)}
     >
       {side.armies.map((army, at) => (
         <span key={army.playerId} className="inline-flex min-w-0 items-center gap-x-2">
