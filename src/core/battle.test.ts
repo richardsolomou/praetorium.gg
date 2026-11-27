@@ -796,7 +796,7 @@ describe('setup', () => {
     expect(detachmentLimit(600, ['detachments'])).toBe(3)
     expect(formatDatasheetLimit(600, true, ['kotc-datasheet-copies'])).toBeNull()
     expect(detachmentPointsError([{ points: 3 }, { points: 3 }], 3)).toBe(
-      'This combination costs 6 DP; multiple detachments at this battle size may cost at most 3 DP.',
+      'This combination costs 6 DP; detachments at this battle size may cost at most 3 DP.',
     )
     expect(detachmentPointsError([{ points: 3 }, { points: 3 }], 3, ['detachment-points'])).toBeNull()
   })
@@ -1001,13 +1001,13 @@ describe('setup', () => {
     expect(validate(reduceBattle(PLAYERS, log()), ALICE, command)).toBeNull()
   })
 
-  it('allows one detachment above the multi-detachment allowance', () => {
+  it('refuses one detachment above the battle size’s allowance', () => {
     const command = builtRoster('Necrons', ['Immortals'])
     if (command.kind !== 'attach-roster' || !command.roster.built) throw new Error('expected a built roster')
     command.roster.built.detachments = [{ name: 'Hand of the Dynasty', points: 3 }]
     command.roster.built.detachmentPointBudget = 2
 
-    expect(validate(reduceBattle(PLAYERS, log()), ALICE, command)).toBeNull()
+    expect(validate(reduceBattle(PLAYERS, log()), ALICE, command)).toBe('invalid detachment combination')
   })
 
   it('validates tactical prep attached with a roster', () => {

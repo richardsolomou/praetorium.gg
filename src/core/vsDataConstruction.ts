@@ -2,7 +2,8 @@ import { z } from 'zod'
 
 /**
  * What list building reads from one rules version's VS Data release: every roster definition by kind and ID, with its
- * name, the Enhancements by their rule facts, the units it marks absent or retired, and the points snapshots. Kept beside
+ * name, the Enhancements by their rule facts, the units it marks absent or retired and their replacements, and the points
+ * snapshots. Kept beside
  * the release's summaries as `summaries/<rules version>.construction.json`.
  */
 export const vsDataConstructionSchema = z.object({
@@ -11,6 +12,8 @@ export const vsDataConstructionSchema = z.object({
   definitions: z.record(z.string(), z.record(z.string(), z.object({ name: z.string(), data: z.record(z.string(), z.unknown()) }))),
   /** Units the rules version does not have, though other sources name them: no roster may hold them. */
   unavailable: z.array(z.string()).default([]),
+  /** The one unit each retired unit is replaced by, where it names one, which a list holding the retired unit reads as. */
+  replacements: z.record(z.string(), z.string()).optional(),
   points: z.array(z.record(z.string(), z.unknown())),
 })
 export type VsDataConstruction = z.infer<typeof vsDataConstructionSchema>
@@ -33,7 +36,18 @@ export type Ally = {
   oneLimit?: true
   enhancements?: true
 }
-export type FactionData = { unitLimits?: UnitLimit[]; parent?: string; excludedUnits?: string[]; allies?: Ally[] }
+/**
+ * `excludedDetachments` are its parent's Detachments its rosters may not take. With `withoutDetachments`, its rosters take
+ * none, their Warlord is one of its `warlords`, and `dispositions` are their force dispositions.
+ */
+export type FactionData = {
+  unitLimits?: UnitLimit[]
+  parent?: string
+  excludedUnits?: string[]
+  excludedDetachments?: string[]
+  withoutDetachments?: { warlords: string[]; dispositions?: string[] }
+  allies?: Ally[]
+}
 export type BattleSizeData = { points: number; detachmentPoints?: number; enhancements?: number; duplicates?: number }
 export type DetachmentData = {
   faction: string
@@ -78,7 +92,8 @@ export type UnitData = {
   defaults?: Record<string, Counts>
   defaultModels?: Record<string, number>
 }
-export type ModelData = ModelCountBounds & { unit: string; wargear: Counts }
+/** `keywords` are those the model has beyond its unit's, as when a squad's leader is a Character. */
+export type ModelData = ModelCountBounds & { unit: string; wargear: Counts; keywords?: string[] }
 export type Requirement = { option: string; choices: string[] }
 export type OptionData = {
   unit: string
@@ -155,6 +170,8 @@ export type VsDataDefinitions = {
   optionsOf(unit: string): Definition<'roster-option'>[]
   /** Units the rules version does not have, though other sources name them. */
   unavailable: ReadonlySet<string>
+  /** The unit a saved ID reads as: the one its retirement names as its replacement, else itself. */
+  current(unit: string): string
   /** The points snapshots, the current update first and its Legends companion after it. */
   points: PointsSnapshot[]
 }
@@ -183,6 +200,7 @@ export function vsDataDefinitions(construction: VsDataConstruction): VsDataDefin
     modelsOf: (unit) => (models.get(unit) ?? []) as Definition<'model'>[],
     optionsOf: (unit) => (options.get(unit) ?? []) as Definition<'roster-option'>[],
     unavailable: new Set(construction.unavailable),
+    current: (unit) => construction.replacements?.[unit] ?? unit,
     points: construction.points as PointsSnapshot[],
   }
 }

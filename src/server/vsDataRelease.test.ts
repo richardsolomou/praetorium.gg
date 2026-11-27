@@ -624,3 +624,12 @@ it('names the units the identity marks absent from the rules version as unavaila
   writeVsDataConstruction(directory, file)
   expect(vsDataConstructionSchema.parse(JSON.parse(fs.readFileSync(file, 'utf8'))).unavailable).toEqual(['necrons.dropped'])
 })
+
+it('reads a retired unit as the one unit it is replaced by', () => {
+  fs.rmSync(directory, { recursive: true })
+  const retired = { kind: 'unit', id: 'necrons.old', name: 'Old', retired: { replacedBy: ['necrons.new'] } }
+  writeFiles(directory, vsDataReleaseFiles([record], 'MFM 1.6', [retired]))
+  const file = `${directory}.construction.json`
+  writeVsDataConstruction(directory, file)
+  expect(vsDataConstructionSchema.parse(JSON.parse(fs.readFileSync(file, 'utf8'))).replacements).toEqual({ 'necrons.old': 'necrons.new' })
+})

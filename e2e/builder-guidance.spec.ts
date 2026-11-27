@@ -150,7 +150,7 @@ async function settledHeight(card: Locator) {
 
 test('picker card height stays stable as the roster crosses the points budget', async ({ page }) => {
   await signUp(page, 'Richard')
-  await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, size: /Incursion/ })
+  await createRoster(page, { faction: 'Necrons', detachment: /Canoptek Court/, size: /Incursion/ })
   await addUnit(page, "C'tan Shard of the Nightbringer")
   await page.getByLabel('Add a unit').fill('Monolith')
   const monolith = page.locator('[data-picker-unit="Monolith"]')
