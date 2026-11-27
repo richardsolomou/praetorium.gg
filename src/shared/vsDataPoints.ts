@@ -33,8 +33,8 @@ export type VsDataIds = Record<'books' | 'detachments' | 'units' | 'enhancements
 const priced = (points: PointsCost['points']) => (typeof points === 'number' ? points : null)
 
 /** The IDs a rules version's saved lists hold, each with the VS Data ID it reads as there: its own key first, then the bare one. */
-export function idsIn(map: Readonly<Record<string, string>>, edition: string | null) {
-  const read = new Map<string, string>()
+export function idsIn<T = string>(map: Readonly<Record<string, T>>, edition: string | null) {
+  const read = new Map<string, T>()
   for (const [key, id] of Object.entries(map)) if (!key.includes('~')) read.set(key, id)
   const prefix = edition ? `${edition}~` : null
   if (prefix) for (const [key, id] of Object.entries(map)) if (key.startsWith(prefix)) read.set(key.slice(prefix.length), id)
