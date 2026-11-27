@@ -469,7 +469,8 @@ export async function seededRoster(
   const session = (await (await page.request.get('/api/auth/get-session')).json()) as { user: { id: string; email: string } } | null
   if (!session) throw new Error('The page must be signed in.')
   const { user } = session
-  const defaults = await (await productOperator()).playerDefaults(user.id)
+  const operator = await productOperator()
+  const defaults = await operator.playerDefaults(user.id)
   const { id } = await seedRoster(user.email, {
     name,
     automaticName: false,
@@ -481,6 +482,14 @@ export async function seededRoster(
     visibility: defaults.rosterVisibility,
   })
   await page.goto(`/rosters/${id}`)
+  // The page checks the medals the new roster earned and toasts them, as the setup's page would before its reload.
+  await expect
+    .poll(async () => {
+      const status = await operator.achievementStatus(user.id)
+      return status.checked === status.revision && status.earned.every((achievement) => achievement.seen)
+    })
+    .toBe(true)
+  if (await page.getByText(/^Achievement earned: /).count()) await page.reload()
   await openedInBuilder(page, name)
   return name
 }
