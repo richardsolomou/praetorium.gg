@@ -813,7 +813,7 @@ function calculateRoster(
     ...(isKotcLimit(data.limit) ? kotcViolations(chosen.length, constructionUnits, data.limit, data.waivedRules ?? []) : []),
     ...(!isKotcLimit(data.limit) && enforces(data.waivedRules, 'warlord') ? armyWarlordErrors(picked) : []),
     ...detachmentLocks,
-    ...(vsData === null ? vsPickErrors(loaded.vsRoster, checkedUnits) : []),
+    ...(vsData === null ? vsPickErrors(loaded.vsRoster, data, checkedUnits) : []),
     ...pointCaps.errors,
     ...enhancementsPerUnitErrors,
     ...(vsData === null && enhancementsAllowed !== null && enhancementsHeld > enhancementsAllowed

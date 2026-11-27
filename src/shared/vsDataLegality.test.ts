@@ -210,10 +210,21 @@ describe('vsDataErrors', () => {
       expect(errors([unit({ entryId: 'bs-lord', choices: [option('bs-gone', 'Gone')] })])).toEqual([])
     })
 
+    it('is checked on its Enhancement in a list VS Data cannot place', () => {
+      const lord = unit({ entryId: 'bs-lord', vs: { unit: 'host.lord', models: {}, options: {}, enhancement: 'host.guard.crown' } })
+      expect(vsPickErrors(data, { catalogueId: 'bs-titan', detachmentIds: [], limit: 1000 }, [lord])).toContainEqual({
+        entryId: 'bs-lord',
+        entryName: 'bs-lord',
+        message: 'Crown belongs to another detachment',
+      })
+    })
+
     it('is checked on its wargear in a list VS Data cannot place', () => {
-      expect(vsPickErrors(data, [squad({ options: { 'host.squad.guns': { 'host.squad.plasma': 2 } } })])).toEqual([
-        { entryId: 'bs-squad', entryName: 'Squad', message: 'takes at most 1 Plasma gun, has 2' },
-      ])
+      expect(
+        vsPickErrors(data, { catalogueId: 'bs-titan', detachmentIds: [], limit: 1000 }, [
+          squad({ options: { 'host.squad.guns': { 'host.squad.plasma': 2 } } }),
+        ]),
+      ).toEqual([{ entryId: 'bs-squad', entryName: 'Squad', message: 'takes at most 1 Plasma gun, has 2' }])
     })
   })
 })

@@ -1,5 +1,5 @@
 import { type VsDataConstruction, type VsDataDefinitions, vsDataDefinitions } from '../core/vsDataConstruction'
-import { checkVsRoster, checkVsUnit, type VsProblem, type VsRosterUnit } from '../core/vsDataRoster'
+import { checkVsRoster, type VsProblem, type VsRosterUnit } from '../core/vsDataRoster'
 import { hasWarlordToggle, type UnitChoice, type UnitToggle } from '../core/unitChoices'
 import { remember } from '../core/collections'
 import { nonMatchedPlayKind } from '../core/name'
@@ -283,19 +283,59 @@ function unitWords(problem: VsProblem, named: (text: string) => string): string 
   }
 }
 
+/** The problems VS Data's checker finds with a unit alone, which say nothing of the roster around it. */
+const OWN_PROBLEMS = new Set<VsProblem['code']>([
+  'missing-definition',
+  'not-current',
+  'unit-model',
+  'model-count',
+  'model-group-count',
+  'unit-size',
+  'unit-composition',
+  'unit-option',
+  'option-choice',
+  'option-count',
+  'option-quantity',
+  'option-uniform',
+  'option-cap',
+  'option-unavailable',
+  'option-group-count',
+  'enhancement-detachment',
+  'enhancement-keywords',
+  'enhancement-repeated',
+  'warlord-ineligible',
+  'allegiance-missing',
+  'allegiance-choice',
+  'allegiance-requires',
+])
+
 /**
- * What is wrong with the models and wargear of each unit the list fields by VS Data IDs, for a list VS Data cannot place,
- * whose roster the catalogue checks instead.
+ * What is wrong with each unit the list fields by VS Data IDs, for a list VS Data cannot place, whose roster the
+ * catalogue checks instead: VS Data's checker on the list as far as it reads it (its book's faction, else the first
+ * such unit's, and each Detachment it defines), keeping only what concerns each such unit alone.
  */
-export function vsPickErrors(data: VsRosterData | undefined, units: readonly CheckedUnit[]): VsDataError[] {
-  if (!data) return []
+export function vsPickErrors(
+  data: VsRosterData | undefined,
+  list: { catalogueId: string; detachmentIds: readonly string[]; limit: number },
+  units: readonly CheckedUnit[],
+): VsDataError[] {
+  const picks = units.flatMap((unit) => (unit.vs ? [{ unit, read: unit.vs }] : []))
+  if (!data || !picks.length) return []
   const definitions = remember(definitionsOf, data, () => vsDataDefinitions(data.construction))
-  return units.flatMap((unit) => {
-    if (!unit.vs) return []
-    const problems: VsProblem[] = []
-    checkVsUnit(definitions, unit.vs, (code, message) => problems.push({ code, unit: 0, message }))
-    return problems.flatMap((problem) => described(problem, [{ unit }], definitions) ?? [])
+  const faction =
+    data.books[list.catalogueId.slice(list.catalogueId.indexOf('~') + 1)] ??
+    definitions.get('unit', picks[0]!.read.unit)?.data.faction ??
+    ''
+  const detachments = list.detachmentIds.flatMap((id) => {
+    const vs = data.detachments[id]
+    return vs && definitions.get('detachment', vs) ? [vs] : []
   })
+  const battleSize = definitions.all('battle-size').find((size) => size.data.points === list.limit)?.id
+  const roster = { faction, detachments, ...(battleSize ? { battleSize } : {}), units: picks.map(({ read }) => read) }
+  const unpriced = { units: [], points: 0, detachmentPoints: 0, unpriced: [] }
+  return checkVsRoster(definitions, roster, unpriced)
+    .filter((problem) => problem.unit !== undefined && OWN_PROBLEMS.has(problem.code))
+    .flatMap((problem) => described(problem, picks, definitions) ?? [])
 }
 
 /** The catalogue options a list's Detachments offer as VS Data Enhancements, whose limits VS Data's checker then says. */
