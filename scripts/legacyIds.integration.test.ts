@@ -3,6 +3,7 @@ import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import missions from '../catalogue/legacy-ids/missions.json' with { type: 'json' }
 import stratagems from '../catalogue/legacy-ids/stratagems.json' with { type: 'json' }
+import { readCatalogueComposition } from '../src/server/catalogueComposition'
 import units from '../catalogue/legacy-ids/units.json' with { type: 'json' }
 import { vsDataConstructionSchema, vsDataDefinitions } from '../src/core/vsDataConstruction'
 import { idsIn } from '../src/shared/vsDataPoints'
@@ -64,5 +65,28 @@ describe.skipIf(!fs.existsSync(path.join(source, 'summaries')))('frozen BSData d
         })
       })
     expect(disagreements).toEqual([])
+  })
+
+  it('give every implied allegiance as one its unit must take in each rules version', () => {
+    const base = readCatalogueComposition(source)!.editions.find((entry) => entry.base)!.edition.id
+    const wrong = fs
+      .readdirSync(path.join(source, 'summaries'))
+      .filter((file) => file.endsWith('.construction.json'))
+      .flatMap((file) => {
+        const edition = path.basename(file, '.construction.json')
+        const definitions = vsDataDefinitions(
+          vsDataConstructionSchema.parse(JSON.parse(fs.readFileSync(path.join(source, 'summaries', file), 'utf8'))),
+        )
+        // A version's own key reads first, then the bare one, as its lists do.
+        const read = edition === base ? null : edition
+        const unitOf = idsIn(units.ids, read)
+        return [...idsIn(units.allegiances, read)].flatMap(([entry, allegiance]) => {
+          const offers = definitions.get('unit', unitOf.get(entry) ?? '')?.data.allegiances ?? []
+          return offers.some((offer) => offer.required && !offer.detachment && offer.choices.includes(allegiance))
+            ? []
+            : [`${edition} ${entry}: ${allegiance}`]
+        })
+      })
+    expect(wrong).toEqual([])
   })
 })
