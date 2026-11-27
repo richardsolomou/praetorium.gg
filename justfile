@@ -197,6 +197,15 @@ e2e-parallel *args:
     rm -rf "$work"
     exit "$status"
 
+# The browser specs CI selects for this branch's commits against origin/main, on side-by-side stacks
+e2e-affected:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    scope="$(GITHUB_EVENT_NAME=pull_request GITHUB_OUTPUT='' BASE_SHA="$(git merge-base HEAD origin/main)" HEAD_SHA=HEAD node scripts/laneScope.ts e2e)"
+    grep -qx 'needed=true' <<< "$scope" || { echo 'No browser spec covers these changes.'; exit 0; }
+    specs="$(sed -n 's/^specs=//p' <<< "$scope")"
+    if [ "$specs" = all ]; then just e2e-parallel; else read -ra list <<< "$specs"; just e2e-parallel "${list[@]}"; fi
+
 # Rerun test edits against one isolated production stack; restart after application edits
 e2e-ui *args:
     pnpm exec playwright test --ui {{ args }}
