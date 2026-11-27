@@ -1,5 +1,6 @@
 import { expect, test, type Locator } from './test'
 import { rewind, PHONE } from './account'
+import { screenshot } from './screenshots'
 
 test('the full replay preloads before scrubbing', async ({ page }) => {
   let replayRequests = 0
@@ -99,7 +100,7 @@ test('dragging the replay timeline on a phone changes the event without scrollin
       await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
       expect(await page.evaluate(() => window.scrollY)).toBe(scrollY)
       await expect(page.getByRole('region', { name: 'Battle scoreboard' })).toContainText('Round 1 of 5')
-      await page.screenshot({ path: test.info().outputPath(native ? 'replay-native-phone.png' : 'replay-phone.png') })
+      await screenshot(page, native ? 'replay-native-phone.png' : 'replay-phone.png')
     }
   } finally {
     await context.close()

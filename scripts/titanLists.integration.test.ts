@@ -6,7 +6,7 @@ import type { LoadedCatalogue } from '../src/shared/catalogueIndex'
 import { detachmentOptionsOf } from '../src/shared/factionReferences'
 import { calculateRosterPrice } from '../src/shared/pricing'
 import type { LoadedRules } from '../src/shared/rules'
-import { loadSnapshot } from './lib/catalogueSnapshotLoad'
+import { sharedSnapshot } from './lib/catalogueSnapshotLoad'
 
 const directory = process.env.CATALOGUE_DIR ?? 'catalogue-data'
 
@@ -14,7 +14,7 @@ describe.skipIf(!fs.existsSync(path.join(directory, 'definitions')))('a Titan ar
   let loaded: LoadedCatalogue
   let rules: LoadedRules | null
   beforeAll(() => {
-    ;({ catalogue: loaded, rules } = loadSnapshot(directory))
+    ;({ catalogue: loaded, rules } = sharedSnapshot(directory))
   })
   const priced = (book: string, datasheet: string) => {
     const catalogueId = loaded.factions.find((faction) => faction.name === book)!.id

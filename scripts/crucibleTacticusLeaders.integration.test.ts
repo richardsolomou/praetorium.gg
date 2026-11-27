@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import { beforeAll, describe, expect, it } from 'vitest'
 import { attachmentOf } from '../src/core/attach'
 import { nameOf } from '../src/core/catalogue'
-import { loadCatalogue } from '../src/server/catalogueIndex'
+import { sharedSnapshot } from './lib/catalogueSnapshotLoad'
 import { type LoadedCatalogue } from '../src/shared/catalogueIndex'
 
 const source = process.env.CATALOGUE_DIR ?? 'catalogue-data'
@@ -13,7 +13,7 @@ describe.skipIf(!fs.existsSync(source))('Crucible Tacticus leaders', () => {
     [...loaded.index.definitions.values()].find((entry) => entry.type && nameOf(entry, loaded.index.definitions) === name)!
 
   beforeAll(() => {
-    loaded = loadCatalogue(source)!
+    loaded = sharedSnapshot(source).catalogue
   })
 
   it.each(['Champion of the Chapter [Crucible]', 'Librarius Adept [Crucible]'])('%s cannot lead a Character unit', (name) => {

@@ -1,5 +1,21 @@
 # praetorium
 
+## 0.280.0 (2026-11-27)
+
+### Minor Changes
+
+- 93ce190: [battles] A battle that just ended asks, at most once a fortnight, how tracking it went.
+- 93ce190: [app] Send feedback now sits at the foot of the navigation, and in the top bar on a phone. When we reply, it shows how many replies are waiting and opens them.
+- 93ce190: [rosters] An import that doesn't fully match says we were sent the list, and lets you add a note.
+- 93ce190: [app] The feedback panel opens straight to the message box, with your latest conversations beneath it and a clear confirmation once it's sent.
+- 93ce190: [app] A page that fails to load has a Report this button that sends the error and page with your note.
+
+### Patch Changes
+
+- aa4a50a: [rosters] On the field manuals before MFM 1.6, a Dark Angels army takes Nightforged Battery once, as the app did for those manuals.
+- 18cf03c: [app] The open navigation keeps its collapse button on the left, with notifications and your account on the right.
+- 2f43163: [rosters] A Detachment's Upgrade counts towards your army's Enhancement limit once, as the core rules say, however many units take it.
+
 ## 0.279.10 (2026-11-27)
 
 ### Patch Changes

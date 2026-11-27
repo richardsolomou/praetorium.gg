@@ -28,7 +28,7 @@ const CLOCK_SKEW_MS = 5 * 60_000
 const FOLLOW_PX = 160
 
 /** One feedback conversation in the support panel: the player's messages, the team's public replies, and a reply box. */
-export function Conversation({ ticketId, notice, onBack }: { ticketId: string; notice?: string; onBack: () => void }) {
+export function Conversation({ ticketId, onBack }: { ticketId: string; onBack: () => void }) {
   const available = useSupportAvailable()
   const dates = useDateFormatting()
   const { data, error, isPending } = useQuery(supportMessagesQuery(ticketId, Boolean(available)))
@@ -57,7 +57,7 @@ export function Conversation({ ticketId, notice, onBack }: { ticketId: string; n
         </div>
       </DialogHeader>
       {available === false ? (
-        <DialogBody>
+        <DialogBody className="content-center">
           <PageState
             headingLevel={2}
             title="Feedback is unavailable here"
@@ -78,7 +78,7 @@ export function Conversation({ ticketId, notice, onBack }: { ticketId: string; n
           <ThreadSkeleton />
         </DialogBody>
       ) : !data.messages.length ? (
-        <DialogBody>
+        <DialogBody className="content-center">
           <PageState
             headingLevel={2}
             icon={MessageSquareOff}
@@ -87,13 +87,13 @@ export function Conversation({ ticketId, notice, onBack }: { ticketId: string; n
           />
         </DialogBody>
       ) : (
-        <Thread ticketId={ticketId} messages={data.messages} status={data.status} notice={notice} />
+        <Thread ticketId={ticketId} messages={data.messages} status={data.status} />
       )}
     </>
   )
 }
 
-function Thread({ ticketId, messages, status, notice }: { ticketId: string; messages: Message[]; status?: TicketStatus; notice?: string }) {
+function Thread({ ticketId, messages, status }: { ticketId: string; messages: Message[]; status?: TicketStatus }) {
   const dates = useDateFormatting()
   const queryClient = useQueryClient()
   const [reply, setReply] = useState('')
@@ -150,9 +150,6 @@ function Thread({ ticketId, messages, status, notice }: { ticketId: string; mess
   return (
     <section aria-label="Conversation" className="flex min-h-0 flex-1 flex-col">
       <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4">
-        {notice ? (
-          <output className="mt-4 block border border-achieved/40 bg-achieved/10 px-3 py-2 text-sm text-achieved">{notice}</output>
-        ) : null}
         <ol role="log" aria-label="Messages" className="space-y-1">
           {shown.map((message, index) => {
             const previous = shown[index - 1]
@@ -175,7 +172,8 @@ function Thread({ ticketId, messages, status, notice }: { ticketId: string; mess
       <div className="shrink-0 space-y-2 border-t border-edge bg-sunken px-4 py-3">
         {status === 'resolved' ? (
           <p className="flex items-center gap-2 text-xs text-dim">
-            <CheckCircle2 className="size-3.5 text-achieved" aria-hidden /> We marked this resolved. Reply to reopen it.
+            <CheckCircle2 className="size-3.5 text-achieved" aria-hidden /> This is resolved. If something still isn’t right, reply and
+            we’ll pick it up again.
           </p>
         ) : null}
         {send.error ? <Problem error={send.error} /> : null}
@@ -187,13 +185,13 @@ function Thread({ ticketId, messages, status, notice }: { ticketId: string; mess
           }}
         >
           <label htmlFor="feedback-reply" className="sr-only">
-            {status === 'resolved' ? 'Reply to reopen' : 'Reply'}
+            Reply
           </label>
           <Textarea
             id="feedback-reply"
             required
             rows={1}
-            placeholder={status === 'resolved' ? 'Reply to reopen…' : 'Write a reply…'}
+            placeholder="Write a reply…"
             maxLength={FEEDBACK_MESSAGE_MAX_LENGTH}
             value={reply}
             onChange={(event) => setReply(event.target.value)}
@@ -276,9 +274,10 @@ function Bubble({
           )}
         >
           {read ? read.body : mine ? message.content : <TeamMessage content={message.content} />}
-          {read && (read.version || read.datasheet || read.screenshot) ? (
+          {read && (read.version || read.about || read.datasheet || read.screenshot) ? (
             <span className="mt-2 flex flex-wrap gap-1.5 border-t border-edge pt-2 whitespace-normal">
               {read.version ? <span className={`${OUTLINE_TAG} border-edge text-dim`}>Version {read.version}</span> : null}
+              {read.about ? <span className={`${OUTLINE_TAG} border-edge whitespace-normal text-dim`}>{read.about}</span> : null}
               {read.datasheet ? <span className={`${OUTLINE_TAG} border-edge text-dim`}>{read.datasheet}</span> : null}
               {read.screenshot ? (
                 <span className={`${OUTLINE_TAG} inline-flex items-center gap-1 border-edge text-dim`}>

@@ -18,6 +18,7 @@ import {
 import { expect, test, type Locator, type Page } from './test'
 import { add, expectNoHorizontalOverflow } from './builder.harness'
 import { lastPathSegment, productOperator } from './storage'
+import { screenshot } from './screenshots'
 
 const phone = { width: 390, height: 900 }
 
@@ -35,7 +36,7 @@ test('Custodes codex presentation', async ({ page, context }) => {
     await page.setViewportSize(viewport)
     if (viewport === phone) await expectSetup(setup)
     await setup.getByRole('combobox', { name: 'Faction' }).scrollIntoViewIfNeeded()
-    await page.screenshot({ path: test.info().outputPath(`custodes-setup-${viewport.width}.png`) })
+    await screenshot(page, `custodes-setup-${viewport.width}.png`)
   }
   await page.setViewportSize(desktopContext.viewport)
   await setup.getByRole('button', { name: 'Create roster' }).click()
@@ -55,7 +56,7 @@ test('Custodes codex presentation', async ({ page, context }) => {
   await expect(page.locator('[data-characteristic="OC"] .readout')).toHaveText('3')
   await expectNoHorizontalOverflow(page.locator('body'))
   await page.locator('[data-slot="unit-profile"]').scrollIntoViewIfNeeded()
-  await page.screenshot({ path: test.info().outputPath(`custodes-loadout-${desktopContext.viewport.width}.png`) })
+  await screenshot(page, `custodes-loadout-${desktopContext.viewport.width}.png`)
 
   await page.setViewportSize(phone)
   await page.getByRole('button', { name: 'Back to roster', exact: true }).click()
@@ -73,7 +74,7 @@ test('Custodes codex presentation', async ({ page, context }) => {
   await expect(page.locator('[data-characteristic="OC"] .readout')).toHaveText('3')
   await expectNoHorizontalOverflow(page.locator('body'))
   await page.locator('[data-slot="unit-profile"]').scrollIntoViewIfNeeded()
-  await page.screenshot({ path: test.info().outputPath(`custodes-loadout-${phone.width}.png`) })
+  await screenshot(page, `custodes-loadout-${phone.width}.png`)
   await page.getByRole('button', { name: 'Back to roster', exact: true }).click()
   await page.setViewportSize(desktopContext.viewport)
   await expect
@@ -90,7 +91,7 @@ test('Custodes codex presentation', async ({ page, context }) => {
     await expect(page.getByRole('combobox', { name: 'Rules version' })).toHaveText('Current MFM 1.6')
     await expect(page.locator('[data-faction-mark]')).toHaveCSS('background-color', 'rgb(191, 155, 48)')
     await expect(page.locator('main header [data-rules-version]')).toHaveCount(0)
-    await page.screenshot({ path: test.info().outputPath(`custodes-reference-${viewport.width}.png`) })
+    await screenshot(page, `custodes-reference-${viewport.width}.png`)
   }
   await page.setViewportSize(desktopContext.viewport)
   await chooseOption(page, 'Rules version', 'MFM 1.5 · Archived')
@@ -103,7 +104,7 @@ test('Custodes codex presentation', async ({ page, context }) => {
     await expect(page.locator('[data-rules-version]')).toHaveCount(0)
     await expect(page.locator('[data-faction-mark]')).toHaveCSS('background-color', 'rgb(191, 155, 48)')
     await expectNoHorizontalOverflow(page.locator('body'))
-    await page.screenshot({ path: test.info().outputPath(`custodes-datasheet-${viewport.width}.png`) })
+    await screenshot(page, `custodes-datasheet-${viewport.width}.png`)
   }
   await page.setViewportSize(desktopContext.viewport)
   await waitForOfflineApp(page)
@@ -171,7 +172,7 @@ test('converts the saved roster in place and restores its current choices', asyn
   expect((await operator.roster(id))?.catalogueId).toBe(original.catalogueId)
   await chooseLibraryAction(page, 'Conversion roster', 'Edit roster setup')
   dialog = await destination('MFM 1.5 · Archived', 'Shield Host')
-  await dialog.screenshot({ path: test.info().outputPath('custodes-convert-dialog.png') })
+  await screenshot(dialog, 'custodes-convert-dialog.png')
   await confirmRosterSetup(dialog)
   await expect.poll(async () => (await operator.roster(id))?.catalogueId).toContain('marine-points-1013~')
   const converted = (await operator.roster(id))!
@@ -199,7 +200,7 @@ test('converts the saved roster in place and restores its current choices', asyn
   await page.getByRole('button', { name: 'Allarus Custodians', exact: true }).click()
   await expect(page.locator('[data-characteristic="OC"] .readout')).toHaveText('3')
   await expect(page.getByText('Invulnerable save', { exact: true })).toBeVisible()
-  await page.screenshot({ path: test.info().outputPath('custodes-converted-roster.png') })
+  await screenshot(page, 'custodes-converted-roster.png')
 })
 
 test('faction index cards and logo tooltips work with touch', async ({ browser }) => {
@@ -212,13 +213,13 @@ test('faction index cards and logo tooltips work with touch', async ({ browser }
   await row.getByRole('link').first().tap()
   await expect(page).toHaveURL(/\/factions\/adeptus-custodes\/rules\/mfm-1-6$/)
   await retryUntilVisible(page.getByRole('option').first(), () => page.getByRole('combobox', { name: 'Rules version' }).tap())
-  await page.screenshot({ path: test.info().outputPath('custodes-faction-versions-phone.png') })
+  await screenshot(page, 'custodes-faction-versions-phone.png')
   await page.getByRole('option', { name: /Custodes codex · 17 Oct 2026/ }).tap()
   await expect(page).toHaveURL(/\/factions\/adeptus-custodes\/rules\/custodes-codex-2026-10-17$/)
   await page.locator('[data-rules-version]').tap()
   await expect(page.getByRole('tooltip')).toContainText('Archived Custodes codex · 17 Oct 2026')
   await expect(page.getByRole('tooltip').locator('[data-rules-status="archived"]')).toHaveCSS('width', '72px')
-  await page.screenshot({ path: test.info().outputPath('custodes-touch-tooltip.png') })
+  await screenshot(page, 'custodes-touch-tooltip.png')
   await expectNoHorizontalOverflow(page.locator('body'))
   await page.goto('/factions/adeptus-custodes/rules/unknown-version')
   await expect(page.getByRole('heading', { name: 'Not in the current data', exact: true })).toBeVisible()

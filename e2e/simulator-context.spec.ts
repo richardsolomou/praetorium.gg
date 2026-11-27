@@ -12,6 +12,7 @@ import {
   nextFrames,
 } from './account'
 import { chooseCombatUnit, openCombatControls, combatSettled, simulatorState } from './combat'
+import { screenshot } from './screenshots'
 
 declare global {
   interface Window {
@@ -126,7 +127,7 @@ test('surviving profile choices agree with results and v1 links through member e
     await selectedProfile(page, '')
     await expect(page.getByText(discarded, { exact: true })).toHaveCount(0)
     await noOverflow(page, page.getByRole('region', { name: 'Attacker', exact: true }))
-    await page.screenshot({ path: test.info().outputPath(`simulator-context-members-${width}.png`), fullPage: true })
+    await screenshot(page, `simulator-context-members-${width}.png`, { fullPage: true })
   }
   await page.setViewportSize({ width: 1440, height: 1000 })
 
@@ -265,7 +266,7 @@ for (const { context, companion, width, deadline } of editors) {
       expect(await odds.evaluateAll((elements) => elements.map((element) => element.getAttribute('aria-label')))).toEqual(priorLabels)
       await expect(loadout.locator('[aria-label*="destroyed,"].text-faint').first()).toBeVisible()
       await noOverflow(page, loadout)
-      await loadout.screenshot({ path: test.info().outputPath(`simulator-context-timeout-${context}-${member}-${width}.png`) })
+      await screenshot(loadout, `simulator-context-timeout-${context}-${member}-${width}.png`)
       await gate.resume()
       const beforeRetry = await gate.replies()
       await alert.getByRole('button', { name: 'Retry', exact: true }).click()
@@ -287,7 +288,7 @@ for (const { context, companion, width, deadline } of editors) {
       await expect(loadout.locator('[aria-label*="destroyed,"].text-faint')).toHaveCount(0)
       await expect(loadout.getByRole('alert')).toHaveCount(0)
       await noOverflow(page, loadout)
-      await loadout.screenshot({ path: test.info().outputPath(`simulator-context-recovered-${context}-${member}-${width}.png`) })
+      await screenshot(loadout, `simulator-context-recovered-${context}-${member}-${width}.png`)
     } finally {
       await gate.release()
     }

@@ -1,6 +1,7 @@
 import { chooseCombatUnit } from './combat'
 import { expect, test } from './test'
 import { guestDraft } from './storage'
+import { screenshot } from './screenshots'
 
 test('roster creation and loadout odds work without native array-copy methods', async ({ page }) => {
   await page.addInitScript(() => {
@@ -31,5 +32,5 @@ test('roster creation and loadout odds work without native array-copy methods', 
   await page.getByRole('region', { name: 'Attacker', exact: true }).getByRole('button', { name: 'Loadout', exact: true }).click()
   const loadout = page.getByRole('dialog', { name: 'Attacker · Boyz' })
   await expect(loadout.getByLabel(/^Shooting, unit with one more: <?\d+\.\d+% destroyed/).first()).toBeVisible()
-  await page.screenshot({ path: test.info().outputPath('browser-array-copy-loadouts.png') })
+  await screenshot(page, 'browser-array-copy-loadouts.png')
 })

@@ -1,4 +1,4 @@
-import { expect, test, type Page } from './test'
+import { expect, test, type Locator, type Page } from './test'
 import { recordEvents, stubSupport } from './telemetry.harness'
 import {
   addUnit,
@@ -15,6 +15,7 @@ import {
 } from './account'
 import { add, attach, expectNoHorizontalOverflow } from './builder.harness'
 import { chooseCombatUnit } from './combat'
+import { screenshot } from './screenshots'
 
 async function openRostersToImport(page: Page, name: string) {
   await signUp(page, uniqueName(name))
@@ -371,7 +372,7 @@ for (const [reference, path, signedIn, width] of [
   ['mission-pack', '/missions/chapter-approved-2026-2027', false, 390],
   ['mission-matchup', '/missions/chapter-approved-2026-2027/matchups/take-and-hold/disruption', true, 1440],
 ] as const) {
-  test(`${reference} attributes setup and creation after clearing the handoff URL`, async ({ page }, testInfo) => {
+  test(`${reference} attributes setup and creation after clearing the handoff URL`, async ({ page }) => {
     if (signedIn) await signUp(page, uniqueName('Mission reference'))
     await page.setViewportSize({ width, height: 900 })
     await page.goto(path)
@@ -384,7 +385,7 @@ for (const [reference, path, signedIn, width] of [
     await chooseFaction(setup, 'Necrons')
     await setup.getByRole('button', { name: 'Select Awakened Dynasty' }).click()
     await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
-    await page.screenshot({ path: testInfo.outputPath(`${reference}-setup.png`) })
+    await screenshot(page, `${reference}-setup.png`)
     await setup.getByRole('button', { name: 'Create roster', exact: true }).click()
     await expect(page.getByRole('heading', { name: 'Add your first unit', exact: true })).toBeVisible()
     if (width < 768) await page.getByRole('button', { name: 'Add units', exact: true }).click()
@@ -431,45 +432,38 @@ test('cancelling a mission setup does not attribute a later generic setup to it'
     ])
 })
 
-for (const units of [[], ['Necron Warriors']]) {
-  test(`a guest save attempt reports ${units.length} fielded units from the current draft`, async ({ page }) => {
-    const setup = await visitorSetup(page)
-    await chooseFaction(setup, 'Necrons')
-    await setup.getByRole('button', { name: 'Select Awakened Dynasty' }).click()
-    await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
-    const events = await recordEvents(page)
-    await setup.getByRole('button', { name: 'Create roster' }).click()
-    await expect(page.getByLabel('Add a unit')).toBeVisible()
-    for (const unit of units) await add(page, unit)
-    const save = page.getByRole('button', { name: 'Save roster', exact: true })
-    if (!units.length) {
-      await expect(save).toBeDisabled()
-      return
-    }
-    await save.click()
-    await expect
-      .poll(() => events.filter((event) => event.name === 'guest_roster_save_started'))
-      .toEqual([{ name: 'guest_roster_save_started', properties: { unit_count: units.length } }])
-    await expect
-      .poll(() => events.filter((event) => event.name === 'guest_roster_save_gate_viewed'))
-      .toEqual([{ name: 'guest_roster_save_gate_viewed', properties: { unit_count: units.length, action: 'create' } }])
-    if (units.length === 1) {
-      await page.getByRole('button', { name: 'Create account and save roster', exact: true }).click()
-      await expect
-        .poll(() => events.filter((event) => event.name === 'guest_roster_save_validation_failed').map((event) => event.properties.field))
-        .toEqual(['name', 'email', 'password'])
-      expect(events.filter((event) => event.name === 'account_authentication_started')).toEqual([])
-      await page.getByRole('button', { name: 'I already have an account', exact: true }).click()
-      await expect.poll(() => events.filter((event) => event.name === 'guest_roster_save_gate_viewed').length).toBe(1)
-      await page.getByRole('link', { name: 'Back to your roster', exact: true }).click()
-      await expect(page.locator('[data-unit="Necron Warriors"]').first()).toBeVisible()
-      expect(events.filter((event) => event.name === 'guest_roster_save_gate_interacted').map((event) => event.properties.action)).toEqual([
-        'switch_to_sign_in',
-        'return_to_draft',
-      ])
-    }
-  })
-}
+test('a guest save attempt reports the fielded units of the current draft', async ({ page }) => {
+  const setup = await visitorSetup(page)
+  await chooseFaction(setup, 'Necrons')
+  await setup.getByRole('button', { name: 'Select Awakened Dynasty' }).click()
+  await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
+  const events = await recordEvents(page)
+  await setup.getByRole('button', { name: 'Create roster' }).click()
+  await expect(page.getByLabel('Add a unit')).toBeVisible()
+  const save = page.getByRole('button', { name: 'Save roster', exact: true })
+  await expect(save).toBeDisabled()
+  await add(page, 'Necron Warriors')
+  await save.click()
+  await expect
+    .poll(() => events.filter((event) => event.name === 'guest_roster_save_started'))
+    .toEqual([{ name: 'guest_roster_save_started', properties: { unit_count: 1 } }])
+  await expect
+    .poll(() => events.filter((event) => event.name === 'guest_roster_save_gate_viewed'))
+    .toEqual([{ name: 'guest_roster_save_gate_viewed', properties: { unit_count: 1, action: 'create' } }])
+  await page.getByRole('button', { name: 'Create account and save roster', exact: true }).click()
+  await expect
+    .poll(() => events.filter((event) => event.name === 'guest_roster_save_validation_failed').map((event) => event.properties.field))
+    .toEqual(['name', 'email', 'password'])
+  expect(events.filter((event) => event.name === 'account_authentication_started')).toEqual([])
+  await page.getByRole('button', { name: 'I already have an account', exact: true }).click()
+  await expect.poll(() => events.filter((event) => event.name === 'guest_roster_save_gate_viewed').length).toBe(1)
+  await page.getByRole('link', { name: 'Back to your roster', exact: true }).click()
+  await expect(page.locator('[data-unit="Necron Warriors"]').first()).toBeVisible()
+  expect(events.filter((event) => event.name === 'guest_roster_save_gate_interacted').map((event) => event.properties.action)).toEqual([
+    'switch_to_sign_in',
+    'return_to_draft',
+  ])
+})
 
 test('simulator setup checkpoints carry no unit contents', { tag: '@catalogue' }, async ({ page }) => {
   await page.goto('/simulator')
@@ -528,39 +522,40 @@ async function supportOnFactions(page: Page, earlier = 0) {
 
 async function openFeedback(page: Page) {
   const dialog = page.getByRole('dialog', { name: 'Send feedback' })
-  await retryUntilVisible(dialog, async () => {
-    await page.getByRole('button', { name: 'Account menu' }).filter({ visible: true }).click()
-    await page.getByRole('menuitem', { name: 'Feedback' }).click()
-  })
+  await retryUntilVisible(dialog, () =>
+    page
+      .getByRole('button', { name: /^Send feedback/ })
+      .filter({ visible: true })
+      .click(),
+  )
   return dialog
 }
+
+const messageBox = (dialog: Locator) => dialog.getByLabel('Message', { exact: true })
 
 test('a guest sends feedback, reads the reply and answers it', async ({ page }) => {
   const support = await supportOnFactions(page)
   const dialog = await openFeedback(page)
-  await dialog.getByRole('button', { name: 'Idea' }).click()
-  await dialog.getByLabel('Message').fill('  Group factions by alliance  ')
+  await dialog.getByRole('button', { name: 'An idea' }).click()
+  await messageBox(dialog).fill('  Group factions by alliance  ')
   await dialog.getByLabel('Email for a reply (optional)').fill('guest@example.com')
   await dialog.getByLabel('Attach screenshot').setInputFiles(SCREENSHOT)
   await expect(dialog.getByRole('img', { name: 'Attached screenshot' })).toBeVisible()
-  await dialog.getByRole('button', { name: 'Send feedback' }).click()
+  await dialog.getByRole('button', { name: 'Send feedback', exact: true }).click()
 
-  // Sending opens the new conversation in the same panel, over the page the player was on.
+  // Sending confirms in the same panel, over the page the player was on.
   const panel = page.getByRole('dialog')
-  await expect(panel.getByRole('status')).toHaveText('Thanks, your feedback was sent. Our reply will appear here.')
+  await expect(panel.getByRole('heading', { name: 'Thanks, it’s sent' })).toBeVisible()
+  await expect(panel).toContainText('and we will email you')
   await expect(page).toHaveURL(/\/factions$/)
   const [ticket] = await support.tickets()
   const opening = ticket.messages[0].content
   expect(opening).toMatch(/^Group factions by alliance\n\nIdea · Praetorium \d+\.\d+\.\d+\nScreenshot: /)
-  const screenshot = await page.request.get(SCREENSHOT_LINE.exec(opening)![1])
-  expect(screenshot.status()).toBe(401)
+  const attached = await page.request.get(SCREENSHOT_LINE.exec(opening)![1])
+  expect(attached.status()).toBe(401)
 
   await support.reply(ticket.id, 'Done in the next release')
-  await panel.getByRole('button', { name: 'All conversations' }).click()
-  await panel
-    .getByRole('navigation', { name: 'Conversations' })
-    .getByRole('button', { name: /Group factions by alliance/ })
-    .click()
+  await panel.getByRole('button', { name: 'View conversation' }).click()
   const conversation = panel.getByRole('region', { name: 'Conversation' })
   await expect(conversation.getByText('Done in the next release')).toBeVisible()
   await expect(conversation.getByText('Internal note')).toHaveCount(0)
@@ -575,52 +570,48 @@ test('a guest sends feedback, reads the reply and answers it', async ({ page }) 
 test('a message being written stays when earlier conversations load behind it', async ({ page }) => {
   await page.goto('/factions')
   await page.getByRole('button', { name: 'Search Praetorium' }).waitFor()
-  // Support has not answered yet, so the panel opens straight to a new message.
+  // Support has not answered yet, so there are no conversations to link to.
   const dialog = await openFeedback(page)
-  await dialog.getByLabel('Message').fill('The picker will not scroll')
+  await messageBox(dialog).fill('The picker will not scroll')
   await stubSupport(page, 1)
 
-  await expect(dialog.getByRole('button', { name: 'All conversations' })).toBeVisible()
-  await expect(dialog.getByLabel('Message')).toHaveValue('The picker will not scroll')
+  await expect(dialog.getByRole('button', { name: 'Your conversations' })).toBeVisible()
+  await expect(messageBox(dialog)).toHaveValue('The picker will not scroll')
 })
 
-test('an unread reply marks the account menu until the player reads it', async ({ page }) => {
+test('an unread reply marks send feedback until the player reads it', async ({ page }) => {
   const support = await supportOnFactions(page)
   const dialog = await openFeedback(page)
-  await dialog.getByLabel('Message').fill('The picker will not scroll')
-  await dialog.getByRole('button', { name: 'Send feedback' }).click()
-  await expect(page.getByRole('region', { name: 'Conversation' })).toBeVisible()
-  await page.keyboard.press('Escape')
+  await messageBox(dialog).fill('The picker will not scroll')
+  await dialog.getByRole('button', { name: 'Send feedback', exact: true }).click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Done' }).click()
   await expect(page.getByRole('dialog')).toHaveCount(0)
   const [ticket] = await support.tickets()
   await support.reply(ticket.id, 'Fixed, thanks')
 
-  // Opening the menu rereads the list once it is stale.
-  const replies = page.getByRole('menuitem', { name: 'Feedback 1 new' })
-  await retryUntilVisible(replies, async () => {
+  // Opening feedback rereads the list once it is stale, and send feedback then leads to the reply.
+  const sendFeedback = page.getByRole('button', { name: /^Send feedback/ }).filter({ visible: true })
+  await retryUntilVisible(page.getByRole('button', { name: 'Send feedback, 1 new reply' }).filter({ visible: true }), async () => {
     await page.keyboard.press('Escape')
-    await page.getByRole('button', { name: 'Account menu' }).filter({ visible: true }).click()
+    await sendFeedback.click()
   })
-  await expect(page.getByRole('button', { name: 'Account menu, 1 unread feedback reply' }).filter({ visible: true })).toBeVisible()
-  await replies.click()
-  await page
-    .getByRole('dialog')
-    .getByRole('navigation', { name: 'Conversations' })
-    .getByRole('button', { name: /Fixed, thanks/ })
-    .click()
+  await page.keyboard.press('Escape')
+  await sendFeedback.click()
   await expect(page.getByRole('region', { name: 'Conversation' }).getByText('Fixed, thanks')).toBeVisible()
   await page.keyboard.press('Escape')
-  await expect(page.getByRole('button', { name: 'Account menu' }).filter({ visible: true })).toHaveAccessibleName('Account menu')
+  await expect(sendFeedback).toHaveAccessibleName('Send feedback')
 })
 
 test('a long feedback history loads page by page as the player scrolls it', async ({ page }) => {
   await supportOnFactions(page, 45)
-  const yours = page.getByRole('menuitem', { name: 'Feedback' })
-  await retryUntilVisible(yours, async () => {
-    await page.keyboard.press('Escape')
-    await page.getByRole('button', { name: 'Account menu' }).filter({ visible: true }).click()
-  })
-  await yours.click()
+  const all = page.getByRole('dialog').getByRole('button', { name: 'Your conversations' })
+  await retryUntilVisible(all, () =>
+    page
+      .getByRole('button', { name: /^Send feedback/ })
+      .filter({ visible: true })
+      .click(),
+  )
+  await all.click()
 
   const list = page.getByRole('dialog').getByRole('navigation', { name: 'Conversations' })
   const conversation = (subject: string) => list.getByRole('button').filter({ has: page.getByText(subject, { exact: true }) })
@@ -639,8 +630,9 @@ test('a long feedback history loads page by page as the player scrolls it', asyn
 test('a reply appears in an open conversation without reloading it', async ({ page }) => {
   const support = await supportOnFactions(page)
   const dialog = await openFeedback(page)
-  await dialog.getByLabel('Message').fill('Missions page is slow')
-  await dialog.getByRole('button', { name: 'Send feedback' }).click()
+  await messageBox(dialog).fill('Missions page is slow')
+  await dialog.getByRole('button', { name: 'Send feedback', exact: true }).click()
+  await page.getByRole('dialog').getByRole('button', { name: 'View conversation' }).click()
   const conversation = page.getByRole('region', { name: 'Conversation' })
   await expect(conversation.getByText('Missions page is slow')).toBeVisible()
 
@@ -670,15 +662,15 @@ test('an administrator opens the screenshot attached to feedback', async ({ page
   const support = await supportOnFactions(page)
   const dialog = await openFeedback(page)
   await expect(dialog.getByLabel('Email for a reply (optional)')).toHaveCount(0)
-  await dialog.getByLabel('Message').fill('Attached the broken layout')
+  await messageBox(dialog).fill('Attached the broken layout')
   await dialog.getByLabel('Attach screenshot').setInputFiles(SCREENSHOT)
   await expect(dialog.getByRole('img', { name: 'Attached screenshot' })).toBeVisible()
-  await dialog.getByRole('button', { name: 'Send feedback' }).click()
+  await dialog.getByRole('button', { name: 'Send feedback', exact: true }).click()
 
-  await expect(page.getByRole('dialog').getByRole('status')).toHaveText('Thanks, your feedback was sent. Our reply will appear here.')
+  await expect(page.getByRole('dialog').getByRole('heading', { name: 'Thanks, it’s sent' })).toBeVisible()
   const [ticket] = await support.tickets()
-  const screenshot = await page.request.get(SCREENSHOT_LINE.exec(ticket.messages[0].content)![1])
-  expect([screenshot.status(), screenshot.headers()['content-type'], screenshot.headers()['cache-control']]).toEqual([
+  const attached = await page.request.get(SCREENSHOT_LINE.exec(ticket.messages[0].content)![1])
+  expect([attached.status(), attached.headers()['content-type'], attached.headers()['cache-control']]).toEqual([
     200,
     expect.stringMatching(/^image\/(?:webp|jpeg)$/),
     'private, no-store',
@@ -688,20 +680,15 @@ test('an administrator opens the screenshot attached to feedback', async ({ page
 test('feedback that cannot be sent keeps the message and offers the issue tracker', async ({ page }) => {
   await page.setViewportSize(PHONE)
   await page.goto('/factions')
-  const dialog = page.getByRole('dialog', { name: 'Send feedback' })
-  const feedback = page.getByRole('menuitem', { name: 'Feedback' })
-  await retryUntilVisible(dialog, async () => {
-    if (!(await feedback.isVisible())) await page.locator('[data-mobile-app-header]').getByRole('button', { name: 'Account menu' }).click()
-    await feedback.click({ timeout: 1_000 })
-  })
-  await dialog.getByLabel('Message').fill('The list will not scroll')
-  await dialog.getByRole('button', { name: 'Send feedback' }).click()
+  const dialog = await openFeedback(page)
+  await messageBox(dialog).fill('The list will not scroll')
+  await dialog.getByRole('button', { name: 'Send feedback', exact: true }).click()
 
   await expect(dialog.getByRole('alert').getByRole('link', { name: 'report it on GitHub' })).toHaveAttribute(
     'href',
     'https://github.com/richardsolomou/praetorium.gg/issues/new',
   )
-  await expect(dialog.getByLabel('Message')).toHaveValue('The list will not scroll')
+  await expect(messageBox(dialog)).toHaveValue('The list will not scroll')
   await expect(page).toHaveURL(/\/factions$/)
   await expectNoHorizontalOverflow(dialog)
 })
