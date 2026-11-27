@@ -9,11 +9,9 @@ import {
   type RuleDocument,
   type RuleSummaries,
   type RuleSummary,
-  type RuleSummaryBlock,
   type RuleSummaryInline,
   type RuleSummaryLink,
   type RuleSummaryParts,
-  STRATAGEM_PARTS,
 } from '../contracts/rules'
 import { spannedParagraph, type SummaryBlock, type SummaryInline, summaryBlocks, summaryText } from '../core/summaryMarkdown'
 import type { Steps } from '../shared/steps'
@@ -323,22 +321,7 @@ function summaryOf(
     effect: shown(summaryBlocks(parts.effect)),
     ...(parts.restrictions ? { restrictions: shown(summaryBlocks(parts.restrictions)) } : {}),
   }
-  return { blocks: labelledBlocks(shownParts), questions, parts: shownParts }
-}
-
-/**
- * A Stratagem's summary as VS Data joins its parts, each opening with its bold label, built from the parts' own runs
- * rather than read again from the summary, so a server holds the words once.
- */
-function labelledBlocks(parts: RuleSummaryParts): RuleSummaryBlock[] {
-  return Object.entries(STRATAGEM_PARTS).flatMap(([part, label]) => {
-    const [first, ...rest] = parts[part as keyof RuleSummaryParts] ?? []
-    if (!first) return []
-    const labelled = [{ text: `${label}:`, bold: true as const }, { text: ' ' }]
-    return 'paragraph' in first
-      ? [{ paragraph: [...labelled, ...first.paragraph] }, ...rest]
-      : [{ paragraph: labelled.slice(0, 1) }, first, ...rest]
-  })
+  return { parts: shownParts, questions }
 }
 
 /**
