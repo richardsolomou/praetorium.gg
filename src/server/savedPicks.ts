@@ -9,6 +9,7 @@ import type { RosterPick } from '../core/roster'
 import {
   type SavedPickTranslations,
   savedPickTranslations,
+  savedPicksKey,
   savedPicksPinSchema,
   translatesSavedAt,
   withVsLoadout,
@@ -23,7 +24,6 @@ import { privateR2Client, r2Objects } from './r2Client'
  * no key to, and the bytes it must hold.
  */
 export const savedPicksPin = savedPicksPinSchema.parse(rawPin)
-export const savedPicksKey = (sha256 = savedPicksPin.sha256) => `saved-picks/${sha256}.json`
 
 /** The pinned translations' bytes, verified against the pin: from this server's copy, else the bucket, then kept. */
 export async function savedPicksBytes(dataDirectory = process.env.DATA_DIR ?? '/data'): Promise<Uint8Array> {
@@ -36,7 +36,7 @@ export async function savedPicksBytes(dataDirectory = process.env.DATA_DIR ?? '/
   }
   const store = privateR2Client()
   if (!store) throw new Error('saved-pick translations are unavailable without the private bucket')
-  const bytes = await r2Objects(store).get(savedPicksKey())
+  const bytes = await r2Objects(store).get(savedPicksKey(savedPicksPin.sha256))
   if (!bytes) throw new Error('saved-pick translations are missing from the private bucket')
   if (!verified(bytes)) throw new Error('saved-pick translations do not match their pin')
   fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 })
