@@ -143,8 +143,8 @@ describe('served saved records', () => {
   })
 
   it('give the owner’s roster its translation', async () => {
-    const served = await service(before).rosterAccess('roster-1', 'user-1')
-    expect((served?.roster.picks as RosterPick[] | undefined)?.[0]?.translatedVs).toEqual(fixture.vs)
+    const translatedOf = (picks: readonly RosterPick[]) => picks[0]?.translatedVs
+    expect(translatedOf((await service(before).rosterAccess('roster-1', 'user-1'))?.roster.picks ?? [])).toEqual(fixture.vs)
   })
 })
 
