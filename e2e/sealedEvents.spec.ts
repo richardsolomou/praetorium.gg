@@ -5,7 +5,7 @@ import {
   chooseRosterDefault,
   confirmRosterSetup,
   befriend,
-  createRoster,
+  seededRoster,
   uniqueName,
   signUp,
   waitForRosterSave,
@@ -842,9 +842,9 @@ test('a new sealed event starts with its first event and can seal a roster', asy
   const sealedEventName = uniqueName('Home Sealed event')
 
   await signUp(page, ownerName)
-  const rosterName = await createRoster(page, {
+  const rosterName = await seededRoster(page, {
     faction: 'Black Templars',
-    detachment: /Marshal's Household/,
+    detachment: "Marshal's Household",
     name: 'Templar roster',
   })
   await addUnit(page, 'Captain')
@@ -1168,7 +1168,7 @@ test('a revealed roster keeps its selected upgrades and reference metadata', asy
   const rosterName = 'Revealed Necrons'
 
   await signUp(owner, ownerName)
-  await createRoster(owner, { faction: 'Necrons', detachment: /Cursed Legion/, name: rosterName })
+  await seededRoster(owner, { faction: 'Necrons', detachment: 'Cursed Legion', name: rosterName })
   await add(owner, 'Skorpekh Lord')
   await owner.locator('[data-unit="Skorpekh Lord"]').getByRole('button', { name: 'Skorpekh Lord', exact: true }).click()
   await waitForRosterSave(owner, () => owner.getByRole('button', { name: 'Select Mark of the Nekrosor' }).click())

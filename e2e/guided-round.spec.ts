@@ -4,7 +4,7 @@ import {
   advance,
   advanceButton,
   confirmScoring,
-  createRoster,
+  seededRoster,
   desktopContext,
   setupBattle,
   signUp,
@@ -40,9 +40,9 @@ test('New Orders, discard CP and carried cards survive a complete two-player rou
   const opponent = await (await browser.newContext(desktopContext)).newPage()
   const name = uniqueName('Round opponent')
   await signUp(opponent, name)
-  const theirs = await createRoster(opponent, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Second army' })
+  const theirs = await seededRoster(opponent, { faction: 'Necrons', detachment: 'Awakened Dynasty', name: 'Second army' })
   await signUp(page, uniqueName('Round host'))
-  const ours = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'First army' })
+  const ours = await seededRoster(page, { faction: 'Necrons', detachment: 'Awakened Dynasty', name: 'First army' })
   await setupBattle(page, opponent, { hostRoster: ours, guestRoster: theirs, openingSecondaries: ['Cleanse', 'Plunder'] })
   const side = playerPanel(page, 0)
   await side.getByRole('button', { name: /^Use New Orders for \d CP$/ }).click()
@@ -126,9 +126,9 @@ test('both sides settle source final awards beyond round caps through cold offli
   const opponent = await (await browser.newContext(desktopContext)).newPage()
   const name = uniqueName('Final opponent')
   await signUp(opponent, name)
-  const theirs = await createRoster(opponent, { faction: 'Death Guard', detachment: /Flyblown Host/, name: 'Second final army' })
+  const theirs = await seededRoster(opponent, { faction: 'Death Guard', detachment: 'Flyblown Host', name: 'Second final army' })
   await signUp(page, uniqueName('Final host'))
-  const ours = await createRoster(page, { faction: 'Death Guard', detachment: /Flyblown Host/, name: 'First final army' })
+  const ours = await seededRoster(page, { faction: 'Death Guard', detachment: 'Flyblown Host', name: 'First final army' })
   await setupBattle(page, opponent, { hostRoster: ours, guestRoster: theirs })
   const { append, first, second, id: battleId } = await battleLog(page)
   for (let phase = 0; phase < 48; phase += 1) {

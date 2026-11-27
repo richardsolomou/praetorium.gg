@@ -6,7 +6,7 @@ import {
   addAllyPlace,
   attachRoster,
   createBattle,
-  createRoster,
+  seededRoster,
   signUp,
   startBattle,
   uniqueName,
@@ -21,7 +21,7 @@ test('the battle matchup planner uses live survivors, isolates experiments, and 
   page,
 }) => {
   await signUp(page, 'Live planner')
-  const roster = await createRoster(page, { faction: 'Space Marines', detachment: /Gladius Task Force/, name: 'Planner Marines' })
+  const roster = await seededRoster(page, { faction: 'Space Marines', detachment: 'Gladius Task Force', name: 'Planner Marines' })
   for (const name of ['Intercessor Squad', 'Terminator Squad', 'Rhino']) await addUnit(page, name)
   await practiceBattle(page, roster)
   await startBattle(page)
@@ -110,7 +110,7 @@ test('the battle matchup planner uses live survivors, isolates experiments, and 
 test('battle combat uses frozen loadouts and live casualties', async ({ page, browser }) => {
   test.setTimeout(240_000)
   await signUp(page, 'Combat')
-  const roster = await createRoster(page, { faction: 'Space Marines', detachment: /Gladius Task Force/, name: 'Combat Marines' })
+  const roster = await seededRoster(page, { faction: 'Space Marines', detachment: 'Gladius Task Force', name: 'Combat Marines' })
   await addUnit(page, 'Intercessor Squad')
   await practiceBattle(page, roster)
   await startBattle(page)
@@ -213,21 +213,21 @@ test('a team matchup switches allied armies and carries both sides through a swa
   const hostName = uniqueName('Captain')
   await signUp(page, hostName)
   // A 2v1 played alone, so the ally's list comes from this player's own library too.
-  const allyRoster = await createRoster(page, {
+  const allyRoster = await seededRoster(page, {
     faction: 'Necrons',
-    detachment: /Cursed Legion/,
+    detachment: 'Cursed Legion',
     name: 'Allied Necrons',
-    size: /Incursion/,
+    limit: 1000,
   })
   await addUnit(page, 'Canoptek Reanimator')
-  const roster = await createRoster(page, {
+  const roster = await seededRoster(page, {
     faction: 'Space Marines',
-    detachment: /Tactical Brethren/,
+    detachment: 'Tactical Brethren',
     name: 'Allied Marines',
-    size: /Incursion/,
+    limit: 1000,
   })
   await addUnit(page, 'Intercessor Squad')
-  const opponentRoster = await createRoster(page, { faction: 'Space Marines', detachment: /Gladius Task Force/, name: 'Opposing Marines' })
+  const opponentRoster = await seededRoster(page, { faction: 'Space Marines', detachment: 'Gladius Task Force', name: 'Opposing Marines' })
   await addUnit(page, 'Intercessor Squad')
   await createBattle(page, { practice: true })
   await addAllyPlace(page, 0)

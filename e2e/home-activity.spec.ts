@@ -3,7 +3,7 @@ import {
   attachRoster,
   befriend,
   createBattle,
-  createRoster,
+  seededRoster,
   followLink,
   setupBattle,
   signUp,
@@ -114,7 +114,7 @@ test('shows active practice battles to their player but not visitors', async ({ 
   const name = uniqueName('Watcher')
   await signUp(page, name)
   // A battle is listed once every army is in.
-  const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Watcher army' })
+  const roster = await seededRoster(page, { faction: 'Necrons', detachment: 'Awakened Dynasty', name: 'Watcher army' })
   const battleUrl = await practiceBattle(page, roster)
 
   await page.goto('/')
@@ -297,9 +297,9 @@ test('orders the signed-in home page from the player outwards', async ({ browser
   const guestName = uniqueName('Guest')
   try {
     await signUp(guest, guestName)
-    const guestRoster = await createRoster(guest, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Guest list' })
+    const guestRoster = await seededRoster(guest, { faction: 'Death Guard', detachment: 'Shamblerot Vectorium', name: 'Guest list' })
     await signUp(host, hostName)
-    const hostRoster = await createRoster(host, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Host list' })
+    const hostRoster = await seededRoster(host, { faction: 'Necrons', detachment: 'Awakened Dynasty', name: 'Host list' })
 
     await befriend(host, guest)
     const played = await setupBattle(host, guest, { hostRoster, guestRoster })

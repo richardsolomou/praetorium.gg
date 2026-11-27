@@ -2,9 +2,10 @@ import { createHmac } from 'node:crypto'
 import type { BrowserContextOptions, Locator, Page, Request, Response } from '@playwright/test'
 import { expect } from '@playwright/test'
 import { PHASES } from '../src/core/battle'
+import type { RosterPick } from '../src/core/roster'
 import type { SpacetimeOperator } from '../src/server/spacetimeOperator'
 import { PREVIEW_EMAIL, PREVIEW_PASSWORD } from '../scripts/seedPreview'
-import { lastPathSegment, productOperator, savedWork, userIdFor } from './storage'
+import { lastPathSegment, productOperator, savedWork, seedRoster, userIdFor } from './storage'
 import { baseURL } from './stackEnv'
 import { screenshot } from './screenshots'
 
@@ -376,11 +377,112 @@ export async function createRoster(
   const rosterName = name ?? `${faction} roster`
   await renameRoster(page, rosterName)
   await page.reload()
-  await expect(page.getByLabel('List name')).toHaveValue(rosterName)
+  await openedInBuilder(page, rosterName)
+  return rosterName
+}
+
+async function openedInBuilder(page: Page, name: string) {
+  await expect(page.getByLabel('List name')).toHaveValue(name)
   const picker = page.getByLabel('Add a unit')
   if (!(await picker.isVisible())) await page.getByRole('button', { name: 'Add units', exact: true }).click()
   await expect(picker).toBeVisible()
-  return rosterName
+}
+
+/**
+ * Each army's book and the id and first offered Force Disposition of each Detachment tests seed, as the current
+ * rules version stores them: a book the default rules version reprints is stored under that version's id.
+ */
+const ARMIES = {
+  Necrons: {
+    catalogueId: 'b654-a18a-ea1-3bf2',
+    detachments: {
+      'Annihilation Legion': ['6493-9079-727d-d95f', 'purge-the-foe'],
+      'Awakened Dynasty': ['9ebf-2bbd-6059-1d40', 'take-and-hold'],
+      'Canoptek Court': ['aed9-cb3b-1d0c-f87d', 'take-and-hold'],
+      'Cryptek Conclave': ['1de5-2462-f59c-db94', 'priority-assets'],
+      'Cursed Legion': ['c4ee-83c7-812c-5ff0', 'purge-the-foe'],
+      'Hypercrypt Legion': ['8861-5385-8fd1-dfee', 'reconnaissance'],
+      'Obeisance Phalanx': ['163f-63bd-f2e1-5e7', 'disruption'],
+      'Pantheon of Woe': ['1707-57c5-676e-90d9', 'disruption'],
+      'Skyshroud Spearhead': ['51c2-e233-ea51-14df', 'reconnaissance'],
+      'Starshatter Arsenal': ['e0fd-c955-4822-6dba', 'priority-assets'],
+    },
+  },
+  'Death Guard': {
+    catalogueId: '5108-f98-63c2-53cb',
+    detachments: {
+      'Champions of Contagion': ['fd92-8b6d-0ef2-e14d', 'take-and-hold'],
+      'Flyblown Host': ['df4a-2ead-43d5-ea61', 'reconnaissance'],
+      'Shamblerot Vectorium': ['7a84-2212-be14-a713', 'disruption'],
+    },
+  },
+  'Space Marines': {
+    catalogueId: 'mfm-1-6~e0af-67df-9d63-8fb7',
+    detachments: {
+      'Gladius Task Force': ['d2dc-693e-b491-b16d', 'take-and-hold'],
+      'Tactical Brethren': ['ec44-c977-f09b-3f28', 'priority-assets'],
+    },
+  },
+  'Dark Angels': {
+    catalogueId: 'mfm-1-6~470a-6daa-9014-12df',
+    detachments: {
+      'Inner Circle Task Force': ['a141-49c8-fd84-4c6d', 'priority-assets'],
+      'Wrath of the Rock': ['9d23-833a-17cb-2d7d', 'take-and-hold'],
+    },
+  },
+  'Adeptus Custodes': {
+    catalogueId: 'mfm-1-6~1f19-6509-d906-ca10',
+    detachments: { 'Aquilan Shield': ['pc-a9d7919f28ff8531bbfa48e0', 'take-and-hold'] },
+  },
+  Aeldari: { catalogueId: '34a5-8c7e-f468-82d1', detachments: { Warhost: ['3c31-6fac-9914-827a', 'reconnaissance'] } },
+  'Astra Militarum': { catalogueId: 'b0ae-12a5-c84-ea45', detachments: { 'Combined Arms': ['67ce-ebd5-b428-e4f7', 'take-and-hold'] } },
+  'Black Templars': {
+    catalogueId: '36d3-36bc-68dd-40ac',
+    detachments: { "Marshal's Household": ['e533-c51a-5949-a579', 'priority-assets'] },
+  },
+  Deathwatch: { catalogueId: 'f89b-84e0-6e3b-f1e2', detachments: { 'Black Spear Task Force': ['4459-12f0-bc-142b', 'priority-assets'] } },
+  Drukhari: { catalogueId: '38de-521f-1ce0-44a0', detachments: { 'Covenite Coterie': ['47c7-52f9-c23d-1e4e', 'take-and-hold'] } },
+  'Leagues of Votann': { catalogueId: 'f616-3f08-ee8e-3349', detachments: { Hearthband: ['1077-70a1-0570-5685', 'priority-assets'] } },
+  Orks: { catalogueId: 'a55f-b7b3-6c65-a05f', detachments: { 'War Horde': ['496c-ddb9-3e71-e0b3', 'take-and-hold'] } },
+  "T'au Empire": { catalogueId: 'd81a-61dd-6d27-a3ce', detachments: { 'Retaliation Cadre': ['3bae-cf7-b9e3-4f00', 'purge-the-foe'] } },
+} as const satisfies Record<string, { catalogueId: string; detachments: Record<string, readonly [string, string]> }>
+
+export type Army = keyof typeof ARMIES
+
+/**
+ * Saves a roster straight into the signed-in player's account, as the roster setup would at their default visibility
+ * and battle size, and opens it in the builder: for tests that need a roster, not the setup that makes one.
+ */
+export async function seededRoster(
+  page: Page,
+  {
+    faction,
+    detachment,
+    name = `${faction} roster`,
+    picks = [],
+    limit,
+  }: { faction: Army; detachment: string; name?: string; picks?: readonly RosterPick[]; limit?: number },
+) {
+  const army: { catalogueId: string; detachments: Record<string, readonly [string, string]> } = ARMIES[faction]
+  const chosen = army.detachments[detachment]
+  if (!chosen) throw new Error(`No ${faction} Detachment named ${detachment} is listed for seeding.`)
+  const session = (await (await page.request.get('/api/auth/get-session')).json()) as { user: { id: string; email: string } } | null
+  if (!session) throw new Error('The page must be signed in.')
+  const { user } = session
+  const defaults = await (await productOperator()).playerDefaults(user.id)
+  const { id } = await seedRoster(user.email, {
+    name,
+    automaticName: false,
+    catalogueId: army.catalogueId,
+    detachmentId: JSON.stringify([chosen[0]]),
+    disposition: chosen[1],
+    limit: limit ?? defaults.battleSize,
+    picks: JSON.stringify(picks),
+    visibility: defaults.rosterVisibility,
+  })
+  await page.goto(`/rosters/${id}`)
+  await openedInBuilder(page, name)
+  return name
 }
 
 /** A battle's own page, as opposed to the battles list or a join link. */
@@ -908,9 +1010,9 @@ export async function rosteredPlayers(alice: Page, bob: Page) {
   const aliceName = uniqueName('Alice')
   const bobName = uniqueName('Bob')
   await signUp(bob, bobName)
-  const bobRoster = await createRoster(bob, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Necrons' })
+  const bobRoster = await seededRoster(bob, { faction: 'Necrons', detachment: 'Awakened Dynasty', name: 'Necrons' })
   await signUp(alice, aliceName)
-  const aliceRoster = await createRoster(alice, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Death Guard' })
+  const aliceRoster = await seededRoster(alice, { faction: 'Death Guard', detachment: 'Shamblerot Vectorium', name: 'Death Guard' })
   return { aliceName, bobName, aliceRoster, bobRoster }
 }
 
@@ -919,9 +1021,9 @@ export async function twoPlayerBattle(alice: Page, bob: Page) {
   const aliceName = uniqueName('Alice')
   const bobName = uniqueName('Bob')
   await signUp(bob, bobName)
-  const bobRoster = await createRoster(bob, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Death Guard' })
+  const bobRoster = await seededRoster(bob, { faction: 'Death Guard', detachment: 'Shamblerot Vectorium', name: 'Death Guard' })
   await signUp(alice, aliceName)
-  const aliceRoster = await createRoster(alice, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Necrons' })
+  const aliceRoster = await seededRoster(alice, { faction: 'Necrons', detachment: 'Awakened Dynasty', name: 'Necrons' })
   const link = await setupBattle(alice, bob, { hostRoster: aliceRoster, guestRoster: bobRoster })
   return { aliceName, bobName, link }
 }
@@ -1057,15 +1159,22 @@ export async function expectNoHorizontalOverflow(scope: Locator) {
   ).toBe(true)
 }
 
-/** The smallest Necrons list an event will seal, a Skorpekh Lord as its Warlord, and its roster id. */
-export async function sealableRoster(page: Page, name: string, { size, extraUnit }: { size?: RegExp; extraUnit?: string } = {}) {
-  await createRoster(page, { faction: 'Necrons', detachment: /Cursed Legion/, name, size })
-  await addUnit(page, 'Skorpekh Lord')
-  await page.locator('[data-unit="Skorpekh Lord"]').getByRole('button', { name: 'Skorpekh Lord', exact: true }).click()
-  await makeWarlord(page, 'Skorpekh Lord')
-  if (extraUnit) {
-    await addUnit(page, extraUnit)
-  }
+const NECRON_UNITS = { Immortals: '821d-665-499f-e895', 'Lokhust Destroyers': 'd8f0-1727-fcdd-7ee9' }
+
+/** The smallest Necrons list an event will seal, a Skorpekh Lord as its Warlord, opened in the builder, and its roster id. */
+export async function sealableRoster(
+  page: Page,
+  name: string,
+  { limit, extraUnit }: { limit?: number; extraUnit?: keyof typeof NECRON_UNITS } = {},
+) {
+  const skorpekhLord = { entryId: '6733-60f-2fbe-e3bd', toggles: { '6f49-3919-b28c-3c0d': 1 } }
+  await seededRoster(page, {
+    faction: 'Necrons',
+    detachment: 'Cursed Legion',
+    name,
+    limit,
+    picks: [skorpekhLord, ...(extraUnit ? [{ entryId: NECRON_UNITS[extraUnit] }] : [])],
+  })
   return lastPathSegment(page.url())
 }
 

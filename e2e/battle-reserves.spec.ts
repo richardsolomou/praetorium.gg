@@ -1,7 +1,7 @@
 import { expect, test } from './test'
 import {
   chooseBattlefield,
-  createRoster,
+  seededRoster,
   setupStep,
   signUp,
   startBattle,
@@ -14,7 +14,7 @@ import {
 test('a unit arriving from reserves mid-battle becomes a combat target', async ({ page }) => {
   const player = uniqueName('Arrival')
   await signUp(page, player)
-  const roster = await createRoster(page, { faction: 'Necrons', detachment: /Canoptek Court/, name: 'Arriving army', size: /Incursion/ })
+  const roster = await seededRoster(page, { faction: 'Necrons', detachment: 'Canoptek Court', name: 'Arriving army', limit: 1000 })
   await addUnit(page, 'Immortals')
   await practiceBattle(page, roster)
   await chooseBattlefield(page)

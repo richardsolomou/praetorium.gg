@@ -1,5 +1,5 @@
 import { expect, test } from './test'
-import { createRoster, signUp, uniqueName, PHONE } from './account'
+import { seededRoster, signUp, uniqueName, PHONE } from './account'
 import { saveOlderMovingRule, downloadOfflineAppAtOnce, waitForOfflineApp } from './offline'
 import { screenshot } from './screenshots'
 
@@ -36,7 +36,7 @@ test(`factions stay visible with an older native download`, async ({ page }) => 
 
 test('a first roster open shows progress until the army is ready', async ({ page, context, browser }) => {
   await signUp(page, uniqueName('Roster loading'))
-  const name = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'First open' })
+  const name = await seededRoster(page, { faction: 'Necrons', detachment: 'Awakened Dynasty', name: 'First open' })
   const opening = await browser.newContext({ storageState: await context.storageState() })
   const first = await opening.newPage()
   try {
