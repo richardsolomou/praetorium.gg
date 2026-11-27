@@ -1,5 +1,15 @@
 # praetorium
 
+## 0.279.7 (2026-11-27)
+
+### Patch Changes
+
+- 91d6620: [rosters] Lists in the MFM 1.4 and MFM 1.5 rules versions are priced as the official app priced them then.
+- 91d6620: [rosters] Lists in earlier rules versions are checked against that version's own army rules, so an Epic Hero taken twice is flagged there too.
+- 91d6620: [rosters] Warhammer Legends units are priced and checked the same way as every other unit.
+- 91d6620: [rosters] A single detachment now counts towards the battle size's detachment points, so a 3 DP detachment is too much for Incursion, as the official app has it.
+- 91d6620: [rosters] In earlier rules versions too, two detachments that share a Unique tag can no longer be taken together.
+
 ## 0.279.6 (2026-11-27)
 
 ### Patch Changes
