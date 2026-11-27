@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { RosterPick } from '../../../core/roster'
 import { picksAfterDetachmentChange } from '../../../core/rosterSetup'
-import { annotatedPicks } from './rosterPicks'
+import { annotatedPicks, normalisePicks } from './rosterPicks'
 
 describe('changing roster detachments', () => {
   const picks: RosterPick[] = [
@@ -58,4 +58,9 @@ it('keeps allied selections and attachments when shrinking removes a detachment'
 
 it('keeps a saved unit on the cheapest choices it never made through the builder', () => {
   expect(annotatedPicks([{ entryId: 'leman-russ', floor: true }])[0]?.floor).toBe(true)
+})
+
+it('sends a VS Data pick its loadout', () => {
+  const vs = { models: { 'host.squad.trooper': 4 }, options: {} }
+  expect(normalisePicks([{ entryId: 'squad', vs }])[0]?.vs).toBe(vs)
 })

@@ -15,7 +15,7 @@ Code not found, or games missing? See [Battle problems](/docs/battle-problems#yo
 
 ## Your app isn't listed
 
-Choose **Another app** under **Import battles**, name the app, and choose **Send suggestion**. It reaches us as feedback, and any reply arrives in your feedback under the account menu. It helps to say how many games you have there and whether the app can export them.
+Choose **Another app** under **Import battles**, name the app, and choose **Send suggestion**. It reaches us as feedback, and any reply arrives under **Send feedback**. It helps to say how many games you have there and whether the app can export them.
 
 ## What comes across
 

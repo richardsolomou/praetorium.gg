@@ -19,7 +19,7 @@ import { RULES_DATA_ATTRIBUTION, type LoadedRules } from '../shared/rules'
 import { referenceText } from './referenceText'
 import { factionReferenceHref, type ReferenceFaction } from '../core/factionReferenceRoute'
 import { completeSteps, type Steps } from '../shared/steps'
-import type { RuleSummary } from '../contracts/rules'
+import { ruleSummaryBlocks, type RuleSummary } from '../contracts/rules'
 import type { VsDataSummaries } from './vsDataSummaries'
 import {
   awardSummary,
@@ -470,7 +470,9 @@ function missionCardSummary(finder: RuleSummaryFinder, card: GameReferencePack['
   }))
   const parts = summariesUnder([...awards, ...actions])
   if (!own) return parts
-  return parts ? { ...parts, blocks: [...own.blocks, ...parts.blocks], questions: [...own.questions, ...parts.questions] } : own
+  if (!parts) return own
+  const blocks = [...ruleSummaryBlocks(own), ...ruleSummaryBlocks(parts)]
+  return { blocks, questions: [...own.questions, ...parts.questions], unsummarized: parts.unsummarized }
 }
 
 const selectionTracking: Record<MissionSelectionKind, string> = {
@@ -559,7 +561,7 @@ function summariesUnder(named: readonly { name: string; summary: RuleSummary | n
   const found = named.filter((entry): entry is { name: string; summary: RuleSummary } => Boolean(entry.summary))
   if (!found.length) return null
   return {
-    blocks: found.flatMap(({ name, summary }) => [{ paragraph: [{ text: name, bold: true as const }] }, ...summary.blocks]),
+    blocks: found.flatMap(({ name, summary }) => [{ paragraph: [{ text: name, bold: true as const }] }, ...ruleSummaryBlocks(summary)]),
     questions: found.flatMap(({ summary }) => summary.questions),
     unsummarized: named.filter((entry) => !entry.summary).map((entry) => entry.text),
   }

@@ -1,6 +1,6 @@
 import { remember } from '../core/collections'
 import { buildUnit, type BuiltUnit, buildVsUnit, type RosterPick } from '../core/roster'
-import type { ChoiceOptions } from '../core/unitChoices'
+import { type ChoiceOptions, vsUnitChoices, vsUnitToggles } from '../core/unitChoices'
 import { type VsDataDefinitions, vsDataDefinitions } from '../core/vsDataConstruction'
 import { priceVsRoster, unitKeywords, type VsRoster } from '../core/vsDataRoster'
 import type { LoadedCatalogue } from './catalogueIndex'
@@ -41,11 +41,11 @@ export function buildPick(
   const unit = pick.vs && vsUnitIdOf(loaded, list.catalogueId, pick.entryId)
   const definitions = unit ? vsDefinitionsOf(loaded) : null
   if (pick.vs && definitions && unit) {
-    const { detachments } = vsListOf(loaded, list.catalogueId, list.detachmentIds)
+    const { faction, detachments } = vsListOf(loaded, list.catalogueId, list.detachmentIds)
     const filed = Object.entries(loaded.vsRoster?.enhancements ?? {}).find(
       ([key, id]) => id === pick.vs!.enhancement && detachments.includes(key.slice(0, key.indexOf('/'))),
     )
-    return buildVsUnit(
+    const built = buildVsUnit(
       { ...pick, vs: pick.vs },
       loaded.index,
       {
@@ -55,6 +55,16 @@ export function buildPick(
       },
       context,
     )
+    if (!built?.vs) return built
+    // The player edits what VS Data offers the pick, so its choices and Warlord are VS Data's, not the catalogue tree's.
+    const roster = { roster: { faction: faction ?? '', detachments } }
+    // VS Data has no fact yet for a datasheet that must be the Warlord, as Angron must; the catalogue's tree does.
+    const required = built.toggles.some((toggle) => toggle.name === 'Warlord' && toggle.required)
+    return {
+      ...built,
+      choices: vsUnitChoices(definitions, built.vs.unit, roster),
+      toggles: vsUnitToggles(definitions, built.vs.unit, roster).map((toggle) => (required ? { ...toggle, required } : toggle)),
+    }
   }
   return buildUnit(pick.entryId, loaded.index, pick.models, pick.choices, {
     ...context,

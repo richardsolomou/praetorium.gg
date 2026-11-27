@@ -20,17 +20,21 @@ const attacksSchema = z.array(z.enum(['ranged', 'melee'])).min(1)
 const unresolvedSchema = z.strictObject({ unresolved: z.string() })
 
 const diceSchema = z.strictObject({ dice: z.int().min(0), sides: z.union([z.literal(3), z.literal(6)]), bonus: z.int().min(0) })
+const changeSchema = z.union([z.int(), diceSchema.extend({ dice: z.int().min(1) })])
 const effectSchema = z.strictObject({
   role: z.enum(['attacker', 'defender']),
   attacks: attacksSchema,
   weaponAbility: keyword.optional(),
   weaponHas: keyword.optional(),
+  weaponLacks: keyword.optional(),
+  lostWeaponAbility: keyword.optional(),
   weapon: z.string().min(1).optional(),
   characteristic: z
     .strictObject({
-      name: z.enum(['attacks', 'ballistic-skill', 'weapon-skill', 'strength', 'armour-penetration', 'damage']),
-      add: z.int().optional(),
-      set: z.int().optional(),
+      name: z.enum(['range', 'attacks', 'ballistic-skill', 'weapon-skill', 'strength', 'armour-penetration', 'damage']),
+      add: changeSchema.optional(),
+      set: changeSchema.optional(),
+      multiply: z.int().min(2).optional(),
       nonCumulative: z.literal(true).optional(),
     })
     .optional(),
@@ -86,7 +90,13 @@ const effectSchema = z.strictObject({
     .optional(),
   damageReroll: z.enum(['ones', 'any']).optional(),
   damageReduction: z.int().min(1).optional(),
-  unitStat: z.strictObject({ kind: z.enum(['movement', 'leadership', 'objective-control']), add: z.int() }).optional(),
+  unitStat: z
+    .strictObject({
+      kind: z.enum(['movement', 'toughness', 'wounds', 'leadership', 'objective-control']),
+      add: z.int().optional(),
+      set: z.int().optional(),
+    })
+    .optional(),
   ability: z.string().min(1).optional(),
   activates: z.array(z.string().min(1)).min(1).optional(),
   bearerOnly: z.literal(true).optional(),
@@ -285,7 +295,12 @@ export const vsDataEffectBlocksSchema = z.object({
   weaponAbilities: orUnresolved(weaponAbilitiesSchema).optional(),
   reserves: orUnresolved(z.strictObject({ exempt: z.literal(true).optional(), exemptUnits: selectors.optional() })).optional(),
   invulnerableSave: orUnresolved(
-    z.strictObject({ roll: z.int().min(2).max(6), conditional: z.literal(true).optional(), keywords: selectors.optional() }),
+    z.strictObject({
+      roll: z.int().min(2).max(6),
+      conditional: z.literal(true).optional(),
+      keywords: selectors.optional(),
+      against: z.enum(['ranged', 'melee']).optional(),
+    }),
   ).optional(),
   upgradesWeapon: orUnresolved(z.literal(true)).optional(),
   reminder: orUnresolved(reminderSchema).optional(),
@@ -327,6 +342,26 @@ export const EFFECT_BLOCKS = [
 
 /** The effect fields the simulator cannot apply yet, which `effectOf` leaves out. */
 export const UNAPPLIED_EFFECT_FIELDS = ['wounds', 'regainWounds'] as const
+
+const UNIT_STATS = new Set(['movement', 'leadership', 'objective-control'])
+
+/**
+ * Whether an effect changes something the simulator cannot apply yet: a weapon's range, dice added to or set as a
+ * characteristic, a multiplied one, a set unit characteristic, a weapon ability the attacks lose or an effect only for
+ * weapons without one. Its reading is not calculated rather than calculated without that part.
+ */
+function unappliable({ characteristic, unitStat, weaponLacks, lostWeaponAbility }: VsDataEffect) {
+  return (
+    Boolean(weaponLacks || lostWeaponAbility) ||
+    (characteristic !== undefined &&
+      (characteristic.name === 'range' ||
+        characteristic.multiply !== undefined ||
+        typeof characteristic.add === 'object' ||
+        typeof characteristic.set === 'object')) ||
+    (unitStat !== undefined && (unitStat.set !== undefined || !UNIT_STATS.has(unitStat.kind)))
+  )
+}
+const appliable = (choices: readonly z.infer<typeof choiceSchema>[]) => !choices.some((choice) => choice.effects.some(unappliable))
 
 const TURN: Record<'own' | 'opponent' | 'any', ReminderTiming['turn']> = { own: 'your-turn', opponent: 'opponent-turn', any: 'either' }
 const PROFILE = { ranged: 'Ranged Weapons', melee: 'Melee Weapons' } as const
@@ -433,18 +468,22 @@ function conditionLabel(condition: VsDataCondition): string {
  * simulator has no way to do either yet. An effect left with nothing Praetorium applies is none.
  */
 function effectOf(effect: VsDataEffect): CombatRuleEffect | null {
-  const { attacks, weaponAbility, weaponHas, rolls, characteristic, mortalWounds: mortals, ...rest } = effect
+  const { attacks, weaponAbility, weaponHas, rolls, characteristic, unitStat, mortalWounds: mortals, ...rest } = effect
   const mortalWounds = mortals?.timing === 'outside-attacks' ? undefined : mortals
-  const { wounds: _wounds, regainWounds: _regainWounds, ...applied } = rest
+  const { wounds: _wounds, regainWounds: _regainWounds, weaponLacks: _lacks, lostWeaponAbility: _lost, ...applied } = rest
   const { role: _role, bearerOnly: _bearerOnly, ...given } = applied
   // The simulator re-rolls one save of the defender's only through its Command Re-roll, so a rule's single save re-roll
   // is left out.
   const { saveReroll: _saveReroll, singleRerolls, ...otherRolls } = rolls ?? {}
   const attackerRerolls = singleRerolls?.filter((kind) => kind !== 'save')
   const options = { ...otherRolls, ...(attackerRerolls?.length ? { singleRerolls: attackerRerolls } : {}) }
-  if (!Object.keys(given).length && !weaponAbility && !Object.keys(options).length && !characteristic && !mortalWounds) return null
+  if (!Object.keys(given).length && !unitStat && !weaponAbility && !Object.keys(options).length && !characteristic && !mortalWounds)
+    return null
   return {
     ...applied,
+    ...(unitStat?.add !== undefined && UNIT_STATS.has(unitStat.kind)
+      ? { unitStat: { kind: unitStat.kind as 'movement' | 'leadership' | 'objective-control', add: unitStat.add } }
+      : {}),
     phases: attacks,
     ...(weaponAbility ? { keyword: titleCaseAbility(weaponAbility) } : {}),
     ...(weaponHas ? { requiresWeaponKeyword: titleCaseAbility(weaponHas) } : {}),
@@ -452,8 +491,10 @@ function effectOf(effect: VsDataEffect): CombatRuleEffect | null {
     ...(characteristic
       ? {
           characteristic: {
-            kind: characteristic.name,
-            ...(characteristic.set === undefined ? { add: characteristic.add ?? 0 } : { set: characteristic.set }),
+            kind: characteristic.name as Exclude<typeof characteristic.name, 'range'>,
+            ...(characteristic.set === undefined
+              ? { add: (characteristic.add as number | undefined) ?? 0 }
+              : { set: characteristic.set as number }),
             ...(characteristic.nonCumulative ? { nonCumulative: true } : {}),
           },
         }
@@ -552,9 +593,14 @@ function combatOf(combat: z.infer<typeof combatSchema>): CombatFacts {
       const reading = combat.readings[at]!
       found =
         leaves.push({
-          compiled: reading.choices ? compiledOf({ choices: reading.choices, default: reading.default ?? 0 }, applies) : null,
-          ...(reading.shown !== undefined ? { shown: reading.shown && compiledOf(reading.shown, applies) } : {}),
-          legacy: reading.fallback ? reading.fallback.choices.map(choiceOf) : [],
+          compiled:
+            reading.choices && appliable(reading.choices)
+              ? compiledOf({ choices: reading.choices, default: reading.default ?? 0 }, applies)
+              : null,
+          ...(reading.shown !== undefined && (!reading.shown || appliable(reading.shown.choices))
+            ? { shown: reading.shown && compiledOf(reading.shown, applies) }
+            : {}),
+          legacy: reading.fallback && appliable(reading.fallback.choices) ? reading.fallback.choices.map(choiceOf) : [],
           legacyDefault: reading.fallback?.default ?? 0,
           roles: reading.roles ?? [],
         }) - 1
@@ -707,7 +753,7 @@ export function textFactsOfVsData(blocks: Readonly<Record<string, unknown>>): Te
     ...(reserves?.exemptUnits ? { reserveSelectors: reserves.exemptUnits } : {}),
     ...(reserves?.exempt ? { reserveExemption: true } : {}),
     // A datasheet shows a save the unit always has; a conditional or some models' save is left to the simulator's reading.
-    ...(invulnerableSave && !invulnerableSave.conditional && !invulnerableSave.keywords
+    ...(invulnerableSave && !invulnerableSave.conditional && !invulnerableSave.keywords && !invulnerableSave.against
       ? { invulnerableSave: `${invulnerableSave.roll}+` }
       : {}),
     ...(blockOf(blocks, 'upgradesWeapon') ? { linkedWeapon: true } : {}),
