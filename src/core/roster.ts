@@ -41,18 +41,21 @@ export type RosterPick = {
   floor?: true
   /**
    * The unit as VS Data's definitions field it, for a datasheet VS Data defines exactly: its model counts, its taken
-   * selections, and its Enhancement, allegiance and Warlord model by VS Data ID, read against the VS Data unit `entryId`
+   * selections, and its Enhancements (one, and any Detachment upgrades), allegiance and Warlord model by VS Data ID, read against the VS Data unit `entryId`
    * names through `catalogue/legacy-ids/units.json`. A pick with it reads `models`, `choices`, `spreads` and `toggles` from
    * it instead, and keeps every other field.
    */
   vs?: VsPick
 }
 
-/** VS Data's saved roster unit (`VsRosterUnit`) without the unit, which the pick's datasheet names, or its size, which its models give. */
+/**
+ * VS Data's saved roster unit (`VsRosterUnit`) without the unit, which the pick's datasheet names, or its size, which its
+ * models give. A unit can hold an Enhancement and Detachment upgrades together, so they are a list.
+ */
 export type VsPick = {
   models: Record<string, number>
   options: Record<string, Record<string, number>>
-  enhancement?: string
+  enhancements?: string[]
   allegiance?: string
   warlord?: string
 }

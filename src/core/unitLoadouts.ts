@@ -1,14 +1,17 @@
 import { z } from 'zod'
 import { attachedUnits } from './attachedUnits'
-import { idSchema, rosterPickSchema } from './commands'
+import { idSchema, rosterPickSchema, vsPickSchema } from './commands'
 import type { RosterPick } from './roster'
 
 export const UNIT_LOADOUT_NAME_MAX_LENGTH = 80
 export const UNIT_LOADOUTS_MAX = 100
 const UNIT_LOADOUT_JOINED_MAX = 4
 
-/** What a saved loadout keeps of a unit: its datasheet, squad size, wargear and nickname. */
-const unitLoadoutPickSchema = rosterPickSchema.pick({ entryId: true, models: true, choices: true, spreads: true, nickname: true }).strict()
+/** What a saved loadout keeps of a unit: its datasheet, squad size, wargear and nickname, by VS Data IDs where it has them. */
+const unitLoadoutPickSchema = rosterPickSchema
+  .pick({ entryId: true, models: true, choices: true, spreads: true, nickname: true })
+  .extend({ vs: vsPickSchema.pick({ models: true, options: true }).strict().optional() })
+  .strict()
 
 /** A unit attached within the loadout, joining the loadout's own unit (0) or an earlier joined unit (1 onwards). */
 const joinedPickSchema = unitLoadoutPickSchema
@@ -49,6 +52,8 @@ function savedPick(pick: RosterPick, unit: PricedUnit): UnitLoadoutPick {
     ...(pick.models === undefined ? {} : { models: pick.models }),
     ...(choices && Object.keys(choices).length ? { choices } : {}),
     ...(pick.spreads ? { spreads: pick.spreads } : {}),
+    // A loadout keeps a unit's models and wargear, never its Enhancements, allegiance or Warlord.
+    ...(pick.vs ? { vs: { models: pick.vs.models, options: pick.vs.options } } : {}),
     ...(pick.nickname ? { nickname: pick.nickname } : {}),
   }
 }

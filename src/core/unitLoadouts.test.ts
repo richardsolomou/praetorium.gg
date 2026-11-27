@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import type { RosterPick } from './roster'
 import { joinedUnits, loadoutOf, unitLoadoutSchema } from './unitLoadouts'
 
 const unit = {
@@ -17,7 +18,7 @@ const pick = {
   embarkedIn: 3,
   note: 'Deep strike turn two',
 }
-const alone = (over: Partial<typeof pick> = {}) => loadoutOf([{ pick: { ...pick, ...over }, unit }], 'sm')
+const alone = (over: Partial<RosterPick> = {}) => loadoutOf([{ pick: { ...pick, ...over }, unit }], 'sm')
 
 describe('loadoutOf', () => {
   it('keeps the datasheet, squad size, wargear and nickname', () => {
@@ -28,6 +29,11 @@ describe('loadoutOf', () => {
       spreads: { squad: { bolter: 4 } },
       nickname: 'Brother Cato',
     })
+  })
+
+  it('keeps a unit’s VS Data models and wargear but not its Enhancements or Warlord', () => {
+    const vs = { models: { 'host.captain.captain': 1 }, options: { 'host.captain.blade': { 'host.captain.sword': 1 } } }
+    expect(alone({ vs: { ...vs, enhancements: ['host.guard.relic'], warlord: 'host.captain.captain' } })?.pick.vs).toEqual(vs)
   })
 
   it('records the book of an allied unit rather than the roster it stood in', () => {
