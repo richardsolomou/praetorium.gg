@@ -1,6 +1,13 @@
 import { QueryClient } from '@tanstack/react-query'
 import { expect, it } from 'vitest'
-import { holdingReload, pendingWriteMiddleware, writesPending } from './pendingWrites'
+import {
+  battleCommandsPending,
+  battleCommandsSettled,
+  holdingReload,
+  pendingWriteMiddleware,
+  sendingBattleCommands,
+  writesPending,
+} from './pendingWrites'
 
 function deferred() {
   let resolve!: () => void
@@ -58,4 +65,28 @@ it('leaves a server function read out of pending writes', async () => {
   expect(writesPending(new QueryClient())).toBe(false)
   read.resolve()
   await reading
+})
+
+it('counts a battle command still sending as pending', async () => {
+  const write = deferred()
+  const sending = sendingBattleCommands('battle', write.promise)
+  expect(battleCommandsPending()).toBe(true)
+  write.resolve()
+  await sending
+})
+
+it('stops counting battle commands once they have sent', async () => {
+  void sendingBattleCommands('battle', Promise.resolve())
+  await battleCommandsSettled('battle')
+  expect(battleCommandsPending()).toBe(false)
+})
+
+it('keeps counting an earlier send for a battle while a later one has finished', async () => {
+  const earlier = deferred()
+  const sending = sendingBattleCommands('battle', earlier.promise)
+  await sendingBattleCommands('battle', Promise.resolve())
+  await new Promise((resolve) => setTimeout(resolve))
+  expect(battleCommandsPending()).toBe(true)
+  earlier.resolve()
+  await sending
 })
