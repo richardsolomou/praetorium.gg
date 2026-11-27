@@ -17,7 +17,7 @@ export function vsFirstPickOf(
   entryId: string,
 ): VsPick | undefined {
   const definitions = vsDefinitionsOf(loaded)
-  const unit = vsUnitIdOf(loaded, entryId)
+  const unit = vsUnitIdOf(loaded, list.catalogueId, entryId)
   if (!definitions || !unit || !NATIVE.has(unit)) return undefined
   const roster = {
     faction: loaded.vsRoster?.books[list.catalogueId.slice(list.catalogueId.indexOf('~') + 1)] ?? '',

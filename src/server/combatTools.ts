@@ -337,7 +337,7 @@ function refuseIllegalLoadouts(
   // A VS pick's loadout is VS Data's to check, unit by unit.
   const definitions = vsDefinitionsOf(loaded)
   const vsReasons = picks.flatMap((pick) => {
-    const unit = pick.vs && definitions ? vsUnitIdOf(loaded, pick.entryId) : undefined
+    const unit = pick.vs && definitions ? vsUnitIdOf(loaded, pick.catalogueId ?? catalogueId, pick.entryId) : undefined
     if (!pick.vs || !definitions || !unit) return []
     const problems = vsUnitProblems(definitions, { unit, models: pick.vs.models, options: pick.vs.options })
     const unitName = definitions.get('unit', unit)!.name
