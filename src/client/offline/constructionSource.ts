@@ -43,6 +43,7 @@ export function buildConstruction(saved: OfflineConstructionSource) {
     mfm: unpackRuntimeData<LoadedCatalogue['mfm']>(saved.mfm),
     ...(saved.vsPoints ? { vsPoints: unpackRuntimeData<NonNullable<LoadedCatalogue['vsPoints']>>(saved.vsPoints) } : {}),
     ...(saved.vsRoster ? { vsRoster: unpackRuntimeData<NonNullable<LoadedCatalogue['vsRoster']>>(saved.vsRoster) } : {}),
+    ...(saved.vsProfiles ? { vsProfiles: unpackRuntimeData<NonNullable<LoadedCatalogue['vsProfiles']>>(saved.vsProfiles) } : {}),
     ...(saved.edition ? { edition: saved.edition } : {}),
   }
   return { revision: saved.revision, catalogue, rules: unpackRuntimeData<LoadedRules>(saved.rules) }
@@ -75,6 +76,9 @@ export function constructionSource(source: OfflineConstructionData | undefined, 
         mfm: restoreRuntimeData(selected.mfm, source.mfm, budget),
         ...(selected.vsPoints && source.vsPoints ? { vsPoints: restoreRuntimeData(selected.vsPoints, source.vsPoints, budget) } : {}),
         ...(selected.vsRoster && source.vsRoster ? { vsRoster: restoreRuntimeData(selected.vsRoster, source.vsRoster, budget) } : {}),
+        ...(selected.vsProfiles && source.vsProfiles
+          ? { vsProfiles: restoreRuntimeData(selected.vsProfiles, source.vsProfiles, budget) }
+          : {}),
         rules: restoreRuntimeData(selected.rules, source.rules, budget),
       }
     }

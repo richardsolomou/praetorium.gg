@@ -381,7 +381,7 @@ export function checkVsRoster(definitions: VsDataDefinitions, roster: VsRoster, 
     ...detachments.flatMap((detachment) =>
       detachment.data.requiredWarlords ? [{ name: detachment.name, models: detachment.data.requiredWarlords }] : [],
     ),
-    ...(without ? [{ name: roster.faction, models: without.warlords }] : []),
+    ...(without ? [{ name: definitions.get('faction', roster.faction)?.name ?? roster.faction, models: without.warlords }] : []),
   ]
   const allies = faction?.allies ?? []
   // A unit belongs to the first entry that offers it under one of the roster's detachments, and only that entry counts it.

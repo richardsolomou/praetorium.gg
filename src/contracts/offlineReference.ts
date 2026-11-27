@@ -26,6 +26,8 @@ export type OfflineConstructionSource = {
   vsPoints?: RuntimeData
   /** The rules version's VS Data roster definitions; a download saved before VS Data checked lists has none. */
   vsRoster?: RuntimeData
+  /** The rules version's VS Data stat lines; a download saved before datasheets printed them has none. */
+  vsProfiles?: RuntimeData
   rules: RuntimeData
 }
 

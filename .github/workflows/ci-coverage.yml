@@ -27,12 +27,13 @@ jobs:
       - name: Resolve compared revisions
         id: revisions
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha || github.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           set -euo pipefail
+          # As in the points lane: the event's base SHA goes stale once main moves, so a branch behind a newer pin would
+          # otherwise measure old main as its base and report main's own catalogue changes as lost coverage.
           base_sha="$(git rev-parse "$GITHUB_SHA^1")"
-          if ! git diff --quiet "$BASE_SHA" "$HEAD_SHA" -- catalogue.json; then
+          if ! git diff --quiet "$base_sha" "$GITHUB_SHA" -- catalogue.json; then
             base_sha="$(git rev-parse "$HEAD_SHA^")"
           fi
           {
@@ -45,12 +46,7 @@ jobs:
         env:
           BASE_SHA: ${{ steps.revisions.outputs.base-sha }}
           HEAD_SHA: ${{ steps.revisions.outputs.head-sha }}
-        run: |
-          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
-            node scripts/catalogueCoverageScope.ts
-          else
-            echo needed=true >> "$GITHUB_OUTPUT"
-          fi
+        run: node scripts/laneScope.ts coverage
       - uses: ./.github/actions/catalogue-sync
         if: steps.scope.outputs.needed == 'true'
         with:

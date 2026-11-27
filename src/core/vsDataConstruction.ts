@@ -1,9 +1,9 @@
 import { z } from 'zod'
 
 /**
- * What list building reads from one rules version's VS Data release: every roster definition by kind and ID, with its
- * name, the Enhancements by their rule facts, the units it marks absent or retired and their replacements, and the points
- * snapshots. Kept beside
+ * What list building and datasheets read from one rules version's VS Data release: every roster definition and datasheet
+ * profile by kind and ID, with its name, the Enhancements by their rule facts, the units it marks absent or retired and
+ * their replacements, and the points snapshots. Kept beside
  * the release's summaries as `summaries/<rules version>.construction.json`.
  */
 export const vsDataConstructionSchema = z.object({
@@ -109,6 +109,48 @@ export type OptionData = {
   requires?: Requirement | Requirement[]
 }
 export type WargearData = { includes?: Counts }
+
+// The profile shapes mirror VS Data's profiles.v1.schema.json: a field a gap names is left out, never guessed.
+/** A field VS Data leaves out, and why: `unrepresentable`, `no-source` or `no-target`. */
+export type Gap = { field: string; reason: string }
+export type InvulnerableSave = { roll: number; against?: 'ranged' | 'melee'; conditional?: true; summary?: string }
+/** One stat line: of `models`, or of every model of `unit` without them. */
+export type UnitProfileData = {
+  unit: string
+  models?: string[]
+  movement?: number | { atLeast: number } | null
+  toughness?: number
+  save?: number
+  wounds?: number
+  leadership?: number
+  objectiveControl?: number | null
+  invulnerableSave?: InvulnerableSave | InvulnerableSave[]
+  baseSize?: unknown
+  gaps?: Gap[]
+}
+/** One mode of a weapon as `unit`'s datasheet prints it; a weapon of several modes has one per mode, each naming its `wargear`. */
+export type WeaponProfileData = {
+  unit: string
+  wargear?: string
+  range?: number | 'melee'
+  attacks?: number | string
+  skill?: number | null
+  strength?: number
+  armourPenetration?: number
+  damage?: number | string
+  keywords?: string[]
+  gaps?: Gap[]
+}
+export type ConditionalAttachment = {
+  role: 'leads' | 'supports'
+  units?: string[]
+  keywords?: string[]
+  when?: { faction?: string; detachment?: string; withoutDetachment?: string; withUnit?: string; withoutUnit?: string }
+  shared?: string
+}
+/** The units `unit` may join as a Leader or a support attachment, in any roster or only under `conditional`. */
+export type AttachmentData = { unit: string; leads?: string[]; supports?: string[]; conditional?: ConditionalAttachment[]; gaps?: Gap[] }
+export type TransportProfileData = { unit: string; capacity?: Record<string, unknown>; firingDeck?: number; gaps?: Gap[] }
 /**
  * Who may take an Enhancement, from its rule facts (VS Data's `docs/rule-facts.md`): a bearer matching one of `anyOf`
  * and none of `excludedKeywords`, carrying `requiredWargear`, a CHARACTER unless `nonCharacters`, not an EPIC HERO unless
@@ -139,6 +181,10 @@ type DataOf = {
   'roster-option': OptionData
   wargear: WargearData
   allegiance: Record<string, never>
+  'unit-profile': UnitProfileData
+  'weapon-profile': WeaponProfileData
+  attachment: AttachmentData
+  'transport-profile': TransportProfileData
 }
 export type DefinitionKind = keyof DataOf
 export type Definition<K extends DefinitionKind = DefinitionKind> = { id: string; name: string; data: DataOf[K] }
@@ -161,13 +207,15 @@ export type PointsSnapshot = {
   }[]
 }
 
-/** One rules version's roster definitions, by kind and ID, with every unit's models and options in ID order. */
+/** One rules version's roster definitions and profiles, by kind and ID, with every unit's models, options and stat lines in ID order. */
 export type VsDataDefinitions = {
   release: string
   get<K extends DefinitionKind>(kind: K, id: string): Definition<K> | undefined
   all<K extends DefinitionKind>(kind: K): Definition<K>[]
   modelsOf(unit: string): Definition<'model'>[]
   optionsOf(unit: string): Definition<'roster-option'>[]
+  unitProfilesOf(unit: string): Definition<'unit-profile'>[]
+  weaponProfilesOf(unit: string): Definition<'weapon-profile'>[]
   /** Units the rules version does not have, though other sources name them. */
   unavailable: ReadonlySet<string>
   /** The unit a saved ID reads as: the one its retirement names as its replacement, else itself. */
@@ -183,7 +231,7 @@ export function vsDataDefinitions(construction: VsDataConstruction): VsDataDefin
       new Map(Object.entries(records).map(([id, record]) => [id, { id, name: record.name, data: record.data }])),
     ]),
   )
-  const ofUnit = (kind: 'model' | 'roster-option') => {
+  const ofUnit = (kind: 'model' | 'roster-option' | 'unit-profile' | 'weapon-profile') => {
     const found = new Map<string, Definition[]>()
     for (const definition of [...(byKind.get(kind)?.values() ?? [])].toSorted((left, right) => (left.id < right.id ? -1 : 1))) {
       const unit = definition.data.unit as string
@@ -193,12 +241,16 @@ export function vsDataDefinitions(construction: VsDataConstruction): VsDataDefin
   }
   const models = ofUnit('model')
   const options = ofUnit('roster-option')
+  const unitProfiles = ofUnit('unit-profile')
+  const weaponProfiles = ofUnit('weapon-profile')
   return {
     release: construction.release,
     get: <K extends DefinitionKind>(kind: K, id: string) => byKind.get(kind)?.get(id) as Definition<K> | undefined,
     all: <K extends DefinitionKind>(kind: K) => [...(byKind.get(kind)?.values() ?? [])] as Definition<K>[],
     modelsOf: (unit) => (models.get(unit) ?? []) as Definition<'model'>[],
     optionsOf: (unit) => (options.get(unit) ?? []) as Definition<'roster-option'>[],
+    unitProfilesOf: (unit) => (unitProfiles.get(unit) ?? []) as Definition<'unit-profile'>[],
+    weaponProfilesOf: (unit) => (weaponProfiles.get(unit) ?? []) as Definition<'weapon-profile'>[],
     unavailable: new Set(construction.unavailable),
     current: (unit) => construction.replacements?.[unit] ?? unit,
     points: construction.points as PointsSnapshot[],
