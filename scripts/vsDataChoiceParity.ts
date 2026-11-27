@@ -1,0 +1,278 @@
+/**
+ * Report-only: for every datasheet VS Data defines exactly (an options map entry with nothing unmatched) on the current
+ * rules version, whether the builder offers a VS Data pick (`vsUnitChoices`, `vsUnitToggles`) what it offers the BSData
+ * pick today: the same sizes, the same wargear within reach and as many of each, the Warlord, every allegiance, and as
+ * many Enhancements and upgrades under each of the book's Detachments. Counts, unit names and wargear names only.
+ *
+ *   pnpm exec tsx scripts/vsDataChoiceParity.ts [catalogue directory] [--list]
+ */
+import fs from 'node:fs'
+import path from 'node:path'
+import { parseArgs } from 'node:util'
+import rawOptions from '../catalogue/legacy-ids/options.json' with { type: 'json' }
+import { legacyOptionsSchema } from '../src/core/legacyIds'
+import { VS_ALLEGIANCE, VS_ENHANCEMENT, VS_MODELS, VS_UPGRADE, vsFirstPick, vsUnitChoices, vsUnitToggles } from '../src/core/unitChoices'
+import { vsDataConstructionSchema, vsDataDefinitions } from '../src/core/vsDataConstruction'
+import { carried, type VsRosterUnit } from '../src/core/vsDataRoster'
+import { vsFirstFielding, vsResized, vsUnitOptions } from '../src/core/vsDataUnit'
+import { readCatalogueComposition } from '../src/server/catalogueComposition'
+import { unitIdsIn } from '../src/shared/cataloguePicker'
+import { rosterDetachments } from '../src/shared/rosterDetachments'
+import { calculateRosterPrice, savedRosterPriceInput } from '../src/shared/pricing'
+import { loadSnapshot } from './lib/catalogueSnapshotLoad'
+import { leaves, legacyIds } from './lib/vsDataRosters'
+import { same } from './lib/vsDataModelNames'
+import { vsSpelling } from './lib/wargearSpellings'
+
+const { values, positionals } = parseArgs({ allowPositionals: true, options: { list: { type: 'boolean', default: false } } })
+const directory = path.resolve(positionals[0] ?? 'catalogue-data')
+const base = readCatalogueComposition(directory)?.editions.find((entry) => entry.base)
+if (!base) throw new Error(`${directory} has no base rules version`)
+const definitions = vsDataDefinitions(
+  vsDataConstructionSchema.parse(
+    JSON.parse(fs.readFileSync(path.join(directory, 'summaries', `${base.edition.id}.construction.json`), 'utf8')),
+  ),
+)
+const { catalogue: loaded, rules } = loadSnapshot(directory)
+const ids = legacyIds()
+const exact = new Map(
+  Object.entries(legacyOptionsSchema.parse(rawOptions).units).flatMap(([entryId, entry]) =>
+    entry.unmatched.length || !definitions.get('unit', entry.unit) ? [] : [[entryId, entry.unit] as const],
+  ),
+)
+const bsdataDetachments = new Map<string, string[]>()
+for (const [bsdata, vs] of Object.entries(ids.detachments)) bsdataDetachments.set(vs, [...(bsdataDetachments.get(vs) ?? []), bsdata])
+/** The BSData Detachment a catalogue offers for a VS Data one, of the several rules versions' IDs the frozen map holds. */
+const detachmentOf = (catalogueId: string, vs: string) =>
+  bsdataDetachments.get(vs)?.find((id) => rosterDetachments(loaded, catalogueId, [id]).chosen.length === 1)
+
+type Priced = NonNullable<ReturnType<typeof calculateRosterPrice>>['units'][number]
+const price = (catalogueId: string, entryId: string, detachmentIds: string[], models?: number): Priced | undefined =>
+  calculateRosterPrice(
+    savedRosterPriceInput({
+      catalogueId,
+      detachmentIds,
+      disposition: null,
+      limit: 2000,
+      picks: [{ entryId, ...(models ? { models } : {}) }],
+    }),
+    loaded,
+    rules,
+  )?.units[0]
+
+/** Differences where VS Data follows the app, which leave a datasheet VS-native. */
+const LISTED_SIZES = 'sizes the field manual lists'
+const SPELLINGS = 'Enhancement spellings'
+const ACCEPTED = new Set([LISTED_SIZES, SPELLINGS])
+
+/** How many single-letter edits turn one name into the other. */
+function distance(one: string, other: string) {
+  let row = Array.from({ length: other.length + 1 }, (_, at) => at)
+  for (let i = 1; i <= one.length; i++) {
+    const next = [i]
+    for (let j = 1; j <= other.length; j++)
+      next[j] = Math.min(row[j]! + 1, next[j - 1]! + 1, row[j - 1]! + (one[i - 1] === other[j - 1] ? 0 : 1))
+    row = next
+  }
+  return row[other.length]!
+}
+
+const differences = new Map<string, Map<string, string[]>>()
+const differ = (check: string, unit: string, detail: string) => {
+  const byUnit = differences.get(check) ?? new Map<string, string[]>()
+  differences.set(check, byUnit)
+  byUnit.set(unit, [...(byUnit.get(unit) ?? []), detail])
+}
+const checked = new Map<string, number>()
+const count = (check: string) => checked.set(check, (checked.get(check) ?? 0) + 1)
+/** An Enhancement's name, without the "(Upgrade)" or "(Aura)" one source prints and the other leaves out. */
+const enhancementName = (name: string) => same(name.replace(/\((upgrade|aura)\)/gi, ''))
+const special = (choice: Priced['choices'][number]) => 'kind' in choice && Boolean(choice.kind)
+
+/**
+ * What a unit can reach: every wargear it carries or can take, and for each it can only take, the most one choice gives
+ * it, which is what the player meets on one stepper. Sums across choices would count a room several share more than once.
+ */
+type Reach = { names: Set<string>; most: Map<string, number> }
+const reached = (): Reach => ({ names: new Set(), most: new Map() })
+const offer = (reach: Reach, key: string, n: number) => {
+  reach.names.add(key)
+  reach.most.set(key, Math.max(reach.most.get(key) ?? 0, n))
+}
+
+/** The BSData unit's reach, by VS Data's spelling where it has one. Allegiances are not wargear. */
+function bsdataReach(unit: Priced, vsKeys: ReadonlySet<string>, allegiances: ReadonlySet<string>) {
+  const reach = reached()
+  const held = new Set(unit.wargear.map((piece) => vsSpelling(piece.name, vsKeys)))
+  for (const key of held) reach.names.add(key)
+  for (const choice of unit.choices.filter((candidate) => !special(candidate))) {
+    const total = new Map<string, number>()
+    for (const option of choice.options) {
+      if (allegiances.has(same(option.name))) continue
+      const pieces = (option as { pieceCounts?: { name: string; count: number }[] }).pieceCounts
+      const counts = pieces?.length
+        ? pieces.map((piece) => ({ ...piece, count: piece.count / Math.max(1, option.count) }))
+        : [{ name: option.name, count: 1 }]
+      for (const piece of counts) {
+        const key = vsSpelling(piece.name, vsKeys)
+        total.set(key, Math.max(total.get(key) ?? 0, piece.count * option.max))
+      }
+    }
+    for (const [key, n] of total)
+      if (held.has(key)) reach.names.add(key)
+      else offer(reach, key, Math.min(n, choice.room))
+  }
+  return reach
+}
+
+/** The VS Data unit's reach. */
+function vsReach(picked: VsRosterUnit) {
+  const reach = reached()
+  const keysOf = (id: string) => {
+    const found = new Map<string, number>()
+    leaves(definitions, id, 1, found)
+    return found
+  }
+  const held = new Set([...carried(definitions, picked)].flatMap(([id, n]) => (n > 0 ? [...keysOf(id).keys()] : [])))
+  for (const key of held) reach.names.add(key)
+  for (const option of vsUnitOptions(definitions, picked))
+    for (const choice of option.choices)
+      for (const [key, k] of keysOf(choice.id))
+        if (held.has(key)) reach.names.add(key)
+        else offer(reach, key, k * choice.most)
+  return reach
+}
+
+const bookOf = (catalogueId: string) => ids.books[catalogueId.slice(catalogueId.indexOf('~') + 1)]
+// A datasheet is compared in its own book's catalogue where one lists it, as an ally's Detachments are not the roster's.
+const listing = new Map<string, string>()
+for (const faction of loaded.factions) {
+  const book = bookOf(faction.id)
+  if (!book) continue
+  for (const entryId of unitIdsIn(loaded, faction.id, { nonMatchedPlay: true })) {
+    const unitId = exact.get(entryId)
+    if (!unitId) continue
+    const own = definitions.get('unit', unitId)!.data.faction === book
+    if (!listing.has(entryId) || own) listing.set(entryId, faction.id)
+  }
+}
+
+let units = 0
+for (const [entryId, catalogueId] of listing) {
+  {
+    const faction = { id: catalogueId }
+    const book = bookOf(catalogueId)!
+    const unitId = exact.get(entryId)!
+    const name = definitions.get('unit', unitId)!.name
+    const first = vsFirstFielding(definitions, unitId)
+    const sizes = definitions.get('unit', unitId)!.data.sizes
+    const largest = Math.max(...sizes)
+    const plain = price(faction.id, entryId, [])
+    if (!plain) {
+      differ('builds', name, 'BSData does not price it')
+      continue
+    }
+    units++
+
+    count('sizes')
+    const bsSizes = plain.size.options ?? Array.from({ length: plain.size.max - plain.size.min + 1 }, (_, at) => plain.size.min + at)
+    if (bsSizes.join() !== sizes.join()) {
+      // BSData's catalogue admits every size between the smallest and largest; the field manual prices only some of them.
+      const listed = sizes.every((size) => bsSizes.includes(size)) && sizes[0] === bsSizes[0] && sizes.at(-1) === bsSizes.at(-1)
+      differ(listed ? LISTED_SIZES : 'sizes', name, `BSData ${bsSizes.join('/')}, VS Data ${sizes.join('/')}`)
+    }
+
+    count('wargear')
+    const big = price(faction.id, entryId, [], largest) ?? plain
+    const vsBig = vsResized(definitions, first, largest)
+    const vs = vsReach(vsBig)
+    const allegianceNames = new Set(
+      (definitions.get('unit', unitId)!.data.allegiances ?? []).flatMap((entry) =>
+        entry.choices.map((id) => same(definitions.get('allegiance', id)?.name ?? id)),
+      ),
+    )
+    const bs = bsdataReach(big, vs.names, allegianceNames)
+    for (const key of new Set([...bs.names, ...vs.names])) {
+      if (!vs.names.has(key)) differ('wargear', name, `only BSData offers ${key}`)
+      else if (!bs.names.has(key)) differ('wargear', name, `only VS Data offers ${key}`)
+    }
+    count('wargear counts')
+    for (const [key, n] of bs.most)
+      if (vs.most.has(key) && vs.most.get(key) !== n)
+        differ('wargear counts', name, `${key}: BSData up to ${n}, VS Data up to ${vs.most.get(key)} at ${largest}`)
+
+    count('warlord')
+    const roster = { faction: book, detachments: [] as string[] }
+    const vsWarlord = vsUnitToggles(definitions, first, { roster }).length > 0
+    const bsWarlord = plain.toggles.some((toggle) => toggle.name === 'Warlord')
+    if (vsWarlord !== bsWarlord)
+      differ('warlord', name, `BSData ${bsWarlord ? 'offers' : 'withholds'} it, VS Data ${vsWarlord ? 'offers' : 'withholds'} it`)
+
+    if (vsUnitChoices(definitions, first).some((choice) => choice.key === VS_MODELS))
+      checked.set('models', (checked.get('models') ?? 0) + 1)
+
+    const own = new Set([book, definitions.get('faction', book)?.data.parent])
+    const detachments = definitions.all('detachment').filter((detachment) => own.has(detachment.data.faction))
+    const offersAllegiance = Boolean(definitions.get('unit', unitId)!.data.allegiances?.length)
+    for (const detachment of detachments) {
+      const bsdataId = detachmentOf(faction.id, detachment.id)
+      const context = { roster: { faction: book, detachments: [detachment.id] } }
+      const choices = vsUnitChoices(definitions, vsFirstPick(definitions, unitId, context), context)
+      const vsEnhancements = choices
+        .filter((choice) => choice.key === VS_ENHANCEMENT || choice.key === VS_UPGRADE)
+        .flatMap((choice) => choice.options.map((option) => enhancementName(option.name)))
+      const allegiances = choices.find((choice) => choice.key === VS_ALLEGIANCE)?.options.map((option) => same(option.name)) ?? []
+      if (!vsEnhancements.length && !allegiances.length && !(offersAllegiance && bsdataId)) continue
+      if (!bsdataId) {
+        differ('enhancements', name, `${detachment.name} has no BSData Detachment`)
+        continue
+      }
+      const priced = price(faction.id, entryId, [bsdataId])
+      if (!priced) continue
+      count('enhancements')
+      const bsEnhancements = priced.choices
+        .filter(special)
+        .flatMap((choice) => choice.options.map((option) => enhancementName(option.name)))
+        .filter((option) => !allegiances.includes(option))
+      const onlyBs = bsEnhancements.filter((option) => !vsEnhancements.includes(option))
+      const onlyVs = vsEnhancements.filter((option) => !bsEnhancements.includes(option))
+      const spelled = onlyBs.flatMap((printed) => {
+        const spelling = onlyVs.find((candidate) => distance(printed, candidate) <= 3)
+        return spelling ? [`${printed} / ${spelling}`] : []
+      })
+      if (spelled.length) differ(SPELLINGS, name, `${detachment.name}: ${spelled.join(', ')}`)
+      if (onlyBs.length > spelled.length || onlyVs.length > spelled.length)
+        differ(
+          'enhancements',
+          name,
+          `${detachment.name}:${onlyBs.length ? ` only BSData ${onlyBs.join(', ')}` : ''}${onlyVs.length ? ` only VS Data ${onlyVs.join(', ')}` : ''}`,
+        )
+      if (!offersAllegiance) continue
+      count('allegiance')
+      const bsAllegiances = new Set(
+        priced.choices.flatMap((choice) =>
+          choice.options.flatMap((option) => {
+            const named = same(option.name)
+            return allegiances.filter((allegiance) => named === allegiance || named.endsWith(allegiance))
+          }),
+        ),
+      )
+      if (bsAllegiances.size !== allegiances.length)
+        differ('allegiance', name, `${detachment.name}: BSData ${bsAllegiances.size}, VS Data ${allegiances.length}`)
+    }
+  }
+}
+
+console.log(`${units} exactly defined datasheets compared (of ${exact.size} mapped exactly)`)
+for (const [check, total] of [...checked].filter(([name]) => name !== 'models')) {
+  const found = differences.get(check)?.size ?? 0
+  console.log(`${check}: ${total - found} of ${total} agree`)
+}
+const differing = new Set([...differences].flatMap(([check, byUnit]) => (ACCEPTED.has(check) ? [] : [...byUnit.keys()])))
+console.log(`${units - differing.size} of ${units} agree on every check, or differ only where VS Data follows the app`)
+console.log(`${checked.get('models') ?? 0} datasheets divide their size between freely counted models`)
+for (const [check, byUnit] of differences) {
+  if (!checked.has(check)) console.log(`${check}: ${byUnit.size} datasheets`)
+  if (!values.list) continue
+  for (const [unit, details] of byUnit) console.log(`  ${check} | ${unit}: ${details.join('; ')}`)
+}

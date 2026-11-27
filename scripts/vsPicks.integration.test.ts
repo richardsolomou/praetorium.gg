@@ -73,6 +73,17 @@ describe.skipIf(!fs.existsSync(path.join(directory, 'definitions')))('a pick fie
     expect(units[0]!.enhancements).toEqual(['Imperium’s Sword'])
   })
 
+  it('offers its options as VS Data writes them', () => {
+    const loadout = priced({ entryId: terminators, vs: heavyFlamer })[0]!.choices.find(
+      (choice) => choice.key === `${squad}.terminator-loadout`,
+    )
+    expect(loadout?.options.find((option) => option.id === `${squad}.heavy-flamer`)?.count).toBe(1)
+  })
+
+  it('hands the device the records its edits are made against', () => {
+    expect(priced({ entryId: terminators, vs: heavyFlamer })[0]!.vs?.unit.id).toBe(squad)
+  })
+
   it('builds from the catalogue where VS Data does not field the datasheet', () => {
     const vs = { models: { nothing: 3 }, options: {} }
     expect(priced({ entryId: legends, vs })[0]!.size.models).toBe(priced({ entryId: legends })[0]!.size.models)

@@ -3,7 +3,7 @@ import { type Dispatch, type SetStateAction, useLayoutEffect, useMemo, useRef } 
 import type { RosterPick } from '../../../core/roster'
 import { type Fielded, setupPriceQuery } from '../../queries'
 import { samePriceContext, survivingUnits } from './builder/pricePlaceholder'
-import { settledWarlord } from './builder/usePicks'
+import { settledWarlord, withWarlord } from './builder/usePicks'
 import type { KeyedPick } from './rosterPicks'
 
 const NO_UNITS = [] as const
@@ -78,7 +78,7 @@ export function useRosterPrice({
       setPicks((current) =>
         current.map((pick, at) => {
           const toggle = priced.units[at]?.toggles.find((candidate) => candidate.name === 'Warlord')
-          return toggle ? { ...pick, toggles: { ...pick.toggles, [toggle.key]: at === warlord.index ? 1 : 0 } } : pick
+          return toggle ? withWarlord(pick, toggle.key, at === warlord.index) : pick
         }),
       )
   }, [editable, picks, pricePending, priced, pricedAt, setPicks])

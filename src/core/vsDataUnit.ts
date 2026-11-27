@@ -1,4 +1,4 @@
-import type { Bounds, Counts, VsDataDefinitions } from './vsDataConstruction'
+import type { Bounds, Counts, Definition, VsDataDefinitions } from './vsDataConstruction'
 import { checkVsUnit, modelBounds, modelCounts, optionBounds, requirements, type VsProblem, type VsRosterUnit } from './vsDataRoster'
 
 /**
@@ -197,4 +197,55 @@ function withoutClosed(definitions: VsDataDefinitions, picked: VsRosterUnit): Vs
   const options = { ...picked.options }
   for (const option of closed) delete options[option.id]
   return withoutClosed(definitions, { ...picked, options })
+}
+
+/** One unit's own records: the unit, its models and options, and the wargear they name, bundles' contents included. */
+export type VsUnitRecords = {
+  unit: Definition<'unit'>
+  models: Definition<'model'>[]
+  options: Definition<'roster-option'>[]
+  wargear: Definition<'wargear'>[]
+}
+
+/** What editing one unit reads, small enough to hand a device with the unit's price. */
+export function vsUnitRecords(definitions: VsDataDefinitions, unitId: string): VsUnitRecords | null {
+  const unit = definitions.get('unit', unitId)
+  if (!unit) return null
+  const models = definitions.modelsOf(unitId)
+  const options = definitions.optionsOf(unitId)
+  const wargear = new Map<string, Definition<'wargear'>>()
+  const name = (id: string) => {
+    const found = definitions.get('wargear', id)
+    if (!found || wargear.has(id)) return
+    wargear.set(id, found)
+    for (const inner of Object.keys(found.data.includes ?? {})) name(inner)
+  }
+  for (const id of [
+    ...Object.keys(unit.data.wargear ?? {}),
+    ...models.flatMap((model) => Object.keys(model.data.wargear)),
+    ...options.flatMap((option) => [...option.data.choices, ...Object.keys(option.data.replaces ?? {})]),
+  ])
+    name(id)
+  return { unit, models, options, wargear: [...wargear.values()] }
+}
+
+/** Definitions holding one unit's records alone, which every function here reads as it reads the whole release. */
+export function vsUnitDefinitions(records: VsUnitRecords): VsDataDefinitions {
+  const byKind: Record<string, ReadonlyMap<string, Definition>> = {
+    unit: new Map([[records.unit.id, records.unit]]),
+    model: new Map(records.models.map((model) => [model.id, model])),
+    'roster-option': new Map(records.options.map((option) => [option.id, option])),
+    wargear: new Map(records.wargear.map((piece) => [piece.id, piece])),
+  }
+  const ofUnit = <T extends Definition>(unit: string, list: T[]) => (unit === records.unit.id ? list : [])
+  return {
+    release: '',
+    get: (kind, id) => byKind[kind]?.get(id) as never,
+    all: (kind) => [...(byKind[kind]?.values() ?? [])] as never,
+    modelsOf: (unit) => ofUnit(unit, records.models),
+    optionsOf: (unit) => ofUnit(unit, records.options),
+    unavailable: new Set(),
+    current: (unit) => unit,
+    points: [],
+  }
 }

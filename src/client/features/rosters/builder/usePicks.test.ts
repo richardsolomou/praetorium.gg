@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { KeyedPick } from '../rosterPicks'
 import { pickEditor, requestedUnit, settledWarlord, unitLimitMessage } from './usePicks'
+import { definitions } from '../../../../core/vsUnit.fixtures'
+import { vsFirstFielding, vsUnitRecords } from '../../../../core/vsDataUnit'
 
 /** The group a model's heavy weapon is chosen from, and a choice nested under it. */
 const group = 'members/heavy-terminator/heavy-weapon'
@@ -573,5 +575,62 @@ describe('the one Warlord', () => {
 
   it('keeps the first of two crowns', () => {
     expect(settledWarlord(picks(3, 1), [character(true), character(true)], false)).toEqual({ index: 1, toggle: 'warlord' })
+  })
+})
+
+describe('a VS Data pick', () => {
+  const records = vsUnitRecords(definitions, 'host.squad')!
+  const { unit: _unit, ...fielded } = vsFirstFielding(definitions, 'host.squad')
+  const squad = { models: fielded.models ?? {}, options: fielded.options ?? {} }
+  const unit = { size: { models: 5, min: 5, max: 10, options: [5, 10] }, toggles: [], choices: [], vs: records }
+  const vsEditor = (vs = squad) => editor([{ key: 0, entryId: 'squad', catalogueId: 'host', vs }], { catalogueId: 'host', units: [unit] })
+
+  it('resizes to its next listed size', () => {
+    const { edit, picks } = vsEditor()
+    edit.resize(0, (models) => models + 1)
+    expect(picks()[0]?.vs?.models['host.squad.trooper']).toBe(9)
+  })
+
+  it('refuses a press its caps do not allow', () => {
+    const { edit, picks } = editor([{ key: 0, entryId: 'squad', catalogueId: 'host', vs: squad }], {
+      catalogueId: 'host',
+      units: [{ ...unit, choices: [{ key: 'host.squad.trooper-rifle', options: [{ id: 'host.cannon', count: 0 }] }] }],
+    })
+    edit.spread(0, 'host.squad.trooper-rifle', () => ({ 'host.cannon': 2 }))
+    expect(picks()[0]?.vs).toBe(squad)
+  })
+
+  it('keeps its upgrade when the Enhancement choice is cleared', () => {
+    const { edit, picks } = editor([{ key: 0, entryId: 'captain', catalogueId: 'host', vs: { ...squad, enhancement: 'drill' } }], {
+      catalogueId: 'host',
+      units: [
+        {
+          ...unit,
+          choices: [
+            {
+              key: 'enhancement',
+              options: [
+                { id: 'banner', count: 1 },
+                { id: 'relic', count: 0 },
+              ],
+            },
+          ],
+        },
+      ],
+    })
+    edit.choose(0, 'enhancement', '')
+    expect(picks()[0]?.vs?.enhancement).toBe('drill')
+  })
+
+  it('takes the Warlord from every other pick', () => {
+    const { edit, picks } = editor(
+      [
+        { key: 0, entryId: 'captain', catalogueId: 'host', vs: { ...squad, warlord: 'host.captain.captain' } },
+        { key: 1, entryId: 'squad', catalogueId: 'host', vs: squad },
+      ],
+      { catalogueId: 'host', units: [unit, unit] },
+    )
+    edit.toggle(1, 'host.squad.sergeant', 'Warlord', true)
+    expect(picks().map((pick) => pick.vs?.warlord)).toEqual([undefined, 'host.squad.sergeant'])
   })
 })

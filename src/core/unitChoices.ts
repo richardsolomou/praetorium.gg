@@ -37,8 +37,13 @@ import {
   selectionCountBoundsAt,
   type Selection,
 } from './evaluate'
+import type { ModelKind } from './modelKinds'
 import { allAt, at, countAt, replaceAt, withCounts, withSpread } from './selection'
 import { isResizable, modelCountOf, sizeOf } from './unitSize'
+import type { VsDataDefinitions } from './vsDataConstruction'
+import { pointsAt } from './vsDataPoints'
+import { enhancementAdmits, modelBounds, modelCounts, unitKeywords, type VsRoster, type VsRosterUnit } from './vsDataRoster'
+import { vsFirstFielding, vsUnitOptions, vsUnitSize, vsWithChoice } from './vsDataUnit'
 
 /** A decision the data leaves to the player: one of these, in this slot. */
 export type UnitChoice = {
@@ -750,5 +755,266 @@ const sum = (rooms: number[]) => (rooms.includes(UNBOUNDED) ? UNBOUNDED : rooms.
 function candidateErrors(id: string, candidate: Selection, index: CatalogueIndex, context: EvaluateOptions) {
   return evaluationErrorsFor(id, [...(context.roster ?? []), candidate], index, {
     primaryCatalogueId: context.primaryCatalogueId,
+  })
+}
+
+/** The choice keys of a VS Data pick besides its options, which are keyed by their own roster-option IDs. */
+export const VS_MODELS = 'models'
+export const VS_ENHANCEMENT = 'enhancement'
+export const VS_UPGRADE = 'upgrade'
+export const VS_ALLEGIANCE = 'allegiance'
+
+/** The roster a VS Data unit is offered in: its book and Detachments, and its units for the conditions that name a Warlord. */
+export type VsChoiceContext = { roster?: Pick<VsRoster, 'faction' | 'detachments'> & { units?: VsRoster['units'] } }
+
+const rosterOf = (context: VsChoiceContext): VsRoster => ({
+  faction: context.roster?.faction ?? '',
+  detachments: context.roster?.detachments ?? [],
+  units: context.roster?.units ?? [],
+})
+const wargearName = (definitions: VsDataDefinitions, id: string) => definitions.get('wargear', id)?.name ?? id
+
+/** A unit as the builder first adds it: as its datasheet first fields it, holding the first allegiance one it must take offers. */
+export function vsFirstPick(definitions: VsDataDefinitions, unitId: string, context: VsChoiceContext = {}): VsRosterUnit {
+  const detachments = context.roster?.detachments ?? []
+  const required = definitions
+    .get('unit', unitId)
+    ?.data.allegiances?.find((offer) => offer.required && (!offer.detachment || detachments.includes(offer.detachment)))
+  const first = vsFirstFielding(definitions, unitId)
+  return required?.choices[0] ? { ...first, allegiance: required.choices[0] } : first
+}
+
+/** Models whose count the player sets within the unit's size, when there are two or more of them to divide it between. */
+function freeModels(definitions: VsDataDefinitions, picked: VsRosterUnit) {
+  const size = vsUnitSize(definitions, picked)
+  const free = definitions
+    .modelsOf(picked.unit)
+    .map((model) => ({ model, bounds: modelBounds(model.data, size) }))
+    .filter(({ bounds }) => bounds.min < bounds.max)
+  return free.length > 1 ? free : []
+}
+
+/**
+ * A VS Data pick's decisions in the shape the builder draws a BSData unit's: the models it divides its size between, one
+ * choice per open option with each of its wargear choices, then its Enhancement and allegiance. An option's choice can
+ * reach, by trading the option's other choices for it, the most it holds once they are put down, so a full option still
+ * swaps; within room, it can reach what the option's caps and groups leave it.
+ */
+export function vsUnitChoices(definitions: VsDataDefinitions, picked: VsRosterUnit, context: VsChoiceContext = {}): UnitChoice[] {
+  const unit = definitions.get('unit', picked.unit)
+  if (!unit) return []
+  const counts = modelCounts(definitions, picked)
+  const free = freeModels(definitions, picked)
+  const choices: UnitChoice[] = []
+  if (free.length)
+    choices.push({
+      key: VS_MODELS,
+      name: 'Models',
+      chosen: '',
+      optional: false,
+      carried: false,
+      room: free.reduce((total, { model }) => total + counts.get(model.id)!, 0),
+      uniform: false,
+      owner: null,
+      options: free.map(({ model, bounds }) => ({
+        id: model.id,
+        name: model.name,
+        points: 0,
+        count: counts.get(model.id)!,
+        min: bounds.min,
+        max: bounds.max,
+        profile: model.id,
+      })),
+    })
+  const priceOf = (item: string) => {
+    const found = pointsAt(definitions.points, { kind: 'wargear', faction: unit.data.faction, unit: unit.id, item })
+    return found.ok ? found.points : 0
+  }
+  for (const option of vsUnitOptions(definitions, picked)) {
+    if (!option.open || (option.bounds.max === 0 && option.taken === 0)) continue
+    const full = option.taken >= option.bounds.max
+    const swapped = (id: string) => {
+      const alone = vsWithChoice(definitions, picked, option.id, { [id]: option.choices.find((choice) => choice.id === id)!.count })
+      return vsUnitOptions(definitions, alone)
+        .find((candidate) => candidate.id === option.id)
+        ?.choices.find((choice) => choice.id === id)?.most
+    }
+    const definition = definitions.get('roster-option', option.id)!
+    const perCarrier = definition.data.per === 'carrier' ? definition.data.choose.max : option.bounds.max
+    choices.push({
+      key: option.id,
+      name: option.name,
+      chosen: option.choices.find((choice) => choice.count > 0)?.id ?? '',
+      optional: option.bounds.min === 0,
+      carried: false,
+      room: option.bounds.max,
+      ...(option.bounds.min > 0 ? { least: option.bounds.min } : {}),
+      ...(option.carrier && perCarrier > 1 ? { multiplePerModel: true as const } : {}),
+      uniform: option.uniform && !option.substitutes.length,
+      owner: null,
+      options: option.choices.map((choice) => ({
+        id: choice.id,
+        name: choice.name,
+        points: priceOf(choice.id),
+        count: choice.count,
+        min: 0,
+        max: Math.max(choice.count, full ? (swapped(choice.id) ?? choice.most) : choice.most),
+      })),
+    })
+  }
+  const roster = rosterOf(context)
+  const keywords = unitKeywords(unit.data, roster, picked.allegiance)
+  const held = new Set(picked.enhancement ? [picked.enhancement] : [])
+  const admitted = definitions
+    .all('enhancement')
+    .filter(
+      (enhancement) =>
+        held.has(enhancement.id) ||
+        (roster.detachments.includes(enhancement.data.detachment) && enhancementAdmits(definitions, enhancement, picked, keywords)),
+    )
+  // The builder asks for a unit's Enhancement and its Detachment upgrade separately, as each Detachment prints them, though
+  // a unit holds one of either.
+  for (const [key, name, upgrade] of [
+    [VS_ENHANCEMENT, 'Enhancements', false],
+    [VS_UPGRADE, 'Upgrades', true],
+  ] as const) {
+    const enhancements = admitted.filter((enhancement) => (enhancement.data.type === 'upgrade') === upgrade)
+    if (!enhancements.length) continue
+    choices.push({
+      key,
+      name,
+      chosen: enhancements.find((enhancement) => held.has(enhancement.id))?.id ?? '',
+      optional: true,
+      carried: false,
+      room: 1,
+      uniform: false,
+      owner: null,
+      options: enhancements.map((enhancement) => {
+        const faction = definitions.get('detachment', enhancement.data.detachment)?.data.faction ?? ''
+        const found = pointsAt(definitions.points, {
+          kind: 'enhancement',
+          faction,
+          detachment: enhancement.data.detachment,
+          enhancement: enhancement.id,
+        })
+        const count = held.has(enhancement.id) ? 1 : 0
+        return { id: enhancement.id, name: enhancement.name, points: found.ok ? found.points : 0, count, min: 0, max: 1 }
+      }),
+    })
+  }
+  const offers = (unit.data.allegiances ?? []).filter((offer) => !offer.detachment || roster.detachments.includes(offer.detachment))
+  const allegiances = [...new Set([...offers.flatMap((offer) => offer.choices), ...(picked.allegiance ? [picked.allegiance] : [])])]
+  if (allegiances.length)
+    choices.push({
+      key: VS_ALLEGIANCE,
+      name: 'Allegiance',
+      chosen: picked.allegiance ?? '',
+      optional: !offers.some((offer) => offer.required),
+      carried: false,
+      room: 1,
+      uniform: false,
+      owner: null,
+      options: allegiances.map((id) => ({
+        id,
+        name: definitions.get('allegiance', id)?.name ?? id,
+        points: 0,
+        count: id === picked.allegiance ? 1 : 0,
+        min: 0,
+        max: 1,
+      })),
+    })
+  return choices
+}
+
+/** The model a unit names as its Warlord: one its Detachments grant or require, else its one leader, else its first model. */
+export function vsWarlordModel(definitions: VsDataDefinitions, unitId: string, detachments: readonly string[] = []): string | undefined {
+  const models = definitions.modelsOf(unitId)
+  const named = new Set(
+    detachments.flatMap((id) => {
+      const data = definitions.get('detachment', id)?.data
+      return [...(data?.warlords ?? []), ...(data?.requiredWarlords ?? [])]
+    }),
+  )
+  const leaders = models.filter((model) => model.data.max === 1)
+  return (models.find((model) => named.has(model.id)) ?? (leaders.length === 1 ? leaders[0] : models[0]))?.id
+}
+
+/** A VS Data pick's Warlord, keyed by the model that holds it, offered to a CHARACTER of the roster's own book or a model its Detachments grant the role. */
+export function vsUnitToggles(definitions: VsDataDefinitions, picked: VsRosterUnit, context: VsChoiceContext = {}): UnitToggle[] {
+  const unit = definitions.get('unit', picked.unit)
+  if (!unit) return []
+  const roster = rosterOf(context)
+  const detachments = roster.detachments.flatMap((id) => definitions.get('detachment', id)?.data ?? [])
+  const models = new Set(definitions.modelsOf(unit.id).map((model) => model.id))
+  const own = [roster.faction, definitions.get('faction', roster.faction)?.data.parent]
+  const character = unitKeywords(unit.data, roster, picked.allegiance).some((keyword) => keyword.toUpperCase() === 'CHARACTER')
+  const allied = definitions.get('faction', roster.faction)?.data.allies?.some((ally) => ally.units.includes(unit.id))
+  const granted = detachments.some((detachment) => detachment.warlords?.some((id) => models.has(id)))
+  if (!granted && (!character || allied || !own.includes(unit.data.faction))) return []
+  const required = detachments.some((detachment) => detachment.requiredWarlords?.some((id) => models.has(id)))
+  const warlord = picked.warlord ?? vsWarlordModel(definitions, unit.id, roster.detachments)
+  if (!warlord) return []
+  return [{ key: warlord, name: 'Warlord', selected: picked.warlord !== undefined, ...(required ? { required: true as const } : {}) }]
+}
+
+/**
+ * A VS Data pick's kinds of model, each with the wargear it carries by default, less what its options replace, and a
+ * row for each choice of the options it carries. An option no model carries joins the unit's one kind of model, or is
+ * the unit's to answer below its models where it has several.
+ */
+export function vsModelKinds(definitions: VsDataDefinitions, picked: VsRosterUnit): ModelKind[] {
+  const unit = definitions.get('unit', picked.unit)
+  if (!unit) return []
+  const counts = modelCounts(definitions, picked)
+  const countable = new Set(freeModels(definitions, picked).map(({ model }) => model.id))
+  const models = definitions.modelsOf(unit.id).filter((model) => counts.get(model.id)! > 0 || countable.has(model.id))
+  const lone = models.length === 1 ? models[0]!.id : undefined
+  const open = vsUnitOptions(definitions, picked).filter((option) => option.open && (option.bounds.max > 0 || option.taken > 0))
+  const held = new Map(models.map((model) => [model.id, new Map<string, number>()]))
+  const carry = (bag: Map<string, number>, id: string, n: number) => {
+    const inside = definitions.get('wargear', id)?.data.includes
+    if (inside) for (const [piece, k] of Object.entries(inside)) carry(bag, piece, n * k)
+    else bag.set(id, (bag.get(id) ?? 0) + n)
+  }
+  for (const model of models)
+    for (const [id, n] of Object.entries(model.data.wargear)) carry(held.get(model.id)!, id, n * counts.get(model.id)!)
+  const unitWargear = models[0] && held.get(models[0].id)
+  if (unitWargear) for (const [id, n] of Object.entries(unit.data.wargear ?? {})) carry(unitWargear, id, n)
+  for (const option of open) {
+    const bag =
+      (option.carrier && held.get(option.carrier)) ||
+      [...held.values()].find((candidate) => Object.keys(option.replaces).every((id) => (candidate.get(id) ?? 0) > 0))
+    if (bag) for (const [id, n] of Object.entries(option.replaces)) carry(bag, id, -n * option.taken)
+  }
+  return models.map((model) => {
+    const count = counts.get(model.id)!
+    const each = new Map<string, number>()
+    for (const [id, n] of Object.entries(model.data.wargear)) carry(each, id, n)
+    return {
+      name: model.name,
+      fixed: [...held.get(model.id)!].map(([id, n]) => {
+        const per = each.get(id)
+        const plain = per !== undefined && n === per * count
+        return {
+          name: wargearName(definitions, id),
+          ...(plain ? {} : { count: Math.max(0, n) }),
+          ...(plain && per !== 1 ? { each: { [model.id]: per } } : {}),
+        }
+      }),
+      members: [{ id: model.id, choiceKey: countable.has(model.id) ? VS_MODELS : null, baseCount: count }],
+      rows: open
+        .filter((option) => (option.carrier ?? lone) === model.id)
+        .flatMap((option) =>
+          option.choices.map((choice) => {
+            const inside = Object.keys(definitions.get('wargear', choice.id)?.data.includes ?? {})
+            return {
+              choiceKey: option.id,
+              optionId: choice.id,
+              name: choice.name,
+              ...(inside.length ? { pieces: inside.map((id) => wargearName(definitions, id)) } : {}),
+            }
+          }),
+        ),
+    }
   })
 }
