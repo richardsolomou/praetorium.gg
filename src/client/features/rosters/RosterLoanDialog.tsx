@@ -97,7 +97,7 @@ function LoanRow({
     <li>
       <label htmlFor={switchId} className="flex items-center gap-3">
         <PlayerAvatar name={friend.name} image={friend.image} className="size-9 text-xs" />
-        <span className="min-w-0 flex-1 truncate font-bold uppercase" style={nameColour(friend)}>
+        <span className="min-w-0 flex-1 truncate font-semibold" style={nameColour(friend)}>
           {friend.name}
         </span>
         <Switch id={switchId} aria-label={`Lend to ${friend.name}`} checked={lent} disabled={pending} onCheckedChange={onChange} />
