@@ -51,7 +51,7 @@ const vsId = z.string().min(1).max(256)
 export const vsPickSchema = z.object({
   models: z.record(vsId, z.number().int().min(0).max(60)),
   options: z.record(vsId, z.record(vsId, z.number().int().min(0).max(60))),
-  enhancements: z.array(vsId).max(4).optional(),
+  enhancement: vsId.optional(),
   allegiance: vsId.optional(),
   warlord: vsId.optional(),
 })
