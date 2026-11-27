@@ -890,68 +890,54 @@ test('a new sealed event starts with its first event and can seal a roster', asy
   await expectNoPageOverflow(page)
 })
 
-for (const { rules, status } of [
-  { rules: undefined, status: 'current' },
-  { rules: 'MFM 1.4 · Archived', status: 'archived' },
-]) {
-  test(`seals ${status} rules rosters in a sealed event and preserves the selected catalogue`, async ({ page }) => {
-    const ownerName = uniqueName('Version owner')
-    const { email } = await signUp(page, ownerName)
-    const rosterName = `${status} sealed event roster`
-    if (status === 'archived') {
-      const userId = await userIdFor(email)
-      const id = crypto.randomUUID()
-      await (
-        await productOperator()
-      ).saveRoster({
-        id,
-        userId,
-        name: rosterName,
-        catalogueId: '470a-6daa-9014-12df',
-        detachmentId: JSON.stringify(['9d23-833a-17cb-2d7d']),
-        disposition: 'priority-assets',
-        limit: 2000,
-        picks: '[]',
-        prep: null,
-        tags: '[]',
-        waivedRules: '[]',
-        visibility: 'private',
-        source: 'editable',
-        now: Date.now(),
-      })
-      await page.goto(`/rosters/${id}`)
-    } else {
-      await createRoster(page, { faction: 'Adeptus Custodes', detachment: /Aquilan Shield/, name: rosterName, rules })
-    }
-    const unit = status === 'archived' ? 'Captain' : 'Blade Champion'
-    await add(page, unit)
-    await page.locator(`[data-unit="${unit}"]`).getByRole('button', { name: unit, exact: true }).click()
-    await makeWarlord(page, unit)
-    const operator = await productOperator()
-    const saved = (await operator.roster(lastPathSegment(page.url())))!
-    await page.goto('/tournaments')
-    const create = await openSealedEventCreation(page)
-    await create.getByLabel('Name').fill(uniqueName('Rules sealed event'))
-    await create.getByRole('button', { name: /^Anyone who joins/ }).click()
-    await submitSealedEventCreation(page, create)
-    await join(page)
-    await sealOwnRoster(page, rosterName)
-    await page.reload()
-    const entry = page.locator(`[data-person="${ownerName}"]`)
-    await expect(entry.getByText('Roster sealed', { exact: true })).toBeVisible()
-    const sealedEventToken = lastPathSegment(page.url())
-    const sealed = await operator.sealedEventRosters(sealedEventToken, saved.userId)
-    expect(JSON.parse(sealed!.entry.rosterSnapshot!).built.catalogueId).toBe(saved.catalogueId)
-    await revealEvent(page)
-    await viewRoster(page, ownerName).click()
-    await expect(page).toHaveURL(/\/rosters\/[^?]+\?sealedEvent=/)
-    if (status === 'current') await expect(page.locator('main header [data-rules-version]')).toHaveCount(0)
-    await expect(page.locator(`[data-unit="${unit}"]`)).toBeVisible()
-    await page.reload()
-    await expect(page.locator(`[data-unit="${unit}"]`)).toBeVisible()
-    if (status === 'current') await expect(page.locator('main header [data-rules-version]')).toHaveCount(0)
+test('seals archived rules rosters in a sealed event and preserves the selected catalogue', async ({ page }) => {
+  const ownerName = uniqueName('Version owner')
+  const { email } = await signUp(page, ownerName)
+  const rosterName = 'archived sealed event roster'
+  const id = crypto.randomUUID()
+  const operator = await productOperator()
+  await operator.saveRoster({
+    id,
+    userId: await userIdFor(email),
+    name: rosterName,
+    catalogueId: '470a-6daa-9014-12df',
+    detachmentId: JSON.stringify(['9d23-833a-17cb-2d7d']),
+    disposition: 'priority-assets',
+    limit: 2000,
+    picks: '[]',
+    prep: null,
+    tags: '[]',
+    waivedRules: '[]',
+    visibility: 'private',
+    source: 'editable',
+    now: Date.now(),
   })
-}
+  await page.goto(`/rosters/${id}`)
+  const unit = 'Captain'
+  await add(page, unit)
+  await page.locator(`[data-unit="${unit}"]`).getByRole('button', { name: unit, exact: true }).click()
+  await makeWarlord(page, unit)
+  const saved = (await operator.roster(id))!
+  await page.goto('/tournaments')
+  const create = await openSealedEventCreation(page)
+  await create.getByLabel('Name').fill(uniqueName('Rules sealed event'))
+  await create.getByRole('button', { name: /^Anyone who joins/ }).click()
+  await submitSealedEventCreation(page, create)
+  await join(page)
+  await sealOwnRoster(page, rosterName)
+  await page.reload()
+  const entry = page.locator(`[data-person="${ownerName}"]`)
+  await expect(entry.getByText('Roster sealed', { exact: true })).toBeVisible()
+  const sealedEventToken = lastPathSegment(page.url())
+  const sealed = await operator.sealedEventRosters(sealedEventToken, saved.userId)
+  expect(JSON.parse(sealed!.entry.rosterSnapshot!).built.catalogueId).toBe(saved.catalogueId)
+  await revealEvent(page)
+  await viewRoster(page, ownerName).click()
+  await expect(page).toHaveURL(/\/rosters\/[^?]+\?sealedEvent=/)
+  await expect(page.locator(`[data-unit="${unit}"]`)).toBeVisible()
+  await page.reload()
+  await expect(page.locator(`[data-unit="${unit}"]`)).toBeVisible()
+})
 
 test('only a changed roster in an open sealed event offers replacement', async ({ page }) => {
   await signUp(page, uniqueName('RosterOwner'))

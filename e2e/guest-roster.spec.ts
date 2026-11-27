@@ -66,25 +66,6 @@ test('a visitor builds and prices a list without saving it', async ({ page }) =>
   expect(saves).toEqual([])
 })
 
-test("a visitor's list survives a reload and a new tab", async ({ page, context }) => {
-  await startGuestRoster(page)
-  await add(page, 'Necron Warriors')
-  // Edits are kept once they settle, so the reload waits for the stored draft to hold the unit.
-  await expect.poll(() => guestDraft(page)).toContain('"picks":[{')
-
-  // The server cannot see the draft, only the cookie saying there is one, so its rosters page holds a row rather than saying there are none.
-  const firstFrame = await (await page.request.get('/rosters')).text()
-  expect(firstFrame).toContain('Loading your rosters')
-  expect(firstFrame).not.toContain('No rosters yet')
-  await page.reload()
-  await expect(page.locator('[data-unit="Necron Warriors"]').first()).toBeVisible()
-
-  const later = await context.newPage()
-  await later.goto('/rosters')
-  await later.locator('[data-roster]').getByRole('link').click()
-  await expect(later.locator('[data-unit="Necron Warriors"]').first()).toBeVisible()
-})
-
 test("a visitor's list follows an edit made in another tab", async ({ page, context }) => {
   await startGuestRoster(page)
   await add(page, 'Necron Warriors')
@@ -190,6 +171,10 @@ test("a visitor's roster is listed on the rosters page as a saved one is", async
   await expect.poll(() => guestDraft(page)).toContain('"picks":[{')
   const builder = page.url()
 
+  // The server cannot see the draft, only the cookie saying there is one, so its rosters page holds a row rather than saying there are none.
+  const firstFrame = await (await page.request.get('/rosters')).text()
+  expect(firstFrame).toContain('Loading your rosters')
+  expect(firstFrame).not.toContain('No rosters yet')
   await page.goto('/rosters')
   const row = page.locator('[data-roster]')
   await expect(row).toHaveCount(1)

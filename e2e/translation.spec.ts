@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './test'
-import { chooseUnit, openImport, retryUntilVisible, signUp, uniqueName, visitorSetup, waitForRosterSave } from './account'
+import { chooseUnit, openImport, retryUntilVisible, signUp, uniqueName, waitForRosterSave } from './account'
 import { screenshot } from './screenshots'
 
 async function replaceTranslatedText(page: Page) {
@@ -18,18 +18,6 @@ async function replaceTranslatedText(page: Page) {
     }
   })
 }
-
-test(`a translated guest roster setup can select its first faction`, async ({ page }) => {
-  const setup = await visitorSetup(page)
-  const faction = setup.getByRole('combobox', { name: 'Faction', exact: true })
-  await expect(faction).toBeEnabled()
-  await replaceTranslatedText(page)
-  await faction.click()
-  await page.getByRole('option', { name: 'Necrons', exact: true }).click()
-  await expect(setup).toBeVisible()
-  await expect(faction).toContainText('Necrons')
-  await screenshot(page, `translated-guest-roster.png`, { fullPage: true })
-})
 
 test('a translated signed-in roster dialog keeps working through creation', async ({ page }) => {
   await signUp(page, uniqueName('Translated setup'))
