@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { beforeAll, describe, expect, it } from 'vitest'
-import { loadCatalogue } from '../src/server/catalogueIndex'
+import { sharedSnapshot } from './lib/catalogueSnapshotLoad'
 import { type LoadedCatalogue } from '../src/shared/catalogueIndex'
 import { exclusiveDetachments } from '../src/shared/rosterDetachments'
 
@@ -14,7 +14,7 @@ describe.skipIf(!fs.existsSync(path.join(directory, 'definitions')))('detachment
     loaded.detachments.get(catalogueId)!.options.find((option) => option.name === name)!.id
 
   beforeAll(() => {
-    loaded = loadCatalogue(directory)!
+    loaded = sharedSnapshot(directory).catalogue
   })
 
   it('pairs the two Necron Dynasty detachments under their shared limit', () => {

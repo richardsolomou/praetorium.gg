@@ -3,7 +3,7 @@ import { beforeAll, describe, expect, it } from 'vitest'
 import { referenceFactionId } from '../src/core/factionReferenceRoute'
 import { catalogueEditionLoaders } from '../src/server/catalogueEditions'
 import { detachmentReference } from '../src/shared/detachmentReference'
-import { loadSnapshotWithRules } from './lib/catalogueSnapshotLoad'
+import { sharedSnapshot } from './lib/catalogueSnapshotLoad'
 
 const directory = process.env.CATALOGUE_DIR ?? 'catalogue-data'
 
@@ -11,7 +11,7 @@ describe.skipIf(!fs.existsSync(directory))('Marine detachment reference ownershi
   let versions: ReturnType<typeof catalogueEditionLoaders>
 
   beforeAll(() => {
-    const { catalogue, rules } = loadSnapshotWithRules(directory)
+    const { catalogue, rules } = sharedSnapshot(directory)
     versions = catalogueEditionLoaders(
       directory,
       () => catalogue,

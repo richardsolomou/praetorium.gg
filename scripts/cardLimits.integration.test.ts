@@ -5,7 +5,7 @@ import { buildUnit } from '../src/core/roster'
 import type { LoadedCatalogue } from '../src/shared/catalogueIndex'
 import { calculateRosterPrice } from '../src/shared/pricing'
 import type { LoadedRules } from '../src/shared/rules'
-import { loadSnapshot } from './lib/catalogueSnapshotLoad'
+import { sharedSnapshot } from './lib/catalogueSnapshotLoad'
 
 const directory = process.env.CATALOGUE_DIR ?? 'catalogue-data'
 
@@ -15,7 +15,7 @@ describe.skipIf(!fs.existsSync(path.join(directory, 'definitions')))('wargear li
   let rules: LoadedRules | null
 
   beforeAll(() => {
-    ;({ catalogue: loaded, rules } = loadSnapshot(directory))
+    ;({ catalogue: loaded, rules } = sharedSnapshot(directory))
   })
 
   const catalogueOf = (entryId: string) => loaded.factions.find((faction) => loaded.index.datasheets.get(faction.id)?.has(entryId))!.id
