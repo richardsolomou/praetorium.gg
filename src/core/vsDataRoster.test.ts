@@ -71,6 +71,12 @@ const construction: VsDataConstruction = {
       'host.guard.banner': record('Banner', {
         detachment: 'host.guard',
         type: 'upgrade',
+        perRoster: 3,
+        eligibility: { anyOf: [{ keywords: ['INFANTRY'] }], nonCharacters: true },
+      }),
+      'host.guard.mark': record('Mark', {
+        detachment: 'host.guard',
+        type: 'upgrade',
         eligibility: { anyOf: [{ keywords: ['INFANTRY'] }], nonCharacters: true },
       }),
       'host.guard.drill': record('Drill', {
@@ -206,6 +212,11 @@ describe('checkVsRoster', () => {
   it('leaves an upgrade’s further copies outside the Enhancement limit', () => {
     const drilled = { unit: 'host.agent', enhancement: 'host.guard.drill' }
     expect(codes([drilled, drilled])).toEqual([])
+  })
+
+  it('refuses a second copy of an upgrade whose facts allow one', () => {
+    const marked = { unit: 'host.agent', enhancement: 'host.guard.mark' }
+    expect(codes([marked, marked])).toEqual(['enhancement-repeated'])
   })
 
   it('refuses a fourth copy of an upgrade', () => {

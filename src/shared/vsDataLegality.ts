@@ -6,7 +6,7 @@ import { nonMatchedPlayKind } from '../core/name'
 import { idsIn, type VsDataIds } from './vsDataPoints'
 
 /**
- * A rules version's VS Data roster definitions without wargear, and the IDs its saved lists hold read as VS Data's: each
+ * A rules version's VS Data roster definitions, and the IDs its saved lists hold read as VS Data's: each
  * book's faction, each Detachment, each Enhancement option under its VS Data Detachment, and each datasheet VS Data
  * checks.
  */
