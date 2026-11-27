@@ -144,7 +144,11 @@ describe('vsDataErrors', () => {
 
   describe('a unit fielded by VS Data IDs', () => {
     const squad = (vs: Partial<NonNullable<CheckedUnit['vs']>>) =>
-      unit({ entryId: 'bs-squad', name: 'Squad', vs: { models: { 'host.squad.sergeant': 1, 'host.squad.trooper': 4 }, options: {}, ...vs } })
+      unit({
+        entryId: 'bs-squad',
+        name: 'Squad',
+        vs: { models: { 'host.squad.sergeant': 1, 'host.squad.trooper': 4 }, options: {}, ...vs },
+      })
 
     it('is checked on its own model counts', () => {
       expect(errors([squad({ models: { 'host.squad.sergeant': 1, 'host.squad.trooper': 10 } })])).toContainEqual({
@@ -173,9 +177,9 @@ describe('vsDataErrors', () => {
     })
 
     it('takes the Enhancement it names, whatever its catalogue choices say', () => {
-      expect(errors([unit({ entryId: 'bs-mob', vs: { models: { 'host.mob.grunt': 10 }, options: {}, enhancement: 'host.guard.crown' } })])).toEqual(
-        [{ entryId: 'bs-mob', entryName: 'bs-mob', message: 'cannot take Crown' }],
-      )
+      expect(
+        errors([unit({ entryId: 'bs-mob', vs: { models: { 'host.mob.grunt': 10 }, options: {}, enhancement: 'host.guard.crown' } })]),
+      ).toEqual([{ entryId: 'bs-mob', entryName: 'bs-mob', message: 'cannot take Crown' }])
     })
 
     it('is checked on its wargear in a list VS Data cannot place', () => {

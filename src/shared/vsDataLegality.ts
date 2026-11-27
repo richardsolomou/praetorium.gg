@@ -216,17 +216,18 @@ function described(problem: VsProblem, checked: { unit: CheckedUnit }[], definit
 }
 
 /** The bound a count breaks, as a player reads it. */
-const bound = (min: string, max: string, has: string) => (min === max ? min : Number(has) > Number(max) ? `at most ${max}` : `at least ${min}`)
+const bound = (min: string, max: string, has: string) =>
+  min === max ? min : Number(has) > Number(max) ? `at most ${max}` : `at least ${min}`
 /** A list of names, the last joined by `word`. */
 const joined = (names: string, word: string) => names.replace(/, (?=[^,]*$)/, ` ${word} `)
-const plural = (count: string, noun: string) => `${noun}${count.endsWith(' 1') || count === '1' ? '' : 's'}`
+const plural = (count: string, noun: string) => `${noun}${/(^| )1$/.test(count) ? '' : 's'}`
 
 /** A problem with a unit's own models or wargear, which VS Data checks for a unit fielded by its IDs. */
 function unitWords(problem: VsProblem, named: (text: string) => string): string | undefined {
   const text = named(problem.message)
-  const words = (pattern: RegExp, words: (...parts: string[]) => string) => {
+  const words = (pattern: RegExp, say: (...parts: string[]) => string) => {
     const parts = pattern.exec(text)
-    return parts ? words(...parts.slice(1)) : undefined
+    return parts ? say(...parts.slice(1)) : undefined
   }
   switch (problem.code) {
     case 'model-count':
@@ -242,17 +243,23 @@ function unitWords(problem: VsProblem, named: (text: string) => string): string 
     case 'unit-composition':
       return 'fields its models in a mix its datasheet does not allow'
     case 'option-count':
-      return words(/^(.+) takes (\d+)-(\d+), has (\d+)$/, (option, min, max, has) => `takes ${bound(min, max, has)} from ${option}, has ${has}`)
+      return words(
+        /^(.+) takes (\d+)-(\d+), has (\d+)$/,
+        (option, min, max, has) => `takes ${bound(min, max, has)} from ${option}, has ${has}`,
+      )
     case 'option-uniform':
       return words(/^(.+) is taken (\d+) times .*$/, (option, max) => `takes ${option} ${max} times with one choice, or not at all`)
     case 'option-cap':
-      return words(/^.+ takes at most (\d+) of (.+), has (\d+)$/, (max, wargear, has) => `takes at most ${max} ${joined(wargear, 'or')}, has ${has}`)
+      return words(
+        /^.+ takes at most (\d+) of (.+), has (\d+)$/,
+        (max, wargear, has) => `takes at most ${max} ${joined(wargear, 'or')}, has ${has}`,
+      )
     case 'option-unavailable':
       return words(/^(.+) needs one of (.+) from .+$/, (option, wargear) => `needs ${joined(wargear, 'or')} to take ${option}`)
     case 'option-group-count':
       return words(
         /^(.+) together take (at most|at least) (\d+), have (\d+)$/,
-        (options, bound, n, has) => `takes ${bound} ${n} from ${joined(options, 'and')} together, has ${has}`,
+        (options, side, n, has) => `takes ${side} ${n} from ${joined(options, 'and')} together, has ${has}`,
       )
     // IDs the unit's datasheet no longer holds, as a saved choice the builder can no longer offer.
     case 'missing-definition':
