@@ -85,6 +85,8 @@ export type UnitData = {
   compositions?: Record<string, Bounds>[]
   modelGroups?: (ModelCountBounds & { models: string[] })[]
   optionGroups?: OptionGroup[]
+  /** Each lists `uniform` options of different carriers that take one choice together, or none of them takes one. */
+  uniformOptions?: string[][]
   perRoster?: number
   limits?: Limit[]
   legends?: true

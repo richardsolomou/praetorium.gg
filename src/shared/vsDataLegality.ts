@@ -253,7 +253,12 @@ function unitWords(problem: VsProblem, named: (text: string) => string): string 
         (option, min, max, has) => `takes ${bound(min, max, has)} from ${option}, has ${has}`,
       )
     case 'option-uniform':
-      return words(/^(.+) is taken (\d+) times .*$/, (option, max) => `takes ${option} ${max} times with one choice, or not at all`)
+      return (
+        words(
+          /^(.+) take one choice together, or none of them takes one$/,
+          (options) => `takes the same choice for ${joined(options.split(', '), 'and')}, or none`,
+        ) ?? words(/^(.+) is taken (\d+) times .*$/, (option, max) => `takes ${option} ${max} times with one choice, or not at all`)
+      )
     case 'option-cap':
       return words(
         new RegExp(`^.+ takes at most (\\d+) of ${ids('wargear')}, has (\\d+)$`),

@@ -29,7 +29,12 @@ const data = vsRosterData(
         }),
         'engines.walker': record('Walker', { faction: 'engines', keywords: ['TITANIC'], sizes: [1] }),
         'other.fort': record('Fort', { faction: 'other', keywords: ['FORTIFICATION'], sizes: [1], legends: true }),
-        'host.squad': record('Squad', { faction: 'host', keywords: ['INFANTRY'], sizes: [5, 10] }),
+        'host.squad': record('Squad', {
+          faction: 'host',
+          keywords: ['INFANTRY'],
+          sizes: [5, 10],
+          uniformOptions: [['host.squad.trooper-carbines', 'host.squad.sergeant-carbine']],
+        }),
       },
       'roster-option': {
         'host.squad.guns': record('Trooper guns', {
@@ -48,6 +53,22 @@ const data = vsRosterData(
           choices: ['host.squad.pulsa', 'host.squad.melta'],
           caps: [{ choices: ['host.squad.pulsa', 'host.squad.melta'], max: 1 }],
         }),
+        'host.squad.trooper-carbines': record('Trooper carbines', {
+          unit: 'host.squad',
+          carrier: 'host.squad.trooper',
+          per: 'carrier',
+          uniform: true,
+          choose: { min: 0, max: 1 },
+          choices: ['host.squad.ember', 'host.squad.ash'],
+        }),
+        'host.squad.sergeant-carbine': record('Sergeant carbine', {
+          unit: 'host.squad',
+          carrier: 'host.squad.sergeant',
+          per: 'carrier',
+          uniform: true,
+          choose: { min: 0, max: 1 },
+          choices: ['host.squad.ember', 'host.squad.ash'],
+        }),
         'host.squad.scope': record('Scope', {
           unit: 'host.squad',
           choose: { min: 0, max: 1 },
@@ -59,6 +80,8 @@ const data = vsRosterData(
         'host.squad.plasma': record('Plasma gun', {}),
         'host.squad.melta': record('Meltagun', {}),
         'host.squad.sight': record('Sight', {}),
+        'host.squad.ember': record('Ember carbine', {}),
+        'host.squad.ash': record('Ash carbine', {}),
         'host.squad.pulsa': record('Pulsa Rokkit (Once per battle, per unit)', {}),
       },
       model: {
@@ -181,6 +204,18 @@ describe('vsDataErrors', () => {
       expect(errors([squad({ options: { 'host.squad.rokkits': { 'host.squad.pulsa': 1, 'host.squad.melta': 1 } } })])).toEqual([
         { entryId: 'bs-squad', entryName: 'Squad', message: 'takes at most 1 Pulsa Rokkit (Once per battle, per unit) or Meltagun, has 2' },
       ])
+    })
+
+    it('takes one choice across options its datasheet ties together', () => {
+      const options = { 'host.squad.trooper-carbines': { 'host.squad.ember': 4 }, 'host.squad.sergeant-carbine': { 'host.squad.ash': 1 } }
+      expect(errors([squad({ options })])).toEqual([
+        { entryId: 'bs-squad', entryName: 'Squad', message: 'takes the same choice for Trooper carbines and Sergeant carbine, or none' },
+      ])
+    })
+
+    it('lets tied options take the same choice', () => {
+      const options = { 'host.squad.trooper-carbines': { 'host.squad.ember': 4 }, 'host.squad.sergeant-carbine': { 'host.squad.ember': 1 } }
+      expect(errors([squad({ options })])).toEqual([])
     })
 
     it('is told which wargear an option needs', () => {

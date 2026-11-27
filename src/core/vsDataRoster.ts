@@ -321,6 +321,25 @@ export function checkVsUnit(definitions: VsDataDefinitions, picked: VsRosterUnit
           `${option.name} needs one of ${requirement.choices.map((w) => `wargear:${w}`).join(', ')} from roster-option:${requirement.option}`,
         )
   }
+  // Uniform options of several carriers take one choice together, leaving out one whose carriers are not fielded or
+  // took nothing but substitutes, as many as it allows (none where its maximum is 0).
+  for (const group of unit.data.uniformOptions ?? []) {
+    const members = group.flatMap((id) => options.filter((option) => option.id === id))
+    const chosen = members.flatMap((option) => {
+      const carriers = option.data.carrier ? (counts.get(option.data.carrier) ?? 0) : total
+      const substitutes = option.data.substitutes ?? []
+      const { max } = optionBounds(option.data, total, carriers)
+      if (!carriers || takenOf(option.id, substitutes) === max) return []
+      return [
+        Object.entries(picked.options?.[option.id] ?? {})
+          .filter(([wargear, n]) => n > 0 && !substitutes.includes(wargear))
+          .map(([wargear]) => wargear),
+      ]
+    })
+    const choices = new Set(chosen.flat())
+    if (choices.size > 1 || (choices.size === 1 && chosen.some((taken) => !taken.length)))
+      add('option-uniform', `${members.map((option) => option.name).join(', ')} take one choice together, or none of them takes one`)
+  }
   for (const group of unit.data.optionGroups ?? []) {
     const taken = group.options.reduce((sum, { option, choices, weight = 1 }) => sum + weight * takenOf(option, choices), 0)
     const carriers = group.carrier ? (counts.get(group.carrier) ?? 0) : total
