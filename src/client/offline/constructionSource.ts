@@ -32,18 +32,22 @@ export function buildConstruction(saved: OfflineConstructionSource) {
   const definitionFacts = saved.definitionFacts
     ? textFactsByKey(unpackRuntimeData<DownloadedTextFacts | ReadonlyMap<string, TextFacts>>(saved.definitionFacts))
     : undefined
-  const index = buildIndex(files, saved.revision, {
-    get: (key) => definitionFacts?.get(key) ?? datacards.textFacts?.get(key),
-  })
+  const vsProfiles = saved.vsProfiles ? unpackRuntimeData<NonNullable<LoadedCatalogue['vsProfiles']>>(saved.vsProfiles) : undefined
+  const index = {
+    ...buildIndex(files, saved.revision, {
+      get: (key) => definitionFacts?.get(key) ?? datacards.textFacts?.get(key),
+    }),
+    ...(vsProfiles?.attachments ? { attachments: vsProfiles.attachments } : {}),
+  }
+  const vsRoster = saved.vsRoster ? unpackRuntimeData<NonNullable<LoadedCatalogue['vsRoster']>>(saved.vsRoster) : undefined
   const catalogue = {
-    ...catalogueFromIndex(index, files, datacards),
+    ...catalogueFromIndex(index, files, datacards, vsRoster),
     ...(saved.keywords ? { keywords: saved.keywords } : {}),
     ...(saved.baseSizes ? { baseSizes: saved.baseSizes } : {}),
     datacardExcludedCatalogueIds: datacardExclusions(saved.datacardExcludedCatalogueIds, saved.edition),
     mfm: unpackRuntimeData<LoadedCatalogue['mfm']>(saved.mfm),
     ...(saved.vsPoints ? { vsPoints: unpackRuntimeData<NonNullable<LoadedCatalogue['vsPoints']>>(saved.vsPoints) } : {}),
-    ...(saved.vsRoster ? { vsRoster: unpackRuntimeData<NonNullable<LoadedCatalogue['vsRoster']>>(saved.vsRoster) } : {}),
-    ...(saved.vsProfiles ? { vsProfiles: unpackRuntimeData<NonNullable<LoadedCatalogue['vsProfiles']>>(saved.vsProfiles) } : {}),
+    ...(vsProfiles ? { vsProfiles } : {}),
     ...(saved.edition ? { edition: saved.edition } : {}),
   }
   return { revision: saved.revision, catalogue, rules: unpackRuntimeData<LoadedRules>(saved.rules) }

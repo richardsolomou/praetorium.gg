@@ -3,7 +3,7 @@ import { ROSTER_WIDE } from './builder.harness'
 import { encodeSimulatorState, type SimulatorState } from '../src/contracts/simulatorState'
 import {
   addUnit,
-  createRoster,
+  seededRoster,
   signUp,
   waitForRosterSave,
   expectNoHorizontalOverflow,
@@ -218,7 +218,7 @@ async function editor(page: Page, context: 'standalone' | 'roster', companion: b
     await choose(page, 'Attacker add attached unit', 'Overlord')
   } else {
     await signUp(page, `Odds ${companion ? 'companion' : 'primary'} ${width}`)
-    await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/ })
+    await seededRoster(page, { faction: 'Necrons', detachment: 'Awakened Dynasty' })
     for (const name of ['Necron Warriors', 'Immortals', 'Overlord']) await addUnit(page, name)
     if (width < ROSTER_WIDE) await page.getByRole('dialog', { name: 'Add units' }).getByRole('button', { name: 'Close' }).click()
     await page.locator('[data-unit="Overlord"]').getByRole('button', { name: 'Attach to unit: Overlord', exact: true }).click()

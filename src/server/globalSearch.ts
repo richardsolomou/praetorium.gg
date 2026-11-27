@@ -14,6 +14,7 @@ import { nameOf, targetOf } from '../core/catalogue'
 import { datasheetSearchFieldsIn } from '../shared/catalogue'
 import { datasheetSlug, datasheetsOf, isReferenceDatasheet, type LoadedCatalogue } from '../shared/catalogueIndex'
 import { isOfferedDatasheet } from '../shared/catalogueUnit'
+import { alliedSource } from '../shared/vsDataOffers'
 import { factionsFor } from '../shared/factionReferences'
 import { detachmentReference } from '../shared/detachmentReference'
 import { gameReferencesFor } from '../shared/gameReferences'
@@ -97,7 +98,7 @@ function globalSearchIndexFor(loaded: LoadedCatalogue, rules: LoadedRules | null
       const name = nameOf(entry, loaded.index.definitions)
       datasheets.push({
         targetId: targetOf(entry, loaded.index.definitions).id,
-        allied: Boolean(loaded.index.alliedDatasheets.get(faction.id)?.has(entryId)),
+        allied: Boolean(alliedSource(loaded, faction.id, entryId)),
         name,
         fields,
         result: {

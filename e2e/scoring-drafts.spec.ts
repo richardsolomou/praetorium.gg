@@ -1,14 +1,14 @@
 import { expect, test } from './test'
-import { advance, createRoster, desktopContext, PHONE, setupBattle, signUp, uniqueName } from './account'
+import { advance, seededRoster, desktopContext, PHONE, setupBattle, signUp, uniqueName } from './account'
 import { screenshot } from './screenshots'
 
 test('both phones press the same scoring prompt, and the presses survive leaving the battle', async ({ page, browser }) => {
   test.setTimeout(180_000)
   const opponent = await (await browser.newContext(desktopContext)).newPage()
   await signUp(opponent, uniqueName('Draft opponent'))
-  const theirs = await createRoster(opponent, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Watching army' })
+  const theirs = await seededRoster(opponent, { faction: 'Necrons', detachment: 'Awakened Dynasty', name: 'Watching army' })
   await signUp(page, uniqueName('Draft host'))
-  const ours = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Scoring army' })
+  const ours = await seededRoster(page, { faction: 'Necrons', detachment: 'Awakened Dynasty', name: 'Scoring army' })
   const battleUrl = await setupBattle(page, opponent, { hostRoster: ours, guestRoster: theirs })
   for (const phone of [page, opponent]) await phone.setViewportSize(PHONE)
   for (let phase = 0; phase < 5; phase += 1) await advance(page)

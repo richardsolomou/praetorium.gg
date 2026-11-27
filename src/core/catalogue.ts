@@ -2,6 +2,7 @@ import { countBy } from './collections'
 import { datasheetProfileKind } from './datasheetStructure'
 import { printedNumber } from './text'
 import type { TextFactsByKey } from './textFacts'
+import type { VsAttachment } from './attach'
 
 /** Model the BattleScribe fields used for pricing, legality, and attachments; display-only fields stay outside core. */
 
@@ -336,6 +337,8 @@ export type CatalogueIndex = {
   revision: string
   /** What the rules read from the texts the catalogue holds as tokens, which say nothing alone. */
   textFacts?: TextFactsByKey
+  /** Who each datasheet may join by VS Data's attachment records, by the entry IDs saved lists hold. */
+  attachments?: Readonly<Record<string, VsAttachment>>
 }
 
 /**

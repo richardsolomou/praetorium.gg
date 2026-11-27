@@ -29,6 +29,14 @@ describe('changing roster detachments', () => {
     ])
   })
 
+  it("clears a VS Data pick's Enhancement when a detachment is replaced", () => {
+    const vs = { models: { 'sm.captain.captain': 1 }, options: {}, enhancement: 'sm.gladius.artificer-armour' }
+    expect(picksAfterDetachmentChange([{ entryId: 'captain', vs }], [undefined], ['gladius'], ['firestorm'])[0]?.vs).toEqual({
+      models: vs.models,
+      options: {},
+    })
+  })
+
   it('keeps enhancements and upgrades when another detachment is added', () => {
     expect(picksAfterDetachmentChange(picks, units, ['awakened'], ['awakened', 'obeisance'])).toEqual(picks)
   })

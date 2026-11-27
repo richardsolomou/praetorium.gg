@@ -21,6 +21,7 @@ import { type FactionRestrictions, restrictedBy } from './datacards'
 import { datacardOf } from './datasheetJoin'
 import { factionContentOf } from './factionNames'
 import { rosterDetachments } from './rosterDetachments'
+import { alliedSource, vsDataOffer } from './vsDataOffers'
 import { isOfferedDatasheet, listPriceOf, rosterPrices, seedListPrice } from './catalogueUnit'
 import { completeSteps, type Steps, type Stepwise, stepwise } from './steps'
 
@@ -149,9 +150,10 @@ export function listedDatasheets(
 ) {
   const included = hasFactionCards(loaded, catalogueId, factionCards)
   const allied = loaded.index.alliedDatasheets.get(catalogueId)
+  const refused = vsDataOffer(loaded, catalogueId)?.refused
   return [...datasheetsOf(loaded.index, catalogueId)].flatMap((id) => {
     const entry = loaded.index.definitions.get(id)
-    if (!entry || !isOfferedDatasheet(loaded.index, entry, nonMatchedPlay)) return []
+    if (!entry || refused?.has(id) || !isOfferedDatasheet(loaded.index, entry, nonMatchedPlay)) return []
     const name = nameOf(entry, loaded.index.definitions)
     // No Game Datacards export prints Legends or Crucible cards, so the faction's cards cannot list them.
     if (included && !isNonMatchedPlayName(name) && !datacardOf(loaded, catalogueId, id)?.own) return []
@@ -249,7 +251,8 @@ function* listUnits(
     alliedFaction: string | null
     alliedOrder: number
   }[] = []
-  const allied = loaded.index.alliedDatasheets.get(catalogueId) ?? new Map<string, { name: string; order: number }>()
+  // Allied books keep the catalogue's order, and one only VS Data names an ally comes after them.
+  const orders = new Map([...(loaded.index.alliedDatasheets.get(catalogueId)?.values() ?? [])].map(({ name, order }) => [name, order]))
 
   for (const { id, entry, name } of listedDatasheets(loaded, catalogueId, { factionCards: included, nonMatchedPlay })) {
     if (detachments.chosen.length && detachmentsUnlocking(loaded, catalogueId, id, detachments.selections)) continue
@@ -258,14 +261,14 @@ function* listUnits(
     // Asked only where a restriction can act on the answer: folding the keywords a
     // datasheet carries costs a default build of it, and most books exclude nothing.
     if (restrictions && restrictedBy(restrictions, name, listed?.keywords ?? keywordsIn(loaded, catalogueId, id))) continue
-    const ally = allied.get(id)
+    const ally = alliedSource(loaded, catalogueId, id)
     found.push({
       id,
       name,
       group: listed?.group ?? groupOf(entry, target),
       keywords: listed?.keywords,
-      alliedFaction: ally?.name ?? null,
-      alliedOrder: ally?.order ?? -1,
+      alliedFaction: ally ?? null,
+      alliedOrder: ally ? (orders.get(ally) ?? Number.MAX_SAFE_INTEGER) : -1,
     })
     yield
   }

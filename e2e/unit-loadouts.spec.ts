@@ -1,5 +1,5 @@
 import { expect, test } from './test'
-import { addUnit, createRoster, desktopContext, signUp, uniqueName, waitForRosterSave } from './account'
+import { addUnit, seededRoster, desktopContext, signUp, uniqueName, waitForRosterSave } from './account'
 import { expectNoHorizontalOverflow, shot, closePicker } from './builder.harness'
 import { productOperator, userIdFor, lastPathSegment } from './storage'
 import { screenshot } from './screenshots'
@@ -15,7 +15,7 @@ test(`a saved loadout is renamed and added to another roster of its army without
   test.setTimeout(180_000)
   const page = await (await browser.newContext(desktopContext)).newPage()
   const account = await signUp(page, uniqueName('Loadout keeper'))
-  await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: uniqueName('Loadout source') })
+  await seededRoster(page, { faction: 'Necrons', detachment: 'Awakened Dynasty', name: uniqueName('Loadout source') })
   await addUnit(page, UNIT)
   await closePicker(page)
   await page.locator(`[data-unit="${UNIT}"]`).getByRole('button', { name: UNIT, exact: true }).click()
@@ -38,7 +38,7 @@ test(`a saved loadout is renamed and added to another roster of its army without
   await dialog.getByRole('button', { name: 'Save loadout' }).click()
   await expect(dialog).toBeHidden()
 
-  await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: uniqueName('Loadout destination') })
+  await seededRoster(page, { faction: 'Necrons', detachment: 'Awakened Dynasty', name: uniqueName('Loadout destination') })
   const operator = await productOperator()
   const destinationRoster = await operator.roster(lastPathSegment(page.url()))
   await operator.saveUnitLoadout(
@@ -94,7 +94,7 @@ test(`a saved loadout is renamed and added to another roster of its army without
   const destination = await operator.roster(lastPathSegment(page.url()))
   expect(destination?.picks).not.toContain(NOTE)
 
-  await createRoster(page, { faction: 'Orks', detachment: /War Horde/, name: uniqueName('Other army') })
+  await seededRoster(page, { faction: 'Orks', detachment: 'War Horde', name: uniqueName('Other army') })
   await expect(page.getByRole('button', { name: /^Add / }).first()).toBeVisible()
   await expect(page.locator('[data-saved-loadout]')).toHaveCount(0)
 })
@@ -103,7 +103,7 @@ test('an attached unit is saved and added to another roster already attached', a
   test.setTimeout(180_000)
   await page.setViewportSize({ width: 1440, height: 900 })
   await signUp(page, uniqueName('Attached unit keeper'))
-  await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: uniqueName('Attached source') })
+  await seededRoster(page, { faction: 'Necrons', detachment: 'Awakened Dynasty', name: uniqueName('Attached source') })
   await addUnit(page, UNIT)
   await addUnit(page, 'Overlord')
   await closePicker(page)
@@ -132,7 +132,7 @@ test('an attached unit is saved and added to another roster already attached', a
   await dialog.getByRole('button', { name: 'Save attached unit' }).click()
   await expect(dialog).toBeHidden()
 
-  await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: uniqueName('Attached destination') })
+  await seededRoster(page, { faction: 'Necrons', detachment: 'Awakened Dynasty', name: uniqueName('Attached destination') })
   const saved = page.locator(`[data-saved-loadout="${UNIT} + Overlord"]`)
   await expect(saved).toContainText(`${UNIT} · Overlord`)
   await expect(saved.locator('[data-points]')).toHaveText(/^\d+ pts$/)

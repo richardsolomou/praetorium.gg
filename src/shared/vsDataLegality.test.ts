@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { vsRosterData, vsDataErrors, vsDataWithoutDetachments, vsPickErrors, type CheckedUnit } from './vsDataLegality'
+import { vsDataChecks, vsRosterData, vsDataErrors, vsDataWithoutDetachments, vsPickErrors, type CheckedUnit } from './vsDataLegality'
 
 const record = (name: string, data: Record<string, unknown>) => ({ name, data: { formatVersion: 2, ...data } })
 const data = vsRosterData(
@@ -29,12 +29,14 @@ const data = vsRosterData(
         }),
         'engines.walker': record('Walker', { faction: 'engines', keywords: ['TITANIC'], sizes: [1] }),
         'other.fort': record('Fort', { faction: 'other', keywords: ['FORTIFICATION'], sizes: [1], legends: true }),
+        'titan.walker': record('Walker', { faction: 'titan', keywords: ['TITANIC'], sizes: [1] }),
         'host.squad': record('Squad', {
           faction: 'host',
           keywords: ['INFANTRY'],
           sizes: [5, 10],
           uniformOptions: [['host.squad.trooper-carbines', 'host.squad.sergeant-carbine']],
         }),
+        'other.agent': record('Agent', { faction: 'other', keywords: ['INFANTRY'], sizes: [1] }),
       },
       'roster-option': {
         'host.squad.guns': record('Trooper guns', {
@@ -106,8 +108,10 @@ const data = vsRosterData(
       'bs-mob': 'host.mob',
       'bs-lord': 'host.lord',
       'bs-fort': 'other.fort',
+      'bs-titan/bs-mob': 'titan.walker',
       'bs-walker': 'engines.walker',
       'bs-squad': 'host.squad',
+      'bs-agent': 'other.agent',
     },
     enhancements: {
       'host.guard/bs-crown': 'host.guard.crown',
@@ -116,7 +120,15 @@ const data = vsRosterData(
     },
   },
   null,
-  (id) => ({ 'bs-mob': 'Mob', 'bs-lord': 'Lord', 'bs-fort': 'Fort [Legends]', 'bs-walker': 'Walker', 'bs-squad': 'Squad' })[id],
+  (id) =>
+    ({
+      'bs-mob': 'Mob',
+      'bs-lord': 'Lord',
+      'bs-fort': 'Fort [Legends]',
+      'bs-walker': 'Walker',
+      'bs-squad': 'Squad',
+      'bs-agent': 'Agent [Crucible]',
+    })[id],
 )
 const unit = (over: Partial<CheckedUnit> & Pick<CheckedUnit, 'entryId'>): CheckedUnit => ({
   key: 0,
@@ -178,6 +190,20 @@ describe('vsDataErrors', () => {
 
   it('leaves a Legends datasheet VS Data files under a faction the army does not ally with to the catalogue', () => {
     expect(errors([unit({ entryId: 'bs-fort' })])).toEqual([])
+  })
+
+  it('leaves a Crucible datasheet VS Data files under a faction the army does not ally with to the catalogue', () => {
+    expect(errors([unit({ entryId: 'bs-agent', name: 'Agent [Crucible]' })])).toEqual([])
+  })
+
+  it('leaves a Titan VS Data files under a faction the army does not ally with to the catalogue', () => {
+    expect(errors([unit({ entryId: 'bs-walker' })])).toEqual([])
+  })
+
+  it('refuses a datasheet of a faction the army does not ally with', () => {
+    expect(errors([unit({ entryId: 'bs-agent', name: 'Agent' })])).toEqual([
+      { entryId: 'bs-agent', entryName: 'Agent', message: 'cannot be taken by this army' },
+    ])
   })
 
   it('leaves a list with another faction’s Detachment to the catalogue', () => {
@@ -267,6 +293,15 @@ describe('vsDataErrors', () => {
         ]),
       ).toEqual([{ entryId: 'bs-squad', entryName: 'Squad', message: 'takes at most 1 Plasma gun, has 2' }])
     })
+  })
+})
+
+describe('vsDataChecks', () => {
+  it('checks a datasheet as the unit its list’s book reads it as', () => {
+    expect([
+      vsDataChecks(data, 'bs-titan', { entryId: 'bs-mob', name: 'Mob' }),
+      vsDataChecks(data, 'bs-host', { entryId: 'bs-mob', name: 'Mob' }),
+    ]).toEqual(['titan.walker', 'host.mob'])
   })
 })
 

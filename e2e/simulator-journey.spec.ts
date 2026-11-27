@@ -1,7 +1,7 @@
 import { expect, test } from './test'
 import {
   addUnit,
-  createRoster,
+  seededRoster,
   retryUntilVisible,
   signIn,
   signUp,
@@ -104,7 +104,7 @@ test(
   { tag: '@catalogue' },
   async ({ page }) => {
     await signUp(page, uniqueName('Roster unit'))
-    await createRoster(page, { faction: 'Necrons', detachment: /Cursed Legion/, name: 'Ankh Court' })
+    await seededRoster(page, { faction: 'Necrons', detachment: 'Cursed Legion', name: 'Ankh Court' })
     await addUnit(page, 'Overlord')
     const lord = page.locator('[data-unit="Overlord"]')
     await lord.getByRole('button', { name: 'Overlord', exact: true }).click()

@@ -3,7 +3,8 @@ import type { Definition, UnitProfileData, VsDataDefinitions, WeaponProfileData 
 import { nonMatchedPlayKind } from '../core/name'
 import { modelsNamed, same, words } from './vsDataModelNames'
 import { SPELLINGS } from './wargearSpellings'
-import { idsIn } from './vsDataPoints'
+import { datasheetOf, idsIn, inBook } from './vsDataPoints'
+import type { VsLinksIndex } from './vsDataAttachments'
 
 /** A stat line's values as a datasheet prints them, by characteristic; a characteristic VS Data leaves out is absent. */
 export type VsStatValues = Partial<Record<DatasheetCharacteristicKind, string>>
@@ -14,9 +15,10 @@ type WeaponLine = { keys: string[]; melee: boolean; values: VsStatValues }
  * each unit's model names and stat lines, a weapon's under every name a datasheet may print it by.
  */
 export type VsProfilesIndex = {
-  units: Record<string, string>
+  /** Each datasheet's VS Data unit, keyed as `idsIn` keys units; a book key VS Data prints no lines for is null. */
+  units: Record<string, string | null>
   lines: Record<string, { models: string[]; unit: UnitLine[]; weapons: WeaponLine[] }>
-}
+} & Partial<VsLinksIndex>
 
 const UNIT_FIELDS = {
   movement: 'movement',
@@ -169,15 +171,18 @@ export function vsProfilesIndex(
       weapons: weaponLines,
     }
   }
-  const joined: Record<string, string> = {}
+  const joined: VsProfilesIndex['units'] = {}
   for (const [entryId, unit] of idsIn(units, edition)) {
     const definition = definitions.get('unit', unit)
-    const name = nameOf(entryId)
-    if (!definition || !name || definitions.unavailable.has(unit) || definition.data.legends || nonMatchedPlayKind(name)) continue
-    const found = lines[unit] ?? linesOf(unit)
-    if (!found.unit.length && !found.weapons.length) continue
-    joined[entryId] = unit
-    lines[unit] = found
+    const name = nameOf(datasheetOf(entryId))
+    const found =
+      definition && name && !definitions.unavailable.has(unit) && !definition.data.legends && !nonMatchedPlayKind(name)
+        ? (lines[unit] ?? linesOf(unit))
+        : undefined
+    if (found && (found.unit.length || found.weapons.length)) {
+      joined[entryId] = unit
+      lines[unit] = found
+    } else if (entryId.includes('/')) joined[entryId] = null
   }
   return { units: joined, lines }
 }
@@ -226,12 +231,13 @@ function candidateOf(
  */
 export function vsStatLinesOf(
   index: VsProfilesIndex | undefined,
+  catalogueId: string,
   entryId: string,
   datasheetName: string,
   profiles: readonly PrintedProfile[],
 ): (VsStatValues | null)[] {
-  const unit = index?.units[entryId]
-  const lines = unit ? index.lines[unit] : undefined
+  const unit = inBook(index?.units, catalogueId, entryId)
+  const lines = unit ? index?.lines[unit] : undefined
   if (!lines) return profiles.map(() => null)
   const claimed = new Set(
     profiles.flatMap((profile) =>

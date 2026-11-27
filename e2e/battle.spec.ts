@@ -7,7 +7,7 @@ import {
   confirmScoring,
   attachRoster,
   createBattle,
-  createRoster,
+  seededRoster,
   desktopContext,
   setupBattle,
   selectOrdinaryMissions,
@@ -29,7 +29,7 @@ import { screenshot } from './screenshots'
 
 test('Cleanse and Centre Ground prompt for scoring on the first turn', async ({ page }) => {
   await signUp(page, uniqueName('Standard secondaries'))
-  const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Standard scoring roster' })
+  const roster = await seededRoster(page, { faction: 'Necrons', detachment: 'Awakened Dynasty', name: 'Standard scoring roster' })
   await practiceBattle(page, roster)
   await startBattle(page, undefined, true, ['Cleanse', 'Centre Ground'])
 
@@ -160,7 +160,7 @@ test('Cleanse and Centre Ground prompt for scoring on the first turn', async ({ 
 
 test('a double tap on the turn control ends one phase', async ({ page }) => {
   await signUp(page, uniqueName('Double tap'))
-  const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Double tap roster' })
+  const roster = await seededRoster(page, { faction: 'Necrons', detachment: 'Awakened Dynasty', name: 'Double tap roster' })
   await practiceBattle(page, roster)
   await startBattle(page)
   // With the rules on the device, the next phase shows before the service answers and puts its button under the same finger.
@@ -198,7 +198,7 @@ test('a double tap on the turn control ends one phase', async ({ page }) => {
 
 test('native battle controls leave the application tabs reachable', async ({ page }) => {
   await signUp(page, uniqueName('Native controls'))
-  const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Native battle roster' })
+  const roster = await seededRoster(page, { faction: 'Necrons', detachment: 'Awakened Dynasty', name: 'Native battle roster' })
   await practiceBattle(page, roster)
   await startBattle(page)
   await page.setViewportSize(PHONE)
@@ -275,10 +275,10 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
   const bobName = uniqueName('Bob')
 
   await signUp(bob, bobName)
-  const bobRoster = await createRoster(bob, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Necrons' })
+  const bobRoster = await seededRoster(bob, { faction: 'Necrons', detachment: 'Awakened Dynasty', name: 'Necrons' })
   await signUp(alice, aliceName)
   await uploadAvatar(alice)
-  const aliceRoster = await createRoster(alice, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Death Guard' })
+  const aliceRoster = await seededRoster(alice, { faction: 'Death Guard', detachment: 'Shamblerot Vectorium', name: 'Death Guard' })
   await addUnit(alice, 'Lord of Virulence')
   await setupBattle(alice, bob, { hostRoster: aliceRoster, guestRoster: bobRoster })
 
@@ -632,9 +632,9 @@ test('a pass answered slowly leaves settling the empty turn to the device that g
   const bob = await (await browser.newContext(desktopContext)).newPage()
   const bobName = uniqueName('Bob')
   await signUp(bob, bobName)
-  const bobRoster = await createRoster(bob, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Necrons' })
+  const bobRoster = await seededRoster(bob, { faction: 'Necrons', detachment: 'Awakened Dynasty', name: 'Necrons' })
   await signUp(alice, uniqueName('Alice'))
-  const aliceRoster = await createRoster(alice, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Necrons' })
+  const aliceRoster = await seededRoster(alice, { faction: 'Necrons', detachment: 'Awakened Dynasty', name: 'Necrons' })
   await setupBattle(alice, bob, { hostRoster: aliceRoster, guestRoster: bobRoster })
   const token = lastPathSegment(alice.url())
   const { id } = await battleLog(alice)
@@ -644,6 +644,8 @@ test('a pass answered slowly leaves settling the empty turn to the device that g
   await alice.locator(`a[href$="${token}"]`).first().click()
   await expect(alice.getByRole('button', { name: 'End the command phase' })).toBeVisible()
   for (let phase = 0; phase < 5; phase += 1) await advance(alice)
+  // Each advance shows ahead of the service while its command queues, so the hold below would catch a phase end, not the pass.
+  await expect(bob.getByRole('heading', { name: 'end phase' })).toBeVisible()
 
   // As on a slow phone: Alice's pass lands but its answer is late, so her device queues
   // settling Bob's empty turn behind it. Bob's device settles first, and Alice's realtime
