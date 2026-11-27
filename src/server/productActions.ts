@@ -5,6 +5,7 @@ import { offlineActionSchemas as schemas, type OfflineActionKind } from '../cont
 import { onboardingAnswer } from '../contracts/onboarding'
 import { app } from './app'
 import { rosterForUse, fieldedSealedList } from './rosterUsage'
+import { servedRoster } from './savedPicks'
 import { captureMutation, captureBattleCreated, captureSealedEventCreated, captureSealedEventBattleCreated } from './mutationTelemetry'
 import { requireUserId } from './playerSession'
 import { mutationRpc } from './rpc'
@@ -26,11 +27,13 @@ const submitRosterSchema = schemas.submitSealedEventRoster.partial({ capturedRos
 
 export async function submitSealedEventRoster(owner: string, data: z.output<typeof submitRosterSchema>) {
   const { saved, snapshot } = await rosterForUse(owner, data.rosterId, { lent: true, sealing: true })
+  // The device read the list with its frozen translations, if it was served any; the seal itself keeps the saved list.
+  const stored = [saved, servedRoster(saved)].map((roster) => sealedContent(rosterContentSchema.parse(roster)))
   if (
     data.capturedRoster !== undefined &&
     (![data.capturedRoster, currentRosterIds(data.capturedRoster)].some(
       // A capture is either the device's resolved copy, or older input the server's copy has since been resolved from.
-      (captured) => sealedContent(captured) === sealedContent(rosterContentSchema.parse(saved)),
+      (captured) => stored.includes(sealedContent(captured)),
     ) ||
       (await app().catalogueFor(saved.catalogueId))?.index.revision !== data.catalogueRevision)
   )

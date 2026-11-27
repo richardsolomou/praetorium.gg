@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { RosterPick, VsPick } from './roster'
-import { appendSavedPicks, savedPickKey, withVsPicks } from './savedPicks'
+import { appendSavedPicks, savedPickKey, translatesSavedAt, withVsPicks } from './savedPicks'
 
 const context = { rulesVersion: 'mfm-1-6', catalogueId: 'book', detachmentIds: ['gladius'] }
 const pick: RosterPick = { entryId: 'intercessors', models: 10, choices: { 'squad/sergeant': 'plasma-pistol' } }
@@ -65,5 +65,19 @@ describe('appendSavedPicks', () => {
 
   it('refuses anything beside a pick’s content key and its VS Data IDs', () => {
     expect(() => appendSavedPicks(null, { '0123456789abcdef': { ...vs, list: 'r-1' } as VsPick })).toThrow()
+  })
+})
+
+describe('translatesSavedAt', () => {
+  it('lends a record saved before the copy its translations', () => {
+    expect(translatesSavedAt('2026-11-20T00:00:00Z', '2026-11-19T23:59:59Z')).toBe(true)
+  })
+
+  it('keeps them from a record saved after the copy', () => {
+    expect(translatesSavedAt('2026-11-20T00:00:00Z', '2026-11-20T00:00:01Z')).toBe(false)
+  })
+
+  it('keeps them from every record while the copy’s time is unknown', () => {
+    expect(translatesSavedAt(null, 0)).toBe(false)
   })
 })

@@ -21,6 +21,13 @@ export const savedPicksPinSchema = z.strictObject({
 })
 
 /**
+ * Whether a record saved (or last changed) at `savedAt` may take the translations of a copy taken at `copiedAt`. A record
+ * saved later never does, so saving a guessed pick can't reveal whether some private list held it.
+ */
+export const translatesSavedAt = (copiedAt: string | null, savedAt: Date | string | number) =>
+  copiedAt !== null && new Date(savedAt).getTime() <= new Date(copiedAt).getTime()
+
+/**
  * The published translations with `found` added, as the bytes to publish: every key published keeps its translation,
  * and a run that would change one stops, so a key never changes meaning once published.
  */
