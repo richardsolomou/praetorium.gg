@@ -3,15 +3,13 @@ import { expect, it } from 'vitest'
 import { currentPick, currentDetachmentId, currentRosterIds } from '../src/core/retiredCatalogueIds'
 import { catalogueEditionLoaders } from '../src/server/catalogueEditions'
 import { calculateRosterPrice, savedRosterPriceInput } from '../src/shared/pricing'
-import { loadCatalogue } from '../src/server/catalogueIndex'
-import type { LoadedCatalogue } from '../src/shared/catalogueIndex'
+import { sharedSnapshot } from './lib/catalogueSnapshotLoad'
 import { buildUnit } from '../src/core/roster'
 import { unavailableRosterSelections } from '../src/core/rosterSelections'
 import type { RosterPick } from '../src/core/roster'
 
 const directory = process.env.CATALOGUE_DIR ?? 'catalogue-data'
-let loadedCatalogue: LoadedCatalogue | undefined
-const catalogue = () => (loadedCatalogue ??= loadCatalogue(directory)!)
+const catalogue = () => sharedSnapshot(directory).catalogue
 const picks: RosterPick[] = [
   { entryId: '3c0a-10a9-8f84-26a3', choices: { 'd0cd-b8dc-82e-5eb8/34be-35f8-9966-c99f/fe9c-f9ed-2182-bd33': '3372-7d35-b60e-24a9' } },
   {

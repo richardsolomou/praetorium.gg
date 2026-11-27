@@ -39,6 +39,7 @@ export type VsProblemCode =
   | 'option-unavailable'
   | 'option-group-count'
   | 'enhancement-detachment'
+  | 'enhancement-exclusive'
   | 'enhancement-keywords'
   | 'enhancement-repeated'
   | 'roster-limit'
@@ -320,6 +321,25 @@ export function checkVsUnit(definitions: VsDataDefinitions, picked: VsRosterUnit
           `${option.name} needs one of ${requirement.choices.map((w) => `wargear:${w}`).join(', ')} from roster-option:${requirement.option}`,
         )
   }
+  // Uniform options of several carriers take one choice together, leaving out one whose carriers are not fielded or
+  // took nothing but substitutes, as many as it allows (none where its maximum is 0).
+  for (const group of unit.data.uniformOptions ?? []) {
+    const members = group.flatMap((id) => options.filter((option) => option.id === id))
+    const chosen = members.flatMap((option) => {
+      const carriers = option.data.carrier ? (counts.get(option.data.carrier) ?? 0) : total
+      const substitutes = option.data.substitutes ?? []
+      const { max } = optionBounds(option.data, total, carriers)
+      if (!carriers || takenOf(option.id, substitutes) === max) return []
+      return [
+        Object.entries(picked.options?.[option.id] ?? {})
+          .filter(([wargear, n]) => n > 0 && !substitutes.includes(wargear))
+          .map(([wargear]) => wargear),
+      ]
+    })
+    const choices = new Set(chosen.flat())
+    if (choices.size > 1 || (choices.size === 1 && chosen.some((taken) => !taken.length)))
+      add('option-uniform', `${members.map((option) => option.name).join(', ')} take one choice together, or none of them takes one`)
+  }
   for (const group of unit.data.optionGroups ?? []) {
     const taken = group.options.reduce((sum, { option, choices, weight = 1 }) => sum + weight * takenOf(option, choices), 0)
     const carriers = group.carrier ? (counts.get(group.carrier) ?? 0) : total
@@ -441,8 +461,9 @@ export function checkVsRoster(definitions: VsDataDefinitions, roster: VsRoster, 
       const fielded = picked.size !== undefined && !picked.models ? true : (modelCounts(definitions, picked).get(warlord) ?? 0) > 0
       const held = [...keywords, ...(models.find((model) => model.id === warlord)?.data.keywords ?? [])]
       const character = held.some((keyword) => keyword.toUpperCase() === 'CHARACTER')
+      const barred = models.find((model) => model.id === warlord)?.data.warlord === false
       if (inUnit && !fielded) add('warlord-ineligible', `model:${warlord} is not fielded in ${unit.name}`)
-      else if (inUnit && !granted.has(warlord) && (!character || offered.length > 0 || !own.has(unit.data.faction)))
+      else if (inUnit && !granted.has(warlord) && (barred || !character || offered.length > 0 || !own.has(unit.data.faction)))
         add('warlord-ineligible', `${unit.name} cannot hold the warlord`)
       for (const required of requiredWarlords)
         if (inUnit && !required.models.includes(warlord))
@@ -468,6 +489,11 @@ export function checkVsRoster(definitions: VsDataDefinitions, roster: VsRoster, 
       const enhancement = definitions.get('enhancement', picked.enhancement)!
       if (!detachmentIds.includes(enhancement.data.detachment))
         add('enhancement-detachment', `${enhancement.name} belongs to another detachment`)
+      for (const keeper of detachments) {
+        const kept = keeper.data.exclusiveEnhancements?.keywords
+        if (kept && keeper.id !== enhancement.data.detachment && holdsAll(keywords, kept))
+          add('enhancement-exclusive', `${unit.name} takes only ${keeper.name} enhancements`)
+      }
       if (entry >= 0 && !allies[entry]!.enhancements) add('ally-enhancement', `${unit.name} cannot take enhancements`)
       if (!enhancementAdmits(definitions, enhancement, picked, keywords))
         add('enhancement-keywords', `${unit.name} cannot take ${enhancement.name}`)
@@ -475,13 +501,11 @@ export function checkVsRoster(definitions: VsDataDefinitions, roster: VsRoster, 
         add('enhancement-keywords', `${enhancement.name} cannot be taken by the warlord`)
       const taken = (enhancementCounts.get(enhancement.id) ?? 0) + 1
       enhancementCounts.set(enhancement.id, taken)
-      const most = enhancement.data.perRoster ?? (enhancement.data.type === 'upgrade' ? Infinity : 1)
-      if (taken === most + 1) add('enhancement-repeated', `${enhancement.name} is already taken`)
-      if (
-        enhancement.data.type !== 'upgrade' &&
-        !enhancement.data.outsideLimit &&
-        ++enhancementCount === (size?.enhancements ?? Infinity) + 1
-      )
+      // Each Enhancement here is its rule facts' block, whose `perRoster` is absent for one copy, an Upgrade's included;
+      // only a first copy counts towards the battle size's limit.
+      const most = enhancement.data.perRoster ?? 1
+      if (taken > most) add('enhancement-repeated', `${enhancement.name} is taken at most ${most === 1 ? 'once' : `${most} times`}`)
+      if (!enhancement.data.outsideLimit && taken === 1 && ++enhancementCount === (size?.enhancements ?? Infinity) + 1)
         add('enhancement-limit', `a roster takes at most ${size!.enhancements} enhancements`)
     }
   })

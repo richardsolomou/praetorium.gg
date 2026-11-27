@@ -3,9 +3,10 @@ import path from 'node:path'
 import { beforeAll, describe, expect, it } from 'vitest'
 import { nameOf } from '../src/core/catalogue'
 import type { LoadedCatalogue } from '../src/shared/catalogueIndex'
+import { detachmentOptionsOf } from '../src/shared/factionReferences'
 import { calculateRosterPrice } from '../src/shared/pricing'
 import type { LoadedRules } from '../src/shared/rules'
-import { loadSnapshot } from './lib/catalogueSnapshotLoad'
+import { sharedSnapshot } from './lib/catalogueSnapshotLoad'
 
 const directory = process.env.CATALOGUE_DIR ?? 'catalogue-data'
 
@@ -13,7 +14,7 @@ describe.skipIf(!fs.existsSync(path.join(directory, 'definitions')))('a Titan ar
   let loaded: LoadedCatalogue
   let rules: LoadedRules | null
   beforeAll(() => {
-    ;({ catalogue: loaded, rules } = loadSnapshot(directory))
+    ;({ catalogue: loaded, rules } = sharedSnapshot(directory))
   })
   const priced = (book: string, datasheet: string) => {
     const catalogueId = loaded.factions.find((faction) => faction.name === book)!.id
@@ -26,6 +27,11 @@ describe.skipIf(!fs.existsSync(path.join(directory, 'definitions')))('a Titan ar
       rules,
     )!
   }
+
+  it('offers no Detachment, not even an allied one', () => {
+    const catalogueId = loaded.factions.find((faction) => faction.name === 'Imperium - Adeptus Titanicus')!.id
+    expect(detachmentOptionsOf(loaded, catalogueId)).toEqual([])
+  })
 
   it('plays Take and Hold', () => {
     expect(priced('Imperium - Adeptus Titanicus', 'Warhound Titan').disposition).toBe('take-and-hold')

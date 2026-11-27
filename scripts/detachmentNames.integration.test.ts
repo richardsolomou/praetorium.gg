@@ -1,7 +1,6 @@
 import fs from 'node:fs'
-import path from 'node:path'
 import { beforeAll, describe, expect, it } from 'vitest'
-import { loadSnapshotWithRules } from './lib/catalogueSnapshotLoad'
+import { sharedSnapshot } from './lib/catalogueSnapshotLoad'
 import { rosterTelemetryProperties } from '../src/shared/rosterTelemetry'
 import { constructionDetachment } from '../src/shared/datacards'
 import { detachmentReference } from '../src/shared/detachmentReference'
@@ -11,9 +10,9 @@ import { routeSlug } from '../src/core/slug'
 
 const directory = process.env.CATALOGUE_DIR ?? 'catalogue-data'
 describe.skipIf(!fs.existsSync(directory))('Genestealer Cults detachment source identities', () => {
-  let source: ReturnType<typeof loadSnapshotWithRules>
+  let source: ReturnType<typeof sharedSnapshot>
   beforeAll(() => {
-    source = loadSnapshotWithRules(path.resolve(directory))
+    source = sharedSnapshot(directory)
   }, 30_000)
 
   const cults = () => source.catalogue.factions.find((faction) => routeSlug(faction.name) === 'genestealer-cults')!

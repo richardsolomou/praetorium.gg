@@ -12,8 +12,9 @@ export function SupportAside() {
       <section aria-labelledby="how-feedback-works" className="space-y-2">
         <SectionHeading id="how-feedback-works" title="How feedback works" />
         <p>
-          Send feedback from any page, through the account menu or the More tab. It sends us that page, your device and this version of
-          Praetorium with your message, and you can attach a screenshot.
+          Send feedback from any page with Send feedback at the foot of the navigation, or the speech bubble at the top on a phone. A page
+          that fails to load has Report this too. It sends us that page, your device and this version of Praetorium with your message, and
+          you can attach a screenshot.
         </p>
         <p>
           Our replies appear under Your conversations on the Support page, where you can answer them. Signed in, they follow you to every

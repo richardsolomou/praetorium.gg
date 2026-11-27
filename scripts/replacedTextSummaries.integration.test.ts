@@ -7,7 +7,7 @@ import { textFileId, textHomesSteps, textSourceFiles } from '../src/server/sourc
 import { summariesOfFile, type VsDataSummaries, vsDataSummariesSteps } from '../src/server/vsDataSummaries'
 import { summaryNamedBy, tokensAtHome } from '../src/shared/ruleSummaries'
 import { completeSteps } from '../src/shared/steps'
-import { loadSnapshotWithRules } from './lib/catalogueSnapshotLoad'
+import { sharedSnapshot } from './lib/catalogueSnapshotLoad'
 
 const directory = process.env.CATALOGUE_DIR ?? 'catalogue-data'
 
@@ -23,7 +23,7 @@ describe.skipIf(!fs.existsSync(directory))('a rule kept from before a data updat
   beforeAll(() => {
     const composition = readCatalogueComposition(directory)
     files = textSourceFiles(directory, composition)
-    summaries = completeSteps(vsDataSummariesSteps(directory, loadSnapshotWithRules(directory).rules.ruleDocuments))!
+    summaries = completeSteps(vsDataSummariesSteps(directory, sharedSnapshot(directory).rules.ruleDocuments))!
     homeOf = completeSteps(textHomesSteps(directory, composition))
   }, 180_000)
 

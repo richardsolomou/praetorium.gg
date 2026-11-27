@@ -41,13 +41,27 @@ export type RuleSummaryParts = {
   effect: RuleSummaryBlock[]
   restrictions?: RuleSummaryBlock[]
 }
-/** One VS Data summary: original wording, shown for reading only. */
-export type RuleSummary = {
-  blocks: RuleSummaryBlock[]
-  /** A Stratagem's summary written in its parts, each apart; `blocks` holds them all, each opening with its label. */
-  parts?: RuleSummaryParts
+/** One VS Data summary: original wording, shown for reading only, in blocks or, for a Stratagem's, in its parts. */
+export type RuleSummary = ({ blocks: RuleSummaryBlock[]; parts?: undefined } | { parts: RuleSummaryParts; blocks?: undefined }) & {
   /** Points the official text leaves open, which the summary reads one way. */
   questions: string[]
+}
+
+/**
+ * A summary's blocks; a Stratagem's are its parts as VS Data joins them, each opening with its bold label. A summary saved
+ * before parts stood alone holds both, and its parts are its blocks.
+ */
+export function ruleSummaryBlocks(summary: RuleSummary): RuleSummaryBlock[] {
+  const { parts } = summary
+  if (!parts) return summary.blocks
+  return Object.entries(STRATAGEM_PARTS).flatMap(([part, label]) => {
+    const [first, ...rest] = parts[part as keyof RuleSummaryParts] ?? []
+    if (!first) return []
+    const labelled = [{ text: `${label}:`, bold: true as const }, { text: ' ' }]
+    return 'paragraph' in first
+      ? [{ paragraph: [...labelled, ...first.paragraph] }, ...rest]
+      : [{ paragraph: labelled.slice(0, 1) }, first, ...rest]
+  })
 }
 /**
  * The summaries for the rules one source file prints: `texts` names the records printing each string, by

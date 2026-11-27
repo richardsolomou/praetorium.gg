@@ -671,6 +671,20 @@ describe('putting a weapon down on a model card', () => {
     )
   })
 
+  it('takes nothing from another option a VS Data unit carries on the same models', () => {
+    const cannon = { ...choice([option('culverin', 3, 3)], 3, true), key: 'cannon', ownSlot: true as const }
+    const blaster = { ...choice([option('cognis', 0, 3)], 3, true), key: 'blaster', ownSlot: true as const }
+    const model = card(
+      [
+        { name: 'culverin', choiceKey: 'cannon', optionId: 'culverin' },
+        { name: 'cognis', choiceKey: 'blaster', optionId: 'cognis' },
+      ],
+      [{ id: 'destroyer', choiceKey: null, baseCount: 3 }],
+    )
+    const weapons = [weapon('culverin', 'Ranged Weapons'), weapon('cognis', 'Ranged Weapons')]
+    expect(poolHandlers(model, [cannon, blaster], weapons).spend(model.rows[1]!)).toEqual([['blaster', { cognis: 1 }]])
+  })
+
   it('leaves the squad an ordinary model where the group holds nothing but specialists', () => {
     const group = choice([option('meltagun', 1, 2), option('plasma', 1, 2), option('belcher', 0, 2)], 2, true)
     const model = card([rowFor('meltagun'), rowFor('plasma'), rowFor('belcher')])

@@ -5,7 +5,7 @@ import { reduceBattle } from '../src/core/battle'
 import { ALICE, builtRoster, log, PLAYERS } from '../src/core/battle.fixtures'
 import { buildUnit } from '../src/core/roster'
 import type { LoadedCatalogue } from '../src/shared/catalogueIndex'
-import { loadSnapshot } from './lib/catalogueSnapshotLoad'
+import { sharedSnapshot } from './lib/catalogueSnapshotLoad'
 
 const directory = process.env.CATALOGUE_DIR ?? 'catalogue-data'
 
@@ -14,7 +14,7 @@ describe.skipIf(!fs.existsSync(path.join(directory, 'definitions')))('default lo
   let loaded: LoadedCatalogue
 
   beforeAll(() => {
-    ;({ catalogue: loaded } = loadSnapshot(directory))
+    ;({ catalogue: loaded } = sharedSnapshot(directory))
   })
 
   /** What a new unit holds in a group, or with `floor`, what a unit saved before the printed default won holds. */

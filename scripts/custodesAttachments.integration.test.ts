@@ -6,9 +6,8 @@ import { beforeAll, describe, expect, it } from 'vitest'
 import { attachmentErrors, attachmentOf } from '../src/core/attach'
 import { nameOf } from '../src/core/catalogue'
 import { battleSizeSelection, rosterLimit } from '../src/core/evaluate'
-import { loadCatalogue } from '../src/server/catalogueIndex'
+import { sharedSnapshot } from './lib/catalogueSnapshotLoad'
 import { type LoadedCatalogue } from '../src/shared/catalogueIndex'
-import { loadRules } from '../src/server/rules'
 import { routeSlug } from '../src/core/slug'
 import { datasheetIn } from '../src/shared/catalogue'
 import { isMatchedPlayDatasheet } from '../src/shared/catalogueUnit'
@@ -44,7 +43,7 @@ describe.skipIf(!fs.existsSync(source))('Custodes codex', () => {
       .find((entry) => nameOf(entry, loaded.index.definitions) === name)!
 
   beforeAll(() => {
-    loaded = loadCatalogue(source)!
+    loaded = sharedSnapshot(source).catalogue
   })
 
   it.each([
@@ -205,8 +204,8 @@ describe.skipIf(!fs.existsSync(source))('Custodes codex', () => {
     ['Honoured Interred', 'Might of the Moritoi', 'either', ['shooting', 'fight']],
     ['Gilded Champion', 'Auric Champions', 'either', undefined],
   ])('offers %s from %s in battle with its typed timing', (name, detachment, turn, phases) => {
-    const card = loadRules(source, { catalogue: loaded })
-      ?.byDetachment.get('adeptus-custodes')
+    const card = sharedSnapshot(source)
+      .rules.byDetachment.get('adeptus-custodes')
       ?.get(routeSlug(detachment))
       ?.find((stratagem) => stratagem.name === name)
     expect(card && { turn: card.turn, phases: card.phases }).toEqual({ turn, phases })

@@ -5,7 +5,7 @@ import { buildUnit } from '../src/core/roster'
 import type { LoadedCatalogue } from '../src/shared/catalogueIndex'
 import { calculateRosterPrice } from '../src/shared/pricing'
 import type { LoadedRules } from '../src/shared/rules'
-import { loadSnapshot } from './lib/catalogueSnapshotLoad'
+import { sharedSnapshot } from './lib/catalogueSnapshotLoad'
 
 const directory = process.env.CATALOGUE_DIR ?? 'catalogue-data'
 
@@ -15,7 +15,7 @@ describe.skipIf(!fs.existsSync(path.join(directory, 'definitions')))('model line
   let rules: LoadedRules | null
 
   beforeAll(() => {
-    ;({ catalogue: loaded, rules } = loadSnapshot(directory))
+    ;({ catalogue: loaded, rules } = sharedSnapshot(directory))
   })
 
   /** The lines a unit of this datasheet is fielded with, holding one of the named option where given. */
