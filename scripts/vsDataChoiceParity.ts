@@ -67,7 +67,7 @@ const keywordsOf = (unit: Priced | undefined) => (unit?.keywords ?? []).map(same
 /** Differences where VS Data follows the app, which leave a datasheet VS-native. */
 const LISTED_SIZES = 'sizes the field manual lists'
 const SPELLINGS = 'Enhancement spellings'
-const ACCEPTED = new Set([LISTED_SIZES, SPELLINGS])
+const accepted = (check: string) => check === LISTED_SIZES || check === SPELLINGS || check.endsWith(' (ruled for VS Data)')
 
 /** How many single-letter edits turn one name into the other. */
 function distance(one: string, other: string) {
@@ -81,11 +81,41 @@ function distance(one: string, other: string) {
   return row[other.length]!
 }
 
+/**
+ * Differences settled against the rules version's app build, where VS Data's reading stands: a check, the datasheets by
+ * name (any book's), and the detail each difference states. Add a row only for a ruling the VS Data gaps work recorded.
+ */
+const RULED: { check: string; units: RegExp; detail: RegExp; why: string }[] = [
+  {
+    check: 'warlord',
+    units: /^(Company Heroes|Rein and Raus)$/,
+    detail: /VS Data offers it/,
+    why: 'neither the app nor the Legends sheet bars it from the Warlord role',
+  },
+  {
+    check: 'warlord',
+    units: /.*/,
+    detail: /BSData offers it, VS Data withholds it/,
+    why: 'the core Select Warlord step takes a unit of the army faction, and the app flags Harlequins and ties the Ynnari to Yvraine or the Yncarne',
+  },
+  {
+    check: 'enhancements',
+    units: /.*/,
+    detail:
+      /^(Gladius Task Force: only BSData standardoftheemperorascendant|Shadow Legion: only BSData [a-z, ]+|Pactbound Zealots: only BSData talismanofburningblood only VS Data eyeoftzeentch|Cabal of Chaos: only BSData [a-z, ]+|[A-Za-z ’'-]+: only VS Data (murderforgedentity|furiousassault|leonineferocity, lightningdescent|reconstar|deepeningmadness|immovableconquerors|gunneryhonours, redoubtablemachinespirit|artificersarcophagus, venerablechampion))$/,
+    why: 'VS Data follows the app: the Standard needs ANCIENT, Shadow Legion admits no Daemon Prince, Pactbound psykers bear no Khorne mark, Cabal of Chaos follows the allegiance taken, and these Detachment upgrades take non-Characters',
+  },
+]
+const RULED_SUFFIX = ' (ruled for VS Data)'
+
 const differences = new Map<string, Map<string, string[]>>()
-/** Each check's differences, by VS Data unit ID. */
+/** Each check's differences, by VS Data unit ID; one a ruling settles is filed apart. */
 const differ = (check: string, unit: string, detail: string) => {
-  const byUnit = differences.get(check) ?? new Map<string, string[]>()
-  differences.set(check, byUnit)
+  const name = definitions.get('unit', unit)?.name ?? unit
+  const ruled = RULED.some((row) => row.check === check && row.units.test(name) && row.detail.test(detail))
+  const filed = ruled ? `${check}${RULED_SUFFIX}` : check
+  const byUnit = differences.get(filed) ?? new Map<string, string[]>()
+  differences.set(filed, byUnit)
   byUnit.set(unit, [...(byUnit.get(unit) ?? []), detail])
 }
 const checked = new Map<string, number>()
@@ -330,7 +360,7 @@ for (const [check, total] of [...checked].filter(([name]) => name !== 'models'))
   const found = differences.get(check)?.size ?? 0
   console.log(`${check}: ${total - found} of ${total} agree`)
 }
-const differing = new Set([...differences].flatMap(([check, byUnit]) => (ACCEPTED.has(check) ? [] : [...byUnit.keys()])))
+const differing = new Set([...differences].flatMap(([check, byUnit]) => (accepted(check) ? [] : [...byUnit.keys()])))
 console.log(`${units - differing.size} of ${units} agree on every check, or differ only where VS Data follows the app`)
 console.log(`${checked.get('models') ?? 0} datasheets divide their size between freely counted models`)
 for (const [check, byUnit] of differences) {
