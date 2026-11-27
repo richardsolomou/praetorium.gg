@@ -2,7 +2,7 @@ import { type VsDataConstruction, type VsDataDefinitions, vsDataDefinitions } fr
 import { checkVsRoster, type VsProblem, type VsRosterUnit } from '../core/vsDataRoster'
 import { hasWarlordToggle, type UnitChoice, type UnitToggle } from '../core/unitChoices'
 import { remember } from '../core/collections'
-import { nonMatchedPlayKind } from '../core/name'
+import { isNonMatchedPlayName } from '../core/name'
 import { idsIn, type VsDataIds } from './vsDataPoints'
 
 /**
@@ -67,22 +67,13 @@ export function vsDataErrors(
   list: { catalogueId: string; detachmentIds: readonly string[]; limit: number },
   units: readonly CheckedUnit[],
 ): VsDataError[] | null {
-  if (!data) return null
-  const definitions = remember(definitionsOf, data, () => vsDataDefinitions(data.construction))
-  const faction = data.books[list.catalogueId.slice(list.catalogueId.indexOf('~') + 1)]
-  if (!faction) return null
-  const without = definitions.get('faction', faction)?.data.withoutDetachments
+  const placed = vsDataBook(data, list.catalogueId)
+  if (!data || !placed) return null
+  const { definitions, faction, own, without } = placed
   // A faction that takes no Detachment, as a Titan army does, refuses any it holds, VS Data's or not.
   const detachments = list.detachmentIds.map((id) => data.detachments[id] ?? (without ? `unknown:${id}` : undefined))
-  const own = new Set([faction, definitions.get('faction', faction)?.data.parent])
-  // A list VS Data cannot place stays with the catalogue's checks: one of a faction with neither Detachments of its own
-  // nor `withoutDetachments`, or with a Detachment VS Data does not file under its faction. Any other list needs one.
-  const ownsDetachments = definitions.all('detachment').some((detachment) => own.has(detachment.data.faction))
-  // Nor can it place one of a faction none of whose datasheets reads as its own, as Titanicus Traitoris's read as the
-  // Imperial Titans they share BSData IDs with.
-  if (!readsAsOwn(data, definitions, own)) return null
-  if (!without && (!ownsDetachments || detachments.some((id) => !id || !own.has(definitions.get('detachment', id)?.data.faction))))
-    return null
+  // A list with a Detachment VS Data does not file under its faction stays with the catalogue's checks.
+  if (!without && detachments.some((id) => !id || !own.has(definitions.get('detachment', id)?.data.faction))) return null
   const battleSize = definitions.all('battle-size').find((size) => size.data.points === list.limit)?.id
   const taken = new Set<string>()
   const checked = units.flatMap((unit): { unit: CheckedUnit; read: VsRosterUnit; offersAllegiance: boolean }[] => {
@@ -150,15 +141,31 @@ export function vsDataErrors(
   )
 }
 
-const ownedFactions = new WeakMap<VsRosterData, Set<string>>()
-const readsAsOwn = (data: VsRosterData, definitions: VsDataDefinitions, own: ReadonlySet<string | undefined>) => {
-  const factions = remember(
+/**
+ * The VS Data faction a book's lists are checked as, with the factions whose units and Detachments are its own, and its
+ * `withoutDetachments`; null where VS Data cannot place its lists, which leaves them to the catalogue's checks. That is a
+ * book with no VS Data faction, one with neither Detachments of its own nor `withoutDetachments`, and one none of whose
+ * datasheets reads as its own, as Titanicus Traitoris's read as the Imperial Titans they share BSData IDs with.
+ */
+export function vsDataBook(data: VsRosterData | undefined, catalogueId: string) {
+  if (!data) return null
+  const definitions = remember(definitionsOf, data, () => vsDataDefinitions(data.construction))
+  const faction = data.books[catalogueId.slice(catalogueId.indexOf('~') + 1)]
+  const record = faction ? definitions.get('faction', faction)?.data : undefined
+  if (!faction || !record) return null
+  const own: ReadonlySet<string | undefined> = new Set([faction, record.parent])
+  const without = record.withoutDetachments
+  const owned = remember(
     ownedFactions,
     data,
     () => new Set(Object.values(data.units).flatMap((id) => definitions.get('unit', id)?.data.faction ?? [])),
   )
-  return [...own].some((faction) => faction !== undefined && factions.has(faction))
+  if (![...own].some((candidate) => candidate !== undefined && owned.has(candidate))) return null
+  if (!without && !definitions.all('detachment').some((detachment) => own.has(detachment.data.faction))) return null
+  return { definitions, faction, record, own, without }
 }
+
+const ownedFactions = new WeakMap<VsRosterData, Set<string>>()
 
 /** Names compared by their letters and digits alone, without the "upgrade" BSData adds to some (Character upgrade). */
 const same = (name: string) =>
@@ -358,8 +365,10 @@ export function vsDataEnhancementOptions(data: VsRosterData | undefined, detachm
 
 /**
  * The VS Data unit a list's datasheet is checked as, or undefined where the catalogue checks it: a datasheet VS Data
- * defines no unit for, or a Warhammer Legends one it files under a faction the army neither is nor allies with, as it
- * does a fortification or an Aeldari Legends hero, until VS Data offers it there.
+ * defines no unit for, or one it files under a faction the army neither is nor allies with where that may only mean VS
+ * Data cannot name it there. That is a Warhammer Legends or Crucible datasheet, which the app's ally lists cannot name,
+ * as a fortification, an Aeldari Legends hero or a Crucible Deathwatch Agent; and a Titan, as the Chaos Titans a chaos
+ * army allies with share their BSData IDs with the Imperial Titans VS Data reads them as.
  */
 export function vsDataChecks(
   data: VsRosterData | undefined,
@@ -370,12 +379,14 @@ export function vsDataChecks(
   if (!data || !id) return undefined
   const definitions = remember(definitionsOf, data, () => vsDataDefinitions(data.construction))
   const filed = definitions.get('unit', id)?.data
+  if (!filed) return id
   const faction = data.books[catalogueId.slice(catalogueId.indexOf('~') + 1)]
   const army = faction ? definitions.get('faction', faction)?.data : undefined
   const own = new Set([faction, army?.parent])
-  const legends = Boolean(filed?.legends) || nonMatchedPlayKind(unit.name) === 'legends'
-  const offered = own.has(filed?.faction) || (army?.allies ?? []).some((ally) => ally.units.includes(id))
-  return filed && legends && !offered ? undefined : id
+  const unnamed =
+    filed.legends || isNonMatchedPlayName(unit.name) || Boolean(definitions.get('faction', filed.faction)?.data.withoutDetachments)
+  const offered = own.has(filed.faction) || (army?.allies ?? []).some((ally) => ally.units.includes(id))
+  return unnamed && !offered ? undefined : id
 }
 
 /** The force dispositions of a list whose faction takes no Detachment, by their slugs; null for any other faction. */

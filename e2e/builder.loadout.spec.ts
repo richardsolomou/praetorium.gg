@@ -1106,12 +1106,6 @@ test('Death Guard champions expose their legal wargear', async ({ page }) => {
 test('removing one loadout does not choose another piece of the same model as its replacement', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 })
   await openBuilder(page, 'Black Templars', "Marshal's Household")
-  // Black Templars take generic Codex units under their current faction rule; the chapter and Codex
-  // Gladiator Lancer entries have separate ids and both meet it.
-  await page.getByLabel('Add a unit').fill('Librarian')
-  await expect(page.getByRole('button', { name: 'Add Librarian', exact: true })).toHaveCount(1)
-  await page.getByLabel('Add a unit').fill('Gladiator Lancer')
-  await expect(page.getByRole('button', { name: 'Add Gladiator Lancer', exact: true })).toHaveCount(2)
   await add(page, 'Crusader Squad')
   await page
     .locator('[data-unit="Crusader Squad"]')

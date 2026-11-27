@@ -114,8 +114,9 @@ export function* loadCatalogueSteps(
   cardFacts = cards.textFacts
   const datacards = withoutAbsentDetachmentRules(publishedDatacards(cards, texts.token), absentDetachmentRuleFor(directory, edition?.id))
   const release = compactReleaseIn(directory, edition?.id)
+  const vsRoster = vsRosterDefinitionsIn(directory, index, edition?.id) ?? undefined
   const ownTexts: LoadedCatalogue = {
-    ...catalogueFromIndex(index, selected, datacards),
+    ...catalogueFromIndex(index, selected, datacards, vsRoster),
     definitions: texts,
     keywords: Object.values(release?.keywords ?? {}),
     ...(release?.units ? { baseSizes: baseSizesByEntry({ units: release.units, entries: release.entries }) } : {}),
@@ -167,12 +168,10 @@ export function* loadCatalogueSteps(
   }
   yield
   const vsPoints = vsPointsIn(directory, loaded.index, edition?.id)
-  const vsRoster = vsRosterDefinitionsIn(directory, loaded.index, edition?.id)
   return {
     ...loaded,
     mfm: yield* loadMfmSteps(directory),
     ...(vsPoints ? { vsPoints } : {}),
-    ...(vsRoster ? { vsRoster } : {}),
     ...(vsProfiles ? { vsProfiles } : {}),
   }
 }

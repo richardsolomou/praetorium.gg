@@ -39,14 +39,14 @@ export function buildConstruction(saved: OfflineConstructionSource) {
     }),
     ...(vsProfiles?.attachments ? { attachments: vsProfiles.attachments } : {}),
   }
+  const vsRoster = saved.vsRoster ? unpackRuntimeData<NonNullable<LoadedCatalogue['vsRoster']>>(saved.vsRoster) : undefined
   const catalogue = {
-    ...catalogueFromIndex(index, files, datacards),
+    ...catalogueFromIndex(index, files, datacards, vsRoster),
     ...(saved.keywords ? { keywords: saved.keywords } : {}),
     ...(saved.baseSizes ? { baseSizes: saved.baseSizes } : {}),
     datacardExcludedCatalogueIds: datacardExclusions(saved.datacardExcludedCatalogueIds, saved.edition),
     mfm: unpackRuntimeData<LoadedCatalogue['mfm']>(saved.mfm),
     ...(saved.vsPoints ? { vsPoints: unpackRuntimeData<NonNullable<LoadedCatalogue['vsPoints']>>(saved.vsPoints) } : {}),
-    ...(saved.vsRoster ? { vsRoster: unpackRuntimeData<NonNullable<LoadedCatalogue['vsRoster']>>(saved.vsRoster) } : {}),
     ...(vsProfiles ? { vsProfiles } : {}),
     ...(saved.edition ? { edition: saved.edition } : {}),
   }

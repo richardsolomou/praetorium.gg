@@ -3,9 +3,9 @@ import path from 'node:path'
 import { beforeAll, describe, expect, it } from 'vitest'
 import { nameOf } from '../src/core/catalogue'
 import type { LoadedCatalogue } from '../src/shared/catalogueIndex'
-import { detachmentOptionsOf } from '../src/shared/factionReferences'
 import { calculateRosterPrice } from '../src/shared/pricing'
 import type { LoadedRules } from '../src/shared/rules'
+import { offeredDetachments } from '../src/shared/vsDataOffers'
 import { sharedSnapshot } from './lib/catalogueSnapshotLoad'
 
 const directory = process.env.CATALOGUE_DIR ?? 'catalogue-data'
@@ -30,7 +30,7 @@ describe.skipIf(!fs.existsSync(path.join(directory, 'definitions')))('a Titan ar
 
   it('offers no Detachment, not even an allied one', () => {
     const catalogueId = loaded.factions.find((faction) => faction.name === 'Imperium - Adeptus Titanicus')!.id
-    expect(detachmentOptionsOf(loaded, catalogueId)).toEqual([])
+    expect(offeredDetachments(loaded, catalogueId)).toEqual([])
   })
 
   it('plays Take and Hold', () => {
