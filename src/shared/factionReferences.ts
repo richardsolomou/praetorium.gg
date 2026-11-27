@@ -1,5 +1,6 @@
 import { vsDataWithoutDetachments } from './vsDataLegality'
 import { battleSizesOf } from './vsDataBuild'
+import type { BattleSize } from '../core/battleFormat'
 import { offeredDetachments } from './vsDataOffers'
 import { canonicalDetachmentName } from '../core/detachmentName'
 import { datacardsFactionKeys } from './datacards'
@@ -103,6 +104,7 @@ function factionSummary(loaded: LoadedCatalogue, rules: LoadedRules | null | und
   const datasheets = listedDatasheets(loaded, faction.id, { factionCards: true, nonMatchedPlay: true }).filter(({ id }) =>
     isReferenceDatasheet(loaded, faction.id, id),
   ).length
+  const battleSizes: readonly BattleSize[] = battleSizesOf(loaded)
   return {
     summary: {
       id: faction.id,
@@ -111,6 +113,7 @@ function factionSummary(loaded: LoadedCatalogue, rules: LoadedRules | null | und
       ...(version ? { rulesName: `MFM ${version}`, rulesSlug: `mfm-${routeSlug(version)}` } : {}),
       baseCatalogueId: catalogueEditionId(faction.id) ? faction.id.split('~')[1]! : faction.id,
       isDefault: loaded.edition ? loaded.edition.default : true,
+      ...(battleSizes.length ? { battleSizes } : {}),
       name: faction.name,
       displayName,
       icon: rules?.factionIcons?.has(slugId)
@@ -200,7 +203,6 @@ function buildFactions(loaded: LoadedCatalogue, rules: LoadedRules | null | unde
             ...(rules?.supplementalArmyRules?.get(rulesId) ?? []),
           ],
           referenceDetachmentIds: referenceDetachments.map((detachment) => detachment.id),
-          battleSizes: battleSizesOf(loaded),
           ...(without
             ? { withoutDetachments: { dispositions: without.map((id) => ({ id, name: rules?.dispositions?.get(id) ?? id })) } }
             : {}),
