@@ -5,6 +5,7 @@ import { vsDataConstructionSchema } from '../src/core/vsDataConstruction'
 import { readCatalogueComposition } from '../src/server/catalogueComposition'
 import { loadSnapshot } from './lib/catalogueSnapshotLoad'
 import { unitSummaries } from '../src/shared/cataloguePicker'
+import { inBook } from '../src/shared/vsDataPoints'
 import { rosterParity } from './lib/vsDataRosterParity'
 
 /**
@@ -98,13 +99,19 @@ for (const book of catalogue.factions) {
   totals.books++
   const offered = unitSummaries(catalogue, book.id, { factionCards: true, nonMatchedPlay: true }).get()
   const vs = admitted(faction)
-  const mapped = new Map(offered.flatMap((unit) => (units[unit.id] ? [[units[unit.id]!, unit] as const] : [])))
+  const unitOf = (id: string) => inBook(units, book.id, id)
+  const mapped = new Map(
+    offered.flatMap((unit) => {
+      const id = unitOf(unit.id)
+      return id ? [[id, unit] as const] : []
+    }),
+  )
   const row = {
     faction,
     onlyBsdata: [...mapped.keys()].filter((id) => !vs.has(id)).toSorted(),
     onlyVsData: [...vs].filter((id) => !mapped.has(id)).toSorted(),
     unmapped: offered
-      .filter((unit) => !units[unit.id])
+      .filter((unit) => !unitOf(unit.id))
       .map((unit) => unit.name)
       .toSorted(),
     prices: [] as string[],

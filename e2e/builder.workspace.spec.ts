@@ -3,7 +3,7 @@ import { expectWorkSynced } from './storage'
 import { NATIVE_SHELL_SCRIPT } from './native.harness'
 import {
   confirmRosterSetup,
-  createRoster,
+  seededRoster,
   signUp,
   waitForRosterSave,
   expectNoPageOverflow,
@@ -107,7 +107,7 @@ test('the roster workspace reserves the desktop picker while its book loads', as
 
 test('an edit made just before leaving the roster still saves', async ({ page }) => {
   await signUp(page, 'Hasty Builder')
-  await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Before leaving' })
+  await seededRoster(page, { faction: 'Necrons', detachment: 'Awakened Dynasty', name: 'Before leaving' })
   const saved = page.context().waitForEvent('response', (response) => Boolean(response.request().postData()?.includes('After leaving')))
   await page.getByLabel('List name').fill('After leaving')
   // A script click leaves inside the autosave's settle pause, which a pointer click cannot promise.
@@ -166,7 +166,7 @@ test('the roster header fits its facts on a desktop, fades whichever end it hide
 test('a unit screen keeps the tab bar beside it on the mobile web and in the native app', async ({ browser }) => {
   const context = await browser.newContext({ viewport: { width: 364, height: 759 } })
   const page = await context.newPage()
-  await openBuilder(page, 'Space Marines', /Gladius Task Force/)
+  await openBuilder(page, 'Space Marines', 'Gladius Task Force')
   await addUnit(page, 'Intercessor Squad')
   await page.getByRole('dialog', { name: 'Add units' }).getByRole('button', { name: 'Close' }).click()
   const unit = page.locator('[data-unit="Intercessor Squad"]').getByRole('button', { name: 'Intercessor Squad', exact: true })
@@ -528,7 +528,7 @@ test('favourite detachments and datasheets rise to the top without joining the c
   await page.goto('/factions/necrons')
   await expect(page.getByRole('link', { name: /^(Cursed Legion|Awakened Dynasty)/ }).first()).toHaveAccessibleName(/^Cursed Legion/)
 
-  await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/ })
+  await seededRoster(page, { faction: 'Necrons', detachment: 'Awakened Dynasty' })
   await page.getByLabel('Add a unit').fill('')
   const pickerRows = page.getByRole('button', { name: /^Add (Immortals|Necron Warriors)$/ })
   const favouritesFilter = page.getByRole('button', { name: 'Favourites', exact: true })

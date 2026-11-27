@@ -1,7 +1,7 @@
 import { downloadOfflineAppAtOnce, waitForOfflineApp } from './offline'
 import { expect, test, type Locator, type Page } from './test'
 import {
-  createRoster,
+  seededRoster,
   retryUntilVisible,
   savedArmy,
   signInAsPreview,
@@ -181,7 +181,7 @@ test('adds, counts and removes a datasheet from its reference page, and favourit
 
 test('suggests datasheets fielded in a battle until they are added', async ({ page }) => {
   await signUp(page, uniqueName('Fielded collection'))
-  const roster = await createRoster(page, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Fielded Guard' })
+  const roster = await seededRoster(page, { faction: 'Death Guard', detachment: 'Shamblerot Vectorium', name: 'Fielded Guard' })
   await addUnit(page, 'Plague Marines')
   await practiceBattle(page, roster)
   await page.goto('/collection')
@@ -392,7 +392,7 @@ test('players add photos from datasheet pages and rosters, which show shared pho
   const shared = gallery.getByRole('button', { name: `Overlord from ${sharer}’s collection`, exact: true })
   await loaded(shared.locator('img'))
 
-  await createRoster(builder, { faction: 'Necrons', detachment: /Awakened Dynasty/ })
+  await seededRoster(builder, { faction: 'Necrons', detachment: 'Awakened Dynasty' })
   await waitForRosterSave(builder, () => builder.getByRole('button', { name: 'Add Overlord', exact: true }).first().click())
   await builder.locator('[data-unit="Overlord"]').getByRole('button', { name: 'Overlord', exact: true }).click()
   const photo = builder.locator('aside[aria-label="Loadout"] [data-unit-photo]')
@@ -636,7 +636,7 @@ test('a saved roster shows shortages its units share and adds them to the wishli
   await setOwned(page, 'Necron Warriors', '15')
   await setCount(progress(page, 'Necron Warriors', 'built'), '15')
   await expectWorkSynced(page)
-  await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Readiness' })
+  await seededRoster(page, { faction: 'Necrons', detachment: 'Awakened Dynasty', name: 'Readiness' })
   for (let copy = 0; copy < 2; copy++) {
     await addUnit(page, 'Necron Warriors')
   }
@@ -703,7 +703,7 @@ test('models that can also be another datasheet fill it in a roster and show as 
   const exported = await exportCsv(page)
   expect(exported).toMatch(/Necrons,Necron Warriors,[^,]+,20,0,0,0,[^,\r\n]+/)
 
-  await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Can also be' })
+  await seededRoster(page, { faction: 'Necrons', detachment: 'Awakened Dynasty', name: 'Can also be' })
   await page.getByRole('button', { name: 'Owned', exact: true }).click()
   await addUnit(page, 'Immortals')
   const panel = page.locator('[data-roster-readiness]')

@@ -5,7 +5,7 @@ import {
   chooseRosterAction,
   chooseRosterDefault,
   createBattle,
-  createRoster,
+  seededRoster,
   followLink,
   retryUntilVisible,
   signUp,
@@ -40,7 +40,7 @@ test('a friend fields a lent roster, the battle keeps it after the loan ends, an
 
   await signUp(owner, ownerName)
   await chooseRosterDefault(owner, 'Private')
-  const rosterName = await createRoster(owner, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Lent army' })
+  const rosterName = await seededRoster(owner, { faction: 'Necrons', detachment: 'Awakened Dynasty', name: 'Lent army' })
   const rosterUrl = owner.url()
   await signUp(borrower, borrowerName)
   await befriend(owner, borrower)

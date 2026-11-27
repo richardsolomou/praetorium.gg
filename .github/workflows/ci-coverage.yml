@@ -153,7 +153,13 @@ jobs:
           jq -s 'add' head-0.json head-1.json > head.json
           accepted=()
           if [[ "$(git rev-parse -q --verify "$BASE_SHA:catalogue" || true)" != "$(git rev-parse "$HEAD_SHA:catalogue")" ]]; then
-            accepted=(--accept catalogue/accepted-coverage-losses.json)
+            # Lines the base already lists were accepted by an earlier change, so this one neither fails on them nor accepts them
+            # again; to re-accept such a line after it was restored, remove it from the list on main first.
+            list=catalogue/accepted-coverage-losses.json
+            withdrawn="$(mktemp)"
+            jq --argjson base "$(git show "$BASE_SHA:$list" 2>/dev/null || echo '[]')" \
+              '[$base[].entries[]] as $before | map(.entries -= $before) | map(select(.entries | length > 0))' "$list" > "$withdrawn"
+            accepted=(--accept "$withdrawn")
           fi
           pnpm catalogue:coverage:compare base.json head.json "${accepted[@]}" | tee coverage.txt
       - name: Require no lost coverage

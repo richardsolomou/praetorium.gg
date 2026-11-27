@@ -2,7 +2,7 @@ import { deflateSync } from 'node:zlib'
 import { expect, type Page, test } from './test'
 import {
   chooseRosterAction,
-  createRoster,
+  seededRoster,
   desktopContext,
   signUp,
   waitForRosterSave,
@@ -34,7 +34,7 @@ async function handMadeCode(payload: unknown, version = 1) {
 test('an exchange code carries a roster to another account and to a visitor', async ({ browser }) => {
   const sender = await (await browser.newContext({ ...desktopContext, permissions: ['clipboard-read', 'clipboard-write'] })).newPage()
   await signUp(sender, 'Exchange sender')
-  const name = await createRoster(sender, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Exchange army' })
+  const name = await seededRoster(sender, { faction: 'Necrons', detachment: 'Awakened Dynasty', name: 'Exchange army' })
   await add(sender, 'Immortals')
   await add(sender, 'Overlord')
   await attach(sender, 'Overlord', 'Immortals')

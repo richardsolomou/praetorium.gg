@@ -121,7 +121,12 @@ const vsPick = (unit: VsRosterUnit): VsPick => ({ models: unit.models ?? {}, opt
 
 let datasheets = 0
 for (const [entryId, entry] of Object.entries(map).slice(0, values.limit ? Number(values.limit) : undefined)) {
-  const unitId = vsUnitIdOf(loaded, entryId)
+  // A book key's unit is read in that book's lists, never the list of the unit's own faction this builds.
+  if (entryId.includes('/')) {
+    count('skipped: book key')
+    continue
+  }
+  const unitId = vsUnitIdOf(loaded, '', entryId)
   if (values.only && unitId !== values.only) continue
   if (!unitId || unitId !== entry.unit || entry.base === 'unmatched') {
     count('skipped: not exact')

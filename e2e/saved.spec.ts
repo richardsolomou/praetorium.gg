@@ -6,6 +6,7 @@ import {
   attachRoster,
   createBattle,
   createRoster,
+  seededRoster,
   retryUntilVisible,
   signUp,
   uniqueName,
@@ -24,7 +25,7 @@ import { screenshot } from './screenshots'
 
 test('the roster library reserves its rows while the first page loads', async ({ browser, page: savedPage }) => {
   await signUp(savedPage, 'Loading')
-  const rosterName = await createRoster(savedPage, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Loading roster' })
+  const rosterName = await seededRoster(savedPage, { faction: 'Necrons', detachment: 'Awakened Dynasty', name: 'Loading roster' })
 
   const firstFrameContext = await browser.newContext({ javaScriptEnabled: false, storageState: await savedPage.context().storageState() })
   const firstFrame = await firstFrameContext.newPage()
@@ -86,7 +87,7 @@ test('the roster library counts every saved list and prices more rows on demand'
   await page.goto('/rosters')
   const count = page.locator('main section').last().locator('.rubric .readout')
   await expect(count).toHaveText('0')
-  await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'First roster' })
+  await seededRoster(page, { faction: 'Necrons', detachment: 'Awakened Dynasty', name: 'First roster' })
   const rosterId = lastPathSegment(page.url())
   await page.goto('/rosters')
   await expect(count).toHaveText('1')
@@ -175,8 +176,8 @@ test('automatic roster names are saved with edits and a player can override or r
 
 test('a search from the top level finds a roster in its folder and keeps it there', async ({ page }) => {
   await signUp(page, 'Folders')
-  await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Dynasty 2k' })
-  await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Another list' })
+  await seededRoster(page, { faction: 'Necrons', detachment: 'Awakened Dynasty', name: 'Dynasty 2k' })
+  await seededRoster(page, { faction: 'Necrons', detachment: 'Awakened Dynasty', name: 'Another list' })
 
   await page.goto('/rosters')
   await chooseLibraryAction(page, 'Dynasty 2k', 'Move to folder…')
@@ -199,11 +200,11 @@ test('a search from the top level finds a roster in its folder and keeps it ther
 
 test('a roster variant is numbered and grouped under its base without renaming', async ({ browser, page }) => {
   await signUp(page, 'Variant roster')
-  await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Dynasty 2k' })
+  await seededRoster(page, { faction: 'Necrons', detachment: 'Awakened Dynasty', name: 'Dynasty 2k' })
   await waitForRosterSave(page, async () => {
     await add(page, 'Immortals')
   })
-  await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Another list' })
+  await seededRoster(page, { faction: 'Necrons', detachment: 'Awakened Dynasty', name: 'Another list' })
 
   await page.goto('/rosters')
   await chooseLibraryAction(page, 'Dynasty 2k', 'Create variant')
@@ -319,7 +320,7 @@ test('a roster variant is numbered and grouped under its base without renaming',
 
 test('a battle’s roster chooser tells a variant apart from its base', async ({ page }) => {
   await signUp(page, 'Variant chooser')
-  await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Dynasty 2k' })
+  await seededRoster(page, { faction: 'Necrons', detachment: 'Awakened Dynasty', name: 'Dynasty 2k' })
   await waitForRosterSave(page, async () => {
     await add(page, 'Immortals')
   })
@@ -359,7 +360,7 @@ test('a battle’s roster chooser tells a variant apart from its base', async ({
 
 test('a connected legacy shell roster follows other tabs without replacing an unsaved edit', async ({ page }) => {
   await signUp(page, 'Live roster')
-  await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Live roster' })
+  await seededRoster(page, { faction: 'Necrons', detachment: 'Awakened Dynasty', name: 'Live roster' })
 
   const viewer = await page.context().newPage()
   await viewer.addInitScript(() => {
@@ -410,7 +411,7 @@ test('a connected legacy shell roster follows other tabs without replacing an un
 
 test('the roster library reprices a saved list edited in another tab', async ({ page }) => {
   await signUp(page, 'Live library')
-  const rosterName = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Live library roster' })
+  const rosterName = await seededRoster(page, { faction: 'Necrons', detachment: 'Awakened Dynasty', name: 'Live library roster' })
   const viewer = await page.context().newPage()
   await viewer.goto('/rosters')
   const row = viewer.locator(`[data-roster="${rosterName}"]`)
@@ -426,7 +427,7 @@ test('the roster library reprices a saved list edited in another tab', async ({ 
 
 test('a roster saved on the root ID of a current book opens its builder from the first frame', async ({ browser, page }) => {
   await signUp(page, 'Root book')
-  await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Root book roster' })
+  await seededRoster(page, { faction: 'Necrons', detachment: 'Awakened Dynasty', name: 'Root book roster' })
   const id = lastPathSegment(page.url())
   const [stored] = await productSql<{ catalogue_id: string }>`SELECT catalogue_id FROM rosters WHERE id = ${id}`
   await productSql`UPDATE rosters SET catalogue_id = ${stored.catalogue_id.split('~').at(-1)!} WHERE id = ${id}`
@@ -471,7 +472,7 @@ test('a saved list is reopened, duplicated, shared and published', async ({ brow
 
   await signUp(page, 'Alice')
 
-  await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/ })
+  await seededRoster(page, { faction: 'Necrons', detachment: 'Awakened Dynasty' })
   await add(page, 'Immortals')
   await add(page, 'Overlord')
   await page.locator('[data-unit="Overlord"]').getByRole('button', { name: 'Attach to unit: Overlord' }).click()

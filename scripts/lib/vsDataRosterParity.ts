@@ -7,7 +7,8 @@ import { catalogueEditionLoaders } from '../../src/server/catalogueEditions'
 import type { LoadedCatalogue } from '../../src/shared/catalogueIndex'
 import type { LoadedRules } from '../../src/shared/rules'
 import { calculateRosterPrice, savedRosterPriceInput } from '../../src/shared/pricing'
-import { fieldedRosterIds } from '../../src/core/retiredCatalogueIds'
+import { flooredPicks } from '../../src/core/printedDefaults'
+import { currentRosterIds, fieldedRosterIds } from '../../src/core/retiredCatalogueIds'
 import type { RosterPick } from '../../src/core/roster'
 import type { FormatRuleId } from '../../src/core/battle'
 import { deployedRosterIds, productionRosterSnapshotSchema } from './productionRosters'
@@ -57,11 +58,13 @@ export async function savedLists(file: string): Promise<SavedList[]> {
   }
   const lists: SavedList[] = []
   const fielded = (kind: 'battle' | 'sealed', id: string, built: Record<string, unknown>, at: number) => {
+    const picks = (built.picks as RosterPick[] | undefined) ?? []
     const read = fieldedRosterIds(
       {
         catalogueId: built.catalogueId as string,
         detachmentIds: (built.detachmentIds as string[] | undefined) ?? [],
-        picks: (built.picks as RosterPick[] | undefined) ?? [],
+        // A battle folds a list fielded before choices started on their printed default with the cheapest of each.
+        picks: kind === 'battle' && !built.printedDefaults ? flooredPicks(picks) : picks,
       },
       at,
     )
@@ -92,6 +95,7 @@ export async function savedLists(file: string): Promise<SavedList[]> {
           waivedRules: JSON.parse((row.waivedRules as string | null) ?? '[]') as FormatRuleId[],
           optionalRules: JSON.parse((row.optionalRules as string | null) ?? '[]') as never[],
           borrowedDetachmentId: null,
+          printedDefaults: row.printedDefaults === true,
           baseRosterId: null,
           source: 'praetorium' as const,
           createdAt: Number(row.createdAt),
@@ -111,6 +115,27 @@ export async function savedLists(file: string): Promise<SavedList[]> {
     }
   }
   return lists
+}
+
+/** A saved unit loadout as a pick list: its own unit first, then the units joined with it. */
+export type SavedLoadout = { id: string; catalogueId: string; picks: RosterPick[] }
+
+/** Every saved unit loadout in a local production copy, read against current IDs as a roster saved then would be. */
+export async function savedLoadouts(file: string): Promise<SavedLoadout[]> {
+  if (!file.endsWith('.gz')) return []
+  const loadouts: SavedLoadout[] = []
+  const lines = createInterface({ input: fs.createReadStream(file).pipe(createGunzip()), crlfDelay: Infinity })
+  for await (const line of lines) {
+    if (!line) continue
+    const entry = JSON.parse(line) as { product?: string; rows?: Record<string, unknown>[] }
+    if (entry.product !== 'unitLoadouts') continue
+    for (const row of entry.rows ?? []) {
+      const picks = [JSON.parse(row.pick as string) as RosterPick, ...(JSON.parse((row.joined as string | null) ?? '[]') as RosterPick[])]
+      const read = currentRosterIds({ catalogueId: row.catalogueId as string, detachmentIds: [], picks, updatedAt: Number(row.createdAt) })
+      loadouts.push({ id: row.id as string, catalogueId: read.catalogueId, picks: [...read.picks] })
+    }
+  }
+  return loadouts
 }
 
 /**

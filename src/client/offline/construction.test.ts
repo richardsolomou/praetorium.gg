@@ -8,6 +8,7 @@ import { battleRules, constructionRead, loadLocalRules, localConstruction } from
 import { buildConstruction } from './constructionSource'
 import { datacardOf } from '../../shared/datasheetJoin'
 import { datasheetIn } from '../../shared/catalogue'
+import { attachmentErrors } from '../../core/attach'
 import { shareRuntimeData } from '../../contracts/sharedRuntimeData'
 import type { RuntimeData } from '../../contracts/runtimeData'
 import type { TerrainLayout } from '../../contracts/terrain'
@@ -330,4 +331,15 @@ it('prints the stat lines VS Data gives the datasheet, as the server does', () =
   }
   const { catalogue } = buildConstruction({ ...saved, vsProfiles: packRuntimeData(vsProfiles) })
   expect(datasheetIn(catalogue, 'cat', 'unit')?.profiles[0]?.values).toEqual([{ name: 'T', value: '5' }])
+})
+
+it('lets a unit join the hosts VS Data gives it, as the server does', () => {
+  const saved = source(80)
+  saved.files[1]!.catalogue!.selectionEntries = [
+    { id: 'lord', name: 'Lord', type: 'model' },
+    { id: 'squad', name: 'Squad', type: 'unit' },
+  ]
+  const vsProfiles = { units: {}, lines: {}, attachments: { lord: { kind: 'leader', targets: ['Squad'], named: ['Squad'] } } }
+  const { catalogue } = buildConstruction({ ...saved, vsProfiles: packRuntimeData(vsProfiles) })
+  expect(attachmentErrors([{ entryId: 'lord', attachedTo: 1 }, { entryId: 'squad' }], catalogue.index)).toEqual([])
 })

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { type Passenger, transportLoad, transportRule } from './transport'
+import { type Passenger, transportLoad, transportRule, vsTransport } from './transport'
 
 const RHINO =
   'This model has a **transport capacity** of 12 **Adeptus Astartes Infantry** models. It cannot transport **Gravis/Jump Pack/Terminator** models.'
@@ -233,5 +233,51 @@ describe('transport loads', () => {
 
   it('counts a passenger frozen without keywords one space per model', () => {
     expect(used(loadIn(RHINO, [{ name: 'Terminator Squad', alive: 5 }]))).toEqual([5])
+  })
+})
+
+describe("VS Data's typed transport capacity", () => {
+  const falcon = vsTransport({
+    loads: [[{ limit: 6, count: 'models', selectors: ['AELDARI INFANTRY'] }]],
+    excluded: [{ selectors: ['JUMP PACK'] }, { selectors: ['YNNARI'], except: ['ASURYANI', 'YVRAINE', 'THE VISARCH'] }],
+    space: [{ selectors: ['WRAITH CONSTRUCT'], size: 2 }],
+  })
+  const tyrannocyte = vsTransport({
+    loads: [
+      [{ limit: 20, count: 'models', selectors: ['TYRANIDS INFANTRY'] }],
+      [{ limit: 1, count: 'models', selectors: ['TYRANIDS MONSTER'], maxWounds: 12 }],
+    ],
+  })
+  const load = (capacity: typeof falcon, passenger: Passenger) => transportLoad(transportRule(capacity ?? undefined)!, [passenger])
+
+  it('refuses a unit an exclusion names', () => {
+    expect(load(falcon, { name: 'Ynnari Wyches', alive: 5, keywords: ['Aeldari', 'Infantry', 'Ynnari'] })).toMatchObject({
+      code: 'transport-ineligible',
+    })
+  })
+
+  it('carries a unit the exclusion excepts', () => {
+    expect(load(falcon, { name: 'Guardians', alive: 6, keywords: ['Aeldari', 'Infantry', 'Ynnari', 'Asuryani'] })).toMatchObject([
+      { used: 6 },
+    ])
+  })
+
+  it('counts the space a model takes', () => {
+    expect(load(falcon, { name: 'Wraithguard', alive: 4, keywords: ['Aeldari', 'Infantry', 'Wraith Construct'] })).toMatchObject({
+      code: 'transport-full',
+    })
+  })
+
+  it('carries a unit in its other load', () => {
+    expect(load(tyrannocyte, { name: 'Carnifex', alive: 1, wounds: 9, keywords: ['Tyranids', 'Monster'] })).toMatchObject([{ used: 1 }])
+  })
+
+  it('leaves a capacity wargear changes to the printed rule', () => {
+    expect(
+      vsTransport({
+        loads: [[{ limit: 6, count: 'models', selectors: ['INFANTRY'] }]],
+        whenEquipped: [{ wargear: 'w', pool: { limit: 2, count: 'models', selectors: ['INFANTRY'] } }],
+      }),
+    ).toBeNull()
   })
 })

@@ -6,7 +6,7 @@ import {
   attachRoster,
   chooseBattlefield,
   createBattle,
-  createRoster,
+  seededRoster,
   desktopContext,
   signUp,
   startBattle,
@@ -66,16 +66,16 @@ test('source matchup nominations survive undo and reload', async ({ page, browse
   const guest = await guestContext.newPage()
   const guestName = uniqueName('Disruption captain')
   await signUp(guest, guestName)
-  const guestRoster = await createRoster(guest, {
+  const guestRoster = await seededRoster(guest, {
     faction: 'Death Guard',
-    detachment: /Shamblerot Vectorium/,
+    detachment: 'Shamblerot Vectorium',
     name: 'Disruption nomination roster',
   })
   await addUnit(guest, 'Plague Marines')
   await signUp(page, uniqueName('Purge captain'))
-  const hostRoster = await createRoster(page, {
+  const hostRoster = await seededRoster(page, {
     faction: 'Necrons',
-    detachment: /Annihilation Legion/,
+    detachment: 'Annihilation Legion',
     name: 'Purge nomination roster',
   })
   await addUnit(page, 'Immortals')
@@ -185,7 +185,7 @@ test('source matchup nominations survive undo and reload', async ({ page, browse
 
 test('Beacon asks for its unit when drawn, and a destroyed Beacon is locked and offered for discard', async ({ page }) => {
   await signUp(page, uniqueName('Beacon captain'))
-  const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Beacon nomination roster' })
+  const roster = await seededRoster(page, { faction: 'Necrons', detachment: 'Awakened Dynasty', name: 'Beacon nomination roster' })
   await addUnit(page, 'Immortals')
   await practiceBattle(page, roster)
   await startBattle(page, undefined, false)
@@ -265,9 +265,9 @@ const primaryCard = (page: Page, side: 0 | 1) =>
 test('Consecrate records end-of-turn objectives that stay consecrated after a reload', async ({ page }) => {
   const name = uniqueName('Consecrate captain')
   await signUp(page, name)
-  const purge = await createRoster(page, { faction: 'Necrons', detachment: /Annihilation Legion/, name: 'Consecrate purge roster' })
+  const purge = await seededRoster(page, { faction: 'Necrons', detachment: 'Annihilation Legion', name: 'Consecrate purge roster' })
   await addUnit(page, 'Immortals')
-  const recon = await createRoster(page, { faction: 'Necrons', detachment: /Hypercrypt Legion/, name: 'Consecrate recon roster' })
+  const recon = await seededRoster(page, { faction: 'Necrons', detachment: 'Hypercrypt Legion', name: 'Consecrate recon roster' })
   await addUnit(page, 'Immortals')
   await practiceBattle(page, purge, { opponentRoster: recon })
   await startBattle(page, undefined, false)
@@ -302,9 +302,9 @@ test('Consecrate records end-of-turn objectives that stay consecrated after a re
 test('Smoke and Mirrors decoys stay decoyed after Surveil the Foe removes their marker', async ({ page }) => {
   const name = uniqueName('Decoy captain')
   await signUp(page, name)
-  const disruption = await createRoster(page, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Decoy roster' })
+  const disruption = await seededRoster(page, { faction: 'Death Guard', detachment: 'Shamblerot Vectorium', name: 'Decoy roster' })
   await addUnit(page, 'Plague Marines')
-  const recon = await createRoster(page, { faction: 'Necrons', detachment: /Hypercrypt Legion/, name: 'Decoy recon roster' })
+  const recon = await seededRoster(page, { faction: 'Necrons', detachment: 'Hypercrypt Legion', name: 'Decoy recon roster' })
   await addUnit(page, 'Immortals')
   await practiceBattle(page, disruption, { opponentRoster: recon })
   await startBattle(page, undefined, false)
@@ -362,13 +362,13 @@ test('Smoke and Mirrors decoys stay decoyed after Surveil the Foe removes their 
 test('Locate and Deny markers are placed before the first turn and an Extract Relic sweep removes one', async ({ page }) => {
   const name = uniqueName('Locate captain')
   await signUp(page, name)
-  const disruption = await createRoster(page, {
+  const disruption = await seededRoster(page, {
     faction: 'Death Guard',
-    detachment: /Shamblerot Vectorium/,
+    detachment: 'Shamblerot Vectorium',
     name: 'Locate disruption roster',
   })
   await addUnit(page, 'Plague Marines')
-  const assets = await createRoster(page, { faction: 'Necrons', detachment: /Cryptek Conclave/, name: 'Relic assets roster' })
+  const assets = await seededRoster(page, { faction: 'Necrons', detachment: 'Cryptek Conclave', name: 'Relic assets roster' })
   await addUnit(page, 'Immortals')
   await practiceBattle(page, disruption, { opponentRoster: assets })
   await startBattle(page, undefined, false)

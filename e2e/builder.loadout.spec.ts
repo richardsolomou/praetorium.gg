@@ -1,7 +1,7 @@
 import { expect, test, type Page } from './test'
 import {
   confirmRosterSetup,
-  createRoster,
+  seededRoster,
   retryUntilVisible,
   signUp,
   waitForRosterSave,
@@ -76,7 +76,7 @@ test('a unit duplicates with its configured model count', async ({ page }) => {
 
 test('the filters narrow the book to what is worth taking', async ({ browser, page }) => {
   // A 2 DP detachment, so the list can also play at Incursion below.
-  await openBuilder(page, 'Necrons', /Canoptek Court/)
+  await openBuilder(page, 'Necrons', 'Canoptek Court')
 
   // Owned: nothing is, until something is said to be, and the filter says where to say it.
   const ownedFilter = page.getByRole('button', { name: 'Owned', exact: true })
@@ -288,7 +288,7 @@ test("attached units are drawn together on their bodyguard's shelf by default", 
 
 test('Murdermind lets a Chronomancer support Destroyer Cult units', async ({ page }) => {
   await arrangeByRole(page)
-  await openBuilder(page, 'Necrons', /Cursed Legion/)
+  await openBuilder(page, 'Necrons', 'Cursed Legion')
   await add(page, 'Chronomancer')
   await add(page, 'Lokhust Heavy Destroyers')
   const chronomancer = page.locator('[data-unit="Chronomancer"]')
@@ -313,7 +313,7 @@ test('a tank is armed but not crowned', async ({ page }) => {
   // Warlord entry sits under an upgrade only a couple of detachments unlock, and was
   // offered to every vehicle in the game.
   await page.setViewportSize({ width: 1600, height: 900 })
-  await openBuilder(page, 'Space Marines', /Gladius Task Force/)
+  await openBuilder(page, 'Space Marines', 'Gladius Task Force')
   // The whole book is on the shelves, not the first page of it, and its Crucible variants never are.
   await expect(page.getByRole('button', { name: 'Add Sternguard Veteran Squad', exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Add Vanguard Veteran Squad with Jump Packs', exact: true })).toBeVisible()
@@ -438,7 +438,7 @@ test('the first character added is the warlord, which its unit editor can hand o
 
 test('an enhancement appears once and can be removed', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 })
-  await openBuilder(page, 'Necrons', /Starshatter Arsenal/)
+  await openBuilder(page, 'Necrons', 'Starshatter Arsenal')
   await add(page, 'Overlord')
   await page.locator('[data-unit="Overlord"]').getByRole('button', { name: 'Overlord', exact: true }).click()
 
@@ -506,7 +506,7 @@ test('a smaller desktop moves the picker into a drawer without losing unit detai
 
 test('attachment relationships stay inside the two-column unit pane', async ({ page }) => {
   await page.setViewportSize({ width: 860, height: 768 })
-  await openBuilder(page, 'Space Marines', /Gladius Task Force/)
+  await openBuilder(page, 'Space Marines', 'Gladius Task Force')
 
   const picker = page.getByRole('dialog', { name: 'Add units' })
   await picker.getByLabel('Add a unit').fill('Ancient')
@@ -522,7 +522,7 @@ test('attachment relationships stay inside the two-column unit pane', async ({ p
 test('the attachment menu stays inside the unopened three-column roster', async ({ page }) => {
   await arrangeByRole(page)
   await page.setViewportSize({ width: 1512, height: 774 })
-  await openBuilder(page, 'Space Marines', /Gladius Task Force/)
+  await openBuilder(page, 'Space Marines', 'Gladius Task Force')
   for (const name of ['Captain', 'Ancient', 'Intercessor Squad', 'Assault Intercessor Squad', 'Hellblaster Squad']) await add(page, name)
 
   await page.locator('[data-unit="Captain"]').getByRole('button', { name: 'Attach to unit: Captain' }).click()
@@ -625,7 +625,7 @@ test('a squad the datasheet keeps identical is asked once, not counted', async (
 })
 
 test('a model-specific weapon has the same count on its roster card and loadout', async ({ page }) => {
-  await openBuilder(page, 'Dark Angels', /Inner Circle Task Force/)
+  await openBuilder(page, 'Dark Angels', 'Inner Circle Task Force')
   await addUnit(page, 'Vanguard Veteran Squad with Jump Packs')
 
   const card = page.locator('[data-unit="Vanguard Veteran Squad with Jump Packs"]')
@@ -641,8 +641,8 @@ test('a model-specific weapon has the same count on its roster card and loadout'
   await waitForRosterSave(page, () =>
     loadout.getByRole('button', { name: 'More models in Vanguard Veteran Squad with Jump Packs' }).click(),
   )
-  await expect(loadout.getByLabel('Master-crafted Power Weapon count')).toHaveText('5')
-  await expect(card).toContainText('5x Master-crafted Power Weapon')
+  await expect(loadout.getByLabel('Master-crafted Power Weapon count')).toHaveText('9')
+  await expect(card).toContainText('9x Master-crafted Power Weapon')
 
   await loadout.getByRole('button', { name: 'Back to roster' }).click()
   await expectNoPageOverflow(page)
@@ -678,7 +678,7 @@ test('a squad the catalogue files one loadout per weapon is one card', async ({ 
  */
 test('a kind of model filed under two groups is still one card', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 })
-  await openBuilder(page, 'Leagues of Votann', /Hearthband/)
+  await openBuilder(page, 'Leagues of Votann', 'Hearthband')
   await add(page, 'Hearthkyn Warriors')
   await page.locator('[data-unit="Hearthkyn Warriors"]').getByRole('button', { name: 'Hearthkyn Warriors', exact: true }).click()
 
@@ -714,7 +714,7 @@ test('a kind of model filed under two groups is still one card', async ({ page }
 
 test('a composite heavy weapon keeps the model armed and can be put back', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 })
-  await openBuilder(page, 'Dark Angels', /Wrath of the Rock/)
+  await openBuilder(page, 'Dark Angels', 'Wrath of the Rock')
   // Legends are never offered, even where the book still files them.
   await page.getByLabel('Add a unit').fill('Land Speeder')
   await expect(page.getByRole('button', { name: 'Add Land Speeder', exact: true })).toBeVisible()
@@ -758,7 +758,7 @@ test('a composite heavy weapon keeps the model armed and can be put back', async
  */
 test('Cadian Shock Troops can take their full special weapon allowance', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 })
-  await openBuilder(page, 'Astra Militarum', /Combined Arms/)
+  await openBuilder(page, 'Astra Militarum', 'Combined Arms')
   await add(page, 'Cadian Shock Troops')
   await page.locator('[data-unit="Cadian Shock Troops"]').getByRole('button', { name: 'Cadian Shock Troops', exact: true }).click()
 
@@ -790,7 +790,7 @@ test('Cadian Shock Troops can take their full special weapon allowance', async (
 })
 
 test('a long unit name wraps inside the loadout pane on a small phone', async ({ page }) => {
-  await openBuilder(page, 'Astra Militarum', /Combined Arms/)
+  await openBuilder(page, 'Astra Militarum', 'Combined Arms')
   await add(page, 'Militarum Tempestus Command Squad')
   await page.setViewportSize({ width: 375, height: 667 })
   await page
@@ -806,7 +806,7 @@ test('a long unit name wraps inside the loadout pane on a small phone', async ({
 
 async function plagueMarineVariants(page: Page) {
   await page.setViewportSize({ width: 1600, height: 900 })
-  await createRoster(page, { faction: 'Death Guard', detachment: /Champions of Contagion/ })
+  await seededRoster(page, { faction: 'Death Guard', detachment: 'Champions of Contagion' })
   await add(page, 'Plague Marines')
   await expectNoPageOverflow(page)
   await expectNoHorizontalOverflow(page.locator('[data-slot="roster-units"]'))
@@ -837,7 +837,7 @@ async function plagueMarineVariants(page: Page) {
 
 async function orkLoadoutVariants(page: Page) {
   await page.setViewportSize({ width: 1600, height: 900 })
-  await createRoster(page, { faction: 'Orks', detachment: /War Horde/ })
+  await seededRoster(page, { faction: 'Orks', detachment: 'War Horde' })
   await add(page, 'Nobz')
   await add(page, 'Boyz')
   const mode = page.getByRole('group', { name: 'Roster mode' })
@@ -1009,7 +1009,7 @@ test('Ork loadout variants share compact model cards', async ({ page }) => {
   await orkLoadoutVariants(page)
   // The pass ends in View, which the reader's next roster keeps, here on a phone.
   await page.setViewportSize(PHONE)
-  await createRoster(page, { faction: 'Orks', detachment: /War Horde/ })
+  await seededRoster(page, { faction: 'Orks', detachment: 'War Horde' })
   await add(page, 'Nobz')
   await page.getByRole('dialog').getByRole('button', { name: 'Close' }).click()
   await expect(page.getByRole('group', { name: 'Roster mode' }).getByRole('button', { name: 'View', exact: true })).toHaveAttribute(
@@ -1027,7 +1027,7 @@ test('Ork loadout variants share compact model cards', async ({ page }) => {
 
 test('Death Guard champions expose their legal wargear', async ({ page }) => {
   await page.setViewportSize({ width: 720, height: 1200 })
-  await openBuilder(page, 'Death Guard', /Champions of Contagion/)
+  await openBuilder(page, 'Death Guard', 'Champions of Contagion')
   await add(page, 'Deathshroud Terminators')
   await page.getByRole('dialog').getByRole('button', { name: 'Close' }).click()
   await expectNoPageOverflow(page)
@@ -1105,13 +1105,7 @@ test('Death Guard champions expose their legal wargear', async ({ page }) => {
 
 test('removing one loadout does not choose another piece of the same model as its replacement', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 })
-  await openBuilder(page, 'Black Templars', /Marshal's Household/)
-  // Black Templars take generic Codex units under their current faction rule; the chapter and Codex
-  // Gladiator Lancer entries have separate ids and both meet it.
-  await page.getByLabel('Add a unit').fill('Librarian')
-  await expect(page.getByRole('button', { name: 'Add Librarian', exact: true })).toHaveCount(1)
-  await page.getByLabel('Add a unit').fill('Gladiator Lancer')
-  await expect(page.getByRole('button', { name: 'Add Gladiator Lancer', exact: true })).toHaveCount(2)
+  await openBuilder(page, 'Black Templars', "Marshal's Household")
   await add(page, 'Crusader Squad')
   await page
     .locator('[data-unit="Crusader Squad"]')

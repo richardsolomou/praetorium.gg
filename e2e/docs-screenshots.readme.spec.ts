@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test'
 import { expect, test } from './test'
-import { advance, advanceButton, createRoster, openImport, renameRoster, setupBattle, signUp } from './account'
+import { advance, advanceButton, seededRoster, openImport, renameRoster, setupBattle, signUp } from './account'
 import { custodesOfficial } from '../src/core/rosterText.custodes.fixture'
 import { docsScreenshots } from './docsScreenshots'
 
@@ -20,10 +20,10 @@ test('readme battle screenshot', async ({ page, browser }) => {
   const opponent = await (await browser.newContext()).newPage()
   await signUp(opponent, 'rago')
   await chooseColour(opponent, 'Azure')
-  const custodes = await createRoster(opponent, { faction: 'Adeptus Custodes', detachment: /Aquilan Shield/, name: 'Aquilan Shield' })
+  const custodes = await seededRoster(opponent, { faction: 'Adeptus Custodes', detachment: 'Aquilan Shield', name: 'Aquilan Shield' })
   await signUp(page, 'tronic')
   await chooseColour(page, 'Crimson')
-  const necrons = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Necron army' })
+  const necrons = await seededRoster(page, { faction: 'Necrons', detachment: 'Awakened Dynasty', name: 'Necron army' })
   await setupBattle(page, opponent, { hostRoster: necrons, guestRoster: custodes })
   await advance(page)
 

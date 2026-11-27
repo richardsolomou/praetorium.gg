@@ -209,8 +209,8 @@ test('a group plays a solo-vs-pair hidden-list game, its players taking their ow
   await signUp(ally, uniqueName('First ally'))
   await signUp(partner, uniqueName('Second ally'))
   await sealableRoster(solo, 'Solo army')
-  await sealableRoster(ally, 'First allied army', { size: /Incursion/ })
-  await sealableRoster(partner, 'Second allied army', { size: /Incursion/ })
+  await sealableRoster(ally, 'First allied army', { limit: 1000 })
+  await sealableRoster(partner, 'Second allied army', { limit: 1000 })
 
   const groupUrl = await createGroup(solo, uniqueName('Team night'))
   for (const player of [ally, partner]) {

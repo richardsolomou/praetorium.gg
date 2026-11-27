@@ -5,7 +5,7 @@ import { devices, expect, type Page, test } from './test'
 import { NATIVE_SHELL_SCRIPT } from './native.harness'
 import {
   confirmRosterSetup,
-  createRoster,
+  seededRoster,
   followLink,
   retryUntilVisible,
   signUp,
@@ -1150,8 +1150,8 @@ test('a player can enter through the roster library and browse the product', asy
 
 test('the first sort choice orders saved rosters and persists on mobile', async ({ page }) => {
   await signUp(page, 'Roster sorter')
-  await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Zulu roster' })
-  await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Alpha roster' })
+  await seededRoster(page, { faction: 'Necrons', detachment: 'Awakened Dynasty', name: 'Zulu roster' })
+  await seededRoster(page, { faction: 'Necrons', detachment: 'Awakened Dynasty', name: 'Alpha roster' })
   await page.goto('/rosters')
 
   const rows = page.locator('[data-roster]')

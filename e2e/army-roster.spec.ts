@@ -1,11 +1,11 @@
 import { expect, test, type Page } from './test'
-import { createRoster, signUp, startBattle, uniqueName, addUnit, practiceBattle, playerPanel } from './account'
+import { seededRoster, signUp, startBattle, uniqueName, addUnit, practiceBattle, playerPanel } from './account'
 
 /** A Death Guard list of Plague Marines and a Foetid Bloat-drone, started in a practice battle. */
 async function guardBattle(page: Page, label: string, name: string) {
   const player = uniqueName(label)
   await signUp(page, player)
-  const roster = await createRoster(page, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name })
+  const roster = await seededRoster(page, { faction: 'Death Guard', detachment: 'Shamblerot Vectorium', name })
   for (const unit of ['Plague Marines', 'Foetid Bloat-drone']) await addUnit(page, unit)
   await practiceBattle(page, roster)
   await startBattle(page)

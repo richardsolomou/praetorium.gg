@@ -23,7 +23,7 @@ import { referenceAttachmentOf } from '../src/core/attach'
 import { legacyIdsSchema } from '../src/core/legacyIds'
 import { matchedPlayName, nonMatchedPlayKind } from '../src/core/name'
 import { vsDataConstructionSchema, vsDataDefinitions } from '../src/core/vsDataConstruction'
-import { idsIn } from '../src/shared/vsDataPoints'
+import { idsIn, inBook } from '../src/shared/vsDataPoints'
 
 const { values, positionals } = parseArgs({
   allowPositionals: true,
@@ -76,7 +76,7 @@ for (const entry of composition.editions) {
       const sheet = datasheetIn(catalogueOnly, catalogue.id, entryId)
       if (!sheet) continue
       counts.datasheets++
-      const vsUnit = vsUnitOf.get(entryId)
+      const vsUnit = inBook(vsUnitOf, catalogue.id, entryId)
       if (vsUnit && !construction.unavailable.has(vsUnit) && !nonMatchedPlayKind(sheet.name)) {
         const claimed = referenceAttachmentOf(loaded.index.definitions.get(entryId)!, loaded.index)
         const record = attachmentsOf.get(vsUnit)
@@ -107,7 +107,7 @@ for (const entry of composition.editions) {
           } else attachments.same++
         }
       }
-      if (!loaded.vsProfiles.units[entryId]) {
+      if (!inBook(loaded.vsProfiles.units, catalogue.id, entryId)) {
         unjoined.add(sheet.name)
         continue
       }
@@ -115,6 +115,7 @@ for (const entry of composition.editions) {
       // The catalogue's profiles as printed, which is what the datasheet weighs its VS Data lines against.
       const lines = vsStatLinesOf(
         loaded.vsProfiles,
+        catalogue.id,
         entryId,
         sheet.name,
         sheet.profiles.map((profile) => ({
