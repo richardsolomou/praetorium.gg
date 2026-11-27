@@ -179,7 +179,7 @@ export async function unitOptionsFor({ faction, units, battleSize, detachment }:
     const picks = named.map((entry, index): RosterPick => {
       const models = units[index]!.models
       const first = vsFirstPickOf(loaded, list, entry.unit.id)
-      const unit = vsUnitIdOf(loaded, entry.unit.id)
+      const unit = vsUnitIdOf(loaded, found.id, entry.unit.id)
       if (!first || !definitions || !unit) return { entryId: entry.unit.id, ...(models ? { models } : {}) }
       if (!models) return { entryId: entry.unit.id, vs: first }
       const sized = vsResized(definitions, { unit, models: first.models, options: first.options }, models)
