@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
+import bsdataRecords from '../catalogue/legacy-ids/bsdata-records.json' with { type: 'json' }
 import missions from '../catalogue/legacy-ids/missions.json' with { type: 'json' }
 import stratagems from '../catalogue/legacy-ids/stratagems.json' with { type: 'json' }
 import { readVsDataRelease } from '../src/server/vsDataSummaries'
@@ -27,5 +28,16 @@ describe.skipIf(!fs.existsSync(path.join(source, 'summaries')))('frozen Game Dat
   it('lead every saved Stratagem to one a pinned release types', () => {
     const typed = new Set(releases().flatMap((release) => release.stratagems.map((stratagem) => stratagem.id)))
     expect(Object.values(stratagems.ids).filter((id) => !typed.has(id))).toEqual([])
+  })
+
+  it('lead every per-datasheet BSData entry to a record its rules version summarizes', () => {
+    const summarized = new Map<string, Set<string>>()
+    const missing = Object.entries(bsdataRecords.ids).filter(([key, record]) => {
+      const edition = key.includes('~') ? key.slice(0, key.indexOf('~')) : ''
+      if (!summarized.has(edition))
+        summarized.set(edition, new Set(readVsDataRelease(source, edition || undefined)!.records.map((held) => `${held.kind}:${held.id}`)))
+      return !summarized.get(edition)!.has(record)
+    })
+    expect(missing).toEqual([])
   })
 })
