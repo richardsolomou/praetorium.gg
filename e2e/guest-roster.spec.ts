@@ -59,7 +59,8 @@ test('a visitor builds and prices a list without saving it', async ({ page }) =>
   await page.getByRole('button', { name: 'Necron Warriors', exact: true }).click()
   await page.getByRole('button', { name: 'More models in Necron Warriors' }).click()
   await expect(page.locator('[data-slot="roster-meta"]')).toContainText('11 models')
-  await expect.poll(() => guestDraft(page)).toContain('"models":11')
+  // A VS Data pick saves its count per kind of model, here its one kind.
+  await expect.poll(() => guestDraft(page)).toMatch(/"necron-warrior":11/)
   await page.reload()
   await expect(page.locator('[data-slot="roster-meta"]')).toContainText('11 models')
   await expect(page.getByRole('button', { name: /to (your collection|favourite datasheets)$/ })).toHaveCount(0)
