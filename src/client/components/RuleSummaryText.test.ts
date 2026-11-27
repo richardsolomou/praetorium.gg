@@ -11,20 +11,25 @@ const stratagem: RuleSummary = {
   questions: [],
   parts: { when: paragraph('Your Shooting phase.'), target: paragraph('One unit of yours.'), effect: paragraph('It hits more often.') },
 }
-const labels = (summary: RuleSummary) =>
-  [...renderToStaticMarkup(createElement(RuleSummaryText, { summary })).matchAll(/<dt[^>]*>([^<]*)<\/dt>/g)].map((match) => match[1])
+const markup = (summary: RuleSummary) => renderToStaticMarkup(createElement(RuleSummaryText, { summary }))
+/** Each part as its label and the text beside it. */
+const shownParts = (summary: RuleSummary) =>
+  [...markup(summary).matchAll(/<dt[^>]*>([^<]*)<\/dt><dd[^>]*>(.*?)<\/dd>/g)].map(([, label, text]) => [
+    label,
+    text!.replaceAll(/<[^>]+>/g, ''),
+  ])
 
-it('labels each part of a Stratagem written in parts', () => expect(labels(stratagem)).toEqual(['When', 'Target', 'Effect']))
-
-it('labels a Stratagem’s Restrictions where it has them', () =>
-  expect(labels({ ...stratagem, parts: { ...stratagem.parts!, restrictions: paragraph('Once per battle.') } })).toEqual([
-    'When',
-    'Target',
-    'Effect',
-    'Restrictions',
+it('shows each part of a Stratagem written in parts beside its label', () =>
+  expect(shownParts(stratagem)).toEqual([
+    ['When', 'Your Shooting phase.'],
+    ['Target', 'One unit of yours.'],
+    ['Effect', 'It hits more often.'],
   ]))
 
-it('shows a summary not written in parts as its paragraphs', () =>
-  expect(renderToStaticMarkup(createElement(RuleSummaryText, { summary: { ...stratagem, parts: undefined } }))).toContain(
-    '<strong class="font-semibold text-bone">When:</strong>',
-  ))
+it('shows a Stratagem’s Restrictions last, where it has them', () =>
+  expect(shownParts({ ...stratagem, parts: { ...stratagem.parts!, restrictions: paragraph('Once per battle.') } }).at(-1)).toEqual([
+    'Restrictions',
+    'Once per battle.',
+  ]))
+
+it('shows a summary not written in parts as its paragraphs', () => expect(markup({ ...stratagem, parts: undefined })).not.toContain('<dl'))

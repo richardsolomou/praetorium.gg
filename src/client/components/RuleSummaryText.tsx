@@ -50,7 +50,7 @@ function Parts({ parts, abilities }: { parts: RuleSummaryParts; abilities: boole
         const blocks = parts[part as keyof RuleSummaryParts]
         return blocks ? (
           <div key={part} className="col-span-2 grid grid-cols-subgrid items-baseline">
-            <dt className="min-w-[5.6em] font-sans text-[0.9em] text-faint">{label}</dt>
+            <dt className="min-w-[6em] font-sans text-xs text-dim">{label}</dt>
             <dd className="space-y-1.5">
               <Blocks blocks={blocks} abilities={abilities} />
             </dd>

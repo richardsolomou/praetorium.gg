@@ -137,14 +137,16 @@ it('serves a Stratagem’s parts apart, each read as its summary is', () => {
     when: 'Your Shooting phase.',
     target: 'One **INFANTRY** unit.',
     effect: 'Its weapons gain [LETHAL HITS](vsdata:weapon-ability/lethal-hits).',
+    restrictions: 'Not an **AIRCRAFT** unit.',
   }
-  const summary = `**When:** ${parts.when}\n\n**Target:** ${parts.target}\n\n**Effect:** ${parts.effect}`
+  const summary = `**When:** ${parts.when}\n\n**Target:** ${parts.target}\n\n**Effect:** ${parts.effect}\n\n**Restrictions:** ${parts.restrictions}`
   const lethalHits = { kind: 'weapon-ability', id: 'lethal-hits', aliases: [], summary: 'A Critical Hit wounds automatically.' }
   const { summaries, base } = snapshot([{ update: 'MFM 1.6', summary, data: { parts } }], [lethalHits])
   expect(summaries!.summariesIn(base).records['ability:necrons.test.focused-fire']?.parts).toEqual({
     when: [{ paragraph: [{ text: 'Your Shooting phase.' }] }],
     target: [{ paragraph: [{ text: 'One ' }, { text: 'INFANTRY', bold: true }, { text: ' unit.' }] }],
     effect: [{ paragraph: [{ text: 'Its weapons gain ' }, { text: 'LETHAL HITS', ability: 'weapon-ability:lethal-hits' }, { text: '.' }] }],
+    restrictions: [{ paragraph: [{ text: 'Not an ' }, { text: 'AIRCRAFT', bold: true }, { text: ' unit.' }] }],
   })
 })
 

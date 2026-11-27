@@ -105,8 +105,13 @@ function agentAnswer(summary: string, data?: Record<string, unknown>) {
 }
 
 it('serves a Stratagem’s summary in its parts in place of its words', () => {
-  const parts = { when: 'Your Shooting phase.', target: 'One unit of yours.', effect: 'Your unit hits more often this phase.' }
-  const text = `**When:** ${parts.when}\n\n**Target:** ${parts.target}\n\n**Effect:** ${parts.effect}`
+  const parts = {
+    when: 'Your Shooting phase.',
+    target: 'One unit of yours.',
+    effect: 'Your unit hits more often this phase.',
+    restrictions: 'Once per battle.',
+  }
+  const text = `**When:** ${parts.when}\n\n**Target:** ${parts.target}\n\n**Effect:** ${parts.effect}\n\n**Restrictions:** ${parts.restrictions}`
   const { section } = agentAnswer(text, { parts })
   expect(section.ruleSummary).toEqual({ text, ...parts })
 })
