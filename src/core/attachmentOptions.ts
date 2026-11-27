@@ -57,6 +57,8 @@ function optionReason(refusal: AttachmentRefusal<AttachmentParty> | undefined, k
       return `${kind === 'leader' ? 'Leader' : 'Support'} limit reached on ${hostName}.`
     case 'category':
       return `${refusal.name} limit reached on ${hostName}.`
+    case 'exclusive':
+      return `${refusal.holder.name} has already joined ${hostName}.`
     default:
       return null
   }
