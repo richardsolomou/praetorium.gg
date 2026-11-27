@@ -572,14 +572,31 @@ function heldBy(member: Node, grants: Map<Node, Map<string, boolean>>): Set<stri
   return own
 }
 
+/**
+ * Picks VS Data checks and prices: their selections stay in the tree, so every other pick's conditions still count them,
+ * but none of their nodes reports a limit or costs points. With `ownLimits`, each pick's own entry still reports its roster
+ * limits and errors, for a list VS Data cannot place.
+ */
+export type VsPicks = { selections: ReadonlySet<Selection>; ownLimits?: boolean }
+
 /** Evaluate each force independently while retaining roster-scoped conditions across all of them. */
 export function evaluateForces(
   forces: readonly (readonly Selection[])[],
   index: CatalogueIndex,
   options: EvaluateOptions = {},
+  vsPicks?: VsPicks,
 ): Evaluation {
   const census = new Census(0)
   const { root, forces: builtForces } = rosterContext(forces, index, census, options)
+  const unpriced = new Set<Node>()
+  const unchecked = new Set<Node>()
+  for (const unit of builtForces.flatMap((force) => force.children)) {
+    if (!unit.selection || !vsPicks?.selections.has(unit.selection)) continue
+    for (const node of descendants(unit)) {
+      unpriced.add(node)
+      if (node !== unit || !vsPicks.ownLimits) unchecked.add(node)
+    }
+  }
   // Read up front rather than on the first question about a keyword, so a list that
   // asks none still reports the keyword rules this evaluator did not act on.
   grantsOf(root, index, census)
@@ -594,6 +611,7 @@ export function evaluateForces(
 
   for (const node of descendants(root)) {
     for (const [typeId, value] of costsOf(node, root, index, census)) {
+      if (typeId === index.pointsTypeId && unpriced.has(node)) continue
       const amount = value * node.fielded
       totals.set(typeId, (totals.get(typeId) ?? 0) + amount)
       if (typeId === index.pointsTypeId) {
@@ -603,6 +621,7 @@ export function evaluateForces(
         if (position) selectionPoints[position[0]]![position[1]]! += amount
       }
     }
+    if (unchecked.has(node)) continue
     errors.push(...violations(node, root, index, census))
     errors.push(...modifierErrors(node, root, index, census))
   }

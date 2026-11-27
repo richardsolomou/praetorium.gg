@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { vsRosterData, vsDataErrors, vsDataWithoutDetachments, type CheckedUnit } from './vsDataLegality'
+import { vsRosterData, vsDataErrors, vsDataWithoutDetachments, vsPickErrors, type CheckedUnit } from './vsDataLegality'
 
 const record = (name: string, data: Record<string, unknown>) => ({ name, data: { formatVersion: 2, ...data } })
 const data = vsRosterData(
@@ -29,10 +29,34 @@ const data = vsRosterData(
         }),
         'engines.walker': record('Walker', { faction: 'engines', keywords: ['TITANIC'], sizes: [1] }),
         'other.fort': record('Fort', { faction: 'other', keywords: ['FORTIFICATION'], sizes: [1], legends: true }),
+        'host.squad': record('Squad', { faction: 'host', keywords: ['INFANTRY'], sizes: [5, 10] }),
+      },
+      'roster-option': {
+        'host.squad.guns': record('Trooper guns', {
+          unit: 'host.squad',
+          carrier: 'host.squad.trooper',
+          per: 'carrier',
+          choose: { min: 0, max: 1 },
+          choices: ['host.squad.plasma', 'host.squad.melta'],
+          caps: [{ choices: ['host.squad.plasma'], max: 1 }],
+        }),
+        'host.squad.scope': record('Scope', {
+          unit: 'host.squad',
+          choose: { min: 0, max: 1 },
+          choices: ['host.squad.sight'],
+          requires: { option: 'host.squad.guns', choices: ['host.squad.plasma'] },
+        }),
+      },
+      wargear: {
+        'host.squad.plasma': record('Plasma gun', {}),
+        'host.squad.melta': record('Meltagun', {}),
+        'host.squad.sight': record('Sight', {}),
       },
       model: {
         'host.mob.grunt': record('Grunt', { unit: 'host.mob', min: 10, max: 20, wargear: {} }),
         'host.lord.lord': record('Lord', { unit: 'host.lord', min: 1, max: 1, wargear: {} }),
+        'host.squad.sergeant': record('Sergeant', { unit: 'host.squad', min: 1, max: 1, wargear: {} }),
+        'host.squad.trooper': record('Trooper', { unit: 'host.squad', min: 4, max: 9, wargear: {} }),
       },
       enhancement: {
         'host.guard.crown': record('Crown', {
@@ -46,11 +70,11 @@ const data = vsRosterData(
   {
     books: { 'bs-host': 'host', 'bs-titan': 'titan', 'bs-engines': 'engines', 'bs-relics': 'relics' },
     detachments: { 'bs-guard': 'host.guard', 'bs-raid': 'other.raid' },
-    units: { 'bs-mob': 'host.mob', 'bs-lord': 'host.lord', 'bs-fort': 'other.fort', 'bs-walker': 'engines.walker' },
+    units: { 'bs-mob': 'host.mob', 'bs-lord': 'host.lord', 'bs-fort': 'other.fort', 'bs-walker': 'engines.walker', 'bs-squad': 'host.squad' },
     enhancements: { 'host.guard/bs-crown': 'host.guard.crown', 'host.guard/bs-fire': 'host.guard.crown' },
   },
   null,
-  (id) => ({ 'bs-mob': 'Mob', 'bs-lord': 'Lord', 'bs-fort': 'Fort [Legends]', 'bs-walker': 'Walker' })[id],
+  (id) => ({ 'bs-mob': 'Mob', 'bs-lord': 'Lord', 'bs-fort': 'Fort [Legends]', 'bs-walker': 'Walker', 'bs-squad': 'Squad' })[id],
 )
 const unit = (over: Partial<CheckedUnit> & Pick<CheckedUnit, 'entryId'>): CheckedUnit => ({
   key: 0,
@@ -116,6 +140,49 @@ describe('vsDataErrors', () => {
 
   it('leaves a list with another faction’s Detachment to the catalogue', () => {
     expect(errors([unit({ entryId: 'bs-mob', size: { models: 15, min: 10, max: 20 } })], ['bs-raid'])).toBeNull()
+  })
+
+  describe('a unit fielded by VS Data IDs', () => {
+    const squad = (vs: Partial<NonNullable<CheckedUnit['vs']>>) =>
+      unit({ entryId: 'bs-squad', name: 'Squad', vs: { models: { 'host.squad.sergeant': 1, 'host.squad.trooper': 4 }, options: {}, ...vs } })
+
+    it('is checked on its own model counts', () => {
+      expect(errors([squad({ models: { 'host.squad.sergeant': 1, 'host.squad.trooper': 10 } })])).toContainEqual({
+        entryId: 'bs-squad',
+        entryName: 'Squad',
+        message: 'fields at most 9 Trooper models, has 10',
+      })
+    })
+
+    it('is checked on a cap its wargear breaks', () => {
+      expect(errors([squad({ options: { 'host.squad.guns': { 'host.squad.plasma': 2 } } })])).toEqual([
+        { entryId: 'bs-squad', entryName: 'Squad', message: 'takes at most 1 Plasma gun, has 2' },
+      ])
+    })
+
+    it('is told which wargear an option needs', () => {
+      expect(errors([squad({ options: { 'host.squad.scope': { 'host.squad.sight': 1 } } })])).toEqual([
+        { entryId: 'bs-squad', entryName: 'Squad', message: 'needs Plasma gun to take Scope' },
+      ])
+    })
+
+    it('is told to reselect a choice its datasheet no longer offers', () => {
+      expect(errors([squad({ options: { 'host.squad.gone': { 'host.squad.plasma': 1 } } })])).toEqual([
+        { entryId: 'bs-squad', entryName: 'Squad', message: 'a saved choice is no longer available; reselect this unit’s options' },
+      ])
+    })
+
+    it('takes the Enhancement it names, whatever its catalogue choices say', () => {
+      expect(errors([unit({ entryId: 'bs-mob', vs: { models: { 'host.mob.grunt': 10 }, options: {}, enhancement: 'host.guard.crown' } })])).toEqual(
+        [{ entryId: 'bs-mob', entryName: 'bs-mob', message: 'cannot take Crown' }],
+      )
+    })
+
+    it('is checked on its wargear in a list VS Data cannot place', () => {
+      expect(vsPickErrors(data, [squad({ options: { 'host.squad.guns': { 'host.squad.plasma': 2 } } })])).toEqual([
+        { entryId: 'bs-squad', entryName: 'Squad', message: 'takes at most 1 Plasma gun, has 2' },
+      ])
+    })
   })
 })
 

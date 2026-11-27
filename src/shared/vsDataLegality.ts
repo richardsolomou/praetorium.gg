@@ -1,5 +1,6 @@
 import { type VsDataConstruction, type VsDataDefinitions, vsDataDefinitions } from '../core/vsDataConstruction'
-import { checkVsRoster, type VsProblem, type VsRosterUnit } from '../core/vsDataRoster'
+import { checkVsRoster, checkVsUnit, type VsProblem, type VsRosterUnit } from '../core/vsDataRoster'
+import type { VsPick } from '../core/roster'
 import { hasWarlordToggle, type UnitChoice, type UnitToggle } from '../core/unitChoices'
 import { remember } from '../core/collections'
 import { nonMatchedPlayKind } from '../core/name'
@@ -51,6 +52,8 @@ export type CheckedUnit = {
   /** The unit's keywords as the catalogue reads them in the list. */
   keywords: readonly string[]
   choices: readonly Pick<UnitChoice, 'name' | 'options'>[]
+  /** The unit by VS Data IDs, which VS Data checks whole, models and wargear included, instead of reading its choices. */
+  vs?: VsPick
 }
 
 export type VsDataError = { entryId: string; entryName: string; message: string }
@@ -86,6 +89,10 @@ export function vsDataErrors(
   const checked = units.flatMap((unit): { unit: CheckedUnit; read: VsRosterUnit; offersAllegiance: boolean }[] => {
     const id = vsDataChecks(data, list.catalogueId, unit)
     if (!id) return []
+    if (unit.vs) {
+      if (unit.vs.enhancement) taken.add(unit.vs.enhancement)
+      return [{ unit, read: { unit: id, ...unit.vs }, offersAllegiance: true }]
+    }
     // A unit whose size the player cannot change is fielded as the catalogue models it, which can count a model VS Data
     // folds into another, so only a size the player chose is checked.
     const size = unit.size.max > unit.size.min ? unit.size.models : (definitions.get('unit', id)?.data.sizes[0] ?? unit.size.models)
@@ -167,8 +174,8 @@ function described(problem: VsProblem, checked: { unit: CheckedUnit }[], definit
   const unit = problem.unit === undefined ? undefined : checked[problem.unit]?.unit
   const owner = unit ? { entryId: unit.entryId, entryName: unit.name } : { entryId: 'army', entryName: 'Army' }
   const named = (text: string) =>
-    text.replace(/(?:detachment|unit|model|allegiance|wargear|enhancement):([\w.-]+)/g, (_, id: string) => {
-      for (const kind of ['detachment', 'unit', 'model', 'allegiance', 'wargear'] as const) {
+    text.replace(/(?:detachment|unit|model|allegiance|wargear|enhancement|roster-option):([\w.-]+)/g, (_, id: string) => {
+      for (const kind of ['detachment', 'unit', 'model', 'allegiance', 'wargear', 'roster-option'] as const) {
         const found = definitions.get(kind, id)
         if (found) return found.name
       }
@@ -204,8 +211,75 @@ function described(problem: VsProblem, checked: { unit: CheckedUnit }[], definit
     'allegiance-requires': named(problem.message),
     'allegiance-limit': named(problem.message),
   }
-  const text = message[problem.code]
+  const text = unit ? (message[problem.code] ?? unitWords(problem, named)) : message[problem.code]
   return text ? { ...owner, message: text } : null
+}
+
+/** The bound a count breaks, as a player reads it. */
+const bound = (min: string, max: string, has: string) => (min === max ? min : Number(has) > Number(max) ? `at most ${max}` : `at least ${min}`)
+/** A list of names, the last joined by `word`. */
+const joined = (names: string, word: string) => names.replace(/, (?=[^,]*$)/, ` ${word} `)
+const plural = (count: string, noun: string) => `${noun}${count.endsWith(' 1') || count === '1' ? '' : 's'}`
+
+/** A problem with a unit's own models or wargear, which VS Data checks for a unit fielded by its IDs. */
+function unitWords(problem: VsProblem, named: (text: string) => string): string | undefined {
+  const text = named(problem.message)
+  const words = (pattern: RegExp, words: (...parts: string[]) => string) => {
+    const parts = pattern.exec(text)
+    return parts ? words(...parts.slice(1)) : undefined
+  }
+  switch (problem.code) {
+    case 'model-count':
+      return words(/^(.+) needs (\d+)-(\d+) models, has (-?\d+)$/, (model, min, max, has) => {
+        const allowed = bound(min, max, has)
+        return `fields ${allowed} ${model} ${plural(allowed, 'model')}, has ${has}`
+      })
+    case 'model-group-count':
+      return words(/^(.+) together need (\d+)-(\d+) models, have (\d+)$/, (models, min, max, has) => {
+        const allowed = bound(min, max, has)
+        return `fields ${allowed} ${joined(models, 'and')} ${plural(allowed, 'model')} together, has ${has}`
+      })
+    case 'unit-composition':
+      return 'fields its models in a mix its datasheet does not allow'
+    case 'option-count':
+      return words(/^(.+) takes (\d+)-(\d+), has (\d+)$/, (option, min, max, has) => `takes ${bound(min, max, has)} from ${option}, has ${has}`)
+    case 'option-uniform':
+      return words(/^(.+) is taken (\d+) times .*$/, (option, max) => `takes ${option} ${max} times with one choice, or not at all`)
+    case 'option-cap':
+      return words(/^.+ takes at most (\d+) of (.+), has (\d+)$/, (max, wargear, has) => `takes at most ${max} ${joined(wargear, 'or')}, has ${has}`)
+    case 'option-unavailable':
+      return words(/^(.+) needs one of (.+) from .+$/, (option, wargear) => `needs ${joined(wargear, 'or')} to take ${option}`)
+    case 'option-group-count':
+      return words(
+        /^(.+) together take (at most|at least) (\d+), have (\d+)$/,
+        (options, bound, n, has) => `takes ${bound} ${n} from ${joined(options, 'and')} together, has ${has}`,
+      )
+    // IDs the unit's datasheet no longer holds, as a saved choice the builder can no longer offer.
+    case 'missing-definition':
+    case 'unit-model':
+    case 'unit-option':
+    case 'option-choice':
+    case 'option-quantity':
+      return 'a saved choice is no longer available; reselect this unit’s options'
+    default:
+      return undefined
+  }
+}
+
+/**
+ * What is wrong with the models and wargear of each unit the list fields by VS Data IDs, for a list VS Data cannot place,
+ * whose roster the catalogue checks instead.
+ */
+export function vsPickErrors(data: VsRosterData | undefined, units: readonly CheckedUnit[]): VsDataError[] {
+  if (!data) return []
+  const definitions = remember(definitionsOf, data, () => vsDataDefinitions(data.construction))
+  return units.flatMap((unit) => {
+    const id = data.units[unit.entryId]
+    if (!unit.vs || !id) return []
+    const problems: VsProblem[] = []
+    checkVsUnit(definitions, { unit: id, ...unit.vs }, (code, message) => problems.push({ code, unit: 0, message }))
+    return problems.flatMap((problem) => described(problem, [{ unit }], definitions) ?? [])
+  })
 }
 
 /** The catalogue options a list's Detachments offer as VS Data Enhancements, whose limits VS Data's checker then says. */

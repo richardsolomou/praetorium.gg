@@ -1524,6 +1524,33 @@ const cappedBook = (max: number) => ({
   ],
 })
 
+describe('a pick VS Data checks and prices', () => {
+  const short = withTroopers(2)
+
+  it('reports none of its limits', () => {
+    expect(evaluateForces([[short]], indexOf(squad()), {}, { selections: new Set([short]) }).errors).toEqual([])
+  })
+
+  it('costs no points', () => {
+    expect(evaluateForces([[short]], indexOf(squad()), {}, { selections: new Set([short]) }).points).toBe(0)
+  })
+
+  it('still counts towards a limit another pick reports', () => {
+    const vs = { id: 'immortals' }
+    expect(evaluateForces([[vs, { id: 'immortals' }]], indexOf(cappedBook(1)), {}, { selections: new Set([vs]) }).errors).toEqual([
+      { entryId: 'cat-immortals', entryName: 'Immortals', message: 'allows at most 1, has 2', limit: { max: 1, measured: 2 } },
+    ])
+  })
+
+  it('keeps its own roster limits in a list VS Data cannot place', () => {
+    const vs = { id: 'immortals' }
+    const other = { id: 'immortals' }
+    expect(
+      evaluateForces([[vs, other]], indexOf(cappedBook(1)), {}, { selections: new Set([vs, other]), ownLimits: true }).errors,
+    ).toHaveLength(2)
+  })
+})
+
 describe('a limit written on the datasheet’s own category', () => {
   it('is the limit, because that is where the data puts it', () => {
     const index = indexOf(cappedBook(6))
