@@ -425,8 +425,9 @@ function translate({
   if (taken.length > 1) return { outcome: 'ambiguous', reason: 'allegiances' }
   // A loadout keeps a unit's models and wargear by VS Data IDs, never its allegiance.
   if (loadout && taken.length) return { outcome: 'unmatched', reason: 'loadout-allegiance' }
-  const allegiance = taken[0] && allegianceOf(taken[0].name)
-  // An allegiance BSData's datasheet implies (one Soul Grinder datasheet per god) waits for the units map to record it.
+  // A datasheet that stands for one of the unit's allegiances (one Soul Grinder datasheet per god) takes it.
+  const allegiance = (taken[0] && allegianceOf(taken[0].name)) || key(ids.unitAllegiances, pick.entryId)
+  // Any other allegiance the unit needs and no choice of the pick gives stays unread.
   if (
     !allegiance &&
     definitions

@@ -19,15 +19,20 @@ import type { PriceInput } from '../../src/contracts/schemas'
 type Price = NonNullable<ReturnType<typeof calculateRosterPrice>>
 type PricedUnit = Price['units'][number]
 
-const mapSchema = z.object({ ids: z.record(z.string(), z.string()) })
-const legacy = (name: string) =>
-  mapSchema.parse(JSON.parse(fs.readFileSync(path.join(import.meta.dirname, `../../catalogue/legacy-ids/${name}.json`), 'utf8'))).ids
-export const legacyIds = () => ({
-  books: legacy('books'),
-  detachments: legacy('detachments'),
-  units: legacy('units'),
-  enhancements: legacy('enhancements'),
-})
+const mapSchema = z.object({ ids: z.record(z.string(), z.string()), allegiances: z.record(z.string(), z.string()).optional() })
+const mapOf = (name: string) =>
+  mapSchema.parse(JSON.parse(fs.readFileSync(path.join(import.meta.dirname, `../../catalogue/legacy-ids/${name}.json`), 'utf8')))
+export const legacyIds = () => {
+  const units = mapOf('units')
+  return {
+    books: mapOf('books').ids,
+    detachments: mapOf('detachments').ids,
+    units: units.ids,
+    /** The allegiance a datasheet's own identity implies (one Soul Grinder datasheet per god), keyed as `units` is. */
+    unitAllegiances: units.allegiances ?? {},
+    enhancements: mapOf('enhancements').ids,
+  }
+}
 export type LegacyIds = ReturnType<typeof legacyIds>
 
 const add = (bag: Map<string, number>, key: string, n: number) => {
