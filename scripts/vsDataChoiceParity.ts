@@ -259,20 +259,37 @@ for (const [entryId, catalogueId] of listing) {
     const { unit: _unit, ...firstPick } = vsFirstPick(definitions, unitId)
     const vsKeywords = keywordsOf(priceOf(faction.id, { entryId, vs: { models: {}, options: {}, ...firstPick } }))
     if (vsKeywords !== keywordsOf(plain)) differ('keywords', unitId, `BSData ${keywordsOf(plain)}, VS Data ${vsKeywords}`)
-    const granting = plain.choices
+    // A VS pick's datasheet (characteristics and abilities) is read from its catalogue tree at the default loadout, so a
+    // datasheet whose wargear changes them stays BSData's until that tree follows VS Data's selections.
+    count('datasheet')
+    const sheetOf = (pick: RosterPick) => {
+      const sheet = rosterCombatant(loaded, rules, { catalogueId: faction.id, detachmentIds: [], picks: [pick], pickIndex: 0 })?.selected
+      if (!sheet) return 'none'
+      const characteristics = sheet.profiles
+        .filter((profile) => profile.type !== 'Ranged Weapons' && profile.type !== 'Melee Weapons')
+        .map((profile) => `${profile.name}:${profile.values.map((value) => value.value).join('/')}`)
+      return JSON.stringify([characteristics.toSorted(), sheet.abilities.map((ability) => ability.name).toSorted()])
+    }
+    const plainSheet = sheetOf({ entryId })
+    const optionPicks = plain.choices
       .filter((choice) => !special(choice))
       .flatMap((choice) =>
         choice.options
           .filter((option) => option.count === 0 && option.max > 0)
-          .flatMap((option) => {
-            const pick: RosterPick =
+          .map((option) => ({
+            name: option.name,
+            pick:
               choice.room > 1
-                ? { entryId, spreads: { [choice.key]: { [option.id]: 1 } } }
-                : { entryId, choices: { [choice.key]: option.id } }
-            return keywordsOf(priceOf(faction.id, pick)) === keywordsOf(plain) ? [] : [option.name]
-          }),
+                ? ({ entryId, spreads: { [choice.key]: { [option.id]: 1 } } } satisfies RosterPick)
+                : ({ entryId, choices: { [choice.key]: option.id } } satisfies RosterPick),
+          })),
       )
+    const granting = optionPicks.flatMap(({ name: option, pick }) =>
+      keywordsOf(priceOf(faction.id, pick)) === keywordsOf(plain) ? [] : [option],
+    )
     if (granting.length) differ('keywords', unitId, `BSData keywords change with ${granting.join(', ')}`)
+    const changing = optionPicks.flatMap(({ name: option, pick }) => (sheetOf(pick) === plainSheet ? [] : [option]))
+    if (changing.length) differ('datasheet', unitId, `characteristics or abilities change with ${changing.join(', ')}`)
 
     // The simulator fields a VS pick by VS Data's carriers, so each weapon has to find its profile as the catalogue's does.
     count('simulator')
