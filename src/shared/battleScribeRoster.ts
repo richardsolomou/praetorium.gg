@@ -8,17 +8,17 @@ import { textNickname } from '../core/textRoster'
 import { selectedDatasheetIn } from './catalogue'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { describeDatasheetAbilities } from './datasheetDescriptions'
-import { rosterDatasheetContext, rosterDatasheetSelections } from './rosterDatasheetContext'
+import { buildRosterPick, rosterDatasheetContext, rosterDatasheetSelections } from './rosterDatasheetContext'
+import { rosterDetachments } from './rosterDetachments'
+import { vsDataUnitXml } from './vsDataBattleScribeRoster'
+import { vsDefinitionsOf, vsListOf } from './vsDataBuild'
 import type { LoadedRules } from './rules'
-import { legacyBattleScribeSchema } from '../core/legacyIds'
-import rawBattleScribe from '../../catalogue/legacy-ids/battlescribe.json' with { type: 'json' }
-
-const BATTLESCRIBE = legacyBattleScribeSchema.parse(rawBattleScribe)
+import { abilitiesXml, categoriesXml, costXml, escape, profileXml, rosterXml, selectionXml } from './battleScribeXml'
 
 /**
  * A list as the BattleScribe `.ros` XML that New Recruit writes and Yellowscribe reads into Tabletop Simulator: each
- * unit's selection tree as the catalogue built it, with its keywords as categories, its model and weapon profiles as
- * the builder evaluates them, and its abilities.
+ * unit frozen as a VS Data pick from VS Data (`vsDataUnitXml`), any other as the catalogue built it, with its keywords
+ * as categories, its model and weapon profiles as the builder evaluates them, and its abilities.
  *
  * Ability descriptions stay text tokens, so the file carries no rules text; the browser swaps each for its VS Data
  * summary before saving it.
@@ -32,6 +32,18 @@ export function battleScribeRoster(
   const { index } = loaded
   const roster = { catalogueId: data.catalogueId, detachmentIds: data.detachmentIds, picks: data.units }
   const prepared = rosterDatasheetSelections(loaded, roster)
+  // A pick frozen as a VS Data pick is written from VS Data; any other from the catalogue's tree of it.
+  const detachments = rosterDetachments(loaded, data.catalogueId, data.detachmentIds).selections
+  const vsUnits = new Map(
+    priced.units.flatMap((unit) => {
+      const pick = data.units[unit.key]
+      const vs = pick?.vs && buildRosterPick(loaded, data.catalogueId, detachments, pick, data.detachmentIds)?.vs
+      return vs ? [[unit.key, vs.unit] as const] : []
+    }),
+  )
+  const definitions = vsUnits.size ? vsDefinitionsOf(loaded) : null
+  const list = vsListOf(loaded, data.catalogueId, data.detachmentIds)
+  const vsRoster = { faction: list.faction ?? '', detachments: list.detachments, units: [...vsUnits.values()] }
   const units = priced.units.flatMap((unit) => {
     const pick = data.units[unit.key]
     const context = rosterDatasheetContext(loaded, { ...roster, pickIndex: unit.key }, prepared)
@@ -39,7 +51,15 @@ export function battleScribeRoster(
     const catalogueId = pick.catalogueId ?? data.catalogueId
     const sheet = describeDatasheetAbilities(loaded, catalogueId, selectedDatasheetIn(loaded, catalogueId, pick.entryId, context), rules)
     const selection = context.selections[context.unitSelectionIndex]
-    return sheet && selection ? [unitXml(selection, sheet, unit.points, textNickname(pick.nickname ?? ''), index)] : []
+    if (!sheet || !selection) return []
+    const nickname = textNickname(pick.nickname ?? '')
+    const picked = vsUnits.get(unit.key)
+    if (picked && definitions) {
+      const abilities = [...sheet.abilities, ...(sheet.enhancements ?? [])]
+      const xml = vsDataUnitXml({ picked, entryId: pick.entryId, points: unit.points, nickname, abilities }, vsRoster, definitions)
+      if (xml) return [xml]
+    }
+    return [unitXml(selection, sheet, unit.points, nickname, index)]
   })
   return rosterXml({
     name: data.name,
@@ -50,25 +70,7 @@ export function battleScribeRoster(
   })
 }
 
-/** The roster around its units' selections, naming the BSData game system Yellowscribe picks its reader by. */
-export function rosterXml(roster: { name: string; catalogueId: string; catalogueName: string; points: number; units: readonly string[] }) {
-  return [
-    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
-    `<roster id="${id(roster.name)}" name="${escape(roster.name)}" battleScribeVersion="2.03" generatedBy="https://praetorium.gg"` +
-      ` gameSystemId="${escape(BATTLESCRIBE.gameSystem.id)}" gameSystemName="${escape(BATTLESCRIBE.gameSystem.name)}"` +
-      ' xmlns="http://www.battlescribe.net/schema/rosterSchema">',
-    costXml(roster.points),
-    `<forces><force id="${id(`${roster.name}/force`)}" name="Army Roster" entryId="force" catalogueId="${escape(roster.catalogueId)}"` +
-      ` catalogueName="${escape(roster.catalogueName)}">`,
-    `<selections>${roster.units.join('')}</selections>`,
-    '</force></forces>',
-    '</roster>',
-  ].join('\n')
-}
-
 type Profile = Datasheet['profiles'][number]
-/** An ability as the sheet describes it, its description a text token. */
-export type RosterAbility = Datasheet['abilities'][number]
 
 /** The characteristic names BattleScribe's 40k data prints, which tools reading `.ros` match exactly. */
 const CHARACTERISTIC: Partial<Record<DatasheetCharacteristicKind, string>> = {
@@ -150,43 +152,6 @@ function unitXml(selection: Selection, sheet: Datasheet, points: number, nicknam
 const nameIn = (definition: Definition, index: CatalogueIndex, entryId: string) =>
   resolve(definition, index).name ?? definition.name ?? entryId
 
-/** A unit's own abilities as profiles, and its core and faction abilities as rules, which readers print once for the army. */
-export function abilitiesXml(abilities: readonly RosterAbility[]) {
-  const isShared = (ability: RosterAbility) => ability.kind === 'core' || ability.kind === 'faction'
-  const shared = abilities.filter(isShared)
-  return {
-    profiles: abilities
-      .filter((ability) => !isShared(ability))
-      .map((ability) => profileXml(ability.id, ability.name, 'Abilities', [{ name: 'Description', value: ability.description ?? '' }])),
-    rules: shared.length
-      ? `<rules>${shared.map((rule) => `<rule id="${escape(rule.id)}" name="${escape(rule.name)}" hidden="false"><description>${escape(rule.description ?? '')}</description></rule>`).join('')}</rules>`
-      : '',
-  }
-}
-
-export const categoriesXml = (keywords: readonly string[]) =>
-  `<categories>${keywords.map((keyword) => `<category id="${id(keyword)}" name="${escape(keyword)}" entryId="${id(keyword)}" primary="false"/>`).join('')}</categories>`
-
-export function selectionXml(
-  { entryId, name, number, type, customName }: { entryId: string; name: string; number: number; type: string; customName?: string },
-  profiles: readonly string[],
-  details: readonly string[],
-  children: readonly string[],
-) {
-  return [
-    `<selection id="${id(`${entryId}/${children.length}/${number}`)}" name="${escape(name)}" entryId="${escape(entryId)}" number="${number}" type="${escape(type)}"`,
-    customName ? ` customName="${escape(customName)}"` : '',
-    '>',
-    profiles.length ? `<profiles>${profiles.join('')}</profiles>` : '',
-    ...details,
-    children.length ? `<selections>${children.join('')}</selections>` : '',
-    '</selection>',
-  ].join('')
-}
-
-export const costXml = (points: number) =>
-  `<costs><cost name="pts" typeId="${escape(BATTLESCRIBE.pointsTypeId)}" value="${points}"/></costs>`
-
 function statProfileXml(profile: Profile) {
   const values = profile.values.map((value) => ({
     name: CHARACTERISTIC[datasheetCharacteristicKindOf(value)] ?? value.name,
@@ -195,14 +160,6 @@ function statProfileXml(profile: Profile) {
   // BattleScribe writes a weapon without keywords as "-", and readers expect the characteristic to be there.
   if (profile.type !== 'Unit' && !values.some((value) => value.name === 'Keywords')) values.push({ name: 'Keywords', value: '-' })
   return profileXml(profile.id, profile.name, profile.type, values)
-}
-
-export function profileXml(profileId: string, name: string, typeName: string, values: readonly { name: string; value: string }[]) {
-  return (
-    `<profile id="${escape(profileId)}" name="${escape(name)}" hidden="false" typeName="${escape(typeName)}"><characteristics>` +
-    values.map((value) => `<characteristic name="${escape(value.name)}">${escape(value.value)}</characteristic>`).join('') +
-    '</characteristics></profile>'
-  )
 }
 
 const profileKey = (type: string, name: string) => `${type}\0${name.toLowerCase()}`
@@ -229,13 +186,3 @@ function profilesIn(definition: Definition, index: CatalogueIndex) {
   }
   return [...profiles.values()]
 }
-
-/** An identifier from a seed; nothing reads it back, but BattleScribe readers expect one on every element. */
-export const id = (seed: string) =>
-  Array.from(seed)
-    .reduce((hash, character) => (hash * 31 + character.codePointAt(0)!) % 0xffffffff, 7)
-    .toString(16)
-    .padStart(8, '0')
-
-export const escape = (value: string) =>
-  value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&apos;')

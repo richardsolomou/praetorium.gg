@@ -1,6 +1,7 @@
 import { expect, it } from 'vitest'
 import { type VsDataConstruction, vsDataDefinitions } from '../core/vsDataConstruction'
-import { battleScribeEntryIds, vsDataBattleScribeRoster } from './vsDataBattleScribeRoster'
+import { rosterXml } from './battleScribeXml'
+import { vsDataUnitXml } from './vsDataBattleScribeRoster'
 
 const record = (name: string, data: Record<string, unknown>) => ({ name, data: { formatVersion: 2, ...data } })
 const weapon = (name: string, wargear: string) =>
@@ -33,30 +34,22 @@ const construction: VsDataConstruction = {
     },
   },
 }
-const xml = vsDataBattleScribeRoster(
-  {
-    name: 'List',
-    catalogueId: 'book',
-    faction: 'host',
-    detachments: [],
-    points: 100,
-    units: [{ picked: { unit: 'host.squad', options: { 'host.squad.special': { 'host.squad.flamer': 1 } } }, points: 100, abilities: [] }],
-  },
+const picked = { unit: 'host.squad', options: { 'host.squad.special': { 'host.squad.flamer': 1 } } }
+const xml = vsDataUnitXml(
+  { picked, entryId: 'bs-squad', points: 100, abilities: [] },
+  { faction: 'host', detachments: [], units: [picked] },
   vsDataDefinitions(construction),
-  battleScribeEntryIds({}, { entry: { choices: { 'key|bs-flamer': { options: { 'host.squad.special': { 'host.squad.flamer': 1 } } } } } }),
-)
+)!
 
 it('names the BSData game system Yellowscribe picks its 11th edition reader by', () => {
-  expect(xml).toContain('gameSystemId="sys-352e-adc2-7639-d610"')
+  expect(rosterXml({ name: 'List', catalogueId: 'book', catalogueName: 'Host', points: 100, units: [xml] })).toContain(
+    'gameSystemId="sys-352e-adc2-7639-d610"',
+  )
 })
 
 // Yellowscribe divides a weapon's number by its model stack's to arm each model.
 it('numbers what a stack of models carries by the stack, a replaced weapon taken off', () => {
   expect(xml).toMatch(/name="Trooper" [^>]*number="4" type="model">.*?name="Rifle" [^>]*number="3"/)
-})
-
-it('writes a choice under the BSData option entry the frozen map gives it', () => {
-  expect(xml).toMatch(/name="Flamer" entryId="bs-flamer"/)
 })
 
 it('marks a faction keyword as BattleScribe does, which Yellowscribe sorts keywords by', () => {

@@ -1,87 +1,25 @@
 import type { Definition, VsDataDefinitions } from '../core/vsDataConstruction'
 import { modelCounts, unitKeywords, type VsRoster, type VsRosterUnit } from '../core/vsDataRoster'
-import { abilitiesXml, categoriesXml, costXml, profileXml, type RosterAbility, rosterXml, selectionXml } from './battleScribeRoster'
-
-/**
- * The BSData entry IDs a `.ros` file restores: each VS Data unit's datasheet entry, and each option's wargear by the
- * BSData option entry that stands for exactly that one selection, both read from the frozen maps.
- */
-export type BattleScribeEntryIds = { units: ReadonlyMap<string, string>; options: ReadonlyMap<string, string> }
-
-/**
- * The entry IDs `catalogue/legacy-ids/units.json` and `options.json` give back for the current rules version: a VS
- * Data ID several BSData entries stand for takes the first in ID order, and an ID no frozen entry stands for stays VS
- * Data's own, which readers of the file ignore.
- */
-export function battleScribeEntryIds(
-  units: Readonly<Record<string, string>>,
-  options: Readonly<Record<string, { choices: Readonly<Record<string, { options: Record<string, Record<string, number>> } | object>> }>>,
-): BattleScribeEntryIds {
-  const first = (pairs: Iterable<readonly [string, string]>) => {
-    const found = new Map<string, string>()
-    for (const [key, entry] of [...pairs].toSorted(([, left], [, right]) => (left < right ? -1 : 1)))
-      if (!found.has(key)) found.set(key, entry)
-    return found
-  }
-  return {
-    units: first(Object.entries(units).flatMap(([entry, unit]) => (entry.includes('~') ? [] : [[unit, entry] as const]))),
-    options: first(
-      Object.values(options).flatMap(({ choices }) =>
-        Object.entries(choices).flatMap(([key, choice]) => {
-          const selections = 'options' in choice ? Object.entries(choice.options) : []
-          const [option, chosen] = selections.length === 1 ? selections[0]! : []
-          const taken = chosen ? Object.entries(chosen) : []
-          return option && taken.length === 1 && taken[0]![1] === 1 ? [[`${option}|${taken[0]![0]}`, key.split('|')[1]!] as const] : []
-        }),
-      ),
-    ),
-  }
-}
+import { abilitiesXml, categoriesXml, costXml, profileXml, type RosterAbility, selectionXml } from './battleScribeXml'
 
 export type VsDataRosterFileUnit = {
   picked: VsRosterUnit
+  /** The datasheet entry the pick was saved as, which BattleScribe readers expect as the unit's entry. */
+  entryId: string
   points: number
   nickname?: string
-  /** The datasheet entry the pick was saved as, written in place of the frozen map's. */
-  entryId?: string
   abilities: readonly RosterAbility[]
 }
 
 /**
- * A list as the BattleScribe `.ros` XML Yellowscribe reads into Tabletop Simulator, built from VS Data alone: each unit's
- * models at their counts, the wargear each carries numbered by the unit's total as BattleScribe numbers it, VS Data's
- * stat lines and keywords, and the abilities given. BSData entry IDs come back through the frozen maps where they exist.
+ * One unit of a `.ros` file built from VS Data alone: its models at their counts, the wargear each carries numbered by
+ * the unit's total as BattleScribe numbers it, VS Data's stat lines and keywords, and the abilities given. Below the unit,
+ * entries are VS Data IDs, which Yellowscribe does not read.
  */
-export function vsDataBattleScribeRoster(
-  data: {
-    name: string
-    catalogueId: string
-    faction: string
-    detachments: string[]
-    points: number
-    units: readonly VsDataRosterFileUnit[]
-  },
-  definitions: VsDataDefinitions,
-  entryIds: BattleScribeEntryIds,
-) {
-  const roster: VsRoster = { faction: data.faction, detachments: data.detachments, units: data.units.map((unit) => unit.picked) }
-  return rosterXml({
-    name: data.name,
-    catalogueId: data.catalogueId,
-    catalogueName: definitions.get('faction', data.faction)?.name ?? '',
-    points: data.points,
-    units: data.units.flatMap((unit) => {
-      const xml = unitXml(unit, roster, definitions, entryIds)
-      return xml ? [xml] : []
-    }),
-  })
-}
-
-function unitXml(
-  { picked, points, nickname, entryId, abilities }: VsDataRosterFileUnit,
+export function vsDataUnitXml(
+  { picked, entryId, points, nickname, abilities }: VsDataRosterFileUnit,
   roster: VsRoster,
   definitions: VsDataDefinitions,
-  entryIds: BattleScribeEntryIds,
 ) {
   const unit = definitions.get('unit', picked.unit)
   if (!unit) return null
@@ -92,19 +30,19 @@ function unitXml(
   const weapons = new Map<string, Definition<'weapon-profile'>[]>()
   for (const profile of definitions.weaponProfilesOf(picked.unit))
     if (profile.data.wargear) weapons.set(profile.data.wargear, [...(weapons.get(profile.data.wargear) ?? []), profile])
-  const wargearXml = (wargear: string, number: number, option?: string): string => {
+  const wargearXml = (wargear: string, number: number): string => {
     const definition = definitions.get('wargear', wargear)
     const modes = weapons.get(wargear) ?? []
     const name = definition?.name ?? wargear
     return selectionXml(
-      { entryId: (option && entryIds.options.get(`${option}|${wargear}`)) || wargear, name, number, type: 'upgrade' },
+      { entryId: wargear, name, number, type: 'upgrade' },
       modes.map((mode) => weaponXml(mode, modes.length > 1 ? name : undefined)),
       [],
       Object.entries(definition?.data.includes ?? {}).map(([inner, n]) => wargearXml(inner, number * n)),
     )
   }
   const carriedXml = (holder: string) =>
-    [...(held.get(holder) ?? [])].flatMap(([wargear, { count, option }]) => (count > 0 ? [wargearXml(wargear, count, option)] : []))
+    [...(held.get(holder) ?? [])].flatMap(([wargear, count]) => (count > 0 ? [wargearXml(wargear, count)] : []))
   // A stat line naming models hangs off the first of them fielded, or nothing; one without describes every model.
   const statlines = definitions.unitProfilesOf(picked.unit)
   const placedOn = ({ data }: Definition<'unit-profile'>) =>
@@ -117,7 +55,7 @@ function unitXml(
     factionKeywords.has(keyword) ? `Faction: ${keyword}` : keyword,
   )
   const details = [rules, categoriesXml(keywords), costXml(points)]
-  const own = { entryId: entryId ?? entryIds.units.get(unit.id) ?? unit.id, name: unit.name, customName: nickname }
+  const own = { entryId, name: unit.name, customName: nickname }
   // BattleScribe writes a unit only ever one model as that model, and a unit that could field more as a unit.
   const single = models.length === 1 && unit.data.sizes.every((size) => size === 1)
   if (single)
@@ -139,24 +77,23 @@ function unitXml(
 }
 
 /**
- * What each fielded model carries in all and what the unit holds apart from its models (`''`), each with the option it
- * was taken through: a model's own wargear, and an option's choices on its carrier, else on `sole`, the unit's one kind
- * of model, else the unit's. What a choice replaces comes off the same holder first, then any other holding it.
+ * What each fielded model carries in all and what the unit holds apart from its models (`''`): a model's own wargear,
+ * and an option's choices on its carrier, else on `sole`, the unit's one kind of model, else the unit's. What a choice replaces comes off the same holder first, then any other holding it.
  */
 function heldBy(definitions: VsDataDefinitions, picked: VsRosterUnit, sole: string) {
-  const held = new Map<string, Map<string, { count: number; option?: string }>>()
-  const add = (holder: string, wargear: string, n: number, option?: string) => {
+  const held = new Map<string, Map<string, number>>()
+  const add = (holder: string, wargear: string, n: number) => {
     const bag = held.get(holder) ?? held.set(holder, new Map()).get(holder)!
-    const item = bag.get(wargear)
-    bag.set(wargear, { count: (item?.count ?? 0) + n, option: item?.option ?? option })
+    bag.set(wargear, (bag.get(wargear) ?? 0) + n)
   }
   const take = (holder: string, wargear: string, n: number) => {
     let left = n
     for (const from of [holder, ...[...held.keys()].filter((other) => other !== holder)]) {
-      const item = held.get(from)?.get(wargear)
-      if (!item || item.count <= 0 || !left) continue
-      const taken = Math.min(item.count, left)
-      item.count -= taken
+      const bag = held.get(from)
+      const count = bag?.get(wargear) ?? 0
+      if (!bag || count <= 0 || !left) continue
+      const taken = Math.min(count, left)
+      bag.set(wargear, count - taken)
       left -= taken
     }
   }
@@ -169,7 +106,7 @@ function heldBy(definitions: VsDataDefinitions, picked: VsRosterUnit, sole: stri
     for (const [wargear, n] of Object.entries(picked.options?.[option.id] ?? {})) {
       if (!(n > 0)) continue
       const holder = option.data.carrier ?? sole
-      add(holder, wargear, n, option.id)
+      add(holder, wargear, n)
       for (const [replaced, k] of Object.entries(option.data.replaces ?? {})) take(holder, replaced, n * k)
     }
   return held
