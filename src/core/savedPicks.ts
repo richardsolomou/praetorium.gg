@@ -14,7 +14,7 @@ export const savedPicksSchema = z.strictObject({
 })
 export type SavedPicks = z.infer<typeof savedPicksSchema>
 
-/** The published translations' address: the object `saved-picks/<sha256>.json` in the private catalogue bucket. */
+/** The published translations' address: the object `saved-picks/<sha256>.json` in the players' private bucket. */
 export const savedPicksPinSchema = z.strictObject({
   format: z.literal('praetorium.saved-picks-pin.v1'),
   sha256: z.string().regex(/^[0-9a-f]{64}$/),
