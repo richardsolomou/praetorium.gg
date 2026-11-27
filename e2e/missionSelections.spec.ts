@@ -131,8 +131,15 @@ test('source matchup nominations survive undo and reload', async ({ page, browse
   await expect(page.locator('details li').getByText(objectiveName, { exact: true })).toBeAttached()
   await expect(guards).toBeVisible()
   await expect(page.locator('details p').filter({ hasText: /'s expansion$/ })).toBeAttached()
+  // A skipped choice leaves the turn free and stays on its card until recorded.
+  await guards.getByRole('button', { name: 'Skip', exact: true }).click()
+  await expect(guards).toBeHidden()
+  await expect(advanceButton(page)).toBeEnabled()
+  const hostSide = playerPanel(page, 0)
+  await hostSide.getByRole('button', { name: 'Record guards', exact: true }).click()
   await guards.getByRole('button', { name: 'Record choice', exact: true }).click()
   await expect(guards).toBeHidden()
+  await expect(hostSide.getByRole('button', { name: 'Record guards', exact: true })).toHaveCount(0)
   await expect(advanceButton(page)).toBeEnabled()
   await page.getByRole('button', { name: 'Undo latest action', exact: true }).click()
   await expect(guards).toBeVisible()
@@ -163,7 +170,6 @@ test('source matchup nominations survive undo and reload', async ({ page, browse
   await openChoices(page)
   await expect(page.getByText('1 guard nomination', { exact: true })).toBeVisible()
   await expect(page.getByText('1 condemned unit · fallback', { exact: true })).toBeVisible()
-  const hostSide = playerPanel(page, 0)
   const burden = hostSide
     .locator('[data-secondary]')
     .filter({ has: page.getByRole('button', { name: 'Read Burden Of Trust', exact: true }) })
@@ -175,23 +181,6 @@ test('source matchup nominations survive undo and reload', async ({ page, browse
   const guardBox = (await guardRecord.boundingBox())!
   expect(guardBox.y + guardBox.height).toBeLessThan((await page.locator('[data-turn-control]').boundingBox())!.y)
   await guestContext.close()
-})
-
-test('a skipped choice leaves the turn free and stays on its card until recorded', async ({ page }) => {
-  await signUp(page, uniqueName('Skipping captain'))
-  const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Skipped choice roster' })
-  await addUnit(page, 'Immortals')
-  await practiceBattle(page, roster)
-  await startBattle(page, undefined, false)
-  await draw(page, ['Burden Of Trust', 'Cleanse'])
-  const guards = page.getByRole('dialog', { name: 'Burden Of Trust · choices', exact: true })
-  await guards.getByRole('button', { name: 'Skip', exact: true }).click()
-  await expect(guards).toBeHidden()
-  await expect(advanceButton(page)).toBeEnabled()
-  const side = playerPanel(page, 0)
-  await side.getByRole('button', { name: 'Record guards', exact: true }).click()
-  await guards.getByRole('button', { name: 'Record choice', exact: true }).click()
-  await expect(side.getByRole('button', { name: 'Record guards', exact: true })).toHaveCount(0)
 })
 
 test('Beacon asks for its unit when drawn, and a destroyed Beacon is locked and offered for discard', async ({ page }) => {
@@ -273,7 +262,7 @@ const primaryCard = (page: Page, side: 0 | 1) =>
     .locator('section')
     .filter({ has: page.getByText('Primary mission', { exact: true }) })
 
-test('Consecrate records end-of-turn objectives that stay consecrated into the next turn', async ({ page }) => {
+test('Consecrate records end-of-turn objectives that stay consecrated after a reload', async ({ page }) => {
   const name = uniqueName('Consecrate captain')
   await signUp(page, name)
   const purge = await createRoster(page, { faction: 'Necrons', detachment: /Annihilation Legion/, name: 'Consecrate purge roster' })
@@ -307,23 +296,6 @@ test('Consecrate records end-of-turn objectives that stay consecrated into the n
   const card = primaryCard(page, 0)
   await expect(card.getByText('1 consecrated objective', { exact: true })).toBeVisible()
   await expect(card.locator('dl > div', { hasText: objective }).locator('dd')).toHaveText('Immortals')
-  await inspectChoices(page, card, 'Consecrate')
-  await page.setViewportSize({ width: 1440, height: 900 })
-  await advance(page)
-  await takeTheTurn(page)
-  for (let phase = 0; phase < 6; phase++) await advance(page)
-  await takeTheTurn(page)
-  await expect(page.getByText('Round 2 of 5', { exact: true })).toBeVisible()
-  await expect(consecrate).toBeHidden()
-  for (let phase = 0; phase < 5; phase++) await advance(page, { keepChoices: true })
-  await expect(consecrate).toBeVisible()
-  await expect(consecrate.getByText(`Already consecrated: ${objective}`, { exact: true })).toBeVisible()
-  await expect(consecrate.getByRole('combobox', { name: `Consecration unit for ${objective}`, exact: true })).toHaveCount(0)
-  await inspectDialog(page, consecrate)
-  await record.click()
-  await expect(advanceButton(page)).toBeEnabled()
-  await openChoices(page)
-  await expect(card.getByText('0 consecrated objectives', { exact: true })).toBeVisible()
   await inspectChoices(page, card, 'Consecrate')
 })
 

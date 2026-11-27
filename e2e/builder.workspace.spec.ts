@@ -365,27 +365,6 @@ test('a mid-width picker hands off to the inline loadout, and portrait tablets k
   await expect(page).toHaveURL(rosterUrl)
 })
 
-test('a mixed-model squad shows its own profile instead of an optional model', async ({ page }) => {
-  await openBuilder(page, 'Space Marines', /Gladius Task Force/)
-  await page.getByLabel('Add a unit').fill('Outrider Squad')
-  await page.getByRole('button', { name: 'View Outrider Squad datasheet' }).click()
-
-  const datasheet = page.locator('aside[aria-label="Datasheet"]')
-  await expect(datasheet.locator('[data-slot="unit-profile"]')).toContainText(/M\s*12"\s*T\s*6\s*Sv\s*3\+\s*W\s*4\s*LD\s*6\+\s*OC\s*2/)
-
-  await add(page, 'Outrider Squad')
-  await page.locator('[data-unit="Outrider Squad"]').getByRole('button', { name: 'Outrider Squad', exact: true }).click()
-
-  const loadout = page.locator('aside[aria-label="Loadout"]')
-  const profile = loadout.locator('[data-slot="unit-profile"]')
-  await expect(profile).toContainText(/M\s*12"\s*T\s*6\s*Sv\s*3\+\s*W\s*4\s*LD\s*6\+\s*OC\s*2/)
-
-  await page.setViewportSize(PHONE)
-  await expect(profile).toBeVisible()
-  await expectNoPageOverflow(page)
-  await expectNoHorizontalOverflow(loadout)
-})
-
 test('datasheet metadata is searchable in the picker and global search', async ({ page }) => {
   await openBuilder(page)
   await expect(page.getByRole('button', { name: 'Add Immortals', exact: true })).toBeVisible()

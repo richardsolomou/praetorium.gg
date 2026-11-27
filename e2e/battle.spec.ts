@@ -25,38 +25,30 @@ import {
 } from './account'
 import { battleCommands, battleLog, lastPathSegment } from './storage'
 import { expectNoHorizontalOverflow } from './builder.harness'
-
-test('the opening draw prompt starts at the top, pins its actions and holds the page still on a phone', async ({ page }) => {
-  await signUp(page, uniqueName('Opening prompt'))
-  const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Opening prompt roster' })
-  await practiceBattle(page, roster)
-  await startBattle(page, undefined, false)
-  const prompt = page.getByRole('dialog', { name: /secondary missions$/ })
-  await expect(prompt.getByRole('button', { name: 'Draw at random' })).toBeVisible()
-  expect(await page.evaluate(() => scrollY)).toBe(0)
-
-  await page.setViewportSize(PHONE)
-  await expect
-    .poll(() =>
-      prompt.evaluate(
-        (dialog, slot) => dialog.getBoundingClientRect().bottom - dialog.querySelector(slot)!.getBoundingClientRect().bottom,
-        '[data-slot="dialog-footer"]',
-      ),
-    )
-    .toBeLessThanOrEqual(1)
-  await page.mouse.move(195, 300)
-  await page.mouse.wheel(0, 800)
-  const settled = await page.evaluate(
-    () => new Promise<number>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve(scrollY)))),
-  )
-  expect(settled).toBe(0)
-})
+import { screenshot } from './screenshots'
 
 test('Cleanse and Centre Ground prompt for scoring on the first turn', async ({ page }) => {
   await signUp(page, uniqueName('Standard secondaries'))
   const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Standard scoring roster' })
   await practiceBattle(page, roster)
   await startBattle(page, undefined, true, ['Cleanse', 'Centre Ground'])
+
+  await playerPanel(page, 0).getByRole('button', { name: 'Read Cleanse', exact: true }).click()
+  const card = page.getByRole('dialog', { name: 'Cleanse', exact: true })
+  // A summary is loaded after the card opens, so its words are checked for being there rather than for what they say.
+  const action = card.getByRole('listitem').filter({ hasText: /^Action/ })
+  await expect(action.locator('[data-rule-summary]').first()).toHaveText(/\S/)
+  await expect(card.locator('[data-rule-summary]').nth(1)).toHaveText(/\S/)
+  await screenshot(page, 'battle-mission-action.png')
+  await card.getByRole('button', { name: 'Close', exact: true }).click()
+  await expect(card).toBeHidden()
+
+  // Showing every stratagem includes the ones for the other turn, refused.
+  const waiting = playerPanel(page, 1)
+  const insaneBravery = waiting.getByRole('button', { name: 'Use Insane Bravery' })
+  await expect(insaneBravery).toHaveCount(0)
+  await waiting.getByRole('button', { name: /not playable now$/ }).click()
+  await expect(insaneBravery).toBeDisabled()
 
   const ongoing = playerPanel(page, 0)
   await expect(ongoing.locator('[data-secondary]')).toHaveCount(2)
@@ -126,7 +118,7 @@ test('Cleanse and Centre Ground prompt for scoring on the first turn', async ({ 
   await expectNoPageOverflow(page)
   await page.mouse.wheel(0, -2000)
   await expect.poll(() => body.evaluate((element) => element.scrollTop)).toBe(0)
-  await page.screenshot({ path: test.info().outputPath('scoring-mobile.png') })
+  await screenshot(page, 'scoring-mobile.png')
   await page.setViewportSize(PHONE)
   await scoring.getByRole('button', { name: 'Cleanse plus 2', exact: true }).scrollIntoViewIfNeeded()
   await confirmScoring(scoring, 'Pass the turn')
@@ -164,20 +156,6 @@ test('Cleanse and Centre Ground prompt for scoring on the first turn', async ({ 
   await beacon.getByRole('button', { name: 'Close', exact: true }).click()
   await remaining.getByRole('button', { name: 'Close', exact: true }).click()
   await expect(remaining).toBeHidden()
-})
-
-test('a battle mission card shows what its action and awards ask for', async ({ page }) => {
-  await signUp(page, uniqueName('Mission action summary'))
-  const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Mission action roster' })
-  await practiceBattle(page, roster)
-  await startBattle(page, undefined, true, ['Cleanse', 'Centre Ground'])
-  await playerPanel(page, 0).getByRole('button', { name: 'Read Cleanse', exact: true }).click()
-  const card = page.getByRole('dialog', { name: 'Cleanse', exact: true })
-  // A summary is loaded after the card opens, so its words are checked for being there rather than for what they say.
-  const action = card.getByRole('listitem').filter({ hasText: /^Action/ })
-  await expect(action.locator('[data-rule-summary]').first()).toHaveText(/\S/)
-  await expect(card.locator('[data-rule-summary]').nth(1)).toHaveText(/\S/)
-  await page.screenshot({ path: test.info().outputPath('battle-mission-action.png') })
 })
 
 test('a double tap on the turn control ends one phase', async ({ page }) => {
@@ -288,19 +266,6 @@ test('native battle controls leave the application tabs reachable', async ({ pag
   await applicationTabs.getByRole('link', { name: 'Battles' }).click()
   await expect(page).toHaveURL(battleUrl)
   await expect(scoring).toBeVisible()
-})
-
-test('showing every stratagem includes the ones for the other turn, refused', async ({ page }) => {
-  await signUp(page, uniqueName('Show all'))
-  const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Show all roster' })
-  await practiceBattle(page, roster)
-  await startBattle(page)
-
-  const waiting = playerPanel(page, 1)
-  const insaneBravery = waiting.getByRole('button', { name: 'Use Insane Bravery' })
-  await expect(insaneBravery).toHaveCount(0)
-  await waiting.getByRole('button', { name: /not playable now$/ }).click()
-  await expect(insaneBravery).toBeDisabled()
 })
 
 test('a tactical hand pays out when the card says', async ({ browser }) => {

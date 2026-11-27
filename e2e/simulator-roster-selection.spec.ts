@@ -1,6 +1,7 @@
 import { expect, test } from './test'
 import { savedArmy, nextFrames } from './account'
 import { chooseRosterUnit, openRosterList, simulatorState } from './combat'
+import { screenshot } from './screenshots'
 
 for (const choice of ['other side', 'same side', 'example'] as const)
   test(`a delayed roster read preserves the newer ${choice} selection`, async ({ page }) => {
@@ -53,7 +54,7 @@ for (const choice of ['other side', 'same side', 'example'] as const)
         return state?.sides.map((side) => side?.roster?.id ?? null)
       }
       await expect.poll(selected).toEqual(expected)
-      await page.screenshot({ path: test.info().outputPath(`roster-${choice.replace(' ', '-')}.png`), fullPage: true })
+      await screenshot(page, `roster-${choice.replace(' ', '-')}.png`, { fullPage: true })
       await page.reload()
       await expect.poll(selected).toEqual(expected)
       if (choice === 'other side') await expect(secondRoster).toContainText('Second selection')

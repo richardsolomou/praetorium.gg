@@ -1,5 +1,6 @@
 import { expect, test } from './test'
 import { advance, createRoster, desktopContext, PHONE, setupBattle, signUp, uniqueName } from './account'
+import { screenshot } from './screenshots'
 
 test('both phones press the same scoring prompt, and the presses survive leaving the battle', async ({ page, browser }) => {
   test.setTimeout(180_000)
@@ -36,8 +37,8 @@ test('both phones press the same scoring prompt, and the presses survive leaving
     .click()
   await expect(card(scoring, 1)).toHaveAttribute('data-answered', '')
   await expect(total(scoring)).toHaveAccessibleName(`Scoring ${scored} VP`)
-  await page.screenshot({ path: test.info().outputPath('scoring-phone.png') })
-  await opponent.screenshot({ path: test.info().outputPath('other-phone.png') })
+  await screenshot(page, 'scoring-phone.png')
+  await screenshot(opponent, 'other-phone.png')
 
   const sections = page.getByRole('navigation', { name: 'Application sections' })
   await sections.getByRole('link', { name: 'Factions' }).click()

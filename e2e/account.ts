@@ -1,11 +1,12 @@
 import { createHmac } from 'node:crypto'
 import type { BrowserContextOptions, Locator, Page, Request, Response } from '@playwright/test'
-import { expect, test } from '@playwright/test'
+import { expect } from '@playwright/test'
 import { PHASES } from '../src/core/battle'
 import type { SpacetimeOperator } from '../src/server/spacetimeOperator'
 import { PREVIEW_EMAIL, PREVIEW_PASSWORD } from '../scripts/seedPreview'
 import { lastPathSegment, productOperator, savedWork, userIdFor } from './storage'
 import { baseURL } from './stackEnv'
+import { screenshot } from './screenshots'
 
 export const desktopContext = { viewport: { width: 1440, height: 900 } } satisfies BrowserContextOptions
 
@@ -1031,7 +1032,7 @@ export async function shotAtWidths(page: Page, name: string, { fullPage = false 
   ] as const) {
     await page.setViewportSize(size)
     await expectNoPageOverflow(page)
-    await page.screenshot({ path: test.info().outputPath(`${name}-${label}.png`), fullPage })
+    await screenshot(page, `${name}-${label}.png`, { fullPage })
   }
   await page.setViewportSize(before)
 }

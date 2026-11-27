@@ -1,6 +1,7 @@
 import { expect, test } from './test'
 import { createRoster, signUp, uniqueName, expectNoPageOverflow, chooseLibraryAction } from './account'
 import { productOperator, lastPathSegment } from './storage'
+import { screenshot } from './screenshots'
 
 test('deleting offers to archive a roster, which leaves the library list and Home until it is unarchived', async ({ page }) => {
   test.setTimeout(180_000)
@@ -16,7 +17,7 @@ test('deleting offers to archive a roster, which leaves the library list and Hom
   await chooseLibraryAction(page, name, 'Delete')
   const confirm = page.getByRole('alertdialog')
   await expect(confirm.getByRole('button', { name: 'Delete roster' })).toBeVisible()
-  await page.screenshot({ path: test.info().outputPath('archive-instead-1440.png') })
+  await screenshot(page, 'archive-instead-1440.png')
   await confirm.getByRole('button', { name: 'Archive roster' }).click()
   await expect.poll(async () => (await operator.roster(id))?.archived).toBe(true)
 
@@ -33,7 +34,7 @@ test('deleting offers to archive a roster, which leaves the library list and Hom
     await page.setViewportSize({ width, height: 900 })
     await openArchived()
     await expectNoPageOverflow(page)
-    await page.screenshot({ path: test.info().outputPath(`archived-library-${width}.png`) })
+    await screenshot(page, `archived-library-${width}.png`)
   }
 
   const home = await operator.homeRostersByUser((await operator.roster(id))!.userId)

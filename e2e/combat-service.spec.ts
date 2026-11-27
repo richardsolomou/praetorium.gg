@@ -1,6 +1,7 @@
-import { expect, test, type Page } from './test'
+import { expect, test, type Locator, type Page } from './test'
 import { chooseCombatUnit, isCombatCalculationRequest, openCombatBreakdown } from './combat'
-import { chooseRosterAction, chooseOption, PHONE, savedArmy } from './account'
+import { chooseRosterAction, chooseOption, expectNoPageOverflow, PHONE, savedArmy } from './account'
+import { screenshot } from './screenshots'
 
 async function countLocalCalculations(page: Page) {
   await page.addInitScript(() => {
@@ -14,6 +15,20 @@ async function countLocalCalculations(page: Page) {
     }
   })
 }
+/** A box read once it has held still, since a resize relays a dialog out over several frames. */
+async function settledBox(locator: Locator) {
+  let last: Awaited<ReturnType<Locator['boundingBox']>> = null
+  await expect
+    .poll(async () => {
+      const box = await locator.boundingBox()
+      const still = Boolean(box && last && box.x === last.x && box.y === last.y)
+      last = box
+      return still
+    })
+    .toBe(true)
+  return last!
+}
+
 const localCalculations = (page: Page) =>
   page.evaluate(() => (window as unknown as { combatServiceObservation: { calculations: number } }).combatServiceObservation.calculations)
 
@@ -40,7 +55,7 @@ test('unit estimates run on the server across reloads and fall back locally when
   await expect(damage).toHaveText(expected)
   expect(responses.length).toBeGreaterThan(completed)
   expect(await localCalculations(page)).toBe(0)
-  await page.screenshot({ path: test.info().outputPath('server-unit-estimate.png') })
+  await screenshot(page, 'server-unit-estimate.png')
   await page.route('**/_serverFn/**', (route) => (isCombatCalculationRequest(route.request()) ? route.abort() : route.continue()))
   await page.getByRole('button', { name: 'More defender models', exact: true }).click()
   await expect.poll(() => localCalculations(page)).toBeGreaterThan(0)
@@ -72,6 +87,32 @@ test('a full roster matrix batches projections and uses the server without brows
   await chooseRosterAction(page, 'Test targets')
   await expect(dialog).toContainText('117 / 117 matchups · Complete')
   expect(calculations).toBe(before)
+
+  // Long matchup tables keep target headings and attacker names visible while scrolling.
+  const grid = dialog.getByRole('region', { name: 'All unit matchups', exact: true })
+  const corner = grid.getByRole('columnheader').first()
+  const target = grid.getByRole('columnheader').nth(1)
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 900 })
+    await grid.scrollIntoViewIfNeeded()
+    await grid.evaluate((element) => {
+      element.scrollTop = 0
+      element.scrollLeft = 0
+    })
+    const cornerBefore = await settledBox(corner)
+    const targetBefore = await settledBox(target)
+    await grid.evaluate((element) => {
+      element.scrollTop = 240
+      element.scrollLeft = 160
+    })
+    expect(await grid.evaluate((element) => element.scrollTop)).toBeGreaterThan(0)
+    await expect.poll(async () => Math.abs((await corner.boundingBox())!.y - cornerBefore.y)).toBeLessThan(2)
+    await expect.poll(async () => Math.abs((await target.boundingBox())!.y - targetBefore.y)).toBeLessThan(2)
+    await expect.poll(async () => Math.abs((await corner.boundingBox())!.x - cornerBefore.x)).toBeLessThan(2)
+    await expectNoPageOverflow(page)
+    await screenshot(page, `pinned-matchup-headings-${width}.png`)
+  }
+
   await page.setViewportSize(PHONE)
   const options = dialog.getByRole('button', { name: 'View options', exact: true })
   await expect(options).toHaveAttribute('aria-expanded', 'false')
@@ -85,5 +126,5 @@ test('a full roster matrix batches projections and uses the server without brows
   const attackerSource = (await dialog.getByRole('group', { name: 'Attacking with' }).boundingBox())!
   const defenderSource = (await dialog.getByRole('group', { name: 'Defending with' }).boundingBox())!
   expect(Math.abs(attackerSource.y - defenderSource.y)).toBeLessThan(2)
-  await page.screenshot({ path: test.info().outputPath('server-roster-matrix-phone.png') })
+  await screenshot(page, 'server-roster-matrix-phone.png')
 })

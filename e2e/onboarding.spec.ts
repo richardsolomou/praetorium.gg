@@ -16,6 +16,7 @@ import {
   chooseOption,
   desktopContext,
 } from './account'
+import { screenshot } from './screenshots'
 
 const prompt = (page: Page) => page.getByRole('note', { name: 'Getting started' })
 
@@ -80,7 +81,7 @@ async function practiceBattleGuide(page: Page, name: string, width: number) {
   await expect(prompt(page)).toContainText('Read the battle back')
   await prompt(page).getByRole('button', { name: 'Finish tour' }).click()
   await expect(prompt(page)).toBeHidden()
-  await page.screenshot({ path: test.info().outputPath('battle-help-' + width + '.png') })
+  await screenshot(page, 'battle-help-' + width + '.png')
 }
 
 test(`the simulator guide finishes and stays closed after a reload`, async ({ page }) => {
@@ -91,7 +92,7 @@ test(`the simulator guide finishes and stays closed after a reload`, async ({ pa
   await expect(prompt(page)).toContainText('Choose a defender')
   await chooseUnit(page, 'Defender', 'Tyranids', 'Termagants')
   await expect(prompt(page)).toContainText('Read the odds')
-  await page.screenshot({ path: test.info().outputPath('simulator-guide.png') })
+  await screenshot(page, 'simulator-guide.png')
   await prompt(page).getByRole('button', { name: 'Finish tour' }).click()
   await expect(prompt(page)).toBeHidden()
   await page.reload()
@@ -134,7 +135,7 @@ for (const signedIn of [false, true]) {
       await page.getByRole('button', { name: 'Save roster', exact: true }).click()
       await expect(page.getByRole('heading', { name: 'Save your roster' })).toBeVisible()
       await expect(page.getByText('Until saving succeeds, the draft stays on this device.', { exact: false })).toBeVisible()
-      await page.screenshot({ path: test.info().outputPath('guest-save-guidance.png') })
+      await screenshot(page, 'guest-save-guidance.png')
     }
   })
 }

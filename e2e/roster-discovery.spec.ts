@@ -13,6 +13,7 @@ import {
 } from './account'
 import { expectNoHorizontalOverflow, shot, closePicker } from './builder.harness'
 import { productOperator, userIdFor, lastPathSegment } from './storage'
+import { screenshot } from './screenshots'
 
 const UNIT = 'Immortals'
 const NOTE = 'Discovery note stays with the owner'
@@ -55,7 +56,7 @@ test('a published army is found, duplicated and edited without changing it, and 
     'aria-current',
     'page',
   )
-  await shot(owner.locator('main header'), test.info().outputPath(`roster-library-header.png`))
+  await shot(owner.locator('main header'), `roster-library-header.png`)
   const armyName = uniqueName('Found army')
   await createRoster(owner, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: armyName })
   await addNotedUnit(owner)
@@ -81,7 +82,7 @@ test('a published army is found, duplicated and edited without changing it, and 
   await expect(card).toContainText('Legal')
   await expect(reader.locator('main')).not.toContainText(NOTE)
   await expectNoHorizontalOverflow(reader.locator('main'))
-  await shot(reader.locator('main'), test.info().outputPath(`roster-discovery.png`))
+  await shot(reader.locator('main'), `roster-discovery.png`)
 
   await reader.goto(`/rosters/${sourceId}`)
   await chooseRosterAction(reader, 'Test targets')
@@ -124,7 +125,7 @@ test('a faction page leads to its public armies, a filter none match explains ho
   await page.goto('/rosters?view=public&rules=preview&faction=necrons')
   await expect(page.getByText('No public rosters match these filters')).toBeVisible()
   await expectNoHorizontalOverflow(page.locator('main'))
-  await shot(page.locator('main'), test.info().outputPath('roster-discovery-empty-phone.png'))
+  await shot(page.locator('main'), 'roster-discovery-empty-phone.png')
   await page.getByRole('button', { name: 'Clear filters' }).click()
   await expect(page).toHaveURL(/\/rosters\?view=public$/)
 
@@ -181,7 +182,7 @@ test('a long list of public armies scrolls to Show more', async ({ browser }) =>
     await page.mouse.wheel(0, 20_000)
     await expect(more).toBeInViewport({ timeout: 1_000 })
   }).toPass({ timeout: 10_000 })
-  await page.screenshot({ path: test.info().outputPath(`roster-discovery-scrolled.png`) })
+  await screenshot(page, `roster-discovery-scrolled.png`)
   const seeded = page.locator(`[data-discovered-roster^="${prefix} "]`)
   // The last page removes the button, so a slow page must not be asked for again.
   await expect(async () => {

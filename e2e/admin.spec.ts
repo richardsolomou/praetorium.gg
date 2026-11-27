@@ -2,6 +2,7 @@ import { expect, test } from './test'
 import { PREVIEW_EMAIL } from '../scripts/seedPreview'
 import { befriend, currentTotp, signIn, signInAsPreview, signUp, uniqueName, signOut, PHONE } from './account'
 import { PREVIEW_PLAYER_NAME } from '../scripts/lib/previewPeople'
+import { screenshot } from './screenshots'
 
 // The seeded administrator is shared by every attempt, so these tests never change its
 // security settings and give each player they create a name of its own.
@@ -17,7 +18,7 @@ test('a player secures an account with an authenticator app', async ({ page, req
   await setup.getByRole('button', { name: 'Continue' }).click()
   await expect(setup.getByRole('img', { name: 'Authenticator setup QR code' })).toBeVisible()
   await page.setViewportSize(PHONE)
-  await page.screenshot({ path: test.info().outputPath('two-factor-setup-phone.png'), fullPage: true })
+  await screenshot(page, 'two-factor-setup-phone.png', { fullPage: true })
   const uri = await setup.locator('code').textContent()
   if (!uri) throw new Error('The authenticator URI was not rendered.')
   // Verifying replaces the session, and the old one's revocation reaches the page over
