@@ -363,6 +363,7 @@ export function CombatantCard({
                     options={combatant.detachmentOptions ?? []}
                     value={combatant.detachmentIds}
                     limit={combatant.limit}
+                    battleSizes={selectedFaction?.battleSizes}
                     unavailable={
                       busy ??
                       (!combatant.detachmentOptions

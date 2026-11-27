@@ -6,6 +6,7 @@ import { joinKey } from '../core/text'
 import { canonicalDetachmentName } from '../core/detachmentName'
 import {
   borrowedDispositionError,
+  battleSizeOf,
   detachmentPointBudget,
   detachmentPointsError,
   enforces,
@@ -34,7 +35,7 @@ import { wargearOf } from '../core/wargear'
 import { rulesReferencedIn } from './catalogueRules'
 import { vsUnitRecords } from '../core/vsDataUnit'
 import { vsFirstPickOf } from './vsDataPicks'
-import { buildPick, vsDefinitionsOf, vsPickKeywords, vsPickPrices } from './vsDataBuild'
+import { battleSizesOf, buildPick, vsDefinitionsOf, vsPickKeywords, vsPickPrices } from './vsDataBuild'
 import { contextualAbilityNamesIn, datasheetIn, modelLinesOf, offeredPicksIn, toughnessOf } from './catalogue'
 import { combatCarriers } from '../core/combatLoadout'
 import { matchesKeywordSelector } from '../core/keywords'
@@ -629,7 +630,8 @@ function calculateRoster(
     })
     return filed.length === 1 ? filed[0] : undefined
   }
-  const budget = detachmentPointBudget(data.limit)
+  const battleSizes = battleSizesOf(loaded)
+  const budget = detachmentPointBudget(data.limit, battleSizes)
   const spent = purchased.reduce((total, option) => total + (option.points ?? 0), 0)
   const upgradeNames = new Set([
     ...detachmentSpecials.flatMap(({ detail }) => detail?.upgrades.map((upgrade) => cardName(upgrade.name)) ?? []),
@@ -760,7 +762,7 @@ function calculateRoster(
    * rather than for anything in it. The count is the data's own: a second copy of an
    * upgrade costs no enhancement, so the army's total already excludes it.
    */
-  const enhancementsAllowed = enhancementLimit(loaded.index, forces, options)
+  const enhancementsAllowed = battleSizeOf(data.limit, battleSizes)?.enhancements ?? enhancementLimit(loaded.index, forces, options)
   const enhancementsHeld = whole.costs[ENHANCEMENT_COST] ?? 0
   const leftToCatalogue = new Set(picked.filter((unit) => !vsDataChecks(loaded.vsRoster, data.catalogueId, unit)).map((unit) => unit.name))
   const enhancementOptions = vsData ? vsDataEnhancementOptions(loaded.vsRoster, data.detachmentIds) : new Set<string>()

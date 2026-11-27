@@ -9,7 +9,7 @@ import {
   ComboboxTrigger,
 } from '@/components/ui/combobox'
 import { cn } from '@/lib/utils'
-import { battleSizeName, detachmentPointBudget } from '../../../core/battle'
+import { type BattleSize, battleSizeName, detachmentPointBudget } from '../../../core/battle'
 import { detachmentRefusal } from '../../components/rosterSetup'
 import { matchesSearch } from '../../text'
 import { ControlTooltip } from '../../components/ControlTooltip'
@@ -23,6 +23,7 @@ export function DetachmentPicker({
   options,
   value,
   limit,
+  battleSizes,
   unavailable,
   onChange,
 }: {
@@ -30,16 +31,18 @@ export function DetachmentPicker({
   options: readonly Detachment[]
   value: readonly string[]
   limit: number
+  /** The battle sizes the faction's rules version records. */
+  battleSizes?: readonly BattleSize[]
   /** Why the picker is disabled, if it is. */
   unavailable?: string
   onChange: (ids: string[]) => void
 }) {
   const selected = options.filter((option) => value.includes(option.id))
-  const allowance = detachmentPointBudget(limit)
+  const allowance = detachmentPointBudget(limit, battleSizes)
   const spent = selected.reduce((total, option) => total + (option.points ?? 0), 0)
   const refusals = new Map(
     options.flatMap((option) => {
-      const refusal = value.includes(option.id) ? null : detachmentRefusal(option, selected, limit)
+      const refusal = value.includes(option.id) ? null : detachmentRefusal(option, selected, limit, [], battleSizes)
       return refusal ? [[option.id, refusal.reason] as const] : []
     }),
   )

@@ -1,4 +1,5 @@
 import { vsDataWithoutDetachments } from './vsDataLegality'
+import { battleSizesOf } from './vsDataBuild'
 import { offeredDetachments } from './vsDataOffers'
 import { canonicalDetachmentName } from '../core/detachmentName'
 import { datacardsFactionKeys } from './datacards'
@@ -199,6 +200,7 @@ function buildFactions(loaded: LoadedCatalogue, rules: LoadedRules | null | unde
             ...(rules?.supplementalArmyRules?.get(rulesId) ?? []),
           ],
           referenceDetachmentIds: referenceDetachments.map((detachment) => detachment.id),
+          battleSizes: battleSizesOf(loaded),
           ...(without
             ? { withoutDetachments: { dispositions: without.map((id) => ({ id, name: rules?.dispositions?.get(id) ?? id })) } }
             : {}),
