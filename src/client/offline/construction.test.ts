@@ -7,6 +7,7 @@ import { calculateRosterAssessment } from '../../shared/pricing'
 import { battleRules, constructionRead, loadLocalRules, localConstruction } from './construction'
 import { buildConstruction } from './constructionSource'
 import { datacardOf } from '../../shared/datasheetJoin'
+import { datasheetIn } from '../../shared/catalogue'
 import { shareRuntimeData } from '../../contracts/sharedRuntimeData'
 import type { RuntimeData } from '../../contracts/runtimeData'
 import type { TerrainLayout } from '../../contracts/terrain'
@@ -311,4 +312,22 @@ it('keeps exports on the server, which records them, while the device could answ
   mocks.device.mockReturnValue(Promise.resolve('device'))
   const online = vi.fn().mockResolvedValue('server')
   expect(await constructionRead('exportRoster', {} as never, online, 'cat')).toBe('server')
+})
+
+it('prints the stat lines VS Data gives the datasheet, as the server does', () => {
+  const saved = source(80)
+  saved.files[1]!.catalogue!.selectionEntries = [
+    {
+      id: 'unit',
+      name: 'Unit',
+      type: 'model',
+      profiles: [{ id: 'unit-profile', name: 'Unit', typeName: 'Unit', characteristics: [{ name: 'T', $text: '4' }] }],
+    },
+  ]
+  const vsProfiles = {
+    units: { unit: 'test.unit' },
+    lines: { 'test.unit': { models: ['Unit'], unit: [{ name: 'Unit', values: { toughness: '5' } }], weapons: [] } },
+  }
+  const { catalogue } = buildConstruction({ ...saved, vsProfiles: packRuntimeData(vsProfiles) })
+  expect(datasheetIn(catalogue, 'cat', 'unit')?.profiles[0]?.values).toEqual([{ name: 'T', value: '5' }])
 })

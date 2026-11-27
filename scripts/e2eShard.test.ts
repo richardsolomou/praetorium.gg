@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { medianDurations, recordedDurations, shardTitles, testTitles } from './e2eShard'
+import { medianDurations, planShards, recordedDurations, runnerSeconds, testTitles } from './e2eShard'
 
 const report = (results: { status: string; duration: number }[]) => ({
   suites: [
@@ -30,26 +30,39 @@ it('weighs a test by its median across runs', () => {
   expect(medianDurations(runs)['battle.spec.ts › opens a battle']).toBe(12)
 })
 
-it('keeps the two longest tests on different runners', () => {
-  const durations = { a: 40, b: 1, c: 1, d: 39, e: 1 }
+const full = runnerSeconds * 2
 
-  expect(shardTitles(Object.keys(durations), durations, 1, 2)).toEqual(['a', 'c'])
+it('keeps the two longest tests on different runners', () => {
+  const durations = { a: full, b: 1, c: 1, d: full - 1, e: 1 }
+
+  expect(planShards(Object.keys(durations), durations, 2)[0]).toEqual(['a', 'c'])
 })
 
 it('weighs an unrecorded test as the median', () => {
-  const durations = { a: 10, b: 10, c: 1 }
+  const durations = { a: full, b: full, c: 1 }
 
-  expect(shardTitles(['a', 'b', 'c', 'new'], durations, 2, 2)).toEqual(['b', 'c'])
+  expect(planShards(['a', 'b', 'c', 'new'], durations, 2)[1]).toEqual(['b', 'c'])
+})
+
+it('starts as many runners as the tests fill', () => {
+  const durations = { a: full, b: full, c: full / 2 }
+
+  expect(planShards(Object.keys(durations), durations, 14)).toHaveLength(3)
+})
+
+it('starts no more runners than the most allowed', () => {
+  const durations = { a: full, b: full, c: full }
+
+  expect(planShards(Object.keys(durations), durations, 2)).toHaveLength(2)
+})
+
+it('starts one runner for a single short test', () => {
+  expect(planShards(['a'], { a: 1 }, 14)).toEqual([['a']])
 })
 
 it('gives every test to exactly one runner', () => {
   const titles = Array.from({ length: 11 }, (_, index) => `test ${index}`)
-  const durations = Object.fromEntries(titles.map((title, index) => [title, (index * 7) % 5]))
-  const shards = [1, 2, 3].map((current) => shardTitles(titles, durations, current, 3))
+  const durations = Object.fromEntries(titles.map((title, index) => [title, full * ((index * 7) % 5)]))
 
-  expect(shards.flat().toSorted()).toEqual(titles.toSorted())
-})
-
-it('refuses a runner outside the shard count', () => {
-  expect(() => shardTitles(['a'], {}, 4, 3)).toThrow('shard must be between 1 and 3, got 4')
+  expect(planShards(titles, durations, 3).flat().toSorted()).toEqual(titles.toSorted())
 })

@@ -53,7 +53,7 @@ export function FactionPage({ catalogueId }: { catalogueId: string }) {
   const reference = faction.references[0]
   const pageActions = (
     <div className="flex items-center gap-1">
-      {faction.detachments.length ? <StartRoster faction={faction} /> : null}
+      {faction.detachments.length || faction.withoutDetachments ? <StartRoster faction={faction} /> : null}
       <FavouriteFactionToggle catalogueId={faction.id} name={faction.displayName} />
     </div>
   )
@@ -128,7 +128,11 @@ export function FactionPage({ catalogueId }: { catalogueId: string }) {
         {faction.armyRules.length ? <FactionAbilities faction={faction} rules={faction.armyRules} /> : null}
         <section aria-label="Detachments">
           <SectionHeading title="Detachments" count={detachments.length} />
-          {!detachments.length ? <p className="py-2 text-sm text-dim">No detachment rules are available for this faction.</p> : null}
+          {faction.withoutDetachments ? (
+            <p className="py-2 text-sm text-dim">This army takes no detachment.</p>
+          ) : !detachments.length ? (
+            <p className="py-2 text-sm text-dim">No detachment rules are available for this faction.</p>
+          ) : null}
           <div className="grid md:grid-cols-2 md:gap-x-6">
             {detachments.map((detachment) => {
               const content = (
@@ -208,7 +212,7 @@ export function FactionPage({ catalogueId }: { catalogueId: string }) {
             </ol>
           </details>
         ) : null}
-        {faction.detachments.length ? (
+        {faction.detachments.length || faction.withoutDetachments ? (
           <NextStep
             title={`Build ${withArticle(faction.displayName)} list`}
             description="Your faction is already filled in."

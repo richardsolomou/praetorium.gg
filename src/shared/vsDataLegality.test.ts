@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { vsRosterData, vsDataErrors, type CheckedUnit } from './vsDataLegality'
+import { vsRosterData, vsDataErrors, vsDataWithoutDetachments, type CheckedUnit } from './vsDataLegality'
 
 const record = (name: string, data: Record<string, unknown>) => ({ name, data: { formatVersion: 2, ...data } })
 const data = vsRosterData(
@@ -9,7 +9,13 @@ const data = vsRosterData(
     unavailable: [],
     points: [],
     definitions: {
-      faction: { host: record('Host', {}), other: record('Other', {}), titan: record('Titan', {}) },
+      faction: {
+        host: record('Host', {}),
+        other: record('Other', {}),
+        titan: record('Titan', {}),
+        engines: record('Engines', { withoutDetachments: { warlords: [], dispositions: ['pack.take-and-hold'] } }),
+        relics: record('Relics', { withoutDetachments: { warlords: [], dispositions: [] } }),
+      },
       'battle-size': { small: record('Small', { points: 1000, enhancements: 1 }) },
       detachment: { 'host.guard': record('Guard', { faction: 'host' }), 'other.raid': record('Raid', { faction: 'other' }) },
       allegiance: { 'host.mark.fire': record('Fire', {}) },
@@ -21,6 +27,7 @@ const data = vsRosterData(
           sizes: [1],
           allegiances: [{ choices: ['host.mark.fire'], required: true }],
         }),
+        'engines.walker': record('Walker', { faction: 'engines', keywords: ['TITANIC'], sizes: [1] }),
         'other.fort': record('Fort', { faction: 'other', keywords: ['FORTIFICATION'], sizes: [1], legends: true }),
       },
       model: {
@@ -37,13 +44,13 @@ const data = vsRosterData(
     },
   },
   {
-    books: { 'bs-host': 'host', 'bs-titan': 'titan' },
+    books: { 'bs-host': 'host', 'bs-titan': 'titan', 'bs-engines': 'engines', 'bs-relics': 'relics' },
     detachments: { 'bs-guard': 'host.guard', 'bs-raid': 'other.raid' },
-    units: { 'bs-mob': 'host.mob', 'bs-lord': 'host.lord', 'bs-fort': 'other.fort' },
+    units: { 'bs-mob': 'host.mob', 'bs-lord': 'host.lord', 'bs-fort': 'other.fort', 'bs-walker': 'engines.walker' },
     enhancements: { 'host.guard/bs-crown': 'host.guard.crown', 'host.guard/bs-fire': 'host.guard.crown' },
   },
   null,
-  (id) => ({ 'bs-mob': 'Mob', 'bs-lord': 'Lord', 'bs-fort': 'Fort [Legends]' })[id],
+  (id) => ({ 'bs-mob': 'Mob', 'bs-lord': 'Lord', 'bs-fort': 'Fort [Legends]', 'bs-walker': 'Walker' })[id],
 )
 const unit = (over: Partial<CheckedUnit> & Pick<CheckedUnit, 'entryId'>): CheckedUnit => ({
   key: 0,
@@ -87,6 +94,18 @@ describe('vsDataErrors', () => {
     ])
   })
 
+  it('refuses a Detachment to a faction that takes none', () => {
+    expect(vsDataErrors(data, { catalogueId: 'bs-engines', detachmentIds: ['bs-raid'], limit: 1000 }, [])).toContainEqual({
+      entryId: 'army',
+      entryName: 'Army',
+      message: 'takes no Detachment',
+    })
+  })
+
+  it('leaves a list to the catalogue when none of its book’s datasheets reads as its faction’s', () => {
+    expect(vsDataErrors(data, { catalogueId: 'bs-relics', detachmentIds: ['bs-raid'], limit: 1000 }, [])).toBeNull()
+  })
+
   it('leaves a list of a faction VS Data gives no Detachments to the catalogue', () => {
     expect(vsDataErrors(data, { catalogueId: 'bs-titan', detachmentIds: [], limit: 1000 }, [])).toBeNull()
   })
@@ -97,5 +116,11 @@ describe('vsDataErrors', () => {
 
   it('leaves a list with another faction’s Detachment to the catalogue', () => {
     expect(errors([unit({ entryId: 'bs-mob', size: { models: 15, min: 10, max: 20 } })], ['bs-raid'])).toBeNull()
+  })
+})
+
+describe('vsDataWithoutDetachments', () => {
+  it('names the force dispositions of a faction that takes no Detachment', () => {
+    expect(vsDataWithoutDetachments(data, 'bs-engines')).toEqual(['take-and-hold'])
   })
 })

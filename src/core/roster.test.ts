@@ -3459,3 +3459,31 @@ describe('an option kept from bearers of a keyword', () => {
   it('stays offered to a bearer without the keyword while another unit in the list has it', () =>
     expect(offered(['smith'])).toEqual(['Reinforcement', 'Relic']))
 })
+
+describe('a squad that must field a second group of models', () => {
+  const bounded = (id: string, min: number, max: number) => [
+    { id: `${id}-min`, type: 'min' as const, value: min, field: 'selections', scope: 'parent' },
+    { id: `${id}-max`, type: 'max' as const, value: max, field: 'selections', scope: 'parent' },
+  ]
+  const group = (id: string, model: string, min: number, max: number) => ({
+    id,
+    name: `${min}-${max} ${model}`,
+    constraints: bounded(id, min, max),
+    defaultSelectionEntryId: model,
+    selectionEntries: [{ id: model, name: model, type: 'model' as const, constraints: bounded(model, min, max) }],
+  })
+  const index = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'mob',
+        name: 'Mob',
+        type: 'unit',
+        selectionEntryGroups: [group('mutants', 'mutant', 5, 10), group('torments', 'torment', 3, 6)],
+      },
+    ],
+  })
+
+  it('counts both groups at their largest', () => expect(buildUnit('mob', index)!.size.max).toBe(16))
+
+  it('grows the second group once the squad is full', () => expect(buildUnit('mob', index, 14)!.size.models).toBe(14))
+})
