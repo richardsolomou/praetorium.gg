@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.279.6 (2026-11-27)
+
+### Patch Changes
+
+- 24a2796: [battles] On a phone, long player names in battle lists wrap onto another line instead of being cut off.
+- 24a2796: [app] Achievement, collection, readiness and loan names read in their own case instead of capitals.
+
 ## 0.279.5 (2026-11-27)
 
 ### Patch Changes
