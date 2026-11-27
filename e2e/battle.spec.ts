@@ -644,6 +644,8 @@ test('a pass answered slowly leaves settling the empty turn to the device that g
   await alice.locator(`a[href$="${token}"]`).first().click()
   await expect(alice.getByRole('button', { name: 'End the command phase' })).toBeVisible()
   for (let phase = 0; phase < 5; phase += 1) await advance(alice)
+  // Each advance shows ahead of the service while its command queues, so the hold below would catch a phase end, not the pass.
+  await expect(bob.getByRole('heading', { name: 'end phase' })).toBeVisible()
 
   // As on a slow phone: Alice's pass lands but its answer is late, so her device queues
   // settling Bob's empty turn behind it. Bob's device settles first, and Alice's realtime

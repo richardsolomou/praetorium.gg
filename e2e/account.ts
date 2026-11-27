@@ -582,8 +582,11 @@ export async function recordFirstTurn(page: Page, firstSide?: string) {
 /** Brings a setup step into view, expanded even when settled, which keeps it open until the page reloads. */
 export async function setupStep(page: Page, label: string | RegExp) {
   const section = page.getByRole('region', { name: label, exact: true })
-  await section.scrollIntoViewIfNeeded()
-  await expect(section).toBeInViewport()
+  // A phone restores the tab's remembered scroll for a few seconds after a page opens, and only a player's own input stops it.
+  await expect(async () => {
+    await section.scrollIntoViewIfNeeded()
+    await expect(section).toBeInViewport({ timeout: 1_000 })
+  }).toPass({ timeout: 10_000 })
   const expand = section.getByRole('button', { name: /^Expand / })
   if (await expand.isVisible()) await expand.click()
 }

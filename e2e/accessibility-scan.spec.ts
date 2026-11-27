@@ -7,7 +7,7 @@ import { addUnit, createRoster, practiceBattle, signUp, startBattle, uniqueName 
  * Lesser findings and rules outside those levels are judged by eye.
  */
 async function expectNoSeriousViolations(page: Page) {
-  // A command still in flight fades its controls out and back when it lands, so let requests settle first.
+  // Waits only for a page's first load to go quiet; a command sent later is awaited by its test.
   await page.waitForLoadState('networkidle')
   // Contrast read while something fades in blends it with the page behind, so wait for finite animations to end.
   await page.waitForFunction(() =>
@@ -38,9 +38,13 @@ test('a practice battle has no serious accessibility violations', async ({ page 
   await signUp(page, 'Alice')
   const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/ })
   await practiceBattle(page, roster)
+  // With both lists in, the table writes their mission cards and fades its choices until they land.
+  await expect(page.getByRole('button', { name: /^No limit/ })).toBeEnabled()
   await expectNoSeriousViolations(page)
   await startBattle(page)
   await expect(page.getByRole('button', { name: 'End the command phase' })).toBeVisible()
+  // Taking the turn fades the battle's controls until its command lands.
+  await expect(page.getByRole('button', { name: 'Battle options' })).toBeEnabled()
   await expectNoSeriousViolations(page)
 })
 
