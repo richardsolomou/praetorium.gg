@@ -60,9 +60,9 @@ jobs:
     secrets: inherit
 
   live-catalogue:
-    needs: [changes]
+    needs: [changes, browser-build]
     # Not for Dependabot: its runs execute dependency versions nobody has reviewed, and this job holds the public store's write key.
-    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.user.login != 'dependabot[bot]'
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.user.login != 'dependabot[bot]' && needs.browser-build.outputs.runtime-shared != 'true'
     # The release prepares it anyway, so a failure here costs only time.
     continue-on-error: true
     runs-on: ubuntu-latest
