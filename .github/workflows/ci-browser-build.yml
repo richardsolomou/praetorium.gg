@@ -13,6 +13,9 @@ on:
         value: ${{ jobs.browser-build.outputs.needed }}
       node-version:
         value: ${{ jobs.browser-build.outputs.node-version }}
+      desktop:
+        description: Whether the desktop runner reported in recently enough to take browser runners
+        value: ${{ jobs.browser-build.outputs.desktop }}
       runner-count:
         value: ${{ jobs.browser-build.outputs.runner-count }}
       runtime-shared:
@@ -34,6 +37,7 @@ jobs:
     outputs:
       needed: ${{ steps.scope.outputs.needed }}
       node-version: ${{ steps.node.outputs.version }}
+      desktop: ${{ steps.desktop.outputs.fresh }}
       runner-count: ${{ steps.runners.outputs.count }}
       runtime-shared: ${{ steps.runtime.outputs.shared }}
       runners: ${{ steps.runners.outputs.runners }}
@@ -102,6 +106,16 @@ jobs:
             echo "runners=$(node -p 'JSON.stringify(Array.from({ length: Number(process.argv[1]) }, (_, index) => index + 1))' "$count")"
             echo "count=$count"
           } >> "$GITHUB_OUTPUT"
+      # The desktop stamps the heartbeat every two minutes while its runners are up and it has room for them; a stale or missing one keeps every runner hosted.
+      - name: Check the desktop runner's heartbeat
+        id: desktop
+        if: steps.scope.outputs.needed == 'true'
+        env:
+          HEARTBEAT: ${{ vars.DESKTOP_RUNNER_HEARTBEAT }}
+        run: |
+          fresh=false
+          if [[ "$HEARTBEAT" =~ ^[0-9]+$ ]] && (( $(date +%s) - HEARTBEAT < 300 )); then fresh=true; fi
+          echo "fresh=$fresh" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v7
         if: steps.scope.outputs.needed == 'true'
         with:

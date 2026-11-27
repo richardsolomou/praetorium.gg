@@ -90,6 +90,7 @@ jobs:
     if: needs.browser-build.outputs.needed == 'true'
     uses: ./.github/workflows/ci-e2e.yml
     with:
+      desktop: ${{ needs.browser-build.outputs.desktop == 'true' }}
       node-version: ${{ needs.browser-build.outputs.node-version }}
       runner-count: ${{ needs.browser-build.outputs.runner-count }}
       runners: ${{ needs.browser-build.outputs.runners }}
