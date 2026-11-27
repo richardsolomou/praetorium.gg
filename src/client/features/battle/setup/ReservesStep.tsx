@@ -249,7 +249,7 @@ function GrantPicks({ army, unit, row, moves }: { army: Army; unit: AttachedUnit
   const player = moves.view.players.find((candidate) => candidate.id === army.playerId)
   return (
     <div className="mt-2 flex flex-wrap gap-1 border-t border-edge px-0.5 pt-2">
-      {offers.map((offer) => {
+      {offers.map((offer, index) => {
         const picked = members.some((member) => member.picked?.some((pick) => pick.rule === offer.rule))
         const command: PickCommand = {
           kind: 'pick-unit-grant',
@@ -268,15 +268,19 @@ function GrantPicks({ army, unit, row, moves }: { army: Army; unit: AttachedUnit
               size="xs"
               aria-pressed={picked}
               disabled={reason !== null}
-              aria-describedby={reason ? `${reasonId}-${offer.rule}` : undefined}
+              aria-describedby={reason || offer.limited ? `${reasonId}-${index}` : undefined}
               aria-label={`${picked ? 'Take back' : 'Pick'} ${unit.host.name} for ${offer.rule}`}
               onClick={() => moves.move(row, command)}
             >
               {label}
             </Button>
             {reason ? (
-              <span id={`${reasonId}-${offer.rule}`} className="text-3xs text-discarded">
+              <span id={`${reasonId}-${index}`} className="text-3xs text-discarded">
                 {reason}
+              </span>
+            ) : offer.limited ? (
+              <span id={`${reasonId}-${index}`} className="text-3xs text-dim">
+                {offer.rule} limits which units it picks further; check its card.
               </span>
             ) : null}
           </span>

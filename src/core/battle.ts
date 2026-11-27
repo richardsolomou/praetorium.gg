@@ -1512,7 +1512,6 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
           : refuse('unknown-unit', 'that is not one of your units')
       return unitFormationRefusal(state, player, command)
     }
-    // The bonus is for a painted army, settled before the battle and paid as it begins.
     case 'pick-unit-grant': {
       if (state.status === 'finished') return refuse('battle-over', 'the battle is over')
       const attached = attachedUnits(player.units, command.unitKey)
@@ -1520,6 +1519,7 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
       if (state.status !== 'setup') return refuse('battle-started', 'units are picked for a rule as the battle begins')
       return grantPickRefusal(player, attached, command)
     }
+    // The bonus is for a painted army, settled before the battle and paid as it begins.
     case 'set-painted':
       return state.status === 'setup' ? null : refuse('battle-started', 'the battle ready bonus is set before the battle begins')
     case 'wound-unit':
