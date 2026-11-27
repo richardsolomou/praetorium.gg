@@ -46,8 +46,10 @@ export function migratedEditionPick<T extends RosterPick>(pick: T, catalogueId: 
   if (!migration) return pick
   const sheet = migration.datasheets[pick.entryId]
   const option = (key: string, id: string) => sheet?.choices[key]?.[id] ?? { key, id }
+  // `vs` names the folded version's VS Data records; the reader attaches the new version's frozen translation instead.
+  const { vs: _vs, ...read } = pick
   return {
-    ...pick,
+    ...(read as T),
     ...(pick.catalogueId ? { catalogueId: migratedEditionId(pick.catalogueId) } : {}),
     ...(sheet && pick.choices
       ? { choices: Object.fromEntries(Object.entries(pick.choices).map(([key, id]) => Object.values(option(key, id)))) }
