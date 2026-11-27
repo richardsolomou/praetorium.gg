@@ -58,6 +58,8 @@ export type DetachmentData = {
   requiredWarlords?: string[]
   group?: string
   allegianceLimits?: (RosterBounds & { allegiances: string[] })[]
+  /** While the roster holds it, a unit holding every one of `keywords` takes only this Detachment's Enhancements. */
+  exclusiveEnhancements?: { keywords: string[] }
 }
 export type AllegianceOffer = { choices: string[]; required?: true; detachment?: string; requires?: Record<string, string> }
 export type Limit = { battleSize: string; perRoster: number; when?: When }

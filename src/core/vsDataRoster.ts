@@ -39,6 +39,7 @@ export type VsProblemCode =
   | 'option-unavailable'
   | 'option-group-count'
   | 'enhancement-detachment'
+  | 'enhancement-exclusive'
   | 'enhancement-keywords'
   | 'enhancement-repeated'
   | 'roster-limit'
@@ -468,6 +469,11 @@ export function checkVsRoster(definitions: VsDataDefinitions, roster: VsRoster, 
       const enhancement = definitions.get('enhancement', picked.enhancement)!
       if (!detachmentIds.includes(enhancement.data.detachment))
         add('enhancement-detachment', `${enhancement.name} belongs to another detachment`)
+      for (const keeper of detachments) {
+        const kept = keeper.data.exclusiveEnhancements?.keywords
+        if (kept && keeper.id !== enhancement.data.detachment && holdsAll(keywords, kept))
+          add('enhancement-exclusive', `${unit.name} takes only ${keeper.name} enhancements`)
+      }
       if (entry >= 0 && !allies[entry]!.enhancements) add('ally-enhancement', `${unit.name} cannot take enhancements`)
       if (!enhancementAdmits(definitions, enhancement, picked, keywords))
         add('enhancement-keywords', `${unit.name} cannot take ${enhancement.name}`)

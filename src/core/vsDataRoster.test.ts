@@ -15,7 +15,10 @@ const construction: VsDataConstruction = {
       titan: record('Titan', { withoutDetachments: { warlords: ['titan.engine.engine'] } }),
     },
     'battle-size': { small: record('Small', { points: 500, enhancements: 1 }) },
-    detachment: { 'host.guard': record('Guard', { faction: 'host' }) },
+    detachment: {
+      'host.guard': record('Guard', { faction: 'host' }),
+      'host.watch': record('Watch', { faction: 'host', exclusiveEnhancements: { keywords: ['CHARACTER', 'INFANTRY'] } }),
+    },
     unit: {
       'host.walker': record('Walker', { faction: 'host', keywords: ['VEHICLE'], sizes: [1] }),
       'host.captain': record('Captain', { faction: 'host', keywords: ['CHARACTER', 'INFANTRY'], sizes: [1] }),
@@ -222,6 +225,15 @@ describe('checkVsRoster', () => {
   it('refuses a fourth copy of an upgrade', () => {
     const bannered = { unit: 'host.agent', enhancement: 'host.guard.banner' }
     expect(codes([bannered, bannered, bannered, bannered])).toEqual(['enhancement-repeated'])
+  })
+
+  it('keeps a unit a Detachment claims to that Detachment’s Enhancements', () => {
+    expect(
+      checkVsRoster(
+        definitions,
+        roster([{ unit: 'host.captain', enhancement: 'host.guard.relic' }], 'host', ['host.guard', 'host.watch']),
+      ).map((problem) => problem.code),
+    ).toEqual(['enhancement-exclusive'])
   })
 
   it('refuses an upgrade beyond the copies it allows', () => {
