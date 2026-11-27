@@ -1,6 +1,6 @@
 import type { Locator } from '@playwright/test'
 import { expect, type Page, test } from './test'
-import { createRoster, signUp, waitForRosterSave, addUnit, expectNoPageOverflow } from './account'
+import { seededRoster, signUp, waitForRosterSave, addUnit, expectNoPageOverflow } from './account'
 import { arrangeByRole, expectNoHorizontalOverflow, openBuilder, shot } from './builder.harness'
 import { screenshot } from './screenshots'
 
@@ -12,7 +12,7 @@ const attachMenu = (page: Page) => page.getByRole('menu')
 
 test(`a unit's attach menu adds and attaches a new leader, then offers only its free support slot`, async ({ page }) => {
   await signUp(page, 'Richard')
-  await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/ })
+  await seededRoster(page, { faction: 'Necrons', detachment: 'Awakened Dynasty' })
   await expect(page.getByRole('combobox', { name: 'Unit relationships' })).toHaveCount(0)
   await addUnit(page, 'Immortals')
   await addUnit(page, 'Overlord')
@@ -58,7 +58,7 @@ test(`a unit's attach menu adds and attaches a new leader, then offers only its 
 test('a unit whose only leader slot is full offers no attach menu', async ({ page }) => {
   await signUp(page, 'Richard')
   await page.setViewportSize({ width: 390, height: 900 })
-  await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/ })
+  await seededRoster(page, { faction: 'Necrons', detachment: 'Awakened Dynasty' })
   await addUnit(page, 'Skorpekh Destroyers')
   await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).tap()
 
@@ -82,7 +82,7 @@ test('a unit whose only leader slot is full offers no attach menu', async ({ pag
 
 test(`a character's attach menu adds and joins a new bodyguard`, async ({ page }) => {
   await signUp(page, 'Richard')
-  await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/ })
+  await seededRoster(page, { faction: 'Necrons', detachment: 'Awakened Dynasty' })
   await addUnit(page, 'Overlord')
   const overlord = page.locator('[data-unit="Overlord"]')
   await overlord.getByRole('button', { name: 'Attach to unit: Overlord', exact: true }).click()
@@ -105,7 +105,7 @@ test(`a character's attach menu adds and joins a new bodyguard`, async ({ page }
 
 test('a Loyal Protector joins a Command Squad', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
-  await openBuilder(page, 'Astra Militarum', /Combined Arms/)
+  await openBuilder(page, 'Astra Militarum', 'Combined Arms')
   await addUnit(page, 'Ogryn Bodyguard')
 
   const ogryn = page.locator('[data-unit="Ogryn Bodyguard"]')
@@ -151,7 +151,7 @@ async function settledHeight(card: Locator) {
 
 test('picker card height stays stable as the roster crosses the points budget', async ({ page }) => {
   await signUp(page, 'Richard')
-  await createRoster(page, { faction: 'Necrons', detachment: /Canoptek Court/, size: /Incursion/ })
+  await seededRoster(page, { faction: 'Necrons', detachment: 'Canoptek Court', limit: 1000 })
   await addUnit(page, "C'tan Shard of the Nightbringer")
   await page.getByLabel('Add a unit').fill('Monolith')
   const monolith = page.locator('[data-picker-unit="Monolith"]')

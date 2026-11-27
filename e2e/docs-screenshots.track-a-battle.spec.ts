@@ -6,7 +6,7 @@ import {
   attachRoster,
   chooseBattlefield,
   chooseTracking,
-  createRoster,
+  seededRoster,
   expandStep,
   newBattle,
   playBothSides,
@@ -20,7 +20,7 @@ docsScreenshots()
 test('track a battle', async ({ page }) => {
   test.setTimeout(300_000)
   await signUp(page, 'Aurelia')
-  const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Necron army' })
+  const roster = await seededRoster(page, { faction: 'Necrons', detachment: 'Awakened Dynasty', name: 'Necron army' })
 
   await newBattle(page)
   await expect(page.locator('[data-face-off-side="1"]').getByRole('button', { name: 'Share a link' })).toBeVisible()

@@ -1,6 +1,6 @@
 import { chooseCombatUnit, closeCombatBreakdown, openCombatControls, holdCombatCalculations, combatDamage } from './combat'
 import { expect, test, type Page } from './test'
-import { addUnit, createRoster, signUp, waitForRosterSave, expectNoHorizontalOverflow, expectNoPageOverflow, chooseOption } from './account'
+import { addUnit, seededRoster, signUp, waitForRosterSave, expectNoHorizontalOverflow, expectNoPageOverflow, chooseOption } from './account'
 
 async function choose(page: Page, control: string, name: string) {
   await chooseOption(page, control, name)
@@ -19,7 +19,7 @@ async function noOverflow(page: Page) {
 
 test('selected friendly support names its source and stays chosen through a swap', async ({ page }) => {
   await signUp(page, 'Selected support')
-  await createRoster(page, { faction: 'Aeldari', detachment: /Warhost/ })
+  await seededRoster(page, { faction: 'Aeldari', detachment: 'Warhost' })
   await addUnit(page, 'Spiritseer')
   await addUnit(page, 'Wraithguard')
   await page.locator('[data-unit="Wraithguard"]').getByRole('button', { name: 'Wraithguard', exact: true }).click()
@@ -51,7 +51,7 @@ test('roster simulations preserve the saved loadout', async ({ browser, page }) 
   const desktop = { width: 1440, height: 1000 }
   await page.setViewportSize(desktop)
   await signUp(page, 'Simulator')
-  await createRoster(page, { faction: 'Space Marines', detachment: /Gladius Task Force/ })
+  await seededRoster(page, { faction: 'Space Marines', detachment: 'Gladius Task Force' })
   await addUnit(page, 'Intercessor Squad')
   await noOverflow(page)
   const card = page.locator('[data-unit="Intercessor Squad"]')
@@ -139,7 +139,7 @@ test('roster simulations preserve the saved loadout', async ({ browser, page }) 
 
 test('roster buffs apply conditional shooting bonuses and defensive stratagems', async ({ page }) => {
   await signUp(page, 'Buffs')
-  await createRoster(page, { faction: 'Space Marines', detachment: /Gladius Task Force/ })
+  await seededRoster(page, { faction: 'Space Marines', detachment: 'Gladius Task Force' })
   await addUnit(page, 'Intercessor Squad')
   await page.locator('[data-unit="Intercessor Squad"]').getByRole('button', { name: 'Intercessor Squad', exact: true }).click()
   await page.getByRole('button', { name: 'Simulate combat', exact: true }).click()
