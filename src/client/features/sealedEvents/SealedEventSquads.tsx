@@ -375,7 +375,7 @@ function PickChooser({
   const saved = !!chosen && chosen.length === picked.length && chosen.every((id) => picked.includes(id))
   return (
     <fieldset className="space-y-2 rounded-lg border border-parchment/40 bg-parchment/5 p-3" disabled={pick.isPending}>
-      <legend className="px-1 text-xs font-semibold tracking-label text-parchment uppercase">{prompt}</legend>
+      <legend className="px-1 text-xs font-semibold text-parchment">{prompt}</legend>
       {defender ? (
         <p className="text-xs text-dim">
           {step.kind === 'attackers' ? 'The other defender is ' : `${team ? `${team.name}’s` : 'Your'} defender is `}

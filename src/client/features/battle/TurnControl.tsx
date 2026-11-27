@@ -74,7 +74,7 @@ export function TurnControl({ view, clock, send, pending, blockReason, onAdvance
             <span className="line-segment" data-line={index < at ? 'done' : index === at ? 'now' : 'todo'} />
             <span
               // A phone reads the phase off the lit bar and the scoreboard, so the names give their height back to the page.
-              className={`mt-1 block text-center font-display text-3xs font-bold tracking-label uppercase max-sm:sr-only ${
+              className={`mt-1 block text-center font-display text-2xs font-medium max-sm:sr-only ${
                 phase === view.phase ? 'text-bone' : index < at ? 'text-dim' : 'text-faint'
               }`}
             >

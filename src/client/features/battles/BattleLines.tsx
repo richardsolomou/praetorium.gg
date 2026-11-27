@@ -66,7 +66,8 @@ export function BattleLines({
                 params={{ token: battle.token }}
                 className="flex min-h-15 min-w-0 items-center gap-3 px-2 py-2.5 transition-colors hover:bg-raised @xl:gap-4"
               >
-                <span className="w-[4.75rem] shrink-0">
+                {/* A narrow row gives the names the width and says the outcome at the start of its last line instead. */}
+                <span className="hidden w-[4.75rem] shrink-0 @xl:block">
                   <StatusChip name={stage.name} className={stage.tint} />
                 </span>
                 <span className="min-w-0 flex-1">
@@ -80,10 +81,15 @@ export function BattleLines({
                     <span className="text-faint"> vs </span>
                     <Armies side={theirs} />
                   </span>
-                  <span className="mt-0.5 block truncate text-2xs text-faint @xl:hidden">{about}</span>
+                  <span className="mt-0.5 flex min-w-0 text-2xs text-faint @xl:hidden">
+                    <span className={cn("shrink-0 font-medium after:px-[0.25em] after:text-faint after:content-['·']", stage.tint)}>
+                      {stage.name}
+                    </span>
+                    <span className="truncate">{about}</span>
+                  </span>
                 </span>
                 {battle.status === 'setup' ? null : (
-                  <span className="figure shrink-0 text-2xl leading-none whitespace-nowrap">
+                  <span className="figure shrink-0 text-xl leading-none whitespace-nowrap @xl:text-2xl">
                     <Score side={ours} lost={lost(ours)} />
                     <span className="px-1 text-base text-faint">–</span>
                     <Score side={theirs} lost={lost(theirs)} />

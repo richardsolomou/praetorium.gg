@@ -302,9 +302,7 @@ function DeclineButton({
       aria-pressed={!chosen}
       disabled={!editable || disabled}
       onClick={onDecline}
-      className={`w-full ${OPTION} px-2.5 py-2 text-left text-xs font-semibold uppercase text-bone ${cursor} ${
-        !chosen ? PICKED : 'border-edge'
-      }`}
+      className={`w-full ${OPTION} px-2.5 py-2 text-left text-xs font-semibold text-bone ${cursor} ${!chosen ? PICKED : 'border-edge'}`}
     >
       {label}
     </button>
