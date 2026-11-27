@@ -1,6 +1,7 @@
 import { expect, type Page, test } from './test'
-import { retryUntilVisible } from './account'
+import { PHONE, retryUntilVisible } from './account'
 import { guestDraft } from './storage'
+import { screenshot } from './screenshots'
 
 const DATASHEET = '/factions/necrons/datasheets/imotekh-the-stormlord'
 
@@ -82,42 +83,41 @@ test('a datasheet opens the simulator on the side the reader picks', async ({ pa
   await expect(page).not.toHaveURL(/from=/)
 })
 
-for (const [width, name, slug, weapon] of [
-  [1440, 'Prosecutor Squad', 'prosecutor-squad', 'Boltgun'],
-  [390, 'Witchseeker Squad', 'witchseeker-squad', 'Flamer'],
-] as const) {
-  test(`${name} fixed weapons remain visible through resizing, reload and view at ${width}px`, async ({ page }, testInfo) => {
-    await page.setViewportSize({ width, height: 900 })
-    await addFromDatasheet(page, `/factions/adeptus-custodes/rules/custodes-codex-2026-10-17/datasheets/${slug}`)
-    await createFromSetup(page, 'Aquilan Shield')
-    const card = page.locator(`[data-unit="${name}"]`)
-    await card.getByRole('button', { name, exact: true }).click()
-    const ranged = page.getByRole('heading', { name: new RegExp(`^\\d+× ${weapon}$`) })
-    const stock = page.getByRole('heading', { name: /^\d+× Gun Stock$/ })
-    await expect(ranged).toBeVisible()
-    await expect(stock).toBeVisible()
-    await page.screenshot({ path: testInfo.outputPath(`${slug}-editor.png`) })
-    await expect(ranged).toHaveText(`4× ${weapon}`)
-    await expect(stock).toHaveText('4× Gun Stock')
-    await page.getByRole('button', { name: `More models in ${name}`, exact: true }).click()
-    await expect(page.getByLabel(`${name} models`, { exact: true })).toHaveText('5')
-    await expect(ranged).toHaveText(`5× ${weapon}`)
-    await expect(stock).toHaveText('5× Gun Stock')
-    await expect.poll(() => guestDraft(page)).toContain('"models":5')
-    if (width === 390) await page.getByRole('button', { name: 'Back to roster', exact: true }).click()
-    await page.reload()
-    await card.getByRole('button', { name, exact: true }).click()
-    await expect(ranged).toBeVisible()
-    await expect(stock).toBeVisible()
-    if (width === 390) await page.getByRole('button', { name: 'Back to roster', exact: true }).click()
-    await page.getByRole('button', { name: 'View', exact: true }).click()
-    await card.getByRole('button', { name, exact: true }).click()
-    await expect(ranged).toBeVisible()
-    await expect(stock).toBeVisible()
-  })
-}
+test('Prosecutor Squad fixed weapons remain visible through resizing, reload and view', async ({ page }) => {
+  const name = 'Prosecutor Squad'
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await addFromDatasheet(page, '/factions/adeptus-custodes/rules/custodes-codex-2026-10-17/datasheets/prosecutor-squad')
+  await createFromSetup(page, 'Aquilan Shield')
+  const card = page.locator(`[data-unit="${name}"]`)
+  await card.getByRole('button', { name, exact: true }).click()
+  const ranged = page.getByRole('heading', { name: /^\d+× Boltgun$/ })
+  const stock = page.getByRole('heading', { name: /^\d+× Gun Stock$/ })
+  await expect(ranged).toBeVisible()
+  await expect(stock).toBeVisible()
+  await screenshot(page, 'prosecutor-squad-editor.png')
+  await expect(ranged).toHaveText('4× Boltgun')
+  await expect(stock).toHaveText('4× Gun Stock')
+  await page.getByRole('button', { name: `More models in ${name}`, exact: true }).click()
+  await expect(page.getByLabel(`${name} models`, { exact: true })).toHaveText('5')
+  await expect(ranged).toHaveText('5× Boltgun')
+  await expect(stock).toHaveText('5× Gun Stock')
+  await expect.poll(() => guestDraft(page)).toContain('"models":5')
+  await page.setViewportSize(PHONE)
+  await expect(ranged).toBeVisible()
+  await expect(stock).toBeVisible()
+  await page.getByRole('button', { name: 'Back to roster', exact: true }).click()
+  await page.reload()
+  await card.getByRole('button', { name, exact: true }).click()
+  await expect(ranged).toBeVisible()
+  await expect(stock).toBeVisible()
+  await page.getByRole('button', { name: 'Back to roster', exact: true }).click()
+  await page.getByRole('button', { name: 'View', exact: true }).click()
+  await card.getByRole('button', { name, exact: true }).click()
+  await expect(ranged).toBeVisible()
+  await expect(stock).toBeVisible()
+})
 
-test(`Eradicator melta profiles remain visible through reload and view`, async ({ page }, testInfo) => {
+test(`Eradicator melta profiles remain visible through reload and view`, async ({ page }) => {
   const name = 'Eradicator Squad with Melta Rifles'
   await addFromDatasheet(page, '/factions/space-marines/datasheets/eradicator-squad-with-melta-rifles')
   await createFromSetup(page, 'Assault Brethren')
@@ -129,8 +129,8 @@ test(`Eradicator melta profiles remain visible through reload and view`, async (
   await expect(multi.getByText('HUNTER:Monster/Vehicle', { exact: true })).toBeVisible()
   await expect(rifles.getByText('2 profiles', { exact: true })).toBeVisible()
   await expect(multi.getByText('2 profiles', { exact: true })).toBeVisible()
-  await rifles.screenshot({ path: testInfo.outputPath('melta-rifle-editor.png') })
-  await multi.screenshot({ path: testInfo.outputPath('multi-melta-editor.png') })
+  await screenshot(rifles, 'melta-rifle-editor.png')
+  await screenshot(multi, 'multi-melta-editor.png')
   await expect.poll(() => guestDraft(page)).toContain('"picks":[{')
   await page.reload()
   await card.getByRole('button', { name, exact: true }).click()

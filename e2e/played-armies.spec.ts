@@ -47,7 +47,7 @@ test('a played army is found, copied, edited and simulated without changing its 
     await expect(outcome).not.toContainText('Conceded')
     await expect(outcome).toContainText('Orks')
     await expectNoHorizontalOverflow(reader.locator('main'))
-    await shot(card, test.info().outputPath('played-army.png'))
+    await shot(card, 'played-army.png')
 
     await outcome.getByRole('link', { name: 'Open battle' }).click()
     await expect(reader).toHaveURL(new RegExp(`/battles/${token}$`))
@@ -70,7 +70,7 @@ test('a played army is found, copied, edited and simulated without changing its 
     const simulator = reader.getByRole('dialog', { name: 'Test targets', exact: true })
     await expect(simulator.getByRole('group', { name: 'Attacking with', exact: true })).toContainText('Current roster')
     await expect(simulator).toContainText(/(\d+) \/ \1 matchups · Complete/, { timeout: 120_000 })
-    await shot(simulator, test.info().outputPath('played-army-simulate.png'))
+    await shot(simulator, 'played-army-simulate.png')
     await simulator.getByRole('button', { name: 'Close', exact: true }).click()
 
     // On a phone the battle opens in the Battles tab, so the Rosters tab, not going back, returns to the list.

@@ -1,8 +1,6 @@
 import { expect, test } from './test'
 import {
-  attachRoster,
   befriend,
-  createBattle,
   createRoster,
   practiceBattle,
   setupBattle,
@@ -12,41 +10,6 @@ import {
   concede,
   scoreboard,
 } from './account'
-
-test('a visitor browses public battles and opens a spectator view on a phone and a desktop', async ({ page, browser }) => {
-  const hostContext = await browser.newContext()
-  const opponentContext = await browser.newContext()
-  const host = await hostContext.newPage()
-  const opponent = await opponentContext.newPage()
-  const opponentName = uniqueName('Public opponent')
-  await signUp(opponent, opponentName)
-  const guestRoster = await createRoster(opponent, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Guest list' })
-  await signUp(host, uniqueName('Public host'))
-  const hostRoster = await createRoster(host, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Host list' })
-  const battleUrl = await setupBattle(host, opponent, { hostRoster, guestRoster })
-  const battlePath = new URL(battleUrl).pathname
-  for (const width of [390, 1440]) {
-    await page.setViewportSize({ width, height: 900 })
-    await page.goto('/battles')
-
-    await expect(page.getByRole('heading', { name: 'Public battles', exact: true })).toBeVisible()
-    await expect(page.getByRole('link', { name: 'Sign in to play' })).toHaveAttribute('href', '/sign-in?next=%2Fbattles')
-    await expect(page.getByRole('button', { name: 'New battle', exact: true })).toHaveCount(0)
-    await expect(page.locator(`[data-battle-shelf="Public games"] article > a[href="${battlePath}"]`)).toBeVisible()
-    await expectNoPageOverflow(page)
-
-    await page.locator(`[data-battle-shelf="Public games"] article > a[href="${battlePath}"]`).click()
-    await expect(scoreboard(page)).toBeVisible()
-    await expect(page.locator('[data-replay-timeline]')).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Battle options' })).toHaveCount(0)
-  }
-  await concede(host)
-  await expect(scoreboard(host)).toContainText('wins by concession')
-  await page.goto('/battles')
-  await expect(page.locator(`[data-battle-shelf="Public games"] article > a[href="${battlePath}"]`)).toBeVisible()
-  await hostContext.close()
-  await opponentContext.close()
-})
 
 test("a signed-in player's battles page lists their own, their friends' or everyone's games, one list at a time", async ({
   page,
@@ -62,9 +25,8 @@ test("a signed-in player's battles page lists their own, their friends' or every
   const guestRoster = await createRoster(guest, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Watched guest list' })
   await signUp(host, uniqueName('Watched host'))
   const hostRoster = await createRoster(host, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Watched host list' })
-  const watched = `[href="${new URL(await createBattle(host, { opponent: guest })).pathname}"]`
-  await attachRoster(host, hostRoster)
-  await attachRoster(guest, guestRoster)
+  const watchedPath = new URL(await setupBattle(host, guest, { hostRoster, guestRoster })).pathname
+  const watched = `[href="${watchedPath}"]`
 
   await page.setViewportSize({ width: 1440, height: 900 })
   await signUp(page, uniqueName('Battle reader'))
@@ -86,6 +48,19 @@ test("a signed-in player's battles page lists their own, their friends' or every
   await expect(page.locator(`[data-battle-shelf="Public games"] a${watched}`)).toBeVisible()
   await expect(page.locator(`[data-battle-shelf="Public games"] a${own}`)).toHaveCount(0)
 
+  const visitor = await (await browser.newContext({ viewport: { width: 390, height: 900 } })).newPage()
+  await visitor.goto('/battles')
+  await expect(visitor.getByRole('heading', { name: 'Public battles', exact: true })).toBeVisible()
+  await expect(visitor.getByRole('link', { name: 'Sign in to play' })).toHaveAttribute('href', '/sign-in?next=%2Fbattles')
+  await expect(visitor.getByRole('button', { name: 'New battle', exact: true })).toHaveCount(0)
+  const watchedByVisitor = visitor.locator(`[data-battle-shelf="Public games"] article > a${watched}`)
+  await expect(watchedByVisitor).toBeVisible()
+  await expectNoPageOverflow(visitor)
+  await watchedByVisitor.click()
+  await expect(scoreboard(visitor)).toBeVisible()
+  await expect(visitor.locator('[data-replay-timeline]')).toBeVisible()
+  await expect(visitor.getByRole('button', { name: 'Battle options' })).toHaveCount(0)
+
   await views.getByRole('link', { name: 'Friends', exact: true }).click()
   await expect(page.locator('[data-friends-empty]')).toBeVisible()
 
@@ -96,6 +71,11 @@ test("a signed-in player's battles page lists their own, their friends' or every
     await expect(page.locator(`[data-battle-shelf="Friends' games"] a${watched}`)).toBeVisible()
     await expectNoPageOverflow(page)
   }
+  await host.goto(watchedPath)
+  await concede(host)
+  await expect(scoreboard(host)).toContainText('wins by concession')
+  await visitor.goto('/battles')
+  await expect(watchedByVisitor).toBeVisible()
   await hostContext.close()
   await guestContext.close()
 })

@@ -1,4 +1,5 @@
 import { expect, test } from './test'
+import { screenshot } from './screenshots'
 
 const cases = [
   { faction: 'aeldari', sheet: 'warp-hunter-legends', ability: 'Twin Linked' },
@@ -15,7 +16,7 @@ const cases = [
 ]
 
 for (const { faction, sheet, ability } of cases) {
-  test(`${sheet} explains ${ability}`, async ({ page }, testInfo) => {
+  test(`${sheet} explains ${ability}`, async ({ page }) => {
     for (const width of [1440, 390]) {
       await page.setViewportSize({ width, height: 900 })
       await page.goto(`/factions/${faction}/datasheets/${sheet}`)
@@ -23,21 +24,21 @@ for (const { faction, sheet, ability } of cases) {
       // An ability's words may name the rule as well as its chip, and either explains it.
       await page.getByRole('button', { name: ability, exact: true }).first().click()
       await expect(page.getByRole('tooltip').locator('[data-rule-summary]')).toBeVisible()
-      await page.screenshot({ path: testInfo.outputPath(`tooltip-${width}.png`) })
+      await screenshot(page, `tooltip-${width}.png`)
     }
   })
 }
 
-test('Lady Malys keeps her two melee weapons separate', async ({ page }, testInfo) => {
+test('Lady Malys keeps her two melee weapons separate', async ({ page }) => {
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 })
     await page.goto('/factions/drukhari/datasheets/lady-malys')
     await expect(page.getByRole('heading', { name: /Melee weapons 2/i })).toBeVisible()
-    await page.screenshot({ path: testInfo.outputPath(`separate-weapons-${width}.png`) })
+    await screenshot(page, `separate-weapons-${width}.png`)
   }
 })
 
-test('Eradicator Hunter profiles explain their Melta ability', async ({ page }, testInfo) => {
+test('Eradicator Hunter profiles explain their Melta ability', async ({ page }) => {
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 })
     await page.goto('/factions/space-marines/datasheets/eradicator-squad-with-melta-rifles')
@@ -45,6 +46,6 @@ test('Eradicator Hunter profiles explain their Melta ability', async ({ page }, 
     const weapon = page.locator('tbody[aria-label="melta rifle profiles" i]').getByRole('row').filter({ hasText: 'HUNTER:Monster/Vehicle' })
     await weapon.getByRole('button', { name: 'Melta 2', exact: true }).click()
     await expect(page.getByRole('tooltip').locator('[data-rule-summary]')).toBeVisible()
-    await page.screenshot({ path: testInfo.outputPath(`tooltip-${width}.png`) })
+    await screenshot(page, `tooltip-${width}.png`)
   }
 })
