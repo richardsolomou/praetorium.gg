@@ -1,28 +1,22 @@
-import fs from 'node:fs'
 import path from 'node:path'
 import { parseArgs } from 'node:util'
-import rawBooks from '../catalogue/legacy-ids/books.json' with { type: 'json' }
-import rawDetachments from '../catalogue/legacy-ids/detachments.json' with { type: 'json' }
-import rawEnhancements from '../catalogue/legacy-ids/enhancements.json' with { type: 'json' }
 import rawOptions from '../catalogue/legacy-ids/options.json' with { type: 'json' }
-import rawUnits from '../catalogue/legacy-ids/units.json' with { type: 'json' }
-import { nameOf } from '../src/core/catalogue'
-import { legacyIdsSchema, legacyOptionsSchema } from '../src/core/legacyIds'
+import { legacyOptionsSchema } from '../src/core/legacyIds'
 import { buildUnit, type RosterPick } from '../src/core/roster'
-import { type Counts, vsDataConstructionSchema, vsDataDefinitions } from '../src/core/vsDataConstruction'
+import type { Counts } from '../src/core/vsDataConstruction'
 import { modelBounds } from '../src/core/vsDataRoster'
 import { readCatalogueComposition } from '../src/server/catalogueComposition'
 import { catalogueEditionLoaders } from '../src/server/catalogueEditions'
 import { datasheetsOf } from '../src/shared/catalogueIndex'
 import { calculateRosterPrice, savedRosterPriceInput } from '../src/shared/pricing'
-import { vsRosterData } from '../src/shared/vsDataLegality'
+import { vsDefinitionsOf, vsUnitIdOf } from '../src/shared/vsDataBuild'
 import { loadSnapshot } from './lib/catalogueSnapshotLoad'
 
 /**
  * Report-only: for each datasheet the current rules version's VS Data defines exactly, the unit BSData builds by
  * default and with each choice the frozen options map (`catalogue/legacy-ids/options.json`) translates, priced as a
  * one-unit list twice: once as the BSData pick, checked by the catalogue, and once as the same unit by VS Data IDs (its
- * first fielding, the map's `base` and the choice's selections), checked by VS Data. Prints how often the two verdicts
+ * first fielding, the map's `base` and the choices it holds), built and checked by VS Data. Prints how often the two verdicts
  * agree and, with `--list`, each disagreement with both sides' errors. Catalogue data only, no lists.
  *
  *   pnpm exec tsx scripts/vsDataLegalityParity.ts [catalogue directory] [--list]
@@ -31,27 +25,18 @@ const { values, positionals } = parseArgs({ options: { list: { type: 'boolean', 
 const directory = path.resolve(positionals[0] ?? 'catalogue-data')
 const base = readCatalogueComposition(directory)?.editions.find((entry) => entry.base)
 if (!base) throw new Error(`${directory} has no base rules version`)
-const construction = vsDataConstructionSchema.parse(
-  JSON.parse(fs.readFileSync(path.join(directory, 'summaries', `${base.edition.id}.construction.json`), 'utf8')),
-)
-const definitions = vsDataDefinitions(construction)
 const { catalogue, rules } = loadSnapshot(directory)
 const editions = catalogueEditionLoaders(
   directory,
   () => catalogue,
   () => rules,
 )
-// The checker reads a VS pick's models and wargear, so it gets the whole construction, not the copy without wargear.
-const ids = { books: rawBooks, detachments: rawDetachments, units: rawUnits, enhancements: rawEnhancements }
-const vsRoster = vsRosterData(
-  construction,
-  Object.fromEntries(Object.entries(ids).map(([kind, raw]) => [kind, legacyIdsSchema.parse(raw).ids])) as never,
-  null,
-  (entryId) => {
-    const definition = catalogue.index.definitions.get(entryId)
-    return definition && nameOf(definition, catalogue.index.definitions)
-  },
-)
+const present = <T>(value: T | null | undefined): T => {
+  if (value === null || value === undefined) throw new Error(`${directory} has no VS Data roster definitions for ${base.edition.id}`)
+  return value
+}
+const definitions = present(vsDefinitionsOf(catalogue))
+const vsRoster = present(catalogue.vsRoster)
 const map = legacyOptionsSchema.parse(rawOptions).units
 
 type Verdict = 'same' | 'both refuse, differently' | 'BSData alone refuses' | 'VS Data alone refuses'
@@ -88,7 +73,7 @@ function errorsOf(book: string, detachment: string | undefined, pick: RosterPick
     limit: 2000,
     picks: [pick],
   })
-  const price = calculateRosterPrice(input, { ...loaded, vsRoster }, editions.rulesFor(book))
+  const price = calculateRosterPrice(input, loaded, editions.rulesFor(book))
   return price && new Set(price.errors.map((error) => `${error.entryName}: ${error.message}`))
 }
 
@@ -118,7 +103,7 @@ let datasheets = 0
 let unbuilt = 0
 for (const [entryId, entry] of Object.entries(map)) {
   const unit = definitions.get('unit', entry.unit)
-  if (!unit || entry.base === 'unmatched' || vsRoster.units[entryId] !== unit.id) continue
+  if (!unit || entry.base === 'unmatched' || vsUnitIdOf(catalogue, entryId) !== unit.id) continue
   const book = bookOf(entryId, unit.id)
   if (!book) continue
   datasheets++
