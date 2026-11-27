@@ -222,7 +222,7 @@ test('a team matchup switches allied armies and carries both sides through a swa
   await addUnit(page, 'Canoptek Reanimator')
   const roster = await createRoster(page, {
     faction: 'Space Marines',
-    detachment: /Gladius Task Force/,
+    detachment: /Tactical Brethren/,
     name: 'Allied Marines',
     size: /Incursion/,
   })

@@ -63,6 +63,15 @@ describe('roster pick schema', () => {
     expect(commandSchema.parse(command)).toEqual(command)
   })
 
+  it('keeps a unit a pick fields by VS Data IDs', () => {
+    const vs = {
+      models: { 'host.squad.trooper': 9 },
+      options: { 'host.squad.heavy': { 'host.squad.cannon': 1 } },
+      warlord: 'host.squad.leader',
+    }
+    expect(rosterPickSchema.parse({ entryId: 'intercessors', vs })).toEqual({ entryId: 'intercessors', vs })
+  })
+
   it('keeps the transport a saved pick starts in', () => {
     expect(rosterPickSchema.parse({ entryId: 'intercessors', embarkedIn: 1 })).toEqual({ entryId: 'intercessors', embarkedIn: 1 })
   })

@@ -62,7 +62,6 @@ const definitions = vsDataDefinitions({
 const names: Record<string, string> = {
   'bs-tank': 'Tank',
   'bs-relic': 'Relic Tank [Legends]',
-  'bs-old': 'Old Tank [Legends]',
   'bs-banner': 'Banner',
   'bs-pack': 'Pack',
 }
@@ -71,7 +70,7 @@ const index = vsPointsIndex(
   {
     books: { 'bs-host': 'host', 'bs-other': 'other' },
     detachments: { 'bs-guard': 'host.guard' },
-    units: { 'bs-tank': 'host.tank', 'bs-relic': 'host.relic-tank', 'bs-old': 'host.tank', 'bs-pack': 'host.pack' },
+    units: { 'bs-tank': 'host.tank', 'bs-relic': 'host.relic-tank', 'bs-pack': 'host.pack' },
     enhancements: { 'host.guard/bs-banner': 'host.guard.banner' },
   },
   null,
@@ -97,16 +96,12 @@ describe('vsMfmUnit', () => {
     expect(price('legacy~bs-host', 'bs-tank')).toBe(100)
   })
 
-  it('leaves a Legends datasheet aliased to a current unit to the field manual too', () => {
-    expect(vsMfmUnit(index, 'bs-host', 'bs-old')).toBeNull()
-  })
-
   it('leaves a datasheet whose price at a size turns on its mix of models to the field manual', () => {
     expect(vsMfmUnit(index, 'bs-host', 'bs-pack')).toBeNull()
   })
 
-  it('leaves a Legends datasheet to the field manual', () => {
-    expect(vsMfmUnit(index, 'bs-host', 'bs-relic')).toBeNull()
+  it('prices a Warhammer Legends datasheet from VS Data', () => {
+    expect(price('bs-host', 'bs-relic')).toBe(200)
   })
 })
 

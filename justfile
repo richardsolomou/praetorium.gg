@@ -176,6 +176,29 @@ e2e-install:
 e2e *args:
     pnpm exec playwright test {{ args }}
 
+# Browser tests split across E2E_STACKS (default 4) side-by-side stacks, as CI splits its runners; for the desktop
+e2e-parallel *args:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    stacks="${E2E_STACKS:-4}"
+    work="$(mktemp -d "${TMPDIR:-/tmp}/praetorium-e2e-parallel.XXXXXX")"
+    PLAYWRIGHT_JSON_OUTPUT_NAME="$work/tests.json" pnpm exec playwright test --list --reporter=json {{ args }} > /dev/null
+    pnpm exec tsx scripts/browserTestBuild.ts
+    pids=()
+    for stack in $(seq "$stacks"); do
+      node --import tsx scripts/e2eShard.ts "$work/tests.json" "$stack" "$stacks" > "$work/$stack.txt"
+      # A selection smaller than the stacks leaves some empty, and an empty list would run every test.
+      [ -s "$work/$stack.txt" ] || continue
+      PLAYWRIGHT_OUTPUT_DIR="test-results/stack-$stack" pnpm exec playwright test --test-list="$work/$stack.txt" > "$work/$stack.log" 2>&1 &
+      pids[$stack]=$!
+    done
+    status=0
+    for stack in "${!pids[@]}"; do
+      if wait "${pids[$stack]}"; then tail -n 3 "$work/$stack.log"; else status=1; echo "Stack $stack failed:"; cat "$work/$stack.log"; fi
+    done
+    rm -rf "$work"
+    exit "$status"
+
 # Rerun test edits against one isolated production stack; restart after application edits
 e2e-ui *args:
     pnpm exec playwright test --ui {{ args }}

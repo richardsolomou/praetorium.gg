@@ -10,6 +10,7 @@ import { vsDataReleaseFiles, writeFiles } from './vsData.fixtures'
 import { checkVsDataRelease, compactVsDataRelease } from './vsDataRelease'
 import { MISSION_SUMMARIES, RULE_SUMMARIES, type RuleDocument } from '../contracts/rules'
 import { abilitySummaryIn } from '../shared/vsDataAbilities'
+import { summaryPlainText } from '../shared/ruleSummaries'
 import { NO_RULE_SUMMARIES, summariesOfFile, type VsDataSummaries, vsDataSummariesSteps, withholdCopiedSummaries } from './vsDataSummaries'
 
 const effect = 'Until the end of the phase, each time a model in your unit makes an attack, add 1 to the Hit roll.'
@@ -130,6 +131,34 @@ it('opens the weapon ability a run names where its link names the ability’s co
       { text: '.' },
     ],
   })
+})
+
+it('serves a Stratagem’s parts apart, each read as its summary is', () => {
+  const parts = {
+    when: 'Your Shooting phase.',
+    target: 'One **INFANTRY** unit.',
+    effect: 'Its weapons gain [LETHAL HITS](vsdata:weapon-ability/lethal-hits).',
+    restrictions: 'Not an **AIRCRAFT** unit.',
+  }
+  const summary = `**When:** ${parts.when}\n\n**Target:** ${parts.target}\n\n**Effect:** ${parts.effect}\n\n**Restrictions:** ${parts.restrictions}`
+  const lethalHits = { kind: 'weapon-ability', id: 'lethal-hits', aliases: [], summary: 'A Critical Hit wounds automatically.' }
+  const { summaries, base } = snapshot([{ update: 'MFM 1.6', summary, data: { parts } }], [lethalHits])
+  expect(summaries!.summariesIn(base).records['ability:necrons.test.focused-fire']?.parts).toEqual({
+    when: [{ paragraph: [{ text: 'Your Shooting phase.' }] }],
+    target: [{ paragraph: [{ text: 'One ' }, { text: 'INFANTRY', bold: true }, { text: ' unit.' }] }],
+    effect: [{ paragraph: [{ text: 'Its weapons gain ' }, { text: 'LETHAL HITS', ability: 'weapon-ability:lethal-hits' }, { text: '.' }] }],
+    restrictions: [{ paragraph: [{ text: 'Not an ' }, { text: 'AIRCRAFT', bold: true }, { text: ' unit.' }] }],
+  })
+})
+
+it('serves a Stratagem written in parts as the same words its summary joins them into', () => {
+  const parts = { when: 'Your Shooting phase.', target: '**One** unit.', effect: 'Pick one:\n\n- Hit rolls get +1.\n- Wound rolls get +1.' }
+  const summary = `**When:** ${parts.when}\n\n**Target:** ${parts.target}\n\n**Effect:** ${parts.effect}`
+  const read = (data?: Record<string, unknown>) => {
+    const { summaries, base } = snapshot([{ update: 'MFM 1.6', summary, ...(data ? { data } : {}) }])
+    return summaryPlainText(summaries!.summariesIn(base).records['ability:necrons.test.focused-fire']!)
+  }
+  expect(read({ parts })).toBe(read())
 })
 
 it('serves a Markdown summary as its paragraphs and lists, its links landing on the rules they name', () => {

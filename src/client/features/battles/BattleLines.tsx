@@ -71,7 +71,7 @@ export function BattleLines({
                   <StatusChip name={stage.name} className={stage.tint} />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[0.9375rem] leading-tight">
+                  <span className="block text-[0.9375rem] leading-snug [overflow-wrap:anywhere] @xl:truncate @xl:leading-tight">
                     <Names battle={battle} side={ours} />
                     <span className="text-faint"> vs </span>
                     <Names battle={battle} side={theirs} />

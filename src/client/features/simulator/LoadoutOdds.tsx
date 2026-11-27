@@ -82,7 +82,7 @@ function Odds({
               </p>
             </>
           }
-          className="rounded-sm bg-primary px-1 text-[0.6rem] font-semibold tracking-wide text-sunken uppercase"
+          className="rounded-sm bg-primary px-1 text-3xs font-semibold text-sunken"
         >
           {bestBy ? bestLabels[bestBy] : 'Best'}
         </HoverTooltip>

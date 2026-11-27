@@ -4,8 +4,15 @@ import rawMissions from '../../catalogue/legacy-ids/missions.json' with { type: 
 /**
  * A frozen map from the Game Datacards IDs battle logs, saved rosters and links hold to the VS Data IDs that replaced
  * them. Stored IDs are never rewritten, so every read of one meets the rules through these maps. Entries are only added.
+ * `units.json` also gives, under the same key, the VS Data allegiance a datasheet implies for a pick that holds no
+ * allegiance choice of its own: the one its name spells, as Khorne Soul Grinder is the Soul Grinder taking Khorne, else
+ * the one it is built on before any choice is made, as Daemon Prince of Chaos starts on Khorne. An ID only ever gains one.
  */
-export const legacyIdsSchema = z.object({ format: z.literal('praetorium.legacy-ids.v1'), ids: z.record(z.string(), z.string()) })
+export const legacyIdsSchema = z.object({
+  format: z.literal('praetorium.legacy-ids.v1'),
+  ids: z.record(z.string(), z.string()),
+  allegiances: z.record(z.string(), z.string()).optional(),
+})
 
 /**
  * A frozen map from each choice a saved pick holds (`<choice key>|<option ID>` on a BSData datasheet entry) to the VS
@@ -24,7 +31,10 @@ export const legacyIdsSchema = z.object({ format: z.literal('praetorium.legacy-i
  * Selections are option → wargear → count; a negative count takes back a selection that VS Data's defaults, `base` or
  * the choice above made. A choice beneath another is read on the unit with that one taken. Every key a pick can hold is
  * in `choices`, where an option first fielded or a unit composition maps to no selections, or in `unmatched`. Choices,
- * `base` and `floor` are only added; a mapped one never changes.
+ * `base` and `floor` are only added; a mapped one never changes, and a `floor` never does. An entry is derived afresh,
+ * keeping every key it held (those that no longer translate in `unmatched`), only when `units.json` moves its datasheet
+ * to another unit, or when a `base` of `'unmatched'` now maps; a moved datasheet whose new unit cannot be read takes a
+ * `base` of `'unmatched'` and no choices, every key it held in `unmatched`.
  */
 export const legacyOptionsSchema = z.object({
   format: z.literal('praetorium.legacy-options.v1'),

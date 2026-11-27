@@ -1322,7 +1322,8 @@ test.describe('data update anchors', () => {
   test("an army's page lists only that army's changes", async ({ page }) => {
     const { row } = await closedRow(page)
     await row.locator('summary').click()
-    const slug = (await row.locator('[data-factions]').first().getAttribute('data-factions'))!.split(' ')[0]
+    // An archived rules version's block names no army page, so the first block that does is followed.
+    const slug = (await row.locator('[data-factions]:not([data-factions=""])').first().getAttribute('data-factions'))!.split(' ')[0]
     const href = `/data-updates/${slug}`
     await page.goto(href)
 
