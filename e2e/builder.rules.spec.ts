@@ -453,10 +453,8 @@ test('a squad keeps the weapons it was given while a specialist is armed', async
     .click()
 
   const loadout = page.locator('aside[aria-label="Loadout"]')
-  for (const models of ['6', '7', '8', '9', '10']) {
-    await loadout.getByRole('button', { name: 'More models in Sternguard Veteran Squad' }).click()
-    await expect(loadout.getByLabel('Sternguard Veteran Squad models')).toHaveText(models)
-  }
+  await loadout.getByRole('button', { name: 'More models in Sternguard Veteran Squad' }).click()
+  await expect(loadout.getByLabel('Sternguard Veteran Squad models')).toHaveText('10')
   // The sergeant carries his own weapons, so every count here is the squad's.
   const veterans = loadout.locator('section').filter({ has: page.getByLabel('Sternguard Veteran models', { exact: true }) })
   await expect(veterans.getByLabel('Artificer Firearm count')).toHaveText('9')
