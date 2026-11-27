@@ -15,6 +15,10 @@ import { exclusiveDetachments } from './rosterDetachments'
 import { isUpgrade, mfmDetachmentFor, mfmSlugs, mfmVersions } from './mfm'
 import { catalogueEditionId } from '../core/catalogueEdition'
 
+/** The Detachments a faction's lists can take: none where its own rules replace Detachment selection, as a Titan army's do. */
+export const detachmentOptionsOf = (loaded: LoadedCatalogue, factionId: string) =>
+  vsDataWithoutDetachments(loaded.vsRoster, factionId) ? [] : (loaded.detachments.get(factionId)?.options ?? [])
+
 export function isReferenceDetachment(
   loaded: LoadedCatalogue,
   rules: LoadedRules | null | undefined,
@@ -96,8 +100,7 @@ function factionSummary(loaded: LoadedCatalogue, rules: LoadedRules | null | und
     .find(Boolean)
   const versions = mfmVersions(loaded.mfm)
   const version = points?.attribution ? null : (points?.version ?? (versions.size === 1 ? versions.values().next().value : null))
-  // A faction whose own rules replace Detachment selection, as a Titan army's do, offers none.
-  const detachments = vsDataWithoutDetachments(loaded.vsRoster, faction.id) ? [] : (loaded.detachments.get(faction.id)?.options ?? [])
+  const detachments = detachmentOptionsOf(loaded, faction.id)
   const referenceDetachments = detachments.filter((detachment) => isReferenceDetachment(loaded, rules, faction, detachment))
   const datasheets = listedDatasheets(loaded, faction.id, { factionCards: true, nonMatchedPlay: true }).filter(({ id }) =>
     isReferenceDatasheet(loaded, faction.id, id),
