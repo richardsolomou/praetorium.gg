@@ -5,13 +5,35 @@ import type { RosterPick, VsPick } from './roster'
 /**
  * Frozen whole-pick translations: each saved BSData pick of a datasheet VS Data defines exactly, by `savedPickKey`, to
  * the `VsPick` it stands for, checked by VS Data's own checker when frozen (`scripts/translateSavedPicks.ts`). Entries
- * are only added, so a stored pick means the same forever; a pick with none, ambiguous or unmatched, stays on BSData.
+ * are only added (`appendSavedPicks`), so a stored pick means the same forever; a pick with none stays on BSData. Strict,
+ * so it can hold nothing but a pick's content key and its VS Data IDs.
  */
-export const savedPicksSchema = z.object({
+export const savedPicksSchema = z.strictObject({
   format: z.literal('praetorium.saved-picks.v1'),
-  picks: z.record(z.string().regex(/^[0-9a-f]{16}$/), vsPickSchema),
+  picks: z.record(z.string().regex(/^[0-9a-f]{16}$/), vsPickSchema.strict()),
 })
 export type SavedPicks = z.infer<typeof savedPicksSchema>
+
+/** The published translations' address: the object `saved-picks/<sha256>.json` in the players' private bucket. */
+export const savedPicksPinSchema = z.strictObject({
+  format: z.literal('praetorium.saved-picks-pin.v1'),
+  sha256: z.string().regex(/^[0-9a-f]{64}$/),
+})
+
+/**
+ * The published translations with `found` added, as the bytes to publish: every key published keeps its translation,
+ * and a run that would change one stops, so a key never changes meaning once published.
+ */
+export function appendSavedPicks(published: SavedPicks | null, found: SavedPicks['picks']): string {
+  const picks = { ...published?.picks }
+  for (const [key, vs] of Object.entries(found)) {
+    const held = picks[key]
+    if (held && JSON.stringify(sortedKeys(held)) !== JSON.stringify(sortedKeys(vs)))
+      throw new Error(`saved pick ${key} is published as ${JSON.stringify(held)}; this run reads it as ${JSON.stringify(vs)}`)
+    picks[key] = held ?? vs
+  }
+  return `${JSON.stringify(sortedKeys(savedPicksSchema.parse({ format: 'praetorium.saved-picks.v1', picks })))}\n`
+}
 
 /** Where a pick stands: its rules version, its list's (or loadout's) book, and the list's Detachments. */
 export type PickContext = { rulesVersion: string; catalogueId: string; detachmentIds: readonly string[] }
