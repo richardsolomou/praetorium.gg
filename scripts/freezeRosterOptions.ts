@@ -8,7 +8,6 @@ import { buildUnit, type BuiltUnit } from '../src/core/roster'
 import { isUnitCompositionChoice, type UnitChoice } from '../src/core/unitChoices'
 import { wargearOf } from '../src/core/wargear'
 import { legacyOptionsSchema } from '../src/core/legacyIds'
-import { correctedOptions, legacyIdCorrections, legacyRosterIds } from '../src/core/legacyRosterIds'
 import { vsDataDefinitions } from '../src/core/vsDataConstruction'
 import { checkVsUnit } from '../src/core/vsDataRoster'
 import { wargearKey } from '../src/core/wargearNames'
@@ -325,8 +324,12 @@ const sorted = (value: unknown): unknown =>
       )
     : value
 
-const unitsMap = legacyRosterIds.units
-const enhancementIds = new Set(Object.keys(legacyRosterIds.enhancements).map((key) => key.slice(key.lastIndexOf('/') + 1)))
+const readIds = (file: string) =>
+  z
+    .object({ ids: z.record(z.string(), z.string()) })
+    .parse(JSON.parse(fs.readFileSync(path.join(import.meta.dirname, '../catalogue/legacy-ids', file), 'utf8'))).ids
+const unitsMap = readIds('units.json')
+const enhancementIds = new Set(Object.keys(readIds('enhancements.json')).map((key) => key.slice(key.lastIndexOf('/') + 1)))
 const composition = readCatalogueComposition(catalogueDirectory)
 if (!composition) throw new Error(`${catalogueDirectory} has no catalogue composition`)
 
@@ -698,15 +701,24 @@ console.log({ ...tally, choices: tally.mapped + tally.noChange + tally.allegianc
 console.log(`Read for the current rules version only; not covered (${uncovered.length}):\n  ${uncovered.join('\n  ')}`)
 if (process.env.OPTIONS_DEBUG) fs.writeFileSync(process.env.OPTIONS_DEBUG, debug.join('\n'))
 // Frozen like the other maps: a choice keeps the selections it was first given, a unit its base and floor, and this run
-// only adds. A corrected entry is checked as its correction gives it and written as first frozen.
+// only adds. A base frozen as unmatched stays open, as an unmatched choice does. An entry follows its datasheet when
+// `units.json` moves it to another unit: it is derived afresh for that unit, keeping every key it held, and where the new
+// unit cannot be read none of its picks translate.
 const file = path.join(import.meta.dirname, '../catalogue/legacy-ids/options.json')
-const raw = fs.existsSync(file) ? legacyOptionsSchema.parse(JSON.parse(fs.readFileSync(file, 'utf8'))).units : {}
-const frozen = correctedOptions(raw, legacyIdCorrections)
+const frozen = fs.existsSync(file) ? legacyOptionsSchema.parse(JSON.parse(fs.readFileSync(file, 'utf8'))).units : {}
 const differ = (one: unknown, other: unknown) => JSON.stringify(sorted(one)) !== JSON.stringify(sorted(other))
 for (const [entryId, held] of Object.entries(frozen)) {
   const found = out[entryId]
-  if (found && found.unit !== held.unit) throw new Error(`options: ${entryId} is frozen for ${held.unit}; this run names ${found.unit}`)
-  // A base frozen as unmatched stays open, as an unmatched choice does: it may map once a release fields the unit alike.
+  const keys = [...Object.keys(held.choices), ...held.unmatched]
+  const unit = unitsMap[entryId]
+  if (unit && unit !== held.unit) {
+    const fresh = found ?? { unit, base: 'unmatched' as const, choices: {}, unmatched: [] }
+    out[entryId] = {
+      ...fresh,
+      unmatched: [...new Set([...fresh.unmatched, ...keys])].filter((key) => !(key in fresh.choices)).toSorted(byId),
+    }
+    continue
+  }
   const opened = found && held.base === 'unmatched' && found.base !== 'unmatched'
   for (const field of ['base', 'floor'] as const)
     if (found && !(field === 'base' && opened) && differ(held[field], found[field]))
@@ -723,12 +735,6 @@ for (const [entryId, held] of Object.entries(frozen)) {
   }
   const unmatched = [...new Set([...held.unmatched, ...(found?.unmatched ?? [])])].filter((key) => !(key in choices)).toSorted(byId)
   out[entryId] = { ...held, ...(opened ? { base: found.base } : {}), choices, unmatched }
-}
-for (const correction of legacyIdCorrections) {
-  if (correction.section !== 'options') continue
-  if (differ(out[correction.key], correction.entry))
-    throw new Error(`options: this run adds to corrected ${correction.key}; extend its correction instead`)
-  out[correction.key] = raw[correction.key]!
 }
 fs.writeFileSync(file, `${JSON.stringify({ format: 'praetorium.legacy-options.v1', units: sorted(out) }, null, 2)}\n`)
 execFileSync('pnpm', ['exec', 'oxfmt', file], { stdio: 'inherit' })

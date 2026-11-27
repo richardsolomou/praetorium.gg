@@ -1,6 +1,8 @@
 import { z } from 'zod'
-import { legacyRosterIds } from '../core/legacyRosterIds'
+import { legacyIdsSchema } from '../core/legacyIds'
 import type { LegacyImportIds } from '../shared/importNames'
+import rawUnits from '../../catalogue/legacy-ids/units.json' with { type: 'json' }
+import rawDetachmentIds from '../../catalogue/legacy-ids/detachments.json' with { type: 'json' }
 import rawDatasheets from '../../catalogue/legacy-ids/datasheet-names.json' with { type: 'json' }
 import rawDetachments from '../../catalogue/legacy-ids/detachment-names.json' with { type: 'json' }
 
@@ -17,8 +19,8 @@ const namesOf = (raw: unknown): ReadonlyMap<string, readonly string[]> => new Ma
 
 /** What imports join VS Data's names to saved rosters' IDs by. */
 export const legacyImportIds: LegacyImportIds = {
-  units: legacyRosterIds.units,
-  detachments: legacyRosterIds.detachments,
+  units: legacyIdsSchema.parse(rawUnits).ids,
+  detachments: legacyIdsSchema.parse(rawDetachmentIds).ids,
   datasheetNames: namesOf(rawDatasheets),
   detachmentNames: namesOf(rawDetachments),
 }

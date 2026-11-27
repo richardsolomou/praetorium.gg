@@ -1,13 +1,22 @@
 import fs from 'node:fs'
 import path from 'node:path'
+import rawBooks from '../../catalogue/legacy-ids/books.json' with { type: 'json' }
+import rawDetachments from '../../catalogue/legacy-ids/detachments.json' with { type: 'json' }
+import rawEnhancements from '../../catalogue/legacy-ids/enhancements.json' with { type: 'json' }
+import rawUnits from '../../catalogue/legacy-ids/units.json' with { type: 'json' }
 import { type CatalogueIndex, nameOf } from '../core/catalogue'
-import { legacyRosterIds } from '../core/legacyRosterIds'
+import { legacyIdsSchema } from '../core/legacyIds'
 import { type VsDataConstruction, vsDataConstructionSchema, vsDataDefinitions } from '../core/vsDataConstruction'
 import { type VsDataIds, type VsPointsIndex, vsPointsIndex } from '../shared/vsDataPoints'
 import { type VsRosterData, vsRosterData } from '../shared/vsDataLegality'
 import { type CatalogueComposition, readCatalogueComposition } from './catalogueComposition'
 
-const ids: VsDataIds = legacyRosterIds
+const ids: VsDataIds = {
+  books: legacyIdsSchema.parse(rawBooks).ids,
+  detachments: legacyIdsSchema.parse(rawDetachments).ids,
+  units: legacyIdsSchema.parse(rawUnits).ids,
+  enhancements: legacyIdsSchema.parse(rawEnhancements).ids,
+}
 
 /**
  * The earlier rules versions whose own VS Data release prices them as the app build in force did, checked unit by unit

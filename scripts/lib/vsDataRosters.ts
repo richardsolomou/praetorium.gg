@@ -1,3 +1,6 @@
+import fs from 'node:fs'
+import path from 'node:path'
+import { z } from 'zod'
 import { type CatalogueIndex, resolve } from '../../src/core/catalogue'
 import { battleSizeSelection, type Selection } from '../../src/core/evaluate'
 import { buildUnit } from '../../src/core/roster'
@@ -12,12 +15,19 @@ import type { LoadedCatalogue } from '../../src/shared/catalogueIndex'
 import { calculateRosterPrice } from '../../src/shared/pricing'
 import { rosterDetachments } from '../../src/shared/rosterDetachments'
 import type { PriceInput } from '../../src/contracts/schemas'
-import { legacyRosterIds } from '../../src/core/legacyRosterIds'
 
 type Price = NonNullable<ReturnType<typeof calculateRosterPrice>>
 type PricedUnit = Price['units'][number]
 
-export const legacyIds = () => legacyRosterIds
+const mapSchema = z.object({ ids: z.record(z.string(), z.string()) })
+const legacy = (name: string) =>
+  mapSchema.parse(JSON.parse(fs.readFileSync(path.join(import.meta.dirname, `../../catalogue/legacy-ids/${name}.json`), 'utf8'))).ids
+export const legacyIds = () => ({
+  books: legacy('books'),
+  detachments: legacy('detachments'),
+  units: legacy('units'),
+  enhancements: legacy('enhancements'),
+})
 export type LegacyIds = ReturnType<typeof legacyIds>
 
 const add = (bag: Map<string, number>, key: string, n: number) => {

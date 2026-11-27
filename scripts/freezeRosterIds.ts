@@ -7,7 +7,6 @@ import { groupBy } from '../src/core/collections'
 import { loadCatalogue } from '../src/server/catalogueIndex'
 import { retainedRules } from '../src/core/retainedRosterRules'
 import { currentCatalogueId, currentDetachmentId, currentEntryId, migratedCatalogueIds } from '../src/core/retiredCatalogueIds'
-import { correctedIds, legacyIdCorrections } from '../src/core/legacyRosterIds'
 import { freezeLegacyIds } from './lib/legacyIdFiles'
 
 /**
@@ -86,7 +85,7 @@ const entrySchema = z.object({
   kind: z.string(),
   name: z.string().optional(),
   aliases: z.array(z.string()).nullish(),
-  retired: z.object({ replacedBy: z.array(z.string()).optional() }).nullish(),
+  retired: z.unknown().optional(),
 })
 const detachmentSchema = z.object({ data: z.object({ faction: z.string(), enhancements: z.array(z.string()).optional() }) })
 const manifestSchema = z.object({
@@ -150,29 +149,18 @@ function readRelease(directory: string) {
       .map((record) => [record.id, detachmentSchema.parse(read(record.path)).data] as const),
   )
   const current = entries.filter((entry) => !entry.retired)
-  const currentIds = new Set(current.map((entry) => entry.id))
-  // A retired unit with one current successor, such as a datasheet a release revives under a new ID, reads as it.
-  const successor = (entry: z.infer<typeof entrySchema>) => {
-    const next = entry.retired?.replacedBy
-    return next?.length === 1 && currentIds.has(next[0]!) ? next[0] : undefined
-  }
   // A release can name a Detachment it has no record for; its ID starts with its faction's.
   const detachments: VsDetachment[] = current
     .filter((entry) => entry.kind === 'detachment')
     .map((entry) => ({ id: entry.id, name: entry.name ?? '', faction: entry.id.split('.')[0]!, ...records.get(entry.id) }))
-  // Current units last, so an alias a current unit carries wins over a retired one's successor.
   const units = new Map(
-    entries
+    current
       .filter((entry) => entry.kind === 'unit')
-      .toSorted((left, right) => Number(!left.retired) - Number(!right.retired))
-      .flatMap((entry) => {
-        const id = entry.retired ? successor(entry) : entry.id
-        return id
-          ? (entry.aliases ?? [])
-              .filter((alias) => alias.startsWith('bsdata.'))
-              .map((alias) => [alias.slice(7).replaceAll('.', '-'), id] as const)
-          : []
-      }),
+      .flatMap((entry) =>
+        (entry.aliases ?? [])
+          .filter((alias) => alias.startsWith('bsdata.'))
+          .map((alias) => [alias.slice(7).replaceAll('.', '-'), entry.id] as const),
+      ),
   )
   const unitNames = groupBy(
     current.filter((entry) => entry.kind === 'unit'),
@@ -211,11 +199,6 @@ for (const entry of composition.editions.toSorted((left, right) => Number(Boolea
   const loaded = loadCatalogue(editionDirectory(catalogueDirectory, entry), entry.edition)
   if (!loaded) throw new Error(`${entry.edition.id} has no catalogue`)
   const { index } = loaded
-  // A release whose app build predates a chapter's own faction plays that chapter's book as Space Marines.
-  const factionOfBook = (bookId: string) => {
-    const faction = BOOKS[bookId]
-    return faction && CHAPTERS.has(faction) && !vs.factions.has(faction) ? 'space-marines' : faction
-  }
   const read = Object.fromEntries(SECTIONS.map((section) => [section, new Map<string, string>()])) as Record<Section, Map<string, string>>
   const add = (section: Section, id: string, current: string) => {
     const held = read[section].get(id)
@@ -238,7 +221,7 @@ for (const entry of composition.editions.toSorted((left, right) => Number(Boolea
   const optionDetachments = new Map<string, string>()
   const factionsOf = new Map<string, Set<string>>()
   for (const book of index.catalogues.values()) {
-    const faction = factionOfBook(book.id.slice(book.id.indexOf('~') + 1))
+    const faction = BOOKS[book.id.slice(book.id.indexOf('~') + 1)]
     if (faction)
       for (const source of linked(book.id.slice(book.id.indexOf('~') + 1)))
         factionsOf.set(source, new Set([...(factionsOf.get(source) ?? []), faction]))
@@ -259,7 +242,7 @@ for (const entry of composition.editions.toSorted((left, right) => Number(Boolea
     if (book.library || book.gameSystem) continue
     // A retained rules version's books carry its ID as a prefix, which a saved roster keeps too.
     const bookId = book.id.slice(book.id.indexOf('~') + 1)
-    const faction = factionOfBook(bookId)
+    const faction = BOOKS[bookId]
     if (!faction) throw new Error(`${entry.edition.id}: book ${bookId} (${book.name}) has no faction in BOOKS`)
     // A retained rules version saves lists only for its own books; the rest serve allies, and need not be factions.
     if (vs.factions.has(faction)) add('books', bookId, faction)
@@ -274,7 +257,7 @@ for (const entry of composition.editions.toSorted((left, right) => Number(Boolea
     }
     // Only a book a list can be saved for in this rules version holds Detachments and Enhancements a list can name.
     if (!entry.base && !entry.edition.catalogueIds.includes(bookId)) continue
-    const owners = [...new Set(CHAPTERS.has(faction) ? [faction, 'space-marines'] : [faction])]
+    const owners = CHAPTERS.has(faction) ? [faction, 'space-marines'] : [faction]
     for (const source of linked(bookId)) served.set(source, new Set([...(served.get(source) ?? []), ...owners]))
     for (const option of loaded.detachments.get(book.id)?.options ?? []) {
       const printed = same(DETACHMENT_SPELLINGS[option.name] ?? option.name)
@@ -364,4 +347,4 @@ console.log(`${byName.size} units matched by name`)
 for (const line of [...byName].toSorted()) console.log(`  ${line}`)
 console.log(`${missing.size} IDs without a VS Data match`)
 for (const line of [...missing].toSorted()) console.log(`  ${line}`)
-for (const section of SECTIONS) freezeLegacyIds(section, found[section], (frozen) => correctedIds(section, frozen, legacyIdCorrections))
+for (const section of SECTIONS) freezeLegacyIds(section, found[section])
