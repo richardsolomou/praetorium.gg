@@ -40,15 +40,16 @@ const weaponChoices = (choices: UnitChoice[], vs = false) =>
   )
 /**
  * Wargear taken from an optional group that offers only it at no cost, such as a free icon: the group starts empty, so
- * it displaces nothing. A group of alternatives, such as a Mark of Chaos, is a decision the ranking alone settles.
+ * it displaces nothing. A group of alternatives, such as a Mark of Chaos, is a decision the ranking alone settles, and a
+ * VS Data option offering one choice that replaces wargear, as a Wraithguard's D-scythes, is a swap, not an addition.
  */
-export const freeWargear = (choices: UnitChoice[], vs?: { replaces: (choice: UnitChoice) => boolean }) =>
-  weaponChoices(choices, Boolean(vs)).flatMap((choice) =>
+export const freeWargear = (unit: { choices: UnitChoice[]; vs?: unknown }, definitions: VsDataDefinitions | null) =>
+  weaponChoices(unit.choices, Boolean(unit.vs)).flatMap((choice) =>
     choice.optional &&
     choice.options.length === 1 &&
     choice.options[0]!.points === 0 &&
     choice.options[0]!.profile === undefined &&
-    !vs?.replaces(choice)
+    !(unit.vs && Object.keys(definitions?.get('roster-option', choice.key)?.data.replaces ?? {}).length)
       ? choice.options
       : [],
   )
@@ -224,10 +225,7 @@ export async function* combatLoadoutCandidates(
   const legal = (built: BuiltUnit[]) =>
     errors(built).every((error) => known.has(error)) &&
     built.every((unit, at) => vsProblems(unit).every((problem) => knownVs[at]!.has(problem)))
-  // A VS Data option offering one choice is optional wargear, but one that replaces wargear is a swap, not a free addition.
-  const vsReplaces = (choice: UnitChoice) => Object.keys(definitions?.get('roster-option', choice.key)?.data.replaces ?? {}).length > 0
-  const freeAdditionsOf = (unit: BuiltUnit) =>
-    freeWargear(unit.choices, unit.vs ? { replaces: vsReplaces } : undefined).reduce((total, option) => total + option.count, 0)
+  const freeAdditionsOf = (unit: BuiltUnit) => freeWargear(unit, definitions).reduce((total, option) => total + option.count, 0)
   const editsOf = function* (at: number, resolved: RosterPick, built: BuiltUnit) {
     const unit = vsUnits[at]
     for (const edit of choiceEdits(built.choices, units[at]!.size.models, Boolean(resolved.vs && unit)))

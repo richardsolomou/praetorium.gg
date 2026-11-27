@@ -44,7 +44,7 @@ export async function rosterSummary(roster: SummarisedRoster) {
     // What the builder warns under "Could not check every rule": not proven illegal, so not a problem.
     unchecked: priced.unhandled,
     freeWargearLeftOut: priced.units.flatMap((unit) =>
-      freeWargear(unit.choices)
+      freeWargear(unit, vsDefinitionsOf(loaded))
         .filter((option) => !option.count)
         .map((option) => ({ unit: unit.name, entry: unit.key + 1, wargear: option.name })),
     ),
