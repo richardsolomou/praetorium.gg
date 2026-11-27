@@ -1174,3 +1174,75 @@ describe('a list fielded before choices started on their printed default', () =>
     expect(fielded(true)).toEqual([{ entryId: 'leman-russ' }])
   })
 })
+
+describe('a unit picked for a rule as the battle begins', () => {
+  const army = () => {
+    const command = builtRoster('Ultramarines', ['Intercessors', 'Hellblasters', 'Intercessors'])
+    if (command.kind !== 'attach-roster' || !command.roster.built) throw new Error('expected a built roster')
+    for (const unit of command.roster.built.units) unit.grantPicks = [{ rule: 'Thunderhawk Insertion', ability: 'deep-strike', count: 1 }]
+    command.roster.built.units[1]!.grantPicks = undefined
+    return command
+  }
+  const pick = (unitKey: string, picked = true): Command => ({ kind: 'pick-unit-grant', unitKey, rule: 'Thunderhawk Insertion', picked })
+  const after = (...commands: Command[]) =>
+    reduceBattle(
+      PLAYERS,
+      log([ALICE, army()], [BOB, roster('Death Guard')], ...commands.map((command): [string, Command] => [ALICE, command])),
+    )
+
+  it('can then deep strike', () => {
+    expect(validate(after(pick('u0')), ALICE, { kind: 'set-unit-formation', unitKey: 'u0', formation: 'deep-strike' })).toBeNull()
+  })
+
+  it('cannot deep strike unpicked', () => {
+    expect(validate(after(), ALICE, { kind: 'set-unit-formation', unitKey: 'u0', formation: 'deep-strike' })).toBe(
+      'the roster data does not support that formation',
+    )
+  })
+
+  it('is only a unit the rule names', () => {
+    expect(validate(after(), ALICE, pick('u1'))).toBe('Thunderhawk Insertion cannot pick that unit')
+  })
+
+  it('stops at the rule’s count', () => {
+    expect(validate(after(pick('u0')), ALICE, pick('u2'))).toBe('Thunderhawk Insertion picks at most 1')
+  })
+
+  it('frees its place when taken back', () => {
+    expect(validate(after(pick('u0'), pick('u0', false)), ALICE, pick('u2'))).toBeNull()
+  })
+
+  it('cannot be taken back while the unit deep strikes on it', () => {
+    const state = after(pick('u0'), { kind: 'set-unit-formation', unitKey: 'u0', formation: 'deep-strike' })
+    expect(validate(state, ALICE, pick('u0', false))).toBe('set the unit up elsewhere before taking back the Deep Strike it was picked for')
+  })
+
+  it('keeps deep striking on a second rule when the first is taken back', () => {
+    const command = army()
+    if (command.kind !== 'attach-roster' || !command.roster.built) throw new Error('expected a built roster')
+    command.roster.built.units[0]!.grantPicks!.push({ rule: 'Orbital Assault', ability: 'deep-strike' })
+    const second: Command = { kind: 'pick-unit-grant', unitKey: 'u0', rule: 'Orbital Assault', picked: true }
+    const state = reduceBattle(
+      PLAYERS,
+      log([ALICE, command], [BOB, roster('Death Guard')], [ALICE, pick('u0')], [ALICE, second], [ALICE, pick('u0', false)]),
+    )
+    expect(validate(state, ALICE, { kind: 'set-unit-formation', unitKey: 'u0', formation: 'deep-strike' })).toBeNull()
+  })
+
+  it('counts an attached unit once towards the rule’s count, however its members chain', () => {
+    const command = builtRoster('Ultramarines', ['Intercessors', 'Captain', 'Lieutenant', 'Hellblasters'])
+    if (command.kind !== 'attach-roster' || !command.roster.built) throw new Error('expected a built roster')
+    const [squad, captain, lieutenant, other] = command.roster.built.units
+    for (const unit of command.roster.built.units) unit.grantPicks = [{ rule: 'Thunderhawk Insertion', ability: 'deep-strike', count: 2 }]
+    captain!.attachedTo = squad!.key
+    lieutenant!.attachedTo = captain!.key
+    const state = reduceBattle(PLAYERS, log([ALICE, command], [BOB, roster('Death Guard')], [ALICE, pick(squad!.key)]))
+    expect(validate(state, ALICE, pick(other!.key))).toBeNull()
+  })
+
+  it('is made before the battle begins', () => {
+    expect(validate(after({ kind: 'begin-battle', firstPlayerId: ALICE }), ALICE, pick('u0'))).toBe(
+      'units are picked for a rule as the battle begins',
+    )
+  })
+})
