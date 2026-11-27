@@ -124,7 +124,7 @@ for (const [at, { catalogueId, entryId }] of sheets.entries()) {
     disposition: null,
     limit: 2000,
     units: [{ entryId }],
-  } as PriceInput)
+  })
   if ((at + 1) % 100 === 0) console.log(`${at + 1} of ${sheets.length} datasheets`)
 }
 

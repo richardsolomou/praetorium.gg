@@ -1,8 +1,10 @@
 /**
- * Report-only: every datasheet's stat lines as the catalogue prints them against VS Data's, per rules version. For each
- * datasheet the frozen units map joins to a VS Data unit, each unit and weapon profile is matched to its VS Data stat
- * line (`vsStatLineOf`) or kept on the catalogue's, and each characteristic VS Data prints otherwise is listed. Writes
- * `data-dev/vs-data-profile-parity.json` with datasheet and profile names, and prints counts.
+ * Report-only: every datasheet's stat lines and attachment pairs as the catalogue reads them against VS Data's, per
+ * rules version. For each datasheet the frozen units map joins to a VS Data unit, each unit and weapon profile is matched
+ * to its VS Data stat line (`vsStatLinesOf`) or kept on the catalogue's, and each characteristic VS Data prints otherwise
+ * is listed; and the units it may lead or support are compared with its VS Data `attachment` record, leaving out Warhammer
+ * Legends and Crucible datasheets and targets. Writes `data-dev/vs-data-profile-parity.json` with datasheet and profile
+ * names, and prints counts.
  *
  *   pnpm exec tsx scripts/vsDataProfileParity.ts [catalogue directory] [--version <id>]... [--list]
  */
@@ -16,6 +18,12 @@ import { vsProfilesIn } from '../src/server/vsDataPoints'
 import { datasheetIn } from '../src/shared/catalogue'
 import { datasheetsOf } from '../src/shared/catalogueIndex'
 import { vsStatLinesOf } from '../src/shared/vsDataProfiles'
+import rawUnits from '../catalogue/legacy-ids/units.json' with { type: 'json' }
+import { referenceAttachmentOf } from '../src/core/attach'
+import { legacyIdsSchema } from '../src/core/legacyIds'
+import { matchedPlayName, nonMatchedPlayKind } from '../src/core/name'
+import { vsDataConstructionSchema, vsDataDefinitions } from '../src/core/vsDataConstruction'
+import { idsIn } from '../src/shared/vsDataPoints'
 
 const { values, positionals } = parseArgs({
   allowPositionals: true,
@@ -45,6 +53,22 @@ for (const entry of composition.editions) {
   const differences: Difference[] = []
   const byCharacteristic: Record<string, number> = {}
   const seen = new Set<string>()
+  // Attachment pairs: who each datasheet may join, as the catalogue reads it and as VS Data's attachment records say.
+  const construction = vsDataDefinitions(
+    vsDataConstructionSchema.parse(
+      JSON.parse(
+        fs.readFileSync(
+          path.join(directory, 'summaries', `${entry.base ? (entry.summaries ?? entry.edition.id) : entry.edition.id}.construction.json`),
+          'utf8',
+        ),
+      ),
+    ),
+  )
+  const vsUnitOf = idsIn(legacyIdsSchema.parse(rawUnits).ids, entry.base ? null : entry.edition.id)
+  const attachmentsOf = new Map(construction.all('attachment').map((record) => [record.data.unit, record.data]))
+  const pair = (role: string, name: string) => `${role}:${matchedPlayName(name).trim().toLowerCase()}`
+  const attachments = { datasheets: 0, same: 0, different: 0, catalogueOnly: 0, vsDataOnly: 0, legendsTargets: 0 }
+  const attachmentDifferences: { datasheet: string; catalogueOnly: string[]; vsDataOnly: string[] }[] = []
   for (const catalogue of loaded.index.catalogues.values())
     for (const entryId of datasheetsOf(loaded.index, catalogue.id)) {
       if (seen.has(entryId)) continue
@@ -52,6 +76,37 @@ for (const entry of composition.editions) {
       const sheet = datasheetIn(catalogueOnly, catalogue.id, entryId)
       if (!sheet) continue
       counts.datasheets++
+      const vsUnit = vsUnitOf.get(entryId)
+      if (vsUnit && !construction.unavailable.has(vsUnit) && !nonMatchedPlayKind(sheet.name)) {
+        const claimed = referenceAttachmentOf(loaded.index.definitions.get(entryId)!, loaded.index)
+        const record = attachmentsOf.get(vsUnit)
+        const named = (id: string) => construction.get('unit', id)?.name ?? id
+        const legends = (claimed?.targets ?? []).filter((name) => nonMatchedPlayKind(name))
+        attachments.legendsTargets += legends.length
+        const today = new Set([
+          ...(claimed?.targets ?? [])
+            .filter((name) => !nonMatchedPlayKind(name))
+            .map((name) => pair(claimed!.kind === 'leader' ? 'leads' : 'supports', name)),
+        ])
+        const vs = new Set([
+          ...(record?.leads ?? []).map((id) => pair('leads', named(id))),
+          ...(record?.supports ?? []).map((id) => pair('supports', named(id))),
+          ...(record?.conditional ?? []).flatMap((when) =>
+            [...(when.units ?? []).map(named), ...(when.keywords ?? [])].map((name) => pair(when.role, name)),
+          ),
+        ])
+        if (today.size || vs.size) {
+          attachments.datasheets++
+          const onlyToday = [...today].filter((key) => !vs.has(key))
+          const vsDataOnly = [...vs].filter((key) => !today.has(key))
+          attachments.catalogueOnly += onlyToday.length
+          attachments.vsDataOnly += vsDataOnly.length
+          if (onlyToday.length || vsDataOnly.length) {
+            attachments.different++
+            attachmentDifferences.push({ datasheet: sheet.name, catalogueOnly: onlyToday, vsDataOnly })
+          } else attachments.same++
+        }
+      }
       if (!loaded.vsProfiles.units[entryId]) {
         unjoined.add(sheet.name)
         continue
@@ -102,8 +157,16 @@ for (const entry of composition.editions) {
         counts[same ? 'same' : 'different']++
       }
     }
-  report[entry.edition.id] = { counts, byCharacteristic, unjoined: [...unjoined].toSorted(), unmatched, differences }
-  console.log(`${entry.edition.id}:`, JSON.stringify(counts), JSON.stringify(byCharacteristic))
+  report[entry.edition.id] = {
+    counts,
+    byCharacteristic,
+    unjoined: [...unjoined].toSorted(),
+    unmatched,
+    differences,
+    attachments,
+    attachmentDifferences,
+  }
+  console.log(`${entry.edition.id}:`, JSON.stringify(counts), JSON.stringify(byCharacteristic), JSON.stringify(attachments))
   if (values.list) for (const difference of differences) console.log('  ', Object.values(difference).join(' | '))
 }
 
