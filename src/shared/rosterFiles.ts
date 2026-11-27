@@ -44,6 +44,7 @@ import {
 import { catalogueFactionName, factionDisplayName } from './factionNames'
 import { englishNames, NO_TRANSLATIONS, translationsOf, type CatalogueTranslations } from './catalogueTranslations'
 import { NO_IMPORT_NAMES, storedNames, type ImportNames } from './importNames'
+import { inBook } from './vsDataPoints'
 import {
   attachmentReason,
   normalized,
@@ -505,7 +506,7 @@ function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue | null, fa
   const printedDatasheet = (name: string) => {
     printedDatasheets ??= datasheets
       .flatMap((datasheet) =>
-        (appNames.datasheets.get(datasheet.id) ?? []).map((spelling) => [normalized(spelling), datasheet.name] as const),
+        (inBook(appNames.datasheets, faction.id, datasheet.id) ?? []).map((spelling) => [normalized(spelling), datasheet.name] as const),
       )
       .reduce((found, [spelling, own]) => found.set(spelling, (found.get(spelling) ?? new Set()).add(own)), new Map<string, Set<string>>())
     const owns = printedDatasheets.get(name)
@@ -1005,7 +1006,7 @@ function textRosterPick(
       .map((english) => resolved(english, enhancement))
       .find(Boolean)
   // The official app prints its own names, which can be another spelling of the catalogue's in any language.
-  const printedGroups = appNames.pieces.get(entryId) ?? []
+  const printedGroups = inBook(appNames.pieces, catalogueId, entryId) ?? []
   const printedAs = (label: string) => printedGroups.filter((names) => names.some((name) => normalized(name) === normalized(label)))
   const printed = (label: string, enhancement: boolean) =>
     printedAs(label)

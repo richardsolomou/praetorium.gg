@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { battleChoiceActive, battleChoiceAllowances, battleChoices, battleChoiceSheet } from './battleChoices'
+import { allowancesWhile, battleChoiceActive, battleChoices, battleChoiceSheet, type StatedAllowance } from './battleChoices'
 import type { CombatRule } from './combatRules'
 import { datasheetFixture } from './datasheet.fixtures'
 
@@ -232,44 +232,30 @@ describe('a unit that can be in more than one option', () => {
     'If your Army Faction is ARMY, OFFICER with this ability can issue Orders. Each time one does, select one of the Orders below.\n\n### HOLD FAST!\nAdd 1 to the Toughness characteristic of models in this unit.\n\n### OPEN FIRE!\nImprove the Ballistic Skill characteristic of ranged weapons equipped by models in this unit by 1.\n\n### CHARGE!\nAdd 3" to the Move characteristic of models in this unit.',
     { name: 'Orders' },
   )
-  const choiceWith = (...texts: string[]) => battleChoices([orders], battleChoiceAllowances(texts, true))[0]!
-  const effectsWith = (text: string, picked: string[]) => battleChoiceActive(choiceWith(text), picked) ?? []
+  const choiceWith = (...stated: StatedAllowance[]) => battleChoices([orders], allowancesWhile(stated, true))[0]!
+  const effectsWith = (stated: StatedAllowance, picked: string[]) => battleChoiceActive(choiceWith(stated), picked) ?? []
+  const twoAtOnce: StatedAllowance = { options: 'Orders', limit: 2, leading: true }
 
-  it('takes two Orders at once where another rule allows it', () =>
-    expect(
-      choiceWith('While the bearer is leading a unit, that unit can be affected by up to two different Orders at the same time.').limit,
-    ).toBe(2))
+  it('takes two Orders at once where another rule allows it', () => expect(choiceWith(twoAtOnce).limit).toBe(2))
 
   it('takes one Order where nothing allows more', () => expect(battleChoices([orders])[0]!.limit).toBe(1))
 
-  const warriorElite =
-    'Once per battle round, at the start of any phase, you can select one Order to affect this unit until the start of your next Command phase, in addition to any other Orders issued to this unit by an OFFICER model this battle round.'
-
   it('adds an Order the unit selects itself to those its leader allows', () =>
-    expect(choiceWith('That unit can be affected by up to two different Orders at the same time.', warriorElite).limit).toBe(3))
+    expect(choiceWith(twoAtOnce, { options: 'Orders', extra: 1 }).limit).toBe(3))
 
   it('ignores a leader allowance while the unit leads nothing', () =>
-    expect(
-      battleChoices(
-        [orders],
-        battleChoiceAllowances(
-          ['While this model is leading a unit, that unit can be affected by up to two different Orders at the same time.'],
-          false,
-        ),
-      )[0]!.limit,
-    ).toBe(1))
+    expect(battleChoices([orders], allowancesWhile([twoAtOnce], false))[0]!.limit).toBe(1))
 
   it('applies both Orders picked', () =>
-    expect(
-      effectsWith('That unit can be affected by up to two different Orders at the same time.', ['Hold Fast!', 'Open Fire!']).map(
-        (effect) => effect.toughness ?? effect.characteristic?.kind,
-      ),
-    ).toEqual([1, 'ballistic-skill']))
+    expect(effectsWith(twoAtOnce, ['Hold Fast!', 'Open Fire!']).map((effect) => effect.toughness ?? effect.characteristic?.kind)).toEqual([
+      1,
+      'ballistic-skill',
+    ]))
 
   it('adds the Order a unit always gets with any other', () =>
     expect(
-      effectsWith('While the bearer is leading a unit, when that unit is issued an Order, it is also affected by the Hold Fast! Order.', [
-        'Open Fire!',
-      ]).map((effect) => effect.toughness ?? effect.characteristic?.kind),
+      effectsWith({ options: 'Orders', also: 'Hold Fast!', leading: true }, ['Open Fire!']).map(
+        (effect) => effect.toughness ?? effect.characteristic?.kind,
+      ),
     ).toEqual([1, 'ballistic-skill']))
 })

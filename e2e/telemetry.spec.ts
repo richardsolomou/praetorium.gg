@@ -482,7 +482,7 @@ test('simulator setup checkpoints carry no unit contents', { tag: '@catalogue' }
       { name: 'combat_simulator_setup_progressed', properties: { source: 'standalone', step: 'ready' } },
     ])
   await page.getByRole('button', { name: 'More attacker models', exact: true }).click()
-  await expect(page.getByLabel('Attacker models', { exact: true })).toHaveText('6')
+  await expect(page.getByLabel('Attacker models', { exact: true })).toHaveText('10')
   expect(events.filter((event) => event.name === 'combat_simulator_setup_progressed')).toHaveLength(3)
   expect(JSON.stringify(events)).not.toMatch(/Intercessor|Warrior|catalogueId|entryId/)
 })
@@ -589,13 +589,15 @@ test('an unread reply marks send feedback until the player reads it', async ({ p
   const [ticket] = await support.tickets()
   await support.reply(ticket.id, 'Fixed, thanks')
 
-  // Opening feedback rereads the list once it is stale, and send feedback then leads to the reply.
+  // Opening feedback rereads the list once it is stale, and send feedback then leads to the reply. The open dialog
+  // hides the rest of the page from the accessibility tree, and its own Send feedback stays on screen while it fades
+  // out, so it is gone before the label is read or the rail pressed again.
   const sendFeedback = page.getByRole('button', { name: /^Send feedback/ }).filter({ visible: true })
   await retryUntilVisible(page.getByRole('button', { name: 'Send feedback, 1 new reply' }).filter({ visible: true }), async () => {
-    await page.keyboard.press('Escape')
     await sendFeedback.click()
+    await page.keyboard.press('Escape')
+    await expect(page.getByRole('dialog')).toHaveCount(0)
   })
-  await page.keyboard.press('Escape')
   await sendFeedback.click()
   await expect(page.getByRole('region', { name: 'Conversation' }).getByText('Fixed, thanks')).toBeVisible()
   await page.keyboard.press('Escape')

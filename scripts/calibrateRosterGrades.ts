@@ -22,7 +22,6 @@ import { calibrate, calibrationLists, CALIBRATED_SIZES, MIN_PEERS } from '../src
 import { referenceCatalogue } from '../src/server/canonicalCatalogue'
 import { catalogueEditionLoaders } from '../src/server/catalogueEditions'
 import { namedCombatant, type CombatCatalogues } from '../src/server/combatTools'
-import { serverWords } from '../src/server/publishedTextFiles'
 import { referenceCorpusFor } from '../src/server/referenceCorpus'
 import { CombatAnswerCache } from '../src/shared/combatAnswerCache'
 import { currentFactionIdsOf } from '../src/shared/factionReferences'
@@ -66,7 +65,7 @@ async function build(corpusDirectories: readonly string[], since: string, until:
   const pinned = path.resolve(process.env.CATALOGUE_DIR ?? 'catalogue-data')
   const directory = values.live ? await liveCorpusCatalogue(pinned) : pinned
   const { catalogue, rules, lists } = importCorpusLists(corpusDirectories, { since, until }, directory)
-  // The server's rule words and reference units read the snapshot this script loaded, not a running server's.
+  // The reference units read the snapshot this script loaded, not a running server's.
   delete process.env.CATALOGUE_LIVE_DIR
   process.env.CATALOGUE_DIR = directory
   process.env.CATALOGUE_SNAPSHOT_ID ??= catalogue.index.revision
@@ -98,7 +97,6 @@ async function build(corpusDirectories: readonly string[], since: string, until:
   const references = await gradeReferences(2000, (_, unit) =>
     referenceUnit(unit, (faction, name, models) => namedCombatant(faction, name, models, { corpus, catalogues })),
   )
-  const words = await serverWords()
   // Tournament lists share most of their units, so most matchups repeat.
   const cache = new CombatAnswerCache(512 * 1024 * 1024, 200_000)
   const calculate = async (requests: CombatRequest[]) =>
@@ -131,7 +129,6 @@ async function build(corpusDirectories: readonly string[], since: string, until:
         loaded,
         rules: await catalogues.rulesFor(data.catalogueId),
         data,
-        words,
         references,
         calculate,
       })

@@ -6,9 +6,9 @@ import type { VsDataNames } from './vsData'
  * from VS Data, and BSData's own, which New Recruit prints. Each list of spellings starts with the English one.
  */
 export type ImportNames = {
-  /** Each datasheet's names from VS Data, by stored entry ID. */
+  /** Each datasheet's names from VS Data, by stored entry ID, or `<book>/<ID>` where it is another unit in that book. */
   datasheets: ReadonlyMap<string, readonly string[]>
-  /** The spellings of each model and piece of wargear a datasheet holds, by stored entry ID. */
+  /** The spellings of each model and piece of wargear a datasheet holds, keyed as `datasheets`. */
   pieces: ReadonlyMap<string, readonly (readonly string[])[]>
   /** Each Detachment's names from VS Data, by any of its English names normalized, BSData's included. */
   detachments: ReadonlyMap<string, readonly string[]>

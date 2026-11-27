@@ -2,6 +2,7 @@ import { add } from './builder.harness'
 import { expect, test } from './test'
 import {
   createRoster,
+  seededRoster,
   signUp,
   uniqueName,
   waitForRosterSave,
@@ -19,7 +20,7 @@ const LOCKED = 'This roster is locked. Unlock it to change it, or keep your chan
 test('a locked roster stays read-only until unlocked while its copies stay editable', async ({ page }) => {
   test.setTimeout(180_000)
   await signUp(page, uniqueName('Locked list'))
-  const name = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Finished list' })
+  const name = await seededRoster(page, { faction: 'Necrons', detachment: 'Awakened Dynasty', name: 'Finished list' })
   const id = lastPathSegment(page.url())
   const operator = await productOperator()
   await waitForRosterSave(page, async () => {

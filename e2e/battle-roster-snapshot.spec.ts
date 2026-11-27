@@ -1,10 +1,10 @@
 import { expect, test } from './test'
-import { createRoster, signUp, uniqueName, addUnit, practiceBattle, PHONE } from './account'
+import { seededRoster, signUp, uniqueName, addUnit, practiceBattle, PHONE } from './account'
 import { lastPathSegment } from './storage'
 
 test('a fielded roster opens as the frozen read-only roster view', async ({ page }) => {
   await signUp(page, uniqueName('Snapshot'))
-  const rosterName = await createRoster(page, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Fielded Death Guard' })
+  const rosterName = await seededRoster(page, { faction: 'Death Guard', detachment: 'Shamblerot Vectorium', name: 'Fielded Death Guard' })
   await addUnit(page, 'Lord of Virulence')
   const rosterId = lastPathSegment(page.url())
 

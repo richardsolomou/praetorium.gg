@@ -805,6 +805,7 @@ function calculateRoster(
         const unit = pickedByKey.get(key)
         return unit ? keywordNamesOf(unit) : undefined
       }),
+      data.detachmentIds,
     ),
     // King of the Colosseum's own Detachment count, which the player can waive, stands for VS Data's.
     ...(vsData?.filter(
@@ -834,6 +835,7 @@ function calculateRoster(
   const army = armyIds(
     picked.map((unit) => unit.entryId),
     loaded.index,
+    data.detachmentIds,
   )
 
   if (mode === 'assessment')
@@ -1042,7 +1044,7 @@ function calculateRoster(
           loaded.index.textFacts,
         ),
       )
-      const attachment = { ...built, attachment: inArmy(built.attachment, army) }
+      const attachment = { ...built, attachment: inArmy(built.attachment, army, unitKeywords) }
       return {
         key: unit.key,
         entryId: unit.entryId,

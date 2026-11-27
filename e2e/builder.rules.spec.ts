@@ -5,7 +5,7 @@ import { screenshot } from './screenshots'
 
 test("Pantheon of Woe adds a C'tan shard's required enhancement", async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 })
-  await openBuilder(page, 'Necrons', /Pantheon of Woe/)
+  await openBuilder(page, 'Necrons', 'Pantheon of Woe')
   await page.getByLabel('Add a unit').fill("C'tan Shard of the Deceiver")
   const pickerRow = page.locator('[data-picker-unit="C\'tan Shard of the Deceiver"]')
   await expect(pickerRow).toContainText('375 pts')
@@ -80,7 +80,7 @@ test("Pantheon of Woe adds a C'tan shard's required enhancement", async ({ page 
 })
 
 test('unit upgrades stay separate from character enhancements', async ({ page }) => {
-  await openBuilder(page, 'Necrons', /Skyshroud Spearhead/)
+  await openBuilder(page, 'Necrons', 'Skyshroud Spearhead')
   await add(page, 'Lokhust Destroyers')
   await page
     .getByRole('button', { name: /^Lokhust Destroyers/ })
@@ -149,7 +149,7 @@ test('unit upgrades stay separate from character enhancements', async ({ page })
 })
 
 test('a detachment rule marks the weapon abilities it grants', async ({ page }) => {
-  await openBuilder(page, 'Necrons', /Starshatter Arsenal/)
+  await openBuilder(page, 'Necrons', 'Starshatter Arsenal')
   await add(page, 'Doomsday Ark')
   await page.locator('[data-unit="Doomsday Ark"]').getByRole('button', { name: 'Doomsday Ark', exact: true }).click()
 
@@ -282,7 +282,7 @@ test('wargear abilities are explained beside their choices', async ({ page }) =>
 test('an enhancement changes the weapons of the model bearing it', async ({ page }) => {
   await arrangeByRole(page)
   await page.setViewportSize({ width: 1600, height: 900 })
-  await openBuilder(page, 'Necrons', /Cursed Legion/)
+  await openBuilder(page, 'Necrons', 'Cursed Legion')
   await add(page, 'Overlord')
   await page
     .locator('[data-unit="Overlord"]')
@@ -395,7 +395,7 @@ test('an enhancement changes the weapons of the model bearing it', async ({ page
  */
 test('an enhancement adds to the bearer and to the unit around it', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 })
-  await openBuilder(page, 'Drukhari', /Covenite Coterie/)
+  await openBuilder(page, 'Drukhari', 'Covenite Coterie')
   await add(page, 'Haemonculus')
   await page
     .locator('[data-unit="Haemonculus"]')
@@ -445,7 +445,7 @@ test('a weapon both sources name is drawn once', async ({ page }) => {
 
 test('a squad keeps the weapons it was given while a specialist is armed', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 })
-  await openBuilder(page, 'Dark Angels', /Wrath of the Rock/)
+  await openBuilder(page, 'Dark Angels', 'Wrath of the Rock')
   await add(page, 'Sternguard Veteran Squad')
   await page
     .getByRole('button', { name: /^Sternguard Veteran Squad/ })
@@ -453,10 +453,8 @@ test('a squad keeps the weapons it was given while a specialist is armed', async
     .click()
 
   const loadout = page.locator('aside[aria-label="Loadout"]')
-  for (const models of ['6', '7', '8', '9', '10']) {
-    await loadout.getByRole('button', { name: 'More models in Sternguard Veteran Squad' }).click()
-    await expect(loadout.getByLabel('Sternguard Veteran Squad models')).toHaveText(models)
-  }
+  await loadout.getByRole('button', { name: 'More models in Sternguard Veteran Squad' }).click()
+  await expect(loadout.getByLabel('Sternguard Veteran Squad models')).toHaveText('10')
   // The sergeant carries his own weapons, so every count here is the squad's.
   const veterans = loadout.locator('section').filter({ has: page.getByLabel('Sternguard Veteran models', { exact: true }) })
   await expect(veterans.getByLabel('Artificer Firearm count')).toHaveText('9')
@@ -489,7 +487,7 @@ test('a squad keeps the weapons it was given while a specialist is armed', async
  */
 test('a free swap shows on the roster card as well as the loadout', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 })
-  await openBuilder(page, 'Deathwatch', /Black Spear Task Force/)
+  await openBuilder(page, 'Deathwatch', 'Black Spear Task Force')
   // Deathwatch excludes Scouts from its unit picker.
   await page.getByLabel('Add a unit').fill('Scout')
   await expect(page.getByRole('button', { name: /Add Scout/ })).toHaveCount(0)

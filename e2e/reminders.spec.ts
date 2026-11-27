@@ -4,7 +4,7 @@ import {
   advance,
   chooseBattlefield,
   drawPrompt,
-  createRoster,
+  seededRoster,
   desktopContext,
   recordFirstTurn,
   setupBattle,
@@ -54,13 +54,13 @@ test('roster reminders cover selected rules and advances from another device', a
   const opponent = await (await browser.newContext(desktopContext)).newPage()
   const opponentName = uniqueName('Reminder opponent')
   await signUp(opponent, opponentName)
-  const opponentRoster = await createRoster(opponent, {
+  const opponentRoster = await seededRoster(opponent, {
     faction: 'Death Guard',
-    detachment: /Shamblerot Vectorium/,
+    detachment: 'Shamblerot Vectorium',
     name: 'Reminder opponent test',
   })
   await signUp(page, uniqueName('Reminder player'))
-  const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Reminder test' })
+  const roster = await seededRoster(page, { faction: 'Necrons', detachment: 'Awakened Dynasty', name: 'Reminder test' })
 
   await addUnit(page, 'Plasmancer')
   await page
@@ -189,6 +189,8 @@ test('roster reminders cover selected rules and advances from another device', a
   await advance(page, { dismissReminders: false })
   await expect(reminder).toBeHidden()
   await advance(page, { dismissReminders: false })
+  // Phase ends show ahead of the service, and leaving the page drops the ones still queued.
+  await expect(opponent.getByRole('heading', { name: 'charge phase' })).toBeVisible()
   // The opponent's Fight phase starts and ends while the player is away, and its start alert waits for their return.
   await page.goto('/')
   await advance(opponent)
@@ -216,9 +218,9 @@ test('Cleanse expires when another device ends the Shooting phase', async ({ bro
   const page = await (await browser.newContext(desktopContext)).newPage()
   const opponent = await (await browser.newContext(desktopContext)).newPage()
   await signUp(opponent, uniqueName('Cleanse opponent'))
-  const guestRoster = await createRoster(opponent, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/ })
+  const guestRoster = await seededRoster(opponent, { faction: 'Death Guard', detachment: 'Shamblerot Vectorium' })
   await signUp(page, uniqueName('Cleanse player'))
-  const hostRoster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/ })
+  const hostRoster = await seededRoster(page, { faction: 'Necrons', detachment: 'Awakened Dynasty' })
   await setupBattle(page, opponent, { hostRoster, guestRoster, openingSecondaries: ['Cleanse', 'Assassination'] })
   await advance(page)
   await advance(opponent)
@@ -232,7 +234,7 @@ test('Cleanse expires when another device ends the Shooting phase', async ({ bro
 test('round alerts fire once at both boundaries when your opponent takes the first turn', async ({ page }) => {
   const playerName = uniqueName('Round alerts')
   await signUp(page, playerName)
-  const roster = await createRoster(page, { faction: 'Aeldari', detachment: /Warhost/, name: 'Battle Focus alerts' })
+  const roster = await seededRoster(page, { faction: 'Aeldari', detachment: 'Warhost', name: 'Battle Focus alerts' })
   await waitForRosterSave(page, () => page.getByRole('button', { name: 'Add Asurmen', exact: true }).first().click())
   await page.locator('[data-unit="Asurmen"]').getByRole('button', { name: 'Asurmen', exact: true }).click()
   await page.getByLabel('Set alert for Battle Focus').click()
@@ -295,7 +297,7 @@ test('round alerts fire once at both boundaries when your opponent takes the fir
 
 test('a start-of-phase alert shows again after undoing back into its phase', async ({ page }) => {
   await signUp(page, uniqueName('Undo alerts'))
-  const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Undo alerts' })
+  const roster = await seededRoster(page, { faction: 'Necrons', detachment: 'Awakened Dynasty', name: 'Undo alerts' })
   await addUnit(page, 'Plasmancer')
   await page
     .getByRole('button', { name: /^Plasmancer/ })
@@ -326,7 +328,7 @@ test('a start-of-phase alert shows again after undoing back into its phase', asy
 
 test('a detachment rule alert covers the whole army and fires in battle', async ({ page }) => {
   await signUp(page, uniqueName('Detachment alerts'))
-  const roster = await createRoster(page, { faction: 'Necrons', detachment: /Cursed Legion/, name: 'Detachment rule alerts' })
+  const roster = await seededRoster(page, { faction: 'Necrons', detachment: 'Cursed Legion', name: 'Detachment rule alerts' })
   await waitForRosterSave(page, () => page.getByRole('button', { name: 'Add Skorpekh Lord', exact: true }).first().click())
   await waitForRosterSave(page, () => page.getByRole('button', { name: 'Add Immortals', exact: true }).first().click())
   await page.locator('[data-unit="Skorpekh Lord"]').getByRole('button', { name: 'Skorpekh Lord', exact: true }).click()
@@ -350,7 +352,7 @@ test('an alert set in one roster follows the player into another and fires in ba
   await signUp(page, uniqueName('Shared alerts'))
   const unit = 'Catacomb Command Barge'
   const addBarge = async (name: string) => {
-    const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name })
+    const roster = await seededRoster(page, { faction: 'Necrons', detachment: 'Awakened Dynasty', name })
     await addUnit(page, unit)
     await page.locator(`[data-unit="${unit}"]`).getByRole('button', { name: unit, exact: true }).click()
     await waitForRosterSave(page, () => page.getByRole('button', { name: 'Select Resurrection orb', exact: true }).click())

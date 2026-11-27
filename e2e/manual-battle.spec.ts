@@ -3,7 +3,7 @@ import {
   advance,
   attachRoster,
   createBattle,
-  createRoster,
+  seededRoster,
   recordFirstTurn,
   setupStep,
   signUp,
@@ -21,7 +21,7 @@ test('a table keeps score by hand in a manually tracked battle', async ({ page }
   await page.setViewportSize(desktopContext.viewport)
   const host = uniqueName('Manual host')
   await signUp(page, host)
-  const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Manual list' })
+  const roster = await seededRoster(page, { faction: 'Necrons', detachment: 'Awakened Dynasty', name: 'Manual list' })
   await createBattle(page, { practice: true, manual: true })
 
   await expect(page.getByRole('region', { name: 'Battlefield', exact: true })).toHaveCount(0)

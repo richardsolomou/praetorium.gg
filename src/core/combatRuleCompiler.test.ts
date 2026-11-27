@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import { compileCombatRule } from './combatRuleCompiler'
-import { combatReadingOf } from './combatReading'
 import {
   combatDamageStateSelections,
   combatRuleAppliesTo,
@@ -962,7 +961,14 @@ describe('rules a unit switches between during the battle', () => {
 
   it('shows a granted ability that changes no roll on a datasheet that holds only the recorded reading', () => {
     const written = rule('Ranged weapons equipped by models in this unit have the **[ASSAULT]** ability.')
-    expect(shownRuleChoices({ ...written, description: '', reading: combatReadingOf(written) })).toEqual([
+    const reading = {
+      compiled: compileCombatRule(written),
+      shown: compileCombatRule(written, { shown: true }),
+      legacy: [],
+      legacyDefault: 0,
+      roles: [],
+    }
+    expect(shownRuleChoices({ ...written, description: '', reading })).toEqual([
       { label: 'Active', effects: [{ role: 'attacker', phases: ['ranged'], keyword: 'ASSAULT' }] },
     ])
   })

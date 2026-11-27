@@ -62,6 +62,14 @@ describe('new units a roster character could join', () => {
     expect(newHosts([bodyguard], [{ key: 7 }], [enhanced], 0)).toEqual([bodyguard])
   })
 
+  it('offers a datasheet that may still take the keyword both must share', () => {
+    const marked = {
+      ...leader,
+      attachment: { kind: 'leader' as const, targets: [], sharing: [{ keyword: 'Khorne', targets: ['Bodyguard'] }] },
+    }
+    expect(newHosts([{ ...bodyguard, search: { keywords: ['Infantry'] } }], [{ key: 7 }], [marked], 0)).toHaveLength(1)
+  })
+
   it('excludes a datasheet the character does not name', () => {
     expect(newHosts([{ ...bodyguard, name: 'Other' }], [{ key: 7 }], [leader], 0)).toEqual([])
   })

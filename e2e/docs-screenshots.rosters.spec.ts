@@ -1,5 +1,5 @@
 import { expect, test } from './test'
-import { addUnit, chooseRosterAction, createRoster, openImport, openLibraryShare, renameRoster, retryUntilVisible, signUp } from './account'
+import { addUnit, chooseRosterAction, seededRoster, openImport, openLibraryShare, renameRoster, retryUntilVisible, signUp } from './account'
 import { bloodAngelsOfficial } from '../src/core/rosterText.bloodAngels.fixture'
 import { capture, docsScreenshots } from './docsScreenshots'
 
@@ -21,9 +21,9 @@ test('search screenshot', async ({ page }) => {
 test('roster library screenshots', async ({ page }) => {
   test.setTimeout(180_000)
   await signUp(page, 'Docs player')
-  await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Necron army' })
+  await seededRoster(page, { faction: 'Necrons', detachment: 'Awakened Dynasty', name: 'Necron army' })
   await addUnit(page, 'Necron Warriors')
-  await createRoster(page, { faction: 'Space Marines', detachment: /Gladius Task Force/, name: 'Gladius strike force' })
+  await seededRoster(page, { faction: 'Space Marines', detachment: 'Gladius Task Force', name: 'Gladius strike force' })
   await addUnit(page, 'Intercessor Squad')
   await addUnit(page, 'Captain')
 

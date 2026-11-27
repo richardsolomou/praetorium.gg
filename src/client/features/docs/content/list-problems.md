@@ -14,7 +14,7 @@ A greyed card tells you why: "An army can include only one … detachment". If t
 
 ### Attach to unit doesn't appear
 
-Nothing in the list or the book can take that attachment. Support units still need a Bodyguard.
+Nothing in the list or the book can take that attachment. Support units still need a Bodyguard. Some detachments narrow it further: in Pactbound Zealots, a Character only joins a unit with the same Mark of Chaos.
 
 ### "Your latest changes have not been saved."
 

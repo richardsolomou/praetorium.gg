@@ -1,5 +1,5 @@
 import { expect, test } from './test'
-import { addUnit, createRoster, PHONE, signUp, uniqueName } from './account'
+import { addUnit, seededRoster, PHONE, signUp, uniqueName } from './account'
 import { productOperator, lastPathSegment } from './storage'
 import type { RosterPick } from '../src/core/roster'
 import { closePicker } from './builder.harness'
@@ -11,7 +11,7 @@ const wargear = (count: number, weapon: string) => new RegExp(`^${count}x ${weap
 test('Fireknife suits keep both weapons and up to two different drones per model', async ({ page }) => {
   await page.setViewportSize(PHONE)
   await signUp(page, uniqueName('Fireknife loadout'))
-  await createRoster(page, { faction: "T'au Empire", detachment: /Retaliation Cadre/ })
+  await seededRoster(page, { faction: "T'au Empire", detachment: 'Retaliation Cadre' })
   const name = 'Crisis Fireknife Battlesuits'
   await addUnit(page, name)
   await closePicker(page)
@@ -60,7 +60,7 @@ test('Fireknife suits keep both weapons and up to two different drones per model
 test(`saved Tankbustas count doubled fixed weapons through reload and view at 390px`, async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 900 })
   await signUp(page, uniqueName('Doubled Tankbustas'))
-  await createRoster(page, { faction: 'Orks', detachment: /War Horde/ })
+  await seededRoster(page, { faction: 'Orks', detachment: 'War Horde' })
   await expect(page.getByRole('link', { name: 'Orks', exact: true, includeHidden: true })).toHaveAttribute(
     'href',
     '/factions/orks/rules/mfm-1-6',

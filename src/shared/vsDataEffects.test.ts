@@ -129,8 +129,8 @@ it('keeps another ability VS Data grants conditionally, as Feel No Pain to the O
   expect(textFactsOfVsData({ grants: { abilities: [grant] } }).abilityGrants!.grants).toHaveLength(1)
 })
 
-/** What the words say of a rule VS Data calculates nothing of: a reroll for the attacker, which only its roles may come from. */
-const words = () => textFactsOfVsData(combat({ choices: [{ conditions: [], effects: [reroll] }], default: 1, roles: ['attacker'] })).combat
+/** The roles the words of a rule VS Data calculates nothing of take: only the attacker's. */
+const words = () => ['attacker' as const]
 /** A rule VS Data calculates as a unit's own ability but reads no choices for as an aura. */
 const partly = () =>
   textFactsOfVsData({
