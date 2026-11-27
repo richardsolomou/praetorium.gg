@@ -8,7 +8,7 @@ export const definitions = vsDataDefinitions({
   unavailable: [],
   points: [],
   definitions: {
-    faction: { host: record('Host', {}) },
+    faction: { host: record('Host', {}), titans: record('Titans', { withoutDetachments: { warlords: ['titans.walker.walker'] } }) },
     detachment: { 'host.vanguard': record('Vanguard', { faction: 'host' }), 'host.rearguard': record('Rearguard', { faction: 'host' }) },
     enhancement: {
       'host.vanguard.banner': record('Banner', {
@@ -26,6 +26,8 @@ export const definitions = vsDataDefinitions({
         allegiances: [{ choices: ['host.vanguard.red', 'host.vanguard.blue'], detachment: 'host.vanguard', required: true }],
       }),
       'host.captain': record('Captain', { faction: 'host', keywords: ['INFANTRY', 'CHARACTER'], sizes: [1] }),
+      'host.brood': record('Brood', { faction: 'host', keywords: [], sizes: [10] }),
+      'titans.walker': record('Walker', { faction: 'titans', keywords: ['TITANIC'], sizes: [1] }),
       'host.band': record('Band', { faction: 'host', keywords: [], sizes: [4], defaultModels: { 'host.band.archer': 4 } }),
     },
     model: {
@@ -38,13 +40,28 @@ export const definitions = vsDataDefinitions({
           { size: 5, min: 4, max: 4 },
           { size: 10, min: 9, max: 9 },
         ],
-        wargear: { 'host.rifle': 1 },
+        wargear: {
+          'host.rifle': 1,
+        },
       }),
       'host.captain.captain': record('Captain', { unit: 'host.captain', min: 1, max: 1, wargear: { 'host.rifle': 1 } }),
+      'host.brood.gaunt': record('Gaunt', { unit: 'host.brood', min: 10, max: 10, wargear: { 'host.fleshborer': 1 } }),
+      'titans.walker.walker': record('Walker', { unit: 'titans.walker', min: 1, max: 1, wargear: {} }),
       'host.band.archer': record('Archer', { unit: 'host.band', min: 0, max: 4, wargear: {} }),
       'host.band.spear': record('Spear', { unit: 'host.band', min: 0, max: 4, wargear: {} }),
     },
     'roster-option': {
+      'host.brood.fleshborer': record('Gaunt fleshborer', {
+        unit: 'host.brood',
+        carrier: 'host.brood.gaunt',
+        per: 'carrier',
+        choose: { min: 0, max: 1 },
+        uniform: true,
+        substitutes: ['host.spike'],
+        replaces: { 'host.fleshborer': 1 },
+        choices: ['host.devourer', 'host.spike'],
+        caps: [{ choices: ['host.spike'], max: 1 }],
+      }),
       'host.squad.sergeant-rifle': record('Sergeant rifle', {
         unit: 'host.squad',
         carrier: 'host.squad.sergeant',
@@ -64,6 +81,9 @@ export const definitions = vsDataDefinitions({
       }),
     },
     wargear: {
+      'host.fleshborer': record('Fleshborer', {}),
+      'host.devourer': record('Devourer', {}),
+      'host.spike': record('Spike', {}),
       'host.rifle': record('Rifle', {}),
       'host.sword': record('Sword', {}),
       'host.pistol': record('Pistol', {}),

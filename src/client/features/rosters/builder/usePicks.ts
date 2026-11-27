@@ -4,7 +4,7 @@ import { withoutUnit } from '../../../../core/attachedUnits'
 import { remember } from '../../../../core/collections'
 import type { RosterPick, VsPick } from '../../../../core/roster'
 import { type UnavailableSelection, withoutUnavailableSelections } from '../../../../core/rosterSelections'
-import { isUnitCompositionChoice, VS_ALLEGIANCE, VS_ENHANCEMENT, VS_MODELS, VS_UPGRADE } from '../../../../core/unitChoices'
+import { isUnitCompositionChoice, VS_ALLEGIANCE, VS_ENHANCEMENT, VS_MODELS, VS_UPGRADE, vsWithSpread } from '../../../../core/unitChoices'
 import type { VsDataDefinitions } from '../../../../core/vsDataConstruction'
 import type { VsRosterUnit } from '../../../../core/vsDataRoster'
 import { vsResized, vsUnitDefinitions, vsUnitProblems, vsUnitSize, type VsUnitRecords, vsWithChoice } from '../../../../core/vsDataUnit'
@@ -89,9 +89,16 @@ function vsSize(sizes: readonly number[], current: number, wanted: number) {
   return current
 }
 
-/** A pick holding its Warlord toggle, keyed `key`, or giving it up; a VS Data pick names the model the toggle is keyed by. */
-export function withWarlord<T extends RosterPick>(pick: T, key: string, held: boolean): T {
-  if (!pick.vs) return { ...pick, toggles: { ...pick.toggles, [key]: held ? 1 : 0 } }
+/**
+ * Whether a pick's edits write its `vs`: a VS pick its unit's VS Data records price. A VS pick of a datasheet VS Data does
+ * not define in the list's rules version is built from the catalogue, and edited as the catalogue builds it.
+ */
+const editsVs = (pick: RosterPick, unit: Pick<SizedUnit, 'vs'> | undefined): pick is RosterPick & { vs: VsPick } =>
+  Boolean(pick.vs && unit?.vs)
+
+/** A pick holding its Warlord toggle, keyed `key`, or giving it up; a VS pick names the model the toggle is keyed by. */
+export function withWarlord<T extends RosterPick>(pick: T, unit: Pick<SizedUnit, 'vs'> | undefined, key: string, held: boolean): T {
+  if (!editsVs(pick, unit)) return { ...pick, toggles: { ...pick.toggles, [key]: held ? 1 : 0 } }
   const { warlord: _previous, ...rest } = pick.vs
   return { ...pick, vs: held ? { ...rest, warlord: key } : rest }
 }
@@ -351,7 +358,7 @@ export function pickEditor(
     resize: (index: number, step: (models: number) => number) =>
       editAt(index, (pick) => {
         const unit = context.units[index]
-        if (pick.vs)
+        if (editsVs(pick, unit))
           return vsEdited(pick, unit?.vs, (definitions, picked) => {
             const current = vsUnitSize(definitions, picked)
             return vsResized(definitions, picked, vsSize(definitions.get('unit', picked.unit)!.data.sizes, current, step(current)))
@@ -394,7 +401,7 @@ export function pickEditor(
 
     choose: (index: number, key: string, optionId: string) =>
       editAt(index, (pick) => {
-        if (pick.vs) {
+        if (editsVs(pick, context.units[index])) {
           const vs = pick.vs
           if (key === VS_ENHANCEMENT || key === VS_UPGRADE) {
             const offered = context.units[index]?.choices.find((choice) => choice.key === key)?.options.map((option) => option.id) ?? []
@@ -425,14 +432,14 @@ export function pickEditor(
     spread: (index: number, key: string, update: SpreadUpdate) =>
       editAt(index, (pick) => {
         const unit = context.units[index]
-        if (pick.vs) {
+        if (editsVs(pick, unit)) {
           const ids = unit?.choices.find((choice) => choice.key === key)?.options.map((option) => option.id) ?? []
           return vsEdited(pick, unit?.vs, (definitions, picked, vs) => {
             const held = key === VS_MODELS ? vs.models : (vs.options[key] ?? {})
             const current = Object.fromEntries(ids.map((id) => [id, held[id] ?? 0]))
             const counts = update(current)
             if (!counts) return null
-            if (key !== VS_MODELS) return vsWithChoice(definitions, picked, key, { ...current, ...counts })
+            if (key !== VS_MODELS) return vsWithSpread(definitions, picked, key, current, counts)
             const regrouped = { ...picked, models: { ...vs.models, ...counts } }
             // A model given up takes its options with it, so the unit is refitted at the size it keeps.
             return vsResized(definitions, regrouped, vsUnitSize(definitions, picked))
@@ -456,9 +463,10 @@ export function pickEditor(
     toggle: (index: number, key: string, name: string, enabled: boolean) =>
       setPicks((current) =>
         current.map((pick, at) => {
-          if (pick.vs) {
-            if (at === index) return withWarlord(pick, key, enabled)
-            return name === 'Warlord' && enabled && pick.vs.warlord ? withWarlord(pick, pick.vs.warlord, false) : pick
+          const unit = context.units[at]
+          if (editsVs(pick, unit)) {
+            if (at === index) return withWarlord(pick, unit, key, enabled)
+            return name === 'Warlord' && enabled && pick.vs.warlord ? withWarlord(pick, unit, pick.vs.warlord, false) : pick
           }
           const toggles = { ...pick.toggles }
           if (name === 'Warlord' && enabled) {

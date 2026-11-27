@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { VS_ALLEGIANCE, VS_ENHANCEMENT, VS_MODELS, vsModelKinds, vsUnitChoices, vsUnitToggles } from './unitChoices'
+import { VS_ALLEGIANCE, VS_ENHANCEMENT, VS_MODELS, vsModelKinds, vsUnitChoices, vsUnitToggles, vsWithSpread } from './unitChoices'
 import { definitions } from './vsUnit.fixtures'
 import { vsFirstFielding, vsUnitDefinitions, vsUnitOptions, vsUnitRecords, vsWithChoice } from './vsDataUnit'
 
@@ -47,6 +47,11 @@ describe('vsUnitToggles', () => {
     expect(vsUnitToggles(definitions, captain, { roster: { faction: 'host', detachments: [] } })).toHaveLength(1)
   })
 
+  it('requires the Warlord a faction without Detachments names', () => {
+    const walker = vsFirstFielding(definitions, 'titans.walker')
+    expect(vsUnitToggles(definitions, walker, { roster: { faction: 'titans', detachments: [] } })[0]?.required).toBe(true)
+  })
+
   it('offers no Warlord to a unit without CHARACTER', () => {
     expect(vsUnitToggles(definitions, squad, { roster: { faction: 'host', detachments: [] } })).toEqual([])
   })
@@ -64,5 +69,30 @@ describe('vsUnitRecords', () => {
   it('reads a unit’s options alone as the whole release does', () => {
     const alone = vsUnitDefinitions(vsUnitRecords(definitions, 'host.squad')!)
     expect(vsUnitOptions(alone, squad)).toEqual(vsUnitOptions(definitions, squad))
+  })
+})
+
+describe('vsWithSpread', () => {
+  const brood = vsFirstFielding(definitions, 'host.brood')
+  const option = 'host.brood.fleshborer'
+
+  it('takes a uniform option’s main choice on every carrier', () => {
+    expect(vsWithSpread(definitions, brood, option, {}, { 'host.devourer': 10, 'host.spike': 0 }).options).toEqual({
+      [option]: { 'host.devourer': 10 },
+    })
+  })
+
+  it('hands a substitute put down back to the main choice', () => {
+    const current = { 'host.devourer': 9, 'host.spike': 1 }
+    const held = vsWithSpread(definitions, brood, option, {}, current)
+    expect(vsWithSpread(definitions, held, option, current, { 'host.spike': 0 }).options).toEqual({ [option]: { 'host.devourer': 10 } })
+  })
+
+  it('keeps the substitutes when the main choice is taken whole', () => {
+    const spiked = vsWithSpread(definitions, brood, option, {}, { 'host.spike': 1 })
+    const current = { 'host.devourer': 0, 'host.spike': 1 }
+    expect(vsWithSpread(definitions, spiked, option, current, { 'host.devourer': 10, 'host.spike': 0 }).options).toEqual({
+      [option]: { 'host.devourer': 9, 'host.spike': 1 },
+    })
   })
 })

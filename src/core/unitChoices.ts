@@ -75,6 +75,11 @@ export type UnitChoice = {
   least?: number
   /** Each model has multiple slots in this group, separate from its other equipment. */
   multiplePerModel?: true
+  /**
+   * Its options replace only their own wargear, as each of a VS Data unit's options does, so it shares its models with
+   * no other choice: a press trades only between its own options.
+   */
+  ownSlot?: true
   /** Whether each option brings its own required models, so taking one also sets the squad's size, as Jakhals' "8 chainblades" and "17 chainblades" do. */
   bundlesModels?: true
   /** For such a choice, the option to hold at each size: the one closest to the weapons held now. */
@@ -850,6 +855,7 @@ export function vsUnitChoices(definitions: VsDataDefinitions, picked: VsRosterUn
       room: option.bounds.max,
       ...(option.bounds.min > 0 ? { least: option.bounds.min } : {}),
       ...(option.carrier && perCarrier > 1 ? { multiplePerModel: true as const } : {}),
+      ownSlot: true,
       uniform: option.uniform && !option.substitutes.length,
       owner: null,
       options: option.choices.map((choice) => ({
@@ -859,6 +865,8 @@ export function vsUnitChoices(definitions: VsDataDefinitions, picked: VsRosterUn
         count: choice.count,
         min: 0,
         max: Math.max(choice.count, full ? (swapped(choice.id) ?? choice.most) : choice.most),
+        // A uniform option with substitutes takes its main choice whole and its substitutes a few at a time.
+        ...(option.uniform && option.substitutes.length && !option.substitutes.includes(choice.id) ? { wholeSquad: true as const } : {}),
       })),
     })
   }
@@ -926,35 +934,75 @@ export function vsUnitChoices(definitions: VsDataDefinitions, picked: VsRosterUn
   return choices
 }
 
-/** The model a unit names as its Warlord: one its Detachments grant or require, else its one leader, else its first model. */
-export function vsWarlordModel(definitions: VsDataDefinitions, unitId: string, detachments: readonly string[] = []): string | undefined {
-  const models = definitions.modelsOf(unitId)
-  const named = new Set(
-    detachments.flatMap((id) => {
-      const data = definitions.get('detachment', id)?.data
-      return [...(data?.warlords ?? []), ...(data?.requiredWarlords ?? [])]
-    }),
-  )
-  const leaders = models.filter((model) => model.data.max === 1)
-  return (models.find((model) => named.has(model.id)) ?? (leaders.length === 1 ? leaders[0] : models[0]))?.id
+/**
+ * The models the roster's Detachments let hold the Warlord though they otherwise could not, and those it must be one of;
+ * a faction whose rosters take no Detachment, as a Titan Legion's, names both itself.
+ */
+function warlordModels(definitions: VsDataDefinitions, roster: Pick<VsRoster, 'faction' | 'detachments'>) {
+  const without = roster.detachments.length ? undefined : definitions.get('faction', roster.faction)?.data.withoutDetachments
+  const detachments = roster.detachments.flatMap((id) => definitions.get('detachment', id)?.data ?? [])
+  return {
+    granted: new Set([...detachments.flatMap((detachment) => detachment.warlords ?? []), ...(without?.warlords ?? [])]),
+    required: new Set([...detachments.flatMap((detachment) => detachment.requiredWarlords ?? []), ...(without?.warlords ?? [])]),
+  }
 }
 
-/** A VS Data pick's Warlord, keyed by the model that holds it, offered to a CHARACTER of the roster's own book or a model its Detachments grant the role. */
+/**
+ * The unit with one option's choices set by a press, `counts` over the `current` it was pressed against. A uniform option
+ * with substitutes holds its one main choice on every carrier that takes no substitute: taking a main choice whole keeps
+ * the substitutes held, and any other press keeps the main choice filling what the substitutes leave.
+ */
+export function vsWithSpread(
+  definitions: VsDataDefinitions,
+  picked: VsRosterUnit,
+  optionId: string,
+  current: Readonly<Record<string, number>>,
+  counts: Readonly<Record<string, number>>,
+): VsRosterUnit {
+  const next = { ...current, ...counts }
+  const option = vsUnitOptions(definitions, picked).find((candidate) => candidate.id === optionId)
+  if (!option?.uniform || !option.substitutes.length) return vsWithChoice(definitions, picked, optionId, next)
+  const substitute = (id: string) => option.substitutes.includes(id)
+  const raised = option.choices.find((choice) => !substitute(choice.id) && (next[choice.id] ?? 0) > (current[choice.id] ?? 0))
+  const main = raised ?? option.choices.find((choice) => !substitute(choice.id) && (next[choice.id] ?? 0) > 0)
+  const kept = Object.fromEntries(option.substitutes.map((id) => [id, (raised ? current : next)[id] ?? 0]))
+  const held = Object.values(kept).reduce((total, n) => total + n, 0)
+  const mains = option.choices.flatMap((choice) =>
+    substitute(choice.id) ? [] : [[choice.id, choice === main ? option.bounds.max - held : 0]],
+  )
+  return vsWithChoice(definitions, picked, optionId, { ...Object.fromEntries(mains), ...kept })
+}
+
+/** The model a unit names as its Warlord: one the roster grants or requires, else its one leader, else its first model. */
+export function vsWarlordModel(
+  definitions: VsDataDefinitions,
+  unitId: string,
+  roster: Pick<VsRoster, 'faction' | 'detachments'>,
+): string | undefined {
+  const models = definitions.modelsOf(unitId)
+  const { granted, required } = warlordModels(definitions, roster)
+  const leaders = models.filter((model) => model.data.max === 1)
+  return (models.find((model) => granted.has(model.id) || required.has(model.id)) ?? (leaders.length === 1 ? leaders[0] : models[0]))?.id
+}
+
+/**
+ * A VS Data pick's Warlord, keyed by the model that holds it, offered to a CHARACTER of the roster's own book or a model
+ * the roster grants the role.
+ */
 export function vsUnitToggles(definitions: VsDataDefinitions, picked: VsRosterUnit, context: VsChoiceContext = {}): UnitToggle[] {
   const unit = definitions.get('unit', picked.unit)
   if (!unit) return []
   const roster = rosterOf(context)
-  const detachments = roster.detachments.flatMap((id) => definitions.get('detachment', id)?.data ?? [])
-  const models = new Set(definitions.modelsOf(unit.id).map((model) => model.id))
+  const models = definitions.modelsOf(unit.id).map((model) => model.id)
   const own = [roster.faction, definitions.get('faction', roster.faction)?.data.parent]
   const character = unitKeywords(unit.data, roster, picked.allegiance).some((keyword) => keyword.toUpperCase() === 'CHARACTER')
   const allied = definitions.get('faction', roster.faction)?.data.allies?.some((ally) => ally.units.includes(unit.id))
-  const granted = detachments.some((detachment) => detachment.warlords?.some((id) => models.has(id)))
-  if (!granted && (!character || allied || !own.includes(unit.data.faction))) return []
-  const required = detachments.some((detachment) => detachment.requiredWarlords?.some((id) => models.has(id)))
-  const warlord = picked.warlord ?? vsWarlordModel(definitions, unit.id, roster.detachments)
+  const { granted, required } = warlordModels(definitions, roster)
+  if (!models.some((id) => granted.has(id)) && (!character || allied || !own.includes(unit.data.faction))) return []
+  const warlord = picked.warlord ?? vsWarlordModel(definitions, unit.id, roster)
   if (!warlord) return []
-  return [{ key: warlord, name: 'Warlord', selected: picked.warlord !== undefined, ...(required ? { required: true as const } : {}) }]
+  const must = models.some((id) => required.has(id))
+  return [{ key: warlord, name: 'Warlord', selected: picked.warlord !== undefined, ...(must ? { required: true as const } : {}) }]
 }
 
 /**

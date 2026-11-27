@@ -622,6 +622,15 @@ describe('a VS Data pick', () => {
     expect(picks()[0]?.vs?.enhancement).toBe('drill')
   })
 
+  it('is edited as the catalogue builds it where VS Data does not price its datasheet', () => {
+    const { edit, picks } = editor([{ key: 0, entryId: 'squad', catalogueId: 'host', vs: squad }], {
+      catalogueId: 'host',
+      units: [{ ...unit, vs: undefined }],
+    })
+    edit.choose(0, 'weapons', 'carbine')
+    expect(picks()[0]?.choices).toEqual({ weapons: 'carbine' })
+  })
+
   it('takes the Warlord from every other pick', () => {
     const { edit, picks } = editor(
       [

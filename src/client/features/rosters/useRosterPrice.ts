@@ -78,7 +78,7 @@ export function useRosterPrice({
       setPicks((current) =>
         current.map((pick, at) => {
           const toggle = priced.units[at]?.toggles.find((candidate) => candidate.name === 'Warlord')
-          return toggle ? withWarlord(pick, toggle.key, at === warlord.index) : pick
+          return toggle ? withWarlord(pick, priced.units[at], toggle.key, at === warlord.index) : pick
         }),
       )
   }, [editable, picks, pricePending, priced, pricedAt, setPicks])
