@@ -43,13 +43,15 @@ export function vsProfilesIn(
   editionId?: string,
   reads: (entry: CatalogueComposition['editions'][number]) => boolean = (entry) => Boolean(entry.base),
 ): VsProfilesIndex | null {
-  const found = constructionIn(directory, editionId, reads)
-  if (!found) return null
-  const name = (entryId: string) => {
-    const definition = index.definitions.get(entryId)
-    return definition && nameOf(definition, index.definitions)
-  }
-  return vsProfilesIndex(vsDataDefinitions(found.construction), ids.units, found.entry.base ? null : found.entry.edition.id, glossary, name)
+  const found = constructionIn(directory, editionId)
+  if (!found || !reads(found.entry)) return null
+  return vsProfilesIndex(
+    vsDataDefinitions(found.construction),
+    ids.units,
+    found.entry.base ? null : found.entry.edition.id,
+    glossary,
+    (entryId) => nameIn(index, entryId),
+  )
 }
 
 const nameIn = (index: CatalogueIndex, entryId: string) => {
