@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.280.3 (2026-11-27)
+
+### Patch Changes
+
+- e3538b5: [app] The privacy policy now says that the table translating saved unit setups into the current army data, which holds no account, list or game, is kept when an account is deleted.
+
 ## 0.280.2 (2026-11-27)
 
 ### Patch Changes
