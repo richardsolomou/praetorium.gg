@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.280.7 (2026-11-27)
+
+### Patch Changes
+
+- 75c7a60: [rosters] A Titan Legions or Chaos Titan Legions army can no longer borrow another Detachment's Force disposition at King of the Colosseum, as it takes no Detachment.
+
 ## 0.280.6 (2026-11-27)
 
 ### Patch Changes
