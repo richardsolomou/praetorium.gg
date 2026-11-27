@@ -752,6 +752,10 @@ html[data-native-app='true'] [data-battle-sticky-header] {
     font-size: 6.5pt;
     font-style: italic;
   }
+  /* A Stratagem's part labels scale with the pack's small print rather than the screen's label size. */
+  .pack-stratagem dt {
+    font-size: 0.9em;
+  }
 }
 
 @media print {

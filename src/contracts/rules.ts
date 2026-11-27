@@ -33,9 +33,19 @@ export type RuleSummaryLink = { document: string; section: string; anchor: strin
 export type RuleSummaryInline = { text: string; bold?: true; link?: RuleSummaryLink; ability?: string }
 /** A paragraph or a list of a summary, each item a line of runs. */
 export type RuleSummaryBlock = { paragraph: RuleSummaryInline[] } | { list: 'ordered' | 'unordered'; items: RuleSummaryInline[][] }
+/** The parts a Stratagem's card gives it, in the order it gives them, by the label each part opens with. */
+export const STRATAGEM_PARTS = { when: 'When', target: 'Target', effect: 'Effect', restrictions: 'Restrictions' } as const
+export type RuleSummaryParts = {
+  when: RuleSummaryBlock[]
+  target: RuleSummaryBlock[]
+  effect: RuleSummaryBlock[]
+  restrictions?: RuleSummaryBlock[]
+}
 /** One VS Data summary: original wording, shown for reading only. */
 export type RuleSummary = {
   blocks: RuleSummaryBlock[]
+  /** A Stratagem's summary written in its parts, each apart; `blocks` holds them all, each opening with its label. */
+  parts?: RuleSummaryParts
   /** Points the official text leaves open, which the summary reads one way. */
   questions: string[]
 }

@@ -232,30 +232,14 @@ export const sectionWithSummaries = (finder: RuleSummaryFinder, section: RuleSec
   ),
 })
 
-/** Labels a Stratagem's summary opens its paragraphs with, as its card prints its parts. */
-const STRATAGEM_PARTS = { 'When:': 'when', 'Target:': 'target', 'Effect:': 'effect', 'Restrictions:': 'restrictions' } as const
-
 /**
  * A summary as agents get it: its Markdown, then each open question, and a Stratagem's When, Target, Effect and
  * Restrictions apart where its summary is written in those parts.
  */
 export function servedRuleSummary(summary: RuleSummary): ServedRuleSummary {
   const questions = summary.questions.map((question) => `The official text leaves this open: ${question}`)
-  return { text: [...summary.blocks.map(blockMarkdown), ...questions].join('\n\n'), ...stratagemParts(summary.blocks) }
-}
-
-function stratagemParts(blocks: readonly RuleSummaryBlock[]) {
-  const parts: Partial<Record<(typeof STRATAGEM_PARTS)[keyof typeof STRATAGEM_PARTS], string[]>> = {}
-  let current: string[] | undefined
-  for (const block of blocks) {
-    const [first, ...rest] = 'paragraph' in block ? block.paragraph : []
-    const part = first?.bold ? STRATAGEM_PARTS[first.text.trim() as keyof typeof STRATAGEM_PARTS] : undefined
-    if (part) (current = parts[part] ??= []).push(runsMarkdown(rest).trim())
-    else if (current) current.push(blockMarkdown(block))
-    // A summary that says anything before its first part is not written in parts.
-    else return {}
-  }
-  return Object.fromEntries(Object.entries(parts).map(([part, lines]) => [part, lines.join('\n\n')]))
+  const parts = Object.entries(summary.parts ?? {}).map(([part, blocks]) => [part, blocks.map(blockMarkdown).join('\n\n')])
+  return { text: [...summary.blocks.map(blockMarkdown), ...questions].join('\n\n'), ...Object.fromEntries(parts) }
 }
 
 const blockMarkdown = (block: RuleSummaryBlock) =>
