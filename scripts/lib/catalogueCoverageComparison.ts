@@ -267,8 +267,9 @@ export function compareCatalogueCoverage(
   /*
    * A choice this change withdrew on purpose reads the same as a field it dropped by
    * accident, and only the person making the change can tell them apart. Each accepted
-   * line is stated whole and with its reason, and a line that has stopped being lost
-   * fails the run, so the list empties itself rather than growing quietly.
+   * line is stated whole and with its reason, and a claimed line that isn't lost fails
+   * the run. CI passes only the lines a change adds to the list, so lines an earlier
+   * change accepted can neither fail a later one nor hide a loss it causes.
    */
   const claimed = new Set(accepted.flatMap((group) => group.entries))
   const withdrawn = lost.filter((line) => claimed.has(line))
