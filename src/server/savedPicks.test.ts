@@ -195,37 +195,37 @@ describe('a write to a list saved before the copy', () => {
       rosterGroupByUser: vi.fn().mockResolvedValue([{ id: 'roster-1' }, { id: 'roster-2' }]),
     }
     const kept = () => keepRosterTranslations.mock.calls[0]?.[2]?.[0]?.vs
-    return { service: new RosterService(repository as unknown as RepositoryPort, () => after), kept, saveRoster, keepRosterTranslations }
+    return { rosters: new RosterService(repository as unknown as RepositoryPort, () => after), kept, saveRoster, keepRosterTranslations }
   }
 
   it('keeps its translations as its own when it is locked', async () => {
-    const { service, kept } = writer()
-    await service.setRosterLocked('user-1', 'roster-1', true)
+    const { rosters, kept } = writer()
+    await rosters.setRosterLocked('user-1', 'roster-1', true)
     expect(kept()).toEqual(fixture.vs)
   })
 
   it('keeps its translations as its own when its visibility changes', async () => {
-    const { service, kept } = writer()
-    await service.setRosterVisibility('user-1', 'roster-1', 'public')
+    const { rosters, kept } = writer()
+    await rosters.setRosterVisibility('user-1', 'roster-1', 'public')
     expect(kept()).toEqual(fixture.vs)
   })
 
   it('keeps its translations as its own when it is archived', async () => {
-    const { service, kept } = writer()
-    await service.setRosterArchived('user-1', 'roster-1', true)
+    const { rosters, kept } = writer()
+    await rosters.setRosterArchived('user-1', 'roster-1', true)
     expect(kept()).toEqual(fixture.vs)
   })
 
   it('keeps every variant a split moves on its translations', async () => {
-    const { service, keepRosterTranslations } = writer()
-    await service.splitRosterVariant('user-1', 'roster-1')
+    const { rosters, keepRosterTranslations } = writer()
+    await rosters.splitRosterVariant('user-1', 'roster-1')
     expect(keepRosterTranslations.mock.calls.map(([id]) => id)).toEqual(['roster-1', 'roster-2'])
   })
 
   it('lets a locked list saved back as stored through the lock with them', async () => {
-    const { service, saveRoster } = writer()
+    const { rosters, saveRoster } = writer()
     const stored = rosterFromRow(row(before), true)
-    await service.saveRoster('user-1', {
+    await rosters.saveRoster('user-1', {
       ...saveRosterSchema.parse(stored),
       id: 'roster-1',
       automaticName: stored.automaticName,

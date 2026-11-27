@@ -128,8 +128,9 @@ export async function storedWithTranslations(row: Parameters<typeof rosterFromRo
   const served = servedRoster(roster)
   if (served === roster) return null
   const stored = JSON.parse(row.picks) as RosterPick[]
+  const translated: readonly RosterPick[] = served.picks
   const kept = stored.map((pick, at) => {
-    const vs = served.picks[at]?.translatedVs
+    const vs = translated[at]?.translatedVs
     return vs && !pick.vs ? { ...pick, vs } : pick
   })
   return { stored, kept }
