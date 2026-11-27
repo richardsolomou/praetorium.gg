@@ -95,7 +95,8 @@ export type UnitData = {
   defaultModels?: Record<string, number>
 }
 /** `keywords` are those the model has beyond its unit's, as when a squad's leader is a Character. */
-export type ModelData = ModelCountBounds & { unit: string; wargear: Counts; keywords?: string[] }
+/** `warlord: false` keeps the model from the Warlord role unless a Detachment's or the faction's `warlords` grants it. */
+export type ModelData = ModelCountBounds & { unit: string; wargear: Counts; keywords?: string[]; warlord?: false }
 export type Requirement = { option: string; choices: string[] }
 export type OptionData = {
   unit: string

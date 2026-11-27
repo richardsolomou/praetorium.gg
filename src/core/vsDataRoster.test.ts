@@ -17,12 +17,14 @@ const construction: VsDataConstruction = {
     'battle-size': { small: record('Small', { points: 500, enhancements: 1 }) },
     detachment: {
       'host.guard': record('Guard', { faction: 'host' }),
+      'host.sworn': record('Sworn', { faction: 'host', warlords: ['host.oracle.oracle'] }),
       'host.watch': record('Watch', { faction: 'host', exclusiveEnhancements: { keywords: ['CHARACTER', 'INFANTRY'] } }),
     },
     unit: {
       'host.walker': record('Walker', { faction: 'host', keywords: ['VEHICLE'], sizes: [1] }),
       'host.captain': record('Captain', { faction: 'host', keywords: ['CHARACTER', 'INFANTRY'], sizes: [1] }),
       'host.hero': record('Hero', { faction: 'host', keywords: ['CHARACTER', 'EPIC HERO', 'INFANTRY'], sizes: [1] }),
+      'host.oracle': record('Oracle', { faction: 'host', keywords: ['CHARACTER', 'INFANTRY'], sizes: [1] }),
       'host.agent': record('Agent', { faction: 'host', keywords: ['INFANTRY'], sizes: [1] }),
       'host.envoy': record('Envoy', { faction: 'host', keywords: ['INFANTRY'], sizes: [1] }),
       'host.squad': record('Squad', { faction: 'host', keywords: ['INFANTRY'], sizes: [5] }),
@@ -37,6 +39,7 @@ const construction: VsDataConstruction = {
       }),
       'host.captain.captain': record('Captain', { unit: 'host.captain', min: 1, max: 1, wargear: { 'host.captain.shield': 1 } }),
       'host.hero.hero': record('Hero', { unit: 'host.hero', min: 1, max: 1, wargear: {} }),
+      'host.oracle.oracle': record('Oracle', { unit: 'host.oracle', min: 1, max: 1, wargear: {}, warlord: false }),
       'host.agent.agent': record('Agent', { unit: 'host.agent', min: 1, max: 1, wargear: {} }),
       'host.envoy.envoy': record('Envoy', { unit: 'host.envoy', min: 1, max: 1, wargear: {} }),
       'host.squad.leader': record('Leader', { unit: 'host.squad', min: 1, max: 1, keywords: ['CHARACTER'], wargear: {} }),
@@ -225,6 +228,18 @@ describe('checkVsRoster', () => {
   it('refuses a fourth copy of an upgrade', () => {
     const bannered = { unit: 'host.agent', enhancement: 'host.guard.banner' }
     expect(codes([bannered, bannered, bannered, bannered])).toEqual(['enhancement-repeated'])
+  })
+
+  it('refuses the Warlord to a model its datasheet keeps from the role', () => {
+    expect(codes([{ unit: 'host.oracle', warlord: 'host.oracle.oracle' }])).toEqual(['warlord-ineligible'])
+  })
+
+  it('gives the Warlord to such a model where a Detachment grants it', () => {
+    expect(
+      checkVsRoster(definitions, roster([{ unit: 'host.oracle', warlord: 'host.oracle.oracle' }], 'host', ['host.sworn'])).map(
+        (problem) => problem.code,
+      ),
+    ).toEqual([])
   })
 
   it('keeps a unit a Detachment claims to that Detachment’s Enhancements', () => {

@@ -442,8 +442,9 @@ export function checkVsRoster(definitions: VsDataDefinitions, roster: VsRoster, 
       const fielded = picked.size !== undefined && !picked.models ? true : (modelCounts(definitions, picked).get(warlord) ?? 0) > 0
       const held = [...keywords, ...(models.find((model) => model.id === warlord)?.data.keywords ?? [])]
       const character = held.some((keyword) => keyword.toUpperCase() === 'CHARACTER')
+      const barred = models.find((model) => model.id === warlord)?.data.warlord === false
       if (inUnit && !fielded) add('warlord-ineligible', `model:${warlord} is not fielded in ${unit.name}`)
-      else if (inUnit && !granted.has(warlord) && (!character || offered.length > 0 || !own.has(unit.data.faction)))
+      else if (inUnit && !granted.has(warlord) && (barred || !character || offered.length > 0 || !own.has(unit.data.faction)))
         add('warlord-ineligible', `${unit.name} cannot hold the warlord`)
       for (const required of requiredWarlords)
         if (inUnit && !required.models.includes(warlord))
