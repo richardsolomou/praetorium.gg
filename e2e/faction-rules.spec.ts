@@ -1,5 +1,6 @@
 import { expect, test } from './test'
 import { retryUntilVisible, expectNoPageOverflow } from './account'
+import { screenshot } from './screenshots'
 
 const factions = [
   { name: 'Blood Angels', slug: 'blood-angels', versions: 6 },
@@ -8,7 +9,7 @@ const factions = [
   { name: 'Space Marines', slug: 'space-marines', versions: 5 },
 ]
 
-test('Custodes reference retains cards with unsupported battle timing', { tag: '@catalogue' }, async ({ page }, testInfo) => {
+test('Custodes reference retains cards with unsupported battle timing', { tag: '@catalogue' }, async ({ page }) => {
   const factionPath = '/factions/adeptus-custodes/rules/custodes-codex-2026-10-17'
   await page.goto(factionPath)
   const detachments = page.getByRole('region', { name: 'Detachments', exact: true })
@@ -32,7 +33,7 @@ test('Custodes reference retains cards with unsupported battle timing', { tag: '
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 })
     await detachments.getByRole('link', { name: /^Guardians of the Throne\s/i }).scrollIntoViewIfNeeded()
-    await page.screenshot({ path: testInfo.outputPath(`custodes-detachment-counts-${width}.png`) })
+    await screenshot(page, `custodes-detachment-counts-${width}.png`)
   }
   await detachments.getByRole('link', { name: /^Guardians of the Throne\s/i }).click()
   const stratagems = page.getByRole('region', { name: 'Stratagems', exact: true })
@@ -50,7 +51,7 @@ test('Custodes reference retains cards with unsupported battle timing', { tag: '
       await expect(firstCard).toBeInViewport({ timeout: 1000 })
     }).toPass()
     await expectNoPageOverflow(page)
-    await page.screenshot({ path: testInfo.outputPath(`guardians-stratagems-${width}.png`) })
+    await screenshot(page, `guardians-stratagems-${width}.png`)
   }
   await page.goto(`${factionPath}/detachments/auric-champions`)
   await expect(stratagems.locator('article')).toHaveCount(2)
@@ -58,30 +59,26 @@ test('Custodes reference retains cards with unsupported battle timing', { tag: '
   await expect(stratagems).toContainText('Duty Unto Death')
 })
 
-test(
-  'current Redeemer rules include Machine Spirit while retained rules stay unchanged',
-  { tag: '@catalogue' },
-  async ({ page }, testInfo) => {
-    await page.goto('/factions/space-marines/datasheets/land-raider-redeemer')
-    const ability = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Wrath of the Machine Spirit', exact: true }) })
+test('current Redeemer rules include Machine Spirit while retained rules stay unchanged', { tag: '@catalogue' }, async ({ page }) => {
+  await page.goto('/factions/space-marines/datasheets/land-raider-redeemer')
+  const ability = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Wrath of the Machine Spirit', exact: true }) })
+  await expect(ability.locator('[data-rule-summary]').first()).toBeVisible()
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 900 })
+    await page.reload()
     await expect(ability.locator('[data-rule-summary]').first()).toBeVisible()
-    for (const width of [1440, 390]) {
-      await page.setViewportSize({ width, height: 900 })
-      await page.reload()
-      await expect(ability.locator('[data-rule-summary]').first()).toBeVisible()
-      await page.getByRole('heading', { name: 'Wrath of the Machine Spirit', exact: true }).scrollIntoViewIfNeeded()
-      await page.screenshot({ path: testInfo.outputPath(`redeemer-current-${width}.png`) })
-    }
-    await page.goto('/factions/space-marines/rules/space-marines-codex-2026-10-12/datasheets/land-raider-redeemer')
-    for (const width of [390, 1440]) {
-      await page.setViewportSize({ width, height: 900 })
-      await expect(page.getByRole('heading', { level: 1, name: 'Land Raider Redeemer', exact: true })).toBeVisible()
-      await expect(page.getByRole('heading', { name: 'Wrath of the Machine Spirit', exact: true })).toHaveCount(0)
-    }
-  },
-)
+    await page.getByRole('heading', { name: 'Wrath of the Machine Spirit', exact: true }).scrollIntoViewIfNeeded()
+    await screenshot(page, `redeemer-current-${width}.png`)
+  }
+  await page.goto('/factions/space-marines/rules/space-marines-codex-2026-10-12/datasheets/land-raider-redeemer')
+  for (const width of [390, 1440]) {
+    await page.setViewportSize({ width, height: 900 })
+    await expect(page.getByRole('heading', { level: 1, name: 'Land Raider Redeemer', exact: true })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Wrath of the Machine Spirit', exact: true })).toHaveCount(0)
+  }
+})
 
-test('rules history labels recorded status dates rather than publisher dates', { tag: '@catalogue' }, async ({ page }, testInfo) => {
+test('rules history labels recorded status dates rather than publisher dates', { tag: '@catalogue' }, async ({ page }) => {
   for (const path of ['/factions/space-marines/rules/space-marines-codex-2026-10-03', '/factions/dark-angels/rules/mfm-1-4-2026-09-30']) {
     await page.setViewportSize({ width: 1440, height: 900 })
     await page.goto(path)
@@ -97,7 +94,7 @@ test('rules history labels recorded status dates rather than publisher dates', {
       await expect(events.first()).toBeVisible()
       for (const event of await events.all()) await expect(event).toHaveText(/ · (Preview|Release|Archive) recorded$/)
       await expectNoPageOverflow(page)
-      await page.screenshot({ path: testInfo.outputPath(`status-history-${path.split('/').at(-1)}-${width}.png`) })
+      await screenshot(page, `status-history-${path.split('/').at(-1)}-${width}.png`)
     }
   }
 })
@@ -128,7 +125,7 @@ test('faction cards open current rules and the rules version menu lists every ve
         await expect(page.getByRole('option').first().locator('[data-rules-status="current"]')).toHaveCSS('color', 'rgb(79, 191, 106)')
       }
       await expectNoPageOverflow(page)
-      await page.screenshot({ path: test.info().outputPath(`rules-chips-${faction.slug}-${width}.png`) })
+      await screenshot(page, `rules-chips-${faction.slug}-${width}.png`)
       if (faction.versions > 1) {
         await page.keyboard.press('Escape')
         await expect(page.getByRole('option')).toHaveCount(0)
@@ -155,7 +152,7 @@ test('faction cards open current rules and the rules version menu lists every ve
       '/factions/dark-angels/rules/mfm-1-4-2026-09-30/datasheets',
     )
     await expectNoPageOverflow(page)
-    await page.screenshot({ path: test.info().outputPath(`dated-faction-rules-${width}.png`), fullPage: true })
+    await screenshot(page, `dated-faction-rules-${width}.png`, { fullPage: true })
   }
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.goto('/factions/dark-angels/rules/470a-6daa-9014-12df')

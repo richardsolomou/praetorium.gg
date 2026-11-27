@@ -1,6 +1,7 @@
 import { expect, test, type Locator, type Page } from './test'
 import { addUnit, createRoster, signUp, expectNoPageOverflow, chooseOption, chooseRosterAction, PHONE, savedArmy } from './account'
 import { holdCombatCalculations, openCombatBreakdown } from './combat'
+import { screenshot } from './screenshots'
 
 test('new rosters compare customizable mixed-faction benchmarks and retain the target set', async ({ page }) => {
   await signUp(page, 'Benchmark builder')
@@ -78,12 +79,12 @@ test('new rosters compare customizable mixed-faction benchmarks and retain the t
   ).toBe(false)
   await expect(benchmarks.getByRole('button', { name: 'Reset to starter set' })).toBeVisible()
   await expect(dialog.locator('[data-faction-mark]')).toHaveCount(10)
-  await page.screenshot({ path: test.info().outputPath('comparison-target-editor-desktop.png'), animations: 'disabled' })
+  await screenshot(page, 'comparison-target-editor-desktop.png', { animations: 'disabled' })
   await benchmarks.getByRole('button', { name: 'Edit Necron Warriors #2 benchmark', exact: true }).click()
   await expect(warriors).toBeHidden()
   await page.setViewportSize(PHONE)
   await expect.poll(async () => (await dialog.boundingBox())?.width).toBe(390)
-  await page.screenshot({ path: test.info().outputPath('comparison-target-editor-phone.png'), animations: 'disabled' })
+  await screenshot(page, 'comparison-target-editor-phone.png', { animations: 'disabled' })
   await page.setViewportSize({ width: 1440, height: 900 })
   await benchmarks.getByRole('button', { name: 'Edit Rhino #6 benchmark', exact: true }).click()
   await page.getByRole('button', { name: 'Remove Rhino #6 benchmark', exact: true }).click()
@@ -101,12 +102,12 @@ test('new rosters compare customizable mixed-faction benchmarks and retain the t
   await expect(tokens.last()).toHaveAccessibleName('Edit Land Raider #9 benchmark')
   await page.keyboard.press('Escape')
   await expect(dialog.getByRole('group', { name: 'Attacking with', exact: true })).toBeVisible()
-  await page.screenshot({ path: test.info().outputPath('roster-benchmarks-desktop.png'), animations: 'disabled' })
+  await screenshot(page, 'roster-benchmarks-desktop.png', { animations: 'disabled' })
   await page.setViewportSize(PHONE)
   await expect.poll(async () => (await dialog.boundingBox())?.x).toBe(0)
   await expect.poll(async () => (await dialog.boundingBox())?.width).toBe(390)
   await expectNoPageOverflow(page)
-  await page.screenshot({ path: test.info().outputPath('roster-benchmarks-phone.png'), animations: 'disabled' })
+  await screenshot(page, 'roster-benchmarks-phone.png', { animations: 'disabled' })
   await table.getByRole('button', { name: /^Intercessor Squad #1 against Necron Warriors #2:/ }).click()
   const detail = page.getByRole('dialog', { name: 'Combat simulator', exact: true }).last()
   await expect(detail.getByRole('combobox', { name: 'Defender unit', exact: true })).toContainText('Necron Warriors')
@@ -193,7 +194,7 @@ test('long matchup tables keep target headings and attacker names visible while 
     await expect.poll(async () => Math.abs((await target.boundingBox())!.y - targetBefore.y)).toBeLessThan(2)
     await expect.poll(async () => Math.abs((await corner.boundingBox())!.x - before.x)).toBeLessThan(2)
     await expectNoPageOverflow(page)
-    await page.screenshot({ path: test.info().outputPath(`pinned-matchup-headings-${width}.png`) })
+    await screenshot(page, `pinned-matchup-headings-${width}.png`)
   }
 })
 
@@ -228,11 +229,11 @@ test('saved rosters compare every pairing, reverse direction, and open isolated 
   const immortalCell = table.getByRole('button', { name: /^Immortals #1 against Intercessor Squad #1:/ })
   const damage = await immortalCell.locator('.readout').textContent()
   expect(Number(damage)).toBeGreaterThan(0)
-  await page.screenshot({ path: test.info().outputPath('roster-comparison-desktop.png'), fullPage: true })
+  await screenshot(page, 'roster-comparison-desktop.png', { fullPage: true })
   await page.setViewportSize(PHONE)
   await expect.poll(async () => (await comparison.boundingBox())?.width).toBeLessThanOrEqual(390)
   await expectNoPageOverflow(page)
-  await page.screenshot({ path: test.info().outputPath('roster-comparison-phone.png'), fullPage: true })
+  await screenshot(page, 'roster-comparison-phone.png', { fullPage: true })
   await immortalCell.click()
   const matchup = page.getByRole('dialog', { name: 'Combat simulator', exact: true })
   await expect(matchup.getByRole('combobox', { name: 'Attacker unit', exact: true })).toContainText('Immortals')
@@ -289,7 +290,7 @@ test(`roster actions group editing, tools and exports`, async ({ page }) => {
   // Grouped under headings; a list with no attached unit has nothing to display differently.
   await expect(menu.getByRole('group')).toHaveText([/^Play/, /^Edit/, /^Share/, /^Copy/])
   await expect(menu.getByRole('separator')).toHaveCount(1)
-  await page.screenshot({ path: test.info().outputPath(`builder-menu.png`) })
+  await screenshot(page, `builder-menu.png`)
   await page.keyboard.press('Escape')
   await page.goto('/rosters')
   await page.getByRole('button', { name: 'Actions for Menu roster', exact: true }).click()
@@ -309,7 +310,7 @@ test(`roster actions group editing, tools and exports`, async ({ page }) => {
   ])
   await expect(menu.getByRole('group')).toHaveText([/^Play/, /^Edit/, /^Share/, /^Copy/])
   await expect(menu.getByRole('separator')).toHaveCount(1)
-  await page.screenshot({ path: test.info().outputPath(`library-menu.png`) })
+  await screenshot(page, `library-menu.png`)
   await page.keyboard.press('Escape')
   await page.getByRole('link', { name: /Menu roster/ }).click({ button: 'right' })
   await expect(menu.getByRole('menuitem').first()).toHaveText('Start a battle')

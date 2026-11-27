@@ -1,5 +1,6 @@
 import { expect, test, type Page } from './test'
 import { chooseUnit, openImport, retryUntilVisible, signUp, uniqueName, visitorSetup, waitForRosterSave } from './account'
+import { screenshot } from './screenshots'
 
 async function replaceTranslatedText(page: Page) {
   await page.evaluate(() => {
@@ -27,7 +28,7 @@ test(`a translated guest roster setup can select its first faction`, async ({ pa
   await page.getByRole('option', { name: 'Necrons', exact: true }).click()
   await expect(setup).toBeVisible()
   await expect(faction).toContainText('Necrons')
-  await page.screenshot({ path: test.info().outputPath(`translated-guest-roster.png`), fullPage: true })
+  await screenshot(page, `translated-guest-roster.png`, { fullPage: true })
 })
 
 test('a translated signed-in roster dialog keeps working through creation', async ({ page }) => {
@@ -50,7 +51,7 @@ test('a translated signed-in roster dialog keeps working through creation', asyn
   )
   await page.reload()
   await expect(page.getByRole('textbox', { name: 'List name', exact: true })).toHaveValue('Translated army')
-  await page.screenshot({ path: test.info().outputPath('translated-saved-roster.png'), fullPage: true })
+  await screenshot(page, 'translated-saved-roster.png', { fullPage: true })
 })
 
 test('a translated virtualized unit selector opens a reference unit in the simulator', async ({ page }) => {
@@ -79,7 +80,7 @@ test('a translated friends page survives a button changing the icon beside its l
   await copy.click()
   await expect(copy.locator('svg.lucide-check')).toBeVisible()
   await expect(page.locator('[data-route-error]')).toHaveCount(0)
-  await page.screenshot({ path: test.info().outputPath('translated-friends-invite.png'), fullPage: true })
+  await screenshot(page, 'translated-friends-invite.png', { fullPage: true })
 })
 
 test('a translated rosters page survives an import button changing the icon beside its label', async ({ page }) => {

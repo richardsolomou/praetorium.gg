@@ -22,6 +22,7 @@ import {
   startBattle,
   playerPanel,
 } from './account'
+import { screenshot } from './screenshots'
 
 /** The page fits at desktop and phone widths, leaving the viewport at the phone's. */
 async function fitsBothWidths(page: Page) {
@@ -166,7 +167,7 @@ test('roster reminders cover selected rules and advances from another device', a
   await expect(reminder).toContainText('Living Lightning')
   await expect(reminder.getByRole('heading', { name: 'Cleanse', exact: true })).toBeVisible()
   await expect(reminder).toContainText('Start of your Shooting phase')
-  await reminder.screenshot({ path: test.info().outputPath('cleanse-shooting.png') })
+  await screenshot(reminder, 'cleanse-shooting.png')
   await page.setViewportSize(PHONE)
   await expectNoPageOverflow(page)
   await expectNoHorizontalOverflow(reminder)

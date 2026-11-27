@@ -12,6 +12,7 @@ import {
   desktopContext,
 } from './account'
 import { attach, expectNoHorizontalOverflow, shot, closePicker } from './builder.harness'
+import { screenshot } from './screenshots'
 
 const SIZES = [
   [{ viewport: PHONE }, 'phone'],
@@ -19,7 +20,7 @@ const SIZES = [
 ] as const
 const SQUAD = 'Intercessor Squad'
 
-test('the deployment checklist identifies two Land Raiders by their passengers', async ({ page }, testInfo) => {
+test('the deployment checklist identifies two Land Raiders by their passengers', async ({ page }) => {
   await page.setViewportSize(PHONE)
   await signUp(page, uniqueName('Land Raider passengers'))
   const roster = await createRoster(page, { faction: 'Space Marines', detachment: /Gladius Task Force/ })
@@ -51,7 +52,7 @@ test('the deployment checklist identifies two Land Raiders by their passengers',
   await expect(first).toHaveAttribute('aria-pressed', 'true')
   await expect(second).toHaveAttribute('aria-pressed', 'false')
   await first.scrollIntoViewIfNeeded()
-  await page.screenshot({ path: testInfo.outputPath('land-raiders-phone.png') })
+  await screenshot(page, 'land-raiders-phone.png')
 })
 
 /** The roster's cards, with the picker or loadout put away on a phone. */
@@ -93,7 +94,7 @@ for (const [size, label] of SIZES) {
     const alpha = page.getByRole('menuitem', { name: `Embark Alpha · ${SQUAD} #1 in Rhino`, exact: true })
     await expect(alpha).toContainText('With Commander · Captain')
     await expect(page.getByRole('menuitem', { name: `Embark Bravo · ${SQUAD} #2 in Rhino`, exact: true })).toBeVisible()
-    await shot(page.getByRole('menu'), test.info().outputPath(`roster-embark-custom-menu-${label}.png`))
+    await shot(page.getByRole('menu'), `roster-embark-custom-menu-${label}.png`)
     await waitForRosterSave(page, () => alpha.click(), 'embarkedIn')
     await expect(rhino).toContainText(`EmbarkedAlpha · ${SQUAD} #1 + Commander · Captain`)
     const led = page.locator('section[aria-label]').filter({ has: page.locator('[data-unit="Captain"]') })
@@ -104,13 +105,13 @@ for (const [size, label] of SIZES) {
     await page.getByRole('button', { name: 'View', exact: true }).click()
     await expect(rhino).toContainText(`EmbarkedAlpha · ${SQUAD} #1 + Commander · Captain`)
     await expectNoHorizontalOverflow(rhino)
-    await shot(rhino, test.info().outputPath(`roster-embark-custom-transport-${label}.png`))
-    await shot(led, test.info().outputPath(`roster-embark-custom-attached-${label}.png`))
+    await shot(rhino, `roster-embark-custom-transport-${label}.png`)
+    await shot(led, `roster-embark-custom-attached-${label}.png`)
     if (label === 'phone') {
       await page.evaluate(() => (document.documentElement.style.fontSize = '200%'))
       await expectNoHorizontalOverflow(rhino)
       await expectNoHorizontalOverflow(rhino.getByText(`Alpha · ${SQUAD} #1 + Commander · Captain`, { exact: true }))
-      await shot(rhino, test.info().outputPath('roster-embark-custom-large-text.png'))
+      await shot(rhino, 'roster-embark-custom-large-text.png')
       await page.evaluate(() => (document.documentElement.style.fontSize = ''))
     }
 
@@ -119,7 +120,7 @@ for (const [size, label] of SIZES) {
     const reserves = page.getByRole('region', { name: 'Reserves', exact: true })
     await expect(reserves.getByText(`Embarked: Alpha · ${SQUAD} #1 with Commander · Captain`, { exact: true })).toHaveCount(2)
     await expect(reserves.getByText('Embarked in Ironclad · Rhino', { exact: true })).toHaveCount(2)
-    await shot(reserves, test.info().outputPath(`roster-embark-custom-setup-${label}.png`))
+    await shot(reserves, `roster-embark-custom-setup-${label}.png`)
   })
 }
 
@@ -134,12 +135,12 @@ test('a unit embarked in the builder starts in its transport at battle setup', a
   await squad.getByRole('button', { name: `Embark in transport: ${SQUAD}`, exact: true }).click()
   const boarding = page.getByRole('menuitem', { name: `Embark ${SQUAD} in Rhino`, exact: true })
   await expect(boarding).toContainText('0/12 models')
-  await shot(page.getByRole('menu'), test.info().outputPath(`roster-embark-board-menu.png`))
+  await shot(page.getByRole('menu'), `roster-embark-board-menu.png`)
   await waitForRosterSave(page, () => boarding.click(), 'embarkedIn')
   await expect(squad).toContainText('Embarked inRhino')
   await expect(rhino).toContainText(`Embarked${SQUAD}Disembark`)
-  await shot(squad, test.info().outputPath(`roster-embark-passenger.png`))
-  await shot(rhino, test.info().outputPath(`roster-embark-transport.png`))
+  await shot(squad, `roster-embark-passenger.png`)
+  await shot(rhino, `roster-embark-transport.png`)
 
   await page.reload()
   await expect((await cards(page)).squad).toContainText('Embarked inRhino')
@@ -149,7 +150,7 @@ test('a unit embarked in the builder starts in its transport at battle setup', a
   await setupStep(page, 'Reserves')
   const reserves = page.getByRole('region', { name: 'Reserves', exact: true })
   await expect(reserves.getByText('Embarked in Rhino')).toHaveCount(2)
-  await shot(reserves, test.info().outputPath(`roster-embark-setup.png`))
+  await shot(reserves, `roster-embark-setup.png`)
 
   await reserves
     .getByRole('button', { name: `Start ${SQUAD} in Battlefield`, exact: true })
@@ -181,13 +182,13 @@ test('an attached unit is joined and embarked from its outline, not its cards', 
   await expect(inside.filter({ hasText: 'Embarked in' })).toHaveCount(0)
   await expect(inside.getByRole('button', { name: /^Embark / })).toHaveCount(0)
   await expect(rhino.getByRole('button', { name: 'Disembark', exact: true })).toHaveCount(1)
-  await shot(led, test.info().outputPath(`roster-embark-outline.png`))
+  await shot(led, `roster-embark-outline.png`)
 
   await page.getByRole('button', { name: 'View', exact: true }).click()
   await expect(bar).toContainText('Unit embarked inRhino')
   await expect(bar.getByRole('button')).toHaveCount(0)
   await expect(inside.filter({ hasText: 'Embarked in' })).toHaveCount(0)
-  await shot(led, test.info().outputPath(`roster-embark-outline-view.png`))
+  await shot(led, `roster-embark-outline-view.png`)
   await page.getByRole('button', { name: 'Build', exact: true }).click()
 
   await waitForRosterSave(page, () => bar.getByRole('button', { name: 'Remove', exact: true }).click(), 'embarkedIn')

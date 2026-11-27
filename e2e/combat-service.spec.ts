@@ -1,6 +1,7 @@
 import { expect, test, type Page } from './test'
 import { chooseCombatUnit, isCombatCalculationRequest, openCombatBreakdown } from './combat'
 import { chooseRosterAction, chooseOption, PHONE, savedArmy } from './account'
+import { screenshot } from './screenshots'
 
 async function countLocalCalculations(page: Page) {
   await page.addInitScript(() => {
@@ -40,7 +41,7 @@ test('unit estimates run on the server across reloads and fall back locally when
   await expect(damage).toHaveText(expected)
   expect(responses.length).toBeGreaterThan(completed)
   expect(await localCalculations(page)).toBe(0)
-  await page.screenshot({ path: test.info().outputPath('server-unit-estimate.png') })
+  await screenshot(page, 'server-unit-estimate.png')
   await page.route('**/_serverFn/**', (route) => (isCombatCalculationRequest(route.request()) ? route.abort() : route.continue()))
   await page.getByRole('button', { name: 'More defender models', exact: true }).click()
   await expect.poll(() => localCalculations(page)).toBeGreaterThan(0)
@@ -85,5 +86,5 @@ test('a full roster matrix batches projections and uses the server without brows
   const attackerSource = (await dialog.getByRole('group', { name: 'Attacking with' }).boundingBox())!
   const defenderSource = (await dialog.getByRole('group', { name: 'Defending with' }).boundingBox())!
   expect(Math.abs(attackerSource.y - defenderSource.y)).toBeLessThan(2)
-  await page.screenshot({ path: test.info().outputPath('server-roster-matrix-phone.png') })
+  await screenshot(page, 'server-roster-matrix-phone.png')
 })

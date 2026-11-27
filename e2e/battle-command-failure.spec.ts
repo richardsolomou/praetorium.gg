@@ -1,5 +1,6 @@
 import { createRoster, signUp, startBattle, uniqueName, practiceBattle } from './account'
 import { expect, test } from './test'
+import { screenshot } from './screenshots'
 
 test('a failed mission draw can be retried after the connection returns', async ({ page, context }) => {
   await context.route('**/offline-reference*', (route) => route.abort('internetdisconnected'))
@@ -18,7 +19,7 @@ test('a failed mission draw can be retried after the connection returns', async 
   await expect(prompt.locator('[data-drawn]')).toHaveCount(0)
   await prompt.getByRole('button', { name: 'Minimize dialog' }).click()
   await page.getByText('Check your connection and try again.', { exact: true }).scrollIntoViewIfNeeded()
-  await page.screenshot({ path: test.info().outputPath('battle-connection-error.png') })
+  await screenshot(page, 'battle-connection-error.png')
   await page.getByRole('button', { name: 'Return to prompt', exact: true }).click()
   await page.unroute('**/_serverFn/**')
   await draw.click()
@@ -27,5 +28,5 @@ test('a failed mission draw can be retried after the connection returns', async 
   await expect(prompt.getByRole('button', { name: 'Minimize dialog' })).toBeEnabled()
   await page.reload()
   await expect(prompt.locator('[data-drawn]')).toHaveCount(2)
-  await page.screenshot({ path: test.info().outputPath('battle-draw-reconnected.png') })
+  await screenshot(page, 'battle-draw-reconnected.png')
 })

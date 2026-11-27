@@ -1,6 +1,7 @@
 import { expect, test, type Page } from './test'
 import { confirmRosterSetup, retryUntilVisible, signUp, waitForRosterSave, expectNoPageOverflow, chooseOption } from './account'
 import { lastPathSegment, seedRoster } from './storage'
+import { screenshot } from './screenshots'
 
 /** Opens the conversion the rules notice offers and chooses the current rules version. */
 async function convertToCurrentRules(page: Page) {
@@ -43,7 +44,7 @@ test('preserved rules remain explicit and conversion is optional', { tag: '@cata
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 })
     await expectNoPageOverflow(page)
-    await page.screenshot({ path: test.info().outputPath(`retained-roster-${width}.png`), fullPage: true })
+    await screenshot(page, `retained-roster-${width}.png`, { fullPage: true })
   }
   for (const width of [390, 1440]) {
     await page.setViewportSize({ width, height: 900 })
@@ -66,7 +67,7 @@ test('preserved rules remain explicit and conversion is optional', { tag: '@cata
     await expect(
       page.getByText('Scout Squad: a saved choice is no longer available; reselect this unit’s options', { exact: true }),
     ).toBeVisible()
-    await page.screenshot({ path: test.info().outputPath(`converted-roster-${width}.png`), fullPage: true })
+    await screenshot(page, `converted-roster-${width}.png`, { fullPage: true })
   }
 })
 

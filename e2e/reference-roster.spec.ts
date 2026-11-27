@@ -1,6 +1,7 @@
 import { expect, type Page, test } from './test'
 import { retryUntilVisible } from './account'
 import { guestDraft } from './storage'
+import { screenshot } from './screenshots'
 
 const DATASHEET = '/factions/necrons/datasheets/imotekh-the-stormlord'
 
@@ -86,7 +87,7 @@ for (const [width, name, slug, weapon] of [
   [1440, 'Prosecutor Squad', 'prosecutor-squad', 'Boltgun'],
   [390, 'Witchseeker Squad', 'witchseeker-squad', 'Flamer'],
 ] as const) {
-  test(`${name} fixed weapons remain visible through resizing, reload and view at ${width}px`, async ({ page }, testInfo) => {
+  test(`${name} fixed weapons remain visible through resizing, reload and view at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 })
     await addFromDatasheet(page, `/factions/adeptus-custodes/rules/custodes-codex-2026-10-17/datasheets/${slug}`)
     await createFromSetup(page, 'Aquilan Shield')
@@ -96,7 +97,7 @@ for (const [width, name, slug, weapon] of [
     const stock = page.getByRole('heading', { name: /^\d+× Gun Stock$/ })
     await expect(ranged).toBeVisible()
     await expect(stock).toBeVisible()
-    await page.screenshot({ path: testInfo.outputPath(`${slug}-editor.png`) })
+    await screenshot(page, `${slug}-editor.png`)
     await expect(ranged).toHaveText(`4× ${weapon}`)
     await expect(stock).toHaveText('4× Gun Stock')
     await page.getByRole('button', { name: `More models in ${name}`, exact: true }).click()
@@ -117,7 +118,7 @@ for (const [width, name, slug, weapon] of [
   })
 }
 
-test(`Eradicator melta profiles remain visible through reload and view`, async ({ page }, testInfo) => {
+test(`Eradicator melta profiles remain visible through reload and view`, async ({ page }) => {
   const name = 'Eradicator Squad with Melta Rifles'
   await addFromDatasheet(page, '/factions/space-marines/datasheets/eradicator-squad-with-melta-rifles')
   await createFromSetup(page, 'Assault Brethren')
@@ -129,8 +130,8 @@ test(`Eradicator melta profiles remain visible through reload and view`, async (
   await expect(multi.getByText('HUNTER:Monster/Vehicle', { exact: true })).toBeVisible()
   await expect(rifles.getByText('2 profiles', { exact: true })).toBeVisible()
   await expect(multi.getByText('2 profiles', { exact: true })).toBeVisible()
-  await rifles.screenshot({ path: testInfo.outputPath('melta-rifle-editor.png') })
-  await multi.screenshot({ path: testInfo.outputPath('multi-melta-editor.png') })
+  await screenshot(rifles, 'melta-rifle-editor.png')
+  await screenshot(multi, 'multi-melta-editor.png')
   await expect.poll(() => guestDraft(page)).toContain('"picks":[{')
   await page.reload()
   await card.getByRole('button', { name, exact: true }).click()

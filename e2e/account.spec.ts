@@ -19,6 +19,7 @@ import {
   PHONE,
   expandStep,
 } from './account'
+import { screenshot } from './screenshots'
 
 test('account forms show the server error', async ({ page }) => {
   const email = `auth-error-${crypto.randomUUID()}@example.test`
@@ -61,9 +62,9 @@ test('social account linking errors explain how to recover', async ({ page }) =>
   await page.goto('/profile?error=email_doesn%27t_match')
 
   await expect(page.getByText('This provider uses a different email address. Use matching email addresses before linking.')).toBeVisible()
-  await page.screenshot({ path: test.info().outputPath('profile-link-error.png'), fullPage: true })
+  await screenshot(page, 'profile-link-error.png', { fullPage: true })
   await page.setViewportSize(PHONE)
-  await page.screenshot({ path: test.info().outputPath('profile-link-error-phone.png'), fullPage: true })
+  await screenshot(page, 'profile-link-error-phone.png', { fullPage: true })
 })
 
 test('an unverified account cannot forge a verification success message', async ({ page }) => {
@@ -84,7 +85,7 @@ test('email verification callbacks explain their result without an active sessio
   await page.goto('/profile?verified=true')
   await expect(page.getByRole('heading', { name: 'Check your email verification' })).toBeVisible()
   await expect(page.getByText('Sign in to confirm your email status.')).toBeVisible()
-  await page.screenshot({ path: test.info().outputPath('profile-verification-signed-out.png'), fullPage: true })
+  await screenshot(page, 'profile-verification-signed-out.png', { fullPage: true })
 
   await page.goto('/profile?verified=true&error=INVALID_TOKEN')
   await expect(page.getByRole('heading', { name: 'Could not complete account verification' })).toBeVisible()
@@ -101,7 +102,7 @@ test('profile security settings reserve their content before hydration', async (
   const methods = serverPage.locator('#sign-in-methods')
   await expect(methods.getByLabel('Loading sign-in methods')).toBeVisible()
   await expect(methods.getByText('Password', { exact: true })).toHaveCount(0)
-  await serverPage.screenshot({ path: test.info().outputPath('profile-loading-state.png'), fullPage: true })
+  await screenshot(serverPage, 'profile-loading-state.png', { fullPage: true })
   await context.close()
 })
 
@@ -115,12 +116,12 @@ test('profile lists sign-in methods and two-factor together without a notificati
   await expect(twoFactor).toBeVisible()
   expect((await password.boundingBox())!.y).toBe((await twoFactor.boundingBox())!.y)
   await expect(page.getByText('Notifications on your phone')).toHaveCount(0)
-  await page.screenshot({ path: test.info().outputPath('profile-settings.png'), fullPage: true })
+  await screenshot(page, 'profile-settings.png', { fullPage: true })
 
   await page.setViewportSize(PHONE)
   await expectNoPageOverflow(page)
   expect((await password.boundingBox())!.y).toBeLessThan((await twoFactor.boundingBox())!.y)
-  await page.screenshot({ path: test.info().outputPath('profile-settings-phone.png'), fullPage: true })
+  await screenshot(page, 'profile-settings-phone.png', { fullPage: true })
 })
 
 test('failed security settings show a retry state', async ({ page }) => {
@@ -190,7 +191,7 @@ test('a player can edit their display name and profile picture', async ({ page }
   await expect(picture.locator('img')).toHaveAttribute('src', /\/avatars\/[0-9a-f]+\.jpg$/)
   await expect(page.getByRole('button', { name: 'Save profile' })).toBeDisabled()
   await page.setViewportSize(PHONE)
-  await page.screenshot({ path: test.info().outputPath('profile-phone.png'), fullPage: true })
+  await screenshot(page, 'profile-phone.png', { fullPage: true })
 
   await page.locator('form').getByRole('button', { name: 'Remove' }).click()
   await page.getByRole('button', { name: 'Save profile' }).click()
@@ -231,7 +232,7 @@ test('profile saves preserve newer name and picture edits', async ({ page }) => 
     await expect(page.getByRole('button', { name: 'Add picture', exact: true })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Save profile', exact: true })).toBeEnabled()
     await expect(page.getByText('Profile saved.', { exact: true })).toBeHidden()
-    await page.screenshot({ path: test.info().outputPath('profile-preserved-draft.png'), fullPage: true })
+    await screenshot(page, 'profile-preserved-draft.png', { fullPage: true })
     await page.getByRole('button', { name: 'Save profile', exact: true }).click()
     await expect(page.getByText('Profile saved.', { exact: true })).toBeVisible()
     await page.reload()
@@ -291,9 +292,9 @@ test('friends use the profile picture shown elsewhere', async ({ browser }) => {
 
   const friend = bob.locator(`[data-person="${aliceName}"]`)
   await expect(friend.locator('img')).toHaveAttribute('src', /\/avatars\/[0-9a-f]+\.jpg$/)
-  await bob.screenshot({ path: test.info().outputPath('friends-profile-picture.png'), fullPage: true })
+  await screenshot(bob, 'friends-profile-picture.png', { fullPage: true })
   await bob.setViewportSize(PHONE)
-  await bob.screenshot({ path: test.info().outputPath('friends-profile-picture-phone.png'), fullPage: true })
+  await screenshot(bob, 'friends-profile-picture-phone.png', { fullPage: true })
 })
 
 test('a one-time link connects a new player after they create an account and accept', async ({ browser }) => {
@@ -309,16 +310,16 @@ test('a one-time link connects a new player after they create an account and acc
   await inviter.getByRole('button', { name: 'Create invite link' }).click()
   await expect(inviter.getByRole('button', { name: 'Link copied' })).toBeVisible()
   const inviteUrl = await inviter.evaluate(() => navigator.clipboard.readText())
-  await inviter.screenshot({ path: test.info().outputPath('friend-invite-controls.png'), fullPage: true })
+  await screenshot(inviter, 'friend-invite-controls.png', { fullPage: true })
   await inviter.setViewportSize(PHONE)
-  await inviter.screenshot({ path: test.info().outputPath('friend-invite-controls-phone.png'), fullPage: true })
+  await screenshot(inviter, 'friend-invite-controls-phone.png', { fullPage: true })
 
   await recipient.goto(inviteUrl)
   await expect(recipient.getByRole('heading', { name: `${inviterName} invited you` })).toBeVisible()
   await expect(recipient.getByRole('heading', { name: 'Create an account to accept' })).toBeVisible()
-  await recipient.screenshot({ path: test.info().outputPath('friend-invite.png'), fullPage: true })
+  await screenshot(recipient, 'friend-invite.png', { fullPage: true })
   await recipient.setViewportSize(PHONE)
-  await recipient.screenshot({ path: test.info().outputPath('friend-invite-phone.png'), fullPage: true })
+  await screenshot(recipient, 'friend-invite-phone.png', { fullPage: true })
 
   await recipient.getByRole('link', { name: 'Create an account' }).click()
   await recipient.waitForLoadState('networkidle')
@@ -367,7 +368,7 @@ test('a player can reject an incoming friend request', async ({ browser }) => {
     await recipient.goto('/friends')
     const incoming = recipient.locator('section').filter({ hasText: 'Friend requests' }).locator(`[data-person="${requesterName}"]`)
     await expect(incoming).toBeVisible()
-    await recipient.screenshot({ path: test.info().outputPath('friend-request-reject.png') })
+    await screenshot(recipient, 'friend-request-reject.png')
     const confirmReject = recipient.getByRole('alertdialog')
     await expect(async () => {
       if ((await incoming.count()) === 0) return
@@ -442,7 +443,7 @@ test('a seated battle signs the opponent in and drops them back into setup', asy
   // The table strip names both sides, which is how the guest knows it is the battle they were invited to.
   await expect(guest.getByRole('main')).toContainText(aliceName)
   await expect(guest.getByRole('main')).toContainText(bobName)
-  await guest.screenshot({ path: test.info().outputPath('seated-battle-after-sign-in.png'), fullPage: true })
+  await screenshot(guest, 'seated-battle-after-sign-in.png', { fullPage: true })
 })
 
 test('signing out in one tab signs the other tab out', async ({ page }) => {

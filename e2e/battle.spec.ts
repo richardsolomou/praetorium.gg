@@ -25,6 +25,7 @@ import {
 } from './account'
 import { battleCommands, battleLog, lastPathSegment } from './storage'
 import { expectNoHorizontalOverflow } from './builder.harness'
+import { screenshot } from './screenshots'
 
 test('the opening draw prompt starts at the top, pins its actions and holds the page still on a phone', async ({ page }) => {
   await signUp(page, uniqueName('Opening prompt'))
@@ -126,7 +127,7 @@ test('Cleanse and Centre Ground prompt for scoring on the first turn', async ({ 
   await expectNoPageOverflow(page)
   await page.mouse.wheel(0, -2000)
   await expect.poll(() => body.evaluate((element) => element.scrollTop)).toBe(0)
-  await page.screenshot({ path: test.info().outputPath('scoring-mobile.png') })
+  await screenshot(page, 'scoring-mobile.png')
   await page.setViewportSize(PHONE)
   await scoring.getByRole('button', { name: 'Cleanse plus 2', exact: true }).scrollIntoViewIfNeeded()
   await confirmScoring(scoring, 'Pass the turn')
@@ -177,7 +178,7 @@ test('a battle mission card shows what its action and awards ask for', async ({ 
   const action = card.getByRole('listitem').filter({ hasText: /^Action/ })
   await expect(action.locator('[data-rule-summary]').first()).toHaveText(/\S/)
   await expect(card.locator('[data-rule-summary]').nth(1)).toHaveText(/\S/)
-  await page.screenshot({ path: test.info().outputPath('battle-mission-action.png') })
+  await screenshot(page, 'battle-mission-action.png')
 })
 
 test('a double tap on the turn control ends one phase', async ({ page }) => {

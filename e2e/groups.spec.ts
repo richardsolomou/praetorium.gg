@@ -6,6 +6,7 @@ import { productSql, lastPathSegment, battleIdFor, seatsBySide, appendCommand } 
 import type { Command } from '../src/core/battle'
 import { expectNoHorizontalOverflow } from './builder.harness'
 import { PREVIEW_ALLY_NAME, PREVIEW_OPPONENT_NAME, PREVIEW_PLAYER_NAME, PREVIEW_RIVAL_NAME } from '../scripts/lib/previewPeople'
+import { screenshot } from './screenshots'
 
 test.setTimeout(120_000)
 
@@ -31,7 +32,7 @@ async function joinGroup(page: Page, groupUrl: string, name: string) {
 const expectGroupBattle = (battleId: string) =>
   expect.poll(async () => (await productSql`SELECT group_id FROM group_battles WHERE battle_id = ${battleId}`).length).toBe(1)
 
-test('group members choose their group at battle setup', async ({ browser }, testInfo) => {
+test('group members choose their group at battle setup', async ({ browser }) => {
   const ownerContext = await browser.newContext({ viewport: { width: 1440, height: 1000 } })
   const memberContext = await browser.newContext()
   const owner = await ownerContext.newPage()
@@ -55,7 +56,7 @@ test('group members choose their group at battle setup', async ({ browser }, tes
   await owner.getByRole('option', { name: groupName }).click()
   await expect(group).toHaveText(new RegExp(groupName))
   await group.scrollIntoViewIfNeeded()
-  await owner.screenshot({ path: testInfo.outputPath('group-setup.png') })
+  await screenshot(owner, 'group-setup.png')
 
   const battleId = await battleIdFor(lastPathSegment(battleUrl))
   await expectGroupBattle(battleId)
@@ -77,7 +78,7 @@ test('group members choose their group at battle setup', async ({ browser }, tes
   // The winner leads the table, and both members are on it.
   await expect(table.locator('[data-standing]')).toHaveCount(2)
   await expect(table.locator('[data-standing]').first()).toContainText(ownerName)
-  await owner.screenshot({ path: testInfo.outputPath('group-page.png'), fullPage: true })
+  await screenshot(owner, 'group-page.png', { fullPage: true })
 
   await ownerContext.close()
   await memberContext.close()
@@ -106,7 +107,7 @@ test('members who are not friends start a group game from the group page', async
   await memberContext.close()
 })
 
-test('a group seals lists for a game night and plays them from the group page', async ({ browser }, testInfo) => {
+test('a group seals lists for a game night and plays them from the group page', async ({ browser }) => {
   test.setTimeout(180_000)
   const ownerContext = await browser.newContext({ viewport: { width: 1440, height: 1000 }, timezoneId: 'Asia/Nicosia' })
   const memberContext = await browser.newContext()
@@ -142,7 +143,7 @@ test('a group seals lists for a game night and plays them from the group page', 
   await expect(game).toContainText('Regular army')
   await expect(game.locator('[data-table-battlefield]').getByRole('button', { name: 'Battlefield: not set' })).toBeVisible()
   await game.scrollIntoViewIfNeeded()
-  await owner.screenshot({ path: testInfo.outputPath('duel-game-battlefield-organizer.png') })
+  await screenshot(owner, 'duel-game-battlefield-organizer.png')
   await game.getByRole('button', { name: `Simulate against ${memberName}`, exact: true }).click()
   const simulator = owner.getByRole('dialog', { name: 'Combat simulator', exact: true })
   await expect(simulator.getByRole('group', { name: 'Attacking with', exact: true })).toContainText(ownerName)
@@ -154,10 +155,10 @@ test('a group seals lists for a game night and plays them from the group page', 
   await expect(owner.getByRole('heading', { name: 'New game', exact: true })).toHaveCount(0)
   await expectNoHorizontalOverflow(game)
   await expect(game.getByRole('button', { name: `Simulate against ${memberName}`, exact: true })).toBeInViewport()
-  await owner.screenshot({ path: testInfo.outputPath('group-up-next-mobile.png') })
+  await screenshot(owner, 'group-up-next-mobile.png')
   await owner.setViewportSize({ width: 1440, height: 1000 })
   await game.scrollIntoViewIfNeeded()
-  await owner.screenshot({ path: testInfo.outputPath('group-up-next-desktop.png') })
+  await screenshot(owner, 'group-up-next-desktop.png')
   const events = await recordEvents(owner)
   await game.getByRole('button', { name: `Play ${memberName}` }).click()
   await owner.waitForURL(/\/battles\/[^/]+$/)
@@ -193,7 +194,7 @@ test('a group seals lists for a game night and plays them from the group page', 
   await expect(game.getByRole('button', { name: /^Play / })).toHaveCount(0)
   await expect(game.getByRole('button', { name: `Simulate against ${memberName}`, exact: true })).toBeVisible()
   await expect(game.locator(`a[href="${battlePath}"]`)).toBeVisible()
-  await owner.screenshot({ path: testInfo.outputPath('group-game-after-midnight.png'), fullPage: true })
+  await screenshot(owner, 'group-game-after-midnight.png', { fullPage: true })
   await game.locator(`a[href="${battlePath}"]`).click()
   await expect(owner.getByText('Host army').first()).toBeVisible()
   await ownerContext.close()
@@ -260,13 +261,13 @@ test('a group plays a solo-vs-pair hidden-list game, its players taking their ow
   await battlefield.getByRole('button', { name: 'Roll', exact: true }).click()
   await expect(game(solo).locator('[data-table-battlefield]')).toContainText('battlefield is set')
   await game(solo).scrollIntoViewIfNeeded()
-  await solo.screenshot({ path: test.info().outputPath('team-game-battlefield-organizer.png') })
+  await screenshot(solo, 'team-game-battlefield-organizer.png')
   await battlefield.getByRole('button', { name: 'Close', exact: true }).click()
   await ally.reload()
   await expect(game(ally).locator('[data-table-battlefield]')).toContainText('battlefield is set')
   await expect(game(ally).getByRole('button', { name: 'Battlefield: not set' })).toHaveCount(0)
   await game(ally).scrollIntoViewIfNeeded()
-  await ally.screenshot({ path: test.info().outputPath('team-game-battlefield-player.png') })
+  await screenshot(ally, 'team-game-battlefield-player.png')
 
   await game(solo).getByRole('button', { name: 'Start battle' }).click()
   await solo.waitForURL(/\/battles\/[^/]+$/)
@@ -274,7 +275,7 @@ test('a group plays a solo-vs-pair hidden-list game, its players taking their ow
   await Promise.all(contexts.map((context) => context.close()))
 })
 
-test('group team rows keep their actions inside the card at narrow widths', async ({ page }, testInfo) => {
+test('group team rows keep their actions inside the card at narrow widths', async ({ page }) => {
   await signInAsPreview(page)
   const { promise: historyHeld, resolve: releaseHistory } = Promise.withResolvers<void>()
   const isHistory = (url: string) => {
@@ -332,13 +333,13 @@ test('group team rows keep their actions inside the card at narrow widths', asyn
   await page.goto('/groups/preview-group')
   await page.setViewportSize(PHONE)
   await game.scrollIntoViewIfNeeded()
-  await page.screenshot({ path: testInfo.outputPath('group-doubles-mobile.png') })
+  await screenshot(page, 'group-doubles-mobile.png')
   await page.setViewportSize({ width: 1280, height: 900 })
   await page.getByRole('heading', { name: 'Up next', exact: true }).scrollIntoViewIfNeeded()
-  await page.screenshot({ path: testInfo.outputPath('group-activity-desktop.png') })
+  await screenshot(page, 'group-activity-desktop.png')
 })
 
-test('a new hidden-list game replaces the previous one in another open tab', async ({ page }, testInfo) => {
+test('a new hidden-list game replaces the previous one in another open tab', async ({ page }) => {
   await signUp(page, uniqueName('Automatic game host'))
   const groupUrl = await createGroup(page, uniqueName('Automatic game nights'))
   const createGame = async (tab: Page) => {
@@ -357,7 +358,7 @@ test('a new hidden-list game replaces the previous one in another open tab', asy
   const next = page.getByRole('heading', { name: 'Up next', exact: true }).locator('..')
   await expect(next.locator(`[data-hidden-list-game="${current}"]`)).toBeVisible()
   await organizer.close()
-  await page.screenshot({ path: testInfo.outputPath('group-replaced-game.png'), fullPage: true })
+  await screenshot(page, 'group-replaced-game.png', { fullPage: true })
 })
 
 test('a league fixture starts its battle from the group page and links to it', async ({ page }) => {
@@ -390,7 +391,7 @@ test('a group plays doubles with open lists from New game', async ({ page }) => 
   expect(await productSql`SELECT user_id FROM battle_users WHERE battle_id = ${battleId}`).toHaveLength(4)
 })
 
-test('an ended league stays readable under past leagues and another can start', async ({ browser }, testInfo) => {
+test('an ended league stays readable under past leagues and another can start', async ({ browser }) => {
   const contexts = await Promise.all([
     browser.newContext({ viewport: { width: 1440, height: 1000 } }),
     browser.newContext(),
@@ -422,11 +423,11 @@ test('an ended league stays readable under past leagues and another can start', 
   const score = owner.getByRole('dialog', { name: /score$/ })
   await score.getByRole('textbox').first().fill('70')
   await score.getByRole('textbox').last().fill('55')
-  await owner.screenshot({ path: testInfo.outputPath('league-enter-score.png') })
+  await screenshot(owner, 'league-enter-score.png')
   await score.getByRole('button', { name: 'Save score' }).click()
   await expect(score).toBeHidden()
   await expect(fixture.getByRole('link')).toHaveText('70 – 55')
-  await owner.screenshot({ path: testInfo.outputPath('league-entered-score.png'), fullPage: true })
+  await screenshot(owner, 'league-entered-score.png', { fullPage: true })
   await owner.getByRole('button', { name: 'More for the league' }).click()
   await owner.getByRole('menuitem', { name: 'End league' }).click()
   await owner.getByRole('alertdialog').getByRole('button', { name: 'End league' }).click()
@@ -436,7 +437,7 @@ test('an ended league stays readable under past leagues and another can start', 
   await past.getByRole('button', { name: /\bended /i }).click()
   await expect(past.getByRole('table').getByText(names[2])).toBeVisible()
   await expect(owner.getByRole('button', { name: 'Start a league' })).toBeVisible()
-  await owner.screenshot({ path: testInfo.outputPath('past-leagues.png'), fullPage: true })
+  await screenshot(owner, 'past-leagues.png', { fullPage: true })
   await Promise.all(contexts.map((context) => context.close()))
 })
 

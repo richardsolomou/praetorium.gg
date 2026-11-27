@@ -1,6 +1,7 @@
 import { expect, test } from './test'
 import { createRoster, signUp, uniqueName, PHONE } from './account'
 import { saveOlderMovingRule, downloadOfflineAppAtOnce, waitForOfflineApp } from './offline'
+import { screenshot } from './screenshots'
 
 test(`factions stay visible with an older native download`, async ({ page }) => {
   test.setTimeout(240_000)
@@ -30,7 +31,7 @@ test(`factions stay visible with an older native download`, async ({ page }) => 
   const visibility = await page.evaluate(() => (window as typeof window & { factionVisibility: boolean[] }).factionVisibility)
   expect(visibility).toContain(true)
   expect(visibility).not.toContain(false)
-  await page.screenshot({ path: test.info().outputPath(`refreshed-factions.png`) })
+  await screenshot(page, `refreshed-factions.png`)
 })
 
 test('a first roster open shows progress until the army is ready', async ({ page, context, browser }) => {
@@ -49,10 +50,10 @@ test('a first roster open shows progress until the army is ready', async ({ page
     })
     await roster.getByRole('link').first().click()
     await expect(first.getByRole('status', { name: 'Loading', exact: true })).toBeVisible()
-    await first.screenshot({ path: test.info().outputPath('first-roster-loading.png') })
+    await screenshot(first, 'first-roster-loading.png')
     await first.setViewportSize(PHONE)
     await expect(first.getByRole('status', { name: 'Loading', exact: true })).toBeVisible()
-    await first.screenshot({ path: test.info().outputPath('first-roster-loading-phone.png') })
+    await screenshot(first, 'first-roster-loading-phone.png')
     release()
     await expect(first.getByLabel('List name')).toHaveValue(name)
     await expect(first.getByRole('status', { name: 'Loading', exact: true })).toHaveCount(0)
@@ -84,7 +85,7 @@ test('an unopened rule from an older download stays readable throughout hosted r
   // The download carries the summaries too, so the rule reads while the service is held and after it answers.
   const summary = page.locator('main [data-rule-summary]').first()
   await expect(summary).toBeVisible()
-  await page.screenshot({ path: test.info().outputPath('saved-rule-revalidating.png') })
+  await screenshot(page, 'saved-rule-revalidating.png')
   release()
   await expect(page.getByRole('heading', { name: '03. Moving', exact: true })).toBeVisible()
   await expect(summary).toBeVisible()
