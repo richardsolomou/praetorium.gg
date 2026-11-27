@@ -1,3 +1,4 @@
+import { vsDataWithoutDetachments } from './vsDataLegality'
 import { canonicalDetachmentName } from '../core/detachmentName'
 import { datacardsFactionKeys } from './datacards'
 import type { StandingFaction } from '../core/standings'
@@ -184,6 +185,8 @@ function buildFactions(loaded: LoadedCatalogue, rules: LoadedRules | null | unde
         const content = factionContentOf(loaded, faction.name)
         const rulesId = rulesFaction(rules, routeSlug(faction.name))
         const exclusive = exclusiveDetachments(loaded, faction.id)
+        // A faction whose own rules replace Detachment selection, as a Titan army's do, offers none and its own dispositions.
+        const without = vsDataWithoutDetachments(loaded.vsRoster, faction.id)
         return {
           ...summary,
           armyRules: [
@@ -194,8 +197,11 @@ function buildFactions(loaded: LoadedCatalogue, rules: LoadedRules | null | unde
                 : []),
             ...(rules?.supplementalArmyRules?.get(rulesId) ?? []),
           ],
-          referenceDetachmentIds: referenceDetachments.map((detachment) => detachment.id),
-          detachments: detachments.map((detachment) => {
+          referenceDetachmentIds: without ? [] : referenceDetachments.map((detachment) => detachment.id),
+          ...(without
+            ? { withoutDetachments: { dispositions: without.map((id) => ({ id, name: rules?.dispositions?.get(id) ?? id })) } }
+            : {}),
+          detachments: (without ? [] : detachments).map((detachment) => {
             const reference = detachmentNamed(rules?.detachmentReferences?.get(rulesId), detachment.name)
             const detail = detachmentNamed(rules?.detachmentDetails?.get(rulesId), detachment.name)
             const forced = detachmentCatalogueDetail(loaded, faction.id, detachment.id, [])?.forcedEnhancements ?? []

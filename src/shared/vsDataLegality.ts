@@ -68,13 +68,15 @@ export function vsDataErrors(
   if (!data) return null
   const definitions = remember(definitionsOf, data, () => vsDataDefinitions(data.construction))
   const faction = data.books[list.catalogueId.slice(list.catalogueId.indexOf('~') + 1)]
-  const detachments = list.detachmentIds.map((id) => data.detachments[id])
-  const own = new Set([faction, definitions.get('faction', faction ?? '')?.data.parent])
-  // A list VS Data cannot place stays with the catalogue's checks until VS Data records it: one of a faction VS Data gives
-  // no Detachments, as a Titan army is, or with a Detachment VS Data files under another faction, as a chapter's
-  // Deathwatch Support is. Any other list needs a Detachment, as the app's does.
+  if (!faction) return null
+  const without = definitions.get('faction', faction)?.data.withoutDetachments
+  // A faction that takes no Detachment, as a Titan army does, refuses any it holds, VS Data's or not.
+  const detachments = list.detachmentIds.map((id) => data.detachments[id] ?? (without ? `unknown:${id}` : undefined))
+  const own = new Set([faction, definitions.get('faction', faction)?.data.parent])
+  // A list VS Data cannot place stays with the catalogue's checks: one of a faction with neither Detachments of its own
+  // nor `withoutDetachments`, or with a Detachment VS Data does not file under its faction. Any other list needs one.
   const ownsDetachments = definitions.all('detachment').some((detachment) => own.has(detachment.data.faction))
-  if (!faction || !ownsDetachments || detachments.some((id) => !id || !own.has(definitions.get('detachment', id)?.data.faction)))
+  if (!without && (!ownsDetachments || detachments.some((id) => !id || !own.has(definitions.get('detachment', id)?.data.faction))))
     return null
   const battleSize = definitions.all('battle-size').find((size) => size.data.points === list.limit)?.id
   const taken = new Set<string>()
@@ -130,9 +132,13 @@ export function vsDataErrors(
     units: checked.map(({ read }) => read),
   }
   const unpriced = { units: [], points: 0, detachmentPoints: 0, unpriced: [] }
-  return checkVsRoster(definitions, roster, unpriced)
-    .filter((problem) => problem.code !== 'allegiance-missing' || checked[problem.unit ?? -1]?.offersAllegiance)
-    .flatMap((problem) => described(problem, checked, definitions) ?? [])
+  return (
+    checkVsRoster(definitions, roster, unpriced)
+      .filter((problem) => problem.code !== 'allegiance-missing' || checked[problem.unit ?? -1]?.offersAllegiance)
+      // Saying it takes no Detachment says each one it holds is not its own.
+      .filter((problem) => !without || problem.code !== 'detachment-faction')
+      .flatMap((problem) => described(problem, checked, definitions) ?? [])
+  )
 }
 
 /** Names compared by their letters and digits alone, without the "upgrade" BSData adds to some (Character upgrade). */
@@ -158,7 +164,7 @@ function described(problem: VsProblem, checked: { unit: CheckedUnit }[], definit
   const message: Partial<Record<VsProblem['code'], string>> = {
     'not-current': 'is not in this rules version',
     'detachment-faction': named(problem.message.replace(/ is not a .* detachment$/, ' cannot be taken by this army')),
-    'detachment-count': 'needs one to three Detachments',
+    'detachment-count': problem.message.includes('no detachments') ? 'takes no Detachment' : 'needs one to three Detachments',
     'detachment-group': named(problem.message.replace(/^(.*) shares (\S+) with (.*)$/, '$1 cannot be taken with $3, as both are $2')),
     'unit-faction': 'cannot be taken by this army',
     'unit-excluded': 'cannot be taken with this army or its Detachments',
@@ -220,4 +226,13 @@ export function vsDataChecks(
   const legends = Boolean(filed?.legends) || nonMatchedPlayKind(unit.name) === 'legends'
   const offered = own.has(filed?.faction) || (army?.allies ?? []).some((ally) => ally.units.includes(id))
   return filed && legends && !offered ? undefined : id
+}
+
+/** The force dispositions of a list whose faction takes no Detachment, by their slugs; null for any other faction. */
+export function vsDataWithoutDetachments(data: VsRosterData | undefined, catalogueId: string): string[] | null {
+  if (!data) return null
+  const faction = data.books[catalogueId.slice(catalogueId.indexOf('~') + 1)]
+  const definitions = remember(definitionsOf, data, () => vsDataDefinitions(data.construction))
+  const without = faction ? definitions.get('faction', faction)?.data.withoutDetachments : undefined
+  return without ? (without.dispositions ?? []).map((id) => id.slice(id.lastIndexOf('.') + 1)) : null
 }
