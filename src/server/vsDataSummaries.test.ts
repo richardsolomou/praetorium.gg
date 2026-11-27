@@ -289,3 +289,11 @@ it('keeps a datasheet whose frozen record is no ability off the record its BSDat
       () => true,
     )['sheet/profile'],
   ).toBe(''))
+
+it('reads the record a BSData id is where its datasheet's frozen record is one its rules version lacks', () =>
+  expect(
+    abilityAliases(
+      { byId: { profile: 'ability:astra-militarum.valkyrie.damaged' }, bySheet: { 'sheet/profile': 'core-ability:damaged' } },
+      (key) => key !== 'core-ability:damaged',
+    )['sheet/profile'],
+  ).toBeUndefined())
