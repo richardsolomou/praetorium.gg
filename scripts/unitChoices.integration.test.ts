@@ -5,7 +5,7 @@ import { nameOf } from '../src/core/catalogue'
 import { buildUnit } from '../src/core/roster'
 import { wargearOf } from '../src/core/wargear'
 import type { LoadedCatalogue } from '../src/shared/catalogueIndex'
-import { loadSnapshot } from './lib/catalogueSnapshotLoad'
+import { sharedSnapshot } from './lib/catalogueSnapshotLoad'
 
 const directory = process.env.CATALOGUE_DIR ?? 'catalogue-data'
 
@@ -13,7 +13,7 @@ describe.skipIf(!fs.existsSync(path.join(directory, 'definitions')))('options an
   let loaded: LoadedCatalogue
 
   beforeAll(() => {
-    ;({ catalogue: loaded } = loadSnapshot(directory))
+    ;({ catalogue: loaded } = sharedSnapshot(directory))
   })
 
   const built = (factionName: string, datasheet: string, models?: number) => {

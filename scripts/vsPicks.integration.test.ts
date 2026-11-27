@@ -8,7 +8,7 @@ import type { LoadedCatalogue } from '../src/shared/catalogueIndex'
 import { calculateRosterPrice } from '../src/shared/pricing'
 import type { LoadedRules } from '../src/shared/rules'
 import { vsDefinitionsOf } from '../src/shared/vsDataBuild'
-import { loadSnapshot } from './lib/catalogueSnapshotLoad'
+import { sharedSnapshot } from './lib/catalogueSnapshotLoad'
 
 const directory = process.env.CATALOGUE_DIR ?? 'catalogue-data'
 const terminators = '13d8-1933-472c-80ed'
@@ -29,7 +29,7 @@ describe.skipIf(!fs.existsSync(path.join(directory, 'definitions')))('a pick fie
   }
 
   beforeAll(() => {
-    ;({ catalogue: loaded, rules } = loadSnapshot(directory))
+    ;({ catalogue: loaded, rules } = sharedSnapshot(directory))
     const catalogueId = loaded.factions.find((faction) => faction.name === 'Imperium - Adeptus Astartes - Space Marines')!.id
     list = { catalogueId, detachmentIds: [loaded.detachments.get(catalogueId)!.options[0]!.id] }
   })
