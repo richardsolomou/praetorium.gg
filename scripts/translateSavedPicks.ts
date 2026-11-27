@@ -33,7 +33,9 @@ import { vsSpelling } from '../src/shared/wargearSpellings'
  * disagree) or `unmatched`, with a reason. For the current rules version the per-choice map
  * (`catalogue/legacy-ids/options.json`) is a guess to compare against.
  *
- * Writes `data-dev/saved-pick-translations.ndjson`, which names lists by ID, and the frozen translations
+ * Writes `data-dev/saved-pick-translations.ndjson`, which names lists by ID; `data-dev/saved-pick-gaps.json`, the picks left
+ * on BSData for what VS Data or the reviewed spellings lack, counted by datasheet, option paths and cause, with no list
+ * named; and the frozen translations
  * (`savedPicksSchema`) to `data-dev/saved-picks.json`: every translated pick by `savedPickKey`, less any key another
  * pick reads differently or not at all. Both are derived from players' lists, so they stay in `data-dev`. Prints counts by
  * kind and rules version.
@@ -73,7 +75,15 @@ const map = legacyOptionsSchema.parse(
 type Bag = Map<string, number>
 type Selections = Record<string, Counts>
 type Move = { option: string; choice: string; sign: number; most: number; change: Bag }
-type Outcome = { outcome: 'translated' | 'ambiguous' | 'unmatched'; reason: string; selections?: Selections; vs?: VsPick; guess?: string }
+type Outcome = {
+  outcome: 'translated' | 'ambiguous' | 'unmatched'
+  reason: string
+  selections?: Selections
+  vs?: VsPick
+  guess?: string
+  /** What a pick left on BSData stumbled on, by name and ID only, for whoever fixes VS Data or the reviewed spellings. */
+  detail?: Record<string, unknown>
+}
 
 /** The most selections one connected part of a unit's wargear may take, and the search steps it may spend finding them. */
 const MOST = 24
@@ -351,7 +361,7 @@ function bsByKind(
 
 const problemsOf = (definitions: VsDataDefinitions, read: VsRosterUnit) => {
   const found: string[] = []
-  checkVsUnit(definitions, read, (code) => found.push(code))
+  checkVsUnit(definitions, read, (code, message) => found.push(`${code}: ${message}`))
   return found
 }
 
@@ -405,14 +415,22 @@ function translate({
   })
   if (!built) return { outcome: 'unmatched', reason: 'no-build' }
   // A unit today's checks refuse keeps that verdict on BSData: VS Data accepting its translation would change what was saved.
-  if (catalogueUnitErrors(loaded.index, roster, catalogueId, built.selection).length)
-    return { outcome: 'unmatched', reason: 'refused-today' }
+  const refused = catalogueUnitErrors(loaded.index, roster, catalogueId, built.selection)
+  if (refused.length) return { outcome: 'unmatched', reason: 'refused-today', detail: { catalogue: refused } }
   const models = vsModels(definitions, unit, modelsByName(built.selection, loaded.index), priced.size.models)
-  if (!models) return { outcome: 'unmatched', reason: 'models-unread' }
+  if (!models)
+    return {
+      outcome: 'unmatched',
+      reason: 'models-unread',
+      detail: {
+        bsData: Object.fromEntries(modelsByName(built.selection, loaded.index)),
+        vsData: definitions.modelsOf(unit).map((model) => model.id),
+      },
+    }
   const defaults = (definitions.get('unit', unit)!.data.defaults ?? {}) as Selections
   const read: VsRosterUnit = { unit, models }
-  if (problemsOf(definitions, { ...read, options: defaults }).some((code) => !code.startsWith('option')))
-    return { outcome: 'unmatched', reason: 'models-refused' }
+  const modelProblems = problemsOf(definitions, { ...read, options: defaults }).filter((code) => !code.startsWith('option'))
+  if (modelProblems.length) return { outcome: 'unmatched', reason: 'models-refused', detail: { models, problems: modelProblems } }
   // The marks and Enhancements a unit holds are its allegiance and Enhancement, never wargear.
   const allegiances = new Map(
     (definitions.get('unit', unit)!.data.allegiances ?? []).flatMap((offer) =>
@@ -473,11 +491,30 @@ function translate({
           : !valid(guessed)
             ? 'map-refused'
             : 'map-equal'
+  // Each item the pick's wargear changes from VS Data's defaults, with every option choice of the unit that changes it.
+  const involved = () =>
+    Object.fromEntries(
+      [...delta].map(([item, n]) => [
+        `${item} ${n > 0 ? '+' : ''}${n}`,
+        definitions.optionsOf(unit).flatMap((option) =>
+          option.data.choices.flatMap((choice) => {
+            const into: Bag = new Map()
+            leaves(definitions, choice, 1, into)
+            for (const [replaced, m] of Object.entries(option.data.replaces ?? {})) leaves(definitions, replaced, -m, into)
+            return into.has(item) ? [`${option.id}: ${choice}`] : []
+          }),
+        ),
+      ]),
+    )
   // Wargear no VS Data selection of the unit adds, before any search.
-  if ([...delta].some(([item, n]) => n > 0 && !known.has(item))) return { outcome: 'unmatched', reason: 'wargear-vs-data-lacks', guess }
+  const missing = [...delta].flatMap(([item, n]) => (n > 0 && !known.has(item) ? [item] : []))
+  if (missing.length) return { outcome: 'unmatched', reason: 'wargear-vs-data-lacks', guess, detail: { missing, changes: involved() } }
   const parts = delta.size ? partsOf(movesOf(definitions, unit, defaults), delta) : []
-  if (parts.some((part) => part === null)) return { outcome: 'unmatched', reason: 'search-limit', guess }
-  if (parts.some((part) => !part!.levels.length)) return { outcome: 'unmatched', reason: 'no-equal-wargear', guess }
+  if (parts.some((part) => part === null)) return { outcome: 'unmatched', reason: 'search-limit', guess, detail: { changes: involved() } }
+  if (parts.some((part) => !part!.levels.length))
+    return { outcome: 'unmatched', reason: 'no-equal-wargear', guess, detail: { changes: involved() } }
+  // What VS Data's checker says of the first of the fewest selections it refuses, should it refuse them all.
+  let firstRefusal: { selections: string; problems: string[] } | undefined
   // The fewest selections in all; where none is valid, every way of taking one part a size larger, together.
   const tiers = [[parts.map(() => 0)], parts.map((_, at) => parts.map((__, other) => Number(other === at)))]
   for (const [tier, levels] of tiers.entries()) {
@@ -494,7 +531,10 @@ function translate({
           cut = true
         }
       }
-      for (const combo of combos) if (valid(combo)) accepted.set(sorted(combo), combo)
+      for (const combo of combos)
+        if (valid(combo)) accepted.set(sorted(combo), combo)
+        else
+          firstRefusal ??= { selections: sorted(combo), problems: problemsOf(definitions, { ...read, options: joined(defaults, combo) }) }
     }
     if (!accepted.size) continue
     // A capped search may have left out an answer as good as the ones it kept.
@@ -557,7 +597,7 @@ function translate({
       ...(guess ? { guess: guess + agrees } : {}),
     }
   }
-  return { outcome: 'unmatched', reason: 'refused-by-checker', guess }
+  return { outcome: 'unmatched', reason: 'refused-by-checker', guess, detail: { changes: involved(), ...firstRefusal } }
 }
 
 const results: object[] = []
@@ -565,6 +605,16 @@ const tally: Record<string, number> = {}
 const note = (key: string) => (tally[key] = (tally[key] ?? 0) + 1)
 const byKind: Record<string, Record<string, number>> = {}
 const frozen = new Map<string, VsPick>()
+/** Picks left on BSData for what VS Data or the reviewed spellings lack, alike ones counted together. */
+const GAPS = new Set([
+  'wargear-vs-data-lacks',
+  'no-equal-wargear',
+  'refused-by-checker',
+  'models-refused',
+  'models-unread',
+  'refused-today',
+])
+const gaps = new Map<string, number>()
 /** Lists, by kind, holding a translated unit that needs an allegiance it never chose. */
 const askedForAllegiance = new Map<string, Set<string>>()
 const disputed = new Set<string>()
@@ -628,7 +678,28 @@ function translateAll(
       if (before && JSON.stringify(sortedJson(before)) !== JSON.stringify(sortedJson(result.vs))) disputed.add(key)
       frozen.set(key, result.vs)
     }
-    const { vs: _vs, ...reported } = result
+    if (GAPS.has(result.reason)) {
+      // Option paths as the pick saves them (`<choice key>|<option ID>`, a divided group's with its count), never names it was given.
+      const paths = [
+        ...Object.entries(pick.choices ?? {}).map(([choice, option]) => `${choice}|${option}`),
+        ...Object.entries(pick.spreads ?? {}).flatMap(([choice, held]) =>
+          Object.entries(held).map(([option, n]) => `${choice}|${option} x${n}`),
+        ),
+      ].toSorted(byId)
+      const unit = (retained ? ids.units[`${edition}~${pick.entryId}`] : undefined) ?? ids.units[pick.entryId]
+      const gap = JSON.stringify({
+        rulesVersion: edition,
+        datasheet: priced.name,
+        entryId: pick.entryId,
+        unit,
+        reason: result.reason,
+        models: priced.size.models,
+        paths,
+        ...result.detail,
+      })
+      gaps.set(gap, (gaps.get(gap) ?? 0) + 1)
+    }
+    const { vs: _vs, detail: _detail, ...reported } = result
     results.push({ kind, list: id, pick: priced.key, edition, key, entryId: pick.entryId, models: priced.size.models, ...reported })
   }
 }
@@ -652,6 +723,15 @@ const translations: SavedPicks = {
 }
 fs.mkdirSync('data-dev', { recursive: true })
 fs.writeFileSync('data-dev/saved-pick-translations.ndjson', results.map((result) => JSON.stringify(result)).join('\n'), { mode: 0o600 })
+fs.writeFileSync(
+  'data-dev/saved-pick-gaps.json',
+  `${JSON.stringify(
+    [...gaps].toSorted(([a, m], [b, n]) => n - m || byId(a, b)).map(([gap, count]) => ({ count, ...JSON.parse(gap) })),
+    null,
+    2,
+  )}\n`,
+  { mode: 0o600 },
+)
 fs.writeFileSync('data-dev/saved-picks.json', `${JSON.stringify(savedPicksSchema.parse(translations))}\n`, { mode: 0o600 })
 console.log(Object.fromEntries(Object.entries(tally).toSorted(([a], [b]) => byId(a, b))))
 console.log(Object.fromEntries(Object.entries(byKind).toSorted(([a], [b]) => byId(a, b))))
