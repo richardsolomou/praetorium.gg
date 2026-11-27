@@ -14,7 +14,7 @@ describe.skipIf(!fs.existsSync(source))('Crucible Tacticus leaders', () => {
 
   beforeAll(() => {
     loaded = sharedSnapshot(source).catalogue
-  }, 180_000)
+  })
 
   it.each(['Champion of the Chapter [Crucible]', 'Librarius Adept [Crucible]'])('%s cannot lead a Character unit', (name) => {
     const leader = datasheet(name)
