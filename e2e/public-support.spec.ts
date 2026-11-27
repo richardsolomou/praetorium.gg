@@ -1,6 +1,7 @@
 import { PRODUCT_DOCS } from '../src/contracts/productDocs'
 import { expect, test } from './test'
 import { expectNoPageOverflow, PHONE } from './account'
+import { screenshot } from './screenshots'
 
 for (const pageDetails of [
   { path: '/support', heading: 'Support' },
@@ -41,7 +42,7 @@ test('support sends feedback in place and keeps the public issue tracker', async
     await expect(page).toHaveURL(/\/support$/)
     await expect(page.getByRole('heading', { name: 'Report a problem' })).toHaveCount(0)
     await expect(page.getByRole('main').getByRole('textbox')).toHaveAccessibleName('Search docs')
-    await page.screenshot({ path: test.info().outputPath(`support-${width}.png`), fullPage: true })
+    await screenshot(page, `support-${width}.png`, { fullPage: true })
   }
 })
 

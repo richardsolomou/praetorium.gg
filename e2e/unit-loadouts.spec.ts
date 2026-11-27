@@ -2,6 +2,7 @@ import { expect, test } from './test'
 import { addUnit, createRoster, desktopContext, signUp, uniqueName, waitForRosterSave } from './account'
 import { expectNoHorizontalOverflow, shot, closePicker } from './builder.harness'
 import { productOperator, userIdFor, lastPathSegment } from './storage'
+import { screenshot } from './screenshots'
 
 const UNIT = 'Immortals'
 const LOADOUT = 'Six Immortals'
@@ -33,7 +34,7 @@ test(`a saved loadout is renamed and added to another roster of its army without
   await page.getByRole('menuitem', { name: 'Save loadout' }).click()
   const dialog = page.getByRole('dialog', { name: 'Save loadout' })
   await dialog.getByLabel('Name').fill(LOADOUT)
-  await shot(dialog, test.info().outputPath(`unit-loadout-save.png`))
+  await shot(dialog, `unit-loadout-save.png`)
   await dialog.getByRole('button', { name: 'Save loadout' }).click()
   await expect(dialog).toBeHidden()
 
@@ -60,7 +61,7 @@ test(`a saved loadout is renamed and added to another roster of its army without
   await page.getByRole('menuitem', { name: 'Rename loadout' }).click()
   const rename = page.getByRole('dialog', { name: 'Rename loadout' })
   await rename.getByLabel('Name').fill(RENAMED)
-  await shot(rename, test.info().outputPath(`unit-loadout-rename.png`))
+  await shot(rename, `unit-loadout-rename.png`)
   await rename.getByRole('button', { name: 'Rename' }).click()
   await expect(rename).toBeHidden()
   const renamed = savedAs(RENAMED)
@@ -76,9 +77,9 @@ test(`a saved loadout is renamed and added to another roster of its army without
   const picker = page.locator('div[data-onboarding="roster-picker"]')
   await expectNoHorizontalOverflow(picker)
   await renamed.scrollIntoViewIfNeeded()
-  await shot(picker, test.info().outputPath(`unit-loadout-picker.png`))
+  await shot(picker, `unit-loadout-picker.png`)
   await retired.scrollIntoViewIfNeeded()
-  await shot(picker, test.info().outputPath(`unit-loadout-unavailable.png`))
+  await shot(picker, `unit-loadout-unavailable.png`)
   await retired.getByRole('button', { name: `Saved loadout actions for ${RETIRED}` }).click()
   await page.getByRole('menuitem', { name: 'Delete loadout' }).click()
   await page.getByRole('alertdialog', { name: 'Delete saved loadout?' }).getByRole('button', { name: 'Delete loadout' }).click()
@@ -119,7 +120,7 @@ test('an attached unit is saved and added to another roster already attached', a
   await expect(leader).toContainText('Leader')
 
   await leader.getByRole('button', { name: 'Unit actions for Overlord' }).click()
-  await shot(page.getByRole('menu'), test.info().outputPath('unit-attached-menu.png'))
+  await shot(page.getByRole('menu'), 'unit-attached-menu.png')
   await page.getByRole('menuitem', { name: 'Save attached unit' }).click()
   const dialog = page.getByRole('dialog', { name: 'Save attached unit' })
   await expect(dialog.getByLabel('Name')).toHaveValue(`${UNIT} + Overlord`)
@@ -127,7 +128,7 @@ test('an attached unit is saved and added to another roster already attached', a
   await expect(preview.locator('[data-unit]')).toHaveCount(2)
   await expect(preview).toContainText('Gauss blaster')
   await expect(preview).toContainText('Tachyon arrow')
-  await shot(dialog, test.info().outputPath('unit-attached-save.png'))
+  await shot(dialog, 'unit-attached-save.png')
   await dialog.getByRole('button', { name: 'Save attached unit' }).click()
   await expect(dialog).toBeHidden()
 
@@ -136,9 +137,9 @@ test('an attached unit is saved and added to another roster already attached', a
   await expect(saved).toContainText(`${UNIT} · Overlord`)
   await expect(saved.locator('[data-points]')).toHaveText(/^\d+ pts$/)
   await saved.scrollIntoViewIfNeeded()
-  await shot(page.locator('div[data-onboarding="roster-picker"]'), test.info().outputPath('unit-attached-picker.png'))
+  await shot(page.locator('div[data-onboarding="roster-picker"]'), 'unit-attached-picker.png')
   await waitForRosterSave(page, () => saved.getByRole('button', { name: `Add saved attached unit ${UNIT} + Overlord` }).click())
   await closePicker(page)
   await expect(leader).toContainText('Leader')
-  await page.screenshot({ path: test.info().outputPath('unit-attached-added.png') })
+  await screenshot(page, 'unit-attached-added.png')
 })

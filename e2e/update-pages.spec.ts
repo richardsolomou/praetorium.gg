@@ -1,6 +1,7 @@
 import { expect, test, type Page } from './test'
 import manifest from '../package.json' with { type: 'json' }
 import { expectNoHorizontalOverflow } from './builder.harness'
+import { screenshot } from './screenshots'
 
 /** The page fits a phone as well as the desktop the journey runs at. */
 async function fitsEachWidth(page: Page) {
@@ -17,7 +18,7 @@ test('release and data update pages share navigation and preserve history', { ta
   const current = page.locator(`[id="release-${manifest.version}"]`)
   await expect(current).toBeVisible()
   await fitsEachWidth(page)
-  await page.screenshot({ path: test.info().outputPath('whats-new.png') })
+  await screenshot(page, 'whats-new.png')
 
   await navigation.getByRole('link', { name: 'Data updates', exact: true }).click()
   await expect(page.getByRole('heading', { level: 1, name: 'Data updates', exact: true })).toBeVisible()
@@ -27,13 +28,13 @@ test('release and data update pages share navigation and preserve history', { ta
   const anchor = (await closed.getAttribute('id'))!
   const row = page.locator(`[id="${anchor}"]`)
   await fitsEachWidth(page)
-  await page.screenshot({ path: test.info().outputPath('data-updates.png') })
+  await screenshot(page, 'data-updates.png')
 
   await row.locator('summary').click()
   await expect(row).toHaveAttribute('open', '')
   await expect(row.locator('[data-factions]').first()).toBeVisible()
   await fitsEachWidth(page)
-  await page.screenshot({ path: test.info().outputPath('data-update-open.png') })
+  await screenshot(page, 'data-update-open.png')
   await page.getByRole('link', { name: 'Older updates', exact: true }).press('Enter')
   await expect(page).toHaveURL(/\/data-updates\?before=/)
   await expect(navigation.getByRole('link', { name: 'Data updates', exact: true })).toHaveAttribute('aria-current', 'page')

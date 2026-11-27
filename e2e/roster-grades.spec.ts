@@ -1,5 +1,6 @@
 import { expect, test, type Page } from './test'
 import { addUnit, chooseRosterAction, createRoster, expectNoPageOverflow, PHONE, signUp } from './account'
+import { screenshot } from './screenshots'
 
 /** Grading simulates every unit against benchmark lists, which on a busy runner outlasts the usual wait. */
 async function openGrades(page: Page) {
@@ -22,8 +23,8 @@ test('grades a mixed model unit using its combined wounds', async ({ page }) => 
   const dialog = await openGrades(page)
   await expect(dialog.locator('[data-grade-row="survive"]')).toContainText("takes 43% of a unit's wounds")
   await expect(dialog).toContainText('Nearby units’ auras, returning models and stratagems are not included.')
-  await page.screenshot({ path: test.info().outputPath('mixed-unit-grades-desktop.png') })
+  await screenshot(page, 'mixed-unit-grades-desktop.png')
   await page.setViewportSize(PHONE)
   await expectNoPageOverflow(page)
-  await page.screenshot({ path: test.info().outputPath('mixed-unit-grades-phone.png') })
+  await screenshot(page, 'mixed-unit-grades-phone.png')
 })

@@ -17,6 +17,7 @@ import {
 import { productSql, withAuthSql, battleIdFor } from './storage'
 import { NATIVE_BROWSER_BRIDGE_SCRIPT } from './native.harness'
 import { PREVIEW_ALLY_NAME, PREVIEW_OPPONENT_NAME, PREVIEW_PLAYER_NAME, PREVIEW_RIVAL_NAME } from '../scripts/lib/previewPeople'
+import { screenshot } from './screenshots'
 
 /** Dates a battle ahead of the public battles other tests play meanwhile; the feed orders by its cached last activity, so that goes too. */
 async function dateAhead(token: string, minutes: number) {
@@ -39,7 +40,7 @@ async function featurePreviewBattle(page: Page, token: string) {
   }).toPass({ timeout: 15_000 })
 }
 
-test('shows the faction icon for an unqualified frozen army', async ({ page }, testInfo) => {
+test('shows the faction icon for an unqualified frozen army', async ({ page }) => {
   await signUp(page, uniqueName('Historical faction'))
   await dateAhead('preview-tournament-battle-doubles', 30)
   const battle = page.locator('[data-battle-shelf="Public games"] a[href="/battles/preview-tournament-battle-doubles"]')
@@ -54,7 +55,7 @@ test('shows the faction icon for an unqualified frozen army', async ({ page }, t
     await expect(mark).toHaveCSS('mask-image', /faction-icons\/space-marines/)
     expect((await page.request.get('/api/faction-icons/space-marines')).ok()).toBe(true)
     await battle.scrollIntoViewIfNeeded()
-    await page.screenshot({ path: testInfo.outputPath(`historical-battle-faction-${width}.png`) })
+    await screenshot(page, `historical-battle-faction-${width}.png`)
   }
 })
 
@@ -67,7 +68,7 @@ test('asks a signed-in player whose provider supplied no name to choose one', as
   await expect(prompt).toBeVisible()
   await page.keyboard.press('Escape')
   await expect(prompt).toBeVisible()
-  await page.screenshot({ path: test.info().outputPath('home-nameless-prompt.png') })
+  await screenshot(page, 'home-nameless-prompt.png')
 
   await prompt.getByRole('textbox', { name: 'Display name' }).fill('Castellan')
   await prompt.getByRole('button', { name: 'Save name' }).click()
@@ -85,7 +86,7 @@ test('offers a secondary account-creation button below sign-in', async ({ page }
     const signInBounds = await page.locator('form').getByRole('button', { name: 'Sign in', exact: true }).boundingBox()
     expect(switchBounds!.y).toBeGreaterThan(signInBounds!.y + signInBounds!.height)
     expect(switchBounds!.width).toBeLessThan(signInBounds!.width)
-    await page.screenshot({ path: test.info().outputPath(`sign-in-account-switch-${width}.png`) })
+    await screenshot(page, `sign-in-account-switch-${width}.png`)
   }
   await page.setViewportSize({ width: 1440, height: 900 })
 
@@ -200,7 +201,7 @@ test.describe('the featured battle', () => {
     await expectNoPageOverflow(page)
   })
 
-  test('a finished featured battle omits the repeated result', async ({ page }, testInfo) => {
+  test('a finished featured battle omits the repeated result', async ({ page }) => {
     await featurePreviewBattle(page, 'preview-tournament-battle-duel')
     const featured = page.locator('[data-home-featured]')
     for (const width of [1440, 390]) {
@@ -209,7 +210,7 @@ test.describe('the featured battle', () => {
       await expect(featured.getByText('35', { exact: true })).toBeVisible()
       await expect(featured).not.toContainText('wins')
       await featured.scrollIntoViewIfNeeded()
-      await page.screenshot({ path: testInfo.outputPath(`finished-featured-battle-${width}.png`) })
+      await screenshot(page, `finished-featured-battle-${width}.png`)
     }
   })
 })
@@ -245,7 +246,7 @@ test('offers native notification permission on home and retries device setup', a
   const offer = page.getByRole('region', { name: 'Notifications' })
   await expect(offer.getByRole('button', { name: 'Allow notifications' })).toBeVisible()
   await expectNoPageOverflow(page)
-  await page.screenshot({ path: test.info().outputPath('home-notification-offer.png') })
+  await screenshot(page, 'home-notification-offer.png')
 
   await offer.getByRole('button', { name: 'Not now' }).click()
   await page.reload()
@@ -259,7 +260,7 @@ test('offers native notification permission on home and retries device setup', a
   await offer.getByRole('button', { name: 'Allow notifications' }).click()
   await expect(offer.getByRole('button', { name: 'Retry notifications' })).toBeVisible()
   await expect(offer.getByText('This device could not be set up for notifications.')).toBeVisible()
-  await page.screenshot({ path: test.info().outputPath('home-notification-retry.png') })
+  await screenshot(page, 'home-notification-retry.png')
   await offer.getByRole('button', { name: 'Retry notifications' }).click()
   await expect(offer).toHaveCount(0)
   await page.goto('/profile')
@@ -276,7 +277,7 @@ test('omits the games shelf when the player has no active game', async ({ page }
   await expect(page.locator('[data-home-get-started]')).toBeVisible()
   await expect(page.locator('[data-home-record], [aria-label="Loading your record"]')).toHaveCount(0)
   await expect(page.getByRole('main').getByText("Friends' games", { exact: true })).toBeVisible()
-  await page.screenshot({ path: test.info().outputPath('home-no-active-game.png') })
+  await screenshot(page, 'home-no-active-game.png')
 })
 
 /**

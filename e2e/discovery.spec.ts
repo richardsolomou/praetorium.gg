@@ -1,6 +1,7 @@
 import { PRODUCT_DOCS } from '../src/contracts/productDocs'
 import { expect, test } from './test'
 import { expectNoPageOverflow } from './account'
+import { screenshot } from './screenshots'
 
 const pages = [
   { path: '/rosters', title: 'Warhammer 40,000 army builder' },
@@ -15,7 +16,7 @@ const pages = [
   { path: '/docs', title: 'Praetorium docs' },
 ]
 
-test('Terms account requirements match public guest tools', async ({ page }, testInfo) => {
+test('Terms account requirements match public guest tools', async ({ page }) => {
   const atEachWidth = async (check: (width: number) => Promise<void>) => {
     for (const width of [1440, 390]) {
       await page.setViewportSize({ width, height: 900 })
@@ -29,7 +30,7 @@ test('Terms account requirements match public guest tools', async ({ page }, tes
     await expect(service.locator('p').first()).toContainText('You can use the builder, simulator and public reference without an account.')
     await expect(service.locator('p').first()).toContainText('Sign in to save rosters to the service or start battles.')
     await expectNoPageOverflow(page)
-    await page.screenshot({ path: testInfo.outputPath(`guest-terms-${width}.png`) })
+    await screenshot(page, `guest-terms-${width}.png`)
   })
 
   await page.goto('/')
@@ -74,7 +75,7 @@ test('public product pages deliver their own metadata and canonical URLs without
   await context.close()
 })
 
-test('faction datasheet indexes deliver their own canonical metadata without JavaScript', async ({ browser, baseURL }, testInfo) => {
+test('faction datasheet indexes deliver their own canonical metadata without JavaScript', async ({ browser, baseURL }) => {
   const context = await browser.newContext({ javaScriptEnabled: false })
   const page = await context.newPage()
   await page.goto(new URL('/factions/space-marines/datasheets', baseURL).href)
@@ -87,7 +88,7 @@ test('faction datasheet indexes deliver their own canonical metadata without Jav
     await expect(page.locator('meta[name="description"]')).toHaveAttribute('content', /Space Marines/)
     await expect(page.getByRole('heading', { level: 1, name: 'Datasheets', exact: true })).toBeVisible()
     await expectNoPageOverflow(page)
-    await page.screenshot({ path: testInfo.outputPath(`datasheet-index-${width}.png`) })
+    await screenshot(page, `datasheet-index-${width}.png`)
   }
   await page.locator('main a[href*="/datasheets/"]').first().click()
   await expect(page).not.toHaveTitle('Space Marines datasheets — Praetorium')
@@ -133,7 +134,7 @@ test('every doc is readable without JavaScript on desktop and phone', async ({ b
   await context.close()
 })
 
-test('docs can be discovered from the home page, sitemap and agent text', async ({ page, request }, testInfo) => {
+test('docs can be discovered from the home page, sitemap and agent text', async ({ page, request }) => {
   await page.goto('/')
   await page.getByRole('link', { name: 'Read the docs', exact: true }).click()
   await expect(page).toHaveURL('/docs')
@@ -145,10 +146,10 @@ test('docs can be discovered from the home page, sitemap and agent text', async 
     .click()
   await expect(page.getByRole('menuitem', { name: 'Docs', exact: true })).toHaveAttribute('href', '/docs')
   await page.keyboard.press('Escape')
-  await page.screenshot({ path: testInfo.outputPath('docs-index-1440.png'), fullPage: true })
+  await screenshot(page, 'docs-index-1440.png', { fullPage: true })
   await page.setViewportSize({ width: 390, height: 900 })
   await expectNoPageOverflow(page)
-  await page.screenshot({ path: testInfo.outputPath('docs-index-390.png'), fullPage: true })
+  await screenshot(page, 'docs-index-390.png', { fullPage: true })
   await page.setViewportSize({ width: 1440, height: 900 })
   const sitemap = await (await request.get('/sitemap.xml')).text()
   const llms = await (await request.get('/llms.txt')).text()
@@ -194,11 +195,11 @@ for (const [path, name] of [
   ['/rules/%24documentId/', 'a route placeholder with a trailing slash'],
   ['/rules/not-a-document/not-a-section', 'an unknown section'],
 ] as const) {
-  test(`${name} returns a real rules 404`, async ({ page }, testInfo) => {
+  test(`${name} returns a real rules 404`, async ({ page }) => {
     const response = await page.goto(path)
     expect(response?.status()).toBe(404)
     await expect(page.getByRole('heading', { name: 'Not in the current data', exact: true })).toBeVisible()
-    if (path === '/rules/%24documentId') await page.screenshot({ path: testInfo.outputPath('invalid-rules.png') })
+    if (path === '/rules/%24documentId') await screenshot(page, 'invalid-rules.png')
   })
 }
 

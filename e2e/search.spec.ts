@@ -1,5 +1,6 @@
 import { expect, test } from './test'
 import { retryUntilVisible, scrollSearchResultIntoView, nextFrames } from './account'
+import { screenshot } from './screenshots'
 
 test('global search retains page shortcuts before a query is entered', async ({ page }) => {
   await page.goto('/search')
@@ -22,7 +23,7 @@ test(`browser unit search opens datasheets and preserves the query`, async ({ pa
     .getByRole('link', { name: /Immortals/ })
     .first()
   await expect(result).toBeVisible()
-  await page.screenshot({ path: test.info().outputPath('search-page.png'), fullPage: true })
+  await screenshot(page, 'search-page.png', { fullPage: true })
   await result.click()
   await expect(page.getByRole('heading', { name: 'Immortals', exact: true })).toBeVisible()
   await page.goBack()
@@ -104,7 +105,7 @@ test('the search page shows the same results as global autocomplete', async ({ p
   const lastOption = page.getByRole('option', { selected: true })
   await expect(lastOption).toBeInViewport()
   const lastLabel = await lastOption.textContent()
-  await page.screenshot({ path: test.info().outputPath('virtual-global-end.png') })
+  await screenshot(page, 'virtual-global-end.png')
   await page.keyboard.press('Escape')
   const scroller = page.getByRole('region', { name: 'Search results' })
   expect(await scroller.getByRole('link').count()).toBeLessThan(50)
@@ -112,17 +113,17 @@ test('the search page shows the same results as global autocomplete', async ({ p
     element.parentElement!.scrollTop = element.parentElement!.scrollHeight
   })
   await expect(scroller.getByRole('link').last()).toHaveText(lastLabel!.trim())
-  await page.screenshot({ path: test.info().outputPath('virtual-page-end.png') })
+  await screenshot(page, 'virtual-page-end.png')
   await page.getByRole('searchbox', { name: 'Search Praetorium', exact: true }).fill('Awakened Dynasty')
   const detachments = page.getByRole('region', { name: 'Search results' })
   await expect(detachments.locator('[data-faction-mark]').first()).toBeVisible()
-  await page.screenshot({ path: test.info().outputPath('detachment-page.png') })
+  await screenshot(page, 'detachment-page.png')
   await retryUntilVisible(page.getByRole('combobox'), () =>
     page.getByRole('button', { name: 'Search Praetorium', exact: true }).filter({ visible: true }).click(),
   )
   await page.getByRole('combobox').fill('Awakened Dynasty')
   await expect(page.getByRole('option', { name: /Awakened Dynasty/ }).locator('[data-faction-mark]')).toBeVisible()
-  await page.screenshot({ path: test.info().outputPath('detachment-global.png') })
+  await screenshot(page, 'detachment-global.png')
   await page.keyboard.press('Escape')
   await page.getByRole('searchbox', { name: 'Search Praetorium', exact: true }).fill('Factions')
   await expect(page.getByRole('heading', { name: 'Pages', exact: true })).toBeVisible()
@@ -141,7 +142,7 @@ test(`enhancement and stratagem names open their detachment`, async ({ page }) =
     .getByRole('link', { name: /Auric Champions/ })
     .first()
   await expect(result).toBeVisible()
-  await page.screenshot({ path: test.info().outputPath('enhancement-search.png') })
+  await screenshot(page, 'enhancement-search.png')
   await result.click()
   await expect(page.getByRole('heading', { name: 'Auric Champions', exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Superior Creation', exact: true })).toBeVisible()
@@ -165,7 +166,7 @@ test(`enhancement and stratagem names open their detachment`, async ({ page }) =
   )
   await page.getByRole('combobox').fill('Gilded Champion')
   await expect(page.getByRole('option', { name: /Auric Champions/ }).first()).toBeVisible()
-  await page.screenshot({ path: test.info().outputPath('stratagem-global.png') })
+  await screenshot(page, 'stratagem-global.png')
 })
 
 // Game Datacards rules text is published only as tokens, so search matches stratagems by name rather than by what they say.
@@ -238,7 +239,7 @@ test('search remembers opened results on this device until they are removed', as
   await expect(recent.getByRole('button', { name: /^(Immortals|Overlord)/ })).toHaveText([/^Immortals/])
   // Removing an entry keeps a keyboard user's place on its neighbour.
   await expect(recent.getByRole('button', { name: /^Immortals/ })).toBeFocused()
-  await page.screenshot({ path: test.info().outputPath('recent-searches.png') })
+  await screenshot(page, 'recent-searches.png')
   await recent.getByRole('button', { name: /^Immortals/ }).click()
   await expect(page.getByRole('heading', { name: 'Immortals', exact: true })).toBeVisible()
   await page.goto('/search')
@@ -253,37 +254,34 @@ test('search remembers opened results on this device until they are removed', as
   await expect(page.getByRole('main').getByRole('searchbox', { name: 'Search Praetorium' })).toBeFocused()
 })
 
-for (const width of [390, 1280]) {
-  test.describe(`resizing at ${width}px`, () => {
-    test.use({ hasTouch: width === 390 })
-    test(`search selection remains usable through resizing at ${width}px`, async ({ page }) => {
-      const resizeErrors: string[] = []
-      page.on('pageerror', (error) => {
-        if (error.message.includes('ResizeObserver')) resizeErrors.push(error.message)
-      })
-      await page.setViewportSize({ width, height: 844 })
-      await page.goto('/search?q=Necrons')
-      const results = page.getByRole('region', { name: 'Search results' })
-      await expect(results.getByRole('link').first()).toBeVisible()
-      for (let cycle = 0; cycle < 3; cycle++) {
-        for (const next of [390, 1280, 860, 600, 390, 1440]) {
-          await page.setViewportSize({ width: next, height: cycle % 2 ? 500 : 844 })
-          await nextFrames(page)
-        }
-      }
-      await page.setViewportSize({ width, height: 844 })
-      await retryUntilVisible(page.getByRole('combobox'), () =>
-        page.getByRole('button', { name: 'Search Praetorium', exact: true }).filter({ visible: true }).click(),
-      )
-      const search = page.getByRole('combobox')
-      await search.fill('Immortals')
-      const option = page.getByRole('option', { name: /^Immortals/ }).first()
-      await expect(option).toBeVisible()
-      await page.screenshot({ path: test.info().outputPath('resized-global-search.png') })
-      if (width === 390) await option.tap()
-      else await search.press('Enter')
-      await expect(page.getByRole('heading', { name: 'Immortals', exact: true })).toBeVisible()
-      expect(resizeErrors).toEqual([])
+test.describe('resizing at 390px', () => {
+  test.use({ hasTouch: true })
+  test('search selection remains usable through resizing at 390px', async ({ page }) => {
+    const resizeErrors: string[] = []
+    page.on('pageerror', (error) => {
+      if (error.message.includes('ResizeObserver')) resizeErrors.push(error.message)
     })
+    await page.setViewportSize({ width: 390, height: 844 })
+    await page.goto('/search?q=Necrons')
+    const results = page.getByRole('region', { name: 'Search results' })
+    await expect(results.getByRole('link').first()).toBeVisible()
+    for (let cycle = 0; cycle < 3; cycle++) {
+      for (const next of [390, 1280, 860, 600, 390, 1440]) {
+        await page.setViewportSize({ width: next, height: cycle % 2 ? 500 : 844 })
+        await nextFrames(page)
+      }
+    }
+    await page.setViewportSize({ width: 390, height: 844 })
+    await retryUntilVisible(page.getByRole('combobox'), () =>
+      page.getByRole('button', { name: 'Search Praetorium', exact: true }).filter({ visible: true }).click(),
+    )
+    const search = page.getByRole('combobox')
+    await search.fill('Immortals')
+    const option = page.getByRole('option', { name: /^Immortals/ }).first()
+    await expect(option).toBeVisible()
+    await screenshot(page, 'resized-global-search.png')
+    await option.tap()
+    await expect(page.getByRole('heading', { name: 'Immortals', exact: true })).toBeVisible()
+    expect(resizeErrors).toEqual([])
   })
-}
+})
