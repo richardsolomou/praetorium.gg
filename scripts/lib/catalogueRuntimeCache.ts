@@ -7,6 +7,7 @@ import { writeCatalogueRuntime } from './catalogueRuntime'
 import { publishDirectory } from './publishDirectory'
 import { downloadRuntime, packCatalogueRuntime, storeHasArchive, uploadRuntime } from './catalogueRuntimeDistribution'
 import { errorText } from './errorText'
+import { pruneUnusedEntries, touchEntry } from './catalogueCache'
 
 type Compile = (directory: string, output: string) => Promise<void> | void
 export type RuntimeStore = {
@@ -35,7 +36,10 @@ export async function prepareCatalogueRuntime(
   store: RuntimeStore = sharedStore,
 ): Promise<'cached' | 'downloaded' | 'compiled'> {
   const cached = cacheRoot ? path.join(cacheRoot, key) : null
-  if (cached && restoreRuntime(directory, cached, output)) {
+  const restored = cached !== null && restoreRuntime(directory, cached, output)
+  if (restored) touchEntry(cached)
+  if (cacheRoot) pruneUnusedEntries(cacheRoot)
+  if (restored) {
     // A build without write access usually compiles first and leaves its result in this cache.
     if (!(await store.has(key))) await share(directory, output, key, store)
     return 'cached'

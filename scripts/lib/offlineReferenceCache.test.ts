@@ -92,3 +92,25 @@ it('keys the reference by the snapshot change history', () => {
   fs.writeFileSync(path.join(directory, 'changes/history.json'), '[{}]')
   expect(referenceBundleKey(directory, 'runtime')).not.toBe(before)
 })
+
+const age = (location: string, days: number) => {
+  const then = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
+  fs.utimesSync(location, then, then)
+}
+
+it('removes cached references nobody has used for three days', async () => {
+  fs.mkdirSync(cacheRoot, { recursive: true })
+  const stale = path.join(cacheRoot, 'stale.zip')
+  fs.writeFileSync(stale, 'old')
+  age(stale, 4)
+  await prepareReferenceBundle(outDir, 'key', directory, cacheRoot, build, empty())
+  expect(fs.existsSync(stale)).toBe(false)
+})
+
+it('keeps a cached reference that is still being restored', async () => {
+  await prepareReferenceBundle(outDir, 'key', directory, cacheRoot, build, empty())
+  age(path.join(cacheRoot, 'key.zip'), 4)
+  await prepareReferenceBundle(outDir, 'key', directory, cacheRoot, build, empty())
+  await prepareReferenceBundle(outDir, 'other', directory, cacheRoot, build, empty())
+  expect(fs.existsSync(path.join(cacheRoot, 'key.zip'))).toBe(true)
+})
