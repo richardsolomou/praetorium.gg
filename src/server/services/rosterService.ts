@@ -259,7 +259,11 @@ export class RosterService {
 
   /** Takes a list out of its variant group, so it stands on its own in the library. */
   async splitRosterVariant(userId: string, id: string) {
-    await keepServedTranslations(this.repository, id, userId)
+    // A split moves every member of the group on, not only the one leaving it.
+    const row = await this.repository.roster(id)
+    const group = row?.userId === userId ? await this.repository.rosterGroupByUser(userId, row.baseRosterId ?? row.id) : []
+    const members = new Set([id, ...group.map((member) => member.id)])
+    await Promise.all([...members].map((member) => keepServedTranslations(this.repository, member, userId)))
     if (!(await this.repository.splitRosterVariant(id, userId, this.clock())))
       throw new Response('you do not own this roster', { status: 403 })
     return { updatedAt: await this.storedUpdatedAt(id, userId) }

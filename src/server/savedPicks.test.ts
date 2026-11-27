@@ -191,9 +191,11 @@ describe('a write to a list saved before the copy', () => {
       setRosterLocked: vi.fn().mockResolvedValue(true),
       setRosterVisibility: vi.fn().mockResolvedValue(true),
       setRosterArchived: vi.fn().mockResolvedValue(true),
+      splitRosterVariant: vi.fn().mockResolvedValue(true),
+      rosterGroupByUser: vi.fn().mockResolvedValue([{ id: 'roster-1' }, { id: 'roster-2' }]),
     }
     const kept = () => keepRosterTranslations.mock.calls[0]?.[2]?.[0]?.vs
-    return { service: new RosterService(repository as unknown as RepositoryPort, () => after), kept, saveRoster }
+    return { service: new RosterService(repository as unknown as RepositoryPort, () => after), kept, saveRoster, keepRosterTranslations }
   }
 
   it('keeps its translations as its own when it is locked', async () => {
@@ -212,6 +214,12 @@ describe('a write to a list saved before the copy', () => {
     const { service, kept } = writer()
     await service.setRosterArchived('user-1', 'roster-1', true)
     expect(kept()).toEqual(fixture.vs)
+  })
+
+  it('keeps every variant a split moves on its translations', async () => {
+    const { service, keepRosterTranslations } = writer()
+    await service.splitRosterVariant('user-1', 'roster-1')
+    expect(keepRosterTranslations.mock.calls.map(([id]) => id)).toEqual(['roster-1', 'roster-2'])
   })
 
   it('lets a locked list saved back as stored through the lock with them', async () => {
