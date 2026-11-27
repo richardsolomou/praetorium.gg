@@ -188,17 +188,39 @@ export function invalidateSyncedQueries(queryClient: QueryClient, operations: re
   )
 }
 
-export function invalidateProductQueries(queryClient: QueryClient, scope?: string) {
-  const families = scope && scope in queryFamilies ? queryFamilies[scope as ProductScope] : Object.values(queryFamilies).flat()
-  return queryClient.invalidateQueries({ predicate: inFamilies(new Set(families)) })
-}
+/**
+ * How a write's own refresh treats a refetch already running: it joins it. The write's realtime signal usually arrives
+ * before its response and has already refetched past the write, and a signal arriving later still cancels a stale fetch.
+ */
+export const AFTER_WRITE = { cancelRefetch: false } as const
 
-export function invalidatePublicProductQueries(queryClient: QueryClient, scope?: string) {
-  const families =
-    scope && scope in publicQueryFamilies
-      ? publicQueryFamilies[scope as keyof typeof publicQueryFamilies]
-      : Object.values(publicQueryFamilies).flat()
-  return queryClient.invalidateQueries({ predicate: inFamilies(new Set(families)) })
+export const productFamilies = (scope?: string): readonly string[] =>
+  scope && scope in queryFamilies ? queryFamilies[scope as ProductScope] : Object.values(queryFamilies).flat()
+
+export const publicProductFamilies = (scope?: string): readonly string[] =>
+  scope && scope in publicQueryFamilies
+    ? publicQueryFamilies[scope as keyof typeof publicQueryFamilies]
+    : Object.values(publicQueryFamilies).flat()
+
+/**
+ * Refreshes the families of every signal that arrives in one task with a single invalidation. One write moves several
+ * account and public scopes whose families overlap, and refreshing each apart would refetch a query once per scope,
+ * every request cancelling the one before while the server still answers them all.
+ */
+export function batchedInvalidation(queryClient: QueryClient) {
+  let batch: { families: Set<string>; flushed: Promise<void> } | null = null
+  return (families: readonly string[]) => {
+    if (!batch) {
+      const next = { families: new Set<string>(), flushed: Promise.resolve() }
+      next.flushed = Promise.resolve().then(() => {
+        batch = null
+        return queryClient.invalidateQueries({ predicate: inFamilies(next.families) })
+      })
+      batch = next
+    }
+    for (const family of families) batch.families.add(family)
+    return batch.flushed
+  }
 }
 
 /**

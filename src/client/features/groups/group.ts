@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { createBattle, createSealedEventBattle, type openGroup } from '../../functions'
 import { groupKey, groupLeagueKey, groupsKey } from '../../queries'
+import { AFTER_WRITE } from '../../productSignals'
 import { formatList } from '../../text'
 import { useStartBattle } from '../battles/useStartBattle'
 
@@ -24,9 +25,9 @@ export function useGroupRefresh(token: string) {
   const queryClient = useQueryClient()
   return () =>
     Promise.all([
-      queryClient.invalidateQueries({ queryKey: groupKey(token) }),
-      queryClient.invalidateQueries({ queryKey: groupsKey() }),
-      queryClient.invalidateQueries({ queryKey: groupLeagueKey(token) }),
+      queryClient.invalidateQueries({ queryKey: groupKey(token) }, AFTER_WRITE),
+      queryClient.invalidateQueries({ queryKey: groupsKey() }, AFTER_WRITE),
+      queryClient.invalidateQueries({ queryKey: groupLeagueKey(token) }, AFTER_WRITE),
     ])
 }
 
