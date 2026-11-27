@@ -2210,5 +2210,11 @@
     "profile-unit-e0af-67df-9d63-8fb8-edfc-ce7c-8666-cb86": "space-marines.brutalis-dreadnought",
     "profile-unit-e0af-67df-9d63-8fb8-f60c-f331-24f3-1f9a": "space-marines.drop-pod",
     "profile-unit-e0af-67df-9d63-8fb8-f970-d8cc-1421-7fba": "space-marines.captain-with-jump-pack"
+  },
+  "allegiances": {
+    "6dd1-5717-67ef-5c43": "chaos-daemons.daemonic-allegiance.nurgle",
+    "73ac-1752-3efd-100a": "chaos-daemons.daemonic-allegiance.tzeentch",
+    "98bd-6217-a3ac-b86a": "chaos-daemons.daemonic-allegiance.khorne",
+    "98e0-bfa4-7061-f9ea": "chaos-daemons.daemonic-allegiance.slaanesh"
   }
 }

@@ -3,6 +3,7 @@ import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import missions from '../catalogue/legacy-ids/missions.json' with { type: 'json' }
 import stratagems from '../catalogue/legacy-ids/stratagems.json' with { type: 'json' }
+import { readCatalogueComposition } from '../src/server/catalogueComposition'
 import units from '../catalogue/legacy-ids/units.json' with { type: 'json' }
 import { vsDataConstructionSchema, vsDataDefinitions } from '../src/core/vsDataConstruction'
 import { idsIn } from '../src/shared/vsDataPoints'
@@ -64,5 +65,18 @@ describe.skipIf(!fs.existsSync(path.join(source, 'summaries')))('frozen BSData d
         })
       })
     expect(disagreements).toEqual([])
+  })
+
+  it('give every implied allegiance as one its unit can take', () => {
+    const base = readCatalogueComposition(source)!.editions.find((entry) => entry.base)!.edition.id
+    const offered = (key: string, allegiance: string) => {
+      const [edition, entry] = key.includes('~') ? key.split('~') : [base, key]
+      const file = path.join(source, 'summaries', `${edition}.construction.json`)
+      const definitions = vsDataDefinitions(vsDataConstructionSchema.parse(JSON.parse(fs.readFileSync(file, 'utf8'))))
+      const unit = idsIn(units.ids, edition === base ? null : edition!).get(entry!)
+      const offers = unit ? (definitions.get('unit', unit)?.data.allegiances ?? []) : []
+      return offers.some(({ choices }) => choices.includes(allegiance))
+    }
+    expect(Object.entries(units.allegiances).filter(([key, allegiance]) => !offered(key, allegiance))).toEqual([])
   })
 })
