@@ -52,6 +52,11 @@ describe('vsUnitToggles', () => {
     expect(vsUnitToggles(definitions, walker, { roster: { faction: 'titans', detachments: [] } })[0]?.required).toBe(true)
   })
 
+  it('offers no Warlord to a CHARACTER whose models VS Data keeps from the role', () => {
+    const veterans = vsFirstFielding(definitions, 'host.veterans')
+    expect(vsUnitToggles(definitions, veterans, { roster: { faction: 'host', detachments: [] } })).toEqual([])
+  })
+
   it('offers no Warlord to a unit without CHARACTER', () => {
     expect(vsUnitToggles(definitions, squad, { roster: { faction: 'host', detachments: [] } })).toEqual([])
   })
@@ -93,6 +98,16 @@ describe('vsWithSpread', () => {
     const current = { 'host.devourer': 0, 'host.spike': 1 }
     expect(vsWithSpread(definitions, spiked, option, current, { 'host.devourer': 10, 'host.spike': 0 }).options).toEqual({
       [option]: { 'host.devourer': 9, 'host.spike': 1 },
+    })
+  })
+})
+
+describe('uniform options tied together', () => {
+  it('take the same choice on every carrier', () => {
+    const veterans = vsFirstFielding(definitions, 'host.veterans')
+    expect(vsWithSpread(definitions, veterans, 'host.veterans.veteran-pistol', {}, { 'host.sword': 2 }).options).toEqual({
+      'host.veterans.veteran-pistol': { 'host.sword': 2 },
+      'host.veterans.sergeant-pistol': { 'host.sword': 1 },
     })
   })
 })

@@ -961,7 +961,8 @@ export function vsWithSpread(
 ): VsRosterUnit {
   const next = { ...current, ...counts }
   const option = vsUnitOptions(definitions, picked).find((candidate) => candidate.id === optionId)
-  if (!option?.uniform || !option.substitutes.length) return vsWithChoice(definitions, picked, optionId, next)
+  if (!option?.uniform || !option.substitutes.length)
+    return withTiedOptions(definitions, vsWithChoice(definitions, picked, optionId, next), optionId)
   const substitute = (id: string) => option.substitutes.includes(id)
   const raised = option.choices.find((choice) => !substitute(choice.id) && (next[choice.id] ?? 0) > (current[choice.id] ?? 0))
   const main = raised ?? option.choices.find((choice) => !substitute(choice.id) && (next[choice.id] ?? 0) > 0)
@@ -970,7 +971,30 @@ export function vsWithSpread(
   const mains = option.choices.flatMap((choice) =>
     substitute(choice.id) ? [] : [[choice.id, choice === main ? option.bounds.max - held : 0]],
   )
-  return vsWithChoice(definitions, picked, optionId, { ...Object.fromEntries(mains), ...kept })
+  return withTiedOptions(definitions, vsWithChoice(definitions, picked, optionId, { ...Object.fromEntries(mains), ...kept }), optionId)
+}
+
+/**
+ * The unit with every uniform option tied to `optionId` (its `uniformOptions`, as a sergeant's and the squad's) taking the
+ * main choice it took, on every carrier that takes no substitute, or none where it took none.
+ */
+function withTiedOptions(definitions: VsDataDefinitions, picked: VsRosterUnit, optionId: string): VsRosterUnit {
+  const tied = (definitions.get('unit', picked.unit)?.data.uniformOptions ?? []).filter((group) => group.includes(optionId)).flat()
+  if (!tied.length) return picked
+  const options = vsUnitOptions(definitions, picked)
+  const source = options.find((option) => option.id === optionId)!
+  const main = source.choices.find((choice) => choice.count > 0 && !source.substitutes.includes(choice.id))?.id
+  return options
+    .filter((option) => option.id !== optionId && tied.includes(option.id) && option.carriers > 0)
+    .reduce((unit, option) => {
+      const held = option.choices.filter((choice) => option.substitutes.includes(choice.id))
+      const room = option.bounds.max - held.reduce((total, choice) => total + choice.count, 0)
+      const counts = Object.fromEntries([
+        ...held.map((choice) => [choice.id, choice.count] as const),
+        ...(main && option.choices.some((choice) => choice.id === main) ? [[main, room] as const] : []),
+      ])
+      return vsWithChoice(definitions, unit, option.id, counts)
+    }, picked)
 }
 
 /** The model a unit names as its Warlord: one the roster grants or requires, else its one leader, else its first model. */
@@ -981,8 +1005,9 @@ export function vsWarlordModel(
 ): string | undefined {
   const models = definitions.modelsOf(unitId)
   const { granted, required } = warlordModels(definitions, roster)
-  const leaders = models.filter((model) => model.data.max === 1)
-  return (models.find((model) => granted.has(model.id) || required.has(model.id)) ?? (leaders.length === 1 ? leaders[0] : models[0]))?.id
+  const able = models.filter((model) => model.data.warlord !== false)
+  const leaders = able.filter((model) => model.data.max === 1)
+  return (models.find((model) => granted.has(model.id) || required.has(model.id)) ?? (leaders.length === 1 ? leaders[0] : able[0]))?.id
 }
 
 /**
@@ -994,11 +1019,13 @@ export function vsUnitToggles(definitions: VsDataDefinitions, picked: VsRosterUn
   if (!unit) return []
   const roster = rosterOf(context)
   const models = definitions.modelsOf(unit.id).map((model) => model.id)
+  // A model VS Data keeps from the role holds it only where the roster grants it.
+  const able = definitions.modelsOf(unit.id).some((model) => model.data.warlord !== false)
   const own = [roster.faction, definitions.get('faction', roster.faction)?.data.parent]
   const character = unitKeywords(unit.data, roster, picked.allegiance).some((keyword) => keyword.toUpperCase() === 'CHARACTER')
   const allied = definitions.get('faction', roster.faction)?.data.allies?.some((ally) => ally.units.includes(unit.id))
   const { granted, required } = warlordModels(definitions, roster)
-  if (!models.some((id) => granted.has(id)) && (!character || allied || !own.includes(unit.data.faction))) return []
+  if (!models.some((id) => granted.has(id)) && (!able || !character || allied || !own.includes(unit.data.faction))) return []
   const warlord = picked.warlord ?? vsWarlordModel(definitions, unit.id, roster)
   if (!warlord) return []
   const must = models.some((id) => required.has(id))

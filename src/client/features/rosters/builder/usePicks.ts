@@ -7,7 +7,7 @@ import { type UnavailableSelection, withoutUnavailableSelections } from '../../.
 import { isUnitCompositionChoice, VS_ALLEGIANCE, VS_ENHANCEMENT, VS_MODELS, VS_UPGRADE, vsWithSpread } from '../../../../core/unitChoices'
 import type { VsDataDefinitions } from '../../../../core/vsDataConstruction'
 import type { VsRosterUnit } from '../../../../core/vsDataRoster'
-import { vsResized, vsUnitDefinitions, vsUnitProblems, vsUnitSize, type VsUnitRecords, vsWithChoice } from '../../../../core/vsDataUnit'
+import { vsResized, vsUnitDefinitions, vsUnitProblems, vsUnitSize, type VsUnitRecords } from '../../../../core/vsDataUnit'
 import { type KeyedPick, positionedAnnotatedPicks, positionedPicks } from '../rosterPicks'
 import { pressedCounts, type SpreadUpdate } from './loadoutModel'
 
@@ -411,9 +411,11 @@ export function pickEditor(
             const { allegiance: _previous, ...rest } = vs
             return { ...pick, vs: optionId ? { ...rest, allegiance: optionId } : rest }
           }
-          return vsEdited(pick, context.units[index]?.vs, (definitions, picked) =>
-            vsWithChoice(definitions, picked, key, optionId ? { [optionId]: 1 } : {}),
-          )
+          const ids = context.units[index]?.choices.find((choice) => choice.key === key)?.options.map((option) => option.id) ?? []
+          return vsEdited(pick, context.units[index]?.vs, (definitions, picked, held) => {
+            const current = Object.fromEntries(ids.map((id) => [id, held.options[key]?.[id] ?? 0]))
+            return vsWithSpread(definitions, picked, key, current, Object.fromEntries(ids.map((id) => [id, id === optionId ? 1 : 0])))
+          })
         }
         const choices = { ...pick.choices }
         if (optionId) choices[key] = optionId
