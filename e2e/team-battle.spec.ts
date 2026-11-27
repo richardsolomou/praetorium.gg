@@ -36,7 +36,7 @@ test('a 2v1 draws the allied pair as one side with one pool, whichever side open
   await signUp(ally, allyName)
   const allyRoster = await createRoster(ally, {
     faction: 'Necrons',
-    detachment: /Awakened Dynasty/,
+    detachment: /Canoptek Court/,
     name: 'Ally army',
     size: /Incursion/,
   })

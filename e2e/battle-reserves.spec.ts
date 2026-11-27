@@ -14,7 +14,7 @@ import {
 test('a unit arriving from reserves mid-battle becomes a combat target', async ({ page }) => {
   const player = uniqueName('Arrival')
   await signUp(page, player)
-  const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Arriving army', size: /Incursion/ })
+  const roster = await createRoster(page, { faction: 'Necrons', detachment: /Canoptek Court/, name: 'Arriving army', size: /Incursion/ })
   await addUnit(page, 'Immortals')
   await practiceBattle(page, roster)
   await chooseBattlefield(page)
