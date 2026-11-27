@@ -171,6 +171,19 @@ it('shares through the CI bucket in a job that holds its key', async () => {
   expect(urls).toEqual([`https://${'a'.repeat(32)}.r2.cloudflarestorage.com/praetorium-ci/catalogue/runtime/by-key/key.zip`])
 })
 
+it('shares through the public bucket in a job that holds only its key', async () => {
+  vi.stubEnv('R2_ACCOUNT_ID', 'a'.repeat(32))
+  vi.stubEnv('ASSETS_R2_ACCESS_KEY_ID', 'key')
+  vi.stubEnv('ASSETS_R2_SECRET_ACCESS_KEY', 'secret')
+  const urls: string[] = []
+  vi.stubGlobal('fetch', async (input: Request) => {
+    urls.push(input.url)
+    return new Response('', { status: 200 })
+  })
+  await uploadRuntime('key', fs.readFileSync(archive))
+  expect(urls).toEqual([`https://${'a'.repeat(32)}.r2.cloudflarestorage.com/praetorium/catalogue/runtime/by-key/key.zip`])
+})
+
 it('skips sharing without write access', async () => {
   expect(await uploadRuntime('key', fs.readFileSync(archive), null)).toBe('skipped')
 })

@@ -124,7 +124,8 @@ type Uploader = { fetch: (url: string, init: RequestInit) => Promise<Response>; 
 
 function configuredUploader(): Uploader | null {
   try {
-    const client = ciOutputsR2Client() ?? publicAssetsR2Client()
+    // Chosen as `storeUrl` chooses: each client throws on a shared `R2_ACCOUNT_ID` without its own key.
+    const client = process.env.CI_OUTPUTS_R2_ACCESS_KEY_ID ? ciOutputsR2Client() : publicAssetsR2Client()
     return client ? { fetch: (url, init) => client.client.fetch(url, init), base: client.base } : null
   } catch (error) {
     console.error('The build output store is not writable here:', errorText(error))
