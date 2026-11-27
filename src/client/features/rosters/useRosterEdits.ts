@@ -31,7 +31,7 @@ export function useRosterEdits({
   held,
   allocateKey,
   catalogueId,
-  price: { priced, units, pricePending, priceLoading, priceFailed, priceRequest, unitLimits, limitUnlocks },
+  price: { priced, units, pricePending, priceLoading, priceFailed, priceRequest, unitLimits, limitUnlocks, firstPicks },
   frozen,
   building,
   editable,
@@ -54,8 +54,8 @@ export function useRosterEdits({
   setSelected: (index: number | null) => void
 }) {
   const edit = useMemo(
-    () => pickEditor(setPicks, { catalogueId, units, limits: pricePending ? undefined : unitLimits }, allocateKey),
-    [allocateKey, catalogueId, pricePending, setPicks, unitLimits, units],
+    () => pickEditor(setPicks, { catalogueId, units, limits: pricePending ? undefined : unitLimits, firstPicks }, allocateKey),
+    [allocateKey, catalogueId, firstPicks, pricePending, setPicks, unitLimits, units],
   )
   const carried = units.some(canTransport)
   const { data: battleDetails, isPlaceholderData: battleDetailsPending } = useQuery({

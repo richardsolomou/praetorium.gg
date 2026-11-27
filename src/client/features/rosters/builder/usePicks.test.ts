@@ -585,6 +585,17 @@ describe('a VS Data pick', () => {
   const unit = { size: { models: 5, min: 5, max: 10, options: [5, 10] }, toggles: [], choices: [], vs: records }
   const vsEditor = (vs = squad) => editor([{ key: 0, entryId: 'squad', catalogueId: 'host', vs }], { catalogueId: 'host', units: [unit] })
 
+  it('starts as VS Data first fields it, where the builder fields its datasheet by VS Data', () => {
+    const { edit, picks } = editor([], {
+      catalogueId: 'host',
+      units: [],
+      limits: new Map([['squad', null]]),
+      firstPicks: new Map([['squad', squad]]),
+    })
+    edit.add('squad')
+    expect(picks()[0]?.vs).toBe(squad)
+  })
+
   it('resizes to its next listed size', () => {
     const { edit, picks } = vsEditor()
     edit.resize(0, (models) => models + 1)

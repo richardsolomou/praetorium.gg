@@ -277,7 +277,13 @@ export function settledWarlord(
  */
 export function pickEditor(
   setPicks: Dispatch<SetStateAction<KeyedPick[]>>,
-  context: { catalogueId: string; units: readonly (SizedUnit | undefined)[]; limits?: ReadonlyMap<string, number | null> },
+  context: {
+    catalogueId: string
+    units: readonly (SizedUnit | undefined)[]
+    limits?: ReadonlyMap<string, number | null>
+    /** What a datasheet the builder fields by VS Data starts as when added. */
+    firstPicks?: ReadonlyMap<string, VsPick>
+  },
   allocateKey: () => number,
 ) {
   const editAt = (index: number, edit: (pick: KeyedPick) => KeyedPick) =>
@@ -304,10 +310,12 @@ export function pickEditor(
           return current
         const partner = link && ('joins' in link ? link.joins : link.joinedBy)
         if (partner !== undefined && !current.some((pick) => pick.key === partner)) return current
+        const first = context.firstPicks?.get(entryId)
         const added: KeyedPick = {
           entryId,
           catalogueId: context.catalogueId,
           key,
+          ...(first ? { vs: first } : {}),
           ...(link && 'joins' in link ? { attachedTo: link.joins } : {}),
         }
         const rest = link && 'joinedBy' in link ? current.map((pick) => (pick.key === link.joinedBy ? joining(pick, key) : pick)) : current
