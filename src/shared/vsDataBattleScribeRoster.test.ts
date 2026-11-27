@@ -3,6 +3,8 @@ import { type VsDataConstruction, vsDataDefinitions } from '../core/vsDataConstr
 import { battleScribeEntryIds, vsDataBattleScribeRoster } from './vsDataBattleScribeRoster'
 
 const record = (name: string, data: Record<string, unknown>) => ({ name, data: { formatVersion: 2, ...data } })
+const weapon = (name: string, wargear: string) =>
+  record(name, { unit: 'host.squad', wargear, range: 24, attacks: 1, skill: 3, strength: 4, armourPenetration: 0, damage: 1 })
 const construction: VsDataConstruction = {
   release: 'test',
   rulesVersion: { edition: '11th', update: 'test' },
@@ -25,19 +27,12 @@ const construction: VsDataConstruction = {
       }),
     },
     wargear: { 'host.squad.rifle': record('Rifle', {}), 'host.squad.flamer': record('Flamer', {}) },
+    'weapon-profile': {
+      'host.squad.rifle': weapon('Rifle', 'host.squad.rifle'),
+      'host.squad.flamer': weapon('Flamer', 'host.squad.flamer'),
+    },
   },
 }
-const weapon = (id: string, wargear: string, name: string) => ({
-  id,
-  name,
-  wargear,
-  range: 24,
-  attacks: 1,
-  skill: 3,
-  strength: 4,
-  armourPenetration: 0,
-  damage: 1,
-})
 const xml = vsDataBattleScribeRoster(
   {
     name: 'List',
@@ -48,12 +43,6 @@ const xml = vsDataBattleScribeRoster(
     units: [{ picked: { unit: 'host.squad', options: { 'host.squad.special': { 'host.squad.flamer': 1 } } }, points: 100, abilities: [] }],
   },
   vsDataDefinitions(construction),
-  {
-    units: new Map(),
-    weapons: new Map([
-      ['host.squad', [weapon('host.squad.rifle', 'host.squad.rifle', 'Rifle'), weapon('host.squad.flamer', 'host.squad.flamer', 'Flamer')]],
-    ]),
-  },
   battleScribeEntryIds({}, { entry: { choices: { 'key|bs-flamer': { options: { 'host.squad.special': { 'host.squad.flamer': 1 } } } } } }),
 )
 

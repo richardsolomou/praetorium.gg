@@ -1,38 +1,6 @@
-import type { VsDataDefinitions } from '../core/vsDataConstruction'
+import type { Definition, VsDataDefinitions } from '../core/vsDataConstruction'
 import { modelCounts, unitKeywords, type VsRoster, type VsRosterUnit } from '../core/vsDataRoster'
 import { abilitiesXml, categoriesXml, costXml, profileXml, type RosterAbility, rosterXml, selectionXml } from './battleScribeRoster'
-
-/** A stat line as VS Data's `unit-profile` record prints it, by the models it describes, or every model without `models`. */
-export type VsDataUnitProfile = {
-  id: string
-  name: string
-  models?: string[]
-  movement?: number | { atLeast: number } | null
-  toughness?: number
-  save?: number
-  wounds?: number
-  leadership?: number
-  objectiveControl?: number | null
-  invulnerableSave?: { roll: number; against?: string; conditional?: true } | { roll: number; against?: string; conditional?: true }[]
-}
-/** One mode of a weapon as VS Data's `weapon-profile` record prints it for one unit. */
-export type VsDataWeaponProfile = {
-  id: string
-  name: string
-  wargear: string
-  range?: number | 'melee'
-  attacks?: number | string
-  skill?: number | null
-  strength?: number
-  armourPenetration?: number
-  damage?: number | string
-  keywords?: string[]
-}
-/** Each unit's stat lines and weapon profiles, by unit ID. */
-export type VsDataProfiles = {
-  units: ReadonlyMap<string, readonly VsDataUnitProfile[]>
-  weapons: ReadonlyMap<string, readonly VsDataWeaponProfile[]>
-}
 
 /**
  * The BSData entry IDs a `.ros` file restores: each VS Data unit's datasheet entry, and each option's wargear by the
@@ -94,7 +62,6 @@ export function vsDataBattleScribeRoster(
     units: readonly VsDataRosterFileUnit[]
   },
   definitions: VsDataDefinitions,
-  profiles: VsDataProfiles,
   entryIds: BattleScribeEntryIds,
 ) {
   const roster: VsRoster = { faction: data.faction, detachments: data.detachments, units: data.units.map((unit) => unit.picked) }
@@ -104,7 +71,7 @@ export function vsDataBattleScribeRoster(
     catalogueName: definitions.get('faction', data.faction)?.name ?? '',
     points: data.points,
     units: data.units.flatMap((unit) => {
-      const xml = unitXml(unit, roster, definitions, profiles, entryIds)
+      const xml = unitXml(unit, roster, definitions, entryIds)
       return xml ? [xml] : []
     }),
   })
@@ -114,7 +81,6 @@ function unitXml(
   { picked, points, nickname, entryId, abilities }: VsDataRosterFileUnit,
   roster: VsRoster,
   definitions: VsDataDefinitions,
-  profiles: VsDataProfiles,
   entryIds: BattleScribeEntryIds,
 ) {
   const unit = definitions.get('unit', picked.unit)
@@ -122,9 +88,10 @@ function unitXml(
   const counts = modelCounts(definitions, picked)
   const models = definitions.modelsOf(picked.unit).filter((model) => (counts.get(model.id) ?? 0) > 0)
   const held = heldBy(definitions, picked, models.length === 1 ? models[0]!.id : '')
-  const weapons = new Map<string, VsDataWeaponProfile[]>()
-  for (const profile of profiles.weapons.get(picked.unit) ?? [])
-    weapons.set(profile.wargear, [...(weapons.get(profile.wargear) ?? []), profile])
+  // A weapon profile naming no wargear (a `no-target` gap) has nothing in the unit to hang off.
+  const weapons = new Map<string, Definition<'weapon-profile'>[]>()
+  for (const profile of definitions.weaponProfilesOf(picked.unit))
+    if (profile.data.wargear) weapons.set(profile.data.wargear, [...(weapons.get(profile.data.wargear) ?? []), profile])
   const wargearXml = (wargear: string, number: number, option?: string): string => {
     const definition = definitions.get('wargear', wargear)
     const modes = weapons.get(wargear) ?? []
@@ -139,9 +106,9 @@ function unitXml(
   const carriedXml = (holder: string) =>
     [...(held.get(holder) ?? [])].flatMap(([wargear, { count, option }]) => (count > 0 ? [wargearXml(wargear, count, option)] : []))
   // A stat line naming models hangs off the first of them fielded, or nothing; one without describes every model.
-  const statlines = profiles.units.get(picked.unit) ?? []
-  const placedOn = (profile: VsDataUnitProfile) =>
-    profile.models ? (profile.models.find((model) => (counts.get(model) ?? 0) > 0) ?? null) : undefined
+  const statlines = definitions.unitProfilesOf(picked.unit)
+  const placedOn = ({ data }: Definition<'unit-profile'>) =>
+    data.models ? (data.models.find((model) => (counts.get(model) ?? 0) > 0) ?? null) : undefined
   const statlinesOf = (holder: string | undefined) => statlines.filter((profile) => placedOn(profile) === holder).map(statlineXml)
   const { profiles: described, rules } = abilitiesXml(abilities)
   // Yellowscribe tells a faction keyword by BattleScribe's `Faction: ` prefix.
@@ -214,10 +181,10 @@ const inches = (value: number | { atLeast: number } | null | undefined) =>
 const plain = (value: number | string | null | undefined) => (value === null || value === undefined ? '-' : String(value))
 
 /** A stat line under BattleScribe's characteristic names, the invulnerable save only where it holds against every attack. */
-function statlineXml(profile: VsDataUnitProfile) {
+function statlineXml({ id, name, data: profile }: Definition<'unit-profile'>) {
   const saves = profile.invulnerableSave === undefined ? [] : [profile.invulnerableSave].flat()
   const invulnerable = saves.length === 1 && !saves[0]!.against && !saves[0]!.conditional ? saves[0]!.roll : undefined
-  return profileXml(profile.id, profile.name, 'Unit', [
+  return profileXml(id, name, 'Unit', [
     { name: 'M', value: inches(profile.movement) },
     { name: 'T', value: plain(profile.toughness) },
     { name: 'SV', value: roll(profile.save) },
@@ -229,11 +196,11 @@ function statlineXml(profile: VsDataUnitProfile) {
 }
 
 /** A weapon mode under BattleScribe's characteristic names; a weapon of several modes names each `➤ <weapon> - <mode>`. */
-function weaponXml(profile: VsDataWeaponProfile, weapon: string | undefined) {
+function weaponXml({ id, name, data: profile }: Definition<'weapon-profile'>, weapon: string | undefined) {
   const { range } = profile
   const melee = range === 'melee'
-  const mode = weapon && !profile.name.toLowerCase().startsWith(weapon.toLowerCase()) ? `${weapon} - ${profile.name}` : profile.name
-  return profileXml(profile.id, weapon ? `➤ ${mode}` : profile.name, melee ? 'Melee Weapons' : 'Ranged Weapons', [
+  const mode = weapon && !name.toLowerCase().startsWith(weapon.toLowerCase()) ? `${weapon} - ${name}` : name
+  return profileXml(id, weapon ? `➤ ${mode}` : name, melee ? 'Melee Weapons' : 'Ranged Weapons', [
     { name: 'Range', value: range === 'melee' ? 'Melee' : inches(range) },
     { name: 'A', value: plain(profile.attacks) },
     { name: melee ? 'WS' : 'BS', value: profile.skill === null ? '-' : roll(profile.skill) },
