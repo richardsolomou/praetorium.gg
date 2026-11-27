@@ -63,7 +63,8 @@ export default defineConfig({
     ],
     // A project inherits this config and concatenates its arrays, so `include` lives only on the projects.
     projects: [
-      { extends: true, test: { name: 'shared-snapshot', include: sharedSnapshotSuites, isolate: false } },
+      // Vitest queues files by project name first, so this name sorts ahead of `isolated` to start the longest suites early.
+      { extends: true, test: { name: 'catalogue-readers', include: sharedSnapshotSuites, isolate: false } },
       {
         extends: true,
         test: {
