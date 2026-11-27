@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.279.4 (2026-11-27)
+
+### Patch Changes
+
+- dbc93ae: [battles] Battle setup's reserves step lets you pick the units a rule such as Thunderhawk Insertion, Cerebrex Logic Engine or Verminous Haze gives Deep Strike, Scouts or Infiltrators as the battle begins, up to as many as the rule allows.
+- 56bb635: [app] An open page keeps working out armies on your device through an update, unless the update changed how it does that.
+- 0da2504: [events] Sealing a list for a league or hidden-list game confirms as soon as everyone else sees it, instead of after the page reloads its group data three times.
+
 ## 0.279.3 (2026-11-27)
 
 ### Patch Changes

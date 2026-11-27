@@ -29,6 +29,20 @@ test('a connected launch loads the current application instead of the saved appl
   await page.screenshot({ path: test.info().outputPath('current-release-launch.png') })
 })
 
+test('the release check names the device engine file the page runs', async ({ page }) => {
+  await page.goto('/')
+  await expect(page.getByRole('link', { name: 'Army builder', exact: true })).toBeVisible()
+  const { own, served } = await page.evaluate(async () => {
+    const imports: Record<string, string> =
+      JSON.parse(document.querySelector('script[type="importmap"]')?.textContent ?? '{}').imports ?? {}
+    return {
+      own: Object.entries(imports).find(([name]) => /\/construction\.worker-[^/]+\.js$/.test(name))?.[1] ?? null,
+      served: ((await (await fetch('/api/release')).json()) as { deviceEngine: string | null }).deviceEngine,
+    }
+  })
+  expect([own !== null, served]).toEqual([true, own])
+})
+
 test('release notice waits for a new version and refreshes only on request', async ({ page }) => {
   let served = version
   await serveRelease(page, () => served)
