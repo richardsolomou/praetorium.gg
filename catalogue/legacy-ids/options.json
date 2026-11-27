@@ -21748,7 +21748,6 @@
       "unmatched": []
     },
     "70ac-ee9a-7ee4-b58a": {
-      "base": "unmatched",
       "choices": {
         "131f-c2ab-895d-c54b/ea2c-e140-de98-d555/ccb3-8ee6-568d-eee9|0263-c056-d80a-2192": {
           "options": {
@@ -21780,6 +21779,16 @@
             }
           }
         },
+        "35b8-185c-c7f5-78ad/2d48-f92f-50fa-df9f|8619-9766-108e-f579": {
+          "options": {}
+        },
+        "35b8-185c-c7f5-78ad/2d48-f92f-50fa-df9f|ee96-471c-ef12-d689": {
+          "options": {
+            "leagues-of-votann.einhyr-hearthguard.hesyr-etacarn-plasma-gun": {
+              "leagues-of-votann.einhyr-hearthguard.volkanite-disintegrator": 1
+            }
+          }
+        },
         "35b8-185c-c7f5-78ad/6be0-87e2-a6a6-4d89|4af9-1fdc-54b3-617a": {
           "options": {}
         },
@@ -21802,11 +21811,7 @@
         "35b8-185c-c7f5-78ad/6be0-87e2-a6a6-4d89": ""
       },
       "unit": "leagues-of-votann.einhyr-hearthguard",
-      "unmatched": [
-        "35b8-185c-c7f5-78ad/2d48-f92f-50fa-df9f|8619-9766-108e-f579",
-        "35b8-185c-c7f5-78ad/2d48-f92f-50fa-df9f|ee96-471c-ef12-d689",
-        "35b8-185c-c7f5-78ad/6be0-87e2-a6a6-4d89|"
-      ]
+      "unmatched": ["35b8-185c-c7f5-78ad/6be0-87e2-a6a6-4d89|"]
     },
     "70b6-9051-a20e-365f": {
       "choices": {},

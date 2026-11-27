@@ -706,8 +706,10 @@ const differ = (one: unknown, other: unknown) => JSON.stringify(sorted(one)) !==
 for (const [entryId, held] of Object.entries(frozen)) {
   const found = out[entryId]
   if (found && found.unit !== held.unit) throw new Error(`options: ${entryId} is frozen for ${held.unit}; this run names ${found.unit}`)
+  // A base frozen as unmatched stays open, as an unmatched choice does: it may map once a release fields the unit alike.
+  const opened = found && held.base === 'unmatched' && found.base !== 'unmatched'
   for (const field of ['base', 'floor'] as const)
-    if (found && differ(held[field], found[field]))
+    if (found && !(field === 'base' && opened) && differ(held[field], found[field]))
       throw new Error(
         `options: ${entryId} ${field} is frozen as ${JSON.stringify(held[field])}; this run names ${JSON.stringify(found[field])}`,
       )
@@ -720,7 +722,7 @@ for (const [entryId, held] of Object.entries(frozen)) {
     choices[key] = selections
   }
   const unmatched = [...new Set([...held.unmatched, ...(found?.unmatched ?? [])])].filter((key) => !(key in choices)).toSorted(byId)
-  out[entryId] = { ...held, choices, unmatched }
+  out[entryId] = { ...held, ...(opened ? { base: found.base } : {}), choices, unmatched }
 }
 for (const correction of legacyIdCorrections) {
   if (correction.section !== 'options') continue
