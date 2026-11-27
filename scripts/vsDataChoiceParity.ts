@@ -1,16 +1,19 @@
 /**
- * Report-only: for every datasheet VS Data defines exactly (an options map entry with nothing unmatched) on the current
+ * Reports, for every datasheet VS Data defines exactly (an options map entry with nothing unmatched) on the current
  * rules version, whether the builder offers a VS Data pick (`vsUnitChoices`, `vsUnitToggles`) what it offers the BSData
  * pick today: the same sizes, the same wargear within reach and as many of each, the Warlord, every allegiance, and as
- * many Enhancements and upgrades under each of the book's Detachments. Counts, unit names and wargear names only.
+ * many Enhancements and upgrades under each of the book's Detachments. Counts, unit names and wargear names only. With
+ * `--write`, the datasheets that agree, or differ only where VS Data follows the app, become the ones the builder adds as
+ * VS Data picks (`src/shared/vsNativeUnits.json`).
  *
- *   pnpm exec tsx scripts/vsDataChoiceParity.ts [catalogue directory] [--list]
+ *   pnpm exec tsx scripts/vsDataChoiceParity.ts [catalogue directory] [--list] [--write]
  */
 import fs from 'node:fs'
 import path from 'node:path'
 import { parseArgs } from 'node:util'
 import rawOptions from '../catalogue/legacy-ids/options.json' with { type: 'json' }
 import { legacyOptionsSchema } from '../src/core/legacyIds'
+import type { RosterPick } from '../src/core/roster'
 import { VS_ALLEGIANCE, VS_ENHANCEMENT, VS_MODELS, VS_UPGRADE, vsFirstPick, vsUnitChoices, vsUnitToggles } from '../src/core/unitChoices'
 import { vsDataConstructionSchema, vsDataDefinitions } from '../src/core/vsDataConstruction'
 import { carried, type VsRosterUnit } from '../src/core/vsDataRoster'
@@ -18,6 +21,10 @@ import { vsFirstFielding, vsResized, vsUnitOptions } from '../src/core/vsDataUni
 import { readCatalogueComposition } from '../src/server/catalogueComposition'
 import { unitIdsIn } from '../src/shared/cataloguePicker'
 import { rosterDetachments } from '../src/shared/rosterDetachments'
+import { calculateCombat, DEFAULT_COMBAT_OPTIONS } from '../src/core/combat'
+import { combatAttacks } from '../src/core/combatScenario'
+import { combatUnitTarget } from '../src/core/combatUnit'
+import { rosterCombatant } from '../src/shared/rosterCombatRules'
 import { calculateRosterPrice, savedRosterPriceInput } from '../src/shared/pricing'
 import { loadSnapshot } from './lib/catalogueSnapshotLoad'
 import { leaves, legacyIds } from './lib/vsDataRosters'
@@ -25,7 +32,10 @@ import { same } from '../src/shared/vsDataModelNames'
 import { vsSpelling } from '../src/shared/wargearSpellings'
 import { inBook } from '../src/shared/vsDataPoints'
 
-const { values, positionals } = parseArgs({ allowPositionals: true, options: { list: { type: 'boolean', default: false } } })
+const { values, positionals } = parseArgs({
+  allowPositionals: true,
+  options: { list: { type: 'boolean', default: false }, write: { type: 'boolean', default: false } },
+})
 const directory = path.resolve(positionals[0] ?? 'catalogue-data')
 const base = readCatalogueComposition(directory)?.editions.find((entry) => entry.base)
 if (!base) throw new Error(`${directory} has no base rules version`)
@@ -48,23 +58,17 @@ const detachmentOf = (catalogueId: string, vs: string) =>
   bsdataDetachments.get(vs)?.find((id) => rosterDetachments(loaded, catalogueId, [id]).chosen.length === 1)
 
 type Priced = NonNullable<ReturnType<typeof calculateRosterPrice>>['units'][number]
-const price = (catalogueId: string, entryId: string, detachmentIds: string[], models?: number): Priced | undefined =>
-  calculateRosterPrice(
-    savedRosterPriceInput({
-      catalogueId,
-      detachmentIds,
-      disposition: null,
-      limit: 2000,
-      picks: [{ entryId, ...(models ? { models } : {}) }],
-    }),
-    loaded,
-    rules,
-  )?.units[0]
+const priceOf = (catalogueId: string, pick: RosterPick, detachmentIds: string[] = []): Priced | undefined =>
+  calculateRosterPrice(savedRosterPriceInput({ catalogueId, detachmentIds, disposition: null, limit: 2000, picks: [pick] }), loaded, rules)
+    ?.units[0]
+const price = (catalogueId: string, entryId: string, detachmentIds: string[], models?: number) =>
+  priceOf(catalogueId, { entryId, ...(models ? { models } : {}) }, detachmentIds)
+const keywordsOf = (unit: Priced | undefined) => (unit?.keywords ?? []).map(same).toSorted().join()
 
 /** Differences where VS Data follows the app, which leave a datasheet VS-native. */
 const LISTED_SIZES = 'sizes the field manual lists'
 const SPELLINGS = 'Enhancement spellings'
-const ACCEPTED = new Set([LISTED_SIZES, SPELLINGS])
+const accepted = (check: string) => check === LISTED_SIZES || check === SPELLINGS || check.endsWith(' (ruled for VS Data)')
 
 /** How many single-letter edits turn one name into the other. */
 function distance(one: string, other: string) {
@@ -78,10 +82,41 @@ function distance(one: string, other: string) {
   return row[other.length]!
 }
 
+/**
+ * Differences settled against the rules version's app build, where VS Data's reading stands: a check, the datasheets by
+ * name (any book's), and the detail each difference states. Add a row only for a ruling the VS Data gaps work recorded.
+ */
+const RULED: { check: string; units: RegExp; detail: RegExp; why: string }[] = [
+  {
+    check: 'warlord',
+    units: /^(Company Heroes|Rein and Raus)$/,
+    detail: /VS Data offers it/,
+    why: 'neither the app nor the Legends sheet bars it from the Warlord role',
+  },
+  {
+    check: 'warlord',
+    units: /.*/,
+    detail: /BSData offers it, VS Data withholds it/,
+    why: 'the core Select Warlord step takes a unit of the army faction, and the app flags Harlequins and ties the Ynnari to Yvraine or the Yncarne',
+  },
+  {
+    check: 'enhancements',
+    units: /.*/,
+    detail:
+      /^(Gladius Task Force: only BSData standardoftheemperorascendant|Shadow Legion: only BSData [a-z, ]+|Pactbound Zealots: only BSData talismanofburningblood only VS Data eyeoftzeentch|Cabal of Chaos: only BSData [a-z, ]+|[A-Za-z ’'-]+: only VS Data (murderforgedentity|furiousassault|leonineferocity, lightningdescent|reconstar|deepeningmadness|immovableconquerors|gunneryhonours, redoubtablemachinespirit|artificersarcophagus, venerablechampion))$/,
+    why: 'VS Data follows the app: the Standard needs ANCIENT, Shadow Legion admits no Daemon Prince, Pactbound psykers bear no Khorne mark, Cabal of Chaos follows the allegiance taken, and these Detachment upgrades take non-Characters',
+  },
+]
+const RULED_SUFFIX = ' (ruled for VS Data)'
+
 const differences = new Map<string, Map<string, string[]>>()
+/** Each check's differences, by VS Data unit ID; one a ruling settles is filed apart. */
 const differ = (check: string, unit: string, detail: string) => {
-  const byUnit = differences.get(check) ?? new Map<string, string[]>()
-  differences.set(check, byUnit)
+  const name = definitions.get('unit', unit)?.name ?? unit
+  const ruled = RULED.some((row) => row.check === check && row.units.test(name) && row.detail.test(detail))
+  const filed = ruled ? `${check}${RULED_SUFFIX}` : check
+  const byUnit = differences.get(filed) ?? new Map<string, string[]>()
+  differences.set(filed, byUnit)
   byUnit.set(unit, [...(byUnit.get(unit) ?? []), detail])
 }
 const checked = new Map<string, number>()
@@ -144,9 +179,12 @@ function vsReach(picked: VsRosterUnit) {
   return reach
 }
 
+const NATIVE_FILE = path.join(import.meta.dirname, '../src/shared/vsNativeUnits.json')
 const bookOf = (catalogueId: string) => ids.books[catalogueId.slice(catalogueId.indexOf('~') + 1)]
 // A datasheet is compared in its own book's catalogue where one lists it, as an ally's Detachments are not the roster's.
 const listing = new Map<string, string>()
+// Legends and Crucible datasheets stay with the catalogue's checks (`vsDataChecks`), so the builder adds them from BSData.
+const matchedPlay = new Set(loaded.factions.flatMap((faction) => unitIdsIn(loaded, faction.id).flatMap((id) => exact.get(id) ?? [])))
 for (const faction of loaded.factions) {
   const book = bookOf(faction.id)
   if (!book) continue
@@ -158,29 +196,43 @@ for (const faction of loaded.factions) {
   }
 }
 
+// The defender every attacker is measured against, as the simulator fields it.
+const marines = loaded.factions.find((faction) => faction.name === 'Imperium - Adeptus Astartes - Space Marines')!.id
+const intercessors = [...loaded.index.definitions.values()].find(
+  (entry) => entry.name === 'Intercessor Squad' && loaded.vsRoster?.units[entry.id],
+)!.id
+const defender = rosterCombatant(loaded, rules, {
+  catalogueId: marines,
+  detachmentIds: [],
+  picks: [{ entryId: intercessors }],
+  pickIndex: 0,
+})!
+const target = combatUnitTarget({ sheet: defender.selected, carriers: defender.carriers, models: defender.models }).target!
+
 let units = 0
+const compared = new Set<string>()
 for (const [entryId, catalogueId] of listing) {
   {
     const faction = { id: catalogueId }
     const book = bookOf(catalogueId)!
     const unitId = inBook(exact, catalogueId, entryId)!
-    const name = definitions.get('unit', unitId)!.name
     const first = vsFirstFielding(definitions, unitId)
     const sizes = definitions.get('unit', unitId)!.data.sizes
     const largest = Math.max(...sizes)
     const plain = price(faction.id, entryId, [])
     if (!plain) {
-      differ('builds', name, 'BSData does not price it')
+      differ('builds', unitId, 'BSData does not price it')
       continue
     }
     units++
+    compared.add(unitId)
 
     count('sizes')
     const bsSizes = plain.size.options ?? Array.from({ length: plain.size.max - plain.size.min + 1 }, (_, at) => plain.size.min + at)
     if (bsSizes.join() !== sizes.join()) {
       // BSData's catalogue admits every size between the smallest and largest; the field manual prices only some of them.
       const listed = sizes.every((size) => bsSizes.includes(size)) && sizes[0] === bsSizes[0] && sizes.at(-1) === bsSizes.at(-1)
-      differ(listed ? LISTED_SIZES : 'sizes', name, `BSData ${bsSizes.join('/')}, VS Data ${sizes.join('/')}`)
+      differ(listed ? LISTED_SIZES : 'sizes', unitId, `BSData ${bsSizes.join('/')}, VS Data ${sizes.join('/')}`)
     }
 
     count('wargear')
@@ -194,20 +246,77 @@ for (const [entryId, catalogueId] of listing) {
     )
     const bs = bsdataReach(big, vs.names, allegianceNames)
     for (const key of new Set([...bs.names, ...vs.names])) {
-      if (!vs.names.has(key)) differ('wargear', name, `only BSData offers ${key}`)
-      else if (!bs.names.has(key)) differ('wargear', name, `only VS Data offers ${key}`)
+      if (!vs.names.has(key)) differ('wargear', unitId, `only BSData offers ${key}`)
+      else if (!bs.names.has(key)) differ('wargear', unitId, `only VS Data offers ${key}`)
     }
     count('wargear counts')
     for (const [key, n] of bs.most)
       if (vs.most.has(key) && vs.most.get(key) !== n)
-        differ('wargear counts', name, `${key}: BSData up to ${n}, VS Data up to ${vs.most.get(key)} at ${largest}`)
+        differ('wargear counts', unitId, `${key}: BSData up to ${n}, VS Data up to ${vs.most.get(key)} at ${largest}`)
+
+    // VS Data's options grant no keywords yet, so a datasheet whose BSData keywords follow its wargear keeps BSData.
+    count('keywords')
+    const { unit: _unit, ...firstPick } = vsFirstPick(definitions, unitId)
+    const vsKeywords = keywordsOf(priceOf(faction.id, { entryId, vs: { models: {}, options: {}, ...firstPick } }))
+    if (vsKeywords !== keywordsOf(plain)) differ('keywords', unitId, `BSData ${keywordsOf(plain)}, VS Data ${vsKeywords}`)
+    // A VS pick's datasheet (characteristics and abilities) is read from its catalogue tree at the default loadout, so a
+    // datasheet whose wargear changes them stays BSData's until that tree follows VS Data's selections.
+    count('datasheet')
+    const sheetOf = (pick: RosterPick) => {
+      const sheet = rosterCombatant(loaded, rules, { catalogueId: faction.id, detachmentIds: [], picks: [pick], pickIndex: 0 })?.selected
+      if (!sheet) return 'none'
+      const characteristics = sheet.profiles
+        .filter((profile) => profile.type !== 'Ranged Weapons' && profile.type !== 'Melee Weapons')
+        .map((profile) => `${profile.name}:${profile.values.map((value) => value.value).join('/')}`)
+      return JSON.stringify([characteristics.toSorted(), sheet.abilities.map((ability) => ability.name).toSorted()])
+    }
+    const plainSheet = sheetOf({ entryId })
+    const optionPicks = plain.choices
+      .filter((choice) => !special(choice))
+      .flatMap((choice) =>
+        choice.options
+          .filter((option) => option.count === 0 && option.max > 0)
+          .map((option) => ({
+            name: option.name,
+            pick:
+              choice.room > 1
+                ? ({ entryId, spreads: { [choice.key]: { [option.id]: 1 } } } satisfies RosterPick)
+                : ({ entryId, choices: { [choice.key]: option.id } } satisfies RosterPick),
+          })),
+      )
+    const granting = optionPicks.flatMap(({ name: option, pick }) =>
+      keywordsOf(priceOf(faction.id, pick)) === keywordsOf(plain) ? [] : [option],
+    )
+    if (granting.length) differ('keywords', unitId, `BSData keywords change with ${granting.join(', ')}`)
+    const changing = optionPicks.flatMap(({ name: option, pick }) => (sheetOf(pick) === plainSheet ? [] : [option]))
+    if (changing.length) differ('datasheet', unitId, `characteristics or abilities change with ${changing.join(', ')}`)
+
+    // The simulator fields a VS pick by VS Data's carriers, so each weapon has to find its profile as the catalogue's does.
+    count('simulator')
+    const damage = (pick: RosterPick) => {
+      const unit = rosterCombatant(loaded, rules, { catalogueId: faction.id, detachmentIds: [], picks: [pick], pickIndex: 0 })
+      if (!unit) return 'none'
+      const attacker = { sheet: unit.selected, carriers: unit.carriers, models: unit.models }
+      const attacks = combatAttacks(attacker, { keywords: [], rules: [] }, {}, { ranged: [], melee: [] })
+      return (['ranged', 'melee'] as const)
+        .map((phase) => {
+          const attack = attacks[phase].base
+          if (!attack) return `${phase} none`
+          const mean = calculateCombat({ ...attack, target, options: { ...DEFAULT_COMBAT_OPTIONS, phase } }).meanDamage
+          return `${phase} ${mean.toFixed(2)}`
+        })
+        .join(', ')
+    }
+    const bsDamage = damage({ entryId })
+    const vsDamage = damage({ entryId, vs: { models: {}, options: {}, ...firstPick } })
+    if (bsDamage !== vsDamage) differ('simulator', unitId, `BSData ${bsDamage}, VS Data ${vsDamage} against Intercessors`)
 
     count('warlord')
     const roster = { faction: book, detachments: [] as string[] }
     const vsWarlord = vsUnitToggles(definitions, first, { roster }).length > 0
     const bsWarlord = plain.toggles.some((toggle) => toggle.name === 'Warlord')
     if (vsWarlord !== bsWarlord)
-      differ('warlord', name, `BSData ${bsWarlord ? 'offers' : 'withholds'} it, VS Data ${vsWarlord ? 'offers' : 'withholds'} it`)
+      differ('warlord', unitId, `BSData ${bsWarlord ? 'offers' : 'withholds'} it, VS Data ${vsWarlord ? 'offers' : 'withholds'} it`)
 
     if (vsUnitChoices(definitions, first).some((choice) => choice.key === VS_MODELS))
       checked.set('models', (checked.get('models') ?? 0) + 1)
@@ -225,7 +334,7 @@ for (const [entryId, catalogueId] of listing) {
       const allegiances = choices.find((choice) => choice.key === VS_ALLEGIANCE)?.options.map((option) => same(option.name)) ?? []
       if (!vsEnhancements.length && !allegiances.length && !(offersAllegiance && bsdataId)) continue
       if (!bsdataId) {
-        differ('enhancements', name, `${detachment.name} has no BSData Detachment`)
+        differ('enhancements', unitId, `${detachment.name} has no BSData Detachment`)
         continue
       }
       const priced = price(faction.id, entryId, [bsdataId])
@@ -241,11 +350,11 @@ for (const [entryId, catalogueId] of listing) {
         const spelling = onlyVs.find((candidate) => distance(printed, candidate) <= 3)
         return spelling ? [`${printed} / ${spelling}`] : []
       })
-      if (spelled.length) differ(SPELLINGS, name, `${detachment.name}: ${spelled.join(', ')}`)
+      if (spelled.length) differ(SPELLINGS, unitId, `${detachment.name}: ${spelled.join(', ')}`)
       if (onlyBs.length > spelled.length || onlyVs.length > spelled.length)
         differ(
           'enhancements',
-          name,
+          unitId,
           `${detachment.name}:${onlyBs.length ? ` only BSData ${onlyBs.join(', ')}` : ''}${onlyVs.length ? ` only VS Data ${onlyVs.join(', ')}` : ''}`,
         )
       if (!offersAllegiance) continue
@@ -259,7 +368,7 @@ for (const [entryId, catalogueId] of listing) {
         ),
       )
       if (bsAllegiances.size !== allegiances.length)
-        differ('allegiance', name, `${detachment.name}: BSData ${bsAllegiances.size}, VS Data ${allegiances.length}`)
+        differ('allegiance', unitId, `${detachment.name}: BSData ${bsAllegiances.size}, VS Data ${allegiances.length}`)
     }
   }
 }
@@ -269,11 +378,20 @@ for (const [check, total] of [...checked].filter(([name]) => name !== 'models'))
   const found = differences.get(check)?.size ?? 0
   console.log(`${check}: ${total - found} of ${total} agree`)
 }
-const differing = new Set([...differences].flatMap(([check, byUnit]) => (ACCEPTED.has(check) ? [] : [...byUnit.keys()])))
+const differing = new Set([...differences].flatMap(([check, byUnit]) => (accepted(check) ? [] : [...byUnit.keys()])))
 console.log(`${units - differing.size} of ${units} agree on every check, or differ only where VS Data follows the app`)
 console.log(`${checked.get('models') ?? 0} datasheets divide their size between freely counted models`)
 for (const [check, byUnit] of differences) {
   if (!checked.has(check)) console.log(`${check}: ${byUnit.size} datasheets`)
   if (!values.list) continue
-  for (const [unit, details] of byUnit) console.log(`  ${check} | ${unit}: ${details.join('; ')}`)
+  for (const [unit, details] of byUnit) console.log(`  ${check} | ${definitions.get('unit', unit)!.name}: ${details.join('; ')}`)
+}
+
+// The datasheets the builder fields by VS Data: every matched-play one compared that differs only where VS Data follows the app.
+if (values.write) {
+  const native = [...compared]
+    .filter((unit) => !differing.has(unit) && matchedPlay.has(unit) && !definitions.get('unit', unit)!.data.legends)
+    .toSorted()
+  fs.writeFileSync(NATIVE_FILE, `${JSON.stringify(native, null, 2)}\n`)
+  console.log(`wrote ${native.length} datasheets to ${path.relative(process.cwd(), NATIVE_FILE)}`)
 }

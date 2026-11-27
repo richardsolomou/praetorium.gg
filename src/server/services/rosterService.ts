@@ -9,6 +9,7 @@ import type { RosterSource, RosterVisibility } from '../../core/savedRoster'
 import type { RepositoryPort } from '../spacetimeRepository'
 import { picksSchema } from '../../contracts/schemas'
 import { optionalRulesFrom, readerRosterFromRow, rosterFromRow, rosterRow, waivedRulesFrom } from '../rosterPersistence'
+import { servedLoadout, servedRoster, storedWithTranslations, withKeptTranslations } from '../savedPicks'
 import { detachmentIds } from '../../core/savedRoster'
 import { LOCKED_ROSTER_MESSAGE } from '../../core/rosterLock'
 import { currentRosterIds } from '../../core/retiredCatalogueIds'
@@ -65,6 +66,19 @@ function rosterSummaries(rows: readonly (SummaryRow | FullRow)[]) {
 const readerSummaries = (rows: readonly FullRow[]) =>
   rosterSummaries(rows).map((summary) => ({ ...summary, baseRosterId: null, sharingDeclined: false }))
 
+/**
+ * Before a write moves a roster's version past the copy its translations read, the translations its owner is served
+ * become its picks' own `vs`, so it keeps reading them: its own list and the same loadout, so the write needs no unlock.
+ * Gives back the picks as stored beside the ones kept, for a save that leaves some as they were, or null when nothing was
+ * kept. A write while the translations are still loading waits a few seconds for them, then goes ahead without.
+ */
+export async function keepServedTranslations(repository: RepositoryPort, id: string, userId: string) {
+  const row = await repository.roster(id)
+  const held = row?.userId === userId ? await storedWithTranslations(row) : null
+  if (!row || !held) return null
+  return (await repository.keepRosterTranslations(id, userId, held.kept, row)) ? held : null
+}
+
 export class RosterService {
   constructor(
     private readonly repository: RepositoryPort,
@@ -98,9 +112,10 @@ export class RosterService {
     },
   ) {
     const id = roster.id ?? randomUUID()
+    const held = roster.id ? await keepServedTranslations(this.repository, id, userId) : null
     const now = this.clock()
     const saved = await this.repository.saveRoster({
-      ...rosterRow(roster),
+      ...rosterRow({ ...roster, picks: withKeptTranslations(roster.picks, held) }),
       automaticName: roster.automaticName ?? false,
       id,
       userId,
@@ -183,12 +198,13 @@ export class RosterService {
   }
 
   private async accessToRow(row: NonNullable<Awaited<ReturnType<RepositoryPort['roster']>>>, userId: string | null) {
-    if (row.userId === userId) return { roster: rosterFromRow(row, true), editable: true }
+    if (row.userId === userId) return { roster: servedRoster(rosterFromRow(row, true)), editable: true }
     // Named rather than "anything but private", so a value added later is refused
     // until somebody decides it should not be.
-    if (row.visibility === 'unlisted' || row.visibility === 'public') return { roster: readerRosterFromRow(row), editable: false }
+    if (row.visibility === 'unlisted' || row.visibility === 'public')
+      return { roster: servedRoster(readerRosterFromRow(row)), editable: false }
     const lender = userId ? await this.lender(row.id, userId) : null
-    return lender ? { roster: readerRosterFromRow(row), editable: false, lentBy: lender } : null
+    return lender ? { roster: servedRoster(readerRosterFromRow(row)), editable: false, lentBy: lender } : null
   }
 
   /** A reader's access to a roster, with the roster it was copied from when this reader may be told. */
@@ -216,18 +232,21 @@ export class RosterService {
   }
 
   async setRosterVisibility(userId: string, id: string, visibility: RosterVisibility) {
+    await keepServedTranslations(this.repository, id, userId)
     if (!(await this.repository.setRosterVisibility(id, userId, visibility, this.clock()))) {
       throw new Response('you do not own this roster', { status: 403 })
     }
   }
 
   async setRosterLocked(userId: string, id: string, locked: boolean) {
+    await keepServedTranslations(this.repository, id, userId)
     if (!(await this.repository.setRosterLocked(id, userId, locked, this.clock())))
       throw new Response('you do not own this roster', { status: 403 })
     return { updatedAt: await this.storedUpdatedAt(id, userId) }
   }
 
   async setRosterArchived(userId: string, id: string, archived: boolean) {
+    await keepServedTranslations(this.repository, id, userId)
     if (!(await this.repository.setRosterArchived(id, userId, archived, this.clock())))
       throw new Response('you do not own this roster', { status: 403 })
     return { updatedAt: await this.storedUpdatedAt(id, userId) }
@@ -240,12 +259,18 @@ export class RosterService {
 
   /** Takes a list out of its variant group, so it stands on its own in the library. */
   async splitRosterVariant(userId: string, id: string) {
+    // A split moves every member of the group on, not only the one leaving it.
+    const row = await this.repository.roster(id)
+    const group = row?.userId === userId ? await this.repository.rosterGroupByUser(userId, row.baseRosterId ?? row.id) : []
+    const members = new Set([id, ...group.map((member) => member.id)])
+    await Promise.all([...members].map((member) => keepServedTranslations(this.repository, member, userId)))
     if (!(await this.repository.splitRosterVariant(id, userId, this.clock())))
       throw new Response('you do not own this roster', { status: 403 })
     return { updatedAt: await this.storedUpdatedAt(id, userId) }
   }
 
   async changeRosters(userId: string, ids: readonly string[], action: RosterBatchAction) {
+    if (action !== 'delete') await Promise.all(ids.map((id) => keepServedTranslations(this.repository, id, userId)))
     const saved = await this.repository.changeRosters(ids, userId, action, this.clock())
     if (!saved) throw new Response('you do not own every one of these rosters', { status: 403 })
     return saved
@@ -386,8 +411,8 @@ export class RosterService {
     else await this.repository.removeFavouriteFaction(userId, catalogueId)
   }
 
-  unitLoadouts(userId: string) {
-    return this.repository.unitLoadoutsByUser(userId)
+  async unitLoadouts(userId: string) {
+    return (await this.repository.unitLoadoutsByUser(userId)).map(servedLoadout)
   }
 
   async saveUnitLoadout(userId: string, { id, ...loadout }: UnitLoadout & { id: string }) {

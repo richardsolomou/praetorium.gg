@@ -46,6 +46,7 @@ const UNREACHED = new Set([
   'cancel_friend_invite',
   'claim_guest_seat',
   'decline_roster_sharing',
+  'keep_roster_translations',
   'delete_battle_for_operator',
   'delete_unit_loadout',
   'end_roster_loan',

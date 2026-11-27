@@ -129,6 +129,28 @@ it('saves a visibility change to a locked roster on the device', async () => {
   expect(mocks.queue.mock.calls[0]?.[3].data).toMatchObject({ visibility: 'private', locked: true })
 })
 
+const translatedVs = { models: { 'host.warrior': 10 }, options: {} }
+async function holdTranslated(locked: boolean) {
+  await mocks.engines.get('alice')!.storage.change((state: ReturnType<typeof emptyLocalState>) => ({
+    ...state,
+    documents: {
+      'roster:original': { data: { ...roster, locked, picks: [{ entryId: 'warriors', translatedVs }] }, serverVersion: 1 },
+    },
+  }))
+}
+
+it('saves a visibility change to a locked roster served translations on the device', async () => {
+  await holdTranslated(true)
+  await setRosterVisibility({ data: { id: 'original', visibility: 'private' } })
+  expect(mocks.queue.mock.calls[0]?.[3].data).toMatchObject({ visibility: 'private' })
+})
+
+it('copies a roster with the translations it was served as its own', async () => {
+  await holdTranslated(false)
+  await copyRoster({ data: { id: 'original', variant: false } })
+  expect(mocks.queue.mock.calls[0]?.[1].picks[0].vs).toEqual(translatedVs)
+})
+
 it('starts a copy of a locked roster unlocked', async () => {
   await holdLocked()
   await copyRoster({ data: { id: 'original', variant: true } })

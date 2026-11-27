@@ -1201,7 +1201,10 @@ export async function makeWarlord(page: Page, unit: string) {
   if (!id) return
   const product = await productOperator()
   await expect
-    .poll(async () => /"toggles":\{[^}]*:1/.test((await product.roster(id))?.picks ?? ''), { message: `${unit} is the saved Warlord` })
+    // A catalogue pick saves its Warlord as a toggle, a VS Data pick as the model that holds it.
+    .poll(async () => /"toggles":\{[^}]*:1|"warlord":"/.test((await product.roster(id))?.picks ?? ''), {
+      message: `${unit} is the saved Warlord`,
+    })
     .toBe(true)
 }
 

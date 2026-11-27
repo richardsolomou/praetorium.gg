@@ -5,7 +5,7 @@ import { hasTextTokens, withoutText } from '../core/sourceText'
 import type { TextFactsByKey } from '../core/textFacts'
 import { titleCaseAbility } from './catalogueAbilityGrants'
 import { abilityGrantsIn, allowancesIn, combatFactsIn, offeredOptionsOf } from './textFacts'
-import { combatFactsOf, recordedCombatText } from '../core/combatReading'
+import { recordedCombatText } from '../core/combatReading'
 import { type CombatRule, type CombatRuleJudge, combatRuleProjected, judgedCombatRule } from '../core/combatRules'
 import { allowancesWhile, type BattleChoiceAllowance, namesAllowedOptions } from '../core/battleChoices'
 import { datasheetCharacteristicKind, datasheetProfileKind } from '../core/datasheetStructure'
@@ -60,28 +60,6 @@ export function datasheetCombatant(...[loaded, ...rest]: Parameters<typeof roste
 }
 
 /**
- * A combatant whose rules a device can play without their words: each rule still left as a token is judged from the
- * combat facts its words give, as a device judges a rule whose facts the cards recorded.
- */
-export function withRecordedRules<T extends { rules: CombatRule[]; companions: { rules: CombatRule[] }[] }>(
-  combatant: T,
-  words: (text: string) => string | null,
-): T {
-  const recorded = (rules: readonly CombatRule[]) =>
-    rules.flatMap((rule) => {
-      const said = rule.judge && hasTextTokens(rule.description) ? words(rule.description) : null
-      if (said === null) return [rule]
-      const { judge, ...placed } = rule
-      return judgedCombatRule(placed, judge!, recordedCombatText(combatFactsOf(said, rule.scope === 'stratagem'))) ?? []
-    })
-  return {
-    ...combatant,
-    rules: recorded(combatant.rules),
-    companions: combatant.companions.map((member) => ({ ...member, rules: recorded(member.rules) })),
-  }
-}
-
-/**
  * What a combatant's abilities and enhancements, and those of the units leading it, allow the battle choices of its rules,
  * as a second Order, each matched to the rules it widens by name: read from the facts recorded for their tokens, so a
  * device holding no words answers as the server does.
@@ -104,6 +82,29 @@ function battleChoiceAllowancesFor(
       .filter((rule) => rule.options.includes(allowance.options.toLowerCase()) || namesAllowedOptions(allowance, rule.words))
       .map((rule) => rule.name),
   }))
+}
+
+/**
+ * A VS pick's datasheet with every weapon profile the datasheet holds, as its catalogue tree is built at the default loadout
+ * and lists only the weapons that carries; the simulator finds each weapon VS Data's carriers hold among them by name.
+ */
+function withEveryWeapon(
+  loaded: LoadedCatalogue,
+  catalogueId: string,
+  entryId: string,
+  sheet: Datasheet | null,
+  carriers: readonly unknown[] | undefined,
+) {
+  if (!sheet || !carriers) return sheet
+  const held = new Set(sheet.profiles.map((profile) => profile.id))
+  const every = datasheetIn(loaded, catalogueId, entryId)?.profiles ?? []
+  return {
+    ...sheet,
+    profiles: [
+      ...sheet.profiles,
+      ...every.filter((profile) => !held.has(profile.id) && (profile.type === 'Ranged Weapons' || profile.type === 'Melee Weapons')),
+    ],
+  }
 }
 
 export function rosterCombatant(
@@ -135,10 +136,17 @@ export function rosterCombatant(
   if (!context || data.pickIndex === null) return null
   const selectedPick = data.picks[data.pickIndex]
   if (!selectedPick) return null
+  const selectedUnit = context.unitSelections.find((unit) => unit.pickIndex === data.pickIndex)
   const sheet = describeDatasheetAbilities(
     loaded,
     selectedPick.catalogueId ?? data.catalogueId,
-    datasheetIn(loaded, data.catalogueId, selectedPick.entryId, context),
+    withEveryWeapon(
+      loaded,
+      data.catalogueId,
+      selectedPick.entryId,
+      datasheetIn(loaded, data.catalogueId, selectedPick.entryId, context),
+      selectedUnit?.carriers,
+    ),
     rules,
   )
   if (!sheet) return null
@@ -164,15 +172,23 @@ export function rosterCombatant(
       const selected = describeDatasheetAbilities(
         loaded,
         pick.catalogueId ?? data.catalogueId,
-        datasheetIn(loaded, data.catalogueId, pick.entryId, memberContext),
+        withEveryWeapon(
+          loaded,
+          data.catalogueId,
+          pick.entryId,
+          datasheetIn(loaded, data.catalogueId, pick.entryId, memberContext),
+          unit.carriers,
+        ),
         rules,
       )
       if (!selected) return unavailable()
       const prefix = attachedProfilePrefix(pickIndex)
-      const carriers = combatCarriers(context.selections[unit.selectionIndex]!, loaded.index, {
-        primaryCatalogueId: data.catalogueId,
-        roster: context.selections.filter((_, at) => at !== unit.selectionIndex),
-      })
+      const carriers =
+        unit.carriers ??
+        combatCarriers(context.selections[unit.selectionIndex]!, loaded.index, {
+          primaryCatalogueId: data.catalogueId,
+          roster: context.selections.filter((_, at) => at !== unit.selectionIndex),
+        })
       return [
         {
           pickIndex,
@@ -281,10 +297,12 @@ export function rosterCombatant(
   return {
     selected: sheet,
     models: context.unitSelections.find((unit) => unit.pickIndex === data.pickIndex)!.models,
-    carriers: combatCarriers(context.selections[context.unitSelectionIndex]!, loaded.index, {
-      primaryCatalogueId: data.catalogueId,
-      roster: context.selections.filter((_, index) => index !== context.unitSelectionIndex),
-    }),
+    carriers:
+      selectedUnit?.carriers ??
+      combatCarriers(context.selections[context.unitSelectionIndex]!, loaded.index, {
+        primaryCatalogueId: data.catalogueId,
+        roster: context.selections.filter((_, index) => index !== context.unitSelectionIndex),
+      }),
     rules: rosterCombatRules(loaded, rules, data, context, sheet),
     companions,
     attachmentOptions,
@@ -345,13 +363,13 @@ function rosterCombatRules(
     // Every unit's keywords are known only once the roster is read; `supportKeywords` fills as it is.
     const placement: CombatRuleJudge = { ...judge, keywords: sheet.keywords, unitKeywords, supportKeywords }
     const recorded = recordedCombat(rule.description)
-    // A token without combat facts is judged where its words load (`readableRules`), against the same placement.
-    if (recorded === undefined && hasTextTokens(rule.description))
-      candidates.push({ ...placed, keywords: sheet.keywords, judge: placement })
-    else {
-      const judged = judgedCombatRule(placed, placement, recorded === undefined ? undefined : recordedCombatText(recorded))
-      if (judged) candidates.push(judged)
+    // A token without combat facts does something unknown, which the simulator lists as not calculated.
+    if (recorded === undefined && hasTextTokens(rule.description)) {
+      candidates.push({ ...placed, keywords: sheet.keywords })
+      return
     }
+    const judged = judgedCombatRule(placed, placement, recorded === undefined ? undefined : recordedCombatText(recorded))
+    if (judged) candidates.push(judged)
   }
   for (const ability of [...sheet.abilities, ...(sheet.enhancements ?? [])]) {
     if (!ability.description) continue

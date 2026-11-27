@@ -140,6 +140,7 @@ import * as HomeRostersByUserProcedure from './home_rosters_by_user_procedure'
 import * as ImportCollectionProcedure from './import_collection_procedure'
 import * as ImportProductRowsProcedure from './import_product_rows_procedure'
 import * as JoinGuestSeatProcedure from './join_guest_seat_procedure'
+import * as KeepRosterTranslationsProcedure from './keep_roster_translations_procedure'
 import * as LeaderboardProcedure from './leaderboard_procedure'
 import * as LendRosterProcedure from './lend_roster_procedure'
 import * as LinkExternalAccountProcedure from './link_external_account_procedure'
@@ -401,6 +402,7 @@ const proceduresSchema = __procedures(
   __procedureSchema('import_collection', ImportCollectionProcedure.params, ImportCollectionProcedure.returnType),
   __procedureSchema('import_product_rows', ImportProductRowsProcedure.params, ImportProductRowsProcedure.returnType),
   __procedureSchema('join_guest_seat', JoinGuestSeatProcedure.params, JoinGuestSeatProcedure.returnType),
+  __procedureSchema('keep_roster_translations', KeepRosterTranslationsProcedure.params, KeepRosterTranslationsProcedure.returnType),
   __procedureSchema('leaderboard', LeaderboardProcedure.params, LeaderboardProcedure.returnType),
   __procedureSchema('lend_roster', LendRosterProcedure.params, LendRosterProcedure.returnType),
   __procedureSchema('link_external_account', LinkExternalAccountProcedure.params, LinkExternalAccountProcedure.returnType),

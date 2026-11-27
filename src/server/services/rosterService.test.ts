@@ -125,7 +125,10 @@ const edit = {
 } as const
 
 it('explains that a locked roster refused a save', async () => {
-  const service = new RosterService({ saveRoster: vi.fn().mockResolvedValue('locked') } as unknown as RepositoryPort, () => 0)
+  const service = new RosterService(
+    { roster: vi.fn(), saveRoster: vi.fn().mockResolvedValue('locked') } as unknown as RepositoryPort,
+    () => 0,
+  )
   const refusal = await service.saveRoster('user-1', edit).catch((error: unknown) => error)
   expect(refusal instanceof Response && { status: refusal.status, message: await refusal.text() }).toEqual({
     status: 409,
@@ -144,7 +147,10 @@ it('reports the version a lock change wrote', async () => {
 })
 
 it('refuses to lock a roster somebody else owns', async () => {
-  const service = new RosterService({ setRosterLocked: vi.fn().mockResolvedValue(false) } as unknown as RepositoryPort, () => 0)
+  const service = new RosterService(
+    { roster: vi.fn(), setRosterLocked: vi.fn().mockResolvedValue(false) } as unknown as RepositoryPort,
+    () => 0,
+  )
   const refusal = await service.setRosterLocked('user-2', 'roster-1', true).catch((error: unknown) => error)
   expect(refusal instanceof Response && refusal.status).toBe(403)
 })
@@ -160,7 +166,10 @@ it('reports the version an archive change wrote', async () => {
 })
 
 it('refuses to archive a roster somebody else owns', async () => {
-  const service = new RosterService({ setRosterArchived: vi.fn().mockResolvedValue(false) } as unknown as RepositoryPort, () => 0)
+  const service = new RosterService(
+    { roster: vi.fn(), setRosterArchived: vi.fn().mockResolvedValue(false) } as unknown as RepositoryPort,
+    () => 0,
+  )
   const refusal = await service.setRosterArchived('user-2', 'roster-1', true).catch((error: unknown) => error)
   expect(refusal instanceof Response && refusal.status).toBe(403)
 })

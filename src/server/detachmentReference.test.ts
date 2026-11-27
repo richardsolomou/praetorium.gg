@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest'
 import type { LoadedRules } from '../shared/rules'
-import { bookOf, withCards } from './catalogue.fixtures'
+import { bookOf, bookWithFacts, fixtureToken, withCards } from './catalogue.fixtures'
 import { detachmentReference } from '../shared/detachmentReference'
 
 it('appends catalogue-only keyword definitions to detachment rule cards', () => {
@@ -193,51 +193,54 @@ it('shows unit upgrade eligibility when the catalogue only describes the effect'
 })
 
 it('shows the linked weapon profile when an enhancement ends by naming its weapon', () => {
-  const loaded = bookOf({
-    sharedSelectionEntries: [
-      {
-        id: 'wrapper',
-        name: 'Detachment',
-        type: 'upgrade',
-        selectionEntryGroups: [
-          { id: 'choices', name: 'Detachment', selectionEntries: [{ id: 'assault', name: 'Assault Brethren', type: 'upgrade' }] },
-        ],
-      },
-      {
-        id: 'imperiums-sword',
-        name: "Imperium's Sword",
-        type: 'upgrade',
-        profiles: [
-          {
-            id: 'sword-ability',
-            name: "Imperium's Sword",
-            characteristics: [{ name: 'Description', $text: 'This model has the following weapon:' }],
-          },
-        ],
-        entryLinks: [{ id: 'sword-weapon-link', name: "Imperium's Sword", type: 'selectionEntry', targetId: 'sword-weapon' }],
-      },
-      {
-        id: 'sword-weapon',
-        name: "Imperium's Sword",
-        type: 'upgrade',
-        profiles: [
-          {
-            id: 'sword-profile',
-            name: "Imperium's Sword",
-            typeName: 'Melee Weapons',
-            characteristics: [
-              { name: 'Range', $text: 'Melee' },
-              { name: 'A', $text: '6' },
-              { name: 'WS', $text: '2+' },
-              { name: 'S', $text: '7' },
-              { name: 'AP', $text: '-3' },
-              { name: 'D', $text: '3' },
-            ],
-          },
-        ],
-      },
-    ],
-  })
+  const loaded = bookWithFacts(
+    {
+      sharedSelectionEntries: [
+        {
+          id: 'wrapper',
+          name: 'Detachment',
+          type: 'upgrade',
+          selectionEntryGroups: [
+            { id: 'choices', name: 'Detachment', selectionEntries: [{ id: 'assault', name: 'Assault Brethren', type: 'upgrade' }] },
+          ],
+        },
+        {
+          id: 'imperiums-sword',
+          name: "Imperium's Sword",
+          type: 'upgrade',
+          profiles: [
+            {
+              id: 'sword-ability',
+              name: "Imperium's Sword",
+              characteristics: [{ name: 'Description', $text: 'This model has the following weapon:' }],
+            },
+          ],
+          entryLinks: [{ id: 'sword-weapon-link', name: "Imperium's Sword", type: 'selectionEntry', targetId: 'sword-weapon' }],
+        },
+        {
+          id: 'sword-weapon',
+          name: "Imperium's Sword",
+          type: 'upgrade',
+          profiles: [
+            {
+              id: 'sword-profile',
+              name: "Imperium's Sword",
+              typeName: 'Melee Weapons',
+              characteristics: [
+                { name: 'Range', $text: 'Melee' },
+                { name: 'A', $text: '6' },
+                { name: 'WS', $text: '2+' },
+                { name: 'S', $text: '7' },
+                { name: 'AP', $text: '-3' },
+                { name: 'D', $text: '3' },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    { 'This model has the following weapon:': { upgradesWeapon: true } },
+  )
   const rules = {
     attribution: 'Community data',
     factionKeys: new Map(),
@@ -273,7 +276,7 @@ it('shows the linked weapon profile when an enhancement ends by naming its weapo
   } as Partial<LoadedRules> as LoadedRules
 
   expect(detachmentReference(loaded, rules, 'cat', 'assault-brethren')?.enhancements[0]?.description).toBe(
-    "This model has the following weapon:\n\n**Imperium's Sword** — Range Melee · A 6 · WS 2+ · S 7 · AP -3 · D 3",
+    `${fixtureToken('This model has the following weapon:')}\n\n**Imperium's Sword** — Range Melee · A 6 · WS 2+ · S 7 · AP -3 · D 3`,
   )
 })
 

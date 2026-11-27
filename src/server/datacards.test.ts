@@ -16,7 +16,6 @@ import {
   transformed,
 } from '../shared/datacards'
 import { joinKey } from '../core/text'
-import { weaponGrantsIn } from '../shared/textFacts'
 import { wordsFrom } from './sourceTexts.fixtures'
 
 /** The files read in the source's own words: these tests are about what the parser reads, not what it publishes. */
@@ -958,12 +957,6 @@ describe('what a faction file publishes', () => {
   it('publishes a stratagem a reader can load the words of', () => {
     const description = stratagem()!
     expect(wordsFrom(directory!)(description)).toBe('**Effect:** Your attacks have Lethal Hits.')
-  })
-
-  it('records the weapon abilities a detachment rule grants, for rules that cannot read the rule', () => {
-    const loaded = published()
-    const rule = loaded.detachmentRules.get('war-horde')?.[0]
-    expect(weaponGrantsIn(rule!.description, loaded.textFacts).map((grant) => grant.keyword)).toEqual(['Sustained Hits 1'])
   })
 
   it('reads the units an army rule refuses from words it does not publish', () => {

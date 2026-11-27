@@ -149,6 +149,18 @@ it('freezes an offline roster from real pricing and records the validation revis
   })
 })
 
+it('fields an offline roster as stored, without a translation it was served', async () => {
+  prepare(80)
+  const read = mocks.document.getMockImplementation()!
+  const translatedVs = { models: { 'host.lord': 1 }, options: {} }
+  mocks.document.mockImplementation(async (resource: string) => {
+    const document = await read(resource)
+    return resource === 'roster:roster' ? { ...(document as object), picks: [{ entryId: 'lord', translatedVs }] } : document
+  })
+  await attach()
+  expect(mocks.queue.mock.calls[0]?.[1].command.roster.built.picks[0].translatedVs).toBeUndefined()
+})
+
 it('freezes the alerts this device last read on the offline roster’s unit holding their ability', async () => {
   prepare(80, 1, [
     { key: 'datasheet:charge', ability: 'Charge', description: '', timings: [{ moment: 'turn-start', phase: null, turn: 'your-turn' }] },

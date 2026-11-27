@@ -19,6 +19,8 @@ import { saveRosterSchema } from '../../contracts/schemas'
 import { captureWrite } from '../mutationTelemetry'
 import { captureRosterCreated } from '../rosterTelemetry'
 import { rosterRow } from '../rosterPersistence'
+import { withKeptTranslations } from '../savedPicks'
+import { keepServedTranslations } from '../services/rosterService'
 
 type SyncKind = OfflineActionKind | 'roster' | 'battle-command'
 
@@ -87,8 +89,9 @@ export const syncRoster = createServerFn({ method: 'POST' })
               await instance.rulesFor(data.roster.catalogueId),
             )
           : null
+      const held = data.deleted ? null : await keepServedTranslations(instance.repository, data.roster.id, player.id)
       const row = {
-        ...rosterRow(data.roster),
+        ...rosterRow({ ...data.roster, picks: withKeptTranslations(data.roster.picks, held) }),
         userId: player.id,
         automaticName,
         name: data.roster.name || totals?.label || '',

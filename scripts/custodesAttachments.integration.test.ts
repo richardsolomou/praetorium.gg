@@ -44,7 +44,7 @@ describe.skipIf(!fs.existsSync(source))('Custodes codex', () => {
 
   beforeAll(() => {
     loaded = sharedSnapshot(source).catalogue
-  }, 180_000)
+  })
 
   it.each([
     ['Trajann Valoris', '40mm'],

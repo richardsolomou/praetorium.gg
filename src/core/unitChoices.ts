@@ -1051,6 +1051,8 @@ export function vsModelKinds(definitions: VsDataDefinitions, picked: VsRosterUni
   const models = definitions.modelsOf(unit.id).filter((model) => counts.get(model.id)! > 0 || countable.has(model.id))
   const lone = models.length === 1 ? models[0]!.id : undefined
   const open = vsUnitOptions(definitions, picked).filter((option) => option.open && (option.bounds.max > 0 || option.taken > 0))
+  // A unit with nothing to choose shows its wargear as one summary, as the pane shows a catalogue unit's.
+  if (!open.length && !countable.size) return []
   const held = new Map(models.map((model) => [model.id, new Map<string, number>()]))
   const carry = (bag: Map<string, number>, id: string, n: number) => {
     const inside = definitions.get('wargear', id)?.data.includes

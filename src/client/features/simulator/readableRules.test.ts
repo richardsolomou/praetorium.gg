@@ -1,7 +1,6 @@
 import { createHash } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
 import type { CombatRule } from '../../../core/combatRules'
-import { combatFactsOf, combatReadingFor } from '../../../core/combatReading'
 import { textToken } from '../../../core/sourceText'
 import { readableRules } from './readableRules'
 
@@ -29,8 +28,7 @@ describe('rules the simulator can compile on this device', () => {
 
   it('keeps a rule named by a token whose reading the server recorded', () => {
     const placed = rule(tokenFor(words))
-    const recorded = { ...placed, reading: combatReadingFor(combatFactsOf(words, true), placed)! }
-    expect(recorded.reading?.roles).not.toEqual([])
+    const recorded: CombatRule = { ...placed, reading: { compiled: null, legacy: [], legacyDefault: 0, roles: ['attacker'] } }
     expect(readableRules([recorded])).toEqual([recorded])
   })
 })

@@ -3,7 +3,7 @@ import { LegalLinks, LegalPage, LegalSection, PrivacyEmail } from './LegalPage'
 
 export function PrivacyPolicy() {
   return (
-    <LegalPage title="Privacy policy" updated="16 November 2026">
+    <LegalPage title="Privacy policy" updated="27 November 2026">
       <LegalSection title="Scope">
         <p>
           Praetorium builds Warhammer 40,000 army lists and tracks battles between the players seated at them. This policy covers the
@@ -120,8 +120,9 @@ export function PrivacyPolicy() {
         </LegalLinks>
         <p>
           Returning a saved roster to private revokes its shared link. It does not revoke copies already frozen in a battle or revealed
-          tournament. We do not maintain a separate anonymous statistical archive of private games. Copies someone has already downloaded or
-          captured cannot be recalled.
+          tournament. We do not maintain a separate anonymous statistical archive of private games. The one table built from saved lists
+          only translates unit setups into the current army data, with no account, list, game or count. Copies someone has already
+          downloaded or captured cannot be recalled.
         </p>
       </LegalSection>
 
@@ -162,7 +163,8 @@ export function PrivacyPolicy() {
         <p>
           You can permanently delete your account from your profile. This removes your profile, rosters, friendships, notifications,
           tournament entries, tournaments you organize, group memberships, groups you own and every battle you played, including shared
-          battles. Session records expire on their own; usage data is kept by our analytics provider under its retention settings. The{' '}
+          battles. The table that translates saved unit setups into the current army data holds no account, list or game, so it is not
+          deleted. Session records expire on their own; usage data is kept by our analytics provider under its retention settings. The{' '}
           <Link to="/delete-account" className="text-info hover:text-parchment">
             account deletion page
           </Link>{' '}

@@ -71,6 +71,7 @@ import * as HomeRostersByUserProcedure from '../home_rosters_by_user_procedure'
 import * as ImportCollectionProcedure from '../import_collection_procedure'
 import * as ImportProductRowsProcedure from '../import_product_rows_procedure'
 import * as JoinGuestSeatProcedure from '../join_guest_seat_procedure'
+import * as KeepRosterTranslationsProcedure from '../keep_roster_translations_procedure'
 import * as LeaderboardProcedure from '../leaderboard_procedure'
 import * as LendRosterProcedure from '../lend_roster_procedure'
 import * as LinkExternalAccountProcedure from '../link_external_account_procedure'
@@ -278,6 +279,8 @@ export type ImportProductRowsArgs = __Infer<typeof ImportProductRowsProcedure.pa
 export type ImportProductRowsResult = __Infer<typeof ImportProductRowsProcedure.returnType>
 export type JoinGuestSeatArgs = __Infer<typeof JoinGuestSeatProcedure.params>
 export type JoinGuestSeatResult = __Infer<typeof JoinGuestSeatProcedure.returnType>
+export type KeepRosterTranslationsArgs = __Infer<typeof KeepRosterTranslationsProcedure.params>
+export type KeepRosterTranslationsResult = __Infer<typeof KeepRosterTranslationsProcedure.returnType>
 export type LeaderboardArgs = __Infer<typeof LeaderboardProcedure.params>
 export type LeaderboardResult = __Infer<typeof LeaderboardProcedure.returnType>
 export type LendRosterArgs = __Infer<typeof LendRosterProcedure.params>

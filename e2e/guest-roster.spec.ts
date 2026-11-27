@@ -59,11 +59,33 @@ test('a visitor builds and prices a list without saving it', async ({ page }) =>
   await page.getByRole('button', { name: 'Necron Warriors', exact: true }).click()
   await page.getByRole('button', { name: 'More models in Necron Warriors' }).click()
   await expect(page.locator('[data-slot="roster-meta"]')).toContainText('11 models')
-  await expect.poll(() => guestDraft(page)).toContain('"models":11')
+  // A VS Data pick saves its count per kind of model, here its one kind.
+  await expect.poll(() => guestDraft(page)).toContain('"necrons.necron-warriors.necron-warrior":11')
   await page.reload()
   await expect(page.locator('[data-slot="roster-meta"]')).toContainText('11 models')
   await expect(page.getByRole('button', { name: /to (your collection|favourite datasheets)$/ })).toHaveCount(0)
   expect(saves).toEqual([])
+})
+
+test('a visitor can open a datasheet when the roster is too large for a URL', async ({ page }) => {
+  await page.route(/\/(reference|construction)-[a-f0-9]+\.bin$/, (route) => route.abort())
+  await page.route('**/_serverFn/**', (route) => {
+    const request = route.request()
+    const payload = new URL(request.url()).searchParams.get('payload')
+    // A contextual datasheet sends an entry ID for the sheet and an entry ID for each roster pick.
+    if (request.method() === 'GET' && payload?.includes('"everyWeapon"') && payload.split('"entryId"').length > 2) {
+      return route.fulfill({ status: 431 })
+    }
+    return route.continue()
+  })
+  await startGuestRoster(page)
+  await add(page, 'Necron Warriors')
+  await page.getByRole('button', { name: 'View Necron Warriors datasheet', exact: true }).click()
+
+  await expect(page.getByRole('link', { name: 'Open full datasheet in a new tab' })).toHaveAttribute(
+    'href',
+    /\/datasheets\/necron-warriors$/,
+  )
 })
 
 test("a visitor's list follows an edit made in another tab", async ({ page, context }) => {

@@ -2158,8 +2158,8 @@
     "1258-53bd-b170-2509": {
       "base": {
         "options": {
-          "titan-legions.warbringer-nemesis-titan.warbringer-nemesis-titan-reaver-laser-blaster": {
-            "titan-legions.warbringer-nemesis-titan.reaver-gatling-blaster": 1
+          "chaos-titan-legions.chaos-warbringer-nemesis-titan.chaos-warbringer-nemesis-titan-reaver-laser-blaster": {
+            "chaos-titan-legions.chaos-warbringer-nemesis-titan.reaver-gatling-blaster": 1
           }
         }
       },
@@ -2169,13 +2169,13 @@
         },
         "30eb-02c8-78f2-8361/8273-ddc7-1bea-6028|ef9a-353f-e5d7-9b42": {
           "options": {
-            "titan-legions.warbringer-nemesis-titan.warbringer-nemesis-titan-nemesis-quake-cannon": {
-              "titan-legions.warbringer-nemesis-titan.nemesis-volcano-cannon": 1
+            "chaos-titan-legions.chaos-warbringer-nemesis-titan.chaos-warbringer-nemesis-titan-nemesis-quake-cannon": {
+              "chaos-titan-legions.chaos-warbringer-nemesis-titan.nemesis-volcano-cannon": 1
             }
           }
         }
       },
-      "unit": "titan-legions.warbringer-nemesis-titan",
+      "unit": "chaos-titan-legions.chaos-warbringer-nemesis-titan",
       "unmatched": [
         "30eb-02c8-78f2-8361/b8fa-acab-2bbd-df6d|4e4a-a537-9256-1fce",
         "30eb-02c8-78f2-8361/b8fa-acab-2bbd-df6d|5543-60ce-38f2-fd21",
@@ -5983,8 +5983,8 @@
     "26dd-509a-d3f4-758c": {
       "base": {
         "options": {
-          "titan-legions.warlord-titan.warlord-titan-macro-gatling-blaster": {
-            "titan-legions.warlord-titan.arioch-power-claw": 1
+          "chaos-titan-legions.chaos-warlord-titan.chaos-warlord-titan-macro-gatling-blaster": {
+            "chaos-titan-legions.chaos-warlord-titan.arioch-power-claw": 1
           }
         }
       },
@@ -5994,13 +5994,13 @@
         },
         "b4b1-10b8-0941-97d0/9428-40c9-d286-72ea|e628-d98c-6924-a2f3": {
           "options": {
-            "titan-legions.warlord-titan.warlord-titan-apocalypse-launcher": {
-              "titan-legions.warlord-titan.2-laser-blaster": 1
+            "chaos-titan-legions.chaos-warlord-titan.chaos-warlord-titan-apocalypse-launcher": {
+              "chaos-titan-legions.chaos-warlord-titan.2-laser-blaster": 1
             }
           }
         }
       },
-      "unit": "titan-legions.warlord-titan",
+      "unit": "chaos-titan-legions.chaos-warlord-titan",
       "unmatched": [
         "b4b1-10b8-0941-97d0/bebc-1c05-79ee-864|3fdd-684e-3fd3-f143",
         "b4b1-10b8-0941-97d0/bebc-1c05-79ee-864|403d-7cf-5147-cdb2",
@@ -20773,13 +20773,13 @@
     "6709-2ef7-6205-9dcb": {
       "base": {
         "options": {
-          "titan-legions.warhound-titan.warhound-titan-warhound-plasma-blastgun": {
-            "titan-legions.warhound-titan.warhound-vulcan-mega-bolter": 1
+          "chaos-titan-legions.chaos-warhound-titan.chaos-warhound-titan-warhound-plasma-blastgun": {
+            "chaos-titan-legions.chaos-warhound-titan.warhound-vulcan-mega-bolter": 1
           }
         }
       },
       "choices": {},
-      "unit": "titan-legions.warhound-titan",
+      "unit": "chaos-titan-legions.chaos-warhound-titan",
       "unmatched": [
         "073f-b834-4bb7-983c/67aa-cbe0-95c0-673f|5f9e-bc47-6590-f83a",
         "073f-b834-4bb7-983c/67aa-cbe0-95c0-673f|6b81-c1fe-9fec-803f",
@@ -47387,13 +47387,13 @@
     "f1e5-9e28-9096-27be": {
       "base": {
         "options": {
-          "titan-legions.reaver-titan.reaver-titan-reaver-laser-blaster-2": {
-            "titan-legions.reaver-titan.reaver-gatling-blaster": 1
+          "chaos-titan-legions.chaos-reaver-titan.chaos-reaver-titan-reaver-laser-blaster": {
+            "chaos-titan-legions.chaos-reaver-titan.reaver-gatling-blaster": 1
           }
         }
       },
       "choices": {},
-      "unit": "titan-legions.reaver-titan",
+      "unit": "chaos-titan-legions.chaos-reaver-titan",
       "unmatched": [
         "9bab-d72b-c7bd-96c0/c009-c6dd-bfe2-f61f|1f9c-1176-b34c-540e",
         "9bab-d72b-c7bd-96c0/c009-c6dd-bfe2-f61f|2017-e76f-d8fe-434e",

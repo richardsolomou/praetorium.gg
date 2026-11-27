@@ -25,8 +25,9 @@ try {
   const lines = createInterface({ input: createReadStream(full).pipe(createGunzip()), crlfDelay: Infinity })
   async function* kept() {
     for await (const line of lines) {
-      const entry = line ? (JSON.parse(line) as { product?: string }) : {}
-      if (entry.product && KEPT.has(entry.product)) yield `${line}\n`
+      const entry = line ? (JSON.parse(line) as { product?: string; end?: string }) : {}
+      // The last record names when the backup was taken, which anything frozen from the copy is dated by.
+      if ((entry.product && KEPT.has(entry.product)) || entry.end) yield `${line}\n`
     }
   }
   await pipeline(kept, createGzip(), createWriteStream(file, { mode: 0o600 }))

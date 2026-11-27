@@ -3220,6 +3220,26 @@ export const declineRosterSharing = spacetime.procedure({ id: t.string(), userId
 )
 
 /**
+ * Stores the frozen translations the server serves a roster saved before them as its picks' own `vs`, before a write
+ * moves its version past them: the same loadout, so not an edit, and the roster keeps its version and its lock. Nothing
+ * changes when the roster moved on since the server read it, a migration's rewrite of its picks included, which keeps
+ * the version.
+ */
+export const keepRosterTranslations = spacetime.procedure(
+  { id: t.string(), userId: t.string(), picks: t.string(), read: t.string(), updatedAt: t.u64() },
+  t.bool(),
+  (ctx, { id, userId, picks, read, updatedAt }) =>
+    operatorTx(ctx, (tx) => {
+      if (picks.length > 1_000_000) throw new SenderError('Roster is too large')
+      const current = ownedRoster(tx, id, userId)
+      if (!current || current.updatedAt !== updatedAt || current.picks !== read) return false
+      tx.db.rosters.id.update({ ...current, picks })
+      touchProduct(tx, userId, 'rosters')
+      return true
+    }),
+)
+
+/**
  * Takes a roster out of its variant group so it stands on its own. A base that leaves hands the group to its oldest
  * remaining member, which every other variant then points at, since the group is keyed by the base's id.
  */

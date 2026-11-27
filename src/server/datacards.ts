@@ -22,7 +22,6 @@ import {
 } from '../shared/datacards'
 import { completeSteps, type Steps } from '../shared/steps'
 import { type SourceTexts, comparableText, resolvedText, textKey, textTokensIn } from '../core/sourceText'
-import { combatFactsOf } from '../core/combatReading'
 import { textFactsOf } from '../shared/textFacts'
 import { factsKey, type TextFacts } from '../core/textFacts'
 import { RecentlyUsed, remember as rememberIn } from '../core/collections'
@@ -67,26 +66,6 @@ function recording(
   }
 }
 
-/**
- * What every rule the cards describe decides in combat, recorded beside its tokens so a device that never holds the
- * words plays it as the server would: a lone token's facts gain it, and a rule of several, such as a stratagem's
- * sections, is recorded under all its tokens. Each reads its words only when asked, as the reading covers every placement.
- */
-function recordCombat(texts: ReadonlyMap<string, string>, facts: Map<string, TextFacts>, read: (key: string) => TextFacts['combat']) {
-  for (const key of texts.keys()) {
-    const found = facts.get(key)
-    if (found && 'combat' in found) continue
-    let combat: TextFacts['combat']
-    facts.set(
-      key,
-      Object.defineProperty({ ...found }, 'combat', {
-        enumerable: true,
-        get: () => (combat === undefined ? (combat = read(key)) : combat),
-      }),
-    )
-  }
-}
-
 /** Each card rule's text by `factsKey`, the first where several print alike, for those whose words its files hold. */
 function cardRuleTexts(descriptions: Iterable<string>, files: ReadonlyMap<string, string>) {
   const texts = new Map<string, string>()
@@ -99,8 +78,8 @@ function cardRuleTexts(descriptions: Iterable<string>, files: ReadonlyMap<string
   return texts
 }
 
-// Read back from its file when a reading is asked for, as a server holding every rules version's card words for the
-// few it reads would hold far more than the readings.
+// Read back from its file when asked, as a server holding every rules version's card words for the few it reads would
+// hold far more than it reads.
 const heldStrings = new RecentlyUsed<string, ReadonlyMap<string, string>>(4)
 const wordsOf = (text: string, files: ReadonlyMap<string, string>) =>
   resolvedText(
@@ -111,15 +90,6 @@ const wordsOf = (text: string, files: ReadonlyMap<string, string>) =>
     },
     () => '',
   )
-
-// A server reads a card's words itself, so only a process building the device download records the cards' readings: a
-// server holding them for every rules version it loads would spend its heap on them.
-let cardReadings = false
-
-/** Records each card rule's combat reading in the cards loaded from now on, for the device download. */
-export function recordCardReadings() {
-  cardReadings = true
-}
 
 /** Every rules text a value holds under a `description` field, which is where the cards keep a rule's text. */
 function* descriptionsIn(value: unknown): Generator<string> {
@@ -269,10 +239,6 @@ export function* loadDatacardsSteps(
     ],
     textFiles,
   )
-  const combatOf = (key: string) => {
-    const text = ruleTexts.get(key)
-    return text === undefined ? undefined : combatFactsOf(wordsOf(text, textFiles), stratagems.has(text))
-  }
   const loaded = {
     factions,
     detachmentRules: rulesByDetachment,
@@ -282,8 +248,10 @@ export function* loadDatacardsSteps(
     constructionDetachments,
     textFacts,
     textReadings,
-    textCombat: combatOf,
+    textWords: (key: string) => {
+      const text = ruleTexts.get(key)
+      return text === undefined ? undefined : wordsOf(text, textFiles)
+    },
   }
-  if (cardReadings) recordCombat(ruleTexts, textFacts, (key) => combatOf(key) ?? null)
   return loaded
 }

@@ -20,6 +20,7 @@ export const withRosters = forwarding([
   'setRosterLocked',
   'setRosterArchived',
   'declineRosterSharing',
+  'keepRosterTranslations',
   'splitRosterVariant',
   'changeRosters',
   'favouriteFactionsByUser',
