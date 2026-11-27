@@ -185,6 +185,13 @@ it('answers a keyword question VS Data spells with a typographic apostrophe', ()
       contexts: { 'own.many.known': 0 },
     },
   }).combat!
-  const rule = { id: 'rule', name: 'Rule', source: 'Unit', description: '', scope: 'unit', keywords: ["T'au Empire", 'Infantry'] } as CombatRule
+  const rule = {
+    id: 'rule',
+    name: 'Rule',
+    source: 'Unit',
+    description: '',
+    scope: 'unit',
+    keywords: ["T'au Empire", 'Infantry'],
+  } as CombatRule
   expect(combatReadingFor(facts, rule)!.compiled).not.toBeNull()
 })
