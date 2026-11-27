@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { uniqueBy } from '../core/collections'
 import type { CombatFacts } from '../core/combatReading'
 import type { CombatReading, CombatRuleChoice, CombatRuleEffect, CombatTarget } from '../core/combatRules'
-import type { RuleQuestion } from '../core/combatRuleCompiler'
+import { combatTextKey, type RuleQuestion } from '../core/combatRuleCompiler'
 import type { ReminderTiming } from '../core/reminders'
 import type { PickedGrant, TextFacts, WrittenAbilityGrant } from '../core/textFacts'
 import { titleCaseAbility } from './catalogueAbilityGrants'
@@ -346,11 +346,12 @@ function placementOf(context: string) {
 
 const lower = (text: string) => text.toLocaleLowerCase('en-GB')
 
+/** A question keyed as the rule's own keywords are (`ruleAnswers`), so either apostrophe and a faction prefix match. */
 function questionOf(question: z.infer<typeof questionSchema>): RuleQuestion {
   if ('psychic' in question) return 'psychic'
-  if ('unitHas' in question) return `covers:${lower(question.unitHas)}`
-  if ('everyModelHas' in question) return `every:${lower(question.everyModelHas)}`
-  return `is:${lower(question.keyword)}`
+  if ('unitHas' in question) return `covers:${combatTextKey(question.unitHas)}`
+  if ('everyModelHas' in question) return `every:${combatTextKey(question.everyModelHas)}`
+  return `is:${combatTextKey(question.keyword)}`
 }
 
 /** Stands for the rule's source in a label, as `combatReading.ts` records it. */
