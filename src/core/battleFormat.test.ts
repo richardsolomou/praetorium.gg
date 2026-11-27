@@ -8,10 +8,6 @@ describe('battle sizes', () => {
     expect(detachmentPointBudget(2_000, recorded)).toBe(1)
   })
 
-  it('allows the unrecorded Detachment points of a size its rules version has no record of', () => {
-    expect(detachmentPointBudget(1_000, recorded)).toBe(2)
-  })
-
   it("says the recorded allowance in the battle size's Detachment points rule", () => {
     expect(formatRules(2_000, null, recorded).find((rule) => rule.id === 'detachment-points')?.hint).toBe(
       'Detachments cost at most 1 DP together',

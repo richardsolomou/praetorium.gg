@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { allowsPointsBudget, battleSizeOptionLabel, GAME_SIZES, pointsBudgetError, pointsLabel } from '../../../core/battle'
+import { useBattleSizes } from '../../components/battleSizes'
 import { useState } from 'react'
 import { PointsTotalError, PointsTotalInput } from '../../components/PointsTotalInput'
 import {
@@ -422,7 +423,7 @@ function HouseRules({
   disabled: boolean
   onChange: (value: SealedEventRuleValue) => void
 }) {
-  const options = sealedEventAllowanceOptions(value.format, value.rosterLimit)
+  const options = sealedEventAllowanceOptions(value.format, value.rosterLimit, useBattleSizes())
   const allowed = (id: SealedEventAllowance) => value.allowances.includes(id)
   const toggle = (id: SealedEventAllowance) =>
     onChange({ ...value, allowances: allowed(id) ? value.allowances.filter((other) => other !== id) : [...value.allowances, id] })

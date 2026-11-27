@@ -46,7 +46,7 @@ import { combatUnitsFor } from '../shared/combatUnits'
 import type { CatalogueTranslations } from '../shared/catalogueTranslations'
 import { loadCatalogueTranslations } from './catalogueTranslations'
 import { removedNamesOf, type RemovedNames } from '../shared/importMismatch'
-import { factionIndexFor, factionsFor } from '../shared/factionReferences'
+import { battleSizesByEdition, factionIndexFor, factionsFor } from '../shared/factionReferences'
 import { battleDetachmentData, type BattleDetachmentData } from '../shared/battleDetachmentData'
 import { githubSponsorRefresh, type GithubSponsorRefresh } from './githubSponsors'
 import { winningListsStore, type WinningListsStore } from './winningLists'
@@ -331,8 +331,15 @@ function catalogueReads(getInstance: () => App, loaded: ReturnType<typeof catalo
       return data
         ? {
             revision: data.revision,
+            battleSizes: battleSizesByEdition(data.factions),
             factions: data.factions.map(
-              ({ armyRules: _armyRules, referenceDetachmentIds: _referenceDetachmentIds, detachments, ...faction }) => ({
+              ({
+                armyRules: _armyRules,
+                referenceDetachmentIds: _referenceDetachmentIds,
+                battleSizes: _battleSizes,
+                detachments,
+                ...faction
+              }) => ({
                 ...faction,
                 detachments: detachments.map(({ id, name, referenceRoute }) => ({ id, name, referenceRoute })),
               }),
