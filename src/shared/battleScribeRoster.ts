@@ -10,6 +10,10 @@ import type { LoadedCatalogue } from './catalogueIndex'
 import { describeDatasheetAbilities } from './datasheetDescriptions'
 import { rosterDatasheetContext, rosterDatasheetSelections } from './rosterDatasheetContext'
 import type { LoadedRules } from './rules'
+import { legacyBattleScribeSchema } from '../core/legacyIds'
+import rawBattleScribe from '../../catalogue/legacy-ids/battlescribe.json' with { type: 'json' }
+
+const BATTLESCRIBE = legacyBattleScribeSchema.parse(rawBattleScribe)
 
 /**
  * A list as the BattleScribe `.ros` XML that New Recruit writes and Yellowscribe reads into Tabletop Simulator: each
@@ -37,22 +41,34 @@ export function battleScribeRoster(
     const selection = context.selections[context.unitSelectionIndex]
     return sheet && selection ? [unitXml(selection, sheet, unit.points, textNickname(pick.nickname ?? ''), index)] : []
   })
-  const gameSystem = [...index.catalogues.values()].find((catalogue) => catalogue.gameSystem)
+  return rosterXml({
+    name: data.name,
+    catalogueId: data.catalogueId,
+    catalogueName: index.catalogues.get(data.catalogueId)?.name ?? '',
+    points: priced.points,
+    units,
+  })
+}
+
+/** The roster around its units' selections, naming the BSData game system Yellowscribe picks its reader by. */
+export function rosterXml(roster: { name: string; catalogueId: string; catalogueName: string; points: number; units: readonly string[] }) {
   return [
     '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
-    `<roster id="${id(data.name)}" name="${escape(data.name)}" battleScribeVersion="2.03" generatedBy="https://praetorium.gg"` +
-      ` gameSystemId="${escape(gameSystem?.id ?? '')}" gameSystemName="${escape(gameSystem?.name ?? '')}"` +
+    `<roster id="${id(roster.name)}" name="${escape(roster.name)}" battleScribeVersion="2.03" generatedBy="https://praetorium.gg"` +
+      ` gameSystemId="${escape(BATTLESCRIBE.gameSystem.id)}" gameSystemName="${escape(BATTLESCRIBE.gameSystem.name)}"` +
       ' xmlns="http://www.battlescribe.net/schema/rosterSchema">',
-    costXml(priced.points, index),
-    `<forces><force id="${id(`${data.name}/force`)}" name="Army Roster" entryId="force" catalogueId="${escape(data.catalogueId)}"` +
-      ` catalogueName="${escape(index.catalogues.get(data.catalogueId)?.name ?? '')}">`,
-    `<selections>${units.join('')}</selections>`,
+    costXml(roster.points),
+    `<forces><force id="${id(`${roster.name}/force`)}" name="Army Roster" entryId="force" catalogueId="${escape(roster.catalogueId)}"` +
+      ` catalogueName="${escape(roster.catalogueName)}">`,
+    `<selections>${roster.units.join('')}</selections>`,
     '</force></forces>',
     '</roster>',
   ].join('\n')
 }
 
 type Profile = Datasheet['profiles'][number]
+/** An ability as the sheet describes it, its description a text token. */
+export type RosterAbility = Datasheet['abilities'][number]
 
 /** The characteristic names BattleScribe's 40k data prints, which tools reading `.ros` match exactly. */
 const CHARACTERISTIC: Partial<Record<DatasheetCharacteristicKind, string>> = {
@@ -102,7 +118,12 @@ function unitXml(selection: Selection, sheet: Datasheet, points: number, nicknam
       if (!definition || !type) return children(child, count)
       if (count < 1) return []
       return [
-        selectionXml({ entryId: child.id, definition, number: count, type }, index, profilesOf(definition), [], children(child, count)),
+        selectionXml(
+          { entryId: child.id, name: nameIn(definition, index, child.id), number: count, type },
+          profilesOf(definition),
+          [],
+          children(child, count),
+        ),
       ]
     })
   }
@@ -111,41 +132,47 @@ function unitXml(selection: Selection, sheet: Datasheet, points: number, nicknam
   const nested = children(selection, 1)
   // A statline no model choice carries, such as the one most squads keep on the unit, is the unit's.
   const unplaced = [...printed.values()].filter((profile) => profile.type === 'Unit' && !placed.has(profile.id)).map(statProfileXml)
-  const abilities = [...sheet.abilities, ...(sheet.enhancements ?? [])]
-  const isShared = (ability: Datasheet['abilities'][number]) => ability.kind === 'core' || ability.kind === 'faction'
-  const described = abilities
-    .filter((ability) => !isShared(ability))
-    .map((ability) => profileXml(ability.id, ability.name, 'Abilities', [{ name: 'Description', value: ability.description ?? '' }]))
-  const shared = abilities.filter(isShared)
+  const { profiles: described, rules } = abilitiesXml([...sheet.abilities, ...(sheet.enhancements ?? [])])
   return selectionXml(
-    { entryId: selection.id, definition: root, number: 1, type: resolve(root, index).type ?? 'unit', customName: nickname },
-    index,
+    {
+      entryId: selection.id,
+      name: nameIn(root, index, selection.id),
+      number: 1,
+      type: resolve(root, index).type ?? 'unit',
+      customName: nickname,
+    },
     [...unplaced, ...own, ...described],
-    [
-      shared.length
-        ? `<rules>${shared.map((rule) => `<rule id="${escape(rule.id)}" name="${escape(rule.name)}" hidden="false"><description>${escape(rule.description ?? '')}</description></rule>`).join('')}</rules>`
-        : '',
-      `<categories>${sheet.keywords.map((keyword) => `<category id="${id(keyword)}" name="${escape(keyword)}" entryId="${id(keyword)}" primary="false"/>`).join('')}</categories>`,
-      costXml(points, index),
-    ],
+    [rules, categoriesXml(sheet.keywords), costXml(points)],
     nested,
   )
 }
 
-function selectionXml(
-  {
-    entryId,
-    definition,
-    number,
-    type,
-    customName,
-  }: { entryId: string; definition: Definition; number: number; type: string; customName?: string },
-  index: CatalogueIndex,
+const nameIn = (definition: Definition, index: CatalogueIndex, entryId: string) =>
+  resolve(definition, index).name ?? definition.name ?? entryId
+
+/** A unit's own abilities as profiles, and its core and faction abilities as rules, which readers print once for the army. */
+export function abilitiesXml(abilities: readonly RosterAbility[]) {
+  const isShared = (ability: RosterAbility) => ability.kind === 'core' || ability.kind === 'faction'
+  const shared = abilities.filter(isShared)
+  return {
+    profiles: abilities
+      .filter((ability) => !isShared(ability))
+      .map((ability) => profileXml(ability.id, ability.name, 'Abilities', [{ name: 'Description', value: ability.description ?? '' }])),
+    rules: shared.length
+      ? `<rules>${shared.map((rule) => `<rule id="${escape(rule.id)}" name="${escape(rule.name)}" hidden="false"><description>${escape(rule.description ?? '')}</description></rule>`).join('')}</rules>`
+      : '',
+  }
+}
+
+export const categoriesXml = (keywords: readonly string[]) =>
+  `<categories>${keywords.map((keyword) => `<category id="${id(keyword)}" name="${escape(keyword)}" entryId="${id(keyword)}" primary="false"/>`).join('')}</categories>`
+
+export function selectionXml(
+  { entryId, name, number, type, customName }: { entryId: string; name: string; number: number; type: string; customName?: string },
   profiles: readonly string[],
   details: readonly string[],
   children: readonly string[],
 ) {
-  const name = resolve(definition, index).name ?? definition.name ?? entryId
   return [
     `<selection id="${id(`${entryId}/${children.length}/${number}`)}" name="${escape(name)}" entryId="${escape(entryId)}" number="${number}" type="${escape(type)}"`,
     customName ? ` customName="${escape(customName)}"` : '',
@@ -157,8 +184,8 @@ function selectionXml(
   ].join('')
 }
 
-const costXml = (points: number, index: CatalogueIndex) =>
-  `<costs><cost name="pts" typeId="${escape(index.pointsTypeId)}" value="${points}"/></costs>`
+export const costXml = (points: number) =>
+  `<costs><cost name="pts" typeId="${escape(BATTLESCRIBE.pointsTypeId)}" value="${points}"/></costs>`
 
 function statProfileXml(profile: Profile) {
   const values = profile.values.map((value) => ({
@@ -170,7 +197,7 @@ function statProfileXml(profile: Profile) {
   return profileXml(profile.id, profile.name, profile.type, values)
 }
 
-function profileXml(profileId: string, name: string, typeName: string, values: readonly { name: string; value: string }[]) {
+export function profileXml(profileId: string, name: string, typeName: string, values: readonly { name: string; value: string }[]) {
   return (
     `<profile id="${escape(profileId)}" name="${escape(name)}" hidden="false" typeName="${escape(typeName)}"><characteristics>` +
     values.map((value) => `<characteristic name="${escape(value.name)}">${escape(value.value)}</characteristic>`).join('') +
@@ -180,7 +207,6 @@ function profileXml(profileId: string, name: string, typeName: string, values: r
 
 const profileKey = (type: string, name: string) => `${type}\0${name.toLowerCase()}`
 
-/** The profiles an entry and the link to it write or link, which BattleScribe hangs off the selection. */
 /** A catalogue profile as it stands before any rule changes it, for one the evaluated sheet does not print. */
 function unevaluated(profile: CatalogueProfile): Profile | undefined {
   if (!profile.name || !profile.typeName || !PRINTED_TYPES.has(profile.typeName) || profile.hidden || !profile.characteristics)
@@ -189,6 +215,7 @@ function unevaluated(profile: CatalogueProfile): Profile | undefined {
   return { id: profile.id, name: profile.name, type: profile.typeName, values }
 }
 
+/** The profiles an entry and the link to it write or link, which BattleScribe hangs off the selection. */
 function profilesIn(definition: Definition, index: CatalogueIndex) {
   const profiles = new Map<string, CatalogueProfile>()
   for (const holder of new Set([definition, resolve(definition, index)])) {
@@ -204,11 +231,11 @@ function profilesIn(definition: Definition, index: CatalogueIndex) {
 }
 
 /** An identifier from a seed; nothing reads it back, but BattleScribe readers expect one on every element. */
-const id = (seed: string) =>
+export const id = (seed: string) =>
   Array.from(seed)
     .reduce((hash, character) => (hash * 31 + character.codePointAt(0)!) % 0xffffffff, 7)
     .toString(16)
     .padStart(8, '0')
 
-const escape = (value: string) =>
+export const escape = (value: string) =>
   value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&apos;')

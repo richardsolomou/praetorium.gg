@@ -1,0 +1,71 @@
+import { expect, it } from 'vitest'
+import { type VsDataConstruction, vsDataDefinitions } from '../core/vsDataConstruction'
+import { battleScribeEntryIds, vsDataBattleScribeRoster } from './vsDataBattleScribeRoster'
+
+const record = (name: string, data: Record<string, unknown>) => ({ name, data: { formatVersion: 2, ...data } })
+const construction: VsDataConstruction = {
+  release: 'test',
+  rulesVersion: { edition: '11th', update: 'test' },
+  unavailable: [],
+  points: [],
+  definitions: {
+    faction: { host: record('Host', {}) },
+    unit: { 'host.squad': record('Squad', { faction: 'host', keywords: ['INFANTRY'], sizes: [5] }) },
+    model: {
+      'host.squad.sergeant': record('Sergeant', { unit: 'host.squad', min: 1, max: 1, wargear: { 'host.squad.rifle': 1 } }),
+      'host.squad.trooper': record('Trooper', { unit: 'host.squad', min: 4, max: 4, wargear: { 'host.squad.rifle': 1 } }),
+    },
+    'roster-option': {
+      'host.squad.special': record('Special', {
+        unit: 'host.squad',
+        carrier: 'host.squad.trooper',
+        choose: { min: 0, max: 1 },
+        replaces: { 'host.squad.rifle': 1 },
+        choices: ['host.squad.flamer'],
+      }),
+    },
+    wargear: { 'host.squad.rifle': record('Rifle', {}), 'host.squad.flamer': record('Flamer', {}) },
+  },
+}
+const weapon = (id: string, wargear: string, name: string) => ({
+  id,
+  name,
+  wargear,
+  range: 24,
+  attacks: 1,
+  skill: 3,
+  strength: 4,
+  armourPenetration: 0,
+  damage: 1,
+})
+const xml = vsDataBattleScribeRoster(
+  {
+    name: 'List',
+    catalogueId: 'book',
+    faction: 'host',
+    detachments: [],
+    points: 100,
+    units: [{ picked: { unit: 'host.squad', options: { 'host.squad.special': { 'host.squad.flamer': 1 } } }, points: 100, abilities: [] }],
+  },
+  vsDataDefinitions(construction),
+  {
+    units: new Map(),
+    weapons: new Map([
+      ['host.squad', [weapon('host.squad.rifle', 'host.squad.rifle', 'Rifle'), weapon('host.squad.flamer', 'host.squad.flamer', 'Flamer')]],
+    ]),
+  },
+  battleScribeEntryIds({}, { entry: { choices: { 'key|bs-flamer': { options: { 'host.squad.special': { 'host.squad.flamer': 1 } } } } } }),
+)
+
+it('names the BSData game system Yellowscribe picks its 11th edition reader by', () => {
+  expect(xml).toContain('gameSystemId="sys-352e-adc2-7639-d610"')
+})
+
+// Yellowscribe divides a weapon's number by its model stack's to arm each model.
+it('numbers what a stack of models carries by the stack, a replaced weapon taken off', () => {
+  expect(xml).toMatch(/name="Trooper" [^>]*number="4" type="model">.*?name="Rifle" [^>]*number="3"/)
+})
+
+it('writes a choice under the BSData option entry the frozen map gives it', () => {
+  expect(xml).toMatch(/name="Flamer" entryId="bs-flamer"/)
+})
