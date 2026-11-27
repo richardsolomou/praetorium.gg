@@ -1088,11 +1088,14 @@ function grantedAbilitiesInAttachedUnit(
               if (grant.recipient === 'bearer' && origin !== 'self') continue
               if (grant.recipient === 'leader' && (origin !== 'companion' || !character)) continue
               if (grant.recipient === 'models' && (origin !== 'companion' || !selectedKeywords.has(grant.models!.toLowerCase()))) continue
-              const key = `${grant.name.toLowerCase()}:${grant.models?.toLowerCase() ?? ''}:${grant.condition?.toLowerCase() ?? ''}`
+              // VS Data states no words for a further condition, so the chip names the rule whose summary gives it.
+              const condition =
+                [grant.condition, grant.conditional && `while ${profile.name} applies`].filter(Boolean).join(' ') || undefined
+              const key = `${grant.name.toLowerCase()}:${grant.models?.toLowerCase() ?? ''}:${condition?.toLowerCase() ?? ''}`
               const granted = found.get(key) ?? {
-                name: grant.condition && !grant.name.endsWith('*') ? `${grant.name}*` : grant.name,
+                name: condition && !grant.name.endsWith('*') ? `${grant.name}*` : grant.name,
                 models: grant.models,
-                condition: grant.condition,
+                condition,
                 sources: new Set(),
                 ids: new Set(),
               }
@@ -1342,7 +1345,7 @@ function withGrantsOverLinks(own: Datasheet['abilities'], granted: Datasheet['ab
     ...granted.flatMap((ability) => {
       if (replaced.has(name(ability))) return [{ ...ability, description: ability.description ?? linked.get(name(ability))!.description }]
       // A grant of a core ability every model links already, as Tempormortis's Fights First to a Judiciar, adds nothing.
-      return linked.has(name(ability)) && !ability.models ? [] : [ability]
+      return linked.has(name(ability).replace(/\*$/, '')) && !ability.models ? [] : [ability]
     }),
   ]
 }
