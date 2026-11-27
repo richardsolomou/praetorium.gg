@@ -149,7 +149,7 @@ export function AddToRoster({
   const draftTakesIt = Boolean(guestDraft && offeredBooks.has(guestDraft.draft.catalogueId))
   const loading = (Boolean(me) && saved.isPending) || (books.length > 0 && offered.isPending)
   const failed = saved.isError || offered.isError
-  const canStart = faction.detachments.length > 0
+  const canStart = faction.detachments.length > 0 || Boolean(faction.withoutDetachments)
   const factionName = (catalogueId: string) => factionIndex?.factions.find((entry) => entry.id === catalogueId)
   const rulesVersion = (catalogueId: string) => {
     const book = factionName(catalogueId)

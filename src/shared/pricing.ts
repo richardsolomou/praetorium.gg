@@ -55,7 +55,7 @@ import {
 } from './unitPoints'
 import { isUpgrade, mfmDetachmentFor, withoutUpgrade } from './mfm'
 import { deploymentRules } from './rosterDeployment'
-import { vsDataChecks, vsDataEnhancementOptions, vsDataErrors } from './vsDataLegality'
+import { vsDataChecks, vsDataEnhancementOptions, vsDataErrors, vsDataWithoutDetachments } from './vsDataLegality'
 import { combatFactsIn, grantsReserveExemptionIn, pickedGrantsOf, reminderIn, reserveSelectorsIn } from './textFacts'
 import { heldWargear, replacementKey, type ReplacementSource } from './heldWargear'
 import { factionRestrictionViolations, isCatalogueSelfContradiction, kotcViolations, warlordCountProblem } from './formatRestrictions'
@@ -528,7 +528,8 @@ function calculateRoster(
   const details = rules?.detachmentDetails.get(rulesId)
   const detailFor = (option: (typeof chosen)[number]) => detachmentNamed(details, option.name)
   const referenceFor = (option: (typeof chosen)[number]) => detachmentNamed(references, option.name)
-  const allowedDispositions = [
+  // A faction that takes no Detachment, as a Titan army does, plays its own dispositions whatever its list holds.
+  const allowedDispositions = vsDataWithoutDetachments(loaded.vsRoster, data.catalogueId) ?? [
     ...new Set(
       chosen.flatMap((option) => {
         const reference = referenceFor(option)

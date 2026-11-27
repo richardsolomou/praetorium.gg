@@ -6,6 +6,7 @@
  * `tsx scripts/catalogueCoverage.ts out.json --compare before.json` also lists what
  * the earlier snapshot had that this one does not.
  */
+import { vsDataWithoutDetachments } from '../src/shared/vsDataLegality'
 import fs from 'node:fs'
 import { parseArgs } from 'node:util'
 import { abilityNamesIn, datasheetIn, datasheetSearchFieldsIn } from '../src/shared/catalogue'
@@ -56,8 +57,11 @@ const snapshot = snapshotFactions.map((faction) => {
       }
     })
     .toSorted(byName)
-  // Each datasheet is probed as a list would field it: under a Detachment its faction can take, the first it lists.
-  const probeDetachment = loaded.detachments.get(faction.id)?.options[0]?.id
+  // Each datasheet is probed as a list would field it: under a Detachment its faction can take, the first it lists, or
+  // none for a faction that takes none.
+  const probeDetachment = vsDataWithoutDetachments(loaded.vsRoster, faction.id)
+    ? undefined
+    : loaded.detachments.get(faction.id)?.options[0]?.id
   const datasheets = [...datasheetsOf(loaded.index, faction.id)]
     .flatMap((entryId) => {
       const priced = calculateRosterPrice(
