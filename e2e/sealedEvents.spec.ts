@@ -37,6 +37,7 @@ import {
 import { holdCombatCalculations } from './combat'
 import type { Command } from '../src/core/battle'
 import { add, expectNoHorizontalOverflow } from './builder.harness'
+import { screenshot } from './screenshots'
 
 test.setTimeout(180_000)
 
@@ -159,7 +160,7 @@ test('players can decline and publish their original sealed event roster across 
   await Promise.all([ownerContext.close(), opponentContext.close(), secondDevice.close(), visitor.context().close()])
 })
 
-test('revealed rosters compare every unit using frozen loadouts and preserve sealed event state', async ({ browser }, testInfo) => {
+test('revealed rosters compare every unit using frozen loadouts and preserve sealed event state', async ({ browser }) => {
   const ownerContext = await browser.newContext({ viewport: { width: 1440, height: 900 } })
   const opponentContext = await browser.newContext({ viewport: { width: 1440, height: 900 } })
   const owner = await ownerContext.newPage()
@@ -192,7 +193,7 @@ test('revealed rosters compare every unit using frozen loadouts and preserve sea
   await expect(opponent.getByRole('button', { name: 'Reveal all rosters' })).toHaveCount(0)
   await expect(opponent.locator(`[data-person="${ownerName}"]`).getByText('Roster sealed', { exact: true })).toBeVisible()
   await opponent.setViewportSize(PHONE)
-  await opponent.screenshot({ path: testInfo.outputPath('tournament-player-awaits-reveal-phone.png'), fullPage: true })
+  await screenshot(opponent, 'tournament-player-awaits-reveal-phone.png', { fullPage: true })
   await revealEvent(owner)
   await expect(owner.locator('[data-sealed-event-armies]')).toContainText(`Revealed by ${ownerName}`)
   await owner.goto(savedUrl)
@@ -511,7 +512,7 @@ async function sealDoublesEventRosters(sealedEventToken: string, invalidWarlords
 }
 
 /** Waits for the event page, which the previous page stays in front of until the sealed event loads. */
-test('a Swiss tournament pairs its rounds and ranks the tables by match points', async ({ browser }, testInfo) => {
+test('a Swiss tournament pairs its rounds and ranks the tables by match points', async ({ browser }) => {
   const ownerContext = await browser.newContext({ viewport: { width: 1440, height: 1000 } })
   const opponentContext = await browser.newContext()
   const owner = await ownerContext.newPage()
@@ -539,29 +540,29 @@ test('a Swiss tournament pairs its rounds and ranks the tables by match points',
   const rounds = owner.locator('[data-sealed-event-rounds]')
   await rounds.getByRole('button', { name: 'Check in' }).click()
   await expect(rounds.getByText('1 of 2 checked in')).toBeVisible()
-  await owner.screenshot({ path: testInfo.outputPath('swiss-check-in.png'), fullPage: true })
+  await screenshot(owner, 'swiss-check-in.png', { fullPage: true })
   await rounds.getByRole('button', { name: 'Pair round 1' }).click()
   await expect(rounds.locator('[data-table="1"]')).toBeVisible()
   await rounds.getByRole('button', { name: 'Start the clock' }).click()
   await expect(rounds.getByLabel('Time left in this round')).toContainText(/^\d:\d\d:\d\d$/)
-  await owner.screenshot({ path: testInfo.outputPath('swiss-clock.png'), fullPage: true })
+  await screenshot(owner, 'swiss-clock.png', { fullPage: true })
   // The organizer fixes the table's battlefield before anyone sits down, and the setup then only shows it.
   await expect(rounds.locator('[data-battlefields-unset]')).toContainText('1 table still to set')
-  await owner.screenshot({ path: testInfo.outputPath('swiss-battlefields-prompt.png') })
+  await screenshot(owner, 'swiss-battlefields-prompt.png')
   await rounds.getByRole('button', { name: 'Roll battlefields' }).click()
   await expect(rounds.locator('[data-battlefields-unset]')).toHaveCount(0)
   const setBattlefield = rounds.locator('[data-table="1"]').getByRole('button', { name: /^Table 1 battlefield: / })
   await expect(setBattlefield).not.toHaveAccessibleName(/not set$/)
   await setBattlefield.click()
   await expect(owner.getByRole('dialog', { name: 'Table 1 battlefield' }).getByRole('button', { name: 'Selected' })).toBeVisible()
-  await owner.screenshot({ path: testInfo.outputPath('swiss-battlefield.png') })
+  await screenshot(owner, 'swiss-battlefield.png')
   await owner.keyboard.press('Escape')
   await rounds.locator('[data-table="1"]').getByRole('button', { name: 'Start battle' }).click()
   await owner.waitForURL(/\/battles\/[^/]+$/)
   await expect(owner.getByText(/left/).first()).not.toContainText('Battlefield')
   await setupStep(owner, 'Battlefield')
   await expect(owner.getByText('The organizer set this battlefield.')).toBeVisible()
-  await owner.screenshot({ path: testInfo.outputPath('swiss-fixed-battlefield.png'), fullPage: true })
+  await screenshot(owner, 'swiss-fixed-battlefield.png', { fullPage: true })
 
   // Settle the table in its log: the rounds are under test, not the game.
   const battlePath = new URL(owner.url()).pathname
@@ -586,11 +587,11 @@ test('a Swiss tournament pairs its rounds and ranks the tables by match points',
   const score = owner.getByRole('dialog', { name: 'Table 1 score' })
   await score.getByRole('textbox').first().fill('72')
   await score.getByRole('textbox').last().fill('60')
-  await owner.screenshot({ path: testInfo.outputPath('swiss-score.png') })
+  await screenshot(owner, 'swiss-score.png')
   await score.getByRole('button', { name: 'Save score' }).click()
   await expect(score).toBeHidden()
   await expect(rounds.locator('[data-table="1"]').first()).toContainText(/72.*60|60.*72/)
-  await owner.screenshot({ path: testInfo.outputPath('swiss-rounds.png'), fullPage: true })
+  await screenshot(owner, 'swiss-rounds.png', { fullPage: true })
   await opponent.goto(url)
   await expect(opponent.locator('[data-sealed-event-rounds]').getByText('Results locked')).toBeVisible()
   await expect(opponent.locator('[data-sealed-event-rounds]').getByRole('button', { name: /^Reopen table/ })).toHaveCount(0)
@@ -599,7 +600,7 @@ test('a Swiss tournament pairs its rounds and ranks the tables by match points',
   const lockedTable = rounds.locator('[data-table="1"]').last()
   await lockedTable.getByRole('button', { name: 'Reopen table 1' }).click()
   const reopen = owner.getByRole('alertdialog', { name: 'Reopen table 1?' })
-  await owner.screenshot({ path: testInfo.outputPath('swiss-reopen.png') })
+  await screenshot(owner, 'swiss-reopen.png')
   await reopen.getByRole('button', { name: 'Reopen result' }).click()
   await expect(reopen).toBeHidden()
   await expect(lockedTable).toContainText('Playing')
@@ -738,7 +739,7 @@ function sealedEventHeader(page: Page) {
   return page.locator('main header')
 }
 
-test('an event seals Legends only once its organizer allows them', async ({ page }, testInfo) => {
+test('an event seals Legends only once its organizer allows them', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 })
   await signUp(page, uniqueName('Organizer'))
   const rosterName = uniqueName('Legends list')
@@ -750,7 +751,7 @@ test('an event seals Legends only once its organizer allows them', async ({ page
   const create = await openSealedEventCreation(page, { ownerPlays: true })
   await create.getByLabel('Name').fill(uniqueName('Tuesday sealed event'))
   await expect(create.getByRole('button', { name: 'House rules' })).toHaveAccessibleDescription('Matched play')
-  await create.screenshot({ path: testInfo.outputPath('sealed-event-allowances.png') })
+  await screenshot(create, 'sealed-event-allowances.png')
   await submitSealedEventCreation(page, create)
   await expect(sealedEventHeader(page)).toContainText('Matched play')
 
@@ -889,68 +890,54 @@ test('a new sealed event starts with its first event and can seal a roster', asy
   await expectNoPageOverflow(page)
 })
 
-for (const { rules, status } of [
-  { rules: undefined, status: 'current' },
-  { rules: 'MFM 1.4 · Archived', status: 'archived' },
-]) {
-  test(`seals ${status} rules rosters in a sealed event and preserves the selected catalogue`, async ({ page }) => {
-    const ownerName = uniqueName('Version owner')
-    const { email } = await signUp(page, ownerName)
-    const rosterName = `${status} sealed event roster`
-    if (status === 'archived') {
-      const userId = await userIdFor(email)
-      const id = crypto.randomUUID()
-      await (
-        await productOperator()
-      ).saveRoster({
-        id,
-        userId,
-        name: rosterName,
-        catalogueId: '470a-6daa-9014-12df',
-        detachmentId: JSON.stringify(['9d23-833a-17cb-2d7d']),
-        disposition: 'priority-assets',
-        limit: 2000,
-        picks: '[]',
-        prep: null,
-        tags: '[]',
-        waivedRules: '[]',
-        visibility: 'private',
-        source: 'editable',
-        now: Date.now(),
-      })
-      await page.goto(`/rosters/${id}`)
-    } else {
-      await createRoster(page, { faction: 'Adeptus Custodes', detachment: /Aquilan Shield/, name: rosterName, rules })
-    }
-    const unit = status === 'archived' ? 'Captain' : 'Blade Champion'
-    await add(page, unit)
-    await page.locator(`[data-unit="${unit}"]`).getByRole('button', { name: unit, exact: true }).click()
-    await makeWarlord(page, unit)
-    const operator = await productOperator()
-    const saved = (await operator.roster(lastPathSegment(page.url())))!
-    await page.goto('/tournaments')
-    const create = await openSealedEventCreation(page)
-    await create.getByLabel('Name').fill(uniqueName('Rules sealed event'))
-    await create.getByRole('button', { name: /^Anyone who joins/ }).click()
-    await submitSealedEventCreation(page, create)
-    await join(page)
-    await sealOwnRoster(page, rosterName)
-    await page.reload()
-    const entry = page.locator(`[data-person="${ownerName}"]`)
-    await expect(entry.getByText('Roster sealed', { exact: true })).toBeVisible()
-    const sealedEventToken = lastPathSegment(page.url())
-    const sealed = await operator.sealedEventRosters(sealedEventToken, saved.userId)
-    expect(JSON.parse(sealed!.entry.rosterSnapshot!).built.catalogueId).toBe(saved.catalogueId)
-    await revealEvent(page)
-    await viewRoster(page, ownerName).click()
-    await expect(page).toHaveURL(/\/rosters\/[^?]+\?sealedEvent=/)
-    if (status === 'current') await expect(page.locator('main header [data-rules-version]')).toHaveCount(0)
-    await expect(page.locator(`[data-unit="${unit}"]`)).toBeVisible()
-    await page.reload()
-    await expect(page.locator(`[data-unit="${unit}"]`)).toBeVisible()
-    if (status === 'current') await expect(page.locator('main header [data-rules-version]')).toHaveCount(0)
+test('seals archived rules rosters in a sealed event and preserves the selected catalogue', async ({ page }) => {
+  const ownerName = uniqueName('Version owner')
+  const { email } = await signUp(page, ownerName)
+  const rosterName = 'archived sealed event roster'
+  const id = crypto.randomUUID()
+  const operator = await productOperator()
+  await operator.saveRoster({
+    id,
+    userId: await userIdFor(email),
+    name: rosterName,
+    catalogueId: '470a-6daa-9014-12df',
+    detachmentId: JSON.stringify(['9d23-833a-17cb-2d7d']),
+    disposition: 'priority-assets',
+    limit: 2000,
+    picks: '[]',
+    prep: null,
+    tags: '[]',
+    waivedRules: '[]',
+    visibility: 'private',
+    source: 'editable',
+    now: Date.now(),
   })
-}
+  await page.goto(`/rosters/${id}`)
+  const unit = 'Captain'
+  await add(page, unit)
+  await page.locator(`[data-unit="${unit}"]`).getByRole('button', { name: unit, exact: true }).click()
+  await makeWarlord(page, unit)
+  const saved = (await operator.roster(id))!
+  await page.goto('/tournaments')
+  const create = await openSealedEventCreation(page)
+  await create.getByLabel('Name').fill(uniqueName('Rules sealed event'))
+  await create.getByRole('button', { name: /^Anyone who joins/ }).click()
+  await submitSealedEventCreation(page, create)
+  await join(page)
+  await sealOwnRoster(page, rosterName)
+  await page.reload()
+  const entry = page.locator(`[data-person="${ownerName}"]`)
+  await expect(entry.getByText('Roster sealed', { exact: true })).toBeVisible()
+  const sealedEventToken = lastPathSegment(page.url())
+  const sealed = await operator.sealedEventRosters(sealedEventToken, saved.userId)
+  expect(JSON.parse(sealed!.entry.rosterSnapshot!).built.catalogueId).toBe(saved.catalogueId)
+  await revealEvent(page)
+  await viewRoster(page, ownerName).click()
+  await expect(page).toHaveURL(/\/rosters\/[^?]+\?sealedEvent=/)
+  await expect(page.locator(`[data-unit="${unit}"]`)).toBeVisible()
+  await page.reload()
+  await expect(page.locator(`[data-unit="${unit}"]`)).toBeVisible()
+})
 
 test('only a changed roster in an open sealed event offers replacement', async ({ page }) => {
   await signUp(page, uniqueName('RosterOwner'))
@@ -1105,7 +1092,13 @@ test('the organizer unseals a revealed roster so its entrant can seal a correcte
   await owner.reload()
   await expect(entrantCard).toContainText('Corrected list')
   await viewRoster(owner, entrantName).click()
+  await expect(owner).toHaveURL(/\/rosters\/[^?]+\?sealedEvent=/)
   await expect(owner.locator('[data-unit="Lokhust Destroyers"]')).toBeVisible()
+  // A sealed roster on the current rules carries no rules-version badge, before or after a reload.
+  await expect(owner.locator('main header [data-rules-version]')).toHaveCount(0)
+  await owner.reload()
+  await expect(owner.locator('[data-unit="Lokhust Destroyers"]')).toBeVisible()
+  await expect(owner.locator('main header [data-rules-version]')).toHaveCount(0)
   await ownerContext.close()
   await entrantContext.close()
 })
@@ -2021,7 +2014,7 @@ test('a doubles event pairs teams, filters half-size rosters, and starts a four-
   await expect(doublesTable).toContainText('battlefield is set')
   await owner.keyboard.press('Escape')
   await doublesTable.scrollIntoViewIfNeeded()
-  await owner.screenshot({ path: test.info().outputPath('doubles-tournament-battlefield.png') })
+  await screenshot(owner, 'doubles-tournament-battlefield.png')
   await owner.getByRole('button', { name: 'Start 2 vs 2 battle' }).click()
   const battleChooser = owner.getByRole('dialog', { name: 'Start 2 vs 2 battle' })
   await expect(battleChooser.getByLabel('Opposing team')).toContainText(`${names[2]} & ${names[3]}`)

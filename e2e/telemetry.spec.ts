@@ -15,6 +15,7 @@ import {
 } from './account'
 import { add, attach, expectNoHorizontalOverflow } from './builder.harness'
 import { chooseCombatUnit } from './combat'
+import { screenshot } from './screenshots'
 
 async function openRostersToImport(page: Page, name: string) {
   await signUp(page, uniqueName(name))
@@ -371,7 +372,7 @@ for (const [reference, path, signedIn, width] of [
   ['mission-pack', '/missions/chapter-approved-2026-2027', false, 390],
   ['mission-matchup', '/missions/chapter-approved-2026-2027/matchups/take-and-hold/disruption', true, 1440],
 ] as const) {
-  test(`${reference} attributes setup and creation after clearing the handoff URL`, async ({ page }, testInfo) => {
+  test(`${reference} attributes setup and creation after clearing the handoff URL`, async ({ page }) => {
     if (signedIn) await signUp(page, uniqueName('Mission reference'))
     await page.setViewportSize({ width, height: 900 })
     await page.goto(path)
@@ -384,7 +385,7 @@ for (const [reference, path, signedIn, width] of [
     await chooseFaction(setup, 'Necrons')
     await setup.getByRole('button', { name: 'Select Awakened Dynasty' }).click()
     await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
-    await page.screenshot({ path: testInfo.outputPath(`${reference}-setup.png`) })
+    await screenshot(page, `${reference}-setup.png`)
     await setup.getByRole('button', { name: 'Create roster', exact: true }).click()
     await expect(page.getByRole('heading', { name: 'Add your first unit', exact: true })).toBeVisible()
     if (width < 768) await page.getByRole('button', { name: 'Add units', exact: true }).click()
@@ -431,45 +432,38 @@ test('cancelling a mission setup does not attribute a later generic setup to it'
     ])
 })
 
-for (const units of [[], ['Necron Warriors']]) {
-  test(`a guest save attempt reports ${units.length} fielded units from the current draft`, async ({ page }) => {
-    const setup = await visitorSetup(page)
-    await chooseFaction(setup, 'Necrons')
-    await setup.getByRole('button', { name: 'Select Awakened Dynasty' }).click()
-    await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
-    const events = await recordEvents(page)
-    await setup.getByRole('button', { name: 'Create roster' }).click()
-    await expect(page.getByLabel('Add a unit')).toBeVisible()
-    for (const unit of units) await add(page, unit)
-    const save = page.getByRole('button', { name: 'Save roster', exact: true })
-    if (!units.length) {
-      await expect(save).toBeDisabled()
-      return
-    }
-    await save.click()
-    await expect
-      .poll(() => events.filter((event) => event.name === 'guest_roster_save_started'))
-      .toEqual([{ name: 'guest_roster_save_started', properties: { unit_count: units.length } }])
-    await expect
-      .poll(() => events.filter((event) => event.name === 'guest_roster_save_gate_viewed'))
-      .toEqual([{ name: 'guest_roster_save_gate_viewed', properties: { unit_count: units.length, action: 'create' } }])
-    if (units.length === 1) {
-      await page.getByRole('button', { name: 'Create account and save roster', exact: true }).click()
-      await expect
-        .poll(() => events.filter((event) => event.name === 'guest_roster_save_validation_failed').map((event) => event.properties.field))
-        .toEqual(['name', 'email', 'password'])
-      expect(events.filter((event) => event.name === 'account_authentication_started')).toEqual([])
-      await page.getByRole('button', { name: 'I already have an account', exact: true }).click()
-      await expect.poll(() => events.filter((event) => event.name === 'guest_roster_save_gate_viewed').length).toBe(1)
-      await page.getByRole('link', { name: 'Back to your roster', exact: true }).click()
-      await expect(page.locator('[data-unit="Necron Warriors"]').first()).toBeVisible()
-      expect(events.filter((event) => event.name === 'guest_roster_save_gate_interacted').map((event) => event.properties.action)).toEqual([
-        'switch_to_sign_in',
-        'return_to_draft',
-      ])
-    }
-  })
-}
+test('a guest save attempt reports the fielded units of the current draft', async ({ page }) => {
+  const setup = await visitorSetup(page)
+  await chooseFaction(setup, 'Necrons')
+  await setup.getByRole('button', { name: 'Select Awakened Dynasty' }).click()
+  await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
+  const events = await recordEvents(page)
+  await setup.getByRole('button', { name: 'Create roster' }).click()
+  await expect(page.getByLabel('Add a unit')).toBeVisible()
+  const save = page.getByRole('button', { name: 'Save roster', exact: true })
+  await expect(save).toBeDisabled()
+  await add(page, 'Necron Warriors')
+  await save.click()
+  await expect
+    .poll(() => events.filter((event) => event.name === 'guest_roster_save_started'))
+    .toEqual([{ name: 'guest_roster_save_started', properties: { unit_count: 1 } }])
+  await expect
+    .poll(() => events.filter((event) => event.name === 'guest_roster_save_gate_viewed'))
+    .toEqual([{ name: 'guest_roster_save_gate_viewed', properties: { unit_count: 1, action: 'create' } }])
+  await page.getByRole('button', { name: 'Create account and save roster', exact: true }).click()
+  await expect
+    .poll(() => events.filter((event) => event.name === 'guest_roster_save_validation_failed').map((event) => event.properties.field))
+    .toEqual(['name', 'email', 'password'])
+  expect(events.filter((event) => event.name === 'account_authentication_started')).toEqual([])
+  await page.getByRole('button', { name: 'I already have an account', exact: true }).click()
+  await expect.poll(() => events.filter((event) => event.name === 'guest_roster_save_gate_viewed').length).toBe(1)
+  await page.getByRole('link', { name: 'Back to your roster', exact: true }).click()
+  await expect(page.locator('[data-unit="Necron Warriors"]').first()).toBeVisible()
+  expect(events.filter((event) => event.name === 'guest_roster_save_gate_interacted').map((event) => event.properties.action)).toEqual([
+    'switch_to_sign_in',
+    'return_to_draft',
+  ])
+})
 
 test('simulator setup checkpoints carry no unit contents', { tag: '@catalogue' }, async ({ page }) => {
   await page.goto('/simulator')
@@ -559,8 +553,8 @@ test('a guest sends feedback, reads the reply and answers it', async ({ page }) 
   const [ticket] = await support.tickets()
   const opening = ticket.messages[0].content
   expect(opening).toMatch(/^Group factions by alliance\n\nIdea · Praetorium \d+\.\d+\.\d+\nScreenshot: /)
-  const screenshot = await page.request.get(SCREENSHOT_LINE.exec(opening)![1])
-  expect(screenshot.status()).toBe(401)
+  const attached = await page.request.get(SCREENSHOT_LINE.exec(opening)![1])
+  expect(attached.status()).toBe(401)
 
   await support.reply(ticket.id, 'Done in the next release')
   await panel.getByRole('button', { name: 'View conversation' }).click()
@@ -672,8 +666,8 @@ test('an administrator opens the screenshot attached to feedback', async ({ page
 
   await expect(page.getByRole('dialog').getByRole('heading', { name: 'Thanks, it’s sent' })).toBeVisible()
   const [ticket] = await support.tickets()
-  const screenshot = await page.request.get(SCREENSHOT_LINE.exec(ticket.messages[0].content)![1])
-  expect([screenshot.status(), screenshot.headers()['content-type'], screenshot.headers()['cache-control']]).toEqual([
+  const attached = await page.request.get(SCREENSHOT_LINE.exec(ticket.messages[0].content)![1])
+  expect([attached.status(), attached.headers()['content-type'], attached.headers()['cache-control']]).toEqual([
     200,
     expect.stringMatching(/^image\/(?:webp|jpeg)$/),
     'private, no-store',

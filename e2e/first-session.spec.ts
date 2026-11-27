@@ -15,6 +15,7 @@ import {
   practiceBattle,
 } from './account'
 import { guestDraft } from './storage'
+import { screenshot } from './screenshots'
 
 const rosterText = `First army (65 Points)
 
@@ -32,14 +33,14 @@ Immortals (65 Points)
 
 Exported with BattleBase, Data Version: v20260812`
 
-test('a guest reviews, imports and saves their first list', async ({ page }, testInfo) => {
+test('a guest reviews, imports and saves their first list', async ({ page }) => {
   const dialog = await openImport(page)
   await dialog.getByLabel('Roster text').fill(rosterText)
   await dialog.getByRole('button', { name: 'Import pasted roster', exact: true }).click()
   await expect(dialog).toContainText('1 of 1 matched entry')
   for (const width of [1440, 1280, 390]) {
     await page.setViewportSize({ width, height: 900 })
-    await dialog.screenshot({ path: testInfo.outputPath(`guest-import-review-${width}.png`) })
+    await screenshot(dialog, `guest-import-review-${width}.png`)
   }
   await page.setViewportSize({ width: 1440, height: 900 })
   await dialog.getByRole('button', { name: 'Open imported draft', exact: true }).click()
@@ -56,7 +57,7 @@ test('a guest reviews, imports and saves their first list', async ({ page }, tes
       const add = page.getByRole('button', { name: 'Add units', exact: true })
       expect((await save.boundingBox())!.height).toBe((await add.boundingBox())!.height)
     }
-    await page.screenshot({ path: testInfo.outputPath(`guest-import-builder-${width}.png`) })
+    await screenshot(page, `guest-import-builder-${width}.png`)
   }
   await page.setViewportSize({ width: 1440, height: 900 })
   await signUpThroughForm(page, uniqueName('Importer'))
@@ -82,7 +83,7 @@ test('an import names a missing unit and lets the guest correct the text before 
   await expect(page.locator('[data-unit="Immortals"]')).toHaveCount(1)
 })
 
-test('the first roster names each missing setup choice', async ({ page }, testInfo) => {
+test('the first roster names each missing setup choice', async ({ page }) => {
   const setup = await visitorSetup(page)
   const start = setup.getByRole('button', { name: 'Create roster', exact: true })
   await expect(start).toHaveAccessibleDescription('Choose your faction.')
@@ -96,7 +97,7 @@ test('the first roster names each missing setup choice', async ({ page }, testIn
   const search = page.getByPlaceholder('Search units, keywords, abilities…')
   await expect(choose).toBeHidden()
   await expect(search).toBeVisible()
-  await page.screenshot({ path: testInfo.outputPath('first-unit-1440.png') })
+  await screenshot(page, 'first-unit-1440.png')
   for (const width of [1100, 390]) {
     await page.setViewportSize({ width, height: 900 })
     await expect(search).toBeHidden()
@@ -104,21 +105,21 @@ test('the first roster names each missing setup choice', async ({ page }, testIn
     await expect(search).toBeVisible()
     await page.getByRole('button', { name: 'Close', exact: true }).click()
     await expect(search).toBeHidden()
-    await page.screenshot({ path: testInfo.outputPath(`first-unit-${width}.png`) })
+    await screenshot(page, `first-unit-${width}.png`)
   }
 })
 
 // The desktop path through Battle options runs in the other battle journeys; a phone reaches it through the Battle tab.
-test('a casual player practises a round, corrects an action and reviews the finished game at 390px', async ({ page }, testInfo) => {
+test('a casual player practises a round, corrects an action and reviews the finished game at 390px', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 900 })
   await signUpThroughForm(page, uniqueName('Practice learner'))
   await page.goto('/')
   await expect(page.getByRole('button', { name: 'Practise a game', exact: true })).toBeHidden()
-  await page.screenshot({ path: testInfo.outputPath('home-actions.png') })
+  await screenshot(page, 'home-actions.png')
   const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Practice army' })
   await page.goto('/rosters')
   await expect(page.getByRole('button', { name: 'Practise a game', exact: true })).toBeHidden()
-  await page.screenshot({ path: testInfo.outputPath('roster-actions.png') })
+  await screenshot(page, 'roster-actions.png')
   await practiceBattle(page, roster)
   // Both hands are dealt once both armies are in.
   await expect(page.locator('#setup-secondaries')).toHaveAttribute('data-complete', 'true')
@@ -136,7 +137,7 @@ test('a casual player practises a round, corrects an action and reviews the fini
   await startBattle(page)
   await expect(page.getByRole('heading', { name: 'command phase', exact: true })).toBeVisible()
   await expect(page.getByText('New to the tracker?', { exact: true })).toBeHidden()
-  await page.screenshot({ path: testInfo.outputPath('tracker.png') })
+  await screenshot(page, 'tracker.png')
   await advance(page)
   await expect(page.getByRole('heading', { name: 'movement phase', exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Undo latest action', exact: true }).click()
@@ -144,15 +145,15 @@ test('a casual player practises a round, corrects an action and reviews the fini
   for (let phase = 0; phase < 13; phase += 1) await advance(page)
   await expect(page.locator('[data-stat="round"]')).toHaveText('2')
   await expect(page.getByRole('heading', { name: 'movement phase', exact: true })).toBeVisible()
-  await page.screenshot({ path: testInfo.outputPath('practice-round.png'), fullPage: true })
+  await screenshot(page, 'practice-round.png', { fullPage: true })
   await page.getByRole('tab', { name: 'Battle', exact: true }).click()
   await concede(page)
   const debrief = page.getByRole('region', { name: 'Battle debrief', exact: true })
   await expect(debrief).toBeHidden()
   await expect(page.locator('[data-scoreboard]')).toContainText('by concession')
   await page.evaluate(() => window.scrollTo(0, 0))
-  await page.screenshot({ path: testInfo.outputPath('finished-game-viewport.png') })
-  await page.screenshot({ path: testInfo.outputPath('finished-game.png'), fullPage: true })
+  await screenshot(page, 'finished-game-viewport.png')
+  await screenshot(page, 'finished-game.png', { fullPage: true })
   const timeline = page.getByRole('slider', { name: 'Replay event', exact: true })
   await timeline.focus()
   await timeline.press('Home')
@@ -161,7 +162,7 @@ test('a casual player practises a round, corrects an action and reviews the fini
   await expect(debrief).toBeHidden()
 })
 
-test('a friend invite QR code opens the same one-time invite link', async ({ browser }, testInfo) => {
+test('a friend invite QR code opens the same one-time invite link', async ({ browser }) => {
   const context = await browser.newContext({ permissions: ['clipboard-read', 'clipboard-write'], viewport: PHONE })
   try {
     const page = await context.newPage()
@@ -174,7 +175,7 @@ test('a friend invite QR code opens the same one-time invite link', async ({ bro
     const dialog = page.getByRole('dialog', { name: 'Invite a friend', exact: true })
     await expect(dialog.getByRole('img', { name: 'Friend invite QR code' })).toBeVisible()
     await expect(dialog).toContainText(link)
-    await dialog.screenshot({ path: testInfo.outputPath('friend-invite-qr.png') })
+    await screenshot(dialog, 'friend-invite-qr.png')
     const visitor = await browser.newContext()
     try {
       const recipient = await visitor.newPage()
@@ -188,7 +189,7 @@ test('a friend invite QR code opens the same one-time invite link', async ({ bro
   }
 })
 
-test('the first-game landing path fits', async ({ page }, testInfo) => {
+test('the first-game landing path fits', async ({ page }) => {
   await page.goto('/')
   const features = page.locator('[data-home-features]')
   for (const width of [1440, 390]) {
@@ -196,12 +197,12 @@ test('the first-game landing path fits', async ({ page }, testInfo) => {
     await expect(features.getByRole('img')).toHaveCount(0)
     await expect(features.getByRole('heading', { name: 'Optimize your wargear', exact: true })).toBeVisible()
     await features.getByRole('heading', { level: 2 }).scrollIntoViewIfNeeded()
-    await page.screenshot({ path: testInfo.outputPath(`landing-path-${width}.png`) })
+    await screenshot(page, `landing-path-${width}.png`)
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBe(0)
   }
 })
 
-test('a saved long roster prints every card without clipping or editing controls', async ({ page }, testInfo) => {
+test('a saved long roster prints every card without clipping or editing controls', async ({ page }) => {
   await signUpThroughForm(page, uniqueName('Printer'))
   const dialog = await openImport(page)
   const entry = rosterText.slice(rosterText.indexOf('Immortals ('), rosterText.indexOf('Exported with'))
@@ -214,5 +215,5 @@ test('a saved long roster prints every card without clipping or editing controls
   const units = page.locator('[data-slot="roster-units"]')
   await expect.poll(() => units.evaluate((element) => element.scrollHeight - element.clientHeight)).toBe(0)
   await expect(page.getByRole('button', { name: 'Roster actions', exact: true })).toBeHidden()
-  await page.screenshot({ path: testInfo.outputPath('printed-roster.png'), fullPage: true })
+  await screenshot(page, 'printed-roster.png', { fullPage: true })
 })

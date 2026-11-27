@@ -12,6 +12,7 @@ import {
   scoreboard,
   playerPanel,
 } from './account'
+import { screenshot } from './screenshots'
 
 /** Narrow screens show one column at a time behind the battle tabs. */
 async function show(page: Page, tab: 'Your side' | 'Battle') {
@@ -58,7 +59,7 @@ test('missed stratagems and scores are recorded late, refused past their limit, 
       await page.setViewportSize(viewport)
       await expect(dialog.getByRole('button', { name: commandPhase })).toHaveAttribute('aria-pressed', 'true')
       await expect(dialog.getByRole('button', { name: 'Record missed action' })).toBeEnabled()
-      await page.screenshot({ path: test.info().outputPath(`missed-action-dialog-${viewport.width}.png`) })
+      await screenshot(page, `missed-action-dialog-${viewport.width}.png`)
     }
     await page.setViewportSize(desktopContext.viewport)
   })
@@ -89,7 +90,7 @@ test('missed stratagems and scores are recorded late, refused past their limit, 
     })
     await expect(page.locator('[data-sonner-toast]', { hasText: 'Insane Bravery has been used this battle.' })).toBeVisible()
     await expect(refused.getByRole('button', { name: 'Record missed action' })).toBeEnabled()
-    await page.screenshot({ path: test.info().outputPath(`missed-action-refused-${viewport.width}.png`) })
+    await screenshot(page, `missed-action-refused-${viewport.width}.png`)
     await refused.getByRole('button', { name: 'Cancel' }).click()
     await expect(refused).toBeHidden()
   }
@@ -131,7 +132,7 @@ test('missed stratagems and scores are recorded late, refused past their limit, 
       'Round 1 · Movement',
     )
     await lateScore.scrollIntoViewIfNeeded()
-    await page.screenshot({ path: test.info().outputPath(`missed-action-events-${viewport.width}.png`) })
+    await screenshot(page, `missed-action-events-${viewport.width}.png`)
   }
 
   await page.getByRole('button', { name: 'Undo latest action' }).click()
@@ -162,6 +163,6 @@ test('missed stratagems and scores are recorded late, refused past their limit, 
       new RegExp(`^Round 1, event \\d+ of \\d+: ${name} uses Insane Bravery for 1 CP, recorded late for round 1, ${name}’s command phase$`),
     )
     await expect(scoreboard(page)).toContainText('movement phase')
-    await page.screenshot({ path: test.info().outputPath(`missed-action-replay-${viewport.width}.png`) })
+    await screenshot(page, `missed-action-replay-${viewport.width}.png`)
   }
 })

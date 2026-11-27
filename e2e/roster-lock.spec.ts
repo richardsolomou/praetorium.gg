@@ -12,6 +12,7 @@ import {
   PHONE,
 } from './account'
 import { productOperator, savedWork, lastPathSegment, expectWorkSynced } from './storage'
+import { screenshot } from './screenshots'
 
 const LOCKED = 'This roster is locked. Unlock it to change it, or keep your changes as a new roster.'
 
@@ -42,7 +43,7 @@ test('a locked roster stays read-only until unlocked while its copies stay edita
     await page.keyboard.press('Escape')
     expect((await operator.roster(id))?.locked).toBe(true)
     await expectNoPageOverflow(page)
-    await page.screenshot({ path: test.info().outputPath(`locked-builder-${width}.png`) })
+    await screenshot(page, `locked-builder-${width}.png`)
   }
 
   await page.setViewportSize({ width: 1440, height: 900 })
@@ -51,11 +52,11 @@ test('a locked roster stays read-only until unlocked while its copies stay edita
   for (const width of [390, 1440]) {
     await page.setViewportSize({ width, height: 900 })
     await expect(row.getByText('Locked', { exact: true })).toBeVisible()
-    await page.screenshot({ path: test.info().outputPath(`locked-library-${width}.png`) })
+    await screenshot(page, `locked-library-${width}.png`)
     await row.getByRole('button', { name: `Actions for ${name}` }).click()
     await expect(page.getByRole('menuitem', { name: 'Edit roster setup' })).toBeDisabled()
     await expect(page.getByRole('menuitem', { name: 'Unlock roster' })).toBeEnabled()
-    await page.screenshot({ path: test.info().outputPath(`locked-row-menu-${width}.png`) })
+    await screenshot(page, `locked-row-menu-${width}.png`)
     if (width === 390) {
       await page.keyboard.press('Escape')
       await expect(page.getByRole('menuitem', { name: 'Duplicate' })).toHaveCount(0)
@@ -113,10 +114,10 @@ test('an edit queued offline is refused visibly after another device locks the r
   const review = page.getByRole('dialog', { name: 'Saved changes' })
   await expect(review.getByText(LOCKED)).toBeVisible()
   expect((await operator.roster(id))?.name).toBe(name)
-  await page.screenshot({ path: test.info().outputPath('locked-refusal-review-1440.png') })
+  await screenshot(page, 'locked-refusal-review-1440.png')
   await page.setViewportSize(PHONE)
   await expect.poll(async () => (await review.boundingBox())?.width).toBe(390)
-  await page.screenshot({ path: test.info().outputPath('locked-refusal-review-390.png') })
+  await screenshot(page, 'locked-refusal-review-390.png')
 
   await review.getByRole('button', { name: 'Keep as a new roster' }).click()
   await page.getByRole('alertdialog').getByRole('button', { name: 'Discard changes' }).click()

@@ -16,6 +16,7 @@ import { attach } from './builder.harness'
 import { NATIVE_BRIDGE_SCRIPT, parseNativeActionRequest } from '../mobile/src/nativeActions'
 import { lastPathSegment } from './storage'
 import { PREVIEW_PLAYER_NAME } from '../scripts/lib/previewPeople'
+import { screenshot } from './screenshots'
 
 test('a full saved army prints selected equipment, both detachments and every page', async ({ page }, testInfo) => {
   await signInAsPreview(page)
@@ -45,12 +46,13 @@ test('a full saved army prints selected equipment, both detachments and every pa
   await expect(pack.getByRole('heading', { name: /^Cursed Legion$/i })).toBeVisible()
   await expect(pack.getByRole('heading', { name: /^Skyshroud Spearhead$/i })).toBeVisible()
   await expect(pack.getByRole('heading', { name: /Insane Bravery/ })).toHaveCount(1)
+  await expect(pack.locator('[data-rule-summary]').first()).toBeVisible()
   const immortals = pack.locator('[data-print-datasheet="Immortals"]')
   await expect(immortals).toContainText('10× Gauss blaster')
   expect(exported).toContain('10x Gauss blaster')
   await page.setViewportSize(PHONE)
   await expect(page.getByRole('button', { name: 'Print battle reference pack', exact: true })).toBeVisible()
-  await page.screenshot({ path: testInfo.outputPath('print-pack-phone.png') })
+  await screenshot(page, 'print-pack-phone.png')
   await page.evaluate(() => {
     Object.defineProperty(window, 'ReactNativeWebView', {
       value: {
@@ -76,7 +78,7 @@ test('a full saved army prints selected equipment, both detachments and every pa
     printBackground: true,
     preferCSSPageSize: true,
   })
-  await page.screenshot({ path: testInfo.outputPath('print-pack-long.png'), fullPage: true })
+  await screenshot(page, 'print-pack-long.png', { fullPage: true })
   await page.emulateMedia({ media: 'screen' })
   await page.getByRole('button', { name: 'Return to roster' }).click()
   const battleUrl = await practiceBattle(page, name)
@@ -88,23 +90,11 @@ test('a full saved army prints selected equipment, both detachments and every pa
   await startBattle(page)
   const player = playerPanel(page, 0)
   await expect(player.locator('[data-army-models]')).toHaveText('48/48')
-  await player.locator('[data-army-models]').screenshot({ path: testInfo.outputPath('recorded-full-army-count.png') })
+  await screenshot(player.locator('[data-army-models]'), 'recorded-full-army-count.png')
   await player.getByRole('button', { name: `Units: ${name}`, exact: true }).click()
   const recordedArmy = page.locator('[data-army-roster]')
   await expect(recordedArmy.locator('[data-unit]')).toHaveCount(13)
-  await page.screenshot({ path: testInfo.outputPath('recorded-full-army.png') })
-})
-
-test('a pack prints its rules as summaries', async ({ page }) => {
-  await page.addInitScript(() => {
-    window.print = () => {
-      document.documentElement.dataset.printed = 'true'
-    }
-  })
-  await signInAsPreview(page)
-  await page.goto('/rosters/preview-necrons-cursed-skyshroud?print=true')
-  await expect(page.locator('html')).toHaveAttribute('data-printed', 'true')
-  await expect(page.locator('[data-battle-reference-pack] [data-rule-summary]').first()).toBeVisible()
+  await screenshot(page, 'recorded-full-army.png')
 })
 
 test('attached datasheets stay grouped and a missing reference never prints a partial pack', async ({ page }) => {
@@ -190,5 +180,5 @@ test('a saved mixed-equipment pack agrees with export and the fielded army', asy
   await expect(recorded).toContainText('Plasma gun')
   await expect(recorded).toContainText('Plague spewer')
   await expect(page.locator('[data-stat="points"]')).toHaveText(points)
-  await recorded.screenshot({ path: testInfo.outputPath('recorded-mixed-equipment.png') })
+  await screenshot(recorded, 'recorded-mixed-equipment.png')
 })
