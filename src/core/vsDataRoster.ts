@@ -475,11 +475,10 @@ export function checkVsRoster(definitions: VsDataDefinitions, roster: VsRoster, 
         add('enhancement-keywords', `${enhancement.name} cannot be taken by the warlord`)
       const taken = (enhancementCounts.get(enhancement.id) ?? 0) + 1
       enhancementCounts.set(enhancement.id, taken)
-      // An Upgrade may be taken three times; only its first copy counts towards the battle size's Enhancements.
-      const upgrade = enhancement.data.type === 'upgrade'
-      const most = enhancement.data.perRoster ?? (upgrade ? 3 : 1)
-      if (taken === most + 1) add('enhancement-repeated', `${enhancement.name} is already taken`)
-      if (!enhancement.data.outsideLimit && (!upgrade || taken === 1) && ++enhancementCount === (size?.enhancements ?? Infinity) + 1)
+      // An Upgrade may be taken three times, any other Enhancement once; only a first copy counts towards the battle size's.
+      const most = enhancement.data.perRoster ?? (enhancement.data.type === 'upgrade' ? 3 : 1)
+      if (taken > most) add('enhancement-repeated', `${enhancement.name} is taken at most ${most === 1 ? 'once' : `${most} times`}`)
+      if (!enhancement.data.outsideLimit && taken === 1 && ++enhancementCount === (size?.enhancements ?? Infinity) + 1)
         add('enhancement-limit', `a roster takes at most ${size!.enhancements} enhancements`)
     }
   })

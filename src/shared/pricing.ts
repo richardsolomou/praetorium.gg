@@ -241,6 +241,23 @@ const unitCatalogueId = (data: PriceInput, unit: PickedUnit) => data.units[unit.
 const pickedMfmUnit = (loaded: LoadedCatalogue, data: PriceInput, unit: PickedUnit) =>
   mfmUnitFor(loaded, unitCatalogueId(data, unit), unit.entryId, data.detachmentIds)
 
+/**
+ * The picks VS Data checks, fielded by their VS Data IDs, and those of them it prices: their catalogue builds stay in the
+ * tree only for the other picks' conditions. In a list VS Data cannot place, their own roster limits stay the catalogue's.
+ */
+function vsPicksOf(
+  picked: readonly { key: number; selection: Selection; vs?: unknown }[],
+  vsPrices: ReadonlyMap<number, number>,
+  ownLimits: boolean,
+) {
+  const vs = picked.filter((unit) => unit.vs)
+  return {
+    checked: new Set(vs.map((unit) => unit.selection)),
+    priced: new Set(vs.flatMap((unit) => (vsPrices.has(unit.key) ? [unit.selection] : []))),
+    ownLimits,
+  }
+}
+
 function selectionPointsOf(forces: readonly (readonly Selection[])[], evaluated: { selectionPoints: readonly (readonly number[])[] }) {
   const points = new Map<Selection, number>()
   forces.forEach((force, forceAt) => force.forEach((selection, at) => points.set(selection, evaluated.selectionPoints[forceAt]?.[at] ?? 0)))
@@ -352,8 +369,6 @@ function changedCountErrors(
     // A VS pick's own selections are checked by VS Data; the catalogue's choices it keeps are not what it fields.
     if (unit.vs) return []
     const saved = data.units[unit.key]!
-    // VS Data checks the models and wargear of a pick fielded by its IDs.
-    if (saved.vs) return []
     const short = (built: BuiltUnit) =>
       Object.entries(saved.spreads ?? {}).flatMap(([key, counts]) =>
         Object.entries(counts).flatMap(([id, count]) => {
@@ -433,13 +448,7 @@ export function calculateRosterTotals(
   const { picked, forceSelections, vsPrices } = rosterForces(loaded, data, detachmentSelection, sharedBuiltUnitsFor(loaded))
   if (savedSelectionErrors(data, picked, loaded).length) return null
   const forces = [...forceSelections.values()]
-  const vsSelections = new Set(picked.flatMap((unit) => (data.units[unit.key]?.vs ? [unit.selection] : [])))
-  const evaluated = evaluateForces(
-    forces,
-    loaded.index,
-    { primaryCatalogueId: data.catalogueId },
-    { checked: vsSelections, priced: vsSelections },
-  )
+  const evaluated = evaluateForces(forces, loaded.index, { primaryCatalogueId: data.catalogueId }, vsPicksOf(picked, vsPrices, false))
   const pointsBySelection = selectionPointsOf(forces, evaluated)
   const adjustment = adjustUnitPoints(loaded, data, picked, vsPrices, pointsBySelection)
   return {
@@ -669,12 +678,9 @@ function calculateRoster(
     unit.vs?.models ?? remember(builtModelKinds, unit.source, () => modelKindsOf(unit.entryId, unit.selection, loaded.index, options))
   // VS Data checks the army as a whole where it records the list's book and Detachments; the catalogue's own roster
   // limits then stand only for the datasheets VS Data leaves to it.
-  const checkedUnits = picked.map((unit) => ({ ...unit, keywords: keywordNamesOf(unit), vs: data.units[unit.key]?.vs }))
+  const checkedUnits = picked.map((unit) => ({ ...unit, keywords: keywordNamesOf(unit), vs: unit.vs?.unit }))
   const vsData = vsDataErrors(loaded.vsRoster, data, checkedUnits)
-  // A pick fielded by VS Data IDs is VS Data's to check and price; its catalogue build only lets the other picks count it.
-  const vsSelections = new Set(checkedUnits.flatMap((unit) => (unit.vs ? [unit.selection] : [])))
-  const vsPicks = { checked: vsSelections, priced: vsSelections, ownLimits: vsData === null }
-  const whole = evaluateForces(forces, loaded.index, options, vsPicks)
+  const whole = evaluateForces(forces, loaded.index, options, vsPicksOf(picked, vsPrices, vsData === null))
   const selectionPoints = selectionPointsOf(forces, whole)
   const points = whole.points + adjustUnitPoints(loaded, data, picked, vsPrices, selectionPoints)
   const pointCaps = pointCapErrors(forces, loaded.index, options, (selection) => selectionPoints.get(selection) ?? 0)

@@ -147,7 +147,7 @@ describe('vsDataErrors', () => {
       unit({
         entryId: 'bs-squad',
         name: 'Squad',
-        vs: { models: { 'host.squad.sergeant': 1, 'host.squad.trooper': 4 }, options: {}, ...vs },
+        vs: { unit: 'host.squad', models: { 'host.squad.sergeant': 1, 'host.squad.trooper': 4 }, options: {}, ...vs },
       })
 
     it('is checked on its own model counts', () => {
@@ -178,7 +178,12 @@ describe('vsDataErrors', () => {
 
     it('takes the Enhancement it names, whatever its catalogue choices say', () => {
       expect(
-        errors([unit({ entryId: 'bs-mob', vs: { models: { 'host.mob.grunt': 10 }, options: {}, enhancement: 'host.guard.crown' } })]),
+        errors([
+          unit({
+            entryId: 'bs-mob',
+            vs: { unit: 'host.mob', models: { 'host.mob.grunt': 10 }, options: {}, enhancement: 'host.guard.crown' },
+          }),
+        ]),
       ).toEqual([{ entryId: 'bs-mob', entryName: 'bs-mob', message: 'cannot take Crown' }])
     })
 

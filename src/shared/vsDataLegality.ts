@@ -1,6 +1,5 @@
 import { type VsDataConstruction, type VsDataDefinitions, vsDataDefinitions } from '../core/vsDataConstruction'
 import { checkVsRoster, checkVsUnit, type VsProblem, type VsRosterUnit } from '../core/vsDataRoster'
-import type { VsPick } from '../core/roster'
 import { hasWarlordToggle, type UnitChoice, type UnitToggle } from '../core/unitChoices'
 import { remember } from '../core/collections'
 import { nonMatchedPlayKind } from '../core/name'
@@ -52,8 +51,8 @@ export type CheckedUnit = {
   /** The unit's keywords as the catalogue reads them in the list. */
   keywords: readonly string[]
   choices: readonly Pick<UnitChoice, 'name' | 'options'>[]
-  /** The unit by VS Data IDs, which VS Data checks whole, models and wargear included, instead of reading its choices. */
-  vs?: VsPick
+  /** The unit as VS Data fields it, for a pick by VS Data IDs: VS Data checks it whole, models and wargear included. */
+  vs?: VsRosterUnit
 }
 
 export type VsDataError = { entryId: string; entryName: string; message: string }
@@ -87,11 +86,9 @@ export function vsDataErrors(
   const battleSize = definitions.all('battle-size').find((size) => size.data.points === list.limit)?.id
   const taken = new Set<string>()
   const checked = units.flatMap((unit): { unit: CheckedUnit; read: VsRosterUnit; offersAllegiance: boolean }[] => {
-    // A unit fielded by VS Data IDs is VS Data's wholly: its datasheet is one VS Data defines exactly.
-    const vsUnit = unit.vs && data.units[unit.entryId]
-    if (unit.vs && vsUnit) {
+    if (unit.vs) {
       if (unit.vs.enhancement) taken.add(unit.vs.enhancement)
-      return [{ unit, read: { unit: vsUnit, ...unit.vs }, offersAllegiance: true }]
+      return [{ unit, read: unit.vs, offersAllegiance: true }]
     }
     const id = vsDataChecks(data, list.catalogueId, unit)
     if (!id) return []
@@ -283,10 +280,9 @@ export function vsPickErrors(data: VsRosterData | undefined, units: readonly Che
   if (!data) return []
   const definitions = remember(definitionsOf, data, () => vsDataDefinitions(data.construction))
   return units.flatMap((unit) => {
-    const id = data.units[unit.entryId]
-    if (!unit.vs || !id) return []
+    if (!unit.vs) return []
     const problems: VsProblem[] = []
-    checkVsUnit(definitions, { unit: id, ...unit.vs }, (code, message) => problems.push({ code, unit: 0, message }))
+    checkVsUnit(definitions, unit.vs, (code, message) => problems.push({ code, unit: 0, message }))
     return problems.flatMap((problem) => described(problem, [{ unit }], definitions) ?? [])
   })
 }
