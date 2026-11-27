@@ -10,6 +10,7 @@ import { type VsDataConstruction, vsDataConstructionSchema, vsDataDefinitions } 
 import { type VsDataIds, type VsPointsIndex, vsPointsIndex } from '../shared/vsDataPoints'
 import { type VsRosterData, vsRosterData } from '../shared/vsDataLegality'
 import { type VsProfilesIndex, vsProfilesIndex } from '../shared/vsDataProfiles'
+import { vsLinksIndex } from '../shared/vsDataAttachments'
 import { type CatalogueComposition, readCatalogueComposition } from './catalogueComposition'
 
 const ids: VsDataIds = {
@@ -32,9 +33,10 @@ export function vsPointsIn(directory: string, index: CatalogueIndex, editionId?:
 }
 
 /**
- * A rules version's VS Data stat lines, from its own release's construction file, with weapon keywords spelled by
- * `glossary`; null where the snapshot has none, and for a rules version `reads` leaves out. Only the current rules
- * version's are read so far: the earlier releases print many lines otherwise than the catalogue, in both directions.
+ * A rules version's VS Data stat lines, attachments and transport capacities, from its own release's construction file,
+ * with weapon keywords spelled by `glossary`; null where the snapshot has none, and for a rules version `reads` leaves
+ * out. Only the current rules version's are read so far: the earlier releases print many lines otherwise than the
+ * catalogue, in both directions.
  */
 export function vsProfilesIn(
   directory: string,
@@ -45,13 +47,10 @@ export function vsProfilesIn(
 ): VsProfilesIndex | null {
   const found = constructionIn(directory, editionId)
   if (!found || !reads(found.entry)) return null
-  return vsProfilesIndex(
-    vsDataDefinitions(found.construction),
-    ids.units,
-    found.entry.base ? null : found.entry.edition.id,
-    glossary,
-    (entryId) => nameIn(index, entryId),
-  )
+  const definitions = vsDataDefinitions(found.construction)
+  const edition = found.entry.base ? null : found.entry.edition.id
+  const name = (entryId: string) => nameIn(index, entryId)
+  return { ...vsProfilesIndex(definitions, ids.units, edition, glossary, name), ...vsLinksIndex(definitions, ids, edition, name) }
 }
 
 const nameIn = (index: CatalogueIndex, entryId: string) => {

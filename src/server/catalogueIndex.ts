@@ -146,17 +146,21 @@ export function* loadCatalogueSteps(
       get: () => (combat === undefined ? (combat = combatOfVsDataOrWords(vsData, ownReading)) : combat),
     })
   }
+  const vsProfiles = vsProfilesIn(directory, index, ownTexts.keywords ?? [], edition?.id)
   const loaded: LoadedCatalogue = {
     ...ownTexts,
-    index: indexOf(
-      shown,
-      shown.shown(selected),
-      effects
-        ? {
-            get: (key) => remember(readFacts, key, () => factsOf(key)),
-          }
-        : undefined,
-    ),
+    index: {
+      ...indexOf(
+        shown,
+        shown.shown(selected),
+        effects
+          ? {
+              get: (key) => remember(readFacts, key, () => factsOf(key)),
+            }
+          : undefined,
+      ),
+      ...(vsProfiles?.attachments ? { attachments: vsProfiles.attachments } : {}),
+    },
     definitions: shown,
     factionContents: shownCards.factions,
     datacards: shownCards,
@@ -164,7 +168,6 @@ export function* loadCatalogueSteps(
   yield
   const vsPoints = vsPointsIn(directory, loaded.index, edition?.id)
   const vsRoster = vsRosterDefinitionsIn(directory, loaded.index, edition?.id)
-  const vsProfiles = vsProfilesIn(directory, loaded.index, loaded.keywords ?? [], edition?.id)
   return {
     ...loaded,
     mfm: yield* loadMfmSteps(directory),
