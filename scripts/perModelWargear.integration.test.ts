@@ -7,7 +7,7 @@ import type { LoadedCatalogue } from '../src/shared/catalogueIndex'
 import { calculateRosterPrice } from '../src/shared/pricing'
 import { exportRosterFile, importRosterFile } from '../src/shared/rosterFiles'
 import type { LoadedRules } from '../src/shared/rules'
-import { loadSnapshot } from './lib/catalogueSnapshotLoad'
+import { sharedSnapshot } from './lib/catalogueSnapshotLoad'
 
 const directory = process.env.CATALOGUE_DIR ?? 'catalogue-data'
 
@@ -23,7 +23,7 @@ describe.skipIf(!fs.existsSync(path.join(directory, 'definitions')))('wargear ch
     calculateRosterPrice({ catalogueId, detachmentIds: [], disposition: null, limit: 2000, units: [pick] }, loaded, rules)!
 
   beforeAll(() => {
-    ;({ catalogue: loaded, rules } = loadSnapshot(directory))
+    ;({ catalogue: loaded, rules } = sharedSnapshot(directory))
   })
 
   it('charges a storm shield once for every Deathwatch Terminator holding one', () => {

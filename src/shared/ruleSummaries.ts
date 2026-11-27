@@ -1,4 +1,4 @@
-import type { RuleSummaries, RuleSummary } from '../contracts/rules'
+import { ruleSummaryBlocks, type RuleSummaries, type RuleSummary } from '../contracts/rules'
 import { hasTextTokens, type TextToken, textToken, textTokensIn } from '../core/sourceText'
 
 /** A summary describes a whole rule, so it stands in only for tokens showing whole strings, not one bullet of a list. */
@@ -50,8 +50,8 @@ export const tokensAtHome = (
   })
 
 /** A summary as plain text, for a screen that draws no markup: paragraphs apart, list items on lines of their own. */
-export const summaryPlainText = ({ blocks }: RuleSummary) =>
-  blocks
+export const summaryPlainText = (summary: RuleSummary) =>
+  ruleSummaryBlocks(summary)
     .map((block) =>
       'paragraph' in block
         ? block.paragraph.map((run) => run.text).join('')

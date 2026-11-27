@@ -19,6 +19,7 @@ import { importRosterFormat, UNSUPPORTED_ARMY_TEXT } from '../../../shared/roste
 import { battleSizeLabel, ROSTER_NAME_MAX_LENGTH } from '../../../core/battle'
 import { importFailureReport } from '../feedback/feedback'
 import { sendFeedback } from '../feedback/sendFeedback'
+import { openFeedback } from '../feedback/support'
 import { Problem } from '../../components/Problem'
 import { Choice } from '../../components/Choice'
 import { toast } from 'sonner'
@@ -341,6 +342,25 @@ export function RosterImport({
                     {review.units.length} of {review.sourceUnitCount} matched {review.units.length === 1 ? 'entry' : 'entries'}
                   </span>
                 </p>
+                {!matchedAll && !picked && !link ? (
+                  <p className="text-xs text-dim">
+                    We were sent this list so we can fix what didn’t match.{' '}
+                    <button
+                      type="button"
+                      className="text-info underline-offset-4 hover:underline"
+                      onClick={() =>
+                        openFeedback({
+                          from: 'import',
+                          kind: 'Problem',
+                          about: `A roster import that matched ${review.units.length} of ${review.sourceUnitCount} entries`,
+                          question: 'Anything we should know about this list?',
+                        })
+                      }
+                    >
+                      Add a note
+                    </button>
+                  </p>
+                ) : null}
                 <dl className="divide-y divide-edge border-y border-edge">
                   <ReviewRow label="Reported army" name="reported">
                     {review.reportedPoints === null ? 'points not stated' : `${review.reportedPoints} points`}

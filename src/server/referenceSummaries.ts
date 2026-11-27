@@ -1,6 +1,7 @@
 import {
   MISSION_SUMMARIES,
   RULE_SUMMARIES,
+  ruleSummaryBlocks,
   type RuleSection,
   type RuleSummaries,
   type RuleSummary,
@@ -232,7 +233,7 @@ export const sectionWithSummaries = (finder: RuleSummaryFinder, section: RuleSec
 export function servedRuleSummary(summary: RuleSummary): ServedRuleSummary {
   const questions = summary.questions.map((question) => `The official text leaves this open: ${question}`)
   const parts = Object.entries(summary.parts ?? {}).map(([part, blocks]) => [part, blocks.map(blockMarkdown).join('\n\n')])
-  return { text: [...summary.blocks.map(blockMarkdown), ...questions].join('\n\n'), ...Object.fromEntries(parts) }
+  return { text: [...ruleSummaryBlocks(summary).map(blockMarkdown), ...questions].join('\n\n'), ...Object.fromEntries(parts) }
 }
 
 const blockMarkdown = (block: RuleSummaryBlock) =>

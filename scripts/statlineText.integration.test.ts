@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { datasheetCharacteristicKindOf, datasheetProfileKindOf, weaponShaped } from '../src/core/datasheetStructure'
 import { hasTextTokens } from '../src/core/sourceText'
-import { loadCatalogue } from '../src/server/catalogueIndex'
+import { sharedSnapshot } from './lib/catalogueSnapshotLoad'
 import { datasheetIn } from '../src/shared/catalogue'
 
 const source = process.env.CATALOGUE_DIR ?? 'catalogue-data'
@@ -11,7 +11,7 @@ const STATLINES = new Set(['unit', 'ranged-weapon', 'melee-weapon'])
 describe.skipIf(!fs.existsSync(source))('datasheet statlines', () => {
   // A statline withheld as rules text reaches the page as raw text tokens, whatever profile type prints it.
   it('publish every characteristic as printed', { timeout: 300_000 }, () => {
-    const loaded = loadCatalogue(source)!
+    const loaded = sharedSnapshot(source).catalogue
     const withheld = [...loaded.index.datasheets].flatMap(([catalogueId, entryIds]) =>
       [...entryIds].flatMap((entryId) => {
         const sheet = datasheetIn(loaded, catalogueId, entryId)

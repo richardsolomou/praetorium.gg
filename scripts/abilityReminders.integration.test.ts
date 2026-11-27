@@ -5,16 +5,16 @@ import { datasheetIn } from '../src/shared/catalogue'
 import { combatUnitsFor } from '../src/shared/combatUnits'
 import { describeDatasheetAbilities } from '../src/shared/datasheetDescriptions'
 import { datasheetCombatant } from '../src/shared/rosterCombatRules'
-import { loadSnapshotWithRules } from './lib/catalogueSnapshotLoad'
+import { sharedSnapshot } from './lib/catalogueSnapshotLoad'
 
 const directory = process.env.CATALOGUE_DIR ?? 'catalogue-data'
 
 describe.skipIf(!fs.existsSync(directory))('ability reminders', () => {
-  let snapshot: ReturnType<typeof loadSnapshotWithRules>
+  let snapshot: ReturnType<typeof sharedSnapshot>
   let index: ReturnType<typeof combatUnitsFor>
 
   beforeAll(() => {
-    snapshot = loadSnapshotWithRules(directory)
+    snapshot = sharedSnapshot(directory)
     index = combatUnitsFor(snapshot.catalogue, snapshot.rules)
   }, 180_000)
 

@@ -24,14 +24,6 @@ Register and verify the operator account, then confirm its player ID from that a
 - `/whats-new` reads `CHANGELOG.md`, which each release cuts to the releases it lists, moving older ones into `changelog/<month>.md`; correct or remove an entry by editing it.
 - Rotating `DISCORD_ANNOUNCEMENTS_WEBHOOK_URL` must keep the R2 receipts; inspect pending deliveries before retrying an announcement.
 
-## CI runners
-
-- Every job runs on GitHub-hosted runners except browser-test runners 2 and 3 of the owner's own pull requests, which run on the owner's desktop: repository runners labelled `self-hosted`, `linux`, `desktop`, that only connect out to GitHub. The account runs 20 hosted jobs at once, so this keeps a pull request's other jobs from queueing.
-- The `runs-on` expression in `ci-e2e.yml` is the safety gate: only a `pull_request` event from a branch of this repository, opened by `richardsolomou`, reaches the desktop, since those jobs hold the R2 read keys. Dependabot, forks, other authors, and every release, deploy, scheduled or dispatched job stay hosted, so production never waits on the desktop.
-- The repository variable `DESKTOP_RUNNER` switches it: `on` routes those jobs to the desktop, anything else keeps them hosted. Nothing falls back on its own, so before the desktop goes off for long, run `gh variable set DESKTOP_RUNNER --body off` and re-run the queued jobs of open pull requests.
-- The runners run as a dedicated user in systemd services with a capped memory share and a CPU share no larger than interactive work, with the owner's files and the Windows host out of reach, and each job starts with an empty `/tmp`. Browser-test ports are chosen free per stack, so two pull requests' runners can share the machine.
-- Each desktop runner holds about 5 GB, and the desktop's other work can still exhaust its memory; a runner whose job failed with `The runner has received a shutdown signal` was killed for memory, so re-run it.
-
 ## Pull request previews
 
 - Previews run at `pr-<number>.praetorium.gg`; ready means `/api/health` reports the expected commit. A preview deploys only when a maintainer adds the `preview` label (`gh pr edit <number> --add-label preview`), so pushes do not crowd production on hera; the build takes the label off, so adding it again deploys the newest commit, and the preview comment names the commit it shows. A fork's preview also waits for approval in the `pr-preview` environment, because the fork's own copy of the image workflow decides when it builds, and keeps its label, so remove it before adding it again.

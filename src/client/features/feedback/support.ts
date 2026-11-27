@@ -4,7 +4,7 @@ import { posthog } from 'posthog-js'
 import { useEffect, useSyncExternalStore } from 'react'
 import { supportIdentity } from '../../functions'
 import { meQuery, supportIdentityKey, supportKey, supportMessagesKey, supportTicketsKey, supportTicketsQuery } from '../../queries'
-import type { ReportedRecord } from '../../../contracts/feedback'
+import type { FeedbackKind, ReportedRecord } from '../../../contracts/feedback'
 
 // A local dev server never loads PostHog, so it gets a stand-in with conversations to read; builds drop this.
 if (import.meta.env.MODE === 'development' && typeof window !== 'undefined') {
@@ -132,8 +132,22 @@ export function SupportIdentity() {
   return null
 }
 
-/** What the support panel shows: the player's conversations, a new message, or one conversation. */
-export type SupportView = { kind: 'inbox' } | { kind: 'compose'; record?: ReportedRecord } | { kind: 'thread'; ticketId: string }
+export type FeedbackSource = 'menu' | 'rail' | 'header' | 'support' | 'docs' | 'datasheet' | 'roster' | 'error' | 'battle' | 'import'
+
+/** What a new message starts from when Praetorium opens the panel with something already known. */
+export type FeedbackDraft = {
+  /** Where the player opened the panel, so the entry points that bring feedback can be told apart. */
+  from: FeedbackSource
+  kind?: FeedbackKind
+  record?: ReportedRecord
+  /** Sent with the message, as `feedbackTicketMessage` describes. */
+  about?: string
+  /** The question the panel asks instead of its general one. */
+  question?: string
+}
+
+/** What the support panel shows: a new message above the player's latest conversations, all of them, or one. */
+export type SupportView = { kind: 'home'; draft?: FeedbackDraft } | { kind: 'inbox' } | { kind: 'thread'; ticketId: string }
 
 const listeners = new Set<(view: SupportView) => void>()
 /** A request made before the panel listens, as a link opening a conversation on a fresh page load is. */
@@ -145,11 +159,27 @@ function openSupport(view: SupportView) {
   for (const listener of listeners) listener(view)
 }
 
-export const openFeedback = () => openSupport({ kind: 'compose' })
+export const openFeedback = (draft: FeedbackDraft) => openSupport({ kind: 'home', draft })
 /** Feedback that names the datasheet a player reports from, so they need not describe which one. */
-export const reportDataProblem = (record: ReportedRecord) => openSupport({ kind: 'compose', record })
-export const openConversations = () => openSupport({ kind: 'inbox' })
+export const reportDataProblem = (record: ReportedRecord) =>
+  openFeedback({ from: record.from, kind: 'Problem', record, question: 'What looks wrong, and what does the source say?' })
+/** Feedback about an error the player just saw, carrying its message and the page it appeared on. */
+export const reportProblem = (message: string) =>
+  openFeedback({
+    from: 'error',
+    kind: 'Problem',
+    about: `The error “${message}” on ${window.location.pathname}`,
+    question: 'What were you doing when this happened?',
+  })
 export const openConversation = (ticketId: string) => openSupport({ kind: 'thread', ticketId })
+
+/** Where a reply waits: the one conversation with replies the player has not read, or all of them when several do. */
+export function openReplies(tickets: readonly { id: string; unread_count?: number }[] | undefined) {
+  const unread = tickets?.filter((ticket) => ticket.unread_count) ?? []
+  if (unread.length === 1) openConversation(unread[0]!.id)
+  else if (unread.length) openSupport({ kind: 'inbox' })
+  return unread.length > 0
+}
 
 export function onOpenSupport(listener: (view: SupportView) => void) {
   listeners.add(listener)

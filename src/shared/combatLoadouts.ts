@@ -61,7 +61,7 @@ export function combatLoadoutSpace(loaded: LoadedCatalogue, data: LoadoutRequest
   const pick = data.picks[data.pickIndex]
   const context = rosterDatasheetContext(loaded, data)
   const detachments = rosterDetachments(loaded, data.catalogueId, data.detachmentIds).selections
-  const build = (candidate: RosterPick) => buildRosterPick(loaded, data.catalogueId, detachments, candidate)
+  const build = (candidate: RosterPick) => buildRosterPick(loaded, data.catalogueId, detachments, candidate, data.detachmentIds)
   const base = pick ? build(pick) : null
   if (!pick || !base || !context) return null
   const errors = (selection: typeof base.selection) =>
@@ -182,7 +182,7 @@ export async function* combatLoadoutCandidates(
   const context = rosterDatasheetContext(loaded, data)
   if (!context) throw new Error('The loadout could not be loaded.')
   const detachments = rosterDetachments(loaded, data.catalogueId, data.detachmentIds).selections
-  const build = (candidate: RosterPick) => buildRosterPick(loaded, data.catalogueId, detachments, candidate)
+  const build = (candidate: RosterPick) => buildRosterPick(loaded, data.catalogueId, detachments, candidate, data.detachmentIds)
   const picks = indexes.map((index) => data.picks[index]!)
   const base = picks.map(build)
   if (base.some((unit) => !unit)) throw new Error('The attached unit could not be loaded.')

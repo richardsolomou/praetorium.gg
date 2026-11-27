@@ -57,8 +57,25 @@ export function sizeOf(base: Selection, index: CatalogueIndex): UnitSize {
   )[0]
   if (!flexible) return { min: total, max: total, models: total, path: [] }
 
-  const others = total - flexible.total
-  return { min: others + flexible.min, max: others + flexible.max, models: total, path: flexible.adjust }
+  const sized = [flexible, ...companionGroups(groups, flexible)]
+  const sum = (field: 'min' | 'max' | 'total') => sized.reduce((counted, group) => counted + group[field], 0)
+  const others = total - sum('total')
+  return { min: others + sum('min'), max: others + sum('max'), models: total, path: flexible.adjust }
+}
+
+/**
+ * The other groups a required squad grows into once it is full, as twenty Boyz field a second Nob.
+ * Copies of one model split by their wargear share a path and are the squad itself.
+ */
+export function companionGroups(groups: readonly BoundedGroup[], squad: BoundedGroup): BoundedGroup[] {
+  if (squad.min <= 0) return []
+  const paths = new Set([squad.adjust.join('/')])
+  return groups.filter((group) => {
+    const path = group.adjust.join('/')
+    if (group.min <= 0 || paths.has(path)) return false
+    paths.add(path)
+    return true
+  })
 }
 
 /** Models that cannot vary, and the groups that can. */

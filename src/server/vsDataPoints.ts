@@ -74,52 +74,9 @@ function constructionIn(
   return { entry, construction: vsDataConstructionSchema.parse(JSON.parse(fs.readFileSync(file, 'utf8'))) }
 }
 
-/** What VS Data's checker reads of a roster beyond its units' wargear: everything but options, wargear and points. */
-const ROSTER_KINDS = ['faction', 'battle-size', 'detachment', 'enhancement', 'unit', 'model', 'allegiance']
-
-/** A rules version's roster definitions, as VS Data's checker reads a list whose wargear the catalogue builds. */
+/** A rules version's roster definitions and points: what VS Data's checker reads of a list and what a VS pick is built and priced from. */
 export function vsRosterDefinitionsIn(directory: string, index: CatalogueIndex, editionId?: string): VsRosterData | null {
   const found = constructionIn(directory, editionId)
   if (!found) return null
-  const { construction } = found
-  const strip = (kind: string, data: Record<string, unknown>) => {
-    if (kind === 'model')
-      return {
-        unit: data.unit,
-        min: data.min,
-        max: data.max,
-        ...(data.bySize ? { bySize: data.bySize } : {}),
-        ...(data.keywords ? { keywords: data.keywords } : {}),
-        wargear: {},
-      }
-    if (kind !== 'unit') return data
-    const {
-      wargear: _wargear,
-      defaults: _defaults,
-      optionGroups: _groups,
-      compositions: _compositions,
-      modelGroups: _modelGroups,
-      ...kept
-    } = data
-    return kept
-  }
-  const pruned: VsDataConstruction = {
-    release: construction.release,
-    rulesVersion: construction.rulesVersion,
-    unavailable: construction.unavailable,
-    ...(construction.replacements ? { replacements: construction.replacements } : {}),
-    points: [],
-    definitions: Object.fromEntries(
-      ROSTER_KINDS.map((kind) => [
-        kind,
-        Object.fromEntries(
-          Object.entries(construction.definitions[kind] ?? {}).map(([id, record]) => [
-            id,
-            { name: record.name, data: strip(kind, record.data) },
-          ]),
-        ),
-      ]),
-    ),
-  }
-  return vsRosterData(pruned, ids, found.entry.base ? null : found.entry.edition.id, (entryId) => nameIn(index, entryId))
+  return vsRosterData(found.construction, ids, found.entry.base ? null : found.entry.edition.id, (entryId) => nameIn(index, entryId))
 }

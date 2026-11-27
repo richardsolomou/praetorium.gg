@@ -4,7 +4,7 @@ import { abilityKeysNamed, recordsPrinting, summaryPlainText } from './ruleSumma
 
 const summary = (text: string): RuleSummary => ({ blocks: [{ paragraph: [{ text }] }], questions: [] })
 const textOf = ([found]: readonly { summary: RuleSummary }[]) =>
-  found?.summary.blocks[0] && 'paragraph' in found.summary.blocks[0] ? found.summary.blocks[0].paragraph[0]?.text : null
+  found?.summary.blocks?.[0] && 'paragraph' in found.summary.blocks[0] ? found.summary.blocks[0].paragraph[0]?.text : null
 const answer = {
   records: { 'ability:a': summary('First stratagem.'), 'ability:b': summary('Second stratagem.') },
   texts: { shared: ['ability:a', 'ability:b'], own: ['ability:b'] },

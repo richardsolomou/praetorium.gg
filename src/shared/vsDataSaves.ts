@@ -1,4 +1,4 @@
-import type { RuleSummary } from '../contracts/rules'
+import { ruleSummaryBlocks, type RuleSummary } from '../contracts/rules'
 import type { Datasheet } from '../core/datasheet'
 import { datasheetCharacteristicKind, datasheetProfileKind, isWrittenInvulnerableSave } from '../core/datasheetStructure'
 import type { CombatRule, CombatRuleChoice } from '../core/combatRules'
@@ -11,7 +11,7 @@ const isInvulnerable = (name: string) => datasheetCharacteristicKind(name) === '
 
 /** A summary's words alone, as a label: VS Data's own wording, never a source's. */
 export const summaryWords = (summary: RuleSummary) =>
-  summary.blocks
+  ruleSummaryBlocks(summary)
     .flatMap((block) => ('paragraph' in block ? [block.paragraph] : block.items))
     .map((runs) => runs.map((run) => run.text).join(''))
     .join(' ')

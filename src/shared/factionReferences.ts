@@ -1,3 +1,4 @@
+import { vsDataWithoutDetachments } from './vsDataLegality'
 import { canonicalDetachmentName } from '../core/detachmentName'
 import { datacardsFactionKeys } from './datacards'
 import type { StandingFaction } from '../core/standings'
@@ -13,6 +14,10 @@ import { detachmentPoints } from './detachmentPoints'
 import { exclusiveDetachments } from './rosterDetachments'
 import { isUpgrade, mfmDetachmentFor, mfmSlugs, mfmVersions } from './mfm'
 import { catalogueEditionId } from '../core/catalogueEdition'
+
+/** The Detachments a faction's lists can take: none where its own rules replace Detachment selection, as a Titan army's do. */
+export const detachmentOptionsOf = (loaded: LoadedCatalogue, factionId: string) =>
+  vsDataWithoutDetachments(loaded.vsRoster, factionId) ? [] : (loaded.detachments.get(factionId)?.options ?? [])
 
 export function isReferenceDetachment(
   loaded: LoadedCatalogue,
@@ -95,7 +100,7 @@ function factionSummary(loaded: LoadedCatalogue, rules: LoadedRules | null | und
     .find(Boolean)
   const versions = mfmVersions(loaded.mfm)
   const version = points?.attribution ? null : (points?.version ?? (versions.size === 1 ? versions.values().next().value : null))
-  const detachments = loaded.detachments.get(faction.id)?.options ?? []
+  const detachments = detachmentOptionsOf(loaded, faction.id)
   const referenceDetachments = detachments.filter((detachment) => isReferenceDetachment(loaded, rules, faction, detachment))
   const datasheets = listedDatasheets(loaded, faction.id, { factionCards: true, nonMatchedPlay: true }).filter(({ id }) =>
     isReferenceDatasheet(loaded, faction.id, id),
@@ -184,6 +189,8 @@ function buildFactions(loaded: LoadedCatalogue, rules: LoadedRules | null | unde
         const content = factionContentOf(loaded, faction.name)
         const rulesId = rulesFaction(rules, routeSlug(faction.name))
         const exclusive = exclusiveDetachments(loaded, faction.id)
+        // A faction that takes no Detachment plays its own dispositions.
+        const without = vsDataWithoutDetachments(loaded.vsRoster, faction.id)
         return {
           ...summary,
           armyRules: [
@@ -195,6 +202,9 @@ function buildFactions(loaded: LoadedCatalogue, rules: LoadedRules | null | unde
             ...(rules?.supplementalArmyRules?.get(rulesId) ?? []),
           ],
           referenceDetachmentIds: referenceDetachments.map((detachment) => detachment.id),
+          ...(without
+            ? { withoutDetachments: { dispositions: without.map((id) => ({ id, name: rules?.dispositions?.get(id) ?? id })) } }
+            : {}),
           detachments: detachments.map((detachment) => {
             const reference = detachmentNamed(rules?.detachmentReferences?.get(rulesId), detachment.name)
             const detail = detachmentNamed(rules?.detachmentDetails?.get(rulesId), detachment.name)
