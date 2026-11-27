@@ -47,6 +47,14 @@ const modelLine = z
   .optional()
 export { id as idSchema, name as nameSchema, rosterLimit as rosterLimitSchema, ruleId as ruleIdSchema }
 export const detachmentIdSchema = z.string().min(1).max(128)
+const vsId = z.string().min(1).max(160)
+const vsPickSchema = z.object({
+  models: z.record(vsId, z.number().int().min(0).max(60)),
+  options: z.record(vsId, z.record(vsId, z.number().int().min(0).max(60))),
+  enhancement: vsId.optional(),
+  allegiance: vsId.optional(),
+  warlord: vsId.optional(),
+})
 // Descriptions are for agents, who build picks from get_unit_options without seeing the builder.
 const grantPickSchema = z.object({
   rule: name,
@@ -95,6 +103,11 @@ export const rosterPickSchema = z.object({
     .literal(true)
     .optional()
     .describe('Set on a unit saved before choices started on the printed default; keep it as read, never set it.'),
+  vs: vsPickSchema
+    .optional()
+    .describe(
+      'The unit by VS Data IDs, for a datasheet VS Data defines exactly; when present it stands for models, choices, spreads and toggles.',
+    ),
 })
 const phase = z.enum(PHASES)
 const missed = z.object({ round: z.number().int().min(1).max(BATTLE_ROUNDS), phase, turn: id }).optional()

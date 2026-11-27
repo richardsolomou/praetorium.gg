@@ -39,6 +39,22 @@ export type RosterPick = {
   note?: string
   /** Saved before a choice started on the option its card prints: a choice it never made stays on the cheapest, as it was. */
   floor?: true
+  /**
+   * The unit as VS Data's definitions field it, for a datasheet VS Data defines exactly: its model counts, its taken
+   * selections, and its Enhancement, allegiance and Warlord model by VS Data ID, read against the VS Data unit `entryId`
+   * names through `catalogue/legacy-ids/units.json`. A pick with it reads `models`, `choices`, `spreads` and `toggles` from
+   * it instead, and keeps every other field.
+   */
+  vs?: VsPick
+}
+
+/** VS Data's saved roster unit (`VsRosterUnit`) without the unit, which the pick's datasheet names, or its size, which its models give. */
+export type VsPick = {
+  models: Record<string, number>
+  options: Record<string, Record<string, number>>
+  enhancement?: string
+  allegiance?: string
+  warlord?: string
 }
 
 type BuildContext = ChoiceOptions & {
