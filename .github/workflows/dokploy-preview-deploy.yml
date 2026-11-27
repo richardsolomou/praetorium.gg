@@ -33,10 +33,11 @@ jobs:
             else any(.[]; .conclusion != "skipped") end')
           echo "built=$built" >> "$GITHUB_OUTPUT"
 
-  # Previews share hera with production, so each one waits for a maintainer rather than deploying on every push.
+  # A branch of this repository builds a preview only when a maintainer labels it. A fork's pull request runs its own copy of
+  # the image workflow, which could build on every push, so its preview also waits for a maintainer here.
   approve:
     needs: image
-    if: needs.image.outputs.built == 'true'
+    if: needs.image.outputs.built == 'true' && github.event.workflow_run.head_repository.full_name != github.repository
     runs-on: ubuntu-latest
     environment: pr-preview
     steps:

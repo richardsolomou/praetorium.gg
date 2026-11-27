@@ -125,6 +125,23 @@ describe('combat weapon ownership', () => {
     const granted = { ...kept, values: [...kept.values, { name: 'InSv', value: '4+', baseValue: '' }] }
     expect(carrierModelProfiles(carrier!, [sheetProfile('shielded', 'Trooper', '3'), granted])).toEqual([1])
   })
+  it('finds the one datasheet profile of a merged model’s name where the datasheet prints other values than its own', () => {
+    const data = buildIndex(
+      [
+        {
+          catalogue: {
+            id: 'profiles',
+            name: 'Profiles',
+            costTypes: [{ id: 'pts', name: 'pts' }],
+            selectionEntries: [{ id: 'gunner', name: 'Trooper w/ gun', type: 'model', profiles: [stats('Trooper', '2')] }],
+          },
+        },
+      ],
+      'test',
+    )
+    const [carrier] = combatCarriers({ id: 'gunner' }, data)
+    expect(carrierModelProfiles(carrier!, [sheetProfile('kept', 'Trooper', '3')])).toEqual([0])
+  })
   it('keeps specialists separate and respects pooled and per-model counts', () => {
     expect(
       combatCarriers(

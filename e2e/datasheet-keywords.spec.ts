@@ -1,7 +1,8 @@
 import { expect, test } from './test'
 
 const cases = [
-  { faction: 'drukhari', sheet: 'venom', ability: 'Twin Linked' },
+  { faction: 'aeldari', sheet: 'warp-hunter-legends', ability: 'Twin Linked' },
+  { faction: 'drukhari', sheet: 'venom', ability: 'Twin-linked' },
   { faction: 'aeldari', sheet: 'fire-prism', ability: 'Linked Fire' },
   { faction: 'tyranids', sheet: 'norn-assimilator', ability: 'Harpooned' },
   { faction: 'chaos-daemons', sheet: 'great-unclean-one', ability: 'Reverberating Summons' },

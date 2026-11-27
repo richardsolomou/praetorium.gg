@@ -685,12 +685,12 @@ export function compactVsDataRelease(directory: string, file: string) {
   fs.writeFileSync(vsDataEffectsPath(file), `${JSON.stringify(effects)}\n`)
 }
 
-/** The categories list building reads, kept whole rather than compacted. */
-const CONSTRUCTION_CATEGORIES = new Set(['rosters', 'points'])
+/** The categories list building and datasheets read, kept whole rather than compacted. */
+const CONSTRUCTION_CATEGORIES = new Set(['rosters', 'points', 'profiles'])
 
 /**
- * Writes `file` with the roster definitions, Enhancements and points snapshots of a verified release's own rules version,
- * the units its identity marks absent or retired there, and the one unit each retired unit is replaced by.
+ * Writes `file` with the roster definitions, datasheet profiles, Enhancements and points snapshots of a verified release's
+ * own rules version, the units its identity marks absent or retired there, and the one unit each retired unit is replaced by.
  */
 export function writeVsDataConstruction(directory: string, file: string) {
   const manifest = readVsDataManifest(directory)!

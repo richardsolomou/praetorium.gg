@@ -16,7 +16,7 @@ Run the checks covering your change: `just test-unit <file>`, `just test-integra
 
 ## Pull requests and releases
 
-Open every pull request as a draft (`gh pr create --draft`): a draft's CI runs only the static, unit and build checks. Before marking it ready (`gh pr ready`), run the heavier checks your change can affect: `just e2e-parallel <specs>` (every spec without arguments, on `E2E_STACKS` stacks, default 4), `just test-integration <files>`, and `just points` after points or legality changes. Marking it ready runs every check, as does each later push, and the required `ready` check fails until that run passes.
+Open every pull request as a draft (`gh pr create --draft`): a draft's CI runs only the static, unit and build checks. Before marking it ready (`gh pr ready`), run the heavier checks your change can affect: `just e2e-parallel <specs>` (every spec without arguments, on up to `E2E_STACKS` stacks, default 4), `just test-integration <files>`, and `just points` after points or legality changes. Marking it ready runs every check, as does each later push, and the required `ready` check fails until that run passes.
 
 Use a conventional commit title and the [PR template](.github/pull_request_template.md). A change players can notice needs a `pnpm changeset` (`minor` feature, `patch` fix), one entry per fix: one sentence on what a player can now see or do, with no technical terms, services, or file names. Start it with the area What's new groups it under: `[rosters]`, `[simulator]`, `[battles]`, `[events]`, `[reference]`, `[assistant]` or `[app]`; `pnpm changesets:check` fails without one. Markdown emphasis and code show as formatting on What's new. Invisible changes need none.
 

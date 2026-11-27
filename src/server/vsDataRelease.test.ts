@@ -4,7 +4,7 @@ import path from 'node:path'
 import { afterEach, beforeEach, expect, it } from 'vitest'
 import { missionPack, vsDataReleaseFiles, writeFiles } from './vsData.fixtures'
 import { checkVsDataRelease, compactVsDataRelease, vsDataReleaseErrors, writeVsDataConstruction } from './vsDataRelease'
-import { vsDataConstructionSchema } from '../core/vsDataConstruction'
+import { vsDataConstructionSchema, vsDataDefinitions } from '../core/vsDataConstruction'
 import { vsDataEffectsPath } from '../shared/vsDataEffects'
 
 const record = { kind: 'ability', id: 'necrons.test.phase-shift', aliases: [], summary: 'Move one unit.' }
@@ -623,6 +623,30 @@ it('names the units the identity marks absent from the rules version as unavaila
   const file = `${directory}.construction.json`
   writeVsDataConstruction(directory, file)
   expect(vsDataConstructionSchema.parse(JSON.parse(fs.readFileSync(file, 'utf8'))).unavailable).toEqual(['necrons.dropped'])
+})
+
+it('keeps each weapon profile under its unit, named for its mode, with the values VS Data prints', () => {
+  fs.rmSync(directory, { recursive: true })
+  const data = {
+    unit: 'necrons.warriors',
+    wargear: 'necrons.warriors.gauss-flayer',
+    range: 24,
+    attacks: 1,
+    skill: 4,
+    strength: 4,
+    armourPenetration: 0,
+    damage: 1,
+  }
+  writeFiles(
+    directory,
+    vsDataReleaseFiles([
+      { kind: 'weapon-profile', id: 'necrons.warriors.standard', name: 'Standard', aliases: [], category: 'profiles', data },
+    ]),
+  )
+  const file = `${directory}.construction.json`
+  writeVsDataConstruction(directory, file)
+  const definitions = vsDataDefinitions(vsDataConstructionSchema.parse(JSON.parse(fs.readFileSync(file, 'utf8'))))
+  expect(definitions.weaponProfilesOf('necrons.warriors')).toEqual([{ id: 'necrons.warriors.standard', name: 'Standard', data }])
 })
 
 it('reads a retired unit as the one unit it is replaced by', () => {

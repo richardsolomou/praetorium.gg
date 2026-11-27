@@ -176,7 +176,7 @@ e2e-install:
 e2e *args:
     pnpm exec playwright test {{ args }}
 
-# Browser tests split across E2E_STACKS (default 4) side-by-side stacks, as CI splits its runners; for the desktop
+# Browser tests on up to E2E_STACKS (default 4) side-by-side stacks, split as CI splits its runners; for the desktop
 e2e-parallel *args:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -184,12 +184,10 @@ e2e-parallel *args:
     work="$(mktemp -d "${TMPDIR:-/tmp}/praetorium-e2e-parallel.XXXXXX")"
     PLAYWRIGHT_JSON_OUTPUT_NAME="$work/tests.json" pnpm exec playwright test --list --reporter=json {{ args }} > /dev/null
     pnpm exec tsx scripts/browserTestBuild.ts
+    stacks="$(node --import tsx scripts/e2eShard.ts --plan "$work/tests.json" "$work/stacks" "$stacks")"
     pids=()
     for stack in $(seq "$stacks"); do
-      node --import tsx scripts/e2eShard.ts "$work/tests.json" "$stack" "$stacks" > "$work/$stack.txt"
-      # A selection smaller than the stacks leaves some empty, and an empty list would run every test.
-      [ -s "$work/$stack.txt" ] || continue
-      PLAYWRIGHT_OUTPUT_DIR="test-results/stack-$stack" pnpm exec playwright test --test-list="$work/$stack.txt" > "$work/$stack.log" 2>&1 &
+      PLAYWRIGHT_OUTPUT_DIR="test-results/stack-$stack" pnpm exec playwright test --test-list="$work/stacks/$stack.txt" > "$work/$stack.log" 2>&1 &
       pids[$stack]=$!
     done
     status=0

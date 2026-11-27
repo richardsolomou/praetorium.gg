@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.279.8 (2026-11-27)
+
+### Patch Changes
+
+- 9362259: [simulator] The simulator uses those corrected characteristics, so a unit whose weapons the official app has changed now deals the damage it does in the app.
+- 9362259: [reference] Datasheets show each unit's and weapon's characteristics as the official app prints them, which corrects about a hundred lines, such as the Objective Control of Daemonettes and Bloodletters in Emperor's Children and World Eaters armies and the range of the Sagitaur's L7 missile launcher.
+
 ## 0.279.7 (2026-11-27)
 
 ### Patch Changes
