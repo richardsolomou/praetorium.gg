@@ -24,7 +24,7 @@ afterEach(() => {
 })
 
 /** What agents read of a detachment whose Stratagem Game Datacards prints and VS Data summarizes as `summary`. */
-function agentAnswer(summary: string) {
+function agentAnswer(summary: string, data?: Record<string, unknown>) {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'reference-summaries-'))
   directories.push(directory)
   const base = composition.editions.filter((entry) => 'base' in entry && entry.base)
@@ -38,6 +38,7 @@ function agentAnswer(summary: string) {
     id: 'necrons.test.focused-fire',
     aliases: ['gdc.stratagem.f06fa0ef.917a.57c2.955d.325a082d942c'],
     summary,
+    ...(data ? { data } : {}),
   }
   writeFiles(unpacked, vsDataReleaseFiles([record]))
   const edition = checkVsDataRelease(
@@ -104,12 +105,15 @@ function agentAnswer(summary: string) {
 }
 
 it('serves a Stratagem’s summary in its parts in place of its words', () => {
-  const { section } = agentAnswer('**When:** Your Shooting phase.\n\n**Effect:** Your unit hits more often this phase.')
-  expect(section.ruleSummary).toEqual({
-    text: '**When:** Your Shooting phase.\n\n**Effect:** Your unit hits more often this phase.',
+  const parts = {
     when: 'Your Shooting phase.',
+    target: 'One unit of yours.',
     effect: 'Your unit hits more often this phase.',
-  })
+    restrictions: 'Once per battle.',
+  }
+  const text = `**When:** ${parts.when}\n\n**Target:** ${parts.target}\n\n**Effect:** ${parts.effect}\n\n**Restrictions:** ${parts.restrictions}`
+  const { section } = agentAnswer(text, { parts })
+  expect(section.ruleSummary).toEqual({ text, ...parts })
 })
 
 it('never serves a summary that repeats the official text', () => {

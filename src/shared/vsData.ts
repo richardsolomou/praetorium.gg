@@ -261,6 +261,14 @@ export const vsDataCoreRuleSchema = z.object({
 })
 export type VsDataCoreRule = z.infer<typeof vsDataCoreRuleSchema>
 
+/** A Stratagem's summary in the parts the official app gives it, each in summary Markdown; its summary is them joined. */
+export const stratagemPartsSchema = z.object({
+  when: z.string().min(1),
+  target: z.string().min(1),
+  effect: z.string().min(1),
+  restrictions: z.string().min(1).optional(),
+})
+
 /**
  * What the snapshot keeps of a verified VS Data release: each summary with its spans and open questions, the aliases
  * of every entry a summary is for or links to, the upstream work its records adapt, which must be credited, and the
@@ -303,6 +311,7 @@ export const vsDataSummariesSchema = z.object({
       // Spans are VS Data's markup before its Markdown; a Markdown release has none.
       spans: z.array(spanSchema).default([]),
       questions: z.array(z.string()),
+      parts: stratagemPartsSchema.optional(),
     }),
   ),
 })

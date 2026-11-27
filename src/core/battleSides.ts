@@ -59,6 +59,7 @@ function armyCommand(command: Command): boolean {
     'damage-unit',
     'deploy-unit',
     'set-unit-formation',
+    'pick-unit-grant',
     'set-painted',
   ].includes(command.kind)
 }

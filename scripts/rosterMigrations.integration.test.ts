@@ -129,7 +129,15 @@ it.skipIf(!fs.existsSync(directory))(
       unavailable: unavailableRosterSelections(migrated.picks, price.units),
       enhancements: price.units[7]!.enhancements,
       knives: price.units[5]!.wargear.find((piece) => piece.name === 'Combat Knife')?.count,
-    }).toEqual({ points: 1000, errors: [], detachmentError: null, unavailable: [], enhancements: ['Lord of the Ravenwing'], knives: 2 })
+    }).toEqual({
+      points: 1000,
+      errors: [],
+      // The list's lone 3 DP detachment is over Incursion's allowance, as the app counts it.
+      detachmentError: 'This detachment costs 3 DP; detachments at this battle size may cost at most 2 DP.',
+      unavailable: [],
+      enhancements: ['Lord of the Ravenwing'],
+      knives: 2,
+    })
   },
   30_000,
 )
@@ -139,7 +147,8 @@ it.skipIf(!fs.existsSync(directory))(
   () => {
     const versions = catalogueEditionLoaders(directory, catalogue, () => null)
     const catalogueId = 'legacy-profiles~a603-5039-f08d-e841'
-    const loaded = versions.catalogueFor(catalogueId)!
+    // The field manual's archived price, for a datasheet VS Data does not price.
+    const loaded = { ...versions.catalogueFor(catalogueId)!, vsPoints: undefined }
     const input = savedRosterPriceInput({
       catalogueId,
       detachmentIds: [],

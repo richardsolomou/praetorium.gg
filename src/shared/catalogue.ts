@@ -1,3 +1,4 @@
+import type { PickedGrant } from '../core/textFacts'
 import { isWrittenInvulnerableSave } from '../core/datasheetStructure'
 import { abilityKey } from './vsDataAbilities'
 import { withoutFactionPrefix } from '../core/name'
@@ -53,6 +54,7 @@ import {
   invulnerableSaveOf,
   ledWeaponGrantOf,
   normalizedAbilityGrantsIn,
+  pickedGrantsOf,
   ownWeaponGrantOf,
   weaponGrantsIn,
 } from './textFacts'
@@ -204,6 +206,34 @@ export function contextualAbilityNamesIn(
       ).map((ability) => ability.name),
     ]),
   ]
+}
+
+/**
+ * The pre-battle picks a unit offers its army through its own abilities, wargear and Enhancements, each with the rule
+ * that offers it, as Thunderhawk Insertion's Deep Strike for one GRAVIS, PHOBOS or TACTICUS unit.
+ */
+export function offeredPicksIn(
+  loaded: LoadedCatalogue,
+  catalogueId: string,
+  entryId: string,
+  context: Pick<DatasheetContext, 'selections' | 'unitSelectionIndex'>,
+): { rule: string; grant: PickedGrant }[] {
+  const root = loaded.index.definitions.get(entryId)
+  if (!root) return []
+  const selected =
+    context.unitSelectionIndex === undefined
+      ? defaultSelection(entryId, loaded.index, { primaryCatalogueId: catalogueId })
+      : context.selections[context.unitSelectionIndex]
+  const definitions = [root, ...(selected ? definitionsInSelections([selected], [0], loaded.index) : [])]
+  const found = new Map<string, { rule: string; grant: PickedGrant }>()
+  for (const definition of definitions)
+    for (const source of definitionAndTarget(definition, loaded.index))
+      for (const profile of abilityProfilesOf(source, loaded.index, root.absentAbilities)) {
+        const description = profileDescription(profile)
+        for (const grant of description ? pickedGrantsOf(description, loaded.index.textFacts) : [])
+          found.set(JSON.stringify([profile.name, grant]), { rule: profile.name, grant })
+      }
+  return [...found.values()]
 }
 
 function abilityProfileNames(definition: Definition, index: LoadedCatalogue['index'], absent: AbsentAbilities): string[] {

@@ -28,7 +28,7 @@ export function RecentSearches({ onOpen, onEmptied }: { onOpen?: (result: Global
   return (
     <section aria-labelledby={headingId} className={onOpen ? 'px-1 pb-1' : undefined}>
       <div className="flex items-center justify-between gap-2 pl-3">
-        <h2 id={headingId} className="pt-2 text-2xs font-semibold tracking-eyebrow text-faint uppercase">
+        <h2 id={headingId} className="pt-2 text-xs font-medium text-faint">
           Recent
         </h2>
         <Button

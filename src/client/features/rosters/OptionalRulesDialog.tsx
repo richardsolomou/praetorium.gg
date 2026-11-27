@@ -62,7 +62,7 @@ export function OptionalRulesDialog({
                   }`}
                 >
                   <span className="min-w-0">
-                    <span className="block font-bold uppercase">{rule.label}</span>
+                    <span className="block font-semibold">{rule.label}</span>
                     <span className="mt-0.5 block text-xs normal-case text-dim">{rule.hint}</span>
                   </span>
                   <span
@@ -89,7 +89,7 @@ export function OptionalRulesDialog({
                     type="button"
                     aria-pressed={borrowedDetachmentId === null}
                     onClick={() => onChooseBorrowed(null)}
-                    className={`flex min-h-12 items-center justify-between border px-3 text-left font-bold uppercase ${
+                    className={`flex min-h-12 items-center justify-between border px-3 text-left font-semibold ${
                       borrowedDetachmentId === null ? 'border-bone text-bone' : 'border-edge text-dim'
                     }`}
                   >
@@ -103,7 +103,7 @@ export function OptionalRulesDialog({
                         type="button"
                         aria-pressed={chosen}
                         onClick={() => onChooseBorrowed(chosen ? null : detachment.id)}
-                        className={`flex min-h-12 items-center justify-between gap-2 border px-3 text-left font-bold uppercase ${
+                        className={`flex min-h-12 items-center justify-between gap-2 border px-3 text-left font-semibold ${
                           chosen ? 'border-bone text-bone' : 'border-edge text-dim'
                         }`}
                       >

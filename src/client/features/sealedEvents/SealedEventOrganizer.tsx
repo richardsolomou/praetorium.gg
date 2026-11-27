@@ -173,7 +173,7 @@ export function OrganizerEntrants({
   const pickBox = (entry: SealedEventEntryView) => {
     const checked = pickedLive.includes(entry.userId)
     return (
-      <label className="flex cursor-pointer items-center gap-2 px-1 text-xs font-semibold tracking-label text-dim uppercase pointer-coarse:min-h-11">
+      <label className="flex cursor-pointer items-center gap-2 px-1 text-xs font-semibold text-dim pointer-coarse:min-h-11">
         <input
           type="checkbox"
           className="size-5 accent-parchment"
@@ -432,7 +432,7 @@ function SizeToggle({
           aria-pressed={side === option}
           aria-label={`Assign ${label} ${option === 'solo' ? 'a solo' : 'an allied'} roster`}
           disabled={pending}
-          className={`h-8 min-w-16 px-3 text-xs font-semibold tracking-label uppercase disabled:cursor-wait disabled:opacity-60 pointer-coarse:h-11 ${side === option ? 'bg-parchment text-parchment-ink' : 'text-dim hover:bg-raised hover:text-bone'}`}
+          className={`h-8 min-w-16 px-3 text-xs font-semibold disabled:cursor-wait disabled:opacity-60 pointer-coarse:h-11 ${side === option ? 'bg-parchment text-parchment-ink' : 'text-dim hover:bg-raised hover:text-bone'}`}
           onClick={() => onAssign(option)}
         >
           {option}
@@ -473,7 +473,7 @@ export function InvitePanel({ sealedEvent }: { sealedEvent: SealedEvent }) {
           </span>
         </span>
         <span
-          className={`flex items-center justify-center gap-1.5 border-t border-runner px-3 py-2 text-xs font-semibold tracking-label uppercase group-hover:bg-raised pointer-coarse:min-h-11 ${invite.feedback === 'copied' || invite.feedback === 'shared' ? 'text-achieved' : 'text-parchment'}`}
+          className={`flex items-center justify-center gap-1.5 border-t border-runner px-3 py-2 text-xs font-semibold group-hover:bg-raised pointer-coarse:min-h-11 ${invite.feedback === 'copied' || invite.feedback === 'shared' ? 'text-achieved' : 'text-parchment'}`}
         >
           {invite.feedback === 'copied' || invite.feedback === 'shared' ? (
             <Check className="size-3.5" aria-hidden />

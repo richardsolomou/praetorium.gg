@@ -179,6 +179,12 @@ function describe(
       if (targetId === by) return command.deployed ? `${who} put ${unit} on the table` : `${who} held ${unit} in reserve`
       return command.deployed ? `${who} puts ${whose} ${unit} on the table` : `${who} holds ${whose} ${unit} in reserve`
     }
+    case 'pick-unit-grant': {
+      const unit = player?.units.find((candidate) => candidate.key === command.unitKey)?.name ?? 'a unit'
+      return command.picked
+        ? `${who} picks ${whose} ${unit} for ${command.rule}`
+        : `${who} takes back ${command.rule} from ${whose} ${unit}`
+    }
     case 'set-unit-formation': {
       const unit = player?.units.find((candidate) => candidate.key === command.unitKey)?.name ?? 'a unit'
       if (command.formation === 'embarked') {

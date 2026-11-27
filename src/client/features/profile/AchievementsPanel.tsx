@@ -35,7 +35,7 @@ export function AchievementsPanel({ achievements }: { achievements: EarnedAchiev
                   className="size-11 shrink-0"
                 />
                 <span className="min-w-0">
-                  <span className="block text-xs font-bold text-bone uppercase">{achievement.name}</span>
+                  <span className="block text-xs font-semibold text-bone">{achievement.name}</span>
                   <span className="block text-xs text-dim">{achievement.goal}</span>
                   <span className="block text-xs text-faint">{dates.date(at)}</span>
                 </span>
@@ -66,7 +66,7 @@ export function AchievementsPanel({ achievements }: { achievements: EarnedAchiev
                   className="size-11"
                 />
                 <span
-                  className={`line-clamp-2 w-full text-3xs leading-tight font-bold uppercase [overflow-wrap:anywhere] ${at === undefined ? 'text-faint' : 'text-bone'}`}
+                  className={`line-clamp-2 w-full text-3xs leading-tight font-semibold [overflow-wrap:anywhere] ${at === undefined ? 'text-faint' : 'text-bone'}`}
                 >
                   {achievement.name}
                 </span>

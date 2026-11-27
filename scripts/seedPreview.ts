@@ -92,9 +92,9 @@ const PREVIEW_PLAYER_ROSTERS: readonly PreviewRoster[] = [
   },
   {
     id: 'preview-space-marines-gladius',
-    name: 'Gladius Spearhead 1K',
+    name: 'Tactical Brethren 1K',
     catalogueId: 'e0af-67df-9d63-8fb7',
-    detachmentIds: ['d2dc-693e-b491-b16d'],
+    detachmentIds: ['ec44-c977-f09b-3f28'],
     disposition: 'priority-assets',
     limit: 1000,
     picks: [
@@ -141,9 +141,9 @@ const PREVIEW_PLAYER_ROSTERS: readonly PreviewRoster[] = [
   },
   {
     id: 'preview-death-guard-virulent-vectorium',
-    name: 'Virulent Vectorium 1K',
+    name: 'Champions of Contagion 1K',
     catalogueId: '5108-f98-63c2-53cb',
-    detachmentIds: ['e2ff-ece0-6cbb-be05'],
+    detachmentIds: ['fd92-8b6d-0ef2-e14d'],
     disposition: 'take-and-hold',
     limit: 1000,
     picks: [
@@ -181,9 +181,9 @@ const PREVIEW_OPPONENT_ROSTERS: readonly PreviewRoster[] = [
   },
   {
     id: 'preview-opponent-tyranids',
-    name: 'Devouring Swarm 1K',
+    name: 'Unending Swarm 1K',
     catalogueId: 'b984-7317-81cc-20f',
-    detachmentIds: ['c2fe-bf23-bf24-aa43'],
+    detachmentIds: ['4cd9-313f-cd9b-c85a'],
     disposition: 'take-and-hold',
     limit: 1000,
     picks: [

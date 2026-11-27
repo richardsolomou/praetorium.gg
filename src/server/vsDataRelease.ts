@@ -22,6 +22,7 @@ import {
   type VsDataBaseSize,
   vsDataBaseSizeSchema,
   vsDataUnitSchema,
+  stratagemPartsSchema,
 } from '../shared/vsData'
 
 const fileSchema = z.object({ path: z.string().min(1), sha256: z.string().regex(/^[0-9a-f]{64}$/) })
@@ -65,6 +66,7 @@ const recordSchema = refSchema.extend({
       .array(z.object({ start: z.number().int(), end: z.number().int(), bold: z.literal(true).optional(), target: refSchema.optional() }))
       .optional(),
     interpretation: z.array(z.object({ question: z.string() })).optional(),
+    parts: stratagemPartsSchema.optional(),
     ruleType: z.string().optional(),
     detachment: z.object({ id: z.string() }).optional(),
     cp: z.number().int().optional(),
@@ -670,6 +672,7 @@ export function compactVsDataRelease(directory: string, file: string) {
       summary: data.summary,
       spans: data.summarySpans ?? [],
       questions: (data.interpretation ?? []).map(({ question }) => question),
+      ...(data.parts ? { parts: data.parts } : {}),
     })),
   }
   const effects: VsDataEffectsFile = {
@@ -687,7 +690,7 @@ const CONSTRUCTION_CATEGORIES = new Set(['rosters', 'points'])
 
 /**
  * Writes `file` with the roster definitions, Enhancements and points snapshots of a verified release's own rules version,
- * and the units its identity marks absent or retired there.
+ * the units its identity marks absent or retired there, and the one unit each retired unit is replaced by.
  */
 export function writeVsDataConstruction(directory: string, file: string) {
   const manifest = readVsDataManifest(directory)!
@@ -721,11 +724,18 @@ export function writeVsDataConstruction(directory: string, file: string) {
       .filter((entry) => entry.kind === 'unit' && (entry.absent || entry.retired !== undefined))
       .map((entry) => entry.id)
       .toSorted(),
+    replacements: Object.fromEntries(
+      identity.entries.flatMap((entry) => {
+        const replacedBy = entry.kind === 'unit' ? retiredSchema.safeParse(entry.retired).data?.replacedBy : undefined
+        return replacedBy?.length === 1 ? [[entry.id, replacedBy[0]!]] : []
+      }),
+    ),
     points: records.filter((record) => record.kind === 'points-snapshot').map((record) => record.data),
   }
   fs.writeFileSync(file, JSON.stringify(vsDataConstructionSchema.parse(construction)))
 }
 
+const retiredSchema = z.object({ replacedBy: z.array(z.string()) })
 const constructionRecordSchema = refSchema.extend({
   rulesVersion: z.object({ update: z.string() }),
   data: z.record(z.string(), z.unknown()),

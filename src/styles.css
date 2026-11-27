@@ -752,6 +752,10 @@ html[data-native-app='true'] [data-battle-sticky-header] {
     font-size: 6.5pt;
     font-style: italic;
   }
+  /* A Stratagem's part labels scale with the pack's small print rather than the screen's label size. */
+  .pack-stratagem dt {
+    font-size: 0.9em;
+  }
 }
 
 @media print {
@@ -1258,7 +1262,7 @@ html:active-view-transition-type(page) {
 
 /** A small tracked label above the thing it names. */
 @utility eyebrow {
-  @apply text-2xs font-semibold tracking-eyebrow text-dim uppercase;
+  @apply text-xs font-medium text-dim;
 }
 
 /** A link set in quiet text, such as a breadcrumb or a way back up, marked as one by a faint rule beneath it rather than a full underline. */

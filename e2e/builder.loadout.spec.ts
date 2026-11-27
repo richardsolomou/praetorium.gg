@@ -126,7 +126,8 @@ test('a unit duplicates with its configured model count', async ({ page }) => {
 })
 
 test('the filters narrow the book to what is worth taking', async ({ browser, page }) => {
-  await openBuilder(page)
+  // A 2 DP detachment, so the list can also play at Incursion below.
+  await openBuilder(page, 'Necrons', /Canoptek Court/)
 
   // Owned: nothing is, until something is said to be, and the filter says where to say it.
   const ownedFilter = page.getByRole('button', { name: 'Owned', exact: true })

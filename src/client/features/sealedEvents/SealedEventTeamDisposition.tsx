@@ -51,7 +51,7 @@ export function TeamDispositionPanel({
               onClick={() => {
                 if (!chosen) choose.mutate(id)
               }}
-              className={`flex min-h-12 items-center justify-between border px-3 text-left font-bold uppercase disabled:cursor-wait ${dispositionTone(id, chosen)}`}
+              className={`flex min-h-12 items-center justify-between border px-3 text-left font-semibold disabled:cursor-wait ${dispositionTone(id, chosen)}`}
             >
               {name}
               <span

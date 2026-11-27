@@ -87,7 +87,7 @@ test('converts a retired Marine faction identity without discarding its generate
   const dialog = page.getByRole('dialog', { name: 'Convert rules version' })
   await convertToCurrentRules(page)
   await dialog.getByRole('button', { name: 'Remove unavailable', exact: true }).click()
-  await dialog.getByRole('button', { name: 'Select Gladius Task Force', exact: true }).click()
+  await dialog.getByRole('button', { name: 'Select Tactical Brethren', exact: true }).click()
   const dispositions = dialog.getByRole('group', { name: 'Force disposition' }).getByRole('button')
   if ((await dispositions.count()) > 1) await dispositions.first().click()
   await waitForRosterSave(page, () => confirmRosterSetup(dialog), '4029-9237-e8db-af55')

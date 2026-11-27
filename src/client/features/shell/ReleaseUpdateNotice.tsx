@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react'
 import { RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { releaseQuery } from '../../queries'
-import { staleBuildRelease } from '../../releaseUpdate'
+import { deviceEngineRetired, staleBuildRelease } from '../../releaseUpdate'
 import { retireDeviceConstruction } from '../../functions'
 import { FloatingNotice } from '../../components/FloatingNotice'
 import { offlineData } from '../../offline/runtime'
@@ -13,12 +13,13 @@ import { offlineData } from '../../offline/runtime'
 export function ReleaseUpdateNotice() {
   const router = useRouter()
   const release = useQuery(releaseQuery())
-  const latest = staleBuildRelease(useQueryClient())
-  const outdated = Boolean(latest)
+  const client = useQueryClient()
+  const latest = staleBuildRelease(client)
+  const retired = deviceEngineRetired(client)
   const [dismissed, setDismissed] = useState<string | null>(null)
   useEffect(() => {
-    if (outdated) retireDeviceConstruction()
-  }, [outdated])
+    if (retired) retireDeviceConstruction()
+  }, [retired])
   // Nothing else returns a saved copy to the live app, and its account reads keep failing until it does.
   const backOnline = Boolean(offlineData()) && release.isFetchedAfterMount && release.isSuccess && !release.isRefetchError
   useEffect(() => {

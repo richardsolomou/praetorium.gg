@@ -7,6 +7,8 @@ import { addUnit, createRoster, practiceBattle, signUp, startBattle, uniqueName 
  * Lesser findings and rules outside those levels are judged by eye.
  */
 async function expectNoSeriousViolations(page: Page) {
+  // A command still in flight fades its controls out and back when it lands, so let requests settle first.
+  await page.waitForLoadState('networkidle')
   // Contrast read while something fades in blends it with the page behind, so wait for finite animations to end.
   await page.waitForFunction(() =>
     document
