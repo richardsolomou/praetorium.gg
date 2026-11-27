@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { grantsReserveExemptionIn, reserveSelectorsIn } from '../shared/textFacts'
+import { factsKey } from '../core/textFacts'
+import { textToken } from '../core/sourceText'
 import type { FormatRuleId, OptionalRuleId } from '../core/battle'
 import type { SelectionEntry } from '../core/catalogue'
 import {
@@ -987,6 +989,47 @@ describe('catalogue-backed deployment rules', () => {
       ),
     ).toBe(true)
     expect(grantsReserveExemptionIn('This unit can be set up in Strategic Reserves.')).toBe(false)
+  })
+
+  it('offers battle setup the pick a detachment rule gives the units it names as the battle begins', () => {
+    const book = detachmentBook(
+      {
+        id: 'dakkajet',
+        name: 'Dakkajet',
+        type: 'unit',
+        costs: pointsCost(135),
+        categoryLinks: [{ id: 'aircraft-link', targetId: 'aircraft' }],
+      },
+      { id: 'boyz', name: 'Boyz', type: 'unit', costs: pointsCost(80), categoryLinks: [{ id: 'orks-link', targetId: 'orks' }] },
+    )
+    const rule = textToken({ file: 'rules', transform: 'prose', hash: '0123456789abcdef' })
+    const loaded = {
+      ...book,
+      index: {
+        ...book.index,
+        textFacts: {
+          get: (key: string) =>
+            key === factsKey(rule) ? { pickedGrants: [{ ability: 'Deep Strike', recipients: ['AIRCRAFT'], count: 1 }] } : undefined,
+        },
+      },
+    }
+    const rules = flyboyzRules()
+    rules.detachmentDetails.get('orks')!.get('flyboyz')!.rules[0]!.description = rule
+    const priced = calculateRosterPrice(
+      {
+        catalogueId: 'cat',
+        detachmentIds: ['flyboyz'],
+        disposition: null,
+        limit: 2_000,
+        units: [{ entryId: 'dakkajet' }, { entryId: 'boyz' }],
+      },
+      loaded,
+      rules,
+    )
+    expect(priced?.units.map((unit) => unit.grantPicks)).toEqual([
+      [{ rule: 'Air Superiority', ability: 'deep-strike', count: 1 }],
+      undefined,
+    ])
   })
 
   it('marks a unit matching a compound detachment keyword exemption', () => {

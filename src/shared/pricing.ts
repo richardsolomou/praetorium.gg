@@ -32,9 +32,11 @@ import { type ChoiceOptions, hasWarlordToggle, type UnitChoice, unitChoices } fr
 import { withUnitSpread } from '../core/unitSpread'
 import { wargearOf } from '../core/wargear'
 import { rulesReferencedIn } from './catalogueRules'
-import { contextualAbilityNamesIn, datasheetIn, modelLinesOf, toughnessOf } from './catalogue'
+import { contextualAbilityNamesIn, datasheetIn, modelLinesOf, offeredPicksIn, toughnessOf } from './catalogue'
 import { combatCarriers } from '../core/combatLoadout'
 import { matchesKeywordSelector } from '../core/keywords'
+import type { GrantPick } from '../core/battle'
+import type { PickedGrant } from '../core/textFacts'
 import { describedEnhancements } from './catalogueDescriptions'
 import { cardName, descriptionKey } from './datacards'
 import { factionDisplayName } from './factionNames'
@@ -53,7 +55,7 @@ import {
 import { isUpgrade, mfmDetachmentFor, withoutUpgrade } from './mfm'
 import { deploymentRules } from './rosterDeployment'
 import { vsDataEnhancementOptions, vsDataErrors } from './vsDataLegality'
-import { combatFactsIn, grantsReserveExemptionIn, reminderIn, reserveSelectorsIn } from './textFacts'
+import { combatFactsIn, grantsReserveExemptionIn, pickedGrantsOf, reminderIn, reserveSelectorsIn } from './textFacts'
 import { heldWargear, replacementKey, type ReplacementSource } from './heldWargear'
 import { factionRestrictionViolations, isCatalogueSelfContradiction, kotcViolations, warlordCountProblem } from './formatRestrictions'
 import type { LoadedCatalogue } from './catalogueIndex'
@@ -790,6 +792,40 @@ function calculateRoster(
       }),
     }
 
+  // The units a rule lets the player pick as the battle begins for its deployment ability, which battle setup offers: a
+  // chosen detachment's rule, or one of a unit's own abilities, wargear or Enhancements.
+  const offeredPicks = uniqueBy(
+    [
+      ...detachmentSpecials.flatMap(({ detail }) =>
+        (detail?.rules ?? []).flatMap((rule) =>
+          rule.description ? pickedGrantsOf(rule.description, loaded.index.textFacts).map((grant) => ({ rule: rule.name, grant })) : [],
+        ),
+      ),
+      ...picked.flatMap((unit) => [
+        ...offeredPicksIn(loaded, catalogueOfUnit(unit), unit.entryId, {
+          selections,
+          unitSelectionIndex: selectionIndex.get(unit.selection),
+        }),
+        ...specialsByKey.get(unit.key)!.enhancements.flatMap((enhancement) => {
+          const text = findEnhancementDescription(enhancementDescriptions, chosen, enhancement)
+          return text ? pickedGrantsOf(text, loaded.index.textFacts).map((grant) => ({ rule: enhancement, grant })) : []
+        }),
+      ]),
+    ],
+    (offered) => JSON.stringify(offered),
+  )
+  // One pick a rule for each unit, as a pick names its rule alone.
+  const grantPicksFor = (keywords: readonly string[]): GrantPick[] =>
+    uniqueBy(
+      offeredPicks.flatMap(({ rule, grant }) => {
+        const { formationOptions, prebattleRules } = deploymentRules([grant.ability])
+        const ability = formationOptions[0] ?? prebattleRules[0]
+        if (!ability || (grant.recipients.length && !grant.recipients.some((selector) => matchesKeywordSelector(selector, keywords))))
+          return []
+        return [{ rule, ability, ...pickBounds(grant) }]
+      }),
+      (pick) => pick.rule,
+    )
   return {
     kind: 'full' as const,
     unitLimits: data.includeUnitLimits
@@ -847,6 +883,12 @@ function calculateRoster(
           keywordIds: unitSelectionIndex === undefined ? [] : keywordsFor(catalogueId, unitSelectionIndex),
           rosterKeywordIds: keywordMatrixFor(catalogueId),
         }),
+      )
+      // A unit already holding the ability has nothing to gain from the pick.
+      const grantPicks = grantPicksFor(unitKeywords).filter(
+        (pick) =>
+          !(deployment.formationOptions as readonly string[]).includes(pick.ability) &&
+          !(deployment.prebattleRules as readonly string[]).includes(pick.ability),
       )
       const catalogued = wargearOf(unit.selection, loaded.index)
       const { enhancements: selectedEnhancements, upgrades, specialSelections } = specialsByKey.get(unit.key)!
@@ -936,6 +978,7 @@ function calculateRoster(
           resizable: unit.size.max > unit.size.min,
         },
         ...deployment,
+        ...(grantPicks.length ? { grantPicks } : {}),
         ...(strategicReserveExempt ? { strategicReserveExempt: true } : {}),
         ...(unitKeywords.some((keyword) => keyword.toLowerCase() === 'transport') ? { transport: true } : {}),
         // Wargear above reads the printed names; the list says what an upgrade is under its own heading.
@@ -996,3 +1039,10 @@ export const findEnhancementDescription = (
 export function resolveDisposition(allowed: readonly string[], selected: string | null) {
   return allowed.includes(selected ?? '') ? selected : allowed.length === 1 ? allowed[0]! : null
 }
+
+/** How many units a pick takes, how close to its bearer, and whether its text limits them further. */
+const pickBounds = ({ count, withinInches, limited }: PickedGrant) => ({
+  ...(count ? { count } : {}),
+  ...(withinInches ? { withinInches } : {}),
+  ...(limited ? { limited } : {}),
+})

@@ -2,10 +2,12 @@ import { MapPin } from 'lucide-react'
 import { useId, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverDescription, PopoverTitle, PopoverTrigger } from '@/components/ui/popover'
-import { joinedWith, type AttachedUnit } from '../../../../core/attachedUnits'
+import { attachedUnits, joinedWith, type AttachedUnit } from '../../../../core/attachedUnits'
+import { uniqueBy } from '../../../../core/collections'
 import {
   canTransport,
   type Command,
+  grantPickRefusal,
   strategicReservePoints,
   strategicReserveSideTotals,
   transportAboard,
@@ -22,6 +24,7 @@ import { asSentence, countLabel } from '../../../text'
 import { Problem } from '../../../components/Problem'
 
 type FormationCommand = Extract<Command, { kind: 'set-unit-formation' }>
+type PickCommand = Extract<Command, { kind: 'pick-unit-grant' }>
 type Props = {
   view: BattleView
   sides: Side[]
@@ -36,7 +39,7 @@ type Props = {
 type Moves = {
   view: BattleView
   /** Sends a move, remembering which unit row it came from. */
-  move: (row: string, command: FormationCommand) => void
+  move: (row: string, command: FormationCommand | PickCommand) => void
   /** The server's refusal of the latest move, for the row it came from. */
   refusalFor: (row: string) => string | null
 }
@@ -224,8 +227,65 @@ function UnitFormationRow({
           </p>
         ))}
       </div>
+      <GrantPicks army={army} unit={unit} row={row} moves={moves} />
       {canTransport(host) ? <TransportBoarding army={army} transport={host} units={units} row={row} moves={moves} /> : null}
       {refused ? <Problem className="mt-1 px-0.5 text-xs">{refused}</Problem> : null}
+    </div>
+  )
+}
+
+/**
+ * The rules that let the player pick this unit as the battle begins for a deployment ability it lacks, as Thunderhawk
+ * Insertion's Deep Strike: each picks it or takes the pick back, up to the rule's count across the army.
+ */
+function GrantPicks({ army, unit, row, moves }: { army: Army; unit: AttachedUnit<Army['units'][number]>; row: string; moves: Moves }) {
+  const reasonId = useId()
+  const members = [unit.host, ...unit.joined]
+  const offers = uniqueBy(
+    members.flatMap((member) => member.grantPicks ?? []),
+    (offer) => offer.rule,
+  )
+  if (!offers.length || moves.view.firstPlayerId !== null) return null
+  const player = moves.view.players.find((candidate) => candidate.id === army.playerId)
+  return (
+    <div className="mt-2 flex flex-wrap gap-1 border-t border-edge px-0.5 pt-2">
+      {offers.map((offer, index) => {
+        const picked = members.some((member) => member.picked?.some((pick) => pick.rule === offer.rule))
+        const command: PickCommand = {
+          kind: 'pick-unit-grant',
+          unitKey: unit.host.key,
+          rule: offer.rule,
+          picked: !picked,
+          playerId: army.playerId,
+        }
+        const refusal = player ? grantPickRefusal(player, attachedUnits(player.units, unit.host.key), command) : null
+        const reason = refusal ? asSentence(refusal.message) : null
+        const label = `${formationLabel(offer.ability)} · ${offer.rule}${offer.withinInches ? ` (within ${offer.withinInches}″)` : ''}`
+        return (
+          <span key={offer.rule} className="inline-flex flex-col gap-0.5">
+            <Button
+              variant={picked ? 'secondary' : 'outline'}
+              size="xs"
+              aria-pressed={picked}
+              disabled={reason !== null}
+              aria-describedby={reason || offer.limited ? `${reasonId}-${index}` : undefined}
+              aria-label={`${picked ? 'Take back' : 'Pick'} ${unit.host.name} for ${offer.rule}`}
+              onClick={() => moves.move(row, command)}
+            >
+              {label}
+            </Button>
+            {reason ? (
+              <span id={`${reasonId}-${index}`} className="text-3xs text-discarded">
+                {reason}
+              </span>
+            ) : offer.limited ? (
+              <span id={`${reasonId}-${index}`} className="text-3xs text-dim">
+                {offer.rule} limits which units it picks further; check its card.
+              </span>
+            ) : null}
+          </span>
+        )
+      })}
     </div>
   )
 }
