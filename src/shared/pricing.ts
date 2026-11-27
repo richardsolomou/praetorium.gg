@@ -577,15 +577,15 @@ function calculateRoster(
   const ownPoints = purchased.some((option) => option.points === null)
     ? null
     : purchased.reduce((total, option) => total + (option.points ?? 0), 0)
-  const borrowedError =
-    takesNone && data.borrowedDetachmentId
-      ? 'This army takes no Detachment, so it cannot borrow another Detachment’s Force Disposition.'
-      : borrowedDispositionError(
-          data.limit,
-          data.optionalRules,
-          { points: ownPoints },
-          data.borrowedDetachmentId ? { points: borrowedPoints } : null,
-        )
+  // VS Data's check says a faction that takes no Detachment borrows none, so the borrow raises nothing more here.
+  const borrowedError = takesNone
+    ? null
+    : borrowedDispositionError(
+        data.limit,
+        data.optionalRules,
+        { points: ownPoints },
+        data.borrowedDetachmentId ? { points: borrowedPoints } : null,
+      )
   const borrowedDispositions =
     borrowedError || !borrowedDetachment
       ? []
