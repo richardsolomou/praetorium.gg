@@ -2,6 +2,7 @@ import { expect, test } from './test'
 import { visitorSetup, chooseRosterAction, expectNoPageOverflow, chooseFaction } from './account'
 import { add, expectNoHorizontalOverflow } from './builder.harness'
 import { guestDraft } from './storage'
+import { screenshot } from './screenshots'
 
 test(`Telemon bundles select and persist`, async ({ page }) => {
   const setup = await visitorSetup(page)
@@ -28,7 +29,7 @@ test(`Telemon bundles select and persist`, async ({ page }) => {
   await expect(card).toContainText('2x Twin Neutronium Cascade Projectors')
   await expectNoPageOverflow(page)
   await expectNoHorizontalOverflow(loadout)
-  await page.screenshot({ path: test.info().outputPath(`telemon-dual.png`) })
+  await screenshot(page, `telemon-dual.png`)
 
   for (const gun of ['Adrathic Desolator', 'Arachnus Storm Cannon', 'Iliastus Accelerator Culverin']) {
     const label =
@@ -51,7 +52,7 @@ test(`Telemon bundles select and persist`, async ({ page }) => {
     await expect.poll(() => guestDraft(page)).not.toBe(before)
   }
   await expectNoHorizontalOverflow(loadout)
-  await page.screenshot({ path: test.info().outputPath(`telemon-gun.png`) })
+  await screenshot(page, `telemon-gun.png`)
   await page.reload()
   await expect(card).toContainText('Iliastus Accelerator Culverin')
   await card.getByRole('button', { name: 'Telemon Heavy Dreadnought', exact: true }).click()

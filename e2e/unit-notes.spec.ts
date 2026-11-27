@@ -52,7 +52,7 @@ test(`repeated units keep their own custom names and private notes from the buil
   await annotate(owner, cards.nth(0), 'Note', ALPHA_NOTE)
   await squadButton(cards.nth(1)).click()
   await expect(owner.getByRole('switch', { name: /Share unit notes/ })).toHaveCount(0)
-  await shot(owner.getByRole('region', { name: 'Custom name and note' }), test.info().outputPath(`unit-annotation-fields.png`))
+  await shot(owner.getByRole('region', { name: 'Custom name and note' }), `unit-annotation-fields.png`)
   const back = owner.getByRole('button', { name: 'Back to roster' })
   if (await back.isVisible()) await back.click()
   await annotate(owner, cards.nth(1), 'Custom name', 'Rot Bravo')
@@ -63,7 +63,7 @@ test(`repeated units keep their own custom names and private notes from the buil
   await expect(cards.nth(0)).toContainText(ALPHA_NOTE)
   await expect(cards.nth(1)).toContainText(named('Rot Bravo'))
   await expect(cards.nth(1)).toContainText(BRAVO_NOTE)
-  await shot(owner.locator('[data-roster-builder]'), test.info().outputPath(`unit-annotation-cards.png`))
+  await shot(owner.locator('[data-roster-builder]'), `unit-annotation-cards.png`)
 
   await chooseRosterAction(owner, 'Export')
   const exported = owner.getByRole('dialog', { name: 'Export roster' })
@@ -80,7 +80,7 @@ test(`repeated units keep their own custom names and private notes from the buil
   await expect(pack.getByRole('heading', { name: `Rot Alpha · ${SQUAD}`, exact: false })).toBeVisible()
   await expect(pack).toContainText(`Note ${ALPHA_NOTE}`)
   await expect(pack).toContainText(`Note ${BRAVO_NOTE}`)
-  await shot(pack.locator('.pack-unit').first(), test.info().outputPath(`unit-note-print.png`))
+  await shot(pack.locator('.pack-unit').first(), `unit-note-print.png`)
   await owner.getByRole('button', { name: 'Return to roster' }).click()
 
   const original = lastPathSegment(owner.url())
@@ -134,7 +134,7 @@ test(`the battle army window names units by their custom name and shows notes on
     .click()
   await expect(squad).toContainText(named('Rot Alpha'))
   await expect(squad).toContainText(ALPHA_NOTE)
-  await shot(army, test.info().outputPath(`unit-annotation-army.png`))
+  await shot(army, `unit-annotation-army.png`)
   await army.getByRole('button', { name: 'Close' }).click()
 
   const opponentTab = page.getByRole('tab', { name: 'Opponent' })

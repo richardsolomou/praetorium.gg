@@ -1,5 +1,6 @@
 import { expect, test } from './test'
 import { retryUntilVisible } from './account'
+import { screenshot } from './screenshots'
 
 declare global {
   interface Window {
@@ -8,7 +9,7 @@ declare global {
 }
 
 for (const width of [390, 1440]) {
-  test(`a cached document with an unavailable route module recovers at ${width}px`, async ({ page }, testInfo) => {
+  test(`a cached document with an unavailable route module recovers at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 844 })
     let broken = true
     await page.route('**/*', async (route) => {
@@ -30,7 +31,7 @@ for (const width of [390, 1440]) {
       await page.getByRole('option', { name: /^Factions / }).click()
     } else await page.goto('/factions?view=armies#reference')
     await expect(page.getByRole('heading', { name: 'Something went wrong' })).toBeVisible()
-    await page.screenshot({ path: testInfo.outputPath(`module-load-error-${width}.png`), fullPage: true })
+    await screenshot(page, `module-load-error-${width}.png`, { fullPage: true })
     // A normal reload keeps requesting the unavailable module from the same cached document.
     await page.reload()
     await expect(page.getByRole('heading', { name: 'Something went wrong' })).toBeVisible()
@@ -39,7 +40,7 @@ for (const width of [390, 1440]) {
     await expect(page.getByLabel('Find a faction')).toBeVisible()
     await expect(page.getByRole('link', { name: /Necrons/ }).first()).toBeVisible()
     await expect(page).toHaveURL(width === 390 ? '/factions' : '/factions?view=armies#reference')
-    await page.screenshot({ path: testInfo.outputPath(`module-load-recovered-${width}.png`), fullPage: true })
+    await screenshot(page, `module-load-recovered-${width}.png`, { fullPage: true })
   })
 }
 

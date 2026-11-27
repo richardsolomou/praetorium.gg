@@ -10,6 +10,7 @@ import {
 import { expect, test } from './test'
 import { createRoster, scrollSearchResultIntoView, signUp, uniqueName, PHONE } from './account'
 import { add } from './builder.harness'
+import { screenshot } from './screenshots'
 
 // The offline downloads mount once in the app shell, so the home page stands for every route.
 test('the home page paints before downloading the offline application and keeps its reference across an update', async ({
@@ -78,7 +79,7 @@ test('a saved copy that finds the connection back offers the live app', async ({
   // The saved copy hears the connection back from the release check's next poll.
   await page.clock.runFor(60_000)
   await expect(notice).toBeVisible()
-  await page.screenshot({ path: test.info().outputPath('saved-copy-back-online.png') })
+  await screenshot(page, 'saved-copy-back-online.png')
   await notice.getByRole('button', { name: 'Reload' }).click()
   await expect.poll(() => page.evaluate(() => Boolean(window.PraetoriumOffline))).toBe(false)
   await expect(page.locator('main h1')).toBeVisible()
