@@ -37,7 +37,7 @@ jobs:
     outputs:
       needed: ${{ steps.scope.outputs.needed }}
       node-version: ${{ steps.node.outputs.version }}
-      desktop-runners: ${{ steps.desktop.outputs.runners }}
+      desktop-runners: ${{ steps.runners.outputs.desktop }}
       runner-count: ${{ steps.runners.outputs.count }}
       runtime-shared: ${{ steps.runtime.outputs.shared }}
       runners: ${{ steps.runners.outputs.runners }}
@@ -88,6 +88,21 @@ jobs:
         run: pnpm exec tsx scripts/browserTestBuild.ts
       - uses: ./.github/actions/verify-browser-build
         if: steps.scope.outputs.needed == 'true'
+      # The desktop stamps the heartbeat every two minutes while its runners are up and it has room for them, so a stamp older
+      # than three minutes means it missed one. While it is fresh the plan hands the desktop DESKTOP_RUNNER_SLOTS (default 2).
+      - name: Check the desktop's heartbeat
+        id: desktop
+        if: steps.scope.outputs.needed == 'true'
+        env:
+          HEARTBEAT: ${{ vars.DESKTOP_RUNNER_HEARTBEAT }}
+          SLOTS: ${{ vars.DESKTOP_RUNNER_SLOTS || '2' }}
+        run: |
+          slots=0
+          # A minute of clock skew either way is allowed; a stamp further ahead is as untrustworthy as a stale one.
+          if [[ "$HEARTBEAT" =~ ^[0-9]{1,12}$ && "$SLOTS" =~ ^[0-9]{1,2}$ ]] && age=$(( $(date +%s) - 10#$HEARTBEAT )) && (( age > -60 && age < 180 )); then
+            slots=$(( 10#$SLOTS ))
+          fi
+          echo "slots=$slots" >> "$GITHUB_OUTPUT"
       # Listing loads every spec, so it runs here once rather than on every runner.
       - name: Plan the browser runners
         if: steps.scope.outputs.needed == 'true'
@@ -96,32 +111,18 @@ jobs:
           # The account runs 20 jobs at once, and the other lanes hold about six while the runners start.
           MOST_RUNNERS: ${{ inputs.e2e-runners || '14' }}
           SPECS: ${{ steps.scope.outputs.specs }}
+          DESKTOP_SLOTS: ${{ steps.desktop.outputs.slots }}
         run: |
           set -euo pipefail
           specs=()
           [ "$SPECS" = all ] || read -ra specs <<< "$SPECS"
           PLAYWRIGHT_JSON_OUTPUT_NAME="$RUNNER_TEMP/e2e-tests.json" pnpm exec playwright test --list --reporter=json "${specs[@]}" > /dev/null
-          count="$(node --import tsx scripts/e2eShard.ts --plan "$RUNNER_TEMP/e2e-tests.json" "$RUNNER_TEMP/e2e-shards" "$MOST_RUNNERS")"
+          plan="$(node --import tsx scripts/e2eShard.ts --plan "$RUNNER_TEMP/e2e-tests.json" "$RUNNER_TEMP/e2e-shards" "$MOST_RUNNERS" "$DESKTOP_SLOTS")"
           {
-            echo "runners=$(node -p 'JSON.stringify(Array.from({ length: Number(process.argv[1]) }, (_, index) => index + 1))' "$count")"
-            echo "count=$count"
+            echo "runners=$(jq -c '[range(1; .count + 1)]' <<< "$plan")"
+            echo "count=$(jq '.count' <<< "$plan")"
+            echo "desktop=$(jq -c '.desktop' <<< "$plan")"
           } >> "$GITHUB_OUTPUT"
-      # The desktop stamps the heartbeat every two minutes while its runners are up and it has room for them. While it is fresh,
-      # runners 2 onwards take its DESKTOP_RUNNER_SLOTS (default 2) and runner 1 stays hosted; a stale or missing one keeps all hosted.
-      - name: Choose the desktop's runners
-        id: desktop
-        if: steps.scope.outputs.needed == 'true'
-        env:
-          HEARTBEAT: ${{ vars.DESKTOP_RUNNER_HEARTBEAT }}
-          SLOTS: ${{ vars.DESKTOP_RUNNER_SLOTS || '2' }}
-          COUNT: ${{ steps.runners.outputs.count }}
-        run: |
-          runners='[]'
-          # A minute of clock skew either way is allowed; a stamp further ahead is as untrustworthy as a stale one.
-          if [[ "$HEARTBEAT" =~ ^[0-9]{1,12}$ && "$SLOTS" =~ ^[0-9]{1,2}$ ]] && age=$(( $(date +%s) - 10#$HEARTBEAT )) && (( age > -60 && age < 300 )); then
-            runners="$(node -p 'JSON.stringify(Array.from({ length: Math.max(0, Math.min(Number(process.argv[1]), Number(process.argv[2]) - 1)) }, (_, index) => index + 2))' "$SLOTS" "$COUNT")"
-          fi
-          echo "runners=$runners" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v7
         if: steps.scope.outputs.needed == 'true'
         with:

@@ -7,9 +7,10 @@
  * sizing the runner count by the tests' total weight keeps a small selection from
  * paying every runner's startup.
  *
- * `tsx scripts/e2eShard.ts --plan <tests.json> <dir> <most runners>` reads the JSON
- * reporter's `--list` output, writes each runner's tests to `<dir>/<runner>.txt` for
- * `playwright test --test-list`, and prints how many runners it planned.
+ * `tsx scripts/e2eShard.ts --plan <tests.json> <dir> <most runners> [desktop slots]` reads the
+ * JSON reporter's `--list` output, writes each runner's tests to `<dir>/<runner>.txt` for
+ * `playwright test --test-list`, and prints `{ count, desktop }`: how many runners it planned
+ * and which of them the desktop takes.
  * `tsx scripts/e2eShard.ts --record <report.json>...` updates e2e/durations.json from
  * JSON reports, taking each test's median across the runs they cover and dropping tests
  * the reports no longer list; a test missing from it weighs as much as the median.
@@ -69,7 +70,11 @@ export const runnerSeconds = 300
 /** Playwright's workers per runner, from playwright.config.ts. */
 const workers = 2
 
-export function planShards(titles: readonly string[], durations: Durations, mostRunners: number) {
+/** A desktop runner's share of the tests against a hosted one's: its setup downloads caches over a home line for about four minutes longer. */
+const desktopShare = 0.4
+
+/** Each runner's tests, and which runners the desktop takes: runners 2 onwards, up to `desktopSlots`, so runner 1 stays hosted. */
+export function planShards(titles: readonly string[], durations: Durations, mostRunners: number, desktopSlots = 0) {
   if (!Number.isInteger(mostRunners) || mostRunners < 1) throw new Error(`runners must be a positive integer, got ${mostRunners}`)
   const known = titles.flatMap((title) => durations[title] ?? []).toSorted((left, right) => left - right)
   const median = known[Math.floor(known.length / 2)] ?? 1
@@ -78,14 +83,17 @@ export function planShards(titles: readonly string[], durations: Durations, most
     .toSorted((left, right) => right.seconds - left.seconds || left.index - right.index)
   const total = longestFirst.reduce((sum, { seconds }) => sum + seconds, 0)
   const runners = Math.max(1, Math.min(mostRunners, titles.length, Math.ceil(total / (runnerSeconds * workers))))
+  const desktop = Array.from({ length: Math.max(0, Math.min(desktopSlots, runners - 1)) }, (_, index) => index + 2)
+  const capacity = Array.from({ length: runners }, (_, runner) => (desktop.includes(runner + 1) ? desktopShare : 1))
   const loads = Array.from({ length: runners }, () => 0)
   const runnerOf: number[] = []
   for (const { index, seconds } of longestFirst) {
-    const runner = loads.indexOf(Math.min(...loads))
+    const finishes = loads.map((load, runner) => (load + seconds) / capacity[runner]!)
+    const runner = finishes.indexOf(Math.min(...finishes))
     loads[runner]! += seconds
     runnerOf[index] = runner
   }
-  return loads.map((_, runner) => titles.filter((_title, index) => runnerOf[index] === runner))
+  return { shards: loads.map((_, runner) => titles.filter((_title, index) => runnerOf[index] === runner)), desktop }
 }
 
 const readJson = <T>(file: string): T => JSON.parse(fs.readFileSync(file, 'utf8')) as T
@@ -102,15 +110,16 @@ if (isEntryPoint(import.meta.url)) {
     const sorted = Object.fromEntries(Object.entries(durations).toSorted(([left], [right]) => left.localeCompare(right)))
     fs.writeFileSync(durationsFile, `${JSON.stringify(sorted, null, 2)}\n`)
   } else if (arguments_[0] === '--plan') {
-    const [, listFile, directory, mostRunners] = arguments_
-    if (!listFile || !directory || !mostRunners) throw new Error('usage: e2eShard.ts --plan <tests.json> <dir> <most runners>')
+    const [, listFile, directory, mostRunners, desktopSlots = '0'] = arguments_
+    if (!listFile || !directory || !mostRunners)
+      throw new Error('usage: e2eShard.ts --plan <tests.json> <dir> <most runners> [desktop slots]')
     const titles = testTitles(readJson(listFile))
     if (titles.length === 0) throw new Error(`${listFile} lists no tests`)
-    const shards = planShards(titles, readJson(durationsFile), Number(mostRunners))
+    const { shards, desktop } = planShards(titles, readJson(durationsFile), Number(mostRunners), Number(desktopSlots))
     fs.mkdirSync(directory, { recursive: true })
     shards.forEach((shard, index) => fs.writeFileSync(path.join(directory, `${index + 1}.txt`), `${shard.join('\n')}\n`))
-    console.log(shards.length)
+    console.log(JSON.stringify({ count: shards.length, desktop }))
   } else {
-    throw new Error('usage: e2eShard.ts --plan <tests.json> <dir> <most runners> | --record <report.json>...')
+    throw new Error('usage: e2eShard.ts --plan <tests.json> <dir> <most runners> [desktop slots] | --record <report.json>...')
   }
 }
