@@ -520,16 +520,14 @@ async function supportOnFactions(page: Page, earlier = 0) {
   return stubSupport(page, earlier)
 }
 
-/** The shell's send feedback button, which its label names, never the dialog's own submit button of the same words. */
-const feedbackButton = (page: Page) =>
-  page
-    .getByRole('button', { name: /^Send feedback/ })
-    .and(page.locator('[aria-label^="Send feedback"]'))
-    .filter({ visible: true })
-
 async function openFeedback(page: Page) {
   const dialog = page.getByRole('dialog', { name: 'Send feedback' })
-  await retryUntilVisible(dialog, () => feedbackButton(page).click())
+  await retryUntilVisible(dialog, () =>
+    page
+      .getByRole('button', { name: /^Send feedback/ })
+      .filter({ visible: true })
+      .click(),
+  )
   return dialog
 }
 
@@ -591,13 +589,13 @@ test('an unread reply marks send feedback until the player reads it', async ({ p
   const [ticket] = await support.tickets()
   await support.reply(ticket.id, 'Fixed, thanks')
 
-  // Opening feedback rereads the list once it is stale, and send feedback then leads to the reply.
-  const sendFeedback = feedbackButton(page)
+  // Opening feedback rereads the list once it is stale, and send feedback then leads to the reply. The open dialog
+  // hides the rest of the page from the accessibility tree, so it closes before the label is read.
+  const sendFeedback = page.getByRole('button', { name: /^Send feedback/ }).filter({ visible: true })
   await retryUntilVisible(page.getByRole('button', { name: 'Send feedback, 1 new reply' }).filter({ visible: true }), async () => {
-    await page.keyboard.press('Escape')
     await sendFeedback.click()
+    await page.keyboard.press('Escape')
   })
-  await page.keyboard.press('Escape')
   await sendFeedback.click()
   await expect(page.getByRole('region', { name: 'Conversation' }).getByText('Fixed, thanks')).toBeVisible()
   await page.keyboard.press('Escape')
@@ -607,7 +605,12 @@ test('an unread reply marks send feedback until the player reads it', async ({ p
 test('a long feedback history loads page by page as the player scrolls it', async ({ page }) => {
   await supportOnFactions(page, 45)
   const all = page.getByRole('dialog').getByRole('button', { name: 'Your conversations' })
-  await retryUntilVisible(all, () => feedbackButton(page).click())
+  await retryUntilVisible(all, () =>
+    page
+      .getByRole('button', { name: /^Send feedback/ })
+      .filter({ visible: true })
+      .click(),
+  )
   await all.click()
 
   const list = page.getByRole('dialog').getByRole('navigation', { name: 'Conversations' })

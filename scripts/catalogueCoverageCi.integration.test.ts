@@ -26,15 +26,19 @@ function compare(change: 'catalogue' | 'source' | 'application' | 'introduced') 
   const pin = path.join(root, 'catalogue.json')
   fs.writeFileSync(pin, JSON.stringify({ pointer: { id: 'first' } }))
   git('add', 'catalogue.json')
+  const accepted = path.join(root, 'catalogue/accepted-coverage-losses.json')
+  const acceptedLosses = (...entries: string[]) => JSON.stringify([{ reason: 'withdrawn on purpose', entries }])
   if (change !== 'introduced') {
     fs.mkdirSync(path.dirname(data))
     fs.writeFileSync(data, '{"editions":[]}')
+    fs.writeFileSync(accepted, acceptedLosses('accepted before'))
     git('add', 'catalogue')
   }
   commit('base')
   const base = git('rev-parse', 'HEAD')
   fs.mkdirSync(path.dirname(data), { recursive: true })
   fs.writeFileSync(data, change === 'catalogue' ? '{"editions":[{}]}' : '{"editions":[]}')
+  if (change === 'catalogue' || change === 'introduced') fs.writeFileSync(accepted, acceptedLosses('accepted before', 'accepted now'))
   fs.writeFileSync(pin, JSON.stringify({ pointer: { id: change === 'source' ? 'second' : 'first' } }))
   fs.writeFileSync(path.join(root, 'application.ts'), 'export {}')
   git('add', 'catalogue', 'catalogue.json', 'application.ts')
@@ -50,12 +54,22 @@ function compare(change: 'catalogue' | 'source' | 'application' | 'introduced') 
   return fs.readFileSync(path.join(root, 'coverage.txt'), 'utf8').trim().split('\n')
 }
 
+/** The entries of the accept list the comparison was given. */
+function acceptedEntries(lines: string[]) {
+  const file = lines[lines.indexOf('--accept') + 1]!
+  return (JSON.parse(fs.readFileSync(file, 'utf8')) as { entries: string[] }[]).flatMap((group) => group.entries)
+}
+
 it('uses the coverage exceptions when the catalogue data changes', () => {
-  expect(compare('catalogue')).toContain('catalogue/accepted-coverage-losses.json')
+  expect(compare('catalogue')).toContain('--accept')
 })
 
-it('uses the coverage exceptions when the base predates the catalogue data', () => {
-  expect(compare('introduced')).toContain('catalogue/accepted-coverage-losses.json')
+it('passes on only the coverage exceptions the change adds, not those its base already holds', () => {
+  expect(acceptedEntries(compare('catalogue'))).toEqual(['accepted now'])
+})
+
+it('passes on every coverage exception when the base predates the catalogue data', () => {
+  expect(acceptedEntries(compare('introduced'))).toEqual(['accepted before', 'accepted now'])
 })
 
 it('does not reuse catalogue exceptions on later application changes', () => {

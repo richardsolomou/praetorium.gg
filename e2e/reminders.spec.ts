@@ -189,6 +189,8 @@ test('roster reminders cover selected rules and advances from another device', a
   await advance(page, { dismissReminders: false })
   await expect(reminder).toBeHidden()
   await advance(page, { dismissReminders: false })
+  // Phase ends show ahead of the service, and leaving the page drops the ones still queued.
+  await expect(opponent.getByRole('heading', { name: 'charge phase' })).toBeVisible()
   // The opponent's Fight phase starts and ends while the player is away, and its start alert waits for their return.
   await page.goto('/')
   await advance(opponent)

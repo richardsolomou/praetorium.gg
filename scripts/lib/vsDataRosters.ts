@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { z } from 'zod'
 import { type CatalogueIndex, resolve } from '../../src/core/catalogue'
-import { battleSizeSelection, type Selection } from '../../src/core/evaluate'
+import { battleSizeSelection, evaluate, type Selection } from '../../src/core/evaluate'
 import { buildUnit } from '../../src/core/roster'
 import { hasWarlordToggle } from '../../src/core/unitChoices'
 import { wargearOf } from '../../src/core/wargear'
@@ -19,15 +19,20 @@ import type { PriceInput } from '../../src/contracts/schemas'
 type Price = NonNullable<ReturnType<typeof calculateRosterPrice>>
 type PricedUnit = Price['units'][number]
 
-const mapSchema = z.object({ ids: z.record(z.string(), z.string()) })
-const legacy = (name: string) =>
-  mapSchema.parse(JSON.parse(fs.readFileSync(path.join(import.meta.dirname, `../../catalogue/legacy-ids/${name}.json`), 'utf8'))).ids
-export const legacyIds = () => ({
-  books: legacy('books'),
-  detachments: legacy('detachments'),
-  units: legacy('units'),
-  enhancements: legacy('enhancements'),
-})
+const mapSchema = z.object({ ids: z.record(z.string(), z.string()), allegiances: z.record(z.string(), z.string()).optional() })
+const mapOf = (name: string) =>
+  mapSchema.parse(JSON.parse(fs.readFileSync(path.join(import.meta.dirname, `../../catalogue/legacy-ids/${name}.json`), 'utf8')))
+export const legacyIds = () => {
+  const units = mapOf('units')
+  return {
+    books: mapOf('books').ids,
+    detachments: mapOf('detachments').ids,
+    units: units.ids,
+    /** The allegiance a datasheet's own identity implies (one Soul Grinder datasheet per god), keyed as `units` is. */
+    unitAllegiances: units.allegiances ?? {},
+    enhancements: mapOf('enhancements').ids,
+  }
+}
 export type LegacyIds = ReturnType<typeof legacyIds>
 
 const add = (bag: Map<string, number>, key: string, n: number) => {
@@ -95,6 +100,45 @@ function selectionsFor(
   }
   walk(0, new Map(delta), [])
   return best
+}
+
+/** The named items a VS Data unit carries: its models' and its own wargear, changed by the options it takes. */
+export function vsWargear(definitions: VsDataDefinitions, read: VsRosterUnit) {
+  const bag = new Map<string, number>()
+  const counts = read.models ?? {}
+  for (const model of definitions.modelsOf(read.unit))
+    for (const [id, n] of Object.entries(model.data.wargear)) leaves(definitions, id, n * (counts[model.id] ?? model.data.min), bag)
+  for (const [id, n] of Object.entries(definitions.get('unit', read.unit)?.data.wargear ?? {})) leaves(definitions, id, n, bag)
+  for (const [optionId, chosen] of Object.entries(read.options ?? {})) {
+    const replaces = definitions.get('roster-option', optionId)?.data.replaces ?? {}
+    for (const [choice, n] of Object.entries(chosen)) {
+      leaves(definitions, choice, n, bag)
+      for (const [id, m] of Object.entries(replaces)) leaves(definitions, id, -m * n, bag)
+    }
+  }
+  return bag
+}
+
+/** Every named item a VS Data unit can carry, which the reviewed spellings read BSData's names against. */
+export function vsKnownWargear(definitions: VsDataDefinitions, unit: string) {
+  const known = new Set(
+    vsWargear(definitions, { unit, models: Object.fromEntries(definitions.modelsOf(unit).map((model) => [model.id, 1])) }).keys(),
+  )
+  for (const option of definitions.optionsOf(unit))
+    for (const choice of option.data.choices) {
+      const into = new Map<string, number>()
+      leaves(definitions, choice, 1, into)
+      for (const name of into.keys()) known.add(name)
+    }
+  return known
+}
+
+/** What the catalogue's own checks report of one built unit in its roster, beyond what they report of the roster alone. */
+export function catalogueUnitErrors(index: CatalogueIndex, roster: readonly Selection[], primaryCatalogueId: string, unit: Selection) {
+  const said = (selections: readonly Selection[]) =>
+    evaluate(selections, index, { primaryCatalogueId }).errors.map((error) => `${error.entryName} ${error.message}`)
+  const before = new Set(said(roster))
+  return said([...roster, unit]).filter((error) => !before.has(error))
 }
 
 /** How many models of each name the built unit fields. */
@@ -223,7 +267,7 @@ export function vsRosterOf(
   return { roster: { faction, detachments, ...(battleSize ? { battleSize } : {}), units }, keys, gaps }
 }
 
-/** The unit's Enhancement as VS Data names it, and the names of every special it holds, which are not wargear. */
+/** The unit's Enhancement and Detachment upgrades as VS Data names them, and the names of every special it holds, which are not wargear. */
 export function specialOf(
   priced: PricedUnit,
   detachments: readonly string[],
@@ -232,17 +276,17 @@ export function specialOf(
 ) {
   const names = new Set([...priced.enhancements, ...priced.upgrades].map((name) => wargearKey(name)))
   const missing: string[] = []
-  let enhancement: string | undefined
+  const enhancements: string[] = []
   for (const choice of priced.choices) {
     if (!('kind' in choice) || !choice.kind) continue
     for (const option of choice.options.filter((candidate) => candidate.count > 0)) {
       names.add(wargearKey(option.name))
       const found = detachments.map((detachment) => key(ids.enhancements, `${detachment}/${option.id}`)).find(Boolean)
-      if (found) enhancement ??= found
+      if (found) enhancements.push(found)
       else missing.push(option.name)
     }
   }
-  return { enhancement, names, missing }
+  return { enhancement: enhancements[0], enhancements, names, missing }
 }
 
 /** The VS Data selections that give the built unit's wargear, Enhancements left out, against its models' own. */

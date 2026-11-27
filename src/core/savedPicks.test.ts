@@ -1,0 +1,50 @@
+import { describe, expect, it } from 'vitest'
+import type { RosterPick, VsPick } from './roster'
+import { savedPickKey, withVsPicks } from './savedPicks'
+
+const context = { rulesVersion: 'mfm-1-6', catalogueId: 'book', detachmentIds: ['gladius'] }
+const pick: RosterPick = { entryId: 'intercessors', models: 10, choices: { 'squad/sergeant': 'plasma-pistol' } }
+const vs: VsPick = { models: { 'space-marines.intercessor': 10 }, options: {} }
+const translated = (picks: RosterPick[]) => {
+  const key = savedPickKey(context, pick)
+  return withVsPicks({ catalogueId: 'book', detachmentIds: ['gladius'], picks }, 'mfm-1-6', (wanted) => (wanted === key ? vs : undefined))
+    .picks
+}
+
+describe('savedPickKey', () => {
+  it('ignores what a player names, notes, attaches or embarks', () => {
+    expect(savedPickKey(context, { ...pick, nickname: 'Fist', note: 'left flank', attachedTo: 2, embarkedIn: 3 })).toBe(
+      savedPickKey(context, pick),
+    )
+  })
+
+  it('reads an allied book that is the list’s own, a toggle off and an empty record as the plain pick', () => {
+    expect(savedPickKey(context, { ...pick, catalogueId: 'mfm-1-6~book', toggles: { warlord: 0 }, spreads: {} })).toBe(
+      savedPickKey(context, pick),
+    )
+  })
+
+  it('reads a choice saved in another key order as the same pick', () => {
+    const two = { a: 'x', b: 'y' }
+    expect(savedPickKey(context, { ...pick, choices: { b: 'y', a: 'x' } })).toBe(savedPickKey(context, { ...pick, choices: two }))
+  })
+
+  it('tells a pick changed after the freeze from the frozen one', () => {
+    expect(savedPickKey(context, { ...pick, choices: { 'squad/sergeant': 'hand-flamer' } })).not.toBe(savedPickKey(context, pick))
+  })
+
+  it('tells the same pick in another rules version apart', () => {
+    expect(savedPickKey({ ...context, rulesVersion: 'legacy-rosters' }, pick)).not.toBe(savedPickKey(context, pick))
+  })
+})
+
+describe('withVsPicks', () => {
+  it('attaches the frozen translation and keeps every stored field', () => {
+    expect(translated([{ ...pick, nickname: 'Fist' }])).toEqual([{ ...pick, nickname: 'Fist', vs }])
+  })
+
+  it('keeps a pick saved by VS Data IDs as it is', () => {
+    const own: VsPick = { models: { 'space-marines.intercessor': 5 }, options: {} }
+    expect(translated([{ ...pick, vs: own }])[0]?.vs).toBe(own)
+  })
+})
