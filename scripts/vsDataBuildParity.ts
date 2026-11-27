@@ -19,8 +19,8 @@ import { vsFirstFielding, vsResized, vsUnitProblems, vsUnitSize, vsWithChoice } 
 import { calculateRosterPrice } from '../src/shared/pricing'
 import { vsDefinitionsOf, vsUnitIdOf } from '../src/shared/vsDataBuild'
 import { loadSnapshot } from './lib/catalogueSnapshotLoad'
-import { same } from './lib/vsDataModelNames'
-import { ARTICLE, vsSpelling } from './lib/wargearSpellings'
+import { same } from '../src/shared/vsDataModelNames'
+import { ARTICLE, vsSpelling } from '../src/shared/wargearSpellings'
 import { wargearKey } from '../src/core/wargearNames'
 
 const { values, positionals } = parseArgs({
