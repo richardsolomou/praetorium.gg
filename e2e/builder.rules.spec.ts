@@ -372,7 +372,7 @@ test('an enhancement changes the weapons of the model bearing it', async ({ page
   // One relic, one army. VS Data's army rules say so, once, and it is the player's to undo.
   await second.getByRole('button', { name: 'Overlord', exact: true }).click()
   await loadout.getByRole('button', { name: 'Select Destroyer Ankh' }).click()
-  await expect(page.getByText(/Destroyer Ankh is already taken/)).toHaveCount(1)
+  await expect(page.getByText(/Destroyer Ankh is taken at most once/)).toHaveCount(1)
   await page.screenshot({ path: test.info().outputPath('enhancement-once-per-army.png'), fullPage: true })
 })
 

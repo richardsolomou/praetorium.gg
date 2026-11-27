@@ -58,6 +58,8 @@ export type DetachmentData = {
   requiredWarlords?: string[]
   group?: string
   allegianceLimits?: (RosterBounds & { allegiances: string[] })[]
+  /** While the roster holds it, a unit holding every one of `keywords` takes only this Detachment's Enhancements. */
+  exclusiveEnhancements?: { keywords: string[] }
 }
 export type AllegianceOffer = { choices: string[]; required?: true; detachment?: string; requires?: Record<string, string> }
 export type Limit = { battleSize: string; perRoster: number; when?: When }
@@ -83,6 +85,8 @@ export type UnitData = {
   compositions?: Record<string, Bounds>[]
   modelGroups?: (ModelCountBounds & { models: string[] })[]
   optionGroups?: OptionGroup[]
+  /** Each lists `uniform` options of different carriers that take one choice together, or none of them takes one. */
+  uniformOptions?: string[][]
   perRoster?: number
   limits?: Limit[]
   legends?: true
@@ -93,7 +97,8 @@ export type UnitData = {
   defaultModels?: Record<string, number>
 }
 /** `keywords` are those the model has beyond its unit's, as when a squad's leader is a Character. */
-export type ModelData = ModelCountBounds & { unit: string; wargear: Counts; keywords?: string[] }
+/** `warlord: false` keeps the model from the Warlord role unless a Detachment's or the faction's `warlords` grants it. */
+export type ModelData = ModelCountBounds & { unit: string; wargear: Counts; keywords?: string[]; warlord?: false }
 export type Requirement = { option: string; choices: string[] }
 export type OptionData = {
   unit: string
