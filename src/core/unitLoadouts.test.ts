@@ -31,9 +31,9 @@ describe('loadoutOf', () => {
     })
   })
 
-  it('keeps a unit’s VS Data models and wargear but not its Enhancements or Warlord', () => {
+  it('keeps a unit’s VS Data models and wargear but not its Enhancement or Warlord', () => {
     const vs = { models: { 'host.captain.captain': 1 }, options: { 'host.captain.blade': { 'host.captain.sword': 1 } } }
-    expect(alone({ vs: { ...vs, enhancements: ['host.guard.relic'], warlord: 'host.captain.captain' } })?.pick.vs).toEqual(vs)
+    expect(alone({ vs: { ...vs, enhancement: 'host.guard.relic', warlord: 'host.captain.captain' } })?.pick.vs).toEqual(vs)
   })
 
   it('records the book of an allied unit rather than the roster it stood in', () => {

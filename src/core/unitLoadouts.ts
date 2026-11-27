@@ -52,7 +52,7 @@ function savedPick(pick: RosterPick, unit: PricedUnit): UnitLoadoutPick {
     ...(pick.models === undefined ? {} : { models: pick.models }),
     ...(choices && Object.keys(choices).length ? { choices } : {}),
     ...(pick.spreads ? { spreads: pick.spreads } : {}),
-    // A loadout keeps a unit's models and wargear, never its Enhancements, allegiance or Warlord.
+    // A loadout keeps a unit's models and wargear, never its Enhancement, allegiance or Warlord.
     ...(pick.vs ? { vs: { models: pick.vs.models, options: pick.vs.options } } : {}),
     ...(pick.nickname ? { nickname: pick.nickname } : {}),
   }
