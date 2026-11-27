@@ -20,9 +20,16 @@ export default defineConfig({
     // `--changed` follows imports, and suites read these from disk or run them as processes, so a change to one runs every suite.
     forceRerunTriggers: [
       ...configDefaults.forceRerunTriggers,
-      ...['catalogue.json', 'catalogue/**', 'spacetimedb/**', 'drizzle-auth/**', 'scripts/**', 'mobile/**', '.github/**', 'src/**/*.worker.ts'].map(
-        (pattern) => path.join(import.meta.dirname, pattern),
-      ),
+      ...[
+        'catalogue.json',
+        'catalogue/**',
+        'spacetimedb/**',
+        'drizzle-auth/**',
+        'scripts/**',
+        'mobile/**',
+        '.github/**',
+        'src/**/*.worker.ts',
+      ].map((pattern) => path.join(import.meta.dirname, pattern)),
     ],
   },
 })
