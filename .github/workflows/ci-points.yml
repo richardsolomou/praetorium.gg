@@ -45,7 +45,15 @@ jobs:
       # A new snapshot needs a preceding code revision able to read its source format.
       - name: Pin the catalogue snapshot
         run: cp -a catalogue-data catalogue-data.pinned
+      # A base commit measures the same against one snapshot every time, so its count is kept for the next run on it.
+      - name: Restore the base measurement
+        id: base
+        uses: actions/cache@v6
+        with:
+          path: base-points.txt
+          key: catalogue-points-${{ steps.comparison.outputs.sha }}-${{ hashFiles('catalogue-data/.snapshot.json') }}
       - name: Measure the base
+        if: steps.base.outputs.cache-hit != 'true'
         env:
           CATALOGUE_BASELINES: report
         run: |
