@@ -1,4 +1,3 @@
-
 import { type Definition, isAbilityProfile, profileDescription, targetOf } from '../core/catalogue'
 import { cachedIn, groupBy, remember } from '../core/collections'
 import { routeSlug } from '../core/slug'
