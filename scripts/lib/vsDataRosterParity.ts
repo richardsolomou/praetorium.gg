@@ -119,7 +119,7 @@ export async function savedLists(file: string): Promise<SavedList[]> {
  * a saved datasheet that is gone. Every other check is the catalogue's, which VS Data's checker replaces.
  */
 export const keptCheck = (message: string) =>
-  /must be attached|cannot support|cannot be attached|can be attached|needs a Warlord|needs exactly \d+ Warlord|King of the Colosseum|multiple detachments at this battle size|no longer available|can have only one|replaced faction catalogue|detachment that is no longer available/.test(
+  /must be attached|cannot support|cannot be attached|can be attached|needs a Warlord|needs exactly \d+ Warlord|King of the Colosseum|detachments at this battle size may cost|no longer available|can have only one|replaced faction catalogue|detachment that is no longer available/.test(
     message,
   )
 

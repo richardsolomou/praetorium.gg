@@ -59,8 +59,11 @@ it('offers a detachment that fits in the DP left', () => {
   expect(detachmentRefusal(priced('two', 1), [priced('one', 2)], 2000)).toBeNull()
 })
 
-it('offers any lone detachment whatever it costs', () => {
-  expect(detachmentRefusal(priced('one', 5), [], 1000)).toBeNull()
+it('refuses a lone detachment that costs more DP than the battle size allows', () => {
+  expect(detachmentRefusal(priced('one', 3), [], 1000)).toEqual({
+    kind: 'points',
+    reason: 'one costs 3 DP, more than the 2 DP this battle size allows.',
+  })
 })
 
 it('refuses a detachment past the most an army can include', () => {

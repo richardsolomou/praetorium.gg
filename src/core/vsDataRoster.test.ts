@@ -8,7 +8,12 @@ const construction: VsDataConstruction = {
   rulesVersion: { edition: '11th', update: 'test' },
   unavailable: [],
   definitions: {
-    faction: { host: record('Host', {}), other: record('Other', {}) },
+    faction: {
+      host: record('Host', {}),
+      other: record('Other', {}),
+      chapter: record('Chapter', { parent: 'host', excludedDetachments: ['host.guard'] }),
+      titan: record('Titan', { withoutDetachments: { warlords: ['titan.engine.engine'] } }),
+    },
     'battle-size': { small: record('Small', { points: 500, enhancements: 1 }) },
     detachment: { 'host.guard': record('Guard', { faction: 'host' }) },
     unit: {
@@ -17,6 +22,8 @@ const construction: VsDataConstruction = {
       'host.hero': record('Hero', { faction: 'host', keywords: ['CHARACTER', 'EPIC HERO', 'INFANTRY'], sizes: [1] }),
       'host.agent': record('Agent', { faction: 'host', keywords: ['INFANTRY'], sizes: [1] }),
       'host.envoy': record('Envoy', { faction: 'host', keywords: ['INFANTRY'], sizes: [1] }),
+      'host.squad': record('Squad', { faction: 'host', keywords: ['INFANTRY'], sizes: [5] }),
+      'titan.engine': record('Engine', { faction: 'titan', keywords: ['TITANIC'], sizes: [1] }),
     },
     model: {
       'host.walker.walker': record('Walker', {
@@ -29,6 +36,9 @@ const construction: VsDataConstruction = {
       'host.hero.hero': record('Hero', { unit: 'host.hero', min: 1, max: 1, wargear: {} }),
       'host.agent.agent': record('Agent', { unit: 'host.agent', min: 1, max: 1, wargear: {} }),
       'host.envoy.envoy': record('Envoy', { unit: 'host.envoy', min: 1, max: 1, wargear: {} }),
+      'host.squad.leader': record('Leader', { unit: 'host.squad', min: 1, max: 1, keywords: ['CHARACTER'], wargear: {} }),
+      'host.squad.trooper': record('Trooper', { unit: 'host.squad', min: 4, max: 4, wargear: {} }),
+      'titan.engine.engine': record('Engine', { unit: 'titan.engine', min: 1, max: 1, wargear: {} }),
     },
     'roster-option': {
       'host.walker.cannons': record('Cannons', {
@@ -201,5 +211,28 @@ describe('checkVsRoster', () => {
         { unit: 'host.captain', enhancement: 'host.guard.crown' },
       ]),
     ).toEqual(['enhancement-limit'])
+  })
+
+  it('refuses a parent’s Detachment the faction excludes', () => {
+    expect(checkVsRoster(definitions, roster([], 'chapter')).map((problem) => problem.code)).toEqual(['detachment-excluded'])
+  })
+
+  it('refuses any Detachment to a faction that takes none', () => {
+    const engine = { unit: 'titan.engine', warlord: 'titan.engine.engine' }
+    expect(checkVsRoster(definitions, roster([engine], 'titan')).map((problem) => problem.code)).toContain('detachment-count')
+  })
+
+  it('needs the Warlord of a faction without Detachments to be one it names', () => {
+    expect(checkVsRoster(definitions, roster([{ unit: 'titan.engine' }], 'titan', [])).map((problem) => problem.code)).toEqual([
+      'warlord-required',
+    ])
+  })
+
+  it('gives an Enhancement to a squad whose leader is a Character', () => {
+    expect(codes([{ unit: 'host.squad', enhancement: 'host.guard.relic' }])).toEqual([])
+  })
+
+  it('lets a squad’s Character leader be the Warlord', () => {
+    expect(codes([{ unit: 'host.squad', warlord: 'host.squad.leader' }])).toEqual([])
   })
 })

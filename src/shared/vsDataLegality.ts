@@ -1,6 +1,5 @@
 import { type VsDataConstruction, type VsDataDefinitions, vsDataDefinitions } from '../core/vsDataConstruction'
-import { nonMatchedPlayKind } from '../core/name'
-import { checkVsRoster, enhancementAdmits, unitKeywords, type VsProblem, type VsRosterUnit } from '../core/vsDataRoster'
+import { checkVsRoster, type VsProblem, type VsRosterUnit } from '../core/vsDataRoster'
 import { hasWarlordToggle, type UnitChoice, type UnitToggle } from '../core/unitChoices'
 import { remember } from '../core/collections'
 import { idsIn, type VsDataIds } from './vsDataPoints'
@@ -8,7 +7,7 @@ import { idsIn, type VsDataIds } from './vsDataPoints'
 /**
  * A rules version's VS Data roster definitions without wargear, and the IDs its saved lists hold read as VS Data's: each
  * book's faction, each Detachment, each Enhancement option under its VS Data Detachment, and each datasheet VS Data
- * checks. A Warhammer Legends datasheet stays with the catalogue's checks, as with its price.
+ * checks.
  */
 export type VsRosterData = {
   construction: VsDataConstruction
@@ -27,10 +26,7 @@ export function vsRosterData(
   const definitions = vsDataDefinitions(construction)
   const units: Record<string, string> = {}
   for (const [entryId, id] of idsIn(ids.units, edition)) {
-    const unit = definitions.get('unit', id)
-    const name = nameOf(entryId)
-    if (!name || nonMatchedPlayKind(name) === 'legends' || unit?.data.legends) continue
-    if (unit || definitions.unavailable.has(id)) units[entryId] = id
+    if (nameOf(entryId) && (definitions.get('unit', id) || definitions.unavailable.has(id))) units[entryId] = id
   }
   return {
     construction,
@@ -115,8 +111,13 @@ export function vsDataErrors(
       ),
     )
     if (hasWarlordToggle(unit.toggles)) {
+      // The Warlord is the unit's Character model, as a Company Heroes' Ancient is, else its one model of a kind.
       const models = definitions.modelsOf(id)
-      read.warlord = (models.find((model) => model.data.max === 1) ?? models[0])?.id
+      read.warlord = (
+        models.find((model) => model.data.keywords?.some((keyword) => keyword.toUpperCase() === 'CHARACTER')) ??
+        models.find((model) => model.data.max === 1) ??
+        models[0]
+      )?.id
     }
     return [{ unit, read, offersAllegiance }]
   })
@@ -126,28 +127,9 @@ export function vsDataErrors(
     ...(battleSize ? { battleSize } : {}),
     units: checked.map(({ read }) => read),
   }
-  // VS Data leaves CHARACTER off some units whose models the app makes Characters (Company Heroes, a Ravenwing Command
-  // Squad); where the catalogue says the unit is a Character, its Enhancements and Warlord are not refused for that.
-  const character = (at: number | undefined) => {
-    const found = checked[at ?? -1]
-    return (
-      Boolean(found?.unit.keywords.some((keyword) => keyword.toUpperCase() === 'CHARACTER')) &&
-      !definitions.get('unit', found!.read.unit)?.data.keywords.some((keyword) => keyword.toUpperCase() === 'CHARACTER')
-    )
-  }
   const unpriced = { units: [], points: 0, detachmentPoints: 0, unpriced: [] }
   return checkVsRoster(definitions, roster, unpriced)
     .filter((problem) => problem.code !== 'allegiance-missing' || checked[problem.unit ?? -1]?.offersAllegiance)
-    .filter((problem) => {
-      if (!character(problem.unit)) return true
-      const { read } = checked[problem.unit!]!
-      if (problem.code === 'warlord-ineligible') return false
-      if (problem.code !== 'enhancement-keywords' || !read.enhancement) return true
-      // Refused only for what the missing keyword does not explain.
-      const enhancement = definitions.get('enhancement', read.enhancement)
-      const keywords = [...unitKeywords(definitions.get('unit', read.unit)!.data, roster, read.allegiance), 'CHARACTER']
-      return !enhancement || !enhancementAdmits(definitions, enhancement, read, keywords)
-    })
     .flatMap((problem) => described(problem, checked, definitions) ?? [])
 }
 

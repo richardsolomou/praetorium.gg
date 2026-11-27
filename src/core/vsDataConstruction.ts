@@ -33,7 +33,18 @@ export type Ally = {
   oneLimit?: true
   enhancements?: true
 }
-export type FactionData = { unitLimits?: UnitLimit[]; parent?: string; excludedUnits?: string[]; allies?: Ally[] }
+/**
+ * `excludedDetachments` are its parent's Detachments its rosters may not take. With `withoutDetachments`, its rosters take
+ * none, their Warlord is one of its `warlords`, and `dispositions` are their force dispositions.
+ */
+export type FactionData = {
+  unitLimits?: UnitLimit[]
+  parent?: string
+  excludedUnits?: string[]
+  excludedDetachments?: string[]
+  withoutDetachments?: { warlords: string[]; dispositions?: string[] }
+  allies?: Ally[]
+}
 export type BattleSizeData = { points: number; detachmentPoints?: number; enhancements?: number; duplicates?: number }
 export type DetachmentData = {
   faction: string
@@ -78,7 +89,8 @@ export type UnitData = {
   defaults?: Record<string, Counts>
   defaultModels?: Record<string, number>
 }
-export type ModelData = ModelCountBounds & { unit: string; wargear: Counts }
+/** `keywords` are those the model has beyond its unit's, as when a squad's leader is a Character. */
+export type ModelData = ModelCountBounds & { unit: string; wargear: Counts; keywords?: string[] }
 export type Requirement = { option: string; choices: string[] }
 export type OptionData = {
   unit: string

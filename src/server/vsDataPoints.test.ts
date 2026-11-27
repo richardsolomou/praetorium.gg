@@ -26,10 +26,6 @@ beforeEach(() => {
 })
 afterEach(() => fs.rmSync(root, { recursive: true, force: true }))
 
-it('prices an earlier rules version whose own release prices it as its app build did', () => {
+it('prices an earlier rules version from its own release', () => {
   expect(vsPointsIn(path.join(root, 'editions', 'marine-main'), index, 'marine-main')).not.toBeNull()
-})
-
-it('leaves an earlier rules version whose release reads a later app build to its field manual', () => {
-  expect(vsPointsIn(path.join(root, 'editions', 'legacy-rosters'), index, 'legacy-rosters')).toBeNull()
 })

@@ -88,11 +88,15 @@ export function detachmentRefusal(
   const conflict = detachmentConflict(detachment, selected)
   if (conflict) return { kind: 'conflict', reason: conflict }
   const allowance = detachmentPointBudget(limit)
-  // A lone detachment is never over budget, whatever it costs.
-  if (selected.length && allowance !== null && detachment.points != null && enforces(waived, 'detachment-points')) {
+  if (allowance !== null && detachment.points != null && enforces(waived, 'detachment-points')) {
     const left = allowance - selected.reduce((total, other) => total + (other.points ?? 0), 0)
     if (detachment.points > left)
-      return { kind: 'points', reason: `${detachment.name} costs ${detachment.points} DP, and only ${left} of ${allowance} DP are left.` }
+      return {
+        kind: 'points',
+        reason: selected.length
+          ? `${detachment.name} costs ${detachment.points} DP, and only ${left} of ${allowance} DP are left.`
+          : `${detachment.name} costs ${detachment.points} DP, more than the ${allowance} DP this battle size allows.`,
+      }
   }
   return null
 }

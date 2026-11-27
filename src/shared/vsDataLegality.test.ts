@@ -90,19 +90,6 @@ describe('vsDataErrors', () => {
     expect(vsDataErrors(data, { catalogueId: 'bs-titan', detachmentIds: [], limit: 1000 }, [])).toBeNull()
   })
 
-  it('gives a unit the catalogue reads as a Character the Enhancement VS Data keeps for Characters', () => {
-    expect(
-      errors([
-        unit({
-          entryId: 'bs-mob',
-          size: { models: 10, min: 10, max: 20 },
-          keywords: ['Character'],
-          choices: [option('bs-crown', 'Crown')],
-        }),
-      ]),
-    ).toEqual([])
-  })
-
   it('leaves a list with another faction’s Detachment to the catalogue', () => {
     expect(errors([unit({ entryId: 'bs-mob', size: { models: 15, min: 10, max: 20 } })], ['bs-raid'])).toBeNull()
   })

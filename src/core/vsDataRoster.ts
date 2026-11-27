@@ -54,6 +54,7 @@ export type VsProblemCode =
   | 'ally-enhancement'
   | 'detachment-group'
   | 'detachment-count'
+  | 'detachment-excluded'
   | 'detachment-repeated'
   | 'allegiance-missing'
   | 'allegiance-choice'
@@ -149,20 +150,26 @@ export function enhancementAdmits(
 ): boolean {
   const unit = definitions.get('unit', picked.unit)
   if (!unit || unit.data.enhancements === false) return false
-  const held = upper(keywords)
   const { eligibility } = enhancement.data
-  if (!eligibility.nonCharacters && !held.includes('CHARACTER')) return false
-  if (!eligibility.epicHeroes && held.includes('EPIC HERO')) return false
-  if ((eligibility.excludedKeywords ?? []).some((keyword) => held.includes(keyword.toUpperCase()))) return false
-  const matches = eligibility.anyOf.some(
-    (entry) =>
-      (!entry.unit || entry.unit.id === picked.unit) &&
-      holdsAll(held, upper(entry.keywords ?? [])) &&
-      holdsAll(held, upper(entry.factionKeywords ?? [])),
-  )
-  if (!matches) return false
+  const bears = (keywordsHeld: readonly string[]) => {
+    const held = upper(keywordsHeld)
+    if (!eligibility.nonCharacters && !held.includes('CHARACTER')) return false
+    if (!eligibility.epicHeroes && held.includes('EPIC HERO')) return false
+    if ((eligibility.excludedKeywords ?? []).some((keyword) => held.includes(keyword.toUpperCase()))) return false
+    return eligibility.anyOf.some(
+      (entry) =>
+        (!entry.unit || entry.unit.id === picked.unit) &&
+        holdsAll(held, upper(entry.keywords ?? [])) &&
+        holdsAll(held, upper(entry.factionKeywords ?? [])),
+    )
+  }
+  // A model of the unit bears it, with its unit's keywords and its own: one fielded, or any for a unit read by its size alone.
+  const sizeOnly = picked.size !== undefined && !picked.models
+  const counts = modelCounts(definitions, picked)
+  const bearers = definitions.modelsOf(picked.unit).filter((model) => sizeOnly || (counts.get(model.id) ?? 0) > 0)
+  if (!(bearers.length ? bearers.map((model) => [...keywords, ...(model.data.keywords ?? [])]) : [keywords]).some(bears)) return false
   // A unit read by its size alone has no wargear read, so what it carries is the catalogue's to check.
-  if (picked.size !== undefined && !picked.models) return true
+  if (sizeOnly) return true
   const carrying = carried(definitions, picked)
   const names = new Set([...carrying].filter(([, n]) => n > 0).map(([id]) => (definitions.get('wargear', id)?.name ?? id).toLowerCase()))
   return (eligibility.requiredWargear ?? []).every((name) => names.has(name.toLowerCase()))
@@ -347,8 +354,12 @@ export function checkVsRoster(definitions: VsDataDefinitions, roster: VsRoster, 
   const faction = current('faction', roster.faction) ? definitions.get('faction', roster.faction)!.data : undefined
   const own = new Set([roster.faction, ...(faction?.parent ? [faction.parent] : [])])
   const detachmentIds = roster.detachments
-  if (detachmentIds.length === 0 || detachmentIds.length > 3)
-    rosterProblem('detachment-count', `a roster has one to three detachments, has ${detachmentIds.length}`)
+  const without = faction?.withoutDetachments
+  if (without ? detachmentIds.length > 0 : detachmentIds.length === 0 || detachmentIds.length > 3)
+    rosterProblem(
+      'detachment-count',
+      `a ${roster.faction} roster has ${without ? 'no detachments' : 'one to three detachments'}, has ${detachmentIds.length}`,
+    )
   for (const [at, id] of detachmentIds.entries())
     if (detachmentIds.indexOf(id) < at) rosterProblem('detachment-repeated', `detachment:${id} is listed more than once`)
   const detachments = [...new Set(detachmentIds)].filter((id) => current('detachment', id)).map((id) => definitions.get('detachment', id)!)
@@ -356,13 +367,22 @@ export function checkVsRoster(definitions: VsDataDefinitions, roster: VsRoster, 
   for (const detachment of detachments) {
     if (faction && !own.has(detachment.data.faction))
       rosterProblem('detachment-faction', `detachment:${detachment.id} is not a ${roster.faction} detachment`)
+    else if (faction?.excludedDetachments?.includes(detachment.id))
+      rosterProblem('detachment-excluded', `detachment:${detachment.id} is excluded from ${roster.faction} rosters`)
     const { group } = detachment.data
     if (group === undefined) continue
     if (groups.has(group)) rosterProblem('detachment-group', `${detachment.name} shares ${group} with detachment:${groups.get(group)}`)
     else groups.set(group, detachment.id)
   }
   const excluded = new Set([...(faction?.excludedUnits ?? []), ...detachments.flatMap((detachment) => detachment.data.excludedUnits ?? [])])
-  const granted = new Set(detachments.flatMap((detachment) => detachment.data.warlords ?? []))
+  const granted = new Set([...detachments.flatMap((detachment) => detachment.data.warlords ?? []), ...(without?.warlords ?? [])])
+  // The Warlord must be one of each list: each of the roster's Detachments' and a faction's without Detachments.
+  const requiredWarlords = [
+    ...detachments.flatMap((detachment) =>
+      detachment.data.requiredWarlords ? [{ name: detachment.name, models: detachment.data.requiredWarlords }] : [],
+    ),
+    ...(without ? [{ name: roster.faction, models: without.warlords }] : []),
+  ]
   const allies = faction?.allies ?? []
   // A unit belongs to the first entry that offers it under one of the roster's detachments, and only that entry counts it.
   const entryOf = (unit: string) =>
@@ -417,14 +437,16 @@ export function checkVsRoster(definitions: VsDataDefinitions, roster: VsRoster, 
       const inUnit = models.some((model) => model.id === warlord)
       if (current('model', warlord, at) && !inUnit) add('unit-model', `model:${warlord} is not part of ${unit.name}`)
       if (warlords > 1) add('warlord-repeated', 'a roster has one warlord')
-      const character = keywords.some((keyword) => keyword.toUpperCase() === 'CHARACTER')
-      if (inUnit && !granted.has(warlord) && (!character || offered.length > 0 || !own.has(unit.data.faction)))
+      // A unit read by its size alone fields the Warlord's model as the catalogue builds it.
+      const fielded = picked.size !== undefined && !picked.models ? true : (modelCounts(definitions, picked).get(warlord) ?? 0) > 0
+      const held = [...keywords, ...(models.find((model) => model.id === warlord)?.data.keywords ?? [])]
+      const character = held.some((keyword) => keyword.toUpperCase() === 'CHARACTER')
+      if (inUnit && !fielded) add('warlord-ineligible', `model:${warlord} is not fielded in ${unit.name}`)
+      else if (inUnit && !granted.has(warlord) && (!character || offered.length > 0 || !own.has(unit.data.faction)))
         add('warlord-ineligible', `${unit.name} cannot hold the warlord`)
-      for (const detachment of detachments) {
-        const required = detachment.data.requiredWarlords
-        if (inUnit && required && !required.includes(warlord))
-          add('warlord-required', `${detachment.name} needs one of ${required.map((m) => `model:${m}`).join(', ')} as warlord`)
-      }
+      for (const required of requiredWarlords)
+        if (inUnit && !required.models.includes(warlord))
+          add('warlord-required', `${required.name} needs one of ${required.models.map((m) => `model:${m}`).join(', ')} as warlord`)
     }
     if (picked.size === undefined || picked.models) checkVsUnit(definitions, picked, add)
     else if (!unit.data.sizes.includes(picked.size))
@@ -502,10 +524,7 @@ export function checkVsRoster(definitions: VsDataDefinitions, roster: VsRoster, 
         )
     }
   if (warlords === 0)
-    for (const detachment of detachments) {
-      const required = detachment.data.requiredWarlords
-      if (required)
-        rosterProblem('warlord-required', `${detachment.name} needs one of ${required.map((m) => `model:${m}`).join(', ')} as warlord`)
-    }
+    for (const required of requiredWarlords)
+      rosterProblem('warlord-required', `${required.name} needs one of ${required.models.map((m) => `model:${m}`).join(', ')} as warlord`)
   return problems
 }
